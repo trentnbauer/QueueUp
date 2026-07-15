@@ -26,7 +26,7 @@ export function GameInputBar({ roomId, onAdded }: GameInputBarProps) {
     debounceRef.current = setTimeout(async () => {
       setSearching(true);
       try {
-        const { results } = await gamesApi.search(query.trim());
+        const { results } = await gamesApi.search(query.trim(), roomId);
         setResults(results);
       } catch {
         setResults([]);
@@ -37,13 +37,13 @@ export function GameInputBar({ roomId, onAdded }: GameInputBarProps) {
     return () => {
       if (debounceRef.current) clearTimeout(debounceRef.current);
     };
-  }, [query, candidate]);
+  }, [query, candidate, roomId]);
 
   async function handlePick(result: GameSearchResult) {
     setBusy(true);
     setError(null);
     try {
-      const { preview } = await gamesApi.preview(result.igdbId);
+      const { preview } = await gamesApi.preview(result.igdbId, roomId);
       setCandidate(preview);
       setResults([]);
     } catch (err) {

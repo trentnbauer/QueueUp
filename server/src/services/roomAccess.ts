@@ -1,5 +1,11 @@
 import { prisma } from '../db/client.js';
 import { HttpError } from '../util/httpError.js';
+import type { RoomPlatform } from '@squadqueue/shared';
+
+export async function getRoomPlatform(roomId: string): Promise<RoomPlatform> {
+  const room = await prisma.room.findUniqueOrThrow({ where: { id: roomId } });
+  return room.platform;
+}
 
 export async function requireMembership(roomId: string, userId: string) {
   const membership = await prisma.roomMember.findUnique({

@@ -1,13 +1,25 @@
-import { searchGames, getGameDetail } from './igdbClient.js';
+import { searchGames, getGameDetail, type IgdbGameDetail } from './igdbClient.js';
 import { getSteamPriceAndUrl, getSteamPrice } from './priceService.js';
-import type { GameIntakeCandidate, GameSearchResult } from '@squadqueue/shared';
+import { HttpError } from '../util/httpError.js';
+import { ROOM_PLATFORM_LABELS, type GameIntakeCandidate, type GameSearchResult, type RoomPlatform } from '@squadqueue/shared';
 
-export async function searchIntake(query: string): Promise<GameSearchResult[]> {
-  return searchGames(query);
+export async function searchIntake(query: string, roomPlatform?: RoomPlatform): Promise<GameSearchResult[]> {
+  return searchGames(query, roomPlatform);
 }
 
-async function resolveCandidate(igdbId: number): Promise<GameIntakeCandidate> {
+function assertPlatformMatch(detail: IgdbGameDetail, roomPlatform?: RoomPlatform): void {
+  if (!roomPlatform) return;
+  if (!detail.platformFamilies.includes(roomPlatform)) {
+    throw new HttpError(
+      400,
+      `${detail.title} isn't available on ${ROOM_PLATFORM_LABELS[roomPlatform]}, and this room is limited to that platform.`,
+    );
+  }
+}
+
+async function resolveCandidate(igdbId: number, roomPlatform?: RoomPlatform): Promise<GameIntakeCandidate> {
   const detail = await getGameDetail(igdbId);
+  assertPlatformMatch(detail, roomPlatform);
 
   if (detail.steamAppId) {
     const { price, ggDealsUrl } = await getSteamPriceAndUrl(detail.steamAppId);
@@ -34,12 +46,15 @@ async function resolveCandidate(igdbId: number): Promise<GameIntakeCandidate> {
 }
 
 /** Resolves a chosen search result into a fully-priced candidate for the preview panel. */
-export async function previewIntake(igdbId: number): Promise<GameIntakeCandidate> {
-  return resolveCandidate(igdbId);
+export async function previewIntake(igdbId: number, roomPlatform?: RoomPlatform): Promise<GameIntakeCandidate> {
+  return resolveCandidate(igdbId, roomPlatform);
 }
 
 /** Fully resolves a game once the user confirms adding it. */
-export async function resolveGameForCreation(igdbId: number): Promise<{
+export async function resolveGameForCreation(
+  igdbId: number,
+  roomPlatform?: RoomPlatform,
+): Promise<{
   title: string;
   platform: string;
   genre: string | null;
@@ -48,6 +63,7 @@ export async function resolveGameForCreation(igdbId: number): Promise<{
   steamAppId: number | null;
 }> {
   const detail = await getGameDetail(igdbId);
+  assertPlatformMatch(detail, roomPlatform);
   const ggDealsUrl = detail.steamAppId ? (await getSteamPriceAndUrl(detail.steamAppId)).ggDealsUrl : null;
 
   return {

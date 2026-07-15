@@ -1,10 +1,10 @@
 import { redis } from './redisClient.js';
 import { env } from '../config/env.js';
 import { HttpError } from '../util/httpError.js';
-import type { GameSearchResult } from '@squadqueue/shared';
+import type { GameSearchResult, RoomPlatform } from '@squadqueue/shared';
 
 const TOKEN_CACHE_KEY = 'igdb:token:v1';
-const DETAIL_CACHE_PREFIX = 'igdb:detail:v2:'; // v2: added genre field
+const DETAIL_CACHE_PREFIX = 'igdb:detail:v3:'; // v3: added platformFamilies
 const DETAIL_CACHE_TTL_SECONDS = 60 * 60 * 24; // 24h — title/cover/platform/steamAppId rarely change
 
 interface TwitchTokenResponse {
@@ -70,6 +70,24 @@ function genreLabel(genres?: IgdbGenre[]): string | null {
   return names.length > 0 ? names.join(', ') : null;
 }
 
+// Maps IGDB's granular platform names (e.g. "Xbox Series X|S", "PC (Microsoft Windows)") down to
+// the handful of platform families a Room can be restricted to. Order matters: "Switch 2" must be
+// checked before the plain "Switch" substring match, or it'd also match as "switch".
+function platformFamilies(platforms?: IgdbPlatform[]): RoomPlatform[] {
+  const families = new Set<RoomPlatform>();
+  for (const { name } of platforms ?? []) {
+    if (!name) continue;
+    const lower = name.toLowerCase();
+    if (lower.includes('switch 2')) families.add('switch2');
+    else if (lower.includes('switch')) families.add('switch');
+    else if (lower.includes('xbox')) families.add('xbox');
+    else if (lower.includes('playstation') || /\bps[3-5]\b/.test(lower)) families.add('playstation');
+    else if (lower.includes('pc') || lower.includes('windows') || lower.includes('mac') || lower.includes('linux'))
+      families.add('pc');
+  }
+  return Array.from(families);
+}
+
 function releaseYear(unixSeconds?: number): number | null {
   return unixSeconds ? new Date(unixSeconds * 1000).getUTCFullYear() : null;
 }
@@ -109,7 +127,7 @@ async function igdbRequest<T>(endpoint: string, body: string): Promise<T> {
   return (await response.json()) as T;
 }
 
-export async function searchGames(query: string): Promise<GameSearchResult[]> {
+export async function searchGames(query: string, roomPlatform?: RoomPlatform): Promise<GameSearchResult[]> {
   const trimmed = query.trim();
   if (!trimmed) return [];
 
@@ -121,6 +139,7 @@ export async function searchGames(query: string): Promise<GameSearchResult[]> {
 
   return games
     .filter((g) => g.name)
+    .filter((g) => !roomPlatform || platformFamilies(g.platforms).includes(roomPlatform))
     .map((g) => ({
       igdbId: g.id,
       title: g.name!,
@@ -134,6 +153,7 @@ export interface IgdbGameDetail {
   igdbId: number;
   title: string;
   platform: string;
+  platformFamilies: RoomPlatform[];
   genre: string | null;
   coverImageUrl: string | null;
   steamAppId: number | null;
@@ -176,6 +196,7 @@ export async function getGameDetail(igdbId: number): Promise<IgdbGameDetail> {
     igdbId: game.id,
     title: game.name,
     platform: platformLabel(game.platforms),
+    platformFamilies: platformFamilies(game.platforms),
     genre: genreLabel(game.genres),
     coverImageUrl: coverUrl(game.cover),
     steamAppId: steamUid && /^\d+$/.test(steamUid) ? Number(steamUid) : null,

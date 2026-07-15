@@ -1,6 +1,7 @@
 import { useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
+import { ROOM_PLATFORM_LABELS, type RoomPlatform } from '@squadqueue/shared';
 import { useAuth } from '../context/AuthContext';
 import { useView } from '../context/ViewContext';
 import { useRooms } from '../hooks/useRooms';
@@ -9,6 +10,8 @@ import { authApi } from '../api/auth';
 import { AvatarBadge } from './AvatarBadge';
 import { ACCENT_PRESETS } from '../theme/defaultTheme';
 import styles from './Header.module.css';
+
+const ROOM_PLATFORM_OPTIONS = Object.keys(ROOM_PLATFORM_LABELS) as RoomPlatform[];
 
 export function Header() {
   const { user } = useAuth();
@@ -21,6 +24,7 @@ export function Header() {
   const [showCreateForm, setShowCreateForm] = useState(false);
   const [showJoinForm, setShowJoinForm] = useState(false);
   const [newRoomName, setNewRoomName] = useState('');
+  const [newRoomPlatform, setNewRoomPlatform] = useState<RoomPlatform>('pc');
   const [inviteCode, setInviteCode] = useState('');
 
   const { data: membersData } = useQuery({
@@ -34,8 +38,9 @@ export function Header() {
     e.preventDefault();
     if (!newRoomName.trim()) return;
     const accentColor = ACCENT_PRESETS[Math.floor(Math.random() * ACCENT_PRESETS.length)].value;
-    const { room } = await createRoom.mutateAsync({ name: newRoomName.trim(), accentColor });
+    const { room } = await createRoom.mutateAsync({ name: newRoomName.trim(), platform: newRoomPlatform, accentColor });
     setNewRoomName('');
+    setNewRoomPlatform('pc');
     setShowCreateForm(false);
     roomMenuRef.current?.removeAttribute('open');
     navigate(`/room/${room.id}`);
@@ -76,7 +81,7 @@ export function Header() {
                 href={`/room/${room.id}`}
                 className={`${styles.menuItem} ${activeRoom?.id === room.id ? styles.menuItemActive : ''}`}
               >
-                {room.name}
+                {room.name} <span style={{ color: 'var(--sq-muted)', fontWeight: 400 }}>· {ROOM_PLATFORM_LABELS[room.platform]}</span>
               </a>
             ))}
             <div className={styles.divider} />
@@ -98,6 +103,13 @@ export function Header() {
                   value={newRoomName}
                   onChange={(e) => setNewRoomName(e.target.value)}
                 />
+                <select value={newRoomPlatform} onChange={(e) => setNewRoomPlatform(e.target.value as RoomPlatform)}>
+                  {ROOM_PLATFORM_OPTIONS.map((p) => (
+                    <option key={p} value={p}>
+                      {ROOM_PLATFORM_LABELS[p]}
+                    </option>
+                  ))}
+                </select>
                 <button type="submit">Create room</button>
               </form>
             )}

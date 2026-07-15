@@ -2,6 +2,16 @@ export type GameStatus = 'backlog' | 'playing' | 'done';
 
 export type RoomRole = 'room_master' | 'moderator' | 'member';
 
+export type RoomPlatform = 'pc' | 'xbox' | 'playstation' | 'switch' | 'switch2';
+
+export const ROOM_PLATFORM_LABELS: Record<RoomPlatform, string> = {
+  pc: 'PC',
+  xbox: 'Xbox',
+  playstation: 'PlayStation',
+  switch: 'Switch',
+  switch2: 'Switch 2',
+};
+
 export type VoteValue = 1 | 2 | 3 | 4 | 5;
 
 export const VOTE_SCALE: Record<VoteValue, string> = {
@@ -23,6 +33,7 @@ export interface User {
 export interface Room {
   id: string;
   name: string;
+  platform: RoomPlatform;
   accentColor: string;
   createdBy: string;
   createdAt: string;
@@ -94,6 +105,7 @@ export interface CreateGameRequest {
 
 export interface CreateRoomRequest {
   name: string;
+  platform: RoomPlatform;
   accentColor: string;
 }
 
@@ -130,6 +142,7 @@ export interface AdminUserSummary {
 export interface AdminRoomSummary {
   id: string;
   name: string;
+  platform: RoomPlatform;
   createdBy: string;
   creatorDisplayName: string;
   memberCount: number;

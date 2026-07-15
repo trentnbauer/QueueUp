@@ -69,6 +69,7 @@ export default async function adminRoutes(app: FastifyInstance) {
     const summaries: AdminRoomSummary[] = rooms.map((r) => ({
       id: r.id,
       name: r.name,
+      platform: r.platform,
       createdBy: r.createdBy,
       creatorDisplayName: r.creator.displayName,
       memberCount: r._count.members,

@@ -117,7 +117,8 @@
   padding: 8px 10px;
 }
 
-.miniForm input {
+.miniForm input,
+.miniForm select {
   padding: 8px 10px;
   border-radius: 6px;
   background: var(--sq-surface2);

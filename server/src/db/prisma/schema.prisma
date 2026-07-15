@@ -23,6 +23,16 @@ enum RoomRole {
   @@map("room_role")
 }
 
+enum RoomPlatform {
+  pc
+  xbox
+  playstation
+  switch
+  switch2
+
+  @@map("room_platform")
+}
+
 model User {
   id           String   @id @default(uuid())
   oidcSub      String   @unique @map("oidc_sub")
@@ -42,12 +52,13 @@ model User {
 }
 
 model Room {
-  id          String   @id @default(uuid())
+  id          String       @id @default(uuid())
   name        String
-  inviteCode  String   @unique @map("invite_code")
-  accentColor String   @default("#8b5cf6") @map("accent_color")
-  createdBy   String   @map("created_by")
-  createdAt   DateTime @default(now()) @map("created_at")
+  platform    RoomPlatform
+  inviteCode  String       @unique @map("invite_code")
+  accentColor String       @default("#8b5cf6") @map("accent_color")
+  createdBy   String       @map("created_by")
+  createdAt   DateTime     @default(now()) @map("created_at")
 
   creator     User         @relation("RoomCreatedBy", fields: [createdBy], references: [id])
   members     RoomMember[]

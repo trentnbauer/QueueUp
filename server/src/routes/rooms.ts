@@ -3,12 +3,19 @@ import { prisma } from '../db/client.js';
 import { toUserDto } from '../util/dto.js';
 import { HttpError } from '../util/httpError.js';
 import { requireElevated, requireMembership, generateUniqueInviteCode } from '../services/roomAccess.js';
-import type { CreateRoomRequest, JoinRoomRequest, Room, RoomMember } from '@squadqueue/shared';
+import type { CreateRoomRequest, JoinRoomRequest, Room, RoomMember, RoomPlatform } from '@squadqueue/shared';
 
-function toRoomDto(room: { id: string; name: string; accentColor: string; createdBy: string; createdAt: Date }, role: Room['myRole'], inviteCode: string): Room {
+const ROOM_PLATFORMS: RoomPlatform[] = ['pc', 'xbox', 'playstation', 'switch', 'switch2'];
+
+function toRoomDto(
+  room: { id: string; name: string; platform: RoomPlatform; accentColor: string; createdBy: string; createdAt: Date },
+  role: Room['myRole'],
+  inviteCode: string,
+): Room {
   return {
     id: room.id,
     name: room.name,
+    platform: room.platform,
     accentColor: room.accentColor,
     createdBy: room.createdBy,
     createdAt: room.createdAt.toISOString(),
@@ -31,14 +38,16 @@ export default async function roomRoutes(app: FastifyInstance) {
 
   app.post<{ Body: CreateRoomRequest }>('/api/rooms', async (request, reply) => {
     const userId = await request.requireAuth();
-    const { name, accentColor } = request.body;
+    const { name, platform, accentColor } = request.body;
     if (!name?.trim()) throw new HttpError(400, 'Room name is required');
+    if (!ROOM_PLATFORMS.includes(platform)) throw new HttpError(400, 'A valid platform is required');
 
     const inviteCode = await generateUniqueInviteCode();
 
     const room = await prisma.room.create({
       data: {
         name: name.trim(),
+        platform,
         accentColor: accentColor || '#8b5cf6',
         createdBy: userId,
         inviteCode,

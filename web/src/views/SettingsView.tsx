@@ -1,4 +1,5 @@
 import { useQuery, useQueryClient } from '@tanstack/react-query';
+import { ROOM_PLATFORM_LABELS } from '@squadqueue/shared';
 import { useAuth } from '../context/AuthContext';
 import { adminApi } from '../api/admin';
 import styles from './SettingsView.module.css';
@@ -90,8 +91,8 @@ export function SettingsView() {
               <div className={styles.rowMain}>
                 <span className={styles.rowTitle}>{r.name}</span>
                 <span className={styles.rowSubtitle}>
-                  Created by {r.creatorDisplayName} · {r.memberCount} member{r.memberCount === 1 ? '' : 's'} ·{' '}
-                  {r.gameCount} game{r.gameCount === 1 ? '' : 's'}
+                  {ROOM_PLATFORM_LABELS[r.platform]} · Created by {r.creatorDisplayName} · {r.memberCount} member
+                  {r.memberCount === 1 ? '' : 's'} · {r.gameCount} game{r.gameCount === 1 ? '' : 's'}
                 </span>
               </div>
               <button className={styles.deleteButton} onClick={() => handleDeleteRoom(r.id)}>

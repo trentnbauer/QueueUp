@@ -1,7 +1,7 @@
 import type { FastifyInstance } from 'fastify';
 import { prisma } from '../db/client.js';
 import { HttpError } from '../util/httpError.js';
-import { requireMembership } from '../services/roomAccess.js';
+import { requireMembership, getRoomPlatform } from '../services/roomAccess.js';
 import { loadGameOr404, requireGameReadAccess, requireGameDeleteAccess } from '../services/gameAccess.js';
 import { gameInclude, serializeGame, serializeGames } from '../services/gameSerializer.js';
 import { searchIntake, previewIntake, resolveGameForCreation, refreshGamePricing } from '../services/gameIntake.js';
@@ -10,17 +10,24 @@ import type { CreateGameRequest, UpdateGameStatusRequest, VoteRequest } from '@s
 const GAME_STATUSES = ['backlog', 'playing', 'done'] as const;
 
 export default async function gameRoutes(app: FastifyInstance) {
-  app.get<{ Querystring: { q?: string } }>('/api/games/search', async (request) => {
-    await request.requireAuth();
-    const results = await searchIntake(request.query.q ?? '');
+  app.get<{ Querystring: { q?: string; roomId?: string } }>('/api/games/search', async (request) => {
+    const userId = await request.requireAuth();
+    const { roomId } = request.query;
+    if (roomId) await requireMembership(roomId, userId);
+    const roomPlatform = roomId ? await getRoomPlatform(roomId) : undefined;
+
+    const results = await searchIntake(request.query.q ?? '', roomPlatform);
     return { results };
   });
 
-  app.post<{ Body: { igdbId: number } }>('/api/games/preview', async (request) => {
-    await request.requireAuth();
-    const { igdbId } = request.body;
+  app.post<{ Body: { igdbId: number; roomId?: string | null } }>('/api/games/preview', async (request) => {
+    const userId = await request.requireAuth();
+    const { igdbId, roomId } = request.body;
     if (!Number.isInteger(igdbId)) throw new HttpError(400, 'A valid igdbId is required');
-    const preview = await previewIntake(igdbId);
+    if (roomId) await requireMembership(roomId, userId);
+    const roomPlatform = roomId ? await getRoomPlatform(roomId) : undefined;
+
+    const preview = await previewIntake(igdbId, roomPlatform);
     return { preview };
   });
 
@@ -55,8 +62,9 @@ export default async function gameRoutes(app: FastifyInstance) {
     if (roomId) {
       await requireMembership(roomId, userId);
     }
+    const roomPlatform = roomId ? await getRoomPlatform(roomId) : undefined;
 
-    const resolved = await resolveGameForCreation(igdbId);
+    const resolved = await resolveGameForCreation(igdbId, roomPlatform);
 
     const created = await prisma.game.create({
       data: {

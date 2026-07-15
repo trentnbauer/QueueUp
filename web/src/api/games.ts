@@ -11,8 +11,12 @@ import type {
 export const gamesApi = {
   shelf: () => apiGet<{ games: Game[] }>('/api/games'),
   room: (roomId: string) => apiGet<{ games: Game[] }>(`/api/rooms/${roomId}/games`),
-  search: (q: string) => apiGet<{ results: GameSearchResult[] }>(`/api/games/search?q=${encodeURIComponent(q)}`),
-  preview: (igdbId: number) => apiPost<{ preview: GameIntakeCandidate }>('/api/games/preview', { igdbId }),
+  search: (q: string, roomId?: string | null) =>
+    apiGet<{ results: GameSearchResult[] }>(
+      `/api/games/search?q=${encodeURIComponent(q)}${roomId ? `&roomId=${roomId}` : ''}`,
+    ),
+  preview: (igdbId: number, roomId?: string | null) =>
+    apiPost<{ preview: GameIntakeCandidate }>('/api/games/preview', { igdbId, roomId }),
   create: (body: CreateGameRequest) => apiPost<{ game: Game }>('/api/games', body),
   updateStatus: (id: string, body: UpdateGameStatusRequest) =>
     apiPatch<{ game: Game }>(`/api/games/${id}/status`, body),
