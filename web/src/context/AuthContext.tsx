@@ -1,10 +1,14 @@
 import { createContext, useContext, useEffect, useState, type ReactNode } from 'react';
-import type { User } from '@squadqueue/shared';
+import type { RoomPlatform, User } from '@squadqueue/shared';
 import { authApi } from '../api/auth';
 
 interface AuthContextValue {
   user: User | null;
   steamLinked: boolean;
+  /** The systems the user has ticked as "owned" on their Personal Shelf. Empty means no opt-in
+   * yet, i.e. the add-game flow there shows everything (server enforces this too - this is just
+   * the display copy of the same preference). */
+  ownedPlatforms: RoomPlatform[];
   loading: boolean;
   refetch: () => Promise<void>;
 }
@@ -14,19 +18,25 @@ const AuthContext = createContext<AuthContextValue | undefined>(undefined);
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [steamLinked, setSteamLinked] = useState(false);
+  const [ownedPlatforms, setOwnedPlatforms] = useState<RoomPlatform[]>([]);
   const [loading, setLoading] = useState(true);
 
   const refetch = async () => {
-    const { user, steamLinked } = await authApi.me();
+    const { user, steamLinked, ownedPlatforms } = await authApi.me();
     setUser(user);
     setSteamLinked(steamLinked);
+    setOwnedPlatforms(ownedPlatforms ?? []);
   };
 
   useEffect(() => {
     refetch().finally(() => setLoading(false));
   }, []);
 
-  return <AuthContext.Provider value={{ user, steamLinked, loading, refetch }}>{children}</AuthContext.Provider>;
+  return (
+    <AuthContext.Provider value={{ user, steamLinked, ownedPlatforms, loading, refetch }}>
+      {children}
+    </AuthContext.Provider>
+  );
 }
 
 export function useAuth() {

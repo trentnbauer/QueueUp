@@ -5,6 +5,8 @@ import { getOrCreateUser } from '../plugins/auth.js';
 import { toUserDto } from '../util/dto.js';
 import { HttpError } from '../util/httpError.js';
 import { extractSteamId64 } from '../services/steamLibrary.js';
+import { setOwnedPlatforms } from '../services/userSettings.js';
+import type { UpdateOwnedPlatformsRequest } from '@squadqueue/shared';
 
 export default async function authRoutes(app: FastifyInstance) {
   app.get('/api/auth/providers', async () => {
@@ -65,6 +67,19 @@ export default async function authRoutes(app: FastifyInstance) {
     const user = await prisma.user.findUnique({ where: { id: userId } });
     if (!user) return reply.send({ user: null });
 
-    return reply.send({ user: toUserDto(user), steamLinked: extractSteamId64(user.oidcSub) !== null });
+    return reply.send({
+      user: toUserDto(user),
+      steamLinked: extractSteamId64(user.oidcSub) !== null,
+      ownedPlatforms: user.ownedPlatforms,
+    });
+  });
+
+  // A per-user preference, not tied to any room - scopes the Personal Shelf's add-game flow the
+  // same way a Room's platform scopes it there. Empty array means "no opt-in yet", i.e. show
+  // everything, so existing users see no change in behavior until they tick something.
+  app.patch<{ Body: UpdateOwnedPlatformsRequest }>('/api/me/owned-platforms', async (request, reply) => {
+    const userId = await request.requireAuth();
+    const ownedPlatforms = await setOwnedPlatforms(userId, request.body?.platforms);
+    return reply.send({ ownedPlatforms });
   });
 }

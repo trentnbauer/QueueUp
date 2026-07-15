@@ -42,6 +42,10 @@ model User {
   avatarUrl    String?  @map("avatar_url")
   isAdmin      Boolean  @default(false) @map("is_admin")
   createdAt    DateTime @default(now()) @map("created_at")
+  /// Systems the user has ticked as "owned" on their Personal Shelf - scopes the add-game
+  /// search/create flow there the same way a Room's platform scopes it for a room. Empty means
+  /// no opt-in yet, so no filtering is applied (preserves pre-existing behavior).
+  ownedPlatforms RoomPlatform[] @default([]) @map("owned_platforms")
 
   roomsCreated    Room[]          @relation("RoomCreatedBy")
   memberships     RoomMember[]

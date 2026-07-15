@@ -131,6 +131,12 @@ export interface VoteRequest {
   value: VoteValue;
 }
 
+/** The systems a user has ticked as "owned" on their Personal Shelf - an empty array means no
+ * filter has been opted into yet, so the add-game search/create flow shows everything. */
+export interface UpdateOwnedPlatformsRequest {
+  platforms: RoomPlatform[];
+}
+
 export interface UpdateGameStatusRequest {
   status: GameStatus;
 }
