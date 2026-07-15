@@ -8,7 +8,7 @@ import { GameGrid } from '../components/GameGrid';
 export function ShelfView() {
   const { user } = useAuth();
   const { switchView } = useView();
-  const { games, invalidate, updateStatus, vote, remove } = useGames(null);
+  const { games, isLoading, invalidate, updateStatus, vote, remove } = useGames(null);
 
   useEffect(() => {
     switchView({ type: 'personal' });
@@ -22,6 +22,7 @@ export function ShelfView() {
       <GameGrid
         games={games}
         currentUserId={user.id}
+        isLoading={isLoading}
         onStatusChange={updateStatus}
         onVote={vote}
         onRemove={remove}

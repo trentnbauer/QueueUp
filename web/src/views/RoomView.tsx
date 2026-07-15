@@ -12,7 +12,7 @@ export function RoomView() {
   const { roomId } = useParams<{ roomId: string }>();
   const { user } = useAuth();
   const { switchView } = useView();
-  const { games, invalidate, updateStatus, vote, remove } = useGames(roomId ?? null);
+  const { games, isLoading, invalidate, updateStatus, vote, remove } = useGames(roomId ?? null);
 
   const { data: membersData } = useQuery({
     queryKey: ['room-members', roomId],
@@ -33,6 +33,7 @@ export function RoomView() {
       <GameGrid
         games={games}
         currentUserId={user.id}
+        isLoading={isLoading}
         memberCount={memberCount}
         onStatusChange={updateStatus}
         onVote={vote}

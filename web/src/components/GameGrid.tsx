@@ -90,6 +90,7 @@ function statusBucket(game: Game, playNext: Set<string>): number {
 interface GameGridProps {
   games: Game[];
   currentUserId: string;
+  isLoading?: boolean;
   /** Room member count, used to warn when a game's max co-op players is under this. Undefined on the Personal Shelf. */
   memberCount?: number;
   onStatusChange: (gameId: string, status: GameStatus) => void;
@@ -97,12 +98,22 @@ interface GameGridProps {
   onRemove: (gameId: string) => void;
 }
 
-export function GameGrid({ games, currentUserId, memberCount, onStatusChange, onVote, onRemove }: GameGridProps) {
+export function GameGrid({ games, currentUserId, isLoading, memberCount, onStatusChange, onVote, onRemove }: GameGridProps) {
   const sorted = useStableOrder(games);
   const candidates = playNextGames(games);
   const playNext = new Set(candidates.map((g) => g.id));
   const recommendedId = recommendedNextId(games, candidates);
   const prioritized = [...sorted].sort((a, b) => statusBucket(a, playNext) - statusBucket(b, playNext));
+
+  if (isLoading) {
+    return (
+      <div className={styles.cards}>
+        {[0, 1, 2].map((i) => (
+          <div key={i} className={styles.skeletonCard} />
+        ))}
+      </div>
+    );
+  }
 
   if (prioritized.length === 0) {
     return <div className={styles.empty}>Nothing here yet.</div>;

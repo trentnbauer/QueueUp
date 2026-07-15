@@ -11,6 +11,24 @@
   padding: 12px 40px;
 }
 
+.skeletonCard {
+  background: var(--sq-surface);
+  border: 1px solid var(--sq-border);
+  border-radius: var(--sq-card-radius);
+  height: 320px;
+  animation: pulse 1.4s ease-in-out infinite;
+}
+
+@keyframes pulse {
+  0%,
+  100% {
+    opacity: 0.6;
+  }
+  50% {
+    opacity: 1;
+  }
+}
+
 @media (max-width: 640px) {
   .cards {
     padding: 20px 18px;
@@ -18,5 +36,9 @@
 
   .empty {
     padding: 12px 18px;
+  }
+
+  .skeletonCard {
+    height: 260px;
   }
 }
