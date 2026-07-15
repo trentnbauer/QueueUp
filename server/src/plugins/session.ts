@@ -50,7 +50,13 @@ export default fp(async function sessionPlugin(app: FastifyInstance) {
     cookie: {
       httpOnly: true,
       sameSite: 'lax',
-      secure: process.env.NODE_ENV === 'production',
+      // 'auto' checks request.protocol at the time each cookie is set, rather than hardcoding
+      // true for all of production. Behind a reverse proxy that terminates TLS (Cloudflare
+      // Tunnel, NGINX Proxy Manager, ...) this container only ever sees plain HTTP - Fastify's
+      // trustProxy option (see TRUST_PROXY) makes request.protocol reflect X-Forwarded-Proto
+      // from the proxy instead of the raw socket, so this correctly sends Secure once TLS is
+      // confirmed end-to-end, and falls back to a non-Secure cookie if it isn't.
+      secure: 'auto',
       maxAge: SESSION_TTL_SECONDS * 1000,
     },
   });

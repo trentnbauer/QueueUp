@@ -7,6 +7,24 @@ const envSchema = z.object({
   REDIS_URL: z.string().min(1),
   SESSION_SECRET: z.string().min(16),
 
+  // Controls Fastify's `trustProxy` option, which governs how `request.ip`/`request.protocol`
+  // are derived from X-Forwarded-For/X-Forwarded-Proto. Most deployments run behind a reverse
+  // proxy (Cloudflare Tunnel, NGINX Proxy Manager, ...) that terminates TLS and forwards plain
+  // HTTP to this container, so this defaults to "true" - trust the immediate hop unconditionally.
+  // Set to "false" if the app is reachable directly with no proxy in front of it (those headers
+  // would otherwise be spoofable by any client). Also accepts a hop count (number) or a specific
+  // proxy IP/CIDR (or comma-separated list), passed straight through to Fastify for tighter setups.
+  TRUST_PROXY: z
+    .string()
+    .optional()
+    .default('true')
+    .transform((v): boolean | number | string => {
+      if (v === 'true') return true;
+      if (v === 'false') return false;
+      const n = Number(v);
+      return Number.isNaN(n) || v.trim() === '' ? v : n;
+    }),
+
   DEV_FAKE_AUTH: z
     .string()
     .optional()
