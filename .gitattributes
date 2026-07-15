@@ -1,0 +1,5 @@
+# Shell scripts get COPY'd verbatim into Linux Docker images and run there - a CRLF-mangled
+# shebang line (#!/bin/sh<CR>) breaks the interpreter lookup entirely. Force LF regardless of the
+# checking-out platform's core.autocrlf setting (Windows + autocrlf=true would otherwise silently
+# convert these on checkout, breaking `docker build` run directly from that working tree).
+*.sh text eol=lf
