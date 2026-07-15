@@ -42,6 +42,7 @@ export function Header() {
   const [newRoomPlatform, setNewRoomPlatform] = useState<RoomPlatform>('pc');
   const [inviteCode, setInviteCode] = useState('');
   const [showRoomSettings, setShowRoomSettings] = useState(false);
+  const [inviteCopied, setInviteCopied] = useState(false);
 
   const membersQueryKey = ['room-members', activeRoom?.id];
   const { data: membersData } = useQuery({
@@ -99,6 +100,13 @@ export function Header() {
     setNewRoomPlatform('pc');
     closeAddRoomMenu();
     navigate(`/room/${room.id}`);
+  }
+
+  async function handleCopyInviteCode() {
+    if (!activeRoom?.inviteCode) return;
+    await navigator.clipboard.writeText(activeRoom.inviteCode);
+    setInviteCopied(true);
+    setTimeout(() => setInviteCopied(false), 1500);
   }
 
   async function handleJoinRoom(e: React.FormEvent) {
@@ -201,6 +209,18 @@ export function Header() {
             )}
           </div>
         </details>
+
+        {activeRoom?.inviteCode && (
+          <button
+            type="button"
+            className={styles.inviteBadge}
+            onClick={handleCopyInviteCode}
+            title="Click to copy invite code"
+            aria-label="Copy room invite code"
+          >
+            {inviteCopied ? 'Copied!' : `Invite: ${activeRoom.inviteCode}`}
+          </button>
+        )}
 
         {activeRoom && (
           <button
