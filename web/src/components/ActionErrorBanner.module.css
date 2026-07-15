@@ -11,6 +11,11 @@
   font-size: 13px;
 }
 
+.flush {
+  margin-left: 0;
+  margin-right: 0;
+}
+
 .dismiss {
   border: none;
   background: transparent;

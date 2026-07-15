@@ -3,6 +3,7 @@ import { AvatarBadge } from './AvatarBadge';
 import { StatusBadge } from './StatusBadge';
 import { VoteRow } from './VoteRow';
 import { VoteHeatmap } from './VoteHeatmap';
+import { useConfirm } from '../context/ConfirmContext';
 import styles from './GameCard.module.css';
 
 interface GameCardProps {
@@ -40,10 +41,21 @@ export function GameCard({
   onRemove,
   onRefreshPrice,
 }: GameCardProps) {
+  const confirm = useConfirm();
   const coopWarning =
     game.maxCoopPlayers != null && memberCount != null && memberCount > game.maxCoopPlayers
       ? `Only supports ${game.maxCoopPlayers}-player co-op — this room has ${memberCount} members`
       : null;
+
+  async function handleRemove() {
+    const ok = await confirm({
+      title: 'Remove this game?',
+      message: `"${game.title}" and its votes will be removed.`,
+      confirmLabel: 'Remove',
+      danger: true,
+    });
+    if (ok) onRemove();
+  }
 
   return (
     <div className={styles.card}>
@@ -111,7 +123,7 @@ export function GameCard({
         <VoteRow myVote={game.myVote} onVote={onVote} />
         <VoteHeatmap votes={game.votes} currentUserId={currentUserId} />
 
-        <button className={styles.removeButton} onClick={onRemove}>
+        <button className={styles.removeButton} onClick={handleRemove}>
           Remove
         </button>
       </div>

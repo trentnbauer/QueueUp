@@ -7,6 +7,7 @@ import { AuthProvider } from './context/AuthContext';
 import { ViewProvider } from './context/ViewContext';
 import { ThemeProvider } from './context/ThemeContext';
 import { CurrencyRegionProvider } from './context/CurrencyRegionContext';
+import { ConfirmProvider } from './context/ConfirmContext';
 import './theme/global.css';
 
 const queryClient = new QueryClient();
@@ -19,7 +20,9 @@ createRoot(document.getElementById('root')!).render(
           <ViewProvider>
             <ThemeProvider>
               <CurrencyRegionProvider>
-                <App />
+                <ConfirmProvider>
+                  <App />
+                </ConfirmProvider>
               </CurrencyRegionProvider>
             </ThemeProvider>
           </ViewProvider>

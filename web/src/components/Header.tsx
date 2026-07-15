@@ -4,6 +4,7 @@ import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { PRICE_REGION_LABELS, ROOM_PLATFORM_LABELS, type PriceRegion, type RoomPlatform, type RoomRole } from '@squadqueue/shared';
 import { useAuth } from '../context/AuthContext';
 import { useView } from '../context/ViewContext';
+import { useConfirm } from '../context/ConfirmContext';
 import { useRooms } from '../hooks/useRooms';
 import { useCurrencyRegion } from '../context/CurrencyRegionContext';
 import { roomsApi } from '../api/rooms';
@@ -28,6 +29,7 @@ export function Header() {
   const { region, setRegion } = useCurrencyRegion();
   const navigate = useNavigate();
   const queryClient = useQueryClient();
+  const confirm = useConfirm();
 
   const roomMenuRef = useRef<HTMLDetailsElement>(null);
   const membersMenuRef = useRef<HTMLDetailsElement>(null);
@@ -73,7 +75,12 @@ export function Header() {
 
   async function handleRemove(targetUserId: string, isSelf: boolean) {
     if (!activeRoom) return;
-    if (!confirm(isSelf ? 'Leave this room?' : 'Remove this member from the room?')) return;
+    const ok = await confirm({
+      message: isSelf ? 'Leave this room?' : 'Remove this member from the room?',
+      confirmLabel: isSelf ? 'Leave' : 'Remove',
+      danger: true,
+    });
+    if (!ok) return;
     await roomsApi.removeMember(activeRoom.id, targetUserId);
     queryClient.invalidateQueries({ queryKey: membersQueryKey });
     if (isSelf) {

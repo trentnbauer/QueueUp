@@ -1,12 +1,17 @@
+import { useState } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { ROOM_PLATFORM_LABELS } from '@squadqueue/shared';
 import { useAuth } from '../context/AuthContext';
+import { useConfirm } from '../context/ConfirmContext';
 import { adminApi } from '../api/admin';
+import { ActionErrorBanner } from '../components/ActionErrorBanner';
 import styles from './SettingsView.module.css';
 
 export function SettingsView() {
   const { user } = useAuth();
   const queryClient = useQueryClient();
+  const confirm = useConfirm();
+  const [actionError, setActionError] = useState<string | null>(null);
 
   const overview = useQuery({ queryKey: ['admin', 'overview'], queryFn: adminApi.overview, enabled: !!user?.isAdmin });
   const users = useQuery({ queryKey: ['admin', 'users'], queryFn: adminApi.users, enabled: !!user?.isAdmin });
@@ -22,22 +27,34 @@ export function SettingsView() {
   }
 
   async function handleDeleteUser(id: string) {
-    if (!confirm('Delete this user? This also deletes their personal shelf games and votes.')) return;
+    const ok = await confirm({
+      title: 'Delete user?',
+      message: 'This also deletes their personal shelf games and votes.',
+      confirmLabel: 'Delete',
+      danger: true,
+    });
+    if (!ok) return;
     try {
       await adminApi.deleteUser(id);
       queryClient.invalidateQueries({ queryKey: ['admin', 'users'] });
     } catch (err) {
-      alert(err instanceof Error ? err.message : 'Could not delete user');
+      setActionError(err instanceof Error ? err.message : 'Could not delete user');
     }
   }
 
   async function handleDeleteRoom(id: string) {
-    if (!confirm('Delete this room? This also deletes all its games and removes all members.')) return;
+    const ok = await confirm({
+      title: 'Delete room?',
+      message: 'This also deletes all its games and removes all members.',
+      confirmLabel: 'Delete',
+      danger: true,
+    });
+    if (!ok) return;
     try {
       await adminApi.deleteRoom(id);
       queryClient.invalidateQueries({ queryKey: ['admin', 'rooms'] });
     } catch (err) {
-      alert(err instanceof Error ? err.message : 'Could not delete room');
+      setActionError(err instanceof Error ? err.message : 'Could not delete room');
     }
   }
 
@@ -46,6 +63,7 @@ export function SettingsView() {
   return (
     <div className={styles.page}>
       <h1 className={styles.title}>Administrator Settings</h1>
+      <ActionErrorBanner message={actionError} onDismiss={() => setActionError(null)} padded={false} />
 
       <div className={styles.section}>
         <div className={styles.sectionTitle}>Integrations</div>
