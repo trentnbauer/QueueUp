@@ -92,6 +92,22 @@ function releaseYear(unixSeconds?: number): number | null {
   return unixSeconds ? new Date(unixSeconds * 1000).getUTCFullYear() : null;
 }
 
+// Reverse of platformFamilies() - the exact IGDB platform names that belong to each family, used
+// to scope a search query to a room's platform. Exact names (not substrings) so "Nintendo Switch"
+// and "Nintendo Switch 2" don't collide with each other the way a wildcard match would.
+const IGDB_PLATFORM_NAMES: Record<RoomPlatform, string[]> = {
+  switch: ['Nintendo Switch'],
+  switch2: ['Nintendo Switch 2'],
+  xbox: ['Xbox', 'Xbox 360', 'Xbox One', 'Xbox Series X|S'],
+  playstation: ['PlayStation', 'PlayStation 2', 'PlayStation 3', 'PlayStation 4', 'PlayStation 5'],
+  pc: ['PC (Microsoft Windows)', 'Mac', 'Linux'],
+};
+
+function platformWhereClause(roomPlatform: RoomPlatform): string {
+  const names = IGDB_PLATFORM_NAMES[roomPlatform].map((n) => `"${n}"`).join(',');
+  return `where platforms.name = (${names});`;
+}
+
 async function igdbRequest<T>(endpoint: string, body: string): Promise<T> {
   const token = await getToken();
   const response = await fetch(`https://api.igdb.com/v4/${endpoint}`, {
@@ -132,13 +148,22 @@ export async function searchGames(query: string, roomPlatform?: RoomPlatform): P
   if (!trimmed) return [];
 
   const escaped = trimmed.replace(/"/g, '\\"');
+  // Scoping the platform filter into the query itself (rather than fetching the top 20 results
+  // overall and discarding non-matching ones afterward) matters: IGDB ranks "top 20 for this query
+  // on this platform" when the where clause is present, instead of "top 20 for this query" full
+  // stop - a specific-platform release (e.g. a Switch game with a generic title) can easily rank
+  // outside the top 20 unfiltered results even though it'd be a top result once scoped.
+  const whereClause = roomPlatform ? platformWhereClause(roomPlatform) : '';
   const games = await igdbRequest<IgdbGame[]>(
     'games',
-    `search "${escaped}"; fields name,cover.image_id,platforms.name,first_release_date; limit 20;`,
+    `search "${escaped}"; fields name,cover.image_id,platforms.name,first_release_date; ${whereClause} limit 20;`,
   );
 
   return games
     .filter((g) => g.name)
+    // Belt-and-suspenders: the query-level filter above should already scope results correctly,
+    // but keep the client-side family check too in case IGDB's platform data on a given row is
+    // incomplete/odd (e.g. a bundle with mixed platform tags).
     .filter((g) => !roomPlatform || platformFamilies(g.platforms).includes(roomPlatform))
     .map((g) => ({
       igdbId: g.id,
