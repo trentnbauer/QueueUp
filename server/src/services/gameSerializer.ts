@@ -1,6 +1,6 @@
 import type { Prisma } from '@prisma/client';
 import type { Game, GamePrice, PriceRegion, VoteValue } from '@squadqueue/shared';
-import { getSteamPrice } from './priceService.js';
+import { getSteamPrice, getSteamPrices } from './priceService.js';
 import { toUserDto } from '../util/dto.js';
 
 const gameWithRelations = {
@@ -13,15 +13,9 @@ const gameWithRelations = {
 export type GameWithRelations = Prisma.GameGetPayload<typeof gameWithRelations>;
 export const gameInclude = gameWithRelations.include;
 
-async function resolvePrice(game: GameWithRelations, region?: PriceRegion): Promise<GamePrice> {
-  if (game.steamAppid) {
-    return getSteamPrice(game.steamAppid, { region });
-  }
-  return { amount: null, currency: null, source: 'unavailable' };
-}
+const UNAVAILABLE_PRICE: GamePrice = { amount: null, currency: null, source: 'unavailable' };
 
-export async function serializeGame(game: GameWithRelations, currentUserId: string, region?: PriceRegion): Promise<Game> {
-  const price = await resolvePrice(game, region);
+function buildGameDto(game: GameWithRelations, currentUserId: string, price: GamePrice): Game {
   const myVote = game.votes.find((v) => v.userId === currentUserId);
   const voteScore = game.votes.reduce((sum, v) => sum + v.value, 0);
 
@@ -45,6 +39,16 @@ export async function serializeGame(game: GameWithRelations, currentUserId: stri
   };
 }
 
+export async function serializeGame(game: GameWithRelations, currentUserId: string, region?: PriceRegion): Promise<Game> {
+  const price = game.steamAppid ? await getSteamPrice(game.steamAppid, { region }) : UNAVAILABLE_PRICE;
+  return buildGameDto(game, currentUserId, price);
+}
+
 export async function serializeGames(games: GameWithRelations[], currentUserId: string, region?: PriceRegion): Promise<Game[]> {
-  return Promise.all(games.map((g) => serializeGame(g, currentUserId, region)));
+  const steamAppIds = games.map((g) => g.steamAppid).filter((id): id is number => id != null);
+  const prices = await getSteamPrices(steamAppIds, { region });
+
+  return games.map((game) =>
+    buildGameDto(game, currentUserId, (game.steamAppid && prices.get(game.steamAppid)) || UNAVAILABLE_PRICE),
+  );
 }
