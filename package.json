@@ -13,11 +13,13 @@
     "db:generate": "npm run db:generate -w server",
     "db:push": "npm run db:push -w server",
     "db:migrate": "npm run db:migrate -w server",
-    "db:studio": "npm run db:studio -w server"
+    "db:studio": "npm run db:studio -w server",
+    "test": "vitest run"
   },
   "devDependencies": {
     "concurrently": "^9.1.0",
-    "typescript": "^5.7.2"
+    "typescript": "^5.7.2",
+    "vitest": "^4.1.10"
   },
   "engines": {
     "node": ">=20"

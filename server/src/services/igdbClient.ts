@@ -39,7 +39,7 @@ interface IgdbCover {
   image_id?: string;
 }
 
-interface IgdbPlatform {
+export interface IgdbPlatform {
   name?: string;
 }
 
@@ -73,7 +73,7 @@ function genreLabel(genres?: IgdbGenre[]): string | null {
 // Maps IGDB's granular platform names (e.g. "Xbox Series X|S", "PC (Microsoft Windows)") down to
 // the handful of platform families a Room can be restricted to. Order matters: "Switch 2" must be
 // checked before the plain "Switch" substring match, or it'd also match as "switch".
-function platformFamilies(platforms?: IgdbPlatform[]): RoomPlatform[] {
+export function platformFamilies(platforms?: IgdbPlatform[]): RoomPlatform[] {
   const families = new Set<RoomPlatform>();
   for (const { name } of platforms ?? []) {
     if (!name) continue;

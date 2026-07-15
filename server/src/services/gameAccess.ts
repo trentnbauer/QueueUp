@@ -34,7 +34,7 @@ export async function requireGameDeleteAccess(game: GameWithRelations, userId: s
 }
 
 /** A game's "audience" for duplicate purposes: everyone in the room, or just the shelf's own owner. */
-function duplicateScopeWhere(roomId: string | null, userId: string) {
+export function duplicateScopeWhere(roomId: string | null, userId: string) {
   return roomId ? { roomId } : { roomId: null, addedBy: userId };
 }
 
