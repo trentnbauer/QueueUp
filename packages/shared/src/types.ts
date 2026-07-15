@@ -153,12 +153,31 @@ export interface ImportSteamLibraryResult {
   skipped: number;
 }
 
+/** Where a configurable integration credential currently comes from - env vars always take
+ * precedence over the DB-stored fallback; "unset" means neither is configured. */
+export type ConfigSource = 'env' | 'db' | 'unset';
+
+/** The integration credentials that can be set via env var or, as a fallback, via the admin
+ * Settings panel (see server/src/services/configResolver.ts). */
+export type IntegrationConfigKey = 'GGDEALS_API_KEY' | 'IGDB_CLIENT_ID' | 'IGDB_CLIENT_SECRET';
+
 /** Admin-only views — never sent to non-admin users. */
 export interface AdminIntegrationStatus {
   ggDealsApiKeyConfigured: boolean;
+  ggDealsApiKeySource: ConfigSource;
   igdbConfigured: boolean;
+  igdbClientIdSource: ConfigSource;
+  igdbClientSecretSource: ConfigSource;
   devFakeAuth: boolean;
   activeAuthProviders: string[];
+}
+
+/** Sets (or replaces) the DB-stored fallback value for one integration credential. Rejected by
+ * the server if the corresponding env var is already set (env vars always win, so writing here
+ * for an env-sourced key would be silently ineffective). */
+export interface SetIntegrationConfigRequest {
+  key: IntegrationConfigKey;
+  value: string;
 }
 
 export interface AdminUserSummary {

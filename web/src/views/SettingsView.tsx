@@ -1,11 +1,26 @@
 import { useState } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { ROOM_PLATFORM_LABELS } from '@squadqueue/shared';
+import type { AdminIntegrationStatus, ConfigSource, IntegrationConfigKey } from '@squadqueue/shared';
 import { useAuth } from '../context/AuthContext';
 import { useConfirm } from '../context/ConfirmContext';
 import { adminApi } from '../api/admin';
 import { ActionErrorBanner } from '../components/ActionErrorBanner';
 import styles from './SettingsView.module.css';
+
+interface IntegrationField {
+  key: IntegrationConfigKey;
+  label: string;
+  source: ConfigSource;
+}
+
+function integrationFields(status: AdminIntegrationStatus): IntegrationField[] {
+  return [
+    { key: 'GGDEALS_API_KEY', label: 'gg.deals API key', source: status.ggDealsApiKeySource },
+    { key: 'IGDB_CLIENT_ID', label: 'IGDB Client ID', source: status.igdbClientIdSource },
+    { key: 'IGDB_CLIENT_SECRET', label: 'IGDB Client Secret', source: status.igdbClientSecretSource },
+  ];
+}
 
 export function SettingsView() {
   const { user } = useAuth();
@@ -14,6 +29,8 @@ export function SettingsView() {
   const [actionError, setActionError] = useState<string | null>(null);
   const [archiveResult, setArchiveResult] = useState<string | null>(null);
   const [archiving, setArchiving] = useState(false);
+  const [integrationInputs, setIntegrationInputs] = useState<Record<string, string>>({});
+  const [savingIntegrationKey, setSavingIntegrationKey] = useState<string | null>(null);
 
   const overview = useQuery({ queryKey: ['admin', 'overview'], queryFn: adminApi.overview, enabled: !!user?.isAdmin });
   const users = useQuery({ queryKey: ['admin', 'users'], queryFn: adminApi.users, enabled: !!user?.isAdmin });
@@ -82,6 +99,43 @@ export function SettingsView() {
     }
   }
 
+  async function handleSaveIntegration(key: IntegrationConfigKey) {
+    const value = (integrationInputs[key] ?? '').trim();
+    if (!value) return;
+    setSavingIntegrationKey(key);
+    setActionError(null);
+    try {
+      await adminApi.setIntegrationConfig(key, value);
+      setIntegrationInputs((prev) => ({ ...prev, [key]: '' }));
+      queryClient.invalidateQueries({ queryKey: ['admin', 'overview'] });
+    } catch (err) {
+      setActionError(err instanceof Error ? err.message : 'Could not save setting');
+    } finally {
+      setSavingIntegrationKey(null);
+    }
+  }
+
+  async function handleClearIntegration(key: IntegrationConfigKey, label: string) {
+    const ok = await confirm({
+      title: `Clear ${label}?`,
+      message:
+        'This removes the DB-stored fallback value. The integration will be treated as unconfigured unless an env var is set for it.',
+      confirmLabel: 'Clear',
+      danger: true,
+    });
+    if (!ok) return;
+    setSavingIntegrationKey(key);
+    setActionError(null);
+    try {
+      await adminApi.clearIntegrationConfig(key);
+      queryClient.invalidateQueries({ queryKey: ['admin', 'overview'] });
+    } catch (err) {
+      setActionError(err instanceof Error ? err.message : 'Could not clear setting');
+    } finally {
+      setSavingIntegrationKey(null);
+    }
+  }
+
   const status = overview.data?.status;
 
   return (
@@ -120,6 +174,55 @@ export function SettingsView() {
                 Sign-in: <span className={styles.pillMissing}>none configured</span>
               </span>
             )}
+          </div>
+        )}
+
+        {status && (
+          <div className={styles.table}>
+            {integrationFields(status).map((f) => (
+              <div key={f.key} className={styles.row}>
+                <div className={styles.rowMain}>
+                  <span className={styles.rowTitle}>{f.label}</span>
+                  <span className={styles.rowSubtitle}>
+                    {f.source === 'env'
+                      ? 'Set via .env (takes precedence over any DB value)'
+                      : f.source === 'db'
+                        ? 'Set via this Settings panel (DB fallback)'
+                        : 'Not configured'}
+                  </span>
+                </div>
+                {f.source === 'env' ? (
+                  <span className={styles.pillOk}>configured</span>
+                ) : (
+                  <div className={styles.integrationEditor}>
+                    <input
+                      type="password"
+                      autoComplete="off"
+                      className={styles.integrationInput}
+                      placeholder={f.source === 'db' ? 'Enter a new value to replace it' : 'Enter value'}
+                      value={integrationInputs[f.key] ?? ''}
+                      onChange={(e) => setIntegrationInputs((prev) => ({ ...prev, [f.key]: e.target.value }))}
+                    />
+                    <button
+                      className={styles.archiveButton}
+                      disabled={savingIntegrationKey === f.key || !(integrationInputs[f.key] ?? '').trim()}
+                      onClick={() => handleSaveIntegration(f.key)}
+                    >
+                      Save
+                    </button>
+                    {f.source === 'db' && (
+                      <button
+                        className={styles.deleteButton}
+                        disabled={savingIntegrationKey === f.key}
+                        onClick={() => handleClearIntegration(f.key, f.label)}
+                      >
+                        Clear
+                      </button>
+                    )}
+                  </div>
+                )}
+              </div>
+            ))}
           </div>
         )}
       </div>

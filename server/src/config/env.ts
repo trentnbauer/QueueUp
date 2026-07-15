@@ -52,11 +52,14 @@ const envSchema = z.object({
   STEAM_API_KEY: z.string().optional(),
   STEAM_REDIRECT_URI: z.string().optional(),
 
-  GGDEALS_API_KEY: z.string().min(1),
+  // Optional at the env layer: these three can also be supplied via the admin Settings panel as a
+  // DB-stored fallback (see server/src/services/configResolver.ts) when .env doesn't set them. An
+  // env var, when present, always wins over the DB value.
+  GGDEALS_API_KEY: z.string().min(1).optional(),
   GGDEALS_DEFAULT_REGION: z.string().default('us'),
 
-  IGDB_CLIENT_ID: z.string().min(1),
-  IGDB_CLIENT_SECRET: z.string().min(1),
+  IGDB_CLIENT_ID: z.string().min(1).optional(),
+  IGDB_CLIENT_SECRET: z.string().min(1).optional(),
 
   // Comma-separated emails granted administrator access on login.
   ADMIN_EMAILS: z.string().optional().default(''),
