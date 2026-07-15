@@ -82,6 +82,11 @@
   text-align: left;
 }
 
+.candidateOptionHighlighted {
+  border-color: var(--sq-accent);
+  background: var(--sq-accent-pill-bg);
+}
+
 .candidateMeta {
   display: flex;
   flex-direction: column;
