@@ -36,6 +36,15 @@ function useStableOrder(games: Game[]): Game[] {
   return orderRef.current.map((id) => byId.get(id)).filter((g): g is Game => !!g);
 }
 
+/** Top-3 backlog games by current score (recomputed live — a badge appearing/disappearing on an
+ * already-positioned card is much less disruptive than the full reshuffle useStableOrder avoids,
+ * and freezing "what to play next" to page-load time would make it stale as votes come in). Games
+ * with no votes yet don't qualify — an unvoted game badged "play next" would be misleading. */
+function playNextIds(games: Game[]): Set<string> {
+  const eligible = sortByScore(games.filter((g) => g.status === 'backlog' && g.voteScore > 0));
+  return new Set(eligible.slice(0, 3).map((g) => g.id));
+}
+
 interface GameGridProps {
   games: Game[];
   currentUserId: string;
@@ -48,6 +57,7 @@ interface GameGridProps {
 
 export function GameGrid({ games, currentUserId, memberCount, onStatusChange, onVote, onRemove }: GameGridProps) {
   const sorted = useStableOrder(games);
+  const playNext = playNextIds(games);
 
   if (sorted.length === 0) {
     return <div className={styles.empty}>Nothing here yet.</div>;
@@ -61,6 +71,7 @@ export function GameGrid({ games, currentUserId, memberCount, onStatusChange, on
           game={game}
           currentUserId={currentUserId}
           memberCount={memberCount}
+          isPlayNext={playNext.has(game.id)}
           onStatusChange={(next) => onStatusChange(game.id, next)}
           onVote={(value) => onVote(game.id, value)}
           onRemove={() => onRemove(game.id)}
