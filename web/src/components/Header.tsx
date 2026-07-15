@@ -1,5 +1,5 @@
 import { useRef, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { PRICE_REGION_LABELS, ROOM_PLATFORM_LABELS, type PriceRegion, type RoomPlatform, type RoomRole } from '@squadqueue/shared';
 import { useAuth } from '../context/AuthContext';
@@ -117,27 +117,32 @@ export function Header() {
     <header className={styles.header}>
       <div className={styles.left}>
         <div className={styles.brand}>
-          <a href="/" className={styles.brandName}>
+          <Link to="/" className={styles.brandName}>
             SquadQueue
-          </a>
+          </Link>
           <div className={styles.tagline}>Games the squad wants to play together</div>
         </div>
 
         <details className={styles.menu} ref={roomMenuRef}>
           <summary className={styles.menuButton}>{activeRoom ? activeRoom.name : 'Personal Shelf'} ▾</summary>
           <div className={`${styles.menuPanel} ${styles.menuPanelLeft}`}>
-            <a href="/" className={`${styles.menuItem} ${!activeRoom ? styles.menuItemActive : ''}`}>
+            <Link
+              to="/"
+              className={`${styles.menuItem} ${!activeRoom ? styles.menuItemActive : ''}`}
+              onClick={() => roomMenuRef.current?.removeAttribute('open')}
+            >
               Personal Shelf
-            </a>
+            </Link>
             {rooms.length > 0 && <div className={styles.divider} />}
             {rooms.map((room) => (
-              <a
+              <Link
                 key={room.id}
-                href={`/room/${room.id}`}
+                to={`/room/${room.id}`}
                 className={`${styles.menuItem} ${activeRoom?.id === room.id ? styles.menuItemActive : ''}`}
+                onClick={() => roomMenuRef.current?.removeAttribute('open')}
               >
                 {room.name} <span style={{ color: 'var(--sq-muted)', fontWeight: 400 }}>· {ROOM_PLATFORM_LABELS[room.platform]}</span>
-              </a>
+              </Link>
             ))}
             <div className={styles.divider} />
             {!showCreateForm && !showJoinForm && (
@@ -266,9 +271,9 @@ export function Header() {
             <div className={styles.divider} />
             {user.isAdmin && (
               <>
-                <a href="/settings" className={styles.menuItem}>
+                <Link to="/settings" className={styles.menuItem}>
                   Administrator settings
-                </a>
+                </Link>
                 <div className={styles.divider} />
               </>
             )}
