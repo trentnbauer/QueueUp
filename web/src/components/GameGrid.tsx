@@ -1,4 +1,4 @@
-import { useRef } from 'react';
+import { useMemo, useRef } from 'react';
 import type { Game, GameStatus, VoteValue } from '@squadqueue/shared';
 import { GameCard } from './GameCard';
 import { sortByScore, playNextGames, recommendedNextId, statusBucket } from './gameGridLogic';
@@ -24,8 +24,11 @@ function useStableOrder(games: Game[]): Game[] {
     }
   }
 
-  const byId = new Map(games.map((g) => [g.id, g]));
-  return orderRef.current.map((id) => byId.get(id)).filter((g): g is Game => !!g);
+  const byId = useMemo(() => new Map(games.map((g) => [g.id, g])), [games]);
+  return useMemo(
+    () => orderRef.current.map((id) => byId.get(id)).filter((g): g is Game => !!g),
+    [byId],
+  );
 }
 
 interface GameGridProps {
@@ -51,10 +54,17 @@ export function GameGrid({
   onRefreshPrice,
 }: GameGridProps) {
   const sorted = useStableOrder(games);
-  const candidates = playNextGames(games);
-  const playNext = new Set(candidates.map((g) => g.id));
-  const recommendedId = recommendedNextId(games, candidates);
-  const prioritized = [...sorted].sort((a, b) => statusBucket(a, playNext) - statusBucket(b, playNext));
+  const { playNext, recommendedId, prioritized } = useMemo(() => {
+    const candidates = playNextGames(games);
+    const playNextSet = new Set(candidates.map((g) => g.id));
+    return {
+      playNext: playNextSet,
+      recommendedId: recommendedNextId(games, candidates),
+      prioritized: [...sorted].sort(
+        (a, b) => statusBucket(a, playNextSet) - statusBucket(b, playNextSet),
+      ),
+    };
+  }, [games, sorted]);
 
   if (isLoading) {
     return (
