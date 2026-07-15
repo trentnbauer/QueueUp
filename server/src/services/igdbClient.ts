@@ -181,6 +181,11 @@ function maxCoopFrom(modes: IgdbMultiplayerMode[]): number | null {
   return values.length > 0 ? Math.max(...values) : null;
 }
 
+interface IgdbMultiqueryResult<T> {
+  name: string;
+  result?: T[];
+}
+
 export async function getGameDetail(igdbId: number): Promise<IgdbGameDetail> {
   if (!Number.isInteger(igdbId) || igdbId <= 0) {
     throw new HttpError(400, 'Invalid IGDB game id');
@@ -189,20 +194,21 @@ export async function getGameDetail(igdbId: number): Promise<IgdbGameDetail> {
   const cached = await redis.get(cacheKey);
   if (cached) return JSON.parse(cached) as IgdbGameDetail;
 
-  const [games, externalGames, multiplayerModes] = await Promise.all([
-    igdbRequest<IgdbGame[]>(
-      'games',
-      `fields name,cover.image_id,platforms.name,genres.name; where id = ${igdbId};`,
-    ),
-    igdbRequest<IgdbExternalGame[]>(
-      'external_games',
-      `fields uid; where game = ${igdbId} & external_game_source = ${STEAM_EXTERNAL_SOURCE_ID};`,
-    ),
-    igdbRequest<IgdbMultiplayerMode[]>(
-      'multiplayer_modes',
-      `fields onlinecoopmax,offlinecoopmax; where game = ${igdbId};`,
-    ),
-  ]);
+  // IGDB's `games`, `external_games` (Steam appid), and `multiplayer_modes` (co-op limits) are
+  // separate endpoints with no way to join them in one query, but IGDB's multiquery endpoint lets
+  // several such queries ride in a single HTTP request instead of three round trips.
+  const [gameResult, externalGamesResult, multiplayerModesResult] = await igdbRequest<
+    [IgdbMultiqueryResult<IgdbGame>, IgdbMultiqueryResult<IgdbExternalGame>, IgdbMultiqueryResult<IgdbMultiplayerMode>]
+  >(
+    'multiquery',
+    `query games "Game" { fields name,cover.image_id,platforms.name,genres.name; where id = ${igdbId}; };
+     query external_games "External" { fields uid; where game = ${igdbId} & external_game_source = ${STEAM_EXTERNAL_SOURCE_ID}; };
+     query multiplayer_modes "Modes" { fields onlinecoopmax,offlinecoopmax; where game = ${igdbId}; };`,
+  );
+
+  const games = gameResult.result ?? [];
+  const externalGames = externalGamesResult.result ?? [];
+  const multiplayerModes = multiplayerModesResult.result ?? [];
 
   const game = games[0];
   if (!game || !game.name) {
