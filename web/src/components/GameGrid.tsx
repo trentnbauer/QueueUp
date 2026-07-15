@@ -1,8 +1,24 @@
-import { useMemo, useRef } from 'react';
+import { useMemo, useRef, useState } from 'react';
 import type { Game, GameStatus, VoteValue } from '@squadqueue/shared';
 import { GameCard } from './GameCard';
 import { sortByScore, playNextGames, recommendedNextId, statusBucket } from './gameGridLogic';
 import styles from './GameGrid.module.css';
+
+const ALL = '__all__';
+
+/** Genre/platform are stored as comma-joined labels (e.g. "PC, Xbox"), so filter options and
+ * matching both split on ", " rather than treating the whole string as one value. */
+function splitLabel(value: string | null): string[] {
+  return value ? value.split(',').map((v) => v.trim()).filter(Boolean) : [];
+}
+
+function distinctValues(games: Game[], pick: (g: Game) => string | null): string[] {
+  const values = new Set<string>();
+  for (const game of games) {
+    for (const v of splitLabel(pick(game))) values.add(v);
+  }
+  return Array.from(values).sort((a, b) => a.localeCompare(b));
+}
 
 /** Sorts by score once when the page loads and then holds that order steady for the rest of the
  * session — nothing reshuffles while you're looking at it (a vote, a status change, someone else
@@ -59,6 +75,12 @@ export function GameGrid({
   onRemove,
   onRefreshPrice,
 }: GameGridProps) {
+  const [platformFilter, setPlatformFilter] = useState(ALL);
+  const [genreFilter, setGenreFilter] = useState(ALL);
+
+  const platformOptions = useMemo(() => distinctValues(games, (g) => g.platform), [games]);
+  const genreOptions = useMemo(() => distinctValues(games, (g) => g.genre), [games]);
+
   const sorted = useStableOrder(games);
   const { playNext, recommendedId, prioritized } = useMemo(() => {
     const candidates = playNextGames(games);
@@ -71,6 +93,19 @@ export function GameGrid({
       ),
     };
   }, [games, sorted]);
+
+  const filtered = useMemo(
+    () =>
+      prioritized.filter(
+        (g) =>
+          (platformFilter === ALL || splitLabel(g.platform).includes(platformFilter)) &&
+          (genreFilter === ALL || splitLabel(g.genre).includes(genreFilter)),
+      ),
+    [prioritized, platformFilter, genreFilter],
+  );
+
+  const hasActiveFilters = platformFilter !== ALL || genreFilter !== ALL;
+  const showFilterBar = !isLoading && !isError && (platformOptions.length > 1 || genreOptions.length > 1);
 
   if (isLoading) {
     return (
@@ -100,21 +135,62 @@ export function GameGrid({
   }
 
   return (
-    <div className={styles.cards}>
-      {prioritized.map((game) => (
-        <GameCard
-          key={game.id}
-          game={game}
-          currentUserId={currentUserId}
-          memberCount={memberCount}
-          isPlayNext={playNext.has(game.id)}
-          isRecommended={game.id === recommendedId}
-          onStatusChange={(next) => onStatusChange(game.id, next)}
-          onVote={(value) => onVote(game.id, value)}
-          onRemove={() => onRemove(game.id)}
-          onRefreshPrice={() => onRefreshPrice(game.id)}
-        />
-      ))}
-    </div>
+    <>
+      {showFilterBar && (
+        <div className={styles.filterBar}>
+          {platformOptions.length > 1 && (
+            <select
+              className={styles.filterSelect}
+              value={platformFilter}
+              onChange={(e) => setPlatformFilter(e.target.value)}
+              aria-label="Filter by platform"
+            >
+              <option value={ALL}>All platforms</option>
+              {platformOptions.map((p) => (
+                <option key={p} value={p}>
+                  {p}
+                </option>
+              ))}
+            </select>
+          )}
+          {genreOptions.length > 1 && (
+            <select
+              className={styles.filterSelect}
+              value={genreFilter}
+              onChange={(e) => setGenreFilter(e.target.value)}
+              aria-label="Filter by genre"
+            >
+              <option value={ALL}>All genres</option>
+              {genreOptions.map((g) => (
+                <option key={g} value={g}>
+                  {g}
+                </option>
+              ))}
+            </select>
+          )}
+        </div>
+      )}
+
+      {filtered.length === 0 ? (
+        <div className={styles.empty}>{hasActiveFilters ? 'No games match these filters.' : 'Nothing here yet.'}</div>
+      ) : (
+        <div className={styles.cards}>
+          {filtered.map((game) => (
+            <GameCard
+              key={game.id}
+              game={game}
+              currentUserId={currentUserId}
+              memberCount={memberCount}
+              isPlayNext={playNext.has(game.id)}
+              isRecommended={game.id === recommendedId}
+              onStatusChange={(next) => onStatusChange(game.id, next)}
+              onVote={(value) => onVote(game.id, value)}
+              onRemove={() => onRemove(game.id)}
+              onRefreshPrice={() => onRefreshPrice(game.id)}
+            />
+          ))}
+        </div>
+      )}
+    </>
   );
 }

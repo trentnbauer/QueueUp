@@ -5,6 +5,21 @@
   padding: 28px 40px;
 }
 
+.filterBar {
+  display: flex;
+  gap: 10px;
+  padding: 0 40px 16px;
+}
+
+.filterSelect {
+  padding: 7px 12px;
+  border-radius: var(--sq-radius);
+  background: var(--sq-surface);
+  border: 1px solid var(--sq-border);
+  color: var(--sq-text);
+  font-size: 13px;
+}
+
 .empty {
   color: var(--sq-muted);
   font-size: 13px;
@@ -59,6 +74,10 @@
 
   .empty {
     padding: 12px 18px;
+  }
+
+  .filterBar {
+    padding: 0 18px 16px;
   }
 
   .skeletonCard {
