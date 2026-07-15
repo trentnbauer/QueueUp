@@ -11,7 +11,7 @@ import {
   invalidateExistingIgdbIds,
 } from '../services/gameAccess.js';
 import { gameInclude, serializeGame, serializeGames } from '../services/gameSerializer.js';
-import { searchIntake, previewIntake, resolveGameForCreation, refreshGamePricing } from '../services/gameIntake.js';
+import { searchIntake, resolveGameForCreation, refreshGamePricing } from '../services/gameIntake.js';
 import { platformFamilies, findIgdbIdBySteamAppId } from '../services/igdbClient.js';
 import { extractSteamId64, getOwnedSteamGames } from '../services/steamLibrary.js';
 import { env } from '../config/env.js';
@@ -49,17 +49,6 @@ export default async function gameRoutes(app: FastifyInstance) {
 
     const results = await searchIntake(request.query.q ?? '', roomPlatform, excludeIgdbIds);
     return { results };
-  });
-
-  app.post<{ Body: { igdbId: number; roomId?: string | null } }>('/api/games/preview', async (request) => {
-    const userId = await request.requireAuth();
-    const { igdbId, roomId } = request.body;
-    if (!Number.isInteger(igdbId)) throw new HttpError(400, 'A valid igdbId is required');
-    if (roomId) await requireMembership(roomId, userId);
-    const roomPlatform = roomId ? await getRoomPlatform(roomId) : undefined;
-
-    const preview = await previewIntake(igdbId, roomPlatform);
-    return { preview };
   });
 
   app.get<{ Querystring: { region?: string } }>('/api/games', async (request) => {

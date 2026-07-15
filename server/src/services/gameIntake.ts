@@ -1,7 +1,7 @@
 import { searchGames, getGameDetail, type IgdbGameDetail } from './igdbClient.js';
 import { getSteamPriceAndUrl, getSteamPrice } from './priceService.js';
 import { HttpError } from '../util/httpError.js';
-import { ROOM_PLATFORM_LABELS, type GameIntakeCandidate, type GameSearchResult, type RoomPlatform } from '@squadqueue/shared';
+import { ROOM_PLATFORM_LABELS, type GameSearchResult, type RoomPlatform } from '@squadqueue/shared';
 
 export async function searchIntake(
   query: string,
@@ -20,39 +20,6 @@ function assertPlatformMatch(detail: IgdbGameDetail, roomPlatform?: RoomPlatform
       `${detail.title} isn't available on ${ROOM_PLATFORM_LABELS[roomPlatform]}, and this room is limited to that platform.`,
     );
   }
-}
-
-async function resolveCandidate(igdbId: number, roomPlatform?: RoomPlatform): Promise<GameIntakeCandidate> {
-  const detail = await getGameDetail(igdbId);
-  assertPlatformMatch(detail, roomPlatform);
-
-  if (detail.steamAppId) {
-    const { price, ggDealsUrl } = await getSteamPriceAndUrl(detail.steamAppId);
-    return {
-      igdbId: detail.igdbId,
-      title: detail.title,
-      platform: detail.platform,
-      genre: detail.genre,
-      coverImageUrl: detail.coverImageUrl,
-      ggDealsUrl,
-      price,
-    };
-  }
-
-  return {
-    igdbId: detail.igdbId,
-    title: detail.title,
-    platform: detail.platform,
-    genre: detail.genre,
-    coverImageUrl: detail.coverImageUrl,
-    ggDealsUrl: null,
-    price: { amount: null, currency: null, source: 'unavailable', historicalLow: null },
-  };
-}
-
-/** Resolves a chosen search result into a fully-priced candidate for the preview panel. */
-export async function previewIntake(igdbId: number, roomPlatform?: RoomPlatform): Promise<GameIntakeCandidate> {
-  return resolveCandidate(igdbId, roomPlatform);
 }
 
 /** Fully resolves a game once the user confirms adding it. */
