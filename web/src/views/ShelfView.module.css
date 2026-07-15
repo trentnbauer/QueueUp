@@ -1,0 +1,24 @@
+.row {
+  padding: 0 40px 16px;
+}
+
+@media (max-width: 640px) {
+  .row {
+    padding: 0 18px 16px;
+  }
+}
+
+.settingsButton {
+  border: 1px solid var(--sq-border);
+  border-radius: var(--sq-radius);
+  padding: 8px 14px;
+  background: var(--sq-surface);
+  color: var(--sq-text);
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.settingsButton:hover {
+  background: var(--sq-surface2);
+}

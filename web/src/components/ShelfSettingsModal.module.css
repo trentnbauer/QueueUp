@@ -1,0 +1,93 @@
+.backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.55);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+  padding: 20px;
+}
+
+.dialog {
+  background: var(--sq-surface);
+  border: 1px solid var(--sq-border);
+  border-radius: var(--sq-radius);
+  padding: 24px;
+  max-width: 380px;
+  width: 100%;
+  max-height: 85vh;
+  overflow-y: auto;
+  box-shadow: 0 12px 40px rgba(0, 0, 0, 0.4);
+}
+
+.header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 14px;
+}
+
+.title {
+  font: 700 16px var(--sq-header-font);
+  color: var(--sq-text);
+}
+
+.closeButton {
+  border: none;
+  background: transparent;
+  color: var(--sq-muted);
+  font-size: 20px;
+  line-height: 1;
+  cursor: pointer;
+  padding: 2px 6px;
+}
+
+.closeButton:hover {
+  color: var(--sq-text);
+}
+
+.hint {
+  color: var(--sq-muted);
+  font-size: 12.5px;
+  margin: 0 0 16px;
+}
+
+.checkboxList {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin-bottom: 20px;
+}
+
+.checkboxRow {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 13px;
+  color: var(--sq-text);
+  cursor: pointer;
+}
+
+.saveButton {
+  align-self: flex-start;
+  padding: 8px 18px;
+  border-radius: var(--sq-radius);
+  background: var(--sq-accent);
+  color: #fff;
+  font-weight: 700;
+  font-size: 13px;
+  border: none;
+  cursor: pointer;
+}
+
+.saveButton:disabled {
+  opacity: 0.6;
+  cursor: default;
+}
+
+.error {
+  color: #ff8a80;
+  font-size: 12.5px;
+  margin-bottom: 12px;
+}

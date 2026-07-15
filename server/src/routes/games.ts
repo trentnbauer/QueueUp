@@ -13,6 +13,7 @@ import {
 import { gameInclude, serializeGame, serializeGames } from '../services/gameSerializer.js';
 import { searchIntake, resolveGameForCreation, refreshGamePricing } from '../services/gameIntake.js';
 import { platformFamilies, findIgdbIdBySteamAppId } from '../services/igdbClient.js';
+import { getOwnedPlatforms } from '../services/userSettings.js';
 import { extractSteamId64, getOwnedSteamGames } from '../services/steamLibrary.js';
 import { env } from '../config/env.js';
 import type {
@@ -44,10 +45,10 @@ export default async function gameRoutes(app: FastifyInstance) {
     const userId = await request.requireAuth();
     const { roomId } = request.query;
     if (roomId) await requireMembership(roomId, userId);
-    const roomPlatform = roomId ? await getRoomPlatform(roomId) : undefined;
+    const platforms = roomId ? [await getRoomPlatform(roomId)] : await getOwnedPlatforms(userId);
     const excludeIgdbIds = await existingIgdbIds(roomId ?? null, userId);
 
-    const results = await searchIntake(request.query.q ?? '', roomPlatform, excludeIgdbIds);
+    const results = await searchIntake(request.query.q ?? '', platforms, excludeIgdbIds);
     return { results };
   });
 
@@ -84,10 +85,10 @@ export default async function gameRoutes(app: FastifyInstance) {
     if (roomId) {
       await requireMembership(roomId, userId);
     }
-    const roomPlatform = roomId ? await getRoomPlatform(roomId) : undefined;
+    const platforms = roomId ? [await getRoomPlatform(roomId)] : await getOwnedPlatforms(userId);
     await requireNotDuplicate(roomId ?? null, userId, igdbId);
 
-    const resolved = await resolveGameForCreation(igdbId, roomPlatform);
+    const resolved = await resolveGameForCreation(igdbId, platforms);
 
     const created = await prisma.game.create({
       data: {

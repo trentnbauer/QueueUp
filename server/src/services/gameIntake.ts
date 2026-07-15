@@ -5,27 +5,32 @@ import { ROOM_PLATFORM_LABELS, type GameSearchResult, type RoomPlatform } from '
 
 export async function searchIntake(
   query: string,
-  roomPlatform?: RoomPlatform,
+  platforms?: RoomPlatform[],
   excludeIgdbIds?: Set<number>,
 ): Promise<GameSearchResult[]> {
-  const results = await searchGames(query, roomPlatform);
+  const results = await searchGames(query, platforms);
   return excludeIgdbIds ? results.filter((r) => !excludeIgdbIds.has(r.igdbId)) : results;
 }
 
-function assertPlatformMatch(detail: IgdbGameDetail, roomPlatform?: RoomPlatform): void {
-  if (!roomPlatform) return;
-  if (!detail.platformFamilies.includes(roomPlatform)) {
-    throw new HttpError(
-      400,
-      `${detail.title} isn't available on ${ROOM_PLATFORM_LABELS[roomPlatform]}, and this room is limited to that platform.`,
-    );
-  }
+/** Validates a resolved game against an allowed-platforms set. Used both for a room (always a
+ * single-element array - its one platform) and the Personal Shelf (the user's ticked "owned
+ * systems", which can be any size, or empty/undefined to mean "no filter opted into yet"). */
+export function assertPlatformMatch(detail: IgdbGameDetail, allowedPlatforms?: RoomPlatform[]): void {
+  if (!allowedPlatforms || allowedPlatforms.length === 0) return;
+  if (detail.platformFamilies.some((f) => allowedPlatforms.includes(f))) return;
+
+  const labels = allowedPlatforms.map((p) => ROOM_PLATFORM_LABELS[p]).join(', ');
+  const message =
+    allowedPlatforms.length === 1
+      ? `${detail.title} isn't available on ${labels}, and this room is limited to that platform.`
+      : `${detail.title} isn't available on any of your owned systems (${labels}).`;
+  throw new HttpError(400, message);
 }
 
 /** Fully resolves a game once the user confirms adding it. */
 export async function resolveGameForCreation(
   igdbId: number,
-  roomPlatform?: RoomPlatform,
+  allowedPlatforms?: RoomPlatform[],
 ): Promise<{
   title: string;
   platform: string;
@@ -37,7 +42,7 @@ export async function resolveGameForCreation(
   releaseYear: number | null;
 }> {
   const detail = await getGameDetail(igdbId);
-  assertPlatformMatch(detail, roomPlatform);
+  assertPlatformMatch(detail, allowedPlatforms);
   const ggDealsUrl = detail.steamAppId ? (await getSteamPriceAndUrl(detail.steamAppId)).ggDealsUrl : null;
 
   return {
