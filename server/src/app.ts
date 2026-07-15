@@ -1,6 +1,7 @@
 import Fastify from 'fastify';
 import cors from '@fastify/cors';
 import helmet from '@fastify/helmet';
+import rateLimit from '@fastify/rate-limit';
 import sessionPlugin from './plugins/session.js';
 import authPlugin from './plugins/auth.js';
 import staticPlugin from './plugins/static.js';
@@ -9,6 +10,7 @@ import roomRoutes from './routes/rooms.js';
 import gameRoutes from './routes/games.js';
 import adminRoutes from './routes/admin.js';
 import { env } from './config/env.js';
+import { redis } from './services/redisClient.js';
 
 export async function buildApp() {
   const app = Fastify({ logger: true });
@@ -26,6 +28,12 @@ export async function buildApp() {
         connectSrc: ["'self'"],
       },
     },
+  });
+  await app.register(rateLimit, {
+    global: true,
+    max: 200,
+    timeWindow: '1 minute',
+    redis,
   });
   await app.register(sessionPlugin);
   await app.register(authPlugin);
