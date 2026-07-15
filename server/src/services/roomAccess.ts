@@ -1,3 +1,4 @@
+import { randomInt } from 'node:crypto';
 import { prisma } from '../db/client.js';
 import { HttpError } from '../util/httpError.js';
 import type { RoomPlatform } from '@squadqueue/shared';
@@ -25,8 +26,17 @@ export async function requireElevated(roomId: string, userId: string) {
   return membership;
 }
 
+// A room's invite code is its sole access-control secret, so it needs a CSPRNG rather than
+// Math.random() (whose internal state can potentially be inferred from observed outputs).
+const INVITE_CODE_ALPHABET = 'abcdefghijklmnopqrstuvwxyz0123456789';
+const INVITE_CODE_LENGTH = 10;
+
 function randomInviteCode(): string {
-  return Math.random().toString(36).slice(2, 8) + Math.random().toString(36).slice(2, 6);
+  let code = '';
+  for (let i = 0; i < INVITE_CODE_LENGTH; i++) {
+    code += INVITE_CODE_ALPHABET[randomInt(INVITE_CODE_ALPHABET.length)];
+  }
+  return code;
 }
 
 export async function generateUniqueInviteCode(): Promise<string> {
