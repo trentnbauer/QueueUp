@@ -3,6 +3,7 @@ import { useEffect, useState } from 'react';
 import { useAuth } from './context/AuthContext';
 import { authApi } from './api/auth';
 import { Header } from './components/Header';
+import { Footer } from './components/Footer';
 import { OnboardingModal } from './components/OnboardingModal';
 import { ShelfView } from './views/ShelfView';
 import { RoomView } from './views/RoomView';
@@ -88,6 +89,7 @@ export default function App() {
         <Route path="/room/:roomId" element={<RoomView />} />
         <Route path="/settings" element={<SettingsView />} />
       </Routes>
+      <Footer />
       {showOnboarding && <OnboardingModal onDone={handleOnboardingDone} />}
     </div>
   );
