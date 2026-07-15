@@ -14,7 +14,8 @@
     "db:push": "npm run db:push -w server",
     "db:migrate": "npm run db:migrate -w server",
     "db:studio": "npm run db:studio -w server",
-    "test": "vitest run"
+    "test": "vitest run",
+    "changelog:generate": "bash .github/scripts/generate-changelog.sh"
   },
   "devDependencies": {
     "concurrently": "^9.1.0",

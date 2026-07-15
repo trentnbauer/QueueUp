@@ -4,6 +4,7 @@ import { useAuth } from './context/AuthContext';
 import { authApi } from './api/auth';
 import { Header } from './components/Header';
 import { OnboardingModal } from './components/OnboardingModal';
+import { ChangelogModal } from './components/ChangelogModal';
 import { ShelfView } from './views/ShelfView';
 import { RoomView } from './views/RoomView';
 import { SettingsView } from './views/SettingsView';
@@ -89,6 +90,7 @@ export default function App() {
         <Route path="/settings" element={<SettingsView />} />
       </Routes>
       {showOnboarding && <OnboardingModal onDone={handleOnboardingDone} />}
+      <ChangelogModal />
     </div>
   );
 }
