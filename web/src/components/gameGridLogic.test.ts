@@ -1,6 +1,13 @@
 import { describe, it, expect } from 'vitest';
 import type { Game } from '@squadqueue/shared';
-import { sortByScore, playNextGames, primaryGenre, recommendedNextId, statusBucket } from './gameGridLogic';
+import {
+  sortByScore,
+  playNextGames,
+  primaryGenre,
+  recommendedNextId,
+  statusBucket,
+  pickWeightedRandom,
+} from './gameGridLogic';
 
 function makeGame(overrides: Partial<Game> = {}): Game {
   return {
@@ -14,7 +21,7 @@ function makeGame(overrides: Partial<Game> = {}): Game {
     ggDealsUrl: null,
     coverImageUrl: null,
     status: 'backlog',
-    price: { amount: null, currency: null, source: 'unavailable' },
+    price: { amount: null, currency: null, source: 'unavailable', historicalLow: null },
     votes: [],
     myVote: null,
     voteScore: 0,
@@ -146,5 +153,35 @@ describe('statusBucket', () => {
     expect(statusBucket(playing, playNext)).toBeLessThan(statusBucket(playNextBacklog, playNext));
     expect(statusBucket(playNextBacklog, playNext)).toBeLessThan(statusBucket(plainBacklog, playNext));
     expect(statusBucket(plainBacklog, playNext)).toBeLessThan(statusBucket(done, playNext));
+  });
+});
+
+describe('pickWeightedRandom', () => {
+  it('returns null for an empty candidate list', () => {
+    expect(pickWeightedRandom([], () => 0.5)).toBeNull();
+  });
+
+  it('returns the only candidate when there is just one', () => {
+    const only = makeGame({ id: 'only', voteScore: 3 });
+    expect(pickWeightedRandom([only], () => 0.5)?.id).toBe('only');
+  });
+
+  it('picks proportionally to vote score using the injected random source', () => {
+    // weights [1, 3] -> total 4. roll = random() * 4.
+    const low = makeGame({ id: 'low', voteScore: 1 });
+    const high = makeGame({ id: 'high', voteScore: 3 });
+    const candidates = [low, high];
+
+    // roll = 0.99*4 = 3.96 -> subtract low's weight (1) -> 2.96, subtract high's weight (3) -> -0.04 <= 0 -> high
+    expect(pickWeightedRandom(candidates, () => 0.99)?.id).toBe('high');
+    // roll = 0.1*4 = 0.4 -> subtract low's weight (1) -> -0.6 <= 0 -> low
+    expect(pickWeightedRandom(candidates, () => 0.1)?.id).toBe('low');
+  });
+
+  it('falls back to a uniform pick when every candidate has zero weight', () => {
+    const a = makeGame({ id: 'a', voteScore: 0 });
+    const b = makeGame({ id: 'b', voteScore: 0 });
+    // random()=0.6 over 2 candidates -> index floor(0.6*2)=1 -> b
+    expect(pickWeightedRandom([a, b], () => 0.6)?.id).toBe('b');
   });
 });
