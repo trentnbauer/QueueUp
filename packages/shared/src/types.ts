@@ -61,6 +61,7 @@ export interface Game {
   price: GamePrice;
   votes: VoteSummary[];
   myVote: VoteValue | null;
+  voteScore: number;
   createdAt: string;
   updatedAt: string;
 }

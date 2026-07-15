@@ -2,8 +2,13 @@ import type { Game, GameStatus, VoteValue } from '@squadqueue/shared';
 import { GameCard } from './GameCard';
 import styles from './GameGrid.module.css';
 
-function sortByRecent(games: Game[]): Game[] {
-  return [...games].sort((a, b) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime());
+function sortByScore(games: Game[]): Game[] {
+  // Game.updatedAt only reflects status changes, not votes (votes have their own row/timestamp),
+  // so ties break on createdAt (newest-added first) rather than a misleading "recently voted" signal.
+  return [...games].sort((a, b) => {
+    if (b.voteScore !== a.voteScore) return b.voteScore - a.voteScore;
+    return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
+  });
 }
 
 interface GameGridProps {
@@ -15,7 +20,7 @@ interface GameGridProps {
 }
 
 export function GameGrid({ games, currentUserId, onStatusChange, onVote, onRemove }: GameGridProps) {
-  const sorted = sortByRecent(games);
+  const sorted = sortByScore(games);
 
   if (sorted.length === 0) {
     return <div className={styles.empty}>Nothing here yet.</div>;

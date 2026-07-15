@@ -23,6 +23,7 @@ async function resolvePrice(game: GameWithRelations): Promise<GamePrice> {
 export async function serializeGame(game: GameWithRelations, currentUserId: string): Promise<Game> {
   const price = await resolvePrice(game);
   const myVote = game.votes.find((v) => v.userId === currentUserId);
+  const voteScore = game.votes.reduce((sum, v) => sum + v.value, 0);
 
   return {
     id: game.id,
@@ -37,6 +38,7 @@ export async function serializeGame(game: GameWithRelations, currentUserId: stri
     price,
     votes: game.votes.map((v) => ({ user: toUserDto(v.user), value: v.value as VoteValue })),
     myVote: (myVote?.value as VoteValue | undefined) ?? null,
+    voteScore,
     createdAt: game.createdAt.toISOString(),
     updatedAt: game.updatedAt.toISOString(),
   };
