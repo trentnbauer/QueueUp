@@ -54,3 +54,20 @@ export function statusBucket(game: Game, playNext: Set<string>): number {
   if (game.status === 'backlog') return 2;
   return 3; // done
 }
+
+/** Picks one game at random from `candidates`, weighted by vote score - a game with twice the
+ * score of another is twice as likely to be picked, but every candidate has a real (if small)
+ * chance, so a tie-breaker doesn't feel rigged toward whatever's already winning. `random`
+ * defaults to Math.random but is injectable for deterministic tests. */
+export function pickWeightedRandom(candidates: Game[], random: () => number = Math.random): Game | null {
+  if (candidates.length === 0) return null;
+  const totalWeight = candidates.reduce((sum, g) => sum + g.voteScore, 0);
+  if (totalWeight <= 0) return candidates[Math.floor(random() * candidates.length)];
+
+  let roll = random() * totalWeight;
+  for (const game of candidates) {
+    roll -= game.voteScore;
+    if (roll <= 0) return game;
+  }
+  return candidates[candidates.length - 1];
+}

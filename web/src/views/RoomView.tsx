@@ -8,6 +8,7 @@ import { roomsApi } from '../api/rooms';
 import { GameInputBar } from '../components/GameInputBar';
 import { GameGrid } from '../components/GameGrid';
 import { ActionErrorBanner } from '../components/ActionErrorBanner';
+import { SpinTheWheel } from '../components/SpinTheWheel';
 
 export function RoomView() {
   const { roomId } = useParams<{ roomId: string }>();
@@ -45,6 +46,7 @@ export function RoomView() {
     <div>
       <GameInputBar roomId={roomId} onAdded={invalidate} />
       <ActionErrorBanner message={actionError} onDismiss={clearActionError} />
+      {!isLoading && !isError && <SpinTheWheel games={games} />}
       <GameGrid
         games={games}
         currentUserId={user.id}
