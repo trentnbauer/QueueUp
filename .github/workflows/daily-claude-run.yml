@@ -1,0 +1,208 @@
+name: Daily Claude Run
+
+# Runs at 1am AEST (UTC+10, fixed year-round) every day. GitHub Actions
+# cron has no timezone support, so this is pinned to 15:00 UTC — in
+# Sydney/Melbourne that's 1am AEST but 2am AEDT during daylight saving
+# (Oct-Apr).
+#
+# Two tiers, processed in order (see the prompt below for the exact
+# rules). Scope is deliberately narrow: calculation/logic bugs, bug
+# reports, security hardening, and code-scanning alerts -- feature
+# requests and anything else get left alone for a human to triage.
+on:
+  schedule:
+    - cron: '0 15 * * *'
+  workflow_dispatch:
+
+concurrency:
+  # Prevent a manual run from overlapping with the scheduled one (or two
+  # manual runs from overlapping each other).
+  group: daily-claude-run
+  cancel-in-progress: false
+
+jobs:
+  daily-run:
+    # DISABLED while other repo changes are landing — remove this line to re-enable.
+    if: false
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      pull-requests: write
+      issues: write
+      security-events: write
+      id-token: write
+      actions: read
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
+
+      - name: Ensure tracking label exists
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh label create "claude-attempted" \
+            --repo ${{ github.repository }} \
+            --color "5319e7" \
+            --description "Claude already handled this issue (PR opened, or skipped as too ambiguous). Remove to retry." \
+            --force
+
+      - name: Prepare Tier 1 security-alert data
+        # The Claude GitHub App's own installation token has no
+        # security_events access at all -- requesting it via
+        # additional_permissions hard-fails the App's token exchange rather
+        # than just being denied per-call. This step does all the
+        # security-events-scoped API work up front with GITHUB_TOKEN (which
+        # does have it, from this job's `permissions:` above) and hands
+        # Claude a plain manifest + SARIF files to read instead.
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: bash .github/scripts/prepare-security-alerts.sh
+
+      - name: Run Claude Code
+        id: claude
+        uses: anthropics/claude-code-action@v1
+        env:
+          GH_TOKEN: ${{ github.token }}
+        with:
+          claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
+          additional_permissions: |
+            actions: read
+          claude_args: '--allowed-tools "Bash(gh:*),Bash(git:*),Bash(npm:*),Read,Edit,Write,Grep,Glob"'
+          prompt: |
+            You are running as a scheduled, unattended job with no human present. Be conservative:
+            implement real, working fixes, and do not refactor or "improve" unrelated code. This run
+            only handles calculation/logic bugs, bug reports, security hardening, and code-scanning
+            alerts — never feature requests, and never any other open issue that isn't clearly one of
+            those. Never push to main directly, and never approve your own PR (GitHub blocks
+            self-approval anyway).
+
+            Work through these two tiers, strictly in order. Fully finish every item in a tier
+            (PR opened/merged, or skipped with a comment/note, plus tracking applied) before starting
+            the next item, and don't begin Tier 2 while Tier 1 still has unprocessed items:
+
+            ---
+
+            ## The auto-merge confidence bar
+
+            Tier 2 below lets you merge a PR yourself instead of leaving it for human review. Only do
+            that when ALL of these hold — this is a high bar, deliberately:
+              - it's a well-understood, standard fix (not a judgment call between several valid
+                approaches, not a design/infra tradeoff);
+              - the diff is minimal and localized — it touches only what's needed, nothing else;
+              - you verified it end-to-end yourself: reproduced the original bug/vulnerability, ran
+                `npm test` (and, for changes touching the build, `npm run build`) and confirmed the fix
+                actually resolves it with no regressions;
+              - for changes to a `.github/workflows/*.yml` file, confirmed it's still valid YAML.
+            If any of those don't hold, leave the PR open for human review instead. Say explicitly in
+            the PR body whether you merged it and why (or why not).
+
+            ---
+
+            **Tier 1 — Code-scanning alerts (Security tab)**
+
+            Your own token has no access to the code-scanning API (a separate step already checked, so
+            don't bother retrying `gh api .../code-scanning/...` yourself — it will just 403). Instead,
+            read `${{ runner.temp }}/security-alerts/manifest.json`, a pre-built array (most severe
+            first) with one entry per open, actionable alert that doesn't already have a PR:
+            ```
+            {
+              "number": <alert number>,
+              "rule_id": "<rule id>",
+              "severity": "critical" | "high" | "medium" | "low",
+              "branch": "<branch name, already pushed if autofix_status is \"committed\">",
+              "autofix_status": "committed" | "commit_failed" | "unavailable",
+              "autofix_description": "<Copilot's own explanation of its fix, if committed>",
+              "sarif_file": "<path to that alert's SARIF, or empty string if none was found>"
+            }
+            ```
+            If the manifest is missing, empty, or is `[]`, there's nothing to do in this tier — move on
+            to Tier 2.
+
+            For each entry, most severe first:
+            1. If `sarif_file` is non-empty, read it and trace the codeFlows to the actual tainted
+               source feeding the sink — that's your root-cause reference for judging any fix, Copilot's
+               or your own.
+            2. Branch `<branch>` already exists on the remote either way (created by the prep step) —
+               `git fetch origin <branch> && git checkout <branch>`.
+               - If `autofix_status` is `"committed"`: the branch already has Copilot's proposed fix as
+                 a commit. Read the changed file(s) end-to-end and judge that patch against the SARIF
+                 root cause:
+                   - Genuinely closes the hole, minimal, no unrelated behavior change → keep it as-is.
+                   - Incomplete, wrong, or overreaching → replace it with your own fix (additional
+                     commit on the same branch). Say in the PR description that you adjusted or replaced
+                     Copilot's suggestion and why.
+                   - Looks like a false positive (already-sanitized data the tool can't trace through a
+                     custom helper, or input that isn't actually attacker-controllable) → don't open a
+                     PR. `git push origin --delete <branch>`, then dismiss it — you can't call the
+                     dismissal API yourself (same reason you can't list alerts), so instead append
+                     `{"number": <alert number>, "comment": "<why, ≤280 chars, this becomes the
+                     dismissal comment on the alert>"}` to
+                     `${{ runner.temp }}/security-alerts/dismissals.json` (an array; create it as `[]`
+                     first if it doesn't already exist). A step after you finish applies these for real —
+                     without an entry here, the alert just stays open with nothing recorded, even though
+                     you decided it was fine.
+               - If `autofix_status` is `"commit_failed"` or `"unavailable"`: the branch exists but is
+                 empty (still just main). Implement the fix yourself from the SARIF trace (or, if there
+                 was no `sarif_file` either, from the alert's rule id and file location — read the
+                 relevant code path end-to-end), then commit and push it to that same branch.
+            3. Open a PR: title stating the alert (rule id + file/line + severity), body with the root
+               cause, the fix, whether it came from Copilot or you (and why, if you changed it), and how
+               you verified it.
+            4. Apply the auto-merge confidence bar above. If it holds, merge it yourself
+               (`gh pr merge --squash --auto --delete-branch`); if not, leave it open.
+
+            **Tier 2 — Bug reports + security hardening (PR, auto-merge only if very confident)**
+
+            List open issues authored by ${{ github.repository_owner }}:
+            ```
+            gh issue list --repo ${{ github.repository }} --author ${{ github.repository_owner }} \
+              --state open --json number,title,body,labels,createdAt,author --jq 'sort_by(.createdAt)'
+            ```
+            From these, take every issue labelled `bug` or `security`, skipping any already labelled
+            `claude-attempted`. Ignore everything else (feature requests, anything unlabelled or
+            off-topic).
+
+            One carve-out: if an issue's title/body describes an actual exploitable vulnerability (a
+            real exploit, data leak, injection — not just a hardening suggestion or "this looks unsafe"),
+            treat it as PR-only, never auto-merge, regardless of how confident you are — a reported
+            vulnerability needs a human to confirm the report and the fix actually match. Everything else
+            in this tier follows the normal confidence bar above.
+
+            For each issue: read it fully, then try to replicate the reported behavior before deciding
+            anything else — follow the reporter's repro steps against the current code (read the
+            relevant code path end-to-end, and actually exercise it where feasible: run the affected
+            service/route logic, or the relevant Vitest file directly). Keep track of what you did and
+            observed — you'll need it either way.
+
+            Decide whether it's implementable with reasonable confidence in what "done" looks like — the
+            same judgment call you'd make if a human asked you to "just implement this issue" with no
+            other context. If you couldn't replicate it, or it's too vague, too large for one PR, or
+            hinges on a decision only the repo owner can make (e.g. a schema/architecture change), don't
+            implement it — comment on the issue explaining what you tried and what's unclear,
+            @-mentioning `author.login`, and label it `claude-attempted`.
+
+            If you can implement it: create a branch named `claude/issue-<number>-<short-slug>`,
+            implement the change matching existing conventions, verify it actually works, commit, push,
+            and open a PR with `Fixes #<number>` and a test-plan checklist covering how you replicated
+            the original issue and confirmed your fix. Then apply the auto-merge confidence bar above
+            (minus the vulnerability carve-out noted higher up): if it holds, merge it yourself; if not,
+            leave it open for review. Either way, label the issue `claude-attempted`.
+
+            ---
+
+            If a tier has nothing to do, move on to the next one silently. If every tier is empty, do
+            nothing at all — no branches, no PRs, no comments.
+
+      - name: Apply Tier 1 false-positive dismissals
+        # Same reason as the prep step: Claude's own token can't call the
+        # code-scanning API to actually dismiss an alert it judged a false
+        # positive, so it wrote its verdict to dismissals.json instead. This
+        # runs regardless of the Claude step's own outcome, so any
+        # dismissals it did manage to record still get applied.
+        if: always()
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: bash .github/scripts/apply-security-dismissals.sh
