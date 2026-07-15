@@ -10,7 +10,7 @@ import { SteamImportButton } from '../components/SteamImportButton';
 
 export function ShelfView() {
   const { user, steamLinked } = useAuth();
-  const { switchView, rooms } = useView();
+  const { switchView } = useView();
   const {
     games,
     isLoading,
@@ -24,10 +24,7 @@ export function ShelfView() {
     vote,
     remove,
     refreshPrice,
-    move,
   } = useGames(null);
-
-  const moveDestinations = rooms.map((r) => ({ roomId: r.id, label: r.name }));
 
   useEffect(() => {
     switchView({ type: 'personal' });
@@ -48,12 +45,10 @@ export function ShelfView() {
         isError={isError}
         loadError={loadError}
         onRetry={refetch}
-        moveDestinations={moveDestinations}
         onStatusChange={updateStatus}
         onVote={vote}
         onRemove={remove}
         onRefreshPrice={refreshPrice}
-        onMove={move}
       />
     </div>
   );

@@ -19,7 +19,7 @@ const SPIN_THE_WHEEL_ENABLED = false;
 export function RoomView() {
   const { roomId } = useParams<{ roomId: string }>();
   const { user } = useAuth();
-  const { switchView, rooms } = useView();
+  const { switchView } = useView();
   const {
     games,
     isLoading,
@@ -33,13 +33,7 @@ export function RoomView() {
     vote,
     remove,
     refreshPrice,
-    move,
   } = useGames(roomId ?? null);
-
-  const moveDestinations = [
-    { roomId: null, label: 'Personal Shelf' },
-    ...rooms.filter((r) => r.id !== roomId).map((r) => ({ roomId: r.id, label: r.name })),
-  ];
 
   const { data: membersData } = useQuery({
     queryKey: ['room-members', roomId],
@@ -68,12 +62,10 @@ export function RoomView() {
         loadError={loadError}
         onRetry={refetch}
         memberCount={memberCount}
-        moveDestinations={moveDestinations}
         onStatusChange={updateStatus}
         onVote={vote}
         onRemove={remove}
         onRefreshPrice={refreshPrice}
-        onMove={move}
       />
     </div>
   );
