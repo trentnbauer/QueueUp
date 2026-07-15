@@ -11,6 +11,11 @@ import { ActionErrorBanner } from '../components/ActionErrorBanner';
 import { SpinTheWheel } from '../components/SpinTheWheel';
 import { ExportButton } from '../components/ExportButton';
 
+// Post-1.0 release feature: Spin the Wheel is temporarily hidden until its UI
+// gets a redesign. Component is kept intact so it can be re-enabled easily.
+// See: https://github.com/trentnbauer/SquadQueue/issues/103
+const SPIN_THE_WHEEL_ENABLED = false;
+
 export function RoomView() {
   const { roomId } = useParams<{ roomId: string }>();
   const { user } = useAuth();
@@ -53,7 +58,7 @@ export function RoomView() {
     <div>
       <GameInputBar roomId={roomId} onAdded={invalidate} />
       <ActionErrorBanner message={actionError} onDismiss={clearActionError} />
-      {!isLoading && !isError && <SpinTheWheel games={games} />}
+      {SPIN_THE_WHEEL_ENABLED && !isLoading && !isError && <SpinTheWheel games={games} />}
       {!isLoading && !isError && <ExportButton games={games} baseName="squad-room" />}
       <GameGrid
         games={games}
