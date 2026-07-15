@@ -193,28 +193,38 @@
   background: var(--sq-neutral-pill-bg);
 }
 
-.inviteCodeRow {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 8px;
-  padding: 8px 10px;
+.locationIcon {
   font-size: 13px;
 }
 
-.copyButton {
-  padding: 4px 10px;
-  border-radius: 6px;
-  background: var(--sq-neutral-pill-bg);
-  color: var(--sq-text);
-  border: none;
-  font-size: 11px;
-  white-space: nowrap;
+.menuSectionLabel {
+  padding: 4px 10px 2px;
+  font: 700 10px system-ui, sans-serif;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--sq-muted);
 }
 
-.copyButton:hover {
-  background: var(--sq-accent-pill-bg);
-  color: var(--sq-accent);
+.addRoomButton {
+  display: flex;
+  align-items: center;
+  padding: 6px 14px;
+  border-radius: 999px;
+  background: transparent;
+  color: var(--sq-muted);
+  border: 1px dashed var(--sq-border);
+  font: 600 12.5px system-ui, sans-serif;
+  list-style: none;
+  cursor: pointer;
+}
+
+.addRoomButton:hover {
+  color: var(--sq-text);
+  border-color: var(--sq-text);
+}
+
+.addRoomButton::-webkit-details-marker {
+  display: none;
 }
 
 .menuItemActive {

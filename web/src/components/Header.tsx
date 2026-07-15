@@ -33,6 +33,7 @@ export function Header() {
   const confirm = useConfirm();
 
   const roomMenuRef = useRef<HTMLDetailsElement>(null);
+  const addRoomMenuRef = useRef<HTMLDetailsElement>(null);
   const membersMenuRef = useRef<HTMLDetailsElement>(null);
   const profileMenuRef = useRef<HTMLDetailsElement>(null);
   const [showCreateForm, setShowCreateForm] = useState(false);
@@ -40,15 +41,7 @@ export function Header() {
   const [newRoomName, setNewRoomName] = useState('');
   const [newRoomPlatform, setNewRoomPlatform] = useState<RoomPlatform>('pc');
   const [inviteCode, setInviteCode] = useState('');
-  const [inviteCodeCopied, setInviteCodeCopied] = useState(false);
   const [showRoomSettings, setShowRoomSettings] = useState(false);
-
-  async function handleCopyInviteCode() {
-    if (!activeRoom?.inviteCode) return;
-    await navigator.clipboard.writeText(activeRoom.inviteCode);
-    setInviteCodeCopied(true);
-    setTimeout(() => setInviteCodeCopied(false), 1500);
-  }
 
   const membersQueryKey = ['room-members', activeRoom?.id];
   const { data: membersData } = useQuery({
@@ -91,6 +84,12 @@ export function Header() {
     }
   }
 
+  function closeAddRoomMenu() {
+    addRoomMenuRef.current?.removeAttribute('open');
+    setShowCreateForm(false);
+    setShowJoinForm(false);
+  }
+
   async function handleCreateRoom(e: React.FormEvent) {
     e.preventDefault();
     if (!newRoomName.trim()) return;
@@ -98,8 +97,7 @@ export function Header() {
     const { room } = await createRoom.mutateAsync({ name: newRoomName.trim(), platform: newRoomPlatform, accentColor });
     setNewRoomName('');
     setNewRoomPlatform('pc');
-    setShowCreateForm(false);
-    roomMenuRef.current?.removeAttribute('open');
+    closeAddRoomMenu();
     navigate(`/room/${room.id}`);
   }
 
@@ -108,8 +106,7 @@ export function Header() {
     if (!inviteCode.trim()) return;
     const { room } = await joinRoom.mutateAsync({ inviteCode: inviteCode.trim() });
     setInviteCode('');
-    setShowJoinForm(false);
-    roomMenuRef.current?.removeAttribute('open');
+    closeAddRoomMenu();
     navigate(`/room/${room.id}`);
   }
 
@@ -125,17 +122,26 @@ export function Header() {
           <div className={styles.tagline}>Games the squad wants to play together</div>
         </div>
 
+        {/* Pure navigation: switch between the Personal Shelf and any room you belong to.
+            Creating/joining a room and managing an active room live in their own separate,
+            clearly-labeled controls below, not nested inside this menu. */}
         <details className={styles.menu} ref={roomMenuRef}>
-          <summary className={styles.menuButton}>{activeRoom ? activeRoom.name : 'Personal Shelf'} ▾</summary>
+          <summary className={styles.menuButton}>
+            <span className={styles.locationIcon} aria-hidden="true">
+              {activeRoom ? '🎮' : '🗂'}
+            </span>
+            {activeRoom ? activeRoom.name : 'Personal Shelf'}
+            <span aria-hidden="true">▾</span>
+          </summary>
           <div className={`${styles.menuPanel} ${styles.menuPanelLeft}`}>
+            <div className={styles.menuSectionLabel}>Switch to</div>
             <Link
               to="/"
               className={`${styles.menuItem} ${!activeRoom ? styles.menuItemActive : ''}`}
               onClick={() => roomMenuRef.current?.removeAttribute('open')}
             >
-              Personal Shelf
+              🗂 Personal Shelf
             </Link>
-            {rooms.length > 0 && <div className={styles.divider} />}
             {rooms.map((room) => (
               <Link
                 key={room.id}
@@ -143,14 +149,21 @@ export function Header() {
                 className={`${styles.menuItem} ${activeRoom?.id === room.id ? styles.menuItemActive : ''}`}
                 onClick={() => roomMenuRef.current?.removeAttribute('open')}
               >
-                {room.name} <span style={{ color: 'var(--sq-muted)', fontWeight: 400 }}>· {ROOM_PLATFORM_LABELS[room.platform]}</span>
+                🎮 {room.name} <span style={{ color: 'var(--sq-muted)', fontWeight: 400 }}>· {ROOM_PLATFORM_LABELS[room.platform]}</span>
               </Link>
             ))}
-            <div className={styles.divider} />
+          </div>
+        </details>
+
+        <details className={styles.menu} ref={addRoomMenuRef}>
+          <summary className={styles.addRoomButton} title="Create or join a room">
+            + Room
+          </summary>
+          <div className={styles.menuPanel}>
             {!showCreateForm && !showJoinForm && (
               <>
                 <button className={styles.menuItem} onClick={() => setShowCreateForm(true)}>
-                  + New room
+                  Create a new room
                 </button>
                 <button className={styles.menuItem} onClick={() => setShowJoinForm(true)}>
                   Join with invite code
@@ -186,29 +199,16 @@ export function Header() {
                 <button type="submit">Join room</button>
               </form>
             )}
-            {activeRoom?.inviteCode && (
-              <>
-                <div className={styles.divider} />
-                <div className={styles.inviteCodeRow}>
-                  <span style={{ color: 'var(--sq-muted)' }}>
-                    Invite code: <strong style={{ color: 'var(--sq-text)' }}>{activeRoom.inviteCode}</strong>
-                  </span>
-                  <button type="button" className={styles.copyButton} onClick={handleCopyInviteCode}>
-                    {inviteCodeCopied ? 'Copied!' : 'Copy'}
-                  </button>
-                </div>
-              </>
-            )}
           </div>
         </details>
 
-        {activeRoom && (myRole === 'room_master' || myRole === 'moderator') && (
+        {activeRoom && (
           <button
             type="button"
             className={styles.settingsButton}
             onClick={() => setShowRoomSettings(true)}
-            title="Room settings"
-            aria-label="Room settings"
+            title="Room info & settings"
+            aria-label="Room info & settings"
           >
             ⚙
           </button>

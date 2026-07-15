@@ -177,3 +177,20 @@
   font-size: 12.5px;
   margin-bottom: 12px;
 }
+
+.inviteCodeRow {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 8px 12px;
+  border-radius: var(--sq-radius);
+  background: var(--sq-surface2);
+  border: 1px solid var(--sq-border);
+}
+
+.inviteCode {
+  color: var(--sq-text);
+  font-size: 13px;
+  letter-spacing: 0.03em;
+}

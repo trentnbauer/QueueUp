@@ -38,6 +38,14 @@ export function RoomSettingsModal({ room, members, onClose }: RoomSettingsModalP
   const [accentColor, setAccentColor] = useState(room.accentColor);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [inviteCopied, setInviteCopied] = useState(false);
+
+  async function handleCopyInviteCode() {
+    if (!room.inviteCode) return;
+    await navigator.clipboard.writeText(room.inviteCode);
+    setInviteCopied(true);
+    setTimeout(() => setInviteCopied(false), 1500);
+  }
 
   const isRoomMaster = room.myRole === 'room_master';
   const isElevated = room.myRole === 'room_master' || room.myRole === 'moderator';
@@ -171,6 +179,18 @@ export function RoomSettingsModal({ room, members, onClose }: RoomSettingsModalP
             </p>
           )}
         </div>
+
+        {room.inviteCode && (
+          <div className={styles.section}>
+            <div className={styles.sectionTitle}>Invite code</div>
+            <div className={styles.inviteCodeRow}>
+              <strong className={styles.inviteCode}>{room.inviteCode}</strong>
+              <button type="button" className={styles.memberAction} onClick={handleCopyInviteCode}>
+                {inviteCopied ? 'Copied!' : 'Copy'}
+              </button>
+            </div>
+          </div>
+        )}
 
         <div className={styles.section}>
           <div className={styles.sectionTitle}>Members ({members.length})</div>
