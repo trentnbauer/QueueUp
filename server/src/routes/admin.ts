@@ -54,58 +54,70 @@ export default async function adminRoutes(app: FastifyInstance) {
     return { status };
   });
 
-  app.patch<{ Body: { key: string; value: string } }>('/api/admin/integrations', async (request) => {
-    const actorId = await request.requireAuth();
-    const actor = await requireAdmin(actorId);
-    const { key, value } = request.body ?? {};
+  // Explicit per-route limit (on top of the global one in app.ts) since these write credential
+  // material - tighter than the global 200/min default, mirroring auth.ts's login-route pattern.
+  const integrationsWriteRateLimit = { config: { rateLimit: { max: 20, timeWindow: '1 minute' } } };
 
-    if (typeof key !== 'string' || !isConfigKey(key)) {
-      throw new HttpError(400, `Unknown integration setting: ${key}`);
-    }
-    if (envValueFor(key)) {
-      throw new HttpError(
-        400,
-        `${CONFIG_KEY_LABELS[key]} is set via .env, which always takes precedence — unset it there first if you want to manage it here instead.`,
+  app.patch<{ Body: { key: string; value: string } }>(
+    '/api/admin/integrations',
+    integrationsWriteRateLimit,
+    async (request) => {
+      const actorId = await request.requireAuth();
+      const actor = await requireAdmin(actorId);
+      const { key, value } = request.body ?? {};
+
+      if (typeof key !== 'string' || !isConfigKey(key)) {
+        throw new HttpError(400, `Unknown integration setting: ${key}`);
+      }
+      if (envValueFor(key)) {
+        throw new HttpError(
+          400,
+          `${CONFIG_KEY_LABELS[key]} is set via .env, which always takes precedence — unset it there first if you want to manage it here instead.`,
+        );
+      }
+      if (typeof value !== 'string' || !value.trim()) {
+        throw new HttpError(400, 'A non-empty value is required');
+      }
+
+      await setConfigValue(key, value.trim(), actorId);
+      app.log.warn({ adminAction: 'integration.set', actorId, key }, `Admin ${actorId} set integration config ${key}`);
+      await logAdminAction({
+        actorId,
+        actorLabel: actor.email,
+        action: 'integration.set',
+        targetLabel: CONFIG_KEY_LABELS[key],
+      });
+      return { ok: true };
+    },
+  );
+
+  app.delete<{ Params: { key: string } }>(
+    '/api/admin/integrations/:key',
+    integrationsWriteRateLimit,
+    async (request, reply) => {
+      const actorId = await request.requireAuth();
+      const actor = await requireAdmin(actorId);
+      const { key } = request.params;
+
+      if (!isConfigKey(key)) {
+        throw new HttpError(400, `Unknown integration setting: ${key}`);
+      }
+
+      await clearConfigValue(key);
+      app.log.warn(
+        { adminAction: 'integration.clear', actorId, key },
+        `Admin ${actorId} cleared integration config ${key}`,
       );
-    }
-    if (typeof value !== 'string' || !value.trim()) {
-      throw new HttpError(400, 'A non-empty value is required');
-    }
-
-    await setConfigValue(key, value.trim(), actorId);
-    app.log.warn({ adminAction: 'integration.set', actorId, key }, `Admin ${actorId} set integration config ${key}`);
-    await logAdminAction({
-      actorId,
-      actorLabel: actor.email,
-      action: 'integration.set',
-      targetLabel: CONFIG_KEY_LABELS[key],
-    });
-    return { ok: true };
-  });
-
-  app.delete<{ Params: { key: string } }>('/api/admin/integrations/:key', async (request, reply) => {
-    const actorId = await request.requireAuth();
-    const actor = await requireAdmin(actorId);
-    const { key } = request.params;
-
-    if (!isConfigKey(key)) {
-      throw new HttpError(400, `Unknown integration setting: ${key}`);
-    }
-
-    await clearConfigValue(key);
-    app.log.warn(
-      { adminAction: 'integration.clear', actorId, key },
-      `Admin ${actorId} cleared integration config ${key}`,
-    );
-    await logAdminAction({
-      actorId,
-      actorLabel: actor.email,
-      action: 'integration.clear',
-      targetLabel: CONFIG_KEY_LABELS[key],
-    });
-    reply.status(204);
-    return null;
-  });
+      await logAdminAction({
+        actorId,
+        actorLabel: actor.email,
+        action: 'integration.clear',
+        targetLabel: CONFIG_KEY_LABELS[key],
+      });
+      reply.status(204);
+      return null;
+    },
+  );
 
   app.get('/api/admin/users', async (request) => {
     const userId = await request.requireAuth();
