@@ -1,0 +1,43 @@
+name: Feature request
+description: Suggest an idea or improvement for SquadQueue.
+labels: ["enhancement"]
+body:
+  - type: textarea
+    id: problem
+    attributes:
+      label: What problem does this solve?
+      description: What's missing or frustrating about the current backlog/voting flow?
+    validations:
+      required: true
+
+  - type: textarea
+    id: proposal
+    attributes:
+      label: Proposed solution
+      description: What would you like to happen? Mockups or examples welcome.
+    validations:
+      required: true
+
+  - type: dropdown
+    id: area
+    attributes:
+      label: Area
+      options:
+        - Personal Shelf
+        - Communal Rooms
+        - Game intake (gg.deals link paste)
+        - Pricing / metadata refresh
+        - Voting (emoji scale)
+        - Room roles / permissions (Room Master)
+        - Attribution / badges
+        - UI / theming
+        - Other
+    validations:
+      required: true
+
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: Alternatives considered
+    validations:
+      required: false
