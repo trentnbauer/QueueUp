@@ -1,21 +1,50 @@
 # Security Policy
 
-## Supported Versions
+SquadQueue is a self-hosted app meant to run on your own infrastructure, typically
+exposed only to a private friend group rather than the public internet. Even so,
+please report security issues responsibly so they can be fixed before wider disclosure.
 
-Use this section to tell people about which versions of your project are
-currently being supported with security updates.
+## Reporting a vulnerability
 
-| Version | Supported          |
-| ------- | ------------------ |
-| 5.1.x   | :white_check_mark: |
-| 5.0.x   | :x:                |
-| 4.0.x   | :white_check_mark: |
-| < 4.0   | :x:                |
+**Please do not open a public GitHub issue for security vulnerabilities.**
 
-## Reporting a Vulnerability
+Instead, use GitHub's private vulnerability reporting:
 
-Use this section to tell people how to report a vulnerability.
+1. Go to the [Security tab](../../security) of this repository.
+2. Click **Report a vulnerability** under "Advisories".
 
-Tell them where to go, how often they can expect to get an update on a
-reported vulnerability, what to expect if the vulnerability is accepted or
-declined, etc.
+This opens a private conversation with the maintainer and is the preferred way to
+report anything security-related — auth bypass, injection, secrets exposure,
+SSRF via the gg.deals/IGDB integrations, etc.
+
+If you're unable to use GitHub's reporting flow, you can instead email
+**trentnbauer@gmail.com** with details.
+
+Please include, where relevant:
+
+- A description of the issue and its potential impact
+- Steps to reproduce (or a proof of concept)
+- The affected version/commit
+
+## Response
+
+This is a small, actively-developed project maintained by one person, so there's no
+formal SLA. Reports are triaged as they come in and a fix (or at least an
+acknowledgment) should follow reasonably promptly. Once resolved, a fix will be
+released and, if appropriate, a GitHub Security Advisory published.
+
+## Supported versions
+
+SquadQueue does not yet have tagged releases — `main` is the only supported version.
+Deploying from `main` and pulling updates regularly is the best way to stay current
+on security fixes.
+
+## Scope notes
+
+- Automated dependency review and scheduled code-scanning triage are wired up in
+  `.github/workflows/` (currently disabled while other repo changes land — see the
+  workflow files for status) and will re-run automatically once re-enabled.
+- Report issues in SquadQueue's own code and configuration. Vulnerabilities in
+  upstream dependencies (Fastify, Prisma, React, etc.) should be reported to those
+  projects directly, though flagging them here is still welcome if they materially
+  affect a default SquadQueue deployment.
