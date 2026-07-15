@@ -4,6 +4,7 @@ import { StatusBadge } from './StatusBadge';
 import { VoteRow } from './VoteRow';
 import { VoteHeatmap } from './VoteHeatmap';
 import { useConfirm } from '../context/ConfirmContext';
+import { formatRelativeTime } from '../utils/relativeTime';
 import styles from './GameCard.module.css';
 
 interface GameCardProps {
@@ -16,6 +17,8 @@ interface GameCardProps {
   onVote: (value: VoteValue) => void;
   onRemove: () => void;
   onRefreshPrice: () => void;
+  /** Drives the refresh button's spinner. Defaults to false (e.g. contexts that don't track it). */
+  isRefreshingPrice?: boolean;
 }
 
 function formatAmount(amount: string, currency: string | null): string {
@@ -42,6 +45,7 @@ export function GameCard({
   onVote,
   onRemove,
   onRefreshPrice,
+  isRefreshingPrice = false,
 }: GameCardProps) {
   const confirm = useConfirm();
   const coopWarning =
@@ -104,10 +108,12 @@ export function GameCard({
             {game.price.source === 'live' && (
               <button
                 type="button"
-                className={styles.refreshPriceButton}
+                className={`${styles.refreshPriceButton} ${isRefreshingPrice ? styles.spinning : ''}`}
                 onClick={onRefreshPrice}
-                title="Check for a fresh price"
+                disabled={isRefreshingPrice}
+                title={isRefreshingPrice ? 'Refreshing price…' : 'Check for a fresh price'}
                 aria-label="Refresh price"
+                aria-busy={isRefreshingPrice}
               >
                 ↻
               </button>
@@ -118,6 +124,12 @@ export function GameCard({
             <AvatarBadge name={game.addedBy.displayName} color={game.addedBy.avatarColor} avatarUrl={game.addedBy.avatarUrl} size={16} />
           </span>
         </div>
+
+        {game.price.source === 'live' && game.price.lastRefreshedAt && (
+          <span className={styles.lastRefreshed}>
+            Updated {formatRelativeTime(game.price.lastRefreshedAt)}
+          </span>
+        )}
 
         {game.price.historicalLow && (
           <span className={styles.historicalLow} title="Lowest price this game has been tracked at">

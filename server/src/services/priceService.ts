@@ -1,10 +1,18 @@
 import { redis } from './redisClient.js';
 import { env } from '../config/env.js';
 import { getConfigValue } from './configResolver.js';
+import { HttpError } from '../util/httpError.js';
+import { FORCED_REFRESH_COOLDOWN_MS, cooldownRemainingMs, formatCooldownMessage } from './refreshCooldown.js';
 import type { GamePrice } from '@squadqueue/shared';
 
 const PRICE_CACHE_TTL_SECONDS = 60 * 60 * 6; // 6h — prices/sales move faster than metadata
 const PRICE_CACHE_PREFIX = 'gg:price:v3:steam:'; // v3: GamePrice now also carries historicalLow
+// Deliberately keyed by steamAppId ALONE - no roomId, no region. That means a manual refresh
+// of a given Steam game is shared by every room/shelf that happens to show it (issue #67's
+// "sync prices across rooms" falls out of this for free, same as the price cache itself already
+// being steamAppId-keyed), and the once-an-hour cooldown applies globally to that game rather
+// than per-room.
+const LAST_FORCED_REFRESH_PREFIX = 'gg:price:v3:steam:lastforced:';
 
 interface GGDealsPricesResponse {
   success: boolean;
@@ -43,9 +51,13 @@ async function fetchLiveEntry(steamAppId: number, region: string): Promise<Price
   // required at boot, so an unset key here is a real (if unusual) runtime state, not just a
   // hypothetical. Degrade to "unavailable" the same way an API-side hiccup would, rather than
   // throwing and breaking the whole game card.
+  const fetchedAt = new Date().toISOString();
   const apiKey = await getConfigValue('GGDEALS_API_KEY', env.GGDEALS_API_KEY);
   if (!apiKey) {
-    return { price: { amount: null, currency: null, source: 'unavailable', historicalLow: null }, ggDealsUrl: null };
+    return {
+      price: { amount: null, currency: null, source: 'unavailable', historicalLow: null, lastRefreshedAt: fetchedAt },
+      ggDealsUrl: null,
+    };
   }
 
   const url = new URL('https://api.gg.deals/v1/prices/by-steam-app-id/');
@@ -56,17 +68,25 @@ async function fetchLiveEntry(steamAppId: number, region: string): Promise<Price
   const response = await fetch(url);
   if (!response.ok) {
     // Price API hiccup shouldn't break the whole card — degrade to "unavailable" and let a later refresh retry.
-    return { price: { amount: null, currency: null, source: 'unavailable', historicalLow: null }, ggDealsUrl: null };
+    return {
+      price: { amount: null, currency: null, source: 'unavailable', historicalLow: null, lastRefreshedAt: fetchedAt },
+      ggDealsUrl: null,
+    };
   }
 
   const body = (await response.json()) as GGDealsPricesResponse;
   const entry = body.data?.[String(steamAppId)];
-  if (!entry) return { price: { amount: null, currency: null, source: 'unavailable', historicalLow: null }, ggDealsUrl: null };
+  if (!entry) {
+    return {
+      price: { amount: null, currency: null, source: 'unavailable', historicalLow: null, lastRefreshedAt: fetchedAt },
+      ggDealsUrl: null,
+    };
+  }
 
   const amount = lowestOf(entry.prices.currentRetail, entry.prices.currentKeyshops);
   if (amount === null) {
     return {
-      price: { amount: null, currency: null, source: 'unavailable', historicalLow: null },
+      price: { amount: null, currency: null, source: 'unavailable', historicalLow: null, lastRefreshedAt: fetchedAt },
       ggDealsUrl: entry.url ?? null,
     };
   }
@@ -77,7 +97,7 @@ async function fetchLiveEntry(steamAppId: number, region: string): Promise<Price
   const historicalLow = historicalLowRaw !== null && Number(historicalLowRaw) < Number(amount) ? historicalLowRaw : null;
 
   return {
-    price: { amount, currency: entry.prices.currency, source: 'live', historicalLow },
+    price: { amount, currency: entry.prices.currency, source: 'live', historicalLow, lastRefreshedAt: fetchedAt },
     ggDealsUrl: entry.url ?? null,
   };
 }
@@ -152,4 +172,36 @@ export async function getSteamPriceAndUrl(
   opts: { region?: string; forceRefresh?: boolean } = {},
 ): Promise<PriceEntry> {
   return getEntry(steamAppId, opts);
+}
+
+/** Throws HttpError(429) if this steamAppId's price was force-refreshed within the cooldown
+ * window. Keyed by steamAppId alone (see LAST_FORCED_REFRESH_PREFIX) so the cooldown is global
+ * to the game, not per-room/per-region. */
+async function assertForcedRefreshAllowed(steamAppId: number): Promise<void> {
+  const raw = await redis.get(`${LAST_FORCED_REFRESH_PREFIX}${steamAppId}`);
+  if (!raw) return;
+
+  const remaining = cooldownRemainingMs(Number(raw));
+  if (remaining > 0) throw new HttpError(429, formatCooldownMessage(remaining));
+}
+
+async function markForcedRefresh(steamAppId: number): Promise<void> {
+  // TTL'd to the cooldown window itself so the key self-cleans - nothing else needs to know
+  // about "expiry", just whether the key is currently present.
+  await redis.set(
+    `${LAST_FORCED_REFRESH_PREFIX}${steamAppId}`,
+    String(Date.now()),
+    'EX',
+    Math.ceil(FORCED_REFRESH_COOLDOWN_MS / 1000),
+  );
+}
+
+/** Entry point for a manual/"forced" price refresh (issue #67): rejects with HttpError(429) if
+ * this Steam game was force-refreshed less than an hour ago, otherwise force-fetches a fresh
+ * price and records the attempt so the next one is gated too. */
+export async function refreshSteamPriceForced(steamAppId: number): Promise<GamePrice> {
+  await assertForcedRefreshAllowed(steamAppId);
+  const price = await getSteamPrice(steamAppId, { forceRefresh: true });
+  await markForcedRefresh(steamAppId);
+  return price;
 }

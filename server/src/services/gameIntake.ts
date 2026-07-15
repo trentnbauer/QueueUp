@@ -1,5 +1,5 @@
 import { searchGames, getGameDetail, type IgdbGameDetail } from './igdbClient.js';
-import { getSteamPriceAndUrl, getSteamPrice } from './priceService.js';
+import { getSteamPriceAndUrl, refreshSteamPriceForced } from './priceService.js';
 import { HttpError } from '../util/httpError.js';
 import { ROOM_PLATFORM_LABELS, type GameSearchResult, type RoomPlatform } from '@squadqueue/shared';
 
@@ -57,7 +57,9 @@ export async function resolveGameForCreation(
   };
 }
 
+/** Manual/"forced" refresh path (issue #67) - subject to a once-an-hour-per-game cooldown,
+ * enforced in priceService (throws HttpError(429) if still cooling down). */
 export async function refreshGamePricing(steamAppId: number | null): Promise<void> {
   if (!steamAppId) return;
-  await getSteamPrice(steamAppId, { forceRefresh: true });
+  await refreshSteamPriceForced(steamAppId);
 }

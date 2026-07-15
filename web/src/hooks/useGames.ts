@@ -71,6 +71,9 @@ export function useGames(roomId: string | null) {
     vote: (gameId: string, value: VoteValue) => vote.mutate({ gameId, value }),
     remove: (gameId: string) => remove.mutate(gameId),
     refreshPrice: (gameId: string) => refreshPrice.mutate(gameId),
+    // Only one refresh-price request is ever in flight at a time (single mutation), so "is this
+    // game's refresh pending" is just "is the mutation pending for this game's id".
+    isRefreshingPrice: (gameId: string) => refreshPrice.isPending && refreshPrice.variables === gameId,
     move: (gameId: string, destRoomId: string | null) => move.mutate({ gameId, destRoomId }),
   };
 }
