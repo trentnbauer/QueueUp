@@ -113,8 +113,8 @@ export interface UpdateGameStatusRequest {
 export interface AdminIntegrationStatus {
   ggDealsApiKeyConfigured: boolean;
   igdbConfigured: boolean;
-  authMode: 'dev-fake-auth' | 'oidc';
-  oidcIssuerUrl: string | null;
+  devFakeAuth: boolean;
+  activeAuthProviders: string[];
 }
 
 export interface AdminUserSummary {

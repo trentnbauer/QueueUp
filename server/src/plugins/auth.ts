@@ -1,9 +1,10 @@
 import type { FastifyError, FastifyInstance, FastifyReply, FastifyRequest } from 'fastify';
 import fp from 'fastify-plugin';
-import * as client from 'openid-client';
 import { env } from '../config/env.js';
 import { prisma } from '../db/client.js';
 import { HttpError } from '../util/httpError.js';
+import { buildAuthProviders } from '../services/authProviders/registry.js';
+import type { AuthProvider } from '../services/authProviders/types.js';
 
 const DEV_USER = {
   oidcSub: 'dev-user',
@@ -15,7 +16,7 @@ const DEV_USER = {
 
 declare module 'fastify' {
   interface FastifyInstance {
-    oidcConfig: client.Configuration | null;
+    authProviders: Map<string, AuthProvider>;
   }
   interface FastifyRequest {
     currentUserId: () => Promise<string | null>;
@@ -54,19 +55,15 @@ function randomAvatarColor() {
 }
 
 export default fp(async function authPlugin(app: FastifyInstance) {
-  let oidcConfig: client.Configuration | null = null;
+  let authProviders = new Map<string, AuthProvider>();
 
   if (!env.DEV_FAKE_AUTH) {
-    oidcConfig = await client.discovery(
-      new URL(env.OIDC_ISSUER_URL!),
-      env.OIDC_CLIENT_ID!,
-      env.OIDC_CLIENT_SECRET!,
-    );
+    authProviders = await buildAuthProviders();
   } else {
     app.log.warn('DEV_FAKE_AUTH is enabled — every request will be authenticated as a hardcoded dev user. Do NOT use this in production.');
   }
 
-  app.decorate('oidcConfig', oidcConfig);
+  app.decorate('authProviders', authProviders);
 
   app.decorateRequest('currentUserId', async function (this: FastifyRequest) {
     if (env.DEV_FAKE_AUTH) {

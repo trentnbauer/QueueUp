@@ -13,8 +13,8 @@ export default async function adminRoutes(app: FastifyInstance) {
     const status: AdminIntegrationStatus = {
       ggDealsApiKeyConfigured: !!env.GGDEALS_API_KEY,
       igdbConfigured: !!env.IGDB_CLIENT_ID && !!env.IGDB_CLIENT_SECRET,
-      authMode: env.DEV_FAKE_AUTH ? 'dev-fake-auth' : 'oidc',
-      oidcIssuerUrl: env.DEV_FAKE_AUTH ? null : (env.OIDC_ISSUER_URL ?? null),
+      devFakeAuth: env.DEV_FAKE_AUTH,
+      activeAuthProviders: Array.from(app.authProviders.keys()),
     };
     return { status };
   });

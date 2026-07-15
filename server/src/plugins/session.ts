@@ -34,9 +34,10 @@ class RedisSessionStore {
 declare module 'fastify' {
   interface Session {
     userId?: string;
-    oidcState?: string;
-    oidcCodeVerifier?: string;
-    oidcNonce?: string;
+    // In-flight login attempt state, shared by whichever provider the user is currently
+    // signing in with (only one flow can be in progress per browser session at a time).
+    authState?: string;
+    authCodeVerifier?: string;
   }
 }
 

@@ -1,4 +1,5 @@
 import { Routes, Route } from 'react-router-dom';
+import { useEffect, useState } from 'react';
 import { useAuth } from './context/AuthContext';
 import { authApi } from './api/auth';
 import { Header } from './components/Header';
@@ -6,8 +7,38 @@ import { ShelfView } from './views/ShelfView';
 import { RoomView } from './views/RoomView';
 import { SettingsView } from './views/SettingsView';
 
+const PROVIDER_LABEL: Record<string, string> = {
+  oidc: 'Sign in',
+  google: 'Sign in with Google',
+  discord: 'Sign in with Discord',
+  steam: 'Sign in with Steam',
+};
+
+function LoginButton({ provider }: { provider: string }) {
+  return (
+    <a
+      href={authApi.loginUrl(provider)}
+      style={{
+        padding: '12px 28px',
+        borderRadius: 'var(--sq-radius)',
+        background: 'var(--sq-accent)',
+        color: '#fff',
+        fontWeight: 700,
+        textDecoration: 'none',
+      }}
+    >
+      {PROVIDER_LABEL[provider] ?? `Sign in with ${provider}`}
+    </a>
+  );
+}
+
 export default function App() {
   const { user, loading } = useAuth();
+  const [providers, setProviders] = useState<string[] | null>(null);
+
+  useEffect(() => {
+    if (!user) authApi.providers().then(({ providers }) => setProviders(providers));
+  }, [user]);
 
   if (loading) return null;
 
@@ -27,20 +58,13 @@ export default function App() {
           SQUAD<span style={{ color: 'var(--sq-accent)' }}>//</span>QUEUE
         </div>
         <p style={{ color: 'var(--sq-muted)', margin: 0 }}>Games the squad wants to play together</p>
-        <a
-          href={authApi.loginUrl}
-          style={{
-            marginTop: 8,
-            padding: '12px 28px',
-            borderRadius: 'var(--sq-radius)',
-            background: 'var(--sq-accent)',
-            color: '#fff',
-            fontWeight: 700,
-            textDecoration: 'none',
-          }}
-        >
-          Sign in
-        </a>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 10, marginTop: 8 }}>
+          {providers === null ? null : providers.length > 0 ? (
+            providers.map((p) => <LoginButton key={p} provider={p} />)
+          ) : (
+            <LoginButton provider="dev" />
+          )}
+        </div>
       </div>
     );
   }

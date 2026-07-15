@@ -62,10 +62,21 @@ export function SettingsView() {
                 {status.igdbConfigured ? 'configured' : 'missing'}
               </span>
             </span>
-            <span className={styles.pill}>
-              Auth mode: <span className={styles.pillOk}>{status.authMode}</span>
-              {status.oidcIssuerUrl ? ` (${status.oidcIssuerUrl})` : ''}
-            </span>
+            {status.devFakeAuth ? (
+              <span className={styles.pill}>
+                Sign-in: <span className={styles.pillMissing}>DEV_FAKE_AUTH (not for production)</span>
+              </span>
+            ) : status.activeAuthProviders.length > 0 ? (
+              status.activeAuthProviders.map((p) => (
+                <span key={p} className={styles.pill}>
+                  Sign-in: <span className={styles.pillOk}>{p}</span>
+                </span>
+              ))
+            ) : (
+              <span className={styles.pill}>
+                Sign-in: <span className={styles.pillMissing}>none configured</span>
+              </span>
+            )}
           </div>
         )}
       </div>
