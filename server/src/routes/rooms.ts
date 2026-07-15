@@ -3,7 +3,7 @@ import { prisma } from '../db/client.js';
 import { toUserDto } from '../util/dto.js';
 import { HttpError } from '../util/httpError.js';
 import { requireElevated, requireMembership, generateUniqueInviteCode } from '../services/roomAccess.js';
-import type { CreateRoomRequest, JoinRoomRequest, Room, RoomMember, RoomPlatform } from '@squadqueue/shared';
+import type { CreateRoomRequest, JoinRoomRequest, Room, RoomMember, RoomPlatform, UpdateRoomRequest } from '@squadqueue/shared';
 
 const ROOM_PLATFORMS: RoomPlatform[] = ['pc', 'xbox', 'playstation', 'switch', 'switch2'];
 
@@ -88,6 +88,29 @@ export default async function roomRoutes(app: FastifyInstance) {
     const membership = await requireMembership(roomId, userId);
 
     const room = await prisma.room.findUniqueOrThrow({ where: { id: roomId } });
+    return { room: toRoomDto(room, membership.role, room.inviteCode) };
+  });
+
+  app.patch<{ Params: { roomId: string }; Body: UpdateRoomRequest }>('/api/rooms/:roomId', async (request) => {
+    const userId = await request.requireAuth();
+    const { roomId } = request.params;
+    const membership = await requireMembership(roomId, userId);
+    if (membership.role !== 'room_master') {
+      throw new HttpError(403, 'Only the Room Master can change room settings');
+    }
+
+    const { name, platform, accentColor } = request.body;
+    if (name !== undefined && !name.trim()) throw new HttpError(400, 'Room name cannot be empty');
+    if (platform !== undefined && !ROOM_PLATFORMS.includes(platform)) throw new HttpError(400, 'A valid platform is required');
+
+    const room = await prisma.room.update({
+      where: { id: roomId },
+      data: {
+        ...(name !== undefined && { name: name.trim() }),
+        ...(platform !== undefined && { platform }),
+        ...(accentColor !== undefined && { accentColor }),
+      },
+    });
     return { room: toRoomDto(room, membership.role, room.inviteCode) };
   });
 

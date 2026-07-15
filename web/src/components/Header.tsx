@@ -10,6 +10,7 @@ import { useCurrencyRegion } from '../context/CurrencyRegionContext';
 import { roomsApi } from '../api/rooms';
 import { authApi } from '../api/auth';
 import { AvatarBadge } from './AvatarBadge';
+import { RoomSettingsModal } from './RoomSettingsModal';
 import { ACCENT_PRESETS } from '../theme/defaultTheme';
 import styles from './Header.module.css';
 
@@ -40,6 +41,7 @@ export function Header() {
   const [newRoomPlatform, setNewRoomPlatform] = useState<RoomPlatform>('pc');
   const [inviteCode, setInviteCode] = useState('');
   const [inviteCodeCopied, setInviteCodeCopied] = useState(false);
+  const [showRoomSettings, setShowRoomSettings] = useState(false);
 
   async function handleCopyInviteCode() {
     if (!activeRoom?.inviteCode) return;
@@ -199,7 +201,23 @@ export function Header() {
             )}
           </div>
         </details>
+
+        {activeRoom && (myRole === 'room_master' || myRole === 'moderator') && (
+          <button
+            type="button"
+            className={styles.settingsButton}
+            onClick={() => setShowRoomSettings(true)}
+            title="Room settings"
+            aria-label="Room settings"
+          >
+            ⚙
+          </button>
+        )}
       </div>
+
+      {showRoomSettings && activeRoom && (
+        <RoomSettingsModal room={activeRoom} members={members} onClose={() => setShowRoomSettings(false)} />
+      )}
 
       <div className={styles.right}>
         {activeRoom && members.length > 0 && (

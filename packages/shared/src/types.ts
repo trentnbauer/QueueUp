@@ -115,6 +115,13 @@ export interface CreateRoomRequest {
   accentColor: string;
 }
 
+/** Room Master only. Any subset of fields may be provided. */
+export interface UpdateRoomRequest {
+  name?: string;
+  platform?: RoomPlatform;
+  accentColor?: string;
+}
+
 export interface JoinRoomRequest {
   inviteCode: string;
 }

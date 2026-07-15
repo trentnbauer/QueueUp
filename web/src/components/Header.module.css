@@ -128,6 +128,24 @@
   display: none;
 }
 
+.settingsButton {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 30px;
+  height: 30px;
+  border-radius: 50%;
+  background: var(--sq-neutral-pill-bg);
+  color: var(--sq-text);
+  border: none;
+  font-size: 14px;
+  cursor: pointer;
+}
+
+.settingsButton:hover {
+  background: var(--sq-surface2);
+}
+
 .menuPanel {
   position: absolute;
   right: 0;
