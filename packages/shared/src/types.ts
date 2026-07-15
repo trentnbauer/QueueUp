@@ -138,6 +138,11 @@ export interface UpdateGameStatusRequest {
   status: GameStatus;
 }
 
+/** Relocates a game to a different room, or to the mover's Personal Shelf (roomId: null). */
+export interface MoveGameRequest {
+  roomId: string | null;
+}
+
 /** Admin-only views — never sent to non-admin users. */
 export interface AdminIntegrationStatus {
   ggDealsApiKeyConfigured: boolean;

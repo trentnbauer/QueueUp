@@ -6,16 +6,26 @@ import { VoteHeatmap } from './VoteHeatmap';
 import { useConfirm } from '../context/ConfirmContext';
 import styles from './GameCard.module.css';
 
+export interface MoveDestination {
+  /** null = the Personal Shelf */
+  roomId: string | null;
+  label: string;
+}
+
 interface GameCardProps {
   game: Game;
   currentUserId: string;
   memberCount?: number;
   isPlayNext?: boolean;
   isRecommended?: boolean;
+  /** Rooms (and/or the shelf) this game could be relocated to, excluding wherever it already is.
+   * Omitted/empty hides the "Move to" control entirely. */
+  moveDestinations?: MoveDestination[];
   onStatusChange: (status: GameStatus) => void;
   onVote: (value: VoteValue) => void;
   onRemove: () => void;
   onRefreshPrice: () => void;
+  onMove?: (destRoomId: string | null) => void;
 }
 
 function formatAmount(amount: string, currency: string | null): string {
@@ -38,10 +48,12 @@ export function GameCard({
   memberCount,
   isPlayNext,
   isRecommended,
+  moveDestinations,
   onStatusChange,
   onVote,
   onRemove,
   onRefreshPrice,
+  onMove,
 }: GameCardProps) {
   const confirm = useConfirm();
   const coopWarning =
@@ -132,9 +144,33 @@ export function GameCard({
         <VoteRow myVote={game.myVote} onVote={onVote} />
         <VoteHeatmap votes={game.votes} currentUserId={currentUserId} />
 
-        <button className={styles.removeButton} onClick={handleRemove}>
-          Remove
-        </button>
+        <div className={styles.footerRow}>
+          <button className={styles.removeButton} onClick={handleRemove}>
+            Remove
+          </button>
+          {onMove && moveDestinations && moveDestinations.length > 0 && (
+            <select
+              className={styles.moveSelect}
+              value=""
+              aria-label="Move this game to"
+              onChange={(e) => {
+                if (!e.target.value) return;
+                const destRoomId = e.target.value === 'shelf' ? null : e.target.value;
+                onMove(destRoomId);
+                e.target.value = '';
+              }}
+            >
+              <option value="" disabled>
+                Move to…
+              </option>
+              {moveDestinations.map((d) => (
+                <option key={d.roomId ?? 'shelf'} value={d.roomId ?? 'shelf'}>
+                  {d.label}
+                </option>
+              ))}
+            </select>
+          )}
+        </div>
       </div>
     </div>
   );

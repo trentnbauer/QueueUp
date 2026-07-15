@@ -4,6 +4,7 @@ import type {
   Game,
   GameIntakeCandidate,
   GameSearchResult,
+  MoveGameRequest,
   PriceRegion,
   UpdateGameStatusRequest,
   VoteRequest,
@@ -25,4 +26,5 @@ export const gamesApi = {
   remove: (id: string) => apiDelete(`/api/games/${id}`),
   refreshPrice: (id: string) => apiPost<{ game: Game }>(`/api/games/${id}/refresh-price`),
   vote: (id: string, body: VoteRequest) => apiPut<{ game: Game }>(`/api/games/${id}/vote`, body),
+  move: (id: string, body: MoveGameRequest) => apiPost<{ game: Game }>(`/api/games/${id}/move`, body),
 };

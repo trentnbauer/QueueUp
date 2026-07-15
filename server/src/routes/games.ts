@@ -12,7 +12,8 @@ import {
 } from '../services/gameAccess.js';
 import { gameInclude, serializeGame, serializeGames } from '../services/gameSerializer.js';
 import { searchIntake, previewIntake, resolveGameForCreation, refreshGamePricing } from '../services/gameIntake.js';
-import type { CreateGameRequest, PriceRegion, UpdateGameStatusRequest, VoteRequest } from '@squadqueue/shared';
+import { platformFamilies } from '../services/igdbClient.js';
+import type { CreateGameRequest, MoveGameRequest, PriceRegion, UpdateGameStatusRequest, VoteRequest } from '@squadqueue/shared';
 import { PRICE_REGION_LABELS } from '@squadqueue/shared';
 
 const GAME_STATUSES = ['backlog', 'playing', 'done'] as const;
@@ -130,6 +131,41 @@ export default async function gameRoutes(app: FastifyInstance) {
     await invalidateExistingIgdbIds(game.roomId, game.addedBy);
     reply.status(204);
     return null;
+  });
+
+  app.post<{ Params: { id: string }; Body: MoveGameRequest }>('/api/games/:id/move', async (request) => {
+    const userId = await request.requireAuth();
+    const game = await loadGameOr404(request.params.id);
+    // Moving is a relocate: you need rights to remove it from where it is...
+    await requireGameDeleteAccess(game, userId);
+    const { roomId: destRoomId } = request.body;
+
+    if (destRoomId === game.roomId) {
+      throw new HttpError(400, "That game is already there.");
+    }
+
+    // ...and, for a room destination, membership there (the shelf has no such gate).
+    if (destRoomId) {
+      await requireMembership(destRoomId, userId);
+      const destPlatform = await getRoomPlatform(destRoomId);
+      const families = platformFamilies(game.platform.split(',').map((name) => ({ name: name.trim() })));
+      if (!families.includes(destPlatform)) {
+        throw new HttpError(400, `${game.title} isn't available on this room's platform.`);
+      }
+    }
+    await requireNotDuplicate(destRoomId ?? null, userId, game.igdbId);
+
+    await prisma.game.update({
+      where: { id: game.id },
+      // The mover becomes the new "adder" - relevant when moving into the shelf, since a shelf
+      // item is only visible/manageable by whoever added it.
+      data: { roomId: destRoomId ?? null, addedBy: userId },
+    });
+    await invalidateExistingIgdbIds(game.roomId, game.addedBy);
+    await invalidateExistingIgdbIds(destRoomId ?? null, userId);
+
+    const updated = await loadGameOr404(game.id);
+    return { game: await serializeGame(updated, userId) };
   });
 
   app.post<{ Params: { id: string } }>('/api/games/:id/refresh-price', async (request) => {

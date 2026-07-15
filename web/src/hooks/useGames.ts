@@ -4,6 +4,8 @@ import { gamesApi } from '../api/games';
 import { useCurrencyRegion } from '../context/CurrencyRegionContext';
 import type { GameStatus, VoteValue } from '@squadqueue/shared';
 
+const GAMES_QUERY_ROOT = ['games'] as const;
+
 function errorMessage(err: unknown, fallback: string): string {
   return err instanceof Error && err.message ? err.message : fallback;
 }
@@ -47,6 +49,15 @@ export function useGames(roomId: string | null) {
     onError: (err) => setActionError(errorMessage(err, 'Could not refresh that game\'s price.')),
   });
 
+  const move = useMutation({
+    mutationFn: ({ gameId, destRoomId }: { gameId: string; destRoomId: string | null }) =>
+      gamesApi.move(gameId, { roomId: destRoomId }),
+    // A move changes which list(s) a game belongs to, not just this one - invalidate every
+    // games query (shelf and every room, any region) rather than just the current view's.
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: GAMES_QUERY_ROOT }),
+    onError: (err) => setActionError(errorMessage(err, 'Could not move that game.')),
+  });
+
   return {
     games: query.data?.games ?? [],
     isLoading: query.isLoading,
@@ -60,5 +71,6 @@ export function useGames(roomId: string | null) {
     vote: (gameId: string, value: VoteValue) => vote.mutate({ gameId, value }),
     remove: (gameId: string) => remove.mutate(gameId),
     refreshPrice: (gameId: string) => refreshPrice.mutate(gameId),
+    move: (gameId: string, destRoomId: string | null) => move.mutate({ gameId, destRoomId }),
   };
 }

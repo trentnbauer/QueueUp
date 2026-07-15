@@ -184,6 +184,13 @@
   background: var(--sq-border);
 }
 
+.footerRow {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
 .removeButton {
   background: none;
   border: none;
@@ -195,4 +202,14 @@
 
 .removeButton:hover {
   color: var(--sq-text);
+}
+
+.moveSelect {
+  background: var(--sq-surface2);
+  border: 1px solid var(--sq-border);
+  color: var(--sq-muted);
+  font-size: 11px;
+  border-radius: 6px;
+  padding: 3px 6px;
+  max-width: 140px;
 }
