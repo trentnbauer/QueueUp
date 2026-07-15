@@ -84,6 +84,7 @@ model Game {
   id             String     @id @default(uuid())
   roomId         String?    @map("room_id")
   addedBy        String     @map("added_by")
+  igdbId         Int        @map("igdb_id")
   title          String
   platform       String
   genre          String?
@@ -101,6 +102,8 @@ model Game {
 
   @@index([roomId])
   @@index([addedBy], map: "idx_games_personal")
+  @@index([roomId, igdbId])
+  @@index([addedBy, igdbId])
   @@map("games")
 }
 

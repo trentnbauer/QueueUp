@@ -2,7 +2,13 @@ import type { FastifyInstance } from 'fastify';
 import { prisma } from '../db/client.js';
 import { HttpError } from '../util/httpError.js';
 import { requireMembership, getRoomPlatform } from '../services/roomAccess.js';
-import { loadGameOr404, requireGameReadAccess, requireGameDeleteAccess } from '../services/gameAccess.js';
+import {
+  loadGameOr404,
+  requireGameReadAccess,
+  requireGameDeleteAccess,
+  requireNotDuplicate,
+  existingIgdbIds,
+} from '../services/gameAccess.js';
 import { gameInclude, serializeGame, serializeGames } from '../services/gameSerializer.js';
 import { searchIntake, previewIntake, resolveGameForCreation, refreshGamePricing } from '../services/gameIntake.js';
 import type { CreateGameRequest, UpdateGameStatusRequest, VoteRequest } from '@squadqueue/shared';
@@ -15,8 +21,9 @@ export default async function gameRoutes(app: FastifyInstance) {
     const { roomId } = request.query;
     if (roomId) await requireMembership(roomId, userId);
     const roomPlatform = roomId ? await getRoomPlatform(roomId) : undefined;
+    const excludeIgdbIds = await existingIgdbIds(roomId ?? null, userId);
 
-    const results = await searchIntake(request.query.q ?? '', roomPlatform);
+    const results = await searchIntake(request.query.q ?? '', roomPlatform, excludeIgdbIds);
     return { results };
   });
 
@@ -63,6 +70,7 @@ export default async function gameRoutes(app: FastifyInstance) {
       await requireMembership(roomId, userId);
     }
     const roomPlatform = roomId ? await getRoomPlatform(roomId) : undefined;
+    await requireNotDuplicate(roomId ?? null, userId, igdbId);
 
     const resolved = await resolveGameForCreation(igdbId, roomPlatform);
 
@@ -70,6 +78,7 @@ export default async function gameRoutes(app: FastifyInstance) {
       data: {
         roomId: roomId ?? null,
         addedBy: userId,
+        igdbId,
         title: resolved.title,
         platform: resolved.platform,
         genre: resolved.genre,

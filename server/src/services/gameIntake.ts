@@ -3,8 +3,13 @@ import { getSteamPriceAndUrl, getSteamPrice } from './priceService.js';
 import { HttpError } from '../util/httpError.js';
 import { ROOM_PLATFORM_LABELS, type GameIntakeCandidate, type GameSearchResult, type RoomPlatform } from '@squadqueue/shared';
 
-export async function searchIntake(query: string, roomPlatform?: RoomPlatform): Promise<GameSearchResult[]> {
-  return searchGames(query, roomPlatform);
+export async function searchIntake(
+  query: string,
+  roomPlatform?: RoomPlatform,
+  excludeIgdbIds?: Set<number>,
+): Promise<GameSearchResult[]> {
+  const results = await searchGames(query, roomPlatform);
+  return excludeIgdbIds ? results.filter((r) => !excludeIgdbIds.has(r.igdbId)) : results;
 }
 
 function assertPlatformMatch(detail: IgdbGameDetail, roomPlatform?: RoomPlatform): void {

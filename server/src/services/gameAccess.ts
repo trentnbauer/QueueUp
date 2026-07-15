@@ -32,3 +32,28 @@ export async function requireGameDeleteAccess(game: GameWithRelations, userId: s
     throw new HttpError(403, 'Only the Room Master or a Moderator can remove a game someone else added');
   }
 }
+
+/** A game's "audience" for duplicate purposes: everyone in the room, or just the shelf's own owner. */
+function duplicateScopeWhere(roomId: string | null, userId: string) {
+  return roomId ? { roomId } : { roomId: null, addedBy: userId };
+}
+
+export async function requireNotDuplicate(roomId: string | null, userId: string, igdbId: number): Promise<void> {
+  const existing = await prisma.game.findFirst({
+    where: { ...duplicateScopeWhere(roomId, userId), igdbId },
+  });
+  if (existing) {
+    throw new HttpError(
+      400,
+      `${existing.title} is already ${roomId ? 'in this room' : 'on your shelf'}.`,
+    );
+  }
+}
+
+export async function existingIgdbIds(roomId: string | null, userId: string): Promise<Set<number>> {
+  const games = await prisma.game.findMany({
+    where: duplicateScopeWhere(roomId, userId),
+    select: { igdbId: true },
+  });
+  return new Set(games.map((g) => g.igdbId));
+}
