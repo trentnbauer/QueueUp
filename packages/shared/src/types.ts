@@ -104,17 +104,6 @@ export interface GameSearchResult {
   releaseYear: number | null;
 }
 
-/** A search result fully resolved (price, gg.deals link) once the user picks it. */
-export interface GameIntakeCandidate {
-  igdbId: number;
-  title: string;
-  platform: string;
-  genre: string | null;
-  ggDealsUrl: string | null;
-  coverImageUrl: string | null;
-  price: GamePrice;
-}
-
 export interface CreateGameRequest {
   igdbId: number;
   roomId?: string | null;

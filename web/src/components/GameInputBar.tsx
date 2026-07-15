@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import type { GameIntakeCandidate, GameSearchResult } from '@squadqueue/shared';
+import type { GameSearchResult } from '@squadqueue/shared';
 import { gamesApi } from '../api/games';
 import styles from './GameInputBar.module.css';
 
@@ -16,15 +16,14 @@ export function GameInputBar({ roomId, onAdded }: GameInputBarProps) {
   const [query, setQuery] = useState('');
   const [results, setResults] = useState<GameSearchResult[]>([]);
   const [searching, setSearching] = useState(false);
-  const [candidate, setCandidate] = useState<GameIntakeCandidate | null>(null);
-  const [busy, setBusy] = useState(false);
+  const [addingId, setAddingId] = useState<number | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [highlightedIndex, setHighlightedIndex] = useState(-1);
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   useEffect(() => {
     if (debounceRef.current) clearTimeout(debounceRef.current);
-    if (!query.trim() || candidate) {
+    if (!query.trim()) {
       setResults([]);
       return;
     }
@@ -42,47 +41,26 @@ export function GameInputBar({ roomId, onAdded }: GameInputBarProps) {
     return () => {
       if (debounceRef.current) clearTimeout(debounceRef.current);
     };
-  }, [query, candidate, roomId]);
+  }, [query, roomId]);
 
   useEffect(() => {
     setHighlightedIndex(-1);
   }, [results]);
 
-  async function handlePick(result: GameSearchResult) {
-    setBusy(true);
+  async function handleAdd(result: GameSearchResult) {
+    setAddingId(result.igdbId);
     setError(null);
     try {
-      const { preview } = await gamesApi.preview(result.igdbId, roomId);
-      setCandidate(preview);
+      await gamesApi.create({ igdbId: result.igdbId, roomId });
+      setQuery('');
       setResults([]);
       setHighlightedIndex(-1);
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Could not look up that game');
-    } finally {
-      setBusy(false);
-    }
-  }
-
-  async function handleConfirm() {
-    if (!candidate) return;
-    setBusy(true);
-    setError(null);
-    try {
-      await gamesApi.create({ igdbId: candidate.igdbId, roomId });
-      setQuery('');
-      setCandidate(null);
       onAdded();
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Could not add that game');
     } finally {
-      setBusy(false);
+      setAddingId(null);
     }
-  }
-
-  function handleCancel() {
-    setCandidate(null);
-    setQuery('');
-    setError(null);
   }
 
   function handleInputKeyDown(e: React.KeyboardEvent<HTMLInputElement>) {
@@ -96,7 +74,7 @@ export function GameInputBar({ roomId, onAdded }: GameInputBarProps) {
     } else if (e.key === 'Enter') {
       if (highlightedIndex >= 0) {
         e.preventDefault();
-        handlePick(results[highlightedIndex]);
+        handleAdd(results[highlightedIndex]);
       }
     } else if (e.key === 'Escape') {
       setResults([]);
@@ -105,6 +83,7 @@ export function GameInputBar({ roomId, onAdded }: GameInputBarProps) {
   }
 
   const listboxId = 'game-search-listbox';
+  const busy = addingId !== null;
 
   return (
     <>
@@ -115,7 +94,7 @@ export function GameInputBar({ roomId, onAdded }: GameInputBarProps) {
           value={query}
           onChange={(e) => setQuery(e.target.value)}
           onKeyDown={handleInputKeyDown}
-          disabled={busy || !!candidate}
+          disabled={busy}
           role="combobox"
           aria-expanded={results.length > 0}
           aria-controls={listboxId}
@@ -130,20 +109,17 @@ export function GameInputBar({ roomId, onAdded }: GameInputBarProps) {
 
       {error && <div className={styles.error}>{error}</div>}
 
-      {!candidate && results.length > 0 && (
+      {results.length > 0 && (
         <div className={styles.previewPanel}>
           <div className={`${styles.candidateList} ${styles.searchResultsList}`} role="listbox" id={listboxId}>
             {results.map((r, i) => (
-              <button
+              <div
                 key={r.igdbId}
                 id={optionId(r.igdbId)}
-                type="button"
                 role="option"
                 aria-selected={i === highlightedIndex}
                 className={`${styles.candidateOption} ${i === highlightedIndex ? styles.candidateOptionHighlighted : ''}`}
-                onClick={() => handlePick(r)}
                 onMouseEnter={() => setHighlightedIndex(i)}
-                disabled={busy}
               >
                 <div className={styles.candidateMeta}>
                   <span className={styles.candidateTitle}>
@@ -152,37 +128,21 @@ export function GameInputBar({ roomId, onAdded }: GameInputBarProps) {
                   </span>
                   <span className={styles.candidatePlatform}>{r.platform}</span>
                 </div>
-              </button>
+                <button
+                  type="button"
+                  className={styles.addButton}
+                  onClick={() => handleAdd(r)}
+                  disabled={busy}
+                >
+                  {addingId === r.igdbId ? 'Adding…' : 'Add'}
+                </button>
+              </div>
             ))}
           </div>
         </div>
       )}
 
-      {!candidate && searching && <div className={styles.searching}>Searching…</div>}
-
-      {candidate && (
-        <div className={styles.previewPanel}>
-          <div className={styles.candidateList}>
-            <div className={styles.candidateOption}>
-              <div className={styles.candidateMeta}>
-                <span className={styles.candidateTitle}>{candidate.title}</span>
-                <span className={styles.candidatePlatform}>
-                  {candidate.platform}
-                  {candidate.price.amount ? ` · ${candidate.price.amount} ${candidate.price.currency ?? ''}` : ''}
-                </span>
-              </div>
-            </div>
-          </div>
-          <div className={styles.previewActions}>
-            <button type="button" className={styles.cancelButton} onClick={handleCancel} disabled={busy}>
-              Cancel
-            </button>
-            <button type="button" className={styles.confirmButton} onClick={handleConfirm} disabled={busy}>
-              Add game
-            </button>
-          </div>
-        </div>
-      )}
+      {searching && <div className={styles.searching}>Searching…</div>}
     </>
   );
 }

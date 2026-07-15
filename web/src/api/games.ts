@@ -2,7 +2,6 @@ import { apiGet, apiPost, apiPatch, apiPut, apiDelete } from './client';
 import type {
   CreateGameRequest,
   Game,
-  GameIntakeCandidate,
   GameSearchResult,
   ImportSteamLibraryResult,
   MoveGameRequest,
@@ -19,8 +18,6 @@ export const gamesApi = {
     apiGet<{ results: GameSearchResult[] }>(
       `/api/games/search?q=${encodeURIComponent(q)}${roomId ? `&roomId=${roomId}` : ''}`,
     ),
-  preview: (igdbId: number, roomId?: string | null) =>
-    apiPost<{ preview: GameIntakeCandidate }>('/api/games/preview', { igdbId, roomId }),
   create: (body: CreateGameRequest) => apiPost<{ game: Game }>('/api/games', body),
   updateStatus: (id: string, body: UpdateGameStatusRequest) =>
     apiPatch<{ game: Game }>(`/api/games/${id}/status`, body),
