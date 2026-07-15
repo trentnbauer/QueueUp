@@ -3,9 +3,12 @@ import { useEffect, useState } from 'react';
 import { useAuth } from './context/AuthContext';
 import { authApi } from './api/auth';
 import { Header } from './components/Header';
+import { OnboardingModal } from './components/OnboardingModal';
 import { ShelfView } from './views/ShelfView';
 import { RoomView } from './views/RoomView';
 import { SettingsView } from './views/SettingsView';
+
+const ONBOARDED_KEY = 'sq-onboarded';
 
 const PROVIDER_LABEL: Record<string, string> = {
   oidc: 'Sign in',
@@ -35,10 +38,20 @@ function LoginButton({ provider }: { provider: string }) {
 export default function App() {
   const { user, loading } = useAuth();
   const [providers, setProviders] = useState<string[] | null>(null);
+  const [showOnboarding, setShowOnboarding] = useState(false);
 
   useEffect(() => {
     if (!user) authApi.providers().then(({ providers }) => setProviders(providers));
   }, [user]);
+
+  useEffect(() => {
+    if (user && !localStorage.getItem(ONBOARDED_KEY)) setShowOnboarding(true);
+  }, [user]);
+
+  function handleOnboardingDone() {
+    localStorage.setItem(ONBOARDED_KEY, 'true');
+    setShowOnboarding(false);
+  }
 
   if (loading) return null;
 
@@ -75,6 +88,7 @@ export default function App() {
         <Route path="/room/:roomId" element={<RoomView />} />
         <Route path="/settings" element={<SettingsView />} />
       </Routes>
+      {showOnboarding && <OnboardingModal onDone={handleOnboardingDone} />}
     </div>
   );
 }

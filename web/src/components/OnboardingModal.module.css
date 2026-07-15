@@ -1,0 +1,89 @@
+.backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.6);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1100;
+  padding: 20px;
+}
+
+.dialog {
+  background: var(--sq-surface);
+  border: 1px solid var(--sq-border);
+  border-radius: var(--sq-radius);
+  padding: 28px;
+  max-width: 400px;
+  width: 100%;
+  box-shadow: 0 12px 40px rgba(0, 0, 0, 0.45);
+  text-align: center;
+}
+
+.title {
+  font: 700 20px var(--sq-header-font);
+  color: var(--sq-text);
+  margin-bottom: 6px;
+}
+
+.subtitle {
+  color: var(--sq-muted);
+  font-size: 13px;
+  margin: 0 0 22px;
+  line-height: 1.5;
+}
+
+.field {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  text-align: left;
+  margin-bottom: 22px;
+}
+
+.label {
+  font-size: 12px;
+  color: var(--sq-muted);
+}
+
+.select {
+  padding: 10px 12px;
+  border-radius: var(--sq-radius);
+  background: var(--sq-surface2);
+  border: 1px solid var(--sq-border);
+  color: var(--sq-text);
+  font-size: 14px;
+}
+
+.actions {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.confirmButton {
+  padding: 10px 20px;
+  border-radius: var(--sq-radius);
+  background: var(--sq-accent);
+  color: #fff;
+  font-weight: 700;
+  font-size: 14px;
+  border: none;
+  cursor: pointer;
+}
+
+.confirmButton:hover {
+  filter: brightness(1.1);
+}
+
+.skipButton {
+  border: none;
+  background: transparent;
+  color: var(--sq-muted);
+  font-size: 12.5px;
+  cursor: pointer;
+}
+
+.skipButton:hover {
+  color: var(--sq-text);
+}
