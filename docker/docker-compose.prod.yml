@@ -30,7 +30,10 @@ services:
 
   server:
     build:
-      context: ..
+      # Relative paths in this file resolve against --project-directory (repo root, per the
+      # documented invocation), not this file's own directory - so this is "." (repo root), not
+      # ".." (which would resolve to one level *above* repo root once --project-directory is set).
+      context: .
       dockerfile: docker/Dockerfile.server
     restart: unless-stopped
     depends_on:
@@ -49,8 +52,19 @@ services:
       OIDC_CLIENT_SECRET: ${OIDC_CLIENT_SECRET}
       OIDC_REDIRECT_URI: ${OIDC_REDIRECT_URI}
       OIDC_SCOPES: ${OIDC_SCOPES:-openid profile email}
+      GOOGLE_CLIENT_ID: ${GOOGLE_CLIENT_ID}
+      GOOGLE_CLIENT_SECRET: ${GOOGLE_CLIENT_SECRET}
+      GOOGLE_REDIRECT_URI: ${GOOGLE_REDIRECT_URI}
+      DISCORD_CLIENT_ID: ${DISCORD_CLIENT_ID}
+      DISCORD_CLIENT_SECRET: ${DISCORD_CLIENT_SECRET}
+      DISCORD_REDIRECT_URI: ${DISCORD_REDIRECT_URI}
+      STEAM_API_KEY: ${STEAM_API_KEY}
+      STEAM_REDIRECT_URI: ${STEAM_REDIRECT_URI}
       DEV_FAKE_AUTH: ${DEV_FAKE_AUTH:-false}
+      ADMIN_EMAILS: ${ADMIN_EMAILS}
       GGDEALS_API_KEY: ${GGDEALS_API_KEY}
       GGDEALS_DEFAULT_REGION: ${GGDEALS_DEFAULT_REGION:-us}
+      IGDB_CLIENT_ID: ${IGDB_CLIENT_ID}
+      IGDB_CLIENT_SECRET: ${IGDB_CLIENT_SECRET}
     ports:
       - "${PORT:-3000}:3000"
