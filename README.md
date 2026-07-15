@@ -1,3 +1,6 @@
+#### More AI slop!
+
+
 # SquadQueue
 
 A self-hosted game backlog and voting system for a friend group — a private "Personal Shelf" plus shared "Communal Rooms," real pricing from gg.deals, and a 5-emoji voting scale. See `mission statement.md` for the full product spec.
