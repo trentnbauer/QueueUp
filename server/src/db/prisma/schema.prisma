@@ -88,6 +88,9 @@ model Game {
   title          String
   platform       String
   genre          String?
+  /// Captured at intake time from IGDB - not re-fetchable later without hitting IGDB again per
+  /// game, so this needs to be saved when the game is added, not derived after the fact.
+  releaseYear    Int?       @map("release_year")
   maxCoopPlayers Int?       @map("max_coop_players")
   ggDealsUrl     String?    @map("gg_deals_url")
   steamAppid     Int?       @map("steam_appid")

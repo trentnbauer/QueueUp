@@ -4,7 +4,7 @@ import { HttpError } from '../util/httpError.js';
 import type { GameSearchResult, RoomPlatform } from '@squadqueue/shared';
 
 const TOKEN_CACHE_KEY = 'igdb:token:v1';
-const DETAIL_CACHE_PREFIX = 'igdb:detail:v4:'; // v4: added maxCoopPlayers
+const DETAIL_CACHE_PREFIX = 'igdb:detail:v5:'; // v5: added releaseYear
 const DETAIL_CACHE_TTL_SECONDS = 60 * 60 * 24; // 24h — title/cover/platform/steamAppId rarely change
 
 interface TwitchTokenResponse {
@@ -183,6 +183,7 @@ export interface IgdbGameDetail {
   coverImageUrl: string | null;
   steamAppId: number | null;
   maxCoopPlayers: number | null;
+  releaseYear: number | null;
 }
 
 // external_game_source 1 == Steam (from the external_game_sources endpoint) — the `games`
@@ -226,7 +227,7 @@ export async function getGameDetail(igdbId: number): Promise<IgdbGameDetail> {
     [IgdbMultiqueryResult<IgdbGame>, IgdbMultiqueryResult<IgdbExternalGame>, IgdbMultiqueryResult<IgdbMultiplayerMode>]
   >(
     'multiquery',
-    `query games "Game" { fields name,cover.image_id,platforms.name,genres.name; where id = ${igdbId}; };
+    `query games "Game" { fields name,cover.image_id,platforms.name,genres.name,first_release_date; where id = ${igdbId}; };
      query external_games "External" { fields uid; where game = ${igdbId} & external_game_source = ${STEAM_EXTERNAL_SOURCE_ID}; };
      query multiplayer_modes "Modes" { fields onlinecoopmax,offlinecoopmax; where game = ${igdbId}; };`,
   );
@@ -250,6 +251,7 @@ export async function getGameDetail(igdbId: number): Promise<IgdbGameDetail> {
     coverImageUrl: coverUrl(game.cover),
     steamAppId: steamUid && /^\d+$/.test(steamUid) ? Number(steamUid) : null,
     maxCoopPlayers: maxCoopFrom(multiplayerModes),
+    releaseYear: releaseYear(game.first_release_date),
   };
 
   await redis.set(cacheKey, JSON.stringify(detail), 'EX', DETAIL_CACHE_TTL_SECONDS);

@@ -101,6 +101,7 @@ export default async function gameRoutes(app: FastifyInstance) {
         ggDealsUrl: resolved.ggDealsUrl,
         steamAppid: resolved.steamAppId,
         coverImageUrl: resolved.coverImageUrl,
+        releaseYear: resolved.releaseYear,
       },
     });
     const game = await loadGameOr404(created.id);
@@ -162,6 +163,7 @@ export default async function gameRoutes(app: FastifyInstance) {
               ggDealsUrl: resolved.ggDealsUrl,
               steamAppid: resolved.steamAppId,
               coverImageUrl: resolved.coverImageUrl,
+              releaseYear: resolved.releaseYear,
             },
           });
           existingIgdbIdSet.add(igdbId);

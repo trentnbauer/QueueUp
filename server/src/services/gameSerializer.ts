@@ -26,6 +26,7 @@ function buildGameDto(game: GameWithRelations, currentUserId: string, price: Gam
     title: game.title,
     platform: game.platform,
     genre: game.genre,
+    releaseYear: game.releaseYear,
     maxCoopPlayers: game.maxCoopPlayers,
     ggDealsUrl: game.ggDealsUrl,
     coverImageUrl: game.coverImageUrl,

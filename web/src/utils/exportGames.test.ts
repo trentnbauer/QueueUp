@@ -10,6 +10,7 @@ function makeGame(overrides: Partial<Game> = {}): Game {
     title: 'Test Game',
     platform: 'PC',
     genre: null,
+    releaseYear: null,
     maxCoopPlayers: null,
     ggDealsUrl: null,
     coverImageUrl: null,
