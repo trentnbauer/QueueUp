@@ -4,6 +4,7 @@ import type {
   Game,
   GameIntakeCandidate,
   GameSearchResult,
+  ImportSteamLibraryResult,
   MoveGameRequest,
   PriceRegion,
   UpdateGameStatusRequest,
@@ -27,4 +28,5 @@ export const gamesApi = {
   refreshPrice: (id: string) => apiPost<{ game: Game }>(`/api/games/${id}/refresh-price`),
   vote: (id: string, body: VoteRequest) => apiPut<{ game: Game }>(`/api/games/${id}/vote`, body),
   move: (id: string, body: MoveGameRequest) => apiPost<{ game: Game }>(`/api/games/${id}/move`, body),
+  importSteamLibrary: () => apiPost<ImportSteamLibraryResult>('/api/games/import-steam-library'),
 };

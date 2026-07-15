@@ -12,8 +12,17 @@ import {
 } from '../services/gameAccess.js';
 import { gameInclude, serializeGame, serializeGames } from '../services/gameSerializer.js';
 import { searchIntake, previewIntake, resolveGameForCreation, refreshGamePricing } from '../services/gameIntake.js';
-import { platformFamilies } from '../services/igdbClient.js';
-import type { CreateGameRequest, MoveGameRequest, PriceRegion, UpdateGameStatusRequest, VoteRequest } from '@squadqueue/shared';
+import { platformFamilies, findIgdbIdBySteamAppId } from '../services/igdbClient.js';
+import { extractSteamId64, getOwnedSteamGames } from '../services/steamLibrary.js';
+import { env } from '../config/env.js';
+import type {
+  CreateGameRequest,
+  ImportSteamLibraryResult,
+  MoveGameRequest,
+  PriceRegion,
+  UpdateGameStatusRequest,
+  VoteRequest,
+} from '@squadqueue/shared';
 import { PRICE_REGION_LABELS } from '@squadqueue/shared';
 
 const GAME_STATUSES = ['backlog', 'playing', 'done'] as const;
@@ -22,6 +31,9 @@ const PRICE_REGIONS = Object.keys(PRICE_REGION_LABELS) as PriceRegion[];
 // caps a single query so one runaway list can't pull unbounded rows (and unbounded price lookups)
 // on every page load. Well above any real shelf/room size today.
 const MAX_GAMES_PER_LIST = 500;
+// A Steam library can run into the hundreds of games, each needing its own IGDB lookup - capping
+// keeps one import from taking minutes or hammering IGDB. Most-played games are considered first.
+const MAX_STEAM_IMPORT_CONSIDERED = 30;
 
 function parseRegion(region?: string): PriceRegion | undefined {
   return PRICE_REGIONS.includes(region as PriceRegion) ? (region as PriceRegion) : undefined;
@@ -108,6 +120,79 @@ export default async function gameRoutes(app: FastifyInstance) {
     reply.status(201);
     return { game: await serializeGame(game, userId) };
   });
+
+  app.post(
+    '/api/games/import-steam-library',
+    // This is an expensive operation (up to MAX_STEAM_IMPORT_CONSIDERED sequential IGDB lookups),
+    // not something to allow hammering.
+    { config: { rateLimit: { max: 3, timeWindow: '1 hour' } } },
+    async (request) => {
+      const userId = await request.requireAuth();
+      if (!env.STEAM_API_KEY) {
+        throw new HttpError(400, 'Steam integration is not configured on this server.');
+      }
+
+      const user = await prisma.user.findUniqueOrThrow({ where: { id: userId } });
+      const steamId64 = extractSteamId64(user.oidcSub);
+      if (!steamId64) {
+        throw new HttpError(400, 'Sign in with Steam to import your library.');
+      }
+
+      const owned = await getOwnedSteamGames(steamId64, env.STEAM_API_KEY);
+      const considered = [...owned].sort((a, b) => b.playtimeForeverMinutes - a.playtimeForeverMinutes).slice(0, MAX_STEAM_IMPORT_CONSIDERED);
+
+      const [existingIgdbIdSet, shelfGames] = await Promise.all([
+        existingIgdbIds(null, userId),
+        prisma.game.findMany({ where: { roomId: null, addedBy: userId }, select: { steamAppid: true } }),
+      ]);
+      const existingSteamAppIds = new Set(shelfGames.map((g) => g.steamAppid).filter((id): id is number => id != null));
+
+      let imported = 0;
+      let skipped = 0;
+      for (const game of considered) {
+        if (existingSteamAppIds.has(game.appId)) {
+          skipped++;
+          continue;
+        }
+        try {
+          const igdbId = await findIgdbIdBySteamAppId(game.appId);
+          if (igdbId === null || existingIgdbIdSet.has(igdbId)) {
+            skipped++;
+            continue;
+          }
+          const resolved = await resolveGameForCreation(igdbId);
+          await prisma.game.create({
+            data: {
+              roomId: null,
+              addedBy: userId,
+              igdbId,
+              title: resolved.title,
+              platform: resolved.platform,
+              genre: resolved.genre,
+              maxCoopPlayers: resolved.maxCoopPlayers,
+              ggDealsUrl: resolved.ggDealsUrl,
+              steamAppid: resolved.steamAppId,
+              coverImageUrl: resolved.coverImageUrl,
+            },
+          });
+          existingIgdbIdSet.add(igdbId);
+          imported++;
+        } catch {
+          // One game failing to resolve (IGDB hiccup, no match, etc.) shouldn't abort the batch.
+          skipped++;
+        }
+      }
+      if (imported > 0) await invalidateExistingIgdbIds(null, userId);
+
+      const result: ImportSteamLibraryResult = {
+        totalOwned: owned.length,
+        consideredCount: considered.length,
+        imported,
+        skipped,
+      };
+      return result;
+    },
+  );
 
   app.patch<{ Params: { id: string }; Body: UpdateGameStatusRequest }>('/api/games/:id/status', async (request) => {
     const userId = await request.requireAuth();

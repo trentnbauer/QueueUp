@@ -4,6 +4,7 @@ import { prisma } from '../db/client.js';
 import { getOrCreateUser } from '../plugins/auth.js';
 import { toUserDto } from '../util/dto.js';
 import { HttpError } from '../util/httpError.js';
+import { extractSteamId64 } from '../services/steamLibrary.js';
 
 export default async function authRoutes(app: FastifyInstance) {
   app.get('/api/auth/providers', async () => {
@@ -64,6 +65,6 @@ export default async function authRoutes(app: FastifyInstance) {
     const user = await prisma.user.findUnique({ where: { id: userId } });
     if (!user) return reply.send({ user: null });
 
-    return reply.send({ user: toUserDto(user) });
+    return reply.send({ user: toUserDto(user), steamLinked: extractSteamId64(user.oidcSub) !== null });
   });
 }

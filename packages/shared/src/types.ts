@@ -143,6 +143,13 @@ export interface MoveGameRequest {
   roomId: string | null;
 }
 
+export interface ImportSteamLibraryResult {
+  totalOwned: number;
+  consideredCount: number;
+  imported: number;
+  skipped: number;
+}
+
 /** Admin-only views — never sent to non-admin users. */
 export interface AdminIntegrationStatus {
   ggDealsApiKeyConfigured: boolean;

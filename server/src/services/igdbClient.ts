@@ -230,3 +230,24 @@ export async function getGameDetail(igdbId: number): Promise<IgdbGameDetail> {
   await redis.set(cacheKey, JSON.stringify(detail), 'EX', DETAIL_CACHE_TTL_SECONDS);
   return detail;
 }
+
+const STEAM_APP_ID_LOOKUP_CACHE_PREFIX = 'igdb:steam-appid-to-igdbid:v1:';
+const STEAM_APP_ID_LOOKUP_CACHE_TTL_SECONDS = 60 * 60 * 24; // 24h — this mapping essentially never changes
+
+/** Reverse of getGameDetail's steamAppId lookup: given a Steam AppID, finds the IGDB game id it
+ * maps to (or null if IGDB has no external_games record for it). Used by Steam library import,
+ * which only has AppIDs from the Steam Web API and needs IGDB ids to resolve full game data. */
+export async function findIgdbIdBySteamAppId(steamAppId: number): Promise<number | null> {
+  const cacheKey = STEAM_APP_ID_LOOKUP_CACHE_PREFIX + steamAppId;
+  const cached = await redis.get(cacheKey);
+  if (cached) return cached === 'null' ? null : Number(cached);
+
+  const externalGames = await igdbRequest<Array<{ game: number }>>(
+    'external_games',
+    `fields game; where uid = "${steamAppId}" & external_game_source = ${STEAM_EXTERNAL_SOURCE_ID}; limit 1;`,
+  );
+  const igdbId = externalGames[0]?.game ?? null;
+
+  await redis.set(cacheKey, igdbId === null ? 'null' : String(igdbId), 'EX', STEAM_APP_ID_LOOKUP_CACHE_TTL_SECONDS);
+  return igdbId;
+}

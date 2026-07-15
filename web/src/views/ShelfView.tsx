@@ -6,9 +6,10 @@ import { GameInputBar } from '../components/GameInputBar';
 import { GameGrid } from '../components/GameGrid';
 import { ActionErrorBanner } from '../components/ActionErrorBanner';
 import { ExportButton } from '../components/ExportButton';
+import { SteamImportButton } from '../components/SteamImportButton';
 
 export function ShelfView() {
-  const { user } = useAuth();
+  const { user, steamLinked } = useAuth();
   const { switchView, rooms } = useView();
   const {
     games,
@@ -38,6 +39,7 @@ export function ShelfView() {
     <div>
       <GameInputBar roomId={null} onAdded={invalidate} />
       <ActionErrorBanner message={actionError} onDismiss={clearActionError} />
+      {steamLinked && <SteamImportButton onImported={invalidate} />}
       {!isLoading && !isError && <ExportButton games={games} baseName="my-shelf" />}
       <GameGrid
         games={games}

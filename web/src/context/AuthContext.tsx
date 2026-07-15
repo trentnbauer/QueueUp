@@ -4,6 +4,7 @@ import { authApi } from '../api/auth';
 
 interface AuthContextValue {
   user: User | null;
+  steamLinked: boolean;
   loading: boolean;
   refetch: () => Promise<void>;
 }
@@ -12,18 +13,20 @@ const AuthContext = createContext<AuthContextValue | undefined>(undefined);
 
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
+  const [steamLinked, setSteamLinked] = useState(false);
   const [loading, setLoading] = useState(true);
 
   const refetch = async () => {
-    const { user } = await authApi.me();
+    const { user, steamLinked } = await authApi.me();
     setUser(user);
+    setSteamLinked(steamLinked);
   };
 
   useEffect(() => {
     refetch().finally(() => setLoading(false));
   }, []);
 
-  return <AuthContext.Provider value={{ user, loading, refetch }}>{children}</AuthContext.Provider>;
+  return <AuthContext.Provider value={{ user, steamLinked, loading, refetch }}>{children}</AuthContext.Provider>;
 }
 
 export function useAuth() {
