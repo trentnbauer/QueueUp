@@ -1,0 +1,64 @@
+name: Bug report
+description: Something in SquadQueue is broken or not working as expected.
+labels: ["bug"]
+body:
+  - type: textarea
+    id: what-happened
+    attributes:
+      label: What happened?
+      description: A clear description of the bug.
+    validations:
+      required: true
+
+  - type: textarea
+    id: expected
+    attributes:
+      label: What did you expect to happen?
+    validations:
+      required: false
+
+  - type: textarea
+    id: repro
+    attributes:
+      label: Steps to reproduce
+      placeholder: |
+        1. Go to '...'
+        2. Click on '...'
+        3. See error
+    validations:
+      required: true
+
+  - type: dropdown
+    id: area
+    attributes:
+      label: Area
+      description: Which part of the app is affected?
+      options:
+        - Personal Shelf
+        - Communal Rooms
+        - Game intake (gg.deals link paste)
+        - Pricing / metadata refresh
+        - Voting (emoji scale)
+        - Auth / sign-in
+        - UI / layout / responsiveness
+        - Docker / deployment
+        - Other
+    validations:
+      required: true
+
+  - type: textarea
+    id: logs
+    attributes:
+      label: Relevant logs or screenshots
+      description: Server logs, browser console errors, or screenshots. Redact any API keys or tokens.
+      render: shell
+    validations:
+      required: false
+
+  - type: input
+    id: env
+    attributes:
+      label: Environment
+      placeholder: e.g. self-hosted via docker compose, commit abc1234, Chrome on Windows
+    validations:
+      required: false

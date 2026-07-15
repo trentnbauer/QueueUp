@@ -1,0 +1,39 @@
+name: Game data / pricing issue
+description: Wrong or missing pricing, metadata, or search results from gg.deals or IGDB.
+labels: ["game-data"]
+body:
+  - type: input
+    id: game
+    attributes:
+      label: Game title
+      description: The game affected, and the gg.deals link if you added it that way.
+    validations:
+      required: true
+
+  - type: dropdown
+    id: source
+    attributes:
+      label: Which source is wrong?
+      options:
+        - gg.deals pricing
+        - IGDB metadata (title, platform, artwork)
+        - Both
+        - Not sure
+    validations:
+      required: true
+
+  - type: textarea
+    id: expected-vs-actual
+    attributes:
+      label: What's wrong?
+      description: What did SquadQueue show, and what should it show instead?
+    validations:
+      required: true
+
+  - type: checkboxes
+    id: cache-checked
+    attributes:
+      label: Have you tried forcing a metadata refresh, if that option exists in the UI?
+      options:
+        - label: Yes, and the stale/wrong data persisted
+        - label: No / not applicable
