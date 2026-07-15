@@ -41,6 +41,8 @@ Open http://localhost:5173. With `DEV_FAKE_AUTH=true` you're signed in automatic
 Useful commands:
 - `npm run db:studio` — opens Prisma Studio, a GUI to browse/edit the database directly.
 - `npm run build` — production build of all three packages (used by the Docker image too).
+- `npm test` — runs the Vitest suite (pure logic only — sort/recommendation rules, platform
+  mapping, duplicate-scope rules; no DB/network integration tests).
 
 ## Setting up real sign-in
 
