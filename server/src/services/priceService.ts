@@ -84,6 +84,45 @@ export async function getSteamPrice(
   return entry.price;
 }
 
+/** Batched version of getSteamPrice — one Redis MGET for all cache hits, one Promise.all of live
+ * fetches for the misses, instead of a round trip per game. Use this whenever pricing more than
+ * one game at a time (e.g. serializing a room's game list). */
+export async function getSteamPrices(
+  steamAppIds: number[],
+  opts: { region?: string; forceRefresh?: boolean } = {},
+): Promise<Map<number, GamePrice>> {
+  const region = opts.region ?? env.GGDEALS_DEFAULT_REGION;
+  const uniqueIds = [...new Set(steamAppIds)];
+  const result = new Map<number, GamePrice>();
+  if (uniqueIds.length === 0) return result;
+
+  const cacheKeys = uniqueIds.map((id) => `${PRICE_CACHE_PREFIX}${id}:${region}`);
+  const cachedValues = opts.forceRefresh ? uniqueIds.map(() => null) : await redis.mget(cacheKeys);
+
+  const misses: number[] = [];
+  uniqueIds.forEach((id, i) => {
+    const cached = cachedValues[i];
+    if (cached) {
+      result.set(id, (JSON.parse(cached) as PriceEntry).price);
+    } else {
+      misses.push(id);
+    }
+  });
+
+  if (misses.length > 0) {
+    const fetched = await Promise.all(misses.map((id) => fetchLiveEntry(id, region)));
+    const pipeline = redis.pipeline();
+    misses.forEach((id, i) => {
+      const entry = fetched[i];
+      result.set(id, entry.price);
+      pipeline.set(`${PRICE_CACHE_PREFIX}${id}:${region}`, JSON.stringify(entry), 'EX', PRICE_CACHE_TTL_SECONDS);
+    });
+    await pipeline.exec();
+  }
+
+  return result;
+}
+
 /** Used only during intake — also returns the canonical gg.deals URL for the game. */
 export async function getSteamPriceAndUrl(
   steamAppId: number,
