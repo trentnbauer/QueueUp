@@ -22,7 +22,7 @@ function makeGame(overrides: Partial<Game> = {}): Game {
     ggDealsUrl: null,
     coverImageUrl: null,
     status: 'backlog',
-    price: { amount: null, currency: null, source: 'unavailable', historicalLow: null },
+    price: { amount: null, currency: null, source: 'unavailable', historicalLow: null, lastRefreshedAt: null },
     votes: [],
     myVote: null,
     voteScore: 0,

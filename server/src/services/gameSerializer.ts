@@ -13,7 +13,13 @@ const gameWithRelations = {
 export type GameWithRelations = Prisma.GameGetPayload<typeof gameWithRelations>;
 export const gameInclude = gameWithRelations.include;
 
-const UNAVAILABLE_PRICE: GamePrice = { amount: null, currency: null, source: 'unavailable', historicalLow: null };
+const UNAVAILABLE_PRICE: GamePrice = {
+  amount: null,
+  currency: null,
+  source: 'unavailable',
+  historicalLow: null,
+  lastRefreshedAt: null,
+};
 
 function buildGameDto(game: GameWithRelations, currentUserId: string, price: GamePrice): Game {
   const myVote = game.votes.find((v) => v.userId === currentUserId);

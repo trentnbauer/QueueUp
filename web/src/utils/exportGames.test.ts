@@ -15,7 +15,7 @@ function makeGame(overrides: Partial<Game> = {}): Game {
     ggDealsUrl: null,
     coverImageUrl: null,
     status: 'backlog',
-    price: { amount: null, currency: null, source: 'unavailable', historicalLow: null },
+    price: { amount: null, currency: null, source: 'unavailable', historicalLow: null, lastRefreshedAt: null },
     votes: [],
     myVote: null,
     voteScore: 0,
@@ -42,7 +42,7 @@ describe('toCsv', () => {
   });
 
   it('formats price as amount + currency when available', () => {
-    const game = makeGame({ price: { amount: '19.99', currency: 'USD', source: 'live', historicalLow: null } });
+    const game = makeGame({ price: { amount: '19.99', currency: 'USD', source: 'live', historicalLow: null, lastRefreshedAt: null } });
     expect(toCsv([game])).toContain('19.99 USD');
   });
 });
@@ -66,7 +66,7 @@ describe('toJson', () => {
   });
 
   it('includes a price object only when a price is available', () => {
-    const game = makeGame({ price: { amount: '9.99', currency: 'USD', source: 'live', historicalLow: null } });
+    const game = makeGame({ price: { amount: '9.99', currency: 'USD', source: 'live', historicalLow: null, lastRefreshedAt: null } });
     const parsed = JSON.parse(toJson([game]));
     expect(parsed[0].price).toEqual({ amount: '9.99', currency: 'USD' });
   });

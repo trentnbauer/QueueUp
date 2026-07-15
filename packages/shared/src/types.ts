@@ -69,6 +69,10 @@ export interface GamePrice {
   /** All-time-low price seen for this game (from gg.deals' historical price data), same currency
    * as `amount`. Null if unavailable or if the current price already is the historic low. */
   historicalLow: string | null;
+  /** When this price entry was last fetched from gg.deals (ISO string) - i.e. the age of the
+   * cached/served value, not necessarily "just now". Null only when no fetch has ever happened
+   * (e.g. the game has no Steam app id at all). */
+  lastRefreshedAt: string | null;
 }
 
 export interface VoteSummary {

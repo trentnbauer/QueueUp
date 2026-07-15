@@ -27,6 +27,7 @@ export function ShelfView() {
     vote,
     remove,
     refreshPrice,
+    isRefreshingPrice,
   } = useGames(null);
 
   useEffect(() => {
@@ -58,6 +59,7 @@ export function ShelfView() {
         onVote={vote}
         onRemove={remove}
         onRefreshPrice={refreshPrice}
+        isRefreshingPrice={isRefreshingPrice}
       />
     </div>
   );

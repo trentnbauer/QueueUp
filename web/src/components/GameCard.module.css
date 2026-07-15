@@ -167,6 +167,30 @@
   color: var(--sq-accent);
 }
 
+.refreshPriceButton:disabled {
+  cursor: default;
+}
+
+.refreshPriceButton.spinning {
+  color: var(--sq-accent);
+  animation: sq-spin 0.8s linear infinite;
+}
+
+@keyframes sq-spin {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.lastRefreshed {
+  font: 500 10.5px system-ui, sans-serif;
+  color: var(--sq-muted);
+  margin-top: -4px;
+}
+
 .addedBy {
   font: 400 11px system-ui, sans-serif;
   color: var(--sq-muted);

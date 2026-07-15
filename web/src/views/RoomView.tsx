@@ -32,6 +32,7 @@ export function RoomView() {
     vote,
     remove,
     refreshPrice,
+    isRefreshingPrice,
   } = useGames(roomId ?? null);
 
   const { data: membersData } = useQuery({
@@ -64,6 +65,7 @@ export function RoomView() {
         onVote={vote}
         onRemove={remove}
         onRefreshPrice={refreshPrice}
+        isRefreshingPrice={isRefreshingPrice}
       />
     </div>
   );

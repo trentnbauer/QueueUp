@@ -60,6 +60,8 @@ interface GameGridProps {
   onVote: (gameId: string, value: VoteValue) => void;
   onRemove: (gameId: string) => void;
   onRefreshPrice: (gameId: string) => void;
+  /** Whether a given game's manual price refresh is currently in flight - drives the spinner. */
+  isRefreshingPrice?: (gameId: string) => boolean;
 }
 
 export function GameGrid({
@@ -74,6 +76,7 @@ export function GameGrid({
   onVote,
   onRemove,
   onRefreshPrice,
+  isRefreshingPrice,
 }: GameGridProps) {
   const [platformFilter, setPlatformFilter] = useState(ALL);
   const [genreFilter, setGenreFilter] = useState(ALL);
@@ -187,6 +190,7 @@ export function GameGrid({
               onVote={(value) => onVote(game.id, value)}
               onRemove={() => onRemove(game.id)}
               onRefreshPrice={() => onRefreshPrice(game.id)}
+              isRefreshingPrice={isRefreshingPrice ? isRefreshingPrice(game.id) : false}
             />
           ))}
         </div>
