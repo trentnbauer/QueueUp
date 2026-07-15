@@ -66,6 +66,15 @@ docker compose --env-file .env --project-directory . -f docker/docker-compose.pr
 
 This builds and runs a single `server` container (serving both the API and the built frontend) alongside Postgres and Redis, all wired from the same `.env`. On first boot the container runs `prisma db push` automatically to create the schema.
 
+### Running behind a reverse proxy
+
+Most self-hosted setups put something in front of this container - a Cloudflare Tunnel, NGINX Proxy Manager, Traefik, etc - so it isn't exposed to the internet directly. `TRUST_PROXY` (in `.env`) defaults to `true`, which tells Fastify to derive the client's real IP/protocol from the `X-Forwarded-For`/`X-Forwarded-Proto` headers your proxy sets, rather than the raw connection it sees (which is typically plain HTTP inside Docker even when the outside world reaches you over HTTPS). This affects two things:
+
+- **Session cookies** are marked `Secure` only once TLS is confirmed via `X-Forwarded-Proto` - so sign-in still works whether the proxy talks HTTP or HTTPS to the container, as long as your proxy forwards that header (Cloudflare Tunnel and NGINX Proxy Manager both do this by default).
+- **Rate limiting** buckets requests by client IP - without `TRUST_PROXY`, every request looks like it comes from the proxy's own IP, so all your users would share one rate-limit bucket.
+
+Only set `TRUST_PROXY=false` if this container is exposed directly with nothing in front of it (those headers are otherwise attacker-controllable). Whichever proxy you use, make sure `APP_BASE_URL` and each configured sign-in method's `*_REDIRECT_URI` point at your real public HTTPS domain, not `localhost`.
+
 ## Backups
 
 Postgres and Redis data are bind-mounted to `./data/postgres` and `./data/redis` (override the root with `DATA_DIR` in `.env`). Point Borg, or any backup tool, at that `data/` directory.

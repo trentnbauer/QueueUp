@@ -14,7 +14,7 @@ import { env } from './config/env.js';
 import { redis } from './services/redisClient.js';
 
 export async function buildApp() {
-  const app = Fastify({ logger: true });
+  const app = Fastify({ logger: true, trustProxy: env.TRUST_PROXY });
 
   await app.register(cors, { origin: env.APP_BASE_URL, credentials: true });
   await app.register(helmet, {

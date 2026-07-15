@@ -1,6 +1,6 @@
 import { useMemo, useRef, useState } from 'react';
 import type { Game, GameStatus, VoteValue } from '@squadqueue/shared';
-import { GameCard, type MoveDestination } from './GameCard';
+import { GameCard } from './GameCard';
 import { sortByScore, playNextGames, recommendedNextId, statusBucket } from './gameGridLogic';
 import styles from './GameGrid.module.css';
 
@@ -56,14 +56,10 @@ interface GameGridProps {
   onRetry?: () => void;
   /** Room member count, used to warn when a game's max co-op players is under this. Undefined on the Personal Shelf. */
   memberCount?: number;
-  /** Where a game in this grid could be relocated to (every game here shares the same current
-   * location, so the same destination list applies to all of them). */
-  moveDestinations?: MoveDestination[];
   onStatusChange: (gameId: string, status: GameStatus) => void;
   onVote: (gameId: string, value: VoteValue) => void;
   onRemove: (gameId: string) => void;
   onRefreshPrice: (gameId: string) => void;
-  onMove?: (gameId: string, destRoomId: string | null) => void;
 }
 
 export function GameGrid({
@@ -74,12 +70,10 @@ export function GameGrid({
   loadError,
   onRetry,
   memberCount,
-  moveDestinations,
   onStatusChange,
   onVote,
   onRemove,
   onRefreshPrice,
-  onMove,
 }: GameGridProps) {
   const [platformFilter, setPlatformFilter] = useState(ALL);
   const [genreFilter, setGenreFilter] = useState(ALL);
@@ -189,12 +183,10 @@ export function GameGrid({
               memberCount={memberCount}
               isPlayNext={playNext.has(game.id)}
               isRecommended={game.id === recommendedId}
-              moveDestinations={moveDestinations}
               onStatusChange={(next) => onStatusChange(game.id, next)}
               onVote={(value) => onVote(game.id, value)}
               onRemove={() => onRemove(game.id)}
               onRefreshPrice={() => onRefreshPrice(game.id)}
-              onMove={onMove ? (destRoomId) => onMove(game.id, destRoomId) : undefined}
             />
           ))}
         </div>

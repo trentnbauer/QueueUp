@@ -6,6 +6,7 @@ import { useAuth } from '../context/AuthContext';
 import { useView } from '../context/ViewContext';
 import { useConfirm } from '../context/ConfirmContext';
 import { useRooms } from '../hooks/useRooms';
+import { useGames } from '../hooks/useGames';
 import { useCurrencyRegion } from '../context/CurrencyRegionContext';
 import { roomsApi } from '../api/rooms';
 import { authApi } from '../api/auth';
@@ -42,6 +43,7 @@ export function Header() {
   const [newRoomPlatform, setNewRoomPlatform] = useState<RoomPlatform>('pc');
   const [inviteCode, setInviteCode] = useState('');
   const [showRoomSettings, setShowRoomSettings] = useState(false);
+  const [inviteCopied, setInviteCopied] = useState(false);
 
   const membersQueryKey = ['room-members', activeRoom?.id];
   const { data: membersData } = useQuery({
@@ -51,6 +53,10 @@ export function Header() {
   });
   const members = membersData?.members ?? [];
   const myRole = activeRoom?.myRole;
+
+  // Reuses the same ['games', 'room'|'shelf', ...] query as the active view (RoomView/ShelfView) -
+  // React Query dedupes by queryKey, so this doesn't trigger an extra network fetch.
+  const { games } = useGames(activeRoom?.id ?? null);
 
   function canPromote(memberRole: RoomRole): boolean {
     return myRole === 'room_master' && memberRole === 'member';
@@ -101,6 +107,13 @@ export function Header() {
     navigate(`/room/${room.id}`);
   }
 
+  async function handleCopyInviteCode() {
+    if (!activeRoom?.inviteCode) return;
+    await navigator.clipboard.writeText(activeRoom.inviteCode);
+    setInviteCopied(true);
+    setTimeout(() => setInviteCopied(false), 1500);
+  }
+
   async function handleJoinRoom(e: React.FormEvent) {
     e.preventDefault();
     if (!inviteCode.trim()) return;
@@ -126,12 +139,12 @@ export function Header() {
             Creating/joining a room and managing an active room live in their own separate,
             clearly-labeled controls below, not nested inside this menu. */}
         <details className={styles.menu} ref={roomMenuRef}>
-          <summary className={styles.menuButton}>
-            <span className={styles.locationIcon} aria-hidden="true">
+          <summary className={styles.roomSelectorButton}>
+            <span className={styles.roomSelectorIcon} aria-hidden="true">
               {activeRoom ? '🎮' : '🗂'}
             </span>
-            {activeRoom ? activeRoom.name : 'Personal Shelf'}
-            <span aria-hidden="true">▾</span>
+            <span className={styles.roomSelectorName}>{activeRoom ? activeRoom.name : 'Personal Shelf'}</span>
+            <span className={styles.roomSelectorChevron} aria-hidden="true">▾</span>
           </summary>
           <div className={`${styles.menuPanel} ${styles.menuPanelLeft}`}>
             <div className={styles.menuSectionLabel}>Switch to</div>
@@ -202,6 +215,18 @@ export function Header() {
           </div>
         </details>
 
+        {activeRoom?.inviteCode && (
+          <button
+            type="button"
+            className={styles.inviteBadge}
+            onClick={handleCopyInviteCode}
+            title="Click to copy invite code"
+            aria-label="Copy room invite code"
+          >
+            {inviteCopied ? 'Copied!' : `Invite: ${activeRoom.inviteCode}`}
+          </button>
+        )}
+
         {activeRoom && (
           <button
             type="button"
@@ -216,7 +241,12 @@ export function Header() {
       </div>
 
       {showRoomSettings && activeRoom && (
-        <RoomSettingsModal room={activeRoom} members={members} onClose={() => setShowRoomSettings(false)} />
+        <RoomSettingsModal
+          room={activeRoom}
+          members={members}
+          games={games}
+          onClose={() => setShowRoomSettings(false)}
+        />
       )}
 
       <div className={styles.right}>
