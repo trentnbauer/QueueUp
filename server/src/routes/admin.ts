@@ -53,7 +53,12 @@ export default async function adminRoutes(app: FastifyInstance) {
       );
     }
 
+    const target = await prisma.user.findUnique({ where: { id: targetId } });
     await prisma.user.delete({ where: { id: targetId } });
+    app.log.warn(
+      { adminAction: 'user.delete', actorId, targetId, targetEmail: target?.email },
+      `Admin ${actorId} deleted user ${targetId} (${target?.email ?? 'unknown'})`,
+    );
     reply.status(204);
     return null;
   });
@@ -80,10 +85,26 @@ export default async function adminRoutes(app: FastifyInstance) {
   });
 
   app.delete<{ Params: { id: string } }>('/api/admin/rooms/:id', async (request, reply) => {
-    const userId = await request.requireAuth();
-    await requireAdmin(userId);
+    const actorId = await request.requireAuth();
+    await requireAdmin(actorId);
+    const { id: targetId } = request.params;
 
-    await prisma.room.delete({ where: { id: request.params.id } });
+    const target = await prisma.room.findUnique({
+      where: { id: targetId },
+      include: { _count: { select: { members: true, games: true } } },
+    });
+    await prisma.room.delete({ where: { id: targetId } });
+    app.log.warn(
+      {
+        adminAction: 'room.delete',
+        actorId,
+        targetId,
+        targetName: target?.name,
+        memberCount: target?._count.members,
+        gameCount: target?._count.games,
+      },
+      `Admin ${actorId} deleted room ${targetId} (${target?.name ?? 'unknown'}), cascading ${target?._count.members ?? 0} member(s) and ${target?._count.games ?? 0} game(s)`,
+    );
     reply.status(204);
     return null;
   });
