@@ -9,6 +9,7 @@ import authRoutes from './routes/auth.js';
 import roomRoutes from './routes/rooms.js';
 import gameRoutes from './routes/games.js';
 import adminRoutes from './routes/admin.js';
+import healthRoutes from './routes/health.js';
 import { env } from './config/env.js';
 import { redis } from './services/redisClient.js';
 
@@ -34,10 +35,17 @@ export async function buildApp() {
     max: 200,
     timeWindow: '1 minute',
     redis,
+    // Without this, a Redis outage doesn't just disable rate limiting - the store's lookup hangs
+    // (ioredis won't reject until it exhausts its own retry/backoff, which can take well over a
+    // minute) and blocks *every* request behind it, since rate limiting runs on every route.
+    // Skipping the check on a store error trades "rate limiting momentarily off" for "the app
+    // still responds," which is the right trade during a dependency outage.
+    skipOnError: true,
   });
   await app.register(sessionPlugin);
   await app.register(authPlugin);
 
+  await app.register(healthRoutes);
   await app.register(authRoutes);
   await app.register(roomRoutes);
   await app.register(gameRoutes);
