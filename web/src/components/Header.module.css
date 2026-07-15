@@ -175,6 +175,30 @@
   background: var(--sq-neutral-pill-bg);
 }
 
+.inviteCodeRow {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 8px 10px;
+  font-size: 13px;
+}
+
+.copyButton {
+  padding: 4px 10px;
+  border-radius: 6px;
+  background: var(--sq-neutral-pill-bg);
+  color: var(--sq-text);
+  border: none;
+  font-size: 11px;
+  white-space: nowrap;
+}
+
+.copyButton:hover {
+  background: var(--sq-accent-pill-bg);
+  color: var(--sq-accent);
+}
+
 .menuItemActive {
   color: var(--sq-accent);
 }

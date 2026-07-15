@@ -37,6 +37,14 @@ export function Header() {
   const [newRoomName, setNewRoomName] = useState('');
   const [newRoomPlatform, setNewRoomPlatform] = useState<RoomPlatform>('pc');
   const [inviteCode, setInviteCode] = useState('');
+  const [inviteCodeCopied, setInviteCodeCopied] = useState(false);
+
+  async function handleCopyInviteCode() {
+    if (!activeRoom?.inviteCode) return;
+    await navigator.clipboard.writeText(activeRoom.inviteCode);
+    setInviteCodeCopied(true);
+    setTimeout(() => setInviteCodeCopied(false), 1500);
+  }
 
   const membersQueryKey = ['room-members', activeRoom?.id];
   const { data: membersData } = useQuery({
@@ -167,8 +175,13 @@ export function Header() {
             {activeRoom?.inviteCode && (
               <>
                 <div className={styles.divider} />
-                <div className={styles.menuItem} style={{ color: 'var(--sq-muted)' }}>
-                  Invite code: <strong style={{ color: 'var(--sq-text)' }}>{activeRoom.inviteCode}</strong>
+                <div className={styles.inviteCodeRow}>
+                  <span style={{ color: 'var(--sq-muted)' }}>
+                    Invite code: <strong style={{ color: 'var(--sq-text)' }}>{activeRoom.inviteCode}</strong>
+                  </span>
+                  <button type="button" className={styles.copyButton} onClick={handleCopyInviteCode}>
+                    {inviteCodeCopied ? 'Copied!' : 'Copy'}
+                  </button>
                 </div>
               </>
             )}
