@@ -6,6 +6,7 @@ import { useAuth } from '../context/AuthContext';
 import { useView } from '../context/ViewContext';
 import { useConfirm } from '../context/ConfirmContext';
 import { useRooms } from '../hooks/useRooms';
+import { useGames } from '../hooks/useGames';
 import { useCurrencyRegion } from '../context/CurrencyRegionContext';
 import { roomsApi } from '../api/rooms';
 import { authApi } from '../api/auth';
@@ -52,6 +53,10 @@ export function Header() {
   });
   const members = membersData?.members ?? [];
   const myRole = activeRoom?.myRole;
+
+  // Reuses the same ['games', 'room'|'shelf', ...] query as the active view (RoomView/ShelfView) -
+  // React Query dedupes by queryKey, so this doesn't trigger an extra network fetch.
+  const { games } = useGames(activeRoom?.id ?? null);
 
   function canPromote(memberRole: RoomRole): boolean {
     return myRole === 'room_master' && memberRole === 'member';
@@ -236,7 +241,12 @@ export function Header() {
       </div>
 
       {showRoomSettings && activeRoom && (
-        <RoomSettingsModal room={activeRoom} members={members} onClose={() => setShowRoomSettings(false)} />
+        <RoomSettingsModal
+          room={activeRoom}
+          members={members}
+          games={games}
+          onClose={() => setShowRoomSettings(false)}
+        />
       )}
 
       <div className={styles.right}>

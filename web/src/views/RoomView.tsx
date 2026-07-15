@@ -9,7 +9,6 @@ import { GameInputBar } from '../components/GameInputBar';
 import { GameGrid } from '../components/GameGrid';
 import { ActionErrorBanner } from '../components/ActionErrorBanner';
 import { SpinTheWheel } from '../components/SpinTheWheel';
-import { ExportButton } from '../components/ExportButton';
 
 // Post-1.0 release feature: Spin the Wheel is temporarily hidden until its UI
 // gets a redesign. Component is kept intact so it can be re-enabled easily.
@@ -53,7 +52,6 @@ export function RoomView() {
       <GameInputBar roomId={roomId} onAdded={invalidate} />
       <ActionErrorBanner message={actionError} onDismiss={clearActionError} />
       {SPIN_THE_WHEEL_ENABLED && !isLoading && !isError && <SpinTheWheel games={games} />}
-      {!isLoading && !isError && <ExportButton games={games} baseName="squad-room" />}
       <GameGrid
         games={games}
         currentUserId={user.id}

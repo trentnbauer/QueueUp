@@ -1,7 +1,8 @@
-import { useState } from 'react';
+import { useRef, useState } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
 import {
   ROOM_PLATFORM_LABELS,
+  type Game,
   type Room,
   type RoomMember,
   type RoomPlatform,
@@ -11,6 +12,7 @@ import { roomsApi } from '../api/rooms';
 import { useAuth } from '../context/AuthContext';
 import { useConfirm } from '../context/ConfirmContext';
 import { ACCENT_PRESETS } from '../theme/defaultTheme';
+import { exportGames } from '../utils/exportGames';
 import { AvatarBadge } from './AvatarBadge';
 import styles from './RoomSettingsModal.module.css';
 
@@ -25,13 +27,15 @@ const ROLE_LABEL: Record<RoomRole, string> = {
 interface RoomSettingsModalProps {
   room: Room;
   members: RoomMember[];
+  games: Game[];
   onClose: () => void;
 }
 
-export function RoomSettingsModal({ room, members, onClose }: RoomSettingsModalProps) {
+export function RoomSettingsModal({ room, members, games, onClose }: RoomSettingsModalProps) {
   const { user } = useAuth();
   const confirm = useConfirm();
   const queryClient = useQueryClient();
+  const exportMenuRef = useRef<HTMLDetailsElement>(null);
 
   const [name, setName] = useState(room.name);
   const [platform, setPlatform] = useState<RoomPlatform>(room.platform);
@@ -82,6 +86,11 @@ export function RoomSettingsModal({ room, members, onClose }: RoomSettingsModalP
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Could not promote that member');
     }
+  }
+
+  function handleExport(format: 'csv' | 'json') {
+    exportGames(games, format, 'squad-room');
+    exportMenuRef.current?.removeAttribute('open');
   }
 
   async function handleRemove(targetUserId: string, displayName: string) {
@@ -179,6 +188,25 @@ export function RoomSettingsModal({ room, members, onClose }: RoomSettingsModalP
             </p>
           )}
         </div>
+
+        {/* Visible to every member (not just the Room Master/moderators) - export is read-only,
+            unlike the management controls above and below which stay role-gated. */}
+        {games.length > 0 && (
+          <div className={styles.section}>
+            <div className={styles.sectionTitle}>Export</div>
+            <details className={styles.exportMenu} ref={exportMenuRef}>
+              <summary className={styles.exportButton}>Export ▾</summary>
+              <div className={styles.exportPanel}>
+                <button type="button" className={styles.memberAction} onClick={() => handleExport('csv')}>
+                  Export as CSV
+                </button>
+                <button type="button" className={styles.memberAction} onClick={() => handleExport('json')}>
+                  Export as JSON
+                </button>
+              </div>
+            </details>
+          </div>
+        )}
 
         {room.inviteCode && (
           <div className={styles.section}>
