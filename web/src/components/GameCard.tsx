@@ -10,6 +10,7 @@ interface GameCardProps {
   currentUserId: string;
   memberCount?: number;
   isPlayNext?: boolean;
+  isRecommended?: boolean;
   onStatusChange: (status: GameStatus) => void;
   onVote: (value: VoteValue) => void;
   onRemove: () => void;
@@ -27,7 +28,16 @@ function formatPrice(game: Game): string {
   }
 }
 
-export function GameCard({ game, currentUserId, memberCount, isPlayNext, onStatusChange, onVote, onRemove }: GameCardProps) {
+export function GameCard({
+  game,
+  currentUserId,
+  memberCount,
+  isPlayNext,
+  isRecommended,
+  onStatusChange,
+  onVote,
+  onRemove,
+}: GameCardProps) {
   const coopWarning =
     game.maxCoopPlayers != null && memberCount != null && memberCount > game.maxCoopPlayers
       ? `Only supports ${game.maxCoopPlayers}-player co-op — this room has ${memberCount} members`
@@ -41,7 +51,11 @@ export function GameCard({ game, currentUserId, memberCount, isPlayNext, onStatu
       >
         {!game.coverImageUrl && <span className={styles.coverLabel}>COVER ART</span>}
         {game.status === 'done' && <div className={styles.doneStrike} />}
-        {isPlayNext && <div className={styles.playNextBanner}>▶ Play Next</div>}
+        {isRecommended ? (
+          <div className={styles.recommendedBanner}>★ Recommended Next</div>
+        ) : (
+          isPlayNext && <div className={styles.playNextBanner}>▶ Play Next</div>
+        )}
       </div>
 
       <div className={styles.body}>

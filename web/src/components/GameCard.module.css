@@ -48,17 +48,26 @@
   pointer-events: none;
 }
 
-.playNextBanner {
+.playNextBanner,
+.recommendedBanner {
   position: absolute;
   left: 0;
   right: 0;
   bottom: 0;
   padding: 6px 10px;
-  background: #22c55e;
-  color: #06240f;
   font: 800 11.5px system-ui, sans-serif;
   letter-spacing: 0.02em;
   text-align: center;
+}
+
+.playNextBanner {
+  background: #22c55e;
+  color: #06240f;
+}
+
+.recommendedBanner {
+  background: var(--sq-accent);
+  color: #fff;
 }
 
 .body {

@@ -40,9 +40,39 @@ function useStableOrder(games: Game[]): Game[] {
  * already-positioned card is much less disruptive than the full reshuffle useStableOrder avoids,
  * and freezing "what to play next" to page-load time would make it stale as votes come in). Games
  * with no votes yet don't qualify — an unvoted game badged "play next" would be misleading. */
-function playNextIds(games: Game[]): Set<string> {
-  const eligible = sortByScore(games.filter((g) => g.status === 'backlog' && g.voteScore > 0));
-  return new Set(eligible.slice(0, 3).map((g) => g.id));
+function playNextGames(games: Game[]): Game[] {
+  return sortByScore(games.filter((g) => g.status === 'backlog' && g.voteScore > 0)).slice(0, 3);
+}
+
+// IGDB genre strings are comma-joined and often carry several tags (e.g. "Shooter, Adventure");
+// comparing the full tag set for zero overlap is too strict in practice — broad secondary tags
+// like "Adventure" or "Indie" show up on all sorts of otherwise-unrelated games and would mask an
+// otherwise clearly different pick. The first-listed tag is IGDB's primary genre for the game, so
+// that's what "different genre" compares.
+function primaryGenre(genre: string | null): string | null {
+  const first = (genre ?? '').split(',')[0]?.trim().toLowerCase();
+  return first || null;
+}
+
+/** Among the current Play Next picks, the highest-scored one whose primary genre differs from the
+ * most-recently-completed game's — e.g. last completed was a shooter, play-next top-3 are
+ * shooter/shooter/puzzle, recommend the puzzle one. No recommendation if nothing's been completed
+ * yet, the last completed game has no genre data, or every play-next pick shares its primary genre. */
+function recommendedNextId(games: Game[], candidates: Game[]): string | null {
+  const completed = games.filter((g) => g.status === 'done');
+  if (completed.length === 0) return null;
+
+  const lastCompleted = completed.reduce((latest, g) =>
+    new Date(g.updatedAt).getTime() > new Date(latest.updatedAt).getTime() ? g : latest,
+  );
+  const lastPrimary = primaryGenre(lastCompleted.genre);
+  if (!lastPrimary) return null;
+
+  const differing = candidates.find((g) => {
+    const primary = primaryGenre(g.genre);
+    return primary !== null && primary !== lastPrimary;
+  });
+  return differing?.id ?? null;
 }
 
 /** Currently Playing first, then Play Next-tagged backlog, then the rest of the backlog, then
@@ -69,7 +99,9 @@ interface GameGridProps {
 
 export function GameGrid({ games, currentUserId, memberCount, onStatusChange, onVote, onRemove }: GameGridProps) {
   const sorted = useStableOrder(games);
-  const playNext = playNextIds(games);
+  const candidates = playNextGames(games);
+  const playNext = new Set(candidates.map((g) => g.id));
+  const recommendedId = recommendedNextId(games, candidates);
   const prioritized = [...sorted].sort((a, b) => statusBucket(a, playNext) - statusBucket(b, playNext));
 
   if (prioritized.length === 0) {
@@ -85,6 +117,7 @@ export function GameGrid({ games, currentUserId, memberCount, onStatusChange, on
           currentUserId={currentUserId}
           memberCount={memberCount}
           isPlayNext={playNext.has(game.id)}
+          isRecommended={game.id === recommendedId}
           onStatusChange={(next) => onStatusChange(game.id, next)}
           onVote={(value) => onVote(game.id, value)}
           onRemove={() => onRemove(game.id)}
