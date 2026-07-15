@@ -24,12 +24,26 @@ declare module 'fastify' {
   }
 }
 
+// Steam and Discord (when a user denies the email scope) have no real email, so those providers
+// synthesize a placeholder under one of these domains (see steamProvider.ts, discordProvider.ts).
+// Such an address must never be treated as a verified identity for admin-matching purposes - it's
+// not exploitable today (it can't collide with a real admin's email), but this guards against that
+// changing if ADMIN_EMAILS matching is ever extended (e.g. wildcard/domain rules).
+const SYNTHETIC_EMAIL_DOMAINS = ['steamcommunity.unknown', 'discord.unknown'];
+
+function isSyntheticEmail(email: string): boolean {
+  const domain = email.toLowerCase().split('@')[1];
+  return !!domain && SYNTHETIC_EMAIL_DOMAINS.includes(domain);
+}
+
 // DEV_FAKE_AUTH already bypasses all real access control, so the dev user is always admin too.
 // Otherwise admin status is granted by email allowlist (ADMIN_EMAILS), re-checked on every login
 // so it can be added/removed by editing .env without touching the database.
-function computeIsAdmin(email: string): boolean {
-  if (env.DEV_FAKE_AUTH) return true;
-  const admins = env.ADMIN_EMAILS.split(',')
+function computeIsAdmin(email: string, opts: { devFakeAuth: boolean; adminEmails: string }): boolean {
+  if (opts.devFakeAuth) return true;
+  if (isSyntheticEmail(email)) return false;
+  const admins = opts.adminEmails
+    .split(',')
     .map((e) => e.trim().toLowerCase())
     .filter(Boolean);
   return admins.includes(email.toLowerCase());
@@ -41,7 +55,7 @@ async function getOrCreateUser(profile: {
   displayName: string;
   avatarUrl: string | null;
 }) {
-  const isAdmin = computeIsAdmin(profile.email);
+  const isAdmin = computeIsAdmin(profile.email, { devFakeAuth: env.DEV_FAKE_AUTH, adminEmails: env.ADMIN_EMAILS });
   return prisma.user.upsert({
     where: { oidcSub: profile.oidcSub },
     update: { email: profile.email, displayName: profile.displayName, avatarUrl: profile.avatarUrl, isAdmin },
@@ -88,4 +102,4 @@ export default fp(async function authPlugin(app: FastifyInstance) {
   });
 });
 
-export { getOrCreateUser };
+export { getOrCreateUser, computeIsAdmin };
