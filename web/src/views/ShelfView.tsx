@@ -5,6 +5,7 @@ import { useGames } from '../hooks/useGames';
 import { GameInputBar } from '../components/GameInputBar';
 import { GameGrid } from '../components/GameGrid';
 import { ActionErrorBanner } from '../components/ActionErrorBanner';
+import { ExportButton } from '../components/ExportButton';
 
 export function ShelfView() {
   const { user } = useAuth();
@@ -34,6 +35,7 @@ export function ShelfView() {
     <div>
       <GameInputBar roomId={null} onAdded={invalidate} />
       <ActionErrorBanner message={actionError} onDismiss={clearActionError} />
+      {!isLoading && !isError && <ExportButton games={games} baseName="my-shelf" />}
       <GameGrid
         games={games}
         currentUserId={user.id}
