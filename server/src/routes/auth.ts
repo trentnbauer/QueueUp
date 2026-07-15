@@ -38,6 +38,9 @@ export default async function authRoutes(app: FastifyInstance) {
     const profile = await provider.handleCallback(request);
     const user = await getOrCreateUser(profile);
 
+    // Regenerate the session ID on successful login (issues a fresh cookie) so a pre-auth session
+    // ID can never carry over into an authenticated one.
+    await request.session.regenerate();
     request.session.userId = user.id;
     delete request.session.authCodeVerifier;
     delete request.session.authState;
