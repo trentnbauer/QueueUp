@@ -134,12 +134,12 @@ export function Header() {
             Creating/joining a room and managing an active room live in their own separate,
             clearly-labeled controls below, not nested inside this menu. */}
         <details className={styles.menu} ref={roomMenuRef}>
-          <summary className={styles.menuButton}>
-            <span className={styles.locationIcon} aria-hidden="true">
+          <summary className={styles.roomSelectorButton}>
+            <span className={styles.roomSelectorIcon} aria-hidden="true">
               {activeRoom ? '🎮' : '🗂'}
             </span>
-            {activeRoom ? activeRoom.name : 'Personal Shelf'}
-            <span aria-hidden="true">▾</span>
+            <span className={styles.roomSelectorName}>{activeRoom ? activeRoom.name : 'Personal Shelf'}</span>
+            <span className={styles.roomSelectorChevron} aria-hidden="true">▾</span>
           </summary>
           <div className={`${styles.menuPanel} ${styles.menuPanelLeft}`}>
             <div className={styles.menuSectionLabel}>Switch to</div>
