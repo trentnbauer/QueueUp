@@ -1,8 +1,11 @@
 async function request<T>(path: string, options: RequestInit = {}): Promise<T> {
+  // Fastify's JSON body parser rejects an empty body when Content-Type: application/json is set
+  // (e.g. every DELETE, and POSTs with no body like room-member promotion), so only send that
+  // header when there's actually a body to parse.
   const response = await fetch(path, {
     ...options,
     credentials: 'include',
-    headers: { 'Content-Type': 'application/json', ...(options.headers ?? {}) },
+    headers: { ...(options.body !== undefined ? { 'Content-Type': 'application/json' } : {}), ...(options.headers ?? {}) },
   });
 
   if (!response.ok) {
