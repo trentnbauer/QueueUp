@@ -4,20 +4,107 @@ import { env } from '../config/env.js';
 import { HttpError } from '../util/httpError.js';
 import { requireAdmin } from '../services/adminAccess.js';
 import { logAdminAction } from '../services/adminAuditLog.js';
+import {
+  CONFIG_KEYS,
+  isConfigKey,
+  getConfigSource,
+  setConfigValue,
+  clearConfigValue,
+  type ConfigKey,
+} from '../services/configResolver.js';
 import type { AdminIntegrationStatus, AdminRoomSummary, AdminUserSummary, AdminAuditLogEntry } from '@squadqueue/shared';
+
+// Human-readable labels for audit log entries / error messages - keyed by the same ConfigKey used
+// server-side and sent from the client, so a typo'd key surfaces a clear "unknown setting" error.
+const CONFIG_KEY_LABELS: Record<ConfigKey, string> = {
+  GGDEALS_API_KEY: 'gg.deals API key',
+  IGDB_CLIENT_ID: 'IGDB Client ID',
+  IGDB_CLIENT_SECRET: 'IGDB Client Secret',
+};
+
+function envValueFor(key: ConfigKey): string | undefined {
+  switch (key) {
+    case 'GGDEALS_API_KEY':
+      return env.GGDEALS_API_KEY;
+    case 'IGDB_CLIENT_ID':
+      return env.IGDB_CLIENT_ID;
+    case 'IGDB_CLIENT_SECRET':
+      return env.IGDB_CLIENT_SECRET;
+  }
+}
 
 export default async function adminRoutes(app: FastifyInstance) {
   app.get('/api/admin/overview', async (request) => {
     const userId = await request.requireAuth();
     await requireAdmin(userId);
 
+    const [ggDealsApiKeySource, igdbClientIdSource, igdbClientSecretSource] = await Promise.all(
+      CONFIG_KEYS.map((key) => getConfigSource(key, envValueFor(key))),
+    );
+
     const status: AdminIntegrationStatus = {
-      ggDealsApiKeyConfigured: !!env.GGDEALS_API_KEY,
-      igdbConfigured: !!env.IGDB_CLIENT_ID && !!env.IGDB_CLIENT_SECRET,
+      ggDealsApiKeyConfigured: ggDealsApiKeySource !== 'unset',
+      ggDealsApiKeySource,
+      igdbConfigured: igdbClientIdSource !== 'unset' && igdbClientSecretSource !== 'unset',
+      igdbClientIdSource,
+      igdbClientSecretSource,
       devFakeAuth: env.DEV_FAKE_AUTH,
       activeAuthProviders: Array.from(app.authProviders.keys()),
     };
     return { status };
+  });
+
+  app.patch<{ Body: { key: string; value: string } }>('/api/admin/integrations', async (request) => {
+    const actorId = await request.requireAuth();
+    const actor = await requireAdmin(actorId);
+    const { key, value } = request.body ?? {};
+
+    if (typeof key !== 'string' || !isConfigKey(key)) {
+      throw new HttpError(400, `Unknown integration setting: ${key}`);
+    }
+    if (envValueFor(key)) {
+      throw new HttpError(
+        400,
+        `${CONFIG_KEY_LABELS[key]} is set via .env, which always takes precedence — unset it there first if you want to manage it here instead.`,
+      );
+    }
+    if (typeof value !== 'string' || !value.trim()) {
+      throw new HttpError(400, 'A non-empty value is required');
+    }
+
+    await setConfigValue(key, value.trim(), actorId);
+    app.log.warn({ adminAction: 'integration.set', actorId, key }, `Admin ${actorId} set integration config ${key}`);
+    await logAdminAction({
+      actorId,
+      actorLabel: actor.email,
+      action: 'integration.set',
+      targetLabel: CONFIG_KEY_LABELS[key],
+    });
+    return { ok: true };
+  });
+
+  app.delete<{ Params: { key: string } }>('/api/admin/integrations/:key', async (request, reply) => {
+    const actorId = await request.requireAuth();
+    const actor = await requireAdmin(actorId);
+    const { key } = request.params;
+
+    if (!isConfigKey(key)) {
+      throw new HttpError(400, `Unknown integration setting: ${key}`);
+    }
+
+    await clearConfigValue(key);
+    app.log.warn(
+      { adminAction: 'integration.clear', actorId, key },
+      `Admin ${actorId} cleared integration config ${key}`,
+    );
+    await logAdminAction({
+      actorId,
+      actorLabel: actor.email,
+      action: 'integration.clear',
+      targetLabel: CONFIG_KEY_LABELS[key],
+    });
+    reply.status(204);
+    return null;
   });
 
   app.get('/api/admin/users', async (request) => {

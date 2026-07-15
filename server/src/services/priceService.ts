@@ -1,5 +1,6 @@
 import { redis } from './redisClient.js';
 import { env } from '../config/env.js';
+import { getConfigValue } from './configResolver.js';
 import type { GamePrice } from '@squadqueue/shared';
 
 const PRICE_CACHE_TTL_SECONDS = 60 * 60 * 6; // 6h — prices/sales move faster than metadata
@@ -38,9 +39,18 @@ interface PriceEntry {
 }
 
 async function fetchLiveEntry(steamAppId: number, region: string): Promise<PriceEntry> {
+  // Resolved env-first with a DB fallback (see configResolver.ts) - gg.deals is no longer
+  // required at boot, so an unset key here is a real (if unusual) runtime state, not just a
+  // hypothetical. Degrade to "unavailable" the same way an API-side hiccup would, rather than
+  // throwing and breaking the whole game card.
+  const apiKey = await getConfigValue('GGDEALS_API_KEY', env.GGDEALS_API_KEY);
+  if (!apiKey) {
+    return { price: { amount: null, currency: null, source: 'unavailable', historicalLow: null }, ggDealsUrl: null };
+  }
+
   const url = new URL('https://api.gg.deals/v1/prices/by-steam-app-id/');
   url.searchParams.set('ids', String(steamAppId));
-  url.searchParams.set('key', env.GGDEALS_API_KEY);
+  url.searchParams.set('key', apiKey);
   url.searchParams.set('region', region);
 
   const response = await fetch(url);

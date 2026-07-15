@@ -1,7 +1,25 @@
 import { redis } from './redisClient.js';
 import { env } from '../config/env.js';
 import { HttpError } from '../util/httpError.js';
+import { getConfigValue } from './configResolver.js';
 import type { GameSearchResult, RoomPlatform } from '@squadqueue/shared';
+
+/** IGDB client id/secret, resolved env-first with a DB fallback (see configResolver.ts) - either
+ * or both may be unset (env.ts no longer requires them at boot), in which case IGDB requests fail
+ * with a clear 503 rather than crashing on a missing string. */
+async function resolveIgdbCredentials(): Promise<{ clientId: string; clientSecret: string }> {
+  const [clientId, clientSecret] = await Promise.all([
+    getConfigValue('IGDB_CLIENT_ID', env.IGDB_CLIENT_ID),
+    getConfigValue('IGDB_CLIENT_SECRET', env.IGDB_CLIENT_SECRET),
+  ]);
+  if (!clientId || !clientSecret) {
+    throw new HttpError(
+      503,
+      'IGDB is not configured. Set IGDB_CLIENT_ID/IGDB_CLIENT_SECRET via env or the admin Settings panel.',
+    );
+  }
+  return { clientId, clientSecret };
+}
 
 const TOKEN_CACHE_KEY = 'igdb:token:v1';
 const DETAIL_CACHE_PREFIX = 'igdb:detail:v5:'; // v5: added releaseYear
@@ -13,9 +31,10 @@ interface TwitchTokenResponse {
 }
 
 async function fetchToken(): Promise<string> {
+  const { clientId, clientSecret } = await resolveIgdbCredentials();
   const url = new URL('https://id.twitch.tv/oauth2/token');
-  url.searchParams.set('client_id', env.IGDB_CLIENT_ID);
-  url.searchParams.set('client_secret', env.IGDB_CLIENT_SECRET);
+  url.searchParams.set('client_id', clientId);
+  url.searchParams.set('client_secret', clientSecret);
   url.searchParams.set('grant_type', 'client_credentials');
 
   const response = await fetch(url, { method: 'POST' });
@@ -109,11 +128,12 @@ function platformWhereClause(roomPlatform: RoomPlatform): string {
 }
 
 async function igdbRequest<T>(endpoint: string, body: string): Promise<T> {
+  const { clientId } = await resolveIgdbCredentials();
   const token = await getToken();
   const response = await fetch(`https://api.igdb.com/v4/${endpoint}`, {
     method: 'POST',
     headers: {
-      'Client-ID': env.IGDB_CLIENT_ID,
+      'Client-ID': clientId,
       Authorization: `Bearer ${token}`,
       'Content-Type': 'text/plain',
     },
@@ -127,7 +147,7 @@ async function igdbRequest<T>(endpoint: string, body: string): Promise<T> {
     const retry = await fetch(`https://api.igdb.com/v4/${endpoint}`, {
       method: 'POST',
       headers: {
-        'Client-ID': env.IGDB_CLIENT_ID,
+        'Client-ID': clientId,
         Authorization: `Bearer ${freshToken}`,
         'Content-Type': 'text/plain',
       },
