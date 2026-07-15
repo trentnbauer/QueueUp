@@ -11,7 +11,11 @@ export default async function authRoutes(app: FastifyInstance) {
     return { providers: Array.from(app.authProviders.keys()) };
   });
 
-  app.get<{ Params: { provider: string } }>('/auth/:provider/login', async (request, reply) => {
+  // Login/callback get a tighter limit than the global default - these are the endpoints an
+  // attacker would actually hammer to brute-force or abuse a sign-in flow.
+  const authRateLimit = { config: { rateLimit: { max: 20, timeWindow: '1 minute' } } };
+
+  app.get<{ Params: { provider: string } }>('/auth/:provider/login', authRateLimit, async (request, reply) => {
     if (env.DEV_FAKE_AUTH) {
       return reply.redirect(env.APP_BASE_URL);
     }
@@ -25,7 +29,7 @@ export default async function authRoutes(app: FastifyInstance) {
     return reply.redirect(authUrl);
   });
 
-  app.get<{ Params: { provider: string } }>('/auth/:provider/callback', async (request, reply) => {
+  app.get<{ Params: { provider: string } }>('/auth/:provider/callback', authRateLimit, async (request, reply) => {
     if (env.DEV_FAKE_AUTH) {
       return reply.redirect(env.APP_BASE_URL);
     }

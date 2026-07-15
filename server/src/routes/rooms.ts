@@ -59,22 +59,28 @@ export default async function roomRoutes(app: FastifyInstance) {
     return { room: toRoomDto(room, 'room_master', room.inviteCode) };
   });
 
-  app.post<{ Body: JoinRoomRequest }>('/api/rooms/join', async (request) => {
-    const userId = await request.requireAuth();
-    const { inviteCode } = request.body;
-    if (!inviteCode?.trim()) throw new HttpError(400, 'Invite code is required');
+  app.post<{ Body: JoinRoomRequest }>(
+    '/api/rooms/join',
+    // Invite codes are the sole access-control secret for private rooms - a tight limit here
+    // makes brute-forcing one impractical regardless of the global rate limit.
+    { config: { rateLimit: { max: 10, timeWindow: '1 minute' } } },
+    async (request) => {
+      const userId = await request.requireAuth();
+      const { inviteCode } = request.body;
+      if (!inviteCode?.trim()) throw new HttpError(400, 'Invite code is required');
 
-    const room = await prisma.room.findUnique({ where: { inviteCode: inviteCode.trim() } });
-    if (!room) throw new HttpError(404, 'Invalid invite code');
+      const room = await prisma.room.findUnique({ where: { inviteCode: inviteCode.trim() } });
+      if (!room) throw new HttpError(404, 'Invalid invite code');
 
-    const membership = await prisma.roomMember.upsert({
-      where: { roomId_userId: { roomId: room.id, userId } },
-      update: {},
-      create: { roomId: room.id, userId, role: 'member' },
-    });
+      const membership = await prisma.roomMember.upsert({
+        where: { roomId_userId: { roomId: room.id, userId } },
+        update: {},
+        create: { roomId: room.id, userId, role: 'member' },
+      });
 
-    return { room: toRoomDto(room, membership.role, room.inviteCode) };
-  });
+      return { room: toRoomDto(room, membership.role, room.inviteCode) };
+    },
+  );
 
   app.get<{ Params: { roomId: string } }>('/api/rooms/:roomId', async (request) => {
     const userId = await request.requireAuth();
