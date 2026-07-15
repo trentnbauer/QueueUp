@@ -18,16 +18,18 @@ interface GameCardProps {
   onRefreshPrice: () => void;
 }
 
+function formatAmount(amount: string, currency: string | null): string {
+  if (!currency) return amount;
+  try {
+    return new Intl.NumberFormat(undefined, { style: 'currency', currency }).format(Number(amount));
+  } catch {
+    return `${amount} ${currency}`;
+  }
+}
+
 function formatPrice(game: Game): string {
   if (!game.price.amount) return '—';
-  if (!game.price.currency) return game.price.amount;
-  try {
-    return new Intl.NumberFormat(undefined, { style: 'currency', currency: game.price.currency }).format(
-      Number(game.price.amount),
-    );
-  } catch {
-    return `${game.price.amount} ${game.price.currency}`;
-  }
+  return formatAmount(game.price.amount, game.price.currency);
 }
 
 export function GameCard({
@@ -90,24 +92,31 @@ export function GameCard({
         </div>
 
         <div className={styles.priceRow}>
-          <div className={styles.priceGroup}>
-            {game.ggDealsUrl ? (
-              <a href={game.ggDealsUrl} target="_blank" rel="noreferrer" className={styles.buyButton}>
-                {formatPrice(game)}
-              </a>
-            ) : (
-              <span className={styles.priceStatic}>{formatPrice(game)}</span>
-            )}
-            {game.price.source === 'live' && (
-              <button
-                type="button"
-                className={styles.refreshPriceButton}
-                onClick={onRefreshPrice}
-                title="Check for a fresh price"
-                aria-label="Refresh price"
-              >
-                ↻
-              </button>
+          <div className={styles.priceColumn}>
+            <div className={styles.priceGroup}>
+              {game.ggDealsUrl ? (
+                <a href={game.ggDealsUrl} target="_blank" rel="noreferrer" className={styles.buyButton}>
+                  {formatPrice(game)}
+                </a>
+              ) : (
+                <span className={styles.priceStatic}>{formatPrice(game)}</span>
+              )}
+              {game.price.source === 'live' && (
+                <button
+                  type="button"
+                  className={styles.refreshPriceButton}
+                  onClick={onRefreshPrice}
+                  title="Check for a fresh price"
+                  aria-label="Refresh price"
+                >
+                  ↻
+                </button>
+              )}
+            </div>
+            {game.price.historicalLow && (
+              <span className={styles.historicalLow} title="Lowest price this game has been tracked at">
+                All-time low: {formatAmount(game.price.historicalLow, game.price.currency)}
+              </span>
             )}
           </div>
           <span className={styles.addedBy}>

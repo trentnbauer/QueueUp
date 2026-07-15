@@ -3,7 +3,7 @@ import { env } from '../config/env.js';
 import type { GamePrice } from '@squadqueue/shared';
 
 const PRICE_CACHE_TTL_SECONDS = 60 * 60 * 6; // 6h — prices/sales move faster than metadata
-const PRICE_CACHE_PREFIX = 'gg:price:v2:steam:'; // v2: cached shape is now {price, ggDealsUrl}, not a bare GamePrice
+const PRICE_CACHE_PREFIX = 'gg:price:v3:steam:'; // v3: GamePrice now also carries historicalLow
 
 interface GGDealsPricesResponse {
   success: boolean;
@@ -46,17 +46,30 @@ async function fetchLiveEntry(steamAppId: number, region: string): Promise<Price
   const response = await fetch(url);
   if (!response.ok) {
     // Price API hiccup shouldn't break the whole card — degrade to "unavailable" and let a later refresh retry.
-    return { price: { amount: null, currency: null, source: 'unavailable' }, ggDealsUrl: null };
+    return { price: { amount: null, currency: null, source: 'unavailable', historicalLow: null }, ggDealsUrl: null };
   }
 
   const body = (await response.json()) as GGDealsPricesResponse;
   const entry = body.data?.[String(steamAppId)];
-  if (!entry) return { price: { amount: null, currency: null, source: 'unavailable' }, ggDealsUrl: null };
+  if (!entry) return { price: { amount: null, currency: null, source: 'unavailable', historicalLow: null }, ggDealsUrl: null };
 
   const amount = lowestOf(entry.prices.currentRetail, entry.prices.currentKeyshops);
-  if (amount === null) return { price: { amount: null, currency: null, source: 'unavailable' }, ggDealsUrl: entry.url ?? null };
+  if (amount === null) {
+    return {
+      price: { amount: null, currency: null, source: 'unavailable', historicalLow: null },
+      ggDealsUrl: entry.url ?? null,
+    };
+  }
 
-  return { price: { amount, currency: entry.prices.currency, source: 'live' }, ggDealsUrl: entry.url ?? null };
+  const historicalLowRaw = lowestOf(entry.prices.historicalRetail, entry.prices.historicalKeyshops);
+  // Only worth showing when it's a real discount opportunity below the current price - if the
+  // current price already is (or beats) the historic low, there's nothing extra to tell the user.
+  const historicalLow = historicalLowRaw !== null && Number(historicalLowRaw) < Number(amount) ? historicalLowRaw : null;
+
+  return {
+    price: { amount, currency: entry.prices.currency, source: 'live', historicalLow },
+    ggDealsUrl: entry.url ?? null,
+  };
 }
 
 async function getEntry(

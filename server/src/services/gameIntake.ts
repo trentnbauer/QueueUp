@@ -46,7 +46,7 @@ async function resolveCandidate(igdbId: number, roomPlatform?: RoomPlatform): Pr
     genre: detail.genre,
     coverImageUrl: detail.coverImageUrl,
     ggDealsUrl: null,
-    price: { amount: null, currency: null, source: 'unavailable' },
+    price: { amount: null, currency: null, source: 'unavailable', historicalLow: null },
   };
 }
 

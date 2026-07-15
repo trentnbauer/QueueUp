@@ -126,10 +126,21 @@
   color: var(--sq-muted);
 }
 
+.priceColumn {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
 .priceGroup {
   display: flex;
   align-items: center;
   gap: 6px;
+}
+
+.historicalLow {
+  font: 600 10.5px system-ui, sans-serif;
+  color: var(--sq-muted);
 }
 
 .refreshPriceButton {

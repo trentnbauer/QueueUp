@@ -66,6 +66,9 @@ export interface GamePrice {
   amount: string | null;
   currency: string | null;
   source: 'live' | 'unavailable';
+  /** All-time-low price seen for this game (from gg.deals' historical price data), same currency
+   * as `amount`. Null if unavailable or if the current price already is the historic low. */
+  historicalLow: string | null;
 }
 
 export interface VoteSummary {
