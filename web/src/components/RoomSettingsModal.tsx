@@ -239,11 +239,6 @@ export function RoomSettingsModal({ room, members, games, onClose }: RoomSetting
               <button type="button" className={styles.saveButton} onClick={handleSave} disabled={saving || !dirty}>
                 {saving ? 'Saving…' : 'Save changes'}
               </button>
-              <div className={styles.dangerZone}>
-                <button type="button" className={styles.deleteRoomButton} onClick={handleDeleteRoom} disabled={deleting}>
-                  {deleting ? 'Deleting…' : 'Delete room'}
-                </button>
-              </div>
             </>
           ) : (
             <p className={styles.readonlyNote}>
@@ -366,6 +361,14 @@ export function RoomSettingsModal({ room, members, games, onClose }: RoomSetting
             })}
           </div>
         </div>
+
+        {isRoomMaster && (
+          <div className={styles.dangerZone}>
+            <button type="button" className={styles.deleteRoomButton} onClick={handleDeleteRoom} disabled={deleting}>
+              {deleting ? 'Deleting…' : 'Delete room'}
+            </button>
+          </div>
+        )}
       </div>
     </div>
   );
