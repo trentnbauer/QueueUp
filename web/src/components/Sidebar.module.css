@@ -119,10 +119,6 @@
   border-color: var(--sq-text);
 }
 
-.addRoomIcon::-webkit-details-marker {
-  display: none;
-}
-
 .menu {
   position: relative;
   flex-shrink: 0;
@@ -132,12 +128,16 @@
   display: flex;
   align-items: center;
   justify-content: center;
+  border: none;
+  background: none;
+  padding: 0;
   cursor: pointer;
-  list-style: none;
 }
 
-.userPanel::-webkit-details-marker {
-  display: none;
+.menuBackdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 15;
 }
 
 .flyout {
@@ -190,33 +190,6 @@
 
 .menuItem:hover {
   background: var(--sq-neutral-pill-bg);
-}
-
-.miniForm {
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
-  padding: 8px 10px;
-}
-
-.miniForm input,
-.miniForm select {
-  padding: 8px 10px;
-  border-radius: 6px;
-  background: var(--sq-surface2);
-  border: 1px solid var(--sq-border);
-  color: var(--sq-text);
-  font-size: 13px;
-}
-
-.miniForm button {
-  padding: 8px 10px;
-  border-radius: 6px;
-  background: var(--sq-accent);
-  color: #fff;
-  border: none;
-  font-weight: 700;
-  font-size: 13px;
 }
 
 @media (max-width: 640px) {

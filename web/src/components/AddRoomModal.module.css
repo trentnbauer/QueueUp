@@ -1,0 +1,142 @@
+.backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.55);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+  padding: 20px;
+}
+
+.dialog {
+  background: var(--sq-surface);
+  border: 1px solid var(--sq-border);
+  border-radius: var(--sq-radius);
+  padding: 24px;
+  max-width: 380px;
+  width: 100%;
+  max-height: 85vh;
+  overflow-y: auto;
+  box-shadow: 0 12px 40px rgba(0, 0, 0, 0.4);
+}
+
+.header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 14px;
+}
+
+.title {
+  font: 700 16px var(--sq-header-font);
+  color: var(--sq-text);
+}
+
+.closeButton {
+  border: none;
+  background: transparent;
+  color: var(--sq-muted);
+  font-size: 20px;
+  line-height: 1;
+  cursor: pointer;
+  padding: 2px 6px;
+}
+
+.closeButton:hover {
+  color: var(--sq-text);
+}
+
+.error {
+  color: #ff8a80;
+  font-size: 12.5px;
+  margin-bottom: 12px;
+}
+
+.optionList {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.optionButton {
+  padding: 10px 12px;
+  border-radius: var(--sq-radius);
+  background: var(--sq-surface2);
+  color: var(--sq-text);
+  border: 1px solid var(--sq-border);
+  font-size: 13px;
+  font-weight: 600;
+  text-align: left;
+  cursor: pointer;
+}
+
+.optionButton:hover {
+  border-color: var(--sq-accent);
+}
+
+.form {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.field {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+}
+
+.label {
+  font-size: 12px;
+  color: var(--sq-muted);
+}
+
+.input,
+.select {
+  padding: 9px 12px;
+  border-radius: var(--sq-radius);
+  background: var(--sq-surface2);
+  border: 1px solid var(--sq-border);
+  color: var(--sq-text);
+  font-size: 13px;
+}
+
+.primaryButton {
+  align-self: flex-start;
+  padding: 8px 18px;
+  border-radius: var(--sq-radius);
+  background: var(--sq-accent);
+  color: #fff;
+  font-weight: 700;
+  font-size: 13px;
+  border: none;
+  cursor: pointer;
+}
+
+.primaryButton:disabled {
+  opacity: 0.6;
+  cursor: default;
+}
+
+.cancelZone {
+  margin-top: 18px;
+  padding-top: 14px;
+  border-top: 1px solid var(--sq-border);
+}
+
+.cancelButton {
+  padding: 8px 18px;
+  border-radius: var(--sq-radius);
+  background: transparent;
+  color: var(--sq-muted);
+  border: 1px solid var(--sq-border);
+  font-weight: 600;
+  font-size: 13px;
+  cursor: pointer;
+}
+
+.cancelButton:hover {
+  color: var(--sq-text);
+  border-color: var(--sq-text);
+}
