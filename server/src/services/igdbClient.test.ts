@@ -8,8 +8,8 @@ function names(...n: string[]): IgdbPlatform[] {
 describe('platformFamilies', () => {
   it('maps common IGDB platform names to the right family', () => {
     expect(platformFamilies(names('PC (Microsoft Windows)'))).toEqual(['pc']);
-    expect(platformFamilies(names('Xbox Series X|S'))).toEqual(['xbox']);
-    expect(platformFamilies(names('PlayStation 5'))).toEqual(['playstation']);
+    expect(platformFamilies(names('Xbox Series X|S'))).toEqual(['xbox_series']);
+    expect(platformFamilies(names('PlayStation 5'))).toEqual(['ps5']);
     expect(platformFamilies(names('Nintendo Switch'))).toEqual(['switch']);
   });
 
@@ -24,7 +24,7 @@ describe('platformFamilies', () => {
 
   it('collects every distinct family for a multi-platform game', () => {
     const result = platformFamilies(names('PC (Microsoft Windows)', 'Xbox One', 'PlayStation 4', 'Nintendo Switch'));
-    expect(new Set(result)).toEqual(new Set(['pc', 'xbox', 'playstation', 'switch']));
+    expect(new Set(result)).toEqual(new Set(['pc', 'xbox_one', 'ps4', 'switch']));
   });
 
   it('returns an empty array for platforms with no recognizable family', () => {

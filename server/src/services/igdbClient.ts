@@ -91,7 +91,8 @@ function genreLabel(genres?: IgdbGenre[]): string | null {
 
 // Maps IGDB's granular platform names (e.g. "Xbox Series X|S", "PC (Microsoft Windows)") down to
 // the handful of platform families a Room can be restricted to. Order matters: "Switch 2" must be
-// checked before the plain "Switch" substring match, or it'd also match as "switch".
+// checked before the plain "Switch" substring match (and each console generation before its
+// family's bare name), or the more specific ones would never get a chance to match.
 export function platformFamilies(platforms?: IgdbPlatform[]): RoomPlatform[] {
   const families = new Set<RoomPlatform>();
   for (const { name } of platforms ?? []) {
@@ -99,8 +100,12 @@ export function platformFamilies(platforms?: IgdbPlatform[]): RoomPlatform[] {
     const lower = name.toLowerCase();
     if (lower.includes('switch 2')) families.add('switch2');
     else if (lower.includes('switch')) families.add('switch');
-    else if (lower.includes('xbox')) families.add('xbox');
-    else if (lower.includes('playstation') || /\bps[3-5]\b/.test(lower)) families.add('playstation');
+    else if (lower.includes('xbox series')) families.add('xbox_series');
+    else if (lower.includes('xbox one')) families.add('xbox_one');
+    else if (lower.includes('xbox 360')) families.add('xbox_360');
+    else if (lower.includes('playstation 5') || /\bps5\b/.test(lower)) families.add('ps5');
+    else if (lower.includes('playstation 4') || /\bps4\b/.test(lower)) families.add('ps4');
+    else if (lower.includes('playstation 3') || /\bps3\b/.test(lower)) families.add('ps3');
     else if (lower.includes('pc') || lower.includes('windows') || lower.includes('mac') || lower.includes('linux'))
       families.add('pc');
   }
@@ -117,8 +122,12 @@ function releaseYear(unixSeconds?: number): number | null {
 const IGDB_PLATFORM_NAMES: Record<RoomPlatform, string[]> = {
   switch: ['Nintendo Switch'],
   switch2: ['Nintendo Switch 2'],
-  xbox: ['Xbox', 'Xbox 360', 'Xbox One', 'Xbox Series X|S'],
-  playstation: ['PlayStation', 'PlayStation 2', 'PlayStation 3', 'PlayStation 4', 'PlayStation 5'],
+  xbox_360: ['Xbox 360'],
+  xbox_one: ['Xbox One'],
+  xbox_series: ['Xbox Series X|S'],
+  ps3: ['PlayStation 3'],
+  ps4: ['PlayStation 4'],
+  ps5: ['PlayStation 5'],
   pc: ['PC (Microsoft Windows)', 'Mac', 'Linux'],
 };
 

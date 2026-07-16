@@ -25,8 +25,12 @@ enum RoomRole {
 
 enum RoomPlatform {
   pc
-  xbox
-  playstation
+  xbox_360
+  xbox_one
+  xbox_series
+  ps3
+  ps4
+  ps5
   switch
   switch2
 

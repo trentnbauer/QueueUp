@@ -26,26 +26,26 @@ describe('assertPlatformMatch', () => {
   });
 
   it('does not throw when the game is on the single allowed (room) platform', () => {
-    expect(() => assertPlatformMatch(detail(['xbox']), ['xbox'])).not.toThrow();
+    expect(() => assertPlatformMatch(detail(['xbox_one']), ['xbox_one'])).not.toThrow();
   });
 
   it('throws a room-flavored message when the game is not on the single allowed platform', () => {
-    expect(() => assertPlatformMatch(detail(['xbox']), ['pc'])).toThrow(
+    expect(() => assertPlatformMatch(detail(['xbox_one']), ['pc'])).toThrow(
       /isn't available on PC, and this room is limited to that platform/,
     );
   });
 
   it('does not throw when the game is on any of several owned platforms', () => {
-    expect(() => assertPlatformMatch(detail(['switch']), ['pc', 'switch', 'xbox'])).not.toThrow();
+    expect(() => assertPlatformMatch(detail(['switch']), ['pc', 'switch', 'xbox_one'])).not.toThrow();
   });
 
   it('throws an owned-systems-flavored message when the game is on none of several owned platforms', () => {
-    expect(() => assertPlatformMatch(detail(['playstation']), ['pc', 'switch'])).toThrow(
+    expect(() => assertPlatformMatch(detail(['ps5']), ['pc', 'switch'])).toThrow(
       /isn't available on any of your owned systems \(PC, Switch\)/,
     );
   });
 
   it('matches on any overlap, not just an exact family-set match', () => {
-    expect(() => assertPlatformMatch(detail(['pc', 'xbox']), ['xbox'])).not.toThrow();
+    expect(() => assertPlatformMatch(detail(['pc', 'xbox_one']), ['xbox_one'])).not.toThrow();
   });
 });

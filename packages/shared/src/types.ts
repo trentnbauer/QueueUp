@@ -2,12 +2,25 @@ export type GameStatus = 'backlog' | 'playing' | 'done';
 
 export type RoomRole = 'room_master' | 'moderator' | 'member';
 
-export type RoomPlatform = 'pc' | 'xbox' | 'playstation' | 'switch' | 'switch2';
+export type RoomPlatform =
+  | 'pc'
+  | 'xbox_360'
+  | 'xbox_one'
+  | 'xbox_series'
+  | 'ps3'
+  | 'ps4'
+  | 'ps5'
+  | 'switch'
+  | 'switch2';
 
 export const ROOM_PLATFORM_LABELS: Record<RoomPlatform, string> = {
   pc: 'PC',
-  xbox: 'Xbox',
-  playstation: 'PlayStation',
+  xbox_360: 'Xbox 360',
+  xbox_one: 'Xbox One',
+  xbox_series: 'Xbox Series X|S',
+  ps3: 'PlayStation 3',
+  ps4: 'PlayStation 4',
+  ps5: 'PlayStation 5',
   switch: 'Switch',
   switch2: 'Switch 2',
 };
