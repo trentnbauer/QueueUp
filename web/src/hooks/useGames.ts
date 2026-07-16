@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { gamesApi } from '../api/games';
 import { useCurrencyRegion } from '../context/CurrencyRegionContext';
-import type { GameStatus, VoteValue } from '@squadqueue/shared';
+import type { Game, GameStatus, VoteValue } from '@squadqueue/shared';
 
 const GAMES_QUERY_ROOT = ['games'] as const;
 
@@ -24,28 +24,44 @@ export function useGames(roomId: string | null) {
 
   const invalidate = () => queryClient.invalidateQueries({ queryKey });
 
+  // The status/vote/refresh-price endpoints already return the single fully-updated game DTO, and
+  // the list is cached as { games: Game[] } under this exact queryKey - patching that one game into
+  // the cache directly avoids a full refetch (and re-render of every other card) for a change that
+  // only ever affects one row.
+  function patchGame(updated: Game) {
+    queryClient.setQueryData<{ games: Game[] }>(queryKey, (old) =>
+      old ? { games: old.games.map((g) => (g.id === updated.id ? updated : g)) } : old,
+    );
+  }
+
+  function removeGameFromCache(gameId: string) {
+    queryClient.setQueryData<{ games: Game[] }>(queryKey, (old) =>
+      old ? { games: old.games.filter((g) => g.id !== gameId) } : old,
+    );
+  }
+
   const updateStatus = useMutation({
     mutationFn: ({ gameId, status }: { gameId: string; status: GameStatus }) =>
       gamesApi.updateStatus(gameId, { status }),
-    onSuccess: invalidate,
+    onSuccess: ({ game }) => patchGame(game),
     onError: (err) => setActionError(errorMessage(err, 'Could not update that game\'s status.')),
   });
 
   const vote = useMutation({
     mutationFn: ({ gameId, value }: { gameId: string; value: VoteValue }) => gamesApi.vote(gameId, { value }),
-    onSuccess: invalidate,
+    onSuccess: ({ game }) => patchGame(game),
     onError: (err) => setActionError(errorMessage(err, 'Could not save your vote.')),
   });
 
   const remove = useMutation({
     mutationFn: (gameId: string) => gamesApi.remove(gameId),
-    onSuccess: invalidate,
+    onSuccess: (_data, gameId) => removeGameFromCache(gameId),
     onError: (err) => setActionError(errorMessage(err, 'Could not remove that game.')),
   });
 
   const refreshPrice = useMutation({
     mutationFn: (gameId: string) => gamesApi.refreshPrice(gameId),
-    onSuccess: invalidate,
+    onSuccess: ({ game }) => patchGame(game),
     onError: (err) => setActionError(errorMessage(err, 'Could not refresh that game\'s price.')),
   });
 
