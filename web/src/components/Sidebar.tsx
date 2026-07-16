@@ -92,7 +92,10 @@ export function Sidebar() {
             setShowAddRoom(true);
           }}
         >
-          +
+          {/* A literal "+" glyph sits noticeably off-center due to font metrics - drawn as two
+              CSS bars instead for pixel-perfect centering regardless of font. Decorative only;
+              the button's own aria-label carries the accessible name. */}
+          <span className={styles.addRoomPlus} aria-hidden="true" />
         </button>
 
         <div className={`${styles.menu} ${styles.profileMenu}`}>
