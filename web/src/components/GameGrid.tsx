@@ -93,6 +93,9 @@ interface GameGridProps {
   onRetry?: () => void;
   /** Room member count, used to warn when a game's max co-op players is under this. Undefined on the Personal Shelf. */
   memberCount?: number;
+  /** A Room already has one fixed platform, so every game in it matches - the platform filter is
+   * only meaningful on the Personal Shelf, where games can span multiple systems. Defaults to true. */
+  showPlatformFilter?: boolean;
   onStatusChange: (gameId: string, status: GameStatus) => void;
   onVote: (gameId: string, value: VoteValue) => void;
   onRemove: (gameId: string) => void;
@@ -109,6 +112,7 @@ export function GameGrid({
   loadError,
   onRetry,
   memberCount,
+  showPlatformFilter = true,
   onStatusChange,
   onVote,
   onRemove,
@@ -118,7 +122,10 @@ export function GameGrid({
   const [platformFilter, setPlatformFilter] = useState(ALL);
   const [genreFilter, setGenreFilter] = useState(ALL);
 
-  const platformOptions = useMemo(() => distinctValues(games, (g) => g.platform), [games]);
+  const platformOptions = useMemo(
+    () => (showPlatformFilter ? distinctValues(games, (g) => g.platform) : []),
+    [games, showPlatformFilter],
+  );
   const genreOptions = useMemo(() => distinctValues(games, (g) => g.genre), [games]);
 
   const sorted = useStableOrder(games);

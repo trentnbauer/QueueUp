@@ -61,6 +61,7 @@ export function RoomView() {
         loadError={loadError}
         onRetry={refetch}
         memberCount={memberCount}
+        showPlatformFilter={false}
         onStatusChange={updateStatus}
         onVote={vote}
         onRemove={remove}
