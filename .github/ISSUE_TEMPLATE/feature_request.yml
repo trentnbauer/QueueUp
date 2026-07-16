@@ -25,12 +25,17 @@ body:
       options:
         - Personal Shelf
         - Communal Rooms
-        - Game intake (gg.deals link paste)
+        - Sidebar / room navigation
+        - Room Settings
+        - Profile Settings
+        - Game intake (search / Add Game / gg.deals link paste)
         - Pricing / metadata refresh
         - Voting (emoji scale)
         - Room roles / permissions (Room Master)
         - Attribution / badges
+        - Accessibility
         - UI / theming
+        - Performance / efficiency
         - Other
     validations:
       required: true
