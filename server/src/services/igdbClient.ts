@@ -66,13 +66,32 @@ interface IgdbGenre {
   name?: string;
 }
 
-interface IgdbGame {
+export interface IgdbGame {
   id: number;
   name?: string;
   cover?: IgdbCover;
   platforms?: IgdbPlatform[];
   genres?: IgdbGenre[];
   first_release_date?: number;
+  category?: number;
+  version_parent?: number;
+}
+
+// IGDB's documented `category` enum (api-docs.igdb.com/#game-enums) - only the two values relevant
+// to filtering search results: bundles and packs are compilations (base game + DLC/extras sold
+// together), not a distinct title, and clutter search results with near-duplicates of a game
+// someone's already searching for.
+const IGDB_CATEGORY_BUNDLE = 3;
+const IGDB_CATEGORY_PACK = 13;
+
+/** True for the "real" entry a search result should surface: not a bundle/pack compilation, and
+ * not an alternate version/edition of another game (IGDB links special/deluxe/GOTY editions back
+ * to their canonical release via `version_parent` - the canonical release itself has none). DLC
+ * and expansions are deliberately left alone; they're their own distinct canonical entries. */
+export function isPrimaryEdition(game: IgdbGame): boolean {
+  if (game.version_parent) return false;
+  if (game.category === IGDB_CATEGORY_BUNDLE || game.category === IGDB_CATEGORY_PACK) return false;
+  return true;
 }
 
 function coverUrl(cover?: IgdbCover): string | null {
@@ -184,11 +203,12 @@ export async function searchGames(query: string, platforms?: RoomPlatform[]): Pr
   const whereClause = activePlatforms ? platformWhereClause(activePlatforms) : '';
   const games = await igdbRequest<IgdbGame[]>(
     'games',
-    `search "${escaped}"; fields name,cover.image_id,platforms.name,first_release_date; ${whereClause} limit 20;`,
+    `search "${escaped}"; fields name,cover.image_id,platforms.name,first_release_date,category,version_parent; ${whereClause} limit 20;`,
   );
 
   return games
     .filter((g) => g.name)
+    .filter(isPrimaryEdition)
     // Belt-and-suspenders: the query-level filter above should already scope results correctly,
     // but keep the client-side family check too in case IGDB's platform data on a given row is
     // incomplete/odd (e.g. a bundle with mixed platform tags).

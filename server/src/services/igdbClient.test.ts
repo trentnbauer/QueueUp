@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { platformFamilies, escapeApicalypseString, type IgdbPlatform } from './igdbClient.js';
+import { platformFamilies, escapeApicalypseString, isPrimaryEdition, type IgdbPlatform, type IgdbGame } from './igdbClient.js';
 
 function names(...n: string[]): IgdbPlatform[] {
   return n.map((name) => ({ name }));
@@ -59,5 +59,29 @@ describe('escapeApicalypseString', () => {
 
   it('leaves ordinary text untouched', () => {
     expect(escapeApicalypseString('Mario Kart World')).toBe('Mario Kart World');
+  });
+});
+
+function game(overrides: Partial<IgdbGame> = {}): IgdbGame {
+  return { id: 1, name: 'Some Game', ...overrides };
+}
+
+describe('isPrimaryEdition', () => {
+  it('accepts a canonical game with no version_parent and no category', () => {
+    expect(isPrimaryEdition(game())).toBe(true);
+  });
+
+  it('rejects a special/deluxe/GOTY edition linked back to a canonical release', () => {
+    expect(isPrimaryEdition(game({ version_parent: 42 }))).toBe(false);
+  });
+
+  it('rejects bundles and packs', () => {
+    expect(isPrimaryEdition(game({ category: 3 }))).toBe(false); // bundle
+    expect(isPrimaryEdition(game({ category: 13 }))).toBe(false); // pack
+  });
+
+  it('keeps DLC and expansions, which are their own distinct canonical entries', () => {
+    expect(isPrimaryEdition(game({ category: 1 }))).toBe(true); // dlc_addon
+    expect(isPrimaryEdition(game({ category: 2 }))).toBe(true); // expansion
   });
 });
