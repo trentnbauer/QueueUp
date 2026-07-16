@@ -9,7 +9,9 @@
 
 @media (max-width: 640px) {
   .header {
-    padding: 16px 18px;
+    /* Extra left padding clears the Sidebar's fixed mobile-drawer toggle button, which overlaps
+     * this corner at this same breakpoint. */
+    padding: 16px 18px 16px 60px;
   }
 }
 
