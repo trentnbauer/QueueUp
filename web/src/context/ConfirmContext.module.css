@@ -61,7 +61,7 @@
 
 .confirmButton {
   background: var(--sq-accent);
-  color: #fff;
+  color: var(--sq-accent-text);
   border-color: transparent;
 }
 

@@ -1,3 +1,5 @@
+import { contrastTextColor } from '../utils/color';
+
 interface AvatarBadgeProps {
   name: string;
   color: string;
@@ -34,7 +36,7 @@ export function AvatarBadge({ name, color, avatarUrl, size = 28, title }: Avatar
         display: 'flex',
         alignItems: 'center',
         justifyContent: 'center',
-        color: '#fff',
+        color: contrastTextColor(color),
         fontWeight: 700,
         fontSize: size * 0.42,
       }}
