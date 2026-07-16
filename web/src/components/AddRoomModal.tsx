@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { ROOM_PLATFORM_LABELS, type RoomPlatform } from '@squadqueue/shared';
 import { useRooms } from '../hooks/useRooms';
+import { useModalA11y } from '../hooks/useModalA11y';
 import { ACCENT_PRESETS } from '../theme/defaultTheme';
 import styles from './AddRoomModal.module.css';
 
@@ -35,6 +36,7 @@ export function AddRoomModal({ onClose }: AddRoomModalProps) {
   const [inviteCode, setInviteCode] = useState('');
   const [error, setError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
+  const dialogRef = useModalA11y<HTMLDivElement>(onClose);
 
   async function handleCreateRoom(e: React.FormEvent) {
     e.preventDefault();
@@ -76,10 +78,12 @@ export function AddRoomModal({ onClose }: AddRoomModalProps) {
   return (
     <div className={styles.backdrop} role="presentation" onClick={onClose}>
       <div
+        ref={dialogRef}
         className={styles.dialog}
         role="dialog"
         aria-modal="true"
         aria-label="Add a room"
+        tabIndex={-1}
         onClick={(e) => e.stopPropagation()}
       >
         <div className={styles.header}>

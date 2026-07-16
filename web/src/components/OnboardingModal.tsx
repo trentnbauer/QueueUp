@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { PRICE_REGION_LABELS, type PriceRegion } from '@squadqueue/shared';
 import { useCurrencyRegion } from '../context/CurrencyRegionContext';
+import { useModalA11y } from '../hooks/useModalA11y';
 import styles from './OnboardingModal.module.css';
 
 const PRICE_REGION_OPTIONS = Object.keys(PRICE_REGION_LABELS) as PriceRegion[];
@@ -14,6 +15,10 @@ interface OnboardingModalProps {
 export function OnboardingModal({ onDone }: OnboardingModalProps) {
   const { region, setRegion } = useCurrencyRegion();
   const [selected, setSelected] = useState<PriceRegion | ''>(region ?? '');
+  // Escape maps to the same "skip for now" action as the explicit skip button, since this modal
+  // has no backdrop-click or close-button dismissal by design (a first-login prompt, not
+  // something to accidentally click past).
+  const dialogRef = useModalA11y<HTMLDivElement>(onDone);
 
   function handleConfirm() {
     setRegion(selected || undefined);
@@ -22,7 +27,7 @@ export function OnboardingModal({ onDone }: OnboardingModalProps) {
 
   return (
     <div className={styles.backdrop} role="presentation">
-      <div className={styles.dialog} role="dialog" aria-modal="true" aria-label="Welcome to SquadQueue">
+      <div ref={dialogRef} className={styles.dialog} role="dialog" aria-modal="true" aria-label="Welcome to SquadQueue" tabIndex={-1}>
         <div className={styles.title}>Welcome to SquadQueue</div>
         <p className={styles.subtitle}>Pick a currency for prices — you can change this anytime from the profile menu.</p>
 

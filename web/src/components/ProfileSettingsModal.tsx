@@ -3,6 +3,7 @@ import { PRICE_REGION_LABELS, ROOM_PLATFORM_LABELS, type PriceRegion, type RoomP
 import { authApi } from '../api/auth';
 import { useAuth } from '../context/AuthContext';
 import { useCurrencyRegion } from '../context/CurrencyRegionContext';
+import { useModalA11y } from '../hooks/useModalA11y';
 import styles from './ProfileSettingsModal.module.css';
 
 const ROOM_PLATFORM_OPTIONS = Object.keys(ROOM_PLATFORM_LABELS) as RoomPlatform[];
@@ -20,6 +21,7 @@ export function ProfileSettingsModal({ onClose }: ProfileSettingsModalProps) {
   const [selected, setSelected] = useState<Set<RoomPlatform>>(new Set(ownedPlatforms));
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const dialogRef = useModalA11y<HTMLDivElement>(onClose);
 
   const dirty =
     selected.size !== ownedPlatforms.length || ownedPlatforms.some((p) => !selected.has(p));
@@ -50,10 +52,12 @@ export function ProfileSettingsModal({ onClose }: ProfileSettingsModalProps) {
   return (
     <div className={styles.backdrop} role="presentation" onClick={onClose}>
       <div
+        ref={dialogRef}
         className={styles.dialog}
         role="dialog"
         aria-modal="true"
         aria-label="Profile settings"
+        tabIndex={-1}
         onClick={(e) => e.stopPropagation()}
       >
         <div className={styles.header}>

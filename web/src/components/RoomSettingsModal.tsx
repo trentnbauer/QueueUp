@@ -14,6 +14,7 @@ import { useAuth } from '../context/AuthContext';
 import { useConfirm } from '../context/ConfirmContext';
 import { ACCENT_PRESETS } from '../theme/defaultTheme';
 import { exportGames } from '../utils/exportGames';
+import { useModalA11y } from '../hooks/useModalA11y';
 import { AvatarBadge } from './AvatarBadge';
 import styles from './RoomSettingsModal.module.css';
 
@@ -38,6 +39,7 @@ export function RoomSettingsModal({ room, members, games, onClose }: RoomSetting
   const navigate = useNavigate();
   const queryClient = useQueryClient();
   const exportMenuRef = useRef<HTMLDetailsElement>(null);
+  const dialogRef = useModalA11y<HTMLDivElement>(onClose);
 
   const [name, setName] = useState(room.name);
   const [platform, setPlatform] = useState<RoomPlatform>(room.platform);
@@ -173,10 +175,12 @@ export function RoomSettingsModal({ room, members, games, onClose }: RoomSetting
   return (
     <div className={styles.backdrop} role="presentation" onClick={onClose}>
       <div
+        ref={dialogRef}
         className={styles.dialog}
         role="dialog"
         aria-modal="true"
         aria-label="Room settings"
+        tabIndex={-1}
         onClick={(e) => e.stopPropagation()}
       >
         <div className={styles.header}>

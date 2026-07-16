@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import type { GameSearchResult } from '@squadqueue/shared';
 import { gamesApi } from '../api/games';
+import { useModalA11y } from '../hooks/useModalA11y';
 import styles from './AddGameModal.module.css';
 
 interface AddGameModalProps {
@@ -23,6 +24,7 @@ export function AddGameModal({ roomId, onAdded, onClose }: AddGameModalProps) {
   const [error, setError] = useState<string | null>(null);
   const [highlightedIndex, setHighlightedIndex] = useState(-1);
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const dialogRef = useModalA11y<HTMLDivElement>(onClose);
 
   useEffect(() => {
     if (debounceRef.current) clearTimeout(debounceRef.current);
@@ -86,10 +88,12 @@ export function AddGameModal({ roomId, onAdded, onClose }: AddGameModalProps) {
   return (
     <div className={styles.backdrop} role="presentation" onClick={onClose}>
       <div
+        ref={dialogRef}
         className={styles.dialog}
         role="dialog"
         aria-modal="true"
         aria-label="Add a game"
+        tabIndex={-1}
         onClick={(e) => e.stopPropagation()}
       >
         <div className={styles.header}>
