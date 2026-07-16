@@ -1,23 +1,32 @@
 import { VOTE_SCALE, type VoteSummary } from '@squadqueue/shared';
 import { AvatarBadge } from './AvatarBadge';
+import styles from './VoteHeatmap.module.css';
 
 interface VoteHeatmapProps {
   votes: VoteSummary[];
   currentUserId: string;
 }
 
+/** Shows every voter's avatar + the emoji they cast, so "who voted for what" is visible at a
+ * glance underneath the voting row - includes the current user's own vote (labeled "you") rather
+ * than hiding it, since a results view that omits your own vote reads as incomplete. */
 export function VoteHeatmap({ votes, currentUserId }: VoteHeatmapProps) {
-  const others = votes.filter((v) => v.user.id !== currentUserId);
-  if (others.length === 0) return null;
+  if (votes.length === 0) return null;
 
   return (
-    <div style={{ display: 'flex', gap: 10, alignItems: 'center', marginTop: 1 }}>
-      {others.map((vote) => (
-        <div key={vote.user.id} title={vote.user.displayName} style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
-          <AvatarBadge name={vote.user.displayName} color={vote.user.avatarColor} avatarUrl={vote.user.avatarUrl} size={16} />
-          <span style={{ fontSize: 13 }}>{VOTE_SCALE[vote.value]}</span>
-        </div>
-      ))}
+    <div className={styles.row}>
+      <div className={styles.label}>Squad votes</div>
+      <div className={styles.voters}>
+        {votes.map((vote) => {
+          const isSelf = vote.user.id === currentUserId;
+          return (
+            <div key={vote.user.id} className={styles.voter} title={isSelf ? 'You' : vote.user.displayName}>
+              <AvatarBadge name={vote.user.displayName} color={vote.user.avatarColor} avatarUrl={vote.user.avatarUrl} size={20} />
+              <span className={styles.value}>{VOTE_SCALE[vote.value]}</span>
+            </div>
+          );
+        })}
+      </div>
     </div>
   );
 }

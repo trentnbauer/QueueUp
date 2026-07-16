@@ -1,0 +1,30 @@
+.row {
+  margin-top: 10px;
+}
+
+.label {
+  font: 600 10px system-ui, sans-serif;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  color: var(--sq-muted);
+  margin-bottom: 7px;
+}
+
+.voters {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.voter {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  padding: 3px 8px 3px 3px;
+  border-radius: 999px;
+  background: var(--sq-neutral-pill-bg);
+}
+
+.value {
+  font-size: 13px;
+}
