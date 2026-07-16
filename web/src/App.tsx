@@ -127,15 +127,17 @@ export default function App() {
   return (
     <div style={{ minHeight: '100vh', background: 'var(--sq-bg)', display: 'flex' }}>
       <Sidebar />
-      <div style={{ flex: 1, minWidth: 0 }}>
+      <div style={{ flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column', minHeight: '100vh' }}>
         <Header />
         <ActionErrorBanner message={pendingJoinError} onDismiss={() => setPendingJoinError(null)} />
-        <Routes>
-          <Route path="/" element={<ShelfView />} />
-          <Route path="/room/:roomId" element={<RoomView />} />
-          <Route path="/settings" element={<SettingsView />} />
-          <Route path="/join/:inviteCode" element={<JoinRoomView />} />
-        </Routes>
+        <div style={{ flex: 1 }}>
+          <Routes>
+            <Route path="/" element={<ShelfView />} />
+            <Route path="/room/:roomId" element={<RoomView />} />
+            <Route path="/settings" element={<SettingsView />} />
+            <Route path="/join/:inviteCode" element={<JoinRoomView />} />
+          </Routes>
+        </div>
         <Footer />
       </div>
       {showOnboarding && <OnboardingModal onDone={handleOnboardingDone} />}

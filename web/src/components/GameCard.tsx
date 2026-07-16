@@ -91,6 +91,10 @@ export function GameCard({
             <div className={styles.genre} title={game.genre ?? undefined}>
               {game.genre ?? '—'}
             </div>
+            <span className={styles.addedBy}>
+              <AvatarBadge name={game.addedBy.displayName} color={game.addedBy.avatarColor} avatarUrl={game.addedBy.avatarUrl} size={16} />
+              <span className={styles.addedByText}>added by {game.addedBy.displayName}</span>
+            </span>
           </div>
           <StatusBadge status={game.status} onClick={onStatusChange} />
         </div>
@@ -119,10 +123,6 @@ export function GameCard({
               </button>
             )}
           </div>
-          <span className={styles.addedBy}>
-            added by {game.addedBy.displayName}
-            <AvatarBadge name={game.addedBy.displayName} color={game.addedBy.avatarColor} avatarUrl={game.addedBy.avatarUrl} size={16} />
-          </span>
         </div>
 
         {game.price.source === 'live' && game.price.lastRefreshedAt && (

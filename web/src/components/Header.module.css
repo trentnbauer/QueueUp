@@ -39,7 +39,7 @@
   padding: 9px 18px;
   border-radius: var(--sq-radius);
   background: var(--sq-accent);
-  color: #fff;
+  color: var(--sq-accent-text);
   font-weight: 700;
   font-size: 13px;
   border: none;

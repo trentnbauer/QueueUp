@@ -22,7 +22,7 @@
   height: 44px;
   border-radius: 14px;
   background: var(--sq-accent);
-  color: #fff;
+  color: var(--sq-accent-text);
   font: 700 14px var(--sq-header-font);
   letter-spacing: 0.02em;
 }
@@ -35,7 +35,6 @@
 }
 
 .icons {
-  flex: 1;
   min-height: 0;
   display: flex;
   flex-direction: column;
@@ -122,6 +121,13 @@
 .menu {
   position: relative;
   flex-shrink: 0;
+}
+
+/* Only the account/profile control (last in the rail) should be pushed to the bottom of the
+ * sidebar - the room icon list and the "+" add-room button should sit directly beneath each other
+ * regardless of how few rooms there are, rather than being stretched apart by empty space. */
+.profileMenu {
+  margin-top: auto;
 }
 
 .userPanel {

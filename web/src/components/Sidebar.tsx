@@ -8,6 +8,7 @@ import { authApi } from '../api/auth';
 import { AvatarBadge } from './AvatarBadge';
 import { ProfileSettingsModal } from './ProfileSettingsModal';
 import { AddRoomModal } from './AddRoomModal';
+import { contrastTextColor } from '../utils/color';
 import styles from './Sidebar.module.css';
 
 function initials(name: string): string {
@@ -52,7 +53,7 @@ export function Sidebar() {
             key={room.id}
             to={`/room/${room.id}`}
             className={`${styles.roomIcon} ${activeRoom?.id === room.id ? styles.roomIconActive : ''}`}
-            style={{ background: room.accentColor }}
+            style={{ background: room.accentColor, color: contrastTextColor(room.accentColor) }}
             title={`${room.name} · ${ROOM_PLATFORM_LABELS[room.platform]}`}
           >
             {initials(room.name)}
@@ -70,7 +71,7 @@ export function Sidebar() {
         +
       </button>
 
-      <div className={styles.menu}>
+      <div className={`${styles.menu} ${styles.profileMenu}`}>
         <button
           type="button"
           className={styles.userPanel}
