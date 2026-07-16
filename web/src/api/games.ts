@@ -11,9 +11,10 @@ import type {
 } from '@squadqueue/shared';
 
 export const gamesApi = {
-  shelf: (region?: PriceRegion) => apiGet<{ games: Game[] }>(`/api/games${region ? `?region=${region}` : ''}`),
+  shelf: (region?: PriceRegion) =>
+    apiGet<{ games: Game[]; truncated: boolean }>(`/api/games${region ? `?region=${region}` : ''}`),
   room: (roomId: string, region?: PriceRegion) =>
-    apiGet<{ games: Game[] }>(`/api/rooms/${roomId}/games${region ? `?region=${region}` : ''}`),
+    apiGet<{ games: Game[]; truncated: boolean }>(`/api/rooms/${roomId}/games${region ? `?region=${region}` : ''}`),
   search: (q: string, roomId?: string | null) =>
     apiGet<{ results: GameSearchResult[] }>(
       `/api/games/search?q=${encodeURIComponent(q)}${roomId ? `&roomId=${roomId}` : ''}`,

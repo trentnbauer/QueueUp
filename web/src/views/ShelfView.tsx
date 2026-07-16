@@ -4,6 +4,7 @@ import { useView } from '../context/ViewContext';
 import { useGames } from '../hooks/useGames';
 import { GameGrid } from '../components/GameGrid';
 import { ActionErrorBanner } from '../components/ActionErrorBanner';
+import { TruncatedListBanner } from '../components/TruncatedListBanner';
 import { SteamImportButton } from '../components/SteamImportButton';
 
 export function ShelfView() {
@@ -11,6 +12,7 @@ export function ShelfView() {
   const { switchView } = useView();
   const {
     games,
+    truncated,
     isLoading,
     isError,
     loadError,
@@ -34,6 +36,7 @@ export function ShelfView() {
   return (
     <div>
       <ActionErrorBanner message={actionError} onDismiss={clearActionError} />
+      <TruncatedListBanner truncated={truncated} />
       {steamLinked && <SteamImportButton onImported={invalidate} />}
       <GameGrid
         games={games}

@@ -54,13 +54,20 @@ export default async function gameRoutes(app: FastifyInstance) {
 
   app.get<{ Querystring: { region?: string } }>('/api/games', async (request) => {
     const userId = await request.requireAuth();
+    // Fetches one row past the cap rather than a separate COUNT query - if that extra row comes
+    // back, the list was truncated, and it's dropped before serializing so the client only ever
+    // sees at most MAX_GAMES_PER_LIST games.
     const games = await prisma.game.findMany({
       where: { roomId: null, addedBy: userId, archivedAt: null },
       include: gameInclude,
       orderBy: { createdAt: 'desc' },
-      take: MAX_GAMES_PER_LIST,
+      take: MAX_GAMES_PER_LIST + 1,
     });
-    return { games: await serializeGames(games, userId, parseRegion(request.query.region)) };
+    const truncated = games.length > MAX_GAMES_PER_LIST;
+    return {
+      games: await serializeGames(games.slice(0, MAX_GAMES_PER_LIST), userId, parseRegion(request.query.region)),
+      truncated,
+    };
   });
 
   app.get<{ Params: { roomId: string }; Querystring: { region?: string } }>('/api/rooms/:roomId/games', async (request) => {
@@ -72,9 +79,13 @@ export default async function gameRoutes(app: FastifyInstance) {
       where: { roomId, archivedAt: null },
       include: gameInclude,
       orderBy: { createdAt: 'desc' },
-      take: MAX_GAMES_PER_LIST,
+      take: MAX_GAMES_PER_LIST + 1,
     });
-    return { games: await serializeGames(games, userId, parseRegion(request.query.region)) };
+    const truncated = games.length > MAX_GAMES_PER_LIST;
+    return {
+      games: await serializeGames(games.slice(0, MAX_GAMES_PER_LIST), userId, parseRegion(request.query.region)),
+      truncated,
+    };
   });
 
   app.post<{ Body: CreateGameRequest }>('/api/games', async (request, reply) => {

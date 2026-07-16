@@ -7,6 +7,7 @@ import { useGames } from '../hooks/useGames';
 import { roomsApi } from '../api/rooms';
 import { GameGrid } from '../components/GameGrid';
 import { ActionErrorBanner } from '../components/ActionErrorBanner';
+import { TruncatedListBanner } from '../components/TruncatedListBanner';
 import { SpinTheWheel } from '../components/SpinTheWheel';
 
 // Post-1.0 release feature: Spin the Wheel is temporarily hidden until its UI
@@ -20,6 +21,7 @@ export function RoomView() {
   const { switchView } = useView();
   const {
     games,
+    truncated,
     isLoading,
     isError,
     loadError,
@@ -49,6 +51,7 @@ export function RoomView() {
   return (
     <div>
       <ActionErrorBanner message={actionError} onDismiss={clearActionError} />
+      <TruncatedListBanner truncated={truncated} />
       {SPIN_THE_WHEEL_ENABLED && !isLoading && !isError && <SpinTheWheel games={games} />}
       <GameGrid
         games={games}
