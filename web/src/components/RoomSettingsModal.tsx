@@ -1,4 +1,5 @@
 import { useRef, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import {
   ROOM_PLATFORM_LABELS,
@@ -34,6 +35,7 @@ interface RoomSettingsModalProps {
 export function RoomSettingsModal({ room, members, games, onClose }: RoomSettingsModalProps) {
   const { user } = useAuth();
   const confirm = useConfirm();
+  const navigate = useNavigate();
   const queryClient = useQueryClient();
   const exportMenuRef = useRef<HTMLDetailsElement>(null);
 
@@ -45,6 +47,7 @@ export function RoomSettingsModal({ room, members, games, onClose }: RoomSetting
   const [inviteCopied, setInviteCopied] = useState(false);
   const [selectedCandidateId, setSelectedCandidateId] = useState('');
   const [addingMember, setAddingMember] = useState(false);
+  const [deleting, setDeleting] = useState(false);
 
   const inviteUrl = room.inviteCode ? `${window.location.origin}/join/${room.inviteCode}` : null;
   const isElevated = room.myRole === 'room_master' || room.myRole === 'moderator';
@@ -121,6 +124,27 @@ export function RoomSettingsModal({ room, members, games, onClose }: RoomSetting
       setError(err instanceof Error ? err.message : 'Could not add that member');
     } finally {
       setAddingMember(false);
+    }
+  }
+
+  async function handleDeleteRoom() {
+    const ok = await confirm({
+      title: 'Delete this room?',
+      message: `${room.name} and all its games, votes, and membership will be permanently deleted. This can't be undone.`,
+      confirmLabel: 'Delete room',
+      danger: true,
+    });
+    if (!ok) return;
+    setDeleting(true);
+    setError(null);
+    try {
+      await roomsApi.delete(room.id);
+      queryClient.invalidateQueries({ queryKey: ['rooms'] });
+      onClose();
+      navigate('/');
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Could not delete this room');
+      setDeleting(false);
     }
   }
 
@@ -215,6 +239,11 @@ export function RoomSettingsModal({ room, members, games, onClose }: RoomSetting
               <button type="button" className={styles.saveButton} onClick={handleSave} disabled={saving || !dirty}>
                 {saving ? 'Saving…' : 'Save changes'}
               </button>
+              <div className={styles.dangerZone}>
+                <button type="button" className={styles.deleteRoomButton} onClick={handleDeleteRoom} disabled={deleting}>
+                  {deleting ? 'Deleting…' : 'Delete room'}
+                </button>
+              </div>
             </>
           ) : (
             <p className={styles.readonlyNote}>

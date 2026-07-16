@@ -117,6 +117,32 @@
   cursor: default;
 }
 
+.dangerZone {
+  margin-top: 6px;
+  padding-top: 14px;
+  border-top: 1px solid var(--sq-border);
+}
+
+.deleteRoomButton {
+  padding: 8px 18px;
+  border-radius: var(--sq-radius);
+  background: transparent;
+  color: #ff8a80;
+  border: 1px solid #ff8a80;
+  font-weight: 700;
+  font-size: 13px;
+  cursor: pointer;
+}
+
+.deleteRoomButton:hover {
+  background: rgba(255, 138, 128, 0.12);
+}
+
+.deleteRoomButton:disabled {
+  opacity: 0.6;
+  cursor: default;
+}
+
 .readonlyNote {
   color: var(--sq-muted);
   font-size: 12.5px;

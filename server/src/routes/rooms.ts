@@ -3,6 +3,7 @@ import { prisma } from '../db/client.js';
 import { toUserDto } from '../util/dto.js';
 import { HttpError } from '../util/httpError.js';
 import { requireElevated, requireMembership, generateUniqueInviteCode } from '../services/roomAccess.js';
+import { logAdminAction } from '../services/adminAuditLog.js';
 import type { CreateRoomRequest, JoinRoomRequest, Room, RoomMember, RoomPlatform, RoomRole, UpdateRoomRequest } from '@squadqueue/shared';
 
 const ROOM_PLATFORMS: RoomPlatform[] = ['pc', 'xbox_360', 'xbox_one', 'xbox_series', 'ps3', 'ps4', 'ps5', 'switch', 'switch2'];
@@ -113,6 +114,47 @@ export default async function roomRoutes(app: FastifyInstance) {
       },
     });
     return { room: toRoomDto(room, membership.role, room.inviteCode) };
+  });
+
+  app.delete<{ Params: { roomId: string } }>('/api/rooms/:roomId', async (request, reply) => {
+    const actorId = await request.requireAuth();
+    const { roomId } = request.params;
+    const membership = await requireMembership(roomId, actorId);
+    if (membership.role !== 'room_master') {
+      throw new HttpError(403, 'Only the Room Master can delete this room');
+    }
+
+    const [actor, target] = await Promise.all([
+      prisma.user.findUniqueOrThrow({ where: { id: actorId } }),
+      prisma.room.findUnique({
+        where: { id: roomId },
+        include: { _count: { select: { members: true, games: true } } },
+      }),
+    ]);
+
+    await prisma.room.delete({ where: { id: roomId } });
+
+    app.log.warn(
+      {
+        action: 'room.delete',
+        actorId,
+        targetId: roomId,
+        targetName: target?.name,
+        memberCount: target?._count.members,
+        gameCount: target?._count.games,
+      },
+      `Room Master ${actorId} deleted room ${roomId} (${target?.name ?? 'unknown'}), cascading ${target?._count.members ?? 0} member(s) and ${target?._count.games ?? 0} game(s)`,
+    );
+    await logAdminAction({
+      actorId,
+      actorLabel: actor.email,
+      action: 'room.delete',
+      targetLabel: target?.name ?? roomId,
+      metadata: { memberCount: target?._count.members, gameCount: target?._count.games },
+    });
+
+    reply.status(204);
+    return null;
   });
 
   app.get<{ Params: { roomId: string } }>('/api/rooms/:roomId/members', async (request) => {
