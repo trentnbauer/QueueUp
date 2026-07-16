@@ -1,5 +1,5 @@
 import { useRef, useState } from 'react';
-import { useQueryClient } from '@tanstack/react-query';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import {
   ROOM_PLATFORM_LABELS,
   type Game,
@@ -43,8 +43,18 @@ export function RoomSettingsModal({ room, members, games, onClose }: RoomSetting
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [inviteCopied, setInviteCopied] = useState(false);
+  const [selectedCandidateId, setSelectedCandidateId] = useState('');
+  const [addingMember, setAddingMember] = useState(false);
 
   const inviteUrl = room.inviteCode ? `${window.location.origin}/join/${room.inviteCode}` : null;
+  const isElevated = room.myRole === 'room_master' || room.myRole === 'moderator';
+
+  const candidates = useQuery({
+    queryKey: ['room-invite-candidates', room.id],
+    queryFn: () => roomsApi.inviteCandidates(room.id),
+    enabled: isElevated,
+  });
+  const candidateUsers = candidates.data?.users ?? [];
 
   async function handleCopyInviteCode() {
     if (!inviteUrl) return;
@@ -54,12 +64,12 @@ export function RoomSettingsModal({ room, members, games, onClose }: RoomSetting
   }
 
   const isRoomMaster = room.myRole === 'room_master';
-  const isElevated = room.myRole === 'room_master' || room.myRole === 'moderator';
   const dirty = name.trim() !== room.name || platform !== room.platform || accentColor !== room.accentColor;
 
   function invalidateRoomQueries() {
     queryClient.invalidateQueries({ queryKey: ['rooms'] });
     queryClient.invalidateQueries({ queryKey: ['room-members', room.id] });
+    queryClient.invalidateQueries({ queryKey: ['room-invite-candidates', room.id] });
   }
 
   async function handleSave() {
@@ -80,13 +90,37 @@ export function RoomSettingsModal({ room, members, games, onClose }: RoomSetting
     }
   }
 
-  async function handlePromote(targetUserId: string) {
+  async function handleSetRole(targetUserId: string, displayName: string, role: RoomRole) {
+    if (role === 'room_master') {
+      const ok = await confirm({
+        title: 'Transfer Room Master?',
+        message: `${displayName} will become the new Room Master. You'll be moved to Moderator.`,
+        confirmLabel: 'Transfer',
+        danger: true,
+      });
+      if (!ok) return;
+    }
     setError(null);
     try {
-      await roomsApi.promote(room.id, targetUserId);
+      await roomsApi.setRole(room.id, targetUserId, role);
       invalidateRoomQueries();
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Could not promote that member');
+      setError(err instanceof Error ? err.message : "Could not update that member's role");
+    }
+  }
+
+  async function handleAddMember() {
+    if (!selectedCandidateId) return;
+    setAddingMember(true);
+    setError(null);
+    try {
+      await roomsApi.addMember(room.id, selectedCandidateId);
+      setSelectedCandidateId('');
+      invalidateRoomQueries();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Could not add that member');
+    } finally {
+      setAddingMember(false);
     }
   }
 
@@ -225,12 +259,47 @@ export function RoomSettingsModal({ room, members, games, onClose }: RoomSetting
           </div>
         )}
 
+        {isElevated && (
+          <div className={styles.section}>
+            <div className={styles.sectionTitle}>Invite existing member</div>
+            {candidateUsers.length === 0 ? (
+              <p className={styles.readonlyNote}>
+                {candidates.isLoading ? 'Loading…' : 'Every SquadQueue member is already in this room.'}
+              </p>
+            ) : (
+              <div className={styles.inviteMemberRow}>
+                <select
+                  className={styles.select}
+                  value={selectedCandidateId}
+                  onChange={(e) => setSelectedCandidateId(e.target.value)}
+                  aria-label="Pick a member to invite"
+                >
+                  <option value="">Pick a member…</option>
+                  {candidateUsers.map((u) => (
+                    <option key={u.id} value={u.id}>
+                      {u.displayName}
+                    </option>
+                  ))}
+                </select>
+                <button
+                  type="button"
+                  className={styles.memberAction}
+                  onClick={handleAddMember}
+                  disabled={!selectedCandidateId || addingMember}
+                >
+                  {addingMember ? 'Inviting…' : 'Invite'}
+                </button>
+              </div>
+            )}
+          </div>
+        )}
+
         <div className={styles.section}>
           <div className={styles.sectionTitle}>Members ({members.length})</div>
           <div className={styles.memberList}>
             {members.map((m) => {
               const isSelf = m.user.id === user?.id;
-              const canPromote = isRoomMaster && m.role === 'member';
+              const canSetRole = isRoomMaster && !isSelf;
               const canRemove = isElevated && m.role !== 'room_master' && !isSelf;
               return (
                 <div key={m.user.id} className={styles.memberRow}>
@@ -240,12 +309,19 @@ export function RoomSettingsModal({ room, members, games, onClose }: RoomSetting
                       {m.user.displayName}
                       {isSelf ? ' (you)' : ''}
                     </span>
-                    <span className={styles.memberRole}>{ROLE_LABEL[m.role]}</span>
+                    {!canSetRole && <span className={styles.memberRole}>{ROLE_LABEL[m.role]}</span>}
                   </div>
-                  {canPromote && (
-                    <button type="button" className={styles.memberAction} onClick={() => handlePromote(m.user.id)}>
-                      Promote
-                    </button>
+                  {canSetRole && (
+                    <select
+                      className={styles.roleSelect}
+                      value={m.role}
+                      aria-label={`Set ${m.user.displayName}'s role`}
+                      onChange={(e) => handleSetRole(m.user.id, m.user.displayName, e.target.value as RoomRole)}
+                    >
+                      <option value="member">Member</option>
+                      <option value="moderator">Moderator</option>
+                      <option value="room_master">Room Master</option>
+                    </select>
                   )}
                   {canRemove && (
                     <button

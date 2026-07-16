@@ -3,9 +3,10 @@ import { prisma } from '../db/client.js';
 import { toUserDto } from '../util/dto.js';
 import { HttpError } from '../util/httpError.js';
 import { requireElevated, requireMembership, generateUniqueInviteCode } from '../services/roomAccess.js';
-import type { CreateRoomRequest, JoinRoomRequest, Room, RoomMember, RoomPlatform, UpdateRoomRequest } from '@squadqueue/shared';
+import type { CreateRoomRequest, JoinRoomRequest, Room, RoomMember, RoomPlatform, RoomRole, UpdateRoomRequest } from '@squadqueue/shared';
 
-const ROOM_PLATFORMS: RoomPlatform[] = ['pc', 'xbox', 'playstation', 'switch', 'switch2'];
+const ROOM_PLATFORMS: RoomPlatform[] = ['pc', 'xbox_360', 'xbox_one', 'xbox_series', 'ps3', 'ps4', 'ps5', 'switch', 'switch2'];
+const ROOM_ROLES: RoomRole[] = ['room_master', 'moderator', 'member'];
 
 function toRoomDto(
   room: { id: string; name: string; platform: RoomPlatform; accentColor: string; createdBy: string; createdAt: Date },
@@ -134,22 +135,88 @@ export default async function roomRoutes(app: FastifyInstance) {
     return { members: dtos };
   });
 
-  app.post<{ Params: { roomId: string; userId: string } }>(
-    '/api/rooms/:roomId/members/:userId/promote',
+  app.get<{ Params: { roomId: string } }>('/api/rooms/:roomId/invite-candidates', async (request) => {
+    const userId = await request.requireAuth();
+    const { roomId } = request.params;
+    await requireElevated(roomId, userId);
+
+    const existingMemberIds = (
+      await prisma.roomMember.findMany({ where: { roomId }, select: { userId: true } })
+    ).map((m) => m.userId);
+
+    const candidates = await prisma.user.findMany({
+      where: { id: { notIn: existingMemberIds } },
+      orderBy: { displayName: 'asc' },
+    });
+    return { users: candidates.map(toUserDto) };
+  });
+
+  app.post<{ Params: { roomId: string }; Body: { userId: string } }>(
+    '/api/rooms/:roomId/members',
+    async (request, reply) => {
+      const actorId = await request.requireAuth();
+      const { roomId } = request.params;
+      const { userId: targetUserId } = request.body;
+      await requireElevated(roomId, actorId);
+      if (!targetUserId) throw new HttpError(400, 'A user id is required');
+
+      const targetUser = await prisma.user.findUnique({ where: { id: targetUserId } });
+      if (!targetUser) throw new HttpError(404, 'User not found');
+
+      const existing = await prisma.roomMember.findUnique({
+        where: { roomId_userId: { roomId, userId: targetUserId } },
+      });
+      if (existing) throw new HttpError(400, 'That user is already a member of this room');
+
+      await prisma.roomMember.create({ data: { roomId, userId: targetUserId, role: 'member' } });
+      reply.status(201);
+      return { added: true };
+    },
+  );
+
+  app.patch<{ Params: { roomId: string; userId: string }; Body: { role: RoomRole } }>(
+    '/api/rooms/:roomId/members/:userId/role',
     async (request) => {
       const actorId = await request.requireAuth();
       const { roomId, userId: targetUserId } = request.params;
+      const { role } = request.body;
+      if (!ROOM_ROLES.includes(role)) throw new HttpError(400, 'A valid role is required');
 
       const actor = await requireMembership(roomId, actorId);
       if (actor.role !== 'room_master') {
-        throw new HttpError(403, 'Only the Room Master can promote members');
+        throw new HttpError(403, 'Only the Room Master can change member roles');
+      }
+      if (targetUserId === actorId) {
+        throw new HttpError(400, 'Transfer ownership to another member instead of changing your own role');
+      }
+      const target = await requireMembership(roomId, targetUserId);
+
+      if (role === 'room_master') {
+        // Ownership transfer: the outgoing Room Master steps down to Moderator rather than being
+        // left without a role, and this happens atomically so the room is never left without
+        // exactly one Room Master.
+        const [, updatedTarget] = await prisma.$transaction([
+          prisma.roomMember.update({
+            where: { roomId_userId: { roomId, userId: actorId } },
+            data: { role: 'moderator' },
+          }),
+          prisma.roomMember.update({
+            where: { roomId_userId: { roomId, userId: targetUserId } },
+            data: { role: 'room_master' },
+          }),
+        ]);
+        return { role: updatedTarget.role };
       }
 
-      const target = await prisma.roomMember.update({
+      if (target.role === 'room_master') {
+        throw new HttpError(400, 'Transfer ownership to someone else instead of demoting the Room Master directly');
+      }
+
+      const updated = await prisma.roomMember.update({
         where: { roomId_userId: { roomId, userId: targetUserId } },
-        data: { role: 'moderator' },
+        data: { role },
       });
-      return { role: target.role };
+      return { role: updated.role };
     },
   );
 
