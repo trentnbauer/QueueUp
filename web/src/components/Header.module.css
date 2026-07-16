@@ -1,12 +1,10 @@
 .header {
   display: flex;
-  align-items: center;
-  justify-content: space-between;
+  flex-direction: column;
+  gap: 16px;
   padding: 22px 40px;
   background: var(--sq-surface2);
   border-bottom: 1px solid var(--sq-border);
-  flex-wrap: wrap;
-  gap: 12px;
 }
 
 @media (max-width: 640px) {
@@ -15,10 +13,82 @@
   }
 }
 
+.topRow {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 12px;
+}
+
 .left {
   display: flex;
   align-items: center;
   gap: 16px;
+}
+
+.actionsRow {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  gap: 20px;
+}
+
+.addGameButton {
+  flex-shrink: 0;
+  padding: 9px 18px;
+  border-radius: var(--sq-radius);
+  background: var(--sq-accent);
+  color: #fff;
+  font-weight: 700;
+  font-size: 13px;
+  border: none;
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.addGameButton:hover {
+  filter: brightness(1.1);
+}
+
+.filterGroup {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.filterLabel {
+  font: 700 10px system-ui, sans-serif;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  color: var(--sq-muted);
+}
+
+.filterPills {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.filterPill {
+  padding: 5px 12px;
+  border-radius: 999px;
+  background: var(--sq-neutral-pill-bg);
+  color: var(--sq-muted);
+  border: none;
+  font-size: 12.5px;
+  font-weight: 600;
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.filterPill:hover {
+  color: var(--sq-text);
+}
+
+.filterPillActive {
+  background: var(--sq-accent-pill-bg);
+  color: var(--sq-accent);
 }
 
 .title {

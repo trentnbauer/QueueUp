@@ -1,18 +1,21 @@
 import { useEffect, useRef, useState } from 'react';
 import type { GameSearchResult } from '@squadqueue/shared';
 import { gamesApi } from '../api/games';
-import styles from './GameInputBar.module.css';
+import styles from './AddGameModal.module.css';
 
-interface GameInputBarProps {
+interface AddGameModalProps {
   roomId: string | null;
   onAdded: () => void;
+  onClose: () => void;
 }
 
 function optionId(igdbId: number): string {
-  return `game-search-option-${igdbId}`;
+  return `add-game-option-${igdbId}`;
 }
 
-export function GameInputBar({ roomId, onAdded }: GameInputBarProps) {
+/** Centered modal (matching Room Settings / Add Room) for searching and adding a game - replaces
+ * the old always-visible inline search bar above the game grid. */
+export function AddGameModal({ roomId, onAdded, onClose }: AddGameModalProps) {
   const [query, setQuery] = useState('');
   const [results, setResults] = useState<GameSearchResult[]>([]);
   const [searching, setSearching] = useState(false);
@@ -52,10 +55,8 @@ export function GameInputBar({ roomId, onAdded }: GameInputBarProps) {
     setError(null);
     try {
       await gamesApi.create({ igdbId: result.igdbId, roomId });
-      setQuery('');
-      setResults([]);
-      setHighlightedIndex(-1);
       onAdded();
+      onClose();
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Could not add that game');
     } finally {
@@ -76,18 +77,30 @@ export function GameInputBar({ roomId, onAdded }: GameInputBarProps) {
         e.preventDefault();
         handleAdd(results[highlightedIndex]);
       }
-    } else if (e.key === 'Escape') {
-      setResults([]);
-      setHighlightedIndex(-1);
     }
   }
 
-  const listboxId = 'game-search-listbox';
+  const listboxId = 'add-game-listbox';
   const busy = addingId !== null;
 
   return (
-    <>
-      <form className={styles.bar} onSubmit={(e) => e.preventDefault()}>
+    <div className={styles.backdrop} role="presentation" onClick={onClose}>
+      <div
+        className={styles.dialog}
+        role="dialog"
+        aria-modal="true"
+        aria-label="Add a game"
+        onClick={(e) => e.stopPropagation()}
+      >
+        <div className={styles.header}>
+          <span className={styles.title}>Add a Game</span>
+          <button type="button" className={styles.closeButton} onClick={onClose} aria-label="Close">
+            ×
+          </button>
+        </div>
+
+        {error && <div className={styles.error}>{error}</div>}
+
         <input
           className={styles.input}
           placeholder="Search for a game…"
@@ -95,6 +108,7 @@ export function GameInputBar({ roomId, onAdded }: GameInputBarProps) {
           onChange={(e) => setQuery(e.target.value)}
           onKeyDown={handleInputKeyDown}
           disabled={busy}
+          autoFocus
           role="combobox"
           aria-expanded={results.length > 0}
           aria-controls={listboxId}
@@ -105,44 +119,41 @@ export function GameInputBar({ roomId, onAdded }: GameInputBarProps) {
               : undefined
           }
         />
-      </form>
 
-      {error && <div className={styles.error}>{error}</div>}
+        {searching && <div className={styles.searching}>Searching…</div>}
 
-      {results.length > 0 && (
-        <div className={styles.previewPanel}>
-          <div className={`${styles.candidateList} ${styles.searchResultsList}`} role="listbox" id={listboxId}>
+        {results.length > 0 && (
+          <div className={styles.resultsList} role="listbox" id={listboxId}>
             {results.map((r, i) => (
               <div
                 key={r.igdbId}
                 id={optionId(r.igdbId)}
                 role="option"
                 aria-selected={i === highlightedIndex}
-                className={`${styles.candidateOption} ${i === highlightedIndex ? styles.candidateOptionHighlighted : ''}`}
+                className={`${styles.resultOption} ${i === highlightedIndex ? styles.resultOptionHighlighted : ''}`}
                 onMouseEnter={() => setHighlightedIndex(i)}
               >
-                <div className={styles.candidateMeta}>
-                  <span className={styles.candidateTitle}>
+                <div className={styles.resultMeta}>
+                  <span className={styles.resultTitle}>
                     {r.title}
                     {r.releaseYear ? ` (${r.releaseYear})` : ''}
                   </span>
-                  <span className={styles.candidatePlatform}>{r.platform}</span>
+                  <span className={styles.resultPlatform}>{r.platform}</span>
                 </div>
-                <button
-                  type="button"
-                  className={styles.addButton}
-                  onClick={() => handleAdd(r)}
-                  disabled={busy}
-                >
+                <button type="button" className={styles.addButton} onClick={() => handleAdd(r)} disabled={busy}>
                   {addingId === r.igdbId ? 'Adding…' : 'Add'}
                 </button>
               </div>
             ))}
           </div>
-        </div>
-      )}
+        )}
 
-      {searching && <div className={styles.searching}>Searching…</div>}
-    </>
+        <div className={styles.cancelZone}>
+          <button type="button" className={styles.cancelButton} onClick={onClose}>
+            Cancel
+          </button>
+        </div>
+      </div>
+    </div>
   );
 }

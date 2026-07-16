@@ -5,7 +5,6 @@ import { useAuth } from '../context/AuthContext';
 import { useView } from '../context/ViewContext';
 import { useGames } from '../hooks/useGames';
 import { roomsApi } from '../api/rooms';
-import { GameInputBar } from '../components/GameInputBar';
 import { GameGrid } from '../components/GameGrid';
 import { ActionErrorBanner } from '../components/ActionErrorBanner';
 import { SpinTheWheel } from '../components/SpinTheWheel';
@@ -25,7 +24,6 @@ export function RoomView() {
     isError,
     loadError,
     refetch,
-    invalidate,
     actionError,
     clearActionError,
     updateStatus,
@@ -50,7 +48,6 @@ export function RoomView() {
 
   return (
     <div>
-      <GameInputBar roomId={roomId} onAdded={invalidate} />
       <ActionErrorBanner message={actionError} onDismiss={clearActionError} />
       {SPIN_THE_WHEEL_ENABLED && !isLoading && !isError && <SpinTheWheel games={games} />}
       <GameGrid
@@ -61,7 +58,6 @@ export function RoomView() {
         loadError={loadError}
         onRetry={refetch}
         memberCount={memberCount}
-        showPlatformFilter={false}
         onStatusChange={updateStatus}
         onVote={vote}
         onRemove={remove}

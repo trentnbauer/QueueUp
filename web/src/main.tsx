@@ -5,6 +5,7 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import App from './App';
 import { AuthProvider } from './context/AuthContext';
 import { ViewProvider } from './context/ViewContext';
+import { GameFilterProvider } from './context/GameFilterContext';
 import { ThemeProvider } from './context/ThemeContext';
 import { CurrencyRegionProvider } from './context/CurrencyRegionContext';
 import { ConfirmProvider } from './context/ConfirmContext';
@@ -18,13 +19,15 @@ createRoot(document.getElementById('root')!).render(
       <BrowserRouter>
         <AuthProvider>
           <ViewProvider>
-            <ThemeProvider>
-              <CurrencyRegionProvider>
-                <ConfirmProvider>
-                  <App />
-                </ConfirmProvider>
-              </CurrencyRegionProvider>
-            </ThemeProvider>
+            <GameFilterProvider>
+              <ThemeProvider>
+                <CurrencyRegionProvider>
+                  <ConfirmProvider>
+                    <App />
+                  </ConfirmProvider>
+                </CurrencyRegionProvider>
+              </ThemeProvider>
+            </GameFilterProvider>
           </ViewProvider>
         </AuthProvider>
       </BrowserRouter>

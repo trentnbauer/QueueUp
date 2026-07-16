@@ -2,7 +2,6 @@ import { useEffect } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { useView } from '../context/ViewContext';
 import { useGames } from '../hooks/useGames';
-import { GameInputBar } from '../components/GameInputBar';
 import { GameGrid } from '../components/GameGrid';
 import { ActionErrorBanner } from '../components/ActionErrorBanner';
 import { SteamImportButton } from '../components/SteamImportButton';
@@ -34,7 +33,6 @@ export function ShelfView() {
 
   return (
     <div>
-      <GameInputBar roomId={null} onAdded={invalidate} />
       <ActionErrorBanner message={actionError} onDismiss={clearActionError} />
       {steamLinked && <SteamImportButton onImported={invalidate} />}
       <GameGrid

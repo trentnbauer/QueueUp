@@ -1,5 +1,22 @@
 import type { Game } from '@squadqueue/shared';
 
+/** Sentinel meaning "no filter applied" for both the platform and genre pill filters. */
+export const ALL_FILTER_VALUE = '__all__';
+
+/** Genre/platform are stored as comma-joined labels (e.g. "PC, Xbox"), so filter options and
+ * matching both split on ", " rather than treating the whole string as one value. */
+export function splitLabel(value: string | null): string[] {
+  return value ? value.split(',').map((v) => v.trim()).filter(Boolean) : [];
+}
+
+export function distinctValues(games: Game[], pick: (g: Game) => string | null): string[] {
+  const values = new Set<string>();
+  for (const game of games) {
+    for (const v of splitLabel(pick(game))) values.add(v);
+  }
+  return Array.from(values).sort((a, b) => a.localeCompare(b));
+}
+
 export function sortByScore(games: Game[]): Game[] {
   // Game.updatedAt only reflects status changes, not votes (votes have their own row/timestamp),
   // so ties break on createdAt (newest-added first) rather than a misleading "recently voted" signal.
