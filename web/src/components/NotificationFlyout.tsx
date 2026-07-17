@@ -28,15 +28,18 @@ export function NotificationFlyout({ onNavigate }: NotificationFlyoutProps) {
         )}
         {notifications.map((n) => {
           const className = `${styles.notifItem} ${!n.read ? styles.notifUnread : ''}`;
+          // Personal Shelf price alerts are the one direct (roomId-less) notification type with
+          // somewhere to navigate to - room_deleted, the other direct type, has none left.
+          const linkTo = n.roomId ? `/room/${n.roomId}` : n.type === 'price_drop' ? '/' : null;
           const body = (
             <>
-              <div className={styles.notifRoomName}>{n.roomId ? n.roomName : 'Announcement'}</div>
+              <div className={styles.notifRoomName}>{n.roomId ? n.roomName : n.type === 'price_drop' ? 'Personal Shelf' : 'Announcement'}</div>
               <div className={styles.notifMessage}>{n.message}</div>
               <div className={styles.notifTime}>{formatRelativeTime(n.createdAt)}</div>
             </>
           );
-          return n.roomId ? (
-            <Link key={n.id} to={`/room/${n.roomId}`} className={className} onClick={onNavigate}>
+          return linkTo ? (
+            <Link key={n.id} to={linkTo} className={className} onClick={onNavigate}>
               {body}
             </Link>
           ) : (

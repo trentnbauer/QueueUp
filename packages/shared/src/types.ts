@@ -122,6 +122,9 @@ export interface Game {
   coverImageUrl: string | null;
   status: GameStatus;
   price: GamePrice;
+  /** A price to alert at, if set (issue #162) - shared per-game, not per-user, so a room game
+   * notifies everyone in the room once it's hit. Null when no alert is set. */
+  targetPrice: string | null;
   votes: VoteSummary[];
   myVote: VoteValue | null;
   voteScore: number;
@@ -172,6 +175,11 @@ export interface UpdateOwnedPlatformsRequest {
 
 export interface UpdateGameStatusRequest {
   status: GameStatus;
+}
+
+/** Sets (or clears, with null) the price to alert at for a game - see Game.targetPrice. */
+export interface SetTargetPriceRequest {
+  targetPrice: string | null;
 }
 
 /** Relocates a game to a different room, or to the mover's Personal Shelf (roomId: null). */
@@ -252,7 +260,8 @@ export type NotificationType =
   | 'room_renamed'
   | 'room_platform_changed'
   | 'room_owner_changed'
-  | 'room_deleted';
+  | 'room_deleted'
+  | 'price_drop';
 
 export interface Notification {
   id: string;

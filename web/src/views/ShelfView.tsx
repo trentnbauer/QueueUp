@@ -25,6 +25,7 @@ export function ShelfView() {
     remove,
     refreshPrice,
     isRefreshingPrice,
+    setTargetPrice,
   } = useGames(null);
 
   useEffect(() => {
@@ -50,6 +51,7 @@ export function ShelfView() {
         onRemove={remove}
         onRefreshPrice={refreshPrice}
         isRefreshingPrice={isRefreshingPrice}
+        onSetTargetPrice={setTargetPrice}
       />
     </div>
   );

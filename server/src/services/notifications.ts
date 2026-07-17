@@ -81,6 +81,39 @@ export async function notifyRoomMembersDirect(input: NotifyRoomMembersDirectInpu
   }
 }
 
+interface NotifyPriceDropInput {
+  title: string;
+  amount: string;
+  currency: string | null;
+  /** Set for a room game (notifies every member); null for a Personal Shelf game (notifies just
+   * its owner via ownerId). */
+  room: { roomId: string; roomName: string } | null;
+  ownerId: string;
+}
+
+/** Writes a price-drop alert - system-generated (no actorId), so unlike notifyRoom this always
+ * counts as unread for every recipient, including whoever originally set the target price.
+ * Failures are logged and swallowed, same as notifyRoom: this runs after the price check has
+ * already cleared the target, so there's no primary write left to protect. */
+export async function notifyPriceDrop(input: NotifyPriceDropInput): Promise<void> {
+  const formatted = input.currency ? `${input.amount} ${input.currency}` : input.amount;
+  const message = `"${input.title}" hit your target price - now ${formatted}`;
+
+  try {
+    if (input.room) {
+      await prisma.notification.create({
+        data: { roomId: input.room.roomId, roomName: input.room.roomName, type: 'price_drop', message },
+      });
+    } else {
+      await prisma.notification.create({
+        data: { recipientId: input.ownerId, roomName: 'Personal Shelf', type: 'price_drop', message },
+      });
+    }
+  } catch (err) {
+    console.error('[notifications] failed to write price drop notification', err);
+  }
+}
+
 type NotificationWithActor = Prisma.NotificationGetPayload<{ include: { actor: true } }>;
 
 interface ReadCutoff {

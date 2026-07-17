@@ -54,6 +54,7 @@ interface GameGridProps {
   onRefreshPrice: (gameId: string) => void;
   /** Whether a given game's manual price refresh is currently in flight - drives the spinner. */
   isRefreshingPrice?: (gameId: string) => boolean;
+  onSetTargetPrice: (gameId: string, targetPrice: string | null) => void;
 }
 
 export function GameGrid({
@@ -71,6 +72,7 @@ export function GameGrid({
   onRemove,
   onRefreshPrice,
   isRefreshingPrice,
+  onSetTargetPrice,
 }: GameGridProps) {
   // Filter selection lives in GameFilterContext, not here - the pill UI itself is rendered by the
   // Header (a sibling, not a parent, of this component) next to the Add Game button.
@@ -162,6 +164,7 @@ export function GameGrid({
             onRemove={() => onRemove(game.id)}
             onRefreshPrice={() => onRefreshPrice(game.id)}
             isRefreshingPrice={isRefreshingPrice ? isRefreshingPrice(game.id) : false}
+            onSetTargetPrice={(targetPrice) => onSetTargetPrice(game.id, targetPrice)}
           />
         </Fragment>
       ))}

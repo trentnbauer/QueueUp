@@ -1,6 +1,7 @@
 import type { Prisma } from '@prisma/client';
 import type { Game, GamePrice, PriceRegion, VoteValue } from '@squadqueue/shared';
 import { getSteamPrice, getSteamPrices } from './priceService.js';
+import { checkPriceDropAlert } from './priceAlerts.js';
 import { toUserDto } from '../util/dto.js';
 
 const gameWithRelations = {
@@ -38,6 +39,7 @@ function buildGameDto(game: GameWithRelations, currentUserId: string, price: Gam
     coverImageUrl: game.coverImageUrl,
     status: game.status,
     price,
+    targetPrice: game.targetPrice,
     votes: game.votes.map((v) => ({ user: toUserDto(v.user), value: v.value as VoteValue })),
     myVote: (myVote?.value as VoteValue | undefined) ?? null,
     voteScore,
@@ -48,6 +50,10 @@ function buildGameDto(game: GameWithRelations, currentUserId: string, price: Gam
 
 export async function serializeGame(game: GameWithRelations, currentUserId: string, region?: PriceRegion): Promise<Game> {
   const price = game.steamAppid ? await getSteamPrice(game.steamAppid, { region }) : UNAVAILABLE_PRICE;
+  // Not awaited: this piggybacks on whatever page load happened to trigger a fresh price fetch
+  // (see priceAlerts.ts) rather than gating the response on it - a delayed alert is fine, a
+  // slower shelf/room load for every viewer isn't.
+  if (game.targetPrice) void checkPriceDropAlert(game, price);
   return buildGameDto(game, currentUserId, price);
 }
 
@@ -55,7 +61,9 @@ export async function serializeGames(games: GameWithRelations[], currentUserId: 
   const steamAppIds = games.map((g) => g.steamAppid).filter((id): id is number => id != null);
   const prices = await getSteamPrices(steamAppIds, { region });
 
-  return games.map((game) =>
-    buildGameDto(game, currentUserId, (game.steamAppid && prices.get(game.steamAppid)) || UNAVAILABLE_PRICE),
-  );
+  return games.map((game) => {
+    const price = (game.steamAppid && prices.get(game.steamAppid)) || UNAVAILABLE_PRICE;
+    if (game.targetPrice) void checkPriceDropAlert(game, price);
+    return buildGameDto(game, currentUserId, price);
+  });
 }
