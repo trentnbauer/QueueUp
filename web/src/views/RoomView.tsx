@@ -9,13 +9,7 @@ import { GameGrid } from '../components/GameGrid';
 import { ActionErrorBanner } from '../components/ActionErrorBanner';
 import { TruncatedListBanner } from '../components/TruncatedListBanner';
 import { RoomSizeWarningBanner } from '../components/RoomSizeWarningBanner';
-import { SpinTheWheel } from '../components/SpinTheWheel';
 import { useMarkRoomNotificationsRead } from '../hooks/useNotifications';
-
-// Post-1.0 release feature: Spin the Wheel is temporarily hidden until its UI
-// gets a redesign. Component is kept intact so it can be re-enabled easily.
-// See: https://github.com/trentnbauer/SquadQueue/issues/103
-const SPIN_THE_WHEEL_ENABLED = false;
 
 export function RoomView() {
   const { roomId } = useParams<{ roomId: string }>();
@@ -63,7 +57,6 @@ export function RoomView() {
       <ActionErrorBanner message={actionError} onDismiss={clearActionError} />
       <TruncatedListBanner truncated={truncated} />
       <RoomSizeWarningBanner memberCount={memberCount} />
-      {SPIN_THE_WHEEL_ENABLED && !isLoading && !isError && <SpinTheWheel games={games} />}
       <GameGrid
         games={games}
         currentUserId={user.id}
@@ -72,6 +65,7 @@ export function RoomView() {
         loadError={loadError}
         onRetry={refetch}
         memberCount={memberCount}
+        showSpinWheel
         onStatusChange={updateStatus}
         onVote={vote}
         onRemove={remove}

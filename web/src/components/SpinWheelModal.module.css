@@ -1,0 +1,169 @@
+.backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.55);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+  padding: 20px;
+}
+
+.dialog {
+  background: var(--sq-surface);
+  border: 1px solid var(--sq-border);
+  border-radius: var(--sq-radius);
+  padding: 24px;
+  max-width: 640px;
+  width: 100%;
+  max-height: 85vh;
+  overflow-y: auto;
+  box-shadow: 0 12px 40px rgba(0, 0, 0, 0.4);
+}
+
+.header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 18px;
+}
+
+.title {
+  font: 700 16px var(--sq-header-font);
+  color: var(--sq-text);
+}
+
+.closeButton {
+  border: none;
+  background: transparent;
+  color: var(--sq-muted);
+  font-size: 20px;
+  line-height: 1;
+  cursor: pointer;
+  padding: 2px 6px;
+}
+
+.closeButton:hover {
+  color: var(--sq-text);
+}
+
+.reelViewport {
+  position: relative;
+  height: 132px;
+  margin: 0 auto;
+  overflow: hidden;
+  border-radius: var(--sq-radius);
+  background: var(--sq-surface2);
+  border: 1px solid var(--sq-border);
+}
+
+.centerMarker {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: 50%;
+  width: 108px;
+  transform: translateX(-50%);
+  border-left: 2px solid var(--sq-accent);
+  border-right: 2px solid var(--sq-accent);
+  box-shadow: 0 0 0 1000px rgba(0, 0, 0, 0.35);
+  z-index: 2;
+  pointer-events: none;
+}
+
+.reelStrip {
+  position: absolute;
+  top: 12px;
+  left: 0;
+  display: flex;
+  gap: 8px;
+  transition-property: transform;
+  transition-timing-function: cubic-bezier(0.1, 0.7, 0.15, 1);
+}
+
+.reelTile {
+  flex-shrink: 0;
+  width: 108px;
+  height: 108px;
+  border-radius: 10px;
+  background-color: var(--sq-surface2);
+  background-image: repeating-linear-gradient(135deg, var(--sq-stripe) 0px, var(--sq-stripe) 2px, transparent 2px, transparent 14px);
+  background-size: cover;
+  background-position: center;
+  position: relative;
+  overflow: hidden;
+}
+
+.reelTileLabel {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  padding: 14px 6px 5px;
+  font: 700 10px system-ui, sans-serif;
+  color: #fff;
+  text-align: center;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  background: linear-gradient(to bottom, transparent, rgba(0, 0, 0, 0.85));
+}
+
+.revealZone {
+  min-height: 96px;
+  margin-top: 20px;
+  padding-top: 18px;
+  border-top: 1px solid var(--sq-border);
+  text-align: center;
+}
+
+.revealLabel {
+  font: 600 10.5px system-ui, sans-serif;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  color: var(--sq-muted);
+}
+
+.revealTitle {
+  font: 800 20px var(--sq-header-font);
+  color: var(--sq-accent);
+  margin-top: 4px;
+}
+
+.actions {
+  display: flex;
+  justify-content: center;
+  gap: 10px;
+  margin-top: 16px;
+}
+
+.spinAgainButton {
+  padding: 8px 18px;
+  border-radius: var(--sq-radius);
+  background: transparent;
+  color: var(--sq-muted);
+  border: 1px solid var(--sq-border);
+  font-weight: 600;
+  font-size: 13px;
+  cursor: pointer;
+}
+
+.spinAgainButton:hover {
+  color: var(--sq-text);
+  border-color: var(--sq-text);
+}
+
+.primaryButton {
+  padding: 8px 18px;
+  border-radius: var(--sq-radius);
+  background: var(--sq-accent);
+  color: var(--sq-accent-text);
+  font-weight: 700;
+  font-size: 13px;
+  border: none;
+  cursor: pointer;
+}
+
+.primaryButton:hover {
+  filter: brightness(1.1);
+}
