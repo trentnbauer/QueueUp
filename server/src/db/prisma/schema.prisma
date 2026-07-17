@@ -37,6 +37,17 @@ enum RoomPlatform {
   @@map("room_platform")
 }
 
+enum NotificationType {
+  game_added
+  member_joined
+  room_renamed
+  room_platform_changed
+  room_owner_changed
+  room_deleted
+
+  @@map("notification_type")
+}
+
 model User {
   id           String   @id @default(uuid())
   oidcSub      String   @unique @map("oidc_sub")
@@ -51,11 +62,13 @@ model User {
   /// no opt-in yet, so no filtering is applied (preserves pre-existing behavior).
   ownedPlatforms RoomPlatform[] @default([]) @map("owned_platforms")
 
-  roomsCreated    Room[]          @relation("RoomCreatedBy")
-  memberships     RoomMember[]
-  gamesAdded      Game[]
-  votes           Vote[]
-  auditLogEntries AdminAuditLog[]
+  roomsCreated         Room[]          @relation("RoomCreatedBy")
+  memberships          RoomMember[]
+  gamesAdded           Game[]
+  votes                Vote[]
+  auditLogEntries      AdminAuditLog[]
+  notificationsReceived Notification[] @relation("NotificationRecipient")
+  notificationsActed   Notification[]  @relation("NotificationActor")
 
   @@map("users")
 }
@@ -69,18 +82,26 @@ model Room {
   createdBy   String       @map("created_by")
   createdAt   DateTime     @default(now()) @map("created_at")
 
-  creator     User         @relation("RoomCreatedBy", fields: [createdBy], references: [id])
-  members     RoomMember[]
-  games       Game[]
+  creator       User           @relation("RoomCreatedBy", fields: [createdBy], references: [id])
+  members       RoomMember[]
+  games         Game[]
+  notifications Notification[]
 
   @@map("rooms")
 }
 
 model RoomMember {
-  roomId   String   @map("room_id")
-  userId   String   @map("user_id")
-  role     RoomRole @default(member)
-  joinedAt DateTime @default(now()) @map("joined_at")
+  roomId   String    @map("room_id")
+  userId   String    @map("user_id")
+  role     RoomRole  @default(member)
+  joinedAt DateTime  @default(now()) @map("joined_at")
+  /// Cursor for this member's unread count in their room: notifications created after this (or
+  /// after joinedAt, if they've never opened the room's notifications) count as unread. Kept on
+  /// the membership row rather than a per-notification read-receipt table since a room's
+  /// notification feed is shared by every member and "have I seen everything up to here" is all
+  /// that's ever asked of it - a receipt per (notification, member) would track the same fact at
+  /// far higher cost.
+  notificationsReadAt DateTime? @map("notifications_read_at")
 
   room Room @relation(fields: [roomId], references: [id], onDelete: Cascade)
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
@@ -137,6 +158,36 @@ model Vote {
 
   @@id([gameId, userId])
   @@map("votes")
+}
+
+/// Room-activity feed entry: game added, member joined, room renamed/platform/owner changed, or a
+/// room deletion notice. Room-scoped entries (roomId set) are shared by every current member and
+/// read state is tracked via RoomMember.notificationsReadAt rather than per-row, since the same
+/// row is "the same notification" for everyone in the room. Direct entries (recipientId set, roomId
+/// null) exist only for events with no room left to attach to - namely a room being deleted, where
+/// each former member gets their own row (with readAt tracked right here, since it's addressed to
+/// exactly one person) so the notice survives the room it's about.
+/// roomName is a snapshot taken at creation time rather than a live join through roomId, since a
+/// direct notification about a deleted room has no room row left to join through.
+model Notification {
+  id          String           @id @default(uuid())
+  roomId      String?          @map("room_id")
+  roomName    String           @map("room_name")
+  recipientId String?          @map("recipient_id")
+  actorId     String?          @map("actor_id")
+  type        NotificationType
+  message     String
+  createdAt   DateTime         @default(now()) @map("created_at")
+  /// Only meaningful for direct (recipientId set) rows - see the model doc above.
+  readAt      DateTime?        @map("read_at")
+
+  room      Room? @relation(fields: [roomId], references: [id], onDelete: Cascade)
+  recipient User? @relation("NotificationRecipient", fields: [recipientId], references: [id], onDelete: Cascade)
+  actor     User? @relation("NotificationActor", fields: [actorId], references: [id], onDelete: SetNull)
+
+  @@index([roomId, createdAt])
+  @@index([recipientId, createdAt])
+  @@map("notifications")
 }
 
 /// Durable record of destructive admin actions (user/room delete, bulk-archive) - a structured

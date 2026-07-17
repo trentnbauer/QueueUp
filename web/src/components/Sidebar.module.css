@@ -13,6 +13,11 @@
   top: 0;
 }
 
+.brandMenu {
+  position: relative;
+  flex-shrink: 0;
+}
+
 .brand {
   flex-shrink: 0;
   display: flex;
@@ -25,6 +30,100 @@
   color: var(--sq-accent-text);
   font: 700 14px var(--sq-header-font);
   letter-spacing: 0.02em;
+  border: none;
+  cursor: pointer;
+  padding: 0;
+}
+
+/* A small badge cut out of the sidebar background (via the border matching it), so it reads as a
+ * notch on the icon rather than a solid dot floating on top - same treatment for the SQ button and
+ * each room icon below. */
+.unreadDot {
+  position: absolute;
+  top: -3px;
+  right: -3px;
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  background: #ff5c5c;
+  border: 2px solid var(--sq-surface2);
+}
+
+.notifFlyout {
+  width: 320px;
+  max-width: calc(100vw - 100px);
+  max-height: 70vh;
+  padding: 0;
+  overflow: hidden;
+}
+
+.notifHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 12px 14px;
+  border-bottom: 1px solid var(--sq-border);
+}
+
+.notifTitle {
+  font: 700 13px system-ui, sans-serif;
+  color: var(--sq-text);
+}
+
+.notifList {
+  overflow-y: auto;
+  max-height: calc(70vh - 45px);
+}
+
+.notifItem {
+  display: block;
+  padding: 10px 14px;
+  text-decoration: none;
+  color: var(--sq-text);
+  border-bottom: 1px solid var(--sq-border);
+}
+
+.notifItem:last-child {
+  border-bottom: none;
+}
+
+a.notifItem:hover {
+  background: var(--sq-neutral-pill-bg);
+}
+
+.notifUnread {
+  background: var(--sq-accent-pill-bg);
+}
+
+a.notifUnread:hover {
+  background: var(--sq-accent-pill-bg);
+  filter: brightness(1.15);
+}
+
+.notifRoomName {
+  font: 700 10.5px system-ui, sans-serif;
+  letter-spacing: 0.03em;
+  text-transform: uppercase;
+  color: var(--sq-accent);
+  margin-bottom: 2px;
+}
+
+.notifMessage {
+  font-size: 12.5px;
+  line-height: 1.4;
+}
+
+.notifTime {
+  font-size: 10.5px;
+  color: var(--sq-muted);
+  margin-top: 3px;
+}
+
+.notifEmpty {
+  padding: 24px 14px;
+  text-align: center;
+  color: var(--sq-muted);
+  font-size: 12.5px;
 }
 
 .divider {

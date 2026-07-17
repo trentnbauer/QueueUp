@@ -4,10 +4,12 @@ import { ROOM_PLATFORM_LABELS } from '@squadqueue/shared';
 import { useAuth } from '../context/AuthContext';
 import { useView } from '../context/ViewContext';
 import { useRooms } from '../hooks/useRooms';
+import { useNotificationSummary } from '../hooks/useNotifications';
 import { authApi } from '../api/auth';
 import { AvatarBadge } from './AvatarBadge';
 import { ProfileSettingsModal } from './ProfileSettingsModal';
 import { AddRoomModal } from './AddRoomModal';
+import { NotificationFlyout } from './NotificationFlyout';
 import { contrastTextColor } from '../utils/color';
 import styles from './Sidebar.module.css';
 
@@ -25,10 +27,12 @@ export function Sidebar() {
   const { user } = useAuth();
   const { activeRoom } = useView();
   const { rooms } = useRooms();
+  const { totalUnread, unreadRoomIds } = useNotificationSummary();
 
   const [showAddRoom, setShowAddRoom] = useState(false);
   const [showProfileMenu, setShowProfileMenu] = useState(false);
   const [showProfileSettings, setShowProfileSettings] = useState(false);
+  const [showNotifications, setShowNotifications] = useState(false);
   // Below the 640px breakpoint the rail becomes an off-canvas drawer (hidden by default, toggled
   // by a fixed hamburger button) instead of just shrinking icon sizes - a permanent, always-visible
   // vertical strip claims too much width on a phone screen for navigation that's used rarely
@@ -53,8 +57,23 @@ export function Sidebar() {
       {mobileOpen && <div className={styles.mobileBackdrop} onClick={() => setMobileOpen(false)} />}
 
       <nav className={`${styles.sidebar} ${mobileOpen ? styles.sidebarOpen : ''}`} aria-label="Rooms">
-        <div className={styles.brand} title="SquadQueue">
-          SQ
+        <div className={styles.brandMenu}>
+          <button
+            type="button"
+            className={styles.brand}
+            title="SquadQueue"
+            aria-label={totalUnread > 0 ? `Notifications (${totalUnread} unread)` : 'Notifications'}
+            onClick={() => setShowNotifications((v) => !v)}
+          >
+            SQ
+            {totalUnread > 0 && <span className={styles.unreadDot} aria-hidden="true" />}
+          </button>
+          {showNotifications && (
+            <>
+              <div className={styles.menuBackdrop} onClick={() => setShowNotifications(false)} />
+              <NotificationFlyout onNavigate={() => { setShowNotifications(false); setMobileOpen(false); }} />
+            </>
+          )}
         </div>
         <div className={styles.divider} />
 
@@ -78,6 +97,7 @@ export function Sidebar() {
               onClick={() => setMobileOpen(false)}
             >
               {initials(room.name)}
+              {unreadRoomIds.has(room.id) && <span className={styles.unreadDot} aria-hidden="true" />}
             </Link>
           ))}
         </div>

@@ -245,3 +245,34 @@ export interface AdminAuditLogEntry {
   metadata: Record<string, unknown> | null;
   createdAt: string;
 }
+
+export type NotificationType =
+  | 'game_added'
+  | 'member_joined'
+  | 'room_renamed'
+  | 'room_platform_changed'
+  | 'room_owner_changed'
+  | 'room_deleted';
+
+export interface Notification {
+  id: string;
+  /** Null once the room itself is gone - see `room_deleted`, the only type this happens for. */
+  roomId: string | null;
+  /** Snapshot of the room's name at the time this notification was created. */
+  roomName: string;
+  type: NotificationType;
+  message: string;
+  actor: User | null;
+  createdAt: string;
+  read: boolean;
+}
+
+export interface NotificationRoomUnread {
+  roomId: string;
+  unreadCount: number;
+}
+
+export interface NotificationSummary {
+  totalUnread: number;
+  rooms: NotificationRoomUnread[];
+}
