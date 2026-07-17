@@ -37,6 +37,7 @@ export function RoomView() {
     enabled: !!roomId,
   });
   const memberCount = membersData?.members.length;
+  const roomMembers = membersData?.members.map((m) => m.user);
 
   const markRoomNotificationsRead = useMarkRoomNotificationsRead(roomId ?? null);
 
@@ -65,6 +66,7 @@ export function RoomView() {
         loadError={loadError}
         onRetry={refetch}
         memberCount={memberCount}
+        roomMembers={roomMembers}
         showSpinWheel
         onStatusChange={updateStatus}
         onVote={vote}

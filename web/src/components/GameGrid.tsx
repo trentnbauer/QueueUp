@@ -1,5 +1,5 @@
 import { Fragment, useMemo, useRef } from 'react';
-import type { Game, GameStatus, VoteValue } from '@squadqueue/shared';
+import type { Game, GameStatus, User, VoteValue } from '@squadqueue/shared';
 import { GameCard } from './GameCard';
 import { SpinWheelCard } from './SpinWheelCard';
 import { ALL_FILTER_VALUE, splitLabel, sortByScore, statusBucket } from './gameGridLogic';
@@ -42,6 +42,9 @@ interface GameGridProps {
   onRetry?: () => void;
   /** Room member count, used to warn when a game's max co-op players is under this. Undefined on the Personal Shelf. */
   memberCount?: number;
+  /** Full room member list, used to show who hasn't voted on a game yet. Undefined on the Personal
+   * Shelf, same as memberCount - there's no group vote coverage to show for a solo list. */
+  roomMembers?: User[];
   /** Shows the Spin the Wheel tile as part of the grid - rooms only, not the Personal Shelf
    * (there's no group decision to help make there). */
   showSpinWheel?: boolean;
@@ -61,6 +64,7 @@ export function GameGrid({
   loadError,
   onRetry,
   memberCount,
+  roomMembers,
   showSpinWheel,
   onStatusChange,
   onVote,
@@ -152,6 +156,7 @@ export function GameGrid({
             game={game}
             currentUserId={currentUserId}
             memberCount={memberCount}
+            roomMembers={roomMembers}
             onStatusChange={(next) => onStatusChange(game.id, next)}
             onVote={(value) => onVote(game.id, value)}
             onRemove={() => onRemove(game.id)}
