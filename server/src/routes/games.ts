@@ -35,8 +35,11 @@ const PRICE_REGIONS = Object.keys(PRICE_REGION_LABELS) as PriceRegion[];
 // on every page load. Well above any real shelf/room size today.
 const MAX_GAMES_PER_LIST = 500;
 // A Steam library can run into the hundreds of games, each needing its own IGDB lookup - capping
-// keeps one import from taking minutes or hammering IGDB. Most-played games are considered first.
-const MAX_STEAM_IMPORT_CONSIDERED = 30;
+// keeps one import from taking minutes or hammering IGDB. Most-played not-yet-shelved games are
+// considered first; already-imported ones are excluded from the pool *before* this cap is applied
+// (see the route below), so re-running the import (rate-limited to 3/hour) works through the rest
+// of a large library a batch at a time instead of re-checking the same top N every time.
+const MAX_STEAM_IMPORT_CONSIDERED = 75;
 
 function parseRegion(region?: string): PriceRegion | undefined {
   return PRICE_REGIONS.includes(region as PriceRegion) ? (region as PriceRegion) : undefined;
@@ -155,7 +158,6 @@ export default async function gameRoutes(app: FastifyInstance) {
       }
 
       const owned = await getOwnedSteamGames(steamId64, env.STEAM_API_KEY);
-      const considered = [...owned].sort((a, b) => b.playtimeForeverMinutes - a.playtimeForeverMinutes).slice(0, MAX_STEAM_IMPORT_CONSIDERED);
 
       const [existingIgdbIdSet, shelfGames] = await Promise.all([
         existingIgdbIds(null, userId),
@@ -163,13 +165,18 @@ export default async function gameRoutes(app: FastifyInstance) {
       ]);
       const existingSteamAppIds = new Set(shelfGames.map((g) => g.steamAppid).filter((id): id is number => id != null));
 
+      // Excluding already-shelved games from the pool *before* taking the top N (rather than
+      // filtering them out one at a time inside the loop below) is what lets a re-run reach further
+      // into a large library instead of spending its whole budget re-confirming the same games it
+      // imported (or skipped) last time.
+      const considered = owned
+        .filter((game) => !existingSteamAppIds.has(game.appId))
+        .sort((a, b) => b.playtimeForeverMinutes - a.playtimeForeverMinutes)
+        .slice(0, MAX_STEAM_IMPORT_CONSIDERED);
+
       let imported = 0;
       let skipped = 0;
       for (const game of considered) {
-        if (existingSteamAppIds.has(game.appId)) {
-          skipped++;
-          continue;
-        }
         try {
           const igdbId = await findIgdbIdBySteamAppId(game.appId);
           if (igdbId === null || existingIgdbIdSet.has(igdbId)) {
