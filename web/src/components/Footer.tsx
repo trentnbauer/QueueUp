@@ -33,6 +33,15 @@ export function Footer() {
         >
           Source
         </a>
+        <span className={styles.sep}>·</span>
+        <a
+          className={styles.link}
+          href="https://github.com/trentnbauer/QueueUp/issues/new/choose"
+          target="_blank"
+          rel="noopener noreferrer"
+        >
+          Report an issue
+        </a>
       </span>
     </footer>
   );

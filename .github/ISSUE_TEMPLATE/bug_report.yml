@@ -40,9 +40,15 @@ body:
         - Room Settings
         - Profile Settings
         - Game intake (search / Add Game / gg.deals link paste)
+        - Game status (Backlog / Playing / Done)
         - Pricing / metadata refresh
+        - Price drop alerts
         - Voting (emoji scale)
+        - Spin the Wheel
+        - Steam library import
+        - Notifications
         - Auth / sign-in
+        - Dark / light mode
         - Accessibility
         - UI / layout / responsiveness
         - Performance

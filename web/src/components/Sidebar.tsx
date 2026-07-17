@@ -169,6 +169,15 @@ export function Sidebar() {
                 <button type="button" className={styles.menuItem} onClick={toggleThemeMode}>
                   {mode === 'dark' ? '☀️ Light mode' : '🌙 Dark mode'}
                 </button>
+                <a
+                  href="https://github.com/trentnbauer/QueueUp/issues/new/choose"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className={styles.menuItem}
+                  onClick={() => setShowProfileMenu(false)}
+                >
+                  🐞 Report an issue
+                </a>
                 <div className={styles.hDivider} />
                 <a href={authApi.logoutUrl} className={styles.menuItem}>
                   Sign out

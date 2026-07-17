@@ -29,8 +29,13 @@ body:
         - Room Settings
         - Profile Settings
         - Game intake (search / Add Game / gg.deals link paste)
+        - Game status (Backlog / Playing / Done)
         - Pricing / metadata refresh
+        - Price drop alerts
         - Voting (emoji scale)
+        - Spin the Wheel
+        - Steam library import
+        - Notifications
         - Room roles / permissions (Room Master)
         - Attribution / badges
         - Accessibility
