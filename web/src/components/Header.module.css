@@ -82,6 +82,10 @@
   font-weight: 600;
   cursor: pointer;
   white-space: nowrap;
+  /* Status filter options are raw lowercase enum values ('backlog', 'wishlist', ...) - capitalize
+   * for display without needing a separate value/label pair on every filter. No effect on
+   * platform/genre pills, which are already properly-cased free text. */
+  text-transform: capitalize;
 }
 
 .filterPill:hover {

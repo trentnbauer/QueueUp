@@ -1,7 +1,7 @@
 import { useMemo, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
-import { IGDB_PLATFORM_NAMES, type RoomRole } from '@queueup/shared';
+import { IGDB_PLATFORM_NAMES, type GameStatus, type RoomRole } from '@queueup/shared';
 import { useAuth } from '../context/AuthContext';
 import { useView } from '../context/ViewContext';
 import { useConfirm } from '../context/ConfirmContext';
@@ -19,6 +19,10 @@ const ROLE_LABEL: Record<RoomRole, string> = {
   moderator: 'Moderator',
   member: 'Member',
 };
+
+// Fixed display order for the status filter pills (issue #182) - not alphabetical, reads in the
+// same rough lifecycle order as the status menu itself.
+const STATUS_FILTER_ORDER: GameStatus[] = ['wishlist', 'backlog', 'playing', 'done', 'dropped'];
 
 interface PillFilterProps {
   label: string;
@@ -64,7 +68,7 @@ export function Header() {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
   const confirm = useConfirm();
-  const { platformFilter, genreFilter, setPlatformFilter, setGenreFilter } = useGameFilter();
+  const { platformFilter, genreFilter, statusFilter, setPlatformFilter, setGenreFilter, setStatusFilter } = useGameFilter();
 
   const membersMenuRef = useRef<HTMLDetailsElement>(null);
   const [showRoomSettings, setShowRoomSettings] = useState(false);
@@ -99,6 +103,10 @@ export function Header() {
     return ownedPlatformLabels ? all.filter((label) => ownedPlatformLabels.has(label)) : all;
   }, [games, activeRoom, ownedPlatformLabels]);
   const genreOptions = useMemo(() => distinctValues(games, (g) => g.genre), [games]);
+  const statusOptions = useMemo(() => {
+    const present = new Set(games.map((g) => g.status));
+    return STATUS_FILTER_ORDER.filter((status) => present.has(status));
+  }, [games]);
 
   function canPromote(memberRole: RoomRole): boolean {
     return myRole === 'room_master' && memberRole === 'member';
@@ -237,6 +245,13 @@ export function Header() {
           options={genreOptions}
           value={genreFilter}
           onChange={setGenreFilter}
+        />
+        <PillFilter
+          label="Status"
+          allLabel="All statuses"
+          options={statusOptions}
+          value={statusFilter}
+          onChange={setStatusFilter}
         />
       </div>
 

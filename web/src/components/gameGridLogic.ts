@@ -17,10 +17,19 @@ export function distinctValues(games: Game[], pick: (g: Game) => string | null):
   return Array.from(values).sort((a, b) => a.localeCompare(b));
 }
 
+/** A room game every *current* member owns is the easiest "let's just play this" pick - nothing
+ * to buy first - so it outranks vote score entirely (issue #173). Always false for a Personal
+ * Shelf game (ownership is null there - no group to own it "fully"). */
+function isFullyOwned(game: Game): boolean {
+  return game.ownership !== null && game.ownership.total > 0 && game.ownership.owned === game.ownership.total;
+}
+
 export function sortByScore(games: Game[]): Game[] {
   // Game.updatedAt only reflects status changes, not votes (votes have their own row/timestamp),
   // so ties break on createdAt (newest-added first) rather than a misleading "recently voted" signal.
   return [...games].sort((a, b) => {
+    const ownedDiff = Number(isFullyOwned(b)) - Number(isFullyOwned(a));
+    if (ownedDiff !== 0) return ownedDiff;
     if (b.voteScore !== a.voteScore) return b.voteScore - a.voteScore;
     return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
   });
@@ -77,7 +86,9 @@ export function avoidedGenres(games: Game[]): Set<string> {
 export function statusBucket(game: Game): number {
   if (game.status === 'playing') return 0;
   if (game.status === 'backlog') return 1;
-  return 2; // done
+  if (game.status === 'wishlist') return 2;
+  if (game.status === 'done') return 3;
+  return 4; // dropped
 }
 
 /** Picks one item at random from `items`, weighted by `weight(item)` - an item with twice the

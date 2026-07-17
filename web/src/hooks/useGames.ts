@@ -72,6 +72,12 @@ export function useGames(roomId: string | null) {
     onError: (err) => setActionError(errorMessage(err, 'Could not save that price alert.')),
   });
 
+  const setOwnership = useMutation({
+    mutationFn: ({ gameId, owned }: { gameId: string; owned: boolean }) => gamesApi.setOwnership(gameId, { owned }),
+    onSuccess: ({ game }) => patchGame(game),
+    onError: (err) => setActionError(errorMessage(err, 'Could not update ownership.')),
+  });
+
   const move = useMutation({
     mutationFn: ({ gameId, destRoomId }: { gameId: string; destRoomId: string | null }) =>
       gamesApi.move(gameId, { roomId: destRoomId }),
@@ -100,5 +106,6 @@ export function useGames(roomId: string | null) {
     isRefreshingPrice: (gameId: string) => refreshPrice.isPending && refreshPrice.variables === gameId,
     move: (gameId: string, destRoomId: string | null) => move.mutate({ gameId, destRoomId }),
     setTargetPrice: (gameId: string, targetPrice: string | null) => setTargetPrice.mutate({ gameId, targetPrice }),
+    setOwnership: (gameId: string, owned: boolean) => setOwnership.mutate({ gameId, owned }),
   };
 }

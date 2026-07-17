@@ -13,7 +13,16 @@ const ROOM_PLATFORMS: RoomPlatform[] = ['pc', 'xbox_360', 'xbox_one', 'xbox_seri
 const ROOM_ROLES: RoomRole[] = ['room_master', 'moderator', 'member'];
 
 function toRoomDto(
-  room: { id: string; name: string; platform: RoomPlatform; accentColor: string; createdBy: string; createdAt: Date },
+  room: {
+    id: string;
+    name: string;
+    platform: RoomPlatform;
+    accentColor: string;
+    createdBy: string;
+    createdAt: Date;
+    discordWebhookUrl: string | null;
+    spinOnlyFullyOwned: boolean;
+  },
   role: Room['myRole'],
   inviteCode: string,
 ): Room {
@@ -26,6 +35,11 @@ function toRoomDto(
     createdAt: room.createdAt.toISOString(),
     myRole: role,
     inviteCode,
+    // The webhook URL embeds Discord's own auth token (discord.com/api/webhooks/<id>/<token>) -
+    // whoever has it can post to that channel as the webhook, so only the Room Master (who can
+    // also change it) gets the real value; other members just don't see it at all.
+    discordWebhookUrl: role === 'room_master' ? room.discordWebhookUrl : undefined,
+    spinOnlyFullyOwned: room.spinOnlyFullyOwned,
   };
 }
 
@@ -125,9 +139,20 @@ export default async function roomRoutes(app: FastifyInstance) {
       throw new HttpError(403, 'Only the Room Master can change room settings');
     }
 
-    const { name, platform, accentColor } = request.body;
+    const { name, platform, accentColor, discordWebhookUrl, spinOnlyFullyOwned } = request.body;
     if (name !== undefined && !name.trim()) throw new HttpError(400, 'Room name cannot be empty');
     if (platform !== undefined && !ROOM_PLATFORMS.includes(platform)) throw new HttpError(400, 'A valid platform is required');
+    // Restricted to Discord's own webhook host (not an arbitrary URL) - this app POSTs to
+    // whatever's stored here, so accepting any URL would make this an open SSRF vector for
+    // whoever can set it (the Room Master, but still - internal network probing shouldn't be
+    // reachable through a "paste your webhook URL" field).
+    if (
+      discordWebhookUrl !== undefined &&
+      discordWebhookUrl !== null &&
+      !/^https:\/\/discord(app)?\.com\/api\/webhooks\/\d+\/[\w-]+$/.test(discordWebhookUrl)
+    ) {
+      throw new HttpError(400, 'That doesn\'t look like a Discord webhook URL');
+    }
 
     const before = await prisma.room.findUniqueOrThrow({ where: { id: roomId } });
     const room = await prisma.room.update({
@@ -136,6 +161,8 @@ export default async function roomRoutes(app: FastifyInstance) {
         ...(name !== undefined && { name: name.trim() }),
         ...(platform !== undefined && { platform }),
         ...(accentColor !== undefined && { accentColor }),
+        ...(discordWebhookUrl !== undefined && { discordWebhookUrl }),
+        ...(spinOnlyFullyOwned !== undefined && { spinOnlyFullyOwned }),
       },
     });
 

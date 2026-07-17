@@ -25,6 +25,10 @@
   background: var(--qu-neutral-pill-bg);
 }
 
+.voterStale {
+  opacity: 0.55;
+}
+
 .value {
   font-size: 13px;
 }

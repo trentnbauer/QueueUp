@@ -29,6 +29,8 @@ function makeGame(overrides: Partial<Game> = {}): Game {
     votes: [],
     myVote: null,
     voteScore: 0,
+    youOwn: false,
+    ownership: null,
     createdAt: '2026-01-01T00:00:00.000Z',
     updatedAt: '2026-01-01T00:00:00.000Z',
     ...overrides,
@@ -47,6 +49,18 @@ describe('sortByScore', () => {
     const older = makeGame({ id: 'older', voteScore: 2, createdAt: '2026-01-01T00:00:00.000Z' });
     const newer = makeGame({ id: 'newer', voteScore: 2, createdAt: '2026-01-02T00:00:00.000Z' });
     expect(sortByScore([older, newer]).map((g) => g.id)).toEqual(['newer', 'older']);
+  });
+
+  it('puts a game everyone in the room owns ahead of vote score entirely', () => {
+    const notOwned = makeGame({ id: 'not-owned', voteScore: 5, ownership: { owned: 1, total: 4 } });
+    const fullyOwned = makeGame({ id: 'fully-owned', voteScore: 0, ownership: { owned: 4, total: 4 } });
+    expect(sortByScore([notOwned, fullyOwned]).map((g) => g.id)).toEqual(['fully-owned', 'not-owned']);
+  });
+
+  it('does not treat a Personal Shelf game (ownership: null) as fully owned', () => {
+    const a = makeGame({ id: 'a', voteScore: 5, ownership: null });
+    const b = makeGame({ id: 'b', voteScore: 1, ownership: null });
+    expect(sortByScore([a, b]).map((g) => g.id)).toEqual(['a', 'b']);
   });
 });
 

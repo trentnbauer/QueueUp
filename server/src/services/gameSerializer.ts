@@ -1,7 +1,8 @@
 import type { Prisma } from '@prisma/client';
 import type { Game, GamePrice, PriceRegion, VoteValue } from '@queueup/shared';
 import { getSteamPrice, getSteamPrices } from './priceService.js';
-import { checkPriceDropAlert } from './priceAlerts.js';
+import { checkPriceDropAlert, checkAllTimeLowAlert } from './priceAlerts.js';
+import { getOwnershipInfo, type GameOwnershipInfo } from './gameOwnership.js';
 import { toUserDto } from '../util/dto.js';
 
 const gameWithRelations = {
@@ -22,7 +23,9 @@ const UNAVAILABLE_PRICE: GamePrice = {
   lastRefreshedAt: null,
 };
 
-function buildGameDto(game: GameWithRelations, currentUserId: string, price: GamePrice): Game {
+const DEFAULT_OWNERSHIP: GameOwnershipInfo = { youOwn: false, ownership: null };
+
+function buildGameDto(game: GameWithRelations, currentUserId: string, price: GamePrice, ownership: GameOwnershipInfo): Game {
   const myVote = game.votes.find((v) => v.userId === currentUserId);
   const voteScore = game.votes.reduce((sum, v) => sum + v.value, 0);
 
@@ -40,9 +43,11 @@ function buildGameDto(game: GameWithRelations, currentUserId: string, price: Gam
     status: game.status,
     price,
     targetPrice: game.targetPrice,
-    votes: game.votes.map((v) => ({ user: toUserDto(v.user), value: v.value as VoteValue })),
+    votes: game.votes.map((v) => ({ user: toUserDto(v.user), value: v.value as VoteValue, createdAt: v.createdAt.toISOString() })),
     myVote: (myVote?.value as VoteValue | undefined) ?? null,
     voteScore,
+    youOwn: ownership.youOwn,
+    ownership: ownership.ownership,
     createdAt: game.createdAt.toISOString(),
     updatedAt: game.updatedAt.toISOString(),
   };
@@ -54,16 +59,19 @@ export async function serializeGame(game: GameWithRelations, currentUserId: stri
   // (see priceAlerts.ts) rather than gating the response on it - a delayed alert is fine, a
   // slower shelf/room load for every viewer isn't.
   if (game.targetPrice) void checkPriceDropAlert(game, price);
-  return buildGameDto(game, currentUserId, price);
+  void checkAllTimeLowAlert(game, price);
+  const ownershipMap = await getOwnershipInfo([game], currentUserId);
+  return buildGameDto(game, currentUserId, price, ownershipMap.get(game.id) ?? DEFAULT_OWNERSHIP);
 }
 
 export async function serializeGames(games: GameWithRelations[], currentUserId: string, region?: PriceRegion): Promise<Game[]> {
   const steamAppIds = games.map((g) => g.steamAppid).filter((id): id is number => id != null);
-  const prices = await getSteamPrices(steamAppIds, { region });
+  const [prices, ownershipMap] = await Promise.all([getSteamPrices(steamAppIds, { region }), getOwnershipInfo(games, currentUserId)]);
 
   return games.map((game) => {
     const price = (game.steamAppid && prices.get(game.steamAppid)) || UNAVAILABLE_PRICE;
     if (game.targetPrice) void checkPriceDropAlert(game, price);
-    return buildGameDto(game, currentUserId, price);
+    void checkAllTimeLowAlert(game, price);
+    return buildGameDto(game, currentUserId, price, ownershipMap.get(game.id) ?? DEFAULT_OWNERSHIP);
   });
 }

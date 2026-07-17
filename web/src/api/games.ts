@@ -6,6 +6,7 @@ import type {
   ImportSteamLibraryResult,
   MoveGameRequest,
   PriceRegion,
+  SetGameOwnershipRequest,
   SetTargetPriceRequest,
   UpdateGameStatusRequest,
   VoteRequest,
@@ -28,6 +29,7 @@ export const gamesApi = {
   setTargetPrice: (id: string, body: SetTargetPriceRequest) =>
     apiPatch<{ game: Game }>(`/api/games/${id}/target-price`, body),
   vote: (id: string, body: VoteRequest) => apiPut<{ game: Game }>(`/api/games/${id}/vote`, body),
+  setOwnership: (id: string, body: SetGameOwnershipRequest) => apiPatch<{ game: Game }>(`/api/games/${id}/ownership`, body),
   move: (id: string, body: MoveGameRequest) => apiPost<{ game: Game }>(`/api/games/${id}/move`, body),
   importSteamLibrary: () => apiPost<ImportSteamLibraryResult>('/api/games/import-steam-library'),
 };

@@ -5,30 +5,36 @@ import { useView } from './ViewContext';
 interface GameFilterContextValue {
   platformFilter: string;
   genreFilter: string;
+  statusFilter: string;
   setPlatformFilter: (value: string) => void;
   setGenreFilter: (value: string) => void;
+  setStatusFilter: (value: string) => void;
 }
 
 const GameFilterContext = createContext<GameFilterContextValue | undefined>(undefined);
 
-/** Platform/genre filter selection lives here (not local to GameGrid) so the Header - a sibling of
- * the Personal Shelf/Room views, not a parent - can render the filter pills next to the Add Game
- * button while GameGrid applies them. Resets whenever the active view changes (switching rooms or
- * shelf) so a filter that matched one room's games doesn't silently carry over and hide everything
- * in the next one. */
+/** Platform/genre/status filter selection lives here (not local to GameGrid) so the Header - a
+ * sibling of the Personal Shelf/Room views, not a parent - can render the filter pills next to the
+ * Add Game button while GameGrid applies them. Resets whenever the active view changes (switching
+ * rooms or shelf) so a filter that matched one room's games doesn't silently carry over and hide
+ * everything in the next one. */
 export function GameFilterProvider({ children }: { children: ReactNode }) {
   const { view } = useView();
   const [platformFilter, setPlatformFilter] = useState(ALL_FILTER_VALUE);
   const [genreFilter, setGenreFilter] = useState(ALL_FILTER_VALUE);
+  const [statusFilter, setStatusFilter] = useState(ALL_FILTER_VALUE);
   const viewKey = view.type === 'room' ? `room:${view.roomId}` : 'personal';
 
   useEffect(() => {
     setPlatformFilter(ALL_FILTER_VALUE);
     setGenreFilter(ALL_FILTER_VALUE);
+    setStatusFilter(ALL_FILTER_VALUE);
   }, [viewKey]);
 
   return (
-    <GameFilterContext.Provider value={{ platformFilter, genreFilter, setPlatformFilter, setGenreFilter }}>
+    <GameFilterContext.Provider
+      value={{ platformFilter, genreFilter, statusFilter, setPlatformFilter, setGenreFilter, setStatusFilter }}
+    >
       {children}
     </GameFilterContext.Provider>
   );

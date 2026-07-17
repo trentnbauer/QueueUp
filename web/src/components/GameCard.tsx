@@ -22,15 +22,20 @@ interface GameCardProps {
   /** Sets (or clears, with null) the price to alert at (issue #162) - only offered for games with
    * a live tracked price, since there's nothing to compare a target against otherwise. */
   onSetTargetPrice: (targetPrice: string | null) => void;
+  /** Toggles the current user's ownership claim on this game (issue #173) - only offered for room
+   * games (game.ownership is null on the Personal Shelf, where there's no group to count). */
+  onSetOwnership?: (owned: boolean) => void;
 }
 
 const STATUS_LABEL: Record<GameStatus, string> = {
   backlog: 'Backlog',
   playing: 'Playing',
   done: 'Done',
+  dropped: 'Dropped',
+  wishlist: 'Wishlist',
 };
 
-const ALL_STATUSES: GameStatus[] = ['backlog', 'playing', 'done'];
+const ALL_STATUSES: GameStatus[] = ['wishlist', 'backlog', 'playing', 'done', 'dropped'];
 
 function formatAmount(amount: string, currency: string | null): string {
   if (!currency) return amount;
@@ -57,6 +62,7 @@ export function GameCard({
   onRefreshPrice,
   isRefreshingPrice = false,
   onSetTargetPrice,
+  onSetOwnership,
 }: GameCardProps) {
   const confirm = useConfirm();
   const [editingTargetPrice, setEditingTargetPrice] = useState(false);
@@ -69,6 +75,11 @@ export function GameCard({
     game.maxCoopPlayers != null && memberCount != null && memberCount > game.maxCoopPlayers
       ? `Only supports ${game.maxCoopPlayers}-player co-op — this room has ${memberCount} members`
       : null;
+  // historicalLow is the raw all-time-low value even when it isn't below the current price (see
+  // GamePrice.historicalLow) - only worth showing as a "here's a discount" callout when it
+  // actually is a real discount opportunity below what's showing right now.
+  const showHistoricalLow =
+    game.price.historicalLow != null && game.price.amount != null && Number(game.price.historicalLow) < Number(game.price.amount);
 
   useLayoutEffect(() => {
     if (!statusMenuOpen || !cardRef.current) return;
@@ -153,7 +164,14 @@ export function GameCard({
 
         <div className={styles.coverOverlay}>
           {game.ggDealsUrl ? (
-            <a href={game.ggDealsUrl} target="_blank" rel="noreferrer" className={styles.title} style={{ textDecoration: 'none' }}>
+            <a
+              href={game.ggDealsUrl}
+              target="_blank"
+              rel="noreferrer"
+              className={styles.title}
+              style={{ textDecoration: 'none' }}
+              onClick={(e) => e.stopPropagation()}
+            >
               {game.title}
             </a>
           ) : (
@@ -176,7 +194,13 @@ export function GameCard({
           <>
             <div className={styles.priceRow}>
               {game.ggDealsUrl ? (
-                <a href={game.ggDealsUrl} target="_blank" rel="noreferrer" className={styles.buyButton}>
+                <a
+                  href={game.ggDealsUrl}
+                  target="_blank"
+                  rel="noreferrer"
+                  className={styles.buyButton}
+                  onClick={(e) => e.stopPropagation()}
+                >
                   <span className={styles.controllerIcon} aria-hidden="true">🛒</span>
                   {formatPrice(game)}
                 </a>
@@ -201,16 +225,16 @@ export function GameCard({
               )}
             </div>
 
-            {((game.price.source === 'live' && game.price.lastRefreshedAt) || game.price.historicalLow) && (
+            {((game.price.source === 'live' && game.price.lastRefreshedAt) || showHistoricalLow) && (
               <div className={styles.priceMetaRow}>
                 {game.price.source === 'live' && game.price.lastRefreshedAt && (
                   <span className={styles.lastRefreshed}>
                     Updated {formatRelativeTime(game.price.lastRefreshedAt)}
                   </span>
                 )}
-                {game.price.historicalLow && (
+                {showHistoricalLow && (
                   <span className={styles.historicalLow} title="Lowest price this game has been tracked at">
-                    All-time low: {formatAmount(game.price.historicalLow, game.price.currency)}
+                    All-time low: {formatAmount(game.price.historicalLow as string, game.price.currency)}
                   </span>
                 )}
               </div>
@@ -267,6 +291,20 @@ export function GameCard({
 
         <VoteRow myVote={game.myVote} onVote={onVote} />
         <VoteHeatmap votes={game.votes} currentUserId={currentUserId} roomMembers={roomMembers} />
+
+        {game.ownership && onSetOwnership && (
+          <button
+            type="button"
+            className={`${styles.ownershipRow} ${game.youOwn ? styles.ownershipRowOwned : ''}`}
+            onClick={() => onSetOwnership(!game.youOwn)}
+            title={game.youOwn ? "You own this - click to un-mark it" : "Mark that you own this"}
+          >
+            <span aria-hidden="true">{game.youOwn ? '✅' : '➕'}</span>
+            <span>
+              {game.youOwn ? 'You own this' : 'Mark as owned'} · {game.ownership.owned}/{game.ownership.total} of the squad own this
+            </span>
+          </button>
+        )}
 
         <span className={styles.addedBy}>
           <AvatarBadge name={game.addedBy.displayName} color={game.addedBy.avatarColor} avatarUrl={game.addedBy.avatarUrl} size={16} />

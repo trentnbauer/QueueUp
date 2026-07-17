@@ -11,6 +11,12 @@ enum GameStatus {
   backlog
   playing
   done
+  /// "We bounced off this and aren't going back" - distinct from done so it doesn't pollute
+  /// completion stats, and excluded from Spin the Wheel same as playing/done.
+  dropped
+  /// Not yet owned/added for real - tracked so pricing/ATL alerts are useful before a purchase,
+  /// not just after. Excluded from Spin the Wheel same as done/dropped (nothing to play yet).
+  wishlist
 
   @@map("game_status")
 }
@@ -74,8 +80,26 @@ model User {
   auditLogEntries      AdminAuditLog[]
   notificationsReceived Notification[] @relation("NotificationRecipient")
   notificationsActed   Notification[]  @relation("NotificationActor")
+  ownedGames           GameOwnership[]
 
   @@map("users")
+}
+
+/// A user's ownership claim on a game, keyed by igdbId (not a specific Game row) - this is a fact
+/// about the user and the title, not about any one shelf/room listing of it, so a Steam import (or
+/// a manual toggle) marking a game owned automatically applies everywhere that igdbId shows up
+/// across every room and the Personal Shelf, with nothing to "sync." Steam import writes these
+/// automatically; a room member can also toggle one manually for a game they own on another
+/// platform (see gameOwnership.ts).
+model GameOwnership {
+  userId    String   @map("user_id")
+  igdbId    Int      @map("igdb_id")
+  createdAt DateTime @default(now()) @map("created_at")
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@id([userId, igdbId])
+  @@map("game_ownership")
 }
 
 model Room {
@@ -86,6 +110,12 @@ model Room {
   accentColor String       @default("#8b5cf6") @map("accent_color")
   createdBy   String       @map("created_by")
   createdAt   DateTime     @default(now()) @map("created_at")
+  /// Posts the same events as the in-app room notification feed to this Discord channel webhook,
+  /// if set (see notifications.ts). One-way egress only - QueueUp never reads anything back from it.
+  discordWebhookUrl String? @map("discord_webhook_url")
+  /// Room Settings toggle: when true, Spin the Wheel's candidate pool is restricted to games every
+  /// current member owns (see gameOwnership.ts / SpinWheelCard) instead of the full backlog.
+  spinOnlyFullyOwned Boolean @default(false) @map("spin_only_fully_owned")
 
   creator       User           @relation("RoomCreatedBy", fields: [createdBy], references: [id])
   members       RoomMember[]
@@ -142,6 +172,10 @@ model Game {
   /// Cleared automatically once the alert fires (see priceAlerts.ts) so a price that stays low
   /// doesn't re-notify on every subsequent page load.
   targetPrice    String?    @map("target_price")
+  /// The live price we last sent an all-time-low alert for (see priceAlerts.ts) - lets us notify
+  /// again if the price drops even further, without re-notifying on every subsequent check while
+  /// it sits at the same low. Independent of targetPrice, which is a user-set threshold.
+  notifiedAtlPrice String?  @map("notified_atl_price")
 
   room  Room?  @relation(fields: [roomId], references: [id], onDelete: Cascade)
   adder User   @relation(fields: [addedBy], references: [id], onDelete: Cascade)

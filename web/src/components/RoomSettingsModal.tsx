@@ -44,6 +44,8 @@ export function RoomSettingsModal({ room, members, games, onClose }: RoomSetting
   const [name, setName] = useState(room.name);
   const [platform, setPlatform] = useState<RoomPlatform>(room.platform);
   const [accentColor, setAccentColor] = useState(room.accentColor);
+  const [discordWebhookUrl, setDiscordWebhookUrl] = useState(room.discordWebhookUrl ?? '');
+  const [spinOnlyFullyOwned, setSpinOnlyFullyOwned] = useState(room.spinOnlyFullyOwned);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [inviteCopied, setInviteCopied] = useState(false);
@@ -69,7 +71,12 @@ export function RoomSettingsModal({ room, members, games, onClose }: RoomSetting
   }
 
   const isRoomMaster = room.myRole === 'room_master';
-  const dirty = name.trim() !== room.name || platform !== room.platform || accentColor !== room.accentColor;
+  const dirty =
+    name.trim() !== room.name ||
+    platform !== room.platform ||
+    accentColor !== room.accentColor ||
+    discordWebhookUrl.trim() !== (room.discordWebhookUrl ?? '') ||
+    spinOnlyFullyOwned !== room.spinOnlyFullyOwned;
 
   function invalidateRoomQueries() {
     queryClient.invalidateQueries({ queryKey: ['rooms'] });
@@ -85,7 +92,13 @@ export function RoomSettingsModal({ room, members, games, onClose }: RoomSetting
     setSaving(true);
     setError(null);
     try {
-      await roomsApi.update(room.id, { name: name.trim(), platform, accentColor });
+      await roomsApi.update(room.id, {
+        name: name.trim(),
+        platform,
+        accentColor,
+        discordWebhookUrl: discordWebhookUrl.trim() || null,
+        spinOnlyFullyOwned,
+      });
       invalidateRoomQueries();
       onClose();
     } catch (err) {
@@ -240,6 +253,29 @@ export function RoomSettingsModal({ room, members, games, onClose }: RoomSetting
                   ))}
                 </div>
               </div>
+              <div className={styles.field}>
+                <label className={styles.label} htmlFor="room-settings-webhook">
+                  Discord webhook URL
+                </label>
+                <input
+                  id="room-settings-webhook"
+                  className={styles.input}
+                  placeholder="https://discord.com/api/webhooks/…"
+                  value={discordWebhookUrl}
+                  onChange={(e) => setDiscordWebhookUrl(e.target.value)}
+                />
+                <p className={styles.readonlyNote}>
+                  When set, room activity (games added, votes coming up, etc.) is also posted to this Discord channel.
+                </p>
+              </div>
+              <label className={styles.checkboxField}>
+                <input
+                  type="checkbox"
+                  checked={spinOnlyFullyOwned}
+                  onChange={(e) => setSpinOnlyFullyOwned(e.target.checked)}
+                />
+                Only spin games everyone in the room already owns
+              </label>
               <button type="button" className={styles.saveButton} onClick={handleSave} disabled={saving || !dirty}>
                 {saving ? 'Saving…' : 'Save changes'}
               </button>

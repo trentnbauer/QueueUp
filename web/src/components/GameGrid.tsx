@@ -49,6 +49,8 @@ interface GameGridProps {
   /** Shows the Spin the Wheel tile as part of the grid - rooms only, not the Personal Shelf
    * (there's no group decision to help make there). */
   showSpinWheel?: boolean;
+  /** Room Settings toggle - restricts Spin the Wheel to games every current member owns. */
+  spinOnlyFullyOwned?: boolean;
   /** Extra tile rendered as the very last card in the grid, after every game and regardless of
    * filters (e.g. the Steam import tile on the Personal Shelf) - unlike the Spin the Wheel tile,
    * this doesn't get slotted into a specific status position. */
@@ -60,6 +62,8 @@ interface GameGridProps {
   /** Whether a given game's manual price refresh is currently in flight - drives the spinner. */
   isRefreshingPrice?: (gameId: string) => boolean;
   onSetTargetPrice: (gameId: string, targetPrice: string | null) => void;
+  /** Undefined on the Personal Shelf - ownership is a room-only concept (see GameCard). */
+  onSetOwnership?: (gameId: string, owned: boolean) => void;
 }
 
 export function GameGrid({
@@ -72,6 +76,7 @@ export function GameGrid({
   memberCount,
   roomMembers,
   showSpinWheel,
+  spinOnlyFullyOwned,
   trailingCard,
   onStatusChange,
   onVote,
@@ -79,10 +84,11 @@ export function GameGrid({
   onRefreshPrice,
   isRefreshingPrice,
   onSetTargetPrice,
+  onSetOwnership,
 }: GameGridProps) {
   // Filter selection lives in GameFilterContext, not here - the pill UI itself is rendered by the
   // Header (a sibling, not a parent, of this component) next to the Add Game button.
-  const { platformFilter, genreFilter } = useGameFilter();
+  const { platformFilter, genreFilter, statusFilter } = useGameFilter();
 
   const sorted = useStableOrder(games);
   const prioritized = useMemo(
@@ -95,9 +101,10 @@ export function GameGrid({
       prioritized.filter(
         (g) =>
           (platformFilter === ALL_FILTER_VALUE || splitLabel(g.platform).includes(platformFilter)) &&
-          (genreFilter === ALL_FILTER_VALUE || splitLabel(g.genre).includes(genreFilter)),
+          (genreFilter === ALL_FILTER_VALUE || splitLabel(g.genre).includes(genreFilter)) &&
+          (statusFilter === ALL_FILTER_VALUE || g.status === statusFilter),
       ),
-    [prioritized, platformFilter, genreFilter],
+    [prioritized, platformFilter, genreFilter, statusFilter],
   );
 
   const hasActiveFilters = platformFilter !== ALL_FILTER_VALUE || genreFilter !== ALL_FILTER_VALUE;
@@ -125,7 +132,7 @@ export function GameGrid({
     );
   }
 
-  const spinCard = showSpinWheel && <SpinWheelCard games={games} />;
+  const spinCard = showSpinWheel && <SpinWheelCard games={games} spinOnlyFullyOwned={spinOnlyFullyOwned} />;
 
   if (prioritized.length === 0 || filtered.length === 0) {
     const message = prioritized.length === 0
@@ -172,6 +179,7 @@ export function GameGrid({
             onRefreshPrice={() => onRefreshPrice(game.id)}
             isRefreshingPrice={isRefreshingPrice ? isRefreshingPrice(game.id) : false}
             onSetTargetPrice={(targetPrice) => onSetTargetPrice(game.id, targetPrice)}
+            onSetOwnership={onSetOwnership ? (owned) => onSetOwnership(game.id, owned) : undefined}
           />
         </Fragment>
       ))}

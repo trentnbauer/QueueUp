@@ -14,7 +14,7 @@ import { useMarkRoomNotificationsRead } from '../hooks/useNotifications';
 export function RoomView() {
   const { roomId } = useParams<{ roomId: string }>();
   const { user } = useAuth();
-  const { switchView } = useView();
+  const { switchView, activeRoom } = useView();
   const {
     games,
     truncated,
@@ -30,6 +30,7 @@ export function RoomView() {
     refreshPrice,
     isRefreshingPrice,
     setTargetPrice,
+    setOwnership,
   } = useGames(roomId ?? null);
 
   const { data: membersData } = useQuery({
@@ -69,12 +70,14 @@ export function RoomView() {
         memberCount={memberCount}
         roomMembers={roomMembers}
         showSpinWheel
+        spinOnlyFullyOwned={activeRoom?.spinOnlyFullyOwned}
         onStatusChange={updateStatus}
         onVote={vote}
         onRemove={remove}
         onRefreshPrice={refreshPrice}
         isRefreshingPrice={isRefreshingPrice}
         onSetTargetPrice={setTargetPrice}
+        onSetOwnership={setOwnership}
       />
     </div>
   );

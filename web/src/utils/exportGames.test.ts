@@ -20,6 +20,8 @@ function makeGame(overrides: Partial<Game> = {}): Game {
     votes: [],
     myVote: null,
     voteScore: 0,
+    youOwn: false,
+    ownership: null,
     createdAt: '2026-01-01T00:00:00.000Z',
     updatedAt: '2026-01-01T00:00:00.000Z',
     ...overrides,

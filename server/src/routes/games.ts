@@ -16,30 +16,26 @@ import { notifyRoom } from '../services/notifications.js';
 import { platformFamilies, findIgdbIdBySteamAppId } from '../services/igdbClient.js';
 import { getOwnedPlatforms } from '../services/userSettings.js';
 import { resolveSteamId64, getOwnedSteamGames } from '../services/steamLibrary.js';
+import { setOwnership, markOwned } from '../services/gameOwnership.js';
 import { env } from '../config/env.js';
 import type {
   CreateGameRequest,
   ImportSteamLibraryResult,
   MoveGameRequest,
   PriceRegion,
+  SetGameOwnershipRequest,
   SetTargetPriceRequest,
   UpdateGameStatusRequest,
   VoteRequest,
 } from '@queueup/shared';
 import { PRICE_REGION_LABELS } from '@queueup/shared';
 
-const GAME_STATUSES = ['backlog', 'playing', 'done'] as const;
+const GAME_STATUSES = ['backlog', 'playing', 'done', 'dropped', 'wishlist'] as const;
 const PRICE_REGIONS = Object.keys(PRICE_REGION_LABELS) as PriceRegion[];
 // Shelves/rooms are meant to hold an actively-curated backlog, not a lifetime game archive - this
 // caps a single query so one runaway list can't pull unbounded rows (and unbounded price lookups)
 // on every page load. Well above any real shelf/room size today.
 const MAX_GAMES_PER_LIST = 500;
-// A Steam library can run into the hundreds of games, each needing its own IGDB lookup - capping
-// keeps one import from taking minutes or hammering IGDB. Most-played not-yet-shelved games are
-// considered first; already-imported ones are excluded from the pool *before* this cap is applied
-// (see the route below), so re-running the import (rate-limited to 3/hour) works through the rest
-// of a large library a batch at a time instead of re-checking the same top N every time.
-const MAX_STEAM_IMPORT_CONSIDERED = 75;
 
 function parseRegion(region?: string): PriceRegion | undefined {
   return PRICE_REGIONS.includes(region as PriceRegion) ? (region as PriceRegion) : undefined;
@@ -161,25 +157,32 @@ export default async function gameRoutes(app: FastifyInstance) {
 
       const [existingIgdbIdSet, shelfGames] = await Promise.all([
         existingIgdbIds(null, userId),
-        prisma.game.findMany({ where: { roomId: null, addedBy: userId }, select: { steamAppid: true } }),
+        prisma.game.findMany({ where: { roomId: null, addedBy: userId }, select: { steamAppid: true, igdbId: true } }),
       ]);
       const existingSteamAppIds = new Set(shelfGames.map((g) => g.steamAppid).filter((id): id is number => id != null));
 
-      // Excluding already-shelved games from the pool *before* taking the top N (rather than
-      // filtering them out one at a time inside the loop below) is what lets a re-run reach further
-      // into a large library instead of spending its whole budget re-confirming the same games it
-      // imported (or skipped) last time.
+      // No cap - a click imports the whole not-yet-shelved library in one go (issue #175). Ordered
+      // most-played first purely for a nicer result ordering, not to bound the work done.
       const considered = owned
         .filter((game) => !existingSteamAppIds.has(game.appId))
-        .sort((a, b) => b.playtimeForeverMinutes - a.playtimeForeverMinutes)
-        .slice(0, MAX_STEAM_IMPORT_CONSIDERED);
+        .sort((a, b) => b.playtimeForeverMinutes - a.playtimeForeverMinutes);
+
+      // Every game already on the shelf is, by definition, owned - mark those too (using the
+      // igdbId already on file, no extra Steam/IGDB lookups needed) so ownership coverage isn't
+      // limited to whatever a single import run actually creates (issue #176).
+      const ownedIgdbIds: number[] = shelfGames.map((g) => g.igdbId);
 
       let imported = 0;
       let skipped = 0;
       for (const game of considered) {
         try {
           const igdbId = await findIgdbIdBySteamAppId(game.appId);
-          if (igdbId === null || existingIgdbIdSet.has(igdbId)) {
+          if (igdbId === null) {
+            skipped++;
+            continue;
+          }
+          if (existingIgdbIdSet.has(igdbId)) {
+            ownedIgdbIds.push(igdbId);
             skipped++;
             continue;
           }
@@ -200,6 +203,7 @@ export default async function gameRoutes(app: FastifyInstance) {
             },
           });
           existingIgdbIdSet.add(igdbId);
+          ownedIgdbIds.push(igdbId);
           imported++;
         } catch {
           // One game failing to resolve (IGDB hiccup, no match, etc.) shouldn't abort the batch.
@@ -207,6 +211,7 @@ export default async function gameRoutes(app: FastifyInstance) {
         }
       }
       if (imported > 0) await invalidateExistingIgdbIds(null, userId);
+      await markOwned(userId, ownedIgdbIds);
 
       const result: ImportSteamLibraryResult = {
         totalOwned: owned.length,
@@ -308,6 +313,24 @@ export default async function gameRoutes(app: FastifyInstance) {
       }
 
       await prisma.game.update({ where: { id: game.id }, data: { targetPrice: normalized } });
+      const updated = await loadGameOr404(game.id);
+      return { game: await serializeGame(updated, userId) };
+    },
+  );
+
+  app.patch<{ Params: { id: string }; Body: SetGameOwnershipRequest }>(
+    '/api/games/:id/ownership',
+    // Same class of route as target-price - a direct user action toggling one game's state, not
+    // something a normal session comes close to hitting.
+    { config: { rateLimit: { max: 30, timeWindow: '1 minute' } } },
+    async (request) => {
+      const userId = await request.requireAuth();
+      const game = await loadGameOr404(request.params.id);
+      await requireGameReadAccess(game, userId);
+
+      const { owned } = request.body;
+      await setOwnership(userId, game.igdbId, owned);
+
       const updated = await loadGameOr404(game.id);
       return { game: await serializeGame(updated, userId) };
     },

@@ -1,4 +1,4 @@
-export type GameStatus = 'backlog' | 'playing' | 'done';
+export type GameStatus = 'backlog' | 'playing' | 'done' | 'dropped' | 'wishlist';
 
 export type RoomRole = 'room_master' | 'moderator' | 'member';
 
@@ -82,6 +82,10 @@ export interface Room {
   myRole: RoomRole;
   /** Only present when the caller has permission to see it (any member, per current rules). */
   inviteCode?: string;
+  /** Posts room activity to this Discord channel webhook, if set. Room Master only to view/edit. */
+  discordWebhookUrl?: string | null;
+  /** When true, Spin the Wheel only draws from games every current member owns. */
+  spinOnlyFullyOwned: boolean;
 }
 
 export interface RoomMember {
@@ -96,7 +100,9 @@ export interface GamePrice {
   currency: string | null;
   source: 'live' | 'unavailable';
   /** All-time-low price seen for this game (from gg.deals' historical price data), same currency
-   * as `amount`. Null if unavailable or if the current price already is the historic low. */
+   * as `amount`. Null only when gg.deals has no historical data at all - unlike `amount`, this is
+   * the raw value even when it equals (or is above) the current price; callers displaying it as a
+   * "here's a discount" callout should compare against `amount` themselves before showing it. */
   historicalLow: string | null;
   /** When this price entry was last fetched from gg.deals (ISO string) - i.e. the age of the
    * cached/served value, not necessarily "just now". Null only when no fetch has ever happened
@@ -107,6 +113,10 @@ export interface GamePrice {
 export interface VoteSummary {
   user: User;
   value: VoteValue;
+  /** When this vote was cast/last changed (ISO string) - a vote from months ago carries the same
+   * weight as a fresh one everywhere it's used (sorting, Spin the Wheel), but the UI surfaces its
+   * age so a stale 🔥 doesn't read as current. */
+  createdAt: string;
 }
 
 export interface Game {
@@ -128,6 +138,13 @@ export interface Game {
   votes: VoteSummary[];
   myVote: VoteValue | null;
   voteScore: number;
+  /** Whether the current user owns this game (see GameOwnership) - not meaningful/omitted concept
+   * for the Personal Shelf, only used in Communal Rooms. */
+  youOwn: boolean;
+  /** How many of the room's *current* members own this game, out of how many current members
+   * there are - e.g. {owned: 3, total: 4}. Null on the Personal Shelf, where there's no group
+   * ownership to count. */
+  ownership: { owned: number; total: number } | null;
   createdAt: string;
   updatedAt: string;
 }
@@ -157,6 +174,9 @@ export interface UpdateRoomRequest {
   name?: string;
   platform?: RoomPlatform;
   accentColor?: string;
+  /** Set to null to clear/disable the webhook. */
+  discordWebhookUrl?: string | null;
+  spinOnlyFullyOwned?: boolean;
 }
 
 export interface JoinRoomRequest {
@@ -180,6 +200,11 @@ export interface UpdateGameStatusRequest {
 /** Sets (or clears, with null) the price to alert at for a game - see Game.targetPrice. */
 export interface SetTargetPriceRequest {
   targetPrice: string | null;
+}
+
+/** Marks (or clears) the current user's ownership claim on a game - see GameOwnership. */
+export interface SetGameOwnershipRequest {
+  owned: boolean;
 }
 
 /** Relocates a game to a different room, or to the mover's Personal Shelf (roomId: null). */

@@ -8,6 +8,25 @@ async function actorDisplayName(actorId: string): Promise<string> {
   return actor?.displayName ?? 'Someone';
 }
 
+/** Posts the same message a room notification carries out to that room's Discord webhook, if one
+ * is configured (issue #181) - one-way egress only, nothing reads anything back from Discord.
+ * Best-effort: a webhook failure (bad URL, Discord outage, channel/webhook deleted) must never
+ * affect the in-app notification it's mirroring, so this always swallows its own errors. */
+async function postToDiscordWebhook(roomId: string, roomName: string, content: string): Promise<void> {
+  try {
+    const room = await prisma.room.findUnique({ where: { id: roomId }, select: { discordWebhookUrl: true } });
+    if (!room?.discordWebhookUrl) return;
+
+    await fetch(room.discordWebhookUrl, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ username: roomName, content }),
+    });
+  } catch (err) {
+    console.error('[notifications] failed to post to Discord webhook', err);
+  }
+}
+
 interface NotifyRoomInput {
   roomId: string;
   roomName: string;
@@ -29,15 +48,17 @@ interface NotifyRoomInput {
 export async function notifyRoom(input: NotifyRoomInput): Promise<void> {
   try {
     const actorName = await actorDisplayName(input.actorId);
+    const message = input.message(actorName);
     await prisma.notification.create({
       data: {
         roomId: input.roomId,
         roomName: input.roomName,
         actorId: input.actorId,
         type: input.type,
-        message: input.message(actorName),
+        message,
       },
     });
+    void postToDiscordWebhook(input.roomId, input.roomName, message);
   } catch (err) {
     console.error('[notifications] failed to write room notification', err);
   }
@@ -89,6 +110,9 @@ interface NotifyPriceDropInput {
    * its owner via ownerId). */
   room: { roomId: string; roomName: string } | null;
   ownerId: string;
+  /** Which alert fired - drives the message wording. Defaults to 'target' (the original,
+   * user-set-threshold alert); 'atl' is for hitting a new all-time low regardless of any target. */
+  reason?: 'target' | 'atl';
 }
 
 /** Writes a price-drop alert - system-generated (no actorId), so unlike notifyRoom this always
@@ -97,13 +121,17 @@ interface NotifyPriceDropInput {
  * already cleared the target, so there's no primary write left to protect. */
 export async function notifyPriceDrop(input: NotifyPriceDropInput): Promise<void> {
   const formatted = input.currency ? `${input.amount} ${input.currency}` : input.amount;
-  const message = `"${input.title}" hit your target price - now ${formatted}`;
+  const message =
+    input.reason === 'atl'
+      ? `"${input.title}" hit a new all-time low - now ${formatted}`
+      : `"${input.title}" hit your target price - now ${formatted}`;
 
   try {
     if (input.room) {
       await prisma.notification.create({
         data: { roomId: input.room.roomId, roomName: input.room.roomName, type: 'price_drop', message },
       });
+      void postToDiscordWebhook(input.room.roomId, input.room.roomName, message);
     } else {
       await prisma.notification.create({
         data: { recipientId: input.ownerId, roomName: 'Personal Shelf', type: 'price_drop', message },

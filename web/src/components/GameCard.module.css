@@ -212,6 +212,29 @@
   color: var(--qu-muted);
 }
 
+.ownershipRow {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 7px 10px;
+  border-radius: var(--qu-radius);
+  background: var(--qu-neutral-pill-bg);
+  color: var(--qu-muted);
+  border: none;
+  font: 600 11px system-ui, sans-serif;
+  text-align: left;
+  cursor: pointer;
+}
+
+.ownershipRow:hover {
+  color: var(--qu-text);
+}
+
+.ownershipRowOwned {
+  background: var(--qu-accent2-pill-bg);
+  color: var(--qu-accent2);
+}
+
 .addedBy {
   font: 400 11px system-ui, sans-serif;
   color: var(--qu-muted);

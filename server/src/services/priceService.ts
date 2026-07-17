@@ -91,10 +91,13 @@ async function fetchLiveEntry(steamAppId: number, region: string): Promise<Price
     };
   }
 
-  const historicalLowRaw = lowestOf(entry.prices.historicalRetail, entry.prices.historicalKeyshops);
-  // Only worth showing when it's a real discount opportunity below the current price - if the
-  // current price already is (or beats) the historic low, there's nothing extra to tell the user.
-  const historicalLow = historicalLowRaw !== null && Number(historicalLowRaw) < Number(amount) ? historicalLowRaw : null;
+  // The raw value, whenever gg.deals has one at all - even when it equals (or is above) the
+  // current price. Whether that's worth SHOWING as a discount callout ("hey, this is below the
+  // historic low") is a display decision made by the caller (see GameCard.tsx), not baked in here
+  // - a caller checking "did we just hit a new all-time low" (priceAlerts.ts) needs the real value
+  // in that case too, and nulling it out at the source made "no historical data at all" and
+  // "already at the historical low" indistinguishable from here.
+  const historicalLow = lowestOf(entry.prices.historicalRetail, entry.prices.historicalKeyshops);
 
   return {
     price: { amount, currency: entry.prices.currency, source: 'live', historicalLow, lastRefreshedAt: fetchedAt },
