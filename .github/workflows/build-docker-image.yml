@@ -129,6 +129,7 @@ jobs:
           tags: |
             type=raw,value=latest
             type=sha,format=short
+            type=raw,value=build-${{ github.run_number }}
           labels: |
             org.opencontainers.image.description=${{ needs.check-for-changes.outputs.oneline }}
 

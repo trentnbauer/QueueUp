@@ -31,7 +31,7 @@ cp .env.example .env
 docker compose --env-file .env -f docker-compose.prod.yml up -d
 ```
 
-This pulls the pre-built `server` image (serving both the API and the built frontend) from `ghcr.io/trentnbauer/queueup` - published automatically by the "Build and Publish Docker Image" GitHub Actions workflow on every change to `main` - and runs it alongside Postgres and Redis, all wired from the same `.env`. On first boot the container runs `prisma db push` automatically to create the schema. To pin a specific build instead of always tracking the latest, set `IMAGE_TAG=sha-<short-commit>` in `.env`.
+This pulls the pre-built `server` image (serving both the API and the built frontend) from `ghcr.io/trentnbauer/queueup` - published automatically by the "Build and Publish Docker Image" GitHub Actions workflow on every change to `main` - and runs it alongside Postgres and Redis, all wired from the same `.env`. On first boot the container runs `prisma db push` automatically to create the schema. To pin a specific build instead of always tracking the latest, set `IMAGE_TAG` in `.env` to one of the tags that workflow publishes: `sha-<short-commit>` (exact source), or `build-<N>` (that workflow run's number - monotonically increasing, but not gap-free, since a scheduled run with no changes to publish is skipped rather than reusing the previous number).
 
 Open http://localhost:3000. With `DEV_FAKE_AUTH=true` you're signed in automatically as a dev user — no sign-in method needed yet.
 
