@@ -1,4 +1,4 @@
-import type { Game, GameStatus, VoteValue } from '@squadqueue/shared';
+import type { Game, GameStatus, User, VoteValue } from '@squadqueue/shared';
 import { AvatarBadge } from './AvatarBadge';
 import { StatusBadge } from './StatusBadge';
 import { VoteRow } from './VoteRow';
@@ -11,6 +11,7 @@ interface GameCardProps {
   game: Game;
   currentUserId: string;
   memberCount?: number;
+  roomMembers?: User[];
   onStatusChange: (status: GameStatus) => void;
   onVote: (value: VoteValue) => void;
   onRemove: () => void;
@@ -37,6 +38,7 @@ export function GameCard({
   game,
   currentUserId,
   memberCount,
+  roomMembers,
   onStatusChange,
   onVote,
   onRemove,
@@ -139,7 +141,7 @@ export function GameCard({
         <div className={styles.divider} />
 
         <VoteRow myVote={game.myVote} onVote={onVote} />
-        <VoteHeatmap votes={game.votes} currentUserId={currentUserId} />
+        <VoteHeatmap votes={game.votes} currentUserId={currentUserId} roomMembers={roomMembers} />
 
         <div className={styles.footerRow}>
           <button className={styles.removeButton} onClick={handleRemove}>

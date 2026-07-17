@@ -28,3 +28,14 @@
 .value {
   font-size: 13px;
 }
+
+/* A non-voter's pill is the same shape as a voter's, minus the emoji and dimmed via opacity - it
+   reads as "present but hasn't acted" rather than a vote, without needing a second visual language. */
+.nonVoter {
+  display: flex;
+  align-items: center;
+  padding: 3px;
+  border-radius: 999px;
+  background: var(--sq-neutral-pill-bg);
+  opacity: 0.45;
+}
