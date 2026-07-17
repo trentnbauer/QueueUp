@@ -3,7 +3,7 @@
 
 # SquadQueue
 
-A self-hosted game backlog and voting system for a friend group — a private "Personal Shelf" plus shared "Communal Rooms," real pricing from gg.deals, and a 5-emoji voting scale. See `mission statement.md` for the full product spec.
+A self-hosted game backlog and voting system for a friend group — a private "Personal Shelf" plus shared "Communal Rooms," real pricing from gg.deals, and a 5-emoji voting scale.
 
 This is Milestone 1: a working vertical slice (auth, game intake with real pricing, rooms, voting) meant to run locally and be iterated on.
 
