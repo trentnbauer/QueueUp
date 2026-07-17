@@ -7,9 +7,14 @@ import { AuthProvider } from './context/AuthContext';
 import { ViewProvider } from './context/ViewContext';
 import { GameFilterProvider } from './context/GameFilterContext';
 import { ThemeProvider } from './context/ThemeContext';
+import { ThemeModeProvider } from './context/ThemeModeContext';
 import { CurrencyRegionProvider } from './context/CurrencyRegionContext';
 import { ConfirmProvider } from './context/ConfirmContext';
+import { applyThemeMode, getPreferredThemeMode } from './theme/applyThemeMode';
 import './theme/global.css';
+
+// Applied synchronously, before the first render, so the page never flashes the wrong theme.
+applyThemeMode(getPreferredThemeMode());
 
 const queryClient = new QueryClient();
 
@@ -20,13 +25,15 @@ createRoot(document.getElementById('root')!).render(
         <AuthProvider>
           <ViewProvider>
             <GameFilterProvider>
-              <ThemeProvider>
-                <CurrencyRegionProvider>
-                  <ConfirmProvider>
-                    <App />
-                  </ConfirmProvider>
-                </CurrencyRegionProvider>
-              </ThemeProvider>
+              <ThemeModeProvider>
+                <ThemeProvider>
+                  <CurrencyRegionProvider>
+                    <ConfirmProvider>
+                      <App />
+                    </ConfirmProvider>
+                  </CurrencyRegionProvider>
+                </ThemeProvider>
+              </ThemeModeProvider>
             </GameFilterProvider>
           </ViewProvider>
         </AuthProvider>
