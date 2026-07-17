@@ -2,11 +2,11 @@ import { describe, it, expect } from 'vitest';
 import type { Game } from '@squadqueue/shared';
 import {
   sortByScore,
-  playNextGames,
+  backlogGames,
   primaryGenre,
-  recommendedNextId,
+  lastCompletedPrimaryGenre,
+  avoidedGenres,
   statusBucket,
-  pickWeightedRandom,
   spinCandidateWeight,
   pickSpinWinner,
 } from './gameGridLogic';
@@ -49,23 +49,18 @@ describe('sortByScore', () => {
   });
 });
 
-describe('playNextGames', () => {
-  it('excludes unvoted games (score 0)', () => {
+describe('backlogGames', () => {
+  it('includes every backlog game regardless of vote count', () => {
     const voted = makeGame({ id: 'voted', voteScore: 3 });
     const unvoted = makeGame({ id: 'unvoted', voteScore: 0 });
-    expect(playNextGames([voted, unvoted]).map((g) => g.id)).toEqual(['voted']);
+    expect(backlogGames([voted, unvoted]).map((g) => g.id).sort()).toEqual(['unvoted', 'voted']);
   });
 
-  it('excludes non-backlog games even if voted', () => {
+  it('excludes non-backlog games', () => {
     const playing = makeGame({ id: 'playing', status: 'playing', voteScore: 5 });
     const done = makeGame({ id: 'done', status: 'done', voteScore: 5 });
     const backlog = makeGame({ id: 'backlog', status: 'backlog', voteScore: 5 });
-    expect(playNextGames([playing, done, backlog]).map((g) => g.id)).toEqual(['backlog']);
-  });
-
-  it('caps at 3, highest scores first', () => {
-    const games = [1, 2, 3, 4, 5].map((score) => makeGame({ id: `g${score}`, voteScore: score }));
-    expect(playNextGames(games).map((g) => g.id)).toEqual(['g5', 'g4', 'g3']);
+    expect(backlogGames([playing, done, backlog]).map((g) => g.id)).toEqual(['backlog']);
   });
 });
 
@@ -80,134 +75,75 @@ describe('primaryGenre', () => {
   });
 });
 
-describe('recommendedNextId', () => {
-  it('picks the play-next candidate whose primary genre differs from the last completed game', () => {
-    // Matches the exact scenario from the issue: last completed a shooter, play-next candidates
-    // shooter/shooter/puzzle -> recommend the puzzle one.
-    const lastCompleted = makeGame({
-      id: 'completed',
-      status: 'done',
-      genre: 'Shooter',
-      updatedAt: '2026-01-05T00:00:00.000Z',
-    });
-    const shooter1 = makeGame({ id: 'shooter1', genre: 'Shooter', voteScore: 5 });
-    const shooter2 = makeGame({ id: 'shooter2', genre: 'Shooter', voteScore: 4 });
-    const puzzle = makeGame({ id: 'puzzle', genre: 'Puzzle, Adventure', voteScore: 3 });
-    const candidates = [shooter1, shooter2, puzzle];
-
-    expect(recommendedNextId([lastCompleted, ...candidates], candidates)).toBe('puzzle');
-  });
-
-  it('does not flag a shared secondary genre as "different" (real bug this caught)', () => {
-    // A puzzle-platformer and a shooter both tagged "Adventure" as a secondary genre should still
-    // be treated as different, since only the *primary* genre is compared.
-    const lastCompleted = makeGame({ id: 'completed', status: 'done', genre: 'Shooter, Adventure' });
-    const differentPrimary = makeGame({ id: 'differs', genre: 'Platform, Adventure', voteScore: 5 });
-    expect(recommendedNextId([lastCompleted, differentPrimary], [differentPrimary])).toBe('differs');
-  });
-
+describe('lastCompletedPrimaryGenre', () => {
   it('returns null when nothing has been completed yet', () => {
-    const candidate = makeGame({ id: 'c1', genre: 'Puzzle' });
-    expect(recommendedNextId([candidate], [candidate])).toBeNull();
-  });
-
-  it('returns null when every candidate shares the primary genre with the last completed game', () => {
-    const lastCompleted = makeGame({ id: 'completed', status: 'done', genre: 'Shooter' });
-    const alsoShooter = makeGame({ id: 'shooter', genre: 'Shooter, Action' });
-    expect(recommendedNextId([lastCompleted, alsoShooter], [alsoShooter])).toBeNull();
+    expect(lastCompletedPrimaryGenre([makeGame({ status: 'backlog' })])).toBeNull();
   });
 
   it('returns null when the last completed game has no genre data', () => {
-    const lastCompleted = makeGame({ id: 'completed', status: 'done', genre: null });
-    const candidate = makeGame({ id: 'c1', genre: 'Puzzle' });
-    expect(recommendedNextId([lastCompleted, candidate], [candidate])).toBeNull();
+    expect(lastCompletedPrimaryGenre([makeGame({ status: 'done', genre: null })])).toBeNull();
   });
 
   it('uses the most recently completed game when several exist', () => {
-    const olderCompleted = makeGame({
-      id: 'older',
-      status: 'done',
-      genre: 'Puzzle',
-      updatedAt: '2026-01-01T00:00:00.000Z',
-    });
-    const newerCompleted = makeGame({
-      id: 'newer',
-      status: 'done',
-      genre: 'Shooter',
-      updatedAt: '2026-01-10T00:00:00.000Z',
-    });
-    const puzzleCandidate = makeGame({ id: 'candidate', genre: 'Puzzle' });
-    // Newer completed game is a Shooter, so the Puzzle candidate should still be recommended -
-    // if it wrongly used the *older* completed game (also Puzzle), this would return null instead.
-    expect(recommendedNextId([olderCompleted, newerCompleted, puzzleCandidate], [puzzleCandidate])).toBe(
-      'candidate',
-    );
+    const older = makeGame({ id: 'older', status: 'done', genre: 'Puzzle', updatedAt: '2026-01-01T00:00:00.000Z' });
+    const newer = makeGame({ id: 'newer', status: 'done', genre: 'Shooter', updatedAt: '2026-01-10T00:00:00.000Z' });
+    expect(lastCompletedPrimaryGenre([older, newer])).toBe('shooter');
+  });
+});
+
+describe('avoidedGenres', () => {
+  it('is empty when nothing is completed or currently playing', () => {
+    expect(avoidedGenres([makeGame({ status: 'backlog', genre: 'Puzzle' })]).size).toBe(0);
+  });
+
+  it('includes the last completed game\'s primary genre', () => {
+    const completed = makeGame({ status: 'done', genre: 'Shooter, Adventure' });
+    expect(avoidedGenres([completed])).toEqual(new Set(['shooter']));
+  });
+
+  it('includes every currently-Playing game\'s primary genre, not just one', () => {
+    const playing1 = makeGame({ id: 'p1', status: 'playing', genre: 'Shooter' });
+    const playing2 = makeGame({ id: 'p2', status: 'playing', genre: 'Puzzle' });
+    expect(avoidedGenres([playing1, playing2])).toEqual(new Set(['shooter', 'puzzle']));
+  });
+
+  it('combines the last completed game with currently-Playing games', () => {
+    const completed = makeGame({ id: 'c', status: 'done', genre: 'RPG' });
+    const playing = makeGame({ id: 'p', status: 'playing', genre: 'Shooter' });
+    expect(avoidedGenres([completed, playing])).toEqual(new Set(['rpg', 'shooter']));
   });
 });
 
 describe('statusBucket', () => {
-  it('orders playing < play-next backlog < other backlog < done', () => {
-    const playNext = new Set(['pn']);
-    const playing = makeGame({ id: 'p', status: 'playing' });
-    const playNextBacklog = makeGame({ id: 'pn', status: 'backlog' });
-    const plainBacklog = makeGame({ id: 'b', status: 'backlog' });
-    const done = makeGame({ id: 'd', status: 'done' });
+  it('orders playing < backlog < done', () => {
+    const playing = makeGame({ status: 'playing' });
+    const backlog = makeGame({ status: 'backlog' });
+    const done = makeGame({ status: 'done' });
 
-    expect(statusBucket(playing, playNext)).toBeLessThan(statusBucket(playNextBacklog, playNext));
-    expect(statusBucket(playNextBacklog, playNext)).toBeLessThan(statusBucket(plainBacklog, playNext));
-    expect(statusBucket(plainBacklog, playNext)).toBeLessThan(statusBucket(done, playNext));
-  });
-});
-
-describe('pickWeightedRandom', () => {
-  it('returns null for an empty candidate list', () => {
-    expect(pickWeightedRandom([], () => 0.5)).toBeNull();
-  });
-
-  it('returns the only candidate when there is just one', () => {
-    const only = makeGame({ id: 'only', voteScore: 3 });
-    expect(pickWeightedRandom([only], () => 0.5)?.id).toBe('only');
-  });
-
-  it('picks proportionally to vote score using the injected random source', () => {
-    // weights [1, 3] -> total 4. roll = random() * 4.
-    const low = makeGame({ id: 'low', voteScore: 1 });
-    const high = makeGame({ id: 'high', voteScore: 3 });
-    const candidates = [low, high];
-
-    // roll = 0.99*4 = 3.96 -> subtract low's weight (1) -> 2.96, subtract high's weight (3) -> -0.04 <= 0 -> high
-    expect(pickWeightedRandom(candidates, () => 0.99)?.id).toBe('high');
-    // roll = 0.1*4 = 0.4 -> subtract low's weight (1) -> -0.6 <= 0 -> low
-    expect(pickWeightedRandom(candidates, () => 0.1)?.id).toBe('low');
-  });
-
-  it('falls back to a uniform pick when every candidate has zero weight', () => {
-    const a = makeGame({ id: 'a', voteScore: 0 });
-    const b = makeGame({ id: 'b', voteScore: 0 });
-    // random()=0.6 over 2 candidates -> index floor(0.6*2)=1 -> b
-    expect(pickWeightedRandom([a, b], () => 0.6)?.id).toBe('b');
+    expect(statusBucket(playing)).toBeLessThan(statusBucket(backlog));
+    expect(statusBucket(backlog)).toBeLessThan(statusBucket(done));
   });
 });
 
 describe('spinCandidateWeight', () => {
-  it('is just the vote score when there is no last-completed genre to compare against', () => {
+  it('is just the vote score when there are no avoided genres', () => {
     const game = makeGame({ voteScore: 3, genre: 'Shooter' });
-    expect(spinCandidateWeight(game, null)).toBe(3);
+    expect(spinCandidateWeight(game, new Set())).toBe(3);
   });
 
-  it('is just the vote score when the primary genre matches the last completed game', () => {
+  it('is just the vote score when the primary genre is in the avoided set', () => {
     const game = makeGame({ voteScore: 3, genre: 'Shooter, Adventure' });
-    expect(spinCandidateWeight(game, 'shooter')).toBe(3);
+    expect(spinCandidateWeight(game, new Set(['shooter']))).toBe(3);
   });
 
-  it('doubles the vote score when the primary genre differs from the last completed game', () => {
+  it('doubles the vote score when the primary genre is not in the avoided set', () => {
     const game = makeGame({ voteScore: 3, genre: 'Puzzle' });
-    expect(spinCandidateWeight(game, 'shooter')).toBe(6);
+    expect(spinCandidateWeight(game, new Set(['shooter']))).toBe(6);
   });
 
   it('does not boost a candidate with no genre data at all', () => {
     const game = makeGame({ voteScore: 3, genre: null });
-    expect(spinCandidateWeight(game, 'shooter')).toBe(3);
+    expect(spinCandidateWeight(game, new Set(['shooter']))).toBe(3);
   });
 });
 
@@ -224,12 +160,22 @@ describe('pickSpinWinner', () => {
     expect(pickSpinWinner([lastCompleted, ...candidates], candidates, () => 0.5)?.id).toBe('puzzle');
   });
 
-  it('falls back to plain vote-score weighting when nothing has been completed yet', () => {
+  it('also avoids the genre of a currently-Playing game, not just the last completed one', () => {
+    const playing = makeGame({ id: 'playing', status: 'playing', genre: 'Shooter' });
     const shooter = makeGame({ id: 'shooter', genre: 'Shooter', voteScore: 5 });
     const puzzle = makeGame({ id: 'puzzle', genre: 'Puzzle', voteScore: 3 });
     const candidates = [shooter, puzzle];
-    // Total weight = 8 (no boost). roll = 0.99*8 = 7.92 -> subtract shooter's 5 -> 2.92 -> subtract puzzle's 3 -> -0.08 <= 0 -> puzzle.
-    // roll = 0.5*8 = 4 -> subtract shooter's 5 -> -1 <= 0 -> shooter, confirming no boost is applied.
+
+    // Same math as the completed-game case: puzzle's boosted weight (6) beats shooter's (5).
+    expect(pickSpinWinner([playing, ...candidates], candidates, () => 0.5)?.id).toBe('puzzle');
+  });
+
+  it('falls back to plain vote-score weighting when nothing has been completed or is playing', () => {
+    const shooter = makeGame({ id: 'shooter', genre: 'Shooter', voteScore: 5 });
+    const puzzle = makeGame({ id: 'puzzle', genre: 'Puzzle', voteScore: 3 });
+    const candidates = [shooter, puzzle];
+    // Total weight = 8 (no boost). roll = 0.5*8 = 4 -> subtract shooter's 5 -> -1 <= 0 -> shooter,
+    // confirming no boost is applied even though puzzle's genre "differs" from nothing in particular.
     expect(pickSpinWinner(candidates, candidates, () => 0.5)?.id).toBe('shooter');
   });
 

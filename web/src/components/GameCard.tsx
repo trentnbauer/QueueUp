@@ -11,8 +11,6 @@ interface GameCardProps {
   game: Game;
   currentUserId: string;
   memberCount?: number;
-  isPlayNext?: boolean;
-  isRecommended?: boolean;
   onStatusChange: (status: GameStatus) => void;
   onVote: (value: VoteValue) => void;
   onRemove: () => void;
@@ -39,8 +37,6 @@ export function GameCard({
   game,
   currentUserId,
   memberCount,
-  isPlayNext,
-  isRecommended,
   onStatusChange,
   onVote,
   onRemove,
@@ -71,13 +67,8 @@ export function GameCard({
       >
         {!game.coverImageUrl && <span className={styles.coverLabel}>COVER ART</span>}
         {game.status === 'done' && <div className={styles.doneStrike} />}
-        {isRecommended ? (
-          <div className={styles.recommendedBanner}>★ Recommended Next</div>
-        ) : (
-          isPlayNext && <div className={styles.playNextBanner}>▶ Play Next</div>
-        )}
 
-        <div className={`${styles.statusFloating} ${(isRecommended || isPlayNext) ? styles.statusFloatingBelowBanner : ''}`}>
+        <div className={styles.statusFloating}>
           <StatusBadge status={game.status} onClick={onStatusChange} />
         </div>
 

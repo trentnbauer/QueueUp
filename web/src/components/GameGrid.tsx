@@ -1,8 +1,8 @@
-import { useMemo, useRef } from 'react';
+import { Fragment, useMemo, useRef } from 'react';
 import type { Game, GameStatus, VoteValue } from '@squadqueue/shared';
 import { GameCard } from './GameCard';
 import { SpinWheelCard } from './SpinWheelCard';
-import { ALL_FILTER_VALUE, splitLabel, sortByScore, playNextGames, recommendedNextId, statusBucket } from './gameGridLogic';
+import { ALL_FILTER_VALUE, splitLabel, sortByScore, statusBucket } from './gameGridLogic';
 import { useGameFilter } from '../context/GameFilterContext';
 import styles from './GameGrid.module.css';
 
@@ -73,17 +73,10 @@ export function GameGrid({
   const { platformFilter, genreFilter } = useGameFilter();
 
   const sorted = useStableOrder(games);
-  const { playNext, recommendedId, prioritized } = useMemo(() => {
-    const candidates = playNextGames(games);
-    const playNextSet = new Set(candidates.map((g) => g.id));
-    return {
-      playNext: playNextSet,
-      recommendedId: recommendedNextId(games, candidates),
-      prioritized: [...sorted].sort(
-        (a, b) => statusBucket(a, playNextSet) - statusBucket(b, playNextSet),
-      ),
-    };
-  }, [games, sorted]);
+  const prioritized = useMemo(
+    () => [...sorted].sort((a, b) => statusBucket(a) - statusBucket(b)),
+    [sorted],
+  );
 
   const filtered = useMemo(
     () =>
@@ -139,24 +132,35 @@ export function GameGrid({
     );
   }
 
+  // The spin tile sits between the Playing group and the rest (backlog, then Done) - filtered is
+  // already sorted Playing-first by statusBucket, so the first non-Playing game marks exactly
+  // where that boundary is. If every visible game is currently Playing, it falls in after all of
+  // them instead.
+  const spinCardInsertIndex = spinCard
+    ? (() => {
+        const index = filtered.findIndex((g) => g.status !== 'playing');
+        return index === -1 ? filtered.length : index;
+      })()
+    : -1;
+
   return (
     <div className={styles.cards}>
-      {spinCard}
-      {filtered.map((game) => (
-        <GameCard
-          key={game.id}
-          game={game}
-          currentUserId={currentUserId}
-          memberCount={memberCount}
-          isPlayNext={playNext.has(game.id)}
-          isRecommended={game.id === recommendedId}
-          onStatusChange={(next) => onStatusChange(game.id, next)}
-          onVote={(value) => onVote(game.id, value)}
-          onRemove={() => onRemove(game.id)}
-          onRefreshPrice={() => onRefreshPrice(game.id)}
-          isRefreshingPrice={isRefreshingPrice ? isRefreshingPrice(game.id) : false}
-        />
+      {filtered.map((game, index) => (
+        <Fragment key={game.id}>
+          {index === spinCardInsertIndex && spinCard}
+          <GameCard
+            game={game}
+            currentUserId={currentUserId}
+            memberCount={memberCount}
+            onStatusChange={(next) => onStatusChange(game.id, next)}
+            onVote={(value) => onVote(game.id, value)}
+            onRemove={() => onRemove(game.id)}
+            onRefreshPrice={() => onRefreshPrice(game.id)}
+            isRefreshingPrice={isRefreshingPrice ? isRefreshingPrice(game.id) : false}
+          />
+        </Fragment>
       ))}
+      {spinCardInsertIndex === filtered.length && spinCard}
     </div>
   );
 }

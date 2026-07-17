@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import type { Game } from '@squadqueue/shared';
-import { playNextGames } from './gameGridLogic';
+import { backlogGames } from './gameGridLogic';
 import { SpinWheelModal } from './SpinWheelModal';
 import styles from './SpinWheelCard.module.css';
 
@@ -13,7 +13,7 @@ interface SpinWheelCardProps {
  * in SpinWheelModal - this component only decides whether the wheel has anything to draw from. */
 export function SpinWheelCard({ games }: SpinWheelCardProps) {
   const [open, setOpen] = useState(false);
-  const candidates = playNextGames(games);
+  const candidates = backlogGames(games);
   const locked = candidates.length === 0;
 
   return (
@@ -29,7 +29,7 @@ export function SpinWheelCard({ games }: SpinWheelCardProps) {
         </div>
         <div className={styles.label}>Spin the Wheel</div>
         <div className={styles.hint}>
-          {locked ? 'Vote on a few backlog games to unlock' : `Picks from your top ${candidates.length}`}
+          {locked ? 'Add a backlog game to unlock' : `Picks from your ${candidates.length}-game backlog`}
         </div>
       </button>
 

@@ -44,39 +44,10 @@
   pointer-events: none;
 }
 
-.playNextBanner,
-.recommendedBanner {
-  position: absolute;
-  left: 0;
-  right: 0;
-  top: 0;
-  padding: 6px 10px;
-  font: 800 11.5px system-ui, sans-serif;
-  letter-spacing: 0.02em;
-  text-align: center;
-}
-
-.playNextBanner {
-  background: #22c55e;
-  color: #06240f;
-}
-
-.recommendedBanner {
-  background: var(--sq-accent);
-  color: var(--sq-accent-text);
-}
-
 .statusFloating {
   position: absolute;
   top: 10px;
   right: 10px;
-}
-
-/* Pushed below the play-next/recommended banner (26px tall) instead of sitting at the cover's
-   default top offset, since that banner also spans the top edge and would otherwise sit directly
-   underneath the badge. */
-.statusFloatingBelowBanner {
-  top: 36px;
 }
 
 /* Sits over the artwork's bottom edge with a gradient scrim underneath, so the title and
