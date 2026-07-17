@@ -53,6 +53,12 @@
   margin-bottom: 12px;
 }
 
+.added {
+  color: var(--sq-accent);
+  font-size: 12.5px;
+  margin-bottom: 12px;
+}
+
 .input {
   width: 100%;
   padding: 13px 18px;
@@ -135,6 +141,11 @@
 .addButton:disabled {
   opacity: 0.6;
   cursor: default;
+}
+
+.addButtonAdded {
+  background: var(--sq-surface2);
+  color: var(--sq-muted);
 }
 
 .cancelZone {

@@ -104,13 +104,23 @@ function weightedPick<T>(items: T[], weight: (item: T) => number, random: () => 
 // it otherwise would.
 const GENRE_DIVERSITY_MULTIPLIER = 2;
 
-/** A candidate's effective Spin the Wheel weight: its vote score, boosted for genre variety
- * against `avoided` (see avoidedGenres). Exported mainly for testing - callers should use
- * pickSpinWinner. */
+// A candidate with zero votes still gets this much weight, so an unvoted backlog game always has
+// *some* chance of winning instead of a hard-locked 0% - without it, as soon as any one candidate
+// has a vote, every still-unvoted candidate becomes mathematically unpickable (weight 0 always
+// loses to weight >0), which made the wheel feel rigged toward whichever game happened to get
+// voted on first.
+const UNVOTED_BASELINE_WEIGHT = 1;
+
+/** A candidate's effective Spin the Wheel weight: its vote score (diminishing-returns scaled, plus
+ * a small baseline so an unvoted game isn't a guaranteed loser), boosted for genre variety against
+ * `avoided` (see avoidedGenres). The sqrt scale keeps "more votes = more likely" without letting
+ * one heavily-voted game statistically crush every other candidate - a 16-vote game is only 4x as
+ * likely as a 1-vote game, not 16x, so the wheel still has real suspense instead of a predictable
+ * outcome. Exported mainly for testing - callers should use pickSpinWinner. */
 export function spinCandidateWeight(game: Game, avoided: Set<string>): number {
   const primary = primaryGenre(game.genre);
   const differs = avoided.size > 0 && primary !== null && !avoided.has(primary);
-  return game.voteScore * (differs ? GENRE_DIVERSITY_MULTIPLIER : 1);
+  return (Math.sqrt(game.voteScore) + UNVOTED_BASELINE_WEIGHT) * (differs ? GENRE_DIVERSITY_MULTIPLIER : 1);
 }
 
 /** Spin the Wheel's actual pick: weighted by vote score, boosted for differing from the genre of

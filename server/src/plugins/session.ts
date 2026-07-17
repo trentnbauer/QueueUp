@@ -38,6 +38,10 @@ declare module 'fastify' {
     // signing in with (only one flow can be in progress per browser session at a time).
     authState?: string;
     authCodeVerifier?: string;
+    // Set only while linking a Steam account to an already-signed-in user (see /auth/steam/link
+    // in auth.ts) - marks the callback as "attach to this existing user" instead of a normal
+    // sign-in/account-creation.
+    linkTargetUserId?: string;
   }
 }
 

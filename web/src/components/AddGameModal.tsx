@@ -23,11 +23,22 @@ export function AddGameModal({ roomId, onAdded, onClose }: AddGameModalProps) {
   const [addingId, setAddingId] = useState<number | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [highlightedIndex, setHighlightedIndex] = useState(-1);
+  const [addedTitle, setAddedTitle] = useState<string | null>(null);
+  const [addedIds, setAddedIds] = useState<Set<number>>(new Set());
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const addedTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const inputRef = useRef<HTMLInputElement | null>(null);
   const dialogRef = useModalA11y<HTMLDivElement>(onClose);
 
   useEffect(() => {
+    return () => {
+      if (addedTimeoutRef.current) clearTimeout(addedTimeoutRef.current);
+    };
+  }, []);
+
+  useEffect(() => {
     if (debounceRef.current) clearTimeout(debounceRef.current);
+    setAddedTitle(null);
     if (!query.trim()) {
       setResults([]);
       return;
@@ -58,7 +69,12 @@ export function AddGameModal({ roomId, onAdded, onClose }: AddGameModalProps) {
     try {
       await gamesApi.create({ igdbId: result.igdbId, roomId });
       onAdded();
-      onClose();
+      // Stay open and keep the search results as-is so the user can add several games from the
+      // same search without retyping - just mark this one as added.
+      setAddedIds((prev) => new Set(prev).add(result.igdbId));
+      setAddedTitle(result.title);
+      if (addedTimeoutRef.current) clearTimeout(addedTimeoutRef.current);
+      addedTimeoutRef.current = setTimeout(() => setAddedTitle(null), 2500);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Could not add that game');
     } finally {
@@ -104,8 +120,10 @@ export function AddGameModal({ roomId, onAdded, onClose }: AddGameModalProps) {
         </div>
 
         {error && <div className={styles.error}>{error}</div>}
+        {addedTitle && !error && <div className={styles.added}>Added "{addedTitle}" ✓</div>}
 
         <input
+          ref={inputRef}
           className={styles.input}
           placeholder="Search for a game…"
           value={query}
@@ -144,8 +162,13 @@ export function AddGameModal({ roomId, onAdded, onClose }: AddGameModalProps) {
                   </span>
                   <span className={styles.resultPlatform}>{r.platform}</span>
                 </div>
-                <button type="button" className={styles.addButton} onClick={() => handleAdd(r)} disabled={busy}>
-                  {addingId === r.igdbId ? 'Adding…' : 'Add'}
+                <button
+                  type="button"
+                  className={`${styles.addButton} ${addedIds.has(r.igdbId) ? styles.addButtonAdded : ''}`}
+                  onClick={() => handleAdd(r)}
+                  disabled={busy || addedIds.has(r.igdbId)}
+                >
+                  {addingId === r.igdbId ? 'Adding…' : addedIds.has(r.igdbId) ? 'Added ✓' : 'Add'}
                 </button>
               </div>
             ))}

@@ -127,44 +127,58 @@ describe('statusBucket', () => {
 });
 
 describe('spinCandidateWeight', () => {
-  it('is just the vote score when there are no avoided genres', () => {
-    const game = makeGame({ voteScore: 3, genre: 'Shooter' });
-    expect(spinCandidateWeight(game, new Set())).toBe(3);
+  // voteScore=9 is used throughout so sqrt(9)=3 keeps the math exact.
+  it('is sqrt(vote score) plus the unvoted baseline when there are no avoided genres', () => {
+    const game = makeGame({ voteScore: 9, genre: 'Shooter' });
+    expect(spinCandidateWeight(game, new Set())).toBe(4);
   });
 
-  it('is just the vote score when the primary genre is in the avoided set', () => {
-    const game = makeGame({ voteScore: 3, genre: 'Shooter, Adventure' });
-    expect(spinCandidateWeight(game, new Set(['shooter']))).toBe(3);
+  it('is sqrt(vote score) plus the unvoted baseline when the primary genre is in the avoided set', () => {
+    const game = makeGame({ voteScore: 9, genre: 'Shooter, Adventure' });
+    expect(spinCandidateWeight(game, new Set(['shooter']))).toBe(4);
   });
 
-  it('doubles the vote score when the primary genre is not in the avoided set', () => {
-    const game = makeGame({ voteScore: 3, genre: 'Puzzle' });
-    expect(spinCandidateWeight(game, new Set(['shooter']))).toBe(6);
+  it('doubles sqrt(vote score) plus the unvoted baseline when the primary genre is not in the avoided set', () => {
+    const game = makeGame({ voteScore: 9, genre: 'Puzzle' });
+    expect(spinCandidateWeight(game, new Set(['shooter']))).toBe(8);
   });
 
   it('does not boost a candidate with no genre data at all', () => {
-    const game = makeGame({ voteScore: 3, genre: null });
-    expect(spinCandidateWeight(game, new Set(['shooter']))).toBe(3);
+    const game = makeGame({ voteScore: 9, genre: null });
+    expect(spinCandidateWeight(game, new Set(['shooter']))).toBe(4);
+  });
+
+  it('gives an unvoted candidate a nonzero weight, not a guaranteed-loser 0', () => {
+    const game = makeGame({ voteScore: 0, genre: 'Puzzle' });
+    expect(spinCandidateWeight(game, new Set())).toBeGreaterThan(0);
+  });
+
+  it('does not let a heavily-voted candidate scale linearly - votes have diminishing returns', () => {
+    // 16x the votes should NOT mean 16x the weight (that's what made the wheel feel rigged) -
+    // sqrt keeps it to 4x (sqrt(16)=4 vs sqrt(1)=1), so a heavy favorite still isn't a lock.
+    const heavy = makeGame({ voteScore: 16, genre: 'Puzzle' });
+    const light = makeGame({ voteScore: 1, genre: 'Puzzle' });
+    const ratio = spinCandidateWeight(heavy, new Set()) / spinCandidateWeight(light, new Set());
+    expect(ratio).toBeLessThan(16);
   });
 });
 
 describe('pickSpinWinner', () => {
   it('favors a genre-differing candidate over a higher-scored same-genre one', () => {
-    // Without the genre boost, "shooter" (score 5) would dominate "puzzle" (score 3) at this roll.
-    // With the boost, puzzle's effective weight (6) exceeds shooter's (5), flipping the outcome.
+    // shooter: (sqrt(16)+1)*1 = 5 (same genre as avoided). puzzle: (sqrt(4)+1)*2 = 6 (differs).
+    // Total = 11. roll = 0.5*11 = 5.5 -> subtract shooter's 5 -> 0.5 -> subtract puzzle's 6 -> -5.5 <= 0 -> puzzle.
     const lastCompleted = makeGame({ id: 'completed', status: 'done', genre: 'Shooter' });
-    const shooter = makeGame({ id: 'shooter', genre: 'Shooter', voteScore: 5 });
-    const puzzle = makeGame({ id: 'puzzle', genre: 'Puzzle', voteScore: 3 });
+    const shooter = makeGame({ id: 'shooter', genre: 'Shooter', voteScore: 16 });
+    const puzzle = makeGame({ id: 'puzzle', genre: 'Puzzle', voteScore: 4 });
     const candidates = [shooter, puzzle];
 
-    // Total effective weight = 5 + 6 = 11. roll = 0.5*11 = 5.5 -> subtract shooter's 5 -> 0.5 -> subtract puzzle's 6 -> -5.5 <= 0 -> puzzle.
     expect(pickSpinWinner([lastCompleted, ...candidates], candidates, () => 0.5)?.id).toBe('puzzle');
   });
 
   it('also avoids the genre of a currently-Playing game, not just the last completed one', () => {
     const playing = makeGame({ id: 'playing', status: 'playing', genre: 'Shooter' });
-    const shooter = makeGame({ id: 'shooter', genre: 'Shooter', voteScore: 5 });
-    const puzzle = makeGame({ id: 'puzzle', genre: 'Puzzle', voteScore: 3 });
+    const shooter = makeGame({ id: 'shooter', genre: 'Shooter', voteScore: 16 });
+    const puzzle = makeGame({ id: 'puzzle', genre: 'Puzzle', voteScore: 4 });
     const candidates = [shooter, puzzle];
 
     // Same math as the completed-game case: puzzle's boosted weight (6) beats shooter's (5).
@@ -172,12 +186,22 @@ describe('pickSpinWinner', () => {
   });
 
   it('falls back to plain vote-score weighting when nothing has been completed or is playing', () => {
-    const shooter = makeGame({ id: 'shooter', genre: 'Shooter', voteScore: 5 });
-    const puzzle = makeGame({ id: 'puzzle', genre: 'Puzzle', voteScore: 3 });
+    // shooter: (sqrt(16)+1)*1 = 5. puzzle: (sqrt(4)+1)*1 = 3. Total = 8. roll = 0.5*8 = 4 ->
+    // subtract shooter's 5 -> -1 <= 0 -> shooter, confirming no boost applies with nothing to avoid.
+    const shooter = makeGame({ id: 'shooter', genre: 'Shooter', voteScore: 16 });
+    const puzzle = makeGame({ id: 'puzzle', genre: 'Puzzle', voteScore: 4 });
     const candidates = [shooter, puzzle];
-    // Total weight = 8 (no boost). roll = 0.5*8 = 4 -> subtract shooter's 5 -> -1 <= 0 -> shooter,
-    // confirming no boost is applied even though puzzle's genre "differs" from nothing in particular.
     expect(pickSpinWinner(candidates, candidates, () => 0.5)?.id).toBe('shooter');
+  });
+
+  it('gives an unvoted candidate a real chance instead of a guaranteed loss to any voted one', () => {
+    // unvoted: (sqrt(0)+1)*1 = 1. voted: (sqrt(9)+1)*1 = 4. Total = 5. A roll near the very top
+    // (0.99) still lands on the unvoted candidate - impossible before the baseline weight existed,
+    // since its weight was exactly 0.
+    const unvoted = makeGame({ id: 'unvoted', genre: 'Puzzle', voteScore: 0 });
+    const voted = makeGame({ id: 'voted', genre: 'Puzzle', voteScore: 9 });
+    const candidates = [voted, unvoted];
+    expect(pickSpinWinner(candidates, candidates, () => 0.99)?.id).toBe('unvoted');
   });
 
   it('returns null for an empty candidate list', () => {

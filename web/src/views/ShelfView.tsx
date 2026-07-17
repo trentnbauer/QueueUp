@@ -5,7 +5,7 @@ import { useGames } from '../hooks/useGames';
 import { GameGrid } from '../components/GameGrid';
 import { ActionErrorBanner } from '../components/ActionErrorBanner';
 import { TruncatedListBanner } from '../components/TruncatedListBanner';
-import { SteamImportButton } from '../components/SteamImportButton';
+import { SteamImportCard } from '../components/SteamImportCard';
 
 export function ShelfView() {
   const { user, steamLinked } = useAuth();
@@ -38,7 +38,6 @@ export function ShelfView() {
     <div>
       <ActionErrorBanner message={actionError} onDismiss={clearActionError} />
       <TruncatedListBanner truncated={truncated} />
-      {steamLinked && <SteamImportButton onImported={invalidate} />}
       <GameGrid
         games={games}
         currentUserId={user.id}
@@ -52,6 +51,7 @@ export function ShelfView() {
         onRefreshPrice={refreshPrice}
         isRefreshingPrice={isRefreshingPrice}
         onSetTargetPrice={setTargetPrice}
+        trailingCard={<SteamImportCard steamLinked={steamLinked} onImported={invalidate} />}
       />
     </div>
   );

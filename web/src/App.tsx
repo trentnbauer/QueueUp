@@ -54,7 +54,24 @@ export default function App() {
   const [providers, setProviders] = useState<string[] | null>(null);
   const [showOnboarding, setShowOnboarding] = useState(false);
   const [pendingJoinError, setPendingJoinError] = useState<string | null>(null);
+  const [steamLinkError, setSteamLinkError] = useState<string | null>(null);
   const completingPendingJoin = useRef(false);
+
+  // Steam account linking (see SteamImportCard / server /auth/steam/link) ends in a full-page
+  // redirect back here with the outcome in the query string, since a redirect flow has no other
+  // channel back to the UI. Surface any error, then strip the param so it doesn't linger in the
+  // URL or re-fire on a later remount.
+  useEffect(() => {
+    const params = new URLSearchParams(location.search);
+    const error = params.get('steamLinkError');
+    const linked = params.get('steamLinked');
+    if (!error && !linked) return;
+    if (error) setSteamLinkError(error);
+    params.delete('steamLinkError');
+    params.delete('steamLinked');
+    navigate({ pathname: location.pathname, search: params.toString() }, { replace: true });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   useEffect(() => {
     if (!user) authApi.providers().then(({ providers }) => setProviders(providers));
@@ -130,6 +147,7 @@ export default function App() {
       <div style={{ flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column', minHeight: '100vh' }}>
         <Header />
         <ActionErrorBanner message={pendingJoinError} onDismiss={() => setPendingJoinError(null)} />
+        <ActionErrorBanner message={steamLinkError} onDismiss={() => setSteamLinkError(null)} />
         <div style={{ flex: 1 }}>
           <Routes>
             <Route path="/" element={<ShelfView />} />

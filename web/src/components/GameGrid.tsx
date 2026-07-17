@@ -1,4 +1,5 @@
 import { Fragment, useMemo, useRef } from 'react';
+import type { ReactNode } from 'react';
 import type { Game, GameStatus, User, VoteValue } from '@squadqueue/shared';
 import { GameCard } from './GameCard';
 import { SpinWheelCard } from './SpinWheelCard';
@@ -48,6 +49,10 @@ interface GameGridProps {
   /** Shows the Spin the Wheel tile as part of the grid - rooms only, not the Personal Shelf
    * (there's no group decision to help make there). */
   showSpinWheel?: boolean;
+  /** Extra tile rendered as the very last card in the grid, after every game and regardless of
+   * filters (e.g. the Steam import tile on the Personal Shelf) - unlike the Spin the Wheel tile,
+   * this doesn't get slotted into a specific status position. */
+  trailingCard?: ReactNode;
   onStatusChange: (gameId: string, status: GameStatus) => void;
   onVote: (gameId: string, value: VoteValue) => void;
   onRemove: (gameId: string) => void;
@@ -67,6 +72,7 @@ export function GameGrid({
   memberCount,
   roomMembers,
   showSpinWheel,
+  trailingCard,
   onStatusChange,
   onVote,
   onRemove,
@@ -128,12 +134,13 @@ export function GameGrid({
         ? 'No games match these filters.'
         : 'Nothing here yet.';
 
-    if (!spinCard) return <div className={styles.empty}>{message}</div>;
+    if (!spinCard && !trailingCard) return <div className={styles.empty}>{message}</div>;
 
     return (
       <div className={styles.cards}>
         {spinCard}
         <div className={`${styles.empty} ${styles.emptyInGrid}`}>{message}</div>
+        {trailingCard}
       </div>
     );
   }
@@ -169,6 +176,7 @@ export function GameGrid({
         </Fragment>
       ))}
       {spinCardInsertIndex === filtered.length && spinCard}
+      {trailingCard}
     </div>
   );
 }

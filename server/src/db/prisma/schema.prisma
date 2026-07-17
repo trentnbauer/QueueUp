@@ -52,6 +52,10 @@ enum NotificationType {
 model User {
   id           String   @id @default(uuid())
   oidcSub      String   @unique @map("oidc_sub")
+  /// Set when this user links a Steam account without signing in with it directly (oidcSub is
+  /// already taken by their primary sign-in provider) - see the Steam-link flow in auth.ts.
+  /// Steam sign-in users don't need this populated; their Steam ID lives in oidcSub instead.
+  steamId64    String?  @unique @map("steam_id64")
   email        String
   displayName  String   @map("display_name")
   avatarColor  String   @default("#8f8aa8") @map("avatar_color")

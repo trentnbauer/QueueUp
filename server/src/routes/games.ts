@@ -15,7 +15,7 @@ import { searchIntake, resolveGameForCreation, refreshGamePricing } from '../ser
 import { notifyRoom } from '../services/notifications.js';
 import { platformFamilies, findIgdbIdBySteamAppId } from '../services/igdbClient.js';
 import { getOwnedPlatforms } from '../services/userSettings.js';
-import { extractSteamId64, getOwnedSteamGames } from '../services/steamLibrary.js';
+import { resolveSteamId64, getOwnedSteamGames } from '../services/steamLibrary.js';
 import { env } from '../config/env.js';
 import type {
   CreateGameRequest,
@@ -149,7 +149,7 @@ export default async function gameRoutes(app: FastifyInstance) {
       }
 
       const user = await prisma.user.findUniqueOrThrow({ where: { id: userId } });
-      const steamId64 = extractSteamId64(user.oidcSub);
+      const steamId64 = resolveSteamId64(user);
       if (!steamId64) {
         throw new HttpError(400, 'Sign in with Steam to import your library.');
       }

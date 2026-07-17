@@ -8,6 +8,14 @@ export function extractSteamId64(oidcSub: string): string | null {
   return oidcSub.startsWith(STEAM_SUB_PREFIX) ? oidcSub.slice(STEAM_SUB_PREFIX.length) : null;
 }
 
+/** A user's Steam ID can come from either signing in with Steam directly (oidcSub) or linking a
+ * Steam account while signed in some other way (User.steamId64, see the link flow in auth.ts).
+ * This is the single place that should be used to decide "does this user have a usable Steam
+ * account" - callers shouldn't read oidcSub or steamId64 individually. */
+export function resolveSteamId64(user: { oidcSub: string; steamId64: string | null }): string | null {
+  return user.steamId64 ?? extractSteamId64(user.oidcSub);
+}
+
 interface SteamOwnedGame {
   appid: number;
   playtime_forever: number;
