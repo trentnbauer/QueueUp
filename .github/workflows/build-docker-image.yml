@@ -24,7 +24,7 @@ jobs:
     # DISABLED while other repo changes are landing — remove this line to
     # re-enable (build-and-push depends on this job's outputs, so disabling
     # just this one is enough to disable the whole workflow).
-    if: false
+    if: true
     runs-on: ubuntu-latest
     permissions:
       contents: read
