@@ -44,6 +44,7 @@ enum NotificationType {
   room_platform_changed
   room_owner_changed
   room_deleted
+  price_drop
 
   @@map("notification_type")
 }
@@ -131,6 +132,12 @@ model Game {
   /// Set by the admin bulk-archive action (Done games untouched for 90+ days) - archived games are
   /// hidden from normal shelf/room listings but not deleted, preserving history.
   archivedAt     DateTime?  @map("archived_at")
+  /// A price to alert at, set by any user who can see the game (string decimal, matching the
+  /// existing price-string convention - see GamePrice). Shared per-game rather than per-user: a
+  /// room game has one target that notifies the whole room, same as any other room notification.
+  /// Cleared automatically once the alert fires (see priceAlerts.ts) so a price that stays low
+  /// doesn't re-notify on every subsequent page load.
+  targetPrice    String?    @map("target_price")
 
   room  Room?  @relation(fields: [roomId], references: [id], onDelete: Cascade)
   adder User   @relation(fields: [addedBy], references: [id], onDelete: Cascade)

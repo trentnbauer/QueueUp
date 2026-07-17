@@ -65,6 +65,13 @@ export function useGames(roomId: string | null) {
     onError: (err) => setActionError(errorMessage(err, 'Could not refresh that game\'s price.')),
   });
 
+  const setTargetPrice = useMutation({
+    mutationFn: ({ gameId, targetPrice }: { gameId: string; targetPrice: string | null }) =>
+      gamesApi.setTargetPrice(gameId, { targetPrice }),
+    onSuccess: ({ game }) => patchGame(game),
+    onError: (err) => setActionError(errorMessage(err, 'Could not save that price alert.')),
+  });
+
   const move = useMutation({
     mutationFn: ({ gameId, destRoomId }: { gameId: string; destRoomId: string | null }) =>
       gamesApi.move(gameId, { roomId: destRoomId }),
@@ -92,5 +99,6 @@ export function useGames(roomId: string | null) {
     // game's refresh pending" is just "is the mutation pending for this game's id".
     isRefreshingPrice: (gameId: string) => refreshPrice.isPending && refreshPrice.variables === gameId,
     move: (gameId: string, destRoomId: string | null) => move.mutate({ gameId, destRoomId }),
+    setTargetPrice: (gameId: string, targetPrice: string | null) => setTargetPrice.mutate({ gameId, targetPrice }),
   };
 }

@@ -22,6 +22,7 @@ import type {
   ImportSteamLibraryResult,
   MoveGameRequest,
   PriceRegion,
+  SetTargetPriceRequest,
   UpdateGameStatusRequest,
   VoteRequest,
 } from '@squadqueue/shared';
@@ -275,6 +276,26 @@ export default async function gameRoutes(app: FastifyInstance) {
     await requireGameReadAccess(game, userId);
 
     await refreshGamePricing(game.steamAppid);
+    const updated = await loadGameOr404(game.id);
+    return { game: await serializeGame(updated, userId) };
+  });
+
+  app.patch<{ Params: { id: string }; Body: SetTargetPriceRequest }>('/api/games/:id/target-price', async (request) => {
+    const userId = await request.requireAuth();
+    const game = await loadGameOr404(request.params.id);
+    await requireGameReadAccess(game, userId);
+
+    const { targetPrice } = request.body;
+    let normalized: string | null = null;
+    if (targetPrice != null) {
+      const parsed = Number(targetPrice);
+      if (!Number.isFinite(parsed) || parsed <= 0) {
+        throw new HttpError(400, 'Target price must be a positive number');
+      }
+      normalized = parsed.toFixed(2);
+    }
+
+    await prisma.game.update({ where: { id: game.id }, data: { targetPrice: normalized } });
     const updated = await loadGameOr404(game.id);
     return { game: await serializeGame(updated, userId) };
   });

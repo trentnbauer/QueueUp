@@ -16,6 +16,7 @@ function makeGame(overrides: Partial<Game> = {}): Game {
     coverImageUrl: null,
     status: 'backlog',
     price: { amount: null, currency: null, source: 'unavailable', historicalLow: null, lastRefreshedAt: null },
+    targetPrice: null,
     votes: [],
     myVote: null,
     voteScore: 0,

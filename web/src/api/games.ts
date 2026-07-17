@@ -6,6 +6,7 @@ import type {
   ImportSteamLibraryResult,
   MoveGameRequest,
   PriceRegion,
+  SetTargetPriceRequest,
   UpdateGameStatusRequest,
   VoteRequest,
 } from '@squadqueue/shared';
@@ -24,6 +25,8 @@ export const gamesApi = {
     apiPatch<{ game: Game }>(`/api/games/${id}/status`, body),
   remove: (id: string) => apiDelete(`/api/games/${id}`),
   refreshPrice: (id: string) => apiPost<{ game: Game }>(`/api/games/${id}/refresh-price`),
+  setTargetPrice: (id: string, body: SetTargetPriceRequest) =>
+    apiPatch<{ game: Game }>(`/api/games/${id}/target-price`, body),
   vote: (id: string, body: VoteRequest) => apiPut<{ game: Game }>(`/api/games/${id}/vote`, body),
   move: (id: string, body: MoveGameRequest) => apiPost<{ game: Game }>(`/api/games/${id}/move`, body),
   importSteamLibrary: () => apiPost<ImportSteamLibraryResult>('/api/games/import-steam-library'),

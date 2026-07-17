@@ -208,6 +208,79 @@
   white-space: nowrap;
 }
 
+.targetPriceRow {
+  display: flex;
+}
+
+.targetPriceButton {
+  background: none;
+  border: none;
+  color: var(--sq-muted);
+  font: 600 11px system-ui, sans-serif;
+  padding: 0;
+}
+
+.targetPriceButton:hover {
+  color: var(--sq-accent);
+}
+
+.targetPricePill {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 6px 4px 10px;
+  border-radius: 999px;
+  background: var(--sq-accent-pill-bg);
+  color: var(--sq-accent);
+  font: 600 11.5px system-ui, sans-serif;
+}
+
+.targetPriceClear {
+  background: none;
+  border: none;
+  color: inherit;
+  font-size: 14px;
+  line-height: 1;
+  padding: 0 2px;
+}
+
+.targetPriceForm {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  width: 100%;
+}
+
+.targetPriceInput {
+  flex: 1;
+  min-width: 0;
+  padding: 6px 8px;
+  border-radius: var(--sq-radius);
+  background: var(--sq-surface2);
+  border: 1px solid var(--sq-border);
+  color: var(--sq-text);
+  font-size: 12px;
+}
+
+.targetPriceSave,
+.targetPriceCancel {
+  flex-shrink: 0;
+  border: none;
+  border-radius: var(--sq-radius);
+  font: 600 11px system-ui, sans-serif;
+  padding: 6px 10px;
+}
+
+.targetPriceSave {
+  background: var(--sq-accent);
+  color: var(--sq-accent-text);
+}
+
+.targetPriceCancel {
+  background: var(--sq-neutral-pill-bg);
+  color: var(--sq-muted);
+}
+
 .coopWarning {
   font: 600 11px system-ui, sans-serif;
   color: #ffb84a;

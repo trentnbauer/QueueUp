@@ -1,3 +1,4 @@
+import { useState, type FormEvent } from 'react';
 import type { Game, GameStatus, User, VoteValue } from '@squadqueue/shared';
 import { AvatarBadge } from './AvatarBadge';
 import { StatusBadge } from './StatusBadge';
@@ -18,6 +19,9 @@ interface GameCardProps {
   onRefreshPrice: () => void;
   /** Drives the refresh button's spinner. Defaults to false (e.g. contexts that don't track it). */
   isRefreshingPrice?: boolean;
+  /** Sets (or clears, with null) the price to alert at (issue #162) - only offered for games with
+   * a live tracked price, since there's nothing to compare a target against otherwise. */
+  onSetTargetPrice: (targetPrice: string | null) => void;
 }
 
 function formatAmount(amount: string, currency: string | null): string {
@@ -44,8 +48,11 @@ export function GameCard({
   onRemove,
   onRefreshPrice,
   isRefreshingPrice = false,
+  onSetTargetPrice,
 }: GameCardProps) {
   const confirm = useConfirm();
+  const [editingTargetPrice, setEditingTargetPrice] = useState(false);
+  const [targetPriceDraft, setTargetPriceDraft] = useState('');
   const coopWarning =
     game.maxCoopPlayers != null && memberCount != null && memberCount > game.maxCoopPlayers
       ? `Only supports ${game.maxCoopPlayers}-player co-op — this room has ${memberCount} members`
@@ -59,6 +66,24 @@ export function GameCard({
       danger: true,
     });
     if (ok) onRemove();
+  }
+
+  function startEditingTargetPrice() {
+    setTargetPriceDraft(game.targetPrice ?? '');
+    setEditingTargetPrice(true);
+  }
+
+  function handleSaveTargetPrice(e: FormEvent) {
+    e.preventDefault();
+    const value = targetPriceDraft.trim();
+    if (!value) return;
+    onSetTargetPrice(value);
+    setEditingTargetPrice(false);
+  }
+
+  function handleClearTargetPrice() {
+    onSetTargetPrice(null);
+    setEditingTargetPrice(false);
   }
 
   return (
@@ -132,6 +157,49 @@ export function GameCard({
               <span className={styles.historicalLow} title="Lowest price this game has been tracked at">
                 All-time low: {formatAmount(game.price.historicalLow, game.price.currency)}
               </span>
+            )}
+          </div>
+        )}
+
+        {game.price.source === 'live' && (
+          <div className={styles.targetPriceRow}>
+            {editingTargetPrice ? (
+              <form onSubmit={handleSaveTargetPrice} className={styles.targetPriceForm}>
+                <input
+                  type="number"
+                  step="0.01"
+                  min="0.01"
+                  autoFocus
+                  className={styles.targetPriceInput}
+                  value={targetPriceDraft}
+                  onChange={(e) => setTargetPriceDraft(e.target.value)}
+                  placeholder="Alert price"
+                  aria-label="Price to alert at"
+                />
+                <button type="submit" className={styles.targetPriceSave}>Set</button>
+                <button type="button" className={styles.targetPriceCancel} onClick={() => setEditingTargetPrice(false)}>
+                  Cancel
+                </button>
+              </form>
+            ) : game.targetPrice ? (
+              <span
+                className={styles.targetPricePill}
+                title={`Alerts when the price drops to ${formatAmount(game.targetPrice, game.price.currency)} or below`}
+              >
+                🔔 {formatAmount(game.targetPrice, game.price.currency)}
+                <button
+                  type="button"
+                  className={styles.targetPriceClear}
+                  onClick={handleClearTargetPrice}
+                  aria-label="Remove price alert"
+                >
+                  ×
+                </button>
+              </span>
+            ) : (
+              <button type="button" className={styles.targetPriceButton} onClick={startEditingTargetPrice}>
+                🔔 Alert me on a price drop
+              </button>
             )}
           </div>
         )}
