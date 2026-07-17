@@ -1,0 +1,15 @@
+.banner {
+  margin: 0 40px 16px;
+  padding: 10px 14px;
+  border-radius: 8px;
+  background: rgba(255, 184, 74, 0.12);
+  color: #ffb84a;
+  font-size: 13px;
+  font-weight: 600;
+}
+
+@media (max-width: 640px) {
+  .banner {
+    margin: 0 18px 16px;
+  }
+}
