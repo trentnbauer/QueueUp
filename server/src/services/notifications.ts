@@ -144,8 +144,10 @@ export function serializeNotification(row: NotificationWithActor, currentUserId:
   };
 }
 
-/** The merged, most-recent notification feed for a user: their rooms' shared notifications plus
- * any direct ones (room-deletion notices), newest first. */
+/** The merged, most-recent UNREAD notification feed for a user: their rooms' shared notifications
+ * plus any direct ones (room-deletion notices), newest first. Only unread ones are returned - a
+ * read notification has nothing left to act on, and "Dismiss all" (markAllNotificationsRead) needs
+ * this list to actually go empty afterward rather than just losing its unread highlight. */
 export async function getNotificationFeed(userId: string, take = 50): Promise<Notification[]> {
   const memberships = await prisma.roomMember.findMany({
     where: { userId },
@@ -161,7 +163,9 @@ export async function getNotificationFeed(userId: string, take = 50): Promise<No
     take,
   });
 
-  return rows.map((row: NotificationWithActor) => serializeNotification(row, userId, cutoffByRoomId));
+  return rows
+    .map((row: NotificationWithActor) => serializeNotification(row, userId, cutoffByRoomId))
+    .filter((n) => !n.read);
 }
 
 /** Unread counts for the sidebar: a dot per oversized-in-notifications room icon, plus a total for

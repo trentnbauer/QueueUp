@@ -1,10 +1,12 @@
 .card {
+  position: relative;
   background: var(--sq-surface);
   border: 1px solid var(--sq-border);
   border-radius: var(--sq-card-radius);
   overflow: hidden;
   display: flex;
   flex-direction: column;
+  cursor: pointer;
 }
 
 .cover {
@@ -31,23 +33,29 @@
   color: var(--sq-muted);
 }
 
-.doneStrike {
+.beatenRibbon {
   position: absolute;
   inset: 0;
-  background: linear-gradient(
-    to bottom right,
-    transparent calc(50% - 2px),
-    var(--sq-accent2) calc(50% - 2px),
-    var(--sq-accent2) calc(50% + 2px),
-    transparent calc(50% + 2px)
-  );
+  overflow: hidden;
   pointer-events: none;
+  z-index: 5;
 }
 
-.statusFloating {
+.beatenRibbonText {
   position: absolute;
-  top: 10px;
-  right: 10px;
+  top: 50%;
+  left: 50%;
+  width: 320%;
+  padding: 10px 0;
+  background: linear-gradient(135deg, #5fdc3a, #2fa016);
+  color: #fff;
+  text-align: center;
+  text-transform: uppercase;
+  font: 800 24px var(--sq-header-font);
+  letter-spacing: 0.12em;
+  text-shadow: 2px 2px 0 rgba(0, 0, 0, 0.35);
+  box-shadow: 0 3px 10px rgba(0, 0, 0, 0.45);
+  transform: translate(-50%, -50%) rotate(-58deg);
 }
 
 /* Sits over the artwork's bottom edge with a gradient scrim underneath, so the title and
@@ -73,6 +81,17 @@
   flex-direction: column;
   gap: 11px;
   flex: 1;
+}
+
+.playingBanner {
+  padding: 20px 17px;
+  background: var(--sq-accent);
+  color: #fff;
+  text-align: center;
+  text-transform: uppercase;
+  font: 800 30px var(--sq-header-font);
+  letter-spacing: 0.06em;
+  text-shadow: 2px 2px 0 rgba(0, 0, 0, 0.3);
 }
 
 .title {
@@ -114,7 +133,7 @@
   align-items: center;
   justify-content: center;
   padding: 9px 14px;
-  border-radius: 999px;
+  border-radius: var(--sq-radius);
   background: var(--sq-accent);
   color: var(--sq-accent-text);
   text-decoration: none;
@@ -292,23 +311,9 @@
 .divider {
   height: 1px;
   background: var(--sq-border);
-}
-
-.footerRow {
-  display: flex;
-  align-items: center;
-  justify-content: flex-end;
+  /* Pushes everything from here down (votes, squad votes, added-by) to the bottom of the card -
+     cards in the same grid row are stretched to equal height, but the content above this point
+     varies (live price info adds extra rows, Playing hides price info entirely), which without
+     this left the vote section landing at a different height card to card. */
   margin-top: auto;
-}
-
-.removeButton {
-  background: none;
-  border: none;
-  color: var(--sq-muted);
-  font-size: 11px;
-  padding: 0;
-}
-
-.removeButton:hover {
-  color: var(--sq-text);
 }

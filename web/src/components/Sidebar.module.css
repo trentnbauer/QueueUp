@@ -11,6 +11,10 @@
   height: 100vh;
   position: sticky;
   top: 0;
+  /* Establishes its own stacking context so its flyouts (notifications, profile menu) always
+     paint above the main content area, regardless of z-index/position quirks introduced by
+     individual game cards (e.g. GameCard's "Beaten" ribbon and status-menu portal). */
+  z-index: 40;
 }
 
 .brandMenu {
@@ -68,6 +72,19 @@
 .notifTitle {
   font: 700 13px system-ui, sans-serif;
   color: var(--sq-text);
+}
+
+.notifDismissAll {
+  background: none;
+  border: none;
+  color: var(--sq-muted);
+  font: 600 11px system-ui, sans-serif;
+  padding: 0;
+  cursor: pointer;
+}
+
+.notifDismissAll:hover {
+  color: var(--sq-accent);
 }
 
 .notifList {

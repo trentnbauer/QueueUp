@@ -1,5 +1,5 @@
 import { Link } from 'react-router-dom';
-import { useNotificationFeed } from '../hooks/useNotifications';
+import { useNotificationFeed, useMarkAllNotificationsRead } from '../hooks/useNotifications';
 import { formatRelativeTime } from '../utils/relativeTime';
 import styles from './Sidebar.module.css';
 
@@ -7,23 +7,34 @@ interface NotificationFlyoutProps {
   onNavigate: () => void;
 }
 
-/** The dropdown behind the SQ button's badge. Notifications keep their unread highlight for as
- * long as this stays open (so it's clear what's new); the caller (Sidebar) marks everything read
- * once the user actually closes it - not on unmount here, since unmount isn't a reliable proxy for
- * "the user is done looking" (React 18 StrictMode alone double-fires it in development). */
+/** The dropdown behind the SQ button's badge. The feed itself only ever contains unread
+ * notifications (see getNotificationFeed) - closing the flyout marks everything read (the caller,
+ * Sidebar, does this - not on unmount here, since unmount isn't a reliable proxy for "the user is
+ * done looking"; React 18 StrictMode alone double-fires it in development), which is what makes the
+ * list empty again next time it's opened. "Dismiss all" runs that same mark-all-read action
+ * immediately and clears the panel right away, without having to close and reopen it. Room-scoped
+ * notifications are a shared feed (read state is a per-member cursor, not a per-row flag - see
+ * notifications.ts), so this only affects your own view - the room's notification history isn't
+ * private to you and nothing is deleted for other members. */
 export function NotificationFlyout({ onNavigate }: NotificationFlyoutProps) {
   const { notifications, isLoading } = useNotificationFeed(true);
+  const markAllRead = useMarkAllNotificationsRead();
 
   return (
     <div className={`${styles.flyout} ${styles.notifFlyout}`}>
       <div className={styles.notifHeader}>
         <span className={styles.notifTitle}>Notifications</span>
+        {notifications.length > 0 && (
+          <button type="button" className={styles.notifDismissAll} onClick={markAllRead}>
+            Dismiss all
+          </button>
+        )}
       </div>
       <div className={styles.notifList}>
         {isLoading && <div className={styles.notifEmpty}>Loading…</div>}
         {!isLoading && notifications.length === 0 && (
           <div className={styles.notifEmpty}>
-            Nothing yet - game adds, member changes, and room updates will show up here.
+            You're all caught up - game adds, member changes, and room updates will show up here.
           </div>
         )}
         {notifications.map((n) => {

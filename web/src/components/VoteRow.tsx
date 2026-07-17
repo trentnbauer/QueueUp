@@ -29,7 +29,7 @@ export function VoteRow({ myVote, onVote }: VoteRowProps) {
               key={value}
               onClick={() => onVote(value)}
               style={{
-                width: 32,
+                flex: 1,
                 height: 32,
                 borderRadius: 8,
                 display: 'flex',
