@@ -35,4 +35,11 @@ RUN chmod +x /usr/local/bin/server-entrypoint.sh
 
 WORKDIR /repo/server
 EXPOSE 3000
+# Baked into the image itself (not just docker-compose.prod.yml's healthcheck: override) so the
+# container reports its own health under any orchestrator, not only when run via that specific
+# compose file - node:22-alpine has no curl/wget, so this uses Node's built-in fetch instead of
+# adding a package just for this. Kept in sync with docker-compose.prod.yml's healthcheck, which
+# tunes the interval/retries/start-period for that stack but checks the same endpoint.
+HEALTHCHECK --interval=15s --timeout=5s --start-period=20s --retries=5 \
+  CMD node -e "fetch('http://localhost:3000/healthz').then(r => process.exit(r.ok ? 0 : 1)).catch(() => process.exit(1))"
 CMD ["/usr/local/bin/server-entrypoint.sh"]
