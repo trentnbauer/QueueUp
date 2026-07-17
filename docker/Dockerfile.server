@@ -23,6 +23,13 @@ RUN npm run build -w packages/shared \
 
 FROM base AS runtime
 ENV NODE_ENV=production
+# Baked in at build time (see .github/workflows/build-docker-image.yml) so the running app can
+# report exactly what it's running - surfaced via GET /api/version and shown in the web UI footer.
+# Defaults here only matter for a manual `docker build` with no --build-arg (e.g. local testing).
+ARG APP_VERSION=dev
+ARG APP_SHA=unknown
+ENV APP_VERSION=$APP_VERSION
+ENV APP_SHA=$APP_SHA
 COPY --from=build /repo/node_modules ./node_modules
 COPY --from=build /repo/packages/shared/package.json packages/shared/package.json
 COPY --from=build /repo/packages/shared/dist packages/shared/dist

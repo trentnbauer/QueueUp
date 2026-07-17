@@ -1,6 +1,9 @@
+import { useVersion } from '../hooks/useVersion';
 import styles from './Footer.module.css';
 
 export function Footer() {
+  const { version, sha } = useVersion();
+
   return (
     <footer className={styles.footer}>
       <span>
@@ -42,6 +45,24 @@ export function Footer() {
         >
           Report an issue
         </a>
+        {version && (
+          <>
+            <span className={styles.sep}>·</span>
+            {sha ? (
+              <a
+                className={styles.link}
+                href={`https://github.com/trentnbauer/QueueUp/commit/${sha}`}
+                target="_blank"
+                rel="noopener noreferrer"
+                title={`Commit ${sha}`}
+              >
+                {version}
+              </a>
+            ) : (
+              <span>{version}</span>
+            )}
+          </>
+        )}
       </span>
     </footer>
   );

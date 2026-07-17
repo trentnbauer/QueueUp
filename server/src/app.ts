@@ -11,6 +11,7 @@ import gameRoutes from './routes/games.js';
 import notificationRoutes from './routes/notifications.js';
 import adminRoutes from './routes/admin.js';
 import healthRoutes from './routes/health.js';
+import versionRoutes from './routes/version.js';
 import { env } from './config/env.js';
 import { redis } from './services/redisClient.js';
 
@@ -51,6 +52,7 @@ export async function buildApp() {
   await app.register(authPlugin);
 
   await app.register(healthRoutes);
+  await app.register(versionRoutes);
   await app.register(authRoutes);
   await app.register(roomRoutes);
   await app.register(gameRoutes);
