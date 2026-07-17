@@ -10,6 +10,7 @@ import { ActionErrorBanner } from '../components/ActionErrorBanner';
 import { TruncatedListBanner } from '../components/TruncatedListBanner';
 import { RoomSizeWarningBanner } from '../components/RoomSizeWarningBanner';
 import { SpinTheWheel } from '../components/SpinTheWheel';
+import { useMarkRoomNotificationsRead } from '../hooks/useNotifications';
 
 // Post-1.0 release feature: Spin the Wheel is temporarily hidden until its UI
 // gets a redesign. Component is kept intact so it can be re-enabled easily.
@@ -43,9 +44,17 @@ export function RoomView() {
   });
   const memberCount = membersData?.members.length;
 
+  const markRoomNotificationsRead = useMarkRoomNotificationsRead(roomId ?? null);
+
   useEffect(() => {
     if (roomId) switchView({ type: 'room', roomId });
   }, [roomId, switchView]);
+
+  useEffect(() => {
+    markRoomNotificationsRead();
+    // Only when the room being viewed changes, not on every re-render of the mark-read callback.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [roomId]);
 
   if (!user || !roomId) return null;
 

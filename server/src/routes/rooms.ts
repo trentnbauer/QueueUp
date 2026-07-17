@@ -4,7 +4,9 @@ import { toUserDto } from '../util/dto.js';
 import { HttpError } from '../util/httpError.js';
 import { requireElevated, requireMembership, generateUniqueInviteCode } from '../services/roomAccess.js';
 import { logAdminAction } from '../services/adminAuditLog.js';
+import { notifyRoom, notifyRoomMembersDirect } from '../services/notifications.js';
 import type { CreateRoomRequest, JoinRoomRequest, Room, RoomMember, RoomPlatform, RoomRole, UpdateRoomRequest } from '@squadqueue/shared';
+import { ROOM_PLATFORM_LABELS } from '@squadqueue/shared';
 
 const ROOM_PLATFORMS: RoomPlatform[] = ['pc', 'xbox_360', 'xbox_one', 'xbox_series', 'ps3', 'ps4', 'ps5', 'switch', 'switch2'];
 const ROOM_ROLES: RoomRole[] = ['room_master', 'moderator', 'member'];
@@ -74,11 +76,24 @@ export default async function roomRoutes(app: FastifyInstance) {
       const room = await prisma.room.findUnique({ where: { inviteCode: inviteCode.trim() } });
       if (!room) throw new HttpError(404, 'Invalid invite code');
 
+      const alreadyMember = await prisma.roomMember.findUnique({
+        where: { roomId_userId: { roomId: room.id, userId } },
+      });
       const membership = await prisma.roomMember.upsert({
         where: { roomId_userId: { roomId: room.id, userId } },
         update: {},
         create: { roomId: room.id, userId, role: 'member' },
       });
+
+      if (!alreadyMember) {
+        await notifyRoom({
+          roomId: room.id,
+          roomName: room.name,
+          actorId: userId,
+          type: 'member_joined',
+          message: (actorName) => `${actorName} joined the room`,
+        });
+      }
 
       return { room: toRoomDto(room, membership.role, room.inviteCode) };
     },
@@ -105,6 +120,7 @@ export default async function roomRoutes(app: FastifyInstance) {
     if (name !== undefined && !name.trim()) throw new HttpError(400, 'Room name cannot be empty');
     if (platform !== undefined && !ROOM_PLATFORMS.includes(platform)) throw new HttpError(400, 'A valid platform is required');
 
+    const before = await prisma.room.findUniqueOrThrow({ where: { id: roomId } });
     const room = await prisma.room.update({
       where: { id: roomId },
       data: {
@@ -113,6 +129,25 @@ export default async function roomRoutes(app: FastifyInstance) {
         ...(accentColor !== undefined && { accentColor }),
       },
     });
+
+    if (name !== undefined && room.name !== before.name) {
+      await notifyRoom({
+        roomId,
+        roomName: room.name,
+        actorId: userId,
+        type: 'room_renamed',
+        message: (actorName) => `${actorName} renamed the room from "${before.name}" to "${room.name}"`,
+      });
+    }
+    if (platform !== undefined && room.platform !== before.platform) {
+      await notifyRoom({
+        roomId,
+        roomName: room.name,
+        actorId: userId,
+        type: 'room_platform_changed',
+        message: (actorName) => `${actorName} changed the room's platform to ${ROOM_PLATFORM_LABELS[room.platform]}`,
+      });
+    }
     return { room: toRoomDto(room, membership.role, room.inviteCode) };
   });
 
@@ -124,15 +159,26 @@ export default async function roomRoutes(app: FastifyInstance) {
       throw new HttpError(403, 'Only the Room Master can delete this room');
     }
 
-    const [actor, target] = await Promise.all([
+    const [actor, target, members] = await Promise.all([
       prisma.user.findUniqueOrThrow({ where: { id: actorId } }),
       prisma.room.findUnique({
         where: { id: roomId },
         include: { _count: { select: { members: true, games: true } } },
       }),
+      prisma.roomMember.findMany({ where: { roomId }, select: { userId: true } }),
     ]);
 
     await prisma.room.delete({ where: { id: roomId } });
+
+    if (target) {
+      await notifyRoomMembersDirect({
+        roomName: target.name,
+        actorId,
+        recipientIds: members.map((m) => m.userId),
+        type: 'room_deleted',
+        message: (actorName) => `${actorName} deleted the room "${target.name}"`,
+      });
+    }
 
     app.log.warn(
       {
@@ -210,7 +256,15 @@ export default async function roomRoutes(app: FastifyInstance) {
       });
       if (existing) throw new HttpError(400, 'That user is already a member of this room');
 
+      const room = await prisma.room.findUniqueOrThrow({ where: { id: roomId }, select: { name: true } });
       await prisma.roomMember.create({ data: { roomId, userId: targetUserId, role: 'member' } });
+      await notifyRoom({
+        roomId,
+        roomName: room.name,
+        actorId,
+        type: 'member_joined',
+        message: (actorName) => `${actorName} added ${targetUser.displayName} to the room`,
+      });
       reply.status(201);
       return { added: true };
     },
@@ -234,6 +288,10 @@ export default async function roomRoutes(app: FastifyInstance) {
       const target = await requireMembership(roomId, targetUserId);
 
       if (role === 'room_master') {
+        const [targetUser, room] = await Promise.all([
+          prisma.user.findUniqueOrThrow({ where: { id: targetUserId }, select: { displayName: true } }),
+          prisma.room.findUniqueOrThrow({ where: { id: roomId }, select: { name: true } }),
+        ]);
         // Ownership transfer: the outgoing Room Master steps down to Moderator rather than being
         // left without a role, and this happens atomically so the room is never left without
         // exactly one Room Master.
@@ -247,6 +305,13 @@ export default async function roomRoutes(app: FastifyInstance) {
             data: { role: 'room_master' },
           }),
         ]);
+        await notifyRoom({
+          roomId,
+          roomName: room.name,
+          actorId,
+          type: 'room_owner_changed',
+          message: (actorName) => `${actorName} transferred room ownership to ${targetUser.displayName}`,
+        });
         return { role: updatedTarget.role };
       }
 

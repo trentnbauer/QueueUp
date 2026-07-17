@@ -12,6 +12,7 @@ import {
 } from '../services/gameAccess.js';
 import { gameInclude, serializeGame, serializeGames } from '../services/gameSerializer.js';
 import { searchIntake, resolveGameForCreation, refreshGamePricing } from '../services/gameIntake.js';
+import { notifyRoom } from '../services/notifications.js';
 import { platformFamilies, findIgdbIdBySteamAppId } from '../services/igdbClient.js';
 import { getOwnedPlatforms } from '../services/userSettings.js';
 import { extractSteamId64, getOwnedSteamGames } from '../services/steamLibrary.js';
@@ -118,6 +119,17 @@ export default async function gameRoutes(app: FastifyInstance) {
     });
     const game = await loadGameOr404(created.id);
     await invalidateExistingIgdbIds(roomId ?? null, userId);
+
+    if (roomId) {
+      const room = await prisma.room.findUniqueOrThrow({ where: { id: roomId }, select: { name: true } });
+      await notifyRoom({
+        roomId,
+        roomName: room.name,
+        actorId: userId,
+        type: 'game_added',
+        message: (actorName) => `${actorName} added "${resolved.title}" to the room`,
+      });
+    }
 
     reply.status(201);
     return { game: await serializeGame(game, userId) };
