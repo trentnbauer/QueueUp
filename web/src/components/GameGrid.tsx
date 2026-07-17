@@ -1,6 +1,7 @@
 import { useMemo, useRef } from 'react';
 import type { Game, GameStatus, VoteValue } from '@squadqueue/shared';
 import { GameCard } from './GameCard';
+import { SpinWheelCard } from './SpinWheelCard';
 import { ALL_FILTER_VALUE, splitLabel, sortByScore, playNextGames, recommendedNextId, statusBucket } from './gameGridLogic';
 import { useGameFilter } from '../context/GameFilterContext';
 import styles from './GameGrid.module.css';
@@ -41,6 +42,9 @@ interface GameGridProps {
   onRetry?: () => void;
   /** Room member count, used to warn when a game's max co-op players is under this. Undefined on the Personal Shelf. */
   memberCount?: number;
+  /** Shows the Spin the Wheel tile as part of the grid - rooms only, not the Personal Shelf
+   * (there's no group decision to help make there). */
+  showSpinWheel?: boolean;
   onStatusChange: (gameId: string, status: GameStatus) => void;
   onVote: (gameId: string, value: VoteValue) => void;
   onRemove: (gameId: string) => void;
@@ -57,6 +61,7 @@ export function GameGrid({
   loadError,
   onRetry,
   memberCount,
+  showSpinWheel,
   onStatusChange,
   onVote,
   onRemove,
@@ -115,18 +120,28 @@ export function GameGrid({
     );
   }
 
-  if (prioritized.length === 0) {
-    return <div className={styles.empty}>Nothing here yet.</div>;
-  }
+  const spinCard = showSpinWheel && <SpinWheelCard games={games} />;
 
-  if (filtered.length === 0) {
+  if (prioritized.length === 0 || filtered.length === 0) {
+    const message = prioritized.length === 0
+      ? 'Nothing here yet.'
+      : hasActiveFilters
+        ? 'No games match these filters.'
+        : 'Nothing here yet.';
+
+    if (!spinCard) return <div className={styles.empty}>{message}</div>;
+
     return (
-      <div className={styles.empty}>{hasActiveFilters ? 'No games match these filters.' : 'Nothing here yet.'}</div>
+      <div className={styles.cards}>
+        {spinCard}
+        <div className={`${styles.empty} ${styles.emptyInGrid}`}>{message}</div>
+      </div>
     );
   }
 
   return (
     <div className={styles.cards}>
+      {spinCard}
       {filtered.map((game) => (
         <GameCard
           key={game.id}

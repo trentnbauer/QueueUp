@@ -42,18 +42,25 @@ export function primaryGenre(genre: string | null): string | null {
   return first || null;
 }
 
-/** Among the current Play Next picks, the highest-scored one whose primary genre differs from the
- * most-recently-completed game's — e.g. last completed was a shooter, play-next top-3 are
- * shooter/shooter/puzzle, recommend the puzzle one. No recommendation if nothing's been completed
- * yet, the last completed game has no genre data, or every play-next pick shares its primary genre. */
-export function recommendedNextId(games: Game[], candidates: Game[]): string | null {
+/** Primary genre of the most recently completed game, or null if nothing's been completed yet or
+ * the most recent completion has no genre data - shared by recommendedNextId (find one differing
+ * pick) and the Spin the Wheel weighting (favor picks that differ). */
+export function lastCompletedPrimaryGenre(games: Game[]): string | null {
   const completed = games.filter((g) => g.status === 'done');
   if (completed.length === 0) return null;
 
   const lastCompleted = completed.reduce((latest, g) =>
     new Date(g.updatedAt).getTime() > new Date(latest.updatedAt).getTime() ? g : latest,
   );
-  const lastPrimary = primaryGenre(lastCompleted.genre);
+  return primaryGenre(lastCompleted.genre);
+}
+
+/** Among the current Play Next picks, the highest-scored one whose primary genre differs from the
+ * most-recently-completed game's — e.g. last completed was a shooter, play-next top-3 are
+ * shooter/shooter/puzzle, recommend the puzzle one. No recommendation if nothing's been completed
+ * yet, the last completed game has no genre data, or every play-next pick shares its primary genre. */
+export function recommendedNextId(games: Game[], candidates: Game[]): string | null {
+  const lastPrimary = lastCompletedPrimaryGenre(games);
   if (!lastPrimary) return null;
 
   const differing = candidates.find((g) => {
@@ -72,19 +79,50 @@ export function statusBucket(game: Game, playNext: Set<string>): number {
   return 3; // done
 }
 
-/** Picks one game at random from `candidates`, weighted by vote score - a game with twice the
- * score of another is twice as likely to be picked, but every candidate has a real (if small)
- * chance, so a tie-breaker doesn't feel rigged toward whatever's already winning. `random`
- * defaults to Math.random but is injectable for deterministic tests. */
-export function pickWeightedRandom(candidates: Game[], random: () => number = Math.random): Game | null {
-  if (candidates.length === 0) return null;
-  const totalWeight = candidates.reduce((sum, g) => sum + g.voteScore, 0);
-  if (totalWeight <= 0) return candidates[Math.floor(random() * candidates.length)];
+/** Picks one item at random from `items`, weighted by `weight(item)` - an item with twice the
+ * weight of another is twice as likely to be picked, but every item has a real (if small) chance
+ * as long as its weight is positive. Falls back to a uniform pick when every weight is zero (or
+ * the list is empty, when it returns null instead). `random` defaults to Math.random but is
+ * injectable for deterministic tests. */
+function weightedPick<T>(items: T[], weight: (item: T) => number, random: () => number): T | null {
+  if (items.length === 0) return null;
+  const totalWeight = items.reduce((sum, item) => sum + weight(item), 0);
+  if (totalWeight <= 0) return items[Math.floor(random() * items.length)];
 
   let roll = random() * totalWeight;
-  for (const game of candidates) {
-    roll -= game.voteScore;
-    if (roll <= 0) return game;
+  for (const item of items) {
+    roll -= weight(item);
+    if (roll <= 0) return item;
   }
-  return candidates[candidates.length - 1];
+  return items[items.length - 1];
+}
+
+/** Picks one game at random from `candidates`, weighted by vote score - a game with twice the
+ * score of another is twice as likely to be picked, but every candidate has a real (if small)
+ * chance, so a tie-breaker doesn't feel rigged toward whatever's already winning. */
+export function pickWeightedRandom(candidates: Game[], random: () => number = Math.random): Game | null {
+  return weightedPick(candidates, (g) => g.voteScore, random);
+}
+
+// A Spin the Wheel candidate whose primary genre differs from the last-completed game's gets its
+// vote-score weight multiplied by this - nudges the spin toward variety (the same "don't repeat
+// what you just played" idea as recommendedNextId) without ever fully overriding the vote signal:
+// a heavily-voted same-genre pick can still win, just less often than it otherwise would.
+const GENRE_DIVERSITY_MULTIPLIER = 2;
+
+/** A candidate's effective Spin the Wheel weight: its vote score, boosted for genre variety
+ * against the last completed game. Exported mainly for testing - callers should use
+ * pickSpinWinner. */
+export function spinCandidateWeight(game: Game, lastPrimaryGenre: string | null): number {
+  const primary = primaryGenre(game.genre);
+  const differsFromLastCompleted = lastPrimaryGenre !== null && primary !== null && primary !== lastPrimaryGenre;
+  return game.voteScore * (differsFromLastCompleted ? GENRE_DIVERSITY_MULTIPLIER : 1);
+}
+
+/** Spin the Wheel's actual pick: weighted like pickWeightedRandom, but with each candidate's vote
+ * score boosted for differing from the genre of the game most recently marked Done - so the wheel
+ * nudges toward variety instead of just repeating whatever genre you already just finished. */
+export function pickSpinWinner(games: Game[], candidates: Game[], random: () => number = Math.random): Game | null {
+  const lastPrimary = lastCompletedPrimaryGenre(games);
+  return weightedPick(candidates, (g) => spinCandidateWeight(g, lastPrimary), random);
 }

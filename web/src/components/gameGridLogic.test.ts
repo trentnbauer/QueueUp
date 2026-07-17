@@ -7,6 +7,8 @@ import {
   recommendedNextId,
   statusBucket,
   pickWeightedRandom,
+  spinCandidateWeight,
+  pickSpinWinner,
 } from './gameGridLogic';
 
 function makeGame(overrides: Partial<Game> = {}): Game {
@@ -184,5 +186,54 @@ describe('pickWeightedRandom', () => {
     const b = makeGame({ id: 'b', voteScore: 0 });
     // random()=0.6 over 2 candidates -> index floor(0.6*2)=1 -> b
     expect(pickWeightedRandom([a, b], () => 0.6)?.id).toBe('b');
+  });
+});
+
+describe('spinCandidateWeight', () => {
+  it('is just the vote score when there is no last-completed genre to compare against', () => {
+    const game = makeGame({ voteScore: 3, genre: 'Shooter' });
+    expect(spinCandidateWeight(game, null)).toBe(3);
+  });
+
+  it('is just the vote score when the primary genre matches the last completed game', () => {
+    const game = makeGame({ voteScore: 3, genre: 'Shooter, Adventure' });
+    expect(spinCandidateWeight(game, 'shooter')).toBe(3);
+  });
+
+  it('doubles the vote score when the primary genre differs from the last completed game', () => {
+    const game = makeGame({ voteScore: 3, genre: 'Puzzle' });
+    expect(spinCandidateWeight(game, 'shooter')).toBe(6);
+  });
+
+  it('does not boost a candidate with no genre data at all', () => {
+    const game = makeGame({ voteScore: 3, genre: null });
+    expect(spinCandidateWeight(game, 'shooter')).toBe(3);
+  });
+});
+
+describe('pickSpinWinner', () => {
+  it('favors a genre-differing candidate over a higher-scored same-genre one', () => {
+    // Without the genre boost, "shooter" (score 5) would dominate "puzzle" (score 3) at this roll.
+    // With the boost, puzzle's effective weight (6) exceeds shooter's (5), flipping the outcome.
+    const lastCompleted = makeGame({ id: 'completed', status: 'done', genre: 'Shooter' });
+    const shooter = makeGame({ id: 'shooter', genre: 'Shooter', voteScore: 5 });
+    const puzzle = makeGame({ id: 'puzzle', genre: 'Puzzle', voteScore: 3 });
+    const candidates = [shooter, puzzle];
+
+    // Total effective weight = 5 + 6 = 11. roll = 0.5*11 = 5.5 -> subtract shooter's 5 -> 0.5 -> subtract puzzle's 6 -> -5.5 <= 0 -> puzzle.
+    expect(pickSpinWinner([lastCompleted, ...candidates], candidates, () => 0.5)?.id).toBe('puzzle');
+  });
+
+  it('falls back to plain vote-score weighting when nothing has been completed yet', () => {
+    const shooter = makeGame({ id: 'shooter', genre: 'Shooter', voteScore: 5 });
+    const puzzle = makeGame({ id: 'puzzle', genre: 'Puzzle', voteScore: 3 });
+    const candidates = [shooter, puzzle];
+    // Total weight = 8 (no boost). roll = 0.99*8 = 7.92 -> subtract shooter's 5 -> 2.92 -> subtract puzzle's 3 -> -0.08 <= 0 -> puzzle.
+    // roll = 0.5*8 = 4 -> subtract shooter's 5 -> -1 <= 0 -> shooter, confirming no boost is applied.
+    expect(pickSpinWinner(candidates, candidates, () => 0.5)?.id).toBe('shooter');
+  });
+
+  it('returns null for an empty candidate list', () => {
+    expect(pickSpinWinner([], [], () => 0.5)).toBeNull();
   });
 });

@@ -11,6 +11,15 @@
   padding: 12px 40px;
 }
 
+/* When the Spin the Wheel tile shares the grid with an otherwise-empty room, the message needs to
+   span the remaining columns and drop the standalone .empty state's own padding - the grid's own
+   padding already applies. */
+.emptyInGrid {
+  grid-column: 1 / -1;
+  padding: 0;
+  align-self: center;
+}
+
 .error {
   display: flex;
   align-items: center;
