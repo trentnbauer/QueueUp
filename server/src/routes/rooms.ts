@@ -1,8 +1,9 @@
 import type { FastifyInstance } from 'fastify';
+import { Prisma } from '@prisma/client';
 import { prisma } from '../db/client.js';
 import { toUserDto } from '../util/dto.js';
 import { HttpError } from '../util/httpError.js';
-import { requireElevated, requireMembership, generateUniqueInviteCode } from '../services/roomAccess.js';
+import { requireElevated, requireMembership, generateUniqueInviteCode, getRoom } from '../services/roomAccess.js';
 import { logAdminAction } from '../services/adminAuditLog.js';
 import { notifyRoom, notifyRoomMembersDirect } from '../services/notifications.js';
 import type { CreateRoomRequest, JoinRoomRequest, Room, RoomMember, RoomPlatform, RoomRole, UpdateRoomRequest } from '@squadqueue/shared';
@@ -76,16 +77,24 @@ export default async function roomRoutes(app: FastifyInstance) {
       const room = await prisma.room.findUnique({ where: { inviteCode: inviteCode.trim() } });
       if (!room) throw new HttpError(404, 'Invalid invite code');
 
-      const alreadyMember = await prisma.roomMember.findUnique({
-        where: { roomId_userId: { roomId: room.id, userId } },
-      });
-      const membership = await prisma.roomMember.upsert({
-        where: { roomId_userId: { roomId: room.id, userId } },
-        update: {},
-        create: { roomId: room.id, userId, role: 'member' },
-      });
+      // A plain create (rather than a check-then-upsert) makes "did this request actually create
+      // the membership" atomic: the unique constraint on (roomId, userId) is the single source of
+      // truth, so two concurrent join requests for the same user can't both believe they were first
+      // and both fire a "joined the room" notification.
+      let membership;
+      let isNewJoin = false;
+      try {
+        membership = await prisma.roomMember.create({ data: { roomId: room.id, userId, role: 'member' } });
+        isNewJoin = true;
+      } catch (err) {
+        if (err instanceof Prisma.PrismaClientKnownRequestError && err.code === 'P2002') {
+          membership = await prisma.roomMember.findUniqueOrThrow({ where: { roomId_userId: { roomId: room.id, userId } } });
+        } else {
+          throw err;
+        }
+      }
 
-      if (!alreadyMember) {
+      if (isNewJoin) {
         await notifyRoom({
           roomId: room.id,
           roomName: room.name,
@@ -256,7 +265,7 @@ export default async function roomRoutes(app: FastifyInstance) {
       });
       if (existing) throw new HttpError(400, 'That user is already a member of this room');
 
-      const room = await prisma.room.findUniqueOrThrow({ where: { id: roomId }, select: { name: true } });
+      const room = await getRoom(roomId);
       await prisma.roomMember.create({ data: { roomId, userId: targetUserId, role: 'member' } });
       await notifyRoom({
         roomId,
@@ -290,7 +299,7 @@ export default async function roomRoutes(app: FastifyInstance) {
       if (role === 'room_master') {
         const [targetUser, room] = await Promise.all([
           prisma.user.findUniqueOrThrow({ where: { id: targetUserId }, select: { displayName: true } }),
-          prisma.room.findUniqueOrThrow({ where: { id: roomId }, select: { name: true } }),
+          getRoom(roomId),
         ]);
         // Ownership transfer: the outgoing Room Master steps down to Moderator rather than being
         // left without a role, and this happens atomically so the room is never left without

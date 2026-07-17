@@ -4,7 +4,7 @@ import { ROOM_PLATFORM_LABELS } from '@squadqueue/shared';
 import { useAuth } from '../context/AuthContext';
 import { useView } from '../context/ViewContext';
 import { useRooms } from '../hooks/useRooms';
-import { useNotificationSummary } from '../hooks/useNotifications';
+import { useNotificationSummary, useMarkAllNotificationsRead } from '../hooks/useNotifications';
 import { authApi } from '../api/auth';
 import { AvatarBadge } from './AvatarBadge';
 import { ProfileSettingsModal } from './ProfileSettingsModal';
@@ -28,6 +28,7 @@ export function Sidebar() {
   const { activeRoom } = useView();
   const { rooms } = useRooms();
   const { totalUnread, unreadRoomIds } = useNotificationSummary();
+  const markAllNotificationsRead = useMarkAllNotificationsRead();
 
   const [showAddRoom, setShowAddRoom] = useState(false);
   const [showProfileMenu, setShowProfileMenu] = useState(false);
@@ -39,6 +40,11 @@ export function Sidebar() {
   // relative to the game grid content. No effect above that breakpoint (CSS keeps the rail docked
   // and this state unused).
   const [mobileOpen, setMobileOpen] = useState(false);
+
+  function closeNotifications() {
+    if (showNotifications) markAllNotificationsRead();
+    setShowNotifications(false);
+  }
 
   if (!user) return null;
 
@@ -63,15 +69,15 @@ export function Sidebar() {
             className={styles.brand}
             title="SquadQueue"
             aria-label={totalUnread > 0 ? `Notifications (${totalUnread} unread)` : 'Notifications'}
-            onClick={() => setShowNotifications((v) => !v)}
+            onClick={() => (showNotifications ? closeNotifications() : setShowNotifications(true))}
           >
             SQ
             {totalUnread > 0 && <span className={styles.unreadDot} aria-hidden="true" />}
           </button>
           {showNotifications && (
             <>
-              <div className={styles.menuBackdrop} onClick={() => setShowNotifications(false)} />
-              <NotificationFlyout onNavigate={() => { setShowNotifications(false); setMobileOpen(false); }} />
+              <div className={styles.menuBackdrop} onClick={closeNotifications} />
+              <NotificationFlyout onNavigate={() => { closeNotifications(); setMobileOpen(false); }} />
             </>
           )}
         </div>

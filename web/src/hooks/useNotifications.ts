@@ -24,14 +24,25 @@ export function useNotificationSummary() {
 }
 
 export function useNotificationFeed(enabled: boolean) {
-  const queryClient = useQueryClient();
   const query = useQuery({
     queryKey: FEED_QUERY_KEY,
     queryFn: notificationsApi.feed,
     enabled,
   });
 
-  const markAllRead = useMutation({
+  return {
+    notifications: query.data?.notifications ?? [],
+    isLoading: query.isLoading,
+  };
+}
+
+/** Returns a callback to mark every notification read - driven by an explicit user action (closing
+ * the flyout, clicking away) rather than component unmount, since React 18 StrictMode double-fires
+ * mount/cleanup in development and an unmount-triggered mark-read would clear the unread state
+ * before the user ever saw it. */
+export function useMarkAllNotificationsRead() {
+  const queryClient = useQueryClient();
+  const mutation = useMutation({
     mutationFn: notificationsApi.markAllRead,
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: SUMMARY_QUERY_KEY });
@@ -39,19 +50,16 @@ export function useNotificationFeed(enabled: boolean) {
     },
   });
 
-  return {
-    notifications: query.data?.notifications ?? [],
-    isLoading: query.isLoading,
-    markAllRead,
-  };
+  return () => mutation.mutate();
 }
 
 export function useMarkRoomNotificationsRead(roomId: string | null) {
   const queryClient = useQueryClient();
   const mutation = useMutation({
-    mutationFn: (id: string) => notificationsApi.markRoomRead(id),
+    mutationFn: notificationsApi.markRoomRead,
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: SUMMARY_QUERY_KEY });
+      queryClient.invalidateQueries({ queryKey: FEED_QUERY_KEY });
     },
   });
 

@@ -1,7 +1,7 @@
 import type { FastifyInstance } from 'fastify';
 import { prisma } from '../db/client.js';
 import { HttpError } from '../util/httpError.js';
-import { requireMembership, getRoomPlatform } from '../services/roomAccess.js';
+import { requireMembership, getRoomPlatform, getRoom } from '../services/roomAccess.js';
 import {
   loadGameOr404,
   requireGameReadAccess,
@@ -94,10 +94,12 @@ export default async function gameRoutes(app: FastifyInstance) {
     const { igdbId, roomId } = request.body;
     if (!Number.isInteger(igdbId)) throw new HttpError(400, 'A valid igdbId is required');
 
+    let room: Awaited<ReturnType<typeof getRoom>> | null = null;
     if (roomId) {
       await requireMembership(roomId, userId);
+      room = await getRoom(roomId);
     }
-    const platforms = roomId ? [await getRoomPlatform(roomId)] : await getOwnedPlatforms(userId);
+    const platforms = room ? [room.platform] : await getOwnedPlatforms(userId);
     await requireNotDuplicate(roomId ?? null, userId, igdbId);
 
     const resolved = await resolveGameForCreation(igdbId, platforms);
@@ -120,8 +122,7 @@ export default async function gameRoutes(app: FastifyInstance) {
     const game = await loadGameOr404(created.id);
     await invalidateExistingIgdbIds(roomId ?? null, userId);
 
-    if (roomId) {
-      const room = await prisma.room.findUniqueOrThrow({ where: { id: roomId }, select: { name: true } });
+    if (roomId && room) {
       await notifyRoom({
         roomId,
         roomName: room.name,

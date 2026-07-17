@@ -16,28 +16,31 @@ interface NotifyRoomInput {
   message: (actorName: string) => string;
 }
 
-/** Writes a room-scoped notification and, in the same beat, marks the room "read" for whoever just
- * caused it - the acting member was just there, so their own action shouldn't ding their own
- * unread badge. Every other member sees the notification via the normal unread cutoff. */
+/** Writes a room-scoped notification. The actor never sees their own action as unread (see
+ * `serializeNotification` and `getNotificationSummary`, which exclude a member's own actorId from
+ * their own unread count) - deliberately not implemented by bumping the actor's read cutoff here,
+ * since that would also silently mark any *other* pending notification in the room as read for
+ * them as a side effect.
+ *
+ * Failures are logged and swallowed rather than thrown: this always runs after the request's
+ * primary write has already committed (the game was added, the room was renamed, ...), and a
+ * notification-delivery hiccup shouldn't turn that already-successful action into a client-visible
+ * error. */
 export async function notifyRoom(input: NotifyRoomInput): Promise<void> {
-  const actorName = await actorDisplayName(input.actorId);
-  const now = new Date();
-  await prisma.$transaction([
-    prisma.notification.create({
+  try {
+    const actorName = await actorDisplayName(input.actorId);
+    await prisma.notification.create({
       data: {
         roomId: input.roomId,
         roomName: input.roomName,
         actorId: input.actorId,
         type: input.type,
         message: input.message(actorName),
-        createdAt: now,
       },
-    }),
-    prisma.roomMember.update({
-      where: { roomId_userId: { roomId: input.roomId, userId: input.actorId } },
-      data: { notificationsReadAt: now },
-    }),
-  ]);
+    });
+  } catch (err) {
+    console.error('[notifications] failed to write room notification', err);
+  }
 }
 
 interface NotifyRoomMembersDirectInput {
@@ -52,22 +55,30 @@ interface NotifyRoomMembersDirectInput {
 
 /** Writes one direct notification per recipient, addressed to them individually rather than
  * through roomId - used only for events where the room itself no longer exists to attach a
- * shared, room-scoped notification to (namely room_deleted). */
+ * shared, room-scoped notification to (namely room_deleted).
+ *
+ * Like notifyRoom, failures are logged and swallowed rather than thrown - this runs after the room
+ * has already been deleted, so there's no primary action left to protect, but a notification
+ * failure still shouldn't turn an already-completed deletion into a client-visible error. */
 export async function notifyRoomMembersDirect(input: NotifyRoomMembersDirectInput): Promise<void> {
   const recipientIds = input.recipientIds.filter((id) => id !== input.actorId);
   if (recipientIds.length === 0) return;
 
-  const actorName = await actorDisplayName(input.actorId);
-  const message = input.message(actorName);
-  await prisma.notification.createMany({
-    data: recipientIds.map((recipientId) => ({
-      recipientId,
-      roomName: input.roomName,
-      actorId: input.actorId,
-      type: input.type,
-      message,
-    })),
-  });
+  try {
+    const actorName = await actorDisplayName(input.actorId);
+    const message = input.message(actorName);
+    await prisma.notification.createMany({
+      data: recipientIds.map((recipientId) => ({
+        recipientId,
+        roomName: input.roomName,
+        actorId: input.actorId,
+        type: input.type,
+        message,
+      })),
+    });
+  } catch (err) {
+    console.error('[notifications] failed to write direct notifications', err);
+  }
 }
 
 type NotificationWithActor = Prisma.NotificationGetPayload<{ include: { actor: true } }>;
@@ -77,14 +88,16 @@ interface ReadCutoff {
   joinedAt: Date;
 }
 
-export function serializeNotification(row: NotificationWithActor, cutoffByRoomId: Map<string, ReadCutoff>): Notification {
-  const read = row.recipientId
-    ? row.readAt != null
-    : (() => {
-        const cutoff = row.roomId ? cutoffByRoomId.get(row.roomId) : undefined;
-        const readAt = cutoff?.notificationsReadAt ?? cutoff?.joinedAt;
-        return readAt != null && row.createdAt <= readAt;
-      })();
+export function serializeNotification(row: NotificationWithActor, currentUserId: string, cutoffByRoomId: Map<string, ReadCutoff>): Notification {
+  const read =
+    row.actorId === currentUserId ||
+    (row.recipientId
+      ? row.readAt != null
+      : (() => {
+          const cutoff = row.roomId ? cutoffByRoomId.get(row.roomId) : undefined;
+          const readAt = cutoff?.notificationsReadAt ?? cutoff?.joinedAt;
+          return readAt != null && row.createdAt <= readAt;
+        })());
 
   return {
     id: row.id,
@@ -115,7 +128,7 @@ export async function getNotificationFeed(userId: string, take = 50): Promise<No
     take,
   });
 
-  return rows.map((row: NotificationWithActor) => serializeNotification(row, cutoffByRoomId));
+  return rows.map((row: NotificationWithActor) => serializeNotification(row, userId, cutoffByRoomId));
 }
 
 /** Unread counts for the sidebar: a dot per oversized-in-notifications room icon, plus a total for
@@ -131,8 +144,9 @@ export async function getNotificationSummary(userId: string): Promise<{ totalUnr
     Promise.all(
       memberships.map(async (m) => ({
         roomId: m.roomId,
+        // A member's own actions never count toward their own unread badge (see notifyRoom).
         unreadCount: await prisma.notification.count({
-          where: { roomId: m.roomId, createdAt: { gt: m.notificationsReadAt ?? m.joinedAt } },
+          where: { roomId: m.roomId, actorId: { not: userId }, createdAt: { gt: m.notificationsReadAt ?? m.joinedAt } },
         }),
       })),
     ),

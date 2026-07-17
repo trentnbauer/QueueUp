@@ -77,7 +77,7 @@ export function GameCard({
           isPlayNext && <div className={styles.playNextBanner}>▶ Play Next</div>
         )}
 
-        <div className={styles.statusFloating}>
+        <div className={`${styles.statusFloating} ${(isRecommended || isPlayNext) ? styles.statusFloatingBelowBanner : ''}`}>
           <StatusBadge status={game.status} onClick={onStatusChange} />
         </div>
 

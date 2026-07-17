@@ -8,6 +8,12 @@ export async function getRoomPlatform(roomId: string): Promise<RoomPlatform> {
   return room.platform;
 }
 
+/** Full room row, for callers that need more than one field (e.g. platform + name) - fetching it
+ * once here instead of calling getRoomPlatform and then a second query for the rest. */
+export async function getRoom(roomId: string) {
+  return prisma.room.findUniqueOrThrow({ where: { id: roomId } });
+}
+
 export async function requireMembership(roomId: string, userId: string) {
   const membership = await prisma.roomMember.findUnique({
     where: { roomId_userId: { roomId, userId } },

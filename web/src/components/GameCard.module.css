@@ -72,6 +72,13 @@
   right: 10px;
 }
 
+/* Pushed below the play-next/recommended banner (26px tall) instead of sitting at the cover's
+   default top offset, since that banner also spans the top edge and would otherwise sit directly
+   underneath the badge. */
+.statusFloatingBelowBanner {
+  top: 36px;
+}
+
 /* Sits over the artwork's bottom edge with a gradient scrim underneath, so the title and
    genre stay legible over any cover art rather than depending on how bright the image is.
    The reserved min-height covers a 2-line title, so a long title (e.g. "S.T.A.L.K.E.R.: Call
