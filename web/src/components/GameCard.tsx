@@ -76,65 +76,71 @@ export function GameCard({
         ) : (
           isPlayNext && <div className={styles.playNextBanner}>▶ Play Next</div>
         )}
-      </div>
 
-      <div className={styles.body}>
-        <div className={styles.titleBlock}>
-          <div className={styles.titleColumn}>
-            {game.ggDealsUrl ? (
-              <a href={game.ggDealsUrl} target="_blank" rel="noreferrer" className={styles.title} style={{ textDecoration: 'none' }}>
-                {game.title}
-              </a>
-            ) : (
-              <span className={styles.title}>{game.title}</span>
-            )}
-            <div className={styles.genre} title={game.genre ?? undefined}>
-              {game.genre ?? '—'}
-            </div>
-            <span className={styles.addedBy}>
-              <AvatarBadge name={game.addedBy.displayName} color={game.addedBy.avatarColor} avatarUrl={game.addedBy.avatarUrl} size={16} />
-              <span className={styles.addedByText}>added by {game.addedBy.displayName}</span>
-            </span>
-          </div>
+        <div className={styles.statusFloating}>
           <StatusBadge status={game.status} onClick={onStatusChange} />
         </div>
 
-        <div className={styles.priceRow}>
-          <div className={styles.priceGroup}>
-            <span className={styles.controllerIcon} aria-hidden="true">🎮</span>
-            {game.ggDealsUrl ? (
-              <a href={game.ggDealsUrl} target="_blank" rel="noreferrer" className={styles.buyButton}>
-                {formatPrice(game)}
-              </a>
-            ) : (
-              <span className={styles.priceStatic}>{formatPrice(game)}</span>
-            )}
-            {game.price.source === 'live' && (
-              <button
-                type="button"
-                className={`${styles.refreshPriceButton} ${isRefreshingPrice ? styles.spinning : ''}`}
-                onClick={onRefreshPrice}
-                disabled={isRefreshingPrice}
-                title={isRefreshingPrice ? 'Refreshing price…' : 'Check for a fresh price'}
-                aria-label="Refresh price"
-                aria-busy={isRefreshingPrice}
-              >
-                ↻
-              </button>
-            )}
+        <div className={styles.coverOverlay}>
+          {game.ggDealsUrl ? (
+            <a href={game.ggDealsUrl} target="_blank" rel="noreferrer" className={styles.title} style={{ textDecoration: 'none' }}>
+              {game.title}
+            </a>
+          ) : (
+            <span className={styles.title}>{game.title}</span>
+          )}
+          <div className={styles.genre} title={game.genre ?? undefined}>
+            {game.genre ?? '—'}
           </div>
         </div>
+      </div>
 
-        {game.price.source === 'live' && game.price.lastRefreshedAt && (
-          <span className={styles.lastRefreshed}>
-            Updated {formatRelativeTime(game.price.lastRefreshedAt)}
-          </span>
-        )}
+      <div className={styles.body}>
+        <span className={styles.addedBy}>
+          <AvatarBadge name={game.addedBy.displayName} color={game.addedBy.avatarColor} avatarUrl={game.addedBy.avatarUrl} size={16} />
+          <span className={styles.addedByText}>added by {game.addedBy.displayName}</span>
+        </span>
 
-        {game.price.historicalLow && (
-          <span className={styles.historicalLow} title="Lowest price this game has been tracked at">
-            All-time low: {formatAmount(game.price.historicalLow, game.price.currency)}
-          </span>
+        <div className={styles.priceRow}>
+          {game.ggDealsUrl ? (
+            <a href={game.ggDealsUrl} target="_blank" rel="noreferrer" className={styles.buyButton}>
+              <span className={styles.controllerIcon} aria-hidden="true">🎮</span>
+              {formatPrice(game)}
+            </a>
+          ) : (
+            <span className={styles.priceStatic}>
+              <span className={styles.controllerIcon} aria-hidden="true">🎮</span>
+              {formatPrice(game)}
+            </span>
+          )}
+          {game.price.source === 'live' && (
+            <button
+              type="button"
+              className={`${styles.refreshPriceButton} ${isRefreshingPrice ? styles.spinning : ''}`}
+              onClick={onRefreshPrice}
+              disabled={isRefreshingPrice}
+              title={isRefreshingPrice ? 'Refreshing price…' : 'Check for a fresh price'}
+              aria-label="Refresh price"
+              aria-busy={isRefreshingPrice}
+            >
+              ↻
+            </button>
+          )}
+        </div>
+
+        {((game.price.source === 'live' && game.price.lastRefreshedAt) || game.price.historicalLow) && (
+          <div className={styles.priceMetaRow}>
+            {game.price.source === 'live' && game.price.lastRefreshedAt && (
+              <span className={styles.lastRefreshed}>
+                Updated {formatRelativeTime(game.price.lastRefreshedAt)}
+              </span>
+            )}
+            {game.price.historicalLow && (
+              <span className={styles.historicalLow} title="Lowest price this game has been tracked at">
+                All-time low: {formatAmount(game.price.historicalLow, game.price.currency)}
+              </span>
+            )}
+          </div>
         )}
 
         {coopWarning && <div className={styles.coopWarning}>⚠ {coopWarning}</div>}

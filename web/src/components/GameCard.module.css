@@ -9,7 +9,7 @@
 
 .cover {
   position: relative;
-  height: 140px;
+  height: 172px;
   background-image: repeating-linear-gradient(
     135deg,
     var(--sq-stripe) 0px,
@@ -49,7 +49,7 @@
   position: absolute;
   left: 0;
   right: 0;
-  bottom: 0;
+  top: 0;
   padding: 6px 10px;
   font: 800 11.5px system-ui, sans-serif;
   letter-spacing: 0.02em;
@@ -66,24 +66,35 @@
   color: var(--sq-accent-text);
 }
 
+.statusFloating {
+  position: absolute;
+  top: 10px;
+  right: 10px;
+}
+
+/* Sits over the artwork's bottom edge with a gradient scrim underneath, so the title and
+   genre stay legible over any cover art rather than depending on how bright the image is.
+   The reserved min-height covers a 2-line title, so a long title (e.g. "S.T.A.L.K.E.R.: Call
+   of Pripyat") never changes the cover's footprint or shifts the price/vote rows below it. */
+.coverOverlay {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  min-height: 78px;
+  padding: 30px 14px 10px;
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-end;
+  background: linear-gradient(to bottom, transparent, rgba(0, 0, 0, 0.72) 55%, rgba(0, 0, 0, 0.85));
+}
+
 .body {
   padding: 17px;
   display: flex;
   flex-direction: column;
   gap: 11px;
   flex: 1;
-}
-
-.titleBlock {
-  display: flex;
-  align-items: flex-start;
-  justify-content: space-between;
-  gap: 10px;
-  min-height: 60px;
-}
-
-.titleColumn {
-  min-width: 0;
 }
 
 .title {
@@ -96,19 +107,18 @@
 }
 
 .genre {
-  display: -webkit-box;
-  -webkit-line-clamp: 2;
-  -webkit-box-orient: vertical;
   overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
   font: 500 11.5px system-ui, sans-serif;
-  color: var(--sq-muted);
+  color: rgba(255, 255, 255, 0.75);
   margin-top: 2px;
 }
 
 .priceRow {
   display: flex;
   align-items: center;
-  justify-content: space-between;
+  gap: 8px;
   font: 700 13.5px system-ui, sans-serif;
   color: var(--sq-text);
 }
@@ -116,10 +126,16 @@
 .controllerIcon {
   font-size: 13px;
   line-height: 1;
+  margin-right: 6px;
 }
 
 .buyButton {
-  padding: 6px 14px;
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 9px 14px;
   border-radius: 999px;
   background: var(--sq-accent);
   color: var(--sq-accent-text);
@@ -132,32 +148,41 @@
 }
 
 .priceStatic {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 9px 14px;
+  border-radius: 999px;
+  background: var(--sq-neutral-pill-bg);
   color: var(--sq-muted);
 }
 
-.priceGroup {
+.priceMetaRow {
   display: flex;
   align-items: center;
-  gap: 6px;
+  justify-content: space-between;
+  gap: 8px;
+  margin-top: -4px;
 }
 
 .historicalLow {
   font: 600 10.5px system-ui, sans-serif;
   color: #f66a6a;
-  margin-top: -4px;
 }
 
 .refreshPriceButton {
-  width: 22px;
-  height: 22px;
+  flex-shrink: 0;
+  width: 36px;
+  height: 36px;
   display: flex;
   align-items: center;
   justify-content: center;
-  border-radius: 50%;
+  border-radius: 10px;
   background: var(--sq-neutral-pill-bg);
   color: var(--sq-muted);
   border: none;
-  font-size: 13px;
+  font-size: 15px;
   line-height: 1;
   padding: 0;
 }
@@ -188,7 +213,6 @@
 .lastRefreshed {
   font: 500 10.5px system-ui, sans-serif;
   color: var(--sq-muted);
-  margin-top: -4px;
 }
 
 .addedBy {
@@ -197,7 +221,6 @@
   display: flex;
   align-items: center;
   gap: 5px;
-  margin-top: 4px;
   min-width: 0;
 }
 
