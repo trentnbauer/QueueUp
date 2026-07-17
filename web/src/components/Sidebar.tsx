@@ -5,6 +5,7 @@ import { useAuth } from '../context/AuthContext';
 import { useView } from '../context/ViewContext';
 import { useRooms } from '../hooks/useRooms';
 import { useNotificationSummary, useMarkAllNotificationsRead } from '../hooks/useNotifications';
+import { useThemeMode } from '../context/ThemeModeContext';
 import { authApi } from '../api/auth';
 import { AvatarBadge } from './AvatarBadge';
 import { ProfileSettingsModal } from './ProfileSettingsModal';
@@ -29,6 +30,7 @@ export function Sidebar() {
   const { rooms } = useRooms();
   const { totalUnread, unreadRoomIds } = useNotificationSummary();
   const markAllNotificationsRead = useMarkAllNotificationsRead();
+  const { mode, toggle: toggleThemeMode } = useThemeMode();
 
   const [showAddRoom, setShowAddRoom] = useState(false);
   const [showProfileMenu, setShowProfileMenu] = useState(false);
@@ -164,6 +166,9 @@ export function Sidebar() {
                     Administrator settings
                   </Link>
                 )}
+                <button type="button" className={styles.menuItem} onClick={toggleThemeMode}>
+                  {mode === 'dark' ? '☀️ Light mode' : '🌙 Dark mode'}
+                </button>
                 <div className={styles.hDivider} />
                 <a href={authApi.logoutUrl} className={styles.menuItem}>
                   Sign out

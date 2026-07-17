@@ -26,6 +26,21 @@
   --sq-card-radius: 14px;
 }
 
+/* Light mode override - applied via a `data-theme="light"` attribute on <html>, set synchronously
+ * in main.tsx before first render (see applyThemeMode.ts) so there's no flash of the wrong theme.
+ * Accent colors, fonts, and radii are left alone: accent is computed per-room already (see
+ * ThemeContext) and stays vivid enough against either background. */
+:root[data-theme='light'] {
+  --sq-bg: #f5f4fa;
+  --sq-surface: #ffffff;
+  --sq-surface2: #eeecf6;
+  --sq-border: rgba(15, 14, 22, 0.1);
+  --sq-stripe: rgba(15, 14, 22, 0.04);
+  --sq-text: #1b1a24;
+  --sq-muted: #6b6680;
+  --sq-neutral-pill-bg: rgba(15, 14, 22, 0.06);
+}
+
 * {
   box-sizing: border-box;
 }
