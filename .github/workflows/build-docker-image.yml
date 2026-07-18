@@ -93,15 +93,29 @@ jobs:
             echo "**Will build/push a new image:** $HAS_CHANGES"
           } >> "$GITHUB_STEP_SUMMARY"
 
-  build-and-push:
+  # Builds each platform on a runner that's actually that architecture, instead of one job doing
+  # both via docker/setup-qemu-action - QEMU-emulated npm ci/tsc/vite build/esbuild (this Dockerfile
+  # compiles TypeScript and runs a full Vite build inside the image) run several times slower than
+  # native, which was the single biggest cost in this workflow. Each leg pushes its image by digest
+  # only (no tags yet); `merge` below combines both digests into one multi-arch manifest and applies
+  # the real tags to that.
+  build:
     needs: check-for-changes
     if: needs.check-for-changes.outputs.has_changes == 'true'
-    runs-on: ubuntu-latest
     permissions:
-      contents: write
+      contents: read
       packages: write
-      pull-requests: read
-
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - platform: linux/amd64
+            runner: ubuntu-latest
+          - platform: linux/arm64
+            # GitHub-hosted native arm64 runner (no QEMU) - see
+            # https://docs.github.com/actions/using-github-hosted-runners/about-github-hosted-runners/about-github-hosted-runners#standard-github-hosted-runners-for-public-repositories
+            runner: ubuntu-24.04-arm
+    runs-on: ${{ matrix.runner }}
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
@@ -110,6 +124,80 @@ jobs:
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: .github/scripts/generate-changelog.sh
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Log in to GitHub Container Registry
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Sanitize platform for cache scope/artifact names
+        id: platform
+        run: echo "slug=${PLATFORM//\//-}" >> "$GITHUB_OUTPUT"
+        env:
+          PLATFORM: ${{ matrix.platform }}
+
+      - name: Build and push image by digest
+        id: build
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: ./docker/Dockerfile.server
+          platforms: ${{ matrix.platform }}
+          # GitHub Actions cache backend, scoped per platform so the amd64 and arm64 legs don't
+          # thrash each other's cache entries (their layers differ). `mode=max` also caches
+          # intermediate build-stage layers (deps/build/prod-deps), not just the final image, so an
+          # unrelated source change still reuses the `npm ci` layers from the last run.
+          cache-from: type=gha,scope=${{ steps.platform.outputs.slug }}
+          cache-to: type=gha,mode=max,scope=${{ steps.platform.outputs.slug }}
+          build-args: |
+            APP_VERSION=build-${{ github.run_number }}
+            APP_SHA=${{ github.sha }}
+          # Labels get baked into each per-arch image now, not applied later - `imagetools create`
+          # below only assembles a manifest list pointing at these already-pushed digests, it can't
+          # retroactively add labels to an image that's already been pushed.
+          labels: |
+            org.opencontainers.image.description=${{ needs.check-for-changes.outputs.oneline }}
+          outputs: type=image,name=${{ env.REGISTRY }}/${{ env.IMAGE_NAME }},push-by-digest=true,name-canonical=true,push=true
+
+      - name: Export digest
+        run: |
+          mkdir -p /tmp/digests
+          digest="${{ steps.build.outputs.digest }}"
+          touch "/tmp/digests/${digest#sha256:}"
+
+      - name: Upload digest
+        uses: actions/upload-artifact@v4
+        with:
+          name: digests-${{ steps.platform.outputs.slug }}
+          path: /tmp/digests/*
+          if-no-files-found: error
+          retention-days: 1
+
+  # Combines the amd64 and arm64 images (pushed by digest above, untagged) into one multi-arch
+  # manifest list and applies the real tags/labels to that - this is the step that actually makes
+  # `docker pull ghcr.io/.../queueup:latest` transparently resolve to the right architecture.
+  merge:
+    needs: [check-for-changes, build]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      packages: write
+      pull-requests: read
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Download digests
+        uses: actions/download-artifact@v4
+        with:
+          path: /tmp/digests
+          pattern: digests-*
+          merge-multiple: true
 
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
@@ -133,18 +221,17 @@ jobs:
           labels: |
             org.opencontainers.image.description=${{ needs.check-for-changes.outputs.oneline }}
 
-      - name: Build and push image
-        uses: docker/build-push-action@v6
-        with:
-          context: .
-          file: ./docker/Dockerfile.server
-          push: true
-          tags: ${{ steps.meta.outputs.tags }}
-          labels: ${{ steps.meta.outputs.labels }}
-          platforms: linux/amd64,linux/arm64
-          build-args: |
-            APP_VERSION=build-${{ github.run_number }}
-            APP_SHA=${{ github.sha }}
+      - name: Create and push multi-arch manifest
+        working-directory: /tmp/digests
+        run: |
+          docker buildx imagetools create \
+            $(jq -cr '.tags | map("-t " + .) | join(" ")' <<< "$DOCKER_METADATA_OUTPUT_JSON") \
+            $(printf '${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}@sha256:%s ' *)
+        env:
+          DOCKER_METADATA_OUTPUT_JSON: ${{ steps.meta.outputs.json }}
+
+      - name: Inspect pushed manifest
+        run: docker buildx imagetools inspect ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:latest
 
       - name: Move last-build marker to this commit
         run: |
