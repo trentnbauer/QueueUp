@@ -97,6 +97,35 @@
   background: linear-gradient(to bottom, transparent, rgba(0, 0, 0, 0.72) 55%, rgba(0, 0, 0, 0.85));
 }
 
+/* Bottom-right corner, opposite the price/owned line's bottom-left position (issue #206) - stacked
+   vertically (emoji over score) rather than sharing the price line's horizontal space, since that
+   line is already tight against the left edge and a room can have several digits of score. */
+.voteBadge {
+  position: absolute;
+  right: 10px;
+  bottom: 10px;
+  z-index: 6;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 1px;
+  padding: 5px 7px;
+  border-radius: 10px;
+  background: rgba(0, 0, 0, 0.55);
+  backdrop-filter: blur(2px);
+}
+
+.voteBadgeEmoji {
+  font-size: 15px;
+  line-height: 1;
+}
+
+.voteBadgeScore {
+  font: 700 10.5px system-ui, sans-serif;
+  color: rgba(255, 255, 255, 0.85);
+  line-height: 1;
+}
+
 .everyoneOwnsLine {
   font: 800 10.5px system-ui, sans-serif;
   letter-spacing: 0.02em;

@@ -1,8 +1,17 @@
 import { useState } from 'react';
-import type { Game, GameStatus, User, VoteValue } from '@queueup/shared';
+import { VOTE_SCALE, type Game, type GameStatus, type User, type VoteValue } from '@queueup/shared';
 import { GameDetailModal } from './GameDetailModal';
 import { formatPrice } from '../utils/formatPrice';
 import styles from './GameCard.module.css';
+
+/** The squad's overall read on a game, for the card-face badge (issue #206) - the average cast
+ * vote (rounded to the nearest whole scale value) drives which emoji shows, so the badge reads as
+ * "here's the room's mood" rather than just a raw score total. */
+function averageVoteValue(votes: Game['votes']): VoteValue | null {
+  if (votes.length === 0) return null;
+  const mean = votes.reduce((sum, v) => sum + v.value, 0) / votes.length;
+  return Math.min(5, Math.max(1, Math.round(mean))) as VoteValue;
+}
 
 interface GameCardProps {
   game: Game;
@@ -48,6 +57,7 @@ export function GameCard({
   onToggleSelect,
 }: GameCardProps) {
   const [detailOpen, setDetailOpen] = useState(false);
+  const avgVote = averageVoteValue(game.votes);
 
   function handleCardClick() {
     if (selectable) {
@@ -92,6 +102,21 @@ export function GameCard({
           style={game.coverImageUrl ? { backgroundImage: `url(${game.coverImageUrl})` } : undefined}
         >
           {!game.coverImageUrl && <span className={styles.coverLabel}>COVER ART</span>}
+
+          {avgVote !== null && (
+            <div
+              className={styles.voteBadge}
+              title={`Squad vote: ${VOTE_SCALE[avgVote]} average, ${game.voteScore >= 0 ? '+' : ''}${game.voteScore} score from ${game.votes.length} vote${game.votes.length === 1 ? '' : 's'}`}
+            >
+              <span className={styles.voteBadgeEmoji} aria-hidden="true">
+                {VOTE_SCALE[avgVote]}
+              </span>
+              <span className={styles.voteBadgeScore}>
+                {game.voteScore >= 0 ? '+' : ''}
+                {game.voteScore}
+              </span>
+            </div>
+          )}
 
           {/* Playing hides price/owned info entirely - the ribbon already answers "what's going on
               with this game," and "should I buy it" isn't relevant once you're playing it. */}
