@@ -12,6 +12,7 @@ import { ChangelogModal } from './components/ChangelogModal';
 import { ShelfView } from './views/ShelfView';
 import { RoomView } from './views/RoomView';
 import { SettingsView } from './views/SettingsView';
+import { ProfileSettingsView } from './views/ProfileSettingsView';
 import { JoinRoomView } from './views/JoinRoomView';
 
 const ONBOARDED_KEY = 'sq-onboarded';
@@ -141,13 +142,13 @@ export default function App() {
     );
   }
 
-  const isSettingsRoute = location.pathname === '/settings';
+  const hideRoomHeader = location.pathname === '/settings' || location.pathname === '/profile';
 
   return (
     <div style={{ minHeight: '100vh', background: 'var(--qu-bg)', display: 'flex' }}>
       <Sidebar />
       <div style={{ flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column', minHeight: '100vh' }}>
-        {!isSettingsRoute && <Header />}
+        {!hideRoomHeader && <Header />}
         <ActionErrorBanner message={pendingJoinError} onDismiss={() => setPendingJoinError(null)} />
         <ActionErrorBanner message={steamLinkError} onDismiss={() => setSteamLinkError(null)} />
         <div style={{ flex: 1 }}>
@@ -155,6 +156,7 @@ export default function App() {
             <Route path="/" element={<ShelfView />} />
             <Route path="/room/:roomId" element={<RoomView />} />
             <Route path="/settings" element={<SettingsView />} />
+            <Route path="/profile" element={<ProfileSettingsView />} />
             <Route path="/join/:inviteCode" element={<JoinRoomView />} />
           </Routes>
         </div>

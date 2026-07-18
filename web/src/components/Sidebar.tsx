@@ -8,7 +8,6 @@ import { useNotificationSummary, useMarkAllNotificationsRead } from '../hooks/us
 import { useThemeMode } from '../context/ThemeModeContext';
 import { authApi } from '../api/auth';
 import { AvatarBadge } from './AvatarBadge';
-import { ProfileSettingsModal } from './ProfileSettingsModal';
 import { AddRoomModal } from './AddRoomModal';
 import { NotificationFlyout } from './NotificationFlyout';
 import { contrastTextColor } from '../utils/color';
@@ -34,7 +33,6 @@ export function Sidebar() {
 
   const [showAddRoom, setShowAddRoom] = useState(false);
   const [showProfileMenu, setShowProfileMenu] = useState(false);
-  const [showProfileSettings, setShowProfileSettings] = useState(false);
   const [showNotifications, setShowNotifications] = useState(false);
   // Below the 640px breakpoint the rail becomes an off-canvas drawer (hidden by default, toggled
   // by a fixed hamburger button) instead of just shrinking icon sizes - a permanent, always-visible
@@ -143,17 +141,16 @@ export function Sidebar() {
               <div className={`${styles.flyout} ${styles.flyoutBottom}`}>
                 <div className={styles.userName}>{user.displayName}</div>
                 <div className={styles.hDivider} />
-                <button
-                  type="button"
+                <Link
+                  to="/profile"
                   className={styles.menuItem}
                   onClick={() => {
                     setShowProfileMenu(false);
                     setMobileOpen(false);
-                    setShowProfileSettings(true);
                   }}
                 >
                   Profile settings
-                </button>
+                </Link>
                 {user.isAdmin && (
                   <Link
                     to="/settings"
@@ -189,7 +186,6 @@ export function Sidebar() {
       </nav>
 
       {showAddRoom && <AddRoomModal onClose={() => setShowAddRoom(false)} />}
-      {showProfileSettings && <ProfileSettingsModal onClose={() => setShowProfileSettings(false)} />}
     </>
   );
 }
