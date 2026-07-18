@@ -1,6 +1,7 @@
 import type { GamePrice } from '@queueup/shared';
 import { prisma } from '../db/client.js';
 import { notifyPriceDrop } from './notifications.js';
+import { isOwnedBy } from './gameOwnership.js';
 import type { GameWithRelations } from './gameSerializer.js';
 
 /** Compares a freshly-computed live price against a game's target price and fires a one-shot
@@ -12,6 +13,9 @@ export async function checkPriceDropAlert(game: GameWithRelations, price: GamePr
   const targetPrice = game.targetPrice;
   if (!targetPrice || price.source !== 'live' || !price.amount) return;
   if (Number(price.amount) > Number(targetPrice)) return;
+  // A target price set before the game was marked owned (or before a Steam import surfaced
+  // existing ownership) is stale intent, not a live "should I buy this" question - see #187.
+  if (await isOwnedBy(game.addedBy, game.igdbId)) return;
 
   try {
     const cleared = await prisma.game.updateMany({
@@ -45,6 +49,8 @@ export async function checkAllTimeLowAlert(game: GameWithRelations, price: GameP
   const amount = price.amount;
   if (Number(amount) > Number(price.historicalLow)) return;
   if (game.notifiedAtlPrice !== null && Number(amount) >= Number(game.notifiedAtlPrice)) return;
+  // Owning the game already answers "should I buy it" - see #187.
+  if (await isOwnedBy(game.addedBy, game.igdbId)) return;
 
   try {
     const updated = await prisma.game.updateMany({
