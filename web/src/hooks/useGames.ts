@@ -60,7 +60,7 @@ export function useGames(roomId: string | null) {
   });
 
   const refreshPrice = useMutation({
-    mutationFn: (gameId: string) => gamesApi.refreshPrice(gameId),
+    mutationFn: (gameId: string) => gamesApi.refreshPrice(gameId, region),
     onSuccess: ({ game }) => patchGame(game),
     onError: (err) => setActionError(errorMessage(err, 'Could not refresh that game\'s price.')),
   });

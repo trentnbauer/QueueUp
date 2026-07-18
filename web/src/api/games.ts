@@ -26,7 +26,8 @@ export const gamesApi = {
   updateStatus: (id: string, body: UpdateGameStatusRequest) =>
     apiPatch<{ game: Game }>(`/api/games/${id}/status`, body),
   remove: (id: string) => apiDelete(`/api/games/${id}`),
-  refreshPrice: (id: string) => apiPost<{ game: Game }>(`/api/games/${id}/refresh-price`),
+  refreshPrice: (id: string, region?: PriceRegion) =>
+    apiPost<{ game: Game }>(`/api/games/${id}/refresh-price${region ? `?region=${region}` : ''}`),
   setTargetPrice: (id: string, body: SetTargetPriceRequest) =>
     apiPatch<{ game: Game }>(`/api/games/${id}/target-price`, body),
   vote: (id: string, body: VoteRequest) => apiPut<{ game: Game }>(`/api/games/${id}/vote`, body),

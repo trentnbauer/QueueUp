@@ -141,11 +141,13 @@ export default function App() {
     );
   }
 
+  const isSettingsRoute = location.pathname === '/settings';
+
   return (
     <div style={{ minHeight: '100vh', background: 'var(--qu-bg)', display: 'flex' }}>
       <Sidebar />
       <div style={{ flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column', minHeight: '100vh' }}>
-        <Header />
+        {!isSettingsRoute && <Header />}
         <ActionErrorBanner message={pendingJoinError} onDismiss={() => setPendingJoinError(null)} />
         <ActionErrorBanner message={steamLinkError} onDismiss={() => setSteamLinkError(null)} />
         <div style={{ flex: 1 }}>

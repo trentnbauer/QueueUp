@@ -296,15 +296,18 @@ export default async function gameRoutes(app: FastifyInstance) {
     return { game: await serializeGame(updated, userId) };
   });
 
-  app.post<{ Params: { id: string } }>('/api/games/:id/refresh-price', async (request) => {
-    const userId = await request.requireAuth();
-    const game = await loadGameOr404(request.params.id);
-    await requireGameReadAccess(game, userId);
+  app.post<{ Params: { id: string }; Querystring: { region?: string } }>(
+    '/api/games/:id/refresh-price',
+    async (request) => {
+      const userId = await request.requireAuth();
+      const game = await loadGameOr404(request.params.id);
+      await requireGameReadAccess(game, userId);
 
-    await refreshGamePricing(game.steamAppid);
-    const updated = await loadGameOr404(game.id);
-    return { game: await serializeGame(updated, userId) };
-  });
+      await refreshGamePricing(game.steamAppid);
+      const updated = await loadGameOr404(game.id);
+      return { game: await serializeGame(updated, userId, parseRegion(request.query.region)) };
+    },
+  );
 
   app.patch<{ Params: { id: string }; Body: SetTargetPriceRequest }>(
     '/api/games/:id/target-price',
