@@ -311,7 +311,15 @@ const STEAM_APP_ID_LOOKUP_CACHE_TTL_SECONDS = 60 * 60 * 24; // 24h — this mapp
 
 /** Reverse of getGameDetail's steamAppId lookup: given a Steam AppID, finds the IGDB game id it
  * maps to (or null if IGDB has no external_games record for it). Used by Steam library import,
- * which only has AppIDs from the Steam Web API and needs IGDB ids to resolve full game data. */
+ * which only has AppIDs from the Steam Web API and needs IGDB ids to resolve full game data.
+ *
+ * IGDB sometimes attaches a Steam appid's external_games record to an edition-specific entry
+ * (e.g. a Deluxe/GOTY SKU) rather than the canonical release, even when the canonical release is
+ * what a manual search (searchGames, via isPrimaryEdition) resolves to. If that's left unresolved,
+ * ownership recorded against the edition-specific id never matches the canonical id already used
+ * elsewhere (e.g. a room's existing copy of the game), so the game looks unowned there. Follow
+ * version_parent back to the canonical id before returning, same relationship isPrimaryEdition
+ * checks in the other direction. */
 export async function findIgdbIdBySteamAppId(steamAppId: number): Promise<number | null> {
   const cacheKey = STEAM_APP_ID_LOOKUP_CACHE_PREFIX + steamAppId;
   const cached = await redis.get(cacheKey);
@@ -321,8 +329,15 @@ export async function findIgdbIdBySteamAppId(steamAppId: number): Promise<number
     'external_games',
     `fields game; where uid = "${steamAppId}" & external_game_source = ${STEAM_EXTERNAL_SOURCE_ID}; limit 1;`,
   );
-  const igdbId = externalGames[0]?.game ?? null;
+  const rawIgdbId = externalGames[0]?.game ?? null;
+  const igdbId = rawIgdbId === null ? null : await resolveToCanonicalIgdbId(rawIgdbId);
 
   await redis.set(cacheKey, igdbId === null ? 'null' : String(igdbId), 'EX', STEAM_APP_ID_LOOKUP_CACHE_TTL_SECONDS);
   return igdbId;
+}
+
+async function resolveToCanonicalIgdbId(igdbId: number): Promise<number> {
+  const games = await igdbRequest<IgdbGame[]>('games', `fields version_parent; where id = ${igdbId};`);
+  const versionParent = games[0]?.version_parent;
+  return versionParent ?? igdbId;
 }
