@@ -21,6 +21,23 @@ RUN npm run build -w packages/shared \
   && npm run build -w server \
   && npm run build -w web
 
+# `deps`'s node_modules has every workspace's devDependencies too (vite, vitest, tsx, dotenv-cli,
+# @types/*, etc.) - needed to build, but dead weight at runtime (most of the image's ~750MB -
+# issue #202). A second `npm ci` here, after `build` already ran, installs only what's actually
+# needed to run the server into a throwaway node_modules that `runtime` copies instead.
+#
+# Deliberately NOT --omit=optional (and so keeps `prisma`, the CLI, and its own deps `effect` +
+# `fast-check`, ~90MB): server-entrypoint.sh runs `npx prisma db push` at container startup to sync
+# the schema, which needs the CLI physically present - omitting it made `npx` silently fetch a
+# different major version from the npm registry at container startup instead (found by actually
+# booting the trimmed image against real Postgres/Redis containers, not just inspecting file sizes).
+#
+# --workspace=server/--workspace=packages/shared: excludes the web workspace's runtime deps
+# (react, react-dom, ...), which the server never imports - it only ever serves web's built dist.
+FROM deps AS prod-deps
+RUN npm ci --omit=dev --ignore-scripts --workspace=server --workspace=packages/shared --include-workspace-root
+COPY --from=build /repo/node_modules/.prisma /repo/node_modules/.prisma
+
 FROM base AS runtime
 ENV NODE_ENV=production
 # Baked in at build time (see .github/workflows/build-docker-image.yml) so the running app can
@@ -30,7 +47,7 @@ ARG APP_VERSION=dev
 ARG APP_SHA=unknown
 ENV APP_VERSION=$APP_VERSION
 ENV APP_SHA=$APP_SHA
-COPY --from=build /repo/node_modules ./node_modules
+COPY --from=prod-deps /repo/node_modules ./node_modules
 COPY --from=build /repo/packages/shared/package.json packages/shared/package.json
 COPY --from=build /repo/packages/shared/dist packages/shared/dist
 COPY --from=build /repo/server/package.json server/package.json

@@ -1,5 +1,11 @@
-import { createContext, useContext, useState, type ReactNode } from 'react';
-import { applyThemeMode, getPreferredThemeMode, type ThemeMode } from '../theme/applyThemeMode';
+import { createContext, useContext, useEffect, useState, type ReactNode } from 'react';
+import {
+  applyThemeMode,
+  setExplicitThemeMode,
+  getPreferredThemeMode,
+  watchSystemThemeMode,
+  type ThemeMode,
+} from '../theme/applyThemeMode';
 
 interface ThemeModeContextValue {
   mode: ThemeMode;
@@ -13,9 +19,20 @@ export function ThemeModeProvider({ children }: { children: ReactNode }) {
   // read it back here so this state starts in sync rather than reapplying a fresh guess.
   const [mode, setMode] = useState<ThemeMode>(() => (document.documentElement.dataset.theme as ThemeMode) || getPreferredThemeMode());
 
+  // Follows the OS/browser theme live (issue #210) for as long as the user hasn't explicitly
+  // toggled - a no-op once they have, since watchSystemThemeMode's listener checks that itself.
+  useEffect(
+    () =>
+      watchSystemThemeMode((next) => {
+        applyThemeMode(next);
+        setMode(next);
+      }),
+    [],
+  );
+
   function toggle() {
     const next: ThemeMode = mode === 'dark' ? 'light' : 'dark';
-    applyThemeMode(next);
+    setExplicitThemeMode(next);
     setMode(next);
   }
 
