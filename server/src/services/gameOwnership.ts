@@ -25,6 +25,15 @@ export async function markOwned(userId: string, igdbIds: number[]): Promise<void
   });
 }
 
+/** Used by priceAlerts.ts to skip notifying about a game its owner already owns (issue #187) -
+ * there's no "should I buy this" decision left to inform once you already have it. Checked
+ * against the game's owner (addedBy), not whoever's currently viewing it, since a room game can
+ * be viewed by members other than the person the alert notifies. */
+export async function isOwnedBy(userId: string, igdbId: number): Promise<boolean> {
+  const row = await prisma.gameOwnership.findUnique({ where: { userId_igdbId: { userId, igdbId } } });
+  return row !== null;
+}
+
 export interface GameOwnershipInfo {
   youOwn: boolean;
   ownership: { owned: number; total: number } | null;
