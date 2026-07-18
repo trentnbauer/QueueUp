@@ -1,0 +1,124 @@
+.backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.55);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+  padding: 20px;
+}
+
+.dialog {
+  background: var(--qu-surface);
+  border: 1px solid var(--qu-border);
+  border-radius: var(--qu-radius);
+  padding: 20px;
+  max-width: 420px;
+  width: 100%;
+  max-height: 85vh;
+  overflow-y: auto;
+  box-shadow: 0 12px 40px rgba(0, 0, 0, 0.4);
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.header {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+}
+
+.thumb {
+  flex-shrink: 0;
+  width: 48px;
+  height: 64px;
+  border-radius: 6px;
+  background-color: var(--qu-surface2);
+  background-size: cover;
+  background-position: center;
+}
+
+.headerText {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.title {
+  font: 800 16px var(--qu-header-font);
+  color: var(--qu-text);
+}
+
+.genre {
+  font: 500 11.5px system-ui, sans-serif;
+  color: var(--qu-muted);
+}
+
+.closeButton {
+  flex-shrink: 0;
+  border: none;
+  background: transparent;
+  color: var(--qu-muted);
+  font-size: 20px;
+  line-height: 1;
+  cursor: pointer;
+  padding: 2px 6px;
+}
+
+.closeButton:hover {
+  color: var(--qu-text);
+}
+
+.divider {
+  height: 1px;
+  background: var(--qu-border);
+}
+
+.sectionTitle {
+  font: 700 12.5px system-ui, sans-serif;
+  color: var(--qu-text);
+  margin-bottom: -6px;
+}
+
+.statusList {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.statusButton {
+  padding: 7px 12px;
+  border-radius: 999px;
+  border: 1px solid var(--qu-border);
+  background: transparent;
+  color: var(--qu-muted);
+  font: 700 12px system-ui, sans-serif;
+  cursor: pointer;
+}
+
+.statusButtonActive {
+  background: var(--qu-accent-pill-bg);
+  border-color: transparent;
+  color: var(--qu-accent);
+}
+
+.footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.removeButton {
+  flex-shrink: 0;
+  border: none;
+  background: transparent;
+  color: #ff8a80;
+  font: 700 12px system-ui, sans-serif;
+  cursor: pointer;
+  padding: 4px 0;
+}

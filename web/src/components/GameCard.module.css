@@ -4,14 +4,14 @@
   border: 1px solid var(--qu-border);
   border-radius: var(--qu-card-radius);
   overflow: hidden;
-  display: flex;
-  flex-direction: column;
   cursor: pointer;
 }
 
 .cover {
   position: relative;
-  height: 172px;
+  /* Box-art proportions (portrait, taller than wide) now that the cover *is* the whole card - it
+     used to be a fixed short strip above a body full of price/vote/etc. content below it. */
+  aspect-ratio: 2 / 3;
   background-image: repeating-linear-gradient(
     135deg,
     var(--qu-stripe) 0px,
@@ -33,7 +33,9 @@
   color: var(--qu-muted);
 }
 
-.beatenRibbon {
+/* Both status callouts (Beaten, Playing) are diagonal ribbons over the cover art itself, not
+   flow content - a card's footprint never grows just because a game changed status. */
+.ribbon {
   position: absolute;
   inset: 0;
   overflow: hidden;
@@ -41,13 +43,12 @@
   z-index: 5;
 }
 
-.beatenRibbonText {
+.ribbonText {
   position: absolute;
   top: 50%;
   left: 50%;
   width: 320%;
   padding: 10px 0;
-  background: linear-gradient(135deg, #5fdc3a, #2fa016);
   color: #fff;
   text-align: center;
   text-transform: uppercase;
@@ -58,58 +59,48 @@
   transform: translate(-50%, -50%) rotate(-58deg);
 }
 
-/* Sits over the artwork's bottom edge with a gradient scrim underneath, so the title and
-   genre stay legible over any cover art rather than depending on how bright the image is.
-   The reserved min-height covers a 2-line title, so a long title (e.g. "S.T.A.L.K.E.R.: Call
-   of Pripyat") never changes the cover's footprint or shifts the price/vote rows below it. */
+.beatenRibbonText {
+  background: linear-gradient(135deg, #5fdc3a, #2fa016);
+}
+
+.playingRibbonText {
+  background: linear-gradient(135deg, var(--qu-accent), color-mix(in oklch, var(--qu-accent) 65%, black));
+}
+
+/* Sits over the artwork's bottom edge with a gradient scrim underneath, so the price/owned line
+   stays legible over any cover art rather than depending on how bright the image is. */
 .coverOverlay {
   position: absolute;
   left: 0;
   right: 0;
   bottom: 0;
-  min-height: 78px;
-  padding: 30px 14px 10px;
+  padding: 24px 14px 12px;
   display: flex;
-  flex-direction: column;
-  justify-content: flex-end;
   background: linear-gradient(to bottom, transparent, rgba(0, 0, 0, 0.72) 55%, rgba(0, 0, 0, 0.85));
 }
 
-.body {
-  padding: 17px;
+.priceLine {
   display: flex;
-  flex-direction: column;
-  gap: 11px;
-  flex: 1;
+  align-items: center;
+  gap: 6px;
+  font: 700 13px system-ui, sans-serif;
+  color: rgba(255, 255, 255, 0.9);
 }
 
-.playingBanner {
-  padding: 20px 17px;
-  background: var(--qu-accent);
-  color: #fff;
-  text-align: center;
-  text-transform: uppercase;
-  font: 800 30px var(--qu-header-font);
-  letter-spacing: 0.06em;
-  text-shadow: 2px 2px 0 rgba(0, 0, 0, 0.3);
+.ownedLine {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
 }
 
-.title {
-  display: -webkit-box;
-  -webkit-line-clamp: 2;
-  -webkit-box-orient: vertical;
-  overflow: hidden;
-  font: 800 17px var(--qu-header-font);
-  color: var(--qu-accent);
+.ownedLabel {
+  font: 800 13px system-ui, sans-serif;
+  color: var(--qu-accent2);
 }
 
-.genre {
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-  font: 500 11.5px system-ui, sans-serif;
-  color: rgba(255, 255, 255, 0.75);
-  margin-top: 2px;
+.ownedPriceHint {
+  font: 500 11px system-ui, sans-serif;
+  color: rgba(255, 255, 255, 0.6);
 }
 
 .priceRow {
@@ -329,14 +320,4 @@
   background: rgba(255, 184, 74, 0.12);
   border-radius: var(--qu-radius);
   padding: 7px 10px;
-}
-
-.divider {
-  height: 1px;
-  background: var(--qu-border);
-  /* Pushes everything from here down (votes, squad votes, added-by) to the bottom of the card -
-     cards in the same grid row are stretched to equal height, but the content above this point
-     varies (live price info adds extra rows, Playing hides price info entirely), which without
-     this left the vote section landing at a different height card to card. */
-  margin-top: auto;
 }

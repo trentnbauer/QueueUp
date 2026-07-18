@@ -1,6 +1,11 @@
 .cards {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+  /* Every card is now just its cover art at a fixed aspect ratio (no more variable-height body
+     content below it) - stretch (the grid default) would otherwise force every card in a row up
+     to the row's tallest neighbor (e.g. the Spin the Wheel tile), leaving blank card background
+     showing beneath the shorter covers. */
+  align-items: start;
   gap: 22px;
   padding: 28px 40px;
 }

@@ -5,7 +5,9 @@
   justify-content: center;
   gap: 8px;
   text-align: center;
-  min-height: 260px;
+  /* Matches GameCard's box-art aspect ratio so this tile sits the same height as the game cards
+     around it in the grid, instead of the roughly-square shape a fixed min-height gave it. */
+  aspect-ratio: 2 / 3;
   padding: 24px;
   border: 1px dashed var(--qu-accent);
   border-radius: var(--qu-card-radius);
