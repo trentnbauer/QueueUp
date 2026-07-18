@@ -157,6 +157,10 @@ model Game {
   /// game, so this needs to be saved when the game is added, not derived after the fact.
   releaseYear    Int?       @map("release_year")
   maxCoopPlayers Int?       @map("max_coop_players")
+  /// Hours for an average "main story" playthrough, from IGDB's game_time_to_beats endpoint
+  /// (issue #189) - same capture-at-intake reasoning as releaseYear/maxCoopPlayers above. Null
+  /// when IGDB has no time-to-beat data for this game.
+  timeToBeatHours Int?      @map("time_to_beat_hours")
   ggDealsUrl     String?    @map("gg_deals_url")
   steamAppid     Int?       @map("steam_appid")
   coverImageUrl  String?    @map("cover_image_url")

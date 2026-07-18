@@ -128,6 +128,9 @@ export interface Game {
   genre: string | null;
   releaseYear: number | null;
   maxCoopPlayers: number | null;
+  /** Hours for an average "main story" playthrough, from IGDB (issue #189). Null when IGDB has no
+   * time-to-beat data for this game. */
+  timeToBeatHours: number | null;
   ggDealsUrl: string | null;
   coverImageUrl: string | null;
   status: GameStatus;

@@ -232,6 +232,10 @@ export interface IgdbGameDetail {
   steamAppId: number | null;
   maxCoopPlayers: number | null;
   releaseYear: number | null;
+  /** Hours for an average "main story" playthrough, from IGDB's game_time_to_beats endpoint
+   * (issue #189) - null when IGDB has no time-to-beat data for this game. Sourced from IGDB
+   * directly rather than scraping HowLongToBeat, which has no official public API. */
+  timeToBeatHours: number | null;
 }
 
 // external_game_source 1 == Steam (from the external_game_sources endpoint) — the `games`
@@ -260,6 +264,17 @@ interface IgdbMultiqueryResult<T> {
   result?: T[];
 }
 
+interface IgdbTimeToBeat {
+  // Seconds, per IGDB's game_time_to_beats endpoint - "normally" is a typical/average completion,
+  // the closest analog to HowLongToBeat's "Main Story" figure.
+  normally?: number;
+}
+
+function timeToBeatHoursFrom(rows: IgdbTimeToBeat[]): number | null {
+  const seconds = rows[0]?.normally;
+  return seconds && seconds > 0 ? Math.round(seconds / 3600) : null;
+}
+
 export async function getGameDetail(igdbId: number): Promise<IgdbGameDetail> {
   if (!Number.isInteger(igdbId) || igdbId <= 0) {
     throw new HttpError(400, 'Invalid IGDB game id');
@@ -268,21 +283,29 @@ export async function getGameDetail(igdbId: number): Promise<IgdbGameDetail> {
   const cached = await redis.get(cacheKey);
   if (cached) return JSON.parse(cached) as IgdbGameDetail;
 
-  // IGDB's `games`, `external_games` (Steam appid), and `multiplayer_modes` (co-op limits) are
-  // separate endpoints with no way to join them in one query, but IGDB's multiquery endpoint lets
-  // several such queries ride in a single HTTP request instead of three round trips.
-  const [gameResult, externalGamesResult, multiplayerModesResult] = await igdbRequest<
-    [IgdbMultiqueryResult<IgdbGame>, IgdbMultiqueryResult<IgdbExternalGame>, IgdbMultiqueryResult<IgdbMultiplayerMode>]
+  // IGDB's `games`, `external_games` (Steam appid), `multiplayer_modes` (co-op limits), and
+  // `game_time_to_beats` (issue #189) are separate endpoints with no way to join them in one
+  // query, but IGDB's multiquery endpoint lets several such queries ride in a single HTTP request
+  // instead of four round trips.
+  const [gameResult, externalGamesResult, multiplayerModesResult, timeToBeatResult] = await igdbRequest<
+    [
+      IgdbMultiqueryResult<IgdbGame>,
+      IgdbMultiqueryResult<IgdbExternalGame>,
+      IgdbMultiqueryResult<IgdbMultiplayerMode>,
+      IgdbMultiqueryResult<IgdbTimeToBeat>,
+    ]
   >(
     'multiquery',
     `query games "Game" { fields name,cover.image_id,platforms.name,genres.name,first_release_date; where id = ${igdbId}; };
      query external_games "External" { fields uid; where game = ${igdbId} & external_game_source = ${STEAM_EXTERNAL_SOURCE_ID}; };
-     query multiplayer_modes "Modes" { fields onlinecoopmax,offlinecoopmax; where game = ${igdbId}; };`,
+     query multiplayer_modes "Modes" { fields onlinecoopmax,offlinecoopmax; where game = ${igdbId}; };
+     query game_time_to_beats "TimeToBeat" { fields normally; where game_id = ${igdbId}; };`,
   );
 
   const games = gameResult.result ?? [];
   const externalGames = externalGamesResult.result ?? [];
   const multiplayerModes = multiplayerModesResult.result ?? [];
+  const timeToBeatRows = timeToBeatResult.result ?? [];
 
   const game = games[0];
   if (!game || !game.name) {
@@ -300,6 +323,7 @@ export async function getGameDetail(igdbId: number): Promise<IgdbGameDetail> {
     steamAppId: steamUid && /^\d+$/.test(steamUid) ? Number(steamUid) : null,
     maxCoopPlayers: maxCoopFrom(multiplayerModes),
     releaseYear: releaseYear(game.first_release_date),
+    timeToBeatHours: timeToBeatHoursFrom(timeToBeatRows),
   };
 
   await redis.set(cacheKey, JSON.stringify(detail), 'EX', DETAIL_CACHE_TTL_SECONDS);

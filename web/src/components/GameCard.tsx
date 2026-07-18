@@ -179,6 +179,7 @@ export function GameCard({
           )}
           <div className={styles.genre} title={game.genre ?? undefined}>
             {game.genre ?? '—'}
+            {game.timeToBeatHours != null && ` · ~${game.timeToBeatHours}h to beat`}
           </div>
         </div>
       </div>
