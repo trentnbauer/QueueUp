@@ -15,6 +15,11 @@
   </ItemGroup>
 
   <ItemGroup>
+    <!-- Not implied by default for a net462 SDK-style project - needed for HttpClient. -->
+    <Reference Include="System.Net.Http" />
+  </ItemGroup>
+
+  <ItemGroup>
     <None Include="extension.yaml">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </None>

@@ -40,8 +40,6 @@ namespace QueueUpImporter
 
         public QueueUpImporterSettingsViewModel Settings { get; }
 
-        public override string Name => "QueueUp Importer";
-
         public QueueUpImporterPlugin(IPlayniteAPI api) : base(api)
         {
             Settings = new QueueUpImporterSettingsViewModel(this);
