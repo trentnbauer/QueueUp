@@ -68,7 +68,16 @@ export function Header() {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
   const confirm = useConfirm();
-  const { platformFilter, genreFilter, statusFilter, setPlatformFilter, setGenreFilter, setStatusFilter } = useGameFilter();
+  const {
+    platformFilter,
+    genreFilter,
+    statusFilter,
+    searchQuery,
+    setPlatformFilter,
+    setGenreFilter,
+    setStatusFilter,
+    setSearchQuery,
+  } = useGameFilter();
 
   const membersMenuRef = useRef<HTMLDetailsElement>(null);
   const [showRoomSettings, setShowRoomSettings] = useState(false);
@@ -232,6 +241,14 @@ export function Header() {
         <button type="button" className={styles.addGameButton} onClick={() => setShowAddGame(true)}>
           + Add Game
         </button>
+        <input
+          type="search"
+          className={styles.searchInput}
+          placeholder="Search games…"
+          value={searchQuery}
+          onChange={(e) => setSearchQuery(e.target.value)}
+          aria-label="Search games by title"
+        />
         <PillFilter
           label="Platform"
           allLabel="All platforms"
