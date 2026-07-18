@@ -53,6 +53,21 @@
   filter: brightness(1.1);
 }
 
+.searchInput {
+  flex-shrink: 0;
+  width: 200px;
+  padding: 9px 12px;
+  border-radius: var(--qu-radius);
+  background: var(--qu-surface2);
+  border: 1px solid var(--qu-border);
+  color: var(--qu-text);
+  font-size: 13px;
+}
+
+.searchInput::placeholder {
+  color: var(--qu-muted);
+}
+
 .filterGroup {
   display: flex;
   flex-direction: column;

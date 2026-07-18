@@ -86,9 +86,9 @@ export function GameGrid({
   onSetTargetPrice,
   onSetOwnership,
 }: GameGridProps) {
-  // Filter selection lives in GameFilterContext, not here - the pill UI itself is rendered by the
-  // Header (a sibling, not a parent, of this component) next to the Add Game button.
-  const { platformFilter, genreFilter, statusFilter } = useGameFilter();
+  // Filter selection lives in GameFilterContext, not here - the pill UI (and the search box) are
+  // rendered by the Header (a sibling, not a parent, of this component) next to the Add Game button.
+  const { platformFilter, genreFilter, statusFilter, searchQuery } = useGameFilter();
 
   const sorted = useStableOrder(games);
   const prioritized = useMemo(
@@ -96,18 +96,20 @@ export function GameGrid({
     [sorted],
   );
 
+  const normalizedQuery = searchQuery.trim().toLowerCase();
   const filtered = useMemo(
     () =>
       prioritized.filter(
         (g) =>
           (platformFilter === ALL_FILTER_VALUE || splitLabel(g.platform).includes(platformFilter)) &&
           (genreFilter === ALL_FILTER_VALUE || splitLabel(g.genre).includes(genreFilter)) &&
-          (statusFilter === ALL_FILTER_VALUE || g.status === statusFilter),
+          (statusFilter === ALL_FILTER_VALUE || g.status === statusFilter) &&
+          (normalizedQuery === '' || g.title.toLowerCase().includes(normalizedQuery)),
       ),
-    [prioritized, platformFilter, genreFilter, statusFilter],
+    [prioritized, platformFilter, genreFilter, statusFilter, normalizedQuery],
   );
 
-  const hasActiveFilters = platformFilter !== ALL_FILTER_VALUE || genreFilter !== ALL_FILTER_VALUE;
+  const hasActiveFilters = platformFilter !== ALL_FILTER_VALUE || genreFilter !== ALL_FILTER_VALUE || normalizedQuery !== '';
 
   if (isLoading) {
     return (

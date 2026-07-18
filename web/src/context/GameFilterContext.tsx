@@ -6,9 +6,11 @@ interface GameFilterContextValue {
   platformFilter: string;
   genreFilter: string;
   statusFilter: string;
+  searchQuery: string;
   setPlatformFilter: (value: string) => void;
   setGenreFilter: (value: string) => void;
   setStatusFilter: (value: string) => void;
+  setSearchQuery: (value: string) => void;
 }
 
 const GameFilterContext = createContext<GameFilterContextValue | undefined>(undefined);
@@ -23,17 +25,28 @@ export function GameFilterProvider({ children }: { children: ReactNode }) {
   const [platformFilter, setPlatformFilter] = useState(ALL_FILTER_VALUE);
   const [genreFilter, setGenreFilter] = useState(ALL_FILTER_VALUE);
   const [statusFilter, setStatusFilter] = useState(ALL_FILTER_VALUE);
+  const [searchQuery, setSearchQuery] = useState('');
   const viewKey = view.type === 'room' ? `room:${view.roomId}` : 'personal';
 
   useEffect(() => {
     setPlatformFilter(ALL_FILTER_VALUE);
     setGenreFilter(ALL_FILTER_VALUE);
     setStatusFilter(ALL_FILTER_VALUE);
+    setSearchQuery('');
   }, [viewKey]);
 
   return (
     <GameFilterContext.Provider
-      value={{ platformFilter, genreFilter, statusFilter, setPlatformFilter, setGenreFilter, setStatusFilter }}
+      value={{
+        platformFilter,
+        genreFilter,
+        statusFilter,
+        searchQuery,
+        setPlatformFilter,
+        setGenreFilter,
+        setStatusFilter,
+        setSearchQuery,
+      }}
     >
       {children}
     </GameFilterContext.Provider>
