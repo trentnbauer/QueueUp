@@ -219,6 +219,18 @@ export interface ImportSteamLibraryResult {
   skipped: number;
 }
 
+/** Polled by the shelf UI while an import is running (see routes/games.ts and
+ * SteamImportCard.tsx) so a slow import (one IGDB lookup per unowned game) shows live counts
+ * instead of sitting on a bare "Importing…" the whole time. Same shape as
+ * ImportSteamLibraryResult plus `done`, since it's a snapshot of that same in-progress state. */
+export interface SteamImportProgress {
+  totalOwned: number;
+  consideredCount: number;
+  imported: number;
+  skipped: number;
+  done: boolean;
+}
+
 /** Where a configurable integration credential currently comes from - env vars always take
  * precedence over the DB-stored fallback; "unset" means neither is configured. */
 export type ConfigSource = 'env' | 'db' | 'unset';

@@ -1,4 +1,6 @@
 import { HttpError } from '../util/httpError.js';
+import { redis } from './redisClient.js';
+import type { SteamImportProgress } from '@queueup/shared';
 
 const STEAM_SUB_PREFIX = 'steam:';
 
@@ -48,4 +50,22 @@ export async function getOwnedSteamGames(steamId64: string, apiKey: string): Pro
   const body = (await response.json()) as SteamOwnedGamesResponse;
   const games = body.response?.games ?? [];
   return games.map((g) => ({ appId: g.appid, playtimeForeverMinutes: g.playtime_forever }));
+}
+
+const IMPORT_PROGRESS_TTL_SECONDS = 60 * 10; // covers the slowest realistic import plus a buffer for the client's last poll
+
+function importProgressKey(userId: string): string {
+  return `steam-import-progress:${userId}`;
+}
+
+/** Written to as the import loop in routes/games.ts processes each game, and polled by
+ * SteamImportCard so a slow import (one IGDB lookup per unowned game) shows live counts instead of
+ * a bare "Importing…" for however long the whole batch takes. */
+export async function setSteamImportProgress(userId: string, progress: SteamImportProgress): Promise<void> {
+  await redis.set(importProgressKey(userId), JSON.stringify(progress), 'EX', IMPORT_PROGRESS_TTL_SECONDS);
+}
+
+export async function getSteamImportProgress(userId: string): Promise<SteamImportProgress | null> {
+  const cached = await redis.get(importProgressKey(userId));
+  return cached ? (JSON.parse(cached) as SteamImportProgress) : null;
 }

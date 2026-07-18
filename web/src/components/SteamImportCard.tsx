@@ -1,7 +1,10 @@
 import { useEffect, useRef, useState } from 'react';
+import type { SteamImportProgress } from '@queueup/shared';
 import { gamesApi } from '../api/games';
 import { useConfirm } from '../context/ConfirmContext';
 import styles from './SteamImportCard.module.css';
+
+const PROGRESS_POLL_INTERVAL_MS = 1000;
 
 interface SteamImportCardProps {
   steamLinked: boolean;
@@ -23,6 +26,7 @@ export function SteamImportCard({ steamLinked, onImported }: SteamImportCardProp
   const [busy, setBusy] = useState(false);
   const [result, setResult] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [progress, setProgress] = useState<SteamImportProgress | null>(null);
   const autoImportRan = useRef(false);
 
   useEffect(() => {
@@ -53,6 +57,20 @@ export function SteamImportCard({ steamLinked, onImported }: SteamImportCardProp
     setBusy(true);
     setResult(null);
     setError(null);
+    setProgress(null);
+
+    // The import itself is one request that only resolves once the whole batch is done (one IGDB
+    // lookup per unowned game), so polling a separate progress endpoint alongside it is what gives
+    // this a live "X of Y checked" readout instead of a bare spinner for however long that takes.
+    const pollInterval = setInterval(async () => {
+      try {
+        const { progress: latest } = await gamesApi.importSteamLibraryProgress();
+        if (latest && !latest.done) setProgress(latest);
+      } catch {
+        // A failed poll just means the next tick tries again - the import itself isn't affected.
+      }
+    }, PROGRESS_POLL_INTERVAL_MS);
+
     try {
       const { imported, skipped, totalOwned, consideredCount } = await gamesApi.importSteamLibrary();
       setResult(
@@ -64,6 +82,8 @@ export function SteamImportCard({ steamLinked, onImported }: SteamImportCardProp
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Could not import your Steam library');
     } finally {
+      clearInterval(pollInterval);
+      setProgress(null);
       setBusy(false);
     }
   }
@@ -79,6 +99,13 @@ export function SteamImportCard({ steamLinked, onImported }: SteamImportCardProp
       {!busy && !result && !error && (
         <div className={styles.hint}>
           {steamLinked ? 'Add your most-played Steam games to this shelf' : 'Sign in with Steam to import your library'}
+        </div>
+      )}
+      {busy && (
+        <div className={styles.hint}>
+          {progress
+            ? `${progress.totalOwned} owned · checked ${progress.imported + progress.skipped} of ${progress.consideredCount} · ${progress.imported} imported so far`
+            : 'Checking your Steam library…'}
         </div>
       )}
       {result && <div className={styles.hint}>{result}</div>}

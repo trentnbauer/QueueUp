@@ -15,7 +15,7 @@ import { searchIntake, resolveGameForCreation, refreshGamePricing } from '../ser
 import { notifyRoom } from '../services/notifications.js';
 import { platformFamilies, findIgdbIdBySteamAppId } from '../services/igdbClient.js';
 import { getOwnedPlatforms } from '../services/userSettings.js';
-import { resolveSteamId64, getOwnedSteamGames } from '../services/steamLibrary.js';
+import { resolveSteamId64, getOwnedSteamGames, setSteamImportProgress, getSteamImportProgress } from '../services/steamLibrary.js';
 import { setOwnership, markOwned } from '../services/gameOwnership.js';
 import { env } from '../config/env.js';
 import type {
@@ -25,6 +25,7 @@ import type {
   PriceRegion,
   SetGameOwnershipRequest,
   SetTargetPriceRequest,
+  SteamImportProgress,
   UpdateGameStatusRequest,
   VoteRequest,
 } from '@queueup/shared';
@@ -172,8 +173,15 @@ export default async function gameRoutes(app: FastifyInstance) {
       // limited to whatever a single import run actually creates (issue #176).
       const ownedIgdbIds: number[] = shelfGames.map((g) => g.igdbId);
 
+      const totalOwned = owned.length;
+      const consideredCount = considered.length;
       let imported = 0;
       let skipped = 0;
+      // One IGDB lookup per unowned game can take a while for a big library - progress is written
+      // to Redis after every game so the shelf UI can poll it and show live counts instead of a
+      // bare "Importing…" for however long the whole batch takes (see SteamImportCard.tsx).
+      await setSteamImportProgress(userId, { totalOwned, consideredCount, imported, skipped, done: false });
+
       for (const game of considered) {
         try {
           const igdbId = await findIgdbIdBySteamAppId(game.appId);
@@ -208,20 +216,24 @@ export default async function gameRoutes(app: FastifyInstance) {
         } catch {
           // One game failing to resolve (IGDB hiccup, no match, etc.) shouldn't abort the batch.
           skipped++;
+        } finally {
+          await setSteamImportProgress(userId, { totalOwned, consideredCount, imported, skipped, done: false });
         }
       }
       if (imported > 0) await invalidateExistingIgdbIds(null, userId);
       await markOwned(userId, ownedIgdbIds);
 
-      const result: ImportSteamLibraryResult = {
-        totalOwned: owned.length,
-        consideredCount: considered.length,
-        imported,
-        skipped,
-      };
+      const result: ImportSteamLibraryResult = { totalOwned, consideredCount, imported, skipped };
+      await setSteamImportProgress(userId, { ...result, done: true });
       return result;
     },
   );
+
+  app.get('/api/games/import-steam-library/progress', async (request) => {
+    const userId = await request.requireAuth();
+    const progress: SteamImportProgress | null = await getSteamImportProgress(userId);
+    return { progress };
+  });
 
   app.patch<{ Params: { id: string }; Body: UpdateGameStatusRequest }>('/api/games/:id/status', async (request) => {
     const userId = await request.requireAuth();

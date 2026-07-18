@@ -8,6 +8,7 @@ import type {
   PriceRegion,
   SetGameOwnershipRequest,
   SetTargetPriceRequest,
+  SteamImportProgress,
   UpdateGameStatusRequest,
   VoteRequest,
 } from '@queueup/shared';
@@ -32,4 +33,6 @@ export const gamesApi = {
   setOwnership: (id: string, body: SetGameOwnershipRequest) => apiPatch<{ game: Game }>(`/api/games/${id}/ownership`, body),
   move: (id: string, body: MoveGameRequest) => apiPost<{ game: Game }>(`/api/games/${id}/move`, body),
   importSteamLibrary: () => apiPost<ImportSteamLibraryResult>('/api/games/import-steam-library'),
+  importSteamLibraryProgress: () =>
+    apiGet<{ progress: SteamImportProgress | null }>('/api/games/import-steam-library/progress'),
 };
