@@ -219,6 +219,34 @@ export interface ImportSteamLibraryResult {
   skipped: number;
 }
 
+/** One entry from a Playnite library sync - see routes/playnite.ts. playtimeMinutes is currently
+ * accepted but not stored; kept for forward compatibility (e.g. surfacing it in the UI later). */
+export interface PlayniteGameEntry {
+  title: string;
+  playtimeMinutes?: number;
+}
+
+export interface ImportPlayniteLibraryRequest {
+  games: PlayniteGameEntry[];
+}
+
+export interface ImportPlayniteLibraryResult {
+  totalReceived: number;
+  consideredCount: number;
+  imported: number;
+  skipped: number;
+}
+
+export interface PlayniteTokenStatus {
+  hasToken: boolean;
+  createdAt: string | null;
+  lastUsedAt: string | null;
+}
+
+export interface GeneratePlayniteTokenResult {
+  token: string;
+}
+
 /** Where a configurable integration credential currently comes from - env vars always take
  * precedence over the DB-stored fallback; "unset" means neither is configured. */
 export type ConfigSource = 'env' | 'db' | 'unset';

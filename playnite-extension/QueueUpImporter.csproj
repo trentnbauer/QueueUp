@@ -1,0 +1,23 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <!-- Playnite itself targets classic .NET Framework - extensions load into its process, so they
+         must target a compatible framework rather than whatever's newest. -->
+    <TargetFramework>net462</TargetFramework>
+    <UseWPF>true</UseWPF>
+    <AssemblyName>QueueUpImporter</AssemblyName>
+    <RootNamespace>QueueUpImporter</RootNamespace>
+    <LangVersion>latest</LangVersion>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="PlayniteSDK" Version="6.11.0" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <None Include="extension.yaml">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </None>
+  </ItemGroup>
+
+</Project>

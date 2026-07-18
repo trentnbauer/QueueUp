@@ -1,0 +1,71 @@
+name: Build and Release Playnite Extension
+
+# The extension targets net462 (Playnite's own runtime) and has no build/test
+# environment locally for most contributors - this is the only place it's
+# actually compiled, so a release only ever ships something CI has verified
+# builds cleanly.
+on:
+  push:
+    tags:
+      - 'playnite-v*'
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'Version to release (e.g. 1.0.0) - used when not triggered by a playnite-v* tag'
+        required: false
+        default: ''
+
+jobs:
+  build-and-release:
+    runs-on: windows-latest
+    permissions:
+      contents: write
+    defaults:
+      run:
+        working-directory: playnite-extension
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '8.0.x'
+
+      - name: Resolve version
+        id: version
+        shell: bash
+        run: |
+          if [[ "${{ github.ref_type }}" == "tag" ]]; then
+            version="${GITHUB_REF_NAME#playnite-v}"
+          else
+            version="${{ inputs.version }}"
+          fi
+          if [[ -z "$version" ]]; then
+            echo "No version resolved - push a playnite-v*.*.* tag or supply one via workflow_dispatch." >&2
+            exit 1
+          fi
+          echo "version=$version" >> "$GITHUB_OUTPUT"
+
+      - name: Build
+        run: dotnet build -c Release
+
+      - name: Package as .pext
+        shell: pwsh
+        run: |
+          $out = "bin/Release/net462"
+          $pext = "QueueUpImporter.pext"
+          Compress-Archive -Path "$out/*" -DestinationPath $pext -Force
+          Move-Item $pext "../QueueUpImporter.pext"
+
+      - name: Create release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: playnite-v${{ steps.version.outputs.version }}
+          name: Playnite extension v${{ steps.version.outputs.version }}
+          files: QueueUpImporter.pext
+          body: |
+            QueueUp Playnite extension, version ${{ steps.version.outputs.version }}.
+
+            Install: download `QueueUpImporter.pext` below and double-click it (or Playnite →
+            Add-ons → Install Add-on from file). See `playnite-extension/README.md` for setup.

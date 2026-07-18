@@ -55,6 +55,11 @@ Most self-hosted setups put something in front of this container - a Cloudflare 
 
 Only set `TRUST_PROXY=false` if this container is exposed directly with nothing in front of it (those headers are otherwise attacker-controllable). Whichever proxy you use, make sure `APP_BASE_URL` and each configured sign-in method's `*_REDIRECT_URI` point at your real public HTTPS domain, not `localhost`.
 
+## Importing your library
+
+- **Steam**: link your Steam account (Profile Settings, or sign in with Steam directly) and use "Import Steam Library" on the shelf — pulls your owned Steam games in via Steam's public Web API.
+- **Playnite**: install the [QueueUp Playnite extension](playnite-extension/) (see its README for setup), generate a personal access token from Profile Settings in QueueUp, and paste it into the extension's settings inside Playnite. Playnite has no hosted account of its own, so the extension pushes your local library to QueueUp directly rather than QueueUp pulling from anywhere — this also covers non-Steam launchers (GOG, Epic, emulators, manually-added entries) that Playnite aggregates, matched to QueueUp's game data by title rather than a platform-specific id.
+
 ## Backups
 
 Postgres and Redis data are bind-mounted to `./data/postgres` and `./data/redis` (override the root with `DATA_DIR` in `.env`). Point Borg, or any backup tool, at that `data/` directory.

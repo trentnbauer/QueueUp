@@ -46,6 +46,7 @@ body:
         - Voting (emoji scale)
         - Spin the Wheel
         - Steam library import
+        - Playnite library import
         - Notifications
         - Auth / sign-in
         - Dark / light mode

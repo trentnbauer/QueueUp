@@ -1,7 +1,9 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { PRICE_REGION_LABELS, ROOM_PLATFORM_LABELS, type PriceRegion, type RoomPlatform } from '@queueup/shared';
 import { authApi } from '../api/auth';
+import { playniteApi } from '../api/playnite';
 import { useAuth } from '../context/AuthContext';
+import { useConfirm } from '../context/ConfirmContext';
 import { useCurrencyRegion } from '../context/CurrencyRegionContext';
 import { useModalA11y } from '../hooks/useModalA11y';
 import styles from './ProfileSettingsModal.module.css';
@@ -18,10 +20,75 @@ interface ProfileSettingsModalProps {
 export function ProfileSettingsModal({ onClose }: ProfileSettingsModalProps) {
   const { ownedPlatforms, refetch } = useAuth();
   const { region, setRegion } = useCurrencyRegion();
+  const confirm = useConfirm();
   const [selected, setSelected] = useState<Set<RoomPlatform>>(new Set(ownedPlatforms));
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const dialogRef = useModalA11y<HTMLDivElement>(onClose);
+
+  const [tokenStatus, setTokenStatus] = useState<{ hasToken: boolean; createdAt: string | null; lastUsedAt: string | null } | null>(
+    null,
+  );
+  const [revealedToken, setRevealedToken] = useState<string | null>(null);
+  const [copied, setCopied] = useState(false);
+  const [playniteBusy, setPlayniteBusy] = useState(false);
+  const [playniteError, setPlayniteError] = useState<string | null>(null);
+
+  useEffect(() => {
+    playniteApi
+      .getTokenStatus()
+      .then(setTokenStatus)
+      .catch((err) => setPlayniteError(err instanceof Error ? err.message : 'Could not load Playnite token status'));
+  }, []);
+
+  async function handleGenerateToken() {
+    if (tokenStatus?.hasToken) {
+      const ok = await confirm({
+        title: 'Replace the existing token?',
+        message: 'The Playnite extension will stop working until you paste the new token into its settings.',
+        confirmLabel: 'Replace',
+      });
+      if (!ok) return;
+    }
+    setPlayniteBusy(true);
+    setPlayniteError(null);
+    try {
+      const { token } = await playniteApi.generateToken();
+      setRevealedToken(token);
+      setCopied(false);
+      setTokenStatus(await playniteApi.getTokenStatus());
+    } catch (err) {
+      setPlayniteError(err instanceof Error ? err.message : 'Could not generate a token');
+    } finally {
+      setPlayniteBusy(false);
+    }
+  }
+
+  async function handleRevokeToken() {
+    const ok = await confirm({
+      title: 'Revoke the Playnite token?',
+      message: 'The Playnite extension will no longer be able to sync your library until you generate a new token.',
+      confirmLabel: 'Revoke',
+    });
+    if (!ok) return;
+    setPlayniteBusy(true);
+    setPlayniteError(null);
+    try {
+      await playniteApi.revokeToken();
+      setRevealedToken(null);
+      setTokenStatus(await playniteApi.getTokenStatus());
+    } catch (err) {
+      setPlayniteError(err instanceof Error ? err.message : 'Could not revoke the token');
+    } finally {
+      setPlayniteBusy(false);
+    }
+  }
+
+  async function handleCopyToken() {
+    if (!revealedToken) return;
+    await navigator.clipboard.writeText(revealedToken);
+    setCopied(true);
+  }
 
   const dirty =
     selected.size !== ownedPlatforms.length || ownedPlatforms.some((p) => !selected.has(p));
@@ -109,6 +176,45 @@ export function ProfileSettingsModal({ onClose }: ProfileSettingsModalProps) {
           <button type="button" className={styles.saveButton} onClick={handleSave} disabled={saving || !dirty}>
             {saving ? 'Saving…' : 'Save changes'}
           </button>
+        </div>
+
+        <div className={styles.divider} />
+
+        <div className={styles.section}>
+          <div className={styles.sectionTitle}>Playnite import</div>
+          <p className={styles.hint}>
+            Install the QueueUp Playnite extension, paste a token below into its settings, and every sync from
+            Playnite adds your library here.
+          </p>
+          {playniteError && <div className={styles.error}>{playniteError}</div>}
+          {revealedToken && (
+            <div className={styles.tokenReveal}>
+              <code className={styles.tokenValue}>{revealedToken}</code>
+              <button type="button" className={styles.copyButton} onClick={handleCopyToken}>
+                {copied ? 'Copied' : 'Copy'}
+              </button>
+              <p className={styles.tokenWarning}>This won't be shown again — copy it now.</p>
+            </div>
+          )}
+          {tokenStatus && !revealedToken && (
+            <p className={styles.hint}>
+              {tokenStatus.hasToken
+                ? `Token active · created ${new Date(tokenStatus.createdAt!).toLocaleDateString()} · last synced ${
+                    tokenStatus.lastUsedAt ? new Date(tokenStatus.lastUsedAt).toLocaleString() : 'never'
+                  }`
+                : 'No token yet.'}
+            </p>
+          )}
+          <div className={styles.tokenActions}>
+            <button type="button" className={styles.saveButton} onClick={handleGenerateToken} disabled={playniteBusy}>
+              {tokenStatus?.hasToken ? 'Regenerate token' : 'Generate token'}
+            </button>
+            {tokenStatus?.hasToken && (
+              <button type="button" className={styles.revokeButton} onClick={handleRevokeToken} disabled={playniteBusy}>
+                Revoke
+              </button>
+            )}
+          </div>
         </div>
       </div>
     </div>

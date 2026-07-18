@@ -117,3 +117,57 @@
   font-size: 12.5px;
   margin-bottom: 12px;
 }
+
+.tokenReveal {
+  background: var(--qu-surface2);
+  border: 1px solid var(--qu-border);
+  border-radius: 6px;
+  padding: 10px;
+  margin-bottom: 12px;
+}
+
+.tokenValue {
+  display: block;
+  word-break: break-all;
+  font-size: 12px;
+  color: var(--qu-text);
+}
+
+.copyButton {
+  margin-top: 8px;
+  padding: 6px 14px;
+  border-radius: var(--qu-radius);
+  background: var(--qu-surface);
+  border: 1px solid var(--qu-border);
+  color: var(--qu-text);
+  font-size: 12.5px;
+  cursor: pointer;
+}
+
+.tokenWarning {
+  color: var(--qu-muted);
+  font-size: 11.5px;
+  margin: 8px 0 0;
+}
+
+.tokenActions {
+  display: flex;
+  gap: 10px;
+}
+
+.revokeButton {
+  align-self: flex-start;
+  padding: 8px 18px;
+  border-radius: var(--qu-radius);
+  background: transparent;
+  border: 1px solid var(--qu-border);
+  color: #ff8a80;
+  font-weight: 700;
+  font-size: 13px;
+  cursor: pointer;
+}
+
+.revokeButton:disabled {
+  opacity: 0.6;
+  cursor: default;
+}

@@ -326,3 +326,23 @@ export async function findIgdbIdBySteamAppId(steamAppId: number): Promise<number
   await redis.set(cacheKey, igdbId === null ? 'null' : String(igdbId), 'EX', STEAM_APP_ID_LOOKUP_CACHE_TTL_SECONDS);
   return igdbId;
 }
+
+const TITLE_LOOKUP_CACHE_PREFIX = 'igdb:title-to-igdbid:v1:';
+const TITLE_LOOKUP_CACHE_TTL_SECONDS = 60 * 60 * 24; // 24h, same rationale as the Steam appid lookup above
+
+/** Best-effort title match: used by Playnite library import, which (unlike Steam's AppIDs) only
+ * has free-text titles to go on - Playnite aggregates Steam/GOG/Epic/emulated/manually-added
+ * entries with no shared numeric id. Takes IGDB's top search hit for the title, or null if there
+ * are no results; there's no further disambiguation (e.g. release year) because Playnite doesn't
+ * reliably expose one for every entry type. */
+export async function findIgdbIdByTitle(title: string): Promise<number | null> {
+  const cacheKey = TITLE_LOOKUP_CACHE_PREFIX + title.trim().toLowerCase();
+  const cached = await redis.get(cacheKey);
+  if (cached) return cached === 'null' ? null : Number(cached);
+
+  const results = await searchGames(title);
+  const igdbId = results[0]?.igdbId ?? null;
+
+  await redis.set(cacheKey, igdbId === null ? 'null' : String(igdbId), 'EX', TITLE_LOOKUP_CACHE_TTL_SECONDS);
+  return igdbId;
+}

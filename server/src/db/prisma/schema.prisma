@@ -72,6 +72,16 @@ model User {
   /// search/create flow there the same way a Room's platform scopes it for a room. Empty means
   /// no opt-in yet, so no filtering is applied (preserves pre-existing behavior).
   ownedPlatforms RoomPlatform[] @default([]) @map("owned_platforms")
+  /// SHA-256 hash of the personal access token used by the Playnite extension (see
+  /// services/playniteAuth.ts) - Playnite runs outside the browser and has no session cookie, so
+  /// it authenticates via `Authorization: Bearer <token>` instead. Only the hash is stored; the
+  /// plaintext is shown once at generation time and never persisted. Null means no token issued
+  /// (or it was revoked). One active token per user - generating a new one replaces the old.
+  playniteTokenHash       String?   @unique @map("playnite_token_hash")
+  playniteTokenCreatedAt  DateTime? @map("playnite_token_created_at")
+  /// Bumped on every successful bearer-authenticated request, not just imports - a lightweight
+  /// "is this token actually being used" signal for the Settings UI.
+  playniteTokenLastUsedAt DateTime? @map("playnite_token_last_used_at")
 
   roomsCreated         Room[]          @relation("RoomCreatedBy")
   memberships          RoomMember[]
