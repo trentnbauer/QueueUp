@@ -51,6 +51,7 @@ export function ShelfView() {
         onRefreshPrice={refreshPrice}
         isRefreshingPrice={isRefreshingPrice}
         onSetTargetPrice={setTargetPrice}
+        showSpinWheel
         trailingCard={<SteamImportCard steamLinked={steamLinked} onImported={invalidate} />}
       />
     </div>

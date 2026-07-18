@@ -46,8 +46,8 @@ interface GameGridProps {
   /** Full room member list, used to show who hasn't voted on a game yet. Undefined on the Personal
    * Shelf, same as memberCount - there's no group vote coverage to show for a solo list. */
   roomMembers?: User[];
-  /** Shows the Spin the Wheel tile as part of the grid - rooms only, not the Personal Shelf
-   * (there's no group decision to help make there). */
+  /** Shows the Spin the Wheel tile as part of the grid - used by both rooms and the Personal
+   * Shelf (issue #188: "800 games, what do I play next" is just as real a question solo). */
   showSpinWheel?: boolean;
   /** Room Settings toggle - restricts Spin the Wheel to games every current member owns. */
   spinOnlyFullyOwned?: boolean;
