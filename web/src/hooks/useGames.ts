@@ -24,22 +24,17 @@ export function useGames(roomId: string | null) {
 
   const invalidate = () => queryClient.invalidateQueries({ queryKey });
 
-  // The status/vote/refresh-price endpoints already return the single fully-updated game DTO, and
-  // the list is cached as { games: Game[]; truncated: boolean } under this exact queryKey - patching
-  // that one game into the cache directly avoids a full refetch (and re-render of every other card)
-  // for a change that only ever affects one row. `truncated` is left untouched either way.
-  function patchGame(updated: Game) {
-    queryClient.setQueryData<{ games: Game[]; truncated: boolean }>(queryKey, (old) =>
-      old ? { ...old, games: old.games.map((g) => (g.id === updated.id ? updated : g)) } : old,
-    );
-  }
-
+  // The status/vote/refresh-price endpoints already return the fully-updated game DTO(s), and the
+  // list is cached as { games: Game[]; truncated: boolean } under this exact queryKey - patching
+  // those rows into the cache directly avoids a full refetch (and re-render of every other card)
+  // for a change that only ever affects a few. `truncated` is left untouched either way.
   function patchGames(updated: Game[]) {
     const byId = new Map(updated.map((g) => [g.id, g]));
     queryClient.setQueryData<{ games: Game[]; truncated: boolean }>(queryKey, (old) =>
       old ? { ...old, games: old.games.map((g) => byId.get(g.id) ?? g) } : old,
     );
   }
+  const patchGame = (updated: Game) => patchGames([updated]);
 
   function removeGameFromCache(gameId: string) {
     queryClient.setQueryData<{ games: Game[]; truncated: boolean }>(queryKey, (old) =>
@@ -74,7 +69,7 @@ export function useGames(roomId: string | null) {
 
   const bulkUpdateStatus = useMutation({
     mutationFn: ({ gameIds, status }: { gameIds: string[]; status: GameStatus }) =>
-      gamesApi.bulkUpdateStatus({ gameIds, status }),
+      gamesApi.bulkUpdateStatus({ gameIds, status }, region),
     onSuccess: ({ games: updated }) => patchGames(updated),
     onError: (err) => setActionError(errorMessage(err, 'Could not update those games.')),
   });

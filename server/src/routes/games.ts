@@ -259,7 +259,7 @@ export default async function gameRoutes(app: FastifyInstance) {
   // Personal Shelf only (issue #205) - scoped by roomId: null + addedBy in the query itself rather
   // than a per-id requireGameReadAccess loop, so one request updates any number of shelf games in a
   // single query instead of N round trips (the shelf is exactly the case with 100s-800s of games).
-  app.patch<{ Body: BulkUpdateGameStatusRequest }>(
+  app.patch<{ Body: BulkUpdateGameStatusRequest; Querystring: { region?: string } }>(
     '/api/games/bulk-status',
     { config: { rateLimit: { max: 20, timeWindow: '1 minute' } } },
     async (request) => {
@@ -274,13 +274,11 @@ export default async function gameRoutes(app: FastifyInstance) {
       }
       if (!GAME_STATUSES.includes(status)) throw new HttpError(400, 'Invalid status');
 
-      await prisma.game.updateMany({
-        where: { id: { in: gameIds }, roomId: null, addedBy: userId },
-        data: { status },
-      });
+      const where = { id: { in: gameIds }, roomId: null, addedBy: userId };
+      await prisma.game.updateMany({ where, data: { status } });
 
-      const updated = await prisma.game.findMany({ where: { id: { in: gameIds }, roomId: null, addedBy: userId }, include: gameInclude });
-      return { games: await serializeGames(updated, userId) };
+      const updated = await prisma.game.findMany({ where, include: gameInclude });
+      return { games: await serializeGames(updated, userId, parseRegion(request.query.region)) };
     },
   );
 

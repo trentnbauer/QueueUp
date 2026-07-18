@@ -3,7 +3,7 @@ import type { ReactNode } from 'react';
 import type { Game, GameStatus, User, VoteValue } from '@queueup/shared';
 import { GameCard } from './GameCard';
 import { SpinWheelCard } from './SpinWheelCard';
-import { ALL_FILTER_VALUE, splitLabel, sortByScore, statusBucket } from './gameGridLogic';
+import { ALL_FILTER_VALUE, filterGames, sortByScore, statusBucket } from './gameGridLogic';
 import { useGameFilter } from '../context/GameFilterContext';
 import styles from './GameGrid.module.css';
 
@@ -105,15 +105,8 @@ export function GameGrid({
 
   const normalizedQuery = searchQuery.trim().toLowerCase();
   const filtered = useMemo(
-    () =>
-      prioritized.filter(
-        (g) =>
-          (platformFilter === ALL_FILTER_VALUE || splitLabel(g.platform).includes(platformFilter)) &&
-          (genreFilter === ALL_FILTER_VALUE || splitLabel(g.genre).includes(genreFilter)) &&
-          (statusFilter === ALL_FILTER_VALUE || g.status === statusFilter) &&
-          (normalizedQuery === '' || g.title.toLowerCase().includes(normalizedQuery)),
-      ),
-    [prioritized, platformFilter, genreFilter, statusFilter, normalizedQuery],
+    () => filterGames(prioritized, { platformFilter, genreFilter, statusFilter, searchQuery }),
+    [prioritized, platformFilter, genreFilter, statusFilter, searchQuery],
   );
 
   const hasActiveFilters = platformFilter !== ALL_FILTER_VALUE || genreFilter !== ALL_FILTER_VALUE || normalizedQuery !== '';

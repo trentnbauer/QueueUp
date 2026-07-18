@@ -1,19 +1,21 @@
 import { useConfirm } from '../context/ConfirmContext';
-import { useSteamImport } from '../hooks/useSteamImport';
+import { useSteamImportContext } from '../context/SteamImportContext';
 import styles from './SteamImportCard.module.css';
 
 interface SteamImportCardProps {
   steamLinked: boolean;
-  onImported: () => void;
 }
 
 /** Sits in the grid as its own tile, last in the list, matching the Spin the Wheel tile's pattern
  * of living inside the collection rather than as a toolbar/banner action above it. Always visible,
  * even without a linked Steam account - clicking it while unlinked starts Steam sign-in to link one
- * (rather than hiding the card entirely and leaving non-Steam users with no path to it). */
-export function SteamImportCard({ steamLinked, onImported }: SteamImportCardProps) {
+ * (rather than hiding the card entirely and leaving non-Steam users with no path to it).
+ *
+ * Uses the shared SteamImportContext (not its own useSteamImport instance) so this tile and the
+ * Header's re-sync button can't independently think "nothing's running" and both fire an import. */
+export function SteamImportCard({ steamLinked }: SteamImportCardProps) {
   const confirm = useConfirm();
-  const { busy, result, error, progress, startLink, runImport } = useSteamImport(steamLinked, onImported);
+  const { busy, result, error, progress, startLink, runImport } = useSteamImportContext();
 
   async function handleClick() {
     if (!steamLinked) {

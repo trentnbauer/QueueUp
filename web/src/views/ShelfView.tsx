@@ -1,9 +1,11 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import type { GameStatus } from '@queueup/shared';
 import { useAuth } from '../context/AuthContext';
 import { useView } from '../context/ViewContext';
+import { useGameFilter } from '../context/GameFilterContext';
 import { useGames } from '../hooks/useGames';
 import { GameGrid } from '../components/GameGrid';
+import { filterGames } from '../components/gameGridLogic';
 import { ActionErrorBanner } from '../components/ActionErrorBanner';
 import { TruncatedListBanner } from '../components/TruncatedListBanner';
 import { SteamImportCard } from '../components/SteamImportCard';
@@ -20,7 +22,6 @@ export function ShelfView() {
     isError,
     loadError,
     refetch,
-    invalidate,
     actionError,
     clearActionError,
     updateStatus,
@@ -35,6 +36,13 @@ export function ShelfView() {
 
   const [bulkMode, setBulkMode] = useState(false);
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+
+  // GameGrid applies the platform/genre/status/search filter internally (GameFilterContext) - bulk
+  // actions must respect the same set of games actually on screen, or "Select all" while filtered
+  // would silently reach into hidden games the user never saw (previously a real bug: selected/
+  // updated the whole shelf regardless of the active filter).
+  const gameFilter = useGameFilter();
+  const visibleGames = useMemo(() => filterGames(games, gameFilter), [games, gameFilter]);
 
   useEffect(() => {
     switchView({ type: 'personal' });
@@ -56,8 +64,14 @@ export function ShelfView() {
 
   async function handleBulkSetStatus(status: GameStatus) {
     if (selectedIds.size === 0) return;
-    await bulkUpdateStatus(Array.from(selectedIds), status);
-    setSelectedIds(new Set());
+    try {
+      await bulkUpdateStatus(Array.from(selectedIds), status);
+      setSelectedIds(new Set());
+    } catch {
+      // The mutation's onError already surfaces actionError via the banner - swallow here so a
+      // failed bulk update doesn't also throw an unhandled rejection from this click handler, and
+      // deliberately leave the selection intact (unlike the success path) so the user can retry.
+    }
   }
 
   if (!user) return null;
@@ -67,9 +81,9 @@ export function ShelfView() {
       {bulkMode ? (
         <BulkActionBar
           selectedCount={selectedIds.size}
-          totalCount={games.length}
+          totalCount={visibleGames.length}
           busy={isBulkUpdatingStatus}
-          onSelectAll={() => setSelectedIds(new Set(games.map((g) => g.id)))}
+          onSelectAll={() => setSelectedIds(new Set(visibleGames.map((g) => g.id)))}
           onClear={() => setSelectedIds(new Set())}
           onSetStatus={handleBulkSetStatus}
           onCancel={exitBulkMode}
@@ -99,7 +113,7 @@ export function ShelfView() {
         isRefreshingPrice={isRefreshingPrice}
         onSetTargetPrice={setTargetPrice}
         showSpinWheel={!bulkMode}
-        trailingCard={!bulkMode && <SteamImportCard steamLinked={steamLinked} onImported={invalidate} />}
+        trailingCard={!bulkMode && <SteamImportCard steamLinked={steamLinked} />}
         selectionMode={bulkMode}
         selectedIds={selectedIds}
         onToggleSelect={toggleSelect}

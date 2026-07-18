@@ -7,7 +7,7 @@ import { useView } from '../context/ViewContext';
 import { useConfirm } from '../context/ConfirmContext';
 import { useGames } from '../hooks/useGames';
 import { useGameFilter } from '../context/GameFilterContext';
-import { useSteamImport } from '../hooks/useSteamImport';
+import { useSteamImportContext } from '../context/SteamImportContext';
 import { ALL_FILTER_VALUE, distinctValues } from './gameGridLogic';
 import { roomsApi } from '../api/rooms';
 import { AvatarBadge } from './AvatarBadge';
@@ -100,8 +100,10 @@ export function Header() {
 
   // Re-sync button (issue #203) - only meaningful on the Personal Shelf (Steam games always land
   // there, never straight into a room), and saves scrolling to the SteamImportCard tile at the end
-  // of a large shelf's grid to trigger the same import.
-  const steamImport = useSteamImport(steamLinked, invalidateGames);
+  // of a large shelf's grid to trigger the same import. Shared via SteamImportContext (not its own
+  // useSteamImport instance) so this button and the SteamImportCard tile can't both be "not busy"
+  // at once and fire two concurrent imports.
+  const steamImport = useSteamImportContext();
 
   // A Room already has one fixed platform, so every game in it matches - the platform filter is
   // only meaningful on the Personal Shelf, where games can span multiple systems. There, once the

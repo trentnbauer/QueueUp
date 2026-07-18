@@ -9,6 +9,7 @@ import { Sidebar } from './components/Sidebar';
 import { Footer } from './components/Footer';
 import { OnboardingModal } from './components/OnboardingModal';
 import { ChangelogModal } from './components/ChangelogModal';
+import { SteamImportProvider } from './context/SteamImportContext';
 import { ShelfView } from './views/ShelfView';
 import { RoomView } from './views/RoomView';
 import { SettingsView } from './views/SettingsView';
@@ -145,25 +146,27 @@ export default function App() {
   const hideRoomHeader = location.pathname === '/settings' || location.pathname === '/profile';
 
   return (
-    <div style={{ minHeight: '100vh', background: 'var(--qu-bg)', display: 'flex' }}>
-      <Sidebar />
-      <div style={{ flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column', minHeight: '100vh' }}>
-        {!hideRoomHeader && <Header />}
-        <ActionErrorBanner message={pendingJoinError} onDismiss={() => setPendingJoinError(null)} />
-        <ActionErrorBanner message={steamLinkError} onDismiss={() => setSteamLinkError(null)} />
-        <div style={{ flex: 1 }}>
-          <Routes>
-            <Route path="/" element={<ShelfView />} />
-            <Route path="/room/:roomId" element={<RoomView />} />
-            <Route path="/settings" element={<SettingsView />} />
-            <Route path="/profile" element={<ProfileSettingsView />} />
-            <Route path="/join/:inviteCode" element={<JoinRoomView />} />
-          </Routes>
+    <SteamImportProvider>
+      <div style={{ minHeight: '100vh', background: 'var(--qu-bg)', display: 'flex' }}>
+        <Sidebar />
+        <div style={{ flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column', minHeight: '100vh' }}>
+          {!hideRoomHeader && <Header />}
+          <ActionErrorBanner message={pendingJoinError} onDismiss={() => setPendingJoinError(null)} />
+          <ActionErrorBanner message={steamLinkError} onDismiss={() => setSteamLinkError(null)} />
+          <div style={{ flex: 1 }}>
+            <Routes>
+              <Route path="/" element={<ShelfView />} />
+              <Route path="/room/:roomId" element={<RoomView />} />
+              <Route path="/settings" element={<SettingsView />} />
+              <Route path="/profile" element={<ProfileSettingsView />} />
+              <Route path="/join/:inviteCode" element={<JoinRoomView />} />
+            </Routes>
+          </div>
+          <Footer />
         </div>
-        <Footer />
+        {showOnboarding && <OnboardingModal onDone={handleOnboardingDone} />}
+        <ChangelogModal />
       </div>
-      {showOnboarding && <OnboardingModal onDone={handleOnboardingDone} />}
-      <ChangelogModal />
-    </div>
+    </SteamImportProvider>
   );
 }

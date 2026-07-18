@@ -26,8 +26,8 @@ export const gamesApi = {
   create: (body: CreateGameRequest) => apiPost<{ game: Game }>('/api/games', body),
   updateStatus: (id: string, body: UpdateGameStatusRequest) =>
     apiPatch<{ game: Game }>(`/api/games/${id}/status`, body),
-  bulkUpdateStatus: (body: BulkUpdateGameStatusRequest) =>
-    apiPatch<{ games: Game[] }>('/api/games/bulk-status', body),
+  bulkUpdateStatus: (body: BulkUpdateGameStatusRequest, region?: PriceRegion) =>
+    apiPatch<{ games: Game[] }>(`/api/games/bulk-status${region ? `?region=${region}` : ''}`, body),
   remove: (id: string) => apiDelete(`/api/games/${id}`),
   refreshPrice: (id: string, region?: PriceRegion) =>
     apiPost<{ game: Game }>(`/api/games/${id}/refresh-price${region ? `?region=${region}` : ''}`),

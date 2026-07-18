@@ -27,6 +27,28 @@ export function distinctValues(games: Game[], pick: (g: Game) => string | null):
   return Array.from(values).sort((a, b) => a.localeCompare(b));
 }
 
+export interface GameFilterState {
+  platformFilter: string;
+  genreFilter: string;
+  statusFilter: string;
+  searchQuery: string;
+}
+
+/** The platform/genre/status/search predicate GameGrid renders by - pulled out so any other place
+ * that needs to know "what's actually visible" (e.g. the Personal Shelf's bulk-select "Select all",
+ * which must not silently include games hidden by the active filter) applies the exact same rule
+ * instead of a second, driftable copy of it. */
+export function filterGames(games: Game[], filter: GameFilterState): Game[] {
+  const normalizedQuery = filter.searchQuery.trim().toLowerCase();
+  return games.filter(
+    (g) =>
+      (filter.platformFilter === ALL_FILTER_VALUE || splitLabel(g.platform).includes(filter.platformFilter)) &&
+      (filter.genreFilter === ALL_FILTER_VALUE || splitLabel(g.genre).includes(filter.genreFilter)) &&
+      (filter.statusFilter === ALL_FILTER_VALUE || g.status === filter.statusFilter) &&
+      (normalizedQuery === '' || g.title.toLowerCase().includes(normalizedQuery)),
+  );
+}
+
 /** A room game every *current* member owns is the easiest "let's just play this" pick - nothing
  * to buy first - so it outranks vote score entirely (issue #173). Always false for a Personal
  * Shelf game (ownership is null there - no group to own it "fully"). */

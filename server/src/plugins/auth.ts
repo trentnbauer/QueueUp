@@ -37,8 +37,11 @@ function isSyntheticEmail(email: string): boolean {
 }
 
 // DEV_FAKE_AUTH already bypasses all real access control, so the dev user is always admin too.
-// Otherwise admin status is granted by email allowlist (ADMIN_EMAILS), re-checked on every login
-// so it can be added/removed by editing .env without touching the database.
+// Otherwise admin status is granted by email allowlist (ADMIN_EMAILS), re-checked on every login -
+// note this only ever *grants*, never revokes (see getOrCreateUser below): removing an email from
+// ADMIN_EMAILS stops it granting admin on future logins, but does not strip admin from an account
+// that already has it (whether granted this way or via the Settings panel's promote/demote). Use
+// the Settings panel, or a direct DB edit, to actually revoke an existing admin.
 function computeIsAdmin(email: string, opts: { devFakeAuth: boolean; adminEmails: string }): boolean {
   if (opts.devFakeAuth) return true;
   if (isSyntheticEmail(email)) return false;
