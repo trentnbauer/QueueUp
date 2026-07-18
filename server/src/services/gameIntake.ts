@@ -27,10 +27,15 @@ export function assertPlatformMatch(detail: IgdbGameDetail, allowedPlatforms?: R
   throw new HttpError(400, message);
 }
 
-/** Fully resolves a game once the user confirms adding it. */
+/** Fully resolves a game once the user confirms adding it.
+ * `platformLabelOverride` replaces IGDB's full "everywhere this title has ever released" platform
+ * string with a specific one - used by the Steam library import (see games.ts), where owning a
+ * game on Steam only ever means owning it on PC, regardless of what other systems IGDB lists the
+ * title as also being available on (issue: Steam sync was tagging games as PlayStation/Xbox). */
 export async function resolveGameForCreation(
   igdbId: number,
   allowedPlatforms?: RoomPlatform[],
+  platformLabelOverride?: string,
 ): Promise<{
   title: string;
   platform: string;
@@ -48,7 +53,7 @@ export async function resolveGameForCreation(
 
   return {
     title: detail.title,
-    platform: detail.platform,
+    platform: platformLabelOverride ?? detail.platform,
     genre: detail.genre,
     ggDealsUrl,
     coverImageUrl: detail.coverImageUrl,

@@ -30,7 +30,12 @@ import type {
   UpdateGameStatusRequest,
   VoteRequest,
 } from '@queueup/shared';
-import { PRICE_REGION_LABELS } from '@queueup/shared';
+import { IGDB_PLATFORM_NAMES, PRICE_REGION_LABELS } from '@queueup/shared';
+
+// Steam ownership only ever implies PC (see resolveGameForCreation's platformLabelOverride) -
+// IGDB_PLATFORM_NAMES.pc[0] is the canonical "PC (Microsoft Windows)" label already used
+// elsewhere for platform-filter matching (see ownedPlatformLabels in Header.tsx).
+const STEAM_IMPORT_PLATFORM_LABEL = IGDB_PLATFORM_NAMES.pc[0];
 
 const GAME_STATUSES = ['backlog', 'playing', 'done', 'dropped', 'wishlist'] as const;
 const PRICE_REGIONS = Object.keys(PRICE_REGION_LABELS) as PriceRegion[];
@@ -196,7 +201,7 @@ export default async function gameRoutes(app: FastifyInstance) {
             skipped++;
             continue;
           }
-          const resolved = await resolveGameForCreation(igdbId);
+          const resolved = await resolveGameForCreation(igdbId, undefined, STEAM_IMPORT_PLATFORM_LABEL);
           await prisma.game.create({
             data: {
               roomId: null,
