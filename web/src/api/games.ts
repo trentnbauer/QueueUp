@@ -7,6 +7,7 @@ import type {
   GameSearchResult,
   ImportSteamLibraryResult,
   MoveGameRequest,
+  PlayerAchievements,
   PriceRegion,
   SetGameOwnershipRequest,
   SetTargetPriceRequest,
@@ -41,4 +42,5 @@ export const gamesApi = {
   importSteamLibrary: () => apiPost<ImportSteamLibraryResult>('/api/games/import-steam-library'),
   importSteamLibraryProgress: () =>
     apiGet<{ progress: SteamImportProgress | null }>('/api/games/import-steam-library/progress'),
+  achievements: (id: string) => apiGet<{ players: PlayerAchievements[] }>(`/api/games/${id}/achievements`),
 };

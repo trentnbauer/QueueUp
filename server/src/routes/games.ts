@@ -15,8 +15,15 @@ import { searchIntake, resolveGameForCreation, refreshGamePricing } from '../ser
 import { notifyRoom } from '../services/notifications.js';
 import { platformFamilies, findIgdbIdBySteamAppId } from '../services/igdbClient.js';
 import { getOwnedPlatforms } from '../services/userSettings.js';
-import { resolveSteamId64, getOwnedSteamGames, setSteamImportProgress, getSteamImportProgress } from '../services/steamLibrary.js';
+import {
+  resolveSteamId64,
+  getOwnedSteamGames,
+  getAchievementCounts,
+  setSteamImportProgress,
+  getSteamImportProgress,
+} from '../services/steamLibrary.js';
 import { setOwnership, markOwned } from '../services/gameOwnership.js';
+import { toUserDto } from '../util/dto.js';
 import { env } from '../config/env.js';
 import type {
   BulkRemoveGamesRequest,
@@ -24,6 +31,7 @@ import type {
   CreateGameRequest,
   ImportSteamLibraryResult,
   MoveGameRequest,
+  PlayerAchievements,
   PriceRegion,
   SetGameOwnershipRequest,
   SetTargetPriceRequest,
@@ -317,6 +325,44 @@ export default async function gameRoutes(app: FastifyInstance) {
     reply.status(204);
     return null;
   });
+
+  // Room members' (or, on the Personal Shelf, just the caller's) Steam achievement progress on
+  // this game - fetched on demand when the detail modal opens rather than baked into every
+  // shelf/room list load, since it's a live per-(player, game) Steam API call each. Players
+  // without a usable Steam account (see resolveSteamId64), or with nothing to report (private
+  // profile, or the game has no achievements), are simply omitted from the response.
+  app.get<{ Params: { id: string } }>(
+    '/api/games/:id/achievements',
+    { config: { rateLimit: { max: 30, timeWindow: '1 minute' } } },
+    async (request) => {
+      const userId = await request.requireAuth();
+      const game = await loadGameOr404(request.params.id);
+      await requireGameReadAccess(game, userId);
+
+      if (!env.STEAM_API_KEY || !game.steamAppid) {
+        return { players: [] };
+      }
+      const steamAppid = game.steamAppid;
+
+      const audienceIds = game.roomId
+        ? (await prisma.roomMember.findMany({ where: { roomId: game.roomId }, select: { userId: true } })).map((m) => m.userId)
+        : [userId];
+      const audience = await prisma.user.findMany({ where: { id: { in: audienceIds } } });
+
+      const players = (
+        await Promise.all(
+          audience.map(async (player): Promise<PlayerAchievements | null> => {
+            const steamId64 = resolveSteamId64(player);
+            if (!steamId64) return null;
+            const counts = await getAchievementCounts(steamId64, steamAppid, env.STEAM_API_KEY!);
+            return counts && { user: toUserDto(player), unlocked: counts.unlocked, total: counts.total };
+          }),
+        )
+      ).filter((p): p is PlayerAchievements => p !== null);
+
+      return { players };
+    },
+  );
 
   app.post<{ Params: { id: string }; Body: MoveGameRequest }>('/api/games/:id/move', async (request) => {
     const userId = await request.requireAuth();

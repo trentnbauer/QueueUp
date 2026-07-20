@@ -3,8 +3,10 @@ import type { Game, GameStatus, User, VoteValue } from '@queueup/shared';
 import { AvatarBadge } from './AvatarBadge';
 import { VoteRow } from './VoteRow';
 import { VoteHeatmap } from './VoteHeatmap';
+import { AchievementRow } from './AchievementRow';
 import { useConfirm } from '../context/ConfirmContext';
 import { useModalA11y } from '../hooks/useModalA11y';
+import { useGameAchievements } from '../hooks/useGameAchievements';
 import { formatRelativeTime } from '../utils/relativeTime';
 import { formatAmount, formatPrice } from '../utils/formatPrice';
 import { GAME_STATUS_LABEL, GAME_STATUS_LIST } from './gameGridLogic';
@@ -47,6 +49,7 @@ export function GameDetailModal({
   const [editingTargetPrice, setEditingTargetPrice] = useState(false);
   const [targetPriceDraft, setTargetPriceDraft] = useState('');
   const dialogRef = useModalA11y<HTMLDivElement>(onClose);
+  const { players: achievementPlayers } = useGameAchievements(game.id);
 
   const coopWarning =
     game.maxCoopPlayers != null && memberCount != null && memberCount > game.maxCoopPlayers
@@ -209,6 +212,7 @@ export function GameDetailModal({
 
         <VoteRow myVote={game.myVote} onVote={onVote} />
         <VoteHeatmap votes={game.votes} currentUserId={currentUserId} roomMembers={roomMembers} />
+        <AchievementRow players={achievementPlayers} currentUserId={currentUserId} />
 
         {game.ownership && onSetOwnership && (
           <button
