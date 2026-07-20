@@ -208,6 +208,12 @@ export interface BulkUpdateGameStatusRequest {
   status: GameStatus;
 }
 
+/** Removes many Personal Shelf games at once - same shelf-only scoping as
+ * BulkUpdateGameStatusRequest, for the same reason. */
+export interface BulkRemoveGamesRequest {
+  gameIds: string[];
+}
+
 /** Sets (or clears, with null) the price to alert at for a game - see Game.targetPrice. */
 export interface SetTargetPriceRequest {
   targetPrice: string | null;

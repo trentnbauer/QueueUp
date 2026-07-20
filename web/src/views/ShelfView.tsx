@@ -3,6 +3,7 @@ import type { GameStatus } from '@queueup/shared';
 import { useAuth } from '../context/AuthContext';
 import { useView } from '../context/ViewContext';
 import { useGameFilter } from '../context/GameFilterContext';
+import { useConfirm } from '../context/ConfirmContext';
 import { useGames } from '../hooks/useGames';
 import { GameGrid } from '../components/GameGrid';
 import { filterGames } from '../components/gameGridLogic';
@@ -15,6 +16,7 @@ import styles from './ShelfView.module.css';
 export function ShelfView() {
   const { user, steamLinked } = useAuth();
   const { switchView } = useView();
+  const confirm = useConfirm();
   const {
     games,
     truncated,
@@ -32,6 +34,8 @@ export function ShelfView() {
     setTargetPrice,
     bulkUpdateStatus,
     isBulkUpdatingStatus,
+    bulkRemove,
+    isBulkRemoving,
   } = useGames(null);
 
   const [bulkMode, setBulkMode] = useState(false);
@@ -74,6 +78,25 @@ export function ShelfView() {
     }
   }
 
+  async function handleBulkRemove() {
+    if (selectedIds.size === 0) return;
+    const count = selectedIds.size;
+    const ok = await confirm({
+      title: `Remove ${count} game${count === 1 ? '' : 's'}?`,
+      message: "This removes them from your Personal Shelf for good - it can't be undone.",
+      confirmLabel: 'Remove',
+      danger: true,
+    });
+    if (!ok) return;
+    try {
+      await bulkRemove(Array.from(selectedIds));
+      setSelectedIds(new Set());
+    } catch {
+      // Same as handleBulkSetStatus above - onError already surfaces the banner, and the selection
+      // is left intact so the user can retry.
+    }
+  }
+
   if (!user) return null;
 
   return (
@@ -82,10 +105,11 @@ export function ShelfView() {
         <BulkActionBar
           selectedCount={selectedIds.size}
           totalCount={visibleGames.length}
-          busy={isBulkUpdatingStatus}
+          busy={isBulkUpdatingStatus || isBulkRemoving}
           onSelectAll={() => setSelectedIds(new Set(visibleGames.map((g) => g.id)))}
           onClear={() => setSelectedIds(new Set())}
           onSetStatus={handleBulkSetStatus}
+          onRemove={handleBulkRemove}
           onCancel={exitBulkMode}
         />
       ) : (
