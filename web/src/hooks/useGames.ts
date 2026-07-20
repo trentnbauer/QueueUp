@@ -37,8 +37,13 @@ export function useGames(roomId: string | null) {
   const patchGame = (updated: Game) => patchGames([updated]);
 
   function removeGameFromCache(gameId: string) {
+    removeGamesFromCache([gameId]);
+  }
+
+  function removeGamesFromCache(gameIds: string[]) {
+    const idSet = new Set(gameIds);
     queryClient.setQueryData<{ games: Game[]; truncated: boolean }>(queryKey, (old) =>
-      old ? { ...old, games: old.games.filter((g) => g.id !== gameId) } : old,
+      old ? { ...old, games: old.games.filter((g) => !idSet.has(g.id)) } : old,
     );
   }
 
@@ -72,6 +77,12 @@ export function useGames(roomId: string | null) {
       gamesApi.bulkUpdateStatus({ gameIds, status }, region),
     onSuccess: ({ games: updated }) => patchGames(updated),
     onError: (err) => setActionError(errorMessage(err, 'Could not update those games.')),
+  });
+
+  const bulkRemove = useMutation({
+    mutationFn: (gameIds: string[]) => gamesApi.bulkRemove({ gameIds }),
+    onSuccess: (_data, gameIds) => removeGamesFromCache(gameIds),
+    onError: (err) => setActionError(errorMessage(err, 'Could not remove those games.')),
   });
 
   const setTargetPrice = useMutation({
@@ -112,6 +123,8 @@ export function useGames(roomId: string | null) {
     refreshPrice: (gameId: string) => refreshPrice.mutate(gameId),
     bulkUpdateStatus: (gameIds: string[], status: GameStatus) => bulkUpdateStatus.mutateAsync({ gameIds, status }),
     isBulkUpdatingStatus: bulkUpdateStatus.isPending,
+    bulkRemove: (gameIds: string[]) => bulkRemove.mutateAsync(gameIds),
+    isBulkRemoving: bulkRemove.isPending,
     // Only one refresh-price request is ever in flight at a time (single mutation), so "is this
     // game's refresh pending" is just "is the mutation pending for this game's id".
     isRefreshingPrice: (gameId: string) => refreshPrice.isPending && refreshPrice.variables === gameId,

@@ -1,5 +1,6 @@
 import { apiGet, apiPost, apiPatch, apiPut, apiDelete } from './client';
 import type {
+  BulkRemoveGamesRequest,
   BulkUpdateGameStatusRequest,
   CreateGameRequest,
   Game,
@@ -29,6 +30,7 @@ export const gamesApi = {
   bulkUpdateStatus: (body: BulkUpdateGameStatusRequest, region?: PriceRegion) =>
     apiPatch<{ games: Game[] }>(`/api/games/bulk-status${region ? `?region=${region}` : ''}`, body),
   remove: (id: string) => apiDelete(`/api/games/${id}`),
+  bulkRemove: (body: BulkRemoveGamesRequest) => apiDelete('/api/games/bulk', body),
   refreshPrice: (id: string, region?: PriceRegion) =>
     apiPost<{ game: Game }>(`/api/games/${id}/refresh-price${region ? `?region=${region}` : ''}`),
   setTargetPrice: (id: string, body: SetTargetPriceRequest) =>

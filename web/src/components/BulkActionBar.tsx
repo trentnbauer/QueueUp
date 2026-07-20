@@ -9,12 +9,22 @@ interface BulkActionBarProps {
   onSelectAll: () => void;
   onClear: () => void;
   onSetStatus: (status: GameStatus) => void;
+  onRemove: () => void;
   onCancel: () => void;
 }
 
 /** Shown once bulk-select mode is on (issue #205) - lets a status be applied to every selected
  * Personal Shelf game in one action instead of one card at a time. */
-export function BulkActionBar({ selectedCount, totalCount, busy, onSelectAll, onClear, onSetStatus, onCancel }: BulkActionBarProps) {
+export function BulkActionBar({
+  selectedCount,
+  totalCount,
+  busy,
+  onSelectAll,
+  onClear,
+  onSetStatus,
+  onRemove,
+  onCancel,
+}: BulkActionBarProps) {
   return (
     <div className={styles.bar}>
       <div className={styles.left}>
@@ -39,6 +49,9 @@ export function BulkActionBar({ selectedCount, totalCount, busy, onSelectAll, on
             {GAME_STATUS_LABEL[status]}
           </button>
         ))}
+        <button type="button" className={styles.removeButton} disabled={selectedCount === 0 || busy} onClick={onRemove}>
+          Remove
+        </button>
         <button type="button" className={styles.cancelButton} onClick={onCancel} disabled={busy}>
           Done
         </button>

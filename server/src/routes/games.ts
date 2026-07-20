@@ -19,6 +19,7 @@ import { resolveSteamId64, getOwnedSteamGames, setSteamImportProgress, getSteamI
 import { setOwnership, markOwned } from '../services/gameOwnership.js';
 import { env } from '../config/env.js';
 import type {
+  BulkRemoveGamesRequest,
   BulkUpdateGameStatusRequest,
   CreateGameRequest,
   ImportSteamLibraryResult,
@@ -279,6 +280,30 @@ export default async function gameRoutes(app: FastifyInstance) {
 
       const updated = await prisma.game.findMany({ where, include: gameInclude });
       return { games: await serializeGames(updated, userId, parseRegion(request.query.region)) };
+    },
+  );
+
+  // Personal Shelf only, same scoping/reasoning as bulk-status above. The `where` clause (roomId:
+  // null, addedBy: userId) is itself the access check here - equivalent to requireGameDeleteAccess
+  // for a shelf item (see that function), so no per-id check is needed.
+  app.delete<{ Body: BulkRemoveGamesRequest }>(
+    '/api/games/bulk',
+    { config: { rateLimit: { max: 20, timeWindow: '1 minute' } } },
+    async (request, reply) => {
+      const userId = await request.requireAuth();
+      const { gameIds } = request.body ?? {};
+
+      if (!Array.isArray(gameIds) || gameIds.length === 0) {
+        throw new HttpError(400, 'gameIds must be a non-empty array');
+      }
+      if (gameIds.length > MAX_GAMES_PER_LIST) {
+        throw new HttpError(400, `Cannot remove more than ${MAX_GAMES_PER_LIST} games at once`);
+      }
+
+      await prisma.game.deleteMany({ where: { id: { in: gameIds }, roomId: null, addedBy: userId } });
+      await invalidateExistingIgdbIds(null, userId);
+      reply.status(204);
+      return null;
     },
   );
 
