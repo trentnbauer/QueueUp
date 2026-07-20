@@ -51,6 +51,19 @@ export function GameDetailModal({
   const dialogRef = useModalA11y<HTMLDivElement>(onClose);
   const { players: achievementPlayers } = useGameAchievements(game.id);
 
+  // A nudge, not an automatic status change (issue #227) - the viewer's own Steam achievement
+  // progress on this game, when they've 100%'d it and it isn't already Done/Dropped. Playtime
+  // would be another signal here, but it isn't persisted anywhere yet (Steam library import only
+  // fetches it transiently to sort the import queue), so this starts with the one signal already
+  // on hand from the achievements fetch above.
+  const myAchievements = achievementPlayers.find((p) => p.user.id === currentUserId);
+  const suggestDone =
+    myAchievements != null &&
+    myAchievements.total > 0 &&
+    myAchievements.unlocked === myAchievements.total &&
+    game.status !== 'done' &&
+    game.status !== 'dropped';
+
   const coopWarning =
     game.maxCoopPlayers != null && memberCount != null && memberCount > game.maxCoopPlayers
       ? `Only supports ${game.maxCoopPlayers}-player co-op — this room has ${memberCount} members`
@@ -213,6 +226,15 @@ export function GameDetailModal({
         <VoteRow myVote={game.myVote} onVote={onVote} />
         <VoteHeatmap votes={game.votes} currentUserId={currentUserId} roomMembers={roomMembers} />
         <AchievementRow players={achievementPlayers} currentUserId={currentUserId} />
+
+        {suggestDone && (
+          <div className={styles.doneSuggestion}>
+            <span>🏆 Looks like you've 100%'d this — mark it Done?</span>
+            <button type="button" className={styles.doneSuggestionButton} onClick={() => onStatusChange('done')}>
+              Mark Done
+            </button>
+          </div>
+        )}
 
         {game.ownership && onSetOwnership && (
           <button
