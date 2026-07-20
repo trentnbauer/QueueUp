@@ -349,3 +349,27 @@ export interface NotificationSummary {
   totalUnread: number;
   rooms: NotificationRoomUnread[];
 }
+
+/** One entry in a Year in Review's top-voted list (issue #230) - just enough of a game to render a
+ * small result row, not the full Game DTO. */
+export interface YearInReviewTopVotedGame {
+  id: string;
+  title: string;
+  coverImageUrl: string | null;
+  voteScore: number;
+}
+
+/** On-demand summary of the last 12 months, generated from data already on hand - no new tracking
+ * (issue #230). `doneCount`/`estimatedHours` cover games the caller personally added (Personal
+ * Shelf or any room) and marked Done in the window; `topVoted` covers every game in a room the
+ * caller is currently a member of, ranked by vote weight cast in the window (regardless of who
+ * added the game or who cast the votes) - a "what did the squad like" view, not a personal one. */
+export interface YearInReview {
+  windowStart: string;
+  windowEnd: string;
+  doneCount: number;
+  /** Sum of `timeToBeatHours` across the Done games counted above - games with no time-to-beat
+   * data on file just don't contribute, rather than skewing the total with a guess. */
+  estimatedHours: number;
+  topVoted: YearInReviewTopVotedGame[];
+}

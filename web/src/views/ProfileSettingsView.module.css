@@ -153,3 +153,61 @@
   opacity: 0.6;
   cursor: default;
 }
+
+.yearInReview {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.yearInReviewStats {
+  display: flex;
+  gap: 24px;
+}
+
+.yearInReviewStat {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.yearInReviewStatValue {
+  font: 800 26px var(--qu-header-font);
+  color: var(--qu-accent);
+}
+
+.yearInReviewStatLabel {
+  font-size: 11.5px;
+  color: var(--qu-muted);
+}
+
+.yearInReviewSubtitle {
+  font: 700 11px system-ui, sans-serif;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--qu-muted);
+  margin-bottom: 6px;
+}
+
+.yearInReviewList {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin: 0;
+  padding: 0 0 0 18px;
+}
+
+.yearInReviewListItem {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  font-size: 13px;
+  color: var(--qu-text);
+}
+
+.yearInReviewListScore {
+  flex-shrink: 0;
+  font-size: 11.5px;
+  color: var(--qu-muted);
+}

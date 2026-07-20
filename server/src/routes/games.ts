@@ -38,6 +38,7 @@ import type {
   SteamImportProgress,
   UpdateGameStatusRequest,
   VoteRequest,
+  YearInReview,
 } from '@queueup/shared';
 import { IGDB_PLATFORM_NAMES, PRICE_REGION_LABELS } from '@queueup/shared';
 
@@ -474,5 +475,63 @@ export default async function gameRoutes(app: FastifyInstance) {
 
     const updated = await prisma.game.findUniqueOrThrow({ where: { id: game.id }, include: gameInclude });
     return { game: await serializeGame(updated, userId) };
+  });
+
+  // On-demand only (issue #230) - no scheduled job, no delivery mechanism, just a summary
+  // generated from data that's already sitting in the DB whenever someone asks for it.
+  const YEAR_IN_REVIEW_TOP_VOTED_LIMIT = 5;
+
+  app.get('/api/me/year-in-review', async (request) => {
+    const userId = await request.requireAuth();
+
+    const windowEnd = new Date();
+    const windowStart = new Date(windowEnd);
+    windowStart.setFullYear(windowStart.getFullYear() - 1);
+
+    const [doneGames, memberships] = await Promise.all([
+      // updatedAt is a proxy for "when this was marked Done" - there's no dedicated completedAt
+      // timestamp, and any edit bumps updatedAt, so this can overcount slightly (e.g. a stray
+      // status flip-flop) rather than undercount. Good enough for a rough yearly summary.
+      prisma.game.findMany({
+        where: { addedBy: userId, status: 'done', updatedAt: { gte: windowStart } },
+        select: { timeToBeatHours: true },
+      }),
+      prisma.roomMember.findMany({ where: { userId }, select: { roomId: true } }),
+    ]);
+
+    const doneCount = doneGames.length;
+    const estimatedHours = doneGames.reduce((sum, g) => sum + (g.timeToBeatHours ?? 0), 0);
+
+    // "What did the squad like" across every room the caller is in right now - every game in
+    // those rooms, not just ones the caller added or voted on themselves, ranked by vote weight
+    // cast within the window (regardless of who cast it).
+    const roomIds = memberships.map((m) => m.roomId);
+    const votes =
+      roomIds.length > 0
+        ? await prisma.vote.findMany({
+            where: { createdAt: { gte: windowStart }, game: { roomId: { in: roomIds } } },
+            select: { value: true, game: { select: { id: true, title: true, coverImageUrl: true } } },
+          })
+        : [];
+
+    const scoreByGame = new Map<string, { title: string; coverImageUrl: string | null; voteScore: number }>();
+    for (const v of votes) {
+      const existing = scoreByGame.get(v.game.id);
+      if (existing) existing.voteScore += v.value;
+      else scoreByGame.set(v.game.id, { title: v.game.title, coverImageUrl: v.game.coverImageUrl, voteScore: v.value });
+    }
+    const topVoted = Array.from(scoreByGame.entries())
+      .map(([id, g]) => ({ id, ...g }))
+      .sort((a, b) => b.voteScore - a.voteScore)
+      .slice(0, YEAR_IN_REVIEW_TOP_VOTED_LIMIT);
+
+    const result: YearInReview = {
+      windowStart: windowStart.toISOString(),
+      windowEnd: windowEnd.toISOString(),
+      doneCount,
+      estimatedHours,
+      topVoted,
+    };
+    return result;
   });
 }

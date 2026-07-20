@@ -14,6 +14,7 @@ import type {
   SteamImportProgress,
   UpdateGameStatusRequest,
   VoteRequest,
+  YearInReview,
 } from '@queueup/shared';
 
 export const gamesApi = {
@@ -43,4 +44,5 @@ export const gamesApi = {
   importSteamLibraryProgress: () =>
     apiGet<{ progress: SteamImportProgress | null }>('/api/games/import-steam-library/progress'),
   achievements: (id: string) => apiGet<{ players: PlayerAchievements[] }>(`/api/games/${id}/achievements`),
+  yearInReview: () => apiGet<YearInReview>('/api/me/year-in-review'),
 };
