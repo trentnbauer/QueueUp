@@ -271,10 +271,13 @@ export function Header() {
             disabled={steamImport.busy}
             title={steamLinked ? 'Re-sync your Steam library' : 'Link your Steam account to sync your library'}
           >
-            {steamImport.busy ? 'Syncing…' : '↻ Re-sync Library'}
+            {steamImport.busy && steamImport.activeKind === 'library' ? 'Syncing…' : '↻ Re-sync Library'}
           </button>
         )}
-        {!activeRoom && (steamImport.result || steamImport.error) && (
+        {/* activeKind gate keeps this from showing a wishlist import's result/error (see
+            SteamImportCard.tsx's comment - the two share busy/result/error to serialize, since both
+            write to the same shelf, but each surface should only report on its own action). */}
+        {!activeRoom && steamImport.activeKind === 'library' && (steamImport.result || steamImport.error) && (
           <span className={styles.resyncResult} style={steamImport.error ? { color: '#ff8a80' } : undefined}>
             {steamImport.error ?? steamImport.result}
           </span>

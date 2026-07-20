@@ -6,6 +6,7 @@ import type {
   Game,
   GameSearchResult,
   ImportSteamLibraryResult,
+  ImportSteamWishlistResult,
   MoveGameRequest,
   PlayerAchievements,
   PriceRegion,
@@ -42,5 +43,6 @@ export const gamesApi = {
   importSteamLibrary: () => apiPost<ImportSteamLibraryResult>('/api/games/import-steam-library'),
   importSteamLibraryProgress: () =>
     apiGet<{ progress: SteamImportProgress | null }>('/api/games/import-steam-library/progress'),
+  importSteamWishlist: () => apiPost<ImportSteamWishlistResult>('/api/games/import-steam-wishlist'),
   achievements: (id: string) => apiGet<{ players: PlayerAchievements[] }>(`/api/games/${id}/achievements`),
 };

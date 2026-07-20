@@ -52,6 +52,30 @@ export async function getOwnedSteamGames(steamId64: string, apiKey: string): Pro
   return games.map((g) => ({ appId: g.appid, playtimeForeverMinutes: g.playtime_forever }));
 }
 
+interface SteamWishlistItem {
+  appid: number;
+}
+
+interface SteamWishlistResponse {
+  response?: { items?: SteamWishlistItem[] };
+}
+
+/** Fetches every AppID on a Steam account's wishlist (issue #228). Same privacy requirement as
+ * getOwnedSteamGames - a private wishlist returns an empty list rather than an error. */
+export async function getWishlistAppIds(steamId64: string, apiKey: string): Promise<number[]> {
+  const url = new URL('https://api.steampowered.com/IWishlistService/GetWishlist/v1/');
+  url.searchParams.set('key', apiKey);
+  url.searchParams.set('steamid', steamId64);
+  url.searchParams.set('format', 'json');
+
+  const response = await fetch(url);
+  if (!response.ok) {
+    throw new HttpError(502, `Could not reach Steam (${response.status})`);
+  }
+  const body = (await response.json()) as SteamWishlistResponse;
+  return (body.response?.items ?? []).map((item) => item.appid);
+}
+
 interface SteamAchievementEntry {
   achieved: 0 | 1;
 }

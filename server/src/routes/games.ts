@@ -18,6 +18,7 @@ import { getOwnedPlatforms } from '../services/userSettings.js';
 import {
   resolveSteamId64,
   getOwnedSteamGames,
+  getWishlistAppIds,
   getAchievementCounts,
   setSteamImportProgress,
   getSteamImportProgress,
@@ -30,6 +31,7 @@ import type {
   BulkUpdateGameStatusRequest,
   CreateGameRequest,
   ImportSteamLibraryResult,
+  ImportSteamWishlistResult,
   MoveGameRequest,
   PlayerAchievements,
   PriceRegion,
@@ -251,6 +253,80 @@ export default async function gameRoutes(app: FastifyInstance) {
     const progress: SteamImportProgress | null = await getSteamImportProgress(userId);
     return { progress };
   });
+
+  // Wishlist counterpart to the library import above (issue #228) - same dedup/skip logic, but
+  // adds with status `wishlist` instead of the default, and never calls markOwned (a wishlisted
+  // game is explicitly *not* owned yet - that's the whole point of tracking it here). No progress
+  // polling: wishlists are typically much smaller than a full owned library, so a single request/
+  // response round trip is fine for now.
+  app.post(
+    '/api/games/import-steam-wishlist',
+    { config: { rateLimit: { max: 3, timeWindow: '1 hour' } } },
+    async (request) => {
+      const userId = await request.requireAuth();
+      if (!env.STEAM_API_KEY) {
+        throw new HttpError(400, 'Steam integration is not configured on this server.');
+      }
+
+      const user = await prisma.user.findUniqueOrThrow({ where: { id: userId } });
+      const steamId64 = resolveSteamId64(user);
+      if (!steamId64) {
+        throw new HttpError(400, 'Sign in with Steam to import your wishlist.');
+      }
+
+      const wishlistAppIds = await getWishlistAppIds(steamId64, env.STEAM_API_KEY);
+
+      const [existingIgdbIdSet, shelfGames] = await Promise.all([
+        existingIgdbIds(null, userId),
+        prisma.game.findMany({ where: { roomId: null, addedBy: userId }, select: { steamAppid: true } }),
+      ]);
+      const existingSteamAppIds = new Set(shelfGames.map((g) => g.steamAppid).filter((id): id is number => id != null));
+
+      const considered = wishlistAppIds.filter((appId) => !existingSteamAppIds.has(appId));
+
+      const totalWishlisted = wishlistAppIds.length;
+      const consideredCount = considered.length;
+      let imported = 0;
+      let skipped = 0;
+
+      for (const appId of considered) {
+        try {
+          const igdbId = await findIgdbIdBySteamAppId(appId);
+          if (igdbId === null || existingIgdbIdSet.has(igdbId)) {
+            skipped++;
+            continue;
+          }
+          const resolved = await resolveGameForCreation(igdbId, undefined, STEAM_IMPORT_PLATFORM_LABEL);
+          await prisma.game.create({
+            data: {
+              roomId: null,
+              addedBy: userId,
+              igdbId,
+              title: resolved.title,
+              platform: resolved.platform,
+              genre: resolved.genre,
+              maxCoopPlayers: resolved.maxCoopPlayers,
+              timeToBeatHours: resolved.timeToBeatHours,
+              ggDealsUrl: resolved.ggDealsUrl,
+              steamAppid: resolved.steamAppId,
+              coverImageUrl: resolved.coverImageUrl,
+              releaseYear: resolved.releaseYear,
+              status: 'wishlist',
+            },
+          });
+          existingIgdbIdSet.add(igdbId);
+          imported++;
+        } catch {
+          // One game failing to resolve (IGDB hiccup, no match, etc.) shouldn't abort the batch.
+          skipped++;
+        }
+      }
+      if (imported > 0) await invalidateExistingIgdbIds(null, userId);
+
+      const result: ImportSteamWishlistResult = { totalWishlisted, consideredCount, imported, skipped };
+      return result;
+    },
+  );
 
   app.patch<{ Params: { id: string }; Body: UpdateGameStatusRequest }>('/api/games/:id/status', async (request) => {
     const userId = await request.requireAuth();
