@@ -9,6 +9,7 @@ import { GameFilterProvider } from './context/GameFilterContext';
 import { ThemeProvider } from './context/ThemeContext';
 import { ThemeModeProvider } from './context/ThemeModeContext';
 import { CurrencyRegionProvider } from './context/CurrencyRegionContext';
+import { CardDensityProvider } from './context/CardDensityContext';
 import { ConfirmProvider } from './context/ConfirmContext';
 import { applyThemeMode, getPreferredThemeMode } from './theme/applyThemeMode';
 import './theme/global.css';
@@ -28,9 +29,11 @@ createRoot(document.getElementById('root')!).render(
               <ThemeModeProvider>
                 <ThemeProvider>
                   <CurrencyRegionProvider>
-                    <ConfirmProvider>
-                      <App />
-                    </ConfirmProvider>
+                    <CardDensityProvider>
+                      <ConfirmProvider>
+                        <App />
+                      </ConfirmProvider>
+                    </CardDensityProvider>
                   </CurrencyRegionProvider>
                 </ThemeProvider>
               </ThemeModeProvider>
