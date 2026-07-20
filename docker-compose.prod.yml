@@ -51,16 +51,22 @@ services:
       OIDC_ISSUER_URL: ${OIDC_ISSUER_URL}
       OIDC_CLIENT_ID: ${OIDC_CLIENT_ID}
       OIDC_CLIENT_SECRET: ${OIDC_CLIENT_SECRET}
-      OIDC_REDIRECT_URI: ${OIDC_REDIRECT_URI}
+      # *_REDIRECT_URI vars are commented out on purpose: this server container serves both the API
+      # and the frontend, so the callback is reachable at APP_BASE_URL's own origin - the server
+      # derives `${APP_BASE_URL}/auth/<provider>/callback` for any of these left unset (see
+      # deriveRedirectUris in server/src/config/env.ts). Uncomment (and set in .env) only if that
+      # assumption doesn't hold for your setup, e.g. the API is routed at a different host/path than
+      # the frontend.
+      # OIDC_REDIRECT_URI: ${OIDC_REDIRECT_URI}
       OIDC_SCOPES: ${OIDC_SCOPES:-openid profile email}
       GOOGLE_CLIENT_ID: ${GOOGLE_CLIENT_ID}
       GOOGLE_CLIENT_SECRET: ${GOOGLE_CLIENT_SECRET}
-      GOOGLE_REDIRECT_URI: ${GOOGLE_REDIRECT_URI}
+      # GOOGLE_REDIRECT_URI: ${GOOGLE_REDIRECT_URI}
       DISCORD_CLIENT_ID: ${DISCORD_CLIENT_ID}
       DISCORD_CLIENT_SECRET: ${DISCORD_CLIENT_SECRET}
-      DISCORD_REDIRECT_URI: ${DISCORD_REDIRECT_URI}
+      # DISCORD_REDIRECT_URI: ${DISCORD_REDIRECT_URI}
       STEAM_API_KEY: ${STEAM_API_KEY}
-      STEAM_REDIRECT_URI: ${STEAM_REDIRECT_URI}
+      # STEAM_REDIRECT_URI: ${STEAM_REDIRECT_URI}
       DEV_FAKE_AUTH: ${DEV_FAKE_AUTH:-false}
       ADMIN_EMAILS: ${ADMIN_EMAILS}
       GGDEALS_API_KEY: ${GGDEALS_API_KEY}

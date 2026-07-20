@@ -34,22 +34,29 @@ const envSchema = z.object({
   OIDC_ISSUER_URL: z.string().optional(),
   OIDC_CLIENT_ID: z.string().optional(),
   OIDC_CLIENT_SECRET: z.string().optional(),
+  // Defaults to `${APP_BASE_URL}/auth/oidc/callback` (see deriveRedirectUris below) - only set
+  // this explicitly if the backend isn't reachable at APP_BASE_URL's origin (e.g. local dev's
+  // split frontend/backend ports, or a reverse-proxy setup that routes the API to a different
+  // host than the frontend).
   OIDC_REDIRECT_URI: z.string().optional(),
   OIDC_SCOPES: z.string().default('openid profile email'),
 
   // Google - also plain OIDC (fixed issuer), just its own named login button.
   GOOGLE_CLIENT_ID: z.string().optional(),
   GOOGLE_CLIENT_SECRET: z.string().optional(),
+  // Defaults to `${APP_BASE_URL}/auth/google/callback` - see OIDC_REDIRECT_URI above.
   GOOGLE_REDIRECT_URI: z.string().optional(),
 
   // Discord - OAuth2 only, no OIDC discovery/id_token, so it's handled separately from the above.
   DISCORD_CLIENT_ID: z.string().optional(),
   DISCORD_CLIENT_SECRET: z.string().optional(),
+  // Defaults to `${APP_BASE_URL}/auth/discord/callback` - see OIDC_REDIRECT_URI above.
   DISCORD_REDIRECT_URI: z.string().optional(),
 
   // Steam - legacy OpenID 2.0 (not OAuth2/OIDC at all). The API key is only used afterward, to
   // fetch a username/avatar for the verified SteamID via the Steam Web API.
   STEAM_API_KEY: z.string().optional(),
+  // Defaults to `${APP_BASE_URL}/auth/steam/callback` - see OIDC_REDIRECT_URI above.
   STEAM_REDIRECT_URI: z.string().optional(),
 
   // Optional at the env layer: these three can also be supplied via the admin Settings panel as a
@@ -67,6 +74,24 @@ const envSchema = z.object({
 
 export type Env = z.infer<typeof envSchema>;
 
+// Every deployment this project documents (see docker-compose.prod.yml) runs one server process
+// that serves both the API and the built frontend, so a provider's callback is reachable at
+// APP_BASE_URL's own origin by construction - only the path differs, and that's fixed per
+// provider. Filling that in here means .env only needs APP_BASE_URL plus each provider's
+// credentials, not four more near-duplicate URLs the user would otherwise have to hand-write (and
+// keep in sync if APP_BASE_URL ever changes). An explicit *_REDIRECT_URI still wins when set, for
+// deployments where that assumption doesn't hold (e.g. local dev's split frontend/backend ports).
+export function deriveRedirectUris(data: Env): Env {
+  const base = data.APP_BASE_URL.replace(/\/+$/, '');
+  return {
+    ...data,
+    OIDC_REDIRECT_URI: data.OIDC_REDIRECT_URI ?? `${base}/auth/oidc/callback`,
+    GOOGLE_REDIRECT_URI: data.GOOGLE_REDIRECT_URI ?? `${base}/auth/google/callback`,
+    DISCORD_REDIRECT_URI: data.DISCORD_REDIRECT_URI ?? `${base}/auth/discord/callback`,
+    STEAM_REDIRECT_URI: data.STEAM_REDIRECT_URI ?? `${base}/auth/steam/callback`,
+  };
+}
+
 function loadEnv(): Env {
   const parsed = envSchema.safeParse(process.env);
   if (!parsed.success) {
@@ -74,6 +99,7 @@ function loadEnv(): Env {
     console.error(parsed.error.flatten().fieldErrors);
     process.exit(1);
   }
+  parsed.data = deriveRedirectUris(parsed.data);
 
   if (parsed.data.DEV_FAKE_AUTH && process.env.NODE_ENV === 'production') {
     console.error(

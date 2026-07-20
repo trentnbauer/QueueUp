@@ -44,7 +44,7 @@ Once you're ready to move off the dev bypass, set `DEV_FAKE_AUTH=false` and conf
 - **Steam**: grab a free Web API key at [steamcommunity.com/dev/apikey](https://steamcommunity.com/dev/apikey), fill in `STEAM_API_KEY`. Steam uses a different, older login protocol (OpenID 2.0, not OAuth2) and doesn't need a client id/secret — just the key. Steam accounts have no email address, so users who sign in with Steam get a placeholder one under the hood.
 - **Generic OIDC**: any standards-compliant provider (Authelia, Keycloak, Authentik, ...) — fill in `OIDC_ISSUER_URL`/`OIDC_CLIENT_ID`/`OIDC_CLIENT_SECRET`.
 
-Each method's `*_REDIRECT_URI` must exactly match what you register with that provider (swap `localhost:3000` for your real domain in production).
+Each method's `*_REDIRECT_URI` must exactly match what you register with that provider. In the production setup (`docker-compose.prod.yml`), you can leave `*_REDIRECT_URI` unset entirely - it defaults to `${APP_BASE_URL}/auth/<provider>/callback`, since that one server container serves both the API and the frontend. You still need to register that exact URL with the provider; only set `*_REDIRECT_URI` explicitly if your deployment doesn't serve the API from `APP_BASE_URL`'s own origin (local dev's split `:5173`/`:3000` ports being the main example).
 
 ### Running behind a reverse proxy
 
@@ -53,7 +53,7 @@ Most self-hosted setups put something in front of this container - a Cloudflare 
 - **Session cookies** are marked `Secure` only once TLS is confirmed via `X-Forwarded-Proto` - so sign-in still works whether the proxy talks HTTP or HTTPS to the container, as long as your proxy forwards that header (Cloudflare Tunnel and NGINX Proxy Manager both do this by default).
 - **Rate limiting** buckets requests by client IP - without `TRUST_PROXY`, every request looks like it comes from the proxy's own IP, so all your users would share one rate-limit bucket.
 
-Only set `TRUST_PROXY=false` if this container is exposed directly with nothing in front of it (those headers are otherwise attacker-controllable). Whichever proxy you use, make sure `APP_BASE_URL` and each configured sign-in method's `*_REDIRECT_URI` point at your real public HTTPS domain, not `localhost`.
+Only set `TRUST_PROXY=false` if this container is exposed directly with nothing in front of it (those headers are otherwise attacker-controllable). Whichever proxy you use, make sure `APP_BASE_URL` points at your real public HTTPS domain, not `localhost` - any `*_REDIRECT_URI` left unset derives from it automatically (see above), and any set explicitly needs the same treatment.
 
 ## Backups
 
