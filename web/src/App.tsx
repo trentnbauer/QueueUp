@@ -56,21 +56,23 @@ export default function App() {
   const [providers, setProviders] = useState<string[] | null>(null);
   const [showOnboarding, setShowOnboarding] = useState(false);
   const [pendingJoinError, setPendingJoinError] = useState<string | null>(null);
-  const [steamLinkError, setSteamLinkError] = useState<string | null>(null);
+  const [accountLinkError, setAccountLinkError] = useState<string | null>(null);
   const completingPendingJoin = useRef(false);
 
-  // Steam account linking (see SteamImportCard / server /auth/steam/link) ends in a full-page
-  // redirect back here with the outcome in the query string, since a redirect flow has no other
-  // channel back to the UI. Surface any error, then strip the param so it doesn't linger in the
-  // URL or re-fire on a later remount.
+  // Linking a provider account (see ProfileSettingsView / SteamImportCard / server
+  // /auth/:provider/link) ends in a full-page redirect back here with the outcome in the query
+  // string, since a redirect flow has no other channel back to the UI. Surface any error, then
+  // strip the params so they don't linger in the URL or re-fire on a later remount - the success
+  // case needs nothing further here, since this redirect is a fresh page load and AuthContext's own
+  // mount-time fetch already picks up the newly-linked provider.
   useEffect(() => {
     const params = new URLSearchParams(location.search);
-    const error = params.get('steamLinkError');
-    const linked = params.get('steamLinked');
+    const error = params.get('accountLinkError');
+    const linked = params.get('accountLinked');
     if (!error && !linked) return;
-    if (error) setSteamLinkError(error);
-    params.delete('steamLinkError');
-    params.delete('steamLinked');
+    if (error) setAccountLinkError(error);
+    params.delete('accountLinkError');
+    params.delete('accountLinked');
     navigate({ pathname: location.pathname, search: params.toString() }, { replace: true });
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
@@ -152,7 +154,7 @@ export default function App() {
         <div style={{ flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column', minHeight: '100vh' }}>
           {!hideRoomHeader && <Header />}
           <ActionErrorBanner message={pendingJoinError} onDismiss={() => setPendingJoinError(null)} />
-          <ActionErrorBanner message={steamLinkError} onDismiss={() => setSteamLinkError(null)} />
+          <ActionErrorBanner message={accountLinkError} onDismiss={() => setAccountLinkError(null)} />
           <div style={{ flex: 1 }}>
             <Routes>
               <Route path="/" element={<ShelfView />} />

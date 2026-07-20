@@ -5,6 +5,7 @@ import { prisma } from '../db/client.js';
 import { HttpError } from '../util/httpError.js';
 import { buildAuthProviders } from '../services/authProviders/registry.js';
 import type { AuthProvider } from '../services/authProviders/types.js';
+import { extractSteamId64 } from '../services/steamLibrary.js';
 
 const DEV_USER = {
   oidcSub: 'dev-user',
@@ -52,6 +53,24 @@ function computeIsAdmin(email: string, opts: { devFakeAuth: boolean; adminEmails
   return admins.includes(email.toLowerCase());
 }
 
+/** A signed-in identity can match a user three ways: it's their primary sign-in (User.oidcSub),
+ * it's a provider they linked afterward (LinkedIdentity), or - Steam only - it's a Steam account
+ * linked via the pre-existing User.steamId64 column (see that field's comment; linkAccount in
+ * auth.ts routes still writes Steam links there instead of LinkedIdentity). Checked in that order
+ * since the first two are exact-match lookups and this one needs the extra extraction step. */
+async function findUserByOidcSub(oidcSub: string) {
+  const primary = await prisma.user.findUnique({ where: { oidcSub } });
+  if (primary) return primary;
+
+  const linked = await prisma.linkedIdentity.findUnique({ where: { oidcSub }, include: { user: true } });
+  if (linked) return linked.user;
+
+  const steamId64 = extractSteamId64(oidcSub);
+  if (steamId64) return prisma.user.findUnique({ where: { steamId64 } });
+
+  return null;
+}
+
 async function getOrCreateUser(profile: {
   oidcSub: string;
   email: string;
@@ -62,18 +81,33 @@ async function getOrCreateUser(profile: {
   // ADMIN_EMAILS grants admin on every login, but must never revoke it - an admin promoted through
   // the Settings panel (see admin.ts's PATCH /api/admin/users/:id/admin) has no email in that list
   // by definition, and would otherwise lose admin status the next time they signed in.
-  const existing = await prisma.user.findUnique({ where: { oidcSub: profile.oidcSub } });
+  const existing = await findUserByOidcSub(profile.oidcSub);
   const isAdmin = emailIsAdmin || (existing?.isAdmin ?? false);
-  return prisma.user.upsert({
-    where: { oidcSub: profile.oidcSub },
-    update: { email: profile.email, displayName: profile.displayName, avatarUrl: profile.avatarUrl, isAdmin },
-    create: { ...profile, avatarColor: randomAvatarColor(), isAdmin },
-  });
+
+  if (existing) {
+    // Refresh profile fields from whichever provider was just used to sign in, same as before -
+    // this can now be a linked (non-primary) provider, not just the primary one, which means the
+    // displayed name/avatar reflects whichever account you most recently logged in with.
+    return prisma.user.update({
+      where: { id: existing.id },
+      data: { email: profile.email, displayName: profile.displayName, avatarUrl: profile.avatarUrl, isAdmin },
+    });
+  }
+
+  return prisma.user.create({ data: { ...profile, avatarColor: randomAvatarColor(), isAdmin } });
 }
 
 const AVATAR_COLORS = ['#E8734A', '#4A8FE8', '#6FBF73', '#B87DE8', '#E8C34A', '#4AE8D0'];
 function randomAvatarColor() {
   return AVATAR_COLORS[Math.floor(Math.random() * AVATAR_COLORS.length)];
+}
+
+/** Every provider prefixes User.oidcSub with its own name (see subPrefix in the OIDC provider
+ * config, and the literal "discord:"/"steam:" prefixes in their providers) - so the provider a
+ * user originally signed up with is recoverable from the column itself, with no separate column
+ * needed to track it. */
+function primaryProviderOf(oidcSub: string): string {
+  return oidcSub.split(':')[0];
 }
 
 export default fp(async function authPlugin(app: FastifyInstance) {
@@ -110,4 +144,4 @@ export default fp(async function authPlugin(app: FastifyInstance) {
   });
 });
 
-export { getOrCreateUser, computeIsAdmin };
+export { getOrCreateUser, computeIsAdmin, primaryProviderOf };

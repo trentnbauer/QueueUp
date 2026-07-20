@@ -81,8 +81,30 @@ model User {
   notificationsReceived Notification[] @relation("NotificationRecipient")
   notificationsActed   Notification[]  @relation("NotificationActor")
   ownedGames           GameOwnership[]
+  linkedIdentities     LinkedIdentity[]
 
   @@map("users")
+}
+
+/// A non-primary sign-in method attached to a user, letting them log into one account with more
+/// than one OAuth provider (e.g. primary sign-in via Discord, with Google also linked). The
+/// original sign-in identity a user signs up with always stays on User.oidcSub; only providers
+/// linked afterward go here. Steam is the one exception - linking Steam still writes
+/// User.steamId64 instead of a row here (see that field's comment), so the already-tested
+/// Steam-library-import path (steamLibrary.ts) didn't need to change to support this.
+model LinkedIdentity {
+  id        String   @id @default(uuid())
+  userId    String   @map("user_id")
+  provider  String
+  oidcSub   String   @unique @map("oidc_sub")
+  createdAt DateTime @default(now()) @map("created_at")
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  // One linked identity per provider per user - relinking the same provider (e.g. switching which
+  // Google account is linked) replaces the row rather than accumulating a second one.
+  @@unique([userId, provider])
+  @@map("linked_identities")
 }
 
 /// A user's ownership claim on a game, keyed by igdbId (not a specific Game row) - this is a fact

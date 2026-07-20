@@ -97,3 +97,59 @@
   color: #ff8a80;
   font-size: 12.5px;
 }
+
+.linkedAccountsList {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.linkedAccountRow {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 10px 14px;
+  border-radius: var(--qu-radius);
+  background: var(--qu-surface);
+  border: 1px solid var(--qu-border);
+}
+
+.linkedAccountName {
+  font-size: 13.5px;
+  color: var(--qu-text);
+  font-weight: 600;
+}
+
+.linkedAccountStatus {
+  font-size: 12px;
+  color: var(--qu-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.linkButton,
+.unlinkButton {
+  padding: 6px 14px;
+  border-radius: var(--qu-radius);
+  font-size: 12.5px;
+  font-weight: 700;
+  border: none;
+  cursor: pointer;
+  text-decoration: none;
+}
+
+.linkButton {
+  background: var(--qu-accent);
+  color: var(--qu-accent-text);
+}
+
+.unlinkButton {
+  background: transparent;
+  border: 1px solid var(--qu-border);
+  color: var(--qu-muted);
+}
+
+.unlinkButton:disabled {
+  opacity: 0.6;
+  cursor: default;
+}

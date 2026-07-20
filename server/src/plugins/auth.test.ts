@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { computeIsAdmin } from './auth.js';
+import { computeIsAdmin, primaryProviderOf } from './auth.js';
 
 describe('computeIsAdmin', () => {
   it('grants admin to everyone when DEV_FAKE_AUTH is on', () => {
@@ -22,5 +22,14 @@ describe('computeIsAdmin', () => {
     expect(computeIsAdmin('123456789@discord.unknown', { devFakeAuth: false, adminEmails: '123456789@discord.unknown' })).toBe(
       false,
     );
+  });
+});
+
+describe('primaryProviderOf', () => {
+  it('reads the provider prefix off an oidcSub', () => {
+    expect(primaryProviderOf('discord:123456789')).toBe('discord');
+    expect(primaryProviderOf('google:abc')).toBe('google');
+    expect(primaryProviderOf('steam:76561198000000000')).toBe('steam');
+    expect(primaryProviderOf('oidc:some-sub')).toBe('oidc');
   });
 });
