@@ -10,6 +10,7 @@ import { filterGames } from '../components/gameGridLogic';
 import { ActionErrorBanner } from '../components/ActionErrorBanner';
 import { TruncatedListBanner } from '../components/TruncatedListBanner';
 import { SteamImportCard } from '../components/SteamImportCard';
+import { SteamWishlistImportCard } from '../components/SteamWishlistImportCard';
 import { BulkActionBar } from '../components/BulkActionBar';
 import styles from './ShelfView.module.css';
 
@@ -137,7 +138,14 @@ export function ShelfView() {
         isRefreshingPrice={isRefreshingPrice}
         onSetTargetPrice={setTargetPrice}
         showSpinWheel={!bulkMode}
-        trailingCard={!bulkMode && <SteamImportCard steamLinked={steamLinked} />}
+        trailingCard={
+          !bulkMode && (
+            <>
+              <SteamImportCard steamLinked={steamLinked} />
+              <SteamWishlistImportCard steamLinked={steamLinked} />
+            </>
+          )
+        }
         selectionMode={bulkMode}
         selectedIds={selectedIds}
         onToggleSelect={toggleSelect}

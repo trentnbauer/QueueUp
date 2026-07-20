@@ -236,6 +236,17 @@ export interface ImportSteamLibraryResult {
   skipped: number;
 }
 
+/** Same shape as ImportSteamLibraryResult, but for wishlist import (issue #228) - added with
+ * status `wishlist` rather than the default, and never marked owned. No progress-polling
+ * counterpart (unlike library import) since wishlists are typically much smaller; add one if that
+ * stops being true. */
+export interface ImportSteamWishlistResult {
+  totalWishlisted: number;
+  consideredCount: number;
+  imported: number;
+  skipped: number;
+}
+
 /** Polled by the shelf UI while an import is running (see routes/games.ts and
  * SteamImportCard.tsx) so a slow import (one IGDB lookup per unowned game) shows live counts
  * instead of sitting on a bare "Importing…" the whole time. Same shape as

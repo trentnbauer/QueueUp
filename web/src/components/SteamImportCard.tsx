@@ -11,15 +11,20 @@ interface SteamImportCardProps {
  * even without a linked Steam account - clicking it while unlinked starts Steam sign-in to link one
  * (rather than hiding the card entirely and leaving non-Steam users with no path to it).
  *
- * Uses the shared SteamImportContext (not its own useSteamImport instance) so this tile and the
- * Header's re-sync button can't independently think "nothing's running" and both fire an import. */
+ * Uses the shared SteamImportContext (not its own useSteamImport instance) so this tile, its
+ * SteamWishlistImportCard sibling, and the Header's re-sync button can't independently think
+ * "nothing's running" and both fire an import. `activeKind` (rather than the shared result/error
+ * alone) is what keeps this tile from showing the wishlist import's result text or vice versa. */
 export function SteamImportCard({ steamLinked }: SteamImportCardProps) {
   const confirm = useConfirm();
-  const { busy, result, error, progress, startLink, runImport } = useSteamImportContext();
+  const { busy, activeKind, result, error, progress, startLink, runImport } = useSteamImportContext();
+  const isMine = activeKind === 'library';
+  const myResult = isMine ? result : null;
+  const myError = isMine ? error : null;
 
   async function handleClick() {
     if (!steamLinked) {
-      startLink();
+      startLink('library');
       return;
     }
 
@@ -38,24 +43,24 @@ export function SteamImportCard({ steamLinked }: SteamImportCardProps) {
         🎮
       </div>
       <div className={styles.label}>
-        {busy ? 'Importing…' : steamLinked ? 'Import Steam Library' : 'Link Steam Account'}
+        {busy && isMine ? 'Importing…' : steamLinked ? 'Import Steam Library' : 'Link Steam Account'}
       </div>
-      {!busy && !result && !error && (
+      {!busy && !myResult && !myError && (
         <div className={styles.hint}>
           {steamLinked ? 'Add your most-played Steam games to this shelf' : 'Sign in with Steam to import your library'}
         </div>
       )}
-      {busy && (
+      {busy && isMine && (
         <div className={styles.hint}>
           {progress
             ? `${progress.totalOwned} owned · checked ${progress.imported + progress.skipped} of ${progress.consideredCount} · ${progress.imported} imported so far`
             : 'Checking your Steam library…'}
         </div>
       )}
-      {result && <div className={styles.hint}>{result}</div>}
-      {error && (
+      {myResult && <div className={styles.hint}>{myResult}</div>}
+      {myError && (
         <div className={styles.hint} style={{ color: '#ff8a80' }}>
-          {error}
+          {myError}
         </div>
       )}
     </button>
