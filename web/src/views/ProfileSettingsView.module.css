@@ -257,3 +257,30 @@
   color: var(--qu-muted);
   text-align: right;
 }
+
+.completedByGroup {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.completedGroupHeading {
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--qu-text);
+}
+
+.completedGroupMembers {
+  font-weight: 400;
+  color: var(--qu-muted);
+}
+
+.completedGroupList {
+  margin: 4px 0 0;
+  padding: 0 0 0 18px;
+  font-size: 13px;
+  color: var(--qu-text);
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
