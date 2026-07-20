@@ -75,3 +75,15 @@ button {
 input {
   font-family: inherit;
 }
+
+/* Shared by any spinning-icon affordance (price refresh, sync indicator, ...) - global rather than
+   defined per CSS module, since @keyframes names are module-scoped same as class names and this
+   one's reused across files. */
+@keyframes sq-spin {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
+}

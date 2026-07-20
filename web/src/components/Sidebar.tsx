@@ -5,6 +5,7 @@ import { useAuth } from '../context/AuthContext';
 import { useView } from '../context/ViewContext';
 import { useRooms } from '../hooks/useRooms';
 import { useNotificationSummary, useMarkAllNotificationsRead } from '../hooks/useNotifications';
+import { useSyncStatus } from '../hooks/useSyncStatus';
 import { useThemeMode } from '../context/ThemeModeContext';
 import { authApi } from '../api/auth';
 import { AvatarBadge } from './AvatarBadge';
@@ -29,6 +30,7 @@ export function Sidebar() {
   const { rooms } = useRooms();
   const { totalUnread, unreadRoomIds } = useNotificationSummary();
   const markAllNotificationsRead = useMarkAllNotificationsRead();
+  const syncing = useSyncStatus();
   const { mode, toggle: toggleThemeMode } = useThemeMode();
 
   const [showAddRoom, setShowAddRoom] = useState(false);
@@ -73,6 +75,11 @@ export function Sidebar() {
           >
             QU
             {totalUnread > 0 && <span className={styles.unreadDot} aria-hidden="true" />}
+            {syncing && (
+              <span className={styles.syncIcon} aria-hidden="true" title="Syncing with Steam…">
+                ↻
+              </span>
+            )}
           </button>
           {showNotifications && (
             <>

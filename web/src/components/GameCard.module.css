@@ -240,16 +240,9 @@
 
 .refreshPriceButton.spinning {
   color: var(--qu-accent);
+  /* Defined globally (theme/global.css), not locally - CSS Modules scope @keyframes per file same
+     as class names, and this same spin is reused by other modules (e.g. Sidebar's sync icon). */
   animation: sq-spin 0.8s linear infinite;
-}
-
-@keyframes sq-spin {
-  from {
-    transform: rotate(0deg);
-  }
-  to {
-    transform: rotate(360deg);
-  }
 }
 
 .lastRefreshed {
