@@ -17,7 +17,6 @@ concurrency:
 
 env:
   REGISTRY: ghcr.io
-  IMAGE_NAME: ${{ github.repository }}
 
 jobs:
   check-for-changes:
@@ -31,6 +30,7 @@ jobs:
     outputs:
       has_changes: ${{ steps.changelog.outputs.has_changes }}
       oneline: ${{ steps.changelog.outputs.oneline }}
+      image_name: ${{ steps.image_name.outputs.image_name }}
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
@@ -38,6 +38,13 @@ jobs:
           # Full history + tags, needed to diff against the previous build's
           # marker tag.
           fetch-depth: 0
+
+      # ghcr.io image refs must be lowercase, but github.repository preserves
+      # the repo's actual casing (trentnbauer/QueueUp) - lowercase it once
+      # here so every job downstream uses a ref Docker will accept.
+      - name: Compute lowercase image name
+        id: image_name
+        run: echo "image_name=${GITHUB_REPOSITORY,,}" >> "$GITHUB_OUTPUT"
 
       - name: List changes since the last build
         id: changelog
@@ -162,7 +169,7 @@ jobs:
           # retroactively add labels to an image that's already been pushed.
           labels: |
             org.opencontainers.image.description=${{ needs.check-for-changes.outputs.oneline }}
-          outputs: type=image,name=${{ env.REGISTRY }}/${{ env.IMAGE_NAME }},push-by-digest=true,name-canonical=true,push=true
+          outputs: type=image,name=${{ env.REGISTRY }}/${{ needs.check-for-changes.outputs.image_name }},push-by-digest=true,name-canonical=true,push=true
 
       - name: Export digest
         run: |
@@ -213,7 +220,7 @@ jobs:
         id: meta
         uses: docker/metadata-action@v5
         with:
-          images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
+          images: ${{ env.REGISTRY }}/${{ needs.check-for-changes.outputs.image_name }}
           tags: |
             type=raw,value=latest
             type=sha,format=short
@@ -226,12 +233,12 @@ jobs:
         run: |
           docker buildx imagetools create \
             $(jq -cr '.tags | map("-t " + .) | join(" ")' <<< "$DOCKER_METADATA_OUTPUT_JSON") \
-            $(printf '${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}@sha256:%s ' *)
+            $(printf '${{ env.REGISTRY }}/${{ needs.check-for-changes.outputs.image_name }}@sha256:%s ' *)
         env:
           DOCKER_METADATA_OUTPUT_JSON: ${{ steps.meta.outputs.json }}
 
       - name: Inspect pushed manifest
-        run: docker buildx imagetools inspect ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:latest
+        run: docker buildx imagetools inspect ${{ env.REGISTRY }}/${{ needs.check-for-changes.outputs.image_name }}:latest
 
       - name: Move last-build marker to this commit
         run: |
