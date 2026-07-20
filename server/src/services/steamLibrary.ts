@@ -74,38 +74,42 @@ function achievementsCacheKey(steamId64: string, appId: number): string {
 }
 
 /** Fetches one Steam account's unlocked/total achievement count for one game. Returns null if the
- * game has no achievements defined, the account's "game details" privacy is set to private (both
- * surface identically from Steam as `success: false`, with no way to tell them apart), or the
- * request fails - all three just mean "nothing to show here", not an error worth surfacing. The
- * null result is cached too, so a game/account combination that never has anything to show doesn't
- * get re-queried on every modal open within the TTL. */
+ * game has no achievements defined, or the account's "game details" privacy is set to private
+ * (both surface identically from Steam as `success: false`, with no way to tell them apart) -
+ * either way, "nothing to show here" is a real answer worth caching. A network error or non-OK
+ * response is a different fact (we don't know the answer, not "the answer is nothing") and must
+ * NOT be cached, or a transient Steam outage would get frozen in as "no achievements" for every
+ * game/account combination it touched, for the full TTL, well after Steam recovers. */
 export async function getAchievementCounts(steamId64: string, appId: number, apiKey: string): Promise<SteamAchievementCounts | null> {
   const cacheKey = achievementsCacheKey(steamId64, appId);
   const cached = await redis.get(cacheKey);
   if (cached !== null) return JSON.parse(cached) as SteamAchievementCounts | null;
 
-  let counts: SteamAchievementCounts | null = null;
-  try {
-    const url = new URL('https://api.steampowered.com/ISteamUserStats/GetPlayerAchievements/v0001/');
-    url.searchParams.set('key', apiKey);
-    url.searchParams.set('steamid', steamId64);
-    url.searchParams.set('appid', String(appId));
-    url.searchParams.set('format', 'json');
+  const url = new URL('https://api.steampowered.com/ISteamUserStats/GetPlayerAchievements/v0001/');
+  url.searchParams.set('key', apiKey);
+  url.searchParams.set('steamid', steamId64);
+  url.searchParams.set('appid', String(appId));
+  url.searchParams.set('format', 'json');
 
-    const response = await fetch(url);
-    if (response.ok) {
-      const body = (await response.json()) as SteamPlayerAchievementsResponse;
-      // A successful response lists every achievement the game defines, achieved or not - no
-      // separate schema lookup needed to know the total.
-      const achievements = body.playerstats?.success ? (body.playerstats.achievements ?? []) : [];
-      if (achievements.length > 0) {
-        counts = { unlocked: achievements.filter((a) => a.achieved === 1).length, total: achievements.length };
-      }
-    }
+  let response: Response;
+  try {
+    response = await fetch(url);
   } catch {
     // Same as getOwnedSteamGames above - a Steam Web API hiccup shouldn't block the rest of the
-    // modal from rendering.
+    // modal from rendering. Unlike that function, this one is expected to fail soft (return null)
+    // rather than throw, but still must not cache this outcome (see doc comment above).
+    return null;
   }
+  if (!response.ok) return null;
+
+  const body = (await response.json()) as SteamPlayerAchievementsResponse;
+  // A successful response lists every achievement the game defines, achieved or not - no
+  // separate schema lookup needed to know the total.
+  const achievements = body.playerstats?.success ? (body.playerstats.achievements ?? []) : [];
+  const counts: SteamAchievementCounts | null =
+    achievements.length > 0
+      ? { unlocked: achievements.filter((a) => a.achieved === 1).length, total: achievements.length }
+      : null;
 
   await redis.set(cacheKey, JSON.stringify(counts), 'EX', ACHIEVEMENTS_CACHE_TTL_SECONDS);
   return counts;
