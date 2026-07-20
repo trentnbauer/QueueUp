@@ -68,9 +68,11 @@
 
 @media (max-width: 640px) {
   .cards {
-    /* Fixed 2-column layout rather than the desktop auto-fill/minmax, which would otherwise
-       collapse to a single column once the viewport is narrower than 2 * 260px. */
-    grid-template-columns: repeat(2, 1fr);
+    /* Fixed column count rather than the desktop auto-fill/minmax, which would otherwise collapse
+       to a single column once the viewport is narrower than 2 * 260px. --qu-mobile-grid-columns is
+       set on the document root by CardDensityContext (Large/Medium/Small in Profile Settings);
+       2 is the fallback for anything rendered before that provider has run. */
+    grid-template-columns: repeat(var(--qu-mobile-grid-columns, 2), 1fr);
     gap: 14px;
     padding: 20px 18px;
   }

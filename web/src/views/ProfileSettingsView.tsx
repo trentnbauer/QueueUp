@@ -4,10 +4,12 @@ import { authApi } from '../api/auth';
 import { gamesApi } from '../api/games';
 import { useAuth } from '../context/AuthContext';
 import { useCurrencyRegion } from '../context/CurrencyRegionContext';
+import { useCardDensity, CARD_DENSITY_LABELS, type CardDensity } from '../context/CardDensityContext';
 import styles from './ProfileSettingsView.module.css';
 
 const ROOM_PLATFORM_OPTIONS = Object.keys(ROOM_PLATFORM_LABELS) as RoomPlatform[];
 const PRICE_REGION_OPTIONS = Object.keys(PRICE_REGION_LABELS) as PriceRegion[];
+const CARD_DENSITY_OPTIONS = Object.keys(CARD_DENSITY_LABELS) as CardDensity[];
 
 const PROVIDER_LABELS: Record<string, string> = {
   oidc: 'Single sign-on',
@@ -40,6 +42,7 @@ function useLinkedAccounts() {
 export function ProfileSettingsView() {
   const { user, ownedPlatforms, refetch } = useAuth();
   const { region, setRegion } = useCurrencyRegion();
+  const { density, setDensity } = useCardDensity();
   const { availableProviders, primaryProvider, linkedProviders, refetchLinked } = useLinkedAccounts();
   const [selected, setSelected] = useState<Set<RoomPlatform>>(new Set(ownedPlatforms));
   const [saving, setSaving] = useState(false);
@@ -123,6 +126,22 @@ export function ProfileSettingsView() {
           {PRICE_REGION_OPTIONS.map((r) => (
             <option key={r} value={r}>
               {PRICE_REGION_LABELS[r]}
+            </option>
+          ))}
+        </select>
+      </div>
+
+      <div className={styles.section}>
+        <div className={styles.sectionTitle}>Game card size</div>
+        <p className={styles.hint}>How many game cards fit per row on your phone's screen.</p>
+        <select
+          className={styles.currencySelect}
+          value={density}
+          onChange={(e) => setDensity(e.target.value as CardDensity)}
+        >
+          {CARD_DENSITY_OPTIONS.map((d) => (
+            <option key={d} value={d}>
+              {CARD_DENSITY_LABELS[d]}
             </option>
           ))}
         </select>
