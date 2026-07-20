@@ -1,0 +1,34 @@
+.strip {
+  padding: 20px 40px 4px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+@media (max-width: 640px) {
+  .strip {
+    padding: 16px 18px 4px;
+  }
+}
+
+.label {
+  font: 700 12px system-ui, sans-serif;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--qu-muted);
+}
+
+.row {
+  display: flex;
+  gap: 16px;
+  overflow-x: auto;
+  padding-bottom: 4px;
+  /* Smooth trackpad/touch scrolling for a horizontal strip - matches the app's general feel
+     without needing a custom scrollbar component. */
+  scroll-behavior: smooth;
+}
+
+.item {
+  flex-shrink: 0;
+  width: 170px;
+}
