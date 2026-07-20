@@ -19,6 +19,8 @@ import {
   resolveSteamId64,
   getOwnedSteamGames,
   getAchievementCounts,
+  getAchievementDetails,
+  getGlobalAchievementRarity,
   setSteamImportProgress,
   getSteamImportProgress,
 } from '../services/steamLibrary.js';
@@ -39,6 +41,9 @@ import type {
   UpdateGameStatusRequest,
   VoteRequest,
   YearInReview,
+  YearInReviewGenreCount,
+  YearInReviewGameHours,
+  YearInReviewRareAchievement,
 } from '@queueup/shared';
 import { IGDB_PLATFORM_NAMES, PRICE_REGION_LABELS } from '@queueup/shared';
 
@@ -481,57 +486,128 @@ export default async function gameRoutes(app: FastifyInstance) {
   // generated from data that's already sitting in the DB whenever someone asks for it.
   const YEAR_IN_REVIEW_TOP_VOTED_LIMIT = 5;
 
-  app.get('/api/me/year-in-review', async (request) => {
-    const userId = await request.requireAuth();
+  // Capped so a chatty account (lots of Done games with linked Steam app ids) doesn't blow up the
+  // number of Steam Web API calls one recap triggers - same reasoning as MAX_STEAM_IMPORT_CONSIDERED.
+  const YEAR_IN_REVIEW_MOST_TIME_CONSUMING_LIMIT = 5;
+  const YEAR_IN_REVIEW_RAREST_ACHIEVEMENTS_LIMIT = 5;
+  const YEAR_IN_REVIEW_STEAM_GAMES_LIMIT = 25;
 
-    const windowEnd = new Date();
-    const windowStart = new Date(windowEnd);
-    windowStart.setFullYear(windowStart.getFullYear() - 1);
+  app.get(
+    '/api/me/year-in-review',
+    // Same class of route as bulk-status/target-price - a direct user action from Profile
+    // Settings, not something a normal session comes close to hitting.
+    { config: { rateLimit: { max: 20, timeWindow: '1 minute' } } },
+    async (request) => {
+      const userId = await request.requireAuth();
 
-    const [doneGames, memberships] = await Promise.all([
-      // updatedAt is a proxy for "when this was marked Done" - there's no dedicated completedAt
-      // timestamp, and any edit bumps updatedAt, so this can overcount slightly (e.g. a stray
-      // status flip-flop) rather than undercount. Good enough for a rough yearly summary.
-      prisma.game.findMany({
-        where: { addedBy: userId, status: 'done', updatedAt: { gte: windowStart } },
-        select: { timeToBeatHours: true },
-      }),
-      prisma.roomMember.findMany({ where: { userId }, select: { roomId: true } }),
-    ]);
+      const windowEnd = new Date();
+      const windowStart = new Date(windowEnd);
+      windowStart.setFullYear(windowStart.getFullYear() - 1);
 
-    const doneCount = doneGames.length;
-    const estimatedHours = doneGames.reduce((sum, g) => sum + (g.timeToBeatHours ?? 0), 0);
+      const [user, doneGames, memberships] = await Promise.all([
+        prisma.user.findUniqueOrThrow({ where: { id: userId } }),
+        // updatedAt is a proxy for "when this was marked Done" - there's no dedicated completedAt
+        // timestamp, and any edit bumps updatedAt, so this can overcount slightly (e.g. a stray
+        // status flip-flop) rather than undercount. Good enough for a rough yearly summary.
+        prisma.game.findMany({
+          where: { addedBy: userId, status: 'done', updatedAt: { gte: windowStart } },
+          select: { id: true, title: true, genre: true, timeToBeatHours: true, steamAppid: true },
+        }),
+        prisma.roomMember.findMany({ where: { userId }, select: { roomId: true } }),
+      ]);
 
-    // "What did the squad like" across every room the caller is in right now - every game in
-    // those rooms, not just ones the caller added or voted on themselves, ranked by vote weight
-    // cast within the window (regardless of who cast it).
-    const roomIds = memberships.map((m) => m.roomId);
-    const votes =
-      roomIds.length > 0
-        ? await prisma.vote.findMany({
-            where: { createdAt: { gte: windowStart }, game: { roomId: { in: roomIds } } },
-            select: { value: true, game: { select: { id: true, title: true, coverImageUrl: true } } },
-          })
-        : [];
+      const doneCount = doneGames.length;
+      const estimatedHours = doneGames.reduce((sum, g) => sum + (g.timeToBeatHours ?? 0), 0);
 
-    const scoreByGame = new Map<string, { title: string; coverImageUrl: string | null; voteScore: number }>();
-    for (const v of votes) {
-      const existing = scoreByGame.get(v.game.id);
-      if (existing) existing.voteScore += v.value;
-      else scoreByGame.set(v.game.id, { title: v.game.title, coverImageUrl: v.game.coverImageUrl, voteScore: v.value });
-    }
-    const topVoted = Array.from(scoreByGame.entries())
-      .map(([id, g]) => ({ id, ...g }))
-      .sort((a, b) => b.voteScore - a.voteScore)
-      .slice(0, YEAR_IN_REVIEW_TOP_VOTED_LIMIT);
+      const genreCounts = new Map<string, number>();
+      for (const g of doneGames) {
+        if (!g.genre) continue;
+        genreCounts.set(g.genre, (genreCounts.get(g.genre) ?? 0) + 1);
+      }
+      const genreSpread: YearInReviewGenreCount[] = Array.from(genreCounts.entries())
+        .map(([genre, count]) => ({ genre, count }))
+        .sort((a, b) => b.count - a.count);
 
-    const result: YearInReview = {
-      windowStart: windowStart.toISOString(),
-      windowEnd: windowEnd.toISOString(),
-      doneCount,
-      estimatedHours,
-      topVoted,
-    };
-    return result;
-  });
+      const mostTimeConsuming: YearInReviewGameHours[] = doneGames
+        .filter((g) => g.timeToBeatHours != null)
+        .map((g) => ({ id: g.id, title: g.title, hours: g.timeToBeatHours! }))
+        .sort((a, b) => b.hours - a.hours)
+        .slice(0, YEAR_IN_REVIEW_MOST_TIME_CONSUMING_LIMIT);
+
+      // "What did the squad like" across every room the caller is in right now - every game in
+      // those rooms, not just ones the caller added or voted on themselves, ranked by vote weight
+      // cast within the window (regardless of who cast it).
+      const roomIds = memberships.map((m) => m.roomId);
+      const votes =
+        roomIds.length > 0
+          ? await prisma.vote.findMany({
+              where: { createdAt: { gte: windowStart }, game: { roomId: { in: roomIds } } },
+              select: { value: true, game: { select: { id: true, title: true, coverImageUrl: true } } },
+            })
+          : [];
+
+      const scoreByGame = new Map<string, { title: string; coverImageUrl: string | null; voteScore: number }>();
+      for (const v of votes) {
+        const existing = scoreByGame.get(v.game.id);
+        if (existing) existing.voteScore += v.value;
+        else scoreByGame.set(v.game.id, { title: v.game.title, coverImageUrl: v.game.coverImageUrl, voteScore: v.value });
+      }
+      const topVoted = Array.from(scoreByGame.entries())
+        .map(([id, g]) => ({ id, ...g }))
+        .sort((a, b) => b.voteScore - a.voteScore)
+        .slice(0, YEAR_IN_REVIEW_TOP_VOTED_LIMIT);
+
+      let achievementsUnlocked = 0;
+      let rarestAchievements: YearInReviewRareAchievement[] = [];
+
+      const steamId64 = resolveSteamId64(user);
+      const steamGames = doneGames.filter((g) => g.steamAppid != null).slice(0, YEAR_IN_REVIEW_STEAM_GAMES_LIMIT);
+      if (steamId64 && env.STEAM_API_KEY && steamGames.length > 0) {
+        const apiKey = env.STEAM_API_KEY;
+        const windowStartSeconds = Math.floor(windowStart.getTime() / 1000);
+        const windowEndSeconds = Math.floor(windowEnd.getTime() / 1000);
+
+        const rareCandidates: YearInReviewRareAchievement[] = [];
+        await Promise.all(
+          steamGames.map(async (g) => {
+            const appId = g.steamAppid!;
+            const unlocked = (await getAchievementDetails(steamId64, appId, apiKey)).filter(
+              (a) => a.unlockTime >= windowStartSeconds && a.unlockTime <= windowEndSeconds,
+            );
+            if (unlocked.length === 0) return;
+            achievementsUnlocked += unlocked.length;
+
+            const rarity = await getGlobalAchievementRarity(appId);
+            for (const a of unlocked) {
+              const globalUnlockPercent = rarity.get(a.apiname);
+              if (globalUnlockPercent === undefined) continue;
+              rareCandidates.push({
+                gameTitle: g.title,
+                achievementName: a.displayName,
+                globalUnlockPercent,
+                unlockedAt: new Date(a.unlockTime * 1000).toISOString(),
+              });
+            }
+          }),
+        );
+
+        rarestAchievements = rareCandidates
+          .sort((a, b) => a.globalUnlockPercent - b.globalUnlockPercent)
+          .slice(0, YEAR_IN_REVIEW_RAREST_ACHIEVEMENTS_LIMIT);
+      }
+
+      const result: YearInReview = {
+        windowStart: windowStart.toISOString(),
+        windowEnd: windowEnd.toISOString(),
+        doneCount,
+        estimatedHours,
+        topVoted,
+        genreSpread,
+        mostTimeConsuming,
+        achievementsUnlocked,
+        rarestAchievements,
+      };
+      return result;
+    },
+  );
 }

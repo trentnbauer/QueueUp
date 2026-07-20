@@ -213,6 +213,61 @@ export function ProfileSettingsView() {
                 <span className={styles.yearInReviewStatLabel}>estimated hours</span>
               </div>
             </div>
+            {yearInReview.genreSpread.length > 0 && (
+              <div>
+                <div className={styles.yearInReviewSubtitle}>Genre spread</div>
+                <div className={styles.genreSpread}>
+                  {yearInReview.genreSpread.map((g) => {
+                    const max = yearInReview.genreSpread[0].count;
+                    return (
+                      <div key={g.genre} className={styles.genreBarRow}>
+                        <span className={styles.genreBarLabel}>{g.genre}</span>
+                        <div className={styles.genreBarTrack}>
+                          <div className={styles.genreBarFill} style={{ width: `${(g.count / max) * 100}%` }} />
+                        </div>
+                        <span className={styles.genreBarCount}>{g.count}</span>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
+            {yearInReview.mostTimeConsuming.length > 0 && (
+              <div>
+                <div className={styles.yearInReviewSubtitle}>Where the hours went</div>
+                <ol className={styles.yearInReviewList}>
+                  {yearInReview.mostTimeConsuming.map((g) => (
+                    <li key={g.id} className={styles.yearInReviewListItem}>
+                      <span>{g.title}</span>
+                      <span className={styles.yearInReviewListScore}>{g.hours}h</span>
+                    </li>
+                  ))}
+                </ol>
+              </div>
+            )}
+            {yearInReview.achievementsUnlocked > 0 && (
+              <div className={styles.yearInReviewStats}>
+                <div className={styles.yearInReviewStat}>
+                  <span className={styles.yearInReviewStatValue}>{yearInReview.achievementsUnlocked}</span>
+                  <span className={styles.yearInReviewStatLabel}>achievements unlocked</span>
+                </div>
+              </div>
+            )}
+            {yearInReview.rarestAchievements.length > 0 && (
+              <div>
+                <div className={styles.yearInReviewSubtitle}>Rarest achievements earned</div>
+                <ol className={styles.yearInReviewList}>
+                  {yearInReview.rarestAchievements.map((a, i) => (
+                    <li key={`${a.gameTitle}-${a.achievementName}-${i}`} className={styles.yearInReviewListItem}>
+                      <span>
+                        {a.achievementName} <span className={styles.yearInReviewListSubtext}>({a.gameTitle})</span>
+                      </span>
+                      <span className={styles.yearInReviewListScore}>{a.globalUnlockPercent.toFixed(1)}% of players</span>
+                    </li>
+                  ))}
+                </ol>
+              </div>
+            )}
             {yearInReview.topVoted.length > 0 && (
               <div>
                 <div className={styles.yearInReviewSubtitle}>Top voted by the squad</div>

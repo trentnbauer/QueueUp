@@ -359,6 +359,27 @@ export interface YearInReviewTopVotedGame {
   voteScore: number;
 }
 
+export interface YearInReviewGenreCount {
+  genre: string;
+  count: number;
+}
+
+export interface YearInReviewGameHours {
+  id: string;
+  title: string;
+  hours: number;
+}
+
+/** One unlocked Steam achievement, picked out as one of the rarest earned in the window (lowest
+ * community-wide unlock percentage). */
+export interface YearInReviewRareAchievement {
+  gameTitle: string;
+  achievementName: string;
+  /** 0-100, community-wide. Lower = rarer. */
+  globalUnlockPercent: number;
+  unlockedAt: string;
+}
+
 /** On-demand summary of the last 12 months, generated from data already on hand - no new tracking
  * (issue #230). `doneCount`/`estimatedHours` cover games the caller personally added (Personal
  * Shelf or any room) and marked Done in the window; `topVoted` covers every game in a room the
@@ -372,4 +393,20 @@ export interface YearInReview {
    * data on file just don't contribute, rather than skewing the total with a guess. */
   estimatedHours: number;
   topVoted: YearInReviewTopVotedGame[];
+  /** Genres of the Done games counted above, tallied by count, highest first. Games with no genre
+   * on file are omitted rather than lumped into an "Unknown" bucket. */
+  genreSpread: YearInReviewGenreCount[];
+  /** The Done games counted above with the highest `timeToBeatHours`, highest first (capped to a
+   * handful) - games with no time-to-beat data on file are omitted, same reasoning as
+   * estimatedHours. */
+  mostTimeConsuming: YearInReviewGameHours[];
+  /** Total Steam achievements unlocked in the window, across every Done/owned game with a linked
+   * Steam app id - 0 (not omitted) when the caller has no usable Steam account or no
+   * STEAM_API_KEY is configured, same as the rest of this recap degrading gracefully rather than
+   * erroring. */
+  achievementsUnlocked: number;
+  /** The rarest achievements (lowest community-wide unlock %) the caller unlocked in the window,
+   * across every game with a linked Steam app id - empty under the same conditions as
+   * achievementsUnlocked being 0. */
+  rarestAchievements: YearInReviewRareAchievement[];
 }
