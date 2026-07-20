@@ -48,6 +48,7 @@ import type {
   YearInReview,
   YearInReviewGenreCount,
   YearInReviewGameHours,
+  YearInReviewGroupCompletion,
   YearInReviewRareAchievement,
 } from '@queueup/shared';
 import { IGDB_PLATFORM_NAMES, PRICE_REGION_LABELS } from '@queueup/shared';
@@ -617,6 +618,12 @@ export default async function gameRoutes(app: FastifyInstance) {
   const YEAR_IN_REVIEW_MOST_TIME_CONSUMING_LIMIT = 5;
   const YEAR_IN_REVIEW_RAREST_ACHIEVEMENTS_LIMIT = 5;
   const YEAR_IN_REVIEW_STEAM_GAMES_LIMIT = 25;
+  // How many not-yet-Done games (with a linked Steam app id) get checked against Steam
+  // achievements to auto-detect a completion the caller never clicked "Done" for in the app.
+  // Ordered most-recently-touched first, same reasoning as the other caps in this route.
+  const YEAR_IN_REVIEW_AUTODETECT_CANDIDATE_LIMIT = 40;
+
+  type YearInReviewGameRow = { id: string; title: string; genre: string | null; timeToBeatHours: number | null; steamAppid: number | null; roomId: string | null };
 
   app.get(
     '/api/me/year-in-review',
@@ -629,6 +636,8 @@ export default async function gameRoutes(app: FastifyInstance) {
       const windowEnd = new Date();
       const windowStart = new Date(windowEnd);
       windowStart.setFullYear(windowStart.getFullYear() - 1);
+      const windowStartSeconds = Math.floor(windowStart.getTime() / 1000);
+      const windowEndSeconds = Math.floor(windowEnd.getTime() / 1000);
 
       const [user, doneGames, memberships] = await Promise.all([
         prisma.user.findUniqueOrThrow({ where: { id: userId } }),
@@ -637,16 +646,50 @@ export default async function gameRoutes(app: FastifyInstance) {
         // status flip-flop) rather than undercount. Good enough for a rough yearly summary.
         prisma.game.findMany({
           where: { addedBy: userId, status: 'done', updatedAt: { gte: windowStart } },
-          select: { id: true, title: true, genre: true, timeToBeatHours: true, steamAppid: true },
+          select: { id: true, title: true, genre: true, timeToBeatHours: true, steamAppid: true, roomId: true },
         }),
         prisma.roomMember.findMany({ where: { userId }, select: { roomId: true } }),
       ]);
 
-      const doneCount = doneGames.length;
-      const estimatedHours = doneGames.reduce((sum, g) => sum + (g.timeToBeatHours ?? 0), 0);
+      const steamId64 = resolveSteamId64(user);
+
+      // The app's Done status is opt-in (see the nudge in GameDetailModal.tsx), so relying on it
+      // alone undercounts anyone who tracks completion via Steam instead - check not-yet-Done
+      // games with a linked Steam app id for 100% achievement completion within the window, and
+      // fold in whatever that turns up alongside the manually-marked games above.
+      let autoDetected: YearInReviewGameRow[] = [];
+      if (steamId64 && env.STEAM_API_KEY) {
+        const apiKey = env.STEAM_API_KEY;
+        const candidates = await prisma.game.findMany({
+          where: { addedBy: userId, status: { notIn: ['done', 'dropped'] }, steamAppid: { not: null } },
+          select: { id: true, title: true, genre: true, timeToBeatHours: true, steamAppid: true, roomId: true },
+          orderBy: { updatedAt: 'desc' },
+          take: YEAR_IN_REVIEW_AUTODETECT_CANDIDATE_LIMIT,
+        });
+
+        const detected = await Promise.all(
+          candidates.map(async (g): Promise<YearInReviewGameRow | null> => {
+            const appId = g.steamAppid!;
+            const [counts, unlocked] = await Promise.all([
+              getAchievementCounts(steamId64, appId, apiKey),
+              getAchievementDetails(steamId64, appId, apiKey),
+            ]);
+            if (!counts || counts.total === 0 || counts.unlocked < counts.total) return null;
+            const lastUnlock = Math.max(...unlocked.map((a) => a.unlockTime));
+            if (lastUnlock < windowStartSeconds || lastUnlock > windowEndSeconds) return null;
+            return g;
+          }),
+        );
+        autoDetected = detected.filter((g): g is YearInReviewGameRow => g !== null);
+      }
+
+      const combinedDone: YearInReviewGameRow[] = [...doneGames, ...autoDetected];
+      const doneCount = combinedDone.length;
+      const steamAutoDetectedCount = autoDetected.length;
+      const estimatedHours = combinedDone.reduce((sum, g) => sum + (g.timeToBeatHours ?? 0), 0);
 
       const genreCounts = new Map<string, number>();
-      for (const g of doneGames) {
+      for (const g of combinedDone) {
         if (!g.genre) continue;
         genreCounts.set(g.genre, (genreCounts.get(g.genre) ?? 0) + 1);
       }
@@ -654,11 +697,48 @@ export default async function gameRoutes(app: FastifyInstance) {
         .map(([genre, count]) => ({ genre, count }))
         .sort((a, b) => b.count - a.count);
 
-      const mostTimeConsuming: YearInReviewGameHours[] = doneGames
+      const mostTimeConsuming: YearInReviewGameHours[] = combinedDone
         .filter((g) => g.timeToBeatHours != null)
         .map((g) => ({ id: g.id, title: g.title, hours: g.timeToBeatHours! }))
         .sort((a, b) => b.hours - a.hours)
         .slice(0, YEAR_IN_REVIEW_MOST_TIME_CONSUMING_LIMIT);
+
+      // "Completed with ..." - the same combinedDone games, bucketed by which room (if any) they
+      // belong to, so the recap can name the room and who's currently in it rather than just a
+      // flat list. Personal Shelf games (roomId null) land in one "solo" bucket with no members.
+      const completedRoomIds = Array.from(new Set(combinedDone.map((g) => g.roomId).filter((id): id is string => id != null)));
+      const [rooms, roomMembers] = await Promise.all([
+        completedRoomIds.length > 0
+          ? prisma.room.findMany({ where: { id: { in: completedRoomIds } }, select: { id: true, name: true } })
+          : Promise.resolve([]),
+        completedRoomIds.length > 0
+          ? prisma.roomMember.findMany({
+              where: { roomId: { in: completedRoomIds } },
+              select: { roomId: true, userId: true, user: { select: { displayName: true } } },
+            })
+          : Promise.resolve([]),
+      ]);
+      const roomNameById = new Map(rooms.map((r) => [r.id, r.name]));
+      const memberNamesByRoomId = new Map<string, string[]>();
+      for (const m of roomMembers) {
+        if (m.userId === userId) continue;
+        const names = memberNamesByRoomId.get(m.roomId) ?? [];
+        names.push(m.user.displayName);
+        memberNamesByRoomId.set(m.roomId, names);
+      }
+      const gamesByGroupKey = new Map<string, { roomId: string | null; games: { id: string; title: string }[] }>();
+      for (const g of combinedDone) {
+        const key = g.roomId ?? '';
+        const existing = gamesByGroupKey.get(key);
+        if (existing) existing.games.push({ id: g.id, title: g.title });
+        else gamesByGroupKey.set(key, { roomId: g.roomId, games: [{ id: g.id, title: g.title }] });
+      }
+      const completedByGroup: YearInReviewGroupCompletion[] = Array.from(gamesByGroupKey.values()).map((group) => ({
+        roomId: group.roomId,
+        roomName: group.roomId != null ? (roomNameById.get(group.roomId) ?? null) : null,
+        memberNames: group.roomId != null ? (memberNamesByRoomId.get(group.roomId) ?? []) : [],
+        games: group.games,
+      }));
 
       // "What did the squad like" across every room the caller is in right now - every game in
       // those rooms, not just ones the caller added or voted on themselves, ranked by vote weight
@@ -686,12 +766,9 @@ export default async function gameRoutes(app: FastifyInstance) {
       let achievementsUnlocked = 0;
       let rarestAchievements: YearInReviewRareAchievement[] = [];
 
-      const steamId64 = resolveSteamId64(user);
-      const steamGames = doneGames.filter((g) => g.steamAppid != null).slice(0, YEAR_IN_REVIEW_STEAM_GAMES_LIMIT);
+      const steamGames = combinedDone.filter((g) => g.steamAppid != null).slice(0, YEAR_IN_REVIEW_STEAM_GAMES_LIMIT);
       if (steamId64 && env.STEAM_API_KEY && steamGames.length > 0) {
         const apiKey = env.STEAM_API_KEY;
-        const windowStartSeconds = Math.floor(windowStart.getTime() / 1000);
-        const windowEndSeconds = Math.floor(windowEnd.getTime() / 1000);
 
         const rareCandidates: YearInReviewRareAchievement[] = [];
         await Promise.all(
@@ -726,10 +803,12 @@ export default async function gameRoutes(app: FastifyInstance) {
         windowStart: windowStart.toISOString(),
         windowEnd: windowEnd.toISOString(),
         doneCount,
+        steamAutoDetectedCount,
         estimatedHours,
         topVoted,
         genreSpread,
         mostTimeConsuming,
+        completedByGroup,
         achievementsUnlocked,
         rarestAchievements,
       };

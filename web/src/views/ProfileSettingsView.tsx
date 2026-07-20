@@ -206,7 +206,11 @@ export function ProfileSettingsView() {
             <div className={styles.yearInReviewStats}>
               <div className={styles.yearInReviewStat}>
                 <span className={styles.yearInReviewStatValue}>{yearInReview.doneCount}</span>
-                <span className={styles.yearInReviewStatLabel}>game{yearInReview.doneCount === 1 ? '' : 's'} finished</span>
+                <span className={styles.yearInReviewStatLabel}>
+                  game{yearInReview.doneCount === 1 ? '' : 's'} finished
+                  {yearInReview.steamAutoDetectedCount > 0 &&
+                    ` (${yearInReview.steamAutoDetectedCount} detected from Steam)`}
+                </span>
               </div>
               <div className={styles.yearInReviewStat}>
                 <span className={styles.yearInReviewStatValue}>{yearInReview.estimatedHours}</span>
@@ -243,6 +247,28 @@ export function ProfileSettingsView() {
                     </li>
                   ))}
                 </ol>
+              </div>
+            )}
+            {yearInReview.completedByGroup.length > 0 && (
+              <div>
+                <div className={styles.yearInReviewSubtitle}>Completed with</div>
+                <div className={styles.completedByGroup}>
+                  {yearInReview.completedByGroup.map((group) => (
+                    <div key={group.roomId ?? 'solo'}>
+                      <div className={styles.completedGroupHeading}>
+                        {group.roomName ?? 'Solo'}
+                        {group.memberNames.length > 0 && (
+                          <span className={styles.completedGroupMembers}> ({group.memberNames.join(', ')})</span>
+                        )}
+                      </div>
+                      <ul className={styles.completedGroupList}>
+                        {group.games.map((g) => (
+                          <li key={g.id}>{g.title}</li>
+                        ))}
+                      </ul>
+                    </div>
+                  ))}
+                </div>
               </div>
             )}
             {yearInReview.achievementsUnlocked > 0 && (

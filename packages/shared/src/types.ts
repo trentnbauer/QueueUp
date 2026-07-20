@@ -397,15 +397,34 @@ export interface YearInReviewRareAchievement {
   unlockedAt: string;
 }
 
+/** One room (or the Personal Shelf, when `roomId` is null) the caller finished at least one game
+ * in during the window - lets the recap say "completed with ..." instead of just a flat list.
+ * `memberNames` reflects who's currently in the room, not who was there when each game was
+ * actually finished (room membership history isn't tracked), and excludes the caller themselves. */
+export interface YearInReviewGroupCompletion {
+  roomId: string | null;
+  roomName: string | null;
+  memberNames: string[];
+  games: { id: string; title: string }[];
+}
+
 /** On-demand summary of the last 12 months, generated from data already on hand - no new tracking
  * (issue #230). `doneCount`/`estimatedHours` cover games the caller personally added (Personal
- * Shelf or any room) and marked Done in the window; `topVoted` covers every game in a room the
- * caller is currently a member of, ranked by vote weight cast in the window (regardless of who
- * added the game or who cast the votes) - a "what did the squad like" view, not a personal one. */
+ * Shelf or any room) and marked Done in the window, PLUS games not marked Done in the app but that
+ * Steam says the caller 100%'d within the window (see `steamAutoDetectedCount`) - the app's status
+ * field is opt-in (see the Done-suggestion nudge in GameDetailModal.tsx), so relying on it alone
+ * undercounts anyone who tracks completion via Steam instead of clicking "Done" here. `topVoted`
+ * covers every game in a room the caller is currently a member of, ranked by vote weight cast in
+ * the window (regardless of who added the game or who cast the votes) - a "what did the squad
+ * like" view, not a personal one. */
 export interface YearInReview {
   windowStart: string;
   windowEnd: string;
   doneCount: number;
+  /** How many of `doneCount` were detected from Steam achievements rather than the app's Done
+   * status - 0 when the caller has no usable Steam account, no STEAM_API_KEY is configured, or
+   * every completion was already tracked manually. */
+  steamAutoDetectedCount: number;
   /** Sum of `timeToBeatHours` across the Done games counted above - games with no time-to-beat
    * data on file just don't contribute, rather than skewing the total with a guess. */
   estimatedHours: number;
@@ -417,6 +436,9 @@ export interface YearInReview {
    * handful) - games with no time-to-beat data on file are omitted, same reasoning as
    * estimatedHours. */
   mostTimeConsuming: YearInReviewGameHours[];
+  /** The Done games counted above, grouped by which room (if any) they were in - see
+   * YearInReviewGroupCompletion. */
+  completedByGroup: YearInReviewGroupCompletion[];
   /** Total Steam achievements unlocked in the window, across every Done/owned game with a linked
    * Steam app id - 0 (not omitted) when the caller has no usable Steam account or no
    * STEAM_API_KEY is configured, same as the rest of this recap degrading gracefully rather than
