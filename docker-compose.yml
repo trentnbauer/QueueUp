@@ -9,7 +9,11 @@ services:
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-changeme}
       POSTGRES_DB: ${POSTGRES_DB:-squadqueue}
     volumes:
-      - postgres:/var/lib/postgresql/data
+      # postgres:18's image switched to storing data in a major-version-namespaced subdirectory
+      # under /var/lib/postgresql (e.g. /var/lib/postgresql/18/docker) instead of directly at
+      # .../data - mounting a volume at the old .../data path makes the image refuse to start,
+      # even on an empty volume, since that path is no longer where it looks for its data.
+      - postgres:/var/lib/postgresql
     ports:
       - "5432:5432"
     healthcheck:
