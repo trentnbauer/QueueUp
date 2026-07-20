@@ -68,6 +68,10 @@
 
 @media (max-width: 640px) {
   .cards {
+    /* Fixed 2-column layout rather than the desktop auto-fill/minmax, which would otherwise
+       collapse to a single column once the viewport is narrower than 2 * 260px. */
+    grid-template-columns: repeat(2, 1fr);
+    gap: 14px;
     padding: 20px 18px;
   }
 
