@@ -137,8 +137,15 @@ export default async function adminRoutes(app: FastifyInstance) {
     return { users: summaries };
   });
 
+  // Explicit per-route limit (on top of the global one in app.ts), same reasoning as
+  // integrationsWriteRateLimit above - these aren't things a normal admin session comes close to
+  // doing at volume, so a tight limit costs nothing legitimate while blunting abuse of a
+  // compromised admin session/token.
+  const sensitiveAdminActionRateLimit = { config: { rateLimit: { max: 20, timeWindow: '1 minute' } } };
+
   app.patch<{ Params: { id: string }; Body: { isAdmin: boolean } }>(
     '/api/admin/users/:id/admin',
+    sensitiveAdminActionRateLimit,
     async (request) => {
       const actorId = await request.requireAuth();
       const actor = await requireAdmin(actorId);
@@ -319,7 +326,7 @@ export default async function adminRoutes(app: FastifyInstance) {
   // which would need the Docker socket mounted into the container (a meaningfully bigger attack
   // surface for a self-hosted app than this endpoint being admin-gated). Good enough for the
   // common case: seeing recent request/error activity without shelling into the host.
-  app.get('/api/admin/logs/export', async (request, reply) => {
+  app.get('/api/admin/logs/export', sensitiveAdminActionRateLimit, async (request, reply) => {
     const userId = await request.requireAuth();
     await requireAdmin(userId);
 

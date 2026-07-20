@@ -132,7 +132,7 @@ export default async function authRoutes(app: FastifyInstance) {
     return reply.redirect(authUrl);
   });
 
-  app.delete<{ Params: { provider: string } }>('/auth/:provider/unlink', async (request, reply) => {
+  app.delete<{ Params: { provider: string } }>('/auth/:provider/unlink', authRateLimit, async (request, reply) => {
     const userId = await request.requireAuth();
     await unlinkAccount(userId, request.params.provider);
     return reply.send({ ok: true });

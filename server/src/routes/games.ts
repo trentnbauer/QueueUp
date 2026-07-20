@@ -248,11 +248,19 @@ export default async function gameRoutes(app: FastifyInstance) {
     },
   );
 
-  app.get('/api/games/import-steam-library/progress', async (request) => {
-    const userId = await request.requireAuth();
-    const progress: SteamImportProgress | null = await getSteamImportProgress(userId);
-    return { progress };
-  });
+  app.get(
+    '/api/games/import-steam-library/progress',
+    // Explicit per-route limit rather than relying on the global default - this is polled once a
+    // second while an import runs (PROGRESS_POLL_INTERVAL_MS in useSteamImport.ts), so it needs
+    // real headroom above that legitimate cadence rather than the tighter limits used elsewhere
+    // in this file for one-off/rare actions.
+    { config: { rateLimit: { max: 120, timeWindow: '1 minute' } } },
+    async (request) => {
+      const userId = await request.requireAuth();
+      const progress: SteamImportProgress | null = await getSteamImportProgress(userId);
+      return { progress };
+    },
+  );
 
   // Wishlist counterpart to the library import above (issue #228) - same dedup/skip logic, but
   // adds with status `wishlist` instead of the default, and never calls markOwned (a wishlisted
@@ -477,6 +485,10 @@ export default async function gameRoutes(app: FastifyInstance) {
 
   app.post<{ Params: { id: string }; Querystring: { region?: string } }>(
     '/api/games/:id/refresh-price',
+    // Each call is a live outbound request to gg.deals, not just a DB read - a tight limit here
+    // protects that upstream budget the same way the other per-route limits in this file protect
+    // ours, on top of the global default.
+    { config: { rateLimit: { max: 20, timeWindow: '1 minute' } } },
     async (request) => {
       const userId = await request.requireAuth();
       const game = await loadGameOr404(request.params.id);

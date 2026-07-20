@@ -187,57 +187,63 @@ export default async function roomRoutes(app: FastifyInstance) {
     return { room: toRoomDto(room, membership.role, room.inviteCode) };
   });
 
-  app.delete<{ Params: { roomId: string } }>('/api/rooms/:roomId', async (request, reply) => {
-    const actorId = await request.requireAuth();
-    const { roomId } = request.params;
-    const membership = await requireMembership(roomId, actorId);
-    if (membership.role !== 'room_master') {
-      throw new HttpError(403, 'Only the Room Master can delete this room');
-    }
+  app.delete<{ Params: { roomId: string } }>(
+    '/api/rooms/:roomId',
+    // Destructive and cascades to every member/game in the room - same tier of limit as
+    // /api/rooms/join above, for the same reason: this should never legitimately happen at volume.
+    { config: { rateLimit: { max: 10, timeWindow: '1 minute' } } },
+    async (request, reply) => {
+      const actorId = await request.requireAuth();
+      const { roomId } = request.params;
+      const membership = await requireMembership(roomId, actorId);
+      if (membership.role !== 'room_master') {
+        throw new HttpError(403, 'Only the Room Master can delete this room');
+      }
 
-    const [actor, target, members] = await Promise.all([
-      prisma.user.findUniqueOrThrow({ where: { id: actorId } }),
-      prisma.room.findUnique({
-        where: { id: roomId },
-        include: { _count: { select: { members: true, games: true } } },
-      }),
-      prisma.roomMember.findMany({ where: { roomId }, select: { userId: true } }),
-    ]);
+      const [actor, target, members] = await Promise.all([
+        prisma.user.findUniqueOrThrow({ where: { id: actorId } }),
+        prisma.room.findUnique({
+          where: { id: roomId },
+          include: { _count: { select: { members: true, games: true } } },
+        }),
+        prisma.roomMember.findMany({ where: { roomId }, select: { userId: true } }),
+      ]);
 
-    await prisma.room.delete({ where: { id: roomId } });
+      await prisma.room.delete({ where: { id: roomId } });
 
-    if (target) {
-      await notifyRoomMembersDirect({
-        roomName: target.name,
+      if (target) {
+        await notifyRoomMembersDirect({
+          roomName: target.name,
+          actorId,
+          recipientIds: members.map((m) => m.userId),
+          type: 'room_deleted',
+          message: (actorName) => `${actorName} deleted the room "${target.name}"`,
+        });
+      }
+
+      app.log.warn(
+        {
+          action: 'room.delete',
+          actorId,
+          targetId: roomId,
+          targetName: target?.name,
+          memberCount: target?._count.members,
+          gameCount: target?._count.games,
+        },
+        `Room Master ${actorId} deleted room ${roomId} (${target?.name ?? 'unknown'}), cascading ${target?._count.members ?? 0} member(s) and ${target?._count.games ?? 0} game(s)`,
+      );
+      await logAdminAction({
         actorId,
-        recipientIds: members.map((m) => m.userId),
-        type: 'room_deleted',
-        message: (actorName) => `${actorName} deleted the room "${target.name}"`,
-      });
-    }
-
-    app.log.warn(
-      {
+        actorLabel: actor.email,
         action: 'room.delete',
-        actorId,
-        targetId: roomId,
-        targetName: target?.name,
-        memberCount: target?._count.members,
-        gameCount: target?._count.games,
-      },
-      `Room Master ${actorId} deleted room ${roomId} (${target?.name ?? 'unknown'}), cascading ${target?._count.members ?? 0} member(s) and ${target?._count.games ?? 0} game(s)`,
-    );
-    await logAdminAction({
-      actorId,
-      actorLabel: actor.email,
-      action: 'room.delete',
-      targetLabel: target?.name ?? roomId,
-      metadata: { memberCount: target?._count.members, gameCount: target?._count.games },
-    });
+        targetLabel: target?.name ?? roomId,
+        metadata: { memberCount: target?._count.members, gameCount: target?._count.games },
+      });
 
-    reply.status(204);
-    return null;
-  });
+      reply.status(204);
+      return null;
+    },
+  );
 
   app.get<{ Params: { roomId: string } }>('/api/rooms/:roomId/members', async (request) => {
     const userId = await request.requireAuth();
@@ -259,24 +265,32 @@ export default async function roomRoutes(app: FastifyInstance) {
     return { members: dtos };
   });
 
-  app.get<{ Params: { roomId: string } }>('/api/rooms/:roomId/invite-candidates', async (request) => {
-    const userId = await request.requireAuth();
-    const { roomId } = request.params;
-    await requireElevated(roomId, userId);
+  app.get<{ Params: { roomId: string } }>(
+    '/api/rooms/:roomId/invite-candidates',
+    // Elevated-only, but the response is effectively a dump of every user on the server (minus
+    // current members) - a tighter limit than the global default costs a legitimate moderator
+    // nothing while blunting use of this as a user-enumeration endpoint.
+    { config: { rateLimit: { max: 30, timeWindow: '1 minute' } } },
+    async (request) => {
+      const userId = await request.requireAuth();
+      const { roomId } = request.params;
+      await requireElevated(roomId, userId);
 
-    const existingMemberIds = (
-      await prisma.roomMember.findMany({ where: { roomId }, select: { userId: true } })
-    ).map((m) => m.userId);
+      const existingMemberIds = (
+        await prisma.roomMember.findMany({ where: { roomId }, select: { userId: true } })
+      ).map((m) => m.userId);
 
-    const candidates = await prisma.user.findMany({
-      where: { id: { notIn: existingMemberIds } },
-      orderBy: { displayName: 'asc' },
-    });
-    return { users: candidates.map(toUserDto) };
-  });
+      const candidates = await prisma.user.findMany({
+        where: { id: { notIn: existingMemberIds } },
+        orderBy: { displayName: 'asc' },
+      });
+      return { users: candidates.map(toUserDto) };
+    },
+  );
 
   app.post<{ Params: { roomId: string }; Body: { userId: string } }>(
     '/api/rooms/:roomId/members',
+    { config: { rateLimit: { max: 30, timeWindow: '1 minute' } } },
     async (request, reply) => {
       const actorId = await request.requireAuth();
       const { roomId } = request.params;
