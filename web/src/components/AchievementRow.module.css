@@ -1,0 +1,45 @@
+.row {
+  margin-top: 10px;
+}
+
+.label {
+  font: 600 10px system-ui, sans-serif;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  color: var(--qu-muted);
+  margin-bottom: 7px;
+}
+
+.players {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.player {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.count {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--qu-text);
+  min-width: 44px;
+}
+
+.barTrack {
+  flex: 1;
+  height: 6px;
+  border-radius: 999px;
+  background: var(--qu-neutral-pill-bg);
+  overflow: hidden;
+}
+
+.barFill {
+  display: block;
+  height: 100%;
+  background: var(--qu-accent);
+  border-radius: 999px;
+}

@@ -52,6 +52,65 @@ export async function getOwnedSteamGames(steamId64: string, apiKey: string): Pro
   return games.map((g) => ({ appId: g.appid, playtimeForeverMinutes: g.playtime_forever }));
 }
 
+interface SteamAchievementEntry {
+  achieved: 0 | 1;
+}
+
+interface SteamPlayerAchievementsResponse {
+  playerstats?: { success: boolean; achievements?: SteamAchievementEntry[] };
+}
+
+export interface SteamAchievementCounts {
+  unlocked: number;
+  total: number;
+}
+
+// Achievement progress doesn't need real-time freshness - this just keeps repeatedly opening the
+// same game's modal (or a roomful of members all opening it) from re-hitting Steam every time.
+const ACHIEVEMENTS_CACHE_TTL_SECONDS = 60 * 30;
+
+function achievementsCacheKey(steamId64: string, appId: number): string {
+  return `steam-achievements:${steamId64}:${appId}`;
+}
+
+/** Fetches one Steam account's unlocked/total achievement count for one game. Returns null if the
+ * game has no achievements defined, the account's "game details" privacy is set to private (both
+ * surface identically from Steam as `success: false`, with no way to tell them apart), or the
+ * request fails - all three just mean "nothing to show here", not an error worth surfacing. The
+ * null result is cached too, so a game/account combination that never has anything to show doesn't
+ * get re-queried on every modal open within the TTL. */
+export async function getAchievementCounts(steamId64: string, appId: number, apiKey: string): Promise<SteamAchievementCounts | null> {
+  const cacheKey = achievementsCacheKey(steamId64, appId);
+  const cached = await redis.get(cacheKey);
+  if (cached !== null) return JSON.parse(cached) as SteamAchievementCounts | null;
+
+  let counts: SteamAchievementCounts | null = null;
+  try {
+    const url = new URL('https://api.steampowered.com/ISteamUserStats/GetPlayerAchievements/v0001/');
+    url.searchParams.set('key', apiKey);
+    url.searchParams.set('steamid', steamId64);
+    url.searchParams.set('appid', String(appId));
+    url.searchParams.set('format', 'json');
+
+    const response = await fetch(url);
+    if (response.ok) {
+      const body = (await response.json()) as SteamPlayerAchievementsResponse;
+      // A successful response lists every achievement the game defines, achieved or not - no
+      // separate schema lookup needed to know the total.
+      const achievements = body.playerstats?.success ? (body.playerstats.achievements ?? []) : [];
+      if (achievements.length > 0) {
+        counts = { unlocked: achievements.filter((a) => a.achieved === 1).length, total: achievements.length };
+      }
+    }
+  } catch {
+    // Same as getOwnedSteamGames above - a Steam Web API hiccup shouldn't block the rest of the
+    // modal from rendering.
+  }
+
+  await redis.set(cacheKey, JSON.stringify(counts), 'EX', ACHIEVEMENTS_CACHE_TTL_SECONDS);
+  return counts;
+}
+
 const IMPORT_PROGRESS_TTL_SECONDS = 60 * 10; // covers the slowest realistic import plus a buffer for the client's last poll
 
 function importProgressKey(userId: string): string {

@@ -252,6 +252,16 @@ export interface SteamImportProgress {
  * precedence over the DB-stored fallback; "unset" means neither is configured. */
 export type ConfigSource = 'env' | 'db' | 'unset';
 
+/** One player's Steam achievement progress for a specific game - room members for a room game, or
+ * just the current user for a Personal Shelf game. Only includes players with a usable Steam
+ * account (see resolveSteamId64) for a game that actually has achievements to report; everyone
+ * else is simply omitted rather than shown as a zero. */
+export interface PlayerAchievements {
+  user: User;
+  unlocked: number;
+  total: number;
+}
+
 /** The integration credentials that can be set via env var or, as a fallback, via the admin
  * Settings panel (see server/src/services/configResolver.ts). */
 export type IntegrationConfigKey = 'GGDEALS_API_KEY' | 'IGDB_CLIENT_ID' | 'IGDB_CLIENT_SECRET';
