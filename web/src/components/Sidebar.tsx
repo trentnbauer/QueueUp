@@ -46,6 +46,14 @@ export function Sidebar() {
     setShowNotifications(false);
   }
 
+  // The notification flyout is only reachable from inside the drawer, so leaving it open past the
+  // drawer closing just strands it floating over the page with no way to see what it's anchored
+  // to - close it alongside the drawer itself, however the drawer gets closed.
+  function closeMobileDrawer() {
+    setMobileOpen(false);
+    closeNotifications();
+  }
+
   if (!user) return null;
 
   return (
@@ -55,12 +63,12 @@ export function Sidebar() {
         className={styles.mobileToggle}
         aria-label={mobileOpen ? 'Close navigation' : 'Open navigation'}
         aria-expanded={mobileOpen}
-        onClick={() => setMobileOpen((v) => !v)}
+        onClick={() => (mobileOpen ? closeMobileDrawer() : setMobileOpen(true))}
       >
         {mobileOpen ? '✕' : '☰'}
       </button>
 
-      {mobileOpen && <div className={styles.mobileBackdrop} onClick={() => setMobileOpen(false)} />}
+      {mobileOpen && <div className={styles.mobileBackdrop} onClick={closeMobileDrawer} />}
 
       <nav className={`${styles.sidebar} ${mobileOpen ? styles.sidebarOpen : ''}`} aria-label="Rooms">
         <div className={styles.brandMenu}>
@@ -77,7 +85,7 @@ export function Sidebar() {
           {showNotifications && (
             <>
               <div className={styles.menuBackdrop} onClick={closeNotifications} />
-              <NotificationFlyout onNavigate={() => { closeNotifications(); setMobileOpen(false); }} />
+              <NotificationFlyout onNavigate={closeMobileDrawer} />
             </>
           )}
         </div>
@@ -88,7 +96,7 @@ export function Sidebar() {
             to="/"
             className={`${styles.roomIcon} ${!activeRoom ? styles.roomIconActive : ''}`}
             title="Personal Shelf"
-            onClick={() => setMobileOpen(false)}
+            onClick={closeMobileDrawer}
           >
             🗂
           </Link>
@@ -100,7 +108,7 @@ export function Sidebar() {
               className={`${styles.roomIcon} ${activeRoom?.id === room.id ? styles.roomIconActive : ''}`}
               style={{ background: room.accentColor, color: contrastTextColor(room.accentColor) }}
               title={`${room.name} · ${ROOM_PLATFORM_LABELS[room.platform]}`}
-              onClick={() => setMobileOpen(false)}
+              onClick={closeMobileDrawer}
             >
               {initials(room.name)}
               {unreadRoomIds.has(room.id) && <span className={styles.unreadDot} aria-hidden="true" />}
@@ -114,7 +122,7 @@ export function Sidebar() {
           title="Create or join a room"
           aria-label="Create or join a room"
           onClick={() => {
-            setMobileOpen(false);
+            closeMobileDrawer();
             setShowAddRoom(true);
           }}
         >
@@ -146,7 +154,7 @@ export function Sidebar() {
                   className={styles.menuItem}
                   onClick={() => {
                     setShowProfileMenu(false);
-                    setMobileOpen(false);
+                    closeMobileDrawer();
                   }}
                 >
                   Profile settings
@@ -157,7 +165,7 @@ export function Sidebar() {
                     className={styles.menuItem}
                     onClick={() => {
                       setShowProfileMenu(false);
-                      setMobileOpen(false);
+                      closeMobileDrawer();
                     }}
                   >
                     Administrator settings
