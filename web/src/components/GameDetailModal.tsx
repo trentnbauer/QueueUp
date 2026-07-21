@@ -64,6 +64,16 @@ export function GameDetailModal({
     game.status !== 'done' &&
     game.status !== 'dropped';
 
+  // Full breakdown (issue #248) - IGDB's game_time_to_beats endpoint returns three figures that
+  // are strictly ordered for any given game (rushed < main story < completionist), so they're
+  // shown in ascending order here. Only the tiers IGDB actually has data for are shown; a game
+  // with just one figure on file still reads fine as a single "Main Story ~Xh" entry.
+  const timeToBeatParts = [
+    game.timeToBeatRushedHours != null && `Rushed ~${game.timeToBeatRushedHours}h`,
+    game.timeToBeatHours != null && `Main Story ~${game.timeToBeatHours}h`,
+    game.timeToBeatCompletionistHours != null && `Completionist ~${game.timeToBeatCompletionistHours}h`,
+  ].filter((part): part is string => part !== false);
+
   const coopWarning =
     game.maxCoopPlayers != null && memberCount != null && memberCount > game.maxCoopPlayers
       ? `Only supports ${game.maxCoopPlayers}-player co-op — this room has ${memberCount} members`
@@ -120,10 +130,8 @@ export function GameDetailModal({
           />
           <div className={styles.headerText}>
             <span className={styles.title}>{game.title}</span>
-            <span className={styles.genre}>
-              {game.genre ?? '—'}
-              {game.timeToBeatHours != null && ` · ~${game.timeToBeatHours}h to beat`}
-            </span>
+            <span className={styles.genre}>{game.genre ?? '—'}</span>
+            {timeToBeatParts.length > 0 && <span className={styles.genre}>{timeToBeatParts.join(' · ')}</span>}
           </div>
           <button type="button" className={styles.closeButton} onClick={onClose} aria-label="Close">
             ×

@@ -14,6 +14,8 @@ function detail(platformFamilies: IgdbGameDetail['platformFamilies']): IgdbGameD
     maxCoopPlayers: null,
     releaseYear: null,
     timeToBeatHours: null,
+    timeToBeatRushedHours: null,
+    timeToBeatCompletionistHours: null,
   };
 }
 

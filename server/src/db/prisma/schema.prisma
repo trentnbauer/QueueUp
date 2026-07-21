@@ -181,8 +181,22 @@ model Game {
   maxCoopPlayers Int?       @map("max_coop_players")
   /// Hours for an average "main story" playthrough, from IGDB's game_time_to_beats endpoint
   /// (issue #189) - same capture-at-intake reasoning as releaseYear/maxCoopPlayers above. Null
-  /// when IGDB has no time-to-beat data for this game.
+  /// when IGDB has no time-to-beat data for this game. Sourced from IGDB's "normally" figure -
+  /// kept as-is (issue #248) so this column's meaning doesn't shift out from under rows already
+  /// on file; see timeToBeatRushedHours/timeToBeatCompletionistHours for the rest of the
+  /// breakdown IGDB exposes alongside it.
   timeToBeatHours Int?      @map("time_to_beat_hours")
+  /// Hours for a rushed/speedrun-style playthrough, from IGDB's game_time_to_beats "hastily"
+  /// figure (issue #248) - same capture-at-intake reasoning as timeToBeatHours above. Null when
+  /// IGDB has no time-to-beat data for this game. This is always less time than timeToBeatHours
+  /// (Main Story), not more - the three game_time_to_beats figures are strictly ordered hastily <
+  /// normally < completely - so it's additive alongside timeToBeatHours rather than replacing it,
+  /// but represents a quicker/less-thorough clear, not a fuller one.
+  timeToBeatRushedHours        Int? @map("time_to_beat_rushed_hours")
+  /// Hours for a full completionist (100%) playthrough, from IGDB's game_time_to_beats
+  /// "completely" figure (issue #248) - same capture-at-intake reasoning as timeToBeatHours
+  /// above. Null when IGDB has no time-to-beat data for this game.
+  timeToBeatCompletionistHours Int? @map("time_to_beat_completionist_hours")
   ggDealsUrl     String?    @map("gg_deals_url")
   steamAppid     Int?       @map("steam_appid")
   coverImageUrl  String?    @map("cover_image_url")
