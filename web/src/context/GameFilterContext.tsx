@@ -7,10 +7,13 @@ interface GameFilterContextValue {
   genreFilter: string;
   statusFilter: string;
   searchQuery: string;
+  /** "Collecting dust" toggle (issue #249) - see isNeglectedBacklogGame. */
+  neglectedFilter: boolean;
   setPlatformFilter: (value: string) => void;
   setGenreFilter: (value: string) => void;
   setStatusFilter: (value: string) => void;
   setSearchQuery: (value: string) => void;
+  setNeglectedFilter: (value: boolean) => void;
 }
 
 const GameFilterContext = createContext<GameFilterContextValue | undefined>(undefined);
@@ -26,6 +29,7 @@ export function GameFilterProvider({ children }: { children: ReactNode }) {
   const [genreFilter, setGenreFilter] = useState(ALL_FILTER_VALUE);
   const [statusFilter, setStatusFilter] = useState(ALL_FILTER_VALUE);
   const [searchQuery, setSearchQuery] = useState('');
+  const [neglectedFilter, setNeglectedFilter] = useState(false);
   const viewKey = view.type === 'room' ? `room:${view.roomId}` : 'personal';
 
   useEffect(() => {
@@ -33,6 +37,7 @@ export function GameFilterProvider({ children }: { children: ReactNode }) {
     setGenreFilter(ALL_FILTER_VALUE);
     setStatusFilter(ALL_FILTER_VALUE);
     setSearchQuery('');
+    setNeglectedFilter(false);
   }, [viewKey]);
 
   return (
@@ -42,10 +47,12 @@ export function GameFilterProvider({ children }: { children: ReactNode }) {
         genreFilter,
         statusFilter,
         searchQuery,
+        neglectedFilter,
         setPlatformFilter,
         setGenreFilter,
         setStatusFilter,
         setSearchQuery,
+        setNeglectedFilter,
       }}
     >
       {children}

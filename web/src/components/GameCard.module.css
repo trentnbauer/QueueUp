@@ -126,6 +126,25 @@
   line-height: 1;
 }
 
+/* Top-left corner of the cover art (issue #249) - opposite the vote badge's bottom-right spot, and
+   hidden whenever the select checkbox occupies that same corner during bulk-select. */
+.dustBadge {
+  position: absolute;
+  left: 10px;
+  top: 10px;
+  z-index: 6;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 5px 9px;
+  border-radius: 999px;
+  background: rgba(0, 0, 0, 0.55);
+  backdrop-filter: blur(2px);
+  font: 700 10.5px system-ui, sans-serif;
+  color: rgba(255, 255, 255, 0.85);
+  white-space: nowrap;
+}
+
 .everyoneOwnsLine {
   font: 800 10.5px system-ui, sans-serif;
   letter-spacing: 0.02em;

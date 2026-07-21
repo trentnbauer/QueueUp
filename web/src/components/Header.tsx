@@ -8,7 +8,7 @@ import { useConfirm } from '../context/ConfirmContext';
 import { useGames } from '../hooks/useGames';
 import { useGameFilter } from '../context/GameFilterContext';
 import { useSteamImportContext } from '../context/SteamImportContext';
-import { ALL_FILTER_VALUE, distinctValues } from './gameGridLogic';
+import { ALL_FILTER_VALUE, NEGLECTED_BACKLOG_MONTHS, distinctValues, isNeglectedBacklogGame } from './gameGridLogic';
 import { roomsApi } from '../api/rooms';
 import { AvatarBadge } from './AvatarBadge';
 import { RoomSettingsModal } from './RoomSettingsModal';
@@ -74,10 +74,12 @@ export function Header() {
     genreFilter,
     statusFilter,
     searchQuery,
+    neglectedFilter,
     setPlatformFilter,
     setGenreFilter,
     setStatusFilter,
     setSearchQuery,
+    setNeglectedFilter,
   } = useGameFilter();
 
   const membersMenuRef = useRef<HTMLDetailsElement>(null);
@@ -124,6 +126,10 @@ export function Header() {
     const present = new Set(games.map((g) => g.status));
     return STATUS_FILTER_ORDER.filter((status) => present.has(status));
   }, [games]);
+
+  // Only shown once at least one game actually qualifies - same "don't offer a filter with nothing
+  // to filter" reasoning PillFilter already applies to platform/genre/status (issue #249).
+  const neglectedCount = useMemo(() => games.filter((g) => isNeglectedBacklogGame(g)).length, [games]);
 
   function canPromote(memberRole: RoomRole): boolean {
     return myRole === 'room_master' && memberRole === 'member';
@@ -311,6 +317,21 @@ export function Header() {
           value={statusFilter}
           onChange={setStatusFilter}
         />
+        {neglectedCount > 0 && (
+          <div className={styles.filterGroup}>
+            <span className={styles.filterLabel}>Neglected</span>
+            <div className={styles.filterPills}>
+              <button
+                type="button"
+                className={`${styles.filterPill} ${neglectedFilter ? styles.filterPillActive : ''}`}
+                onClick={() => setNeglectedFilter(!neglectedFilter)}
+                title={`Backlog games added ${NEGLECTED_BACKLOG_MONTHS}+ months ago with no vote or status change since`}
+              >
+                🕸 Collecting dust ({neglectedCount})
+              </button>
+            </div>
+          </div>
+        )}
       </div>
 
       {showRoomSettings && activeRoom && (

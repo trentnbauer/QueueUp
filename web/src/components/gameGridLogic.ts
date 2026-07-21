@@ -32,21 +32,55 @@ export interface GameFilterState {
   genreFilter: string;
   statusFilter: string;
   searchQuery: string;
+  /** True to show only "collecting dust" games (see isNeglectedBacklogGame) - false/undefined
+   * applies no filtering on this axis, same convention as the other pill filters using
+   * ALL_FILTER_VALUE, just boolean instead of multi-option since there's nothing to pick between. */
+  neglectedFilter?: boolean;
 }
 
-/** The platform/genre/status/search predicate GameGrid renders by - pulled out so any other place
- * that needs to know "what's actually visible" (e.g. the Personal Shelf's bulk-select "Select all",
- * which must not silently include games hidden by the active filter) applies the exact same rule
- * instead of a second, driftable copy of it. */
-export function filterGames(games: Game[], filter: GameFilterState): Game[] {
+/** The platform/genre/status/neglected/search predicate GameGrid renders by - pulled out so any
+ * other place that needs to know "what's actually visible" (e.g. the Personal Shelf's bulk-select
+ * "Select all", which must not silently include games hidden by the active filter) applies the
+ * exact same rule instead of a second, driftable copy of it. */
+export function filterGames(games: Game[], filter: GameFilterState, now: number = Date.now()): Game[] {
   const normalizedQuery = filter.searchQuery.trim().toLowerCase();
   return games.filter(
     (g) =>
       (filter.platformFilter === ALL_FILTER_VALUE || splitLabel(g.platform).includes(filter.platformFilter)) &&
       (filter.genreFilter === ALL_FILTER_VALUE || splitLabel(g.genre).includes(filter.genreFilter)) &&
       (filter.statusFilter === ALL_FILTER_VALUE || g.status === filter.statusFilter) &&
+      (!filter.neglectedFilter || isNeglectedBacklogGame(g, now)) &&
       (normalizedQuery === '' || g.title.toLowerCase().includes(normalizedQuery)),
   );
+}
+
+// Ongoing "you've had this a while and haven't touched it" nudge (issue #249) - Year in Review
+// (see the /api/me/year-in-review route) already says this, but only as a once-a-year, on-demand
+// snapshot over a fixed trailing-12-month window. This is meant to be a year-round ambient signal
+// instead, so it needs a much shorter window - 3 months is long enough that a game isn't flagged
+// the week after it's added, but short enough to actually nudge toward clearing the backlog rather
+// than only ever looking back once a year. Named/exported so the threshold has exactly one place to
+// tune instead of a magic number buried in the predicate below.
+export const NEGLECTED_BACKLOG_MONTHS = 3;
+
+/** A backlog game added NEGLECTED_BACKLOG_MONTHS+ ago with no recent activity. "No recent
+ * activity" mirrors how the rest of the codebase already treats these two signals (see the
+ * year-in-review route): Game.updatedAt as a proxy for the last status change - any edit bumps it,
+ * so a completely untouched game will have updatedAt === createdAt, but this can also miss genuine
+ * neglect if some unrelated edit (e.g. a target price) bumped it - and votes checked separately via
+ * their own per-vote createdAt, since casting a vote does not touch Game.updatedAt at all. */
+export function isNeglectedBacklogGame(game: Game, now: number = Date.now()): boolean {
+  if (game.status !== 'backlog') return false;
+
+  const threshold = new Date(now);
+  threshold.setMonth(threshold.getMonth() - NEGLECTED_BACKLOG_MONTHS);
+  const thresholdMs = threshold.getTime();
+
+  if (new Date(game.createdAt).getTime() > thresholdMs) return false;
+  if (new Date(game.updatedAt).getTime() > thresholdMs) return false;
+  if (game.votes.some((v) => new Date(v.createdAt).getTime() > thresholdMs)) return false;
+
+  return true;
 }
 
 /** A room game every *current* member owns is the easiest "let's just play this" pick - nothing
