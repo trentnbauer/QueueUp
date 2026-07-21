@@ -49,9 +49,10 @@ export function SettingsView() {
   async function handleDeleteUser(id: string) {
     const ok = await confirm({
       title: 'Delete user?',
-      message: 'This also deletes their personal shelf games and votes.',
+      message: "This also deletes their personal shelf games and votes. This can't be undone.",
       confirmLabel: 'Delete',
       danger: true,
+      typedConfirmation: 'DELETE',
     });
     if (!ok) return;
     try {

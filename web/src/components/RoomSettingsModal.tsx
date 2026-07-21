@@ -148,6 +148,7 @@ export function RoomSettingsModal({ room, members, games, onClose }: RoomSetting
       message: `${room.name} and all its games, votes, and membership will be permanently deleted. This can't be undone.`,
       confirmLabel: 'Delete room',
       danger: true,
+      typedConfirmation: 'DELETE',
     });
     if (!ok) return;
     setDeleting(true);
