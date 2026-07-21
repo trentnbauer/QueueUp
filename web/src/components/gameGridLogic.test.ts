@@ -9,6 +9,10 @@ import {
   statusBucket,
   spinCandidateWeight,
   pickSpinWinner,
+  isNeglectedBacklogGame,
+  filterGames,
+  NEGLECTED_BACKLOG_MONTHS,
+  ALL_FILTER_VALUE,
 } from './gameGridLogic';
 
 function makeGame(overrides: Partial<Game> = {}): Game {
@@ -174,6 +178,95 @@ describe('spinCandidateWeight', () => {
     const light = makeGame({ voteScore: 1, genre: 'Puzzle' });
     const ratio = spinCandidateWeight(heavy, new Set()) / spinCandidateWeight(light, new Set());
     expect(ratio).toBeLessThan(16);
+  });
+});
+
+describe('isNeglectedBacklogGame', () => {
+  const NOW = new Date('2026-07-01T00:00:00.000Z').getTime();
+  const THRESHOLD = new Date('2026-04-01T00:00:00.000Z').toISOString(); // NOW minus NEGLECTED_BACKLOG_MONTHS
+  const JUST_OLD_ENOUGH = new Date('2026-03-31T00:00:00.000Z').toISOString();
+  const TOO_RECENT = new Date('2026-05-01T00:00:00.000Z').toISOString();
+
+  it('uses a shorter window than Year in Review\'s fixed 12-month lookback', () => {
+    // Guards the "ongoing nudge, not an annual one" intent from issue #249 - if someone bumps this
+    // back up to 12 it silently turns into a second copy of the recap window instead of a
+    // year-round signal.
+    expect(NEGLECTED_BACKLOG_MONTHS).toBeLessThan(12);
+    expect(NEGLECTED_BACKLOG_MONTHS).toBeGreaterThan(0);
+  });
+
+  it('is false for a non-backlog game, no matter how old', () => {
+    const game = makeGame({ status: 'playing', createdAt: JUST_OLD_ENOUGH, updatedAt: JUST_OLD_ENOUGH });
+    expect(isNeglectedBacklogGame(game, NOW)).toBe(false);
+  });
+
+  it('is false when the game was added more recently than the threshold', () => {
+    const game = makeGame({ status: 'backlog', createdAt: TOO_RECENT, updatedAt: TOO_RECENT });
+    expect(isNeglectedBacklogGame(game, NOW)).toBe(false);
+  });
+
+  it('is false when updatedAt (status-change proxy) is more recent than the threshold', () => {
+    const game = makeGame({ status: 'backlog', createdAt: JUST_OLD_ENOUGH, updatedAt: TOO_RECENT });
+    expect(isNeglectedBacklogGame(game, NOW)).toBe(false);
+  });
+
+  it('is false when a vote was cast more recently than the threshold, even if the game itself is untouched', () => {
+    const game = makeGame({
+      status: 'backlog',
+      createdAt: JUST_OLD_ENOUGH,
+      updatedAt: JUST_OLD_ENOUGH,
+      votes: [{ user: { id: 'u2', displayName: 'Friend', avatarColor: '#000', avatarUrl: null, isAdmin: false }, value: 3, createdAt: TOO_RECENT }],
+    });
+    expect(isNeglectedBacklogGame(game, NOW)).toBe(false);
+  });
+
+  it('is true for a backlog game added and last touched at or before the threshold, with no recent votes', () => {
+    const game = makeGame({ status: 'backlog', createdAt: JUST_OLD_ENOUGH, updatedAt: JUST_OLD_ENOUGH });
+    expect(isNeglectedBacklogGame(game, NOW)).toBe(true);
+  });
+
+  it('treats added-exactly-at-the-threshold as old enough (N+ months, inclusive)', () => {
+    const game = makeGame({ status: 'backlog', createdAt: THRESHOLD, updatedAt: THRESHOLD });
+    expect(isNeglectedBacklogGame(game, NOW)).toBe(true);
+  });
+
+  it('is true when there are only old votes, none within the window', () => {
+    const game = makeGame({
+      status: 'backlog',
+      createdAt: JUST_OLD_ENOUGH,
+      updatedAt: JUST_OLD_ENOUGH,
+      votes: [{ user: { id: 'u2', displayName: 'Friend', avatarColor: '#000', avatarUrl: null, isAdmin: false }, value: 3, createdAt: JUST_OLD_ENOUGH }],
+    });
+    expect(isNeglectedBacklogGame(game, NOW)).toBe(true);
+  });
+});
+
+describe('filterGames neglectedFilter', () => {
+  const NOW = new Date('2026-07-01T00:00:00.000Z').getTime();
+  const OLD = new Date('2026-01-01T00:00:00.000Z').toISOString();
+  const RECENT = new Date('2026-06-25T00:00:00.000Z').toISOString();
+
+  it('shows every game when neglectedFilter is off', () => {
+    const dusty = makeGame({ id: 'dusty', status: 'backlog', createdAt: OLD, updatedAt: OLD });
+    const fresh = makeGame({ id: 'fresh', status: 'backlog', createdAt: RECENT, updatedAt: RECENT });
+    const result = filterGames(
+      [dusty, fresh],
+      { platformFilter: ALL_FILTER_VALUE, genreFilter: ALL_FILTER_VALUE, statusFilter: ALL_FILTER_VALUE, searchQuery: '', neglectedFilter: false },
+      NOW,
+    );
+    expect(result.map((g) => g.id).sort()).toEqual(['dusty', 'fresh']);
+  });
+
+  it('shows only neglected backlog games when neglectedFilter is on', () => {
+    const dusty = makeGame({ id: 'dusty', status: 'backlog', createdAt: OLD, updatedAt: OLD });
+    const fresh = makeGame({ id: 'fresh', status: 'backlog', createdAt: RECENT, updatedAt: RECENT });
+    const playingOld = makeGame({ id: 'playing-old', status: 'playing', createdAt: OLD, updatedAt: OLD });
+    const result = filterGames(
+      [dusty, fresh, playingOld],
+      { platformFilter: ALL_FILTER_VALUE, genreFilter: ALL_FILTER_VALUE, statusFilter: ALL_FILTER_VALUE, searchQuery: '', neglectedFilter: true },
+      NOW,
+    );
+    expect(result.map((g) => g.id)).toEqual(['dusty']);
   });
 });
 

@@ -1,6 +1,6 @@
 import { HttpError } from '../util/httpError.js';
 import { redis } from './redisClient.js';
-import type { SteamImportProgress } from '@queueup/shared';
+import type { SteamImportProgress, SteamWishlistImportProgress } from '@queueup/shared';
 
 const STEAM_SUB_PREFIX = 'steam:';
 
@@ -286,4 +286,36 @@ export async function acquireSteamImportLock(userId: string): Promise<boolean> {
 
 export async function releaseSteamImportLock(userId: string): Promise<void> {
   await redis.del(importLockKey(userId));
+}
+
+function wishlistImportProgressKey(userId: string): string {
+  return `steam-wishlist-import-progress:${userId}`;
+}
+
+/** Wishlist counterpart to setSteamImportProgress/getSteamImportProgress above (issue #245) - same
+ * reasoning, separate Redis key so a library import and a wishlist import running for the same
+ * user at once don't clobber each other's progress. */
+export async function setSteamWishlistImportProgress(userId: string, progress: SteamWishlistImportProgress): Promise<void> {
+  await redis.set(wishlistImportProgressKey(userId), JSON.stringify(progress), 'EX', IMPORT_PROGRESS_TTL_SECONDS);
+}
+
+export async function getSteamWishlistImportProgress(userId: string): Promise<SteamWishlistImportProgress | null> {
+  const cached = await redis.get(wishlistImportProgressKey(userId));
+  return cached ? (JSON.parse(cached) as SteamWishlistImportProgress) : null;
+}
+
+function wishlistImportLockKey(userId: string): string {
+  return `steam-wishlist-import-lock:${userId}`;
+}
+
+/** Wishlist counterpart to acquireSteamImportLock/releaseSteamImportLock above (issue #245) - same
+ * reasoning, separate key so it only guards against two overlapping wishlist imports rather than
+ * also blocking on (or being blocked by) an in-flight library import for the same user. */
+export async function acquireSteamWishlistImportLock(userId: string): Promise<boolean> {
+  const result = await redis.set(wishlistImportLockKey(userId), '1', 'EX', IMPORT_LOCK_TTL_SECONDS, 'NX');
+  return result === 'OK';
+}
+
+export async function releaseSteamWishlistImportLock(userId: string): Promise<void> {
+  await redis.del(wishlistImportLockKey(userId));
 }

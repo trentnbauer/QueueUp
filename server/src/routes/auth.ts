@@ -9,7 +9,15 @@ import { extractSteamId64, resolveSteamId64 } from '../services/steamLibrary.js'
 import { setOwnedPlatforms } from '../services/userSettings.js';
 import { logAdminAction } from '../services/adminAuditLog.js';
 import type { OAuthProfile } from '../services/authProviders/types.js';
-import type { UpdateOwnedPlatformsRequest } from '@queueup/shared';
+import type {
+  DataExport,
+  DataExportGame,
+  DataExportLinkedIdentity,
+  DataExportRoomMembership,
+  DataExportVote,
+  UpdateOwnedPlatformsRequest,
+  VoteValue,
+} from '@queueup/shared';
 
 /** Attaches a verified secondary identity to an already-signed-in user's account, rather than
  * creating/upserting a user by oidcSub like a normal login (see getOrCreateUser). Steam is the one
@@ -207,6 +215,121 @@ export default async function authRoutes(app: FastifyInstance) {
     const ownedPlatforms = await setOwnedPlatforms(userId, request.body?.platforms);
     return reply.send({ ownedPlatforms });
   });
+
+  // "Download my data" (issue #243) - a safety net before the irreversible DELETE /api/me below,
+  // so someone can grab a copy of what they're about to lose. Reads from the same tables Year in
+  // Review does (see /api/me/year-in-review in games.ts), just without that route's windowing -
+  // this is a full point-in-time snapshot, not a rolling-12-months summary. Never destructive, so
+  // no confirmation gating beyond being logged in.
+  app.get(
+    '/api/me/export',
+    // Same class of route as Year in Review - a direct, occasional Profile Settings action, not
+    // something a normal session comes close to hitting.
+    { config: { rateLimit: { max: 20, timeWindow: '1 minute' } } },
+    async (request, reply) => {
+      const userId = await request.requireAuth();
+
+      const [user, games, votes, memberships] = await Promise.all([
+        prisma.user.findUniqueOrThrow({ where: { id: userId }, include: { linkedIdentities: true } }),
+        // Personal Shelf (roomId null) and room games, combined - same addedBy scoping Year in
+        // Review uses, just not restricted to Done/the trailing year.
+        prisma.game.findMany({
+          where: { addedBy: userId },
+          select: {
+            id: true,
+            title: true,
+            platform: true,
+            genre: true,
+            status: true,
+            roomId: true,
+            room: { select: { name: true } },
+            createdAt: true,
+            updatedAt: true,
+          },
+          orderBy: { createdAt: 'asc' },
+        }),
+        prisma.vote.findMany({
+          where: { userId },
+          select: {
+            gameId: true,
+            value: true,
+            createdAt: true,
+            game: { select: { title: true, roomId: true, room: { select: { name: true } } } },
+          },
+          orderBy: { createdAt: 'asc' },
+        }),
+        prisma.roomMember.findMany({
+          where: { userId },
+          select: { roomId: true, role: true, joinedAt: true, room: { select: { name: true } } },
+          orderBy: { joinedAt: 'asc' },
+        }),
+      ]);
+
+      // Every provider prefixes its oidcSub with "<provider>:" (see primaryProviderOf's doc
+      // above) - accountId strips that prefix back off so the export carries the provider's own
+      // account id, never a token/secret (none are stored for a linked identity to begin with).
+      const accountId = (sub: string) => sub.slice(sub.indexOf(':') + 1);
+      const primaryProvider = primaryProviderOf(user.oidcSub);
+      const linkedIdentities: DataExportLinkedIdentity[] = [
+        { provider: primaryProvider, providerAccountId: accountId(user.oidcSub) },
+        ...(user.steamId64 && primaryProvider !== 'steam' ? [{ provider: 'steam', providerAccountId: user.steamId64 }] : []),
+        ...user.linkedIdentities.map((identity) => ({
+          provider: identity.provider,
+          providerAccountId: accountId(identity.oidcSub),
+        })),
+      ];
+
+      const gamesAdded: DataExportGame[] = games.map((g) => ({
+        id: g.id,
+        title: g.title,
+        platform: g.platform,
+        genre: g.genre,
+        status: g.status,
+        roomId: g.roomId,
+        roomName: g.room?.name ?? null,
+        createdAt: g.createdAt.toISOString(),
+        updatedAt: g.updatedAt.toISOString(),
+      }));
+
+      const votesCast: DataExportVote[] = votes.map((v) => ({
+        gameId: v.gameId,
+        gameTitle: v.game.title,
+        roomId: v.game.roomId,
+        roomName: v.game.room?.name ?? null,
+        value: v.value as VoteValue,
+        createdAt: v.createdAt.toISOString(),
+      }));
+
+      const roomMemberships: DataExportRoomMembership[] = memberships.map((m) => ({
+        roomId: m.roomId,
+        roomName: m.room.name,
+        role: m.role,
+        joinedAt: m.joinedAt.toISOString(),
+      }));
+
+      const result: DataExport = {
+        exportedAt: new Date().toISOString(),
+        account: {
+          id: user.id,
+          email: user.email,
+          displayName: user.displayName,
+          createdAt: user.createdAt.toISOString(),
+          ownedPlatforms: user.ownedPlatforms,
+        },
+        linkedIdentities,
+        gamesAdded,
+        votesCast,
+        roomMemberships,
+      };
+
+      // Same download-trigger mechanism as GET /api/admin/logs/export: a plain same-origin
+      // response with Content-Disposition, fetched via a plain <a href download> on the frontend
+      // rather than a fetch+blob dance.
+      reply.header('Content-Type', 'application/json; charset=utf-8');
+      reply.header('Content-Disposition', `attachment; filename="queueup-data-export-${Date.now()}.json"`);
+      return result;
+    },
+  );
 
   app.delete(
     '/api/me',

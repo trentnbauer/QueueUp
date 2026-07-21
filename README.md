@@ -57,7 +57,22 @@ Only set `TRUST_PROXY=false` if this container is exposed directly with nothing 
 
 ## Backups
 
-Postgres and Redis data are bind-mounted to `./data/postgres` and `./data/redis` (override the root with `DATA_DIR` in `.env`). Point Borg, or any backup tool, at that `data/` directory.
+Postgres and Redis data are bind-mounted to `./data/postgres` and `./data/redis` (override the root with `DATA_DIR` in `.env`). Point Borg, or any backup tool, at that `data/` directory for a full filesystem-level backup.
+
+On top of that, `docker-compose.prod.yml` also runs a small `backup` service that takes care of Postgres on its own: every `BACKUP_INTERVAL_HOURS` (default 24), it runs `pg_dump` and writes a gzipped, timestamped dump to `./data/backups` (e.g. `squadqueue-20260415T030000Z.sql.gz`), then deletes older dumps beyond `BACKUP_RETENTION_COUNT` (default 14, i.e. two weeks of daily backups). It uses the same `postgres:18-alpine` image as the `postgres` service itself, so `pg_dump` always matches the server version in use — see `docker/backup-entrypoint.sh`. This is a full logical dump each run (no WAL archiving/point-in-time recovery) and only covers Postgres, not Redis (sessions/cache, safe to lose) — for anything beyond "restore to the last dump," keep using a filesystem-level tool against `data/` as above.
+
+### Restoring from a backup
+
+1. Pick a dump from `./data/backups` (or wherever `DATA_DIR` points), e.g. `squadqueue-20260415T030000Z.sql.gz`.
+2. Make sure the stack is up so `postgres` is reachable (`docker compose --env-file .env -f docker-compose.prod.yml up -d postgres`). Restoring into a fresh/empty database is cleanest — if you're recovering onto an existing (possibly corrupted) database, either drop and recreate it first or expect errors from objects that already exist.
+3. Restore the dump through the same `postgres:18-alpine` image the `backup` service uses, so `psql`'s version matches:
+   ```sh
+   gunzip -c ./data/backups/squadqueue-20260415T030000Z.sql.gz | \
+     docker compose --env-file .env -f docker-compose.prod.yml exec -T postgres \
+     psql -U "$POSTGRES_USER" -d "$POSTGRES_DB"
+   ```
+   (Fill in `$POSTGRES_USER`/`$POSTGRES_DB`, or source `.env` first, if they're not already in your shell's environment — they default to `squadqueue` if you never changed them.)
+4. Restart the `server` service (`docker compose --env-file .env -f docker-compose.prod.yml restart server`) so it reconnects cleanly against the restored data.
 
 ## Local development
 

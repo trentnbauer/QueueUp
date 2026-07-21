@@ -12,7 +12,7 @@ interface SteamWishlistImportCardProps {
  * shelf with status Wishlist rather than the default. */
 export function SteamWishlistImportCard({ steamLinked }: SteamWishlistImportCardProps) {
   const confirm = useConfirm();
-  const { busy, activeKind, result, error, startLink, runWishlistImport } = useSteamImportContext();
+  const { busy, activeKind, result, error, wishlistProgress, startLink, runWishlistImport } = useSteamImportContext();
   const isMine = activeKind === 'wishlist';
   const myResult = isMine ? result : null;
   const myError = isMine ? error : null;
@@ -45,7 +45,13 @@ export function SteamWishlistImportCard({ steamLinked }: SteamWishlistImportCard
           {steamLinked ? 'Add your Steam wishlist to this shelf' : 'Sign in with Steam to import your wishlist'}
         </div>
       )}
-      {busy && isMine && <div className={styles.hint}>Checking your Steam wishlist…</div>}
+      {busy && isMine && (
+        <div className={styles.hint}>
+          {wishlistProgress
+            ? `${wishlistProgress.totalWishlisted} wishlisted · checked ${wishlistProgress.imported + wishlistProgress.skipped} of ${wishlistProgress.consideredCount} · ${wishlistProgress.imported} imported so far`
+            : 'Checking your Steam wishlist…'}
+        </div>
+      )}
       {myResult && <div className={styles.hint}>{myResult}</div>}
       {myError && (
         <div className={styles.hint} style={{ color: '#ff8a80' }}>

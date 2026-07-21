@@ -1,7 +1,7 @@
 import type { Prisma } from '@prisma/client';
 import type { Game, GamePrice, PriceRegion, VoteValue } from '@queueup/shared';
 import { getSteamPrice, getSteamPrices } from './priceService.js';
-import { checkPriceDropAlert, checkAllTimeLowAlert } from './priceAlerts.js';
+import { runPriceAlertChecks } from './priceAlerts.js';
 import { getOwnershipInfo, type GameOwnershipInfo } from './gameOwnership.js';
 import { toUserDto } from '../util/dto.js';
 
@@ -58,9 +58,10 @@ export async function serializeGame(game: GameWithRelations, currentUserId: stri
   const price = game.steamAppid ? await getSteamPrice(game.steamAppid, { region }) : UNAVAILABLE_PRICE;
   // Not awaited: this piggybacks on whatever page load happened to trigger a fresh price fetch
   // (see priceAlerts.ts) rather than gating the response on it - a delayed alert is fine, a
-  // slower shelf/room load for every viewer isn't.
-  if (game.targetPrice) void checkPriceDropAlert(game, price);
-  void checkAllTimeLowAlert(game, price);
+  // slower shelf/room load for every viewer isn't. Also covered independently of page views by
+  // the scheduled job (jobs/priceAlertJob.ts, #255) - this call stays so a drop is still caught
+  // immediately when a live fetch happens to occur anyway, rather than waiting for the next run.
+  void runPriceAlertChecks(game, price);
   const ownershipMap = await getOwnershipInfo([game], currentUserId);
   return buildGameDto(game, currentUserId, price, ownershipMap.get(game.id) ?? DEFAULT_OWNERSHIP);
 }
@@ -71,8 +72,7 @@ export async function serializeGames(games: GameWithRelations[], currentUserId: 
 
   return games.map((game) => {
     const price = (game.steamAppid && prices.get(game.steamAppid)) || UNAVAILABLE_PRICE;
-    if (game.targetPrice) void checkPriceDropAlert(game, price);
-    void checkAllTimeLowAlert(game, price);
+    void runPriceAlertChecks(game, price);
     return buildGameDto(game, currentUserId, price, ownershipMap.get(game.id) ?? DEFAULT_OWNERSHIP);
   });
 }
