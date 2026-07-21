@@ -449,3 +449,74 @@ export interface YearInReview {
    * achievementsUnlocked being 0. */
   rarestAchievements: YearInReviewRareAchievement[];
 }
+
+/** One game the caller added, in the "Download my data" export - a slimmer, DB-shaped view than
+ * the full `Game` DTO (no live price lookup, no other members' votes), since this is a bulk
+ * point-in-time snapshot rather than something rendered as a card. `roomId`/`roomName` are null
+ * for a Personal Shelf entry. */
+export interface DataExportGame {
+  id: string;
+  title: string;
+  platform: string;
+  genre: string | null;
+  status: GameStatus;
+  roomId: string | null;
+  roomName: string | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
+/** One vote the caller cast, in the "Download my data" export. `gameTitle`/`roomId`/`roomName`
+ * are snapshotted alongside the vote itself so the export reads standalone even for a vote on a
+ * game the caller didn't add. */
+export interface DataExportVote {
+  gameId: string;
+  gameTitle: string;
+  roomId: string | null;
+  roomName: string | null;
+  value: VoteValue;
+  createdAt: string;
+}
+
+/** One room the caller is (or was, at export time) a member of. */
+export interface DataExportRoomMembership {
+  roomId: string;
+  roomName: string;
+  role: RoomRole;
+  joinedAt: string;
+}
+
+/** One provider that can sign into the caller's account - the primary sign-in identity
+ * (User.oidcSub) plus any secondary providers linked afterward (see LinkedIdentity in
+ * schema.prisma), Steam included even though a linked Steam account lives on `User.steamId64`
+ * rather than a LinkedIdentity row. Provider name and the provider's own account id only, never
+ * a token/secret, since none are ever stored for a linked identity to begin with. */
+export interface DataExportLinkedIdentity {
+  provider: string;
+  providerAccountId: string;
+}
+
+/** Full point-in-time JSON snapshot of everything the app knows about the caller, downloadable
+ * from Profile Settings' Danger Zone as a safety net before account deletion (issue #243) - not
+ * scheduled/automatic, generated fresh on each request from the same tables Year in Review reads
+ * (see `/api/me/year-in-review`). Deliberately excludes anything not owned by the caller (e.g.
+ * other members' votes on a shared room game) and any credential/token material. */
+export interface DataExport {
+  exportedAt: string;
+  account: {
+    id: string;
+    email: string;
+    displayName: string;
+    createdAt: string;
+    /** Systems ticked as "owned" on the Personal Shelf - see User.ownedPlatforms. */
+    ownedPlatforms: RoomPlatform[];
+  };
+  /** Every provider that can sign into this account - the primary sign-in identity plus any
+   * linked afterward (including Steam, if linked). */
+  linkedIdentities: DataExportLinkedIdentity[];
+  /** Personal Shelf games (`roomId` null) and games added to a room, combined - same `addedBy`
+   * scoping as Year in Review's own queries. */
+  gamesAdded: DataExportGame[];
+  votesCast: DataExportVote[];
+  roomMemberships: DataExportRoomMembership[];
+}

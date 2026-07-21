@@ -351,6 +351,20 @@ export function ProfileSettingsView() {
       <div className={styles.section}>
         <div className={styles.dangerSectionTitle}>Danger zone</div>
         <p className={styles.hint}>
+          Get a copy of your data before you delete anything: your Personal Shelf and room games,
+          votes, room memberships, linked sign-in providers, and owned-platforms preference, as a
+          JSON file.
+        </p>
+        <div className={styles.saveRow}>
+          {/* A plain link, not a fetch+blob dance - same download-trigger mechanism as the admin
+              log export in SettingsView.tsx. The browser already sends the session cookie for a
+              same-origin navigation, and the server's Content-Disposition header is what actually
+              triggers the download rather than navigating away from the page. */}
+          <a className={styles.unlinkButton} href="/api/me/export" download>
+            Download my data
+          </a>
+        </div>
+        <p className={styles.hint}>
           Permanently delete your account: your Personal Shelf, votes, room memberships, and every
           game you've added to a room. This can't be undone. If you still own a room (created it
           and haven't transferred ownership), delete it or hand it off to another member in Room
