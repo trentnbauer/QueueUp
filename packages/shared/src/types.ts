@@ -240,16 +240,14 @@ export interface SteamImportStarted {
   consideredCount: number;
 }
 
-/** Result of a wishlist import (issue #228) - added with status `wishlist` rather than the
- * default, and never marked owned. Unlike the library import, this still runs and responds
- * synchronously (no progress-polling counterpart) since wishlists are typically much smaller;
- * switch to the same background-with-progress approach as library import if that stops being
- * true. */
-export interface ImportSteamWishlistResult {
+/** Response from POST /api/games/import-steam-wishlist (issue #228 added the route, #245 moved it
+ * to this same background-and-poll shape as library import - see SteamImportStarted). Added with
+ * status `wishlist` rather than the default, and never marked owned. This response only confirms
+ * the import started; poll SteamWishlistImportProgress for live counts and to know when it's
+ * actually done. */
+export interface SteamWishlistImportStarted {
   totalWishlisted: number;
   consideredCount: number;
-  imported: number;
-  skipped: number;
 }
 
 /** Polled by the shelf UI while an import is running (see routes/games.ts and
@@ -259,6 +257,16 @@ export interface ImportSteamWishlistResult {
  * SteamImportStarted). */
 export interface SteamImportProgress {
   totalOwned: number;
+  consideredCount: number;
+  imported: number;
+  skipped: number;
+  done: boolean;
+}
+
+/** Wishlist counterpart to SteamImportProgress (issue #245) - same reasoning/shape, but for a
+ * wishlist import (see SteamWishlistImportStarted) rather than a library import. */
+export interface SteamWishlistImportProgress {
+  totalWishlisted: number;
   consideredCount: number;
   imported: number;
   skipped: number;

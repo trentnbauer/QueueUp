@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import type { SteamImportProgress } from '@queueup/shared';
+import type { SteamImportProgress, SteamWishlistImportProgress } from '@queueup/shared';
 import { gamesApi } from '../api/games';
 
 const PROGRESS_POLL_INTERVAL_MS = 1000;
@@ -26,6 +26,7 @@ export function useSteamImport(steamLinked: boolean, onImported: () => void) {
   const [result, setResult] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [progress, setProgress] = useState<SteamImportProgress | null>(null);
+  const [wishlistProgress, setWishlistProgress] = useState<SteamWishlistImportProgress | null>(null);
   const autoImportRan = useRef(false);
 
   useEffect(() => {
@@ -49,21 +50,43 @@ export function useSteamImport(steamLinked: boolean, onImported: () => void) {
     setActiveKind('wishlist');
     setResult(null);
     setError(null);
-    setProgress(null);
+    setWishlistProgress(null);
 
+    // Mirrors runImport below (issue #245) - the import itself (one IGDB lookup per considered
+    // wishlist game) runs in the background on the server rather than as part of this request, for
+    // the same reverse-proxy/CDN timeout reason as library import. So this POST only confirms the
+    // import started; the progress endpoint below is polled for both live counts and to detect
+    // completion, instead of waiting on the POST's response for either.
     try {
-      const { imported, skipped, totalWishlisted, consideredCount } = await gamesApi.importSteamWishlist();
-      setResult(
-        imported === 0
-          ? `No new wishlist games to add (checked ${consideredCount} of ${totalWishlisted} wishlisted).`
-          : `Added ${imported} game${imported === 1 ? '' : 's'} to your Wishlist (skipped ${skipped}, checked ${consideredCount} of ${totalWishlisted} wishlisted).`,
-      );
-      if (imported > 0) onImported();
+      await gamesApi.importSteamWishlist();
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Could not import your Steam wishlist');
-    } finally {
       setBusy(false);
+      return;
     }
+
+    const pollInterval = setInterval(async () => {
+      try {
+        const { progress: latest } = await gamesApi.importSteamWishlistProgress();
+        if (!latest) return;
+        if (!latest.done) {
+          setWishlistProgress(latest);
+          return;
+        }
+
+        clearInterval(pollInterval);
+        setWishlistProgress(null);
+        setResult(
+          latest.imported === 0
+            ? `No new wishlist games to add (checked ${latest.consideredCount} of ${latest.totalWishlisted} wishlisted).`
+            : `Added ${latest.imported} game${latest.imported === 1 ? '' : 's'} to your Wishlist (skipped ${latest.skipped}, checked ${latest.consideredCount} of ${latest.totalWishlisted} wishlisted).`,
+        );
+        if (latest.imported > 0) onImported();
+        setBusy(false);
+      } catch {
+        // A failed poll just means the next tick tries again - the import itself isn't affected.
+      }
+    }, PROGRESS_POLL_INTERVAL_MS);
   }
 
   async function runImport() {
@@ -110,5 +133,5 @@ export function useSteamImport(steamLinked: boolean, onImported: () => void) {
     }, PROGRESS_POLL_INTERVAL_MS);
   }
 
-  return { busy, activeKind, result, error, progress, startLink, runImport, runWishlistImport };
+  return { busy, activeKind, result, error, progress, wishlistProgress, startLink, runImport, runWishlistImport };
 }

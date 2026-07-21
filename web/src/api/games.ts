@@ -5,7 +5,6 @@ import type {
   CreateGameRequest,
   Game,
   GameSearchResult,
-  ImportSteamWishlistResult,
   MoveGameRequest,
   PlayerAchievements,
   PriceRegion,
@@ -13,6 +12,8 @@ import type {
   SetTargetPriceRequest,
   SteamImportProgress,
   SteamImportStarted,
+  SteamWishlistImportProgress,
+  SteamWishlistImportStarted,
   UpdateGameStatusRequest,
   VoteRequest,
   YearInReview,
@@ -44,7 +45,9 @@ export const gamesApi = {
   importSteamLibrary: () => apiPost<SteamImportStarted>('/api/games/import-steam-library'),
   importSteamLibraryProgress: () =>
     apiGet<{ progress: SteamImportProgress | null }>('/api/games/import-steam-library/progress'),
-  importSteamWishlist: () => apiPost<ImportSteamWishlistResult>('/api/games/import-steam-wishlist'),
+  importSteamWishlist: () => apiPost<SteamWishlistImportStarted>('/api/games/import-steam-wishlist'),
+  importSteamWishlistProgress: () =>
+    apiGet<{ progress: SteamWishlistImportProgress | null }>('/api/games/import-steam-wishlist/progress'),
   achievements: (id: string) => apiGet<{ players: PlayerAchievements[] }>(`/api/games/${id}/achievements`),
   yearInReview: () => apiGet<YearInReview>('/api/me/year-in-review'),
 };
