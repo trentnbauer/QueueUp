@@ -22,7 +22,7 @@ async function resolveIgdbCredentials(): Promise<{ clientId: string; clientSecre
 }
 
 const TOKEN_CACHE_KEY = 'igdb:token:v1';
-const DETAIL_CACHE_PREFIX = 'igdb:detail:v5:'; // v5: added releaseYear
+const DETAIL_CACHE_PREFIX = 'igdb:detail:v6:'; // v6: added Main+Extra/Completionist time-to-beat
 const DETAIL_CACHE_TTL_SECONDS = 60 * 60 * 24; // 24h — title/cover/platform/steamAppId rarely change
 
 interface TwitchTokenResponse {
@@ -236,6 +236,13 @@ export interface IgdbGameDetail {
    * (issue #189) - null when IGDB has no time-to-beat data for this game. Sourced from IGDB
    * directly rather than scraping HowLongToBeat, which has no official public API. */
   timeToBeatHours: number | null;
+  /** Hours for a fuller playthrough that also clears a fair amount of side content, from IGDB's
+   * game_time_to_beats "hastily" figure (issue #248) - the same breakdown HowLongToBeat surfaces
+   * as Main Story / Main + Extra / Completionist. Null when IGDB has no time-to-beat data. */
+  timeToBeatMainExtraHours: number | null;
+  /** Hours for a full completionist (100%) playthrough, from IGDB's game_time_to_beats
+   * "completely" figure (issue #248). Null when IGDB has no time-to-beat data. */
+  timeToBeatCompletionistHours: number | null;
 }
 
 // external_game_source 1 == Steam (from the external_game_sources endpoint) — the `games`
@@ -264,15 +271,31 @@ interface IgdbMultiqueryResult<T> {
   result?: T[];
 }
 
-interface IgdbTimeToBeat {
-  // Seconds, per IGDB's game_time_to_beats endpoint - "normally" is a typical/average completion,
-  // the closest analog to HowLongToBeat's "Main Story" figure.
+export interface IgdbTimeToBeat {
+  // Seconds, per IGDB's game_time_to_beats endpoint. "normally" is a typical/average completion,
+  // the closest analog to HowLongToBeat's "Main Story" figure - kept as the sole source of
+  // timeToBeatHours (issue #189) for backward compatibility (issue #248 added the other two
+  // below without touching this one). "hastily" and "completely" round out the same breakdown
+  // HowLongToBeat surfaces as Main + Extra and Completionist respectively.
   normally?: number;
+  hastily?: number;
+  completely?: number;
 }
 
-function timeToBeatHoursFrom(rows: IgdbTimeToBeat[]): number | null {
-  const seconds = rows[0]?.normally;
+export function secondsToHours(seconds: number | undefined): number | null {
   return seconds && seconds > 0 ? Math.round(seconds / 3600) : null;
+}
+
+export function timeToBeatHoursFrom(rows: IgdbTimeToBeat[]): number | null {
+  return secondsToHours(rows[0]?.normally);
+}
+
+export function timeToBeatMainExtraHoursFrom(rows: IgdbTimeToBeat[]): number | null {
+  return secondsToHours(rows[0]?.hastily);
+}
+
+export function timeToBeatCompletionistHoursFrom(rows: IgdbTimeToBeat[]): number | null {
+  return secondsToHours(rows[0]?.completely);
 }
 
 export async function getGameDetail(igdbId: number): Promise<IgdbGameDetail> {
@@ -299,7 +322,7 @@ export async function getGameDetail(igdbId: number): Promise<IgdbGameDetail> {
     `query games "Game" { fields name,cover.image_id,platforms.name,genres.name,first_release_date; where id = ${igdbId}; };
      query external_games "External" { fields uid; where game = ${igdbId} & external_game_source = ${STEAM_EXTERNAL_SOURCE_ID}; };
      query multiplayer_modes "Modes" { fields onlinecoopmax,offlinecoopmax; where game = ${igdbId}; };
-     query game_time_to_beats "TimeToBeat" { fields normally; where game_id = ${igdbId}; };`,
+     query game_time_to_beats "TimeToBeat" { fields normally,hastily,completely; where game_id = ${igdbId}; };`,
   );
 
   const games = gameResult.result ?? [];
@@ -324,6 +347,8 @@ export async function getGameDetail(igdbId: number): Promise<IgdbGameDetail> {
     maxCoopPlayers: maxCoopFrom(multiplayerModes),
     releaseYear: releaseYear(game.first_release_date),
     timeToBeatHours: timeToBeatHoursFrom(timeToBeatRows),
+    timeToBeatMainExtraHours: timeToBeatMainExtraHoursFrom(timeToBeatRows),
+    timeToBeatCompletionistHours: timeToBeatCompletionistHoursFrom(timeToBeatRows),
   };
 
   await redis.set(cacheKey, JSON.stringify(detail), 'EX', DETAIL_CACHE_TTL_SECONDS);

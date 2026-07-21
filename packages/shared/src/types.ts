@@ -131,6 +131,13 @@ export interface Game {
   /** Hours for an average "main story" playthrough, from IGDB (issue #189). Null when IGDB has no
    * time-to-beat data for this game. */
   timeToBeatHours: number | null;
+  /** Hours for a fuller playthrough that also clears a fair amount of side content, from IGDB's
+   * "hastily" time-to-beat figure (issue #248) - the same breakdown HowLongToBeat surfaces as
+   * Main Story / Main + Extra / Completionist. Null when IGDB has no time-to-beat data. */
+  timeToBeatMainExtraHours: number | null;
+  /** Hours for a full completionist (100%) playthrough, from IGDB's "completely" time-to-beat
+   * figure (issue #248). Null when IGDB has no time-to-beat data. */
+  timeToBeatCompletionistHours: number | null;
   ggDealsUrl: string | null;
   coverImageUrl: string | null;
   status: GameStatus;

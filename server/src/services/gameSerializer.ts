@@ -39,6 +39,8 @@ function buildGameDto(game: GameWithRelations, currentUserId: string, price: Gam
     releaseYear: game.releaseYear,
     maxCoopPlayers: game.maxCoopPlayers,
     timeToBeatHours: game.timeToBeatHours,
+    timeToBeatMainExtraHours: game.timeToBeatMainExtraHours,
+    timeToBeatCompletionistHours: game.timeToBeatCompletionistHours,
     ggDealsUrl: game.ggDealsUrl,
     coverImageUrl: game.coverImageUrl,
     status: game.status,
