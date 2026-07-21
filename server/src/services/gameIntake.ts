@@ -46,7 +46,7 @@ export async function resolveGameForCreation(
   maxCoopPlayers: number | null;
   releaseYear: number | null;
   timeToBeatHours: number | null;
-  timeToBeatMainExtraHours: number | null;
+  timeToBeatRushedHours: number | null;
   timeToBeatCompletionistHours: number | null;
 }> {
   const detail = await getGameDetail(igdbId);
@@ -63,7 +63,7 @@ export async function resolveGameForCreation(
     maxCoopPlayers: detail.maxCoopPlayers,
     releaseYear: detail.releaseYear,
     timeToBeatHours: detail.timeToBeatHours,
-    timeToBeatMainExtraHours: detail.timeToBeatMainExtraHours,
+    timeToBeatRushedHours: detail.timeToBeatRushedHours,
     timeToBeatCompletionistHours: detail.timeToBeatCompletionistHours,
   };
 }

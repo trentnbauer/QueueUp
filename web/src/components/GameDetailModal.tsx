@@ -64,12 +64,13 @@ export function GameDetailModal({
     game.status !== 'done' &&
     game.status !== 'dropped';
 
-  // Full breakdown (issue #248) - IGDB's game_time_to_beats splits into the same three tiers
-  // HowLongToBeat surfaces. Only the tiers IGDB actually has data for are shown; a game with just
-  // one figure on file still reads fine as a single "Main Story ~Xh" entry.
+  // Full breakdown (issue #248) - IGDB's game_time_to_beats endpoint returns three figures that
+  // are strictly ordered for any given game (rushed < main story < completionist), so they're
+  // shown in ascending order here. Only the tiers IGDB actually has data for are shown; a game
+  // with just one figure on file still reads fine as a single "Main Story ~Xh" entry.
   const timeToBeatParts = [
+    game.timeToBeatRushedHours != null && `Rushed ~${game.timeToBeatRushedHours}h`,
     game.timeToBeatHours != null && `Main Story ~${game.timeToBeatHours}h`,
-    game.timeToBeatMainExtraHours != null && `Main + Extra ~${game.timeToBeatMainExtraHours}h`,
     game.timeToBeatCompletionistHours != null && `Completionist ~${game.timeToBeatCompletionistHours}h`,
   ].filter((part): part is string => part !== false);
 

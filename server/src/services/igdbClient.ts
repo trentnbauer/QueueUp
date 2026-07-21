@@ -22,7 +22,7 @@ async function resolveIgdbCredentials(): Promise<{ clientId: string; clientSecre
 }
 
 const TOKEN_CACHE_KEY = 'igdb:token:v1';
-const DETAIL_CACHE_PREFIX = 'igdb:detail:v6:'; // v6: added Main+Extra/Completionist time-to-beat
+const DETAIL_CACHE_PREFIX = 'igdb:detail:v6:'; // v6: added Rushed/Completionist time-to-beat
 const DETAIL_CACHE_TTL_SECONDS = 60 * 60 * 24; // 24h — title/cover/platform/steamAppId rarely change
 
 interface TwitchTokenResponse {
@@ -236,10 +236,11 @@ export interface IgdbGameDetail {
    * (issue #189) - null when IGDB has no time-to-beat data for this game. Sourced from IGDB
    * directly rather than scraping HowLongToBeat, which has no official public API. */
   timeToBeatHours: number | null;
-  /** Hours for a fuller playthrough that also clears a fair amount of side content, from IGDB's
-   * game_time_to_beats "hastily" figure (issue #248) - the same breakdown HowLongToBeat surfaces
-   * as Main Story / Main + Extra / Completionist. Null when IGDB has no time-to-beat data. */
-  timeToBeatMainExtraHours: number | null;
+  /** Hours for a rushed/speedrun-style playthrough, from IGDB's game_time_to_beats "hastily"
+   * figure (issue #248) - always the smallest of the three figures on this scale (hastily <
+   * normally < completely), the fastest way to reach the credits. Null when IGDB has no
+   * time-to-beat data. */
+  timeToBeatRushedHours: number | null;
   /** Hours for a full completionist (100%) playthrough, from IGDB's game_time_to_beats
    * "completely" figure (issue #248). Null when IGDB has no time-to-beat data. */
   timeToBeatCompletionistHours: number | null;
@@ -272,11 +273,13 @@ interface IgdbMultiqueryResult<T> {
 }
 
 export interface IgdbTimeToBeat {
-  // Seconds, per IGDB's game_time_to_beats endpoint. "normally" is a typical/average completion,
-  // the closest analog to HowLongToBeat's "Main Story" figure - kept as the sole source of
-  // timeToBeatHours (issue #189) for backward compatibility (issue #248 added the other two
-  // below without touching this one). "hastily" and "completely" round out the same breakdown
-  // HowLongToBeat surfaces as Main + Extra and Completionist respectively.
+  // Seconds, per IGDB's game_time_to_beats endpoint. These three figures are strictly ordered
+  // (hastily < normally < completely) for any given game. "normally" is a typical/average
+  // completion, the closest analog to HowLongToBeat's "Main Story" figure - kept as the sole
+  // source of timeToBeatHours (issue #189) for backward compatibility (issue #248 added the
+  // other two below without touching this one). "hastily" is a rushed/speedrun-style clear
+  // (always less time than "normally", not more - it does not map onto HowLongToBeat's
+  // "Main + Extra" figure) and "completely" is a full 100% completionist playthrough.
   normally?: number;
   hastily?: number;
   completely?: number;
@@ -290,7 +293,7 @@ export function timeToBeatHoursFrom(rows: IgdbTimeToBeat[]): number | null {
   return secondsToHours(rows[0]?.normally);
 }
 
-export function timeToBeatMainExtraHoursFrom(rows: IgdbTimeToBeat[]): number | null {
+export function timeToBeatRushedHoursFrom(rows: IgdbTimeToBeat[]): number | null {
   return secondsToHours(rows[0]?.hastily);
 }
 
@@ -347,7 +350,7 @@ export async function getGameDetail(igdbId: number): Promise<IgdbGameDetail> {
     maxCoopPlayers: maxCoopFrom(multiplayerModes),
     releaseYear: releaseYear(game.first_release_date),
     timeToBeatHours: timeToBeatHoursFrom(timeToBeatRows),
-    timeToBeatMainExtraHours: timeToBeatMainExtraHoursFrom(timeToBeatRows),
+    timeToBeatRushedHours: timeToBeatRushedHoursFrom(timeToBeatRows),
     timeToBeatCompletionistHours: timeToBeatCompletionistHoursFrom(timeToBeatRows),
   };
 

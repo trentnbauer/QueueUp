@@ -4,7 +4,7 @@ import {
   escapeApicalypseString,
   isPrimaryEdition,
   timeToBeatHoursFrom,
-  timeToBeatMainExtraHoursFrom,
+  timeToBeatRushedHoursFrom,
   timeToBeatCompletionistHoursFrom,
   type IgdbPlatform,
   type IgdbGame,
@@ -101,7 +101,7 @@ describe('time-to-beat breakdown (issue #248)', () => {
 
   it('converts each tier from seconds to rounded hours', () => {
     expect(timeToBeatHoursFrom(rows)).toBe(10);
-    expect(timeToBeatMainExtraHoursFrom(rows)).toBe(5);
+    expect(timeToBeatRushedHoursFrom(rows)).toBe(5);
     expect(timeToBeatCompletionistHoursFrom(rows)).toBe(20);
   });
 
@@ -111,13 +111,13 @@ describe('time-to-beat breakdown (issue #248)', () => {
 
   it('returns null per-tier when that tier is missing, zero, or negative, independent of the others', () => {
     expect(timeToBeatHoursFrom([{ hastily: 3600, completely: 7200 }])).toBeNull();
-    expect(timeToBeatMainExtraHoursFrom([{ normally: 3600, hastily: 0 }])).toBeNull();
+    expect(timeToBeatRushedHoursFrom([{ normally: 3600, hastily: 0 }])).toBeNull();
     expect(timeToBeatCompletionistHoursFrom([{ completely: -1 }])).toBeNull();
   });
 
   it('returns null for all tiers when there are no rows at all', () => {
     expect(timeToBeatHoursFrom([])).toBeNull();
-    expect(timeToBeatMainExtraHoursFrom([])).toBeNull();
+    expect(timeToBeatRushedHoursFrom([])).toBeNull();
     expect(timeToBeatCompletionistHoursFrom([])).toBeNull();
   });
 });

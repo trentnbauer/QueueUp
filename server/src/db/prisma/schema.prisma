@@ -183,15 +183,16 @@ model Game {
   /// (issue #189) - same capture-at-intake reasoning as releaseYear/maxCoopPlayers above. Null
   /// when IGDB has no time-to-beat data for this game. Sourced from IGDB's "normally" figure -
   /// kept as-is (issue #248) so this column's meaning doesn't shift out from under rows already
-  /// on file; see timeToBeatMainExtraHours/timeToBeatCompletionistHours for the rest of the
+  /// on file; see timeToBeatRushedHours/timeToBeatCompletionistHours for the rest of the
   /// breakdown IGDB exposes alongside it.
   timeToBeatHours Int?      @map("time_to_beat_hours")
-  /// Hours for a fuller playthrough that also clears a fair amount of side content, from IGDB's
-  /// game_time_to_beats "hastily" figure (issue #248) - same capture-at-intake reasoning as
-  /// timeToBeatHours above. Null when IGDB has no time-to-beat data for this game. Additive
-  /// alongside timeToBeatHours (Main Story) rather than replacing it, so existing rows/behavior
-  /// are unaffected.
-  timeToBeatMainExtraHours     Int? @map("time_to_beat_main_extra_hours")
+  /// Hours for a rushed/speedrun-style playthrough, from IGDB's game_time_to_beats "hastily"
+  /// figure (issue #248) - same capture-at-intake reasoning as timeToBeatHours above. Null when
+  /// IGDB has no time-to-beat data for this game. This is always less time than timeToBeatHours
+  /// (Main Story), not more - the three game_time_to_beats figures are strictly ordered hastily <
+  /// normally < completely - so it's additive alongside timeToBeatHours rather than replacing it,
+  /// but represents a quicker/less-thorough clear, not a fuller one.
+  timeToBeatRushedHours        Int? @map("time_to_beat_rushed_hours")
   /// Hours for a full completionist (100%) playthrough, from IGDB's game_time_to_beats
   /// "completely" figure (issue #248) - same capture-at-intake reasoning as timeToBeatHours
   /// above. Null when IGDB has no time-to-beat data for this game.

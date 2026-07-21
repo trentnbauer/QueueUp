@@ -131,10 +131,11 @@ export interface Game {
   /** Hours for an average "main story" playthrough, from IGDB (issue #189). Null when IGDB has no
    * time-to-beat data for this game. */
   timeToBeatHours: number | null;
-  /** Hours for a fuller playthrough that also clears a fair amount of side content, from IGDB's
-   * "hastily" time-to-beat figure (issue #248) - the same breakdown HowLongToBeat surfaces as
-   * Main Story / Main + Extra / Completionist. Null when IGDB has no time-to-beat data. */
-  timeToBeatMainExtraHours: number | null;
+  /** Hours for a rushed/speedrun-style playthrough, from IGDB's "hastily" time-to-beat figure
+   * (issue #248) - always the smallest of the three figures IGDB exposes (hastily < normally <
+   * completely for any given game), i.e. less time than timeToBeatHours, not more. Null when
+   * IGDB has no time-to-beat data. */
+  timeToBeatRushedHours: number | null;
   /** Hours for a full completionist (100%) playthrough, from IGDB's "completely" time-to-beat
    * figure (issue #248). Null when IGDB has no time-to-beat data. */
   timeToBeatCompletionistHours: number | null;
