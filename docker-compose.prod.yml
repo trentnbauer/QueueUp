@@ -30,6 +30,31 @@ services:
       timeout: 5s
       retries: 10
 
+  backup:
+    # Scheduled Postgres backups (#250) - see docker/backup-entrypoint.sh for the full "why this
+    # container and not the server one" reasoning. Reuses the postgres image itself (rather than a
+    # dedicated backup image) purely so pg_dump is guaranteed to match whatever POSTGRES image tag
+    # this stack runs, with nothing extra to build or version-track.
+    image: postgres:18-alpine
+    restart: unless-stopped
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-squadqueue}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-changeme}
+      POSTGRES_DB: ${POSTGRES_DB:-squadqueue}
+      BACKUP_DIR: /backups
+      # Daily, keep the last two weeks - a full dump every run (no WAL/incrementals, out of scope
+      # for v1, see #250) so this bounds both how much a bad `db push`/account-deletion/failed
+      # version bump can lose (at most ~1 day) and how much disk the backups themselves use.
+      BACKUP_INTERVAL_HOURS: ${BACKUP_INTERVAL_HOURS:-24}
+      BACKUP_RETENTION_COUNT: ${BACKUP_RETENTION_COUNT:-14}
+    volumes:
+      - ./docker/backup-entrypoint.sh:/backup-entrypoint.sh:ro
+      - ${DATA_DIR:-./data}/backups:/backups
+    entrypoint: ["/bin/sh", "/backup-entrypoint.sh"]
+
   server:
     # Pulls the pre-built image from the "Build and Publish Docker Image" GitHub Actions workflow
     # (.github/workflows/build-docker-image.yml) instead of building locally - that workflow

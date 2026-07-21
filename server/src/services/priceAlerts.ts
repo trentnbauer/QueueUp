@@ -72,3 +72,12 @@ export async function checkAllTimeLowAlert(game: GameWithRelations, price: GameP
     console.error('[priceAlerts] failed to process all-time-low alert', err);
   }
 }
+
+/** Runs both alert checks for a game against a freshly-resolved price, applying the same
+ * "only a drop alert needs a target price set" gating every call site otherwise has to duplicate
+ * (the all-time-low check has no such gate - see checkAllTimeLowAlert above). Shared by the
+ * opportunistic per-page-view trigger (gameSerializer.ts) and the scheduled job
+ * (jobs/priceAlertJob.ts, #255) so the two triggers can't drift on what "eligible" means. */
+export async function runPriceAlertChecks(game: GameWithRelations, price: GamePrice): Promise<void> {
+  await Promise.all([game.targetPrice ? checkPriceDropAlert(game, price) : Promise.resolve(), checkAllTimeLowAlert(game, price)]);
+}

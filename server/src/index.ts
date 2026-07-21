@@ -3,6 +3,7 @@ import { env } from './config/env.js';
 import { prisma } from './db/client.js';
 import { ensureDbConstraints } from './db/ensureConstraints.js';
 import { redis } from './services/redisClient.js';
+import { startPriceAlertJob } from './jobs/priceAlertJob.js';
 
 const app = await buildApp();
 
@@ -15,6 +16,11 @@ app
     app.log.error(err);
     process.exit(1);
   });
+
+// Independent of any page view (#255) - see jobs/priceAlertJob.ts. Runs in this one server
+// process; docker-compose.prod.yml runs a single non-replicated instance, so there's no
+// multi-instance double-run to guard against.
+const priceAlertJob = startPriceAlertJob();
 
 const SHUTDOWN_TIMEOUT_MS = 10_000;
 let shuttingDown = false;
@@ -35,6 +41,7 @@ async function shutdown(signal: string) {
   forceExitTimer.unref();
 
   try {
+    priceAlertJob.stop();
     // Stops accepting new connections, waits for in-flight requests, runs plugins' onClose hooks.
     await app.close();
     await prisma.$disconnect();
