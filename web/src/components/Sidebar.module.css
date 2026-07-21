@@ -9,6 +9,11 @@
   background: var(--qu-surface2);
   border-right: 1px solid var(--qu-border);
   height: 100vh;
+  /* On mobile browsers, 100vh is the viewport height with the address bar collapsed - taller than
+     what's actually visible while it's showing, which pushed the bottom-anchored avatar button
+     (.profileMenu) off-screen until the page was scrolled. 100dvh tracks the real visible height
+     and is ignored as an unknown value by browsers that don't support it, leaving 100vh in effect. */
+  height: 100dvh;
   position: sticky;
   top: 0;
   /* Establishes its own stacking context so its flyouts (notifications, profile menu) always
@@ -392,7 +397,9 @@ a.notifUnread:hover {
     position: fixed;
     top: 0;
     left: 0;
-    width: 240px;
+    /* Same icon-only content as the desktop rail (no text labels) - it doesn't need anywhere near
+       240px, which was eating well over half the screen on a typical phone. */
+    width: 92px;
     max-width: 80vw;
     transform: translateX(-100%);
     transition: transform 0.2s ease;
