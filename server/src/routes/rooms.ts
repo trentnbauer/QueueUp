@@ -344,7 +344,12 @@ export default async function roomRoutes(app: FastifyInstance) {
         ]);
         // Ownership transfer: the outgoing Room Master steps down to Moderator rather than being
         // left without a role, and this happens atomically so the room is never left without
-        // exactly one Room Master.
+        // exactly one Room Master. Room.createdBy moves with it - otherwise it silently keeps
+        // pointing at whoever originally created the room even after they've fully stepped back,
+        // which both misrepresents current ownership (e.g. the admin Rooms table's "Created by")
+        // and - since that column has no cascade/set-null - would block the outgoing master from
+        // ever deleting their account (see DELETE /api/me) despite no longer actually owning this
+        // room.
         const [, updatedTarget] = await prisma.$transaction([
           prisma.roomMember.update({
             where: { roomId_userId: { roomId, userId: actorId } },
@@ -353,6 +358,10 @@ export default async function roomRoutes(app: FastifyInstance) {
           prisma.roomMember.update({
             where: { roomId_userId: { roomId, userId: targetUserId } },
             data: { role: 'room_master' },
+          }),
+          prisma.room.update({
+            where: { id: roomId },
+            data: { createdBy: targetUserId },
           }),
         ]);
         await notifyRoom({
