@@ -8,6 +8,11 @@ interface ConfirmOptions {
   confirmLabel?: string;
   cancelLabel?: string;
   danger?: boolean;
+  /** When set, the confirm button stays disabled until the user types this exact phrase into a
+   * text field (e.g. "DELETE"). Mirrors the typed-confirmation pattern from self-service account
+   * deletion, for actions destructive enough that a single misclick shouldn't be enough to trigger
+   * them - deleting someone else's account, or a whole room's worth of games and membership. */
+  typedConfirmation?: string;
 }
 
 type ConfirmFn = (options: ConfirmOptions | string) => Promise<boolean>;
@@ -21,9 +26,13 @@ interface ConfirmDialogProps {
 
 // A separate component (rather than inline JSX in ConfirmProvider) so useModalA11y - which must run
 // unconditionally - only mounts/unmounts along with the dialog itself, instead of being called
-// conditionally within ConfirmProvider's own render.
+// conditionally within ConfirmProvider's own render. Mounting fresh per open also gives the typed-
+// confirmation text field a clean slate every time, with no reset effect needed.
 function ConfirmDialog({ options, onSettle }: ConfirmDialogProps) {
   const dialogRef = useModalA11y<HTMLDivElement>(() => onSettle(false));
+  const [typedText, setTypedText] = useState('');
+  const requiredText = options.typedConfirmation;
+  const confirmDisabled = requiredText !== undefined && typedText !== requiredText;
 
   return (
     <div className={styles.backdrop} role="presentation" onClick={() => onSettle(false)}>
@@ -38,6 +47,21 @@ function ConfirmDialog({ options, onSettle }: ConfirmDialogProps) {
       >
         {options.title && <div className={styles.title}>{options.title}</div>}
         <p className={styles.message}>{options.message}</p>
+        {requiredText !== undefined && (
+          <div className={styles.typedConfirmBox}>
+            <label className={styles.typedConfirmLabel} htmlFor="confirm-dialog-typed-input">
+              Type {requiredText} to confirm
+            </label>
+            <input
+              id="confirm-dialog-typed-input"
+              type="text"
+              className={styles.typedConfirmInput}
+              value={typedText}
+              onChange={(e) => setTypedText(e.target.value)}
+              autoComplete="off"
+            />
+          </div>
+        )}
         <div className={styles.actions}>
           <button type="button" className={styles.cancelButton} onClick={() => onSettle(false)} autoFocus>
             {options.cancelLabel ?? 'Cancel'}
@@ -46,6 +70,7 @@ function ConfirmDialog({ options, onSettle }: ConfirmDialogProps) {
             type="button"
             className={options.danger ? styles.dangerButton : styles.confirmButton}
             onClick={() => onSettle(true)}
+            disabled={confirmDisabled}
           >
             {options.confirmLabel ?? 'Confirm'}
           </button>
