@@ -95,7 +95,7 @@ export function GameGrid({
 }: GameGridProps) {
   // Filter selection lives in GameFilterContext, not here - the pill UI (and the search box) are
   // rendered by the Header (a sibling, not a parent, of this component) next to the Add Game button.
-  const { platformFilter, genreFilter, statusFilter, searchQuery } = useGameFilter();
+  const { platformFilter, genreFilter, statusFilter, searchQuery, neglectedFilter } = useGameFilter();
 
   const sorted = useStableOrder(games);
   const prioritized = useMemo(
@@ -105,11 +105,12 @@ export function GameGrid({
 
   const normalizedQuery = searchQuery.trim().toLowerCase();
   const filtered = useMemo(
-    () => filterGames(prioritized, { platformFilter, genreFilter, statusFilter, searchQuery }),
-    [prioritized, platformFilter, genreFilter, statusFilter, searchQuery],
+    () => filterGames(prioritized, { platformFilter, genreFilter, statusFilter, searchQuery, neglectedFilter }),
+    [prioritized, platformFilter, genreFilter, statusFilter, searchQuery, neglectedFilter],
   );
 
-  const hasActiveFilters = platformFilter !== ALL_FILTER_VALUE || genreFilter !== ALL_FILTER_VALUE || normalizedQuery !== '';
+  const hasActiveFilters =
+    platformFilter !== ALL_FILTER_VALUE || genreFilter !== ALL_FILTER_VALUE || neglectedFilter || normalizedQuery !== '';
 
   if (isLoading) {
     return (

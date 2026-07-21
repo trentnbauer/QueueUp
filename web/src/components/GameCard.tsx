@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { VOTE_SCALE, type Game, type GameStatus, type User, type VoteValue } from '@queueup/shared';
 import { GameDetailModal } from './GameDetailModal';
 import { formatPrice } from '../utils/formatPrice';
+import { NEGLECTED_BACKLOG_MONTHS, isNeglectedBacklogGame } from './gameGridLogic';
 import styles from './GameCard.module.css';
 
 /** The squad's overall read on a game, for the card-face badge (issue #206) - the average cast
@@ -58,6 +59,7 @@ export function GameCard({
 }: GameCardProps) {
   const [detailOpen, setDetailOpen] = useState(false);
   const avgVote = averageVoteValue(game.votes);
+  const neglected = isNeglectedBacklogGame(game);
 
   function handleCardClick() {
     if (selectable) {
@@ -102,6 +104,20 @@ export function GameCard({
           style={game.coverImageUrl ? { backgroundImage: `url(${game.coverImageUrl})` } : undefined}
         >
           {!game.coverImageUrl && <span className={styles.coverLabel}>COVER ART</span>}
+
+          {/* "Collecting dust" nudge (issue #249) - backlog games Year in Review would otherwise
+              only ever call out once a year. Top-left, opposite the vote badge's bottom-right spot
+              and clear of the selection checkbox (top-left too, but only rendered in bulk-select
+              mode, which backlog games can still be in - selectable takes priority visually since
+              it's interactive and this is purely informational). */}
+          {neglected && !selectable && (
+            <div
+              className={styles.dustBadge}
+              title={`Added ${NEGLECTED_BACKLOG_MONTHS}+ months ago with no vote or status change since`}
+            >
+              <span aria-hidden="true">🕸</span> Collecting dust
+            </div>
+          )}
 
           {avgVote !== null && (
             <div
