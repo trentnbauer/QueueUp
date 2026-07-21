@@ -8,7 +8,7 @@ import { useConfirm } from '../context/ConfirmContext';
 import { useGames } from '../hooks/useGames';
 import { useGameFilter } from '../context/GameFilterContext';
 import { useSteamImportContext } from '../context/SteamImportContext';
-import { ALL_FILTER_VALUE, NEGLECTED_BACKLOG_MONTHS, distinctValues, isNeglectedBacklogGame } from './gameGridLogic';
+import { ALL_FILTER_VALUE, NEGLECTED_BACKLOG_MONTHS, distinctValues, distinctTagNames, isNeglectedBacklogGame } from './gameGridLogic';
 import { roomsApi } from '../api/rooms';
 import { AvatarBadge } from './AvatarBadge';
 import { RoomSettingsModal } from './RoomSettingsModal';
@@ -73,11 +73,13 @@ export function Header() {
     platformFilter,
     genreFilter,
     statusFilter,
+    tagFilter,
     searchQuery,
     neglectedFilter,
     setPlatformFilter,
     setGenreFilter,
     setStatusFilter,
+    setTagFilter,
     setSearchQuery,
     setNeglectedFilter,
   } = useGameFilter();
@@ -126,6 +128,9 @@ export function Header() {
     const present = new Set(games.map((g) => g.status));
     return STATUS_FILTER_ORDER.filter((status) => present.has(status));
   }, [games]);
+  // Only ever the viewer's own tags (see Game.tags) - a room game someone else added never
+  // contributes an option here, matching who's actually allowed to apply/filter by a tag.
+  const tagOptions = useMemo(() => distinctTagNames(games), [games]);
 
   // Only shown once at least one game actually qualifies - same "don't offer a filter with nothing
   // to filter" reasoning PillFilter already applies to platform/genre/status (issue #249).
@@ -316,6 +321,13 @@ export function Header() {
           options={statusOptions}
           value={statusFilter}
           onChange={setStatusFilter}
+        />
+        <PillFilter
+          label="Tags"
+          allLabel="All tags"
+          options={tagOptions}
+          value={tagFilter}
+          onChange={setTagFilter}
         />
         {neglectedCount > 0 && (
           <div className={styles.filterGroup}>

@@ -32,6 +32,8 @@ export function RoomView() {
     isRefreshingPrice,
     setTargetPrice,
     setOwnership,
+    applyTag,
+    removeTag,
   } = useGames(roomId ?? null);
 
   const { data: membersData } = useQuery({
@@ -73,6 +75,8 @@ export function RoomView() {
         isRefreshingPrice={isRefreshingPrice}
         onSetTargetPrice={setTargetPrice}
         onSetOwnership={setOwnership}
+        onApplyTag={applyTag}
+        onRemoveTag={removeTag}
       />
       <GameGrid
         games={games}
@@ -92,6 +96,8 @@ export function RoomView() {
         isRefreshingPrice={isRefreshingPrice}
         onSetTargetPrice={setTargetPrice}
         onSetOwnership={setOwnership}
+        onApplyTag={applyTag}
+        onRemoveTag={removeTag}
       />
     </div>
   );

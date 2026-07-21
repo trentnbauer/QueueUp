@@ -14,6 +14,8 @@ interface PlayingStripProps {
   isRefreshingPrice?: (gameId: string) => boolean;
   onSetTargetPrice: (gameId: string, targetPrice: string | null) => void;
   onSetOwnership?: (gameId: string, owned: boolean) => void;
+  onApplyTag: (gameId: string, name: string) => Promise<void>;
+  onRemoveTag: (gameId: string, tagId: string) => void;
 }
 
 /** A compact glance at what's currently in rotation in this room (issue #229) - every game marked
@@ -36,6 +38,8 @@ export function PlayingStrip({
   isRefreshingPrice,
   onSetTargetPrice,
   onSetOwnership,
+  onApplyTag,
+  onRemoveTag,
 }: PlayingStripProps) {
   const playing = games.filter((g) => g.status === 'playing');
   if (playing.length === 0) return null;
@@ -58,6 +62,8 @@ export function PlayingStrip({
               isRefreshingPrice={isRefreshingPrice ? isRefreshingPrice(game.id) : false}
               onSetTargetPrice={(targetPrice) => onSetTargetPrice(game.id, targetPrice)}
               onSetOwnership={onSetOwnership ? (owned) => onSetOwnership(game.id, owned) : undefined}
+              onApplyTag={(name) => onApplyTag(game.id, name)}
+              onRemoveTag={(tagId) => onRemoveTag(game.id, tagId)}
             />
           </div>
         ))}

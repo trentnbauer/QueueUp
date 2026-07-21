@@ -1,0 +1,204 @@
+.section {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.chipRow {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.emptyHint {
+  font: 500 11.5px system-ui, sans-serif;
+  color: var(--qu-muted);
+}
+
+.chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 5px 6px 5px 10px;
+  border-radius: 999px;
+  background: var(--qu-accent-pill-bg);
+  color: var(--qu-accent);
+  font: 700 11.5px system-ui, sans-serif;
+}
+
+.chipRemove {
+  background: none;
+  border: none;
+  color: inherit;
+  font-size: 14px;
+  line-height: 1;
+  padding: 0;
+  cursor: pointer;
+  opacity: 0.75;
+}
+
+.chipRemove:hover {
+  opacity: 1;
+}
+
+.addForm {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.addInput {
+  flex: 1;
+  min-width: 0;
+  padding: 7px 10px;
+  border-radius: var(--qu-radius);
+  background: var(--qu-surface2);
+  border: 1px solid var(--qu-border);
+  color: var(--qu-text);
+  font: 500 12px system-ui, sans-serif;
+}
+
+.addButton {
+  flex-shrink: 0;
+  border: none;
+  border-radius: var(--qu-radius);
+  background: var(--qu-accent);
+  color: var(--qu-accent-text);
+  font: 700 11.5px system-ui, sans-serif;
+  padding: 7px 12px;
+  cursor: pointer;
+}
+
+.addButton:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+
+.suggestionRow {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.suggestionChip {
+  border: 1px dashed var(--qu-border);
+  background: transparent;
+  color: var(--qu-muted);
+  border-radius: 999px;
+  padding: 5px 10px;
+  font: 600 11px system-ui, sans-serif;
+  cursor: pointer;
+}
+
+.suggestionChip:hover {
+  color: var(--qu-accent);
+  border-color: var(--qu-accent);
+}
+
+.manageToggle {
+  align-self: flex-start;
+  background: none;
+  border: none;
+  color: var(--qu-muted);
+  font: 600 11px system-ui, sans-serif;
+  padding: 0;
+  cursor: pointer;
+  text-decoration: underline;
+}
+
+.manageToggle:hover {
+  color: var(--qu-text);
+}
+
+.manageList {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 8px;
+  border-radius: var(--qu-radius);
+  background: var(--qu-surface2);
+}
+
+.manageRow {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 24px;
+}
+
+.manageName {
+  flex: 1;
+  min-width: 0;
+  font: 600 12px system-ui, sans-serif;
+  color: var(--qu-text);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.manageIconButton {
+  flex-shrink: 0;
+  background: none;
+  border: none;
+  color: var(--qu-muted);
+  font-size: 12px;
+  padding: 2px 4px;
+  cursor: pointer;
+}
+
+.manageIconButton:hover {
+  color: var(--qu-text);
+}
+
+.renameForm {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.renameInput {
+  flex: 1;
+  min-width: 0;
+  padding: 5px 8px;
+  border-radius: var(--qu-radius);
+  background: var(--qu-surface);
+  border: 1px solid var(--qu-border);
+  color: var(--qu-text);
+  font: 500 12px system-ui, sans-serif;
+}
+
+.renameSave,
+.renameCancel {
+  flex-shrink: 0;
+  border: none;
+  border-radius: var(--qu-radius);
+  font: 600 11px system-ui, sans-serif;
+  padding: 5px 8px;
+  cursor: pointer;
+}
+
+.renameSave {
+  background: var(--qu-accent);
+  color: var(--qu-accent-text);
+}
+
+.renameCancel {
+  background: var(--qu-neutral-pill-bg);
+  color: var(--qu-muted);
+}
+
+.error {
+  font: 500 11px system-ui, sans-serif;
+  color: #ff8a80;
+}
+
+.errorDismiss {
+  background: none;
+  border: none;
+  color: inherit;
+  text-decoration: underline;
+  cursor: pointer;
+  padding: 0;
+  font: inherit;
+}

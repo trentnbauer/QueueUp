@@ -119,6 +119,14 @@ export interface VoteSummary {
   createdAt: string;
 }
 
+/** A user-defined organizational label, layered on top of the fixed GameStatus enum (issue #247) -
+ * e.g. "Co-op only" or "Short & sweet". Per-user, not shared/room-level - see Tag in schema.prisma. */
+export interface Tag {
+  id: string;
+  name: string;
+  createdAt: string;
+}
+
 export interface Game {
   id: string;
   roomId: string | null;
@@ -156,6 +164,11 @@ export interface Game {
    * there are - e.g. {owned: 3, total: 4}. Null on the Personal Shelf, where there's no group
    * ownership to count. */
   ownership: { owned: number; total: number } | null;
+  /** The *viewer's own* tags applied to this specific game row (issue #247) - always empty for a
+   * room game someone else added, since only the person who added a game may tag it (tags are a
+   * personal filing scheme, not a room feature - see Tag/GameTag in schema.prisma). Empty array,
+   * never omitted, when the viewer has tagged nothing here. */
+  tags: Tag[];
   createdAt: string;
   updatedAt: string;
 }
@@ -235,6 +248,24 @@ export interface SetGameOwnershipRequest {
 /** Relocates a game to a different room, or to the mover's Personal Shelf (roomId: null). */
 export interface MoveGameRequest {
   roomId: string | null;
+}
+
+/** Creates a new tag for the caller. Rejected with 409 if they already have one with this name
+ * (case-sensitive - see Tag's @@unique in schema.prisma). */
+export interface CreateTagRequest {
+  name: string;
+}
+
+/** Renames a tag the caller owns. Same name-collision handling as CreateTagRequest. */
+export interface RenameTagRequest {
+  name: string;
+}
+
+/** Applies a tag to a game by name (issue #247) - finds-or-creates the caller's tag with this name
+ * in one request, so the "type a new tag and hit enter" flow in GameDetailModal doesn't need a
+ * separate create-then-apply round trip. Applying a tag that's already on the game is a no-op. */
+export interface ApplyTagRequest {
+  name: string;
 }
 
 /** Response from POST /api/games/import-steam-library. The actual import (one IGDB lookup per

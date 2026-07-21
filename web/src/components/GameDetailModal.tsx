@@ -4,6 +4,7 @@ import { AvatarBadge } from './AvatarBadge';
 import { VoteRow } from './VoteRow';
 import { VoteHeatmap } from './VoteHeatmap';
 import { AchievementRow } from './AchievementRow';
+import { TagPicker } from './TagPicker';
 import { useConfirm } from '../context/ConfirmContext';
 import { useModalA11y } from '../hooks/useModalA11y';
 import { useGameAchievements } from '../hooks/useGameAchievements';
@@ -25,6 +26,9 @@ interface GameDetailModalProps {
   isRefreshingPrice?: boolean;
   onSetTargetPrice: (targetPrice: string | null) => void;
   onSetOwnership?: (owned: boolean) => void;
+  /** Finds-or-creates a tag by name and applies it to this game (issue #247). */
+  onApplyTag: (name: string) => Promise<void>;
+  onRemoveTag: (tagId: string) => void;
   onClose: () => void;
 }
 
@@ -43,6 +47,8 @@ export function GameDetailModal({
   isRefreshingPrice = false,
   onSetTargetPrice,
   onSetOwnership,
+  onApplyTag,
+  onRemoveTag,
   onClose,
 }: GameDetailModalProps) {
   const confirm = useConfirm();
@@ -256,6 +262,17 @@ export function GameDetailModal({
               {game.youOwn ? 'You own this' : 'Mark as owned'} · {game.ownership.owned}/{game.ownership.total} of the squad own this
             </span>
           </button>
+        )}
+
+        {/* Tags are a personal filing scheme (issue #247) - only the game's adder can apply/remove
+            one (see requireGameTagAccess server-side), so the whole section is hidden for a room
+            game someone else added rather than showing controls that would just 403. */}
+        {game.addedBy.id === currentUserId && (
+          <>
+            <div className={styles.divider} />
+            <div className={styles.sectionTitle}>Tags</div>
+            <TagPicker currentTags={game.tags} onApply={onApplyTag} onRemove={onRemoveTag} />
+          </>
         )}
 
         <div className={styles.divider} />

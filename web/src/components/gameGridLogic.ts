@@ -27,10 +27,27 @@ export function distinctValues(games: Game[], pick: (g: Game) => string | null):
   return Array.from(values).sort((a, b) => a.localeCompare(b));
 }
 
+/** Every distinct tag name across `games` (issue #247) - unlike platform/genre, a game's tags are
+ * already a discrete array (see Game.tags), not a comma-joined string, so this doesn't need
+ * splitLabel. Filtering by name (not id) matches the plain-string convention PillFilter already
+ * uses for platform/genre/status, and is safe to do since a user can't have two tags with the same
+ * name (Tag's @@unique([userId, name])) - so within one viewer's own games, a tag name is already
+ * a unique key. */
+export function distinctTagNames(games: Game[]): string[] {
+  const values = new Set<string>();
+  for (const game of games) {
+    for (const tag of game.tags) values.add(tag.name);
+  }
+  return Array.from(values).sort((a, b) => a.localeCompare(b));
+}
+
 export interface GameFilterState {
   platformFilter: string;
   genreFilter: string;
   statusFilter: string;
+  /** Tag name to filter to, or ALL_FILTER_VALUE for no filtering (issue #247) - see
+   * distinctTagNames for why a name (not a tag id) is the right key here. */
+  tagFilter?: string;
   searchQuery: string;
   /** True to show only "collecting dust" games (see isNeglectedBacklogGame) - false/undefined
    * applies no filtering on this axis, same convention as the other pill filters using
@@ -38,17 +55,19 @@ export interface GameFilterState {
   neglectedFilter?: boolean;
 }
 
-/** The platform/genre/status/neglected/search predicate GameGrid renders by - pulled out so any
+/** The platform/genre/status/tag/neglected/search predicate GameGrid renders by - pulled out so any
  * other place that needs to know "what's actually visible" (e.g. the Personal Shelf's bulk-select
  * "Select all", which must not silently include games hidden by the active filter) applies the
  * exact same rule instead of a second, driftable copy of it. */
 export function filterGames(games: Game[], filter: GameFilterState, now: number = Date.now()): Game[] {
   const normalizedQuery = filter.searchQuery.trim().toLowerCase();
+  const tagFilter = filter.tagFilter ?? ALL_FILTER_VALUE;
   return games.filter(
     (g) =>
       (filter.platformFilter === ALL_FILTER_VALUE || splitLabel(g.platform).includes(filter.platformFilter)) &&
       (filter.genreFilter === ALL_FILTER_VALUE || splitLabel(g.genre).includes(filter.genreFilter)) &&
       (filter.statusFilter === ALL_FILTER_VALUE || g.status === filter.statusFilter) &&
+      (tagFilter === ALL_FILTER_VALUE || g.tags.some((t) => t.name === tagFilter)) &&
       (!filter.neglectedFilter || isNeglectedBacklogGame(g, now)) &&
       (normalizedQuery === '' || g.title.toLowerCase().includes(normalizedQuery)),
   );

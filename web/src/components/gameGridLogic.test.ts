@@ -11,6 +11,7 @@ import {
   pickSpinWinner,
   isNeglectedBacklogGame,
   filterGames,
+  distinctTagNames,
   NEGLECTED_BACKLOG_MONTHS,
   ALL_FILTER_VALUE,
 } from './gameGridLogic';
@@ -25,6 +26,7 @@ function makeGame(overrides: Partial<Game> = {}): Game {
     genre: null,
     releaseYear: null,
     maxCoopPlayers: null,
+    timeToBeatHours: null,
     ggDealsUrl: null,
     coverImageUrl: null,
     status: 'backlog',
@@ -35,6 +37,7 @@ function makeGame(overrides: Partial<Game> = {}): Game {
     voteScore: 0,
     youOwn: false,
     ownership: null,
+    tags: [],
     createdAt: '2026-01-01T00:00:00.000Z',
     updatedAt: '2026-01-01T00:00:00.000Z',
     ...overrides,
@@ -267,6 +270,50 @@ describe('filterGames neglectedFilter', () => {
       NOW,
     );
     expect(result.map((g) => g.id)).toEqual(['dusty']);
+  });
+});
+
+function tag(id: string, name: string) {
+  return { id, name, createdAt: '2026-01-01T00:00:00.000Z' };
+}
+
+describe('distinctTagNames', () => {
+  it('collects every distinct tag name across games, sorted', () => {
+    const a = makeGame({ id: 'a', tags: [tag('t2', 'Short & sweet'), tag('t1', 'Co-op only')] });
+    const b = makeGame({ id: 'b', tags: [tag('t1', 'Co-op only')] });
+    expect(distinctTagNames([a, b])).toEqual(['Co-op only', 'Short & sweet']);
+  });
+
+  it('returns an empty array when no game has any tags', () => {
+    expect(distinctTagNames([makeGame({ tags: [] })])).toEqual([]);
+  });
+});
+
+describe('filterGames tagFilter', () => {
+  it('shows every game when tagFilter is ALL_FILTER_VALUE (or unset)', () => {
+    const tagged = makeGame({ id: 'tagged', tags: [tag('t1', 'Co-op only')] });
+    const untagged = makeGame({ id: 'untagged', tags: [] });
+    const result = filterGames([tagged, untagged], {
+      platformFilter: ALL_FILTER_VALUE,
+      genreFilter: ALL_FILTER_VALUE,
+      statusFilter: ALL_FILTER_VALUE,
+      searchQuery: '',
+    });
+    expect(result.map((g) => g.id).sort()).toEqual(['tagged', 'untagged']);
+  });
+
+  it('shows only games carrying the selected tag', () => {
+    const tagged = makeGame({ id: 'tagged', tags: [tag('t1', 'Co-op only')] });
+    const otherTag = makeGame({ id: 'other-tag', tags: [tag('t2', 'Short & sweet')] });
+    const untagged = makeGame({ id: 'untagged', tags: [] });
+    const result = filterGames([tagged, otherTag, untagged], {
+      platformFilter: ALL_FILTER_VALUE,
+      genreFilter: ALL_FILTER_VALUE,
+      statusFilter: ALL_FILTER_VALUE,
+      tagFilter: 'Co-op only',
+      searchQuery: '',
+    });
+    expect(result.map((g) => g.id)).toEqual(['tagged']);
   });
 });
 
