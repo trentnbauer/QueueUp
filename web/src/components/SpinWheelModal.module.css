@@ -16,6 +16,9 @@
 }
 
 .dialog {
+  /* position: relative so ConfettiBurst (position: absolute; inset: 0) contains itself to the
+     dialog's own bounds instead of the fixed, full-viewport backdrop. */
+  position: relative;
   background: var(--qu-surface);
   border: 1px solid var(--qu-border);
   border-radius: var(--qu-radius);

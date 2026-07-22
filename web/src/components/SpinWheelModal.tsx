@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import type { Game } from '@queueup/shared';
 import { useModalA11y } from '../hooks/useModalA11y';
 import { pickSpinWinner } from './gameGridLogic';
+import { ConfettiBurst } from './ConfettiBurst';
 import styles from './SpinWheelModal.module.css';
 
 interface SpinWheelModalProps {
@@ -230,6 +231,10 @@ export function SpinWheelModal({ games, candidates, onClose }: SpinWheelModalPro
             </>
           )}
         </div>
+
+        {/* Celebrates the reveal (issue #296) - keyed on spinKey so "Spin again" mounts a fresh
+            burst with its own random particles instead of reusing/replaying the previous one. */}
+        {revealed && <ConfettiBurst key={spinKey} />}
       </div>
     </div>
   );
