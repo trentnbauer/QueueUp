@@ -11,6 +11,7 @@ function makeGame(overrides: Partial<Game> = {}): Game {
     platform: 'PC',
     genre: null,
     releaseYear: null,
+    releaseDate: null,
     maxCoopPlayers: null,
     ggDealsUrl: null,
     coverImageUrl: null,

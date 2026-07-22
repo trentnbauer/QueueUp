@@ -101,12 +101,13 @@ export function sortByScore(games: Game[]): Game[] {
   });
 }
 
-/** Only `releaseYear` (not the full release date) is stored, so this can only catch a game whose
- * release year is strictly later than the current year - one releasing later this same year won't
- * be caught until a full date is stored. `releaseYear === null` (unknown/not fetched) is treated as
- * released rather than excluded, since that's far more often an older or obscure title IGDB didn't
- * have a release date for than an unannounced one. */
+/** Prefers the exact `releaseDate` (issue #284) when it's set - a game added before that field
+ * existed only has `releaseYear`, so this falls back to "release year is strictly later than the
+ * current year," which can't catch a game releasing later this same year. Both `null` (unknown/not
+ * fetched) are treated as released rather than excluded, since that's far more often an older or
+ * obscure title IGDB didn't have release data for than an unannounced one. */
 export function isUnreleased(game: Game, now: number = Date.now()): boolean {
+  if (game.releaseDate !== null) return new Date(game.releaseDate).getTime() > now;
   return game.releaseYear !== null && game.releaseYear > new Date(now).getFullYear();
 }
 

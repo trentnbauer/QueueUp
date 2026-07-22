@@ -178,6 +178,11 @@ model Game {
   /// Captured at intake time from IGDB - not re-fetchable later without hitting IGDB again per
   /// game, so this needs to be saved when the game is added, not derived after the fact.
   releaseYear    Int?       @map("release_year")
+  /// Full release date/time (issue #284) - releaseYear alone is only precise to the year, which
+  /// isn't enough to reliably tell "already released" from "releasing later this year" for Spin
+  /// the Wheel's isUnreleased check. Null on games added before this field existed; that check
+  /// falls back to the year-only heuristic for those rather than requiring a backfill.
+  releaseDate    DateTime?  @map("release_date")
   maxCoopPlayers Int?       @map("max_coop_players")
   /// Hours for an average "main story" playthrough, from IGDB's game_time_to_beats endpoint
   /// (issue #189) - same capture-at-intake reasoning as releaseYear/maxCoopPlayers above. Null

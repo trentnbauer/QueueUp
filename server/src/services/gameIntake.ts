@@ -45,6 +45,7 @@ export async function resolveGameForCreation(
   steamAppId: number | null;
   maxCoopPlayers: number | null;
   releaseYear: number | null;
+  releaseDate: Date | null;
   timeToBeatHours: number | null;
 }> {
   const detail = await getGameDetail(igdbId);
@@ -60,6 +61,7 @@ export async function resolveGameForCreation(
     steamAppId: detail.steamAppId,
     maxCoopPlayers: detail.maxCoopPlayers,
     releaseYear: detail.releaseYear,
+    releaseDate: detail.releaseDate,
     timeToBeatHours: detail.timeToBeatHours,
   };
 }

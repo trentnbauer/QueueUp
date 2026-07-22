@@ -22,7 +22,7 @@ async function resolveIgdbCredentials(): Promise<{ clientId: string; clientSecre
 }
 
 const TOKEN_CACHE_KEY = 'igdb:token:v1';
-const DETAIL_CACHE_PREFIX = 'igdb:detail:v5:'; // v5: added releaseYear
+const DETAIL_CACHE_PREFIX = 'igdb:detail:v6:'; // v6: added releaseDate
 const DETAIL_CACHE_TTL_SECONDS = 60 * 60 * 24; // 24h — title/cover/platform/steamAppId rarely change
 
 interface TwitchTokenResponse {
@@ -135,6 +135,12 @@ function releaseYear(unixSeconds?: number): number | null {
   return unixSeconds ? new Date(unixSeconds * 1000).getUTCFullYear() : null;
 }
 
+// Full precision alongside releaseYear (issue #284) - the year alone can't tell "already released"
+// from "releasing later this year."
+function releaseDate(unixSeconds?: number): Date | null {
+  return unixSeconds ? new Date(unixSeconds * 1000) : null;
+}
+
 function platformWhereClause(platforms: RoomPlatform[]): string {
   const names = platforms
     .flatMap((p) => IGDB_PLATFORM_NAMES[p])
@@ -232,6 +238,8 @@ export interface IgdbGameDetail {
   steamAppId: number | null;
   maxCoopPlayers: number | null;
   releaseYear: number | null;
+  /** Full precision alongside releaseYear (issue #284) - see the schema comment on Game.releaseDate. */
+  releaseDate: Date | null;
   /** Hours for an average "main story" playthrough, from IGDB's game_time_to_beats endpoint
    * (issue #189) - null when IGDB has no time-to-beat data for this game. Sourced from IGDB
    * directly rather than scraping HowLongToBeat, which has no official public API. */
@@ -281,7 +289,13 @@ export async function getGameDetail(igdbId: number): Promise<IgdbGameDetail> {
   }
   const cacheKey = DETAIL_CACHE_PREFIX + igdbId;
   const cached = await redis.get(cacheKey);
-  if (cached) return JSON.parse(cached) as IgdbGameDetail;
+  if (cached) {
+    // JSON has no Date type - releaseDate round-trips through the cache as a plain ISO string,
+    // so it's revived back into a real Date here rather than leaking that string past this
+    // function's declared return type.
+    const parsed = JSON.parse(cached) as Omit<IgdbGameDetail, 'releaseDate'> & { releaseDate: string | null };
+    return { ...parsed, releaseDate: parsed.releaseDate ? new Date(parsed.releaseDate) : null };
+  }
 
   // IGDB's `games`, `external_games` (Steam appid), `multiplayer_modes` (co-op limits), and
   // `game_time_to_beats` (issue #189) are separate endpoints with no way to join them in one
@@ -323,6 +337,7 @@ export async function getGameDetail(igdbId: number): Promise<IgdbGameDetail> {
     steamAppId: steamUid && /^\d+$/.test(steamUid) ? Number(steamUid) : null,
     maxCoopPlayers: maxCoopFrom(multiplayerModes),
     releaseYear: releaseYear(game.first_release_date),
+    releaseDate: releaseDate(game.first_release_date),
     timeToBeatHours: timeToBeatHoursFrom(timeToBeatRows),
   };
 

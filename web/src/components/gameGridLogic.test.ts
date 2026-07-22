@@ -25,6 +25,7 @@ function makeGame(overrides: Partial<Game> = {}): Game {
     platform: 'PC',
     genre: null,
     releaseYear: null,
+    releaseDate: null,
     maxCoopPlayers: null,
     ggDealsUrl: null,
     coverImageUrl: null,
@@ -105,6 +106,21 @@ describe('isUnreleased', () => {
 
   it('is true for a game releasing in a future year', () => {
     expect(isUnreleased(makeGame({ releaseYear: 2027 }), NOW)).toBe(true);
+  });
+
+  it('prefers releaseDate over releaseYear when both are set', () => {
+    // Same year as NOW, but later in it - releaseYear alone couldn't catch this (issue #284).
+    expect(
+      isUnreleased(makeGame({ releaseYear: 2026, releaseDate: '2026-12-01T00:00:00.000Z' }), NOW),
+    ).toBe(true);
+    expect(
+      isUnreleased(makeGame({ releaseYear: 2026, releaseDate: '2026-01-01T00:00:00.000Z' }), NOW),
+    ).toBe(false);
+  });
+
+  it('falls back to releaseYear when releaseDate is null (games added before it existed)', () => {
+    expect(isUnreleased(makeGame({ releaseYear: 2027, releaseDate: null }), NOW)).toBe(true);
+    expect(isUnreleased(makeGame({ releaseYear: 2026, releaseDate: null }), NOW)).toBe(false);
   });
 });
 

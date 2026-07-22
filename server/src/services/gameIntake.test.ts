@@ -13,6 +13,7 @@ function detail(platformFamilies: IgdbGameDetail['platformFamilies']): IgdbGameD
     steamAppId: null,
     maxCoopPlayers: null,
     releaseYear: null,
+    releaseDate: null,
     timeToBeatHours: null,
   };
 }

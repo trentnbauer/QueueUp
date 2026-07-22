@@ -127,6 +127,9 @@ export interface Game {
   platform: string;
   genre: string | null;
   releaseYear: number | null;
+  /** Full release date/time (issue #284) - releaseYear alone is only precise to the year. Null on
+   * games added before this field existed, or when IGDB has no release date at all. */
+  releaseDate: string | null;
   maxCoopPlayers: number | null;
   /** Hours for an average "main story" playthrough, from IGDB (issue #189). Null when IGDB has no
    * time-to-beat data for this game. */
