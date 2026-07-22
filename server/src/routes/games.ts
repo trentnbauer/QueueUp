@@ -222,6 +222,7 @@ export default async function gameRoutes(app: FastifyInstance) {
   // already in this room/shelf or unavailable on its platform.
   app.get<{ Params: { id: string }; Querystring: { roomId?: string } }>(
     '/api/games/collections/:id',
+    { config: { rateLimit: { max: 30, timeWindow: '1 minute' } } },
     async (request) => {
       const userId = await request.requireAuth();
       const collectionId = Number(request.params.id);
