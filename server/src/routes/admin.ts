@@ -208,16 +208,19 @@ export default async function adminRoutes(app: FastifyInstance) {
     }
 
     const target = await prisma.user.findUnique({ where: { id: targetId } });
+    if (!target) {
+      throw new HttpError(404, 'User not found');
+    }
     await prisma.user.delete({ where: { id: targetId } });
     app.log.warn(
-      { adminAction: 'user.delete', actorId, targetId, targetEmail: target?.email },
-      `Admin ${actorId} deleted user ${targetId} (${target?.email ?? 'unknown'})`,
+      { adminAction: 'user.delete', actorId, targetId, targetEmail: target.email },
+      `Admin ${actorId} deleted user ${targetId} (${target.email})`,
     );
     await logAdminAction({
       actorId,
       actorLabel: actor.email,
       action: 'user.delete',
-      targetLabel: target?.email ?? targetId,
+      targetLabel: target.email,
       metadata: { targetId },
     });
     reply.status(204);
@@ -254,24 +257,27 @@ export default async function adminRoutes(app: FastifyInstance) {
       where: { id: targetId },
       include: { _count: { select: { members: true, games: true } } },
     });
+    if (!target) {
+      throw new HttpError(404, 'Room not found');
+    }
     await prisma.room.delete({ where: { id: targetId } });
     app.log.warn(
       {
         adminAction: 'room.delete',
         actorId,
         targetId,
-        targetName: target?.name,
-        memberCount: target?._count.members,
-        gameCount: target?._count.games,
+        targetName: target.name,
+        memberCount: target._count.members,
+        gameCount: target._count.games,
       },
-      `Admin ${actorId} deleted room ${targetId} (${target?.name ?? 'unknown'}), cascading ${target?._count.members ?? 0} member(s) and ${target?._count.games ?? 0} game(s)`,
+      `Admin ${actorId} deleted room ${targetId} (${target.name}), cascading ${target._count.members} member(s) and ${target._count.games} game(s)`,
     );
     await logAdminAction({
       actorId,
       actorLabel: actor.email,
       action: 'room.delete',
-      targetLabel: target?.name ?? targetId,
-      metadata: { targetId, memberCount: target?._count.members ?? null, gameCount: target?._count.games ?? null },
+      targetLabel: target.name,
+      metadata: { targetId, memberCount: target._count.members, gameCount: target._count.games },
     });
     reply.status(204);
     return null;
