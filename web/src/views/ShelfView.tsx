@@ -11,6 +11,7 @@ import { ActionErrorBanner } from '../components/ActionErrorBanner';
 import { TruncatedListBanner } from '../components/TruncatedListBanner';
 import { SteamImportCard } from '../components/SteamImportCard';
 import { SteamWishlistImportCard } from '../components/SteamWishlistImportCard';
+import { SteamCompletionsSyncCard } from '../components/SteamCompletionsSyncCard';
 import { BulkActionBar } from '../components/BulkActionBar';
 import styles from './ShelfView.module.css';
 
@@ -33,6 +34,8 @@ export function ShelfView() {
     refreshPrice,
     isRefreshingPrice,
     setTargetPrice,
+    applyTag,
+    removeTag,
     bulkUpdateStatus,
     isBulkUpdatingStatus,
     bulkRemove,
@@ -105,9 +108,11 @@ export function ShelfView() {
       {bulkMode ? (
         <BulkActionBar
           selectedCount={selectedIds.size}
-          totalCount={visibleGames.length}
+          allVisibleSelected={visibleGames.length > 0 && visibleGames.every((g) => selectedIds.has(g.id))}
           busy={isBulkUpdatingStatus || isBulkRemoving}
-          onSelectAll={() => setSelectedIds(new Set(visibleGames.map((g) => g.id)))}
+          onSelectAll={() =>
+            setSelectedIds((prev) => new Set([...prev, ...visibleGames.map((g) => g.id)]))
+          }
           onClear={() => setSelectedIds(new Set())}
           onSetStatus={handleBulkSetStatus}
           onRemove={handleBulkRemove}
@@ -137,12 +142,19 @@ export function ShelfView() {
         onRefreshPrice={refreshPrice}
         isRefreshingPrice={isRefreshingPrice}
         onSetTargetPrice={setTargetPrice}
+        onApplyTag={applyTag}
+        onRemoveTag={removeTag}
         showSpinWheel={!bulkMode}
         trailingCard={
           !bulkMode && (
             <>
               <SteamImportCard steamLinked={steamLinked} />
               <SteamWishlistImportCard steamLinked={steamLinked} />
+              <SteamCompletionsSyncCard
+                steamLinked={steamLinked}
+                onApply={(gameIds) => bulkUpdateStatus(gameIds, 'done')}
+                applying={isBulkUpdatingStatus}
+              />
             </>
           )
         }

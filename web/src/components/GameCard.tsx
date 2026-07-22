@@ -31,6 +31,9 @@ interface GameCardProps {
   /** Toggles the current user's ownership claim on this game (issue #173) - only offered for room
    * games (game.ownership is null on the Personal Shelf, where there's no group to count). */
   onSetOwnership?: (owned: boolean) => void;
+  /** Finds-or-creates a tag by name and applies it to this game (issue #247). */
+  onApplyTag: (name: string) => Promise<void>;
+  onRemoveTag: (tagId: string) => void;
   /** Bulk-select mode (issue #205, Personal Shelf only) - while active, clicking the card toggles
    * selection instead of opening the detail modal. */
   selectable?: boolean;
@@ -53,6 +56,8 @@ export function GameCard({
   isRefreshingPrice = false,
   onSetTargetPrice,
   onSetOwnership,
+  onApplyTag,
+  onRemoveTag,
   selectable = false,
   selected = false,
   onToggleSelect,
@@ -103,7 +108,7 @@ export function GameCard({
           className={styles.cover}
           style={game.coverImageUrl ? { backgroundImage: `url(${game.coverImageUrl})` } : undefined}
         >
-          {!game.coverImageUrl && <span className={styles.coverLabel}>COVER ART</span>}
+          {!game.coverImageUrl && <span className={styles.coverLabel}>{game.title}</span>}
 
           {/* "Collecting dust" nudge (issue #249) - backlog games Year in Review would otherwise
               only ever call out once a year. Top-left, opposite the vote badge's bottom-right spot
@@ -170,6 +175,8 @@ export function GameCard({
           isRefreshingPrice={isRefreshingPrice}
           onSetTargetPrice={onSetTargetPrice}
           onSetOwnership={onSetOwnership}
+          onApplyTag={onApplyTag}
+          onRemoveTag={onRemoveTag}
           onClose={() => setDetailOpen(false)}
         />
       )}

@@ -2,7 +2,7 @@ import type { Game, GameStatus, User, VoteValue } from '@queueup/shared';
 import { GameCard } from './GameCard';
 import styles from './PlayingStrip.module.css';
 
-interface PlayingStripProps {
+interface BeatenStripProps {
   games: Game[];
   currentUserId: string;
   memberCount?: number;
@@ -14,19 +14,13 @@ interface PlayingStripProps {
   isRefreshingPrice?: (gameId: string) => boolean;
   onSetTargetPrice: (gameId: string, targetPrice: string | null) => void;
   onSetOwnership?: (gameId: string, owned: boolean) => void;
-  onApplyTag: (gameId: string, name: string) => Promise<void>;
-  onRemoveTag: (gameId: string, tagId: string) => void;
 }
 
-/** A compact glance at what's currently in rotation in this room (issue #229) - every game marked
- * Playing, in a horizontal strip above the main grid, so "what's this room playing right now"
- * doesn't require scanning the whole backlog for the Playing badge. Reuses GameCard itself (not a
- * lighter-weight read-only component) so clicking a card opens the exact same detail modal, with
- * the same status/vote/price/ownership actions, as the main grid below - just a different, smaller
- * arrangement of the same interactive cards, not a separate view. `Game.status` is one shared field
- * per room game (not per-member), so this shows which *games* are active, not "who" is playing
- * them - see the issue for why a per-member feed isn't a natural fit for the current data model. */
-export function PlayingStrip({
+/** Mirrors PlayingStrip, but for games marked Done, and sits below the main grid instead of above
+ * it - a room's "what have we already finished" belongs at the bottom, out of the way, rather than
+ * competing with Currently Playing for the top spot. Reuses PlayingStrip's stylesheet since the
+ * layout (a horizontal strip of cards with a label) is identical, just a different filter/position. */
+export function BeatenStrip({
   games,
   currentUserId,
   memberCount,
@@ -38,17 +32,20 @@ export function PlayingStrip({
   isRefreshingPrice,
   onSetTargetPrice,
   onSetOwnership,
-  onApplyTag,
-  onRemoveTag,
-}: PlayingStripProps) {
-  const playing = games.filter((g) => g.status === 'playing');
-  if (playing.length === 0) return null;
+}: BeatenStripProps) {
+  // Most recently marked Done first, so the strip reads as a completion timeline rather than
+  // whatever order the games happened to come back in - same signal lastCompletedPrimaryGenre in
+  // gameGridLogic.ts already uses as "the last completed game."
+  const done = games
+    .filter((g) => g.status === 'done')
+    .sort((a, b) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime());
+  if (done.length === 0) return null;
 
   return (
     <div className={styles.strip}>
-      <div className={styles.label}>Currently Playing</div>
+      <div className={styles.label}>Beaten</div>
       <div className={styles.row}>
-        {playing.map((game) => (
+        {done.map((game) => (
           <div key={game.id} className={styles.item}>
             <GameCard
               game={game}
@@ -62,8 +59,6 @@ export function PlayingStrip({
               isRefreshingPrice={isRefreshingPrice ? isRefreshingPrice(game.id) : false}
               onSetTargetPrice={(targetPrice) => onSetTargetPrice(game.id, targetPrice)}
               onSetOwnership={onSetOwnership ? (owned) => onSetOwnership(game.id, owned) : undefined}
-              onApplyTag={(name) => onApplyTag(game.id, name)}
-              onRemoveTag={(tagId) => onRemoveTag(game.id, tagId)}
             />
           </div>
         ))}

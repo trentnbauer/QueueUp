@@ -4,7 +4,11 @@ import styles from './BulkActionBar.module.css';
 
 interface BulkActionBarProps {
   selectedCount: number;
-  totalCount: number;
+  /** Whether every currently visible (filtered) game is already selected - used instead of a raw
+   * count comparison so a selection that also includes games hidden by the active filter doesn't
+   * make "Select all" look already-satisfied (or, worse, let clicking it replace the selection with
+   * just what's visible and silently drop the hidden ones - see issue #267). */
+  allVisibleSelected: boolean;
   busy?: boolean;
   onSelectAll: () => void;
   onClear: () => void;
@@ -17,7 +21,7 @@ interface BulkActionBarProps {
  * Personal Shelf game in one action instead of one card at a time. */
 export function BulkActionBar({
   selectedCount,
-  totalCount,
+  allVisibleSelected,
   busy,
   onSelectAll,
   onClear,
@@ -29,7 +33,7 @@ export function BulkActionBar({
     <div className={styles.bar}>
       <div className={styles.left}>
         <span className={styles.count}>{selectedCount} selected</span>
-        <button type="button" className={styles.linkButton} onClick={onSelectAll} disabled={selectedCount === totalCount}>
+        <button type="button" className={styles.linkButton} onClick={onSelectAll} disabled={allVisibleSelected}>
           Select all
         </button>
         <button type="button" className={styles.linkButton} onClick={onClear} disabled={selectedCount === 0}>

@@ -4,6 +4,7 @@ import { AvatarBadge } from './AvatarBadge';
 import { VoteRow } from './VoteRow';
 import { VoteHeatmap } from './VoteHeatmap';
 import { AchievementRow } from './AchievementRow';
+import { TagPicker } from './TagPicker';
 import { useConfirm } from '../context/ConfirmContext';
 import { useModalA11y } from '../hooks/useModalA11y';
 import { useGameAchievements } from '../hooks/useGameAchievements';
@@ -25,6 +26,9 @@ interface GameDetailModalProps {
   isRefreshingPrice?: boolean;
   onSetTargetPrice: (targetPrice: string | null) => void;
   onSetOwnership?: (owned: boolean) => void;
+  /** Finds-or-creates a tag by name and applies it to this game (issue #247). */
+  onApplyTag: (name: string) => Promise<void>;
+  onRemoveTag: (tagId: string) => void;
   onClose: () => void;
 }
 
@@ -43,6 +47,8 @@ export function GameDetailModal({
   isRefreshingPrice = false,
   onSetTargetPrice,
   onSetOwnership,
+  onApplyTag,
+  onRemoveTag,
   onClose,
 }: GameDetailModalProps) {
   const confirm = useConfirm();
@@ -63,6 +69,16 @@ export function GameDetailModal({
     myAchievements.unlocked === myAchievements.total &&
     game.status !== 'done' &&
     game.status !== 'dropped';
+
+  // Full breakdown (issue #248) - IGDB's game_time_to_beats endpoint returns three figures that
+  // are strictly ordered for any given game (rushed < main story < completionist), so they're
+  // shown in ascending order here. Only the tiers IGDB actually has data for are shown; a game
+  // with just one figure on file still reads fine as a single "Main Story ~Xh" entry.
+  const timeToBeatParts = [
+    game.timeToBeatRushedHours != null && `Rushed ~${game.timeToBeatRushedHours}h`,
+    game.timeToBeatHours != null && `Main Story ~${game.timeToBeatHours}h`,
+    game.timeToBeatCompletionistHours != null && `Completionist ~${game.timeToBeatCompletionistHours}h`,
+  ].filter((part): part is string => part !== false);
 
   const coopWarning =
     game.maxCoopPlayers != null && memberCount != null && memberCount > game.maxCoopPlayers
@@ -120,10 +136,8 @@ export function GameDetailModal({
           />
           <div className={styles.headerText}>
             <span className={styles.title}>{game.title}</span>
-            <span className={styles.genre}>
-              {game.genre ?? '—'}
-              {game.timeToBeatHours != null && ` · ~${game.timeToBeatHours}h to beat`}
-            </span>
+            <span className={styles.genre}>{game.genre ?? '—'}</span>
+            {timeToBeatParts.length > 0 && <span className={styles.genre}>{timeToBeatParts.join(' · ')}</span>}
           </div>
           <button type="button" className={styles.closeButton} onClick={onClose} aria-label="Close">
             ×
@@ -248,6 +262,17 @@ export function GameDetailModal({
               {game.youOwn ? 'You own this' : 'Mark as owned'} · {game.ownership.owned}/{game.ownership.total} of the squad own this
             </span>
           </button>
+        )}
+
+        {/* Tags are a personal filing scheme (issue #247) - only the game's adder can apply/remove
+            one (see requireGameTagAccess server-side), so the whole section is hidden for a room
+            game someone else added rather than showing controls that would just 403. */}
+        {game.addedBy.id === currentUserId && (
+          <>
+            <div className={styles.divider} />
+            <div className={styles.sectionTitle}>Tags</div>
+            <TagPicker currentTags={game.tags} onApply={onApplyTag} onRemove={onRemoveTag} />
+          </>
         )}
 
         <div className={styles.divider} />

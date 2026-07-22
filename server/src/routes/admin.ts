@@ -1,4 +1,5 @@
 import type { FastifyInstance } from 'fastify';
+import { Prisma } from '@prisma/client';
 import { prisma } from '../db/client.js';
 import { env } from '../config/env.js';
 import { HttpError } from '../util/httpError.js';
@@ -208,16 +209,29 @@ export default async function adminRoutes(app: FastifyInstance) {
     }
 
     const target = await prisma.user.findUnique({ where: { id: targetId } });
-    await prisma.user.delete({ where: { id: targetId } });
+    if (!target) {
+      throw new HttpError(404, 'User not found');
+    }
+    try {
+      await prisma.user.delete({ where: { id: targetId } });
+    } catch (err) {
+      // Still possible even after the findUnique check above (another admin's delete, or a
+      // retried request, landing in the gap between the two) - Prisma's P2025 has no statusCode
+      // of its own, so without this it'd fall through to the global handler's 500 default.
+      if (err instanceof Prisma.PrismaClientKnownRequestError && err.code === 'P2025') {
+        throw new HttpError(404, 'User not found');
+      }
+      throw err;
+    }
     app.log.warn(
-      { adminAction: 'user.delete', actorId, targetId, targetEmail: target?.email },
-      `Admin ${actorId} deleted user ${targetId} (${target?.email ?? 'unknown'})`,
+      { adminAction: 'user.delete', actorId, targetId, targetEmail: target.email },
+      `Admin ${actorId} deleted user ${targetId} (${target.email})`,
     );
     await logAdminAction({
       actorId,
       actorLabel: actor.email,
       action: 'user.delete',
-      targetLabel: target?.email ?? targetId,
+      targetLabel: target.email,
       metadata: { targetId },
     });
     reply.status(204);
@@ -254,24 +268,35 @@ export default async function adminRoutes(app: FastifyInstance) {
       where: { id: targetId },
       include: { _count: { select: { members: true, games: true } } },
     });
-    await prisma.room.delete({ where: { id: targetId } });
+    if (!target) {
+      throw new HttpError(404, 'Room not found');
+    }
+    try {
+      await prisma.room.delete({ where: { id: targetId } });
+    } catch (err) {
+      // Same TOCTOU gap as the user-delete route above.
+      if (err instanceof Prisma.PrismaClientKnownRequestError && err.code === 'P2025') {
+        throw new HttpError(404, 'Room not found');
+      }
+      throw err;
+    }
     app.log.warn(
       {
         adminAction: 'room.delete',
         actorId,
         targetId,
-        targetName: target?.name,
-        memberCount: target?._count.members,
-        gameCount: target?._count.games,
+        targetName: target.name,
+        memberCount: target._count.members,
+        gameCount: target._count.games,
       },
-      `Admin ${actorId} deleted room ${targetId} (${target?.name ?? 'unknown'}), cascading ${target?._count.members ?? 0} member(s) and ${target?._count.games ?? 0} game(s)`,
+      `Admin ${actorId} deleted room ${targetId} (${target.name}), cascading ${target._count.members} member(s) and ${target._count.games} game(s)`,
     );
     await logAdminAction({
       actorId,
       actorLabel: actor.email,
       action: 'room.delete',
-      targetLabel: target?.name ?? targetId,
-      metadata: { targetId, memberCount: target?._count.members ?? null, gameCount: target?._count.games ?? null },
+      targetLabel: target.name,
+      metadata: { targetId, memberCount: target._count.members, gameCount: target._count.games },
     });
     reply.status(204);
     return null;

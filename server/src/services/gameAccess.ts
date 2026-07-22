@@ -34,6 +34,18 @@ export async function requireGameDeleteAccess(game: GameWithRelations, userId: s
   }
 }
 
+/** Tags are a personal filing scheme (issue #247), not a room feature - only the person who added a
+ * game may tag it, whether it's on their Personal Shelf or in a room, matching the issue's stated
+ * scope ("a tag you create applies across your Personal Shelf and any room games you added"). This
+ * is stricter than requireGameReadAccess/requireGameDeleteAccess (which any room member passes) -
+ * being able to see or vote on a shared room game doesn't mean you get to organize it into somebody
+ * else's tag scheme. */
+export function requireGameTagAccess(game: { addedBy: string }, userId: string) {
+  if (game.addedBy !== userId) {
+    throw new HttpError(403, 'You can only tag games you added');
+  }
+}
+
 /** A game's "audience" for duplicate purposes: everyone in the room, or just the shelf's own owner. */
 export function duplicateScopeWhere(roomId: string | null, userId: string) {
   return roomId ? { roomId } : { roomId: null, addedBy: userId };

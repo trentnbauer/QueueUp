@@ -47,6 +47,9 @@ export async function resolveGameForCreation(
   releaseYear: number | null;
   releaseDate: Date | null;
   timeToBeatHours: number | null;
+  timeToBeatRushedHours: number | null;
+  timeToBeatCompletionistHours: number | null;
+  igdbCollectionId: number | null;
 }> {
   const detail = await getGameDetail(igdbId);
   assertPlatformMatch(detail, allowedPlatforms);
@@ -63,6 +66,9 @@ export async function resolveGameForCreation(
     releaseYear: detail.releaseYear,
     releaseDate: detail.releaseDate,
     timeToBeatHours: detail.timeToBeatHours,
+    timeToBeatRushedHours: detail.timeToBeatRushedHours,
+    timeToBeatCompletionistHours: detail.timeToBeatCompletionistHours,
+    igdbCollectionId: detail.igdbCollectionId,
   };
 }
 

@@ -10,6 +10,7 @@ import type {
   PriceRegion,
   SetGameOwnershipRequest,
   SetTargetPriceRequest,
+  SteamCompletionsSyncResult,
   SteamImportProgress,
   SteamImportStarted,
   SteamWishlistImportProgress,
@@ -50,4 +51,5 @@ export const gamesApi = {
     apiGet<{ progress: SteamWishlistImportProgress | null }>('/api/games/import-steam-wishlist/progress'),
   achievements: (id: string) => apiGet<{ players: PlayerAchievements[] }>(`/api/games/${id}/achievements`),
   yearInReview: () => apiGet<YearInReview>('/api/me/year-in-review'),
+  syncSteamCompletions: () => apiPost<SteamCompletionsSyncResult>('/api/games/sync-steam-completions'),
 };
