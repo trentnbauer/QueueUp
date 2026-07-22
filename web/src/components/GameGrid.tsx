@@ -55,6 +55,13 @@ interface GameGridProps {
    * filters (e.g. the Steam import tile on the Personal Shelf) - unlike the Spin the Wheel tile,
    * this doesn't get slotted into a specific status position. */
   trailingCard?: ReactNode;
+  /** Statuses to leave out of the main grid's cards because a caller already shows them elsewhere
+   * (Communal Rooms' Currently Playing strip above, Beaten strip below) - showing them a third
+   * time here would just be a duplicate. Still respected only when the status pill is set to "all":
+   * explicitly filtering to one of these statuses is a deliberate ask to see it here, so it wins
+   * over the hide. `games` itself is untouched, so Spin the Wheel's genre-avoidance logic (which
+   * needs to know what's currently Playing/last Done) still sees every game regardless. */
+  hiddenStatuses?: GameStatus[];
   onStatusChange: (gameId: string, status: GameStatus) => void;
   onVote: (gameId: string, value: VoteValue) => void;
   onRemove: (gameId: string) => void;
@@ -64,6 +71,9 @@ interface GameGridProps {
   onSetTargetPrice: (gameId: string, targetPrice: string | null) => void;
   /** Undefined on the Personal Shelf - ownership is a room-only concept (see GameCard). */
   onSetOwnership?: (gameId: string, owned: boolean) => void;
+  /** Finds-or-creates a tag by name and applies it to a game (issue #247). */
+  onApplyTag: (gameId: string, name: string) => Promise<void>;
+  onRemoveTag: (gameId: string, tagId: string) => void;
   /** Bulk-select mode (issue #205) - passed through to every GameCard when active. */
   selectionMode?: boolean;
   selectedIds?: Set<string>;
@@ -82,6 +92,7 @@ export function GameGrid({
   showSpinWheel,
   spinOnlyFullyOwned,
   trailingCard,
+  hiddenStatuses,
   onStatusChange,
   onVote,
   onRemove,
@@ -89,13 +100,15 @@ export function GameGrid({
   isRefreshingPrice,
   onSetTargetPrice,
   onSetOwnership,
+  onApplyTag,
+  onRemoveTag,
   selectionMode,
   selectedIds,
   onToggleSelect,
 }: GameGridProps) {
   // Filter selection lives in GameFilterContext, not here - the pill UI (and the search box) are
   // rendered by the Header (a sibling, not a parent, of this component) next to the Add Game button.
-  const { platformFilter, genreFilter, statusFilter, searchQuery, neglectedFilter } = useGameFilter();
+  const { platformFilter, genreFilter, statusFilter, tagFilter, searchQuery, neglectedFilter } = useGameFilter();
 
   const sorted = useStableOrder(games);
   const prioritized = useMemo(
@@ -105,12 +118,23 @@ export function GameGrid({
 
   const normalizedQuery = searchQuery.trim().toLowerCase();
   const filtered = useMemo(
-    () => filterGames(prioritized, { platformFilter, genreFilter, statusFilter, searchQuery, neglectedFilter }),
-    [prioritized, platformFilter, genreFilter, statusFilter, searchQuery, neglectedFilter],
+    () => filterGames(prioritized, { platformFilter, genreFilter, statusFilter, tagFilter, searchQuery, neglectedFilter }),
+    [prioritized, platformFilter, genreFilter, statusFilter, tagFilter, searchQuery, neglectedFilter],
   );
 
   const hasActiveFilters =
-    platformFilter !== ALL_FILTER_VALUE || genreFilter !== ALL_FILTER_VALUE || neglectedFilter || normalizedQuery !== '';
+    platformFilter !== ALL_FILTER_VALUE ||
+    genreFilter !== ALL_FILTER_VALUE ||
+    tagFilter !== ALL_FILTER_VALUE ||
+    neglectedFilter ||
+    normalizedQuery !== '';
+
+  // hiddenStatuses only applies when the status pill is untouched - picking a hidden status
+  // explicitly (e.g. filtering to "Playing") is a deliberate ask to see it here, and wins.
+  const visible = useMemo(() => {
+    if (!hiddenStatuses || hiddenStatuses.length === 0 || statusFilter !== ALL_FILTER_VALUE) return filtered;
+    return filtered.filter((g) => !hiddenStatuses.includes(g.status));
+  }, [filtered, hiddenStatuses, statusFilter]);
 
   if (isLoading) {
     return (
@@ -137,7 +161,7 @@ export function GameGrid({
 
   const spinCard = showSpinWheel && <SpinWheelCard games={games} spinOnlyFullyOwned={spinOnlyFullyOwned} />;
 
-  if (prioritized.length === 0 || filtered.length === 0) {
+  if (prioritized.length === 0 || visible.length === 0) {
     const message = prioritized.length === 0
       ? 'Nothing here yet.'
       : hasActiveFilters
@@ -155,20 +179,20 @@ export function GameGrid({
     );
   }
 
-  // The spin tile sits between the Playing group and the rest (backlog, then Done) - filtered is
+  // The spin tile sits between the Playing group and the rest (backlog, then Done) - visible is
   // already sorted Playing-first by statusBucket, so the first non-Playing game marks exactly
   // where that boundary is. If every visible game is currently Playing, it falls in after all of
   // them instead.
   const spinCardInsertIndex = spinCard
     ? (() => {
-        const index = filtered.findIndex((g) => g.status !== 'playing');
-        return index === -1 ? filtered.length : index;
+        const index = visible.findIndex((g) => g.status !== 'playing');
+        return index === -1 ? visible.length : index;
       })()
     : -1;
 
   return (
     <div className={styles.cards}>
-      {filtered.map((game, index) => (
+      {visible.map((game, index) => (
         <Fragment key={game.id}>
           {index === spinCardInsertIndex && spinCard}
           <GameCard
@@ -183,13 +207,15 @@ export function GameGrid({
             isRefreshingPrice={isRefreshingPrice ? isRefreshingPrice(game.id) : false}
             onSetTargetPrice={(targetPrice) => onSetTargetPrice(game.id, targetPrice)}
             onSetOwnership={onSetOwnership ? (owned) => onSetOwnership(game.id, owned) : undefined}
+            onApplyTag={(name) => onApplyTag(game.id, name)}
+            onRemoveTag={(tagId) => onRemoveTag(game.id, tagId)}
             selectable={selectionMode}
             selected={selectedIds?.has(game.id) ?? false}
             onToggleSelect={onToggleSelect ? () => onToggleSelect(game.id) : undefined}
           />
         </Fragment>
       ))}
-      {spinCardInsertIndex === filtered.length && spinCard}
+      {spinCardInsertIndex === visible.length && spinCard}
       {trailingCard}
     </div>
   );

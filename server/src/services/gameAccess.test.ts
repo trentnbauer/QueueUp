@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { duplicateScopeWhere } from './gameAccess.js';
+import { duplicateScopeWhere, requireGameTagAccess } from './gameAccess.js';
 
 describe('duplicateScopeWhere', () => {
   it('scopes to the whole room when roomId is given, regardless of who is asking', () => {
@@ -15,5 +15,15 @@ describe('duplicateScopeWhere', () => {
     const a = duplicateScopeWhere(null, 'user-a');
     const b = duplicateScopeWhere(null, 'user-b');
     expect(a).not.toEqual(b);
+  });
+});
+
+describe('requireGameTagAccess', () => {
+  it('allows the game\'s own adder, room game or not', () => {
+    expect(() => requireGameTagAccess({ addedBy: 'user-a' }, 'user-a')).not.toThrow();
+  });
+
+  it('rejects anyone else, even a fellow room member who can otherwise read/vote on the game', () => {
+    expect(() => requireGameTagAccess({ addedBy: 'user-a' }, 'user-b')).toThrow(/added/i);
   });
 });

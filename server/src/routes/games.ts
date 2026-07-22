@@ -33,6 +33,7 @@ import {
 } from '../services/steamLibrary.js';
 import type { OwnedSteamGame } from '../services/steamLibrary.js';
 import { setOwnership, markOwned } from '../services/gameOwnership.js';
+import { findDetectedSteamCompletions } from '../services/steamCompletionDetection.js';
 import { toUserDto } from '../util/dto.js';
 import { env } from '../config/env.js';
 import type {
@@ -46,6 +47,7 @@ import type {
   SetTargetPriceRequest,
   SteamImportProgress,
   SteamImportStarted,
+  SteamCompletionsSyncResult,
   SteamWishlistImportProgress,
   SteamWishlistImportStarted,
   UpdateGameStatusRequest,
@@ -114,10 +116,13 @@ async function runSteamLibraryImportLoop(
             genre: resolved.genre,
             maxCoopPlayers: resolved.maxCoopPlayers,
             timeToBeatHours: resolved.timeToBeatHours,
+            timeToBeatRushedHours: resolved.timeToBeatRushedHours,
+            timeToBeatCompletionistHours: resolved.timeToBeatCompletionistHours,
             ggDealsUrl: resolved.ggDealsUrl,
             steamAppid: resolved.steamAppId,
             coverImageUrl: resolved.coverImageUrl,
             releaseYear: resolved.releaseYear,
+            igdbCollectionId: resolved.igdbCollectionId,
           },
         });
         existingIgdbIdSet.add(igdbId);
@@ -172,10 +177,13 @@ async function runSteamWishlistImportLoop(
             genre: resolved.genre,
             maxCoopPlayers: resolved.maxCoopPlayers,
             timeToBeatHours: resolved.timeToBeatHours,
+            timeToBeatRushedHours: resolved.timeToBeatRushedHours,
+            timeToBeatCompletionistHours: resolved.timeToBeatCompletionistHours,
             ggDealsUrl: resolved.ggDealsUrl,
             steamAppid: resolved.steamAppId,
             coverImageUrl: resolved.coverImageUrl,
             releaseYear: resolved.releaseYear,
+            igdbCollectionId: resolved.igdbCollectionId,
             status: 'wishlist',
           },
         });
@@ -267,10 +275,13 @@ export default async function gameRoutes(app: FastifyInstance) {
         genre: resolved.genre,
         maxCoopPlayers: resolved.maxCoopPlayers,
         timeToBeatHours: resolved.timeToBeatHours,
+        timeToBeatRushedHours: resolved.timeToBeatRushedHours,
+        timeToBeatCompletionistHours: resolved.timeToBeatCompletionistHours,
         ggDealsUrl: resolved.ggDealsUrl,
         steamAppid: resolved.steamAppId,
         coverImageUrl: resolved.coverImageUrl,
         releaseYear: resolved.releaseYear,
+        igdbCollectionId: resolved.igdbCollectionId,
       },
     });
     const game = await loadGameOr404(created.id);
@@ -716,31 +727,15 @@ export default async function gameRoutes(app: FastifyInstance) {
       // The app's Done status is opt-in (see the nudge in GameDetailModal.tsx), so relying on it
       // alone undercounts anyone who tracks completion via Steam instead - check not-yet-Done
       // games with a linked Steam app id for 100% achievement completion within the window, and
-      // fold in whatever that turns up alongside the manually-marked games above.
+      // fold in whatever that turns up alongside the manually-marked games above. Candidate
+      // scanning itself is shared with the all-time "Sync completions from Steam" action below -
+      // see findDetectedSteamCompletions.
       let autoDetected: YearInReviewGameRow[] = [];
       if (steamId64 && env.STEAM_API_KEY) {
-        const apiKey = env.STEAM_API_KEY;
-        const candidates = await prisma.game.findMany({
-          where: { addedBy: userId, status: { notIn: ['done', 'dropped'] }, steamAppid: { not: null } },
-          select: { id: true, title: true, genre: true, timeToBeatHours: true, steamAppid: true, roomId: true },
-          orderBy: { updatedAt: 'desc' },
-          take: YEAR_IN_REVIEW_AUTODETECT_CANDIDATE_LIMIT,
+        const { completions } = await findDetectedSteamCompletions(userId, steamId64, env.STEAM_API_KEY, {
+          limit: YEAR_IN_REVIEW_AUTODETECT_CANDIDATE_LIMIT,
         });
-
-        const detected = await Promise.all(
-          candidates.map(async (g): Promise<YearInReviewGameRow | null> => {
-            const appId = g.steamAppid!;
-            const [counts, unlocked] = await Promise.all([
-              getAchievementCounts(steamId64, appId, apiKey),
-              getAchievementDetails(steamId64, appId, apiKey),
-            ]);
-            if (!counts || counts.total === 0 || counts.unlocked < counts.total) return null;
-            const lastUnlock = Math.max(...unlocked.map((a) => a.unlockTime));
-            if (lastUnlock < windowStartSeconds || lastUnlock > windowEndSeconds) return null;
-            return g;
-          }),
-        );
-        autoDetected = detected.filter((g): g is YearInReviewGameRow => g !== null);
+        autoDetected = completions.filter((g) => g.lastUnlockedAt >= windowStartSeconds && g.lastUnlockedAt <= windowEndSeconds);
       }
 
       const combinedDone: YearInReviewGameRow[] = [...doneGames, ...autoDetected];
@@ -871,6 +866,59 @@ export default async function gameRoutes(app: FastifyInstance) {
         completedByGroup,
         achievementsUnlocked,
         rarestAchievements,
+      };
+      return result;
+    },
+  );
+
+  // How many not-yet-Done Personal Shelf games (with a linked Steam app id) get checked per sync
+  // run - same reasoning as YEAR_IN_REVIEW_AUTODETECT_CANDIDATE_LIMIT (each check costs two Steam
+  // Web API calls), just its own constant since this scans all time rather than a 12-month window
+  // and is triggered independently, from a different part of the UI.
+  const STEAM_COMPLETIONS_SYNC_CANDIDATE_LIMIT = 40;
+
+  // "Sync completions from Steam" (issue #244) - a shelf-level counterpart to the one-game-at-a-time
+  // nudge in GameDetailModal.tsx (issue #227) and to the Year in Review recap's auto-detection
+  // (issue #230/#238) it shares candidate-scanning logic with, but run on demand, across all time,
+  // and surfaced as a batch the caller reviews rather than folded into a summary or requiring each
+  // game to be opened individually. Never changes a game's status itself - the client applies Done
+  // to whichever candidates the caller picks via the existing bulk-status endpoint, same opt-in-by-
+  // design pattern as the single-game nudge.
+  app.post(
+    '/api/games/sync-steam-completions',
+    // A scan, not a read - each candidate costs two Steam Web API calls (see
+    // findDetectedSteamCompletions), so this is capped the same way the Steam imports and Year in
+    // Review are, not left at the default rate limit.
+    { config: { rateLimit: { max: 10, timeWindow: '1 hour' } } },
+    async (request) => {
+      const userId = await request.requireAuth();
+      if (!env.STEAM_API_KEY) {
+        throw new HttpError(400, 'Steam integration is not configured on this server.');
+      }
+      const apiKey = env.STEAM_API_KEY;
+
+      const user = await prisma.user.findUniqueOrThrow({ where: { id: userId } });
+      const steamId64 = resolveSteamId64(user);
+      if (!steamId64) {
+        throw new HttpError(400, 'Sign in with Steam to sync completions.');
+      }
+
+      // personalShelfOnly: true - the client applies Done through /api/games/bulk-status, which is
+      // scoped to the Personal Shelf (roomId: null); a room-game candidate would otherwise be
+      // suggested here but silently fail to update there.
+      const { consideredCount, completions } = await findDetectedSteamCompletions(userId, steamId64, apiKey, {
+        limit: STEAM_COMPLETIONS_SYNC_CANDIDATE_LIMIT,
+        personalShelfOnly: true,
+      });
+
+      const result: SteamCompletionsSyncResult = {
+        consideredCount,
+        candidates: completions.map((g) => ({
+          id: g.id,
+          title: g.title,
+          coverImageUrl: g.coverImageUrl,
+          lastUnlockedAt: new Date(g.lastUnlockedAt * 1000).toISOString(),
+        })),
       };
       return result;
     },

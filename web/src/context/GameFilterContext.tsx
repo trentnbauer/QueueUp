@@ -6,12 +6,15 @@ interface GameFilterContextValue {
   platformFilter: string;
   genreFilter: string;
   statusFilter: string;
+  /** Tag name filter (issue #247) - see distinctTagNames/filterGames in gameGridLogic. */
+  tagFilter: string;
   searchQuery: string;
   /** "Collecting dust" toggle (issue #249) - see isNeglectedBacklogGame. */
   neglectedFilter: boolean;
   setPlatformFilter: (value: string) => void;
   setGenreFilter: (value: string) => void;
   setStatusFilter: (value: string) => void;
+  setTagFilter: (value: string) => void;
   setSearchQuery: (value: string) => void;
   setNeglectedFilter: (value: boolean) => void;
 }
@@ -28,6 +31,7 @@ export function GameFilterProvider({ children }: { children: ReactNode }) {
   const [platformFilter, setPlatformFilter] = useState(ALL_FILTER_VALUE);
   const [genreFilter, setGenreFilter] = useState(ALL_FILTER_VALUE);
   const [statusFilter, setStatusFilter] = useState(ALL_FILTER_VALUE);
+  const [tagFilter, setTagFilter] = useState(ALL_FILTER_VALUE);
   const [searchQuery, setSearchQuery] = useState('');
   const [neglectedFilter, setNeglectedFilter] = useState(false);
   const viewKey = view.type === 'room' ? `room:${view.roomId}` : 'personal';
@@ -36,6 +40,7 @@ export function GameFilterProvider({ children }: { children: ReactNode }) {
     setPlatformFilter(ALL_FILTER_VALUE);
     setGenreFilter(ALL_FILTER_VALUE);
     setStatusFilter(ALL_FILTER_VALUE);
+    setTagFilter(ALL_FILTER_VALUE);
     setSearchQuery('');
     setNeglectedFilter(false);
   }, [viewKey]);
@@ -46,11 +51,13 @@ export function GameFilterProvider({ children }: { children: ReactNode }) {
         platformFilter,
         genreFilter,
         statusFilter,
+        tagFilter,
         searchQuery,
         neglectedFilter,
         setPlatformFilter,
         setGenreFilter,
         setStatusFilter,
+        setTagFilter,
         setSearchQuery,
         setNeglectedFilter,
       }}

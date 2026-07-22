@@ -8,6 +8,7 @@ import staticPlugin from './plugins/static.js';
 import authRoutes from './routes/auth.js';
 import roomRoutes from './routes/rooms.js';
 import gameRoutes from './routes/games.js';
+import tagRoutes from './routes/tags.js';
 import notificationRoutes from './routes/notifications.js';
 import adminRoutes from './routes/admin.js';
 import healthRoutes from './routes/health.js';
@@ -61,6 +62,7 @@ export async function buildApp() {
   await app.register(authRoutes);
   await app.register(roomRoutes);
   await app.register(gameRoutes);
+  await app.register(tagRoutes);
   await app.register(notificationRoutes);
   await app.register(adminRoutes);
 

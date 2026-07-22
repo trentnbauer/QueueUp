@@ -28,6 +28,25 @@ export function useSteamImport(steamLinked: boolean, onImported: () => void) {
   const [progress, setProgress] = useState<SteamImportProgress | null>(null);
   const [wishlistProgress, setWishlistProgress] = useState<SteamWishlistImportProgress | null>(null);
   const autoImportRan = useRef(false);
+  // Only one of runImport/runWishlistImport polls at a time (busy is shared across both on
+  // purpose - see above), so a single ref covers whichever one is currently running. Tracked so it
+  // can be cleared on unmount - previously a bare setInterval kept polling the server every second
+  // indefinitely if the user navigated away mid-import, since it was only ever cleared from inside
+  // its own "done" callback.
+  const pollIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  // The interval above is only created *after* the initial "start import" POST resolves - if the
+  // component unmounts while that's still in flight, the unmount cleanup below runs before there's
+  // any interval for it to clear, so the interval created moments later once the POST resolves
+  // would otherwise be orphaned with nothing left to ever clear it. Checked right after each await
+  // in runImport/runWishlistImport to bail out before creating it.
+  const mountedRef = useRef(true);
+
+  useEffect(() => {
+    return () => {
+      mountedRef.current = false;
+      if (pollIntervalRef.current) clearInterval(pollIntervalRef.current);
+    };
+  }, []);
 
   useEffect(() => {
     if (!steamLinked || autoImportRan.current) return;
@@ -46,6 +65,7 @@ export function useSteamImport(steamLinked: boolean, onImported: () => void) {
   }
 
   async function runWishlistImport() {
+    if (pollIntervalRef.current) return;
     setBusy(true);
     setActiveKind('wishlist');
     setResult(null);
@@ -60,12 +80,14 @@ export function useSteamImport(steamLinked: boolean, onImported: () => void) {
     try {
       await gamesApi.importSteamWishlist();
     } catch (err) {
+      if (!mountedRef.current) return;
       setError(err instanceof Error ? err.message : 'Could not import your Steam wishlist');
       setBusy(false);
       return;
     }
+    if (!mountedRef.current) return;
 
-    const pollInterval = setInterval(async () => {
+    pollIntervalRef.current = setInterval(async () => {
       try {
         const { progress: latest } = await gamesApi.importSteamWishlistProgress();
         if (!latest) return;
@@ -74,7 +96,8 @@ export function useSteamImport(steamLinked: boolean, onImported: () => void) {
           return;
         }
 
-        clearInterval(pollInterval);
+        if (pollIntervalRef.current) clearInterval(pollIntervalRef.current);
+        pollIntervalRef.current = null;
         setWishlistProgress(null);
         setResult(
           latest.imported === 0
@@ -90,6 +113,7 @@ export function useSteamImport(steamLinked: boolean, onImported: () => void) {
   }
 
   async function runImport() {
+    if (pollIntervalRef.current) return;
     setBusy(true);
     setActiveKind('library');
     setResult(null);
@@ -104,12 +128,14 @@ export function useSteamImport(steamLinked: boolean, onImported: () => void) {
     try {
       await gamesApi.importSteamLibrary();
     } catch (err) {
+      if (!mountedRef.current) return;
       setError(err instanceof Error ? err.message : 'Could not import your Steam library');
       setBusy(false);
       return;
     }
+    if (!mountedRef.current) return;
 
-    const pollInterval = setInterval(async () => {
+    pollIntervalRef.current = setInterval(async () => {
       try {
         const { progress: latest } = await gamesApi.importSteamLibraryProgress();
         if (!latest) return;
@@ -118,7 +144,8 @@ export function useSteamImport(steamLinked: boolean, onImported: () => void) {
           return;
         }
 
-        clearInterval(pollInterval);
+        if (pollIntervalRef.current) clearInterval(pollIntervalRef.current);
+        pollIntervalRef.current = null;
         setProgress(null);
         setResult(
           latest.imported === 0

@@ -174,6 +174,9 @@ export function SpinWheelModal({ games, candidates, onClose }: SpinWheelModalPro
             <>
               <div className={styles.revealLabel}>Tonight's pick</div>
               <div className={styles.revealTitle}>{winner.title}</div>
+              {winner.timeToBeatHours != null && (
+                <div className={styles.revealTimeToBeat}>~{winner.timeToBeatHours}h to beat</div>
+              )}
               <div className={styles.actions}>
                 <button type="button" className={styles.spinAgainButton} onClick={() => setSpinKey((k) => k + 1)}>
                   Spin again

@@ -9,6 +9,10 @@ const gameWithRelations = {
   include: {
     adder: true,
     votes: { include: { user: true } },
+    // Every tag applied by anyone (in practice, only ever the adder - see requireGameTagAccess) -
+    // filtered down to the current viewer's own tags in buildGameDto below, not here, since this
+    // shared `include` isn't scoped to a particular viewer.
+    tags: { include: { tag: true } },
   },
 } satisfies Prisma.GameDefaultArgs;
 
@@ -28,6 +32,14 @@ const DEFAULT_OWNERSHIP: GameOwnershipInfo = { youOwn: false, ownership: null };
 function buildGameDto(game: GameWithRelations, currentUserId: string, price: GamePrice, ownership: GameOwnershipInfo): Game {
   const myVote = game.votes.find((v) => v.userId === currentUserId);
   const voteScore = game.votes.reduce((sum, v) => sum + v.value, 0);
+  // Filtered to the viewer's own tags (see the `tags` include's comment above) rather than every
+  // GameTag row on this game - in practice these coincide (only the adder can tag a game, per
+  // requireGameTagAccess), but filtering here keeps that invariant enforced at the read path too
+  // instead of relying solely on the write path never being violated.
+  const tags = game.tags
+    .filter((gt) => gt.tag.userId === currentUserId)
+    .map((gt) => ({ id: gt.tag.id, name: gt.tag.name, createdAt: gt.tag.createdAt.toISOString() }))
+    .sort((a, b) => a.name.localeCompare(b.name));
 
   return {
     id: game.id,
@@ -39,6 +51,8 @@ function buildGameDto(game: GameWithRelations, currentUserId: string, price: Gam
     releaseYear: game.releaseYear,
     maxCoopPlayers: game.maxCoopPlayers,
     timeToBeatHours: game.timeToBeatHours,
+    timeToBeatRushedHours: game.timeToBeatRushedHours,
+    timeToBeatCompletionistHours: game.timeToBeatCompletionistHours,
     ggDealsUrl: game.ggDealsUrl,
     coverImageUrl: game.coverImageUrl,
     status: game.status,
@@ -49,6 +63,7 @@ function buildGameDto(game: GameWithRelations, currentUserId: string, price: Gam
     voteScore,
     youOwn: ownership.youOwn,
     ownership: ownership.ownership,
+    tags,
     createdAt: game.createdAt.toISOString(),
     updatedAt: game.updatedAt.toISOString(),
   };

@@ -22,7 +22,7 @@ async function resolveIgdbCredentials(): Promise<{ clientId: string; clientSecre
 }
 
 const TOKEN_CACHE_KEY = 'igdb:token:v1';
-const DETAIL_CACHE_PREFIX = 'igdb:detail:v5:'; // v5: added releaseYear
+const DETAIL_CACHE_PREFIX = 'igdb:detail:v7:'; // v7: added igdbCollectionId
 const DETAIL_CACHE_TTL_SECONDS = 60 * 60 * 24; // 24h — title/cover/platform/steamAppId rarely change
 
 interface TwitchTokenResponse {
@@ -66,6 +66,10 @@ interface IgdbGenre {
   name?: string;
 }
 
+interface IgdbCollectionRef {
+  id: number;
+}
+
 export interface IgdbGame {
   id: number;
   name?: string;
@@ -75,6 +79,7 @@ export interface IgdbGame {
   first_release_date?: number;
   category?: number;
   version_parent?: number;
+  collection?: IgdbCollectionRef;
 }
 
 // IGDB's documented `category` enum (api-docs.igdb.com/#game-enums) - only the two values relevant
@@ -236,6 +241,16 @@ export interface IgdbGameDetail {
    * (issue #189) - null when IGDB has no time-to-beat data for this game. Sourced from IGDB
    * directly rather than scraping HowLongToBeat, which has no official public API. */
   timeToBeatHours: number | null;
+  /** Hours for a rushed/speedrun-style playthrough, from IGDB's game_time_to_beats "hastily"
+   * figure (issue #248) - always the smallest of the three figures on this scale (hastily <
+   * normally < completely), the fastest way to reach the credits. Null when IGDB has no
+   * time-to-beat data. */
+  timeToBeatRushedHours: number | null;
+  /** Hours for a full completionist (100%) playthrough, from IGDB's game_time_to_beats
+   * "completely" figure (issue #248). Null when IGDB has no time-to-beat data. */
+  timeToBeatCompletionistHours: number | null;
+  /** IGDB's franchise/series id, if this game belongs to one (issue #283) - null otherwise. */
+  igdbCollectionId: number | null;
 }
 
 // external_game_source 1 == Steam (from the external_game_sources endpoint) — the `games`
@@ -264,15 +279,33 @@ interface IgdbMultiqueryResult<T> {
   result?: T[];
 }
 
-interface IgdbTimeToBeat {
-  // Seconds, per IGDB's game_time_to_beats endpoint - "normally" is a typical/average completion,
-  // the closest analog to HowLongToBeat's "Main Story" figure.
+export interface IgdbTimeToBeat {
+  // Seconds, per IGDB's game_time_to_beats endpoint. These three figures are strictly ordered
+  // (hastily < normally < completely) for any given game. "normally" is a typical/average
+  // completion, the closest analog to HowLongToBeat's "Main Story" figure - kept as the sole
+  // source of timeToBeatHours (issue #189) for backward compatibility (issue #248 added the
+  // other two below without touching this one). "hastily" is a rushed/speedrun-style clear
+  // (always less time than "normally", not more - it does not map onto HowLongToBeat's
+  // "Main + Extra" figure) and "completely" is a full 100% completionist playthrough.
   normally?: number;
+  hastily?: number;
+  completely?: number;
 }
 
-function timeToBeatHoursFrom(rows: IgdbTimeToBeat[]): number | null {
-  const seconds = rows[0]?.normally;
+export function secondsToHours(seconds: number | undefined): number | null {
   return seconds && seconds > 0 ? Math.round(seconds / 3600) : null;
+}
+
+export function timeToBeatHoursFrom(rows: IgdbTimeToBeat[]): number | null {
+  return secondsToHours(rows[0]?.normally);
+}
+
+export function timeToBeatRushedHoursFrom(rows: IgdbTimeToBeat[]): number | null {
+  return secondsToHours(rows[0]?.hastily);
+}
+
+export function timeToBeatCompletionistHoursFrom(rows: IgdbTimeToBeat[]): number | null {
+  return secondsToHours(rows[0]?.completely);
 }
 
 export async function getGameDetail(igdbId: number): Promise<IgdbGameDetail> {
@@ -296,10 +329,10 @@ export async function getGameDetail(igdbId: number): Promise<IgdbGameDetail> {
     ]
   >(
     'multiquery',
-    `query games "Game" { fields name,cover.image_id,platforms.name,genres.name,first_release_date; where id = ${igdbId}; };
+    `query games "Game" { fields name,cover.image_id,platforms.name,genres.name,first_release_date,collection.id; where id = ${igdbId}; };
      query external_games "External" { fields uid; where game = ${igdbId} & external_game_source = ${STEAM_EXTERNAL_SOURCE_ID}; };
      query multiplayer_modes "Modes" { fields onlinecoopmax,offlinecoopmax; where game = ${igdbId}; };
-     query game_time_to_beats "TimeToBeat" { fields normally; where game_id = ${igdbId}; };`,
+     query game_time_to_beats "TimeToBeat" { fields normally,hastily,completely; where game_id = ${igdbId}; };`,
   );
 
   const games = gameResult.result ?? [];
@@ -324,6 +357,9 @@ export async function getGameDetail(igdbId: number): Promise<IgdbGameDetail> {
     maxCoopPlayers: maxCoopFrom(multiplayerModes),
     releaseYear: releaseYear(game.first_release_date),
     timeToBeatHours: timeToBeatHoursFrom(timeToBeatRows),
+    timeToBeatRushedHours: timeToBeatRushedHoursFrom(timeToBeatRows),
+    timeToBeatCompletionistHours: timeToBeatCompletionistHoursFrom(timeToBeatRows),
+    igdbCollectionId: game.collection?.id ?? null,
   };
 
   await redis.set(cacheKey, JSON.stringify(detail), 'EX', DETAIL_CACHE_TTL_SECONDS);

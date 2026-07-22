@@ -82,6 +82,7 @@ model User {
   notificationsActed   Notification[]  @relation("NotificationActor")
   ownedGames           GameOwnership[]
   linkedIdentities     LinkedIdentity[]
+  tags                 Tag[]
 
   @@map("users")
 }
@@ -178,11 +179,31 @@ model Game {
   /// Captured at intake time from IGDB - not re-fetchable later without hitting IGDB again per
   /// game, so this needs to be saved when the game is added, not derived after the fact.
   releaseYear    Int?       @map("release_year")
+  /// IGDB's franchise/series id for this game, if it belongs to one (issue #283) - captured at
+  /// intake same as releaseYear/maxCoopPlayers above. Not surfaced anywhere yet; laying the
+  /// groundwork for a future "recommend playing the prior entry first" Spin the Wheel feature
+  /// without needing a second IGDB round trip per game once that's built. Null on games added
+  /// before this field existed, and on any game IGDB doesn't have in a collection.
+  igdbCollectionId Int?     @map("igdb_collection_id")
   maxCoopPlayers Int?       @map("max_coop_players")
   /// Hours for an average "main story" playthrough, from IGDB's game_time_to_beats endpoint
   /// (issue #189) - same capture-at-intake reasoning as releaseYear/maxCoopPlayers above. Null
-  /// when IGDB has no time-to-beat data for this game.
+  /// when IGDB has no time-to-beat data for this game. Sourced from IGDB's "normally" figure -
+  /// kept as-is (issue #248) so this column's meaning doesn't shift out from under rows already
+  /// on file; see timeToBeatRushedHours/timeToBeatCompletionistHours for the rest of the
+  /// breakdown IGDB exposes alongside it.
   timeToBeatHours Int?      @map("time_to_beat_hours")
+  /// Hours for a rushed/speedrun-style playthrough, from IGDB's game_time_to_beats "hastily"
+  /// figure (issue #248) - same capture-at-intake reasoning as timeToBeatHours above. Null when
+  /// IGDB has no time-to-beat data for this game. This is always less time than timeToBeatHours
+  /// (Main Story), not more - the three game_time_to_beats figures are strictly ordered hastily <
+  /// normally < completely - so it's additive alongside timeToBeatHours rather than replacing it,
+  /// but represents a quicker/less-thorough clear, not a fuller one.
+  timeToBeatRushedHours        Int? @map("time_to_beat_rushed_hours")
+  /// Hours for a full completionist (100%) playthrough, from IGDB's game_time_to_beats
+  /// "completely" figure (issue #248) - same capture-at-intake reasoning as timeToBeatHours
+  /// above. Null when IGDB has no time-to-beat data for this game.
+  timeToBeatCompletionistHours Int? @map("time_to_beat_completionist_hours")
   ggDealsUrl     String?    @map("gg_deals_url")
   steamAppid     Int?       @map("steam_appid")
   coverImageUrl  String?    @map("cover_image_url")
@@ -203,9 +224,10 @@ model Game {
   /// it sits at the same low. Independent of targetPrice, which is a user-set threshold.
   notifiedAtlPrice String?  @map("notified_atl_price")
 
-  room  Room?  @relation(fields: [roomId], references: [id], onDelete: Cascade)
-  adder User   @relation(fields: [addedBy], references: [id], onDelete: Cascade)
+  room  Room?     @relation(fields: [roomId], references: [id], onDelete: Cascade)
+  adder User      @relation(fields: [addedBy], references: [id], onDelete: Cascade)
   votes Vote[]
+  tags  GameTag[]
 
   @@index([roomId])
   @@index([addedBy], map: "idx_games_personal")
@@ -229,6 +251,50 @@ model Vote {
 
   @@id([gameId, userId])
   @@map("votes")
+}
+
+/// A user-defined organizational label (issue #247), layered on top of the fixed GameStatus enum -
+/// e.g. "Co-op only" or "Short & sweet". Deliberately per-user rather than global/shared: a tag you
+/// create applies across your own Personal Shelf items and any room games you added (see GameTag's
+/// access rule in gameAccess.ts), the same way GameOwnership and the Personal Shelf itself are
+/// scoped to a user rather than a room. Not visible to (or editable by) other room members, even on
+/// a shared room game - this is a personal filing scheme, not a room feature (out of scope per the
+/// issue). Schema-only change, additive and `db push`-safe like the rest of this file (no migration
+/// history is kept - see server/src/db/ensureConstraints.ts's comment for why).
+model Tag {
+  id        String   @id @default(uuid())
+  userId    String   @map("user_id")
+  name      String
+  createdAt DateTime @default(now()) @map("created_at")
+
+  user  User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  games GameTag[]
+
+  // A user can't create two tags with the same name - the create/rename routes rely on this
+  // constraint (via a caught P2002, same pattern as the room invite-code/LinkedIdentity routes)
+  // rather than a separate SELECT-then-INSERT existence check.
+  @@unique([userId, name])
+  @@map("tags")
+}
+
+/// Join row for the per-user Tag <-> Game many-to-many (issue #247). Keyed on the specific Game row
+/// (not igdbId, unlike GameOwnership) - a tag is an organizational label on one shelf/room listing,
+/// not a fact about the title itself, so tagging one copy of a game says nothing about another
+/// listing of the same title elsewhere (e.g. the same game on your shelf AND in a room). Cascades in
+/// both directions: deleting a Game drops its tag associations, and deleting a Tag drops it from
+/// every game it was on - there's no "can't delete, still in use" guard (see the tag-delete route
+/// for that reasoning).
+model GameTag {
+  gameId    String   @map("game_id")
+  tagId     String   @map("tag_id")
+  createdAt DateTime @default(now()) @map("created_at")
+
+  game Game @relation(fields: [gameId], references: [id], onDelete: Cascade)
+  tag  Tag  @relation(fields: [tagId], references: [id], onDelete: Cascade)
+
+  @@id([gameId, tagId])
+  @@index([tagId])
+  @@map("game_tags")
 }
 
 /// Room-activity feed entry: game added, member joined, room renamed/platform/owner changed, or a

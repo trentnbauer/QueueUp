@@ -119,6 +119,14 @@ export interface VoteSummary {
   createdAt: string;
 }
 
+/** A user-defined organizational label, layered on top of the fixed GameStatus enum (issue #247) -
+ * e.g. "Co-op only" or "Short & sweet". Per-user, not shared/room-level - see Tag in schema.prisma. */
+export interface Tag {
+  id: string;
+  name: string;
+  createdAt: string;
+}
+
 export interface Game {
   id: string;
   roomId: string | null;
@@ -131,6 +139,14 @@ export interface Game {
   /** Hours for an average "main story" playthrough, from IGDB (issue #189). Null when IGDB has no
    * time-to-beat data for this game. */
   timeToBeatHours: number | null;
+  /** Hours for a rushed/speedrun-style playthrough, from IGDB's "hastily" time-to-beat figure
+   * (issue #248) - always the smallest of the three figures IGDB exposes (hastily < normally <
+   * completely for any given game), i.e. less time than timeToBeatHours, not more. Null when
+   * IGDB has no time-to-beat data. */
+  timeToBeatRushedHours: number | null;
+  /** Hours for a full completionist (100%) playthrough, from IGDB's "completely" time-to-beat
+   * figure (issue #248). Null when IGDB has no time-to-beat data. */
+  timeToBeatCompletionistHours: number | null;
   ggDealsUrl: string | null;
   coverImageUrl: string | null;
   status: GameStatus;
@@ -148,6 +164,11 @@ export interface Game {
    * there are - e.g. {owned: 3, total: 4}. Null on the Personal Shelf, where there's no group
    * ownership to count. */
   ownership: { owned: number; total: number } | null;
+  /** The *viewer's own* tags applied to this specific game row (issue #247) - always empty for a
+   * room game someone else added, since only the person who added a game may tag it (tags are a
+   * personal filing scheme, not a room feature - see Tag/GameTag in schema.prisma). Empty array,
+   * never omitted, when the viewer has tagged nothing here. */
+  tags: Tag[];
   createdAt: string;
   updatedAt: string;
 }
@@ -229,6 +250,24 @@ export interface MoveGameRequest {
   roomId: string | null;
 }
 
+/** Creates a new tag for the caller. Rejected with 409 if they already have one with this name
+ * (case-sensitive - see Tag's @@unique in schema.prisma). */
+export interface CreateTagRequest {
+  name: string;
+}
+
+/** Renames a tag the caller owns. Same name-collision handling as CreateTagRequest. */
+export interface RenameTagRequest {
+  name: string;
+}
+
+/** Applies a tag to a game by name (issue #247) - finds-or-creates the caller's tag with this name
+ * in one request, so the "type a new tag and hit enter" flow in GameDetailModal doesn't need a
+ * separate create-then-apply round trip. Applying a tag that's already on the game is a no-op. */
+export interface ApplyTagRequest {
+  name: string;
+}
+
 /** Response from POST /api/games/import-steam-library. The actual import (one IGDB lookup per
  * unowned game) runs in the background rather than blocking this response on it - a real
  * deployment saw a big library run past a reverse proxy/CDN's connection timeout, surfacing as a
@@ -248,6 +287,29 @@ export interface SteamImportStarted {
 export interface SteamWishlistImportStarted {
   totalWishlisted: number;
   consideredCount: number;
+}
+
+/** One Personal Shelf game "Sync completions from Steam" (issue #244) found 100%'d on Steam but
+ * not yet marked Done in the app - see SteamCompletionsSyncResult. Purely a suggestion: nothing is
+ * changed server-side until the caller explicitly applies Done to some/all of these, the same
+ * opt-in-by-design pattern as the single-game nudge in GameDetailModal.tsx (issue #227). */
+export interface SteamCompletionCandidate {
+  id: string;
+  title: string;
+  coverImageUrl: string | null;
+  /** ISO 8601 - the most recent Steam achievement unlock on file for this game. */
+  lastUnlockedAt: string;
+}
+
+/** Response from POST /api/games/sync-steam-completions. Runs the same candidate-scanning logic as
+ * the Year in Review recap's auto-detection, but across all time instead of a 12-month window (see
+ * findDetectedSteamCompletions in server/src/services/steamCompletionDetection.ts).
+ * `consideredCount` is how many not-yet-Done, Steam-linked shelf games were actually checked
+ * (bounded by STEAM_COMPLETIONS_SYNC_CANDIDATE_LIMIT) - not the size of `candidates`, since most
+ * checked games won't turn out to be 100%'d. */
+export interface SteamCompletionsSyncResult {
+  consideredCount: number;
+  candidates: SteamCompletionCandidate[];
 }
 
 /** Polled by the shelf UI while an import is running (see routes/games.ts and

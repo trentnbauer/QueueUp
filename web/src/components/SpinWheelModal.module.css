@@ -130,6 +130,12 @@
   margin-top: 4px;
 }
 
+.revealTimeToBeat {
+  font: 500 13px system-ui, sans-serif;
+  color: var(--qu-muted);
+  margin-top: 2px;
+}
+
 .actions {
   display: flex;
   justify-content: center;

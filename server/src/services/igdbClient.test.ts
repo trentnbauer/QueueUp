@@ -1,5 +1,15 @@
 import { describe, it, expect } from 'vitest';
-import { platformFamilies, escapeApicalypseString, isPrimaryEdition, type IgdbPlatform, type IgdbGame } from './igdbClient.js';
+import {
+  platformFamilies,
+  escapeApicalypseString,
+  isPrimaryEdition,
+  timeToBeatHoursFrom,
+  timeToBeatRushedHoursFrom,
+  timeToBeatCompletionistHoursFrom,
+  type IgdbPlatform,
+  type IgdbGame,
+  type IgdbTimeToBeat,
+} from './igdbClient.js';
 
 function names(...n: string[]): IgdbPlatform[] {
   return n.map((name) => ({ name }));
@@ -83,5 +93,31 @@ describe('isPrimaryEdition', () => {
   it('keeps DLC and expansions, which are their own distinct canonical entries', () => {
     expect(isPrimaryEdition(game({ category: 1 }))).toBe(true); // dlc_addon
     expect(isPrimaryEdition(game({ category: 2 }))).toBe(true); // expansion
+  });
+});
+
+describe('time-to-beat breakdown (issue #248)', () => {
+  const rows: IgdbTimeToBeat[] = [{ normally: 36000, hastily: 18000, completely: 72000 }]; // 10h/5h/20h
+
+  it('converts each tier from seconds to rounded hours', () => {
+    expect(timeToBeatHoursFrom(rows)).toBe(10);
+    expect(timeToBeatRushedHoursFrom(rows)).toBe(5);
+    expect(timeToBeatCompletionistHoursFrom(rows)).toBe(20);
+  });
+
+  it('rounds to the nearest hour rather than truncating', () => {
+    expect(timeToBeatHoursFrom([{ normally: 9000 }])).toBe(3); // 2.5h -> 3h
+  });
+
+  it('returns null per-tier when that tier is missing, zero, or negative, independent of the others', () => {
+    expect(timeToBeatHoursFrom([{ hastily: 3600, completely: 7200 }])).toBeNull();
+    expect(timeToBeatRushedHoursFrom([{ normally: 3600, hastily: 0 }])).toBeNull();
+    expect(timeToBeatCompletionistHoursFrom([{ completely: -1 }])).toBeNull();
+  });
+
+  it('returns null for all tiers when there are no rows at all', () => {
+    expect(timeToBeatHoursFrom([])).toBeNull();
+    expect(timeToBeatRushedHoursFrom([])).toBeNull();
+    expect(timeToBeatCompletionistHoursFrom([])).toBeNull();
   });
 });

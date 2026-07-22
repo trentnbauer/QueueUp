@@ -3,6 +3,7 @@ import type { Game } from '@queueup/shared';
 import {
   sortByScore,
   backlogGames,
+  isUnreleased,
   primaryGenre,
   lastCompletedPrimaryGenre,
   avoidedGenres,
@@ -11,6 +12,7 @@ import {
   pickSpinWinner,
   isNeglectedBacklogGame,
   filterGames,
+  distinctTagNames,
   NEGLECTED_BACKLOG_MONTHS,
   ALL_FILTER_VALUE,
 } from './gameGridLogic';
@@ -25,6 +27,7 @@ function makeGame(overrides: Partial<Game> = {}): Game {
     genre: null,
     releaseYear: null,
     maxCoopPlayers: null,
+    timeToBeatHours: null,
     ggDealsUrl: null,
     coverImageUrl: null,
     status: 'backlog',
@@ -35,6 +38,7 @@ function makeGame(overrides: Partial<Game> = {}): Game {
     voteScore: 0,
     youOwn: false,
     ownership: null,
+    tags: [],
     createdAt: '2026-01-01T00:00:00.000Z',
     updatedAt: '2026-01-01T00:00:00.000Z',
     ...overrides,
@@ -80,6 +84,30 @@ describe('backlogGames', () => {
     const done = makeGame({ id: 'done', status: 'done', voteScore: 5 });
     const backlog = makeGame({ id: 'backlog', status: 'backlog', voteScore: 5 });
     expect(backlogGames([playing, done, backlog]).map((g) => g.id)).toEqual(['backlog']);
+  });
+
+  it('excludes backlog games releasing in a future year', () => {
+    const NOW = new Date('2026-07-01T00:00:00.000Z').getTime();
+    const upcoming = makeGame({ id: 'upcoming', releaseYear: 2027 });
+    const released = makeGame({ id: 'released', releaseYear: 2026 });
+    expect(backlogGames([upcoming, released], NOW).map((g) => g.id)).toEqual(['released']);
+  });
+});
+
+describe('isUnreleased', () => {
+  const NOW = new Date('2026-07-01T00:00:00.000Z').getTime();
+
+  it('is false for a game with no stored release year', () => {
+    expect(isUnreleased(makeGame({ releaseYear: null }), NOW)).toBe(false);
+  });
+
+  it('is false for a game releasing this year or earlier', () => {
+    expect(isUnreleased(makeGame({ releaseYear: 2026 }), NOW)).toBe(false);
+    expect(isUnreleased(makeGame({ releaseYear: 2020 }), NOW)).toBe(false);
+  });
+
+  it('is true for a game releasing in a future year', () => {
+    expect(isUnreleased(makeGame({ releaseYear: 2027 }), NOW)).toBe(true);
   });
 });
 
@@ -267,6 +295,50 @@ describe('filterGames neglectedFilter', () => {
       NOW,
     );
     expect(result.map((g) => g.id)).toEqual(['dusty']);
+  });
+});
+
+function tag(id: string, name: string) {
+  return { id, name, createdAt: '2026-01-01T00:00:00.000Z' };
+}
+
+describe('distinctTagNames', () => {
+  it('collects every distinct tag name across games, sorted', () => {
+    const a = makeGame({ id: 'a', tags: [tag('t2', 'Short & sweet'), tag('t1', 'Co-op only')] });
+    const b = makeGame({ id: 'b', tags: [tag('t1', 'Co-op only')] });
+    expect(distinctTagNames([a, b])).toEqual(['Co-op only', 'Short & sweet']);
+  });
+
+  it('returns an empty array when no game has any tags', () => {
+    expect(distinctTagNames([makeGame({ tags: [] })])).toEqual([]);
+  });
+});
+
+describe('filterGames tagFilter', () => {
+  it('shows every game when tagFilter is ALL_FILTER_VALUE (or unset)', () => {
+    const tagged = makeGame({ id: 'tagged', tags: [tag('t1', 'Co-op only')] });
+    const untagged = makeGame({ id: 'untagged', tags: [] });
+    const result = filterGames([tagged, untagged], {
+      platformFilter: ALL_FILTER_VALUE,
+      genreFilter: ALL_FILTER_VALUE,
+      statusFilter: ALL_FILTER_VALUE,
+      searchQuery: '',
+    });
+    expect(result.map((g) => g.id).sort()).toEqual(['tagged', 'untagged']);
+  });
+
+  it('shows only games carrying the selected tag', () => {
+    const tagged = makeGame({ id: 'tagged', tags: [tag('t1', 'Co-op only')] });
+    const otherTag = makeGame({ id: 'other-tag', tags: [tag('t2', 'Short & sweet')] });
+    const untagged = makeGame({ id: 'untagged', tags: [] });
+    const result = filterGames([tagged, otherTag, untagged], {
+      platformFilter: ALL_FILTER_VALUE,
+      genreFilter: ALL_FILTER_VALUE,
+      statusFilter: ALL_FILTER_VALUE,
+      tagFilter: 'Co-op only',
+      searchQuery: '',
+    });
+    expect(result.map((g) => g.id)).toEqual(['tagged']);
   });
 });
 

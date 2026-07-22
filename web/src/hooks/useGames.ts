@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { gamesApi } from '../api/games';
+import { tagsApi } from '../api/tags';
 import { useCurrencyRegion } from '../context/CurrencyRegionContext';
 import type { Game, GameStatus, VoteValue } from '@queueup/shared';
 
@@ -98,6 +99,21 @@ export function useGames(roomId: string | null) {
     onError: (err) => setActionError(errorMessage(err, 'Could not update ownership.')),
   });
 
+  // Applies/removes a tag on one game (issue #247) - same patch-the-cache shape as
+  // setTargetPrice/setOwnership above, since the endpoint returns the fully-updated game DTO
+  // (including its now-current tags list) rather than requiring a separate tags fetch.
+  const applyTag = useMutation({
+    mutationFn: ({ gameId, name }: { gameId: string; name: string }) => tagsApi.applyToGame(gameId, { name }),
+    onSuccess: ({ game }) => patchGame(game),
+    onError: (err) => setActionError(errorMessage(err, 'Could not add that tag.')),
+  });
+
+  const removeTag = useMutation({
+    mutationFn: ({ gameId, tagId }: { gameId: string; tagId: string }) => tagsApi.removeFromGame(gameId, tagId),
+    onSuccess: ({ game }) => patchGame(game),
+    onError: (err) => setActionError(errorMessage(err, 'Could not remove that tag.')),
+  });
+
   const move = useMutation({
     mutationFn: ({ gameId, destRoomId }: { gameId: string; destRoomId: string | null }) =>
       gamesApi.move(gameId, { roomId: destRoomId }),
@@ -131,5 +147,12 @@ export function useGames(roomId: string | null) {
     move: (gameId: string, destRoomId: string | null) => move.mutate({ gameId, destRoomId }),
     setTargetPrice: (gameId: string, targetPrice: string | null) => setTargetPrice.mutate({ gameId, targetPrice }),
     setOwnership: (gameId: string, owned: boolean) => setOwnership.mutate({ gameId, owned }),
+    // Callers (TagPicker) only need to know when it's done/failed, not the updated game itself -
+    // the cache is already patched via onSuccess above - so this resolves to void rather than
+    // leaking the mutation's raw return value into every prop type down the component tree.
+    applyTag: async (gameId: string, name: string) => {
+      await applyTag.mutateAsync({ gameId, name });
+    },
+    removeTag: (gameId: string, tagId: string) => removeTag.mutate({ gameId, tagId }),
   };
 }
