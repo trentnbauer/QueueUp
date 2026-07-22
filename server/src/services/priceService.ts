@@ -41,7 +41,7 @@ function lowestOf(...values: Array<string | undefined>): string | null {
   return numeric.reduce((min, cur) => (cur.n < min.n ? cur : min)).raw;
 }
 
-interface PriceEntry {
+export interface PriceEntry {
   price: GamePrice;
   ggDealsUrl: string | null;
 }
@@ -67,7 +67,14 @@ async function fetchLiveEntry(steamAppId: number, region: string): Promise<Price
 
   const response = await fetch(url);
   if (!response.ok) {
-    // Price API hiccup shouldn't break the whole card — degrade to "unavailable" and let a later refresh retry.
+    // Price API hiccup shouldn't break the whole card — degrade to "unavailable" and let a later
+    // refresh retry. But this used to fail completely silently: a persistent misconfiguration
+    // (bad key, invalid region) looked identical to a one-off hiccup from the outside, with
+    // nothing in the logs to tell them apart. Logged (not thrown) so a bad key/region/quota is
+    // at least visible to whoever's running this, instead of every game just quietly showing no
+    // price with no explanation.
+    const bodyText = await response.text().catch(() => '');
+    console.error(`[priceService] gg.deals request failed (${response.status}) for steamAppId ${steamAppId}, region ${region}: ${bodyText.slice(0, 300)}`);
     return {
       price: { amount: null, currency: null, source: 'unavailable', historicalLow: null, lastRefreshedAt: fetchedAt },
       ggDealsUrl: null,
@@ -201,10 +208,13 @@ async function markForcedRefresh(steamAppId: number): Promise<void> {
 
 /** Entry point for a manual/"forced" price refresh (issue #67): rejects with HttpError(429) if
  * this Steam game was force-refreshed less than an hour ago, otherwise force-fetches a fresh
- * price and records the attempt so the next one is gated too. */
-export async function refreshSteamPriceForced(steamAppId: number): Promise<GamePrice> {
+ * price and records the attempt so the next one is gated too. Returns the gg.deals URL alongside
+ * the price (unlike getSteamPrice) so a caller can persist a URL that was missing/stale on the
+ * game row - e.g. one captured as null during a prior outage/misconfiguration, before this
+ * specific game's price ever successfully went live. */
+export async function refreshSteamPriceForced(steamAppId: number): Promise<PriceEntry> {
   await assertForcedRefreshAllowed(steamAppId);
-  const price = await getSteamPrice(steamAppId, { forceRefresh: true });
+  const entry = await getEntry(steamAppId, { forceRefresh: true });
   await markForcedRefresh(steamAppId);
-  return price;
+  return entry;
 }

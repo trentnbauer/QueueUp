@@ -178,19 +178,20 @@ export function GameDetailModal({
                   {formatPrice(game)}
                 </span>
               )}
-              {game.price.source === 'live' && (
-                <button
-                  type="button"
-                  className={`${cardStyles.refreshPriceButton} ${isRefreshingPrice ? cardStyles.spinning : ''}`}
-                  onClick={onRefreshPrice}
-                  disabled={isRefreshingPrice}
-                  title={isRefreshingPrice ? 'Refreshing price…' : 'Check for a fresh price'}
-                  aria-label="Refresh price"
-                  aria-busy={isRefreshingPrice}
-                >
-                  ↻
-                </button>
-              )}
+              {/* Shown even when price is 'unavailable', not just 'live' - a game added right
+                  around release (before IGDB had linked its Steam App ID yet) gets stuck
+                  unavailable forever with no other way to retry once that link catches up. */}
+              <button
+                type="button"
+                className={`${cardStyles.refreshPriceButton} ${isRefreshingPrice ? cardStyles.spinning : ''}`}
+                onClick={onRefreshPrice}
+                disabled={isRefreshingPrice}
+                title={isRefreshingPrice ? 'Refreshing price…' : 'Check for a fresh price'}
+                aria-label="Refresh price"
+                aria-busy={isRefreshingPrice}
+              >
+                ↻
+              </button>
             </div>
 
             {((game.price.source === 'live' && game.price.lastRefreshedAt) || showHistoricalLow) && (

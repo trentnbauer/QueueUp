@@ -18,6 +18,38 @@ export function resolveSteamId64(user: { oidcSub: string; steamId64: string | nu
   return user.steamId64 ?? extractSteamId64(user.oidcSub);
 }
 
+interface SteamStoreSearchItem {
+  type: string;
+  name: string;
+  id: number;
+}
+
+interface SteamStoreSearchResponse {
+  items?: SteamStoreSearchItem[];
+}
+
+/** Public, unauthenticated Steam store search - no API key needed, unlike everything else in this
+ * file. Used as a fallback when IGDB's external_games has no Steam link for a title at all - that
+ * table is crowd-sourced and can simply never get filled in for a given game, even one that's
+ * genuinely live on Steam right now (seen with Borderlands 4 shortly after this was written), so
+ * waiting for IGDB to catch up isn't a reliable fix on its own. Only trusts an exact
+ * (case-insensitive) title match against a Steam "app" result - anything looser risks matching a
+ * DLC, soundtrack, or demo listing instead of the base game. */
+export async function findSteamAppIdByTitle(title: string): Promise<number | null> {
+  const url = new URL('https://store.steampowered.com/api/storesearch/');
+  url.searchParams.set('term', title);
+  url.searchParams.set('l', 'english');
+  url.searchParams.set('cc', 'us');
+
+  const response = await fetch(url);
+  if (!response.ok) return null;
+
+  const body = (await response.json()) as SteamStoreSearchResponse;
+  const normalized = title.trim().toLowerCase();
+  const match = body.items?.find((item) => item.type === 'app' && item.name.trim().toLowerCase() === normalized);
+  return match?.id ?? null;
+}
+
 interface SteamOwnedGame {
   appid: number;
   playtime_forever: number;

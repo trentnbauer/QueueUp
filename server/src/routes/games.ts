@@ -17,6 +17,7 @@ import {
   collectionGamesIntake,
   resolveGameForCreation,
   refreshGamePricing,
+  backfillSteamAppId,
 } from '../services/gameIntake.js';
 import { notifyRoom } from '../services/notifications.js';
 import { platformFamilies, findIgdbIdBySteamAppId } from '../services/igdbClient.js';
@@ -647,7 +648,8 @@ export default async function gameRoutes(app: FastifyInstance) {
       const game = await loadGameOr404(request.params.id);
       await requireGameReadAccess(game, userId);
 
-      await refreshGamePricing(game.steamAppid);
+      const steamAppId = game.steamAppid ?? (await backfillSteamAppId(game.id, game.igdbId));
+      await refreshGamePricing(game.id, steamAppId);
       const updated = await loadGameOr404(game.id);
       return { game: await serializeGame(updated, userId, parseRegion(request.query.region)) };
     },

@@ -1,4 +1,7 @@
 import { z } from 'zod';
+import { type PriceRegion } from '@queueup/shared';
+
+const PRICE_REGIONS: PriceRegion[] = ['us', 'gb', 'eu', 'au', 'ca', 'br'];
 
 const envSchema = z.object({
   PORT: z.coerce.number().default(3000),
@@ -63,7 +66,13 @@ const envSchema = z.object({
   // DB-stored fallback (see server/src/services/configResolver.ts) when .env doesn't set them. An
   // env var, when present, always wins over the DB value.
   GGDEALS_API_KEY: z.string().min(1).optional(),
-  GGDEALS_DEFAULT_REGION: z.string().default('us'),
+  // gg.deals wants specific codes, not full ISO 3166-1 alpha-3 or every alpha-2 code (e.g. "uk"
+  // 404s; it's "gb") - validated against the same closed list as PriceRegion (the per-request
+  // region a user can pick) rather than left as a free-form string. Getting this wrong used to
+  // fail silently: every price request would 400 against gg.deals, degrade to "unavailable", and
+  // cache that failure for 6 hours - with nothing in the logs to explain why every single game on
+  // the whole instance had no price.
+  GGDEALS_DEFAULT_REGION: z.enum(PRICE_REGIONS as [PriceRegion, ...PriceRegion[]]).default('us'),
 
   IGDB_CLIENT_ID: z.string().min(1).optional(),
   IGDB_CLIENT_SECRET: z.string().min(1).optional(),
