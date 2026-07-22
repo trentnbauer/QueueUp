@@ -29,7 +29,7 @@ jobs:
       contents: read
     outputs:
       has_changes: ${{ steps.changelog.outputs.has_changes }}
-      oneline: ${{ steps.changelog.outputs.oneline }}
+      description: ${{ steps.changelog.outputs.description }}
       image_name: ${{ steps.image_name.outputs.image_name }}
     steps:
       - name: Checkout repository
@@ -71,24 +71,46 @@ jobs:
             HAS_CHANGES=true
           fi
 
+          # Dev-facing form for the step summary, with hashes for traceability.
           MULTI=$(git log "$RANGE" --pretty=format:'- %s (%h)' | head -n 30)
           if [ -z "$MULTI" ]; then
             MULTI="No commits since the last image build."
           fi
 
-          # Single-line, semicolon-joined form for the OCI description label —
-          # a label value can't safely contain literal newlines.
-          ONELINE=$(git log "$RANGE" --pretty=format:'%s (%h)' | head -n 30 | paste -sd '; ' -)
-          if [ -z "$ONELINE" ]; then
-            ONELINE="No commits since the last image build."
+          # End-user-facing form for the published image description: one bullet per PR title,
+          # no hash - squash-merge commit subjects are already "<PR title> (#N)", so this is a
+          # PR-title changelog without a second GitHub API round trip. OCI annotation values (unlike
+          # a Docker LABEL) can safely hold literal newlines, so this is an actual bullet list, not
+          # a semicolon-joined wall of text.
+          BULLETS=$(git log "$RANGE" --pretty=format:'- %s' | head -n 30)
+          if [ -z "$BULLETS" ]; then
+            BULLETS="- No commits since the last image build."
           fi
-          # Keep the label from growing unbounded.
-          ONELINE=$(echo "$ONELINE" | cut -c1-1000)
+
+          # Flags any commit in range with a proper Conventional Commits "BREAKING CHANGE:" footer
+          # - anchored to the start of a line (with the colon) rather than a bare substring match,
+          # or a commit that merely *talks about* breaking changes in prose (like this one) would
+          # false-positive on itself. Nothing in this repo's history uses the marker yet, but this
+          # is here so it takes effect the day something does - called out in its own section
+          # rather than mixed into the regular list, so it can't get lost.
+          BREAKING=""
+          for commit_hash in $(git rev-list "$RANGE" 2>/dev/null); do
+            if git log -1 --format='%B' "$commit_hash" | grep -qiE '^BREAKING CHANGE:'; then
+              BREAKING="${BREAKING}- $(git log -1 --format='%s' "$commit_hash")"$'\n'
+            fi
+          done
+
+          DESCRIPTION="$BULLETS"
+          if [ -n "$BREAKING" ]; then
+            DESCRIPTION="${DESCRIPTION}"$'\n\n'"⚠️ Breaking changes:"$'\n'"${BREAKING}"
+          fi
+          # Keep it from growing unbounded.
+          DESCRIPTION=$(echo "$DESCRIPTION" | cut -c1-2000)
 
           echo "has_changes=$HAS_CHANGES" >> "$GITHUB_OUTPUT"
           {
-            echo "oneline<<EOF"
-            echo "$ONELINE"
+            echo "description<<EOF"
+            echo "$DESCRIPTION"
             echo "EOF"
           } >> "$GITHUB_OUTPUT"
 
@@ -164,11 +186,12 @@ jobs:
           build-args: |
             APP_VERSION=build-${{ github.run_number }}
             APP_SHA=${{ github.sha }}
-          # Labels get baked into each per-arch image now, not applied later - `imagetools create`
-          # below only assembles a manifest list pointing at these already-pushed digests, it can't
-          # retroactively add labels to an image that's already been pushed.
-          labels: |
-            org.opencontainers.image.description=${{ needs.check-for-changes.outputs.oneline }}
+          # No description label here (it used to duplicate the one below) - it never actually
+          # reached ghcr.io's UI for a multi-arch image anyway (that reads the *index* annotation
+          # applied in the merge job below, not a per-platform image's config label), and now that
+          # the description is a real bullet list it can't safely go in a labels: block either way
+          # (that input is newline-delimited, one label per line - a value containing its own
+          # newlines would corrupt the parsing).
           outputs: type=image,name=${{ env.REGISTRY }}/${{ needs.check-for-changes.outputs.image_name }},push-by-digest=true,name-canonical=true,push=true
 
       - name: Export digest
@@ -231,8 +254,6 @@ jobs:
             type=sha,format=short
             type=raw,value=build-${{ github.run_number }}
             type=raw,value=${{ github.run_number }}
-          labels: |
-            org.opencontainers.image.description=${{ needs.check-for-changes.outputs.oneline }}
 
       - name: Create and push multi-arch manifest
         working-directory: /tmp/digests
@@ -246,11 +267,11 @@ jobs:
         run: |
           docker buildx imagetools create \
             $(jq -cr '.tags | map("-t " + .) | join(" ")' <<< "$DOCKER_METADATA_OUTPUT_JSON") \
-            --annotation "index:org.opencontainers.image.description=$ONELINE" \
+            --annotation "index:org.opencontainers.image.description=$DESCRIPTION" \
             $(printf '${{ env.REGISTRY }}/${{ needs.check-for-changes.outputs.image_name }}@sha256:%s ' *)
         env:
           DOCKER_METADATA_OUTPUT_JSON: ${{ steps.meta.outputs.json }}
-          ONELINE: ${{ needs.check-for-changes.outputs.oneline }}
+          DESCRIPTION: ${{ needs.check-for-changes.outputs.description }}
 
       - name: Inspect pushed manifest
         run: docker buildx imagetools inspect ${{ env.REGISTRY }}/${{ needs.check-for-changes.outputs.image_name }}:latest
