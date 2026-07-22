@@ -27,6 +27,8 @@ function makeGame(overrides: Partial<Game> = {}): Game {
     youOwn: false,
     ownership: null,
     tags: [],
+    igdbCollectionId: null,
+    prerequisiteGameId: null,
     createdAt: '2026-01-01T00:00:00.000Z',
     updatedAt: '2026-01-01T00:00:00.000Z',
     ...overrides,

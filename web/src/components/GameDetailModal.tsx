@@ -1,4 +1,4 @@
-import { useState, type FormEvent } from 'react';
+import { useMemo, useState, type FormEvent } from 'react';
 import type { Game, GameStatus, User, VoteValue } from '@queueup/shared';
 import { AvatarBadge } from './AvatarBadge';
 import { VoteRow } from './VoteRow';
@@ -10,7 +10,7 @@ import { useModalA11y } from '../hooks/useModalA11y';
 import { useGameAchievements } from '../hooks/useGameAchievements';
 import { formatRelativeTime } from '../utils/relativeTime';
 import { formatAmount, formatPrice } from '../utils/formatPrice';
-import { GAME_STATUS_LABEL, GAME_STATUS_LIST } from './gameGridLogic';
+import { GAME_STATUS_LABEL, GAME_STATUS_LIST, defaultPrerequisite } from './gameGridLogic';
 import cardStyles from './GameCard.module.css';
 import styles from './GameDetailModal.module.css';
 
@@ -29,6 +29,10 @@ interface GameDetailModalProps {
   /** Finds-or-creates a tag by name and applies it to this game (issue #247). */
   onApplyTag: (name: string) => Promise<void>;
   onRemoveTag: (tagId: string) => void;
+  /** Every other game in this room, for the "Play after" dropdown - undefined on the Personal
+   * Shelf, same as roomMembers/onSetOwnership, since there's no comparable group of games there. */
+  roomGames?: Game[];
+  onSetPrerequisite?: (prerequisiteGameId: string | null) => void;
   onClose: () => void;
 }
 
@@ -49,6 +53,8 @@ export function GameDetailModal({
   onSetOwnership,
   onApplyTag,
   onRemoveTag,
+  roomGames,
+  onSetPrerequisite,
   onClose,
 }: GameDetailModalProps) {
   const confirm = useConfirm();
@@ -56,6 +62,18 @@ export function GameDetailModal({
   const [targetPriceDraft, setTargetPriceDraft] = useState('');
   const dialogRef = useModalA11y<HTMLDivElement>(onClose);
   const { players: achievementPlayers } = useGameAchievements(game.id);
+
+  // Every other game in this room, alphabetical for easy scanning in the dropdown. Only shown at
+  // all for a room game with roomGames actually passed in - see onSetPrerequisite's doc comment.
+  const otherRoomGames = useMemo(
+    () => (roomGames ?? []).filter((g) => g.id !== game.id).sort((a, b) => a.title.localeCompare(b.title)),
+    [roomGames, game.id],
+  );
+  // Falls back to the closest-released earlier same-collection game already in the room (e.g.
+  // Borderlands 2 -> Borderlands 1) when nothing's been explicitly set yet - purely a display-time
+  // suggestion, not persisted until the user actually picks something in the dropdown (even if
+  // that happens to be the same suggested game).
+  const selectedPrerequisiteId = game.prerequisiteGameId ?? defaultPrerequisite(game, roomGames ?? [])?.id ?? '';
 
   // A nudge, not an automatic status change (issue #227) - the viewer's own Steam achievement
   // progress on this game, when they've 100%'d it and it isn't already Done/Dropped. Playtime
@@ -272,6 +290,28 @@ export function GameDetailModal({
             <div className={styles.divider} />
             <div className={styles.sectionTitle}>Tags</div>
             <TagPicker currentTags={game.tags} onApply={onApplyTag} onRemove={onRemoveTag} />
+          </>
+        )}
+
+        {/* Room games only - there's no comparable "other games in this shelf" grouping to pick
+            from on the Personal Shelf, same reasoning as onSetOwnership above. */}
+        {game.roomId !== null && roomGames && onSetPrerequisite && (
+          <>
+            <div className={styles.divider} />
+            <div className={styles.sectionTitle}>Play after</div>
+            <select
+              className={styles.playAfterSelect}
+              value={selectedPrerequisiteId}
+              onChange={(e) => onSetPrerequisite(e.target.value || null)}
+              aria-label="Play after"
+            >
+              <option value="">— None —</option>
+              {otherRoomGames.map((g) => (
+                <option key={g.id} value={g.id}>
+                  {g.title}
+                </option>
+              ))}
+            </select>
           </>
         )}
 

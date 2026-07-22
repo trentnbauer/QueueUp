@@ -16,6 +16,7 @@ interface PlayingStripProps {
   onSetOwnership?: (gameId: string, owned: boolean) => void;
   onApplyTag: (gameId: string, name: string) => Promise<void>;
   onRemoveTag: (gameId: string, tagId: string) => void;
+  onSetPrerequisite?: (gameId: string, prerequisiteGameId: string | null) => void;
 }
 
 /** A compact glance at what's currently in rotation in this room (issue #229) - every game marked
@@ -40,6 +41,7 @@ export function PlayingStrip({
   onSetOwnership,
   onApplyTag,
   onRemoveTag,
+  onSetPrerequisite,
 }: PlayingStripProps) {
   const playing = games.filter((g) => g.status === 'playing');
   if (playing.length === 0) return null;
@@ -64,6 +66,8 @@ export function PlayingStrip({
               onSetOwnership={onSetOwnership ? (owned) => onSetOwnership(game.id, owned) : undefined}
               onApplyTag={(name) => onApplyTag(game.id, name)}
               onRemoveTag={(tagId) => onRemoveTag(game.id, tagId)}
+              roomGames={games}
+              onSetPrerequisite={onSetPrerequisite ? (prerequisiteGameId) => onSetPrerequisite(game.id, prerequisiteGameId) : undefined}
             />
           </div>
         ))}

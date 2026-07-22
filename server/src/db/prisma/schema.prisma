@@ -228,16 +228,27 @@ model Game {
   /// again if the price drops even further, without re-notifying on every subsequent check while
   /// it sits at the same low. Independent of targetPrice, which is a user-set threshold.
   notifiedAtlPrice String?  @map("notified_atl_price")
+  /// User-set "play this after" pointer to another game in the same room (issue: play-after
+  /// dropdown) - e.g. Borderlands 2 pointed at Borderlands 1. Purely organizational: nothing
+  /// enforces it at write time beyond same-room + not-self (checked at the API layer, not here),
+  /// but Spin the Wheel's candidate pool excludes a game with an unmet prerequisite (its target
+  /// not yet marked Done) - see hasUnmetPrerequisite in gameGridLogic.ts. SetNull on delete rather
+  /// than blocking the delete: removing the prerequisite game should un-stick its successor, not
+  /// prevent the removal.
+  prerequisiteGameId String? @map("prerequisite_game_id")
 
   room  Room?     @relation(fields: [roomId], references: [id], onDelete: Cascade)
   adder User      @relation(fields: [addedBy], references: [id], onDelete: Cascade)
   votes Vote[]
   tags  GameTag[]
+  prerequisiteGame Game?  @relation("GamePrerequisite", fields: [prerequisiteGameId], references: [id], onDelete: SetNull)
+  successorGames   Game[] @relation("GamePrerequisite")
 
   @@index([roomId])
   @@index([addedBy], map: "idx_games_personal")
   @@index([roomId, igdbId])
   @@index([addedBy, igdbId])
+  @@index([prerequisiteGameId])
   @@map("games")
 }
 

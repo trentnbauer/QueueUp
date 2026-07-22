@@ -35,6 +35,7 @@ export function RoomView() {
     setOwnership,
     applyTag,
     removeTag,
+    setPrerequisite,
   } = useGames(roomId ?? null);
 
   const { data: membersData } = useQuery({
@@ -78,6 +79,7 @@ export function RoomView() {
         onSetOwnership={setOwnership}
         onApplyTag={applyTag}
         onRemoveTag={removeTag}
+        onSetPrerequisite={setPrerequisite}
       />
       <GameGrid
         games={games}
@@ -100,6 +102,7 @@ export function RoomView() {
         onSetOwnership={setOwnership}
         onApplyTag={applyTag}
         onRemoveTag={removeTag}
+        onSetPrerequisite={setPrerequisite}
       />
       <BeatenStrip
         games={games}
@@ -115,6 +118,7 @@ export function RoomView() {
         onSetOwnership={setOwnership}
         onApplyTag={applyTag}
         onRemoveTag={removeTag}
+        onSetPrerequisite={setPrerequisite}
       />
     </div>
   );

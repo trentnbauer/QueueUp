@@ -172,6 +172,15 @@ export interface Game {
    * personal filing scheme, not a room feature - see Tag/GameTag in schema.prisma). Empty array,
    * never omitted, when the viewer has tagged nothing here. */
   tags: Tag[];
+  /** IGDB's franchise/series id, if this game belongs to one - null otherwise, and on games added
+   * before this was captured. Used to compute the "play after" dropdown's default suggestion
+   * (the closest-released earlier entry from the same collection already in the room). */
+  igdbCollectionId: number | null;
+  /** User-set "play this after" pointer to another game in the same room (e.g. Borderlands 2 ->
+   * Borderlands 1) - null when unset. Room games only; always null on the Personal Shelf. Spin the
+   * Wheel excludes a backlog game from its candidate pool while its prerequisite isn't yet Done -
+   * see hasUnmetPrerequisite in gameGridLogic.ts. */
+  prerequisiteGameId: string | null;
   createdAt: string;
   updatedAt: string;
 }
@@ -263,6 +272,12 @@ export interface SetTargetPriceRequest {
 /** Marks (or clears) the current user's ownership claim on a game - see GameOwnership. */
 export interface SetGameOwnershipRequest {
   owned: boolean;
+}
+
+/** Sets (or clears, with null) which other game in the same room this one should be played after -
+ * see Game.prerequisiteGameId. */
+export interface SetGamePrerequisiteRequest {
+  prerequisiteGameId: string | null;
 }
 
 /** Relocates a game to a different room, or to the mover's Personal Shelf (roomId: null). */

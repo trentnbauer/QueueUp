@@ -74,6 +74,9 @@ interface GameGridProps {
   /** Finds-or-creates a tag by name and applies it to a game (issue #247). */
   onApplyTag: (gameId: string, name: string) => Promise<void>;
   onRemoveTag: (gameId: string, tagId: string) => void;
+  /** Undefined on the Personal Shelf - "play after" only makes sense against other games in the
+   * same room (see GameDetailModal). */
+  onSetPrerequisite?: (gameId: string, prerequisiteGameId: string | null) => void;
   /** Bulk-select mode (issue #205) - passed through to every GameCard when active. */
   selectionMode?: boolean;
   selectedIds?: Set<string>;
@@ -102,6 +105,7 @@ export function GameGrid({
   onSetOwnership,
   onApplyTag,
   onRemoveTag,
+  onSetPrerequisite,
   selectionMode,
   selectedIds,
   onToggleSelect,
@@ -209,6 +213,8 @@ export function GameGrid({
             onSetOwnership={onSetOwnership ? (owned) => onSetOwnership(game.id, owned) : undefined}
             onApplyTag={(name) => onApplyTag(game.id, name)}
             onRemoveTag={(tagId) => onRemoveTag(game.id, tagId)}
+            roomGames={games}
+            onSetPrerequisite={onSetPrerequisite ? (prerequisiteGameId) => onSetPrerequisite(game.id, prerequisiteGameId) : undefined}
             selectable={selectionMode}
             selected={selectedIds?.has(game.id) ?? false}
             onToggleSelect={onToggleSelect ? () => onToggleSelect(game.id) : undefined}

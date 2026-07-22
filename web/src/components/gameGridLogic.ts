@@ -130,11 +130,55 @@ export function isUnreleased(game: Game, now: number = Date.now()): boolean {
   return game.releaseYear !== null && game.releaseYear > new Date(now).getFullYear();
 }
 
+/** True when `game` has a "play after" prerequisite (see Game.prerequisiteGameId) set, and that
+ * prerequisite isn't marked Done yet - e.g. Borderlands 2 pointed at a not-yet-beaten Borderlands
+ * 1. A missing/removed prerequisite (no longer in `games`) doesn't block - there's nothing left to
+ * wait on. */
+export function hasUnmetPrerequisite(game: Game, games: Game[]): boolean {
+  if (!game.prerequisiteGameId) return false;
+  const prerequisite = games.find((g) => g.id === game.prerequisiteGameId);
+  if (!prerequisite) return false;
+  return prerequisite.status !== 'done';
+}
+
 /** Every backlog game, regardless of vote count - the full pool Spin the Wheel draws from. Excludes
  * games that haven't released yet (see isUnreleased) - nobody can actually play them yet, so the
- * wheel shouldn't be able to land on one even though it's sitting in the backlog. */
+ * wheel shouldn't be able to land on one even though it's sitting in the backlog - and games with
+ * an unmet "play after" prerequisite (see hasUnmetPrerequisite), so the wheel can't jump ahead to a
+ * sequel before its predecessor is done. */
 export function backlogGames(games: Game[], now: number = Date.now()): Game[] {
-  return games.filter((g) => g.status === 'backlog' && !isUnreleased(g, now));
+  return games.filter((g) => g.status === 'backlog' && !isUnreleased(g, now) && !hasUnmetPrerequisite(g, games));
+}
+
+/** A game's best-known release timestamp for ordering purposes - releaseDate when set, else Jan 1
+ * of releaseYear as a coarse fallback (matches isUnreleased's same releaseDate-preferred,
+ * releaseYear-fallback precedence), else null (unknown - excluded from "what releases before this"
+ * comparisons rather than guessed at). */
+function releaseTimestamp(game: Game): number | null {
+  if (game.releaseDate !== null) return new Date(game.releaseDate).getTime();
+  if (game.releaseYear !== null) return new Date(game.releaseYear, 0, 1).getTime();
+  return null;
+}
+
+/** The "play after" dropdown's default suggestion for a game that belongs to an IGDB collection -
+ * the closest-released earlier entry from the same collection that's already in this room, so
+ * picking up a sequel naturally suggests its immediate predecessor rather than an arbitrary earlier
+ * game in the series. Null when the game isn't in a collection, has no release data to compare
+ * against, or no earlier same-collection game is in the room yet. Purely a display-time suggestion
+ * - nothing persists this until the user actually confirms a choice (or a different one). */
+export function defaultPrerequisite(game: Game, roomGames: Game[]): Game | null {
+  if (game.igdbCollectionId === null) return null;
+  const thisRelease = releaseTimestamp(game);
+  if (thisRelease === null) return null;
+
+  const earlierInCollection = roomGames.filter((g) => {
+    if (g.id === game.id || g.igdbCollectionId !== game.igdbCollectionId) return false;
+    const t = releaseTimestamp(g);
+    return t !== null && t < thisRelease;
+  });
+  if (earlierInCollection.length === 0) return null;
+
+  return earlierInCollection.reduce((closest, g) => (releaseTimestamp(g)! > releaseTimestamp(closest)! ? g : closest));
 }
 
 // IGDB genre strings are comma-joined and often carry several tags (e.g. "Shooter, Adventure");

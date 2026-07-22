@@ -99,6 +99,13 @@ export function useGames(roomId: string | null) {
     onError: (err) => setActionError(errorMessage(err, 'Could not update ownership.')),
   });
 
+  const setPrerequisite = useMutation({
+    mutationFn: ({ gameId, prerequisiteGameId }: { gameId: string; prerequisiteGameId: string | null }) =>
+      gamesApi.setPrerequisite(gameId, { prerequisiteGameId }),
+    onSuccess: ({ game }) => patchGame(game),
+    onError: (err) => setActionError(errorMessage(err, 'Could not save that.')),
+  });
+
   // Applies/removes a tag on one game (issue #247) - same patch-the-cache shape as
   // setTargetPrice/setOwnership above, since the endpoint returns the fully-updated game DTO
   // (including its now-current tags list) rather than requiring a separate tags fetch.
@@ -147,6 +154,8 @@ export function useGames(roomId: string | null) {
     move: (gameId: string, destRoomId: string | null) => move.mutate({ gameId, destRoomId }),
     setTargetPrice: (gameId: string, targetPrice: string | null) => setTargetPrice.mutate({ gameId, targetPrice }),
     setOwnership: (gameId: string, owned: boolean) => setOwnership.mutate({ gameId, owned }),
+    setPrerequisite: (gameId: string, prerequisiteGameId: string | null) =>
+      setPrerequisite.mutate({ gameId, prerequisiteGameId }),
     // Callers (TagPicker) only need to know when it's done/failed, not the updated game itself -
     // the cache is already patched via onSuccess above - so this resolves to void rather than
     // leaking the mutation's raw return value into every prop type down the component tree.

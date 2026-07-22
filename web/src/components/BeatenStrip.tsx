@@ -16,6 +16,7 @@ interface BeatenStripProps {
   onSetOwnership?: (gameId: string, owned: boolean) => void;
   onApplyTag: (gameId: string, name: string) => Promise<void>;
   onRemoveTag: (gameId: string, tagId: string) => void;
+  onSetPrerequisite?: (gameId: string, prerequisiteGameId: string | null) => void;
 }
 
 /** Mirrors PlayingStrip, but for games marked Done, and sits below the main grid instead of above
@@ -36,6 +37,7 @@ export function BeatenStrip({
   onSetOwnership,
   onApplyTag,
   onRemoveTag,
+  onSetPrerequisite,
 }: BeatenStripProps) {
   // Most recently marked Done first, so the strip reads as a completion timeline rather than
   // whatever order the games happened to come back in - same signal lastCompletedPrimaryGenre in
@@ -65,6 +67,8 @@ export function BeatenStrip({
               onSetOwnership={onSetOwnership ? (owned) => onSetOwnership(game.id, owned) : undefined}
               onApplyTag={(name) => onApplyTag(game.id, name)}
               onRemoveTag={(tagId) => onRemoveTag(game.id, tagId)}
+              roomGames={games}
+              onSetPrerequisite={onSetPrerequisite ? (prerequisiteGameId) => onSetPrerequisite(game.id, prerequisiteGameId) : undefined}
             />
           </div>
         ))}

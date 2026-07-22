@@ -50,6 +50,7 @@ import type {
   PlayerAchievements,
   PriceRegion,
   SetGameOwnershipRequest,
+  SetGamePrerequisiteRequest,
   SetTargetPriceRequest,
   SteamImportProgress,
   SteamImportStarted,
@@ -691,6 +692,35 @@ export default async function gameRoutes(app: FastifyInstance) {
       const { owned } = request.body;
       await setOwnership(userId, game.igdbId, owned);
 
+      const updated = await loadGameOr404(game.id);
+      return { game: await serializeGame(updated, userId) };
+    },
+  );
+
+  app.patch<{ Params: { id: string }; Body: SetGamePrerequisiteRequest }>(
+    '/api/games/:id/prerequisite',
+    // Same class of route as target-price/ownership - a direct user action from the detail modal.
+    { config: { rateLimit: { max: 30, timeWindow: '1 minute' } } },
+    async (request) => {
+      const userId = await request.requireAuth();
+      const game = await loadGameOr404(request.params.id);
+      await requireGameReadAccess(game, userId);
+
+      const { prerequisiteGameId } = request.body;
+      if (prerequisiteGameId !== null) {
+        if (!game.roomId) {
+          throw new HttpError(400, '"Play after" is only available for games in a room');
+        }
+        if (prerequisiteGameId === game.id) {
+          throw new HttpError(400, 'A game cannot be set to play after itself');
+        }
+        const prerequisite = await loadGameOr404(prerequisiteGameId);
+        if (prerequisite.roomId !== game.roomId) {
+          throw new HttpError(400, 'The prerequisite must be another game in the same room');
+        }
+      }
+
+      await prisma.game.update({ where: { id: game.id }, data: { prerequisiteGameId } });
       const updated = await loadGameOr404(game.id);
       return { game: await serializeGame(updated, userId) };
     },

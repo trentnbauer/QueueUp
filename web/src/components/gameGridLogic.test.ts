@@ -4,6 +4,8 @@ import {
   sortByScore,
   backlogGames,
   isUnreleased,
+  hasUnmetPrerequisite,
+  defaultPrerequisite,
   primaryGenre,
   lastCompletedPrimaryGenre,
   avoidedGenres,
@@ -42,6 +44,8 @@ function makeGame(overrides: Partial<Game> = {}): Game {
     youOwn: false,
     ownership: null,
     tags: [],
+    igdbCollectionId: null,
+    prerequisiteGameId: null,
     createdAt: '2026-01-01T00:00:00.000Z',
     updatedAt: '2026-01-01T00:00:00.000Z',
     ...overrides,
@@ -94,6 +98,75 @@ describe('backlogGames', () => {
     const upcoming = makeGame({ id: 'upcoming', releaseYear: 2027 });
     const released = makeGame({ id: 'released', releaseYear: 2026 });
     expect(backlogGames([upcoming, released], NOW).map((g) => g.id)).toEqual(['released']);
+  });
+
+  it('excludes a backlog game whose "play after" prerequisite is not yet Done', () => {
+    const borderlands1 = makeGame({ id: 'bl1', status: 'backlog' });
+    const borderlands2 = makeGame({ id: 'bl2', status: 'backlog', prerequisiteGameId: 'bl1' });
+    expect(backlogGames([borderlands1, borderlands2]).map((g) => g.id)).toEqual(['bl1']);
+  });
+
+  it('includes a backlog game once its prerequisite is marked Done', () => {
+    const borderlands1 = makeGame({ id: 'bl1', status: 'done' });
+    const borderlands2 = makeGame({ id: 'bl2', status: 'backlog', prerequisiteGameId: 'bl1' });
+    expect(backlogGames([borderlands1, borderlands2]).map((g) => g.id)).toEqual(['bl2']);
+  });
+});
+
+describe('hasUnmetPrerequisite', () => {
+  it('is false when no prerequisite is set', () => {
+    const game = makeGame({ prerequisiteGameId: null });
+    expect(hasUnmetPrerequisite(game, [game])).toBe(false);
+  });
+
+  it('is true when the prerequisite exists and is not Done', () => {
+    const prereq = makeGame({ id: 'prereq', status: 'backlog' });
+    const game = makeGame({ id: 'g', prerequisiteGameId: 'prereq' });
+    expect(hasUnmetPrerequisite(game, [prereq, game])).toBe(true);
+  });
+
+  it('is false once the prerequisite is Done', () => {
+    const prereq = makeGame({ id: 'prereq', status: 'done' });
+    const game = makeGame({ id: 'g', prerequisiteGameId: 'prereq' });
+    expect(hasUnmetPrerequisite(game, [prereq, game])).toBe(false);
+  });
+
+  it('does not block when the prerequisite is missing (e.g. removed from the room)', () => {
+    const game = makeGame({ id: 'g', prerequisiteGameId: 'gone' });
+    expect(hasUnmetPrerequisite(game, [game])).toBe(false);
+  });
+});
+
+describe('defaultPrerequisite', () => {
+  it('is null when the game is not in a collection', () => {
+    const game = makeGame({ igdbCollectionId: null });
+    expect(defaultPrerequisite(game, [game])).toBeNull();
+  });
+
+  it('is null when no earlier same-collection game is in the room', () => {
+    const game = makeGame({ id: 'g', igdbCollectionId: 1, releaseYear: 2020 });
+    const otherCollection = makeGame({ id: 'other', igdbCollectionId: 2, releaseYear: 2010 });
+    expect(defaultPrerequisite(game, [game, otherCollection])).toBeNull();
+  });
+
+  it('picks the closest-released earlier entry from the same collection', () => {
+    const bl1 = makeGame({ id: 'bl1', igdbCollectionId: 7, releaseYear: 2009 });
+    const bl2Presequel = makeGame({ id: 'bl2p', igdbCollectionId: 7, releaseYear: 2014 });
+    const bl2 = makeGame({ id: 'bl2', igdbCollectionId: 7, releaseYear: 2012 });
+    // bl2's release (2012) is between bl1 (2009) and bl2Presequel (2014) - the default should be
+    // bl1, the closest one that's actually earlier, not bl2Presequel (which releases after bl2).
+    expect(defaultPrerequisite(bl2, [bl1, bl2Presequel, bl2])?.id).toBe('bl1');
+  });
+
+  it('prefers releaseDate over releaseYear for comparison, matching isUnreleased', () => {
+    const bl1 = makeGame({ id: 'bl1', igdbCollectionId: 7, releaseYear: 2012, releaseDate: '2012-06-01T00:00:00.000Z' });
+    const bl2 = makeGame({ id: 'bl2', igdbCollectionId: 7, releaseYear: 2012, releaseDate: '2012-09-01T00:00:00.000Z' });
+    expect(defaultPrerequisite(bl2, [bl1, bl2])?.id).toBe('bl1');
+  });
+
+  it('excludes the game itself even if it somehow shares its own collection id', () => {
+    const game = makeGame({ id: 'g', igdbCollectionId: 7, releaseYear: 2020 });
+    expect(defaultPrerequisite(game, [game])).toBeNull();
   });
 });
 

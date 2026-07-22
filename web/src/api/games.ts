@@ -11,6 +11,7 @@ import type {
   PlayerAchievements,
   PriceRegion,
   SetGameOwnershipRequest,
+  SetGamePrerequisiteRequest,
   SetTargetPriceRequest,
   SteamCompletionsSyncResult,
   SteamImportProgress,
@@ -48,6 +49,8 @@ export const gamesApi = {
     apiPatch<{ game: Game }>(`/api/games/${id}/target-price`, body),
   vote: (id: string, body: VoteRequest) => apiPut<{ game: Game }>(`/api/games/${id}/vote`, body),
   setOwnership: (id: string, body: SetGameOwnershipRequest) => apiPatch<{ game: Game }>(`/api/games/${id}/ownership`, body),
+  setPrerequisite: (id: string, body: SetGamePrerequisiteRequest) =>
+    apiPatch<{ game: Game }>(`/api/games/${id}/prerequisite`, body),
   move: (id: string, body: MoveGameRequest) => apiPost<{ game: Game }>(`/api/games/${id}/move`, body),
   importSteamLibrary: () => apiPost<SteamImportStarted>('/api/games/import-steam-library'),
   importSteamLibraryProgress: () =>

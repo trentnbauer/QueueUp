@@ -34,6 +34,10 @@ interface GameCardProps {
   /** Finds-or-creates a tag by name and applies it to this game (issue #247). */
   onApplyTag: (name: string) => Promise<void>;
   onRemoveTag: (tagId: string) => void;
+  /** Every other game in this room, for the detail modal's "Play after" dropdown - undefined on
+   * the Personal Shelf. */
+  roomGames?: Game[];
+  onSetPrerequisite?: (prerequisiteGameId: string | null) => void;
   /** Bulk-select mode (issue #205, Personal Shelf only) - while active, clicking the card toggles
    * selection instead of opening the detail modal. */
   selectable?: boolean;
@@ -58,6 +62,8 @@ export function GameCard({
   onSetOwnership,
   onApplyTag,
   onRemoveTag,
+  roomGames,
+  onSetPrerequisite,
   selectable = false,
   selected = false,
   onToggleSelect,
@@ -194,6 +200,8 @@ export function GameCard({
           onSetOwnership={onSetOwnership}
           onApplyTag={onApplyTag}
           onRemoveTag={onRemoveTag}
+          roomGames={roomGames}
+          onSetPrerequisite={onSetPrerequisite}
           onClose={() => setDetailOpen(false)}
         />
       )}
