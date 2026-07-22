@@ -43,6 +43,17 @@
   justify-content: center;
 }
 
+/* Invisible on-page - the real cover renders as this same URL's background-image on .cover above.
+   This <img> exists only so its onError fires when that URL is actually broken, since a CSS
+   background-image has no load-failure signal of its own. */
+.coverProbe {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  opacity: 0;
+  pointer-events: none;
+}
+
 .coverLabel {
   font: 600 13px system-ui, sans-serif;
   color: var(--qu-muted);

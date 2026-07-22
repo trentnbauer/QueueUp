@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { VOTE_SCALE, type Game, type GameStatus, type User, type VoteValue } from '@queueup/shared';
 import { GameDetailModal } from './GameDetailModal';
 import { formatPrice } from '../utils/formatPrice';
@@ -58,6 +58,14 @@ export function GameCard({
   onToggleSelect,
 }: GameCardProps) {
   const [detailOpen, setDetailOpen] = useState(false);
+  // The cover itself renders via a CSS background-image (below), which has no load-failure signal
+  // of its own - this tracks it separately via a same-URL probe <img>'s onError, so a dead/broken
+  // URL (IGDB image later removed, CDN hiccup, etc.) falls back to the title tile the same way a
+  // null coverImageUrl already does, instead of showing a blank cover forever.
+  const [coverFailed, setCoverFailed] = useState(false);
+  useEffect(() => {
+    setCoverFailed(false);
+  }, [game.coverImageUrl]);
   const avgVote = averageVoteValue(game.votes);
   const neglected = isNeglectedBacklogGame(game);
 
@@ -101,9 +109,18 @@ export function GameCard({
 
         <div
           className={styles.cover}
-          style={game.coverImageUrl ? { backgroundImage: `url(${game.coverImageUrl})` } : undefined}
+          style={game.coverImageUrl && !coverFailed ? { backgroundImage: `url(${game.coverImageUrl})` } : undefined}
         >
-          {!game.coverImageUrl && <span className={styles.coverLabel}>{game.title}</span>}
+          {game.coverImageUrl && !coverFailed && (
+            <img
+              src={game.coverImageUrl}
+              alt=""
+              aria-hidden="true"
+              className={styles.coverProbe}
+              onError={() => setCoverFailed(true)}
+            />
+          )}
+          {(!game.coverImageUrl || coverFailed) && <span className={styles.coverLabel}>{game.title}</span>}
 
           {/* "Collecting dust" nudge (issue #249) - backlog games Year in Review would otherwise
               only ever call out once a year. Top-left, opposite the vote badge's bottom-right spot
