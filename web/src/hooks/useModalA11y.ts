@@ -3,6 +3,15 @@ import { useEffect, useRef } from 'react';
 const FOCUSABLE_SELECTOR =
   'a[href], button:not([disabled]), textarea:not([disabled]), input:not([disabled]), select:not([disabled]), [tabindex]:not([tabindex="-1"])';
 
+/** Every open modal (across every instance of this hook) in mount order, most-recent last - lets
+ * nested modals (e.g. SteamMatchPicker opened from within GameDetailModal) figure out which one is
+ * actually on top. Module-level and shared on purpose: each modal registers its own `keydown`
+ * listener directly on `document`, and `stopPropagation()` does nothing to stop *other* listeners
+ * already registered on that same node from also firing - only this shared stack lets a handler
+ * tell whether it's the topmost modal before acting, instead of every open modal reacting to the
+ * same Escape/Tab press at once. */
+const openModalStack: symbol[] = [];
+
 /** Shared modal accessibility behavior, applied consistently across every dialog in the app
  * (previously each modal only closed via a backdrop click or its own close button, with no
  * keyboard support and no focus management):
@@ -18,12 +27,16 @@ const FOCUSABLE_SELECTOR =
 export function useModalA11y<T extends HTMLElement>(onClose: () => void) {
   const ref = useRef<T>(null);
   const onCloseRef = useRef(onClose);
+  const idRef = useRef<symbol>();
+  if (!idRef.current) idRef.current = Symbol('modal');
 
   useEffect(() => {
     onCloseRef.current = onClose;
   });
 
   useEffect(() => {
+    const id = idRef.current!;
+    openModalStack.push(id);
     const previouslyFocused = document.activeElement as HTMLElement | null;
     const dialog = ref.current;
 
@@ -31,8 +44,10 @@ export function useModalA11y<T extends HTMLElement>(onClose: () => void) {
     (firstFocusable ?? dialog)?.focus();
 
     function handleKeyDown(e: KeyboardEvent) {
+      // Only the topmost open modal reacts - see openModalStack's comment above.
+      if (openModalStack[openModalStack.length - 1] !== id) return;
+
       if (e.key === 'Escape') {
-        e.stopPropagation();
         onCloseRef.current();
         return;
       }
@@ -57,6 +72,8 @@ export function useModalA11y<T extends HTMLElement>(onClose: () => void) {
     document.addEventListener('keydown', handleKeyDown);
     return () => {
       document.removeEventListener('keydown', handleKeyDown);
+      const index = openModalStack.indexOf(id);
+      if (index !== -1) openModalStack.splice(index, 1);
       previouslyFocused?.focus();
     };
   }, []);

@@ -1,6 +1,6 @@
 import { HttpError } from '../util/httpError.js';
 import { redis } from './redisClient.js';
-import type { SteamImportProgress, SteamWishlistImportProgress } from '@queueup/shared';
+import type { SteamImportProgress, SteamWishlistImportProgress, SteamStoreMatch } from '@queueup/shared';
 
 const STEAM_SUB_PREFIX = 'steam:';
 
@@ -54,12 +54,6 @@ export async function findSteamAppIdByTitle(title: string): Promise<number | nul
   const normalized = title.trim().toLowerCase();
   const match = items.find((item) => item.name.trim().toLowerCase() === normalized);
   return match?.id ?? null;
-}
-
-export interface SteamStoreMatch {
-  steamAppId: number;
-  title: string;
-  thumbnailUrl: string | null;
 }
 
 /** Same search as findSteamAppIdByTitle, but returns every candidate instead of only an exact
