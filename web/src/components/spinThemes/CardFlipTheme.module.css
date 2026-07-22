@@ -1,0 +1,61 @@
+.row {
+  display: flex;
+  justify-content: center;
+  flex-wrap: wrap;
+  gap: 8px;
+  padding: 10px 0;
+}
+
+.cardSlot {
+  border-radius: 12px;
+  transition: box-shadow 0.1s ease-out;
+}
+
+.highlighted {
+  box-shadow: 0 0 0 3px var(--qu-accent);
+}
+
+.card {
+  position: relative;
+  width: 76px;
+  height: 100px;
+  transform-style: preserve-3d;
+  transition: transform 0.55s cubic-bezier(0.4, 0.2, 0.2, 1);
+}
+
+.card.flipped {
+  transform: rotateY(180deg);
+}
+
+.cardBack,
+.cardFront {
+  position: absolute;
+  inset: 0;
+  border-radius: 10px;
+  backface-visibility: hidden;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: 2px solid var(--qu-border);
+}
+
+.cardBack {
+  background-color: var(--qu-surface2);
+  background-image: repeating-linear-gradient(135deg, var(--qu-stripe) 0px, var(--qu-stripe) 2px, transparent 2px, transparent 14px);
+  font-size: 26px;
+}
+
+.cardFront {
+  background-color: var(--qu-surface2);
+  background-size: cover;
+  background-position: center;
+  transform: rotateY(180deg);
+  padding: 5px;
+  text-align: center;
+  overflow: hidden;
+}
+
+.cardFrontLabel {
+  font: 700 9.5px system-ui, sans-serif;
+  color: var(--qu-text);
+}
