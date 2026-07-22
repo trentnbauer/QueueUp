@@ -34,9 +34,16 @@ export function useSteamImport(steamLinked: boolean, onImported: () => void) {
   // indefinitely if the user navigated away mid-import, since it was only ever cleared from inside
   // its own "done" callback.
   const pollIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  // The interval above is only created *after* the initial "start import" POST resolves - if the
+  // component unmounts while that's still in flight, the unmount cleanup below runs before there's
+  // any interval for it to clear, so the interval created moments later once the POST resolves
+  // would otherwise be orphaned with nothing left to ever clear it. Checked right after each await
+  // in runImport/runWishlistImport to bail out before creating it.
+  const mountedRef = useRef(true);
 
   useEffect(() => {
     return () => {
+      mountedRef.current = false;
       if (pollIntervalRef.current) clearInterval(pollIntervalRef.current);
     };
   }, []);
@@ -73,10 +80,12 @@ export function useSteamImport(steamLinked: boolean, onImported: () => void) {
     try {
       await gamesApi.importSteamWishlist();
     } catch (err) {
+      if (!mountedRef.current) return;
       setError(err instanceof Error ? err.message : 'Could not import your Steam wishlist');
       setBusy(false);
       return;
     }
+    if (!mountedRef.current) return;
 
     pollIntervalRef.current = setInterval(async () => {
       try {
@@ -119,10 +128,12 @@ export function useSteamImport(steamLinked: boolean, onImported: () => void) {
     try {
       await gamesApi.importSteamLibrary();
     } catch (err) {
+      if (!mountedRef.current) return;
       setError(err instanceof Error ? err.message : 'Could not import your Steam library');
       setBusy(false);
       return;
     }
+    if (!mountedRef.current) return;
 
     pollIntervalRef.current = setInterval(async () => {
       try {
