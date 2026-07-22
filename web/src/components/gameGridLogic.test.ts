@@ -3,6 +3,7 @@ import type { Game } from '@queueup/shared';
 import {
   sortByScore,
   backlogGames,
+  isUnreleased,
   primaryGenre,
   lastCompletedPrimaryGenre,
   avoidedGenres,
@@ -83,6 +84,30 @@ describe('backlogGames', () => {
     const done = makeGame({ id: 'done', status: 'done', voteScore: 5 });
     const backlog = makeGame({ id: 'backlog', status: 'backlog', voteScore: 5 });
     expect(backlogGames([playing, done, backlog]).map((g) => g.id)).toEqual(['backlog']);
+  });
+
+  it('excludes backlog games releasing in a future year', () => {
+    const NOW = new Date('2026-07-01T00:00:00.000Z').getTime();
+    const upcoming = makeGame({ id: 'upcoming', releaseYear: 2027 });
+    const released = makeGame({ id: 'released', releaseYear: 2026 });
+    expect(backlogGames([upcoming, released], NOW).map((g) => g.id)).toEqual(['released']);
+  });
+});
+
+describe('isUnreleased', () => {
+  const NOW = new Date('2026-07-01T00:00:00.000Z').getTime();
+
+  it('is false for a game with no stored release year', () => {
+    expect(isUnreleased(makeGame({ releaseYear: null }), NOW)).toBe(false);
+  });
+
+  it('is false for a game releasing this year or earlier', () => {
+    expect(isUnreleased(makeGame({ releaseYear: 2026 }), NOW)).toBe(false);
+    expect(isUnreleased(makeGame({ releaseYear: 2020 }), NOW)).toBe(false);
+  });
+
+  it('is true for a game releasing in a future year', () => {
+    expect(isUnreleased(makeGame({ releaseYear: 2027 }), NOW)).toBe(true);
   });
 });
 

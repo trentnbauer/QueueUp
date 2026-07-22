@@ -120,9 +120,20 @@ export function sortByScore(games: Game[]): Game[] {
   });
 }
 
-/** Every backlog game, regardless of vote count - the full pool Spin the Wheel draws from. */
-export function backlogGames(games: Game[]): Game[] {
-  return games.filter((g) => g.status === 'backlog');
+/** Only `releaseYear` (not the full release date) is stored, so this can only catch a game whose
+ * release year is strictly later than the current year - one releasing later this same year won't
+ * be caught until a full date is stored. `releaseYear === null` (unknown/not fetched) is treated as
+ * released rather than excluded, since that's far more often an older or obscure title IGDB didn't
+ * have a release date for than an unannounced one. */
+export function isUnreleased(game: Game, now: number = Date.now()): boolean {
+  return game.releaseYear !== null && game.releaseYear > new Date(now).getFullYear();
+}
+
+/** Every backlog game, regardless of vote count - the full pool Spin the Wheel draws from. Excludes
+ * games that haven't released yet (see isUnreleased) - nobody can actually play them yet, so the
+ * wheel shouldn't be able to land on one even though it's sitting in the backlog. */
+export function backlogGames(games: Game[], now: number = Date.now()): Game[] {
+  return games.filter((g) => g.status === 'backlog' && !isUnreleased(g, now));
 }
 
 // IGDB genre strings are comma-joined and often carry several tags (e.g. "Shooter, Adventure");
