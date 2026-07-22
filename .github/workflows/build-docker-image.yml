@@ -236,12 +236,21 @@ jobs:
 
       - name: Create and push multi-arch manifest
         working-directory: /tmp/digests
+        # --annotation targets the index (the multi-arch manifest list itself, not any one
+        # platform's manifest) - that's what ghcr.io's package page reads a multi-arch image's
+        # description from. The `labels:` passed to build-push-action above only bakes the
+        # description into each platform's image config, which ghcr.io does NOT read for a
+        # multi-arch tag's description (its own UI says as much: "for multi-arch images, set a
+        # value ... in the annotations field of the manifest") - so without this, the page always
+        # showed "No description provided" despite the label being set correctly per-platform.
         run: |
           docker buildx imagetools create \
             $(jq -cr '.tags | map("-t " + .) | join(" ")' <<< "$DOCKER_METADATA_OUTPUT_JSON") \
+            --annotation "index:org.opencontainers.image.description=$ONELINE" \
             $(printf '${{ env.REGISTRY }}/${{ needs.check-for-changes.outputs.image_name }}@sha256:%s ' *)
         env:
           DOCKER_METADATA_OUTPUT_JSON: ${{ steps.meta.outputs.json }}
+          ONELINE: ${{ needs.check-for-changes.outputs.oneline }}
 
       - name: Inspect pushed manifest
         run: docker buildx imagetools inspect ${{ env.REGISTRY }}/${{ needs.check-for-changes.outputs.image_name }}:latest
