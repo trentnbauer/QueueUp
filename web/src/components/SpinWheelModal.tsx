@@ -10,32 +10,63 @@ interface SpinWheelModalProps {
   onClose: () => void;
 }
 
-const TILE_WIDTH = 108;
-const TILE_GAP = 8;
-const TILE_PITCH = TILE_WIDTH + TILE_GAP;
-const VISIBLE_TILES = 5;
+// Two size tiers rather than one fixed pixel width (issue #293) - 5 full-size tiles (572px) is
+// wider than a phone's entire viewport once the modal's own padding is subtracted, which forced
+// the dialog itself wider than the screen. Smaller/fewer tiles below the app's standard mobile
+// breakpoint (see other *.module.css files' @media queries) keeps the reel comfortably inside a
+// narrow dialog instead of just clipping it, while wide screens are pixel-identical to before.
+const NARROW_BREAKPOINT_QUERY = '(max-width: 640px)';
+interface ReelSizing {
+  tileWidth: number;
+  tileGap: number;
+  visibleTiles: number;
+}
+const WIDE_SIZING: ReelSizing = { tileWidth: 108, tileGap: 8, visibleTiles: 5 };
+const NARROW_SIZING: ReelSizing = { tileWidth: 72, tileGap: 6, visibleTiles: 3 };
+
+function useReelSizing(): ReelSizing {
+  const [narrow, setNarrow] = useState(() => window.matchMedia(NARROW_BREAKPOINT_QUERY).matches);
+  useEffect(() => {
+    const mq = window.matchMedia(NARROW_BREAKPOINT_QUERY);
+    const onChange = (e: MediaQueryListEvent) => setNarrow(e.matches);
+    mq.addEventListener('change', onChange);
+    return () => mq.removeEventListener('change', onChange);
+  }, []);
+  return narrow ? NARROW_SIZING : WIDE_SIZING;
+}
+
 // The winner always lands at this index within the strip - everything before it is decorative
 // filler, weighted toward each candidate the same way the real pick was, so the reel's density
 // roughly mirrors the actual odds rather than looking like a coin flip regardless of votes.
 const REEL_LENGTH = 28;
 const WINNER_INDEX = REEL_LENGTH - 1;
-// A few more decorative tiles after the winner, so the reel has something to show on the far side
-// of the marker once it stops instead of visibly running out of tiles right at the pick.
-const TRAILING_FILLER_COUNT = Math.ceil(VISIBLE_TILES / 2) + 1;
 const SPIN_DURATION_MS = 3400;
-const CENTER_OFFSET = (VISIBLE_TILES * TILE_PITCH) / 2 - TILE_WIDTH / 2;
 
-function targetTranslateX(index: number): number {
-  return CENTER_OFFSET - index * TILE_PITCH;
+function tilePitch(sizing: ReelSizing): number {
+  return sizing.tileWidth + sizing.tileGap;
 }
 
-function buildReel(candidates: Game[], winner: Game, random: () => number): Game[] {
+function centerOffset(sizing: ReelSizing): number {
+  return (sizing.visibleTiles * tilePitch(sizing)) / 2 - sizing.tileWidth / 2;
+}
+
+function targetTranslateX(index: number, sizing: ReelSizing): number {
+  return centerOffset(sizing) - index * tilePitch(sizing);
+}
+
+// A few more decorative tiles after the winner, so the reel has something to show on the far side
+// of the marker once it stops instead of visibly running out of tiles right at the pick.
+function trailingFillerCount(sizing: ReelSizing): number {
+  return Math.ceil(sizing.visibleTiles / 2) + 1;
+}
+
+function buildReel(candidates: Game[], winner: Game, random: () => number, sizing: ReelSizing): Game[] {
   const strip: Game[] = [];
   for (let i = 0; i < WINNER_INDEX; i++) {
     strip.push(candidates[Math.floor(random() * candidates.length)]);
   }
   strip.push(winner);
-  for (let i = 0; i < TRAILING_FILLER_COUNT; i++) {
+  for (let i = 0; i < trailingFillerCount(sizing); i++) {
     strip.push(candidates[Math.floor(random() * candidates.length)]);
   }
   return strip;
@@ -81,9 +112,10 @@ function playReelTicks(tileCount: number, durationMs: number) {
  * the winner out from under an animation that's already playing or already revealed. */
 export function SpinWheelModal({ games, candidates, onClose }: SpinWheelModalProps) {
   const dialogRef = useModalA11y<HTMLDivElement>(onClose);
+  const sizing = useReelSizing();
   const [spinKey, setSpinKey] = useState(0);
   const [revealed, setRevealed] = useState(false);
-  const [translateX, setTranslateX] = useState(targetTranslateX(0));
+  const [translateX, setTranslateX] = useState(() => targetTranslateX(0, sizing));
   // The reel always ends at the same pixel offset regardless of which game wins (it depends only
   // on REEL_LENGTH, not the pick) - so on "Spin again" the reset-to-start jump must be instant
   // (transitionDuration 0) or it would itself animate under the same transition, using up the
@@ -98,13 +130,13 @@ export function SpinWheelModal({ games, candidates, onClose }: SpinWheelModalPro
       setWinner(null);
       return undefined;
     }
-    const strip = buildReel(candidates, picked, Math.random);
+    const strip = buildReel(candidates, picked, Math.random, sizing);
 
     setWinner(picked);
     setReel(strip);
     setRevealed(false);
     setTransitioning(false);
-    setTranslateX(targetTranslateX(0));
+    setTranslateX(targetTranslateX(0, sizing));
 
     // A single rAF isn't a reliable paint boundary - the browser can coalesce the start position
     // with the end position into one frame, skipping the transition entirely. Nesting two rAFs
@@ -114,7 +146,7 @@ export function SpinWheelModal({ games, candidates, onClose }: SpinWheelModalPro
     const raf1 = requestAnimationFrame(() => {
       raf2 = requestAnimationFrame(() => {
         setTransitioning(true);
-        setTranslateX(targetTranslateX(WINNER_INDEX));
+        setTranslateX(targetTranslateX(WINNER_INDEX, sizing));
         playReelTicks(WINNER_INDEX + 1, SPIN_DURATION_MS);
       });
     });
@@ -124,7 +156,9 @@ export function SpinWheelModal({ games, candidates, onClose }: SpinWheelModalPro
       cancelAnimationFrame(raf2);
       clearTimeout(timeout);
     };
-    // Intentionally only re-runs on spinKey ("Spin again") - see the doc comment above.
+    // Intentionally only re-runs on spinKey ("Spin again") - see the doc comment above. A viewport
+    // resize mid-spin (rare) is picked up on the next spin, not retroactively - consistent with
+    // that same "locked in once per spin" philosophy.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [spinKey]);
 
@@ -148,20 +182,28 @@ export function SpinWheelModal({ games, candidates, onClose }: SpinWheelModalPro
           </button>
         </div>
 
-        <div className={styles.reelViewport} style={{ width: VISIBLE_TILES * TILE_PITCH - TILE_GAP }}>
-          <div className={styles.centerMarker} aria-hidden="true" />
+        <div
+          className={styles.reelViewport}
+          style={{ width: sizing.visibleTiles * tilePitch(sizing) - sizing.tileGap, height: sizing.tileWidth + 24 }}
+        >
+          <div className={styles.centerMarker} aria-hidden="true" style={{ width: sizing.tileWidth }} />
           <div
             className={styles.reelStrip}
             style={{
               transform: `translateX(${translateX}px)`,
               transitionDuration: transitioning ? `${SPIN_DURATION_MS}ms` : '0ms',
+              gap: sizing.tileGap,
             }}
           >
             {reel.map((game, i) => (
               <div
                 key={i}
                 className={styles.reelTile}
-                style={game.coverImageUrl ? { backgroundImage: `url(${game.coverImageUrl})` } : undefined}
+                style={{
+                  width: sizing.tileWidth,
+                  height: sizing.tileWidth,
+                  ...(game.coverImageUrl ? { backgroundImage: `url(${game.coverImageUrl})` } : undefined),
+                }}
               >
                 <div className={styles.reelTileLabel}>{game.title}</div>
               </div>

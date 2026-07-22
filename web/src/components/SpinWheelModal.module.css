@@ -9,6 +9,12 @@
   padding: 20px;
 }
 
+@media (max-width: 640px) {
+  .backdrop {
+    padding: 10px;
+  }
+}
+
 .dialog {
   background: var(--qu-surface);
   border: 1px solid var(--qu-border);
@@ -19,6 +25,12 @@
   max-height: 85vh;
   overflow-y: auto;
   box-shadow: 0 12px 40px rgba(0, 0, 0, 0.4);
+}
+
+@media (max-width: 640px) {
+  .dialog {
+    padding: 14px;
+  }
 }
 
 .header {
@@ -48,8 +60,10 @@
 }
 
 .reelViewport {
+  /* width and height are set inline (SpinWheelModal.tsx) - both depend on the current size tier
+     (issue #293: 5 full-size tiles is wider than a phone viewport), so JS is the single source of
+     truth for every reel dimension rather than splitting it between here and there. */
   position: relative;
-  height: 132px;
   margin: 0 auto;
   overflow: hidden;
   border-radius: var(--qu-radius);
@@ -58,11 +72,11 @@
 }
 
 .centerMarker {
+  /* width set inline - see .reelViewport's comment above. */
   position: absolute;
   top: 0;
   bottom: 0;
   left: 50%;
-  width: 108px;
   transform: translateX(-50%);
   border-left: 2px solid var(--qu-accent);
   border-right: 2px solid var(--qu-accent);
@@ -72,19 +86,19 @@
 }
 
 .reelStrip {
+  /* gap set inline - see .reelViewport's comment above. top is always 12px regardless of size
+     tier by construction (reelViewport's height is always tileWidth + 24). */
   position: absolute;
   top: 12px;
   left: 0;
   display: flex;
-  gap: 8px;
   transition-property: transform;
   transition-timing-function: cubic-bezier(0.1, 0.7, 0.15, 1);
 }
 
 .reelTile {
+  /* width/height set inline - see .reelViewport's comment above. */
   flex-shrink: 0;
-  width: 108px;
-  height: 108px;
   border-radius: 10px;
   background-color: var(--qu-surface2);
   background-image: repeating-linear-gradient(135deg, var(--qu-stripe) 0px, var(--qu-stripe) 2px, transparent 2px, transparent 14px);
