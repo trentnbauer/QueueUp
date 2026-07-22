@@ -1,0 +1,100 @@
+.stage {
+  position: relative;
+  height: 150px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.crate {
+  font-size: 64px;
+  line-height: 1;
+  filter: drop-shadow(0 4px 10px rgba(0, 0, 0, 0.4));
+}
+
+.shaking {
+  animation: crateShake 0.35s ease-in-out infinite;
+}
+
+.bursting {
+  animation: crateBurstOpen 0.35s ease-out forwards;
+}
+
+@keyframes crateShake {
+  0%,
+  100% {
+    transform: translateX(0) rotate(0deg);
+  }
+  25% {
+    transform: translateX(-4px) rotate(-4deg);
+  }
+  75% {
+    transform: translateX(4px) rotate(4deg);
+  }
+}
+
+@keyframes crateBurstOpen {
+  0% {
+    transform: scale(1) rotate(0deg);
+    opacity: 1;
+  }
+  100% {
+    transform: scale(1.6) rotate(12deg);
+    opacity: 0;
+  }
+}
+
+.burstFlash {
+  position: absolute;
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  z-index: 1;
+  animation: burstFlash 0.35s ease-out forwards;
+}
+
+@keyframes burstFlash {
+  0% {
+    transform: scale(1);
+    opacity: 0.8;
+    filter: blur(2px);
+  }
+  100% {
+    transform: scale(14);
+    opacity: 0;
+    filter: blur(8px);
+  }
+}
+
+.itemReveal {
+  width: 130px;
+  height: 130px;
+  border-radius: 12px;
+  border: 3px solid;
+  background-color: var(--qu-surface2);
+  background-image: repeating-linear-gradient(135deg, var(--qu-stripe) 0px, var(--qu-stripe) 2px, transparent 2px, transparent 14px);
+  background-size: cover;
+  background-position: center;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 8px;
+  text-align: center;
+  animation: itemPopIn 0.4s cubic-bezier(0.2, 1.4, 0.4, 1) forwards;
+}
+
+@keyframes itemPopIn {
+  0% {
+    transform: scale(0.2);
+    opacity: 0;
+  }
+  100% {
+    transform: scale(1);
+    opacity: 1;
+  }
+}
+
+.itemLabel {
+  font: 700 12px system-ui, sans-serif;
+  color: var(--qu-text);
+}
