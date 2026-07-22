@@ -108,7 +108,7 @@ export function GameCard({
           className={styles.cover}
           style={game.coverImageUrl ? { backgroundImage: `url(${game.coverImageUrl})` } : undefined}
         >
-          {!game.coverImageUrl && <span className={styles.coverLabel}>COVER ART</span>}
+          {!game.coverImageUrl && <span className={styles.coverLabel}>{game.title}</span>}
 
           {/* "Collecting dust" nudge (issue #249) - backlog games Year in Review would otherwise
               only ever call out once a year. Top-left, opposite the vote badge's bottom-right spot
