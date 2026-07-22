@@ -43,6 +43,10 @@ export function AddGameModal({ roomId, onAdded, onClose }: AddGameModalProps) {
     if (debounceRef.current) clearTimeout(debounceRef.current);
     setAddedTitle(null);
     if (!query.trim()) {
+      // Bump the request id here too, or a still-in-flight search from before the query was
+      // cleared can resolve afterward and pass the staleness check below, overwriting this
+      // intentional clear with stale results.
+      ++latestRequestIdRef.current;
       setResults([]);
       return;
     }
