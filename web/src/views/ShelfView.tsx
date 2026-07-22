@@ -108,9 +108,11 @@ export function ShelfView() {
       {bulkMode ? (
         <BulkActionBar
           selectedCount={selectedIds.size}
-          totalCount={visibleGames.length}
+          allVisibleSelected={visibleGames.length > 0 && visibleGames.every((g) => selectedIds.has(g.id))}
           busy={isBulkUpdatingStatus || isBulkRemoving}
-          onSelectAll={() => setSelectedIds(new Set(visibleGames.map((g) => g.id)))}
+          onSelectAll={() =>
+            setSelectedIds((prev) => new Set([...prev, ...visibleGames.map((g) => g.id)]))
+          }
           onClear={() => setSelectedIds(new Set())}
           onSetStatus={handleBulkSetStatus}
           onRemove={handleBulkRemove}
