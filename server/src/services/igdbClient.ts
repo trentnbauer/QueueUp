@@ -2,7 +2,13 @@ import { redis } from './redisClient.js';
 import { env } from '../config/env.js';
 import { HttpError } from '../util/httpError.js';
 import { getConfigValue } from './configResolver.js';
-import { IGDB_PLATFORM_NAMES, type GameSearchResult, type RoomPlatform } from '@queueup/shared';
+import {
+  IGDB_PLATFORM_NAMES,
+  type CollectionGamesResult,
+  type CollectionSearchResult,
+  type GameSearchResult,
+  type RoomPlatform,
+} from '@queueup/shared';
 
 /** IGDB client id/secret, resolved env-first with a DB fallback (see configResolver.ts) - either
  * or both may be unset (env.ts no longer requires them at boot), in which case IGDB requests fail
@@ -220,6 +226,67 @@ export async function searchGames(query: string, platforms?: RoomPlatform[]): Pr
       coverImageUrl: coverUrl(g.cover),
       releaseYear: releaseYear(g.first_release_date),
     }));
+}
+
+interface IgdbCollection {
+  id: number;
+  name?: string;
+}
+
+export async function searchCollections(query: string): Promise<CollectionSearchResult[]> {
+  const trimmed = query.trim();
+  if (!trimmed) return [];
+
+  const escaped = escapeApicalypseString(trimmed);
+  const collections = await igdbRequest<IgdbCollection[]>(
+    'collections',
+    `search "${escaped}"; fields name; limit 10;`,
+  );
+  return collections.filter((c) => c.name).map((c) => ({ collectionId: c.id, name: c.name! }));
+}
+
+interface IgdbCollectionWithGames extends IgdbCollection {
+  games?: IgdbGame[];
+}
+
+// A franchise can run to dozens of entries once remasters/spinoffs/mobile ports are all counted -
+// capped so "add the whole collection" can't kick off an enormous batch of intake calls (each one
+// its own gg.deals pricing lookup) from a single click.
+const MAX_COLLECTION_GAMES = 40;
+
+export async function getCollectionGames(collectionId: number, platforms?: RoomPlatform[]): Promise<CollectionGamesResult> {
+  if (!Number.isInteger(collectionId) || collectionId <= 0) {
+    throw new HttpError(400, 'Invalid IGDB collection id');
+  }
+
+  const [collection] = await igdbRequest<IgdbCollectionWithGames[]>(
+    'collections',
+    `fields name,games.name,games.cover.image_id,games.platforms.name,games.first_release_date,games.category,games.version_parent; where id = ${collectionId};`,
+  );
+  if (!collection || !collection.name) {
+    throw new HttpError(404, 'That collection could not be found on IGDB.');
+  }
+
+  const activePlatforms = platforms && platforms.length > 0 ? platforms : undefined;
+  const allGames = (collection.games ?? [])
+    .filter((g) => g.name)
+    .filter(isPrimaryEdition)
+    .filter((g) => !activePlatforms || platformFamilies(g.platforms).some((f) => activePlatforms.includes(f)))
+    // Oldest release first - the natural "play in order" sequence for a series.
+    .sort((a, b) => (a.first_release_date ?? Infinity) - (b.first_release_date ?? Infinity))
+    .map((g) => ({
+      igdbId: g.id,
+      title: g.name!,
+      platform: platformLabel(g.platforms),
+      coverImageUrl: coverUrl(g.cover),
+      releaseYear: releaseYear(g.first_release_date),
+    }));
+
+  return {
+    name: collection.name,
+    games: allGames.slice(0, MAX_COLLECTION_GAMES),
+    truncated: allGames.length > MAX_COLLECTION_GAMES,
+  };
 }
 
 export interface IgdbGameDetail {

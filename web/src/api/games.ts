@@ -2,6 +2,8 @@ import { apiGet, apiPost, apiPatch, apiPut, apiDelete } from './client';
 import type {
   BulkRemoveGamesRequest,
   BulkUpdateGameStatusRequest,
+  CollectionGamesResult,
+  CollectionSearchResult,
   CreateGameRequest,
   Game,
   GameSearchResult,
@@ -25,8 +27,12 @@ export const gamesApi = {
   room: (roomId: string, region?: PriceRegion) =>
     apiGet<{ games: Game[]; truncated: boolean }>(`/api/rooms/${roomId}/games${region ? `?region=${region}` : ''}`),
   search: (q: string, roomId?: string | null) =>
-    apiGet<{ results: GameSearchResult[] }>(
+    apiGet<{ results: GameSearchResult[]; collections: CollectionSearchResult[] }>(
       `/api/games/search?q=${encodeURIComponent(q)}${roomId ? `&roomId=${roomId}` : ''}`,
+    ),
+  collectionGames: (collectionId: number, roomId?: string | null) =>
+    apiGet<CollectionGamesResult>(
+      `/api/games/collections/${collectionId}${roomId ? `?roomId=${roomId}` : ''}`,
     ),
   create: (body: CreateGameRequest) => apiPost<{ game: Game }>('/api/games', body),
   updateStatus: (id: string, body: UpdateGameStatusRequest) =>

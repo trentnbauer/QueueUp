@@ -11,7 +11,13 @@ import {
   invalidateExistingIgdbIds,
 } from '../services/gameAccess.js';
 import { gameInclude, serializeGame, serializeGames } from '../services/gameSerializer.js';
-import { searchIntake, resolveGameForCreation, refreshGamePricing } from '../services/gameIntake.js';
+import {
+  searchIntake,
+  searchCollectionsIntake,
+  collectionGamesIntake,
+  resolveGameForCreation,
+  refreshGamePricing,
+} from '../services/gameIntake.js';
 import { notifyRoom } from '../services/notifications.js';
 import { platformFamilies, findIgdbIdBySteamAppId } from '../services/igdbClient.js';
 import { getOwnedPlatforms } from '../services/userSettings.js';
@@ -201,10 +207,36 @@ export default async function gameRoutes(app: FastifyInstance) {
     if (roomId) await requireMembership(roomId, userId);
     const platforms = roomId ? [await getRoomPlatform(roomId)] : await getOwnedPlatforms(userId);
     const excludeIgdbIds = await existingIgdbIds(roomId ?? null, userId);
+    const query = request.query.q ?? '';
 
-    const results = await searchIntake(request.query.q ?? '', platforms, excludeIgdbIds);
-    return { results };
+    const [results, collections] = await Promise.all([
+      searchIntake(query, platforms, excludeIgdbIds),
+      searchCollectionsIntake(query),
+    ]);
+    return { results, collections };
   });
+
+  // Drill-down from a collection search result (issue #272) - lets Add Game add a whole
+  // franchise/series at once instead of one title at a time. Filtered/deduped the same way normal
+  // search results are, so the review checklist the frontend shows never offers a game that's
+  // already in this room/shelf or unavailable on its platform.
+  app.get<{ Params: { id: string }; Querystring: { roomId?: string } }>(
+    '/api/games/collections/:id',
+    async (request) => {
+      const userId = await request.requireAuth();
+      const collectionId = Number(request.params.id);
+      if (!Number.isInteger(collectionId) || collectionId <= 0) {
+        throw new HttpError(400, 'Invalid collection id');
+      }
+      const { roomId } = request.query;
+      if (roomId) await requireMembership(roomId, userId);
+      const platforms = roomId ? [await getRoomPlatform(roomId)] : await getOwnedPlatforms(userId);
+      const excludeIgdbIds = await existingIgdbIds(roomId ?? null, userId);
+
+      const collection = await collectionGamesIntake(collectionId, platforms, excludeIgdbIds);
+      return collection;
+    },
+  );
 
   app.get<{ Querystring: { region?: string } }>('/api/games', async (request) => {
     const userId = await request.requireAuth();

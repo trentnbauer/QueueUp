@@ -161,6 +161,23 @@ export interface GameSearchResult {
   releaseYear: number | null;
 }
 
+/** A franchise/series match, shown alongside individual games in the add-game search dropdown -
+ * picking one drills into CollectionGamesResult rather than adding directly. */
+export interface CollectionSearchResult {
+  collectionId: number;
+  name: string;
+}
+
+/** A collection's games, already filtered/deduped the same way normal search results are (room
+ * platform, or the user's owned systems; games already added are excluded) and sorted oldest
+ * release first, so "add the whole series" naturally lands in play order. */
+export interface CollectionGamesResult {
+  name: string;
+  games: GameSearchResult[];
+  /** True if the collection had more games than were returned - see MAX_COLLECTION_GAMES. */
+  truncated: boolean;
+}
+
 export interface CreateGameRequest {
   igdbId: number;
   roomId?: string | null;
