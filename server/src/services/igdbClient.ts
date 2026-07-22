@@ -22,7 +22,7 @@ async function resolveIgdbCredentials(): Promise<{ clientId: string; clientSecre
 }
 
 const TOKEN_CACHE_KEY = 'igdb:token:v1';
-const DETAIL_CACHE_PREFIX = 'igdb:detail:v6:'; // v6: added Rushed/Completionist time-to-beat
+const DETAIL_CACHE_PREFIX = 'igdb:detail:v7:'; // v7: added igdbCollectionId
 const DETAIL_CACHE_TTL_SECONDS = 60 * 60 * 24; // 24h — title/cover/platform/steamAppId rarely change
 
 interface TwitchTokenResponse {
@@ -66,6 +66,10 @@ interface IgdbGenre {
   name?: string;
 }
 
+interface IgdbCollectionRef {
+  id: number;
+}
+
 export interface IgdbGame {
   id: number;
   name?: string;
@@ -75,6 +79,7 @@ export interface IgdbGame {
   first_release_date?: number;
   category?: number;
   version_parent?: number;
+  collection?: IgdbCollectionRef;
 }
 
 // IGDB's documented `category` enum (api-docs.igdb.com/#game-enums) - only the two values relevant
@@ -244,6 +249,8 @@ export interface IgdbGameDetail {
   /** Hours for a full completionist (100%) playthrough, from IGDB's game_time_to_beats
    * "completely" figure (issue #248). Null when IGDB has no time-to-beat data. */
   timeToBeatCompletionistHours: number | null;
+  /** IGDB's franchise/series id, if this game belongs to one (issue #283) - null otherwise. */
+  igdbCollectionId: number | null;
 }
 
 // external_game_source 1 == Steam (from the external_game_sources endpoint) — the `games`
@@ -322,7 +329,7 @@ export async function getGameDetail(igdbId: number): Promise<IgdbGameDetail> {
     ]
   >(
     'multiquery',
-    `query games "Game" { fields name,cover.image_id,platforms.name,genres.name,first_release_date; where id = ${igdbId}; };
+    `query games "Game" { fields name,cover.image_id,platforms.name,genres.name,first_release_date,collection.id; where id = ${igdbId}; };
      query external_games "External" { fields uid; where game = ${igdbId} & external_game_source = ${STEAM_EXTERNAL_SOURCE_ID}; };
      query multiplayer_modes "Modes" { fields onlinecoopmax,offlinecoopmax; where game = ${igdbId}; };
      query game_time_to_beats "TimeToBeat" { fields normally,hastily,completely; where game_id = ${igdbId}; };`,
@@ -352,6 +359,7 @@ export async function getGameDetail(igdbId: number): Promise<IgdbGameDetail> {
     timeToBeatHours: timeToBeatHoursFrom(timeToBeatRows),
     timeToBeatRushedHours: timeToBeatRushedHoursFrom(timeToBeatRows),
     timeToBeatCompletionistHours: timeToBeatCompletionistHoursFrom(timeToBeatRows),
+    igdbCollectionId: game.collection?.id ?? null,
   };
 
   await redis.set(cacheKey, JSON.stringify(detail), 'EX', DETAIL_CACHE_TTL_SECONDS);

@@ -179,6 +179,12 @@ model Game {
   /// Captured at intake time from IGDB - not re-fetchable later without hitting IGDB again per
   /// game, so this needs to be saved when the game is added, not derived after the fact.
   releaseYear    Int?       @map("release_year")
+  /// IGDB's franchise/series id for this game, if it belongs to one (issue #283) - captured at
+  /// intake same as releaseYear/maxCoopPlayers above. Not surfaced anywhere yet; laying the
+  /// groundwork for a future "recommend playing the prior entry first" Spin the Wheel feature
+  /// without needing a second IGDB round trip per game once that's built. Null on games added
+  /// before this field existed, and on any game IGDB doesn't have in a collection.
+  igdbCollectionId Int?     @map("igdb_collection_id")
   maxCoopPlayers Int?       @map("max_coop_players")
   /// Hours for an average "main story" playthrough, from IGDB's game_time_to_beats endpoint
   /// (issue #189) - same capture-at-intake reasoning as releaseYear/maxCoopPlayers above. Null

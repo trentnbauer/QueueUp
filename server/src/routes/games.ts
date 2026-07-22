@@ -122,6 +122,7 @@ async function runSteamLibraryImportLoop(
             steamAppid: resolved.steamAppId,
             coverImageUrl: resolved.coverImageUrl,
             releaseYear: resolved.releaseYear,
+            igdbCollectionId: resolved.igdbCollectionId,
           },
         });
         existingIgdbIdSet.add(igdbId);
@@ -182,6 +183,7 @@ async function runSteamWishlistImportLoop(
             steamAppid: resolved.steamAppId,
             coverImageUrl: resolved.coverImageUrl,
             releaseYear: resolved.releaseYear,
+            igdbCollectionId: resolved.igdbCollectionId,
             status: 'wishlist',
           },
         });
@@ -279,6 +281,7 @@ export default async function gameRoutes(app: FastifyInstance) {
         steamAppid: resolved.steamAppId,
         coverImageUrl: resolved.coverImageUrl,
         releaseYear: resolved.releaseYear,
+        igdbCollectionId: resolved.igdbCollectionId,
       },
     });
     const game = await loadGameOr404(created.id);
