@@ -98,6 +98,8 @@ export function RoomView() {
         isRefreshingPrice={isRefreshingPrice}
         onSetTargetPrice={setTargetPrice}
         onSetOwnership={setOwnership}
+        onApplyTag={applyTag}
+        onRemoveTag={removeTag}
       />
       <BeatenStrip
         games={games}

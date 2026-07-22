@@ -14,6 +14,8 @@ interface BeatenStripProps {
   isRefreshingPrice?: (gameId: string) => boolean;
   onSetTargetPrice: (gameId: string, targetPrice: string | null) => void;
   onSetOwnership?: (gameId: string, owned: boolean) => void;
+  onApplyTag: (gameId: string, name: string) => Promise<void>;
+  onRemoveTag: (gameId: string, tagId: string) => void;
 }
 
 /** Mirrors PlayingStrip, but for games marked Done, and sits below the main grid instead of above
@@ -32,6 +34,8 @@ export function BeatenStrip({
   isRefreshingPrice,
   onSetTargetPrice,
   onSetOwnership,
+  onApplyTag,
+  onRemoveTag,
 }: BeatenStripProps) {
   // Most recently marked Done first, so the strip reads as a completion timeline rather than
   // whatever order the games happened to come back in - same signal lastCompletedPrimaryGenre in
@@ -59,6 +63,8 @@ export function BeatenStrip({
               isRefreshingPrice={isRefreshingPrice ? isRefreshingPrice(game.id) : false}
               onSetTargetPrice={(targetPrice) => onSetTargetPrice(game.id, targetPrice)}
               onSetOwnership={onSetOwnership ? (owned) => onSetOwnership(game.id, owned) : undefined}
+              onApplyTag={(name) => onApplyTag(game.id, name)}
+              onRemoveTag={(tagId) => onRemoveTag(game.id, tagId)}
             />
           </div>
         ))}

@@ -14,6 +14,8 @@ function makeGame(overrides: Partial<Game> = {}): Game {
     releaseDate: null,
     maxCoopPlayers: null,
     timeToBeatHours: null,
+    timeToBeatRushedHours: null,
+    timeToBeatCompletionistHours: null,
     ggDealsUrl: null,
     coverImageUrl: null,
     status: 'backlog',
