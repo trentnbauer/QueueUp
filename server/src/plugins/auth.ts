@@ -139,7 +139,16 @@ export default fp(async function authPlugin(app: FastifyInstance) {
 
   app.setErrorHandler((error: FastifyError, _request, reply: FastifyReply) => {
     const statusCode = (error as { statusCode?: number }).statusCode ?? 500;
-    if (statusCode >= 500) app.log.error(error);
+    // Below 500, error.message is always something a route deliberately wrote for the caller
+    // (HttpError, Fastify's own body/param validation) - safe to forward as-is. At/above 500 it's
+    // an unexpected exception (a Prisma error, a DB timeout, a null-deref) whose message can carry
+    // internal detail - schema/column names, connection strings, file paths - so only the server
+    // log gets the real message; the client gets a generic one.
+    if (statusCode >= 500) {
+      app.log.error(error);
+      reply.status(statusCode).send({ error: 'Internal server error' });
+      return;
+    }
     reply.status(statusCode).send({ error: error.message });
   });
 });
