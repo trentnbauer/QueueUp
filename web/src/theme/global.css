@@ -1,14 +1,14 @@
 :root {
-  --qu-bg: #0f0e16;
-  --qu-surface: #1a1926;
-  --qu-surface2: #161522;
-  --qu-border: rgba(255, 255, 255, 0.09);
-  --qu-stripe: rgba(255, 255, 255, 0.05);
-  --qu-text: #f1eefc;
-  --qu-muted: #8f8aa8;
-  --qu-neutral-pill-bg: rgba(255, 255, 255, 0.07);
+  --qu-bg: #0a0c12;
+  --qu-surface: #12151d;
+  --qu-surface2: #0e1016;
+  --qu-border: rgba(255, 255, 255, 0.08);
+  --qu-stripe: rgba(255, 255, 255, 0.045);
+  --qu-text: #eef0f4;
+  --qu-muted: #7c8494;
+  --qu-neutral-pill-bg: rgba(255, 255, 255, 0.06);
 
-  --qu-accent: #8b5cf6;
+  --qu-accent: #4a8fe8;
   /* Text color for content rendered directly on top of --qu-accent (buttons, banners) - kept as
    * its own variable rather than a hardcoded white, since a room's accent color is user-editable
    * and some presets (e.g. Lime) are too bright for white text to read clearly. Recomputed
@@ -22,8 +22,8 @@
   --qu-header-font: 'Space Grotesk', system-ui, sans-serif;
   --qu-body-font: system-ui, sans-serif;
 
-  --qu-radius: 10px;
-  --qu-card-radius: 14px;
+  --qu-radius: 4px;
+  --qu-card-radius: 6px;
 }
 
 /* Light mode override - applied via a `data-theme="light"` attribute on <html>, set synchronously

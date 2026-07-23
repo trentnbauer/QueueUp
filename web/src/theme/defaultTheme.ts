@@ -1,4 +1,6 @@
-export const DEFAULT_ACCENT = '#8b5cf6';
+// Matches the "Sky" preset below - a cooler, more sedate blue than the old violet default, in
+// keeping with the app's "sleek midnight" dark theme rather than the original saturated-purple one.
+export const DEFAULT_ACCENT = '#4a8fe8';
 
 /** Small curated palette room masters can pick from — accent-only theming for v1. */
 export const ACCENT_PRESETS = [
