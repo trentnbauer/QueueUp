@@ -1,4 +1,4 @@
-import { Fragment, useMemo, useRef } from 'react';
+import { Fragment, useEffect, useMemo, useRef, useState } from 'react';
 import type { ReactNode } from 'react';
 import type { Game, GameStatus, SpinWheelTheme, User, VoteValue } from '@queueup/shared';
 import { GameCard } from './GameCard';
@@ -33,6 +33,16 @@ function useStableOrder(games: Game[]): Game[] {
     [byId],
   );
 }
+
+// A shelf/room can hold hundreds of games (MAX_GAMES_PER_LIST server-side) - rendering every card's
+// worth of DOM (each with its own cover-art image, price fetch, etc.) up front made a big list
+// noticeably slower to scroll than it needed to be. Rendered count grows as the user scrolls
+// instead - render only a first screenful or two, then more as an IntersectionObserver sentinel
+// near the bottom comes into view. Filtering/search/Spin the Wheel/bulk-select all still operate
+// on the *full* filtered list regardless of how much of it has been rendered - only the DOM output
+// is capped, so none of those features silently only see a partial list.
+const INITIAL_RENDER_COUNT = 30;
+const RENDER_INCREMENT = 30;
 
 interface GameGridProps {
   games: Game[];
@@ -146,6 +156,34 @@ export function GameGrid({
     return filtered.filter((g) => !hiddenStatuses.includes(g.status));
   }, [filtered, hiddenStatuses, statusFilter]);
 
+  const [renderCount, setRenderCount] = useState(INITIAL_RENDER_COUNT);
+  // Back to the initial count on a genuinely new view (a filter/search changed) - not on every
+  // change to `visible` itself, which also fires for an in-place edit (a vote, a status change)
+  // that shouldn't collapse how much the user has already scrolled through.
+  useEffect(() => {
+    setRenderCount(INITIAL_RENDER_COUNT);
+  }, [platformFilter, genreFilter, statusFilter, tagFilter, normalizedQuery, neglectedFilter]);
+
+  const rendered = useMemo(() => visible.slice(0, renderCount), [visible, renderCount]);
+  const hasMore = visible.length > rendered.length;
+
+  const sentinelRef = useRef<HTMLDivElement | null>(null);
+  useEffect(() => {
+    if (!hasMore) return;
+    const el = sentinelRef.current;
+    if (!el) return;
+    // rootMargin extends the trigger zone below the viewport, so the next batch starts rendering
+    // a bit before the sentinel is actually scrolled into view rather than right at the edge.
+    const observer = new IntersectionObserver(
+      (entries) => {
+        if (entries[0]?.isIntersecting) setRenderCount((c) => c + RENDER_INCREMENT);
+      },
+      { rootMargin: '600px' },
+    );
+    observer.observe(el);
+    return () => observer.disconnect();
+  }, [hasMore]);
+
   if (isLoading) {
     return (
       <div className={styles.cards}>
@@ -191,20 +229,21 @@ export function GameGrid({
     );
   }
 
-  // The spin tile sits between the Playing group and the rest (backlog, then Done) - visible is
+  // The spin tile sits between the Playing group and the rest (backlog, then Done) - rendered is
   // already sorted Playing-first by statusBucket, so the first non-Playing game marks exactly
-  // where that boundary is. If every visible game is currently Playing, it falls in after all of
-  // them instead.
+  // where that boundary is. If every rendered game is currently Playing, it falls in after all of
+  // them instead. Computed against `rendered`, not `visible` - Playing games sort first either
+  // way, so this boundary is within whatever's actually on screen.
   const spinCardInsertIndex = spinCard
     ? (() => {
-        const index = visible.findIndex((g) => g.status !== 'playing');
-        return index === -1 ? visible.length : index;
+        const index = rendered.findIndex((g) => g.status !== 'playing');
+        return index === -1 ? rendered.length : index;
       })()
     : -1;
 
   return (
     <div className={styles.cards}>
-      {visible.map((game, index) => (
+      {rendered.map((game, index) => (
         <Fragment key={game.id}>
           {index === spinCardInsertIndex && spinCard}
           <GameCard
@@ -230,7 +269,11 @@ export function GameGrid({
           />
         </Fragment>
       ))}
-      {spinCardInsertIndex === visible.length && spinCard}
+      {spinCardInsertIndex === rendered.length && spinCard}
+      {/* Invisible - just an IntersectionObserver target (see the effect above) marking where the
+          next batch of games should start rendering as the user scrolls near it. Omitted once
+          everything's already rendered. */}
+      {hasMore && <div ref={sentinelRef} className={styles.loadMoreSentinel} aria-hidden="true" />}
       {trailingCard}
     </div>
   );

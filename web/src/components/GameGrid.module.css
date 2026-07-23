@@ -10,6 +10,15 @@
   padding: 28px 40px;
 }
 
+/* Purely an IntersectionObserver target (see GameGrid's load-more effect) - not meant to be seen,
+   just tall enough to reliably cross the viewport edge and fire before the user hits a hard stop
+   at the actual bottom of the rendered cards. Spans every grid column so it doesn't visually
+   reflow the layout while present. */
+.loadMoreSentinel {
+  grid-column: 1 / -1;
+  height: 1px;
+}
+
 .empty {
   color: var(--qu-muted);
   font-size: 13px;
