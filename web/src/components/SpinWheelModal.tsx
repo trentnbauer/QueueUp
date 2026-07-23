@@ -5,6 +5,7 @@ import { pickSpinWinner } from './gameGridLogic';
 import { ConfettiBurst } from './ConfettiBurst';
 import { SpinThemeRenderer } from './spinThemes/SpinThemeRenderer';
 import { resolveConcreteTheme } from './spinThemes/resolveTheme';
+import { formatPrice } from '../utils/formatPrice';
 import styles from './SpinWheelModal.module.css';
 
 interface SpinWheelModalProps {
@@ -75,6 +76,7 @@ export function SpinWheelModal({ games, candidates, theme = 'slot', onClose }: S
               {winner.timeToBeatHours != null && (
                 <div className={styles.revealTimeToBeat}>~{winner.timeToBeatHours}h to beat</div>
               )}
+              <div className={styles.revealPrice}>{formatPrice(winner)}</div>
               <div className={styles.actions}>
                 <button type="button" className={styles.spinAgainButton} onClick={() => setSpinKey((k) => k + 1)}>
                   Spin again
