@@ -6,7 +6,9 @@ import { useGameFilter } from '../context/GameFilterContext';
 import { useConfirm } from '../context/ConfirmContext';
 import { useGames } from '../hooks/useGames';
 import { GameGrid } from '../components/GameGrid';
-import { filterGames } from '../components/gameGridLogic';
+import { PlayingStrip } from '../components/PlayingStrip';
+import { BeatenStrip } from '../components/BeatenStrip';
+import { filterGames, ALL_FILTER_VALUE } from '../components/gameGridLogic';
 import { ActionErrorBanner } from '../components/ActionErrorBanner';
 import { TruncatedListBanner } from '../components/TruncatedListBanner';
 import { SteamImportCard } from '../components/SteamImportCard';
@@ -49,9 +51,16 @@ export function ShelfView() {
   // GameGrid applies the platform/genre/status/search filter internally (GameFilterContext) - bulk
   // actions must respect the same set of games actually on screen, or "Select all" while filtered
   // would silently reach into hidden games the user never saw (previously a real bug: selected/
-  // updated the whole shelf regardless of the active filter).
+  // updated the whole shelf regardless of the active filter). Playing/Done are excluded the same
+  // way GameGrid itself excludes them below (only while the status pill is "All" - explicitly
+  // filtering to one of those is a deliberate ask to see/select it) now that they have their own
+  // strips instead of showing a second time in the main grid.
   const gameFilter = useGameFilter();
-  const visibleGames = useMemo(() => filterGames(games, gameFilter), [games, gameFilter]);
+  const visibleGames = useMemo(() => {
+    const filtered = filterGames(games, gameFilter);
+    if (gameFilter.statusFilter !== ALL_FILTER_VALUE) return filtered;
+    return filtered.filter((g) => g.status !== 'playing' && g.status !== 'done');
+  }, [games, gameFilter]);
 
   useEffect(() => {
     switchView({ type: 'personal' });
@@ -130,6 +139,19 @@ export function ShelfView() {
       )}
       <ActionErrorBanner message={actionError} onDismiss={clearActionError} />
       <TruncatedListBanner truncated={truncated} />
+      <PlayingStrip
+        games={games}
+        currentUserId={user.id}
+        onStatusChange={updateStatus}
+        onVote={vote}
+        onRemove={remove}
+        onRefreshPrice={refreshPrice}
+        isRefreshingPrice={isRefreshingPrice}
+        onSetSteamMatch={setSteamMatch}
+        onSetTargetPrice={setTargetPrice}
+        onApplyTag={applyTag}
+        onRemoveTag={removeTag}
+      />
       <GameGrid
         games={games}
         currentUserId={user.id}
@@ -137,6 +159,10 @@ export function ShelfView() {
         isError={isError}
         loadError={loadError}
         onRetry={refetch}
+        // Playing/Done games get their own strips above/below instead - same reasoning as
+        // RoomView's identical hiddenStatuses, so they don't also show a second time in the main
+        // grid here.
+        hiddenStatuses={['playing', 'done']}
         onStatusChange={updateStatus}
         onVote={vote}
         onRemove={remove}
@@ -163,6 +189,19 @@ export function ShelfView() {
         selectionMode={bulkMode}
         selectedIds={selectedIds}
         onToggleSelect={toggleSelect}
+      />
+      <BeatenStrip
+        games={games}
+        currentUserId={user.id}
+        onStatusChange={updateStatus}
+        onVote={vote}
+        onRemove={remove}
+        onRefreshPrice={refreshPrice}
+        isRefreshingPrice={isRefreshingPrice}
+        onSetSteamMatch={setSteamMatch}
+        onSetTargetPrice={setTargetPrice}
+        onApplyTag={applyTag}
+        onRemoveTag={removeTag}
       />
     </div>
   );
