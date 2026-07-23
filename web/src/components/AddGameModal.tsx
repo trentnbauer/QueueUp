@@ -32,7 +32,11 @@ function ResultThumb({ title, coverImageUrl }: { title: string; coverImageUrl: s
       {coverImageUrl && !failed && (
         <img src={coverImageUrl} alt="" aria-hidden="true" className={styles.resultThumbProbe} onError={() => setFailed(true)} />
       )}
-      {(!coverImageUrl || failed) && <span className={styles.resultThumbFallback}>{title.slice(0, 1).toUpperCase()}</span>}
+      {(!coverImageUrl || failed) && (
+        // Array.from (not title.slice(0, 1)) so a title starting with a surrogate-pair character
+        // (an astral-plane emoji, etc.) yields one whole code point instead of half of one.
+        <span className={styles.resultThumbFallback}>{(Array.from(title)[0] ?? '').toUpperCase()}</span>
+      )}
     </div>
   );
 }
@@ -248,6 +252,7 @@ export function AddGameModal({ roomId, onAdded, onClose }: AddGameModalProps) {
   const [nextOffset, setNextOffset] = useState(0);
   const [hasMore, setHasMore] = useState(false);
   const [loadingMore, setLoadingMore] = useState(false);
+  const [loadMoreError, setLoadMoreError] = useState<string | null>(null);
   const sentinelRef = useRef<HTMLDivElement | null>(null);
   const [addingId, setAddingId] = useState<number | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -285,11 +290,13 @@ export function AddGameModal({ roomId, onAdded, onClose }: AddGameModalProps) {
       setCollections([]);
       setNextOffset(0);
       setHasMore(false);
+      setLoadMoreError(null);
       return;
     }
     debounceRef.current = setTimeout(async () => {
       const requestId = ++latestRequestIdRef.current;
       setSearching(true);
+      setLoadMoreError(null);
       try {
         const { results, collections, nextOffset, hasMore } = await gamesApi.search(query.trim(), roomId);
         if (requestId !== latestRequestIdRef.current) return;
@@ -333,6 +340,7 @@ export function AddGameModal({ roomId, onAdded, onClose }: AddGameModalProps) {
         if (!entries[0]?.isIntersecting) return;
         const requestId = ++latestRequestIdRef.current;
         setLoadingMore(true);
+        setLoadMoreError(null);
         gamesApi
           .search(trimmed, roomId, nextOffset)
           .then(({ results: more, nextOffset: newOffset, hasMore: stillMore }) => {
@@ -341,9 +349,10 @@ export function AddGameModal({ roomId, onAdded, onClose }: AddGameModalProps) {
             setNextOffset(newOffset);
             setHasMore(stillMore);
           })
-          .catch(() => {
+          .catch((err) => {
             if (requestId !== latestRequestIdRef.current) return;
             setHasMore(false);
+            setLoadMoreError(err instanceof Error ? err.message : 'Could not load more results.');
           })
           .finally(() => {
             if (requestId === latestRequestIdRef.current) setLoadingMore(false);
@@ -513,6 +522,7 @@ export function AddGameModal({ roomId, onAdded, onClose }: AddGameModalProps) {
                 ))}
                 {hasMore && <div ref={sentinelRef} className={styles.loadMoreSentinel} aria-hidden="true" />}
                 {loadingMore && <div className={styles.searching}>Loading more…</div>}
+                {loadMoreError && !loadingMore && <div className={styles.error}>{loadMoreError}</div>}
               </div>
             )}
           </>
