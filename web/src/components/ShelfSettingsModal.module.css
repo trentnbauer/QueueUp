@@ -1,0 +1,138 @@
+.backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.55);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+  padding: 20px;
+}
+
+.dialog {
+  background: var(--qu-surface);
+  border: 1px solid var(--qu-border);
+  border-radius: var(--qu-radius);
+  padding: 24px;
+  max-width: 440px;
+  width: 100%;
+  max-height: 85vh;
+  overflow-y: auto;
+  box-shadow: 0 12px 40px rgba(0, 0, 0, 0.4);
+}
+
+.header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 18px;
+}
+
+.title {
+  font: 700 16px var(--qu-header-font);
+  color: var(--qu-text);
+}
+
+.closeButton {
+  border: none;
+  background: transparent;
+  color: var(--qu-muted);
+  font-size: 20px;
+  line-height: 1;
+  cursor: pointer;
+  padding: 2px 6px;
+}
+
+.closeButton:hover {
+  color: var(--qu-text);
+}
+
+.section {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin-bottom: 22px;
+}
+
+.sectionTitle {
+  font: 700 11px system-ui, sans-serif;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--qu-muted);
+}
+
+.readonlyNote {
+  color: var(--qu-muted);
+  font-size: 12.5px;
+  margin: 0;
+}
+
+.checkboxList {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.checkboxField {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 13px;
+  color: var(--qu-text);
+  cursor: pointer;
+}
+
+.saveRow {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.saveButton {
+  align-self: flex-start;
+  padding: 8px 18px;
+  border-radius: var(--qu-radius);
+  background: var(--qu-accent);
+  color: var(--qu-accent-text);
+  font-weight: 700;
+  font-size: 13px;
+  border: none;
+  cursor: pointer;
+}
+
+.saveButton:disabled {
+  opacity: 0.6;
+  cursor: default;
+}
+
+.savedHint {
+  color: var(--qu-muted);
+  font-size: 12px;
+}
+
+.exportRow {
+  display: flex;
+  gap: 8px;
+}
+
+.memberAction {
+  border: 1px solid var(--qu-border);
+  background: transparent;
+  color: var(--qu-muted);
+  border-radius: 6px;
+  padding: 4px 10px;
+  font-size: 11.5px;
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.memberAction:hover {
+  color: var(--qu-text);
+  background: var(--qu-surface2);
+}
+
+.error {
+  color: #ff8a80;
+  font-size: 12.5px;
+  margin-bottom: 12px;
+}

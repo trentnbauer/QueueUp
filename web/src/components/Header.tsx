@@ -12,6 +12,7 @@ import { ALL_FILTER_VALUE, NEGLECTED_BACKLOG_MONTHS, distinctValues, distinctTag
 import { roomsApi } from '../api/rooms';
 import { AvatarBadge } from './AvatarBadge';
 import { RoomSettingsModal } from './RoomSettingsModal';
+import { ShelfSettingsModal } from './ShelfSettingsModal';
 import { AddGameModal } from './AddGameModal';
 import styles from './Header.module.css';
 
@@ -86,6 +87,7 @@ export function Header() {
 
   const membersMenuRef = useRef<HTMLDetailsElement>(null);
   const [showRoomSettings, setShowRoomSettings] = useState(false);
+  const [showShelfSettings, setShowShelfSettings] = useState(false);
   const [showAddGame, setShowAddGame] = useState(false);
   const [inviteCopied, setInviteCopied] = useState(false);
   // Which member's row is expanded to show their completed/100%'d counts - at most one at a time,
@@ -219,13 +221,23 @@ export function Header() {
             </button>
           )}
 
-          {activeRoom && (
+          {activeRoom ? (
             <button
               type="button"
               className={styles.settingsButton}
               onClick={() => setShowRoomSettings(true)}
               title="Room info & settings"
               aria-label="Room info & settings"
+            >
+              ⚙
+            </button>
+          ) : (
+            <button
+              type="button"
+              className={styles.settingsButton}
+              onClick={() => setShowShelfSettings(true)}
+              title="Personal Shelf settings"
+              aria-label="Personal Shelf settings"
             >
               ⚙
             </button>
@@ -384,6 +396,10 @@ export function Header() {
           games={games}
           onClose={() => setShowRoomSettings(false)}
         />
+      )}
+
+      {showShelfSettings && !activeRoom && (
+        <ShelfSettingsModal games={games} onClose={() => setShowShelfSettings(false)} />
       )}
 
       {showAddGame && (
