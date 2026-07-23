@@ -47,6 +47,13 @@ function CollectionReview({ collection, roomId, onAdded, onBack, onBusyChange }:
   const cancelledRef = useRef(false);
 
   useEffect(() => {
+    // Resetting here (not just on cleanup) matters in dev: React 18 StrictMode mounts, unmounts,
+    // and remounts every component once on purpose to shake out exactly this class of bug - the
+    // first (simulated) unmount's cleanup sets this true, and without resetting it back to false
+    // on the second (real) mount, every batch add silently no-oped forever afterward (it would
+    // immediately see cancelledRef.current === true and break before the first create). Harmless
+    // in production, where there's no such double-invoke.
+    cancelledRef.current = false;
     return () => {
       cancelledRef.current = true;
     };
