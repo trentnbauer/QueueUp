@@ -3,7 +3,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { gamesApi } from '../api/games';
 import { tagsApi } from '../api/tags';
 import { useCurrencyRegion } from '../context/CurrencyRegionContext';
-import type { Game, GameStatus, VoteValue } from '@queueup/shared';
+import type { Game, GameStatus, ShelfSyncSuggestion, VoteValue } from '@queueup/shared';
 
 const GAMES_QUERY_ROOT = ['games'] as const;
 
@@ -17,6 +17,12 @@ export function useGames(roomId: string | null) {
   const queryKey = roomId ? ['games', 'room', roomId, region] : ['games', 'shelf', region];
   const queryClient = useQueryClient();
   const [actionError, setActionError] = useState<string | null>(null);
+  // Populated only when marking a *room* game Beaten surfaces a shelfSync suggestion (see
+  // ShelfSyncSuggestion) - the room game's own id rides along so the confirm action knows which
+  // game to sync from, without the caller having to track it separately.
+  const [shelfSyncPrompt, setShelfSyncPrompt] = useState<{ roomGameId: string; suggestion: ShelfSyncSuggestion } | null>(
+    null,
+  );
 
   const query = useQuery({
     queryKey,
@@ -51,8 +57,20 @@ export function useGames(roomId: string | null) {
   const updateStatus = useMutation({
     mutationFn: ({ gameId, status }: { gameId: string; status: GameStatus }) =>
       gamesApi.updateStatus(gameId, { status }),
-    onSuccess: ({ game }) => patchGame(game),
+    onSuccess: ({ game, shelfSync }) => {
+      patchGame(game);
+      if (shelfSync) setShelfSyncPrompt({ roomGameId: game.id, suggestion: shelfSync });
+    },
     onError: (err) => setActionError(errorMessage(err, 'Could not update that game\'s status.')),
+  });
+
+  const syncShelfBeaten = useMutation({
+    mutationFn: (roomGameId: string) => gamesApi.syncShelfBeaten(roomGameId),
+    // The updated/created row lives on the Personal Shelf's own query, not this (room) instance's
+    // cache - invalidate every games query rather than trying to patch a cache this hook doesn't
+    // hold, same reasoning as `move` below.
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: GAMES_QUERY_ROOT }),
+    onError: (err) => setActionError(errorMessage(err, 'Could not update your Personal Shelf.')),
   });
 
   const vote = useMutation({
@@ -148,6 +166,13 @@ export function useGames(roomId: string | null) {
     actionError,
     clearActionError: () => setActionError(null),
     updateStatus: (gameId: string, status: GameStatus) => updateStatus.mutate({ gameId, status }),
+    shelfSyncPrompt,
+    confirmShelfSync: () => {
+      if (!shelfSyncPrompt) return;
+      syncShelfBeaten.mutate(shelfSyncPrompt.roomGameId);
+      setShelfSyncPrompt(null);
+    },
+    dismissShelfSync: () => setShelfSyncPrompt(null),
     vote: (gameId: string, value: VoteValue) => vote.mutate({ gameId, value }),
     remove: (gameId: string) => remove.mutate(gameId),
     refreshPrice: (gameId: string) => refreshPrice.mutate(gameId),

@@ -21,6 +21,7 @@ import type {
   SteamWishlistImportProgress,
   SteamWishlistImportStarted,
   UpdateGameStatusRequest,
+  UpdateGameStatusResponse,
   VoteRequest,
   YearInReview,
 } from '@queueup/shared';
@@ -40,7 +41,8 @@ export const gamesApi = {
     ),
   create: (body: CreateGameRequest) => apiPost<{ game: Game }>('/api/games', body),
   updateStatus: (id: string, body: UpdateGameStatusRequest) =>
-    apiPatch<{ game: Game }>(`/api/games/${id}/status`, body),
+    apiPatch<UpdateGameStatusResponse>(`/api/games/${id}/status`, body),
+  syncShelfBeaten: (id: string) => apiPost<{ ok: true }>(`/api/games/${id}/sync-shelf-beaten`),
   bulkUpdateStatus: (body: BulkUpdateGameStatusRequest, region?: PriceRegion) =>
     apiPatch<{ games: Game[] }>(`/api/games/bulk-status${region ? `?region=${region}` : ''}`, body),
   remove: (id: string) => apiDelete(`/api/games/${id}`),

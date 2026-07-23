@@ -278,6 +278,23 @@ export interface UpdateGameStatusRequest {
   status: GameStatus;
 }
 
+/** A room game just got marked Beaten, and the same game (by igdbId) either isn't on the caller's
+ * Personal Shelf at all, or is there but not yet marked Beaten - offered as a one-tap sync rather
+ * than making someone remember to go update it separately. `shelfGameId` is null when the game
+ * isn't on the shelf yet at all - accepting the suggestion adds it there (already marked Beaten)
+ * instead of just updating an existing row. Never generated the other way around - marking a game
+ * Beaten on the Personal Shelf doesn't prompt about any room copies. */
+export interface ShelfSyncSuggestion {
+  shelfGameId: string | null;
+  igdbId: number;
+  title: string;
+}
+
+export interface UpdateGameStatusResponse {
+  game: Game;
+  shelfSync?: ShelfSyncSuggestion;
+}
+
 /** Applies one status to many Personal Shelf games at once (issue #205) - scoped to the shelf since
  * that's where large single-player backlogs pile up; rooms are small/shared enough that per-card
  * status changes stay easy. */

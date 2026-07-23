@@ -3,6 +3,7 @@ import { useParams } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import { useAuth } from '../context/AuthContext';
 import { useView } from '../context/ViewContext';
+import { useConfirm } from '../context/ConfirmContext';
 import { useGames } from '../hooks/useGames';
 import { roomsApi } from '../api/rooms';
 import { GameGrid } from '../components/GameGrid';
@@ -38,7 +39,32 @@ export function RoomView() {
     applyTag,
     removeTag,
     setPrerequisite,
+    shelfSyncPrompt,
+    confirmShelfSync,
+    dismissShelfSync,
   } = useGames(roomId ?? null);
+
+  const confirm = useConfirm();
+
+  // A room game was just marked Beaten and the same game either isn't on the Personal Shelf at
+  // all, or is there but not yet marked Beaten (see ShelfSyncSuggestion) - offer to sync it there
+  // too rather than relying on someone to remember to go update it separately. Never the reverse.
+  useEffect(() => {
+    if (!shelfSyncPrompt) return;
+    const { suggestion } = shelfSyncPrompt;
+    confirm({
+      title: 'Mark it Beaten on your shelf too?',
+      message:
+        suggestion.shelfGameId === null
+          ? `"${suggestion.title}" isn't on your Personal Shelf yet - add it there, already marked Beaten?`
+          : `"${suggestion.title}" is on your Personal Shelf too - mark it Beaten there as well?`,
+      confirmLabel: 'Yes, sync it',
+      cancelLabel: 'No thanks',
+    }).then((ok) => (ok ? confirmShelfSync() : dismissShelfSync()));
+    // Only re-runs when a *new* suggestion arrives (a fresh object identity each time), not on
+    // every render of confirm/confirmShelfSync/dismissShelfSync themselves.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [shelfSyncPrompt]);
 
   const { data: membersData } = useQuery({
     queryKey: ['room-members', roomId],

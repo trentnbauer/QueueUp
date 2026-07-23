@@ -87,6 +87,22 @@ function parseRegion(region?: string): PriceRegion | undefined {
   return PRICE_REGIONS.includes(region as PriceRegion) ? (region as PriceRegion) : undefined;
 }
 
+/** Builds the "mark it Beaten on your Personal Shelf too?" suggestion (see ShelfSyncSuggestion's
+ * doc comment) - null when the same game (by igdbId) is already marked Beaten on the shelf, since
+ * there's nothing to suggest then. */
+async function buildShelfSyncSuggestion(
+  userId: string,
+  igdbId: number,
+  title: string,
+): Promise<{ shelfGameId: string | null; igdbId: number; title: string } | undefined> {
+  const shelfGame = await prisma.game.findFirst({
+    where: { roomId: null, addedBy: userId, igdbId },
+    select: { id: true, status: true },
+  });
+  if (shelfGame?.status === 'done') return undefined;
+  return { shelfGameId: shelfGame?.id ?? null, igdbId, title };
+}
+
 /** The slow part of a Steam library import - one IGDB lookup (and possibly a create) per unowned
  * game, which can take minutes for a big library. Run in the background by the route below rather
  * than awaited inline, since a reverse proxy/CDN in front of this server won't hold a connection
@@ -511,8 +527,58 @@ export default async function gameRoutes(app: FastifyInstance) {
 
     await prisma.game.update({ where: { id: game.id }, data: { status } });
     const updated = await loadGameOr404(game.id);
-    return { game: await serializeGame(updated, userId) };
+
+    // Offered only when marking a *room* game Beaten - never the reverse (marking Beaten on the
+    // Personal Shelf doesn't prompt about any room copies of the same game).
+    const shelfSync =
+      status === 'done' && game.roomId !== null ? await buildShelfSyncSuggestion(userId, game.igdbId, updated.title) : undefined;
+
+    return { game: await serializeGame(updated, userId), shelfSync };
   });
+
+  app.post<{ Params: { id: string } }>(
+    '/api/games/:id/sync-shelf-beaten',
+    // Same class of route as steam-match/target-price/ownership above - a direct, occasional user
+    // action, not something a normal session comes close to hitting at volume.
+    { config: { rateLimit: { max: 20, timeWindow: '1 minute' } } },
+    async (request) => {
+      const userId = await request.requireAuth();
+      const game = await loadGameOr404(request.params.id);
+      await requireGameReadAccess(game, userId);
+
+      const shelfGame = await prisma.game.findFirst({ where: { roomId: null, addedBy: userId, igdbId: game.igdbId } });
+      if (shelfGame) {
+        await prisma.game.update({ where: { id: shelfGame.id }, data: { status: 'done' } });
+      } else {
+        const resolved = await resolveGameForCreation(game.igdbId, await getOwnedPlatforms(userId));
+        await prisma.game.create({
+          data: {
+            roomId: null,
+            addedBy: userId,
+            igdbId: game.igdbId,
+            title: resolved.title,
+            platform: resolved.platform,
+            genre: resolved.genre,
+            maxCoopPlayers: resolved.maxCoopPlayers,
+            timeToBeatHours: resolved.timeToBeatHours,
+            timeToBeatRushedHours: resolved.timeToBeatRushedHours,
+            timeToBeatCompletionistHours: resolved.timeToBeatCompletionistHours,
+            ggDealsUrl: resolved.ggDealsUrl,
+            steamAppid: resolved.steamAppId,
+            coverImageUrl: resolved.coverImageUrl,
+            releaseYear: resolved.releaseYear,
+            releaseDate: resolved.releaseDate,
+            igdbCollectionId: resolved.igdbCollectionId,
+            reviewScore: resolved.reviewScore,
+            status: 'done',
+          },
+        });
+        await invalidateExistingIgdbIds(null, userId);
+      }
+
+      return { ok: true };
+    },
+  );
 
   // Personal Shelf only (issue #205) - scoped by roomId: null + addedBy in the query itself rather
   // than a per-id requireGameReadAccess loop, so one request updates any number of shelf games in a
