@@ -14,6 +14,11 @@ function optionId(igdbId: number): string {
   return `add-game-option-${igdbId}`;
 }
 
+// Infinite scroll stops auto-loading after this many consecutive pages add zero new results (see
+// consecutiveEmptyPagesRef) - bounds how many back-to-back requests a single scroll can trigger
+// when most/all of a franchise's remaining matches are already added to this room/shelf.
+const MAX_CONSECUTIVE_EMPTY_PAGES = 5;
+
 /** Small cover-art thumbnail shared by search results and collection review rows. Mirrors
  * GameCard's fallback handling: a CSS background-image (no load-failure signal of its own) paired
  * with an invisible probe <img> whose onError catches a dead/broken IGDB URL, falling back to the
@@ -249,6 +254,12 @@ export function AddGameModal({ roomId, onAdded, onClose }: AddGameModalProps) {
   const [hasMore, setHasMore] = useState(false);
   const [loadingMore, setLoadingMore] = useState(false);
   const sentinelRef = useRef<HTMLDivElement | null>(null);
+  // Counts consecutive loaded pages that added zero new results (every row already added to this
+  // room/shelf) while IGDB still reported more raw matches - a large enough franchise someone
+  // mostly already owns would otherwise auto-fire page after page back-to-back with nothing to
+  // show for it, since an empty page doesn't push the sentinel out of view to stop the observer.
+  // Not component state - it's write-only bookkeeping for the effect below, never rendered.
+  const consecutiveEmptyPagesRef = useRef(0);
   const [addingId, setAddingId] = useState<number | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [highlightedIndex, setHighlightedIndex] = useState(-1);
@@ -285,11 +296,13 @@ export function AddGameModal({ roomId, onAdded, onClose }: AddGameModalProps) {
       setCollections([]);
       setNextOffset(0);
       setHasMore(false);
+      consecutiveEmptyPagesRef.current = 0;
       return;
     }
     debounceRef.current = setTimeout(async () => {
       const requestId = ++latestRequestIdRef.current;
       setSearching(true);
+      consecutiveEmptyPagesRef.current = 0;
       try {
         const { results, collections, nextOffset, hasMore } = await gamesApi.search(query.trim(), roomId);
         if (requestId !== latestRequestIdRef.current) return;
@@ -337,9 +350,18 @@ export function AddGameModal({ roomId, onAdded, onClose }: AddGameModalProps) {
           .search(trimmed, roomId, nextOffset)
           .then(({ results: more, nextOffset: newOffset, hasMore: stillMore }) => {
             if (requestId !== latestRequestIdRef.current) return;
+            if (more.length > 0) {
+              consecutiveEmptyPagesRef.current = 0;
+            } else {
+              consecutiveEmptyPagesRef.current += 1;
+            }
             setResults((prev) => [...prev, ...more]);
             setNextOffset(newOffset);
-            setHasMore(stillMore);
+            // A run of pages that came back fully filtered out (every match already added to this
+            // room/shelf) stops auto-loading rather than hammering the endpoint indefinitely - the
+            // franchise is effectively exhausted from this user's perspective even if IGDB itself
+            // still has more raw rows for the query.
+            setHasMore(stillMore && consecutiveEmptyPagesRef.current < MAX_CONSECUTIVE_EMPTY_PAGES);
           })
           .catch(() => {
             if (requestId !== latestRequestIdRef.current) return;
