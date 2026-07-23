@@ -34,12 +34,8 @@
   justify-content: center;
   width: 44px;
   height: 44px;
-  border-radius: 14px;
-  background: var(--qu-accent);
-  color: var(--qu-accent-text);
-  font: 700 14px var(--qu-header-font);
-  letter-spacing: 0.02em;
   border: none;
+  background: none;
   cursor: pointer;
   padding: 0;
 }

@@ -8,6 +8,7 @@ import { useNotificationSummary, useMarkAllNotificationsRead } from '../hooks/us
 import { useThemeMode } from '../context/ThemeModeContext';
 import { authApi } from '../api/auth';
 import { AvatarBadge } from './AvatarBadge';
+import { Logo } from './Logo';
 import { AddRoomModal } from './AddRoomModal';
 import { NotificationFlyout } from './NotificationFlyout';
 import { contrastTextColor } from '../utils/color';
@@ -79,7 +80,7 @@ export function Sidebar() {
             aria-label={totalUnread > 0 ? `Notifications (${totalUnread} unread)` : 'Notifications'}
             onClick={() => (showNotifications ? closeNotifications() : setShowNotifications(true))}
           >
-            QU
+            <Logo size={44} />
             {totalUnread > 0 && <span className={styles.unreadDot} aria-hidden="true" />}
           </button>
           {showNotifications && (

@@ -15,6 +15,7 @@ import { RoomView } from './views/RoomView';
 import { SettingsView } from './views/SettingsView';
 import { ProfileSettingsView } from './views/ProfileSettingsView';
 import { JoinRoomView } from './views/JoinRoomView';
+import { LoginView } from './views/LoginView';
 
 const ONBOARDED_KEY = 'sq-onboarded';
 // Invite links (`/join/:inviteCode`) need to survive a full-page OAuth sign-in/callback
@@ -22,31 +23,6 @@ const ONBOARDED_KEY = 'sq-onboarded';
 // through the redirect. Stashing the code in sessionStorage lets us pick it back up and
 // finish the join automatically once the user lands back in the app authenticated.
 const PENDING_INVITE_KEY = 'sq-pending-invite';
-
-const PROVIDER_LABEL: Record<string, string> = {
-  oidc: 'Sign in',
-  google: 'Sign in with Google',
-  discord: 'Sign in with Discord',
-  steam: 'Sign in with Steam',
-};
-
-function LoginButton({ provider }: { provider: string }) {
-  return (
-    <a
-      href={authApi.loginUrl(provider)}
-      style={{
-        padding: '12px 28px',
-        borderRadius: 'var(--qu-radius)',
-        background: 'var(--qu-accent)',
-        color: '#fff',
-        fontWeight: 700,
-        textDecoration: 'none',
-      }}
-    >
-      {PROVIDER_LABEL[provider] ?? `Sign in with ${provider}`}
-    </a>
-  );
-}
 
 export default function App() {
   const { user, loading } = useAuth();
@@ -121,28 +97,7 @@ export default function App() {
   if (loading) return null;
 
   if (!user) {
-    return (
-      <div
-        style={{
-          minHeight: '100vh',
-          display: 'flex',
-          flexDirection: 'column',
-          alignItems: 'center',
-          justifyContent: 'center',
-          gap: 16,
-        }}
-      >
-        <div style={{ fontFamily: 'var(--qu-header-font)', fontWeight: 700, fontSize: 28 }}>QueueUp</div>
-        <p style={{ color: 'var(--qu-muted)', margin: 0 }}>Games the squad wants to play together</p>
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 10, marginTop: 8 }}>
-          {providers === null ? null : providers.length > 0 ? (
-            providers.map((p) => <LoginButton key={p} provider={p} />)
-          ) : (
-            <LoginButton provider="dev" />
-          )}
-        </div>
-      </div>
-    );
+    return <LoginView providers={providers} />;
   }
 
   const hideRoomHeader = location.pathname === '/settings' || location.pathname === '/profile';
