@@ -31,6 +31,10 @@ jobs:
       has_changes: ${{ steps.changelog.outputs.has_changes }}
       description: ${{ steps.changelog.outputs.description }}
       image_name: ${{ steps.image_name.outputs.image_name }}
+      # vX.Y.Z (with the leading "v", matching the git tag) and the same value without it (the
+      # more common convention for a Docker tag) - see the versioning step below.
+      new_version: ${{ steps.changelog.outputs.new_version }}
+      new_version_bare: ${{ steps.changelog.outputs.new_version_bare }}
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
@@ -88,15 +92,24 @@ jobs:
           fi
 
           # Flags any commit in range with a proper Conventional Commits "BREAKING CHANGE:" footer
-          # - anchored to the start of a line (with the colon) rather than a bare substring match,
-          # or a commit that merely *talks about* breaking changes in prose (like this one) would
-          # false-positive on itself. Nothing in this repo's history uses the marker yet, but this
-          # is here so it takes effect the day something does - called out in its own section
-          # rather than mixed into the regular list, so it can't get lost.
+          # (anchored to the start of a line, with the colon, rather than a bare substring match -
+          # a commit that merely *talks about* breaking changes in prose shouldn't false-positive
+          # on itself) or a "!" before the type's colon (e.g. "feat!:") - the other standard
+          # Conventional Commits way to flag one. Also doubles as this build's major/minor/patch
+          # version bump signal below: a bare "fix:"/no-recognized-prefix commit (this repo's
+          # history predates this convention, so most commits are the latter) is a patch, "feat:"
+          # is a minor, either breaking-change form is a major - highest tier across every commit
+          # in range wins, so one breaking commit outweighs any number of feature/fix commits
+          # alongside it.
           BREAKING=""
+          BUMP="patch"
           for commit_hash in $(git rev-list "$RANGE" 2>/dev/null); do
-            if git log -1 --format='%B' "$commit_hash" | grep -qiE '^BREAKING CHANGE:'; then
-              BREAKING="${BREAKING}- $(git log -1 --format='%s' "$commit_hash")"$'\n'
+            SUBJECT=$(git log -1 --format='%s' "$commit_hash")
+            if git log -1 --format='%B' "$commit_hash" | grep -qiE '^BREAKING CHANGE:' || echo "$SUBJECT" | grep -qE '^[a-z]+(\([^)]*\))?!:'; then
+              BREAKING="${BREAKING}- $SUBJECT"$'\n'
+              BUMP="major"
+            elif [ "$BUMP" != "major" ] && echo "$SUBJECT" | grep -qE '^feat(\([^)]*\))?:'; then
+              BUMP="minor"
             fi
           done
 
@@ -107,7 +120,30 @@ jobs:
           # Keep it from growing unbounded.
           DESCRIPTION=$(echo "$DESCRIPTION" | cut -c1-2000)
 
+          # Current version is the highest vX.Y.Z tag on file (this workflow is the only thing
+          # that creates them - see "Tag this build's version" below), or v1.0.0 if none exists yet
+          # (the one-time bootstrap for the first build under this scheme - not itself subject to
+          # $BUMP, since applying a bump computed from this repo's *entire* prior history, which
+          # predates the versioning scheme entirely, wouldn't mean anything).
+          CURRENT_VERSION=$(git tag -l 'v[0-9]*.[0-9]*.[0-9]*' | sort -V | tail -1)
+          if [ -z "$CURRENT_VERSION" ]; then
+            NEW_VERSION="v1.0.0"
+          else
+            VERSION_NUM="${CURRENT_VERSION#v}"
+            MAJOR=$(echo "$VERSION_NUM" | cut -d. -f1)
+            MINOR=$(echo "$VERSION_NUM" | cut -d. -f2)
+            PATCH=$(echo "$VERSION_NUM" | cut -d. -f3)
+            case "$BUMP" in
+              major) MAJOR=$((MAJOR + 1)); MINOR=0; PATCH=0 ;;
+              minor) MINOR=$((MINOR + 1)); PATCH=0 ;;
+              patch) PATCH=$((PATCH + 1)) ;;
+            esac
+            NEW_VERSION="v${MAJOR}.${MINOR}.${PATCH}"
+          fi
+
           echo "has_changes=$HAS_CHANGES" >> "$GITHUB_OUTPUT"
+          echo "new_version=$NEW_VERSION" >> "$GITHUB_OUTPUT"
+          echo "new_version_bare=${NEW_VERSION#v}" >> "$GITHUB_OUTPUT"
           {
             echo "description<<EOF"
             echo "$DESCRIPTION"
@@ -120,6 +156,7 @@ jobs:
             echo "$MULTI"
             echo ""
             echo "**Will build/push a new image:** $HAS_CHANGES"
+            echo "**New version:** $NEW_VERSION (bump: $BUMP)"
           } >> "$GITHUB_STEP_SUMMARY"
 
   # Builds each platform on a runner that's actually that architecture, instead of one job doing
@@ -184,7 +221,7 @@ jobs:
           cache-from: type=gha,scope=${{ steps.platform.outputs.slug }}
           cache-to: type=gha,mode=max,scope=${{ steps.platform.outputs.slug }}
           build-args: |
-            APP_VERSION=build-${{ github.run_number }}
+            APP_VERSION=${{ needs.check-for-changes.outputs.new_version }}
             APP_SHA=${{ github.sha }}
           # No description label here (it used to duplicate the one below) - it never actually
           # reached ghcr.io's UI for a multi-arch image anyway (that reads the *index* annotation
@@ -239,21 +276,33 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
+      - name: Compute rolling major/major.minor tags
+        id: rolling
+        run: |
+          VERSION="${{ needs.check-for-changes.outputs.new_version_bare }}"
+          echo "major=$(echo "$VERSION" | cut -d. -f1)" >> "$GITHUB_OUTPUT"
+          echo "major_minor=$(echo "$VERSION" | cut -d. -f1-2)" >> "$GITHUB_OUTPUT"
+
       - name: Extract metadata for Docker
         id: meta
         uses: docker/metadata-action@v5
         with:
           images: ${{ env.REGISTRY }}/${{ needs.check-for-changes.outputs.image_name }}
-          # The bare `run_number` tag (last line) is a plain incrementing integer -
-          # Renovate's default `docker` versioning scheme recognizes that as an ascending
-          # version and can open PRs to bump a compose file pinned to it. The `build-<N>`
-          # tag above is the same number, but Renovate's default versioning won't parse
-          # that prefixed form as a version, so it won't trigger updates on its own.
+          # major.minor.patch (see check-for-changes' versioning step) plus the standard rolling
+          # "major" and "major.minor" tags alongside it (e.g. 2, 2.1 alongside 2.1.3) - the usual
+          # convention for pinning to "any patch within 2.1" or "any minor within 2" - computed
+          # in the step above rather than left to metadata-action's own semver type, since that
+          # expects a real git-tag-triggered build, not a version computed mid-workflow. This also
+          # replaces the old bare-integer run_number tag that used to exist only so Renovate's
+          # default `docker` versioning scheme had an ascending value to track - a real semver tag
+          # now serves that purpose natively.
           tags: |
             type=raw,value=latest
             type=sha,format=short
-            type=raw,value=build-${{ github.run_number }}
-            type=raw,value=${{ github.run_number }}
+            type=raw,value=${{ needs.check-for-changes.outputs.new_version_bare }}
+            type=raw,value=${{ needs.check-for-changes.outputs.new_version }}
+            type=raw,value=${{ steps.rolling.outputs.major }}
+            type=raw,value=${{ steps.rolling.outputs.major_minor }}
 
       - name: Create and push multi-arch manifest
         working-directory: /tmp/digests
@@ -275,6 +324,14 @@ jobs:
 
       - name: Inspect pushed manifest
         run: docker buildx imagetools inspect ${{ env.REGISTRY }}/${{ needs.check-for-changes.outputs.image_name }}:latest
+
+      - name: Tag this build's version
+        # Unlike docker-build-marker above, a version tag is permanent and never moved once
+        # created - it's the historical record check-for-changes' next run reads the highest of
+        # (via `git tag -l 'v*.*.*' | sort -V | tail -1`) to compute the *next* bump from.
+        run: |
+          git tag ${{ needs.check-for-changes.outputs.new_version }}
+          git push origin ${{ needs.check-for-changes.outputs.new_version }}
 
       - name: Move last-build marker to this commit
         run: |
