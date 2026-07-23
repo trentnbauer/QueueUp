@@ -76,7 +76,7 @@ import { IGDB_PLATFORM_NAMES, PRICE_REGION_LABELS } from '@queueup/shared';
 // elsewhere for platform-filter matching (see ownedPlatformLabels in Header.tsx).
 const STEAM_IMPORT_PLATFORM_LABEL = IGDB_PLATFORM_NAMES.pc[0];
 
-const GAME_STATUSES = ['backlog', 'playing', 'done', 'dropped', 'wishlist'] as const;
+const GAME_STATUSES = ['backlog', 'playing', 'done', 'dropped', 'wishlist', 'replay'] as const;
 const PRICE_REGIONS = Object.keys(PRICE_REGION_LABELS) as PriceRegion[];
 // Shelves/rooms are meant to hold an actively-curated backlog, not a lifetime game archive - this
 // caps a single query so one runaway list can't pull unbounded rows (and unbounded price lookups)
@@ -608,6 +608,14 @@ export default async function gameRoutes(app: FastifyInstance) {
           }),
         )
       ).filter((p): p is PlayerAchievements => p !== null);
+
+      // Persisted the first time any player is observed at 100% (issue: "Clocked" ribbon) - not
+      // computed live on every grid render, which would mean a Steam API call per Steam-linked
+      // game per page view. Sticky (never cleared back to false here) - see the schema comment.
+      const anyoneFullyCompleted = players.some((p) => p.total > 0 && p.unlocked === p.total);
+      if (anyoneFullyCompleted && !game.steamFullyCompleted) {
+        await prisma.game.update({ where: { id: game.id }, data: { steamFullyCompleted: true } });
+      }
 
       return { players };
     },

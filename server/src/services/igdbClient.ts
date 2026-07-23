@@ -271,8 +271,10 @@ interface IgdbCollectionWithGames extends IgdbCollection {
 
 // A franchise can run to dozens of entries once remasters/spinoffs/mobile ports are all counted -
 // capped so "add the whole collection" can't kick off an enormous batch of intake calls (each one
-// its own gg.deals pricing lookup) from a single click.
-const MAX_COLLECTION_GAMES = 40;
+// its own gg.deals pricing lookup) from a single click. Raised from 40 (a real long-running
+// franchise - yearly sports titles, a series with many regional/DLC editions - can clear that
+// easily) to 100, comfortably above nearly any real collection while still bounding the worst case.
+const MAX_COLLECTION_GAMES = 100;
 
 export async function getCollectionGames(
   collectionId: number,

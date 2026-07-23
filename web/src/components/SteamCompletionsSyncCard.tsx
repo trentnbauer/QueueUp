@@ -44,7 +44,7 @@ export function SteamCompletionsSyncCard({ steamLinked, onApply, applying }: Ste
         {!busy && !error && (
           <div className={styles.hint}>
             {steamLinked
-              ? "Find shelf games you've 100%'d on Steam but haven't marked Done"
+              ? "Find shelf games you've 100%'d on Steam but haven't marked Beaten"
               : 'Sign in with Steam to sync completions'}
           </div>
         )}

@@ -57,6 +57,7 @@ function buildGameDto(game: GameWithRelations, currentUserId: string, price: Gam
     ggDealsUrl: game.ggDealsUrl,
     coverImageUrl: game.coverImageUrl,
     status: game.status,
+    steamFullyCompleted: game.steamFullyCompleted,
     price,
     targetPrice: game.targetPrice,
     votes: game.votes.map((v) => ({ user: toUserDto(v.user), value: v.value as VoteValue, createdAt: v.createdAt.toISOString() })),

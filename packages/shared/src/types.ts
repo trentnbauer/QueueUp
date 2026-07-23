@@ -1,4 +1,4 @@
-export type GameStatus = 'backlog' | 'playing' | 'done' | 'dropped' | 'wishlist';
+export type GameStatus = 'backlog' | 'playing' | 'done' | 'dropped' | 'wishlist' | 'replay';
 
 export type RoomRole = 'room_master' | 'moderator' | 'member';
 
@@ -172,6 +172,10 @@ export interface Game {
   ggDealsUrl: string | null;
   coverImageUrl: string | null;
   status: GameStatus;
+  /** True once any player's Steam achievement progress on this game has ever been observed at
+   * 100% - drives the card ribbon showing "Clocked" (gold) instead of "Beaten" (green) for a Done
+   * game. Sticky - a later Replay doesn't clear it. */
+  steamFullyCompleted: boolean;
   price: GamePrice;
   /** A price to alert at, if set (issue #162) - shared per-game, not per-user, so a room game
    * notifies everyone in the room once it's hit. Null when no alert is set. */

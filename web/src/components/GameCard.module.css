@@ -101,6 +101,18 @@
   background: linear-gradient(135deg, var(--qu-accent), color-mix(in oklch, var(--qu-accent) 65%, black));
 }
 
+/* Gold, not green - a 100%'d game gets called out distinctly from a merely-Beaten one. White
+   ribbon text reads poorly against gold, so this is the one ribbon that overrides it to a dark
+   brown instead (still readable via the shared text-shadow). */
+.clockedRibbonText {
+  background: linear-gradient(135deg, #ffd700, #b8860b);
+  color: #3a2a00;
+}
+
+.replayRibbonText {
+  background: linear-gradient(135deg, #38bdf8, #0284c7);
+}
+
 /* Sits over the artwork's bottom edge with a gradient scrim underneath, so the price/owned line
    stays legible over any cover art rather than depending on how bright the image is. */
 .coverOverlay {
@@ -142,24 +154,6 @@
   font: 700 10.5px system-ui, sans-serif;
   color: rgba(255, 255, 255, 0.85);
   line-height: 1;
-}
-
-/* Bottom-left corner of the cover art (issue #311) - the one corner not already claimed by the
-   vote badge (bottom-right), dust badge (top-left), or select checkbox (top-left). */
-.reviewScoreBadge {
-  position: absolute;
-  left: 10px;
-  bottom: 10px;
-  z-index: 6;
-  display: flex;
-  align-items: center;
-  gap: 3px;
-  padding: 5px 7px;
-  border-radius: 10px;
-  background: rgba(0, 0, 0, 0.55);
-  backdrop-filter: blur(2px);
-  font: 700 10.5px system-ui, sans-serif;
-  color: rgba(255, 255, 255, 0.85);
 }
 
 /* Top-left corner of the cover art (issue #249) - opposite the vote badge's bottom-right spot, and

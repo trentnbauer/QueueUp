@@ -315,7 +315,7 @@ export default async function adminRoutes(app: FastifyInstance) {
     });
     app.log.warn(
       { adminAction: 'games.archiveDone', actorId, count, cutoff: cutoff.toISOString() },
-      `Admin ${actorId} archived ${count} Done game(s) untouched since before ${cutoff.toISOString()}`,
+      `Admin ${actorId} archived ${count} Beaten game(s) untouched since before ${cutoff.toISOString()}`,
     );
     await logAdminAction({
       actorId,

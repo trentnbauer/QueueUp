@@ -12,7 +12,7 @@ export function TruncatedListBanner({ truncated }: TruncatedListBannerProps) {
   return (
     <div className={styles.banner} role="status">
       Showing the 500 most recently added games - older games aren't shown. Consider marking some as
-      Done or removing ones you no longer want to track.
+      Beaten or removing ones you no longer want to track.
     </div>
   );
 }

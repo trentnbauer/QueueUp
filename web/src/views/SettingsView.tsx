@@ -81,9 +81,9 @@ export function SettingsView() {
 
   async function handleArchiveDoneGames() {
     const ok = await confirm({
-      title: 'Archive old Done games?',
+      title: 'Archive old Beaten games?',
       message:
-        "Games marked Done and untouched for 90+ days will be hidden from their room/shelf. This doesn't delete anything - it's reversible in the database if ever needed.",
+        "Games marked Beaten and untouched for 90+ days will be hidden from their room/shelf. This doesn't delete anything - it's reversible in the database if ever needed.",
       confirmLabel: 'Archive',
     });
     if (!ok) return;
@@ -301,7 +301,7 @@ export function SettingsView() {
         <div className={styles.sectionTitle}>Maintenance</div>
         <div className={styles.maintenanceRow}>
           <button className={styles.archiveButton} onClick={handleArchiveDoneGames} disabled={archiving}>
-            {archiving ? 'Archiving…' : 'Archive Done games untouched for 90+ days'}
+            {archiving ? 'Archiving…' : 'Archive Beaten games untouched for 90+ days'}
           </button>
           {archiveResult && <span className={styles.archiveResult}>{archiveResult}</span>}
         </div>

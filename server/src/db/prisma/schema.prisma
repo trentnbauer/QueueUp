@@ -17,6 +17,10 @@ enum GameStatus {
   /// Not yet owned/added for real - tracked so pricing/ATL alerts are useful before a purchase,
   /// not just after. Excluded from Spin the Wheel same as done/dropped (nothing to play yet).
   wishlist
+  /// Beaten before, and queued to play again - included in Spin the Wheel's candidate pool same
+  /// as backlog (that's the whole point of flagging it), but kept distinct from backlog so it can
+  /// be labeled/filtered separately rather than looking like it was never played.
+  replay
 
   @@map("game_status")
 }
@@ -237,6 +241,13 @@ model Game {
   steamAppid     Int?       @map("steam_appid")
   coverImageUrl  String?    @map("cover_image_url")
   status         GameStatus @default(backlog)
+  /// Set the first time any player's Steam achievement progress on this game is observed at
+  /// 100% (opening the detail modal, "Sync completions from Steam", or Year in Review) - never
+  /// computed live on every grid render, which would mean a Steam API call per Steam-linked game
+  /// per page view. Drives the card ribbon showing "Clocked" (gold) instead of "Beaten" (green)
+  /// for a Done game. Sticky once true - a later Replay doesn't clear it, since it's a record of
+  /// "this has been 100%'d before," not "the current playthrough is 100%'d."
+  steamFullyCompleted Boolean @default(false) @map("steam_fully_completed")
   createdAt      DateTime   @default(now()) @map("created_at")
   updatedAt      DateTime   @updatedAt @map("updated_at")
   /// Set by the admin bulk-archive action (Done games untouched for 90+ days) - archived games are

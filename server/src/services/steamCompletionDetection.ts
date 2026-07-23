@@ -70,7 +70,10 @@ export async function findDetectedSteamCompletions(
   const candidates = await prisma.game.findMany({
     where: {
       addedBy: userId,
-      status: { notIn: ['done', 'dropped'] },
+      // Replay is excluded alongside done/dropped - it already represents "beaten before,
+      // queued to play again," so a 100%-achievements check finding what's already known
+      // (it's been fully cleared at least once) isn't new information worth nudging on.
+      status: { notIn: ['done', 'dropped', 'replay'] },
       steamAppid: { not: null },
       ...(personalShelfOnly ? { roomId: null } : {}),
     },
@@ -91,8 +94,21 @@ export async function findDetectedSteamCompletions(
     }),
   );
 
+  const completions = detected.filter((g): g is DetectedSteamCompletion => g !== null);
+
+  // Persisted here too (not just the achievements route), regardless of whether the caller goes
+  // on to actually mark any of these Done - a confirmed 100% is a confirmed 100% either way (see
+  // the schema comment on steamFullyCompleted), and this is the one code path where a game with
+  // no detail-modal views yet would otherwise never pick it up.
+  if (completions.length > 0) {
+    await prisma.game.updateMany({
+      where: { id: { in: completions.map((c) => c.id) }, steamFullyCompleted: false },
+      data: { steamFullyCompleted: true },
+    });
+  }
+
   return {
     consideredCount: candidates.length,
-    completions: detected.filter((g): g is DetectedSteamCompletion => g !== null),
+    completions,
   };
 }

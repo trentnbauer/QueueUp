@@ -111,14 +111,26 @@ export function GameCard({
             aria-label={`Select ${game.title}`}
           />
         )}
+        {/* A 100%'d game gets "Clocked" (gold) instead of "Beaten" (green) - see the
+            steamFullyCompleted schema comment for why this is a sticky, persisted flag rather
+            than computed live here. */}
         {game.status === 'done' && (
           <div className={styles.ribbon} aria-hidden="true">
-            <span className={`${styles.ribbonText} ${styles.beatenRibbonText}`}>Beaten</span>
+            {game.steamFullyCompleted ? (
+              <span className={`${styles.ribbonText} ${styles.clockedRibbonText}`}>Clocked</span>
+            ) : (
+              <span className={`${styles.ribbonText} ${styles.beatenRibbonText}`}>Beaten</span>
+            )}
           </div>
         )}
         {game.status === 'playing' && (
           <div className={styles.ribbon} aria-hidden="true">
             <span className={`${styles.ribbonText} ${styles.playingRibbonText}`}>Playing</span>
+          </div>
+        )}
+        {game.status === 'replay' && (
+          <div className={styles.ribbon} aria-hidden="true">
+            <span className={`${styles.ribbonText} ${styles.replayRibbonText}`}>Replay</span>
           </div>
         )}
 
@@ -163,16 +175,6 @@ export function GameCard({
                 {game.voteScore >= 0 ? '+' : ''}
                 {game.voteScore}
               </span>
-            </div>
-          )}
-
-          {/* IGDB review score (issue #311) - also nudges Spin the Wheel's weighted pick toward
-              better-reviewed games (see spinCandidateWeight), surfaced here so that's not an
-              invisible thumb on the scale. */}
-          {game.reviewScore !== null && (
-            <div className={styles.reviewScoreBadge} title={`IGDB review score: ${game.reviewScore}/100`}>
-              <span aria-hidden="true">⭐</span>
-              {game.reviewScore}
             </div>
           )}
 

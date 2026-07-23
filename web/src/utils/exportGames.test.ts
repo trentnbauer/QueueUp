@@ -19,6 +19,7 @@ function makeGame(overrides: Partial<Game> = {}): Game {
     ggDealsUrl: null,
     coverImageUrl: null,
     status: 'backlog',
+    steamFullyCompleted: false,
     price: { amount: null, currency: null, source: 'unavailable', historicalLow: null, lastRefreshedAt: null },
     targetPrice: null,
     votes: [],

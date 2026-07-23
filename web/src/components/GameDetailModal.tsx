@@ -160,15 +160,25 @@ export function GameDetailModal({
             <span className={styles.title}>{game.title}</span>
             <span className={styles.genre}>{game.genre ?? '—'}</span>
             {timeToBeatParts.length > 0 && <span className={styles.genre}>{timeToBeatParts.join(' · ')}</span>}
+            {/* IGDB review score (issue #311) - moved here from the card face (list view), which
+                stayed deliberately minimal - also nudges Spin the Wheel's weighted pick toward
+                better-reviewed games (see spinCandidateWeight), surfaced here so that's not an
+                invisible thumb on the scale. */}
+            {game.reviewScore !== null && (
+              <span className={styles.genre} title={`IGDB review score: ${game.reviewScore}/100`}>
+                ⭐ {game.reviewScore}/100
+              </span>
+            )}
           </div>
           <button type="button" className={styles.closeButton} onClick={onClose} aria-label="Close">
             ×
           </button>
         </div>
 
-        {/* Playing's status section takes the place of price/purchase info entirely - once
-            you're playing it, "should I buy it" and "what's a good deal" are no longer relevant. */}
-        {game.status !== 'playing' && (
+        {/* Playing's (and Replay's - already owned and about to be played again) status section
+            takes the place of price/purchase info entirely - once you're playing it, "should I
+            buy it" and "what's a good deal" are no longer relevant. */}
+        {game.status !== 'playing' && game.status !== 'replay' && (
           <>
             <div className={cardStyles.priceRow}>
               {game.ggDealsUrl ? (
@@ -285,9 +295,9 @@ export function GameDetailModal({
 
         {suggestDone && (
           <div className={styles.doneSuggestion}>
-            <span>🏆 Looks like you've 100%'d this — mark it Done?</span>
+            <span>🏆 Looks like you've 100%'d this — mark it Beaten?</span>
             <button type="button" className={styles.doneSuggestionButton} onClick={() => onStatusChange('done')}>
-              Mark Done
+              Mark Beaten
             </button>
           </div>
         )}
