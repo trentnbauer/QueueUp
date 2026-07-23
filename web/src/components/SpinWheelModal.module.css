@@ -153,6 +153,12 @@
   margin-top: 2px;
 }
 
+.revealPrice {
+  font: 700 14px system-ui, sans-serif;
+  color: var(--qu-text);
+  margin-top: 4px;
+}
+
 .actions {
   display: flex;
   justify-content: center;
