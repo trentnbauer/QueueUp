@@ -3,6 +3,7 @@ import {
   platformFamilies,
   escapeApicalypseString,
   isPrimaryEdition,
+  sortExactMatchFirst,
   timeToBeatHoursFrom,
   timeToBeatRushedHoursFrom,
   timeToBeatCompletionistHoursFrom,
@@ -94,6 +95,46 @@ describe('isPrimaryEdition', () => {
   it('keeps DLC and expansions, which are their own distinct canonical entries', () => {
     expect(isPrimaryEdition(game({ category: 1 }))).toBe(true); // dlc_addon
     expect(isPrimaryEdition(game({ category: 2 }))).toBe(true); // expansion
+  });
+});
+
+describe('sortExactMatchFirst', () => {
+  it('promotes an exact case-insensitive title match ahead of same-franchise partial matches', () => {
+    // Reproduces the "God of War" search bug: the 2018 game is titled identically to the 2005
+    // original, and without this promotion it can rank behind franchise entries like Ragnarök.
+    const godOfWarRagnarok = game({ id: 1, name: 'God of War Ragnarök' });
+    const godOfWar2018 = game({ id: 2, name: 'God of War' });
+    const godOfWarAscension = game({ id: 3, name: 'God of War: Ascension' });
+
+    const result = sortExactMatchFirst([godOfWarRagnarok, godOfWar2018, godOfWarAscension], 'God of War');
+
+    expect(result[0]).toBe(godOfWar2018);
+  });
+
+  it('matches case-insensitively and ignores leading/trailing whitespace in the query', () => {
+    const match = game({ id: 1, name: 'God of War' });
+    const other = game({ id: 2, name: 'God of War Ragnarök' });
+
+    const result = sortExactMatchFirst([other, match], '  god of war  ');
+
+    expect(result[0]).toBe(match);
+  });
+
+  it('is a stable sort that leaves relative order untouched when there is no exact match', () => {
+    const a = game({ id: 1, name: 'God of War: Ascension' });
+    const b = game({ id: 2, name: 'God of War Ragnarök' });
+
+    expect(sortExactMatchFirst([a, b], 'God of War')).toEqual([a, b]);
+  });
+
+  it('does not mutate the input array', () => {
+    const match = game({ id: 1, name: 'God of War' });
+    const other = game({ id: 2, name: 'God of War Ragnarök' });
+    const input = [other, match];
+
+    sortExactMatchFirst(input, 'God of War');
+
+    expect(input).toEqual([other, match]);
   });
 });
 

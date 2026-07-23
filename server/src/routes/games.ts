@@ -236,20 +236,31 @@ async function runSteamWishlistImportLoop(
 }
 
 export default async function gameRoutes(app: FastifyInstance) {
-  app.get<{ Querystring: { q?: string; roomId?: string } }>('/api/games/search', async (request) => {
-    const userId = await request.requireAuth();
-    const { roomId } = request.query;
-    if (roomId) await requireMembership(roomId, userId);
-    const platforms = roomId ? [await getRoomPlatform(roomId)] : await getOwnedPlatforms(userId);
-    const excludeIgdbIds = await existingIgdbIds(roomId ?? null, userId);
-    const query = request.query.q ?? '';
+  app.get<{ Querystring: { q?: string; roomId?: string; offset?: string } }>(
+    '/api/games/search',
+    // Tighter than the global default (200/min) - matches the collections/:id sibling route below.
+    // Worth calling out for this one specifically: infinite-scroll paging means a single search
+    // session can now fire several requests in quick succession as the user scrolls, on top of the
+    // debounced-typing requests, so this endpoint sees more traffic per legitimate use than before.
+    { config: { rateLimit: { max: 30, timeWindow: '1 minute' } } },
+    async (request) => {
+      const userId = await request.requireAuth();
+      const { roomId } = request.query;
+      if (roomId) await requireMembership(roomId, userId);
+      const platforms = roomId ? [await getRoomPlatform(roomId)] : await getOwnedPlatforms(userId);
+      const excludeIgdbIds = await existingIgdbIds(roomId ?? null, userId);
+      const query = request.query.q ?? '';
+      const offset = Math.max(0, Number.parseInt(request.query.offset ?? '0', 10) || 0);
 
-    const [results, collections] = await Promise.all([
-      searchIntake(query, platforms, excludeIgdbIds),
-      searchCollectionsIntake(query),
-    ]);
-    return { results, collections };
-  });
+      // Collections are shown once, above the (paginated) game list itself - re-searching them on
+      // every "load more" page would just repeat the same franchise buttons for no benefit.
+      const [searchPage, collections] = await Promise.all([
+        searchIntake(query, platforms, excludeIgdbIds, offset),
+        offset === 0 ? searchCollectionsIntake(query) : Promise.resolve([]),
+      ]);
+      return { ...searchPage, collections };
+    },
+  );
 
   // Drill-down from a collection search result (issue #272) - lets Add Game add a whole
   // franchise/series at once instead of one title at a time. Filtered/deduped the same way normal

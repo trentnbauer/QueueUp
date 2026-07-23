@@ -114,6 +114,16 @@ export function isPrimaryEdition(game: IgdbGame): boolean {
   return true;
 }
 
+/** Stable sort promoting an exact (case-insensitive) title match to the front. Long-running
+ * franchises rack up a dozen+ entries (sequels, remasters, collections, spin-offs), and IGDB's
+ * own relevance ranking doesn't reliably put an exact match - e.g. the 2018 "God of War", named
+ * identically to the 2005 original - ahead of same-franchise partial matches like "God of War:
+ * Ragnarök". Array.prototype.sort is stable, so non-matching rows keep IGDB's relative order. */
+export function sortExactMatchFirst<T extends { name?: string }>(games: T[], query: string): T[] {
+  const lowerQuery = query.trim().toLowerCase();
+  return [...games].sort((a, b) => Number(b.name?.toLowerCase() === lowerQuery) - Number(a.name?.toLowerCase() === lowerQuery));
+}
+
 function coverUrl(cover?: IgdbCover): string | null {
   return cover?.image_id ? `https://images.igdb.com/igdb/image/upload/t_cover_big/${cover.image_id}.jpg` : null;
 }
@@ -212,40 +222,68 @@ export function escapeApicalypseString(value: string): string {
   return value.replace(/\\/g, '\\\\').replace(/"/g, '\\"');
 }
 
-export async function searchGames(query: string, platforms?: RoomPlatform[]): Promise<GameSearchResult[]> {
+// Page size for both the raw IGDB fetch and what's returned per call - the frontend calls back
+// with an increasing `offset` (infinite scroll) until `hasMore` comes back false, so there's no
+// need to over-fetch a single request the way a fixed top-N search would.
+const SEARCH_PAGE_SIZE = 20;
+
+export interface GameSearchPage {
+  results: GameSearchResult[];
+  /** Offset to pass on the next call to keep paging - always current offset + this page's raw
+   * (pre-filter) IGDB row count, so consecutive pages tile the underlying IGDB result set exactly
+   * once each, regardless of how many rows this page's isPrimaryEdition/platform filters dropped. */
+  nextOffset: number;
+  /** True once IGDB returned a full page of raw rows, i.e. there may be more beyond it. False once
+   * a page comes back short - that's IGDB's own signal it has nothing further for this query. */
+  hasMore: boolean;
+}
+
+export async function searchGames(query: string, platforms?: RoomPlatform[], offset = 0): Promise<GameSearchPage> {
   const trimmed = query.trim();
-  if (!trimmed) return [];
+  if (!trimmed) return { results: [], nextOffset: 0, hasMore: false };
 
   // An empty array means "no filter opted into yet" (e.g. Personal Shelf before the user has
   // ticked any owned systems) - treat it the same as undefined rather than matching nothing.
   const activePlatforms = platforms && platforms.length > 0 ? platforms : undefined;
 
   const escaped = escapeApicalypseString(trimmed);
-  // Scoping the platform filter into the query itself (rather than fetching the top 20 results
-  // overall and discarding non-matching ones afterward) matters: IGDB ranks "top 20 for this query
-  // on this platform" when the where clause is present, instead of "top 20 for this query" full
+  // Scoping the platform filter into the query itself (rather than fetching the top results
+  // overall and discarding non-matching ones afterward) matters: IGDB ranks "top N for this query
+  // on this platform" when the where clause is present, instead of "top N for this query" full
   // stop - a specific-platform release (e.g. a Switch game with a generic title) can easily rank
-  // outside the top 20 unfiltered results even though it'd be a top result once scoped.
+  // outside the top unfiltered results even though it'd be a top result once scoped.
   const whereClause = activePlatforms ? platformWhereClause(activePlatforms) : '';
   const games = await igdbRequest<IgdbGame[]>(
     'games',
-    `search "${escaped}"; fields name,cover.image_id,platforms.name,first_release_date,category,version_parent; ${whereClause} limit 20;`,
+    `search "${escaped}"; fields name,cover.image_id,platforms.name,first_release_date,category,version_parent; ${whereClause} limit ${SEARCH_PAGE_SIZE}; offset ${offset};`,
   );
 
-  return games
+  const filtered = games
     .filter((g) => g.name)
     .filter(isPrimaryEdition)
     // Belt-and-suspenders: the query-level filter above should already scope results correctly,
     // but keep the client-side family check too in case IGDB's platform data on a given row is
     // incomplete/odd (e.g. a bundle with mixed platform tags).
-    .filter((g) => !activePlatforms || platformFamilies(g.platforms).some((f) => activePlatforms.includes(f)))
-    .map((g) => ({
+    .filter((g) => !activePlatforms || platformFamilies(g.platforms).some((f) => activePlatforms.includes(f)));
+
+  // Only the first page gets exact-match promotion (e.g. the 2018 "God of War", named identically
+  // to the 2005 original, jumping ahead of same-franchise partial matches like "Ragnarök") - later
+  // pages are reordered within themselves only, which would just shuffle results already on screen
+  // for no benefit. Long-running franchises are still fully browsable via pagination regardless of
+  // where IGDB's own relevance ranking happens to place any individual title.
+  const ordered = offset === 0 ? sortExactMatchFirst(filtered, trimmed) : filtered;
+
+  return {
+    results: ordered.map((g) => ({
       igdbId: g.id,
       title: g.name!,
       platform: platformLabel(g.platforms),
       coverImageUrl: coverUrl(g.cover),
       releaseYear: releaseYear(g.first_release_date),
-    }));
+    })),
+    nextOffset: offset + games.length,
+    hasMore: games.length === SEARCH_PAGE_SIZE,
+  };
 }
 
 interface IgdbCollection {

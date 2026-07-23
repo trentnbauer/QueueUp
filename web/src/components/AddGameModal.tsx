@@ -14,6 +14,29 @@ function optionId(igdbId: number): string {
   return `add-game-option-${igdbId}`;
 }
 
+/** Small cover-art thumbnail shared by search results and collection review rows. Mirrors
+ * GameCard's fallback handling: a CSS background-image (no load-failure signal of its own) paired
+ * with an invisible probe <img> whose onError catches a dead/broken IGDB URL, falling back to the
+ * title text the same way a null coverImageUrl already does. */
+function ResultThumb({ title, coverImageUrl }: { title: string; coverImageUrl: string | null }) {
+  const [failed, setFailed] = useState(false);
+  useEffect(() => {
+    setFailed(false);
+  }, [coverImageUrl]);
+
+  return (
+    <div
+      className={styles.resultThumb}
+      style={coverImageUrl && !failed ? { backgroundImage: `url(${coverImageUrl})` } : undefined}
+    >
+      {coverImageUrl && !failed && (
+        <img src={coverImageUrl} alt="" aria-hidden="true" className={styles.resultThumbProbe} onError={() => setFailed(true)} />
+      )}
+      {(!coverImageUrl || failed) && <span className={styles.resultThumbFallback}>{title.slice(0, 1).toUpperCase()}</span>}
+    </div>
+  );
+}
+
 interface CollectionReviewProps {
   collection: CollectionSearchResult;
   roomId: string | null;
@@ -177,6 +200,7 @@ function CollectionReview({ collection, roomId, onAdded, onBack, onBusyChange }:
                 onChange={() => toggle(g.igdbId)}
                 disabled={adding}
               />
+              <ResultThumb title={g.title} coverImageUrl={g.coverImageUrl} />
               <div className={styles.resultMeta}>
                 <span className={styles.resultTitle}>
                   {g.title}
@@ -217,6 +241,14 @@ export function AddGameModal({ roomId, onAdded, onClose }: AddGameModalProps) {
   const [results, setResults] = useState<GameSearchResult[]>([]);
   const [collections, setCollections] = useState<CollectionSearchResult[]>([]);
   const [searching, setSearching] = useState(false);
+  // Infinite-scroll paging (issue: search capped at one batch, missing titles that don't rank in
+  // IGDB's first page for a franchise-heavy query) - nextOffset/hasMore mirror the API response,
+  // loadingMore is tracked separately from `searching` (the initial/debounced fetch) so a "load
+  // more" in flight doesn't show the "Searching…" state or block the input.
+  const [nextOffset, setNextOffset] = useState(0);
+  const [hasMore, setHasMore] = useState(false);
+  const [loadingMore, setLoadingMore] = useState(false);
+  const sentinelRef = useRef<HTMLDivElement | null>(null);
   const [addingId, setAddingId] = useState<number | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [highlightedIndex, setHighlightedIndex] = useState(-1);
@@ -251,20 +283,26 @@ export function AddGameModal({ roomId, onAdded, onClose }: AddGameModalProps) {
       ++latestRequestIdRef.current;
       setResults([]);
       setCollections([]);
+      setNextOffset(0);
+      setHasMore(false);
       return;
     }
     debounceRef.current = setTimeout(async () => {
       const requestId = ++latestRequestIdRef.current;
       setSearching(true);
       try {
-        const { results, collections } = await gamesApi.search(query.trim(), roomId);
+        const { results, collections, nextOffset, hasMore } = await gamesApi.search(query.trim(), roomId);
         if (requestId !== latestRequestIdRef.current) return;
         setResults(results);
         setCollections(collections);
+        setNextOffset(nextOffset);
+        setHasMore(hasMore);
       } catch {
         if (requestId !== latestRequestIdRef.current) return;
         setResults([]);
         setCollections([]);
+        setNextOffset(0);
+        setHasMore(false);
       } finally {
         if (requestId === latestRequestIdRef.current) setSearching(false);
       }
@@ -277,6 +315,45 @@ export function AddGameModal({ roomId, onAdded, onClose }: AddGameModalProps) {
   useEffect(() => {
     setHighlightedIndex(-1);
   }, [results]);
+
+  // Keeps loading the next page (IGDB's own "does this query have more" signal, via `hasMore`)
+  // as the sentinel at the bottom of the results list scrolls into view - lets a franchise-heavy
+  // search be paged all the way through instead of stopping at one fixed batch. Re-subscribes on
+  // every dependency change so the observer's closure always has the current query/offset; while
+  // loadingMore is true the effect bails before observing, which doubles as in-flight de-duping -
+  // once it flips back to false, the effect re-runs and immediately re-fires if the sentinel is
+  // still on screen (e.g. a page that filtered down to very few shown results).
+  useEffect(() => {
+    const trimmed = query.trim();
+    if (!hasMore || searching || loadingMore || !trimmed) return;
+    const el = sentinelRef.current;
+    if (!el) return;
+    const observer = new IntersectionObserver(
+      (entries) => {
+        if (!entries[0]?.isIntersecting) return;
+        const requestId = ++latestRequestIdRef.current;
+        setLoadingMore(true);
+        gamesApi
+          .search(trimmed, roomId, nextOffset)
+          .then(({ results: more, nextOffset: newOffset, hasMore: stillMore }) => {
+            if (requestId !== latestRequestIdRef.current) return;
+            setResults((prev) => [...prev, ...more]);
+            setNextOffset(newOffset);
+            setHasMore(stillMore);
+          })
+          .catch(() => {
+            if (requestId !== latestRequestIdRef.current) return;
+            setHasMore(false);
+          })
+          .finally(() => {
+            if (requestId === latestRequestIdRef.current) setLoadingMore(false);
+          });
+      },
+      { rootMargin: '200px' },
+    );
+    observer.observe(el);
+    return () => observer.disconnect();
+  }, [hasMore, searching, loadingMore, nextOffset, query, roomId]);
 
   async function handleAdd(result: GameSearchResult) {
     setAddingId(result.igdbId);
@@ -416,6 +493,7 @@ export function AddGameModal({ roomId, onAdded, onClose }: AddGameModalProps) {
                     className={`${styles.resultOption} ${i === highlightedIndex ? styles.resultOptionHighlighted : ''}`}
                     onMouseEnter={() => setHighlightedIndex(i)}
                   >
+                    <ResultThumb title={r.title} coverImageUrl={r.coverImageUrl} />
                     <div className={styles.resultMeta}>
                       <span className={styles.resultTitle}>
                         {r.title}
@@ -433,6 +511,8 @@ export function AddGameModal({ roomId, onAdded, onClose }: AddGameModalProps) {
                     </button>
                   </div>
                 ))}
+                {hasMore && <div ref={sentinelRef} className={styles.loadMoreSentinel} aria-hidden="true" />}
+                {loadingMore && <div className={styles.searching}>Loading more…</div>}
               </div>
             )}
           </>

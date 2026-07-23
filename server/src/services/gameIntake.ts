@@ -1,4 +1,11 @@
-import { searchGames, searchCollections, getGameDetail, getCollectionGames, type IgdbGameDetail } from './igdbClient.js';
+import {
+  searchGames,
+  searchCollections,
+  getGameDetail,
+  getCollectionGames,
+  type GameSearchPage,
+  type IgdbGameDetail,
+} from './igdbClient.js';
 import { getSteamPriceAndUrl, refreshSteamPriceForced } from './priceService.js';
 import { findSteamAppIdByTitle } from './steamLibrary.js';
 import { prisma } from '../db/client.js';
@@ -7,7 +14,6 @@ import {
   ROOM_PLATFORM_LABELS,
   type CollectionGamesResult,
   type CollectionSearchResult,
-  type GameSearchResult,
   type RoomPlatform,
 } from '@queueup/shared';
 
@@ -15,9 +21,13 @@ export async function searchIntake(
   query: string,
   platforms?: RoomPlatform[],
   excludeIgdbIds?: Set<number>,
-): Promise<GameSearchResult[]> {
-  const results = await searchGames(query, platforms);
-  return excludeIgdbIds ? results.filter((r) => !excludeIgdbIds.has(r.igdbId)) : results;
+  offset = 0,
+): Promise<GameSearchPage> {
+  const page = await searchGames(query, platforms, offset);
+  return {
+    ...page,
+    results: excludeIgdbIds ? page.results.filter((r) => !excludeIgdbIds.has(r.igdbId)) : page.results,
+  };
 }
 
 export async function searchCollectionsIntake(query: string): Promise<CollectionSearchResult[]> {
