@@ -1,4 +1,5 @@
 import type { FastifyInstance } from 'fastify';
+import { Prisma } from '@prisma/client';
 import { prisma } from '../db/client.js';
 import { HttpError } from '../util/httpError.js';
 import { requireMembership, getRoomPlatform, getRoom } from '../services/roomAccess.js';
@@ -7,6 +8,7 @@ import {
   requireGameReadAccess,
   requireGameDeleteAccess,
   requireNotDuplicate,
+  rethrowAsDuplicateGame,
   existingIgdbIds,
   invalidateExistingIgdbIds,
 } from '../services/gameAccess.js';
@@ -323,27 +325,32 @@ export default async function gameRoutes(app: FastifyInstance) {
 
     const resolved = await resolveGameForCreation(igdbId, platforms);
 
-    const created = await prisma.game.create({
-      data: {
-        roomId: roomId ?? null,
-        addedBy: userId,
-        igdbId,
-        title: resolved.title,
-        platform: resolved.platform,
-        genre: resolved.genre,
-        maxCoopPlayers: resolved.maxCoopPlayers,
-        timeToBeatHours: resolved.timeToBeatHours,
-        timeToBeatRushedHours: resolved.timeToBeatRushedHours,
-        timeToBeatCompletionistHours: resolved.timeToBeatCompletionistHours,
-        ggDealsUrl: resolved.ggDealsUrl,
-        steamAppid: resolved.steamAppId,
-        coverImageUrl: resolved.coverImageUrl,
-        releaseYear: resolved.releaseYear,
-        releaseDate: resolved.releaseDate,
-        igdbCollectionId: resolved.igdbCollectionId,
-        reviewScore: resolved.reviewScore,
-      },
-    });
+    let created;
+    try {
+      created = await prisma.game.create({
+        data: {
+          roomId: roomId ?? null,
+          addedBy: userId,
+          igdbId,
+          title: resolved.title,
+          platform: resolved.platform,
+          genre: resolved.genre,
+          maxCoopPlayers: resolved.maxCoopPlayers,
+          timeToBeatHours: resolved.timeToBeatHours,
+          timeToBeatRushedHours: resolved.timeToBeatRushedHours,
+          timeToBeatCompletionistHours: resolved.timeToBeatCompletionistHours,
+          ggDealsUrl: resolved.ggDealsUrl,
+          steamAppid: resolved.steamAppId,
+          coverImageUrl: resolved.coverImageUrl,
+          releaseYear: resolved.releaseYear,
+          releaseDate: resolved.releaseDate,
+          igdbCollectionId: resolved.igdbCollectionId,
+          reviewScore: resolved.reviewScore,
+        },
+      });
+    } catch (err) {
+      rethrowAsDuplicateGame(err, roomId ?? null, resolved.title);
+    }
     const game = await loadGameOr404(created.id);
     await invalidateExistingIgdbIds(roomId ?? null, userId);
 
@@ -551,28 +558,37 @@ export default async function gameRoutes(app: FastifyInstance) {
         await prisma.game.update({ where: { id: shelfGame.id }, data: { status: 'done' } });
       } else {
         const resolved = await resolveGameForCreation(game.igdbId, await getOwnedPlatforms(userId));
-        await prisma.game.create({
-          data: {
-            roomId: null,
-            addedBy: userId,
-            igdbId: game.igdbId,
-            title: resolved.title,
-            platform: resolved.platform,
-            genre: resolved.genre,
-            maxCoopPlayers: resolved.maxCoopPlayers,
-            timeToBeatHours: resolved.timeToBeatHours,
-            timeToBeatRushedHours: resolved.timeToBeatRushedHours,
-            timeToBeatCompletionistHours: resolved.timeToBeatCompletionistHours,
-            ggDealsUrl: resolved.ggDealsUrl,
-            steamAppid: resolved.steamAppId,
-            coverImageUrl: resolved.coverImageUrl,
-            releaseYear: resolved.releaseYear,
-            releaseDate: resolved.releaseDate,
-            igdbCollectionId: resolved.igdbCollectionId,
-            reviewScore: resolved.reviewScore,
-            status: 'done',
-          },
-        });
+        try {
+          await prisma.game.create({
+            data: {
+              roomId: null,
+              addedBy: userId,
+              igdbId: game.igdbId,
+              title: resolved.title,
+              platform: resolved.platform,
+              genre: resolved.genre,
+              maxCoopPlayers: resolved.maxCoopPlayers,
+              timeToBeatHours: resolved.timeToBeatHours,
+              timeToBeatRushedHours: resolved.timeToBeatRushedHours,
+              timeToBeatCompletionistHours: resolved.timeToBeatCompletionistHours,
+              ggDealsUrl: resolved.ggDealsUrl,
+              steamAppid: resolved.steamAppId,
+              coverImageUrl: resolved.coverImageUrl,
+              releaseYear: resolved.releaseYear,
+              releaseDate: resolved.releaseDate,
+              igdbCollectionId: resolved.igdbCollectionId,
+              reviewScore: resolved.reviewScore,
+              status: 'done',
+            },
+          });
+        } catch (err) {
+          if (!(err instanceof Prisma.PrismaClientKnownRequestError && err.code === 'P2002')) throw err;
+          // Lost a race with an identical concurrent sync (e.g. a double-click on the confirm
+          // dialog) - the other request already created it, so just make sure it's marked Beaten
+          // the same way the "already exists" branch above does, instead of surfacing an error for
+          // what is, from the caller's point of view, a successful sync.
+          await prisma.game.updateMany({ where: { roomId: null, addedBy: userId, igdbId: game.igdbId }, data: { status: 'done' } });
+        }
         await invalidateExistingIgdbIds(null, userId);
       }
 
@@ -720,12 +736,16 @@ export default async function gameRoutes(app: FastifyInstance) {
     }
     await requireNotDuplicate(destRoomId ?? null, userId, game.igdbId);
 
-    await prisma.game.update({
-      where: { id: game.id },
-      // The mover becomes the new "adder" - relevant when moving into the shelf, since a shelf
-      // item is only visible/manageable by whoever added it.
-      data: { roomId: destRoomId ?? null, addedBy: userId },
-    });
+    try {
+      await prisma.game.update({
+        where: { id: game.id },
+        // The mover becomes the new "adder" - relevant when moving into the shelf, since a shelf
+        // item is only visible/manageable by whoever added it.
+        data: { roomId: destRoomId ?? null, addedBy: userId },
+      });
+    } catch (err) {
+      rethrowAsDuplicateGame(err, destRoomId ?? null, game.title);
+    }
     await invalidateExistingIgdbIds(game.roomId, game.addedBy);
     await invalidateExistingIgdbIds(destRoomId ?? null, userId);
 

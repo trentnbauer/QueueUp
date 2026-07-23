@@ -25,4 +25,28 @@ export async function ensureDbConstraints(logger: { warn: (msg: string) => void 
       }`,
     );
   }
+
+  // Backs requireNotDuplicate's "already in this room/shelf" check (gameAccess.ts) at the DB
+  // layer - that check is a plain findFirst-then-create with no transaction, so two concurrent
+  // requests for the same igdbId (a double-click, two tabs, or two "Re-sync Library" clicks
+  // overlapping) can both pass it before either insert lands, producing duplicate rows. A single
+  // `@@unique` can't express this in Prisma's schema DSL since the scope differs by case (room
+  // games are unique per room_id, shelf games are unique per added_by, and room_id is nullable -
+  // Postgres treats NULLs as distinct, so a plain composite unique wouldn't catch the shelf case
+  // at all) - two partial unique indexes need raw SQL either way. Callers catch the resulting
+  // P2002 the same way /api/rooms/join already does for its own unique constraint.
+  try {
+    await prisma.$executeRawUnsafe(`
+      CREATE UNIQUE INDEX IF NOT EXISTS games_room_igdb_unique ON games (room_id, igdb_id) WHERE room_id IS NOT NULL;
+    `);
+    await prisma.$executeRawUnsafe(`
+      CREATE UNIQUE INDEX IF NOT EXISTS games_shelf_igdb_unique ON games (added_by, igdb_id) WHERE room_id IS NULL;
+    `);
+  } catch (err) {
+    logger.warn(
+      `Could not ensure games duplicate-igdb unique indexes (non-fatal, API-layer validation still applies): ${
+        err instanceof Error ? err.message : String(err)
+      }`,
+    );
+  }
 }

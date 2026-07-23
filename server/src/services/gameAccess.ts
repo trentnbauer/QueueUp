@@ -1,3 +1,4 @@
+import { Prisma } from '@prisma/client';
 import { prisma } from '../db/client.js';
 import { HttpError } from '../util/httpError.js';
 import { requireMembership } from './roomAccess.js';
@@ -61,6 +62,21 @@ export async function requireNotDuplicate(roomId: string | null, userId: string,
       `${existing.title} is already ${roomId ? 'in this room' : 'on your shelf'}.`,
     );
   }
+}
+
+/** requireNotDuplicate is a plain check-then-act with no transaction, so it only blocks the
+ * common case - two concurrent requests for the same igdbId (a double-click, two tabs, two
+ * overlapping "Re-sync Library" runs) can both pass it before either insert lands. The real
+ * backstop is a pair of partial unique indexes on the games table (see ensureConstraints.ts),
+ * which turn the loser of that race into a Prisma P2002 instead of a duplicate row. Callers wrap
+ * their `prisma.game.create` in try/catch and pass the error here to convert it into the same
+ * user-facing message requireNotDuplicate would have given if it had won the race - rethrows
+ * anything else unchanged. */
+export function rethrowAsDuplicateGame(err: unknown, roomId: string | null, title: string): never {
+  if (err instanceof Prisma.PrismaClientKnownRequestError && err.code === 'P2002') {
+    throw new HttpError(400, `${title} is already ${roomId ? 'in this room' : 'on your shelf'}.`);
+  }
+  throw err;
 }
 
 const EXISTING_IGDB_IDS_CACHE_TTL_SECONDS = 30;
