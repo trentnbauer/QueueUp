@@ -236,19 +236,22 @@ async function runSteamWishlistImportLoop(
 }
 
 export default async function gameRoutes(app: FastifyInstance) {
-  app.get<{ Querystring: { q?: string; roomId?: string } }>('/api/games/search', async (request) => {
+  app.get<{ Querystring: { q?: string; roomId?: string; offset?: string } }>('/api/games/search', async (request) => {
     const userId = await request.requireAuth();
     const { roomId } = request.query;
     if (roomId) await requireMembership(roomId, userId);
     const platforms = roomId ? [await getRoomPlatform(roomId)] : await getOwnedPlatforms(userId);
     const excludeIgdbIds = await existingIgdbIds(roomId ?? null, userId);
     const query = request.query.q ?? '';
+    const offset = Math.max(0, Number.parseInt(request.query.offset ?? '0', 10) || 0);
 
-    const [results, collections] = await Promise.all([
-      searchIntake(query, platforms, excludeIgdbIds),
-      searchCollectionsIntake(query),
+    // Collections are shown once, above the (paginated) game list itself - re-searching them on
+    // every "load more" page would just repeat the same franchise buttons for no benefit.
+    const [searchPage, collections] = await Promise.all([
+      searchIntake(query, platforms, excludeIgdbIds, offset),
+      offset === 0 ? searchCollectionsIntake(query) : Promise.resolve([]),
     ]);
-    return { results, collections };
+    return { ...searchPage, collections };
   });
 
   // Drill-down from a collection search result (issue #272) - lets Add Game add a whole

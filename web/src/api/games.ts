@@ -31,9 +31,9 @@ export const gamesApi = {
     apiGet<{ games: Game[]; truncated: boolean }>(`/api/games${region ? `?region=${region}` : ''}`),
   room: (roomId: string, region?: PriceRegion) =>
     apiGet<{ games: Game[]; truncated: boolean }>(`/api/rooms/${roomId}/games${region ? `?region=${region}` : ''}`),
-  search: (q: string, roomId?: string | null) =>
-    apiGet<{ results: GameSearchResult[]; collections: CollectionSearchResult[] }>(
-      `/api/games/search?q=${encodeURIComponent(q)}${roomId ? `&roomId=${roomId}` : ''}`,
+  search: (q: string, roomId?: string | null, offset = 0) =>
+    apiGet<{ results: GameSearchResult[]; collections: CollectionSearchResult[]; nextOffset: number; hasMore: boolean }>(
+      `/api/games/search?q=${encodeURIComponent(q)}${roomId ? `&roomId=${roomId}` : ''}${offset ? `&offset=${offset}` : ''}`,
     ),
   collectionGames: (collectionId: number, roomId?: string | null) =>
     apiGet<CollectionGamesResult>(

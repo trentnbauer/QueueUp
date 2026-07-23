@@ -112,10 +112,48 @@
   background: var(--qu-accent-pill-bg);
 }
 
+/* Box-art proportions (portrait, taller than wide), same convention as GameCard's full-size cover -
+   just small enough to sit inline in a search result row. */
+.resultThumb {
+  position: relative;
+  flex-shrink: 0;
+  width: 36px;
+  aspect-ratio: 2 / 3;
+  border-radius: 4px;
+  overflow: hidden;
+  background-color: var(--qu-surface);
+  background-size: cover;
+  background-position: center;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+/* Invisible on-page - the real thumb renders as this same URL's background-image on .resultThumb
+   above. This <img> exists only so its onError fires when that URL is actually broken, since a CSS
+   background-image has no load-failure signal of its own. */
+.resultThumbProbe {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  opacity: 0;
+  pointer-events: none;
+}
+
+.resultThumbFallback {
+  font: 700 13px var(--qu-header-font);
+  color: var(--qu-muted);
+}
+
 .resultMeta {
   display: flex;
   flex-direction: column;
   min-width: 0;
+  flex: 1;
+}
+
+.loadMoreSentinel {
+  height: 1px;
 }
 
 .resultTitle {
