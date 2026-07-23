@@ -371,7 +371,7 @@ export default async function gameRoutes(app: FastifyInstance) {
 
         const [existingIgdbIdSet, shelfGames] = await Promise.all([
           existingIgdbIds(null, userId),
-          prisma.game.findMany({ where: { roomId: null, addedBy: userId }, select: { steamAppid: true, igdbId: true } }),
+          prisma.game.findMany({ where: { roomId: null, addedBy: userId }, select: { steamAppid: true, igdbId: true, status: true } }),
         ]);
         const existingSteamAppIds = new Set(shelfGames.map((g) => g.steamAppid).filter((id): id is number => id != null));
 
@@ -381,10 +381,15 @@ export default async function gameRoutes(app: FastifyInstance) {
           .filter((game) => !existingSteamAppIds.has(game.appId))
           .sort((a, b) => b.playtimeForeverMinutes - a.playtimeForeverMinutes);
 
-        // Every game already on the shelf is, by definition, owned - mark those too (using the
-        // igdbId already on file, no extra Steam/IGDB lookups needed) so ownership coverage isn't
-        // limited to whatever a single import run actually creates (issue #176).
-        const ownedIgdbIds: number[] = shelfGames.map((g) => g.igdbId);
+        // Every non-wishlist game already on the shelf is, by definition, owned - mark those too
+        // (using the igdbId already on file, no extra Steam/IGDB lookups needed) so ownership
+        // coverage isn't limited to whatever a single import run actually creates (issue #176).
+        // Wishlist games are excluded - a wishlisted game is explicitly *not* owned yet (see
+        // GameStatus.wishlist's doc comment and runSteamWishlistImportLoop below), so bulk-marking
+        // it here just because it happens to already be on the shelf was mislabeling every
+        // wishlist-imported game as owned the next time a library import ran (bug report: wishlist
+        // imports showing as owned when they aren't).
+        const ownedIgdbIds: number[] = shelfGames.filter((g) => g.status !== 'wishlist').map((g) => g.igdbId);
 
         const totalOwned = owned.length;
         const consideredCount = considered.length;
