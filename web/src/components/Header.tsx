@@ -14,6 +14,8 @@ import { AvatarBadge } from './AvatarBadge';
 import { RoomSettingsModal } from './RoomSettingsModal';
 import { ShelfSettingsModal } from './ShelfSettingsModal';
 import { AddGameModal } from './AddGameModal';
+import { FilterModal } from './FilterModal';
+import { PillFilter } from './PillFilter';
 import styles from './Header.module.css';
 
 const ROLE_LABEL: Record<RoomRole, string> = {
@@ -25,44 +27,6 @@ const ROLE_LABEL: Record<RoomRole, string> = {
 // Fixed display order for the status filter pills (issue #182) - not alphabetical, reads in the
 // same rough lifecycle order as the status menu itself.
 const STATUS_FILTER_ORDER: GameStatus[] = ['wishlist', 'backlog', 'playing', 'done', 'dropped'];
-
-interface PillFilterProps {
-  label: string;
-  allLabel: string;
-  options: string[];
-  value: string;
-  onChange: (value: string) => void;
-}
-
-/** Single-select filter rendered as a row of toggleable pills (matching the app's existing
- * pill-badge look) instead of a bare <select> - reads as part of the header rather than a form. */
-function PillFilter({ label, allLabel, options, value, onChange }: PillFilterProps) {
-  if (options.length < 2) return null;
-  return (
-    <div className={styles.filterGroup}>
-      <span className={styles.filterLabel}>{label}</span>
-      <div className={styles.filterPills}>
-        <button
-          type="button"
-          className={`${styles.filterPill} ${value === ALL_FILTER_VALUE ? styles.filterPillActive : ''}`}
-          onClick={() => onChange(ALL_FILTER_VALUE)}
-        >
-          {allLabel}
-        </button>
-        {options.map((option) => (
-          <button
-            key={option}
-            type="button"
-            className={`${styles.filterPill} ${value === option ? styles.filterPillActive : ''}`}
-            onClick={() => onChange(value === option ? ALL_FILTER_VALUE : option)}
-          >
-            {option}
-          </button>
-        ))}
-      </div>
-    </div>
-  );
-}
 
 export function Header() {
   const { user, ownedPlatforms, steamLinked } = useAuth();
@@ -89,6 +53,7 @@ export function Header() {
   const [showRoomSettings, setShowRoomSettings] = useState(false);
   const [showShelfSettings, setShowShelfSettings] = useState(false);
   const [showAddGame, setShowAddGame] = useState(false);
+  const [showFilters, setShowFilters] = useState(false);
   const [inviteCopied, setInviteCopied] = useState(false);
   // Which member's row is expanded to show their completed/100%'d counts - at most one at a time,
   // toggled by clicking the row again (see memberRow below). Not persisted; closes on re-render of
@@ -140,6 +105,9 @@ export function Header() {
     const present = new Set(games.map((g) => g.status));
     return STATUS_FILTER_ORDER.filter((status) => present.has(status));
   }, [games]);
+  // Drives the badge dot on the Filters button (issue #335) - the button collapses these three
+  // into a modal, so there's no other on-screen sign that one of them is silently narrowing the grid.
+  const quickFiltersActive = platformFilter !== ALL_FILTER_VALUE || genreFilter !== ALL_FILTER_VALUE || statusFilter !== ALL_FILTER_VALUE;
   // Only ever the viewer's own tags (see Game.tags) - a room game someone else added never
   // contributes an option here, matching who's actually allowed to apply/filter by a tag.
   const tagOptions = useMemo(() => distinctTagNames(games), [games]);
@@ -344,27 +312,17 @@ export function Header() {
           onChange={(e) => setSearchQuery(e.target.value)}
           aria-label="Search games by title"
         />
-        <PillFilter
-          label="Platform"
-          allLabel="All platforms"
-          options={platformOptions}
-          value={platformFilter}
-          onChange={setPlatformFilter}
-        />
-        <PillFilter
-          label="Genre"
-          allLabel="All genres"
-          options={genreOptions}
-          value={genreFilter}
-          onChange={setGenreFilter}
-        />
-        <PillFilter
-          label="Status"
-          allLabel="All statuses"
-          options={statusOptions}
-          value={statusFilter}
-          onChange={setStatusFilter}
-        />
+        {(platformOptions.length > 1 || genreOptions.length > 1 || statusOptions.length > 1) && (
+          <button
+            type="button"
+            className={styles.filtersButton}
+            onClick={() => setShowFilters(true)}
+            aria-haspopup="dialog"
+          >
+            Filters
+            {quickFiltersActive && <span className={styles.filtersButtonBadge} aria-hidden="true" />}
+          </button>
+        )}
         <PillFilter
           label="Tags"
           allLabel="All tags"
@@ -407,6 +365,21 @@ export function Header() {
           roomId={activeRoom?.id ?? null}
           onAdded={invalidateGames}
           onClose={() => setShowAddGame(false)}
+        />
+      )}
+
+      {showFilters && (
+        <FilterModal
+          platformOptions={platformOptions}
+          genreOptions={genreOptions}
+          statusOptions={statusOptions}
+          platformFilter={platformFilter}
+          genreFilter={genreFilter}
+          statusFilter={statusFilter}
+          setPlatformFilter={setPlatformFilter}
+          setGenreFilter={setGenreFilter}
+          setStatusFilter={setStatusFilter}
+          onClose={() => setShowFilters(false)}
         />
       )}
     </header>
