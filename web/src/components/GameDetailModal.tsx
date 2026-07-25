@@ -9,6 +9,7 @@ import { SteamMatchPicker } from './SteamMatchPicker';
 import { useConfirm } from '../context/ConfirmContext';
 import { useModalA11y } from '../hooks/useModalA11y';
 import { useGameAchievements } from '../hooks/useGameAchievements';
+import { useSteamAutoMatch } from '../hooks/useSteamAutoMatch';
 import { formatRelativeTime } from '../utils/relativeTime';
 import { formatAmount, formatPrice } from '../utils/formatPrice';
 import { GAME_STATUS_LABEL, GAME_STATUS_LIST, defaultPrerequisite } from './gameGridLogic';
@@ -63,8 +64,10 @@ export function GameDetailModal({
   const confirm = useConfirm();
   const [editingTargetPrice, setEditingTargetPrice] = useState(false);
   const [targetPriceDraft, setTargetPriceDraft] = useState('');
-  const [showMatchPicker, setShowMatchPicker] = useState(false);
+  const { checkingGameId, pickerGameId, attemptAutoMatch, openPicker, closePicker } = useSteamAutoMatch();
   const dialogRef = useModalA11y<HTMLDivElement>(onClose);
+  const hasSteamMatch = game.price.source === 'live' || game.ggDealsUrl !== null;
+  const isCheckingMatch = checkingGameId === game.id;
   const { players: achievementPlayers } = useGameAchievements(game.id);
 
   // Every other game in this room, alphabetical for easy scanning in the dropdown. Only shown at
@@ -222,21 +225,31 @@ export function GameDetailModal({
             )}
 
             {/* Always available, not just when unavailable - the automatic match (IGDB, then an
-                exact-title Steam search) can pick the wrong edition/remaster for a live price too. */}
-            <button type="button" className={cardStyles.fixMatchLink} onClick={() => setShowMatchPicker(true)}>
-              {game.price.source === 'live' || game.ggDealsUrl ? 'Wrong game matched?' : 'Not finding a price? Fix match'}
+                exact-title Steam search) can pick the wrong edition/remaster for a live price too.
+                Only the unmatched case (issue #337) tries a silent auto-match first - a person
+                flagging an existing match as wrong goes straight to the picker, since silently
+                reapplying the same single-result search would likely reproduce that same match. */}
+            <button
+              type="button"
+              className={cardStyles.fixMatchLink}
+              disabled={isCheckingMatch}
+              onClick={() =>
+                hasSteamMatch ? openPicker(game.id) : attemptAutoMatch(game.id, game.title, onSetSteamMatch)
+              }
+            >
+              {isCheckingMatch ? 'Checking…' : hasSteamMatch ? 'Wrong game matched?' : 'Not finding a price? Fix match'}
             </button>
 
-            {showMatchPicker && (
+            {pickerGameId === game.id && (
               <SteamMatchPicker
                 gameId={game.id}
                 gameTitle={game.title}
-                hasExistingMatch={game.price.source === 'live' || game.ggDealsUrl !== null}
+                hasExistingMatch={hasSteamMatch}
                 onMatched={(steamAppId) => {
                   onSetSteamMatch(steamAppId);
-                  setShowMatchPicker(false);
+                  closePicker();
                 }}
-                onClose={() => setShowMatchPicker(false)}
+                onClose={closePicker}
               />
             )}
 
