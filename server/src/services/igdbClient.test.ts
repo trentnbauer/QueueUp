@@ -3,6 +3,7 @@ import {
   platformFamilies,
   escapeApicalypseString,
   isPrimaryEdition,
+  isAddonEdition,
   sortExactMatchFirst,
   nextSearchPage,
   timeToBeatHoursFrom,
@@ -96,6 +97,32 @@ describe('isPrimaryEdition', () => {
   it('keeps DLC and expansions, which are their own distinct canonical entries', () => {
     expect(isPrimaryEdition(game({ category: 1 }))).toBe(true); // dlc_addon
     expect(isPrimaryEdition(game({ category: 2 }))).toBe(true); // expansion
+  });
+});
+
+describe('isAddonEdition', () => {
+  it('flags DLC, expansions, standalone expansions, and season passes', () => {
+    expect(isAddonEdition(game({ category: 1 }))).toBe(true); // dlc_addon
+    expect(isAddonEdition(game({ category: 2 }))).toBe(true); // expansion
+    expect(isAddonEdition(game({ category: 4 }))).toBe(true); // standalone_expansion
+    expect(isAddonEdition(game({ category: 7 }))).toBe(true); // season
+  });
+
+  it('does not flag a main game or one with no category at all', () => {
+    expect(isAddonEdition(game())).toBe(false);
+    expect(isAddonEdition(game({ category: 0 }))).toBe(false); // main_game
+  });
+
+  it('does not flag remakes, remasters, ports, or expanded re-releases, which are their own purchasable titles', () => {
+    expect(isAddonEdition(game({ category: 8 }))).toBe(false); // remake
+    expect(isAddonEdition(game({ category: 9 }))).toBe(false); // remaster
+    expect(isAddonEdition(game({ category: 10 }))).toBe(false); // expanded_game
+    expect(isAddonEdition(game({ category: 11 }))).toBe(false); // port
+  });
+
+  it('does not flag bundles/packs, which isPrimaryEdition already excludes on its own', () => {
+    expect(isAddonEdition(game({ category: 3 }))).toBe(false); // bundle
+    expect(isAddonEdition(game({ category: 13 }))).toBe(false); // pack
   });
 });
 
