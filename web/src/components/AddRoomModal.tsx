@@ -1,14 +1,16 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { useQuery } from '@tanstack/react-query';
 import { ROOM_PLATFORM_LABELS, type RoomPlatform } from '@queueup/shared';
 import { useRooms } from '../hooks/useRooms';
 import { useModalA11y } from '../hooks/useModalA11y';
 import { ACCENT_PRESETS } from '../theme/defaultTheme';
+import { roomsApi } from '../api/rooms';
 import styles from './AddRoomModal.module.css';
 
 const ROOM_PLATFORM_OPTIONS = Object.keys(ROOM_PLATFORM_LABELS) as RoomPlatform[];
 
-type Step = 'options' | 'create' | 'join';
+type Step = 'options' | 'create' | 'join' | 'browse';
 
 interface AddRoomModalProps {
   onClose: () => void;
@@ -27,16 +29,24 @@ function pickAccentColor(existingRooms: { accentColor: string }[]): string {
 /** Centered modal (matching Room Settings / Profile Settings) for creating or joining a room -
  * replaces the old corner-anchored flyout off the sidebar's "+" icon. */
 export function AddRoomModal({ onClose }: AddRoomModalProps) {
-  const { rooms, createRoom, joinRoom } = useRooms();
+  const { rooms, createRoom, joinRoom, joinPublicRoom } = useRooms();
   const navigate = useNavigate();
 
   const [step, setStep] = useState<Step>('options');
   const [name, setName] = useState('');
   const [platform, setPlatform] = useState<RoomPlatform>('pc');
+  const [isPublic, setIsPublic] = useState(false);
   const [inviteCode, setInviteCode] = useState('');
   const [error, setError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
+  const [joiningRoomId, setJoiningRoomId] = useState<string | null>(null);
   const dialogRef = useModalA11y<HTMLDivElement>(onClose);
+
+  const publicRooms = useQuery({
+    queryKey: ['public-rooms'],
+    queryFn: () => roomsApi.publicRooms(),
+    enabled: step === 'browse',
+  });
 
   async function handleCreateRoom(e: React.FormEvent) {
     e.preventDefault();
@@ -45,13 +55,27 @@ export function AddRoomModal({ onClose }: AddRoomModalProps) {
     setError(null);
     try {
       const accentColor = pickAccentColor(rooms);
-      const { room } = await createRoom.mutateAsync({ name: name.trim(), platform, accentColor });
+      const { room } = await createRoom.mutateAsync({ name: name.trim(), platform, accentColor, isPublic });
       onClose();
       navigate(`/room/${room.id}`);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Could not create that room');
     } finally {
       setSubmitting(false);
+    }
+  }
+
+  async function handleJoinPublicRoom(roomId: string) {
+    setJoiningRoomId(roomId);
+    setError(null);
+    try {
+      const { room } = await joinPublicRoom.mutateAsync(roomId);
+      onClose();
+      navigate(`/room/${room.id}`);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Could not join that room');
+    } finally {
+      setJoiningRoomId(null);
     }
   }
 
@@ -103,6 +127,9 @@ export function AddRoomModal({ onClose }: AddRoomModalProps) {
             <button type="button" className={styles.optionButton} onClick={() => setStep('join')}>
               Join with invite code
             </button>
+            <button type="button" className={styles.optionButton} onClick={() => setStep('browse')}>
+              Browse public rooms
+            </button>
           </div>
         )}
 
@@ -137,6 +164,20 @@ export function AddRoomModal({ onClose }: AddRoomModalProps) {
                 ))}
               </select>
             </div>
+            <div className={styles.field}>
+              <label className={styles.label} htmlFor="add-room-visibility">
+                Visibility
+              </label>
+              <select
+                id="add-room-visibility"
+                className={styles.select}
+                value={isPublic ? 'public' : 'invite_only'}
+                onChange={(e) => setIsPublic(e.target.value === 'public')}
+              >
+                <option value="invite_only">Invite only</option>
+                <option value="public">Public</option>
+              </select>
+            </div>
             <button type="submit" className={styles.primaryButton} disabled={submitting || !name.trim()}>
               {submitting ? 'Creating…' : 'Create room'}
             </button>
@@ -161,6 +202,38 @@ export function AddRoomModal({ onClose }: AddRoomModalProps) {
               {submitting ? 'Joining…' : 'Join room'}
             </button>
           </form>
+        )}
+
+        {step === 'browse' && (
+          <div className={styles.form}>
+            {publicRooms.isLoading && <p className={styles.readonlyNote}>Loading public rooms…</p>}
+            {!publicRooms.isLoading && (publicRooms.data?.rooms.length ?? 0) === 0 && (
+              <p className={styles.readonlyNote}>No public rooms yet.</p>
+            )}
+            {!publicRooms.isLoading && (publicRooms.data?.rooms.length ?? 0) > 0 && (
+              <div className={styles.publicRoomList}>
+                {publicRooms.data!.rooms.map((room) => (
+                  <div key={room.id} className={styles.publicRoomRow}>
+                    <span className={styles.publicRoomSwatch} style={{ background: room.accentColor }} />
+                    <div className={styles.publicRoomInfo}>
+                      <span className={styles.publicRoomName}>{room.name}</span>
+                      <span className={styles.publicRoomMeta}>
+                        {ROOM_PLATFORM_LABELS[room.platform]} · {room.memberCount} member{room.memberCount === 1 ? '' : 's'}
+                      </span>
+                    </div>
+                    <button
+                      type="button"
+                      className={styles.memberActionButton}
+                      onClick={() => handleJoinPublicRoom(room.id)}
+                      disabled={joiningRoomId === room.id}
+                    >
+                      {joiningRoomId === room.id ? 'Joining…' : 'Join'}
+                    </button>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
         )}
 
         <div className={styles.cancelZone}>

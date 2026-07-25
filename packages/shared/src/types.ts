@@ -88,6 +88,20 @@ export interface Room {
   spinOnlyFullyOwned: boolean;
   /** Which visual presentation Spin the Wheel uses - see SpinWheelTheme. */
   spinWheelTheme: SpinWheelTheme;
+  /** When true, this room is listed in the public room directory and any signed-in user can
+   * self-join it instantly (no invite code, no approval step). Defaults to false. */
+  isPublic: boolean;
+}
+
+/** Minimal shape returned by GET /api/rooms/public for the room directory - the caller isn't a
+ * member yet, so this deliberately omits invite codes, webhook URLs, and other member-only data
+ * that the full Room DTO carries. */
+export interface PublicRoomSummary {
+  id: string;
+  name: string;
+  platform: RoomPlatform;
+  accentColor: string;
+  memberCount: number;
 }
 
 /** Which visual presentation Spin the Wheel uses, room-settable. "random" resolves to one of the
@@ -256,6 +270,8 @@ export interface CreateRoomRequest {
   name: string;
   platform: RoomPlatform;
   accentColor: string;
+  /** Defaults to false (invite-only) if omitted. */
+  isPublic?: boolean;
 }
 
 /** Room Master only. Any subset of fields may be provided. */
@@ -267,6 +283,7 @@ export interface UpdateRoomRequest {
   discordWebhookUrl?: string | null;
   spinOnlyFullyOwned?: boolean;
   spinWheelTheme?: SpinWheelTheme;
+  isPublic?: boolean;
 }
 
 export interface JoinRoomRequest {
