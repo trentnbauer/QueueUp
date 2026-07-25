@@ -59,10 +59,12 @@ interface GameGridProps {
   /** Shows the Spin the Wheel tile as part of the grid - used by both rooms and the Personal
    * Shelf (issue #188: "800 games, what do I play next" is just as real a question solo). */
   showSpinWheel?: boolean;
-  /** Room Settings toggle - restricts Spin the Wheel to games every current member owns. */
-  spinOnlyFullyOwned?: boolean;
+  /** Room Settings dollar threshold - restricts Spin the Wheel to games every current member owns,
+   * or games priced at or under this. Undefined on the Personal Shelf, same as spinWheelTheme -
+   * there's no group-ownership concept to gate against for a solo list. */
+  spinOwnershipMaxPrice?: number;
   /** Room Settings choice of Spin the Wheel presentation (issue #297) - undefined on the Personal
-   * Shelf, same as spinOnlyFullyOwned. */
+   * Shelf, same as spinOwnershipMaxPrice. */
   spinWheelTheme?: SpinWheelTheme;
   /** Extra tile rendered as the very last card in the grid, after every game and regardless of
    * filters (e.g. the Steam import tile on the Personal Shelf) - unlike the Spin the Wheel tile,
@@ -107,7 +109,7 @@ export function GameGrid({
   memberCount,
   roomMembers,
   showSpinWheel,
-  spinOnlyFullyOwned,
+  spinOwnershipMaxPrice,
   spinWheelTheme,
   trailingCard,
   hiddenStatuses,
@@ -208,7 +210,12 @@ export function GameGrid({
   }
 
   const spinCard = showSpinWheel && (
-    <SpinWheelCard games={games} spinOnlyFullyOwned={spinOnlyFullyOwned} spinWheelTheme={spinWheelTheme} />
+    <SpinWheelCard
+      games={games}
+      spinOwnershipMaxPrice={spinOwnershipMaxPrice}
+      spinWheelTheme={spinWheelTheme}
+      onSetSteamMatch={onSetSteamMatch}
+    />
   );
 
   if (prioritized.length === 0 || visible.length === 0) {

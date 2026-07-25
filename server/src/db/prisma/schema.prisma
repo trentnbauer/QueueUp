@@ -48,7 +48,7 @@ enum RoomPlatform {
 }
 
 /// Which visual presentation Spin the Wheel uses (issue #297) - room master only to change, same
-/// gating as Room.spinOnlyFullyOwned. "random" isn't itself a renderable theme - it resolves to
+/// gating as Room.spinOwnershipMaxPrice. "random" isn't itself a renderable theme - it resolves to
 /// one of the other four at spin time (see resolveConcreteTheme in the web app), re-rolled fresh
 /// on every spin rather than fixed once per room.
 enum SpinWheelTheme {
@@ -174,9 +174,12 @@ model Room {
   /// Posts the same events as the in-app room notification feed to this Discord channel webhook,
   /// if set (see notifications.ts). One-way egress only - QueueUp never reads anything back from it.
   discordWebhookUrl String? @map("discord_webhook_url")
-  /// Room Settings toggle: when true, Spin the Wheel's candidate pool is restricted to games every
-  /// current member owns (see gameOwnership.ts / SpinWheelCard) instead of the full backlog.
-  spinOnlyFullyOwned Boolean @default(false) @map("spin_only_fully_owned")
+  /// Room Settings dollar threshold (issue #339, replacing the old spinOnlyFullyOwned toggle):
+  /// Spin the Wheel's candidate pool is games every current member owns, OR games with a live
+  /// price at or under this many dollars (see gameOwnership.ts / SpinWheelCard) - so a room can
+  /// loosen "everyone must already own it" into "or it's cheap enough that buying in isn't a big
+  /// ask." $0 reproduces the old fully-owned-only behavior.
+  spinOwnershipMaxPrice Int @default(15) @map("spin_ownership_max_price")
   /// Which visual presentation Spin the Wheel uses (issue #297) - defaults to the original
   /// slot-machine reel so existing rooms don't change.
   spinWheelTheme SpinWheelTheme @default(slot) @map("spin_wheel_theme")

@@ -84,8 +84,9 @@ export interface Room {
   inviteCode?: string;
   /** Posts room activity to this Discord channel webhook, if set. Room Master only to view/edit. */
   discordWebhookUrl?: string | null;
-  /** When true, Spin the Wheel only draws from games every current member owns. */
-  spinOnlyFullyOwned: boolean;
+  /** Spin the Wheel draws from games every current member owns, plus games with a live price at
+   * or under this many dollars. 0 reproduces the old "fully owned only" behavior. */
+  spinOwnershipMaxPrice: number;
   /** Which visual presentation Spin the Wheel uses - see SpinWheelTheme. */
   spinWheelTheme: SpinWheelTheme;
 }
@@ -265,7 +266,7 @@ export interface UpdateRoomRequest {
   accentColor?: string;
   /** Set to null to clear/disable the webhook. */
   discordWebhookUrl?: string | null;
-  spinOnlyFullyOwned?: boolean;
+  spinOwnershipMaxPrice?: number;
   spinWheelTheme?: SpinWheelTheme;
 }
 

@@ -106,7 +106,7 @@ export function isNeglectedBacklogGame(game: Game, now: number = Date.now()): bo
 /** A room game every *current* member owns is the easiest "let's just play this" pick - nothing
  * to buy first - so it outranks vote score entirely (issue #173). Always false for a Personal
  * Shelf game (ownership is null there - no group to own it "fully"). */
-function isFullyOwned(game: Game): boolean {
+export function isFullyOwned(game: Game): boolean {
   return game.ownership !== null && game.ownership.total > 0 && game.ownership.owned === game.ownership.total;
 }
 

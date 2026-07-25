@@ -48,7 +48,7 @@ export function RoomSettingsModal({ room, members, games, onClose }: RoomSetting
   const [platform, setPlatform] = useState<RoomPlatform>(room.platform);
   const [accentColor, setAccentColor] = useState(room.accentColor);
   const [discordWebhookUrl, setDiscordWebhookUrl] = useState(room.discordWebhookUrl ?? '');
-  const [spinOnlyFullyOwned, setSpinOnlyFullyOwned] = useState(room.spinOnlyFullyOwned);
+  const [spinOwnershipMaxPrice, setSpinOwnershipMaxPrice] = useState(String(room.spinOwnershipMaxPrice));
   const [spinWheelTheme, setSpinWheelTheme] = useState<SpinWheelTheme>(room.spinWheelTheme);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -75,12 +75,14 @@ export function RoomSettingsModal({ room, members, games, onClose }: RoomSetting
   }
 
   const isRoomMaster = room.myRole === 'room_master';
+  const parsedMaxPrice = Number.parseInt(spinOwnershipMaxPrice, 10);
+  const maxPriceValid = spinOwnershipMaxPrice.trim() !== '' && Number.isInteger(parsedMaxPrice) && parsedMaxPrice >= 0;
   const dirty =
     name.trim() !== room.name ||
     platform !== room.platform ||
     accentColor !== room.accentColor ||
     discordWebhookUrl.trim() !== (room.discordWebhookUrl ?? '') ||
-    spinOnlyFullyOwned !== room.spinOnlyFullyOwned ||
+    parsedMaxPrice !== room.spinOwnershipMaxPrice ||
     spinWheelTheme !== room.spinWheelTheme;
 
   function invalidateRoomQueries() {
@@ -94,6 +96,10 @@ export function RoomSettingsModal({ room, members, games, onClose }: RoomSetting
       setError('Room name cannot be empty');
       return;
     }
+    if (!maxPriceValid) {
+      setError('Spin ownership price must be a whole dollar amount, 0 or more');
+      return;
+    }
     setSaving(true);
     setError(null);
     try {
@@ -102,7 +108,7 @@ export function RoomSettingsModal({ room, members, games, onClose }: RoomSetting
         platform,
         accentColor,
         discordWebhookUrl: discordWebhookUrl.trim() || null,
-        spinOnlyFullyOwned,
+        spinOwnershipMaxPrice: parsedMaxPrice,
         spinWheelTheme,
       });
       invalidateRoomQueries();
@@ -275,14 +281,25 @@ export function RoomSettingsModal({ room, members, games, onClose }: RoomSetting
                   When set, room activity (games added, votes coming up, etc.) is also posted to this Discord channel.
                 </p>
               </div>
-              <label className={styles.checkboxField}>
+              <div className={styles.field}>
+                <label className={styles.label} htmlFor="room-settings-spin-max-price">
+                  Spin ownership price limit ($)
+                </label>
                 <input
-                  type="checkbox"
-                  checked={spinOnlyFullyOwned}
-                  onChange={(e) => setSpinOnlyFullyOwned(e.target.checked)}
+                  id="room-settings-spin-max-price"
+                  className={styles.input}
+                  type="number"
+                  min={0}
+                  step={1}
+                  inputMode="numeric"
+                  value={spinOwnershipMaxPrice}
+                  onChange={(e) => setSpinOwnershipMaxPrice(e.target.value)}
                 />
-                Only spin games everyone in the room already owns
-              </label>
+                <p className={styles.readonlyNote}>
+                  Spin the Wheel only draws from games everyone in the room already owns, or games priced at or
+                  under this. Set to $0 to only spin games everyone already owns.
+                </p>
+              </div>
               <div className={styles.field}>
                 <label className={styles.label} htmlFor="room-settings-spin-theme">
                   Spin the Wheel theme
@@ -300,7 +317,7 @@ export function RoomSettingsModal({ room, members, games, onClose }: RoomSetting
                   ))}
                 </select>
               </div>
-              <button type="button" className={styles.saveButton} onClick={handleSave} disabled={saving || !dirty}>
+              <button type="button" className={styles.saveButton} onClick={handleSave} disabled={saving || !dirty || !maxPriceValid}>
                 {saving ? 'Saving…' : 'Save changes'}
               </button>
             </>
