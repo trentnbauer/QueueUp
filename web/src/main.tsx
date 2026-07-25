@@ -10,6 +10,7 @@ import { ThemeProvider } from './context/ThemeContext';
 import { ThemeModeProvider } from './context/ThemeModeContext';
 import { CurrencyRegionProvider } from './context/CurrencyRegionContext';
 import { CardDensityProvider } from './context/CardDensityContext';
+import { SidebarIconSizeProvider } from './context/SidebarIconSizeContext';
 import { ConfirmProvider } from './context/ConfirmContext';
 import { applyThemeMode, getPreferredThemeMode } from './theme/applyThemeMode';
 import './theme/global.css';
@@ -30,9 +31,11 @@ createRoot(document.getElementById('root')!).render(
                 <ThemeProvider>
                   <CurrencyRegionProvider>
                     <CardDensityProvider>
-                      <ConfirmProvider>
-                        <App />
-                      </ConfirmProvider>
+                      <SidebarIconSizeProvider>
+                        <ConfirmProvider>
+                          <App />
+                        </ConfirmProvider>
+                      </SidebarIconSizeProvider>
                     </CardDensityProvider>
                   </CurrencyRegionProvider>
                 </ThemeProvider>
