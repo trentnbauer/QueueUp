@@ -243,6 +243,10 @@ function CollectionReview({ collection, roomId, onAdded, onBack, onBusyChange }:
  * the old always-visible inline search bar above the game grid. */
 export function AddGameModal({ roomId, onAdded, onClose }: AddGameModalProps) {
   const [query, setQuery] = useState('');
+  // Opt-out toggle (issue #345) - DLC/season-pass/expansion-type results are filtered out of
+  // search by default (server-side, see isPrimaryEdition); this lets someone who actually wants
+  // e.g. a specific Borderlands DLC or season pass switch that filtering off.
+  const [includeAddons, setIncludeAddons] = useState(false);
   const [results, setResults] = useState<GameSearchResult[]>([]);
   const [collections, setCollections] = useState<CollectionSearchResult[]>([]);
   const [searching, setSearching] = useState(false);
@@ -304,7 +308,7 @@ export function AddGameModal({ roomId, onAdded, onClose }: AddGameModalProps) {
       setSearching(true);
       consecutiveEmptyPagesRef.current = 0;
       try {
-        const { results, collections, nextOffset, hasMore } = await gamesApi.search(query.trim(), roomId);
+        const { results, collections, nextOffset, hasMore } = await gamesApi.search(query.trim(), roomId, 0, includeAddons);
         if (requestId !== latestRequestIdRef.current) return;
         setResults(results);
         setCollections(collections);
@@ -323,7 +327,7 @@ export function AddGameModal({ roomId, onAdded, onClose }: AddGameModalProps) {
     return () => {
       if (debounceRef.current) clearTimeout(debounceRef.current);
     };
-  }, [query, roomId]);
+  }, [query, roomId, includeAddons]);
 
   useEffect(() => {
     setHighlightedIndex(-1);
@@ -347,7 +351,7 @@ export function AddGameModal({ roomId, onAdded, onClose }: AddGameModalProps) {
         const requestId = ++latestRequestIdRef.current;
         setLoadingMore(true);
         gamesApi
-          .search(trimmed, roomId, nextOffset)
+          .search(trimmed, roomId, nextOffset, includeAddons)
           .then(({ results: more, nextOffset: newOffset, hasMore: stillMore }) => {
             if (requestId !== latestRequestIdRef.current) return;
             if (more.length > 0) {
@@ -375,7 +379,7 @@ export function AddGameModal({ roomId, onAdded, onClose }: AddGameModalProps) {
     );
     observer.observe(el);
     return () => observer.disconnect();
-  }, [hasMore, searching, loadingMore, nextOffset, query, roomId]);
+  }, [hasMore, searching, loadingMore, nextOffset, query, roomId, includeAddons]);
 
   async function handleAdd(result: GameSearchResult) {
     setAddingId(result.igdbId);
@@ -485,6 +489,15 @@ export function AddGameModal({ roomId, onAdded, onClose }: AddGameModalProps) {
                   : undefined
               }
             />
+
+            <label className={styles.checkboxField}>
+              <input
+                type="checkbox"
+                checked={includeAddons}
+                onChange={(e) => setIncludeAddons(e.target.checked)}
+              />
+              Include DLC &amp; season passes
+            </label>
 
             {searching && <div className={styles.searching}>Searching…</div>}
 

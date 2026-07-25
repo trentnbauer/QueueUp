@@ -236,7 +236,7 @@ async function runSteamWishlistImportLoop(
 }
 
 export default async function gameRoutes(app: FastifyInstance) {
-  app.get<{ Querystring: { q?: string; roomId?: string; offset?: string } }>(
+  app.get<{ Querystring: { q?: string; roomId?: string; offset?: string; includeAddons?: string } }>(
     '/api/games/search',
     // Tighter than the global default (200/min) - matches the collections/:id sibling route below.
     // Worth calling out for this one specifically: infinite-scroll paging means a single search
@@ -251,11 +251,14 @@ export default async function gameRoutes(app: FastifyInstance) {
       const excludeIgdbIds = await existingIgdbIds(roomId ?? null, userId);
       const query = request.query.q ?? '';
       const offset = Math.max(0, Number.parseInt(request.query.offset ?? '0', 10) || 0);
+      // Opt-out toggle (issue #345) - DLC/season-pass/expansion-type results are filtered out of
+      // the Add Game modal's search by default; this lets the frontend ask for them back.
+      const includeAddons = request.query.includeAddons === 'true' || request.query.includeAddons === '1';
 
       // Collections are shown once, above the (paginated) game list itself - re-searching them on
       // every "load more" page would just repeat the same franchise buttons for no benefit.
       const [searchPage, collections] = await Promise.all([
-        searchIntake(query, platforms, excludeIgdbIds, offset),
+        searchIntake(query, platforms, excludeIgdbIds, offset, includeAddons),
         offset === 0 ? searchCollectionsIntake(query) : Promise.resolve([]),
       ]);
       return { ...searchPage, collections };

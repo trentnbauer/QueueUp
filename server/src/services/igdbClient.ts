@@ -97,20 +97,41 @@ export interface IgdbGame {
   rating?: number;
 }
 
-// IGDB's documented `category` enum (api-docs.igdb.com/#game-enums) - only the two values relevant
-// to filtering search results: bundles and packs are compilations (base game + DLC/extras sold
+// IGDB's documented `category` enum (api-docs.igdb.com/#game-enums) - only the values relevant to
+// filtering search results: bundles and packs are compilations (base game + DLC/extras sold
 // together), not a distinct title, and clutter search results with near-duplicates of a game
-// someone's already searching for.
+// someone's already searching for. These are always filtered out, unconditionally.
 const IGDB_CATEGORY_BUNDLE = 3;
 const IGDB_CATEGORY_PACK = 13;
 
+// DLC-shaped categories (issue #345) - a "real" game in the sense that they're their own distinct
+// canonical entries (unlike a bundle/pack, which is just a repackaging), but each one clutters the
+// Add Game modal's results with an entry that isn't a game on its own (e.g. a "game" per Borderlands
+// DLC, or a season pass). Filtered by default, but not unconditionally - a `game()` matching one of
+// these is still worth being able to find directly, so this list is gated behind `includeAddons`
+// rather than folded into the bundle/pack check above. Deliberately excludes 8 (remake), 9
+// (remaster), 10 (expanded_game), and 11 (port) - those are legitimate distinct releases people
+// search for by name, not "junk" in the sense this issue means.
+const IGDB_CATEGORY_DLC_ADDON = 1;
+const IGDB_CATEGORY_EXPANSION = 2;
+const IGDB_CATEGORY_STANDALONE_EXPANSION = 4;
+const IGDB_CATEGORY_SEASON = 7;
+const DLC_SHAPED_CATEGORIES = new Set([
+  IGDB_CATEGORY_DLC_ADDON,
+  IGDB_CATEGORY_EXPANSION,
+  IGDB_CATEGORY_STANDALONE_EXPANSION,
+  IGDB_CATEGORY_SEASON,
+]);
+
 /** True for the "real" entry a search result should surface: not a bundle/pack compilation, and
  * not an alternate version/edition of another game (IGDB links special/deluxe/GOTY editions back
- * to their canonical release via `version_parent` - the canonical release itself has none). DLC
- * and expansions are deliberately left alone; they're their own distinct canonical entries. */
-export function isPrimaryEdition(game: IgdbGame): boolean {
+ * to their canonical release via `version_parent` - the canonical release itself has none). By
+ * default also excludes DLC/expansions/season passes (issue #345) - pass `includeAddons: true` to
+ * surface those too. */
+export function isPrimaryEdition(game: IgdbGame, { includeAddons = false }: { includeAddons?: boolean } = {}): boolean {
   if (game.version_parent) return false;
   if (game.category === IGDB_CATEGORY_BUNDLE || game.category === IGDB_CATEGORY_PACK) return false;
+  if (!includeAddons && game.category !== undefined && DLC_SHAPED_CATEGORIES.has(game.category)) return false;
   return true;
 }
 
@@ -245,7 +266,12 @@ export function nextSearchPage(offset: number, rawCount: number): { nextOffset: 
   return { nextOffset: offset + rawCount, hasMore: rawCount === SEARCH_PAGE_SIZE };
 }
 
-export async function searchGames(query: string, platforms?: RoomPlatform[], offset = 0): Promise<GameSearchPage> {
+export async function searchGames(
+  query: string,
+  platforms?: RoomPlatform[],
+  offset = 0,
+  includeAddons = false,
+): Promise<GameSearchPage> {
   const trimmed = query.trim();
   if (!trimmed) return { results: [], nextOffset: 0, hasMore: false };
 
@@ -267,7 +293,7 @@ export async function searchGames(query: string, platforms?: RoomPlatform[], off
 
   const filtered = games
     .filter((g) => g.name)
-    .filter(isPrimaryEdition)
+    .filter((g) => isPrimaryEdition(g, { includeAddons }))
     // Belt-and-suspenders: the query-level filter above should already scope results correctly,
     // but keep the client-side family check too in case IGDB's platform data on a given row is
     // incomplete/odd (e.g. a bundle with mixed platform tags).
@@ -340,7 +366,10 @@ export async function getCollectionGames(
   const activePlatforms = platforms && platforms.length > 0 ? platforms : undefined;
   const allGames = (collection.games ?? [])
     .filter((g) => g.name)
-    .filter(isPrimaryEdition)
+    // includeAddons: true - unlike searchGames, collection browsing has no filter toggle of its
+    // own (out of scope for issue #345), so this keeps its pre-existing behavior of surfacing
+    // DLC/expansions/season passes rather than silently hiding them with no way to opt back in.
+    .filter((g) => isPrimaryEdition(g, { includeAddons: true }))
     .filter((g) => !activePlatforms || platformFamilies(g.platforms).some((f) => activePlatforms.includes(f)))
     // Excluded *before* the MAX_COLLECTION_GAMES cap below, not after - otherwise a collection
     // with more entries than the cap could cut off real, not-yet-added games past position 40

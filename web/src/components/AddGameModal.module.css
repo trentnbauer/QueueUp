@@ -79,6 +79,16 @@
   color: var(--qu-muted);
 }
 
+.checkboxField {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 10px;
+  font-size: 13px;
+  color: var(--qu-text);
+  cursor: pointer;
+}
+
 .searching {
   padding: 10px 2px 0;
   color: var(--qu-muted);

@@ -22,8 +22,9 @@ export async function searchIntake(
   platforms?: RoomPlatform[],
   excludeIgdbIds?: Set<number>,
   offset = 0,
+  includeAddons = false,
 ): Promise<GameSearchPage> {
-  const page = await searchGames(query, platforms, offset);
+  const page = await searchGames(query, platforms, offset, includeAddons);
   return {
     ...page,
     results: excludeIgdbIds ? page.results.filter((r) => !excludeIgdbIds.has(r.igdbId)) : page.results,

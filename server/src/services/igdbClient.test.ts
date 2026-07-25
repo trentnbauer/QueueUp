@@ -88,14 +88,32 @@ describe('isPrimaryEdition', () => {
     expect(isPrimaryEdition(game({ version_parent: 42 }))).toBe(false);
   });
 
-  it('rejects bundles and packs', () => {
+  it('rejects bundles and packs unconditionally, even with includeAddons', () => {
     expect(isPrimaryEdition(game({ category: 3 }))).toBe(false); // bundle
     expect(isPrimaryEdition(game({ category: 13 }))).toBe(false); // pack
+    expect(isPrimaryEdition(game({ category: 3 }), { includeAddons: true })).toBe(false);
+    expect(isPrimaryEdition(game({ category: 13 }), { includeAddons: true })).toBe(false);
   });
 
-  it('keeps DLC and expansions, which are their own distinct canonical entries', () => {
-    expect(isPrimaryEdition(game({ category: 1 }))).toBe(true); // dlc_addon
-    expect(isPrimaryEdition(game({ category: 2 }))).toBe(true); // expansion
+  it('rejects DLC-shaped categories by default (issue #345)', () => {
+    expect(isPrimaryEdition(game({ category: 1 }))).toBe(false); // dlc_addon
+    expect(isPrimaryEdition(game({ category: 2 }))).toBe(false); // expansion
+    expect(isPrimaryEdition(game({ category: 4 }))).toBe(false); // standalone_expansion
+    expect(isPrimaryEdition(game({ category: 7 }))).toBe(false); // season
+  });
+
+  it('keeps DLC-shaped categories when includeAddons is true', () => {
+    expect(isPrimaryEdition(game({ category: 1 }), { includeAddons: true })).toBe(true); // dlc_addon
+    expect(isPrimaryEdition(game({ category: 2 }), { includeAddons: true })).toBe(true); // expansion
+    expect(isPrimaryEdition(game({ category: 4 }), { includeAddons: true })).toBe(true); // standalone_expansion
+    expect(isPrimaryEdition(game({ category: 7 }), { includeAddons: true })).toBe(true); // season
+  });
+
+  it('keeps legitimate distinct releases (remake/remaster/expanded_game/port) regardless of includeAddons', () => {
+    expect(isPrimaryEdition(game({ category: 8 }))).toBe(true); // remake
+    expect(isPrimaryEdition(game({ category: 9 }))).toBe(true); // remaster
+    expect(isPrimaryEdition(game({ category: 10 }))).toBe(true); // expanded_game
+    expect(isPrimaryEdition(game({ category: 11 }))).toBe(true); // port
   });
 });
 
