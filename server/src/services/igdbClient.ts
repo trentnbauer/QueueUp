@@ -114,6 +114,29 @@ export function isPrimaryEdition(game: IgdbGame): boolean {
   return true;
 }
 
+// The rest of IGDB's category enum relevant to issue #345's "hide DLC & add-ons" search filter -
+// a long-running franchise (the issue's own example is Borderlands) can have as many DLC/season
+// pass/expansion entries in IGDB as it has real games, crowding out the title someone's actually
+// searching for. Deliberately narrow: remakes/remasters/ports/expanded re-releases are still their
+// own purchasable titles people search for by name, not "junk" to hide.
+const IGDB_CATEGORY_DLC_ADDON = 1;
+const IGDB_CATEGORY_EXPANSION = 2;
+const IGDB_CATEGORY_STANDALONE_EXPANSION = 4;
+const IGDB_CATEGORY_SEASON = 7;
+const ADDON_CATEGORIES: ReadonlySet<number> = new Set([
+  IGDB_CATEGORY_DLC_ADDON,
+  IGDB_CATEGORY_EXPANSION,
+  IGDB_CATEGORY_STANDALONE_EXPANSION,
+  IGDB_CATEGORY_SEASON,
+]);
+
+/** True for a DLC/expansion/season-pass entry - see ADDON_CATEGORIES. Used to hide these from
+ * search results by default (issue #345), with a toggle to show them since they're still valid,
+ * addable entries for someone who specifically wants one. */
+export function isAddonEdition(game: IgdbGame): boolean {
+  return game.category !== undefined && ADDON_CATEGORIES.has(game.category);
+}
+
 /** Stable sort promoting an exact (case-insensitive) title match to the front. Long-running
  * franchises rack up a dozen+ entries (sequels, remasters, collections, spin-offs), and IGDB's
  * own relevance ranking doesn't reliably put an exact match - e.g. the 2018 "God of War", named
@@ -245,7 +268,15 @@ export function nextSearchPage(offset: number, rawCount: number): { nextOffset: 
   return { nextOffset: offset + rawCount, hasMore: rawCount === SEARCH_PAGE_SIZE };
 }
 
-export async function searchGames(query: string, platforms?: RoomPlatform[], offset = 0): Promise<GameSearchPage> {
+export async function searchGames(
+  query: string,
+  platforms?: RoomPlatform[],
+  offset = 0,
+  // Opt-out (issue #345): DLC/expansion/season-pass entries are hidden by default, since a search
+  // result list dominated by a franchise's add-ons is the reported problem. Explicitly passing
+  // false shows everything, for the person who's actually looking for one.
+  hideAddons = true,
+): Promise<GameSearchPage> {
   const trimmed = query.trim();
   if (!trimmed) return { results: [], nextOffset: 0, hasMore: false };
 
@@ -268,6 +299,7 @@ export async function searchGames(query: string, platforms?: RoomPlatform[], off
   const filtered = games
     .filter((g) => g.name)
     .filter(isPrimaryEdition)
+    .filter((g) => !hideAddons || !isAddonEdition(g))
     // Belt-and-suspenders: the query-level filter above should already scope results correctly,
     // but keep the client-side family check too in case IGDB's platform data on a given row is
     // incomplete/odd (e.g. a bundle with mixed platform tags).
