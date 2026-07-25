@@ -285,7 +285,12 @@ export default async function gameRoutes(app: FastifyInstance) {
     },
   );
 
-  app.get<{ Querystring: { region?: string } }>('/api/games', async (request) => {
+  // Same tightened default as /api/games/search and /api/games/collections/:id above - these are
+  // both authenticated list reads with no per-route override previously, relying only on the
+  // global 200/min default.
+  const gamesListRateLimit = { config: { rateLimit: { max: 30, timeWindow: '1 minute' } } };
+
+  app.get<{ Querystring: { region?: string } }>('/api/games', gamesListRateLimit, async (request) => {
     const userId = await request.requireAuth();
     // Fetches one row past the cap rather than a separate COUNT query - if that extra row comes
     // back, the list was truncated, and it's dropped before serializing so the client only ever
@@ -303,23 +308,27 @@ export default async function gameRoutes(app: FastifyInstance) {
     };
   });
 
-  app.get<{ Params: { roomId: string }; Querystring: { region?: string } }>('/api/rooms/:roomId/games', async (request) => {
-    const userId = await request.requireAuth();
-    const { roomId } = request.params;
-    await requireMembership(roomId, userId);
+  app.get<{ Params: { roomId: string }; Querystring: { region?: string } }>(
+    '/api/rooms/:roomId/games',
+    gamesListRateLimit,
+    async (request) => {
+      const userId = await request.requireAuth();
+      const { roomId } = request.params;
+      await requireMembership(roomId, userId);
 
-    const games = await prisma.game.findMany({
-      where: { roomId, archivedAt: null },
-      include: gameInclude,
-      orderBy: { createdAt: 'desc' },
-      take: MAX_GAMES_PER_LIST + 1,
-    });
-    const truncated = games.length > MAX_GAMES_PER_LIST;
-    return {
-      games: await serializeGames(games.slice(0, MAX_GAMES_PER_LIST), userId, parseRegion(request.query.region)),
-      truncated,
-    };
-  });
+      const games = await prisma.game.findMany({
+        where: { roomId, archivedAt: null },
+        include: gameInclude,
+        orderBy: { createdAt: 'desc' },
+        take: MAX_GAMES_PER_LIST + 1,
+      });
+      const truncated = games.length > MAX_GAMES_PER_LIST;
+      return {
+        games: await serializeGames(games.slice(0, MAX_GAMES_PER_LIST), userId, parseRegion(request.query.region)),
+        truncated,
+      };
+    },
+  );
 
   app.post<{ Body: CreateGameRequest }>('/api/games', async (request, reply) => {
     const userId = await request.requireAuth();

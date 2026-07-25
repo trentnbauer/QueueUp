@@ -4,6 +4,7 @@ import {
   escapeApicalypseString,
   isPrimaryEdition,
   sortExactMatchFirst,
+  nextSearchPage,
   timeToBeatHoursFrom,
   timeToBeatRushedHoursFrom,
   timeToBeatCompletionistHoursFrom,
@@ -135,6 +136,25 @@ describe('sortExactMatchFirst', () => {
     sortExactMatchFirst(input, 'God of War');
 
     expect(input).toEqual([other, match]);
+  });
+});
+
+describe('nextSearchPage', () => {
+  // searchGames' page size (SEARCH_PAGE_SIZE) is 20 and not exported - a full raw page is exactly
+  // 20 rows, anything short of that is IGDB's own "nothing further" signal.
+  const FULL_PAGE = 20;
+
+  it('advances the offset by however many raw rows this page returned', () => {
+    expect(nextSearchPage(0, FULL_PAGE)).toEqual({ nextOffset: 20, hasMore: true });
+    expect(nextSearchPage(20, FULL_PAGE)).toEqual({ nextOffset: 40, hasMore: true });
+  });
+
+  it('reports hasMore false once a page comes back short of a full page', () => {
+    expect(nextSearchPage(40, 7)).toEqual({ nextOffset: 47, hasMore: false });
+  });
+
+  it('reports hasMore false and nextOffset unchanged for a page with zero raw rows', () => {
+    expect(nextSearchPage(60, 0)).toEqual({ nextOffset: 60, hasMore: false });
   });
 });
 

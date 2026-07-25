@@ -238,6 +238,13 @@ export interface GameSearchPage {
   hasMore: boolean;
 }
 
+/** Pure page-cursor arithmetic for searchGames, split out so it's unit-testable without a network
+ * mock: `rawCount` is however many rows IGDB actually returned for this page (before any
+ * isPrimaryEdition/platform filtering), which is what both `nextOffset` and `hasMore` key off. */
+export function nextSearchPage(offset: number, rawCount: number): { nextOffset: number; hasMore: boolean } {
+  return { nextOffset: offset + rawCount, hasMore: rawCount === SEARCH_PAGE_SIZE };
+}
+
 export async function searchGames(query: string, platforms?: RoomPlatform[], offset = 0): Promise<GameSearchPage> {
   const trimmed = query.trim();
   if (!trimmed) return { results: [], nextOffset: 0, hasMore: false };
@@ -281,8 +288,7 @@ export async function searchGames(query: string, platforms?: RoomPlatform[], off
       coverImageUrl: coverUrl(g.cover),
       releaseYear: releaseYear(g.first_release_date),
     })),
-    nextOffset: offset + games.length,
-    hasMore: games.length === SEARCH_PAGE_SIZE,
+    ...nextSearchPage(offset, games.length),
   };
 }
 
