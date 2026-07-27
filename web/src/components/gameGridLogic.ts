@@ -5,6 +5,7 @@ export const ALL_FILTER_VALUE = '__all__';
 
 export const GAME_STATUS_LABEL: Record<GameStatus, string> = {
   backlog: 'Backlog',
+  play_next: 'Play Next',
   playing: 'Playing',
   done: 'Beaten',
   dropped: 'Dropped',
@@ -12,7 +13,7 @@ export const GAME_STATUS_LABEL: Record<GameStatus, string> = {
   replay: 'Replay',
 };
 
-export const GAME_STATUS_LIST: GameStatus[] = ['wishlist', 'backlog', 'playing', 'done', 'replay', 'dropped'];
+export const GAME_STATUS_LIST: GameStatus[] = ['wishlist', 'backlog', 'play_next', 'playing', 'done', 'replay', 'dropped'];
 
 /** Genre/platform are stored as comma-joined labels (e.g. "PC, Xbox"), so filter options and
  * matching both split on ", " rather than treating the whole string as one value. */
@@ -148,7 +149,9 @@ export function hasUnmetPrerequisite(game: Game, games: Game[]): boolean {
  * games that haven't released yet (see isUnreleased) - nobody can actually play them yet, so the
  * wheel shouldn't be able to land on one even though it's sitting in the backlog - and games with
  * an unmet "play after" prerequisite (see hasUnmetPrerequisite), so the wheel can't jump ahead to a
- * sequel before its predecessor is done. */
+ * sequel before its predecessor is done. Play Next is deliberately not included here (same as
+ * Playing/Done/Dropped) - once something's queued up next, the wheel shouldn't be able to bump it
+ * for something else. */
 export function backlogGames(games: Game[], now: number = Date.now()): Game[] {
   return games.filter(
     (g) => (g.status === 'backlog' || g.status === 'replay') && !isUnreleased(g, now) && !hasUnmetPrerequisite(g, games),
@@ -227,10 +230,11 @@ export function avoidedGenres(games: Game[]): Set<string> {
   return genres;
 }
 
-/** Currently Playing first, then the rest of the backlog (replay-queued games interleaved with
- * it), then Wishlist, then Completed, then Dropped last. */
+/** Currently Playing (Playing and Play Next together - see PlayingStrip) first, then the rest of
+ * the backlog (replay-queued games interleaved with it), then Wishlist, then Completed, then
+ * Dropped last. */
 export function statusBucket(game: Game): number {
-  if (game.status === 'playing') return 0;
+  if (game.status === 'playing' || game.status === 'play_next') return 0;
   if (game.status === 'backlog' || game.status === 'replay') return 1;
   if (game.status === 'wishlist') return 2;
   if (game.status === 'done') return 3;

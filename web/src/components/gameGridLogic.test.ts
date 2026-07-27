@@ -109,6 +109,12 @@ describe('backlogGames', () => {
     expect(backlogGames([borderlands1, borderlands2]).map((g) => g.id)).toEqual(['bl1']);
   });
 
+  it('excludes Play Next games, same as Playing/Done', () => {
+    const playNext = makeGame({ id: 'play-next', status: 'play_next', voteScore: 5 });
+    const backlog = makeGame({ id: 'backlog', status: 'backlog', voteScore: 5 });
+    expect(backlogGames([playNext, backlog]).map((g) => g.id)).toEqual(['backlog']);
+  });
+
   it('includes a backlog game once its prerequisite is marked Done', () => {
     const borderlands1 = makeGame({ id: 'bl1', status: 'done' });
     const borderlands2 = makeGame({ id: 'bl2', status: 'backlog', prerequisiteGameId: 'bl1' });
@@ -263,6 +269,15 @@ describe('statusBucket', () => {
 
     expect(statusBucket(playing)).toBeLessThan(statusBucket(backlog));
     expect(statusBucket(backlog)).toBeLessThan(statusBucket(done));
+  });
+
+  it('groups Play Next in the same bucket as Playing', () => {
+    const playing = makeGame({ status: 'playing' });
+    const playNext = makeGame({ status: 'play_next' });
+    const backlog = makeGame({ status: 'backlog' });
+
+    expect(statusBucket(playNext)).toBe(statusBucket(playing));
+    expect(statusBucket(playNext)).toBeLessThan(statusBucket(backlog));
   });
 });
 

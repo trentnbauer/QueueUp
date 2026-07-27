@@ -101,6 +101,10 @@
   background: linear-gradient(135deg, var(--qu-accent), color-mix(in oklch, var(--qu-accent) 65%, black));
 }
 
+.status-play_next {
+  background: linear-gradient(135deg, #fb923c, #c2410c);
+}
+
 .status-replay {
   background: linear-gradient(135deg, #38bdf8, #0284c7);
 }

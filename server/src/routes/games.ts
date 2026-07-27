@@ -83,7 +83,7 @@ import { IGDB_PLATFORM_NAMES, PRICE_REGION_LABELS } from '@queueup/shared';
 // elsewhere for platform-filter matching (see ownedPlatformLabels in Header.tsx).
 const STEAM_IMPORT_PLATFORM_LABEL = IGDB_PLATFORM_NAMES.pc[0];
 
-const GAME_STATUSES = ['backlog', 'playing', 'done', 'dropped', 'wishlist', 'replay'] as const;
+const GAME_STATUSES = ['backlog', 'playing', 'done', 'dropped', 'wishlist', 'replay', 'play_next'] as const;
 const PRICE_REGIONS = Object.keys(PRICE_REGION_LABELS) as PriceRegion[];
 // Shelves/rooms are meant to hold an actively-curated backlog, not a lifetime game archive - this
 // caps a single query so one runaway list can't pull unbounded rows (and unbounded price lookups)

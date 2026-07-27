@@ -128,6 +128,11 @@ export function GameCard({
             <span className={`${styles.ribbonText} ${styles.playingRibbonText}`}>Playing</span>
           </div>
         )}
+        {game.status === 'play_next' && (
+          <div className={styles.ribbon} aria-hidden="true">
+            <span className={`${styles.ribbonText} ${styles.playNextRibbonText}`}>Play Next</span>
+          </div>
+        )}
         {game.status === 'replay' && (
           <div className={styles.ribbon} aria-hidden="true">
             <span className={`${styles.ribbonText} ${styles.replayRibbonText}`}>Replay</span>

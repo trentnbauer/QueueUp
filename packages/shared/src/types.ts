@@ -1,4 +1,4 @@
-export type GameStatus = 'backlog' | 'playing' | 'done' | 'dropped' | 'wishlist' | 'replay';
+export type GameStatus = 'backlog' | 'playing' | 'done' | 'dropped' | 'wishlist' | 'replay' | 'play_next';
 
 export type RoomRole = 'room_master' | 'moderator' | 'member';
 

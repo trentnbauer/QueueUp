@@ -22,12 +22,15 @@ interface PlayingStripProps {
 
 /** A compact glance at what's currently in rotation in this room (issue #229) - every game marked
  * Playing, in a horizontal strip above the main grid, so "what's this room playing right now"
- * doesn't require scanning the whole backlog for the Playing badge. Reuses GameCard itself (not a
- * lighter-weight read-only component) so clicking a card opens the exact same detail modal, with
- * the same status/vote/price/ownership actions, as the main grid below - just a different, smaller
- * arrangement of the same interactive cards, not a separate view. `Game.status` is one shared field
- * per room game (not per-member), so this shows which *games* are active, not "who" is playing
- * them - see the issue for why a per-member feed isn't a natural fit for the current data model. */
+ * doesn't require scanning the whole backlog for the Playing badge. Also includes Play Next games
+ * (a deliberate manual "up next" pick) in the same strip rather than a second one of their own -
+ * Playing sorts first, Play Next after, and GameCard's ribbon still distinguishes the two per card.
+ * Reuses GameCard itself (not a lighter-weight read-only component) so clicking a card opens the
+ * exact same detail modal, with the same status/vote/price/ownership actions, as the main grid
+ * below - just a different, smaller arrangement of the same interactive cards, not a separate view.
+ * `Game.status` is one shared field per room game (not per-member), so this shows which *games*
+ * are active, not "who" is playing them - see the issue for why a per-member feed isn't a natural
+ * fit for the current data model. */
 export function PlayingStrip({
   games,
   currentUserId,
@@ -45,7 +48,9 @@ export function PlayingStrip({
   onRemoveTag,
   onSetPrerequisite,
 }: PlayingStripProps) {
-  const playing = games.filter((g) => g.status === 'playing');
+  const playing = games
+    .filter((g) => g.status === 'playing' || g.status === 'play_next')
+    .sort((a, b) => Number(a.status === 'play_next') - Number(b.status === 'play_next'));
   if (playing.length === 0) return null;
 
   return (
