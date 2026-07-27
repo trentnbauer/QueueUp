@@ -12,34 +12,40 @@
 
 .players {
   display: flex;
-  flex-direction: column;
-  gap: 6px;
+  flex-wrap: wrap;
+  gap: 10px;
 }
 
 .player {
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: 5px;
+  padding: 3px 8px 3px 3px;
+  border-radius: 999px;
+  background: var(--qu-neutral-pill-bg);
 }
 
 .count {
-  font-size: 12px;
+  font-size: 13px;
   font-weight: 600;
   color: var(--qu-text);
-  min-width: 44px;
 }
 
-.barTrack {
-  flex: 1;
-  height: 6px;
+/* Same footprint as a real pill (20px AvatarBadge + this padding) so the Status buttons further
+   down the modal don't jump once the achievements query resolves (issue #371). */
+.skeletonPill {
+  width: 64px;
+  height: 26px;
   border-radius: 999px;
   background: var(--qu-neutral-pill-bg);
-  overflow: hidden;
+  opacity: 0.5;
 }
 
-.barFill {
-  display: block;
-  height: 100%;
-  background: var(--qu-accent);
-  border-radius: 999px;
+/* Same footprint as skeletonPill, invisible - holds this row's height open once the query resolves
+   with nothing to show, rather than collapsing to zero and shifting the Status buttons anyway
+   (issue #371). */
+.emptyPlaceholder {
+  width: 64px;
+  height: 26px;
+  visibility: hidden;
 }
