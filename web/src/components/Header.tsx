@@ -114,6 +114,7 @@ export function Header() {
     isRefreshingPrice,
     setSteamMatch,
     setTargetPrice,
+    setManualPrice,
     setOwnership,
     applyTag,
     removeTag,
@@ -492,6 +493,7 @@ export function Header() {
           isRefreshingPrice={isRefreshingPrice}
           onSetSteamMatch={setSteamMatch}
           onSetTargetPrice={setTargetPrice}
+          onSetManualPrice={setManualPrice}
           onSetOwnership={activeRoom ? setOwnership : undefined}
           onApplyTag={applyTag}
           onRemoveTag={removeTag}

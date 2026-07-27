@@ -69,6 +69,7 @@ import type {
   PriceRegion,
   SetGameOwnershipRequest,
   SetGamePrerequisiteRequest,
+  SetManualPriceRequest,
   SetSteamMatchRequest,
   SetTargetPriceRequest,
   SteamImportProgress,
@@ -1011,6 +1012,32 @@ export default async function gameRoutes(app: FastifyInstance) {
       }
 
       await prisma.game.update({ where: { id: game.id }, data: { targetPrice: normalized } });
+      const updated = await loadGameOr404(game.id);
+      return { game: await serializeGame(updated, userId) };
+    },
+  );
+
+  app.patch<{ Params: { id: string }; Body: SetManualPriceRequest }>(
+    '/api/games/:id/manual-price',
+    // Same class of route as target-price above - a direct, occasional user action, not something
+    // a normal session comes close to.
+    { config: { rateLimit: { max: 30, timeWindow: '1 minute' } } },
+    async (request) => {
+      const userId = await request.requireAuth();
+      const game = await loadGameOr404(request.params.id);
+      await requireGameReadAccess(game, userId);
+
+      const { manualPrice } = request.body;
+      let normalized: string | null = null;
+      if (manualPrice != null) {
+        const parsed = Number(manualPrice);
+        if (!Number.isFinite(parsed) || parsed <= 0) {
+          throw new HttpError(400, 'Manual price must be a positive number');
+        }
+        normalized = parsed.toFixed(2);
+      }
+
+      await prisma.game.update({ where: { id: game.id }, data: { manualPrice: normalized } });
       const updated = await loadGameOr404(game.id);
       return { game: await serializeGame(updated, userId) };
     },

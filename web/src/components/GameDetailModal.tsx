@@ -29,6 +29,9 @@ interface GameDetailModalProps {
   isRefreshingPrice?: boolean;
   onSetSteamMatch: (steamAppId: number | null) => void;
   onSetTargetPrice: (targetPrice: string | null) => void;
+  /** Sets (or clears, with null) a fallback dollar price (issue #385) - offered whenever there's no
+   * live price to show (game.price.amount is null), for games gg.deals/Steam couldn't match at all. */
+  onSetManualPrice: (manualPrice: string | null) => void;
   onSetOwnership?: (owned: boolean) => void;
   /** Finds-or-creates a tag by name and applies it to this game (issue #247). */
   onApplyTag: (name: string) => Promise<void>;
@@ -55,6 +58,7 @@ export function GameDetailModal({
   isRefreshingPrice = false,
   onSetSteamMatch,
   onSetTargetPrice,
+  onSetManualPrice,
   onSetOwnership,
   onApplyTag,
   onRemoveTag,
@@ -65,6 +69,8 @@ export function GameDetailModal({
   const confirm = useConfirm();
   const [editingTargetPrice, setEditingTargetPrice] = useState(false);
   const [targetPriceDraft, setTargetPriceDraft] = useState('');
+  const [editingManualPrice, setEditingManualPrice] = useState(false);
+  const [manualPriceDraft, setManualPriceDraft] = useState('');
   const [dlcModalOpen, setDlcModalOpen] = useState(false);
   const { checkingGameId, pickerGameId, attemptAutoMatch, openPicker, closePicker } = useSteamAutoMatch();
   const dialogRef = useModalA11y<HTMLDivElement>(onClose);
@@ -139,6 +145,24 @@ export function GameDetailModal({
   function handleClearTargetPrice() {
     onSetTargetPrice(null);
     setEditingTargetPrice(false);
+  }
+
+  function startEditingManualPrice() {
+    setManualPriceDraft(game.manualPrice ?? '');
+    setEditingManualPrice(true);
+  }
+
+  function handleSaveManualPrice(e: FormEvent) {
+    e.preventDefault();
+    const value = manualPriceDraft.trim();
+    if (!value) return;
+    onSetManualPrice(value);
+    setEditingManualPrice(false);
+  }
+
+  function handleClearManualPrice() {
+    onSetManualPrice(null);
+    setEditingManualPrice(false);
   }
 
   // Issue #336: an owned game with no specific gg.deals listing on file (Steam match never
@@ -254,6 +278,53 @@ export function GameDetailModal({
                   <span className={cardStyles.historicalLow} title="Lowest price this game has been tracked at">
                     All-time low: {formatAmount(game.price.historicalLow as string, game.price.currency)}
                   </span>
+                )}
+              </div>
+            )}
+
+            {/* Issue #385: some games just aren't findable on gg.deals/Steam at all (e.g. an
+                obscure/misspelled listing) - rather than a dead-end "—", lets someone note the
+                price they already know from elsewhere. Only offered once there's genuinely no live
+                amount to show; a live price is always more current than a manually typed one. */}
+            {game.price.amount === null && (
+              <div className={cardStyles.targetPriceRow}>
+                {editingManualPrice ? (
+                  <form onSubmit={handleSaveManualPrice} className={cardStyles.targetPriceForm}>
+                    <input
+                      type="number"
+                      step="0.01"
+                      min="0.01"
+                      autoFocus
+                      className={cardStyles.targetPriceInput}
+                      value={manualPriceDraft}
+                      onChange={(e) => setManualPriceDraft(e.target.value)}
+                      placeholder="Price"
+                      aria-label="Fallback price"
+                    />
+                    <button type="submit" className={cardStyles.targetPriceSave}>Set</button>
+                    <button type="button" className={cardStyles.targetPriceCancel} onClick={() => setEditingManualPrice(false)}>
+                      Cancel
+                    </button>
+                  </form>
+                ) : game.manualPrice ? (
+                  <span
+                    className={cardStyles.targetPricePill}
+                    title="Manually set - QueueUp couldn't look up a live price for this game"
+                  >
+                    ✏️ {formatAmount(game.manualPrice, game.price.currency ?? 'USD')}
+                    <button
+                      type="button"
+                      className={cardStyles.targetPriceClear}
+                      onClick={handleClearManualPrice}
+                      aria-label="Remove manual price"
+                    >
+                      ×
+                    </button>
+                  </span>
+                ) : (
+                  <button type="button" className={cardStyles.targetPriceButton} onClick={startEditingManualPrice}>
+                    ✏️ Set a price manually
+                  </button>
                 )}
               </div>
             )}

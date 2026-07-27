@@ -304,6 +304,11 @@ model Game {
   /// Cleared automatically once the alert fires (see priceAlerts.ts) so a price that stays low
   /// doesn't re-notify on every subsequent page load.
   targetPrice    String?    @map("target_price")
+  /// A user-set fallback dollar amount (issue #385), shown in place of "-" wherever the price
+  /// couldn't be looked up (no gg.deals/Steam match at all - see GamePrice.amount/source) - some
+  /// games just aren't findable there. Same string-decimal convention as targetPrice. Ignored once
+  /// a live price becomes available, since that's always more current.
+  manualPrice    String?    @map("manual_price")
   /// The live price we last sent an all-time-low alert for (see priceAlerts.ts) - lets us notify
   /// again if the price drops even further, without re-notifying on every subsequent check while
   /// it sits at the same low. Independent of targetPrice, which is a user-set threshold.
