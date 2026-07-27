@@ -1,4 +1,4 @@
-import { useMemo, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { IGDB_PLATFORM_NAMES, type GameStatus, type RoomRole } from '@queueup/shared';
@@ -17,6 +17,7 @@ import { AddGameModal } from './AddGameModal';
 import { FilterModal } from './FilterModal';
 import { PillFilter } from './PillFilter';
 import { SpinPickerButton } from './SpinPickerButton';
+import { RankedQueueModal } from './RankedQueueModal';
 import styles from './Header.module.css';
 
 const ROLE_LABEL: Record<RoomRole, string> = {
@@ -55,6 +56,7 @@ export function Header() {
   const [showShelfSettings, setShowShelfSettings] = useState(false);
   const [showAddGame, setShowAddGame] = useState(false);
   const [showFilters, setShowFilters] = useState(false);
+  const [showRankedQueue, setShowRankedQueue] = useState(false);
   const [inviteCopied, setInviteCopied] = useState(false);
   // Which member's row is expanded to show their completed/100%'d counts - at most one at a time,
   // toggled by clicking the row again (see memberRow below). Not persisted; closes on re-render of
@@ -69,6 +71,11 @@ export function Header() {
   });
   const members = membersData?.members ?? [];
   const myRole = activeRoom?.myRole;
+  // Same derivation RoomView uses for GameGrid's identical props - RankedQueueModal's GameListRow
+  // rows need them too (co-op warnings, "who hasn't voted"), undefined on the Personal Shelf where
+  // there's no group to derive them from.
+  const memberCount = activeRoom ? members.length : undefined;
+  const roomMembers = activeRoom ? members.map((m) => m.user) : undefined;
 
   const { data: memberStats, isLoading: memberStatsLoading } = useQuery({
     queryKey: ['room-member-stats', activeRoom?.id, expandedMemberId],
@@ -78,7 +85,44 @@ export function Header() {
 
   // Reuses the same ['games', 'room'|'shelf', ...] query as the active view (RoomView/ShelfView) -
   // React Query dedupes by queryKey, so this doesn't trigger an extra network fetch.
-  const { games, invalidate: invalidateGames, setSteamMatch } = useGames(activeRoom?.id ?? null);
+  const {
+    games,
+    invalidate: invalidateGames,
+    actionError,
+    clearActionError,
+    updateStatus,
+    vote,
+    remove,
+    refreshPrice,
+    isRefreshingPrice,
+    setSteamMatch,
+    setTargetPrice,
+    setOwnership,
+    applyTag,
+    removeTag,
+    setPrerequisite,
+    shelfSyncPrompt,
+    confirmShelfSync,
+    dismissShelfSync,
+  } = useGames(activeRoom?.id ?? null);
+
+  // Mirrors RoomView's identical prompt (issue #360) - marking a room game Beaten from the Ranked
+  // Queue modal uses this same useGames instance, not RoomView's, so without this the "sync your
+  // shelf copy too?" confirm would silently never appear for that path.
+  useEffect(() => {
+    if (!shelfSyncPrompt) return;
+    const { suggestion } = shelfSyncPrompt;
+    confirm({
+      title: 'Mark it Beaten on your shelf too?',
+      message:
+        suggestion.shelfGameId === null
+          ? `"${suggestion.title}" isn't on your Personal Shelf yet - add it there, already marked Beaten?`
+          : `"${suggestion.title}" is on your Personal Shelf too - mark it Beaten there as well?`,
+      confirmLabel: 'Yes, sync it',
+      cancelLabel: 'No thanks',
+    }).then((ok) => (ok ? confirmShelfSync() : dismissShelfSync()));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [shelfSyncPrompt]);
 
   // Re-sync button (issue #203) - only meaningful on the Personal Shelf (Steam games always land
   // there, never straight into a room), and saves scrolling to the SteamImportCard tile at the end
@@ -292,6 +336,16 @@ export function Header() {
           spinWheelTheme={activeRoom?.spinWheelTheme}
           onSetSteamMatch={setSteamMatch}
         />
+        {/* Deterministic alternative to the wheel above (issue #360) - same eligible pool, browsable
+            in priority order instead of left to chance. */}
+        <button
+          type="button"
+          className={styles.rankedQueueButton}
+          onClick={() => setShowRankedQueue(true)}
+          title="Browse the backlog ranked by vote score"
+        >
+          📋 Ranked Queue
+        </button>
         {!activeRoom && (
           <button
             type="button"
@@ -387,6 +441,29 @@ export function Header() {
           setGenreFilter={setGenreFilter}
           setStatusFilter={setStatusFilter}
           onClose={() => setShowFilters(false)}
+        />
+      )}
+
+      {showRankedQueue && (
+        <RankedQueueModal
+          games={games}
+          currentUserId={user.id}
+          memberCount={memberCount}
+          roomMembers={roomMembers}
+          actionError={actionError}
+          onDismissActionError={clearActionError}
+          onStatusChange={updateStatus}
+          onVote={vote}
+          onRemove={remove}
+          onRefreshPrice={refreshPrice}
+          isRefreshingPrice={isRefreshingPrice}
+          onSetSteamMatch={setSteamMatch}
+          onSetTargetPrice={setTargetPrice}
+          onSetOwnership={activeRoom ? setOwnership : undefined}
+          onApplyTag={applyTag}
+          onRemoveTag={removeTag}
+          onSetPrerequisite={activeRoom ? setPrerequisite : undefined}
+          onClose={() => setShowRankedQueue(false)}
         />
       )}
     </header>
