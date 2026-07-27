@@ -28,12 +28,7 @@ services:
       timeout: 5s
       retries: 10
 
-  server:
-    # Pulls the pre-built image from the "Build and Publish Docker Image" GitHub Actions workflow
-    # (.github/workflows/build-docker-image.yml) instead of building locally - that workflow
-    # already builds and pushes linux/amd64+linux/arm64 on every change to main, so there's no
-    # need to rebuild here. Override IMAGE_TAG to pin a specific commit (tagged `sha-<short>`)
-    # instead of always tracking `latest`.
+  app:
     image: ghcr.io/trentnbauer/queueup:${IMAGE_TAG:-latest}
     restart: unless-stopped
     depends_on:
@@ -42,6 +37,7 @@ services:
       redis:
         condition: service_healthy
     environment:
+      #### PLEASE REVER TO NOTES ON THE EXAMPLE ENV ####
       ## Front End Config
       APP_BASE_URL: ${APP_BASE_URL}
       SESSION_SECRET: ${SESSION_SECRET}
