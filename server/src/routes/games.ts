@@ -999,8 +999,15 @@ export default async function gameRoutes(app: FastifyInstance) {
       const game = await loadGameOr404(request.params.id);
       await requireGameReadAccess(game, userId);
 
-      const steamAppId = game.steamAppid ?? (await backfillSteamAppId(game.id, game.igdbId));
-      await refreshGamePricing(game.id, steamAppId);
+      // gg.deals (our only price source) is Steam-App-ID-based, i.e. PC-only - a room on any
+      // other platform never shows a price fetched here at all (see gameSerializer.ts's platform-
+      // scoped pricing), so there's no point spending a live gg.deals call on one; just re-
+      // serialize as-is, which already resolves to "unavailable" for that room.
+      const platform = game.roomId ? await getRoomPlatform(game.roomId) : 'pc';
+      if (platform === 'pc') {
+        const steamAppId = game.steamAppid ?? (await backfillSteamAppId(game.id, game.igdbId));
+        await refreshGamePricing(game.id, steamAppId);
+      }
       const updated = await loadGameOr404(game.id);
       return { game: await serializeGame(updated, userId, parseRegion(request.query.region)) };
     },

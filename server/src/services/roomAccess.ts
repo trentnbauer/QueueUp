@@ -8,6 +8,16 @@ export async function getRoomPlatform(roomId: string): Promise<RoomPlatform> {
   return room.platform;
 }
 
+/** Batched version of getRoomPlatform - one query for any number of rooms, used wherever a list of
+ * games spans several rooms at once (see gameSerializer.ts's platform-scoped pricing) instead of a
+ * round trip per room. */
+export async function getRoomPlatforms(roomIds: string[]): Promise<Map<string, RoomPlatform>> {
+  const uniqueIds = [...new Set(roomIds)];
+  if (uniqueIds.length === 0) return new Map();
+  const rooms = await prisma.room.findMany({ where: { id: { in: uniqueIds } }, select: { id: true, platform: true } });
+  return new Map(rooms.map((r) => [r.id, r.platform]));
+}
+
 /** Full room row, for callers that need more than one field (e.g. platform + name) - fetching it
  * once here instead of calling getRoomPlatform and then a second query for the rest. */
 export async function getRoom(roomId: string) {

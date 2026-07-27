@@ -2,6 +2,7 @@ import { prisma } from '../db/client.js';
 import { gameInclude, type GameWithRelations } from '../services/gameSerializer.js';
 import { getSteamPrices } from '../services/priceService.js';
 import { runPriceAlertChecks } from '../services/priceAlerts.js';
+import { getRoomPlatforms } from '../services/roomAccess.js';
 import { scheduleJob, type JobHandle } from './scheduler.js';
 
 // Matches priceService.ts's own PRICE_CACHE_TTL_SECONDS (6h) - checking more often than the price
@@ -20,7 +21,12 @@ export const PRICE_ALERT_CHECK_INTERVAL_MS = 6 * 60 * 60 * 1000;
  * (archived games are already hidden from every shelf/room listing, so alerting on them would
  * surface a game the user no longer sees anywhere in the app). Batched through getSteamPrices,
  * same as a real room/shelf listing, so this only takes a live gg.deals hit for whichever games'
- * 6h cache has actually expired - not one API call per watched game every run. */
+ * 6h cache has actually expired - not one API call per watched game every run.
+ *
+ * gg.deals (our only price source) is Steam-App-ID-based, i.e. PC-only - a room on any other
+ * platform never gets a real price shown at all (see gameSerializer.ts's platform-scoped
+ * pricing), so it'd be misleading to alert on one here either; those games are filtered out
+ * before the fetch rather than fetched and then discarded. */
 export async function checkAllActivePriceWatches(): Promise<void> {
   const games = await prisma.game.findMany({
     where: { steamAppid: { not: null }, archivedAt: null },
@@ -28,12 +34,17 @@ export async function checkAllActivePriceWatches(): Promise<void> {
   });
   if (games.length === 0) return;
 
-  const steamAppIds = games.map((g) => g.steamAppid).filter((id): id is number => id != null);
-  const prices = await getSteamPrices(steamAppIds);
+  const roomIds = games.map((g) => g.roomId).filter((id): id is string => id != null);
+  const roomPlatforms = await getRoomPlatforms(roomIds);
+  const isPcGame = (game: GameWithRelations) => (game.roomId ? roomPlatforms.get(game.roomId) : 'pc') === 'pc';
+
+  const pcSteamAppIds = games.filter(isPcGame).map((g) => g.steamAppid).filter((id): id is number => id != null);
+  const prices = await getSteamPrices(pcSteamAppIds);
 
   await Promise.all(
     games.map((game) => {
-      const price = game.steamAppid != null ? prices.get(game.steamAppid) : undefined;
+      if (!isPcGame(game) || game.steamAppid == null) return Promise.resolve();
+      const price = prices.get(game.steamAppid);
       if (!price) return Promise.resolve();
       return runPriceAlertChecks(game as GameWithRelations, price);
     }),
