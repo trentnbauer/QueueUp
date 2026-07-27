@@ -11,7 +11,7 @@ import { useModalA11y, closeOnBackdropMouseDown } from '../hooks/useModalA11y';
 import { useGameAchievements } from '../hooks/useGameAchievements';
 import { useSteamAutoMatch } from '../hooks/useSteamAutoMatch';
 import { formatRelativeTime } from '../utils/relativeTime';
-import { formatAmount, formatPrice } from '../utils/formatPrice';
+import { formatAmount, formatPrice, ggDealsSearchUrl } from '../utils/formatPrice';
 import { GAME_STATUS_LABEL, GAME_STATUS_LIST, defaultPrerequisite } from './gameGridLogic';
 import cardStyles from './GameCard.module.css';
 import styles from './GameDetailModal.module.css';
@@ -133,6 +133,22 @@ export function GameDetailModal({
     setEditingTargetPrice(false);
   }
 
+  // Issue #336: an owned game with no specific gg.deals listing on file (Steam match never
+  // resolved, or resolved to nothing) used to render as a dead, greyed-out pill - no href, no
+  // click handler, just a visual dead end. Rather than silently doing nothing, confirms the
+  // (already-known) fact that this game is owned and offers a way to look it up manually anyway -
+  // gifting, checking a DLC/edition price, or just double-checking - instead of pretending there's
+  // nothing left to do here.
+  async function handleOwnedNoPriceClick() {
+    const ok = await confirm({
+      title: 'You already own this game',
+      message: `QueueUp doesn't have a specific gg.deals listing for "${game.title}" yet - want to look it up there anyway?`,
+      confirmLabel: 'Search gg.deals',
+      cancelLabel: 'Cancel',
+    });
+    if (ok) window.open(ggDealsSearchUrl(game.title), '_blank', 'noopener,noreferrer');
+  }
+
   async function handleRemove() {
     const ok = await confirm({
       title: 'Remove this game?',
@@ -189,6 +205,15 @@ export function GameDetailModal({
                   <span className={cardStyles.controllerIcon} aria-hidden="true">🛒</span>
                   {formatPrice(game)}
                 </a>
+              ) : game.youOwn ? (
+                <button
+                  type="button"
+                  className={`${cardStyles.priceStatic} ${cardStyles.priceStaticButton}`}
+                  onClick={handleOwnedNoPriceClick}
+                >
+                  <span className={cardStyles.controllerIcon} aria-hidden="true">🎮</span>
+                  {formatPrice(game)}
+                </button>
               ) : (
                 <span className={cardStyles.priceStatic}>
                   <span className={cardStyles.controllerIcon} aria-hidden="true">🎮</span>
