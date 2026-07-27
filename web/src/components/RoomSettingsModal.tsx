@@ -1,4 +1,4 @@
-import { useRef, useState } from 'react';
+import { useMemo, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import {
@@ -18,7 +18,11 @@ import { ACCENT_PRESETS } from '../theme/defaultTheme';
 import { exportGames } from '../utils/exportGames';
 import { useModalA11y, closeOnBackdropMouseDown } from '../hooks/useModalA11y';
 import { AvatarBadge } from './AvatarBadge';
+import { computeRoomYearInReview } from './roomYearInReview';
 import styles from './RoomSettingsModal.module.css';
+// Reuses the personal Year in Review's own styles (issue #365) - same visual language for the
+// room-scoped counterpart, rather than a second near-identical stylesheet.
+import yirStyles from '../views/ProfileSettingsView.module.css';
 
 const ROOM_PLATFORM_OPTIONS = Object.keys(ROOM_PLATFORM_LABELS) as RoomPlatform[];
 const SPIN_WHEEL_THEME_OPTIONS = Object.keys(SPIN_WHEEL_THEME_LABELS) as SpinWheelTheme[];
@@ -55,12 +59,17 @@ export function RoomSettingsModal({ room, members, games, onClose }: RoomSetting
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [inviteCopied, setInviteCopied] = useState(false);
+  const [showYearInReview, setShowYearInReview] = useState(false);
   const [selectedCandidateId, setSelectedCandidateId] = useState('');
   const [addingMember, setAddingMember] = useState(false);
   const [deleting, setDeleting] = useState(false);
 
   const inviteUrl = room.inviteCode ? `${window.location.origin}/join/${room.inviteCode}` : null;
   const isElevated = room.myRole === 'room_master' || room.myRole === 'moderator';
+
+  // Issue #365: built entirely from games already loaded for this room - no fetch, no per-member
+  // Steam calls (unlike the personal Year in Review) - see computeRoomYearInReview's own comment.
+  const roomYearInReview = useMemo(() => computeRoomYearInReview(games), [games]);
 
   const candidates = useQuery({
     queryKey: ['room-invite-candidates', room.id],
@@ -387,6 +396,69 @@ export function RoomSettingsModal({ room, members, games, onClose }: RoomSetting
             </details>
           </div>
         )}
+
+        {/* Visible to every member, same reasoning as Export above - read-only, room-collective
+            counterpart to the personal Year in Review on Profile Settings (issue #365). */}
+        <div className={styles.section}>
+          <div className={styles.sectionTitle}>Year in Review</div>
+          <p className={yirStyles.hint}>A summary of the last 12 months for {room.name} - what the squad finished, and what it voted up.</p>
+          {!showYearInReview ? (
+            <button type="button" className={styles.memberAction} onClick={() => setShowYearInReview(true)}>
+              Show room's year in games
+            </button>
+          ) : (
+            <div className={yirStyles.yearInReview}>
+              <div className={yirStyles.yearInReviewStats}>
+                <div className={yirStyles.yearInReviewStat}>
+                  <span className={yirStyles.yearInReviewStatValue}>{roomYearInReview.completedGames.length}</span>
+                  <span className={yirStyles.yearInReviewStatLabel}>
+                    game{roomYearInReview.completedGames.length === 1 ? '' : 's'} finished by the squad
+                  </span>
+                </div>
+              </div>
+              {roomYearInReview.genreSpread.length > 0 && (
+                <div>
+                  <div className={yirStyles.yearInReviewSubtitle}>Genre spread</div>
+                  <div className={yirStyles.genreSpread}>
+                    {roomYearInReview.genreSpread.map((g) => {
+                      const max = roomYearInReview.genreSpread[0].count;
+                      return (
+                        <div key={g.genre} className={yirStyles.genreBarRow}>
+                          <span className={yirStyles.genreBarLabel}>{g.genre}</span>
+                          <div className={yirStyles.genreBarTrack}>
+                            <div className={yirStyles.genreBarFill} style={{ width: `${(g.count / max) * 100}%` }} />
+                          </div>
+                          <span className={yirStyles.genreBarCount}>{g.count}</span>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+              )}
+              {roomYearInReview.completedGames.length > 0 && (
+                <div>
+                  <div className={yirStyles.yearInReviewSubtitle}>Beaten this year</div>
+                  <ul className={yirStyles.completedGroupList}>
+                    {roomYearInReview.completedGames.map((g) => (
+                      <li key={g.id}>{g.title}</li>
+                    ))}
+                  </ul>
+                </div>
+              )}
+              {roomYearInReview.topVoted && (
+                <div>
+                  <div className={yirStyles.yearInReviewSubtitle}>Top voted by the squad</div>
+                  <ol className={yirStyles.yearInReviewList}>
+                    <li className={yirStyles.yearInReviewListItem}>
+                      <span>{roomYearInReview.topVoted.title}</span>
+                      <span className={yirStyles.yearInReviewListScore}>{roomYearInReview.topVoted.voteScore} pts</span>
+                    </li>
+                  </ol>
+                </div>
+              )}
+            </div>
+          )}
+        </div>
 
         {inviteUrl && (
           <div className={styles.section}>
