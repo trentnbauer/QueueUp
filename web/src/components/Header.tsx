@@ -340,6 +340,7 @@ export function Header() {
           spinOwnershipMaxPrice={activeRoom?.spinOwnershipMaxPrice}
           spinWheelTheme={activeRoom?.spinWheelTheme}
           onSetSteamMatch={setSteamMatch}
+          onStatusChange={updateStatus}
         />
         {/* Deterministic alternative to the wheel above (issue #360) - same eligible pool, browsable
             in priority order instead of left to chance. */}

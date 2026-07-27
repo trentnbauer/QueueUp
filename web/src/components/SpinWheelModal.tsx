@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
-import type { Game, SpinWheelTheme } from '@queueup/shared';
+import type { Game, GameStatus, SpinWheelTheme } from '@queueup/shared';
 import { useModalA11y, closeOnBackdropMouseDown } from '../hooks/useModalA11y';
 import { pickSpinWinner } from './gameGridLogic';
 import { ConfettiBurst } from './ConfettiBurst';
@@ -14,6 +14,10 @@ interface SpinWheelModalProps {
   /** Which presentation to use - room-settable (issue #297), defaults to the original slot machine
    * on the Personal Shelf (which has no room, so no theme setting of its own). */
   theme?: SpinWheelTheme;
+  /** Marks the winner Playing before closing - "Let's play" is the one moment someone's actually
+   * committing to tonight's pick, so it should land in the Currently Playing strip immediately
+   * rather than requiring a separate manual status change afterward. */
+  onStatusChange: (gameId: string, status: GameStatus) => void;
   onClose: () => void;
 }
 
@@ -21,7 +25,7 @@ interface SpinWheelModalProps {
  * once per spin, resolves "random" to a concrete theme, hands both to whichever theme component
  * is selected, and owns the reveal panel + confetti celebration so no theme has to reimplement
  * either. A theme's only job is its own pre-reveal animation, ending with a call to onRevealed. */
-export function SpinWheelModal({ games, candidates, theme = 'slot', onClose }: SpinWheelModalProps) {
+export function SpinWheelModal({ games, candidates, theme = 'slot', onStatusChange, onClose }: SpinWheelModalProps) {
   const dialogRef = useModalA11y<HTMLDivElement>(onClose);
   const [spinKey, setSpinKey] = useState(0);
   const [revealed, setRevealed] = useState(false);
@@ -81,7 +85,14 @@ export function SpinWheelModal({ games, candidates, theme = 'slot', onClose }: S
                 <button type="button" className={styles.spinAgainButton} onClick={() => setSpinKey((k) => k + 1)}>
                   Spin again
                 </button>
-                <button type="button" className={styles.primaryButton} onClick={onClose}>
+                <button
+                  type="button"
+                  className={styles.primaryButton}
+                  onClick={() => {
+                    onStatusChange(winner.id, 'playing');
+                    onClose();
+                  }}
+                >
                   Let's play
                 </button>
               </div>
