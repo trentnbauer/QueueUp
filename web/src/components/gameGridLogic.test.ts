@@ -8,6 +8,7 @@ import {
   isUnreleased,
   hasUnmetPrerequisite,
   defaultPrerequisite,
+  collectionProgress,
   primaryGenre,
   lastCompletedPrimaryGenre,
   avoidedGenres,
@@ -247,6 +248,33 @@ describe('defaultPrerequisite', () => {
   it('excludes the game itself even if it somehow shares its own collection id', () => {
     const game = makeGame({ id: 'g', igdbCollectionId: 7, releaseYear: 2020 });
     expect(defaultPrerequisite(game, [game])).toBeNull();
+  });
+});
+
+describe('collectionProgress', () => {
+  it('is null when the game is not in a collection', () => {
+    const game = makeGame({ igdbCollectionId: null });
+    expect(collectionProgress(game, [game])).toBeNull();
+  });
+
+  it('is null when it is the only entry from its collection added so far', () => {
+    const game = makeGame({ id: 'g', igdbCollectionId: 7 });
+    const other = makeGame({ id: 'other', igdbCollectionId: 2 });
+    expect(collectionProgress(game, [game, other])).toBeNull();
+  });
+
+  it('counts Beaten entries out of every same-collection game added, including itself', () => {
+    const bl1 = makeGame({ id: 'bl1', igdbCollectionId: 7, status: 'done' });
+    const bl2 = makeGame({ id: 'bl2', igdbCollectionId: 7, status: 'backlog' });
+    const bl3 = makeGame({ id: 'bl3', igdbCollectionId: 7, status: 'done' });
+    const other = makeGame({ id: 'other', igdbCollectionId: 2, status: 'done' });
+    expect(collectionProgress(bl2, [bl1, bl2, bl3, other])).toEqual({ beaten: 2, total: 3 });
+  });
+
+  it('does not count a Replay-queued game as Beaten', () => {
+    const bl1 = makeGame({ id: 'bl1', igdbCollectionId: 7, status: 'done' });
+    const bl2 = makeGame({ id: 'bl2', igdbCollectionId: 7, status: 'replay' });
+    expect(collectionProgress(bl1, [bl1, bl2])).toEqual({ beaten: 1, total: 2 });
   });
 });
 

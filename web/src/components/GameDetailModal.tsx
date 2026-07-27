@@ -13,7 +13,7 @@ import { useGameAchievements } from '../hooks/useGameAchievements';
 import { useSteamAutoMatch } from '../hooks/useSteamAutoMatch';
 import { formatRelativeTime } from '../utils/relativeTime';
 import { formatAmount, formatPrice, ggDealsSearchUrl } from '../utils/formatPrice';
-import { GAME_STATUS_LABEL, GAME_STATUS_LIST, defaultPrerequisite } from './gameGridLogic';
+import { GAME_STATUS_LABEL, GAME_STATUS_LIST, collectionProgress, defaultPrerequisite } from './gameGridLogic';
 import cardStyles from './GameCard.module.css';
 import styles from './GameDetailModal.module.css';
 
@@ -95,6 +95,10 @@ export function GameDetailModal({
   // dropdown like "Play after" above. Falls back to nothing shown if the base game itself was since
   // removed (SetNull on delete) or roomGames wasn't passed in for this context.
   const baseGame = game.baseGameId ? (roomGames ?? []).find((g) => g.id === game.baseGameId) : undefined;
+
+  // Issue #366: "3 of 7 Mass Effect games beaten" - progress through this franchise's entries
+  // already added here, built on the same igdbCollectionId defaultPrerequisite above uses.
+  const franchiseProgress = collectionProgress(game, roomGames ?? []);
 
   // A nudge, not an automatic status change (issue #227) - the viewer's own Steam achievement
   // progress on this game, when they've 100%'d it and it isn't already Done/Dropped. Playtime
@@ -221,6 +225,16 @@ export function GameDetailModal({
               </span>
             )}
             {baseGame && <span className={styles.genre}>DLC for {baseGame.title}</span>}
+            {/* Issue #366: franchise completion, built on igdbCollectionId - see collectionProgress
+                for why this is progress through what's added here, not the whole series. */}
+            {franchiseProgress && (
+              <span
+                className={styles.genre}
+                title={`${franchiseProgress.beaten} of ${franchiseProgress.total} games from this series (already added here) are Beaten`}
+              >
+                📚 {franchiseProgress.beaten}/{franchiseProgress.total} series beaten
+              </span>
+            )}
           </div>
           <button type="button" className={styles.closeButton} onClick={onClose} aria-label="Close">
             ×

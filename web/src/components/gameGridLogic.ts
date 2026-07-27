@@ -233,6 +233,19 @@ export function defaultPrerequisite(game: Game, roomGames: Game[]): Game | null 
   return earlierInCollection.reduce((closest, g) => (releaseTimestamp(g)! > releaseTimestamp(closest)! ? g : closest));
 }
 
+/** How many of a franchise's entries already added to this room/shelf are Beaten, out of how many
+ * are added (issue #366) - built on the IGDB collection id already stored per game
+ * (igdbCollectionId), same field defaultPrerequisite above uses. This is progress through what's
+ * already been added, not the whole franchise - there's no "how many games are in this series
+ * total" data on file, only what's actually here. Null when the game isn't in a collection, or
+ * it's the only entry from that collection added so far (nothing to show progress against). */
+export function collectionProgress(game: Game, games: Game[]): { beaten: number; total: number } | null {
+  if (game.igdbCollectionId === null) return null;
+  const sameCollection = games.filter((g) => g.igdbCollectionId === game.igdbCollectionId);
+  if (sameCollection.length < 2) return null;
+  return { beaten: sameCollection.filter((g) => g.status === 'done').length, total: sameCollection.length };
+}
+
 // IGDB genre strings are comma-joined and often carry several tags (e.g. "Shooter, Adventure");
 // comparing the full tag set for zero overlap is too strict in practice — broad secondary tags
 // like "Adventure" or "Indie" show up on all sorts of otherwise-unrelated games and would mask an
