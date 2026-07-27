@@ -21,6 +21,12 @@ enum GameStatus {
   /// as backlog (that's the whole point of flagging it), but kept distinct from backlog so it can
   /// be labeled/filtered separately rather than looking like it was never played.
   replay
+  /// "Up next" - a deliberate manual pick queued ahead of the rest of the backlog, shown in the
+  /// same "Currently Playing" strip as playing (not a second separate strip) so it reads as "what's
+  /// active/imminent right now" rather than just another backlog entry. Excluded from Spin the
+  /// Wheel's candidate pool same as playing/done/dropped (see backlogGames in gameGridLogic.ts) -
+  /// once something's queued up next, the wheel shouldn't be able to bump it for something else.
+  play_next
 
   @@map("game_status")
 }
