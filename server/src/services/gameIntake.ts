@@ -14,6 +14,7 @@ import {
   ROOM_PLATFORM_LABELS,
   type CollectionGamesResult,
   type CollectionSearchResult,
+  type GameStatus,
   type RoomPlatform,
 } from '@queueup/shared';
 
@@ -65,6 +66,15 @@ export function assertPlatformMatch(detail: IgdbGameDetail, allowedPlatforms?: R
  * (see findSteamAppIdByTitle) rather than leaving pricing permanently unavailable for those. */
 async function resolveSteamAppId(detail: IgdbGameDetail): Promise<number | null> {
   return detail.steamAppId ?? (await findSteamAppIdByTitle(detail.title));
+}
+
+/** Issue #370: a game whose IGDB release date is still in the future read oddly sitting in the
+ * backlog next to titles someone can actually sit down and play right now - defaults it into the
+ * wishlist instead, the same status a manually-wishlisted or Steam-wishlist-imported game gets. A
+ * game with no known release date at all (IGDB just doesn't have one on file) keeps the ordinary
+ * 'backlog' default - there's no signal here that it's actually unreleased. */
+export function defaultStatusForRelease(releaseDate: Date | null): GameStatus {
+  return releaseDate !== null && releaseDate.getTime() > Date.now() ? 'wishlist' : 'backlog';
 }
 
 /** Fully resolves a game once the user confirms adding it.

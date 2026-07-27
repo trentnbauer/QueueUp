@@ -21,6 +21,7 @@ import {
   refreshGamePricing,
   backfillSteamAppId,
   setManualSteamMatch,
+  defaultStatusForRelease,
 } from '../services/gameIntake.js';
 import { notifyRoom } from '../services/notifications.js';
 import { platformFamilies, findIgdbIdBySteamAppId, findIgdbIdByExactTitle } from '../services/igdbClient.js';
@@ -159,6 +160,9 @@ async function runSteamLibraryImportLoop(
             releaseDate: resolved.releaseDate,
             igdbCollectionId: resolved.igdbCollectionId,
             reviewScore: resolved.reviewScore,
+            // Issue #370: a pre-purchased/pre-loaded but not-yet-released Steam game defaults into
+            // the wishlist instead of the backlog, same as the manual add path.
+            status: defaultStatusForRelease(resolved.releaseDate),
           },
         });
         existingIgdbIdSet.add(igdbId);
@@ -376,6 +380,8 @@ export default async function gameRoutes(app: FastifyInstance) {
           releaseDate: resolved.releaseDate,
           igdbCollectionId: resolved.igdbCollectionId,
           reviewScore: resolved.reviewScore,
+          // Issue #370: an unreleased game defaults into the wishlist instead of the backlog.
+          status: defaultStatusForRelease(resolved.releaseDate),
         },
       });
     } catch (err) {
