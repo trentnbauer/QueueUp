@@ -4,9 +4,9 @@ import { backlogGames, isFullyOwned } from './gameGridLogic';
 import { SpinWheelModal } from './SpinWheelModal';
 import { SteamMatchPicker } from './SteamMatchPicker';
 import { useSteamAutoMatch } from '../hooks/useSteamAutoMatch';
-import styles from './SpinWheelCard.module.css';
+import styles from './SpinPickerButton.module.css';
 
-interface SpinWheelCardProps {
+interface SpinPickerButtonProps {
   games: Game[];
   /** Room Settings dollar threshold (issue #339, replacing the old spinOnlyFullyOwned toggle) -
    * eligible games are ones every current member owns, plus ones with a live price at or under
@@ -32,22 +32,18 @@ function underPriceCap(game: Game, maxPrice: number | undefined): boolean {
   return game.price.source === 'live' && game.price.amount !== null && Number(game.price.amount) <= maxPrice;
 }
 
-/** Sits in the grid as its own tile (rather than a button in a bar above it), so picking tonight's
- * game reads as part of the collection instead of a toolbar action. Opens the actual spin/reveal
- * in SpinWheelModal - this component only decides whether the wheel has anything to draw from.
- *
- * Issue #339: a game that isn't fully owned can still qualify if it's cheap enough, but that needs
- * a known price - and plenty of backlog games have never been matched to a Steam listing at all.
- * Rather than just excluding those from the pool, clicking Spin first walks them one at a time
- * through the same silent auto-match issue #337 built for "Fix match" (useSteamAutoMatch): most
- * resolve on their own, and the rare ambiguous/unmatched one gets the manual picker instead of
- * silently dropping out of contention. */
-export function SpinWheelCard({ games, spinOwnershipMaxPrice, spinWheelTheme, onSetSteamMatch }: SpinWheelCardProps) {
+/** Header action button that picks tonight's game (issue #356) - previously a tile sitting in the
+ * games grid itself, taking up a whole card's worth of space permanently just to be a launcher for
+ * SpinWheelModal. Moved next to Add Game/Filters instead, freeing that space back up for the
+ * actual games list. Opens the same SpinWheelModal reveal; this component only decides whether
+ * there's anything to draw from and (issue #339) walks any price-undecided backlog games through
+ * the silent Steam auto-match first, same as the tile it replaces. */
+export function SpinPickerButton({ games, spinOwnershipMaxPrice, spinWheelTheme, onSetSteamMatch }: SpinPickerButtonProps) {
   const [open, setOpen] = useState(false);
   const [resolving, setResolving] = useState(false);
   // Games we've already run the silent auto-match search for this visit - tracked so a game whose
-  // search came back ambiguous/empty isn't silently re-searched every time Spin is clicked; it
-  // goes straight to the manual picker instead.
+  // search came back ambiguous/empty isn't silently re-searched every time the button is clicked;
+  // it goes straight to the manual picker instead.
   const [checkedGameIds, setCheckedGameIds] = useState<Set<string>>(new Set());
   const { pickerGameId, attemptAutoMatch, closePicker } = useSteamAutoMatch();
 
@@ -64,7 +60,13 @@ export function SpinWheelCard({ games, spinOwnershipMaxPrice, spinWheelTheme, on
     ? backlog.filter((g) => !isFullyOwned(g) && !underPriceCap(g, spinOwnershipMaxPrice) && !hasSteamMatch(g))
     : [];
 
-  async function handleSpinClick() {
+  const hint = locked
+    ? gated
+      ? `No backlog game is owned by everyone or priced at $${spinOwnershipMaxPrice} or under yet`
+      : 'Add a backlog game to unlock'
+    : `Picks from your ${candidates.length}-game backlog`;
+
+  async function handleClick() {
     if (!onSetSteamMatch) {
       setOpen(true);
       return;
@@ -82,8 +84,8 @@ export function SpinWheelCard({ games, spinOwnershipMaxPrice, spinWheelTheme, on
         });
         if (resolved === undefined) {
           // Ambiguous or no results - useSteamAutoMatch has opened the manual picker for this
-          // game. Stop here; the person can click Spin again once they've resolved (or skipped
-          // past) it, same as if they'd never clicked at all.
+          // game. Stop here; the person can click again once they've resolved (or skipped past)
+          // it, same as if they'd never clicked at all.
           return;
         }
       }
@@ -99,23 +101,12 @@ export function SpinWheelCard({ games, spinOwnershipMaxPrice, spinWheelTheme, on
     <>
       <button
         type="button"
-        className={`${styles.card} ${locked ? styles.locked : ''}`}
-        onClick={handleSpinClick}
+        className={styles.button}
+        onClick={handleClick}
         disabled={locked || resolving}
+        title={hint}
       >
-        <div className={styles.icon} aria-hidden="true">
-          🎰
-        </div>
-        <div className={styles.label}>Spin the Wheel</div>
-        <div className={styles.hint}>
-          {resolving
-            ? 'Checking prices…'
-            : locked
-              ? gated
-                ? `No backlog game is owned by everyone or priced at $${spinOwnershipMaxPrice} or under yet`
-                : 'Add a backlog game to unlock'
-              : `Picks from your ${candidates.length}-game backlog`}
-        </div>
+        🎲 {resolving ? 'Checking prices…' : 'Pick a Game'}
       </button>
 
       {pickerGame && (

@@ -1,9 +1,8 @@
 import { Fragment, useEffect, useMemo, useRef, useState } from 'react';
 import type { ReactNode } from 'react';
-import type { Game, GameStatus, SpinWheelTheme, User, VoteValue } from '@queueup/shared';
+import type { Game, GameStatus, User, VoteValue } from '@queueup/shared';
 import { GameCard } from './GameCard';
 import { GameListRow } from './GameListRow';
-import { SpinWheelCard } from './SpinWheelCard';
 import { ALL_FILTER_VALUE, filterGames, sortByScore, statusBucket } from './gameGridLogic';
 import { useGameFilter } from '../context/GameFilterContext';
 import { useViewMode } from '../context/ViewModeContext';
@@ -40,9 +39,9 @@ function useStableOrder(games: Game[]): Game[] {
 // worth of DOM (each with its own cover-art image, price fetch, etc.) up front made a big list
 // noticeably slower to scroll than it needed to be. Rendered count grows as the user scrolls
 // instead - render only a first screenful or two, then more as an IntersectionObserver sentinel
-// near the bottom comes into view. Filtering/search/Spin the Wheel/bulk-select all still operate
-// on the *full* filtered list regardless of how much of it has been rendered - only the DOM output
-// is capped, so none of those features silently only see a partial list.
+// near the bottom comes into view. Filtering/search/bulk-select all still operate on the *full*
+// filtered list regardless of how much of it has been rendered - only the DOM output is capped,
+// so none of those features silently only see a partial list.
 const INITIAL_RENDER_COUNT = 30;
 const RENDER_INCREMENT = 30;
 
@@ -58,26 +57,14 @@ interface GameGridProps {
   /** Full room member list, used to show who hasn't voted on a game yet. Undefined on the Personal
    * Shelf, same as memberCount - there's no group vote coverage to show for a solo list. */
   roomMembers?: User[];
-  /** Shows the Spin the Wheel tile as part of the grid - used by both rooms and the Personal
-   * Shelf (issue #188: "800 games, what do I play next" is just as real a question solo). */
-  showSpinWheel?: boolean;
-  /** Room Settings dollar threshold - restricts Spin the Wheel to games every current member owns,
-   * or games priced at or under this. Undefined on the Personal Shelf, same as spinWheelTheme -
-   * there's no group-ownership concept to gate against for a solo list. */
-  spinOwnershipMaxPrice?: number;
-  /** Room Settings choice of Spin the Wheel presentation (issue #297) - undefined on the Personal
-   * Shelf, same as spinOwnershipMaxPrice. */
-  spinWheelTheme?: SpinWheelTheme;
   /** Extra tile rendered as the very last card in the grid, after every game and regardless of
-   * filters (e.g. the Steam import tile on the Personal Shelf) - unlike the Spin the Wheel tile,
-   * this doesn't get slotted into a specific status position. */
+   * filters (e.g. the Steam import tile on the Personal Shelf). */
   trailingCard?: ReactNode;
   /** Statuses to leave out of the main grid's cards because a caller already shows them elsewhere
    * (Communal Rooms' Currently Playing strip above, Beaten strip below) - showing them a third
    * time here would just be a duplicate. Still respected only when the status pill is set to "all":
    * explicitly filtering to one of these statuses is a deliberate ask to see it here, so it wins
-   * over the hide. `games` itself is untouched, so Spin the Wheel's genre-avoidance logic (which
-   * needs to know what's currently Playing/last Done) still sees every game regardless. */
+   * over the hide. */
   hiddenStatuses?: GameStatus[];
   onStatusChange: (gameId: string, status: GameStatus) => void;
   onVote: (gameId: string, value: VoteValue) => void;
@@ -110,9 +97,6 @@ export function GameGrid({
   onRetry,
   memberCount,
   roomMembers,
-  showSpinWheel,
-  spinOwnershipMaxPrice,
-  spinWheelTheme,
   trailingCard,
   hiddenStatuses,
   onStatusChange,
@@ -214,19 +198,10 @@ export function GameGrid({
     );
   }
 
-  // SpinWheelCard/trailingCard are fixed-aspect-ratio grid tiles sized by their grid column -
-  // in the list view's flex column (issue #344) they'd otherwise stretch to the row's full width,
-  // and aspect-ratio: 2/3 turns that into a giant box. Cap them back down to tile size there.
+  // trailingCard is a fixed-aspect-ratio grid tile sized by its grid column - in the list view's
+  // flex column (issue #344) it'd otherwise stretch to the row's full width, and aspect-ratio: 2/3
+  // turns that into a giant box. Cap it back down to tile size there.
   const listTile = (node: ReactNode) => (viewMode === 'list' ? <div className={styles.listTile}>{node}</div> : node);
-
-  const spinCard = showSpinWheel && listTile(
-    <SpinWheelCard
-      games={games}
-      spinOwnershipMaxPrice={spinOwnershipMaxPrice}
-      spinWheelTheme={spinWheelTheme}
-      onSetSteamMatch={onSetSteamMatch}
-    />,
-  );
   const wrappedTrailingCard = trailingCard && listTile(trailingCard);
 
   if (prioritized.length === 0 || visible.length === 0) {
@@ -236,36 +211,22 @@ export function GameGrid({
         ? 'No games match these filters.'
         : 'Nothing here yet.';
 
-    if (!spinCard && !trailingCard) return <div className={styles.empty}>{message}</div>;
+    if (!trailingCard) return <div className={styles.empty}>{message}</div>;
 
     return (
       <div className={containerClass}>
-        {spinCard}
         <div className={`${styles.empty} ${styles.emptyInGrid}`}>{message}</div>
         {wrappedTrailingCard}
       </div>
     );
   }
 
-  // The spin tile sits between the Playing group and the rest (backlog, then Done) - rendered is
-  // already sorted Playing-first by statusBucket, so the first non-Playing game marks exactly
-  // where that boundary is. If every rendered game is currently Playing, it falls in after all of
-  // them instead. Computed against `rendered`, not `visible` - Playing games sort first either
-  // way, so this boundary is within whatever's actually on screen.
-  const spinCardInsertIndex = spinCard
-    ? (() => {
-        const index = rendered.findIndex((g) => g.status !== 'playing');
-        return index === -1 ? rendered.length : index;
-      })()
-    : -1;
-
   const GameFace = viewMode === 'list' ? GameListRow : GameCard;
 
   return (
     <div className={containerClass}>
-      {rendered.map((game, index) => (
+      {rendered.map((game) => (
         <Fragment key={game.id}>
-          {index === spinCardInsertIndex && spinCard}
           <GameFace
             game={game}
             currentUserId={currentUserId}
@@ -289,7 +250,6 @@ export function GameGrid({
           />
         </Fragment>
       ))}
-      {spinCardInsertIndex === rendered.length && spinCard}
       {/* Invisible - just an IntersectionObserver target (see the effect above) marking where the
           next batch of games should start rendering as the user scrolls near it. Omitted once
           everything's already rendered. */}

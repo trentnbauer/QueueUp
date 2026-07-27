@@ -18,7 +18,7 @@ import { useMarkRoomNotificationsRead } from '../hooks/useNotifications';
 export function RoomView() {
   const { roomId } = useParams<{ roomId: string }>();
   const { user } = useAuth();
-  const { switchView, activeRoom } = useView();
+  const { switchView } = useView();
   const {
     games,
     truncated,
@@ -119,9 +119,6 @@ export function RoomView() {
         onRetry={refetch}
         memberCount={memberCount}
         roomMembers={roomMembers}
-        showSpinWheel
-        spinOwnershipMaxPrice={activeRoom?.spinOwnershipMaxPrice}
-        spinWheelTheme={activeRoom?.spinWheelTheme}
         // Replay-queued games (issue #334) join Done under BeatenStrip below, same as ShelfView.
         hiddenStatuses={['playing', 'done', 'replay', 'dropped']}
         onStatusChange={updateStatus}

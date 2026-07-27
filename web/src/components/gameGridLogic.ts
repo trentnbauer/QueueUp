@@ -228,8 +228,7 @@ export function avoidedGenres(games: Game[]): Set<string> {
 }
 
 /** Currently Playing first, then the rest of the backlog (replay-queued games interleaved with
- * it), then Wishlist, then Completed, then Dropped last. The Spin the Wheel tile is inserted
- * between the Playing and backlog groups by the caller, not accounted for here. */
+ * it), then Wishlist, then Completed, then Dropped last. */
 export function statusBucket(game: Game): number {
   if (game.status === 'playing') return 0;
   if (game.status === 'backlog' || game.status === 'replay') return 1;

@@ -175,8 +175,8 @@ model Room {
   /// if set (see notifications.ts). One-way egress only - QueueUp never reads anything back from it.
   discordWebhookUrl String? @map("discord_webhook_url")
   /// Room Settings dollar threshold (issue #339, replacing the old spinOnlyFullyOwned toggle):
-  /// Spin the Wheel's candidate pool is games every current member owns, OR games with a live
-  /// price at or under this many dollars (see gameOwnership.ts / SpinWheelCard) - so a room can
+  /// the game-picker's candidate pool is games every current member owns, OR games with a live
+  /// price at or under this many dollars (see gameOwnership.ts / SpinPickerButton) - so a room can
   /// loosen "everyone must already own it" into "or it's cheap enough that buying in isn't a big
   /// ask." $0 reproduces the old fully-owned-only behavior.
   spinOwnershipMaxPrice Int @default(15) @map("spin_ownership_max_price")
