@@ -50,6 +50,7 @@ export function RoomSettingsModal({ room, members, games, onClose }: RoomSetting
   const [discordWebhookUrl, setDiscordWebhookUrl] = useState(room.discordWebhookUrl ?? '');
   const [spinOwnershipMaxPrice, setSpinOwnershipMaxPrice] = useState(String(room.spinOwnershipMaxPrice));
   const [spinWheelTheme, setSpinWheelTheme] = useState<SpinWheelTheme>(room.spinWheelTheme);
+  const [isPublic, setIsPublic] = useState(room.isPublic);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [inviteCopied, setInviteCopied] = useState(false);
@@ -83,7 +84,8 @@ export function RoomSettingsModal({ room, members, games, onClose }: RoomSetting
     accentColor !== room.accentColor ||
     discordWebhookUrl.trim() !== (room.discordWebhookUrl ?? '') ||
     parsedMaxPrice !== room.spinOwnershipMaxPrice ||
-    spinWheelTheme !== room.spinWheelTheme;
+    spinWheelTheme !== room.spinWheelTheme ||
+    isPublic !== room.isPublic;
 
   function invalidateRoomQueries() {
     queryClient.invalidateQueries({ queryKey: ['rooms'] });
@@ -110,6 +112,7 @@ export function RoomSettingsModal({ room, members, games, onClose }: RoomSetting
         discordWebhookUrl: discordWebhookUrl.trim() || null,
         spinOwnershipMaxPrice: parsedMaxPrice,
         spinWheelTheme,
+        isPublic,
       });
       invalidateRoomQueries();
       onClose();
@@ -316,6 +319,23 @@ export function RoomSettingsModal({ room, members, games, onClose }: RoomSetting
                     </option>
                   ))}
                 </select>
+              </div>
+              <div className={styles.field}>
+                <label className={styles.label} htmlFor="room-settings-visibility">
+                  Visibility
+                </label>
+                <select
+                  id="room-settings-visibility"
+                  className={styles.select}
+                  value={isPublic ? 'public' : 'invite_only'}
+                  onChange={(e) => setIsPublic(e.target.value === 'public')}
+                >
+                  <option value="invite_only">Invite only</option>
+                  <option value="public">Public</option>
+                </select>
+                <p className={styles.readonlyNote}>
+                  Public rooms are listed for any signed-in member to browse and join instantly, without an invite code.
+                </p>
               </div>
               <button type="button" className={styles.saveButton} onClick={handleSave} disabled={saving || !dirty || !maxPriceValid}>
                 {saving ? 'Saving…' : 'Save changes'}

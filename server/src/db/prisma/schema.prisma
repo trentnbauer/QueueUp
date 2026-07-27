@@ -183,6 +183,11 @@ model Room {
   /// Which visual presentation Spin the Wheel uses (issue #297) - defaults to the original
   /// slot-machine reel so existing rooms don't change.
   spinWheelTheme SpinWheelTheme @default(slot) @map("spin_wheel_theme")
+  /// When true, this room is listed in the public room directory (GET /api/rooms/public) and any
+  /// signed-in user can self-join it instantly via POST /api/rooms/:roomId/join-public, without an
+  /// invite code. Defaults to false (invite-only) so existing rooms are unaffected. The invite-code
+  /// join path (POST /api/rooms/join) still works regardless of this flag.
+  isPublic Boolean @default(false) @map("is_public")
 
   creator       User           @relation("RoomCreatedBy", fields: [createdBy], references: [id])
   members       RoomMember[]

@@ -9,6 +9,7 @@ import { notifyRoom, notifyRoomMembersDirect } from '../services/notifications.j
 import type {
   CreateRoomRequest,
   JoinRoomRequest,
+  PublicRoomSummary,
   Room,
   RoomMember,
   RoomPlatform,
@@ -33,6 +34,7 @@ function toRoomDto(
     discordWebhookUrl: string | null;
     spinOwnershipMaxPrice: number;
     spinWheelTheme: SpinWheelTheme;
+    isPublic: boolean;
   },
   role: Room['myRole'],
   inviteCode: string,
@@ -52,6 +54,7 @@ function toRoomDto(
     discordWebhookUrl: role === 'room_master' ? room.discordWebhookUrl : undefined,
     spinOwnershipMaxPrice: room.spinOwnershipMaxPrice,
     spinWheelTheme: room.spinWheelTheme,
+    isPublic: room.isPublic,
   };
 }
 
@@ -69,7 +72,7 @@ export default async function roomRoutes(app: FastifyInstance) {
 
   app.post<{ Body: CreateRoomRequest }>('/api/rooms', async (request, reply) => {
     const userId = await request.requireAuth();
-    const { name, platform, accentColor } = request.body;
+    const { name, platform, accentColor, isPublic } = request.body;
     if (!name?.trim()) throw new HttpError(400, 'Room name is required');
     if (!ROOM_PLATFORMS.includes(platform)) throw new HttpError(400, 'A valid platform is required');
 
@@ -82,6 +85,7 @@ export default async function roomRoutes(app: FastifyInstance) {
         accentColor: accentColor || '#8b5cf6',
         createdBy: userId,
         inviteCode,
+        isPublic: Boolean(isPublic),
         members: { create: { userId, role: 'room_master' } },
       },
     });
@@ -134,6 +138,75 @@ export default async function roomRoutes(app: FastifyInstance) {
     },
   );
 
+  // Room directory for the "Browse public rooms" flow in AddRoomModal - only rooms the caller
+  // isn't already a member of (their own public rooms already show up in the sidebar via
+  // GET /api/rooms), and deliberately excludes invite codes / webhook URLs / other member-only
+  // data since the caller isn't a member yet.
+  app.get('/api/rooms/public', async (request) => {
+    const userId = await request.requireAuth();
+    const rooms = await prisma.room.findMany({
+      where: {
+        isPublic: true,
+        members: { none: { userId } },
+      },
+      include: { _count: { select: { members: true } } },
+      orderBy: { createdAt: 'desc' },
+    });
+
+    const summaries: PublicRoomSummary[] = rooms.map((room) => ({
+      id: room.id,
+      name: room.name,
+      platform: room.platform,
+      accentColor: room.accentColor,
+      memberCount: room._count.members,
+    }));
+    return { rooms: summaries };
+  });
+
+  app.post<{ Params: { roomId: string } }>(
+    '/api/rooms/:roomId/join-public',
+    // Instant, no-approval self-join is membership-granting on demand - same tier of limit as
+    // the invite-code join endpoint above, so this can't be hammered to spam-join/leave rooms.
+    { config: { rateLimit: { max: 10, timeWindow: '1 minute' } } },
+    async (request) => {
+      const userId = await request.requireAuth();
+      const { roomId } = request.params;
+
+      const room = await prisma.room.findUnique({ where: { id: roomId } });
+      if (!room) throw new HttpError(404, 'Room not found');
+      if (!room.isPublic) throw new HttpError(403, 'This room is invite-only');
+
+      // Same idempotent create-with-P2002-fallback pattern as POST /api/rooms/join - the unique
+      // constraint on (roomId, userId) is the single source of truth for "did this request
+      // actually create the membership", so concurrent join requests can't double-fire the
+      // "joined the room" notification.
+      let membership;
+      let isNewJoin = false;
+      try {
+        membership = await prisma.roomMember.create({ data: { roomId: room.id, userId, role: 'member' } });
+        isNewJoin = true;
+      } catch (err) {
+        if (err instanceof Prisma.PrismaClientKnownRequestError && err.code === 'P2002') {
+          membership = await prisma.roomMember.findUniqueOrThrow({ where: { roomId_userId: { roomId: room.id, userId } } });
+        } else {
+          throw err;
+        }
+      }
+
+      if (isNewJoin) {
+        await notifyRoom({
+          roomId: room.id,
+          roomName: room.name,
+          actorId: userId,
+          type: 'member_joined',
+          message: (actorName) => `${actorName} joined the room`,
+        });
+      }
+
+      return { room: toRoomDto(room, membership.role, room.inviteCode) };
+    },
+  );
+
   app.get<{ Params: { roomId: string } }>('/api/rooms/:roomId', async (request) => {
     const userId = await request.requireAuth();
     const { roomId } = request.params;
@@ -151,7 +224,7 @@ export default async function roomRoutes(app: FastifyInstance) {
       throw new HttpError(403, 'Only the Room Master can change room settings');
     }
 
-    const { name, platform, accentColor, discordWebhookUrl, spinOwnershipMaxPrice, spinWheelTheme } = request.body;
+    const { name, platform, accentColor, discordWebhookUrl, spinOwnershipMaxPrice, spinWheelTheme, isPublic } = request.body;
     if (name !== undefined && !name.trim()) throw new HttpError(400, 'Room name cannot be empty');
     if (platform !== undefined && !ROOM_PLATFORMS.includes(platform)) throw new HttpError(400, 'A valid platform is required');
     if (spinWheelTheme !== undefined && !SPIN_WHEEL_THEMES.includes(spinWheelTheme)) {
@@ -182,6 +255,7 @@ export default async function roomRoutes(app: FastifyInstance) {
         ...(discordWebhookUrl !== undefined && { discordWebhookUrl }),
         ...(spinOwnershipMaxPrice !== undefined && { spinOwnershipMaxPrice }),
         ...(spinWheelTheme !== undefined && { spinWheelTheme }),
+        ...(isPublic !== undefined && { isPublic }),
       },
     });
 

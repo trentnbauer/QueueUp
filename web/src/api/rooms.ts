@@ -2,6 +2,7 @@ import { apiGet, apiPost, apiPatch, apiDelete } from './client';
 import type {
   CreateRoomRequest,
   JoinRoomRequest,
+  PublicRoomSummary,
   Room,
   RoomMember,
   RoomMemberStats,
@@ -14,6 +15,8 @@ export const roomsApi = {
   list: () => apiGet<{ rooms: Room[] }>('/api/rooms'),
   create: (body: CreateRoomRequest) => apiPost<{ room: Room }>('/api/rooms', body),
   join: (body: JoinRoomRequest) => apiPost<{ room: Room }>('/api/rooms/join', body),
+  publicRooms: () => apiGet<{ rooms: PublicRoomSummary[] }>('/api/rooms/public'),
+  joinPublic: (roomId: string) => apiPost<{ room: Room }>(`/api/rooms/${roomId}/join-public`, {}),
   get: (roomId: string) => apiGet<{ room: Room }>(`/api/rooms/${roomId}`),
   update: (roomId: string, body: UpdateRoomRequest) => apiPatch<{ room: Room }>(`/api/rooms/${roomId}`, body),
   delete: (roomId: string) => apiDelete(`/api/rooms/${roomId}`),

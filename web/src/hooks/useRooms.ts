@@ -37,10 +37,16 @@ export function useRooms() {
     onSuccess: ({ room }) => addRoomToCache(room),
   });
 
+  const joinPublicRoom = useMutation({
+    mutationFn: (roomId: string) => roomsApi.joinPublic(roomId),
+    onSuccess: ({ room }) => addRoomToCache(room),
+  });
+
   return {
     rooms: query.data?.rooms ?? [],
     isLoading: query.isLoading,
     createRoom,
     joinRoom,
+    joinPublicRoom,
   };
 }
