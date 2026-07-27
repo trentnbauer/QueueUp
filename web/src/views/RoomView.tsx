@@ -8,6 +8,7 @@ import { useGames } from '../hooks/useGames';
 import { roomsApi } from '../api/rooms';
 import { GameGrid } from '../components/GameGrid';
 import { PlayingStrip } from '../components/PlayingStrip';
+import { ComingSoonStrip } from '../components/ComingSoonStrip';
 import { BeatenStrip } from '../components/BeatenStrip';
 import { DroppedStrip } from '../components/DroppedStrip';
 import { ActionErrorBanner } from '../components/ActionErrorBanner';
@@ -95,6 +96,24 @@ export function RoomView() {
       <TruncatedListBanner truncated={truncated} />
       <RoomSizeWarningBanner memberCount={memberCount} />
       <PlayingStrip
+        games={games}
+        currentUserId={user.id}
+        memberCount={memberCount}
+        roomMembers={roomMembers}
+        onStatusChange={updateStatus}
+        onVote={vote}
+        onRemove={remove}
+        onRefreshPrice={refreshPrice}
+        isRefreshingPrice={isRefreshingPrice}
+        onSetSteamMatch={setSteamMatch}
+        onSetTargetPrice={setTargetPrice}
+        onSetManualPrice={setManualPrice}
+        onSetOwnership={setOwnership}
+        onApplyTag={applyTag}
+        onRemoveTag={removeTag}
+        onSetPrerequisite={setPrerequisite}
+      />
+      <ComingSoonStrip
         games={games}
         currentUserId={user.id}
         memberCount={memberCount}

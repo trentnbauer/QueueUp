@@ -1,0 +1,49 @@
+.strip {
+  padding: 20px 40px 4px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+@media (max-width: 640px) {
+  .strip {
+    padding: 16px 18px 4px;
+  }
+}
+
+.label {
+  font: 700 12px system-ui, sans-serif;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--qu-muted);
+}
+
+.row {
+  display: flex;
+  gap: 16px;
+  overflow-x: auto;
+  padding-bottom: 4px;
+  scroll-behavior: smooth;
+}
+
+.item {
+  flex-shrink: 0;
+  width: 170px;
+  position: relative;
+}
+
+/* Sits on top of GameCard's own cover art (issue #367) - GameCard itself is unmodified, so this
+   only ever appears in this strip, not in the main grid where a countdown isn't the point. */
+.countdown {
+  position: absolute;
+  top: 8px;
+  left: 8px;
+  z-index: 6;
+  padding: 3px 8px;
+  border-radius: 999px;
+  background: rgba(0, 0, 0, 0.65);
+  backdrop-filter: blur(2px);
+  color: #fff;
+  font: 700 10.5px system-ui, sans-serif;
+  pointer-events: none;
+}

@@ -4,6 +4,7 @@ import {
   sortByScore,
   groupDlcAfterBaseGame,
   backlogGames,
+  upcomingReleases,
   isUnreleased,
   hasUnmetPrerequisite,
   defaultPrerequisite,
@@ -163,6 +164,31 @@ describe('backlogGames', () => {
     const borderlands1 = makeGame({ id: 'bl1', status: 'done' });
     const borderlands2 = makeGame({ id: 'bl2', status: 'backlog', prerequisiteGameId: 'bl1' });
     expect(backlogGames([borderlands1, borderlands2]).map((g) => g.id)).toEqual(['bl2']);
+  });
+});
+
+describe('upcomingReleases', () => {
+  const NOW = new Date('2026-07-01T00:00:00.000Z').getTime();
+
+  it('includes wishlist and backlog games with a future releaseDate, soonest first', () => {
+    const soon = makeGame({ id: 'soon', status: 'wishlist', releaseDate: '2026-07-10T00:00:00.000Z' });
+    const later = makeGame({ id: 'later', status: 'backlog', releaseDate: '2026-09-01T00:00:00.000Z' });
+    expect(upcomingReleases([later, soon], NOW).map((g) => g.id)).toEqual(['soon', 'later']);
+  });
+
+  it('excludes games with no releaseDate, even with a future releaseYear', () => {
+    const noExactDate = makeGame({ id: 'no-date', status: 'wishlist', releaseYear: 2027, releaseDate: null });
+    expect(upcomingReleases([noExactDate], NOW)).toEqual([]);
+  });
+
+  it('excludes games that have already released', () => {
+    const released = makeGame({ id: 'released', status: 'backlog', releaseDate: '2026-01-01T00:00:00.000Z' });
+    expect(upcomingReleases([released], NOW)).toEqual([]);
+  });
+
+  it('excludes games not on the Wishlist or Backlog', () => {
+    const playing = makeGame({ id: 'playing', status: 'playing', releaseDate: '2026-09-01T00:00:00.000Z' });
+    expect(upcomingReleases([playing], NOW)).toEqual([]);
   });
 });
 
