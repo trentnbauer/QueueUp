@@ -68,7 +68,7 @@ export function GameDetailModal({
   const dialogRef = useModalA11y<HTMLDivElement>(onClose);
   const hasSteamMatch = game.price.source === 'live' || game.ggDealsUrl !== null;
   const isCheckingMatch = checkingGameId === game.id;
-  const { players: achievementPlayers } = useGameAchievements(game.id);
+  const { players: achievementPlayers, isLoading: achievementsLoading } = useGameAchievements(game.id);
 
   // Every other game in this room, alphabetical for easy scanning in the dropdown. Only shown at
   // all for a room game with roomGames actually passed in - see onSetPrerequisite's doc comment.
@@ -304,7 +304,7 @@ export function GameDetailModal({
 
         <VoteRow myVote={game.myVote} onVote={onVote} />
         <VoteHeatmap votes={game.votes} currentUserId={currentUserId} roomMembers={roomMembers} />
-        <AchievementRow players={achievementPlayers} currentUserId={currentUserId} />
+        <AchievementRow players={achievementPlayers} currentUserId={currentUserId} isLoading={achievementsLoading} />
 
         {suggestDone && (
           <div className={styles.doneSuggestion}>
