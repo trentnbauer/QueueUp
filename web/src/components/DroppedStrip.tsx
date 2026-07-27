@@ -16,6 +16,7 @@ interface DroppedStripProps {
   isRefreshingPrice?: (gameId: string) => boolean;
   onSetSteamMatch: (gameId: string, steamAppId: number | null) => void;
   onSetTargetPrice: (gameId: string, targetPrice: string | null) => void;
+  onSetManualPrice: (gameId: string, manualPrice: string | null) => void;
   onSetOwnership?: (gameId: string, owned: boolean) => void;
   onApplyTag: (gameId: string, name: string) => Promise<void>;
   onRemoveTag: (gameId: string, tagId: string) => void;
@@ -38,6 +39,7 @@ export function DroppedStrip({
   isRefreshingPrice,
   onSetSteamMatch,
   onSetTargetPrice,
+  onSetManualPrice,
   onSetOwnership,
   onApplyTag,
   onRemoveTag,
@@ -77,6 +79,7 @@ export function DroppedStrip({
                 isRefreshingPrice={isRefreshingPrice ? isRefreshingPrice(game.id) : false}
                 onSetSteamMatch={(steamAppId) => onSetSteamMatch(game.id, steamAppId)}
                 onSetTargetPrice={(targetPrice) => onSetTargetPrice(game.id, targetPrice)}
+                onSetManualPrice={(manualPrice) => onSetManualPrice(game.id, manualPrice)}
                 onSetOwnership={onSetOwnership ? (owned) => onSetOwnership(game.id, owned) : undefined}
                 onApplyTag={(name) => onApplyTag(game.id, name)}
                 onRemoveTag={(tagId) => onRemoveTag(game.id, tagId)}

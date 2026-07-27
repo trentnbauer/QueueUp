@@ -35,6 +35,7 @@ export function ShelfView() {
     isRefreshingPrice,
     setSteamMatch,
     setTargetPrice,
+    setManualPrice,
     applyTag,
     removeTag,
     bulkUpdateStatus,
@@ -147,6 +148,7 @@ export function ShelfView() {
         isRefreshingPrice={isRefreshingPrice}
         onSetSteamMatch={setSteamMatch}
         onSetTargetPrice={setTargetPrice}
+        onSetManualPrice={setManualPrice}
         onApplyTag={applyTag}
         onRemoveTag={removeTag}
       />
@@ -170,6 +172,7 @@ export function ShelfView() {
         isRefreshingPrice={isRefreshingPrice}
         onSetSteamMatch={setSteamMatch}
         onSetTargetPrice={setTargetPrice}
+        onSetManualPrice={setManualPrice}
         onApplyTag={applyTag}
         onRemoveTag={removeTag}
         selectionMode={bulkMode}
@@ -186,6 +189,7 @@ export function ShelfView() {
         isRefreshingPrice={isRefreshingPrice}
         onSetSteamMatch={setSteamMatch}
         onSetTargetPrice={setTargetPrice}
+        onSetManualPrice={setManualPrice}
         onApplyTag={applyTag}
         onRemoveTag={removeTag}
       />
@@ -199,6 +203,7 @@ export function ShelfView() {
         isRefreshingPrice={isRefreshingPrice}
         onSetSteamMatch={setSteamMatch}
         onSetTargetPrice={setTargetPrice}
+        onSetManualPrice={setManualPrice}
         onApplyTag={applyTag}
         onRemoveTag={removeTag}
       />

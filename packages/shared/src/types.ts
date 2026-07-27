@@ -228,6 +228,10 @@ export interface Game {
   /** A price to alert at, if set (issue #162) - shared per-game, not per-user, so a room game
    * notifies everyone in the room once it's hit. Null when no alert is set. */
   targetPrice: string | null;
+  /** A user-set fallback dollar amount (issue #385) - shown wherever the price otherwise displays
+   * as unavailable (see GamePrice.amount/source), for games gg.deals/Steam can't match at all.
+   * Null when unset, or ignored once a live price is available. */
+  manualPrice: string | null;
   votes: VoteSummary[];
   myVote: VoteValue | null;
   voteScore: number;
@@ -380,6 +384,11 @@ export interface BulkRemoveGamesRequest {
 /** Sets (or clears, with null) the price to alert at for a game - see Game.targetPrice. */
 export interface SetTargetPriceRequest {
   targetPrice: string | null;
+}
+
+/** Sets (or clears, with null) the fallback price for a game - see Game.manualPrice. */
+export interface SetManualPriceRequest {
+  manualPrice: string | null;
 }
 
 /** Marks (or clears) the current user's ownership claim on a game - see GameOwnership. */

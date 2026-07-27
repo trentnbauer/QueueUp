@@ -22,6 +22,7 @@ function makeGame(overrides: Partial<Game> = {}): Game {
     steamFullyCompleted: false,
     price: { amount: null, currency: null, source: 'unavailable', historicalLow: null, lastRefreshedAt: null },
     targetPrice: null,
+    manualPrice: null,
     votes: [],
     myVote: null,
     voteScore: 0,

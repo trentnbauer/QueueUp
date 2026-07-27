@@ -74,6 +74,7 @@ interface GameGridProps {
   isRefreshingPrice?: (gameId: string) => boolean;
   onSetSteamMatch: (gameId: string, steamAppId: number | null) => void;
   onSetTargetPrice: (gameId: string, targetPrice: string | null) => void;
+  onSetManualPrice: (gameId: string, manualPrice: string | null) => void;
   /** Undefined on the Personal Shelf - ownership is a room-only concept (see GameCard). */
   onSetOwnership?: (gameId: string, owned: boolean) => void;
   /** Finds-or-creates a tag by name and applies it to a game (issue #247). */
@@ -106,6 +107,7 @@ export function GameGrid({
   isRefreshingPrice,
   onSetSteamMatch,
   onSetTargetPrice,
+  onSetManualPrice,
   onSetOwnership,
   onApplyTag,
   onRemoveTag,
@@ -245,6 +247,7 @@ export function GameGrid({
             isRefreshingPrice={isRefreshingPrice ? isRefreshingPrice(game.id) : false}
             onSetSteamMatch={(steamAppId) => onSetSteamMatch(game.id, steamAppId)}
             onSetTargetPrice={(targetPrice) => onSetTargetPrice(game.id, targetPrice)}
+            onSetManualPrice={(manualPrice) => onSetManualPrice(game.id, manualPrice)}
             onSetOwnership={onSetOwnership ? (owned) => onSetOwnership(game.id, owned) : undefined}
             onApplyTag={(name) => onApplyTag(game.id, name)}
             onRemoveTag={(tagId) => onRemoveTag(game.id, tagId)}

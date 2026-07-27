@@ -31,6 +31,9 @@ interface GameCardProps {
   /** Sets (or clears, with null) the price to alert at (issue #162) - only offered for games with
    * a live tracked price, since there's nothing to compare a target against otherwise. */
   onSetTargetPrice: (targetPrice: string | null) => void;
+  /** Sets (or clears, with null) a fallback dollar price (issue #385) - only offered when there's
+   * no live price to show, for games gg.deals/Steam couldn't match at all. */
+  onSetManualPrice: (manualPrice: string | null) => void;
   /** Toggles the current user's ownership claim on this game (issue #173) - only offered for room
    * games (game.ownership is null on the Personal Shelf, where there's no group to count). */
   onSetOwnership?: (owned: boolean) => void;
@@ -63,6 +66,7 @@ export function GameCard({
   isRefreshingPrice = false,
   onSetSteamMatch,
   onSetTargetPrice,
+  onSetManualPrice,
   onSetOwnership,
   onApplyTag,
   onRemoveTag,
@@ -219,6 +223,7 @@ export function GameCard({
           isRefreshingPrice={isRefreshingPrice}
           onSetSteamMatch={onSetSteamMatch}
           onSetTargetPrice={onSetTargetPrice}
+          onSetManualPrice={onSetManualPrice}
           onSetOwnership={onSetOwnership}
           onApplyTag={onApplyTag}
           onRemoveTag={onRemoveTag}

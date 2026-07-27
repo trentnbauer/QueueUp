@@ -60,6 +60,7 @@ function buildGameDto(game: GameWithRelations, currentUserId: string, price: Gam
     steamFullyCompleted: game.steamFullyCompleted,
     price,
     targetPrice: game.targetPrice,
+    manualPrice: game.manualPrice,
     votes: game.votes.map((v) => ({ user: toUserDto(v.user), value: v.value as VoteValue, createdAt: v.createdAt.toISOString() })),
     myVote: (myVote?.value as VoteValue | undefined) ?? null,
     voteScore,

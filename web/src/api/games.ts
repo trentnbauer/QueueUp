@@ -13,6 +13,7 @@ import type {
   PriceRegion,
   SetGameOwnershipRequest,
   SetGamePrerequisiteRequest,
+  SetManualPriceRequest,
   SetSteamMatchRequest,
   SetTargetPriceRequest,
   SteamCompletionsSyncResult,
@@ -62,6 +63,8 @@ export const gamesApi = {
   setSteamMatch: (id: string, body: SetSteamMatchRequest) => apiPatch<{ game: Game }>(`/api/games/${id}/steam-match`, body),
   setTargetPrice: (id: string, body: SetTargetPriceRequest) =>
     apiPatch<{ game: Game }>(`/api/games/${id}/target-price`, body),
+  setManualPrice: (id: string, body: SetManualPriceRequest) =>
+    apiPatch<{ game: Game }>(`/api/games/${id}/manual-price`, body),
   vote: (id: string, body: VoteRequest) => apiPut<{ game: Game }>(`/api/games/${id}/vote`, body),
   setOwnership: (id: string, body: SetGameOwnershipRequest) => apiPatch<{ game: Game }>(`/api/games/${id}/ownership`, body),
   setPrerequisite: (id: string, body: SetGamePrerequisiteRequest) =>

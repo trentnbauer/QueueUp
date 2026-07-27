@@ -17,6 +17,7 @@ interface GameListRowProps {
   isRefreshingPrice?: boolean;
   onSetSteamMatch: (steamAppId: number | null) => void;
   onSetTargetPrice: (targetPrice: string | null) => void;
+  onSetManualPrice: (manualPrice: string | null) => void;
   onSetOwnership?: (owned: boolean) => void;
   onApplyTag: (name: string) => Promise<void>;
   onRemoveTag: (tagId: string) => void;
@@ -44,6 +45,7 @@ export function GameListRow({
   isRefreshingPrice = false,
   onSetSteamMatch,
   onSetTargetPrice,
+  onSetManualPrice,
   onSetOwnership,
   onApplyTag,
   onRemoveTag,
@@ -159,6 +161,7 @@ export function GameListRow({
           isRefreshingPrice={isRefreshingPrice}
           onSetSteamMatch={onSetSteamMatch}
           onSetTargetPrice={onSetTargetPrice}
+          onSetManualPrice={onSetManualPrice}
           onSetOwnership={onSetOwnership}
           onApplyTag={onApplyTag}
           onRemoveTag={onRemoveTag}
