@@ -1,8 +1,11 @@
 import { useEffect, useRef, useState } from 'react';
-import type { CollectionGamesResult, CollectionSearchResult, GameSearchResult } from '@queueup/shared';
+import { ROOM_PLATFORM_LABELS, type CollectionGamesResult, type CollectionSearchResult, type GameSearchResult, type RoomPlatform } from '@queueup/shared';
 import { gamesApi } from '../api/games';
+import { useAuth } from '../context/AuthContext';
 import { useModalA11y, closeOnBackdropMouseDown } from '../hooks/useModalA11y';
 import styles from './AddGameModal.module.css';
+
+const ROOM_PLATFORM_OPTIONS = Object.keys(ROOM_PLATFORM_LABELS) as RoomPlatform[];
 
 interface AddGameModalProps {
   roomId: string | null;
@@ -42,6 +45,100 @@ function ResultThumb({ title, coverImageUrl }: { title: string; coverImageUrl: s
         // (an astral-plane emoji, etc.) yields one whole code point instead of half of one.
         <span className={styles.resultThumbFallback}>{(Array.from(title)[0] ?? '').toUpperCase()}</span>
       )}
+    </div>
+  );
+}
+
+interface AddGameOwnershipStepProps {
+  result: GameSearchResult;
+  /** Pre-checked platform selection, from the user's own Profile Settings "systems I own" list -
+   * just a convenience default, not a constraint (every platform is still selectable). */
+  ownedPlatformDefaults: RoomPlatform[];
+  busy: boolean;
+  error: string | null;
+  onConfirm: (status: 'backlog' | 'wishlist', ownedPlatforms: RoomPlatform[]) => void;
+  onCancel: () => void;
+}
+
+/** Personal Shelf-only step shown after picking a game to add (rooms skip straight to adding
+ * directly - see handleAddClick) - asks owned/not-owned (backlog vs wishlist) and, if owned, which
+ * platform(s), instead of guessing from release date alone (see defaultStatusForRelease) or
+ * leaving ownership unset until a separate follow-up action. There's no per-room equivalent of
+ * this: a room's own ownership toggle already infers its platform from the room itself (see
+ * gameOwnership.ts), which doesn't apply here since the Personal Shelf isn't scoped to one
+ * platform. */
+function AddGameOwnershipStep({ result, ownedPlatformDefaults, busy, error, onConfirm, onCancel }: AddGameOwnershipStepProps) {
+  const currentYear = new Date().getFullYear();
+  // A game that hasn't released yet (or isn't out this year) is far more likely to still be on a
+  // wishlist than already owned - same year-based fallback defaultStatusForRelease uses server-
+  // side, just here as a default the person can immediately override rather than a final decision.
+  const [owned, setOwned] = useState(result.releaseYear === null || result.releaseYear <= currentYear);
+  const [platforms, setPlatforms] = useState<Set<RoomPlatform>>(new Set(ownedPlatformDefaults));
+
+  function togglePlatform(platform: RoomPlatform) {
+    setPlatforms((prev) => {
+      const next = new Set(prev);
+      if (next.has(platform)) next.delete(platform);
+      else next.add(platform);
+      return next;
+    });
+  }
+
+  return (
+    <div>
+      <div className={styles.resultOption}>
+        <ResultThumb title={result.title} coverImageUrl={result.coverImageUrl} />
+        <div className={styles.resultMeta}>
+          <span className={styles.resultTitle}>
+            {result.title}
+            {result.releaseYear ? ` (${result.releaseYear})` : ''}
+          </span>
+          <span className={styles.resultPlatform}>{result.platform}</span>
+        </div>
+      </div>
+
+      {error && <div className={styles.error}>{error}</div>}
+
+      <div className={styles.ownershipChoice}>
+        <label className={styles.ownershipOption}>
+          <input type="radio" name="ownership" checked={owned} onChange={() => setOwned(true)} disabled={busy} />
+          I own this
+        </label>
+        <label className={styles.ownershipOption}>
+          <input type="radio" name="ownership" checked={!owned} onChange={() => setOwned(false)} disabled={busy} />
+          Don't own it yet
+        </label>
+      </div>
+
+      {owned && (
+        <div className={styles.platformGrid}>
+          {ROOM_PLATFORM_OPTIONS.map((platform) => (
+            <label key={platform} className={styles.platformOption}>
+              <input
+                type="checkbox"
+                checked={platforms.has(platform)}
+                onChange={() => togglePlatform(platform)}
+                disabled={busy}
+              />
+              {ROOM_PLATFORM_LABELS[platform]}
+            </label>
+          ))}
+        </div>
+      )}
+
+      <div className={styles.collectionActions}>
+        <button
+          type="button"
+          className={styles.addButton}
+          onClick={() => onConfirm(owned ? 'backlog' : 'wishlist', owned ? Array.from(platforms) : [])}
+          disabled={busy || (owned && platforms.size === 0)}
+        >
+          {busy ? 'Adding…' : owned ? 'Add as owned' : 'Add to Wishlist'}
+        </button>
+        <button type="button" className={styles.cancelButton} onClick={onCancel} disabled={busy}>
+          Back
+        </button>
+      </div>
     </div>
   );
 }
@@ -303,6 +400,11 @@ function CollectionReview({ collection, roomId, onAdded, onBack, onBusyChange, h
 /** Centered modal (matching Room Settings / Add Room) for searching and adding a game - replaces
  * the old always-visible inline search bar above the game grid. */
 export function AddGameModal({ roomId, onAdded, onClose }: AddGameModalProps) {
+  const { ownedPlatforms } = useAuth();
+  // Personal Shelf only (see AddGameOwnershipStep) - which result the owned/platforms step is
+  // currently showing, or null while the normal search/tabs UI is in view. Rooms skip this step
+  // entirely (handleAddClick adds directly instead of setting this).
+  const [pendingResult, setPendingResult] = useState<GameSearchResult | null>(null);
   // Issue #363: "Popular" is a separate browse mode alongside search, for discovering something
   // nobody had already thought to search for - its own fetch/loading/error state below, entirely
   // independent of the search-query-driven state that follows.
@@ -490,11 +592,14 @@ export function AddGameModal({ roomId, onAdded, onClose }: AddGameModalProps) {
     return () => observer.disconnect();
   }, [hasMore, searching, loadingMore, nextOffset, query, roomId, hideAddons]);
 
-  async function handleAdd(result: GameSearchResult) {
+  async function handleAdd(
+    result: GameSearchResult,
+    extra?: { status?: 'backlog' | 'wishlist'; ownedPlatforms?: RoomPlatform[] },
+  ): Promise<boolean> {
     setAddingId(result.igdbId);
     setError(null);
     try {
-      const response = await gamesApi.create({ igdbId: result.igdbId, roomId });
+      const response = await gamesApi.create({ igdbId: result.igdbId, roomId, ...extra });
       onAdded();
       // Stay open and keep the search results as-is so the user can add several games from the
       // same search without retyping - just mark this one as added (or suggested).
@@ -508,7 +613,7 @@ export function AddGameModal({ roomId, onAdded, onClose }: AddGameModalProps) {
         // Issue #362: this room requires approval and the caller is a plain Member - nothing was
         // added to the backlog yet, so there's no maxCoopPlayers to warn about either.
         setSuggestedIds((prev) => new Set(prev).add(result.igdbId));
-        return;
+        return true;
       }
 
       // Rooms are shared backlogs, typically meant to be played together - a game with no co-op
@@ -521,11 +626,34 @@ export function AddGameModal({ roomId, onAdded, onClose }: AddGameModalProps) {
         if (coopWarningTimeoutRef.current) clearTimeout(coopWarningTimeoutRef.current);
         coopWarningTimeoutRef.current = setTimeout(() => setCoopWarningTitle(null), 4000);
       }
+      return true;
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Could not add that game');
+      return false;
     } finally {
       setAddingId(null);
     }
+  }
+
+  // Personal Shelf: a plain "Add" click opens the owned/platforms step instead of adding right
+  // away (see AddGameOwnershipStep). Rooms have no such step - a room's own ownership toggle
+  // already infers its platform from the room, so there's nothing extra to ask here.
+  function handleAddClick(result: GameSearchResult) {
+    if (roomId === null) {
+      setPendingResult(result);
+      setError(null);
+      return;
+    }
+    handleAdd(result);
+  }
+
+  async function handleConfirmOwnership(status: 'backlog' | 'wishlist', selectedPlatforms: RoomPlatform[]) {
+    if (!pendingResult) return;
+    const ok = await handleAdd(pendingResult, {
+      status,
+      ownedPlatforms: status === 'backlog' ? selectedPlatforms : undefined,
+    });
+    if (ok) setPendingResult(null);
   }
 
   function handleInputKeyDown(e: React.KeyboardEvent<HTMLInputElement>) {
@@ -539,7 +667,7 @@ export function AddGameModal({ roomId, onAdded, onClose }: AddGameModalProps) {
     } else if (e.key === 'Enter') {
       if (highlightedIndex >= 0) {
         e.preventDefault();
-        handleAdd(results[highlightedIndex]);
+        handleAddClick(results[highlightedIndex]);
       }
     }
   }
@@ -559,7 +687,9 @@ export function AddGameModal({ roomId, onAdded, onClose }: AddGameModalProps) {
         onClick={(e) => e.stopPropagation()}
       >
         <div className={styles.header}>
-          <span className={styles.title}>{activeCollection ? activeCollection.name : 'Add a Game'}</span>
+          <span className={styles.title}>
+            {pendingResult ? `Add "${pendingResult.title}"` : activeCollection ? activeCollection.name : 'Add a Game'}
+          </span>
           <button
             type="button"
             className={styles.closeButton}
@@ -571,7 +701,19 @@ export function AddGameModal({ roomId, onAdded, onClose }: AddGameModalProps) {
           </button>
         </div>
 
-        {activeCollection ? (
+        {pendingResult ? (
+          <AddGameOwnershipStep
+            result={pendingResult}
+            ownedPlatformDefaults={ownedPlatforms}
+            busy={addingId === pendingResult.igdbId}
+            error={error}
+            onConfirm={handleConfirmOwnership}
+            onCancel={() => {
+              setPendingResult(null);
+              setError(null);
+            }}
+          />
+        ) : activeCollection ? (
           <CollectionReview
             collection={activeCollection}
             roomId={roomId}
@@ -676,7 +818,7 @@ export function AddGameModal({ roomId, onAdded, onClose }: AddGameModalProps) {
                         suggested={suggestedIds.has(r.igdbId)}
                         adding={addingId === r.igdbId}
                         busy={busy}
-                        onAdd={() => handleAdd(r)}
+                        onAdd={() => handleAddClick(r)}
                         optionProps={{
                           id: optionId(r.igdbId),
                           highlighted: i === highlightedIndex,
@@ -718,7 +860,7 @@ export function AddGameModal({ roomId, onAdded, onClose }: AddGameModalProps) {
                         suggested={suggestedIds.has(r.igdbId)}
                         adding={addingId === r.igdbId}
                         busy={busy}
-                        onAdd={() => handleAdd(r)}
+                        onAdd={() => handleAddClick(r)}
                       />
                     ))}
                   </div>
@@ -728,7 +870,7 @@ export function AddGameModal({ roomId, onAdded, onClose }: AddGameModalProps) {
           </>
         )}
 
-        {!activeCollection && (
+        {!activeCollection && !pendingResult && (
           <div className={styles.cancelZone}>
             <button type="button" className={styles.cancelButton} onClick={onClose}>
               Cancel

@@ -299,6 +299,15 @@ export interface CollectionGamesResult {
 export interface CreateGameRequest {
   igdbId: number;
   roomId?: string | null;
+  /** Explicit initial status - Personal Shelf's Add Game modal asks owned ('backlog') or not
+   * ('wishlist') up front instead of leaving it to defaultStatusForRelease's release-date guess.
+   * Omitted (rooms, and Steam import) keeps that release-date fallback unchanged. Only 'backlog'
+   * or 'wishlist' are accepted here - this isn't a general status override. */
+  status?: 'backlog' | 'wishlist';
+  /** Platforms to mark this game owned on immediately (Personal Shelf's Add Game modal) - only
+   * meaningful alongside `status: 'backlog'` (owned); ignored otherwise, and rejected outright for
+   * a room add (see the route) since room ownership is scoped to the room's own platform instead. */
+  ownedPlatforms?: RoomPlatform[];
 }
 
 /** POST /api/games normally adds the game directly. In a room with requireGameApproval on, a

@@ -281,6 +281,41 @@
   margin-top: 14px;
 }
 
+/* Personal Shelf's owned/platforms step (AddGameOwnershipStep). */
+.ownershipChoice {
+  display: flex;
+  gap: 16px;
+  margin-top: 16px;
+}
+
+.ownershipOption {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 13.5px;
+  color: var(--qu-text);
+  cursor: pointer;
+}
+
+.platformGrid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 8px 16px;
+  margin-top: 14px;
+  padding: 12px;
+  border-radius: var(--qu-radius);
+  background: var(--qu-surface2);
+}
+
+.platformOption {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 13px;
+  color: var(--qu-text);
+  cursor: pointer;
+}
+
 .cancelZone {
   margin-top: 18px;
   padding-top: 14px;
