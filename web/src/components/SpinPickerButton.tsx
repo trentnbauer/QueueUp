@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import type { Game, SpinWheelTheme } from '@queueup/shared';
+import type { Game, GameStatus, SpinWheelTheme } from '@queueup/shared';
 import { backlogGames, isFullyOwned } from './gameGridLogic';
 import { SpinWheelModal } from './SpinWheelModal';
 import { SteamMatchPicker } from './SteamMatchPicker';
@@ -20,6 +20,8 @@ interface SpinPickerButtonProps {
    * spinOwnershipMaxPrice (issue #339) - same mutation GameCard/GameDetailModal already use.
    * Undefined on the Personal Shelf, alongside spinOwnershipMaxPrice. */
   onSetSteamMatch?: (gameId: string, steamAppId: number | null) => void;
+  /** Marks the spin's winner Playing once someone hits "Let's play" in the reveal panel. */
+  onStatusChange: (gameId: string, status: GameStatus) => void;
 }
 
 function hasSteamMatch(game: Game): boolean {
@@ -38,7 +40,7 @@ function underPriceCap(game: Game, maxPrice: number | undefined): boolean {
  * actual games list. Opens the same SpinWheelModal reveal; this component only decides whether
  * there's anything to draw from and (issue #339) walks any price-undecided backlog games through
  * the silent Steam auto-match first, same as the tile it replaces. */
-export function SpinPickerButton({ games, spinOwnershipMaxPrice, spinWheelTheme, onSetSteamMatch }: SpinPickerButtonProps) {
+export function SpinPickerButton({ games, spinOwnershipMaxPrice, spinWheelTheme, onSetSteamMatch, onStatusChange }: SpinPickerButtonProps) {
   const [open, setOpen] = useState(false);
   const [resolving, setResolving] = useState(false);
   // Games we've already run the silent auto-match search for this visit - tracked so a game whose
@@ -123,7 +125,13 @@ export function SpinPickerButton({ games, spinOwnershipMaxPrice, spinWheelTheme,
       )}
 
       {open && (
-        <SpinWheelModal games={games} candidates={candidates} theme={spinWheelTheme} onClose={() => setOpen(false)} />
+        <SpinWheelModal
+          games={games}
+          candidates={candidates}
+          theme={spinWheelTheme}
+          onStatusChange={onStatusChange}
+          onClose={() => setOpen(false)}
+        />
       )}
     </>
   );
