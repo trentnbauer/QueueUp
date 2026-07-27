@@ -163,11 +163,6 @@
   cursor: default;
 }
 
-.archiveResult {
-  color: var(--qu-accent2);
-  font-size: 13px;
-}
-
 .integrationEditor {
   display: flex;
   align-items: center;
