@@ -23,7 +23,7 @@ import {
   setManualSteamMatch,
 } from '../services/gameIntake.js';
 import { notifyRoom } from '../services/notifications.js';
-import { platformFamilies, findIgdbIdBySteamAppId } from '../services/igdbClient.js';
+import { platformFamilies, findIgdbIdBySteamAppId, findIgdbIdByExactTitle } from '../services/igdbClient.js';
 import { getOwnedPlatforms } from '../services/userSettings.js';
 import {
   resolveSteamId64,
@@ -124,7 +124,12 @@ async function runSteamLibraryImportLoop(
   try {
     for (const game of considered) {
       try {
-        const igdbId = await findIgdbIdBySteamAppId(game.appId);
+        // Issue #373: IGDB's external_games Steam link is crowd-sourced and sometimes just never
+        // gets filled in for a title that's genuinely live on Steam (seen with Wolfenstein: The
+        // New Order, The Old Blood, and The New Colossus) - that game would otherwise be silently
+        // skipped on every import run forever. Falls back to an exact-title IGDB search using
+        // Steam's own name for the app before giving up on it.
+        const igdbId = (await findIgdbIdBySteamAppId(game.appId)) ?? (await findIgdbIdByExactTitle(game.name));
         if (igdbId === null) {
           skipped++;
           continue;

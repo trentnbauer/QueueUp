@@ -72,6 +72,7 @@ export async function searchSteamStore(query: string): Promise<SteamStoreMatch[]
 interface SteamOwnedGame {
   appid: number;
   playtime_forever: number;
+  name?: string;
 }
 
 interface SteamOwnedGamesResponse {
@@ -81,16 +82,22 @@ interface SteamOwnedGamesResponse {
 export interface OwnedSteamGame {
   appId: number;
   playtimeForeverMinutes: number;
+  /** Steam's own storefront name for this app - carried through so a Steam library import can
+   * fall back to an exact-title IGDB search (findIgdbIdByExactTitle, issue #373) when IGDB's
+   * external_games has no Steam link on file for it at all. */
+  name: string;
 }
 
 /** Fetches every game a Steam account owns via the Steam Web API. Requires the account's Steam
  * privacy setting to expose its game list publicly (the same requirement as any third-party Steam
- * tool) - a private profile returns an empty list rather than an error. */
+ * tool) - a private profile returns an empty list rather than an error. include_appinfo is on
+ * (issue #373) so each entry carries its Steam storefront name, not just its appid - needed for
+ * the exact-title IGDB fallback when a game has no crowd-sourced external_games Steam link. */
 export async function getOwnedSteamGames(steamId64: string, apiKey: string): Promise<OwnedSteamGame[]> {
   const url = new URL('https://api.steampowered.com/IPlayerService/GetOwnedGames/v0001/');
   url.searchParams.set('key', apiKey);
   url.searchParams.set('steamid', steamId64);
-  url.searchParams.set('include_appinfo', 'false');
+  url.searchParams.set('include_appinfo', 'true');
   url.searchParams.set('include_played_free_games', 'true');
   url.searchParams.set('format', 'json');
 
@@ -100,7 +107,7 @@ export async function getOwnedSteamGames(steamId64: string, apiKey: string): Pro
   }
   const body = (await response.json()) as SteamOwnedGamesResponse;
   const games = body.response?.games ?? [];
-  return games.map((g) => ({ appId: g.appid, playtimeForeverMinutes: g.playtime_forever }));
+  return games.map((g) => ({ appId: g.appid, playtimeForeverMinutes: g.playtime_forever, name: g.name ?? '' }));
 }
 
 interface SteamWishlistItem {

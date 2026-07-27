@@ -137,14 +137,28 @@ export function isAddonEdition(game: IgdbGame): boolean {
   return game.category !== undefined && ADDON_CATEGORIES.has(game.category);
 }
 
-/** Stable sort promoting an exact (case-insensitive) title match to the front. Long-running
- * franchises rack up a dozen+ entries (sequels, remasters, collections, spin-offs), and IGDB's
- * own relevance ranking doesn't reliably put an exact match - e.g. the 2018 "God of War", named
- * identically to the 2005 original - ahead of same-franchise partial matches like "God of War:
- * Ragnarök". Array.prototype.sort is stable, so non-matching rows keep IGDB's relative order. */
+/** Stable tiered re-rank promoting the closest title matches to the front: an exact
+ * (case-insensitive) match first, then anything whose title *contains* the query as a substring,
+ * then everything else - each tier keeping IGDB's own relative order. Long-running franchises rack
+ * up a dozen+ entries (sequels, remasters, collections, spin-offs, DLC), and IGDB's own relevance
+ * ranking doesn't reliably put an exact match - e.g. the 2018 "God of War", named identically to
+ * the 2005 original - ahead of same-franchise partial matches like "God of War: Ragnarök". The
+ * substring tier fixes the same class of bug for a search that doesn't hit an exact match at all:
+ * issue #373 found IGDB ranking unrelated titles like "Blood of Old" ahead of "Wolfenstein: The
+ * Old Blood" for the query "the old blood", even though the latter contains the query verbatim. */
 export function sortExactMatchFirst<T extends { name?: string }>(games: T[], query: string): T[] {
   const lowerQuery = query.trim().toLowerCase();
-  return [...games].sort((a, b) => Number(b.name?.toLowerCase() === lowerQuery) - Number(a.name?.toLowerCase() === lowerQuery));
+  function tier(game: T): 0 | 1 | 2 {
+    const name = game.name?.toLowerCase();
+    if (!name) return 2;
+    if (name === lowerQuery) return 0;
+    if (lowerQuery.length > 0 && name.includes(lowerQuery)) return 1;
+    return 2;
+  }
+  return games
+    .map((game, index) => ({ game, index, tier: tier(game) }))
+    .sort((a, b) => a.tier - b.tier || a.index - b.index)
+    .map((entry) => entry.game);
 }
 
 function coverUrl(cover?: IgdbCover): string | null {
@@ -250,6 +264,14 @@ export function escapeApicalypseString(value: string): string {
 // need to over-fetch a single request the way a fixed top-N search would.
 const SEARCH_PAGE_SIZE = 20;
 
+// Issue #373: IGDB's own relevance ranking can bury the actual title someone's searching for
+// well past position 20 - e.g. "the old blood" ranked several unrelated titles ahead of
+// "Wolfenstein: The Old Blood". sortExactMatchFirst's substring tier can only promote a row that
+// was actually fetched, so the first page pulls a wider raw batch to re-rank within before slicing
+// back down to SEARCH_PAGE_SIZE for display. Later pages don't need this - by then the user is
+// paging through IGDB's own order already, one screen at a time.
+const SEARCH_FIRST_PAGE_RAW_LIMIT = 50;
+
 export interface GameSearchPage {
   results: GameSearchResult[];
   /** Offset to pass on the next call to keep paging - always current offset + this page's raw
@@ -263,9 +285,16 @@ export interface GameSearchPage {
 
 /** Pure page-cursor arithmetic for searchGames, split out so it's unit-testable without a network
  * mock: `rawCount` is however many rows IGDB actually returned for this page (before any
- * isPrimaryEdition/platform filtering), which is what both `nextOffset` and `hasMore` key off. */
-export function nextSearchPage(offset: number, rawCount: number): { nextOffset: number; hasMore: boolean } {
-  return { nextOffset: offset + rawCount, hasMore: rawCount === SEARCH_PAGE_SIZE };
+ * isPrimaryEdition/platform filtering), which is what both `nextOffset` and `hasMore` key off.
+ * `rawLimit` is whatever limit was actually requested for this page - the first page requests
+ * SEARCH_FIRST_PAGE_RAW_LIMIT rather than SEARCH_PAGE_SIZE (see searchGames), so a full page there
+ * looks like more raw rows than a later page's. */
+export function nextSearchPage(
+  offset: number,
+  rawCount: number,
+  rawLimit: number = SEARCH_PAGE_SIZE,
+): { nextOffset: number; hasMore: boolean } {
+  return { nextOffset: offset + rawCount, hasMore: rawCount === rawLimit };
 }
 
 export async function searchGames(
@@ -291,9 +320,12 @@ export async function searchGames(
   // stop - a specific-platform release (e.g. a Switch game with a generic title) can easily rank
   // outside the top unfiltered results even though it'd be a top result once scoped.
   const whereClause = activePlatforms ? platformWhereClause(activePlatforms) : '';
+  // See SEARCH_FIRST_PAGE_RAW_LIMIT: only the first page needs the wider raw batch to re-rank
+  // within, since it's the only page sortExactMatchFirst reorders below.
+  const rawLimit = offset === 0 ? SEARCH_FIRST_PAGE_RAW_LIMIT : SEARCH_PAGE_SIZE;
   const games = await igdbRequest<IgdbGame[]>(
     'games',
-    `search "${escaped}"; fields name,cover.image_id,platforms.name,first_release_date,category,version_parent; ${whereClause} limit ${SEARCH_PAGE_SIZE}; offset ${offset};`,
+    `search "${escaped}"; fields name,cover.image_id,platforms.name,first_release_date,category,version_parent; ${whereClause} limit ${rawLimit}; offset ${offset};`,
   );
 
   const filtered = games
@@ -305,12 +337,14 @@ export async function searchGames(
     // incomplete/odd (e.g. a bundle with mixed platform tags).
     .filter((g) => !activePlatforms || platformFamilies(g.platforms).some((f) => activePlatforms.includes(f)));
 
-  // Only the first page gets exact-match promotion (e.g. the 2018 "God of War", named identically
-  // to the 2005 original, jumping ahead of same-franchise partial matches like "Ragnarök") - later
-  // pages are reordered within themselves only, which would just shuffle results already on screen
-  // for no benefit. Long-running franchises are still fully browsable via pagination regardless of
-  // where IGDB's own relevance ranking happens to place any individual title.
-  const ordered = offset === 0 ? sortExactMatchFirst(filtered, trimmed) : filtered;
+  // Only the first page gets exact/substring-match promotion (e.g. the 2018 "God of War", named
+  // identically to the 2005 original, jumping ahead of same-franchise partial matches like
+  // "Ragnarök") - later pages are reordered within themselves only, which would just shuffle
+  // results already on screen for no benefit. Long-running franchises are still fully browsable
+  // via pagination regardless of where IGDB's own relevance ranking happens to place any
+  // individual title. Sliced back down to SEARCH_PAGE_SIZE since the first page fetched a wider
+  // raw batch (SEARCH_FIRST_PAGE_RAW_LIMIT) purely to give the re-rank something to promote from.
+  const ordered = offset === 0 ? sortExactMatchFirst(filtered, trimmed).slice(0, SEARCH_PAGE_SIZE) : filtered;
 
   return {
     results: ordered.map((g) => ({
@@ -320,7 +354,7 @@ export async function searchGames(
       coverImageUrl: coverUrl(g.cover),
       releaseYear: releaseYear(g.first_release_date),
     })),
-    ...nextSearchPage(offset, games.length),
+    ...nextSearchPage(offset, games.length, rawLimit),
   };
 }
 
@@ -602,4 +636,27 @@ async function resolveToCanonicalIgdbId(igdbId: number): Promise<number> {
   const games = await igdbRequest<IgdbGame[]>('games', `fields version_parent; where id = ${igdbId};`);
   const versionParent = games[0]?.version_parent;
   return versionParent ?? igdbId;
+}
+
+/** Fallback for findIgdbIdBySteamAppId when IGDB's external_games has no Steam link at all for a
+ * title (issue #373) - that table is crowd-sourced and can simply never get filled in for a game
+ * that's genuinely live on Steam right now (the same gap findSteamAppIdByTitle already works
+ * around in the other direction, for pricing). Searches IGDB by the Steam library's own game name
+ * and only trusts an exact (case-insensitive) title match against *any* of the raw results, not
+ * just IGDB's top-ranked one - same reasoning as sortExactMatchFirst's exact tier, but applied as
+ * a hard filter here since silently picking the wrong edition/spinoff would be worse than skipping
+ * the import (the caller falls back to leaving the game unimported, same as a true no-match). */
+export async function findIgdbIdByExactTitle(title: string): Promise<number | null> {
+  const trimmed = title.trim();
+  if (!trimmed) return null;
+
+  const escaped = escapeApicalypseString(trimmed);
+  const games = await igdbRequest<IgdbGame[]>(
+    'games',
+    `search "${escaped}"; fields name,version_parent; limit ${SEARCH_FIRST_PAGE_RAW_LIMIT};`,
+  );
+  const normalized = trimmed.toLowerCase();
+  const match = games.find((g) => g.name?.trim().toLowerCase() === normalized);
+  if (!match) return null;
+  return match.version_parent ?? match.id;
 }

@@ -164,6 +164,28 @@ describe('sortExactMatchFirst', () => {
 
     expect(input).toEqual([other, match]);
   });
+
+  it('promotes a title containing the query as a substring ahead of unrelated titles (issue #373)', () => {
+    // Reproduces the "the old blood" search bug: IGDB ranked "Blood of Old" and "Blood for the Old
+    // Gods" ahead of "Wolfenstein: The Old Blood", even though only the latter contains the query.
+    const bloodOfOld = game({ id: 1, name: 'Blood of Old' });
+    const bloodForTheOldGods = game({ id: 2, name: 'Blood for the Old Gods' });
+    const wolfensteinTheOldBlood = game({ id: 3, name: 'Wolfenstein: The Old Blood' });
+
+    const result = sortExactMatchFirst([bloodOfOld, bloodForTheOldGods, wolfensteinTheOldBlood], 'the old blood');
+
+    expect(result[0]).toBe(wolfensteinTheOldBlood);
+  });
+
+  it('keeps every substring match ahead of non-matching titles, preserving their relative order', () => {
+    const doublePack = game({ id: 1, name: 'Wolfenstein: The New Order and The Old Blood Double Pack' });
+    const unrelated = game({ id: 2, name: 'Blood of Old' });
+    const theOldBlood = game({ id: 3, name: 'Wolfenstein: The Old Blood' });
+
+    const result = sortExactMatchFirst([doublePack, unrelated, theOldBlood], 'the old blood');
+
+    expect(result).toEqual([doublePack, theOldBlood, unrelated]);
+  });
 });
 
 describe('nextSearchPage', () => {
@@ -182,6 +204,11 @@ describe('nextSearchPage', () => {
 
   it('reports hasMore false and nextOffset unchanged for a page with zero raw rows', () => {
     expect(nextSearchPage(60, 0)).toEqual({ nextOffset: 60, hasMore: false });
+  });
+
+  it('keys hasMore off an explicit rawLimit (issue #373: first page requests a wider raw batch)', () => {
+    expect(nextSearchPage(0, 50, 50)).toEqual({ nextOffset: 50, hasMore: true });
+    expect(nextSearchPage(0, 20, 50)).toEqual({ nextOffset: 20, hasMore: false });
   });
 });
 
