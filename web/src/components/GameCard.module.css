@@ -188,6 +188,15 @@
   color: var(--qu-accent2);
 }
 
+/* Parallel to .everyoneOwnsLine (issue #368) - a coordinated-group-buy signal for the Wishlist,
+   not just the "everyone" special case, so a partial overlap (e.g. "3/4") still surfaces. */
+.wishlistLine {
+  font: 800 10.5px system-ui, sans-serif;
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
+  color: var(--qu-accent);
+}
+
 .priceLine {
   display: flex;
   align-items: center;
@@ -363,6 +372,19 @@
 .ownershipRowOwned {
   background: var(--qu-accent2-pill-bg);
   color: var(--qu-accent2);
+}
+
+/* Read-only counterpart to .ownershipRow (issue #368) - there's no per-user toggle to make here
+   (wishlisting is just this room game's own status), just a group-interest signal to surface. */
+.wishlistRow {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 7px 10px;
+  border-radius: var(--qu-radius);
+  background: var(--qu-accent-pill-bg);
+  color: var(--qu-accent);
+  font: 600 11px system-ui, sans-serif;
 }
 
 .addedBy {
