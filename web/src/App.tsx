@@ -12,6 +12,7 @@ import { ChangelogModal } from './components/ChangelogModal';
 import { SteamImportProvider } from './context/SteamImportContext';
 import { ShelfView } from './views/ShelfView';
 import { RoomView } from './views/RoomView';
+import { CurrentlyPlayingView } from './views/CurrentlyPlayingView';
 import { SettingsView } from './views/SettingsView';
 import { ProfileSettingsView } from './views/ProfileSettingsView';
 import { JoinRoomView } from './views/JoinRoomView';
@@ -100,7 +101,9 @@ export default function App() {
     return <LoginView providers={providers} />;
   }
 
-  const hideRoomHeader = location.pathname === '/settings' || location.pathname === '/profile';
+  // /playing (issue #364) is a cross-room aggregate, not scoped to any one shelf/room - the room
+  // Header's filters/Add Game button don't apply there, same reasoning as settings/profile.
+  const hideRoomHeader = location.pathname === '/settings' || location.pathname === '/profile' || location.pathname === '/playing';
 
   return (
     <SteamImportProvider>
@@ -113,6 +116,7 @@ export default function App() {
           <div style={{ flex: 1 }}>
             <Routes>
               <Route path="/" element={<ShelfView />} />
+              <Route path="/playing" element={<CurrentlyPlayingView />} />
               <Route path="/room/:roomId" element={<RoomView />} />
               <Route path="/settings" element={<SettingsView />} />
               <Route path="/profile" element={<ProfileSettingsView />} />

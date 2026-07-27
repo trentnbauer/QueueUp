@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useLocation } from 'react-router-dom';
 import { ROOM_PLATFORM_LABELS } from '@queueup/shared';
 import { useAuth } from '../context/AuthContext';
 import { useView } from '../context/ViewContext';
@@ -28,6 +28,9 @@ function initials(name: string): string {
 export function Sidebar() {
   const { user } = useAuth();
   const { activeRoom } = useView();
+  // /playing (issue #364) isn't tracked in ViewContext (it's not a shelf/room, just an aggregate
+  // view over them), so its icon's active state is checked directly against the URL instead.
+  const onPlayingPage = useLocation().pathname === '/playing';
   const { rooms } = useRooms();
   const { totalUnread, unreadRoomIds } = useNotificationSummary();
   const markAllNotificationsRead = useMarkAllNotificationsRead();
@@ -102,18 +105,29 @@ export function Sidebar() {
         <div className={styles.icons}>
           <Link
             to="/"
-            className={`${styles.roomIcon} ${!activeRoom ? styles.roomIconActive : ''}`}
+            className={`${styles.roomIcon} ${!activeRoom && !onPlayingPage ? styles.roomIconActive : ''}`}
             title="Personal Shelf"
             onClick={closeMobileDrawer}
           >
             🗂
           </Link>
 
+          {/* Cross-room Currently Playing dashboard (issue #364) - a glance at what's active
+              everywhere without switching into each room individually. */}
+          <Link
+            to="/playing"
+            className={`${styles.roomIcon} ${onPlayingPage ? styles.roomIconActive : ''}`}
+            title="Currently Playing (all rooms)"
+            onClick={closeMobileDrawer}
+          >
+            🎮
+          </Link>
+
           {rooms.map((room) => (
             <Link
               key={room.id}
               to={`/room/${room.id}`}
-              className={`${styles.roomIcon} ${activeRoom?.id === room.id ? styles.roomIconActive : ''}`}
+              className={`${styles.roomIcon} ${activeRoom?.id === room.id && !onPlayingPage ? styles.roomIconActive : ''}`}
               style={{ background: room.accentColor, color: contrastTextColor(room.accentColor) }}
               title={`${room.name} · ${ROOM_PLATFORM_LABELS[room.platform]}`}
               onClick={closeMobileDrawer}

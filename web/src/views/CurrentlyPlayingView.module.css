@@ -1,0 +1,102 @@
+.page {
+  padding: 28px 40px;
+  display: flex;
+  flex-direction: column;
+  gap: 28px;
+}
+
+@media (max-width: 640px) {
+  .page {
+    padding: 20px 18px;
+    gap: 20px;
+  }
+}
+
+.title {
+  font: 700 22px var(--qu-header-font);
+  color: var(--qu-text);
+  margin: 0 0 4px;
+}
+
+.hint {
+  font-size: 13px;
+  color: var(--qu-muted);
+  margin: 0;
+}
+
+.empty {
+  color: var(--qu-muted);
+  font-size: 13px;
+}
+
+.group {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.groupTitle {
+  font: 700 13px system-ui, sans-serif;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--qu-muted);
+}
+
+.row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 16px;
+}
+
+.tile {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  width: 150px;
+  text-decoration: none;
+  color: inherit;
+}
+
+.cover {
+  position: relative;
+  width: 100%;
+  aspect-ratio: 3 / 4;
+  border-radius: var(--qu-radius);
+  background-color: var(--qu-surface2);
+  background-size: cover;
+  background-position: center;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+}
+
+.coverFallback {
+  font: 700 28px system-ui, sans-serif;
+  color: var(--qu-muted);
+}
+
+.statusBadge {
+  position: absolute;
+  bottom: 6px;
+  left: 6px;
+  padding: 3px 8px;
+  border-radius: 999px;
+  background: var(--qu-accent);
+  color: var(--qu-accent-text);
+  font: 700 10px system-ui, sans-serif;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+}
+
+.statusBadgePlayNext {
+  background: var(--qu-accent2);
+}
+
+.tileTitle {
+  font: 600 12.5px system-ui, sans-serif;
+  color: var(--qu-text);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
