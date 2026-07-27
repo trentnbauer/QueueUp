@@ -27,7 +27,7 @@ const UNAVAILABLE_PRICE: GamePrice = {
   lastRefreshedAt: null,
 };
 
-const DEFAULT_OWNERSHIP: GameOwnershipInfo = { youOwn: false, ownership: null };
+const DEFAULT_OWNERSHIP: GameOwnershipInfo = { youOwn: false, ownership: null, wishlist: null };
 
 function buildGameDto(game: GameWithRelations, currentUserId: string, price: GamePrice, ownership: GameOwnershipInfo): Game {
   const myVote = game.votes.find((v) => v.userId === currentUserId);
@@ -66,6 +66,7 @@ function buildGameDto(game: GameWithRelations, currentUserId: string, price: Gam
     voteScore,
     youOwn: ownership.youOwn,
     ownership: ownership.ownership,
+    wishlist: ownership.wishlist,
     tags,
     igdbCollectionId: game.igdbCollectionId,
     reviewScore: game.reviewScore,

@@ -72,6 +72,10 @@ export function GameListRow({
   }
 
   const everyoneOwns = game.ownership && game.ownership.total > 1 && game.ownership.owned === game.ownership.total;
+  // Ownership is rarely meaningful for a Wishlist-status game (nobody owns it yet, by definition of
+  // still wanting it) - issue #368 repurposes this same stat column to show wishlist overlap
+  // instead, rather than adding a whole new column to this already-wide grid row.
+  const showWishlistStat = game.status === 'wishlist' && game.wishlist !== null;
 
   return (
     <>
@@ -130,7 +134,9 @@ export function GameListRow({
         </span>
 
         <span className={styles.stat}>
-          {game.ownership ? (
+          {showWishlistStat && game.wishlist ? (
+            `${game.wishlist.wishlisted}/${game.wishlist.total} want this`
+          ) : game.ownership ? (
             <span className={everyoneOwns ? styles.everyoneOwns : undefined}>
               {game.ownership.owned}/{game.ownership.total} own it
             </span>

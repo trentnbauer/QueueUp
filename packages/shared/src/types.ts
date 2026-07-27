@@ -242,6 +242,10 @@ export interface Game {
    * there are - e.g. {owned: 3, total: 4}. Null on the Personal Shelf, where there's no group
    * ownership to count. */
   ownership: { owned: number; total: number } | null;
+  /** How many of the room's *current* members also have this game wishlisted on their own
+   * Personal Shelf, out of how many current members there are (issue #368) - parallel to
+   * `ownership` above. Null on the Personal Shelf, where there's no group to count. */
+  wishlist: { wishlisted: number; total: number } | null;
   /** The *viewer's own* tags applied to this specific game row (issue #247) - always empty for a
    * room game someone else added, since only the person who added a game may tag it (tags are a
    * personal filing scheme, not a room feature - see Tag/GameTag in schema.prisma). Empty array,

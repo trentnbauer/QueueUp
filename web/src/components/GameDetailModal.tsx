@@ -439,6 +439,18 @@ export function GameDetailModal({
           </button>
         )}
 
+        {/* Read-only, parallel to the ownership row above (issue #368) - a coordinated group-buy
+            signal for the Wishlist ("N of M members already want this too"), sourced from each
+            member's own Personal Shelf rather than a toggle on this shared room row. */}
+        {game.status === 'wishlist' && game.wishlist && (
+          <div className={cardStyles.wishlistRow}>
+            <span aria-hidden="true">💭</span>
+            <span>
+              {game.wishlist.wishlisted}/{game.wishlist.total} of the squad also want this
+            </span>
+          </div>
+        )}
+
         {/* Tags are a personal filing scheme (issue #247) - only the game's adder can apply/remove
             one (see requireGameTagAccess server-side), so the whole section is hidden for a room
             game someone else added rather than showing controls that would just 403. */}

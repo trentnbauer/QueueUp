@@ -194,6 +194,15 @@ export function GameCard({
               {game.ownership && game.ownership.total > 1 && game.ownership.owned === game.ownership.total && (
                 <div className={styles.everyoneOwnsLine}>Everyone owns this</div>
               )}
+              {/* Issue #368: a coordinated group-buy signal parallel to the ownership badge above -
+                  shown for a genuine overlap (more than just whoever this room row happens to
+                  represent), not just when every member matches, since a partial "3/4" is exactly
+                  the useful case here. */}
+              {game.status === 'wishlist' && game.wishlist && game.wishlist.wishlisted > 1 && (
+                <div className={styles.wishlistLine}>
+                  {game.wishlist.wishlisted}/{game.wishlist.total} want this
+                </div>
+              )}
               {game.youOwn ? (
                 <div className={styles.ownedLine}>
                   <span className={styles.ownedLabel}>Owned</span>
