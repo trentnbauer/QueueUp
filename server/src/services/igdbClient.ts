@@ -28,7 +28,7 @@ async function resolveIgdbCredentials(): Promise<{ clientId: string; clientSecre
 }
 
 const TOKEN_CACHE_KEY = 'igdb:token:v1';
-const DETAIL_CACHE_PREFIX = 'igdb:detail:v8:'; // v8: added releaseDate (v7 added igdbCollectionId)
+const DETAIL_CACHE_PREFIX = 'igdb:detail:v9:'; // v9: added category/parentGameIgdbId (v8 added releaseDate, v7 added igdbCollectionId)
 const DETAIL_CACHE_TTL_SECONDS = 60 * 60 * 24; // 24h — title/cover/platform/steamAppId rarely change
 
 interface TwitchTokenResponse {
@@ -85,6 +85,10 @@ export interface IgdbGame {
   first_release_date?: number;
   category?: number;
   version_parent?: number;
+  /** IGDB's id for this game's base/parent game, present on DLC/expansion entries that have one on
+   * file (issue #338) - absent on a main game, and sometimes absent even on a real DLC entry when
+   * IGDB just doesn't have the link recorded. */
+  parent_game?: number;
   collection?: IgdbCollectionRef;
   /** 0-100, IGDB's blended critic+user score - present for most games with any review coverage
    * at all. Preferred over aggregated_rating/rating individually (see reviewScoreFrom) since it's
@@ -134,11 +138,19 @@ const ADDON_CATEGORIES: ReadonlySet<number> = new Set([
   IGDB_CATEGORY_SEASON,
 ]);
 
+/** True for one of ADDON_CATEGORIES's category ids - the plain-number half of isAddonEdition,
+ * usable once a game's category has already been captured at intake (issue #338's "ensure the
+ * base game is added" needs this after resolveGameForCreation, not while still holding a raw
+ * IgdbGame). */
+export function isAddonCategory(category: number | null | undefined): boolean {
+  return category != null && ADDON_CATEGORIES.has(category);
+}
+
 /** True for a DLC/expansion/season-pass entry - see ADDON_CATEGORIES. Used to hide these from
  * search results by default (issue #345), with a toggle to show them since they're still valid,
  * addable entries for someone who specifically wants one. */
 export function isAddonEdition(game: IgdbGame): boolean {
-  return game.category !== undefined && ADDON_CATEGORIES.has(game.category);
+  return isAddonCategory(game.category);
 }
 
 /** Stable tiered re-rank promoting the closest title matches to the front: an exact
@@ -490,6 +502,77 @@ export async function getCollectionGames(
   };
 }
 
+interface IgdbGameWithAddons extends IgdbGame {
+  dlcs?: IgdbGame[];
+  expansions?: IgdbGame[];
+}
+
+const DLC_CACHE_PREFIX = 'igdb:dlcs:v1:';
+const DLC_CACHE_TTL_SECONDS = 60 * 60 * 24; // 24h - a game's DLC lineup essentially never changes
+
+/** All DLC/expansion entries IGDB has on file for a given base game (issue #338 - backs the game
+ * modal's "View DLC" browse-and-add list). IGDB models these as two separate relations off the
+ * base game (`dlcs` and `expansions`) rather than one combined list - merged here since QueueUp
+ * treats both the same way (see ADDON_CATEGORIES). Deduped by igdb id, since IGDB occasionally
+ * lists the same entry under both relations. Cached same as getGameDetail (a title's DLC lineup
+ * essentially never changes once released) - excludeIgdbIds/platforms filtering happens after the
+ * cache read, not baked into the cached value, so the same cached list serves every room/shelf's
+ * differently-scoped request. */
+export async function getGameDlcs(
+  igdbId: number,
+  platforms?: RoomPlatform[],
+  excludeIgdbIds?: Set<number>,
+): Promise<GameSearchResult[]> {
+  if (!Number.isInteger(igdbId) || igdbId <= 0) {
+    throw new HttpError(400, 'Invalid IGDB game id');
+  }
+
+  const cacheKey = DLC_CACHE_PREFIX + igdbId;
+  const cached = await redis.get(cacheKey);
+  let entries: IgdbGame[];
+  if (cached) {
+    entries = JSON.parse(cached) as IgdbGame[];
+  } else {
+    const [game] = await igdbRequest<IgdbGameWithAddons[]>(
+      'games',
+      `fields dlcs.name,dlcs.cover.image_id,dlcs.platforms.name,dlcs.first_release_date,expansions.name,expansions.cover.image_id,expansions.platforms.name,expansions.first_release_date; where id = ${igdbId};`,
+    );
+    const byId = new Map<number, IgdbGame>();
+    for (const g of [...(game?.dlcs ?? []), ...(game?.expansions ?? [])]) {
+      if (g.name) byId.set(g.id, g);
+    }
+    entries = Array.from(byId.values());
+    await redis.set(cacheKey, JSON.stringify(entries), 'EX', DLC_CACHE_TTL_SECONDS);
+  }
+
+  const activePlatforms = platforms && platforms.length > 0 ? platforms : undefined;
+  return entries
+    // Unlike searchGames' identical-looking filter (genuinely "belt-and-suspenders" there, since
+    // an Apicalypse `where` clause already scoped the query server-side), this is the *only*
+    // platform filter applied here - there's no equivalent where-clause on a dlcs/expansions
+    // traversal. IGDB's platform data on DLC/expansion entries is much spottier than on full games,
+    // so treating a missing platforms list as "excluded" would silently empty this list for exactly
+    // the games most likely to have real, addable DLC. An entry with no platform data at all is
+    // kept rather than dropped - the base game is already confirmed on this room/shelf's platform,
+    // so its DLC almost certainly is too.
+    .filter(
+      (g) =>
+        !activePlatforms ||
+        platformFamilies(g.platforms).length === 0 ||
+        platformFamilies(g.platforms).some((f) => activePlatforms.includes(f)),
+    )
+    .filter((g) => !excludeIgdbIds || !excludeIgdbIds.has(g.id))
+    // Oldest release first - same "play in order" convention as getCollectionGames.
+    .sort((a, b) => (a.first_release_date ?? Infinity) - (b.first_release_date ?? Infinity))
+    .map((g) => ({
+      igdbId: g.id,
+      title: g.name!,
+      platform: platformLabel(g.platforms),
+      coverImageUrl: coverUrl(g.cover),
+      releaseYear: releaseYear(g.first_release_date),
+    }));
+}
+
 export interface IgdbGameDetail {
   igdbId: number;
   title: string;
@@ -519,6 +602,12 @@ export interface IgdbGameDetail {
   /** 0-100 review score (issue #311), see reviewScoreFrom - null when IGDB has no review data at
    * all for this game. Used to nudge Spin the Wheel toward better-reviewed games. */
   reviewScore: number | null;
+  /** IGDB's raw category enum value (issue #338) - see ADDON_CATEGORIES/isAddonCategory. Null when
+   * IGDB has no category on file (rare, but not the same as "main_game", which is category 0). */
+  category: number | null;
+  /** IGDB's id for this game's base/parent game, if this is DLC/an expansion with one on file
+   * (issue #338) - null for a main game, or for an add-on IGDB has no parent link recorded for. */
+  parentGameIgdbId: number | null;
 }
 
 // external_game_source 1 == Steam (from the external_game_sources endpoint) — the `games`
@@ -617,7 +706,7 @@ export async function getGameDetail(igdbId: number): Promise<IgdbGameDetail> {
     ]
   >(
     'multiquery',
-    `query games "Game" { fields name,cover.image_id,platforms.name,genres.name,first_release_date,collection.id,total_rating,aggregated_rating,rating; where id = ${igdbId}; };
+    `query games "Game" { fields name,cover.image_id,platforms.name,genres.name,first_release_date,collection.id,total_rating,aggregated_rating,rating,category,parent_game; where id = ${igdbId}; };
      query external_games "External" { fields uid; where game = ${igdbId} & external_game_source = ${STEAM_EXTERNAL_SOURCE_ID}; };
      query multiplayer_modes "Modes" { fields onlinecoopmax,offlinecoopmax; where game = ${igdbId}; };
      query game_time_to_beats "TimeToBeat" { fields normally,hastily,completely; where game_id = ${igdbId}; };`,
@@ -650,6 +739,8 @@ export async function getGameDetail(igdbId: number): Promise<IgdbGameDetail> {
     timeToBeatCompletionistHours: timeToBeatCompletionistHoursFrom(timeToBeatRows),
     igdbCollectionId: game.collection?.id ?? null,
     reviewScore: reviewScoreFrom(game),
+    category: game.category ?? null,
+    parentGameIgdbId: game.parent_game ?? null,
   };
 
   await redis.set(cacheKey, JSON.stringify(detail), 'EX', DETAIL_CACHE_TTL_SECONDS);

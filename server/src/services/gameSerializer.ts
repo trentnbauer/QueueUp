@@ -69,6 +69,7 @@ function buildGameDto(game: GameWithRelations, currentUserId: string, price: Gam
     igdbCollectionId: game.igdbCollectionId,
     reviewScore: game.reviewScore,
     prerequisiteGameId: game.prerequisiteGameId,
+    baseGameId: game.baseGameId,
     createdAt: game.createdAt.toISOString(),
     updatedAt: game.updatedAt.toISOString(),
   };

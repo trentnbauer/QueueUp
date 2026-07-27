@@ -4,7 +4,8 @@ import { HttpError } from '../util/httpError.js';
 import { toUserDto } from '../util/dto.js';
 import { requireElevated, getRoom } from '../services/roomAccess.js';
 import { loadGameOr404, requireNotDuplicate, rethrowAsDuplicateGame, invalidateExistingIgdbIds } from '../services/gameAccess.js';
-import { resolveGameForCreation, defaultStatusForRelease } from '../services/gameIntake.js';
+import { resolveGameForCreation, defaultStatusForRelease, linkDlcToBaseGame } from '../services/gameIntake.js';
+import { isAddonCategory } from '../services/igdbClient.js';
 import { serializeGame } from '../services/gameSerializer.js';
 import { notifyRoom } from '../services/notifications.js';
 import type { GameSuggestion } from '@queueup/shared';
@@ -103,6 +104,10 @@ export default async function gameSuggestionRoutes(app: FastifyInstance) {
         });
       } catch (err) {
         rethrowAsDuplicateGame(err, roomId, resolved.title);
+      }
+      // Issue #338: same base-game-ensure/link as a direct add.
+      if (resolved.parentGameIgdbId && isAddonCategory(resolved.category)) {
+        await linkDlcToBaseGame(created.id, resolved.parentGameIgdbId, roomId, suggestion.suggestedBy, [room.platform]);
       }
 
       await prisma.gameSuggestion.delete({ where: { id: suggestionId } });

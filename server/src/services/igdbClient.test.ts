@@ -4,6 +4,7 @@ import {
   escapeApicalypseString,
   isPrimaryEdition,
   isAddonEdition,
+  isAddonCategory,
   sortExactMatchFirst,
   normalizeGameTitleForComparison,
   nextSearchPage,
@@ -124,6 +125,26 @@ describe('isAddonEdition', () => {
   it('does not flag bundles/packs, which isPrimaryEdition already excludes on its own', () => {
     expect(isAddonEdition(game({ category: 3 }))).toBe(false); // bundle
     expect(isAddonEdition(game({ category: 13 }))).toBe(false); // pack
+  });
+});
+
+describe('isAddonCategory (issue #338)', () => {
+  it('flags DLC, expansions, standalone expansions, and season passes', () => {
+    expect(isAddonCategory(1)).toBe(true); // dlc_addon
+    expect(isAddonCategory(2)).toBe(true); // expansion
+    expect(isAddonCategory(4)).toBe(true); // standalone_expansion
+    expect(isAddonCategory(7)).toBe(true); // season
+  });
+
+  it('does not flag a main game, null, or undefined', () => {
+    expect(isAddonCategory(0)).toBe(false); // main_game
+    expect(isAddonCategory(null)).toBe(false);
+    expect(isAddonCategory(undefined)).toBe(false);
+  });
+
+  it('agrees with isAddonEdition for the same category', () => {
+    expect(isAddonCategory(1)).toBe(isAddonEdition({ id: 1, category: 1 }));
+    expect(isAddonCategory(undefined)).toBe(isAddonEdition({ id: 1 }));
   });
 });
 

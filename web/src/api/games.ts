@@ -44,6 +44,9 @@ export const gamesApi = {
     apiGet<{ results: GameSearchResult[] }>(
       `/api/games/trending${roomId ? `?roomId=${roomId}` : ''}${hideAddons ? '' : `${roomId ? '&' : '?'}hideAddons=false`}`,
     ),
+  /** Every DLC/expansion IGDB has on file for this game (issue #338), already excluding anything
+   * that's already on this game's own room/shelf. */
+  dlc: (id: string) => apiGet<{ results: GameSearchResult[] }>(`/api/games/${id}/dlc`),
   create: (body: CreateGameRequest) => apiPost<CreateGameResponse>('/api/games', body),
   updateStatus: (id: string, body: UpdateGameStatusRequest) =>
     apiPatch<UpdateGameStatusResponse>(`/api/games/${id}/status`, body),

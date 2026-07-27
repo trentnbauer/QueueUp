@@ -25,9 +25,17 @@ import {
   defaultStatusForRelease,
   assertPlatformMatch,
   trendingIntake,
+  dlcIntake,
+  linkDlcToBaseGame,
 } from '../services/gameIntake.js';
 import { notifyRoom } from '../services/notifications.js';
-import { platformFamilies, findIgdbIdBySteamAppId, findIgdbIdByExactTitle, getGameDetail } from '../services/igdbClient.js';
+import {
+  platformFamilies,
+  findIgdbIdBySteamAppId,
+  findIgdbIdByExactTitle,
+  getGameDetail,
+  isAddonCategory,
+} from '../services/igdbClient.js';
 import { getOwnedPlatforms } from '../services/userSettings.js';
 import {
   resolveSteamId64,
@@ -145,7 +153,7 @@ async function runSteamLibraryImportLoop(
           continue;
         }
         const resolved = await resolveGameForCreation(igdbId, undefined, STEAM_IMPORT_PLATFORM_LABEL);
-        await prisma.game.create({
+        const created = await prisma.game.create({
           data: {
             roomId: null,
             addedBy: userId,
@@ -169,6 +177,26 @@ async function runSteamLibraryImportLoop(
             status: defaultStatusForRelease(resolved.releaseDate),
           },
         });
+        // Issue #338: a Steam library commonly includes DLC entries alongside their base game -
+        // ensure the base game is present on the shelf too and link this row back to it. Same
+        // platform-label override as this DLC's own row above (Steam ownership only ever means
+        // PC), and the base game counts as owned/already-considered too - or the loop would try
+        // (and fail) to re-create it when it later reaches the base game's own considered entry,
+        // silently losing its owned mark in the process.
+        if (resolved.parentGameIgdbId && isAddonCategory(resolved.category)) {
+          const base = await linkDlcToBaseGame(
+            created.id,
+            resolved.parentGameIgdbId,
+            null,
+            userId,
+            undefined,
+            STEAM_IMPORT_PLATFORM_LABEL,
+          );
+          if (base && !existingIgdbIdSet.has(base.baseIgdbId)) {
+            existingIgdbIdSet.add(base.baseIgdbId);
+            ownedIgdbIds.push(base.baseIgdbId);
+          }
+        }
         existingIgdbIdSet.add(igdbId);
         ownedIgdbIds.push(igdbId);
         imported++;
@@ -211,7 +239,7 @@ async function runSteamWishlistImportLoop(
           continue;
         }
         const resolved = await resolveGameForCreation(igdbId, undefined, STEAM_IMPORT_PLATFORM_LABEL);
-        await prisma.game.create({
+        const created = await prisma.game.create({
           data: {
             roomId: null,
             addedBy: userId,
@@ -233,6 +261,24 @@ async function runSteamWishlistImportLoop(
             status: 'wishlist',
           },
         });
+        // Issue #338: same base-game-ensure/link as the library import loop above, and same
+        // bookkeeping fix (existingIgdbIdSet) so the loop doesn't re-attempt creating the base
+        // game if it's also independently on the wishlist. Deliberately wishlist, not
+        // defaultStatusForRelease's release-date guess - matches every sibling row this loop
+        // creates (a wishlisted DLC's base game reads as "also on the wishlist," not "in the
+        // backlog," until the person actually goes and gets it).
+        if (resolved.parentGameIgdbId && isAddonCategory(resolved.category)) {
+          const base = await linkDlcToBaseGame(
+            created.id,
+            resolved.parentGameIgdbId,
+            null,
+            userId,
+            undefined,
+            STEAM_IMPORT_PLATFORM_LABEL,
+            'wishlist',
+          );
+          if (base) existingIgdbIdSet.add(base.baseIgdbId);
+        }
         existingIgdbIdSet.add(igdbId);
         imported++;
       } catch {
@@ -319,6 +365,25 @@ export default async function gameRoutes(app: FastifyInstance) {
 
       const collection = await collectionGamesIntake(collectionId, platforms, excludeIgdbIds, hideAddons);
       return collection;
+    },
+  );
+
+  // Issue #338: backs the game modal's "View DLC" button - every DLC/expansion IGDB has on file
+  // for this game, filtered/deduped the same way search results are (already-added entries
+  // excluded, scoped to this game's own room/shelf platform). Shown regardless of whether this
+  // particular game turns out to have any (an empty list just means IGDB has none on file).
+  app.get<{ Params: { id: string } }>(
+    '/api/games/:id/dlc',
+    { config: { rateLimit: { max: 30, timeWindow: '1 minute' } } },
+    async (request) => {
+      const userId = await request.requireAuth();
+      const game = await loadGameOr404(request.params.id);
+      await requireGameReadAccess(game, userId);
+
+      const platforms = game.roomId ? [await getRoomPlatform(game.roomId)] : await getOwnedPlatforms(userId);
+      const excludeIgdbIds = await existingIgdbIds(game.roomId, userId);
+      const results = await dlcIntake(game.igdbId, platforms, excludeIgdbIds);
+      return { results };
     },
   );
 
@@ -461,6 +526,11 @@ export default async function gameRoutes(app: FastifyInstance) {
       });
     } catch (err) {
       rethrowAsDuplicateGame(err, roomId ?? null, resolved.title);
+    }
+    // Issue #338: this is DLC/an expansion IGDB has a parent link on file for - ensure that base
+    // game is present in the same room/shelf (creating it if needed) and link this row back to it.
+    if (resolved.parentGameIgdbId && isAddonCategory(resolved.category)) {
+      await linkDlcToBaseGame(created.id, resolved.parentGameIgdbId, roomId ?? null, userId, platforms);
     }
     const game = await loadGameOr404(created.id);
     await invalidateExistingIgdbIds(roomId ?? null, userId);

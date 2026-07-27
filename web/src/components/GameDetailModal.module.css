@@ -118,6 +118,22 @@
   font: 600 13px system-ui, sans-serif;
 }
 
+.viewDlcButton {
+  width: 100%;
+  padding: 10px 12px;
+  border-radius: var(--qu-radius);
+  background: var(--qu-surface2);
+  border: 1px solid var(--qu-border);
+  color: var(--qu-text);
+  font: 600 13px system-ui, sans-serif;
+  cursor: pointer;
+  text-align: left;
+}
+
+.viewDlcButton:hover {
+  border-color: var(--qu-accent);
+}
+
 .statusList {
   display: flex;
   flex-wrap: wrap;

@@ -19,6 +19,8 @@ function detail(platformFamilies: IgdbGameDetail['platformFamilies']): IgdbGameD
     timeToBeatCompletionistHours: null,
     igdbCollectionId: null,
     reviewScore: null,
+    category: null,
+    parentGameIgdbId: null,
   };
 }
 
