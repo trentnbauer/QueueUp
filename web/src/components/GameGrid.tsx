@@ -2,9 +2,11 @@ import { Fragment, useEffect, useMemo, useRef, useState } from 'react';
 import type { ReactNode } from 'react';
 import type { Game, GameStatus, SpinWheelTheme, User, VoteValue } from '@queueup/shared';
 import { GameCard } from './GameCard';
+import { GameListRow } from './GameListRow';
 import { SpinWheelCard } from './SpinWheelCard';
 import { ALL_FILTER_VALUE, filterGames, sortByScore, statusBucket } from './gameGridLogic';
 import { useGameFilter } from '../context/GameFilterContext';
+import { useViewMode } from '../context/ViewModeContext';
 import styles from './GameGrid.module.css';
 
 /** Sorts by score once when the page loads and then holds that order steady for the rest of the
@@ -131,6 +133,7 @@ export function GameGrid({
   // Filter selection lives in GameFilterContext, not here - the pill UI (and the search box) are
   // rendered by the Header (a sibling, not a parent, of this component) next to the Add Game button.
   const { platformFilter, genreFilter, statusFilter, tagFilter, searchQuery, neglectedFilter } = useGameFilter();
+  const { viewMode } = useViewMode();
 
   const sorted = useStableOrder(games);
   const prioritized = useMemo(
@@ -186,11 +189,13 @@ export function GameGrid({
     return () => observer.disconnect();
   }, [hasMore]);
 
+  const containerClass = viewMode === 'list' ? styles.list : styles.cards;
+
   if (isLoading) {
     return (
-      <div className={styles.cards}>
+      <div className={containerClass}>
         {[0, 1, 2].map((i) => (
-          <div key={i} className={styles.skeletonCard} />
+          <div key={i} className={viewMode === 'list' ? styles.skeletonRow : styles.skeletonCard} />
         ))}
       </div>
     );
@@ -209,14 +214,20 @@ export function GameGrid({
     );
   }
 
-  const spinCard = showSpinWheel && (
+  // SpinWheelCard/trailingCard are fixed-aspect-ratio grid tiles sized by their grid column -
+  // in the list view's flex column (issue #344) they'd otherwise stretch to the row's full width,
+  // and aspect-ratio: 2/3 turns that into a giant box. Cap them back down to tile size there.
+  const listTile = (node: ReactNode) => (viewMode === 'list' ? <div className={styles.listTile}>{node}</div> : node);
+
+  const spinCard = showSpinWheel && listTile(
     <SpinWheelCard
       games={games}
       spinOwnershipMaxPrice={spinOwnershipMaxPrice}
       spinWheelTheme={spinWheelTheme}
       onSetSteamMatch={onSetSteamMatch}
-    />
+    />,
   );
+  const wrappedTrailingCard = trailingCard && listTile(trailingCard);
 
   if (prioritized.length === 0 || visible.length === 0) {
     const message = prioritized.length === 0
@@ -228,10 +239,10 @@ export function GameGrid({
     if (!spinCard && !trailingCard) return <div className={styles.empty}>{message}</div>;
 
     return (
-      <div className={styles.cards}>
+      <div className={containerClass}>
         {spinCard}
         <div className={`${styles.empty} ${styles.emptyInGrid}`}>{message}</div>
-        {trailingCard}
+        {wrappedTrailingCard}
       </div>
     );
   }
@@ -248,12 +259,14 @@ export function GameGrid({
       })()
     : -1;
 
+  const GameFace = viewMode === 'list' ? GameListRow : GameCard;
+
   return (
-    <div className={styles.cards}>
+    <div className={containerClass}>
       {rendered.map((game, index) => (
         <Fragment key={game.id}>
           {index === spinCardInsertIndex && spinCard}
-          <GameCard
+          <GameFace
             game={game}
             currentUserId={currentUserId}
             memberCount={memberCount}
@@ -281,7 +294,7 @@ export function GameGrid({
           next batch of games should start rendering as the user scrolls near it. Omitted once
           everything's already rendered. */}
       {hasMore && <div ref={sentinelRef} className={styles.loadMoreSentinel} aria-hidden="true" />}
-      {trailingCard}
+      {wrappedTrailingCard}
     </div>
   );
 }
