@@ -345,6 +345,7 @@ model Game {
   successorGames   Game[] @relation("GamePrerequisite")
   baseGame Game?  @relation("GameBaseGame", fields: [baseGameId], references: [id], onDelete: SetNull)
   dlc      Game[] @relation("GameBaseGame")
+  playLogs PlayLog[]
 
   @@index([roomId])
   @@index([addedBy], map: "idx_games_personal")
@@ -353,6 +354,27 @@ model Game {
   @@index([prerequisiteGameId])
   @@index([baseGameId])
   @@map("games")
+}
+
+/// A dated log entry for one playthrough attempt (issue #361) - Game.status is a single mutable
+/// field with no history of its own, so there was no record of when a game was actually started or
+/// finished, and a Replay overwrote rather than added to that history. `startedAt` is set the
+/// moment a game is marked Playing; `finishedAt` is set when it's marked Done or Dropped, and stays
+/// null while still in progress (see recordStatusTransition.ts - resuming an unfinished attempt,
+/// e.g. Playing -> Backlog -> Playing, reuses this same open entry rather than starting a
+/// duplicate one). A Replay queued back up and played again gets its own new entry once nothing is
+/// left open, rather than reopening/overwriting this one.
+model PlayLog {
+  id         String    @id @default(uuid())
+  gameId     String    @map("game_id")
+  startedAt  DateTime  @map("started_at")
+  finishedAt DateTime? @map("finished_at")
+  createdAt  DateTime  @default(now()) @map("created_at")
+
+  game Game @relation(fields: [gameId], references: [id], onDelete: Cascade)
+
+  @@index([gameId])
+  @@map("play_log")
 }
 
 /// A lightweight nomination for a room game, pending a Room Master/Moderator's approve-or-decline
