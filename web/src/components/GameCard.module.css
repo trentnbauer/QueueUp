@@ -249,6 +249,19 @@
   color: var(--qu-muted);
 }
 
+/* Applied alongside .priceStatic (issue #336) for an owned game with no specific gg.deals listing
+ * on file - same look as the plain dead-end pill, but resets it back to a real button so "search
+ * gg.deals anyway" reads as clickable instead of a visual dead end. */
+.priceStaticButton {
+  border: none;
+  font: inherit;
+  cursor: pointer;
+}
+
+.priceStaticButton:hover {
+  background: var(--qu-surface2);
+}
+
 .priceMetaRow {
   display: flex;
   align-items: center;
