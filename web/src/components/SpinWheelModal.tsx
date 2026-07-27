@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import type { Game, GameStatus, SpinWheelTheme } from '@queueup/shared';
 import { useModalA11y, closeOnBackdropMouseDown } from '../hooks/useModalA11y';
-import { pickSpinWinner } from './gameGridLogic';
+import { pickSpinWinner, avoidedGenres, spinCandidateWeight } from './gameGridLogic';
 import { ConfettiBurst } from './ConfettiBurst';
 import { SpinThemeRenderer } from './spinThemes/SpinThemeRenderer';
 import { resolveConcreteTheme } from './spinThemes/resolveTheme';
@@ -39,6 +39,14 @@ export function SpinWheelModal({ games, candidates, theme = 'slot', onStatusChan
   const winner = useMemo(() => pickSpinWinner(games, candidates), [spinKey]);
   // eslint-disable-next-line react-hooks/exhaustive-deps
   const concreteTheme = useMemo(() => resolveConcreteTheme(theme), [theme, spinKey]);
+  // Same "locked in once per spinKey" reasoning as winner/concreteTheme above - the roulette theme
+  // (issue #355) sizes each slice by its actual odds, which should stay fixed for the duration of
+  // one spin's animation even if `games` changes underneath it (someone else voting, say).
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  const candidateWeights = useMemo(() => {
+    const avoided = avoidedGenres(games);
+    return new Map(candidates.map((g) => [g.id, spinCandidateWeight(g, avoided)]));
+  }, [spinKey]);
 
   useEffect(() => {
     setRevealed(false);
@@ -68,6 +76,7 @@ export function SpinWheelModal({ games, candidates, theme = 'slot', onStatusChan
           theme={concreteTheme}
           candidates={candidates}
           winner={winner}
+          candidateWeights={candidateWeights}
           spinKey={spinKey}
           onRevealed={() => setRevealed(true)}
         />
