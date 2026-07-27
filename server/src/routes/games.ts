@@ -55,7 +55,7 @@ import {
   searchSteamStore,
 } from '../services/steamLibrary.js';
 import type { OwnedSteamGame } from '../services/steamLibrary.js';
-import { setOwnership, markOwned } from '../services/gameOwnership.js';
+import { toggleOwnershipForPlatform, markOwned } from '../services/gameOwnership.js';
 import { findDetectedSteamCompletions } from '../services/steamCompletionDetection.js';
 import { toUserDto } from '../util/dto.js';
 import { env } from '../config/env.js';
@@ -1055,8 +1055,17 @@ export default async function gameRoutes(app: FastifyInstance) {
       const game = await loadGameOr404(request.params.id);
       await requireGameReadAccess(game, userId);
 
+      // Room-only: this toggle means "I own this on this room's platform" specifically (see
+      // toggleOwnershipForPlatform/getOwnershipInfo), which needs a room to infer a platform from -
+      // there's no equivalent single-platform toggle on the Personal Shelf (see the Add Game modal
+      // instead, which lets someone pick platform(s) explicitly).
+      if (!game.roomId) {
+        throw new HttpError(400, 'Ownership can only be toggled for a game in a room');
+      }
+      const room = await prisma.room.findUniqueOrThrow({ where: { id: game.roomId }, select: { platform: true } });
+
       const { owned } = request.body;
-      await setOwnership(userId, game.igdbId, owned);
+      await toggleOwnershipForPlatform(userId, game.igdbId, room.platform, owned);
 
       const updated = await loadGameOr404(game.id);
       return { game: await serializeGame(updated, userId) };

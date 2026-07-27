@@ -141,12 +141,19 @@ model LinkedIdentity {
 /// about the user and the title, not about any one shelf/room listing of it, so a Steam import (or
 /// a manual toggle) marking a game owned automatically applies everywhere that igdbId shows up
 /// across every room and the Personal Shelf, with nothing to "sync." Steam import writes these
-/// automatically; a room member can also toggle one manually for a game they own on another
-/// platform (see gameOwnership.ts).
+/// automatically (always `[pc]` - Steam ownership only ever implies PC); the Add Game modal and a
+/// room's ownership toggle write/update it manually.
 model GameOwnership {
-  userId    String   @map("user_id")
-  igdbId    Int      @map("igdb_id")
-  createdAt DateTime @default(now()) @map("created_at")
+  userId    String         @map("user_id")
+  igdbId    Int            @map("igdb_id")
+  /// Which platform(s) this claim covers - a room only counts a game as owned when its own
+  /// `Room.platform` is in this list (see getOwnershipInfo), so owning a title on Switch doesn't
+  /// silently mark it owned in a PC room. Empty means "platform unknown" - every row from before
+  /// this field existed - and is treated as owned everywhere, the same behavior this whole model
+  /// had before this fix, so no existing ownership claim silently disappears; every new claim
+  /// going forward is written with at least one specific platform.
+  platforms RoomPlatform[] @default([]) @map("platforms")
+  createdAt DateTime       @default(now()) @map("created_at")
 
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
