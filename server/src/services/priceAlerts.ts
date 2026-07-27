@@ -13,9 +13,13 @@ export async function checkPriceDropAlert(game: GameWithRelations, price: GamePr
   const targetPrice = game.targetPrice;
   if (!targetPrice || price.source !== 'live' || !price.amount) return;
   if (Number(price.amount) > Number(targetPrice)) return;
+
+  const room = game.roomId ? await prisma.room.findUnique({ where: { id: game.roomId }, select: { name: true, platform: true } }) : null;
   // A target price set before the game was marked owned (or before a Steam import surfaced
-  // existing ownership) is stale intent, not a live "should I buy this" question - see #187.
-  if (await isOwnedBy(game.addedBy, game.igdbId)) return;
+  // existing ownership) is stale intent, not a live "should I buy this" question (#187) - scoped to
+  // this room's own platform, so owning it on a different platform doesn't suppress a real alert
+  // for the platform this room is actually tracking.
+  if (await isOwnedBy(game.addedBy, game.igdbId, room?.platform ?? null)) return;
 
   try {
     const cleared = await prisma.game.updateMany({
@@ -24,7 +28,6 @@ export async function checkPriceDropAlert(game: GameWithRelations, price: GamePr
     });
     if (cleared.count === 0) return;
 
-    const room = game.roomId ? await prisma.room.findUnique({ where: { id: game.roomId }, select: { name: true } }) : null;
     await notifyPriceDrop({
       title: game.title,
       amount: price.amount,
@@ -49,8 +52,11 @@ export async function checkAllTimeLowAlert(game: GameWithRelations, price: GameP
   const amount = price.amount;
   if (Number(amount) > Number(price.historicalLow)) return;
   if (game.notifiedAtlPrice !== null && Number(amount) >= Number(game.notifiedAtlPrice)) return;
-  // Owning the game already answers "should I buy it" - see #187.
-  if (await isOwnedBy(game.addedBy, game.igdbId)) return;
+
+  const room = game.roomId ? await prisma.room.findUnique({ where: { id: game.roomId }, select: { name: true, platform: true } }) : null;
+  // Owning the game already answers "should I buy it" - see #187 - scoped to this room's own
+  // platform, same reasoning as checkPriceDropAlert above.
+  if (await isOwnedBy(game.addedBy, game.igdbId, room?.platform ?? null)) return;
 
   try {
     const updated = await prisma.game.updateMany({
@@ -59,7 +65,6 @@ export async function checkAllTimeLowAlert(game: GameWithRelations, price: GameP
     });
     if (updated.count === 0) return;
 
-    const room = game.roomId ? await prisma.room.findUnique({ where: { id: game.roomId }, select: { name: true } }) : null;
     await notifyPriceDrop({
       title: game.title,
       amount,
