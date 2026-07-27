@@ -72,6 +72,15 @@
   color: var(--qu-muted);
 }
 
+.checkboxRow {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 13px;
+  color: var(--qu-text);
+  cursor: pointer;
+}
+
 .input,
 .select {
   padding: 9px 12px;

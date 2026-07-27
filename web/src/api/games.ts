@@ -5,6 +5,7 @@ import type {
   CollectionGamesResult,
   CollectionSearchResult,
   CreateGameRequest,
+  CreateGameResponse,
   Game,
   GameSearchResult,
   MoveGameRequest,
@@ -39,7 +40,7 @@ export const gamesApi = {
     apiGet<CollectionGamesResult>(
       `/api/games/collections/${collectionId}${roomId ? `?roomId=${roomId}` : ''}${hideAddons ? '' : `${roomId ? '&' : '?'}hideAddons=false`}`,
     ),
-  create: (body: CreateGameRequest) => apiPost<{ game: Game }>('/api/games', body),
+  create: (body: CreateGameRequest) => apiPost<CreateGameResponse>('/api/games', body),
   updateStatus: (id: string, body: UpdateGameStatusRequest) =>
     apiPatch<UpdateGameStatusResponse>(`/api/games/${id}/status`, body),
   syncShelfBeaten: (id: string) => apiPost<{ ok: true }>(`/api/games/${id}/sync-shelf-beaten`),

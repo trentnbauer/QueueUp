@@ -9,7 +9,7 @@ import { useGames } from '../hooks/useGames';
 import { useGameFilter } from '../context/GameFilterContext';
 import { useSteamImportContext } from '../context/SteamImportContext';
 import { ALL_FILTER_VALUE, NEGLECTED_BACKLOG_MONTHS, distinctValues, distinctTagNames, isNeglectedBacklogGame } from './gameGridLogic';
-import { roomsApi } from '../api/rooms';
+import { roomsApi, gameSuggestionsApi } from '../api/rooms';
 import { AvatarBadge } from './AvatarBadge';
 import { RoomSettingsModal } from './RoomSettingsModal';
 import { ShelfSettingsModal } from './ShelfSettingsModal';
@@ -19,6 +19,7 @@ import { PillFilter } from './PillFilter';
 import { SpinPickerButton } from './SpinPickerButton';
 import { RankedQueueModal } from './RankedQueueModal';
 import { ImportLibraryModal } from './ImportLibraryModal';
+import { SuggestionsModal } from './SuggestionsModal';
 import styles from './Header.module.css';
 
 const ROLE_LABEL: Record<RoomRole, string> = {
@@ -59,6 +60,7 @@ export function Header() {
   const [showFilters, setShowFilters] = useState(false);
   const [showRankedQueue, setShowRankedQueue] = useState(false);
   const [showImportLibrary, setShowImportLibrary] = useState(false);
+  const [showSuggestions, setShowSuggestions] = useState(false);
   const [inviteCopied, setInviteCopied] = useState(false);
   // Which member's row is expanded to show their completed/100%'d counts - at most one at a time,
   // toggled by clicking the row again (see memberRow below). Not persisted; closes on re-render of
@@ -73,6 +75,19 @@ export function Header() {
   });
   const members = membersData?.members ?? [];
   const myRole = activeRoom?.myRole;
+  const isElevated = myRole === 'room_master' || myRole === 'moderator';
+
+  // Issue #362: only fetched for a Room Master/Moderator in a room that actually has
+  // requireGameApproval on - a plain Member never sees the pending-suggestions queue, and there's
+  // nothing to poll for on the Personal Shelf or in a room that doesn't gate adds.
+  const suggestionsEnabled = Boolean(activeRoom && isElevated && activeRoom.requireGameApproval);
+  const { data: suggestionsData } = useQuery({
+    queryKey: ['room-suggestions', activeRoom?.id],
+    queryFn: () => gameSuggestionsApi.list(activeRoom!.id),
+    enabled: suggestionsEnabled,
+    refetchInterval: suggestionsEnabled ? 30000 : false,
+  });
+  const pendingSuggestionCount = suggestionsData?.suggestions.length ?? 0;
   // Same derivation RoomView uses for GameGrid's identical props - RankedQueueModal's GameListRow
   // rows need them too (co-op warnings, "who hasn't voted"), undefined on the Personal Shelf where
   // there's no group to derive them from.
@@ -354,6 +369,18 @@ export function Header() {
             {steamImport.busy ? 'Importing…' : '📥 Import Library'}
           </button>
         )}
+        {/* Issue #362: only shown to a Room Master/Moderator in a room that requires approval for
+            member-suggested games - the review queue for those pending suggestions. */}
+        {suggestionsEnabled && (
+          <button
+            type="button"
+            className={styles.suggestionsButton}
+            onClick={() => setShowSuggestions(true)}
+            title="Review games members have suggested for this room"
+          >
+            🗳️ Suggestions{pendingSuggestionCount > 0 ? ` (${pendingSuggestionCount})` : ''}
+          </button>
+        )}
         <input
           type="search"
           className={styles.searchInput}
@@ -465,6 +492,10 @@ export function Header() {
           onDismissActionError={clearActionError}
           onClose={() => setShowImportLibrary(false)}
         />
+      )}
+
+      {showSuggestions && activeRoom && (
+        <SuggestionsModal roomId={activeRoom.id} onClose={() => setShowSuggestions(false)} />
       )}
     </header>
   );

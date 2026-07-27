@@ -69,6 +69,9 @@ enum NotificationType {
   room_owner_changed
   room_deleted
   price_drop
+  /// A member suggested a game for a room with requireGameApproval on (issue #362) - notifies the
+  /// room so a Room Master/Moderator knows to go approve or decline it.
+  game_suggested
 
   @@map("notification_type")
 }
@@ -98,6 +101,7 @@ model User {
   auditLogEntries      AdminAuditLog[]
   notificationsReceived Notification[] @relation("NotificationRecipient")
   notificationsActed   Notification[]  @relation("NotificationActor")
+  gameSuggestions      GameSuggestion[]
   ownedGames           GameOwnership[]
   achievementCompletions AchievementCompletion[]
   linkedIdentities     LinkedIdentity[]
@@ -188,11 +192,18 @@ model Room {
   /// invite code. Defaults to false (invite-only) so existing rooms are unaffected. The invite-code
   /// join path (POST /api/rooms/join) still works regardless of this flag.
   isPublic Boolean @default(false) @map("is_public")
+  /// When true, a plain Member's "add a game" becomes a suggestion (see GameSuggestion) that a Room
+  /// Master/Moderator must approve before it lands in the real backlog, rather than adding directly
+  /// (issue #362). Defaults to false so existing rooms behave exactly as before - Room Masters and
+  /// Moderators always add directly regardless of this flag, since they're the ones who'd otherwise
+  /// be approving their own suggestion.
+  requireGameApproval Boolean @default(false) @map("require_game_approval")
 
-  creator       User           @relation("RoomCreatedBy", fields: [createdBy], references: [id])
+  creator       User             @relation("RoomCreatedBy", fields: [createdBy], references: [id])
   members       RoomMember[]
   games         Game[]
   notifications Notification[]
+  suggestions   GameSuggestion[]
 
   @@map("rooms")
 }
@@ -313,6 +324,35 @@ model Game {
   @@index([addedBy, igdbId])
   @@index([prerequisiteGameId])
   @@map("games")
+}
+
+/// A lightweight nomination for a room game, pending a Room Master/Moderator's approve-or-decline
+/// (issue #362) - only created when the room's requireGameApproval is on and the suggester is a
+/// plain Member. Deliberately its own table rather than a new GameStatus value: a status enum
+/// member would leak into every status-list/status-pill site across the app (grid grouping, bulk
+/// actions, exports, ...) that has nothing to do with pre-approval curation. No `status` column
+/// here either - a row's mere existence means "pending"; approving or declining it deletes the row
+/// (approving also creates the real Game via the same full-intake path POST /api/games uses).
+/// Captures just enough at suggest time to render a review row (title/platform/cover/releaseYear
+/// from a single IGDB detail lookup) - the expensive parts of intake (Steam app id resolution,
+/// gg.deals pricing) are deferred until approval, since a declined suggestion should never have
+/// paid for those.
+model GameSuggestion {
+  id            String   @id @default(uuid())
+  roomId        String   @map("room_id")
+  igdbId        Int      @map("igdb_id")
+  title         String
+  platform      String
+  coverImageUrl String?  @map("cover_image_url")
+  releaseYear   Int?     @map("release_year")
+  suggestedBy   String   @map("suggested_by")
+  createdAt     DateTime @default(now()) @map("created_at")
+
+  room      Room @relation(fields: [roomId], references: [id], onDelete: Cascade)
+  suggester User @relation(fields: [suggestedBy], references: [id], onDelete: Cascade)
+
+  @@index([roomId])
+  @@map("game_suggestions")
 }
 
 model Vote {
