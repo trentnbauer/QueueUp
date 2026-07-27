@@ -406,6 +406,11 @@ export function Header() {
           options={tagOptions}
           value={tagFilter}
           onChange={setTagFilter}
+          // Issue #341: unlike Platform/Genre/Status, tags aren't exhaustive - a game can have
+          // zero - so even a single distinct tag name still meaningfully splits the list, and
+          // the default minOptions={2} was hiding this filter entirely for anyone with just one
+          // tag defined (making it look like tags "don't have any use").
+          minOptions={1}
         />
         {neglectedCount > 0 && (
           <div className={styles.filterGroup}>
