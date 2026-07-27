@@ -1,7 +1,8 @@
 import { useEffect, useRef, useState } from 'react';
-import type { CollectionGamesResult, CollectionSearchResult, GameSearchResult } from '@queueup/shared';
+import type { CollectionGamesResult, CollectionSearchResult, GameSearchResult, GameStatus } from '@queueup/shared';
 import { gamesApi } from '../api/games';
 import { useModalA11y, closeOnBackdropMouseDown } from '../hooks/useModalA11y';
+import { QuickAddStatusButtons } from './QuickAddStatusButtons';
 import styles from './AddGameModal.module.css';
 
 interface AddGameModalProps {
@@ -52,14 +53,14 @@ interface AddGameResultRowProps {
   suggested: boolean;
   adding: boolean;
   busy: boolean;
-  onAdd: () => void;
+  onAdd: (status: GameStatus) => void;
   /** Only the search tab supports arrow-key navigation (it's the one with a text input to type
    * into) - the Popular tab is a plain browse list, so this is omitted there. */
   optionProps?: { id: string; highlighted: boolean; onMouseEnter: () => void };
 }
 
 /** One result row, shared by the search list and the Popular browse list (issue #363) - identical
- * thumb/title/platform/Add-button markup either way, since gamesApi.create's suggestion-vs-add
+ * thumb/title/platform/quick-add markup either way, since gamesApi.create's suggestion-vs-add
  * response handling in handleAdd doesn't care which tab a GameSearchResult came from. */
 function AddGameResultRow({ result, added, suggested, adding, busy, onAdd, optionProps }: AddGameResultRowProps) {
   return (
@@ -78,14 +79,7 @@ function AddGameResultRow({ result, added, suggested, adding, busy, onAdd, optio
         </span>
         <span className={styles.resultPlatform}>{result.platform}</span>
       </div>
-      <button
-        type="button"
-        className={`${styles.addButton} ${added ? styles.addButtonAdded : ''}`}
-        onClick={onAdd}
-        disabled={busy || added}
-      >
-        {adding ? 'Adding…' : added ? (suggested ? 'Suggested ✓' : 'Added ✓') : 'Add'}
-      </button>
+      <QuickAddStatusButtons added={added} suggested={suggested} adding={adding} disabled={busy} onAdd={onAdd} />
     </div>
   );
 }
@@ -490,11 +484,11 @@ export function AddGameModal({ roomId, onAdded, onClose }: AddGameModalProps) {
     return () => observer.disconnect();
   }, [hasMore, searching, loadingMore, nextOffset, query, roomId, hideAddons]);
 
-  async function handleAdd(result: GameSearchResult) {
+  async function handleAdd(result: GameSearchResult, status: GameStatus) {
     setAddingId(result.igdbId);
     setError(null);
     try {
-      const response = await gamesApi.create({ igdbId: result.igdbId, roomId });
+      const response = await gamesApi.create({ igdbId: result.igdbId, roomId, status });
       onAdded();
       // Stay open and keep the search results as-is so the user can add several games from the
       // same search without retyping - just mark this one as added (or suggested).
@@ -539,7 +533,9 @@ export function AddGameModal({ roomId, onAdded, onClose }: AddGameModalProps) {
     } else if (e.key === 'Enter') {
       if (highlightedIndex >= 0) {
         e.preventDefault();
-        handleAdd(results[highlightedIndex]);
+        // Enter has no way to pick among the three quick-add buttons - defaults to Backlog, the
+        // "add without deciding yet" middle ground between Wishlist and Playing.
+        handleAdd(results[highlightedIndex], 'backlog');
       }
     }
   }
@@ -676,7 +672,7 @@ export function AddGameModal({ roomId, onAdded, onClose }: AddGameModalProps) {
                         suggested={suggestedIds.has(r.igdbId)}
                         adding={addingId === r.igdbId}
                         busy={busy}
-                        onAdd={() => handleAdd(r)}
+                        onAdd={(status) => handleAdd(r, status)}
                         optionProps={{
                           id: optionId(r.igdbId),
                           highlighted: i === highlightedIndex,
@@ -718,7 +714,7 @@ export function AddGameModal({ roomId, onAdded, onClose }: AddGameModalProps) {
                         suggested={suggestedIds.has(r.igdbId)}
                         adding={addingId === r.igdbId}
                         busy={busy}
-                        onAdd={() => handleAdd(r)}
+                        onAdd={(status) => handleAdd(r, status)}
                       />
                     ))}
                   </div>
