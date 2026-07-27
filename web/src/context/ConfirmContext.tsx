@@ -1,5 +1,5 @@
 import { createContext, useCallback, useContext, useRef, useState, type ReactNode } from 'react';
-import { useModalA11y } from '../hooks/useModalA11y';
+import { useModalA11y, closeOnBackdropMouseDown } from '../hooks/useModalA11y';
 import styles from './ConfirmContext.module.css';
 
 interface ConfirmOptions {
@@ -35,7 +35,7 @@ function ConfirmDialog({ options, onSettle }: ConfirmDialogProps) {
   const confirmDisabled = requiredText !== undefined && typedText !== requiredText;
 
   return (
-    <div className={styles.backdrop} role="presentation" onClick={() => onSettle(false)}>
+    <div className={styles.backdrop} role="presentation" onMouseDown={closeOnBackdropMouseDown(() => onSettle(false))}>
       <div
         ref={dialogRef}
         className={styles.dialog}

@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState, type FormEvent } from 'react';
 import type { SteamStoreMatch } from '@queueup/shared';
 import { gamesApi } from '../api/games';
-import { useModalA11y } from '../hooks/useModalA11y';
+import { useModalA11y, closeOnBackdropMouseDown } from '../hooks/useModalA11y';
 import styles from './SteamMatchPicker.module.css';
 
 interface SteamMatchPickerProps {
@@ -52,7 +52,7 @@ export function SteamMatchPicker({ gameId, gameTitle, hasExistingMatch, onMatche
   }
 
   return (
-    <div className={styles.backdrop} role="presentation" onClick={onClose}>
+    <div className={styles.backdrop} role="presentation" onMouseDown={closeOnBackdropMouseDown(onClose)}>
       <div ref={dialogRef} className={styles.dialog} role="dialog" aria-modal="true" aria-label="Fix Steam match" onClick={(e) => e.stopPropagation()}>
         <div className={styles.header}>
           <span className={styles.title}>Fix Steam match</span>

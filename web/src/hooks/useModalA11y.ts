@@ -1,4 +1,4 @@
-import { useEffect, useRef } from 'react';
+import { useEffect, useRef, type MouseEvent } from 'react';
 
 const FOCUSABLE_SELECTOR =
   'a[href], button:not([disabled]), textarea:not([disabled]), input:not([disabled]), select:not([disabled]), [tabindex]:not([tabindex="-1"])';
@@ -79,4 +79,16 @@ export function useModalA11y<T extends HTMLElement>(onClose: () => void) {
   }, []);
 
   return ref;
+}
+
+/** Backdrop close handler for every modal (issue #342) - attach as `onMouseDown` on the backdrop
+ * element, not `onClick`. A native `click` event fires based on wherever `mouseup` lands, so a
+ * plain `onClick={onClose}` on the backdrop closes the modal even when the drag *started* inside
+ * the dialog (e.g. selecting text and dragging past its edge before releasing). Keying off
+ * `mousedown` instead, and requiring the event's target to be the backdrop itself rather than a
+ * bubbled-up child, means only a press that begins outside the dialog closes it. */
+export function closeOnBackdropMouseDown(onClose: () => void) {
+  return (e: MouseEvent<HTMLElement>) => {
+    if (e.target === e.currentTarget) onClose();
+  };
 }

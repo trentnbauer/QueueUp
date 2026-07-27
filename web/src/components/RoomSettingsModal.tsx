@@ -16,7 +16,7 @@ import { useAuth } from '../context/AuthContext';
 import { useConfirm } from '../context/ConfirmContext';
 import { ACCENT_PRESETS } from '../theme/defaultTheme';
 import { exportGames } from '../utils/exportGames';
-import { useModalA11y } from '../hooks/useModalA11y';
+import { useModalA11y, closeOnBackdropMouseDown } from '../hooks/useModalA11y';
 import { AvatarBadge } from './AvatarBadge';
 import styles from './RoomSettingsModal.module.css';
 
@@ -202,7 +202,7 @@ export function RoomSettingsModal({ room, members, games, onClose }: RoomSetting
   }
 
   return (
-    <div className={styles.backdrop} role="presentation" onClick={onClose}>
+    <div className={styles.backdrop} role="presentation" onMouseDown={closeOnBackdropMouseDown(onClose)}>
       <div
         ref={dialogRef}
         className={styles.dialog}

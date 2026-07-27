@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import type { SteamCompletionCandidate, SteamCompletionsSyncResult } from '@queueup/shared';
-import { useModalA11y } from '../hooks/useModalA11y';
+import { useModalA11y, closeOnBackdropMouseDown } from '../hooks/useModalA11y';
 import { formatRelativeTime } from '../utils/relativeTime';
 import styles from './SteamCompletionsSyncModal.module.css';
 
@@ -60,7 +60,7 @@ export function SteamCompletionsSyncModal({ result, applying, onApply, onClose }
   }
 
   return (
-    <div className={styles.backdrop} role="presentation" onClick={onClose}>
+    <div className={styles.backdrop} role="presentation" onMouseDown={closeOnBackdropMouseDown(onClose)}>
       <div
         ref={dialogRef}
         className={styles.dialog}

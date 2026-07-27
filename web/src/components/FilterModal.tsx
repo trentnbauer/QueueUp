@@ -1,4 +1,4 @@
-import { useModalA11y } from '../hooks/useModalA11y';
+import { useModalA11y, closeOnBackdropMouseDown } from '../hooks/useModalA11y';
 import { PillFilter } from './PillFilter';
 import styles from './FilterModal.module.css';
 
@@ -35,7 +35,7 @@ export function FilterModal({
   const dialogRef = useModalA11y<HTMLDivElement>(onClose);
 
   return (
-    <div className={styles.backdrop} role="presentation" onClick={onClose}>
+    <div className={styles.backdrop} role="presentation" onMouseDown={closeOnBackdropMouseDown(onClose)}>
       <div ref={dialogRef} className={styles.dialog} role="dialog" aria-modal="true" aria-label="Filters" onClick={(e) => e.stopPropagation()}>
         <div className={styles.header}>
           <span className={styles.title}>Filters</span>
