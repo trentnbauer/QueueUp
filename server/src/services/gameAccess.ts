@@ -79,6 +79,17 @@ export function rethrowAsDuplicateGame(err: unknown, roomId: string | null, titl
   throw err;
 }
 
+/** Suggestions (issue #362) have no equivalent DB constraint backstop like requireNotDuplicate's
+ * games_room_igdb_unique index - a duplicate pending suggestion is low stakes (a Room
+ * Master/Moderator just sees the same title twice and declines one), so a plain check-then-act
+ * is enough here without also authoring a partial unique index for it. */
+export async function requireNotAlreadySuggested(roomId: string, igdbId: number): Promise<void> {
+  const existing = await prisma.gameSuggestion.findFirst({ where: { roomId, igdbId } });
+  if (existing) {
+    throw new HttpError(400, `${existing.title} has already been suggested for this room.`);
+  }
+}
+
 const EXISTING_IGDB_IDS_CACHE_TTL_SECONDS = 30;
 
 function existingIgdbIdsCacheKey(roomId: string | null, userId: string): string {
@@ -88,17 +99,21 @@ function existingIgdbIdsCacheKey(roomId: string | null, userId: string): string 
 /** Backs the search dropdown's "already added" filter. Cached briefly since a user typically
  * fires several search requests in a row while picking a game, each needing this same set;
  * a short TTL keeps it cheap without risking real staleness (adding a real duplicate is still
- * blocked server-side by requireNotDuplicate regardless of what this set says). */
+ * blocked server-side by requireNotDuplicate regardless of what this set says).
+ *
+ * For a room, also includes igdbIds with a pending GameSuggestion (issue #362) - otherwise a game
+ * awaiting approval would still show up as addable in search, and re-suggesting it would only be
+ * caught by requireNotAlreadySuggested at submit time instead of being filtered out up front. */
 export async function existingIgdbIds(roomId: string | null, userId: string): Promise<Set<number>> {
   const cacheKey = existingIgdbIdsCacheKey(roomId, userId);
   const cached = await redis.get(cacheKey);
   if (cached) return new Set(JSON.parse(cached) as number[]);
 
-  const games = await prisma.game.findMany({
-    where: duplicateScopeWhere(roomId, userId),
-    select: { igdbId: true },
-  });
-  const ids = games.map((g) => g.igdbId);
+  const [games, suggestions] = await Promise.all([
+    prisma.game.findMany({ where: duplicateScopeWhere(roomId, userId), select: { igdbId: true } }),
+    roomId ? prisma.gameSuggestion.findMany({ where: { roomId }, select: { igdbId: true } }) : Promise.resolve([]),
+  ]);
+  const ids = [...games.map((g) => g.igdbId), ...suggestions.map((s) => s.igdbId)];
   await redis.set(cacheKey, JSON.stringify(ids), 'EX', EXISTING_IGDB_IDS_CACHE_TTL_SECONDS);
   return new Set(ids);
 }

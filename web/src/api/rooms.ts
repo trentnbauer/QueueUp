@@ -1,6 +1,8 @@
 import { apiGet, apiPost, apiPatch, apiDelete } from './client';
 import type {
   CreateRoomRequest,
+  Game,
+  GameSuggestion,
   JoinRoomRequest,
   PublicRoomSummary,
   Room,
@@ -27,4 +29,14 @@ export const roomsApi = {
   setRole: (roomId: string, userId: string, role: RoomRole) =>
     apiPatch<{ role: RoomRole }>(`/api/rooms/${roomId}/members/${userId}/role`, { role }),
   removeMember: (roomId: string, userId: string) => apiDelete(`/api/rooms/${roomId}/members/${userId}`),
+};
+
+/** A room's pending game suggestions (issue #362) - Room Master/Moderator only, see
+ * GameSuggestion in schema.prisma. Suggestions are created by POST /api/games (gamesApi.create)
+ * itself, not through this API - there's no separate "suggest" call. */
+export const gameSuggestionsApi = {
+  list: (roomId: string) => apiGet<{ suggestions: GameSuggestion[] }>(`/api/rooms/${roomId}/suggestions`),
+  approve: (roomId: string, suggestionId: string) =>
+    apiPost<{ game: Game }>(`/api/rooms/${roomId}/suggestions/${suggestionId}/approve`),
+  decline: (roomId: string, suggestionId: string) => apiDelete(`/api/rooms/${roomId}/suggestions/${suggestionId}`),
 };

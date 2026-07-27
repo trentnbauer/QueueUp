@@ -8,6 +8,7 @@ import {
   requireGameReadAccess,
   requireGameDeleteAccess,
   requireNotDuplicate,
+  requireNotAlreadySuggested,
   rethrowAsDuplicateGame,
   existingIgdbIds,
   invalidateExistingIgdbIds,
@@ -22,9 +23,10 @@ import {
   backfillSteamAppId,
   setManualSteamMatch,
   defaultStatusForRelease,
+  assertPlatformMatch,
 } from '../services/gameIntake.js';
 import { notifyRoom } from '../services/notifications.js';
-import { platformFamilies, findIgdbIdBySteamAppId, findIgdbIdByExactTitle } from '../services/igdbClient.js';
+import { platformFamilies, findIgdbIdBySteamAppId, findIgdbIdByExactTitle, getGameDetail } from '../services/igdbClient.js';
 import { getOwnedPlatforms } from '../services/userSettings.js';
 import {
   resolveSteamId64,
@@ -52,6 +54,7 @@ import type {
   BulkRemoveGamesRequest,
   BulkUpdateGameStatusRequest,
   CreateGameRequest,
+  CreateGameResponse,
   MoveGameRequest,
   PlayerAchievements,
   PriceRegion,
@@ -350,10 +353,62 @@ export default async function gameRoutes(app: FastifyInstance) {
     if (!Number.isInteger(igdbId)) throw new HttpError(400, 'A valid igdbId is required');
 
     let room: Awaited<ReturnType<typeof getRoom>> | null = null;
+    let membershipRole: string | null = null;
     if (roomId) {
-      await requireMembership(roomId, userId);
+      const membership = await requireMembership(roomId, userId);
+      membershipRole = membership.role;
       room = await getRoom(roomId);
     }
+
+    // Issue #362: in a room with requireGameApproval on, a plain Member's add becomes a
+    // suggestion for a Room Master/Moderator to approve or decline, instead of landing directly
+    // in the backlog. Room Masters/Moderators always add directly - they're the ones who'd
+    // otherwise be approving their own suggestion.
+    if (roomId && room && room.requireGameApproval && membershipRole === 'member') {
+      await requireNotDuplicate(roomId, userId, igdbId);
+      await requireNotAlreadySuggested(roomId, igdbId);
+
+      const detail = await getGameDetail(igdbId);
+      assertPlatformMatch(detail, [room.platform]);
+
+      const suggestion = await prisma.gameSuggestion.create({
+        data: {
+          roomId,
+          igdbId,
+          title: detail.title,
+          platform: detail.platform,
+          coverImageUrl: detail.coverImageUrl,
+          releaseYear: detail.releaseYear,
+          suggestedBy: userId,
+        },
+        include: { suggester: true },
+      });
+      await invalidateExistingIgdbIds(roomId, userId);
+      await notifyRoom({
+        roomId,
+        roomName: room.name,
+        actorId: userId,
+        type: 'game_suggested',
+        message: (actorName) => `${actorName} suggested "${detail.title}" for the room`,
+      });
+
+      reply.status(201);
+      const response: CreateGameResponse = {
+        suggestion: {
+          id: suggestion.id,
+          roomId: suggestion.roomId,
+          igdbId: suggestion.igdbId,
+          title: suggestion.title,
+          platform: suggestion.platform,
+          coverImageUrl: suggestion.coverImageUrl,
+          releaseYear: suggestion.releaseYear,
+          suggestedBy: toUserDto(suggestion.suggester),
+          createdAt: suggestion.createdAt.toISOString(),
+        },
+      };
+      return response;
+    }
+
     const platforms = room ? [room.platform] : await getOwnedPlatforms(userId);
     await requireNotDuplicate(roomId ?? null, userId, igdbId);
 

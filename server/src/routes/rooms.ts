@@ -35,6 +35,7 @@ function toRoomDto(
     spinOwnershipMaxPrice: number;
     spinWheelTheme: SpinWheelTheme;
     isPublic: boolean;
+    requireGameApproval: boolean;
   },
   role: Room['myRole'],
   inviteCode: string,
@@ -55,6 +56,7 @@ function toRoomDto(
     spinOwnershipMaxPrice: room.spinOwnershipMaxPrice,
     spinWheelTheme: room.spinWheelTheme,
     isPublic: room.isPublic,
+    requireGameApproval: room.requireGameApproval,
   };
 }
 
@@ -224,7 +226,8 @@ export default async function roomRoutes(app: FastifyInstance) {
       throw new HttpError(403, 'Only the Room Master can change room settings');
     }
 
-    const { name, platform, accentColor, discordWebhookUrl, spinOwnershipMaxPrice, spinWheelTheme, isPublic } = request.body;
+    const { name, platform, accentColor, discordWebhookUrl, spinOwnershipMaxPrice, spinWheelTheme, isPublic, requireGameApproval } =
+      request.body;
     if (name !== undefined && !name.trim()) throw new HttpError(400, 'Room name cannot be empty');
     if (platform !== undefined && !ROOM_PLATFORMS.includes(platform)) throw new HttpError(400, 'A valid platform is required');
     if (spinWheelTheme !== undefined && !SPIN_WHEEL_THEMES.includes(spinWheelTheme)) {
@@ -256,6 +259,7 @@ export default async function roomRoutes(app: FastifyInstance) {
         ...(spinOwnershipMaxPrice !== undefined && { spinOwnershipMaxPrice }),
         ...(spinWheelTheme !== undefined && { spinWheelTheme }),
         ...(isPublic !== undefined && { isPublic }),
+        ...(requireGameApproval !== undefined && { requireGameApproval }),
       },
     });
 

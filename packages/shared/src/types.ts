@@ -92,6 +92,26 @@ export interface Room {
   /** When true, this room is listed in the public room directory and any signed-in user can
    * self-join it instantly (no invite code, no approval step). Defaults to false. */
   isPublic: boolean;
+  /** When true, a plain Member's "add a game" becomes a suggestion a Room Master/Moderator must
+   * approve or decline (issue #362), instead of adding directly. Room Masters/Moderators always
+   * add directly regardless of this flag. Defaults to false. */
+  requireGameApproval: boolean;
+}
+
+/** A member's lightweight nomination for a room game, pending a Room Master/Moderator's approval
+ * (issue #362) - only created when the room's requireGameApproval is on and the suggester is a
+ * plain Member. See GameSuggestion in schema.prisma for why this is a separate concept from Game
+ * rather than a GameStatus value. */
+export interface GameSuggestion {
+  id: string;
+  roomId: string;
+  igdbId: number;
+  title: string;
+  platform: string;
+  coverImageUrl: string | null;
+  releaseYear: number | null;
+  suggestedBy: User;
+  createdAt: string;
 }
 
 /** Minimal shape returned by GET /api/rooms/public for the room directory - the caller isn't a
@@ -267,6 +287,11 @@ export interface CreateGameRequest {
   roomId?: string | null;
 }
 
+/** POST /api/games normally adds the game directly. In a room with requireGameApproval on, a
+ * plain Member's add instead creates a GameSuggestion for a Room Master/Moderator to approve or
+ * decline (issue #362) - callers must check which key is present. */
+export type CreateGameResponse = { game: Game } | { suggestion: GameSuggestion };
+
 export interface CreateRoomRequest {
   name: string;
   platform: RoomPlatform;
@@ -285,6 +310,7 @@ export interface UpdateRoomRequest {
   spinOwnershipMaxPrice?: number;
   spinWheelTheme?: SpinWheelTheme;
   isPublic?: boolean;
+  requireGameApproval?: boolean;
 }
 
 export interface JoinRoomRequest {
@@ -534,7 +560,8 @@ export type NotificationType =
   | 'room_platform_changed'
   | 'room_owner_changed'
   | 'room_deleted'
-  | 'price_drop';
+  | 'price_drop'
+  | 'game_suggested';
 
 export interface Notification {
   id: string;

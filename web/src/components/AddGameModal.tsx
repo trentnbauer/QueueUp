@@ -137,6 +137,10 @@ function CollectionReview({ collection, roomId, onAdded, onBack, onBusyChange, h
     setAddProgress({ done: 0, total: toAdd.length });
 
     let added = 0;
+    // Issue #362: in a room with requireGameApproval on, a plain Member's create call comes back
+    // as a suggestion instead of a real game - tracked separately so the summary below can say
+    // "suggested" rather than falsely claiming these landed in the backlog.
+    let suggested = 0;
     const failedIds = new Set<number>();
     // Rooms are shared backlogs, typically meant to be played together - worth calling out which
     // of a batch add have no co-op data at all (see the single-add warning below for the same
@@ -145,9 +149,13 @@ function CollectionReview({ collection, roomId, onAdded, onBack, onBusyChange, h
     for (const game of toAdd) {
       if (cancelledRef.current) break;
       try {
-        const { game: created } = await gamesApi.create({ igdbId: game.igdbId, roomId });
-        added += 1;
-        if (roomId && created.maxCoopPlayers == null) noCoopTitles.push(created.title);
+        const response = await gamesApi.create({ igdbId: game.igdbId, roomId });
+        if ('suggestion' in response) {
+          suggested += 1;
+        } else {
+          added += 1;
+          if (roomId && response.game.maxCoopPlayers == null) noCoopTitles.push(response.game.title);
+        }
       } catch {
         failedIds.add(game.igdbId);
       }
@@ -155,8 +163,8 @@ function CollectionReview({ collection, roomId, onAdded, onBack, onBusyChange, h
     }
     if (cancelledRef.current) return;
 
-    // Drop the games that were actually added from the checklist, so a retry after a partial
-    // failure only resubmits the ones that failed instead of re-creating (and getting
+    // Drop the games that were actually added/suggested from the checklist, so a retry after a
+    // partial failure only resubmits the ones that failed instead of re-creating (and getting
     // duplicate-rejected on) ones that already succeeded.
     setData((prev) => (prev ? { ...prev, games: prev.games.filter((g) => failedIds.has(g.igdbId)) } : prev));
     setSelectedIds(new Set(failedIds));
@@ -164,12 +172,13 @@ function CollectionReview({ collection, roomId, onAdded, onBack, onBusyChange, h
     setAdding(false);
     onBusyChange(false);
     setAddProgress(null);
-    if (added > 0) onAdded();
+    if (added > 0 || suggested > 0) onAdded();
     const failed = failedIds.size;
-    let summary =
-      failed === 0
-        ? `Added ${added} game${added === 1 ? '' : 's'}.`
-        : `Added ${added} game${added === 1 ? '' : 's'} - ${failed} couldn't be added.`;
+    const parts: string[] = [];
+    if (added > 0) parts.push(`Added ${added} game${added === 1 ? '' : 's'}`);
+    if (suggested > 0) parts.push(`Suggested ${suggested} game${suggested === 1 ? '' : 's'} for approval`);
+    if (parts.length === 0) parts.push('Added 0 games');
+    let summary = failed === 0 ? `${parts.join(' · ')}.` : `${parts.join(' · ')} - ${failed} couldn't be added.`;
     if (noCoopTitles.length > 0) {
       summary += ` ⚠️ No co-op data for: ${noCoopTitles.join(', ')}.`;
     }
@@ -277,8 +286,14 @@ export function AddGameModal({ roomId, onAdded, onClose }: AddGameModalProps) {
   const [error, setError] = useState<string | null>(null);
   const [highlightedIndex, setHighlightedIndex] = useState(-1);
   const [addedTitle, setAddedTitle] = useState<string | null>(null);
+  // Issue #362: whether the most recent addedTitle became a pending suggestion rather than
+  // landing directly in the backlog - drives the confirmation banner's wording below.
+  const [addedWasSuggestion, setAddedWasSuggestion] = useState(false);
   const [coopWarningTitle, setCoopWarningTitle] = useState<string | null>(null);
   const [addedIds, setAddedIds] = useState<Set<number>>(new Set());
+  // Which of addedIds actually became a pending suggestion - drives the "Suggested ✓" per-row
+  // button label below (addedWasSuggestion only tracks the single most recent one, for the banner).
+  const [suggestedIds, setSuggestedIds] = useState<Set<number>>(new Set());
   const [activeCollection, setActiveCollection] = useState<CollectionSearchResult | null>(null);
   const [collectionBusy, setCollectionBusy] = useState(false);
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -398,21 +413,29 @@ export function AddGameModal({ roomId, onAdded, onClose }: AddGameModalProps) {
     setAddingId(result.igdbId);
     setError(null);
     try {
-      const { game } = await gamesApi.create({ igdbId: result.igdbId, roomId });
+      const response = await gamesApi.create({ igdbId: result.igdbId, roomId });
       onAdded();
       // Stay open and keep the search results as-is so the user can add several games from the
-      // same search without retyping - just mark this one as added.
+      // same search without retyping - just mark this one as added (or suggested).
       setAddedIds((prev) => new Set(prev).add(result.igdbId));
       setAddedTitle(result.title);
+      setAddedWasSuggestion('suggestion' in response);
       if (addedTimeoutRef.current) clearTimeout(addedTimeoutRef.current);
       addedTimeoutRef.current = setTimeout(() => setAddedTitle(null), 2500);
+
+      if ('suggestion' in response) {
+        // Issue #362: this room requires approval and the caller is a plain Member - nothing was
+        // added to the backlog yet, so there's no maxCoopPlayers to warn about either.
+        setSuggestedIds((prev) => new Set(prev).add(result.igdbId));
+        return;
+      }
 
       // Rooms are shared backlogs, typically meant to be played together - a game with no co-op
       // data at all (IGDB found no multiplayer modes, or just doesn't have the data) is worth
       // flagging right when it's added, since that's the one moment someone's actually deciding
       // whether it belongs in this room. Not shown on the Personal Shelf (roomId null) - solo play
       // is the default there, so there's nothing to warn about.
-      if (roomId && game.maxCoopPlayers == null) {
+      if (roomId && response.game.maxCoopPlayers == null) {
         setCoopWarningTitle(result.title);
         if (coopWarningTimeoutRef.current) clearTimeout(coopWarningTimeoutRef.current);
         coopWarningTimeoutRef.current = setTimeout(() => setCoopWarningTitle(null), 4000);
@@ -479,7 +502,13 @@ export function AddGameModal({ roomId, onAdded, onClose }: AddGameModalProps) {
         ) : (
           <>
             {error && <div className={styles.error}>{error}</div>}
-            {addedTitle && !error && <div className={styles.added}>Added "{addedTitle}" ✓</div>}
+            {addedTitle && !error && (
+              <div className={styles.added}>
+                {addedWasSuggestion
+                  ? `Suggested "${addedTitle}" - waiting for a moderator to approve.`
+                  : `Added "${addedTitle}" ✓`}
+              </div>
+            )}
             {coopWarningTitle && !error && (
               <div className={styles.coopWarning}>⚠️ "{coopWarningTitle}" doesn't appear to support co-op</div>
             )}
@@ -556,7 +585,13 @@ export function AddGameModal({ roomId, onAdded, onClose }: AddGameModalProps) {
                       onClick={() => handleAdd(r)}
                       disabled={busy || addedIds.has(r.igdbId)}
                     >
-                      {addingId === r.igdbId ? 'Adding…' : addedIds.has(r.igdbId) ? 'Added ✓' : 'Add'}
+                      {addingId === r.igdbId
+                        ? 'Adding…'
+                        : addedIds.has(r.igdbId)
+                          ? suggestedIds.has(r.igdbId)
+                            ? 'Suggested ✓'
+                            : 'Added ✓'
+                          : 'Add'}
                     </button>
                   </div>
                 ))}

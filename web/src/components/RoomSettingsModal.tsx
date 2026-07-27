@@ -51,6 +51,7 @@ export function RoomSettingsModal({ room, members, games, onClose }: RoomSetting
   const [spinOwnershipMaxPrice, setSpinOwnershipMaxPrice] = useState(String(room.spinOwnershipMaxPrice));
   const [spinWheelTheme, setSpinWheelTheme] = useState<SpinWheelTheme>(room.spinWheelTheme);
   const [isPublic, setIsPublic] = useState(room.isPublic);
+  const [requireGameApproval, setRequireGameApproval] = useState(room.requireGameApproval);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [inviteCopied, setInviteCopied] = useState(false);
@@ -85,7 +86,8 @@ export function RoomSettingsModal({ room, members, games, onClose }: RoomSetting
     discordWebhookUrl.trim() !== (room.discordWebhookUrl ?? '') ||
     parsedMaxPrice !== room.spinOwnershipMaxPrice ||
     spinWheelTheme !== room.spinWheelTheme ||
-    isPublic !== room.isPublic;
+    isPublic !== room.isPublic ||
+    requireGameApproval !== room.requireGameApproval;
 
   function invalidateRoomQueries() {
     queryClient.invalidateQueries({ queryKey: ['rooms'] });
@@ -113,6 +115,7 @@ export function RoomSettingsModal({ room, members, games, onClose }: RoomSetting
         spinOwnershipMaxPrice: parsedMaxPrice,
         spinWheelTheme,
         isPublic,
+        requireGameApproval,
       });
       invalidateRoomQueries();
       onClose();
@@ -335,6 +338,22 @@ export function RoomSettingsModal({ room, members, games, onClose }: RoomSetting
                 </select>
                 <p className={styles.readonlyNote}>
                   Public rooms are listed for any signed-in member to browse and join instantly, without an invite code.
+                </p>
+              </div>
+              <div className={styles.field}>
+                <label className={styles.checkboxRow} htmlFor="room-settings-require-approval">
+                  <input
+                    id="room-settings-require-approval"
+                    type="checkbox"
+                    checked={requireGameApproval}
+                    onChange={(e) => setRequireGameApproval(e.target.checked)}
+                  />
+                  Require approval for member-suggested games
+                </label>
+                <p className={styles.readonlyNote}>
+                  When on, a regular Member's "Add a Game" nominates it instead of adding it directly - a Room
+                  Master or Moderator has to approve or decline it first. Room Masters and Moderators can still
+                  add games directly either way.
                 </p>
               </div>
               <button type="button" className={styles.saveButton} onClick={handleSave} disabled={saving || !dirty || !maxPriceValid}>
