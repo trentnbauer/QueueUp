@@ -356,6 +356,11 @@ export async function getCollectionGames(
   collectionId: number,
   platforms?: RoomPlatform[],
   excludeIgdbIds?: Set<number>,
+  // Opt-out (issue #354): a franchise collection (e.g. Borderlands 2) mixes its DLC/expansion/
+  // season-pass entries in with the real games, same as a flat search - this needs to honor the
+  // same "Hide DLC & add-ons" toggle as searchGames, or unchecking the box in the search list did
+  // nothing once someone opened the collection review screen.
+  hideAddons = true,
 ): Promise<CollectionGamesResult> {
   if (!Number.isInteger(collectionId) || collectionId <= 0) {
     throw new HttpError(400, 'Invalid IGDB collection id');
@@ -373,6 +378,7 @@ export async function getCollectionGames(
   const allGames = (collection.games ?? [])
     .filter((g) => g.name)
     .filter(isPrimaryEdition)
+    .filter((g) => !hideAddons || !isAddonEdition(g))
     .filter((g) => !activePlatforms || platformFamilies(g.platforms).some((f) => activePlatforms.includes(f)))
     // Excluded *before* the MAX_COLLECTION_GAMES cap below, not after - otherwise a collection
     // with more entries than the cap could cut off real, not-yet-added games past position 40

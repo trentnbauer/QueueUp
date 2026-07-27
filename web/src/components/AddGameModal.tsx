@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import type { CollectionGamesResult, CollectionSearchResult, GameSearchResult } from '@queueup/shared';
 import { gamesApi } from '../api/games';
-import { useModalA11y } from '../hooks/useModalA11y';
+import { useModalA11y, closeOnBackdropMouseDown } from '../hooks/useModalA11y';
 import styles from './AddGameModal.module.css';
 
 interface AddGameModalProps {
@@ -55,6 +55,10 @@ interface CollectionReviewProps {
    * mid-batch previously left the add loop running invisibly in the background with no way for the
    * user to know, since nothing stopped it and the parent had no idea it was in progress. */
   onBusyChange: (busy: boolean) => void;
+  /** Carries the search screen's "Hide DLC & add-ons" checkbox into the collection review list
+   * (issue #354) - without this, a franchise collection (e.g. Borderlands 2) showed its DLC/season-
+   * pass entries regardless of what the checkbox on the previous screen was set to. */
+  hideAddons: boolean;
 }
 
 /** The screen shown after picking a collection from search (issue #272) - a review checklist
@@ -64,7 +68,7 @@ interface CollectionReviewProps {
  * default. Sequential POSTs to the same single-game create endpoint everything else uses, rather
  * than a new bulk-create route - collections are small enough (capped server-side) that this
  * doesn't need its own backend path. */
-function CollectionReview({ collection, roomId, onAdded, onBack, onBusyChange }: CollectionReviewProps) {
+function CollectionReview({ collection, roomId, onAdded, onBack, onBusyChange, hideAddons }: CollectionReviewProps) {
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState<string | null>(null);
   const [data, setData] = useState<CollectionGamesResult | null>(null);
@@ -96,7 +100,7 @@ function CollectionReview({ collection, roomId, onAdded, onBack, onBusyChange }:
     setLoading(true);
     setLoadError(null);
     gamesApi
-      .collectionGames(collection.collectionId, roomId)
+      .collectionGames(collection.collectionId, roomId, hideAddons)
       .then((result) => {
         if (cancelled) return;
         setData(result);
@@ -112,7 +116,7 @@ function CollectionReview({ collection, roomId, onAdded, onBack, onBusyChange }:
     return () => {
       cancelled = true;
     };
-  }, [collection.collectionId, roomId]);
+  }, [collection.collectionId, roomId, hideAddons]);
 
   function toggle(igdbId: number) {
     setSelectedIds((prev) => {
@@ -440,7 +444,7 @@ export function AddGameModal({ roomId, onAdded, onClose }: AddGameModalProps) {
   const busy = addingId !== null;
 
   return (
-    <div className={styles.backdrop} role="presentation" onClick={collectionBusy ? undefined : onClose}>
+    <div className={styles.backdrop} role="presentation" onMouseDown={collectionBusy ? undefined : closeOnBackdropMouseDown(onClose)}>
       <div
         ref={dialogRef}
         className={styles.dialog}
@@ -470,6 +474,7 @@ export function AddGameModal({ roomId, onAdded, onClose }: AddGameModalProps) {
             onAdded={onAdded}
             onBack={() => setActiveCollection(null)}
             onBusyChange={setCollectionBusy}
+            hideAddons={hideAddons}
           />
         ) : (
           <>

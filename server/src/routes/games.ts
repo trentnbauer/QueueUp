@@ -268,7 +268,7 @@ export default async function gameRoutes(app: FastifyInstance) {
   // franchise/series at once instead of one title at a time. Filtered/deduped the same way normal
   // search results are, so the review checklist the frontend shows never offers a game that's
   // already in this room/shelf or unavailable on its platform.
-  app.get<{ Params: { id: string }; Querystring: { roomId?: string } }>(
+  app.get<{ Params: { id: string }; Querystring: { roomId?: string; hideAddons?: string } }>(
     '/api/games/collections/:id',
     { config: { rateLimit: { max: 30, timeWindow: '1 minute' } } },
     async (request) => {
@@ -281,8 +281,11 @@ export default async function gameRoutes(app: FastifyInstance) {
       if (roomId) await requireMembership(roomId, userId);
       const platforms = roomId ? [await getRoomPlatform(roomId)] : await getOwnedPlatforms(userId);
       const excludeIgdbIds = await existingIgdbIds(roomId ?? null, userId);
+      // Same opt-out as /api/games/search (issue #354) - the collection review screen otherwise
+      // ignored the "Hide DLC & add-ons" checkbox entirely.
+      const hideAddons = request.query.hideAddons !== 'false';
 
-      const collection = await collectionGamesIntake(collectionId, platforms, excludeIgdbIds);
+      const collection = await collectionGamesIntake(collectionId, platforms, excludeIgdbIds, hideAddons);
       return collection;
     },
   );

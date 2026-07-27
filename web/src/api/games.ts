@@ -35,9 +35,9 @@ export const gamesApi = {
     apiGet<{ results: GameSearchResult[]; collections: CollectionSearchResult[]; nextOffset: number; hasMore: boolean }>(
       `/api/games/search?q=${encodeURIComponent(q)}${roomId ? `&roomId=${roomId}` : ''}${offset ? `&offset=${offset}` : ''}${hideAddons ? '' : '&hideAddons=false'}`,
     ),
-  collectionGames: (collectionId: number, roomId?: string | null) =>
+  collectionGames: (collectionId: number, roomId?: string | null, hideAddons = true) =>
     apiGet<CollectionGamesResult>(
-      `/api/games/collections/${collectionId}${roomId ? `?roomId=${roomId}` : ''}`,
+      `/api/games/collections/${collectionId}${roomId ? `?roomId=${roomId}` : ''}${hideAddons ? '' : `${roomId ? '&' : '?'}hideAddons=false`}`,
     ),
   create: (body: CreateGameRequest) => apiPost<{ game: Game }>('/api/games', body),
   updateStatus: (id: string, body: UpdateGameStatusRequest) =>
