@@ -64,7 +64,11 @@ export function useSteamImport(steamLinked: boolean, onImported: () => void) {
     window.location.href = '/auth/steam/link';
   }
 
-  async function runWishlistImport() {
+  // Both runners resolve only once the whole import is actually done (not just once the "started"
+  // POST resolves) - issue #359's "sync everything" chain (see SteamImportContext) needs to await
+  // one import before starting the next, and a bare `await gamesApi.importSteam*()` would resolve
+  // near-instantly, long before the background job (and this polling loop) finish.
+  async function runWishlistImport(): Promise<void> {
     if (pollIntervalRef.current) return;
     setBusy(true);
     setActiveKind('wishlist');
@@ -87,32 +91,35 @@ export function useSteamImport(steamLinked: boolean, onImported: () => void) {
     }
     if (!mountedRef.current) return;
 
-    pollIntervalRef.current = setInterval(async () => {
-      try {
-        const { progress: latest } = await gamesApi.importSteamWishlistProgress();
-        if (!latest) return;
-        if (!latest.done) {
-          setWishlistProgress(latest);
-          return;
-        }
+    await new Promise<void>((resolve) => {
+      pollIntervalRef.current = setInterval(async () => {
+        try {
+          const { progress: latest } = await gamesApi.importSteamWishlistProgress();
+          if (!latest) return;
+          if (!latest.done) {
+            setWishlistProgress(latest);
+            return;
+          }
 
-        if (pollIntervalRef.current) clearInterval(pollIntervalRef.current);
-        pollIntervalRef.current = null;
-        setWishlistProgress(null);
-        setResult(
-          latest.imported === 0
-            ? `No new wishlist games to add (checked ${latest.consideredCount} of ${latest.totalWishlisted} wishlisted).`
-            : `Added ${latest.imported} game${latest.imported === 1 ? '' : 's'} to your Wishlist (skipped ${latest.skipped}, checked ${latest.consideredCount} of ${latest.totalWishlisted} wishlisted).`,
-        );
-        if (latest.imported > 0) onImported();
-        setBusy(false);
-      } catch {
-        // A failed poll just means the next tick tries again - the import itself isn't affected.
-      }
-    }, PROGRESS_POLL_INTERVAL_MS);
+          if (pollIntervalRef.current) clearInterval(pollIntervalRef.current);
+          pollIntervalRef.current = null;
+          setWishlistProgress(null);
+          setResult(
+            latest.imported === 0
+              ? `No new wishlist games to add (checked ${latest.consideredCount} of ${latest.totalWishlisted} wishlisted).`
+              : `Added ${latest.imported} game${latest.imported === 1 ? '' : 's'} to your Wishlist (skipped ${latest.skipped}, checked ${latest.consideredCount} of ${latest.totalWishlisted} wishlisted).`,
+          );
+          if (latest.imported > 0) onImported();
+          setBusy(false);
+          resolve();
+        } catch {
+          // A failed poll just means the next tick tries again - the import itself isn't affected.
+        }
+      }, PROGRESS_POLL_INTERVAL_MS);
+    });
   }
 
-  async function runImport() {
+  async function runImport(): Promise<void> {
     if (pollIntervalRef.current) return;
     setBusy(true);
     setActiveKind('library');
@@ -135,29 +142,32 @@ export function useSteamImport(steamLinked: boolean, onImported: () => void) {
     }
     if (!mountedRef.current) return;
 
-    pollIntervalRef.current = setInterval(async () => {
-      try {
-        const { progress: latest } = await gamesApi.importSteamLibraryProgress();
-        if (!latest) return;
-        if (!latest.done) {
-          setProgress(latest);
-          return;
-        }
+    await new Promise<void>((resolve) => {
+      pollIntervalRef.current = setInterval(async () => {
+        try {
+          const { progress: latest } = await gamesApi.importSteamLibraryProgress();
+          if (!latest) return;
+          if (!latest.done) {
+            setProgress(latest);
+            return;
+          }
 
-        if (pollIntervalRef.current) clearInterval(pollIntervalRef.current);
-        pollIntervalRef.current = null;
-        setProgress(null);
-        setResult(
-          latest.imported === 0
-            ? `No new games to add (checked ${latest.consideredCount} of ${latest.totalOwned} owned).`
-            : `Added ${latest.imported} game${latest.imported === 1 ? '' : 's'} (skipped ${latest.skipped}, checked ${latest.consideredCount} of ${latest.totalOwned} owned).`,
-        );
-        if (latest.imported > 0) onImported();
-        setBusy(false);
-      } catch {
-        // A failed poll just means the next tick tries again - the import itself isn't affected.
-      }
-    }, PROGRESS_POLL_INTERVAL_MS);
+          if (pollIntervalRef.current) clearInterval(pollIntervalRef.current);
+          pollIntervalRef.current = null;
+          setProgress(null);
+          setResult(
+            latest.imported === 0
+              ? `No new games to add (checked ${latest.consideredCount} of ${latest.totalOwned} owned).`
+              : `Added ${latest.imported} game${latest.imported === 1 ? '' : 's'} (skipped ${latest.skipped}, checked ${latest.consideredCount} of ${latest.totalOwned} owned).`,
+          );
+          if (latest.imported > 0) onImported();
+          setBusy(false);
+          resolve();
+        } catch {
+          // A failed poll just means the next tick tries again - the import itself isn't affected.
+        }
+      }, PROGRESS_POLL_INTERVAL_MS);
+    });
   }
 
   // Issue #359: result/error otherwise only ever clear at the *start* of the next import - fine

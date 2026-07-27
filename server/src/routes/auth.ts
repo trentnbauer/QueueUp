@@ -165,12 +165,15 @@ export default async function authRoutes(app: FastifyInstance) {
       return reply.redirect(await linkAccount(linkTargetUserId, request.params.provider, profile));
     }
 
-    const user = await getOrCreateUser(profile);
+    const { user, isNewUser } = await getOrCreateUser(profile);
 
     // Regenerate the session ID on successful login (issues a fresh cookie) so a pre-auth session
     // ID can never carry over into an authenticated one.
     await request.session.regenerate();
     request.session.userId = user.id;
+    // Issue #359: lets GET /api/me auto-open the Import Library modal on this account's very
+    // first visit - see isNewAccount's comment in session.ts.
+    if (isNewUser) request.session.isNewAccount = true;
     delete request.session.authCodeVerifier;
     delete request.session.authState;
 
@@ -198,12 +201,19 @@ export default async function authRoutes(app: FastifyInstance) {
       ...user.linkedIdentities.map((identity) => identity.provider),
     ];
 
+    // One-shot: set by the auth callback right after account creation (issue #359), cleared here
+    // so only the very next /api/me call after signup ever sees it true - every later call in the
+    // same or a future session sees the normal false, even without the session regenerating again.
+    const isNewAccount = request.session.isNewAccount === true;
+    if (isNewAccount) delete request.session.isNewAccount;
+
     return reply.send({
       user: toUserDto(user),
       steamLinked: resolveSteamId64(user) !== null,
       ownedPlatforms: user.ownedPlatforms,
       primaryProvider,
       linkedProviders,
+      isNewAccount,
     });
   });
 

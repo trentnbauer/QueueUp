@@ -71,6 +71,9 @@ async function findUserByOidcSub(oidcSub: string) {
   return null;
 }
 
+/** Returns `isNewUser` alongside the row (issue #359) - the auth callback uses it to flag a fresh
+ * session as `isNewAccount`, one-shot-consumed by GET /api/me to auto-open the Import Library
+ * modal on that account's very first visit. */
 async function getOrCreateUser(profile: {
   oidcSub: string;
   email: string;
@@ -88,13 +91,15 @@ async function getOrCreateUser(profile: {
     // Refresh profile fields from whichever provider was just used to sign in, same as before -
     // this can now be a linked (non-primary) provider, not just the primary one, which means the
     // displayed name/avatar reflects whichever account you most recently logged in with.
-    return prisma.user.update({
+    const user = await prisma.user.update({
       where: { id: existing.id },
       data: { email: profile.email, displayName: profile.displayName, avatarUrl: profile.avatarUrl, isAdmin },
     });
+    return { user, isNewUser: false };
   }
 
-  return prisma.user.create({ data: { ...profile, avatarColor: randomAvatarColor(), isAdmin } });
+  const user = await prisma.user.create({ data: { ...profile, avatarColor: randomAvatarColor(), isAdmin } });
+  return { user, isNewUser: true };
 }
 
 const AVATAR_COLORS = ['#E8734A', '#4A8FE8', '#6FBF73', '#B87DE8', '#E8C34A', '#4AE8D0'];
@@ -123,7 +128,7 @@ export default fp(async function authPlugin(app: FastifyInstance) {
 
   app.decorateRequest('currentUserId', async function (this: FastifyRequest) {
     if (env.DEV_FAKE_AUTH) {
-      const devUser = await getOrCreateUser(DEV_USER);
+      const { user: devUser } = await getOrCreateUser(DEV_USER);
       return devUser.id;
     }
     return this.session.userId ?? null;

@@ -42,6 +42,10 @@ declare module 'fastify' {
     // in auth.ts) - marks the callback as "attach to this existing user" instead of a normal
     // sign-in/account-creation.
     linkTargetUserId?: string;
+    // Set once, right after account creation (issue #359) - GET /api/me reads and immediately
+    // clears this so the frontend's "auto-open Import Library for a new account" only ever fires
+    // on that account's very first /api/me call, not every subsequent one in the same session.
+    isNewAccount?: boolean;
   }
 }
 

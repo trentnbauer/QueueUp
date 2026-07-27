@@ -9,6 +9,10 @@ export const authApi = {
       ownedPlatforms: RoomPlatform[];
       primaryProvider: string | null;
       linkedProviders: string[];
+      /** True exactly once, on the very first /api/me call after this account was created (issue
+       * #359) - the server clears its session flag on read, so a page refresh or later session
+       * never sees it true again. Drives auto-opening the Import Library modal for a new account. */
+      isNewAccount: boolean;
     }>('/api/me'),
   providers: () => apiGet<{ providers: string[] }>('/api/auth/providers'),
   updateOwnedPlatforms: (platforms: RoomPlatform[]) =>
