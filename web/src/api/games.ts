@@ -40,6 +40,10 @@ export const gamesApi = {
     apiGet<CollectionGamesResult>(
       `/api/games/collections/${collectionId}${roomId ? `?roomId=${roomId}` : ''}${hideAddons ? '' : `${roomId ? '&' : '?'}hideAddons=false`}`,
     ),
+  trending: (roomId?: string | null, hideAddons = true) =>
+    apiGet<{ results: GameSearchResult[] }>(
+      `/api/games/trending${roomId ? `?roomId=${roomId}` : ''}${hideAddons ? '' : `${roomId ? '&' : '?'}hideAddons=false`}`,
+    ),
   create: (body: CreateGameRequest) => apiPost<CreateGameResponse>('/api/games', body),
   updateStatus: (id: string, body: UpdateGameStatusRequest) =>
     apiPatch<UpdateGameStatusResponse>(`/api/games/${id}/status`, body),

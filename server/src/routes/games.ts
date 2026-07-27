@@ -24,6 +24,7 @@ import {
   setManualSteamMatch,
   defaultStatusForRelease,
   assertPlatformMatch,
+  trendingIntake,
 } from '../services/gameIntake.js';
 import { notifyRoom } from '../services/notifications.js';
 import { platformFamilies, findIgdbIdBySteamAppId, findIgdbIdByExactTitle, getGameDetail } from '../services/igdbClient.js';
@@ -273,6 +274,25 @@ export default async function gameRoutes(app: FastifyInstance) {
         offset === 0 ? searchCollectionsIntake(query) : Promise.resolve([]),
       ]);
       return { ...searchPage, collections };
+    },
+  );
+
+  // Issue #363: "Popular" browse tab in Add Game, alongside search - lets a group discover
+  // something nobody had already thought to search for. Same room/platform scoping and
+  // already-added exclusion as /api/games/search, no query string of its own.
+  app.get<{ Querystring: { roomId?: string; hideAddons?: string } }>(
+    '/api/games/trending',
+    { config: { rateLimit: { max: 30, timeWindow: '1 minute' } } },
+    async (request) => {
+      const userId = await request.requireAuth();
+      const { roomId } = request.query;
+      if (roomId) await requireMembership(roomId, userId);
+      const platforms = roomId ? [await getRoomPlatform(roomId)] : await getOwnedPlatforms(userId);
+      const excludeIgdbIds = await existingIgdbIds(roomId ?? null, userId);
+      const hideAddons = request.query.hideAddons !== 'false';
+
+      const results = await trendingIntake(platforms, excludeIgdbIds, hideAddons);
+      return { results };
     },
   );
 

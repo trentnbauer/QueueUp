@@ -47,6 +47,34 @@
   color: var(--qu-text);
 }
 
+/* Issue #363: "Search" / "Popular" tab switcher, alongside the existing search flow. */
+.tabRow {
+  display: flex;
+  gap: 6px;
+  margin-bottom: 14px;
+}
+
+.tabButton {
+  flex: 1;
+  padding: 8px 12px;
+  border-radius: var(--qu-radius);
+  background: var(--qu-surface2);
+  color: var(--qu-muted);
+  border: 1px solid var(--qu-border);
+  font: 600 13px system-ui, sans-serif;
+  cursor: pointer;
+}
+
+.tabButton:hover {
+  color: var(--qu-text);
+}
+
+.tabButtonActive {
+  background: var(--qu-accent-pill-bg);
+  color: var(--qu-accent);
+  border-color: var(--qu-accent);
+}
+
 .error {
   color: #ff8a80;
   font-size: 12.5px;

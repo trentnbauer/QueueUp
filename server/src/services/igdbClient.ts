@@ -95,6 +95,10 @@ export interface IgdbGame {
   aggregated_rating?: number;
   /** 0-100, user-only score - last-resort fallback when neither of the above is present. */
   rating?: number;
+  /** How many ratings total_rating/aggregated_rating/rating are blended from - used as a
+   * "how broadly recognized is this" popularity proxy (see getTrendingGames). Present on most
+   * games with any review coverage, 0/absent otherwise. */
+  total_rating_count?: number;
 }
 
 // IGDB's documented `category` enum (api-docs.igdb.com/#game-enums) - only the two values relevant
@@ -356,6 +360,56 @@ export async function searchGames(
     })),
     ...nextSearchPage(offset, games.length, rawLimit),
   };
+}
+
+// Fixed-size browse list (issue #363) rather than paginated like searchGames - this is a "browse
+// for inspiration" tab, not something someone scrolls through exhaustively. Fetches a wider raw
+// batch than it returns since isPrimaryEdition/hideAddons/platform/excludeIgdbIds filtering (same
+// as searchGames) can drop a meaningful fraction of the most-rated titles (long-running franchises
+// place several editions near the top; already-owned games get excluded entirely).
+const TRENDING_RESULT_LIMIT = 24;
+const TRENDING_RAW_LIMIT = 60;
+
+/** Issue #363: backs the Add Game modal's "Popular" browse tab, for discovering something nobody
+ * had already thought to search for. Ranked by IGDB's total_rating_count (how many people have
+ * rated a title) rather than IGDB's separate popularity_primitives endpoint - that tracks more
+ * transient signals (Twitch viewership, recent Steam concurrent players, Google Trends, etc.)
+ * behind an internal popularity_type id enum this project has no verified/documented mapping for,
+ * and guessing at one risked silently ranking by the wrong signal with no way to tell from the
+ * response alone. total_rating_count is a stable, already-used field (see reviewScoreFrom) that
+ * reliably surfaces broadly-recognized titles - not literally "trending this month," but a
+ * defensible, verifiable reading of "popular" for group discovery. */
+export async function getTrendingGames(
+  platforms?: RoomPlatform[],
+  excludeIgdbIds?: Set<number>,
+  hideAddons = true,
+): Promise<GameSearchResult[]> {
+  const activePlatforms = platforms && platforms.length > 0 ? platforms : undefined;
+  const whereClauses = ['total_rating_count > 0'];
+  if (activePlatforms) {
+    const names = activePlatforms.flatMap((p) => IGDB_PLATFORM_NAMES[p]).map((n) => `"${n}"`).join(',');
+    whereClauses.push(`platforms.name = (${names})`);
+  }
+
+  const games = await igdbRequest<IgdbGame[]>(
+    'games',
+    `fields name,cover.image_id,platforms.name,first_release_date,category,version_parent,total_rating_count; where ${whereClauses.join(' & ')}; sort total_rating_count desc; limit ${TRENDING_RAW_LIMIT};`,
+  );
+
+  const filtered = games
+    .filter((g) => g.name)
+    .filter(isPrimaryEdition)
+    .filter((g) => !hideAddons || !isAddonEdition(g))
+    .filter((g) => !activePlatforms || platformFamilies(g.platforms).some((f) => activePlatforms.includes(f)))
+    .filter((g) => !excludeIgdbIds || !excludeIgdbIds.has(g.id));
+
+  return filtered.slice(0, TRENDING_RESULT_LIMIT).map((g) => ({
+    igdbId: g.id,
+    title: g.name!,
+    platform: platformLabel(g.platforms),
+    coverImageUrl: coverUrl(g.cover),
+    releaseYear: releaseYear(g.first_release_date),
+  }));
 }
 
 interface IgdbCollection {
