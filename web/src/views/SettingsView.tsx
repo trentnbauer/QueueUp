@@ -27,8 +27,6 @@ export function SettingsView() {
   const queryClient = useQueryClient();
   const confirm = useConfirm();
   const [actionError, setActionError] = useState<string | null>(null);
-  const [archiveResult, setArchiveResult] = useState<string | null>(null);
-  const [archiving, setArchiving] = useState(false);
   const [integrationInputs, setIntegrationInputs] = useState<Record<string, string>>({});
   const [savingIntegrationKey, setSavingIntegrationKey] = useState<string | null>(null);
   const [savingRoleUserId, setSavingRoleUserId] = useState<string | null>(null);
@@ -76,28 +74,6 @@ export function SettingsView() {
       queryClient.invalidateQueries({ queryKey: ['admin', 'rooms'] });
     } catch (err) {
       setActionError(err instanceof Error ? err.message : 'Could not delete room');
-    }
-  }
-
-  async function handleArchiveDoneGames() {
-    const ok = await confirm({
-      title: 'Archive old Beaten games?',
-      message:
-        "Games marked Beaten and untouched for 90+ days will be hidden from their room/shelf. This doesn't delete anything - it's reversible in the database if ever needed.",
-      confirmLabel: 'Archive',
-    });
-    if (!ok) return;
-    setArchiving(true);
-    setArchiveResult(null);
-    try {
-      const { archivedCount } = await adminApi.archiveDoneGames();
-      setArchiveResult(
-        archivedCount === 0 ? 'No games qualified - nothing to archive.' : `Archived ${archivedCount} game(s).`,
-      );
-    } catch (err) {
-      setActionError(err instanceof Error ? err.message : 'Could not archive old games');
-    } finally {
-      setArchiving(false);
     }
   }
 
@@ -299,12 +275,6 @@ export function SettingsView() {
 
       <div className={styles.section}>
         <div className={styles.sectionTitle}>Maintenance</div>
-        <div className={styles.maintenanceRow}>
-          <button className={styles.archiveButton} onClick={handleArchiveDoneGames} disabled={archiving}>
-            {archiving ? 'Archiving…' : 'Archive Beaten games untouched for 90+ days'}
-          </button>
-          {archiveResult && <span className={styles.archiveResult}>{archiveResult}</span>}
-        </div>
         <div className={styles.maintenanceRow}>
           {/* A plain link, not a fetch+blob dance - the browser already sends the session cookie
               for a same-origin navigation, and the server's Content-Disposition header is what

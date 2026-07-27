@@ -302,31 +302,6 @@ export default async function adminRoutes(app: FastifyInstance) {
     return null;
   });
 
-  const ARCHIVE_DONE_AFTER_DAYS = 90;
-
-  app.post('/api/admin/games/archive-done', async (request) => {
-    const actorId = await request.requireAuth();
-    const actor = await requireAdmin(actorId);
-
-    const cutoff = new Date(Date.now() - ARCHIVE_DONE_AFTER_DAYS * 24 * 60 * 60 * 1000);
-    const { count } = await prisma.game.updateMany({
-      where: { status: 'done', archivedAt: null, updatedAt: { lt: cutoff } },
-      data: { archivedAt: new Date() },
-    });
-    app.log.warn(
-      { adminAction: 'games.archiveDone', actorId, count, cutoff: cutoff.toISOString() },
-      `Admin ${actorId} archived ${count} Beaten game(s) untouched since before ${cutoff.toISOString()}`,
-    );
-    await logAdminAction({
-      actorId,
-      actorLabel: actor.email,
-      action: 'games.archiveDone',
-      targetLabel: `${count} game(s)`,
-      metadata: { count, cutoff: cutoff.toISOString() },
-    });
-    return { archivedCount: count };
-  });
-
   app.get<{ Querystring: { limit?: string } }>('/api/admin/audit-log', async (request) => {
     const userId = await request.requireAuth();
     await requireAdmin(userId);
