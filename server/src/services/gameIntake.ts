@@ -39,8 +39,9 @@ export async function collectionGamesIntake(
   collectionId: number,
   platforms?: RoomPlatform[],
   excludeIgdbIds?: Set<number>,
+  hideAddons = true,
 ): Promise<CollectionGamesResult> {
-  return getCollectionGames(collectionId, platforms, excludeIgdbIds);
+  return getCollectionGames(collectionId, platforms, excludeIgdbIds, hideAddons);
 }
 
 /** Validates a resolved game against an allowed-platforms set. Used both for a room (always a

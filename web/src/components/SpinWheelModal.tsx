@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import type { Game, SpinWheelTheme } from '@queueup/shared';
-import { useModalA11y } from '../hooks/useModalA11y';
+import { useModalA11y, closeOnBackdropMouseDown } from '../hooks/useModalA11y';
 import { pickSpinWinner } from './gameGridLogic';
 import { ConfettiBurst } from './ConfettiBurst';
 import { SpinThemeRenderer } from './spinThemes/SpinThemeRenderer';
@@ -43,7 +43,7 @@ export function SpinWheelModal({ games, candidates, theme = 'slot', onClose }: S
   if (!winner) return null;
 
   return (
-    <div className={styles.backdrop} role="presentation" onClick={onClose}>
+    <div className={styles.backdrop} role="presentation" onMouseDown={closeOnBackdropMouseDown(onClose)}>
       <div
         ref={dialogRef}
         className={styles.dialog}

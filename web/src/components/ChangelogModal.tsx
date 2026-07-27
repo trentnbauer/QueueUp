@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useChangelog, type ChangelogEntry } from '../hooks/useChangelog';
-import { useModalA11y } from '../hooks/useModalA11y';
+import { useModalA11y, closeOnBackdropMouseDown } from '../hooks/useModalA11y';
 import styles from './ChangelogModal.module.css';
 
 function EntryList({ entries }: { entries: ChangelogEntry[] }) {
@@ -33,7 +33,7 @@ function ChangelogDialog({ entries, showFullHistory, onClose }: ChangelogDialogP
   const dialogRef = useModalA11y<HTMLDivElement>(onClose);
 
   return (
-    <div className={styles.backdrop} role="presentation" onClick={onClose}>
+    <div className={styles.backdrop} role="presentation" onMouseDown={closeOnBackdropMouseDown(onClose)}>
       <div
         ref={dialogRef}
         className={styles.dialog}

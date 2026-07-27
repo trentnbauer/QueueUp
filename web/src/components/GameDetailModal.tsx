@@ -7,7 +7,7 @@ import { AchievementRow } from './AchievementRow';
 import { TagPicker } from './TagPicker';
 import { SteamMatchPicker } from './SteamMatchPicker';
 import { useConfirm } from '../context/ConfirmContext';
-import { useModalA11y } from '../hooks/useModalA11y';
+import { useModalA11y, closeOnBackdropMouseDown } from '../hooks/useModalA11y';
 import { useGameAchievements } from '../hooks/useGameAchievements';
 import { useSteamAutoMatch } from '../hooks/useSteamAutoMatch';
 import { formatRelativeTime } from '../utils/relativeTime';
@@ -144,7 +144,7 @@ export function GameDetailModal({
   }
 
   return (
-    <div className={styles.backdrop} role="presentation" onClick={onClose}>
+    <div className={styles.backdrop} role="presentation" onMouseDown={closeOnBackdropMouseDown(onClose)}>
       <div
         ref={dialogRef}
         className={styles.dialog}

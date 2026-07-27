@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import { ROOM_PLATFORM_LABELS, type RoomPlatform } from '@queueup/shared';
 import { useRooms } from '../hooks/useRooms';
-import { useModalA11y } from '../hooks/useModalA11y';
+import { useModalA11y, closeOnBackdropMouseDown } from '../hooks/useModalA11y';
 import { ACCENT_PRESETS } from '../theme/defaultTheme';
 import { roomsApi } from '../api/rooms';
 import styles from './AddRoomModal.module.css';
@@ -100,7 +100,7 @@ export function AddRoomModal({ onClose }: AddRoomModalProps) {
   }
 
   return (
-    <div className={styles.backdrop} role="presentation" onClick={onClose}>
+    <div className={styles.backdrop} role="presentation" onMouseDown={closeOnBackdropMouseDown(onClose)}>
       <div
         ref={dialogRef}
         className={styles.dialog}

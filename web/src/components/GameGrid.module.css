@@ -10,6 +10,37 @@
   padding: 28px 40px;
 }
 
+/* List view (issue #344) - a single column of GameListRow instead of a multi-column grid of
+   GameCard tiles, so more games (and more of each game's data) fit on screen at once.
+   align-items: flex-start (rather than the flex default stretch) keeps the Spin the Wheel/
+   trailing tiles - card-shaped content with an aspect-ratio but no explicit width - from
+   stretching to the full row width; GameListRow (.row in GameListRow.module.css) sets its own
+   width: 100% instead, since a list row should always span the full line regardless. */
+.list {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 8px;
+  padding: 20px 40px;
+}
+
+/* Caps a grid-tile-shaped child (Spin the Wheel, trailingCard) back down to its normal card size
+   inside the list view's flex column - see .list's comment above. */
+.listTile {
+  width: 100%;
+  max-width: 260px;
+}
+
+.skeletonRow {
+  width: 100%;
+  box-sizing: border-box;
+  background: var(--qu-surface);
+  border: 1px solid var(--qu-border);
+  border-radius: var(--qu-card-radius);
+  height: 70px;
+  animation: pulse 1.4s ease-in-out infinite;
+}
+
 /* Purely an IntersectionObserver target (see GameGrid's load-more effect) - not meant to be seen,
    just tall enough to reliably cross the viewport edge and fire before the user hits a hard stop
    at the actual bottom of the rendered cards. Spans every grid column so it doesn't visually
@@ -30,6 +61,10 @@
    padding already applies. */
 .emptyInGrid {
   grid-column: 1 / -1;
+  /* .list uses align-items: flex-start (see its comment) - width: 100% here is the flex-layout
+     equivalent of grid-column: 1 / -1 above, so the empty-state message still spans the full
+     line in list view instead of shrinking to its own content width. */
+  width: 100%;
   padding: 0;
   align-self: center;
 }
@@ -92,5 +127,9 @@
 
   .skeletonCard {
     height: 260px;
+  }
+
+  .list {
+    padding: 14px 12px;
   }
 }

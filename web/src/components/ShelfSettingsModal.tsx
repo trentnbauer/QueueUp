@@ -3,7 +3,7 @@ import { Link } from 'react-router-dom';
 import { ROOM_PLATFORM_LABELS, type Game, type RoomPlatform } from '@queueup/shared';
 import { authApi } from '../api/auth';
 import { useAuth } from '../context/AuthContext';
-import { useModalA11y } from '../hooks/useModalA11y';
+import { useModalA11y, closeOnBackdropMouseDown } from '../hooks/useModalA11y';
 import { exportGames } from '../utils/exportGames';
 import styles from './ShelfSettingsModal.module.css';
 
@@ -61,7 +61,7 @@ export function ShelfSettingsModal({ games, onClose }: ShelfSettingsModalProps) 
   }
 
   return (
-    <div className={styles.backdrop} role="presentation" onClick={onClose}>
+    <div className={styles.backdrop} role="presentation" onMouseDown={closeOnBackdropMouseDown(onClose)}>
       <div
         ref={dialogRef}
         className={styles.dialog}
