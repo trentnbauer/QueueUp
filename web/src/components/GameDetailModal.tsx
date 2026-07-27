@@ -4,12 +4,14 @@ import { AvatarBadge } from './AvatarBadge';
 import { VoteRow } from './VoteRow';
 import { VoteHeatmap } from './VoteHeatmap';
 import { AchievementRow } from './AchievementRow';
+import { PlayJournal } from './PlayJournal';
 import { TagPicker } from './TagPicker';
 import { SteamMatchPicker } from './SteamMatchPicker';
 import { GameDlcModal } from './GameDlcModal';
 import { useConfirm } from '../context/ConfirmContext';
 import { useModalA11y, closeOnBackdropMouseDown } from '../hooks/useModalA11y';
 import { useGameAchievements } from '../hooks/useGameAchievements';
+import { useGamePlayLog } from '../hooks/useGamePlayLog';
 import { useSteamAutoMatch } from '../hooks/useSteamAutoMatch';
 import { formatRelativeTime } from '../utils/relativeTime';
 import { formatAmount, formatPrice, ggDealsSearchUrl } from '../utils/formatPrice';
@@ -77,6 +79,7 @@ export function GameDetailModal({
   const hasSteamMatch = game.price.source === 'live' || game.ggDealsUrl !== null;
   const isCheckingMatch = checkingGameId === game.id;
   const { players: achievementPlayers, isLoading: achievementsLoading } = useGameAchievements(game.id);
+  const { entries: playLogEntries } = useGamePlayLog(game.id);
 
   // Every other game in this room, alphabetical for easy scanning in the dropdown. Only shown at
   // all for a room game with roomGames actually passed in - see onSetPrerequisite's doc comment.
@@ -507,6 +510,15 @@ export function GameDetailModal({
             <button type="button" className={styles.viewDlcButton} onClick={() => setDlcModalOpen(true)}>
               View DLC for this game
             </button>
+          </>
+        )}
+
+        {/* Hidden entirely with no entries yet - see PlayJournal's own comment. */}
+        {playLogEntries.length > 0 && (
+          <>
+            <div className={styles.divider} />
+            <div className={styles.sectionTitle}>Play Journal</div>
+            <PlayJournal entries={playLogEntries} />
           </>
         )}
 

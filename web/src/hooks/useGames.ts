@@ -60,6 +60,11 @@ export function useGames(roomId: string | null) {
     onSuccess: ({ game, shelfSync }) => {
       patchGame(game);
       if (shelfSync) setShelfSyncPrompt({ roomGameId: game.id, suggestion: shelfSync });
+      // A status change can open/close a play journal entry (issue #361) server-side - this query
+      // is separate from the games list cache patchGame updates, so it needs its own invalidation
+      // or the detail modal (which stays mounted across a status click, never remounting to
+      // refetch on its own) would keep showing whatever it fetched before the change.
+      queryClient.invalidateQueries({ queryKey: ['games', game.id, 'play-log'] });
     },
     onError: (err) => setActionError(errorMessage(err, 'Could not update that game\'s status.')),
   });

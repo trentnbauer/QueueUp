@@ -11,6 +11,7 @@ import type {
   GameSearchResult,
   MoveGameRequest,
   PlayerAchievements,
+  PlayLogEntry,
   PriceRegion,
   SetGameOwnershipRequest,
   SetGamePrerequisiteRequest,
@@ -78,6 +79,7 @@ export const gamesApi = {
   importSteamWishlistProgress: () =>
     apiGet<{ progress: SteamWishlistImportProgress | null }>('/api/games/import-steam-wishlist/progress'),
   achievements: (id: string) => apiGet<{ players: PlayerAchievements[] }>(`/api/games/${id}/achievements`),
+  playLog: (id: string) => apiGet<{ entries: PlayLogEntry[] }>(`/api/games/${id}/play-log`),
   yearInReview: () => apiGet<YearInReview>('/api/me/year-in-review'),
   currentlyPlaying: () => apiGet<CrossRoomPlaying>('/api/me/currently-playing'),
   syncSteamCompletions: () => apiPost<SteamCompletionsSyncResult>('/api/games/sync-steam-completions'),

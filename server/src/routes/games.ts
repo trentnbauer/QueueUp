@@ -56,6 +56,7 @@ import {
 } from '../services/steamLibrary.js';
 import type { OwnedSteamGame } from '../services/steamLibrary.js';
 import { toggleOwnershipForPlatform, setOwnershipPlatforms, markOwned } from '../services/gameOwnership.js';
+import { recordStatusTransition } from '../services/playLog.js';
 import { findDetectedSteamCompletions } from '../services/steamCompletionDetection.js';
 import { toUserDto } from '../util/dto.js';
 import { env } from '../config/env.js';
@@ -68,6 +69,7 @@ import type {
   CrossRoomPlayingGroup,
   MoveGameRequest,
   PlayerAchievements,
+  PlayLogEntry,
   PriceRegion,
   SetGameOwnershipRequest,
   SetGamePrerequisiteRequest,
@@ -733,6 +735,7 @@ export default async function gameRoutes(app: FastifyInstance) {
     if (!GAME_STATUSES.includes(status)) throw new HttpError(400, 'Invalid status');
 
     await prisma.game.update({ where: { id: game.id }, data: { status } });
+    await recordStatusTransition(game.id, game.status, status);
     const updated = await loadGameOr404(game.id);
 
     // Offered only when marking a *room* game Beaten - never the reverse (marking Beaten on the
@@ -756,10 +759,11 @@ export default async function gameRoutes(app: FastifyInstance) {
       const shelfGame = await prisma.game.findFirst({ where: { roomId: null, addedBy: userId, igdbId: game.igdbId } });
       if (shelfGame) {
         await prisma.game.update({ where: { id: shelfGame.id }, data: { status: 'done' } });
+        await recordStatusTransition(shelfGame.id, shelfGame.status, 'done');
       } else {
         const resolved = await resolveGameForCreation(game.igdbId, await getOwnedPlatforms(userId));
         try {
-          await prisma.game.create({
+          const created = await prisma.game.create({
             data: {
               roomId: null,
               addedBy: userId,
@@ -781,6 +785,7 @@ export default async function gameRoutes(app: FastifyInstance) {
               status: 'done',
             },
           });
+          await recordStatusTransition(created.id, 'backlog', 'done');
         } catch (err) {
           if (!(err instanceof Prisma.PrismaClientKnownRequestError && err.code === 'P2002')) throw err;
           // Lost a race with an identical concurrent sync (e.g. a double-click on the confirm
@@ -815,7 +820,9 @@ export default async function gameRoutes(app: FastifyInstance) {
       if (!GAME_STATUSES.includes(status)) throw new HttpError(400, 'Invalid status');
 
       const where = { id: { in: gameIds }, roomId: null, addedBy: userId };
+      const before = await prisma.game.findMany({ where, select: { id: true, status: true } });
       await prisma.game.updateMany({ where, data: { status } });
+      await Promise.all(before.map((g) => recordStatusTransition(g.id, g.status, status)));
 
       const updated = await prisma.game.findMany({ where, include: gameInclude });
       return { games: await serializeGames(updated, userId, parseRegion(request.query.region)) };
@@ -911,6 +918,34 @@ export default async function gameRoutes(app: FastifyInstance) {
       }
 
       return { players };
+    },
+  );
+
+  // Dated per-playthrough history for one game (issue #361), fetched on demand when the detail
+  // modal opens - same reasoning as achievements above, though this is a plain DB read (no live
+  // per-player API call), so there's no per-player audience to build. Newest attempt first.
+  app.get<{ Params: { id: string } }>(
+    '/api/games/:id/play-log',
+    { config: { rateLimit: { max: 30, timeWindow: '1 minute' } } },
+    async (request) => {
+      const userId = await request.requireAuth();
+      const game = await loadGameOr404(request.params.id);
+      await requireGameReadAccess(game, userId);
+
+      const entries = await prisma.playLog.findMany({
+        where: { gameId: game.id },
+        orderBy: { startedAt: 'desc' },
+        select: { id: true, startedAt: true, finishedAt: true },
+      });
+
+      const response: { entries: PlayLogEntry[] } = {
+        entries: entries.map((e) => ({
+          id: e.id,
+          startedAt: e.startedAt.toISOString(),
+          finishedAt: e.finishedAt ? e.finishedAt.toISOString() : null,
+        })),
+      };
+      return response;
     },
   );
 

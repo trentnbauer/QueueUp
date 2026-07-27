@@ -525,6 +525,15 @@ export interface PlayerAchievements {
   total: number;
 }
 
+/** One playthrough attempt's dated record (issue #361) - see PlayLog in schema.prisma for why this
+ * exists separately from Game.status. `finishedAt` is null while still in progress (or paused -
+ * see recordStatusTransition.ts). Newest attempt first. */
+export interface PlayLogEntry {
+  id: string;
+  startedAt: string;
+  finishedAt: string | null;
+}
+
 /** The integration credentials that can be set via env var or, as a fallback, via the admin
  * Settings panel (see server/src/services/configResolver.ts). */
 export type IntegrationConfigKey = 'GGDEALS_API_KEY' | 'IGDB_CLIENT_ID' | 'IGDB_CLIENT_SECRET';
