@@ -49,3 +49,55 @@
   height: 26px;
   visibility: hidden;
 }
+
+/* Personal Shelf variant (issue #386): single row, exact count + progress bar instead of a
+   percentage pill - there's only ever one player to show here, so the extra detail is free. */
+.playersDetailed {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.playerDetailed {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.countDetailed {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--qu-text);
+  min-width: 44px;
+}
+
+.barTrack {
+  flex: 1;
+  height: 6px;
+  border-radius: 999px;
+  background: var(--qu-neutral-pill-bg);
+  overflow: hidden;
+}
+
+.barFill {
+  display: block;
+  height: 100%;
+  background: var(--qu-accent);
+  border-radius: 999px;
+}
+
+/* Same footprint as one detailed row (20px AvatarBadge), so the query resolving doesn't shift the
+   Status buttons below (issue #371's original complaint, preserved for this variant too). */
+.skeletonBar {
+  width: 100%;
+  height: 20px;
+  border-radius: 999px;
+  background: var(--qu-neutral-pill-bg);
+  opacity: 0.5;
+}
+
+.emptyPlaceholderDetailed {
+  width: 100%;
+  height: 20px;
+  visibility: hidden;
+}

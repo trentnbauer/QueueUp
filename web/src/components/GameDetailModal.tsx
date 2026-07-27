@@ -338,7 +338,12 @@ export function GameDetailModal({
 
         <VoteRow myVote={game.myVote} onVote={onVote} />
         <VoteHeatmap votes={game.votes} currentUserId={currentUserId} roomMembers={roomMembers} />
-        <AchievementRow players={achievementPlayers} currentUserId={currentUserId} isLoading={achievementsLoading} />
+        <AchievementRow
+          players={achievementPlayers}
+          currentUserId={currentUserId}
+          isLoading={achievementsLoading}
+          roomMembers={roomMembers}
+        />
 
         {suggestDone && (
           <div className={styles.doneSuggestion}>
