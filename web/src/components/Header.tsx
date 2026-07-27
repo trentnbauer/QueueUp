@@ -16,6 +16,7 @@ import { ShelfSettingsModal } from './ShelfSettingsModal';
 import { AddGameModal } from './AddGameModal';
 import { FilterModal } from './FilterModal';
 import { PillFilter } from './PillFilter';
+import { SpinWheelButton } from './SpinWheelButton';
 import styles from './Header.module.css';
 
 const ROLE_LABEL: Record<RoomRole, string> = {
@@ -77,7 +78,7 @@ export function Header() {
 
   // Reuses the same ['games', 'room'|'shelf', ...] query as the active view (RoomView/ShelfView) -
   // React Query dedupes by queryKey, so this doesn't trigger an extra network fetch.
-  const { games, invalidate: invalidateGames } = useGames(activeRoom?.id ?? null);
+  const { games, invalidate: invalidateGames, setSteamMatch } = useGames(activeRoom?.id ?? null);
 
   // Re-sync button (issue #203) - only meaningful on the Personal Shelf (Steam games always land
   // there, never straight into a room), and saves scrolling to the SteamImportCard tile at the end
@@ -285,6 +286,12 @@ export function Header() {
         <button type="button" className={styles.addGameButton} onClick={() => setShowAddGame(true)}>
           + Add Game
         </button>
+        <SpinWheelButton
+          games={games}
+          spinOwnershipMaxPrice={activeRoom?.spinOwnershipMaxPrice}
+          spinWheelTheme={activeRoom?.spinWheelTheme}
+          onSetSteamMatch={setSteamMatch}
+        />
         {!activeRoom && (
           <button
             type="button"

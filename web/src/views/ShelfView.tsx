@@ -174,7 +174,6 @@ export function ShelfView() {
         onSetTargetPrice={setTargetPrice}
         onApplyTag={applyTag}
         onRemoveTag={removeTag}
-        showSpinWheel={!bulkMode}
         trailingCard={
           !bulkMode && (
             <>
