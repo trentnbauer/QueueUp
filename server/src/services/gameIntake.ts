@@ -3,6 +3,7 @@ import {
   searchCollections,
   getGameDetail,
   getCollectionGames,
+  getTrendingGames,
   type GameSearchPage,
   type IgdbGameDetail,
 } from './igdbClient.js';
@@ -14,6 +15,7 @@ import {
   ROOM_PLATFORM_LABELS,
   type CollectionGamesResult,
   type CollectionSearchResult,
+  type GameSearchResult,
   type GameStatus,
   type RoomPlatform,
 } from '@queueup/shared';
@@ -34,6 +36,16 @@ export async function searchIntake(
 
 export async function searchCollectionsIntake(query: string): Promise<CollectionSearchResult[]> {
   return searchCollections(query);
+}
+
+/** Backs the Add Game modal's "Popular" browse tab (issue #363) - see getTrendingGames for why
+ * this is ranked by IGDB's total_rating_count rather than its popularity_primitives endpoint. */
+export async function trendingIntake(
+  platforms?: RoomPlatform[],
+  excludeIgdbIds?: Set<number>,
+  hideAddons = true,
+): Promise<GameSearchResult[]> {
+  return getTrendingGames(platforms, excludeIgdbIds, hideAddons);
 }
 
 export async function collectionGamesIntake(

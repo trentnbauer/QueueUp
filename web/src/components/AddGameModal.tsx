@@ -46,6 +46,50 @@ function ResultThumb({ title, coverImageUrl }: { title: string; coverImageUrl: s
   );
 }
 
+interface AddGameResultRowProps {
+  result: GameSearchResult;
+  added: boolean;
+  suggested: boolean;
+  adding: boolean;
+  busy: boolean;
+  onAdd: () => void;
+  /** Only the search tab supports arrow-key navigation (it's the one with a text input to type
+   * into) - the Popular tab is a plain browse list, so this is omitted there. */
+  optionProps?: { id: string; highlighted: boolean; onMouseEnter: () => void };
+}
+
+/** One result row, shared by the search list and the Popular browse list (issue #363) - identical
+ * thumb/title/platform/Add-button markup either way, since gamesApi.create's suggestion-vs-add
+ * response handling in handleAdd doesn't care which tab a GameSearchResult came from. */
+function AddGameResultRow({ result, added, suggested, adding, busy, onAdd, optionProps }: AddGameResultRowProps) {
+  return (
+    <div
+      id={optionProps?.id}
+      role={optionProps ? 'option' : undefined}
+      aria-selected={optionProps ? optionProps.highlighted : undefined}
+      className={`${styles.resultOption} ${optionProps?.highlighted ? styles.resultOptionHighlighted : ''}`}
+      onMouseEnter={optionProps?.onMouseEnter}
+    >
+      <ResultThumb title={result.title} coverImageUrl={result.coverImageUrl} />
+      <div className={styles.resultMeta}>
+        <span className={styles.resultTitle}>
+          {result.title}
+          {result.releaseYear ? ` (${result.releaseYear})` : ''}
+        </span>
+        <span className={styles.resultPlatform}>{result.platform}</span>
+      </div>
+      <button
+        type="button"
+        className={`${styles.addButton} ${added ? styles.addButtonAdded : ''}`}
+        onClick={onAdd}
+        disabled={busy || added}
+      >
+        {adding ? 'Adding…' : added ? (suggested ? 'Suggested ✓' : 'Added ✓') : 'Add'}
+      </button>
+    </div>
+  );
+}
+
 interface CollectionReviewProps {
   collection: CollectionSearchResult;
   roomId: string | null;
@@ -259,6 +303,14 @@ function CollectionReview({ collection, roomId, onAdded, onBack, onBusyChange, h
 /** Centered modal (matching Room Settings / Add Room) for searching and adding a game - replaces
  * the old always-visible inline search bar above the game grid. */
 export function AddGameModal({ roomId, onAdded, onClose }: AddGameModalProps) {
+  // Issue #363: "Popular" is a separate browse mode alongside search, for discovering something
+  // nobody had already thought to search for - its own fetch/loading/error state below, entirely
+  // independent of the search-query-driven state that follows.
+  const [activeTab, setActiveTab] = useState<'search' | 'popular'>('search');
+  const [trendingResults, setTrendingResults] = useState<GameSearchResult[]>([]);
+  const [trendingLoading, setTrendingLoading] = useState(false);
+  const [trendingError, setTrendingError] = useState<string | null>(null);
+
   const [query, setQuery] = useState('');
   const [results, setResults] = useState<GameSearchResult[]>([]);
   const [collections, setCollections] = useState<CollectionSearchResult[]>([]);
@@ -275,6 +327,10 @@ export function AddGameModal({ roomId, onAdded, onClose }: AddGameModalProps) {
   // franchise search can otherwise be dominated by add-ons instead of the games someone's actually
   // looking for. Unchecking re-runs the search (it's a dependency of the search effects below).
   const [hideAddons, setHideAddons] = useState(true);
+  // Bumped on every trending fetch so a response for a stale request (e.g. hideAddons flipped
+  // mid-flight) can recognize it's outdated and skip overwriting fresher results - same pattern
+  // as latestRequestIdRef below for search.
+  const latestTrendingRequestIdRef = useRef(0);
   const sentinelRef = useRef<HTMLDivElement | null>(null);
   // Counts consecutive loaded pages that added zero new results (every row already added to this
   // room/shelf) while IGDB still reported more raw matches - a large enough franchise someone
@@ -354,6 +410,31 @@ export function AddGameModal({ roomId, onAdded, onClose }: AddGameModalProps) {
       if (debounceRef.current) clearTimeout(debounceRef.current);
     };
   }, [query, roomId, hideAddons]);
+
+  // Issue #363: fetches (or re-fetches, if hideAddons is toggled while this tab is active) the
+  // "Popular" browse list. Only runs while that tab is actually showing - switching to "Search"
+  // and back re-fetches rather than caching, but this is a single un-paginated request, not
+  // meaningfully more expensive than showing a possibly-stale list.
+  useEffect(() => {
+    if (activeTab !== 'popular') return;
+    const requestId = ++latestTrendingRequestIdRef.current;
+    setTrendingLoading(true);
+    setTrendingError(null);
+    gamesApi
+      .trending(roomId, hideAddons)
+      .then(({ results }) => {
+        if (requestId !== latestTrendingRequestIdRef.current) return;
+        setTrendingResults(results);
+      })
+      .catch((err) => {
+        if (requestId !== latestTrendingRequestIdRef.current) return;
+        setTrendingResults([]);
+        setTrendingError(err instanceof Error ? err.message : 'Could not load popular games');
+      })
+      .finally(() => {
+        if (requestId === latestTrendingRequestIdRef.current) setTrendingLoading(false);
+      });
+  }, [activeTab, roomId, hideAddons]);
 
   useEffect(() => {
     setHighlightedIndex(-1);
@@ -501,6 +582,29 @@ export function AddGameModal({ roomId, onAdded, onClose }: AddGameModalProps) {
           />
         ) : (
           <>
+            {/* Issue #363: "Popular" is a plain browse list alongside search, for discovering
+                something nobody had already thought to search for. */}
+            <div className={styles.tabRow} role="tablist">
+              <button
+                type="button"
+                role="tab"
+                aria-selected={activeTab === 'search'}
+                className={`${styles.tabButton} ${activeTab === 'search' ? styles.tabButtonActive : ''}`}
+                onClick={() => setActiveTab('search')}
+              >
+                Search
+              </button>
+              <button
+                type="button"
+                role="tab"
+                aria-selected={activeTab === 'popular'}
+                className={`${styles.tabButton} ${activeTab === 'popular' ? styles.tabButtonActive : ''}`}
+                onClick={() => setActiveTab('popular')}
+              >
+                Popular
+              </button>
+            </div>
+
             {error && <div className={styles.error}>{error}</div>}
             {addedTitle && !error && (
               <div className={styles.added}>
@@ -513,92 +617,113 @@ export function AddGameModal({ roomId, onAdded, onClose }: AddGameModalProps) {
               <div className={styles.coopWarning}>⚠️ "{coopWarningTitle}" doesn't appear to support co-op</div>
             )}
 
-            <input
-              ref={inputRef}
-              className={styles.input}
-              placeholder="Search for a game…"
-              value={query}
-              onChange={(e) => setQuery(e.target.value)}
-              onKeyDown={handleInputKeyDown}
-              disabled={busy}
-              autoFocus
-              role="combobox"
-              aria-expanded={results.length > 0}
-              aria-controls={listboxId}
-              aria-autocomplete="list"
-              aria-activedescendant={
-                highlightedIndex >= 0 && highlightedIndex < results.length
-                  ? optionId(results[highlightedIndex].igdbId)
-                  : undefined
-              }
-            />
+            {activeTab === 'search' ? (
+              <>
+                <input
+                  ref={inputRef}
+                  className={styles.input}
+                  placeholder="Search for a game…"
+                  value={query}
+                  onChange={(e) => setQuery(e.target.value)}
+                  onKeyDown={handleInputKeyDown}
+                  disabled={busy}
+                  autoFocus
+                  role="combobox"
+                  aria-expanded={results.length > 0}
+                  aria-controls={listboxId}
+                  aria-autocomplete="list"
+                  aria-activedescendant={
+                    highlightedIndex >= 0 && highlightedIndex < results.length
+                      ? optionId(results[highlightedIndex].igdbId)
+                      : undefined
+                  }
+                />
 
-            <label className={styles.hideAddonsField}>
-              <input
-                type="checkbox"
-                checked={hideAddons}
-                onChange={(e) => setHideAddons(e.target.checked)}
-              />
-              Hide DLC &amp; add-ons
-            </label>
+                <label className={styles.hideAddonsField}>
+                  <input
+                    type="checkbox"
+                    checked={hideAddons}
+                    onChange={(e) => setHideAddons(e.target.checked)}
+                  />
+                  Hide DLC &amp; add-ons
+                </label>
 
-            {searching && <div className={styles.searching}>Searching…</div>}
+                {searching && <div className={styles.searching}>Searching…</div>}
 
-            {collections.length > 0 && (
-              <div className={styles.collectionsList}>
-                {collections.map((c) => (
-                  <button
-                    key={c.collectionId}
-                    type="button"
-                    className={styles.collectionOption}
-                    onClick={() => setActiveCollection(c)}
-                  >
-                    <span aria-hidden="true">📚</span> {c.name}
-                    <span className={styles.collectionHint}>View series</span>
-                  </button>
-                ))}
-              </div>
-            )}
-
-            {results.length > 0 && (
-              <div className={styles.resultsList} role="listbox" id={listboxId}>
-                {results.map((r, i) => (
-                  <div
-                    key={r.igdbId}
-                    id={optionId(r.igdbId)}
-                    role="option"
-                    aria-selected={i === highlightedIndex}
-                    className={`${styles.resultOption} ${i === highlightedIndex ? styles.resultOptionHighlighted : ''}`}
-                    onMouseEnter={() => setHighlightedIndex(i)}
-                  >
-                    <ResultThumb title={r.title} coverImageUrl={r.coverImageUrl} />
-                    <div className={styles.resultMeta}>
-                      <span className={styles.resultTitle}>
-                        {r.title}
-                        {r.releaseYear ? ` (${r.releaseYear})` : ''}
-                      </span>
-                      <span className={styles.resultPlatform}>{r.platform}</span>
-                    </div>
-                    <button
-                      type="button"
-                      className={`${styles.addButton} ${addedIds.has(r.igdbId) ? styles.addButtonAdded : ''}`}
-                      onClick={() => handleAdd(r)}
-                      disabled={busy || addedIds.has(r.igdbId)}
-                    >
-                      {addingId === r.igdbId
-                        ? 'Adding…'
-                        : addedIds.has(r.igdbId)
-                          ? suggestedIds.has(r.igdbId)
-                            ? 'Suggested ✓'
-                            : 'Added ✓'
-                          : 'Add'}
-                    </button>
+                {collections.length > 0 && (
+                  <div className={styles.collectionsList}>
+                    {collections.map((c) => (
+                      <button
+                        key={c.collectionId}
+                        type="button"
+                        className={styles.collectionOption}
+                        onClick={() => setActiveCollection(c)}
+                      >
+                        <span aria-hidden="true">📚</span> {c.name}
+                        <span className={styles.collectionHint}>View series</span>
+                      </button>
+                    ))}
                   </div>
-                ))}
-                {hasMore && <div ref={sentinelRef} className={styles.loadMoreSentinel} aria-hidden="true" />}
-                {loadingMore && <div className={styles.searching}>Loading more…</div>}
-                {loadMoreError && !loadingMore && <div className={styles.error}>{loadMoreError}</div>}
-              </div>
+                )}
+
+                {results.length > 0 && (
+                  <div className={styles.resultsList} role="listbox" id={listboxId}>
+                    {results.map((r, i) => (
+                      <AddGameResultRow
+                        key={r.igdbId}
+                        result={r}
+                        added={addedIds.has(r.igdbId)}
+                        suggested={suggestedIds.has(r.igdbId)}
+                        adding={addingId === r.igdbId}
+                        busy={busy}
+                        onAdd={() => handleAdd(r)}
+                        optionProps={{
+                          id: optionId(r.igdbId),
+                          highlighted: i === highlightedIndex,
+                          onMouseEnter: () => setHighlightedIndex(i),
+                        }}
+                      />
+                    ))}
+                    {hasMore && <div ref={sentinelRef} className={styles.loadMoreSentinel} aria-hidden="true" />}
+                    {loadingMore && <div className={styles.searching}>Loading more…</div>}
+                    {loadMoreError && !loadingMore && <div className={styles.error}>{loadMoreError}</div>}
+                  </div>
+                )}
+              </>
+            ) : (
+              <>
+                <label className={styles.hideAddonsField}>
+                  <input
+                    type="checkbox"
+                    checked={hideAddons}
+                    onChange={(e) => setHideAddons(e.target.checked)}
+                  />
+                  Hide DLC &amp; add-ons
+                </label>
+
+                {trendingLoading && <div className={styles.searching}>Loading popular games…</div>}
+                {trendingError && !trendingLoading && <div className={styles.error}>{trendingError}</div>}
+
+                {!trendingLoading && !trendingError && trendingResults.length === 0 && (
+                  <div className={styles.searching}>Nothing to show - every popular title is already here.</div>
+                )}
+
+                {trendingResults.length > 0 && (
+                  <div className={styles.resultsList}>
+                    {trendingResults.map((r) => (
+                      <AddGameResultRow
+                        key={r.igdbId}
+                        result={r}
+                        added={addedIds.has(r.igdbId)}
+                        suggested={suggestedIds.has(r.igdbId)}
+                        adding={addingId === r.igdbId}
+                        busy={busy}
+                        onAdd={() => handleAdd(r)}
+                      />
+                    ))}
+                  </div>
+                )}
+              </>
             )}
           </>
         )}
