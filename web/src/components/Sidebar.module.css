@@ -54,6 +54,25 @@
   border: 2px solid var(--qu-surface2);
 }
 
+/* Spinning ring around the logo while a Steam library/wishlist import is running in the
+   background (issue #359) - visible from anywhere in the app, not just the Personal Shelf header
+   that started it, since a big library import can run for minutes after someone's navigated away. */
+.importSpinner {
+  position: absolute;
+  inset: -3px;
+  border-radius: 50%;
+  border: 2px solid transparent;
+  border-top-color: var(--qu-accent);
+  animation: importSpin 0.9s linear infinite;
+  pointer-events: none;
+}
+
+@keyframes importSpin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
 .notifFlyout {
   width: 320px;
   max-width: calc(100vw - 100px);
@@ -86,6 +105,46 @@
 
 .notifDismissAll:hover {
   color: var(--qu-accent);
+}
+
+.notifImportStatus {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 14px;
+  font-size: 12px;
+  color: var(--qu-muted);
+  border-bottom: 1px solid var(--qu-border);
+}
+
+.notifImportSpinner {
+  flex-shrink: 0;
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  border: 2px solid var(--qu-border);
+  border-top-color: var(--qu-accent);
+  animation: importSpin 0.9s linear infinite;
+}
+
+.notifImportStatusText {
+  flex: 1;
+}
+
+.notifImportDismiss {
+  flex-shrink: 0;
+  background: none;
+  border: none;
+  color: inherit;
+  font-size: 14px;
+  line-height: 1;
+  padding: 0;
+  cursor: pointer;
+  opacity: 0.7;
+}
+
+.notifImportDismiss:hover {
+  opacity: 1;
 }
 
 .notifList {

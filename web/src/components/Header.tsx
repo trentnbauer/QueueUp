@@ -18,6 +18,7 @@ import { FilterModal } from './FilterModal';
 import { PillFilter } from './PillFilter';
 import { SpinPickerButton } from './SpinPickerButton';
 import { RankedQueueModal } from './RankedQueueModal';
+import { ImportLibraryModal } from './ImportLibraryModal';
 import styles from './Header.module.css';
 
 const ROLE_LABEL: Record<RoomRole, string> = {
@@ -57,6 +58,7 @@ export function Header() {
   const [showAddGame, setShowAddGame] = useState(false);
   const [showFilters, setShowFilters] = useState(false);
   const [showRankedQueue, setShowRankedQueue] = useState(false);
+  const [showImportLibrary, setShowImportLibrary] = useState(false);
   const [inviteCopied, setInviteCopied] = useState(false);
   // Which member's row is expanded to show their completed/100%'d counts - at most one at a time,
   // toggled by clicking the row again (see memberRow below). Not persisted; closes on re-render of
@@ -104,6 +106,8 @@ export function Header() {
     shelfSyncPrompt,
     confirmShelfSync,
     dismissShelfSync,
+    bulkUpdateStatus,
+    isBulkUpdatingStatus,
   } = useGames(activeRoom?.id ?? null);
 
   // Mirrors RoomView's identical prompt (issue #360) - marking a room game Beaten from the Ranked
@@ -124,11 +128,11 @@ export function Header() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [shelfSyncPrompt]);
 
-  // Re-sync button (issue #203) - only meaningful on the Personal Shelf (Steam games always land
-  // there, never straight into a room), and saves scrolling to the SteamImportCard tile at the end
-  // of a large shelf's grid to trigger the same import. Shared via SteamImportContext (not its own
-  // useSteamImport instance) so this button and the SteamImportCard tile can't both be "not busy"
-  // at once and fire two concurrent imports.
+  // Import Library button (issue #203, relocated into its own modal by issue #359) - only
+  // meaningful on the Personal Shelf (Steam games always land there, never straight into a room).
+  // Shared via SteamImportContext (not its own useSteamImport instance) so this button, the modal
+  // it opens, and the Sidebar's notification bell all see the same in-flight state instead of
+  // risking two concurrent imports.
   const steamImport = useSteamImportContext();
 
   // A Room already has one fixed platform, so every game in it matches - the platform filter is
@@ -191,20 +195,6 @@ export function Header() {
       membersMenuRef.current?.removeAttribute('open');
       navigate('/');
     }
-  }
-
-  async function handleResync() {
-    if (!steamLinked) {
-      steamImport.startLink();
-      return;
-    }
-    const ok = await confirm({
-      title: 'Re-sync your Steam library?',
-      message: 'Pulls your most-played Steam games onto your shelf, skipping anything already here. This can take a little while.',
-      confirmLabel: 'Sync',
-    });
-    if (!ok) return;
-    await steamImport.runImport();
   }
 
   async function handleCopyInviteCode() {
@@ -346,24 +336,23 @@ export function Header() {
         >
           📋 Ranked Queue
         </button>
+        {/* Replaces the three permanent "Import Steam Library/Wishlist/Sync Completions" tiles
+            that used to sit at the end of the shelf grid (issue #359) - same underlying actions
+            (still shared via SteamImportContext so nothing here can race a concurrent import),
+            just relocated into one on-demand modal instead of always-visible grid space. Also
+            covers what used to be a separate "Re-sync Library" button - importing already skips
+            anything already on the shelf, so there's no separate "first import" vs. "re-sync"
+            action needed. */}
         {!activeRoom && (
           <button
             type="button"
-            className={styles.resyncButton}
-            onClick={handleResync}
+            className={styles.importLibraryButton}
+            onClick={() => setShowImportLibrary(true)}
             disabled={steamImport.busy}
-            title={steamLinked ? 'Re-sync your Steam library' : 'Link your Steam account to sync your library'}
+            title={steamLinked ? 'Import or re-sync your Steam library, wishlist, or achievement completions' : 'Link your Steam account to import your library'}
           >
-            {steamImport.busy && steamImport.activeKind === 'library' ? 'Syncing…' : '↻ Re-sync Library'}
+            {steamImport.busy ? 'Importing…' : '📥 Import Library'}
           </button>
-        )}
-        {/* activeKind gate keeps this from showing a wishlist import's result/error (see
-            SteamImportCard.tsx's comment - the two share busy/result/error to serialize, since both
-            write to the same shelf, but each surface should only report on its own action). */}
-        {!activeRoom && steamImport.activeKind === 'library' && (steamImport.result || steamImport.error) && (
-          <span className={styles.resyncResult} style={steamImport.error ? { color: '#ff8a80' } : undefined}>
-            {steamImport.error ?? steamImport.result}
-          </span>
         )}
         <input
           type="search"
@@ -464,6 +453,17 @@ export function Header() {
           onRemoveTag={removeTag}
           onSetPrerequisite={activeRoom ? setPrerequisite : undefined}
           onClose={() => setShowRankedQueue(false)}
+        />
+      )}
+
+      {showImportLibrary && !activeRoom && (
+        <ImportLibraryModal
+          steamLinked={steamLinked}
+          onApplyCompletions={(gameIds) => bulkUpdateStatus(gameIds, 'done')}
+          applyingCompletions={isBulkUpdatingStatus}
+          actionError={actionError}
+          onDismissActionError={clearActionError}
+          onClose={() => setShowImportLibrary(false)}
         />
       )}
     </header>

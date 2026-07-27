@@ -5,6 +5,7 @@ import { useAuth } from '../context/AuthContext';
 import { useView } from '../context/ViewContext';
 import { useRooms } from '../hooks/useRooms';
 import { useNotificationSummary, useMarkAllNotificationsRead } from '../hooks/useNotifications';
+import { useSteamImportContext } from '../context/SteamImportContext';
 import { useThemeMode } from '../context/ThemeModeContext';
 import { authApi } from '../api/auth';
 import { AvatarBadge } from './AvatarBadge';
@@ -31,6 +32,11 @@ export function Sidebar() {
   const { totalUnread, unreadRoomIds } = useNotificationSummary();
   const markAllNotificationsRead = useMarkAllNotificationsRead();
   const { mode, toggle: toggleThemeMode } = useThemeMode();
+  // Issue #359: a Steam library/wishlist import can run for minutes in the background (see
+  // useSteamImport) with nothing visible once the person's navigated away from the button that
+  // started it - this surfaces it as a spinner on the same bell every screen already has, rather
+  // than only being visible from the Personal Shelf header.
+  const steamImport = useSteamImportContext();
 
   const [showAddRoom, setShowAddRoom] = useState(false);
   const [showProfileMenu, setShowProfileMenu] = useState(false);
@@ -76,17 +82,18 @@ export function Sidebar() {
           <button
             type="button"
             className={styles.brand}
-            title="QueueUp"
+            title={steamImport.busy ? 'Importing your Steam library…' : 'QueueUp'}
             aria-label={totalUnread > 0 ? `Notifications (${totalUnread} unread)` : 'Notifications'}
             onClick={() => (showNotifications ? closeNotifications() : setShowNotifications(true))}
           >
             <Logo size={44} />
+            {steamImport.busy && <span className={styles.importSpinner} aria-hidden="true" />}
             {totalUnread > 0 && <span className={styles.unreadDot} aria-hidden="true" />}
           </button>
           {showNotifications && (
             <>
               <div className={styles.menuBackdrop} onClick={closeNotifications} />
-              <NotificationFlyout onNavigate={closeMobileDrawer} />
+              <NotificationFlyout onNavigate={closeMobileDrawer} steamImport={steamImport} />
             </>
           )}
         </div>
