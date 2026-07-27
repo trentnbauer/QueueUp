@@ -55,7 +55,7 @@ import {
   searchSteamStore,
 } from '../services/steamLibrary.js';
 import type { OwnedSteamGame } from '../services/steamLibrary.js';
-import { toggleOwnershipForPlatform, markOwned } from '../services/gameOwnership.js';
+import { toggleOwnershipForPlatform, setOwnershipPlatforms, markOwned } from '../services/gameOwnership.js';
 import { findDetectedSteamCompletions } from '../services/steamCompletionDetection.js';
 import { toUserDto } from '../util/dto.js';
 import { env } from '../config/env.js';
@@ -437,9 +437,17 @@ export default async function gameRoutes(app: FastifyInstance) {
 
   app.post<{ Body: CreateGameRequest }>('/api/games', async (request, reply) => {
     const userId = await request.requireAuth();
-    const { igdbId, roomId, status } = request.body;
+    const { igdbId, roomId, status, ownedPlatforms } = request.body;
     if (!Number.isInteger(igdbId)) throw new HttpError(400, 'A valid igdbId is required');
-    if (status !== undefined && !GAME_STATUSES.includes(status)) throw new HttpError(400, 'Invalid status');
+    if (status !== undefined && status !== 'backlog' && status !== 'wishlist') {
+      throw new HttpError(400, 'status must be "backlog" or "wishlist"');
+    }
+    // Owned-platforms only makes sense for a Personal Shelf add (see the Add Game modal) - a room
+    // game's ownership is scoped to the room's own platform instead (see gameOwnership.ts), set via
+    // its own toggle, not at intake time.
+    if (ownedPlatforms !== undefined && roomId) {
+      throw new HttpError(400, 'ownedPlatforms is only supported when adding to the Personal Shelf');
+    }
 
     let room: Awaited<ReturnType<typeof getRoom>> | null = null;
     let membershipRole: string | null = null;
@@ -468,7 +476,6 @@ export default async function gameRoutes(app: FastifyInstance) {
           platform: detail.platform,
           coverImageUrl: detail.coverImageUrl,
           releaseYear: detail.releaseYear,
-          requestedStatus: status ?? null,
           suggestedBy: userId,
         },
         include: { suggester: true },
@@ -492,7 +499,6 @@ export default async function gameRoutes(app: FastifyInstance) {
           platform: suggestion.platform,
           coverImageUrl: suggestion.coverImageUrl,
           releaseYear: suggestion.releaseYear,
-          requestedStatus: suggestion.requestedStatus,
           suggestedBy: toUserDto(suggestion.suggester),
           createdAt: suggestion.createdAt.toISOString(),
         },
@@ -526,8 +532,8 @@ export default async function gameRoutes(app: FastifyInstance) {
           releaseDate: resolved.releaseDate,
           igdbCollectionId: resolved.igdbCollectionId,
           reviewScore: resolved.reviewScore,
-          // An explicit choice (the Add Game modal's Wishlist/Backlog/Playing quick-add buttons)
-          // wins; otherwise falls back to issue #370's release-date guess (unreleased -> wishlist).
+          // Explicit status (Personal Shelf's Add Game modal) wins outright; otherwise issue #370's
+          // release-date guess (an unreleased game defaults into the wishlist).
           status: status ?? defaultStatusForRelease(resolved.releaseDate),
         },
       });
@@ -538,6 +544,12 @@ export default async function gameRoutes(app: FastifyInstance) {
     // game is present in the same room/shelf (creating it if needed) and link this row back to it.
     if (resolved.parentGameIgdbId && isAddonCategory(resolved.category)) {
       await linkDlcToBaseGame(created.id, resolved.parentGameIgdbId, roomId ?? null, userId, platforms);
+    }
+    // Personal Shelf's Add Game modal (owned/platforms picker) - marks ownership at intake time
+    // instead of a separate follow-up action, so "I own this on Switch" is recorded the moment the
+    // game lands on the shelf.
+    if (ownedPlatforms && ownedPlatforms.length > 0) {
+      await setOwnershipPlatforms(userId, igdbId, ownedPlatforms);
     }
     const game = await loadGameOr404(created.id);
     await invalidateExistingIgdbIds(roomId ?? null, userId);

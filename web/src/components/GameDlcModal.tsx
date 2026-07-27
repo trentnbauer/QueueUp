@@ -1,9 +1,8 @@
 import { useEffect, useState } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
-import type { Game, GameSearchResult, GameStatus } from '@queueup/shared';
+import type { Game, GameSearchResult } from '@queueup/shared';
 import { gamesApi } from '../api/games';
 import { useModalA11y, closeOnBackdropMouseDown } from '../hooks/useModalA11y';
-import { QuickAddStatusButtons } from './QuickAddStatusButtons';
 import styles from './GameDlcModal.module.css';
 
 interface GameDlcModalProps {
@@ -69,11 +68,11 @@ export function GameDlcModal({ game, onClose }: GameDlcModalProps) {
     };
   }, [game.id]);
 
-  async function handleAdd(result: GameSearchResult, status: GameStatus) {
+  async function handleAdd(result: GameSearchResult) {
     setAddingId(result.igdbId);
     setActionError(null);
     try {
-      const response = await gamesApi.create({ igdbId: result.igdbId, roomId: game.roomId, status });
+      const response = await gamesApi.create({ igdbId: result.igdbId, roomId: game.roomId });
       setAddedIds((prev) => new Set(prev).add(result.igdbId));
       // Issue #362: this room requires approval and the caller is a plain Member - nothing was
       // added to the backlog yet (and there's no baseGameId link to have been set either, since
@@ -134,13 +133,20 @@ export function GameDlcModal({ game, onClose }: GameDlcModalProps) {
                     </span>
                     <span className={styles.resultPlatform}>{result.platform}</span>
                   </div>
-                  <QuickAddStatusButtons
-                    added={added}
-                    suggested={suggestedIds.has(result.igdbId)}
-                    adding={addingId === result.igdbId}
-                    disabled={addingId !== null}
-                    onAdd={(status) => handleAdd(result, status)}
-                  />
+                  <button
+                    type="button"
+                    className={`${styles.addButton} ${added ? styles.addButtonAdded : ''}`}
+                    onClick={() => handleAdd(result)}
+                    disabled={addingId !== null || added}
+                  >
+                    {addingId === result.igdbId
+                      ? 'Adding…'
+                      : added
+                        ? suggestedIds.has(result.igdbId)
+                          ? 'Suggested ✓'
+                          : 'Added ✓'
+                        : 'Add'}
+                  </button>
                 </div>
               );
             })}

@@ -110,10 +110,6 @@ export interface GameSuggestion {
   platform: string;
   coverImageUrl: string | null;
   releaseYear: number | null;
-  /** The status the suggester asked to add this as (Add Game's Wishlist/Backlog/Playing quick-add
-   * buttons), applied once a Room Master/Moderator approves it instead of the usual release-date
-   * guess. Null for a suggestion made before this existed, or where no explicit choice was made. */
-  requestedStatus: GameStatus | null;
   suggestedBy: User;
   createdAt: string;
 }
@@ -303,11 +299,15 @@ export interface CollectionGamesResult {
 export interface CreateGameRequest {
   igdbId: number;
   roomId?: string | null;
-  /** Explicit status to add as - Add Game's Wishlist/Backlog/Playing quick-add icon buttons let
-   * the person adding a game choose directly instead of it being guessed from release date.
-   * Omitted by callers that don't offer a choice (Steam import, DLC browse-and-add), which fall
-   * back to defaultStatusForRelease's release-date heuristic as before. */
-  status?: GameStatus;
+  /** Explicit initial status - Personal Shelf's Add Game modal asks owned ('backlog') or not
+   * ('wishlist') up front instead of leaving it to defaultStatusForRelease's release-date guess.
+   * Omitted (rooms, and Steam import) keeps that release-date fallback unchanged. Only 'backlog'
+   * or 'wishlist' are accepted here - this isn't a general status override. */
+  status?: 'backlog' | 'wishlist';
+  /** Platforms to mark this game owned on immediately (Personal Shelf's Add Game modal) - only
+   * meaningful alongside `status: 'backlog'` (owned); ignored otherwise, and rejected outright for
+   * a room add (see the route) since room ownership is scoped to the room's own platform instead. */
+  ownedPlatforms?: RoomPlatform[];
 }
 
 /** POST /api/games normally adds the game directly. In a room with requireGameApproval on, a
