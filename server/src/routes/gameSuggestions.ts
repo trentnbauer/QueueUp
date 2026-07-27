@@ -39,21 +39,30 @@ function toSuggestionDto(suggestion: {
  * moderation actions - the suggestion's own creation happens in POST /api/games instead, since
  * that's where the "am I gated into suggesting instead of adding" check already lives. */
 export default async function gameSuggestionRoutes(app: FastifyInstance) {
-  app.get<{ Params: { roomId: string } }>('/api/rooms/:roomId/suggestions', async (request) => {
-    const userId = await request.requireAuth();
-    const { roomId } = request.params;
-    await requireElevated(roomId, userId);
+  app.get<{ Params: { roomId: string } }>(
+    '/api/rooms/:roomId/suggestions',
+    // Same tightened-from-global-default limit as the rest of a room's elevated-only reads
+    // (invite-candidates, member stats) - nothing special about this one, just not left uncapped.
+    { config: { rateLimit: { max: 30, timeWindow: '1 minute' } } },
+    async (request) => {
+      const userId = await request.requireAuth();
+      const { roomId } = request.params;
+      await requireElevated(roomId, userId);
 
-    const suggestions = await prisma.gameSuggestion.findMany({
-      where: { roomId },
-      include: { suggester: true },
-      orderBy: { createdAt: 'asc' },
-    });
-    return { suggestions: suggestions.map(toSuggestionDto) };
-  });
+      const suggestions = await prisma.gameSuggestion.findMany({
+        where: { roomId },
+        include: { suggester: true },
+        orderBy: { createdAt: 'asc' },
+      });
+      return { suggestions: suggestions.map(toSuggestionDto) };
+    },
+  );
 
   app.post<{ Params: { roomId: string; suggestionId: string } }>(
     '/api/rooms/:roomId/suggestions/:suggestionId/approve',
+    // Same class of route as the rest of a room's elevated-only actions (invite/member-role
+    // changes) - a moderator action, not something a normal session comes close to hitting.
+    { config: { rateLimit: { max: 30, timeWindow: '1 minute' } } },
     async (request, reply) => {
       const userId = await request.requireAuth();
       const { roomId, suggestionId } = request.params;
@@ -129,6 +138,8 @@ export default async function gameSuggestionRoutes(app: FastifyInstance) {
 
   app.delete<{ Params: { roomId: string; suggestionId: string } }>(
     '/api/rooms/:roomId/suggestions/:suggestionId',
+    // Same class of route as approve above - an elevated-only moderator action.
+    { config: { rateLimit: { max: 30, timeWindow: '1 minute' } } },
     async (request, reply) => {
       const userId = await request.requireAuth();
       const { roomId, suggestionId } = request.params;
