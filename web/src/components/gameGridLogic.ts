@@ -166,6 +166,16 @@ export function isUnreleased(game: Game, now: number = Date.now()): boolean {
   return game.releaseYear !== null && game.releaseYear > new Date(now).getFullYear();
 }
 
+/** Wishlist/backlog games with a known, still-upcoming release date (issue #367), soonest first -
+ * the pool a coming-soon countdown strip surfaces. Requires the exact `releaseDate`, unlike
+ * isUnreleased's releaseYear fallback - a countdown needs a real day to count down to, and
+ * releaseYear alone can't tell "next week" from "in 11 months" within the same year. */
+export function upcomingReleases(games: Game[], now: number = Date.now()): Game[] {
+  return games
+    .filter((g) => (g.status === 'wishlist' || g.status === 'backlog') && g.releaseDate !== null && new Date(g.releaseDate).getTime() > now)
+    .sort((a, b) => new Date(a.releaseDate as string).getTime() - new Date(b.releaseDate as string).getTime());
+}
+
 /** True when `game` has a "play after" prerequisite (see Game.prerequisiteGameId) set, and that
  * prerequisite isn't marked Done yet - e.g. Borderlands 2 pointed at a not-yet-beaten Borderlands
  * 1. A missing/removed prerequisite (no longer in `games`) doesn't block - there's nothing left to

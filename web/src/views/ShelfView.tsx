@@ -7,6 +7,7 @@ import { useConfirm } from '../context/ConfirmContext';
 import { useGames } from '../hooks/useGames';
 import { GameGrid } from '../components/GameGrid';
 import { PlayingStrip } from '../components/PlayingStrip';
+import { ComingSoonStrip } from '../components/ComingSoonStrip';
 import { BeatenStrip } from '../components/BeatenStrip';
 import { DroppedStrip } from '../components/DroppedStrip';
 import { filterGames, ALL_FILTER_VALUE } from '../components/gameGridLogic';
@@ -139,6 +140,20 @@ export function ShelfView() {
       <ActionErrorBanner message={actionError} onDismiss={clearActionError} />
       <TruncatedListBanner truncated={truncated} />
       <PlayingStrip
+        games={games}
+        currentUserId={user.id}
+        onStatusChange={updateStatus}
+        onVote={vote}
+        onRemove={remove}
+        onRefreshPrice={refreshPrice}
+        isRefreshingPrice={isRefreshingPrice}
+        onSetSteamMatch={setSteamMatch}
+        onSetTargetPrice={setTargetPrice}
+        onSetManualPrice={setManualPrice}
+        onApplyTag={applyTag}
+        onRemoveTag={removeTag}
+      />
+      <ComingSoonStrip
         games={games}
         currentUserId={user.id}
         onStatusChange={updateStatus}
