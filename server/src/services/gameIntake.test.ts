@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { assertPlatformMatch } from './gameIntake.js';
+import { assertPlatformMatch, defaultStatusForRelease } from './gameIntake.js';
 import type { IgdbGameDetail } from './igdbClient.js';
 
 function detail(platformFamilies: IgdbGameDetail['platformFamilies']): IgdbGameDetail {
@@ -53,5 +53,21 @@ describe('assertPlatformMatch', () => {
 
   it('matches on any overlap, not just an exact family-set match', () => {
     expect(() => assertPlatformMatch(detail(['pc', 'xbox_one']), ['xbox_one'])).not.toThrow();
+  });
+});
+
+describe('defaultStatusForRelease (issue #370)', () => {
+  it('defaults an unreleased (future release date) game to wishlist', () => {
+    const nextYear = new Date(Date.now() + 365 * 24 * 60 * 60 * 1000);
+    expect(defaultStatusForRelease(nextYear)).toBe('wishlist');
+  });
+
+  it('defaults an already-released game to backlog', () => {
+    const lastYear = new Date(Date.now() - 365 * 24 * 60 * 60 * 1000);
+    expect(defaultStatusForRelease(lastYear)).toBe('backlog');
+  });
+
+  it('defaults a game with no known release date to backlog', () => {
+    expect(defaultStatusForRelease(null)).toBe('backlog');
   });
 });
