@@ -4,6 +4,7 @@ import {
   getGameDetail,
   getCollectionGames,
   getTrendingGames,
+  getGameDlcs,
   type GameSearchPage,
   type IgdbGameDetail,
 } from './igdbClient.js';
@@ -11,6 +12,8 @@ import { getSteamPriceAndUrl, refreshSteamPriceForced } from './priceService.js'
 import { findSteamAppIdByTitle } from './steamLibrary.js';
 import { prisma } from '../db/client.js';
 import { HttpError } from '../util/httpError.js';
+import { duplicateScopeWhere } from './gameAccess.js';
+import { Prisma } from '@prisma/client';
 import {
   ROOM_PLATFORM_LABELS,
   type CollectionGamesResult,
@@ -55,6 +58,15 @@ export async function collectionGamesIntake(
   hideAddons = true,
 ): Promise<CollectionGamesResult> {
   return getCollectionGames(collectionId, platforms, excludeIgdbIds, hideAddons);
+}
+
+/** Backs the game modal's "View DLC" browse-and-add list (issue #338). */
+export async function dlcIntake(
+  igdbId: number,
+  platforms?: RoomPlatform[],
+  excludeIgdbIds?: Set<number>,
+): Promise<GameSearchResult[]> {
+  return getGameDlcs(igdbId, platforms, excludeIgdbIds);
 }
 
 /** Validates a resolved game against an allowed-platforms set. Used both for a room (always a
@@ -113,6 +125,11 @@ export async function resolveGameForCreation(
   timeToBeatCompletionistHours: number | null;
   igdbCollectionId: number | null;
   reviewScore: number | null;
+  /** IGDB's raw category enum value (issue #338) - see isAddonCategory. Paired with
+   * parentGameIgdbId below to auto-link a newly-created DLC row back to its base game via
+   * linkDlcToBaseGame, right after the caller's own prisma.game.create succeeds. */
+  category: number | null;
+  parentGameIgdbId: number | null;
 }> {
   const detail = await getGameDetail(igdbId);
   assertPlatformMatch(detail, allowedPlatforms);
@@ -134,7 +151,92 @@ export async function resolveGameForCreation(
     timeToBeatCompletionistHours: detail.timeToBeatCompletionistHours,
     igdbCollectionId: detail.igdbCollectionId,
     reviewScore: detail.reviewScore,
+    category: detail.category,
+    parentGameIgdbId: detail.parentGameIgdbId,
   };
+}
+
+/** Resolves (or, for the base game only, creates) the row a newly-added DLC's baseGameId should
+ * point at, and sets it (issue #338's "when adding a DLC, ensure the base game is added" + "link
+ * DLC back to the main game"). Scoped the same way duplicate-detection is (same room, or the same
+ * user's Personal Shelf) - a DLC's base game must live alongside it, not in some other room.
+ *
+ * Callers pass this the *already-created* DLC row's id and check isAddonCategory/parentGameIgdbId
+ * themselves first - this never fails the caller's own game creation if anything here goes wrong
+ * (base game creation failing, IGDB hiccuping on the parent lookup): a DLC still gets added even
+ * if it can't be linked, since the alternative (rolling back a perfectly good DLC add over a
+ * best-effort backlink) would be worse.
+ *
+ * `platformLabelOverride`/`statusOverride` exist so a Steam import loop's base-game auto-create
+ * matches every sibling row it creates directly (Steam ownership only ever means PC, regardless of
+ * what else IGDB lists a title as available on; a wishlist import's rows are unconditionally
+ * `wishlist`, not run through defaultStatusForRelease at all) - a caller that already has that
+ * context passes it through rather than this falling back to resolveGameForCreation's own
+ * IGDB-derived platform string and defaultStatusForRelease's release-date guess.
+ *
+ * Returns the base game's id/igdbId on success (including when it already existed and needed no
+ * create) so a caller with its own in-memory "already accounted for" bookkeeping (existingIgdbIdSet/
+ * ownedIgdbIds in the Steam import loops) can update it - this function creates rows directly via
+ * Prisma, bypassing whatever loop-local tracking the caller is keeping. Returns null on any
+ * failure, best-effort as documented above. */
+export async function linkDlcToBaseGame(
+  dlcGameId: string,
+  parentGameIgdbId: number,
+  roomId: string | null,
+  userId: string,
+  allowedPlatforms?: RoomPlatform[],
+  platformLabelOverride?: string,
+  statusOverride?: GameStatus,
+): Promise<{ baseGameId: string; baseIgdbId: number } | null> {
+  try {
+    const scopeWhere = duplicateScopeWhere(roomId, userId);
+    let base = await prisma.game.findFirst({ where: { ...scopeWhere, igdbId: parentGameIgdbId } });
+
+    if (!base) {
+      const resolved = await resolveGameForCreation(parentGameIgdbId, allowedPlatforms, platformLabelOverride);
+      try {
+        base = await prisma.game.create({
+          data: {
+            roomId,
+            addedBy: userId,
+            igdbId: parentGameIgdbId,
+            title: resolved.title,
+            platform: resolved.platform,
+            genre: resolved.genre,
+            maxCoopPlayers: resolved.maxCoopPlayers,
+            timeToBeatHours: resolved.timeToBeatHours,
+            timeToBeatRushedHours: resolved.timeToBeatRushedHours,
+            timeToBeatCompletionistHours: resolved.timeToBeatCompletionistHours,
+            ggDealsUrl: resolved.ggDealsUrl,
+            steamAppid: resolved.steamAppId,
+            coverImageUrl: resolved.coverImageUrl,
+            releaseYear: resolved.releaseYear,
+            releaseDate: resolved.releaseDate,
+            igdbCollectionId: resolved.igdbCollectionId,
+            reviewScore: resolved.reviewScore,
+            status: statusOverride ?? defaultStatusForRelease(resolved.releaseDate),
+          },
+        });
+      } catch (err) {
+        // Lost a race against a concurrent add of the same base game (e.g. two DLC entries for the
+        // same title importing at once) - the partial unique index backstop (see
+        // rethrowAsDuplicateGame) means the loser here just re-fetches the winner's row instead of
+        // failing the whole DLC add over it.
+        if (err instanceof Prisma.PrismaClientKnownRequestError && err.code === 'P2002') {
+          base = await prisma.game.findFirst({ where: { ...scopeWhere, igdbId: parentGameIgdbId } });
+        } else {
+          throw err;
+        }
+      }
+    }
+
+    if (!base) return null;
+    await prisma.game.update({ where: { id: dlcGameId }, data: { baseGameId: base.id } });
+    return { baseGameId: base.id, baseIgdbId: base.igdbId };
+  } catch {
+    // Best-effort, as documented above - an unlinked DLC entry is a fine fallback outcome.
+    return null;
+  }
 }
 
 /** Manual/"forced" refresh path (issue #67) - subject to a once-an-hour-per-game cooldown,

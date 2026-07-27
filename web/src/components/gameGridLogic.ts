@@ -122,6 +122,40 @@ export function sortByScore(games: Game[]): Game[] {
   });
 }
 
+/** Reorders `games` so each DLC entry (see Game.baseGameId) sits directly after its base game,
+ * instead of wherever it happened to land in score/status order (issue #338's "place DLC in the
+ * list view after the main game"). Deliberately overrides whatever ordering ran before it - a
+ * grouped-by-relationship read takes priority over a pure score/status read, the same way the
+ * issue itself asks for an explicit exception to normal ordering.
+ *
+ * A DLC whose base game isn't present in this exact array (filtered out by a status/search filter,
+ * or just not in this list at all) falls back to its own normal position rather than vanishing -
+ * there's nothing to group it after. Self-referencing baseGameId (shouldn't happen - see the
+ * schema comment) is guarded against the same way, rather than silently dropping the game. */
+export function groupDlcAfterBaseGame(games: Game[]): Game[] {
+  const idsInList = new Set(games.map((g) => g.id));
+  const isChild = (g: Game) => g.baseGameId != null && g.baseGameId !== g.id && idsInList.has(g.baseGameId);
+
+  const childrenByBase = new Map<string, Game[]>();
+  for (const g of games) {
+    if (isChild(g)) {
+      const list = childrenByBase.get(g.baseGameId!) ?? [];
+      list.push(g);
+      childrenByBase.set(g.baseGameId!, list);
+    }
+  }
+
+  const result: Game[] = [];
+  for (const g of games) {
+    if (isChild(g)) continue; // placed alongside its base game below instead
+    result.push(g);
+    for (const child of childrenByBase.get(g.id) ?? []) {
+      result.push(child);
+    }
+  }
+  return result;
+}
+
 /** Prefers the exact `releaseDate` (issue #284) when it's set - a game added before that field
  * existed only has `releaseYear`, so this falls back to "release year is strictly later than the
  * current year," which can't catch a game releasing later this same year. Both `null` (unknown/not

@@ -316,6 +316,14 @@ model Game {
   /// than blocking the delete: removing the prerequisite game should un-stick its successor, not
   /// prevent the removal.
   prerequisiteGameId String? @map("prerequisite_game_id")
+  /// Set at intake time (issue #338) when IGDB identifies this game as DLC/an expansion with a
+  /// known parent - points at that base game's row in the *same* room/shelf scope, auto-creating
+  /// it first if it wasn't already added (see linkDlcToBaseGame in gameIntake.ts). Unlike
+  /// prerequisiteGameId above, this isn't user-editable via any dropdown - it's a structural fact
+  /// about the game itself, not an organizational "play order" pointer, so there's no UI that lets
+  /// someone repoint or clear it. SetNull on delete, same reasoning as prerequisiteGameId - removing
+  /// the base game shouldn't block removing (or orphan) its DLC.
+  baseGameId String? @map("base_game_id")
 
   room  Room?     @relation(fields: [roomId], references: [id], onDelete: Cascade)
   adder User      @relation(fields: [addedBy], references: [id], onDelete: Cascade)
@@ -323,12 +331,15 @@ model Game {
   tags  GameTag[]
   prerequisiteGame Game?  @relation("GamePrerequisite", fields: [prerequisiteGameId], references: [id], onDelete: SetNull)
   successorGames   Game[] @relation("GamePrerequisite")
+  baseGame Game?  @relation("GameBaseGame", fields: [baseGameId], references: [id], onDelete: SetNull)
+  dlc      Game[] @relation("GameBaseGame")
 
   @@index([roomId])
   @@index([addedBy], map: "idx_games_personal")
   @@index([roomId, igdbId])
   @@index([addedBy, igdbId])
   @@index([prerequisiteGameId])
+  @@index([baseGameId])
   @@map("games")
 }
 

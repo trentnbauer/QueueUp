@@ -3,7 +3,7 @@ import type { ReactNode } from 'react';
 import type { Game, GameStatus, User, VoteValue } from '@queueup/shared';
 import { GameCard } from './GameCard';
 import { GameListRow } from './GameListRow';
-import { ALL_FILTER_VALUE, filterGames, sortByScore, statusBucket } from './gameGridLogic';
+import { ALL_FILTER_VALUE, filterGames, groupDlcAfterBaseGame, sortByScore, statusBucket } from './gameGridLogic';
 import { useGameFilter } from '../context/GameFilterContext';
 import { useViewMode } from '../context/ViewModeContext';
 import styles from './GameGrid.module.css';
@@ -145,6 +145,12 @@ export function GameGrid({
     return filtered.filter((g) => !hiddenStatuses.includes(g.status));
   }, [filtered, hiddenStatuses, statusFilter]);
 
+  // Issue #338: applied last, after every other ordering/filtering pass above - a DLC's placement
+  // right after its base game overrides wherever score/status order would otherwise put it, but
+  // only ever reorders within whatever's already passed every filter (a DLC filtered out along
+  // with its base game just isn't here to reorder).
+  const grouped = useMemo(() => groupDlcAfterBaseGame(visible), [visible]);
+
   const [renderCount, setRenderCount] = useState(INITIAL_RENDER_COUNT);
   // Back to the initial count on a genuinely new view (a filter/search changed) - not on every
   // change to `visible` itself, which also fires for an in-place edit (a vote, a status change)
@@ -153,8 +159,8 @@ export function GameGrid({
     setRenderCount(INITIAL_RENDER_COUNT);
   }, [platformFilter, genreFilter, statusFilter, tagFilter, normalizedQuery, neglectedFilter]);
 
-  const rendered = useMemo(() => visible.slice(0, renderCount), [visible, renderCount]);
-  const hasMore = visible.length > rendered.length;
+  const rendered = useMemo(() => grouped.slice(0, renderCount), [grouped, renderCount]);
+  const hasMore = grouped.length > rendered.length;
 
   const sentinelRef = useRef<HTMLDivElement | null>(null);
   useEffect(() => {

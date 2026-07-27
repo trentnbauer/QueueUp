@@ -252,6 +252,12 @@ export interface Game {
    * Wheel excludes a backlog game from its candidate pool while its prerequisite isn't yet Done -
    * see hasUnmetPrerequisite in gameGridLogic.ts. */
   prerequisiteGameId: string | null;
+  /** Set when IGDB identifies this game as DLC/an expansion with a known parent (issue #338) -
+   * points at the base game's row in the same room/shelf, auto-added if it wasn't already there.
+   * Null for a main game, or a DLC/expansion IGDB has no parent link on file for. Unlike
+   * prerequisiteGameId, this isn't user-editable - it's set once at intake, not an organizational
+   * pointer someone picks from a dropdown. */
+  baseGameId: string | null;
   createdAt: string;
   updatedAt: string;
 }

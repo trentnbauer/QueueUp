@@ -6,6 +6,7 @@ import { VoteHeatmap } from './VoteHeatmap';
 import { AchievementRow } from './AchievementRow';
 import { TagPicker } from './TagPicker';
 import { SteamMatchPicker } from './SteamMatchPicker';
+import { GameDlcModal } from './GameDlcModal';
 import { useConfirm } from '../context/ConfirmContext';
 import { useModalA11y, closeOnBackdropMouseDown } from '../hooks/useModalA11y';
 import { useGameAchievements } from '../hooks/useGameAchievements';
@@ -64,6 +65,7 @@ export function GameDetailModal({
   const confirm = useConfirm();
   const [editingTargetPrice, setEditingTargetPrice] = useState(false);
   const [targetPriceDraft, setTargetPriceDraft] = useState('');
+  const [dlcModalOpen, setDlcModalOpen] = useState(false);
   const { checkingGameId, pickerGameId, attemptAutoMatch, openPicker, closePicker } = useSteamAutoMatch();
   const dialogRef = useModalA11y<HTMLDivElement>(onClose);
   const hasSteamMatch = game.price.source === 'live' || game.ggDealsUrl !== null;
@@ -81,6 +83,12 @@ export function GameDetailModal({
   // suggestion, not persisted until the user actually picks something in the dropdown (even if
   // that happens to be the same suggested game).
   const selectedPrerequisiteId = game.prerequisiteGameId ?? defaultPrerequisite(game, roomGames ?? [])?.id ?? '';
+
+  // Issue #338: "link DLC back to the main game" - a DLC's baseGameId is set automatically at
+  // intake (see linkDlcToBaseGame), never user-editable, so this is a plain lookup rather than a
+  // dropdown like "Play after" above. Falls back to nothing shown if the base game itself was since
+  // removed (SetNull on delete) or roomGames wasn't passed in for this context.
+  const baseGame = game.baseGameId ? (roomGames ?? []).find((g) => g.id === game.baseGameId) : undefined;
 
   // A nudge, not an automatic status change (issue #227) - the viewer's own Steam achievement
   // progress on this game, when they've 100%'d it and it isn't already Done/Dropped. Playtime
@@ -188,6 +196,7 @@ export function GameDetailModal({
                 ⭐ {game.reviewScore}/100
               </span>
             )}
+            {baseGame && <span className={styles.genre}>DLC for {baseGame.title}</span>}
           </div>
           <button type="button" className={styles.closeButton} onClick={onClose} aria-label="Close">
             ×
@@ -387,6 +396,18 @@ export function GameDetailModal({
           </>
         )}
 
+        {/* Hidden for a game that's itself DLC (game.baseGameId set) - avoids a "DLC of DLC"
+            browse loop, and matches the issue's own framing of this as a base-game action. */}
+        {game.baseGameId === null && (
+          <>
+            <div className={styles.divider} />
+            <div className={styles.sectionTitle}>DLC</div>
+            <button type="button" className={styles.viewDlcButton} onClick={() => setDlcModalOpen(true)}>
+              View DLC for this game
+            </button>
+          </>
+        )}
+
         <div className={styles.divider} />
 
         <div className={styles.sectionTitle}>Status</div>
@@ -414,6 +435,8 @@ export function GameDetailModal({
             Remove Game
           </button>
         </div>
+
+        {dlcModalOpen && <GameDlcModal game={game} onClose={() => setDlcModalOpen(false)} />}
       </div>
     </div>
   );

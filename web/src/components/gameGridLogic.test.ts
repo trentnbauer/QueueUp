@@ -2,6 +2,7 @@ import { describe, it, expect } from 'vitest';
 import type { Game } from '@queueup/shared';
 import {
   sortByScore,
+  groupDlcAfterBaseGame,
   backlogGames,
   isUnreleased,
   hasUnmetPrerequisite,
@@ -49,6 +50,7 @@ function makeGame(overrides: Partial<Game> = {}): Game {
     igdbCollectionId: null,
     reviewScore: null,
     prerequisiteGameId: null,
+    baseGameId: null,
     createdAt: '2026-01-01T00:00:00.000Z',
     updatedAt: '2026-01-01T00:00:00.000Z',
     ...overrides,
@@ -79,6 +81,47 @@ describe('sortByScore', () => {
     const a = makeGame({ id: 'a', voteScore: 5, ownership: null });
     const b = makeGame({ id: 'b', voteScore: 1, ownership: null });
     expect(sortByScore([a, b]).map((g) => g.id)).toEqual(['a', 'b']);
+  });
+});
+
+describe('groupDlcAfterBaseGame (issue #338)', () => {
+  it('moves a DLC to directly follow its base game', () => {
+    const base = makeGame({ id: 'base' });
+    const dlc = makeGame({ id: 'dlc', baseGameId: 'base' });
+    const other = makeGame({ id: 'other' });
+    expect(groupDlcAfterBaseGame([dlc, other, base]).map((g) => g.id)).toEqual(['other', 'base', 'dlc']);
+  });
+
+  it('places multiple DLC entries after their shared base game, in their original relative order', () => {
+    const base = makeGame({ id: 'base' });
+    const dlc1 = makeGame({ id: 'dlc1', baseGameId: 'base' });
+    const dlc2 = makeGame({ id: 'dlc2', baseGameId: 'base' });
+    expect(groupDlcAfterBaseGame([dlc1, base, dlc2]).map((g) => g.id)).toEqual(['base', 'dlc1', 'dlc2']);
+  });
+
+  it('preserves the relative order of root (non-DLC) games', () => {
+    const a = makeGame({ id: 'a' });
+    const base = makeGame({ id: 'base' });
+    const dlc = makeGame({ id: 'dlc', baseGameId: 'base' });
+    const b = makeGame({ id: 'b' });
+    expect(groupDlcAfterBaseGame([a, base, dlc, b]).map((g) => g.id)).toEqual(['a', 'base', 'dlc', 'b']);
+  });
+
+  it('leaves a DLC in its own position when its base game is not in this list', () => {
+    const dlc = makeGame({ id: 'dlc', baseGameId: 'missing-base' });
+    const other = makeGame({ id: 'other' });
+    expect(groupDlcAfterBaseGame([dlc, other]).map((g) => g.id)).toEqual(['dlc', 'other']);
+  });
+
+  it('does not drop a game whose baseGameId points at itself', () => {
+    const selfReferencing = makeGame({ id: 'weird', baseGameId: 'weird' });
+    expect(groupDlcAfterBaseGame([selfReferencing]).map((g) => g.id)).toEqual(['weird']);
+  });
+
+  it('is a no-op when no game has a baseGameId set', () => {
+    const a = makeGame({ id: 'a' });
+    const b = makeGame({ id: 'b' });
+    expect(groupDlcAfterBaseGame([a, b]).map((g) => g.id)).toEqual(['a', 'b']);
   });
 });
 
