@@ -692,14 +692,30 @@ async function resolveToCanonicalIgdbId(igdbId: number): Promise<number> {
   return versionParent ?? igdbId;
 }
 
+/** Strips trademark/registered/copyright marks and collapses whitespace before a title comparison
+ * (issue #387) - Steam's Web API frequently returns a library game's name with a literal ™ or ®
+ * baked in (e.g. "Wolfenstein®: The New Order") even though the storefront/library UI cosmetically
+ * strips it, while IGDB's title for the same game never carries one. findIgdbIdByExactTitle's
+ * match previously required byte-for-byte equality after only trim+lowercase, so every Steam title
+ * carrying one of these marks silently failed to match its otherwise-identical IGDB entry - seen
+ * with several older Bethesda/id Software titles (the Wolfenstein reissues in particular). */
+export function normalizeGameTitleForComparison(title: string): string {
+  return title
+    .replace(/[™®©]/g, '')
+    .replace(/\s+/g, ' ')
+    .trim()
+    .toLowerCase();
+}
+
 /** Fallback for findIgdbIdBySteamAppId when IGDB's external_games has no Steam link at all for a
  * title (issue #373) - that table is crowd-sourced and can simply never get filled in for a game
  * that's genuinely live on Steam right now (the same gap findSteamAppIdByTitle already works
  * around in the other direction, for pricing). Searches IGDB by the Steam library's own game name
- * and only trusts an exact (case-insensitive) title match against *any* of the raw results, not
- * just IGDB's top-ranked one - same reasoning as sortExactMatchFirst's exact tier, but applied as
- * a hard filter here since silently picking the wrong edition/spinoff would be worse than skipping
- * the import (the caller falls back to leaving the game unimported, same as a true no-match). */
+ * and only trusts an exact (case-insensitive, trademark-mark-insensitive - see
+ * normalizeGameTitleForComparison) title match against *any* of the raw results, not just IGDB's
+ * top-ranked one - same reasoning as sortExactMatchFirst's exact tier, but applied as a hard filter
+ * here since silently picking the wrong edition/spinoff would be worse than skipping the import
+ * (the caller falls back to leaving the game unimported, same as a true no-match). */
 export async function findIgdbIdByExactTitle(title: string): Promise<number | null> {
   const trimmed = title.trim();
   if (!trimmed) return null;
@@ -709,8 +725,8 @@ export async function findIgdbIdByExactTitle(title: string): Promise<number | nu
     'games',
     `search "${escaped}"; fields name,version_parent; limit ${SEARCH_FIRST_PAGE_RAW_LIMIT};`,
   );
-  const normalized = trimmed.toLowerCase();
-  const match = games.find((g) => g.name?.trim().toLowerCase() === normalized);
+  const normalized = normalizeGameTitleForComparison(trimmed);
+  const match = games.find((g) => g.name && normalizeGameTitleForComparison(g.name) === normalized);
   if (!match) return null;
   return match.version_parent ?? match.id;
 }

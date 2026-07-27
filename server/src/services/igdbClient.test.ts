@@ -5,6 +5,7 @@ import {
   isPrimaryEdition,
   isAddonEdition,
   sortExactMatchFirst,
+  normalizeGameTitleForComparison,
   nextSearchPage,
   timeToBeatHoursFrom,
   timeToBeatRushedHoursFrom,
@@ -185,6 +186,21 @@ describe('sortExactMatchFirst', () => {
     const result = sortExactMatchFirst([doublePack, unrelated, theOldBlood], 'the old blood');
 
     expect(result).toEqual([doublePack, theOldBlood, unrelated]);
+  });
+});
+
+describe('normalizeGameTitleForComparison (issue #387)', () => {
+  it('strips trademark/registered/copyright marks Steam sometimes bakes into a library title', () => {
+    expect(normalizeGameTitleForComparison('Wolfenstein®: The New Order')).toBe('wolfenstein: the new order');
+    expect(normalizeGameTitleForComparison('Wolfenstein: The New Order')).toBe('wolfenstein: the new order');
+  });
+
+  it('collapses repeated/irregular whitespace', () => {
+    expect(normalizeGameTitleForComparison('Wolfenstein:  The   New Order')).toBe('wolfenstein: the new order');
+  });
+
+  it('is still case-insensitive, same as before', () => {
+    expect(normalizeGameTitleForComparison('WOLFENSTEIN: THE NEW ORDER')).toBe('wolfenstein: the new order');
   });
 });
 
