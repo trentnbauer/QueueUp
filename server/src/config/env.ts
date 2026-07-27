@@ -77,6 +77,11 @@ const envSchema = z.object({
   IGDB_CLIENT_ID: z.string().min(1).optional(),
   IGDB_CLIENT_SECRET: z.string().min(1).optional(),
 
+  // ScanDex (issue #402) - barcode-to-IGDB lookup for scanning a physical game's box on Add Game.
+  // Same env-or-admin-Settings-fallback pattern as the three above; unset just disables the
+  // camera-scan option (search still works) rather than blocking the app from starting.
+  SCANDEX_API_KEY: z.string().min(1).optional(),
+
   // Comma-separated emails granted administrator access on login.
   ADMIN_EMAILS: z.string().optional().default(''),
 });

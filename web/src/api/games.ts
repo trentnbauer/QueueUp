@@ -1,5 +1,6 @@
 import { apiGet, apiPost, apiPatch, apiPut, apiDelete } from './client';
 import type {
+  BarcodeGameMatch,
   BulkRemoveGamesRequest,
   BulkUpdateGameStatusRequest,
   CollectionGamesResult,
@@ -43,6 +44,9 @@ export const gamesApi = {
     apiGet<CollectionGamesResult>(
       `/api/games/collections/${collectionId}${roomId ? `?roomId=${roomId}` : ''}${hideAddons ? '' : `${roomId ? '&' : '?'}hideAddons=false`}`,
     ),
+  /** Issue #402 - resolves a scanned UPC/EAN barcode via ScanDex. Null result means no match (or
+   * ScanDex isn't configured) - not an error, just "couldn't find that one." */
+  barcodeLookup: (value: string) => apiGet<{ result: BarcodeGameMatch | null }>(`/api/games/barcode-lookup?value=${encodeURIComponent(value)}`),
   trending: (roomId?: string | null, hideAddons = true) =>
     apiGet<{ results: GameSearchResult[] }>(
       `/api/games/trending${roomId ? `?roomId=${roomId}` : ''}${hideAddons ? '' : `${roomId ? '&' : '?'}hideAddons=false`}`,

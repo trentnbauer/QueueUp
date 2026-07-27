@@ -19,6 +19,9 @@ function integrationFields(status: AdminIntegrationStatus): IntegrationField[] {
     { key: 'GGDEALS_API_KEY', label: 'gg.deals API key', source: status.ggDealsApiKeySource },
     { key: 'IGDB_CLIENT_ID', label: 'IGDB Client ID', source: status.igdbClientIdSource },
     { key: 'IGDB_CLIENT_SECRET', label: 'IGDB Client Secret', source: status.igdbClientSecretSource },
+    // Issue #402: optional - unset just disables the barcode-scan option on Add Game, everything
+    // else keeps working, unlike gg.deals/IGDB above which the whole app depends on.
+    { key: 'SCANDEX_API_KEY', label: 'ScanDex API key (barcode scan)', source: status.scandexApiKeySource },
   ];
 }
 

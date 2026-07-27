@@ -279,6 +279,20 @@ export interface GameSearchResult {
   releaseYear: number | null;
 }
 
+/** Result of looking up a scanned physical-game barcode (issue #402) - same shape as a normal
+ * search result (see GameSearchResult), so the Add Game modal can feed it straight into the same
+ * owned/platforms step, plus the specific platform ScanDex resolved for this physical copy.
+ * `matchedPlatform` is null when ScanDex's platform name doesn't map to any RoomPlatform QueueUp
+ * tracks (still shown/addable - just nothing to pre-check in the platforms step). */
+export interface BarcodeGameMatch {
+  igdbId: number;
+  title: string;
+  platform: string;
+  coverImageUrl: string | null;
+  releaseYear: number | null;
+  matchedPlatform: RoomPlatform | null;
+}
+
 /** A franchise/series match, shown alongside individual games in the add-game search dropdown -
  * picking one drills into CollectionGamesResult rather than adding directly. */
 export interface CollectionSearchResult {
@@ -536,7 +550,7 @@ export interface PlayLogEntry {
 
 /** The integration credentials that can be set via env var or, as a fallback, via the admin
  * Settings panel (see server/src/services/configResolver.ts). */
-export type IntegrationConfigKey = 'GGDEALS_API_KEY' | 'IGDB_CLIENT_ID' | 'IGDB_CLIENT_SECRET';
+export type IntegrationConfigKey = 'GGDEALS_API_KEY' | 'IGDB_CLIENT_ID' | 'IGDB_CLIENT_SECRET' | 'SCANDEX_API_KEY';
 
 /** Admin-only views — never sent to non-admin users. */
 export interface AdminIntegrationStatus {
@@ -545,6 +559,11 @@ export interface AdminIntegrationStatus {
   igdbConfigured: boolean;
   igdbClientIdSource: ConfigSource;
   igdbClientSecretSource: ConfigSource;
+  /** ScanDex (issue #402) - barcode-to-IGDB lookup for "scan a physical game" on Add Game. Not
+   * required for the rest of the app to function, unlike gg.deals/IGDB above - unset just means
+   * the camera-scan option degrades to "couldn't look that up," search still works normally. */
+  scandexApiKeyConfigured: boolean;
+  scandexApiKeySource: ConfigSource;
   devFakeAuth: boolean;
   activeAuthProviders: string[];
 }

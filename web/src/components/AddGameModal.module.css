@@ -75,6 +75,31 @@
   border-color: var(--qu-accent);
 }
 
+/* Issue #402: the barcode-scan button sits alongside the Search/Popular tabs but isn't itself a
+   tab (it opens a separate scanner overlay, doesn't change activeTab) - same look, but a compact
+   fixed width instead of sharing the row's flex:1 split evenly with the two text tabs. */
+.scanButton {
+  flex: 0 0 auto;
+  padding: 8px 14px;
+  border-radius: var(--qu-radius);
+  background: var(--qu-surface2);
+  color: var(--qu-muted);
+  border: 1px solid var(--qu-border);
+  font-size: 16px;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.scanButton:hover:not(:disabled) {
+  color: var(--qu-text);
+  border-color: var(--qu-accent);
+}
+
+.scanButton:disabled {
+  opacity: 0.6;
+  cursor: default;
+}
+
 .error {
   color: #ff8a80;
   font-size: 12.5px;

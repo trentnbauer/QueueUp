@@ -22,6 +22,7 @@ const CONFIG_KEY_LABELS: Record<ConfigKey, string> = {
   GGDEALS_API_KEY: 'gg.deals API key',
   IGDB_CLIENT_ID: 'IGDB Client ID',
   IGDB_CLIENT_SECRET: 'IGDB Client Secret',
+  SCANDEX_API_KEY: 'ScanDex API key',
 };
 
 function envValueFor(key: ConfigKey): string | undefined {
@@ -32,6 +33,8 @@ function envValueFor(key: ConfigKey): string | undefined {
       return env.IGDB_CLIENT_ID;
     case 'IGDB_CLIENT_SECRET':
       return env.IGDB_CLIENT_SECRET;
+    case 'SCANDEX_API_KEY':
+      return env.SCANDEX_API_KEY;
   }
 }
 
@@ -40,7 +43,7 @@ export default async function adminRoutes(app: FastifyInstance) {
     const userId = await request.requireAuth();
     await requireAdmin(userId);
 
-    const [ggDealsApiKeySource, igdbClientIdSource, igdbClientSecretSource] = await Promise.all(
+    const [ggDealsApiKeySource, igdbClientIdSource, igdbClientSecretSource, scandexApiKeySource] = await Promise.all(
       CONFIG_KEYS.map((key) => getConfigSource(key, envValueFor(key))),
     );
 
@@ -50,6 +53,8 @@ export default async function adminRoutes(app: FastifyInstance) {
       igdbConfigured: igdbClientIdSource !== 'unset' && igdbClientSecretSource !== 'unset',
       igdbClientIdSource,
       igdbClientSecretSource,
+      scandexApiKeyConfigured: scandexApiKeySource !== 'unset',
+      scandexApiKeySource,
       devFakeAuth: env.DEV_FAKE_AUTH,
       activeAuthProviders: Array.from(app.authProviders.keys()),
     };
