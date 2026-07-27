@@ -225,6 +225,11 @@
   cursor: default;
 }
 
+.addButtonAdded {
+  background: var(--qu-surface2);
+  color: var(--qu-muted);
+}
+
 .collectionsList {
   display: flex;
   flex-direction: column;

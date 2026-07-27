@@ -3,7 +3,6 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import type { GameSuggestion } from '@queueup/shared';
 import { gameSuggestionsApi } from '../api/rooms';
 import { useModalA11y, closeOnBackdropMouseDown } from '../hooks/useModalA11y';
-import { GAME_STATUS_LABEL } from './gameGridLogic';
 import styles from './SuggestionsModal.module.css';
 
 interface SuggestionsModalProps {
@@ -98,12 +97,6 @@ export function SuggestionsModal({ roomId, onClose }: SuggestionsModalProps) {
                     {s.releaseYear ? ` (${s.releaseYear})` : ''}
                   </span>
                   <span className={styles.suggestedBy}>Suggested by {s.suggestedBy.displayName}</span>
-                  {/* Only shown when the suggester made an explicit Wishlist/Backlog/Playing
-                      quick-add choice - a moderator approving this should know where it's about to
-                      land, not just that it's landing "somewhere" (see requestedStatus). */}
-                  {s.requestedStatus && (
-                    <span className={styles.suggestedBy}>Requested as: {GAME_STATUS_LABEL[s.requestedStatus]}</span>
-                  )}
                 </div>
                 <div className={styles.actions}>
                   <button

@@ -437,9 +437,8 @@ export default async function gameRoutes(app: FastifyInstance) {
 
   app.post<{ Body: CreateGameRequest }>('/api/games', async (request, reply) => {
     const userId = await request.requireAuth();
-    const { igdbId, roomId, status } = request.body;
+    const { igdbId, roomId } = request.body;
     if (!Number.isInteger(igdbId)) throw new HttpError(400, 'A valid igdbId is required');
-    if (status !== undefined && !GAME_STATUSES.includes(status)) throw new HttpError(400, 'Invalid status');
 
     let room: Awaited<ReturnType<typeof getRoom>> | null = null;
     let membershipRole: string | null = null;
@@ -468,7 +467,6 @@ export default async function gameRoutes(app: FastifyInstance) {
           platform: detail.platform,
           coverImageUrl: detail.coverImageUrl,
           releaseYear: detail.releaseYear,
-          requestedStatus: status ?? null,
           suggestedBy: userId,
         },
         include: { suggester: true },
@@ -492,7 +490,6 @@ export default async function gameRoutes(app: FastifyInstance) {
           platform: suggestion.platform,
           coverImageUrl: suggestion.coverImageUrl,
           releaseYear: suggestion.releaseYear,
-          requestedStatus: suggestion.requestedStatus,
           suggestedBy: toUserDto(suggestion.suggester),
           createdAt: suggestion.createdAt.toISOString(),
         },
@@ -526,9 +523,8 @@ export default async function gameRoutes(app: FastifyInstance) {
           releaseDate: resolved.releaseDate,
           igdbCollectionId: resolved.igdbCollectionId,
           reviewScore: resolved.reviewScore,
-          // An explicit choice (the Add Game modal's Wishlist/Backlog/Playing quick-add buttons)
-          // wins; otherwise falls back to issue #370's release-date guess (unreleased -> wishlist).
-          status: status ?? defaultStatusForRelease(resolved.releaseDate),
+          // Issue #370: an unreleased game defaults into the wishlist instead of the backlog.
+          status: defaultStatusForRelease(resolved.releaseDate),
         },
       });
     } catch (err) {

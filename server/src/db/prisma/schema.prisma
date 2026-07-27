@@ -374,10 +374,6 @@ model GameSuggestion {
   platform      String
   coverImageUrl String?  @map("cover_image_url")
   releaseYear   Int?     @map("release_year")
-  /// The status the suggester asked to add this as (Add Game's Wishlist/Backlog/Playing quick-add
-  /// buttons), applied at approval time instead of the usual release-date guess. Null for a
-  /// suggestion made before this existed, or where no explicit choice was offered.
-  requestedStatus GameStatus? @map("requested_status")
   suggestedBy   String   @map("suggested_by")
   createdAt     DateTime @default(now()) @map("created_at")
 

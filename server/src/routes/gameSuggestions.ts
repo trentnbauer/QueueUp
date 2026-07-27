@@ -8,7 +8,7 @@ import { resolveGameForCreation, defaultStatusForRelease, linkDlcToBaseGame } fr
 import { isAddonCategory } from '../services/igdbClient.js';
 import { serializeGame } from '../services/gameSerializer.js';
 import { notifyRoom } from '../services/notifications.js';
-import type { GameStatus, GameSuggestion } from '@queueup/shared';
+import type { GameSuggestion } from '@queueup/shared';
 
 function toSuggestionDto(suggestion: {
   id: string;
@@ -18,7 +18,6 @@ function toSuggestionDto(suggestion: {
   platform: string;
   coverImageUrl: string | null;
   releaseYear: number | null;
-  requestedStatus: GameStatus | null;
   createdAt: Date;
   suggester: Parameters<typeof toUserDto>[0];
 }): GameSuggestion {
@@ -30,7 +29,6 @@ function toSuggestionDto(suggestion: {
     platform: suggestion.platform,
     coverImageUrl: suggestion.coverImageUrl,
     releaseYear: suggestion.releaseYear,
-    requestedStatus: suggestion.requestedStatus,
     suggestedBy: toUserDto(suggestion.suggester),
     createdAt: suggestion.createdAt.toISOString(),
   };
@@ -101,9 +99,7 @@ export default async function gameSuggestionRoutes(app: FastifyInstance) {
             releaseDate: resolved.releaseDate,
             igdbCollectionId: resolved.igdbCollectionId,
             reviewScore: resolved.reviewScore,
-            // The suggester's own quick-add choice wins if they made one; otherwise the usual
-            // release-date guess (matches a direct add - see POST /api/games).
-            status: suggestion.requestedStatus ?? defaultStatusForRelease(resolved.releaseDate),
+            status: defaultStatusForRelease(resolved.releaseDate),
           },
         });
       } catch (err) {
