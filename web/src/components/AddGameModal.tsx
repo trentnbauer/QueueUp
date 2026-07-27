@@ -258,6 +258,10 @@ export function AddGameModal({ roomId, onAdded, onClose }: AddGameModalProps) {
   const [hasMore, setHasMore] = useState(false);
   const [loadingMore, setLoadingMore] = useState(false);
   const [loadMoreError, setLoadMoreError] = useState<string | null>(null);
+  // Opt-out (issue #345): DLC/season-pass/expansion entries are hidden by default - a long-running
+  // franchise search can otherwise be dominated by add-ons instead of the games someone's actually
+  // looking for. Unchecking re-runs the search (it's a dependency of the search effects below).
+  const [hideAddons, setHideAddons] = useState(true);
   const sentinelRef = useRef<HTMLDivElement | null>(null);
   // Counts consecutive loaded pages that added zero new results (every row already added to this
   // room/shelf) while IGDB still reported more raw matches - a large enough franchise someone
@@ -311,7 +315,7 @@ export function AddGameModal({ roomId, onAdded, onClose }: AddGameModalProps) {
       setLoadMoreError(null);
       consecutiveEmptyPagesRef.current = 0;
       try {
-        const { results, collections, nextOffset, hasMore } = await gamesApi.search(query.trim(), roomId);
+        const { results, collections, nextOffset, hasMore } = await gamesApi.search(query.trim(), roomId, 0, hideAddons);
         if (requestId !== latestRequestIdRef.current) return;
         setResults(results);
         setCollections(collections);
@@ -330,7 +334,7 @@ export function AddGameModal({ roomId, onAdded, onClose }: AddGameModalProps) {
     return () => {
       if (debounceRef.current) clearTimeout(debounceRef.current);
     };
-  }, [query, roomId]);
+  }, [query, roomId, hideAddons]);
 
   useEffect(() => {
     setHighlightedIndex(-1);
@@ -355,7 +359,7 @@ export function AddGameModal({ roomId, onAdded, onClose }: AddGameModalProps) {
         setLoadingMore(true);
         setLoadMoreError(null);
         gamesApi
-          .search(trimmed, roomId, nextOffset)
+          .search(trimmed, roomId, nextOffset, hideAddons)
           .then(({ results: more, nextOffset: newOffset, hasMore: stillMore }) => {
             if (requestId !== latestRequestIdRef.current) return;
             if (more.length > 0) {
@@ -384,7 +388,7 @@ export function AddGameModal({ roomId, onAdded, onClose }: AddGameModalProps) {
     );
     observer.observe(el);
     return () => observer.disconnect();
-  }, [hasMore, searching, loadingMore, nextOffset, query, roomId]);
+  }, [hasMore, searching, loadingMore, nextOffset, query, roomId, hideAddons]);
 
   async function handleAdd(result: GameSearchResult) {
     setAddingId(result.igdbId);
@@ -494,6 +498,15 @@ export function AddGameModal({ roomId, onAdded, onClose }: AddGameModalProps) {
                   : undefined
               }
             />
+
+            <label className={styles.hideAddonsField}>
+              <input
+                type="checkbox"
+                checked={hideAddons}
+                onChange={(e) => setHideAddons(e.target.checked)}
+              />
+              Hide DLC &amp; add-ons
+            </label>
 
             {searching && <div className={styles.searching}>Searching…</div>}
 

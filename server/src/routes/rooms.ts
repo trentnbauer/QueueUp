@@ -32,7 +32,7 @@ function toRoomDto(
     createdBy: string;
     createdAt: Date;
     discordWebhookUrl: string | null;
-    spinOnlyFullyOwned: boolean;
+    spinOwnershipMaxPrice: number;
     spinWheelTheme: SpinWheelTheme;
     isPublic: boolean;
   },
@@ -52,7 +52,7 @@ function toRoomDto(
     // whoever has it can post to that channel as the webhook, so only the Room Master (who can
     // also change it) gets the real value; other members just don't see it at all.
     discordWebhookUrl: role === 'room_master' ? room.discordWebhookUrl : undefined,
-    spinOnlyFullyOwned: room.spinOnlyFullyOwned,
+    spinOwnershipMaxPrice: room.spinOwnershipMaxPrice,
     spinWheelTheme: room.spinWheelTheme,
     isPublic: room.isPublic,
   };
@@ -224,11 +224,14 @@ export default async function roomRoutes(app: FastifyInstance) {
       throw new HttpError(403, 'Only the Room Master can change room settings');
     }
 
-    const { name, platform, accentColor, discordWebhookUrl, spinOnlyFullyOwned, spinWheelTheme, isPublic } = request.body;
+    const { name, platform, accentColor, discordWebhookUrl, spinOwnershipMaxPrice, spinWheelTheme, isPublic } = request.body;
     if (name !== undefined && !name.trim()) throw new HttpError(400, 'Room name cannot be empty');
     if (platform !== undefined && !ROOM_PLATFORMS.includes(platform)) throw new HttpError(400, 'A valid platform is required');
     if (spinWheelTheme !== undefined && !SPIN_WHEEL_THEMES.includes(spinWheelTheme)) {
       throw new HttpError(400, 'A valid Spin the Wheel theme is required');
+    }
+    if (spinOwnershipMaxPrice !== undefined && (!Number.isInteger(spinOwnershipMaxPrice) || spinOwnershipMaxPrice < 0)) {
+      throw new HttpError(400, 'Spin ownership price threshold must be a whole dollar amount, 0 or more');
     }
     // Restricted to Discord's own webhook host (not an arbitrary URL) - this app POSTs to
     // whatever's stored here, so accepting any URL would make this an open SSRF vector for
@@ -250,7 +253,7 @@ export default async function roomRoutes(app: FastifyInstance) {
         ...(platform !== undefined && { platform }),
         ...(accentColor !== undefined && { accentColor }),
         ...(discordWebhookUrl !== undefined && { discordWebhookUrl }),
-        ...(spinOnlyFullyOwned !== undefined && { spinOnlyFullyOwned }),
+        ...(spinOwnershipMaxPrice !== undefined && { spinOwnershipMaxPrice }),
         ...(spinWheelTheme !== undefined && { spinWheelTheme }),
         ...(isPublic !== undefined && { isPublic }),
       },
