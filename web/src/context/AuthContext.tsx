@@ -14,6 +14,15 @@ interface AuthContextValue {
   primaryProvider: string | null;
   /** Every provider this account can currently sign in with, primaryProvider included. */
   linkedProviders: string[];
+  /** True exactly once, right after this account's very first sign-in (issue #359) - see
+   * authApi.me's doc comment. Consumed (reset to false) by whoever reacts to it, so a re-render
+   * doesn't keep re-triggering whatever "welcome, new account" behavior it drives. */
+  isNewAccount: boolean;
+  /** Clears isNewAccount once its one-time reaction has fired (currently: auto-opening the Import
+   * Library modal in Header). Calling refetch() again would also naturally clear it (the server
+   * only ever sends true once per account), but this lets the frontend clear it immediately
+   * without a round trip. */
+  consumeIsNewAccount: () => void;
   loading: boolean;
   refetch: () => Promise<void>;
 }
@@ -26,15 +35,17 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [ownedPlatforms, setOwnedPlatforms] = useState<RoomPlatform[]>([]);
   const [primaryProvider, setPrimaryProvider] = useState<string | null>(null);
   const [linkedProviders, setLinkedProviders] = useState<string[]>([]);
+  const [isNewAccount, setIsNewAccount] = useState(false);
   const [loading, setLoading] = useState(true);
 
   const refetch = async () => {
-    const { user, steamLinked, ownedPlatforms, primaryProvider, linkedProviders } = await authApi.me();
+    const { user, steamLinked, ownedPlatforms, primaryProvider, linkedProviders, isNewAccount } = await authApi.me();
     setUser(user);
     setSteamLinked(steamLinked);
     setOwnedPlatforms(ownedPlatforms ?? []);
     setPrimaryProvider(primaryProvider);
     setLinkedProviders(linkedProviders ?? []);
+    if (isNewAccount) setIsNewAccount(true);
   };
 
   useEffect(() => {
@@ -43,7 +54,17 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   return (
     <AuthContext.Provider
-      value={{ user, steamLinked, ownedPlatforms, primaryProvider, linkedProviders, loading, refetch }}
+      value={{
+        user,
+        steamLinked,
+        ownedPlatforms,
+        primaryProvider,
+        linkedProviders,
+        isNewAccount,
+        consumeIsNewAccount: () => setIsNewAccount(false),
+        loading,
+        refetch,
+      }}
     >
       {children}
     </AuthContext.Provider>

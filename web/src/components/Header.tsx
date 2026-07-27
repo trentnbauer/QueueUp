@@ -33,7 +33,7 @@ const ROLE_LABEL: Record<RoomRole, string> = {
 const STATUS_FILTER_ORDER: GameStatus[] = ['wishlist', 'backlog', 'play_next', 'playing', 'done', 'replay', 'dropped'];
 
 export function Header() {
-  const { user, ownedPlatforms, steamLinked } = useAuth();
+  const { user, ownedPlatforms, steamLinked, isNewAccount, consumeIsNewAccount } = useAuth();
   const { activeRoom } = useView();
   const navigate = useNavigate();
   const queryClient = useQueryClient();
@@ -142,6 +142,17 @@ export function Header() {
     }).then((ok) => (ok ? confirmShelfSync() : dismissShelfSync()));
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [shelfSyncPrompt]);
+
+  // Issue #359: a brand-new account has nothing imported yet - surface the Import Library modal
+  // (which also offers linking Steam in the first place) right away instead of leaving it to be
+  // discovered later. isNewAccount is only ever true once per account (the server clears its
+  // session flag on the first /api/me read) - consumeIsNewAccount clears the frontend's copy too,
+  // so this doesn't reopen on every re-render while it's still true within that one render pass.
+  useEffect(() => {
+    if (!isNewAccount) return;
+    setShowImportLibrary(true);
+    consumeIsNewAccount();
+  }, [isNewAccount, consumeIsNewAccount]);
 
   // Import Library button (issue #203, relocated into its own modal by issue #359) - only
   // meaningful on the Personal Shelf (Steam games always land there, never straight into a room).

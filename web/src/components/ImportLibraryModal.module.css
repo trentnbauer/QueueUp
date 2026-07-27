@@ -65,6 +65,26 @@
   gap: 8px;
 }
 
+/* Issue #359: "Sync Everything" chains library + wishlist + achievements in one action - applied
+   alongside .actionRow (same base layout), styled as the primary/first action (accent background)
+   since it's the recommended default over the three granular rows below it. */
+.syncEverythingRow {
+  align-items: center;
+  background: var(--qu-accent-pill-bg);
+  border-color: var(--qu-accent);
+  margin-bottom: 4px;
+}
+
+.syncEverythingLabel {
+  font: 700 14px var(--qu-header-font);
+  color: var(--qu-accent);
+}
+
+.syncEverythingHint {
+  font-size: 12px;
+  color: var(--qu-muted);
+}
+
 .libraryHeader {
   font: 700 13px system-ui, sans-serif;
   color: var(--qu-muted);

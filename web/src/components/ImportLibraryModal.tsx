@@ -1,6 +1,5 @@
 import { useConfirm } from '../context/ConfirmContext';
 import { useSteamImportContext } from '../context/SteamImportContext';
-import { useSteamCompletionsSync } from '../hooks/useSteamCompletionsSync';
 import { SteamCompletionsSyncModal } from './SteamCompletionsSyncModal';
 import { ActionErrorBanner } from './ActionErrorBanner';
 import { useModalA11y, closeOnBackdropMouseDown } from '../hooks/useModalA11y';
@@ -38,9 +37,20 @@ export function ImportLibraryModal({
 }: ImportLibraryModalProps) {
   const dialogRef = useModalA11y<HTMLDivElement>(onClose);
   const confirm = useConfirm();
-  const { busy, activeKind, result, error, progress, wishlistProgress, startLink, runImport, runWishlistImport } =
-    useSteamImportContext();
-  const completions = useSteamCompletionsSync();
+  const {
+    busy,
+    activeKind,
+    result,
+    error,
+    progress,
+    wishlistProgress,
+    startLink,
+    runImport,
+    runWishlistImport,
+    runSyncEverything,
+    syncingEverything,
+    completions,
+  } = useSteamImportContext();
 
   const libraryBusy = busy && activeKind === 'library';
   const wishlistBusy = busy && activeKind === 'wishlist';
@@ -48,6 +58,25 @@ export function ImportLibraryModal({
   const libraryError = activeKind === 'library' ? error : null;
   const wishlistResult = activeKind === 'wishlist' ? result : null;
   const wishlistError = activeKind === 'wishlist' ? error : null;
+
+  // Issue #359: "ensure resync does all future libraries and achievements data" - chains library
+  // import, wishlist import, and an achievements scan into one confirm. The achievements step ends
+  // in `completions.result`, reviewed the same way the standalone "Sync Achievement Completions"
+  // row below already does (see the SteamCompletionsSyncModal render at the bottom).
+  async function handleSyncEverything() {
+    if (!steamLinked) {
+      startLink('library');
+      return;
+    }
+    const ok = await confirm({
+      title: 'Sync everything from Steam?',
+      message:
+        'Imports your library and wishlist, then scans for newly-completed achievements. Skips anything already here - this can take a little while.',
+      confirmLabel: 'Sync',
+    });
+    if (!ok) return;
+    await runSyncEverything();
+  }
 
   async function handleImportLibrary() {
     if (!steamLinked) {
@@ -110,6 +139,24 @@ export function ImportLibraryModal({
             <div className={styles.libraryHeader}>
               <span aria-hidden="true">🎮</span> Steam
             </div>
+
+            <button
+              type="button"
+              className={`${styles.actionRow} ${styles.syncEverythingRow}`}
+              onClick={handleSyncEverything}
+              // Also disabled while the once-per-session auto-login sync (see SteamImportContext)
+              // is running in the background - without checking syncingEverything here too, a
+              // click during that window would silently no-op (runSyncEverything's own reentrancy
+              // guard would just return) with no feedback as to why.
+              disabled={busy || completions.busy || syncingEverything}
+            >
+              <span className={styles.syncEverythingLabel}>
+                {syncingEverything ? 'Syncing everything…' : steamLinked ? '🔄 Sync Everything' : 'Link Steam Account'}
+              </span>
+              {steamLinked && (
+                <span className={styles.syncEverythingHint}>Library, wishlist, and achievement completions in one go</span>
+              )}
+            </button>
 
             <button type="button" className={styles.actionRow} onClick={handleImportLibrary} disabled={busy}>
               <span className={styles.actionLabel}>
