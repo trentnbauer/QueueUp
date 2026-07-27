@@ -6,8 +6,8 @@ interface SteamImportCardProps {
   steamLinked: boolean;
 }
 
-/** Sits in the grid as its own tile, last in the list, matching the Spin the Wheel tile's pattern
- * of living inside the collection rather than as a toolbar/banner action above it. Always visible,
+/** Sits in the grid as its own tile, last in the list, living inside the collection rather than as
+ * a toolbar/banner action above it. Always visible,
  * even without a linked Steam account - clicking it while unlinked starts Steam sign-in to link one
  * (rather than hiding the card entirely and leaving non-Steam users with no path to it).
  *

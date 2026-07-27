@@ -64,8 +64,7 @@ interface GameGridProps {
    * (Communal Rooms' Currently Playing strip above, Beaten strip below) - showing them a third
    * time here would just be a duplicate. Still respected only when the status pill is set to "all":
    * explicitly filtering to one of these statuses is a deliberate ask to see it here, so it wins
-   * over the hide. `games` itself is untouched, so Spin the Wheel's genre-avoidance logic (which
-   * needs to know what's currently Playing/last Done) still sees every game regardless. */
+   * over the hide. */
   hiddenStatuses?: GameStatus[];
   onStatusChange: (gameId: string, status: GameStatus) => void;
   onVote: (gameId: string, value: VoteValue) => void;
@@ -203,7 +202,6 @@ export function GameGrid({
   // flex column (issue #344) it'd otherwise stretch to the row's full width, and aspect-ratio: 2/3
   // turns that into a giant box. Cap it back down to tile size there.
   const listTile = (node: ReactNode) => (viewMode === 'list' ? <div className={styles.listTile}>{node}</div> : node);
-
   const wrappedTrailingCard = trailingCard && listTile(trailingCard);
 
   if (prioritized.length === 0 || visible.length === 0) {
@@ -228,28 +226,29 @@ export function GameGrid({
   return (
     <div className={containerClass}>
       {rendered.map((game) => (
-        <GameFace
-          key={game.id}
-          game={game}
-          currentUserId={currentUserId}
-          memberCount={memberCount}
-          roomMembers={roomMembers}
-          onStatusChange={(next) => onStatusChange(game.id, next)}
-          onVote={(value) => onVote(game.id, value)}
-          onRemove={() => onRemove(game.id)}
-          onRefreshPrice={() => onRefreshPrice(game.id)}
-          isRefreshingPrice={isRefreshingPrice ? isRefreshingPrice(game.id) : false}
-          onSetSteamMatch={(steamAppId) => onSetSteamMatch(game.id, steamAppId)}
-          onSetTargetPrice={(targetPrice) => onSetTargetPrice(game.id, targetPrice)}
-          onSetOwnership={onSetOwnership ? (owned) => onSetOwnership(game.id, owned) : undefined}
-          onApplyTag={(name) => onApplyTag(game.id, name)}
-          onRemoveTag={(tagId) => onRemoveTag(game.id, tagId)}
-          roomGames={games}
-          onSetPrerequisite={onSetPrerequisite ? (prerequisiteGameId) => onSetPrerequisite(game.id, prerequisiteGameId) : undefined}
-          selectable={selectionMode}
-          selected={selectedIds?.has(game.id) ?? false}
-          onToggleSelect={onToggleSelect ? () => onToggleSelect(game.id) : undefined}
-        />
+        <Fragment key={game.id}>
+          <GameFace
+            game={game}
+            currentUserId={currentUserId}
+            memberCount={memberCount}
+            roomMembers={roomMembers}
+            onStatusChange={(next) => onStatusChange(game.id, next)}
+            onVote={(value) => onVote(game.id, value)}
+            onRemove={() => onRemove(game.id)}
+            onRefreshPrice={() => onRefreshPrice(game.id)}
+            isRefreshingPrice={isRefreshingPrice ? isRefreshingPrice(game.id) : false}
+            onSetSteamMatch={(steamAppId) => onSetSteamMatch(game.id, steamAppId)}
+            onSetTargetPrice={(targetPrice) => onSetTargetPrice(game.id, targetPrice)}
+            onSetOwnership={onSetOwnership ? (owned) => onSetOwnership(game.id, owned) : undefined}
+            onApplyTag={(name) => onApplyTag(game.id, name)}
+            onRemoveTag={(tagId) => onRemoveTag(game.id, tagId)}
+            roomGames={games}
+            onSetPrerequisite={onSetPrerequisite ? (prerequisiteGameId) => onSetPrerequisite(game.id, prerequisiteGameId) : undefined}
+            selectable={selectionMode}
+            selected={selectedIds?.has(game.id) ?? false}
+            onToggleSelect={onToggleSelect ? () => onToggleSelect(game.id) : undefined}
+          />
+        </Fragment>
       ))}
       {/* Invisible - just an IntersectionObserver target (see the effect above) marking where the
           next batch of games should start rendering as the user scrolls near it. Omitted once

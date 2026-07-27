@@ -16,7 +16,7 @@ import { ShelfSettingsModal } from './ShelfSettingsModal';
 import { AddGameModal } from './AddGameModal';
 import { FilterModal } from './FilterModal';
 import { PillFilter } from './PillFilter';
-import { SpinWheelButton } from './SpinWheelButton';
+import { SpinPickerButton } from './SpinPickerButton';
 import styles from './Header.module.css';
 
 const ROLE_LABEL: Record<RoomRole, string> = {
@@ -286,7 +286,7 @@ export function Header() {
         <button type="button" className={styles.addGameButton} onClick={() => setShowAddGame(true)}>
           + Add Game
         </button>
-        <SpinWheelButton
+        <SpinPickerButton
           games={games}
           spinOwnershipMaxPrice={activeRoom?.spinOwnershipMaxPrice}
           spinWheelTheme={activeRoom?.spinWheelTheme}
