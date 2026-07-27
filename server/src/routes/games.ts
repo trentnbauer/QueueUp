@@ -57,6 +57,7 @@ import {
 import type { OwnedSteamGame } from '../services/steamLibrary.js';
 import { toggleOwnershipForPlatform, setOwnershipPlatforms, markOwned } from '../services/gameOwnership.js';
 import { recordStatusTransition } from '../services/playLog.js';
+import { lookupBarcodeGame } from '../services/barcodeService.js';
 import { findDetectedSteamCompletions } from '../services/steamCompletionDetection.js';
 import { toUserDto } from '../util/dto.js';
 import { env } from '../config/env.js';
@@ -344,6 +345,26 @@ export default async function gameRoutes(app: FastifyInstance) {
 
       const results = await trendingIntake(platforms, excludeIgdbIds, hideAddons);
       return { results };
+    },
+  );
+
+  // Personal Shelf only (issue #402) - "scan a physical game's barcode" on Add Game. Not scoped to
+  // a room/existing-igdb-id exclusion the way search/trending are above: a barcode identifies one
+  // specific title, not a browsable list, and duplicate-adding is already guarded at create time
+  // the same way a manual search-and-add is (see requireNotDuplicate).
+  app.get<{ Querystring: { value?: string } }>(
+    '/api/games/barcode-lookup',
+    // Each call is a live outbound request to ScanDex, same class of route as steam-search.
+    { config: { rateLimit: { max: 20, timeWindow: '1 minute' } } },
+    async (request) => {
+      await request.requireAuth();
+      const barcode = (request.query.value ?? '').trim();
+      if (!barcode || !/^\d{6,14}$/.test(barcode)) {
+        throw new HttpError(400, 'A valid UPC/EAN barcode is required');
+      }
+
+      const result = await lookupBarcodeGame(barcode);
+      return { result };
     },
   );
 

@@ -1,9 +1,14 @@
-import { useEffect, useRef, useState } from 'react';
+import { lazy, Suspense, useEffect, useRef, useState } from 'react';
 import { ROOM_PLATFORM_LABELS, type CollectionGamesResult, type CollectionSearchResult, type GameSearchResult, type RoomPlatform } from '@queueup/shared';
 import { gamesApi } from '../api/games';
 import { useAuth } from '../context/AuthContext';
 import { useModalA11y, closeOnBackdropMouseDown } from '../hooks/useModalA11y';
 import styles from './AddGameModal.module.css';
+
+// html5-qrcode is a large dependency (~300kB) only ever needed by the rarely-used barcode-scan
+// option (issue #402) - lazy-loaded so every other Add Game open (the overwhelming majority)
+// doesn't pay for it.
+const BarcodeScannerModal = lazy(() => import('./BarcodeScannerModal').then((m) => ({ default: m.BarcodeScannerModal })));
 
 const ROOM_PLATFORM_OPTIONS = Object.keys(ROOM_PLATFORM_LABELS) as RoomPlatform[];
 
@@ -54,6 +59,10 @@ interface AddGameOwnershipStepProps {
   /** Pre-checked platform selection, from the user's own Profile Settings "systems I own" list -
    * just a convenience default, not a constraint (every platform is still selectable). */
   ownedPlatformDefaults: RoomPlatform[];
+  /** The specific platform a barcode scan resolved this physical copy to (issue #402), if any -
+   * pre-checked (alongside ownedPlatformDefaults) and forces "I own this" as the default, since
+   * scanning a physical box's barcode is itself a strong signal of ownership on that platform. */
+  forcedPlatform?: RoomPlatform | null;
   busy: boolean;
   error: string | null;
   onConfirm: (status: 'backlog' | 'wishlist', ownedPlatforms: RoomPlatform[]) => void;
@@ -67,13 +76,16 @@ interface AddGameOwnershipStepProps {
  * this: a room's own ownership toggle already infers its platform from the room itself (see
  * gameOwnership.ts), which doesn't apply here since the Personal Shelf isn't scoped to one
  * platform. */
-function AddGameOwnershipStep({ result, ownedPlatformDefaults, busy, error, onConfirm, onCancel }: AddGameOwnershipStepProps) {
+function AddGameOwnershipStep({ result, ownedPlatformDefaults, forcedPlatform, busy, error, onConfirm, onCancel }: AddGameOwnershipStepProps) {
   const currentYear = new Date().getFullYear();
   // A game that hasn't released yet (or isn't out this year) is far more likely to still be on a
   // wishlist than already owned - same year-based fallback defaultStatusForRelease uses server-
   // side, just here as a default the person can immediately override rather than a final decision.
-  const [owned, setOwned] = useState(result.releaseYear === null || result.releaseYear <= currentYear);
-  const [platforms, setPlatforms] = useState<Set<RoomPlatform>>(new Set(ownedPlatformDefaults));
+  // A barcode scan overrides that guess entirely - see forcedPlatform's own doc comment.
+  const [owned, setOwned] = useState(forcedPlatform != null || result.releaseYear === null || result.releaseYear <= currentYear);
+  const [platforms, setPlatforms] = useState<Set<RoomPlatform>>(
+    new Set(forcedPlatform ? [...ownedPlatformDefaults, forcedPlatform] : ownedPlatformDefaults),
+  );
 
   function togglePlatform(platform: RoomPlatform) {
     setPlatforms((prev) => {
@@ -405,6 +417,13 @@ export function AddGameModal({ roomId, onAdded, onClose }: AddGameModalProps) {
   // currently showing, or null while the normal search/tabs UI is in view. Rooms skip this step
   // entirely (handleAddClick adds directly instead of setting this).
   const [pendingResult, setPendingResult] = useState<GameSearchResult | null>(null);
+  // Issue #402: the platform a barcode scan resolved pendingResult to, if pendingResult came from
+  // a scan rather than a normal search/Popular pick - passed through to AddGameOwnershipStep as
+  // forcedPlatform. Cleared alongside pendingResult (see handleConfirmOwnership/handleAddClick).
+  const [pendingResultPlatform, setPendingResultPlatform] = useState<RoomPlatform | null>(null);
+  const [showScanner, setShowScanner] = useState(false);
+  const [barcodeLoading, setBarcodeLoading] = useState(false);
+  const [barcodeError, setBarcodeError] = useState<string | null>(null);
   // Issue #363: "Popular" is a separate browse mode alongside search, for discovering something
   // nobody had already thought to search for - its own fetch/loading/error state below, entirely
   // independent of the search-query-driven state that follows.
@@ -641,6 +660,7 @@ export function AddGameModal({ roomId, onAdded, onClose }: AddGameModalProps) {
   function handleAddClick(result: GameSearchResult) {
     if (roomId === null) {
       setPendingResult(result);
+      setPendingResultPlatform(null);
       setError(null);
       return;
     }
@@ -653,7 +673,39 @@ export function AddGameModal({ roomId, onAdded, onClose }: AddGameModalProps) {
       status,
       ownedPlatforms: status === 'backlog' ? selectedPlatforms : undefined,
     });
-    if (ok) setPendingResult(null);
+    if (ok) {
+      setPendingResult(null);
+      setPendingResultPlatform(null);
+    }
+  }
+
+  // Issue #402: a decoded barcode is looked up via ScanDex, then fed straight into the same
+  // owned/platforms step a normal search pick uses - no match just surfaces a message and returns
+  // to the scanner-free search view, rather than leaving the camera view stuck open on a dead end.
+  async function handleBarcodeScanned(barcode: string) {
+    setShowScanner(false);
+    setBarcodeLoading(true);
+    setBarcodeError(null);
+    try {
+      const { result } = await gamesApi.barcodeLookup(barcode);
+      if (!result) {
+        setBarcodeError("Couldn't find a match for that barcode - try searching by name instead.");
+        return;
+      }
+      setPendingResult({
+        igdbId: result.igdbId,
+        title: result.title,
+        platform: result.platform,
+        coverImageUrl: result.coverImageUrl,
+        releaseYear: result.releaseYear,
+      });
+      setPendingResultPlatform(result.matchedPlatform);
+      setError(null);
+    } catch (err) {
+      setBarcodeError(err instanceof Error ? err.message : "Couldn't look up that barcode.");
+    } finally {
+      setBarcodeLoading(false);
+    }
   }
 
   function handleInputKeyDown(e: React.KeyboardEvent<HTMLInputElement>) {
@@ -705,11 +757,13 @@ export function AddGameModal({ roomId, onAdded, onClose }: AddGameModalProps) {
           <AddGameOwnershipStep
             result={pendingResult}
             ownedPlatformDefaults={ownedPlatforms}
+            forcedPlatform={pendingResultPlatform}
             busy={addingId === pendingResult.igdbId}
             error={error}
             onConfirm={handleConfirmOwnership}
             onCancel={() => {
               setPendingResult(null);
+              setPendingResultPlatform(null);
               setError(null);
             }}
           />
@@ -745,8 +799,28 @@ export function AddGameModal({ roomId, onAdded, onClose }: AddGameModalProps) {
               >
                 Popular
               </button>
+              {/* Issue #402: importing a physical game from its box - Personal Shelf only, same
+                  reasoning as the owned/platforms step this feeds into (rooms have no per-copy
+                  ownership concept to scan for). */}
+              {roomId === null && (
+                <button
+                  type="button"
+                  className={styles.scanButton}
+                  onClick={() => {
+                    setBarcodeError(null);
+                    setShowScanner(true);
+                  }}
+                  disabled={barcodeLoading}
+                  title="Scan a physical game's barcode"
+                  aria-label="Scan a physical game's barcode"
+                >
+                  📷
+                </button>
+              )}
             </div>
 
+            {barcodeLoading && <div className={styles.searching}>Looking up that barcode…</div>}
+            {barcodeError && <div className={styles.error}>{barcodeError}</div>}
             {error && <div className={styles.error}>{error}</div>}
             {addedTitle && !error && (
               <div className={styles.added}>
@@ -878,6 +952,12 @@ export function AddGameModal({ roomId, onAdded, onClose }: AddGameModalProps) {
           </div>
         )}
       </div>
+
+      {showScanner && (
+        <Suspense fallback={null}>
+          <BarcodeScannerModal onScanned={handleBarcodeScanned} onClose={() => setShowScanner(false)} />
+        </Suspense>
+      )}
     </div>
   );
 }
