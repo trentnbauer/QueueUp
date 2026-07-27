@@ -6,13 +6,20 @@ import { FORCED_REFRESH_COOLDOWN_MS, cooldownRemainingMs, formatCooldownMessage 
 import type { GamePrice } from '@queueup/shared';
 
 const PRICE_CACHE_TTL_SECONDS = 60 * 60 * 6; // 6h — prices/sales move faster than metadata
-const PRICE_CACHE_PREFIX = 'gg:price:v3:steam:'; // v3: GamePrice now also carries historicalLow
+// v4: namespaced by platform, not just "steam" - this module only ever fetches/caches the `pc`
+// segment (gg.deals' API is Steam-App-ID-based, i.e. PC-only - see getSteamPrice's own comment),
+// but the key shape is ready for a sibling per-console fetcher to land its own `ps5:`/`xbox_*:`/
+// `switch:` segment later without another cache-key migration. A room on a platform this module
+// doesn't fetch for is never queried here at all - see gameSerializer.ts, which only calls into
+// this module for a `pc`-platform room (or the Personal Shelf) and otherwise serves GamePrice's
+// 'unavailable' state directly, no cache lookup involved.
+const PRICE_CACHE_PREFIX = 'gg:price:v4:pc:';
 // Deliberately keyed by steamAppId ALONE - no roomId, no region. That means a manual refresh
 // of a given Steam game is shared by every room/shelf that happens to show it (issue #67's
 // "sync prices across rooms" falls out of this for free, same as the price cache itself already
 // being steamAppId-keyed), and the once-an-hour cooldown applies globally to that game rather
 // than per-room.
-const LAST_FORCED_REFRESH_PREFIX = 'gg:price:v3:steam:lastforced:';
+const LAST_FORCED_REFRESH_PREFIX = 'gg:price:v4:pc:lastforced:';
 
 interface GGDealsPricesResponse {
   success: boolean;
