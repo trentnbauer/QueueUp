@@ -160,5 +160,15 @@ export function useSteamImport(steamLinked: boolean, onImported: () => void) {
     }, PROGRESS_POLL_INTERVAL_MS);
   }
 
-  return { busy, activeKind, result, error, progress, wishlistProgress, startLink, runImport, runWishlistImport };
+  // Issue #359: result/error otherwise only ever clear at the *start* of the next import - fine
+  // for the modal/tile that triggered it (closed once read), but a surface with no natural
+  // "closed" moment of its own (the notification flyout, which can be reopened at any later point
+  // in the session) needs an explicit way to dismiss a stale completed-import message instead of
+  // showing it forever.
+  function dismissResult() {
+    setResult(null);
+    setError(null);
+  }
+
+  return { busy, activeKind, result, error, progress, wishlistProgress, startLink, runImport, runWishlistImport, dismissResult };
 }

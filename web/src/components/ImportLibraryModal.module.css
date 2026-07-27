@@ -1,0 +1,108 @@
+.backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.55);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+  padding: 20px;
+}
+
+@media (max-width: 640px) {
+  .backdrop {
+    padding: 10px;
+  }
+}
+
+.dialog {
+  background: var(--qu-surface);
+  border: 1px solid var(--qu-border);
+  border-radius: var(--qu-radius);
+  padding: 24px;
+  max-width: 480px;
+  width: 100%;
+  max-height: 85vh;
+  overflow-y: auto;
+  box-shadow: 0 12px 40px rgba(0, 0, 0, 0.4);
+}
+
+@media (max-width: 640px) {
+  .dialog {
+    padding: 14px;
+  }
+}
+
+.header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 18px;
+}
+
+.title {
+  font: 700 16px var(--qu-header-font);
+  color: var(--qu-text);
+}
+
+.closeButton {
+  border: none;
+  background: transparent;
+  color: var(--qu-muted);
+  font-size: 20px;
+  line-height: 1;
+  cursor: pointer;
+  padding: 2px 6px;
+}
+
+.closeButton:hover {
+  color: var(--qu-text);
+}
+
+.librarySection {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.libraryHeader {
+  font: 700 13px system-ui, sans-serif;
+  color: var(--qu-muted);
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-bottom: 2px;
+}
+
+.actionRow {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 3px;
+  width: 100%;
+  text-align: left;
+  padding: 12px 14px;
+  border: 1px solid var(--qu-border);
+  border-radius: var(--qu-card-radius);
+  background: var(--qu-surface2);
+  cursor: pointer;
+}
+
+.actionRow:hover:not(:disabled) {
+  border-color: var(--qu-accent);
+}
+
+.actionRow:disabled {
+  cursor: default;
+  opacity: 0.8;
+}
+
+.actionLabel {
+  font: 700 14px var(--qu-header-font);
+  color: var(--qu-accent);
+}
+
+.actionHint {
+  font-size: 12px;
+  color: var(--qu-muted);
+}

@@ -12,14 +12,11 @@ import { DroppedStrip } from '../components/DroppedStrip';
 import { filterGames, ALL_FILTER_VALUE } from '../components/gameGridLogic';
 import { ActionErrorBanner } from '../components/ActionErrorBanner';
 import { TruncatedListBanner } from '../components/TruncatedListBanner';
-import { SteamImportCard } from '../components/SteamImportCard';
-import { SteamWishlistImportCard } from '../components/SteamWishlistImportCard';
-import { SteamCompletionsSyncCard } from '../components/SteamCompletionsSyncCard';
 import { BulkActionBar } from '../components/BulkActionBar';
 import styles from './ShelfView.module.css';
 
 export function ShelfView() {
-  const { user, steamLinked } = useAuth();
+  const { user } = useAuth();
   const { switchView } = useView();
   const confirm = useConfirm();
   const {
@@ -174,19 +171,6 @@ export function ShelfView() {
         onSetTargetPrice={setTargetPrice}
         onApplyTag={applyTag}
         onRemoveTag={removeTag}
-        trailingCard={
-          !bulkMode && (
-            <>
-              <SteamImportCard steamLinked={steamLinked} />
-              <SteamWishlistImportCard steamLinked={steamLinked} />
-              <SteamCompletionsSyncCard
-                steamLinked={steamLinked}
-                onApply={(gameIds) => bulkUpdateStatus(gameIds, 'done')}
-                applying={isBulkUpdatingStatus}
-              />
-            </>
-          )
-        }
         selectionMode={bulkMode}
         selectedIds={selectedIds}
         onToggleSelect={toggleSelect}
