@@ -44,8 +44,11 @@ export function BeatenStrip({
   // Most recently marked Done first, so the strip reads as a completion timeline rather than
   // whatever order the games happened to come back in - same signal lastCompletedPrimaryGenre in
   // gameGridLogic.ts already uses as "the last completed game."
+  // Replay-queued games are shown here too (issue #334) - marking something for replay means
+  // it's already been beaten, so it belongs in the completion timeline alongside Done games, not
+  // just in its own filter.
   const done = games
-    .filter((g) => g.status === 'done')
+    .filter((g) => g.status === 'done' || g.status === 'replay')
     .sort((a, b) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime());
   if (done.length === 0) return null;
 

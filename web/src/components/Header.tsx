@@ -26,7 +26,7 @@ const ROLE_LABEL: Record<RoomRole, string> = {
 
 // Fixed display order for the status filter pills (issue #182) - not alphabetical, reads in the
 // same rough lifecycle order as the status menu itself.
-const STATUS_FILTER_ORDER: GameStatus[] = ['wishlist', 'backlog', 'playing', 'done', 'dropped'];
+const STATUS_FILTER_ORDER: GameStatus[] = ['wishlist', 'backlog', 'playing', 'done', 'replay', 'dropped'];
 
 export function Header() {
   const { user, ownedPlatforms, steamLinked } = useAuth();

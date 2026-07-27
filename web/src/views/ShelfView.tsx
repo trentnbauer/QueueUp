@@ -160,10 +160,11 @@ export function ShelfView() {
         isError={isError}
         loadError={loadError}
         onRetry={refetch}
-        // Playing/Done/Dropped games get their own strips above/below instead - same reasoning as
-        // RoomView's identical hiddenStatuses, so they don't also show a second time in the main
-        // grid here.
-        hiddenStatuses={['playing', 'done', 'dropped']}
+        // Playing/Done/Replay/Dropped games get their own strips above/below instead - same
+        // reasoning as RoomView's identical hiddenStatuses, so they don't also show a second time
+        // in the main grid here. Replay-queued games (issue #334) join Done under BeatenStrip
+        // below, since a replay is by definition already-beaten.
+        hiddenStatuses={['playing', 'done', 'replay', 'dropped']}
         onStatusChange={updateStatus}
         onVote={vote}
         onRemove={remove}

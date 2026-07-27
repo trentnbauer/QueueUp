@@ -122,7 +122,8 @@ export function RoomView() {
         showSpinWheel
         spinOwnershipMaxPrice={activeRoom?.spinOwnershipMaxPrice}
         spinWheelTheme={activeRoom?.spinWheelTheme}
-        hiddenStatuses={['playing', 'done', 'dropped']}
+        // Replay-queued games (issue #334) join Done under BeatenStrip below, same as ShelfView.
+        hiddenStatuses={['playing', 'done', 'replay', 'dropped']}
         onStatusChange={updateStatus}
         onVote={vote}
         onRemove={remove}
