@@ -6,6 +6,7 @@ import type {
   CollectionSearchResult,
   CreateGameRequest,
   CreateGameResponse,
+  CrossRoomPlaying,
   Game,
   GameSearchResult,
   MoveGameRequest,
@@ -78,5 +79,6 @@ export const gamesApi = {
     apiGet<{ progress: SteamWishlistImportProgress | null }>('/api/games/import-steam-wishlist/progress'),
   achievements: (id: string) => apiGet<{ players: PlayerAchievements[] }>(`/api/games/${id}/achievements`),
   yearInReview: () => apiGet<YearInReview>('/api/me/year-in-review'),
+  currentlyPlaying: () => apiGet<CrossRoomPlaying>('/api/me/currently-playing'),
   syncSteamCompletions: () => apiPost<SteamCompletionsSyncResult>('/api/games/sync-steam-completions'),
 };

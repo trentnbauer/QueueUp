@@ -64,6 +64,8 @@ import type {
   BulkUpdateGameStatusRequest,
   CreateGameRequest,
   CreateGameResponse,
+  CrossRoomPlaying,
+  CrossRoomPlayingGroup,
   MoveGameRequest,
   PlayerAchievements,
   PriceRegion,
@@ -1297,6 +1299,66 @@ export default async function gameRoutes(app: FastifyInstance) {
         achievementsUnlocked,
         rarestAchievements,
       };
+      return result;
+    },
+  );
+
+  // Safety cap on the cross-room Currently Playing dashboard below, same reasoning as
+  // MAX_GAMES_PER_LIST elsewhere - Playing/Play Next is inherently a small subset of anyone's
+  // games in practice, so this is a defensive ceiling, not an expected real-world limit.
+  const CROSS_ROOM_PLAYING_LIMIT = 200;
+
+  app.get(
+    '/api/me/currently-playing',
+    // Same class of route as year-in-review above - an on-demand dashboard view, not something a
+    // normal session comes close to hitting often.
+    { config: { rateLimit: { max: 20, timeWindow: '1 minute' } } },
+    async (request) => {
+      const userId = await request.requireAuth();
+
+      const [personalGames, memberships] = await Promise.all([
+        prisma.game.findMany({
+          where: { roomId: null, addedBy: userId, archivedAt: null, status: { in: ['playing', 'play_next'] } },
+          include: gameInclude,
+          take: CROSS_ROOM_PLAYING_LIMIT,
+        }),
+        prisma.roomMember.findMany({ where: { userId }, include: { room: true }, orderBy: { joinedAt: 'asc' } }),
+      ]);
+
+      const roomIds = memberships.map((m) => m.roomId);
+      const roomGamesRaw =
+        roomIds.length > 0
+          ? await prisma.game.findMany({
+              where: { roomId: { in: roomIds }, archivedAt: null, status: { in: ['playing', 'play_next'] } },
+              include: gameInclude,
+              take: CROSS_ROOM_PLAYING_LIMIT,
+            })
+          : [];
+
+      // Playing sorts first, Play Next after - same convention as PlayingStrip.tsx.
+      const byPlayNextLast = (a: { status: string }, b: { status: string }) =>
+        Number(a.status === 'play_next') - Number(b.status === 'play_next');
+
+      const [personalSerialized, roomSerialized] = await Promise.all([
+        serializeGames([...personalGames].sort(byPlayNextLast), userId),
+        serializeGames([...roomGamesRaw].sort(byPlayNextLast), userId),
+      ]);
+
+      const gamesByRoomId = new Map<string, (typeof roomSerialized)[number][]>();
+      for (const g of roomSerialized) {
+        const list = gamesByRoomId.get(g.roomId as string) ?? [];
+        list.push(g);
+        gamesByRoomId.set(g.roomId as string, list);
+      }
+
+      const groups: CrossRoomPlayingGroup[] = [];
+      if (personalSerialized.length > 0) groups.push({ roomId: null, roomName: null, games: personalSerialized });
+      for (const m of memberships) {
+        const games = gamesByRoomId.get(m.roomId) ?? [];
+        if (games.length > 0) groups.push({ roomId: m.roomId, roomName: m.room.name, games });
+      }
+
+      const result: CrossRoomPlaying = { groups };
       return result;
     },
   );

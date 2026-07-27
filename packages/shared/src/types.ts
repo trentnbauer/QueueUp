@@ -697,6 +697,24 @@ export interface YearInReview {
   rarestAchievements: YearInReviewRareAchievement[];
 }
 
+/** One group of Currently Playing games in the cross-room dashboard (issue #364) - either a room
+ * the caller is a member of, or their Personal Shelf (`roomId: null`, `roomName: null`). Only
+ * groups with at least one Playing/Play Next game are included - see the route for why an empty
+ * room is omitted rather than shown with a "nothing playing" placeholder. */
+export interface CrossRoomPlayingGroup {
+  roomId: string | null;
+  roomName: string | null;
+  games: Game[];
+}
+
+/** Aggregates "Currently Playing" (and Play Next) across every room the caller is in, plus their
+ * Personal Shelf, into one view (issue #364) - `Game.status` is per-game, not per-member, so this
+ * is "what games are active where," same scope as the per-room PlayingStrip, just merged across
+ * every room at once instead of requiring a switch into each one. */
+export interface CrossRoomPlaying {
+  groups: CrossRoomPlayingGroup[];
+}
+
 /** One game the caller added, in the "Download my data" export - a slimmer, DB-shaped view than
  * the full `Game` DTO (no live price lookup, no other members' votes), since this is a bulk
  * point-in-time snapshot rather than something rendered as a card. `roomId`/`roomName` are null
