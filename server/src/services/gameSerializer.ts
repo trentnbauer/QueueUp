@@ -111,7 +111,13 @@ export async function serializeGame(game: GameWithRelations, currentUserId: stri
 export async function serializeGames(games: GameWithRelations[], currentUserId: string, region?: PriceRegion): Promise<Game[]> {
   const roomIds = games.map((g) => g.roomId).filter((id): id is string => id != null);
   const roomPlatforms = await getRoomPlatforms(roomIds);
-  const platformFor = (game: GameWithRelations) => (game.roomId ? roomPlatforms.get(game.roomId) : 'pc') ?? 'pc';
+  // No `?? 'pc'` fallback here on purpose - if a game's room is somehow missing from
+  // roomPlatforms (e.g. deleted between the games fetch and this batch lookup), platformFor
+  // returns undefined, and every comparison below is `=== 'pc'`, so that fails *closed* (treated
+  // as not-pc, no price/buy-link shown) rather than defaulting to 'pc' and showing a real price
+  // for a room whose actual platform is now unknown. Matches priceAlertJob.ts's isPcGame, which
+  // already gets this right the same way.
+  const platformFor = (game: GameWithRelations) => (game.roomId ? roomPlatforms.get(game.roomId) : 'pc');
 
   // Only a `pc`-platform game's steamAppId is worth a real price fetch - everything else gets
   // 'unavailable' directly below, no gg.deals call at all (see resolvePricingPlatform).
