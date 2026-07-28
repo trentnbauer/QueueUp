@@ -51,7 +51,7 @@ export function SpinPickerButton({ games, roomId, spinOwnershipMaxPrice, spinWhe
   // it goes straight to the manual picker instead.
   const [checkedGameIds, setCheckedGameIds] = useState<Set<string>>(new Set());
   const { pickerGameId, attemptAutoMatch, closePicker } = useSteamAutoMatch();
-  const { spin, startSpin, nudgeSpin, restartSpin, closeSpin } = useRoomSpin(roomId);
+  const { spin, startSpin, nudgeSpin, restartSpin, skipWaitSpin, closeSpin } = useRoomSpin(roomId);
 
   const backlog = backlogGames(games);
   const gated = spinOwnershipMaxPrice !== undefined;
@@ -159,6 +159,9 @@ export function SpinPickerButton({ games, roomId, spinOwnershipMaxPrice, spinWhe
             },
             onRestart: () => {
               restartSpin().catch(() => {});
+            },
+            onSkipWait: () => {
+              skipWaitSpin().catch(() => {});
             },
             onCommit: () => {
               closeSpin().catch(() => {});

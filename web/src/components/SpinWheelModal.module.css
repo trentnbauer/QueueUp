@@ -106,12 +106,14 @@
   right: 4px;
 }
 
+/* Applied to the whole .dialog (issue #420: "nudge the modal", not just the reel/wheel inside it)
+   so a click reads as physically jostling the entire spin, not just its own artwork. */
 @keyframes spinWheelNudgeLeft {
-  30%, 70% { transform: translateX(-4px); }
+  30%, 70% { transform: translateX(-6px); }
 }
 
 @keyframes spinWheelNudgeRight {
-  30%, 70% { transform: translateX(4px); }
+  30%, 70% { transform: translateX(6px); }
 }
 
 .nudgeLeft {
@@ -120,6 +122,50 @@
 
 .nudgeRight {
   animation: spinWheelNudgeRight 0.3s;
+}
+
+/* The "graphic" accompanying a nudge (issue #420) - a big directional arrow that flashes over the
+   dialog on the side that was just clicked, then fades, on the same timer as the whole-dialog
+   wiggle above. */
+@keyframes spinWheelNudgeGraphic {
+  0% { opacity: 0; transform: translateY(-50%) scale(0.6); }
+  30% { opacity: 0.9; transform: translateY(-50%) scale(1.15); }
+  100% { opacity: 0; transform: translateY(-50%) scale(1); }
+}
+
+.nudgeGraphic {
+  position: absolute;
+  top: 50%;
+  font: 800 32px var(--qu-header-font);
+  color: var(--qu-accent);
+  pointer-events: none;
+  z-index: 3;
+  animation: spinWheelNudgeGraphic 0.3s ease-out;
+}
+
+.nudgeGraphicLeft {
+  left: 12px;
+}
+
+.nudgeGraphicRight {
+  right: 12px;
+}
+
+.waitingRoom {
+  text-align: center;
+  padding: 36px 12px;
+}
+
+.waitingMessage {
+  font: 700 15px var(--qu-header-font);
+  color: var(--qu-text);
+}
+
+.waitingCountdown {
+  font: 500 13px system-ui, sans-serif;
+  color: var(--qu-muted);
+  margin-top: 6px;
+  margin-bottom: 16px;
 }
 
 .reelViewport {

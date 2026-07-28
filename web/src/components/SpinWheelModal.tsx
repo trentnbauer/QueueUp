@@ -28,6 +28,9 @@ interface SharedSpinSession {
   spin: RoomSpinSession;
   onNudge: (direction: 'left' | 'right') => void;
   onRestart: () => void;
+  /** Collapses the "waiting for members" pause a fresh spin begins with (issue #420) so it starts
+   * moving right now - any member currently watching can call this, not just whoever started it. */
+  onSkipWait: () => void;
   /** Ends the session for every member - fired only once a winner's actually committed to
    * ("Let's play"), never for a plain dismiss (see RoomSpin's schema doc: closing the modal is
    * local/per-viewer only). */
@@ -119,6 +122,11 @@ export function SpinWheelModal({ games, candidates, theme = 'slot', session, onS
   const run: SpinRun = session ? runFromSession(session.spin) : localRun;
   const now = useLiveNow(run.settlesAtMs);
   const settled = now >= run.settlesAtMs;
+  // Issue #420: a room's fresh spin doesn't start moving until run.base.timestamp0 (see
+  // SPIN_WAITING_ROOM_MS server-side) - gated on `session` since the Personal Shelf's local spin
+  // never has this delay (its own timestamp0 is always "now"), so this can never show there even
+  // if the clock happened to line up.
+  const waiting = !!session && now < run.base.timestamp0;
   const position = settled ? run.settledPosition : positionAt(run.base, now);
   const velocity = settled ? 0 : velocityAt(run.base, now);
   const winner = settled && run.strip.length > 0 ? run.strip[candidateIndexAt(run.settledPosition, run.strip.length)] : null;
@@ -132,6 +140,10 @@ export function SpinWheelModal({ games, candidates, theme = 'slot', session, onS
     } else {
       setLocalRun((prev) => runFrom(applyNudge(prev.base, Date.now(), direction), prev.strip, prev.theme));
     }
+  }
+
+  function handleSkipWait() {
+    session?.onSkipWait();
   }
 
   function handleRestart() {
@@ -150,11 +162,13 @@ export function SpinWheelModal({ games, candidates, theme = 'slot', session, onS
 
   if (run.strip.length === 0) return null;
 
+  const countdownSeconds = waiting ? Math.max(1, Math.ceil((run.base.timestamp0 - now) / 1000)) : 0;
+
   return (
     <div className={styles.backdrop} role="presentation" onMouseDown={closeOnBackdropMouseDown(onClose)}>
       <div
         ref={dialogRef}
-        className={styles.dialog}
+        className={`${styles.dialog} ${nudgeFlash ? styles[`nudge${nudgeFlash === 'left' ? 'Left' : 'Right'}`] : ''}`}
         role="dialog"
         aria-modal="true"
         aria-label="Spin the Wheel"
@@ -168,28 +182,49 @@ export function SpinWheelModal({ games, candidates, theme = 'slot', session, onS
           </button>
         </div>
 
-        <button
-          type="button"
-          className={`${styles.nudgeArea} ${nudgeFlash ? styles[`nudge${nudgeFlash === 'left' ? 'Left' : 'Right'}`] : ''}`}
-          onClick={handleNudgeAreaClick}
-          disabled={settled}
-          title="Click the left side to slow it down, the right side to speed it up"
-        >
-          <span className={styles.nudgeHintLeft} aria-hidden="true">
-            ◀ slow
+        {/* Graphic confirming which side was just nudged (issue #420) - fades in/out alongside
+            the whole-dialog wiggle above, on the same nudgeFlash timer. */}
+        {nudgeFlash && (
+          <span className={`${styles.nudgeGraphic} ${nudgeFlash === 'left' ? styles.nudgeGraphicLeft : styles.nudgeGraphicRight}`} aria-hidden="true">
+            {nudgeFlash === 'left' ? '◀◀' : '▶▶'}
           </span>
-          <SpinThemeRenderer
-            theme={run.theme}
-            strip={run.strip}
-            position={position}
-            velocity={velocity}
-            settled={settled}
-            winner={winner}
-          />
-          <span className={styles.nudgeHintRight} aria-hidden="true">
-            speed ▶
-          </span>
-        </button>
+        )}
+
+        {waiting ? (
+          // Issue #420: a brief shared pause before a fresh spin starts moving, so everyone
+          // currently looking at the room gets a "get ready" beat instead of already-in-motion
+          // reel nobody else had a chance to notice starting. Any member watching can skip it.
+          <div className={styles.waitingRoom}>
+            <div className={styles.waitingMessage}>⏳ Waiting for members to be ready…</div>
+            <div className={styles.waitingCountdown}>Starting in {countdownSeconds}s</div>
+            <button type="button" className={styles.primaryButton} onClick={handleSkipWait}>
+              Start now
+            </button>
+          </div>
+        ) : (
+          <button
+            type="button"
+            className={styles.nudgeArea}
+            onClick={handleNudgeAreaClick}
+            disabled={settled}
+            title="Click the left side to slow it down, the right side to speed it up"
+          >
+            <span className={styles.nudgeHintLeft} aria-hidden="true">
+              ◀ slow
+            </span>
+            <SpinThemeRenderer
+              theme={run.theme}
+              strip={run.strip}
+              position={position}
+              velocity={velocity}
+              settled={settled}
+              winner={winner}
+            />
+            <span className={styles.nudgeHintRight} aria-hidden="true">
+              speed ▶
+            </span>
+          </button>
+        )}
 
         <div className={styles.revealZone} aria-live="polite">
           {settled && winner && (

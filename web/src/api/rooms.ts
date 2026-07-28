@@ -44,13 +44,16 @@ export const gameSuggestionsApi = {
 
 /** A room's shared Spin the Wheel session (see RoomSpinSession) - `nudge` is the left/right
  * click-to-slow/speed-up gesture mid-spin, `restart` is "Spin again" post-settle (start a whole
- * fresh strip/physics run), and `close` ends the session for every member (used once a winner's
- * actually committed to), never called just for dismissing the modal locally. */
+ * fresh strip/physics run), `skipWait` collapses the "waiting for members" pause a fresh start
+ * begins with (issue #420) so the spin starts moving right now, and `close` ends the session for
+ * every member (used once a winner's actually committed to), never called just for dismissing the
+ * modal locally. */
 export const roomSpinApi = {
   get: (roomId: string) => apiGet<{ spin: RoomSpinSession | null }>(`/api/rooms/${roomId}/spin`),
   start: (roomId: string) => apiPost<{ spin: RoomSpinSession }>(`/api/rooms/${roomId}/spin/start`),
   nudge: (roomId: string, direction: 'left' | 'right') =>
     apiPost<{ spin: RoomSpinSession }>(`/api/rooms/${roomId}/spin/nudge`, { direction }),
   restart: (roomId: string) => apiPost<{ spin: RoomSpinSession }>(`/api/rooms/${roomId}/spin/restart`),
+  skipWait: (roomId: string) => apiPost<{ spin: RoomSpinSession }>(`/api/rooms/${roomId}/spin/skip-wait`),
   close: (roomId: string) => apiDelete(`/api/rooms/${roomId}/spin`),
 };
