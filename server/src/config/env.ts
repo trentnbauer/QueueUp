@@ -3,7 +3,15 @@ import { type PriceRegion } from '@queueup/shared';
 
 const PRICE_REGIONS: PriceRegion[] = ['us', 'gb', 'eu', 'au', 'ca', 'br'];
 
-const envSchema = z.object({
+// docker-compose.prod.yml passes every optional credential through as `${VAR}` (no `:-` default),
+// which Compose substitutes to an empty string - not "unset" - when a self-hoster leaves it blank
+// in .env. `.optional()` alone only tolerates `undefined`, so an empty string still hits
+// `.min(1)` and fails validation, crashing the container on every boot instead of behaving as
+// documented ("leave it blank" = disabled feature / DB-fallback). Normalize '' to undefined first.
+const optionalEnvVar = (schema: z.ZodString = z.string()) =>
+  z.preprocess((v) => (v === '' ? undefined : v), schema.optional());
+
+export const envSchema = z.object({
   PORT: z.coerce.number().default(3000),
   APP_BASE_URL: z.string().url(),
   DATABASE_URL: z.string().min(1),
@@ -34,38 +42,38 @@ const envSchema = z.object({
     .transform((v) => v === 'true'),
 
   // Generic OIDC provider (Authelia, Keycloak, Authentik, ...) - bring your own issuer.
-  OIDC_ISSUER_URL: z.string().optional(),
-  OIDC_CLIENT_ID: z.string().optional(),
-  OIDC_CLIENT_SECRET: z.string().optional(),
+  OIDC_ISSUER_URL: optionalEnvVar(),
+  OIDC_CLIENT_ID: optionalEnvVar(),
+  OIDC_CLIENT_SECRET: optionalEnvVar(),
   // Defaults to `${APP_BASE_URL}/auth/oidc/callback` (see deriveRedirectUris below) - only set
   // this explicitly if the backend isn't reachable at APP_BASE_URL's origin (e.g. local dev's
   // split frontend/backend ports, or a reverse-proxy setup that routes the API to a different
   // host than the frontend).
-  OIDC_REDIRECT_URI: z.string().optional(),
+  OIDC_REDIRECT_URI: optionalEnvVar(),
   OIDC_SCOPES: z.string().default('openid profile email'),
 
   // Google - also plain OIDC (fixed issuer), just its own named login button.
-  GOOGLE_CLIENT_ID: z.string().optional(),
-  GOOGLE_CLIENT_SECRET: z.string().optional(),
+  GOOGLE_CLIENT_ID: optionalEnvVar(),
+  GOOGLE_CLIENT_SECRET: optionalEnvVar(),
   // Defaults to `${APP_BASE_URL}/auth/google/callback` - see OIDC_REDIRECT_URI above.
-  GOOGLE_REDIRECT_URI: z.string().optional(),
+  GOOGLE_REDIRECT_URI: optionalEnvVar(),
 
   // Discord - OAuth2 only, no OIDC discovery/id_token, so it's handled separately from the above.
-  DISCORD_CLIENT_ID: z.string().optional(),
-  DISCORD_CLIENT_SECRET: z.string().optional(),
+  DISCORD_CLIENT_ID: optionalEnvVar(),
+  DISCORD_CLIENT_SECRET: optionalEnvVar(),
   // Defaults to `${APP_BASE_URL}/auth/discord/callback` - see OIDC_REDIRECT_URI above.
-  DISCORD_REDIRECT_URI: z.string().optional(),
+  DISCORD_REDIRECT_URI: optionalEnvVar(),
 
   // Steam - legacy OpenID 2.0 (not OAuth2/OIDC at all). The API key is only used afterward, to
   // fetch a username/avatar for the verified SteamID via the Steam Web API.
-  STEAM_API_KEY: z.string().optional(),
+  STEAM_API_KEY: optionalEnvVar(),
   // Defaults to `${APP_BASE_URL}/auth/steam/callback` - see OIDC_REDIRECT_URI above.
-  STEAM_REDIRECT_URI: z.string().optional(),
+  STEAM_REDIRECT_URI: optionalEnvVar(),
 
   // Optional at the env layer: these three can also be supplied via the admin Settings panel as a
   // DB-stored fallback (see server/src/services/configResolver.ts) when .env doesn't set them. An
   // env var, when present, always wins over the DB value.
-  GGDEALS_API_KEY: z.string().min(1).optional(),
+  GGDEALS_API_KEY: optionalEnvVar(z.string().min(1)),
   // gg.deals wants specific codes, not full ISO 3166-1 alpha-3 or every alpha-2 code (e.g. "uk"
   // 404s; it's "gb") - validated against the same closed list as PriceRegion (the per-request
   // region a user can pick) rather than left as a free-form string. Getting this wrong used to
@@ -74,13 +82,13 @@ const envSchema = z.object({
   // the whole instance had no price.
   GGDEALS_DEFAULT_REGION: z.enum(PRICE_REGIONS as [PriceRegion, ...PriceRegion[]]).default('us'),
 
-  IGDB_CLIENT_ID: z.string().min(1).optional(),
-  IGDB_CLIENT_SECRET: z.string().min(1).optional(),
+  IGDB_CLIENT_ID: optionalEnvVar(z.string().min(1)),
+  IGDB_CLIENT_SECRET: optionalEnvVar(z.string().min(1)),
 
   // ScanDex (issue #402) - barcode-to-IGDB lookup for scanning a physical game's box on Add Game.
   // Same env-or-admin-Settings-fallback pattern as the three above; unset just disables the
   // camera-scan option (search still works) rather than blocking the app from starting.
-  SCANDEX_API_KEY: z.string().min(1).optional(),
+  SCANDEX_API_KEY: optionalEnvVar(z.string().min(1)),
 
   // Comma-separated emails granted administrator access on login.
   ADMIN_EMAILS: z.string().optional().default(''),
