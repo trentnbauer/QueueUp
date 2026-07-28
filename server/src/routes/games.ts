@@ -1245,17 +1245,36 @@ export default async function gameRoutes(app: FastifyInstance) {
       const windowStartSeconds = Math.floor(windowStart.getTime() / 1000);
       const windowEndSeconds = Math.floor(windowEnd.getTime() / 1000);
 
-      const [user, doneGames, memberships] = await Promise.all([
+      const [user, doneGamesRaw, memberships] = await Promise.all([
         prisma.user.findUniqueOrThrow({ where: { id: userId } }),
-        // updatedAt is a proxy for "when this was marked Done" - there's no dedicated completedAt
-        // timestamp, and any edit bumps updatedAt, so this can overcount slightly (e.g. a stray
-        // status flip-flop) rather than undercount. Good enough for a rough yearly summary.
+        // Prefer PlayLog.finishedAt (set exactly on the done/dropped transition, see
+        // recordStatusTransition) over updatedAt as the completion date - updatedAt is bumped by
+        // ANY edit (a target price change, a manual price, ...), not just a status change, so a
+        // game Done years ago with one unrelated edit this year would otherwise wrongly land in
+        // this year's recap. Fetches every Done game rather than filtering by date in the query,
+        // since which date to check depends on whether a PlayLog row exists - filtered in memory
+        // below instead. A game can still lack any closed PlayLog row (completed before issue
+        // #361 added this table, or completed some other way that doesn't go through
+        // recordStatusTransition) - updatedAt remains the fallback for exactly those.
         prisma.game.findMany({
-          where: { addedBy: userId, status: 'done', updatedAt: { gte: windowStart } },
-          select: { id: true, title: true, genre: true, timeToBeatHours: true, steamAppid: true, roomId: true },
+          where: { addedBy: userId, status: 'done' },
+          select: {
+            id: true,
+            title: true,
+            genre: true,
+            timeToBeatHours: true,
+            steamAppid: true,
+            roomId: true,
+            updatedAt: true,
+            playLogs: { where: { finishedAt: { not: null } }, orderBy: { finishedAt: 'desc' }, take: 1, select: { finishedAt: true } },
+          },
         }),
         prisma.roomMember.findMany({ where: { userId }, select: { roomId: true } }),
       ]);
+
+      const doneGames: YearInReviewGameRow[] = doneGamesRaw
+        .map(({ playLogs, updatedAt, ...g }) => ({ ...g, completedAt: playLogs[0]?.finishedAt ?? updatedAt }))
+        .filter((g) => g.completedAt >= windowStart && g.completedAt <= windowEnd);
 
       const steamId64 = resolveSteamId64(user);
 
