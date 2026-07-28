@@ -127,6 +127,23 @@ describe('groupDlcAfterBaseGame (issue #338)', () => {
     const b = makeGame({ id: 'b' });
     expect(groupDlcAfterBaseGame([a, b]).map((g) => g.id)).toEqual(['a', 'b']);
   });
+
+  it('places a DLC-of-a-DLC (2-level chain) after its immediate parent, not dropped', () => {
+    const base = makeGame({ id: 'base' });
+    const expansion = makeGame({ id: 'expansion', baseGameId: 'base' });
+    const expansionOfExpansion = makeGame({ id: 'expansion2', baseGameId: 'expansion' });
+    expect(groupDlcAfterBaseGame([expansionOfExpansion, expansion, base]).map((g) => g.id)).toEqual([
+      'base',
+      'expansion',
+      'expansion2',
+    ]);
+  });
+
+  it('does not infinite-loop on a baseGameId cycle in bad data', () => {
+    const a = makeGame({ id: 'a', baseGameId: 'b' });
+    const b = makeGame({ id: 'b', baseGameId: 'a' });
+    expect(() => groupDlcAfterBaseGame([a, b])).not.toThrow();
+  });
 });
 
 describe('backlogGames', () => {
@@ -503,6 +520,21 @@ describe('isNeglectedBacklogGame', () => {
       votes: [{ user: { id: 'u2', displayName: 'Friend', avatarColor: '#000', avatarUrl: null, isAdmin: false }, value: 3, createdAt: JUST_OLD_ENOUGH }],
     });
     expect(isNeglectedBacklogGame(game, NOW)).toBe(true);
+  });
+
+  it('does not shrink the window when "now" falls on a day-of-month that does not exist N months earlier', () => {
+    // Plain `setMonth(getMonth() - 3)` on May 31 overflows past a 28-day February into March 3 -
+    // a 3-day-shorter window than intended. A game added Mar 1 (not yet 3 full months old as of
+    // May 31) must not be flagged neglected just because of that overflow.
+    const NOW_MONTH_END = new Date('2026-05-31T00:00:00.000Z').getTime();
+    const game = makeGame({ status: 'backlog', createdAt: '2026-03-01T00:00:00.000Z', updatedAt: '2026-03-01T00:00:00.000Z' });
+    expect(isNeglectedBacklogGame(game, NOW_MONTH_END)).toBe(false);
+  });
+
+  it('still flags a game added on/before the correctly-computed threshold for the same month-end "now"', () => {
+    const NOW_MONTH_END = new Date('2026-05-31T00:00:00.000Z').getTime();
+    const game = makeGame({ status: 'backlog', createdAt: '2026-02-28T00:00:00.000Z', updatedAt: '2026-02-28T00:00:00.000Z' });
+    expect(isNeglectedBacklogGame(game, NOW_MONTH_END)).toBe(true);
   });
 });
 
