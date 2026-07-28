@@ -3,7 +3,7 @@ import { prisma } from '../db/client.js';
 import { HttpError } from '../util/httpError.js';
 import { toUserDto } from '../util/dto.js';
 import { requireElevated, getRoom } from '../services/roomAccess.js';
-import { loadGameOr404, requireNotDuplicate, rethrowAsDuplicateGame, invalidateExistingIgdbIds } from '../services/gameAccess.js';
+import { loadGameOr404, requireNotDuplicate, rethrowAsDuplicateGame, invalidateExistingIgdbIds, deleteSuggestionIfExists } from '../services/gameAccess.js';
 import { resolveGameForCreation, defaultStatusForRelease, linkDlcToBaseGame } from '../services/gameIntake.js';
 import { isAddonCategory } from '../services/igdbClient.js';
 import { serializeGame } from '../services/gameSerializer.js';
@@ -82,7 +82,7 @@ export default async function gameSuggestionRoutes(app: FastifyInstance) {
         await requireNotDuplicate(roomId, suggestion.suggestedBy, suggestion.igdbId);
         resolved = await resolveGameForCreation(suggestion.igdbId, [room.platform]);
       } catch (err) {
-        await prisma.gameSuggestion.delete({ where: { id: suggestionId } });
+        await deleteSuggestionIfExists(suggestionId);
         await invalidateExistingIgdbIds(roomId, suggestion.suggestedBy);
         throw err;
       }
@@ -119,7 +119,7 @@ export default async function gameSuggestionRoutes(app: FastifyInstance) {
         await linkDlcToBaseGame(created.id, resolved.parentGameIgdbId, roomId, suggestion.suggestedBy, [room.platform]);
       }
 
-      await prisma.gameSuggestion.delete({ where: { id: suggestionId } });
+      await deleteSuggestionIfExists(suggestionId);
       await invalidateExistingIgdbIds(roomId, suggestion.suggestedBy);
 
       const game = await loadGameOr404(created.id);
@@ -148,7 +148,7 @@ export default async function gameSuggestionRoutes(app: FastifyInstance) {
       const suggestion = await prisma.gameSuggestion.findUnique({ where: { id: suggestionId } });
       if (!suggestion || suggestion.roomId !== roomId) throw new HttpError(404, 'Suggestion not found');
 
-      await prisma.gameSuggestion.delete({ where: { id: suggestionId } });
+      await deleteSuggestionIfExists(suggestionId);
       await invalidateExistingIgdbIds(roomId, suggestion.suggestedBy);
 
       reply.status(204);
