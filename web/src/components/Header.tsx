@@ -349,6 +349,7 @@ export function Header() {
         </button>
         <SpinPickerButton
           games={games}
+          roomId={activeRoom?.id}
           spinOwnershipMaxPrice={activeRoom?.spinOwnershipMaxPrice}
           spinWheelTheme={activeRoom?.spinWheelTheme}
           onSetSteamMatch={setSteamMatch}

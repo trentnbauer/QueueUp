@@ -62,6 +62,27 @@
   color: var(--qu-text);
 }
 
+.shakeArea {
+  /* `all: unset` strips the default <button> chrome (border/background/padding) so this reads as
+     the plain reel/wheel/card visualization it wraps, not a button - it's still a real <button>
+     underneath (not a div) so click-to-shake stays keyboard/Enter-Space accessible for free. */
+  all: unset;
+  display: block;
+  width: 100%;
+  cursor: pointer;
+}
+
+@keyframes spinWheelShake {
+  10%, 90% { transform: translateX(-1px); }
+  20%, 80% { transform: translateX(2px); }
+  30%, 50%, 70% { transform: translateX(-4px); }
+  40%, 60% { transform: translateX(4px); }
+}
+
+.shaking {
+  animation: spinWheelShake 0.4s;
+}
+
 .reelViewport {
   /* width and height are set inline (SpinWheelModal.tsx) - both depend on the current size tier
      (issue #293: 5 full-size tiles is wider than a phone viewport), so JS is the single source of

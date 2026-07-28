@@ -102,6 +102,20 @@ export interface Room {
  * (issue #362) - only created when the room's requireGameApproval is on and the suggester is a
  * plain Member. See GameSuggestion in schema.prisma for why this is a separate concept from Game
  * rather than a GameStatus value. */
+/** A room's shared, in-progress Spin the Wheel session (see RoomSpin in schema.prisma) - polled by
+ * every member currently viewing the room so the modal opens/updates for all of them together, not
+ * just whoever clicked "Pick a Game". `winner` and `theme` are picked once server-side per
+ * `shakeCount` so every member's client renders the identical outcome. `shakeCount` bumps on every
+ * reroll (the click-to-shake gesture, or "Spin again" post-reveal - the same operation) - a client
+ * (re)plays its own spin-then-reveal animation toward that outcome whenever it sees this change,
+ * same as it always animated toward its own local pick before this session existed. */
+export interface RoomSpinSession {
+  id: string;
+  theme: ConcreteSpinWheelTheme;
+  shakeCount: number;
+  winner: Game;
+}
+
 export interface GameSuggestion {
   id: string;
   roomId: string;

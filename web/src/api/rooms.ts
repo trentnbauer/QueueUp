@@ -9,6 +9,7 @@ import type {
   RoomMember,
   RoomMemberStats,
   RoomRole,
+  RoomSpinSession,
   UpdateRoomRequest,
   User,
 } from '@queueup/shared';
@@ -39,4 +40,14 @@ export const gameSuggestionsApi = {
   approve: (roomId: string, suggestionId: string) =>
     apiPost<{ game: Game }>(`/api/rooms/${roomId}/suggestions/${suggestionId}/approve`),
   decline: (roomId: string, suggestionId: string) => apiDelete(`/api/rooms/${roomId}/suggestions/${suggestionId}`),
+};
+
+/** A room's shared Spin the Wheel session (see RoomSpinSession) - `close` ends it for every member
+ * (used once a winner's actually committed to), never called just for dismissing the modal
+ * locally. */
+export const roomSpinApi = {
+  get: (roomId: string) => apiGet<{ spin: RoomSpinSession | null }>(`/api/rooms/${roomId}/spin`),
+  start: (roomId: string) => apiPost<{ spin: RoomSpinSession }>(`/api/rooms/${roomId}/spin/start`),
+  shake: (roomId: string) => apiPost<{ spin: RoomSpinSession }>(`/api/rooms/${roomId}/spin/shake`),
+  close: (roomId: string) => apiDelete(`/api/rooms/${roomId}/spin`),
 };
