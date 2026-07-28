@@ -471,6 +471,13 @@ export default async function gameRoutes(app: FastifyInstance) {
     if (ownedPlatforms !== undefined && roomId) {
       throw new HttpError(400, 'ownedPlatforms is only supported when adding to the Personal Shelf');
     }
+    // The client only ever pairs ownedPlatforms with an explicit status: 'backlog' (the Add Game
+    // modal's owned/platforms step) - enforced here too, not just by the client's own ternary, so
+    // a game can't end up simultaneously wishlisted and flagged owned (e.g. "you own this" showing
+    // for something that's still just on the wishlist) via a request that skips the normal UI.
+    if (ownedPlatforms !== undefined && ownedPlatforms.length > 0 && status !== 'backlog') {
+      throw new HttpError(400, 'ownedPlatforms is only supported when status is "backlog"');
+    }
 
     let room: Awaited<ReturnType<typeof getRoom>> | null = null;
     let membershipRole: string | null = null;
