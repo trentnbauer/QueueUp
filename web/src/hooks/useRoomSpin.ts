@@ -63,6 +63,11 @@ export function useRoomSpin(roomId: string | undefined) {
     onSuccess: setCache,
   });
 
+  const skipWait = useMutation({
+    mutationFn: () => roomSpinApi.skipWait(roomId!),
+    onSuccess: setCache,
+  });
+
   const close = useMutation({
     mutationFn: () => roomSpinApi.close(roomId!),
     onSuccess: () => setCache({ spin: null }),
@@ -73,6 +78,7 @@ export function useRoomSpin(roomId: string | undefined) {
     startSpin: () => start.mutateAsync(),
     nudgeSpin: (direction: 'left' | 'right') => nudge.mutateAsync(direction),
     restartSpin: () => restart.mutateAsync(),
+    skipWaitSpin: () => skipWait.mutateAsync(),
     closeSpin: () => close.mutateAsync(),
     starting: start.isPending,
     nudging: nudge.isPending,

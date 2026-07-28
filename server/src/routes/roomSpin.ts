@@ -22,6 +22,16 @@ import { gameInclude, serializeGames } from '../services/gameSerializer.js';
 // decide what to play" conversation, short enough not to survive to the next session.
 const SPIN_STALE_MS = 15 * 60 * 1000;
 
+// Issue #420: a brand-new spin's physics don't actually start moving until this long after
+// `start` - just delaying timestamp0 into the future, no new state needed (positionAt/velocityAt
+// already clamp elapsed time to 0 before it, so the reel simply hasn't begun yet - see
+// spinPhysics.ts). Gives everyone currently looking at the room a "get ready" beat before it's
+// already spinning, instead of whoever clicked "Pick a Game" seeing motion nobody else had a
+// chance to notice starting. Any member can skip the rest of it early (see /spin/skip-wait) -
+// "waiting for members" isn't gatekept to just the person who started it. Not applied to
+// "restart"/Spin again - everyone's already gathered by then.
+const SPIN_WAITING_ROOM_MS = 4000;
+
 function isStale(spin: { updatedAt: Date }): boolean {
   return Date.now() - spin.updatedAt.getTime() > SPIN_STALE_MS;
 }
@@ -85,8 +95,8 @@ async function toSpinDto(spin: RoomSpinRow, userId: string): Promise<RoomSpinSes
   };
 }
 
-function freshBase(now: number): SpinBase {
-  return { position0: 0, velocity0: SPIN_INITIAL_VELOCITY, timestamp0: now };
+function freshBase(now: number, startDelayMs = 0): SpinBase {
+  return { position0: 0, velocity0: SPIN_INITIAL_VELOCITY, timestamp0: now + startDelayMs };
 }
 
 /** The room's shared Spin the Wheel session (issue #356 follow-up: click the left/right side of
@@ -122,7 +132,7 @@ export default async function roomSpinRoutes(app: FastifyInstance) {
       await requireMembership(roomId, userId);
 
       const { stripGameIds, theme } = await buildStripAndTheme(roomId, userId);
-      const base = freshBase(Date.now());
+      const base = freshBase(Date.now(), SPIN_WAITING_ROOM_MS);
       try {
         const spin = await prisma.roomSpin.create({
           data: {
@@ -148,6 +158,44 @@ export default async function roomSpinRoutes(app: FastifyInstance) {
         }
         throw err;
       }
+    },
+  );
+
+  // Issue #420: collapses the remaining "waiting for members" delay (see SPIN_WAITING_ROOM_MS) so
+  // the spin starts moving right now instead - any member currently seeing the waiting room can
+  // call this, not just whoever clicked "Pick a Game". A no-op (just returns the current state)
+  // once the spin has already started moving, so a stray double-click or a race with the wait
+  // naturally expiring can't do anything unexpected.
+  app.post<{ Params: { roomId: string } }>(
+    '/api/rooms/:roomId/spin/skip-wait',
+    { config: { rateLimit: { max: 30, timeWindow: '1 minute' } } },
+    async (request) => {
+      const userId = await request.requireAuth();
+      const { roomId } = request.params;
+      await requireMembership(roomId, userId);
+
+      const spin = await prisma.roomSpin.findUnique({ where: { roomId } });
+      if (!spin || isStale(spin)) throw new HttpError(404, 'No active spin');
+
+      const now = Date.now();
+      if (now >= spin.timestamp0.getTime()) {
+        const dto = await toSpinDto(spin, userId);
+        if (!dto) throw new HttpError(404, 'No active spin');
+        return { spin: dto };
+      }
+
+      const base: SpinBase = { position0: spin.position0, velocity0: spin.velocity0, timestamp0: now };
+      const updated = await prisma.roomSpin.update({
+        where: { roomId },
+        data: {
+          timestamp0: new Date(now),
+          settlesAt: new Date(settlesAtOf(base)),
+          settledPosition: settledPositionOf(base),
+        },
+      });
+      const dto = await toSpinDto(updated, userId);
+      if (!dto) throw new HttpError(404, 'No active spin');
+      return { spin: dto };
     },
   );
 
