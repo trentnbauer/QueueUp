@@ -93,8 +93,17 @@ export const NEGLECTED_BACKLOG_MONTHS = 3;
 export function isNeglectedBacklogGame(game: Game, now: number = Date.now()): boolean {
   if (game.status !== 'backlog') return false;
 
+  // Plain `setMonth(getMonth() - N)` overflows into the following month whenever the current
+  // day-of-month doesn't exist N months earlier (e.g. May 31 minus 3 months rolls past a
+  // 28-day February into March 3, not Feb 28) - shifting the day to the 1st first avoids the
+  // month-length mismatch, then the original day is restored, clamped to the target month's
+  // actual last day so it can't overflow into the month after that instead.
   const threshold = new Date(now);
+  const originalDay = threshold.getDate();
+  threshold.setDate(1);
   threshold.setMonth(threshold.getMonth() - NEGLECTED_BACKLOG_MONTHS);
+  const lastDayOfTargetMonth = new Date(threshold.getFullYear(), threshold.getMonth() + 1, 0).getDate();
+  threshold.setDate(Math.min(originalDay, lastDayOfTargetMonth));
   const thresholdMs = threshold.getTime();
 
   if (new Date(game.createdAt).getTime() > thresholdMs) return false;
@@ -145,13 +154,24 @@ export function groupDlcAfterBaseGame(games: Game[]): Game[] {
     }
   }
 
+  // Recursive rather than one level deep - a DLC's base game can itself be another DLC (a
+  // 2+-level chain), and a non-recursive placement only ever re-attaches a root's *direct*
+  // children, silently dropping anything nested deeper than one level. `visited` guards against
+  // a cycle in bad data (nothing in the schema prevents baseGameId from forming a loop) turning
+  // this into unbounded recursion.
   const result: Game[] = [];
-  for (const g of games) {
-    if (isChild(g)) continue; // placed alongside its base game below instead
+  const visited = new Set<string>();
+  const appendWithChildren = (g: Game) => {
+    if (visited.has(g.id)) return;
+    visited.add(g.id);
     result.push(g);
     for (const child of childrenByBase.get(g.id) ?? []) {
-      result.push(child);
+      appendWithChildren(child);
     }
+  };
+  for (const g of games) {
+    if (isChild(g)) continue; // placed alongside its base game below instead
+    appendWithChildren(g);
   }
   return result;
 }
