@@ -1,20 +1,27 @@
 import { useState } from 'react';
 import type { Game, GameStatus, SpinWheelTheme } from '@queueup/shared';
-import { backlogGames, isFullyOwned } from './gameGridLogic';
+import { backlogGames, isFullyOwned, hasSteamMatch, underPriceCap, spinCandidates } from './gameGridLogic';
 import { SpinWheelModal } from './SpinWheelModal';
 import { SteamMatchPicker } from './SteamMatchPicker';
 import { useSteamAutoMatch } from '../hooks/useSteamAutoMatch';
+import { useRoomSpin } from '../hooks/useRoomSpin';
 import styles from './SpinPickerButton.module.css';
 
 interface SpinPickerButtonProps {
   games: Game[];
+  /** Set only in a room (undefined on the Personal Shelf) - switches this button from opening a
+   * fully-local, single-viewer spin to starting/joining the room's shared session (issue #356
+   * follow-up), which every member currently viewing the room sees and can shake, via
+   * useRoomSpin. */
+  roomId?: string;
   /** Room Settings dollar threshold (issue #339, replacing the old spinOnlyFullyOwned toggle) -
    * eligible games are ones every current member owns, plus ones with a live price at or under
    * this amount. Undefined on the Personal Shelf, which has no group of members to own anything
    * "fully" and so no threshold setting of its own. */
   spinOwnershipMaxPrice?: number;
   /** Room Settings choice of presentation (issue #297) - undefined on the Personal Shelf, which
-   * has no room/theme setting of its own; SpinWheelModal defaults to the slot machine either way. */
+   * has no room/theme setting of its own; SpinWheelModal defaults to the slot machine either way.
+   * Ignored in a room - the shared session's already-resolved theme takes over instead. */
   spinWheelTheme?: SpinWheelTheme;
   /** Lets a game get linked to a Steam store listing so its live price can be checked against
    * spinOwnershipMaxPrice (issue #339) - same mutation GameCard/GameDetailModal already use.
@@ -24,36 +31,31 @@ interface SpinPickerButtonProps {
   onStatusChange: (gameId: string, status: GameStatus) => void;
 }
 
-function hasSteamMatch(game: Game): boolean {
-  return game.price.source === 'live' || game.ggDealsUrl !== null;
-}
-
-/** undefined maxPrice means no threshold is set at all (Personal Shelf) - never satisfied by price. */
-function underPriceCap(game: Game, maxPrice: number | undefined): boolean {
-  if (maxPrice === undefined) return false;
-  return game.price.source === 'live' && game.price.amount !== null && Number(game.price.amount) <= maxPrice;
-}
-
 /** Header action button that picks tonight's game (issue #356) - previously a tile sitting in the
  * games grid itself, taking up a whole card's worth of space permanently just to be a launcher for
  * SpinWheelModal. Moved next to Add Game/Filters instead, freeing that space back up for the
  * actual games list. Opens the same SpinWheelModal reveal; this component only decides whether
  * there's anything to draw from and (issue #339) walks any price-undecided backlog games through
  * the silent Steam auto-match first, same as the tile it replaces. */
-export function SpinPickerButton({ games, spinOwnershipMaxPrice, spinWheelTheme, onSetSteamMatch, onStatusChange }: SpinPickerButtonProps) {
+export function SpinPickerButton({ games, roomId, spinOwnershipMaxPrice, spinWheelTheme, onSetSteamMatch, onStatusChange }: SpinPickerButtonProps) {
   const [open, setOpen] = useState(false);
+  // The shared spin's own id, once the *local* viewer has dismissed it (closed the modal without
+  // committing) - tracked so a still-active room spin (see RoomSpin) doesn't immediately reopen
+  // for just them on the next poll while it's still up for everyone else. Clicking the button
+  // again clears this, same as any other "look again" action. A new spin (different id, e.g.
+  // after "Let's play" ends this one and someone starts another) is unaffected.
+  const [dismissedSpinId, setDismissedSpinId] = useState<string | null>(null);
   const [resolving, setResolving] = useState(false);
   // Games we've already run the silent auto-match search for this visit - tracked so a game whose
   // search came back ambiguous/empty isn't silently re-searched every time the button is clicked;
   // it goes straight to the manual picker instead.
   const [checkedGameIds, setCheckedGameIds] = useState<Set<string>>(new Set());
   const { pickerGameId, attemptAutoMatch, closePicker } = useSteamAutoMatch();
+  const { spin, startSpin, shakeSpin, closeSpin, shaking } = useRoomSpin(roomId);
 
   const backlog = backlogGames(games);
   const gated = spinOwnershipMaxPrice !== undefined;
-  const candidates = gated
-    ? backlog.filter((g) => isFullyOwned(g) || underPriceCap(g, spinOwnershipMaxPrice))
-    : backlog;
+  const candidates = spinCandidates(games, spinOwnershipMaxPrice);
   const locked = candidates.length === 0;
 
   // Not fully owned, not already known to be cheap enough, and never matched to a Steam listing -
@@ -68,9 +70,18 @@ export function SpinPickerButton({ games, spinOwnershipMaxPrice, spinWheelTheme,
       : 'Add a backlog game to unlock'
     : `Picks from your ${candidates.length}-game backlog`;
 
+  function openSpin() {
+    if (roomId) {
+      setDismissedSpinId(null);
+      startSpin().catch(() => {});
+    } else {
+      setOpen(true);
+    }
+  }
+
   async function handleClick() {
     if (!onSetSteamMatch) {
-      setOpen(true);
+      openSpin();
       return;
     }
     setResolving(true);
@@ -91,13 +102,14 @@ export function SpinPickerButton({ games, spinOwnershipMaxPrice, spinWheelTheme,
           return;
         }
       }
-      setOpen(true);
+      openSpin();
     } finally {
       setResolving(false);
     }
   }
 
   const pickerGame = pickerGameId ? games.find((g) => g.id === pickerGameId) : undefined;
+  const showRoomSpin = roomId !== undefined && spin !== null && spin.id !== dismissedSpinId;
 
   return (
     <>
@@ -124,13 +136,34 @@ export function SpinPickerButton({ games, spinOwnershipMaxPrice, spinWheelTheme,
         />
       )}
 
-      {open && (
+      {!roomId && open && (
         <SpinWheelModal
           games={games}
           candidates={candidates}
           theme={spinWheelTheme}
           onStatusChange={onStatusChange}
           onClose={() => setOpen(false)}
+        />
+      )}
+
+      {showRoomSpin && spin && (
+        <SpinWheelModal
+          games={games}
+          candidates={candidates}
+          onStatusChange={onStatusChange}
+          onClose={() => setDismissedSpinId(spin.id)}
+          session={{
+            winner: spin.winner,
+            theme: spin.theme,
+            shakeCount: spin.shakeCount,
+            shaking,
+            onShake: () => {
+              shakeSpin().catch(() => {});
+            },
+            onCommit: () => {
+              closeSpin().catch(() => {});
+            },
+          }}
         />
       )}
     </>

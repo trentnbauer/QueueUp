@@ -112,6 +112,7 @@ model User {
   achievementCompletions AchievementCompletion[]
   linkedIdentities     LinkedIdentity[]
   tags                 Tag[]
+  roomSpinsStarted     RoomSpin[]
 
   @@map("users")
 }
@@ -217,8 +218,41 @@ model Room {
   games         Game[]
   notifications Notification[]
   suggestions   GameSuggestion[]
+  spin          RoomSpin?
 
   @@map("rooms")
+}
+
+/// A room's shared, in-progress Spin the Wheel session (see the "shake to reroll" feature) - one
+/// active spin per room (roomId is unique), visible to every member currently looking at the room,
+/// not just whoever clicked "Pick a Game". The winner and (if the room's theme setting is
+/// "random") the concrete theme are picked once here, server-side, specifically so every member's
+/// client renders the exact same outcome instead of each independently calling Math.random() and
+/// disagreeing (see spinPicker.ts in packages/shared, which both this route and the client's own
+/// local Personal Shelf spin share). `shakeCount` is bumped on every reroll (the click-to-shake
+/// gesture, or "Spin again" post-reveal - the same operation either way); a client replays its own
+/// spin-then-reveal animation from scratch whenever it sees `shakeCount` change, including a member
+/// who's only just opened the room mid-spin - reveal timing itself stays local/per-client, same as
+/// it already was before this session existed, just now animating toward a server-agreed winner
+/// instead of each client picking its own. No explicit "close" action deletes this row - closing
+/// the modal is a purely local/per-viewer thing (see spin.ts route) - only committing a winner
+/// ("Let's play") or going stale long enough to be treated as abandoned (see SPIN_STALE_MS) clears
+/// it.
+model RoomSpin {
+  id           String         @id @default(uuid())
+  roomId       String         @unique @map("room_id")
+  winnerGameId String         @map("winner_game_id")
+  theme        SpinWheelTheme
+  shakeCount   Int            @default(0) @map("shake_count")
+  startedBy    String         @map("started_by")
+  createdAt    DateTime       @default(now()) @map("created_at")
+  updatedAt    DateTime       @updatedAt @map("updated_at")
+
+  room       Room @relation(fields: [roomId], references: [id], onDelete: Cascade)
+  winnerGame Game @relation(fields: [winnerGameId], references: [id], onDelete: Cascade)
+  starter    User @relation(fields: [startedBy], references: [id], onDelete: Cascade)
+
+  @@map("room_spins")
 }
 
 model RoomMember {
@@ -346,6 +380,7 @@ model Game {
   baseGame Game?  @relation("GameBaseGame", fields: [baseGameId], references: [id], onDelete: SetNull)
   dlc      Game[] @relation("GameBaseGame")
   playLogs PlayLog[]
+  spinsWon RoomSpin[]
 
   @@index([roomId])
   @@index([addedBy], map: "idx_games_personal")
