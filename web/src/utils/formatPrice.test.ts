@@ -54,6 +54,11 @@ describe('formatPrice', () => {
     expect(formatPrice(game)).toBe('~$12.00');
   });
 
+  it('shows a free ($0.00) manual price rather than falling through to "—" (issue #425)', () => {
+    const game = makeGame({ manualPrice: '0.00' });
+    expect(formatPrice(game)).toBe('~$0.00');
+  });
+
   it('shows "—" when neither a live nor a manual price is available', () => {
     expect(formatPrice(makeGame())).toBe('—');
   });
