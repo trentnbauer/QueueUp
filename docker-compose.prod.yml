@@ -37,7 +37,7 @@ services:
       redis:
         condition: service_healthy
     environment:
-      #### PLEASE REVER TO NOTES ON THE EXAMPLE ENV ####
+      #### PLEASE REFER TO NOTES ON THE EXAMPLE ENV ####
       ## Front End Config
       APP_BASE_URL: ${APP_BASE_URL}
       SESSION_SECRET: ${SESSION_SECRET}
@@ -51,7 +51,7 @@ services:
       GOOGLE_CLIENT_SECRET: ${GOOGLE_CLIENT_SECRET}
       DISCORD_CLIENT_ID: ${DISCORD_CLIENT_ID}
       DISCORD_CLIENT_SECRET: ${DISCORD_CLIENT_SECRET}
-      STEAM_API_KEY: ${STEAM_API_KEY}        
+      STEAM_API_KEY: ${STEAM_API_KEY}
       ## Importing Data
       GGDEALS_API_KEY: ${GGDEALS_API_KEY}                      # Required for game price lookup
       GGDEALS_DEFAULT_REGION: ${GGDEALS_DEFAULT_REGION:-us}    # Default Pricing
