@@ -90,6 +90,22 @@ export async function requireNotAlreadySuggested(roomId: string, igdbId: number)
   }
 }
 
+/** Approve and decline both just delete the suggestion row - there's no update path - so two
+ * concurrent moderator actions on the same suggestion (a double-click, two moderators, an approve
+ * racing a decline) can both pass their own findUnique existence check before either delete lands.
+ * Whoever loses that race gets a Prisma P2025 ("record to delete does not exist") from the delete,
+ * not a real failure - the outcome they wanted (the row gone) already happened, possibly with the
+ * game already created by the winning approve. Tolerate that instead of letting it surface as a
+ * 500, same idea as rethrowAsDuplicateGame above for the P2002 case. */
+export async function deleteSuggestionIfExists(suggestionId: string): Promise<void> {
+  try {
+    await prisma.gameSuggestion.delete({ where: { id: suggestionId } });
+  } catch (err) {
+    if (err instanceof Prisma.PrismaClientKnownRequestError && err.code === 'P2025') return;
+    throw err;
+  }
+}
+
 const EXISTING_IGDB_IDS_CACHE_TTL_SECONDS = 30;
 
 function existingIgdbIdsCacheKey(roomId: string | null, userId: string): string {
