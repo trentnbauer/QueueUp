@@ -849,8 +849,20 @@ export default async function gameRoutes(app: FastifyInstance) {
 
       const where = { id: { in: gameIds }, roomId: null, addedBy: userId };
       const before = await prisma.game.findMany({ where, select: { id: true, status: true } });
-      await prisma.game.updateMany({ where, data: { status } });
-      await Promise.all(before.map((g) => recordStatusTransition(g.id, g.status, status)));
+      // Per-game conditional update (matched on the status just fetched), not one blind bulk
+      // updateMany - a concurrent request changing one of these games' status in between (another
+      // bulk call, or a single-game status change) used to mean recordStatusTransition logged a
+      // transition against a stale `previousStatus`, which could silently no-op (the stale-vs-new
+      // pair happening to match the guard at the top of that function) and leave a play-journal
+      // entry open/closed incorrectly. If this game's status no longer matches what was just
+      // fetched, this update simply doesn't apply and nothing is (re-)logged - the other request
+      // already recorded its own accurate transition.
+      await Promise.all(
+        before.map(async (g) => {
+          const result = await prisma.game.updateMany({ where: { id: g.id, status: g.status }, data: { status } });
+          if (result.count > 0) await recordStatusTransition(g.id, g.status, status);
+        }),
+      );
 
       const updated = await prisma.game.findMany({ where, include: gameInclude });
       return { games: await serializeGames(updated, userId, parseRegion(request.query.region)) };
