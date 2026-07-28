@@ -30,7 +30,7 @@ export interface SpinBase {
 export const SPIN_FRICTION = 0.9;
 
 /** Starting velocity for a freshly-started spin, before any nudge. */
-export const SPIN_INITIAL_VELOCITY = 14;
+export const SPIN_INITIAL_VELOCITY = 24;
 
 /** How much a single nudge adds to (right) or removes from (left) the *current* velocity at the
  * moment it's clicked - not the base velocity, so a nudge mid-decay still feels proportionate
