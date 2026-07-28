@@ -36,6 +36,16 @@ RUN npm run build -w packages/shared \
 # (react, react-dom, ...), which the server never imports - it only ever serves web's built dist.
 FROM deps AS prod-deps
 RUN npm ci --omit=dev --ignore-scripts --workspace=server --workspace=packages/shared --include-workspace-root
+# npm workspaces don't guarantee every dependency hoists to the shared root node_modules - a
+# peer-dependency conflict (e.g. two different fastify-plugin majors needed by different
+# @fastify/* packages) can leave a package nested under its own workspace's node_modules instead
+# (found the hard way: a @fastify/static bump needing fastify-plugin@^6 while the root stayed on
+# @^5 for other packages did exactly this - @fastify/static ended up under server/node_modules,
+# and the runtime stage below used to only ever copy the root node_modules, silently shipping an
+# image missing it entirely). mkdir -p guarantees these directories exist (even empty) so the
+# runtime stage's COPY of them below always has a valid source regardless of whether npm actually
+# needed to nest anything this particular time.
+RUN mkdir -p server/node_modules packages/shared/node_modules
 COPY --from=build /repo/node_modules/.prisma /repo/node_modules/.prisma
 
 FROM base AS runtime
@@ -48,6 +58,8 @@ ARG APP_SHA=unknown
 ENV APP_VERSION=$APP_VERSION
 ENV APP_SHA=$APP_SHA
 COPY --from=prod-deps /repo/node_modules ./node_modules
+COPY --from=prod-deps /repo/server/node_modules ./server/node_modules
+COPY --from=prod-deps /repo/packages/shared/node_modules ./packages/shared/node_modules
 COPY --from=build /repo/packages/shared/package.json packages/shared/package.json
 COPY --from=build /repo/packages/shared/dist packages/shared/dist
 COPY --from=build /repo/server/package.json server/package.json
