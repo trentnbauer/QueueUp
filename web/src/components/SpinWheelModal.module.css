@@ -62,25 +62,64 @@
   color: var(--qu-text);
 }
 
-.shakeArea {
+.nudgeArea {
   /* `all: unset` strips the default <button> chrome (border/background/padding) so this reads as
      the plain reel/wheel/card visualization it wraps, not a button - it's still a real <button>
-     underneath (not a div) so click-to-shake stays keyboard/Enter-Space accessible for free. */
+     underneath (not a div) so click-to-nudge stays keyboard/Enter-Space accessible for free.
+     `position: relative` anchors the left/right hint labels below. */
   all: unset;
+  position: relative;
   display: block;
   width: 100%;
   cursor: pointer;
 }
 
-@keyframes spinWheelShake {
-  10%, 90% { transform: translateX(-1px); }
-  20%, 80% { transform: translateX(2px); }
-  30%, 50%, 70% { transform: translateX(-4px); }
-  40%, 60% { transform: translateX(4px); }
+.nudgeArea:disabled {
+  cursor: default;
 }
 
-.shaking {
-  animation: spinWheelShake 0.4s;
+/* A left click slows the spin toward an earlier stop; a right click speeds it up toward a later
+   one (see spinPhysics.ts's applyNudge) - these hints sit over the two halves of the same
+   clickable area, not separate buttons, so where you click (not what you click) is what matters. */
+.nudgeHintLeft,
+.nudgeHintRight {
+  position: absolute;
+  top: 50%;
+  transform: translateY(-50%);
+  font: 600 11px system-ui, sans-serif;
+  color: var(--qu-muted);
+  opacity: 0;
+  transition: opacity 0.15s;
+  pointer-events: none;
+}
+
+.nudgeArea:not(:disabled):hover .nudgeHintLeft,
+.nudgeArea:not(:disabled):hover .nudgeHintRight {
+  opacity: 0.7;
+}
+
+.nudgeHintLeft {
+  left: 4px;
+}
+
+.nudgeHintRight {
+  right: 4px;
+}
+
+@keyframes spinWheelNudgeLeft {
+  30%, 70% { transform: translateX(-4px); }
+}
+
+@keyframes spinWheelNudgeRight {
+  30%, 70% { transform: translateX(4px); }
+}
+
+.nudgeLeft {
+  animation: spinWheelNudgeLeft 0.3s;
+}
+
+.nudgeRight {
+  animation: spinWheelNudgeRight 0.3s;
 }
 
 .reelViewport {
@@ -110,19 +149,20 @@
 }
 
 .reelStrip {
-  /* gap set inline - see .reelViewport's comment above. top is always 12px regardless of size
-     tier by construction (reelViewport's height is always tileWidth + 24). */
+  /* top is always 12px regardless of size tier by construction (reelViewport's height is always
+     tileWidth + 24). No CSS transition on transform (issue #356's follow-up) - `position` is
+     driven by the dispatcher's own animation-frame loop, already following an eased physics decay
+     curve, so re-setting this every frame is already smooth without a second, competing CSS-level
+     easing on top of it. Each .reelTile is absolutely positioned by its own explicit `left` (see
+     SlotMachineTheme.tsx) rather than laid out by flex/gap, since the window of rendered tiles
+     slides arbitrarily far along the (conceptually infinite, circular) strip. */
   position: absolute;
   top: 12px;
   left: 0;
-  display: flex;
-  transition-property: transform;
-  transition-timing-function: cubic-bezier(0.1, 0.7, 0.15, 1);
 }
 
 .reelTile {
-  /* width/height set inline - see .reelViewport's comment above. */
-  flex-shrink: 0;
+  /* width/height/left set inline - see .reelViewport's comment above. */
   border-radius: 10px;
   background-color: var(--qu-surface2);
   background-image: repeating-linear-gradient(135deg, var(--qu-stripe) 0px, var(--qu-stripe) 2px, transparent 2px, transparent 14px);

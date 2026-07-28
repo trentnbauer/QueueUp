@@ -1,7 +1,17 @@
-import { useEffect, useMemo, useState } from 'react';
-import type { ConcreteSpinWheelTheme, Game, GameStatus, SpinWheelTheme } from '@queueup/shared';
+import { useEffect, useState } from 'react';
+import type { ConcreteSpinWheelTheme, Game, GameStatus, RoomSpinSession, SpinWheelTheme } from '@queueup/shared';
+import {
+  buildSpinStrip,
+  positionAt,
+  velocityAt,
+  settledPositionOf,
+  settlesAtOf,
+  applyNudge,
+  candidateIndexAt,
+  SPIN_INITIAL_VELOCITY,
+  type SpinBase,
+} from '@queueup/shared';
 import { useModalA11y, closeOnBackdropMouseDown } from '../hooks/useModalA11y';
-import { pickSpinWinner, avoidedGenres, spinCandidateWeight } from './gameGridLogic';
 import { ConfettiBurst } from './ConfettiBurst';
 import { SpinThemeRenderer } from './spinThemes/SpinThemeRenderer';
 import { resolveConcreteTheme } from './spinThemes/resolveTheme';
@@ -9,18 +19,15 @@ import { formatPrice } from '../utils/formatPrice';
 import styles from './SpinWheelModal.module.css';
 
 /** A room's shared spin (see RoomSpinSession/useRoomSpin) - when set, this modal renders *that*
- * winner/theme instead of picking its own, and every reroll goes through `onShake` instead of a
- * purely local spinKey bump, so every member currently looking at the room sees the identical
- * winner/animation-restart, not just whoever's clicking. Absent on the Personal Shelf, which has
- * no room to share a spin with and keeps the original fully-local behavior below. */
+ * strip/physics instead of running its own, and every nudge/restart goes through these callbacks
+ * instead of purely local state, so every member currently looking at the room sees the identical
+ * spin/nudge/settle together, not just whoever's clicking. Absent on the Personal Shelf, which has
+ * no room to share a spin with and runs the exact same physics purely locally instead (see
+ * useLocalSpin below). */
 interface SharedSpinSession {
-  winner: Game;
-  theme: ConcreteSpinWheelTheme;
-  shakeCount: number;
-  onShake: () => void;
-  /** True while a shake request is in flight - ignored (not disabled) so a click still feels
-   * responsive, just not re-sent until the last one resolves. */
-  shaking: boolean;
+  spin: RoomSpinSession;
+  onNudge: (direction: 'left' | 'right') => void;
+  onRestart: () => void;
   /** Ends the session for every member - fired only once a winner's actually committed to
    * ("Let's play"), never for a plain dismiss (see RoomSpin's schema doc: closing the modal is
    * local/per-viewer only). */
@@ -42,64 +49,106 @@ interface SpinWheelModalProps {
   onClose: () => void;
 }
 
-/** The shared dispatcher every Spin the Wheel theme renders through (issue #297): picks the winner
- * once per spin, resolves "random" to a concrete theme, hands both to whichever theme component
- * is selected, and owns the reveal panel + confetti celebration so no theme has to reimplement
- * either. A theme's only job is its own pre-reveal animation, ending with a call to onRevealed.
+/** One "run" of the spin's physics: the candidate strip it travels along, the concrete theme
+ * rendering it, and the settle-time/position derived once from its current base (see
+ * spinPhysics.ts) - never recomputed lazily "whenever someone happens to check," so every re-read
+ * of the same base agrees on the same eventual winner. */
+interface SpinRun {
+  strip: Game[];
+  theme: ConcreteSpinWheelTheme;
+  base: SpinBase;
+  settlesAtMs: number;
+  settledPosition: number;
+}
+
+function runFrom(base: SpinBase, strip: Game[], theme: ConcreteSpinWheelTheme): SpinRun {
+  return { strip, theme, base, settlesAtMs: settlesAtOf(base), settledPosition: settledPositionOf(base) };
+}
+
+function freshLocalRun(games: Game[], candidates: Game[], theme: SpinWheelTheme): SpinRun {
+  const strip = buildSpinStrip(games, candidates);
+  const concreteTheme = resolveConcreteTheme(theme);
+  const base: SpinBase = { position0: 0, velocity0: SPIN_INITIAL_VELOCITY, timestamp0: Date.now() };
+  return runFrom(base, strip, concreteTheme);
+}
+
+function runFromSession(spin: RoomSpinSession): SpinRun {
+  const base: SpinBase = { position0: spin.position0, velocity0: spin.velocity0, timestamp0: new Date(spin.timestamp0).getTime() };
+  return { strip: spin.strip, theme: spin.theme, base, settlesAtMs: new Date(spin.settlesAt).getTime(), settledPosition: spin.settledPosition };
+}
+
+/** Ticks `now` forward every animation frame while it's before `settlesAtMs`, then stops (one
+ * final tick lands exactly on/after it). Restarts automatically whenever `settlesAtMs` itself
+ * changes - a nudge or a restart ("Spin again") always produces a new settlesAtMs, which is
+ * exactly the signal that a fresh decay curve needs animating toward. */
+function useLiveNow(settlesAtMs: number): number {
+  const [now, setNow] = useState(() => Date.now());
+  useEffect(() => {
+    let raf = 0;
+    const tick = () => {
+      const t = Date.now();
+      setNow(t);
+      if (t < settlesAtMs) raf = requestAnimationFrame(tick);
+    };
+    raf = requestAnimationFrame(tick);
+    return () => cancelAnimationFrame(raf);
+  }, [settlesAtMs]);
+  return now;
+}
+
+/** The shared dispatcher every Spin the Wheel theme renders through (issue #297): builds the
+ * weighted candidate strip, resolves "random" to a concrete theme, and owns the reveal panel +
+ * confetti celebration so no theme has to reimplement either. A theme's only job is rendering
+ * itself for a continuous `position` along that strip (see spinThemes/types.ts) - the dispatcher
+ * decides when it's settled, not the theme.
  *
- * Clicking anywhere on the theme animation "shakes" it and rerolls the winner (issue #356 follow-
- * up) - the same reroll "Spin again" already did post-reveal, just also reachable mid-animation
- * and (in a room, via `session`) shared with everyone watching instead of only the clicker. */
+ * Clicking the left half of the spin slows it down; the right half speeds it up (issue #356
+ * follow-up) - both call the exact same physics (see spinPhysics.ts's applyNudge) that decides
+ * where along the strip it eventually comes to rest, so *when* someone nudges, and which side,
+ * genuinely changes the outcome. In a room (`session`), every member's nudge goes through the same
+ * shared base, so everyone watching steers the same spin together. */
 export function SpinWheelModal({ games, candidates, theme = 'slot', session, onStatusChange, onClose }: SpinWheelModalProps) {
   const dialogRef = useModalA11y<HTMLDivElement>(onClose);
-  const [localSpinKey, setLocalSpinKey] = useState(0);
-  const [revealed, setRevealed] = useState(false);
-  // Plays a quick wiggle on click regardless of local/session mode, independent of how long the
-  // actual reroll (instant locally, a round-trip in a room) takes to land - the shake should feel
-  // immediate even before a new winner shows up.
-  const [shaking, setShaking] = useState(false);
+  // Personal Shelf only - a room's run comes entirely from `session.spin` instead (see `run` below).
+  const [localRun, setLocalRun] = useState<SpinRun>(() => freshLocalRun(games, candidates, theme));
+  // A quick wiggle on click, independent of how long the actual nudge (instant locally, a
+  // round-trip in a room) takes to land - the nudge should feel immediate even before the reel's
+  // course visibly changes.
+  const [nudgeFlash, setNudgeFlash] = useState<'left' | 'right' | null>(null);
 
-  const spinKey = session ? session.shakeCount : localSpinKey;
+  const run: SpinRun = session ? runFromSession(session.spin) : localRun;
+  const now = useLiveNow(run.settlesAtMs);
+  const settled = now >= run.settlesAtMs;
+  const position = settled ? run.settledPosition : positionAt(run.base, now);
+  const velocity = settled ? 0 : velocityAt(run.base, now);
+  const winner = settled && run.strip.length > 0 ? run.strip[candidateIndexAt(run.settledPosition, run.strip.length)] : null;
 
-  // Locked in once per spinKey ("Spin again"/shake) - re-derived only when it changes, not on
-  // every prop change, so a background refetch of `games` (e.g. someone else votes while this is
-  // open) can't silently swap the winner out from under an animation that's already playing or
-  // already revealed. The concrete theme (if "random") is re-rolled on that same cadence, so it
-  // stays a surprise across repeat spins rather than locking in on first open. Skipped entirely in
-  // session mode - the room's server-picked winner/theme are used as-is instead.
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  const localWinner = useMemo(() => (session ? null : pickSpinWinner(games, candidates)), [spinKey, session]);
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  const localConcreteTheme = useMemo(() => resolveConcreteTheme(theme), [theme, spinKey]);
-  const winner = session ? session.winner : localWinner;
-  const concreteTheme = session ? session.theme : localConcreteTheme;
-
-  // Same "locked in once per spinKey" reasoning as winner/concreteTheme above - the roulette theme
-  // (issue #355) sizes each slice by its actual odds, which should stay fixed for the duration of
-  // one spin's animation even if `games` changes underneath it (someone else voting, say). Uses
-  // the live `games`/`candidates` either way (both already agree across every member's client -
-  // see spinCandidates in packages/shared), not anything room-specific from `session`.
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  const candidateWeights = useMemo(() => {
-    const avoided = avoidedGenres(games);
-    return new Map(candidates.map((g) => [g.id, spinCandidateWeight(g, avoided)]));
-  }, [spinKey]);
-
-  useEffect(() => {
-    setRevealed(false);
-  }, [spinKey]);
-
-  function handleReroll() {
-    setShaking(true);
-    setTimeout(() => setShaking(false), 400);
+  function handleNudge(direction: 'left' | 'right') {
+    if (settled) return;
+    setNudgeFlash(direction);
+    setTimeout(() => setNudgeFlash(null), 300);
     if (session) {
-      if (!session.shaking) session.onShake();
+      session.onNudge(direction);
     } else {
-      setLocalSpinKey((k) => k + 1);
+      setLocalRun((prev) => runFrom(applyNudge(prev.base, Date.now(), direction), prev.strip, prev.theme));
     }
   }
 
-  if (!winner) return null;
+  function handleRestart() {
+    if (session) {
+      session.onRestart();
+    } else {
+      setLocalRun(freshLocalRun(games, candidates, theme));
+    }
+  }
+
+  function handleNudgeAreaClick(e: React.MouseEvent<HTMLButtonElement>) {
+    const rect = e.currentTarget.getBoundingClientRect();
+    const isRight = e.clientX - rect.left > rect.width / 2;
+    handleNudge(isRight ? 'right' : 'left');
+  }
+
+  if (run.strip.length === 0) return null;
 
   return (
     <div className={styles.backdrop} role="presentation" onMouseDown={closeOnBackdropMouseDown(onClose)}>
@@ -121,22 +170,29 @@ export function SpinWheelModal({ games, candidates, theme = 'slot', session, onS
 
         <button
           type="button"
-          className={`${styles.shakeArea} ${shaking ? styles.shaking : ''}`}
-          onClick={handleReroll}
-          title="Click to shake and reroll"
+          className={`${styles.nudgeArea} ${nudgeFlash ? styles[`nudge${nudgeFlash === 'left' ? 'Left' : 'Right'}`] : ''}`}
+          onClick={handleNudgeAreaClick}
+          disabled={settled}
+          title="Click the left side to slow it down, the right side to speed it up"
         >
+          <span className={styles.nudgeHintLeft} aria-hidden="true">
+            ◀ slow
+          </span>
           <SpinThemeRenderer
-            theme={concreteTheme}
-            candidates={candidates}
+            theme={run.theme}
+            strip={run.strip}
+            position={position}
+            velocity={velocity}
+            settled={settled}
             winner={winner}
-            candidateWeights={candidateWeights}
-            spinKey={spinKey}
-            onRevealed={() => setRevealed(true)}
           />
+          <span className={styles.nudgeHintRight} aria-hidden="true">
+            speed ▶
+          </span>
         </button>
 
         <div className={styles.revealZone} aria-live="polite">
-          {revealed && (
+          {settled && winner && (
             <>
               <div className={styles.revealLabel}>Tonight's pick</div>
               <div className={styles.revealTitle}>{winner.title}</div>
@@ -145,7 +201,7 @@ export function SpinWheelModal({ games, candidates, theme = 'slot', session, onS
               )}
               <div className={styles.revealPrice}>{formatPrice(winner)}</div>
               <div className={styles.actions}>
-                <button type="button" className={styles.spinAgainButton} onClick={handleReroll}>
+                <button type="button" className={styles.spinAgainButton} onClick={handleRestart}>
                   Spin again
                 </button>
                 <button
@@ -164,9 +220,10 @@ export function SpinWheelModal({ games, candidates, theme = 'slot', session, onS
           )}
         </div>
 
-        {/* Celebrates the reveal (issue #296) - keyed on spinKey so "Spin again"/a shake mounts a
-            fresh burst with its own random particles instead of reusing/replaying the previous one. */}
-        {revealed && <ConfettiBurst key={spinKey} />}
+        {/* Celebrates the reveal (issue #296) - keyed on settlesAtMs so "Spin again"/settling again
+            after a nudge mounts a fresh burst with its own random particles instead of reusing/
+            replaying the previous one. */}
+        {settled && winner && <ConfettiBurst key={run.settlesAtMs} />}
       </div>
     </div>
   );

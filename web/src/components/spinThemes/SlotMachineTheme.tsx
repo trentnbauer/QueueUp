@@ -1,5 +1,5 @@
-import { useEffect, useState } from 'react';
-import type { Game } from '@queueup/shared';
+import { useEffect, useRef, useState } from 'react';
+import { candidateIndexAt } from '@queueup/shared';
 import type { SpinThemeProps } from './types';
 import styles from '../SpinWheelModal.module.css';
 
@@ -28,13 +28,6 @@ function useReelSizing(): ReelSizing {
   return narrow ? NARROW_SIZING : WIDE_SIZING;
 }
 
-// The winner always lands at this index within the strip - everything before it is decorative
-// filler, weighted toward each candidate the same way the real pick was, so the reel's density
-// roughly mirrors the actual odds rather than looking like a coin flip regardless of votes.
-const REEL_LENGTH = 28;
-const WINNER_INDEX = REEL_LENGTH - 1;
-const SPIN_DURATION_MS = 3400;
-
 function tilePitch(sizing: ReelSizing): number {
   return sizing.tileWidth + sizing.tileGap;
 }
@@ -43,102 +36,62 @@ function centerOffset(sizing: ReelSizing): number {
   return (sizing.visibleTiles * tilePitch(sizing)) / 2 - sizing.tileWidth / 2;
 }
 
-function targetTranslateX(index: number, sizing: ReelSizing): number {
-  return centerOffset(sizing) - index * tilePitch(sizing);
-}
+// How many slots beyond what's strictly visible to render on each side of the marker - enough
+// that a fast nudge (a sudden jump in per-frame position delta) never outruns the rendered window
+// before the next render catches up.
+const WINDOW_PADDING = 4;
 
-// A few more decorative tiles after the winner, so the reel has something to show on the far side
-// of the marker once it stops instead of visibly running out of tiles right at the pick.
-function trailingFillerCount(sizing: ReelSizing): number {
-  return Math.ceil(sizing.visibleTiles / 2) + 1;
-}
-
-function buildReel(candidates: Game[], winner: Game, random: () => number, sizing: ReelSizing): Game[] {
-  const strip: Game[] = [];
-  for (let i = 0; i < WINNER_INDEX; i++) {
-    strip.push(candidates[Math.floor(random() * candidates.length)]);
-  }
-  strip.push(winner);
-  for (let i = 0; i < trailingFillerCount(sizing); i++) {
-    strip.push(candidates[Math.floor(random() * candidates.length)]);
-  }
-  return strip;
-}
-
-/** One tick per tile as the reel passes it, synthesized rather than loaded from an audio file -
- * a short square-wave click through the Web Audio API. Tick spacing follows the same deceleration
- * shape as the CSS reel (cubic-bezier(0.1, 0.7, 0.15, 1)): tiles fly by fast at the start (ticks
- * close together) and the reel slows toward the end (ticks spread further apart), matching the
- * visual motion instead of running opposite to it. */
-function playReelTicks(tileCount: number, durationMs: number) {
+/** One tick per tile as it crosses the center marker, synthesized rather than loaded from an audio
+ * file - a short square-wave click through the Web Audio API. Unlike the old fixed-duration spin
+ * (which pre-scheduled every tick's timing up front), this fires live as `position` actually
+ * crosses each integer slot boundary - so ticks speed up/slow down/pause in perfect sync with a
+ * nudge instead of following a canned schedule that could no longer match a spin whose length is
+ * now entirely up to the players. */
+function playTick() {
   const AudioContextClass = window.AudioContext ?? (window as unknown as { webkitAudioContext?: typeof AudioContext }).webkitAudioContext;
   if (!AudioContextClass) return;
-
   try {
     const ctx = new AudioContextClass();
     const now = ctx.currentTime;
-    for (let i = 1; i <= tileCount; i++) {
-      const eased = (i / tileCount) ** 3; // ease-in: ticks bunch up early (fast), spread out late (slow)
-      const when = now + (eased * durationMs) / 1000;
-      const osc = ctx.createOscillator();
-      const gain = ctx.createGain();
-      osc.type = 'square';
-      osc.frequency.setValueAtTime(900, when);
-      gain.gain.setValueAtTime(0.0001, when);
-      gain.gain.exponentialRampToValueAtTime(0.15, when + 0.004);
-      gain.gain.exponentialRampToValueAtTime(0.0001, when + 0.03);
-      osc.connect(gain);
-      gain.connect(ctx.destination);
-      osc.start(when);
-      osc.stop(when + 0.04);
-    }
-    setTimeout(() => ctx.close(), durationMs + 200);
+    const osc = ctx.createOscillator();
+    const gain = ctx.createGain();
+    osc.type = 'square';
+    osc.frequency.setValueAtTime(900, now);
+    gain.gain.setValueAtTime(0.0001, now);
+    gain.gain.exponentialRampToValueAtTime(0.15, now + 0.004);
+    gain.gain.exponentialRampToValueAtTime(0.0001, now + 0.03);
+    osc.connect(gain);
+    gain.connect(ctx.destination);
+    osc.start(now);
+    osc.stop(now + 0.04);
+    setTimeout(() => ctx.close(), 60);
   } catch {
     // Best-effort - autoplay restrictions or no Web Audio support shouldn't break the spin itself.
   }
 }
 
 /** The original Spin the Wheel presentation (issue #297 split this out of SpinWheelModal into its
- * own theme component): a horizontal reel of cover art scrolls past a fixed center marker and
- * decelerates onto the already-chosen winner. */
-export function SlotMachineTheme({ candidates, winner, spinKey, onRevealed }: SpinThemeProps) {
+ * own theme component; issue #356's follow-up reworked it from a fixed-duration animation toward a
+ * pre-decided winner into a live window over the dispatcher's continuous `position` - see
+ * spinThemes/types.ts): a horizontal reel of cover art scrolls past a fixed center marker,
+ * decelerating (or speeding back up, on a nudge) exactly as fast as `position` itself moves. */
+export function SlotMachineTheme({ strip, position, settled }: SpinThemeProps) {
   const sizing = useReelSizing();
-  const [translateX, setTranslateX] = useState(() => targetTranslateX(0, sizing));
-  // The reel always ends at the same pixel offset regardless of which game wins (it depends only
-  // on REEL_LENGTH, not the pick) - so on "Spin again" the reset-to-start jump must be instant
-  // (transitionDuration 0) or it would itself animate under the same transition, using up the
-  // visible motion before the forward spin (to that same old end position) even starts.
-  const [transitioning, setTransitioning] = useState(false);
-  const [reel, setReel] = useState<Game[]>(() => buildReel(candidates, winner, Math.random, sizing));
+  const halfWindow = Math.ceil(sizing.visibleTiles / 2) + WINDOW_PADDING;
+  const centerFloor = Math.floor(position);
+  const containerTranslateX = centerOffset(sizing) - position * tilePitch(sizing);
 
+  const lastTickedSlot = useRef(centerFloor);
   useEffect(() => {
-    const strip = buildReel(candidates, winner, Math.random, sizing);
-    setReel(strip);
-    setTransitioning(false);
-    setTranslateX(targetTranslateX(0, sizing));
+    if (settled) return;
+    if (centerFloor !== lastTickedSlot.current) {
+      lastTickedSlot.current = centerFloor;
+      playTick();
+    }
+  }, [centerFloor, settled]);
 
-    // A single rAF isn't a reliable paint boundary - the browser can coalesce the start position
-    // with the end position into one frame, skipping the transition entirely. Nesting two rAFs
-    // guarantees the start position has been painted (with transitions off) before the end
-    // position is set (with transitions back on).
-    let raf2 = 0;
-    const raf1 = requestAnimationFrame(() => {
-      raf2 = requestAnimationFrame(() => {
-        setTransitioning(true);
-        setTranslateX(targetTranslateX(WINNER_INDEX, sizing));
-        playReelTicks(WINNER_INDEX + 1, SPIN_DURATION_MS);
-      });
-    });
-    const timeout = setTimeout(onRevealed, SPIN_DURATION_MS);
-    return () => {
-      cancelAnimationFrame(raf1);
-      cancelAnimationFrame(raf2);
-      clearTimeout(timeout);
-    };
-    // Intentionally only re-runs on spinKey ("Spin again") - a viewport resize mid-spin (rare) is
-    // picked up on the next spin, not retroactively.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [spinKey]);
+  const offsets: number[] = [];
+  for (let j = -halfWindow; j <= halfWindow; j++) offsets.push(j);
 
   return (
     <div
@@ -146,27 +99,26 @@ export function SlotMachineTheme({ candidates, winner, spinKey, onRevealed }: Sp
       style={{ width: sizing.visibleTiles * tilePitch(sizing) - sizing.tileGap, height: sizing.tileWidth + 24 }}
     >
       <div className={styles.centerMarker} aria-hidden="true" style={{ width: sizing.tileWidth }} />
-      <div
-        className={styles.reelStrip}
-        style={{
-          transform: `translateX(${translateX}px)`,
-          transitionDuration: transitioning ? `${SPIN_DURATION_MS}ms` : '0ms',
-          gap: sizing.tileGap,
-        }}
-      >
-        {reel.map((game, i) => (
-          <div
-            key={i}
-            className={styles.reelTile}
-            style={{
-              width: sizing.tileWidth,
-              height: sizing.tileWidth,
-              ...(game.coverImageUrl ? { backgroundImage: `url(${game.coverImageUrl})` } : undefined),
-            }}
-          >
-            <div className={styles.reelTileLabel}>{game.title}</div>
-          </div>
-        ))}
+      <div className={styles.reelStrip} style={{ transform: `translateX(${containerTranslateX}px)` }}>
+        {offsets.map((j) => {
+          const slotIndex = centerFloor + j;
+          const game = strip[candidateIndexAt(slotIndex, strip.length)];
+          return (
+            <div
+              key={slotIndex}
+              className={styles.reelTile}
+              style={{
+                position: 'absolute',
+                left: slotIndex * tilePitch(sizing),
+                width: sizing.tileWidth,
+                height: sizing.tileWidth,
+                ...(game.coverImageUrl ? { backgroundImage: `url(${game.coverImageUrl})` } : undefined),
+              }}
+            >
+              <div className={styles.reelTileLabel}>{game.title}</div>
+            </div>
+          );
+        })}
       </div>
     </div>
   );

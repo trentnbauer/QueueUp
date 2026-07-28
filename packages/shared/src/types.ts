@@ -104,16 +104,25 @@ export interface Room {
  * rather than a GameStatus value. */
 /** A room's shared, in-progress Spin the Wheel session (see RoomSpin in schema.prisma) - polled by
  * every member currently viewing the room so the modal opens/updates for all of them together, not
- * just whoever clicked "Pick a Game". `winner` and `theme` are picked once server-side per
- * `shakeCount` so every member's client renders the identical outcome. `shakeCount` bumps on every
- * reroll (the click-to-shake gesture, or "Spin again" post-reveal - the same operation) - a client
- * (re)plays its own spin-then-reveal animation toward that outcome whenever it sees this change,
- * same as it always animated toward its own local pick before this session existed. */
+ * just whoever clicked "Pick a Game". Clicking the left/right side of the spin nudges its physics
+ * (see spinPhysics.ts in this package) rather than instantly rerolling - `position0`/`velocity0`/
+ * `timestamp0` are a snapshot every client derives the same live position from, and `settlesAt`/
+ * `settledPosition` are computed once (at start, or on each nudge) so every observer - regardless
+ * of when they happen to check - agrees on the same eventual winner:
+ * `strip[candidateIndexAt(settledPosition, strip.length)]`, once `Date.now() >= settlesAt`.
+ * `nudgeCount` bumps on every nudge, the same "did the base change" signal `shakeCount` used to be. */
 export interface RoomSpinSession {
   id: string;
   theme: ConcreteSpinWheelTheme;
-  shakeCount: number;
-  winner: Game;
+  strip: Game[];
+  position0: number;
+  velocity0: number;
+  /** ISO timestamp. */
+  timestamp0: string;
+  /** ISO timestamp. */
+  settlesAt: string;
+  settledPosition: number;
+  nudgeCount: number;
 }
 
 export interface GameSuggestion {

@@ -1,39 +1,16 @@
-import { useEffect, useState } from 'react';
-import type { Game } from '@queueup/shared';
+import { useEffect, useRef } from 'react';
+import { candidateIndexAt } from '@queueup/shared';
 import type { SpinThemeProps } from './types';
 import styles from './CardFlipTheme.module.css';
 
-const CARD_COUNT = 5;
-// How many full sweeps across the row before the highlight settles on the winner - more loops,
-// more suspense, same idea as the slot machine's reel length.
-const LOOPS = 3;
-const BASE_STEP_MS = 90;
-const MAX_EXTRA_STEP_MS = 260;
-const SETTLE_PAUSE_MS = 300;
-const FLIP_DURATION_MS = 550;
+// The row always shows this many cards, centered on the slot currently under the marker (offset
+// 0 below) - an odd count so there's a true center card, same idea as the slot machine's reel
+// having one tile dead-center under its marker.
+const OFFSETS = [-2, -1, 0, 1, 2];
 
-interface Deal {
-  cards: Game[];
-  winnerIndex: number;
-}
-
-function dealCards(candidates: Game[], winner: Game, random: () => number): Deal {
-  const winnerIndex = Math.floor(random() * CARD_COUNT);
-  const others = candidates.filter((g) => g.id !== winner.id);
-  const cards: Game[] = [];
-  for (let i = 0; i < CARD_COUNT; i++) {
-    if (i === winnerIndex || others.length === 0) {
-      cards.push(winner);
-    } else {
-      cards.push(others[Math.floor(random() * others.length)]);
-    }
-  }
-  return { cards, winnerIndex };
-}
-
-/** One soft blip per highlight step - synthesized rather than loaded from an audio file, same
- * reasoning as the other themes' sound effects, pitched differently so it doesn't feel identical
- * to the slot machine's reel ticks. */
+/** One soft blip per card the row settles onto as it slides past, synthesized rather than loaded
+ * from an audio file - same reasoning as the other themes' sound effects, pitched differently so
+ * it doesn't feel identical to the slot machine's reel ticks. */
 function playBlip() {
   const AudioContextClass = window.AudioContext ?? (window as unknown as { webkitAudioContext?: typeof AudioContext }).webkitAudioContext;
   if (!AudioContextClass) return;
@@ -58,60 +35,50 @@ function playBlip() {
   }
 }
 
-/** Face-down-cards-that-flip presentation (issue #299): a highlight sweeps across the row,
- * decelerating (more time between steps as it goes, same shape as the slot machine's reel) until
- * it settles on the winner's card, which then flips over to reveal it. The other cards never flip
- * - only the winner's identity is ever shown. */
-export function CardFlipTheme({ candidates, winner, spinKey, onRevealed }: SpinThemeProps) {
-  const [{ cards, winnerIndex }, setDeal] = useState<Deal>(() => dealCards(candidates, winner, Math.random));
-  const [highlightIndex, setHighlightIndex] = useState(0);
-  const [flipped, setFlipped] = useState(false);
+/** Face-down-cards-that-flip presentation (issue #299, reworked for issue #356's follow-up): a row
+ * of 5 cards slides along the strip (see spinPicker.ts's buildSpinStrip) exactly like the slot
+ * machine's reel, always centered on whichever slot `position` currently sits within - that center
+ * card is the one that flips to reveal itself once settled, so what's displayed and what's
+ * eventually declared the winner can never disagree (unlike the old design, which dealt an
+ * independent, fixed set of 5 cards up front and animated a highlight toward one of them - fine
+ * for a single pre-decided winner, but with no way to keep an arbitrary settle position lined up
+ * with one of five fixed slots once nudges could land anywhere). Only the center card ever flips -
+ * the others never reveal their identity, same as before. */
+export function CardFlipTheme({ strip, position, settled }: SpinThemeProps) {
+  const centerSlot = Math.round(position);
 
+  const lastTickedSlot = useRef(centerSlot);
   useEffect(() => {
-    const dealt = dealCards(candidates, winner, Math.random);
-    setDeal(dealt);
-    setHighlightIndex(0);
-    setFlipped(false);
-
-    const totalSteps = CARD_COUNT * LOOPS + dealt.winnerIndex + 1;
-    const timeouts: ReturnType<typeof setTimeout>[] = [];
-    let cumulativeMs = 0;
-    for (let i = 0; i < totalSteps; i++) {
-      const progress = i / (totalSteps - 1);
-      cumulativeMs += BASE_STEP_MS + progress ** 2 * MAX_EXTRA_STEP_MS;
-      const index = i % CARD_COUNT;
-      timeouts.push(
-        setTimeout(() => {
-          setHighlightIndex(index);
-          playBlip();
-        }, cumulativeMs),
-      );
+    if (settled) return;
+    if (centerSlot !== lastTickedSlot.current) {
+      lastTickedSlot.current = centerSlot;
+      playBlip();
     }
-    timeouts.push(setTimeout(() => setFlipped(true), cumulativeMs + SETTLE_PAUSE_MS));
-    timeouts.push(setTimeout(onRevealed, cumulativeMs + SETTLE_PAUSE_MS + FLIP_DURATION_MS));
-
-    return () => timeouts.forEach(clearTimeout);
-    // Intentionally only re-runs on spinKey ("Spin again") - same convention as the other themes.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [spinKey]);
+  }, [centerSlot, settled]);
 
   return (
     <div className={styles.row}>
-      {cards.map((game, i) => (
-        <div key={i} className={`${styles.cardSlot} ${i === highlightIndex && !flipped ? styles.highlighted : ''}`}>
-          <div className={`${styles.card} ${i === winnerIndex && flipped ? styles.flipped : ''}`}>
-            <div className={styles.cardBack} aria-hidden="true">
-              🎮
-            </div>
-            <div
-              className={styles.cardFront}
-              style={game.coverImageUrl ? { backgroundImage: `url(${game.coverImageUrl})` } : undefined}
-            >
-              {!game.coverImageUrl && <span className={styles.cardFrontLabel}>{game.title}</span>}
+      {OFFSETS.map((offset) => {
+        const slotIndex = centerSlot + offset;
+        const game = strip[candidateIndexAt(slotIndex, strip.length)];
+        const isCenter = offset === 0;
+        const flipped = isCenter && settled;
+        return (
+          <div key={slotIndex} className={`${styles.cardSlot} ${isCenter && !settled ? styles.highlighted : ''}`}>
+            <div className={`${styles.card} ${flipped ? styles.flipped : ''}`}>
+              <div className={styles.cardBack} aria-hidden="true">
+                🎮
+              </div>
+              <div
+                className={styles.cardFront}
+                style={game.coverImageUrl ? { backgroundImage: `url(${game.coverImageUrl})` } : undefined}
+              >
+                {!game.coverImageUrl && <span className={styles.cardFrontLabel}>{game.title}</span>}
+              </div>
             </div>
           </div>
-        </div>
-      ))}
+        );
+      })}
     </div>
   );
 }

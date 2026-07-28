@@ -1,11 +1,20 @@
 import type { FastifyInstance } from 'fastify';
 import { Prisma } from '@prisma/client';
-import type { ConcreteSpinWheelTheme, RoomSpinSession } from '@queueup/shared';
-import { spinCandidates, pickSpinWinner, resolveConcreteTheme } from '@queueup/shared';
+import type { ConcreteSpinWheelTheme, Game, RoomSpinSession } from '@queueup/shared';
+import {
+  spinCandidates,
+  buildSpinStrip,
+  resolveConcreteTheme,
+  SPIN_INITIAL_VELOCITY,
+  settlesAtOf,
+  settledPositionOf,
+  applyNudge,
+  type SpinBase,
+} from '@queueup/shared';
 import { prisma } from '../db/client.js';
 import { HttpError } from '../util/httpError.js';
 import { requireMembership, getRoom } from '../services/roomAccess.js';
-import { gameInclude, serializeGame, serializeGames } from '../services/gameSerializer.js';
+import { gameInclude, serializeGames } from '../services/gameSerializer.js';
 
 // A spin nobody's touched in this long is treated as abandoned (someone started it, then closed
 // their laptop) rather than wedging the room forever - the next GET after this window just
@@ -17,39 +26,74 @@ function isStale(spin: { updatedAt: Date }): boolean {
   return Date.now() - spin.updatedAt.getTime() > SPIN_STALE_MS;
 }
 
-/** Picks a fresh winner (and, if the room's theme setting is "random", a fresh concrete theme)
- * from the room's *current* backlog - re-read from the DB on every call (start, and every shake)
- * rather than trusting whatever the caller already had loaded, so a shake always draws from
- * up-to-date votes/ownership/prices instead of whatever was true whenever the spin first opened. */
-async function pickWinnerAndTheme(roomId: string, userId: string) {
+type RoomSpinRow = Awaited<ReturnType<typeof prisma.roomSpin.findUniqueOrThrow>>;
+
+/** Builds a fresh candidate strip (and, if the room's theme setting is "random," a fresh concrete
+ * theme) from the room's *current* backlog - re-read from the DB on every call (start and
+ * "restart"/Spin again both call this) rather than trusting anything the caller already had
+ * loaded, so a fresh spin always draws from up-to-date votes/ownership/prices. A nudge does NOT
+ * call this - it moves along the *existing* strip, it never rebuilds one (see RoomSpin's schema
+ * doc). */
+async function buildStripAndTheme(roomId: string, userId: string): Promise<{ stripGameIds: string[]; theme: ConcreteSpinWheelTheme }> {
   const room = await getRoom(roomId);
   const rows = await prisma.game.findMany({ where: { roomId, archivedAt: null }, include: gameInclude });
   const games = await serializeGames(rows, userId);
   const candidates = spinCandidates(games, room.spinOwnershipMaxPrice);
-  const winner = pickSpinWinner(games, candidates);
-  if (!winner) throw new HttpError(400, 'No backlog game is eligible for Spin the Wheel right now');
-  return { winnerGameId: winner.id, theme: resolveConcreteTheme(room.spinWheelTheme) };
+  const strip = buildSpinStrip(games, candidates, Math.random);
+  if (strip.length === 0) throw new HttpError(400, 'No backlog game is eligible for Spin the Wheel right now');
+  return { stripGameIds: strip.map((g) => g.id), theme: resolveConcreteTheme(room.spinWheelTheme) };
+}
+
+/** Fetches every game referenced by `stripGameIds` (deduped) and re-expands them back into strip
+ * order - a strip commonly repeats the same higher-weighted candidate many times over, so this is
+ * one query regardless of how "dense" any one candidate's slots are, not one per slot. Returns
+ * null if any strip game no longer exists (deleted mid-spin, e.g. someone removed it from the
+ * backlog while the room was actively spinning on it) - callers treat that the same as an
+ * expired spin, since there's no coherent strip left to point a position at. */
+async function hydrateStrip(stripGameIds: string[], userId: string): Promise<Game[] | null> {
+  const uniqueIds = [...new Set(stripGameIds)];
+  const rows = await prisma.game.findMany({ where: { id: { in: uniqueIds } }, include: gameInclude });
+  if (rows.length !== uniqueIds.length) return null;
+  const serialized = await serializeGames(rows, userId);
+  const byId = new Map(serialized.map((g) => [g.id, g]));
+  return stripGameIds.map((id) => {
+    const game = byId.get(id);
+    // Every id in stripGameIds came from `rows`/`serialized` above (uniqueIds is derived from the
+    // same array) - always found in practice, this just satisfies the type without a non-null
+    // assertion.
+    if (!game) throw new Error(`Strip game ${id} missing from hydrated set`);
+    return game;
+  });
 }
 
 // The DB column reuses the room's own SpinWheelTheme enum (which includes 'random'), but a
-// RoomSpin row is only ever written with resolveConcreteTheme's output (start/shake below) - this
-// narrows that back to the concrete-only type RoomSpinSession promises callers.
-async function toSpinDto(
-  spin: { id: string; winnerGameId: string; theme: string; shakeCount: number },
-  userId: string,
-): Promise<RoomSpinSession> {
-  const winnerRow = await prisma.game.findUniqueOrThrow({ where: { id: spin.winnerGameId }, include: gameInclude });
+// RoomSpin row is only ever written with resolveConcreteTheme's output - this narrows that back
+// to the concrete-only type RoomSpinSession promises callers.
+async function toSpinDto(spin: RoomSpinRow, userId: string): Promise<RoomSpinSession | null> {
+  const strip = await hydrateStrip(spin.stripGameIds, userId);
+  if (!strip) return null;
   return {
     id: spin.id,
     theme: spin.theme as ConcreteSpinWheelTheme,
-    shakeCount: spin.shakeCount,
-    winner: await serializeGame(winnerRow, userId),
+    strip,
+    position0: spin.position0,
+    velocity0: spin.velocity0,
+    timestamp0: spin.timestamp0.toISOString(),
+    settlesAt: spin.settlesAt.toISOString(),
+    settledPosition: spin.settledPosition,
+    nudgeCount: spin.nudgeCount,
   };
 }
 
-/** The room's shared Spin the Wheel session (issue #356 follow-up: "shake to reroll," visible to
+function freshBase(now: number): SpinBase {
+  return { position0: 0, velocity0: SPIN_INITIAL_VELOCITY, timestamp0: now };
+}
+
+/** The room's shared Spin the Wheel session (issue #356 follow-up: click the left/right side of
+ * the spin to slow it down/speed it up and change where it lands - "shake to nudge," visible to
  * every member currently viewing the room, not just whoever clicked "Pick a Game"). See RoomSpin
- * in schema.prisma for why the winner/theme are picked here rather than per-client. */
+ * in schema.prisma and spinPhysics.ts in packages/shared for why the strip/physics live here
+ * rather than per-client. */
 export default async function roomSpinRoutes(app: FastifyInstance) {
   app.get<{ Params: { roomId: string } }>('/api/rooms/:roomId/spin', async (request) => {
     const userId = await request.requireAuth();
@@ -61,7 +105,12 @@ export default async function roomSpinRoutes(app: FastifyInstance) {
       if (spin) await prisma.roomSpin.deleteMany({ where: { id: spin.id } });
       return { spin: null };
     }
-    return { spin: await toSpinDto(spin, userId) };
+    const dto = await toSpinDto(spin, userId);
+    if (!dto) {
+      await prisma.roomSpin.deleteMany({ where: { id: spin.id } });
+      return { spin: null };
+    }
+    return { spin: dto };
   });
 
   app.post<{ Params: { roomId: string } }>(
@@ -72,9 +121,22 @@ export default async function roomSpinRoutes(app: FastifyInstance) {
       const { roomId } = request.params;
       await requireMembership(roomId, userId);
 
-      const { winnerGameId, theme } = await pickWinnerAndTheme(roomId, userId);
+      const { stripGameIds, theme } = await buildStripAndTheme(roomId, userId);
+      const base = freshBase(Date.now());
       try {
-        const spin = await prisma.roomSpin.create({ data: { roomId, winnerGameId, theme, startedBy: userId } });
+        const spin = await prisma.roomSpin.create({
+          data: {
+            roomId,
+            theme,
+            stripGameIds,
+            position0: base.position0,
+            velocity0: base.velocity0,
+            timestamp0: new Date(base.timestamp0),
+            settlesAt: new Date(settlesAtOf(base)),
+            settledPosition: settledPositionOf(base),
+            startedBy: userId,
+          },
+        });
         reply.status(201);
         return { spin: await toSpinDto(spin, userId) };
       } catch (err) {
@@ -89,29 +151,73 @@ export default async function roomSpinRoutes(app: FastifyInstance) {
     },
   );
 
+  app.post<{ Params: { roomId: string }; Body: { direction: 'left' | 'right' } }>(
+    '/api/rooms/:roomId/spin/nudge',
+    // A real click-mashing session can rack up a lot of nudges quickly - well above the 30/min
+    // used for the occasional start/restart/close actions, but still bounded.
+    { config: { rateLimit: { max: 120, timeWindow: '1 minute' } } },
+    async (request) => {
+      const userId = await request.requireAuth();
+      const { roomId } = request.params;
+      const { direction } = request.body;
+      if (direction !== 'left' && direction !== 'right') throw new HttpError(400, 'direction must be "left" or "right"');
+      await requireMembership(roomId, userId);
+
+      const spin = await prisma.roomSpin.findUnique({ where: { roomId } });
+      if (!spin || isStale(spin)) throw new HttpError(404, 'No active spin to nudge');
+
+      const now = Date.now();
+      if (now >= spin.settlesAt.getTime()) throw new HttpError(409, 'This spin has already settled');
+
+      const currentBase: SpinBase = { position0: spin.position0, velocity0: spin.velocity0, timestamp0: spin.timestamp0.getTime() };
+      const nudged = applyNudge(currentBase, now, direction);
+      const updated = await prisma.roomSpin.update({
+        where: { roomId },
+        data: {
+          position0: nudged.position0,
+          velocity0: nudged.velocity0,
+          timestamp0: new Date(nudged.timestamp0),
+          settlesAt: new Date(settlesAtOf(nudged)),
+          settledPosition: settledPositionOf(nudged),
+          nudgeCount: { increment: 1 },
+        },
+      });
+      const dto = await toSpinDto(updated, userId);
+      if (!dto) throw new HttpError(404, 'No active spin to nudge');
+      return { spin: dto };
+    },
+  );
+
+  // "Spin again," post-settle - resets an *existing* row to a freshly-built strip and a fresh
+  // physics base, same as start but requires a row to already be there (a room with no spin at
+  // all should call start, not this).
   app.post<{ Params: { roomId: string } }>(
-    '/api/rooms/:roomId/spin/shake',
+    '/api/rooms/:roomId/spin/restart',
     { config: { rateLimit: { max: 30, timeWindow: '1 minute' } } },
     async (request) => {
       const userId = await request.requireAuth();
       const { roomId } = request.params;
       await requireMembership(roomId, userId);
 
-      const { winnerGameId, theme } = await pickWinnerAndTheme(roomId, userId);
-      try {
-        const spin = await prisma.roomSpin.update({
-          where: { roomId },
-          data: { winnerGameId, theme, shakeCount: { increment: 1 } },
-        });
-        return { spin: await toSpinDto(spin, userId) };
-      } catch (err) {
-        // The spin was already committed/expired out from under this shake (P2025) - nothing left
-        // to reroll; the caller's next GET will see it's gone and close its modal.
-        if (err instanceof Prisma.PrismaClientKnownRequestError && err.code === 'P2025') {
-          throw new HttpError(404, 'No active spin to shake');
-        }
-        throw err;
-      }
+      const existing = await prisma.roomSpin.findUnique({ where: { roomId } });
+      if (!existing) throw new HttpError(404, 'No spin to restart - start one first');
+
+      const { stripGameIds, theme } = await buildStripAndTheme(roomId, userId);
+      const base = freshBase(Date.now());
+      const spin = await prisma.roomSpin.update({
+        where: { roomId },
+        data: {
+          theme,
+          stripGameIds,
+          position0: base.position0,
+          velocity0: base.velocity0,
+          timestamp0: new Date(base.timestamp0),
+          settlesAt: new Date(settlesAtOf(base)),
+          settledPosition: settledPositionOf(base),
+          nudgeCount: 0,
+        },
+      });
+      return { spin: await toSpinDto(spin, userId) };
     },
   );
 

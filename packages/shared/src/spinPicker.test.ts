@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import type { Game } from './types.js';
-import { hasSteamMatch, underPriceCap, spinCandidates, resolveConcreteTheme } from './spinPicker.js';
+import { hasSteamMatch, underPriceCap, spinCandidates, resolveConcreteTheme, buildSpinStrip } from './spinPicker.js';
 
 function makeGame(overrides: Partial<Game> = {}): Game {
   return {
@@ -108,5 +108,39 @@ describe('resolveConcreteTheme', () => {
   it('resolves "random" deterministically from an injected random()', () => {
     expect(resolveConcreteTheme('random', () => 0)).toBe('slot');
     expect(resolveConcreteTheme('random', () => 0.99)).toBe('roulette');
+  });
+});
+
+describe('buildSpinStrip', () => {
+  it('is empty when there are no candidates', () => {
+    expect(buildSpinStrip([], [])).toEqual([]);
+  });
+
+  it('produces exactly `length` slots, every one drawn from the candidate pool', () => {
+    const a = makeGame({ id: 'a' });
+    const b = makeGame({ id: 'b' });
+    const strip = buildSpinStrip([a, b], [a, b], () => 0.5, 10);
+    expect(strip).toHaveLength(10);
+    expect(strip.every((g) => g.id === 'a' || g.id === 'b')).toBe(true);
+  });
+
+  it('repeats the only candidate to fill every slot when there is just one', () => {
+    const only = makeGame({ id: 'only' });
+    const strip = buildSpinStrip([only], [only], Math.random, 8);
+    expect(strip).toHaveLength(8);
+    expect(strip.every((g) => g.id === 'only')).toBe(true);
+  });
+
+  it('a higher-voted candidate occupies more of the strip (weighted density, not a single pick)', () => {
+    const popular = makeGame({ id: 'popular', voteScore: 25 });
+    const unvoted = makeGame({ id: 'unvoted', voteScore: 0 });
+    // Deterministic sequential random() sweeping 0..1 - stands in for a real distribution so the
+    // resulting mix reflects the weighting instead of one arbitrary draw.
+    let i = 0;
+    const N = 1000;
+    const sequential = () => i++ / N;
+    const strip = buildSpinStrip([popular, unvoted], [popular, unvoted], sequential, N);
+    const popularCount = strip.filter((g) => g.id === 'popular').length;
+    expect(popularCount).toBeGreaterThan(N / 2);
   });
 });
