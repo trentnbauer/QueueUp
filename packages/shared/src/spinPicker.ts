@@ -123,7 +123,7 @@ export function avoidedGenres(games: Game[]): Set<string> {
  * as long as its weight is positive. Falls back to a uniform pick when every weight is zero (or
  * the list is empty, when it returns null instead). `random` defaults to Math.random but is
  * injectable for deterministic tests. */
-function weightedPick<T>(items: T[], weight: (item: T) => number, random: () => number): T | null {
+export function weightedPick<T>(items: T[], weight: (item: T) => number, random: () => number): T | null {
   if (items.length === 0) return null;
   const totalWeight = items.reduce((sum, item) => sum + weight(item), 0);
   if (totalWeight <= 0) return items[Math.floor(random() * items.length)];
@@ -182,10 +182,28 @@ export function spinCandidateWeight(game: Game, avoided: Set<string>): number {
   );
 }
 
-/** Spin the Wheel's actual pick: weighted by vote score, boosted for differing from the genre of
- * the game most recently marked Done and every currently-Playing game's genre - so the wheel
- * nudges toward variety instead of just repeating whatever's in progress or just finished. */
-export function pickSpinWinner(games: Game[], candidates: Game[], random: () => number = Math.random): Game | null {
+// Long enough that even a heavily-nudged spin (see spinPhysics.ts's SPIN_MAX_VELOCITY) has real
+// candidates left to travel through rather than looping back over the same handful almost
+// immediately, short enough that a single-candidate room doesn't need an absurdly long array of
+// copies of itself.
+const SPIN_STRIP_LENGTH = 32;
+
+/** Builds the circular, weighted "strip" of candidates a spin's physics (see spinPhysics.ts)
+ * travels along - each of the `length` slots is an independent weighted draw (same odds as the
+ * old single-shot pickSpinWinner: vote score, genre-diversity boost, review score - see
+ * spinCandidateWeight), so a higher-weighted candidate simply occupies more of the strip and is
+ * proportionally more likely to be wherever the spin happens to come to rest, rather than being
+ * picked directly. Built once per spin (start, or "Spin again") and stored as-is (see
+ * RoomSpin.stripGameIds) - every nudge afterward moves *along* this same strip, it doesn't rebuild
+ * it. Falls back to a single-candidate strip (repeating the only option `length` times) rather
+ * than an empty strip when there's nothing to choose between. */
+export function buildSpinStrip(games: Game[], candidates: Game[], random: () => number = Math.random, length: number = SPIN_STRIP_LENGTH): Game[] {
+  if (candidates.length === 0) return [];
   const avoided = avoidedGenres(games);
-  return weightedPick(candidates, (g) => spinCandidateWeight(g, avoided), random);
+  const strip: Game[] = [];
+  for (let i = 0; i < length; i++) {
+    // weightedPick only returns null for an empty list, already excluded above.
+    strip.push(weightedPick(candidates, (g) => spinCandidateWeight(g, avoided), random)!);
+  }
+  return strip;
 }

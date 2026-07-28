@@ -18,7 +18,6 @@ export {
   avoidedGenres,
   reviewScoreMultiplier,
   spinCandidateWeight,
-  pickSpinWinner,
 } from '@queueup/shared';
 
 /** Sentinel meaning "no filter applied" for both the platform and genre pill filters. */

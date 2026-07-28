@@ -223,34 +223,61 @@ model Room {
   @@map("rooms")
 }
 
-/// A room's shared, in-progress Spin the Wheel session (see the "shake to reroll" feature) - one
-/// active spin per room (roomId is unique), visible to every member currently looking at the room,
-/// not just whoever clicked "Pick a Game". The winner and (if the room's theme setting is
-/// "random") the concrete theme are picked once here, server-side, specifically so every member's
-/// client renders the exact same outcome instead of each independently calling Math.random() and
-/// disagreeing (see spinPicker.ts in packages/shared, which both this route and the client's own
-/// local Personal Shelf spin share). `shakeCount` is bumped on every reroll (the click-to-shake
-/// gesture, or "Spin again" post-reveal - the same operation either way); a client replays its own
-/// spin-then-reveal animation from scratch whenever it sees `shakeCount` change, including a member
-/// who's only just opened the room mid-spin - reveal timing itself stays local/per-client, same as
-/// it already was before this session existed, just now animating toward a server-agreed winner
-/// instead of each client picking its own. No explicit "close" action deletes this row - closing
-/// the modal is a purely local/per-viewer thing (see spin.ts route) - only committing a winner
-/// ("Let's play") or going stale long enough to be treated as abandoned (see SPIN_STALE_MS) clears
-/// it.
+/// A room's shared, in-progress Spin the Wheel session (issue #356 follow-up: click the left side
+/// to slow it down, the right side to speed it up, and change where it lands) - one active spin
+/// per room (roomId is unique), visible to every member currently looking at the room, not just
+/// whoever clicked "Pick a Game". The candidate strip and (if the room's theme setting is
+/// "random") the concrete theme are picked once here, server-side, so every member's client
+/// travels the exact same strip instead of each independently calling Math.random() and
+/// disagreeing (see spinPicker.ts/spinPhysics.ts in packages/shared, which both this route and the
+/// client's own local Personal Shelf spin share). A nudge (left/right click) recomputes the
+/// current position/velocity from the existing base and stores a *new* base plus a freshly
+/// computed settlesAt/settledPosition (see roomSpin.ts) - every member's client derives the same
+/// live position and, once settled, the same winner from that one snapshot, no per-frame
+/// streaming required. No explicit "close" action deletes this row - closing the modal is a
+/// purely local/per-viewer thing (see roomSpin.ts) - only committing a winner ("Let's play") or
+/// going stale long enough to be treated as abandoned (see SPIN_STALE_MS) clears it.
 model RoomSpin {
-  id           String         @id @default(uuid())
-  roomId       String         @unique @map("room_id")
-  winnerGameId String         @map("winner_game_id")
-  theme        SpinWheelTheme
-  shakeCount   Int            @default(0) @map("shake_count")
-  startedBy    String         @map("started_by")
-  createdAt    DateTime       @default(now()) @map("created_at")
-  updatedAt    DateTime       @updatedAt @map("updated_at")
+  id     String         @id @default(uuid())
+  roomId String         @unique @map("room_id")
+  theme  SpinWheelTheme
+  /// The circular, weighted candidate strip a spin's physics (see spinPhysics.ts in
+  /// packages/shared) travels along - Game.id in strip order. Built once (start, or "Spin again")
+  /// and never rebuilt by a nudge; a nudge only moves position0/velocity0/timestamp0 further along
+  /// this same strip. Plain string array, not a relation - Postgres/Prisma can't express a
+  /// to-many FK from an array column. If a strip game is deleted mid-spin (rare - would require
+  /// someone removing a backlog game while a room is actively spinning on it), the spin can no
+  /// longer be resolved and is treated as expired/absent (see roomSpin.ts) rather than left
+  /// dangling on a stale reference.
+  stripGameIds String[] @map("strip_game_ids")
+  /// Position (in strip slots) at timestamp0 - see spinPhysics.ts's SpinBase. Together with
+  /// velocity0/timestamp0, this is the *entire* state of an in-progress spin: both the server and
+  /// every member's client derive the live position, and the eventual settle time/position, from
+  /// this one snapshot via a shared closed-form formula - nothing else needs to be persisted or
+  /// streamed per frame.
+  position0 Float @map("position0")
+  /// Velocity (strip slots/second) at timestamp0 - always >= 0 (see spinPhysics.ts). Reset to a
+  /// fresh (position0, velocity0, timestamp0) triple by every nudge, not adjusted in place, so a
+  /// nudge mid-decay is still simple exponential decay from a new reference point rather than a
+  /// sum of overlapping decay curves.
+  velocity0  Float    @map("velocity0")
+  timestamp0 DateTime @map("timestamp0")
+  /// Computed once, at start or on each nudge, from (position0, velocity0, timestamp0) via
+  /// spinPhysics.ts's settlesAtOf/settledPositionOf - deliberately *not* computed lazily whenever
+  /// something happens to check, since that would let two observers checking at different moments
+  /// disagree on where a still-decaying spin will land. Once now() >= settlesAt, the winner is a
+  /// pure read: stripGameIds[candidateIndexAt(settledPosition, stripGameIds.length)].
+  settlesAt       DateTime @map("settles_at")
+  settledPosition Float    @map("settled_position")
+  /// Bumped on every nudge - lets a client tell "did the base actually change" apart from a poll
+  /// just re-confirming the same state, the same role spinKey played before nudging existed.
+  nudgeCount Int      @default(0) @map("nudge_count")
+  startedBy  String   @map("started_by")
+  createdAt  DateTime @default(now()) @map("created_at")
+  updatedAt  DateTime @updatedAt @map("updated_at")
 
-  room       Room @relation(fields: [roomId], references: [id], onDelete: Cascade)
-  winnerGame Game @relation(fields: [winnerGameId], references: [id], onDelete: Cascade)
-  starter    User @relation(fields: [startedBy], references: [id], onDelete: Cascade)
+  room    Room @relation(fields: [roomId], references: [id], onDelete: Cascade)
+  starter User @relation(fields: [startedBy], references: [id], onDelete: Cascade)
 
   @@map("room_spins")
 }
@@ -380,7 +407,6 @@ model Game {
   baseGame Game?  @relation("GameBaseGame", fields: [baseGameId], references: [id], onDelete: SetNull)
   dlc      Game[] @relation("GameBaseGame")
   playLogs PlayLog[]
-  spinsWon RoomSpin[]
 
   @@index([roomId])
   @@index([addedBy], map: "idx_games_personal")

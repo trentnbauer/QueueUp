@@ -2,20 +2,33 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import type { RoomSpinSession } from '@queueup/shared';
 import { roomSpinApi } from '../api/rooms';
 
-// Fast enough that "shake" and a fellow member's start feel close to live, without a
-// websocket/SSE layer this still-small app doesn't otherwise need (same reasoning as
-// useNotifications' poll, just a much shorter interval - this drives a modal someone's actively
-// watching, not a badge count).
-const POLL_INTERVAL_MS = 2_500;
+// Polling, not a websocket/SSE layer this still-small app doesn't otherwise need (same reasoning
+// as useNotifications' poll) - but a live nudge fight needs to feel closer to real-time than a
+// badge count does, so the rate flexes with what's actually happening (see pollInterval below):
+// fast while a spin is in-flight and un-settled (every nudge, from any member, should reach
+// everyone else quickly), a slow baseline otherwise (still catches a fellow member starting a
+// fresh spin, just not urgently).
+const ACTIVE_POLL_MS = 700;
+const IDLE_POLL_MS = 3_000;
 
 function queryKey(roomId: string) {
   return ['room-spin', roomId];
 }
 
+function isSettled(spin: RoomSpinSession): boolean {
+  return Date.now() >= new Date(spin.settlesAt).getTime();
+}
+
+function pollInterval(spin: RoomSpinSession | null | undefined): number {
+  if (spin && !isSettled(spin)) return ACTIVE_POLL_MS;
+  return IDLE_POLL_MS;
+}
+
 /** A room's shared Spin the Wheel session (see RoomSpinSession) - polled while `roomId` is set so
- * every member currently viewing the room sees the same modal open/reroll/close together, not just
- * whoever clicked "Pick a Game". `undefined` on the Personal Shelf (no room to share a spin with);
- * that surface keeps its own fully-local spin instead of using this hook at all. */
+ * every member currently viewing the room sees the same modal open/nudge/settle/close together,
+ * not just whoever clicked "Pick a Game". `undefined` on the Personal Shelf (no room to share a
+ * spin with); that surface runs the exact same physics entirely client-side instead (see
+ * SpinWheelModal), with no server session at all. */
 export function useRoomSpin(roomId: string | undefined) {
   const queryClient = useQueryClient();
   const enabled = roomId !== undefined;
@@ -24,7 +37,7 @@ export function useRoomSpin(roomId: string | undefined) {
     queryKey: queryKey(roomId ?? ''),
     queryFn: () => roomSpinApi.get(roomId!),
     enabled,
-    refetchInterval: POLL_INTERVAL_MS,
+    refetchInterval: (q) => pollInterval(q.state.data?.spin),
   });
 
   const setCache = (data: { spin: RoomSpinSession | null }) => {
@@ -36,13 +49,18 @@ export function useRoomSpin(roomId: string | undefined) {
     onSuccess: setCache,
   });
 
-  const shake = useMutation({
-    mutationFn: () => roomSpinApi.shake(roomId!),
+  const nudge = useMutation({
+    mutationFn: (direction: 'left' | 'right') => roomSpinApi.nudge(roomId!, direction),
     onSuccess: setCache,
-    // Someone else already committed/expired the spin out from under this shake - the next poll
-    // will see it's gone and the modal will close on its own; nothing to reconcile here beyond
-    // not leaving stale cached data behind.
+    // Someone else already committed/expired/settled the spin out from under this nudge - the
+    // next poll will see the real state and the modal will react on its own; nothing to reconcile
+    // here beyond not leaving stale cached data behind.
     onError: () => roomId && queryClient.invalidateQueries({ queryKey: queryKey(roomId) }),
+  });
+
+  const restart = useMutation({
+    mutationFn: () => roomSpinApi.restart(roomId!),
+    onSuccess: setCache,
   });
 
   const close = useMutation({
@@ -53,9 +71,10 @@ export function useRoomSpin(roomId: string | undefined) {
   return {
     spin: query.data?.spin ?? null,
     startSpin: () => start.mutateAsync(),
-    shakeSpin: () => shake.mutateAsync(),
+    nudgeSpin: (direction: 'left' | 'right') => nudge.mutateAsync(direction),
+    restartSpin: () => restart.mutateAsync(),
     closeSpin: () => close.mutateAsync(),
     starting: start.isPending,
-    shaking: shake.isPending,
+    nudging: nudge.isPending,
   };
 }
