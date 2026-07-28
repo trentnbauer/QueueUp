@@ -310,7 +310,7 @@ export function GameDetailModal({
                     <input
                       type="number"
                       step="0.01"
-                      min="0.01"
+                      min="0"
                       autoFocus
                       className={cardStyles.targetPriceInput}
                       value={manualPriceDraft}

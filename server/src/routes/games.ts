@@ -1127,8 +1127,10 @@ export default async function gameRoutes(app: FastifyInstance) {
       let normalized: string | null = null;
       if (manualPrice != null) {
         const parsed = Number(manualPrice);
-        if (!Number.isFinite(parsed) || parsed <= 0) {
-          throw new HttpError(400, 'Manual price must be a positive number');
+        // 0 is allowed (issue #425) - a free-to-play game has a real price of $0, not "no price
+        // data"; only negative/non-numeric input is actually invalid here.
+        if (!Number.isFinite(parsed) || parsed < 0) {
+          throw new HttpError(400, 'Manual price must be zero or a positive number');
         }
         normalized = parsed.toFixed(2);
       }
