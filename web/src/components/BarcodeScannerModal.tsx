@@ -26,6 +26,16 @@ export function BarcodeScannerModal({ onScanned, onClose }: BarcodeScannerModalP
   // the camera actually shuts off.
   const hasScannedRef = useRef(false);
   const dialogRef = useModalA11y<HTMLDivElement>(onClose);
+  // `onScanned` is a plain inline function on AddGameModal's side (a fresh reference every render,
+  // not memoized) - reading it through a ref rather than the effect's own closure means an
+  // unrelated parent re-render (e.g. AddGameModal's "Added ✓" banner timing out) can't restart
+  // this effect and stop/recreate the whole Html5Qrcode instance mid-scan, which previously could
+  // silently drop a scan decoded in the narrow window between the old instance stopping and the
+  // new one starting.
+  const onScannedRef = useRef(onScanned);
+  useEffect(() => {
+    onScannedRef.current = onScanned;
+  }, [onScanned]);
 
   useEffect(() => {
     let cancelled = false;
@@ -46,7 +56,7 @@ export function BarcodeScannerModal({ onScanned, onClose }: BarcodeScannerModalP
         (decodedText) => {
           if (cancelled || hasScannedRef.current) return;
           hasScannedRef.current = true;
-          onScanned(decodedText);
+          onScannedRef.current(decodedText);
         },
         () => {
           // Fires continuously while no barcode is in view - expected, not an error worth surfacing.
@@ -74,7 +84,11 @@ export function BarcodeScannerModal({ onScanned, onClose }: BarcodeScannerModalP
         .then(() => scanner.clear())
         .catch(() => {});
     };
-  }, [onScanned]);
+    // Deliberately empty - this should start the camera exactly once per mount and never restart
+    // on a re-render; onScanned's freshness is handled via onScannedRef above instead of being a
+    // dependency here (see that ref's own comment for why).
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   return (
     <div className={modalStyles.backdrop} role="presentation" onMouseDown={closeOnBackdropMouseDown(onClose)}>
