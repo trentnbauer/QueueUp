@@ -81,9 +81,16 @@ export interface GameOwnershipInfo {
  * tracking - see the GameOwnership model doc), so owning a title on one platform doesn't silently
  * mark it owned in a room for a different one. On the Personal Shelf there's no single strict
  * platform to compare against (Game.platform there is a free-text IGDB/Steam label, not a
- * RoomPlatform), so `youOwn` there stays a simple "is there any claim at all," same as before this
- * platform-scoping existed. `ownership`/`wishlist` stay null on the Personal Shelf - there's no
- * group to count there either. */
+ * RoomPlatform), so `youOwn` there stays a simple "is there any claim at all" - EXCEPT that a
+ * Personal Shelf entry's own `status` is a first-person claim from that same viewer ("wishlist"
+ * means *this exact person* is saying "I don't have this yet" - see the GameStatus enum doc), so
+ * it overrides a stale/cross-context GameOwnership row (issue #419): re-adding a title after
+ * removing an owned copy, marking a *room* copy owned on some platform, or any other path that
+ * writes a claim for the same igdbId shouldn't make an explicit "I want this" wishlist entry
+ * contradict itself by also showing "Owned". A room game's `youOwn` isn't gated the same way -
+ * there, `status` describes the room's shared copy, not a personal claim from whoever's currently
+ * looking at it, so it says nothing about whether *this viewer* owns the title. `ownership`/
+ * `wishlist` stay null on the Personal Shelf - there's no group to count there either. */
 export async function getOwnershipInfo(games: GameWithRelations[], currentUserId: string): Promise<Map<string, GameOwnershipInfo>> {
   const result = new Map<string, GameOwnershipInfo>();
   if (games.length === 0) return result;
@@ -147,7 +154,7 @@ export async function getOwnershipInfo(games: GameWithRelations[], currentUserId
       const wishlisted = memberIds.filter((id) => wishlisters.has(id)).length;
       result.set(game.id, { youOwn, ownership: { owned, total: memberIds.length }, wishlist: { wishlisted, total: memberIds.length } });
     } else {
-      const youOwn = ownershipByIgdbId.get(game.igdbId)?.has(currentUserId) ?? false;
+      const youOwn = game.status !== 'wishlist' && (ownershipByIgdbId.get(game.igdbId)?.has(currentUserId) ?? false);
       result.set(game.id, { youOwn, ownership: null, wishlist: null });
     }
   }
