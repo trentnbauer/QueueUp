@@ -117,24 +117,41 @@
   opacity: 0.8;
 }
 
-/* Playnite section's numbered setup instructions - unlike Steam, QueueUp can't drive anything on
-   the Playnite side itself, so the install/connect/push steps have to be spelled out rather than
-   collapsed into one button. */
-.stepList {
+/* Playnite section's step-by-step wizard (issue #469) - unlike Steam, QueueUp can't drive anything
+   on the Playnite side itself, so the install/connect/push steps have to be spelled out one at a
+   time rather than collapsed into one button. */
+.wizardHeader {
   display: flex;
-  flex-direction: column;
+  align-items: baseline;
+  justify-content: space-between;
   gap: 8px;
+}
+
+.wizardStepCount {
+  font-size: 11.5px;
+  color: var(--qu-muted);
+  white-space: nowrap;
+}
+
+.wizardBody {
   margin: 0;
-  padding-left: 20px;
   font-size: 12.5px;
+  line-height: 1.5;
   color: var(--qu-text);
 }
 
-.stepList code {
+.wizardBody code {
   background: var(--qu-surface2);
   border-radius: 4px;
   padding: 1px 4px;
   font-size: 11.5px;
+}
+
+.wizardNav {
+  display: flex;
+  justify-content: space-between;
+  gap: 8px;
+  margin-top: 4px;
 }
 
 /* Second-and-later sections in the modal (currently just Playnite) get a divider + top margin -
