@@ -83,10 +83,24 @@ export function GameDetailModal({
 
   // Every other game in this room, alphabetical for easy scanning in the dropdown. Only shown at
   // all for a room game with roomGames actually passed in - see onSetPrerequisite's doc comment.
-  const otherRoomGames = useMemo(
-    () => (roomGames ?? []).filter((g) => g.id !== game.id).sort((a, b) => a.title.localeCompare(b.title)),
-    [roomGames, game.id],
-  );
+  // Also excludes any game whose own "play after" chain already loops back to this game (issue
+  // #432) - picking one of those as a prerequisite would create a cycle the server would reject.
+  const otherRoomGames = useMemo(() => {
+    const byId = new Map((roomGames ?? []).map((g) => [g.id, g]));
+    const wouldCycle = (candidateId: string) => {
+      const visited = new Set<string>([game.id]);
+      let cursor: string | null = candidateId;
+      while (cursor !== null) {
+        if (visited.has(cursor)) return true;
+        visited.add(cursor);
+        cursor = byId.get(cursor)?.prerequisiteGameId ?? null;
+      }
+      return false;
+    };
+    return (roomGames ?? [])
+      .filter((g) => g.id !== game.id && !wouldCycle(g.id))
+      .sort((a, b) => a.title.localeCompare(b.title));
+  }, [roomGames, game.id]);
   // Falls back to the closest-released earlier same-collection game already in the room (e.g.
   // Borderlands 2 -> Borderlands 1) when nothing's been explicitly set yet - purely a display-time
   // suggestion, not persisted until the user actually picks something in the dropdown (even if
