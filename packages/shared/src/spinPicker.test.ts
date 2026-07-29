@@ -70,8 +70,22 @@ describe('underPriceCap', () => {
     expect(underPriceCap(game, 15)).toBe(false);
   });
 
-  it('is false without a live price, regardless of cap', () => {
+  it('is false without a live price or manual price, regardless of cap', () => {
     expect(underPriceCap(makeGame({ status: 'backlog' }), 15)).toBe(false);
+  });
+
+  it('falls back to the manual price when there is no live price (issue #443)', () => {
+    expect(underPriceCap(makeGame({ manualPrice: '0' }), 15)).toBe(true);
+    expect(underPriceCap(makeGame({ manualPrice: '10' }), 15)).toBe(true);
+    expect(underPriceCap(makeGame({ manualPrice: '20' }), 15)).toBe(false);
+  });
+
+  it('prefers the live price over the manual price when both are set', () => {
+    const game = makeGame({
+      price: { amount: '20', currency: 'USD', source: 'live', historicalLow: null, lastRefreshedAt: null },
+      manualPrice: '5',
+    });
+    expect(underPriceCap(game, 15)).toBe(false);
   });
 });
 
@@ -97,6 +111,16 @@ describe('spinCandidates', () => {
     });
     const games = [owned, cheap, tooExpensive];
     expect(spinCandidates(games, 15).map((g) => g.id).sort()).toEqual(['cheap', 'owned']);
+  });
+
+  it('includes a not-fully-owned free game whose only price is a manual $0 entry (issue #443)', () => {
+    const free = makeGame({
+      id: 'free',
+      status: 'backlog',
+      ownership: { owned: 0, total: 2 },
+      manualPrice: '0',
+    });
+    expect(spinCandidates([free], 15).map((g) => g.id)).toEqual(['free']);
   });
 });
 
