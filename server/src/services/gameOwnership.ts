@@ -37,6 +37,17 @@ export async function toggleOwnershipForPlatform(userId: string, igdbId: number,
   }
 }
 
+/** Adds platforms to whatever a user's existing claim already covers, without removing any
+ * platform already recorded - used by a Playnite library sync (unlike setOwnershipPlatforms' full
+ * replace), since a sync may run repeatedly and each run only reports whichever platforms Playnite
+ * currently sees, not the full history of every platform ever synced. Re-syncing a title that's no
+ * longer installed on some platform shouldn't silently un-claim it. */
+export async function unionOwnershipPlatforms(userId: string, igdbId: number, platforms: RoomPlatform[]): Promise<void> {
+  if (platforms.length === 0) return;
+  const existing = await prisma.gameOwnership.findUnique({ where: { userId_igdbId: { userId, igdbId } } });
+  await setOwnershipPlatforms(userId, igdbId, [...(existing?.platforms ?? []), ...platforms]);
+}
+
 /** Bulk-marks igdbIds as owned on PC - used by the Steam library import, since a successful
  * import IS an ownership claim (issue #176), and Steam ownership only ever implies PC. Existing
  * claims are left alone (skipDuplicates) - a re-import doesn't merge in `pc` alongside whatever
