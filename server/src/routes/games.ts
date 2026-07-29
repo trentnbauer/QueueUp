@@ -419,30 +419,57 @@ export default async function gameRoutes(app: FastifyInstance) {
   // global 200/min default.
   const gamesListRateLimit = { config: { rateLimit: { max: 30, timeWindow: '1 minute' } } };
 
+  const PLAYING_STATUSES: Prisma.GameWhereInput['status'] = { in: ['playing', 'play_next'] };
+
+  // #459: a plain createdAt-desc top-MAX_GAMES_PER_LIST query can push a user's actual in-progress
+  // games out of the returned set entirely once enough other games exist more recently - a bulk
+  // Playnite import (QueueUpPlayniteExtension#7) is the case that surfaced this, bulk-creating
+  // hundreds of freshly-added backlog rows that flood the top of the recency window. PlayingStrip
+  // then filters an array that no longer contains the real Playing/Play Next games. Playing/Play
+  // Next is inherently a small subset of anyone's games in practice (same reasoning as
+  // CROSS_ROOM_PLAYING_LIMIT below), so fetching it separately and merging is cheap, and guarantees
+  // it's never a casualty of how much else was recently added.
+  async function findGamesWithPlayingPriority(where: Prisma.GameWhereInput, region?: string) {
+    const [priority, rest] = await Promise.all([
+      prisma.game.findMany({ where: { ...where, status: PLAYING_STATUSES }, include: gameInclude, take: MAX_GAMES_PER_LIST }),
+      prisma.game.findMany({
+        where: { ...where, status: { notIn: ['playing', 'play_next'] } },
+        include: gameInclude,
+        orderBy: { createdAt: 'desc' },
+        take: MAX_GAMES_PER_LIST + 1,
+      }),
+    ]);
+    const combined = [...priority, ...rest];
+    const truncated = combined.length > MAX_GAMES_PER_LIST;
+    return { games: combined.slice(0, MAX_GAMES_PER_LIST), truncated };
+  }
+
   app.get<{ Querystring: { region?: string; q?: string } }>('/api/games', gamesListRateLimit, async (request) => {
     const userId = await request.requireAuth();
     const q = (request.query.q ?? '').trim();
-    // A title search isn't the "browse your recently-added backlog" case MAX_GAMES_PER_LIST/
-    // createdAt-desc was built for - it should find a match regardless of status (Playing/Beaten/
-    // Dropped included, not just what the main grid shows) or how long ago it was added, so it
-    // gets its own where/order instead of reusing the recency window. Still capped at the same
-    // size and still fetches one row past it to detect truncation, same reasoning as below.
-    const games = await prisma.game.findMany({
-      where: {
-        roomId: null,
-        addedBy: userId,
-        archivedAt: null,
-        ...(q ? { title: { contains: q, mode: 'insensitive' } } : {}),
-      },
-      include: gameInclude,
-      orderBy: q ? { title: 'asc' } : { createdAt: 'desc' },
-      take: MAX_GAMES_PER_LIST + 1,
-    });
-    const truncated = games.length > MAX_GAMES_PER_LIST;
-    return {
-      games: await serializeGames(games.slice(0, MAX_GAMES_PER_LIST), userId, parseRegion(request.query.region)),
-      truncated,
-    };
+    const baseWhere: Prisma.GameWhereInput = { roomId: null, addedBy: userId, archivedAt: null };
+
+    if (q) {
+      // A title search isn't the "browse your recently-added backlog" case MAX_GAMES_PER_LIST/
+      // createdAt-desc was built for - it should find a match regardless of status (Playing/Beaten/
+      // Dropped included, not just what the main grid shows) or how long ago it was added, so it
+      // gets its own where/order instead of reusing the recency window. Still capped at the same
+      // size and still fetches one row past it to detect truncation, same reasoning as above.
+      const games = await prisma.game.findMany({
+        where: { ...baseWhere, title: { contains: q, mode: 'insensitive' } },
+        include: gameInclude,
+        orderBy: { title: 'asc' },
+        take: MAX_GAMES_PER_LIST + 1,
+      });
+      const truncated = games.length > MAX_GAMES_PER_LIST;
+      return {
+        games: await serializeGames(games.slice(0, MAX_GAMES_PER_LIST), userId, parseRegion(request.query.region)),
+        truncated,
+      };
+    }
+
+    const { games, truncated } = await findGamesWithPlayingPriority(baseWhere);
+    return { games: await serializeGames(games, userId, parseRegion(request.query.region)), truncated };
   });
 
   app.get<{ Params: { roomId: string }; Querystring: { region?: string; q?: string } }>(
@@ -453,18 +480,24 @@ export default async function gameRoutes(app: FastifyInstance) {
       const { roomId } = request.params;
       await requireMembership(roomId, userId);
       const q = (request.query.q ?? '').trim();
+      const baseWhere: Prisma.GameWhereInput = { roomId, archivedAt: null };
 
-      const games = await prisma.game.findMany({
-        where: { roomId, archivedAt: null, ...(q ? { title: { contains: q, mode: 'insensitive' } } : {}) },
-        include: gameInclude,
-        orderBy: q ? { title: 'asc' } : { createdAt: 'desc' },
-        take: MAX_GAMES_PER_LIST + 1,
-      });
-      const truncated = games.length > MAX_GAMES_PER_LIST;
-      return {
-        games: await serializeGames(games.slice(0, MAX_GAMES_PER_LIST), userId, parseRegion(request.query.region)),
-        truncated,
-      };
+      if (q) {
+        const games = await prisma.game.findMany({
+          where: { ...baseWhere, title: { contains: q, mode: 'insensitive' } },
+          include: gameInclude,
+          orderBy: { title: 'asc' },
+          take: MAX_GAMES_PER_LIST + 1,
+        });
+        const truncated = games.length > MAX_GAMES_PER_LIST;
+        return {
+          games: await serializeGames(games.slice(0, MAX_GAMES_PER_LIST), userId, parseRegion(request.query.region)),
+          truncated,
+        };
+      }
+
+      const { games, truncated } = await findGamesWithPlayingPriority(baseWhere);
+      return { games: await serializeGames(games, userId, parseRegion(request.query.region)), truncated };
     },
   );
 
