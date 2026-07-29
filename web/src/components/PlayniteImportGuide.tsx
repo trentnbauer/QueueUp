@@ -17,10 +17,11 @@ const LAST_STEP = STEP_TITLES.length - 1;
  * ever showed Steam, because the Playnite setup code generator lived only in Profile Settings
  * (added by #441), a page nobody thinks to check when they're looking for "import my library."
  * Moved here from Profile Settings by #458 as a single always-expanded 3-step guide; issue #469
- * asked for the modal's landing view to just be two buttons (Steam Import / Configure Playnite),
- * matching Steam's own single-button section, with Playnite's steps behind a proper wizard instead
- * of dumping every step on screen at once - and for the wizard to start from installing Playnite
- * itself (not just the extension), since a first-time user may not have Playnite at all yet.
+ * asked for the modal's landing view to just be two buttons (Steam Import / this one), so the
+ * collapsed state below reuses Steam's own single-button row styling rather than a section header
+ * + separate button, with Playnite's steps behind a proper wizard instead of dumping every step on
+ * screen at once - and for the wizard to start from installing Playnite itself (not just the
+ * extension), since a first-time user may not have Playnite at all yet.
  * Unlike Steam, QueueUp can't detect or drive anything on the Playnite side (it's a separate
  * desktop app the extension polls this server from, not the other way around), so the
  * install/connect/push steps have to be spelled out as instructions rather than one button this
@@ -59,11 +60,12 @@ export function PlayniteImportGuide() {
   if (activeStep === null) {
     return (
       <div className={`${modalStyles.librarySection} ${modalStyles.secondarySection}`}>
-        <div className={modalStyles.libraryHeader}>
-          <span aria-hidden="true">🕹️</span> Playnite
-        </div>
-        <button type="button" className={modalStyles.actionRow} onClick={() => setActiveStep(0)}>
-          <span className={modalStyles.syncEverythingLabel}>🕹️ Configure Playnite</span>
+        <button
+          type="button"
+          className={`${modalStyles.actionRow} ${modalStyles.syncEverythingRow}`}
+          onClick={() => setActiveStep(0)}
+        >
+          <span className={modalStyles.syncEverythingLabel}>🕹️ Import from other clients (Playnite)</span>
           <span className={modalStyles.syncEverythingHint}>
             Import your library from Playnite - a free desktop app that tracks games across Steam,
             Epic, GOG, and more

@@ -138,6 +138,10 @@
   font-size: 12.5px;
   line-height: 1.5;
   color: var(--qu-text);
+  padding: 12px 14px;
+  border: 1px solid var(--qu-border);
+  border-radius: var(--qu-card-radius);
+  background: var(--qu-surface2);
 }
 
 .wizardBody code {
