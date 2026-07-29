@@ -27,11 +27,12 @@ function optionId(igdbId: number): string {
 // when most/all of a franchise's remaining matches are already added to this room/shelf.
 const MAX_CONSECUTIVE_EMPTY_PAGES = 5;
 
-/** Small cover-art thumbnail shared by search results and collection review rows. Mirrors
- * GameCard's fallback handling: a CSS background-image (no load-failure signal of its own) paired
- * with an invisible probe <img> whose onError catches a dead/broken IGDB URL, falling back to the
- * title text the same way a null coverImageUrl already does. */
-function ResultThumb({ title, coverImageUrl }: { title: string; coverImageUrl: string | null }) {
+/** Small cover-art thumbnail shared by search results, collection review rows, and (exported for
+ * reuse) PendingImportsSection's candidate picker (#452). Mirrors GameCard's fallback handling: a
+ * CSS background-image (no load-failure signal of its own) paired with an invisible probe <img>
+ * whose onError catches a dead/broken IGDB URL, falling back to the title text the same way a null
+ * coverImageUrl already does. */
+export function ResultThumb({ title, coverImageUrl }: { title: string; coverImageUrl: string | null }) {
   const [failed, setFailed] = useState(false);
   useEffect(() => {
     setFailed(false);

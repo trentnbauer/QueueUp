@@ -8,6 +8,7 @@ import { useCardDensity, CARD_DENSITY_LABELS, type CardDensity } from '../contex
 import { useViewMode, VIEW_MODE_LABELS, type ViewMode } from '../context/ViewModeContext';
 import { useSidebarIconSize, SIDEBAR_ICON_SIZE_LABELS, type SidebarIconSize } from '../context/SidebarIconSizeContext';
 import { ApiKeysSection } from '../components/ApiKeysSection';
+import { PendingImportsSection } from '../components/PendingImportsSection';
 import styles from './ProfileSettingsView.module.css';
 
 const ROOM_PLATFORM_OPTIONS = Object.keys(ROOM_PLATFORM_LABELS) as RoomPlatform[];
@@ -391,6 +392,8 @@ export function ProfileSettingsView() {
       </div>
 
       <ApiKeysSection />
+
+      <PendingImportsSection />
 
       <div className={styles.section}>
         <div className={styles.dangerSectionTitle}>Danger zone</div>
