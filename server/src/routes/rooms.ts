@@ -377,8 +377,14 @@ export default async function roomRoutes(app: FastifyInstance) {
       await requireMembership(roomId, targetUserId);
 
       const [completedCount, roomGames] = await Promise.all([
-        prisma.game.count({ where: { roomId, addedBy: targetUserId, status: { in: ['done', 'replay'] } } }),
-        prisma.game.findMany({ where: { roomId }, select: { igdbId: true }, distinct: ['igdbId'] }),
+        prisma.game.count({
+          where: { roomId, addedBy: targetUserId, status: { in: ['done', 'replay'] }, archivedAt: null },
+        }),
+        prisma.game.findMany({
+          where: { roomId, archivedAt: null },
+          select: { igdbId: true },
+          distinct: ['igdbId'],
+        }),
       ]);
 
       const fullyCompletedCount = await prisma.achievementCompletion.count({
