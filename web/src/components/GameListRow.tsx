@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { VOTE_SCALE, type Game, type GameStatus, type User, type VoteValue } from '@queueup/shared';
+import { ROOM_PLATFORM_LABELS, VOTE_SCALE, type Game, type GameStatus, type User, type VoteValue } from '@queueup/shared';
 import { GameDetailModal } from './GameDetailModal';
 import { formatPrice } from '../utils/formatPrice';
 import { GAME_STATUS_LABEL } from './gameGridLogic';
@@ -141,7 +141,16 @@ export function GameListRow({
               {game.ownership.owned}/{game.ownership.total} own it
             </span>
           ) : game.youOwn ? (
-            'Owned'
+            // Issue #456: which system(s) this is owned on, when known (Personal Shelf only - see
+            // ownedPlatforms' doc comment) - falls back to plain "Owned" for a pre-migration claim
+            // with no platform recorded. title carries the untruncated list for a narrow column.
+            game.ownedPlatforms.length > 0 ? (
+              <span title={game.ownedPlatforms.map((p) => ROOM_PLATFORM_LABELS[p]).join(', ')}>
+                {game.ownedPlatforms.map((p) => ROOM_PLATFORM_LABELS[p]).join(' · ')}
+              </span>
+            ) : (
+              'Owned'
+            )
           ) : (
             '—'
           )}

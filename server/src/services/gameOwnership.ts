@@ -83,6 +83,12 @@ export interface GameOwnershipInfo {
    * dedicated table, since (unlike ownership) wishlisting has no cross-context claim of its own.
    * Null on the Personal Shelf, same as `ownership` - there's no group to count there either. */
   wishlist: { wishlisted: number; total: number } | null;
+  /** Which platform(s) the current viewer's own GameOwnership claim covers for this igdbId
+   * (issue #456 - "what system do I own this on") - Personal Shelf only, always [] for a room
+   * game (a room's own single Room.platform already answers that there, so there's nothing extra
+   * to show). Also [] when not owned, or when owned but the claim predates platform tracking (see
+   * the GameOwnership model doc) - the UI treats all of those the same way: no system badge. */
+  ownedPlatforms: RoomPlatform[];
 }
 
 /** Batched ownership lookup for a list of games (avoids N+1 - one query for ownership rows, one
@@ -163,10 +169,16 @@ export async function getOwnershipInfo(games: GameWithRelations[], currentUserId
       const owned = roomPlatform ? memberIds.filter((id) => ownsOnPlatform(game.igdbId, id, roomPlatform)).length : 0;
       const wishlisters = wishlistersByIgdbId.get(game.igdbId) ?? new Set<string>();
       const wishlisted = memberIds.filter((id) => wishlisters.has(id)).length;
-      result.set(game.id, { youOwn, ownership: { owned, total: memberIds.length }, wishlist: { wishlisted, total: memberIds.length } });
+      result.set(game.id, {
+        youOwn,
+        ownership: { owned, total: memberIds.length },
+        wishlist: { wishlisted, total: memberIds.length },
+        ownedPlatforms: [],
+      });
     } else {
       const youOwn = game.status !== 'wishlist' && (ownershipByIgdbId.get(game.igdbId)?.has(currentUserId) ?? false);
-      result.set(game.id, { youOwn, ownership: null, wishlist: null });
+      const ownedPlatforms = youOwn ? (ownershipByIgdbId.get(game.igdbId)?.get(currentUserId) ?? []) : [];
+      result.set(game.id, { youOwn, ownership: null, wishlist: null, ownedPlatforms });
     }
   }
 

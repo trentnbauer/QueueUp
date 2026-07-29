@@ -29,6 +29,7 @@ function makeGame(overrides: Partial<Game> = {}): Game {
     youOwn: false,
     ownership: null,
     wishlist: null,
+    ownedPlatforms: [],
     tags: [],
     igdbCollectionId: null,
     reviewScore: null,
