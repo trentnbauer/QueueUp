@@ -4,6 +4,7 @@ import { prisma } from './db/client.js';
 import { ensureDbConstraints } from './db/ensureConstraints.js';
 import { redis } from './services/redisClient.js';
 import { startPriceAlertJob } from './jobs/priceAlertJob.js';
+import { startPriceRefreshJob } from './jobs/priceRefreshJob.js';
 
 const app = await buildApp();
 
@@ -21,6 +22,9 @@ app
 // process; docker-compose.prod.yml runs a single non-replicated instance, so there's no
 // multi-instance double-run to guard against.
 const priceAlertJob = startPriceAlertJob();
+// Independent of any page view (#439) - see jobs/priceRefreshJob.ts. Same single-process
+// reasoning as priceAlertJob above.
+const priceRefreshJob = startPriceRefreshJob();
 
 const SHUTDOWN_TIMEOUT_MS = 10_000;
 let shuttingDown = false;
@@ -42,6 +46,7 @@ async function shutdown(signal: string) {
 
   try {
     priceAlertJob.stop();
+    priceRefreshJob.stop();
     // Stops accepting new connections, waits for in-flight requests, runs plugins' onClose hooks.
     await app.close();
     await prisma.$disconnect();
