@@ -836,3 +836,25 @@ export interface DataExport {
   votesCast: DataExportVote[];
   roomMemberships: DataExportRoomMembership[];
 }
+
+/** A personal access token for the read/write API (issue #435) - see server's ApiKey model.
+ * Never carries the raw key or its hash; that's only ever returned once, at creation, by
+ * CreateApiKeyResponse below. */
+export interface ApiKeySummary {
+  id: string;
+  label: string;
+  createdAt: string;
+  lastUsedAt: string | null;
+  revokedAt: string | null;
+}
+
+export interface CreateApiKeyRequest {
+  label: string;
+}
+
+/** Same fields as ApiKeySummary, plus the one and only time the raw key itself is ever sent to
+ * the client - shown once in the UI with a "copy now, you won't see this again" warning, same
+ * principle as a session secret. */
+export interface CreateApiKeyResponse extends ApiKeySummary {
+  key: string;
+}

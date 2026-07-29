@@ -113,6 +113,7 @@ model User {
   linkedIdentities     LinkedIdentity[]
   tags                 Tag[]
   roomSpinsStarted     RoomSpin[]
+  apiKeys              ApiKey[]
 
   @@map("users")
 }
@@ -136,6 +137,30 @@ model LinkedIdentity {
   // Google account is linked) replaces the row rather than accumulating a second one.
   @@unique([userId, provider])
   @@map("linked_identities")
+}
+
+/// A personal access token for the read/write API (issue #435) - lets an external system (a
+/// script, a Playnite extension, a home dashboard) pull/push this user's library without
+/// impersonating a real browser session. Scoped to the user only, not to a specific room: a
+/// request authenticated with one of these resolves to the same userId a cookie session would,
+/// so room access is whatever that user's own membership/role already allows (requireMembership/
+/// requireElevated), not a separate permission model. Only `hash` (SHA-256 of the raw token) is
+/// ever stored - the raw value is shown once, at creation, same principle as a session secret.
+/// Revocation is soft (revokedAt) rather than a delete, so "when did this stop working" stays
+/// visible in the management UI instead of the row just vanishing.
+model ApiKey {
+  id         String    @id @default(uuid())
+  userId     String    @map("user_id")
+  hash       String    @unique
+  label      String
+  createdAt  DateTime  @default(now()) @map("created_at")
+  lastUsedAt DateTime? @map("last_used_at")
+  revokedAt  DateTime? @map("revoked_at")
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@map("api_keys")
 }
 
 /// A user's ownership claim on a game, keyed by igdbId (not a specific Game row) - this is a fact

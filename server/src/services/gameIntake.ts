@@ -5,6 +5,7 @@ import {
   getCollectionGames,
   getTrendingGames,
   getGameDlcs,
+  isAddonCategory,
   type GameSearchPage,
   type IgdbGameDetail,
 } from './igdbClient.js';
@@ -12,12 +13,26 @@ import { getSteamPriceAndUrl, refreshSteamPriceForced } from './priceService.js'
 import { findSteamAppIdByTitle } from './steamLibrary.js';
 import { prisma } from '../db/client.js';
 import { HttpError } from '../util/httpError.js';
-import { duplicateScopeWhere } from './gameAccess.js';
+import {
+  duplicateScopeWhere,
+  loadGameOr404,
+  requireNotDuplicate,
+  requireNotAlreadySuggested,
+  rethrowAsDuplicateGame,
+  invalidateExistingIgdbIds,
+} from './gameAccess.js';
+import { getRoom, requireMembership } from './roomAccess.js';
+import { serializeGame } from './gameSerializer.js';
+import { setOwnershipPlatforms } from './gameOwnership.js';
+import { getOwnedPlatforms } from './userSettings.js';
+import { notifyRoom } from './notifications.js';
+import { toUserDto } from '../util/dto.js';
 import { Prisma } from '@prisma/client';
 import {
   ROOM_PLATFORM_LABELS,
   type CollectionGamesResult,
   type CollectionSearchResult,
+  type CreateGameResponse,
   type GameSearchResult,
   type GameStatus,
   type RoomPlatform,
@@ -237,6 +252,154 @@ export async function linkDlcToBaseGame(
     // Best-effort, as documented above - an unlinked DLC entry is a fine fallback outcome.
     return null;
   }
+}
+
+/** The full "add a game by igdbId" flow - shared by the cookie-authenticated POST /api/games route
+ * and the bearer-authenticated POST /api/v1 push routes (issue #435), so a script pushing a game
+ * in gets exactly the same duplicate detection, DLC linking, approval-flow, and notification
+ * behavior a real Add Game click would, rather than a second, driftable copy of it. Membership
+ * (and, for the approval-flow decision, role) is resolved here rather than by the caller, since
+ * both callers need it for the same reason. */
+export async function createGameForUser(
+  userId: string,
+  roomId: string | null,
+  igdbId: number,
+  options: { status?: GameStatus; ownedPlatforms?: RoomPlatform[] } = {},
+): Promise<CreateGameResponse> {
+  const { status, ownedPlatforms } = options;
+  if (!Number.isInteger(igdbId)) throw new HttpError(400, 'A valid igdbId is required');
+  if (status !== undefined && status !== 'backlog' && status !== 'wishlist') {
+    throw new HttpError(400, 'status must be "backlog" or "wishlist"');
+  }
+  // Owned-platforms only makes sense for a Personal Shelf add (see the Add Game modal) - a room
+  // game's ownership is scoped to the room's own platform instead (see gameOwnership.ts), set via
+  // its own toggle, not at intake time.
+  if (ownedPlatforms !== undefined && roomId) {
+    throw new HttpError(400, 'ownedPlatforms is only supported when adding to the Personal Shelf');
+  }
+  // The client only ever pairs ownedPlatforms with an explicit status: 'backlog' (the Add Game
+  // modal's owned/platforms step) - enforced here too, not just by the client's own ternary, so a
+  // game can't end up simultaneously wishlisted and flagged owned (e.g. "you own this" showing for
+  // something that's still just on the wishlist) via a request that skips the normal UI.
+  if (ownedPlatforms !== undefined && ownedPlatforms.length > 0 && status !== 'backlog') {
+    throw new HttpError(400, 'ownedPlatforms is only supported when status is "backlog"');
+  }
+
+  let room: Awaited<ReturnType<typeof getRoom>> | null = null;
+  let membershipRole: string | null = null;
+  if (roomId) {
+    const membership = await requireMembership(roomId, userId);
+    membershipRole = membership.role;
+    room = await getRoom(roomId);
+  }
+
+  // Issue #362: in a room with requireGameApproval on, a plain Member's add becomes a suggestion
+  // for a Room Master/Moderator to approve or decline, instead of landing directly in the backlog.
+  // Room Masters/Moderators (and, for the API, whichever role the pushing key's owner actually
+  // holds in the room) always add directly - they're the ones who'd otherwise be approving their
+  // own suggestion.
+  if (roomId && room && room.requireGameApproval && membershipRole === 'member') {
+    await requireNotDuplicate(roomId, userId, igdbId);
+    await requireNotAlreadySuggested(roomId, igdbId);
+
+    const detail = await getGameDetail(igdbId);
+    assertPlatformMatch(detail, [room.platform]);
+
+    const suggestion = await prisma.gameSuggestion.create({
+      data: {
+        roomId,
+        igdbId,
+        title: detail.title,
+        platform: detail.platform,
+        coverImageUrl: detail.coverImageUrl,
+        releaseYear: detail.releaseYear,
+        suggestedBy: userId,
+      },
+      include: { suggester: true },
+    });
+    await invalidateExistingIgdbIds(roomId, userId);
+    await notifyRoom({
+      roomId,
+      roomName: room.name,
+      actorId: userId,
+      type: 'game_suggested',
+      message: (actorName) => `${actorName} suggested "${detail.title}" for the room`,
+    });
+
+    return {
+      suggestion: {
+        id: suggestion.id,
+        roomId: suggestion.roomId,
+        igdbId: suggestion.igdbId,
+        title: suggestion.title,
+        platform: suggestion.platform,
+        coverImageUrl: suggestion.coverImageUrl,
+        releaseYear: suggestion.releaseYear,
+        suggestedBy: toUserDto(suggestion.suggester),
+        createdAt: suggestion.createdAt.toISOString(),
+      },
+    };
+  }
+
+  const platforms = room ? [room.platform] : await getOwnedPlatforms(userId);
+  await requireNotDuplicate(roomId ?? null, userId, igdbId);
+
+  const resolved = await resolveGameForCreation(igdbId, platforms);
+
+  let created;
+  try {
+    created = await prisma.game.create({
+      data: {
+        roomId: roomId ?? null,
+        addedBy: userId,
+        igdbId,
+        title: resolved.title,
+        platform: resolved.platform,
+        genre: resolved.genre,
+        maxCoopPlayers: resolved.maxCoopPlayers,
+        timeToBeatHours: resolved.timeToBeatHours,
+        timeToBeatRushedHours: resolved.timeToBeatRushedHours,
+        timeToBeatCompletionistHours: resolved.timeToBeatCompletionistHours,
+        ggDealsUrl: resolved.ggDealsUrl,
+        steamAppid: resolved.steamAppId,
+        coverImageUrl: resolved.coverImageUrl,
+        releaseYear: resolved.releaseYear,
+        releaseDate: resolved.releaseDate,
+        igdbCollectionId: resolved.igdbCollectionId,
+        reviewScore: resolved.reviewScore,
+        // Explicit status (Personal Shelf's Add Game modal, or an API push) wins outright;
+        // otherwise issue #370's release-date guess (an unreleased game defaults into the wishlist).
+        status: status ?? defaultStatusForRelease(resolved.releaseDate),
+      },
+    });
+  } catch (err) {
+    rethrowAsDuplicateGame(err, roomId ?? null, resolved.title);
+  }
+  // Issue #338: this is DLC/an expansion IGDB has a parent link on file for - ensure that base
+  // game is present in the same room/shelf (creating it if needed) and link this row back to it.
+  if (resolved.parentGameIgdbId && isAddonCategory(resolved.category)) {
+    await linkDlcToBaseGame(created.id, resolved.parentGameIgdbId, roomId ?? null, userId, platforms);
+  }
+  // Personal Shelf's Add Game modal (owned/platforms picker) - marks ownership at intake time
+  // instead of a separate follow-up action, so "I own this on Switch" is recorded the moment the
+  // game lands on the shelf.
+  if (ownedPlatforms && ownedPlatforms.length > 0) {
+    await setOwnershipPlatforms(userId, igdbId, ownedPlatforms);
+  }
+  const game = await loadGameOr404(created.id);
+  await invalidateExistingIgdbIds(roomId ?? null, userId);
+
+  if (roomId && room) {
+    await notifyRoom({
+      roomId,
+      roomName: room.name,
+      actorId: userId,
+      type: 'game_added',
+      message: (actorName) => `${actorName} added "${resolved.title}" to the room`,
+    });
+  }
+
+  return { game: await serializeGame(game, userId) };
 }
 
 /** Manual/"forced" refresh path (issue #67) - subject to a once-an-hour-per-game cooldown,
