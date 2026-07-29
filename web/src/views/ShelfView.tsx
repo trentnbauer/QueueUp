@@ -5,6 +5,8 @@ import { useView } from '../context/ViewContext';
 import { useGameFilter } from '../context/GameFilterContext';
 import { useConfirm } from '../context/ConfirmContext';
 import { useGames } from '../hooks/useGames';
+import { useGameSearch } from '../hooks/useGameSearch';
+import { useDebouncedValue } from '../hooks/useDebouncedValue';
 import { GameGrid } from '../components/GameGrid';
 import { PlayingStrip } from '../components/PlayingStrip';
 import { ComingSoonStrip } from '../components/ComingSoonStrip';
@@ -62,9 +64,24 @@ export function ShelfView() {
     return filtered.filter((g) => g.status !== 'playing' && g.status !== 'play_next' && g.status !== 'done' && g.status !== 'dropped');
   }, [games, gameFilter]);
 
+  // A title search looks across the whole shelf regardless of status or the 500-game recency cap
+  // (see useGameSearch) - while one's active, it replaces the normal Playing/Coming Soon/main
+  // grid/Beaten/Dropped layout with one flat list of matches instead of only ever searching
+  // whatever each of those sections already happened to have loaded.
+  const debouncedQuery = useDebouncedValue(gameFilter.searchQuery, 300);
+  const search = useGameSearch(null, debouncedQuery);
+
   useEffect(() => {
     switchView({ type: 'personal' });
   }, [switchView]);
+
+  // Bulk-select tracks selection against the non-search `visibleGames` above - once a search
+  // starts, the grid switches to server search results instead, so bulk mode is exited rather than
+  // left silently operating on the wrong list.
+  useEffect(() => {
+    if (search.isSearching && bulkMode) exitBulkMode();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [search.isSearching]);
 
   function exitBulkMode() {
     setBulkMode(false);
@@ -129,6 +146,7 @@ export function ShelfView() {
           onCancel={exitBulkMode}
         />
       ) : (
+        !search.isSearching &&
         games.length > 0 && (
           <div className={styles.toolbar}>
             <button type="button" className={styles.selectButton} onClick={() => setBulkMode(true)}>
@@ -139,89 +157,112 @@ export function ShelfView() {
       )}
       <ActionErrorBanner message={actionError} onDismiss={clearActionError} />
       <TruncatedListBanner truncated={truncated} />
-      <PlayingStrip
-        games={games}
-        currentUserId={user.id}
-        onStatusChange={updateStatus}
-        onVote={vote}
-        onRemove={remove}
-        onRefreshPrice={refreshPrice}
-        isRefreshingPrice={isRefreshingPrice}
-        onSetSteamMatch={setSteamMatch}
-        onSetTargetPrice={setTargetPrice}
-        onSetManualPrice={setManualPrice}
-        onApplyTag={applyTag}
-        onRemoveTag={removeTag}
-      />
-      <ComingSoonStrip
-        games={games}
-        currentUserId={user.id}
-        onStatusChange={updateStatus}
-        onVote={vote}
-        onRemove={remove}
-        onRefreshPrice={refreshPrice}
-        isRefreshingPrice={isRefreshingPrice}
-        onSetSteamMatch={setSteamMatch}
-        onSetTargetPrice={setTargetPrice}
-        onSetManualPrice={setManualPrice}
-        onApplyTag={applyTag}
-        onRemoveTag={removeTag}
-      />
-      <GameGrid
-        games={games}
-        currentUserId={user.id}
-        isLoading={isLoading}
-        isError={isError}
-        loadError={loadError}
-        onRetry={refetch}
-        // Playing/Play Next/Done/Replay/Dropped games get their own strips above/below instead -
-        // same reasoning as RoomView's identical hiddenStatuses, so they don't also show a second
-        // time in the main grid here. Replay-queued games (issue #334) join Done under BeatenStrip
-        // below, since a replay is by definition already-beaten; Play Next joins Playing in the
-        // Currently Playing strip above.
-        hiddenStatuses={['playing', 'play_next', 'done', 'replay', 'dropped']}
-        onStatusChange={updateStatus}
-        onVote={vote}
-        onRemove={remove}
-        onRefreshPrice={refreshPrice}
-        isRefreshingPrice={isRefreshingPrice}
-        onSetSteamMatch={setSteamMatch}
-        onSetTargetPrice={setTargetPrice}
-        onSetManualPrice={setManualPrice}
-        onApplyTag={applyTag}
-        onRemoveTag={removeTag}
-        selectionMode={bulkMode}
-        selectedIds={selectedIds}
-        onToggleSelect={toggleSelect}
-      />
-      <BeatenStrip
-        games={games}
-        currentUserId={user.id}
-        onStatusChange={updateStatus}
-        onVote={vote}
-        onRemove={remove}
-        onRefreshPrice={refreshPrice}
-        isRefreshingPrice={isRefreshingPrice}
-        onSetSteamMatch={setSteamMatch}
-        onSetTargetPrice={setTargetPrice}
-        onSetManualPrice={setManualPrice}
-        onApplyTag={applyTag}
-        onRemoveTag={removeTag}
-      />
-      <DroppedStrip
-        games={games}
-        currentUserId={user.id}
-        onStatusChange={updateStatus}
-        onVote={vote}
-        onRemove={remove}
-        onRefreshPrice={refreshPrice}
-        isRefreshingPrice={isRefreshingPrice}
-        onSetSteamMatch={setSteamMatch}
-        onSetTargetPrice={setTargetPrice}
-        onSetManualPrice={setManualPrice}
-        onApplyTag={applyTag}
-        onRemoveTag={removeTag}
-      />
+      {search.isSearching ? (
+        <GameGrid
+          games={search.games}
+          currentUserId={user.id}
+          isLoading={search.isLoading}
+          isError={search.isError}
+          loadError={search.loadError}
+          onRetry={search.refetch}
+          onStatusChange={updateStatus}
+          onVote={vote}
+          onRemove={remove}
+          onRefreshPrice={refreshPrice}
+          isRefreshingPrice={isRefreshingPrice}
+          onSetSteamMatch={setSteamMatch}
+          onSetTargetPrice={setTargetPrice}
+          onSetManualPrice={setManualPrice}
+          onApplyTag={applyTag}
+          onRemoveTag={removeTag}
+        />
+      ) : (
+        <>
+          <PlayingStrip
+            games={games}
+            currentUserId={user.id}
+            onStatusChange={updateStatus}
+            onVote={vote}
+            onRemove={remove}
+            onRefreshPrice={refreshPrice}
+            isRefreshingPrice={isRefreshingPrice}
+            onSetSteamMatch={setSteamMatch}
+            onSetTargetPrice={setTargetPrice}
+            onSetManualPrice={setManualPrice}
+            onApplyTag={applyTag}
+            onRemoveTag={removeTag}
+          />
+          <ComingSoonStrip
+            games={games}
+            currentUserId={user.id}
+            onStatusChange={updateStatus}
+            onVote={vote}
+            onRemove={remove}
+            onRefreshPrice={refreshPrice}
+            isRefreshingPrice={isRefreshingPrice}
+            onSetSteamMatch={setSteamMatch}
+            onSetTargetPrice={setTargetPrice}
+            onSetManualPrice={setManualPrice}
+            onApplyTag={applyTag}
+            onRemoveTag={removeTag}
+          />
+          <GameGrid
+            games={games}
+            currentUserId={user.id}
+            isLoading={isLoading}
+            isError={isError}
+            loadError={loadError}
+            onRetry={refetch}
+            // Playing/Play Next/Done/Replay/Dropped games get their own strips above/below instead -
+            // same reasoning as RoomView's identical hiddenStatuses, so they don't also show a second
+            // time in the main grid here. Replay-queued games (issue #334) join Done under BeatenStrip
+            // below, since a replay is by definition already-beaten; Play Next joins Playing in the
+            // Currently Playing strip above.
+            hiddenStatuses={['playing', 'play_next', 'done', 'replay', 'dropped']}
+            onStatusChange={updateStatus}
+            onVote={vote}
+            onRemove={remove}
+            onRefreshPrice={refreshPrice}
+            isRefreshingPrice={isRefreshingPrice}
+            onSetSteamMatch={setSteamMatch}
+            onSetTargetPrice={setTargetPrice}
+            onSetManualPrice={setManualPrice}
+            onApplyTag={applyTag}
+            onRemoveTag={removeTag}
+            selectionMode={bulkMode}
+            selectedIds={selectedIds}
+            onToggleSelect={toggleSelect}
+          />
+          <BeatenStrip
+            games={games}
+            currentUserId={user.id}
+            onStatusChange={updateStatus}
+            onVote={vote}
+            onRemove={remove}
+            onRefreshPrice={refreshPrice}
+            isRefreshingPrice={isRefreshingPrice}
+            onSetSteamMatch={setSteamMatch}
+            onSetTargetPrice={setTargetPrice}
+            onSetManualPrice={setManualPrice}
+            onApplyTag={applyTag}
+            onRemoveTag={removeTag}
+          />
+          <DroppedStrip
+            games={games}
+            currentUserId={user.id}
+            onStatusChange={updateStatus}
+            onVote={vote}
+            onRemove={remove}
+            onRefreshPrice={refreshPrice}
+            isRefreshingPrice={isRefreshingPrice}
+            onSetSteamMatch={setSteamMatch}
+            onSetTargetPrice={setTargetPrice}
+            onSetManualPrice={setManualPrice}
+            onApplyTag={applyTag}
+            onRemoveTag={removeTag}
+          />
+        </>
+      )}
     </div>
   );
 }

@@ -31,11 +31,19 @@ import type {
   YearInReview,
 } from '@queueup/shared';
 
+function libraryQuery(region?: PriceRegion, q?: string): string {
+  const params = new URLSearchParams();
+  if (region) params.set('region', region);
+  if (q) params.set('q', q);
+  const qs = params.toString();
+  return qs ? `?${qs}` : '';
+}
+
 export const gamesApi = {
-  shelf: (region?: PriceRegion) =>
-    apiGet<{ games: Game[]; truncated: boolean }>(`/api/games${region ? `?region=${region}` : ''}`),
-  room: (roomId: string, region?: PriceRegion) =>
-    apiGet<{ games: Game[]; truncated: boolean }>(`/api/rooms/${roomId}/games${region ? `?region=${region}` : ''}`),
+  shelf: (region?: PriceRegion, q?: string) =>
+    apiGet<{ games: Game[]; truncated: boolean }>(`/api/games${libraryQuery(region, q)}`),
+  room: (roomId: string, region?: PriceRegion, q?: string) =>
+    apiGet<{ games: Game[]; truncated: boolean }>(`/api/rooms/${roomId}/games${libraryQuery(region, q)}`),
   search: (q: string, roomId?: string | null, offset = 0, hideAddons = true) =>
     apiGet<{ results: GameSearchResult[]; collections: CollectionSearchResult[]; nextOffset: number; hasMore: boolean }>(
       `/api/games/search?q=${encodeURIComponent(q)}${roomId ? `&roomId=${roomId}` : ''}${offset ? `&offset=${offset}` : ''}${hideAddons ? '' : '&hideAddons=false'}`,

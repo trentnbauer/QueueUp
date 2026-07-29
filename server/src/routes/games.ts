@@ -418,15 +418,23 @@ export default async function gameRoutes(app: FastifyInstance) {
   // global 200/min default.
   const gamesListRateLimit = { config: { rateLimit: { max: 30, timeWindow: '1 minute' } } };
 
-  app.get<{ Querystring: { region?: string } }>('/api/games', gamesListRateLimit, async (request) => {
+  app.get<{ Querystring: { region?: string; q?: string } }>('/api/games', gamesListRateLimit, async (request) => {
     const userId = await request.requireAuth();
-    // Fetches one row past the cap rather than a separate COUNT query - if that extra row comes
-    // back, the list was truncated, and it's dropped before serializing so the client only ever
-    // sees at most MAX_GAMES_PER_LIST games.
+    const q = (request.query.q ?? '').trim();
+    // A title search isn't the "browse your recently-added backlog" case MAX_GAMES_PER_LIST/
+    // createdAt-desc was built for - it should find a match regardless of status (Playing/Beaten/
+    // Dropped included, not just what the main grid shows) or how long ago it was added, so it
+    // gets its own where/order instead of reusing the recency window. Still capped at the same
+    // size and still fetches one row past it to detect truncation, same reasoning as below.
     const games = await prisma.game.findMany({
-      where: { roomId: null, addedBy: userId, archivedAt: null },
+      where: {
+        roomId: null,
+        addedBy: userId,
+        archivedAt: null,
+        ...(q ? { title: { contains: q, mode: 'insensitive' } } : {}),
+      },
       include: gameInclude,
-      orderBy: { createdAt: 'desc' },
+      orderBy: q ? { title: 'asc' } : { createdAt: 'desc' },
       take: MAX_GAMES_PER_LIST + 1,
     });
     const truncated = games.length > MAX_GAMES_PER_LIST;
@@ -436,18 +444,19 @@ export default async function gameRoutes(app: FastifyInstance) {
     };
   });
 
-  app.get<{ Params: { roomId: string }; Querystring: { region?: string } }>(
+  app.get<{ Params: { roomId: string }; Querystring: { region?: string; q?: string } }>(
     '/api/rooms/:roomId/games',
     gamesListRateLimit,
     async (request) => {
       const userId = await request.requireAuth();
       const { roomId } = request.params;
       await requireMembership(roomId, userId);
+      const q = (request.query.q ?? '').trim();
 
       const games = await prisma.game.findMany({
-        where: { roomId, archivedAt: null },
+        where: { roomId, archivedAt: null, ...(q ? { title: { contains: q, mode: 'insensitive' } } : {}) },
         include: gameInclude,
-        orderBy: { createdAt: 'desc' },
+        orderBy: q ? { title: 'asc' } : { createdAt: 'desc' },
         take: MAX_GAMES_PER_LIST + 1,
       });
       const truncated = games.length > MAX_GAMES_PER_LIST;
