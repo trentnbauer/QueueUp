@@ -28,7 +28,7 @@ const UNAVAILABLE_PRICE: GamePrice = {
   lastRefreshedAt: null,
 };
 
-const DEFAULT_OWNERSHIP: GameOwnershipInfo = { youOwn: false, ownership: null, wishlist: null };
+const DEFAULT_OWNERSHIP: GameOwnershipInfo = { youOwn: false, ownership: null, wishlist: null, ownedPlatforms: [] };
 
 function buildGameDto(
   game: GameWithRelations,
@@ -74,6 +74,7 @@ function buildGameDto(
     youOwn: ownership.youOwn,
     ownership: ownership.ownership,
     wishlist: ownership.wishlist,
+    ownedPlatforms: ownership.ownedPlatforms,
     tags,
     igdbCollectionId: game.igdbCollectionId,
     reviewScore: game.reviewScore,

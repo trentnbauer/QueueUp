@@ -254,8 +254,9 @@ export interface Game {
   votes: VoteSummary[];
   myVote: VoteValue | null;
   voteScore: number;
-  /** Whether the current user owns this game (see GameOwnership) - not meaningful/omitted concept
-   * for the Personal Shelf, only used in Communal Rooms. */
+  /** Whether the current user owns this game (see GameOwnership) - meaningful on the Personal
+   * Shelf too (a simple "is there any claim at all" there, deferring to `status` - see
+   * getOwnershipInfo's doc comment), not just Communal Rooms. */
   youOwn: boolean;
   /** How many of the room's *current* members own this game, out of how many current members
    * there are - e.g. {owned: 3, total: 4}. Null on the Personal Shelf, where there's no group
@@ -265,6 +266,11 @@ export interface Game {
    * Personal Shelf, out of how many current members there are (issue #368) - parallel to
    * `ownership` above. Null on the Personal Shelf, where there's no group to count. */
   wishlist: { wishlisted: number; total: number } | null;
+  /** Which platform(s) the current viewer owns this on (issue #456) - Personal Shelf only, always
+   * [] for a room game (its single Room.platform already says which platform). Also [] when not
+   * owned, or when owned but the claim predates platform tracking (pre-migration GameOwnership
+   * rows - see that model's doc comment) - treat all of those the same: nothing to show. */
+  ownedPlatforms: RoomPlatform[];
   /** The *viewer's own* tags applied to this specific game row (issue #247) - always empty for a
    * room game someone else added, since only the person who added a game may tag it (tags are a
    * personal filing scheme, not a room feature - see Tag/GameTag in schema.prisma). Empty array,

@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { VOTE_SCALE, type Game, type GameStatus, type User, type VoteValue } from '@queueup/shared';
+import { ROOM_PLATFORM_LABELS, VOTE_SCALE, type Game, type GameStatus, type User, type VoteValue } from '@queueup/shared';
 import { GameDetailModal } from './GameDetailModal';
 import { formatPrice } from '../utils/formatPrice';
 import { NEGLECTED_BACKLOG_MONTHS, isNeglectedBacklogGame } from './gameGridLogic';
@@ -209,10 +209,20 @@ export function GameCard({
                 </div>
               )}
               {game.youOwn ? (
-                <div className={styles.ownedLine}>
-                  <span className={styles.ownedLabel}>Owned</span>
-                  <span className={styles.ownedPriceHint}>{formatPrice(game)}</span>
-                </div>
+                <>
+                  <div className={styles.ownedLine}>
+                    <span className={styles.ownedLabel}>Owned</span>
+                    <span className={styles.ownedPriceHint}>{formatPrice(game)}</span>
+                  </div>
+                  {/* Personal Shelf only (see ownedPlatforms' doc comment) - which system(s) this is
+                      owned on (issue #456), since a shelf game isn't scoped to a single platform the
+                      way a room already is. */}
+                  {game.ownedPlatforms.length > 0 && (
+                    <div className={styles.ownedPlatformsLine}>
+                      {game.ownedPlatforms.map((p) => ROOM_PLATFORM_LABELS[p]).join(' · ')}
+                    </div>
+                  )}
+                </>
               ) : (
                 <div className={styles.priceLine}>
                   <span aria-hidden="true">🎮</span>
