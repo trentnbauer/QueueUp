@@ -2,6 +2,7 @@ import { useConfirm } from '../context/ConfirmContext';
 import { useSteamImportContext } from '../context/SteamImportContext';
 import { SteamCompletionsSyncModal } from './SteamCompletionsSyncModal';
 import { ActionErrorBanner } from './ActionErrorBanner';
+import { PlayniteImportGuide } from './PlayniteImportGuide';
 import { useModalA11y, closeOnBackdropMouseDown } from '../hooks/useModalA11y';
 import styles from './ImportLibraryModal.module.css';
 
@@ -21,8 +22,9 @@ interface ImportLibraryModalProps {
  * Shelf grid (SteamImportCard, SteamWishlistImportCard, SteamCompletionsSyncCard) into a single
  * on-demand modal, opened from the header's "Import Library" button - reclaims that grid space for
  * actual games instead of permanent action tiles that were always there whether or not anyone was
- * about to use them. Lists every importable library as its own section - just Steam for now, laid
- * out so a future second source is another section here rather than another permanent grid tile.
+ * about to use them. Lists every importable library as its own section - Steam, and (since) a
+ * step-by-step Playnite setup guide (PlayniteImportGuide, moved here from Profile Settings after a
+ * user went looking for it under this exact button and found only Steam).
  * Reuses the exact same hooks/mutations the three tiles used (SteamImportContext,
  * useSteamCompletionsSync), so behavior - shared busy state between library/wishlist imports so
  * they can't race each other, confirm-before-import, progress polling - is unchanged, just
@@ -131,6 +133,8 @@ export function ImportLibraryModal({
               <span className={styles.syncEverythingHint}>{importHint}</span>
             </button>
           </div>
+
+          <PlayniteImportGuide />
         </div>
       </div>
 
