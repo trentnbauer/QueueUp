@@ -1189,6 +1189,19 @@ export default async function gameRoutes(app: FastifyInstance) {
         if (prerequisite.roomId !== game.roomId) {
           throw new HttpError(400, 'The prerequisite must be another game in the same room');
         }
+
+        // Walk the prerequisite chain from the candidate to make sure it doesn't loop
+        // back to this game (a direct A<->B cycle, or a longer chain closing the loop).
+        const visited = new Set<string>([game.id]);
+        let cursor: string | null = prerequisite.id;
+        while (cursor !== null) {
+          if (visited.has(cursor)) {
+            throw new HttpError(400, 'That would create a "play after" cycle');
+          }
+          visited.add(cursor);
+          const cursorGame = await loadGameOr404(cursor);
+          cursor = cursorGame.prerequisiteGameId;
+        }
       }
 
       await prisma.game.update({ where: { id: game.id }, data: { prerequisiteGameId } });
