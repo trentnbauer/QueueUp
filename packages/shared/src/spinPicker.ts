@@ -60,10 +60,19 @@ export function hasSteamMatch(game: Game): boolean {
   return game.price.source === 'live' || game.ggDealsUrl !== null;
 }
 
-/** undefined maxPrice means no threshold is set at all (Personal Shelf) - never satisfied by price. */
+/** undefined maxPrice means no threshold is set at all (Personal Shelf) - never satisfied by price.
+ * Prefers a live price when there is one; otherwise falls back to the manual price (issue #443) -
+ * same "no live match, use what the user told us" convention formatPrice.ts already applies to
+ * display. Without this fallback, a game whose only price signal is a manual $0/free entry (issue
+ * #425) was invisible to the price cap and never fully owned either, so it silently couldn't ever
+ * become a spin candidate - in a room where every backlog game was in that state, the wheel had no
+ * candidates at all and the picker just looked broken. */
 export function underPriceCap(game: Game, maxPrice: number | undefined): boolean {
   if (maxPrice === undefined) return false;
-  return game.price.source === 'live' && game.price.amount !== null && Number(game.price.amount) <= maxPrice;
+  if (game.price.source === 'live' && game.price.amount !== null) {
+    return Number(game.price.amount) <= maxPrice;
+  }
+  return game.manualPrice !== null && Number(game.manualPrice) <= maxPrice;
 }
 
 /** Spin the Wheel's candidate pool (issue #339): the full backlog, narrowed - when a room has set
