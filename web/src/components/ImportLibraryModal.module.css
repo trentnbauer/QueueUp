@@ -145,10 +145,20 @@
 }
 
 .wizardBody code {
-  background: var(--qu-surface2);
+  background: var(--qu-surface);
   border-radius: 4px;
   padding: 1px 4px;
   font-size: 11.5px;
+}
+
+/* Import Library modal's Playnite entry (issue #469) - a short blurb above a plain button that
+   opens PlayniteImportModal, deliberately not styled as a big clickable card like Steam's own
+   button so it doesn't compete with it for attention. */
+.playniteBlurb {
+  margin: 0;
+  font-size: 12.5px;
+  line-height: 1.4;
+  color: var(--qu-muted);
 }
 
 .wizardNav {
