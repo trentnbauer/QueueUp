@@ -1,0 +1,135 @@
+.backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.55);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+  padding: 20px;
+}
+
+.dialog {
+  background: var(--qu-surface);
+  border: 1px solid var(--qu-border);
+  border-radius: var(--qu-radius);
+  padding: 24px;
+  max-width: 380px;
+  width: 100%;
+  max-height: 85vh;
+  overflow-y: auto;
+  box-shadow: 0 12px 40px rgba(0, 0, 0, 0.4);
+}
+
+.header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 14px;
+  gap: 10px;
+}
+
+.title {
+  font: 700 16px var(--qu-header-font);
+  color: var(--qu-text);
+}
+
+.closeButton {
+  border: none;
+  background: transparent;
+  color: var(--qu-muted);
+  font-size: 20px;
+  line-height: 1;
+  cursor: pointer;
+  padding: 2px 6px;
+  flex-shrink: 0;
+}
+
+.closeButton:hover {
+  color: var(--qu-text);
+}
+
+.body {
+  display: flex;
+  gap: 14px;
+}
+
+.cover {
+  position: relative;
+  flex-shrink: 0;
+  width: 110px;
+  aspect-ratio: 3 / 4;
+  border-radius: var(--qu-radius);
+  background-color: var(--qu-surface2);
+  background-size: cover;
+  background-position: center;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+}
+
+.coverFallback {
+  font: 700 24px system-ui, sans-serif;
+  color: var(--qu-muted);
+}
+
+.meta {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  min-width: 0;
+}
+
+.statusBadge {
+  align-self: flex-start;
+  padding: 3px 8px;
+  border-radius: 999px;
+  background: var(--qu-accent);
+  color: var(--qu-accent-text);
+  font: 700 10px system-ui, sans-serif;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+}
+
+.statusBadgePlayNext {
+  background: var(--qu-accent2);
+}
+
+.metaLine {
+  font-size: 13px;
+  color: var(--qu-muted);
+}
+
+.tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.tag {
+  padding: 2px 8px;
+  border-radius: 999px;
+  background: var(--qu-surface2);
+  border: 1px solid var(--qu-border);
+  color: var(--qu-muted);
+  font-size: 11px;
+}
+
+.goToLink {
+  display: block;
+  margin-top: 18px;
+  text-align: center;
+  padding: 9px 14px;
+  border-radius: var(--qu-radius);
+  background: var(--qu-surface2);
+  border: 1px solid var(--qu-border);
+  color: var(--qu-text);
+  font-weight: 700;
+  font-size: 13px;
+  text-decoration: none;
+}
+
+.goToLink:hover {
+  filter: brightness(1.1);
+}

@@ -1,6 +1,9 @@
+import { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
+import type { Game } from '@queueup/shared';
 import { GAME_STATUS_LABEL } from '../components/gameGridLogic';
+import { CurrentlyPlayingGameModal } from '../components/CurrentlyPlayingGameModal';
 import { gamesApi } from '../api/games';
 import styles from './CurrentlyPlayingView.module.css';
 
@@ -9,13 +12,15 @@ import styles from './CurrentlyPlayingView.module.css';
  * into each one just to see what's active where. Read-only/navigational rather than reusing the
  * full interactive GameCard: `Game.status` is one shared field per room game, so acting on one
  * here (changing status, voting) would need the same room-scoped mutation wiring `useGames` does
- * per room, for every room at once - clicking through to the room itself is simpler and already
- * gets you the exact same interactive card. */
+ * per room, for every room at once. Clicking a game opens a read-only preview instead (issue
+ * #457) - jumping straight to the room was jarring for just wanting a quick look; the room
+ * heading itself is still the one-click way to actually get into the room's interactive card. */
 export function CurrentlyPlayingView() {
   const { data, isLoading, isError } = useQuery({
     queryKey: ['me', 'currently-playing'],
     queryFn: gamesApi.currentlyPlaying,
   });
+  const [preview, setPreview] = useState<{ game: Game; roomId: string | null; roomName: string | null } | null>(null);
 
   return (
     <div className={styles.page}>
@@ -28,12 +33,15 @@ export function CurrentlyPlayingView() {
 
       {data?.groups.map((group) => (
         <div key={group.roomId ?? 'personal'} className={styles.group}>
-          <div className={styles.groupTitle}>{group.roomName ?? 'Personal Shelf'}</div>
+          <Link to={group.roomId ? `/room/${group.roomId}` : '/'} className={styles.groupTitle}>
+            {group.roomName ?? 'Personal Shelf'}
+          </Link>
           <div className={styles.row}>
             {group.games.map((game) => (
-              <Link
+              <button
                 key={game.id}
-                to={group.roomId ? `/room/${group.roomId}` : '/'}
+                type="button"
+                onClick={() => setPreview({ game, roomId: group.roomId, roomName: group.roomName })}
                 className={styles.tile}
                 title={`${game.title} - ${GAME_STATUS_LABEL[game.status]}`}
               >
@@ -47,11 +55,20 @@ export function CurrentlyPlayingView() {
                   </span>
                 </div>
                 <span className={styles.tileTitle}>{game.title}</span>
-              </Link>
+              </button>
             ))}
           </div>
         </div>
       ))}
+
+      {preview && (
+        <CurrentlyPlayingGameModal
+          game={preview.game}
+          roomId={preview.roomId}
+          roomName={preview.roomName}
+          onClose={() => setPreview(null)}
+        />
+      )}
     </div>
   );
 }
