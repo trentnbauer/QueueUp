@@ -96,7 +96,7 @@ const PLAYNITE_IMPORT_CONCURRENCY = 4;
  * fails with P2002, caught below and folded into the same existing-row union path as if the game
  * had already been on the shelf before this import started, same pattern as sync-shelf-beaten's own
  * P2002 handling in games.ts. */
-export async function applyResolvedIgdbEntry(
+async function applyResolvedIgdbEntry(
   userId: string,
   igdbId: number,
   entry: LibraryImportEntry,
