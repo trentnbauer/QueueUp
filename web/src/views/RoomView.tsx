@@ -3,8 +3,11 @@ import { useParams } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import { useAuth } from '../context/AuthContext';
 import { useView } from '../context/ViewContext';
+import { useGameFilter } from '../context/GameFilterContext';
 import { useConfirm } from '../context/ConfirmContext';
 import { useGames } from '../hooks/useGames';
+import { useGameSearch } from '../hooks/useGameSearch';
+import { useDebouncedValue } from '../hooks/useDebouncedValue';
 import { roomsApi } from '../api/rooms';
 import { GameGrid } from '../components/GameGrid';
 import { PlayingStrip } from '../components/PlayingStrip';
@@ -47,6 +50,13 @@ export function RoomView() {
   } = useGames(roomId ?? null);
 
   const confirm = useConfirm();
+
+  // Same reasoning as ShelfView: a title search looks across the whole room regardless of status
+  // or the 500-game recency cap (see useGameSearch), replacing the normal strips/main-grid layout
+  // with one flat list of matches while it's active.
+  const { searchQuery } = useGameFilter();
+  const debouncedQuery = useDebouncedValue(searchQuery, 300);
+  const search = useGameSearch(roomId ?? null, debouncedQuery);
 
   // A room game was just marked Beaten and the same game either isn't on the Personal Shelf at
   // all, or is there but not yet marked Beaten (see ShelfSyncSuggestion) - offer to sync it there
@@ -95,103 +105,130 @@ export function RoomView() {
       <ActionErrorBanner message={actionError} onDismiss={clearActionError} />
       <TruncatedListBanner truncated={truncated} />
       <RoomSizeWarningBanner memberCount={memberCount} />
-      <PlayingStrip
-        games={games}
-        currentUserId={user.id}
-        memberCount={memberCount}
-        roomMembers={roomMembers}
-        onStatusChange={updateStatus}
-        onVote={vote}
-        onRemove={remove}
-        onRefreshPrice={refreshPrice}
-        isRefreshingPrice={isRefreshingPrice}
-        onSetSteamMatch={setSteamMatch}
-        onSetTargetPrice={setTargetPrice}
-        onSetManualPrice={setManualPrice}
-        onSetOwnership={setOwnership}
-        onApplyTag={applyTag}
-        onRemoveTag={removeTag}
-        onSetPrerequisite={setPrerequisite}
-      />
-      <ComingSoonStrip
-        games={games}
-        currentUserId={user.id}
-        memberCount={memberCount}
-        roomMembers={roomMembers}
-        onStatusChange={updateStatus}
-        onVote={vote}
-        onRemove={remove}
-        onRefreshPrice={refreshPrice}
-        isRefreshingPrice={isRefreshingPrice}
-        onSetSteamMatch={setSteamMatch}
-        onSetTargetPrice={setTargetPrice}
-        onSetManualPrice={setManualPrice}
-        onSetOwnership={setOwnership}
-        onApplyTag={applyTag}
-        onRemoveTag={removeTag}
-        onSetPrerequisite={setPrerequisite}
-      />
-      <GameGrid
-        games={games}
-        currentUserId={user.id}
-        isLoading={isLoading}
-        isError={isError}
-        loadError={loadError}
-        onRetry={refetch}
-        memberCount={memberCount}
-        roomMembers={roomMembers}
-        // Replay-queued games (issue #334) join Done under BeatenStrip below, and Play Next joins
-        // Playing in the Currently Playing strip above - same as ShelfView.
-        hiddenStatuses={['playing', 'play_next', 'done', 'replay', 'dropped']}
-        onStatusChange={updateStatus}
-        onVote={vote}
-        onRemove={remove}
-        onRefreshPrice={refreshPrice}
-        isRefreshingPrice={isRefreshingPrice}
-        onSetSteamMatch={setSteamMatch}
-        onSetTargetPrice={setTargetPrice}
-        onSetManualPrice={setManualPrice}
-        onSetOwnership={setOwnership}
-        onApplyTag={applyTag}
-        onRemoveTag={removeTag}
-        onSetPrerequisite={setPrerequisite}
-      />
-      <BeatenStrip
-        games={games}
-        currentUserId={user.id}
-        memberCount={memberCount}
-        roomMembers={roomMembers}
-        onStatusChange={updateStatus}
-        onVote={vote}
-        onRemove={remove}
-        onRefreshPrice={refreshPrice}
-        isRefreshingPrice={isRefreshingPrice}
-        onSetSteamMatch={setSteamMatch}
-        onSetTargetPrice={setTargetPrice}
-        onSetManualPrice={setManualPrice}
-        onSetOwnership={setOwnership}
-        onApplyTag={applyTag}
-        onRemoveTag={removeTag}
-        onSetPrerequisite={setPrerequisite}
-      />
-      <DroppedStrip
-        games={games}
-        currentUserId={user.id}
-        memberCount={memberCount}
-        roomMembers={roomMembers}
-        onStatusChange={updateStatus}
-        onVote={vote}
-        onRemove={remove}
-        onRefreshPrice={refreshPrice}
-        isRefreshingPrice={isRefreshingPrice}
-        onSetSteamMatch={setSteamMatch}
-        onSetTargetPrice={setTargetPrice}
-        onSetManualPrice={setManualPrice}
-        onSetOwnership={setOwnership}
-        onApplyTag={applyTag}
-        onRemoveTag={removeTag}
-        onSetPrerequisite={setPrerequisite}
-      />
+      {search.isSearching ? (
+        <GameGrid
+          games={search.games}
+          currentUserId={user.id}
+          isLoading={search.isLoading}
+          isError={search.isError}
+          loadError={search.loadError}
+          onRetry={search.refetch}
+          memberCount={memberCount}
+          roomMembers={roomMembers}
+          onStatusChange={updateStatus}
+          onVote={vote}
+          onRemove={remove}
+          onRefreshPrice={refreshPrice}
+          isRefreshingPrice={isRefreshingPrice}
+          onSetSteamMatch={setSteamMatch}
+          onSetTargetPrice={setTargetPrice}
+          onSetManualPrice={setManualPrice}
+          onSetOwnership={setOwnership}
+          onApplyTag={applyTag}
+          onRemoveTag={removeTag}
+          onSetPrerequisite={setPrerequisite}
+        />
+      ) : (
+        <>
+          <PlayingStrip
+            games={games}
+            currentUserId={user.id}
+            memberCount={memberCount}
+            roomMembers={roomMembers}
+            onStatusChange={updateStatus}
+            onVote={vote}
+            onRemove={remove}
+            onRefreshPrice={refreshPrice}
+            isRefreshingPrice={isRefreshingPrice}
+            onSetSteamMatch={setSteamMatch}
+            onSetTargetPrice={setTargetPrice}
+            onSetManualPrice={setManualPrice}
+            onSetOwnership={setOwnership}
+            onApplyTag={applyTag}
+            onRemoveTag={removeTag}
+            onSetPrerequisite={setPrerequisite}
+          />
+          <ComingSoonStrip
+            games={games}
+            currentUserId={user.id}
+            memberCount={memberCount}
+            roomMembers={roomMembers}
+            onStatusChange={updateStatus}
+            onVote={vote}
+            onRemove={remove}
+            onRefreshPrice={refreshPrice}
+            isRefreshingPrice={isRefreshingPrice}
+            onSetSteamMatch={setSteamMatch}
+            onSetTargetPrice={setTargetPrice}
+            onSetManualPrice={setManualPrice}
+            onSetOwnership={setOwnership}
+            onApplyTag={applyTag}
+            onRemoveTag={removeTag}
+            onSetPrerequisite={setPrerequisite}
+          />
+          <GameGrid
+            games={games}
+            currentUserId={user.id}
+            isLoading={isLoading}
+            isError={isError}
+            loadError={loadError}
+            onRetry={refetch}
+            memberCount={memberCount}
+            roomMembers={roomMembers}
+            // Replay-queued games (issue #334) join Done under BeatenStrip below, and Play Next joins
+            // Playing in the Currently Playing strip above - same as ShelfView.
+            hiddenStatuses={['playing', 'play_next', 'done', 'replay', 'dropped']}
+            onStatusChange={updateStatus}
+            onVote={vote}
+            onRemove={remove}
+            onRefreshPrice={refreshPrice}
+            isRefreshingPrice={isRefreshingPrice}
+            onSetSteamMatch={setSteamMatch}
+            onSetTargetPrice={setTargetPrice}
+            onSetManualPrice={setManualPrice}
+            onSetOwnership={setOwnership}
+            onApplyTag={applyTag}
+            onRemoveTag={removeTag}
+            onSetPrerequisite={setPrerequisite}
+          />
+          <BeatenStrip
+            games={games}
+            currentUserId={user.id}
+            memberCount={memberCount}
+            roomMembers={roomMembers}
+            onStatusChange={updateStatus}
+            onVote={vote}
+            onRemove={remove}
+            onRefreshPrice={refreshPrice}
+            isRefreshingPrice={isRefreshingPrice}
+            onSetSteamMatch={setSteamMatch}
+            onSetTargetPrice={setTargetPrice}
+            onSetManualPrice={setManualPrice}
+            onSetOwnership={setOwnership}
+            onApplyTag={applyTag}
+            onRemoveTag={removeTag}
+            onSetPrerequisite={setPrerequisite}
+          />
+          <DroppedStrip
+            games={games}
+            currentUserId={user.id}
+            memberCount={memberCount}
+            roomMembers={roomMembers}
+            onStatusChange={updateStatus}
+            onVote={vote}
+            onRemove={remove}
+            onRefreshPrice={refreshPrice}
+            isRefreshingPrice={isRefreshingPrice}
+            onSetSteamMatch={setSteamMatch}
+            onSetTargetPrice={setTargetPrice}
+            onSetManualPrice={setManualPrice}
+            onSetOwnership={setOwnership}
+            onApplyTag={applyTag}
+            onRemoveTag={removeTag}
+            onSetPrerequisite={setPrerequisite}
+          />
+        </>
+      )}
     </div>
   );
 }
