@@ -2,11 +2,11 @@ import { useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { ROOM_PLATFORM_LABELS, type PendingLibraryImportDto } from '@queueup/shared';
 import { pendingImportsApi, PENDING_IMPORTS_QUERY_KEY } from '../api/pendingImports';
-import { ResultThumb } from './AddGameModal';
-import { PendingImportMatchModal } from './PendingImportMatchModal';
-import profileStyles from '../views/ProfileSettingsView.module.css';
-import addGameStyles from './AddGameModal.module.css';
-import styles from './PendingImportsSection.module.css';
+import { ResultThumb } from '../components/AddGameModal';
+import { PendingImportMatchModal } from '../components/PendingImportMatchModal';
+import profileStyles from './ProfileSettingsView.module.css';
+import addGameStyles from '../components/AddGameModal.module.css';
+import styles from './NeedsReviewView.module.css';
 
 // Same root key useGames.ts builds ['games', 'shelf'|'room', ...] under - a resolved pending entry
 // either creates a new shelf game or unions ownership platforms onto an existing one, either way
@@ -73,12 +73,14 @@ function PendingImportRow({ entry, resolving, dismissing, onResolve, onDismiss, 
   );
 }
 
-/** Profile Settings' Playnite review queue (#452) - titles a Playnite import (or any future
- * external-library source) couldn't auto-resolve to an igdbId land in `PendingLibraryImport`
- * (server-side, shipped with the bulk import endpoint itself) rather than vanishing; this is the
- * "glance at a few candidate covers and click" UI to clear them at the user's own pace, since a
- * 1000+ game library's unresolved fraction is expected to be small but shouldn't be a one-shot
- * list that's lost if the import tab gets closed.
+/** Review queue for `PendingLibraryImport` rows - titles a Playnite import (or any future
+ * external-library source) couldn't auto-resolve to an igdbId land here rather than vanishing.
+ * Used to be buried in Profile Settings (as PendingImportsSection) - a page nobody thought to
+ * check for "did my import finish matching everything," the same complaint pattern as #469's
+ * Playnite setup guide - so it's its own top-level sidebar destination instead, for the same
+ * reason. This is the "glance at a few candidate covers and click" UI to clear entries at your own
+ * pace, since a 1000+ game library's unresolved fraction is expected to be small but shouldn't be
+ * a one-shot list that's lost if the review tab gets closed.
  *
  * Picking a candidate (or a "search manually" pick, via PendingImportMatchModal) hits the same
  * resolve route the whole feature was designed around (POST .../resolve, which unions ownership
@@ -89,9 +91,11 @@ function PendingImportRow({ entry, resolving, dismissing, onResolve, onDismiss, 
  * normal anti-duplicate behavior for adding a brand new game), which would hide the exact case
  * this queue often needs: matching an already-owned game onto a new platform.
  *
- * Renders nothing when the queue is empty (the common case - most users never see this section),
- * rather than a permanent "0 pending" row nobody asked to see. */
-export function PendingImportsSection() {
+ * Unlike the old Profile-Settings-embedded PendingImportsSection, this always renders its page
+ * chrome (title/hint) even when the queue is empty - a dedicated destination that silently showed
+ * nothing would look broken, whereas the old embedded section could just vanish since it was one
+ * section among several already-visible ones. */
+export function NeedsReviewView() {
   const queryClient = useQueryClient();
   const [searchingFor, setSearchingFor] = useState<{ id: string; title: string } | null>(null);
 
@@ -120,16 +124,18 @@ export function PendingImportsSection() {
   const error = resolve.error ?? dismiss.error ?? loadError;
   const errorMessage = error instanceof Error ? error.message : error ? 'Something went wrong with the review queue' : null;
 
-  if (pending.length === 0 && !errorMessage) return null;
-
   return (
-    <div className={profileStyles.section}>
-      <div className={profileStyles.sectionTitle}>Needs review ({pending.length})</div>
-      <p className={profileStyles.hint}>
+    <div className={styles.page}>
+      <h1 className={styles.title}>Needs Review{pending.length > 0 ? ` (${pending.length})` : ''}</h1>
+      <p className={styles.hint}>
         These titles came in from an import but didn't confidently match a game - pick the right one below, or
         search for it yourself if none of the candidates are right.
       </p>
       {errorMessage && <div className={profileStyles.error}>{errorMessage}</div>}
+
+      {pending.length === 0 && !errorMessage && (
+        <p className={styles.empty}>You're all caught up - nothing needs review right now.</p>
+      )}
 
       <div className={styles.list}>
         {pending.map((entry) => (

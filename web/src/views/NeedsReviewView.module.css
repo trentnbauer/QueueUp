@@ -1,3 +1,36 @@
+/* Page chrome matches CurrentlyPlayingView's - same "top-level sidebar destination" shape. */
+.page {
+  padding: 28px 40px;
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+@media (max-width: 640px) {
+  .page {
+    padding: 20px 18px;
+    gap: 16px;
+  }
+}
+
+.title {
+  font: 700 22px var(--qu-header-font);
+  color: var(--qu-text);
+  margin: 0 0 4px;
+}
+
+.hint {
+  font-size: 13px;
+  color: var(--qu-muted);
+  margin: 0;
+}
+
+.empty {
+  color: var(--qu-muted);
+  font-size: 13px;
+  margin: 0;
+}
+
 .list {
   display: flex;
   flex-direction: column;

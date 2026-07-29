@@ -5,6 +5,7 @@ import { useAuth } from '../context/AuthContext';
 import { useView } from '../context/ViewContext';
 import { useRooms } from '../hooks/useRooms';
 import { useNotificationSummary, useMarkAllNotificationsRead } from '../hooks/useNotifications';
+import { usePendingImportsCount } from '../hooks/usePendingImports';
 import { useSteamImportContext } from '../context/SteamImportContext';
 import { useThemeMode } from '../context/ThemeModeContext';
 import { authApi } from '../api/auth';
@@ -31,8 +32,12 @@ export function Sidebar() {
   // /playing (issue #364) isn't tracked in ViewContext (it's not a shelf/room, just an aggregate
   // view over them), so its icon's active state is checked directly against the URL instead.
   const onPlayingPage = useLocation().pathname === '/playing';
+  const onReviewPage = useLocation().pathname === '/review';
   const { rooms } = useRooms();
   const { totalUnread, unreadRoomIds } = useNotificationSummary();
+  // Badge on the Needs Review icon (see NeedsReviewView) - the review queue used to live silently
+  // inside Profile Settings with nothing anywhere else hinting it needed attention.
+  const pendingReviewCount = usePendingImportsCount();
   const markAllNotificationsRead = useMarkAllNotificationsRead();
   const { mode, toggle: toggleThemeMode } = useThemeMode();
   // Issue #359: a Steam library/wishlist import can run for minutes in the background (see
@@ -105,7 +110,7 @@ export function Sidebar() {
         <div className={styles.icons}>
           <Link
             to="/"
-            className={`${styles.roomIcon} ${!activeRoom && !onPlayingPage ? styles.roomIconActive : ''}`}
+            className={`${styles.roomIcon} ${!activeRoom && !onPlayingPage && !onReviewPage ? styles.roomIconActive : ''}`}
             title="Personal Shelf"
             onClick={closeMobileDrawer}
           >
@@ -121,6 +126,19 @@ export function Sidebar() {
             onClick={closeMobileDrawer}
           >
             🎮
+          </Link>
+
+          {/* Needs Review queue (unmatched import titles) - used to live silently inside Profile
+              Settings; a top-level icon with a badge (matching the notification-dot pattern below)
+              makes it visible from anywhere instead of only to someone who thinks to check settings. */}
+          <Link
+            to="/review"
+            className={`${styles.roomIcon} ${onReviewPage ? styles.roomIconActive : ''}`}
+            title={pendingReviewCount > 0 ? `Needs Review (${pendingReviewCount})` : 'Needs Review'}
+            onClick={closeMobileDrawer}
+          >
+            🧩
+            {pendingReviewCount > 0 && <span className={styles.unreadDot} aria-hidden="true" />}
           </Link>
 
           {rooms.map((room) => (
