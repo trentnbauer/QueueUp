@@ -1,5 +1,6 @@
 import type { FastifyError, FastifyInstance, FastifyReply, FastifyRequest } from 'fastify';
 import fp from 'fastify-plugin';
+import { Prisma } from '@prisma/client';
 import { env } from '../config/env.js';
 import { prisma } from '../db/client.js';
 import { HttpError } from '../util/httpError.js';
@@ -98,8 +99,24 @@ async function getOrCreateUser(profile: {
     return { user, isNewUser: false };
   }
 
-  const user = await prisma.user.create({ data: { ...profile, avatarColor: randomAvatarColor(), isAdmin } });
-  return { user, isNewUser: true };
+  try {
+    const user = await prisma.user.create({ data: { ...profile, avatarColor: randomAvatarColor(), isAdmin } });
+    return { user, isNewUser: true };
+  } catch (err) {
+    // Lost a race against a concurrent request for this same not-yet-existing account (issue
+    // #447) - e.g. two tabs completing the same OAuth login around the same instant, or (under
+    // DEV_FAKE_AUTH, which calls this on every request - see currentUserId below) several of the
+    // app's own on-load requests all seeing "no user yet" at once. Same P2002-fallback pattern as
+    // POST /api/rooms/join: the unique constraint on oidc_sub is the actual source of truth for
+    // who won, so the loser here just re-fetches that row instead of 500ing. Reported as
+    // isNewUser: false since this request didn't create it - whichever request actually won the
+    // race is the one whose isNewAccount flag should fire.
+    if (err instanceof Prisma.PrismaClientKnownRequestError && err.code === 'P2002') {
+      const user = await prisma.user.findUniqueOrThrow({ where: { oidcSub: profile.oidcSub } });
+      return { user, isNewUser: false };
+    }
+    throw err;
+  }
 }
 
 const AVATAR_COLORS = ['#E8734A', '#4A8FE8', '#6FBF73', '#B87DE8', '#E8C34A', '#4AE8D0'];
