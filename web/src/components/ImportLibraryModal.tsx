@@ -1,9 +1,11 @@
+import { useState } from 'react';
 import { useConfirm } from '../context/ConfirmContext';
 import { useSteamImportContext } from '../context/SteamImportContext';
 import { SteamCompletionsSyncModal } from './SteamCompletionsSyncModal';
 import { ActionErrorBanner } from './ActionErrorBanner';
-import { PlayniteImportGuide } from './PlayniteImportGuide';
+import { PlayniteImportModal } from './PlayniteImportModal';
 import { useModalA11y, closeOnBackdropMouseDown } from '../hooks/useModalA11y';
+import profileStyles from '../views/ProfileSettingsView.module.css';
 import styles from './ImportLibraryModal.module.css';
 
 interface ImportLibraryModalProps {
@@ -23,8 +25,10 @@ interface ImportLibraryModalProps {
  * on-demand modal, opened from the header's "Import Library" button - reclaims that grid space for
  * actual games instead of permanent action tiles that were always there whether or not anyone was
  * about to use them. Lists every importable library as its own section - Steam, and (since) a
- * step-by-step Playnite setup guide (PlayniteImportGuide, moved here from Profile Settings after a
- * user went looking for it under this exact button and found only Steam).
+ * short blurb + button that opens the Playnite setup flow (moved here from Profile Settings after
+ * a user went looking for it under this exact button and found only Steam) as its own modal
+ * (PlayniteImportModal, issue #469) rather than inline, so its multi-step wizard isn't stacked
+ * underneath the still-visible Steam section.
  * Reuses the exact same hooks/mutations the three tiles used (SteamImportContext,
  * useSteamCompletionsSync), so behavior - shared busy state between library/wishlist imports so
  * they can't race each other, confirm-before-import, progress polling - is unchanged, just
@@ -49,6 +53,7 @@ export function ImportLibraryModal({
 }: ImportLibraryModalProps) {
   const dialogRef = useModalA11y<HTMLDivElement>(onClose);
   const confirm = useConfirm();
+  const [showPlaynite, setShowPlaynite] = useState(false);
   const { busy, activeKind, progress, wishlistProgress, startLink, runSyncEverything, syncingEverything, completions } =
     useSteamImportContext();
 
@@ -134,7 +139,20 @@ export function ImportLibraryModal({
             </button>
           </div>
 
-          <PlayniteImportGuide />
+          <div className={`${styles.librarySection} ${styles.secondarySection}`}>
+            <p className={styles.playniteBlurb}>
+              Track your library with <strong>Playnite</strong> instead? It's a free desktop app
+              that pulls games in from Steam, Epic, GOG, and more into one library - import from
+              it too.
+            </p>
+            <button
+              type="button"
+              className={profileStyles.unlinkButton}
+              onClick={() => setShowPlaynite(true)}
+            >
+              🕹️ Import from other clients (Playnite)
+            </button>
+          </div>
         </div>
       </div>
 
@@ -146,6 +164,8 @@ export function ImportLibraryModal({
           onClose={completions.reset}
         />
       )}
+
+      {showPlaynite && <PlayniteImportModal onClose={() => setShowPlaynite(false)} />}
     </>
   );
 }
