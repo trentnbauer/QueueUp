@@ -116,3 +116,32 @@
   cursor: default;
   opacity: 0.8;
 }
+
+/* Playnite section's numbered setup instructions - unlike Steam, QueueUp can't drive anything on
+   the Playnite side itself, so the install/connect/push steps have to be spelled out rather than
+   collapsed into one button. */
+.stepList {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin: 0;
+  padding-left: 20px;
+  font-size: 12.5px;
+  color: var(--qu-text);
+}
+
+.stepList code {
+  background: var(--qu-surface2);
+  border-radius: 4px;
+  padding: 1px 4px;
+  font-size: 11.5px;
+}
+
+/* Second-and-later sections in the modal (currently just Playnite) get a divider + top margin -
+   .librarySection itself has no external spacing since it was originally the dialog's only child
+   besides the header. */
+.secondarySection {
+  margin-top: 20px;
+  padding-top: 16px;
+  border-top: 1px solid var(--qu-border);
+}

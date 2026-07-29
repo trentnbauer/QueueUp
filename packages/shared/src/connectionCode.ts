@@ -2,9 +2,10 @@
  * everything an external companion agent (a Playnite extension, a home dashboard, ...) needs to
  * talk to a self-hosted QueueUp instance's /api/v1 API, so a user only has to copy-paste one value
  * instead of separately entering a server URL and an API key. QueueUp only ever *generates* this
- * string (see web/src/components/PlayniteImportSection.tsx) - nothing in this repo decodes it back,
- * since the only consumer is external, not-yet-built tooling. `decodeConnectionCode` exists purely
- * as this format's reference implementation/round-trip test, for whoever builds that tooling later.
+ * string (see web/src/components/PlayniteImportGuide.tsx) - nothing in this repo decodes it back,
+ * since the only consumer is the external QueueUpPlayniteExtension repo's own decoder (a straight
+ * port of this function - see its QueueUpExporterPlugin.cs). `decodeConnectionCode` here exists
+ * purely as this format's reference implementation/round-trip test.
  *
  * Format: `CONNECTION_CODE_PREFIX` + base64(JSON({ url, key })). Versioned via the prefix (`qc1_`,
  * matching the `qk_` convention used for a raw API key's own prefix - see server's apiKeys.ts) so
