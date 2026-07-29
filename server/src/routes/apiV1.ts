@@ -1,4 +1,5 @@
 import type { FastifyInstance, FastifyBaseLogger } from 'fastify';
+import { Prisma } from '@prisma/client';
 import { HttpError } from '../util/httpError.js';
 import { prisma } from '../db/client.js';
 import { resolveApiKeyUserId } from '../services/apiKeys.js';
@@ -8,6 +9,7 @@ import { createGameForUser, resolveGameForCreation, defaultStatusForRelease, lin
 import { isAddonCategory } from '../services/igdbClient.js';
 import { invalidateExistingIgdbIds } from '../services/gameAccess.js';
 import { setOwnershipPlatforms, unionOwnershipPlatforms } from '../services/gameOwnership.js';
+import { runWithConcurrency } from '../util/concurrency.js';
 import {
   PLAYNITE_SOURCE,
   acquirePlayniteImportLock,
@@ -76,11 +78,89 @@ export function dedupeImportEntries(entries: LibraryImportEntry[]): LibraryImpor
   return [...byTitle.entries()].map(([title, platforms]) => ({ title, platforms: [...platforms] }));
 }
 
+// Bounded to 4 *in flight* (issue #465) - not a hard rate guarantee (four fast round trips can
+// still exceed IGDB's ~4 req/s per-key limit, and the limit is per key across all users, not per
+// import), just a deliberate compromise between "one at a time" and "everything at once" that keeps
+// a single import well clear of 429s in practice. If 429s show up at scale, the real fix is a
+// shared token-bucket in front of igdbClient, not a smaller number here.
+const PLAYNITE_IMPORT_CONCURRENCY = 4;
+
+/** Applies one already-resolved igdbId to the shelf: unions ownership platforms onto an existing
+ * game, or creates a new one - the same create-vs-union logic runPlayniteImportLoop always had,
+ * pulled out so it can be pool-processed. `existingByIgdbId` is mutated in place, same as before.
+ *
+ * Bounded concurrency (issue #465) means two entries in the same batch can now resolve to the same
+ * igdbId at once (e.g. two differently-titled Playnite entries turning out to be the same IGDB
+ * game) and both reach the create call before either lands - the `games_shelf_igdb_unique` partial
+ * index (issue #326) is what actually stops that from becoming a duplicate row; the loser's insert
+ * fails with P2002, caught below and folded into the same existing-row union path as if the game
+ * had already been on the shelf before this import started, same pattern as sync-shelf-beaten's own
+ * P2002 handling in games.ts. */
+export async function applyResolvedIgdbEntry(
+  userId: string,
+  igdbId: number,
+  entry: LibraryImportEntry,
+  existingByIgdbId: Map<number, { status: string }>,
+): Promise<void> {
+  const existing = existingByIgdbId.get(igdbId);
+  if (existing) {
+    if (existing.status !== 'wishlist') await unionOwnershipPlatforms(userId, igdbId, entry.platforms);
+    return;
+  }
+
+  const resolved = await resolveGameForCreation(igdbId);
+  let created;
+  try {
+    created = await prisma.game.create({
+      data: {
+        roomId: null,
+        addedBy: userId,
+        igdbId,
+        title: resolved.title,
+        platform: resolved.platform,
+        genre: resolved.genre,
+        maxCoopPlayers: resolved.maxCoopPlayers,
+        timeToBeatHours: resolved.timeToBeatHours,
+        timeToBeatRushedHours: resolved.timeToBeatRushedHours,
+        timeToBeatCompletionistHours: resolved.timeToBeatCompletionistHours,
+        ggDealsUrl: resolved.ggDealsUrl,
+        steamAppid: resolved.steamAppId,
+        coverImageUrl: resolved.coverImageUrl,
+        releaseYear: resolved.releaseYear,
+        releaseDate: resolved.releaseDate,
+        igdbCollectionId: resolved.igdbCollectionId,
+        reviewScore: resolved.reviewScore,
+        status: defaultStatusForRelease(resolved.releaseDate),
+      },
+    });
+  } catch (err) {
+    if (!(err instanceof Prisma.PrismaClientKnownRequestError && err.code === 'P2002')) throw err;
+    const winner = await prisma.game.findFirstOrThrow({ where: { roomId: null, addedBy: userId, igdbId } });
+    existingByIgdbId.set(igdbId, { status: winner.status });
+    if (winner.status !== 'wishlist') await unionOwnershipPlatforms(userId, igdbId, entry.platforms);
+    return;
+  }
+  // Issue #338 precedent, same as the Steam import loop: a library commonly includes DLC
+  // entries alongside their base game - ensure the base game is present too and link back.
+  if (resolved.parentGameIgdbId && isAddonCategory(resolved.category)) {
+    const base = await linkDlcToBaseGame(created.id, resolved.parentGameIgdbId, null, userId);
+    if (base && !existingByIgdbId.has(base.baseIgdbId)) {
+      existingByIgdbId.set(base.baseIgdbId, { status: 'backlog' });
+      await unionOwnershipPlatforms(userId, base.baseIgdbId, entry.platforms);
+    }
+  }
+  existingByIgdbId.set(igdbId, { status: created.status });
+  await setOwnershipPlatforms(userId, igdbId, entry.platforms);
+}
+
 /** The slow part of a Playnite library import - one IGDB/alias lookup (and possibly a create) per
- * entry, which can take a while for a big non-Steam library. Run in the background by the route
- * below rather than awaited inline, same reasoning as runSteamLibraryImportLoop (a reverse proxy/
- * CDN in front of this server won't hold a connection open that long). `existingByIgdbId` is
- * mutated in place as entries are processed.
+ * entry, which can take a while for a big non-Steam library. Processed through a bounded-concurrency
+ * pool (issue #465 - a plain sequential loop meant 15-25+ minutes for a 1000+ game library) rather
+ * than either one-at-a-time or a plain `Promise.all` over everything, which would blow through
+ * IGDB's rate limit - see PLAYNITE_IMPORT_CONCURRENCY. Run in the background by the route below
+ * rather than awaited inline, same reasoning as runSteamLibraryImportLoop (a reverse proxy/CDN in
+ * front of this server won't hold a connection open that long). `existingByIgdbId` is mutated in
+ * place as entries are processed.
  *
  * Ownership marking is intentionally asymmetric between the two paths, mirroring
  * runSteamLibraryImportLoop exactly: a fresh create always marks ownership (even one that defaults
@@ -108,56 +188,16 @@ async function runPlayniteImportLoop(
   let unmatched = 0;
   let errored = 0;
   try {
-    for (const entry of entries) {
+    await runWithConcurrency(entries, PLAYNITE_IMPORT_CONCURRENCY, async (entry) => {
       try {
         const igdbId = await resolveTitleToIgdbId(PLAYNITE_SOURCE, entry.title);
         if (igdbId === null) {
           await recordPendingLibraryImport(userId, PLAYNITE_SOURCE, entry.title, entry.platforms);
           unmatched++;
-          continue;
+          return;
         }
 
-        const existing = existingByIgdbId.get(igdbId);
-        if (existing) {
-          if (existing.status !== 'wishlist') {
-            await unionOwnershipPlatforms(userId, igdbId, entry.platforms);
-          }
-        } else {
-          const resolved = await resolveGameForCreation(igdbId);
-          const created = await prisma.game.create({
-            data: {
-              roomId: null,
-              addedBy: userId,
-              igdbId,
-              title: resolved.title,
-              platform: resolved.platform,
-              genre: resolved.genre,
-              maxCoopPlayers: resolved.maxCoopPlayers,
-              timeToBeatHours: resolved.timeToBeatHours,
-              timeToBeatRushedHours: resolved.timeToBeatRushedHours,
-              timeToBeatCompletionistHours: resolved.timeToBeatCompletionistHours,
-              ggDealsUrl: resolved.ggDealsUrl,
-              steamAppid: resolved.steamAppId,
-              coverImageUrl: resolved.coverImageUrl,
-              releaseYear: resolved.releaseYear,
-              releaseDate: resolved.releaseDate,
-              igdbCollectionId: resolved.igdbCollectionId,
-              reviewScore: resolved.reviewScore,
-              status: defaultStatusForRelease(resolved.releaseDate),
-            },
-          });
-          // Issue #338 precedent, same as the Steam import loop: a library commonly includes DLC
-          // entries alongside their base game - ensure the base game is present too and link back.
-          if (resolved.parentGameIgdbId && isAddonCategory(resolved.category)) {
-            const base = await linkDlcToBaseGame(created.id, resolved.parentGameIgdbId, null, userId);
-            if (base && !existingByIgdbId.has(base.baseIgdbId)) {
-              existingByIgdbId.set(base.baseIgdbId, { status: 'backlog' });
-              await unionOwnershipPlatforms(userId, base.baseIgdbId, entry.platforms);
-            }
-          }
-          existingByIgdbId.set(igdbId, { status: created.status });
-          await setOwnershipPlatforms(userId, igdbId, entry.platforms);
-        }
+        await applyResolvedIgdbEntry(userId, igdbId, entry, existingByIgdbId);
         // A title that previously landed in the review queue (issue #452) may now resolve - via a
         // freshly-written TitleMatchAlias, whether from this same title exact-matching this time or
         // someone else having resolved it since - so the stale pending row (if any) needs to clear
@@ -172,9 +212,22 @@ async function runPlayniteImportLoop(
         errored++;
         logger.warn({ err, title: entry.title }, 'Playnite import entry failed');
       } finally {
-        await setPlayniteImportProgress(userId, { consideredCount, matched, unmatched, errored, done: false });
+        // The in-memory counters themselves are safe under concurrency (each is only ever
+        // incremented, and JS's single-threaded execution means no two increments can interleave),
+        // but the redis *writes* from different pool workers can still land out of order, so a
+        // client polling progress mid-import may briefly see a count that goes down before catching
+        // back up - never a wrong final total, since the outer `finally` below always writes last.
+        // Swallowed rather than left to reject this worker: a failed progress write is a display
+        // hiccup, not a reason to abort the batch or (worse) let the pool's Promise.all reject and
+        // return early, which would release the import lock in routes' `.finally` while other
+        // workers are still mid-create - see this function's doc comment for why that matters.
+        try {
+          await setPlayniteImportProgress(userId, { consideredCount, matched, unmatched, errored, done: false });
+        } catch (progressErr) {
+          logger.warn({ err: progressErr }, 'Failed to write Playnite import progress');
+        }
       }
-    }
+    });
     if (matched > 0) await invalidateExistingIgdbIds(null, userId);
   } finally {
     await setPlayniteImportProgress(userId, { consideredCount, matched, unmatched, errored, done: true });
