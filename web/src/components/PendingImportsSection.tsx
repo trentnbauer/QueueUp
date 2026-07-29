@@ -1,8 +1,9 @@
-import { useRef, useState } from 'react';
+import { useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { ROOM_PLATFORM_LABELS, type PendingLibraryImportDto } from '@queueup/shared';
 import { pendingImportsApi, PENDING_IMPORTS_QUERY_KEY } from '../api/pendingImports';
-import { AddGameModal, ResultThumb } from './AddGameModal';
+import { ResultThumb } from './AddGameModal';
+import { PendingImportMatchModal } from './PendingImportMatchModal';
 import profileStyles from '../views/ProfileSettingsView.module.css';
 import addGameStyles from './AddGameModal.module.css';
 import styles from './PendingImportsSection.module.css';
@@ -18,7 +19,7 @@ interface PendingImportRowProps {
   dismissing: boolean;
   onResolve: (igdbId: number) => void;
   onDismiss: () => void;
-  onSearchManually: () => void;
+  onSearchManually: (entry: PendingLibraryImportDto) => void;
 }
 
 function PendingImportRow({ entry, resolving, dismissing, onResolve, onDismiss, onSearchManually }: PendingImportRowProps) {
@@ -65,7 +66,7 @@ function PendingImportRow({ entry, resolving, dismissing, onResolve, onDismiss, 
         <p className={styles.noCandidates}>No close matches found.</p>
       )}
 
-      <button type="button" className={profileStyles.linkButton} onClick={onSearchManually} disabled={busy}>
+      <button type="button" className={profileStyles.linkButton} onClick={() => onSearchManually(entry)} disabled={busy}>
         None of these - search manually
       </button>
     </div>
@@ -79,24 +80,20 @@ function PendingImportRow({ entry, resolving, dismissing, onResolve, onDismiss, 
  * 1000+ game library's unresolved fraction is expected to be small but shouldn't be a one-shot
  * list that's lost if the import tab gets closed.
  *
- * Picking a candidate hits the same resolve route the whole feature was designed around
- * (POST .../resolve, which internally goes through createGameForUser/resolveGameForCreation - the
- * exact same intake path a normal Add Game uses, so a resolved entry gets identical cover/genre/
- * pricing richness). "None of these" reuses AddGameModal outright instead of building a second
- * search UI - a title IGDB's own search didn't confidently match already got its best shot at
- * import time; a person typing a better query is the fallback, not a UI this component should
- * reimplement.
+ * Picking a candidate (or a "search manually" pick, via PendingImportMatchModal) hits the same
+ * resolve route the whole feature was designed around (POST .../resolve, which unions ownership
+ * onto an already-owned game or otherwise goes through createGameForUser/resolveGameForCreation -
+ * the exact same intake path a normal Add Game uses, so a resolved entry gets identical
+ * cover/genre/pricing richness). "None of these" opens a dedicated search modal rather than
+ * reusing AddGameModal outright - AddGameModal's own search excludes already-owned games (the
+ * normal anti-duplicate behavior for adding a brand new game), which would hide the exact case
+ * this queue often needs: matching an already-owned game onto a new platform.
  *
  * Renders nothing when the queue is empty (the common case - most users never see this section),
  * rather than a permanent "0 pending" row nobody asked to see. */
 export function PendingImportsSection() {
   const queryClient = useQueryClient();
-  const [searchingForId, setSearchingForId] = useState<string | null>(null);
-  // Tracks whether the manual-search fallback already dismissed its pending row this session -
-  // AddGameModal's onAdded can fire more than once (it deliberately stays open after an add so
-  // someone can add several games from one search), but this pending entry should only ever be
-  // dismissed once, on the first successful add, not every subsequent unrelated one.
-  const dismissedForSearchRef = useRef(false);
+  const [searchingFor, setSearchingFor] = useState<{ id: string; title: string } | null>(null);
 
   const { data, error: loadError } = useQuery({ queryKey: PENDING_IMPORTS_QUERY_KEY, queryFn: pendingImportsApi.list });
   const pending = data?.pending ?? [];
@@ -114,16 +111,10 @@ export function PendingImportsSection() {
     onSuccess: () => queryClient.invalidateQueries({ queryKey: PENDING_IMPORTS_QUERY_KEY }),
   });
 
-  function openManualSearch(id: string) {
-    dismissedForSearchRef.current = false;
-    setSearchingForId(id);
-  }
-
-  function handleManualAdded() {
-    if (searchingForId && !dismissedForSearchRef.current) {
-      dismissedForSearchRef.current = true;
-      dismiss.mutate(searchingForId);
-    }
+  function handleManualMatchResolved() {
+    setSearchingFor(null);
+    queryClient.invalidateQueries({ queryKey: PENDING_IMPORTS_QUERY_KEY });
+    queryClient.invalidateQueries({ queryKey: GAMES_QUERY_ROOT });
   }
 
   const error = resolve.error ?? dismiss.error ?? loadError;
@@ -149,13 +140,18 @@ export function PendingImportsSection() {
             dismissing={dismiss.isPending && dismiss.variables === entry.id}
             onResolve={(igdbId) => resolve.mutate({ id: entry.id, igdbId })}
             onDismiss={() => dismiss.mutate(entry.id)}
-            onSearchManually={() => openManualSearch(entry.id)}
+            onSearchManually={(entry) => setSearchingFor({ id: entry.id, title: entry.title })}
           />
         ))}
       </div>
 
-      {searchingForId && (
-        <AddGameModal roomId={null} onAdded={handleManualAdded} onClose={() => setSearchingForId(null)} />
+      {searchingFor && (
+        <PendingImportMatchModal
+          pendingId={searchingFor.id}
+          initialQuery={searchingFor.title}
+          onResolved={handleManualMatchResolved}
+          onClose={() => setSearchingFor(null)}
+        />
       )}
     </div>
   );

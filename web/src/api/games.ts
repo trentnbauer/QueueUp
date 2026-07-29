@@ -44,9 +44,9 @@ export const gamesApi = {
     apiGet<{ games: Game[]; truncated: boolean }>(`/api/games${libraryQuery(region, q)}`),
   room: (roomId: string, region?: PriceRegion, q?: string) =>
     apiGet<{ games: Game[]; truncated: boolean }>(`/api/rooms/${roomId}/games${libraryQuery(region, q)}`),
-  search: (q: string, roomId?: string | null, offset = 0, hideAddons = true) =>
+  search: (q: string, roomId?: string | null, offset = 0, hideAddons = true, includeOwned = false) =>
     apiGet<{ results: GameSearchResult[]; collections: CollectionSearchResult[]; nextOffset: number; hasMore: boolean }>(
-      `/api/games/search?q=${encodeURIComponent(q)}${roomId ? `&roomId=${roomId}` : ''}${offset ? `&offset=${offset}` : ''}${hideAddons ? '' : '&hideAddons=false'}`,
+      `/api/games/search?q=${encodeURIComponent(q)}${roomId ? `&roomId=${roomId}` : ''}${offset ? `&offset=${offset}` : ''}${hideAddons ? '' : '&hideAddons=false'}${includeOwned ? '&includeOwned=true' : ''}`,
     ),
   collectionGames: (collectionId: number, roomId?: string | null, hideAddons = true) =>
     apiGet<CollectionGamesResult>(

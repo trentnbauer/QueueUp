@@ -302,7 +302,7 @@ async function runSteamWishlistImportLoop(
 }
 
 export default async function gameRoutes(app: FastifyInstance) {
-  app.get<{ Querystring: { q?: string; roomId?: string; offset?: string; hideAddons?: string } }>(
+  app.get<{ Querystring: { q?: string; roomId?: string; offset?: string; hideAddons?: string; includeOwned?: string } }>(
     '/api/games/search',
     // Tighter than the global default (200/min) - matches the collections/:id sibling route below.
     // Worth calling out for this one specifically: infinite-scroll paging means a single search
@@ -314,7 +314,12 @@ export default async function gameRoutes(app: FastifyInstance) {
       const { roomId } = request.query;
       if (roomId) await requireMembership(roomId, userId);
       const platforms = roomId ? [await getRoomPlatform(roomId)] : await getOwnedPlatforms(userId);
-      const excludeIgdbIds = await existingIgdbIds(roomId ?? null, userId);
+      // Opt-in (pending-import review's "search manually" fallback needs to match an already-owned
+      // game onto a new platform - the normal already-added exclusion below would hide it from
+      // every result, leaving only its unowned DLC/add-ons visible). Every other caller leaves this
+      // off and keeps the normal dedupe behavior.
+      const includeOwned = request.query.includeOwned === 'true';
+      const excludeIgdbIds = includeOwned ? undefined : await existingIgdbIds(roomId ?? null, userId);
       const query = request.query.q ?? '';
       const offset = Math.max(0, Number.parseInt(request.query.offset ?? '0', 10) || 0);
       // Opt-out (issue #345): hidden unless the caller explicitly asks to see everything.
