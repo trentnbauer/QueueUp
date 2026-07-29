@@ -1,0 +1,174 @@
+name: Build and Publish Dev Docker Image
+
+on:
+  # Every push to main (i.e. every merged PR, since this repo merges into main) builds and pushes
+  # a fresh `dev` image - unlike build-docker-image.yml's scheduled/change-gated "latest" build,
+  # there's no daily cap or docker-build-marker diffing here: a dev/staging deployment tracking
+  # this tag is expected to move on every merge, not once a day.
+  push:
+    branches: [main]
+  workflow_dispatch: {}
+
+concurrency:
+  # A rapid string of merges to main should only end up building the latest one - superseding an
+  # in-progress run (rather than queuing behind it, as build-docker-image.yml does) is safe here
+  # since `dev` is a rolling tag with no permanent version/marker tags for a cancelled run to leave
+  # half-applied.
+  group: build-docker-image-dev
+  cancel-in-progress: true
+
+env:
+  REGISTRY: ghcr.io
+
+jobs:
+  setup:
+    runs-on: ubuntu-latest
+    outputs:
+      image_name: ${{ steps.image_name.outputs.image_name }}
+    steps:
+      # ghcr.io image refs must be lowercase, but github.repository preserves the repo's actual
+      # casing (trentnbauer/QueueUp) - lowercase it once here so every job downstream uses a ref
+      # Docker will accept.
+      - name: Compute lowercase image name
+        id: image_name
+        run: echo "image_name=${GITHUB_REPOSITORY,,}" >> "$GITHUB_OUTPUT"
+
+  # Builds each platform on a runner that's actually that architecture, instead of one job doing
+  # both via docker/setup-qemu-action - see build-docker-image.yml's identical job for why. Each
+  # leg pushes its image by digest only (no tags yet); `merge` below combines both digests into
+  # one multi-arch manifest and applies the real tags to that.
+  build:
+    needs: setup
+    permissions:
+      contents: read
+      packages: write
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - platform: linux/amd64
+            runner: ubuntu-latest
+          - platform: linux/arm64
+            runner: ubuntu-24.04-arm
+    runs-on: ${{ matrix.runner }}
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Generate changelog.json from merged PRs
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: .github/scripts/generate-changelog.sh
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Log in to GitHub Container Registry
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Sanitize platform for cache scope/artifact names
+        id: platform
+        run: echo "slug=${PLATFORM//\//-}" >> "$GITHUB_OUTPUT"
+        env:
+          PLATFORM: ${{ matrix.platform }}
+
+      # Short form so APP_VERSION (surfaced by /api/version and the admin page) matches the
+      # dev-<shortsha> image tag docker/metadata-action computes below - the raw github.sha is 40
+      # characters, the tag's suffix is 7, and someone comparing the two shouldn't see two
+      # different-looking identifiers for the same build.
+      - name: Compute short sha
+        id: sha
+        run: echo "short=${GITHUB_SHA:0:7}" >> "$GITHUB_OUTPUT"
+
+      - name: Build and push image by digest
+        id: build
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: ./docker/Dockerfile.server
+          platforms: ${{ matrix.platform }}
+          # Separate cache scope from build-docker-image.yml's own (dev-<platform> vs <platform>)
+          # - dev builds run far more often than the daily/on-demand prod build, and sharing one
+          # scope would let dev churn evict prod's cache entries under the GHA cache size limit.
+          cache-from: type=gha,scope=dev-${{ steps.platform.outputs.slug }}
+          cache-to: type=gha,mode=max,scope=dev-${{ steps.platform.outputs.slug }}
+          build-args: |
+            APP_VERSION=dev-${{ steps.sha.outputs.short }}
+            APP_SHA=${{ github.sha }}
+          outputs: type=image,name=${{ env.REGISTRY }}/${{ needs.setup.outputs.image_name }},push-by-digest=true,name-canonical=true,push=true
+
+      - name: Export digest
+        run: |
+          mkdir -p /tmp/digests
+          digest="${{ steps.build.outputs.digest }}"
+          touch "/tmp/digests/${digest#sha256:}"
+
+      - name: Upload digest
+        uses: actions/upload-artifact@v4
+        with:
+          name: digests-dev-${{ steps.platform.outputs.slug }}
+          path: /tmp/digests/*
+          if-no-files-found: error
+          retention-days: 1
+
+  # Combines the amd64 and arm64 images (pushed by digest above, untagged) into one multi-arch
+  # manifest list and applies the real tags to that - same reasoning as build-docker-image.yml's
+  # identical job. Deliberately doesn't create a permanent vX.Y.Z tag or move docker-build-marker -
+  # those belong solely to the scheduled production workflow's release bookkeeping, which this
+  # per-merge dev workflow doesn't participate in.
+  merge:
+    needs: [setup, build]
+    runs-on: ubuntu-latest
+    permissions:
+      packages: write
+    steps:
+      - name: Download digests
+        uses: actions/download-artifact@v4
+        with:
+          path: /tmp/digests
+          pattern: digests-dev-*
+          merge-multiple: true
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Log in to GitHub Container Registry
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Extract metadata for Docker
+        id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: ${{ env.REGISTRY }}/${{ needs.setup.outputs.image_name }}
+          # Rolling `dev` tag always points at the latest main, plus a per-commit `dev-<shortsha>`
+          # tag for pinning/traceability - no `latest`/semver tags here, those stay owned by
+          # build-docker-image.yml.
+          tags: |
+            type=raw,value=dev
+            type=sha,format=short,prefix=dev-
+
+      - name: Create and push multi-arch manifest
+        working-directory: /tmp/digests
+        # --annotation targets the index (see build-docker-image.yml's identical step for why) -
+        # required here even though dev has no curated changelog: ghcr.io's package page reads its
+        # description from whichever index was pushed most recently across *any* tag in this
+        # package, and dev pushes far more often than the prod workflow. Without an annotation of
+        # its own, every dev build would blank out the description prod's changelog just set.
+        run: |
+          docker buildx imagetools create \
+            $(jq -cr '.tags | map("-t " + .) | join(" ")' <<< "$DOCKER_METADATA_OUTPUT_JSON") \
+            --annotation "index:org.opencontainers.image.description=Development build from main ($GITHUB_SHA) - not a tested release, rebuilt automatically on every merge." \
+            $(printf '${{ env.REGISTRY }}/${{ needs.setup.outputs.image_name }}@sha256:%s ' *)
+        env:
+          DOCKER_METADATA_OUTPUT_JSON: ${{ steps.meta.outputs.json }}
+
+      - name: Inspect pushed manifest
+        run: docker buildx imagetools inspect ${{ env.REGISTRY }}/${{ needs.setup.outputs.image_name }}:dev
