@@ -114,6 +114,7 @@ model User {
   tags                 Tag[]
   roomSpinsStarted     RoomSpin[]
   apiKeys              ApiKey[]
+  pendingLibraryImports PendingLibraryImport[]
 
   @@map("users")
 }
@@ -161,6 +162,59 @@ model ApiKey {
 
   @@index([userId])
   @@map("api_keys")
+}
+
+/// A crowd-sourced (source, title) -> igdbId mapping, remembered once any user's title resolves to
+/// an igdbId - whether via an exact IGDB title match or a person manually picking a candidate for a
+/// PendingLibraryImport row (see that model). Purpose: the next library import - this same user's
+/// next sync, or a completely different user whose external library happens to report the exact
+/// same title string (e.g. two different people's Playnite exports both saying "The Legend of
+/// Zelda: Breath of the Wild" from the Nintendo source) - resolves instantly from this table
+/// instead of re-running an IGDB search or, worse, landing in the review queue a second time for
+/// a title someone already resolved once. Keyed by normalized title (see
+/// normalizeGameTitleForComparison), not by user - a title string's correct igdbId doesn't depend
+/// on who's importing it. `source` scopes this per external-library source (e.g. "playnite") so a
+/// future source with differently-shaped titles can't cross-pollute another source's aliases.
+model TitleMatchAlias {
+  source          String
+  normalizedTitle String   @map("normalized_title")
+  igdbId          Int      @map("igdb_id")
+  createdAt       DateTime @default(now()) @map("created_at")
+
+  @@id([source, normalizedTitle])
+  @@map("title_match_aliases")
+}
+
+/// An external-library title (e.g. from a Playnite import) that didn't resolve to an igdbId - no
+/// exact IGDB title match, and no TitleMatchAlias on file for it either. Surfaced in a review UI
+/// (Profile Settings, alongside the Playnite Import section from issue #441) so resolving it is
+/// "glance at a few candidate covers and click," not "search from scratch" - see `candidates`.
+/// Unique per (userId, source, title) so a repeat sync of the same still-unresolved title updates
+/// the existing row (refreshing its candidates) instead of accumulating duplicates - without this,
+/// a user syncing on every Playnite launch would see their review queue grow without bound purely
+/// from re-imports of titles they haven't gotten around to reviewing yet.
+model PendingLibraryImport {
+  id         String         @id @default(uuid())
+  userId     String         @map("user_id")
+  title      String
+  /// Which RoomPlatform(s) this title was reported as owned on by the source - carried through so
+  /// resolving this later (picking a candidate) can set GameOwnership.platforms correctly.
+  platforms  RoomPlatform[] @default([])
+  /// Free text, not an enum - meant to generalize to future external-library sources without a
+  /// schema migration each time. "playnite" today.
+  source     String
+  /// Up to a handful of IGDB search results captured at import time (igdbId, title, platform,
+  /// coverImageUrl, releaseYear - same shape as GameSearchResult) - empty when IGDB's search
+  /// returned nothing at all for this title. Snapshotted at import time rather than searched fresh
+  /// when the review UI loads, so opening the review list doesn't mean re-hitting IGDB once per
+  /// pending row.
+  candidates Json           @default("[]")
+  createdAt  DateTime       @default(now()) @map("created_at")
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, source, title])
+  @@map("pending_library_imports")
 }
 
 /// A user's ownership claim on a game, keyed by igdbId (not a specific Game row) - this is a fact

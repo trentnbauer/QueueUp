@@ -858,3 +858,50 @@ export interface CreateApiKeyRequest {
 export interface CreateApiKeyResponse extends ApiKeySummary {
   key: string;
 }
+
+/** One distinct title from an external library source (e.g. Playnite), already deduped/grouped by
+ * the client - QueueUp expects one entry per title with the union of every platform that title was
+ * reported owned on, not one entry per platform-specific row a source like Playnite lists
+ * separately (see QueueUpPlayniteExtension#7's dedupe-before-push step). */
+export interface LibraryImportEntry {
+  title: string;
+  platforms: RoomPlatform[];
+}
+
+/** Response from POST /api/v1/library/import-playnite - confirms the import started; poll
+ * PlayniteImportProgress for live counts and to know when it's actually done. Same
+ * background-and-poll shape as SteamImportStarted/SteamImportProgress. */
+export interface PlayniteImportStarted {
+  consideredCount: number;
+}
+
+export interface PlayniteImportProgress {
+  consideredCount: number;
+  /** Resolved to an igdbId (via TitleMatchAlias or an exact IGDB title match) and either newly
+   * created or had its owned platforms updated on an existing shelf game. */
+  matched: number;
+  /** Didn't resolve to an igdbId - written to PendingLibraryImport for later manual review. */
+  unmatched: number;
+  /** Resolved but failed for some other reason (an IGDB hiccup, etc.) - same "don't abort the
+   * batch over one bad entry" reasoning as Steam import's `skipped`. */
+  errored: number;
+  done: boolean;
+}
+
+/** A PendingLibraryImport row (server/src/db/prisma/schema.prisma) as sent to the client - an
+ * external-library title that didn't resolve to an igdbId, with whatever IGDB search candidates
+ * were found for it at import time, for a "pick one" review UI. */
+export interface PendingLibraryImportDto {
+  id: string;
+  title: string;
+  platforms: RoomPlatform[];
+  source: string;
+  candidates: GameSearchResult[];
+  createdAt: string;
+}
+
+/** Body for POST /api/games/pending-imports/:id/resolve - the candidate igdbId the user picked
+ * (from `candidates`, or one they searched for themselves instead). */
+export interface ResolvePendingLibraryImportRequest {
+  igdbId: number;
+}
