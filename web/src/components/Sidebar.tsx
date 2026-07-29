@@ -130,16 +130,21 @@ export function Sidebar() {
 
           {/* Needs Review queue (unmatched import titles) - used to live silently inside Profile
               Settings; a top-level icon with a badge (matching the notification-dot pattern below)
-              makes it visible from anywhere instead of only to someone who thinks to check settings. */}
-          <Link
-            to="/review"
-            className={`${styles.roomIcon} ${onReviewPage ? styles.roomIconActive : ''}`}
-            title={pendingReviewCount > 0 ? `Needs Review (${pendingReviewCount})` : 'Needs Review'}
-            onClick={closeMobileDrawer}
-          >
-            🧩
-            {pendingReviewCount > 0 && <span className={styles.unreadDot} aria-hidden="true" />}
-          </Link>
+              makes it visible from anywhere instead of only to someone who thinks to check settings.
+              Hidden entirely when there's nothing to review - unlike Currently Playing (always
+              useful as a glance, empty or not), an empty review queue is the common case and
+              permanent rail space for it would just be noise most users never act on. */}
+          {pendingReviewCount > 0 && (
+            <Link
+              to="/review"
+              className={`${styles.roomIcon} ${onReviewPage ? styles.roomIconActive : ''}`}
+              title={`Needs Review (${pendingReviewCount})`}
+              onClick={closeMobileDrawer}
+            >
+              🧩
+              <span className={styles.unreadDot} aria-hidden="true" />
+            </Link>
+          )}
 
           {rooms.map((room) => (
             <Link
