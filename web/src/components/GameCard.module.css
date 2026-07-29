@@ -119,6 +119,12 @@
   background: linear-gradient(135deg, #38bdf8, #0284c7);
 }
 
+/* Same red already used for "dropped" elsewhere (GameListRow's status pill, action-error banners),
+   not a new color introduced just for this ribbon. */
+.droppedRibbonText {
+  background: linear-gradient(135deg, #ff8a80, #c0392b);
+}
+
 /* Sits over the artwork's bottom edge with a gradient scrim underneath, so the price/owned line
    stays legible over any cover art rather than depending on how bright the image is. */
 .coverOverlay {
