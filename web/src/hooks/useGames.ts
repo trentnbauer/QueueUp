@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { useQuery, useMutation, useQueryClient, type Query } from '@tanstack/react-query';
 import { gamesApi } from '../api/games';
 import { tagsApi } from '../api/tags';
 import { useCurrencyRegion } from '../context/CurrencyRegionContext';
@@ -9,6 +9,19 @@ const GAMES_QUERY_ROOT = ['games'] as const;
 
 function errorMessage(err: unknown, fallback: string): string {
   return err instanceof Error && err.message ? err.message : fallback;
+}
+
+/** True for this list's *own* query key (['games','shelf',region] / ['games','room',roomId,region])
+ * and for useGameSearch's sibling variant of the same list (['games','shelf-search',region,query] /
+ * ['games','room',roomId,'search',region,query]) - both cache a `{ games, truncated }` shape for the
+ * same underlying list, just via a different endpoint call, so a card's status/vote/etc. needs to
+ * land in whichever one the user is currently looking at, not just whichever one this hook instance
+ * itself queried with. Matched by roomId position (index 2 for both room variants) rather than a
+ * literal prefix match, since the search variant inserts an extra 'search' segment before region. */
+export function isSameGamesList(query: Query, roomId: string | null): boolean {
+  const key = query.queryKey;
+  if (key[0] !== 'games') return false;
+  return roomId === null ? key[1] === 'shelf' || key[1] === 'shelf-search' : key[1] === 'room' && key[2] === roomId;
 }
 
 /** Handles listing + status/vote/remove mutations for either the personal shelf (roomId null) or a room. */
@@ -32,13 +45,18 @@ export function useGames(roomId: string | null) {
   const invalidate = () => queryClient.invalidateQueries({ queryKey });
 
   // The status/vote/refresh-price endpoints already return the fully-updated game DTO(s), and the
-  // list is cached as { games: Game[]; truncated: boolean } under this exact queryKey - patching
-  // those rows into the cache directly avoids a full refetch (and re-render of every other card)
-  // for a change that only ever affects a few. `truncated` is left untouched either way.
+  // list is cached as { games: Game[]; truncated: boolean } - patching those rows into the cache
+  // directly avoids a full refetch (and re-render of every other card) for a change that only ever
+  // affects a few. Patches every cached query for *this list*, not just this hook instance's own
+  // queryKey (see isSameGamesList) - otherwise a status change made while useGameSearch's results
+  // are on screen updates the non-search cache and leaves the visible search results (and any
+  // detail modal opened from one) showing the pre-change state until the search itself re-fires.
+  // `truncated` is left untouched either way.
   function patchGames(updated: Game[]) {
     const byId = new Map(updated.map((g) => [g.id, g]));
-    queryClient.setQueryData<{ games: Game[]; truncated: boolean }>(queryKey, (old) =>
-      old ? { ...old, games: old.games.map((g) => byId.get(g.id) ?? g) } : old,
+    queryClient.setQueriesData<{ games: Game[]; truncated: boolean }>(
+      { predicate: (query) => isSameGamesList(query, roomId) },
+      (old) => (old ? { ...old, games: old.games.map((g) => byId.get(g.id) ?? g) } : old),
     );
   }
   const patchGame = (updated: Game) => patchGames([updated]);
@@ -49,8 +67,9 @@ export function useGames(roomId: string | null) {
 
   function removeGamesFromCache(gameIds: string[]) {
     const idSet = new Set(gameIds);
-    queryClient.setQueryData<{ games: Game[]; truncated: boolean }>(queryKey, (old) =>
-      old ? { ...old, games: old.games.filter((g) => !idSet.has(g.id)) } : old,
+    queryClient.setQueriesData<{ games: Game[]; truncated: boolean }>(
+      { predicate: (query) => isSameGamesList(query, roomId) },
+      (old) => (old ? { ...old, games: old.games.filter((g) => !idSet.has(g.id)) } : old),
     );
   }
 
