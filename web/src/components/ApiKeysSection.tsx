@@ -1,6 +1,6 @@
-import { useEffect, useState } from 'react';
-import type { ApiKeySummary } from '@queueup/shared';
-import { apiKeysApi } from '../api/apiKeys';
+import { useState } from 'react';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { apiKeysApi, API_KEYS_QUERY_KEY } from '../api/apiKeys';
 import { formatRelativeTime } from '../utils/relativeTime';
 import styles from './ApiKeysSection.module.css';
 import profileStyles from '../views/ProfileSettingsView.module.css';
@@ -9,56 +9,42 @@ import profileStyles from '../views/ProfileSettingsView.module.css';
  * token for /api/v1 (pull your library, push a game in from an external script/Playnite
  * extension/etc.). A key is scoped to this user only, not to any one room - it authenticates as
  * this user, so it can reach any room they're already a member of, the same access they'd have in
- * the app itself. */
+ * the app itself.
+ *
+ * The list is a shared React Query cache (API_KEYS_QUERY_KEY), not locally-fetched state - issue
+ * #441's Playnite Import section creates a key of its own via the same underlying endpoint, and
+ * needs this list to pick that up without a manual page reload, the same way any other
+ * mutation-then-invalidate flow in this app works (see useGames.ts). */
 export function ApiKeysSection() {
-  const [keys, setKeys] = useState<ApiKeySummary[] | null>(null);
-  const [error, setError] = useState<string | null>(null);
+  const queryClient = useQueryClient();
   const [labelDraft, setLabelDraft] = useState('');
-  const [creating, setCreating] = useState(false);
   // Shown exactly once, right after creation - never refetchable, same "you won't see this again"
   // principle as a session secret. Cleared on unmount/navigation away, not persisted anywhere.
   const [justCreatedKey, setJustCreatedKey] = useState<string | null>(null);
-  const [revokingId, setRevokingId] = useState<string | null>(null);
   const [copied, setCopied] = useState(false);
 
-  function refetch() {
-    apiKeysApi
-      .list()
-      .then(({ keys }) => setKeys(keys))
-      .catch((err) => setError(err instanceof Error ? err.message : 'Could not load your API keys'));
-  }
+  const { data, error: loadError } = useQuery({ queryKey: API_KEYS_QUERY_KEY, queryFn: apiKeysApi.list });
+  const keys = data?.keys ?? null;
 
-  useEffect(refetch, []);
-
-  async function handleCreate() {
-    const label = labelDraft.trim();
-    if (!label) return;
-    setCreating(true);
-    setError(null);
-    try {
-      const created = await apiKeysApi.create(label);
+  const create = useMutation({
+    mutationFn: apiKeysApi.create,
+    onSuccess: (created) => {
       setJustCreatedKey(created.key);
       setLabelDraft('');
       setCopied(false);
-      refetch();
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Could not create that API key');
-    } finally {
-      setCreating(false);
-    }
-  }
+      queryClient.invalidateQueries({ queryKey: API_KEYS_QUERY_KEY });
+    },
+  });
 
-  async function handleRevoke(id: string) {
-    setRevokingId(id);
-    setError(null);
-    try {
-      await apiKeysApi.revoke(id);
-      refetch();
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Could not revoke that API key');
-    } finally {
-      setRevokingId(null);
-    }
+  const revoke = useMutation({
+    mutationFn: apiKeysApi.revoke,
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: API_KEYS_QUERY_KEY }),
+  });
+
+  function handleCreate() {
+    const label = labelDraft.trim();
+    if (!label) return;
+    create.mutate(label);
   }
 
   async function handleCopy() {
@@ -67,6 +53,8 @@ export function ApiKeysSection() {
     setCopied(true);
   }
 
+  const error = create.error ?? revoke.error ?? loadError;
+  const errorMessage = error instanceof Error ? error.message : error ? 'Something went wrong with your API keys' : null;
   const activeKeys = (keys ?? []).filter((k) => !k.revokedAt);
   const revokedKeys = (keys ?? []).filter((k) => k.revokedAt);
 
@@ -78,7 +66,7 @@ export function ApiKeysSection() {
         extension, a home dashboard) - authenticated as you, so a key reaches any room you're
         already a member of. See <code>/api/v1</code> for the read/write API a key unlocks.
       </p>
-      {error && <div className={profileStyles.error}>{error}</div>}
+      {errorMessage && <div className={profileStyles.error}>{errorMessage}</div>}
 
       {justCreatedKey && (
         <div className={styles.newKeyBox}>
@@ -108,8 +96,8 @@ export function ApiKeysSection() {
           onKeyDown={(e) => e.key === 'Enter' && handleCreate()}
           maxLength={100}
         />
-        <button type="button" className={profileStyles.linkButton} onClick={handleCreate} disabled={creating || !labelDraft.trim()}>
-          {creating ? 'Generating…' : 'Generate key'}
+        <button type="button" className={profileStyles.linkButton} onClick={handleCreate} disabled={create.isPending || !labelDraft.trim()}>
+          {create.isPending ? 'Generating…' : 'Generate key'}
         </button>
       </div>
 
@@ -128,10 +116,10 @@ export function ApiKeysSection() {
               <button
                 type="button"
                 className={profileStyles.unlinkButton}
-                onClick={() => handleRevoke(key.id)}
-                disabled={revokingId === key.id}
+                onClick={() => revoke.mutate(key.id)}
+                disabled={revoke.isPending && revoke.variables === key.id}
               >
-                {revokingId === key.id ? 'Revoking…' : 'Revoke'}
+                {revoke.isPending && revoke.variables === key.id ? 'Revoking…' : 'Revoke'}
               </button>
             </div>
           ))}
