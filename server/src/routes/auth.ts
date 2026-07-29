@@ -8,8 +8,12 @@ import { HttpError } from '../util/httpError.js';
 import { extractSteamId64, resolveSteamId64 } from '../services/steamLibrary.js';
 import { setOwnedPlatforms } from '../services/userSettings.js';
 import { logAdminAction } from '../services/adminAuditLog.js';
+import { generateApiKeyToken, hashApiKeyToken } from '../services/apiKeys.js';
 import type { OAuthProfile } from '../services/authProviders/types.js';
 import type {
+  ApiKeySummary,
+  CreateApiKeyRequest,
+  CreateApiKeyResponse,
   DataExport,
   DataExportGame,
   DataExportLinkedIdentity,
@@ -18,6 +22,16 @@ import type {
   UpdateOwnedPlatformsRequest,
   VoteValue,
 } from '@queueup/shared';
+
+function toApiKeySummary(key: { id: string; label: string; createdAt: Date; lastUsedAt: Date | null; revokedAt: Date | null }): ApiKeySummary {
+  return {
+    id: key.id,
+    label: key.label,
+    createdAt: key.createdAt.toISOString(),
+    lastUsedAt: key.lastUsedAt?.toISOString() ?? null,
+    revokedAt: key.revokedAt?.toISOString() ?? null,
+  };
+}
 
 /** Attaches a verified secondary identity to an already-signed-in user's account, rather than
  * creating/upserting a user by oidcSub like a normal login (see getOrCreateUser). Steam is the one
@@ -224,6 +238,45 @@ export default async function authRoutes(app: FastifyInstance) {
     const userId = await request.requireAuth();
     const ownedPlatforms = await setOwnedPlatforms(userId, request.body?.platforms);
     return reply.send({ ownedPlatforms });
+  });
+
+  // Personal access token management (issue #435) - these themselves are cookie-authenticated app
+  // routes (Profile Settings), not part of the bearer-authenticated /api/v1 surface the keys
+  // unlock. See services/apiKeys.ts for why the raw token is never stored, only its hash.
+  app.get('/api/me/api-keys', async (request, reply) => {
+    const userId = await request.requireAuth();
+    const keys = await prisma.apiKey.findMany({ where: { userId }, orderBy: { createdAt: 'desc' } });
+    return reply.send({ keys: keys.map(toApiKeySummary) });
+  });
+
+  app.post<{ Body: CreateApiKeyRequest }>(
+    '/api/me/api-keys',
+    // A direct, occasional Profile Settings action, same tier as /api/me/export below.
+    { config: { rateLimit: { max: 20, timeWindow: '1 minute' } } },
+    async (request, reply) => {
+      const userId = await request.requireAuth();
+      const label = request.body?.label?.trim();
+      if (!label) throw new HttpError(400, 'A label is required');
+
+      const token = generateApiKeyToken();
+      const created = await prisma.apiKey.create({
+        data: { userId, label, hash: hashApiKeyToken(token) },
+      });
+      reply.status(201);
+      const response: CreateApiKeyResponse = { ...toApiKeySummary(created), key: token };
+      return reply.send(response);
+    },
+  );
+
+  app.delete<{ Params: { id: string } }>('/api/me/api-keys/:id', async (request, reply) => {
+    const userId = await request.requireAuth();
+    const key = await prisma.apiKey.findUnique({ where: { id: request.params.id } });
+    if (!key || key.userId !== userId) throw new HttpError(404, 'API key not found');
+    if (!key.revokedAt) {
+      await prisma.apiKey.update({ where: { id: key.id }, data: { revokedAt: new Date() } });
+    }
+    reply.status(204);
+    return reply.send();
   });
 
   // "Download my data" (issue #243) - a safety net before the irreversible DELETE /api/me below,
