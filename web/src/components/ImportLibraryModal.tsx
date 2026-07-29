@@ -26,7 +26,17 @@ interface ImportLibraryModalProps {
  * Reuses the exact same hooks/mutations the three tiles used (SteamImportContext,
  * useSteamCompletionsSync), so behavior - shared busy state between library/wishlist imports so
  * they can't race each other, confirm-before-import, progress polling - is unchanged, just
- * relocated into one place. */
+ * relocated into one place.
+ *
+ * Issue #440: the Steam section itself used to still show four rows here (Sync Everything, plus
+ * the three granular Import Library/Import Wishlist/Sync Achievement Completions actions it
+ * already made redundant) - now just the one "Steam Import" action, since Sync Everything already
+ * covered the same ground (library + wishlist + achievements, skipping anything already present)
+ * and nobody asked to run just one leg on its own. The granular runImport/runWishlistImport/
+ * completions.scan calls this used to expose as separate buttons are still here under the hood -
+ * runSyncEverything below still calls them in sequence, and the once-per-session auto-login sync
+ * (see SteamImportContext) still calls runImport/runWishlistImport directly - only the UI that let
+ * a user trigger them individually is gone. */
 export function ImportLibraryModal({
   steamLinked,
   onApplyCompletions,
@@ -37,82 +47,47 @@ export function ImportLibraryModal({
 }: ImportLibraryModalProps) {
   const dialogRef = useModalA11y<HTMLDivElement>(onClose);
   const confirm = useConfirm();
-  const {
-    busy,
-    activeKind,
-    result,
-    error,
-    progress,
-    wishlistProgress,
-    startLink,
-    runImport,
-    runWishlistImport,
-    runSyncEverything,
-    syncingEverything,
-    completions,
-  } = useSteamImportContext();
+  const { busy, activeKind, progress, wishlistProgress, startLink, runSyncEverything, syncingEverything, completions } =
+    useSteamImportContext();
 
   const libraryBusy = busy && activeKind === 'library';
   const wishlistBusy = busy && activeKind === 'wishlist';
-  const libraryResult = activeKind === 'library' ? result : null;
-  const libraryError = activeKind === 'library' ? error : null;
-  const wishlistResult = activeKind === 'wishlist' ? result : null;
-  const wishlistError = activeKind === 'wishlist' ? error : null;
 
-  // Issue #359: "ensure resync does all future libraries and achievements data" - chains library
-  // import, wishlist import, and an achievements scan into one confirm. The achievements step ends
-  // in `completions.result`, reviewed the same way the standalone "Sync Achievement Completions"
-  // row below already does (see the SteamCompletionsSyncModal render at the bottom).
-  async function handleSyncEverything() {
+  // Issue #359/#440: chains library import, wishlist import, and an achievements scan into one
+  // confirm/click - the achievements step ends in `completions.result`, reviewed via the
+  // SteamCompletionsSyncModal render at the bottom.
+  async function handleSteamImport() {
     if (!steamLinked) {
       startLink('library');
       return;
     }
     const ok = await confirm({
-      title: 'Sync everything from Steam?',
+      title: 'Import from Steam?',
       message:
         'Imports your library and wishlist, then scans for newly-completed achievements. Skips anything already here - this can take a little while.',
-      confirmLabel: 'Sync',
+      confirmLabel: 'Import',
     });
     if (!ok) return;
     await runSyncEverything();
   }
 
-  async function handleImportLibrary() {
-    if (!steamLinked) {
-      startLink('library');
-      return;
-    }
-    const ok = await confirm({
-      title: 'Import your Steam library?',
-      message: 'Pulls your most-played Steam games onto your shelf, skipping anything already here. This can take a little while.',
-      confirmLabel: 'Import',
-    });
-    if (!ok) return;
-    await runImport();
-  }
-
-  async function handleImportWishlist() {
-    if (!steamLinked) {
-      startLink('wishlist');
-      return;
-    }
-    const ok = await confirm({
-      title: 'Import your Steam wishlist?',
-      message: 'Adds games from your Steam wishlist to this shelf as Wishlist, skipping anything already here.',
-      confirmLabel: 'Import',
-    });
-    if (!ok) return;
-    await runWishlistImport();
-  }
-
-  function handleSyncCompletions() {
-    if (!steamLinked) {
-      window.location.href = '/auth/steam/link';
-      return;
-    }
-    completions.scan();
-  }
+  // Issue #440: this used to be three separate buttons, each with its own hint text for its own
+  // phase - now it's one button covering all three phases in sequence, so the hint has to say
+  // which phase is currently running instead of just "importing…", or the multi-minute operation
+  // would look frozen with no feedback for most of its length.
+  const importHint = libraryBusy
+    ? progress
+      ? `Library: ${progress.totalOwned} owned · checked ${progress.imported + progress.skipped} of ${progress.consideredCount} · ${progress.imported} imported so far`
+      : 'Checking your Steam library…'
+    : wishlistBusy
+      ? wishlistProgress
+        ? `Wishlist: ${wishlistProgress.totalWishlisted} wishlisted · checked ${wishlistProgress.imported + wishlistProgress.skipped} of ${wishlistProgress.consideredCount} · ${wishlistProgress.imported} imported so far`
+        : 'Checking your Steam wishlist…'
+      : completions.busy
+        ? 'Checking Steam for newly-completed achievements…'
+        : steamLinked
+          ? 'Imports your library and wishlist, then checks for newly-completed achievements - skips anything already here'
+          : 'Sign in with Steam to import your library, wishlist, and achievement completions';
 
   return (
     <>
@@ -143,7 +118,7 @@ export function ImportLibraryModal({
             <button
               type="button"
               className={`${styles.actionRow} ${styles.syncEverythingRow}`}
-              onClick={handleSyncEverything}
+              onClick={handleSteamImport}
               // Also disabled while the once-per-session auto-login sync (see SteamImportContext)
               // is running in the background - without checking syncingEverything here too, a
               // click during that window would silently no-op (runSyncEverything's own reentrancy
@@ -151,53 +126,9 @@ export function ImportLibraryModal({
               disabled={busy || completions.busy || syncingEverything}
             >
               <span className={styles.syncEverythingLabel}>
-                {syncingEverything ? 'Syncing everything…' : steamLinked ? '🔄 Sync Everything' : 'Link Steam Account'}
+                {syncingEverything ? 'Importing…' : steamLinked ? '🔄 Steam Import' : 'Link Steam Account'}
               </span>
-              {steamLinked && (
-                <span className={styles.syncEverythingHint}>Library, wishlist, and achievement completions in one go</span>
-              )}
-            </button>
-
-            <button type="button" className={styles.actionRow} onClick={handleImportLibrary} disabled={busy}>
-              <span className={styles.actionLabel}>
-                {libraryBusy ? 'Importing…' : steamLinked ? 'Import Library' : 'Link Steam Account'}
-              </span>
-              <span className={styles.actionHint}>
-                {libraryBusy
-                  ? progress
-                    ? `${progress.totalOwned} owned · checked ${progress.imported + progress.skipped} of ${progress.consideredCount} · ${progress.imported} imported so far`
-                    : 'Checking your Steam library…'
-                  : (libraryResult ?? libraryError ?? (steamLinked
-                      ? 'Add your most-played Steam games to this shelf'
-                      : 'Sign in with Steam to import your library'))}
-              </span>
-            </button>
-
-            <button type="button" className={styles.actionRow} onClick={handleImportWishlist} disabled={busy}>
-              <span className={styles.actionLabel}>
-                {wishlistBusy ? 'Importing…' : steamLinked ? 'Import Wishlist' : 'Link Steam Account'}
-              </span>
-              <span className={styles.actionHint}>
-                {wishlistBusy
-                  ? wishlistProgress
-                    ? `${wishlistProgress.totalWishlisted} wishlisted · checked ${wishlistProgress.imported + wishlistProgress.skipped} of ${wishlistProgress.consideredCount} · ${wishlistProgress.imported} imported so far`
-                    : 'Checking your Steam wishlist…'
-                  : (wishlistResult ?? wishlistError ?? (steamLinked
-                      ? 'Add your Steam wishlist to this shelf'
-                      : 'Sign in with Steam to import your wishlist'))}
-              </span>
-            </button>
-
-            <button type="button" className={styles.actionRow} onClick={handleSyncCompletions} disabled={completions.busy}>
-              <span className={styles.actionLabel}>
-                {completions.busy ? 'Checking Steam…' : steamLinked ? 'Sync Achievement Completions' : 'Link Steam Account'}
-              </span>
-              <span className={styles.actionHint}>
-                {completions.error ??
-                  (steamLinked
-                    ? "Find shelf games you've 100%'d on Steam but haven't marked Beaten"
-                    : 'Sign in with Steam to sync completions')}
-              </span>
+              <span className={styles.syncEverythingHint}>{importHint}</span>
             </button>
           </div>
         </div>

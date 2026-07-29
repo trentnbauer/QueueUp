@@ -65,9 +65,9 @@
   gap: 8px;
 }
 
-/* Issue #359: "Sync Everything" chains library + wishlist + achievements in one action - applied
-   alongside .actionRow (same base layout), styled as the primary/first action (accent background)
-   since it's the recommended default over the three granular rows below it. */
+/* Issue #359/#440: "Steam Import" chains library + wishlist + achievements into one action -
+   applied alongside .actionRow (same base layout), styled with an accent background since it's
+   the section's one and only action. */
 .syncEverythingRow {
   align-items: center;
   background: var(--qu-accent-pill-bg);
@@ -115,14 +115,4 @@
 .actionRow:disabled {
   cursor: default;
   opacity: 0.8;
-}
-
-.actionLabel {
-  font: 700 14px var(--qu-header-font);
-  color: var(--qu-accent);
-}
-
-.actionHint {
-  font-size: 12px;
-  color: var(--qu-muted);
 }
