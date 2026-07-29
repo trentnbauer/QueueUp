@@ -890,7 +890,8 @@ export interface PlayniteImportProgress {
 
 /** A PendingLibraryImport row (server/src/db/prisma/schema.prisma) as sent to the client - an
  * external-library title that didn't resolve to an igdbId, with whatever IGDB search candidates
- * were found for it at import time, for a "pick one" review UI. */
+ * were found for it at import time, for the "pick one" review UI in Profile Settings
+ * (PendingImportsSection, #452). */
 export interface PendingLibraryImportDto {
   id: string;
   title: string;
@@ -900,7 +901,7 @@ export interface PendingLibraryImportDto {
   createdAt: string;
 }
 
-/** Body for POST /api/games/pending-imports/:id/resolve - the candidate igdbId the user picked
+/** Body for POST /api/library/pending-imports/:id/resolve - the candidate igdbId the user picked
  * (from `candidates`, or one they searched for themselves instead). */
 export interface ResolvePendingLibraryImportRequest {
   igdbId: number;
