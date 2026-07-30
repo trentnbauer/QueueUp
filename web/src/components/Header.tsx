@@ -372,15 +372,26 @@ export function Header() {
             covers what used to be a separate "Re-sync Library" button - importing already skips
             anything already on the shelf, so there's no separate "first import" vs. "re-sync"
             action needed. */}
+        {/* Issue #475: this button only opens the modal - it doesn't itself start a Steam import,
+            so there's no reason a Steam import already running elsewhere (e.g. the once-per-session
+            auto-login sync) should block opening it. The modal's own Steam Import button already
+            has its own disabled guard (busy/completions.busy/syncingEverything) against a second
+            concurrent Steam import - this just stops that guard from also blocking unrelated
+            actions in the same modal, like configuring Playnite, while Steam's already syncing. */}
         {!activeRoom && (
           <button
             type="button"
             className={styles.importLibraryButton}
             onClick={() => setShowImportLibrary(true)}
-            disabled={steamImport.busy}
-            title={steamLinked ? 'Import or re-sync your Steam library, wishlist, or achievement completions' : 'Link your Steam account to import your library'}
+            title={
+              steamImport.busy
+                ? 'A Steam import is running in the background - open to configure Playnite or check progress'
+                : steamLinked
+                  ? 'Import or re-sync your Steam library, wishlist, or achievement completions'
+                  : 'Link your Steam account to import your library'
+            }
           >
-            {steamImport.busy ? 'Importing…' : '📥 Import Library'}
+            📥 Import Library
           </button>
         )}
         {/* Issue #362: only shown to a Room Master/Moderator in a room that requires approval for
