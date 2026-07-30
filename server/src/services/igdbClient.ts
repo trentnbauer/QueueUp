@@ -798,6 +798,46 @@ export function normalizeGameTitleForComparison(title: string): string {
     .toLowerCase();
 }
 
+/** Storefront "edition" qualifiers publishers tack onto a re-release's name (issue #491) - EA and
+ * Ubisoft in particular ship a Steam library entry like "Battlefield 4 Premium Edition" or
+ * "Assassin's Creed Valhalla - Gold Edition" that has no IGDB entry of its own, so an exact-title
+ * search for the full Steam name comes up empty even though the base game is already on IGDB
+ * under its plain title. Ordered longest-phrase-first so e.g. "game of the year" isn't left
+ * partially matched by a shorter alternative. */
+const EDITION_CORE_WORDS =
+  "game of the year|goty|director'?s cut|definitive|deluxe|ultimate|complete|gold|legendary|anniversary|enhanced|premium|special|extended|year one|standard";
+const EDITION_SUFFIX_RE = new RegExp(
+  `[\\s:,\\-(]+(?:${EDITION_CORE_WORDS})(?:\\s+(?:edition|bundle|pass|cut))?\\)?\\s*$`,
+  'i',
+);
+
+/** Strips a trailing edition qualifier (see EDITION_CORE_WORDS above) off a game title, repeatedly
+ * in case more than one is stacked (e.g. "... Ultimate - Gold Edition"). Requires the qualifier to
+ * be preceded by a separator character, not just anchored to the end of the string, so a title
+ * that's *only* an edition name (nothing to strip it down to) is left alone rather than reduced to
+ * an empty string. */
+export function stripEditionSuffix(title: string): string {
+  let result = title.trim();
+  let previous: string;
+  do {
+    previous = result;
+    result = result.replace(EDITION_SUFFIX_RE, '').trim();
+  } while (result !== previous && result.length > 0);
+  return result;
+}
+
+async function searchExactTitle(title: string): Promise<number | null> {
+  const escaped = escapeApicalypseString(title);
+  const games = await igdbRequest<IgdbGame[]>(
+    'games',
+    `search "${escaped}"; fields name,version_parent; limit ${SEARCH_FIRST_PAGE_RAW_LIMIT};`,
+  );
+  const normalized = normalizeGameTitleForComparison(title);
+  const match = games.find((g) => g.name && normalizeGameTitleForComparison(g.name) === normalized);
+  if (!match) return null;
+  return match.version_parent ?? match.id;
+}
+
 /** Fallback for findIgdbIdBySteamAppId when IGDB's external_games has no Steam link at all for a
  * title (issue #373) - that table is crowd-sourced and can simply never get filled in for a game
  * that's genuinely live on Steam right now (the same gap findSteamAppIdByTitle already works
@@ -806,18 +846,20 @@ export function normalizeGameTitleForComparison(title: string): string {
  * normalizeGameTitleForComparison) title match against *any* of the raw results, not just IGDB's
  * top-ranked one - same reasoning as sortExactMatchFirst's exact tier, but applied as a hard filter
  * here since silently picking the wrong edition/spinoff would be worse than skipping the import
- * (the caller falls back to leaving the game unimported, same as a true no-match). */
+ * (the caller falls back to leaving the game unimported, same as a true no-match).
+ *
+ * If that exact match fails, retries once against the title with a trailing edition qualifier
+ * stripped (issue #491, see stripEditionSuffix) - so a Steam library entry like "Borderlands: Game
+ * of the Year Edition" resolves to the same canonical id as a plain "Borderlands" copy instead of
+ * being skipped as unmatched or, worse, imported as a second, unlinked row for the same game. */
 export async function findIgdbIdByExactTitle(title: string): Promise<number | null> {
   const trimmed = title.trim();
   if (!trimmed) return null;
 
-  const escaped = escapeApicalypseString(trimmed);
-  const games = await igdbRequest<IgdbGame[]>(
-    'games',
-    `search "${escaped}"; fields name,version_parent; limit ${SEARCH_FIRST_PAGE_RAW_LIMIT};`,
-  );
-  const normalized = normalizeGameTitleForComparison(trimmed);
-  const match = games.find((g) => g.name && normalizeGameTitleForComparison(g.name) === normalized);
-  if (!match) return null;
-  return match.version_parent ?? match.id;
+  const direct = await searchExactTitle(trimmed);
+  if (direct !== null) return direct;
+
+  const stripped = stripEditionSuffix(trimmed);
+  if (!stripped || stripped.toLowerCase() === trimmed.toLowerCase()) return null;
+  return searchExactTitle(stripped);
 }

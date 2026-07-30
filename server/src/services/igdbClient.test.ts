@@ -7,6 +7,7 @@ import {
   isAddonCategory,
   sortExactMatchFirst,
   normalizeGameTitleForComparison,
+  stripEditionSuffix,
   nextSearchPage,
   timeToBeatHoursFrom,
   timeToBeatRushedHoursFrom,
@@ -222,6 +223,38 @@ describe('normalizeGameTitleForComparison (issue #387)', () => {
 
   it('is still case-insensitive, same as before', () => {
     expect(normalizeGameTitleForComparison('WOLFENSTEIN: THE NEW ORDER')).toBe('wolfenstein: the new order');
+  });
+});
+
+describe('stripEditionSuffix (issue #491)', () => {
+  it('strips a "Game of the Year"/GOTY qualifier', () => {
+    expect(stripEditionSuffix('Borderlands: Game of the Year Edition')).toBe('Borderlands');
+    expect(stripEditionSuffix('Borderlands GOTY')).toBe('Borderlands');
+  });
+
+  it('strips common generic edition qualifiers', () => {
+    expect(stripEditionSuffix('Mass Effect Legendary Edition')).toBe('Mass Effect');
+    expect(stripEditionSuffix('Skyrim Special Edition')).toBe('Skyrim');
+    expect(stripEditionSuffix('Divinity: Original Sin 2 - Definitive Edition')).toBe('Divinity: Original Sin 2');
+    expect(stripEditionSuffix('Cyberpunk 2077 (Deluxe Edition)')).toBe('Cyberpunk 2077');
+  });
+
+  it('strips EA/Ubisoft-style publisher naming that omits the word "Edition"', () => {
+    expect(stripEditionSuffix('Battlefield 4 Premium')).toBe('Battlefield 4');
+    expect(stripEditionSuffix("Assassin's Creed Valhalla - Gold Edition")).toBe("Assassin's Creed Valhalla");
+  });
+
+  it('leaves an already-plain title untouched', () => {
+    expect(stripEditionSuffix('DOOM')).toBe('DOOM');
+    expect(stripEditionSuffix('Half-Life 2')).toBe('Half-Life 2');
+  });
+
+  it('does not reduce a title that is only an edition qualifier to an empty string', () => {
+    expect(stripEditionSuffix('Deluxe Edition')).toBe('Deluxe Edition');
+  });
+
+  it('is case-insensitive', () => {
+    expect(stripEditionSuffix('BORDERLANDS: GAME OF THE YEAR EDITION')).toBe('BORDERLANDS');
   });
 });
 
