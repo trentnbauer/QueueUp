@@ -123,6 +123,11 @@ export interface RoomSpinSession {
   settlesAt: string;
   settledPosition: number;
   nudgeCount: number;
+  /** How many distinct members have opened Spin the Wheel while it's still in its pre-start
+   * waiting room (issue #488) - lets the waiting-room countdown show who's actually shown up
+   * instead of counting down blind. Meaningless once the spin has started moving (nothing clears
+   * it then, but nothing reads it then either - see SPIN_WAITING_ROOM_MS in roomSpin.ts). */
+  readyCount: number;
 }
 
 export interface GameSuggestion {

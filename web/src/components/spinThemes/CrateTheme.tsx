@@ -20,7 +20,9 @@ function randomRarityColor(random: () => number): string {
 }
 
 function shakeDurationMs(velocity: number): number {
-  const t = Math.max(0, Math.min(1, velocity / SPIN_MAX_VELOCITY));
+  // velocity can be negative (issue #487: a reversed spin) - only its magnitude says how hard
+  // the case is currently being nudged, direction doesn't change how fast it rattles.
+  const t = Math.max(0, Math.min(1, Math.abs(velocity) / SPIN_MAX_VELOCITY));
   return SLOWEST_SHAKE_MS - t * (SLOWEST_SHAKE_MS - FASTEST_SHAKE_MS);
 }
 

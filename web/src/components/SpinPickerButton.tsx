@@ -14,6 +14,10 @@ interface SpinPickerButtonProps {
    * follow-up), which every member currently viewing the room sees and can shake, via
    * useRoomSpin. */
   roomId?: string;
+  /** Total member count of the room (issue #488) - passed straight through to SpinWheelModal to
+   * pair with the shared session's readyCount ("N of M members ready" during the waiting room).
+   * Undefined on the Personal Shelf, alongside roomId. */
+  memberCount?: number;
   /** Room Settings dollar threshold (issue #339, replacing the old spinOnlyFullyOwned toggle) -
    * eligible games are ones every current member owns, plus ones with a live price at or under
    * this amount. Undefined on the Personal Shelf, which has no group of members to own anything
@@ -37,7 +41,7 @@ interface SpinPickerButtonProps {
  * actual games list. Opens the same SpinWheelModal reveal; this component only decides whether
  * there's anything to draw from and (issue #339) walks any price-undecided backlog games through
  * the silent Steam auto-match first, same as the tile it replaces. */
-export function SpinPickerButton({ games, roomId, spinOwnershipMaxPrice, spinWheelTheme, onSetSteamMatch, onStatusChange }: SpinPickerButtonProps) {
+export function SpinPickerButton({ games, roomId, memberCount, spinOwnershipMaxPrice, spinWheelTheme, onSetSteamMatch, onStatusChange }: SpinPickerButtonProps) {
   const [open, setOpen] = useState(false);
   // The shared spin's own id, once the *local* viewer has dismissed it (closed the modal without
   // committing) - tracked so a still-active room spin (see RoomSpin) doesn't immediately reopen
@@ -51,7 +55,7 @@ export function SpinPickerButton({ games, roomId, spinOwnershipMaxPrice, spinWhe
   // it goes straight to the manual picker instead.
   const [checkedGameIds, setCheckedGameIds] = useState<Set<string>>(new Set());
   const { pickerGameId, attemptAutoMatch, closePicker } = useSteamAutoMatch();
-  const { spin, startSpin, nudgeSpin, restartSpin, skipWaitSpin, closeSpin } = useRoomSpin(roomId);
+  const { spin, startSpin, nudgeSpin, restartSpin, skipWaitSpin, markReady, closeSpin } = useRoomSpin(roomId);
 
   const backlog = backlogGames(games);
   const gated = spinOwnershipMaxPrice !== undefined;
@@ -150,6 +154,7 @@ export function SpinPickerButton({ games, roomId, spinOwnershipMaxPrice, spinWhe
         <SpinWheelModal
           games={games}
           candidates={candidates}
+          memberCount={memberCount}
           onStatusChange={onStatusChange}
           onClose={() => setDismissedSpinId(spin.id)}
           session={{
@@ -162,6 +167,9 @@ export function SpinPickerButton({ games, roomId, spinOwnershipMaxPrice, spinWhe
             },
             onSkipWait: () => {
               skipWaitSpin().catch(() => {});
+            },
+            onMarkReady: () => {
+              markReady().catch(() => {});
             },
             onCommit: () => {
               closeSpin().catch(() => {});

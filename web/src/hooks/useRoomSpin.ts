@@ -68,6 +68,14 @@ export function useRoomSpin(roomId: string | undefined) {
     onSuccess: setCache,
   });
 
+  // Issue #488: marks the caller ready for the waiting room's readyCount - deliberately a separate
+  // mutation from the background `query` above (see roomSpinApi.ready's doc), called only from
+  // SpinWheelModal's own mount effect.
+  const markReady = useMutation({
+    mutationFn: () => roomSpinApi.ready(roomId!),
+    onSuccess: setCache,
+  });
+
   const close = useMutation({
     mutationFn: () => roomSpinApi.close(roomId!),
     onSuccess: () => setCache({ spin: null }),
@@ -79,6 +87,7 @@ export function useRoomSpin(roomId: string | undefined) {
     nudgeSpin: (direction: 'left' | 'right') => nudge.mutateAsync(direction),
     restartSpin: () => restart.mutateAsync(),
     skipWaitSpin: () => skipWait.mutateAsync(),
+    markReady: () => markReady.mutateAsync(),
     closeSpin: () => close.mutateAsync(),
     starting: start.isPending,
     nudging: nudge.isPending,
