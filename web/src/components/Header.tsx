@@ -104,6 +104,7 @@ export function Header() {
   // React Query dedupes by queryKey, so this doesn't trigger an extra network fetch.
   const {
     games,
+    truncated: gamesTruncated,
     invalidate: invalidateGames,
     actionError,
     clearActionError,
@@ -238,6 +239,17 @@ export function Header() {
       <div className={styles.topRow}>
         <div className={styles.left}>
           <div className={styles.title}>{activeRoom ? activeRoom.name : 'Personal Shelf'}</div>
+
+          {/* Issue #478: "useful data to have" at a glance, next to the title rather than buried in
+              a filter/search result count that only shows once you've already narrowed something
+              down. gamesTruncated means the real total is higher than the 500-row recency cap this
+              list is fetched under (see MAX_GAMES_PER_LIST) - showing "500" as if it were the whole
+              count would be actively wrong, so it reads "500+" instead. */}
+          {games.length > 0 && (
+            <span className={styles.gameCountBadge}>
+              {gamesTruncated ? `${games.length}+` : games.length} game{games.length === 1 && !gamesTruncated ? '' : 's'}
+            </span>
+          )}
 
           {activeRoom?.inviteCode && (
             <button

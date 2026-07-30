@@ -285,6 +285,19 @@
   cursor: pointer;
 }
 
+/* Same pill look as .inviteBadge, but a plain (non-interactive, non-button) label - a game count
+   isn't clickable to anything. */
+.gameCountBadge {
+  display: flex;
+  align-items: center;
+  padding: 6px 12px;
+  border-radius: 999px;
+  background: var(--qu-neutral-pill-bg);
+  color: var(--qu-muted);
+  font: 600 11.5px system-ui, sans-serif;
+  white-space: nowrap;
+}
+
 .inviteBadge:hover {
   background: var(--qu-accent-pill-bg);
   color: var(--qu-accent);
