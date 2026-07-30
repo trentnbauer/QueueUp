@@ -11,6 +11,7 @@ import {
   SPIN_NUDGE_DELTA,
   SPIN_MAX_VELOCITY,
   SPIN_STOP_THRESHOLD,
+  SPIN_NUDGE_COOLDOWN_MS,
   type SpinBase,
 } from './spinPhysics.js';
 
@@ -41,6 +42,16 @@ describe('velocityAt', () => {
   it('approaches zero but never resolves to a negative number, arbitrarily far out', () => {
     expect(velocityAt(freshBase(), T0 + 1_000_000)).toBeGreaterThanOrEqual(0);
   });
+
+  it('a negative (reversed) velocity0 decays toward zero from below, staying negative (issue #487)', () => {
+    const base: SpinBase = { position0: 0, velocity0: -10, timestamp0: T0 };
+    const v1 = velocityAt(base, T0 + 500);
+    const v2 = velocityAt(base, T0 + 1500);
+    expect(v1).toBeLessThan(0);
+    expect(v1).toBeGreaterThan(-10);
+    expect(v2).toBeGreaterThan(v1);
+    expect(velocityAt(base, T0 + 1_000_000)).toBeLessThanOrEqual(0);
+  });
 });
 
 describe('positionAt', () => {
@@ -61,6 +72,15 @@ describe('positionAt', () => {
     const base = freshBase();
     const farOut = positionAt(base, T0 + 60_000);
     expect(farOut).toBeCloseTo(settledPositionOf(base), 3);
+  });
+
+  it('moves backward (decreasing) under a negative velocity0, converging to its own settledPositionOf (issue #487)', () => {
+    const base: SpinBase = { position0: 10, velocity0: -10, timestamp0: T0 };
+    const p1 = positionAt(base, T0 + 500);
+    const p2 = positionAt(base, T0 + 1500);
+    expect(p1).toBeLessThan(10);
+    expect(p2).toBeLessThan(p1);
+    expect(positionAt(base, T0 + 60_000)).toBeCloseTo(settledPositionOf(base), 3);
   });
 });
 
@@ -101,6 +121,12 @@ describe('settlesAtOf', () => {
     expect(settlesAtOf(fast)).toBeGreaterThan(settlesAtOf(slow));
   });
 
+  it('keys off velocity magnitude, not sign - a reversed spin settles the same as a forward one at the same speed (issue #487)', () => {
+    const forward: SpinBase = { position0: 0, velocity0: 12, timestamp0: T0 };
+    const reversed: SpinBase = { position0: 0, velocity0: -12, timestamp0: T0 };
+    expect(settlesAtOf(reversed)).toBe(settlesAtOf(forward));
+  });
+
   it('positionAt(settlesAt) is within the stop threshold\'s remaining distance of settledPositionOf', () => {
     const base = freshBase();
     const settlesAt = settlesAtOf(base);
@@ -124,7 +150,7 @@ describe('applyNudge', () => {
     const atMs = T0 + 500;
     const currentVelocity = velocityAt(base, atMs);
     const nudged = applyNudge(base, atMs, 'left');
-    expect(nudged.velocity0).toBeCloseTo(Math.max(0, currentVelocity - SPIN_NUDGE_DELTA), 6);
+    expect(nudged.velocity0).toBeCloseTo(currentVelocity - SPIN_NUDGE_DELTA, 6);
   });
 
   it('freezes the current (decayed) position as the new position0, not the old base position0', () => {
@@ -136,20 +162,49 @@ describe('applyNudge', () => {
     expect(nudged.position0).not.toBeCloseTo(base.position0, 3);
   });
 
-  it('clamps velocity at 0 - repeated left nudges never go negative', () => {
-    let base = freshBase();
-    for (let i = 0; i < 20; i++) {
-      base = applyNudge(base, base.timestamp0 + 10, 'left');
-    }
-    expect(base.velocity0).toBe(0);
+  it('clamps velocity at -SPIN_MAX_VELOCITY when a left nudge would push past it, reversing rather than stopping dead (issue #487)', () => {
+    const base: SpinBase = { position0: 0, velocity0: -SPIN_MAX_VELOCITY, timestamp0: T0 };
+    const nudged = applyNudge(base, T0 + SPIN_NUDGE_COOLDOWN_MS, 'left');
+    expect(nudged.velocity0).toBe(-SPIN_MAX_VELOCITY);
   });
 
-  it('clamps velocity at SPIN_MAX_VELOCITY - repeated right nudges never exceed it', () => {
+  it('clamps velocity at SPIN_MAX_VELOCITY - a right nudge never pushes past it', () => {
+    const base: SpinBase = { position0: 0, velocity0: SPIN_MAX_VELOCITY, timestamp0: T0 };
+    const nudged = applyNudge(base, T0 + SPIN_NUDGE_COOLDOWN_MS, 'right');
+    expect(nudged.velocity0).toBe(SPIN_MAX_VELOCITY);
+  });
+
+  it('a nudge within SPIN_NUDGE_COOLDOWN_MS of the base is rejected as a no-op (issue #487 spam-click guard)', () => {
+    const base = freshBase();
+    const tooSoon = applyNudge(base, base.timestamp0 + SPIN_NUDGE_COOLDOWN_MS - 1, 'left');
+    expect(tooSoon).toBe(base);
+  });
+
+  it('a nudge exactly at the cooldown boundary or later is accepted', () => {
+    const base = freshBase();
+    const nudged = applyNudge(base, base.timestamp0 + SPIN_NUDGE_COOLDOWN_MS, 'left');
+    expect(nudged).not.toBe(base);
+    expect(nudged.timestamp0).toBe(base.timestamp0 + SPIN_NUDGE_COOLDOWN_MS);
+  });
+
+  it('spam-clicking left flattens into a bounded number of accepted nudges rather than an instant stop', () => {
+    // 50 clicks 5ms apart (well under the cooldown) all starting from a fresh spin - the old
+    // behavior floored velocity at 0 almost immediately, settling the spin the instant the last
+    // of a rapid-fire burst landed. Now most of the burst is rejected by the cooldown, and the
+    // ones that do land only ever reverse the spin - it never reports itself as already settled
+    // partway through a still-active mash.
     let base = freshBase();
-    for (let i = 0; i < 20; i++) {
-      base = applyNudge(base, base.timestamp0 + 10, 'right');
+    let accepted = 0;
+    let t = base.timestamp0;
+    for (let i = 0; i < 50; i++) {
+      t += 5;
+      const next = applyNudge(base, t, 'left');
+      if (next !== base) accepted++;
+      base = next;
     }
-    expect(base.velocity0).toBe(SPIN_MAX_VELOCITY);
+    expect(accepted).toBeLessThan(50);
+    expect(Math.abs(base.velocity0)).toBeLessThanOrEqual(SPIN_MAX_VELOCITY);
+    expect(settlesAtOf(base)).toBeGreaterThan(base.timestamp0);
   });
 
   it('a right nudge always pushes the eventual settle position further than doing nothing', () => {

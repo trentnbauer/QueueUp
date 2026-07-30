@@ -30,7 +30,11 @@ const SPIN_STALE_MS = 15 * 60 * 1000;
 // chance to notice starting. Any member can skip the rest of it early (see /spin/skip-wait) -
 // "waiting for members" isn't gatekept to just the person who started it. Not applied to
 // "restart"/Spin again - everyone's already gathered by then.
-const SPIN_WAITING_ROOM_MS = 4000;
+//
+// Issue #488: was 4s, which wasn't long enough for everyone in a room to actually notice the
+// notification and get to the spin before it was already moving - bumped to 30s, paired with the
+// readyUserIds count below so the wait actually shows who's shown up instead of counting down blind.
+const SPIN_WAITING_ROOM_MS = 30_000;
 
 function isStale(spin: { updatedAt: Date }): boolean {
   return Date.now() - spin.updatedAt.getTime() > SPIN_STALE_MS;
@@ -92,6 +96,11 @@ async function toSpinDto(spin: RoomSpinRow, userId: string): Promise<RoomSpinSes
     settlesAt: spin.settlesAt.toISOString(),
     settledPosition: spin.settledPosition,
     nudgeCount: spin.nudgeCount,
+    // Deduped defensively (issue #488) - two concurrent polls from the same member racing past the
+    // "already in readyUserIds" check below could in principle both push, and this is cheap
+    // insurance against ever double-counting one member rather than something expected to matter
+    // in practice.
+    readyCount: new Set(spin.readyUserIds).size,
   };
 }
 
@@ -123,6 +132,34 @@ export default async function roomSpinRoutes(app: FastifyInstance) {
     return { spin: dto };
   });
 
+  // Issue #488: marks the caller "ready" for the still-waiting spin's readyCount, deliberately its
+  // own endpoint rather than piggybacked on the GET above - the GET is polled continuously by
+  // useRoomSpin the whole time a room is open (so its button/badge can react to a fresh spin),
+  // regardless of whether anyone actually has the modal open, so counting every GET would really
+  // just be counting "members with this room open at all," not "members who've got Spin the Wheel
+  // open and are watching it." This is only ever called from inside the modal itself (see
+  // SpinWheelModal's mount effect), so a ready count actually reflects who showed up.
+  app.post<{ Params: { roomId: string } }>(
+    '/api/rooms/:roomId/spin/ready',
+    { config: { rateLimit: { max: 30, timeWindow: '1 minute' } } },
+    async (request) => {
+      const userId = await request.requireAuth();
+      const { roomId } = request.params;
+      await requireMembership(roomId, userId);
+
+      let spin = await prisma.roomSpin.findUnique({ where: { roomId } });
+      if (!spin || isStale(spin)) throw new HttpError(404, 'No active spin');
+
+      if (Date.now() < spin.timestamp0.getTime() && !spin.readyUserIds.includes(userId)) {
+        spin = await prisma.roomSpin.update({ where: { roomId }, data: { readyUserIds: { push: userId } } });
+      }
+
+      const dto = await toSpinDto(spin, userId);
+      if (!dto) throw new HttpError(404, 'No active spin');
+      return { spin: dto };
+    },
+  );
+
   app.post<{ Params: { roomId: string } }>(
     '/api/rooms/:roomId/spin/start',
     { config: { rateLimit: { max: 30, timeWindow: '1 minute' } } },
@@ -145,6 +182,9 @@ export default async function roomSpinRoutes(app: FastifyInstance) {
             settlesAt: new Date(settlesAtOf(base)),
             settledPosition: settledPositionOf(base),
             startedBy: userId,
+            // Issue #488: whoever clicked "Pick a Game" obviously has it open - count them as
+            // ready immediately rather than waiting for their own next poll to add them.
+            readyUserIds: [userId],
           },
         });
         reply.status(201);
@@ -219,6 +259,15 @@ export default async function roomSpinRoutes(app: FastifyInstance) {
 
       const currentBase: SpinBase = { position0: spin.position0, velocity0: spin.velocity0, timestamp0: spin.timestamp0.getTime() };
       const nudged = applyNudge(currentBase, now, direction);
+      // Issue #487's spam-click guard rejected this one (arrived within SPIN_NUDGE_COOLDOWN_MS of
+      // the last accepted nudge) - applyNudge signals that by returning currentBase itself
+      // unchanged. Return the current state as-is rather than writing/broadcasting a no-op, so
+      // nudgeCount only ever bumps for a nudge that actually moved the spin.
+      if (nudged === currentBase) {
+        const dto = await toSpinDto(spin, userId);
+        if (!dto) throw new HttpError(404, 'No active spin to nudge');
+        return { spin: dto };
+      }
       const updated = await prisma.roomSpin.update({
         where: { roomId },
         data: {
@@ -263,6 +312,9 @@ export default async function roomSpinRoutes(app: FastifyInstance) {
           settlesAt: new Date(settlesAtOf(base)),
           settledPosition: settledPositionOf(base),
           nudgeCount: 0,
+          // "Spin again" has no waiting room of its own (see SPIN_WAITING_ROOM_MS's doc) - cleared
+          // rather than left over from the previous spin's waiting window, which nothing here reads.
+          readyUserIds: [],
         },
       });
       return { spin: await toSpinDto(spin, userId) };

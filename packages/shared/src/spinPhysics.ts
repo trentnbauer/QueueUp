@@ -8,15 +8,19 @@
  * per-frame position feed.
  *
  * Units: position is in "strip slots" (one slot = one candidate); velocity is slots/second.
- * Friction is modeled as pure exponential decay (v(t) = v0 * e^(-FRICTION*t)) rather than linear
- * decay, so it never overshoots into negative/reverse velocity on its own and the settle time has
- * a clean closed form (see settlesAtOf) instead of needing numeric root-finding. */
+ * Friction is modeled as pure exponential decay of *magnitude* (|v(t)| = |v0| * e^(-FRICTION*t)),
+ * sign preserved - v0*e^(-FRICTION*t) computes exactly that for either sign, so the same formula
+ * covers a normal forward spin and a reversed one (see velocity0's doc) without a branch. Never
+ * overshoots *past* zero on its own (decay only ever shrinks magnitude), so the settle time still
+ * has a clean closed form (see settlesAtOf) instead of needing numeric root-finding. */
 
 export interface SpinBase {
   /** Position (in strip slots) at `timestamp0`. */
   position0: number;
-  /** Velocity (slots/second) at `timestamp0`. Always >= 0 - a "left" nudge slows the spin toward
-   * a stop, it never reverses it into spinning backward (see applyNudge). */
+  /** Velocity (slots/second) at `timestamp0` - positive moves the strip forward, negative moves
+   * it backward (issue #487: repeatedly nudging left now reverses the spin instead of just
+   * decelerating it to an abrupt stop). Magnitude is what decays under friction; sign is preserved
+   * until a nudge in the other direction crosses it (see applyNudge). */
   velocity0: number;
   /** Epoch ms this base was recorded - either when the spin started, or the moment of the most
    * recent nudge (a nudge replaces the base with a fresh one, not an adjustment layered on top of
@@ -37,21 +41,31 @@ export const SPIN_INITIAL_VELOCITY = 24;
  * (see applyNudge). */
 export const SPIN_NUDGE_DELTA = 4;
 
-/** Hard ceiling on velocity - without one, repeatedly nudging right would let the spin run
- * arbitrarily long (and require an arbitrarily long strip to have something new to land on). */
+/** Hard ceiling on velocity magnitude in either direction - without one, repeatedly nudging the
+ * same side would let the spin run (or reverse-run) arbitrarily long, requiring an arbitrarily
+ * long strip to have something new to land on. */
 export const SPIN_MAX_VELOCITY = 30;
 
-/** Velocity below which the spin is considered at rest for all practical purposes - pure
+/** Velocity magnitude below which the spin is considered at rest for all practical purposes - pure
  * exponential decay never mathematically reaches exactly zero, so "settled" means "slower than
  * this," not "stopped." Small enough that the remaining distance still to travel at this point
  * (velocity / FRICTION) is a small fraction of one slot - imperceptible. */
 export const SPIN_STOP_THRESHOLD = 0.05;
 
+/** Minimum time (ms) that must have passed since a base's `timestamp0` before another nudge is
+ * allowed to land (issue #487) - a click-mashing session no longer registers every single click:
+ * one clicked this soon after the last accepted nudge is a silent no-op (see applyNudge). Well
+ * under normal human click cadence so genuinely distinct clicks always land, but tight enough to
+ * flatten a mash into something the physics can still respond to gradually rather than a handful
+ * of nudges landing in the same instant. */
+export const SPIN_NUDGE_COOLDOWN_MS = 150;
+
 function elapsedSeconds(base: SpinBase, atMs: number): number {
   return Math.max(0, (atMs - base.timestamp0) / 1000);
 }
 
-/** Current velocity at `atMs`, decaying exponentially from `base`. Never negative. */
+/** Current velocity at `atMs`, decaying exponentially toward zero from `base` - magnitude shrinks,
+ * sign (direction) is preserved (see velocity0's doc). */
 export function velocityAt(base: SpinBase, atMs: number): number {
   return base.velocity0 * Math.exp(-SPIN_FRICTION * elapsedSeconds(base, atMs));
 }
@@ -75,22 +89,31 @@ export function settledPositionOf(base: SpinBase): number {
  * happens to check" - two different observers checking at different times must agree on the same
  * settle moment and the same settledPositionOf, or they'd see different winners. */
 export function settlesAtOf(base: SpinBase): number {
-  if (base.velocity0 <= SPIN_STOP_THRESHOLD) return base.timestamp0;
-  return base.timestamp0 + (Math.log(base.velocity0 / SPIN_STOP_THRESHOLD) / SPIN_FRICTION) * 1000;
+  const magnitude = Math.abs(base.velocity0);
+  if (magnitude <= SPIN_STOP_THRESHOLD) return base.timestamp0;
+  return base.timestamp0 + (Math.log(magnitude / SPIN_STOP_THRESHOLD) / SPIN_FRICTION) * 1000;
 }
 
 /** Applies one nudge (a click on the left or right side of the modal) at `atMs`: freezes the
  * *current* position/velocity (not the old base's) as the new reference point, then adds or
- * removes SPIN_NUDGE_DELTA from that current velocity, clamped to [0, SPIN_MAX_VELOCITY]. Basing
- * the delta on the current (decayed) velocity rather than the original base's makes a late nudge
- * (after it's already slowed way down) feel proportionate instead of re-adding a fixed chunk on
- * top of whatever's left. Returns a brand new SpinBase - the caller persists this in place of the
- * old one (see RoomSpin.position0/velocity0/timestamp0). */
+ * removes SPIN_NUDGE_DELTA from that current velocity, clamped to [-SPIN_MAX_VELOCITY,
+ * SPIN_MAX_VELOCITY] (issue #487 - a left nudge can now drive velocity negative, reversing the
+ * spin, rather than floored at 0 and left to sit there while further left clicks do nothing but
+ * force an abrupt "settled" the instant it hits the floor). Basing the delta on the current
+ * (decayed) velocity rather than the original base's makes a late nudge (after it's already slowed
+ * way down) feel proportionate instead of re-adding a fixed chunk on top of whatever's left.
+ *
+ * A nudge within SPIN_NUDGE_COOLDOWN_MS of `base.timestamp0` (issue #487's spam-click guard) is
+ * rejected: returns `base` itself, unchanged (same object, not a copy) - callers can tell a
+ * rejected nudge apart from an applied one with `nudged === base` and skip persisting/broadcasting
+ * a no-op. Otherwise returns a brand new SpinBase for the caller to persist in place of the old one
+ * (see RoomSpin.position0/velocity0/timestamp0). */
 export function applyNudge(base: SpinBase, atMs: number, direction: 'left' | 'right'): SpinBase {
+  if (atMs - base.timestamp0 < SPIN_NUDGE_COOLDOWN_MS) return base;
   const currentPosition = positionAt(base, atMs);
   const currentVelocity = velocityAt(base, atMs);
   const delta = direction === 'right' ? SPIN_NUDGE_DELTA : -SPIN_NUDGE_DELTA;
-  const velocity0 = Math.min(SPIN_MAX_VELOCITY, Math.max(0, currentVelocity + delta));
+  const velocity0 = Math.min(SPIN_MAX_VELOCITY, Math.max(-SPIN_MAX_VELOCITY, currentVelocity + delta));
   return { position0: currentPosition, velocity0, timestamp0: atMs };
 }
 

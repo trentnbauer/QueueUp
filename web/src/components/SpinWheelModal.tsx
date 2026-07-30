@@ -31,6 +31,12 @@ interface SharedSpinSession {
   /** Collapses the "waiting for members" pause a fresh spin begins with (issue #420) so it starts
    * moving right now - any member currently watching can call this, not just whoever started it. */
   onSkipWait: () => void;
+  /** Marks this member ready for the waiting room's readyCount (issue #488) - called once, from
+   * this modal's own mount effect below, deliberately not from the background poll that keeps
+   * running for every room visitor regardless of whether they have this modal open (see
+   * roomSpinApi.ready's doc) - so the count reflects who's actually watching, not just who has the
+   * room open. A no-op server-side once the spin's already moving or this member's already counted. */
+  onMarkReady: () => void;
   /** Ends the session for every member - fired only once a winner's actually committed to
    * ("Let's play"), never for a plain dismiss (see RoomSpin's schema doc: closing the modal is
    * local/per-viewer only). */
@@ -45,6 +51,11 @@ interface SpinWheelModalProps {
    * `session` is set - the room's already-resolved concrete theme takes over instead. */
   theme?: SpinWheelTheme;
   session?: SharedSpinSession;
+  /** Total member count of the room this session belongs to (issue #488) - paired with
+   * `session.spin.readyCount` to show "N of M members ready" during the waiting room. Only
+   * meaningful alongside `session`; undefined on the Personal Shelf, which has no room/members and
+   * so no waiting room to show a count in. */
+  memberCount?: number;
   /** Marks the winner Playing before closing - "Let's play" is the one moment someone's actually
    * committing to tonight's pick, so it should land in the Currently Playing strip immediately
    * rather than requiring a separate manual status change afterward. */
@@ -110,7 +121,7 @@ function useLiveNow(settlesAtMs: number): number {
  * where along the strip it eventually comes to rest, so *when* someone nudges, and which side,
  * genuinely changes the outcome. In a room (`session`), every member's nudge goes through the same
  * shared base, so everyone watching steers the same spin together. */
-export function SpinWheelModal({ games, candidates, theme = 'slot', session, onStatusChange, onClose }: SpinWheelModalProps) {
+export function SpinWheelModal({ games, candidates, theme = 'slot', session, memberCount, onStatusChange, onClose }: SpinWheelModalProps) {
   const dialogRef = useModalA11y<HTMLDivElement>(onClose);
   // Personal Shelf only - a room's run comes entirely from `session.spin` instead (see `run` below).
   const [localRun, setLocalRun] = useState<SpinRun>(() => freshLocalRun(games, candidates, theme));
@@ -127,6 +138,18 @@ export function SpinWheelModal({ games, candidates, theme = 'slot', session, onS
   // never has this delay (its own timestamp0 is always "now"), so this can never show there even
   // if the clock happened to line up.
   const waiting = !!session && now < run.base.timestamp0;
+
+  // Issue #488: marks this member ready as soon as they've got the modal open, keyed on the
+  // session's own spin id rather than firing once on mount - covers a still-mounted modal ending up
+  // attached to a genuinely new spin (e.g. this viewer's instance re-rendering onto a fresh session
+  // after "Let's play" closed the last one and someone else started another) without re-firing on
+  // every position/velocity tick. A no-op (see onMarkReady's doc) once the spin's already moving,
+  // so this is harmless even for a modal opened well after the waiting room ended.
+  useEffect(() => {
+    session?.onMarkReady();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [session?.spin.id]);
+
   const position = settled ? run.settledPosition : positionAt(run.base, now);
   const velocity = settled ? 0 : velocityAt(run.base, now);
   const winner = settled && run.strip.length > 0 ? run.strip[candidateIndexAt(run.settledPosition, run.strip.length)] : null;
@@ -196,6 +219,15 @@ export function SpinWheelModal({ games, candidates, theme = 'slot', session, onS
           // reel nobody else had a chance to notice starting. Any member watching can skip it.
           <div className={styles.waitingRoom}>
             <div className={styles.waitingMessage}>⏳ Waiting for members to be ready…</div>
+            {/* Issue #488: shows who's actually shown up instead of counting down blind - only
+                rendered once memberCount is known (always true in a room; SpinWheelModalProps
+                documents it as undefined only on the Personal Shelf, which never sets `session`
+                and so never reaches this branch anyway). */}
+            {session && memberCount !== undefined && (
+              <div className={styles.waitingReadyCount}>
+                {session.spin.readyCount} of {memberCount} member{memberCount === 1 ? '' : 's'} ready
+              </div>
+            )}
             <div className={styles.waitingCountdown}>Starting in {countdownSeconds}s</div>
             <button type="button" className={styles.primaryButton} onClick={handleSkipWait}>
               Start now

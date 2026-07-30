@@ -335,10 +335,11 @@ model RoomSpin {
   /// this one snapshot via a shared closed-form formula - nothing else needs to be persisted or
   /// streamed per frame.
   position0 Float @map("position0")
-  /// Velocity (strip slots/second) at timestamp0 - always >= 0 (see spinPhysics.ts). Reset to a
-  /// fresh (position0, velocity0, timestamp0) triple by every nudge, not adjusted in place, so a
-  /// nudge mid-decay is still simple exponential decay from a new reference point rather than a
-  /// sum of overlapping decay curves.
+  /// Velocity (strip slots/second) at timestamp0 - positive is forward, negative is reversed
+  /// (issue #487: repeated left nudges now reverse the spin rather than floor out at 0 - see
+  /// spinPhysics.ts). Reset to a fresh (position0, velocity0, timestamp0) triple by every nudge,
+  /// not adjusted in place, so a nudge mid-decay is still simple exponential decay from a new
+  /// reference point rather than a sum of overlapping decay curves.
   velocity0  Float    @map("velocity0")
   timestamp0 DateTime @map("timestamp0")
   /// Computed once, at start or on each nudge, from (position0, velocity0, timestamp0) via
@@ -351,7 +352,17 @@ model RoomSpin {
   /// Bumped on every nudge - lets a client tell "did the base actually change" apart from a poll
   /// just re-confirming the same state, the same role spinKey played before nudging existed.
   nudgeCount Int      @default(0) @map("nudge_count")
-  startedBy  String   @map("started_by")
+  /// Issue #488: ids of members who've opened Spin the Wheel while it's still in its pre-start
+  /// waiting room (see the /spin/ready route and SPIN_WAITING_ROOM_MS in roomSpin.ts) - surfaced to
+  /// every viewer as "N members ready" so the 30s wait actually shows who's shown up instead of
+  /// counting down blind. Deliberately populated by a dedicated route the modal itself calls on
+  /// mount, not by the GET route's background poll (which keeps running for anyone with the room
+  /// open at all, whether or not they have this modal up) - see roomSpin.ts's /spin/ready doc. Only
+  /// meaningful during the waiting window; reset to empty on every start/restart (a restart has no
+  /// waiting window of its own - see roomSpin.ts - so it's simply unused until the next fresh
+  /// start). Plain string array for the same reason as stripGameIds above.
+  readyUserIds String[] @default([]) @map("ready_user_ids")
+  startedBy    String   @map("started_by")
   createdAt  DateTime @default(now()) @map("created_at")
   updatedAt  DateTime @updatedAt @map("updated_at")
 

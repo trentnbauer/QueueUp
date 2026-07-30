@@ -12,16 +12,17 @@ export interface SpinThemeProps {
    * built once per spin/restart and never changed by a nudge, only traveled along further. A
    * theme that doesn't visualize individual candidates at all (see CrateTheme) can ignore this. */
   strip: Game[];
-  /** Continuous, live position along `strip` (in strip slots - see spinPhysics.ts) - keeps
-   * advancing every animation frame while unsettled, driven by the dispatcher's own decay-curve
-   * math, not by anything a theme schedules itself. Once `settled`, this is frozen at its final
-   * resting value. */
+  /** Continuous, live position along `strip` (in strip slots - see spinPhysics.ts) - keeps moving
+   * every animation frame while unsettled (forward, or backward if the spin's been reversed - see
+   * `velocity`), driven by the dispatcher's own decay-curve math, not by anything a theme schedules
+   * itself. Once `settled`, this is frozen at its final resting value. */
   position: number;
   /** Continuous, live velocity (strip slots/second - see spinPhysics.ts) - how fast `position` is
-   * currently changing. Themes that visualize individual candidates rarely need this directly
-   * (position already reflects it), but a theme with nothing to show a strip *position* on (see
-   * CrateTheme, which never displays candidates while spinning) uses it as its only signal of "how
-   * hard is this being nudged right now." Always 0 once `settled`. */
+   * currently changing. Can be negative (issue #487: repeated left nudges can reverse the spin) -
+   * sign is direction, magnitude is speed; a theme that only cares "how hard is this being nudged
+   * right now" (see CrateTheme below) should read `Math.abs(velocity)`, not `velocity` directly.
+   * Themes that visualize individual candidates rarely need this at all (position already reflects
+   * it). Always 0 once `settled`. */
   velocity: number;
   /** True once the spin has come to rest - `position` no longer changes and `winner` is set. A
    * theme should stop any of its own continuous animation and show its "landed" visual once this

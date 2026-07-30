@@ -161,6 +161,12 @@
   color: var(--qu-text);
 }
 
+.waitingReadyCount {
+  font: 600 13px system-ui, sans-serif;
+  color: var(--qu-accent, var(--qu-text));
+  margin-top: 8px;
+}
+
 .waitingCountdown {
   font: 500 13px system-ui, sans-serif;
   color: var(--qu-muted);
