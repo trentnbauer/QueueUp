@@ -425,26 +425,36 @@ export default async function gameRoutes(app: FastifyInstance) {
   const gamesListRateLimit = { config: { rateLimit: { max: 30, timeWindow: '1 minute' } } };
 
   const PLAYING_STATUSES: Prisma.GameWhereInput['status'] = { in: ['playing', 'play_next'] };
+  // #480: same class of bug as #459 below, but for Beaten/Dropped - a bulk import's flood of
+  // freshly-created backlog rows can just as easily push an old Beaten or Dropped game past the
+  // recency window's cutoff, silently dropping it from the shelf view even though its `status` was
+  // never actually touched (a user reported this as "losing" their beaten queue after a Playnite
+  // import - the games were still marked done/dropped on file, just no longer in the returned set).
+  const FINISHED_STATUSES: Prisma.GameWhereInput['status'] = { in: ['done', 'dropped'] };
+  const RECENCY_CAPPED_STATUSES: Prisma.GameWhereInput['status'] = { notIn: ['playing', 'play_next', 'done', 'dropped'] };
 
-  // #459: a plain createdAt-desc top-MAX_GAMES_PER_LIST query can push a user's actual in-progress
-  // games out of the returned set entirely once enough other games exist more recently - a bulk
-  // Playnite import (QueueUpPlayniteExtension#7) is the case that surfaced this, bulk-creating
-  // hundreds of freshly-added backlog rows that flood the top of the recency window. PlayingStrip
-  // then filters an array that no longer contains the real Playing/Play Next games. Playing/Play
-  // Next is inherently a small subset of anyone's games in practice (same reasoning as
-  // CROSS_ROOM_PLAYING_LIMIT below), so fetching it separately and merging is cheap, and guarantees
-  // it's never a casualty of how much else was recently added.
+  // #459/#480: a plain createdAt-desc top-MAX_GAMES_PER_LIST query can push a user's actual
+  // in-progress, Beaten, or Dropped games out of the returned set entirely once enough other games
+  // exist more recently - a bulk Playnite import (QueueUpPlayniteExtension#7) is the case that
+  // surfaced this, bulk-creating hundreds of freshly-added backlog rows that flood the top of the
+  // recency window. PlayingStrip (and, for #480, the Beaten/Dropped ribbons/filters) then read an
+  // array that no longer contains the real games in those statuses. Each of these is inherently a
+  // small subset of anyone's games in practice (same reasoning as CROSS_ROOM_PLAYING_LIMIT below),
+  // so fetching them separately and merging is cheap, and guarantees none of them is ever a
+  // casualty of how much else was recently added - only the recency-capped bucket (backlog/
+  // wishlist/replay, where a cap is actually the point) can end up truncated.
   async function findGamesWithPlayingPriority(where: Prisma.GameWhereInput, region?: string) {
-    const [priority, rest] = await Promise.all([
-      prisma.game.findMany({ where: { ...where, status: PLAYING_STATUSES }, include: gameInclude, take: MAX_GAMES_PER_LIST }),
+    const [priority, finished, rest] = await Promise.all([
+      prisma.game.findMany({ where: { ...where, status: PLAYING_STATUSES }, include: gameInclude, take: MAX_GAMES_PER_LIST + 1 }),
+      prisma.game.findMany({ where: { ...where, status: FINISHED_STATUSES }, include: gameInclude, take: MAX_GAMES_PER_LIST + 1 }),
       prisma.game.findMany({
-        where: { ...where, status: { notIn: ['playing', 'play_next'] } },
+        where: { ...where, status: RECENCY_CAPPED_STATUSES },
         include: gameInclude,
         orderBy: { createdAt: 'desc' },
         take: MAX_GAMES_PER_LIST + 1,
       }),
     ]);
-    const combined = [...priority, ...rest];
+    const combined = [...priority, ...finished, ...rest];
     const truncated = combined.length > MAX_GAMES_PER_LIST;
     return { games: combined.slice(0, MAX_GAMES_PER_LIST), truncated };
   }
