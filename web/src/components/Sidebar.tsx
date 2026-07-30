@@ -32,6 +32,7 @@ export function Sidebar() {
   // /playing (issue #364) isn't tracked in ViewContext (it's not a shelf/room, just an aggregate
   // view over them), so its icon's active state is checked directly against the URL instead.
   const onPlayingPage = useLocation().pathname === '/playing';
+  const onBeatenPage = useLocation().pathname === '/beaten';
   const onReviewPage = useLocation().pathname === '/review';
   const { rooms } = useRooms();
   const { totalUnread, unreadRoomIds } = useNotificationSummary();
@@ -110,7 +111,7 @@ export function Sidebar() {
         <div className={styles.icons}>
           <Link
             to="/"
-            className={`${styles.roomIcon} ${!activeRoom && !onPlayingPage && !onReviewPage ? styles.roomIconActive : ''}`}
+            className={`${styles.roomIcon} ${!activeRoom && !onPlayingPage && !onBeatenPage && !onReviewPage ? styles.roomIconActive : ''}`}
             title="Personal Shelf"
             onClick={closeMobileDrawer}
           >
@@ -126,6 +127,20 @@ export function Sidebar() {
             onClick={closeMobileDrawer}
           >
             🎮
+          </Link>
+
+          {/* Cross-room Beaten dashboard (issue #481) - "an easy way to display my beaten list,
+              including communal rooms," same shape as Currently Playing above. Always shown
+              (unlike Needs Review below) - same reasoning as Currently Playing: a glance here is
+              still meaningful even when it's empty, not an action queue that should get out of the
+              way once cleared. */}
+          <Link
+            to="/beaten"
+            className={`${styles.roomIcon} ${onBeatenPage ? styles.roomIconActive : ''}`}
+            title="Beaten (all rooms)"
+            onClick={closeMobileDrawer}
+          >
+            🏆
           </Link>
 
           {/* Needs Review queue (unmatched import titles) - used to live silently inside Profile

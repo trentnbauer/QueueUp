@@ -7,6 +7,7 @@ import type {
   CollectionSearchResult,
   CreateGameRequest,
   CreateGameResponse,
+  CrossRoomBeaten,
   CrossRoomPlaying,
   Game,
   GameSearchResult,
@@ -94,5 +95,6 @@ export const gamesApi = {
   playLog: (id: string) => apiGet<{ entries: PlayLogEntry[] }>(`/api/games/${id}/play-log`),
   yearInReview: () => apiGet<YearInReview>('/api/me/year-in-review'),
   currentlyPlaying: () => apiGet<CrossRoomPlaying>('/api/me/currently-playing'),
+  beaten: () => apiGet<CrossRoomBeaten>('/api/me/beaten'),
   syncSteamCompletions: () => apiPost<SteamCompletionsSyncResult>('/api/games/sync-steam-completions'),
 };
