@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useRef, useState, type FormEvent } from 'react';
 import type { GameSearchResult } from '@queueup/shared';
 import { gamesApi } from '../api/games';
 import { pendingImportsApi } from '../api/pendingImports';
@@ -6,6 +6,7 @@ import { useModalA11y, closeOnBackdropMouseDown } from '../hooks/useModalA11y';
 import { ResultThumb } from './AddGameModal';
 import modalStyles from './ImportLibraryModal.module.css';
 import addGameStyles from './AddGameModal.module.css';
+import idMatchStyles from './PendingImportMatchModal.module.css';
 
 const DEBOUNCE_MS = 350;
 
@@ -26,7 +27,14 @@ interface PendingImportMatchModalProps {
  * existing pending-import resolve endpoint (which already unions the new platform onto an
  * existing game rather than trying to create a duplicate) instead of AddGameModal's normal
  * create/ownership-picker flow, which doesn't apply here since the platforms to grant already
- * live on the pending row server-side. */
+ * live on the pending row server-side.
+ *
+ * Also offers a "match by IGDB ID" fallback below the title search, for when the title itself is
+ * too ambiguous to pick out by search alone (e.g. a franchise with a dozen like-titled releases -
+ * Assassin's Creed, Call of Duty, etc.) - a person who's found the specific edition on IGDB's own
+ * site can paste its numeric id straight in rather than hunting through search results. Submits
+ * through the same handlePick/resolve path as a normal candidate pick, so a nonexistent id surfaces
+ * whatever error the server's own lookup returns, rather than needing its own validation round-trip. */
 export function PendingImportMatchModal({ pendingId, initialQuery, onResolved, onClose }: PendingImportMatchModalProps) {
   const dialogRef = useModalA11y<HTMLDivElement>(onClose);
   const [query, setQuery] = useState(initialQuery);
@@ -34,6 +42,7 @@ export function PendingImportMatchModal({ pendingId, initialQuery, onResolved, o
   const [searching, setSearching] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [resolvingId, setResolvingId] = useState<number | null>(null);
+  const [igdbIdQuery, setIgdbIdQuery] = useState('');
   // Guards against a slower, earlier request's response overwriting a faster, later one's -
   // same pattern AddGameModal's own search uses.
   const latestRequestIdRef = useRef(0);
@@ -79,6 +88,18 @@ export function PendingImportMatchModal({ pendingId, initialQuery, onResolved, o
       setError(err instanceof Error ? err.message : 'Could not match this game');
       setResolvingId(null);
     }
+  }
+
+  function handleIgdbIdSubmit(e: FormEvent) {
+    e.preventDefault();
+    const trimmed = igdbIdQuery.trim();
+    // Digits-only, not just Number.isInteger: Number() also accepts things like "1e3" or "0x10"
+    // as valid integers, which would silently match the wrong igdbId for anyone pasting one in.
+    if (!/^\d+$/.test(trimmed)) {
+      setError('Enter a valid IGDB game ID (a positive whole number).');
+      return;
+    }
+    handlePick(Number(trimmed));
   }
 
   return (
@@ -134,6 +155,25 @@ export function PendingImportMatchModal({ pendingId, initialQuery, onResolved, o
               <span className={addGameStyles.addButton}>{resolvingId === r.igdbId ? 'Matching…' : 'This one'}</span>
             </button>
           ))}
+        </div>
+
+        <div className={idMatchStyles.idMatchZone}>
+          <span className={idMatchStyles.idMatchHint}>Can't find it by title? Match by IGDB game ID instead.</span>
+          <form onSubmit={handleIgdbIdSubmit} className={idMatchStyles.idMatchRow}>
+            <input
+              type="text"
+              inputMode="numeric"
+              className={idMatchStyles.idMatchInput}
+              placeholder="IGDB ID, e.g. 1234"
+              value={igdbIdQuery}
+              onChange={(e) => setIgdbIdQuery(e.target.value)}
+              disabled={resolvingId !== null}
+              aria-label="IGDB game ID"
+            />
+            <button type="submit" className={idMatchStyles.idMatchButton} disabled={resolvingId !== null || !igdbIdQuery.trim()}>
+              {resolvingId !== null ? 'Matching…' : 'Match'}
+            </button>
+          </form>
         </div>
       </div>
     </div>

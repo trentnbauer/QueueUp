@@ -1,0 +1,56 @@
+/* Divider + form for the "know the IGDB ID? match directly" fallback (issue: too many
+   like-titled entries - e.g. a dozen Assassin's Creed releases - to reliably pick out by title
+   search alone), mirroring AddGameModal.module.css's .cancelZone divider treatment. */
+.idMatchZone {
+  margin-top: 16px;
+  padding-top: 14px;
+  border-top: 1px solid var(--qu-border);
+}
+
+.idMatchHint {
+  display: block;
+  margin-bottom: 8px;
+  color: var(--qu-muted);
+  font-size: 12.5px;
+}
+
+.idMatchRow {
+  display: flex;
+  gap: 8px;
+}
+
+.idMatchInput {
+  flex: 1;
+  min-width: 0;
+  padding: 11px 14px;
+  border-radius: var(--qu-radius);
+  background: var(--qu-surface2);
+  border: 1px solid var(--qu-border);
+  color: var(--qu-text);
+  font-size: 14px;
+}
+
+.idMatchInput::placeholder {
+  color: var(--qu-muted);
+}
+
+.idMatchButton {
+  flex-shrink: 0;
+  padding: 0 16px;
+  border-radius: var(--qu-radius);
+  background: var(--qu-surface2);
+  color: var(--qu-text);
+  border: 1px solid var(--qu-border);
+  font-weight: 700;
+  font-size: 12.5px;
+  cursor: pointer;
+}
+
+.idMatchButton:hover:not(:disabled) {
+  border-color: var(--qu-accent);
+}
+
+.idMatchButton:disabled {
+  opacity: 0.6;
+  cursor: default;
+}
