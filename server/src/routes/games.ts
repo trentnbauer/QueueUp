@@ -67,6 +67,8 @@ import type {
   BulkUpdateGameStatusRequest,
   CreateGameRequest,
   CreateGameResponse,
+  CrossRoomBeaten,
+  CrossRoomBeatenGroup,
   CrossRoomPlaying,
   CrossRoomPlayingGroup,
   MoveGameRequest,
@@ -1412,6 +1414,67 @@ export default async function gameRoutes(app: FastifyInstance) {
       }
 
       const result: CrossRoomPlaying = { groups };
+      return result;
+    },
+  );
+
+  // Beaten libraries can genuinely run into the hundreds over years of play, unlike Playing/Play
+  // Next which is inherently small - same cap MAX_GAMES_PER_LIST uses for the main shelf list,
+  // not CROSS_ROOM_PLAYING_LIMIT's much smaller "defensive ceiling on something tiny" reasoning.
+  const CROSS_ROOM_BEATEN_LIMIT = MAX_GAMES_PER_LIST;
+  const BEATEN_STATUSES: Prisma.GameWhereInput['status'] = { in: ['done', 'replay'] };
+
+  // Issue #481: "an easy way to display my beaten list, including communal rooms" - same shape/
+  // reasoning as /api/me/currently-playing above, just for Beaten+Replay instead of Playing+Play
+  // Next (Replay joins Done here for the same reason BeatenStrip.tsx groups them together: a
+  // Replay is by definition already-beaten).
+  app.get(
+    '/api/me/beaten',
+    { config: { rateLimit: { max: 20, timeWindow: '1 minute' } } },
+    async (request) => {
+      const userId = await request.requireAuth();
+
+      const [personalGames, memberships] = await Promise.all([
+        prisma.game.findMany({
+          where: { roomId: null, addedBy: userId, archivedAt: null, status: BEATEN_STATUSES },
+          include: gameInclude,
+          orderBy: { updatedAt: 'desc' },
+          take: CROSS_ROOM_BEATEN_LIMIT,
+        }),
+        prisma.roomMember.findMany({ where: { userId }, include: { room: true }, orderBy: { joinedAt: 'asc' } }),
+      ]);
+
+      const roomIds = memberships.map((m) => m.roomId);
+      const roomGamesRaw =
+        roomIds.length > 0
+          ? await prisma.game.findMany({
+              where: { roomId: { in: roomIds }, archivedAt: null, status: BEATEN_STATUSES },
+              include: gameInclude,
+              orderBy: { updatedAt: 'desc' },
+              take: CROSS_ROOM_BEATEN_LIMIT,
+            })
+          : [];
+
+      const [personalSerialized, roomSerialized] = await Promise.all([
+        serializeGames(personalGames, userId),
+        serializeGames(roomGamesRaw, userId),
+      ]);
+
+      const gamesByRoomId = new Map<string, (typeof roomSerialized)[number][]>();
+      for (const g of roomSerialized) {
+        const list = gamesByRoomId.get(g.roomId as string) ?? [];
+        list.push(g);
+        gamesByRoomId.set(g.roomId as string, list);
+      }
+
+      const groups: CrossRoomBeatenGroup[] = [];
+      if (personalSerialized.length > 0) groups.push({ roomId: null, roomName: null, games: personalSerialized });
+      for (const m of memberships) {
+        const games = gamesByRoomId.get(m.roomId) ?? [];
+        if (games.length > 0) groups.push({ roomId: m.roomId, roomName: m.room.name, games });
+      }
+
+      const result: CrossRoomBeaten = { groups };
       return result;
     },
   );

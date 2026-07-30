@@ -772,6 +772,25 @@ export interface CrossRoomPlaying {
   groups: CrossRoomPlayingGroup[];
 }
 
+/** One group of Beaten games in the cross-room dashboard (issue #481) - either a room the caller
+ * is a member of, or their Personal Shelf (`roomId: null`, `roomName: null`). Includes Replay
+ * alongside Done, same as BeatenStrip.tsx's own grouping (a Replay is by definition already-
+ * beaten). Only groups with at least one Done/Replay game are included, same reasoning as
+ * CrossRoomPlayingGroup. */
+export interface CrossRoomBeatenGroup {
+  roomId: string | null;
+  roomName: string | null;
+  games: Game[];
+}
+
+/** Aggregates Beaten (and Replay) across every room the caller is in, plus their Personal Shelf,
+ * into one view (issue #481) - a user asked for "an easy way to display my beaten list, including
+ * communal rooms" without switching into each room individually, the same problem #364's Currently
+ * Playing dashboard solved for Playing/Play Next. */
+export interface CrossRoomBeaten {
+  groups: CrossRoomBeatenGroup[];
+}
+
 /** One game the caller added, in the "Download my data" export - a slimmer, DB-shaped view than
  * the full `Game` DTO (no live price lookup, no other members' votes), since this is a bulk
  * point-in-time snapshot rather than something rendered as a card. `roomId`/`roomName` are null
