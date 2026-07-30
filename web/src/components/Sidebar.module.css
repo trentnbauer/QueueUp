@@ -463,6 +463,11 @@ a.notifUnread:hover {
        240px, which was eating well over half the screen on a typical phone. */
     width: 92px;
     max-width: 80vw;
+    /* .mobileToggle sits fixed at top:12px/left:12px, 36px square, with a higher z-index than this
+       drawer - without room cleared for it, the drawer's own top:14px padding put the brand logo
+       button directly underneath it once open, so its "X" visually clipped the logo (issue #479).
+       64px clears the toggle's 12+36=48px bottom edge with a little breathing room. */
+    padding-top: 64px;
     transform: translateX(-100%);
     transition: transform 0.2s ease;
     z-index: 26;
