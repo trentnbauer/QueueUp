@@ -12,10 +12,16 @@ import type { ResolvePendingLibraryImportRequest } from '@queueup/shared';
  * not under /api/v1: this is something a person reviews in the web app, not something the headless
  * Playnite extension itself needs to read back. */
 export default async function pendingLibraryImportRoutes(app: FastifyInstance) {
-  app.get('/api/library/pending-imports', async (request) => {
-    const userId = await request.requireAuth();
-    return { pending: await listPendingLibraryImports(userId) };
-  });
+  app.get(
+    '/api/library/pending-imports',
+    // Same tier as the other occasional Profile Settings actions below (and /api/me/api-keys,
+    // /api/me/export in auth.ts) - a normal session comes nowhere close to this.
+    { config: { rateLimit: { max: 20, timeWindow: '1 minute' } } },
+    async (request) => {
+      const userId = await request.requireAuth();
+      return { pending: await listPendingLibraryImports(userId) };
+    },
+  );
 
   /** Resolves a pending row against the igdbId the user picked (from its candidates, or one they
    * searched for themselves instead) - reuses createGameForUser for the "doesn't exist yet" path
@@ -28,6 +34,7 @@ export default async function pendingLibraryImportRoutes(app: FastifyInstance) {
    * anyone else's - it resolves automatically instead of landing back in the review queue. */
   app.post<{ Params: { id: string }; Body: ResolvePendingLibraryImportRequest }>(
     '/api/library/pending-imports/:id/resolve',
+    { config: { rateLimit: { max: 20, timeWindow: '1 minute' } } },
     async (request, reply) => {
       const userId = await request.requireAuth();
       const { id } = request.params;
@@ -53,9 +60,13 @@ export default async function pendingLibraryImportRoutes(app: FastifyInstance) {
     },
   );
 
-  app.delete<{ Params: { id: string } }>('/api/library/pending-imports/:id', async (request, reply) => {
-    const userId = await request.requireAuth();
-    await deletePendingLibraryImport(userId, request.params.id);
-    reply.status(204);
-  });
+  app.delete<{ Params: { id: string } }>(
+    '/api/library/pending-imports/:id',
+    { config: { rateLimit: { max: 20, timeWindow: '1 minute' } } },
+    async (request, reply) => {
+      const userId = await request.requireAuth();
+      await deletePendingLibraryImport(userId, request.params.id);
+      reply.status(204);
+    },
+  );
 }

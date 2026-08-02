@@ -23,6 +23,8 @@ env:
 jobs:
   setup:
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
     outputs:
       image_name: ${{ steps.image_name.outputs.image_name }}
     steps:

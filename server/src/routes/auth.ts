@@ -243,11 +243,16 @@ export default async function authRoutes(app: FastifyInstance) {
   // Personal access token management (issue #435) - these themselves are cookie-authenticated app
   // routes (Profile Settings), not part of the bearer-authenticated /api/v1 surface the keys
   // unlock. See services/apiKeys.ts for why the raw token is never stored, only its hash.
-  app.get('/api/me/api-keys', async (request, reply) => {
-    const userId = await request.requireAuth();
-    const keys = await prisma.apiKey.findMany({ where: { userId }, orderBy: { createdAt: 'desc' } });
-    return reply.send({ keys: keys.map(toApiKeySummary) });
-  });
+  app.get(
+    '/api/me/api-keys',
+    // Same tier as the POST below - a direct, occasional Profile Settings action.
+    { config: { rateLimit: { max: 20, timeWindow: '1 minute' } } },
+    async (request, reply) => {
+      const userId = await request.requireAuth();
+      const keys = await prisma.apiKey.findMany({ where: { userId }, orderBy: { createdAt: 'desc' } });
+      return reply.send({ keys: keys.map(toApiKeySummary) });
+    },
+  );
 
   app.post<{ Body: CreateApiKeyRequest }>(
     '/api/me/api-keys',
@@ -268,16 +273,21 @@ export default async function authRoutes(app: FastifyInstance) {
     },
   );
 
-  app.delete<{ Params: { id: string } }>('/api/me/api-keys/:id', async (request, reply) => {
-    const userId = await request.requireAuth();
-    const key = await prisma.apiKey.findUnique({ where: { id: request.params.id } });
-    if (!key || key.userId !== userId) throw new HttpError(404, 'API key not found');
-    if (!key.revokedAt) {
-      await prisma.apiKey.update({ where: { id: key.id }, data: { revokedAt: new Date() } });
-    }
-    reply.status(204);
-    return reply.send();
-  });
+  app.delete<{ Params: { id: string } }>(
+    '/api/me/api-keys/:id',
+    // Same tier as the routes above - a direct, occasional Profile Settings action.
+    { config: { rateLimit: { max: 20, timeWindow: '1 minute' } } },
+    async (request, reply) => {
+      const userId = await request.requireAuth();
+      const key = await prisma.apiKey.findUnique({ where: { id: request.params.id } });
+      if (!key || key.userId !== userId) throw new HttpError(404, 'API key not found');
+      if (!key.revokedAt) {
+        await prisma.apiKey.update({ where: { id: key.id }, data: { revokedAt: new Date() } });
+      }
+      reply.status(204);
+      return reply.send();
+    },
+  );
 
   // "Download my data" (issue #243) - a safety net before the irreversible DELETE /api/me below,
   // so someone can grab a copy of what they're about to lose. Reads from the same tables Year in
