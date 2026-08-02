@@ -680,19 +680,23 @@ export function AddGameModal({ roomId, onAdded, onClose }: AddGameModalProps) {
     }
   }
 
-  // Issue #402: a decoded barcode is looked up via ScanDex, then fed straight into the same
-  // owned/platforms step a normal search pick uses - no match just surfaces a message and returns
-  // to the scanner-free search view, rather than leaving the camera view stuck open on a dead end.
+  // Issue #402/#496: a decoded barcode is looked up via ScanDex, then fed straight into the same
+  // owned/platforms step a normal search pick uses. The scanner stays open and mounted through the
+  // lookup (previously it closed the instant a barcode decoded, before the lookup even resolved -
+  // on a miss that left the camera view gone and the only feedback a line of text back in the
+  // parent modal it had been covering, which read as the scan just silently failing). Only a
+  // successful match closes it; a miss/error is shown in place with a retry, via
+  // BarcodeScannerModal's loading/lookupError props.
   async function handleBarcodeScanned(barcode: string) {
-    setShowScanner(false);
     setBarcodeLoading(true);
     setBarcodeError(null);
     try {
       const { result } = await gamesApi.barcodeLookup(barcode);
       if (!result) {
-        setBarcodeError("Couldn't find a match for that barcode - try searching by name instead.");
+        setBarcodeError("Couldn't find a match for that barcode - try again or search by name instead.");
         return;
       }
+      setShowScanner(false);
       setPendingResult({
         igdbId: result.igdbId,
         title: result.title,
@@ -956,7 +960,13 @@ export function AddGameModal({ roomId, onAdded, onClose }: AddGameModalProps) {
 
       {showScanner && (
         <Suspense fallback={null}>
-          <BarcodeScannerModal onScanned={handleBarcodeScanned} onClose={() => setShowScanner(false)} />
+          <BarcodeScannerModal
+            onScanned={handleBarcodeScanned}
+            onClose={() => setShowScanner(false)}
+            loading={barcodeLoading}
+            lookupError={barcodeError}
+            onRetry={() => setBarcodeError(null)}
+          />
         </Suspense>
       )}
     </div>
