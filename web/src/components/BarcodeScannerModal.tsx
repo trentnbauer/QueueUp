@@ -7,6 +7,13 @@ import styles from './BarcodeScannerModal.module.css';
 interface BarcodeScannerModalProps {
   onScanned: (barcode: string) => void;
   onClose: () => void;
+  /** True while the parent is looking up the last decoded barcode (issue #496). */
+  loading: boolean;
+  /** Set by the parent when the last decoded barcode didn't resolve to a game (issue #496) - shown
+   * here, in place, rather than only in the parent modal the camera view was covering. */
+  lookupError: string | null;
+  /** Clears lookupError and lets scanning resume (issue #496). */
+  onRetry: () => void;
 }
 
 const SCAN_REGION_ID = 'barcode-scanner-region';
@@ -17,7 +24,7 @@ const SCAN_REGION_ID = 'barcode-scanner-region';
  * 2026, so this uses the same getUserMedia + JS-decoding approach every cross-browser scanner
  * needs instead. Reuses AddGameModal's own dialog chrome (same visual language, one modal replacing
  * another) rather than a second near-identical stylesheet. */
-export function BarcodeScannerModal({ onScanned, onClose }: BarcodeScannerModalProps) {
+export function BarcodeScannerModal({ onScanned, onClose, loading, lookupError, onRetry }: BarcodeScannerModalProps) {
   const [error, setError] = useState<string | null>(null);
   const [starting, setStarting] = useState(true);
   // Guards against html5-qrcode firing its success callback more than once for the same barcode
@@ -90,6 +97,15 @@ export function BarcodeScannerModal({ onScanned, onClose }: BarcodeScannerModalP
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
+  // Issue #496: hasScannedRef latches true on the first decode and is never otherwise reset (it
+  // exists to stop that same decode firing onScanned repeatedly - see its own comment above), so a
+  // retry after a lookup miss has to clear it explicitly or the camera would keep running but never
+  // report another decode.
+  function handleRetry() {
+    hasScannedRef.current = false;
+    onRetry();
+  }
+
   return (
     <div className={modalStyles.backdrop} role="presentation" onMouseDown={closeOnBackdropMouseDown(onClose)}>
       <div
@@ -114,7 +130,18 @@ export function BarcodeScannerModal({ onScanned, onClose }: BarcodeScannerModalP
           <>
             {starting && <p className={styles.hint}>Starting camera…</p>}
             <div id={SCAN_REGION_ID} className={styles.scanRegion} />
-            <p className={styles.hint}>Point your camera at the barcode on the game's box.</p>
+            {loading && <p className={styles.hint}>Looking up that barcode…</p>}
+            {lookupError && (
+              <div className={styles.lookupError}>
+                <p className={modalStyles.error}>{lookupError}</p>
+                <button type="button" className={modalStyles.addButton} onClick={handleRetry}>
+                  Try again
+                </button>
+              </div>
+            )}
+            {!loading && !lookupError && (
+              <p className={styles.hint}>Point your camera at the barcode on the game's box.</p>
+            )}
           </>
         )}
 

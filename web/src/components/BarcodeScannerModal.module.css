@@ -12,3 +12,12 @@
   font-size: 12.5px;
   text-align: center;
 }
+
+.lookupError {
+  margin-top: 10px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  text-align: center;
+}
