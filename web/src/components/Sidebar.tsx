@@ -109,38 +109,17 @@ export function Sidebar() {
         <div className={styles.divider} />
 
         <div className={styles.icons}>
+          {/* Personal Shelf, plus the cross-room Currently Playing (issue #364) and Beaten (issue
+              #481) dashboards - originally three separate icons here, merged into one destination
+              (issue #490) with ShelfTabs switching between them, since all three are really just
+              different views of "your games." */}
           <Link
             to="/"
-            className={`${styles.roomIcon} ${!activeRoom && !onPlayingPage && !onBeatenPage && !onReviewPage ? styles.roomIconActive : ''}`}
+            className={`${styles.roomIcon} ${(!activeRoom || onPlayingPage || onBeatenPage) && !onReviewPage ? styles.roomIconActive : ''}`}
             title="Personal Shelf"
             onClick={closeMobileDrawer}
           >
             🗂
-          </Link>
-
-          {/* Cross-room Currently Playing dashboard (issue #364) - a glance at what's active
-              everywhere without switching into each room individually. */}
-          <Link
-            to="/playing"
-            className={`${styles.roomIcon} ${onPlayingPage ? styles.roomIconActive : ''}`}
-            title="Currently Playing (all rooms)"
-            onClick={closeMobileDrawer}
-          >
-            🎮
-          </Link>
-
-          {/* Cross-room Beaten dashboard (issue #481) - "an easy way to display my beaten list,
-              including communal rooms," same shape as Currently Playing above. Always shown
-              (unlike Needs Review below) - same reasoning as Currently Playing: a glance here is
-              still meaningful even when it's empty, not an action queue that should get out of the
-              way once cleared. */}
-          <Link
-            to="/beaten"
-            className={`${styles.roomIcon} ${onBeatenPage ? styles.roomIconActive : ''}`}
-            title="Beaten (all rooms)"
-            onClick={closeMobileDrawer}
-          >
-            🏆
           </Link>
 
           {/* Needs Review queue (unmatched import titles) - used to live silently inside Profile

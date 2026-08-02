@@ -6,6 +6,7 @@ import { useRooms } from './hooks/useRooms';
 import { ActionErrorBanner } from './components/ActionErrorBanner';
 import { Header } from './components/Header';
 import { Sidebar } from './components/Sidebar';
+import { ShelfTabs } from './components/ShelfTabs';
 import { Footer } from './components/Footer';
 import { OnboardingModal } from './components/OnboardingModal';
 import { ChangelogModal } from './components/ChangelogModal';
@@ -114,12 +115,20 @@ export default function App() {
     location.pathname === '/review' ||
     location.pathname === '/beaten';
 
+  // Personal Shelf, Playing, and Beaten (issue #490) share one sidebar destination and are
+  // switched between via ShelfTabs instead - shown across all three regardless of hideRoomHeader
+  // above, since /playing and /beaten still hide the room Header (they're cross-room aggregates,
+  // not scoped to the shelf the way Header's filters/Add Game button are).
+  const showShelfTabs =
+    location.pathname === '/' || location.pathname === '/playing' || location.pathname === '/beaten';
+
   return (
     <SteamImportProvider>
       <div style={{ minHeight: '100vh', background: 'var(--qu-bg)', display: 'flex' }}>
         <Sidebar />
         <div style={{ flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column', minHeight: '100vh' }}>
           {!hideRoomHeader && <Header />}
+          {showShelfTabs && <ShelfTabs />}
           <ActionErrorBanner message={pendingJoinError} onDismiss={() => setPendingJoinError(null)} />
           <ActionErrorBanner message={accountLinkError} onDismiss={() => setAccountLinkError(null)} />
           <div style={{ flex: 1 }}>
