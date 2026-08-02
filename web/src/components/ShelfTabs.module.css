@@ -1,0 +1,32 @@
+.tabRow {
+  display: flex;
+  gap: 6px;
+  padding: 14px 40px 0;
+}
+
+@media (max-width: 640px) {
+  .tabRow {
+    padding: 12px 18px 0;
+  }
+}
+
+.tabButton {
+  padding: 8px 16px;
+  border-radius: var(--qu-radius);
+  background: var(--qu-surface2);
+  color: var(--qu-muted);
+  border: 1px solid var(--qu-border);
+  font: 600 13px system-ui, sans-serif;
+  text-decoration: none;
+  cursor: pointer;
+}
+
+.tabButton:hover {
+  color: var(--qu-text);
+}
+
+.tabButtonActive {
+  background: var(--qu-accent-pill-bg);
+  color: var(--qu-accent);
+  border-color: var(--qu-accent);
+}
