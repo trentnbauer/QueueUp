@@ -144,7 +144,7 @@ export function Sidebar() {
             <Link
               key={room.id}
               to={`/room/${room.id}`}
-              className={`${styles.roomIcon} ${activeRoom?.id === room.id && !onPlayingPage ? styles.roomIconActive : ''}`}
+              className={`${styles.roomIcon} ${activeRoom?.id === room.id && !onPlayingPage && !onBeatenPage ? styles.roomIconActive : ''}`}
               style={{ background: room.accentColor, color: contrastTextColor(room.accentColor) }}
               title={`${room.name} · ${ROOM_PLATFORM_LABELS[room.platform]}`}
               onClick={closeMobileDrawer}
