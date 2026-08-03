@@ -1,5 +1,6 @@
 import { apiGet, apiPost, apiPatch, apiDelete } from './client';
 import type {
+  BadgeDefinition,
   CreateRoomRequest,
   Game,
   GameSuggestion,
@@ -16,10 +17,11 @@ import type {
 
 export const roomsApi = {
   list: () => apiGet<{ rooms: Room[] }>('/api/rooms'),
-  create: (body: CreateRoomRequest) => apiPost<{ room: Room }>('/api/rooms', body),
-  join: (body: JoinRoomRequest) => apiPost<{ room: Room }>('/api/rooms/join', body),
+  create: (body: CreateRoomRequest) => apiPost<{ room: Room; unlockedBadges: BadgeDefinition[] }>('/api/rooms', body),
+  join: (body: JoinRoomRequest) => apiPost<{ room: Room; unlockedBadges: BadgeDefinition[] }>('/api/rooms/join', body),
   publicRooms: () => apiGet<{ rooms: PublicRoomSummary[] }>('/api/rooms/public'),
-  joinPublic: (roomId: string) => apiPost<{ room: Room }>(`/api/rooms/${roomId}/join-public`, {}),
+  joinPublic: (roomId: string) =>
+    apiPost<{ room: Room; unlockedBadges: BadgeDefinition[] }>(`/api/rooms/${roomId}/join-public`, {}),
   get: (roomId: string) => apiGet<{ room: Room }>(`/api/rooms/${roomId}`),
   update: (roomId: string, body: UpdateRoomRequest) => apiPatch<{ room: Room }>(`/api/rooms/${roomId}`, body),
   delete: (roomId: string) => apiDelete(`/api/rooms/${roomId}`),
@@ -57,6 +59,6 @@ export const roomSpinApi = {
     apiPost<{ spin: RoomSpinSession }>(`/api/rooms/${roomId}/spin/nudge`, { direction }),
   restart: (roomId: string) => apiPost<{ spin: RoomSpinSession }>(`/api/rooms/${roomId}/spin/restart`),
   skipWait: (roomId: string) => apiPost<{ spin: RoomSpinSession }>(`/api/rooms/${roomId}/spin/skip-wait`),
-  ready: (roomId: string) => apiPost<{ spin: RoomSpinSession }>(`/api/rooms/${roomId}/spin/ready`),
+  ready: (roomId: string) => apiPost<{ spin: RoomSpinSession; unlockedBadges: BadgeDefinition[] }>(`/api/rooms/${roomId}/spin/ready`),
   close: (roomId: string) => apiDelete(`/api/rooms/${roomId}/spin`),
 };

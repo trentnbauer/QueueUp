@@ -32,11 +32,19 @@ import {
   ROOM_PLATFORM_LABELS,
   type CollectionGamesResult,
   type CollectionSearchResult,
-  type CreateGameResponse,
+  type Game,
   type GameSearchResult,
   type GameStatus,
+  type GameSuggestion,
   type RoomPlatform,
 } from '@queueup/shared';
+
+/** createGameForUser's own return shape - deliberately not CreateGameResponse itself (which also
+ * requires unlockedBadges, issue #489): this is shared by the bearer-authenticated /api/v1 push
+ * routes too, which have no live UI to announce an unlock to, so badge-unlocking is left to each
+ * caller that actually wants to surface it (see the cookie-authenticated POST /api/games route in
+ * routes/games.ts) rather than forced on every caller here. */
+type CreateGameResult = { game: Game } | { suggestion: GameSuggestion };
 
 export async function searchIntake(
   query: string,
@@ -265,7 +273,7 @@ export async function createGameForUser(
   roomId: string | null,
   igdbId: number,
   options: { status?: GameStatus; ownedPlatforms?: RoomPlatform[] } = {},
-): Promise<CreateGameResponse> {
+): Promise<CreateGameResult> {
   const { status, ownedPlatforms } = options;
   if (!Number.isInteger(igdbId)) throw new HttpError(400, 'A valid igdbId is required');
   if (status !== undefined && status !== 'backlog' && status !== 'wishlist') {

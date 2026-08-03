@@ -34,6 +34,7 @@ export function Sidebar() {
   const onPlayingPage = useLocation().pathname === '/playing';
   const onBeatenPage = useLocation().pathname === '/beaten';
   const onReviewPage = useLocation().pathname === '/review';
+  const onAchievementsPage = useLocation().pathname === '/achievements';
   const { rooms } = useRooms();
   const { totalUnread, unreadRoomIds } = useNotificationSummary();
   // Badge on the Needs Review icon (see NeedsReviewView) - the review queue used to live silently
@@ -115,11 +116,25 @@ export function Sidebar() {
               different views of "your games." */}
           <Link
             to="/"
-            className={`${styles.roomIcon} ${(!activeRoom || onPlayingPage || onBeatenPage) && !onReviewPage ? styles.roomIconActive : ''}`}
+            className={`${styles.roomIcon} ${(!activeRoom || onPlayingPage || onBeatenPage) && !onReviewPage && !onAchievementsPage ? styles.roomIconActive : ''}`}
             title="Personal Shelf"
             onClick={closeMobileDrawer}
           >
             🗂
+          </Link>
+
+          {/* QueueUp's own gamification panel (issue #489) - a dedicated icon rather than folding
+              into ShelfTabs alongside Shelf/Playing/Beaten (issue #490), since this is a distinct
+              hub of its own (milestones across everything you do here) rather than another view of
+              "your games" specifically. Always shown, same reasoning as Playing/Beaten before they
+              merged: a glance at what's still locked is meaningful even before you've unlocked much. */}
+          <Link
+            to="/achievements"
+            className={`${styles.roomIcon} ${onAchievementsPage ? styles.roomIconActive : ''}`}
+            title="Achievements"
+            onClick={closeMobileDrawer}
+          >
+            🏆
           </Link>
 
           {/* Needs Review queue (unmatched import titles) - used to live silently inside Profile
@@ -144,7 +159,7 @@ export function Sidebar() {
             <Link
               key={room.id}
               to={`/room/${room.id}`}
-              className={`${styles.roomIcon} ${activeRoom?.id === room.id && !onPlayingPage && !onBeatenPage ? styles.roomIconActive : ''}`}
+              className={`${styles.roomIcon} ${activeRoom?.id === room.id && !onPlayingPage && !onBeatenPage && !onAchievementsPage ? styles.roomIconActive : ''}`}
               style={{ background: room.accentColor, color: contrastTextColor(room.accentColor) }}
               title={`${room.name} · ${ROOM_PLATFORM_LABELS[room.platform]}`}
               onClick={closeMobileDrawer}

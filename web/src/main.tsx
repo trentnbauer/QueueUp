@@ -13,6 +13,7 @@ import { CardDensityProvider } from './context/CardDensityContext';
 import { ViewModeProvider } from './context/ViewModeContext';
 import { SidebarIconSizeProvider } from './context/SidebarIconSizeContext';
 import { ConfirmProvider } from './context/ConfirmContext';
+import { AchievementUnlockProvider } from './context/AchievementUnlockContext';
 import { applyThemeMode, getPreferredThemeMode } from './theme/applyThemeMode';
 import './theme/global.css';
 
@@ -35,7 +36,9 @@ createRoot(document.getElementById('root')!).render(
                       <ViewModeProvider>
                         <SidebarIconSizeProvider>
                           <ConfirmProvider>
-                            <App />
+                            <AchievementUnlockProvider>
+                              <App />
+                            </AchievementUnlockProvider>
                           </ConfirmProvider>
                         </SidebarIconSizeProvider>
                       </ViewModeProvider>

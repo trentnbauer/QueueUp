@@ -1,23 +1,28 @@
-import type { RoomPlatform } from '@queueup/shared';
+import type { BadgeDefinition, RoomPlatform } from '@queueup/shared';
 import { prisma } from '../db/client.js';
+import { unlockBadges } from './badges.js';
 import type { GameWithRelations } from './gameSerializer.js';
 
 /** Replaces a user's full set of owned platforms for one igdbId - see the GameOwnership model doc
  * for why this is keyed by igdbId, not a specific Game row. An empty list deletes the claim
  * entirely (the user owns it nowhere), rather than leaving a row with an empty platforms array
  * on file - that empty-array shape is reserved for pre-migration rows whose platform was never
- * recorded (see the model doc), not a fresh "explicitly owns nothing" state. */
-export async function setOwnershipPlatforms(userId: string, igdbId: number, platforms: RoomPlatform[]): Promise<void> {
+ * recorded (see the model doc), not a fresh "explicitly owns nothing" state. Returns any newly-
+ * unlocked badge (issue #489, "buy a game" - there's no real purchase/checkout concept in this
+ * app, so marking ownership is the closest fit) - only on the add path, never on the delete/clear
+ * branch, since un-marking ownership isn't the action the badge is celebrating. */
+export async function setOwnershipPlatforms(userId: string, igdbId: number, platforms: RoomPlatform[]): Promise<BadgeDefinition | null> {
   const deduped = Array.from(new Set(platforms));
   if (deduped.length === 0) {
     await prisma.gameOwnership.deleteMany({ where: { userId, igdbId } });
-    return;
+    return null;
   }
   await prisma.gameOwnership.upsert({
     where: { userId_igdbId: { userId, igdbId } },
     create: { userId, igdbId, platforms: deduped },
     update: { platforms: deduped },
   });
+  return (await unlockBadges(userId, ['first_ownership_marked']))[0] ?? null;
 }
 
 /** Adds or removes exactly one platform from whatever a user's existing claim already covers,
@@ -27,14 +32,18 @@ export async function setOwnershipPlatforms(userId: string, igdbId: number, plat
  * doc) has nothing specific to remove on un-mark, so that case clears the claim entirely instead -
  * the user is explicitly saying "I don't own this," not "I don't own the platform I never told you
  * about." */
-export async function toggleOwnershipForPlatform(userId: string, igdbId: number, platform: RoomPlatform, owned: boolean): Promise<void> {
+export async function toggleOwnershipForPlatform(
+  userId: string,
+  igdbId: number,
+  platform: RoomPlatform,
+  owned: boolean,
+): Promise<BadgeDefinition | null> {
   const existing = await prisma.gameOwnership.findUnique({ where: { userId_igdbId: { userId, igdbId } } });
   if (owned) {
-    await setOwnershipPlatforms(userId, igdbId, [...(existing?.platforms ?? []), platform]);
-  } else {
-    const platforms = existing && existing.platforms.length > 0 ? existing.platforms.filter((p) => p !== platform) : [];
-    await setOwnershipPlatforms(userId, igdbId, platforms);
+    return setOwnershipPlatforms(userId, igdbId, [...(existing?.platforms ?? []), platform]);
   }
+  const platforms = existing && existing.platforms.length > 0 ? existing.platforms.filter((p) => p !== platform) : [];
+  return setOwnershipPlatforms(userId, igdbId, platforms);
 }
 
 /** Adds platforms to whatever a user's existing claim already covers, without removing any
@@ -42,22 +51,26 @@ export async function toggleOwnershipForPlatform(userId: string, igdbId: number,
  * replace), since a sync may run repeatedly and each run only reports whichever platforms Playnite
  * currently sees, not the full history of every platform ever synced. Re-syncing a title that's no
  * longer installed on some platform shouldn't silently un-claim it. */
-export async function unionOwnershipPlatforms(userId: string, igdbId: number, platforms: RoomPlatform[]): Promise<void> {
-  if (platforms.length === 0) return;
+export async function unionOwnershipPlatforms(userId: string, igdbId: number, platforms: RoomPlatform[]): Promise<BadgeDefinition | null> {
+  if (platforms.length === 0) return null;
   const existing = await prisma.gameOwnership.findUnique({ where: { userId_igdbId: { userId, igdbId } } });
-  await setOwnershipPlatforms(userId, igdbId, [...(existing?.platforms ?? []), ...platforms]);
+  return setOwnershipPlatforms(userId, igdbId, [...(existing?.platforms ?? []), ...platforms]);
 }
 
 /** Bulk-marks igdbIds as owned on PC - used by the Steam library import, since a successful
  * import IS an ownership claim (issue #176), and Steam ownership only ever implies PC. Existing
  * claims are left alone (skipDuplicates) - a re-import doesn't merge in `pc` alongside whatever
- * platforms a claim already lists, same as before this platform-scoping existed. */
-export async function markOwned(userId: string, igdbIds: number[]): Promise<void> {
-  if (igdbIds.length === 0) return;
+ * platforms a claim already lists, same as before this platform-scoping existed. Returns any
+ * newly-unlocked first_ownership_marked badge (issue #489), same as setOwnershipPlatforms - this
+ * is the one ownership-writing path that doesn't go through it (a raw createMany, not an
+ * upsert-by-igdbId, since it's meant to run over a whole library at once). */
+export async function markOwned(userId: string, igdbIds: number[]): Promise<BadgeDefinition | null> {
+  if (igdbIds.length === 0) return null;
   await prisma.gameOwnership.createMany({
     data: igdbIds.map((igdbId) => ({ userId, igdbId, platforms: ['pc' as RoomPlatform] })),
     skipDuplicates: true,
   });
+  return (await unlockBadges(userId, ['first_ownership_marked']))[0] ?? null;
 }
 
 /** Used by priceAlerts.ts to skip notifying about a game its owner already owns (issue #187) -

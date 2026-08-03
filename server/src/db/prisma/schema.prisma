@@ -110,6 +110,7 @@ model User {
   gameSuggestions      GameSuggestion[]
   ownedGames           GameOwnership[]
   achievementCompletions AchievementCompletion[]
+  badges               UserBadge[]
   linkedIdentities     LinkedIdentity[]
   tags                 Tag[]
   roomSpinsStarted     RoomSpin[]
@@ -258,6 +259,25 @@ model AchievementCompletion {
 
   @@id([userId, igdbId])
   @@map("achievement_completion")
+}
+
+/// One row per user per badge ever unlocked in QueueUp's own gamification system (issue #489) -
+/// sticky, insert-only, same shape as AchievementCompletion above. Deliberately named "badge" not
+/// "achievement" in code: AchievementCompletion/AchievementRow/useGameAchievements/
+/// PlayerAchievements already mean "this user's Steam achievement progress on this title" - an
+/// unrelated, pre-existing concept. `badgeKey` is a stable string key into BADGE_DEFINITIONS
+/// (packages/shared/src/badges.ts), not a foreign key - the catalog of what a badge means (name,
+/// description, emoji) lives in code, not the DB, so adding a new badge later is a code change,
+/// not a migration.
+model UserBadge {
+  userId    String   @map("user_id")
+  badgeKey  String   @map("badge_key")
+  createdAt DateTime @default(now()) @map("created_at")
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@id([userId, badgeKey])
+  @@map("user_badges")
 }
 
 model Room {

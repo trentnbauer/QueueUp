@@ -1,4 +1,6 @@
+import type { BadgeDefinition } from '@queueup/shared';
 import { prisma } from '../db/client.js';
+import { unlockBadges } from './badges.js';
 import { getAchievementCounts, getAchievementDetails } from './steamLibrary.js';
 import type { SteamAchievementCounts, SteamUnlockedAchievement } from './steamLibrary.js';
 
@@ -50,6 +52,11 @@ export interface DetectedSteamCompletionsResult {
    * larger than `completions.length` since most checked games won't be 100%'d. */
   consideredCount: number;
   completions: DetectedSteamCompletion[];
+  /** Issue #489 - non-empty only the first time this call finds at least one completion (this
+   * function is always called for the caller's own userId, never a room-wide check, unlike the
+   * achievements route - see that route's own comment for why it needs the extra filter this
+   * doesn't). */
+  unlockedBadges: BadgeDefinition[];
 }
 
 /** Not-yet-Done games with a linked Steam app id, checked against the caller's Steam achievement
@@ -123,8 +130,11 @@ export async function findDetectedSteamCompletions(
     });
   }
 
+  const unlockedBadges = await unlockBadges(userId, completions.length > 0 ? ['first_100_percent'] : []);
+
   return {
     consideredCount: candidates.length,
     completions,
+    unlockedBadges,
   };
 }

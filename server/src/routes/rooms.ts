@@ -6,6 +6,7 @@ import { HttpError } from '../util/httpError.js';
 import { requireElevated, requireMembership, generateUniqueInviteCode, getRoom } from '../services/roomAccess.js';
 import { logAdminAction } from '../services/adminAuditLog.js';
 import { notifyRoom, notifyRoomMembersDirect } from '../services/notifications.js';
+import { unlockBadges } from '../services/badges.js';
 import type {
   CreateRoomRequest,
   JoinRoomRequest,
@@ -93,7 +94,8 @@ export default async function roomRoutes(app: FastifyInstance) {
     });
 
     reply.status(201);
-    return { room: toRoomDto(room, 'room_master', room.inviteCode) };
+    const unlockedBadges = await unlockBadges(userId, ['first_room_created']);
+    return { room: toRoomDto(room, 'room_master', room.inviteCode), unlockedBadges };
   });
 
   app.post<{ Body: JoinRoomRequest }>(
@@ -136,7 +138,8 @@ export default async function roomRoutes(app: FastifyInstance) {
         });
       }
 
-      return { room: toRoomDto(room, membership.role, room.inviteCode) };
+      const unlockedBadges = isNewJoin ? await unlockBadges(userId, ['first_private_join']) : [];
+      return { room: toRoomDto(room, membership.role, room.inviteCode), unlockedBadges };
     },
   );
 
@@ -205,7 +208,8 @@ export default async function roomRoutes(app: FastifyInstance) {
         });
       }
 
-      return { room: toRoomDto(room, membership.role, room.inviteCode) };
+      const unlockedBadges = isNewJoin ? await unlockBadges(userId, ['first_public_join']) : [];
+      return { room: toRoomDto(room, membership.role, room.inviteCode), unlockedBadges };
     },
   );
 

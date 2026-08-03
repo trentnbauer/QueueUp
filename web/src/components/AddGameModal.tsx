@@ -3,6 +3,7 @@ import { ROOM_PLATFORM_LABELS, type CollectionGamesResult, type CollectionSearch
 import { gamesApi } from '../api/games';
 import { useAuth } from '../context/AuthContext';
 import { useModalA11y, closeOnBackdropMouseDown } from '../hooks/useModalA11y';
+import { useAnnounceUnlock } from '../context/AchievementUnlockContext';
 import styles from './AddGameModal.module.css';
 
 // html5-qrcode is a large dependency (~300kB) only ever needed by the rarely-used barcode-scan
@@ -414,6 +415,7 @@ function CollectionReview({ collection, roomId, onAdded, onBack, onBusyChange, h
  * the old always-visible inline search bar above the game grid. */
 export function AddGameModal({ roomId, onAdded, onClose }: AddGameModalProps) {
   const { ownedPlatforms } = useAuth();
+  const announceUnlock = useAnnounceUnlock();
   // Personal Shelf only (see AddGameOwnershipStep) - which result the owned/platforms step is
   // currently showing, or null while the normal search/tabs UI is in view. Rooms skip this step
   // entirely (handleAddClick adds directly instead of setting this).
@@ -621,6 +623,7 @@ export function AddGameModal({ roomId, onAdded, onClose }: AddGameModalProps) {
     try {
       const response = await gamesApi.create({ igdbId: result.igdbId, roomId, ...extra });
       onAdded();
+      announceUnlock(response.unlockedBadges);
       // Stay open and keep the search results as-is so the user can add several games from the
       // same search without retyping - just mark this one as added (or suggested).
       setAddedIds((prev) => new Set(prev).add(result.igdbId));

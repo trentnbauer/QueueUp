@@ -2,6 +2,7 @@ import { useEffect } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { roomsApi } from '../api/rooms';
 import { useView } from '../context/ViewContext';
+import { useAnnounceUnlock } from '../context/AchievementUnlockContext';
 import type { CreateRoomRequest, JoinRoomRequest, Room } from '@queueup/shared';
 
 const ROOMS_QUERY_KEY = ['rooms'];
@@ -9,6 +10,7 @@ const ROOMS_QUERY_KEY = ['rooms'];
 export function useRooms() {
   const { setRooms } = useView();
   const queryClient = useQueryClient();
+  const announceUnlock = useAnnounceUnlock();
   const query = useQuery({ queryKey: ROOMS_QUERY_KEY, queryFn: roomsApi.list });
 
   useEffect(() => {
@@ -29,17 +31,26 @@ export function useRooms() {
 
   const createRoom = useMutation({
     mutationFn: (body: CreateRoomRequest) => roomsApi.create(body),
-    onSuccess: ({ room }) => addRoomToCache(room),
+    onSuccess: ({ room, unlockedBadges }) => {
+      addRoomToCache(room);
+      announceUnlock(unlockedBadges);
+    },
   });
 
   const joinRoom = useMutation({
     mutationFn: (body: JoinRoomRequest) => roomsApi.join(body),
-    onSuccess: ({ room }) => addRoomToCache(room),
+    onSuccess: ({ room, unlockedBadges }) => {
+      addRoomToCache(room);
+      announceUnlock(unlockedBadges);
+    },
   });
 
   const joinPublicRoom = useMutation({
     mutationFn: (roomId: string) => roomsApi.joinPublic(roomId),
-    onSuccess: ({ room }) => addRoomToCache(room),
+    onSuccess: ({ room, unlockedBadges }) => {
+      addRoomToCache(room);
+      announceUnlock(unlockedBadges);
+    },
   });
 
   return {

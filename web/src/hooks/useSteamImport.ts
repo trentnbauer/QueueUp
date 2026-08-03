@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import type { SteamImportProgress, SteamWishlistImportProgress } from '@queueup/shared';
 import { gamesApi } from '../api/games';
+import { useAnnounceUnlock } from '../context/AchievementUnlockContext';
 
 const PROGRESS_POLL_INTERVAL_MS = 1000;
 
@@ -21,6 +22,7 @@ const PENDING_IMPORT_KEY = 'queueup-pending-steam-import';
  * than, say, the wishlist tile displaying "Added 3 games" text that was actually about the library
  * import. */
 export function useSteamImport(steamLinked: boolean, onImported: () => void) {
+  const announceUnlock = useAnnounceUnlock();
   const [busy, setBusy] = useState(false);
   const [activeKind, setActiveKind] = useState<ImportKind | null>(null);
   const [result, setResult] = useState<string | null>(null);
@@ -110,6 +112,7 @@ export function useSteamImport(steamLinked: boolean, onImported: () => void) {
               : `Added ${latest.imported} game${latest.imported === 1 ? '' : 's'} to your Wishlist (skipped ${latest.skipped}, checked ${latest.consideredCount} of ${latest.totalWishlisted} wishlisted).`,
           );
           if (latest.imported > 0) onImported();
+          if (latest.unlockedBadges) announceUnlock(latest.unlockedBadges);
           setBusy(false);
           resolve();
         } catch {
@@ -161,6 +164,7 @@ export function useSteamImport(steamLinked: boolean, onImported: () => void) {
               : `Added ${latest.imported} game${latest.imported === 1 ? '' : 's'} (skipped ${latest.skipped}, checked ${latest.consideredCount} of ${latest.totalOwned} owned).`,
           );
           if (latest.imported > 0) onImported();
+          if (latest.unlockedBadges) announceUnlock(latest.unlockedBadges);
           setBusy(false);
           resolve();
         } catch {
