@@ -40,6 +40,7 @@ services:
       #### PLEASE REFER TO NOTES ON THE EXAMPLE ENV ####
       ## Front End Config
       APP_BASE_URL: ${APP_BASE_URL}
+      BASE_PATH: ${BASE_PATH}                                  # Optional - hosts the app under a sub-path, e.g. /queueup
       SESSION_SECRET: ${SESSION_SECRET}
       TRUST_PROXY: ${TRUST_PROXY:-true}
       ## User Authentication Methods

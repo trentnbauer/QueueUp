@@ -20,6 +20,7 @@ import { SpinPickerButton } from './SpinPickerButton';
 import { RankedQueueModal } from './RankedQueueModal';
 import { ImportLibraryModal } from './ImportLibraryModal';
 import { SuggestionsModal } from './SuggestionsModal';
+import { getBasePath } from '../utils/basePath';
 import styles from './Header.module.css';
 
 const ROLE_LABEL: Record<RoomRole, string> = {
@@ -227,7 +228,7 @@ export function Header() {
 
   async function handleCopyInviteCode() {
     if (!activeRoom?.inviteCode) return;
-    await navigator.clipboard.writeText(`${window.location.origin}/join/${activeRoom.inviteCode}`);
+    await navigator.clipboard.writeText(`${window.location.origin}${getBasePath()}/join/${activeRoom.inviteCode}`);
     setInviteCopied(true);
     setTimeout(() => setInviteCopied(false), 1500);
   }

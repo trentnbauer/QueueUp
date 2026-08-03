@@ -14,6 +14,7 @@ import { ViewModeProvider } from './context/ViewModeContext';
 import { SidebarIconSizeProvider } from './context/SidebarIconSizeContext';
 import { ConfirmProvider } from './context/ConfirmContext';
 import { AchievementUnlockProvider } from './context/AchievementUnlockContext';
+import { getBasePath } from './utils/basePath';
 import { applyThemeMode, getPreferredThemeMode } from './theme/applyThemeMode';
 import './theme/global.css';
 
@@ -25,7 +26,7 @@ const queryClient = new QueryClient();
 createRoot(document.getElementById('root')!).render(
   <StrictMode>
     <QueryClientProvider client={queryClient}>
-      <BrowserRouter>
+      <BrowserRouter basename={getBasePath()}>
         <AuthProvider>
           <ViewProvider>
             <GameFilterProvider>

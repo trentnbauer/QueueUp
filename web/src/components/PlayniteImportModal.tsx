@@ -3,6 +3,7 @@ import { useQueryClient } from '@tanstack/react-query';
 import { encodeConnectionCode } from '@queueup/shared';
 import { apiKeysApi, API_KEYS_QUERY_KEY } from '../api/apiKeys';
 import { useModalA11y, closeOnBackdropMouseDown } from '../hooks/useModalA11y';
+import { getBasePath } from '../utils/basePath';
 import profileStyles from '../views/ProfileSettingsView.module.css';
 import modalStyles from './ImportLibraryModal.module.css';
 import keyStyles from './ApiKeysSection.module.css';
@@ -41,7 +42,12 @@ export function PlayniteImportModal({ onClose }: PlayniteImportModalProps) {
     setError(null);
     try {
       const created = await apiKeysApi.create(PLAYNITE_KEY_LABEL);
-      setCode(encodeConnectionCode({ url: window.location.origin, key: created.key }));
+      // Issue #438: appended getBasePath() to the origin so a sub-path-hosted instance's
+      // connection code still points at the right mount point. Whether the external Playnite
+      // extension (QueueUpPlayniteExtension, a separate C# repo not covered by this app's tests)
+      // composes its own request URLs correctly against a path-bearing `url` here is unverified -
+      // a known limitation, not a silently-assumed fix.
+      setCode(encodeConnectionCode({ url: `${window.location.origin}${getBasePath()}`, key: created.key }));
       setCopied(false);
       // So the new key shows up in Profile Settings' API Keys list right away, not just after a
       // manual reload (same reasoning as #441's original placement).
