@@ -16,6 +16,7 @@ import { useAuth } from '../context/AuthContext';
 import { useConfirm } from '../context/ConfirmContext';
 import { ACCENT_PRESETS } from '../theme/defaultTheme';
 import { exportGames } from '../utils/exportGames';
+import { getBasePath } from '../utils/basePath';
 import { useModalA11y, closeOnBackdropMouseDown } from '../hooks/useModalA11y';
 import { AvatarBadge } from './AvatarBadge';
 import { computeRoomYearInReview } from './roomYearInReview';
@@ -64,7 +65,7 @@ export function RoomSettingsModal({ room, members, games, onClose }: RoomSetting
   const [addingMember, setAddingMember] = useState(false);
   const [deleting, setDeleting] = useState(false);
 
-  const inviteUrl = room.inviteCode ? `${window.location.origin}/join/${room.inviteCode}` : null;
+  const inviteUrl = room.inviteCode ? `${window.location.origin}${getBasePath()}/join/${room.inviteCode}` : null;
   const isElevated = room.myRole === 'room_master' || room.myRole === 'moderator';
 
   // Issue #365: built entirely from games already loaded for this room - no fetch, no per-member

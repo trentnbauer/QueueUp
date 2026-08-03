@@ -6,6 +6,7 @@ import { useAuth } from '../context/AuthContext';
 import { useConfirm } from '../context/ConfirmContext';
 import { adminApi } from '../api/admin';
 import { ActionErrorBanner } from '../components/ActionErrorBanner';
+import { getBasePath } from '../utils/basePath';
 import styles from './SettingsView.module.css';
 
 interface IntegrationField {
@@ -282,7 +283,7 @@ export function SettingsView() {
           {/* A plain link, not a fetch+blob dance - the browser already sends the session cookie
               for a same-origin navigation, and the server's Content-Disposition header is what
               actually triggers the download rather than navigating away from the page. */}
-          <a className={styles.archiveButton} href="/api/admin/logs/export" download>
+          <a className={styles.archiveButton} href={`${getBasePath()}/api/admin/logs/export`} download>
             Download troubleshooting logs
           </a>
         </div>

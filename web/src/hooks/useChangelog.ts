@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { getBasePath } from '../utils/basePath';
 
 export interface ChangelogEntry {
   number: number;
@@ -43,7 +44,7 @@ export function useChangelog() {
   useEffect(() => {
     let cancelled = false;
 
-    fetch('/changelog.json')
+    fetch(`${getBasePath()}/changelog.json`)
       .then((res) => (res.ok ? res.json() : []))
       .then((data: ChangelogEntry[]) => {
         if (cancelled || !Array.isArray(data)) return;

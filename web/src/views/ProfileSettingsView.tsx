@@ -8,6 +8,7 @@ import { useCardDensity, CARD_DENSITY_LABELS, type CardDensity } from '../contex
 import { useViewMode, VIEW_MODE_LABELS, type ViewMode } from '../context/ViewModeContext';
 import { useSidebarIconSize, SIDEBAR_ICON_SIZE_LABELS, type SidebarIconSize } from '../context/SidebarIconSizeContext';
 import { ApiKeysSection } from '../components/ApiKeysSection';
+import { getBasePath } from '../utils/basePath';
 import styles from './ProfileSettingsView.module.css';
 
 const ROOM_PLATFORM_OPTIONS = Object.keys(ROOM_PLATFORM_LABELS) as RoomPlatform[];
@@ -126,7 +127,7 @@ export function ProfileSettingsView() {
       await authApi.deleteAccount();
       // The server already destroyed the session - a full page load (rather than client-side
       // navigation) picks that up cleanly and lands on the signed-out state, same as signing out.
-      window.location.href = '/';
+      window.location.href = `${getBasePath()}/`;
     } catch (err) {
       setDeleteError(err instanceof Error ? err.message : 'Could not delete your account');
       setDeleting(false);
@@ -404,7 +405,7 @@ export function ProfileSettingsView() {
               log export in SettingsView.tsx. The browser already sends the session cookie for a
               same-origin navigation, and the server's Content-Disposition header is what actually
               triggers the download rather than navigating away from the page. */}
-          <a className={styles.unlinkButton} href="/api/me/export" download>
+          <a className={styles.unlinkButton} href={`${getBasePath()}/api/me/export`} download>
             Download my data
           </a>
         </div>

@@ -1,4 +1,5 @@
 import { apiDelete, apiGet, apiPatch } from './client';
+import { getBasePath } from '../utils/basePath';
 import type { RoomPlatform, User } from '@queueup/shared';
 
 export const authApi = {
@@ -17,9 +18,9 @@ export const authApi = {
   providers: () => apiGet<{ providers: string[] }>('/api/auth/providers'),
   updateOwnedPlatforms: (platforms: RoomPlatform[]) =>
     apiPatch<{ ownedPlatforms: RoomPlatform[] }>('/api/me/owned-platforms', { platforms }),
-  loginUrl: (provider: string) => `/auth/${provider}/login`,
-  linkUrl: (provider: string) => `/auth/${provider}/link`,
+  loginUrl: (provider: string) => `${getBasePath()}/auth/${provider}/login`,
+  linkUrl: (provider: string) => `${getBasePath()}/auth/${provider}/link`,
   unlink: (provider: string) => apiDelete(`/auth/${provider}/unlink`),
-  logoutUrl: '/auth/logout',
+  logoutUrl: `${getBasePath()}/auth/logout`,
   deleteAccount: () => apiDelete('/api/me'),
 };

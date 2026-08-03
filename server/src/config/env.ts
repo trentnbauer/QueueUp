@@ -18,6 +18,25 @@ export const envSchema = z.object({
   REDIS_URL: z.string().min(1),
   SESSION_SECRET: z.string().min(16),
 
+  // Serves the entire app under this path prefix instead of domain root (issue #438) - e.g.
+  // mydomain.com/queueup, for a self-hoster running several apps behind one domain. Optional,
+  // defaults to '' (root hosting) - a complete no-op, since Fastify's register(fn, { prefix: '' })
+  // is inert (see app.ts) and an unconditionally-injected <base href="/"> (see plugins/static.ts)
+  // is harmless at root. Accepts "queueup", "/queueup", or "/queueup/" - all normalize to the same
+  // canonical stored form (leading slash, no trailing slash: "/queueup"), so every downstream
+  // consumer (app.ts, plugins/static.ts, and the client via window.__QUEUEUP_BASE_PATH__) can
+  // plain-concatenate without re-trimming. "/" alone (or "") normalizes to "" (root).
+  BASE_PATH: z
+    .string()
+    .optional()
+    .default('')
+    .transform((v) => {
+      const trimmed = v.trim();
+      if (trimmed === '' || trimmed === '/') return '';
+      const withLeadingSlash = trimmed.startsWith('/') ? trimmed : `/${trimmed}`;
+      return withLeadingSlash.replace(/\/+$/, '');
+    }),
+
   // Controls Fastify's `trustProxy` option, which governs how `request.ip`/`request.protocol`
   // are derived from X-Forwarded-For/X-Forwarded-Proto. Most deployments run behind a reverse
   // proxy (Cloudflare Tunnel, NGINX Proxy Manager, ...) that terminates TLS and forwards plain
@@ -114,6 +133,23 @@ export function deriveRedirectUris(data: Env): Env {
   };
 }
 
+// BASE_PATH (route/asset mounting, see app.ts/plugins/static.ts) and APP_BASE_URL's own path
+// (already used for OIDC/Google/Discord/Steam redirect derivation above) describe the same
+// logical mount point and should agree - deliberately independent settings rather than deriving
+// one from the other (see BASE_PATH's own comment), so this is a common self-hoster mistake
+// (setting one and forgetting the other), not a fatal one: the app still starts, but sign-in
+// redirects would land on a different path than the app is actually served from. Warn, don't crash.
+export function warnIfBasePathMismatchesAppBaseUrl(data: Env): void {
+  const urlPath = new URL(data.APP_BASE_URL).pathname.replace(/\/+$/, '');
+  if (urlPath !== data.BASE_PATH) {
+    console.warn(
+      `APP_BASE_URL's path ("${urlPath || '/'}") does not match BASE_PATH ` +
+        `("${data.BASE_PATH || '/'}") - these should describe the same sub-path ` +
+        `(e.g. APP_BASE_URL=https://mydomain.com/queueup and BASE_PATH=/queueup).`,
+    );
+  }
+}
+
 function loadEnv(): Env {
   const parsed = envSchema.safeParse(process.env);
   if (!parsed.success) {
@@ -122,6 +158,7 @@ function loadEnv(): Env {
     process.exit(1);
   }
   parsed.data = deriveRedirectUris(parsed.data);
+  warnIfBasePathMismatchesAppBaseUrl(parsed.data);
 
   if (parsed.data.DEV_FAKE_AUTH && process.env.NODE_ENV === 'production') {
     console.error(

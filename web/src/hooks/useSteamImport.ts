@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import type { SteamImportProgress, SteamWishlistImportProgress } from '@queueup/shared';
 import { gamesApi } from '../api/games';
 import { useAnnounceUnlock } from '../context/AchievementUnlockContext';
+import { getBasePath } from '../utils/basePath';
 
 const PROGRESS_POLL_INTERVAL_MS = 1000;
 
@@ -63,7 +64,7 @@ export function useSteamImport(steamLinked: boolean, onImported: () => void) {
 
   function startLink(kind: ImportKind = 'library') {
     sessionStorage.setItem(PENDING_IMPORT_KEY, kind);
-    window.location.href = '/auth/steam/link';
+    window.location.href = `${getBasePath()}/auth/steam/link`;
   }
 
   // Both runners resolve only once the whole import is actually done (not just once the "started"

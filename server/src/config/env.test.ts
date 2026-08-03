@@ -1,5 +1,5 @@
-import { describe, it, expect } from 'vitest';
-import { deriveRedirectUris, envSchema, type Env } from './env.js';
+import { describe, it, expect, vi, afterEach } from 'vitest';
+import { deriveRedirectUris, envSchema, warnIfBasePathMismatchesAppBaseUrl, type Env } from './env.js';
 
 function baseEnv(overrides: Partial<Env> = {}): Env {
   return {
@@ -10,6 +10,7 @@ function baseEnv(overrides: Partial<Env> = {}): Env {
     SESSION_SECRET: 'test-secret-test-secret-test-secret',
     TRUST_PROXY: true,
     DEV_FAKE_AUTH: false,
+    BASE_PATH: '',
     OIDC_ISSUER_URL: undefined,
     OIDC_CLIENT_ID: undefined,
     OIDC_CLIENT_SECRET: undefined,
@@ -103,5 +104,46 @@ describe('envSchema', () => {
   it('still rejects a genuinely missing required field', () => {
     const result = envSchema.safeParse({ APP_BASE_URL: 'https://queueup.example.com' });
     expect(result.success).toBe(false);
+  });
+
+  describe('BASE_PATH normalization', () => {
+    it.each([
+      [undefined, ''],
+      ['', ''],
+      ['/', ''],
+      ['queueup', '/queueup'],
+      ['/queueup', '/queueup'],
+      ['/queueup/', '/queueup'],
+      ['/a/b/', '/a/b'],
+    ])('normalizes %j to %j', (input, expected) => {
+      const result = envSchema.safeParse(baseProcessEnv(input === undefined ? {} : { BASE_PATH: input }));
+      expect(result.success).toBe(true);
+      if (!result.success) return;
+      expect(result.data.BASE_PATH).toBe(expected);
+    });
+  });
+});
+
+describe('warnIfBasePathMismatchesAppBaseUrl', () => {
+  afterEach(() => {
+    vi.restoreAllMocks();
+  });
+
+  it('does not warn when APP_BASE_URL has no path and BASE_PATH is unset', () => {
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
+    warnIfBasePathMismatchesAppBaseUrl(baseEnv());
+    expect(warn).not.toHaveBeenCalled();
+  });
+
+  it('does not warn when APP_BASE_URL and BASE_PATH describe the same sub-path', () => {
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
+    warnIfBasePathMismatchesAppBaseUrl(baseEnv({ APP_BASE_URL: 'https://queueup.example.com/queueup', BASE_PATH: '/queueup' }));
+    expect(warn).not.toHaveBeenCalled();
+  });
+
+  it('warns when APP_BASE_URL carries a path that BASE_PATH does not match', () => {
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
+    warnIfBasePathMismatchesAppBaseUrl(baseEnv({ APP_BASE_URL: 'https://queueup.example.com/queueup' }));
+    expect(warn).toHaveBeenCalledWith(expect.stringContaining('does not match'));
   });
 });
