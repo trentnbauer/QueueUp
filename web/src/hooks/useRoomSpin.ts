@@ -1,6 +1,7 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import type { RoomSpinSession } from '@queueup/shared';
 import { roomSpinApi } from '../api/rooms';
+import { useAnnounceUnlock } from '../context/AchievementUnlockContext';
 
 // Polling, not a websocket/SSE layer this still-small app doesn't otherwise need (same reasoning
 // as useNotifications' poll) - but a live nudge fight needs to feel closer to real-time than a
@@ -31,6 +32,7 @@ function pollInterval(spin: RoomSpinSession | null | undefined): number {
  * SpinWheelModal), with no server session at all. */
 export function useRoomSpin(roomId: string | undefined) {
   const queryClient = useQueryClient();
+  const announceUnlock = useAnnounceUnlock();
   const enabled = roomId !== undefined;
 
   const query = useQuery({
@@ -73,7 +75,10 @@ export function useRoomSpin(roomId: string | undefined) {
   // SpinWheelModal's own mount effect.
   const markReady = useMutation({
     mutationFn: () => roomSpinApi.ready(roomId!),
-    onSuccess: setCache,
+    onSuccess: ({ spin, unlockedBadges }) => {
+      setCache({ spin });
+      announceUnlock(unlockedBadges);
+    },
   });
 
   const close = useMutation({

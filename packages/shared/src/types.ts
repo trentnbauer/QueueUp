@@ -361,7 +361,7 @@ export interface CreateGameRequest {
 /** POST /api/games normally adds the game directly. In a room with requireGameApproval on, a
  * plain Member's add instead creates a GameSuggestion for a Room Master/Moderator to approve or
  * decline (issue #362) - callers must check which key is present. */
-export type CreateGameResponse = { game: Game } | { suggestion: GameSuggestion };
+export type CreateGameResponse = ({ game: Game } | { suggestion: GameSuggestion }) & { unlockedBadges: BadgeDefinition[] };
 
 export interface CreateRoomRequest {
   name: string;
@@ -417,6 +417,7 @@ export interface ShelfSyncSuggestion {
 export interface UpdateGameStatusResponse {
   game: Game;
   shelfSync?: ShelfSyncSuggestion;
+  unlockedBadges: BadgeDefinition[];
 }
 
 /** Applies one status to many Personal Shelf games at once (issue #205) - scoped to the shelf since
@@ -534,6 +535,7 @@ export interface SteamCompletionCandidate {
 export interface SteamCompletionsSyncResult {
   consideredCount: number;
   candidates: SteamCompletionCandidate[];
+  unlockedBadges: BadgeDefinition[];
 }
 
 /** Polled by the shelf UI while an import is running (see routes/games.ts and
@@ -547,6 +549,10 @@ export interface SteamImportProgress {
   imported: number;
   skipped: number;
   done: boolean;
+  /** Only ever populated on the final `done: true` payload (issue #489) - the import runs entirely
+   * in the background, so there's no synchronous response to attach these to; the client checks
+   * this the moment `done` flips true instead. */
+  unlockedBadges?: BadgeDefinition[];
 }
 
 /** Wishlist counterpart to SteamImportProgress (issue #245) - same reasoning/shape, but for a
@@ -557,6 +563,8 @@ export interface SteamWishlistImportProgress {
   imported: number;
   skipped: number;
   done: boolean;
+  /** Same as SteamImportProgress.unlockedBadges - only set on the final `done: true` payload. */
+  unlockedBadges?: BadgeDefinition[];
 }
 
 /** Where a configurable integration credential currently comes from - env vars always take
@@ -935,4 +943,129 @@ export interface PendingLibraryImportDto {
  * (from `candidates`, or one they searched for themselves instead). */
 export interface ResolvePendingLibraryImportRequest {
   igdbId: number;
+}
+
+/** QueueUp's own gamification system (issue #489) - stable, one-shot "first time you did X"
+ * unlocks. Named "badge" throughout the code, not "achievement": PlayerAchievements/
+ * AchievementCompletion above (and AchievementRow.tsx/useGameAchievements.ts on the client) already
+ * mean "this user's Steam achievement progress on a specific title," an unrelated, pre-existing
+ * concept - user-facing copy still says "Achievements" (the sidebar icon, the panel title) to match
+ * the issue, but no code identifier reuses that word so the two systems can't be confused with each
+ * other while reading the source. `BadgeKey` is also the literal string stored in
+ * UserBadge.badgeKey (schema.prisma) - there's no separate catalog table in the DB, so adding a
+ * badge later is just adding an entry here plus a call to unlockBadge() at the right hook point,
+ * not a migration. */
+export type BadgeKey =
+  | 'first_solo_beat'
+  | 'first_room_beat'
+  | 'first_drop'
+  | 'first_replay'
+  | 'first_100_percent'
+  | 'first_spin_ready'
+  | 'first_room_created'
+  | 'first_public_join'
+  | 'first_private_join'
+  | 'first_ownership_marked'
+  | 'first_wishlist'
+  | 'first_library_sync';
+
+export interface BadgeDefinition {
+  key: BadgeKey;
+  name: string;
+  description: string;
+  emoji: string;
+}
+
+export const BADGE_DEFINITIONS: Record<BadgeKey, BadgeDefinition> = {
+  first_solo_beat: {
+    key: 'first_solo_beat',
+    name: 'Solo Beaten',
+    description: 'Marked a game Beaten on your Personal Shelf.',
+    emoji: '🏅',
+  },
+  first_room_beat: {
+    key: 'first_room_beat',
+    name: 'Room Champion',
+    description: 'Marked a game Beaten in a room.',
+    emoji: '🏆',
+  },
+  first_drop: {
+    key: 'first_drop',
+    name: 'No Regrets',
+    description: 'Dropped a game.',
+    emoji: '🏳️',
+  },
+  first_replay: {
+    key: 'first_replay',
+    name: 'Going Back In',
+    description: 'Queued a game for Replay.',
+    emoji: '🔁',
+  },
+  first_100_percent: {
+    key: 'first_100_percent',
+    name: '100% Club',
+    description: "Fully completed a game's achievements.",
+    emoji: '💯',
+  },
+  first_spin_ready: {
+    key: 'first_spin_ready',
+    name: 'Ready to Roll',
+    description: 'Joined in on a Spin the Wheel pick.',
+    emoji: '🎡',
+  },
+  first_room_created: {
+    key: 'first_room_created',
+    name: 'Room Master',
+    description: 'Created a room.',
+    emoji: '🛠️',
+  },
+  first_public_join: {
+    key: 'first_public_join',
+    name: 'Open Door',
+    description: 'Joined a public room.',
+    emoji: '🚪',
+  },
+  first_private_join: {
+    key: 'first_private_join',
+    name: 'Invited',
+    description: 'Joined a room via invite code.',
+    emoji: '🔑',
+  },
+  first_ownership_marked: {
+    key: 'first_ownership_marked',
+    name: 'Collector',
+    description: 'Marked a game as owned.',
+    emoji: '📦',
+  },
+  first_wishlist: {
+    key: 'first_wishlist',
+    name: 'Wishful Thinking',
+    description: 'Added a game to your wishlist.',
+    emoji: '⭐',
+  },
+  first_library_sync: {
+    key: 'first_library_sync',
+    name: 'Synced Up',
+    description: 'Synced your library from Steam.',
+    emoji: '🔄',
+  },
+};
+
+export const ALL_BADGE_KEYS = Object.keys(BADGE_DEFINITIONS) as BadgeKey[];
+
+/** One row of GET /api/me/badges - the full catalog, always all `ALL_BADGE_KEYS.length` entries
+ * regardless of whether the current user has unlocked them, so the panel can render locked tiles.
+ * `rarityPercent` is computed against every user in the database (not room/friends-scoped) - see
+ * server/src/routes/badges.ts. */
+export interface BadgeSummary {
+  key: BadgeKey;
+  name: string;
+  description: string;
+  emoji: string;
+  unlockedAt: string | null;
+  rarityPercent: number;
+}
+
+export interface BadgesResponse {
+  badges: BadgeSummary[];
 }

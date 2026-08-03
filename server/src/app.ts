@@ -17,6 +17,7 @@ import healthRoutes from './routes/health.js';
 import versionRoutes from './routes/version.js';
 import apiV1Routes from './routes/apiV1.js';
 import pendingLibraryImportRoutes from './routes/pendingLibraryImports.js';
+import badgeRoutes from './routes/badges.js';
 import { env } from './config/env.js';
 import { redis } from './services/redisClient.js';
 import { logCaptureStream } from './services/logBuffer.js';
@@ -72,6 +73,7 @@ export async function buildApp() {
   await app.register(notificationRoutes);
   await app.register(adminRoutes);
   await app.register(pendingLibraryImportRoutes);
+  await app.register(badgeRoutes);
   // Bearer-token-authenticated, scoped under its own prefix and preHandler (see apiV1.ts) -
   // registered as a distinct plugin, not folded into gameRoutes/roomRoutes, so its auth hook can
   // never leak onto any cookie-authenticated route above.

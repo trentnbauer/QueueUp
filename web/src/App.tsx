@@ -15,6 +15,7 @@ import { ShelfView } from './views/ShelfView';
 import { RoomView } from './views/RoomView';
 import { CurrentlyPlayingView } from './views/CurrentlyPlayingView';
 import { BeatenView } from './views/BeatenView';
+import { AchievementsView } from './views/AchievementsView';
 import { NeedsReviewView } from './views/NeedsReviewView';
 import { SettingsView } from './views/SettingsView';
 import { ProfileSettingsView } from './views/ProfileSettingsView';
@@ -106,14 +107,16 @@ export default function App() {
 
   // /playing (issue #364) is a cross-room aggregate, not scoped to any one shelf/room - the room
   // Header's filters/Add Game button don't apply there, same reasoning as settings/profile.
-  // /review (the Needs Review queue) and /beaten (issue #481, same cross-room shape as /playing)
-  // aren't scoped to a shelf/room either, same reasoning again.
+  // /review (the Needs Review queue), /beaten (issue #481, same cross-room shape as /playing), and
+  // /achievements (issue #489, same shape again - a personal catalog, not a shelf/room view) aren't
+  // scoped to a shelf/room either, same reasoning again.
   const hideRoomHeader =
     location.pathname === '/settings' ||
     location.pathname === '/profile' ||
     location.pathname === '/playing' ||
     location.pathname === '/review' ||
-    location.pathname === '/beaten';
+    location.pathname === '/beaten' ||
+    location.pathname === '/achievements';
 
   // Personal Shelf, Playing, and Beaten (issue #490) share one sidebar destination and are
   // switched between via ShelfTabs instead - shown across all three regardless of hideRoomHeader
@@ -136,6 +139,7 @@ export default function App() {
               <Route path="/" element={<ShelfView />} />
               <Route path="/playing" element={<CurrentlyPlayingView />} />
               <Route path="/beaten" element={<BeatenView />} />
+              <Route path="/achievements" element={<AchievementsView />} />
               <Route path="/review" element={<NeedsReviewView />} />
               <Route path="/room/:roomId" element={<RoomView />} />
               <Route path="/settings" element={<SettingsView />} />

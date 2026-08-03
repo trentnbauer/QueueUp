@@ -3,6 +3,7 @@ import { useQuery, useMutation, useQueryClient, type Query } from '@tanstack/rea
 import { gamesApi } from '../api/games';
 import { tagsApi } from '../api/tags';
 import { useCurrencyRegion } from '../context/CurrencyRegionContext';
+import { useAnnounceUnlock } from '../context/AchievementUnlockContext';
 import type { Game, GameStatus, ShelfSyncSuggestion, VoteValue } from '@queueup/shared';
 
 const GAMES_QUERY_ROOT = ['games'] as const;
@@ -29,6 +30,7 @@ export function useGames(roomId: string | null) {
   const { region } = useCurrencyRegion();
   const queryKey = roomId ? ['games', 'room', roomId, region] : ['games', 'shelf', region];
   const queryClient = useQueryClient();
+  const announceUnlock = useAnnounceUnlock();
   const [actionError, setActionError] = useState<string | null>(null);
   // Populated only when marking a *room* game Beaten surfaces a shelfSync suggestion (see
   // ShelfSyncSuggestion) - the room game's own id rides along so the confirm action knows which
@@ -76,7 +78,7 @@ export function useGames(roomId: string | null) {
   const updateStatus = useMutation({
     mutationFn: ({ gameId, status }: { gameId: string; status: GameStatus }) =>
       gamesApi.updateStatus(gameId, { status }),
-    onSuccess: ({ game, shelfSync }) => {
+    onSuccess: ({ game, shelfSync, unlockedBadges }) => {
       patchGame(game);
       if (shelfSync) setShelfSyncPrompt({ roomGameId: game.id, suggestion: shelfSync });
       // A status change can open/close a play journal entry (issue #361) server-side - this query
@@ -84,6 +86,7 @@ export function useGames(roomId: string | null) {
       // or the detail modal (which stays mounted across a status click, never remounting to
       // refetch on its own) would keep showing whatever it fetched before the change.
       queryClient.invalidateQueries({ queryKey: ['games', game.id, 'play-log'] });
+      announceUnlock(unlockedBadges);
     },
     onError: (err) => setActionError(errorMessage(err, 'Could not update that game\'s status.')),
   });
@@ -118,7 +121,10 @@ export function useGames(roomId: string | null) {
   const bulkUpdateStatus = useMutation({
     mutationFn: ({ gameIds, status }: { gameIds: string[]; status: GameStatus }) =>
       gamesApi.bulkUpdateStatus({ gameIds, status }, region),
-    onSuccess: ({ games: updated }) => patchGames(updated),
+    onSuccess: ({ games: updated, unlockedBadges }) => {
+      patchGames(updated);
+      announceUnlock(unlockedBadges);
+    },
     onError: (err) => setActionError(errorMessage(err, 'Could not update those games.')),
   });
 
@@ -144,7 +150,10 @@ export function useGames(roomId: string | null) {
 
   const setOwnership = useMutation({
     mutationFn: ({ gameId, owned }: { gameId: string; owned: boolean }) => gamesApi.setOwnership(gameId, { owned }),
-    onSuccess: ({ game }) => patchGame(game),
+    onSuccess: ({ game, unlockedBadges }) => {
+      patchGame(game);
+      announceUnlock(unlockedBadges);
+    },
     onError: (err) => setActionError(errorMessage(err, 'Could not update ownership.')),
   });
 

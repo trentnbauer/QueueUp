@@ -15,6 +15,7 @@ import { prisma } from '../db/client.js';
 import { HttpError } from '../util/httpError.js';
 import { requireMembership, getRoom } from '../services/roomAccess.js';
 import { gameInclude, serializeGames } from '../services/gameSerializer.js';
+import { unlockBadges } from '../services/badges.js';
 
 // A spin nobody's touched in this long is treated as abandoned (someone started it, then closed
 // their laptop) rather than wedging the room forever - the next GET after this window just
@@ -150,13 +151,16 @@ export default async function roomSpinRoutes(app: FastifyInstance) {
       let spin = await prisma.roomSpin.findUnique({ where: { roomId } });
       if (!spin || isStale(spin)) throw new HttpError(404, 'No active spin');
 
+      let justMarkedReady = false;
       if (Date.now() < spin.timestamp0.getTime() && !spin.readyUserIds.includes(userId)) {
         spin = await prisma.roomSpin.update({ where: { roomId }, data: { readyUserIds: { push: userId } } });
+        justMarkedReady = true;
       }
 
       const dto = await toSpinDto(spin, userId);
       if (!dto) throw new HttpError(404, 'No active spin');
-      return { spin: dto };
+      const unlockedBadges = justMarkedReady ? await unlockBadges(userId, ['first_spin_ready']) : [];
+      return { spin: dto, unlockedBadges };
     },
   );
 

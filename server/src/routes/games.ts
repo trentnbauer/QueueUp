@@ -58,11 +58,14 @@ import {
 import type { OwnedSteamGame } from '../services/steamLibrary.js';
 import { toggleOwnershipForPlatform, setOwnershipPlatforms, markOwned } from '../services/gameOwnership.js';
 import { recordStatusTransition } from '../services/playLog.js';
+import { unlockBadges } from '../services/badges.js';
 import { lookupBarcodeGame } from '../services/barcodeService.js';
 import { findDetectedSteamCompletions } from '../services/steamCompletionDetection.js';
 import { toUserDto } from '../util/dto.js';
 import { env } from '../config/env.js';
 import type {
+  BadgeDefinition,
+  BadgeKey,
   BulkRemoveGamesRequest,
   BulkUpdateGameStatusRequest,
   CreateGameRequest,
@@ -71,6 +74,7 @@ import type {
   CrossRoomBeatenGroup,
   CrossRoomPlaying,
   CrossRoomPlayingGroup,
+  GameStatus,
   MoveGameRequest,
   PlayerAchievements,
   PlayLogEntry,
@@ -125,6 +129,25 @@ async function buildShelfSyncSuggestion(
   });
   if (shelfGame?.status === 'done') return undefined;
   return { shelfGameId: shelfGame?.id ?? null, igdbId, title };
+}
+
+/** Which badge (issue #489), if any, a status transition should attempt to unlock - `done` splits
+ * on `roomId` since "beat it solo" and "beat it in a room" are separate badges, the rest are the
+ * same regardless of where the game lives. Statuses with no badge (backlog, playing, play_next)
+ * return an empty array rather than null, so every call site can just spread the result. */
+function statusBadgeKeys(status: GameStatus, roomId: string | null): BadgeKey[] {
+  switch (status) {
+    case 'done':
+      return [roomId === null ? 'first_solo_beat' : 'first_room_beat'];
+    case 'dropped':
+      return ['first_drop'];
+    case 'replay':
+      return ['first_replay'];
+    case 'wishlist':
+      return ['first_wishlist'];
+    default:
+      return [];
+  }
 }
 
 /** The slow part of a Steam library import - one IGDB lookup (and possibly a create) per unowned
@@ -219,7 +242,10 @@ async function runSteamLibraryImportLoop(
     if (imported > 0) await invalidateExistingIgdbIds(null, userId);
     await markOwned(userId, ownedIgdbIds);
   } finally {
-    await setSteamImportProgress(userId, { totalOwned, consideredCount, imported, skipped, done: true });
+    // Attempted even on an unexpected error/partial run - a sync that imported at least one game
+    // before failing still counts as "you synced your library" (issue #489).
+    const unlockedBadges = imported > 0 ? await unlockBadges(userId, ['first_library_sync']) : [];
+    await setSteamImportProgress(userId, { totalOwned, consideredCount, imported, skipped, done: true, unlockedBadges });
   }
 }
 
@@ -299,7 +325,10 @@ async function runSteamWishlistImportLoop(
     }
     if (imported > 0) await invalidateExistingIgdbIds(null, userId);
   } finally {
-    await setSteamWishlistImportProgress(userId, { totalWishlisted, consideredCount, imported, skipped, done: true });
+    // Every row this loop creates is status: 'wishlist' (see above), so any successful import also
+    // counts as the wishlist badge, alongside the sync badge itself (issue #489).
+    const unlockedBadges = imported > 0 ? await unlockBadges(userId, ['first_wishlist', 'first_library_sync']) : [];
+    await setSteamWishlistImportProgress(userId, { totalWishlisted, consideredCount, imported, skipped, done: true, unlockedBadges });
   }
 }
 
@@ -523,7 +552,11 @@ export default async function gameRoutes(app: FastifyInstance) {
     const { igdbId, roomId, status, ownedPlatforms } = request.body;
     const response = await createGameForUser(userId, roomId ?? null, igdbId, { status, ownedPlatforms });
     reply.status(201);
-    return response;
+    // Only the 'game' branch is a real, immediately-live game - a room's approval-required
+    // 'suggestion' branch hasn't actually been added to anything yet, so nothing to unlock there.
+    const unlockedBadges =
+      'game' in response ? await unlockBadges(userId, response.game.status === 'wishlist' ? ['first_wishlist'] : []) : [];
+    return { ...response, unlockedBadges };
   });
 
   app.post(
@@ -699,7 +732,9 @@ export default async function gameRoutes(app: FastifyInstance) {
     const shelfSync =
       status === 'done' && game.roomId !== null ? await buildShelfSyncSuggestion(userId, game.igdbId, updated.title) : undefined;
 
-    return { game: await serializeGame(updated, userId), shelfSync };
+    const unlockedBadges = await unlockBadges(userId, statusBadgeKeys(status, game.roomId));
+
+    return { game: await serializeGame(updated, userId), shelfSync, unlockedBadges };
   });
 
   app.post<{ Params: { id: string } }>(
@@ -785,15 +820,22 @@ export default async function gameRoutes(app: FastifyInstance) {
       // entry open/closed incorrectly. If this game's status no longer matches what was just
       // fetched, this update simply doesn't apply and nothing is (re-)logged - the other request
       // already recorded its own accurate transition.
+      let anyTransitioned = false;
       await Promise.all(
         before.map(async (g) => {
           const result = await prisma.game.updateMany({ where: { id: g.id, status: g.status }, data: { status } });
-          if (result.count > 0) await recordStatusTransition(g.id, g.status, status);
+          if (result.count > 0) {
+            anyTransitioned = true;
+            await recordStatusTransition(g.id, g.status, status);
+          }
         }),
       );
 
       const updated = await prisma.game.findMany({ where, include: gameInclude });
-      return { games: await serializeGames(updated, userId, parseRegion(request.query.region)) };
+      // roomId is always null here (Personal Shelf only) - first_room_beat never applies. Only
+      // attempted once per request (not once per game) since these are all one-shot unlocks.
+      const unlockedBadges = anyTransitioned ? await unlockBadges(userId, statusBadgeKeys(status, null)) : [];
+      return { games: await serializeGames(updated, userId, parseRegion(request.query.region)), unlockedBadges };
     },
   );
 
@@ -885,7 +927,13 @@ export default async function gameRoutes(app: FastifyInstance) {
         });
       }
 
-      return { players };
+      // Issue #489: only the caller's own 100% counts toward *their* badge - this route can
+      // observe and persist AchievementCompletion for other room members too (see above), but
+      // "you 100%'d a game" shouldn't unlock just because a roommate's Steam profile happened to
+      // be checked in the same request.
+      const unlockedBadges = await unlockBadges(userId, fullyCompletedPlayerIds.includes(userId) ? ['first_100_percent'] : []);
+
+      return { players, unlockedBadges };
     },
   );
 
@@ -1089,10 +1137,10 @@ export default async function gameRoutes(app: FastifyInstance) {
       const room = await prisma.room.findUniqueOrThrow({ where: { id: game.roomId }, select: { platform: true } });
 
       const { owned } = request.body;
-      await toggleOwnershipForPlatform(userId, game.igdbId, room.platform, owned);
+      const unlockedBadge = await toggleOwnershipForPlatform(userId, game.igdbId, room.platform, owned);
 
       const updated = await loadGameOr404(game.id);
-      return { game: await serializeGame(updated, userId) };
+      return { game: await serializeGame(updated, userId), unlockedBadges: unlockedBadge ? [unlockedBadge] : [] };
     },
   );
 
@@ -1524,7 +1572,7 @@ export default async function gameRoutes(app: FastifyInstance) {
       // personalShelfOnly: true - the client applies Done through /api/games/bulk-status, which is
       // scoped to the Personal Shelf (roomId: null); a room-game candidate would otherwise be
       // suggested here but silently fail to update there.
-      const { consideredCount, completions } = await findDetectedSteamCompletions(userId, steamId64, apiKey, {
+      const { consideredCount, completions, unlockedBadges } = await findDetectedSteamCompletions(userId, steamId64, apiKey, {
         limit: STEAM_COMPLETIONS_SYNC_CANDIDATE_LIMIT,
         personalShelfOnly: true,
       });
@@ -1537,6 +1585,7 @@ export default async function gameRoutes(app: FastifyInstance) {
           coverImageUrl: g.coverImageUrl,
           lastUnlockedAt: new Date(g.lastUnlockedAt * 1000).toISOString(),
         })),
+        unlockedBadges,
       };
       return result;
     },

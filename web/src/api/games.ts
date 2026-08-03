@@ -1,5 +1,6 @@
 import { apiGet, apiPost, apiPatch, apiPut, apiDelete } from './client';
 import type {
+  BadgeDefinition,
   BarcodeGameMatch,
   BulkRemoveGamesRequest,
   BulkUpdateGameStatusRequest,
@@ -68,7 +69,7 @@ export const gamesApi = {
     apiPatch<UpdateGameStatusResponse>(`/api/games/${id}/status`, body),
   syncShelfBeaten: (id: string) => apiPost<{ ok: true }>(`/api/games/${id}/sync-shelf-beaten`),
   bulkUpdateStatus: (body: BulkUpdateGameStatusRequest, region?: PriceRegion) =>
-    apiPatch<{ games: Game[] }>(`/api/games/bulk-status${region ? `?region=${region}` : ''}`, body),
+    apiPatch<{ games: Game[]; unlockedBadges: BadgeDefinition[] }>(`/api/games/bulk-status${region ? `?region=${region}` : ''}`, body),
   remove: (id: string) => apiDelete(`/api/games/${id}`),
   bulkRemove: (body: BulkRemoveGamesRequest) => apiDelete('/api/games/bulk', body),
   refreshPrice: (id: string, region?: PriceRegion) =>
@@ -81,7 +82,8 @@ export const gamesApi = {
   setManualPrice: (id: string, body: SetManualPriceRequest) =>
     apiPatch<{ game: Game }>(`/api/games/${id}/manual-price`, body),
   vote: (id: string, body: VoteRequest) => apiPut<{ game: Game }>(`/api/games/${id}/vote`, body),
-  setOwnership: (id: string, body: SetGameOwnershipRequest) => apiPatch<{ game: Game }>(`/api/games/${id}/ownership`, body),
+  setOwnership: (id: string, body: SetGameOwnershipRequest) =>
+    apiPatch<{ game: Game; unlockedBadges: BadgeDefinition[] }>(`/api/games/${id}/ownership`, body),
   setPrerequisite: (id: string, body: SetGamePrerequisiteRequest) =>
     apiPatch<{ game: Game }>(`/api/games/${id}/prerequisite`, body),
   move: (id: string, body: MoveGameRequest) => apiPost<{ game: Game }>(`/api/games/${id}/move`, body),
@@ -91,7 +93,8 @@ export const gamesApi = {
   importSteamWishlist: () => apiPost<SteamWishlistImportStarted>('/api/games/import-steam-wishlist'),
   importSteamWishlistProgress: () =>
     apiGet<{ progress: SteamWishlistImportProgress | null }>('/api/games/import-steam-wishlist/progress'),
-  achievements: (id: string) => apiGet<{ players: PlayerAchievements[] }>(`/api/games/${id}/achievements`),
+  achievements: (id: string) =>
+    apiGet<{ players: PlayerAchievements[]; unlockedBadges: BadgeDefinition[] }>(`/api/games/${id}/achievements`),
   playLog: (id: string) => apiGet<{ entries: PlayLogEntry[] }>(`/api/games/${id}/play-log`),
   yearInReview: () => apiGet<YearInReview>('/api/me/year-in-review'),
   currentlyPlaying: () => apiGet<CrossRoomPlaying>('/api/me/currently-playing'),
