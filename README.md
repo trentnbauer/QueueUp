@@ -53,5 +53,9 @@ Some other things to note
 
 Each method's `*_REDIRECT_URI` must exactly match what you register with that provider. In the production setup (`docker-compose.prod.yml`), you can leave `*_REDIRECT_URI` unset entirely - it defaults to `${APP_BASE_URL}/auth/<provider>/callback`, since that one server container serves both the API and the frontend. You still need to register that exact URL with the provider; only set `*_REDIRECT_URI` explicitly if your deployment doesn't serve the API from `APP_BASE_URL`'s own origin (local dev's split `:5173`/`:3000` ports being the main example).
 
+## Hosting on a sub-path
+
+By default QueueUp expects its own domain or subdomain. If you'd rather run it at `yourdomain.com/queueup` alongside other apps, set `BASE_PATH=/queueup` and update `APP_BASE_URL` to include the same path - no image rebuild or reverse-proxy path-rewriting needed, the container answers on that path directly. See `.env.example` for details.
+
 # What is / isn't QueueUp
 I've set some pretty hard limits with what this app will and won't be used for. This isn't a replacement for Discord, a social media platform etc. It is just to track your game backlog, but as a group. Your scheduling, sharing screens, voice chat etc should be done outside of this app.
