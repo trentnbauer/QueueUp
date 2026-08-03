@@ -38,12 +38,20 @@ export function useModalA11y<T extends HTMLElement>(onClose: () => void) {
   const idRef = useRef<symbol>();
   if (!idRef.current) idRef.current = Symbol('modal');
 
+  // Both persist across React 18 StrictMode's dev-only mount -> cleanup -> remount cycle (only
+  // effects re-run, not the component instance, so refs survive) - see the pushState/cleanup
+  // comment below for how they're used to make that cycle a no-op instead of a spurious close
+  // (issue #494).
+  const historyKeyRef = useRef<string | null>(null);
+  const mountTokenRef = useRef(0);
+
   useEffect(() => {
     onCloseRef.current = onClose;
   });
 
   useEffect(() => {
     const id = idRef.current!;
+    const myMountToken = ++mountTokenRef.current;
     openModalStack.push(id);
     const previouslyFocused = document.activeElement as HTMLElement | null;
     const dialog = ref.current;
@@ -66,15 +74,25 @@ export function useModalA11y<T extends HTMLElement>(onClose: () => void) {
     // compute navigation deltas on every popstate); overwriting that wholesale would desync the
     // router's own back/forward math the next time it navigates, in a way tsc/tests/build can't
     // catch since it only shows up as broken browser navigation.
+    //
+    // Reuses a still-pending entry from `historyKeyRef` instead of always pushing a fresh one -
+    // StrictMode's remount (below) leaves its predecessor's entry sitting there un-consumed (see
+    // the deferred history.back() in cleanup), so pushing again here would leave a second,
+    // harmless-but-confusing entry stacked on top of it once that back() is correctly skipped.
     let closedViaPopState = false;
-    const modalStateKey = `modal-${++modalStateKeyCounter}`;
-    history.pushState({ ...history.state, queueupModal: modalStateKey }, '');
+    let modalStateKey = historyKeyRef.current;
+    if (modalStateKey === null) {
+      modalStateKey = `modal-${++modalStateKeyCounter}`;
+      historyKeyRef.current = modalStateKey;
+      history.pushState({ ...history.state, queueupModal: modalStateKey }, '');
+    }
 
     function handlePopState() {
       // Same "only the topmost modal reacts" rule as Escape below - if this isn't topmost, the
       // entry Back just popped belongs to a nested modal opened on top of this one, not this one.
       if (openModalStack[openModalStack.length - 1] !== id) return;
       closedViaPopState = true;
+      historyKeyRef.current = null;
       onCloseRef.current();
     }
 
@@ -112,11 +130,29 @@ export function useModalA11y<T extends HTMLElement>(onClose: () => void) {
       const index = openModalStack.indexOf(id);
       if (index !== -1) openModalStack.splice(index, 1);
       previouslyFocused?.focus();
-      // Only pop if our entry is still the current one - a modal that navigates before closing
-      // (e.g. AddRoomModal into the room it just created) pushes its *own* entry on top of ours
-      // first, so by the time this cleanup runs, history.state is that navigation's, not ours.
-      // Popping then would undo the navigation the user just asked for, not clean up after us.
-      if (!closedViaPopState && history.state?.queueupModal === modalStateKey) history.back();
+      if (closedViaPopState) return;
+      // Deferred, not called directly here (issue #494): React 18 StrictMode (dev only) mounts
+      // this effect, cleans it up, then mounts it again - synchronously, all in the same tick,
+      // before this microtask gets a chance to run. `history.back()`'s own popstate lands
+      // asynchronously later still (a macrotask), so calling it straight from this "throwaway"
+      // cleanup used to fire a real navigation whose delayed popstate would then hit the
+      // *second* mount's listener and get misread as a genuine Back-button dismissal, closing
+      // the modal the user just (re)opened. Checking mountTokenRef here - after the remount, if
+      // any, has already had a chance to bump it - tells the two cases apart: if it moved on,
+      // this cleanup was the StrictMode throwaway, so skip navigating entirely and leave the
+      // still-`historyKeyRef`-tracked entry for the *next* (real) cleanup to consume instead.
+      queueMicrotask(() => {
+        if (mountTokenRef.current !== myMountToken) return;
+        // Re-checked here rather than once, synchronously, above: only pop if our entry is *still*
+        // the current one at the moment we're actually about to act - a modal that navigates
+        // before closing (e.g. AddRoomModal into the room it just created) pushes its *own* entry
+        // on top of ours, and since that can happen in the gap between this cleanup running and
+        // this microtask firing (not just before cleanup starts), checking only once up front
+        // could still pop a navigation the user just asked for. Popping then would undo it.
+        if (history.state?.queueupModal !== modalStateKey) return;
+        historyKeyRef.current = null;
+        history.back();
+      });
     };
   }, []);
 
