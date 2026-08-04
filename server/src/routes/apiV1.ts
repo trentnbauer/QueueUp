@@ -9,6 +9,7 @@ import { createGameForUser, resolveGameForCreation, defaultStatusForRelease, lin
 import { isAddonCategory } from '../services/igdbClient.js';
 import { invalidateExistingIgdbIds } from '../services/gameAccess.js';
 import { setOwnershipPlatforms, unionOwnershipPlatforms } from '../services/gameOwnership.js';
+import { unionOwnedPlatforms } from '../services/userSettings.js';
 import { runWithConcurrency } from '../util/concurrency.js';
 import {
   PLAYNITE_SOURCE,
@@ -176,7 +177,15 @@ async function applyResolvedIgdbEntry(
  * `logger` names the failing title on every errored entry (request.log, passed through from the
  * route) - this runs headlessly (fired by the extension on Playnite launch, not a button a person
  * watches and can retry by eye), so "errored: 3" with no record of *which* three is unactionable;
- * a title that errors on every run would otherwise be invisible forever. */
+ * a title that errors on every run would otherwise be invisible forever.
+ *
+ * Also auto-ticks the user's "systems I own" setting (User.ownedPlatforms) for any platform seen
+ * on a successfully-matched entry - Playnite reporting a library of Switch games is itself good
+ * evidence the user owns a Switch, and requiring them to separately go tick it in Profile Settings
+ * after every import would mean the platform-scoped add-game flow (getOwnedPlatforms) stays blind
+ * to a system they're demonstrably already using. Collected across the whole batch and written
+ * once at the end, rather than per entry - same reasoning as the single invalidateExistingIgdbIds
+ * call below, and avoids one extra write per matched entry. */
 async function runPlayniteImportLoop(
   userId: string,
   entries: LibraryImportEntry[],
@@ -187,6 +196,7 @@ async function runPlayniteImportLoop(
   let matched = 0;
   let unmatched = 0;
   let errored = 0;
+  const seenPlatforms = new Set<RoomPlatform>();
   try {
     await runWithConcurrency(entries, PLAYNITE_IMPORT_CONCURRENCY, async (entry) => {
       try {
@@ -206,6 +216,7 @@ async function runPlayniteImportLoop(
         // up in the review queue as if it needed manual attention.
         await deletePendingLibraryImportByTitle(userId, PLAYNITE_SOURCE, entry.title);
         matched++;
+        for (const platform of entry.platforms) seenPlatforms.add(platform);
       } catch (err) {
         // One entry failing to resolve/create shouldn't abort the batch - but it needs to be
         // findable afterward, not just counted (see this function's doc comment).
@@ -229,6 +240,7 @@ async function runPlayniteImportLoop(
       }
     });
     if (matched > 0) await invalidateExistingIgdbIds(null, userId);
+    if (seenPlatforms.size > 0) await unionOwnedPlatforms(userId, [...seenPlatforms]);
   } finally {
     await setPlayniteImportProgress(userId, { consideredCount, matched, unmatched, errored, done: true });
   }
