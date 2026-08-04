@@ -888,7 +888,7 @@ export default async function gameRoutes(app: FastifyInstance) {
       await requireGameReadAccess(game, userId);
 
       if (!env.STEAM_API_KEY || !game.steamAppid) {
-        return { players: [] };
+        return { players: [], unlockedBadges: [] };
       }
       const steamAppid = game.steamAppid;
 
