@@ -7,6 +7,7 @@ import type {
   JoinRoomRequest,
   PublicRoomSummary,
   Room,
+  RoomActivityPage,
   RoomMember,
   RoomMemberStats,
   RoomRole,
@@ -32,6 +33,8 @@ export const roomsApi = {
   setRole: (roomId: string, userId: string, role: RoomRole) =>
     apiPatch<{ role: RoomRole }>(`/api/rooms/${roomId}/members/${userId}/role`, { role }),
   removeMember: (roomId: string, userId: string) => apiDelete(`/api/rooms/${roomId}/members/${userId}`),
+  activity: (roomId: string, before?: string) =>
+    apiGet<RoomActivityPage>(`/api/rooms/${roomId}/activity${before ? `?before=${encodeURIComponent(before)}` : ''}`),
 };
 
 /** A room's pending game suggestions (issue #362) - Room Master/Moderator only, see

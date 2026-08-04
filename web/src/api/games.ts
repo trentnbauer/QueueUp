@@ -82,7 +82,7 @@ export const gamesApi = {
     apiPatch<{ game: Game }>(`/api/games/${id}/target-price`, body),
   setManualPrice: (id: string, body: SetManualPriceRequest) =>
     apiPatch<{ game: Game }>(`/api/games/${id}/manual-price`, body),
-  vote: (id: string, body: VoteRequest) => apiPut<{ game: Game }>(`/api/games/${id}/vote`, body),
+  vote: (id: string, body: VoteRequest) => apiPut<{ game: Game; unlockedBadges: BadgeDefinition[] }>(`/api/games/${id}/vote`, body),
   setOwnership: (id: string, body: SetGameOwnershipRequest) =>
     apiPatch<{ game: Game; unlockedBadges: BadgeDefinition[] }>(`/api/games/${id}/ownership`, body),
   setPrerequisite: (id: string, body: SetGamePrerequisiteRequest) =>

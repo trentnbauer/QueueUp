@@ -1,6 +1,6 @@
 import { useMemo, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { useQuery, useQueryClient } from '@tanstack/react-query';
+import { useInfiniteQuery, useQuery, useQueryClient } from '@tanstack/react-query';
 import {
   ROOM_PLATFORM_LABELS,
   SPIN_WHEEL_THEME_LABELS,
@@ -17,6 +17,7 @@ import { useConfirm } from '../context/ConfirmContext';
 import { ACCENT_PRESETS } from '../theme/defaultTheme';
 import { exportGames } from '../utils/exportGames';
 import { getBasePath } from '../utils/basePath';
+import { formatRelativeTime } from '../utils/relativeTime';
 import { useModalA11y, closeOnBackdropMouseDown } from '../hooks/useModalA11y';
 import { AvatarBadge } from './AvatarBadge';
 import { computeRoomYearInReview } from './roomYearInReview';
@@ -61,6 +62,7 @@ export function RoomSettingsModal({ room, members, games, onClose }: RoomSetting
   const [error, setError] = useState<string | null>(null);
   const [inviteCopied, setInviteCopied] = useState(false);
   const [showYearInReview, setShowYearInReview] = useState(false);
+  const [showActivity, setShowActivity] = useState(false);
   const [selectedCandidateId, setSelectedCandidateId] = useState('');
   const [addingMember, setAddingMember] = useState(false);
   const [deleting, setDeleting] = useState(false);
@@ -78,6 +80,18 @@ export function RoomSettingsModal({ room, members, games, onClose }: RoomSetting
     enabled: isElevated,
   });
   const candidateUsers = candidates.data?.users ?? [];
+
+  // Issue #509 - fetched lazily behind "Show activity", same collapsed-by-default pattern as Year
+  // in Review above: a member opens this to look back, it isn't something the modal needs ready on
+  // every open.
+  const activity = useInfiniteQuery({
+    queryKey: ['room-activity', room.id],
+    queryFn: ({ pageParam }: { pageParam: string | undefined }) => roomsApi.activity(room.id, pageParam),
+    initialPageParam: undefined as string | undefined,
+    getNextPageParam: (lastPage) => lastPage.nextBefore ?? undefined,
+    enabled: showActivity,
+  });
+  const activityEntries = activity.data?.pages.flatMap((page) => page.entries) ?? [];
 
   async function handleCopyInviteCode() {
     if (!inviteUrl) return;
@@ -458,6 +472,45 @@ export function RoomSettingsModal({ room, members, games, onClose }: RoomSetting
                 </div>
               )}
             </div>
+          )}
+        </div>
+
+        {/* Visible to every member, same reasoning as Export/Year in Review above (issue #509). */}
+        <div className={styles.section}>
+          <div className={styles.sectionTitle}>Activity</div>
+          {!showActivity ? (
+            <button type="button" className={styles.memberAction} onClick={() => setShowActivity(true)}>
+              Show room activity
+            </button>
+          ) : (
+            <>
+              {activity.isLoading ? (
+                <p className={styles.readonlyNote}>Loading…</p>
+              ) : activityEntries.length === 0 ? (
+                <p className={styles.readonlyNote}>Nothing's happened in this room yet.</p>
+              ) : (
+                <div className={styles.activityList}>
+                  {activityEntries.map((entry) => (
+                    <div key={entry.id} className={styles.activityRow}>
+                      <span className={styles.activityMessage}>{entry.message}</span>
+                      <span className={styles.activityTime}>{formatRelativeTime(entry.createdAt)}</span>
+                    </div>
+                  ))}
+                </div>
+              )}
+              {activity.hasNextPage && (
+                <div className={styles.loadMoreRow}>
+                  <button
+                    type="button"
+                    className={styles.memberAction}
+                    onClick={() => activity.fetchNextPage()}
+                    disabled={activity.isFetchingNextPage}
+                  >
+                    {activity.isFetchingNextPage ? 'Loading…' : 'Load more'}
+                  </button>
+                </div>
+              )}
+            </>
           )}
         </div>
 

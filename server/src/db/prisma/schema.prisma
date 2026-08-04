@@ -82,6 +82,33 @@ enum NotificationType {
   @@map("notification_type")
 }
 
+/// See RoomActivity's doc comment. A superset of NotificationType's room-scoped values (everything
+/// notifyRoom is ever called with, plus price_drop) minus room_deleted (the room and its
+/// RoomActivity rows are already gone by then, so there'd be nothing left to attach it to), plus
+/// the events below that are feed-worthy but deliberately too frequent/low-stakes for the bell.
+enum RoomActivityType {
+  game_added
+  game_suggested
+  member_joined
+  room_renamed
+  room_platform_changed
+  room_owner_changed
+  price_drop
+  /// A room game's status changed (Backlog/Playing/Done/Dropped/Wishlist/Replay/Play Next).
+  status_changed
+  /// A member cast or updated their 1-5 vote on a room game.
+  vote_cast
+  /// Spin the Wheel settled and a member committed to the winner ("Let's play").
+  spin_result
+  /// A member's role changed to Moderator or Room Master (see first_promoted in badges.ts for the
+  /// same "member -> moderator, or any -> room_master" distinction).
+  member_promoted
+  /// A member left, or was removed by a Room Master/Moderator.
+  member_left
+
+  @@map("room_activity_type")
+}
+
 model User {
   id           String   @id @default(uuid())
   oidcSub      String   @unique @map("oidc_sub")
@@ -107,6 +134,7 @@ model User {
   auditLogEntries      AdminAuditLog[]
   notificationsReceived Notification[] @relation("NotificationRecipient")
   notificationsActed   Notification[]  @relation("NotificationActor")
+  roomActivity         RoomActivity[]  @relation("RoomActivityActor")
   gameSuggestions      GameSuggestion[]
   ownedGames           GameOwnership[]
   achievementCompletions AchievementCompletion[]
@@ -316,6 +344,7 @@ model Room {
   members       RoomMember[]
   games         Game[]
   notifications Notification[]
+  activity      RoomActivity[]
   suggestions   GameSuggestion[]
   spin          RoomSpin?
 
@@ -666,6 +695,32 @@ model Notification {
   @@index([roomId, createdAt])
   @@index([recipientId, createdAt])
   @@map("notifications")
+}
+
+/// A full, paginated per-room history (issue #509) - deliberately separate from Notification
+/// above rather than reusing its table: Notification's whole shape (recipientId/readAt, the
+/// bell's unread count) is built around "things you haven't seen yet," and folding
+/// high-frequency events like every vote or status change into that would flood the bell for
+/// events nobody needs an interruption for. This is pull-based (you open the feed to look back),
+/// so there's no read/unread state at all - just an append-only log, newest first.
+/// Room events that already write a Notification (game added, member joined, room renamed, ...)
+/// also write a matching row here - see notifyRoom/notifyPriceDrop in services/notifications.ts,
+/// the single choke point for both. Events with no separate notification (vote cast, status
+/// changed, spin result, member promoted/left) call logRoomActivity (services/roomActivity.ts)
+/// directly instead.
+model RoomActivity {
+  id        String           @id @default(uuid())
+  roomId    String           @map("room_id")
+  actorId   String?          @map("actor_id")
+  type      RoomActivityType
+  message   String
+  createdAt DateTime         @default(now()) @map("created_at")
+
+  room  Room  @relation(fields: [roomId], references: [id], onDelete: Cascade)
+  actor User? @relation("RoomActivityActor", fields: [actorId], references: [id], onDelete: SetNull)
+
+  @@index([roomId, createdAt])
+  @@map("room_activity")
 }
 
 /// Durable record of destructive admin actions (user/room delete, bulk-archive) - a structured

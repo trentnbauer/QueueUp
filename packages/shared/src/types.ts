@@ -674,6 +674,38 @@ export interface Notification {
   read: boolean;
 }
 
+/** Issue #509 - a room's full, paginated activity history, distinct from NotificationType above:
+ * see RoomActivity's schema doc for why this is a separate, unread-state-free feed rather than a
+ * reuse of the notification bell's table. */
+export type RoomActivityType =
+  | 'game_added'
+  | 'game_suggested'
+  | 'member_joined'
+  | 'room_renamed'
+  | 'room_platform_changed'
+  | 'room_owner_changed'
+  | 'price_drop'
+  | 'status_changed'
+  | 'vote_cast'
+  | 'spin_result'
+  | 'member_promoted'
+  | 'member_left';
+
+export interface RoomActivityEntry {
+  id: string;
+  type: RoomActivityType;
+  message: string;
+  actor: User | null;
+  createdAt: string;
+}
+
+/** Response for GET /api/rooms/:roomId/activity - `nextBefore` is the createdAt cursor to pass as
+ * the `before` query param for the next older page, or null once there's nothing further back. */
+export interface RoomActivityPage {
+  entries: RoomActivityEntry[];
+  nextBefore: string | null;
+}
+
 export interface NotificationRoomUnread {
   roomId: string;
   unreadCount: number;
@@ -924,6 +956,12 @@ export interface PlayniteImportProgress {
    * batch over one bad entry" reasoning as Steam import's `skipped`. */
   errored: number;
   done: boolean;
+  /** Same as SteamImportProgress.unlockedBadges - only set on the final `done: true` payload.
+   * Nothing in this app's own UI polls this (see routes/apiV1.ts - this import is driven by the
+   * Playnite extension via a bearer API key, not a browser session), but the badges themselves
+   * are still real unlocks either way - a person just sees them next time they open the panel
+   * rather than via a toast at the moment they land. */
+  unlockedBadges?: BadgeDefinition[];
 }
 
 /** A PendingLibraryImport row (server/src/db/prisma/schema.prisma) as sent to the client - an
@@ -967,7 +1005,25 @@ export type BadgeKey =
   | 'first_private_join'
   | 'first_ownership_marked'
   | 'first_wishlist'
-  | 'first_library_sync';
+  | 'first_library_sync'
+  | 'first_pc_sync'
+  | 'first_xbox_sync'
+  | 'first_playstation_sync'
+  | 'first_switch_sync'
+  | 'first_franchise_finished'
+  | 'first_tag_applied'
+  | 'first_dlc_completionist'
+  | 'first_full_house'
+  | 'first_promoted'
+  | 'first_spin_winner'
+  | 'first_patient'
+  | 'first_bargain_hunter'
+  | 'first_backlog_buster'
+  | 'first_quick_drop'
+  | 'first_marathoner'
+  | 'first_comeback'
+  | 'first_anniversary'
+  | 'first_full_collection';
 
 export interface BadgeDefinition {
   key: BadgeKey;
@@ -1048,6 +1104,121 @@ export const BADGE_DEFINITIONS: Record<BadgeKey, BadgeDefinition> = {
     name: 'Synced Up',
     description: 'Synced your library from Steam.',
     emoji: '🔄',
+  },
+  // The four below are Playnite-specific (issue: "an achievement for syncing a game for each
+  // console") - Steam import is PC-only, so first_library_sync above can't tell these apart; the
+  // Playnite sync is the only import path that reports which platform each game came from.
+  first_pc_sync: {
+    key: 'first_pc_sync',
+    name: 'Rig Ready',
+    description: 'Synced a PC game via Playnite.',
+    emoji: '🖥️',
+  },
+  first_xbox_sync: {
+    key: 'first_xbox_sync',
+    name: 'Green Team',
+    description: 'Synced an Xbox game via Playnite.',
+    emoji: '🎮',
+  },
+  first_playstation_sync: {
+    key: 'first_playstation_sync',
+    name: 'Blue Team',
+    description: 'Synced a PlayStation game via Playnite.',
+    emoji: '🕹️',
+  },
+  first_switch_sync: {
+    key: 'first_switch_sync',
+    name: 'Docked & Ready',
+    description: 'Synced a Switch game via Playnite.',
+    emoji: '🍄',
+  },
+  first_franchise_finished: {
+    key: 'first_franchise_finished',
+    name: 'Franchise Finisher',
+    description: "Beat every entry of a series you've added.",
+    emoji: '📚',
+  },
+  first_tag_applied: {
+    key: 'first_tag_applied',
+    name: 'Archivist',
+    description: 'Applied your first tag.',
+    emoji: '🗂️',
+  },
+  first_dlc_completionist: {
+    key: 'first_dlc_completionist',
+    name: 'Full Package',
+    description: "Beat a base game and every DLC you've added for it.",
+    emoji: '🎁',
+  },
+  first_full_house: {
+    key: 'first_full_house',
+    name: 'Full House',
+    description: 'Every member of a room voted on the same game.',
+    emoji: '🃏',
+  },
+  first_promoted: {
+    key: 'first_promoted',
+    name: 'Promoted',
+    description: 'Got promoted to Moderator or Room Master by someone else.',
+    emoji: '🎖️',
+  },
+  first_spin_winner: {
+    key: 'first_spin_winner',
+    name: 'Jackpot',
+    description: 'A game you added got picked by Spin the Wheel.',
+    emoji: '🎰',
+  },
+  first_patient: {
+    key: 'first_patient',
+    name: 'Patient',
+    description: 'A price alert fired for something on your wishlist.',
+    emoji: '⏳',
+  },
+  first_bargain_hunter: {
+    key: 'first_bargain_hunter',
+    name: 'Bargain Hunter',
+    description: 'Marked a game owned after it hit an all-time-low price alert.',
+    emoji: '🏷️',
+  },
+  first_backlog_buster: {
+    key: 'first_backlog_buster',
+    name: 'Backlog Buster',
+    description: 'Finally dealt with a long-neglected backlog game.',
+    emoji: '🧹',
+  },
+  // Distinct from first_drop ("No Regrets", any drop at all) - this one specifically rewards
+  // bailing on something fast, the mirror image of first_marathoner below.
+  first_quick_drop: {
+    key: 'first_quick_drop',
+    name: 'Not For Me',
+    description: 'Dropped a game within a day of starting it.',
+    emoji: '👋',
+  },
+  first_marathoner: {
+    key: 'first_marathoner',
+    name: 'Marathoner',
+    description: "Finished a game you'd been playing for a month or more straight.",
+    emoji: '🏃',
+  },
+  first_comeback: {
+    key: 'first_comeback',
+    name: 'Comeback',
+    description: 'Replayed a game and beat it again.',
+    emoji: '🔂',
+  },
+  first_anniversary: {
+    key: 'first_anniversary',
+    name: 'Year One',
+    description: "Been part of QueueUp for a year.",
+    emoji: '🎂',
+  },
+  // Deliberately last, and deliberately excluded from its own completion check (see
+  // unlockBadges in services/badges.ts) - otherwise it could never reach 100% itself.
+  first_full_collection: {
+    key: 'first_full_collection',
+    name: 'Full Collection',
+    description: 'Unlocked every other badge.',
+    emoji: '👑',
   },
 };
 
