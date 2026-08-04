@@ -23,3 +23,17 @@ export async function setOwnedPlatforms(userId: string, platforms: unknown): Pro
   });
   return updated.ownedPlatforms;
 }
+
+/** Adds platforms to a user's "systems I own" setting without removing any they've already ticked
+ * - used to auto-tick a system when a library import (e.g. Playnite) reports games on it, so a
+ * user who's clearly playing on a system they never got around to ticking manually doesn't stay
+ * filtered out of it (see ROOM_PLATFORM_LABELS / ProfileSettingsView's "Systems owned" list, the
+ * same setting this writes to). A no-op, not an error, for platforms already ticked. */
+export async function unionOwnedPlatforms(userId: string, platforms: RoomPlatform[]): Promise<RoomPlatform[]> {
+  if (platforms.length === 0) return getOwnedPlatforms(userId);
+  const user = await prisma.user.findUniqueOrThrow({ where: { id: userId } });
+  const merged = Array.from(new Set([...user.ownedPlatforms, ...platforms]));
+  if (merged.length === user.ownedPlatforms.length) return user.ownedPlatforms;
+  const updated = await prisma.user.update({ where: { id: userId }, data: { ownedPlatforms: merged } });
+  return updated.ownedPlatforms;
+}
