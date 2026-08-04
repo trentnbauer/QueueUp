@@ -242,9 +242,14 @@ async function runSteamLibraryImportLoop(
     if (imported > 0) await invalidateExistingIgdbIds(null, userId);
     await markOwned(userId, ownedIgdbIds);
   } finally {
-    // Attempted even on an unexpected error/partial run - a sync that imported at least one game
-    // before failing still counts as "you synced your library" (issue #489).
-    const unlockedBadges = imported > 0 ? await unlockBadges(userId, ['first_library_sync']) : [];
+    // Unconditional, not gated on imported > 0 (issue #489) - once a library is fully synced,
+    // every later re-sync considers zero games (see the route's `considered` filter above) and
+    // would otherwise never import anything again, permanently locking this badge out for exactly
+    // the users most likely to have already synced before this badge existed. Reaching this
+    // function at all already means a real sync ran (Steam-linked, considered set built, loop
+    // attempted) - that's "you synced your library from Steam," independent of whether this
+    // particular run happened to find anything new.
+    const unlockedBadges = await unlockBadges(userId, ['first_library_sync']);
     await setSteamImportProgress(userId, { totalOwned, consideredCount, imported, skipped, done: true, unlockedBadges });
   }
 }
@@ -325,9 +330,13 @@ async function runSteamWishlistImportLoop(
     }
     if (imported > 0) await invalidateExistingIgdbIds(null, userId);
   } finally {
-    // Every row this loop creates is status: 'wishlist' (see above), so any successful import also
-    // counts as the wishlist badge, alongside the sync badge itself (issue #489).
-    const unlockedBadges = imported > 0 ? await unlockBadges(userId, ['first_wishlist', 'first_library_sync']) : [];
+    // first_wishlist genuinely requires having added a row (every row this loop creates is
+    // status: 'wishlist', see above) - stays gated on imported > 0. first_library_sync doesn't:
+    // same reasoning as runSteamLibraryImportLoop's own fix above, reaching this function at all
+    // already means a real wishlist sync ran, so it's unconditional here too rather than
+    // permanently unreachable once someone's wishlist is already fully synced (issue #489).
+    const badgeKeys: BadgeKey[] = imported > 0 ? ['first_wishlist', 'first_library_sync'] : ['first_library_sync'];
+    const unlockedBadges = await unlockBadges(userId, badgeKeys);
     await setSteamWishlistImportProgress(userId, { totalWishlisted, consideredCount, imported, skipped, done: true, unlockedBadges });
   }
 }
@@ -788,7 +797,13 @@ export default async function gameRoutes(app: FastifyInstance) {
         await invalidateExistingIgdbIds(null, userId);
       }
 
-      return { ok: true };
+      // Every branch above lands the Personal Shelf copy at status 'done', and this route is
+      // Personal-Shelf-only (roomId: null throughout) - same first_solo_beat condition as
+      // statusBadgeKeys('done', null) below, just not routed through that helper since this isn't
+      // a status-change request body (issue #489 - this hook point was missed when the badge
+      // system first shipped, so marking Beaten via "sync to shelf" never unlocked it).
+      const unlockedBadges = await unlockBadges(userId, ['first_solo_beat']);
+      return { ok: true, unlockedBadges };
     },
   );
 

@@ -96,7 +96,10 @@ export function useGames(roomId: string | null) {
     // The updated/created row lives on the Personal Shelf's own query, not this (room) instance's
     // cache - invalidate every games query rather than trying to patch a cache this hook doesn't
     // hold, same reasoning as `move` below.
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: GAMES_QUERY_ROOT }),
+    onSuccess: ({ unlockedBadges }) => {
+      queryClient.invalidateQueries({ queryKey: GAMES_QUERY_ROOT });
+      announceUnlock(unlockedBadges);
+    },
     onError: (err) => setActionError(errorMessage(err, 'Could not update your Personal Shelf.')),
   });
 

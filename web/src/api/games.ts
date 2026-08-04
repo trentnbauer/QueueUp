@@ -67,7 +67,8 @@ export const gamesApi = {
   create: (body: CreateGameRequest) => apiPost<CreateGameResponse>('/api/games', body),
   updateStatus: (id: string, body: UpdateGameStatusRequest) =>
     apiPatch<UpdateGameStatusResponse>(`/api/games/${id}/status`, body),
-  syncShelfBeaten: (id: string) => apiPost<{ ok: true }>(`/api/games/${id}/sync-shelf-beaten`),
+  syncShelfBeaten: (id: string) =>
+    apiPost<{ ok: true; unlockedBadges: BadgeDefinition[] }>(`/api/games/${id}/sync-shelf-beaten`),
   bulkUpdateStatus: (body: BulkUpdateGameStatusRequest, region?: PriceRegion) =>
     apiPatch<{ games: Game[]; unlockedBadges: BadgeDefinition[] }>(`/api/games/bulk-status${region ? `?region=${region}` : ''}`, body),
   remove: (id: string) => apiDelete(`/api/games/${id}`),
