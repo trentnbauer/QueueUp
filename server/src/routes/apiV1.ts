@@ -9,6 +9,7 @@ import { createGameForUser, resolveGameForCreation, defaultStatusForRelease, lin
 import { isAddonCategory } from '../services/igdbClient.js';
 import { invalidateExistingIgdbIds } from '../services/gameAccess.js';
 import { setOwnershipPlatforms, unionOwnershipPlatforms } from '../services/gameOwnership.js';
+import { unlockBadges } from '../services/badges.js';
 import { runWithConcurrency } from '../util/concurrency.js';
 import {
   PLAYNITE_SOURCE,
@@ -20,7 +21,33 @@ import {
   recordPendingLibraryImport,
   deletePendingLibraryImportByTitle,
 } from '../services/playniteImport.js';
-import type { CreateGameRequest, LibraryImportEntry, PlayniteImportProgress, PlayniteImportStarted, RoomPlatform } from '@queueup/shared';
+import type {
+  BadgeKey,
+  CreateGameRequest,
+  LibraryImportEntry,
+  PlayniteImportProgress,
+  PlayniteImportStarted,
+  RoomPlatform,
+} from '@queueup/shared';
+
+/** Which platform-sync badge (issue: "an achievement for syncing a game for each console") a
+ * given RoomPlatform counts toward - grouped by family (Xbox/PlayStation generations share one
+ * badge each) rather than one per hardware generation, so the panel doesn't end up with nine
+ * near-duplicate tiles for what's really "have you synced anything from this console line yet."
+ * PC is included even though it's not a "console" in the literal sense - Playnite commonly
+ * aggregates PC storefronts (GOG, Epic, itself) too, and it's the only sync path that can tell
+ * platforms apart at all (Steam import, first_library_sync, is PC-only by construction). */
+const PLATFORM_SYNC_BADGE_KEY: Record<RoomPlatform, BadgeKey> = {
+  pc: 'first_pc_sync',
+  xbox_360: 'first_xbox_sync',
+  xbox_one: 'first_xbox_sync',
+  xbox_series: 'first_xbox_sync',
+  ps3: 'first_playstation_sync',
+  ps4: 'first_playstation_sync',
+  ps5: 'first_playstation_sync',
+  switch: 'first_switch_sync',
+  switch2: 'first_switch_sync',
+};
 
 declare module 'fastify' {
   interface FastifyRequest {
@@ -187,6 +214,13 @@ async function runPlayniteImportLoop(
   let matched = 0;
   let unmatched = 0;
   let errored = 0;
+  // Platform-sync badges touched by this run (see PLATFORM_SYNC_BADGE_KEY) - collected across the
+  // whole batch and unlocked once at the end, not per-entry, same "attempted once per request, not
+  // once per game" reasoning as the status-change routes' own badge calls in games.ts. Plain Set
+  // mutation is safe under runWithConcurrency's bounded pool for the same reason the matched/
+  // unmatched/errored counters below are: JS's single-threaded event loop means no two callbacks'
+  // synchronous `.add()` calls can interleave.
+  const touchedPlatformFamilies = new Set<BadgeKey>();
   try {
     await runWithConcurrency(entries, PLAYNITE_IMPORT_CONCURRENCY, async (entry) => {
       try {
@@ -198,6 +232,7 @@ async function runPlayniteImportLoop(
         }
 
         await applyResolvedIgdbEntry(userId, igdbId, entry, existingByIgdbId);
+        for (const platform of entry.platforms) touchedPlatformFamilies.add(PLATFORM_SYNC_BADGE_KEY[platform]);
         // A title that previously landed in the review queue (issue #452) may now resolve - via a
         // freshly-written TitleMatchAlias, whether from this same title exact-matching this time or
         // someone else having resolved it since - so the stale pending row (if any) needs to clear
@@ -230,7 +265,13 @@ async function runPlayniteImportLoop(
     });
     if (matched > 0) await invalidateExistingIgdbIds(null, userId);
   } finally {
-    await setPlayniteImportProgress(userId, { consideredCount, matched, unmatched, errored, done: true });
+    // No web client actually polls PlayniteImportProgress today (this route is hit by the
+    // extension via a bearer API key, not a browser session - see this function's doc comment),
+    // so there's nowhere to show a toast for these; they still need to be unlocked for real
+    // (the panel picks them up next time the person has it open), just without the usual
+    // announceUnlock round trip other routes get.
+    const unlockedBadges = touchedPlatformFamilies.size > 0 ? await unlockBadges(userId, [...touchedPlatformFamilies]) : [];
+    await setPlayniteImportProgress(userId, { consideredCount, matched, unmatched, errored, done: true, unlockedBadges });
   }
 }
 

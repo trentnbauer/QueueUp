@@ -505,6 +505,15 @@ export default async function roomRoutes(app: FastifyInstance) {
           type: 'room_owner_changed',
           message: (actorName) => `${actorName} transferred room ownership to ${targetUser.displayName}`,
         });
+        // Promoted (issue: "what other achievements can you think of") - an ownership transfer is
+        // unambiguously a promotion for the target (they can't have already been room_master, per
+        // the "only one room_master" invariant this whole branch exists to preserve), so this one
+        // doesn't need the target.role-before-update check the plain role-change branch below does.
+        // Not surfaced in the response: the actor can never be the target (blocked above), so
+        // there's no toast to show *them* for someone else's unlock - it just lands for real
+        // (unlockBadges' own DB write), same as Spin Winner in roomSpin.ts crediting whoever added
+        // the winning game rather than whoever clicked "Let's play".
+        await unlockBadges(targetUserId, ['first_promoted']);
         return { role: updatedTarget.role };
       }
 
@@ -516,6 +525,10 @@ export default async function roomRoutes(app: FastifyInstance) {
         where: { roomId_userId: { roomId, userId: targetUserId } },
         data: { role },
       });
+      // Promoted, continued - only member -> moderator counts (target.role is the value from
+      // before this update, fetched above by requireMembership) - moderator -> member is a
+      // demotion, not an achievement. Same "not surfaced in the response" reasoning as above.
+      if (target.role === 'member' && role === 'moderator') await unlockBadges(targetUserId, ['first_promoted']);
       return { role: updated.role };
     },
   );

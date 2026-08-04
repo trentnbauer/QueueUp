@@ -5,6 +5,7 @@ import { HttpError } from '../util/httpError.js';
 import { loadGameOr404, requireGameTagAccess } from '../services/gameAccess.js';
 import { gameInclude, serializeGame } from '../services/gameSerializer.js';
 import { listTags, loadOwnTagOr404, createTag, findOrCreateTag, normalizeTagName, assertValidTagName } from '../services/tags.js';
+import { unlockBadges } from '../services/badges.js';
 import type { ApplyTagRequest, CreateTagRequest, RenameTagRequest } from '@queueup/shared';
 
 /** Turns a Tag @@unique([userId, name]) collision into the same 409 shape everywhere it can happen
@@ -85,8 +86,16 @@ export default async function tagRoutes(app: FastifyInstance) {
       update: {},
     });
 
+    // Archivist (issue: "what other achievements can you think of") - "your first tag ever
+    // applied," not "your first tag on this specific game," so this is a plain count across every
+    // game you've tagged, not a check-before-upsert - a re-apply of an already-applied tag (the
+    // upsert's update: {} no-op branch) still correctly reads as "you have 1" if this was your
+    // only tag ever, same true answer either way.
+    const totalTagApplications = await prisma.gameTag.count({ where: { tag: { userId } } });
+    const unlockedBadges = totalTagApplications === 1 ? await unlockBadges(userId, ['first_tag_applied']) : [];
+
     const updated = await prisma.game.findUniqueOrThrow({ where: { id: game.id }, include: gameInclude });
-    return { game: await serializeGame(updated, userId) };
+    return { game: await serializeGame(updated, userId), unlockedBadges };
   });
 
   // Detaches a tag from just this game - the tag itself (and its application to any other game)

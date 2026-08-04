@@ -1,6 +1,9 @@
 import { Prisma } from '@prisma/client';
-import { BADGE_DEFINITIONS, type BadgeDefinition, type BadgeKey } from '@queueup/shared';
+import { ALL_BADGE_KEYS, BADGE_DEFINITIONS, type BadgeDefinition, type BadgeKey } from '@queueup/shared';
 import { prisma } from '../db/client.js';
+
+// Everything except the capstone itself - see maybeUnlockFullCollection below.
+const NON_CAPSTONE_BADGE_KEYS = ALL_BADGE_KEYS.filter((key) => key !== 'first_full_collection');
 
 /** Records a user unlocking a QueueUp badge (issue #489), idempotently - the unique constraint on
  * (userId, badgeKey) is the single source of truth for "was this already unlocked", same
@@ -26,7 +29,12 @@ export async function unlockBadge(userId: string, key: BadgeKey): Promise<BadgeD
  * key's successful unlock in the same batch, and filters out the nulls/rejections, so callers can
  * just spread the result into their response's `unlockedBadges` without checking each one
  * individually. Failures are swallowed and logged here (not left to each call site to remember)
- * since a badge unlock should never fail the request that triggered it. */
+ * since a badge unlock should never fail the request that triggered it.
+ *
+ * Also checks the Full Collection capstone once, after the real batch - not per-key, and not
+ * inside unlockBadge itself, specifically so a capstone unlock earned by *this* call lands in the
+ * same returned array (and therefore the same toast) as whatever just completed the set, rather
+ * than only showing up next time the panel is checked. */
 export async function unlockBadges(userId: string, keys: BadgeKey[]): Promise<BadgeDefinition[]> {
   const results = await Promise.allSettled(keys.map((key) => unlockBadge(userId, key)));
   const unlocked: BadgeDefinition[] = [];
@@ -37,5 +45,24 @@ export async function unlockBadges(userId: string, keys: BadgeKey[]): Promise<Ba
       console.error('[badges] failed to unlock badge', { userId, key: keys[i], err: result.reason });
     }
   });
+
+  if (unlocked.length > 0 && !keys.includes('first_full_collection')) {
+    const capstone = await maybeUnlockFullCollection(userId);
+    if (capstone) unlocked.push(capstone);
+  }
+
   return unlocked;
+}
+
+/** Unlocks the Full Collection capstone (issue: "what other achievements can you think of") once
+ * a user has every other badge - deliberately a separate, explicit check rather than folded into
+ * unlockBadge itself, so it can be called both from the normal per-action flow above and, once
+ * only, from the end of a full backfill run (see scripts/backfillBadges.ts) without recursing on
+ * every single badge that script grants. Safe to call speculatively (e.g. from a scheduled job or
+ * the backfill script sweeping every user) - unlockBadge's own idempotency means a user who
+ * already has it, or doesn't yet qualify, just gets a no-op here. */
+export async function maybeUnlockFullCollection(userId: string): Promise<BadgeDefinition | null> {
+  const owned = await prisma.userBadge.count({ where: { userId, badgeKey: { in: NON_CAPSTONE_BADGE_KEYS } } });
+  if (owned < NON_CAPSTONE_BADGE_KEYS.length) return null;
+  return unlockBadge(userId, 'first_full_collection');
 }

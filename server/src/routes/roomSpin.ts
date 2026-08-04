@@ -8,6 +8,7 @@ import {
   SPIN_INITIAL_VELOCITY,
   settlesAtOf,
   settledPositionOf,
+  candidateIndexAt,
   applyNudge,
   type SpinBase,
 } from '@queueup/shared';
@@ -337,6 +338,27 @@ export default async function roomSpinRoutes(app: FastifyInstance) {
       const userId = await request.requireAuth();
       const { roomId } = request.params;
       await requireMembership(roomId, userId);
+
+      // Jackpot (issue: "what other achievements can you think of") - the winner is a pure read
+      // from data already on the row (see RoomSpin.settledPosition's schema doc: `stripGameIds[
+      // candidateIndexAt(settledPosition, stripGameIds.length)]`), so this needs no input from the
+      // client beyond "commit to whatever already settled" - it can't be spoofed by claiming a
+      // different winner than the one every member's own client independently computed from the
+      // same snapshot. Credited to the winning game's *adder*, not whoever happens to click "Let's
+      // play" - "a game you added got picked" is the actual achievement; clicking the confirm
+      // button isn't. That means the credited user often isn't the caller, so this deliberately
+      // doesn't return unlockedBadges for a toast (same reasoning as Promoted in rooms.ts) - it
+      // still lands for real, just silently, and shows up next time that person checks /achievements.
+      const spin = await prisma.roomSpin.findUnique({ where: { roomId } });
+      if (spin && Date.now() >= spin.settlesAt.getTime() && spin.stripGameIds.length > 0) {
+        const winnerGameId = spin.stripGameIds[candidateIndexAt(spin.settledPosition, spin.stripGameIds.length)];
+        // Absent if the winning game was removed mid-spin (see stripGameIds' own schema doc on
+        // this exact edge case) - nothing to credit in that case, not an error.
+        const winnerGame = winnerGameId
+          ? await prisma.game.findUnique({ where: { id: winnerGameId }, select: { addedBy: true } })
+          : null;
+        if (winnerGame) await unlockBadges(winnerGame.addedBy, ['first_spin_winner']);
+      }
 
       await prisma.roomSpin.deleteMany({ where: { roomId } });
       reply.status(204);

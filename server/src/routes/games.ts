@@ -150,6 +150,80 @@ function statusBadgeKeys(status: GameStatus, roomId: string | null): BadgeKey[] 
   }
 }
 
+/** Franchise Finisher / Full Package (issue: "what other achievements can you think of") - both
+ * only apply the moment a game actually *becomes* Done (checked by the caller, not here - a
+ * no-op re-save of an already-Done game shouldn't re-run this), and both need to look past this
+ * one Game row at its siblings in the same shelf/room scope, which single-game-status-change's
+ * own gameInclude doesn't fetch. `game` only needs the handful of scalar fields used below, not a
+ * full GameWithRelations, so this takes exactly those rather than importing that type here too.
+ *
+ * Only wired into the single-game status route (games.ts' PATCH /:id/status), not bulk-status -
+ * bulk-status is Personal-Shelf-only mass cleanup, not the "I just finished the whole trilogy"
+ * moment this is meant to catch, and re-deriving a per-game scope for up to MAX_GAMES_PER_LIST
+ * games in one bulk call isn't worth it for a bonus achievement. */
+async function completionBadgeKeys(
+  userId: string,
+  game: { id: string; roomId: string | null; igdbCollectionId: number | null; baseGameId: string | null },
+): Promise<BadgeKey[]> {
+  const keys: BadgeKey[] = [];
+  const scopeWhere: Prisma.GameWhereInput = game.roomId !== null ? { roomId: game.roomId } : { roomId: null, addedBy: userId };
+
+  // Franchise Finisher - every entry sharing this igdbCollectionId in the same scope is Beaten,
+  // and there's more than one entry to have actually "finished" - same >= 2 threshold as the
+  // client's own franchiseProgress display (gameGridLogic.ts' collectionProgress), recomputed
+  // here since that logic is client-only.
+  if (game.igdbCollectionId !== null) {
+    const collection = await prisma.game.findMany({
+      where: { ...scopeWhere, igdbCollectionId: game.igdbCollectionId },
+      select: { status: true },
+    });
+    if (collection.length >= 2 && collection.every((g) => g.status === 'done')) keys.push('first_franchise_finished');
+  }
+
+  // Full Package - the base game and every DLC linked to it (in the same scope) are all Beaten,
+  // and there's at least one DLC entry beyond the base game itself to have completed.
+  const baseGameId = game.baseGameId ?? game.id;
+  const family = await prisma.game.findMany({
+    where: { ...scopeWhere, OR: [{ id: baseGameId }, { baseGameId }] },
+    select: { status: true },
+  });
+  if (family.length >= 2 && family.every((g) => g.status === 'done')) keys.push('first_dlc_completionist');
+
+  return keys;
+}
+
+// Same threshold as web/src/components/gameGridLogic.ts' NEGLECTED_BACKLOG_MONTHS - duplicated
+// rather than shared, since that file's isNeglectedBacklogGame is client-only display logic (it
+// filters the grid) and this is a one-off badge check; kept in sync by this comment cross-
+// reference rather than a shared constant, same tolerance for small documented duplication as
+// e.g. Steam's rate limits being "same as X" elsewhere in this file rather than imported.
+const NEGLECTED_BACKLOG_MONTHS = 3;
+
+/** Backlog Buster (issue: "what other achievements can you think of") - was this game neglected
+ * (per NEGLECTED_BACKLOG_MONTHS) *before* the status change the caller is currently applying,
+ * i.e. does `game` (the pre-update row, with its pre-update status/createdAt/updatedAt/votes)
+ * read as neglected right now. Mirrors gameGridLogic.ts's isNeglectedBacklogGame exactly (see that
+ * function's own doc comment for why createdAt/updatedAt/vote-createdAt are the three signals
+ * checked) rather than importing it - that's a client (web/) module, not reachable from here. */
+function wasNeglectedBacklogGame(game: { status: GameStatus; createdAt: Date; updatedAt: Date; votes: { createdAt: Date }[] }): boolean {
+  if (game.status !== 'backlog') return false;
+
+  const now = Date.now();
+  const threshold = new Date(now);
+  const originalDay = threshold.getDate();
+  threshold.setDate(1);
+  threshold.setMonth(threshold.getMonth() - NEGLECTED_BACKLOG_MONTHS);
+  const lastDayOfTargetMonth = new Date(threshold.getFullYear(), threshold.getMonth() + 1, 0).getDate();
+  threshold.setDate(Math.min(originalDay, lastDayOfTargetMonth));
+  const thresholdMs = threshold.getTime();
+
+  if (game.createdAt.getTime() > thresholdMs) return false;
+  if (game.updatedAt.getTime() > thresholdMs) return false;
+  if (game.votes.some((v) => v.createdAt.getTime() > thresholdMs)) return false;
+
+  return true;
+}
+
 /** The slow part of a Steam library import - one IGDB lookup (and possibly a create) per unowned
  * game, which can take minutes for a big library. Run in the background by the route below rather
  * than awaited inline, since a reverse proxy/CDN in front of this server won't hold a connection
@@ -733,7 +807,7 @@ export default async function gameRoutes(app: FastifyInstance) {
     if (!GAME_STATUSES.includes(status)) throw new HttpError(400, 'Invalid status');
 
     await prisma.game.update({ where: { id: game.id }, data: { status } });
-    await recordStatusTransition(game.id, game.status, status);
+    const closedEntries = await recordStatusTransition(game.id, game.status, status);
     const updated = await loadGameOr404(game.id);
 
     // Offered only when marking a *room* game Beaten - never the reverse (marking Beaten on the
@@ -741,7 +815,39 @@ export default async function gameRoutes(app: FastifyInstance) {
     const shelfSync =
       status === 'done' && game.roomId !== null ? await buildShelfSyncSuggestion(userId, game.igdbId, updated.title) : undefined;
 
-    const unlockedBadges = await unlockBadges(userId, statusBadgeKeys(status, game.roomId));
+    // Shared by completionBadgeKeys/Marathoner/Comeback below - all three only apply on an actual
+    // transition *into* Done, not a no-op re-save of an already-Done game (game.status here is
+    // still the pre-update value).
+    const enteringDone = status === 'done' && game.status !== 'done';
+    const completionKeys = enteringDone ? await completionBadgeKeys(userId, updated) : [];
+    // Backlog Buster - "dealt with" means actually resolved (Done or Dropped), not just picked up
+    // (Playing) - a neglected game finally getting *started* isn't the same achievement as
+    // finally getting it off the list one way or the other.
+    const backlogBusterKeys: BadgeKey[] =
+      (status === 'done' || status === 'dropped') && wasNeglectedBacklogGame(game) ? ['first_backlog_buster'] : [];
+    // Marathoner (issue: "what other achievements can you think of") - one of the entries this
+    // transition just closed sat open 30+ days before finishing, i.e. a genuine long haul rather
+    // than a same-day clear. Only closedEntries created by an actual Playing→Done stretch can hit
+    // this (the "jumped straight to Done" fallback in recordStatusTransition always has a zero
+    // duration), which is exactly the case worth rewarding.
+    const MARATHONER_MS = 30 * 24 * 60 * 60 * 1000;
+    const marathonerKeys: BadgeKey[] =
+      enteringDone && closedEntries.some((entry) => entry.finishedAt.getTime() - entry.startedAt.getTime() >= MARATHONER_MS)
+        ? ['first_marathoner']
+        : [];
+    // Comeback - this game now has 2+ finished play-journal entries, meaning it was beaten,
+    // left Done at some point (the only way a second entry can ever open), and beaten again.
+    const comebackKeys: BadgeKey[] =
+      enteringDone && (await prisma.playLog.count({ where: { gameId: game.id, finishedAt: { not: null } } })) >= 2
+        ? ['first_comeback']
+        : [];
+    const unlockedBadges = await unlockBadges(userId, [
+      ...statusBadgeKeys(status, game.roomId),
+      ...completionKeys,
+      ...backlogBusterKeys,
+      ...marathonerKeys,
+      ...comebackKeys,
+    ]);
 
     return { game: await serializeGame(updated, userId), shelfSync, unlockedBadges };
   });
@@ -1152,10 +1258,10 @@ export default async function gameRoutes(app: FastifyInstance) {
       const room = await prisma.room.findUniqueOrThrow({ where: { id: game.roomId }, select: { platform: true } });
 
       const { owned } = request.body;
-      const unlockedBadge = await toggleOwnershipForPlatform(userId, game.igdbId, room.platform, owned);
+      const unlockedBadges = await toggleOwnershipForPlatform(userId, game.igdbId, room.platform, owned);
 
       const updated = await loadGameOr404(game.id);
-      return { game: await serializeGame(updated, userId), unlockedBadges: unlockedBadge ? [unlockedBadge] : [] };
+      return { game: await serializeGame(updated, userId), unlockedBadges };
     },
   );
 
@@ -1218,7 +1324,21 @@ export default async function gameRoutes(app: FastifyInstance) {
     });
 
     const updated = await prisma.game.findUniqueOrThrow({ where: { id: game.id }, include: gameInclude });
-    return { game: await serializeGame(updated, userId) };
+
+    // Full House (issue: "what other achievements can you think of") - only meaningful for a room
+    // with more than one member (a solo room trivially has "everyone" vote on their own first
+    // cast, which isn't the "we're all aligned" signal this is meant to celebrate). Always
+    // credited to the caller: nobody else's vote could have landed in this same request, so
+    // whoever's vote just completed the count is unambiguous.
+    let unlockedBadges: BadgeDefinition[] = [];
+    if (game.roomId !== null) {
+      const memberCount = await prisma.roomMember.count({ where: { roomId: game.roomId } });
+      if (memberCount >= 2 && updated.votes.length === memberCount) {
+        unlockedBadges = await unlockBadges(userId, ['first_full_house']);
+      }
+    }
+
+    return { game: await serializeGame(updated, userId), unlockedBadges };
   });
 
   // On-demand only (issue #230) - no scheduled job, no delivery mechanism, just a summary
