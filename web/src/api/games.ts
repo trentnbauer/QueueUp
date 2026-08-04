@@ -13,6 +13,7 @@ import type {
   Game,
   GameSearchResult,
   MoveGameRequest,
+  NextPickResponse,
   PlayerAchievements,
   PlayLogEntry,
   PriceRegion,
@@ -100,5 +101,6 @@ export const gamesApi = {
   yearInReview: () => apiGet<YearInReview>('/api/me/year-in-review'),
   currentlyPlaying: () => apiGet<CrossRoomPlaying>('/api/me/currently-playing'),
   beaten: () => apiGet<CrossRoomBeaten>('/api/me/beaten'),
+  nextPick: () => apiGet<NextPickResponse>('/api/me/next-pick'),
   syncSteamCompletions: () => apiPost<SteamCompletionsSyncResult>('/api/games/sync-steam-completions'),
 };

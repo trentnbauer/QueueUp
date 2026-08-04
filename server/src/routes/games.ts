@@ -77,6 +77,9 @@ import type {
   CrossRoomPlayingGroup,
   GameStatus,
   MoveGameRequest,
+  NextPickGame,
+  NextPickResponse,
+  NextPickSuggestion,
   PlayerAchievements,
   PlayLogEntry,
   PriceRegion,
@@ -98,7 +101,7 @@ import type {
   YearInReviewGroupCompletion,
   YearInReviewRareAchievement,
 } from '@queueup/shared';
-import { IGDB_PLATFORM_NAMES, PRICE_REGION_LABELS } from '@queueup/shared';
+import { collectionProgress, IGDB_PLATFORM_NAMES, isNeglectedBacklogGame, PRICE_REGION_LABELS, weightedPick } from '@queueup/shared';
 
 // Steam ownership only ever implies PC (see resolveGameForCreation's platformLabelOverride) -
 // IGDB_PLATFORM_NAMES.pc[0] is the canonical "PC (Microsoft Windows)" label already used
@@ -1718,6 +1721,140 @@ export default async function gameRoutes(app: FastifyInstance) {
       }
 
       const result: CrossRoomBeaten = { groups };
+      return result;
+    },
+  );
+
+  type NextPickGameRow = {
+    id: string;
+    title: string;
+    coverImageUrl: string | null;
+    platform: string;
+    status: GameStatus;
+    timeToBeatHours: number | null;
+    igdbCollectionId: number | null;
+    createdAt: Date;
+    updatedAt: Date;
+  };
+
+  function toNextPickGame(row: NextPickGameRow): NextPickGame {
+    return {
+      id: row.id,
+      title: row.title,
+      coverImageUrl: row.coverImageUrl,
+      platform: row.platform,
+      status: row.status,
+      timeToBeatHours: row.timeToBeatHours,
+      createdAt: row.createdAt.toISOString(),
+    };
+  }
+
+  const nextPickDays = (from: Date, now: number) => Math.floor((now - from.getTime()) / (1000 * 60 * 60 * 24));
+
+  // Issue #508 - a personal "what should I play next" picker over the caller's own Personal Shelf,
+  // distinct from the existing "🎲 Pick a Game" Spin the Wheel button (SpinPickerButton.tsx /
+  // packages/shared/src/spinPicker.ts): Spin the Wheel is a mostly-random draw the caller
+  // explicitly spins for fun; this tries a handful of deterministic heuristics in order and only
+  // falls back to a random pick when none of the earlier ones have anything to offer, so it reads
+  // as an actual recommendation rather than a wheel spin. No server-side state - "try again" is
+  // just calling this again, which can land on a different heuristic/game if the shelf has
+  // multiple viable candidates.
+  app.get(
+    '/api/me/next-pick',
+    // Same class of route as year-in-review/currently-playing above - an on-demand personal view,
+    // not something a normal session comes close to hitting often.
+    { config: { rateLimit: { max: 20, timeWindow: '1 minute' } } },
+    async (request) => {
+      const userId = await request.requireAuth();
+
+      // Whole Personal Shelf, not just backlog/wishlist - collectionProgress below needs Done
+      // entries too, to know how far into a series the caller already is. Same MAX_GAMES_PER_LIST
+      // cap as the shelf's own listing query - a defensive ceiling, not an expected real-world size.
+      const rows = await prisma.game.findMany({
+        where: { roomId: null, addedBy: userId, archivedAt: null },
+        select: {
+          id: true,
+          title: true,
+          coverImageUrl: true,
+          platform: true,
+          status: true,
+          timeToBeatHours: true,
+          igdbCollectionId: true,
+          createdAt: true,
+          updatedAt: true,
+        },
+        take: MAX_GAMES_PER_LIST,
+      });
+
+      const backlog = rows.filter((g) => g.status === 'backlog');
+      const wishlist = rows.filter((g) => g.status === 'wishlist');
+      const now = Date.now();
+      let suggestion: NextPickSuggestion | null = null;
+
+      // 1. Shortest game in the backlog, among those with time-to-beat data on file.
+      const withTimeToBeat = backlog.filter((g): g is NextPickGameRow & { timeToBeatHours: number } => g.timeToBeatHours !== null);
+      if (withTimeToBeat.length > 0) {
+        const shortest = withTimeToBeat.reduce((best, g) => (g.timeToBeatHours < best.timeToBeatHours ? g : best));
+        suggestion = {
+          game: toNextPickGame(shortest),
+          reason: 'shortest',
+          detail: `Shortest game in your backlog - about ${shortest.timeToBeatHours}h to beat.`,
+        };
+      }
+
+      // 2. Oldest wishlist entry - for when nothing backlog-side has time-to-beat data.
+      if (!suggestion && wishlist.length > 0) {
+        const oldest = wishlist.reduce((best, g) => (g.createdAt.getTime() < best.createdAt.getTime() ? g : best));
+        const days = nextPickDays(oldest.createdAt, now);
+        suggestion = {
+          game: toNextPickGame(oldest),
+          reason: 'oldest_wishlist',
+          detail: `On your wishlist for ${days} day${days === 1 ? '' : 's'} - your oldest wishlist entry.`,
+        };
+      }
+
+      // 3. The backlog game furthest into an already-started franchise - reuses the same
+      // beaten/total logic the client's franchise-progress UI (GameCard.tsx) already shows per
+      // card, just picking the single best candidate instead of displaying every one.
+      if (!suggestion) {
+        let best: { game: NextPickGameRow; progress: { beaten: number; total: number } } | null = null;
+        for (const g of backlog) {
+          const progress = collectionProgress(g, rows);
+          if (!progress || progress.beaten === 0 || progress.beaten >= progress.total) continue;
+          if (!best || progress.beaten / progress.total > best.progress.beaten / best.progress.total) best = { game: g, progress };
+        }
+        if (best) {
+          suggestion = {
+            game: toNextPickGame(best.game),
+            reason: 'franchise_progress',
+            detail: `${best.progress.beaten} of ${best.progress.total} in this series already beaten - keep going.`,
+          };
+        }
+      }
+
+      // 4. Last resort: a weighted-random pick, favoring backlog games that have sat untouched the
+      // longest (see isNeglectedBacklogGame) - falls back to a flat random pick across the whole
+      // backlog when nothing qualifies as neglected yet (e.g. every backlog game is recent).
+      if (!suggestion && backlog.length > 0) {
+        const neglected = backlog.filter((g) =>
+          isNeglectedBacklogGame({ status: g.status, createdAt: g.createdAt.toISOString(), updatedAt: g.updatedAt.toISOString() }, now),
+        );
+        const pool = neglected.length > 0 ? neglected : backlog;
+        const picked = weightedPick(pool, (g) => Math.max(1, nextPickDays(g.createdAt, now)), Math.random);
+        if (picked) {
+          const days = nextPickDays(picked.createdAt, now);
+          suggestion = {
+            game: toNextPickGame(picked),
+            reason: 'neglected',
+            detail:
+              neglected.length > 0
+                ? `Sitting in your backlog for ${days} day${days === 1 ? '' : 's'} - give it a shot.`
+                : 'Picked at random from your backlog.',
+          };
+        }
+      }
+
+      const result: NextPickResponse = { suggestion };
       return result;
     },
   );
