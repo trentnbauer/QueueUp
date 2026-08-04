@@ -674,6 +674,38 @@ export interface Notification {
   read: boolean;
 }
 
+/** Issue #509 - a room's full, paginated activity history, distinct from NotificationType above:
+ * see RoomActivity's schema doc for why this is a separate, unread-state-free feed rather than a
+ * reuse of the notification bell's table. */
+export type RoomActivityType =
+  | 'game_added'
+  | 'game_suggested'
+  | 'member_joined'
+  | 'room_renamed'
+  | 'room_platform_changed'
+  | 'room_owner_changed'
+  | 'price_drop'
+  | 'status_changed'
+  | 'vote_cast'
+  | 'spin_result'
+  | 'member_promoted'
+  | 'member_left';
+
+export interface RoomActivityEntry {
+  id: string;
+  type: RoomActivityType;
+  message: string;
+  actor: User | null;
+  createdAt: string;
+}
+
+/** Response for GET /api/rooms/:roomId/activity - `nextBefore` is the createdAt cursor to pass as
+ * the `before` query param for the next older page, or null once there's nothing further back. */
+export interface RoomActivityPage {
+  entries: RoomActivityEntry[];
+  nextBefore: string | null;
+}
+
 export interface NotificationRoomUnread {
   roomId: string;
   unreadCount: number;
@@ -987,6 +1019,7 @@ export type BadgeKey =
   | 'first_patient'
   | 'first_bargain_hunter'
   | 'first_backlog_buster'
+  | 'first_quick_drop'
   | 'first_marathoner'
   | 'first_comeback'
   | 'first_anniversary'
@@ -1152,6 +1185,14 @@ export const BADGE_DEFINITIONS: Record<BadgeKey, BadgeDefinition> = {
     name: 'Backlog Buster',
     description: 'Finally dealt with a long-neglected backlog game.',
     emoji: '🧹',
+  },
+  // Distinct from first_drop ("No Regrets", any drop at all) - this one specifically rewards
+  // bailing on something fast, the mirror image of first_marathoner below.
+  first_quick_drop: {
+    key: 'first_quick_drop',
+    name: 'Not For Me',
+    description: 'Dropped a game within a day of starting it.',
+    emoji: '👋',
   },
   first_marathoner: {
     key: 'first_marathoner',

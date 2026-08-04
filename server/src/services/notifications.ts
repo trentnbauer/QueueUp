@@ -1,6 +1,7 @@
 import type { NotificationType, Prisma } from '@prisma/client';
 import { prisma } from '../db/client.js';
 import { toUserDto } from '../util/dto.js';
+import { logRoomActivity } from './roomActivity.js';
 import type { Notification } from '@queueup/shared';
 
 async function actorDisplayName(actorId: string): Promise<string> {
@@ -31,7 +32,10 @@ interface NotifyRoomInput {
   roomId: string;
   roomName: string;
   actorId: string;
-  type: NotificationType;
+  // Excludes room_deleted/price_drop (neither ever reaches notifyRoom - see the two notes below)
+  // so the RoomActivityType passthrough a few lines down needs no cast: this narrowed type is
+  // compiler-checked to stay a subset of RoomActivityType, not just documented as one.
+  type: Exclude<NotificationType, 'room_deleted' | 'price_drop'>;
   message: (actorName: string) => string;
 }
 
@@ -59,6 +63,11 @@ export async function notifyRoom(input: NotifyRoomInput): Promise<void> {
       },
     });
     void postToDiscordWebhook(input.roomId, input.roomName, message);
+    // Room activity feed (issue #509) - every notifyRoom event is also feed-worthy; input.type's
+    // narrowed type (see NotifyRoomInput above) makes this a plain assignment, no cast needed.
+    // logRoomActivity has its own independent try/catch, so a feed-write hiccup here can't mask or
+    // roll back the notification write above.
+    void logRoomActivity({ roomId: input.roomId, actorId: input.actorId, type: input.type, message: () => message });
   } catch (err) {
     console.error('[notifications] failed to write room notification', err);
   }
@@ -132,6 +141,8 @@ export async function notifyPriceDrop(input: NotifyPriceDropInput): Promise<void
         data: { roomId: input.room.roomId, roomName: input.room.roomName, type: 'price_drop', message },
       });
       void postToDiscordWebhook(input.room.roomId, input.room.roomName, message);
+      // System-generated (no actorId), same as the notification just above.
+      void logRoomActivity({ roomId: input.room.roomId, actorId: null, type: 'price_drop', message: () => message });
     } else {
       await prisma.notification.create({
         data: { recipientId: input.ownerId, roomName: 'Personal Shelf', type: 'price_drop', message },

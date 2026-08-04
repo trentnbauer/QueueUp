@@ -59,6 +59,7 @@ import type { OwnedSteamGame } from '../services/steamLibrary.js';
 import { toggleOwnershipForPlatform, setOwnershipPlatforms, markOwned } from '../services/gameOwnership.js';
 import { recordStatusTransition } from '../services/playLog.js';
 import { unlockBadges } from '../services/badges.js';
+import { logRoomActivity } from '../services/roomActivity.js';
 import { lookupBarcodeGame } from '../services/barcodeService.js';
 import { findDetectedSteamCompletions } from '../services/steamCompletionDetection.js';
 import { toUserDto } from '../util/dto.js';
@@ -105,6 +106,17 @@ import { IGDB_PLATFORM_NAMES, PRICE_REGION_LABELS } from '@queueup/shared';
 const STEAM_IMPORT_PLATFORM_LABEL = IGDB_PLATFORM_NAMES.pc[0];
 
 const GAME_STATUSES = ['backlog', 'playing', 'done', 'dropped', 'wishlist', 'replay', 'play_next'] as const;
+// Mirrors web/src/components/gameGridLogic.ts's GAME_STATUS_LABEL - kept as a separate copy since
+// that file lives in the web package, not something the server can import from.
+const STATUS_LABELS: Record<GameStatus, string> = {
+  backlog: 'Backlog',
+  play_next: 'Play Next',
+  playing: 'Playing',
+  done: 'Beaten',
+  dropped: 'Dropped',
+  wishlist: 'Wishlist',
+  replay: 'Replay',
+};
 const PRICE_REGIONS = Object.keys(PRICE_REGION_LABELS) as PriceRegion[];
 // Shelves/rooms are meant to hold an actively-curated backlog, not a lifetime game archive - this
 // caps a single query so one runaway list can't pull unbounded rows (and unbounded price lookups)
@@ -841,13 +853,40 @@ export default async function gameRoutes(app: FastifyInstance) {
       enteringDone && (await prisma.playLog.count({ where: { gameId: game.id, finishedAt: { not: null } } })) >= 2
         ? ['first_comeback']
         : [];
+    // Not For Me - mirror image of Marathoner: one of the entries this transition just closed was
+    // a genuine (non-zero-duration) play stretch that ended in a drop inside a day. Zero-duration
+    // closedEntries only come from recordStatusTransition's "jumped straight to Dropped without
+    // ever playing" fallback, which isn't "gave it a shot" - excluded via durationMs > 0.
+    const enteringDropped = status === 'dropped' && game.status !== 'dropped';
+    const QUICK_DROP_MS = 24 * 60 * 60 * 1000;
+    const quickDropKeys: BadgeKey[] =
+      enteringDropped &&
+      closedEntries.some((entry) => {
+        const durationMs = entry.finishedAt.getTime() - entry.startedAt.getTime();
+        return durationMs > 0 && durationMs < QUICK_DROP_MS;
+      })
+        ? ['first_quick_drop']
+        : [];
     const unlockedBadges = await unlockBadges(userId, [
       ...statusBadgeKeys(status, game.roomId),
       ...completionKeys,
       ...backlogBusterKeys,
       ...marathonerKeys,
       ...comebackKeys,
+      ...quickDropKeys,
     ]);
+
+    // Room activity feed (issue #509) - room games only (a Personal Shelf status change has no
+    // room to log it to), and only on an actual transition, matching enteringDone/enteringDropped's
+    // own "not a no-op re-save" gating above.
+    if (game.roomId !== null && game.status !== status) {
+      void logRoomActivity({
+        roomId: game.roomId,
+        actorId: userId,
+        type: 'status_changed',
+        message: (actorName) => `${actorName} marked "${updated.title}" as ${STATUS_LABELS[status]}`,
+      });
+    }
 
     return { game: await serializeGame(updated, userId), shelfSync, unlockedBadges };
   });
@@ -1317,6 +1356,7 @@ export default async function gameRoutes(app: FastifyInstance) {
       throw new HttpError(400, 'Vote value must be an integer from 1 to 5');
     }
 
+    const existingVote = await prisma.vote.findUnique({ where: { gameId_userId: { gameId: game.id, userId } } });
     await prisma.vote.upsert({
       where: { gameId_userId: { gameId: game.id, userId } },
       update: { value },
@@ -1335,6 +1375,16 @@ export default async function gameRoutes(app: FastifyInstance) {
       const memberCount = await prisma.roomMember.count({ where: { roomId: game.roomId } });
       if (memberCount >= 2 && updated.votes.length === memberCount) {
         unlockedBadges = await unlockBadges(userId, ['first_full_house']);
+      }
+      // Room activity feed (issue #509) - skip a re-click of the same value (double-clicking your
+      // own already-cast star, a retried request, ...): only a genuine value change is feed-worthy.
+      if (existingVote?.value !== value) {
+        void logRoomActivity({
+          roomId: game.roomId,
+          actorId: userId,
+          type: 'vote_cast',
+          message: (actorName) => `${actorName} rated "${updated.title}" ${value}/5`,
+        });
       }
     }
 

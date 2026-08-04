@@ -40,6 +40,9 @@ const { unlockBadge, maybeUnlockFullCollection } = await import('../services/bad
  *   - first_marathoner / first_comeback: derived from PlayLog rows, which already existed before
  *     these badges did (issue #361) - Personal Shelf only, same reasoning as above (a room
  *     PlayLog entry doesn't reliably say which member's status change closed it).
+ *   - first_quick_drop: same PlayLog-derived approach as Marathoner/Comeback, narrowed further to
+ *     games whose *current* status is still 'dropped' (see backfillQuickDropBadge's own comment
+ *     for why that extra check is needed and what it misses).
  *
  * Deliberately does NOT attempt:
  *   - first_library_sync ("Synced Up"): no persisted signal distinguishes a game the Steam import
@@ -212,6 +215,36 @@ async function backfillMarathonerBadge(touched: Set<string>): Promise<number> {
   return unlocked;
 }
 
+const QUICK_DROP_MS = 24 * 60 * 60 * 1000;
+
+/** Not For Me - unlike Marathoner/Comeback above, a closed PlayLog entry alone doesn't say whether
+ * the transition that closed it was Done or Dropped (recordStatusTransition closes on either), so
+ * this also requires the game's *current* status to be 'dropped' - a real but narrower signal than
+ * live unlocking gets (which sees the actual transition). Consequence: a game quick-dropped in the
+ * past but since picked back up and currently Playing/Done won't be caught here. Accepted, same
+ * "unambiguous or skip" bar as the rest of this script - see first_backlog_buster's exclusion above
+ * for the same shape of gap. */
+async function backfillQuickDropBadge(touched: Set<string>): Promise<number> {
+  const entries = await prisma.playLog.findMany({
+    where: { finishedAt: { not: null }, game: { roomId: null, status: 'dropped' } },
+    select: { startedAt: true, finishedAt: true, game: { select: { addedBy: true } } },
+  });
+  const qualifying = new Set(
+    entries
+      .filter((e) => {
+        const durationMs = e.finishedAt!.getTime() - e.startedAt.getTime();
+        return durationMs > 0 && durationMs < QUICK_DROP_MS;
+      })
+      .map((e) => e.game.addedBy),
+  );
+
+  let unlocked = 0;
+  for (const userId of qualifying) {
+    if (await unlockOrLog(userId, 'first_quick_drop', touched)) unlocked++;
+  }
+  return unlocked;
+}
+
 async function backfillComebackBadge(touched: Set<string>): Promise<number> {
   const entries = await prisma.playLog.findMany({
     where: { finishedAt: { not: null }, game: { roomId: null } },
@@ -248,6 +281,7 @@ async function main() {
     bargainHunter: await backfillBargainHunterBadge(touched),
     marathoner: await backfillMarathonerBadge(touched),
     comeback: await backfillComebackBadge(touched),
+    quickDrop: await backfillQuickDropBadge(touched),
   };
 
   if (!DRY_RUN) {
@@ -259,7 +293,8 @@ async function main() {
       `Done. Newly unlocked: ${counts.shelfStatus} shelf-status, ${counts.roomCreated} first_room_created, ` +
         `${counts.tagApplied} first_tag_applied, ${counts.franchiseFinisher} first_franchise_finished, ` +
         `${counts.dlcCompletionist} first_dlc_completionist, ${counts.bargainHunter} first_bargain_hunter, ` +
-        `${counts.marathoner} first_marathoner, ${counts.comeback} first_comeback, ${capstoneCount} first_full_collection.`,
+        `${counts.marathoner} first_marathoner, ${counts.comeback} first_comeback, ${counts.quickDrop} first_quick_drop, ` +
+        `${capstoneCount} first_full_collection.`,
     );
   }
 }

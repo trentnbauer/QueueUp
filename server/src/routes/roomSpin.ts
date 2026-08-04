@@ -17,6 +17,7 @@ import { HttpError } from '../util/httpError.js';
 import { requireMembership, getRoom } from '../services/roomAccess.js';
 import { gameInclude, serializeGames } from '../services/gameSerializer.js';
 import { unlockBadges } from '../services/badges.js';
+import { logRoomActivity } from '../services/roomActivity.js';
 
 // A spin nobody's touched in this long is treated as abandoned (someone started it, then closed
 // their laptop) rather than wedging the room forever - the next GET after this window just
@@ -355,9 +356,19 @@ export default async function roomSpinRoutes(app: FastifyInstance) {
         // Absent if the winning game was removed mid-spin (see stripGameIds' own schema doc on
         // this exact edge case) - nothing to credit in that case, not an error.
         const winnerGame = winnerGameId
-          ? await prisma.game.findUnique({ where: { id: winnerGameId }, select: { addedBy: true } })
+          ? await prisma.game.findUnique({ where: { id: winnerGameId }, select: { addedBy: true, title: true } })
           : null;
         if (winnerGame) await unlockBadges(winnerGame.addedBy, ['first_spin_winner']);
+        // Room activity feed (issue #509) - credited to whoever committed ("Let's play"), unlike
+        // the Jackpot badge above which credits the winning game's adder - the feed is a log of
+        // what happened in the room, not an achievement, so "who clicked confirm" is the right actor.
+        void logRoomActivity({
+          roomId,
+          actorId: userId,
+          type: 'spin_result',
+          message: (actorName) =>
+            winnerGame ? `${actorName} spun and landed on "${winnerGame.title}"` : `${actorName} committed to a spin result`,
+        });
       }
 
       await prisma.roomSpin.deleteMany({ where: { roomId } });
