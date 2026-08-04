@@ -11,7 +11,8 @@
     "db:push": "dotenv -e ../.env -- prisma db push --schema src/db/prisma/schema.prisma",
     "db:migrate": "dotenv -e ../.env -- prisma migrate dev --schema src/db/prisma/schema.prisma",
     "db:deploy": "dotenv -e ../.env -- prisma migrate deploy --schema src/db/prisma/schema.prisma",
-    "db:studio": "dotenv -e ../.env -- prisma studio --schema src/db/prisma/schema.prisma"
+    "db:studio": "dotenv -e ../.env -- prisma studio --schema src/db/prisma/schema.prisma",
+    "backfill:badges": "tsx src/scripts/backfillBadges.ts"
   },
   "dependencies": {
     "@fastify/cookie": "^11.0.2",
