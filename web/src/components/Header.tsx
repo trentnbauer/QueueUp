@@ -17,6 +17,7 @@ import { AddGameModal } from './AddGameModal';
 import { FilterModal } from './FilterModal';
 import { PillFilter } from './PillFilter';
 import { SpinPickerButton } from './SpinPickerButton';
+import { NextPickModal } from './NextPickModal';
 import { RankedQueueModal } from './RankedQueueModal';
 import { ImportLibraryModal } from './ImportLibraryModal';
 import { SuggestionsModal } from './SuggestionsModal';
@@ -60,6 +61,7 @@ export function Header() {
   const [showAddGame, setShowAddGame] = useState(false);
   const [showFilters, setShowFilters] = useState(false);
   const [showRankedQueue, setShowRankedQueue] = useState(false);
+  const [showNextPick, setShowNextPick] = useState(false);
   const [showImportLibrary, setShowImportLibrary] = useState(false);
   const [showSuggestions, setShowSuggestions] = useState(false);
   const [inviteCopied, setInviteCopied] = useState(false);
@@ -392,6 +394,15 @@ export function Header() {
             has its own disabled guard (busy/completions.busy/syncingEverything) against a second
             concurrent Steam import - this just stops that guard from also blocking unrelated
             actions in the same modal, like configuring Playnite, while Steam's already syncing. */}
+        {/* Issue #508: a deterministic-first recommendation over the whole Personal Shelf (see
+            NextPickModal), distinct from the Spin the Wheel button above - Personal Shelf only,
+            same as Import Library below, since it's meant to answer "what should I play next"
+            for one person's own backlog, not a room's shared one. */}
+        {!activeRoom && (
+          <button type="button" className={styles.nextPickButton} onClick={() => setShowNextPick(true)}>
+            🔮 What Next?
+          </button>
+        )}
         {!activeRoom && (
           <button
             type="button"
@@ -527,6 +538,8 @@ export function Header() {
           onClose={() => setShowRankedQueue(false)}
         />
       )}
+
+      {showNextPick && !activeRoom && <NextPickModal onClose={() => setShowNextPick(false)} />}
 
       {showImportLibrary && !activeRoom && (
         <ImportLibraryModal

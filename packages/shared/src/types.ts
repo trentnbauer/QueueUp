@@ -836,6 +836,50 @@ export interface CrossRoomBeaten {
   groups: CrossRoomBeatenGroup[];
 }
 
+/** Which heuristic picked a /api/me/next-pick suggestion (issue #508) - shown to the caller
+ * alongside the pick so "why this game" is never a mystery. Checked in this order, first
+ * non-empty pool wins: `shortest` (least timeToBeatHours among backlog games that have it on
+ * file), `oldest_wishlist` (longest-wishlisted title, for when nothing backlog-side has
+ * time-to-beat data), `franchise_progress` (the backlog game furthest into an already-started
+ * series - see collectionProgress), `neglected` (a weighted-random pick among backlog games
+ * that have sat untouched 3+ months - see isNeglectedBacklogGame - weighted toward the most
+ * neglected rather than a flat coin flip among them). */
+export type NextPickReason = 'shortest' | 'oldest_wishlist' | 'franchise_progress' | 'neglected';
+
+/** The slimmer, DB-shaped game view a next-pick suggestion carries - same reasoning as
+ * DataExportGame below: no live price lookup or serialized ownership, just enough to render a
+ * card and link through to the real game. */
+export interface NextPickGame {
+  id: string;
+  title: string;
+  coverImageUrl: string | null;
+  platform: string;
+  status: GameStatus;
+  timeToBeatHours: number | null;
+  createdAt: string;
+}
+
+export interface NextPickSuggestion {
+  game: NextPickGame;
+  reason: NextPickReason;
+  /** Human-readable justification for the pick, e.g. "Shortest game in your backlog (4h)" or
+   * "2 of 3 Mass Effect games beaten - finish the series" - computed server-side so the reasoning
+   * (hours, counts, dates) stays in one place rather than being reconstructed client-side from
+   * `reason` alone. */
+  detail: string;
+}
+
+/** Response for GET /api/me/next-pick (issue #508) - a personal "what should I play next" picker
+ * over the caller's own Personal Shelf backlog/wishlist, distinct from the existing "🎲 Pick a
+ * Game" Spin the Wheel button (packages/shared/src/spinPicker.ts): Spin the Wheel is a uniform-ish
+ * random draw the caller explicitly spins for fun; this is a deterministic-first recommendation
+ * (shortest, then oldest wishlist, then franchise progress, then neglected-weighted-random as a
+ * last resort) meant to answer the question literally, not entertain. `suggestion` is null only
+ * when the caller's Personal Shelf has no backlog or wishlist games at all. */
+export interface NextPickResponse {
+  suggestion: NextPickSuggestion | null;
+}
+
 /** One game the caller added, in the "Download my data" export - a slimmer, DB-shaped view than
  * the full `Game` DTO (no live price lookup, no other members' votes), since this is a bulk
  * point-in-time snapshot rather than something rendered as a card. `roomId`/`roomName` are null
