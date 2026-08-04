@@ -583,27 +583,35 @@ export default async function roomRoutes(app: FastifyInstance) {
   // page boundary passed back as `nextBefore` - see RoomActivityPage's own doc comment. Membership
   // gated the same as every other room read (requireMembership), not requireElevated - a plain
   // Member should be able to see their own room's history, not just Moderators/Room Masters.
-  app.get<{ Params: { roomId: string }; Querystring: { before?: string } }>('/api/rooms/:roomId/activity', async (request) => {
-    const userId = await request.requireAuth();
-    const { roomId } = request.params;
-    await requireMembership(roomId, userId);
+  app.get<{ Params: { roomId: string }; Querystring: { before?: string } }>(
+    '/api/rooms/:roomId/activity',
+    // Same tier as this file's other on-demand, paginate-by-clicking room reads (e.g.
+    // invite-candidates above) - a member scrolling back through history via `before` can
+    // legitimately fire several requests in a row, well within this ceiling, while still sitting
+    // below the 200/min global default (app.ts).
+    { config: { rateLimit: { max: 30, timeWindow: '1 minute' } } },
+    async (request) => {
+      const userId = await request.requireAuth();
+      const { roomId } = request.params;
+      await requireMembership(roomId, userId);
 
-    const before = request.query.before ? decodeActivityCursor(request.query.before) : undefined;
-    const rows = await getRoomActivityPage(roomId, { before, take: ROOM_ACTIVITY_PAGE_SIZE + 1 });
-    const hasMore = rows.length > ROOM_ACTIVITY_PAGE_SIZE;
-    const page = hasMore ? rows.slice(0, ROOM_ACTIVITY_PAGE_SIZE) : rows;
-    const last = page[page.length - 1];
+      const before = request.query.before ? decodeActivityCursor(request.query.before) : undefined;
+      const rows = await getRoomActivityPage(roomId, { before, take: ROOM_ACTIVITY_PAGE_SIZE + 1 });
+      const hasMore = rows.length > ROOM_ACTIVITY_PAGE_SIZE;
+      const page = hasMore ? rows.slice(0, ROOM_ACTIVITY_PAGE_SIZE) : rows;
+      const last = page[page.length - 1];
 
-    const result: RoomActivityPage = {
-      entries: page.map((row) => ({
-        id: row.id,
-        type: row.type,
-        message: row.message,
-        actor: row.actor ? toUserDto(row.actor) : null,
-        createdAt: row.createdAt.toISOString(),
-      })),
-      nextBefore: hasMore ? encodeActivityCursor({ createdAt: last.createdAt, id: last.id }) : null,
-    };
-    return result;
-  });
+      const result: RoomActivityPage = {
+        entries: page.map((row) => ({
+          id: row.id,
+          type: row.type,
+          message: row.message,
+          actor: row.actor ? toUserDto(row.actor) : null,
+          createdAt: row.createdAt.toISOString(),
+        })),
+        nextBefore: hasMore ? encodeActivityCursor({ createdAt: last.createdAt, id: last.id }) : null,
+      };
+      return result;
+    },
+  );
 }
