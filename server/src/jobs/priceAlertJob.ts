@@ -36,7 +36,14 @@ export async function checkAllActivePriceWatches(): Promise<void> {
 
   const roomIds = games.map((g) => g.roomId).filter((id): id is string => id != null);
   const roomPlatforms = await getRoomPlatforms(roomIds);
-  const isPcGame = (game: GameWithRelations) => (game.roomId ? roomPlatforms.get(game.roomId) : 'pc') === 'pc';
+  // Missing from roomPlatforms (room deleted mid-run) fails closed - not a PC game. Present but
+  // null (issue #473's platform-less room) isn't a lost room, just an unrestricted one, so it
+  // falls back to 'pc' same as gameSerializer.ts's platformFor.
+  const isPcGame = (game: GameWithRelations) => {
+    if (!game.roomId) return true;
+    const roomPlatform = roomPlatforms.get(game.roomId);
+    return roomPlatform !== undefined && (roomPlatform ?? 'pc') === 'pc';
+  };
 
   const pcSteamAppIds = games.filter(isPcGame).map((g) => g.steamAppid).filter((id): id is number => id != null);
   const prices = await getSteamPrices(pcSteamAppIds);

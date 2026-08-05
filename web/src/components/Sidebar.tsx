@@ -161,7 +161,7 @@ export function Sidebar() {
               to={`/room/${room.id}`}
               className={`${styles.roomIcon} ${activeRoom?.id === room.id && !onPlayingPage && !onBeatenPage && !onAchievementsPage ? styles.roomIconActive : ''}`}
               style={{ background: room.accentColor, color: contrastTextColor(room.accentColor) }}
-              title={`${room.name} · ${ROOM_PLATFORM_LABELS[room.platform]}`}
+              title={`${room.name} · ${room.platform ? ROOM_PLATFORM_LABELS[room.platform] : 'Any platform'}`}
               onClick={closeMobileDrawer}
             >
               {initials(room.name)}

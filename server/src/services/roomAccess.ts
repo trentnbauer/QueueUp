@@ -3,7 +3,8 @@ import { prisma } from '../db/client.js';
 import { HttpError } from '../util/httpError.js';
 import type { RoomPlatform } from '@queueup/shared';
 
-export async function getRoomPlatform(roomId: string): Promise<RoomPlatform> {
+/** Null return means the room has no platform restriction (issue #473, "any platform"). */
+export async function getRoomPlatform(roomId: string): Promise<RoomPlatform | null> {
   const room = await prisma.room.findUniqueOrThrow({ where: { id: roomId } });
   return room.platform;
 }
@@ -11,7 +12,7 @@ export async function getRoomPlatform(roomId: string): Promise<RoomPlatform> {
 /** Batched version of getRoomPlatform - one query for any number of rooms, used wherever a list of
  * games spans several rooms at once (see gameSerializer.ts's platform-scoped pricing) instead of a
  * round trip per room. */
-export async function getRoomPlatforms(roomIds: string[]): Promise<Map<string, RoomPlatform>> {
+export async function getRoomPlatforms(roomIds: string[]): Promise<Map<string, RoomPlatform | null>> {
   const uniqueIds = [...new Set(roomIds)];
   if (uniqueIds.length === 0) return new Map();
   const rooms = await prisma.room.findMany({ where: { id: { in: uniqueIds } }, select: { id: true, platform: true } });

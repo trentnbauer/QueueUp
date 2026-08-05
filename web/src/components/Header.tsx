@@ -531,7 +531,9 @@ export function Header() {
           onSetSteamMatch={setSteamMatch}
           onSetTargetPrice={setTargetPrice}
           onSetManualPrice={setManualPrice}
-          onSetOwnership={activeRoom ? setOwnership : undefined}
+          // A platform-less room (issue #473) has no single platform to key an ownership claim on
+          // - see the ownership route in routes/games.ts, which rejects the toggle there.
+          onSetOwnership={activeRoom?.platform ? setOwnership : undefined}
           onApplyTag={applyTag}
           onRemoveTag={removeTag}
           onSetPrerequisite={activeRoom ? setPrerequisite : undefined}

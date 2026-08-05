@@ -8,6 +8,7 @@ import { resolveGameForCreation, defaultStatusForRelease, linkDlcToBaseGame } fr
 import { isAddonCategory } from '../services/igdbClient.js';
 import { serializeGame } from '../services/gameSerializer.js';
 import { notifyRoom } from '../services/notifications.js';
+import { getOwnedPlatforms } from '../services/userSettings.js';
 import type { GameSuggestion } from '@queueup/shared';
 
 function toSuggestionDto(suggestion: {
@@ -77,10 +78,14 @@ export default async function gameSuggestionRoutes(app: FastifyInstance) {
       // the room's platform may have changed, or the game may since have been added directly by a
       // moderator. Either way, the stale suggestion is dropped rather than left wedged for someone
       // to keep re-declining.
+      // A platform-less room (issue #473) resolves candidates off the suggester's own owned
+      // platforms, same fallback as a direct add (see createGameForUser in gameIntake.ts).
+      const platforms = room.platform ? [room.platform] : await getOwnedPlatforms(suggestion.suggestedBy);
+
       let resolved;
       try {
         await requireNotDuplicate(roomId, suggestion.suggestedBy, suggestion.igdbId);
-        resolved = await resolveGameForCreation(suggestion.igdbId, [room.platform]);
+        resolved = await resolveGameForCreation(suggestion.igdbId, platforms);
       } catch (err) {
         await deleteSuggestionIfExists(suggestionId);
         await invalidateExistingIgdbIds(roomId, suggestion.suggestedBy);
@@ -116,7 +121,7 @@ export default async function gameSuggestionRoutes(app: FastifyInstance) {
       }
       // Issue #338: same base-game-ensure/link as a direct add.
       if (resolved.parentGameIgdbId && isAddonCategory(resolved.category)) {
-        await linkDlcToBaseGame(created.id, resolved.parentGameIgdbId, roomId, suggestion.suggestedBy, [room.platform]);
+        await linkDlcToBaseGame(created.id, resolved.parentGameIgdbId, roomId, suggestion.suggestedBy, platforms);
       }
 
       await deleteSuggestionIfExists(suggestionId);

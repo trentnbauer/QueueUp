@@ -30,7 +30,7 @@ function toRoomDto(
   room: {
     id: string;
     name: string;
-    platform: RoomPlatform;
+    platform: RoomPlatform | null;
     accentColor: string;
     createdBy: string;
     createdAt: Date;
@@ -79,14 +79,16 @@ export default async function roomRoutes(app: FastifyInstance) {
     const userId = await request.requireAuth();
     const { name, platform, accentColor, isPublic } = request.body;
     if (!name?.trim()) throw new HttpError(400, 'Room name is required');
-    if (!ROOM_PLATFORMS.includes(platform)) throw new HttpError(400, 'A valid platform is required');
+    // Issue #473: platform is optional - omitting it (or passing null) leaves the room unrestricted
+    // ("any platform"), rather than forcing every room to lock to one console/PC up front.
+    if (platform != null && !ROOM_PLATFORMS.includes(platform)) throw new HttpError(400, 'A valid platform is required');
 
     const inviteCode = await generateUniqueInviteCode();
 
     const room = await prisma.room.create({
       data: {
         name: name.trim(),
-        platform,
+        platform: platform ?? null,
         accentColor: accentColor || '#8b5cf6',
         createdBy: userId,
         inviteCode,
@@ -235,7 +237,11 @@ export default async function roomRoutes(app: FastifyInstance) {
     const { name, platform, accentColor, discordWebhookUrl, spinOwnershipMaxPrice, spinWheelTheme, isPublic, requireGameApproval } =
       request.body;
     if (name !== undefined && !name.trim()) throw new HttpError(400, 'Room name cannot be empty');
-    if (platform !== undefined && !ROOM_PLATFORMS.includes(platform)) throw new HttpError(400, 'A valid platform is required');
+    // Issue #473: platform may be explicitly set to null to clear the room's restriction ("any
+    // platform") - only a non-null, provided value needs to be a real RoomPlatform.
+    if (platform !== undefined && platform !== null && !ROOM_PLATFORMS.includes(platform)) {
+      throw new HttpError(400, 'A valid platform is required');
+    }
     if (spinWheelTheme !== undefined && !SPIN_WHEEL_THEMES.includes(spinWheelTheme)) {
       throw new HttpError(400, 'A valid Spin the Wheel theme is required');
     }
@@ -284,7 +290,8 @@ export default async function roomRoutes(app: FastifyInstance) {
         roomName: room.name,
         actorId: userId,
         type: 'room_platform_changed',
-        message: (actorName) => `${actorName} changed the room's platform to ${ROOM_PLATFORM_LABELS[room.platform]}`,
+        message: (actorName) =>
+          `${actorName} changed the room's platform to ${room.platform ? ROOM_PLATFORM_LABELS[room.platform] : 'Any platform'}`,
       });
     }
     return { room: toRoomDto(room, membership.role, room.inviteCode) };

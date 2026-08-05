@@ -148,7 +148,7 @@ export async function getOwnershipInfo(games: GameWithRelations[], currentUserId
       : Promise.resolve([] as { roomId: string; userId: string }[]),
     roomIds.length > 0
       ? prisma.room.findMany({ where: { id: { in: roomIds } }, select: { id: true, platform: true } })
-      : Promise.resolve([] as { id: string; platform: RoomPlatform }[]),
+      : Promise.resolve([] as { id: string; platform: RoomPlatform | null }[]),
     // Personal-shelf rows only (roomId null) - a room member's *want* for a game lives on their own
     // shelf, not the shared room row (which has one status for the whole room, not per-member).
     prisma.game.findMany({
@@ -165,10 +165,12 @@ export async function getOwnershipInfo(games: GameWithRelations[], currentUserId
 
   // A claim with no platforms recorded predates platform tracking (see the model doc) and still
   // counts as owned everywhere; otherwise it only counts for a room whose own platform it lists.
-  function ownsOnPlatform(igdbId: number, userId: string, platform: RoomPlatform): boolean {
+  // `platform === null` is a platform-less room (issue #473) - same "degrades to owns any
+  // platform" treatment as isOwnedBy above, since there's no single platform here to gate on.
+  function ownsOnPlatform(igdbId: number, userId: string, platform: RoomPlatform | null): boolean {
     const platforms = ownershipByIgdbId.get(igdbId)?.get(userId);
     if (platforms === undefined) return false;
-    return platforms.length === 0 || platforms.includes(platform);
+    return platform === null || platforms.length === 0 || platforms.includes(platform);
   }
 
   const platformByRoomId = new Map(rooms.map((r) => [r.id, r.platform]));
@@ -187,12 +189,15 @@ export async function getOwnershipInfo(games: GameWithRelations[], currentUserId
 
   for (const game of games) {
     if (game.roomId) {
-      const roomPlatform = platformByRoomId.get(game.roomId);
+      // .has(), not a truthiness check on the value - a platform-less room (issue #473) is a real,
+      // found room whose platform is legitimately null, distinct from "room missing from the map"
+      // (deleted out from under this - the fallback below just avoids a non-null assertion for
+      // that case, since every roomId here came from one of these games and should always resolve).
+      const roomFound = platformByRoomId.has(game.roomId);
+      const roomPlatform = platformByRoomId.get(game.roomId) ?? null;
       const memberIds = membersByRoom.get(game.roomId) ?? [];
-      // roomPlatform should always be found (every roomId here came from one of these games) -
-      // the fallback just avoids a non-null assertion if a room was deleted out from under this.
-      const youOwn = roomPlatform ? ownsOnPlatform(game.igdbId, currentUserId, roomPlatform) : false;
-      const owned = roomPlatform ? memberIds.filter((id) => ownsOnPlatform(game.igdbId, id, roomPlatform)).length : 0;
+      const youOwn = roomFound && ownsOnPlatform(game.igdbId, currentUserId, roomPlatform);
+      const owned = roomFound ? memberIds.filter((id) => ownsOnPlatform(game.igdbId, id, roomPlatform)).length : 0;
       const wishlisters = wishlistersByIgdbId.get(game.igdbId) ?? new Set<string>();
       const wishlisted = memberIds.filter((id) => wishlisters.has(id)).length;
       result.set(game.id, {

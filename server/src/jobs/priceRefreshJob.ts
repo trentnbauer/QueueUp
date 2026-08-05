@@ -45,7 +45,14 @@ export async function refreshStaleGamePrices(): Promise<void> {
   // scoping as priceAlertJob.ts, so a room on another platform's games are never fetched here.
   const roomIds = games.map((g) => g.roomId).filter((id): id is string => id != null);
   const roomPlatforms = await getRoomPlatforms(roomIds);
-  const isPcGame = (g: RefreshableGame) => (g.roomId ? roomPlatforms.get(g.roomId) : 'pc') === 'pc';
+  // Missing from roomPlatforms (room deleted mid-run) fails closed - not a PC game. Present but
+  // null (issue #473's platform-less room) isn't a lost room, just an unrestricted one, so it
+  // falls back to 'pc' same as gameSerializer.ts's platformFor/priceAlertJob.ts's isPcGame.
+  const isPcGame = (g: RefreshableGame) => {
+    if (!g.roomId) return true;
+    const roomPlatform = roomPlatforms.get(g.roomId);
+    return roomPlatform !== undefined && (roomPlatform ?? 'pc') === 'pc';
+  };
   const pcGames = games.filter(isPcGame);
 
   const noUrlYet = pcGames.filter((g) => g.ggDealsUrl === null);

@@ -110,40 +110,40 @@ enum RoomActivityType {
 }
 
 model User {
-  id           String   @id @default(uuid())
-  oidcSub      String   @unique @map("oidc_sub")
+  id             String         @id @default(uuid())
+  oidcSub        String         @unique @map("oidc_sub")
   /// Set when this user links a Steam account without signing in with it directly (oidcSub is
   /// already taken by their primary sign-in provider) - see the Steam-link flow in auth.ts.
   /// Steam sign-in users don't need this populated; their Steam ID lives in oidcSub instead.
-  steamId64    String?  @unique @map("steam_id64")
-  email        String
-  displayName  String   @map("display_name")
-  avatarColor  String   @default("#8f8aa8") @map("avatar_color")
-  avatarUrl    String?  @map("avatar_url")
-  isAdmin      Boolean  @default(false) @map("is_admin")
-  createdAt    DateTime @default(now()) @map("created_at")
+  steamId64      String?        @unique @map("steam_id64")
+  email          String
+  displayName    String         @map("display_name")
+  avatarColor    String         @default("#8f8aa8") @map("avatar_color")
+  avatarUrl      String?        @map("avatar_url")
+  isAdmin        Boolean        @default(false) @map("is_admin")
+  createdAt      DateTime       @default(now()) @map("created_at")
   /// Systems the user has ticked as "owned" on their Personal Shelf - scopes the add-game
   /// search/create flow there the same way a Room's platform scopes it for a room. Empty means
   /// no opt-in yet, so no filtering is applied (preserves pre-existing behavior).
   ownedPlatforms RoomPlatform[] @default([]) @map("owned_platforms")
 
-  roomsCreated         Room[]          @relation("RoomCreatedBy")
-  memberships          RoomMember[]
-  gamesAdded           Game[]
-  votes                Vote[]
-  auditLogEntries      AdminAuditLog[]
-  notificationsReceived Notification[] @relation("NotificationRecipient")
-  notificationsActed   Notification[]  @relation("NotificationActor")
-  roomActivity         RoomActivity[]  @relation("RoomActivityActor")
-  gameSuggestions      GameSuggestion[]
-  ownedGames           GameOwnership[]
+  roomsCreated           Room[]                  @relation("RoomCreatedBy")
+  memberships            RoomMember[]
+  gamesAdded             Game[]
+  votes                  Vote[]
+  auditLogEntries        AdminAuditLog[]
+  notificationsReceived  Notification[]          @relation("NotificationRecipient")
+  notificationsActed     Notification[]          @relation("NotificationActor")
+  roomActivity           RoomActivity[]          @relation("RoomActivityActor")
+  gameSuggestions        GameSuggestion[]
+  ownedGames             GameOwnership[]
   achievementCompletions AchievementCompletion[]
-  badges               UserBadge[]
-  linkedIdentities     LinkedIdentity[]
-  tags                 Tag[]
-  roomSpinsStarted     RoomSpin[]
-  apiKeys              ApiKey[]
-  pendingLibraryImports PendingLibraryImport[]
+  badges                 UserBadge[]
+  linkedIdentities       LinkedIdentity[]
+  tags                   Tag[]
+  roomSpinsStarted       RoomSpin[]
+  apiKeys                ApiKey[]
+  pendingLibraryImports  PendingLibraryImport[]
 
   @@map("users")
 }
@@ -309,36 +309,43 @@ model UserBadge {
 }
 
 model Room {
-  id          String       @id @default(uuid())
-  name        String
-  platform    RoomPlatform
-  inviteCode  String       @unique @map("invite_code")
-  accentColor String       @default("#8b5cf6") @map("accent_color")
-  createdBy   String       @map("created_by")
-  createdAt   DateTime     @default(now()) @map("created_at")
+  id                    String         @id @default(uuid())
+  name                  String
+  /// Null means "any platform" (issue #473) - a room can be created without locking to one
+  /// console/PC, in which case platform-gated checks (suggestion matching, candidate IGDB platform
+  /// resolution) fall back to per-game/per-user platform data instead of this single field. See
+  /// assertPlatformMatch in gameIntake.ts. The per-room ownership toggle (routes/games.ts) has no
+  /// such fallback - it refuses outright when this is null, since GameOwnership is keyed globally
+  /// by (userId, igdbId), not per room, so there's no single platform here to safely write a claim
+  /// against.
+  platform              RoomPlatform?
+  inviteCode            String         @unique @map("invite_code")
+  accentColor           String         @default("#8b5cf6") @map("accent_color")
+  createdBy             String         @map("created_by")
+  createdAt             DateTime       @default(now()) @map("created_at")
   /// Posts the same events as the in-app room notification feed to this Discord channel webhook,
   /// if set (see notifications.ts). One-way egress only - QueueUp never reads anything back from it.
-  discordWebhookUrl String? @map("discord_webhook_url")
+  discordWebhookUrl     String?        @map("discord_webhook_url")
   /// Room Settings dollar threshold (issue #339, replacing the old spinOnlyFullyOwned toggle):
   /// the game-picker's candidate pool is games every current member owns, OR games with a live
   /// price at or under this many dollars (see gameOwnership.ts / SpinPickerButton) - so a room can
   /// loosen "everyone must already own it" into "or it's cheap enough that buying in isn't a big
   /// ask." $0 reproduces the old fully-owned-only behavior.
-  spinOwnershipMaxPrice Int @default(15) @map("spin_ownership_max_price")
+  spinOwnershipMaxPrice Int            @default(15) @map("spin_ownership_max_price")
   /// Which visual presentation Spin the Wheel uses (issue #297) - defaults to the original
   /// slot-machine reel so existing rooms don't change.
-  spinWheelTheme SpinWheelTheme @default(slot) @map("spin_wheel_theme")
+  spinWheelTheme        SpinWheelTheme @default(slot) @map("spin_wheel_theme")
   /// When true, this room is listed in the public room directory (GET /api/rooms/public) and any
   /// signed-in user can self-join it instantly via POST /api/rooms/:roomId/join-public, without an
   /// invite code. Defaults to false (invite-only) so existing rooms are unaffected. The invite-code
   /// join path (POST /api/rooms/join) still works regardless of this flag.
-  isPublic Boolean @default(false) @map("is_public")
+  isPublic              Boolean        @default(false) @map("is_public")
   /// When true, a plain Member's "add a game" becomes a suggestion (see GameSuggestion) that a Room
   /// Master/Moderator must approve before it lands in the real backlog, rather than adding directly
   /// (issue #362). Defaults to false so existing rooms behave exactly as before - Room Masters and
   /// Moderators always add directly regardless of this flag, since they're the ones who'd otherwise
   /// be approving their own suggestion.
-  requireGameApproval Boolean @default(false) @map("require_game_approval")
+  requireGameApproval   Boolean        @default(false) @map("require_game_approval")
 
   creator       User             @relation("RoomCreatedBy", fields: [createdBy], references: [id])
   members       RoomMember[]
@@ -366,9 +373,9 @@ model Room {
 /// purely local/per-viewer thing (see roomSpin.ts) - only committing a winner ("Let's play") or
 /// going stale long enough to be treated as abandoned (see SPIN_STALE_MS) clears it.
 model RoomSpin {
-  id     String         @id @default(uuid())
-  roomId String         @unique @map("room_id")
-  theme  SpinWheelTheme
+  id              String         @id @default(uuid())
+  roomId          String         @unique @map("room_id")
+  theme           SpinWheelTheme
   /// The circular, weighted candidate strip a spin's physics (see spinPhysics.ts in
   /// packages/shared) travels along - Game.id in strip order. Built once (start, or "Spin again")
   /// and never rebuilt by a nudge; a nudge only moves position0/velocity0/timestamp0 further along
@@ -377,30 +384,30 @@ model RoomSpin {
   /// someone removing a backlog game while a room is actively spinning on it), the spin can no
   /// longer be resolved and is treated as expired/absent (see roomSpin.ts) rather than left
   /// dangling on a stale reference.
-  stripGameIds String[] @map("strip_game_ids")
+  stripGameIds    String[]       @map("strip_game_ids")
   /// Position (in strip slots) at timestamp0 - see spinPhysics.ts's SpinBase. Together with
   /// velocity0/timestamp0, this is the *entire* state of an in-progress spin: both the server and
   /// every member's client derive the live position, and the eventual settle time/position, from
   /// this one snapshot via a shared closed-form formula - nothing else needs to be persisted or
   /// streamed per frame.
-  position0 Float @map("position0")
+  position0       Float          @map("position0")
   /// Velocity (strip slots/second) at timestamp0 - positive is forward, negative is reversed
   /// (issue #487: repeated left nudges now reverse the spin rather than floor out at 0 - see
   /// spinPhysics.ts). Reset to a fresh (position0, velocity0, timestamp0) triple by every nudge,
   /// not adjusted in place, so a nudge mid-decay is still simple exponential decay from a new
   /// reference point rather than a sum of overlapping decay curves.
-  velocity0  Float    @map("velocity0")
-  timestamp0 DateTime @map("timestamp0")
+  velocity0       Float          @map("velocity0")
+  timestamp0      DateTime       @map("timestamp0")
   /// Computed once, at start or on each nudge, from (position0, velocity0, timestamp0) via
   /// spinPhysics.ts's settlesAtOf/settledPositionOf - deliberately *not* computed lazily whenever
   /// something happens to check, since that would let two observers checking at different moments
   /// disagree on where a still-decaying spin will land. Once now() >= settlesAt, the winner is a
   /// pure read: stripGameIds[candidateIndexAt(settledPosition, stripGameIds.length)].
-  settlesAt       DateTime @map("settles_at")
-  settledPosition Float    @map("settled_position")
+  settlesAt       DateTime       @map("settles_at")
+  settledPosition Float          @map("settled_position")
   /// Bumped on every nudge - lets a client tell "did the base actually change" apart from a poll
   /// just re-confirming the same state, the same role spinKey played before nudging existed.
-  nudgeCount Int      @default(0) @map("nudge_count")
+  nudgeCount      Int            @default(0) @map("nudge_count")
   /// Issue #488: ids of members who've opened Spin the Wheel while it's still in its pre-start
   /// waiting room (see the /spin/ready route and SPIN_WAITING_ROOM_MS in roomSpin.ts) - surfaced to
   /// every viewer as "N members ready" so the 30s wait actually shows who's shown up instead of
@@ -410,10 +417,10 @@ model RoomSpin {
   /// meaningful during the waiting window; reset to empty on every start/restart (a restart has no
   /// waiting window of its own - see roomSpin.ts - so it's simply unused until the next fresh
   /// start). Plain string array for the same reason as stripGameIds above.
-  readyUserIds String[] @default([]) @map("ready_user_ids")
-  startedBy    String   @map("started_by")
-  createdAt  DateTime @default(now()) @map("created_at")
-  updatedAt  DateTime @updatedAt @map("updated_at")
+  readyUserIds    String[]       @default([]) @map("ready_user_ids")
+  startedBy       String         @map("started_by")
+  createdAt       DateTime       @default(now()) @map("created_at")
+  updatedAt       DateTime       @updatedAt @map("updated_at")
 
   room    Room @relation(fields: [roomId], references: [id], onDelete: Cascade)
   starter User @relation(fields: [startedBy], references: [id], onDelete: Cascade)
@@ -422,10 +429,10 @@ model RoomSpin {
 }
 
 model RoomMember {
-  roomId   String    @map("room_id")
-  userId   String    @map("user_id")
-  role     RoomRole  @default(member)
-  joinedAt DateTime  @default(now()) @map("joined_at")
+  roomId              String    @map("room_id")
+  userId              String    @map("user_id")
+  role                RoomRole  @default(member)
+  joinedAt            DateTime  @default(now()) @map("joined_at")
   /// Cursor for this member's unread count in their room: notifications created after this (or
   /// after joinedAt, if they've never opened the room's notifications) count as unread. Kept on
   /// the membership row rather than a per-notification read-receipt table since a room's
@@ -442,84 +449,84 @@ model RoomMember {
 }
 
 model Game {
-  id             String     @id @default(uuid())
-  roomId         String?    @map("room_id")
-  addedBy        String     @map("added_by")
-  igdbId         Int        @map("igdb_id")
-  title          String
-  platform       String
-  genre          String?
+  id                           String     @id @default(uuid())
+  roomId                       String?    @map("room_id")
+  addedBy                      String     @map("added_by")
+  igdbId                       Int        @map("igdb_id")
+  title                        String
+  platform                     String
+  genre                        String?
   /// Captured at intake time from IGDB - not re-fetchable later without hitting IGDB again per
   /// game, so this needs to be saved when the game is added, not derived after the fact.
-  releaseYear    Int?       @map("release_year")
+  releaseYear                  Int?       @map("release_year")
   /// Full release date/time (issue #284) - releaseYear alone is only precise to the year, which
   /// isn't enough to reliably tell "already released" from "releasing later this year" for Spin
   /// the Wheel's isUnreleased check. Null on games added before this field existed; that check
   /// falls back to the year-only heuristic for those rather than requiring a backfill.
-  releaseDate    DateTime?  @map("release_date")
+  releaseDate                  DateTime?  @map("release_date")
   /// IGDB's franchise/series id for this game, if it belongs to one (issue #283) - captured at
   /// intake same as releaseYear/maxCoopPlayers above. Not surfaced anywhere yet; laying the
   /// groundwork for a future "recommend playing the prior entry first" Spin the Wheel feature
   /// without needing a second IGDB round trip per game once that's built. Null on games added
   /// before this field existed, and on any game IGDB doesn't have in a collection.
-  igdbCollectionId Int?     @map("igdb_collection_id")
-  maxCoopPlayers Int?       @map("max_coop_players")
+  igdbCollectionId             Int?       @map("igdb_collection_id")
+  maxCoopPlayers               Int?       @map("max_coop_players")
   /// Hours for an average "main story" playthrough, from IGDB's game_time_to_beats endpoint
   /// (issue #189) - same capture-at-intake reasoning as releaseYear/maxCoopPlayers above. Null
   /// when IGDB has no time-to-beat data for this game. Sourced from IGDB's "normally" figure -
   /// kept as-is (issue #248) so this column's meaning doesn't shift out from under rows already
   /// on file; see timeToBeatRushedHours/timeToBeatCompletionistHours for the rest of the
   /// breakdown IGDB exposes alongside it.
-  timeToBeatHours Int?      @map("time_to_beat_hours")
+  timeToBeatHours              Int?       @map("time_to_beat_hours")
   /// Hours for a rushed/speedrun-style playthrough, from IGDB's game_time_to_beats "hastily"
   /// figure (issue #248) - same capture-at-intake reasoning as timeToBeatHours above. Null when
   /// IGDB has no time-to-beat data for this game. This is always less time than timeToBeatHours
   /// (Main Story), not more - the three game_time_to_beats figures are strictly ordered hastily <
   /// normally < completely - so it's additive alongside timeToBeatHours rather than replacing it,
   /// but represents a quicker/less-thorough clear, not a fuller one.
-  timeToBeatRushedHours        Int? @map("time_to_beat_rushed_hours")
+  timeToBeatRushedHours        Int?       @map("time_to_beat_rushed_hours")
   /// Hours for a full completionist (100%) playthrough, from IGDB's game_time_to_beats
   /// "completely" figure (issue #248) - same capture-at-intake reasoning as timeToBeatHours
   /// above. Null when IGDB has no time-to-beat data for this game.
-  timeToBeatCompletionistHours Int? @map("time_to_beat_completionist_hours")
+  timeToBeatCompletionistHours Int?       @map("time_to_beat_completionist_hours")
   /// 0-100 review score (issue #311) - IGDB's total_rating (blended critic+user), falling back to
   /// aggregated_rating (critic-only) then rating (user-only) if the preferred figure is missing -
   /// see reviewScoreFrom in igdbClient.ts. Same capture-at-intake reasoning as maxCoopPlayers
   /// above. Null when IGDB has no review data at all for this game (not a penalty - Spin the
   /// Wheel's weighting treats it the same as a game nobody's voted on), or on games added before
   /// this field existed.
-  reviewScore    Int?       @map("review_score")
-  ggDealsUrl     String?    @map("gg_deals_url")
-  steamAppid     Int?       @map("steam_appid")
-  coverImageUrl  String?    @map("cover_image_url")
-  status         GameStatus @default(backlog)
+  reviewScore                  Int?       @map("review_score")
+  ggDealsUrl                   String?    @map("gg_deals_url")
+  steamAppid                   Int?       @map("steam_appid")
+  coverImageUrl                String?    @map("cover_image_url")
+  status                       GameStatus @default(backlog)
   /// Set the first time any player's Steam achievement progress on this game is observed at
   /// 100% (opening the detail modal, "Sync completions from Steam", or Year in Review) - never
   /// computed live on every grid render, which would mean a Steam API call per Steam-linked game
   /// per page view. Drives the card ribbon showing "Clocked" (gold) instead of "Beaten" (green)
   /// for a Done game. Sticky once true - a later Replay doesn't clear it, since it's a record of
   /// "this has been 100%'d before," not "the current playthrough is 100%'d."
-  steamFullyCompleted Boolean @default(false) @map("steam_fully_completed")
-  createdAt      DateTime   @default(now()) @map("created_at")
-  updatedAt      DateTime   @updatedAt @map("updated_at")
+  steamFullyCompleted          Boolean    @default(false) @map("steam_fully_completed")
+  createdAt                    DateTime   @default(now()) @map("created_at")
+  updatedAt                    DateTime   @updatedAt @map("updated_at")
   /// Set by the admin bulk-archive action (Done games untouched for 90+ days) - archived games are
   /// hidden from normal shelf/room listings but not deleted, preserving history.
-  archivedAt     DateTime?  @map("archived_at")
+  archivedAt                   DateTime?  @map("archived_at")
   /// A price to alert at, set by any user who can see the game (string decimal, matching the
   /// existing price-string convention - see GamePrice). Shared per-game rather than per-user: a
   /// room game has one target that notifies the whole room, same as any other room notification.
   /// Cleared automatically once the alert fires (see priceAlerts.ts) so a price that stays low
   /// doesn't re-notify on every subsequent page load.
-  targetPrice    String?    @map("target_price")
+  targetPrice                  String?    @map("target_price")
   /// A user-set fallback dollar amount (issue #385), shown in place of "-" wherever the price
   /// couldn't be looked up (no gg.deals/Steam match at all - see GamePrice.amount/source) - some
   /// games just aren't findable there. Same string-decimal convention as targetPrice. Ignored once
   /// a live price becomes available, since that's always more current.
-  manualPrice    String?    @map("manual_price")
+  manualPrice                  String?    @map("manual_price")
   /// The live price we last sent an all-time-low alert for (see priceAlerts.ts) - lets us notify
   /// again if the price drops even further, without re-notifying on every subsequent check while
   /// it sits at the same low. Independent of targetPrice, which is a user-set threshold.
-  notifiedAtlPrice String?  @map("notified_atl_price")
+  notifiedAtlPrice             String?    @map("notified_atl_price")
   /// User-set "play this after" pointer to another game in the same room (issue: play-after
   /// dropdown) - e.g. Borderlands 2 pointed at Borderlands 1. Purely organizational: nothing
   /// enforces it at write time beyond same-room + not-self (checked at the API layer, not here),
@@ -527,7 +534,7 @@ model Game {
   /// not yet marked Done) - see hasUnmetPrerequisite in gameGridLogic.ts. SetNull on delete rather
   /// than blocking the delete: removing the prerequisite game should un-stick its successor, not
   /// prevent the removal.
-  prerequisiteGameId String? @map("prerequisite_game_id")
+  prerequisiteGameId           String?    @map("prerequisite_game_id")
   /// Set at intake time (issue #338) when IGDB identifies this game as DLC/an expansion with a
   /// known parent - points at that base game's row in the *same* room/shelf scope, auto-creating
   /// it first if it wasn't already added (see linkDlcToBaseGame in gameIntake.ts). Unlike
@@ -535,17 +542,17 @@ model Game {
   /// about the game itself, not an organizational "play order" pointer, so there's no UI that lets
   /// someone repoint or clear it. SetNull on delete, same reasoning as prerequisiteGameId - removing
   /// the base game shouldn't block removing (or orphan) its DLC.
-  baseGameId String? @map("base_game_id")
+  baseGameId                   String?    @map("base_game_id")
 
-  room  Room?     @relation(fields: [roomId], references: [id], onDelete: Cascade)
-  adder User      @relation(fields: [addedBy], references: [id], onDelete: Cascade)
-  votes Vote[]
-  tags  GameTag[]
-  prerequisiteGame Game?  @relation("GamePrerequisite", fields: [prerequisiteGameId], references: [id], onDelete: SetNull)
-  successorGames   Game[] @relation("GamePrerequisite")
-  baseGame Game?  @relation("GameBaseGame", fields: [baseGameId], references: [id], onDelete: SetNull)
-  dlc      Game[] @relation("GameBaseGame")
-  playLogs PlayLog[]
+  room             Room?     @relation(fields: [roomId], references: [id], onDelete: Cascade)
+  adder            User      @relation(fields: [addedBy], references: [id], onDelete: Cascade)
+  votes            Vote[]
+  tags             GameTag[]
+  prerequisiteGame Game?     @relation("GamePrerequisite", fields: [prerequisiteGameId], references: [id], onDelete: SetNull)
+  successorGames   Game[]    @relation("GamePrerequisite")
+  baseGame         Game?     @relation("GameBaseGame", fields: [baseGameId], references: [id], onDelete: SetNull)
+  dlc              Game[]    @relation("GameBaseGame")
+  playLogs         PlayLog[]
 
   @@index([roomId])
   @@index([addedBy], map: "idx_games_personal")
