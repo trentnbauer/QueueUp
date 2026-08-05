@@ -96,9 +96,10 @@ export function useSteamImport(steamLinked: boolean, onImported: () => void) {
 
     await new Promise<void>((resolve) => {
       pollIntervalRef.current = setInterval(async () => {
+        if (!mountedRef.current) return;
         try {
           const { progress: latest } = await gamesApi.importSteamWishlistProgress();
-          if (!latest) return;
+          if (!mountedRef.current || !latest) return;
           if (!latest.done) {
             setWishlistProgress(latest);
             return;
@@ -148,9 +149,10 @@ export function useSteamImport(steamLinked: boolean, onImported: () => void) {
 
     await new Promise<void>((resolve) => {
       pollIntervalRef.current = setInterval(async () => {
+        if (!mountedRef.current) return;
         try {
           const { progress: latest } = await gamesApi.importSteamLibraryProgress();
-          if (!latest) return;
+          if (!mountedRef.current || !latest) return;
           if (!latest.done) {
             setProgress(latest);
             return;
