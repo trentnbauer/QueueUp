@@ -1,5 +1,6 @@
 import { apiGet, apiPost, apiPatch, apiPut, apiDelete } from './client';
 import type {
+  BacklogInsights,
   BadgeDefinition,
   BarcodeGameMatch,
   BulkRemoveGamesRequest,
@@ -102,5 +103,6 @@ export const gamesApi = {
   currentlyPlaying: () => apiGet<CrossRoomPlaying>('/api/me/currently-playing'),
   beaten: () => apiGet<CrossRoomBeaten>('/api/me/beaten'),
   nextPick: () => apiGet<NextPickResponse>('/api/me/next-pick'),
+  backlogInsights: () => apiGet<BacklogInsights>('/api/me/backlog-insights'),
   syncSteamCompletions: () => apiPost<SteamCompletionsSyncResult>('/api/games/sync-steam-completions'),
 };
