@@ -46,7 +46,7 @@ function useLinkedAccounts() {
  * own (scopes the Personal Shelf's add-game search), which currency prices display in, and which
  * providers can sign into this account. */
 export function ProfileSettingsView() {
-  const { user, ownedPlatforms, refetch } = useAuth();
+  const { user, ownedPlatforms, publicProfileEnabled, refetch } = useAuth();
   const { region, setRegion } = useCurrencyRegion();
   const { density, setDensity } = useCardDensity();
   const { viewMode, setViewMode } = useViewMode();
@@ -61,6 +61,9 @@ export function ProfileSettingsView() {
   const [yearInReview, setYearInReview] = useState<YearInReview | null>(null);
   const [loadingYearInReview, setLoadingYearInReview] = useState(false);
   const [yearInReviewError, setYearInReviewError] = useState<string | null>(null);
+  const [togglingPublicProfile, setTogglingPublicProfile] = useState(false);
+  const [publicProfileError, setPublicProfileError] = useState<string | null>(null);
+  const [publicProfileLinkCopied, setPublicProfileLinkCopied] = useState(false);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [deleteConfirmText, setDeleteConfirmText] = useState('');
   const [deleting, setDeleting] = useState(false);
@@ -118,6 +121,29 @@ export function ProfileSettingsView() {
     } finally {
       setSaving(false);
     }
+  }
+
+  // A single boolean fires immediately on click rather than going through the batched
+  // select-then-"Save changes" pattern the multi-select systems-owned setting above uses - there's
+  // nothing to batch with just one checkbox.
+  async function handleTogglePublicProfile() {
+    setTogglingPublicProfile(true);
+    setPublicProfileError(null);
+    try {
+      await authApi.updatePublicProfile(!publicProfileEnabled);
+      await refetch();
+    } catch (err) {
+      setPublicProfileError(err instanceof Error ? err.message : 'Could not update your public profile setting');
+    } finally {
+      setTogglingPublicProfile(false);
+    }
+  }
+
+  async function handleCopyPublicProfileLink() {
+    if (!user) return;
+    await navigator.clipboard.writeText(`${window.location.origin}${getBasePath()}/u/${user.id}`);
+    setPublicProfileLinkCopied(true);
+    setTimeout(() => setPublicProfileLinkCopied(false), 1500);
   }
 
   async function handleDeleteAccount() {
@@ -387,6 +413,37 @@ export function ProfileSettingsView() {
                 </ol>
               </div>
             )}
+          </div>
+        )}
+      </div>
+
+      <div className={styles.section}>
+        <div className={styles.sectionTitle}>Public profile</div>
+        <p className={styles.hint}>
+          Share a read-only link showing your achievements, Beaten count, and Currently Playing list -
+          no sign-in required to view it. Off by default.
+        </p>
+        {publicProfileError && <div className={styles.error}>{publicProfileError}</div>}
+        <label className={styles.checkboxRow}>
+          <input
+            type="checkbox"
+            checked={publicProfileEnabled}
+            onChange={handleTogglePublicProfile}
+            disabled={togglingPublicProfile}
+          />
+          Make my profile public
+        </label>
+        {publicProfileEnabled && (
+          <div className={styles.saveRow}>
+            <input
+              className={styles.currencySelect}
+              readOnly
+              value={`${window.location.origin}${getBasePath()}/u/${user.id}`}
+              onFocus={(e) => e.target.select()}
+            />
+            <button type="button" className={styles.saveButton} onClick={handleCopyPublicProfileLink}>
+              {publicProfileLinkCopied ? 'Copied' : 'Copy link'}
+            </button>
           </div>
         )}
       </div>

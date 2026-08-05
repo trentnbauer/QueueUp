@@ -37,3 +37,11 @@ export async function unionOwnedPlatforms(userId: string, platforms: RoomPlatfor
   const updated = await prisma.user.update({ where: { id: userId }, data: { ownedPlatforms: merged } });
   return updated.ownedPlatforms;
 }
+
+/** Toggles the public profile opt-in (issue #511) - see User.publicProfileEnabled's schema doc for
+ * what this actually gates. */
+export async function setPublicProfileEnabled(userId: string, enabled: unknown): Promise<boolean> {
+  if (typeof enabled !== 'boolean') throw new HttpError(400, 'enabled must be a boolean');
+  const updated = await prisma.user.update({ where: { id: userId }, data: { publicProfileEnabled: enabled } });
+  return updated.publicProfileEnabled;
+}

@@ -405,6 +405,11 @@ export interface UpdateOwnedPlatformsRequest {
   platforms: RoomPlatform[];
 }
 
+/** Toggles User.publicProfileEnabled (issue #511) - see that field's schema doc. */
+export interface UpdatePublicProfileRequest {
+  enabled: boolean;
+}
+
 export interface UpdateGameStatusRequest {
   status: GameStatus;
 }
@@ -1386,4 +1391,32 @@ export interface BadgesResponse {
  * unlock-celebration plumbing (useAnnounceUnlock). */
 export interface RefreshBadgesResponse {
   unlockedBadges: BadgeDefinition[];
+}
+
+/** One currently-playing/play-next entry on a public profile page (issue #511) - a deliberately
+ * small slice of Game, not the full shape, since the viewer might not even be signed in and this
+ * is scoped to only what a public showcase should ever expose. */
+export interface PublicProfileGame {
+  id: string;
+  title: string;
+  coverImageUrl: string | null;
+  platform: string;
+}
+
+/** Response for GET /api/public/users/:id (issue #511) - the shareable, unauthenticated
+ * counterpart to a user's Personal Shelf, reachable at `/u/:id` regardless of whether the viewer
+ * is signed in. Only ever returned when the target user has opted in (User.publicProfileEnabled);
+ * a disabled or nonexistent id 404s identically, so a scan of ids can't distinguish "no such user"
+ * from "exists but private." Only unlocked badges are included (unlike GET /api/me/badges' full
+ * locked+unlocked catalog) - a public showcase is "here's what I've earned," not "here's what I
+ * haven't done yet." Personal Shelf only, same scope as the release-watch alerts (#510) and the
+ * Franchise Finisher/DLC Completionist badges this reuses data alongside - a room game isn't
+ * "theirs" to show off the same way. */
+export interface PublicUserProfile {
+  displayName: string;
+  avatarColor: string;
+  avatarUrl: string | null;
+  badges: BadgeSummary[];
+  beatenGameCount: number;
+  currentlyPlaying: PublicProfileGame[];
 }

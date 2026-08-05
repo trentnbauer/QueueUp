@@ -18,6 +18,7 @@ import versionRoutes from './routes/version.js';
 import apiV1Routes from './routes/apiV1.js';
 import pendingLibraryImportRoutes from './routes/pendingLibraryImports.js';
 import badgeRoutes from './routes/badges.js';
+import publicProfileRoutes from './routes/publicProfile.js';
 import { env } from './config/env.js';
 import { redis } from './services/redisClient.js';
 import { logCaptureStream } from './services/logBuffer.js';
@@ -92,6 +93,7 @@ export async function buildApp() {
       await instance.register(adminRoutes);
       await instance.register(pendingLibraryImportRoutes);
       await instance.register(badgeRoutes);
+      await instance.register(publicProfileRoutes);
       // Bearer-token-authenticated, scoped under its own prefix and preHandler (see apiV1.ts) -
       // registered as a distinct plugin, not folded into gameRoutes/roomRoutes, so its auth hook
       // can never leak onto any cookie-authenticated route above. Fastify combines nested
