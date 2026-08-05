@@ -98,4 +98,19 @@ describe('computeRoomYearInReview', () => {
     const result = computeRoomYearInReview([makeGame()], NOW);
     expect(result.topVoted).toBeNull();
   });
+
+  describe('windowStart on a leap day (issue #527)', () => {
+    const LEAP_DAY_NOW = new Date('2024-02-29T12:00:00.000Z').getTime();
+
+    it('lands on Feb 28 of the prior (non-leap) year rather than overflowing to March 1', () => {
+      const result = computeRoomYearInReview([], LEAP_DAY_NOW);
+      expect(result.windowStart).toBe('2023-02-28T12:00:00.000Z');
+    });
+
+    it('does not drop a game updated on Feb 28 of the prior year from the window', () => {
+      const edgeCase = makeGame({ id: 'edge', status: 'done', updatedAt: '2023-02-28T12:00:00.000Z' });
+      const result = computeRoomYearInReview([edgeCase], LEAP_DAY_NOW);
+      expect(result.completedGames.map((g) => g.id)).toEqual(['edge']);
+    });
+  });
 });
