@@ -75,7 +75,10 @@ export interface User {
 export interface Room {
   id: string;
   name: string;
-  platform: RoomPlatform;
+  /** Null means "any platform" (issue #473) - the room isn't locked to a single console/PC, so
+   * suggestion-matching, ownership, and IGDB platform resolution fall back to per-game/per-user
+   * platform data instead of this one field. */
+  platform: RoomPlatform | null;
   accentColor: string;
   createdBy: string;
   createdAt: string;
@@ -148,7 +151,8 @@ export interface GameSuggestion {
 export interface PublicRoomSummary {
   id: string;
   name: string;
-  platform: RoomPlatform;
+  /** Null means "any platform" (issue #473) - see Room.platform. */
+  platform: RoomPlatform | null;
   accentColor: string;
   memberCount: number;
 }
@@ -365,7 +369,9 @@ export type CreateGameResponse = ({ game: Game } | { suggestion: GameSuggestion 
 
 export interface CreateRoomRequest {
   name: string;
-  platform: RoomPlatform;
+  /** Omit (or pass null) for "any platform" (issue #473) - the room won't be locked to a single
+   * console/PC. */
+  platform?: RoomPlatform | null;
   accentColor: string;
   /** Defaults to false (invite-only) if omitted. */
   isPublic?: boolean;
@@ -374,7 +380,8 @@ export interface CreateRoomRequest {
 /** Room Master only. Any subset of fields may be provided. */
 export interface UpdateRoomRequest {
   name?: string;
-  platform?: RoomPlatform;
+  /** Pass null to clear the room's platform restriction (issue #473); omit to leave it unchanged. */
+  platform?: RoomPlatform | null;
   accentColor?: string;
   /** Set to null to clear/disable the webhook. */
   discordWebhookUrl?: string | null;
@@ -631,7 +638,8 @@ export interface AdminUserSummary {
 export interface AdminRoomSummary {
   id: string;
   name: string;
-  platform: RoomPlatform;
+  /** Null means "any platform" (issue #473) - see Room.platform. */
+  platform: RoomPlatform | null;
   createdBy: string;
   creatorDisplayName: string;
   memberCount: number;

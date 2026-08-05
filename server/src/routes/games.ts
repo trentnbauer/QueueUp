@@ -444,7 +444,10 @@ export default async function gameRoutes(app: FastifyInstance) {
       const userId = await request.requireAuth();
       const { roomId } = request.query;
       if (roomId) await requireMembership(roomId, userId);
-      const platforms = roomId ? [await getRoomPlatform(roomId)] : await getOwnedPlatforms(userId);
+      // A platform-less room (issue #473) falls back to the caller's own owned platforms, same as
+      // no room at all.
+      const roomPlatform = roomId ? await getRoomPlatform(roomId) : null;
+      const platforms = roomPlatform ? [roomPlatform] : await getOwnedPlatforms(userId);
       // Opt-in (pending-import review's "search manually" fallback needs to match an already-owned
       // game onto a new platform - the normal already-added exclusion below would hide it from
       // every result, leaving only its unowned DLC/add-ons visible). Every other caller leaves this
@@ -476,7 +479,10 @@ export default async function gameRoutes(app: FastifyInstance) {
       const userId = await request.requireAuth();
       const { roomId } = request.query;
       if (roomId) await requireMembership(roomId, userId);
-      const platforms = roomId ? [await getRoomPlatform(roomId)] : await getOwnedPlatforms(userId);
+      // A platform-less room (issue #473) falls back to the caller's own owned platforms, same as
+      // no room at all.
+      const roomPlatform = roomId ? await getRoomPlatform(roomId) : null;
+      const platforms = roomPlatform ? [roomPlatform] : await getOwnedPlatforms(userId);
       const excludeIgdbIds = await existingIgdbIds(roomId ?? null, userId);
       const hideAddons = request.query.hideAddons !== 'false';
 
@@ -520,7 +526,10 @@ export default async function gameRoutes(app: FastifyInstance) {
       }
       const { roomId } = request.query;
       if (roomId) await requireMembership(roomId, userId);
-      const platforms = roomId ? [await getRoomPlatform(roomId)] : await getOwnedPlatforms(userId);
+      // A platform-less room (issue #473) falls back to the caller's own owned platforms, same as
+      // no room at all.
+      const roomPlatform = roomId ? await getRoomPlatform(roomId) : null;
+      const platforms = roomPlatform ? [roomPlatform] : await getOwnedPlatforms(userId);
       const excludeIgdbIds = await existingIgdbIds(roomId ?? null, userId);
       // Same opt-out as /api/games/search (issue #354) - the collection review screen otherwise
       // ignored the "Hide DLC & add-ons" checkbox entirely.
@@ -543,7 +552,10 @@ export default async function gameRoutes(app: FastifyInstance) {
       const game = await loadGameOr404(request.params.id);
       await requireGameReadAccess(game, userId);
 
-      const platforms = game.roomId ? [await getRoomPlatform(game.roomId)] : await getOwnedPlatforms(userId);
+      // A platform-less room (issue #473) falls back to the caller's own owned platforms, same as
+      // no room at all.
+      const roomPlatform = game.roomId ? await getRoomPlatform(game.roomId) : null;
+      const platforms = roomPlatform ? [roomPlatform] : await getOwnedPlatforms(userId);
       const excludeIgdbIds = await existingIgdbIds(game.roomId, userId);
       const results = await dlcIntake(game.igdbId, platforms, excludeIgdbIds);
       return { results };
@@ -1145,9 +1157,13 @@ export default async function gameRoutes(app: FastifyInstance) {
     if (destRoomId) {
       await requireMembership(destRoomId, userId);
       const destPlatform = await getRoomPlatform(destRoomId);
-      const families = platformFamilies(game.platform.split(',').map((name) => ({ name: name.trim() })));
-      if (!families.includes(destPlatform)) {
-        throw new HttpError(400, `${game.title} isn't available on this room's platform.`);
+      // A platform-less destination room (issue #473) has nothing to check the game against - any
+      // platform is fine there.
+      if (destPlatform) {
+        const families = platformFamilies(game.platform.split(',').map((name) => ({ name: name.trim() })));
+        if (!families.includes(destPlatform)) {
+          throw new HttpError(400, `${game.title} isn't available on this room's platform.`);
+        }
       }
     }
     await requireNotDuplicate(destRoomId ?? null, userId, game.igdbId);
@@ -1184,7 +1200,9 @@ export default async function gameRoutes(app: FastifyInstance) {
       // other platform never shows a price fetched here at all (see gameSerializer.ts's platform-
       // scoped pricing), so there's no point spending a live gg.deals call on one; just re-
       // serialize as-is, which already resolves to "unavailable" for that room.
-      const platform = game.roomId ? await getRoomPlatform(game.roomId) : 'pc';
+      // A platform-less room (issue #473) is treated as 'pc' here too, same as
+      // gameSerializer.ts's resolvePricingPlatform - null isn't evidence the game is non-PC.
+      const platform = game.roomId ? ((await getRoomPlatform(game.roomId)) ?? 'pc') : 'pc';
       if (platform === 'pc') {
         const steamAppId = game.steamAppid ?? (await backfillSteamAppId(game.id, game.igdbId));
         await refreshGamePricing(game.id, steamAppId);
@@ -1300,6 +1318,14 @@ export default async function gameRoutes(app: FastifyInstance) {
         throw new HttpError(400, 'Ownership can only be toggled for a game in a room');
       }
       const room = await prisma.room.findUniqueOrThrow({ where: { id: game.roomId }, select: { platform: true } });
+      // Same reasoning, for a platform-less room (issue #473): GameOwnership is keyed globally by
+      // (userId, igdbId), not per room, so there's no single platform here to safely write a claim
+      // against - marking "owned" would either claim every platform the title's ever shipped on
+      // (via game.platform's full IGDB label) or none, both wrong. Ownership still works for these
+      // rooms via the Add Game modal's own platform picker; only this shortcut is unavailable.
+      if (!room.platform) {
+        throw new HttpError(400, "This room has no platform restriction, so ownership can't be toggled here");
+      }
 
       const { owned } = request.body;
       const unlockedBadges = await toggleOwnershipForPlatform(userId, game.igdbId, room.platform, owned);

@@ -22,7 +22,11 @@ import { useMarkRoomNotificationsRead } from '../hooks/useNotifications';
 export function RoomView() {
   const { roomId } = useParams<{ roomId: string }>();
   const { user } = useAuth();
-  const { switchView } = useView();
+  const { switchView, activeRoom } = useView();
+  // The ownership toggle means "I own this on this room's platform" - meaningless (and rejected
+  // by the server) for a platform-less room (issue #473), since there's no single platform to key
+  // the claim on. See the ownership route in routes/games.ts.
+  const canToggleOwnership = Boolean(activeRoom?.platform);
   const {
     games,
     truncated,
@@ -123,7 +127,7 @@ export function RoomView() {
           onSetSteamMatch={setSteamMatch}
           onSetTargetPrice={setTargetPrice}
           onSetManualPrice={setManualPrice}
-          onSetOwnership={setOwnership}
+          onSetOwnership={canToggleOwnership ? setOwnership : undefined}
           onApplyTag={applyTag}
           onRemoveTag={removeTag}
           onSetPrerequisite={setPrerequisite}
@@ -143,7 +147,7 @@ export function RoomView() {
             onSetSteamMatch={setSteamMatch}
             onSetTargetPrice={setTargetPrice}
             onSetManualPrice={setManualPrice}
-            onSetOwnership={setOwnership}
+            onSetOwnership={canToggleOwnership ? setOwnership : undefined}
             onApplyTag={applyTag}
             onRemoveTag={removeTag}
             onSetPrerequisite={setPrerequisite}
@@ -161,7 +165,7 @@ export function RoomView() {
             onSetSteamMatch={setSteamMatch}
             onSetTargetPrice={setTargetPrice}
             onSetManualPrice={setManualPrice}
-            onSetOwnership={setOwnership}
+            onSetOwnership={canToggleOwnership ? setOwnership : undefined}
             onApplyTag={applyTag}
             onRemoveTag={removeTag}
             onSetPrerequisite={setPrerequisite}
@@ -186,7 +190,7 @@ export function RoomView() {
             onSetSteamMatch={setSteamMatch}
             onSetTargetPrice={setTargetPrice}
             onSetManualPrice={setManualPrice}
-            onSetOwnership={setOwnership}
+            onSetOwnership={canToggleOwnership ? setOwnership : undefined}
             onApplyTag={applyTag}
             onRemoveTag={removeTag}
             onSetPrerequisite={setPrerequisite}
@@ -204,7 +208,7 @@ export function RoomView() {
             onSetSteamMatch={setSteamMatch}
             onSetTargetPrice={setTargetPrice}
             onSetManualPrice={setManualPrice}
-            onSetOwnership={setOwnership}
+            onSetOwnership={canToggleOwnership ? setOwnership : undefined}
             onApplyTag={applyTag}
             onRemoveTag={removeTag}
             onSetPrerequisite={setPrerequisite}
@@ -222,7 +226,7 @@ export function RoomView() {
             onSetSteamMatch={setSteamMatch}
             onSetTargetPrice={setTargetPrice}
             onSetManualPrice={setManualPrice}
-            onSetOwnership={setOwnership}
+            onSetOwnership={canToggleOwnership ? setOwnership : undefined}
             onApplyTag={applyTag}
             onRemoveTag={removeTag}
             onSetPrerequisite={setPrerequisite}

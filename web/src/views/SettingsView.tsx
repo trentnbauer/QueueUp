@@ -231,7 +231,8 @@ export function SettingsView() {
               <div className={styles.rowMain}>
                 <span className={styles.rowTitle}>{r.name}</span>
                 <span className={styles.rowSubtitle}>
-                  {ROOM_PLATFORM_LABELS[r.platform]} · Created by {r.creatorDisplayName} · {r.memberCount} member
+                  {r.platform ? ROOM_PLATFORM_LABELS[r.platform] : 'Any platform'} · Created by {r.creatorDisplayName} ·{' '}
+                  {r.memberCount} member
                   {r.memberCount === 1 ? '' : 's'} · {r.gameCount} game{r.gameCount === 1 ? '' : 's'}
                 </span>
               </div>

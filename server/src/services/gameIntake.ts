@@ -311,7 +311,9 @@ export async function createGameForUser(
     await requireNotAlreadySuggested(roomId, igdbId);
 
     const detail = await getGameDetail(igdbId);
-    assertPlatformMatch(detail, [room.platform]);
+    // A null room.platform means the room has no platform restriction (issue #473) - skip the
+    // gate entirely rather than passing [null], which would fail every suggestion.
+    assertPlatformMatch(detail, room.platform ? [room.platform] : undefined);
 
     const suggestion = await prisma.gameSuggestion.create({
       data: {
@@ -349,7 +351,9 @@ export async function createGameForUser(
     };
   }
 
-  const platforms = room ? [room.platform] : await getOwnedPlatforms(userId);
+  // A platform-less room (issue #473) resolves candidates the same way the Personal Shelf does -
+  // off the adding user's own owned platforms - since there's no single room platform to pin to.
+  const platforms = room?.platform ? [room.platform] : await getOwnedPlatforms(userId);
   await requireNotDuplicate(roomId ?? null, userId, igdbId);
 
   const resolved = await resolveGameForCreation(igdbId, platforms);

@@ -28,6 +28,9 @@ import yirStyles from '../views/ProfileSettingsView.module.css';
 
 const ROOM_PLATFORM_OPTIONS = Object.keys(ROOM_PLATFORM_LABELS) as RoomPlatform[];
 const SPIN_WHEEL_THEME_OPTIONS = Object.keys(SPIN_WHEEL_THEME_LABELS) as SpinWheelTheme[];
+// HTML <select> values are always strings, so null ("any platform", issue #473) needs a string
+// stand-in distinct from every real RoomPlatform key.
+const ANY_PLATFORM_VALUE = 'any';
 
 const ROLE_LABEL: Record<RoomRole, string> = {
   room_master: 'Room Master',
@@ -51,7 +54,7 @@ export function RoomSettingsModal({ room, members, games, onClose }: RoomSetting
   const dialogRef = useModalA11y<HTMLDivElement>(onClose);
 
   const [name, setName] = useState(room.name);
-  const [platform, setPlatform] = useState<RoomPlatform>(room.platform);
+  const [platform, setPlatform] = useState<RoomPlatform | null>(room.platform);
   const [accentColor, setAccentColor] = useState(room.accentColor);
   const [discordWebhookUrl, setDiscordWebhookUrl] = useState(room.discordWebhookUrl ?? '');
   const [spinOwnershipMaxPrice, setSpinOwnershipMaxPrice] = useState(String(room.spinOwnershipMaxPrice));
@@ -270,9 +273,10 @@ export function RoomSettingsModal({ room, members, games, onClose }: RoomSetting
                 <select
                   id="room-settings-platform"
                   className={styles.select}
-                  value={platform}
-                  onChange={(e) => setPlatform(e.target.value as RoomPlatform)}
+                  value={platform ?? ANY_PLATFORM_VALUE}
+                  onChange={(e) => setPlatform(e.target.value === ANY_PLATFORM_VALUE ? null : (e.target.value as RoomPlatform))}
                 >
+                  <option value={ANY_PLATFORM_VALUE}>Any platform</option>
                   {ROOM_PLATFORM_OPTIONS.map((p) => (
                     <option key={p} value={p}>
                       {ROOM_PLATFORM_LABELS[p]}
@@ -386,7 +390,7 @@ export function RoomSettingsModal({ room, members, games, onClose }: RoomSetting
             </>
           ) : (
             <p className={styles.readonlyNote}>
-              {room.name} · {ROOM_PLATFORM_LABELS[room.platform]}
+              {room.name} · {room.platform ? ROOM_PLATFORM_LABELS[room.platform] : 'Any platform'}
               <br />
               Only the Room Master can change these settings.
             </p>

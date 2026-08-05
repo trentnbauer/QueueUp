@@ -9,6 +9,9 @@ import { roomsApi } from '../api/rooms';
 import styles from './AddRoomModal.module.css';
 
 const ROOM_PLATFORM_OPTIONS = Object.keys(ROOM_PLATFORM_LABELS) as RoomPlatform[];
+// HTML <select> values are always strings, so null ("any platform", issue #473) needs a string
+// stand-in distinct from every real RoomPlatform key.
+const ANY_PLATFORM_VALUE = 'any';
 
 type Step = 'options' | 'create' | 'join' | 'browse';
 
@@ -34,7 +37,7 @@ export function AddRoomModal({ onClose }: AddRoomModalProps) {
 
   const [step, setStep] = useState<Step>('options');
   const [name, setName] = useState('');
-  const [platform, setPlatform] = useState<RoomPlatform>('pc');
+  const [platform, setPlatform] = useState<RoomPlatform | null>('pc');
   const [isPublic, setIsPublic] = useState(false);
   const [inviteCode, setInviteCode] = useState('');
   const [error, setError] = useState<string | null>(null);
@@ -154,9 +157,10 @@ export function AddRoomModal({ onClose }: AddRoomModalProps) {
               <select
                 id="add-room-platform"
                 className={styles.select}
-                value={platform}
-                onChange={(e) => setPlatform(e.target.value as RoomPlatform)}
+                value={platform ?? ANY_PLATFORM_VALUE}
+                onChange={(e) => setPlatform(e.target.value === ANY_PLATFORM_VALUE ? null : (e.target.value as RoomPlatform))}
               >
+                <option value={ANY_PLATFORM_VALUE}>Any platform</option>
                 {ROOM_PLATFORM_OPTIONS.map((p) => (
                   <option key={p} value={p}>
                     {ROOM_PLATFORM_LABELS[p]}
@@ -218,7 +222,8 @@ export function AddRoomModal({ onClose }: AddRoomModalProps) {
                     <div className={styles.publicRoomInfo}>
                       <span className={styles.publicRoomName}>{room.name}</span>
                       <span className={styles.publicRoomMeta}>
-                        {ROOM_PLATFORM_LABELS[room.platform]} · {room.memberCount} member{room.memberCount === 1 ? '' : 's'}
+                        {room.platform ? ROOM_PLATFORM_LABELS[room.platform] : 'Any platform'} · {room.memberCount} member
+                        {room.memberCount === 1 ? '' : 's'}
                       </span>
                     </div>
                     <button
