@@ -5,6 +5,7 @@ import { ensureDbConstraints } from './db/ensureConstraints.js';
 import { redis } from './services/redisClient.js';
 import { startPriceAlertJob } from './jobs/priceAlertJob.js';
 import { startPriceRefreshJob } from './jobs/priceRefreshJob.js';
+import { startAnniversaryBadgeJob } from './jobs/anniversaryBadgeJob.js';
 
 const app = await buildApp();
 
@@ -25,6 +26,9 @@ const priceAlertJob = startPriceAlertJob();
 // Independent of any page view (#439) - see jobs/priceRefreshJob.ts. Same single-process
 // reasoning as priceAlertJob above.
 const priceRefreshJob = startPriceRefreshJob();
+// Year One badge (#489) - see jobs/anniversaryBadgeJob.ts. Same single-process reasoning as the
+// two jobs above; an anniversary isn't tied to any user action, so it needs its own schedule too.
+const anniversaryBadgeJob = startAnniversaryBadgeJob();
 
 const SHUTDOWN_TIMEOUT_MS = 10_000;
 let shuttingDown = false;
@@ -47,6 +51,7 @@ async function shutdown(signal: string) {
   try {
     priceAlertJob.stop();
     priceRefreshJob.stop();
+    anniversaryBadgeJob.stop();
     // Stops accepting new connections, waits for in-flight requests, runs plugins' onClose hooks.
     await app.close();
     await prisma.$disconnect();

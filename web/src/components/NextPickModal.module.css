@@ -1,0 +1,148 @@
+.backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.55);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+  padding: 20px;
+}
+
+@media (max-width: 640px) {
+  .backdrop {
+    padding: 10px;
+  }
+}
+
+.dialog {
+  background: var(--qu-surface);
+  border: 1px solid var(--qu-border);
+  border-radius: var(--qu-radius);
+  padding: 24px;
+  max-width: 440px;
+  width: 100%;
+  max-height: 85vh;
+  overflow-y: auto;
+  box-shadow: 0 12px 40px rgba(0, 0, 0, 0.4);
+}
+
+@media (max-width: 640px) {
+  .dialog {
+    padding: 14px;
+  }
+}
+
+.header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 18px;
+}
+
+.title {
+  font: 700 16px var(--qu-header-font);
+  color: var(--qu-text);
+}
+
+.closeButton {
+  border: none;
+  background: transparent;
+  color: var(--qu-muted);
+  font-size: 20px;
+  line-height: 1;
+  cursor: pointer;
+  padding: 2px 6px;
+}
+
+.closeButton:hover {
+  color: var(--qu-text);
+}
+
+.status {
+  color: var(--qu-muted);
+  font-size: 14px;
+  text-align: center;
+  padding: 32px 0;
+}
+
+.pick {
+  display: flex;
+  gap: 14px;
+  align-items: flex-start;
+  padding: 4px 0 8px;
+}
+
+.cover {
+  flex: 0 0 auto;
+  width: 84px;
+  height: 112px;
+  object-fit: cover;
+  border-radius: 6px;
+  background: var(--qu-bg);
+}
+
+.pickBody {
+  flex: 1;
+  min-width: 0;
+}
+
+.reason {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--qu-accent, var(--qu-muted));
+  margin-bottom: 4px;
+}
+
+.gameTitle {
+  font: 700 18px var(--qu-header-font);
+  color: var(--qu-text);
+  margin-bottom: 6px;
+  word-break: break-word;
+}
+
+.detail {
+  font-size: 13px;
+  color: var(--qu-muted);
+  line-height: 1.4;
+}
+
+.actions {
+  display: flex;
+  gap: 10px;
+  margin-top: 18px;
+}
+
+.tryAgainButton {
+  flex: 1;
+  border: 1px solid var(--qu-border);
+  background: var(--qu-bg);
+  color: var(--qu-text);
+  border-radius: var(--qu-radius);
+  padding: 10px 14px;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.tryAgainButton:hover:not(:disabled) {
+  border-color: var(--qu-muted);
+}
+
+.tryAgainButton:disabled {
+  opacity: 0.6;
+  cursor: default;
+}
+
+.closeTextButton {
+  border: none;
+  background: transparent;
+  color: var(--qu-muted);
+  padding: 10px 14px;
+  font-size: 14px;
+  cursor: pointer;
+}
+
+.closeTextButton:hover {
+  color: var(--qu-text);
+}

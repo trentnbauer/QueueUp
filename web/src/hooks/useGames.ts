@@ -105,7 +105,10 @@ export function useGames(roomId: string | null) {
 
   const vote = useMutation({
     mutationFn: ({ gameId, value }: { gameId: string; value: VoteValue }) => gamesApi.vote(gameId, { value }),
-    onSuccess: ({ game }) => patchGame(game),
+    onSuccess: ({ game, unlockedBadges }) => {
+      patchGame(game);
+      announceUnlock(unlockedBadges);
+    },
     onError: (err) => setActionError(errorMessage(err, 'Could not save your vote.')),
   });
 
@@ -179,7 +182,10 @@ export function useGames(roomId: string | null) {
   // (including its now-current tags list) rather than requiring a separate tags fetch.
   const applyTag = useMutation({
     mutationFn: ({ gameId, name }: { gameId: string; name: string }) => tagsApi.applyToGame(gameId, { name }),
-    onSuccess: ({ game }) => patchGame(game),
+    onSuccess: ({ game, unlockedBadges }) => {
+      patchGame(game);
+      announceUnlock(unlockedBadges);
+    },
     onError: (err) => setActionError(errorMessage(err, 'Could not add that tag.')),
   });
 

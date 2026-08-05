@@ -7,11 +7,13 @@ import { requireElevated, requireMembership, generateUniqueInviteCode, getRoom }
 import { logAdminAction } from '../services/adminAuditLog.js';
 import { notifyRoom, notifyRoomMembersDirect } from '../services/notifications.js';
 import { unlockBadges } from '../services/badges.js';
+import { logRoomActivity, getRoomActivityPage, encodeActivityCursor, decodeActivityCursor } from '../services/roomActivity.js';
 import type {
   CreateRoomRequest,
   JoinRoomRequest,
   PublicRoomSummary,
   Room,
+  RoomActivityPage,
   RoomMember,
   RoomPlatform,
   RoomRole,
@@ -505,6 +507,15 @@ export default async function roomRoutes(app: FastifyInstance) {
           type: 'room_owner_changed',
           message: (actorName) => `${actorName} transferred room ownership to ${targetUser.displayName}`,
         });
+        // Promoted (issue: "what other achievements can you think of") - an ownership transfer is
+        // unambiguously a promotion for the target (they can't have already been room_master, per
+        // the "only one room_master" invariant this whole branch exists to preserve), so this one
+        // doesn't need the target.role-before-update check the plain role-change branch below does.
+        // Not surfaced in the response: the actor can never be the target (blocked above), so
+        // there's no toast to show *them* for someone else's unlock - it just lands for real
+        // (unlockBadges' own DB write), same as Spin Winner in roomSpin.ts crediting whoever added
+        // the winning game rather than whoever clicked "Let's play".
+        await unlockBadges(targetUserId, ['first_promoted']);
         return { role: updatedTarget.role };
       }
 
@@ -516,6 +527,21 @@ export default async function roomRoutes(app: FastifyInstance) {
         where: { roomId_userId: { roomId, userId: targetUserId } },
         data: { role },
       });
+      // Promoted, continued - only member -> moderator counts (target.role is the value from
+      // before this update, fetched above by requireMembership) - moderator -> member is a
+      // demotion, not an achievement. Same "not surfaced in the response" reasoning as above.
+      if (target.role === 'member' && role === 'moderator') {
+        await unlockBadges(targetUserId, ['first_promoted']);
+        // Room activity feed (issue #509) - demotions aren't logged here, same "promotion only"
+        // scope as the badge just above.
+        const targetUser = await prisma.user.findUniqueOrThrow({ where: { id: targetUserId }, select: { displayName: true } });
+        void logRoomActivity({
+          roomId,
+          actorId,
+          type: 'member_promoted',
+          message: (actorName) => `${actorName} promoted ${targetUser.displayName} to Moderator`,
+        });
+      }
       return { role: updated.role };
     },
   );
@@ -537,8 +563,55 @@ export default async function roomRoutes(app: FastifyInstance) {
       }
 
       await prisma.roomMember.delete({ where: { roomId_userId: { roomId, userId: targetUserId } } });
+      // Room activity feed (issue #509).
+      const targetUser = await prisma.user.findUnique({ where: { id: targetUserId }, select: { displayName: true } });
+      void logRoomActivity({
+        roomId,
+        actorId,
+        type: 'member_left',
+        message: (actorName) =>
+          isSelfLeave ? `${actorName} left the room` : `${actorName} removed ${targetUser?.displayName ?? 'a member'} from the room`,
+      });
       reply.status(204);
       return null;
+    },
+  );
+
+  const ROOM_ACTIVITY_PAGE_SIZE = 30;
+
+  // Issue #509 - the room activity feed itself. Cursor-paginated on createdAt (`before`), oldest
+  // page boundary passed back as `nextBefore` - see RoomActivityPage's own doc comment. Membership
+  // gated the same as every other room read (requireMembership), not requireElevated - a plain
+  // Member should be able to see their own room's history, not just Moderators/Room Masters.
+  app.get<{ Params: { roomId: string }; Querystring: { before?: string } }>(
+    '/api/rooms/:roomId/activity',
+    // Same tier as this file's other on-demand, paginate-by-clicking room reads (e.g.
+    // invite-candidates above) - a member scrolling back through history via `before` can
+    // legitimately fire several requests in a row, well within this ceiling, while still sitting
+    // below the 200/min global default (app.ts).
+    { config: { rateLimit: { max: 30, timeWindow: '1 minute' } } },
+    async (request) => {
+      const userId = await request.requireAuth();
+      const { roomId } = request.params;
+      await requireMembership(roomId, userId);
+
+      const before = request.query.before ? decodeActivityCursor(request.query.before) : undefined;
+      const rows = await getRoomActivityPage(roomId, { before, take: ROOM_ACTIVITY_PAGE_SIZE + 1 });
+      const hasMore = rows.length > ROOM_ACTIVITY_PAGE_SIZE;
+      const page = hasMore ? rows.slice(0, ROOM_ACTIVITY_PAGE_SIZE) : rows;
+      const last = page[page.length - 1];
+
+      const result: RoomActivityPage = {
+        entries: page.map((row) => ({
+          id: row.id,
+          type: row.type,
+          message: row.message,
+          actor: row.actor ? toUserDto(row.actor) : null,
+          createdAt: row.createdAt.toISOString(),
+        })),
+        nextBefore: hasMore ? encodeActivityCursor({ createdAt: last.createdAt, id: last.id }) : null,
+      };
+      return result;
     },
   );
 }

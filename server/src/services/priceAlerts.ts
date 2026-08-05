@@ -2,6 +2,7 @@ import type { GamePrice } from '@queueup/shared';
 import { prisma } from '../db/client.js';
 import { notifyPriceDrop } from './notifications.js';
 import { isOwnedBy } from './gameOwnership.js';
+import { unlockBadges } from './badges.js';
 import type { GameWithRelations } from './gameSerializer.js';
 
 /** Compares a freshly-computed live price against a game's target price and fires a one-shot
@@ -35,6 +36,12 @@ export async function checkPriceDropAlert(game: GameWithRelations, price: GamePr
       room: room && game.roomId ? { roomId: game.roomId, roomName: room.name } : null,
       ownerId: game.addedBy,
     });
+
+    // Patient (issue: "what other achievements can you think of") - a target price set on a
+    // wishlisted game actually paid off. Scoped to 'wishlist' rather than every status, since a
+    // target price left set on a game already Playing/Done/etc. isn't "waiting for the price to
+    // drop" in the sense this badge is meant to reward.
+    if (game.status === 'wishlist') await unlockBadges(game.addedBy, ['first_patient']);
   } catch (err) {
     console.error('[priceAlerts] failed to process price drop alert', err);
   }

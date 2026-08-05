@@ -1,4 +1,4 @@
-import type { BadgeDefinition, RoomPlatform } from '@queueup/shared';
+import type { BadgeDefinition, BadgeKey, RoomPlatform } from '@queueup/shared';
 import { prisma } from '../db/client.js';
 import { unlockBadges } from './badges.js';
 import type { GameWithRelations } from './gameSerializer.js';
@@ -8,21 +8,34 @@ import type { GameWithRelations } from './gameSerializer.js';
  * entirely (the user owns it nowhere), rather than leaving a row with an empty platforms array
  * on file - that empty-array shape is reserved for pre-migration rows whose platform was never
  * recorded (see the model doc), not a fresh "explicitly owns nothing" state. Returns any newly-
- * unlocked badge (issue #489, "buy a game" - there's no real purchase/checkout concept in this
+ * unlocked badges (issue #489, "buy a game" - there's no real purchase/checkout concept in this
  * app, so marking ownership is the closest fit) - only on the add path, never on the delete/clear
- * branch, since un-marking ownership isn't the action the badge is celebrating. */
-export async function setOwnershipPlatforms(userId: string, igdbId: number, platforms: RoomPlatform[]): Promise<BadgeDefinition | null> {
+ * branch, since un-marking ownership isn't the action either badge below is celebrating. */
+export async function setOwnershipPlatforms(userId: string, igdbId: number, platforms: RoomPlatform[]): Promise<BadgeDefinition[]> {
   const deduped = Array.from(new Set(platforms));
   if (deduped.length === 0) {
     await prisma.gameOwnership.deleteMany({ where: { userId, igdbId } });
-    return null;
+    return [];
   }
   await prisma.gameOwnership.upsert({
     where: { userId_igdbId: { userId, igdbId } },
     create: { userId, igdbId, platforms: deduped },
     update: { platforms: deduped },
   });
-  return (await unlockBadges(userId, ['first_ownership_marked']))[0] ?? null;
+
+  // Bargain Hunter (issue: "what other achievements can you think of") - this title hit an
+  // all-time-low price alert on the user's own Personal Shelf copy at some point, and they've now
+  // gone and marked it owned (on any platform, via any of this function's callers) - the "waited
+  // for the deal, then bought it" moment. Keyed off Game.notifiedAtlPrice rather than the alert
+  // Notification itself, since Notification has no gameId to correlate back to (see priceAlerts.ts)
+  // and notifiedAtlPrice is a reliable, persisted "an ATL alert fired for this game" signal that,
+  // unlike targetPrice, is never cleared back to an ambiguous null once set.
+  const hadAtlAlert = await prisma.game.findFirst({
+    where: { roomId: null, addedBy: userId, igdbId, notifiedAtlPrice: { not: null } },
+    select: { id: true },
+  });
+  const keys: BadgeKey[] = hadAtlAlert ? ['first_ownership_marked', 'first_bargain_hunter'] : ['first_ownership_marked'];
+  return unlockBadges(userId, keys);
 }
 
 /** Adds or removes exactly one platform from whatever a user's existing claim already covers,
@@ -37,7 +50,7 @@ export async function toggleOwnershipForPlatform(
   igdbId: number,
   platform: RoomPlatform,
   owned: boolean,
-): Promise<BadgeDefinition | null> {
+): Promise<BadgeDefinition[]> {
   const existing = await prisma.gameOwnership.findUnique({ where: { userId_igdbId: { userId, igdbId } } });
   if (owned) {
     return setOwnershipPlatforms(userId, igdbId, [...(existing?.platforms ?? []), platform]);
@@ -51,8 +64,8 @@ export async function toggleOwnershipForPlatform(
  * replace), since a sync may run repeatedly and each run only reports whichever platforms Playnite
  * currently sees, not the full history of every platform ever synced. Re-syncing a title that's no
  * longer installed on some platform shouldn't silently un-claim it. */
-export async function unionOwnershipPlatforms(userId: string, igdbId: number, platforms: RoomPlatform[]): Promise<BadgeDefinition | null> {
-  if (platforms.length === 0) return null;
+export async function unionOwnershipPlatforms(userId: string, igdbId: number, platforms: RoomPlatform[]): Promise<BadgeDefinition[]> {
+  if (platforms.length === 0) return [];
   const existing = await prisma.gameOwnership.findUnique({ where: { userId_igdbId: { userId, igdbId } } });
   return setOwnershipPlatforms(userId, igdbId, [...(existing?.platforms ?? []), ...platforms]);
 }

@@ -1,5 +1,5 @@
 import type { Game, GameStatus } from '@queueup/shared';
-import { isFullyOwned } from '@queueup/shared';
+import { isFullyOwned, isNeglectedBacklogGame } from '@queueup/shared';
 
 // Spin the Wheel's candidate-selection and winner-picking logic lives in packages/shared (moved
 // there alongside the shared room spin session) so the server can compute the exact same pool and
@@ -18,6 +18,9 @@ export {
   avoidedGenres,
   reviewScoreMultiplier,
   spinCandidateWeight,
+  NEGLECTED_BACKLOG_MONTHS,
+  isNeglectedBacklogGame,
+  collectionProgress,
 } from '@queueup/shared';
 
 /** Sentinel meaning "no filter applied" for both the platform and genre pill filters. */
@@ -95,43 +98,10 @@ export function filterGames(games: Game[], filter: GameFilterState, now: number 
   );
 }
 
-// Ongoing "you've had this a while and haven't touched it" nudge (issue #249) - Year in Review
-// (see the /api/me/year-in-review route) already says this, but only as a once-a-year, on-demand
-// snapshot over a fixed trailing-12-month window. This is meant to be a year-round ambient signal
-// instead, so it needs a much shorter window - 3 months is long enough that a game isn't flagged
-// the week after it's added, but short enough to actually nudge toward clearing the backlog rather
-// than only ever looking back once a year. Named/exported so the threshold has exactly one place to
-// tune instead of a magic number buried in the predicate below.
-export const NEGLECTED_BACKLOG_MONTHS = 3;
-
-/** A backlog game added NEGLECTED_BACKLOG_MONTHS+ ago with no recent activity. "No recent
- * activity" mirrors how the rest of the codebase already treats these two signals (see the
- * year-in-review route): Game.updatedAt as a proxy for the last status change - any edit bumps it,
- * so a completely untouched game will have updatedAt === createdAt, but this can also miss genuine
- * neglect if some unrelated edit (e.g. a target price) bumped it - and votes checked separately via
- * their own per-vote createdAt, since casting a vote does not touch Game.updatedAt at all. */
-export function isNeglectedBacklogGame(game: Game, now: number = Date.now()): boolean {
-  if (game.status !== 'backlog') return false;
-
-  // Plain `setMonth(getMonth() - N)` overflows into the following month whenever the current
-  // day-of-month doesn't exist N months earlier (e.g. May 31 minus 3 months rolls past a
-  // 28-day February into March 3, not Feb 28) - shifting the day to the 1st first avoids the
-  // month-length mismatch, then the original day is restored, clamped to the target month's
-  // actual last day so it can't overflow into the month after that instead.
-  const threshold = new Date(now);
-  const originalDay = threshold.getDate();
-  threshold.setDate(1);
-  threshold.setMonth(threshold.getMonth() - NEGLECTED_BACKLOG_MONTHS);
-  const lastDayOfTargetMonth = new Date(threshold.getFullYear(), threshold.getMonth() + 1, 0).getDate();
-  threshold.setDate(Math.min(originalDay, lastDayOfTargetMonth));
-  const thresholdMs = threshold.getTime();
-
-  if (new Date(game.createdAt).getTime() > thresholdMs) return false;
-  if (new Date(game.updatedAt).getTime() > thresholdMs) return false;
-  if (game.votes.some((v) => new Date(v.createdAt).getTime() > thresholdMs)) return false;
-
-  return true;
-}
+// NEGLECTED_BACKLOG_MONTHS / isNeglectedBacklogGame live in packages/shared/src/backlogHeuristics.ts
+// now (re-exported above) - the server's /api/me/next-pick route needs the exact same threshold
+// math against a lean Prisma `select`, not the full Game type, so it moved alongside
+// collectionProgress rather than staying client-only.
 
 export function sortByScore(games: Game[]): Game[] {
   // Game.updatedAt only reflects status changes, not votes (votes have their own row/timestamp),
@@ -230,18 +200,8 @@ export function defaultPrerequisite(game: Game, roomGames: Game[]): Game | null 
   return earlierInCollection.reduce((closest, g) => (releaseTimestamp(g)! > releaseTimestamp(closest)! ? g : closest));
 }
 
-/** How many of a franchise's entries already added to this room/shelf are Beaten, out of how many
- * are added (issue #366) - built on the IGDB collection id already stored per game
- * (igdbCollectionId), same field defaultPrerequisite above uses. This is progress through what's
- * already been added, not the whole franchise - there's no "how many games are in this series
- * total" data on file, only what's actually here. Null when the game isn't in a collection, or
- * it's the only entry from that collection added so far (nothing to show progress against). */
-export function collectionProgress(game: Game, games: Game[]): { beaten: number; total: number } | null {
-  if (game.igdbCollectionId === null) return null;
-  const sameCollection = games.filter((g) => g.igdbCollectionId === game.igdbCollectionId);
-  if (sameCollection.length < 2) return null;
-  return { beaten: sameCollection.filter((g) => g.status === 'done').length, total: sameCollection.length };
-}
+// collectionProgress also lives in packages/shared/src/backlogHeuristics.ts now (re-exported
+// above) - see the comment above isNeglectedBacklogGame's old spot for why.
 
 /** Currently Playing (Playing and Play Next together - see PlayingStrip) first, then the rest of
  * the backlog (replay-queued games interleaved with it), then Wishlist, then Completed, then
