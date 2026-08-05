@@ -6,7 +6,7 @@ import { getOrCreateUser, primaryProviderOf } from '../plugins/auth.js';
 import { toUserDto } from '../util/dto.js';
 import { HttpError } from '../util/httpError.js';
 import { extractSteamId64, resolveSteamId64 } from '../services/steamLibrary.js';
-import { setOwnedPlatforms } from '../services/userSettings.js';
+import { setOwnedPlatforms, setPublicProfileEnabled } from '../services/userSettings.js';
 import { logAdminAction } from '../services/adminAuditLog.js';
 import { generateApiKeyToken, hashApiKeyToken } from '../services/apiKeys.js';
 import type { OAuthProfile } from '../services/authProviders/types.js';
@@ -20,6 +20,7 @@ import type {
   DataExportRoomMembership,
   DataExportVote,
   UpdateOwnedPlatformsRequest,
+  UpdatePublicProfileRequest,
   VoteValue,
 } from '@queueup/shared';
 
@@ -225,6 +226,7 @@ export default async function authRoutes(app: FastifyInstance) {
       user: toUserDto(user),
       steamLinked: resolveSteamId64(user) !== null,
       ownedPlatforms: user.ownedPlatforms,
+      publicProfileEnabled: user.publicProfileEnabled,
       primaryProvider,
       linkedProviders,
       isNewAccount,
@@ -238,6 +240,14 @@ export default async function authRoutes(app: FastifyInstance) {
     const userId = await request.requireAuth();
     const ownedPlatforms = await setOwnedPlatforms(userId, request.body?.platforms);
     return reply.send({ ownedPlatforms });
+  });
+
+  // Public profile opt-in (issue #511) - see User.publicProfileEnabled's schema doc and
+  // routes/publicProfile.ts (the unauthenticated GET this gates) for what turning it on exposes.
+  app.patch<{ Body: UpdatePublicProfileRequest }>('/api/me/public-profile', async (request, reply) => {
+    const userId = await request.requireAuth();
+    const publicProfileEnabled = await setPublicProfileEnabled(userId, request.body?.enabled);
+    return reply.send({ publicProfileEnabled });
   });
 
   // Personal access token management (issue #435) - these themselves are cookie-authenticated app

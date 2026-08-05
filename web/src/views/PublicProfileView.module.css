@@ -1,0 +1,62 @@
+.page {
+  max-width: 640px;
+  margin: 0 auto;
+  padding: 40px 24px 60px;
+  display: flex;
+  flex-direction: column;
+  gap: 28px;
+}
+
+@media (max-width: 640px) {
+  .page {
+    padding: 24px 18px 40px;
+    gap: 20px;
+  }
+}
+
+.brand {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  text-decoration: none;
+  color: var(--qu-text);
+}
+
+.brandName {
+  font: 700 16px var(--qu-header-font);
+}
+
+.status {
+  color: var(--qu-muted);
+  font-size: 14px;
+}
+
+.identity {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+
+.displayName {
+  font: 700 24px var(--qu-header-font);
+  color: var(--qu-text);
+}
+
+.statLine {
+  font-size: 13px;
+  color: var(--qu-muted);
+  margin-top: 4px;
+}
+
+.section {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.sectionTitle {
+  font: 700 13px system-ui, sans-serif;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--qu-muted);
+}

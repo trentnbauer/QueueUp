@@ -22,6 +22,7 @@ import { SettingsView } from './views/SettingsView';
 import { ProfileSettingsView } from './views/ProfileSettingsView';
 import { JoinRoomView } from './views/JoinRoomView';
 import { LoginView } from './views/LoginView';
+import { PublicProfileView } from './views/PublicProfileView';
 
 const ONBOARDED_KEY = 'sq-onboarded';
 // Invite links (`/join/:inviteCode`) need to survive a full-page OAuth sign-in/callback
@@ -101,6 +102,16 @@ export default function App() {
   }
 
   if (loading) return null;
+
+  // Reachable regardless of sign-in state (issue #511) - the one route in the app that's public,
+  // checked before the sign-in gate below rather than as a normal <Route> nested inside it (which
+  // only ever renders once past that gate). A signed-in viewer looking at someone else's shared
+  // link gets the same chromeless page a signed-out visitor does, rather than it opening inside
+  // their own Sidebar/Header shell.
+  const publicProfileMatch = location.pathname.match(/^\/u\/([^/]+)$/);
+  if (publicProfileMatch) {
+    return <PublicProfileView userId={decodeURIComponent(publicProfileMatch[1])} />;
+  }
 
   if (!user) {
     return <LoginView providers={providers} />;

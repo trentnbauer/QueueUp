@@ -9,6 +9,9 @@ interface AuthContextValue {
    * yet, i.e. the add-game flow there shows everything (server enforces this too - this is just
    * the display copy of the same preference). */
   ownedPlatforms: RoomPlatform[];
+  /** Whether the /u/:id public profile page (issue #511) is currently reachable for this account -
+   * off by default. Display copy of the same server-side preference (User.publicProfileEnabled). */
+  publicProfileEnabled: boolean;
   /** The provider this account originally signed up with - always linked, and the only one the
    * "Linked accounts" UI won't offer to unlink. */
   primaryProvider: string | null;
@@ -33,16 +36,18 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [steamLinked, setSteamLinked] = useState(false);
   const [ownedPlatforms, setOwnedPlatforms] = useState<RoomPlatform[]>([]);
+  const [publicProfileEnabled, setPublicProfileEnabled] = useState(false);
   const [primaryProvider, setPrimaryProvider] = useState<string | null>(null);
   const [linkedProviders, setLinkedProviders] = useState<string[]>([]);
   const [isNewAccount, setIsNewAccount] = useState(false);
   const [loading, setLoading] = useState(true);
 
   const refetch = async () => {
-    const { user, steamLinked, ownedPlatforms, primaryProvider, linkedProviders, isNewAccount } = await authApi.me();
+    const { user, steamLinked, ownedPlatforms, publicProfileEnabled, primaryProvider, linkedProviders, isNewAccount } = await authApi.me();
     setUser(user);
     setSteamLinked(steamLinked);
     setOwnedPlatforms(ownedPlatforms ?? []);
+    setPublicProfileEnabled(publicProfileEnabled);
     setPrimaryProvider(primaryProvider);
     setLinkedProviders(linkedProviders ?? []);
     if (isNewAccount) setIsNewAccount(true);
@@ -58,6 +63,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         user,
         steamLinked,
         ownedPlatforms,
+        publicProfileEnabled,
         primaryProvider,
         linkedProviders,
         isNewAccount,
