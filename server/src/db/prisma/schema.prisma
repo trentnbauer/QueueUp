@@ -78,6 +78,10 @@ enum NotificationType {
   /// A member suggested a game for a room with requireGameApproval on (issue #362) - notifies the
   /// room so a Room Master/Moderator knows to go approve or decline it.
   game_suggested
+  /// A new sequel or DLC entry showed up on IGDB for a game the recipient has beaten on their
+  /// Personal Shelf (issue #510, see jobs/releaseWatchJob.ts) - always a direct (recipientId)
+  /// notification, never room-scoped, same as price_drop's Personal Shelf branch.
+  release_watch
 
   @@map("notification_type")
 }
@@ -127,23 +131,24 @@ model User {
   /// no opt-in yet, so no filtering is applied (preserves pre-existing behavior).
   ownedPlatforms RoomPlatform[] @default([]) @map("owned_platforms")
 
-  roomsCreated           Room[]                  @relation("RoomCreatedBy")
-  memberships            RoomMember[]
-  gamesAdded             Game[]
-  votes                  Vote[]
-  auditLogEntries        AdminAuditLog[]
-  notificationsReceived  Notification[]          @relation("NotificationRecipient")
-  notificationsActed     Notification[]          @relation("NotificationActor")
-  roomActivity           RoomActivity[]          @relation("RoomActivityActor")
-  gameSuggestions        GameSuggestion[]
-  ownedGames             GameOwnership[]
-  achievementCompletions AchievementCompletion[]
-  badges                 UserBadge[]
-  linkedIdentities       LinkedIdentity[]
-  tags                   Tag[]
-  roomSpinsStarted       RoomSpin[]
-  apiKeys                ApiKey[]
-  pendingLibraryImports  PendingLibraryImport[]
+  roomsCreated              Room[]                     @relation("RoomCreatedBy")
+  memberships               RoomMember[]
+  gamesAdded                Game[]
+  votes                     Vote[]
+  auditLogEntries           AdminAuditLog[]
+  notificationsReceived     Notification[]             @relation("NotificationRecipient")
+  notificationsActed        Notification[]             @relation("NotificationActor")
+  roomActivity              RoomActivity[]             @relation("RoomActivityActor")
+  gameSuggestions           GameSuggestion[]
+  ownedGames                GameOwnership[]
+  achievementCompletions    AchievementCompletion[]
+  badges                    UserBadge[]
+  releaseWatchNotifications ReleaseWatchNotification[]
+  linkedIdentities          LinkedIdentity[]
+  tags                      Tag[]
+  roomSpinsStarted          RoomSpin[]
+  apiKeys                   ApiKey[]
+  pendingLibraryImports     PendingLibraryImport[]
 
   @@map("users")
 }
@@ -306,6 +311,33 @@ model UserBadge {
 
   @@id([userId, badgeKey])
   @@map("user_badges")
+}
+
+enum ReleaseWatchKind {
+  sequel
+  dlc
+
+  @@map("release_watch_kind")
+}
+
+/// One row per user per newly-discovered sequel/DLC IGDB entry ever notified about (issue #510) -
+/// insert-only, same idempotency shape as UserBadge above: the composite key is what makes a
+/// notification fire at most once ever per (user, discovered title), regardless of how many of the
+/// user's beaten games point at the same collection/base game, or how many job runs pass before
+/// the user actually does anything about it. Not scoped to which beaten game led to the discovery -
+/// only the discovered title's own igdbId matters for "have we already told this user about this."
+model ReleaseWatchNotification {
+  userId    String           @map("user_id")
+  /// The IGDB id of the newly-discovered sequel/DLC entry itself, not the beaten game that led to
+  /// it - see releaseWatch.ts.
+  igdbId    Int              @map("igdb_id")
+  kind      ReleaseWatchKind
+  createdAt DateTime         @default(now()) @map("created_at")
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@id([userId, igdbId])
+  @@map("release_watch_notifications")
 }
 
 model Room {

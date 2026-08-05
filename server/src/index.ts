@@ -6,6 +6,7 @@ import { redis } from './services/redisClient.js';
 import { startPriceAlertJob } from './jobs/priceAlertJob.js';
 import { startPriceRefreshJob } from './jobs/priceRefreshJob.js';
 import { startAnniversaryBadgeJob } from './jobs/anniversaryBadgeJob.js';
+import { startReleaseWatchJob } from './jobs/releaseWatchJob.js';
 
 const app = await buildApp();
 
@@ -29,6 +30,9 @@ const priceRefreshJob = startPriceRefreshJob();
 // Year One badge (#489) - see jobs/anniversaryBadgeJob.ts. Same single-process reasoning as the
 // two jobs above; an anniversary isn't tied to any user action, so it needs its own schedule too.
 const anniversaryBadgeJob = startAnniversaryBadgeJob();
+// Release/DLC watch alerts (#510) - see jobs/releaseWatchJob.ts. Same single-process reasoning as
+// the jobs above; a new sequel/DLC entry isn't tied to any user action either.
+const releaseWatchJob = startReleaseWatchJob();
 
 const SHUTDOWN_TIMEOUT_MS = 10_000;
 let shuttingDown = false;
@@ -52,6 +56,7 @@ async function shutdown(signal: string) {
     priceAlertJob.stop();
     priceRefreshJob.stop();
     anniversaryBadgeJob.stop();
+    releaseWatchJob.stop();
     // Stops accepting new connections, waits for in-flight requests, runs plugins' onClose hooks.
     await app.close();
     await prisma.$disconnect();

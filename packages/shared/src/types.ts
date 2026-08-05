@@ -667,7 +667,8 @@ export type NotificationType =
   | 'room_owner_changed'
   | 'room_deleted'
   | 'price_drop'
-  | 'game_suggested';
+  | 'game_suggested'
+  | 'release_watch';
 
 export interface Notification {
   id: string;
