@@ -880,6 +880,70 @@ export interface NextPickResponse {
   suggestion: NextPickSuggestion | null;
 }
 
+/** One age bucket in a backlog age distribution (issue #512) - "age" is time since a backlog
+ * game was added (`createdAt`), a related but distinct question from "is it neglected" (that's
+ * what `isNeglectedBacklogGame` already answers, via `updatedAt`/votes, not `createdAt` alone).
+ * Boundaries are ~90/180/365 days (roughly 3/6/12 months) - the first edge deliberately echoes
+ * `NEGLECTED_BACKLOG_MONTHS` so the distribution visually lines up with the same threshold used
+ * elsewhere, but bucketing itself is plain day math, not the calendar-month arithmetic
+ * `isNeglectedBacklogGame` uses (a fixed day count is close enough for a histogram bucket and
+ * avoids reimplementing that month-overflow-safe logic for three more edges) - labels are phrased
+ * in days for that reason, so nothing here implies exact month boundaries. Always four buckets, in
+ * order, even when a bucket's count is 0 - so the shape of the distribution is stable to render. */
+export interface BacklogAgeBucket {
+  /** "Under 90 days" | "90-180 days" | "180-365 days" | "365+ days". */
+  label: string;
+  count: number;
+}
+
+/** The single backlog game that's gone the longest with no activity (issue #512) - "activity"
+ * is exactly the three signals `isNeglectedBacklogGame` already checks (createdAt/updatedAt/
+ * latest vote createdAt), just used here to rank every currently-neglected candidate by how far
+ * past the threshold it is, rather than a plain in/out check. Null when nothing in the backlog
+ * currently reads as neglected (not just "the least-recently-touched game," which would always
+ * return something and misleadingly imply a problem when there isn't one yet). */
+export interface MostNeglectedGame {
+  id: string;
+  title: string;
+  coverImageUrl: string | null;
+  /** Whichever of createdAt/updatedAt/latest-vote is most recent - the same "last touched"
+   * instant `isNeglectedBacklogGame` checks against its threshold. */
+  lastActivityAt: string;
+  /** Days since `lastActivityAt`, floored - the headline number the UI shows. */
+  daysSinceActivity: number;
+}
+
+/** On-demand insights view beyond Year in Review (issue #512), now genuinely possible since
+ * `PlayLog` records real per-session start/finish timestamps (added for the Marathoner/Comeback
+ * badges - issue #489) rather than only the current status. Scoped the same way Year in Review
+ * scopes its Done games: every non-archived game the caller personally added, Personal Shelf or
+ * any room - not just the Personal Shelf. */
+export interface BacklogInsights {
+  /** Average calendar time from a game being marked Playing to being marked Done/Replay, in
+   * days, across the caller's most recent closed `PlayLog` entries belonging to a Done or Replay
+   * game they added (capped defensively at MAX_GAMES_PER_LIST - see the route) - the actual
+   * recorded stretch, not `Game.timeToBeatHours` (an IGDB estimate of active playtime hours,
+   * unrelated to how long a copy sat in Playing). Days, not hours, because `PlayLog` only knows
+   * when a session opened and closed, not how much was actually played in between - same reason
+   * Marathoner/Comeback measure in days rather than hours. Entries with zero elapsed time (a game
+   * marked Done/Dropped without ever passing through Playing - see the PlayLog model doc) are
+   * excluded, same as the Not For Me badge's own duration > 0 gate, otherwise they'd drag the
+   * average toward zero without reflecting a real playthrough length. Null when there are no
+   * qualifying entries yet. */
+  averageDaysToBeat: number | null;
+  /** How many closed `PlayLog` entries contributed to `averageDaysToBeat` - shown alongside it so
+   * a "14 days" average backed by one entry doesn't read as more solid than it is. */
+  finishedEntryCount: number;
+  /** Non-archived games currently in the caller's backlog (Personal Shelf + rooms), across every
+   * bucket in `ageDistribution` - an at-a-glance denominator for the distribution below. Capped
+   * defensively at MAX_GAMES_PER_LIST, same ceiling the rest of this route's queries use - a
+   * genuinely real-world backlog is expected to stay well under this. */
+  backlogCount: number;
+  mostNeglectedGame: MostNeglectedGame | null;
+  /** The current backlog bucketed by time since added - see `BacklogAgeBucket`. */
+  ageDistribution: BacklogAgeBucket[];
+}
+
 /** One game the caller added, in the "Download my data" export - a slimmer, DB-shaped view than
  * the full `Game` DTO (no live price lookup, no other members' votes), since this is a bulk
  * point-in-time snapshot rather than something rendered as a card. `roomId`/`roomName` are null

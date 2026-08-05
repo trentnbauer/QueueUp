@@ -35,6 +35,7 @@ export function Sidebar() {
   const onBeatenPage = useLocation().pathname === '/beaten';
   const onReviewPage = useLocation().pathname === '/review';
   const onAchievementsPage = useLocation().pathname === '/achievements';
+  const onInsightsPage = useLocation().pathname === '/insights';
   const { rooms } = useRooms();
   const { totalUnread, unreadRoomIds } = useNotificationSummary();
   // Badge on the Needs Review icon (see NeedsReviewView) - the review queue used to live silently
@@ -116,7 +117,7 @@ export function Sidebar() {
               different views of "your games." */}
           <Link
             to="/"
-            className={`${styles.roomIcon} ${(!activeRoom || onPlayingPage || onBeatenPage) && !onReviewPage && !onAchievementsPage ? styles.roomIconActive : ''}`}
+            className={`${styles.roomIcon} ${(!activeRoom || onPlayingPage || onBeatenPage) && !onReviewPage && !onAchievementsPage && !onInsightsPage ? styles.roomIconActive : ''}`}
             title="Personal Shelf"
             onClick={closeMobileDrawer}
           >
@@ -135,6 +136,18 @@ export function Sidebar() {
             onClick={closeMobileDrawer}
           >
             🏆
+          </Link>
+
+          {/* Backlog Insights (issue #512) - a personal on-demand dashboard, same reasoning for a
+              dedicated icon as Achievements above: a distinct hub of its own, not another view of
+              "your games" that belongs in ShelfTabs alongside Shelf/Playing/Beaten. */}
+          <Link
+            to="/insights"
+            className={`${styles.roomIcon} ${onInsightsPage ? styles.roomIconActive : ''}`}
+            title="Backlog Insights"
+            onClick={closeMobileDrawer}
+          >
+            📈
           </Link>
 
           {/* Needs Review queue (unmatched import titles) - used to live silently inside Profile
@@ -159,7 +172,7 @@ export function Sidebar() {
             <Link
               key={room.id}
               to={`/room/${room.id}`}
-              className={`${styles.roomIcon} ${activeRoom?.id === room.id && !onPlayingPage && !onBeatenPage && !onAchievementsPage ? styles.roomIconActive : ''}`}
+              className={`${styles.roomIcon} ${activeRoom?.id === room.id && !onPlayingPage && !onBeatenPage && !onAchievementsPage && !onInsightsPage ? styles.roomIconActive : ''}`}
               style={{ background: room.accentColor, color: contrastTextColor(room.accentColor) }}
               title={`${room.name} · ${ROOM_PLATFORM_LABELS[room.platform]}`}
               onClick={closeMobileDrawer}

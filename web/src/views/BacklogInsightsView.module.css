@@ -1,0 +1,155 @@
+.page {
+  padding: 28px 40px;
+  display: flex;
+  flex-direction: column;
+  gap: 28px;
+  max-width: 560px;
+}
+
+@media (max-width: 640px) {
+  .page {
+    padding: 20px 18px;
+    gap: 20px;
+  }
+}
+
+.title {
+  font: 700 22px var(--qu-header-font);
+  color: var(--qu-text);
+  margin: 0 0 4px;
+}
+
+.hint {
+  font-size: 13px;
+  color: var(--qu-muted);
+  margin: 0;
+}
+
+.empty {
+  color: var(--qu-muted);
+  font-size: 13px;
+}
+
+.stats {
+  display: flex;
+  gap: 24px;
+}
+
+.stat {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.statValue {
+  font: 800 26px var(--qu-header-font);
+  color: var(--qu-accent);
+}
+
+.statLabel {
+  font-size: 11.5px;
+  color: var(--qu-muted);
+}
+
+.section {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.subtitle {
+  font: 700 11px system-ui, sans-serif;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--qu-muted);
+  margin-bottom: 6px;
+}
+
+.neglectedCard {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 14px;
+  border-radius: var(--qu-radius);
+  background: var(--qu-surface2);
+  border: 1px solid var(--qu-border);
+}
+
+.neglectedCover {
+  flex-shrink: 0;
+  width: 48px;
+  height: 64px;
+  border-radius: 6px;
+  background: var(--qu-surface);
+  background-size: cover;
+  background-position: center;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.neglectedCoverFallback {
+  font: 700 18px var(--qu-header-font);
+  color: var(--qu-muted);
+}
+
+.neglectedDetail {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 0;
+}
+
+.neglectedTitle {
+  font: 700 14px var(--qu-header-font);
+  color: var(--qu-text);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.neglectedMeta {
+  font-size: 12px;
+  color: var(--qu-muted);
+}
+
+.ageDistribution {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.ageBarRow {
+  display: grid;
+  grid-template-columns: 100px 1fr 24px;
+  align-items: center;
+  gap: 10px;
+}
+
+.ageBarLabel {
+  font-size: 12.5px;
+  color: var(--qu-text);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.ageBarTrack {
+  height: 8px;
+  border-radius: 4px;
+  background: var(--qu-surface);
+  border: 1px solid var(--qu-border);
+  overflow: hidden;
+}
+
+.ageBarFill {
+  height: 100%;
+  background: var(--qu-accent);
+  border-radius: 4px;
+}
+
+.ageBarCount {
+  font-size: 11.5px;
+  color: var(--qu-muted);
+  text-align: right;
+}

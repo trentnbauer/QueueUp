@@ -58,6 +58,7 @@ import {
 import type { OwnedSteamGame } from '../services/steamLibrary.js';
 import { toggleOwnershipForPlatform, setOwnershipPlatforms, markOwned } from '../services/gameOwnership.js';
 import { recordStatusTransition } from '../services/playLog.js';
+import { summarizeTimeToBeat, pickMostNeglectedGame, bucketBacklogAge } from '../services/backlogInsights.js';
 import { unlockBadges } from '../services/badges.js';
 import { logRoomActivity } from '../services/roomActivity.js';
 import { lookupBarcodeGame } from '../services/barcodeService.js';
@@ -65,6 +66,7 @@ import { findDetectedSteamCompletions } from '../services/steamCompletionDetecti
 import { toUserDto } from '../util/dto.js';
 import { env } from '../config/env.js';
 import type {
+  BacklogInsights,
   BadgeDefinition,
   BadgeKey,
   BulkRemoveGamesRequest,
@@ -1855,6 +1857,70 @@ export default async function gameRoutes(app: FastifyInstance) {
       }
 
       const result: NextPickResponse = { suggestion };
+      return result;
+    },
+  );
+
+  // Defensive ceiling on the PlayLog scan below, same reasoning/value as MAX_GAMES_PER_LIST - a
+  // genuinely active account's play history is expected to stay well under this in practice.
+  const BACKLOG_INSIGHTS_PLAYLOG_LIMIT = MAX_GAMES_PER_LIST;
+
+  // Issue #512 - "an insights view beyond the existing year-in-review": average time-to-beat,
+  // most-neglected backlog game, and a backlog age distribution, all now genuinely possible since
+  // PlayLog records real per-session start/finish timestamps (added for the Marathoner/Comeback
+  // badges, issue #489) rather than only current status. Same class of route as year-in-review/
+  // currently-playing/next-pick above - an on-demand personal view, not something a normal session
+  // comes close to hitting often - and same scope as year-in-review's Done games: every game the
+  // caller personally added, Personal Shelf or any room, not just the Personal Shelf.
+  app.get(
+    '/api/me/backlog-insights',
+    { config: { rateLimit: { max: 20, timeWindow: '1 minute' } } },
+    async (request) => {
+      const userId = await request.requireAuth();
+      const now = Date.now();
+
+      const [backlogGames, finishedEntries] = await Promise.all([
+        // archivedAt: null - this is a *current* backlog view (unlike year-in-review's historical
+        // Done games), so an archived game would inflate both the distribution and backlogCount
+        // for something no longer actually sitting there. votes selected (createdAt only) so
+        // pickMostNeglectedGame can check the same three neglect signals isNeglectedBacklogGame
+        // always checks, even for room games (which, unlike Personal Shelf games, can have votes).
+        // orderBy updatedAt ascending (least-recently-touched first) so that if the cap below ever
+        // bites, the games it truncates away are the freshest ones - not the neglected candidates
+        // this route exists to surface.
+        prisma.game.findMany({
+          where: { addedBy: userId, status: 'backlog', archivedAt: null },
+          select: { id: true, title: true, coverImageUrl: true, status: true, createdAt: true, updatedAt: true, votes: { select: { createdAt: true } } },
+          orderBy: { updatedAt: 'asc' },
+          take: MAX_GAMES_PER_LIST,
+        }),
+        // Done/Replay only (BEATEN_STATUSES, same set BeatenStrip/CrossRoomBeaten group together) -
+        // a PlayLog entry's finishedAt is also set on a Dropped transition (see
+        // recordStatusTransition), which isn't "time to beat" at all, and PlayLog itself has no
+        // outcome column of its own to filter on directly. The game's *current* status is the only
+        // signal available, so a game Done then later re-Dropped (status now 'dropped') would drop
+        // out of this - an accepted approximation, same tolerance as year-in-review's own
+        // updatedAt-as-completion-date fallback for games predating this table. orderBy finishedAt
+        // descending + the cap below means "your most recent N playthroughs" if it ever bites.
+        prisma.playLog.findMany({
+          where: { finishedAt: { not: null }, game: { addedBy: userId, archivedAt: null, status: BEATEN_STATUSES } },
+          select: { startedAt: true, finishedAt: true },
+          orderBy: { finishedAt: 'desc' },
+          take: BACKLOG_INSIGHTS_PLAYLOG_LIMIT,
+        }),
+      ]);
+
+      const { averageDaysToBeat, finishedEntryCount } = summarizeTimeToBeat(
+        finishedEntries.filter((e): e is { startedAt: Date; finishedAt: Date } => e.finishedAt !== null),
+      );
+
+      const result: BacklogInsights = {
+        averageDaysToBeat,
+        finishedEntryCount,
+        backlogCount: backlogGames.length,
+        mostNeglectedGame: pickMostNeglectedGame(backlogGames, now),
+        ageDistribution: bucketBacklogAge(backlogGames, now),
+      };
       return result;
     },
   );
