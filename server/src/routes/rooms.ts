@@ -566,7 +566,13 @@ export default async function roomRoutes(app: FastifyInstance) {
 
       const isSelfLeave = actorId === targetUserId;
       if (!isSelfLeave) {
-        await requireElevated(roomId, actorId);
+        const actor = await requireElevated(roomId, actorId);
+        // Issue #519: removal must be at least as restrictive as the role-change route, which
+        // requires the Room Master to even demote a Moderator - a Moderator removing a peer
+        // Moderator outright is strictly stronger than a demotion, so it can't be looser.
+        if (target.role === 'moderator' && actor.role !== 'room_master') {
+          throw new HttpError(403, 'Only the Room Master can remove a Moderator');
+        }
       }
 
       await prisma.roomMember.delete({ where: { roomId_userId: { roomId, userId: targetUserId } } });
