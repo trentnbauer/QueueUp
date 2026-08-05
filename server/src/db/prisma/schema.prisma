@@ -445,6 +445,11 @@ model RoomMember {
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@id([roomId, userId])
+  /// Issue #524: the composite PK above indexes room_id first, so it can't serve the several
+  /// call sites that look up a user's memberships with no roomId (getNotificationFeed/
+  /// getNotificationSummary, DELETE /api/me's export path, several room-membership lookups in
+  /// games.ts) - those fall back to a sequential scan without this.
+  @@index([userId])
   @@map("room_members")
 }
 
