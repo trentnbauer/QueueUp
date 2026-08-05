@@ -209,36 +209,22 @@ async function completionBadgeKeys(
   return keys;
 }
 
-// Same threshold as web/src/components/gameGridLogic.ts' NEGLECTED_BACKLOG_MONTHS - duplicated
-// rather than shared, since that file's isNeglectedBacklogGame is client-only display logic (it
-// filters the grid) and this is a one-off badge check; kept in sync by this comment cross-
-// reference rather than a shared constant, same tolerance for small documented duplication as
-// e.g. Steam's rate limits being "same as X" elsewhere in this file rather than imported.
-const NEGLECTED_BACKLOG_MONTHS = 3;
-
 /** Backlog Buster (issue: "what other achievements can you think of") - was this game neglected
- * (per NEGLECTED_BACKLOG_MONTHS) *before* the status change the caller is currently applying,
- * i.e. does `game` (the pre-update row, with its pre-update status/createdAt/updatedAt/votes)
- * read as neglected right now. Mirrors gameGridLogic.ts's isNeglectedBacklogGame exactly (see that
- * function's own doc comment for why createdAt/updatedAt/vote-createdAt are the three signals
- * checked) rather than importing it - that's a client (web/) module, not reachable from here. */
+ * *before* the status change the caller is currently applying, i.e. does `game` (the pre-update
+ * row, with its pre-update status/createdAt/updatedAt/votes) read as neglected right now. Thin
+ * Date->ISO-string adapter over the shared `isNeglectedBacklogGame` (packages/shared) - this used
+ * to be its own hand-duplicated copy of that function's date math, back when the client-side
+ * version it was mirroring wasn't reachable from server code; it's been importable from
+ * @queueup/shared for a while now (see the /api/me/next-pick route below, which already imports
+ * it directly), so this just forwards instead of maintaining a second copy of the same bug-prone
+ * date arithmetic (issue #522) to keep in sync by hand. */
 function wasNeglectedBacklogGame(game: { status: GameStatus; createdAt: Date; updatedAt: Date; votes: { createdAt: Date }[] }): boolean {
-  if (game.status !== 'backlog') return false;
-
-  const now = Date.now();
-  const threshold = new Date(now);
-  const originalDay = threshold.getDate();
-  threshold.setDate(1);
-  threshold.setMonth(threshold.getMonth() - NEGLECTED_BACKLOG_MONTHS);
-  const lastDayOfTargetMonth = new Date(threshold.getFullYear(), threshold.getMonth() + 1, 0).getDate();
-  threshold.setDate(Math.min(originalDay, lastDayOfTargetMonth));
-  const thresholdMs = threshold.getTime();
-
-  if (game.createdAt.getTime() > thresholdMs) return false;
-  if (game.updatedAt.getTime() > thresholdMs) return false;
-  if (game.votes.some((v) => v.createdAt.getTime() > thresholdMs)) return false;
-
-  return true;
+  return isNeglectedBacklogGame({
+    status: game.status,
+    createdAt: game.createdAt.toISOString(),
+    updatedAt: game.updatedAt.toISOString(),
+    votes: game.votes.map((v) => ({ createdAt: v.createdAt.toISOString() })),
+  });
 }
 
 /** The slow part of a Steam library import - one IGDB lookup (and possibly a create) per unowned
