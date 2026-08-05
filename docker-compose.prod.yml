@@ -62,6 +62,7 @@ services:
       # Backend Config
       DEV_FAKE_AUTH: ${DEV_FAKE_AUTH:-false}                   # Testing - enables automatic login with admin account for everyone accesing QueueUp
       ADMIN_EMAILS: ${ADMIN_EMAILS}                            # QueueUp Administrators
+      ALLOW_DESTRUCTIVE_SCHEMA_PUSH: ${ALLOW_DESTRUCTIVE_SCHEMA_PUSH:-false}  # Leave false; set true only for the one boot after a deliberate destructive schema change
       DATABASE_URL: postgresql://${POSTGRES_USER:-squadqueue}:${POSTGRES_PASSWORD:-changeme}@postgres:5432/${POSTGRES_DB:-squadqueue}
       REDIS_URL: redis://redis:6379
       PORT: 3000 ## Leave this
