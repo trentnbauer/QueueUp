@@ -1268,6 +1268,28 @@ export const BADGE_DEFINITIONS: Record<BadgeKey, BadgeDefinition> = {
 
 export const ALL_BADGE_KEYS = Object.keys(BADGE_DEFINITIONS) as BadgeKey[];
 
+/** Which platform-sync badge (issue: "an achievement for syncing a game for each console") a given
+ * RoomPlatform counts toward - grouped by family (Xbox/PlayStation generations share one badge
+ * each) rather than one per hardware generation, so the panel doesn't end up with nine near-
+ * duplicate tiles for what's really "have you synced anything from this console line yet." PC is
+ * included even though it's not a "console" in the literal sense - Playnite commonly aggregates PC
+ * storefronts (GOG, Epic, itself) too, and it's the only sync path that can tell platforms apart at
+ * all (Steam import, first_library_sync, is PC-only by construction). Shared between the Playnite
+ * import route (server/src/routes/apiV1.ts, unlocks live on import) and the "Refresh Achievements"
+ * recheck (server/src/services/badges.ts, retroactively grants based on current ownership for
+ * anyone who synced before these badges existed) so both key off exactly the same mapping. */
+export const PLATFORM_SYNC_BADGE_KEY: Record<RoomPlatform, BadgeKey> = {
+  pc: 'first_pc_sync',
+  xbox_360: 'first_xbox_sync',
+  xbox_one: 'first_xbox_sync',
+  xbox_series: 'first_xbox_sync',
+  ps3: 'first_playstation_sync',
+  ps4: 'first_playstation_sync',
+  ps5: 'first_playstation_sync',
+  switch: 'first_switch_sync',
+  switch2: 'first_switch_sync',
+};
+
 /** One row of GET /api/me/badges - the full catalog, always all `ALL_BADGE_KEYS.length` entries
  * regardless of whether the current user has unlocked them, so the panel can render locked tiles.
  * `rarityPercent` is computed against every user in the database (not room/friends-scoped) - see
@@ -1283,4 +1305,12 @@ export interface BadgeSummary {
 
 export interface BadgesResponse {
   badges: BadgeSummary[];
+}
+
+/** Response for POST /api/me/badges/refresh ("Refresh Achievements") - whichever badges this call
+ * newly unlocked (often empty - most calls find nothing new). Same shape as every other
+ * unlockedBadges field returned around the app, so the caller can feed it straight into the same
+ * unlock-celebration plumbing (useAnnounceUnlock). */
+export interface RefreshBadgesResponse {
+  unlockedBadges: BadgeDefinition[];
 }

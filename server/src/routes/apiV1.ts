@@ -30,25 +30,7 @@ import type {
   PlayniteImportStarted,
   RoomPlatform,
 } from '@queueup/shared';
-
-/** Which platform-sync badge (issue: "an achievement for syncing a game for each console") a
- * given RoomPlatform counts toward - grouped by family (Xbox/PlayStation generations share one
- * badge each) rather than one per hardware generation, so the panel doesn't end up with nine
- * near-duplicate tiles for what's really "have you synced anything from this console line yet."
- * PC is included even though it's not a "console" in the literal sense - Playnite commonly
- * aggregates PC storefronts (GOG, Epic, itself) too, and it's the only sync path that can tell
- * platforms apart at all (Steam import, first_library_sync, is PC-only by construction). */
-const PLATFORM_SYNC_BADGE_KEY: Record<RoomPlatform, BadgeKey> = {
-  pc: 'first_pc_sync',
-  xbox_360: 'first_xbox_sync',
-  xbox_one: 'first_xbox_sync',
-  xbox_series: 'first_xbox_sync',
-  ps3: 'first_playstation_sync',
-  ps4: 'first_playstation_sync',
-  ps5: 'first_playstation_sync',
-  switch: 'first_switch_sync',
-  switch2: 'first_switch_sync',
-};
+import { PLATFORM_SYNC_BADGE_KEY } from '@queueup/shared';
 
 declare module 'fastify' {
   interface FastifyRequest {
