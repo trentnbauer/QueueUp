@@ -15,10 +15,16 @@ export function resolveConcreteTheme(theme: SpinWheelTheme, random: () => number
  * existed only has `releaseYear`, so this falls back to "release year is strictly later than the
  * current year," which can't catch a game releasing later this same year. Both `null` (unknown/not
  * fetched) are treated as released rather than excluded, since that's far more often an older or
- * obscure title IGDB didn't have release data for than an unannounced one. */
+ * obscure title IGDB didn't have release data for than an unannounced one.
+ *
+ * The releaseYear fallback compares against the UTC year (getUTCFullYear), not the caller's local
+ * year (issue #526) - this runs client-side against the browser's local clock, so a local-year
+ * comparison flips a `releaseYear`-only game from unreleased to released up to ~14 hours early or
+ * late depending on the viewer's timezone relative to UTC, around the December 31/January 1
+ * boundary. */
 export function isUnreleased(game: Game, now: number = Date.now()): boolean {
   if (game.releaseDate !== null) return new Date(game.releaseDate).getTime() > now;
-  return game.releaseYear !== null && game.releaseYear > new Date(now).getFullYear();
+  return game.releaseYear !== null && game.releaseYear > new Date(now).getUTCFullYear();
 }
 
 /** True when `game` has a "play after" prerequisite (see Game.prerequisiteGameId) set, and that

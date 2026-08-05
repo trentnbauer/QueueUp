@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import type { Game } from './types.js';
-import { hasSteamMatch, underPriceCap, spinCandidates, resolveConcreteTheme, buildSpinStrip } from './spinPicker.js';
+import { hasSteamMatch, underPriceCap, spinCandidates, resolveConcreteTheme, buildSpinStrip, isUnreleased } from './spinPicker.js';
 
 function makeGame(overrides: Partial<Game> = {}): Game {
   return {
@@ -40,6 +40,33 @@ function makeGame(overrides: Partial<Game> = {}): Game {
     ...overrides,
   };
 }
+
+describe('isUnreleased (issue #526)', () => {
+  it('uses the exact releaseDate when set, regardless of releaseYear', () => {
+    const game = makeGame({ releaseDate: '2027-01-01T00:00:00.000Z', releaseYear: 2026 });
+    expect(isUnreleased(game, Date.parse('2026-12-31T23:00:00.000Z'))).toBe(true);
+  });
+
+  it('treats a releaseYear equal to the current UTC year as released, right up to the UTC year boundary', () => {
+    // The bug this guards against (issue #526) compared against the caller's *local* year - in
+    // any timezone ahead of UTC (e.g. Melbourne, UTC+10/+11), local time has already ticked over
+    // into the next year at this same instant, which would have read this game as still
+    // unreleased for up to ~14 hours. Using getUTCFullYear, this is unconditionally correct
+    // regardless of the environment's local timezone.
+    const game = makeGame({ releaseDate: null, releaseYear: 2026 });
+    expect(isUnreleased(game, Date.parse('2026-12-31T23:59:00.000Z'))).toBe(false);
+  });
+
+  it('treats a releaseYear strictly after the current UTC year as unreleased, right up to the UTC year boundary', () => {
+    const game = makeGame({ releaseDate: null, releaseYear: 2027 });
+    expect(isUnreleased(game, Date.parse('2026-12-31T23:59:00.000Z'))).toBe(true);
+  });
+
+  it('treats a game with neither releaseDate nor releaseYear as released', () => {
+    const game = makeGame({ releaseDate: null, releaseYear: null });
+    expect(isUnreleased(game, Date.now())).toBe(false);
+  });
+});
 
 describe('hasSteamMatch', () => {
   it('is true for a live-priced game', () => {
