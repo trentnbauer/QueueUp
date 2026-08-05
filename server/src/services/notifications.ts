@@ -32,10 +32,11 @@ interface NotifyRoomInput {
   roomId: string;
   roomName: string;
   actorId: string;
-  // Excludes room_deleted/price_drop (neither ever reaches notifyRoom - see the two notes below)
-  // so the RoomActivityType passthrough a few lines down needs no cast: this narrowed type is
+  // Excludes room_deleted/price_drop/release_watch (none of the three ever reaches notifyRoom -
+  // see the notes on notifyRoomMembersDirect, notifyPriceDrop, and notifyReleaseWatch below) so
+  // the RoomActivityType passthrough a few lines down needs no cast: this narrowed type is
   // compiler-checked to stay a subset of RoomActivityType, not just documented as one.
-  type: Exclude<NotificationType, 'room_deleted' | 'price_drop'>;
+  type: Exclude<NotificationType, 'room_deleted' | 'price_drop' | 'release_watch'>;
   message: (actorName: string) => string;
 }
 
@@ -150,6 +151,24 @@ export async function notifyPriceDrop(input: NotifyPriceDropInput): Promise<void
     }
   } catch (err) {
     console.error('[notifications] failed to write price drop notification', err);
+  }
+}
+
+/** Writes a release-watch alert (issue #510, see jobs/releaseWatchJob.ts) - always a direct,
+ * Personal-Shelf-scoped notification (no room), same shape as notifyPriceDrop's non-room branch,
+ * and system-generated (no actorId) for the same "always unread" reason. Takes an already-built
+ * message rather than the raw discoveries themselves - releaseWatch.ts owns formatting that (see
+ * formatReleaseWatchMessage there), so this stays a thin write with no import back on that module.
+ * Failures are logged and swallowed: the caller has already durably recorded
+ * (ReleaseWatchNotification) that this was decided before calling this, so a delivery hiccup here
+ * must not cause the same title to be silently re-discovered and re-attempted on the next run. */
+export async function notifyReleaseWatch(userId: string, message: string): Promise<void> {
+  try {
+    await prisma.notification.create({
+      data: { recipientId: userId, roomName: 'Personal Shelf', type: 'release_watch', message },
+    });
+  } catch (err) {
+    console.error('[notifications] failed to write release watch notification', err);
   }
 }
 

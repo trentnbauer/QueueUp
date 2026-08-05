@@ -75,12 +75,14 @@ export function NotificationFlyout({ onNavigate, steamImport }: NotificationFlyo
         )}
         {notifications.map((n) => {
           const className = `${styles.notifItem} ${!n.read ? styles.notifUnread : ''}`;
-          // Personal Shelf price alerts are the one direct (roomId-less) notification type with
-          // somewhere to navigate to - room_deleted, the other direct type, has none left.
-          const linkTo = n.roomId ? `/room/${n.roomId}` : n.type === 'price_drop' ? '/' : null;
+          // Personal Shelf price alerts and release watch alerts (issue #510) are the two direct
+          // (roomId-less) notification types with somewhere to navigate to - room_deleted, the
+          // other direct type, has none left.
+          const isPersonalShelfNotification = n.type === 'price_drop' || n.type === 'release_watch';
+          const linkTo = n.roomId ? `/room/${n.roomId}` : isPersonalShelfNotification ? '/' : null;
           const body = (
             <>
-              <div className={styles.notifRoomName}>{n.roomId ? n.roomName : n.type === 'price_drop' ? 'Personal Shelf' : 'Announcement'}</div>
+              <div className={styles.notifRoomName}>{n.roomId ? n.roomName : isPersonalShelfNotification ? 'Personal Shelf' : 'Announcement'}</div>
               <div className={styles.notifMessage}>{n.message}</div>
               <div className={styles.notifTime}>{formatRelativeTime(n.createdAt)}</div>
             </>
