@@ -53,56 +53,19 @@ export interface PriceEntry {
   ggDealsUrl: string | null;
 }
 
-async function fetchLiveEntry(steamAppId: number, region: string): Promise<PriceEntry> {
-  // Resolved env-first with a DB fallback (see configResolver.ts) - gg.deals is no longer
-  // required at boot, so an unset key here is a real (if unusual) runtime state, not just a
-  // hypothetical. Degrade to "unavailable" the same way an API-side hiccup would, rather than
-  // throwing and breaking the whole game card.
-  const fetchedAt = new Date().toISOString();
-  const apiKey = await getConfigValue('GGDEALS_API_KEY', env.GGDEALS_API_KEY);
-  if (!apiKey) {
-    return {
-      price: { amount: null, currency: null, source: 'unavailable', historicalLow: null, lastRefreshedAt: fetchedAt },
-      ggDealsUrl: null,
-    };
-  }
+function unavailableEntry(fetchedAt: string): PriceEntry {
+  return {
+    price: { amount: null, currency: null, source: 'unavailable', historicalLow: null, lastRefreshedAt: fetchedAt },
+    ggDealsUrl: null,
+  };
+}
 
-  const url = new URL('https://api.gg.deals/v1/prices/by-steam-app-id/');
-  url.searchParams.set('ids', String(steamAppId));
-  url.searchParams.set('key', apiKey);
-  url.searchParams.set('region', region);
-
-  const response = await fetch(url);
-  if (!response.ok) {
-    // Price API hiccup shouldn't break the whole card — degrade to "unavailable" and let a later
-    // refresh retry. But this used to fail completely silently: a persistent misconfiguration
-    // (bad key, invalid region) looked identical to a one-off hiccup from the outside, with
-    // nothing in the logs to tell them apart. Logged (not thrown) so a bad key/region/quota is
-    // at least visible to whoever's running this, instead of every game just quietly showing no
-    // price with no explanation.
-    const bodyText = await response.text().catch(() => '');
-    console.error(`[priceService] gg.deals request failed (${response.status}) for steamAppId ${steamAppId}, region ${region}: ${bodyText.slice(0, 300)}`);
-    return {
-      price: { amount: null, currency: null, source: 'unavailable', historicalLow: null, lastRefreshedAt: fetchedAt },
-      ggDealsUrl: null,
-    };
-  }
-
-  const body = (await response.json()) as GGDealsPricesResponse;
-  const entry = body.data?.[String(steamAppId)];
-  if (!entry) {
-    return {
-      price: { amount: null, currency: null, source: 'unavailable', historicalLow: null, lastRefreshedAt: fetchedAt },
-      ggDealsUrl: null,
-    };
-  }
+function parseEntry(entry: GGDealsPricesResponse['data'][string] | undefined, fetchedAt: string): PriceEntry {
+  if (!entry) return unavailableEntry(fetchedAt);
 
   const amount = lowestOf(entry.prices.currentRetail, entry.prices.currentKeyshops);
   if (amount === null) {
-    return {
-      price: { amount: null, currency: null, source: 'unavailable', historicalLow: null, lastRefreshedAt: fetchedAt },
-      ggDealsUrl: entry.url ?? null,
-    };
+    return { price: { amount: null, currency: null, source: 'unavailable', historicalLow: null, lastRefreshedAt: fetchedAt }, ggDealsUrl: entry.url ?? null };
   }
 
   // The raw value, whenever gg.deals has one at all - even when it equals (or is above) the
@@ -117,6 +80,98 @@ async function fetchLiveEntry(steamAppId: number, region: string): Promise<Price
     price: { amount, currency: entry.prices.currency, source: 'live', historicalLow, lastRefreshedAt: fetchedAt },
     ggDealsUrl: entry.url ?? null,
   };
+}
+
+// gg.deals' `ids` param takes a comma-separated list (its response is already keyed per-id -
+// see GGDealsPricesResponse - so this was always designed for batch lookups; every caller here
+// used to pass exactly one id). Capped well under any practical URL-length limit; fetchLiveEntries
+// below splits a larger request into several calls of this size rather than one giant one.
+const PRICE_FETCH_BATCH_SIZE = 50;
+// How many of those batch requests are allowed in flight to gg.deals at once (issue #523) - a
+// cache-cold sweep across a large backlog (bulk import, or a period with GGDEALS_API_KEY unset)
+// used to fire one fetch per miss with no cap at all, risking rate-limiting/banning the shared key
+// or exhausting sockets in the container. This bounds simultaneous outbound requests regardless of
+// how many total ids are being resolved.
+const PRICE_FETCH_MAX_CONCURRENCY = 4;
+
+function chunk<T>(items: T[], size: number): T[][] {
+  const chunks: T[][] = [];
+  for (let i = 0; i < items.length; i += size) chunks.push(items.slice(i, i + size));
+  return chunks;
+}
+
+/** Runs `fn` over `items`, at most `limit` calls in flight at once - a fixed pool of workers each
+ * pulling the next item off a shared cursor, rather than chunking `items` into `limit`-sized
+ * waves (which would let a single slow call in one wave stall the next wave's otherwise-ready
+ * calls). Order of `results` matches `items`; order of completion doesn't. */
+export async function mapWithConcurrency<T, R>(items: T[], limit: number, fn: (item: T) => Promise<R>): Promise<R[]> {
+  const results: R[] = new Array(items.length);
+  let nextIndex = 0;
+  async function worker(): Promise<void> {
+    while (nextIndex < items.length) {
+      const i = nextIndex++;
+      results[i] = await fn(items[i]);
+    }
+  }
+  await Promise.all(Array.from({ length: Math.min(limit, items.length) }, worker));
+  return results;
+}
+
+/** One gg.deals request for up to PRICE_FETCH_BATCH_SIZE ids - callers needing more than that
+ * should go through fetchLiveEntries below, which chunks and concurrency-limits on top of this. */
+async function fetchLiveEntriesBatch(steamAppIds: number[], region: string): Promise<Map<number, PriceEntry>> {
+  // Resolved env-first with a DB fallback (see configResolver.ts) - gg.deals is no longer
+  // required at boot, so an unset key here is a real (if unusual) runtime state, not just a
+  // hypothetical. Degrade to "unavailable" the same way an API-side hiccup would, rather than
+  // throwing and breaking the whole game card.
+  const fetchedAt = new Date().toISOString();
+  const apiKey = await getConfigValue('GGDEALS_API_KEY', env.GGDEALS_API_KEY);
+  if (!apiKey) {
+    return new Map(steamAppIds.map((id) => [id, unavailableEntry(fetchedAt)]));
+  }
+
+  const url = new URL('https://api.gg.deals/v1/prices/by-steam-app-id/');
+  url.searchParams.set('ids', steamAppIds.join(','));
+  url.searchParams.set('key', apiKey);
+  url.searchParams.set('region', region);
+
+  const response = await fetch(url);
+  if (!response.ok) {
+    // Price API hiccup shouldn't break the whole card — degrade to "unavailable" and let a later
+    // refresh retry. But this used to fail completely silently: a persistent misconfiguration
+    // (bad key, invalid region) looked identical to a one-off hiccup from the outside, with
+    // nothing in the logs to tell them apart. Logged (not thrown) so a bad key/region/quota is
+    // at least visible to whoever's running this, instead of every game just quietly showing no
+    // price with no explanation.
+    const bodyText = await response.text().catch(() => '');
+    console.error(
+      `[priceService] gg.deals request failed (${response.status}) for ${steamAppIds.length} id(s), region ${region}: ${bodyText.slice(0, 300)}`,
+    );
+    return new Map(steamAppIds.map((id) => [id, unavailableEntry(fetchedAt)]));
+  }
+
+  const body = (await response.json()) as GGDealsPricesResponse;
+  return new Map(steamAppIds.map((id) => [id, parseEntry(body.data?.[String(id)], fetchedAt)]));
+}
+
+/** Batched + concurrency-limited live fetch for any number of ids (issue #523) - chunks into
+ * PRICE_FETCH_BATCH_SIZE-sized gg.deals requests (using its multi-id `ids` param instead of one
+ * request per id) and runs at most PRICE_FETCH_MAX_CONCURRENCY of those chunks at once. */
+async function fetchLiveEntries(steamAppIds: number[], region: string): Promise<Map<number, PriceEntry>> {
+  if (steamAppIds.length === 0) return new Map();
+  const batches = await mapWithConcurrency(chunk(steamAppIds, PRICE_FETCH_BATCH_SIZE), PRICE_FETCH_MAX_CONCURRENCY, (batch) =>
+    fetchLiveEntriesBatch(batch, region),
+  );
+  const merged = new Map<number, PriceEntry>();
+  for (const batch of batches) for (const [id, entry] of batch) merged.set(id, entry);
+  return merged;
+}
+
+async function fetchLiveEntry(steamAppId: number, region: string): Promise<PriceEntry> {
+  const entries = await fetchLiveEntriesBatch([steamAppId], region);
+  // Always present - fetchLiveEntriesBatch maps every input id to an entry (unavailable on
+  // failure/no-key), never drops one.
+  return entries.get(steamAppId)!;
 }
 
 async function getEntry(
@@ -144,9 +199,10 @@ export async function getSteamPrice(
   return entry.price;
 }
 
-/** Batched version of getSteamPrice — one Redis MGET for all cache hits, one Promise.all of live
- * fetches for the misses, instead of a round trip per game. Use this whenever pricing more than
- * one game at a time (e.g. serializing a room's game list). */
+/** Batched version of getSteamPrice — one Redis MGET for all cache hits, then one batched +
+ * concurrency-limited live fetch for the misses (see fetchLiveEntries - issue #523, previously an
+ * uncapped Promise.all of one gg.deals request per miss) instead of a round trip per game. Use
+ * this whenever pricing more than one game at a time (e.g. serializing a room's game list). */
 export async function getSteamPrices(
   steamAppIds: number[],
   opts: { region?: string; forceRefresh?: boolean } = {},
@@ -170,10 +226,10 @@ export async function getSteamPrices(
   });
 
   if (misses.length > 0) {
-    const fetched = await Promise.all(misses.map((id) => fetchLiveEntry(id, region)));
+    const fetched = await fetchLiveEntries(misses, region);
     const pipeline = redis.pipeline();
-    misses.forEach((id, i) => {
-      const entry = fetched[i];
+    misses.forEach((id) => {
+      const entry = fetched.get(id)!;
       result.set(id, entry.price);
       pipeline.set(`${PRICE_CACHE_PREFIX}${id}:${region}`, JSON.stringify(entry), 'EX', PRICE_CACHE_TTL_SECONDS);
     });
