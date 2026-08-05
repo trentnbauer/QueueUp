@@ -2,7 +2,7 @@ import { prisma } from '../db/client.js';
 import { HttpError } from '../util/httpError.js';
 import { ROOM_PLATFORM_LABELS, type RoomPlatform } from '@queueup/shared';
 
-const VALID_PLATFORMS = new Set(Object.keys(ROOM_PLATFORM_LABELS) as RoomPlatform[]);
+export const VALID_PLATFORMS = new Set(Object.keys(ROOM_PLATFORM_LABELS) as RoomPlatform[]);
 
 /** The systems a user has ticked as "owned" for their Personal Shelf - empty means no opt-in yet,
  * i.e. no filtering should be applied to the add-game flow there. */

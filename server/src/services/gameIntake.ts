@@ -24,7 +24,7 @@ import {
 import { getRoom, requireMembership } from './roomAccess.js';
 import { serializeGame } from './gameSerializer.js';
 import { setOwnershipPlatforms } from './gameOwnership.js';
-import { getOwnedPlatforms } from './userSettings.js';
+import { getOwnedPlatforms, VALID_PLATFORMS } from './userSettings.js';
 import { notifyRoom } from './notifications.js';
 import { toUserDto } from '../util/dto.js';
 import { Prisma } from '@prisma/client';
@@ -291,6 +291,13 @@ export async function createGameForUser(
   // something that's still just on the wishlist) via a request that skips the normal UI.
   if (ownedPlatforms !== undefined && ownedPlatforms.length > 0 && status !== 'backlog') {
     throw new HttpError(400, 'ownedPlatforms is only supported when status is "backlog"');
+  }
+  // Unlike room `platform` (validated against ROOM_PLATFORMS) and setOwnedPlatforms (validated
+  // against this same VALID_PLATFORMS), ownedPlatforms here went straight from client JSON into
+  // setOwnershipPlatforms's Postgres enum-array write below with no check - an invalid entry
+  // surfaced as an uncaught 500 instead of the 400 every other malformed-input path returns.
+  if (ownedPlatforms !== undefined && ownedPlatforms.some((p) => !VALID_PLATFORMS.has(p))) {
+    throw new HttpError(400, 'ownedPlatforms must be an array of valid platform values');
   }
 
   let room: Awaited<ReturnType<typeof getRoom>> | null = null;
