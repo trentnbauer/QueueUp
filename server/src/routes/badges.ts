@@ -1,6 +1,7 @@
 import type { FastifyInstance } from 'fastify';
-import { ALL_BADGE_KEYS, BADGE_DEFINITIONS, type BadgesResponse } from '@queueup/shared';
+import { ALL_BADGE_KEYS, BADGE_DEFINITIONS, type BadgesResponse, type RefreshBadgesResponse } from '@queueup/shared';
 import { prisma } from '../db/client.js';
+import { refreshBadges } from '../services/badges.js';
 
 /** Backs the Achievements panel (issue #489) - every badge in the catalog, always all
  * `ALL_BADGE_KEYS.length` of them regardless of what this user has unlocked, so the panel can
@@ -42,6 +43,22 @@ export default async function badgeRoutes(app: FastifyInstance) {
           };
         }),
       };
+      return response;
+    },
+  );
+
+  // "Refresh Achievements" (issue: imported Switch games via Playnite before the platform-sync
+  // badges existed, no way to trigger the achievement again without another import) - re-derives
+  // every badge this user currently, unambiguously qualifies for but hasn't been credited with yet.
+  // A real (if bounded) DB scan across several tables, not a cheap read - same rate-limit tier as
+  // the other on-demand rescans (sync-steam-completions), not the plain-read tier GET above uses.
+  app.post(
+    '/api/me/badges/refresh',
+    { config: { rateLimit: { max: 10, timeWindow: '1 hour' } } },
+    async (request) => {
+      const userId = await request.requireAuth();
+      const unlockedBadges = await refreshBadges(userId);
+      const response: RefreshBadgesResponse = { unlockedBadges };
       return response;
     },
   );

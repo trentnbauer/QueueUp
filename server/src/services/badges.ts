@@ -1,5 +1,5 @@
 import { Prisma } from '@prisma/client';
-import { ALL_BADGE_KEYS, BADGE_DEFINITIONS, type BadgeDefinition, type BadgeKey } from '@queueup/shared';
+import { ALL_BADGE_KEYS, BADGE_DEFINITIONS, PLATFORM_SYNC_BADGE_KEY, type BadgeDefinition, type BadgeKey } from '@queueup/shared';
 import { prisma } from '../db/client.js';
 
 // Everything except the capstone itself - see maybeUnlockFullCollection below.
@@ -65,4 +65,150 @@ export async function maybeUnlockFullCollection(userId: string): Promise<BadgeDe
   const owned = await prisma.userBadge.count({ where: { userId, badgeKey: { in: NON_CAPSTONE_BADGE_KEYS } } });
   if (owned < NON_CAPSTONE_BADGE_KEYS.length) return null;
   return unlockBadge(userId, 'first_full_collection');
+}
+
+// --- refreshBadges: the per-user, on-demand counterpart to scripts/backfillBadges.ts below. Each
+// helper mirrors one of that script's backfill* functions, scoped to a single userId instead of
+// swept across every user - see that script's own doc comment for the "unambiguous from data on
+// file" reasoning behind which badges can be re-derived this way at all, and which can't.
+
+const SHELF_STATUS_BADGE_KEYS = {
+  done: 'first_solo_beat',
+  replay: 'first_replay',
+  wishlist: 'first_wishlist',
+} as const;
+
+async function shelfStatusBadgeKeys(userId: string): Promise<BadgeKey[]> {
+  const rows = await prisma.game.findMany({
+    where: { roomId: null, addedBy: userId, status: { in: Object.keys(SHELF_STATUS_BADGE_KEYS) as (keyof typeof SHELF_STATUS_BADGE_KEYS)[] } },
+    select: { status: true },
+    distinct: ['status'],
+  });
+  return rows.map((r) => SHELF_STATUS_BADGE_KEYS[r.status as keyof typeof SHELF_STATUS_BADGE_KEYS]);
+}
+
+async function roomCreatedBadgeKeys(userId: string): Promise<BadgeKey[]> {
+  const room = await prisma.room.findFirst({ where: { createdBy: userId }, select: { id: true } });
+  return room ? ['first_room_created'] : [];
+}
+
+async function tagAppliedBadgeKeys(userId: string): Promise<BadgeKey[]> {
+  const tag = await prisma.tag.findFirst({ where: { userId, games: { some: {} } }, select: { id: true } });
+  return tag ? ['first_tag_applied'] : [];
+}
+
+/** Shared by the two Personal-Shelf completion badges below - true when at least one (owner,
+ * family) group has every member Beaten and at least 2 members total, matching
+ * completionBadgeKeys' own thresholds (routes/games.ts) and backfillBadges.ts's
+ * usersWithCompleteFamily. */
+function hasCompleteFamily(rows: { familyKey: string; status: string }[]): boolean {
+  const groups = new Map<string, { total: number; done: number }>();
+  for (const row of rows) {
+    const g = groups.get(row.familyKey) ?? { total: 0, done: 0 };
+    g.total++;
+    if (row.status === 'done') g.done++;
+    groups.set(row.familyKey, g);
+  }
+  for (const g of groups.values()) {
+    if (g.total >= 2 && g.total === g.done) return true;
+  }
+  return false;
+}
+
+async function franchiseFinisherBadgeKeys(userId: string): Promise<BadgeKey[]> {
+  const rows = await prisma.game.findMany({
+    where: { roomId: null, addedBy: userId, igdbCollectionId: { not: null } },
+    select: { igdbCollectionId: true, status: true },
+  });
+  const qualifies = hasCompleteFamily(rows.map((r) => ({ familyKey: String(r.igdbCollectionId), status: r.status })));
+  return qualifies ? ['first_franchise_finished'] : [];
+}
+
+async function dlcCompletionistBadgeKeys(userId: string): Promise<BadgeKey[]> {
+  const rows = await prisma.game.findMany({
+    where: { roomId: null, addedBy: userId },
+    select: { id: true, baseGameId: true, status: true },
+  });
+  const qualifies = hasCompleteFamily(rows.map((r) => ({ familyKey: r.baseGameId ?? r.id, status: r.status })));
+  return qualifies ? ['first_dlc_completionist'] : [];
+}
+
+async function bargainHunterBadgeKeys(userId: string): Promise<BadgeKey[]> {
+  const [ownershipRows, alertedGames] = await Promise.all([
+    prisma.gameOwnership.findMany({ where: { userId }, select: { igdbId: true } }),
+    prisma.game.findMany({ where: { roomId: null, addedBy: userId, notifiedAtlPrice: { not: null } }, select: { igdbId: true } }),
+  ]);
+  const alertedIgdbIds = new Set(alertedGames.map((g) => g.igdbId));
+  return ownershipRows.some((row) => alertedIgdbIds.has(row.igdbId)) ? ['first_bargain_hunter'] : [];
+}
+
+const MARATHONER_MS = 30 * 24 * 60 * 60 * 1000;
+const QUICK_DROP_MS = 24 * 60 * 60 * 1000;
+
+/** Marathoner/Comeback/Not For Me all derive from the same PlayLog scan, same reasoning as
+ * backfillBadges.ts keeping them as separate functions over the same underlying table - kept as
+ * one query here purely to avoid three near-identical round trips for one user. */
+async function playLogDerivedBadgeKeys(userId: string): Promise<BadgeKey[]> {
+  const entries = await prisma.playLog.findMany({
+    where: { finishedAt: { not: null }, game: { roomId: null, addedBy: userId } },
+    select: { gameId: true, startedAt: true, finishedAt: true, game: { select: { status: true } } },
+  });
+
+  const keys: BadgeKey[] = [];
+  if (entries.some((e) => e.finishedAt!.getTime() - e.startedAt.getTime() >= MARATHONER_MS)) keys.push('first_marathoner');
+
+  const finishedCountByGame = new Map<string, number>();
+  for (const e of entries) finishedCountByGame.set(e.gameId, (finishedCountByGame.get(e.gameId) ?? 0) + 1);
+  if ([...finishedCountByGame.values()].some((count) => count >= 2)) keys.push('first_comeback');
+
+  // Same narrower signal as backfillQuickDropBadge - a closed PlayLog entry alone doesn't say
+  // whether the transition that closed it was Done or Dropped, so this also requires the game's
+  // *current* status to still be 'dropped'.
+  const isQuickDrop = entries.some((e) => {
+    if (e.game.status !== 'dropped') return false;
+    const durationMs = e.finishedAt!.getTime() - e.startedAt.getTime();
+    return durationMs > 0 && durationMs < QUICK_DROP_MS;
+  });
+  if (isQuickDrop) keys.push('first_quick_drop');
+
+  return keys;
+}
+
+/** The one deliberate departure from backfillBadges.ts's "unambiguous or skip" bar (see that
+ * script's doc comment on why it declines these four): a GameOwnership platform claim doesn't
+ * record *how* it was added, so this can't tell a real Playnite sync apart from a manual ownership
+ * toggle. Granting based on current ownership anyway is the whole point of this being a user-
+ * triggered button rather than an automatic sweep - someone who already owns a Switch game and
+ * wants credit for it has no other path to it without re-running an actual sync, and "you
+ * currently own something on this platform" is a reasonable-enough proxy for "you've synced from
+ * it" that the button exists to accept. */
+async function platformSyncBadgeKeys(userId: string): Promise<BadgeKey[]> {
+  const rows = await prisma.gameOwnership.findMany({ where: { userId }, select: { platforms: true } });
+  const keys = new Set<BadgeKey>();
+  for (const row of rows) {
+    for (const platform of row.platforms) keys.add(PLATFORM_SYNC_BADGE_KEY[platform]);
+  }
+  return [...keys];
+}
+
+/** Re-derives every badge a user currently, unambiguously qualifies for but hasn't been credited
+ * with yet - the on-demand, per-user counterpart to scripts/backfillBadges.ts, triggered from the
+ * Achievements panel's "Refresh Achievements" button rather than swept across every user from a
+ * CLI script. Covers the same subset that script backfills, plus the platform-sync badges it
+ * deliberately skips (see platformSyncBadgeKeys above for why this button can afford to be looser
+ * about that one). Safe to call repeatedly - unlockBadges' own idempotency means already-unlocked
+ * badges just no-op, and nothing here writes anything until the final unlockBadges call. */
+export async function refreshBadges(userId: string): Promise<BadgeDefinition[]> {
+  const keyLists = await Promise.all([
+    shelfStatusBadgeKeys(userId),
+    roomCreatedBadgeKeys(userId),
+    tagAppliedBadgeKeys(userId),
+    franchiseFinisherBadgeKeys(userId),
+    dlcCompletionistBadgeKeys(userId),
+    bargainHunterBadgeKeys(userId),
+    playLogDerivedBadgeKeys(userId),
+    platformSyncBadgeKeys(userId),
+  ]);
+  const keys = [...new Set(keyLists.flat())];
+  return unlockBadges(userId, keys);
 }
