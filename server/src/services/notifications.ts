@@ -183,6 +183,32 @@ export function serializeNotification(row: NotificationWithActor, currentUserId:
   };
 }
 
+/** Prisma OR-branches matching serializeNotification's own unread predicate, mirrored 1:1 (keep
+ * both in sync if that logic changes) - so getNotificationFeed's `take` cap lands on the newest
+ * *unread* notifications instead of the newest notifications overall. Issue #520: previously the
+ * query took the newest `take` rows with no unread predicate at all, then filtered to unread in
+ * JS afterward - so an older unread notification could fall entirely outside that window (e.g. 50+
+ * newer notifications elsewhere) and silently never appear in the feed, even though the unread
+ * count (getNotificationSummary, a correct DB-level query) still counted it. One room-scoped
+ * condition per membership (its own read cutoff) plus one recipient-scoped condition; a
+ * notification's own actor is always "read" for them regardless of cutoff, same as
+ * serializeNotification. */
+export function unreadNotificationWhere(
+  userId: string,
+  memberships: { roomId: string; notificationsReadAt: Date | null; joinedAt: Date }[],
+): Prisma.NotificationWhereInput {
+  return {
+    OR: [
+      ...memberships.map((m) => ({
+        roomId: m.roomId,
+        actorId: { not: userId },
+        createdAt: { gt: m.notificationsReadAt ?? m.joinedAt },
+      })),
+      { recipientId: userId, actorId: { not: userId }, readAt: null },
+    ],
+  };
+}
+
 /** The merged, most-recent UNREAD notification feed for a user: their rooms' shared notifications
  * plus any direct ones (room-deletion notices), newest first. Only unread ones are returned - a
  * read notification has nothing left to act on, and "Dismiss all" (markAllNotificationsRead) needs
@@ -192,16 +218,18 @@ export async function getNotificationFeed(userId: string, take = 50): Promise<No
     where: { userId },
     select: { roomId: true, notificationsReadAt: true, joinedAt: true },
   });
-  const roomIds = memberships.map((m) => m.roomId);
   const cutoffByRoomId = new Map(memberships.map((m) => [m.roomId, { notificationsReadAt: m.notificationsReadAt, joinedAt: m.joinedAt }]));
 
   const rows = await prisma.notification.findMany({
-    where: { OR: [{ roomId: { in: roomIds } }, { recipientId: userId }] },
+    where: unreadNotificationWhere(userId, memberships),
     include: { actor: true },
     orderBy: { createdAt: 'desc' },
     take,
   });
 
+  // The where clause already selects only-unread rows; re-deriving `read` here (rather than
+  // trusting that) keeps this in exact lockstep with serializeNotification's own definition of
+  // "read" if the two ever drift, same defensive intent the previous JS-side filter had.
   return rows
     .map((row: NotificationWithActor) => serializeNotification(row, userId, cutoffByRoomId))
     .filter((n) => !n.read);
