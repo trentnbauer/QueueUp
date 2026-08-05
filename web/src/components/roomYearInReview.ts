@@ -35,7 +35,16 @@ export interface RoomYearInReview {
 export function computeRoomYearInReview(games: Game[], now: number = Date.now()): RoomYearInReview {
   const windowEnd = new Date(now);
   const windowStart = new Date(windowEnd);
-  windowStart.setFullYear(windowStart.getFullYear() - 1);
+  // Plain `setFullYear(getFullYear() - 1)` rolls a Feb 29 (leap day) over to March 1 of the prior
+  // year whenever that year isn't itself a leap year - it has no Feb 29 to land on (issue #527;
+  // same overflow shape as the month-shift fixed in isNeglectedBacklogGame, issue #522). Shifting
+  // to day 1 first avoids the day-doesn't-exist mismatch, then the original day is restored,
+  // clamped to the target year's actual last day of that month so it can't overflow forward again.
+  const originalDate = windowStart.getUTCDate();
+  windowStart.setUTCDate(1);
+  windowStart.setUTCFullYear(windowStart.getUTCFullYear() - 1);
+  const lastDayOfTargetMonth = new Date(Date.UTC(windowStart.getUTCFullYear(), windowStart.getUTCMonth() + 1, 0)).getUTCDate();
+  windowStart.setUTCDate(Math.min(originalDate, lastDayOfTargetMonth));
   const windowStartMs = windowStart.getTime();
 
   const completed = games.filter((g) => g.status === 'done' && new Date(g.updatedAt).getTime() >= windowStartMs);
