@@ -1434,7 +1434,17 @@ export default async function gameRoutes(app: FastifyInstance) {
 
       const windowEnd = new Date();
       const windowStart = new Date(windowEnd);
-      windowStart.setFullYear(windowStart.getFullYear() - 1);
+      // Plain `setFullYear(getFullYear() - 1)` rolls a Feb 29 (leap day) over to March 1 of the
+      // prior year whenever that year isn't itself a leap year - it has no Feb 29 to land on
+      // (issue #540, same overflow shape fixed for the room-scoped Year in Review in #527 and for
+      // isNeglectedBacklogGame in #522). Shifting to day 1 first avoids the day-doesn't-exist
+      // mismatch, then the original day is restored, clamped to the target year's actual last day
+      // of that month so it can't overflow forward again.
+      const originalDate = windowStart.getUTCDate();
+      windowStart.setUTCDate(1);
+      windowStart.setUTCFullYear(windowStart.getUTCFullYear() - 1);
+      const lastDayOfTargetMonth = new Date(Date.UTC(windowStart.getUTCFullYear(), windowStart.getUTCMonth() + 1, 0)).getUTCDate();
+      windowStart.setUTCDate(Math.min(originalDate, lastDayOfTargetMonth));
       const windowStartSeconds = Math.floor(windowStart.getTime() / 1000);
       const windowEndSeconds = Math.floor(windowEnd.getTime() / 1000);
 
