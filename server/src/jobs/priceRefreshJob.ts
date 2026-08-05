@@ -1,7 +1,13 @@
 import { prisma } from '../db/client.js';
-import { getSteamPrices, getSteamPriceAndUrl } from '../services/priceService.js';
+import { getSteamPrices, getSteamPriceAndUrl, mapWithConcurrency } from '../services/priceService.js';
 import { getRoomPlatforms } from '../services/roomAccess.js';
 import { scheduleJob, type JobHandle } from './scheduler.js';
+
+// Same cap/reasoning as priceService.ts's PRICE_FETCH_MAX_CONCURRENCY (issue #523) - this loop
+// resolves one gg.deals URL per game via getSteamPriceAndUrl rather than going through
+// getSteamPrices' own batching (it also needs each game's individual ggDealsUrl to persist, not
+// just a shared price map), so it needs its own concurrency cap for the same reason.
+const URL_RESOLUTION_MAX_CONCURRENCY = 4;
 
 // Shorter than priceAlertJob's 6h (matching the price cache TTL) on purpose (issue #439) - this
 // job's value beyond what the cache/alert job already do is a second chance for a game whose
@@ -58,15 +64,13 @@ export async function refreshStaleGamePrices(): Promise<void> {
   const noUrlYet = pcGames.filter((g) => g.ggDealsUrl === null);
   const alreadyResolved = pcGames.filter((g) => g.ggDealsUrl !== null);
 
-  await Promise.all(
-    noUrlYet.map(async (game) => {
-      if (game.steamAppid == null) return;
-      const { ggDealsUrl } = await getSteamPriceAndUrl(game.steamAppid);
-      if (ggDealsUrl) {
-        await prisma.game.update({ where: { id: game.id }, data: { ggDealsUrl } });
-      }
-    }),
-  );
+  await mapWithConcurrency(noUrlYet, URL_RESOLUTION_MAX_CONCURRENCY, async (game) => {
+    if (game.steamAppid == null) return;
+    const { ggDealsUrl } = await getSteamPriceAndUrl(game.steamAppid);
+    if (ggDealsUrl) {
+      await prisma.game.update({ where: { id: game.id }, data: { ggDealsUrl } });
+    }
+  });
 
   const alreadyResolvedIds = alreadyResolved.map((g) => g.steamAppid).filter((id): id is number => id != null);
   await getSteamPrices(alreadyResolvedIds);
