@@ -1,4 +1,4 @@
-import { Routes, Route, useLocation, useNavigate } from 'react-router-dom';
+import { Routes, Route, useLocation, useNavigate } from 'react-router';
 import { useEffect, useRef, useState } from 'react';
 import { useAuth } from './context/AuthContext';
 import { authApi } from './api/auth';

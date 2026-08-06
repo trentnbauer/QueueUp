@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { Link } from 'react-router-dom';
+import { Link } from 'react-router';
 import type { PublicUserProfile } from '@queueup/shared';
 import { publicProfileApi } from '../api/publicProfile';
 import { AvatarBadge } from '../components/AvatarBadge';

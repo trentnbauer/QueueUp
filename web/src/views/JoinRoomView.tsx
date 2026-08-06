@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import { useNavigate, useParams } from 'react-router-dom';
+import { useNavigate, useParams } from 'react-router';
 import { useRooms } from '../hooks/useRooms';
 import { ActionErrorBanner } from '../components/ActionErrorBanner';
 

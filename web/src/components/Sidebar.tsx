@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Link, useLocation } from 'react-router-dom';
+import { Link, useLocation } from 'react-router';
 import { ROOM_PLATFORM_LABELS } from '@queueup/shared';
 import { useAuth } from '../context/AuthContext';
 import { useView } from '../context/ViewContext';

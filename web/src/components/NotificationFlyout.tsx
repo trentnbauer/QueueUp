@@ -1,4 +1,4 @@
-import { Link } from 'react-router-dom';
+import { Link } from 'react-router';
 import { useNotificationFeed, useMarkAllNotificationsRead } from '../hooks/useNotifications';
 import type { useSteamImport } from '../hooks/useSteamImport';
 import { formatRelativeTime } from '../utils/relativeTime';
