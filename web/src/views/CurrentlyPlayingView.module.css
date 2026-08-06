@@ -109,6 +109,13 @@
   background: var(--qu-accent2);
 }
 
+/* Same gold treatment as GameCard's "Clocked" ribbon (GameCard.module.css's clockedRibbonText) -
+ * a 100%'d game reads distinctly from a plain Beaten one here too. */
+.statusBadgeClocked {
+  background: linear-gradient(135deg, #ffd700, #b8860b);
+  color: #3a2a00;
+}
+
 .tileTitle {
   font: 600 12.5px system-ui, sans-serif;
   color: var(--qu-text);
