@@ -1,5 +1,5 @@
 import { useEffect } from 'react';
-import { useParams } from 'react-router-dom';
+import { useParams } from 'react-router';
 import { useQuery } from '@tanstack/react-query';
 import { useAuth } from '../context/AuthContext';
 import { useView } from '../context/ViewContext';

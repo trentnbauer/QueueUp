@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Link } from 'react-router-dom';
+import { Link } from 'react-router';
 import { ROOM_PLATFORM_LABELS, type Game, type RoomPlatform } from '@queueup/shared';
 import { authApi } from '../api/auth';
 import { useAuth } from '../context/AuthContext';

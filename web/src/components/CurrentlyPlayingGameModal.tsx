@@ -1,4 +1,4 @@
-import { Link } from 'react-router-dom';
+import { Link } from 'react-router';
 import type { Game } from '@queueup/shared';
 import { useModalA11y, closeOnBackdropMouseDown } from '../hooks/useModalA11y';
 import { formatPrice } from '../utils/formatPrice';

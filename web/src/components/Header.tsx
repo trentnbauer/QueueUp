@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate } from 'react-router';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { IGDB_PLATFORM_NAMES, type GameStatus, type RoomRole } from '@queueup/shared';
 import { useAuth } from '../context/AuthContext';
