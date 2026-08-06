@@ -18,6 +18,15 @@ import styles from './CurrentlyPlayingView.module.css';
  * CurrentlyPlayingGameModal (it's generic over any game/room, not tied to "Playing" specifically).
  * Replay joins Done here for the same reason BeatenStrip.tsx groups them together on the shelf
  * itself: a Replay is by definition already-beaten. */
+/** A 100%'d game reads "Clocked" here too, not just on GameCard's own ribbon (issue: "clocked
+ * games do not seem to show on the beaten list") - this view previously fell back to
+ * GAME_STATUS_LABEL unconditionally, which only ever knows the raw GameStatus enum and has no
+ * concept of steamFullyCompleted, so a fully-completed game showed as a plain "Beaten" tile
+ * indistinguishable from one that was merely marked Done. */
+function beatenTileLabel(game: Game): string {
+  return game.status === 'done' && game.steamFullyCompleted ? 'Clocked' : GAME_STATUS_LABEL[game.status];
+}
+
 export function BeatenView() {
   const { data, isLoading, isError } = useQuery({
     queryKey: ['me', 'beaten'],
@@ -46,15 +55,19 @@ export function BeatenView() {
                 type="button"
                 onClick={() => setPreview({ game, roomId: group.roomId, roomName: group.roomName })}
                 className={styles.tile}
-                title={`${game.title} - ${GAME_STATUS_LABEL[game.status]}`}
+                title={`${game.title} - ${beatenTileLabel(game)}`}
               >
                 <div
                   className={styles.cover}
                   style={game.coverImageUrl ? { backgroundImage: `url(${game.coverImageUrl})` } : undefined}
                 >
                   {!game.coverImageUrl && <span className={styles.coverFallback}>{game.title[0]?.toUpperCase()}</span>}
-                  <span className={`${styles.statusBadge} ${game.status === 'play_next' ? styles.statusBadgePlayNext : ''}`}>
-                    {GAME_STATUS_LABEL[game.status]}
+                  <span
+                    className={`${styles.statusBadge} ${game.status === 'play_next' ? styles.statusBadgePlayNext : ''} ${
+                      game.status === 'done' && game.steamFullyCompleted ? styles.statusBadgeClocked : ''
+                    }`}
+                  >
+                    {beatenTileLabel(game)}
                   </span>
                 </div>
                 <span className={styles.tileTitle}>{game.title}</span>
