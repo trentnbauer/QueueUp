@@ -30,6 +30,7 @@ export async function checkPriceDropAlert(game: GameWithRelations, price: GamePr
     if (cleared.count === 0) return;
 
     await notifyPriceDrop({
+      gameId: game.id,
       title: game.title,
       amount: price.amount,
       currency: price.currency,
@@ -73,6 +74,7 @@ export async function checkAllTimeLowAlert(game: GameWithRelations, price: GameP
     if (updated.count === 0) return;
 
     await notifyPriceDrop({
+      gameId: game.id,
       title: game.title,
       amount,
       currency: price.currency,

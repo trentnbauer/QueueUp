@@ -1,6 +1,7 @@
 import { useEffect } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useAuth } from '../context/AuthContext';
+import { useView } from '../context/ViewContext';
 import { useToast } from '../context/ToastContext';
 import { notificationsApi } from '../api/notifications';
 import { gamesApi } from '../api/games';
@@ -8,14 +9,17 @@ import { gamesApi } from '../api/games';
 const POLL_INTERVAL_MS = 30_000;
 
 /** Bridges the notification feed to bottom-right toasts (issue #554, built on #553's
- * infrastructure) for notification types that carry an action - currently just
- * `playtime_mark_playing`. Mounted once at the app root (see App.tsx) so a toast can appear
- * regardless of which view is on screen, not just when the notification flyout happens to be
- * open. Shares the same `['notifications', 'feed']` query key as the flyout's own
- * useNotificationFeed - this hook's always-on 30s poll keeps that cache warm for both, rather than
- * the two independently fetching the same endpoint. */
+ * infrastructure) for notification types that carry an action - `playtime_mark_playing` (its own
+ * Mark Playing action) and `price_drop` (issue #563 - a View action, jumping to the room/Personal
+ * Shelf the game's in, same navigation NotificationFlyout.tsx's own room-scoped Link already
+ * offers). Mounted once at the app root (see App.tsx) so a toast can appear regardless of which
+ * view is on screen, not just when the notification flyout happens to be open. Shares the same
+ * `['notifications', 'feed']` query key as the flyout's own useNotificationFeed - this hook's
+ * always-on 30s poll keeps that cache warm for both, rather than the two independently fetching
+ * the same endpoint. */
 export function useActionableNotificationToasts() {
   const { user } = useAuth();
+  const { switchView } = useView();
   const { showToast } = useToast();
   const queryClient = useQueryClient();
 
@@ -45,19 +49,35 @@ export function useActionableNotificationToasts() {
 
   useEffect(() => {
     for (const notification of data?.notifications ?? []) {
-      if (notification.type !== 'playtime_mark_playing' || notification.gameId === null) continue;
+      if (notification.gameId === null) continue;
       const gameId = notification.gameId;
-      showToast({
-        id: `notification-${notification.id}`,
-        message: notification.message,
-        // mutateAsync (not the fire-and-forget mutate) so ToastStack's action handler can await
-        // it and only dismiss the toast on actual success - see ToastStack.tsx's bug-fix comment.
-        actions: [{ label: 'Mark Playing', onClick: () => markPlaying.mutateAsync(gameId) }],
-        onDismiss: () => markRead.mutate(notification.id),
-      });
+
+      if (notification.type === 'playtime_mark_playing') {
+        showToast({
+          id: `notification-${notification.id}`,
+          message: notification.message,
+          // mutateAsync (not the fire-and-forget mutate) so ToastStack's action handler can await
+          // it and only dismiss the toast on actual success - see ToastStack.tsx's bug-fix comment.
+          actions: [{ label: 'Mark Playing', onClick: () => markPlaying.mutateAsync(gameId) }],
+          onDismiss: () => markRead.mutate(notification.id),
+        });
+      } else if (notification.type === 'price_drop') {
+        const roomId = notification.roomId;
+        showToast({
+          id: `notification-${notification.id}`,
+          message: notification.message,
+          actions: [
+            {
+              label: 'View',
+              onClick: () => switchView(roomId ? { type: 'room', roomId } : { type: 'personal' }),
+            },
+          ],
+          onDismiss: () => markRead.mutate(notification.id),
+        });
+      }
     }
-    // markRead/markPlaying are stable across renders (useMutation identity), and including them
-    // would re-run this for every unrelated render of either mutation's internal state.
+    // markRead/markPlaying/switchView are stable across renders (useMutation identity /
+    // useState setter), and including them would re-run this for every unrelated render.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [data, showToast]);
 }

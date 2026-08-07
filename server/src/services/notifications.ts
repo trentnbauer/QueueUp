@@ -114,6 +114,7 @@ export async function notifyRoomMembersDirect(input: NotifyRoomMembersDirectInpu
 }
 
 interface NotifyPriceDropInput {
+  gameId: string;
   title: string;
   amount: string;
   currency: string | null;
@@ -140,14 +141,14 @@ export async function notifyPriceDrop(input: NotifyPriceDropInput): Promise<void
   try {
     if (input.room) {
       await prisma.notification.create({
-        data: { roomId: input.room.roomId, roomName: input.room.roomName, type: 'price_drop', message },
+        data: { roomId: input.room.roomId, roomName: input.room.roomName, gameId: input.gameId, type: 'price_drop', message },
       });
       void postToDiscordWebhook(input.room.roomId, input.room.roomName, message);
       // System-generated (no actorId), same as the notification just above.
       void logRoomActivity({ roomId: input.room.roomId, actorId: null, type: 'price_drop', message: () => message });
     } else {
       await prisma.notification.create({
-        data: { recipientId: input.ownerId, roomName: 'Personal Shelf', type: 'price_drop', message },
+        data: { recipientId: input.ownerId, roomName: 'Personal Shelf', gameId: input.gameId, type: 'price_drop', message },
       });
     }
   } catch (err) {
