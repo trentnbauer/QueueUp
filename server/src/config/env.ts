@@ -60,6 +60,14 @@ export const envSchema = z.object({
     .optional()
     .transform((v) => v === 'true'),
 
+  // Gates the whole playtime-tracking feature (issue #548) off by default so it can land across
+  // several PRs - snapshot job, "mark as Playing" nudge, "mark as Beaten" nudge - without going
+  // live mid-build. Flip to "true" once every piece has landed.
+  PLAYTIME_TRACKING_ENABLED: z
+    .string()
+    .optional()
+    .transform((v) => v === 'true'),
+
   // Generic OIDC provider (Authelia, Keycloak, Authentik, ...) - bring your own issuer.
   OIDC_ISSUER_URL: optionalEnvVar(),
   OIDC_CLIENT_ID: optionalEnvVar(),
