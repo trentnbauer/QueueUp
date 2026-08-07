@@ -1,5 +1,6 @@
 import type { GameStatus } from '@queueup/shared';
 import { prisma } from '../db/client.js';
+import { currentPlaytimeMinutesForGame } from './playtimeTracking.js';
 
 /** One play-journal entry closed by a status transition, as reported back to the caller (issue
  * #489's Marathoner/Comeback badges need the entries' start/finish timestamps and count - not
@@ -33,7 +34,8 @@ export async function recordStatusTransition(
     // once, so a stray duplicate never lingers past the next real completion.
     const open = await prisma.playLog.findFirst({ where: { gameId, finishedAt: null } });
     if (!open) {
-      await prisma.playLog.create({ data: { gameId, startedAt: new Date() } });
+      const startPlaytimeMinutes = await currentPlaytimeMinutesForGame(gameId);
+      await prisma.playLog.create({ data: { gameId, startedAt: new Date(), startPlaytimeMinutes } });
     }
     return [];
   }
@@ -44,15 +46,20 @@ export async function recordStatusTransition(
     // for this game is closed at once, so a stray duplicate from the race above never lingers
     // past the next real completion), just with the rows captured first.
     const now = new Date();
+    const finishPlaytimeMinutes = await currentPlaytimeMinutesForGame(gameId);
     const openEntries = await prisma.playLog.findMany({ where: { gameId, finishedAt: null } });
     if (openEntries.length > 0) {
-      await prisma.playLog.updateMany({ where: { gameId, finishedAt: null }, data: { finishedAt: now } });
+      await prisma.playLog.updateMany({ where: { gameId, finishedAt: null }, data: { finishedAt: now, finishPlaytimeMinutes } });
       return openEntries.map((entry) => ({ startedAt: entry.startedAt, finishedAt: now }));
     }
     // Jumped straight to Done/Dropped without ever passing through Playing - still worth a
     // record, even though the real start date is unknown; same start/finish timestamp reads as
-    // "logged after the fact" rather than a genuine multi-day playthrough.
-    const created = await prisma.playLog.create({ data: { gameId, startedAt: now, finishedAt: now } });
+    // "logged after the fact" rather than a genuine multi-day playthrough. startPlaytimeMinutes
+    // and finishPlaytimeMinutes end up equal here (both read "now") - correctly reporting 0 hours
+    // played for a playthrough QueueUp never actually saw happen, rather than guessing.
+    const created = await prisma.playLog.create({
+      data: { gameId, startedAt: now, finishedAt: now, startPlaytimeMinutes: finishPlaytimeMinutes, finishPlaytimeMinutes },
+    });
     return [{ startedAt: created.startedAt, finishedAt: now }];
   }
 
