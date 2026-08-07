@@ -983,11 +983,21 @@ export interface BacklogInsights {
    * marked Done/Dropped without ever passing through Playing - see the PlayLog model doc) are
    * excluded, same as the Not For Me badge's own duration > 0 gate, otherwise they'd drag the
    * average toward zero without reflecting a real playthrough length. Null when there are no
-   * qualifying entries yet. */
+   * qualifying entries yet. See `averageHoursToBeat` below for the active-playtime companion
+   * figure, now that PlayLog has playtime stamps (issue #548/#565) to compute it from. */
   averageDaysToBeat: number | null;
   /** How many closed `PlayLog` entries contributed to `averageDaysToBeat` - shown alongside it so
    * a "14 days" average backed by one entry doesn't read as more solid than it is. */
   finishedEntryCount: number;
+  /** Average *active* hours from Playing to Done/Replay, across the subset of those same closed
+   * `PlayLog` entries that also have Steam playtime stamps on both ends (issue #565) - null when
+   * playtime tracking was off, or off, for every qualifying entry (PLAYTIME_TRACKING_ENABLED,
+   * unmatched Steam game, etc. - see currentPlaytimeMinutesForGame). Always a subset of
+   * `finishedEntryCount`, often a much smaller one. */
+  averageHoursToBeat: number | null;
+  /** How many entries contributed to `averageHoursToBeat` - its own count, not `finishedEntryCount`,
+   * since playtime-stamped entries are usually fewer than calendar-dated ones. */
+  hoursTrackedEntryCount: number;
   /** Non-archived games currently in the caller's backlog (Personal Shelf + rooms), across every
    * bucket in `ageDistribution` - an at-a-glance denominator for the distribution below. Capped
    * defensively at MAX_GAMES_PER_LIST, same ceiling the rest of this route's queries use - a

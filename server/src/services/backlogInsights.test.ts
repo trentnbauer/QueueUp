@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { summarizeTimeToBeat, pickMostNeglectedGame, bucketBacklogAge } from './backlogInsights.js';
+import { summarizeTimeToBeat, summarizeActiveHoursToBeat, pickMostNeglectedGame, bucketBacklogAge } from './backlogInsights.js';
 import type { BacklogInsightGameRow } from './backlogInsights.js';
 
 function game(overrides: Partial<BacklogInsightGameRow> & { id: string }): BacklogInsightGameRow {
@@ -44,6 +44,55 @@ describe('summarizeTimeToBeat', () => {
   it('is null/0 when every entry is zero-duration', () => {
     const zeroDuration = { startedAt: new Date('2026-01-01T00:00:00.000Z'), finishedAt: new Date('2026-01-01T00:00:00.000Z') };
     expect(summarizeTimeToBeat([zeroDuration])).toEqual({ averageDaysToBeat: null, finishedEntryCount: 0 });
+  });
+});
+
+describe('summarizeActiveHoursToBeat', () => {
+  it('is null/0 with no entries', () => {
+    expect(summarizeActiveHoursToBeat([])).toEqual({ averageHoursToBeat: null, hoursTrackedEntryCount: 0 });
+  });
+
+  it('is null/0 when no entry has playtime stamps', () => {
+    const entry = { startedAt: new Date('2026-01-01T00:00:00.000Z'), finishedAt: new Date('2026-01-05T00:00:00.000Z') };
+    expect(summarizeActiveHoursToBeat([entry])).toEqual({ averageHoursToBeat: null, hoursTrackedEntryCount: 0 });
+  });
+
+  it('averages active hours across entries with playtime stamps', () => {
+    const result = summarizeActiveHoursToBeat([
+      { startedAt: new Date('2026-01-01T00:00:00.000Z'), finishedAt: new Date('2026-01-05T00:00:00.000Z'), startPlaytimeMinutes: 60, finishPlaytimeMinutes: 660 }, // 10h
+      { startedAt: new Date('2026-02-01T00:00:00.000Z'), finishedAt: new Date('2026-02-11T00:00:00.000Z'), startPlaytimeMinutes: 0, finishPlaytimeMinutes: 1200 }, // 20h
+    ]);
+    expect(result).toEqual({ averageHoursToBeat: 15, hoursTrackedEntryCount: 2 });
+  });
+
+  it('excludes entries missing either playtime stamp, without dropping others', () => {
+    const noStamps = { startedAt: new Date('2026-01-01T00:00:00.000Z'), finishedAt: new Date('2026-01-05T00:00:00.000Z') };
+    const partialStamps = {
+      startedAt: new Date('2026-01-01T00:00:00.000Z'),
+      finishedAt: new Date('2026-01-05T00:00:00.000Z'),
+      startPlaytimeMinutes: 60,
+      finishPlaytimeMinutes: null,
+    };
+    const withStamps = {
+      startedAt: new Date('2026-02-01T00:00:00.000Z'),
+      finishedAt: new Date('2026-02-11T00:00:00.000Z'),
+      startPlaytimeMinutes: 0,
+      finishPlaytimeMinutes: 600,
+    };
+    expect(summarizeActiveHoursToBeat([noStamps, partialStamps, withStamps])).toEqual({ averageHoursToBeat: 10, hoursTrackedEntryCount: 1 });
+  });
+
+  it('excludes an entry where finish minutes did not exceed start minutes', () => {
+    const flat = { startedAt: new Date('2026-01-01T00:00:00.000Z'), finishedAt: new Date('2026-01-05T00:00:00.000Z'), startPlaytimeMinutes: 100, finishPlaytimeMinutes: 100 };
+    expect(summarizeActiveHoursToBeat([flat])).toEqual({ averageHoursToBeat: null, hoursTrackedEntryCount: 0 });
+  });
+
+  it('rounds to one decimal place', () => {
+    const result = summarizeActiveHoursToBeat([
+      { startedAt: new Date('2026-01-01T00:00:00.000Z'), finishedAt: new Date('2026-01-05T00:00:00.000Z'), startPlaytimeMinutes: 0, finishPlaytimeMinutes: 90 }, // 1.5h
+      { startedAt: new Date('2026-01-01T00:00:00.000Z'), finishedAt: new Date('2026-01-05T00:00:00.000Z'), startPlaytimeMinutes: 0, finishPlaytimeMinutes: 60 }, // 1h
+    ]);
+    expect(result).toEqual({ averageHoursToBeat: 1.3, hoursTrackedEntryCount: 2 });
   });
 });
 

@@ -59,7 +59,7 @@ import type { OwnedSteamGame } from '../services/steamLibrary.js';
 import { toggleOwnershipForPlatform, setOwnershipPlatforms, markOwned } from '../services/gameOwnership.js';
 import { recordStatusTransition } from '../services/playLog.js';
 import { getCurrentPlaytimeMinutesForGames } from '../services/playtimeTracking.js';
-import { summarizeTimeToBeat, pickMostNeglectedGame, bucketBacklogAge } from '../services/backlogInsights.js';
+import { summarizeTimeToBeat, summarizeActiveHoursToBeat, pickMostNeglectedGame, bucketBacklogAge } from '../services/backlogInsights.js';
 import { unlockBadges } from '../services/badges.js';
 import { logRoomActivity } from '../services/roomActivity.js';
 import { lookupBarcodeGame } from '../services/barcodeService.js';
@@ -1935,19 +1935,24 @@ export default async function gameRoutes(app: FastifyInstance) {
         // descending + the cap below means "your most recent N playthroughs" if it ever bites.
         prisma.playLog.findMany({
           where: { finishedAt: { not: null }, game: { addedBy: userId, archivedAt: null, status: BEATEN_STATUSES } },
-          select: { startedAt: true, finishedAt: true },
+          select: { startedAt: true, finishedAt: true, startPlaytimeMinutes: true, finishPlaytimeMinutes: true },
           orderBy: { finishedAt: 'desc' },
           take: BACKLOG_INSIGHTS_PLAYLOG_LIMIT,
         }),
       ]);
 
-      const { averageDaysToBeat, finishedEntryCount } = summarizeTimeToBeat(
-        finishedEntries.filter((e): e is { startedAt: Date; finishedAt: Date } => e.finishedAt !== null),
+      const closedEntries = finishedEntries.filter(
+        (e): e is { startedAt: Date; finishedAt: Date; startPlaytimeMinutes: number | null; finishPlaytimeMinutes: number | null } =>
+          e.finishedAt !== null,
       );
+      const { averageDaysToBeat, finishedEntryCount } = summarizeTimeToBeat(closedEntries);
+      const { averageHoursToBeat, hoursTrackedEntryCount } = summarizeActiveHoursToBeat(closedEntries);
 
       const result: BacklogInsights = {
         averageDaysToBeat,
         finishedEntryCount,
+        averageHoursToBeat,
+        hoursTrackedEntryCount,
         backlogCount: backlogGames.length,
         mostNeglectedGame: pickMostNeglectedGame(backlogGames, now),
         ageDistribution: bucketBacklogAge(backlogGames, now),

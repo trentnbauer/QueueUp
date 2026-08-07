@@ -38,6 +38,14 @@ export function BacklogInsightsView() {
               </span>
             </div>
             <div className={styles.stat}>
+              <span className={styles.statValue}>{data.averageHoursToBeat !== null ? `${data.averageHoursToBeat}h` : '—'}</span>
+              <span className={styles.statLabel}>
+                avg. active hours from Playing to Beaten (Steam playtime)
+                {data.hoursTrackedEntryCount > 0 &&
+                  ` (${data.hoursTrackedEntryCount} play${data.hoursTrackedEntryCount === 1 ? 'through' : 'throughs'})`}
+              </span>
+            </div>
+            <div className={styles.stat}>
               <span className={styles.statValue}>{data.backlogCount}</span>
               <span className={styles.statLabel}>game{data.backlogCount === 1 ? '' : 's'} in your backlog</span>
             </div>
