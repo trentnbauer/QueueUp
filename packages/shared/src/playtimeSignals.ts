@@ -1,4 +1,5 @@
 import type { Game, GameStatus } from './types.js';
+import { monthsAgoUtc, NEGLECTED_BACKLOG_MONTHS } from './backlogHeuristics.js';
 
 /** Personal Shelf, not already Playing/Done/Dropped, and `minutes` (whatever playtime figure the
  * caller is judging against) is positive - the "mark as Playing?" signal (issue #548), factored
@@ -36,6 +37,26 @@ export function suggestsPlaying(game: Game): boolean {
  * de-duplicate them itself, since that's a display concern, not a fact about the game. */
 export function suggestsBeatenByPlaytime(game: Game): boolean {
   return suggestsBeatenFromMinutes(game.status, game.timeToBeatHours, game.playtimeSinceCheckpointMinutes ?? 0);
+}
+
+/** A game marked Playing, with recorded playtime proving it was genuinely started (not just
+ * flipped to this status with 0 hours on it), whose status hasn't budged in
+ * NEGLECTED_BACKLOG_MONTHS+ (issue #564) - the Playing-side companion to isNeglectedBacklogGame
+ * (backlogHeuristics.ts), which only ever looks at 'backlog' games that were never engaged with at
+ * all. Reuses that same threshold/window (monthsAgoUtc) rather than picking its own, so "collecting
+ * dust" reads as one consistent policy regardless of which side of it a game falls on. Judged
+ * against currentPlaytimeMinutes (the raw, always-increasing total), not the checkpoint-relative
+ * figure suggestsPlaying/suggestsBeatenByPlaytime use - this only needs to know "was this ever
+ * actually played," not "how much since the last checkpoint," and currentPlaytimeMinutes is null
+ * under the exact same conditions (tracking off, no Steam match, never snapshotted) that would
+ * make this question unanswerable anyway. */
+export function suggestsDroppingStalePlaying(
+  game: Pick<Game, 'status' | 'updatedAt' | 'currentPlaytimeMinutes'>,
+  now: number = Date.now(),
+): boolean {
+  if (game.status !== 'playing') return false;
+  if (game.currentPlaytimeMinutes === null || game.currentPlaytimeMinutes <= 0) return false;
+  return new Date(game.updatedAt).getTime() <= monthsAgoUtc(NEGLECTED_BACKLOG_MONTHS, now);
 }
 
 export interface PlaytimeReviewCandidate {

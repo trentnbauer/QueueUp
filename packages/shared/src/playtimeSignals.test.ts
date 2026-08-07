@@ -5,6 +5,7 @@ import {
   suggestsBeatenByPlaytime,
   suggestsPlayingFromMinutes,
   suggestsBeatenFromMinutes,
+  suggestsDroppingStalePlaying,
   computePlaytimeReviewCandidates,
 } from './playtimeSignals.js';
 
@@ -144,6 +145,35 @@ describe('suggestsBeatenFromMinutes', () => {
 
   it('is false with no time-to-beat data', () => {
     expect(suggestsBeatenFromMinutes('playing', null, 2400)).toBe(false);
+  });
+});
+
+describe('suggestsDroppingStalePlaying', () => {
+  const now = new Date('2026-08-04T00:00:00.000Z').getTime();
+
+  it('is true for a Playing game with recorded playtime, untouched 3+ months', () => {
+    const game = { status: 'playing' as const, updatedAt: '2026-01-01T00:00:00.000Z', currentPlaytimeMinutes: 300 };
+    expect(suggestsDroppingStalePlaying(game, now)).toBe(true);
+  });
+
+  it('is false for a Playing game updated less than 3 months ago', () => {
+    const game = { status: 'playing' as const, updatedAt: '2026-07-20T00:00:00.000Z', currentPlaytimeMinutes: 300 };
+    expect(suggestsDroppingStalePlaying(game, now)).toBe(false);
+  });
+
+  it('is false when there is no recorded playtime at all (never actually started)', () => {
+    const game = { status: 'playing' as const, updatedAt: '2026-01-01T00:00:00.000Z', currentPlaytimeMinutes: null };
+    expect(suggestsDroppingStalePlaying(game, now)).toBe(false);
+  });
+
+  it('is false at exactly 0 minutes played', () => {
+    const game = { status: 'playing' as const, updatedAt: '2026-01-01T00:00:00.000Z', currentPlaytimeMinutes: 0 };
+    expect(suggestsDroppingStalePlaying(game, now)).toBe(false);
+  });
+
+  it('is false for a non-Playing status regardless of playtime/age', () => {
+    const game = { status: 'backlog' as const, updatedAt: '2026-01-01T00:00:00.000Z', currentPlaytimeMinutes: 300 };
+    expect(suggestsDroppingStalePlaying(game, now)).toBe(false);
   });
 });
 

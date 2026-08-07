@@ -4,6 +4,7 @@ import {
   VOTE_SCALE,
   suggestsPlaying,
   suggestsBeatenByPlaytime,
+  suggestsDroppingStalePlaying,
   type Game,
   type GameStatus,
   type User,
@@ -96,6 +97,11 @@ export function GameCard({
   }, [game.coverImageUrl]);
   const avgVote = averageVoteValue(game.votes);
   const neglected = isNeglectedBacklogGame(game);
+  // The Playing-side companion to `neglected` above (issue #564) - a game that was genuinely
+  // started (has recorded playtime) but hasn't budged in just as long. Mutually exclusive with
+  // `neglected`: that one requires status 'backlog', this one requires 'playing', so a game can
+  // never trigger both at once and the two badges never need to compete for the same slot.
+  const stalePlaying = suggestsDroppingStalePlaying(game);
 
   function handleCardClick() {
     if (selectable) {
@@ -200,6 +206,15 @@ export function GameCard({
               title={`Added ${NEGLECTED_BACKLOG_MONTHS}+ months ago with no vote or status change since`}
             >
               <span aria-hidden="true">🕸</span> Collecting dust
+            </div>
+          )}
+
+          {/* Playing-side companion to "Collecting dust" above (issue #564) - same slot/style,
+              never rendered alongside it (see stalePlaying's doc comment for why they can't both
+              be true for one game). */}
+          {stalePlaying && !selectable && (
+            <div className={styles.dustBadge} title={`Marked Playing ${NEGLECTED_BACKLOG_MONTHS}+ months ago with no status change since`}>
+              <span aria-hidden="true">🕸</span> Stalled
             </div>
           )}
 
