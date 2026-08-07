@@ -53,6 +53,12 @@ Some other things to note
 
 Each method's `*_REDIRECT_URI` must exactly match what you register with that provider. In the production setup (`docker-compose.prod.yml`), you can leave `*_REDIRECT_URI` unset entirely - it defaults to `${APP_BASE_URL}/auth/<provider>/callback`, since that one server container serves both the API and the frontend. You still need to register that exact URL with the provider; only set `*_REDIRECT_URI` explicitly if your deployment doesn't serve the API from `APP_BASE_URL`'s own origin (local dev's split `:5173`/`:3000` ports being the main example).
 
+## Steam playtime tracking
+
+Set `PLAYTIME_TRACKING_ENABLED=true` (needs `STEAM_API_KEY` above) to have QueueUp poll each Steam-linked member's playtime every few hours and nudge them to mark a game Playing or Beaten based on it, on the Personal Shelf. Off by default.
+
+This only works for a Steam account whose games list is set to public in their Steam privacy settings - a private profile just returns nothing, silently, same as any other third-party Steam tool.
+
 ## Hosting on a sub-path
 
 By default QueueUp expects its own domain or subdomain. If you'd rather run it at `yourdomain.com/queueup` alongside other apps, set `BASE_PATH=/queueup` and update `APP_BASE_URL` to include the same path - no image rebuild or reverse-proxy path-rewriting needed, the container answers on that path directly. See `.env.example` for details.

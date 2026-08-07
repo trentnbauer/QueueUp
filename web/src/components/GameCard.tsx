@@ -1,5 +1,14 @@
 import { useEffect, useState } from 'react';
-import { ROOM_PLATFORM_LABELS, VOTE_SCALE, type Game, type GameStatus, type User, type VoteValue } from '@queueup/shared';
+import {
+  ROOM_PLATFORM_LABELS,
+  VOTE_SCALE,
+  suggestsPlaying,
+  suggestsBeatenByPlaytime,
+  type Game,
+  type GameStatus,
+  type User,
+  type VoteValue,
+} from '@queueup/shared';
 import { GameDetailModal } from './GameDetailModal';
 import { formatPrice } from '../utils/formatPrice';
 import { NEGLECTED_BACKLOG_MONTHS, isNeglectedBacklogGame } from './gameGridLogic';
@@ -114,6 +123,23 @@ export function GameCard({
             onChange={() => onToggleSelect?.()}
             aria-label={`Select ${game.title}`}
           />
+        )}
+        {/* Playtime nudge badges (issue #548/#561) - a glance-only signal, not a second action
+            surface: clicking anywhere on the card (including here) opens the same detail modal
+            that already has the full nudge banner with real action buttons. Kept to a single small
+            icon rather than a text line, matching this card face's deliberately minimal design -
+            see the "Playing hides price/owned info" comment further down. Mutually exclusive:
+            suggestsPlaying only applies to a non-Playing game, suggestsBeatenByPlaytime only to
+            one already Playing. */}
+        {suggestsPlaying(game) && (
+          <span className={styles.playtimeBadge} aria-hidden="true" title="Steam playtime went up - mark as Playing?">
+            🎮
+          </span>
+        )}
+        {suggestsBeatenByPlaytime(game) && (
+          <span className={styles.playtimeBadge} aria-hidden="true" title="Played enough to beat it - mark as Beaten?">
+            ⏱️
+          </span>
         )}
         {/* A 100%'d game gets "Clocked" (gold) instead of "Beaten" (green) - see the
             steamFullyCompleted schema comment for why this is a sticky, persisted flag rather
