@@ -286,13 +286,19 @@ model GameOwnership {
 /// #548, gated behind PLAYTIME_TRACKING_ENABLED). Keyed by (userId, steamAppId) rather than igdbId
 /// - this is a raw fact straight from Steam's GetOwnedGames, which only knows appIds, and joining
 /// it back to a specific Game row (Game.steamAppid) is a concern for whatever reads this table,
-/// not this table itself. Overwritten in place each poll (no history kept) - later pieces of #548
-/// that need a fixed point-in-time baseline (e.g. "playtime when this was marked Playing") persist
-/// their own copy of the value at that moment rather than relying on this row staying put.
+/// not this table itself. playtimeMinutes is overwritten in place each poll (no history kept) -
+/// later pieces of #548 that need a fixed point-in-time baseline (e.g. "playtime when this was
+/// marked Playing") persist their own copy of the value at that moment rather than relying on this
+/// row staying put. initialMinutes is the one exception: set once at row creation and never
+/// touched again, so a game that already had hours logged before tracking started has something
+/// better than 0 to count "since checkpoint" from once it's tracked (see
+/// getPlaytimeSinceCheckpoint) - without it, every pre-existing hour on a never-before-tracked
+/// game would misread as "just played" the moment this feature is turned on.
 model PlaytimeSnapshot {
   userId          String   @map("user_id")
   steamAppId      Int      @map("steam_app_id")
   playtimeMinutes Int      @map("playtime_minutes")
+  initialMinutes  Int      @map("initial_minutes")
   updatedAt       DateTime @updatedAt @map("updated_at")
 
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)

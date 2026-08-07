@@ -118,10 +118,7 @@ export function GameDetailModal({
   const franchiseProgress = collectionProgress(game, roomGames ?? []);
 
   // A nudge, not an automatic status change (issue #227) - the viewer's own Steam achievement
-  // progress on this game, when they've 100%'d it and it isn't already Done/Dropped. Playtime
-  // would be another signal here, but it isn't persisted anywhere yet (Steam library import only
-  // fetches it transiently to sort the import queue), so this starts with the one signal already
-  // on hand from the achievements fetch above.
+  // progress on this game, when they've 100%'d it and it isn't already Done/Dropped.
   const myAchievements = achievementPlayers.find((p) => p.user.id === currentUserId);
   const suggestDone =
     myAchievements != null &&
@@ -129,6 +126,29 @@ export function GameDetailModal({
     myAchievements.unlocked === myAchievements.total &&
     game.status !== 'done' &&
     game.status !== 'dropped';
+
+  // Playtime-based nudges (issue #548) - same "nudge, not automatic" philosophy as suggestDone
+  // above, now that playtime is actually tracked (see playtimeSinceCheckpointMinutes' doc comment
+  // - Personal Shelf only, since a room game has no single unambiguous player). Steam playtime
+  // ticking up while the game isn't already Playing suggests someone started it; hours played this
+  // stretch reaching the game's own time-to-beat suggests it's done. Deliberately skipped when
+  // suggestDone already fired above - 100% achievements is the stronger signal, no need for both
+  // banners making the same ask.
+  const hoursPlayedSinceCheckpoint =
+    game.playtimeSinceCheckpointMinutes !== null ? game.playtimeSinceCheckpointMinutes / 60 : null;
+  const suggestPlaying =
+    game.roomId === null &&
+    game.playtimeSinceCheckpointMinutes !== null &&
+    game.playtimeSinceCheckpointMinutes > 0 &&
+    game.status !== 'playing' &&
+    game.status !== 'done' &&
+    game.status !== 'dropped';
+  const suggestBeatenByPlaytime =
+    !suggestDone &&
+    game.status === 'playing' &&
+    game.timeToBeatHours != null &&
+    hoursPlayedSinceCheckpoint !== null &&
+    hoursPlayedSinceCheckpoint >= game.timeToBeatHours;
 
   // Full breakdown (issue #248) - IGDB's game_time_to_beats endpoint returns three figures that
   // are strictly ordered for any given game (rushed < main story < completionist), so they're
@@ -452,6 +472,24 @@ export function GameDetailModal({
             <span>🏆 Looks like you've 100%'d this — mark it Beaten?</span>
             <button type="button" className={styles.doneSuggestionButton} onClick={() => onStatusChange('done')}>
               Mark Beaten
+            </button>
+          </div>
+        )}
+
+        {suggestBeatenByPlaytime && (
+          <div className={styles.doneSuggestion}>
+            <span>⏱️ You've played about {Math.round(hoursPlayedSinceCheckpoint!)}h, around this game's time to beat — mark it Beaten?</span>
+            <button type="button" className={styles.doneSuggestionButton} onClick={() => onStatusChange('done')}>
+              Mark Beaten
+            </button>
+          </div>
+        )}
+
+        {suggestPlaying && (
+          <div className={styles.doneSuggestion}>
+            <span>🎮 Your Steam playtime just went up — mark this as Playing?</span>
+            <button type="button" className={styles.doneSuggestionButton} onClick={() => onStatusChange('playing')}>
+              Mark Playing
             </button>
           </div>
         )}

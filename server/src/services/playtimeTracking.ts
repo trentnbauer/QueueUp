@@ -77,7 +77,12 @@ export async function snapshotAllPlaytimes(): Promise<PlaytimeIncrease[]> {
       owned.map((game) =>
         prisma.playtimeSnapshot.upsert({
           where: { userId_steamAppId: { userId: user.id, steamAppId: game.appId } },
-          create: { userId: user.id, steamAppId: game.appId, playtimeMinutes: game.playtimeForeverMinutes },
+          create: {
+            userId: user.id,
+            steamAppId: game.appId,
+            playtimeMinutes: game.playtimeForeverMinutes,
+            initialMinutes: game.playtimeForeverMinutes,
+          },
           update: { playtimeMinutes: game.playtimeForeverMinutes },
         }),
       ),
@@ -104,4 +109,70 @@ export async function currentPlaytimeMinutesForGame(gameId: string): Promise<num
     where: { userId_steamAppId: { userId: game.addedBy, steamAppId: game.steamAppid } },
   });
   return snapshot?.playtimeMinutes ?? null;
+}
+
+interface CheckpointEntry {
+  finishedAt: Date | null;
+  startPlaytimeMinutes: number | null;
+  finishPlaytimeMinutes: number | null;
+}
+
+/** Pure step (same reasoning as computePlaytimeIncreases above) - the playtime baseline a game's
+ * "since last checkpoint" figure counts up from. An open entry (still Playing) checkpoints at its
+ * own start; a closed one checkpoints at its finish, since that's the more recent of the two times
+ * this game's playtime was looked at. Falls back to `initialMinutes` - the playtime this app had
+ * the very first time it was ever snapshotted - both when there's no PlayLog entry at all (never
+ * tracked through a status change) and when the relevant entry field is null (predates playtime
+ * tracking). Using 0 for either case would misread every hour logged before tracking started as
+ * "just played" the moment a never-before-tracked game's first snapshot lands. */
+export function checkpointBaselineMinutes(lastEntry: CheckpointEntry | undefined, initialMinutes: number): number {
+  if (!lastEntry) return initialMinutes;
+  const value = lastEntry.finishedAt ? lastEntry.finishPlaytimeMinutes : lastEntry.startPlaytimeMinutes;
+  return value ?? initialMinutes;
+}
+
+/** Batched "minutes played since last checkpoint" for a set of games (issue #548) - the Game DTO
+ * field the "mark as Playing"/"mark as Beaten" nudges read. Personal-Shelf-only (roomId null): a
+ * room game has no single unambiguous player to attribute playtime to, unlike its adder-scoped
+ * PlayLog stamps above, which are internal bookkeeping rather than something shown back to every
+ * member. Two batch queries total regardless of game count, same shape as getSteamPrices/
+ * getOwnershipInfo elsewhere in gameSerializer.ts - not one query per game. */
+export async function getPlaytimeSinceCheckpoint(
+  games: { id: string; roomId: string | null; addedBy: string; steamAppid: number | null }[],
+): Promise<Map<string, number>> {
+  const result = new Map<string, number>();
+  if (!env.PLAYTIME_TRACKING_ENABLED) return result;
+
+  const candidates = games.filter(
+    (g): g is typeof g & { steamAppid: number } => g.roomId === null && g.steamAppid !== null,
+  );
+  if (candidates.length === 0) return result;
+
+  const [snapshots, entries] = await Promise.all([
+    prisma.playtimeSnapshot.findMany({
+      where: { OR: candidates.map((g) => ({ userId: g.addedBy, steamAppId: g.steamAppid })) },
+    }),
+    prisma.playLog.findMany({
+      where: { gameId: { in: candidates.map((g) => g.id) } },
+      orderBy: { createdAt: 'desc' },
+    }),
+  ]);
+
+  const snapshotByKey = new Map(
+    snapshots.map((s) => [`${s.userId}:${s.steamAppId}`, { current: s.playtimeMinutes, initial: s.initialMinutes }]),
+  );
+  // First entry seen per gameId is the most recent, since entries is already ordered newest-first.
+  const lastEntryByGame = new Map<string, CheckpointEntry>();
+  for (const entry of entries) {
+    if (!lastEntryByGame.has(entry.gameId)) lastEntryByGame.set(entry.gameId, entry);
+  }
+
+  for (const game of candidates) {
+    const snapshot = snapshotByKey.get(`${game.addedBy}:${game.steamAppid}`);
+    if (snapshot === undefined) continue;
+    const baseline = checkpointBaselineMinutes(lastEntryByGame.get(game.id), snapshot.initial);
+    result.set(game.id, Math.max(0, snapshot.current - baseline));
+  }
+
+  return result;
 }

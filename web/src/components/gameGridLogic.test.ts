@@ -55,6 +55,7 @@ function makeGame(overrides: Partial<Game> = {}): Game {
     reviewScore: null,
     prerequisiteGameId: null,
     baseGameId: null,
+    playtimeSinceCheckpointMinutes: null,
     createdAt: '2026-01-01T00:00:00.000Z',
     updatedAt: '2026-01-01T00:00:00.000Z',
     ...overrides,
