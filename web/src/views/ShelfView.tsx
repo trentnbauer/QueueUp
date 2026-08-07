@@ -16,6 +16,7 @@ import { filterGames, ALL_FILTER_VALUE } from '../components/gameGridLogic';
 import { ActionErrorBanner } from '../components/ActionErrorBanner';
 import { TruncatedListBanner } from '../components/TruncatedListBanner';
 import { BulkActionBar } from '../components/BulkActionBar';
+import { PlaytimeReviewModal } from '../components/PlaytimeReviewModal';
 import styles from './ShelfView.module.css';
 
 export function ShelfView() {
@@ -132,6 +133,7 @@ export function ShelfView() {
 
   return (
     <div>
+      <PlaytimeReviewModal games={games} onStatusChange={updateStatus} />
       {bulkMode ? (
         <BulkActionBar
           selectedCount={selectedIds.size}

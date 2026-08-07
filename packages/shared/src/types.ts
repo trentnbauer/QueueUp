@@ -305,11 +305,19 @@ export interface Game {
    * pointer someone picks from a dropdown. */
   baseGameId: string | null;
   /** Minutes of Steam playtime logged since this game's last tracked checkpoint (its last PlayLog
-   * entry's start/finish playtime, or 0 if it's never had one) - issue #548's raw signal for "did
-   * someone actually play this." Null whenever there's nothing to compare: playtime tracking is
-   * off, this isn't a Steam-matched Personal Shelf game (room games have no single unambiguous
-   * player), or its owner has no playtime snapshot yet. Always Personal-Shelf-only. */
+   * entry's start/finish playtime, or the playtime it had at its very first snapshot if it's never
+   * had one) - issue #548's raw signal for "did someone actually play this." Null whenever there's
+   * nothing to compare: playtime tracking is off, this isn't a Steam-matched Personal Shelf game
+   * (room games have no single unambiguous player), or its owner has no playtime snapshot yet.
+   * Always Personal-Shelf-only. Resets toward 0 on a status change (a new PlayLog checkpoint) -
+   * see currentPlaytimeMinutes for the figure that doesn't. */
   playtimeSinceCheckpointMinutes: number | null;
+  /** Raw, always-increasing total Steam playtime minutes from the latest snapshot (issue #548).
+   * Same null conditions as playtimeSinceCheckpointMinutes, but never resets - the batch "review
+   * your played games" prompt (usePlaytimeReview.ts) tracks its own per-game high-watermark
+   * against this rather than the checkpoint-relative figure, since it needs something that keeps
+   * climbing instead of zeroing out the moment an individual nudge gets acted on. */
+  currentPlaytimeMinutes: number | null;
   createdAt: string;
   updatedAt: string;
 }

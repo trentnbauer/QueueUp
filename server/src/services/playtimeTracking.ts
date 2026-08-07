@@ -131,16 +131,28 @@ export function checkpointBaselineMinutes(lastEntry: CheckpointEntry | undefined
   return value ?? initialMinutes;
 }
 
-/** Batched "minutes played since last checkpoint" for a set of games (issue #548) - the Game DTO
- * field the "mark as Playing"/"mark as Beaten" nudges read. Personal-Shelf-only (roomId null): a
- * room game has no single unambiguous player to attribute playtime to, unlike its adder-scoped
- * PlayLog stamps above, which are internal bookkeeping rather than something shown back to every
- * member. Two batch queries total regardless of game count, same shape as getSteamPrices/
- * getOwnershipInfo elsewhere in gameSerializer.ts - not one query per game. */
+export interface GamePlaytimeInfo {
+  /** Minutes played since this game's last tracked checkpoint - see checkpointBaselineMinutes. */
+  sinceCheckpointMinutes: number;
+  /** Raw, always-increasing total minutes from the latest snapshot - unlike sinceCheckpointMinutes,
+   * never resets on a status change. Issue #548's batch "review your played games" prompt tracks
+   * its own per-game high-watermark against this (see usePlaytimeReview.ts on the frontend) rather
+   * than sinceCheckpointMinutes, precisely because it needs a figure that keeps climbing instead of
+   * one that zeroes out the moment a nudge gets acted on. */
+  currentMinutes: number;
+}
+
+/** Batched per-game playtime info for a set of games (issue #548) - backs both the individual
+ * "mark as Playing"/"mark as Beaten" nudges (sinceCheckpointMinutes) and the batch playtime-review
+ * prompt (currentMinutes). Personal-Shelf-only (roomId null): a room game has no single
+ * unambiguous player to attribute playtime to, unlike its adder-scoped PlayLog stamps above, which
+ * are internal bookkeeping rather than something shown back to every member. Two batch queries
+ * total regardless of game count, same shape as getSteamPrices/getOwnershipInfo elsewhere in
+ * gameSerializer.ts - not one query per game. */
 export async function getPlaytimeSinceCheckpoint(
   games: { id: string; roomId: string | null; addedBy: string; steamAppid: number | null }[],
-): Promise<Map<string, number>> {
-  const result = new Map<string, number>();
+): Promise<Map<string, GamePlaytimeInfo>> {
+  const result = new Map<string, GamePlaytimeInfo>();
   if (!env.PLAYTIME_TRACKING_ENABLED) return result;
 
   const candidates = games.filter(
@@ -171,7 +183,10 @@ export async function getPlaytimeSinceCheckpoint(
     const snapshot = snapshotByKey.get(`${game.addedBy}:${game.steamAppid}`);
     if (snapshot === undefined) continue;
     const baseline = checkpointBaselineMinutes(lastEntryByGame.get(game.id), snapshot.initial);
-    result.set(game.id, Math.max(0, snapshot.current - baseline));
+    result.set(game.id, {
+      sinceCheckpointMinutes: Math.max(0, snapshot.current - baseline),
+      currentMinutes: snapshot.current,
+    });
   }
 
   return result;

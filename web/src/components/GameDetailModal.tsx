@@ -1,5 +1,5 @@
 import { useMemo, useState, type FormEvent } from 'react';
-import type { Game, GameStatus, User, VoteValue } from '@queueup/shared';
+import { suggestsPlaying, suggestsBeatenByPlaytime, type Game, type GameStatus, type User, type VoteValue } from '@queueup/shared';
 import { AvatarBadge } from './AvatarBadge';
 import { VoteRow } from './VoteRow';
 import { VoteHeatmap } from './VoteHeatmap';
@@ -127,28 +127,12 @@ export function GameDetailModal({
     game.status !== 'done' &&
     game.status !== 'dropped';
 
-  // Playtime-based nudges (issue #548) - same "nudge, not automatic" philosophy as suggestDone
-  // above, now that playtime is actually tracked (see playtimeSinceCheckpointMinutes' doc comment
-  // - Personal Shelf only, since a room game has no single unambiguous player). Steam playtime
-  // ticking up while the game isn't already Playing suggests someone started it; hours played this
-  // stretch reaching the game's own time-to-beat suggests it's done. Deliberately skipped when
-  // suggestDone already fired above - 100% achievements is the stronger signal, no need for both
-  // banners making the same ask.
-  const hoursPlayedSinceCheckpoint =
-    game.playtimeSinceCheckpointMinutes !== null ? game.playtimeSinceCheckpointMinutes / 60 : null;
-  const suggestPlaying =
-    game.roomId === null &&
-    game.playtimeSinceCheckpointMinutes !== null &&
-    game.playtimeSinceCheckpointMinutes > 0 &&
-    game.status !== 'playing' &&
-    game.status !== 'done' &&
-    game.status !== 'dropped';
-  const suggestBeatenByPlaytime =
-    !suggestDone &&
-    game.status === 'playing' &&
-    game.timeToBeatHours != null &&
-    hoursPlayedSinceCheckpoint !== null &&
-    hoursPlayedSinceCheckpoint >= game.timeToBeatHours;
+  // Playtime-based nudges (issue #548) - see suggestsPlaying/suggestsBeatenByPlaytime in
+  // @queueup/shared (shared with the batch playtime-review prompt, usePlaytimeReview.ts). Skipped
+  // here when suggestDone already fired above - 100% achievements is the stronger signal, no need
+  // for both banners making the same ask.
+  const suggestPlaying = suggestsPlaying(game);
+  const suggestBeatenByPlaytime = !suggestDone && suggestsBeatenByPlaytime(game);
 
   // Full breakdown (issue #248) - IGDB's game_time_to_beats endpoint returns three figures that
   // are strictly ordered for any given game (rushed < main story < completionist), so they're
@@ -478,7 +462,7 @@ export function GameDetailModal({
 
         {suggestBeatenByPlaytime && (
           <div className={styles.doneSuggestion}>
-            <span>⏱️ You've played about {Math.round(hoursPlayedSinceCheckpoint!)}h, around this game's time to beat — mark it Beaten?</span>
+            <span>⏱️ You've played about {Math.round((game.playtimeSinceCheckpointMinutes ?? 0) / 60)}h, around this game's time to beat — mark it Beaten?</span>
             <button type="button" className={styles.doneSuggestionButton} onClick={() => onStatusChange('done')}>
               Mark Beaten
             </button>
