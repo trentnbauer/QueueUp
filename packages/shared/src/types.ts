@@ -133,6 +133,20 @@ export interface RoomSpinSession {
   readyCount: number;
 }
 
+/** A room's spin session, but only the sliver a cross-room "someone just started a spin" popup
+ * needs (issue #555) - deliberately not RoomSpinSession itself, which carries the full strip/
+ * physics state and is only worth fetching per-room, at the fast poll useRoomSpin already runs
+ * for whoever's actually looking at that room. This is the opposite shape: cheap enough to poll
+ * across every room a member is in, so someone who *isn't* currently looking gets pulled in before
+ * the spin's pre-start waiting room (SPIN_WAITING_ROOM_MS, see roomSpin.ts) closes. Only ever
+ * includes a spin still in that waiting window - once a spin has started moving, joining a popup
+ * doesn't meaningfully let anyone participate anymore. */
+export interface ActiveRoomSpin {
+  spinId: string;
+  roomId: string;
+  roomName: string;
+}
+
 export interface GameSuggestion {
   id: string;
   roomId: string;

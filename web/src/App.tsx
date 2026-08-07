@@ -4,6 +4,7 @@ import { useAuth } from './context/AuthContext';
 import { authApi } from './api/auth';
 import { useRooms } from './hooks/useRooms';
 import { useActionableNotificationToasts } from './hooks/useActionableNotificationToasts';
+import { useActiveRoomSpinToasts } from './hooks/useActiveRoomSpinToasts';
 import { ActionErrorBanner } from './components/ActionErrorBanner';
 import { Header } from './components/Header';
 import { Sidebar } from './components/Sidebar';
@@ -38,6 +39,7 @@ export default function App() {
   const navigate = useNavigate();
   const { joinRoom } = useRooms();
   useActionableNotificationToasts();
+  useActiveRoomSpinToasts();
   const [providers, setProviders] = useState<string[] | null>(null);
   const [showOnboarding, setShowOnboarding] = useState(false);
   const [pendingJoinError, setPendingJoinError] = useState<string | null>(null);
