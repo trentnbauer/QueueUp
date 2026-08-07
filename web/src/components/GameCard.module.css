@@ -23,6 +23,23 @@
   accent-color: var(--qu-accent);
 }
 
+.playtimeBadge {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  z-index: 6;
+  width: 24px;
+  height: 24px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  background: rgba(0, 0, 0, 0.65);
+  font-size: 13px;
+  line-height: 1;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.4);
+}
+
 .cover {
   position: relative;
   /* Box-art proportions (portrait, taller than wide) now that the cover *is* the whole card - it
