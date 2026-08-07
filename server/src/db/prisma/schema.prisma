@@ -640,6 +640,14 @@ model PlayLog {
   startedAt  DateTime  @map("started_at")
   finishedAt DateTime? @map("finished_at")
   createdAt  DateTime  @default(now()) @map("created_at")
+  /// Steam playtime (all-time, minutes) snapshotted at startedAt/finishedAt respectively (issue
+  /// #548, gated behind PLAYTIME_TRACKING_ENABLED - see currentPlaytimeMinutesForGame). Both null
+  /// for any entry closed before this field existed, or whenever the game/its adder has no Steam
+  /// playtime data to attribute (see that function's doc comment for exactly when). Subtracting
+  /// the two gives this specific playthrough's actual played hours, distinct from wall-clock time
+  /// between startedAt/finishedAt (which includes any stretch the game sat untouched).
+  startPlaytimeMinutes  Int? @map("start_playtime_minutes")
+  finishPlaytimeMinutes Int? @map("finish_playtime_minutes")
 
   game Game @relation(fields: [gameId], references: [id], onDelete: Cascade)
 

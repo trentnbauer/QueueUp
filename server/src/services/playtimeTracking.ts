@@ -86,3 +86,22 @@ export async function snapshotAllPlaytimes(): Promise<PlaytimeIncrease[]> {
 
   return increases;
 }
+
+/** The most recently snapshotted Steam playtime for the given game, if there is one - used to
+ * stamp a PlayLog entry's start/finish playtime (issue #548's playthrough-duration piece) at the
+ * moment a status transition opens or closes it. Attributed to whoever added the game (a room
+ * game's addedBy, or a shelf game's own owner) - the only person a room game's playtime can
+ * unambiguously be pinned to, since other members may or may not own/play their own copy. Null
+ * whenever there's nothing to attribute: playtime tracking is off, the game has no Steam match, or
+ * its adder has never had a snapshot taken (not Steam-linked, or the job hasn't run yet). */
+export async function currentPlaytimeMinutesForGame(gameId: string): Promise<number | null> {
+  if (!env.PLAYTIME_TRACKING_ENABLED) return null;
+
+  const game = await prisma.game.findUnique({ where: { id: gameId }, select: { addedBy: true, steamAppid: true } });
+  if (!game?.steamAppid) return null;
+
+  const snapshot = await prisma.playtimeSnapshot.findUnique({
+    where: { userId_steamAppId: { userId: game.addedBy, steamAppId: game.steamAppid } },
+  });
+  return snapshot?.playtimeMinutes ?? null;
+}
