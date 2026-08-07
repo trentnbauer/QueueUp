@@ -23,6 +23,31 @@ export interface NeglectCheckInput {
 // tune instead of a magic number buried in the predicate below.
 export const NEGLECTED_BACKLOG_MONTHS = 3;
 
+// Plain `setMonth(getMonth() - N)` overflows into the following month whenever the current
+// day-of-month doesn't exist N months earlier (e.g. May 31 minus 3 months rolls past a 28-day
+// February into March 3, not Feb 28) - shifting the day to the 1st first avoids the month-length
+// mismatch, then the original day is restored, clamped to the target month's actual last day so
+// it can't overflow into the month after that instead.
+//
+// All of this uses the UTC variants (getUTCDate/setUTCMonth/etc.), not the local-time ones (issue
+// #522) - the local variants re-derive the timezone offset for the shifted month, so on a non-UTC
+// server whose "now" and "now minus N months" straddle a DST transition, the computed threshold
+// silently drifts by the DST delta (typically an hour) from the intended instant. Callers'
+// timestamps are all UTC instants (ISO strings) to begin with, so doing this arithmetic in UTC is
+// also the more natural fit, not just the safer one - the result no longer depends on the calling
+// process's local timezone at all. Extracted from isNeglectedBacklogGame below (issue #564) so
+// suggestsDroppingStalePlaying in playtimeSignals.ts can reuse the exact same "N months ago"
+// instant instead of re-deriving this same DST-aware arithmetic a second time.
+export function monthsAgoUtc(months: number, now: number = Date.now()): number {
+  const threshold = new Date(now);
+  const originalDay = threshold.getUTCDate();
+  threshold.setUTCDate(1);
+  threshold.setUTCMonth(threshold.getUTCMonth() - months);
+  const lastDayOfTargetMonth = new Date(Date.UTC(threshold.getUTCFullYear(), threshold.getUTCMonth() + 1, 0)).getUTCDate();
+  threshold.setUTCDate(Math.min(originalDay, lastDayOfTargetMonth));
+  return threshold.getTime();
+}
+
 /** A backlog game added NEGLECTED_BACKLOG_MONTHS+ ago with no recent activity. "No recent
  * activity" mirrors how the rest of the codebase already treats these two signals (see the
  * year-in-review route): Game.updatedAt as a proxy for the last status change - any edit bumps it,
@@ -32,26 +57,7 @@ export const NEGLECTED_BACKLOG_MONTHS = 3;
 export function isNeglectedBacklogGame(game: NeglectCheckInput, now: number = Date.now()): boolean {
   if (game.status !== 'backlog') return false;
 
-  // Plain `setMonth(getMonth() - N)` overflows into the following month whenever the current
-  // day-of-month doesn't exist N months earlier (e.g. May 31 minus 3 months rolls past a
-  // 28-day February into March 3, not Feb 28) - shifting the day to the 1st first avoids the
-  // month-length mismatch, then the original day is restored, clamped to the target month's
-  // actual last day so it can't overflow into the month after that instead.
-  //
-  // All of this uses the UTC variants (getUTCDate/setUTCMonth/etc.), not the local-time ones
-  // (issue #522) - the local variants re-derive the timezone offset for the shifted month, so on
-  // a non-UTC server whose "now" and "now minus 3 months" straddle a DST transition, the computed
-  // threshold silently drifts by the DST delta (typically an hour) from the intended instant.
-  // `game.createdAt`/`updatedAt`/vote timestamps are all UTC instants (ISO strings) to begin with,
-  // so doing this arithmetic in UTC is also the more natural fit, not just the safer one - the
-  // result no longer depends on the calling process's local timezone at all.
-  const threshold = new Date(now);
-  const originalDay = threshold.getUTCDate();
-  threshold.setUTCDate(1);
-  threshold.setUTCMonth(threshold.getUTCMonth() - NEGLECTED_BACKLOG_MONTHS);
-  const lastDayOfTargetMonth = new Date(Date.UTC(threshold.getUTCFullYear(), threshold.getUTCMonth() + 1, 0)).getUTCDate();
-  threshold.setUTCDate(Math.min(originalDay, lastDayOfTargetMonth));
-  const thresholdMs = threshold.getTime();
+  const thresholdMs = monthsAgoUtc(NEGLECTED_BACKLOG_MONTHS, now);
 
   if (new Date(game.createdAt).getTime() > thresholdMs) return false;
   if (new Date(game.updatedAt).getTime() > thresholdMs) return false;
