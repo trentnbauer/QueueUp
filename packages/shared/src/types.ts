@@ -628,6 +628,13 @@ export interface PlayLogEntry {
   id: string;
   startedAt: string;
   finishedAt: string | null;
+  /** Minutes actually played during this specific attempt (issue #559) - finishPlaytimeMinutes
+   * minus startPlaytimeMinutes on the underlying PlayLog row, distinct from the wall-clock time
+   * between startedAt/finishedAt (which includes any stretch the game sat untouched). Null while
+   * still in progress (finishedAt is also null then), or whenever either playtime stamp is missing
+   * - playtime tracking was off, this game was never Steam-matched, or the entry predates issue
+   * #548 entirely. */
+  minutesPlayed: number | null;
 }
 
 /** The integration credentials that can be set via env var or, as a fallback, via the admin

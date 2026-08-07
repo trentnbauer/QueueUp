@@ -26,6 +26,10 @@ export function PlayJournal({ entries }: PlayJournalProps) {
           <span>
             Started {formatDate(entry.startedAt)}
             {entry.finishedAt ? ` · Finished ${formatDate(entry.finishedAt)}` : ' · In progress'}
+            {/* Issue #559: actual hours played this attempt, from Steam playtime tracking (#548) -
+                distinct from the wall-clock days between the two dates above, which also counts any
+                stretch the game sat untouched. Null (so omitted) whenever that wasn't tracked. */}
+            {entry.minutesPlayed !== null && ` · ${Math.round(entry.minutesPlayed / 60)}h played`}
           </span>
         </div>
       ))}

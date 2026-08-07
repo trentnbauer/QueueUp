@@ -1114,7 +1114,7 @@ export default async function gameRoutes(app: FastifyInstance) {
       const entries = await prisma.playLog.findMany({
         where: { gameId: game.id },
         orderBy: { startedAt: 'desc' },
-        select: { id: true, startedAt: true, finishedAt: true },
+        select: { id: true, startedAt: true, finishedAt: true, startPlaytimeMinutes: true, finishPlaytimeMinutes: true },
       });
 
       const response: { entries: PlayLogEntry[] } = {
@@ -1122,6 +1122,10 @@ export default async function gameRoutes(app: FastifyInstance) {
           id: e.id,
           startedAt: e.startedAt.toISOString(),
           finishedAt: e.finishedAt ? e.finishedAt.toISOString() : null,
+          minutesPlayed:
+            e.startPlaytimeMinutes != null && e.finishPlaytimeMinutes != null
+              ? Math.max(0, e.finishPlaytimeMinutes - e.startPlaytimeMinutes)
+              : null,
         })),
       };
       return response;
