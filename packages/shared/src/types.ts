@@ -304,6 +304,12 @@ export interface Game {
    * prerequisiteGameId, this isn't user-editable - it's set once at intake, not an organizational
    * pointer someone picks from a dropdown. */
   baseGameId: string | null;
+  /** Minutes of Steam playtime logged since this game's last tracked checkpoint (its last PlayLog
+   * entry's start/finish playtime, or 0 if it's never had one) - issue #548's raw signal for "did
+   * someone actually play this." Null whenever there's nothing to compare: playtime tracking is
+   * off, this isn't a Steam-matched Personal Shelf game (room games have no single unambiguous
+   * player), or its owner has no playtime snapshot yet. Always Personal-Shelf-only. */
+  playtimeSinceCheckpointMinutes: number | null;
   createdAt: string;
   updatedAt: string;
 }

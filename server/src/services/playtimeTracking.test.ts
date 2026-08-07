@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { computePlaytimeIncreases } from './playtimeTracking.js';
+import { computePlaytimeIncreases, checkpointBaselineMinutes } from './playtimeTracking.js';
 
 function owned(appId: number, minutes: number) {
   return { appId, playtimeForeverMinutes: minutes, name: `Game ${appId}` };
@@ -37,5 +37,29 @@ describe('computePlaytimeIncreases', () => {
       ]),
     );
     expect(result.map((r) => r.steamAppId).sort()).toEqual([10, 30]);
+  });
+});
+
+describe('checkpointBaselineMinutes', () => {
+  it('falls back to initialMinutes for a game with no PlayLog entry at all', () => {
+    expect(checkpointBaselineMinutes(undefined, 500)).toBe(500);
+  });
+
+  it('uses startPlaytimeMinutes for a still-open (Playing) entry, ignoring initialMinutes', () => {
+    const entry = { finishedAt: null, startPlaytimeMinutes: 120, finishPlaytimeMinutes: null };
+    expect(checkpointBaselineMinutes(entry, 500)).toBe(120);
+  });
+
+  it('uses finishPlaytimeMinutes for a closed entry, not its start value', () => {
+    const entry = { finishedAt: new Date(), startPlaytimeMinutes: 60, finishPlaytimeMinutes: 300 };
+    expect(checkpointBaselineMinutes(entry, 500)).toBe(300);
+  });
+
+  it('falls back to initialMinutes when the relevant field is null (entry predates playtime tracking)', () => {
+    const openWithNoStart = { finishedAt: null, startPlaytimeMinutes: null, finishPlaytimeMinutes: null };
+    expect(checkpointBaselineMinutes(openWithNoStart, 500)).toBe(500);
+
+    const closedWithNoFinish = { finishedAt: new Date(), startPlaytimeMinutes: 60, finishPlaytimeMinutes: null };
+    expect(checkpointBaselineMinutes(closedWithNoFinish, 500)).toBe(500);
   });
 });

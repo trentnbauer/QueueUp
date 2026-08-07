@@ -4,6 +4,7 @@ import { getSteamPrice, getSteamPrices } from './priceService.js';
 import { runPriceAlertChecks } from './priceAlerts.js';
 import { getOwnershipInfo, type GameOwnershipInfo } from './gameOwnership.js';
 import { getRoomPlatform, getRoomPlatforms } from './roomAccess.js';
+import { getPlaytimeSinceCheckpoint } from './playtimeTracking.js';
 import { toUserDto } from '../util/dto.js';
 
 const gameWithRelations = {
@@ -36,6 +37,7 @@ function buildGameDto(
   price: GamePrice,
   ggDealsUrl: string | null,
   ownership: GameOwnershipInfo,
+  playtimeSinceCheckpointMinutes: number | null,
 ): Game {
   const myVote = game.votes.find((v) => v.userId === currentUserId);
   const voteScore = game.votes.reduce((sum, v) => sum + v.value, 0);
@@ -80,6 +82,7 @@ function buildGameDto(
     reviewScore: game.reviewScore,
     prerequisiteGameId: game.prerequisiteGameId,
     baseGameId: game.baseGameId,
+    playtimeSinceCheckpointMinutes,
     createdAt: game.createdAt.toISOString(),
     updatedAt: game.updatedAt.toISOString(),
   };
@@ -108,8 +111,18 @@ export async function serializeGame(game: GameWithRelations, currentUserId: stri
   // the scheduled job (jobs/priceAlertJob.ts, #255) - this call stays so a drop is still caught
   // immediately when a live fetch happens to occur anyway, rather than waiting for the next run.
   void runPriceAlertChecks(game, price);
-  const ownershipMap = await getOwnershipInfo([game], currentUserId);
-  return buildGameDto(game, currentUserId, price, ggDealsUrl, ownershipMap.get(game.id) ?? DEFAULT_OWNERSHIP);
+  const [ownershipMap, playtimeMap] = await Promise.all([
+    getOwnershipInfo([game], currentUserId),
+    getPlaytimeSinceCheckpoint([game]),
+  ]);
+  return buildGameDto(
+    game,
+    currentUserId,
+    price,
+    ggDealsUrl,
+    ownershipMap.get(game.id) ?? DEFAULT_OWNERSHIP,
+    playtimeMap.get(game.id) ?? null,
+  );
 }
 
 export async function serializeGames(games: GameWithRelations[], currentUserId: string, region?: PriceRegion): Promise<Game[]> {
@@ -133,13 +146,24 @@ export async function serializeGames(games: GameWithRelations[], currentUserId: 
     .filter((g) => platformFor(g) === 'pc')
     .map((g) => g.steamAppid)
     .filter((id): id is number => id != null);
-  const [prices, ownershipMap] = await Promise.all([getSteamPrices(pcSteamAppIds, { region }), getOwnershipInfo(games, currentUserId)]);
+  const [prices, ownershipMap, playtimeMap] = await Promise.all([
+    getSteamPrices(pcSteamAppIds, { region }),
+    getOwnershipInfo(games, currentUserId),
+    getPlaytimeSinceCheckpoint(games),
+  ]);
 
   return games.map((game) => {
     const platform = platformFor(game);
     const price = (platform === 'pc' && game.steamAppid && prices.get(game.steamAppid)) || UNAVAILABLE_PRICE;
     const ggDealsUrl = platform === 'pc' ? game.ggDealsUrl : null;
     void runPriceAlertChecks(game, price);
-    return buildGameDto(game, currentUserId, price, ggDealsUrl, ownershipMap.get(game.id) ?? DEFAULT_OWNERSHIP);
+    return buildGameDto(
+      game,
+      currentUserId,
+      price,
+      ggDealsUrl,
+      ownershipMap.get(game.id) ?? DEFAULT_OWNERSHIP,
+      playtimeMap.get(game.id) ?? null,
+    );
   });
 }
