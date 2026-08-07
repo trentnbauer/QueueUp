@@ -1,0 +1,25 @@
+export interface ToastAction {
+  label: string;
+  onClick: () => void;
+}
+
+export interface Toast {
+  id: string;
+  message: string;
+  actions: ToastAction[];
+}
+
+/** Pure list operations behind ToastContext (issue #553), kept separate from the React state
+ * wiring so they're testable without mounting a provider - same reasoning as this codebase's other
+ * extracted-pure-logic-next-to-an-I/O-shaped-caller pieces (e.g. computePlaytimeIncreases). Adding
+ * a toast whose id is already present is a no-op rather than a duplicate entry - callers (like
+ * #554/#555) use a stable id derived from what triggered the toast (e.g. a game id) specifically
+ * so a re-poll that finds the same still-unacted-on event doesn't stack a second copy. */
+export function addToast(toasts: Toast[], toast: Toast): Toast[] {
+  if (toasts.some((t) => t.id === toast.id)) return toasts;
+  return [...toasts, toast];
+}
+
+export function removeToast(toasts: Toast[], id: string): Toast[] {
+  return toasts.filter((t) => t.id !== id);
+}

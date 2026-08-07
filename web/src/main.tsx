@@ -14,6 +14,7 @@ import { ViewModeProvider } from './context/ViewModeContext';
 import { SidebarIconSizeProvider } from './context/SidebarIconSizeContext';
 import { ConfirmProvider } from './context/ConfirmContext';
 import { AchievementUnlockProvider } from './context/AchievementUnlockContext';
+import { ToastProvider } from './context/ToastContext';
 import { getBasePath } from './utils/basePath';
 import { applyThemeMode, getPreferredThemeMode } from './theme/applyThemeMode';
 import './theme/global.css';
@@ -38,7 +39,9 @@ createRoot(document.getElementById('root')!).render(
                         <SidebarIconSizeProvider>
                           <ConfirmProvider>
                             <AchievementUnlockProvider>
-                              <App />
+                              <ToastProvider>
+                                <App />
+                              </ToastProvider>
                             </AchievementUnlockProvider>
                           </ConfirmProvider>
                         </SidebarIconSizeProvider>
