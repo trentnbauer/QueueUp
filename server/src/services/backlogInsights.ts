@@ -6,11 +6,16 @@ import type { BacklogAgeBucket, MostNeglectedGame } from '@queueup/shared';
  * route (same reasoning as roomActivity.ts's cursor codec) so the date-math/bucketing/ranking can
  * be unit tested directly against plain rows instead of only through a live DB query. */
 
-/** One closed PlayLog entry, as fetched for averageDaysToBeat - just the two timestamps, nothing
- * else this needs. */
+/** One closed PlayLog entry, as fetched for averageDaysToBeat/averageHoursToBeat. The playtime
+ * fields are optional (not just nullable) rather than required - callers/tests that only care
+ * about the calendar-days figure (summarizeTimeToBeat, which predates issue #548/#562's playtime
+ * fields on PlayLog) can keep constructing these with just the two timestamps, same as before this
+ * issue added the hours-based stat alongside it. */
 export interface FinishedPlayLogEntry {
   startedAt: Date;
   finishedAt: Date;
+  startPlaytimeMinutes?: number | null;
+  finishPlaytimeMinutes?: number | null;
 }
 
 /** Zero-duration entries come from `recordStatusTransition`'s "jumped straight to Done/Dropped
@@ -39,6 +44,37 @@ export function summarizeTimeToBeat(entries: FinishedPlayLogEntry[]): {
   // without a false-precision string of digits.
   const averageDaysToBeat = Math.round((totalDays / real.length) * 10) / 10;
   return { averageDaysToBeat, finishedEntryCount: real.length };
+}
+
+/** An entry with both playtime stamps present and actually increasing - issue #548's
+ * PLAYTIME_TRACKING_ENABLED-gated fields are null on any entry from before that shipped, or
+ * whenever the game/its adder had no Steam playtime data to attribute at the time (see
+ * currentPlaytimeMinutesForGame's doc comment). `> ` rather than `>=` for the same "logged after
+ * the fact, not a real stretch" reasoning isRealDuration above already applies to the calendar-days
+ * figure - a 0-minute delta shouldn't count as a real playthrough either. */
+function hasRealPlaytime(
+  entry: FinishedPlayLogEntry,
+): entry is FinishedPlayLogEntry & { startPlaytimeMinutes: number; finishPlaytimeMinutes: number } {
+  return entry.startPlaytimeMinutes != null && entry.finishPlaytimeMinutes != null && entry.finishPlaytimeMinutes > entry.startPlaytimeMinutes;
+}
+
+/** Average *active* hours from Playing to Done/Replay across `entries` (issue #565) - the
+ * companion figure to averageDaysToBeat's calendar time, now that PlayLog actually has playtime
+ * data to compute it from (issue #548/#550; averageDaysToBeat's own doc comment used to say this
+ * wasn't possible). Counts only entries with real playtime data (see hasRealPlaytime) - a much
+ * smaller set than averageDaysToBeat's, in general, since it additionally requires playtime
+ * tracking to have been on and the game Steam-matched for that whole playthrough. Null when nothing
+ * qualifies, same "not enough data yet" handling as averageDaysToBeat. */
+export function summarizeActiveHoursToBeat(entries: FinishedPlayLogEntry[]): {
+  averageHoursToBeat: number | null;
+  hoursTrackedEntryCount: number;
+} {
+  const real = entries.filter(hasRealPlaytime);
+  if (real.length === 0) return { averageHoursToBeat: null, hoursTrackedEntryCount: 0 };
+
+  const totalHours = real.reduce((sum, e) => sum + (e.finishPlaytimeMinutes - e.startPlaytimeMinutes) / 60, 0);
+  const averageHoursToBeat = Math.round((totalHours / real.length) * 10) / 10;
+  return { averageHoursToBeat, hoursTrackedEntryCount: real.length };
 }
 
 /** Structural subset of a backlog `Game` row this needs - narrow like `NeglectCheckInput` itself,
