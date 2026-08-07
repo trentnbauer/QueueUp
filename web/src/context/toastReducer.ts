@@ -7,6 +7,11 @@ export interface Toast {
   id: string;
   message: string;
   actions: ToastAction[];
+  /** Called whenever this toast leaves the stack, whether via the dismiss (x) button or an action
+   * button (issue #554) - the one place to record "the person has seen/handled this," regardless
+   * of which path they took. Optional since not every toast needs a persisted seen-state - a
+   * purely client-side/ephemeral toast has nothing to record. */
+  onDismiss?: () => void;
 }
 
 /** Pure list operations behind ToastContext (issue #553), kept separate from the React state

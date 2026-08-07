@@ -1,6 +1,6 @@
 import type { FastifyInstance } from 'fastify';
 import { requireMembership } from '../services/roomAccess.js';
-import { getNotificationFeed, getNotificationSummary, markAllNotificationsRead, markRoomNotificationsRead } from '../services/notifications.js';
+import { getNotificationFeed, getNotificationSummary, markAllNotificationsRead, markNotificationRead, markRoomNotificationsRead } from '../services/notifications.js';
 
 // The summary is polled by every signed-in client (see POLL_INTERVAL_MS in useNotifications.ts)
 // on top of normal interactive use, so its limit is looser than the other three, which are only
@@ -27,6 +27,17 @@ export default async function notificationRoutes(app: FastifyInstance) {
     reply.status(204);
     return null;
   });
+
+  app.post<{ Params: { id: string } }>(
+    '/api/notifications/:id/read',
+    { config: { rateLimit: INTERACTIVE_RATE_LIMIT } },
+    async (request, reply) => {
+      const userId = await request.requireAuth();
+      await markNotificationRead(request.params.id, userId);
+      reply.status(204);
+      return null;
+    },
+  );
 
   app.post<{ Params: { roomId: string } }>(
     '/api/rooms/:roomId/notifications/read',

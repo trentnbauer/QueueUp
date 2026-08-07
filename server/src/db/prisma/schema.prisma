@@ -82,6 +82,11 @@ enum NotificationType {
   /// Personal Shelf (issue #510, see jobs/releaseWatchJob.ts) - always a direct (recipientId)
   /// notification, never room-scoped, same as price_drop's Personal Shelf branch.
   release_watch
+  /// A Personal Shelf game's Steam playtime increased while it wasn't already Playing (issue #554,
+  /// see jobs/playtimeSnapshotJob.ts) - always direct and always carries gameId, so the client can
+  /// offer a one-click "Mark Playing" action (see Notification.gameId below). Same
+  /// gated-behind-PLAYTIME_TRACKING_ENABLED reasoning as the rest of issue #548.
+  playtime_mark_playing
 
   @@map("notification_type")
 }
@@ -622,6 +627,7 @@ model Game {
   baseGame         Game?     @relation("GameBaseGame", fields: [baseGameId], references: [id], onDelete: SetNull)
   dlc              Game[]    @relation("GameBaseGame")
   playLogs         PlayLog[]
+  notifications    Notification[]
 
   @@index([roomId])
   @@index([addedBy], map: "idx_games_personal")
@@ -771,10 +777,16 @@ model Notification {
   createdAt   DateTime         @default(now()) @map("created_at")
   /// Only meaningful for direct (recipientId set) rows - see the model doc above.
   readAt      DateTime?        @map("read_at")
+  /// The specific game this notification is about, if any (issue #554's playtime_mark_playing is
+  /// the first type to set this) - lets the client's action button target the right game without
+  /// parsing `message`. SetNull rather than Cascade on delete: a removed game shouldn't take an
+  /// already-delivered notification with it, just leave it unable to offer its action anymore.
+  gameId      String?          @map("game_id")
 
   room      Room? @relation(fields: [roomId], references: [id], onDelete: Cascade)
   recipient User? @relation("NotificationRecipient", fields: [recipientId], references: [id], onDelete: Cascade)
   actor     User? @relation("NotificationActor", fields: [actorId], references: [id], onDelete: SetNull)
+  game      Game? @relation(fields: [gameId], references: [id], onDelete: SetNull)
 
   @@index([roomId, createdAt])
   @@index([recipientId, createdAt])
