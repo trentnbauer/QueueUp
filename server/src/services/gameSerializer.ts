@@ -4,7 +4,7 @@ import { getSteamPrice, getSteamPrices } from './priceService.js';
 import { runPriceAlertChecks } from './priceAlerts.js';
 import { getOwnershipInfo, type GameOwnershipInfo } from './gameOwnership.js';
 import { getRoomPlatform, getRoomPlatforms } from './roomAccess.js';
-import { getPlaytimeSinceCheckpoint } from './playtimeTracking.js';
+import { getPlaytimeSinceCheckpoint, type GamePlaytimeInfo } from './playtimeTracking.js';
 import { toUserDto } from '../util/dto.js';
 
 const gameWithRelations = {
@@ -37,7 +37,7 @@ function buildGameDto(
   price: GamePrice,
   ggDealsUrl: string | null,
   ownership: GameOwnershipInfo,
-  playtimeSinceCheckpointMinutes: number | null,
+  playtime: GamePlaytimeInfo | undefined,
 ): Game {
   const myVote = game.votes.find((v) => v.userId === currentUserId);
   const voteScore = game.votes.reduce((sum, v) => sum + v.value, 0);
@@ -82,7 +82,8 @@ function buildGameDto(
     reviewScore: game.reviewScore,
     prerequisiteGameId: game.prerequisiteGameId,
     baseGameId: game.baseGameId,
-    playtimeSinceCheckpointMinutes,
+    playtimeSinceCheckpointMinutes: playtime?.sinceCheckpointMinutes ?? null,
+    currentPlaytimeMinutes: playtime?.currentMinutes ?? null,
     createdAt: game.createdAt.toISOString(),
     updatedAt: game.updatedAt.toISOString(),
   };
@@ -121,7 +122,7 @@ export async function serializeGame(game: GameWithRelations, currentUserId: stri
     price,
     ggDealsUrl,
     ownershipMap.get(game.id) ?? DEFAULT_OWNERSHIP,
-    playtimeMap.get(game.id) ?? null,
+    playtimeMap.get(game.id),
   );
 }
 
@@ -163,7 +164,7 @@ export async function serializeGames(games: GameWithRelations[], currentUserId: 
       price,
       ggDealsUrl,
       ownershipMap.get(game.id) ?? DEFAULT_OWNERSHIP,
-      playtimeMap.get(game.id) ?? null,
+      playtimeMap.get(game.id),
     );
   });
 }
