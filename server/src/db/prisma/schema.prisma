@@ -147,6 +147,7 @@ model User {
   roomActivity              RoomActivity[]             @relation("RoomActivityActor")
   gameSuggestions           GameSuggestion[]
   ownedGames                GameOwnership[]
+  playtimeSnapshots         PlaytimeSnapshot[]
   achievementCompletions    AchievementCompletion[]
   badges                    UserBadge[]
   releaseWatchNotifications ReleaseWatchNotification[]
@@ -279,6 +280,25 @@ model GameOwnership {
 
   @@id([userId, igdbId])
   @@map("game_ownership")
+}
+
+/// A user's last-known Steam playtime for one app, refreshed by the playtime-snapshot job (issue
+/// #548, gated behind PLAYTIME_TRACKING_ENABLED). Keyed by (userId, steamAppId) rather than igdbId
+/// - this is a raw fact straight from Steam's GetOwnedGames, which only knows appIds, and joining
+/// it back to a specific Game row (Game.steamAppid) is a concern for whatever reads this table,
+/// not this table itself. Overwritten in place each poll (no history kept) - later pieces of #548
+/// that need a fixed point-in-time baseline (e.g. "playtime when this was marked Playing") persist
+/// their own copy of the value at that moment rather than relying on this row staying put.
+model PlaytimeSnapshot {
+  userId          String   @map("user_id")
+  steamAppId      Int      @map("steam_app_id")
+  playtimeMinutes Int      @map("playtime_minutes")
+  updatedAt       DateTime @updatedAt @map("updated_at")
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@id([userId, steamAppId])
+  @@map("playtime_snapshots")
 }
 
 /// A per-user, per-title fact that this user's Steam achievement progress has hit 100% at least
