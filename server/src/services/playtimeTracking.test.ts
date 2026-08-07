@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { computePlaytimeIncreases, checkpointBaselineMinutes } from './playtimeTracking.js';
+import { computePlaytimeIncreases, checkpointBaselineMinutes, dedupeByOwnerAndSteamApp } from './playtimeTracking.js';
 
 function owned(appId: number, minutes: number) {
   return { appId, playtimeForeverMinutes: minutes, name: `Game ${appId}` };
@@ -61,5 +61,39 @@ describe('checkpointBaselineMinutes', () => {
 
     const closedWithNoFinish = { finishedAt: new Date(), startPlaytimeMinutes: 60, finishPlaytimeMinutes: null };
     expect(checkpointBaselineMinutes(closedWithNoFinish, 500)).toBe(500);
+  });
+});
+
+describe('dedupeByOwnerAndSteamApp', () => {
+  it('keeps only the first row for a repeated (owner, steamAppid) pair', () => {
+    const games = [
+      { id: 'a', addedBy: 'u1', steamAppid: 100 },
+      { id: 'b', addedBy: 'u1', steamAppid: 100 },
+    ];
+    expect(dedupeByOwnerAndSteamApp(games).map((g) => g.id)).toEqual(['a']);
+  });
+
+  it('keeps rows for the same steamAppid under different owners', () => {
+    const games = [
+      { id: 'a', addedBy: 'u1', steamAppid: 100 },
+      { id: 'b', addedBy: 'u2', steamAppid: 100 },
+    ];
+    expect(dedupeByOwnerAndSteamApp(games).map((g) => g.id).sort()).toEqual(['a', 'b']);
+  });
+
+  it('keeps rows for the same owner with different steamAppids', () => {
+    const games = [
+      { id: 'a', addedBy: 'u1', steamAppid: 100 },
+      { id: 'b', addedBy: 'u1', steamAppid: 200 },
+    ];
+    expect(dedupeByOwnerAndSteamApp(games).map((g) => g.id).sort()).toEqual(['a', 'b']);
+  });
+
+  it('is a no-op on an already-unique list', () => {
+    const games = [
+      { id: 'a', addedBy: 'u1', steamAppid: 100 },
+      { id: 'b', addedBy: 'u2', steamAppid: 200 },
+    ];
+    expect(dedupeByOwnerAndSteamApp(games)).toEqual(games);
   });
 });

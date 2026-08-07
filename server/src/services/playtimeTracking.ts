@@ -38,6 +38,23 @@ export function computePlaytimeIncreases(
   return increases;
 }
 
+/** Bug fix (issue #562): collapses multiple Game rows that resolve to the same (owner, Steam app)
+ * pair down to one, before notifying - a person can end up with two Personal Shelf rows for the
+ * same Steam game (removed and re-added it, a stray duplicate from some other path), and without
+ * this, playtimeSnapshotJob's per-game notifyPlaytimeMarkPlaying dedup (keyed on gameId, not on
+ * what the game actually *is*) would fire once per row for what reads as one game to the person
+ * getting notified. Keeps whichever row `findMany` happened to return first for a given pair - no
+ * ordering guarantee needed here, since all that matters is picking exactly one. */
+export function dedupeByOwnerAndSteamApp<T extends { addedBy: string; steamAppid: number | null }>(games: T[]): T[] {
+  const seen = new Set<string>();
+  return games.filter((g) => {
+    const key = `${g.addedBy}:${g.steamAppid}`;
+    if (seen.has(key)) return false;
+    seen.add(key);
+    return true;
+  });
+}
+
 /** Refreshes every Steam-linked user's playtime snapshot and reports which apps increased since
  * last time (issue #548). Runs one user at a time rather than in parallel - Steam's Web API has
  * no documented per-key rate limit, but there's no upside to bursting it across every linked user
@@ -111,6 +128,33 @@ export async function currentPlaytimeMinutesForGame(gameId: string): Promise<num
   return snapshot?.playtimeMinutes ?? null;
 }
 
+/** Batched version of currentPlaytimeMinutesForGame (issue #562 bug fix) - for a caller about to
+ * stamp PlayLog entries for many games at once (the bulk status-change route), one call here plus
+ * two queries replaces what would otherwise be up to 2 * N sequential/concurrent single-game
+ * lookups fired via recordStatusTransition's own internal call, on a route explicitly built to
+ * avoid per-game round trips for exactly this (100s of shelf games) reason. Same
+ * Personal-Shelf/Steam-matched-only semantics as the single-game version; a game missing from the
+ * returned map (never had a snapshot) should be treated as null, same as that version's return. */
+export async function getCurrentPlaytimeMinutesForGames(
+  games: { id: string; addedBy: string; steamAppid: number | null }[],
+): Promise<Map<string, number | null>> {
+  const result = new Map<string, number | null>();
+  if (!env.PLAYTIME_TRACKING_ENABLED) return result;
+
+  const candidates = games.filter((g): g is typeof g & { steamAppid: number } => g.steamAppid !== null);
+  if (candidates.length === 0) return result;
+
+  const snapshots = await prisma.playtimeSnapshot.findMany({
+    where: { OR: candidates.map((g) => ({ userId: g.addedBy, steamAppId: g.steamAppid })) },
+  });
+  const snapshotByKey = new Map(snapshots.map((s) => [`${s.userId}:${s.steamAppId}`, s.playtimeMinutes]));
+
+  for (const game of candidates) {
+    result.set(game.id, snapshotByKey.get(`${game.addedBy}:${game.steamAppid}`) ?? null);
+  }
+  return result;
+}
+
 interface CheckpointEntry {
   finishedAt: Date | null;
   startPlaytimeMinutes: number | null;
@@ -164,20 +208,22 @@ export async function getPlaytimeSinceCheckpoint(
     prisma.playtimeSnapshot.findMany({
       where: { OR: candidates.map((g) => ({ userId: g.addedBy, steamAppId: g.steamAppid })) },
     }),
+    // Bug fix: this used to have no `take`, fetching every PlayLog row ever created for these
+    // games (a long-lived account's entire play-journal history, on every Personal Shelf render)
+    // just to pick the single most recent entry per game in JS below. `distinct` + `orderBy` asks
+    // Postgres for exactly that - one (the newest) row per gameId - instead.
     prisma.playLog.findMany({
       where: { gameId: { in: candidates.map((g) => g.id) } },
       orderBy: { createdAt: 'desc' },
+      distinct: ['gameId'],
     }),
   ]);
 
   const snapshotByKey = new Map(
     snapshots.map((s) => [`${s.userId}:${s.steamAppId}`, { current: s.playtimeMinutes, initial: s.initialMinutes }]),
   );
-  // First entry seen per gameId is the most recent, since entries is already ordered newest-first.
-  const lastEntryByGame = new Map<string, CheckpointEntry>();
-  for (const entry of entries) {
-    if (!lastEntryByGame.has(entry.gameId)) lastEntryByGame.set(entry.gameId, entry);
-  }
+  // `entries` is already exactly one (the newest) row per gameId, courtesy of `distinct` above.
+  const lastEntryByGame = new Map<string, CheckpointEntry>(entries.map((entry) => [entry.gameId, entry]));
 
   for (const game of candidates) {
     const snapshot = snapshotByKey.get(`${game.addedBy}:${game.steamAppid}`);

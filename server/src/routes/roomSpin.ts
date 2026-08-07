@@ -124,7 +124,15 @@ export default async function roomSpinRoutes(app: FastifyInstance) {
   // (SPIN_WAITING_ROOM_MS) closes - see useActiveRoomSpinToasts.ts on the frontend. Payload stays
   // minimal (no strip/physics) since this runs far more often, across more rooms, than the
   // per-room GET ever does for a single member.
-  app.get('/api/rooms/active-spins', { config: { rateLimit: { max: 120, timeWindow: '1 minute' } } }, async (request) => {
+  // max is generous relative to this route's own 2s poll cadence (useActiveRoomSpinToasts.ts) -
+  // bug fix (issue #562): rate limiting here (like everywhere in this app - see app.ts) keys by
+  // IP, not by session/account, and this is a self-hosted app built for a friend group that may
+  // well share one household's IP. At 30 req/min per open tab, the original max: 120 left room for
+  // only ~4 concurrent tabs across everyone behind that IP before requests silently started
+  // 429ing (useActiveRoomSpinToasts.ts has no error handling, so a 429 just leaves the popup
+  // quietly broken with no visible sign anything's wrong). 450 covers a full household each with a
+  // few tabs open, with margin.
+  app.get('/api/rooms/active-spins', { config: { rateLimit: { max: 450, timeWindow: '1 minute' } } }, async (request) => {
     const userId = await request.requireAuth();
 
     const spins = await prisma.roomSpin.findMany({

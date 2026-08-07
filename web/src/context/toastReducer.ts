@@ -1,6 +1,10 @@
 export interface ToastAction {
   label: string;
-  onClick: () => void;
+  /** May return a promise (e.g. a mutation) - ToastStack awaits it and only dismisses the toast
+   * once it resolves, so a failed action (network blip, a conflicting concurrent change) leaves
+   * the toast up instead of silently discarding it while telling the person nothing happened. A
+   * plain `() => void` action (no network call to wait on) dismisses immediately, same as before. */
+  onClick: () => void | Promise<unknown>;
 }
 
 export interface Toast {
