@@ -1,5 +1,6 @@
 import { apiGet, apiPost, apiPatch, apiDelete } from './client';
 import type {
+  ActiveRoomSpin,
   BadgeDefinition,
   CreateRoomRequest,
   Game,
@@ -56,6 +57,8 @@ export const gameSuggestionsApi = {
  * ends the session for every member (used once a winner's actually committed to), never called
  * just for dismissing the modal locally. */
 export const roomSpinApi = {
+  /** Cross-room, cheap-payload counterpart to `get` below - see ActiveRoomSpin's doc comment. */
+  activeSpins: () => apiGet<{ spins: ActiveRoomSpin[] }>('/api/rooms/active-spins'),
   get: (roomId: string) => apiGet<{ spin: RoomSpinSession | null }>(`/api/rooms/${roomId}/spin`),
   start: (roomId: string) => apiPost<{ spin: RoomSpinSession }>(`/api/rooms/${roomId}/spin/start`),
   nudge: (roomId: string, direction: 'left' | 'right') =>

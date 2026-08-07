@@ -1,6 +1,6 @@
 import type { FastifyInstance } from 'fastify';
 import { Prisma } from '@prisma/client';
-import type { ConcreteSpinWheelTheme, Game, RoomSpinSession } from '@queueup/shared';
+import type { ActiveRoomSpin, ConcreteSpinWheelTheme, Game, RoomSpinSession } from '@queueup/shared';
 import {
   spinCandidates,
   buildSpinStrip,
@@ -117,6 +117,28 @@ function freshBase(now: number, startDelayMs = 0): SpinBase {
  * in schema.prisma and spinPhysics.ts in packages/shared for why the strip/physics live here
  * rather than per-client. */
 export default async function roomSpinRoutes(app: FastifyInstance) {
+  // Issue #555: the cross-room counterpart to the GET below - that one's polled fast (700ms/3s,
+  // see useRoomSpin.ts) but only by whoever already has one specific room open. This is polled
+  // fast too, but across every room the caller is in at once, specifically so someone who *isn't*
+  // looking at the room a spin just started in still finds out before its pre-start waiting window
+  // (SPIN_WAITING_ROOM_MS) closes - see useActiveRoomSpinToasts.ts on the frontend. Payload stays
+  // minimal (no strip/physics) since this runs far more often, across more rooms, than the
+  // per-room GET ever does for a single member.
+  app.get('/api/rooms/active-spins', { config: { rateLimit: { max: 120, timeWindow: '1 minute' } } }, async (request) => {
+    const userId = await request.requireAuth();
+
+    const spins = await prisma.roomSpin.findMany({
+      where: {
+        timestamp0: { gt: new Date() },
+        room: { members: { some: { userId } } },
+      },
+      select: { id: true, roomId: true, room: { select: { name: true } } },
+    });
+
+    const result: ActiveRoomSpin[] = spins.map((s) => ({ spinId: s.id, roomId: s.roomId, roomName: s.room.name }));
+    return { spins: result };
+  });
+
   app.get<{ Params: { roomId: string } }>('/api/rooms/:roomId/spin', async (request) => {
     const userId = await request.requireAuth();
     const { roomId } = request.params;
