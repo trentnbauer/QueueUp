@@ -1,4 +1,4 @@
-import { suggestsPlayingFromMinutes, suggestsBeatenFromMinutes, type Game, type GameStatus } from '@queueup/shared';
+import { suggestsPlayingFromMinutes, suggestsBeatenByPlaytime, type Game, type GameStatus } from '@queueup/shared';
 import { useModalA11y, closeOnBackdropMouseDown } from '../hooks/useModalA11y';
 import { usePlaytimeReview } from '../hooks/usePlaytimeReview';
 import styles from './PlaytimeReviewModal.module.css';
@@ -40,17 +40,23 @@ function PlaytimeReviewDialog({ entries, onStatusChange, onClose }: PlaytimeRevi
                 <span className={styles.itemTitle}>{game.title}</span>
                 <span className={styles.itemHours}>{Math.round(currentMinutes / 60)}h played</span>
               </div>
-              {/* Judged against currentMinutes (this game's raw total), not the checkpoint-relative
-                  figure GameDetailModal's individual nudge uses - a game with no prior checkpoint
-                  at all (e.g. its first-ever sync) would otherwise show up in this list with no
-                  working buttons, since that figure is deliberately 0 until something actually
-                  checkpoints it. See suggestsPlayingFromMinutes/suggestsBeatenFromMinutes. */}
+              {/* "Mark Playing" is judged against currentMinutes (this game's raw lifetime total),
+                  not the checkpoint-relative figure GameDetailModal's individual nudge uses - a
+                  game with no prior checkpoint at all (e.g. its first-ever sync) would otherwise
+                  show up in this list with no working button, since that figure is deliberately 0
+                  until something actually checkpoints it. A false positive here is harmless (worst
+                  case: a redundant "already played this" nudge). "Mark Beaten" is deliberately
+                  NOT judged the same way (bug fix) - a raw-lifetime-total check would fire
+                  immediately on a fresh Replay of a game whose total already exceeds its
+                  time-to-beat from a *previous* completion, which would wrongly mark the barely-
+                  started replay Done if clicked. suggestsBeatenByPlaytime uses the checkpoint-
+                  relative figure instead, which correctly resets at the replay's own start. */}
               {suggestsPlayingFromMinutes(game.status, game.roomId, currentMinutes) && (
                 <button type="button" className={styles.actionButton} onClick={() => onStatusChange(game.id, 'playing')}>
                   Mark Playing
                 </button>
               )}
-              {suggestsBeatenFromMinutes(game.status, game.timeToBeatHours, currentMinutes) && (
+              {suggestsBeatenByPlaytime(game) && (
                 <button type="button" className={styles.actionButton} onClick={() => onStatusChange(game.id, 'done')}>
                   Mark Beaten
                 </button>

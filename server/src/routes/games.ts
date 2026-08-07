@@ -58,6 +58,7 @@ import {
 import type { OwnedSteamGame } from '../services/steamLibrary.js';
 import { toggleOwnershipForPlatform, setOwnershipPlatforms, markOwned } from '../services/gameOwnership.js';
 import { recordStatusTransition } from '../services/playLog.js';
+import { getCurrentPlaytimeMinutesForGames } from '../services/playtimeTracking.js';
 import { summarizeTimeToBeat, pickMostNeglectedGame, bucketBacklogAge } from '../services/backlogInsights.js';
 import { unlockBadges } from '../services/badges.js';
 import { logRoomActivity } from '../services/roomActivity.js';
@@ -974,7 +975,11 @@ export default async function gameRoutes(app: FastifyInstance) {
       if (!GAME_STATUSES.includes(status)) throw new HttpError(400, 'Invalid status');
 
       const where = { id: { in: gameIds }, roomId: null, addedBy: userId };
-      const before = await prisma.game.findMany({ where, select: { id: true, status: true } });
+      const before = await prisma.game.findMany({ where, select: { id: true, status: true, addedBy: true, steamAppid: true } });
+      // Bug fix (issue #562): batched once here rather than left to recordStatusTransition's own
+      // per-game lookup below - see getCurrentPlaytimeMinutesForGames' doc comment for why that
+      // matters at this route's scale (up to MAX_GAMES_PER_LIST games in one request).
+      const playtimeByGameId = await getCurrentPlaytimeMinutesForGames(before);
       // Per-game conditional update (matched on the status just fetched), not one blind bulk
       // updateMany - a concurrent request changing one of these games' status in between (another
       // bulk call, or a single-game status change) used to mean recordStatusTransition logged a
@@ -989,7 +994,7 @@ export default async function gameRoutes(app: FastifyInstance) {
           const result = await prisma.game.updateMany({ where: { id: g.id, status: g.status }, data: { status } });
           if (result.count > 0) {
             anyTransitioned = true;
-            await recordStatusTransition(g.id, g.status, status);
+            await recordStatusTransition(g.id, g.status, status, playtimeByGameId.get(g.id) ?? null);
           }
         }),
       );

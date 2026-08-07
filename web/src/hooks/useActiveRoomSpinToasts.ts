@@ -28,6 +28,13 @@ export function useActiveRoomSpinToasts() {
   const { view, switchView } = useView();
   const { showToast, dismissToast } = useToast();
   const previousSpinIds = useRef<Set<string>>(new Set());
+  // Bug fix: without this, clicking a toast's own x just removed it from ToastContext's list -
+  // nothing recorded that the person had already seen and dismissed spin S, so the very next poll
+  // (2s later) found S still active, still not the room the viewer's on, and pushed the exact same
+  // toast right back. Populated by the toast's own onDismiss (fired only by a real dismiss/action
+  // click - see ToastStack.tsx), not by the natural-cleanup branch below, which isn't "the person
+  // dismissed it," just "the spin itself is gone."
+  const dismissedSpinIds = useRef<Set<string>>(new Set());
 
   const { data } = useQuery({
     queryKey: ['rooms', 'active-spins'],
@@ -42,18 +49,26 @@ export function useActiveRoomSpinToasts() {
 
     // A spin that dropped out of the list since the last poll has either started moving (its
     // waiting window closed) or been closed outright - either way, "Join" no longer means
-    // anything useful, so its toast shouldn't linger waiting to be noticed.
+    // anything useful, so its toast shouldn't linger waiting to be noticed. Also frees the
+    // dismissed-ids entry, so a later *different* spin that happens to reuse... it can't actually
+    // reuse this spinId (each spin gets a fresh one), but there's no reason to keep it around
+    // forever either.
     for (const id of previousSpinIds.current) {
-      if (!currentIds.has(id)) dismissToast(toastId(id));
+      if (!currentIds.has(id)) {
+        dismissToast(toastId(id));
+        dismissedSpinIds.current.delete(id);
+      }
     }
     previousSpinIds.current = currentIds;
 
     for (const spin of spins) {
       if (view.type === 'room' && view.roomId === spin.roomId) continue;
+      if (dismissedSpinIds.current.has(spin.spinId)) continue;
       showToast({
         id: toastId(spin.spinId),
         message: `${spin.roomName} just started a Spin the Wheel!`,
         actions: [{ label: 'Join', onClick: () => switchView({ type: 'room', roomId: spin.roomId }) }],
+        onDismiss: () => dismissedSpinIds.current.add(spin.spinId),
       });
     }
     // Only `data` (the poll result) should retrigger this - view/switchView/showToast/dismissToast

@@ -1,5 +1,5 @@
 import { prisma } from '../db/client.js';
-import { snapshotAllPlaytimes, type PlaytimeIncrease } from '../services/playtimeTracking.js';
+import { snapshotAllPlaytimes, dedupeByOwnerAndSteamApp, type PlaytimeIncrease } from '../services/playtimeTracking.js';
 import { notifyPlaytimeMarkPlaying } from '../services/notifications.js';
 import { scheduleJob, type JobHandle } from './scheduler.js';
 
@@ -11,8 +11,10 @@ export const PLAYTIME_SNAPSHOT_INTERVAL_MS = 6 * 60 * 60 * 1000;
 /** Turns raw playtime increases into "Mark Playing" notifications (issue #554) - one query
  * regardless of how many users/games increased this run, same batching shape as the rest of #548.
  * Only a Personal Shelf game (roomId null - a room game has no single unambiguous player, see
- * suggestsPlaying in @queueup/shared) not already Playing/Done/Dropped qualifies; notifyPlaytimeMarkPlaying
- * itself skips creating a duplicate if that game already has one unread. */
+ * suggestsPlaying in @queueup/shared) not already Playing/Done/Dropped qualifies. Deduped by
+ * (owner, Steam app) before notifying (issue #562 bug fix) so two Game rows that happen to be the
+ * same underlying Steam game don't each get their own notification; notifyPlaytimeMarkPlaying
+ * itself separately skips creating a duplicate if a given game already has one unread. */
 async function notifyPlayingCandidates(increases: PlaytimeIncrease[]): Promise<void> {
   if (increases.length === 0) return;
 
@@ -22,10 +24,10 @@ async function notifyPlayingCandidates(increases: PlaytimeIncrease[]): Promise<v
       status: { notIn: ['playing', 'done', 'dropped'] },
       OR: increases.map((inc) => ({ addedBy: inc.userId, steamAppid: inc.steamAppId })),
     },
-    select: { id: true, title: true, addedBy: true },
+    select: { id: true, title: true, addedBy: true, steamAppid: true },
   });
 
-  await Promise.all(games.map((g) => notifyPlaytimeMarkPlaying(g.addedBy, g.id, g.title)));
+  await Promise.all(dedupeByOwnerAndSteamApp(games).map((g) => notifyPlaytimeMarkPlaying(g.addedBy, g.id, g.title)));
 }
 
 /** Registers the playtime-snapshot refresh (issue #548) to run on its own schedule, independent

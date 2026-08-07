@@ -21,6 +21,15 @@ export async function recordStatusTransition(
   gameId: string,
   previousStatus: GameStatus,
   newStatus: GameStatus,
+  // Bug fix (issue #562): the bulk status-change route transitions up to MAX_GAMES_PER_LIST (500)
+  // games in one request via Promise.all - each call here doing its own currentPlaytimeMinutesForGame
+  // lookup meant up to 2 * 500 extra concurrent DB round trips on a route whose whole point (see its
+  // own comment) is avoiding per-game queries at that volume. A bulk caller now pre-fetches every
+  // game's playtime in one batch (getCurrentPlaytimeMinutesForGames) and passes each value through
+  // here instead. Omitted (the default, `undefined`) preserves the original single-game lookup for
+  // every other call site (the single-game route, sync-shelf-beaten) - only an explicit value here
+  // (including `null`, "looked up and there's nothing to attribute") skips it.
+  precomputedPlaytimeMinutes?: number | null,
 ): Promise<ClosedPlayLogEntry[]> {
   if (previousStatus === newStatus) return [];
 
@@ -34,7 +43,8 @@ export async function recordStatusTransition(
     // once, so a stray duplicate never lingers past the next real completion.
     const open = await prisma.playLog.findFirst({ where: { gameId, finishedAt: null } });
     if (!open) {
-      const startPlaytimeMinutes = await currentPlaytimeMinutesForGame(gameId);
+      const startPlaytimeMinutes =
+        precomputedPlaytimeMinutes !== undefined ? precomputedPlaytimeMinutes : await currentPlaytimeMinutesForGame(gameId);
       await prisma.playLog.create({ data: { gameId, startedAt: new Date(), startPlaytimeMinutes } });
     }
     return [];
@@ -46,7 +56,8 @@ export async function recordStatusTransition(
     // for this game is closed at once, so a stray duplicate from the race above never lingers
     // past the next real completion), just with the rows captured first.
     const now = new Date();
-    const finishPlaytimeMinutes = await currentPlaytimeMinutesForGame(gameId);
+    const finishPlaytimeMinutes =
+      precomputedPlaytimeMinutes !== undefined ? precomputedPlaytimeMinutes : await currentPlaytimeMinutesForGame(gameId);
     const openEntries = await prisma.playLog.findMany({ where: { gameId, finishedAt: null } });
     if (openEntries.length > 0) {
       await prisma.playLog.updateMany({ where: { gameId, finishedAt: null }, data: { finishedAt: now, finishPlaytimeMinutes } });

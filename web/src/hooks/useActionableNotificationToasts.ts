@@ -50,7 +50,9 @@ export function useActionableNotificationToasts() {
       showToast({
         id: `notification-${notification.id}`,
         message: notification.message,
-        actions: [{ label: 'Mark Playing', onClick: () => markPlaying.mutate(gameId) }],
+        // mutateAsync (not the fire-and-forget mutate) so ToastStack's action handler can await
+        // it and only dismiss the toast on actual success - see ToastStack.tsx's bug-fix comment.
+        actions: [{ label: 'Mark Playing', onClick: () => markPlaying.mutateAsync(gameId) }],
         onDismiss: () => markRead.mutate(notification.id),
       });
     }
