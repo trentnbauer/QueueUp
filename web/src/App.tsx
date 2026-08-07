@@ -3,6 +3,7 @@ import { useEffect, useRef, useState } from 'react';
 import { useAuth } from './context/AuthContext';
 import { authApi } from './api/auth';
 import { useRooms } from './hooks/useRooms';
+import { useActionableNotificationToasts } from './hooks/useActionableNotificationToasts';
 import { ActionErrorBanner } from './components/ActionErrorBanner';
 import { Header } from './components/Header';
 import { Sidebar } from './components/Sidebar';
@@ -36,6 +37,7 @@ export default function App() {
   const location = useLocation();
   const navigate = useNavigate();
   const { joinRoom } = useRooms();
+  useActionableNotificationToasts();
   const [providers, setProviders] = useState<string[] | null>(null);
   const [showOnboarding, setShowOnboarding] = useState(false);
   const [pendingJoinError, setPendingJoinError] = useState<string | null>(null);

@@ -6,4 +6,5 @@ export const notificationsApi = {
   summary: () => apiGet<NotificationSummary>('/api/notifications/summary'),
   markAllRead: () => apiPost<void>('/api/notifications/read-all'),
   markRoomRead: (roomId: string) => apiPost<void>(`/api/rooms/${roomId}/notifications/read`),
+  markRead: (id: string) => apiPost<void>(`/api/notifications/${id}/read`),
 };

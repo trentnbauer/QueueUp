@@ -32,11 +32,12 @@ interface NotifyRoomInput {
   roomId: string;
   roomName: string;
   actorId: string;
-  // Excludes room_deleted/price_drop/release_watch (none of the three ever reaches notifyRoom -
-  // see the notes on notifyRoomMembersDirect, notifyPriceDrop, and notifyReleaseWatch below) so
-  // the RoomActivityType passthrough a few lines down needs no cast: this narrowed type is
-  // compiler-checked to stay a subset of RoomActivityType, not just documented as one.
-  type: Exclude<NotificationType, 'room_deleted' | 'price_drop' | 'release_watch'>;
+  // Excludes room_deleted/price_drop/release_watch/playtime_mark_playing (none of the four ever
+  // reaches notifyRoom - see the notes on notifyRoomMembersDirect, notifyPriceDrop,
+  // notifyReleaseWatch, and notifyPlaytimeMarkPlaying below) so the RoomActivityType passthrough a
+  // few lines down needs no cast: this narrowed type is compiler-checked to stay a subset of
+  // RoomActivityType, not just documented as one.
+  type: Exclude<NotificationType, 'room_deleted' | 'price_drop' | 'release_watch' | 'playtime_mark_playing'>;
   message: (actorName: string) => string;
 }
 
@@ -172,6 +173,34 @@ export async function notifyReleaseWatch(userId: string, message: string): Promi
   }
 }
 
+/** A Personal Shelf game's Steam playtime went up while it wasn't already Playing (issue #554,
+ * called from jobs/playtimeSnapshotJob.ts). Skips creating a new row if this exact game already
+ * has one unread - the job runs every 6h, and a person who hasn't acted on (or dismissed) the
+ * first nudge yet doesn't need a second one piling up; the existing row already says everything
+ * this one would. Same shape as notifyReleaseWatch otherwise, except this one sets gameId so the
+ * client can offer a "Mark Playing" action against the right game. */
+export async function notifyPlaytimeMarkPlaying(userId: string, gameId: string, gameTitle: string): Promise<void> {
+  try {
+    const existing = await prisma.notification.findFirst({
+      where: { recipientId: userId, gameId, type: 'playtime_mark_playing', readAt: null },
+      select: { id: true },
+    });
+    if (existing) return;
+
+    await prisma.notification.create({
+      data: {
+        recipientId: userId,
+        gameId,
+        roomName: 'Personal Shelf',
+        type: 'playtime_mark_playing',
+        message: `Your Steam playtime for "${gameTitle}" just went up - mark it as Playing?`,
+      },
+    });
+  } catch (err) {
+    console.error('[notifications] failed to write playtime-mark-playing notification', err);
+  }
+}
+
 type NotificationWithActor = Prisma.NotificationGetPayload<{ include: { actor: true } }>;
 
 interface ReadCutoff {
@@ -199,6 +228,7 @@ export function serializeNotification(row: NotificationWithActor, currentUserId:
     actor: row.actor ? toUserDto(row.actor) : null,
     createdAt: row.createdAt.toISOString(),
     read,
+    gameId: row.gameId,
   };
 }
 
@@ -294,4 +324,14 @@ export async function markRoomNotificationsRead(roomId: string, userId: string):
     where: { roomId_userId: { roomId, userId } },
     data: { notificationsReadAt: new Date() },
   });
+}
+
+/** Marks a single direct notification read (issue #554) - only meaningful for a recipientId-based
+ * row, same as markAllNotificationsRead's second branch; room notifications have no per-row
+ * readAt (see the model doc), so a room notification id here is simply never matched and this is a
+ * silent no-op rather than an error. The `recipientId: userId` filter doubles as authorization -
+ * marking someone else's notification read isn't a 403 so much as a 404-shaped no-op, since a
+ * mismatched id+recipient combination just matches nothing. */
+export async function markNotificationRead(id: string, userId: string): Promise<void> {
+  await prisma.notification.updateMany({ where: { id, recipientId: userId, readAt: null }, data: { readAt: new Date() } });
 }

@@ -1,4 +1,6 @@
-import { snapshotAllPlaytimes } from '../services/playtimeTracking.js';
+import { prisma } from '../db/client.js';
+import { snapshotAllPlaytimes, type PlaytimeIncrease } from '../services/playtimeTracking.js';
+import { notifyPlaytimeMarkPlaying } from '../services/notifications.js';
 import { scheduleJob, type JobHandle } from './scheduler.js';
 
 // Steam's own playtime figures only update every so often on their end too - polling much more
@@ -6,15 +8,35 @@ import { scheduleJob, type JobHandle } from './scheduler.js';
 // the same "no reason to be more eager than the upstream data changes" reasoning.
 export const PLAYTIME_SNAPSHOT_INTERVAL_MS = 6 * 60 * 60 * 1000;
 
+/** Turns raw playtime increases into "Mark Playing" notifications (issue #554) - one query
+ * regardless of how many users/games increased this run, same batching shape as the rest of #548.
+ * Only a Personal Shelf game (roomId null - a room game has no single unambiguous player, see
+ * suggestsPlaying in @queueup/shared) not already Playing/Done/Dropped qualifies; notifyPlaytimeMarkPlaying
+ * itself skips creating a duplicate if that game already has one unread. */
+async function notifyPlayingCandidates(increases: PlaytimeIncrease[]): Promise<void> {
+  if (increases.length === 0) return;
+
+  const games = await prisma.game.findMany({
+    where: {
+      roomId: null,
+      status: { notIn: ['playing', 'done', 'dropped'] },
+      OR: increases.map((inc) => ({ addedBy: inc.userId, steamAppid: inc.steamAppId })),
+    },
+    select: { id: true, title: true, addedBy: true },
+  });
+
+  await Promise.all(games.map((g) => notifyPlaytimeMarkPlaying(g.addedBy, g.id, g.title)));
+}
+
 /** Registers the playtime-snapshot refresh (issue #548) to run on its own schedule, independent
- * of page views - same shape as startPriceAlertJob. Nothing yet consumes the increases this
- * reports; later pieces of #548 (the "mark as Playing" nudge) will. */
+ * of page views - same shape as startPriceAlertJob. */
 export function startPlaytimeSnapshotJob(): JobHandle {
   return scheduleJob({
     name: 'playtime-snapshot',
     intervalMs: PLAYTIME_SNAPSHOT_INTERVAL_MS,
     run: async () => {
-      await snapshotAllPlaytimes();
+      const increases = await snapshotAllPlaytimes();
+      await notifyPlayingCandidates(increases);
     },
   });
 }

@@ -687,7 +687,8 @@ export type NotificationType =
   | 'room_deleted'
   | 'price_drop'
   | 'game_suggested'
-  | 'release_watch';
+  | 'release_watch'
+  | 'playtime_mark_playing';
 
 export interface Notification {
   id: string;
@@ -700,6 +701,10 @@ export interface Notification {
   actor: User | null;
   createdAt: string;
   read: boolean;
+  /** The specific game this notification is about, if any (issue #554) - null for every type
+   * except playtime_mark_playing. Lets a client action button (e.g. "Mark Playing") target the
+   * right game without parsing `message`. */
+  gameId: string | null;
 }
 
 /** Issue #509 - a room's full, paginated activity history, distinct from NotificationType above:

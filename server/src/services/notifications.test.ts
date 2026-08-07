@@ -10,6 +10,7 @@ const BASE = {
   message: 'Trent added "Portal 2" to the room',
   actorId: 'user-trent',
   actor: null,
+  gameId: null,
 };
 
 describe('serializeNotification', () => {
