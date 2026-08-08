@@ -1,14 +1,16 @@
 import type { Game, GameStatus } from './types.js';
 import { monthsAgoUtc, NEGLECTED_BACKLOG_MONTHS } from './backlogHeuristics.js';
 
-/** Personal Shelf, not already Playing/Done/Dropped, and `minutes` (whatever playtime figure the
- * caller is judging against) is positive - the "mark as Playing?" signal (issue #548), factored
- * out of a specific game so both the checkpoint-relative individual nudge (suggestsPlaying below)
- * and the batch review prompt's raw-total-based check (PlaytimeReviewModal) share one definition
- * of "does this amount of playtime mean someone should mark this Playing," while each supplies its
- * own idea of which minutes figure is the right one to ask about. */
+/** Personal Shelf, not already Playing/Done/Dropped/Won't Play, and `minutes` (whatever playtime
+ * figure the caller is judging against) is positive - the "mark as Playing?" signal (issue #548),
+ * factored out of a specific game so both the checkpoint-relative individual nudge (suggestsPlaying
+ * below) and the batch review prompt's raw-total-based check (PlaytimeReviewModal) share one
+ * definition of "does this amount of playtime mean someone should mark this Playing," while each
+ * supplies its own idea of which minutes figure is the right one to ask about. Won't Play is
+ * excluded for the same reason Done/Dropped are - the user already made a call on this game, a
+ * playtime uptick shouldn't second-guess it. */
 export function suggestsPlayingFromMinutes(status: GameStatus, roomId: string | null, minutes: number): boolean {
-  return roomId === null && minutes > 0 && status !== 'playing' && status !== 'done' && status !== 'dropped';
+  return roomId === null && minutes > 0 && status !== 'playing' && status !== 'done' && status !== 'dropped' && status !== 'wont_play';
 }
 
 /** Currently Playing, with time-to-beat data, and `minutes` worth of hours reaches it - the "mark

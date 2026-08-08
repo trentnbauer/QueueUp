@@ -11,7 +11,7 @@ export const PLAYTIME_SNAPSHOT_INTERVAL_MS = 6 * 60 * 60 * 1000;
 /** Turns raw playtime increases into "Mark Playing" notifications (issue #554) - one query
  * regardless of how many users/games increased this run, same batching shape as the rest of #548.
  * Only a Personal Shelf game (roomId null - a room game has no single unambiguous player, see
- * suggestsPlaying in @queueup/shared) not already Playing/Done/Dropped qualifies. Deduped by
+ * suggestsPlaying in @queueup/shared) not already Playing/Done/Dropped/Won't Play qualifies. Deduped by
  * (owner, Steam app) before notifying (issue #562 bug fix) so two Game rows that happen to be the
  * same underlying Steam game don't each get their own notification; notifyPlaytimeMarkPlaying
  * itself separately skips creating a duplicate if a given game already has one unread. */
@@ -21,7 +21,7 @@ async function notifyPlayingCandidates(increases: PlaytimeIncrease[]): Promise<v
   const games = await prisma.game.findMany({
     where: {
       roomId: null,
-      status: { notIn: ['playing', 'done', 'dropped'] },
+      status: { notIn: ['playing', 'done', 'dropped', 'wont_play'] },
       OR: increases.map((inc) => ({ addedBy: inc.userId, steamAppid: inc.steamAppId })),
     },
     select: { id: true, title: true, addedBy: true, steamAppid: true },

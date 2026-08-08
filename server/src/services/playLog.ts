@@ -39,8 +39,8 @@ export async function recordStatusTransition(
     // open entries for the same game - there's no Prisma-expressible partial-unique-index guard
     // against that (this project has no migration history to add one via raw SQL - see db push in
     // server-entrypoint.sh). Left as a rare, self-healing cosmetic duplicate rather than adding
-    // transactional locking for it: the done/dropped branch below closes *every* open entry at
-    // once, so a stray duplicate never lingers past the next real completion.
+    // transactional locking for it: the done/dropped/wont_play branch below closes *every* open
+    // entry at once, so a stray duplicate never lingers past the next real completion.
     const open = await prisma.playLog.findFirst({ where: { gameId, finishedAt: null } });
     if (!open) {
       const startPlaytimeMinutes =
@@ -50,7 +50,7 @@ export async function recordStatusTransition(
     return [];
   }
 
-  if (newStatus === 'done' || newStatus === 'dropped') {
+  if (newStatus === 'done' || newStatus === 'dropped' || newStatus === 'wont_play') {
     // Read the open entries before closing them (rather than relying on updateMany's count) so
     // the caller can see what got closed - same self-healing intent as before (every open entry
     // for this game is closed at once, so a stray duplicate from the race above never lingers
@@ -63,6 +63,12 @@ export async function recordStatusTransition(
       await prisma.playLog.updateMany({ where: { gameId, finishedAt: null }, data: { finishedAt: now, finishPlaytimeMinutes } });
       return openEntries.map((entry) => ({ startedAt: entry.startedAt, finishedAt: now }));
     }
+    // Won't Play is "decided against it," not a playthrough - unlike Done/Dropped below, jumping
+    // straight to it with no open entry (the common case: backlog/wishlist cruft never even
+    // started) has nothing worth logging. It only reaches this branch at all to close a genuinely
+    // open entry above (e.g. dropping a currently-Playing game as "won't play" instead), which the
+    // openEntries.length > 0 return above already handled.
+    if (newStatus === 'wont_play') return [];
     // Jumped straight to Done/Dropped without ever passing through Playing - still worth a
     // record, even though the real start date is unknown; same start/finish timestamp reads as
     // "logged after the fact" rather than a genuine multi-day playthrough. startPlaytimeMinutes

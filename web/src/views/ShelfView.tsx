@@ -54,15 +54,17 @@ export function ShelfView() {
   // GameGrid applies the platform/genre/status/search filter internally (GameFilterContext) - bulk
   // actions must respect the same set of games actually on screen, or "Select all" while filtered
   // would silently reach into hidden games the user never saw (previously a real bug: selected/
-  // updated the whole shelf regardless of the active filter). Playing/Done/Dropped are excluded
-  // the same way GameGrid itself excludes them below (only while the status pill is "All" -
+  // updated the whole shelf regardless of the active filter). Playing/Done/Dropped/Won't Play are
+  // excluded the same way GameGrid itself excludes them below (only while the status pill is "All" -
   // explicitly filtering to one of those is a deliberate ask to see/select it) now that they have
   // their own strips instead of showing a second time in the main grid.
   const gameFilter = useGameFilter();
   const visibleGames = useMemo(() => {
     const filtered = filterGames(games, gameFilter);
     if (gameFilter.statusFilter !== ALL_FILTER_VALUE) return filtered;
-    return filtered.filter((g) => g.status !== 'playing' && g.status !== 'play_next' && g.status !== 'done' && g.status !== 'dropped');
+    return filtered.filter(
+      (g) => g.status !== 'playing' && g.status !== 'play_next' && g.status !== 'done' && g.status !== 'dropped' && g.status !== 'wont_play',
+    );
   }, [games, gameFilter]);
 
   // A title search looks across the whole shelf regardless of status or the 500-game recency cap
@@ -215,12 +217,12 @@ export function ShelfView() {
             isError={isError}
             loadError={loadError}
             onRetry={refetch}
-            // Playing/Play Next/Done/Replay/Dropped games get their own strips above/below instead -
-            // same reasoning as RoomView's identical hiddenStatuses, so they don't also show a second
-            // time in the main grid here. Replay-queued games (issue #334) join Done under BeatenStrip
-            // below, since a replay is by definition already-beaten; Play Next joins Playing in the
-            // Currently Playing strip above.
-            hiddenStatuses={['playing', 'play_next', 'done', 'replay', 'dropped']}
+            // Playing/Play Next/Done/Replay/Dropped/Won't Play games get their own strips above/below
+            // instead - same reasoning as RoomView's identical hiddenStatuses, so they don't also show
+            // a second time in the main grid here. Replay-queued games (issue #334) join Done under
+            // BeatenStrip below, since a replay is by definition already-beaten; Play Next joins
+            // Playing in the Currently Playing strip above; Won't Play joins Dropped (issue #569).
+            hiddenStatuses={['playing', 'play_next', 'done', 'replay', 'dropped', 'wont_play']}
             onStatusChange={updateStatus}
             onVote={vote}
             onRemove={remove}

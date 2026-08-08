@@ -27,6 +27,12 @@ enum GameStatus {
   /// Wheel's candidate pool same as playing/done/dropped (see backlogGames in gameGridLogic.ts) -
   /// once something's queued up next, the wheel shouldn't be able to bump it for something else.
   play_next
+  /// "Never going to play this" (issue #569) - distinct from `dropped`: dropped means "started it,
+  /// bounced off", wont_play means "decided against it, possibly without ever starting" (e.g.
+  /// clearing out backlog cruft). Excluded from Spin the Wheel/Ranked Queue same as dropped, and
+  /// shown alongside dropped in one combined "Dropped / Won't Play" strip rather than a third
+  /// permanently-visible section.
+  wont_play
 
   @@map("game_status")
 }

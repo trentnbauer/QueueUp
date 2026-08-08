@@ -142,6 +142,12 @@
   background: linear-gradient(135deg, #ff8a80, #c0392b);
 }
 
+/* Neutral slate, not red like Dropped - "won't play" is a decision, not necessarily a
+   disappointment (issue #569), so it doesn't borrow Dropped's "bounced off this" red. */
+.wontPlayRibbonText {
+  background: linear-gradient(135deg, #94a3b8, #475569);
+}
+
 /* Sits over the artwork's bottom edge with a gradient scrim underneath, so the price/owned line
    stays legible over any cover art rather than depending on how bright the image is. */
 .coverOverlay {

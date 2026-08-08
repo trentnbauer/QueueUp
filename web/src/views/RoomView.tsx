@@ -180,8 +180,9 @@ export function RoomView() {
             memberCount={memberCount}
             roomMembers={roomMembers}
             // Replay-queued games (issue #334) join Done under BeatenStrip below, and Play Next joins
-            // Playing in the Currently Playing strip above - same as ShelfView.
-            hiddenStatuses={['playing', 'play_next', 'done', 'replay', 'dropped']}
+            // Playing in the Currently Playing strip above - same as ShelfView. Won't Play joins
+            // Dropped (issue #569).
+            hiddenStatuses={['playing', 'play_next', 'done', 'replay', 'dropped', 'wont_play']}
             onStatusChange={updateStatus}
             onVote={vote}
             onRemove={remove}
