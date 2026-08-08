@@ -14,6 +14,9 @@ interface GameFilterContextValue {
   /** "Stale wishlist" toggle (issue #578) - see isStaleWishlistGame. Kept separate from
    * neglectedFilter above rather than folded into it - see GameFilterState.staleWishlistFilter. */
   staleWishlistFilter: boolean;
+  /** "Co-op ready" toggle (issue #579) - see isCoopReady. Room-only; the Header only offers it
+   * with an active room, since it's always false everywhere else (ownership is null off-room). */
+  coopReadyFilter: boolean;
   setPlatformFilter: (value: string) => void;
   setGenreFilter: (value: string) => void;
   setStatusFilter: (value: string) => void;
@@ -21,6 +24,7 @@ interface GameFilterContextValue {
   setSearchQuery: (value: string) => void;
   setNeglectedFilter: (value: boolean) => void;
   setStaleWishlistFilter: (value: boolean) => void;
+  setCoopReadyFilter: (value: boolean) => void;
 }
 
 const GameFilterContext = createContext<GameFilterContextValue | undefined>(undefined);
@@ -39,6 +43,7 @@ export function GameFilterProvider({ children }: { children: ReactNode }) {
   const [searchQuery, setSearchQuery] = useState('');
   const [neglectedFilter, setNeglectedFilter] = useState(false);
   const [staleWishlistFilter, setStaleWishlistFilter] = useState(false);
+  const [coopReadyFilter, setCoopReadyFilter] = useState(false);
   const viewKey = view.type === 'room' ? `room:${view.roomId}` : 'personal';
 
   useEffect(() => {
@@ -49,6 +54,7 @@ export function GameFilterProvider({ children }: { children: ReactNode }) {
     setSearchQuery('');
     setNeglectedFilter(false);
     setStaleWishlistFilter(false);
+    setCoopReadyFilter(false);
   }, [viewKey]);
 
   return (
@@ -61,6 +67,7 @@ export function GameFilterProvider({ children }: { children: ReactNode }) {
         searchQuery,
         neglectedFilter,
         staleWishlistFilter,
+        coopReadyFilter,
         setPlatformFilter,
         setGenreFilter,
         setStatusFilter,
@@ -68,6 +75,7 @@ export function GameFilterProvider({ children }: { children: ReactNode }) {
         setSearchQuery,
         setNeglectedFilter,
         setStaleWishlistFilter,
+        setCoopReadyFilter,
       }}
     >
       {children}

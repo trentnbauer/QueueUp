@@ -16,6 +16,7 @@ import {
   distinctTagNames,
   isNeglectedBacklogGame,
   isStaleWishlistGame,
+  isCoopReady,
   platformBrand,
 } from './gameGridLogic';
 import { roomsApi, gameSuggestionsApi } from '../api/rooms';
@@ -66,6 +67,7 @@ export function Header() {
     searchQuery,
     neglectedFilter,
     staleWishlistFilter,
+    coopReadyFilter,
     setPlatformFilter,
     setGenreFilter,
     setStatusFilter,
@@ -73,6 +75,7 @@ export function Header() {
     setSearchQuery,
     setNeglectedFilter,
     setStaleWishlistFilter,
+    setCoopReadyFilter,
   } = useGameFilter();
 
   const membersMenuRef = useRef<HTMLDetailsElement>(null);
@@ -228,6 +231,13 @@ export function Header() {
   // separate signals (issue #578).
   const staleWishlistGames = useMemo(() => games.filter((g) => isStaleWishlistGame(g)), [games]);
   const staleWishlistCount = staleWishlistGames.length;
+
+  // Room-only (issue #579) - the inverse of platformOptions above (that's [] with an active room,
+  // this is [] without one): ownership is only ever tracked across a room's current members, so
+  // isCoopReady is unconditionally false for every Personal Shelf game anyway. Gating here too
+  // keeps that room-only intent explicit rather than relying on isCoopReady's null check alone.
+  const coopReadyGames = useMemo(() => (activeRoom ? games.filter((g) => isCoopReady(g)) : []), [games, activeRoom]);
+  const coopReadyCount = coopReadyGames.length;
 
   // One-click "clear backlog cruft" (issue: bulk-apply Won't Play to everything the Collecting
   // Dust filter already found) - the same result was already reachable by hand (toggle the
@@ -588,6 +598,21 @@ export function Header() {
                 title="Remove every stale wishlist game in one go"
               >
                 {isBulkRemoving ? 'Removing…' : 'Remove all'}
+              </button>
+            </div>
+          </div>
+        )}
+        {coopReadyCount > 0 && (
+          <div className={styles.filterGroup}>
+            <span className={styles.filterLabel}>Co-op</span>
+            <div className={styles.filterPills}>
+              <button
+                type="button"
+                className={`${styles.filterPill} ${coopReadyFilter ? styles.filterPillActive : ''}`}
+                onClick={() => setCoopReadyFilter(!coopReadyFilter)}
+                title="Games 2+ current members already own"
+              >
+                🎮 Co-op ready ({coopReadyCount})
               </button>
             </div>
           </div>
