@@ -53,6 +53,34 @@ export function decodeActivityCursor(raw: string): ActivityCursor | undefined {
   return { createdAt, id: raw.slice(idx + 1) };
 }
 
+export interface LogShelfActivityInput {
+  recipientId: string;
+  actorId: string | null;
+  /** Narrowed to the RoomActivityTypes that make sense with no room around them (issue #580) -
+   * member/vote/spin/room-management types all assume membership, a shared spin session, or
+   * voting, none of which exist on a Personal Shelf. Callers get this enforced statically rather
+   * than by convention alone, same reasoning as NotifyRoomInput's `type` narrowing in
+   * notifications.ts. */
+  type: Extract<RoomActivityType, 'game_added' | 'status_changed' | 'price_drop'>;
+  message: string;
+}
+
+/** Personal Shelf counterpart to logRoomActivity (issue #580) - same RoomActivity table, scoped by
+ * recipientId instead of roomId (see the model's schema doc for the roomId/recipientId split).
+ * Unlike logRoomActivity's `message` callback, there's only ever one possible actor for a shelf
+ * entry (its own recipient, or nobody for a system-generated price_drop) - no name to resolve, so
+ * callers just pass the finished string. Same fire-and-forget, failures-swallowed contract as
+ * logRoomActivity - this always runs after the request's primary write has already committed. */
+export async function logShelfActivity(input: LogShelfActivityInput): Promise<void> {
+  try {
+    await prisma.roomActivity.create({
+      data: { recipientId: input.recipientId, actorId: input.actorId, type: input.type, message: input.message },
+    });
+  } catch (err) {
+    console.error('[roomActivity] failed to write shelf activity log entry', err);
+  }
+}
+
 /** One page of a room's activity feed, newest first - see GET /api/rooms/:roomId/activity. Keyset
  * (createdAt, id) pagination rather than a plain `createdAt < before`: logRoomActivity calls are
  * fire-and-forget and several call sites (e.g. a status change plus its notifyRoom-driven sibling
@@ -91,5 +119,30 @@ export async function getRoomActivityPage(
       createdAt: true,
       actor: { select: { id: true, displayName: true, avatarColor: true, avatarUrl: true, isAdmin: true } },
     },
+  });
+}
+
+/** One page of a user's Personal Shelf activity feed (issue #580), newest first - see GET
+ * /api/me/activity. Same keyset (createdAt, id) pagination as getRoomActivityPage above, and for
+ * the same reason (fire-and-forget logShelfActivity calls can tie on createdAt within one
+ * request) - see that function's doc comment, which this still relies on for the createdAt half of
+ * the comparison via the `@@index([recipientId, createdAt])` on RoomActivity. No `actor` in the
+ * result, unlike getRoomActivityPage: a shelf entry's only possible actor is its own recipient (or
+ * nobody, for a system-generated price_drop), so there's no separate identity worth surfacing. */
+export async function getShelfActivityPage(
+  recipientId: string,
+  options: { before?: ActivityCursor; take: number },
+): Promise<{ id: string; type: RoomActivityType; message: string; createdAt: Date }[]> {
+  const { before } = options;
+  return prisma.roomActivity.findMany({
+    where: {
+      recipientId,
+      ...(before
+        ? { OR: [{ createdAt: { lt: before.createdAt } }, { createdAt: before.createdAt, id: { lt: before.id } }] }
+        : {}),
+    },
+    orderBy: [{ createdAt: 'desc' }, { id: 'desc' }],
+    take: options.take,
+    select: { id: true, type: true, message: true, createdAt: true },
   });
 }

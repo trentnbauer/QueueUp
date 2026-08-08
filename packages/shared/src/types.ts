@@ -797,6 +797,27 @@ export interface RoomActivityPage {
   nextBefore: string | null;
 }
 
+/** The Personal Shelf's counterpart to RoomActivityType (issue #580) - a strict subset, since the
+ * shelf has no members, no shared spin session, and no voting to log any of RoomActivityType's
+ * other values for. See RoomActivity's schema doc (server/src/db/prisma/schema.prisma) for how one
+ * table backs both feeds. */
+export type ShelfActivityType = Extract<RoomActivityType, 'game_added' | 'status_changed' | 'price_drop'>;
+
+/** Unlike RoomActivityEntry, no `actor` - a shelf entry's only possible actor is its own owner (or
+ * nobody, for a system-generated price_drop), so there's no separate identity worth showing. */
+export interface ShelfActivityEntry {
+  id: string;
+  type: ShelfActivityType;
+  message: string;
+  createdAt: string;
+}
+
+/** Response for GET /api/me/activity - same shape/pagination contract as RoomActivityPage above. */
+export interface ShelfActivityPage {
+  entries: ShelfActivityEntry[];
+  nextBefore: string | null;
+}
+
 export interface NotificationRoomUnread {
   roomId: string;
   unreadCount: number;

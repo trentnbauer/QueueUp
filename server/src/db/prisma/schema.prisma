@@ -166,6 +166,7 @@ model User {
   notificationsReceived     Notification[]             @relation("NotificationRecipient")
   notificationsActed        Notification[]             @relation("NotificationActor")
   roomActivity              RoomActivity[]             @relation("RoomActivityActor")
+  shelfActivity             RoomActivity[]             @relation("RoomActivityRecipient")
   gameSuggestions           GameSuggestion[]
   ownedGames                GameOwnership[]
   playtimeSnapshots         PlaytimeSnapshot[]
@@ -820,18 +821,28 @@ model Notification {
 /// the single choke point for both. Events with no separate notification (vote cast, status
 /// changed, spin result, member promoted/left) call logRoomActivity (services/roomActivity.ts)
 /// directly instead.
+/// Extended (issue #580) to also cover the Personal Shelf, rather than standing up a parallel
+/// table: exactly one of roomId/recipientId is ever set on a row, the same room-or-direct split
+/// Notification above already draws with its own roomId/recipientId pair. A shelf row only ever
+/// uses game_added/status_changed/price_drop - the rest of RoomActivityType assumes membership,
+/// a shared spin session, or voting, none of which exist outside a room - see logShelfActivity
+/// (services/roomActivity.ts), which narrows `type` accordingly.
 model RoomActivity {
-  id        String           @id @default(uuid())
-  roomId    String           @map("room_id")
-  actorId   String?          @map("actor_id")
-  type      RoomActivityType
-  message   String
-  createdAt DateTime         @default(now()) @map("created_at")
+  id          String           @id @default(uuid())
+  roomId      String?          @map("room_id")
+  /// Set only for a Personal Shelf entry (issue #580) - see the model doc above.
+  recipientId String?          @map("recipient_id")
+  actorId     String?          @map("actor_id")
+  type        RoomActivityType
+  message     String
+  createdAt   DateTime         @default(now()) @map("created_at")
 
-  room  Room  @relation(fields: [roomId], references: [id], onDelete: Cascade)
-  actor User? @relation("RoomActivityActor", fields: [actorId], references: [id], onDelete: SetNull)
+  room      Room?  @relation(fields: [roomId], references: [id], onDelete: Cascade)
+  recipient User?  @relation("RoomActivityRecipient", fields: [recipientId], references: [id], onDelete: Cascade)
+  actor     User?  @relation("RoomActivityActor", fields: [actorId], references: [id], onDelete: SetNull)
 
   @@index([roomId, createdAt])
+  @@index([recipientId, createdAt])
   @@map("room_activity")
 }
 

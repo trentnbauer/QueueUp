@@ -1,7 +1,7 @@
 import type { NotificationType, Prisma } from '@prisma/client';
 import { prisma } from '../db/client.js';
 import { toUserDto } from '../util/dto.js';
-import { logRoomActivity } from './roomActivity.js';
+import { logRoomActivity, logShelfActivity } from './roomActivity.js';
 import type { Notification } from '@queueup/shared';
 
 async function actorDisplayName(actorId: string): Promise<string> {
@@ -154,6 +154,9 @@ export async function notifyPriceDrop(input: NotifyPriceDropInput): Promise<void
       await prisma.notification.create({
         data: { recipientId: input.ownerId, roomName: 'Personal Shelf', gameId: input.gameId, type: 'price_drop', message },
       });
+      // Shelf activity feed (issue #580) - mirrors the room branch's logRoomActivity call above,
+      // system-generated (no actorId) for the same reason.
+      void logShelfActivity({ recipientId: input.ownerId, actorId: null, type: 'price_drop', message });
     }
   } catch (err) {
     console.error('[notifications] failed to write price drop notification', err);
