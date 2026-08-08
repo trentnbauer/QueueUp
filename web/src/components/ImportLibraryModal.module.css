@@ -164,6 +164,41 @@
   margin-top: 4px;
 }
 
+/* The success screen's nav has just one action (Finish, no Back) - .wizardNav is normally
+   space-between for a Back/Next pair, so this pushes the lone button to the right instead of the
+   left where space-between would otherwise strand it. */
+.wizardNavSolo {
+  margin-left: auto;
+}
+
+/* Connect step's "waiting for Playnite" status (issue #474) once a setup code is generated - sits
+   below the code box instead of a manual Next/Done, since progressing past this step happens
+   automatically (see PlayniteImportModal's linkStatus poll), not by clicking through it. */
+.wizardWaiting {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 10px 0 0;
+  font-size: 12.5px;
+  color: var(--qu-muted);
+}
+
+.wizardSpinner {
+  flex: 0 0 auto;
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  border: 2px solid var(--qu-border);
+  border-top-color: var(--qu-accent);
+  animation: wizardSpin 0.9s linear infinite;
+}
+
+@keyframes wizardSpin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
 /* Second-and-later sections in the modal (currently just Playnite) get a divider + top margin -
    .librarySection itself has no external spacing since it was originally the dialog's only child
    besides the header. */
