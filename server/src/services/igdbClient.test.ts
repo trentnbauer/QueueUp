@@ -35,6 +35,12 @@ describe('platformFamilies', () => {
     expect(platformFamilies(names('Nintendo Switch'))).toEqual(['switch']);
   });
 
+  it('maps Meta Quest generations to their own families, including the pre-rebrand Oculus Quest name', () => {
+    expect(platformFamilies(names('Oculus Quest'))).toEqual(['quest']);
+    expect(platformFamilies(names('Meta Quest 2'))).toEqual(['quest2']);
+    expect(platformFamilies(names('Meta Quest 3'))).toEqual(['quest3']);
+  });
+
   it('deduplicates when multiple platform names map to the same family', () => {
     expect(platformFamilies(names('Mac', 'PC (Microsoft Windows)', 'Linux'))).toEqual(['pc']);
   });
