@@ -9,7 +9,11 @@ import modalStyles from './ImportLibraryModal.module.css';
 import keyStyles from './ApiKeysSection.module.css';
 
 const PLAYNITE_KEY_LABEL = 'Playnite Import';
-const EXTENSION_REPO_URL = 'https://github.com/trentnbauer/QueueUpPlayniteExtension';
+// GitHub's stable "latest release" redirect (not a specific tagged/versioned URL) - the .pext
+// asset's filename bakes its version number in (e.g. QueueUpExporter_v0.3.1.pext), so linking a
+// specific asset directly would go stale the next time a release ships. This always lands on
+// whatever's newest.
+const EXTENSION_LATEST_RELEASE_URL = 'https://github.com/trentnbauer/QueueUpPlayniteExtension/releases/latest';
 const PLAYNITE_DOWNLOAD_URL = 'https://playnite.link/';
 
 // Issue #474: the wizard used to end on a manual "Push your library" instruction step the user had
@@ -154,11 +158,12 @@ export function PlayniteImportModal({ onClose }: PlayniteImportModalProps) {
         {!linked && activeStep === 1 && (
           <p className={modalStyles.wizardBody}>
             Next, install the QueueUp extension for Playnite -{' '}
-            <a href={EXTENSION_REPO_URL} target="_blank" rel="noreferrer">
-              get it from GitHub
+            <a href={EXTENSION_LATEST_RELEASE_URL} target="_blank" rel="noreferrer">
+              download the latest version
             </a>{' '}
-            and follow its README. Once installed, you'll see a new <code>QueueUp</code> menu
-            under Playnite's <code>Extensions</code> menu.
+            (the <code>.pext</code> file), then drag and drop it into Playnite's window to
+            install it. Once installed, you'll see a new <code>QueueUp</code> menu under
+            Playnite's <code>Extensions</code> menu.
           </p>
         )}
 
