@@ -248,6 +248,7 @@ async function runPlayniteImportLoop(
   entries: LibraryImportEntry[],
   existingByIgdbId: Map<number, ResolvedShelfGame>,
   consideredCount: number,
+  startedAt: string,
   logger: FastifyBaseLogger,
 ): Promise<void> {
   let matched = 0;
@@ -309,7 +310,7 @@ async function runPlayniteImportLoop(
         // return early, which would release the import lock in routes' `.finally` while other
         // workers are still mid-create - see this function's doc comment for why that matters.
         try {
-          await setPlayniteImportProgress(userId, { consideredCount, matched, unmatched, errored, done: false });
+          await setPlayniteImportProgress(userId, { startedAt, consideredCount, matched, unmatched, errored, done: false });
         } catch (progressErr) {
           logger.warn({ err: progressErr }, 'Failed to write Playnite import progress');
         }
@@ -318,13 +319,12 @@ async function runPlayniteImportLoop(
     if (matched > 0) await invalidateExistingIgdbIds(null, userId);
     if (seenPlatforms.size > 0) await unionOwnedPlatforms(userId, [...seenPlatforms]);
   } finally {
-    // No web client actually polls PlayniteImportProgress today (this route is hit by the
-    // extension via a bearer API key, not a browser session - see this function's doc comment),
-    // so there's nowhere to show a toast for these; they still need to be unlocked for real
-    // (the panel picks them up next time the person has it open), just without the usual
-    // announceUnlock round trip other routes get.
+    // Issue #583: routes/pendingLibraryImports.ts now exposes this same progress row to a
+    // cookie-authenticated browser session (usePlayniteSyncToasts.ts polls it), so unlockedBadges
+    // reaches an announceUnlock round trip same as every other badge-unlocking route, not just
+    // "next time the person has the panel open."
     const unlockedBadges = touchedPlatformFamilies.size > 0 ? await unlockBadges(userId, [...touchedPlatformFamilies]) : [];
-    await setPlayniteImportProgress(userId, { consideredCount, matched, unmatched, errored, done: true, unlockedBadges });
+    await setPlayniteImportProgress(userId, { startedAt, consideredCount, matched, unmatched, errored, done: true, unlockedBadges });
   }
 }
 
@@ -409,9 +409,10 @@ export default async function apiV1Routes(app: FastifyInstance) {
         const existingByIgdbId = new Map(shelfGames.map((g) => [g.igdbId, { id: g.id, status: g.status }]));
 
         const consideredCount = entries.length;
-        await setPlayniteImportProgress(userId, { consideredCount, matched: 0, unmatched: 0, errored: 0, done: false });
+        const startedAt = new Date().toISOString();
+        await setPlayniteImportProgress(userId, { startedAt, consideredCount, matched: 0, unmatched: 0, errored: 0, done: false });
 
-        runPlayniteImportLoop(userId, entries, existingByIgdbId, consideredCount, request.log)
+        runPlayniteImportLoop(userId, entries, existingByIgdbId, consideredCount, startedAt, request.log)
           .catch((err) => request.log.error({ err }, 'Playnite library import failed'))
           .finally(() => releasePlayniteImportLock(userId));
 

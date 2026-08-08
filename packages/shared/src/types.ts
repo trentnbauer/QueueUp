@@ -1211,6 +1211,12 @@ export interface PlayniteImportStarted {
 }
 
 export interface PlayniteImportProgress {
+  /** ISO timestamp set once, when this run's progress row is first written - the one thing that
+   * tells two runs apart, since consideredCount/matched/etc. alone can't (issue #583: a web client
+   * polling GET /api/library/import-playnite/progress needs this to tell "still watching the run
+   * it already showed a started toast for" apart from "a brand new run just clobbered the previous
+   * completed one," without which a same-sized repeat sync could go unnoticed). */
+  startedAt: string;
   consideredCount: number;
   /** Resolved to an igdbId (via TitleMatchAlias or an exact IGDB title match) and either newly
    * created or had its owned platforms updated on an existing shelf game. */
@@ -1221,11 +1227,7 @@ export interface PlayniteImportProgress {
    * batch over one bad entry" reasoning as Steam import's `skipped`. */
   errored: number;
   done: boolean;
-  /** Same as SteamImportProgress.unlockedBadges - only set on the final `done: true` payload.
-   * Nothing in this app's own UI polls this (see routes/apiV1.ts - this import is driven by the
-   * Playnite extension via a bearer API key, not a browser session), but the badges themselves
-   * are still real unlocks either way - a person just sees them next time they open the panel
-   * rather than via a toast at the moment they land. */
+  /** Same as SteamImportProgress.unlockedBadges - only set on the final `done: true` payload. */
   unlockedBadges?: BadgeDefinition[];
 }
 

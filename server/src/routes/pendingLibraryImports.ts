@@ -3,8 +3,13 @@ import { prisma } from '../db/client.js';
 import { HttpError } from '../util/httpError.js';
 import { createGameForUser } from '../services/gameIntake.js';
 import { unionOwnershipPlatforms } from '../services/gameOwnership.js';
-import { listPendingLibraryImports, deletePendingLibraryImport, recordTitleMatchAlias } from '../services/playniteImport.js';
-import type { ResolvePendingLibraryImportRequest } from '@queueup/shared';
+import {
+  listPendingLibraryImports,
+  deletePendingLibraryImport,
+  recordTitleMatchAlias,
+  getPlayniteImportProgress,
+} from '../services/playniteImport.js';
+import type { PlayniteImportProgress, ResolvePendingLibraryImportRequest } from '@queueup/shared';
 
 /** Cookie-authenticated routes backing the (not yet built, see QueueUp#452) Profile Settings review
  * UI for PendingLibraryImport rows - titles from an external-library import (see routes/apiV1.ts'
@@ -67,6 +72,23 @@ export default async function pendingLibraryImportRoutes(app: FastifyInstance) {
       const userId = await request.requireAuth();
       await deletePendingLibraryImport(userId, request.params.id);
       reply.status(204);
+    },
+  );
+
+  /** Issue #583: a browser-session counterpart to GET /api/v1/library/import-playnite/progress -
+   * that one's bearer-API-key-only (the Playnite extension polls its own run), so it can't be hit
+   * from a cookie session. usePlayniteSyncToasts.ts polls this one continuously (not just while a
+   * run is known to be active) so it can notice a sync the *extension* started, whether or not this
+   * tab was open when it did. max is generous relative to that poll cadence (5s) for the same
+   * shared-household-IP reason as GET /api/rooms/active-spins - rate limiting here keys by IP, not
+   * session, so a few tabs across one household shouldn't 429. */
+  app.get(
+    '/api/library/import-playnite/progress',
+    { config: { rateLimit: { max: 200, timeWindow: '1 minute' } } },
+    async (request) => {
+      const userId = await request.requireAuth();
+      const progress: PlayniteImportProgress | null = await getPlayniteImportProgress(userId);
+      return { progress };
     },
   );
 }

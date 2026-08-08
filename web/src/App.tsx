@@ -5,6 +5,7 @@ import { authApi } from './api/auth';
 import { useRooms } from './hooks/useRooms';
 import { useActionableNotificationToasts } from './hooks/useActionableNotificationToasts';
 import { useActiveRoomSpinToasts } from './hooks/useActiveRoomSpinToasts';
+import { usePlayniteSyncToasts } from './hooks/usePlayniteSyncToasts';
 import { ActionErrorBanner } from './components/ActionErrorBanner';
 import { Header } from './components/Header';
 import { Sidebar } from './components/Sidebar';
@@ -40,6 +41,7 @@ export default function App() {
   const { joinRoom } = useRooms();
   useActionableNotificationToasts();
   useActiveRoomSpinToasts();
+  usePlayniteSyncToasts();
   const [providers, setProviders] = useState<string[] | null>(null);
   const [showOnboarding, setShowOnboarding] = useState(false);
   const [pendingJoinError, setPendingJoinError] = useState<string | null>(null);
