@@ -26,6 +26,7 @@ import { serializeGame } from './gameSerializer.js';
 import { setOwnershipPlatforms } from './gameOwnership.js';
 import { getOwnedPlatforms, VALID_PLATFORMS } from './userSettings.js';
 import { notifyRoom } from './notifications.js';
+import { logShelfActivity } from './roomActivity.js';
 import { toUserDto } from '../util/dto.js';
 import { Prisma } from '@prisma/client';
 import {
@@ -415,6 +416,16 @@ export async function createGameForUser(
       actorId: userId,
       type: 'game_added',
       message: (actorName) => `${actorName} added "${resolved.title}" to the room`,
+    });
+  } else if (!roomId) {
+    // Shelf activity feed (issue #580) - mirrors the room branch above, for the same "the game
+    // actually landed on the shelf, not just a suggestion" scope (the approval-flow early return
+    // above never applies to the Personal Shelf, which has no room to require approval in).
+    void logShelfActivity({
+      recipientId: userId,
+      actorId: userId,
+      type: 'game_added',
+      message: `Added "${resolved.title}" to the shelf`,
     });
   }
 

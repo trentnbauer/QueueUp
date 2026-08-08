@@ -23,6 +23,7 @@ import type {
   SetManualPriceRequest,
   SetSteamMatchRequest,
   SetTargetPriceRequest,
+  ShelfActivityPage,
   SteamCompletionsSyncResult,
   SteamImportProgress,
   SteamImportStarted,
@@ -104,5 +105,7 @@ export const gamesApi = {
   beaten: () => apiGet<CrossRoomBeaten>('/api/me/beaten'),
   nextPick: () => apiGet<NextPickResponse>('/api/me/next-pick'),
   backlogInsights: () => apiGet<BacklogInsights>('/api/me/backlog-insights'),
+  activity: (before?: string) =>
+    apiGet<ShelfActivityPage>(`/api/me/activity${before ? `?before=${encodeURIComponent(before)}` : ''}`),
   syncSteamCompletions: () => apiPost<SteamCompletionsSyncResult>('/api/games/sync-steam-completions'),
 };

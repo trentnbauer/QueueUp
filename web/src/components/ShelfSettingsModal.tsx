@@ -1,10 +1,13 @@
 import { useState } from 'react';
 import { Link } from 'react-router';
+import { useInfiniteQuery } from '@tanstack/react-query';
 import { ROOM_PLATFORM_LABELS, type Game, type RoomPlatform } from '@queueup/shared';
 import { authApi } from '../api/auth';
+import { gamesApi } from '../api/games';
 import { useAuth } from '../context/AuthContext';
 import { useModalA11y, closeOnBackdropMouseDown } from '../hooks/useModalA11y';
 import { exportGames } from '../utils/exportGames';
+import { formatRelativeTime } from '../utils/relativeTime';
 import styles from './ShelfSettingsModal.module.css';
 
 const ROOM_PLATFORM_OPTIONS = Object.keys(ROOM_PLATFORM_LABELS) as RoomPlatform[];
@@ -29,8 +32,20 @@ export function ShelfSettingsModal({ games, onClose }: ShelfSettingsModalProps) 
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [saved, setSaved] = useState(false);
+  const [showActivity, setShowActivity] = useState(false);
 
   const dirty = selected.size !== ownedPlatforms.length || ownedPlatforms.some((p) => !selected.has(p));
+
+  // Issue #580 - fetched lazily behind "Show activity", same collapsed-by-default pattern as
+  // RoomSettingsModal's room activity feed: not something this modal needs ready on every open.
+  const activity = useInfiniteQuery({
+    queryKey: ['shelf-activity'],
+    queryFn: ({ pageParam }: { pageParam: string | undefined }) => gamesApi.activity(pageParam),
+    initialPageParam: undefined as string | undefined,
+    getNextPageParam: (lastPage) => lastPage.nextBefore ?? undefined,
+    enabled: showActivity,
+  });
+  const activityEntries = activity.data?.pages.flatMap((page) => page.entries) ?? [];
 
   function toggle(platform: RoomPlatform) {
     setSaved(false);
@@ -115,6 +130,44 @@ export function ShelfSettingsModal({ games, onClose }: ShelfSettingsModalProps) 
             </div>
           </div>
         )}
+
+        <div className={styles.section}>
+          <div className={styles.sectionTitle}>Activity</div>
+          {!showActivity ? (
+            <button type="button" className={styles.memberAction} onClick={() => setShowActivity(true)}>
+              Show shelf activity
+            </button>
+          ) : (
+            <>
+              {activity.isLoading ? (
+                <p className={styles.readonlyNote}>Loading…</p>
+              ) : activityEntries.length === 0 ? (
+                <p className={styles.readonlyNote}>Nothing's happened on your shelf yet.</p>
+              ) : (
+                <div className={styles.activityList}>
+                  {activityEntries.map((entry) => (
+                    <div key={entry.id} className={styles.activityRow}>
+                      <span className={styles.activityMessage}>{entry.message}</span>
+                      <span className={styles.activityTime}>{formatRelativeTime(entry.createdAt)}</span>
+                    </div>
+                  ))}
+                </div>
+              )}
+              {activity.hasNextPage && (
+                <div className={styles.loadMoreRow}>
+                  <button
+                    type="button"
+                    className={styles.memberAction}
+                    onClick={() => activity.fetchNextPage()}
+                    disabled={activity.isFetchingNextPage}
+                  >
+                    {activity.isFetchingNextPage ? 'Loading…' : 'Load more'}
+                  </button>
+                </div>
+              )}
+            </>
+          )}
+        </div>
 
         <p className={styles.readonlyNote}>
           Currency, card size, linked sign-in accounts, and your account itself are managed on the{' '}

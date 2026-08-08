@@ -61,7 +61,13 @@ import { recordStatusTransition } from '../services/playLog.js';
 import { getCurrentPlaytimeMinutesForGames } from '../services/playtimeTracking.js';
 import { summarizeTimeToBeat, summarizeActiveHoursToBeat, pickMostNeglectedGame, bucketBacklogAge } from '../services/backlogInsights.js';
 import { unlockBadges } from '../services/badges.js';
-import { logRoomActivity } from '../services/roomActivity.js';
+import {
+  logRoomActivity,
+  logShelfActivity,
+  getShelfActivityPage,
+  encodeActivityCursor,
+  decodeActivityCursor,
+} from '../services/roomActivity.js';
 import { lookupBarcodeGame } from '../services/barcodeService.js';
 import { findDetectedSteamCompletions } from '../services/steamCompletionDetection.js';
 import { toUserDto } from '../util/dto.js';
@@ -91,6 +97,8 @@ import type {
   SetManualPriceRequest,
   SetSteamMatchRequest,
   SetTargetPriceRequest,
+  ShelfActivityPage,
+  ShelfActivityType,
   SteamImportProgress,
   SteamImportStarted,
   SteamCompletionsSyncResult,
@@ -885,16 +893,24 @@ export default async function gameRoutes(app: FastifyInstance) {
       ...quickDropKeys,
     ]);
 
-    // Room activity feed (issue #509) - room games only (a Personal Shelf status change has no
-    // room to log it to), and only on an actual transition, matching enteringDone/enteringDropped's
-    // own "not a no-op re-save" gating above.
-    if (game.roomId !== null && game.status !== status) {
-      void logRoomActivity({
-        roomId: game.roomId,
-        actorId: userId,
-        type: 'status_changed',
-        message: (actorName) => `${actorName} marked "${updated.title}" as ${STATUS_LABELS[status]}`,
-      });
+    // Activity feed (issue #509 for rooms, #580 for the Personal Shelf) - only on an actual
+    // transition, matching enteringDone/enteringDropped's own "not a no-op re-save" gating above.
+    if (game.status !== status) {
+      if (game.roomId !== null) {
+        void logRoomActivity({
+          roomId: game.roomId,
+          actorId: userId,
+          type: 'status_changed',
+          message: (actorName) => `${actorName} marked "${updated.title}" as ${STATUS_LABELS[status]}`,
+        });
+      } else {
+        void logShelfActivity({
+          recipientId: userId,
+          actorId: userId,
+          type: 'status_changed',
+          message: `Marked "${updated.title}" as ${STATUS_LABELS[status]}`,
+        });
+      }
     }
 
     return { game: await serializeGame(updated, userId), shelfSync, unlockedBadges };
@@ -1961,6 +1977,38 @@ export default async function gameRoutes(app: FastifyInstance) {
         backlogCount: backlogGames.length,
         mostNeglectedGame: pickMostNeglectedGame(backlogGames, now),
         ageDistribution: bucketBacklogAge(backlogGames, now),
+      };
+      return result;
+    },
+  );
+
+  const SHELF_ACTIVITY_PAGE_SIZE = 30;
+
+  // Issue #580 - the Personal Shelf's counterpart to GET /api/rooms/:roomId/activity, scoped by
+  // recipientId instead of membership (the shelf has exactly one owner, so there's no separate
+  // access check beyond requireAuth). Same cursor-pagination shape as the room route.
+  app.get<{ Querystring: { before?: string } }>(
+    '/api/me/activity',
+    // Same tier as the room route's own rate limit - a caller scrolling back via `before` can fire
+    // several requests in a row, well within this ceiling.
+    { config: { rateLimit: { max: 30, timeWindow: '1 minute' } } },
+    async (request) => {
+      const userId = await request.requireAuth();
+
+      const before = request.query.before ? decodeActivityCursor(request.query.before) : undefined;
+      const rows = await getShelfActivityPage(userId, { before, take: SHELF_ACTIVITY_PAGE_SIZE + 1 });
+      const hasMore = rows.length > SHELF_ACTIVITY_PAGE_SIZE;
+      const page = hasMore ? rows.slice(0, SHELF_ACTIVITY_PAGE_SIZE) : rows;
+      const last = page[page.length - 1];
+
+      const result: ShelfActivityPage = {
+        entries: page.map((row) => ({
+          id: row.id,
+          type: row.type as ShelfActivityType,
+          message: row.message,
+          createdAt: row.createdAt.toISOString(),
+        })),
+        nextBefore: hasMore ? encodeActivityCursor({ createdAt: last.createdAt, id: last.id }) : null,
       };
       return result;
     },
