@@ -613,6 +613,23 @@ export interface SteamCompletionsSyncResult {
   unlockedBadges: BadgeDefinition[];
 }
 
+/** One Personal Shelf game Playnite reported Completed but isn't yet marked Done in QueueUp (issue
+ * #577) - a PlayniteCompletionSuggestion row (server/src/db/prisma/schema.prisma) as sent to the
+ * client. Same purely-a-suggestion contract as SteamCompletionCandidate above: nothing is changed
+ * server-side until the caller applies Done (or dismisses it - see DELETE
+ * /api/games/playnite-completion-suggestions/:gameId). */
+export interface PlayniteCompletionSuggestionDto {
+  id: string;
+  title: string;
+  coverImageUrl: string | null;
+  createdAt: string;
+}
+
+/** Response from GET /api/games/playnite-completion-suggestions. */
+export interface PlayniteCompletionSuggestionsResult {
+  suggestions: PlayniteCompletionSuggestionDto[];
+}
+
 /** Polled by the shelf UI while an import is running (see routes/games.ts and
  * SteamImportCard.tsx) so a slow import (one IGDB lookup per unowned game) shows live counts
  * instead of sitting on a bare "Importing…" the whole time - also the only source of the final
@@ -1172,6 +1189,18 @@ export const PLAYNITE_API_KEY_LABEL = 'Playnite Import';
 export interface LibraryImportEntry {
   title: string;
   platforms: RoomPlatform[];
+  /** All-time playtime minutes Playnite reports for this title (issue #577) - the Playnite-sourced
+   * counterpart to Steam's own playtime figure (PlaytimeSnapshot.playtimeMinutes, server-side).
+   * Optional/omitted for a source, or an individual entry, with no playtime figure to report; 0 is
+   * a valid reported value (owned but never played) and is handled the same as "no signal" by
+   * suggestsPlayingFromMinutes (playtimeSignals.ts) - only a positive figure ever nudges anything. */
+  playtimeMinutes?: number;
+  /** Playnite's own per-game CompletionStatus, collapsed to a single boolean (issue #577) - true
+   * when Playnite currently has this title marked Completed. Never applied automatically; only
+   * ever recorded as a reviewable suggestion, same opt-in-by-design pattern as the Steam
+   * achievement-based "Sync completions from Steam" flow - see
+   * services/playniteCompletionSuggestions.ts (server-side). */
+  isCompleted?: boolean;
 }
 
 /** Response from POST /api/v1/library/import-playnite - confirms the import started; poll

@@ -55,4 +55,32 @@ describe('dedupeImportEntries', () => {
   it('returns an empty array for an empty input', () => {
     expect(dedupeImportEntries([])).toEqual([]);
   });
+
+  it('carries an entry\'s playtimeMinutes/isCompleted through untouched (issue #577)', () => {
+    const result = dedupeImportEntries([{ title: 'Hades', platforms: ['pc'], playtimeMinutes: 120, isCompleted: true }]);
+    expect(result).toEqual([{ title: 'Hades', platforms: ['pc'], playtimeMinutes: 120, isCompleted: true }]);
+  });
+
+  it('omits playtimeMinutes/isCompleted entirely when no duplicate reported either (issue #577)', () => {
+    const result = dedupeImportEntries([{ title: 'Hades', platforms: ['pc'] }]);
+    expect(result).toEqual([{ title: 'Hades', platforms: ['pc'] }]);
+    expect(result[0]).not.toHaveProperty('playtimeMinutes');
+    expect(result[0]).not.toHaveProperty('isCompleted');
+  });
+
+  it('takes the higher playtimeMinutes across duplicate titles (issue #577)', () => {
+    const result = dedupeImportEntries([
+      { title: 'Hades', platforms: ['pc'], playtimeMinutes: 60 },
+      { title: 'Hades', platforms: ['switch'], playtimeMinutes: 180 },
+    ]);
+    expect(result).toEqual([{ title: 'Hades', platforms: ['pc', 'switch'], playtimeMinutes: 180 }]);
+  });
+
+  it('OR-combines isCompleted across duplicate titles rather than letting a false overwrite a true (issue #577)', () => {
+    const result = dedupeImportEntries([
+      { title: 'Hades', platforms: ['pc'], isCompleted: true },
+      { title: 'Hades', platforms: ['switch'], isCompleted: false },
+    ]);
+    expect(result).toEqual([{ title: 'Hades', platforms: ['pc', 'switch'], isCompleted: true }]);
+  });
 });

@@ -181,13 +181,22 @@ export async function notifyReleaseWatch(userId: string, message: string): Promi
   }
 }
 
-/** A Personal Shelf game's Steam playtime went up while it wasn't already Playing (issue #554,
- * called from jobs/playtimeSnapshotJob.ts). Skips creating a new row if this exact game already
- * has one unread - the job runs every 6h, and a person who hasn't acted on (or dismissed) the
- * first nudge yet doesn't need a second one piling up; the existing row already says everything
- * this one would. Same shape as notifyReleaseWatch otherwise, except this one sets gameId so the
- * client can offer a "Mark Playing" action against the right game. */
-export async function notifyPlaytimeMarkPlaying(userId: string, gameId: string, gameTitle: string): Promise<void> {
+/** A Personal Shelf game's playtime went up while it wasn't already Playing (issue #554, called
+ * from jobs/playtimeSnapshotJob.ts; also issue #577's Playnite-sourced counterpart, called from
+ * routes/apiV1.ts's runPlayniteImportLoop). Skips creating a new row if this exact game already
+ * has one unread - the Steam job runs every 6h and a Playnite import can run several times a day
+ * (see routes/apiV1.ts), so a person who hasn't acted on (or dismissed) the first nudge yet doesn't
+ * need a second one piling up; the existing row already says everything this one would. Same shape
+ * as notifyReleaseWatch otherwise, except this one sets gameId so the client can offer a "Mark
+ * Playing" action against the right game. `source` only changes the message copy - the dedup/shape
+ * above is identical either way, so a Steam-detected increase and a Playnite-reported one for the
+ * same game still collapse into the same single unread nudge, whichever fires first. */
+export async function notifyPlaytimeMarkPlaying(
+  userId: string,
+  gameId: string,
+  gameTitle: string,
+  source: 'steam' | 'playnite' = 'steam',
+): Promise<void> {
   try {
     const existing = await prisma.notification.findFirst({
       where: { recipientId: userId, gameId, type: 'playtime_mark_playing', readAt: null },
@@ -195,13 +204,14 @@ export async function notifyPlaytimeMarkPlaying(userId: string, gameId: string, 
     });
     if (existing) return;
 
+    const sourceLabel = source === 'steam' ? 'Steam' : 'Playnite';
     await prisma.notification.create({
       data: {
         recipientId: userId,
         gameId,
         roomName: 'Personal Shelf',
         type: 'playtime_mark_playing',
-        message: `Your Steam playtime for "${gameTitle}" just went up - mark it as Playing?`,
+        message: `Your ${sourceLabel} playtime for "${gameTitle}" just went up - mark it as Playing?`,
       },
     });
   } catch (err) {

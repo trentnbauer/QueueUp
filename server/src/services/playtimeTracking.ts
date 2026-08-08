@@ -1,5 +1,7 @@
 import { prisma } from '../db/client.js';
 import { env } from '../config/env.js';
+import type { GameStatus } from '@queueup/shared';
+import { suggestsPlayingFromMinutes } from '@queueup/shared';
 import { getOwnedSteamGames, resolveSteamId64, type OwnedSteamGame } from './steamLibrary.js';
 
 /** A Steam app whose playtime went up since the last snapshot for this user - the raw signal
@@ -109,6 +111,55 @@ export async function snapshotAllPlaytimes(): Promise<PlaytimeIncrease[]> {
   return increases;
 }
 
+// --- Playnite-sourced playtime (issue #577) ---
+//
+// Steam's playtime pipeline above is entirely poll-driven (snapshotAllPlaytimes runs on its own
+// schedule and compares against the last snapshot). Playnite instead pushes one playtime figure
+// per game per import (see routes/apiV1.ts's runPlayniteImportLoop), so there's no equivalent job
+// here - just a single record-and-compare step called once per matched import entry.
+
+/** Pure decision step (same "extract the actual decision logic" precedent as
+ * computePlaytimeIncreases above) for whether a freshly-recorded Playnite playtime figure should
+ * trigger the same "Mark Playing?" nudge Steam's own snapshot job sends via suggestsPlaying
+ * FromMinutes. `previousMinutes` is undefined for a game's first-ever Playnite snapshot, which
+ * deliberately never nudges - same reasoning as computePlaytimeIncreases skipping a first capture,
+ * so a user's very first Playnite sync doesn't read as "every game in your library was just
+ * played." */
+export function suggestsPlayingFromPlaynitePlaytimeIncrease(
+  status: GameStatus,
+  previousMinutes: number | undefined,
+  currentMinutes: number,
+): boolean {
+  if (previousMinutes === undefined || currentMinutes <= previousMinutes) return false;
+  // Personal Shelf only (roomId hardcoded null) - every game a Playnite import touches lives on
+  // the Personal Shelf (see routes/apiV1.ts), never a room, so there's no roomId to thread through.
+  return suggestsPlayingFromMinutes(status, null, currentMinutes);
+}
+
+/** Upserts one Playnite-reported playtime figure for a non-Steam-sourced Personal Shelf game
+ * (issue #577) - the write side of PlaynitePlaytimeSnapshot, the Playnite-sourced counterpart to
+ * PlaytimeSnapshot. Returns whether this update should trigger the "Mark Playing?" notification
+ * (see suggestsPlayingFromPlaynitePlaytimeIncrease above) - the caller (runPlayniteImportLoop)
+ * sends it, not this function, so this stays a plain data write with no notification side effect
+ * baked in. No-op (returns false) when playtime tracking is off, same gating as the rest of #548. */
+export async function recordPlaynitePlaytime(
+  userId: string,
+  gameId: string,
+  status: GameStatus,
+  minutes: number,
+): Promise<boolean> {
+  if (!env.PLAYTIME_TRACKING_ENABLED) return false;
+
+  const previous = await prisma.playnitePlaytimeSnapshot.findUnique({ where: { userId_gameId: { userId, gameId } } });
+  await prisma.playnitePlaytimeSnapshot.upsert({
+    where: { userId_gameId: { userId, gameId } },
+    create: { userId, gameId, playtimeMinutes: minutes, initialMinutes: minutes },
+    update: { playtimeMinutes: minutes },
+  });
+
+  return suggestsPlayingFromPlaynitePlaytimeIncrease(status, previous?.playtimeMinutes, minutes);
+}
+
 /** The most recently snapshotted Steam playtime for the given game, if there is one - used to
  * stamp a PlayLog entry's start/finish playtime (issue #548's playthrough-duration piece) at the
  * moment a status transition opens or closes it. Attributed to whoever added the game (a room
@@ -120,12 +171,22 @@ export async function currentPlaytimeMinutesForGame(gameId: string): Promise<num
   if (!env.PLAYTIME_TRACKING_ENABLED) return null;
 
   const game = await prisma.game.findUnique({ where: { id: gameId }, select: { addedBy: true, steamAppid: true } });
-  if (!game?.steamAppid) return null;
+  if (!game) return null;
 
-  const snapshot = await prisma.playtimeSnapshot.findUnique({
-    where: { userId_steamAppId: { userId: game.addedBy, steamAppId: game.steamAppid } },
+  if (game.steamAppid) {
+    const snapshot = await prisma.playtimeSnapshot.findUnique({
+      where: { userId_steamAppId: { userId: game.addedBy, steamAppId: game.steamAppid } },
+    });
+    return snapshot?.playtimeMinutes ?? null;
+  }
+
+  // No Steam app id - fall back to a Playnite-sourced snapshot for this exact game (issue #577),
+  // if one exists. See PlaynitePlaytimeSnapshot's schema doc for why this is keyed by gameId
+  // rather than mirroring PlaytimeSnapshot's (userId, steamAppId) key.
+  const playniteSnapshot = await prisma.playnitePlaytimeSnapshot.findUnique({
+    where: { userId_gameId: { userId: game.addedBy, gameId } },
   });
-  return snapshot?.playtimeMinutes ?? null;
+  return playniteSnapshot?.playtimeMinutes ?? null;
 }
 
 /** Batched version of currentPlaytimeMinutesForGame (issue #562 bug fix) - for a caller about to
@@ -141,17 +202,27 @@ export async function getCurrentPlaytimeMinutesForGames(
   const result = new Map<string, number | null>();
   if (!env.PLAYTIME_TRACKING_ENABLED) return result;
 
-  const candidates = games.filter((g): g is typeof g & { steamAppid: number } => g.steamAppid !== null);
-  if (candidates.length === 0) return result;
+  const steamCandidates = games.filter((g): g is typeof g & { steamAppid: number } => g.steamAppid !== null);
+  // Playnite-sourced counterpart to steamCandidates (issue #577) - see currentPlaytimeMinutesForGame's
+  // doc comment for why this falls back to a gameId-keyed lookup instead.
+  const playniteCandidates = games.filter((g) => g.steamAppid === null);
 
-  const snapshots = await prisma.playtimeSnapshot.findMany({
-    where: { OR: candidates.map((g) => ({ userId: g.addedBy, steamAppId: g.steamAppid })) },
-  });
-  const snapshotByKey = new Map(snapshots.map((s) => [`${s.userId}:${s.steamAppId}`, s.playtimeMinutes]));
-
-  for (const game of candidates) {
-    result.set(game.id, snapshotByKey.get(`${game.addedBy}:${game.steamAppid}`) ?? null);
+  if (steamCandidates.length > 0) {
+    const snapshots = await prisma.playtimeSnapshot.findMany({
+      where: { OR: steamCandidates.map((g) => ({ userId: g.addedBy, steamAppId: g.steamAppid })) },
+    });
+    const snapshotByKey = new Map(snapshots.map((s) => [`${s.userId}:${s.steamAppId}`, s.playtimeMinutes]));
+    for (const game of steamCandidates) result.set(game.id, snapshotByKey.get(`${game.addedBy}:${game.steamAppid}`) ?? null);
   }
+
+  if (playniteCandidates.length > 0) {
+    const playniteSnapshots = await prisma.playnitePlaytimeSnapshot.findMany({
+      where: { gameId: { in: playniteCandidates.map((g) => g.id) } },
+    });
+    const snapshotByGameId = new Map(playniteSnapshots.map((s) => [s.gameId, s.playtimeMinutes]));
+    for (const game of playniteCandidates) result.set(game.id, snapshotByGameId.get(game.id) ?? null);
+  }
+
   return result;
 }
 
@@ -193,27 +264,45 @@ export interface GamePlaytimeInfo {
  * are internal bookkeeping rather than something shown back to every member. Two batch queries
  * total regardless of game count, same shape as getSteamPrices/getOwnershipInfo elsewhere in
  * gameSerializer.ts - not one query per game. */
+function playtimeInfoFromSnapshot(
+  snapshot: { current: number; initial: number } | undefined,
+  lastEntry: CheckpointEntry | undefined,
+): GamePlaytimeInfo | undefined {
+  if (snapshot === undefined) return undefined;
+  const baseline = checkpointBaselineMinutes(lastEntry, snapshot.initial);
+  return { sinceCheckpointMinutes: Math.max(0, snapshot.current - baseline), currentMinutes: snapshot.current };
+}
+
 export async function getPlaytimeSinceCheckpoint(
   games: { id: string; roomId: string | null; addedBy: string; steamAppid: number | null }[],
 ): Promise<Map<string, GamePlaytimeInfo>> {
   const result = new Map<string, GamePlaytimeInfo>();
   if (!env.PLAYTIME_TRACKING_ENABLED) return result;
 
-  const candidates = games.filter(
+  const steamCandidates = games.filter(
     (g): g is typeof g & { steamAppid: number } => g.roomId === null && g.steamAppid !== null,
   );
-  if (candidates.length === 0) return result;
+  // Playnite-sourced counterpart to steamCandidates (issue #577) - a Personal Shelf game Playnite
+  // reported playtime for that has no Steam app id of its own, so it can't be looked up via
+  // PlaytimeSnapshot's (userId, steamAppId) key - see PlaynitePlaytimeSnapshot's schema doc.
+  const playniteCandidates = games.filter((g) => g.roomId === null && g.steamAppid === null);
+  if (steamCandidates.length === 0 && playniteCandidates.length === 0) return result;
 
-  const [snapshots, entries] = await Promise.all([
-    prisma.playtimeSnapshot.findMany({
-      where: { OR: candidates.map((g) => ({ userId: g.addedBy, steamAppId: g.steamAppid })) },
-    }),
+  const [snapshots, playniteSnapshots, entries] = await Promise.all([
+    steamCandidates.length > 0
+      ? prisma.playtimeSnapshot.findMany({
+          where: { OR: steamCandidates.map((g) => ({ userId: g.addedBy, steamAppId: g.steamAppid })) },
+        })
+      : Promise.resolve([]),
+    playniteCandidates.length > 0
+      ? prisma.playnitePlaytimeSnapshot.findMany({ where: { gameId: { in: playniteCandidates.map((g) => g.id) } } })
+      : Promise.resolve([]),
     // Bug fix: this used to have no `take`, fetching every PlayLog row ever created for these
     // games (a long-lived account's entire play-journal history, on every Personal Shelf render)
     // just to pick the single most recent entry per game in JS below. `distinct` + `orderBy` asks
     // Postgres for exactly that - one (the newest) row per gameId - instead.
     prisma.playLog.findMany({
-      where: { gameId: { in: candidates.map((g) => g.id) } },
+      where: { gameId: { in: [...steamCandidates, ...playniteCandidates].map((g) => g.id) } },
       orderBy: { createdAt: 'desc' },
       distinct: ['gameId'],
     }),
@@ -222,17 +311,19 @@ export async function getPlaytimeSinceCheckpoint(
   const snapshotByKey = new Map(
     snapshots.map((s) => [`${s.userId}:${s.steamAppId}`, { current: s.playtimeMinutes, initial: s.initialMinutes }]),
   );
+  const playniteSnapshotByGameId = new Map(
+    playniteSnapshots.map((s) => [s.gameId, { current: s.playtimeMinutes, initial: s.initialMinutes }]),
+  );
   // `entries` is already exactly one (the newest) row per gameId, courtesy of `distinct` above.
   const lastEntryByGame = new Map<string, CheckpointEntry>(entries.map((entry) => [entry.gameId, entry]));
 
-  for (const game of candidates) {
-    const snapshot = snapshotByKey.get(`${game.addedBy}:${game.steamAppid}`);
-    if (snapshot === undefined) continue;
-    const baseline = checkpointBaselineMinutes(lastEntryByGame.get(game.id), snapshot.initial);
-    result.set(game.id, {
-      sinceCheckpointMinutes: Math.max(0, snapshot.current - baseline),
-      currentMinutes: snapshot.current,
-    });
+  for (const game of steamCandidates) {
+    const info = playtimeInfoFromSnapshot(snapshotByKey.get(`${game.addedBy}:${game.steamAppid}`), lastEntryByGame.get(game.id));
+    if (info) result.set(game.id, info);
+  }
+  for (const game of playniteCandidates) {
+    const info = playtimeInfoFromSnapshot(playniteSnapshotByGameId.get(game.id), lastEntryByGame.get(game.id));
+    if (info) result.set(game.id, info);
   }
 
   return result;

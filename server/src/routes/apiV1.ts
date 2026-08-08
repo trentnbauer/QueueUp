@@ -22,9 +22,13 @@ import {
   recordPendingLibraryImport,
   deletePendingLibraryImportByTitle,
 } from '../services/playniteImport.js';
+import { recordPlaynitePlaytime } from '../services/playtimeTracking.js';
+import { recordPlayniteCompletionSuggestion } from '../services/playniteCompletionSuggestions.js';
+import { notifyPlaytimeMarkPlaying } from '../services/notifications.js';
 import type {
   BadgeKey,
   CreateGameRequest,
+  GameStatus,
   LibraryImportEntry,
   PlayniteImportProgress,
   PlayniteImportStarted,
@@ -71,21 +75,39 @@ const playniteImportRateLimit = { config: { rateLimit: { max: 12, timeWindow: '1
 // headroom above a ~1/sec polling cadence, well above apiV1RateLimit's general 30/minute.
 const playniteImportProgressRateLimit = { config: { rateLimit: { max: 120, timeWindow: '1 minute' } } };
 
+interface GroupedImportEntry {
+  platforms: Set<RoomPlatform>;
+  // issue #577 - the higher of any two reported figures wins for a duplicate title, same
+  // "don't drop information" spirit as unioning platforms rather than picking one arbitrarily.
+  playtimeMinutes?: number;
+  // issue #577 - true if *any* duplicate for this title reported it Completed; Playnite's own
+  // notion of "Completed" for one title doesn't un-set just because another row for the same
+  // title (e.g. a second platform's entry) didn't carry the flag.
+  isCompleted?: boolean;
+}
+
 /** Merges duplicate titles in a submitted batch (case-sensitive exact match on the trimmed title -
  * the extension is expected to already dedupe/union by title before sending, per
  * QueueUpPlayniteExtension#7, but this is a cheap defensive backstop against a caller that
  * doesn't), unioning their platforms rather than dropping the union entirely, and drops any entry
  * with a blank title. */
 export function dedupeImportEntries(entries: LibraryImportEntry[]): LibraryImportEntry[] {
-  const byTitle = new Map<string, Set<RoomPlatform>>();
+  const byTitle = new Map<string, GroupedImportEntry>();
   for (const entry of entries) {
     const title = entry.title?.trim();
     if (!title) continue;
-    if (!byTitle.has(title)) byTitle.set(title, new Set());
-    const platforms = byTitle.get(title)!;
-    for (const platform of entry.platforms ?? []) platforms.add(platform);
+    if (!byTitle.has(title)) byTitle.set(title, { platforms: new Set() });
+    const grouped = byTitle.get(title)!;
+    for (const platform of entry.platforms ?? []) grouped.platforms.add(platform);
+    if (entry.playtimeMinutes !== undefined) grouped.playtimeMinutes = Math.max(grouped.playtimeMinutes ?? 0, entry.playtimeMinutes);
+    if (entry.isCompleted) grouped.isCompleted = true;
   }
-  return [...byTitle.entries()].map(([title, platforms]) => ({ title, platforms: [...platforms] }));
+  return [...byTitle.entries()].map(([title, g]) => ({
+    title,
+    platforms: [...g.platforms],
+    ...(g.playtimeMinutes !== undefined ? { playtimeMinutes: g.playtimeMinutes } : {}),
+    ...(g.isCompleted ? { isCompleted: true } : {}),
+  }));
 }
 
 // Bounded to 4 *in flight* (issue #465) - not a hard rate guarantee (four fast round trips can
@@ -95,9 +117,17 @@ export function dedupeImportEntries(entries: LibraryImportEntry[]): LibraryImpor
 // shared token-bucket in front of igdbClient, not a smaller number here.
 const PLAYNITE_IMPORT_CONCURRENCY = 4;
 
+interface ResolvedShelfGame {
+  id: string;
+  status: GameStatus;
+}
+
 /** Applies one already-resolved igdbId to the shelf: unions ownership platforms onto an existing
  * game, or creates a new one - the same create-vs-union logic runPlayniteImportLoop always had,
  * pulled out so it can be pool-processed. `existingByIgdbId` is mutated in place, same as before.
+ * Returns the resolved shelf game's id/status either way - issue #577's playtime/completion feeds
+ * need the actual row to attach a PlaynitePlaytimeSnapshot/PlayniteCompletionSuggestion to, which
+ * this function already looks up or creates regardless.
  *
  * Bounded concurrency (issue #465) means two entries in the same batch can now resolve to the same
  * igdbId at once (e.g. two differently-titled Playnite entries turning out to be the same IGDB
@@ -110,12 +140,12 @@ async function applyResolvedIgdbEntry(
   userId: string,
   igdbId: number,
   entry: LibraryImportEntry,
-  existingByIgdbId: Map<number, { status: string }>,
-): Promise<void> {
+  existingByIgdbId: Map<number, ResolvedShelfGame>,
+): Promise<ResolvedShelfGame> {
   const existing = existingByIgdbId.get(igdbId);
   if (existing) {
     if (existing.status !== 'wishlist') await unionOwnershipPlatforms(userId, igdbId, entry.platforms);
-    return;
+    return existing;
   }
 
   const resolved = await resolveGameForCreation(igdbId);
@@ -146,21 +176,39 @@ async function applyResolvedIgdbEntry(
   } catch (err) {
     if (!(err instanceof Prisma.PrismaClientKnownRequestError && err.code === 'P2002')) throw err;
     const winner = await prisma.game.findFirstOrThrow({ where: { roomId: null, addedBy: userId, igdbId } });
-    existingByIgdbId.set(igdbId, { status: winner.status });
+    const result = { id: winner.id, status: winner.status };
+    existingByIgdbId.set(igdbId, result);
     if (winner.status !== 'wishlist') await unionOwnershipPlatforms(userId, igdbId, entry.platforms);
-    return;
+    return result;
   }
   // Issue #338 precedent, same as the Steam import loop: a library commonly includes DLC
   // entries alongside their base game - ensure the base game is present too and link back.
   if (resolved.parentGameIgdbId && isAddonCategory(resolved.category)) {
     const base = await linkDlcToBaseGame(created.id, resolved.parentGameIgdbId, null, userId);
     if (base && !existingByIgdbId.has(base.baseIgdbId)) {
-      existingByIgdbId.set(base.baseIgdbId, { status: 'backlog' });
+      existingByIgdbId.set(base.baseIgdbId, { id: base.baseGameId, status: 'backlog' });
       await unionOwnershipPlatforms(userId, base.baseIgdbId, entry.platforms);
     }
   }
-  existingByIgdbId.set(igdbId, { status: created.status });
+  const result = { id: created.id, status: created.status };
+  existingByIgdbId.set(igdbId, result);
   await setOwnershipPlatforms(userId, igdbId, entry.platforms);
+  return result;
+}
+
+/** Applies issue #577's two Playnite-reported feeds for one matched import entry, once the entry's
+ * shelf game is resolved (see applyResolvedIgdbEntry) - kept as one small helper, called right
+ * after that resolution, rather than folded into applyResolvedIgdbEntry itself, so the "resolve
+ * onto the shelf" step (shared with every entry, playtime/completion data or not) stays readable
+ * on its own. Each feed is independent of the other - an entry can carry either, both, or neither. */
+async function applyPlayniteFeeds(userId: string, game: ResolvedShelfGame, entry: LibraryImportEntry): Promise<void> {
+  if (entry.playtimeMinutes !== undefined) {
+    const shouldNotify = await recordPlaynitePlaytime(userId, game.id, game.status, entry.playtimeMinutes);
+    if (shouldNotify) await notifyPlaytimeMarkPlaying(userId, game.id, entry.title, 'playnite');
+  }
+  if (entry.isCompleted) {
+    await recordPlayniteCompletionSuggestion(userId, game.id, game.status);
+  }
 }
 
 /** The slow part of a Playnite library import - one IGDB/alias lookup (and possibly a create) per
@@ -198,7 +246,7 @@ async function applyResolvedIgdbEntry(
 async function runPlayniteImportLoop(
   userId: string,
   entries: LibraryImportEntry[],
-  existingByIgdbId: Map<number, { status: string }>,
+  existingByIgdbId: Map<number, ResolvedShelfGame>,
   consideredCount: number,
   logger: FastifyBaseLogger,
 ): Promise<void> {
@@ -225,7 +273,16 @@ async function runPlayniteImportLoop(
           return;
         }
 
-        await applyResolvedIgdbEntry(userId, igdbId, entry, existingByIgdbId);
+        const resolvedGame = await applyResolvedIgdbEntry(userId, igdbId, entry, existingByIgdbId);
+        // issue #577 - own try/catch, deliberately separate from the outer one below: the shelf
+        // resolution above already succeeded, so a failure here (e.g. a playtime write hiccup)
+        // shouldn't demote an otherwise-successful entry from matched to errored - best-effort,
+        // same "log and move on" reasoning as linkDlcToBaseGame's own internal catch.
+        try {
+          await applyPlayniteFeeds(userId, resolvedGame, entry);
+        } catch (feedErr) {
+          logger.warn({ err: feedErr, title: entry.title }, 'Playnite playtime/completion feed failed');
+        }
         for (const platform of entry.platforms) touchedPlatformFamilies.add(PLATFORM_SYNC_BADGE_KEY[platform]);
         // A title that previously landed in the review queue (issue #452) may now resolve - via a
         // freshly-written TitleMatchAlias, whether from this same title exact-matching this time or
@@ -347,9 +404,9 @@ export default async function apiV1Routes(app: FastifyInstance) {
       try {
         const shelfGames = await prisma.game.findMany({
           where: { roomId: null, addedBy: userId },
-          select: { igdbId: true, status: true },
+          select: { id: true, igdbId: true, status: true },
         });
-        const existingByIgdbId = new Map(shelfGames.map((g) => [g.igdbId, { status: g.status }]));
+        const existingByIgdbId = new Map(shelfGames.map((g) => [g.igdbId, { id: g.id, status: g.status }]));
 
         const consideredCount = entries.length;
         await setPlayniteImportProgress(userId, { consideredCount, matched: 0, unmatched: 0, errored: 0, done: false });

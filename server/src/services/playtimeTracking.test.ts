@@ -1,5 +1,10 @@
 import { describe, it, expect } from 'vitest';
-import { computePlaytimeIncreases, checkpointBaselineMinutes, dedupeByOwnerAndSteamApp } from './playtimeTracking.js';
+import {
+  computePlaytimeIncreases,
+  checkpointBaselineMinutes,
+  dedupeByOwnerAndSteamApp,
+  suggestsPlayingFromPlaynitePlaytimeIncrease,
+} from './playtimeTracking.js';
 
 function owned(appId: number, minutes: number) {
   return { appId, playtimeForeverMinutes: minutes, name: `Game ${appId}` };
@@ -95,5 +100,27 @@ describe('dedupeByOwnerAndSteamApp', () => {
       { id: 'b', addedBy: 'u2', steamAppid: 200 },
     ];
     expect(dedupeByOwnerAndSteamApp(games)).toEqual(games);
+  });
+});
+
+describe('suggestsPlayingFromPlaynitePlaytimeIncrease', () => {
+  it('is true for a backlog game whose Playnite playtime rose since the last snapshot', () => {
+    expect(suggestsPlayingFromPlaynitePlaytimeIncrease('backlog', 30, 90)).toBe(true);
+  });
+
+  it('is false for a game with no prior snapshot (first-ever sync)', () => {
+    expect(suggestsPlayingFromPlaynitePlaytimeIncrease('backlog', undefined, 90)).toBe(false);
+  });
+
+  it('is false when the reported minutes did not actually increase', () => {
+    expect(suggestsPlayingFromPlaynitePlaytimeIncrease('backlog', 90, 90)).toBe(false);
+    expect(suggestsPlayingFromPlaynitePlaytimeIncrease('backlog', 90, 60)).toBe(false);
+  });
+
+  it('is false when already Playing, Done, Dropped, or Won\'t Play', () => {
+    expect(suggestsPlayingFromPlaynitePlaytimeIncrease('playing', 30, 90)).toBe(false);
+    expect(suggestsPlayingFromPlaynitePlaytimeIncrease('done', 30, 90)).toBe(false);
+    expect(suggestsPlayingFromPlaynitePlaytimeIncrease('dropped', 30, 90)).toBe(false);
+    expect(suggestsPlayingFromPlaynitePlaytimeIncrease('wont_play', 30, 90)).toBe(false);
   });
 });
