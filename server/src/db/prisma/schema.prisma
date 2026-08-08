@@ -98,6 +98,11 @@ enum NotificationType {
   /// as release_watch. "Synced" is approximated by ApiKey.lastUsedAt on their Playnite Import key,
   /// same signal PlayniteImportModal's own linking step already polls.
   playnite_sync_reminder
+  /// 2+ of the recipient's Wishlist games had a price-alert fire (target hit or new all-time low)
+  /// in the same priceAlertJob.ts run (a "sale worth batching a purchase for" nudge) - sent
+  /// alongside the normal per-game price_drop notification for each one, not instead of it. Always
+  /// direct (recipientId), never room-scoped, same shape as release_watch.
+  wishlist_bundle_deal
 
   @@map("notification_type")
 }

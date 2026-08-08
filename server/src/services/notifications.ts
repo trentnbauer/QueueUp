@@ -32,12 +32,16 @@ interface NotifyRoomInput {
   roomId: string;
   roomName: string;
   actorId: string;
-  // Excludes room_deleted/price_drop/release_watch/playtime_mark_playing/playnite_sync_reminder
-  // (none of the five ever reaches notifyRoom - see the notes on notifyRoomMembersDirect,
-  // notifyPriceDrop, notifyReleaseWatch, notifyPlaytimeMarkPlaying, and notifyPlayniteSyncReminder
-  // below) so the RoomActivityType passthrough a few lines down needs no cast: this narrowed type
-  // is compiler-checked to stay a subset of RoomActivityType, not just documented as one.
-  type: Exclude<NotificationType, 'room_deleted' | 'price_drop' | 'release_watch' | 'playtime_mark_playing' | 'playnite_sync_reminder'>;
+  // Excludes room_deleted/price_drop/release_watch/playtime_mark_playing/playnite_sync_reminder/
+  // wishlist_bundle_deal (none of the six ever reaches notifyRoom - see the notes on
+  // notifyRoomMembersDirect, notifyPriceDrop, notifyReleaseWatch, notifyPlaytimeMarkPlaying,
+  // notifyPlayniteSyncReminder, and notifyWishlistBundle below) so the RoomActivityType passthrough
+  // a few lines down needs no cast: this narrowed type is compiler-checked to stay a subset of
+  // RoomActivityType, not just documented as one.
+  type: Exclude<
+    NotificationType,
+    'room_deleted' | 'price_drop' | 'release_watch' | 'playtime_mark_playing' | 'playnite_sync_reminder' | 'wishlist_bundle_deal'
+  >;
   message: (actorName: string) => string;
 }
 
@@ -225,6 +229,37 @@ export async function notifyPlayniteSyncReminder(userId: string): Promise<void> 
     });
   } catch (err) {
     console.error('[notifications] failed to write playnite-sync-reminder notification', err);
+  }
+}
+
+/** 2+ of a user's Wishlist games had a price alert fire in the same priceAlertJob.ts run - a
+ * "several things you want are on sale right now" digest sent alongside the normal per-game
+ * price_drop notification for each one (not instead of it), so a batch of near-simultaneous drops
+ * reads as one heads-up worth acting on together rather than getting lost among several
+ * individually-easy-to-dismiss ones. `titles` is already deduped/ordered by the caller (see
+ * priceAlertJob.ts) - this only formats and writes. Same unread-dedup reasoning as
+ * notifyPlaytimeMarkPlaying/notifyPlayniteSyncReminder: skips creating a new row if this user
+ * already has one unread bundle notification, so a quiet run right after a big one doesn't pile up
+ * a second. */
+export async function notifyWishlistBundle(userId: string, titles: string[]): Promise<void> {
+  if (titles.length < 2) return;
+
+  try {
+    const existing = await prisma.notification.findFirst({
+      where: { recipientId: userId, type: 'wishlist_bundle_deal', readAt: null },
+      select: { id: true },
+    });
+    if (existing) return;
+
+    const shown = titles.slice(0, 3).join(', ');
+    const rest = titles.length - 3;
+    const message = `${titles.length} wishlisted games just dropped in price: ${shown}${rest > 0 ? `, +${rest} more` : ''}`;
+
+    await prisma.notification.create({
+      data: { recipientId: userId, roomName: 'Personal Shelf', type: 'wishlist_bundle_deal', message },
+    });
+  } catch (err) {
+    console.error('[notifications] failed to write wishlist-bundle-deal notification', err);
   }
 }
 

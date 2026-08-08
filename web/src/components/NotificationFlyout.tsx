@@ -75,12 +75,14 @@ export function NotificationFlyout({ onNavigate, steamImport }: NotificationFlyo
         )}
         {notifications.map((n) => {
           const className = `${styles.notifItem} ${!n.read ? styles.notifUnread : ''}`;
-          // Personal Shelf price alerts, release watch alerts (issue #510), and Playnite
-          // sync-staleness reminders (issue #570) are the direct (roomId-less) notification types
-          // with somewhere to navigate to - room_deleted, the other direct type, has none left, and
-          // playtime_mark_playing's action lives on the game's own card (see GameCard's
-          // suggestsPlaying badge) rather than anywhere a click-through here would land.
-          const isPersonalShelfNotification = n.type === 'price_drop' || n.type === 'release_watch' || n.type === 'playnite_sync_reminder';
+          // Personal Shelf price alerts, release watch alerts (issue #510), Playnite
+          // sync-staleness reminders (issue #570), and wishlist bundle deals (#570 follow-up) are
+          // the direct (roomId-less) notification types with somewhere to navigate to -
+          // room_deleted, the other direct type, has none left, and playtime_mark_playing's action
+          // lives on the game's own card (see GameCard's suggestsPlaying badge) rather than
+          // anywhere a click-through here would land.
+          const isPersonalShelfNotification =
+            n.type === 'price_drop' || n.type === 'release_watch' || n.type === 'playnite_sync_reminder' || n.type === 'wishlist_bundle_deal';
           const linkTo = n.roomId ? `/room/${n.roomId}` : isPersonalShelfNotification ? '/' : null;
           const body = (
             <>

@@ -745,7 +745,8 @@ export type NotificationType =
   | 'game_suggested'
   | 'release_watch'
   | 'playtime_mark_playing'
-  | 'playnite_sync_reminder';
+  | 'playnite_sync_reminder'
+  | 'wishlist_bundle_deal';
 
 export interface Notification {
   id: string;
