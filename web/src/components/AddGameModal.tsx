@@ -505,12 +505,17 @@ export function AddGameModal({ roomId, onAdded, onClose }: AddGameModalProps) {
       setNextOffset(0);
       setHasMore(false);
       setLoadMoreError(null);
+      setSearching(false);
       consecutiveEmptyPagesRef.current = 0;
       return;
     }
+    // Set here, not inside the timeout below - otherwise "Searching…" only appears once the 300ms
+    // debounce has already elapsed, leaving the debounce window itself showing whatever stale
+    // results (or nothing) were on screen before this keystroke, with no indication a search is
+    // even pending.
+    setSearching(true);
     debounceRef.current = setTimeout(async () => {
       const requestId = ++latestRequestIdRef.current;
-      setSearching(true);
       setLoadMoreError(null);
       consecutiveEmptyPagesRef.current = 0;
       try {

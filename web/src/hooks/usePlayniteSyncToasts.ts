@@ -25,17 +25,25 @@ function startedToastId(startedAt: string): string {
  *
  * `startedAt` (see PlayniteImportProgress) is what makes this reliable across repeat syncs of an
  * unchanged-size library: `seenStartedAtRef` only ever holds the startedAt of a run this hook has
- * itself observed still in progress (`done: false`), so a completed-toast only fires for a run this
- * same poll loop watched start - not for a stale `done: true` row this tab never saw begin (e.g. a
- * sync that finished before the tab was even open, still cached within the progress row's 30-minute
- * TTL - see IMPORT_PROGRESS_TTL_SECONDS), and not twice for the same run across repeated polls of
- * the same still-`done: true` row. */
+ * itself observed still in progress (`done: false`), so it only dismisses/attributes a started
+ * toast to a run this same poll loop actually watched start - not to a stale `done: true` row this
+ * tab never saw begin (e.g. a sync that finished before the tab was even open, still cached within
+ * the progress row's 30-minute TTL - see IMPORT_PROGRESS_TTL_SECONDS).
+ *
+ * The completed toast itself is tracked separately via `shownCompleteForRef`, keyed on the same
+ * `startedAt`, and fires unconditionally the first time a given run's `done: true` is observed -
+ * not only when a `done: false` was seen for that run first. A small/fast library (or a tab opened
+ * partway through a sync) can easily finish within a single 5s poll window, so gating the completed
+ * toast on having previously shown a started toast silently dropped it (issue #583 follow-up).
+ * `shownCompleteForRef` is what then prevents that same completed toast from firing again on every
+ * subsequent poll of the still-`done: true` row. */
 export function usePlayniteSyncToasts() {
   const { user } = useAuth();
   const navigate = useNavigate();
   const { showToast, dismissToast } = useToast();
   const announceUnlock = useAnnounceUnlock();
   const seenStartedAtRef = useRef<string | null>(null);
+  const shownCompleteForRef = useRef<string | null>(null);
 
   const { data } = useQuery({
     queryKey: PLAYNITE_IMPORT_PROGRESS_QUERY_KEY,
@@ -58,9 +66,12 @@ export function usePlayniteSyncToasts() {
       return;
     }
 
-    if (progress.done && seenStartedAtRef.current === progress.startedAt) {
-      seenStartedAtRef.current = null;
-      dismissToast(startedToastId(progress.startedAt));
+    if (progress.done && shownCompleteForRef.current !== progress.startedAt) {
+      shownCompleteForRef.current = progress.startedAt;
+      if (seenStartedAtRef.current === progress.startedAt) {
+        seenStartedAtRef.current = null;
+        dismissToast(startedToastId(progress.startedAt));
+      }
       showToast({
         id: `playnite-sync-complete-${progress.startedAt}`,
         message: summarizePlayniteSyncCompletion(progress),
