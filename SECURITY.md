@@ -35,15 +35,19 @@ released and, if appropriate, a GitHub Security Advisory published.
 
 ## Supported versions
 
-QueueUp does not yet have tagged releases — `main` is the only supported version.
-Deploying from `main` and pulling updates regularly is the best way to stay current
-on security fixes.
+QueueUp doesn't maintain long-term-support branches — each Docker image build is
+tagged with a real `major.minor.patch` version (see the [Deployment wiki
+page](https://github.com/trentnbauer/QueueUp/wiki/Deployment#pre-built-images)), but
+there's no separate maintenance track for older ones. `main` (and the `latest` image
+built from it) is the only actively-patched line; deploying from it and pulling
+updates regularly is the best way to stay current on security fixes.
 
 ## Scope notes
 
-- Automated dependency review and scheduled code-scanning triage are wired up in
-  `.github/workflows/` (currently disabled while other repo changes land — see the
-  workflow files for status) and will re-run automatically once re-enabled.
+- Code scanning (CodeQL, via GitHub's default setup) runs on every push/PR.
+  Dependency review (`.github/workflows/dependency-review.yml`) is currently disabled
+  while other repo changes land — see that workflow file for status — and will
+  re-run automatically once re-enabled.
 - Report issues in QueueUp's own code and configuration. Vulnerabilities in
   upstream dependencies (Fastify, Prisma, React, etc.) should be reported to those
   projects directly, though flagging them here is still welcome if they materially

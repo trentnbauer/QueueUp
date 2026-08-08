@@ -33,7 +33,7 @@ Some other things to note
 - A free IGDB app via [Twitch developer console](https://dev.twitch.tv/console/apps) (Category: "Application Integration") — used for game search/identity
 - A free [Steam API key](https://steamcommunity.com/dev) for importing Steam games (required to match agmes with gg.deals)
 - Optional: A free [Scandex API key](https://scandex.gamery.app/documentation/pricing/) - used for importing phyiscal games via barcode scan
-- Optional: Install the [QueueUp Playnite extension](https://github.com/trentnbauer/QueueUpPlayniteExtension) (as of writing, in development) to push your entire Playnite library (including xbox, playstation and nintendo games) into QueueUp
+- Optional: Install the [QueueUp Playnite extension](https://github.com/trentnbauer/QueueUpPlayniteExtension) to push your entire Playnite library (including Xbox, PlayStation, and Nintendo games) into QueueUp - set up from Import Library → Import from other clients (Playnite) once your instance is running
 - A sign-in method (Google, Discord, Steam, or a generic OIDC provider like Authelia/Keycloak/Authentik)
 
 ## Docker Compose
