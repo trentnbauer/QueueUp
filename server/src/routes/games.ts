@@ -1931,7 +1931,7 @@ export default async function gameRoutes(app: FastifyInstance) {
       const userId = await request.requireAuth();
       const now = Date.now();
 
-      const [backlogGames, finishedEntries] = await Promise.all([
+      const [backlogGames, backlogCount, finishedEntries] = await Promise.all([
         // archivedAt: null - this is a *current* backlog view (unlike year-in-review's historical
         // Done games), so an archived game would inflate both the distribution and backlogCount
         // for something no longer actually sitting there. votes selected (createdAt only) so
@@ -1939,12 +1939,20 @@ export default async function gameRoutes(app: FastifyInstance) {
         // always checks, even for room games (which, unlike Personal Shelf games, can have votes).
         // orderBy updatedAt ascending (least-recently-touched first) so that if the cap below ever
         // bites, the games it truncates away are the freshest ones - not the neglected candidates
-        // this route exists to surface.
+        // this route exists to surface. This is only a *sample* for mostNeglectedGame/ageDistribution
+        // below - it must NOT be used for backlogCount (issue #587): a real backlog past
+        // MAX_GAMES_PER_LIST would silently report the cap instead of the true size.
         prisma.game.findMany({
           where: { addedBy: userId, status: 'backlog', archivedAt: null },
           select: { id: true, title: true, coverImageUrl: true, status: true, createdAt: true, updatedAt: true, votes: { select: { createdAt: true } } },
           orderBy: { updatedAt: 'asc' },
           take: MAX_GAMES_PER_LIST,
+        }),
+        // True backlog size (issue #587) - a cheap indexed COUNT, uncapped, same where-clause as
+        // the sample above. mostNeglectedGame/ageDistribution stay approximated from the capped
+        // sample above (acceptable there), but the headline count must be exact.
+        prisma.game.count({
+          where: { addedBy: userId, status: 'backlog', archivedAt: null },
         }),
         // Done/Replay only (BEATEN_STATUSES, same set BeatenStrip/CrossRoomBeaten group together) -
         // a PlayLog entry's finishedAt is also set on a Dropped transition (see
@@ -1974,7 +1982,7 @@ export default async function gameRoutes(app: FastifyInstance) {
         finishedEntryCount,
         averageHoursToBeat,
         hoursTrackedEntryCount,
-        backlogCount: backlogGames.length,
+        backlogCount,
         mostNeglectedGame: pickMostNeglectedGame(backlogGames, now),
         ageDistribution: bucketBacklogAge(backlogGames, now),
       };
