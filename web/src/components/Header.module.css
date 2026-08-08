@@ -185,6 +185,31 @@
   color: var(--qu-accent);
 }
 
+/* "Won't Play all" (bulk-clear collecting-dust games) - deliberately outlined rather than filled
+   like .filterPill, so it reads as an action button next to the Collecting Dust pill, not a third
+   filter toggle. */
+.clearCruftButton {
+  padding: 4px 11px;
+  border-radius: 999px;
+  background: transparent;
+  color: var(--qu-muted);
+  border: 1px solid var(--qu-border);
+  font-size: 12.5px;
+  font-weight: 600;
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.clearCruftButton:hover:not(:disabled) {
+  color: var(--qu-text);
+  border-color: var(--qu-text);
+}
+
+.clearCruftButton:disabled {
+  cursor: default;
+  opacity: 0.6;
+}
+
 .title {
   font: 700 19px var(--qu-header-font);
   color: var(--qu-text);

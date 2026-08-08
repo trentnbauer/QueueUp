@@ -207,7 +207,34 @@ export function Header() {
 
   // Only shown once at least one game actually qualifies - same "don't offer a filter with nothing
   // to filter" reasoning PillFilter already applies to platform/genre/status (issue #249).
-  const neglectedCount = useMemo(() => games.filter((g) => isNeglectedBacklogGame(g)).length, [games]);
+  const neglectedGames = useMemo(() => games.filter((g) => isNeglectedBacklogGame(g)), [games]);
+  const neglectedCount = neglectedGames.length;
+
+  // One-click "clear backlog cruft" (issue: bulk-apply Won't Play to everything the Collecting
+  // Dust filter already found) - the same result was already reachable by hand (toggle the
+  // filter, enter Select Multiple, Select All, choose Won't Play), just tedious enough that
+  // nobody would actually do it for a large backlog. Reuses the exact same bulkUpdateStatus the
+  // Select Multiple bar uses, so it shows the same actionError banner on failure rather than a
+  // second, different error path.
+  async function handleClearBacklogCruft() {
+    if (neglectedGames.length === 0) return;
+    const count = neglectedGames.length;
+    const ok = await confirm({
+      title: `Mark ${count} collecting-dust game${count === 1 ? '' : 's'} as Won't Play?`,
+      message: "This moves them all off the active backlog and into Dropped / Won't Play - you can still change any of them back individually later.",
+      confirmLabel: "Won't Play all",
+    });
+    if (!ok) return;
+    try {
+      await bulkUpdateStatus(
+        neglectedGames.map((g) => g.id),
+        'wont_play',
+      );
+    } catch {
+      // Same as ShelfView's identical bulk-action swallow - onError already surfaces actionError
+      // via the banner, so this just stops an unhandled rejection from this click handler.
+    }
+  }
 
   function canPromote(memberRole: RoomRole): boolean {
     return myRole === 'room_master' && memberRole === 'member';
@@ -486,6 +513,15 @@ export function Header() {
                 title={`Backlog games added ${NEGLECTED_BACKLOG_MONTHS}+ months ago with no vote or status change since`}
               >
                 🕸 Collecting dust ({neglectedCount})
+              </button>
+              <button
+                type="button"
+                className={styles.clearCruftButton}
+                onClick={handleClearBacklogCruft}
+                disabled={isBulkUpdatingStatus}
+                title="Mark every collecting-dust game as Won't Play in one go"
+              >
+                {isBulkUpdatingStatus ? 'Marking…' : "Won't Play all"}
               </button>
             </div>
           </div>
