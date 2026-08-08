@@ -41,6 +41,41 @@ export const IGDB_PLATFORM_NAMES: Record<RoomPlatform, string[]> = {
   pc: ['PC (Microsoft Windows)', 'Mac', 'Linux'],
 };
 
+const PLATFORM_FAMILY_BRAND: Record<RoomPlatform, string> = {
+  pc: 'PC',
+  xbox_360: 'Xbox',
+  xbox_one: 'Xbox',
+  xbox_series: 'Xbox',
+  ps3: 'PlayStation',
+  ps4: 'PlayStation',
+  ps5: 'PlayStation',
+  switch: 'Nintendo Switch',
+  switch2: 'Nintendo Switch',
+};
+
+/** Which console brand a free-text platform label (e.g. "PlayStation 4", "Xbox Series X|S") belongs
+ * to, so the Personal Shelf's platform filter can group PS4/PS5 (etc.) under one "PlayStation" pill
+ * instead of a separate pill per exact platform string. Mirrors the same substring rules the server
+ * uses in platformFamilies (server/src/services/igdbClient.ts) to classify raw IGDB platform names
+ * down to a RoomPlatform family, then maps that family to its brand. A label that matches no known
+ * family (an older/uncommon platform IGDB reports that isn't one of the families a Room can be
+ * restricted to) falls back to itself, so it still gets its own pill rather than being dropped or
+ * lumped in with something unrelated. */
+export function platformBrand(label: string): string {
+  const lower = label.toLowerCase();
+  let family: RoomPlatform | null = null;
+  if (lower.includes('switch 2')) family = 'switch2';
+  else if (lower.includes('switch')) family = 'switch';
+  else if (lower.includes('xbox series')) family = 'xbox_series';
+  else if (lower.includes('xbox one')) family = 'xbox_one';
+  else if (lower.includes('xbox 360')) family = 'xbox_360';
+  else if (lower.includes('playstation 5') || /\bps5\b/.test(lower)) family = 'ps5';
+  else if (lower.includes('playstation 4') || /\bps4\b/.test(lower)) family = 'ps4';
+  else if (lower.includes('playstation 3') || /\bps3\b/.test(lower)) family = 'ps3';
+  else if (lower.includes('pc') || lower.includes('windows') || lower.includes('mac') || lower.includes('linux')) family = 'pc';
+  return family ? PLATFORM_FAMILY_BRAND[family] : label;
+}
+
 // Confirmed against gg.deals' real Prices API response before picking these - not every country
 // code works (e.g. "uk" 404s, the ISO code "gb" is what it actually wants).
 export type PriceRegion = 'us' | 'gb' | 'eu' | 'au' | 'ca' | 'br';
