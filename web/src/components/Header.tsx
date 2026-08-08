@@ -8,7 +8,7 @@ import { useConfirm } from '../context/ConfirmContext';
 import { useGames } from '../hooks/useGames';
 import { useGameFilter } from '../context/GameFilterContext';
 import { useSteamImportContext } from '../context/SteamImportContext';
-import { ALL_FILTER_VALUE, NEGLECTED_BACKLOG_MONTHS, distinctValues, distinctTagNames, isNeglectedBacklogGame } from './gameGridLogic';
+import { ALL_FILTER_VALUE, NEGLECTED_BACKLOG_MONTHS, distinctValues, distinctTagNames, isNeglectedBacklogGame, platformBrand } from './gameGridLogic';
 import { roomsApi, gameSuggestionsApi } from '../api/rooms';
 import { AvatarBadge } from './AvatarBadge';
 import { RoomSettingsModal } from './RoomSettingsModal';
@@ -175,10 +175,14 @@ export function Header() {
     () => (ownedPlatforms.length > 0 ? new Set(ownedPlatforms.flatMap((p) => IGDB_PLATFORM_NAMES[p])) : null),
     [ownedPlatforms],
   );
+  // Grouped by console brand (issue: "PS4 and PS5 should be under the same tab") rather than one
+  // pill per exact platform string - the owned-systems restriction above still applies at the raw
+  // label level first, so a brand only shows up here if at least one of its generations is owned.
   const platformOptions = useMemo(() => {
     if (activeRoom) return [];
     const all = distinctValues(games, (g) => g.platform);
-    return ownedPlatformLabels ? all.filter((label) => ownedPlatformLabels.has(label)) : all;
+    const owned = ownedPlatformLabels ? all.filter((label) => ownedPlatformLabels.has(label)) : all;
+    return Array.from(new Set(owned.map(platformBrand))).sort((a, b) => a.localeCompare(b));
   }, [games, activeRoom, ownedPlatformLabels]);
   const genreOptions = useMemo(() => distinctValues(games, (g) => g.genre), [games]);
   const statusOptions = useMemo(() => {

@@ -1,5 +1,5 @@
 import type { Game, GameStatus } from '@queueup/shared';
-import { isFullyOwned, isNeglectedBacklogGame } from '@queueup/shared';
+import { isFullyOwned, isNeglectedBacklogGame, platformBrand } from '@queueup/shared';
 
 // Spin the Wheel's candidate-selection and winner-picking logic lives in packages/shared (moved
 // there alongside the shared room spin session) so the server can compute the exact same pool and
@@ -21,6 +21,7 @@ export {
   NEGLECTED_BACKLOG_MONTHS,
   isNeglectedBacklogGame,
   collectionProgress,
+  platformBrand,
 } from '@queueup/shared';
 
 /** Sentinel meaning "no filter applied" for both the platform and genre pill filters. */
@@ -89,7 +90,8 @@ export function filterGames(games: Game[], filter: GameFilterState, now: number 
   const tagFilter = filter.tagFilter ?? ALL_FILTER_VALUE;
   return games.filter(
     (g) =>
-      (filter.platformFilter === ALL_FILTER_VALUE || splitLabel(g.platform).includes(filter.platformFilter)) &&
+      (filter.platformFilter === ALL_FILTER_VALUE ||
+        splitLabel(g.platform).some((p) => platformBrand(p) === filter.platformFilter)) &&
       (filter.genreFilter === ALL_FILTER_VALUE || splitLabel(g.genre).includes(filter.genreFilter)) &&
       (filter.statusFilter === ALL_FILTER_VALUE || g.status === filter.statusFilter) &&
       (tagFilter === ALL_FILTER_VALUE || g.tags.some((t) => t.name === tagFilter)) &&
