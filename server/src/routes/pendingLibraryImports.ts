@@ -6,6 +6,7 @@ import { unionOwnershipPlatforms } from '../services/gameOwnership.js';
 import {
   listPendingLibraryImports,
   deletePendingLibraryImport,
+  dismissPendingLibraryImport,
   recordTitleMatchAlias,
   getPlayniteImportProgress,
 } from '../services/playniteImport.js';
@@ -65,12 +66,16 @@ export default async function pendingLibraryImportRoutes(app: FastifyInstance) {
     },
   );
 
+  /** Dismisses a pending row without resolving it. Soft-dismiss (see dismissPendingLibraryImport),
+   * not a hard delete (issue #589) - a hard delete here left no record that the user had already
+   * looked at and rejected this title, so the very next sync that still couldn't auto-resolve it
+   * would upsert a brand-new row and resurrect exactly what was dismissed. */
   app.delete<{ Params: { id: string } }>(
     '/api/library/pending-imports/:id',
     { config: { rateLimit: { max: 20, timeWindow: '1 minute' } } },
     async (request, reply) => {
       const userId = await request.requireAuth();
-      await deletePendingLibraryImport(userId, request.params.id);
+      await dismissPendingLibraryImport(userId, request.params.id);
       reply.status(204);
     },
   );
