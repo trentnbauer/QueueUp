@@ -30,6 +30,7 @@ export function PillFilter({ label, allLabel, options, value, onChange, minOptio
       <div className={styles.filterPills}>
         <button
           type="button"
+          aria-pressed={value === ALL_FILTER_VALUE}
           className={`${styles.filterPill} ${value === ALL_FILTER_VALUE ? styles.filterPillActive : ''}`}
           onClick={() => onChange(ALL_FILTER_VALUE)}
         >
@@ -39,6 +40,7 @@ export function PillFilter({ label, allLabel, options, value, onChange, minOptio
           <button
             key={option}
             type="button"
+            aria-pressed={value === option}
             className={`${styles.filterPill} ${value === option ? styles.filterPillActive : ''}`}
             onClick={() => onChange(value === option ? ALL_FILTER_VALUE : option)}
           >

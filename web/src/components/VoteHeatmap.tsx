@@ -42,11 +42,13 @@ export function VoteHeatmap({ votes, currentUserId, roomMembers }: VoteHeatmapPr
           const isSelf = vote.user.id === currentUserId;
           const stale = isStale(vote.createdAt);
           const who = isSelf ? 'You' : vote.user.displayName;
+          const summary = `${who}: voted ${formatRelativeTime(vote.createdAt)}${stale ? ' - this vote may be stale' : ''}`;
           return (
             <div
               key={vote.user.id}
               className={`${styles.voter} ${stale ? styles.voterStale : ''}`}
-              title={`${who}: voted ${formatRelativeTime(vote.createdAt)}${stale ? ' - this vote may be stale' : ''}`}
+              title={summary}
+              aria-label={summary}
             >
               <AvatarBadge name={vote.user.displayName} color={vote.user.avatarColor} avatarUrl={vote.user.avatarUrl} size={20} />
               <span className={styles.value}>{VOTE_SCALE[vote.value]}</span>
@@ -54,7 +56,12 @@ export function VoteHeatmap({ votes, currentUserId, roomMembers }: VoteHeatmapPr
           );
         })}
         {nonVoters.map((member) => (
-          <div key={member.id} className={styles.nonVoter} title={`${member.displayName} hasn't voted yet`}>
+          <div
+            key={member.id}
+            className={styles.nonVoter}
+            title={`${member.displayName} hasn't voted yet`}
+            aria-label={`${member.displayName} hasn't voted yet`}
+          >
             <AvatarBadge name={member.displayName} color={member.avatarColor} avatarUrl={member.avatarUrl} size={20} />
           </div>
         ))}
