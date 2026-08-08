@@ -1,8 +1,16 @@
 import { useEffect, useState } from 'react';
-import { ROOM_PLATFORM_LABELS, VOTE_SCALE, type Game, type GameStatus, type User, type VoteValue } from '@queueup/shared';
+import {
+  ROOM_PLATFORM_LABELS,
+  VOTE_SCALE,
+  suggestsDroppingStalePlaying,
+  type Game,
+  type GameStatus,
+  type User,
+  type VoteValue,
+} from '@queueup/shared';
 import { GameDetailModal } from './GameDetailModal';
 import { formatPrice } from '../utils/formatPrice';
-import { GAME_STATUS_LABEL } from './gameGridLogic';
+import { GAME_STATUS_LABEL, NEGLECTED_BACKLOG_MONTHS, isNeglectedBacklogGame } from './gameGridLogic';
 import styles from './GameListRow.module.css';
 
 interface GameListRowProps {
@@ -76,6 +84,11 @@ export function GameListRow({
   // still wanting it) - issue #368 repurposes this same stat column to show wishlist overlap
   // instead, rather than adding a whole new column to this already-wide grid row.
   const showWishlistStat = game.status === 'wishlist' && game.wishlist !== null;
+  // Same "collecting dust"/"stalled" nudges GameCard shows on the cover art (issue #249/#564) -
+  // list view otherwise has no way to spot these at all short of opening the detail modal for
+  // every row. Mutually exclusive (see GameCard's identical comment), so one icon slot covers both.
+  const neglected = isNeglectedBacklogGame(game);
+  const stalePlaying = suggestsDroppingStalePlaying(game);
 
   return (
     <>
@@ -126,6 +139,20 @@ export function GameListRow({
             {game.genre ? ` · ${game.genre}` : ''}
           </span>
         </div>
+
+        {(neglected || stalePlaying) && (
+          <span
+            className={styles.nudgeBadge}
+            aria-hidden="true"
+            title={
+              neglected
+                ? `Added ${NEGLECTED_BACKLOG_MONTHS}+ months ago with no vote or status change since`
+                : `Marked Playing ${NEGLECTED_BACKLOG_MONTHS}+ months ago with no status change since`
+            }
+          >
+            🕸
+          </span>
+        )}
 
         <span className={`${styles.statusBadge} ${styles[`status-${game.status}`]}`}>{GAME_STATUS_LABEL[game.status]}</span>
 

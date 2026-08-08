@@ -89,6 +89,12 @@
   text-overflow: ellipsis;
 }
 
+.nudgeBadge {
+  flex: 0 0 auto;
+  font-size: 13px;
+  line-height: 1;
+}
+
 .statusBadge {
   flex: 0 0 auto;
   font: 600 10.5px system-ui, sans-serif;
