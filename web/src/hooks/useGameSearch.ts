@@ -21,6 +21,7 @@ export function useGameSearch(roomId: string | null, query: string) {
   return {
     isSearching: enabled,
     games: enabled ? result.data?.games ?? [] : [],
+    totalCount: enabled ? result.data?.totalCount ?? 0 : 0,
     isLoading: enabled && result.isLoading,
     isError: enabled && result.isError,
     loadError: result.error instanceof Error && result.error.message ? result.error.message : null,
