@@ -262,22 +262,29 @@ model TitleMatchAlias {
 /// a user syncing on every Playnite launch would see their review queue grow without bound purely
 /// from re-imports of titles they haven't gotten around to reviewing yet.
 model PendingLibraryImport {
-  id         String         @id @default(uuid())
-  userId     String         @map("user_id")
-  title      String
+  id          String         @id @default(uuid())
+  userId      String         @map("user_id")
+  title       String
   /// Which RoomPlatform(s) this title was reported as owned on by the source - carried through so
   /// resolving this later (picking a candidate) can set GameOwnership.platforms correctly.
-  platforms  RoomPlatform[] @default([])
+  platforms   RoomPlatform[] @default([])
   /// Free text, not an enum - meant to generalize to future external-library sources without a
   /// schema migration each time. "playnite" today.
-  source     String
+  source      String
   /// Up to a handful of IGDB search results captured at import time (igdbId, title, platform,
   /// coverImageUrl, releaseYear - same shape as GameSearchResult) - empty when IGDB's search
   /// returned nothing at all for this title. Snapshotted at import time rather than searched fresh
   /// when the review UI loads, so opening the review list doesn't mean re-hitting IGDB once per
   /// pending row.
-  candidates Json           @default("[]")
-  createdAt  DateTime       @default(now()) @map("created_at")
+  candidates  Json           @default("[]")
+  createdAt   DateTime       @default(now()) @map("created_at")
+  /// Set when the user dismisses this row without resolving it (DELETE /api/library/pending-
+  /// imports/:id) instead of left null. Distinguishing a dismissal from "never seen" (rather than
+  /// just hard-deleting, which is what this model used to do) is what stops a title from coming
+  /// back on the next sync: recordPendingLibraryImport checks this before writing anything, so a
+  /// dismissed title stays dismissed instead of being upserted right back into existence. Still a
+  /// real row (not deleted) so the unique (userId, source, title) constraint keeps doing its job.
+  dismissedAt DateTime?      @map("dismissed_at")
 
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 

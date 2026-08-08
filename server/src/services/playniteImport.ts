@@ -94,8 +94,17 @@ export async function resolveTitleToIgdbId(source: string, title: string): Promi
  * this, a user syncing on every Playnite launch would see their review queue grow without bound
  * purely from re-imports of titles they haven't gotten around to reviewing yet. Snapshots IGDB
  * search candidates at write time (capped at 5 - plenty to eyeball, keeps the row small) rather
- * than searching fresh when the review UI loads. */
+ * than searching fresh when the review UI loads.
+ *
+ * Bails out before touching IGDB at all if the user already dismissed this exact title
+ * (PendingLibraryImport.dismissedAt) - see #589. dismissPendingLibraryImport keeps the row around
+ * instead of deleting it precisely so this check has something to find; without it, a dismissed
+ * row simply wouldn't exist anymore, this function would treat that title as brand new on the very
+ * next sync, and the upsert's `create:` branch would resurrect exactly what the user dismissed. */
 export async function recordPendingLibraryImport(userId: string, source: string, title: string, platforms: RoomPlatform[]): Promise<void> {
+  const existing = await prisma.pendingLibraryImport.findUnique({ where: { userId_source_title: { userId, source, title } } });
+  if (existing?.dismissedAt) return;
+
   const page = await searchGames(title);
   const candidates = page.results.slice(0, 5);
   await prisma.pendingLibraryImport.upsert({
@@ -105,8 +114,11 @@ export async function recordPendingLibraryImport(userId: string, source: string,
   });
 }
 
+/** Excludes dismissed rows (see dismissPendingLibraryImport) - this backs both the review list
+ * itself and the "Needs Review (N)" sidebar badge count, and a dismissed row is exactly the set of
+ * things the user already said they don't want to see here again. */
 export async function listPendingLibraryImports(userId: string): Promise<PendingLibraryImportDto[]> {
-  const rows = await prisma.pendingLibraryImport.findMany({ where: { userId }, orderBy: { createdAt: 'desc' } });
+  const rows = await prisma.pendingLibraryImport.findMany({ where: { userId, dismissedAt: null }, orderBy: { createdAt: 'desc' } });
   return rows.map((row) => ({
     id: row.id,
     title: row.title,
@@ -124,6 +136,19 @@ export async function listPendingLibraryImports(userId: string): Promise<Pending
  * is achieved either way, and a double-dismiss/double-resolve race shouldn't be an error. */
 export async function deletePendingLibraryImport(userId: string, id: string): Promise<void> {
   await prisma.pendingLibraryImport.deleteMany({ where: { id, userId } });
+}
+
+/** Marks a PendingLibraryImport row dismissed (issue #589) rather than deleting it - used by the
+ * DELETE /api/library/pending-imports/:id route for the "dismiss without resolving" action, as
+ * opposed to deletePendingLibraryImport above which is for rows that are genuinely done (resolved,
+ * or auto-resolved elsewhere). Keeping the row around is the whole point: it's what lets
+ * recordPendingLibraryImport recognize "the user already dismissed this exact title" on the next
+ * sync and skip re-creating it, instead of the title silently coming back. Scoped to userId (via
+ * updateMany, not update) so one user can't dismiss another's row by guessing an id, and no-ops
+ * (rather than 404ing) if the row is already gone or already dismissed - same reasoning as
+ * deletePendingLibraryImport's own doc comment. */
+export async function dismissPendingLibraryImport(userId: string, id: string): Promise<void> {
+  await prisma.pendingLibraryImport.updateMany({ where: { id, userId }, data: { dismissedAt: new Date() } });
 }
 
 /** Clears a pending row (if any) once its title resolves on its own during a later import run -
