@@ -3,6 +3,7 @@ import { gameInclude, type GameWithRelations } from '../services/gameSerializer.
 import { getSteamPrices } from '../services/priceService.js';
 import { runPriceAlertChecks } from '../services/priceAlerts.js';
 import { getRoomPlatforms } from '../services/roomAccess.js';
+import { notifyWishlistBundle } from '../services/notifications.js';
 import { scheduleJob, type JobHandle } from './scheduler.js';
 
 // Matches priceService.ts's own PRICE_CACHE_TTL_SECONDS (6h) - checking more often than the price
@@ -48,13 +49,32 @@ export async function checkAllActivePriceWatches(): Promise<void> {
   const pcSteamAppIds = games.filter(isPcGame).map((g) => g.steamAppid).filter((id): id is number => id != null);
   const prices = await getSteamPrices(pcSteamAppIds);
 
+  // Wishlist bundle digest (#570 follow-up): collects every Wishlist game whose alert actually
+  // fired *in this run*, per user, keyed by gameId so a game that fires both the target-price and
+  // all-time-low check in the same run only counts once. A per-run collection, not a persisted
+  // "recent drops" table - each run's own batch is what makes it a "these all just dropped
+  // together" nudge worth batching, not an ever-growing running tally.
+  const wishlistFiredByUser = new Map<string, Map<string, string>>();
+  const onFired = (game: GameWithRelations) => {
+    if (game.status !== 'wishlist') return;
+    const forUser = wishlistFiredByUser.get(game.addedBy) ?? new Map<string, string>();
+    forUser.set(game.id, game.title);
+    wishlistFiredByUser.set(game.addedBy, forUser);
+  };
+
   await Promise.all(
     games.map((game) => {
       if (!isPcGame(game) || game.steamAppid == null) return Promise.resolve();
       const price = prices.get(game.steamAppid);
       if (!price) return Promise.resolve();
-      return runPriceAlertChecks(game as GameWithRelations, price);
+      return runPriceAlertChecks(game as GameWithRelations, price, onFired);
     }),
+  );
+
+  await Promise.all(
+    Array.from(wishlistFiredByUser.entries())
+      .filter(([, byGameId]) => byGameId.size >= 2)
+      .map(([userId, byGameId]) => notifyWishlistBundle(userId, Array.from(byGameId.values()))),
   );
 }
 
