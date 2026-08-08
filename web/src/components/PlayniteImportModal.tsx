@@ -144,14 +144,15 @@ export function PlayniteImportModal({ onClose }: PlayniteImportModalProps) {
         {!linked && activeStep === 0 && (
           <p className={modalStyles.wizardBody}>
             Playnite is a free, open-source game library manager for Windows. It can pull your
-            games in from Steam, Epic, GOG, and other stores/emulators into one local library -
-            QueueUp's extension then pushes that combined library here.{' '}
+            games in from Steam, Epic, GOG, and other stores/emulators - plus your Xbox,
+            PlayStation, and Switch libraries - into one local library. QueueUp's extension then
+            pushes that combined library here.{' '}
             <a href={PLAYNITE_DOWNLOAD_URL} target="_blank" rel="noreferrer">
               Download and install Playnite
             </a>
             , then in Playnite connect whichever library sources you want reflected in QueueUp
-            (Steam, Epic, GOG, etc. - under <code>Add-ons</code> or each source's own connect
-            flow). Click Next once it's installed and set up.
+            (Steam, Epic, GOG, Xbox, PlayStation, Switch, etc. - under <code>Add-ons</code> or
+            each source's own connect flow). Click Next once it's installed and set up.
           </p>
         )}
 
