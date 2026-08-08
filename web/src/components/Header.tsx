@@ -8,7 +8,16 @@ import { useConfirm } from '../context/ConfirmContext';
 import { useGames } from '../hooks/useGames';
 import { useGameFilter } from '../context/GameFilterContext';
 import { useSteamImportContext } from '../context/SteamImportContext';
-import { ALL_FILTER_VALUE, NEGLECTED_BACKLOG_MONTHS, distinctValues, distinctTagNames, isNeglectedBacklogGame, platformBrand } from './gameGridLogic';
+import {
+  ALL_FILTER_VALUE,
+  NEGLECTED_BACKLOG_MONTHS,
+  NEGLECTED_WISHLIST_MONTHS,
+  distinctValues,
+  distinctTagNames,
+  isNeglectedBacklogGame,
+  isStaleWishlistGame,
+  platformBrand,
+} from './gameGridLogic';
 import { roomsApi, gameSuggestionsApi } from '../api/rooms';
 import { AvatarBadge } from './AvatarBadge';
 import { RoomSettingsModal } from './RoomSettingsModal';
@@ -56,12 +65,14 @@ export function Header() {
     tagFilter,
     searchQuery,
     neglectedFilter,
+    staleWishlistFilter,
     setPlatformFilter,
     setGenreFilter,
     setStatusFilter,
     setTagFilter,
     setSearchQuery,
     setNeglectedFilter,
+    setStaleWishlistFilter,
   } = useGameFilter();
 
   const membersMenuRef = useRef<HTMLDetailsElement>(null);
@@ -137,6 +148,8 @@ export function Header() {
     dismissShelfSync,
     bulkUpdateStatus,
     isBulkUpdatingStatus,
+    bulkRemove,
+    isBulkRemoving,
   } = useGames(activeRoom?.id ?? null);
 
   // Mirrors RoomView's identical prompt (issue #360) - marking a room game Beaten from the Ranked
@@ -210,6 +223,12 @@ export function Header() {
   const neglectedGames = useMemo(() => games.filter((g) => isNeglectedBacklogGame(g)), [games]);
   const neglectedCount = neglectedGames.length;
 
+  // Same "only show once something actually qualifies" reasoning as neglectedGames above, kept as
+  // its own pool rather than folded into it - stale-wishlist and collecting-dust are deliberately
+  // separate signals (issue #578).
+  const staleWishlistGames = useMemo(() => games.filter((g) => isStaleWishlistGame(g)), [games]);
+  const staleWishlistCount = staleWishlistGames.length;
+
   // One-click "clear backlog cruft" (issue: bulk-apply Won't Play to everything the Collecting
   // Dust filter already found) - the same result was already reachable by hand (toggle the
   // filter, enter Select Multiple, Select All, choose Won't Play), just tedious enough that
@@ -233,6 +252,29 @@ export function Header() {
     } catch {
       // Same as ShelfView's identical bulk-action swallow - onError already surfaces actionError
       // via the banner, so this just stops an unhandled rejection from this click handler.
+    }
+  }
+
+  // One-click "clear stale wishlist" (issue #578), mirroring handleClearBacklogCruft above but
+  // removing rather than changing status - a stale wishlist game was never bought and there's no
+  // "won't play" equivalent status for wishlist (see isStaleWishlistGame's doc comment), so "wanted
+  // it, never bought it, still don't care" is better served by just clearing it. Reuses the same
+  // bulkRemove the Select Multiple bar's "Remove" bulk action uses.
+  async function handleClearStaleWishlist() {
+    if (staleWishlistGames.length === 0) return;
+    const count = staleWishlistGames.length;
+    const ok = await confirm({
+      title: `Remove ${count} stale wishlist game${count === 1 ? '' : 's'}?`,
+      message: "This removes them from your Personal Shelf for good - it can't be undone.",
+      confirmLabel: 'Remove all',
+      danger: true,
+    });
+    if (!ok) return;
+    try {
+      await bulkRemove(staleWishlistGames.map((g) => g.id));
+    } catch {
+      // Same as handleClearBacklogCruft above - onError already surfaces actionError via the
+      // banner, so this just stops an unhandled rejection from this click handler.
     }
   }
 
@@ -522,6 +564,30 @@ export function Header() {
                 title="Mark every collecting-dust game as Won't Play in one go"
               >
                 {isBulkUpdatingStatus ? 'Marking…' : "Won't Play all"}
+              </button>
+            </div>
+          </div>
+        )}
+        {staleWishlistCount > 0 && (
+          <div className={styles.filterGroup}>
+            <span className={styles.filterLabel}>Stale wishlist</span>
+            <div className={styles.filterPills}>
+              <button
+                type="button"
+                className={`${styles.filterPill} ${staleWishlistFilter ? styles.filterPillActive : ''}`}
+                onClick={() => setStaleWishlistFilter(!staleWishlistFilter)}
+                title={`Wishlist games added ${NEGLECTED_WISHLIST_MONTHS}+ months ago with no vote or status change since`}
+              >
+                💤 Stale wishlist ({staleWishlistCount})
+              </button>
+              <button
+                type="button"
+                className={styles.clearCruftButton}
+                onClick={handleClearStaleWishlist}
+                disabled={isBulkRemoving}
+                title="Remove every stale wishlist game in one go"
+              >
+                {isBulkRemoving ? 'Removing…' : 'Remove all'}
               </button>
             </div>
           </div>

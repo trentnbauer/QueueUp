@@ -66,6 +66,32 @@ export function isNeglectedBacklogGame(game: NeglectCheckInput, now: number = Da
   return true;
 }
 
+// A wishlist game sitting untouched is a weaker signal than a backlog game sitting untouched - the
+// backlog game was already bought/claimed, so inaction there means actively avoiding something
+// already owned, while a wishlist game is still just an intent nobody's spent money on yet. A
+// longer window before nagging about it avoids flagging ordinary "still deciding" browsing as
+// neglect. Kept as its own constant (not reused from NEGLECTED_BACKLOG_MONTHS) so backlog-neglect
+// and wishlist-neglect stay two independently tunable thresholds (issue #578).
+export const NEGLECTED_WISHLIST_MONTHS = 6;
+
+/** A wishlist game added NEGLECTED_WISHLIST_MONTHS+ ago with no recent activity - mirrors
+ * isNeglectedBacklogGame's exact createdAt/updatedAt/votes-since-threshold checks, just gated on
+ * status === 'wishlist' and against NEGLECTED_WISHLIST_MONTHS's longer window instead. Deliberately
+ * skips any "no price drop since" condition (issue #578) - QueueUp only stores a game's current
+ * live price and all-time-low, not a history of past price-drop events, so there's no such fact on
+ * file to check; the same time+activity heuristic above is all there is to go on. */
+export function isStaleWishlistGame(game: NeglectCheckInput, now: number = Date.now()): boolean {
+  if (game.status !== 'wishlist') return false;
+
+  const thresholdMs = monthsAgoUtc(NEGLECTED_WISHLIST_MONTHS, now);
+
+  if (new Date(game.createdAt).getTime() > thresholdMs) return false;
+  if (new Date(game.updatedAt).getTime() > thresholdMs) return false;
+  if ((game.votes ?? []).some((v) => new Date(v.createdAt).getTime() > thresholdMs)) return false;
+
+  return true;
+}
+
 /** Structural subset `collectionProgress` needs - see NeglectCheckInput's doc comment for why
  * this stays narrow rather than importing the full `Game` type. */
 export interface CollectionProgressInput {

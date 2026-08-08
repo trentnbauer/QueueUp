@@ -1,5 +1,5 @@
 import type { Game, GameStatus } from '@queueup/shared';
-import { isFullyOwned, isNeglectedBacklogGame, platformBrand } from '@queueup/shared';
+import { isFullyOwned, isNeglectedBacklogGame, isStaleWishlistGame, platformBrand } from '@queueup/shared';
 
 // Spin the Wheel's candidate-selection and winner-picking logic lives in packages/shared (moved
 // there alongside the shared room spin session) so the server can compute the exact same pool and
@@ -20,6 +20,8 @@ export {
   spinCandidateWeight,
   NEGLECTED_BACKLOG_MONTHS,
   isNeglectedBacklogGame,
+  NEGLECTED_WISHLIST_MONTHS,
+  isStaleWishlistGame,
   collectionProgress,
   platformBrand,
 } from '@queueup/shared';
@@ -89,12 +91,17 @@ export interface GameFilterState {
    * applies no filtering on this axis, same convention as the other pill filters using
    * ALL_FILTER_VALUE, just boolean instead of multi-option since there's nothing to pick between. */
   neglectedFilter?: boolean;
+  /** True to show only stale wishlist games (see isStaleWishlistGame, issue #578) - a separate
+   * axis from neglectedFilter above, not folded into it: backlog-neglect and wishlist-neglect mean
+   * different things (already-owned-but-ignored vs. never-bought), so they stay independent
+   * filters/pills/counts rather than one combined "neglected" toggle. */
+  staleWishlistFilter?: boolean;
 }
 
-/** The platform/genre/status/tag/neglected/search predicate GameGrid renders by - pulled out so any
- * other place that needs to know "what's actually visible" (e.g. the Personal Shelf's bulk-select
- * "Select all", which must not silently include games hidden by the active filter) applies the
- * exact same rule instead of a second, driftable copy of it. */
+/** The platform/genre/status/tag/neglected/stale-wishlist/search predicate GameGrid renders by -
+ * pulled out so any other place that needs to know "what's actually visible" (e.g. the Personal
+ * Shelf's bulk-select "Select all", which must not silently include games hidden by the active
+ * filter) applies the exact same rule instead of a second, driftable copy of it. */
 export function filterGames(games: Game[], filter: GameFilterState, now: number = Date.now()): Game[] {
   const normalizedQuery = filter.searchQuery.trim().toLowerCase();
   const tagFilter = filter.tagFilter ?? ALL_FILTER_VALUE;
@@ -106,14 +113,16 @@ export function filterGames(games: Game[], filter: GameFilterState, now: number 
       (filter.statusFilter === ALL_FILTER_VALUE || g.status === filter.statusFilter) &&
       (tagFilter === ALL_FILTER_VALUE || g.tags.some((t) => t.name === tagFilter)) &&
       (!filter.neglectedFilter || isNeglectedBacklogGame(g, now)) &&
+      (!filter.staleWishlistFilter || isStaleWishlistGame(g, now)) &&
       (normalizedQuery === '' || g.title.toLowerCase().includes(normalizedQuery)),
   );
 }
 
-// NEGLECTED_BACKLOG_MONTHS / isNeglectedBacklogGame live in packages/shared/src/backlogHeuristics.ts
-// now (re-exported above) - the server's /api/me/next-pick route needs the exact same threshold
-// math against a lean Prisma `select`, not the full Game type, so it moved alongside
-// collectionProgress rather than staying client-only.
+// NEGLECTED_BACKLOG_MONTHS / isNeglectedBacklogGame / NEGLECTED_WISHLIST_MONTHS /
+// isStaleWishlistGame live in packages/shared/src/backlogHeuristics.ts now (re-exported above) -
+// the server's /api/me/next-pick route needs the exact same threshold math against a lean Prisma
+// `select`, not the full Game type, so it moved alongside collectionProgress rather than staying
+// client-only.
 
 export function sortByScore(games: Game[]): Game[] {
   // Game.updatedAt only reflects status changes, not votes (votes have their own row/timestamp),

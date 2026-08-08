@@ -16,9 +16,11 @@ import {
   spinCandidateWeight,
   reviewScoreMultiplier,
   isNeglectedBacklogGame,
+  isStaleWishlistGame,
   filterGames,
   distinctTagNames,
   NEGLECTED_BACKLOG_MONTHS,
+  NEGLECTED_WISHLIST_MONTHS,
   ALL_FILTER_VALUE,
 } from './gameGridLogic';
 
@@ -540,6 +542,65 @@ describe('isNeglectedBacklogGame', () => {
   });
 });
 
+describe('isStaleWishlistGame', () => {
+  const NOW = new Date('2026-07-01T00:00:00.000Z').getTime();
+  const THRESHOLD = new Date('2026-01-01T00:00:00.000Z').toISOString(); // NOW minus NEGLECTED_WISHLIST_MONTHS
+  const JUST_OLD_ENOUGH = new Date('2025-12-31T00:00:00.000Z').toISOString();
+  const TOO_RECENT = new Date('2026-02-01T00:00:00.000Z').toISOString();
+
+  it('uses a longer window than NEGLECTED_BACKLOG_MONTHS', () => {
+    // Wishlist neglect is a weaker signal than backlog neglect (nothing's been bought yet) - see
+    // NEGLECTED_WISHLIST_MONTHS's doc comment. Guards against the two accidentally being collapsed
+    // to the same threshold.
+    expect(NEGLECTED_WISHLIST_MONTHS).toBeGreaterThan(NEGLECTED_BACKLOG_MONTHS);
+  });
+
+  it('is false for a non-wishlist game, no matter how old', () => {
+    const game = makeGame({ status: 'backlog', createdAt: JUST_OLD_ENOUGH, updatedAt: JUST_OLD_ENOUGH });
+    expect(isStaleWishlistGame(game, NOW)).toBe(false);
+  });
+
+  it('is false when the game was added more recently than the threshold', () => {
+    const game = makeGame({ status: 'wishlist', createdAt: TOO_RECENT, updatedAt: TOO_RECENT });
+    expect(isStaleWishlistGame(game, NOW)).toBe(false);
+  });
+
+  it('is false when updatedAt (status-change proxy) is more recent than the threshold', () => {
+    const game = makeGame({ status: 'wishlist', createdAt: JUST_OLD_ENOUGH, updatedAt: TOO_RECENT });
+    expect(isStaleWishlistGame(game, NOW)).toBe(false);
+  });
+
+  it('is false when a vote was cast more recently than the threshold, even if the game itself is untouched', () => {
+    const game = makeGame({
+      status: 'wishlist',
+      createdAt: JUST_OLD_ENOUGH,
+      updatedAt: JUST_OLD_ENOUGH,
+      votes: [{ user: { id: 'u2', displayName: 'Friend', avatarColor: '#000', avatarUrl: null, isAdmin: false }, value: 3, createdAt: TOO_RECENT }],
+    });
+    expect(isStaleWishlistGame(game, NOW)).toBe(false);
+  });
+
+  it('is true for a wishlist game added and last touched at or before the threshold, with no recent votes', () => {
+    const game = makeGame({ status: 'wishlist', createdAt: JUST_OLD_ENOUGH, updatedAt: JUST_OLD_ENOUGH });
+    expect(isStaleWishlistGame(game, NOW)).toBe(true);
+  });
+
+  it('treats added-exactly-at-the-threshold as old enough (N+ months, inclusive)', () => {
+    const game = makeGame({ status: 'wishlist', createdAt: THRESHOLD, updatedAt: THRESHOLD });
+    expect(isStaleWishlistGame(game, NOW)).toBe(true);
+  });
+
+  it('is true when there are only old votes, none within the window', () => {
+    const game = makeGame({
+      status: 'wishlist',
+      createdAt: JUST_OLD_ENOUGH,
+      updatedAt: JUST_OLD_ENOUGH,
+      votes: [{ user: { id: 'u2', displayName: 'Friend', avatarColor: '#000', avatarUrl: null, isAdmin: false }, value: 3, createdAt: JUST_OLD_ENOUGH }],
+    });
+    expect(isStaleWishlistGame(game, NOW)).toBe(true);
+  });
+});
+
 describe('filterGames neglectedFilter', () => {
   const NOW = new Date('2026-07-01T00:00:00.000Z').getTime();
   const OLD = new Date('2026-01-01T00:00:00.000Z').toISOString();
@@ -566,6 +627,35 @@ describe('filterGames neglectedFilter', () => {
       NOW,
     );
     expect(result.map((g) => g.id)).toEqual(['dusty']);
+  });
+});
+
+describe('filterGames staleWishlistFilter', () => {
+  const NOW = new Date('2026-07-01T00:00:00.000Z').getTime();
+  const OLD = new Date('2025-12-01T00:00:00.000Z').toISOString();
+  const RECENT = new Date('2026-06-25T00:00:00.000Z').toISOString();
+
+  it('shows every game when staleWishlistFilter is off', () => {
+    const stale = makeGame({ id: 'stale', status: 'wishlist', createdAt: OLD, updatedAt: OLD });
+    const fresh = makeGame({ id: 'fresh', status: 'wishlist', createdAt: RECENT, updatedAt: RECENT });
+    const result = filterGames(
+      [stale, fresh],
+      { platformFilter: ALL_FILTER_VALUE, genreFilter: ALL_FILTER_VALUE, statusFilter: ALL_FILTER_VALUE, searchQuery: '', staleWishlistFilter: false },
+      NOW,
+    );
+    expect(result.map((g) => g.id).sort()).toEqual(['fresh', 'stale']);
+  });
+
+  it('shows only stale wishlist games when staleWishlistFilter is on', () => {
+    const stale = makeGame({ id: 'stale', status: 'wishlist', createdAt: OLD, updatedAt: OLD });
+    const fresh = makeGame({ id: 'fresh', status: 'wishlist', createdAt: RECENT, updatedAt: RECENT });
+    const backlogOld = makeGame({ id: 'backlog-old', status: 'backlog', createdAt: OLD, updatedAt: OLD });
+    const result = filterGames(
+      [stale, fresh, backlogOld],
+      { platformFilter: ALL_FILTER_VALUE, genreFilter: ALL_FILTER_VALUE, statusFilter: ALL_FILTER_VALUE, searchQuery: '', staleWishlistFilter: true },
+      NOW,
+    );
+    expect(result.map((g) => g.id)).toEqual(['stale']);
   });
 });
 

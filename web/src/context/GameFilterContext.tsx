@@ -11,12 +11,16 @@ interface GameFilterContextValue {
   searchQuery: string;
   /** "Collecting dust" toggle (issue #249) - see isNeglectedBacklogGame. */
   neglectedFilter: boolean;
+  /** "Stale wishlist" toggle (issue #578) - see isStaleWishlistGame. Kept separate from
+   * neglectedFilter above rather than folded into it - see GameFilterState.staleWishlistFilter. */
+  staleWishlistFilter: boolean;
   setPlatformFilter: (value: string) => void;
   setGenreFilter: (value: string) => void;
   setStatusFilter: (value: string) => void;
   setTagFilter: (value: string) => void;
   setSearchQuery: (value: string) => void;
   setNeglectedFilter: (value: boolean) => void;
+  setStaleWishlistFilter: (value: boolean) => void;
 }
 
 const GameFilterContext = createContext<GameFilterContextValue | undefined>(undefined);
@@ -34,6 +38,7 @@ export function GameFilterProvider({ children }: { children: ReactNode }) {
   const [tagFilter, setTagFilter] = useState(ALL_FILTER_VALUE);
   const [searchQuery, setSearchQuery] = useState('');
   const [neglectedFilter, setNeglectedFilter] = useState(false);
+  const [staleWishlistFilter, setStaleWishlistFilter] = useState(false);
   const viewKey = view.type === 'room' ? `room:${view.roomId}` : 'personal';
 
   useEffect(() => {
@@ -43,6 +48,7 @@ export function GameFilterProvider({ children }: { children: ReactNode }) {
     setTagFilter(ALL_FILTER_VALUE);
     setSearchQuery('');
     setNeglectedFilter(false);
+    setStaleWishlistFilter(false);
   }, [viewKey]);
 
   return (
@@ -54,12 +60,14 @@ export function GameFilterProvider({ children }: { children: ReactNode }) {
         tagFilter,
         searchQuery,
         neglectedFilter,
+        staleWishlistFilter,
         setPlatformFilter,
         setGenreFilter,
         setStatusFilter,
         setTagFilter,
         setSearchQuery,
         setNeglectedFilter,
+        setStaleWishlistFilter,
       }}
     >
       {children}

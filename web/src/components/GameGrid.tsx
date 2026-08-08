@@ -118,7 +118,7 @@ export function GameGrid({
 }: GameGridProps) {
   // Filter selection lives in GameFilterContext, not here - the pill UI (and the search box) are
   // rendered by the Header (a sibling, not a parent, of this component) next to the Add Game button.
-  const { platformFilter, genreFilter, statusFilter, tagFilter, searchQuery, neglectedFilter } = useGameFilter();
+  const { platformFilter, genreFilter, statusFilter, tagFilter, searchQuery, neglectedFilter, staleWishlistFilter } = useGameFilter();
   const { viewMode } = useViewMode();
 
   const sorted = useStableOrder(games);
@@ -129,8 +129,9 @@ export function GameGrid({
 
   const normalizedQuery = searchQuery.trim().toLowerCase();
   const filtered = useMemo(
-    () => filterGames(prioritized, { platformFilter, genreFilter, statusFilter, tagFilter, searchQuery, neglectedFilter }),
-    [prioritized, platformFilter, genreFilter, statusFilter, tagFilter, searchQuery, neglectedFilter],
+    () =>
+      filterGames(prioritized, { platformFilter, genreFilter, statusFilter, tagFilter, searchQuery, neglectedFilter, staleWishlistFilter }),
+    [prioritized, platformFilter, genreFilter, statusFilter, tagFilter, searchQuery, neglectedFilter, staleWishlistFilter],
   );
 
   const hasActiveFilters =
@@ -138,6 +139,7 @@ export function GameGrid({
     genreFilter !== ALL_FILTER_VALUE ||
     tagFilter !== ALL_FILTER_VALUE ||
     neglectedFilter ||
+    staleWishlistFilter ||
     normalizedQuery !== '';
 
   // hiddenStatuses only applies when the status pill is untouched - picking a hidden status
@@ -159,7 +161,7 @@ export function GameGrid({
   // that shouldn't collapse how much the user has already scrolled through.
   useEffect(() => {
     setRenderCount(INITIAL_RENDER_COUNT);
-  }, [platformFilter, genreFilter, statusFilter, tagFilter, normalizedQuery, neglectedFilter]);
+  }, [platformFilter, genreFilter, statusFilter, tagFilter, normalizedQuery, neglectedFilter, staleWishlistFilter]);
 
   const rendered = useMemo(() => grouped.slice(0, renderCount), [grouped, renderCount]);
   const hasMore = grouped.length > rendered.length;
