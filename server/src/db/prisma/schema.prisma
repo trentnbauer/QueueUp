@@ -167,7 +167,7 @@ model User {
   notificationsActed            Notification[]                 @relation("NotificationActor")
   roomActivity                  RoomActivity[]                 @relation("RoomActivityActor")
   shelfActivity                 RoomActivity[]                 @relation("RoomActivityRecipient")
-  gameSuggestions                GameSuggestion[]
+  gameSuggestions               GameSuggestion[]
   ownedGames                    GameOwnership[]
   playtimeSnapshots             PlaytimeSnapshot[]
   playnitePlaytimeSnapshots     PlaynitePlaytimeSnapshot[]
@@ -888,9 +888,9 @@ model RoomActivity {
   message     String
   createdAt   DateTime         @default(now()) @map("created_at")
 
-  room      Room?  @relation(fields: [roomId], references: [id], onDelete: Cascade)
-  recipient User?  @relation("RoomActivityRecipient", fields: [recipientId], references: [id], onDelete: Cascade)
-  actor     User?  @relation("RoomActivityActor", fields: [actorId], references: [id], onDelete: SetNull)
+  room      Room? @relation(fields: [roomId], references: [id], onDelete: Cascade)
+  recipient User? @relation("RoomActivityRecipient", fields: [recipientId], references: [id], onDelete: Cascade)
+  actor     User? @relation("RoomActivityActor", fields: [actorId], references: [id], onDelete: SetNull)
 
   @@index([roomId, createdAt])
   @@index([recipientId, createdAt])
