@@ -47,16 +47,17 @@ export function useGames(roomId: string | null) {
   const invalidate = () => queryClient.invalidateQueries({ queryKey });
 
   // The status/vote/refresh-price endpoints already return the fully-updated game DTO(s), and the
-  // list is cached as { games: Game[]; truncated: boolean } - patching those rows into the cache
-  // directly avoids a full refetch (and re-render of every other card) for a change that only ever
-  // affects a few. Patches every cached query for *this list*, not just this hook instance's own
-  // queryKey (see isSameGamesList) - otherwise a status change made while useGameSearch's results
-  // are on screen updates the non-search cache and leaves the visible search results (and any
-  // detail modal opened from one) showing the pre-change state until the search itself re-fires.
-  // `truncated` is left untouched either way.
+  // list is cached as { games: Game[]; truncated: boolean; totalCount: number } - patching those
+  // rows into the cache directly avoids a full refetch (and re-render of every other card) for a
+  // change that only ever affects a few. Patches every cached query for *this list*, not just this
+  // hook instance's own queryKey (see isSameGamesList) - otherwise a status change made while
+  // useGameSearch's results are on screen updates the non-search cache and leaves the visible
+  // search results (and any detail modal opened from one) showing the pre-change state until the
+  // search itself re-fires. `truncated`/`totalCount` are left untouched either way, since a status
+  // change never adds or removes a game.
   function patchGames(updated: Game[]) {
     const byId = new Map(updated.map((g) => [g.id, g]));
-    queryClient.setQueriesData<{ games: Game[]; truncated: boolean }>(
+    queryClient.setQueriesData<{ games: Game[]; truncated: boolean; totalCount: number }>(
       { predicate: (query) => isSameGamesList(query, roomId) },
       (old) => (old ? { ...old, games: old.games.map((g) => byId.get(g.id) ?? g) } : old),
     );
@@ -69,9 +70,9 @@ export function useGames(roomId: string | null) {
 
   function removeGamesFromCache(gameIds: string[]) {
     const idSet = new Set(gameIds);
-    queryClient.setQueriesData<{ games: Game[]; truncated: boolean }>(
+    queryClient.setQueriesData<{ games: Game[]; truncated: boolean; totalCount: number }>(
       { predicate: (query) => isSameGamesList(query, roomId) },
-      (old) => (old ? { ...old, games: old.games.filter((g) => !idSet.has(g.id)) } : old),
+      (old) => (old ? { ...old, games: old.games.filter((g) => !idSet.has(g.id)), totalCount: old.totalCount - gameIds.length } : old),
     );
   }
 
@@ -207,6 +208,7 @@ export function useGames(roomId: string | null) {
   return {
     games: query.data?.games ?? [],
     truncated: query.data?.truncated ?? false,
+    totalCount: query.data?.totalCount ?? 0,
     isLoading: query.isLoading,
     isError: query.isError,
     loadError: query.error ? errorMessage(query.error, 'Could not load games.') : null,

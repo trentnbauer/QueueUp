@@ -611,21 +611,30 @@ export default async function gameRoutes(app: FastifyInstance) {
       // Dropped included, not just what the main grid shows) or how long ago it was added, so it
       // gets its own where/order instead of reusing the recency window. Still capped at the same
       // size and still fetches one row past it to detect truncation, same reasoning as above.
-      const games = await prisma.game.findMany({
-        where: { ...baseWhere, title: { contains: q, mode: 'insensitive' } },
-        include: gameInclude,
-        orderBy: { title: 'asc' },
-        take: MAX_GAMES_PER_LIST + 1,
-      });
+      const [games, totalCount] = await Promise.all([
+        prisma.game.findMany({
+          where: { ...baseWhere, title: { contains: q, mode: 'insensitive' } },
+          include: gameInclude,
+          orderBy: { title: 'asc' },
+          take: MAX_GAMES_PER_LIST + 1,
+        }),
+        // #588: the count badge is "how many games do I have," which reads as the whole shelf's
+        // total regardless of an active search box, not the search-filtered match count.
+        prisma.game.count({ where: baseWhere }),
+      ]);
       const truncated = games.length > MAX_GAMES_PER_LIST;
       return {
         games: await serializeGames(games.slice(0, MAX_GAMES_PER_LIST), userId, parseRegion(request.query.region)),
         truncated,
+        totalCount,
       };
     }
 
-    const { games, truncated } = await findGamesWithPlayingPriority(baseWhere);
-    return { games: await serializeGames(games, userId, parseRegion(request.query.region)), truncated };
+    const [{ games, truncated }, totalCount] = await Promise.all([
+      findGamesWithPlayingPriority(baseWhere),
+      prisma.game.count({ where: baseWhere }),
+    ]);
+    return { games: await serializeGames(games, userId, parseRegion(request.query.region)), truncated, totalCount };
   });
 
   app.get<{ Params: { roomId: string }; Querystring: { region?: string; q?: string } }>(
@@ -639,21 +648,30 @@ export default async function gameRoutes(app: FastifyInstance) {
       const baseWhere: Prisma.GameWhereInput = { roomId, archivedAt: null };
 
       if (q) {
-        const games = await prisma.game.findMany({
-          where: { ...baseWhere, title: { contains: q, mode: 'insensitive' } },
-          include: gameInclude,
-          orderBy: { title: 'asc' },
-          take: MAX_GAMES_PER_LIST + 1,
-        });
+        const [games, totalCount] = await Promise.all([
+          prisma.game.findMany({
+            where: { ...baseWhere, title: { contains: q, mode: 'insensitive' } },
+            include: gameInclude,
+            orderBy: { title: 'asc' },
+            take: MAX_GAMES_PER_LIST + 1,
+          }),
+          // #588: same reasoning as /api/games above - the count badge reflects the whole room's
+          // total, not the search-filtered match count.
+          prisma.game.count({ where: baseWhere }),
+        ]);
         const truncated = games.length > MAX_GAMES_PER_LIST;
         return {
           games: await serializeGames(games.slice(0, MAX_GAMES_PER_LIST), userId, parseRegion(request.query.region)),
           truncated,
+          totalCount,
         };
       }
 
-      const { games, truncated } = await findGamesWithPlayingPriority(baseWhere);
-      return { games: await serializeGames(games, userId, parseRegion(request.query.region)), truncated };
+      const [{ games, truncated }, totalCount] = await Promise.all([
+        findGamesWithPlayingPriority(baseWhere),
+        prisma.game.count({ where: baseWhere }),
+      ]);
+      return { games: await serializeGames(games, userId, parseRegion(request.query.region)), truncated, totalCount };
     },
   );
 
