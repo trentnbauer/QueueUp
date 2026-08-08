@@ -8,7 +8,7 @@ import { useConfirm } from '../context/ConfirmContext';
 import { useGames } from '../hooks/useGames';
 import { useGameFilter } from '../context/GameFilterContext';
 import { useSteamImportContext } from '../context/SteamImportContext';
-import { ALL_FILTER_VALUE, NEGLECTED_BACKLOG_MONTHS, distinctValues, distinctTagNames, isNeglectedBacklogGame, platformBrand } from './gameGridLogic';
+import { ALL_FILTER_VALUE, NEGLECTED_BACKLOG_MONTHS, distinctValues, distinctTagNames, isNeglectedBacklogGame, isCoopReady, platformBrand } from './gameGridLogic';
 import { roomsApi, gameSuggestionsApi } from '../api/rooms';
 import { AvatarBadge } from './AvatarBadge';
 import { RoomSettingsModal } from './RoomSettingsModal';
@@ -56,12 +56,14 @@ export function Header() {
     tagFilter,
     searchQuery,
     neglectedFilter,
+    coopReadyFilter,
     setPlatformFilter,
     setGenreFilter,
     setStatusFilter,
     setTagFilter,
     setSearchQuery,
     setNeglectedFilter,
+    setCoopReadyFilter,
   } = useGameFilter();
 
   const membersMenuRef = useRef<HTMLDetailsElement>(null);
@@ -209,6 +211,13 @@ export function Header() {
   // to filter" reasoning PillFilter already applies to platform/genre/status (issue #249).
   const neglectedGames = useMemo(() => games.filter((g) => isNeglectedBacklogGame(g)), [games]);
   const neglectedCount = neglectedGames.length;
+
+  // Room-only (issue #579) - the inverse of platformOptions above (that's [] with an active room,
+  // this is [] without one): ownership is only ever tracked across a room's current members, so
+  // isCoopReady is unconditionally false for every Personal Shelf game anyway. Gating here too
+  // keeps that room-only intent explicit rather than relying on isCoopReady's null check alone.
+  const coopReadyGames = useMemo(() => (activeRoom ? games.filter((g) => isCoopReady(g)) : []), [games, activeRoom]);
+  const coopReadyCount = coopReadyGames.length;
 
   // One-click "clear backlog cruft" (issue: bulk-apply Won't Play to everything the Collecting
   // Dust filter already found) - the same result was already reachable by hand (toggle the
@@ -522,6 +531,21 @@ export function Header() {
                 title="Mark every collecting-dust game as Won't Play in one go"
               >
                 {isBulkUpdatingStatus ? 'Marking…' : "Won't Play all"}
+              </button>
+            </div>
+          </div>
+        )}
+        {coopReadyCount > 0 && (
+          <div className={styles.filterGroup}>
+            <span className={styles.filterLabel}>Co-op</span>
+            <div className={styles.filterPills}>
+              <button
+                type="button"
+                className={`${styles.filterPill} ${coopReadyFilter ? styles.filterPillActive : ''}`}
+                onClick={() => setCoopReadyFilter(!coopReadyFilter)}
+                title="Games 2+ current members already own"
+              >
+                🎮 Co-op ready ({coopReadyCount})
               </button>
             </div>
           </div>

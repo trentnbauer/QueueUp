@@ -89,12 +89,26 @@ export interface GameFilterState {
    * applies no filtering on this axis, same convention as the other pill filters using
    * ALL_FILTER_VALUE, just boolean instead of multi-option since there's nothing to pick between. */
   neglectedFilter?: boolean;
+  /** True to show only "co-op ready" games (see isCoopReady) - room-only, same false/undefined
+   * convention as neglectedFilter above. */
+  coopReadyFilter?: boolean;
 }
 
-/** The platform/genre/status/tag/neglected/search predicate GameGrid renders by - pulled out so any
- * other place that needs to know "what's actually visible" (e.g. the Personal Shelf's bulk-select
- * "Select all", which must not silently include games hidden by the active filter) applies the
- * exact same rule instead of a second, driftable copy of it. */
+/** A room game 2+ current members already own, so a co-op session is playable right now without
+ * anyone buying it first (issue #579) - deliberately does not factor in maxCoopPlayers (the
+ * detail modal's co-op-size warning already covers that mismatch separately). Null `ownership`
+ * means the Personal Shelf, where there's no group of members to own anything - never co-op ready.
+ * Excludes done/dropped/wont_play since those aren't games anyone's about to sit down and play. */
+export function isCoopReady(game: Game): boolean {
+  if (!game.ownership) return false;
+  if (game.status === 'done' || game.status === 'dropped' || game.status === 'wont_play') return false;
+  return game.ownership.owned >= 2;
+}
+
+/** The platform/genre/status/tag/neglected/coop-ready/search predicate GameGrid renders by -
+ * pulled out so any other place that needs to know "what's actually visible" (e.g. the Personal
+ * Shelf's bulk-select "Select all", which must not silently include games hidden by the active
+ * filter) applies the exact same rule instead of a second, driftable copy of it. */
 export function filterGames(games: Game[], filter: GameFilterState, now: number = Date.now()): Game[] {
   const normalizedQuery = filter.searchQuery.trim().toLowerCase();
   const tagFilter = filter.tagFilter ?? ALL_FILTER_VALUE;
@@ -106,6 +120,7 @@ export function filterGames(games: Game[], filter: GameFilterState, now: number 
       (filter.statusFilter === ALL_FILTER_VALUE || g.status === filter.statusFilter) &&
       (tagFilter === ALL_FILTER_VALUE || g.tags.some((t) => t.name === tagFilter)) &&
       (!filter.neglectedFilter || isNeglectedBacklogGame(g, now)) &&
+      (!filter.coopReadyFilter || isCoopReady(g)) &&
       (normalizedQuery === '' || g.title.toLowerCase().includes(normalizedQuery)),
   );
 }

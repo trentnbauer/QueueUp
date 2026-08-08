@@ -11,12 +11,16 @@ interface GameFilterContextValue {
   searchQuery: string;
   /** "Collecting dust" toggle (issue #249) - see isNeglectedBacklogGame. */
   neglectedFilter: boolean;
+  /** "Co-op ready" toggle (issue #579) - see isCoopReady. Room-only; the Header only offers it
+   * with an active room, since it's always false everywhere else (ownership is null off-room). */
+  coopReadyFilter: boolean;
   setPlatformFilter: (value: string) => void;
   setGenreFilter: (value: string) => void;
   setStatusFilter: (value: string) => void;
   setTagFilter: (value: string) => void;
   setSearchQuery: (value: string) => void;
   setNeglectedFilter: (value: boolean) => void;
+  setCoopReadyFilter: (value: boolean) => void;
 }
 
 const GameFilterContext = createContext<GameFilterContextValue | undefined>(undefined);
@@ -34,6 +38,7 @@ export function GameFilterProvider({ children }: { children: ReactNode }) {
   const [tagFilter, setTagFilter] = useState(ALL_FILTER_VALUE);
   const [searchQuery, setSearchQuery] = useState('');
   const [neglectedFilter, setNeglectedFilter] = useState(false);
+  const [coopReadyFilter, setCoopReadyFilter] = useState(false);
   const viewKey = view.type === 'room' ? `room:${view.roomId}` : 'personal';
 
   useEffect(() => {
@@ -43,6 +48,7 @@ export function GameFilterProvider({ children }: { children: ReactNode }) {
     setTagFilter(ALL_FILTER_VALUE);
     setSearchQuery('');
     setNeglectedFilter(false);
+    setCoopReadyFilter(false);
   }, [viewKey]);
 
   return (
@@ -54,12 +60,14 @@ export function GameFilterProvider({ children }: { children: ReactNode }) {
         tagFilter,
         searchQuery,
         neglectedFilter,
+        coopReadyFilter,
         setPlatformFilter,
         setGenreFilter,
         setStatusFilter,
         setTagFilter,
         setSearchQuery,
         setNeglectedFilter,
+        setCoopReadyFilter,
       }}
     >
       {children}
