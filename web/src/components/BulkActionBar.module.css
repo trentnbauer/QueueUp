@@ -14,7 +14,19 @@
 
 @media (max-width: 640px) {
   .bar {
+    flex-direction: column;
+    align-items: stretch;
     padding: 12px 18px;
+  }
+
+  .left,
+  .right {
+    width: 100%;
+  }
+
+  .right {
+    border-left: none;
+    padding-left: 0;
   }
 }
 
@@ -49,6 +61,8 @@
   flex-wrap: wrap;
   align-items: center;
   gap: 8px;
+  border-left: 1px solid var(--qu-border);
+  padding-left: 14px;
 }
 
 .setStatusLabel {

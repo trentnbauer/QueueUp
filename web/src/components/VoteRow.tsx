@@ -27,6 +27,8 @@ export function VoteRow({ myVote, onVote }: VoteRowProps) {
           return (
             <button
               key={value}
+              type="button"
+              aria-label={`Vote ${value}`}
               onClick={() => onVote(value)}
               style={{
                 flex: 1,
