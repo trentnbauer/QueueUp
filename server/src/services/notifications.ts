@@ -32,12 +32,12 @@ interface NotifyRoomInput {
   roomId: string;
   roomName: string;
   actorId: string;
-  // Excludes room_deleted/price_drop/release_watch/playtime_mark_playing (none of the four ever
-  // reaches notifyRoom - see the notes on notifyRoomMembersDirect, notifyPriceDrop,
-  // notifyReleaseWatch, and notifyPlaytimeMarkPlaying below) so the RoomActivityType passthrough a
-  // few lines down needs no cast: this narrowed type is compiler-checked to stay a subset of
-  // RoomActivityType, not just documented as one.
-  type: Exclude<NotificationType, 'room_deleted' | 'price_drop' | 'release_watch' | 'playtime_mark_playing'>;
+  // Excludes room_deleted/price_drop/release_watch/playtime_mark_playing/playnite_sync_reminder
+  // (none of the five ever reaches notifyRoom - see the notes on notifyRoomMembersDirect,
+  // notifyPriceDrop, notifyReleaseWatch, notifyPlaytimeMarkPlaying, and notifyPlayniteSyncReminder
+  // below) so the RoomActivityType passthrough a few lines down needs no cast: this narrowed type
+  // is compiler-checked to stay a subset of RoomActivityType, not just documented as one.
+  type: Exclude<NotificationType, 'room_deleted' | 'price_drop' | 'release_watch' | 'playtime_mark_playing' | 'playnite_sync_reminder'>;
   message: (actorName: string) => string;
 }
 
@@ -199,6 +199,32 @@ export async function notifyPlaytimeMarkPlaying(userId: string, gameId: string, 
     });
   } catch (err) {
     console.error('[notifications] failed to write playtime-mark-playing notification', err);
+  }
+}
+
+/** A Playnite-linked user hasn't synced in 48+ hours (issue #570, called from
+ * jobs/playniteSyncReminderJob.ts). Same dedup reasoning as notifyPlaytimeMarkPlaying - skips
+ * creating a new row if this user already has one unread, so the job (checking every few hours)
+ * doesn't pile up a fresh nudge on top of one they haven't acted on or dismissed yet. Same shape as
+ * notifyReleaseWatch otherwise (direct, Personal-Shelf-scoped, system-generated). */
+export async function notifyPlayniteSyncReminder(userId: string): Promise<void> {
+  try {
+    const existing = await prisma.notification.findFirst({
+      where: { recipientId: userId, type: 'playnite_sync_reminder', readAt: null },
+      select: { id: true },
+    });
+    if (existing) return;
+
+    await prisma.notification.create({
+      data: {
+        recipientId: userId,
+        roomName: 'Personal Shelf',
+        type: 'playnite_sync_reminder',
+        message: "Your Playnite library hasn't synced in a couple of days - open Playnite and push your library to keep QueueUp up to date.",
+      },
+    });
+  } catch (err) {
+    console.error('[notifications] failed to write playnite-sync-reminder notification', err);
   }
 }
 
