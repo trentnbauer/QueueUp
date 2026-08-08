@@ -11,6 +11,9 @@ interface GameFilterContextValue {
   searchQuery: string;
   /** "Collecting dust" toggle (issue #249) - see isNeglectedBacklogGame. */
   neglectedFilter: boolean;
+  /** "Stale wishlist" toggle (issue #578) - see isStaleWishlistGame. Kept separate from
+   * neglectedFilter above rather than folded into it - see GameFilterState.staleWishlistFilter. */
+  staleWishlistFilter: boolean;
   /** "Co-op ready" toggle (issue #579) - see isCoopReady. Room-only; the Header only offers it
    * with an active room, since it's always false everywhere else (ownership is null off-room). */
   coopReadyFilter: boolean;
@@ -20,6 +23,7 @@ interface GameFilterContextValue {
   setTagFilter: (value: string) => void;
   setSearchQuery: (value: string) => void;
   setNeglectedFilter: (value: boolean) => void;
+  setStaleWishlistFilter: (value: boolean) => void;
   setCoopReadyFilter: (value: boolean) => void;
 }
 
@@ -38,6 +42,7 @@ export function GameFilterProvider({ children }: { children: ReactNode }) {
   const [tagFilter, setTagFilter] = useState(ALL_FILTER_VALUE);
   const [searchQuery, setSearchQuery] = useState('');
   const [neglectedFilter, setNeglectedFilter] = useState(false);
+  const [staleWishlistFilter, setStaleWishlistFilter] = useState(false);
   const [coopReadyFilter, setCoopReadyFilter] = useState(false);
   const viewKey = view.type === 'room' ? `room:${view.roomId}` : 'personal';
 
@@ -48,6 +53,7 @@ export function GameFilterProvider({ children }: { children: ReactNode }) {
     setTagFilter(ALL_FILTER_VALUE);
     setSearchQuery('');
     setNeglectedFilter(false);
+    setStaleWishlistFilter(false);
     setCoopReadyFilter(false);
   }, [viewKey]);
 
@@ -60,6 +66,7 @@ export function GameFilterProvider({ children }: { children: ReactNode }) {
         tagFilter,
         searchQuery,
         neglectedFilter,
+        staleWishlistFilter,
         coopReadyFilter,
         setPlatformFilter,
         setGenreFilter,
@@ -67,6 +74,7 @@ export function GameFilterProvider({ children }: { children: ReactNode }) {
         setTagFilter,
         setSearchQuery,
         setNeglectedFilter,
+        setStaleWishlistFilter,
         setCoopReadyFilter,
       }}
     >
