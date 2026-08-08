@@ -158,26 +158,28 @@ model User {
   /// actually makes GET /api/public/users/:id start answering instead of 404ing.
   publicProfileEnabled Boolean        @default(false) @map("public_profile_enabled")
 
-  roomsCreated              Room[]                     @relation("RoomCreatedBy")
-  memberships               RoomMember[]
-  gamesAdded                Game[]
-  votes                     Vote[]
-  auditLogEntries           AdminAuditLog[]
-  notificationsReceived     Notification[]             @relation("NotificationRecipient")
-  notificationsActed        Notification[]             @relation("NotificationActor")
-  roomActivity              RoomActivity[]             @relation("RoomActivityActor")
-  shelfActivity             RoomActivity[]             @relation("RoomActivityRecipient")
-  gameSuggestions           GameSuggestion[]
-  ownedGames                GameOwnership[]
-  playtimeSnapshots         PlaytimeSnapshot[]
-  achievementCompletions    AchievementCompletion[]
-  badges                    UserBadge[]
-  releaseWatchNotifications ReleaseWatchNotification[]
-  linkedIdentities          LinkedIdentity[]
-  tags                      Tag[]
-  roomSpinsStarted          RoomSpin[]
-  apiKeys                   ApiKey[]
-  pendingLibraryImports     PendingLibraryImport[]
+  roomsCreated                  Room[]                         @relation("RoomCreatedBy")
+  memberships                   RoomMember[]
+  gamesAdded                    Game[]
+  votes                         Vote[]
+  auditLogEntries               AdminAuditLog[]
+  notificationsReceived         Notification[]                 @relation("NotificationRecipient")
+  notificationsActed            Notification[]                 @relation("NotificationActor")
+  roomActivity                  RoomActivity[]                 @relation("RoomActivityActor")
+  shelfActivity                 RoomActivity[]                 @relation("RoomActivityRecipient")
+  gameSuggestions                GameSuggestion[]
+  ownedGames                    GameOwnership[]
+  playtimeSnapshots             PlaytimeSnapshot[]
+  playnitePlaytimeSnapshots     PlaynitePlaytimeSnapshot[]
+  playniteCompletionSuggestions PlayniteCompletionSuggestion[]
+  achievementCompletions        AchievementCompletion[]
+  badges                        UserBadge[]
+  releaseWatchNotifications     ReleaseWatchNotification[]
+  linkedIdentities              LinkedIdentity[]
+  tags                          Tag[]
+  roomSpinsStarted              RoomSpin[]
+  apiKeys                       ApiKey[]
+  pendingLibraryImports         PendingLibraryImport[]
 
   @@map("users")
 }
@@ -327,6 +329,53 @@ model PlaytimeSnapshot {
 
   @@id([userId, steamAppId])
   @@map("playtime_snapshots")
+}
+
+/// Playnite-sourced counterpart to PlaytimeSnapshot above (issue #577) - covers a Personal Shelf
+/// game Playnite reports playtime for that has no Steam app id (Epic/GOG/emulator titles, or any
+/// non-Steam source), so it can't be keyed by (userId, steamAppId) the way the table above is.
+/// Keyed by (userId, gameId) instead - by the time an import entry is persisted (see
+/// applyResolvedIgdbEntry in routes/apiV1.ts) it's already resolved to one specific shelf Game row,
+/// and unlike Steam's account-wide app catalog, a Playnite-reported figure only ever means anything
+/// relative to that one row. Written directly by the Playnite import route (POST
+/// /api/v1/library/import-playnite), not a scheduled job, since Playnite pushes this data instead
+/// of QueueUp polling for it - same overwritten-in-place/initialMinutes-checkpoint shape as
+/// PlaytimeSnapshot otherwise (see that model's doc comment for why initialMinutes exists).
+model PlaynitePlaytimeSnapshot {
+  userId          String   @map("user_id")
+  gameId          String   @map("game_id")
+  playtimeMinutes Int      @map("playtime_minutes")
+  initialMinutes  Int      @map("initial_minutes")
+  updatedAt       DateTime @updatedAt @map("updated_at")
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  game Game @relation(fields: [gameId], references: [id], onDelete: Cascade)
+
+  @@id([userId, gameId])
+  @@map("playnite_playtime_snapshots")
+}
+
+/// A Personal Shelf game Playnite reported as Completed (its own per-game CompletionStatus concept,
+/// separate from achievements - issue #577) that isn't yet marked Done in QueueUp - the
+/// Playnite-sourced counterpart to the "Sync completions from Steam" flow
+/// (services/steamCompletionDetection.ts), surfaced the same nothing-changes-until-reviewed way
+/// (see services/playniteCompletionSuggestions.ts). Unlike the Steam flow, there's no live
+/// achievement-percentage API to re-scan on demand - Playnite pushes this fact once, at import time
+/// (see routes/apiV1.ts), so it has to be recorded rather than recomputed on every check. Not
+/// sticky like AchievementCompletion/UserBadge: a row is deleted outright once reviewed (see
+/// dismissPlayniteCompletionSuggestion), same approve-or-decline-deletes-the-row pattern as
+/// GameSuggestion, since "Playnite currently reports this Completed" isn't a fact worth remembering
+/// once acted on the way a 100% achievement run is.
+model PlayniteCompletionSuggestion {
+  userId    String   @map("user_id")
+  gameId    String   @map("game_id")
+  createdAt DateTime @default(now()) @map("created_at")
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  game Game @relation(fields: [gameId], references: [id], onDelete: Cascade)
+
+  @@id([userId, gameId])
+  @@map("playnite_completion_suggestions")
 }
 
 /// A per-user, per-title fact that this user's Steam achievement progress has hit 100% at least
@@ -635,16 +684,18 @@ model Game {
   /// the base game shouldn't block removing (or orphan) its DLC.
   baseGameId                   String?    @map("base_game_id")
 
-  room             Room?     @relation(fields: [roomId], references: [id], onDelete: Cascade)
-  adder            User      @relation(fields: [addedBy], references: [id], onDelete: Cascade)
-  votes            Vote[]
-  tags             GameTag[]
-  prerequisiteGame Game?     @relation("GamePrerequisite", fields: [prerequisiteGameId], references: [id], onDelete: SetNull)
-  successorGames   Game[]    @relation("GamePrerequisite")
-  baseGame         Game?     @relation("GameBaseGame", fields: [baseGameId], references: [id], onDelete: SetNull)
-  dlc              Game[]    @relation("GameBaseGame")
-  playLogs         PlayLog[]
-  notifications    Notification[]
+  room                          Room?                          @relation(fields: [roomId], references: [id], onDelete: Cascade)
+  adder                         User                           @relation(fields: [addedBy], references: [id], onDelete: Cascade)
+  votes                         Vote[]
+  tags                          GameTag[]
+  prerequisiteGame              Game?                          @relation("GamePrerequisite", fields: [prerequisiteGameId], references: [id], onDelete: SetNull)
+  successorGames                Game[]                         @relation("GamePrerequisite")
+  baseGame                      Game?                          @relation("GameBaseGame", fields: [baseGameId], references: [id], onDelete: SetNull)
+  dlc                           Game[]                         @relation("GameBaseGame")
+  playLogs                      PlayLog[]
+  notifications                 Notification[]
+  playnitePlaytimeSnapshots     PlaynitePlaytimeSnapshot[]
+  playniteCompletionSuggestions PlayniteCompletionSuggestion[]
 
   @@index([roomId])
   @@index([addedBy], map: "idx_games_personal")
@@ -664,19 +715,19 @@ model Game {
 /// duplicate one). A Replay queued back up and played again gets its own new entry once nothing is
 /// left open, rather than reopening/overwriting this one.
 model PlayLog {
-  id         String    @id @default(uuid())
-  gameId     String    @map("game_id")
-  startedAt  DateTime  @map("started_at")
-  finishedAt DateTime? @map("finished_at")
-  createdAt  DateTime  @default(now()) @map("created_at")
+  id                    String    @id @default(uuid())
+  gameId                String    @map("game_id")
+  startedAt             DateTime  @map("started_at")
+  finishedAt            DateTime? @map("finished_at")
+  createdAt             DateTime  @default(now()) @map("created_at")
   /// Steam playtime (all-time, minutes) snapshotted at startedAt/finishedAt respectively (issue
   /// #548, gated behind PLAYTIME_TRACKING_ENABLED - see currentPlaytimeMinutesForGame). Both null
   /// for any entry closed before this field existed, or whenever the game/its adder has no Steam
   /// playtime data to attribute (see that function's doc comment for exactly when). Subtracting
   /// the two gives this specific playthrough's actual played hours, distinct from wall-clock time
   /// between startedAt/finishedAt (which includes any stretch the game sat untouched).
-  startPlaytimeMinutes  Int? @map("start_playtime_minutes")
-  finishPlaytimeMinutes Int? @map("finish_playtime_minutes")
+  startPlaytimeMinutes  Int?      @map("start_playtime_minutes")
+  finishPlaytimeMinutes Int?      @map("finish_playtime_minutes")
 
   game Game @relation(fields: [gameId], references: [id], onDelete: Cascade)
 

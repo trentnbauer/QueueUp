@@ -17,6 +17,7 @@ import healthRoutes from './routes/health.js';
 import versionRoutes from './routes/version.js';
 import apiV1Routes from './routes/apiV1.js';
 import pendingLibraryImportRoutes from './routes/pendingLibraryImports.js';
+import playniteCompletionSuggestionRoutes from './routes/playniteCompletionSuggestions.js';
 import badgeRoutes from './routes/badges.js';
 import publicProfileRoutes from './routes/publicProfile.js';
 import { env } from './config/env.js';
@@ -92,6 +93,7 @@ export async function buildApp() {
       await instance.register(notificationRoutes);
       await instance.register(adminRoutes);
       await instance.register(pendingLibraryImportRoutes);
+      await instance.register(playniteCompletionSuggestionRoutes);
       await instance.register(badgeRoutes);
       await instance.register(publicProfileRoutes);
       // Bearer-token-authenticated, scoped under its own prefix and preHandler (see apiV1.ts) -
