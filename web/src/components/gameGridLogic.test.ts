@@ -16,6 +16,7 @@ import {
   spinCandidateWeight,
   reviewScoreMultiplier,
   isNeglectedBacklogGame,
+  isCoopReady,
   filterGames,
   distinctTagNames,
   NEGLECTED_BACKLOG_MONTHS,
@@ -537,6 +538,71 @@ describe('isNeglectedBacklogGame', () => {
     const NOW_MONTH_END = new Date('2026-05-31T00:00:00.000Z').getTime();
     const game = makeGame({ status: 'backlog', createdAt: '2026-02-28T00:00:00.000Z', updatedAt: '2026-02-28T00:00:00.000Z' });
     expect(isNeglectedBacklogGame(game, NOW_MONTH_END)).toBe(true);
+  });
+});
+
+describe('isCoopReady (issue #579)', () => {
+  it('is false on the Personal Shelf, where ownership is always null', () => {
+    const game = makeGame({ status: 'backlog', ownership: null });
+    expect(isCoopReady(game)).toBe(false);
+  });
+
+  it('is false when fewer than 2 current members own it', () => {
+    const game = makeGame({ status: 'backlog', ownership: { owned: 1, total: 4 } });
+    expect(isCoopReady(game)).toBe(false);
+  });
+
+  it('is true when 2+ current members own it', () => {
+    const game = makeGame({ status: 'backlog', ownership: { owned: 2, total: 4 } });
+    expect(isCoopReady(game)).toBe(true);
+  });
+
+  it('is true even if everyone owns it', () => {
+    const game = makeGame({ status: 'backlog', ownership: { owned: 4, total: 4 } });
+    expect(isCoopReady(game)).toBe(true);
+  });
+
+  it('is false for a done game, even if 2+ own it', () => {
+    const game = makeGame({ status: 'done', ownership: { owned: 3, total: 4 } });
+    expect(isCoopReady(game)).toBe(false);
+  });
+
+  it('is false for a dropped game, even if 2+ own it', () => {
+    const game = makeGame({ status: 'dropped', ownership: { owned: 3, total: 4 } });
+    expect(isCoopReady(game)).toBe(false);
+  });
+
+  it("is false for a won't-play game, even if 2+ own it", () => {
+    const game = makeGame({ status: 'wont_play', ownership: { owned: 3, total: 4 } });
+    expect(isCoopReady(game)).toBe(false);
+  });
+
+  it('does not factor in maxCoopPlayers - a mismatch is left to the detail modal warning', () => {
+    const game = makeGame({ status: 'backlog', ownership: { owned: 2, total: 4 }, maxCoopPlayers: 1 });
+    expect(isCoopReady(game)).toBe(true);
+  });
+});
+
+describe('filterGames coopReadyFilter (issue #579)', () => {
+  it('shows every game when coopReadyFilter is off', () => {
+    const ready = makeGame({ id: 'ready', status: 'backlog', ownership: { owned: 2, total: 4 } });
+    const notReady = makeGame({ id: 'not-ready', status: 'backlog', ownership: { owned: 1, total: 4 } });
+    const result = filterGames(
+      [ready, notReady],
+      { platformFilter: ALL_FILTER_VALUE, genreFilter: ALL_FILTER_VALUE, statusFilter: ALL_FILTER_VALUE, searchQuery: '', coopReadyFilter: false },
+    );
+    expect(result.map((g) => g.id).sort()).toEqual(['not-ready', 'ready']);
+  });
+
+  it('shows only co-op ready games when coopReadyFilter is on', () => {
+    const ready = makeGame({ id: 'ready', status: 'backlog', ownership: { owned: 2, total: 4 } });
+    const notReady = makeGame({ id: 'not-ready', status: 'backlog', ownership: { owned: 1, total: 4 } });
+    const shelfGame = makeGame({ id: 'shelf', status: 'backlog', ownership: null });
+    const result = filterGames(
+      [ready, notReady, shelfGame],
+      { platformFilter: ALL_FILTER_VALUE, genreFilter: ALL_FILTER_VALUE, statusFilter: ALL_FILTER_VALUE, searchQuery: '', coopReadyFilter: true },
+    );
+    expect(result.map((g) => g.id)).toEqual(['ready']);
   });
 });
 
