@@ -111,7 +111,7 @@ import { collectionProgress, IGDB_PLATFORM_NAMES, isNeglectedBacklogGame, PRICE_
 // elsewhere for platform-filter matching (see ownedPlatformLabels in Header.tsx).
 const STEAM_IMPORT_PLATFORM_LABEL = IGDB_PLATFORM_NAMES.pc[0];
 
-const GAME_STATUSES = ['backlog', 'playing', 'done', 'dropped', 'wishlist', 'replay', 'play_next'] as const;
+const GAME_STATUSES = ['backlog', 'playing', 'done', 'dropped', 'wishlist', 'replay', 'play_next', 'wont_play'] as const;
 // Mirrors web/src/components/gameGridLogic.ts's GAME_STATUS_LABEL - kept as a separate copy since
 // that file lives in the web package, not something the server can import from.
 const STATUS_LABELS: Record<GameStatus, string> = {
@@ -122,6 +122,7 @@ const STATUS_LABELS: Record<GameStatus, string> = {
   dropped: 'Dropped',
   wishlist: 'Wishlist',
   replay: 'Replay',
+  wont_play: "Won't Play",
 };
 const PRICE_REGIONS = Object.keys(PRICE_REGION_LABELS) as PriceRegion[];
 // Shelves/rooms are meant to hold an actively-curated backlog, not a lifetime game archive - this
@@ -560,8 +561,10 @@ export default async function gameRoutes(app: FastifyInstance) {
   // recency window's cutoff, silently dropping it from the shelf view even though its `status` was
   // never actually touched (a user reported this as "losing" their beaten queue after a Playnite
   // import - the games were still marked done/dropped on file, just no longer in the returned set).
-  const FINISHED_STATUSES: Prisma.GameWhereInput['status'] = { in: ['done', 'dropped'] };
-  const RECENCY_CAPPED_STATUSES: Prisma.GameWhereInput['status'] = { notIn: ['playing', 'play_next', 'done', 'dropped'] };
+  const FINISHED_STATUSES: Prisma.GameWhereInput['status'] = { in: ['done', 'dropped', 'wont_play'] };
+  const RECENCY_CAPPED_STATUSES: Prisma.GameWhereInput['status'] = {
+    notIn: ['playing', 'play_next', 'done', 'dropped', 'wont_play'],
+  };
 
   // #459/#480: a plain createdAt-desc top-MAX_GAMES_PER_LIST query can push a user's actual
   // in-progress, Beaten, or Dropped games out of the returned set entirely once enough other games
@@ -836,11 +839,13 @@ export default async function gameRoutes(app: FastifyInstance) {
     // still the pre-update value).
     const enteringDone = status === 'done' && game.status !== 'done';
     const completionKeys = enteringDone ? await completionBadgeKeys(userId, updated) : [];
-    // Backlog Buster - "dealt with" means actually resolved (Done or Dropped), not just picked up
-    // (Playing) - a neglected game finally getting *started* isn't the same achievement as
-    // finally getting it off the list one way or the other.
+    // Backlog Buster - "dealt with" means actually resolved (Done, Dropped, or Won't Play), not
+    // just picked up (Playing) - a neglected game finally getting *started* isn't the same
+    // achievement as finally getting it off the list one way or the other.
     const backlogBusterKeys: BadgeKey[] =
-      (status === 'done' || status === 'dropped') && wasNeglectedBacklogGame(game) ? ['first_backlog_buster'] : [];
+      (status === 'done' || status === 'dropped' || status === 'wont_play') && wasNeglectedBacklogGame(game)
+        ? ['first_backlog_buster']
+        : [];
     // Marathoner (issue: "what other achievements can you think of") - one of the entries this
     // transition just closed sat open 30+ days before finishing, i.e. a genuine long haul rather
     // than a same-day clear. Only closedEntries created by an actual Playing→Done stretch can hit

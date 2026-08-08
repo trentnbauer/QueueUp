@@ -179,6 +179,11 @@ export function GameCard({
             <span className={`${styles.ribbonText} ${styles.droppedRibbonText}`}>Dropped</span>
           </div>
         )}
+        {game.status === 'wont_play' && (
+          <div className={styles.ribbon} aria-hidden="true">
+            <span className={`${styles.ribbonText} ${styles.wontPlayRibbonText}`}>Won't Play</span>
+          </div>
+        )}
 
         <div
           className={styles.cover}

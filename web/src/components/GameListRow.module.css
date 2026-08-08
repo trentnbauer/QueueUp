@@ -120,6 +120,11 @@
   color: #ff8a80;
 }
 
+.status-wont_play {
+  background: color-mix(in srgb, #94a3b8 30%, var(--qu-neutral-pill-bg));
+  color: #94a3b8;
+}
+
 .stat {
   flex: 0 0 auto;
   width: 96px;

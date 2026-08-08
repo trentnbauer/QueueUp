@@ -35,9 +35,19 @@ export const GAME_STATUS_LABEL: Record<GameStatus, string> = {
   dropped: 'Dropped',
   wishlist: 'Wishlist',
   replay: 'Replay',
+  wont_play: "Won't Play",
 };
 
-export const GAME_STATUS_LIST: GameStatus[] = ['wishlist', 'backlog', 'play_next', 'playing', 'done', 'replay', 'dropped'];
+export const GAME_STATUS_LIST: GameStatus[] = [
+  'wishlist',
+  'backlog',
+  'play_next',
+  'playing',
+  'done',
+  'replay',
+  'dropped',
+  'wont_play',
+];
 
 /** Genre/platform are stored as comma-joined labels (e.g. "PC, Xbox"), so filter options and
  * matching both split on ", " rather than treating the whole string as one value. */
@@ -207,12 +217,12 @@ export function defaultPrerequisite(game: Game, roomGames: Game[]): Game | null 
 
 /** Currently Playing (Playing and Play Next together - see PlayingStrip) first, then the rest of
  * the backlog (replay-queued games interleaved with it), then Wishlist, then Completed, then
- * Dropped last. */
+ * Dropped/Won't Play last (same tier - see DroppedStrip, which shows both together). */
 export function statusBucket(game: Game): number {
   if (game.status === 'playing' || game.status === 'play_next') return 0;
   if (game.status === 'backlog' || game.status === 'replay') return 1;
   if (game.status === 'wishlist') return 2;
   if (game.status === 'done') return 3;
-  return 4; // dropped
+  return 4; // dropped, wont_play
 }
 

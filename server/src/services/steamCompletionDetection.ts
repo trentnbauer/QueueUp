@@ -81,7 +81,9 @@ export async function findDetectedSteamCompletions(
       // Replay is excluded alongside done/dropped - it already represents "beaten before,
       // queued to play again," so a 100%-achievements check finding what's already known
       // (it's been fully cleared at least once) isn't new information worth nudging on.
-      status: { notIn: ['done', 'dropped', 'replay'] },
+      // Won't Play is excluded too - the user already decided against this one, an achievement
+      // scan shouldn't second-guess that.
+      status: { notIn: ['done', 'dropped', 'replay', 'wont_play'] },
       steamAppid: { not: null },
       ...(personalShelfOnly ? { roomId: null } : {}),
     },

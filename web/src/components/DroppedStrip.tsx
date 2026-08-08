@@ -23,10 +23,12 @@ interface DroppedStripProps {
   onSetPrerequisite?: (gameId: string, prerequisiteGameId: string | null) => void;
 }
 
-/** Mirrors BeatenStrip, but for games marked Dropped, sits below it, and starts collapsed - a
- * "we bounced off this" pile is the least useful thing to look at by default, but still worth
- * keeping visible-on-demand rather than only reachable via the status filter pill. Collapse state
- * is local/ephemeral (not persisted) - resets to collapsed on next visit, which is the point. */
+/** Mirrors BeatenStrip, but for games marked Dropped or Won't Play (issue #569 - a combined view
+ * rather than a third permanently-visible section, since both are "not playing this" piles the
+ * status filter pill can still separate if needed), sits below Beaten, and starts collapsed - this
+ * pile is the least useful thing to look at by default, but still worth keeping visible-on-demand
+ * rather than only reachable via the status filter. Collapse state is local/ephemeral (not
+ * persisted) - resets to collapsed on next visit, which is the point. */
 export function DroppedStrip({
   games,
   currentUserId,
@@ -47,9 +49,11 @@ export function DroppedStrip({
 }: DroppedStripProps) {
   const [expanded, setExpanded] = useState(false);
 
-  // Most recently dropped first, same ordering reasoning as BeatenStrip's most-recently-beaten.
+  // Most recently dropped/wont_play first, same ordering reasoning as BeatenStrip's
+  // most-recently-beaten. Dropped and Won't Play are interleaved by recency rather than grouped -
+  // each card's own status ribbon/badge already distinguishes the two.
   const dropped = games
-    .filter((g) => g.status === 'dropped')
+    .filter((g) => g.status === 'dropped' || g.status === 'wont_play')
     .sort((a, b) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime());
   if (dropped.length === 0) return null;
 
@@ -60,7 +64,7 @@ export function DroppedStrip({
           ▸
         </span>
         <span className={stripStyles.label}>
-          Dropped ({dropped.length})
+          Dropped / Won't Play ({dropped.length})
         </span>
       </button>
       {expanded && (
