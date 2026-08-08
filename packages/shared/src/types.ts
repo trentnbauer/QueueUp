@@ -744,7 +744,8 @@ export type NotificationType =
   | 'price_drop'
   | 'game_suggested'
   | 'release_watch'
-  | 'playtime_mark_playing';
+  | 'playtime_mark_playing'
+  | 'playnite_sync_reminder';
 
 export interface Notification {
   id: string;
@@ -1135,6 +1136,12 @@ export interface CreateApiKeyRequest {
 export interface CreateApiKeyResponse extends ApiKeySummary {
   key: string;
 }
+
+/** The label PlayniteImportModal gives the setup-code API key it generates (issue #474) - shared
+ * so jobs/playniteSyncReminderJob.ts (issue #570) can recognize "this user has Playnite set up" by
+ * the exact same string instead of the server carrying its own hardcoded copy that could drift
+ * from the client's. */
+export const PLAYNITE_API_KEY_LABEL = 'Playnite Import';
 
 /** One distinct title from an external library source (e.g. Playnite), already deduped/grouped by
  * the client - QueueUp expects one entry per title with the union of every platform that title was

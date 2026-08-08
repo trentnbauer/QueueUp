@@ -8,6 +8,7 @@ import { startPriceRefreshJob } from './jobs/priceRefreshJob.js';
 import { startAnniversaryBadgeJob } from './jobs/anniversaryBadgeJob.js';
 import { startReleaseWatchJob } from './jobs/releaseWatchJob.js';
 import { startPlaytimeSnapshotJob } from './jobs/playtimeSnapshotJob.js';
+import { startPlayniteSyncReminderJob } from './jobs/playniteSyncReminderJob.js';
 
 const app = await buildApp();
 
@@ -37,6 +38,9 @@ const releaseWatchJob = startReleaseWatchJob();
 // Playtime tracking (#548) - dormant by default (see env.ts), ships in sections across several
 // PRs before any user-facing nudge exists yet to consume what it snapshots.
 const playtimeSnapshotJob = env.PLAYTIME_TRACKING_ENABLED ? startPlaytimeSnapshotJob() : null;
+// Playnite sync staleness reminder (#570) - same single-process reasoning as the jobs above; a
+// stale Playnite library isn't tied to any user action either.
+const playniteSyncReminderJob = startPlayniteSyncReminderJob();
 
 const SHUTDOWN_TIMEOUT_MS = 10_000;
 let shuttingDown = false;
@@ -62,6 +66,7 @@ async function shutdown(signal: string) {
     anniversaryBadgeJob.stop();
     releaseWatchJob.stop();
     playtimeSnapshotJob?.stop();
+    playniteSyncReminderJob.stop();
     // Stops accepting new connections, waits for in-flight requests, runs plugins' onClose hooks.
     await app.close();
     await prisma.$disconnect();

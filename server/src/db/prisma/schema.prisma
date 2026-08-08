@@ -93,6 +93,11 @@ enum NotificationType {
   /// offer a one-click "Mark Playing" action (see Notification.gameId below). Same
   /// gated-behind-PLAYTIME_TRACKING_ENABLED reasoning as the rest of issue #548.
   playtime_mark_playing
+  /// A Playnite-linked user hasn't synced in 48+ hours (issue #570, see
+  /// jobs/playniteSyncReminderJob.ts) - always direct (recipientId), never room-scoped, same shape
+  /// as release_watch. "Synced" is approximated by ApiKey.lastUsedAt on their Playnite Import key,
+  /// same signal PlayniteImportModal's own linking step already polls.
+  playnite_sync_reminder
 
   @@map("notification_type")
 }

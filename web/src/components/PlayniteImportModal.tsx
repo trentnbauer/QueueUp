@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
-import { encodeConnectionCode } from '@queueup/shared';
+import { encodeConnectionCode, PLAYNITE_API_KEY_LABEL } from '@queueup/shared';
 import { apiKeysApi, API_KEYS_QUERY_KEY } from '../api/apiKeys';
 import { useModalA11y, closeOnBackdropMouseDown } from '../hooks/useModalA11y';
 import { getBasePath } from '../utils/basePath';
@@ -8,7 +8,6 @@ import profileStyles from '../views/ProfileSettingsView.module.css';
 import modalStyles from './ImportLibraryModal.module.css';
 import keyStyles from './ApiKeysSection.module.css';
 
-const PLAYNITE_KEY_LABEL = 'Playnite Import';
 // GitHub's stable "latest release" redirect (not a specific tagged/versioned URL) - the .pext
 // asset's filename bakes its version number in (e.g. QueueUpExporter_v0.3.1.pext), so linking a
 // specific asset directly would go stale the next time a release ships. This always lands on
@@ -74,7 +73,7 @@ export function PlayniteImportModal({ onClose }: PlayniteImportModalProps) {
     setGenerating(true);
     setError(null);
     try {
-      const created = await apiKeysApi.create(PLAYNITE_KEY_LABEL);
+      const created = await apiKeysApi.create(PLAYNITE_API_KEY_LABEL);
       // Issue #438: appended getBasePath() to the origin so a sub-path-hosted instance's
       // connection code still points at the right mount point. Whether the external Playnite
       // extension (QueueUpPlayniteExtension, a separate C# repo not covered by this app's tests)
