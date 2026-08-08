@@ -116,7 +116,14 @@ export function GameCard({
       <div
         className={`${styles.card} ${selectable && selected ? styles.cardSelected : ''}`}
         onClick={handleCardClick}
+        onKeyDown={(e) => {
+          if (e.key === 'Enter' || e.key === ' ') {
+            e.preventDefault();
+            handleCardClick();
+          }
+        }}
         role="button"
+        tabIndex={0}
         aria-label={game.title}
         title={game.title}
       >

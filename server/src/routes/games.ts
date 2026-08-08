@@ -119,7 +119,6 @@ import { collectionProgress, IGDB_PLATFORM_NAMES, isNeglectedBacklogGame, PRICE_
 // elsewhere for platform-filter matching (see ownedPlatformLabels in Header.tsx).
 const STEAM_IMPORT_PLATFORM_LABEL = IGDB_PLATFORM_NAMES.pc[0];
 
-const GAME_STATUSES = ['backlog', 'playing', 'done', 'dropped', 'wishlist', 'replay', 'play_next', 'wont_play'] as const;
 // Mirrors web/src/components/gameGridLogic.ts's GAME_STATUS_LABEL - kept as a separate copy since
 // that file lives in the web package, not something the server can import from.
 const STATUS_LABELS: Record<GameStatus, string> = {
@@ -132,6 +131,12 @@ const STATUS_LABELS: Record<GameStatus, string> = {
   replay: 'Replay',
   wont_play: "Won't Play",
 };
+// Derived from STATUS_LABELS (a Record<GameStatus, string>, so the compiler already forces it to
+// stay exhaustive) rather than a second hand-written list - a plain array here isn't type-checked
+// against GameStatus at all, so it silently drifted before (see rooms.ts's ROOM_PLATFORMS, which
+// had the exact same problem: an allowlist array that doesn't get updated when a new enum value
+// is added elsewhere, quietly 400ing every request for the new value).
+const GAME_STATUSES = Object.keys(STATUS_LABELS) as GameStatus[];
 const PRICE_REGIONS = Object.keys(PRICE_REGION_LABELS) as PriceRegion[];
 // Shelves/rooms are meant to hold an actively-curated backlog, not a lifetime game archive - this
 // caps a single query so one runaway list can't pull unbounded rows (and unbounded price lookups)
