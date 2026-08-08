@@ -19,6 +19,11 @@
   border-color: var(--qu-accent);
 }
 
+.row:focus-visible {
+  outline: 2px solid var(--qu-accent);
+  outline-offset: -2px;
+}
+
 .rowSelected {
   outline: 2px solid var(--qu-accent);
   outline-offset: -2px;

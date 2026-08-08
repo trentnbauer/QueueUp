@@ -82,7 +82,14 @@ export function GameListRow({
       <div
         className={`${styles.row} ${selectable && selected ? styles.rowSelected : ''}`}
         onClick={handleRowClick}
+        onKeyDown={(e) => {
+          if (e.key === 'Enter' || e.key === ' ') {
+            e.preventDefault();
+            handleRowClick();
+          }
+        }}
         role="button"
+        tabIndex={0}
         aria-label={game.title}
       >
         {selectable && (

@@ -7,6 +7,11 @@
   cursor: pointer;
 }
 
+.card:focus-visible {
+  outline: 2px solid var(--qu-accent);
+  outline-offset: -2px;
+}
+
 .cardSelected {
   outline: 2px solid var(--qu-accent);
   outline-offset: -2px;
