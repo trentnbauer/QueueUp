@@ -1092,9 +1092,10 @@ export interface BacklogInsights {
    * since playtime-stamped entries are usually fewer than calendar-dated ones. */
   hoursTrackedEntryCount: number;
   /** Non-archived games currently in the caller's backlog (Personal Shelf + rooms), across every
-   * bucket in `ageDistribution` - an at-a-glance denominator for the distribution below. Capped
-   * defensively at MAX_GAMES_PER_LIST, same ceiling the rest of this route's queries use - a
-   * genuinely real-world backlog is expected to stay well under this. */
+   * bucket in `ageDistribution` - an at-a-glance denominator for the distribution below. This is
+   * the true total (an uncapped `count`), unlike `mostNeglectedGame`/`ageDistribution` below,
+   * which are derived from a sample capped at MAX_GAMES_PER_LIST (issue #587 - a backlog larger
+   * than the cap must still report its real size here). */
   backlogCount: number;
   mostNeglectedGame: MostNeglectedGame | null;
   /** The current backlog bucketed by time since added - see `BacklogAgeBucket`. */
