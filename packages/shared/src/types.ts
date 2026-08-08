@@ -11,7 +11,10 @@ export type RoomPlatform =
   | 'ps4'
   | 'ps5'
   | 'switch'
-  | 'switch2';
+  | 'switch2'
+  | 'quest'
+  | 'quest2'
+  | 'quest3';
 
 export const ROOM_PLATFORM_LABELS: Record<RoomPlatform, string> = {
   pc: 'PC',
@@ -23,6 +26,9 @@ export const ROOM_PLATFORM_LABELS: Record<RoomPlatform, string> = {
   ps5: 'PlayStation 5',
   switch: 'Switch',
   switch2: 'Switch 2',
+  quest: 'Meta Quest',
+  quest2: 'Meta Quest 2',
+  quest3: 'Meta Quest 3',
 };
 
 /** The exact IGDB platform name(s) each RoomPlatform family corresponds to - shared so both the
@@ -39,6 +45,12 @@ export const IGDB_PLATFORM_NAMES: Record<RoomPlatform, string[]> = {
   ps4: ['PlayStation 4'],
   ps5: ['PlayStation 5'],
   pc: ['PC (Microsoft Windows)', 'Mac', 'Linux'],
+  // The original Quest kept its pre-rebrand IGDB name ("Oculus Quest") rather than being
+  // retroactively renamed - confirmed against a live IGDB /platforms query (ids 384/386/471) -
+  // while Quest 2/3, which launched under the Meta brand, are "Meta Quest 2"/"Meta Quest 3".
+  quest: ['Oculus Quest'],
+  quest2: ['Meta Quest 2'],
+  quest3: ['Meta Quest 3'],
 };
 
 const PLATFORM_FAMILY_BRAND: Record<RoomPlatform, string> = {
@@ -51,6 +63,9 @@ const PLATFORM_FAMILY_BRAND: Record<RoomPlatform, string> = {
   ps5: 'PlayStation',
   switch: 'Nintendo Switch',
   switch2: 'Nintendo Switch',
+  quest: 'Meta Quest',
+  quest2: 'Meta Quest',
+  quest3: 'Meta Quest',
 };
 
 /** Which console brand a free-text platform label (e.g. "PlayStation 4", "Xbox Series X|S") belongs
@@ -66,6 +81,9 @@ export function platformBrand(label: string): string {
   let family: RoomPlatform | null = null;
   if (lower.includes('switch 2')) family = 'switch2';
   else if (lower.includes('switch')) family = 'switch';
+  else if (lower.includes('quest 3')) family = 'quest3';
+  else if (lower.includes('quest 2')) family = 'quest2';
+  else if (lower.includes('quest')) family = 'quest';
   else if (lower.includes('xbox series')) family = 'xbox_series';
   else if (lower.includes('xbox one')) family = 'xbox_one';
   else if (lower.includes('xbox 360')) family = 'xbox_360';
@@ -1277,6 +1295,7 @@ export type BadgeKey =
   | 'first_xbox_sync'
   | 'first_playstation_sync'
   | 'first_switch_sync'
+  | 'first_quest_sync'
   | 'first_franchise_finished'
   | 'first_tag_applied'
   | 'first_dlc_completionist'
@@ -1399,6 +1418,12 @@ export const BADGE_DEFINITIONS: Record<BadgeKey, BadgeDefinition> = {
     description: 'Synced a Switch game via Playnite.',
     emoji: '🍄',
   },
+  first_quest_sync: {
+    key: 'first_quest_sync',
+    name: 'Strapped In',
+    description: 'Synced a Meta Quest game via Playnite.',
+    emoji: '🥽',
+  },
   first_franchise_finished: {
     key: 'first_franchise_finished',
     name: 'Franchise Finisher',
@@ -1511,6 +1536,9 @@ export const PLATFORM_SYNC_BADGE_KEY: Record<RoomPlatform, BadgeKey> = {
   ps5: 'first_playstation_sync',
   switch: 'first_switch_sync',
   switch2: 'first_switch_sync',
+  quest: 'first_quest_sync',
+  quest2: 'first_quest_sync',
+  quest3: 'first_quest_sync',
 };
 
 /** One row of GET /api/me/badges - the full catalog, always all `ALL_BADGE_KEYS.length` entries

@@ -22,7 +22,7 @@ import type {
 } from '@queueup/shared';
 import { ROOM_PLATFORM_LABELS } from '@queueup/shared';
 
-const ROOM_PLATFORMS: RoomPlatform[] = ['pc', 'xbox_360', 'xbox_one', 'xbox_series', 'ps3', 'ps4', 'ps5', 'switch', 'switch2'];
+const ROOM_PLATFORMS = Object.keys(ROOM_PLATFORM_LABELS) as RoomPlatform[];
 const ROOM_ROLES: RoomRole[] = ['room_master', 'moderator', 'member'];
 const SPIN_WHEEL_THEMES: SpinWheelTheme[] = ['slot', 'crate', 'card_flip', 'roulette', 'random'];
 

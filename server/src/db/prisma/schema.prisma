@@ -55,6 +55,9 @@ enum RoomPlatform {
   ps5
   switch
   switch2
+  quest
+  quest2
+  quest3
 
   @@map("room_platform")
 }

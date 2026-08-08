@@ -202,6 +202,9 @@ export function platformFamilies(platforms?: IgdbPlatform[]): RoomPlatform[] {
     const lower = name.toLowerCase();
     if (lower.includes('switch 2')) families.add('switch2');
     else if (lower.includes('switch')) families.add('switch');
+    else if (lower.includes('quest 3')) families.add('quest3');
+    else if (lower.includes('quest 2')) families.add('quest2');
+    else if (lower.includes('quest')) families.add('quest');
     else if (lower.includes('xbox series')) families.add('xbox_series');
     else if (lower.includes('xbox one')) families.add('xbox_one');
     else if (lower.includes('xbox 360')) families.add('xbox_360');
