@@ -10,6 +10,13 @@
   margin-bottom: 7px;
 }
 
+.playtime {
+  text-transform: none;
+  letter-spacing: normal;
+  font-weight: 400;
+  color: var(--qu-muted);
+}
+
 .players {
   display: flex;
   flex-wrap: wrap;

@@ -449,6 +449,7 @@ export function GameDetailModal({
           currentUserId={currentUserId}
           isLoading={achievementsLoading}
           roomMembers={roomMembers}
+          playtimeMinutes={game.currentPlaytimeMinutes}
         />
 
         {suggestDone && (
