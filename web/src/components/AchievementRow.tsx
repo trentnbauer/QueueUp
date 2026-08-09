@@ -10,6 +10,10 @@ interface AchievementRowProps {
   /** Full room member list, same convention as VoteHeatmap - undefined on the Personal Shelf.
    * Only used here to pick the display variant (see below), not to list non-participants. */
   roomMembers?: User[];
+  /** Game.currentPlaytimeMinutes - total Steam playtime, never resets. Personal-Shelf-only (null
+   * for room games, which have no single unambiguous player), so only ever shown alongside the
+   * detailed variant below. Null/undefined hides the figure rather than showing "0h". */
+  playtimeMinutes?: number | null;
 }
 
 /** Shows each player's Steam achievement progress on this game (issue: "grab achievement count
@@ -28,13 +32,17 @@ interface AchievementRowProps {
  * nothing to show - no Steam release, nobody linked, or nobody's unlocked anything). Collapsing to
  * zero height in that last case would just move the same shift to a different moment - the instant
  * the query resolves empty - for every non-Steam game and every user with no Steam account linked. */
-export function AchievementRow({ players, currentUserId, isLoading, roomMembers }: AchievementRowProps) {
+export function AchievementRow({ players, currentUserId, isLoading, roomMembers, playtimeMinutes }: AchievementRowProps) {
   const hasPlayers = players.length > 0;
   const isPersonal = roomMembers === undefined;
+  const playtimeHours = playtimeMinutes != null ? Math.round((playtimeMinutes / 60) * 10) / 10 : null;
 
   return (
     <div className={styles.row}>
-      <div className={styles.label}>Achievements</div>
+      <div className={styles.label}>
+        Achievements
+        {isPersonal && playtimeHours != null && <span className={styles.playtime}> · {playtimeHours}h played</span>}
+      </div>
       <div className={isPersonal ? styles.playersDetailed : styles.players}>
         {isLoading ? (
           <div className={isPersonal ? styles.skeletonBar : styles.skeletonPill} aria-hidden="true" />
