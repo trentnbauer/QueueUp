@@ -12,7 +12,7 @@ export function AvatarBadge({ name, color, avatarUrl, size = 28, title }: Avatar
   const baseStyle: React.CSSProperties = {
     width: size,
     height: size,
-    borderRadius: '50%',
+    borderRadius: 0,
     flex: 'none',
   };
 

@@ -86,7 +86,7 @@
   position: absolute;
   top: 50%;
   transform: translateY(-50%);
-  font: 600 11px system-ui, sans-serif;
+  font: 600 11px var(--qu-body-font);
   color: var(--qu-muted);
   opacity: 0;
   transition: opacity 0.15s;
@@ -162,13 +162,13 @@
 }
 
 .waitingReadyCount {
-  font: 600 13px system-ui, sans-serif;
+  font: 600 13px var(--qu-body-font);
   color: var(--qu-accent, var(--qu-text));
   margin-top: 8px;
 }
 
 .waitingCountdown {
-  font: 500 13px system-ui, sans-serif;
+  font: 500 13px var(--qu-body-font);
   color: var(--qu-muted);
   margin-top: 6px;
   margin-bottom: 16px;
@@ -215,7 +215,7 @@
 
 .reelTile {
   /* width/height/left set inline - see .reelViewport's comment above. */
-  border-radius: 10px;
+  border-radius: 0;
   background-color: var(--qu-surface2);
   background-image: repeating-linear-gradient(135deg, var(--qu-stripe) 0px, var(--qu-stripe) 2px, transparent 2px, transparent 14px);
   background-size: cover;
@@ -230,7 +230,7 @@
   right: 0;
   bottom: 0;
   padding: 14px 6px 5px;
-  font: 700 10px system-ui, sans-serif;
+  font: 700 10px var(--qu-body-font);
   color: #fff;
   text-align: center;
   overflow: hidden;
@@ -248,7 +248,7 @@
 }
 
 .revealLabel {
-  font: 600 10.5px system-ui, sans-serif;
+  font: 600 10.5px var(--qu-body-font);
   letter-spacing: 0.05em;
   text-transform: uppercase;
   color: var(--qu-muted);
@@ -261,13 +261,13 @@
 }
 
 .revealTimeToBeat {
-  font: 500 13px system-ui, sans-serif;
+  font: 500 13px var(--qu-body-font);
   color: var(--qu-muted);
   margin-top: 2px;
 }
 
 .revealPrice {
-  font: 700 14px system-ui, sans-serif;
+  font: 700 14px var(--qu-body-font);
   color: var(--qu-text);
   margin-top: 4px;
 }

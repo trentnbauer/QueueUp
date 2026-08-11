@@ -12,7 +12,7 @@
 }
 
 .label {
-  font: 700 12px system-ui, sans-serif;
+  font: 700 12px var(--qu-body-font);
   letter-spacing: 0.04em;
   text-transform: uppercase;
   color: var(--qu-muted);
@@ -40,10 +40,10 @@
   left: 8px;
   z-index: 6;
   padding: 3px 8px;
-  border-radius: 999px;
+  border-radius: 0;
   background: rgba(0, 0, 0, 0.65);
   backdrop-filter: blur(2px);
   color: #fff;
-  font: 700 10.5px system-ui, sans-serif;
+  font: 700 10.5px var(--qu-body-font);
   pointer-events: none;
 }

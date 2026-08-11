@@ -106,7 +106,7 @@
 
 .rarity {
   margin-top: 6px;
-  font: 700 10.5px system-ui, sans-serif;
+  font: 700 10.5px var(--qu-body-font);
   text-transform: uppercase;
   letter-spacing: 0.03em;
   color: var(--qu-accent);

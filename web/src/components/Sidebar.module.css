@@ -1,18 +1,15 @@
 .sidebar {
-  width: 76px;
+  width: 230px;
   flex-shrink: 0;
   display: flex;
   flex-direction: column;
-  align-items: center;
-  gap: 10px;
-  padding: 14px 0;
   background: var(--qu-surface2);
   border-right: 1px solid var(--qu-border);
   height: 100vh;
   /* On mobile browsers, 100vh is the viewport height with the address bar collapsed - taller than
-     what's actually visible while it's showing, which pushed the bottom-anchored avatar button
-     (.profileMenu) off-screen until the page was scrolled. 100dvh tracks the real visible height
-     and is ignored as an unknown value by browsers that don't support it, leaving 100vh in effect. */
+     what's actually visible while it's showing, which pushed the bottom-anchored footer off-screen
+     until the page was scrolled. 100dvh tracks the real visible height and is ignored as an unknown
+     value by browsers that don't support it, leaving 100vh in effect. */
   height: 100dvh;
   position: sticky;
   top: 0;
@@ -28,28 +25,39 @@
 }
 
 .brand {
+  width: 100%;
   flex-shrink: 0;
   display: flex;
   align-items: center;
-  justify-content: center;
-  width: 44px;
-  height: 44px;
+  gap: 9px;
+  padding: 18px 18px 16px;
   border: none;
   background: none;
   cursor: pointer;
-  padding: 0;
+  text-align: left;
+}
+
+.logoMark {
+  position: relative;
+  flex-shrink: 0;
+  display: flex;
+}
+
+.wordmark {
+  font: 600 15px var(--qu-header-font);
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: var(--qu-text);
 }
 
 /* A small badge cut out of the sidebar background (via the border matching it), so it reads as a
- * notch on the icon rather than a solid dot floating on top - same treatment for the QU button and
- * each room icon below. */
+ * notch on the logo rather than a solid dot floating on top - same treatment for room rows below. */
 .unreadDot {
   position: absolute;
   top: -3px;
   right: -3px;
-  width: 12px;
-  height: 12px;
-  border-radius: 50%;
+  width: 10px;
+  height: 10px;
   background: #ff5c5c;
   border: 2px solid var(--qu-surface2);
 }
@@ -60,7 +68,6 @@
 .importSpinner {
   position: absolute;
   inset: -3px;
-  border-radius: 50%;
   border: 2px solid transparent;
   border-top-color: var(--qu-accent);
   animation: importSpin 0.9s linear infinite;
@@ -90,7 +97,7 @@
 }
 
 .notifTitle {
-  font: 700 13px system-ui, sans-serif;
+  font: 600 13px var(--qu-body-font);
   color: var(--qu-text);
 }
 
@@ -98,7 +105,7 @@
   background: none;
   border: none;
   color: var(--qu-muted);
-  font: 600 11px system-ui, sans-serif;
+  font: 500 11px var(--qu-mono-font);
   padding: 0;
   cursor: pointer;
 }
@@ -121,7 +128,6 @@
   flex-shrink: 0;
   width: 12px;
   height: 12px;
-  border-radius: 50%;
   border: 2px solid var(--qu-border);
   border-top-color: var(--qu-accent);
   animation: importSpin 0.9s linear infinite;
@@ -165,7 +171,7 @@
 }
 
 a.notifItem:hover {
-  background: var(--qu-neutral-pill-bg);
+  background: var(--qu-hover);
 }
 
 .notifUnread {
@@ -178,8 +184,8 @@ a.notifUnread:hover {
 }
 
 .notifRoomName {
-  font: 700 10.5px system-ui, sans-serif;
-  letter-spacing: 0.03em;
+  font: 500 10px var(--qu-mono-font);
+  letter-spacing: 0.08em;
   text-transform: uppercase;
   color: var(--qu-accent);
   margin-bottom: 2px;
@@ -191,8 +197,8 @@ a.notifUnread:hover {
 }
 
 .notifTime {
-  font-size: 10.5px;
-  color: var(--qu-muted);
+  font: 400 10.5px var(--qu-mono-font);
+  color: var(--qu-faint);
   margin-top: 3px;
 }
 
@@ -203,156 +209,180 @@ a.notifUnread:hover {
   font-size: 12.5px;
 }
 
-.divider {
+.navList {
   flex-shrink: 0;
-  width: 32px;
-  height: 1px;
-  background: var(--qu-border);
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  padding: 0 10px;
 }
 
-.icons {
+.navItem {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 9px 10px;
+  text-align: left;
+  font: 500 13.5px var(--qu-body-font);
+  color: var(--qu-muted);
+  text-decoration: none;
+  border-left: 2px solid transparent;
+}
+
+.navItem:hover {
+  background: var(--qu-hover);
+  color: var(--qu-text);
+}
+
+.navItemActive {
+  color: var(--qu-text);
+  background: var(--qu-hover);
+  border-left-color: var(--qu-accent);
+}
+
+.navBadge {
+  margin-left: auto;
+  flex-shrink: 0;
+  min-width: 16px;
+  padding: 1px 5px;
+  text-align: center;
+  background: var(--qu-accent);
+  color: var(--qu-accent-text);
+  font: 600 10px var(--qu-mono-font);
+}
+
+.roomsHeader {
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 22px 20px 8px;
+}
+
+.roomsLabel {
+  font: 500 10.5px var(--qu-mono-font);
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--qu-faint);
+}
+
+.addRoomButton {
+  display: flex;
+  color: var(--qu-faint);
+  background: none;
+  border: none;
+  padding: 2px;
+  cursor: pointer;
+}
+
+.addRoomButton:hover {
+  color: var(--qu-accent);
+}
+
+.roomsList {
   min-height: 0;
   display: flex;
   flex-direction: column;
+  gap: 1px;
+  padding: 0 10px;
+  overflow-y: auto;
+}
+
+.roomRow {
+  position: relative;
+  display: flex;
   align-items: center;
   gap: 10px;
-  overflow-y: auto;
-  width: 100%;
-  padding: 0 4px;
-}
-
-/* Discord-style server icon: a circle that morphs into a rounded square on hover/active, with a
- * small pill indicator growing on the rail's left edge to show which one is selected. */
-.roomIcon {
-  position: relative;
-  flex-shrink: 0;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  /* Sized off --qu-sidebar-icon-size (issue #340, see SidebarIconSizeContext) - the 48px fallback
-     matches the "large" preset, the rail's original fixed size, so a user who's never opened the
-     new setting sees no change. */
-  width: var(--qu-sidebar-icon-size, 48px);
-  height: var(--qu-sidebar-icon-size, 48px);
-  border-radius: 50%;
-  background: var(--qu-surface);
-  color: var(--qu-text);
-  font-weight: 700;
-  font-family: system-ui, sans-serif;
-  /* Scales with the icon (15px at the 48px default) so initials stay proportional instead of
-     overflowing a shrunk circle. */
-  font-size: calc(var(--qu-sidebar-icon-size, 48px) * 0.3125);
+  padding: 8px 10px;
+  text-align: left;
+  border-left: 2px solid transparent;
+  color: var(--qu-muted);
   text-decoration: none;
-  overflow: hidden;
-  transition: border-radius 0.15s ease, background 0.15s ease, width 0.15s ease, height 0.15s ease;
 }
 
-.roomIcon:hover {
-  border-radius: 16px;
+.roomRow:hover {
+  background: var(--qu-hover);
 }
 
-.roomIconActive {
-  border-radius: 16px;
+.roomRowActive {
+  color: var(--qu-text);
+  background: var(--qu-hover);
+  border-left-color: var(--qu-accent);
 }
 
-.roomIcon::before {
-  content: '';
-  position: absolute;
-  left: -8px;
-  top: 50%;
-  transform: translateY(-50%);
-  width: 4px;
-  height: 8px;
-  border-radius: 0 4px 4px 0;
-  background: var(--qu-text);
-  opacity: 0;
-  transition: height 0.15s ease, opacity 0.15s ease;
-}
-
-.roomIcon:hover::before {
-  opacity: 0.5;
-  height: 20px;
-}
-
-.roomIconActive::before {
-  opacity: 1;
-  height: 30px;
-}
-
-.addRoomIcon {
-  position: relative;
+.roomChip {
   flex-shrink: 0;
+  width: 20px;
+  height: 20px;
   display: flex;
   align-items: center;
   justify-content: center;
-  width: var(--qu-sidebar-icon-size, 48px);
-  height: var(--qu-sidebar-icon-size, 48px);
-  border-radius: 50%;
-  border: 1px dashed var(--qu-border);
-  cursor: pointer;
-  list-style: none;
-  transition: border-radius 0.15s ease, border-color 0.15s ease, width 0.15s ease, height 0.15s ease;
+  font: 600 9.5px var(--qu-mono-font);
 }
 
-/* Two independently-centered bars rather than a single glyph, so the "+" mark is pixel-perfect
- * regardless of font metrics. .addRoomPlus (the horizontal bar) is centered on .addRoomIcon via
- * top/left 50% + a negative margin of half its own size; its ::before (the vertical bar) is then
- * centered on *that* box the same way - offset by (parent - child) / 2 on each axis, which for a
- * 14x2 parent and a 2x14 child works out to left: 6px, top: -6px. A dimmer, muted-toward-the-
- * background tone rather than --qu-muted directly - this is a secondary "add" affordance, not
- * meant to read with the same visual weight as an actual room. */
-.addRoomPlus {
-  position: absolute;
-  top: 50%;
-  left: 50%;
-  width: 14px;
-  height: 2px;
-  margin: -1px 0 0 -7px;
-  border-radius: 1px;
-  background: color-mix(in srgb, var(--qu-muted) 55%, var(--qu-surface2));
-  transition: background 0.15s ease;
+.roomName {
+  flex: 1;
+  min-width: 0;
+  font-size: 13px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
-.addRoomPlus::before {
-  content: '';
-  position: absolute;
-  top: -6px;
-  left: 6px;
-  width: 2px;
-  height: 14px;
-  border-radius: 1px;
-  background: inherit;
-}
-
-.addRoomIcon:hover {
-  border-radius: 16px;
-  border-color: var(--qu-text);
-}
-
-.addRoomIcon:hover .addRoomPlus {
-  background: var(--qu-text);
-}
-
-.menu {
-  position: relative;
+.roomUnreadDot {
   flex-shrink: 0;
+  width: 6px;
+  height: 6px;
+  background: #ff5c5c;
 }
 
-/* Only the account/profile control (last in the rail) should be pushed to the bottom of the
- * sidebar - the room icon list and the "+" add-room button should sit directly beneath each other
- * regardless of how few rooms there are, rather than being stretched apart by empty space. */
-.profileMenu {
+.footer {
+  position: relative;
   margin-top: auto;
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 14px 14px 16px;
+  border-top: 1px solid var(--qu-border);
 }
 
 .userPanel {
+  flex: 1;
+  min-width: 0;
   display: flex;
   align-items: center;
-  justify-content: center;
+  gap: 10px;
   border: none;
   background: none;
   padding: 0;
   cursor: pointer;
+}
+
+.userName {
+  flex: 1;
+  min-width: 0;
+  font-size: 12.5px;
+  font-weight: 600;
+  color: var(--qu-text);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  text-align: left;
+}
+
+.themeToggle {
+  flex-shrink: 0;
+  display: flex;
+  padding: 4px;
+  color: var(--qu-muted);
+  background: none;
+  border: none;
+  cursor: pointer;
+}
+
+.themeToggle:hover {
+  color: var(--qu-accent);
 }
 
 .menuBackdrop {
@@ -368,8 +398,7 @@ a.notifUnread:hover {
   min-width: 210px;
   max-width: calc(100vw - 100px);
   background: var(--qu-surface);
-  border: 1px solid var(--qu-border);
-  border-radius: var(--qu-radius);
+  border: 1px solid var(--qu-border-hi);
   padding: 8px;
   display: flex;
   flex-direction: column;
@@ -383,9 +412,9 @@ a.notifUnread:hover {
   bottom: 0;
 }
 
-.userName {
+.flyoutUserName {
   padding: 6px 10px 4px;
-  font: 700 13px system-ui, sans-serif;
+  font: 600 13px var(--qu-body-font);
   color: var(--qu-text);
 }
 
@@ -399,7 +428,6 @@ a.notifUnread:hover {
   display: block;
   width: 100%;
   padding: 8px 10px;
-  border-radius: 6px;
   color: var(--qu-text);
   text-decoration: none;
   background: none;
@@ -410,7 +438,7 @@ a.notifUnread:hover {
 }
 
 .menuItem:hover {
-  background: var(--qu-neutral-pill-bg);
+  background: var(--qu-hover);
 }
 
 .mobileToggle {
@@ -443,7 +471,6 @@ a.notifUnread:hover {
     left: 12px;
     width: 36px;
     height: 36px;
-    border-radius: 10px;
     background: var(--qu-surface2);
     border: 1px solid var(--qu-border);
     color: var(--qu-text);
@@ -452,22 +479,15 @@ a.notifUnread:hover {
     z-index: 30;
   }
 
-  /* Below this breakpoint the rail becomes an off-canvas drawer instead of a permanent, always-
-   * visible strip - hidden by default (slid fully off-screen) and toggled via .mobileToggle,
-   * rather than just shrinking icon sizes and still eating screen width at all times. */
+  /* Below this breakpoint the panel becomes an off-canvas drawer instead of a permanent, always-
+   * visible 230px panel - hidden by default (slid fully off-screen) and toggled via
+   * .mobileToggle, rather than eating screen width at all times. */
   .sidebar {
     position: fixed;
     top: 0;
     left: 0;
-    /* Same icon-only content as the desktop rail (no text labels) - it doesn't need anywhere near
-       240px, which was eating well over half the screen on a typical phone. */
-    width: 92px;
-    max-width: 80vw;
-    /* .mobileToggle sits fixed at top:12px/left:12px, 36px square, with a higher z-index than this
-       drawer - without room cleared for it, the drawer's own top:14px padding put the brand logo
-       button directly underneath it once open, so its "X" visually clipped the logo (issue #479).
-       64px clears the toggle's 12+36=48px bottom edge with a little breathing room. */
-    padding-top: 64px;
+    width: 260px;
+    max-width: 84vw;
     transform: translateX(-100%);
     transition: transform 0.2s ease;
     z-index: 26;

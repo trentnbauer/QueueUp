@@ -8,9 +8,10 @@ interface LogoProps {
  * network round trip - the same shape is exported standalone as web/public/favicon.svg for the
  * browser tab/bookmarks, where an actual file is required. Keep the two in sync by hand if this
  * mark ever changes; there's no build step tying them together. Arial/Helvetica rather than the
- * app's own Space Grotesk header font - a favicon file viewed outside the app (browser tab,
- * bookmarks, OS file browser) has no access to that webfont, so both places use the same
- * universally-available fallback rather than looking different depending on context. */
+ * app's own Barlow header font - a favicon file viewed outside the app (browser tab, bookmarks, OS
+ * file browser) has no access to that webfont, so both places use the same universally-available
+ * fallback rather than looking different depending on context. Square corners (rx 0), matching the
+ * industrial/minimal redesign's zero-radius language everywhere else. */
 export function Logo({ size = 40, className }: LogoProps) {
   return (
     <svg
@@ -21,7 +22,7 @@ export function Logo({ size = 40, className }: LogoProps) {
       role="img"
       aria-label="QueueUp"
     >
-      <rect x="4" y="4" width="56" height="56" rx="12" fill="var(--qu-accent)" />
+      <rect x="4" y="4" width="56" height="56" fill="var(--qu-accent)" />
       <text
         x="32"
         y="43.5"

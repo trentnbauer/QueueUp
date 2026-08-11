@@ -128,7 +128,7 @@
   flex-shrink: 0;
   width: 46px;
   height: 22px;
-  border-radius: 4px;
+  border-radius: 0;
   background-color: var(--qu-surface);
   background-size: cover;
   background-position: center;

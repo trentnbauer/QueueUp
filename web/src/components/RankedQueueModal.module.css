@@ -82,7 +82,7 @@
   flex: 0 0 auto;
   width: 22px;
   text-align: center;
-  font: 700 13px system-ui, sans-serif;
+  font: 700 13px var(--qu-body-font);
   color: var(--qu-muted);
 }
 

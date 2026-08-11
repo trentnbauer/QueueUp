@@ -38,7 +38,7 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  border-radius: 50%;
+  border-radius: 0;
   background: rgba(0, 0, 0, 0.65);
   font-size: 13px;
   line-height: 1;
@@ -77,7 +77,7 @@
 }
 
 .coverLabel {
-  font: 600 13px system-ui, sans-serif;
+  font: 600 13px var(--qu-body-font);
   color: var(--qu-muted);
   text-align: center;
   padding: 0 12px;
@@ -180,7 +180,7 @@
   align-items: center;
   gap: 1px;
   padding: 5px 7px;
-  border-radius: 10px;
+  border-radius: 0;
   background: rgba(0, 0, 0, 0.55);
   backdrop-filter: blur(2px);
 }
@@ -191,7 +191,7 @@
 }
 
 .voteBadgeScore {
-  font: 700 10.5px system-ui, sans-serif;
+  font: 700 10.5px var(--qu-body-font);
   color: rgba(255, 255, 255, 0.85);
   line-height: 1;
 }
@@ -207,17 +207,17 @@
   align-items: center;
   gap: 4px;
   padding: 5px 9px;
-  border-radius: 999px;
+  border-radius: 0;
   background: rgba(0, 0, 0, 0.55);
   backdrop-filter: blur(2px);
-  font: 700 10.5px system-ui, sans-serif;
+  font: 700 10.5px var(--qu-body-font);
   color: rgba(255, 255, 255, 0.85);
   white-space: nowrap;
 }
 
 .everyoneOwnsLine {
-  font: 800 10.5px system-ui, sans-serif;
-  letter-spacing: 0.02em;
+  font: 600 10px var(--qu-mono-font);
+  letter-spacing: 0.06em;
   text-transform: uppercase;
   color: var(--qu-accent2);
 }
@@ -225,8 +225,8 @@
 /* Parallel to .everyoneOwnsLine (issue #368) - a coordinated-group-buy signal for the Wishlist,
    not just the "everyone" special case, so a partial overlap (e.g. "3/4") still surfaces. */
 .wishlistLine {
-  font: 800 10.5px system-ui, sans-serif;
-  letter-spacing: 0.02em;
+  font: 600 10px var(--qu-mono-font);
+  letter-spacing: 0.06em;
   text-transform: uppercase;
   color: var(--qu-accent);
 }
@@ -235,7 +235,7 @@
   display: flex;
   align-items: center;
   gap: 6px;
-  font: 700 13px system-ui, sans-serif;
+  font: 700 13px var(--qu-body-font);
   color: rgba(255, 255, 255, 0.9);
 }
 
@@ -246,19 +246,19 @@
 }
 
 .ownedLabel {
-  font: 800 13px system-ui, sans-serif;
+  font: 800 13px var(--qu-body-font);
   color: var(--qu-accent2);
 }
 
 .ownedPriceHint {
-  font: 500 11px system-ui, sans-serif;
+  font: 500 11px var(--qu-body-font);
   color: rgba(255, 255, 255, 0.6);
 }
 
 /* Issue #456: which system(s) a Personal Shelf game is owned on, e.g. "PC · Switch". Small/muted
    like ownedPriceHint - informational, not the primary "Owned" signal. */
 .ownedPlatformsLine {
-  font: 600 10.5px system-ui, sans-serif;
+  font: 600 10.5px var(--qu-body-font);
   color: rgba(255, 255, 255, 0.65);
 }
 
@@ -266,7 +266,7 @@
   display: flex;
   align-items: center;
   gap: 8px;
-  font: 700 13.5px system-ui, sans-serif;
+  font: 700 13.5px var(--qu-body-font);
   color: var(--qu-text);
 }
 
@@ -300,7 +300,7 @@
   align-items: center;
   justify-content: center;
   padding: 9px 14px;
-  border-radius: 999px;
+  border-radius: 0;
   background: var(--qu-neutral-pill-bg);
   color: var(--qu-muted);
 }
@@ -327,7 +327,7 @@
 }
 
 .historicalLow {
-  font: 600 10.5px system-ui, sans-serif;
+  font: 600 10.5px var(--qu-body-font);
   color: #f66a6a;
 }
 
@@ -338,7 +338,7 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  border-radius: 10px;
+  border-radius: 0;
   background: var(--qu-neutral-pill-bg);
   color: var(--qu-muted);
   border: none;
@@ -371,7 +371,7 @@
 }
 
 .lastRefreshed {
-  font: 500 10.5px system-ui, sans-serif;
+  font: 500 10.5px var(--qu-body-font);
   color: var(--qu-muted);
 }
 
@@ -382,7 +382,7 @@
   border: none;
   background: transparent;
   color: var(--qu-muted);
-  font: 500 11px system-ui, sans-serif;
+  font: 500 11px var(--qu-body-font);
   text-decoration: underline;
   cursor: pointer;
   text-align: left;
@@ -401,7 +401,7 @@
   background: var(--qu-neutral-pill-bg);
   color: var(--qu-muted);
   border: none;
-  font: 600 11px system-ui, sans-serif;
+  font: 600 11px var(--qu-body-font);
   text-align: left;
   cursor: pointer;
 }
@@ -425,11 +425,11 @@
   border-radius: var(--qu-radius);
   background: var(--qu-accent-pill-bg);
   color: var(--qu-accent);
-  font: 600 11px system-ui, sans-serif;
+  font: 600 11px var(--qu-body-font);
 }
 
 .addedBy {
-  font: 400 11px system-ui, sans-serif;
+  font: 400 11px var(--qu-body-font);
   color: var(--qu-muted);
   display: flex;
   align-items: center;
@@ -451,7 +451,7 @@
   background: none;
   border: none;
   color: var(--qu-muted);
-  font: 600 11px system-ui, sans-serif;
+  font: 600 11px var(--qu-body-font);
   padding: 0;
 }
 
@@ -464,10 +464,10 @@
   align-items: center;
   gap: 6px;
   padding: 4px 6px 4px 10px;
-  border-radius: 999px;
+  border-radius: 0;
   background: var(--qu-accent-pill-bg);
   color: var(--qu-accent);
-  font: 600 11.5px system-ui, sans-serif;
+  font: 600 11.5px var(--qu-body-font);
 }
 
 .targetPriceClear {
@@ -502,7 +502,7 @@
   flex-shrink: 0;
   border: none;
   border-radius: var(--qu-radius);
-  font: 600 11px system-ui, sans-serif;
+  font: 600 11px var(--qu-body-font);
   padding: 6px 10px;
 }
 
@@ -517,7 +517,7 @@
 }
 
 .coopWarning {
-  font: 600 11px system-ui, sans-serif;
+  font: 600 11px var(--qu-body-font);
   color: #ffb84a;
   background: rgba(255, 184, 74, 0.12);
   border-radius: var(--qu-radius);

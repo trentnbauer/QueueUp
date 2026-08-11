@@ -37,7 +37,7 @@
 }
 
 .count {
-  font: 700 13px system-ui, sans-serif;
+  font: 700 13px var(--qu-body-font);
   color: var(--qu-text);
 }
 

@@ -88,7 +88,7 @@
   flex-shrink: 0;
   width: 36px;
   aspect-ratio: 2 / 3;
-  border-radius: 4px;
+  border-radius: 0;
   overflow: hidden;
   background-color: var(--qu-surface);
   background-size: cover;
@@ -131,7 +131,7 @@
 .addButton {
   flex-shrink: 0;
   padding: 7px 16px;
-  border-radius: 999px;
+  border-radius: 0;
   background: var(--qu-accent);
   color: var(--qu-accent-text);
   font-weight: 700;

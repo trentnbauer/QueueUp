@@ -12,8 +12,8 @@ export function VoteRow({ myVote, onVote }: VoteRowProps) {
     <div>
       <div
         style={{
-          font: '600 10px system-ui, sans-serif',
-          letterSpacing: '.05em',
+          font: '500 10px var(--qu-mono-font)',
+          letterSpacing: '.1em',
           color: 'var(--qu-muted)',
           marginBottom: 7,
           textTransform: 'uppercase',
@@ -33,7 +33,7 @@ export function VoteRow({ myVote, onVote }: VoteRowProps) {
               style={{
                 flex: 1,
                 height: 32,
-                borderRadius: 8,
+                borderRadius: 0,
                 display: 'flex',
                 alignItems: 'center',
                 justifyContent: 'center',

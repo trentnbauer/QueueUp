@@ -38,100 +38,62 @@
 
 .addGameButton {
   flex-shrink: 0;
-  padding: 9px 18px;
-  border-radius: var(--qu-radius);
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  height: 32px;
+  padding: 0 14px;
   background: var(--qu-accent);
   color: var(--qu-accent-text);
-  font-weight: 700;
-  font-size: 13px;
+  font-weight: 600;
+  font-size: 12.5px;
   border: none;
   cursor: pointer;
   white-space: nowrap;
 }
 
 .addGameButton:hover {
-  filter: brightness(1.1);
+  background: var(--qu-accent-hi);
 }
 
-.importLibraryButton {
+.importLibraryButton,
+.rankedQueueButton,
+.nextPickButton,
+.suggestionsButton {
   flex-shrink: 0;
-  padding: 9px 14px;
-  border-radius: var(--qu-radius);
-  background: var(--qu-surface);
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  height: 32px;
+  padding: 0 13px;
+  background: transparent;
   color: var(--qu-text);
-  font-weight: 600;
-  font-size: 13px;
+  font-weight: 500;
+  font-size: 12.5px;
   border: 1px solid var(--qu-border);
   cursor: pointer;
   white-space: nowrap;
 }
 
-.importLibraryButton:hover:not(:disabled) {
-  background: var(--qu-surface2);
+.importLibraryButton:hover:not(:disabled),
+.rankedQueueButton:hover,
+.nextPickButton:hover,
+.suggestionsButton:hover {
+  border-color: var(--qu-accent);
+  color: var(--qu-accent);
 }
 
 .importLibraryButton:disabled {
-  opacity: 0.7;
+  opacity: 0.6;
   cursor: default;
-}
-
-.rankedQueueButton {
-  flex-shrink: 0;
-  padding: 9px 14px;
-  border-radius: var(--qu-radius);
-  background: var(--qu-surface);
-  color: var(--qu-text);
-  font-weight: 600;
-  font-size: 13px;
-  border: 1px solid var(--qu-border);
-  cursor: pointer;
-  white-space: nowrap;
-}
-
-.rankedQueueButton:hover {
-  background: var(--qu-surface2);
-}
-
-.nextPickButton {
-  flex-shrink: 0;
-  padding: 9px 14px;
-  border-radius: var(--qu-radius);
-  background: var(--qu-surface);
-  color: var(--qu-text);
-  font-weight: 600;
-  font-size: 13px;
-  border: 1px solid var(--qu-border);
-  cursor: pointer;
-  white-space: nowrap;
-}
-
-.nextPickButton:hover {
-  background: var(--qu-surface2);
-}
-
-.suggestionsButton {
-  flex-shrink: 0;
-  padding: 9px 14px;
-  border-radius: var(--qu-radius);
-  background: var(--qu-surface);
-  color: var(--qu-text);
-  font-weight: 600;
-  font-size: 13px;
-  border: 1px solid var(--qu-border);
-  cursor: pointer;
-  white-space: nowrap;
-}
-
-.suggestionsButton:hover {
-  background: var(--qu-surface2);
 }
 
 .searchInput {
   flex-shrink: 0;
+  height: 32px;
   width: 200px;
-  padding: 9px 12px;
-  border-radius: var(--qu-radius);
-  background: var(--qu-surface2);
+  padding: 0 12px;
+  background: var(--qu-field);
   border: 1px solid var(--qu-border);
   color: var(--qu-text);
   font-size: 13px;
@@ -148,10 +110,10 @@
 }
 
 .filterLabel {
-  font: 700 10px system-ui, sans-serif;
-  letter-spacing: 0.05em;
+  font: 500 10.5px var(--qu-mono-font);
+  letter-spacing: 0.1em;
   text-transform: uppercase;
-  color: var(--qu-muted);
+  color: var(--qu-faint);
 }
 
 .filterPills {
@@ -161,13 +123,13 @@
 }
 
 .filterPill {
-  padding: 5px 12px;
-  border-radius: 999px;
-  background: var(--qu-neutral-pill-bg);
+  height: 26px;
+  padding: 0 11px;
+  background: transparent;
   color: var(--qu-muted);
-  border: none;
-  font-size: 12.5px;
-  font-weight: 600;
+  border: 1px solid var(--qu-border);
+  font-size: 12px;
+  font-weight: 500;
   cursor: pointer;
   white-space: nowrap;
   /* Status filter options are raw lowercase enum values ('backlog', 'wishlist', ...) - capitalize
@@ -178,11 +140,13 @@
 
 .filterPill:hover {
   color: var(--qu-text);
+  border-color: var(--qu-border-hi);
 }
 
 .filterPillActive {
-  background: var(--qu-accent-pill-bg);
-  color: var(--qu-accent);
+  background: var(--qu-accent);
+  color: var(--qu-accent-text);
+  border-color: var(--qu-accent);
 }
 
 /* "Won't Play all" (bulk-clear collecting-dust games) - deliberately outlined rather than filled
@@ -190,7 +154,7 @@
    filter toggle. */
 .clearCruftButton {
   padding: 4px 11px;
-  border-radius: 999px;
+  border-radius: 0;
   background: transparent;
   color: var(--qu-muted);
   border: 1px solid var(--qu-border);
@@ -211,7 +175,7 @@
 }
 
 .title {
-  font: 700 19px var(--qu-header-font);
+  font: 600 19px var(--qu-header-font);
   color: var(--qu-text);
   letter-spacing: 0.01em;
 }
@@ -229,7 +193,7 @@
 .avatarStack > * {
   margin-left: -9px;
   border: 2px solid var(--qu-surface2);
-  border-radius: 50%;
+  border-radius: 0;
 }
 
 .avatarStackButton {
@@ -297,7 +261,7 @@
 
 .memberAction {
   padding: 4px 9px;
-  border-radius: 6px;
+  border-radius: 0;
   background: var(--qu-neutral-pill-bg);
   color: var(--qu-text);
   border: none;
@@ -314,34 +278,25 @@
   position: relative;
 }
 
-.inviteBadge {
-  display: flex;
-  align-items: center;
-  padding: 6px 12px;
-  border-radius: 999px;
-  background: var(--qu-neutral-pill-bg);
-  color: var(--qu-muted);
-  border: none;
-  font: 600 11.5px system-ui, sans-serif;
-  white-space: nowrap;
-  cursor: pointer;
-}
-
-/* Same pill look as .inviteBadge, but a plain (non-interactive, non-button) label - a game count
-   isn't clickable to anything. */
+.inviteBadge,
 .gameCountBadge {
   display: flex;
   align-items: center;
-  padding: 6px 12px;
-  border-radius: 999px;
-  background: var(--qu-neutral-pill-bg);
-  color: var(--qu-muted);
-  font: 600 11.5px system-ui, sans-serif;
+  height: 24px;
+  padding: 0 9px;
+  background: transparent;
+  color: var(--qu-faint);
+  border: 1px solid var(--qu-border);
+  font: 500 10.5px var(--qu-mono-font);
   white-space: nowrap;
 }
 
+.inviteBadge {
+  cursor: pointer;
+}
+
 .inviteBadge:hover {
-  background: var(--qu-accent-pill-bg);
+  border-color: var(--qu-accent);
   color: var(--qu-accent);
 }
 
@@ -349,18 +304,18 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  width: 30px;
-  height: 30px;
-  border-radius: 50%;
-  background: var(--qu-neutral-pill-bg);
-  color: var(--qu-text);
-  border: none;
-  font-size: 14px;
+  width: 26px;
+  height: 26px;
+  background: transparent;
+  color: var(--qu-muted);
+  border: 1px solid var(--qu-border);
+  font-size: 13px;
   cursor: pointer;
 }
 
 .settingsButton:hover {
-  background: var(--qu-surface2);
+  border-color: var(--qu-border-hi);
+  color: var(--qu-text);
 }
 
 .menuPanel {
@@ -370,8 +325,7 @@
   min-width: 220px;
   max-width: calc(100vw - 32px);
   background: var(--qu-surface);
-  border: 1px solid var(--qu-border);
-  border-radius: var(--qu-radius);
+  border: 1px solid var(--qu-border-hi);
   padding: 8px;
   display: flex;
   flex-direction: column;
@@ -379,32 +333,33 @@
   z-index: 10;
 }
 
-
 .filtersButton {
   position: relative;
   flex-shrink: 0;
-  padding: 9px 14px;
-  border-radius: var(--qu-radius);
-  background: var(--qu-surface);
+  display: flex;
+  align-items: center;
+  height: 32px;
+  padding: 0 13px;
+  background: transparent;
   color: var(--qu-text);
-  font-weight: 600;
-  font-size: 13px;
+  font-weight: 500;
+  font-size: 12.5px;
   border: 1px solid var(--qu-border);
   cursor: pointer;
   white-space: nowrap;
 }
 
 .filtersButton:hover {
-  background: var(--qu-surface2);
+  border-color: var(--qu-accent);
+  color: var(--qu-accent);
 }
 
 .filtersButtonBadge {
   position: absolute;
   top: -3px;
   right: -3px;
-  width: 9px;
-  height: 9px;
-  border-radius: 50%;
+  width: 8px;
+  height: 8px;
   background: var(--qu-accent);
   border: 2px solid var(--qu-surface2);
 }
