@@ -12,15 +12,15 @@
 
 .selectButton {
   padding: 7px 14px;
-  border-radius: var(--qu-radius);
-  background: var(--qu-surface);
+  background: transparent;
   color: var(--qu-text);
   border: 1px solid var(--qu-border);
   font-size: 12.5px;
-  font-weight: 600;
+  font-weight: 500;
   cursor: pointer;
 }
 
 .selectButton:hover {
-  background: var(--qu-surface2);
+  border-color: var(--qu-accent);
+  color: var(--qu-accent);
 }

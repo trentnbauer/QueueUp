@@ -78,7 +78,7 @@
   width: 84px;
   height: 112px;
   object-fit: cover;
-  border-radius: 6px;
+  border-radius: 0;
   background: var(--qu-bg);
 }
 

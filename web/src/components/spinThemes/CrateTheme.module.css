@@ -48,7 +48,7 @@
   position: absolute;
   width: 20px;
   height: 20px;
-  border-radius: 50%;
+  border-radius: 0;
   z-index: 1;
   animation: burstFlash 0.35s ease-out forwards;
 }
@@ -69,7 +69,7 @@
 .itemReveal {
   width: 130px;
   height: 130px;
-  border-radius: 12px;
+  border-radius: 0;
   border: 3px solid;
   background-color: var(--qu-surface2);
   background-image: repeating-linear-gradient(135deg, var(--qu-stripe) 0px, var(--qu-stripe) 2px, transparent 2px, transparent 14px);
@@ -95,6 +95,6 @@
 }
 
 .itemLabel {
-  font: 700 12px system-ui, sans-serif;
+  font: 700 12px var(--qu-body-font);
   color: var(--qu-text);
 }

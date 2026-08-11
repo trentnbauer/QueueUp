@@ -28,7 +28,7 @@
 }
 
 .sectionTitle {
-  font: 700 13px system-ui, sans-serif;
+  font: 700 13px var(--qu-body-font);
   letter-spacing: 0.04em;
   text-transform: uppercase;
   color: var(--qu-muted);
@@ -45,7 +45,7 @@
   align-items: center;
   gap: 6px;
   padding: 6px 12px;
-  border-radius: 999px;
+  border-radius: 0;
   background: var(--qu-neutral-pill-bg);
   font-size: 12.5px;
   color: var(--qu-text);
@@ -98,7 +98,7 @@
 
 .adminBadge {
   padding: 2px 8px;
-  border-radius: 999px;
+  border-radius: 0;
   background: var(--qu-accent-pill-bg);
   color: var(--qu-accent);
   font-size: 10.5px;

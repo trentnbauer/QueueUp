@@ -12,7 +12,7 @@
 }
 
 .label {
-  font: 700 12px system-ui, sans-serif;
+  font: 700 12px var(--qu-body-font);
   letter-spacing: 0.04em;
   text-transform: uppercase;
   color: var(--qu-muted);

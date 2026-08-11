@@ -96,7 +96,7 @@
   flex-shrink: 0;
   width: 30px;
   height: 40px;
-  border-radius: 4px;
+  border-radius: 0;
   background-color: var(--qu-surface);
   background-size: cover;
   background-position: center;
@@ -110,7 +110,7 @@
 }
 
 .rowTitle {
-  font: 700 12.5px system-ui, sans-serif;
+  font: 700 12.5px var(--qu-body-font);
   color: var(--qu-text);
   white-space: nowrap;
   overflow: hidden;

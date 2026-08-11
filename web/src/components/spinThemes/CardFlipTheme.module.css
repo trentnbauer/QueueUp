@@ -7,7 +7,7 @@
 }
 
 .cardSlot {
-  border-radius: 12px;
+  border-radius: 0;
   transition: box-shadow 0.1s ease-out;
 }
 
@@ -31,7 +31,7 @@
 .cardFront {
   position: absolute;
   inset: 0;
-  border-radius: 10px;
+  border-radius: 0;
   backface-visibility: hidden;
   display: flex;
   align-items: center;
@@ -56,6 +56,6 @@
 }
 
 .cardFrontLabel {
-  font: 700 9.5px system-ui, sans-serif;
+  font: 700 9.5px var(--qu-body-font);
   color: var(--qu-text);
 }

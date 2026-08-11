@@ -5,7 +5,7 @@
   gap: 12px;
   margin: 0 40px 12px;
   padding: 8px 14px;
-  border-radius: 8px;
+  border-radius: 0;
   background: color-mix(in srgb, #ff8a80 14%, transparent);
   color: #ff8a80;
   font-size: 13px;

@@ -76,7 +76,7 @@
 }
 
 .cardLabel {
-  font: 700 10.5px system-ui, sans-serif;
+  font: 700 10.5px var(--qu-body-font);
   text-transform: uppercase;
   letter-spacing: 0.05em;
   color: var(--qu-accent);

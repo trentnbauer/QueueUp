@@ -34,7 +34,7 @@
   flex-shrink: 0;
   width: 48px;
   height: 64px;
-  border-radius: 6px;
+  border-radius: 0;
   background-color: var(--qu-surface2);
   background-size: cover;
   background-position: center;
@@ -54,7 +54,7 @@
 }
 
 .genre {
-  font: 500 11.5px system-ui, sans-serif;
+  font: 500 11.5px var(--qu-body-font);
   color: var(--qu-muted);
 }
 
@@ -79,7 +79,7 @@
 }
 
 .sectionTitle {
-  font: 700 12.5px system-ui, sans-serif;
+  font: 700 12.5px var(--qu-body-font);
   color: var(--qu-text);
   margin-bottom: -6px;
 }
@@ -89,7 +89,7 @@
   align-items: center;
   justify-content: space-between;
   gap: 10px;
-  font: 600 12px system-ui, sans-serif;
+  font: 600 12px var(--qu-body-font);
   color: var(--qu-accent2);
   background: var(--qu-accent2-pill-bg);
   border-radius: var(--qu-radius);
@@ -115,7 +115,7 @@
   background: var(--qu-surface2);
   border: 1px solid var(--qu-border);
   color: var(--qu-text);
-  font: 600 13px system-ui, sans-serif;
+  font: 600 13px var(--qu-body-font);
 }
 
 .viewDlcButton {
@@ -125,7 +125,7 @@
   background: var(--qu-surface2);
   border: 1px solid var(--qu-border);
   color: var(--qu-text);
-  font: 600 13px system-ui, sans-serif;
+  font: 600 13px var(--qu-body-font);
   cursor: pointer;
   text-align: left;
 }
@@ -142,11 +142,11 @@
 
 .statusButton {
   padding: 7px 12px;
-  border-radius: 999px;
+  border-radius: 0;
   border: 1px solid var(--qu-border);
   background: transparent;
   color: var(--qu-muted);
-  font: 700 12px system-ui, sans-serif;
+  font: 700 12px var(--qu-body-font);
   cursor: pointer;
 }
 
@@ -168,7 +168,7 @@
   border: none;
   background: transparent;
   color: #ff8a80;
-  font: 700 12px system-ui, sans-serif;
+  font: 700 12px var(--qu-body-font);
   cursor: pointer;
   padding: 4px 0;
 }

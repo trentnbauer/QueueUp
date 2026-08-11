@@ -11,7 +11,6 @@ import { ThemeModeProvider } from './context/ThemeModeContext';
 import { CurrencyRegionProvider } from './context/CurrencyRegionContext';
 import { CardDensityProvider } from './context/CardDensityContext';
 import { ViewModeProvider } from './context/ViewModeContext';
-import { SidebarIconSizeProvider } from './context/SidebarIconSizeContext';
 import { ConfirmProvider } from './context/ConfirmContext';
 import { AchievementUnlockProvider } from './context/AchievementUnlockContext';
 import { ToastProvider } from './context/ToastContext';
@@ -36,15 +35,13 @@ createRoot(document.getElementById('root')!).render(
                   <CurrencyRegionProvider>
                     <CardDensityProvider>
                       <ViewModeProvider>
-                        <SidebarIconSizeProvider>
-                          <ConfirmProvider>
-                            <AchievementUnlockProvider>
-                              <ToastProvider>
-                                <App />
-                              </ToastProvider>
-                            </AchievementUnlockProvider>
-                          </ConfirmProvider>
-                        </SidebarIconSizeProvider>
+                        <ConfirmProvider>
+                          <AchievementUnlockProvider>
+                            <ToastProvider>
+                              <App />
+                            </ToastProvider>
+                          </AchievementUnlockProvider>
+                        </ConfirmProvider>
                       </ViewModeProvider>
                     </CardDensityProvider>
                   </CurrencyRegionProvider>

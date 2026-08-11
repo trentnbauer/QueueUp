@@ -1,44 +1,66 @@
+/* Industrial/minimal redesign (2026-08, Claude Design project "UI redesign request") - rust-orange
+ * accent, Barlow + IBM Plex Mono type, zero border radius throughout. --qu-surface2 keeps its old
+ * role as chrome background (sidebar/header = the new palette's "panel"); --qu-surface keeps its
+ * old role as content-card background (dialogs/game cards = the new palette's "card"). --qu-field,
+ * --qu-chip, --qu-border-hi, --qu-hover, --qu-faint, --qu-track, --qu-mono-font, --qu-accent-hi are
+ * new, added for this palette. */
 :root {
-  --qu-bg: #0a0c12;
-  --qu-surface: #12151d;
-  --qu-surface2: #0e1016;
-  --qu-border: rgba(255, 255, 255, 0.08);
+  --qu-bg: #0b0d0e;
+  --qu-surface: #15181a;
+  --qu-surface2: #111416;
+  --qu-field: #0e1113;
+  --qu-chip: #242a2d;
+  --qu-border: rgba(255, 255, 255, 0.09);
+  --qu-border-hi: rgba(255, 255, 255, 0.2);
+  --qu-hover: rgba(255, 255, 255, 0.04);
   --qu-stripe: rgba(255, 255, 255, 0.045);
-  --qu-text: #eef0f4;
-  --qu-muted: #7c8494;
+  --qu-text: #e6e8e9;
+  --qu-muted: #9aa3a7;
+  --qu-faint: #69737a;
+  --qu-track: rgba(255, 255, 255, 0.1);
   --qu-neutral-pill-bg: rgba(255, 255, 255, 0.06);
 
-  --qu-accent: #4a8fe8;
+  --qu-accent: #c2683a;
   /* Text color for content rendered directly on top of --qu-accent (buttons, banners) - kept as
    * its own variable rather than a hardcoded white, since a room's accent color is user-editable
    * and some presets (e.g. Lime) are too bright for white text to read clearly. Recomputed
    * whenever --qu-accent changes (see ThemeContext). */
   --qu-accent-text: #fff;
   --qu-accent-pill-bg: color-mix(in oklch, var(--qu-accent) 24%, var(--qu-surface));
+  --qu-accent-hi: #d47b45;
 
-  --qu-accent2: #2dd4bf;
+  --qu-accent2: #5e8f6e;
   --qu-accent2-pill-bg: color-mix(in oklch, var(--qu-accent2) 24%, var(--qu-surface));
 
-  --qu-header-font: 'Space Grotesk', system-ui, sans-serif;
-  --qu-body-font: system-ui, sans-serif;
+  --qu-header-font: 'Barlow', system-ui, sans-serif;
+  --qu-body-font: 'Barlow', system-ui, sans-serif;
+  --qu-mono-font: 'IBM Plex Mono', ui-monospace, SFMono-Regular, monospace;
 
-  --qu-radius: 4px;
-  --qu-card-radius: 6px;
+  --qu-radius: 0;
+  --qu-card-radius: 0;
 }
 
 /* Light mode override - applied via a `data-theme="light"` attribute on <html>, set synchronously
  * in main.tsx before first render (see applyThemeMode.ts) so there's no flash of the wrong theme.
- * Accent colors, fonts, and radii are left alone: accent is computed per-room already (see
- * ThemeContext) and stays vivid enough against either background. */
+ * Accent is computed per-room already (see ThemeContext) and stays vivid enough against either
+ * background; only --qu-accent-hi (its hover-brightened variant) needs a mode-specific value since
+ * white text over a lit-up accent reads worse than a darkened one over a white page. */
 :root[data-theme='light'] {
-  --qu-bg: #f5f4fa;
+  --qu-bg: #f2f2f0;
   --qu-surface: #ffffff;
-  --qu-surface2: #eeecf6;
-  --qu-border: rgba(15, 14, 22, 0.1);
+  --qu-surface2: #ffffff;
+  --qu-field: #f6f6f4;
+  --qu-chip: #e8e8e4;
+  --qu-border: #e2e2dd;
+  --qu-border-hi: #c3c3bc;
+  --qu-hover: #f4f4f1;
   --qu-stripe: rgba(15, 14, 22, 0.04);
-  --qu-text: #1b1a24;
-  --qu-muted: #6b6680;
+  --qu-text: #1a1d1f;
+  --qu-muted: #5c6467;
+  --qu-faint: #8b9295;
+  --qu-track: #e6e6e2;
   --qu-neutral-pill-bg: rgba(15, 14, 22, 0.06);
+  --qu-accent-hi: #a8552c;
 }
 
 * {

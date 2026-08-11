@@ -3,7 +3,7 @@
 }
 
 .label {
-  font: 600 10px system-ui, sans-serif;
+  font: 600 10px var(--qu-body-font);
   letter-spacing: 0.05em;
   text-transform: uppercase;
   color: var(--qu-muted);
@@ -28,7 +28,7 @@
   align-items: center;
   gap: 5px;
   padding: 3px 8px 3px 3px;
-  border-radius: 999px;
+  border-radius: 0;
   background: var(--qu-neutral-pill-bg);
 }
 
@@ -43,7 +43,7 @@
 .skeletonPill {
   width: 64px;
   height: 26px;
-  border-radius: 999px;
+  border-radius: 0;
   background: var(--qu-neutral-pill-bg);
   opacity: 0.5;
 }
@@ -81,7 +81,7 @@
 .barTrack {
   flex: 1;
   height: 6px;
-  border-radius: 999px;
+  border-radius: 0;
   background: var(--qu-neutral-pill-bg);
   overflow: hidden;
 }
@@ -90,7 +90,7 @@
   display: block;
   height: 100%;
   background: var(--qu-accent);
-  border-radius: 999px;
+  border-radius: 0;
 }
 
 /* Same footprint as one detailed row (20px AvatarBadge), so the query resolving doesn't shift the
@@ -98,7 +98,7 @@
 .skeletonBar {
   width: 100%;
   height: 20px;
-  border-radius: 999px;
+  border-radius: 0;
   background: var(--qu-neutral-pill-bg);
   opacity: 0.5;
 }

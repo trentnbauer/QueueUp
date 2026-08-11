@@ -11,7 +11,7 @@
   top: -14px;
   width: 8px;
   height: 14px;
-  border-radius: 2px;
+  border-radius: 0;
   opacity: 0;
   animation-name: confettiFall;
   animation-timing-function: cubic-bezier(0.2, 0.6, 0.4, 1);

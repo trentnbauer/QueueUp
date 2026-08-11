@@ -11,7 +11,7 @@
 }
 
 .emptyHint {
-  font: 500 11.5px system-ui, sans-serif;
+  font: 500 11.5px var(--qu-body-font);
   color: var(--qu-muted);
 }
 
@@ -20,10 +20,10 @@
   align-items: center;
   gap: 6px;
   padding: 5px 6px 5px 10px;
-  border-radius: 999px;
+  border-radius: 0;
   background: var(--qu-accent-pill-bg);
   color: var(--qu-accent);
-  font: 700 11.5px system-ui, sans-serif;
+  font: 700 11.5px var(--qu-body-font);
 }
 
 .chipRemove {
@@ -55,7 +55,7 @@
   background: var(--qu-surface2);
   border: 1px solid var(--qu-border);
   color: var(--qu-text);
-  font: 500 12px system-ui, sans-serif;
+  font: 500 12px var(--qu-body-font);
 }
 
 .addButton {
@@ -64,7 +64,7 @@
   border-radius: var(--qu-radius);
   background: var(--qu-accent);
   color: var(--qu-accent-text);
-  font: 700 11.5px system-ui, sans-serif;
+  font: 700 11.5px var(--qu-body-font);
   padding: 7px 12px;
   cursor: pointer;
 }
@@ -84,9 +84,9 @@
   border: 1px dashed var(--qu-border);
   background: transparent;
   color: var(--qu-muted);
-  border-radius: 999px;
+  border-radius: 0;
   padding: 5px 10px;
-  font: 600 11px system-ui, sans-serif;
+  font: 600 11px var(--qu-body-font);
   cursor: pointer;
 }
 
@@ -100,7 +100,7 @@
   background: none;
   border: none;
   color: var(--qu-muted);
-  font: 600 11px system-ui, sans-serif;
+  font: 600 11px var(--qu-body-font);
   padding: 0;
   cursor: pointer;
   text-decoration: underline;
@@ -129,7 +129,7 @@
 .manageName {
   flex: 1;
   min-width: 0;
-  font: 600 12px system-ui, sans-serif;
+  font: 600 12px var(--qu-body-font);
   color: var(--qu-text);
   overflow: hidden;
   text-overflow: ellipsis;
@@ -165,7 +165,7 @@
   background: var(--qu-surface);
   border: 1px solid var(--qu-border);
   color: var(--qu-text);
-  font: 500 12px system-ui, sans-serif;
+  font: 500 12px var(--qu-body-font);
 }
 
 .renameSave,
@@ -173,7 +173,7 @@
   flex-shrink: 0;
   border: none;
   border-radius: var(--qu-radius);
-  font: 600 11px system-ui, sans-serif;
+  font: 600 11px var(--qu-body-font);
   padding: 5px 8px;
   cursor: pointer;
 }
@@ -189,7 +189,7 @@
 }
 
 .error {
-  font: 500 11px system-ui, sans-serif;
+  font: 500 11px var(--qu-body-font);
   color: #ff8a80;
 }
 

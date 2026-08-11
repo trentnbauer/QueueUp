@@ -70,7 +70,7 @@
 }
 
 .coverFallback {
-  font: 700 24px system-ui, sans-serif;
+  font: 700 24px var(--qu-body-font);
   color: var(--qu-muted);
 }
 
@@ -84,10 +84,10 @@
 .statusBadge {
   align-self: flex-start;
   padding: 3px 8px;
-  border-radius: 999px;
+  border-radius: 0;
   background: var(--qu-accent);
   color: var(--qu-accent-text);
-  font: 700 10px system-ui, sans-serif;
+  font: 700 10px var(--qu-body-font);
   text-transform: uppercase;
   letter-spacing: 0.03em;
 }
@@ -109,7 +109,7 @@
 
 .tag {
   padding: 2px 8px;
-  border-radius: 999px;
+  border-radius: 0;
   background: var(--qu-surface2);
   border: 1px solid var(--qu-border);
   color: var(--qu-muted);

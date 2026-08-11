@@ -16,7 +16,7 @@
   background: var(--qu-surface2);
   color: var(--qu-muted);
   border: 1px solid var(--qu-border);
-  font: 600 13px system-ui, sans-serif;
+  font: 600 13px var(--qu-body-font);
   text-decoration: none;
   cursor: pointer;
 }
