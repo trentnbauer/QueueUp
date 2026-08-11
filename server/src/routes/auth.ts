@@ -244,11 +244,16 @@ export default async function authRoutes(app: FastifyInstance) {
 
   // Public profile opt-in (issue #511) - see User.publicProfileEnabled's schema doc and
   // routes/publicProfile.ts (the unauthenticated GET this gates) for what turning it on exposes.
-  app.patch<{ Body: UpdatePublicProfileRequest }>('/api/me/public-profile', async (request, reply) => {
-    const userId = await request.requireAuth();
-    const publicProfileEnabled = await setPublicProfileEnabled(userId, request.body?.enabled);
-    return reply.send({ publicProfileEnabled });
-  });
+  // Same tier as the API-key routes below - a direct, occasional Profile Settings action.
+  app.patch<{ Body: UpdatePublicProfileRequest }>(
+    '/api/me/public-profile',
+    { config: { rateLimit: { max: 20, timeWindow: '1 minute' } } },
+    async (request, reply) => {
+      const userId = await request.requireAuth();
+      const publicProfileEnabled = await setPublicProfileEnabled(userId, request.body?.enabled);
+      return reply.send({ publicProfileEnabled });
+    },
+  );
 
   // Personal access token management (issue #435) - these themselves are cookie-authenticated app
   // routes (Profile Settings), not part of the bearer-authenticated /api/v1 surface the keys

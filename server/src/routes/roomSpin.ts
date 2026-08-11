@@ -147,23 +147,30 @@ export default async function roomSpinRoutes(app: FastifyInstance) {
     return { spins: result };
   });
 
-  app.get<{ Params: { roomId: string } }>('/api/rooms/:roomId/spin', async (request) => {
-    const userId = await request.requireAuth();
-    const { roomId } = request.params;
-    await requireMembership(roomId, userId);
+  // Same tier as /api/rooms/active-spins above (issue #562) - polled at up to 700ms while a spin
+  // is in-flight (useRoomSpin.ts's ACTIVE_POLL_MS), which a per-IP limit (see app.ts) can only
+  // cover a couple of concurrent tabs behind one household IP at the global default before 429ing.
+  app.get<{ Params: { roomId: string } }>(
+    '/api/rooms/:roomId/spin',
+    { config: { rateLimit: { max: 450, timeWindow: '1 minute' } } },
+    async (request) => {
+      const userId = await request.requireAuth();
+      const { roomId } = request.params;
+      await requireMembership(roomId, userId);
 
-    const spin = await prisma.roomSpin.findUnique({ where: { roomId } });
-    if (!spin || isStale(spin)) {
-      if (spin) await prisma.roomSpin.deleteMany({ where: { id: spin.id } });
-      return { spin: null };
-    }
-    const dto = await toSpinDto(spin, userId);
-    if (!dto) {
-      await prisma.roomSpin.deleteMany({ where: { id: spin.id } });
-      return { spin: null };
-    }
-    return { spin: dto };
-  });
+      const spin = await prisma.roomSpin.findUnique({ where: { roomId } });
+      if (!spin || isStale(spin)) {
+        if (spin) await prisma.roomSpin.deleteMany({ where: { id: spin.id } });
+        return { spin: null };
+      }
+      const dto = await toSpinDto(spin, userId);
+      if (!dto) {
+        await prisma.roomSpin.deleteMany({ where: { id: spin.id } });
+        return { spin: null };
+      }
+      return { spin: dto };
+    },
+  );
 
   // Issue #488: marks the caller "ready" for the still-waiting spin's readyCount, deliberately its
   // own endpoint rather than piggybacked on the GET above - the GET is polled continuously by
