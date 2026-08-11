@@ -6,7 +6,6 @@ import { useAuth } from '../context/AuthContext';
 import { useCurrencyRegion } from '../context/CurrencyRegionContext';
 import { useCardDensity, CARD_DENSITY_LABELS, type CardDensity } from '../context/CardDensityContext';
 import { useViewMode, VIEW_MODE_LABELS, type ViewMode } from '../context/ViewModeContext';
-import { useSidebarIconSize, SIDEBAR_ICON_SIZE_LABELS, type SidebarIconSize } from '../context/SidebarIconSizeContext';
 import { ApiKeysSection } from '../components/ApiKeysSection';
 import { getBasePath } from '../utils/basePath';
 import styles from './ProfileSettingsView.module.css';
@@ -15,7 +14,6 @@ const ROOM_PLATFORM_OPTIONS = Object.keys(ROOM_PLATFORM_LABELS) as RoomPlatform[
 const PRICE_REGION_OPTIONS = Object.keys(PRICE_REGION_LABELS) as PriceRegion[];
 const CARD_DENSITY_OPTIONS = Object.keys(CARD_DENSITY_LABELS) as CardDensity[];
 const VIEW_MODE_OPTIONS = Object.keys(VIEW_MODE_LABELS) as ViewMode[];
-const SIDEBAR_ICON_SIZE_OPTIONS = Object.keys(SIDEBAR_ICON_SIZE_LABELS) as SidebarIconSize[];
 
 const PROVIDER_LABELS: Record<string, string> = {
   oidc: 'Single sign-on',
@@ -50,7 +48,6 @@ export function ProfileSettingsView() {
   const { region, setRegion } = useCurrencyRegion();
   const { density, setDensity } = useCardDensity();
   const { viewMode, setViewMode } = useViewMode();
-  const { size: sidebarIconSize, setSize: setSidebarIconSize } = useSidebarIconSize();
   const { availableProviders, primaryProvider, linkedProviders, refetchLinked } = useLinkedAccounts();
   const [selected, setSelected] = useState<Set<RoomPlatform>>(new Set(ownedPlatforms));
   const [saving, setSaving] = useState(false);
@@ -213,22 +210,6 @@ export function ProfileSettingsView() {
           {CARD_DENSITY_OPTIONS.map((d) => (
             <option key={d} value={d}>
               {CARD_DENSITY_LABELS[d]}
-            </option>
-          ))}
-        </select>
-      </div>
-
-      <div className={styles.section}>
-        <div className={styles.sectionTitle}>Room icon size</div>
-        <p className={styles.hint}>How large the room icons in the left-hand rail render on screen.</p>
-        <select
-          className={styles.currencySelect}
-          value={sidebarIconSize}
-          onChange={(e) => setSidebarIconSize(e.target.value as SidebarIconSize)}
-        >
-          {SIDEBAR_ICON_SIZE_OPTIONS.map((s) => (
-            <option key={s} value={s}>
-              {SIDEBAR_ICON_SIZE_LABELS[s]}
             </option>
           ))}
         </select>

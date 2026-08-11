@@ -150,7 +150,10 @@ export function Sidebar() {
             type="button"
             className={styles.brand}
             title={steamImport.busy ? 'Importing your Steam library…' : 'QueueUp'}
-            aria-label={totalUnread > 0 ? `Notifications (${totalUnread} unread)` : 'Notifications'}
+            // Must contain the button's own visible text ("QueueUp", see the wordmark span below) -
+            // WCAG 2.5.3 Label in Name, so voice-control ("click QueueUp") and screen readers agree
+            // with what's on screen instead of only ever announcing "Notifications".
+            aria-label={totalUnread > 0 ? `QueueUp — notifications (${totalUnread} unread)` : 'QueueUp — notifications'}
             onClick={() => (showNotifications ? closeNotifications() : setShowNotifications(true))}
           >
             <span className={styles.logoMark}>

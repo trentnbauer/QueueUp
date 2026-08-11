@@ -10,7 +10,11 @@
   position: relative;
   width: 180px;
   height: 180px;
-  border-radius: 0;
+  /* Functionally circular, not just styled that way - the per-candidate conic-gradient masks
+     below are computed as angular wedges of a circle (see .segment's comment); on a square box
+     they'd extend unevenly toward the corners instead of reading as a spinning wheel. Exempt from
+     the redesign's zero-radius language for that reason. */
+  border-radius: 50%;
   overflow: hidden;
   background: var(--qu-surface2);
   border: 4px solid var(--qu-border);
@@ -49,7 +53,7 @@
   position: absolute;
   width: 40px;
   height: 40px;
-  border-radius: 0;
+  border-radius: 50%;
   background-color: var(--qu-surface2);
   border: 2px solid var(--qu-border);
   display: flex;
