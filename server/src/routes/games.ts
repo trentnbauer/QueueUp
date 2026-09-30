@@ -13,7 +13,7 @@ import {
   existingIgdbIds,
   invalidateExistingIgdbIds,
 } from '../services/gameAccess.js';
-import { gameInclude, serializeGame, serializeGames } from '../services/gameSerializer.js';
+import { gameInclude, serializeGame, serializeGames, toGameReviewDto } from '../services/gameSerializer.js';
 import {
   searchIntake,
   searchCollectionsIntake,
@@ -64,6 +64,7 @@ import { unlockBadges } from '../services/badges.js';
 import {
   logRoomActivity,
   logShelfActivity,
+  postRoomDiscord,
   getShelfActivityPage,
   encodeActivityCursor,
   decodeActivityCursor,
@@ -74,6 +75,9 @@ import { toUserDto } from '../util/dto.js';
 import { env } from '../config/env.js';
 import type {
   BacklogInsights,
+  SetGameHiddenRequest,
+  SetReleaseAlertRequest,
+  SetGameReviewRequest,
   BadgeDefinition,
   BadgeKey,
   BulkRemoveGamesRequest,
@@ -856,7 +860,15 @@ export default async function gameRoutes(app: FastifyInstance) {
     const { status } = request.body;
     if (!GAME_STATUSES.includes(status)) throw new HttpError(400, 'Invalid status');
 
-    await prisma.game.update({ where: { id: game.id }, data: { status } });
+    await prisma.game.update({
+      where: { id: game.id },
+      data: {
+        status,
+        // Stamped on the transition into Replay and cleared on the way out - see Game.replayedAt.
+        ...(status === 'replay' && game.status !== 'replay' && { replayedAt: new Date() }),
+        ...(status !== 'replay' && { replayedAt: null }),
+      },
+    });
     const closedEntries = await recordStatusTransition(game.id, game.status, status);
     const updated = await loadGameOr404(game.id);
 
@@ -932,11 +944,122 @@ export default async function gameRoutes(app: FastifyInstance) {
           actorId: userId,
           type: 'status_changed',
           message: `Marked "${updated.title}" as ${STATUS_LABELS[status]}`,
+          payload: { gameId: updated.id, title: updated.title, coverImageUrl: updated.coverImageUrl, status },
+          hidden: updated.hiddenFromOthers,
         });
       }
     }
 
     return { game: await serializeGame(updated, userId), shelfSync, unlockedBadges };
+  });
+
+  // The Coming soon bell - opts the caller's view of this (shared) game in or out of a release-day
+  // notification. Anyone who can see the game can toggle it.
+  app.patch<{ Params: { id: string }; Body: SetReleaseAlertRequest }>('/api/games/:id/release-alert', async (request) => {
+    const userId = await request.requireAuth();
+    const game = await loadGameOr404(request.params.id);
+    await requireGameReadAccess(game, userId);
+    const enabled = request.body?.enabled;
+    if (typeof enabled !== 'boolean') throw new HttpError(400, 'enabled must be true or false');
+    await prisma.game.update({ where: { id: game.id }, data: { releaseAlert: enabled } });
+    return { game: await serializeGame(await loadGameOr404(game.id), userId) };
+  });
+
+  // Personal Shelf only: hide a game from the public profile, friends' activity and Discord member
+  // activity. Only the owner can toggle it.
+  app.patch<{ Params: { id: string }; Body: SetGameHiddenRequest }>('/api/games/:id/hidden', async (request) => {
+    const userId = await request.requireAuth();
+    const game = await loadGameOr404(request.params.id);
+    if (game.roomId !== null || game.addedBy !== userId) {
+      throw new HttpError(403, 'Only games on your own Personal Shelf can be hidden');
+    }
+    const hidden = request.body?.hidden;
+    if (typeof hidden !== 'boolean') throw new HttpError(400, 'hidden must be true or false');
+    await prisma.game.update({ where: { id: game.id }, data: { hiddenFromOthers: hidden } });
+    return { game: await serializeGame(await loadGameOr404(game.id), userId) };
+  });
+
+  // The optional review saved after beating a game - four independent 1-5 scores plus a one-line
+  // note. Attaches itself to the viewer's latest "Beaten" feed entry for this game (so it shows in
+  // friends' feeds and on the public profile) and, for a room game, posts to the room's Discord
+  // "Reviews" event.
+  app.put<{ Params: { id: string }; Body: SetGameReviewRequest }>('/api/games/:id/review', async (request) => {
+    const userId = await request.requireAuth();
+    const game = await loadGameOr404(request.params.id);
+    await requireGameReadAccess(game, userId);
+
+    const body = request.body ?? {};
+    const score = (v: unknown): number | null => {
+      if (v === undefined || v === null) return null;
+      if (typeof v !== 'number' || !Number.isInteger(v) || v < 1 || v > 5) throw new HttpError(400, 'Scores must be whole numbers from 1 to 5');
+      return v;
+    };
+    const art = score(body.art);
+    const gameplay = score(body.gameplay);
+    const story = score(body.story);
+    const sound = score(body.sound);
+    const note = typeof body.note === 'string' ? body.note.trim().slice(0, 280) : '';
+    const hasAny = art !== null || gameplay !== null || story !== null || sound !== null || note.length > 0;
+
+    await prisma.game.update({
+      where: { id: game.id },
+      data: {
+        reviewArt: art,
+        reviewGameplay: gameplay,
+        reviewStory: story,
+        reviewSound: sound,
+        reviewNote: note || null,
+        reviewedAt: hasAny ? new Date() : null,
+      },
+    });
+    const updated = await loadGameOr404(game.id);
+
+    if (hasAny) {
+      const review = toGameReviewDto(updated);
+      if (game.roomId === null) {
+        // Attach to the most recent Beaten entry for this game, falling back to a fresh one so a
+        // review saved without a prior logged transition (e.g. a sync-applied Beaten) still shows.
+        const entries = await prisma.roomActivity.findMany({
+          where: { recipientId: userId, type: 'status_changed' },
+          orderBy: { createdAt: 'desc' },
+          take: 50,
+        });
+        const target = entries.find((e) => {
+          const pl = e.payload as { gameId?: string; status?: string } | null;
+          return pl?.gameId === game.id && pl?.status === 'done';
+        });
+        const payload = {
+          gameId: updated.id,
+          title: updated.title,
+          coverImageUrl: updated.coverImageUrl,
+          status: 'done',
+          review,
+        };
+        if (target) {
+          await prisma.roomActivity.update({ where: { id: target.id }, data: { payload: payload as unknown as Prisma.InputJsonValue } });
+        } else {
+          void logShelfActivity({
+            recipientId: userId,
+            actorId: userId,
+            type: 'status_changed',
+            message: `Marked "${updated.title}" as Beaten`,
+            payload,
+            hidden: updated.hiddenFromOthers,
+          });
+        }
+      } else {
+        const who = await prisma.user.findUnique({ where: { id: userId }, select: { displayName: true } });
+        const scores = [art, gameplay, story, sound].filter((v): v is number => v !== null);
+        const avg = scores.length ? ` (${(scores.reduce((a, b) => a + b, 0) / scores.length).toFixed(1)}/5)` : '';
+        void postRoomDiscord(
+          game.roomId,
+          `${who?.displayName ?? 'Someone'} reviewed "${updated.title}"${avg}${note ? `: ${note}` : ''}`,
+          'reviews',
+        );
+      }
+    }
+
+    return { game: await serializeGame(updated, userId) };
   });
 
   app.post<{ Params: { id: string } }>(
@@ -1035,7 +1158,14 @@ export default async function gameRoutes(app: FastifyInstance) {
       let anyTransitioned = false;
       await Promise.all(
         before.map(async (g) => {
-          const result = await prisma.game.updateMany({ where: { id: g.id, status: g.status }, data: { status } });
+          const result = await prisma.game.updateMany({
+            where: { id: g.id, status: g.status },
+            data: {
+              status,
+              ...(status === 'replay' && g.status !== 'replay' && { replayedAt: new Date() }),
+              ...(status !== 'replay' && { replayedAt: null }),
+            },
+          });
           if (result.count > 0) {
             anyTransitioned = true;
             await recordStatusTransition(g.id, g.status, status, playtimeByGameId.get(g.id) ?? null);
@@ -1415,6 +1545,16 @@ export default async function gameRoutes(app: FastifyInstance) {
       return { game: await serializeGame(updated, userId) };
     },
   );
+
+  // Clears the caller's vote (the v2 UI toggles a vote off by tapping the active one again).
+  app.delete<{ Params: { id: string } }>('/api/games/:id/vote', async (request) => {
+    const userId = await request.requireAuth();
+    const game = await loadGameOr404(request.params.id);
+    await requireGameReadAccess(game, userId);
+    await prisma.vote.deleteMany({ where: { gameId: game.id, userId } });
+    const updated = await prisma.game.findUniqueOrThrow({ where: { id: game.id }, include: gameInclude });
+    return { game: await serializeGame(updated, userId) };
+  });
 
   app.put<{ Params: { id: string }; Body: VoteRequest }>('/api/games/:id/vote', async (request) => {
     const userId = await request.requireAuth();

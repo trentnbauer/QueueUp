@@ -43,6 +43,31 @@ function isStale(spin: { updatedAt: Date }): boolean {
   return Date.now() - spin.updatedAt.getTime() > SPIN_STALE_MS;
 }
 
+/** Optional narrowing the Spin dialog offers on top of the room's own pool rules (issue: v2 UI). */
+interface SpinFilters {
+  /** Only games the caller owns or that cost at most this much. */
+  maxPrice?: number;
+  /** Only games with a known time to beat of at most this many hours. */
+  maxTtb?: number;
+  /** Only games every current member owns. */
+  everyoneOwns?: boolean;
+}
+
+function parseSpinFilters(body: unknown): SpinFilters {
+  const b = (body ?? {}) as Record<string, unknown>;
+  const num = (v: unknown) => (typeof v === 'number' && Number.isFinite(v) && v > 0 ? v : undefined);
+  return { maxPrice: num(b.maxPrice), maxTtb: num(b.maxTtb), everyoneOwns: b.everyoneOwns === true };
+}
+
+function applySpinFilters(candidates: Game[], f: SpinFilters): Game[] {
+  return candidates.filter((g) => {
+    if (f.maxPrice && !(g.youOwn || (g.price.amount !== null && Number(g.price.amount) <= f.maxPrice))) return false;
+    if (f.maxTtb && !(g.timeToBeatHours !== null && g.timeToBeatHours <= f.maxTtb)) return false;
+    if (f.everyoneOwns && !(g.ownership && g.ownership.owned === g.ownership.total && g.ownership.total > 0)) return false;
+    return true;
+  });
+}
+
 type RoomSpinRow = Awaited<ReturnType<typeof prisma.roomSpin.findUniqueOrThrow>>;
 
 /** Builds a fresh candidate strip (and, if the room's theme setting is "random," a fresh concrete
@@ -51,11 +76,15 @@ type RoomSpinRow = Awaited<ReturnType<typeof prisma.roomSpin.findUniqueOrThrow>>
  * loaded, so a fresh spin always draws from up-to-date votes/ownership/prices. A nudge does NOT
  * call this - it moves along the *existing* strip, it never rebuilds one (see RoomSpin's schema
  * doc). */
-async function buildStripAndTheme(roomId: string, userId: string): Promise<{ stripGameIds: string[]; theme: ConcreteSpinWheelTheme }> {
+async function buildStripAndTheme(
+  roomId: string,
+  userId: string,
+  filters: SpinFilters = {},
+): Promise<{ stripGameIds: string[]; theme: ConcreteSpinWheelTheme }> {
   const room = await getRoom(roomId);
   const rows = await prisma.game.findMany({ where: { roomId, archivedAt: null }, include: gameInclude });
   const games = await serializeGames(rows, userId);
-  const candidates = spinCandidates(games, room.spinOwnershipMaxPrice);
+  const candidates = applySpinFilters(spinCandidates(games, room.spinOwnershipMaxPrice), filters);
   const strip = buildSpinStrip(games, candidates, Math.random);
   if (strip.length === 0) throw new HttpError(400, 'No backlog game is eligible for Spin the Wheel right now');
   return { stripGameIds: strip.map((g) => g.id), theme: resolveConcreteTheme(room.spinWheelTheme) };
@@ -211,7 +240,7 @@ export default async function roomSpinRoutes(app: FastifyInstance) {
       const { roomId } = request.params;
       await requireMembership(roomId, userId);
 
-      const { stripGameIds, theme } = await buildStripAndTheme(roomId, userId);
+      const { stripGameIds, theme } = await buildStripAndTheme(roomId, userId, parseSpinFilters(request.body));
       const base = freshBase(Date.now(), SPIN_WAITING_ROOM_MS);
       try {
         const spin = await prisma.roomSpin.create({
@@ -342,7 +371,7 @@ export default async function roomSpinRoutes(app: FastifyInstance) {
       const existing = await prisma.roomSpin.findUnique({ where: { roomId } });
       if (!existing) throw new HttpError(404, 'No spin to restart - start one first');
 
-      const { stripGameIds, theme } = await buildStripAndTheme(roomId, userId);
+      const { stripGameIds, theme } = await buildStripAndTheme(roomId, userId, parseSpinFilters(request.body));
       const base = freshBase(Date.now());
       const spin = await prisma.roomSpin.update({
         where: { roomId },

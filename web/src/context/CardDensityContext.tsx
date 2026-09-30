@@ -3,9 +3,9 @@ import { createContext, useContext, useEffect, useState, type ReactNode } from '
 export type CardDensity = 'large' | 'medium' | 'small';
 
 export const CARD_DENSITY_LABELS: Record<CardDensity, string> = {
-  large: 'Large (1 per row)',
-  medium: 'Medium (2 per row)',
-  small: 'Small (3 per row)',
+  large: '1 per row',
+  medium: '2 per row',
+  small: '3 per row',
 };
 
 // Only affects the narrow-viewport grid (see the <=640px breakpoint in GameGrid.module.css) - the

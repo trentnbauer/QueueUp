@@ -1,5 +1,43 @@
-import type { RoomActivityType } from '@prisma/client';
+import type { Prisma, RoomActivityType } from '@prisma/client';
+import { resolveDiscordEvents, type DiscordEventKey } from '@queueup/shared';
 import { prisma } from '../db/client.js';
+
+/** Which Discord event toggle governs each activity type - a type missing from this map (room
+ * renamed, platform changed, price drop, ...) has no toggle and always posts, the same as before
+ * per-event toggles existed. */
+const ACTIVITY_DISCORD_EVENT: Partial<Record<RoomActivityType, DiscordEventKey>> = {
+  game_added: 'added',
+  game_suggested: 'suggest',
+  vote_cast: 'votes',
+  spin_result: 'spins',
+  status_changed: 'status',
+  member_joined: 'members',
+  member_left: 'members',
+  member_promoted: 'members',
+};
+
+/** Posts a message to a room's Discord webhook, if one is configured and the room has that event
+ * kind switched on (issue #181 + the v2 per-event toggles) - one-way egress only, nothing reads
+ * anything back from Discord. Best-effort: a webhook failure (bad URL, Discord outage, channel
+ * deleted) must never affect the in-app write it's mirroring, so this always swallows its errors. */
+export async function postRoomDiscord(roomId: string, content: string, event: DiscordEventKey | undefined): Promise<void> {
+  try {
+    const room = await prisma.room.findUnique({
+      where: { id: roomId },
+      select: { name: true, discordWebhookUrl: true, discordEvents: true },
+    });
+    if (!room?.discordWebhookUrl) return;
+    if (event && !resolveDiscordEvents(room.discordEvents)[event]) return;
+
+    await fetch(room.discordWebhookUrl, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ username: room.name, content }),
+    });
+  } catch (err) {
+    console.error('[roomActivity] failed to post to Discord webhook', err);
+  }
+}
 
 async function actorDisplayName(actorId: string | null): Promise<string> {
   if (!actorId) return 'Someone';
@@ -28,6 +66,7 @@ export async function logRoomActivity(input: LogRoomActivityInput): Promise<void
     await prisma.roomActivity.create({
       data: { roomId: input.roomId, actorId: input.actorId, type: input.type, message },
     });
+    void postRoomDiscord(input.roomId, message, ACTIVITY_DISCORD_EVENT[input.type]);
   } catch (err) {
     console.error('[roomActivity] failed to write activity log entry', err);
   }
@@ -53,6 +92,18 @@ export function decodeActivityCursor(raw: string): ActivityCursor | undefined {
   return { createdAt, id: raw.slice(idx + 1) };
 }
 
+/** Structured detail stored on a Personal Shelf game event - what the friends' activity feed
+ * renders from (see routes/friends.ts). */
+export interface ShelfActivityPayload {
+  gameId: string;
+  title: string;
+  coverImageUrl: string | null;
+  /** The game's status after this event (for game_added, the status it was added with). */
+  status: string;
+  /** Set on a Beaten entry once its review is saved (see PUT /api/games/:id/review). */
+  review?: unknown;
+}
+
 export interface LogShelfActivityInput {
   recipientId: string;
   actorId: string | null;
@@ -63,6 +114,11 @@ export interface LogShelfActivityInput {
    * notifications.ts. */
   type: Extract<RoomActivityType, 'game_added' | 'status_changed' | 'price_drop'>;
   message: string;
+  payload?: ShelfActivityPayload;
+  /** True when the game is hidden from others - keeps the event out of Discord "member activity"
+   * posts (the friends feed filters hidden games at read time instead, since hiding can change
+   * after the fact). */
+  hidden?: boolean;
 }
 
 /** Personal Shelf counterpart to logRoomActivity (issue #580) - same RoomActivity table, scoped by
@@ -74,10 +130,36 @@ export interface LogShelfActivityInput {
 export async function logShelfActivity(input: LogShelfActivityInput): Promise<void> {
   try {
     await prisma.roomActivity.create({
-      data: { recipientId: input.recipientId, actorId: input.actorId, type: input.type, message: input.message },
+      data: {
+        recipientId: input.recipientId,
+        actorId: input.actorId,
+        type: input.type,
+        message: input.message,
+        ...(input.payload && { payload: input.payload as unknown as Prisma.InputJsonValue }),
+      },
     });
+    if (input.type !== 'price_drop' && input.actorId && !input.hidden) {
+      void postMemberActivity(input.actorId, input.message);
+    }
   } catch (err) {
     console.error('[roomActivity] failed to write shelf activity log entry', err);
+  }
+}
+
+/** Mirrors a member's own shelf milestone into every room of theirs whose webhook has "Member
+ * activity" switched on. */
+async function postMemberActivity(userId: string, message: string): Promise<void> {
+  try {
+    const user = await prisma.user.findUnique({ where: { id: userId }, select: { displayName: true } });
+    const memberships = await prisma.roomMember.findMany({
+      where: { userId, room: { discordWebhookUrl: { not: null } } },
+      select: { roomId: true },
+    });
+    for (const m of memberships) {
+      void postRoomDiscord(m.roomId, `${user?.displayName ?? 'A member'}: ${message}`, 'memberAct');
+    }
+  } catch (err) {
+    console.error('[roomActivity] failed to post member activity', err);
   }
 }
 

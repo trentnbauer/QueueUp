@@ -4,7 +4,7 @@ import { gamesApi } from '../api/games';
 import { tagsApi } from '../api/tags';
 import { useCurrencyRegion } from '../context/CurrencyRegionContext';
 import { useAnnounceUnlock } from '../context/AchievementUnlockContext';
-import type { Game, GameStatus, ShelfSyncSuggestion, VoteValue } from '@queueup/shared';
+import type { Game, GameStatus, SetGameReviewRequest, ShelfSyncSuggestion, VoteValue } from '@queueup/shared';
 
 const GAMES_QUERY_ROOT = ['games'] as const;
 
@@ -111,6 +111,34 @@ export function useGames(roomId: string | null) {
       announceUnlock(unlockedBadges);
     },
     onError: (err) => setActionError(errorMessage(err, 'Could not save your vote.')),
+  });
+
+  const unvote = useMutation({
+    mutationFn: (gameId: string) => gamesApi.unvote(gameId),
+    onSuccess: ({ game }) => patchGame(game),
+    onError: (err) => setActionError(errorMessage(err, 'Could not clear your vote.')),
+  });
+
+  const setReleaseAlert = useMutation({
+    mutationFn: ({ gameId, enabled }: { gameId: string; enabled: boolean }) => gamesApi.setReleaseAlert(gameId, enabled),
+    onSuccess: ({ game }) => patchGame(game),
+    onError: (err) => setActionError(errorMessage(err, 'Could not change that release alert.')),
+  });
+
+  const setHidden = useMutation({
+    mutationFn: ({ gameId, hidden }: { gameId: string; hidden: boolean }) => gamesApi.setHidden(gameId, { hidden }),
+    onSuccess: ({ game }) => patchGame(game),
+    onError: (err) => setActionError(errorMessage(err, 'Could not change that game\'s visibility.')),
+  });
+
+  const setReview = useMutation({
+    mutationFn: ({ gameId, review }: { gameId: string; review: SetGameReviewRequest }) => gamesApi.setReview(gameId, review),
+    onSuccess: ({ game }) => {
+      patchGame(game);
+      // The review rides on the activity feed entry too.
+      void queryClient.invalidateQueries({ queryKey: ['friends', 'activity'] });
+    },
+    onError: (err) => setActionError(errorMessage(err, 'Could not save that review.')),
   });
 
   const remove = useMutation({
@@ -225,6 +253,10 @@ export function useGames(roomId: string | null) {
     },
     dismissShelfSync: () => setShelfSyncPrompt(null),
     vote: (gameId: string, value: VoteValue) => vote.mutate({ gameId, value }),
+    unvote: (gameId: string) => unvote.mutate(gameId),
+    setHidden: (gameId: string, hidden: boolean) => setHidden.mutate({ gameId, hidden }),
+    setReleaseAlert: (gameId: string, enabled: boolean) => setReleaseAlert.mutate({ gameId, enabled }),
+    setReview: (gameId: string, review: SetGameReviewRequest) => setReview.mutateAsync({ gameId, review }),
     remove: (gameId: string) => remove.mutate(gameId),
     refreshPrice: (gameId: string) => refreshPrice.mutate(gameId),
     bulkUpdateStatus: (gameIds: string[], status: GameStatus) => bulkUpdateStatus.mutateAsync({ gameIds, status }),

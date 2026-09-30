@@ -9,25 +9,6 @@ async function actorDisplayName(actorId: string): Promise<string> {
   return actor?.displayName ?? 'Someone';
 }
 
-/** Posts the same message a room notification carries out to that room's Discord webhook, if one
- * is configured (issue #181) - one-way egress only, nothing reads anything back from Discord.
- * Best-effort: a webhook failure (bad URL, Discord outage, channel/webhook deleted) must never
- * affect the in-app notification it's mirroring, so this always swallows its own errors. */
-async function postToDiscordWebhook(roomId: string, roomName: string, content: string): Promise<void> {
-  try {
-    const room = await prisma.room.findUnique({ where: { id: roomId }, select: { discordWebhookUrl: true } });
-    if (!room?.discordWebhookUrl) return;
-
-    await fetch(room.discordWebhookUrl, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ username: roomName, content }),
-    });
-  } catch (err) {
-    console.error('[notifications] failed to post to Discord webhook', err);
-  }
-}
-
 interface NotifyRoomInput {
   roomId: string;
   roomName: string;
@@ -68,7 +49,6 @@ export async function notifyRoom(input: NotifyRoomInput): Promise<void> {
         message,
       },
     });
-    void postToDiscordWebhook(input.roomId, input.roomName, message);
     // Room activity feed (issue #509) - every notifyRoom event is also feed-worthy; input.type's
     // narrowed type (see NotifyRoomInput above) makes this a plain assignment, no cast needed.
     // logRoomActivity has its own independent try/catch, so a feed-write hiccup here can't mask or
@@ -147,7 +127,6 @@ export async function notifyPriceDrop(input: NotifyPriceDropInput): Promise<void
       await prisma.notification.create({
         data: { roomId: input.room.roomId, roomName: input.room.roomName, gameId: input.gameId, type: 'price_drop', message },
       });
-      void postToDiscordWebhook(input.room.roomId, input.room.roomName, message);
       // System-generated (no actorId), same as the notification just above.
       void logRoomActivity({ roomId: input.room.roomId, actorId: null, type: 'price_drop', message: () => message });
     } else {

@@ -3,12 +3,12 @@ import { createContext, useContext, useState, type ReactNode } from 'react';
 export type ViewMode = 'artwork' | 'list';
 
 export const VIEW_MODE_LABELS: Record<ViewMode, string> = {
-  artwork: 'Artwork',
+  artwork: 'Covers',
   list: 'List',
 };
 
 const STORAGE_KEY = 'sq-view-mode';
-const DEFAULT_VIEW_MODE: ViewMode = 'artwork';
+const DEFAULT_VIEW_MODE: ViewMode = 'list';
 
 function isViewMode(value: string | null): value is ViewMode {
   return value === 'artwork' || value === 'list';

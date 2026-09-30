@@ -18,7 +18,9 @@ import type {
   PlayerAchievements,
   PlayLogEntry,
   PriceRegion,
+  SetGameHiddenRequest,
   SetGameOwnershipRequest,
+  SetGameReviewRequest,
   SetGamePrerequisiteRequest,
   SetManualPriceRequest,
   SetSteamMatchRequest,
@@ -86,6 +88,7 @@ export const gamesApi = {
   setManualPrice: (id: string, body: SetManualPriceRequest) =>
     apiPatch<{ game: Game }>(`/api/games/${id}/manual-price`, body),
   vote: (id: string, body: VoteRequest) => apiPut<{ game: Game; unlockedBadges: BadgeDefinition[] }>(`/api/games/${id}/vote`, body),
+  unvote: (id: string) => apiDelete<{ game: Game }>(`/api/games/${id}/vote`),
   setOwnership: (id: string, body: SetGameOwnershipRequest) =>
     apiPatch<{ game: Game; unlockedBadges: BadgeDefinition[] }>(`/api/games/${id}/ownership`, body),
   setPrerequisite: (id: string, body: SetGamePrerequisiteRequest) =>
@@ -107,5 +110,8 @@ export const gamesApi = {
   backlogInsights: () => apiGet<BacklogInsights>('/api/me/backlog-insights'),
   activity: (before?: string) =>
     apiGet<ShelfActivityPage>(`/api/me/activity${before ? `?before=${encodeURIComponent(before)}` : ''}`),
+  setReleaseAlert: (id: string, enabled: boolean) => apiPatch<{ game: Game }>(`/api/games/${id}/release-alert`, { enabled }),
+  setHidden: (id: string, body: SetGameHiddenRequest) => apiPatch<{ game: Game }>(`/api/games/${id}/hidden`, body),
+  setReview: (id: string, body: SetGameReviewRequest) => apiPut<{ game: Game }>(`/api/games/${id}/review`, body),
   syncSteamCompletions: () => apiPost<SteamCompletionsSyncResult>('/api/games/sync-steam-completions'),
 };

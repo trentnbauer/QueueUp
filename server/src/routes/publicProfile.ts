@@ -1,7 +1,8 @@
 import type { FastifyInstance } from 'fastify';
 import { prisma } from '../db/client.js';
 import { HttpError } from '../util/httpError.js';
-import { BADGE_DEFINITIONS, type BadgeKey, type PublicUserProfile } from '@queueup/shared';
+import { BADGE_DEFINITIONS, ROOM_PLATFORM_LABELS, type BadgeKey, type PublicUserProfile } from '@queueup/shared';
+import { toGameReviewDto } from '../services/gameSerializer.js';
 
 /** The shareable, unauthenticated counterpart to a user's Personal Shelf (issue #511) - reachable
  * at GET /api/public/users/:id (and the web app's /u/:id route) with no cookie/session required at
@@ -13,7 +14,7 @@ export default async function publicProfileRoutes(app: FastifyInstance) {
   app.get<{ Params: { id: string } }>('/api/public/users/:id', async (request) => {
     const user = await prisma.user.findUnique({
       where: { id: request.params.id },
-      select: { displayName: true, avatarColor: true, avatarUrl: true, publicProfileEnabled: true },
+      select: { displayName: true, avatarColor: true, avatarUrl: true, publicProfileEnabled: true, ownedPlatforms: true, createdAt: true },
     });
     // Same response (404, no distinguishing detail) whether the id doesn't exist at all or exists
     // but hasn't opted in - a scan of ids must not be able to tell "no such user" from "exists but
@@ -23,10 +24,13 @@ export default async function publicProfileRoutes(app: FastifyInstance) {
     // Personal Shelf only (roomId: null) - same scope as the release-watch alerts (#510) and the
     // Franchise Finisher/DLC Completionist badges this reuses rarity data alongside; a room game
     // isn't "theirs" to show off the same way a room membership isn't public.
-    const [beatenGameCount, currentlyPlayingRows, unlockedBadgeRows, totalUsers, perBadgeCounts] = await Promise.all([
-      prisma.game.count({ where: { roomId: null, addedBy: request.params.id, status: { in: ['done', 'replay'] } } }),
+    const [beatenGameRows, currentlyPlayingRows, unlockedBadgeRows, totalUsers, perBadgeCounts] = await Promise.all([
       prisma.game.findMany({
-        where: { roomId: null, addedBy: request.params.id, status: { in: ['playing', 'play_next'] } },
+        where: { roomId: null, addedBy: request.params.id, status: { in: ['done', 'replay'] }, hiddenFromOthers: false },
+        orderBy: { updatedAt: 'desc' },
+      }),
+      prisma.game.findMany({
+        where: { roomId: null, addedBy: request.params.id, status: { in: ['playing', 'play_next'] }, hiddenFromOthers: false },
         select: { id: true, title: true, coverImageUrl: true, platform: true },
         orderBy: { updatedAt: 'desc' },
       }),
@@ -57,8 +61,21 @@ export default async function publicProfileRoutes(app: FastifyInstance) {
           rarityPercent: Math.round((unlockedCount / totalUsers) * 100),
         };
       }),
-      beatenGameCount,
+      beatenGameCount: beatenGameRows.length,
       currentlyPlaying: currentlyPlayingRows,
+      systems: user.ownedPlatforms.map((p) => ROOM_PLATFORM_LABELS[p]),
+      // Reviewed games first, then the rest, each group newest-first (the query's own order).
+      beatenGames: [...beatenGameRows]
+        .sort((a, b) => Number(!!b.reviewedAt) - Number(!!a.reviewedAt))
+        .map((g) => ({
+          id: g.id,
+          title: g.title,
+          coverImageUrl: g.coverImageUrl,
+          genre: g.genre,
+          replaying: g.status === 'replay',
+          review: toGameReviewDto(g),
+        })),
+      memberSince: user.createdAt.toISOString(),
     };
     return profile;
   });

@@ -95,6 +95,35 @@ function groupIgdbIdsByUser(rows: { userId: string; igdbId: number }[]): Map<str
  * same scope as those two badges (roomId: null) - a room game isn't "yours" the same way, and
  * mixing room-scoped and personal-scoped beaten games into one alert would blur whose watch this
  * actually is. */
+/** Sends the release-day notification for every game someone put a release alert on (the Coming
+ * soon bell) whose release date has now passed, then clears the flag so it only fires once. A shelf
+ * game notifies its owner; a room game notifies every member. */
+export async function checkGameReleaseAlerts(): Promise<void> {
+  const due = await prisma.game.findMany({
+    where: { releaseAlert: true, releaseDate: { lte: new Date() }, archivedAt: null },
+    select: { id: true, title: true, roomId: true, addedBy: true, room: { select: { name: true } } },
+  });
+  for (const game of due) {
+    try {
+      const recipients = game.roomId
+        ? (await prisma.roomMember.findMany({ where: { roomId: game.roomId }, select: { userId: true } })).map((m) => m.userId)
+        : [game.addedBy];
+      await prisma.notification.createMany({
+        data: recipients.map((recipientId) => ({
+          recipientId,
+          roomName: game.room?.name ?? 'Personal Shelf',
+          type: 'release_watch' as const,
+          message: `"${game.title}" is out now`,
+          gameId: game.id,
+        })),
+      });
+      await prisma.game.update({ where: { id: game.id }, data: { releaseAlert: false } });
+    } catch (err) {
+      console.error('[releaseWatch] failed to send a release alert', err);
+    }
+  }
+}
+
 export async function checkReleaseWatches(): Promise<void> {
   const [sequelSourceRows, dlcSourceRows] = await Promise.all([
     prisma.game.findMany({

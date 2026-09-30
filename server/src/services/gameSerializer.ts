@@ -1,5 +1,5 @@
 import type { Prisma } from '@prisma/client';
-import type { Game, GamePrice, PriceRegion, RoomPlatform, VoteValue } from '@queueup/shared';
+import type { Game, GamePrice, GameReview, PriceRegion, RoomPlatform, VoteValue } from '@queueup/shared';
 import { getSteamPrice, getSteamPrices } from './priceService.js';
 import { runPriceAlertChecks } from './priceAlerts.js';
 import { getOwnershipInfo, type GameOwnershipInfo } from './gameOwnership.js';
@@ -29,7 +29,28 @@ const UNAVAILABLE_PRICE: GamePrice = {
   lastRefreshedAt: null,
 };
 
-const DEFAULT_OWNERSHIP: GameOwnershipInfo = { youOwn: false, ownership: null, wishlist: null, ownedPlatforms: [] };
+const DEFAULT_OWNERSHIP: GameOwnershipInfo = { youOwn: false, ownership: null, ownerIds: [], wishlist: null, ownedPlatforms: [] };
+
+/** The review columns on a Game row, folded into one DTO - null unless at least a score or a note
+ * was ever saved (reviewedAt is only set by the review route). */
+export function toGameReviewDto(game: {
+  reviewArt: number | null;
+  reviewGameplay: number | null;
+  reviewStory: number | null;
+  reviewSound: number | null;
+  reviewNote: string | null;
+  reviewedAt: Date | null;
+}): GameReview | null {
+  if (!game.reviewedAt) return null;
+  return {
+    art: game.reviewArt,
+    gameplay: game.reviewGameplay,
+    story: game.reviewStory,
+    sound: game.reviewSound,
+    note: game.reviewNote,
+    reviewedAt: game.reviewedAt.toISOString(),
+  };
+}
 
 function buildGameDto(
   game: GameWithRelations,
@@ -75,6 +96,7 @@ function buildGameDto(
     voteScore,
     youOwn: ownership.youOwn,
     ownership: ownership.ownership,
+    ownerIds: ownership.ownerIds,
     wishlist: ownership.wishlist,
     ownedPlatforms: ownership.ownedPlatforms,
     tags,
@@ -84,6 +106,10 @@ function buildGameDto(
     baseGameId: game.baseGameId,
     playtimeSinceCheckpointMinutes: playtime?.sinceCheckpointMinutes ?? null,
     currentPlaytimeMinutes: playtime?.currentMinutes ?? null,
+    replayedAt: game.replayedAt ? game.replayedAt.toISOString() : null,
+    hiddenFromOthers: game.hiddenFromOthers,
+    review: toGameReviewDto(game),
+    releaseAlert: game.releaseAlert,
     createdAt: game.createdAt.toISOString(),
     updatedAt: game.updatedAt.toISOString(),
   };

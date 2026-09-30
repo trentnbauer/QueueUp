@@ -16,11 +16,12 @@ import type {
   RoomActivityPage,
   RoomMember,
   RoomPlatform,
+  RoomDiscordEvents,
   RoomRole,
   SpinWheelTheme,
   UpdateRoomRequest,
 } from '@queueup/shared';
-import { ROOM_PLATFORM_LABELS } from '@queueup/shared';
+import { DISCORD_EVENT_KEYS, resolveDiscordEvents, ROOM_PLATFORM_LABELS } from '@queueup/shared';
 
 const ROOM_PLATFORMS = Object.keys(ROOM_PLATFORM_LABELS) as RoomPlatform[];
 const ROOM_ROLES: RoomRole[] = ['room_master', 'moderator', 'member'];
@@ -39,6 +40,7 @@ function toRoomDto(
     spinWheelTheme: SpinWheelTheme;
     isPublic: boolean;
     requireGameApproval: boolean;
+    discordEvents: unknown;
   },
   role: Room['myRole'],
   inviteCode: string,
@@ -60,7 +62,20 @@ function toRoomDto(
     spinWheelTheme: room.spinWheelTheme,
     isPublic: room.isPublic,
     requireGameApproval: room.requireGameApproval,
+    discordEvents: role === 'room_master' ? resolveDiscordEvents(room.discordEvents) : undefined,
   };
+}
+
+/** Keeps only known event keys with boolean values from a client-supplied partial map. */
+function pickDiscordEvents(input: unknown): Partial<RoomDiscordEvents> {
+  const out: Partial<RoomDiscordEvents> = {};
+  if (input && typeof input === 'object') {
+    for (const key of DISCORD_EVENT_KEYS) {
+      const v = (input as Record<string, unknown>)[key];
+      if (typeof v === 'boolean') out[key] = v;
+    }
+  }
+  return out;
 }
 
 export default async function roomRoutes(app: FastifyInstance) {
@@ -71,7 +86,26 @@ export default async function roomRoutes(app: FastifyInstance) {
       include: { room: true },
       orderBy: { joinedAt: 'asc' },
     });
-    const rooms: Room[] = memberships.map((m) => toRoomDto(m.room, m.role, m.room.inviteCode));
+    // Sidebar subtitle ("4 members · 9 queued") - two cheap grouped counts across every room the
+    // caller is in, rather than a per-room query from the client.
+    const roomIds = memberships.map((m) => m.roomId);
+    const [memberCounts, queuedCounts] = roomIds.length
+      ? await Promise.all([
+          prisma.roomMember.groupBy({ by: ['roomId'], where: { roomId: { in: roomIds } }, _count: { _all: true } }),
+          prisma.game.groupBy({
+            by: ['roomId'],
+            where: { roomId: { in: roomIds }, status: 'backlog', archivedAt: null },
+            _count: { _all: true },
+          }),
+        ])
+      : [[], []];
+    const memberCountByRoom = new Map(memberCounts.map((r) => [r.roomId, r._count._all]));
+    const queuedByRoom = new Map(queuedCounts.map((r) => [r.roomId as string, r._count._all]));
+    const rooms: Room[] = memberships.map((m) => ({
+      ...toRoomDto(m.room, m.role, m.room.inviteCode),
+      memberCount: memberCountByRoom.get(m.roomId) ?? 0,
+      queuedCount: queuedByRoom.get(m.roomId) ?? 0,
+    }));
     return { rooms };
   });
 
@@ -234,7 +268,7 @@ export default async function roomRoutes(app: FastifyInstance) {
       throw new HttpError(403, 'Only the Room Master can change room settings');
     }
 
-    const { name, platform, accentColor, discordWebhookUrl, spinOwnershipMaxPrice, spinWheelTheme, isPublic, requireGameApproval } =
+    const { name, platform, accentColor, discordWebhookUrl, spinOwnershipMaxPrice, spinWheelTheme, isPublic, requireGameApproval, discordEvents } =
       request.body;
     if (name !== undefined && !name.trim()) throw new HttpError(400, 'Room name cannot be empty');
     // Issue #473: platform may be explicitly set to null to clear the room's restriction ("any
@@ -272,6 +306,9 @@ export default async function roomRoutes(app: FastifyInstance) {
         ...(spinWheelTheme !== undefined && { spinWheelTheme }),
         ...(isPublic !== undefined && { isPublic }),
         ...(requireGameApproval !== undefined && { requireGameApproval }),
+        ...(discordEvents !== undefined && {
+          discordEvents: { ...resolveDiscordEvents(before.discordEvents), ...pickDiscordEvents(discordEvents) },
+        }),
       },
     });
 
@@ -423,11 +460,33 @@ export default async function roomRoutes(app: FastifyInstance) {
         await prisma.roomMember.findMany({ where: { roomId }, select: { userId: true } })
       ).map((m) => m.userId);
 
+      // Only the caller's friends who aren't in the room yet (the v2 UI: "only your friends and
+      // this room's members are listed - anyone else joins with the invite link"). This also stops
+      // the endpoint doubling as a dump of every user on the server.
+      const friendships = await prisma.friendship.findMany({
+        where: { status: 'accepted', OR: [{ requesterId: userId }, { addresseeId: userId }] },
+        select: { requesterId: true, addresseeId: true },
+      });
+      const friendIds = friendships.map((f) => (f.requesterId === userId ? f.addresseeId : f.requesterId));
       const candidates = await prisma.user.findMany({
-        where: { id: { notIn: existingMemberIds } },
+        where: { id: { in: friendIds, notIn: existingMemberIds } },
         orderBy: { displayName: 'asc' },
       });
       return { users: candidates.map(toUserDto) };
+    },
+  );
+
+  // "Generate a new code" / "Reset the invite link" - the old code and link stop working.
+  app.post<{ Params: { roomId: string } }>(
+    '/api/rooms/:roomId/invite/regenerate',
+    { config: { rateLimit: { max: 10, timeWindow: '1 minute' } } },
+    async (request) => {
+      const userId = await request.requireAuth();
+      const { roomId } = request.params;
+      await requireElevated(roomId, userId);
+      const inviteCode = await generateUniqueInviteCode();
+      await prisma.room.update({ where: { id: roomId }, data: { inviteCode } });
+      return { inviteCode };
     },
   );
 

@@ -1,6 +1,6 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import type { RoomSpinSession } from '@queueup/shared';
-import { roomSpinApi } from '../api/rooms';
+import { roomSpinApi, type SpinFilters } from '../api/rooms';
 import { useAnnounceUnlock } from '../context/AchievementUnlockContext';
 
 // Polling, not a websocket/SSE layer this still-small app doesn't otherwise need (same reasoning
@@ -47,7 +47,7 @@ export function useRoomSpin(roomId: string | undefined) {
   };
 
   const start = useMutation({
-    mutationFn: () => roomSpinApi.start(roomId!),
+    mutationFn: (filters?: SpinFilters) => roomSpinApi.start(roomId!, filters),
     onSuccess: setCache,
   });
 
@@ -61,7 +61,7 @@ export function useRoomSpin(roomId: string | undefined) {
   });
 
   const restart = useMutation({
-    mutationFn: () => roomSpinApi.restart(roomId!),
+    mutationFn: (filters?: SpinFilters) => roomSpinApi.restart(roomId!, filters),
     onSuccess: setCache,
   });
 
@@ -88,9 +88,9 @@ export function useRoomSpin(roomId: string | undefined) {
 
   return {
     spin: query.data?.spin ?? null,
-    startSpin: () => start.mutateAsync(),
+    startSpin: (filters?: SpinFilters) => start.mutateAsync(filters),
     nudgeSpin: (direction: 'left' | 'right') => nudge.mutateAsync(direction),
-    restartSpin: () => restart.mutateAsync(),
+    restartSpin: (filters?: SpinFilters) => restart.mutateAsync(filters),
     skipWaitSpin: () => skipWait.mutateAsync(),
     markReady: () => markReady.mutateAsync(),
     closeSpin: () => close.mutateAsync(),

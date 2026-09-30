@@ -20,6 +20,7 @@ import pendingLibraryImportRoutes from './routes/pendingLibraryImports.js';
 import playniteCompletionSuggestionRoutes from './routes/playniteCompletionSuggestions.js';
 import badgeRoutes from './routes/badges.js';
 import publicProfileRoutes from './routes/publicProfile.js';
+import friendRoutes from './routes/friends.js';
 import { env } from './config/env.js';
 import { redis } from './services/redisClient.js';
 import { logCaptureStream } from './services/logBuffer.js';
@@ -50,6 +51,8 @@ export async function buildApp() {
         // hosts to allowlist, so any HTTPS image source is allowed rather than an allowlist that
         // silently breaks avatars every time a provider serves images from a new domain.
         imgSrc: ["'self'", 'data:', 'https:'],
+        // fonts.gstatic.com serves the font files the stylesheet above points at.
+        fontSrc: ["'self'", 'https://fonts.gstatic.com'],
         connectSrc: ["'self'"],
       },
     },
@@ -96,6 +99,7 @@ export async function buildApp() {
       await instance.register(playniteCompletionSuggestionRoutes);
       await instance.register(badgeRoutes);
       await instance.register(publicProfileRoutes);
+      await instance.register(friendRoutes);
       // Bearer-token-authenticated, scoped under its own prefix and preHandler (see apiV1.ts) -
       // registered as a distinct plugin, not folded into gameRoutes/roomRoutes, so its auth hook
       // can never leak onto any cookie-authenticated route above. Fastify combines nested
