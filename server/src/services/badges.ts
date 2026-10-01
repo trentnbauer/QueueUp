@@ -186,7 +186,10 @@ async function platformSyncBadgeKeys(userId: string): Promise<BadgeKey[]> {
   const rows = await prisma.gameOwnership.findMany({ where: { userId }, select: { platforms: true } });
   const keys = new Set<BadgeKey>();
   for (const row of rows) {
-    for (const platform of row.platforms) keys.add(PLATFORM_SYNC_BADGE_KEY[platform]);
+    for (const platform of row.platforms) {
+      const key = PLATFORM_SYNC_BADGE_KEY[platform];
+      if (key) keys.add(key);
+    }
   }
   return [...keys];
 }

@@ -284,7 +284,10 @@ async function runPlayniteImportLoop(
         } catch (feedErr) {
           logger.warn({ err: feedErr, title: entry.title }, 'Playnite playtime/completion feed failed');
         }
-        for (const platform of entry.platforms) touchedPlatformFamilies.add(PLATFORM_SYNC_BADGE_KEY[platform]);
+        for (const platform of entry.platforms) {
+          const key = PLATFORM_SYNC_BADGE_KEY[platform];
+          if (key) touchedPlatformFamilies.add(key);
+        }
         // A title that previously landed in the review queue (issue #452) may now resolve - via a
         // freshly-written TitleMatchAlias, whether from this same title exact-matching this time or
         // someone else having resolved it since - so the stale pending row (if any) needs to clear

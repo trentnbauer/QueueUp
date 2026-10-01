@@ -31,6 +31,7 @@ import { toUserDto } from '../util/dto.js';
 import { Prisma } from '@prisma/client';
 import {
   ROOM_PLATFORM_LABELS,
+  withBackwardsCompatible,
   type CollectionGamesResult,
   type CollectionSearchResult,
   type Game,
@@ -98,7 +99,8 @@ export async function dlcIntake(
  * systems", which can be any size, or empty/undefined to mean "no filter opted into yet"). */
 export function assertPlatformMatch(detail: IgdbGameDetail, allowedPlatforms?: RoomPlatform[]): void {
   if (!allowedPlatforms || allowedPlatforms.length === 0) return;
-  if (detail.platformFamilies.some((f) => allowedPlatforms.includes(f))) return;
+  const playable = withBackwardsCompatible(allowedPlatforms);
+  if (detail.platformFamilies.some((f) => playable.includes(f))) return;
 
   const labels = allowedPlatforms.map((p) => ROOM_PLATFORM_LABELS[p]).join(', ');
   const message =

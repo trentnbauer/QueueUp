@@ -117,7 +117,7 @@ import type {
   YearInReviewGroupCompletion,
   YearInReviewRareAchievement,
 } from '@queueup/shared';
-import { collectionProgress, IGDB_PLATFORM_NAMES, isNeglectedBacklogGame, PRICE_REGION_LABELS, weightedPick } from '@queueup/shared';
+import { collectionProgress, IGDB_PLATFORM_NAMES, isNeglectedBacklogGame, PRICE_REGION_LABELS, weightedPick, withBackwardsCompatible } from '@queueup/shared';
 
 // Steam ownership only ever implies PC (see resolveGameForCreation's platformLabelOverride) -
 // IGDB_PLATFORM_NAMES.pc[0] is the canonical "PC (Microsoft Windows)" label already used
@@ -1344,7 +1344,7 @@ export default async function gameRoutes(app: FastifyInstance) {
       // platform is fine there.
       if (destPlatform) {
         const families = platformFamilies(game.platform.split(',').map((name) => ({ name: name.trim() })));
-        if (!families.includes(destPlatform)) {
+        if (!withBackwardsCompatible([destPlatform]).some((f) => families.includes(f))) {
           throw new HttpError(400, `${game.title} isn't available on this room's platform.`);
         }
       }

@@ -4,6 +4,8 @@ import { HttpError } from '../util/httpError.js';
 import { getConfigValue } from './configResolver.js';
 import {
   IGDB_PLATFORM_NAMES,
+  platformFamilyOf,
+  withBackwardsCompatible,
   type CollectionGamesResult,
   type CollectionSearchResult,
   type GameSearchResult,
@@ -199,20 +201,8 @@ export function platformFamilies(platforms?: IgdbPlatform[]): RoomPlatform[] {
   const families = new Set<RoomPlatform>();
   for (const { name } of platforms ?? []) {
     if (!name) continue;
-    const lower = name.toLowerCase();
-    if (lower.includes('switch 2')) families.add('switch2');
-    else if (lower.includes('switch')) families.add('switch');
-    else if (lower.includes('quest 3')) families.add('quest3');
-    else if (lower.includes('quest 2')) families.add('quest2');
-    else if (lower.includes('quest')) families.add('quest');
-    else if (lower.includes('xbox series')) families.add('xbox_series');
-    else if (lower.includes('xbox one')) families.add('xbox_one');
-    else if (lower.includes('xbox 360')) families.add('xbox_360');
-    else if (lower.includes('playstation 5') || /\bps5\b/.test(lower)) families.add('ps5');
-    else if (lower.includes('playstation 4') || /\bps4\b/.test(lower)) families.add('ps4');
-    else if (lower.includes('playstation 3') || /\bps3\b/.test(lower)) families.add('ps3');
-    else if (lower.includes('pc') || lower.includes('windows') || lower.includes('mac') || lower.includes('linux'))
-      families.add('pc');
+    const family = platformFamilyOf(name);
+    if (family) families.add(family);
   }
   return Array.from(families);
 }
@@ -330,7 +320,7 @@ export async function searchGames(
 
   // An empty array means "no filter opted into yet" (e.g. Personal Shelf before the user has
   // ticked any owned systems) - treat it the same as undefined rather than matching nothing.
-  const activePlatforms = platforms && platforms.length > 0 ? platforms : undefined;
+  const activePlatforms = platforms && platforms.length > 0 ? withBackwardsCompatible(platforms) : undefined;
 
   const escaped = escapeApicalypseString(trimmed);
   // Scoping the platform filter into the query itself (rather than fetching the top results
@@ -399,7 +389,7 @@ export async function getTrendingGames(
   excludeIgdbIds?: Set<number>,
   hideAddons = true,
 ): Promise<GameSearchResult[]> {
-  const activePlatforms = platforms && platforms.length > 0 ? platforms : undefined;
+  const activePlatforms = platforms && platforms.length > 0 ? withBackwardsCompatible(platforms) : undefined;
   const whereClauses = ['total_rating_count > 0'];
   if (activePlatforms) {
     const names = activePlatforms.flatMap((p) => IGDB_PLATFORM_NAMES[p]).map((n) => `"${n}"`).join(',');
@@ -477,7 +467,7 @@ export async function getCollectionGames(
     throw new HttpError(404, 'That collection could not be found on IGDB.');
   }
 
-  const activePlatforms = platforms && platforms.length > 0 ? platforms : undefined;
+  const activePlatforms = platforms && platforms.length > 0 ? withBackwardsCompatible(platforms) : undefined;
   const allGames = (collection.games ?? [])
     .filter((g) => g.name)
     .filter(isPrimaryEdition)
@@ -574,7 +564,7 @@ export async function getGameDlcs(
     await redis.set(cacheKey, JSON.stringify(entries), 'EX', DLC_CACHE_TTL_SECONDS);
   }
 
-  const activePlatforms = platforms && platforms.length > 0 ? platforms : undefined;
+  const activePlatforms = platforms && platforms.length > 0 ? withBackwardsCompatible(platforms) : undefined;
   return entries
     // Unlike searchGames' identical-looking filter (genuinely "belt-and-suspenders" there, since
     // an Apicalypse `where` clause already scoped the query server-side), this is the *only*

@@ -14,7 +14,26 @@ export type RoomPlatform =
   | 'switch2'
   | 'quest'
   | 'quest2'
-  | 'quest3';
+  | 'quest3'
+  | 'nes'
+  | 'snes'
+  | 'n64'
+  | 'gamecube'
+  | 'wii'
+  | 'wii_u'
+  | 'gb'
+  | 'gbc'
+  | 'gba'
+  | 'ds'
+  | 'n3ds'
+  | 'ps1'
+  | 'ps2'
+  | 'psp'
+  | 'vita'
+  | 'master_system'
+  | 'genesis'
+  | 'saturn'
+  | 'dreamcast';
 
 export const ROOM_PLATFORM_LABELS: Record<RoomPlatform, string> = {
   pc: 'PC',
@@ -29,6 +48,25 @@ export const ROOM_PLATFORM_LABELS: Record<RoomPlatform, string> = {
   quest: 'Meta Quest',
   quest2: 'Meta Quest 2',
   quest3: 'Meta Quest 3',
+  nes: 'NES',
+  snes: 'SNES',
+  n64: 'Nintendo 64',
+  gamecube: 'GameCube',
+  wii: 'Wii',
+  wii_u: 'Wii U',
+  gb: 'Game Boy',
+  gbc: 'Game Boy Color',
+  gba: 'Game Boy Advance',
+  ds: 'Nintendo DS',
+  n3ds: 'Nintendo 3DS',
+  ps1: 'PlayStation',
+  ps2: 'PlayStation 2',
+  psp: 'PSP',
+  vita: 'PlayStation Vita',
+  master_system: 'Master System',
+  genesis: 'Mega Drive / Genesis',
+  saturn: 'Sega Saturn',
+  dreamcast: 'Dreamcast',
 };
 
 /** The exact IGDB platform name(s) each RoomPlatform family corresponds to - shared so both the
@@ -51,6 +89,25 @@ export const IGDB_PLATFORM_NAMES: Record<RoomPlatform, string[]> = {
   quest: ['Oculus Quest'],
   quest2: ['Meta Quest 2'],
   quest3: ['Meta Quest 3'],
+  nes: ['Nintendo Entertainment System'],
+  snes: ['Super Nintendo Entertainment System'],
+  n64: ['Nintendo 64'],
+  gamecube: ['Nintendo GameCube'],
+  wii: ['Wii'],
+  wii_u: ['Wii U'],
+  gb: ['Game Boy'],
+  gbc: ['Game Boy Color'],
+  gba: ['Game Boy Advance'],
+  ds: ['Nintendo DS'],
+  n3ds: ['Nintendo 3DS', 'New Nintendo 3DS'],
+  ps1: ['PlayStation'],
+  ps2: ['PlayStation 2'],
+  psp: ['PlayStation Portable'],
+  vita: ['PlayStation Vita'],
+  master_system: ['Sega Master System/Mark III'],
+  genesis: ['Sega Mega Drive/Genesis'],
+  saturn: ['Sega Saturn'],
+  dreamcast: ['Dreamcast'],
 };
 
 const PLATFORM_FAMILY_BRAND: Record<RoomPlatform, string> = {
@@ -66,6 +123,25 @@ const PLATFORM_FAMILY_BRAND: Record<RoomPlatform, string> = {
   quest: 'Meta Quest',
   quest2: 'Meta Quest',
   quest3: 'Meta Quest',
+  nes: 'Nintendo',
+  snes: 'Nintendo',
+  n64: 'Nintendo',
+  gamecube: 'Nintendo',
+  wii: 'Nintendo',
+  wii_u: 'Nintendo',
+  gb: 'Nintendo',
+  gbc: 'Nintendo',
+  gba: 'Nintendo',
+  ds: 'Nintendo',
+  n3ds: 'Nintendo',
+  ps1: 'PlayStation',
+  ps2: 'PlayStation',
+  psp: 'PlayStation',
+  vita: 'PlayStation',
+  master_system: 'Sega',
+  genesis: 'Sega',
+  saturn: 'Sega',
+  dreamcast: 'Sega',
 };
 
 /** Which console brand a free-text platform label (e.g. "PlayStation 4", "Xbox Series X|S") belongs
@@ -77,21 +153,64 @@ const PLATFORM_FAMILY_BRAND: Record<RoomPlatform, string> = {
  * restricted to) falls back to itself, so it still gets its own pill rather than being dropped or
  * lumped in with something unrelated. */
 export function platformBrand(label: string): string {
-  const lower = label.toLowerCase();
-  let family: RoomPlatform | null = null;
-  if (lower.includes('switch 2')) family = 'switch2';
-  else if (lower.includes('switch')) family = 'switch';
-  else if (lower.includes('quest 3')) family = 'quest3';
-  else if (lower.includes('quest 2')) family = 'quest2';
-  else if (lower.includes('quest')) family = 'quest';
-  else if (lower.includes('xbox series')) family = 'xbox_series';
-  else if (lower.includes('xbox one')) family = 'xbox_one';
-  else if (lower.includes('xbox 360')) family = 'xbox_360';
-  else if (lower.includes('playstation 5') || /\bps5\b/.test(lower)) family = 'ps5';
-  else if (lower.includes('playstation 4') || /\bps4\b/.test(lower)) family = 'ps4';
-  else if (lower.includes('playstation 3') || /\bps3\b/.test(lower)) family = 'ps3';
-  else if (lower.includes('pc') || lower.includes('windows') || lower.includes('mac') || lower.includes('linux')) family = 'pc';
+  const family = platformFamilyOf(label);
   return family ? PLATFORM_FAMILY_BRAND[family] : label;
+}
+
+/** Classifies one raw IGDB platform name (or free-text label) down to a RoomPlatform family, or
+ * null if it isn't one we model. Order matters: each more specific name (Switch 2, Game Boy Color,
+ * Nintendo 3DS, Wii U, PlayStation 5...) is checked before the bare name it contains. The server's
+ * platformFamilies (igdbClient.ts) and platformBrand above both go through this one function. */
+export function platformFamilyOf(label: string): RoomPlatform | null {
+  const lower = label.toLowerCase();
+  if (lower.includes('switch 2')) return 'switch2';
+  if (lower.includes('switch')) return 'switch';
+  if (lower.includes('quest 3')) return 'quest3';
+  if (lower.includes('quest 2')) return 'quest2';
+  if (lower.includes('quest')) return 'quest';
+  if (lower.includes('xbox series')) return 'xbox_series';
+  if (lower.includes('xbox one')) return 'xbox_one';
+  if (lower.includes('xbox 360')) return 'xbox_360';
+  if (lower.includes('playstation 5') || /\bps5\b/.test(lower)) return 'ps5';
+  if (lower.includes('playstation 4') || /\bps4\b/.test(lower)) return 'ps4';
+  if (lower.includes('playstation 3') || /\bps3\b/.test(lower)) return 'ps3';
+  if (lower.includes('playstation 2') || /\bps2\b/.test(lower)) return 'ps2';
+  if (lower.includes('vita')) return 'vita';
+  if (lower.includes('playstation portable') || /\bpsp\b/.test(lower)) return 'psp';
+  if (lower.trim() === 'playstation' || /\bps1\b|\bpsx\b/.test(lower)) return 'ps1';
+  if (lower.includes('3ds')) return 'n3ds';
+  if (lower.includes('nintendo ds')) return 'ds';
+  if (lower.includes('game boy advance')) return 'gba';
+  if (lower.includes('game boy color')) return 'gbc';
+  if (lower.includes('game boy')) return 'gb';
+  if (lower.includes('wii u')) return 'wii_u';
+  if (lower.trim() === 'wii') return 'wii';
+  if (lower.includes('gamecube')) return 'gamecube';
+  if (lower.includes('nintendo 64')) return 'n64';
+  if (lower.includes('super nintendo') || lower.includes('snes')) return 'snes';
+  if (lower.includes('entertainment system') || lower.trim() === 'nes') return 'nes';
+  if (lower.includes('mega drive') || lower.includes('genesis')) return 'genesis';
+  if (lower.includes('master system')) return 'master_system';
+  if (lower.includes('saturn')) return 'saturn';
+  if (lower.includes('dreamcast')) return 'dreamcast';
+  if (lower.includes('pc') || lower.includes('windows') || lower.includes('mac') || lower.includes('linux')) return 'pc';
+  return null;
+}
+
+/** Newer hardware plays older games: a PS5 owner can add PS4 games, Switch 2 plays Switch, Xbox
+ * Series plays Xbox One and 360, and so on. Each entry lists what that platform can also play. */
+export const BACKWARDS_COMPATIBLE: Partial<Record<RoomPlatform, RoomPlatform[]>> = {
+  ps5: ['ps4'],
+  switch2: ['switch'],
+  xbox_series: ['xbox_one', 'xbox_360'],
+  n3ds: ['ds'],
+  wii_u: ['wii'],
+  ps2: ['ps1'],
+};
+
+/** The given platforms plus everything they can play through backwards compatibility. */
+export function withBackwardsCompatible(platforms: RoomPlatform[]): RoomPlatform[] {
+  return Array.from(new Set(platforms.flatMap((p) => [p, ...(BACKWARDS_COMPATIBLE[p] ?? [])])));
 }
 
 // Confirmed against gg.deals' real Prices API response before picking these - not every country
@@ -1629,7 +1748,7 @@ export const ALL_BADGE_KEYS = Object.keys(BADGE_DEFINITIONS) as BadgeKey[];
  * import route (server/src/routes/apiV1.ts, unlocks live on import) and the "Refresh Achievements"
  * recheck (server/src/services/badges.ts, retroactively grants based on current ownership for
  * anyone who synced before these badges existed) so both key off exactly the same mapping. */
-export const PLATFORM_SYNC_BADGE_KEY: Record<RoomPlatform, BadgeKey> = {
+export const PLATFORM_SYNC_BADGE_KEY: Partial<Record<RoomPlatform, BadgeKey>> = {
   pc: 'first_pc_sync',
   xbox_360: 'first_xbox_sync',
   xbox_one: 'first_xbox_sync',

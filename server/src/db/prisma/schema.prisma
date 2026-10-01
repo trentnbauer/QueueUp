@@ -58,6 +58,25 @@ enum RoomPlatform {
   quest
   quest2
   quest3
+  nes
+  snes
+  n64
+  gamecube
+  wii
+  wii_u
+  gb
+  gbc
+  gba
+  ds
+  n3ds
+  ps1
+  ps2
+  psp
+  vita
+  master_system
+  genesis
+  saturn
+  dreamcast
 
   @@map("room_platform")
 }
