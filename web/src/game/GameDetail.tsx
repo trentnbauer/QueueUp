@@ -43,7 +43,7 @@ type OwnershipState = 'owned' | 'wishlist' | 'none';
 
 const OWNERSHIP_MARK: Record<OwnershipState, { emoji: string; label: string }> = {
   owned: { emoji: '✅', label: 'Owns it' },
-  wishlist: { emoji: '💭', label: 'Wishlisted' },
+  wishlist: { emoji: '🎁', label: 'Wishlisted' },
   none: { emoji: '❌', label: "Doesn't own it" },
 };
 
