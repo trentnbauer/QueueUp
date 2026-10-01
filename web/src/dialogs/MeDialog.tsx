@@ -341,6 +341,23 @@ export function MeDialog() {
       >
         {error && <Banner onDismiss={() => setError(null)}>{error}</Banner>}
 
+        {publicProfileEnabled && (
+          <Group>
+            <div style={st('display:flex;align-items:center;gap:8px;min-height:58px;padding:0 10px 0 16px;background:var(--surf)')}>
+              <span style={st('flex:1;min-width:0;display:flex;flex-direction:column;gap:1px')}>
+                <span style={st('font:600 15px var(--font-ui)')}>Public profile</span>
+                <span style={st('font:500 12.5px var(--font-mono);color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis')}>{profileUrl.replace(/^https?:\/\//, '')}</span>
+              </span>
+              <Btn kind="text" height={34} padX={12} fontSize={12.5} weight={700} onClick={() => window.open(profileUrl, '_blank', 'noopener')}>
+                View
+              </Btn>
+              <Btn kind="text" height={34} padX={12} fontSize={12.5} weight={700} onClick={async () => { await navigator.clipboard.writeText(profileUrl); ui.notify('Profile link copied'); }}>
+                Copy link
+              </Btn>
+            </div>
+          </Group>
+        )}
+
         <Group>
           <NavRow label="Friends" sub={`${friends.friends.length} friend${friends.friends.length === 1 ? '' : 's'}${pendingFriends ? ` · ${pendingFriends} new request${pendingFriends > 1 ? 's' : ''}` : ''}`} badge={pendingFriends} onClick={open('friends')} />
           {pending > 0 && <NavRow label="Needs review" sub="Imported games waiting for a match" badge={pending} onClick={open('needsReview')} />}
@@ -473,13 +490,6 @@ export function MeDialog() {
             </div>
             {publicProfileEnabled && (
               <>
-                <NavRow label="Preview public page" onClick={() => window.open(profileUrl, '_blank', 'noopener')} />
-                <div style={st('display:flex;align-items:center;gap:10px;min-height:52px;padding:0 10px 0 16px;background:var(--surf)')}>
-                  <span style={st('flex:1;min-width:0;font:500 12.5px var(--font-mono);color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis')}>{profileUrl.replace(/^https?:\/\//, '')}</span>
-                  <Btn kind="text" height={34} padX={14} fontSize={12.5} weight={700} onClick={async () => { await navigator.clipboard.writeText(profileUrl); ui.notify('Profile link copied'); }}>
-                    Copy link
-                  </Btn>
-                </div>
                 <div style={st('display:flex;flex-direction:column;gap:8px;padding:12px 10px 12px 16px;background:var(--surf)')}>
                   <span style={st('display:flex;flex-direction:column;gap:1px')}>
                     <span style={st('font:600 15px var(--font-ui)')}>Custom link</span>
