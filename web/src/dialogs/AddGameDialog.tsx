@@ -1,6 +1,7 @@
-import { lazy, Suspense, useEffect, useRef, useState } from 'react';
+import { lazy, Suspense, useEffect, useMemo, useRef, useState } from 'react';
 import {
   ROOM_PLATFORM_LABELS,
+  platformFamilyOf,
   type BarcodeGameMatch,
   type CollectionGamesResult,
   type CollectionSearchResult,
@@ -9,7 +10,6 @@ import {
 } from '@queueup/shared';
 import { gamesApi } from '../api/games';
 import { useAnnounceUnlock } from '../context/AchievementUnlockContext';
-import { useAuth } from '../context/AuthContext';
 import { useScope } from '../context/ScopeContext';
 import { useUi } from '../context/UiContext';
 import { Dialog } from '../ui/Dialog';
@@ -59,7 +59,6 @@ function ResultRow({
 /** Shelf only: owned (Backlog) vs. not owned yet (Wishlist), and which platforms. */
 function OwnershipStep({
   result,
-  defaults,
   forced,
   busy,
   error,
@@ -67,7 +66,6 @@ function OwnershipStep({
   onBack,
 }: {
   result: GameSearchResult;
-  defaults: RoomPlatform[];
   forced: RoomPlatform | null;
   busy: boolean;
   error: string | null;
@@ -76,7 +74,22 @@ function OwnershipStep({
 }) {
   const year = new Date().getFullYear();
   const [owned, setOwned] = useState(forced != null || result.releaseYear === null || result.releaseYear <= year);
-  const [platforms, setPlatforms] = useState<Set<RoomPlatform>>(new Set(forced ? [...defaults, forced] : defaults));
+  // Nothing is pre-ticked: you pick the platform(s) you own it on. A scanned physical copy is the
+  // exception, since the scan already says which platform it's for.
+  const [platforms, setPlatforms] = useState<Set<RoomPlatform>>(new Set(forced ? [forced] : []));
+  // The platforms IGDB lists this game on come first; every other platform sits behind "Other
+  // platforms" for ports, emulation or anything IGDB is missing.
+  const releasedOn = useMemo(() => {
+    const families = new Set<RoomPlatform>();
+    for (const name of result.platform.split(',')) {
+      const family = platformFamilyOf(name.trim());
+      if (family) families.add(family);
+    }
+    if (forced) families.add(forced);
+    return PLATFORM_OPTIONS.filter((p) => families.has(p));
+  }, [result.platform, forced]);
+  const otherPlatforms = PLATFORM_OPTIONS.filter((p) => !releasedOn.includes(p));
+  const [showOthers, setShowOthers] = useState(releasedOn.length === 0);
   const toggle = (p: RoomPlatform) =>
     setPlatforms((prev) => {
       const next = new Set(prev);
@@ -113,12 +126,39 @@ function OwnershipStep({
         ))}
       </div>
       {owned && (
-        <div style={st('display:flex;flex-wrap:wrap;gap:6px')}>
-          {PLATFORM_OPTIONS.map((p) => (
-            <ChipToggle key={p} on={platforms.has(p)} onClick={() => toggle(p)} height={36}>
-              {ROOM_PLATFORM_LABELS[p]}
-            </ChipToggle>
-          ))}
+        <div style={st('display:flex;flex-direction:column;gap:10px')}>
+          {releasedOn.length > 0 && (
+            <div style={st('display:flex;flex-wrap:wrap;gap:6px')}>
+              {releasedOn.map((p) => (
+                <ChipToggle key={p} on={platforms.has(p)} onClick={() => toggle(p)} height={36}>
+                  {ROOM_PLATFORM_LABELS[p]}
+                </ChipToggle>
+              ))}
+            </div>
+          )}
+          {releasedOn.length > 0 && (
+            <button
+              type="button"
+              aria-expanded={showOthers}
+              onClick={() => setShowOthers((v) => !v)}
+              style={st('align-self:flex-start;display:flex;align-items:center;gap:6px;padding:4px 2px;border:none;background:none;color:var(--muted);font:600 13px var(--font-ui)')}
+            >
+              <span style={st(`display:inline-block;transition:transform 0.15s;transform:rotate(${showOthers ? 90 : 0}deg)`)}>›</span>
+              Other platforms
+              {!showOthers && otherPlatforms.some((p) => platforms.has(p)) && (
+                <span style={st('color:var(--accText)')}>· {otherPlatforms.filter((p) => platforms.has(p)).length} selected</span>
+              )}
+            </button>
+          )}
+          {showOthers && (
+            <div style={st('display:flex;flex-wrap:wrap;gap:6px')}>
+              {otherPlatforms.map((p) => (
+                <ChipToggle key={p} on={platforms.has(p)} onClick={() => toggle(p)} height={36}>
+                  {ROOM_PLATFORM_LABELS[p]}
+                </ChipToggle>
+              ))}
+            </div>
+          )}
         </div>
       )}
       <Btn
@@ -286,7 +326,6 @@ function CollectionReview({
 export function AddGameDialog() {
   const scope = useScope();
   const ui = useUi();
-  const { ownedPlatforms } = useAuth();
   const announceUnlock = useAnnounceUnlock();
   const roomId = scope.isShelf ? null : scope.scopeId;
   const target = scope.isShelf ? 'your shelf' : (scope.room?.name ?? 'this room');
@@ -502,7 +541,6 @@ export function AddGameDialog() {
             <div style={st('padding:0 8px;display:flex;flex-direction:column;gap:14px')}>
               <OwnershipStep
                 result={pending}
-                defaults={ownedPlatforms}
                 forced={pendingPlatform}
                 busy={addingId === pending.igdbId}
                 error={error}

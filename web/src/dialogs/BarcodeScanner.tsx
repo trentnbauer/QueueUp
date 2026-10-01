@@ -8,6 +8,7 @@ import { Cover } from '../ui/primitives';
 import { st } from '../ui/st';
 
 const REGION = 'qu-barcode-region';
+let regionSeq = 0;
 const ACC = 'var(--acc)';
 const CORNER = (pos: string, radius: string) =>
   `position:absolute;${pos};width:28px;height:28px;border:0 solid ${ACC};border-radius:${radius}`;
@@ -24,6 +25,7 @@ export function BarcodeScanner({ onPick, onClose }: { onPick: (match: BarcodeGam
   const [found, setFound] = useState<BarcodeGameMatch | null>(null);
   const [miss, setMiss] = useState<string | null>(null);
   const scanned = useRef(false);
+  const regionRef = useRef<HTMLDivElement>(null);
 
   async function lookup(code: string) {
     setBusy(true);
@@ -45,7 +47,16 @@ export function BarcodeScanner({ onPick, onClose }: { onPick: (match: BarcodeGam
 
   useEffect(() => {
     let cancelled = false;
-    const scanner = new Html5Qrcode(REGION, {
+    // Each run gets its own mount point: html5-qrcode owns everything inside it (video, canvas),
+    // and a previous run that's still shutting down must not clear the new run's video.
+    const host = regionRef.current;
+    if (!host) return;
+    const mount = document.createElement('div');
+    mount.id = `${REGION}-${++regionSeq}`;
+    // html5-qrcode resets this element to position:relative, so it's sized by height:100% instead.
+    mount.style.cssText = 'width:100%;height:100%';
+    host.appendChild(mount);
+    const scanner = new Html5Qrcode(mount.id, {
       formatsToSupport: [
         Html5QrcodeSupportedFormats.EAN_13,
         Html5QrcodeSupportedFormats.EAN_8,
@@ -54,7 +65,7 @@ export function BarcodeScanner({ onPick, onClose }: { onPick: (match: BarcodeGam
       ],
       verbose: false,
     });
-    scanner
+    const started = scanner
       .start(
         { facingMode: 'environment' },
         { fps: 10, qrbox: { width: 250, height: 150 } },
@@ -66,22 +77,28 @@ export function BarcodeScanner({ onPick, onClose }: { onPick: (match: BarcodeGam
         },
         () => {},
       )
-      .then(() => !cancelled && setStarting(false))
+      .then(() => {
+        if (!cancelled) setStarting(false);
+        return true;
+      })
       .catch((err) => {
-        if (cancelled) return;
-        setStarting(false);
-        setCameraError(
-          err instanceof Error && err.name === 'NotAllowedError'
-            ? 'Camera access was denied. Allow it in your browser, or type the number below.'
-            : 'Could not start the camera. Type the number under the barcode instead.',
-        );
+        if (!cancelled) {
+          setStarting(false);
+          setCameraError(
+            err instanceof Error && err.name === 'NotAllowedError'
+              ? 'Camera access was denied. Allow it in your browser, or type the number below.'
+              : 'Could not start the camera. Type the number under the barcode instead.',
+          );
+        }
+        return false;
       });
     return () => {
       cancelled = true;
-      scanner
-        .stop()
-        .then(() => scanner.clear())
-        .catch(() => {});
+      // stop() throws synchronously if the camera hasn't finished starting, so wait for start first.
+      void started
+        .then((running) => (running ? scanner.stop() : undefined))
+        .catch(() => {})
+        .finally(() => mount.remove());
     };
   }, []);
 
@@ -105,7 +122,9 @@ export function BarcodeScanner({ onPick, onClose }: { onPick: (match: BarcodeGam
       </div>
       <div style={st('width:min(560px, calc(100% - 32px));margin:0 auto;display:flex;flex-direction:column;flex:1;min-height:0')}>
         <div style={st('flex-shrink:0;position:relative;margin:6px 0 0;aspect-ratio:4/3;border-radius:22px;background:oklch(0.2 0.006 55);overflow:hidden;display:flex;align-items:center;justify-content:center')}>
-          <div id={REGION} style={{ position: 'absolute', inset: 0 }} />
+          {/* html5-qrcode sizes the video in px and draws its own frame; fill the box and keep ours. */}
+          <style>{`.qu-barcode-region video{width:100%!important;height:100%!important;object-fit:cover}.qu-barcode-region #qr-shaded-region{display:none}`}</style>
+          <div ref={regionRef} className="qu-barcode-region" style={{ position: 'absolute', inset: 0 }} />
           <div style={st('position:relative;width:74%;height:42%;pointer-events:none')}>
             <span style={st(CORNER('left:0;top:0', '8px 0 0 0'), { borderLeftWidth: 3, borderTopWidth: 3 })} />
             <span style={st(CORNER('right:0;top:0', '0 8px 0 0'), { borderRightWidth: 3, borderTopWidth: 3 })} />
