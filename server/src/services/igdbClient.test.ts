@@ -1,4 +1,5 @@
 import { describe, it, expect } from 'vitest';
+import { withBackwardsCompatible } from '@queueup/shared';
 import {
   platformFamilies,
   escapeApicalypseString,
@@ -51,7 +52,21 @@ describe('platformFamilies', () => {
   });
 
   it('returns an empty array for platforms with no recognizable family', () => {
-    expect(platformFamilies(names('Wii U 2000'))).toEqual([]);
+    expect(platformFamilies(names('Atari 2600'))).toEqual([]);
+  });
+
+  it('recognises the retro and handheld families', () => {
+    expect(platformFamilies(names('Game Boy Color', 'Game Boy Advance', 'Game Boy'))).toEqual(['gbc', 'gba', 'gb']);
+    expect(platformFamilies(names('Nintendo 3DS', 'Nintendo DS', 'Wii U', 'Wii'))).toEqual(['n3ds', 'ds', 'wii_u', 'wii']);
+    expect(platformFamilies(names('Super Nintendo Entertainment System', 'Nintendo Entertainment System', 'Nintendo 64'))).toEqual(['snes', 'nes', 'n64']);
+    expect(platformFamilies(names('PlayStation', 'PlayStation 2', 'PlayStation Vita'))).toEqual(['ps1', 'ps2', 'vita']);
+  });
+
+  it('includes backwards-compatible platforms', () => {
+    expect(withBackwardsCompatible(['ps5']).sort()).toEqual(['ps4', 'ps5']);
+    expect(withBackwardsCompatible(['xbox_series']).sort()).toEqual(['xbox_360', 'xbox_one', 'xbox_series']);
+    expect(withBackwardsCompatible(['switch2', 'pc']).sort()).toEqual(['pc', 'switch', 'switch2']);
+    expect(withBackwardsCompatible(['ps4'])).toEqual(['ps4']);
   });
 
   it('handles missing/empty input', () => {
