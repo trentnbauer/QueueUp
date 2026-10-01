@@ -203,6 +203,7 @@ model User {
   playnitePlaytimeSnapshots     PlaynitePlaytimeSnapshot[]
   playniteCompletionSuggestions PlayniteCompletionSuggestion[]
   achievementCompletions        AchievementCompletion[]
+  achievementProgress           AchievementProgress[]
   badges                        UserBadge[]
   releaseWatchNotifications     ReleaseWatchNotification[]
   linkedIdentities              LinkedIdentity[]
@@ -434,6 +435,25 @@ model AchievementCompletion {
 
   @@id([userId, igdbId])
   @@map("achievement_completion")
+}
+
+/// One user's latest known Steam achievement count for a title, so game cards can show "10/20"
+/// without a live Steam call per card. Keyed by igdbId like AchievementCompletion, so the same
+/// count shows on the user's shelf copy and any room copy of the game. Refreshed whenever QueueUp
+/// reads the count from Steam anyway (the detail modal, the completions sync) and by the playtime
+/// job (see services/achievementProgress.ts). total = 0 records "checked, nothing to show" (no
+/// achievements, or a private profile) so the backfill doesn't keep re-asking Steam.
+model AchievementProgress {
+  userId    String   @map("user_id")
+  igdbId    Int      @map("igdb_id")
+  unlocked  Int
+  total     Int
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@id([userId, igdbId])
+  @@map("achievement_progress")
 }
 
 /// One row per user per badge ever unlocked in QueueUp's own gamification system (issue #489) -

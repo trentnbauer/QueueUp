@@ -1,6 +1,7 @@
 import type { BadgeDefinition } from '@queueup/shared';
 import { prisma } from '../db/client.js';
 import { unlockBadges } from './badges.js';
+import { recordAchievementProgress } from './achievementProgress.js';
 import { getAchievementCounts, getAchievementDetails } from './steamLibrary.js';
 import type { SteamAchievementCounts, SteamUnlockedAchievement } from './steamLibrary.js';
 
@@ -108,6 +109,7 @@ export async function findDetectedSteamCompletions(
         getAchievementCounts(steamId64, appId, apiKey),
         getAchievementDetails(steamId64, appId, apiKey),
       ]);
+      await recordAchievementProgress(userId, g.igdbId, counts);
       const lastUnlockedAt = completedAtOrNull(counts, unlocked);
       return lastUnlockedAt === null ? null : { ...g, lastUnlockedAt };
     }),
