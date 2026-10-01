@@ -1,4 +1,4 @@
-import type { FastifyInstance } from 'fastify';
+import type { FastifyInstance, FastifyRequest } from 'fastify';
 import type { AdminBackupsResponse, RestoreBackupResponse, UpdateBackupSettingsRequest } from '@queueup/shared';
 import { HttpError } from '../util/httpError.js';
 import { requireAdmin } from '../services/adminAccess.js';
@@ -11,6 +11,7 @@ import {
   listBackups,
   readBackupFile,
   restoreBackup,
+  type RestoreOptions,
   runScheduledBackup,
   updateBackupSettings,
 } from '../services/backup.js';
@@ -20,6 +21,21 @@ import {
 
 // Uploaded backups are sent as the raw request body (the gzip file itself) rather than multipart.
 const MAX_IMPORT_BYTES = 1024 * 1024 * 1024;
+
+/** Restore options travel in headers, since an import's body is the raw backup file. The old
+ * session key is URI-encoded by the client (header values must be ASCII) and never logged. */
+function restoreOptions(request: FastifyRequest): RestoreOptions {
+  const raw = request.headers['x-backup-session-key'];
+  let sessionKey: string | undefined;
+  if (typeof raw === 'string' && raw) {
+    try {
+      sessionKey = decodeURIComponent(raw);
+    } catch {
+      throw new HttpError(400, 'Could not read the session key that was sent.');
+    }
+  }
+  return { sessionKey, skipEncrypted: request.headers['x-backup-skip-encrypted'] === '1' };
+}
 
 const limit = { config: { rateLimit: { max: 20, timeWindow: '1 minute' } } };
 
@@ -82,13 +98,13 @@ export default async function adminBackupRoutes(app: FastifyInstance) {
   app.post<{ Params: { name: string } }>('/api/admin/backups/:name/restore', limit, async (request): Promise<RestoreBackupResponse> => {
     const { userId, label } = await actor(request);
     if (!isBackupName(request.params.name)) throw new HttpError(400, 'Not a QueueUp backup file name');
-    const result = await restoreBackup(await readBackupFile(request.params.name));
+    const result = await restoreBackup(await readBackupFile(request.params.name), restoreOptions(request));
     await logAdminAction({
       actorId: userId,
       actorLabel: label,
       action: 'backup.restore',
       targetLabel: request.params.name,
-      metadata: { rows: result.rows, safetyBackup: result.safetyBackup },
+      metadata: { rows: result.rows, skippedEncrypted: result.skippedEncrypted, safetyBackup: result.safetyBackup },
     });
     return result;
   });
@@ -96,12 +112,12 @@ export default async function adminBackupRoutes(app: FastifyInstance) {
   app.post('/api/admin/backups/import', { ...limit, bodyLimit: MAX_IMPORT_BYTES }, async (request): Promise<RestoreBackupResponse> => {
     const { userId, label } = await actor(request);
     if (!Buffer.isBuffer(request.body)) throw new HttpError(400, 'Send the backup file as the request body (application/gzip).');
-    const result = await restoreBackup(request.body);
+    const result = await restoreBackup(request.body, restoreOptions(request));
     await logAdminAction({
       actorId: userId,
       actorLabel: label,
       action: 'backup.import',
-      metadata: { bytes: request.body.length, rows: result.rows, safetyBackup: result.safetyBackup },
+      metadata: { bytes: request.body.length, rows: result.rows, skippedEncrypted: result.skippedEncrypted, safetyBackup: result.safetyBackup },
     });
     return result;
   });

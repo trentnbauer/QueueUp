@@ -7,6 +7,7 @@ import { prisma } from '../db/client.js';
 import { env } from '../config/env.js';
 import { HttpError } from '../util/httpError.js';
 import { encryptPlaintextConfig } from './configResolver.js';
+import { decryptSetting, encryptSetting, isEncrypted } from './settingsCrypto.js';
 import { isValidCron, nextCronRun, parseCron } from '../util/cron.js';
 
 /** Logical, version-independent database backups: every table in the `public` schema as JSON, gzipped.
@@ -251,9 +252,66 @@ export async function parseBackup(gz: Buffer): Promise<BackupFile> {
   return f as BackupFile;
 }
 
+export interface RestoreOptions {
+  /** The SESSION_SECRET of the server the backup came from, when it differs from this one's. */
+  sessionKey?: string;
+  /** Leave out the encrypted values this server can't read, and restore everything else. */
+  skipEncrypted?: boolean;
+}
+
+/** Thrown when the backup holds encrypted keys this server's SESSION_SECRET can't read. The client
+ * tells the cases apart by `code`, then asks for the old session key (or skips those values). */
+export class SessionKeyError extends HttpError {
+  constructor(
+    statusCode: number,
+    message: string,
+    readonly code: 'session_key_required' | 'session_key_wrong',
+    readonly encryptedCount: number,
+  ) {
+    super(statusCode, message);
+  }
+}
+
+const SETTINGS_TABLE = 'app_settings';
+
+/** Makes the backup's encrypted settings (see settingsCrypto.ts) readable on this server: values
+ * encrypted under another SESSION_SECRET are re-encrypted with this one using `sessionKey`, or
+ * dropped with `skipEncrypted`. Returns how many were dropped. Mutates `backup`. */
+export function prepareEncryptedSettings(backup: BackupFile, secret: string, opts: RestoreOptions): number {
+  const rows = backup.tables[SETTINGS_TABLE];
+  if (!Array.isArray(rows)) return 0;
+  const unreadable = rows.filter(
+    (r) => typeof r.value === 'string' && isEncrypted(r.value) && decryptSetting(r.value, secret) === null,
+  );
+  if (unreadable.length === 0) return 0;
+  const n = unreadable.length;
+  const what = `${n} encrypted key${n === 1 ? '' : 's'}`;
+
+  if (opts.sessionKey) {
+    const plain = unreadable.map((r) => decryptSetting(r.value as string, opts.sessionKey!));
+    if (plain.some((p) => p === null)) {
+      throw new SessionKeyError(422, `That session key doesn't unlock the ${what} in this backup.`, 'session_key_wrong', n);
+    }
+    unreadable.forEach((r, i) => (r.value = encryptSetting(plain[i]!, secret)));
+    return 0;
+  }
+  if (opts.skipEncrypted) {
+    backup.tables[SETTINGS_TABLE] = rows.filter((r) => !unreadable.includes(r));
+    return n;
+  }
+  throw new SessionKeyError(
+    409,
+    `This backup has ${what} made with a different session key.`,
+    'session_key_required',
+    n,
+  );
+}
+
 export interface RestoreResult {
   tables: number;
   rows: number;
+  /** Encrypted keys left out because no working session key was given. */
+  skippedEncrypted: number;
   skippedTables: string[];
   safetyBackup: string;
 }
@@ -263,8 +321,10 @@ export interface RestoreResult {
  * `session_replication_role = replica`, which needs a superuser (the Postgres user the bundled
  * compose file creates is one). Columns missing from an older backup take their defaults; tables or
  * columns the current schema no longer has are skipped. Any failure rolls everything back. */
-export async function restoreBackup(gz: Buffer): Promise<RestoreResult> {
+export async function restoreBackup(gz: Buffer, opts: RestoreOptions = {}): Promise<RestoreResult> {
   const backup = await parseBackup(gz);
+  // Before the safety backup and the transaction, so a missing or wrong key changes nothing.
+  const skippedEncrypted = prepareEncryptedSettings(backup, env.SESSION_SECRET, opts);
   const safety = await createBackup('pre-restore');
 
   let rows = 0;
@@ -311,5 +371,5 @@ export async function restoreBackup(gz: Buffer): Promise<RestoreResult> {
   }
   // A backup from before settings encryption carries plain-text keys; encrypt them straight away.
   await encryptPlaintextConfig().catch(() => undefined);
-  return { tables: Object.keys(backup.tables).length - skippedTables.length, rows, skippedTables, safetyBackup: safety.name };
+  return { tables: Object.keys(backup.tables).length - skippedTables.length, rows, skippedEncrypted, skippedTables, safetyBackup: safety.name };
 }

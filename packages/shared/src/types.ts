@@ -1023,9 +1023,15 @@ export interface UpdateBackupSettingsRequest {
 export interface RestoreBackupResponse {
   tables: number;
   rows: number;
+  /** Encrypted integration keys left out because the backup's session key wasn't given. */
+  skippedEncrypted: number;
   skippedTables: string[];
   safetyBackup: string;
 }
+
+/** Error codes a restore or import can answer with when the backup holds encrypted keys made with
+ * a different SESSION_SECRET: none given yet, or the one given doesn't unlock them. */
+export type RestoreSessionKeyCode = 'session_key_required' | 'session_key_wrong';
 
 export interface AdminIntegrationStatus {
   ggDealsApiKeyConfigured: boolean;

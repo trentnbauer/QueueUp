@@ -1,10 +1,11 @@
 import { useEffect, useRef, useState } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
-import type { AdminBackupInfo } from '@queueup/shared';
-import { adminApi } from '../api/admin';
+import type { AdminBackupInfo, RestoreBackupResponse } from '@queueup/shared';
+import { adminApi, RestoreError, type RestoreOptions } from '../api/admin';
 import { useConfirm } from '../context/ConfirmContext';
 import { useUi } from '../context/UiContext';
-import { Btn, Group, Kicker, Toggle } from '../ui/primitives';
+import { Dialog } from '../ui/Dialog';
+import { Btn, Group, Kicker, Toggle, inputField } from '../ui/primitives';
 import { st } from '../ui/st';
 import { getBasePath } from '../utils/basePath';
 
@@ -17,6 +18,81 @@ const PRESETS: [string, string][] = [
 
 const fmtSize = (n: number) => (n >= 1024 * 1024 ? `${(n / 1024 / 1024).toFixed(1)} MB` : `${Math.max(1, Math.round(n / 1024))} KB`);
 const fmtDate = (iso: string) => new Date(iso).toLocaleString(undefined, { dateStyle: 'medium', timeStyle: 'short' });
+type RestoreCall = (opts: RestoreOptions) => Promise<RestoreBackupResponse>;
+
+/** Shown when a backup's encrypted keys were made with a different session key (SESSION_SECRET):
+ * restore with the old key so they come across, or restore everything else without them. */
+function SessionKeyDialog({
+  message,
+  call,
+  onDone,
+  onCancel,
+}: {
+  message: string;
+  call: RestoreCall;
+  onDone: (res: RestoreBackupResponse) => void;
+  onCancel: () => void;
+}) {
+  const [key, setKey] = useState('');
+  const [error, setError] = useState<string | null>(null);
+  const [busy, setBusy] = useState<'key' | 'skip' | null>(null);
+
+  async function go(opts: RestoreOptions, which: 'key' | 'skip') {
+    setBusy(which);
+    setError(null);
+    try {
+      onDone(await call(opts));
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'Restore failed');
+      setBusy(null);
+    }
+  }
+
+  return (
+    <Dialog onClose={() => busy === null && onCancel()} alert width={520} ariaLabel="Session key needed" bare padded={false}>
+      <form
+        onSubmit={(e) => {
+          e.preventDefault();
+          if (key && busy === null) void go({ sessionKey: key }, 'key');
+        }}
+        style={st('display:flex;flex-direction:column;gap:14px;padding:24px 22px 22px')}
+      >
+        <span style={st('font:700 21px/1.2 var(--font-display);letter-spacing:-0.02em')}>Session key needed</span>
+        <span style={st('font:400 14.5px/1.5 var(--font-ui);color:var(--text2);text-wrap:pretty')}>
+          {message} Enter the <code>SESSION_SECRET</code> of the server that made it, or restore without them.
+        </span>
+        <label style={st('display:flex;flex-direction:column;gap:8px;font:600 12.5px var(--font-ui);color:var(--muted)')}>
+          Session key from the old server
+          <input
+            type="password"
+            value={key}
+            onChange={(e) => setKey(e.target.value)}
+            autoComplete="off"
+            spellCheck={false}
+            autoFocus
+            style={st(inputField, { width: '100%' })}
+          />
+        </label>
+        {error && <span role="alert" style={st('font:500 13px/1.4 var(--font-ui);color:var(--danger)')}>{error}</span>}
+        <span style={st('font:400 12.5px/1.4 var(--font-ui);color:var(--muted)')}>
+          Restoring without it brings back everything else; the integration keys then need entering again in Administrator settings.
+        </span>
+        <div style={st('display:flex;justify-content:flex-end;gap:8px;flex-wrap:wrap;margin-top:6px')}>
+          <Btn kind="ghost" height={44} style={{ background: 'var(--chip)', color: 'var(--text)' }} disabled={busy !== null} onClick={onCancel}>
+            Cancel
+          </Btn>
+          <Btn height={44} disabled={busy !== null} onClick={() => go({ skipEncrypted: true }, 'skip')}>
+            {busy === 'skip' ? 'Restoring…' : 'Restore without them'}
+          </Btn>
+          <Btn kind="danger" type="submit" height={44} weight={700} disabled={!key || busy !== null}>
+            {busy === 'key' ? 'Restoring…' : 'Restore with key'}
+          </Btn>
+        </div>
+      </form>
+    </Dialog>
+  );
+}
+
 const KIND_LABEL: Record<AdminBackupInfo['kind'], string> = { nightly: 'Scheduled', manual: 'Manual', 'pre-restore': 'Before a restore' };
 
 /** Administrator menu > Backups: nightly backup settings (on by default, editable cron), the stored
@@ -30,6 +106,7 @@ export function AdminBackups() {
   const [cron, setCron] = useState('');
   const [retention, setRetention] = useState('');
   const [busy, setBusy] = useState<string | null>(null);
+  const [keyPrompt, setKeyPrompt] = useState<{ message: string; call: RestoreCall; done: (res: RestoreBackupResponse) => void } | null>(null);
 
   const settings = data?.settings;
   useEffect(() => {
@@ -80,12 +157,7 @@ export function AdminBackups() {
       danger: true,
     });
     if (!ok) return;
-    const res = await run('restore', () => adminApi.restoreBackup(name), 'Restore failed');
-    if (res) {
-      await refresh();
-      ui.notify(`Restored ${res.rows} rows. Reloading…`);
-      setTimeout(() => window.location.reload(), 1500);
-    }
+    await restoreWith('restore', (opts) => adminApi.restoreBackup(name, opts), 'Restored');
   }
 
   async function importFile(file: File) {
@@ -96,11 +168,27 @@ export function AdminBackups() {
       danger: true,
     });
     if (!ok) return;
-    const res = await run('import', () => adminApi.importBackup(file), 'Import failed');
-    if (res) {
-      await refresh();
-      ui.notify(`Imported ${res.rows} rows. Reloading…`);
+    await restoreWith('import', (opts) => adminApi.importBackup(file, opts), 'Imported');
+  }
+
+  /** Runs a restore or import with this server's session key first. If the backup's encrypted keys
+   * were made with another one, asks for it (or to restore without them) instead of failing. */
+  async function restoreWith(key: string, call: RestoreCall, verb: string) {
+    const done = (res: RestoreBackupResponse) => {
+      setKeyPrompt(null);
+      void refresh();
+      const skipped = res.skippedEncrypted > 0 ? ` (${res.skippedEncrypted} encrypted key${res.skippedEncrypted === 1 ? '' : 's'} left out)` : '';
+      ui.notify(`${verb} ${res.rows} rows${skipped}. Reloading…`);
       setTimeout(() => window.location.reload(), 1500);
+    };
+    setBusy(key);
+    try {
+      done(await call({}));
+    } catch (e) {
+      if (e instanceof RestoreError && e.code === 'session_key_required') setKeyPrompt({ message: e.message, call, done });
+      else fail(e, `${verb === 'Imported' ? 'Import' : 'Restore'} failed`);
+    } finally {
+      setBusy(null);
     }
   }
 
@@ -173,6 +261,10 @@ export function AdminBackups() {
               {settings?.lastRun ? `Last scheduled run ${fmtDate(settings.lastRun.at)}: ${settings.lastRun.ok ? 'ok' : `failed (${settings.lastRun.message})`}. ` : ''}
               Saved to <code>{settings?.directory ?? '…'}</code>
             </span>
+            <span style={st('font:400 12.5px/1.4 var(--font-ui);color:var(--muted);margin-top:4px')}>
+              🔒 Integration keys saved in Administrator settings are encrypted with this server's session key (<code>SESSION_SECRET</code>). Restoring them on a
+              server with a different session key needs the original one; without it, everything else restores and those keys have to be entered again.
+            </span>
           </span>
           <Btn kind="accent" height={40} padX={16} fontSize={13} disabled={busy === 'now'} onClick={backUpNow}>
             {busy === 'now' ? 'Backing up…' : 'Back up now'}
@@ -214,6 +306,7 @@ export function AdminBackups() {
           </div>
         ))}
       </Group>
+      {keyPrompt && <SessionKeyDialog message={keyPrompt.message} call={keyPrompt.call} onDone={keyPrompt.done} onCancel={() => setKeyPrompt(null)} />}
     </div>
   );
 }

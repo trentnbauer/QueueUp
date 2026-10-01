@@ -1,18 +1,36 @@
 import { apiGet, apiPost, apiPatch, apiDelete } from './client';
 import { getBasePath } from '../utils/basePath';
-import type { AdminBackupInfo, AdminBackupsResponse, AdminBackupSettings, RestoreBackupResponse, UpdateBackupSettingsRequest, AdminIntegrationStatus, AdminRoomSummary, AdminUserSummary, IntegrationConfigKey, TunnelStatus } from '@queueup/shared';
+import type { AdminBackupInfo, AdminBackupsResponse, AdminBackupSettings, RestoreBackupResponse, RestoreSessionKeyCode, UpdateBackupSettingsRequest, AdminIntegrationStatus, AdminRoomSummary, AdminUserSummary, IntegrationConfigKey, TunnelStatus } from '@queueup/shared';
 
-/** Sends a backup file as the raw request body (not JSON), so it can't go through the JSON helpers. */
-async function importBackup(file: File): Promise<RestoreBackupResponse> {
-  const response = await fetch(`${getBasePath()}/api/admin/backups/import`, {
-    method: 'POST',
-    credentials: 'include',
-    headers: { 'Content-Type': 'application/gzip' },
-    body: file,
-  });
+/** Options for a restore or import whose backup holds encrypted keys made with another session key. */
+export interface RestoreOptions {
+  sessionKey?: string;
+  skipEncrypted?: boolean;
+}
+
+/** A failed restore/import. `code` is set when the backup's encrypted keys need the old session key. */
+export class RestoreError extends Error {
+  constructor(
+    message: string,
+    readonly code?: RestoreSessionKeyCode,
+  ) {
+    super(message);
+  }
+}
+
+/** Restore and import send their options as headers (an import's body is the raw backup file, not
+ * JSON), so neither can go through the JSON helpers. */
+async function sendRestore(path: string, opts: RestoreOptions, file?: File): Promise<RestoreBackupResponse> {
+  const headers: Record<string, string> = {};
+  if (file) headers['Content-Type'] = 'application/gzip';
+  // URI-encoded: header values must be ASCII, and a session key can be anything.
+  if (opts.sessionKey) headers['X-Backup-Session-Key'] = encodeURIComponent(opts.sessionKey);
+  if (opts.skipEncrypted) headers['X-Backup-Skip-Encrypted'] = '1';
+  const response = await fetch(`${getBasePath()}${path}`, { method: 'POST', credentials: 'include', headers, body: file });
   if (!response.ok) {
-    const body = (await response.json().catch(() => ({}))) as { error?: string };
-    throw new Error(body.error ?? `Import failed: ${response.status}`);
+    const body = (await response.json().catch(() => ({}))) as { error?: string; code?: string };
+    const code = body.code === 'session_key_required' || body.code === 'session_key_wrong' ? body.code : undefined;
+    throw new RestoreError(body.error ?? `Restore failed: ${response.status}`, code);
   }
   return response.json() as Promise<RestoreBackupResponse>;
 }
@@ -22,8 +40,8 @@ export const adminApi = {
   updateBackupSettings: (body: UpdateBackupSettingsRequest) => apiPatch<{ settings: AdminBackupSettings }>('/api/admin/backups/settings', body),
   createBackup: () => apiPost<{ backup: AdminBackupInfo }>('/api/admin/backups'),
   deleteBackup: (name: string) => apiDelete(`/api/admin/backups/${encodeURIComponent(name)}`),
-  restoreBackup: (name: string) => apiPost<RestoreBackupResponse>(`/api/admin/backups/${encodeURIComponent(name)}/restore`),
-  importBackup,
+  restoreBackup: (name: string, opts: RestoreOptions = {}) => sendRestore(`/api/admin/backups/${encodeURIComponent(name)}/restore`, opts),
+  importBackup: (file: File, opts: RestoreOptions = {}) => sendRestore('/api/admin/backups/import', opts, file),
   overview: () => apiGet<{ status: AdminIntegrationStatus; tunnel: TunnelStatus }>('/api/admin/overview'),
   users: () => apiGet<{ users: AdminUserSummary[] }>('/api/admin/users'),
   setUserAdmin: (id: string, isAdmin: boolean) =>
