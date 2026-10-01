@@ -21,6 +21,7 @@ import { Dialog } from '../ui/Dialog';
 import { Avatar, Banner, Btn, Group, Kicker, Segmented, Toggle, inputField } from '../ui/primitives';
 import { SystemsPicker } from '../ui/SystemsPicker';
 import { st } from '../ui/st';
+import { PALETTE_LABELS, type Palette } from '../theme/applyThemeMode';
 import { getBasePath } from '../utils/basePath';
 import { formatRelativeTime } from '../utils/relativeTime';
 
@@ -155,7 +156,7 @@ export function MeDialog() {
   const friends = useFriends();
   const pending = usePendingImportsCount();
   const { region, setRegion } = useCurrencyRegion();
-  const { preference, setPreference } = useThemeMode();
+  const { preference, setPreference, palette, setPalette } = useThemeMode();
   const { viewMode, setViewMode } = useViewMode();
   const { density, setDensity } = useCardDensity();
   const steam = useSteamImportContext();
@@ -324,6 +325,13 @@ export function MeDialog() {
               { value: 'light', label: 'Light' },
               { value: 'system', label: 'System' },
             ]}
+          />
+          <span style={st('font:500 13px var(--font-ui);color:var(--text2);margin-top:4px')}>Colours</span>
+          <Segmented
+            columns={3}
+            value={palette}
+            onChange={setPalette}
+            options={(Object.keys(PALETTE_LABELS) as Palette[]).map((k) => ({ value: k, label: PALETTE_LABELS[k] }))}
           />
           <span style={st('font:500 13px var(--font-ui);color:var(--text2);margin-top:4px')}>Shelf &amp; room layout</span>
           <Segmented

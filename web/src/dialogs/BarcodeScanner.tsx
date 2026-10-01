@@ -8,7 +8,7 @@ import { Cover } from '../ui/primitives';
 import { st } from '../ui/st';
 
 const REGION = 'qu-barcode-region';
-const ACC = 'oklch(0.74 0.15 45)';
+const ACC = 'var(--acc)';
 const CORNER = (pos: string, radius: string) =>
   `position:absolute;${pos};width:28px;height:28px;border:0 solid ${ACC};border-radius:${radius}`;
 
@@ -111,7 +111,7 @@ export function BarcodeScanner({ onPick, onClose }: { onPick: (match: BarcodeGam
             <span style={st(CORNER('right:0;top:0', '0 8px 0 0'), { borderRightWidth: 3, borderTopWidth: 3 })} />
             <span style={st(CORNER('left:0;bottom:0', '0 0 0 8px'), { borderLeftWidth: 3, borderBottomWidth: 3 })} />
             <span style={st(CORNER('right:0;bottom:0', '0 0 8px 0'), { borderRightWidth: 3, borderBottomWidth: 3 })} />
-            <span style={st(`position:absolute;left:8%;right:8%;top:50%;height:2px;background:oklch(0.74 0.15 45 / 0.8);box-shadow:0 0 12px ${ACC}`)} />
+            <span style={st(`position:absolute;left:8%;right:8%;top:50%;height:2px;background:var(--accA80);box-shadow:0 0 12px ${ACC}`)} />
           </div>
           <span style={st('position:absolute;bottom:14px;left:0;right:0;text-align:center;font:500 13px var(--font-ui);color:oklch(0.8 0.01 65);padding:0 16px')}>{hint}</span>
         </div>
@@ -146,7 +146,7 @@ export function BarcodeScanner({ onPick, onClose }: { onPick: (match: BarcodeGam
                 <span style={st('font:600 15px var(--font-ui)')}>{found.title}</span>
                 <span style={st('font:400 12.5px var(--font-ui);color:oklch(0.7 0.01 65)')}>{found.platform}</span>
               </span>
-              <button type="button" onClick={() => onPick(found)} style={st(`height:38px;padding:0 16px;border-radius:999px;border:none;background:${ACC};color:oklch(0.2 0.03 45);font:700 13px var(--font-ui)`)}>
+              <button type="button" onClick={() => onPick(found)} style={st(`height:38px;padding:0 16px;border-radius:999px;border:none;background:${ACC};color:var(--ink);font:700 13px var(--font-ui)`)}>
                 Add
               </button>
             </div>

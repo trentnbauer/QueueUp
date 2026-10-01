@@ -152,7 +152,7 @@ export function HomeView() {
             fontSize={14}
             weight={800}
             onClick={() => ui.openDialog('spin')}
-            style={{ fontFamily: 'var(--font-display)', boxShadow: '0 6px 20px oklch(0.74 0.15 45 / 0.3)' }}
+            style={{ fontFamily: 'var(--font-display)', boxShadow: '0 6px 20px var(--accA30)' }}
           >
             Spin
           </Btn>
@@ -400,7 +400,7 @@ export function HomeView() {
           type="button"
           onClick={() => ui.openDialog('add', {})}
           aria-label="Add a game"
-          style={st('position:fixed;right:16px;bottom:20px;z-index:30;width:60px;height:60px;border-radius:50%;border:none;background:var(--acc);color:var(--ink);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:1px;box-shadow:0 10px 28px oklch(0.74 0.15 45 / 0.4)')}
+          style={st('position:fixed;right:16px;bottom:20px;z-index:30;width:60px;height:60px;border-radius:50%;border:none;background:var(--acc);color:var(--ink);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:1px;box-shadow:0 10px 28px var(--accA40)')}
         >
           <span style={st('font:500 24px/1 var(--font-ui)')}>+</span>
           <span style={st('font:700 10px var(--font-ui)')}>Add</span>
