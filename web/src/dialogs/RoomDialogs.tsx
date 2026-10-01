@@ -15,6 +15,7 @@ import { useAuth } from '../context/AuthContext';
 import { useConfirm } from '../context/ConfirmContext';
 import { useScope } from '../context/ScopeContext';
 import { useUi } from '../context/UiContext';
+import { useFriends } from '../hooks/useFriends';
 import { useRooms } from '../hooks/useRooms';
 import { computeRoomYearInReview } from '../components/roomYearInReview';
 import { Dialog } from '../ui/Dialog';
@@ -206,6 +207,45 @@ export function AddRoomDialog() {
   );
 }
 
+type FriendsApi = ReturnType<typeof useFriends>;
+
+/** Per-member friend state in the member list: already a friend, request sent, request waiting on
+ * you, or a button to send one. */
+function FriendStatus({ userId, name, friends, notify, onError }: { userId: string; name: string; friends: FriendsApi; notify: (m: string) => void; onError: (m: string) => void }) {
+  const [busy, setBusy] = useState(false);
+  const chip = 'height:28px;padding:0 10px;border-radius:999px;display:flex;align-items:center;font:600 12px var(--font-ui);white-space:nowrap';
+  if (friends.friends.some((f) => f.id === userId)) {
+    return <span style={st(`${chip};background:var(--mintSoft);color:var(--mint)`)}>✓ Friend</span>;
+  }
+  if (friends.outgoing.some((r) => r.user.id === userId)) {
+    return <span style={st(`${chip};background:var(--chip);color:var(--muted)`)}>Requested</span>;
+  }
+  const incoming = friends.incoming.find((r) => r.user.id === userId);
+  async function run(fn: () => Promise<unknown>, done: string) {
+    setBusy(true);
+    try {
+      await fn();
+      notify(done);
+    } catch (e) {
+      onError(e instanceof Error ? e.message : 'Something went wrong');
+    } finally {
+      setBusy(false);
+    }
+  }
+  if (incoming) {
+    return (
+      <Btn kind="soft" height={28} padX={10} fontSize={12} disabled={busy} onClick={() => run(() => friends.accept(incoming.id), `You and ${name} are friends`)}>
+        Accept request
+      </Btn>
+    );
+  }
+  return (
+    <Btn kind="soft" height={28} padX={10} fontSize={12} disabled={busy} onClick={() => run(() => friends.sendRequestToUser(userId), `Friend request sent to ${name}`)}>
+      Add friend
+    </Btn>
+  );
+}
+
 const ROLE_LABEL: Record<RoomRole, string> = { room_master: 'Room Master', moderator: 'Moderator', member: 'Member' };
 const MEMBER_PREVIEW = 6;
 
@@ -231,6 +271,7 @@ export function RoomSettingsDialog() {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
   const { room, members, games, canManage, suggestions } = scope;
+  const friends = useFriends();
 
   const [name, setName] = useState(room?.name ?? '');
   const [hook, setHook] = useState(room?.discordWebhookUrl ?? '');
@@ -464,6 +505,7 @@ export function RoomSettingsDialog() {
               <div key={m.user.id} style={st('display:flex;align-items:center;gap:12px;min-height:58px;padding:8px 10px 8px 14px;background:var(--surf)')}>
                 <Avatar name={m.user.displayName} color={m.user.avatarColor} avatarUrl={m.user.avatarUrl} size={32} fontSize={13} />
                 <span style={st('flex:1;min-width:0;font:600 14.5px var(--font-ui);white-space:nowrap;overflow:hidden;text-overflow:ellipsis')}>{m.user.displayName}</span>
+                {m.user.id !== user?.id && <FriendStatus userId={m.user.id} name={m.user.displayName} friends={friends} notify={ui.notify} onError={setError} />}
                 {editable ? (
                   <>
                     <select

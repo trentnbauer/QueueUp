@@ -1,5 +1,5 @@
 import { useEffect, useRef } from 'react';
-import { useNavigate } from 'react-router';
+import { useUi } from '../context/UiContext';
 import { useQuery } from '@tanstack/react-query';
 import { useAuth } from '../context/AuthContext';
 import { useToast } from '../context/ToastContext';
@@ -39,7 +39,7 @@ function startedToastId(startedAt: string): string {
  * subsequent poll of the still-`done: true` row. */
 export function usePlayniteSyncToasts() {
   const { user } = useAuth();
-  const navigate = useNavigate();
+  const ui = useUi();
   const { showToast, dismissToast } = useToast();
   const announceUnlock = useAnnounceUnlock();
   const seenStartedAtRef = useRef<string | null>(null);
@@ -75,11 +75,11 @@ export function usePlayniteSyncToasts() {
       showToast({
         id: `playnite-sync-complete-${progress.startedAt}`,
         message: summarizePlayniteSyncCompletion(progress),
-        actions: progress.unmatched > 0 ? [{ label: 'Review', onClick: () => navigate('/review') }] : [],
+        actions: progress.unmatched > 0 ? [{ label: 'Review', onClick: () => ui.openDialog('needsReview') }] : [],
       });
       if (progress.unlockedBadges) announceUnlock(progress.unlockedBadges);
     }
-    // Only `data` (the poll result) should retrigger this - navigate/showToast/dismissToast/
+    // Only `data` (the poll result) should retrigger this - ui/showToast/dismissToast/
     // announceUnlock are read fresh on each run regardless, same reasoning as
     // useActiveRoomSpinToasts' identical exclusion.
     // eslint-disable-next-line react-hooks/exhaustive-deps

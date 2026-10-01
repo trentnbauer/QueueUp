@@ -1779,6 +1779,8 @@ export interface FriendProfile {
   activity: FriendActivityEntry[];
 }
 
+/** Either a friend code, or the id of someone you share a room with (the room settings member list). */
 export interface SendFriendRequestRequest {
-  code: string;
+  code?: string;
+  userId?: string;
 }

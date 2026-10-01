@@ -26,7 +26,7 @@ export function useFriends() {
   };
 
   const sendRequest = useMutation({
-    mutationFn: (code: string) => friendsApi.sendRequest({ code }),
+    mutationFn: (body: { code?: string; userId?: string }) => friendsApi.sendRequest(body),
     onSuccess: invalidate,
   });
   const accept = useMutation({ mutationFn: (id: string) => friendsApi.accept(id), onSuccess: invalidate });
@@ -40,7 +40,8 @@ export function useFriends() {
     incoming: query.data?.incoming ?? [],
     outgoing: query.data?.outgoing ?? [],
     myCode: query.data?.myCode ?? '',
-    sendRequest: (code: string) => sendRequest.mutateAsync(code),
+    sendRequest: (code: string) => sendRequest.mutateAsync({ code }),
+    sendRequestToUser: (userId: string) => sendRequest.mutateAsync({ userId }),
     accept: (id: string) => accept.mutateAsync(id),
     removeRequest: (id: string) => removeRequest.mutateAsync(id),
     unfriend: (userId: string) => unfriend.mutateAsync(userId),
