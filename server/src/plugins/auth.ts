@@ -183,7 +183,11 @@ export default fp(async function authPlugin(app: FastifyInstance) {
       reply.status(statusCode).send({ error: 'Internal server error' });
       return;
     }
-    reply.status(statusCode).send({ error: error.message });
+    const code = (error as { code?: unknown }).code;
+    // A string code set by our own HttpError subclasses (e.g. restore's SessionKeyError) lets the
+    // client tell error cases apart without matching on the message. Fastify's own errors carry
+    // FST_* codes, which stay server-side.
+    reply.status(statusCode).send(typeof code === 'string' && error instanceof HttpError ? { error: error.message, code } : { error: error.message });
   });
 });
 

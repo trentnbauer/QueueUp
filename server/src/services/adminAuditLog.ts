@@ -17,9 +17,12 @@ interface LogAdminActionInput {
  * does, and "who deleted this room six weeks ago" is exactly the kind of question you can't
  * answer from a log file that's already rolled over. */
 export async function logAdminAction(input: LogAdminActionInput): Promise<void> {
+  // After a restore or import the acting admin may no longer exist (the database now holds another
+  // server's users), so the row keeps their label but no actor link rather than failing the request.
+  const actorExists = (await prisma.user.count({ where: { id: input.actorId } })) > 0;
   await prisma.adminAuditLog.create({
     data: {
-      actorId: input.actorId,
+      actorId: actorExists ? input.actorId : null,
       actorLabel: input.actorLabel,
       action: input.action,
       targetLabel: input.targetLabel ?? null,
