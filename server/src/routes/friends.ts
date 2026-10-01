@@ -159,7 +159,8 @@ async function buildFeed(
     const user = userById.get(b.userId);
     if (!def || !user) continue;
     entries.push({
-      id: `badge:${b.userId}:${b.badgeKey}`,
+      // No underscores: the paging cursor (`${iso}_${id}`) splits on the last one.
+      id: `badge:${b.userId}:${b.badgeKey.replace(/_/g, '-')}`,
       user,
       kind: 'ach',
       title: def.name,

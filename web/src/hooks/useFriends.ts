@@ -1,4 +1,4 @@
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { useInfiniteQuery, useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { friendsApi } from '../api/friends';
 import { useAuth } from '../context/AuthContext';
 
@@ -50,9 +50,11 @@ export function useFriends() {
 
 export function useFriendActivity() {
   const { user } = useAuth();
-  return useQuery({
+  return useInfiniteQuery({
     queryKey: ACTIVITY_QUERY_KEY,
-    queryFn: () => friendsApi.activity(),
+    queryFn: ({ pageParam }: { pageParam: string | undefined }) => friendsApi.activity(pageParam),
+    initialPageParam: undefined as string | undefined,
+    getNextPageParam: (last) => last.nextBefore ?? undefined,
     enabled: !!user,
   });
 }

@@ -224,7 +224,14 @@ export function SpinDialog({ onClose }: { onClose: () => void }) {
     setNudge(dir);
     setTimeout(() => setNudge(null), 300);
     if (session) void shared.nudgeSpin(dir).catch(() => {});
-    else setLocal((prev) => (prev ? { ...prev, base: applyNudge(prev.base, Date.now(), dir), settlesAtMs: settlesAtOf(applyNudge(prev.base, Date.now(), dir)), settledPosition: settledPositionOf(applyNudge(prev.base, Date.now(), dir)) } : prev));
+    else {
+      const at = Date.now();
+      setLocal((prev) => {
+        if (!prev) return prev;
+        const nudged = applyNudge(prev.base, at, dir);
+        return { ...prev, base: nudged, settlesAtMs: settlesAtOf(nudged), settledPosition: settledPositionOf(nudged) };
+      });
+    }
   }
 
   function play() {
