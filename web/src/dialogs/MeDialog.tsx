@@ -149,7 +149,7 @@ export function MeDialog() {
   const ui = useUi();
   const navigate = useNavigate();
   const confirm = useConfirm();
-  const { user, steamLinked, publicProfileEnabled, primaryProvider, linkedProviders, refetch } = useAuth();
+  const { user, steamLinked, publicProfileEnabled, profileSlug, primaryProvider, linkedProviders, refetch } = useAuth();
   const { rooms, games } = useScope();
   const { version } = useVersion();
   const friends = useFriends();
@@ -164,6 +164,7 @@ export function MeDialog() {
   const [unlinking, setUnlinking] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [keysOpen, setKeysOpen] = useState(false);
+  const [slugDraft, setSlugDraft] = useState<string | null>(null);
 
   useEffect(() => {
     authApi.providers().then(({ providers }) => setProviders(providers)).catch(() => setProviders([]));
@@ -184,7 +185,7 @@ export function MeDialog() {
   const beaten = games.filter((g) => g.status === 'done' || g.status === 'replay').length;
   const earned = badges ? badges.badges.filter((b) => b.unlockedAt).length : null;
   const total = badges ? badges.badges.length : null;
-  const profileUrl = `${window.location.origin}${getBasePath()}/u/${user.id}`;
+  const profileUrl = `${window.location.origin}${getBasePath()}/u/${profileSlug ?? user.id}`;
   const steamBusy = steam.busy || steam.completions.busy || steam.syncingEverything;
 
   async function steamSync() {
@@ -229,6 +230,18 @@ export function MeDialog() {
       ui.notify(on ? 'Public profile on' : 'Public profile off');
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Could not update your public profile setting');
+    }
+  }
+
+  async function saveSlug() {
+    if (slugDraft === null) return;
+    try {
+      await authApi.setProfileSlug(slugDraft.trim() === '' ? null : slugDraft);
+      await refetch();
+      setSlugDraft(null);
+      ui.notify(slugDraft.trim() === '' ? 'Profile link reset' : 'Profile link saved');
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'Could not save that profile name');
     }
   }
 
@@ -403,6 +416,30 @@ export function MeDialog() {
                   <Btn kind="text" height={34} padX={14} fontSize={12.5} weight={700} onClick={async () => { await navigator.clipboard.writeText(profileUrl); ui.notify('Profile link copied'); }}>
                     Copy link
                   </Btn>
+                </div>
+                <div style={st('display:flex;flex-direction:column;gap:8px;padding:12px 10px 12px 16px;background:var(--surf)')}>
+                  <span style={st('display:flex;flex-direction:column;gap:1px')}>
+                    <span style={st('font:600 15px var(--font-ui)')}>Custom link</span>
+                    <span style={st('font:400 12.5px var(--font-ui);color:var(--muted)')}>Use a name instead of your id: letters, numbers and hyphens, 3 to 30 characters</span>
+                  </span>
+                  <div style={st('display:flex;align-items:center;gap:8px')}>
+                    <span style={st('font:500 12.5px var(--font-mono);color:var(--muted)')}>/u/</span>
+                    <input
+                      value={slugDraft ?? profileSlug ?? ''}
+                      onChange={(e) => setSlugDraft(e.target.value)}
+                      placeholder="your-name"
+                      aria-label="Custom profile link"
+                      autoCapitalize="none"
+                      autoCorrect="off"
+                      spellCheck={false}
+                      style={st(inputField, { flex: 1, minWidth: 0, height: 38, fontFamily: 'var(--font-mono)', fontSize: 13.5 })}
+                    />
+                    {slugDraft !== null && slugDraft !== (profileSlug ?? '') && (
+                      <Btn kind="text" height={38} padX={14} fontSize={12.5} weight={700} onClick={saveSlug}>
+                        Save
+                      </Btn>
+                    )}
+                  </div>
                 </div>
               </>
             )}
