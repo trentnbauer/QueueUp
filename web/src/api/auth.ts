@@ -25,6 +25,7 @@ export const authApi = {
     apiPatch<{ ownedPlatforms: RoomPlatform[] }>('/api/me/owned-platforms', { platforms }),
   updatePublicProfile: (enabled: boolean) =>
     apiPatch<{ publicProfileEnabled: boolean }>('/api/me/public-profile', { enabled }),
+  setDisplayName: (displayName: string) => apiPatch<{ displayName: string }>('/api/me/display-name', { displayName }),
   setProfileSlug: (slug: string | null) => apiPatch<{ profileSlug: string | null }>('/api/me/profile-slug', { slug }),
   loginUrl: (provider: string) => `${getBasePath()}/auth/${provider}/login`,
   linkUrl: (provider: string) => `${getBasePath()}/auth/${provider}/link`,

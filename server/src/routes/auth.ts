@@ -267,6 +267,21 @@ export default async function authRoutes(app: FastifyInstance) {
     },
   );
 
+  // Change the display name shown to friends and room members (issue #617).
+  app.patch<{ Body: { displayName?: string } }>(
+    '/api/me/display-name',
+    { config: { rateLimit: { max: 20, timeWindow: '1 minute' } } },
+    async (request, reply) => {
+      const userId = await request.requireAuth();
+      const displayName = (request.body?.displayName ?? '').trim().replace(/\s+/g, ' ');
+      if (displayName.length < 1 || displayName.length > 40) {
+        throw new HttpError(400, 'Display name must be 1-40 characters.');
+      }
+      await prisma.user.update({ where: { id: userId }, data: { displayName } });
+      return reply.send({ displayName });
+    },
+  );
+
   // Personal access token management (issue #435) - these themselves are cookie-authenticated app
   // routes (Profile Settings), not part of the bearer-authenticated /api/v1 surface the keys
   // unlock. See services/apiKeys.ts for why the raw token is never stored, only its hash.

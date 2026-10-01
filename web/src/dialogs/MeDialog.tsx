@@ -151,6 +151,7 @@ export function MeDialog() {
   const navigate = useNavigate();
   const confirm = useConfirm();
   const { user, publicProfileEnabled, profileSlug, primaryProvider, linkedProviders, refetch } = useAuth();
+  const [nameDraft, setNameDraft] = useState<string | null>(null);
   const { rooms, games } = useScope();
   const { version } = useVersion();
   const friends = useFriends();
@@ -248,6 +249,18 @@ export function MeDialog() {
     }
   }
 
+  async function saveName() {
+    if (nameDraft === null) return;
+    try {
+      await authApi.setDisplayName(nameDraft);
+      await refetch();
+      setNameDraft(null);
+      ui.notify('Name updated');
+    } catch (e) {
+      ui.showError(e instanceof Error ? e.message : 'Could not change your name');
+    }
+  }
+
   async function saveSlug() {
     if (slugDraft === null) return;
     try {
@@ -294,7 +307,26 @@ export function MeDialog() {
           <>
             <Avatar name={user.displayName} color={user.avatarColor} avatarUrl={user.avatarUrl} size={52} fontSize={20} />
             <div style={st('flex:1;min-width:0;display:flex;flex-direction:column;gap:2px')}>
-              <span style={st('font:700 22px var(--font-display);letter-spacing:-0.02em;white-space:nowrap;overflow:hidden;text-overflow:ellipsis')}>{user.displayName}</span>
+              {nameDraft === null ? (
+                <span style={st('display:flex;align-items:center;gap:8px;min-width:0')}>
+                  <span style={st('font:700 22px var(--font-display);letter-spacing:-0.02em;white-space:nowrap;overflow:hidden;text-overflow:ellipsis')}>{user.displayName}</span>
+                  <button type="button" aria-label="Change display name" title="Change display name" onClick={() => setNameDraft(user.displayName)} style={st('flex:none;width:28px;height:28px;border:none;border-radius:999px;background:var(--chip);color:var(--text2);font-size:14px;line-height:1')}>
+                    ✎
+                  </button>
+                </span>
+              ) : (
+                <form
+                  onSubmit={(e) => {
+                    e.preventDefault();
+                    void saveName();
+                  }}
+                  style={st('display:flex;align-items:center;gap:6px')}
+                >
+                  <input autoFocus value={nameDraft} maxLength={40} onChange={(e) => setNameDraft(e.target.value)} aria-label="Display name" style={st('flex:1;min-width:0;height:34px;padding:0 10px;border-radius:10px;border:1px solid var(--line);background:var(--surf);color:var(--text);font:600 16px var(--font-ui)')} />
+                  <Btn kind="accent" height={34} padX={12} fontSize={13} onClick={() => void saveName()}>Save</Btn>
+                  <Btn height={34} padX={12} fontSize={13} onClick={() => setNameDraft(null)}>Cancel</Btn>
+                </form>
+              )}
               <span style={st('font:400 13px var(--font-ui);color:var(--muted)')}>
                 {rooms.length} room{rooms.length === 1 ? '' : 's'} · {beaten} beaten
               </span>
