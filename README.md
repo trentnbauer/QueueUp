@@ -36,6 +36,8 @@ Some other things to note:
 - Optional: A free [ScanDex API key](https://scandex.gamery.app/documentation/pricing/) - used for importing physical games via barcode scan
 - Optional: Install the [QueueUp Playnite extension](https://github.com/trentnbauer/QueueUpPlayniteExtension) to push your entire Playnite library (including Xbox, PlayStation, and Nintendo games) into QueueUp - set up from Profile → Sync Playnite (or Add game → Import library) once your instance is running
 - A sign-in method (Google, Discord, Steam, or a generic OIDC provider like Authelia/Keycloak/Authentik)
+- Optional: A free [Cloudflare Turnstile](https://dash.cloudflare.com/?to=/:account/turnstile) widget - adds a captcha to the sign-in page
+- Optional: A free [Cloudflare Tunnel](https://one.dash.cloudflare.com/) - reach QueueUp from the internet without opening a port (QueueUp runs the tunnel itself)
 
 ## Docker Compose
 
@@ -44,6 +46,8 @@ Some other things to note:
 3. Rename the compose file to docker-compose.yaml
 4. Rename the env file to .env
 5. Run `docker-compose up` to start the stack
+
+Every setting is described in `.env.example`. The gg.deals, IGDB, ScanDex, Turnstile and Cloudflare Tunnel keys can also be entered later in **Profile → Administrator settings** instead of the env file (an env var always wins over a value saved there).
 
 ## Backups
 
@@ -57,6 +61,20 @@ QueueUp takes a database backup **every night at 03:00 (server time) by default*
 - **Generic OIDC**: any standards-compliant provider (Authelia, Keycloak, Authentik, ...) — fill in `OIDC_ISSUER_URL`/`OIDC_CLIENT_ID`/`OIDC_CLIENT_SECRET`.
 
 Each method's `*_REDIRECT_URI` must exactly match what you register with that provider. In the production setup (`docker-compose.prod.yml`), you can leave `*_REDIRECT_URI` unset entirely - it defaults to `${APP_BASE_URL}/auth/<provider>/callback`, since that one server container serves both the API and the frontend. You still need to register that exact URL with the provider; only set `*_REDIRECT_URI` explicitly if your deployment doesn't serve the API from `APP_BASE_URL`'s own origin (local dev's split `:5173`/`:3000` ports being the main example).
+
+## Sign-in captcha (Cloudflare Turnstile)
+
+Optional. Create a widget at [Cloudflare → Turnstile](https://dash.cloudflare.com/?to=/:account/turnstile), add your QueueUp hostname to its allowed hostnames, then set `TURNSTILE_SITE_KEY` and `TURNSTILE_SECRET_KEY` (or enter them in Administrator settings). With both set, the sign-in page checks visitors with Turnstile before any sign-in starts. Most people never see a challenge, and anyone who does gets Cloudflare's "Verify you are human" box. If Cloudflare can't be reached, sign-in is refused rather than let through. Leave both blank for no captcha.
+
+## Cloudflare Tunnel
+
+Optional, and an alternative to opening a port or running a reverse proxy. QueueUp's image includes `cloudflared` and runs it for you:
+
+1. In [Cloudflare Zero Trust](https://one.dash.cloudflare.com/) → Networks → Tunnels, create a tunnel (cloudflared type) and copy its token.
+2. Give the tunnel a public hostname (e.g. `queueup.example.com`) whose service is `http://localhost:3000`.
+3. Set `CLOUDFLARE_TUNNEL_TOKEN` (or paste the token into Administrator settings → Cloudflare Tunnel, which applies straight away), and set `APP_BASE_URL` to `https://queueup.example.com`.
+
+Administrator settings shows whether the tunnel is connected, and the last error if it isn't. If you only reach QueueUp through the tunnel, you can remove the `ports:` mapping from the compose file.
 
 ## Steam playtime tracking
 
