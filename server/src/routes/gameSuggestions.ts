@@ -113,6 +113,7 @@ export default async function gameSuggestionRoutes(app: FastifyInstance) {
             releaseDate: resolved.releaseDate,
             igdbCollectionId: resolved.igdbCollectionId,
             reviewScore: resolved.reviewScore,
+            sensitiveContent: resolved.sensitiveContent,
             status: defaultStatusForRelease(resolved.releaseDate),
           },
         });

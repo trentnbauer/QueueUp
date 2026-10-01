@@ -687,6 +687,10 @@ model Game {
   /// for a Done game. Sticky once true - a later Replay doesn't clear it, since it's a record of
   /// "this has been 100%'d before," not "the current playthrough is 100%'d."
   steamFullyCompleted          Boolean    @default(false) @map("steam_fully_completed")
+  /// IGDB tags this game as adult (Erotic theme, or a sexual-content keyword) - set at intake. Drives the
+  /// "hide these from your public library?" prompt; sensitivePrompted records that the owner has answered.
+  sensitiveContent             Boolean    @default(false) @map("sensitive_content")
+  sensitivePrompted            Boolean    @default(false) @map("sensitive_prompted")
   createdAt                    DateTime   @default(now()) @map("created_at")
   updatedAt                    DateTime   @updatedAt @map("updated_at")
   /// Set by the admin bulk-archive action (Done games untouched for 90+ days) - archived games are

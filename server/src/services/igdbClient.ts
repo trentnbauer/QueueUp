@@ -84,6 +84,8 @@ export interface IgdbGame {
   cover?: IgdbCover;
   platforms?: IgdbPlatform[];
   genres?: IgdbGenre[];
+  themes?: { name?: string }[];
+  keywords?: { name?: string }[];
   first_release_date?: number;
   category?: number;
   version_parent?: number;
@@ -205,6 +207,17 @@ export function platformFamilies(platforms?: IgdbPlatform[]): RoomPlatform[] {
     if (family) families.add(family);
   }
   return Array.from(families);
+}
+
+/** IGDB themes/keywords that mark a game as adult (issue #627). Matched on the lower-cased name. */
+const SENSITIVE_THEMES = new Set(['erotic']);
+const SENSITIVE_KEYWORDS = new Set(['erotic', 'sexual content', 'high sexual content', 'nudity', 'hentai', 'pornographic', 'explicit sex']);
+
+/** True if IGDB tags the game with an adult theme or keyword. */
+export function isSensitiveContent(game: Pick<IgdbGame, 'themes' | 'keywords'>): boolean {
+  const hit = (list: { name?: string }[] | undefined, set: Set<string>) =>
+    (list ?? []).some((t) => !!t.name && set.has(t.name.trim().toLowerCase()));
+  return hit(game.themes, SENSITIVE_THEMES) || hit(game.keywords, SENSITIVE_KEYWORDS);
 }
 
 function releaseYear(unixSeconds?: number): number | null {
@@ -594,6 +607,8 @@ export async function getGameDlcs(
 
 export interface IgdbGameDetail {
   igdbId: number;
+  /** IGDB tags this as adult content (see isSensitiveContent). Absent on details cached before this existed. */
+  sensitiveContent?: boolean;
   title: string;
   platform: string;
   platformFamilies: RoomPlatform[];
@@ -725,7 +740,7 @@ export async function getGameDetail(igdbId: number): Promise<IgdbGameDetail> {
     ]
   >(
     'multiquery',
-    `query games "Game" { fields name,cover.image_id,platforms.name,genres.name,first_release_date,collection.id,total_rating,aggregated_rating,rating,category,parent_game; where id = ${igdbId}; };
+    `query games "Game" { fields name,cover.image_id,platforms.name,genres.name,themes.name,keywords.name,first_release_date,collection.id,total_rating,aggregated_rating,rating,category,parent_game; where id = ${igdbId}; };
      query external_games "External" { fields uid; where game = ${igdbId} & external_game_source = ${STEAM_EXTERNAL_SOURCE_ID}; };
      query multiplayer_modes "Modes" { fields onlinecoopmax,offlinecoopmax; where game = ${igdbId}; };
      query game_time_to_beats "TimeToBeat" { fields normally,hastily,completely; where game_id = ${igdbId}; };`,
@@ -760,6 +775,7 @@ export async function getGameDetail(igdbId: number): Promise<IgdbGameDetail> {
     reviewScore: reviewScoreFrom(game),
     category: game.category ?? null,
     parentGameIgdbId: game.parent_game ?? null,
+    sensitiveContent: isSensitiveContent(game),
   };
 
   await redis.set(cacheKey, JSON.stringify(detail), 'EX', DETAIL_CACHE_TTL_SECONDS);

@@ -14,6 +14,7 @@ import { ChangelogDialog, DlcDialog, PlaytimeDialog } from '../dialogs/MiscDialo
 import { RankedDialog } from '../dialogs/RankedDialog';
 import { ReviewSheet } from '../dialogs/ReviewSheet';
 import { AddRoomDialog, RoomSettingsDialog } from '../dialogs/RoomDialogs';
+import { SensitiveGamesPrompt } from '../dialogs/SensitiveGamesDialog';
 import { ShelfSettingsDialog } from '../dialogs/ShelfSettingsDialog';
 import { FriendsDialog, NotificationsDialog } from '../dialogs/SocialDialogs';
 import { SpinDialog } from '../dialogs/SpinDialog';
@@ -128,6 +129,7 @@ export function Overlays() {
       {d.changelog && <ChangelogDialog />}
       {d.dlc && <DlcDialog />}
       {d.review && reviewGame && <ReviewSheet game={reviewGame} />}
+      <SensitiveGamesPrompt active={isShelf && !busy} />
       <UiToast />
     </>
   );

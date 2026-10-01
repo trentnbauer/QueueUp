@@ -170,6 +170,7 @@ async function applyResolvedIgdbEntry(
         releaseDate: resolved.releaseDate,
         igdbCollectionId: resolved.igdbCollectionId,
         reviewScore: resolved.reviewScore,
+        sensitiveContent: resolved.sensitiveContent,
         status: defaultStatusForRelease(resolved.releaseDate),
       },
     });

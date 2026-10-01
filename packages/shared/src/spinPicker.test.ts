@@ -40,6 +40,7 @@ function makeGame(overrides: Partial<Game> = {}): Game {
     currentPlaytimeMinutes: null,
     replayedAt: null,
     hiddenFromOthers: false,
+    sensitiveContent: false,
     review: null,
     releaseAlert: false,
     createdAt: '2026-01-01T00:00:00.000Z',
