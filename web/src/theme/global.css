@@ -196,6 +196,53 @@
   --accA80: oklch(0.15 0 0 / 0.8);
 }
 
+/* ---- Room tint -------------------------------------------------------------------------------
+ * Inside a room, the UI picks up that room's colour (--rh = the hue of the room's accent colour, set
+ * in roomTheme.ts). Warm takes the full tint: accent, highlights, hero gradients and a faint cast on
+ * the neutrals. Cool keeps its own blue neutrals and only swaps the accent. Black & white is never
+ * tinted. Same lightness/chroma ladders as the default palette; only the hue moves. */
+:root[data-room]:not([data-palette='mono']) {
+  --accText: oklch(0.82 0.11 var(--rh));
+  --pos: oklch(0.85 0.1 var(--rh));
+  --acc: oklch(0.74 0.15 var(--rh));
+  --accHover: oklch(0.8 0.13 var(--rh));
+  --ink: oklch(0.2 0.03 var(--rh));
+  --accSoft: oklch(0.74 0.15 var(--rh) / 0.14);
+  --accSoft2: oklch(0.74 0.15 var(--rh) / 0.16);
+  --accA10: oklch(0.74 0.15 var(--rh) / 0.1);
+  --accA18: oklch(0.74 0.15 var(--rh) / 0.18);
+  --accA20: oklch(0.74 0.15 var(--rh) / 0.2);
+  --accA25: oklch(0.74 0.15 var(--rh) / 0.25);
+  --accA30: oklch(0.74 0.15 var(--rh) / 0.3);
+  --accA35: oklch(0.74 0.15 var(--rh) / 0.35);
+  --accA40: oklch(0.74 0.15 var(--rh) / 0.4);
+  --accA45: oklch(0.74 0.15 var(--rh) / 0.45);
+  --accA70: oklch(0.74 0.15 var(--rh) / 0.7);
+  --accA80: oklch(0.74 0.15 var(--rh) / 0.8);
+}
+:root[data-room]:not([data-palette]) {
+  --bg: oklch(0.165 0.016 var(--rh));
+  --bg2: oklch(0.135 0.015 var(--rh));
+  --surf: oklch(0.21 0.018 var(--rh));
+  --surf2: oklch(0.25 0.02 var(--rh));
+  --sheet: oklch(0.19 0.018 var(--rh));
+  --hero1: oklch(0.26 0.06 var(--rh));
+  --hero2: oklch(0.2 0.018 var(--rh));
+}
+:root[data-room][data-theme='light']:not([data-palette='mono']) {
+  --accText: oklch(0.48 0.14 var(--rh));
+  --pos: oklch(0.52 0.15 var(--rh));
+}
+:root[data-room][data-theme='light']:not([data-palette]) {
+  --bg: oklch(0.975 0.01 var(--rh));
+  --bg2: oklch(0.945 0.014 var(--rh));
+  --surf: oklch(0.935 0.015 var(--rh));
+  --surf2: oklch(0.9 0.018 var(--rh));
+  --sheet: oklch(0.99 0.006 var(--rh));
+  --hero1: oklch(0.9 0.07 var(--rh));
+  --hero2: oklch(0.96 0.016 var(--rh));
+}
+
 html,
 body {
   margin: 0;
