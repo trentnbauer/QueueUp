@@ -1,4 +1,4 @@
-import Fastify from 'fastify';
+import Fastify, { LogController } from 'fastify';
 import compress from '@fastify/compress';
 import cors from '@fastify/cors';
 import helmet from '@fastify/helmet';
@@ -28,13 +28,19 @@ import { env } from './config/env.js';
 import { redis } from './services/redisClient.js';
 import { logCaptureStream } from './services/logBuffer.js';
 
+/** Requests slower than this are logged even with per-request logging off (see LOG_REQUESTS). */
+const SLOW_REQUEST_MS = 2000;
+
 export async function buildApp() {
   // logger: { stream: ... } instead of the plain `logger: true` shorthand - same default pino
   // behavior (JSON lines to stdout, `docker logs` unaffected), but also captures recent lines in
   // memory so the admin log-export endpoint (issue #192, routes/admin.ts) works without needing
   // shell/Docker access to the running container.
   const app = Fastify({
-    logger: { stream: logCaptureStream },
+    logger: { stream: logCaptureStream, level: env.LOG_LEVEL },
+    // Per-request "incoming request"/"request completed" lines are off unless LOG_REQUESTS=true;
+    // the onResponse hook below logs only the requests worth seeing (see LOG_LEVEL in env.ts).
+    logController: new LogController({ disableRequestLogging: !env.LOG_REQUESTS }),
     // A numeric TRUST_PROXY (hop count) is still valid at runtime, but newer Fastify typings
     // no longer list `number` in this overload, hence the cast.
     trustProxy: env.TRUST_PROXY as boolean | string,
@@ -82,6 +88,18 @@ export async function buildApp() {
     // still responds," which is the right trade during a dependency outage.
     skipOnError: true,
   });
+  if (!env.LOG_REQUESTS) {
+    app.addHook('onResponse', async (request, reply) => {
+      const ms = reply.elapsedTime;
+      if (reply.statusCode === 429 || ms >= SLOW_REQUEST_MS) {
+        request.log.warn(
+          { method: request.method, url: request.url, statusCode: reply.statusCode, responseTime: Math.round(ms) },
+          reply.statusCode === 429 ? 'rate limited' : 'slow request',
+        );
+      }
+    });
+  }
+
   await app.register(sessionPlugin);
   await app.register(authPlugin);
 
