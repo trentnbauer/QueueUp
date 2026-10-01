@@ -20,16 +20,3 @@ export function hexToOklchHue(hex: string): number | null {
   const h = (Math.atan2(bb, a) * 180) / Math.PI;
   return Math.round(((h % 360) + 360) % 360);
 }
-
-/** Tints the whole UI toward a room's colour (or clears it with null). Drives the
- * `:root[data-room]` rules in global.css. */
-export function applyRoomHue(hue: number | null): void {
-  const root = document.documentElement;
-  if (hue === null) {
-    delete root.dataset.room;
-    root.style.removeProperty('--rh');
-  } else {
-    root.dataset.room = '1';
-    root.style.setProperty('--rh', String(hue));
-  }
-}

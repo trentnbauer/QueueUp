@@ -21,7 +21,7 @@ import { Dialog } from '../ui/Dialog';
 import { Avatar, Banner, Btn, Group, Kicker, Segmented, Toggle, inputField } from '../ui/primitives';
 import { SystemsPicker } from '../ui/SystemsPicker';
 import { st } from '../ui/st';
-import { ACCENT_LABELS, PALETTE_LABELS, type Accent, type Palette } from '../theme/applyThemeMode';
+import { ACCENT_LABELS, type Accent } from '../theme/applyThemeMode';
 import { getBasePath } from '../utils/basePath';
 import { formatRelativeTime } from '../utils/relativeTime';
 
@@ -157,7 +157,7 @@ export function MeDialog() {
   const friends = useFriends();
   const pending = usePendingImportsCount();
   const { region, setRegion } = useCurrencyRegion();
-  const { preference, setPreference, palette, setPalette, accent, setAccent } = useThemeMode();
+  const { preference, setPreference, accent, setAccent } = useThemeMode();
   const { viewMode, setViewMode } = useViewMode();
   const { density, setDensity } = useCardDensity();
   const sync = useSyncSources();
@@ -373,13 +373,6 @@ export function MeDialog() {
               { value: 'system', label: 'Auto' },
             ]}
           />
-          <span style={st('font:500 13px var(--font-ui);color:var(--text2);margin-top:4px')}>Colour temperature</span>
-          <Segmented
-            columns={3}
-            value={palette}
-            onChange={setPalette}
-            options={(Object.keys(PALETTE_LABELS) as Palette[]).map((k) => ({ value: k, label: PALETTE_LABELS[k] }))}
-          />
           <span style={st('font:500 13px var(--font-ui);color:var(--text2);margin-top:4px')}>Accent</span>
           <Segmented
             columns={2}
@@ -388,7 +381,7 @@ export function MeDialog() {
             options={(Object.keys(ACCENT_LABELS) as Accent[]).map((k) => ({ value: k, label: ACCENT_LABELS[k] }))}
           />
           <span style={st('font:400 12.5px var(--font-ui);color:var(--muted)')}>
-            {accent === 'room' ? "Buttons and highlights pick up the current room's colour; menus follow the colour temperature." : 'Neutral buttons and highlights, whatever room you are in.'}
+            {accent === 'room' ? "A room's colour tints its background, buttons and logo. Settings and dialogs stay neutral." : 'Neutral buttons and highlights, whatever room you are in.'}
           </span>
           <span style={st('font:500 13px var(--font-ui);color:var(--text2);margin-top:4px')}>Shelf &amp; room layout</span>
           <Segmented

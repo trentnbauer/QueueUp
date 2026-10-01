@@ -7,7 +7,7 @@ import { useChangeStatus } from '../game/useChangeStatus';
 import { Dialog } from '../ui/Dialog';
 import { useIsMobile, useMediaQuery } from '../ui/useLayout';
 import { st } from '../ui/st';
-import { applyRoomHue, hexToOklchHue } from '../theme/roomTheme';
+import { hexToOklchHue } from '../theme/roomTheme';
 import { GlancePanel } from './GlancePanel';
 import { MobileTopBar } from './MobileTopBar';
 import { Overlays } from './Overlays';
@@ -44,12 +44,10 @@ export function AppShell({ children }: { children: ReactNode }) {
     }
   }, [collapsed]);
 
-  // Tint the whole UI with the room's colour while one is in focus (cleared on the shelf).
+  // The room's colour tints this shell (background, buttons, logo) - dialogs render outside it.
   const roomColour = scope.room?.accentColor ?? null;
-  useEffect(() => {
-    applyRoomHue(roomColour ? hexToOklchHue(roomColour) : null);
-    return () => applyRoomHue(null);
-  }, [roomColour]);
+  const roomHue = roomColour ? hexToOklchHue(roomColour) : null;
+  const roomScope = roomHue === null ? {} : { 'data-room': '1', style: { '--rh': String(roomHue) } as React.CSSProperties };
 
   const selected = ui.selectedGameId ? scope.games.find((g) => g.id === ui.selectedGameId) : undefined;
   // A selection that no longer exists (removed, or the scope changed) just closes.
@@ -64,7 +62,7 @@ export function AppShell({ children }: { children: ReactNode }) {
 
   if (mobile) {
     return (
-      <div style={st('min-height:100vh;background:var(--bg);color:var(--text)')}>
+      <div {...roomScope} style={{ ...st('min-height:100vh;background:var(--bg);color:var(--text)'), ...roomScope.style }}>
         <div style={st('display:flex;flex-direction:column;gap:18px;padding:16px 16px 110px')}>
           <MobileTopBar />
           {children}
@@ -86,7 +84,7 @@ export function AppShell({ children }: { children: ReactNode }) {
   const showGlance = onHome && !showDetail && glanceFits;
 
   return (
-    <div style={st('position:relative;height:100vh;display:flex;background:var(--bg);color:var(--text);overflow:hidden')}>
+    <div {...roomScope} style={{ ...st('position:relative;height:100vh;display:flex;background:var(--bg);color:var(--text);overflow:hidden'), ...roomScope.style }}>
       {showRail ? <Rail onExpand={() => setCollapsed(false)} /> : <Sidebar onCollapse={() => setCollapsed(true)} />}
       <main style={st('flex:1;min-width:0;overflow-y:auto')}>
         <div style={st('max-width:960px;margin:0 auto;padding:30px 36px 48px;display:flex;flex-direction:column;gap:18px')}>{children}</div>
