@@ -1,7 +1,8 @@
 import { useEffect, useRef } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { useAuth } from '../context/AuthContext';
-import { useView } from '../context/ViewContext';
+import { useLocation, useNavigate } from 'react-router';
+import { useUi } from '../context/UiContext';
 import { useToast } from '../context/ToastContext';
 import { roomSpinApi } from '../api/rooms';
 
@@ -25,7 +26,9 @@ function toastId(spinId: string): string {
  * instead (see SpinWheelModal), which this would only be a noisier duplicate of. */
 export function useActiveRoomSpinToasts() {
   const { user } = useAuth();
-  const { view, switchView } = useView();
+  const { pathname } = useLocation();
+  const navigate = useNavigate();
+  const ui = useUi();
   const { showToast, dismissToast } = useToast();
   const previousSpinIds = useRef<Set<string>>(new Set());
   // Bug fix: without this, clicking a toast's own x just removed it from ToastContext's list -
@@ -62,12 +65,12 @@ export function useActiveRoomSpinToasts() {
     previousSpinIds.current = currentIds;
 
     for (const spin of spins) {
-      if (view.type === 'room' && view.roomId === spin.roomId) continue;
+      if (pathname === `/room/${spin.roomId}`) continue;
       if (dismissedSpinIds.current.has(spin.spinId)) continue;
       showToast({
         id: toastId(spin.spinId),
         message: `${spin.roomName} just started a Spin the Wheel!`,
-        actions: [{ label: 'Join', onClick: () => switchView({ type: 'room', roomId: spin.roomId }) }],
+        actions: [{ label: 'Join', onClick: () => { navigate(`/room/${spin.roomId}`); ui.openDialog('spin'); } }],
         onDismiss: () => dismissedSpinIds.current.add(spin.spinId),
       });
     }

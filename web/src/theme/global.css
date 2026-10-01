@@ -1,91 +1,96 @@
-/* Industrial/minimal redesign (2026-08, Claude Design project "UI redesign request") - rust-orange
- * accent, Barlow + IBM Plex Mono type, zero border radius throughout. --qu-surface2 keeps its old
- * role as chrome background (sidebar/header = the new palette's "panel"); --qu-surface keeps its
- * old role as content-card background (dialogs/game cards = the new palette's "card"). --qu-field,
- * --qu-chip, --qu-border-hi, --qu-hover, --qu-faint, --qu-track, --qu-mono-font, --qu-accent-hi are
- * new, added for this palette. */
+/* QueueUp v2 design tokens (from the Claude Design handoff). Dark is the default; light is applied
+ * via `data-theme="light"` on <html>, set synchronously in main.tsx before first render (see
+ * applyThemeMode.ts). Fixed brand colours (accent orange etc.) live here too so components never
+ * hard-code them. */
 :root {
-  --qu-bg: #0b0d0e;
-  --qu-surface: #15181a;
-  --qu-surface2: #111416;
-  --qu-field: #0e1113;
-  --qu-chip: #242a2d;
-  --qu-border: rgba(255, 255, 255, 0.09);
-  --qu-border-hi: rgba(255, 255, 255, 0.2);
-  --qu-hover: rgba(255, 255, 255, 0.04);
-  --qu-stripe: rgba(255, 255, 255, 0.045);
-  --qu-text: #e6e8e9;
-  --qu-muted: #9aa3a7;
-  --qu-faint: #69737a;
-  --qu-track: rgba(255, 255, 255, 0.1);
-  --qu-neutral-pill-bg: rgba(255, 255, 255, 0.06);
+  --bg: oklch(0.165 0.008 55);
+  --bg2: oklch(0.135 0.007 55);
+  --surf: oklch(0.21 0.009 55);
+  --surf2: oklch(0.25 0.01 55);
+  --sheet: oklch(0.19 0.009 55);
+  --text: oklch(0.95 0.006 70);
+  --text2: oklch(0.85 0.008 65);
+  --muted: oklch(0.74 0.01 65);
+  --faint: oklch(0.6 0.01 65);
+  --rank: oklch(0.5 0.01 60);
+  --onText: oklch(0.18 0.01 55);
+  --hero1: oklch(0.25 0.03 45);
+  --hero2: oklch(0.2 0.012 55);
+  --accText: oklch(0.82 0.11 50);
+  --mint: oklch(0.82 0.12 160);
+  --mintSoft: oklch(0.8 0.12 160 / 0.14);
+  --pos: oklch(0.85 0.1 55);
+  --danger: oklch(0.76 0.14 25);
+  --chip: oklch(1 0 0 / 0.07);
+  --line: oklch(1 0 0 / 0.14);
 
-  --qu-accent: #c2683a;
-  /* Text color for content rendered directly on top of --qu-accent (buttons, banners) - kept as
-   * its own variable rather than a hardcoded white, since a room's accent color is user-editable
-   * and some presets (e.g. Lime) are too bright for white text to read clearly. Recomputed
-   * whenever --qu-accent changes (see ThemeContext). */
-  --qu-accent-text: #fff;
-  --qu-accent-pill-bg: color-mix(in oklch, var(--qu-accent) 24%, var(--qu-surface));
-  --qu-accent-hi: #d47b45;
+  /* Fixed colours (same in both themes). */
+  --acc: oklch(0.74 0.15 45);
+  --accHover: oklch(0.8 0.13 45);
+  --ink: oklch(0.2 0.03 45);
+  --accSoft: oklch(0.74 0.15 45 / 0.14);
+  --accSoft2: oklch(0.74 0.15 45 / 0.16);
+  --dot: oklch(0.68 0.2 25);
+  --errBg: oklch(0.62 0.19 25 / 0.14);
+  --errLine: oklch(0.62 0.19 25 / 0.35);
+  --errBadge: oklch(0.62 0.19 25);
+  --dangerBtn: oklch(0.6 0.19 25);
+  --warnBg: oklch(0.8 0.13 85 / 0.12);
+  --warnLine: oklch(0.8 0.13 85 / 0.35);
+  --warnBadge: oklch(0.8 0.13 85);
 
-  --qu-accent2: #5e8f6e;
-  --qu-accent2-pill-bg: color-mix(in oklch, var(--qu-accent2) 24%, var(--qu-surface));
-
-  --qu-header-font: 'Barlow', system-ui, sans-serif;
-  --qu-body-font: 'Barlow', system-ui, sans-serif;
-  --qu-mono-font: 'IBM Plex Mono', ui-monospace, SFMono-Regular, monospace;
-
-  --qu-radius: 0;
-  --qu-card-radius: 0;
+  --font-display: 'Bricolage Grotesque', sans-serif;
+  --font-ui: 'Geist', system-ui, sans-serif;
+  --font-mono: 'Geist Mono', ui-monospace, monospace;
 }
 
-/* Light mode override - applied via a `data-theme="light"` attribute on <html>, set synchronously
- * in main.tsx before first render (see applyThemeMode.ts) so there's no flash of the wrong theme.
- * Accent is computed per-room already (see ThemeContext) and stays vivid enough against either
- * background; only --qu-accent-hi (its hover-brightened variant) needs a mode-specific value since
- * white text over a lit-up accent reads worse than a darkened one over a white page. */
 :root[data-theme='light'] {
-  --qu-bg: #f2f2f0;
-  --qu-surface: #ffffff;
-  --qu-surface2: #ffffff;
-  --qu-field: #f6f6f4;
-  --qu-chip: #e8e8e4;
-  --qu-border: #e2e2dd;
-  --qu-border-hi: #c3c3bc;
-  --qu-hover: #f4f4f1;
-  --qu-stripe: rgba(15, 14, 22, 0.04);
-  --qu-text: #1a1d1f;
-  --qu-muted: #5c6467;
-  --qu-faint: #8b9295;
-  --qu-track: #e6e6e2;
-  --qu-neutral-pill-bg: rgba(15, 14, 22, 0.06);
-  --qu-accent-hi: #a8552c;
-}
-
-* {
-  box-sizing: border-box;
+  --bg: oklch(0.975 0.006 75);
+  --bg2: oklch(0.945 0.009 70);
+  --text: oklch(0.2 0.012 55);
+  --text2: oklch(0.32 0.012 55);
+  --muted: oklch(0.45 0.012 60);
+  --faint: oklch(0.53 0.01 60);
+  --rank: oklch(0.72 0.01 60);
+  --surf: oklch(0.935 0.009 70);
+  --surf2: oklch(0.9 0.01 70);
+  --sheet: oklch(0.99 0.004 75);
+  --onText: oklch(0.98 0.004 75);
+  --hero1: oklch(0.9 0.06 55);
+  --hero2: oklch(0.96 0.012 70);
+  --accText: oklch(0.5 0.14 45);
+  --mint: oklch(0.47 0.1 160);
+  --mintSoft: oklch(0.6 0.12 160 / 0.14);
+  --pos: oklch(0.55 0.15 45);
+  --danger: oklch(0.54 0.18 25);
+  --chip: oklch(0 0 0 / 0.05);
+  --line: oklch(0 0 0 / 0.13);
 }
 
 html,
-body,
-#root {
-  height: 100%;
-}
-
 body {
   margin: 0;
-  background: var(--qu-bg);
-  color: var(--qu-text);
-  font-family: var(--qu-body-font);
+  background: var(--bg);
+  color: var(--text);
+  font-family: var(--font-ui);
+  -webkit-font-smoothing: antialiased;
+}
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+#root {
+  min-height: 100vh;
 }
 
 a {
-  color: var(--qu-accent);
+  color: var(--acc);
 }
-
 a:hover {
-  filter: brightness(1.1);
+  color: var(--accHover);
 }
 
 button {
@@ -93,7 +98,96 @@ button {
   color: inherit;
   cursor: pointer;
 }
-
-input {
+input,
+select,
+textarea {
   font-family: inherit;
+}
+
+button:focus-visible,
+a:focus-visible,
+input:focus-visible,
+select:focus-visible,
+textarea:focus-visible,
+[role='button']:focus-visible {
+  outline: 2px solid var(--acc);
+  outline-offset: 2px;
+}
+
+/* The design hides scrollbars everywhere. */
+* {
+  scrollbar-width: none;
+}
+::-webkit-scrollbar {
+  width: 0;
+  height: 0;
+}
+
+/* Shared hover treatments (the prototype's `style-hover` attributes). */
+.hv-surf:hover {
+  background: var(--surf) !important;
+}
+.hv-surf2:hover {
+  background: var(--surf2) !important;
+}
+.hv-line:hover {
+  border-color: var(--line) !important;
+  background: var(--surf2) !important;
+}
+
+@keyframes qu-burst {
+  0% {
+    transform: translate(-50%, -50%) rotate(0deg) scale(1);
+    opacity: 1;
+  }
+  70% {
+    opacity: 1;
+  }
+  100% {
+    transform: translate(calc(-50% + var(--dx)), calc(-50% + var(--dy))) rotate(var(--r)) scale(0.6);
+    opacity: 0;
+  }
+}
+@keyframes qu-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+@keyframes qu-pop {
+  0% {
+    transform: scale(0.6);
+    opacity: 0;
+  }
+  100% {
+    transform: scale(1);
+    opacity: 1;
+  }
+}
+@keyframes qu-fade {
+  0% {
+    opacity: 0;
+  }
+  100% {
+    opacity: 1;
+  }
+}
+@keyframes qu-slide-up {
+  0% {
+    transform: translateY(24px);
+    opacity: 0;
+  }
+  100% {
+    transform: translateY(0);
+    opacity: 1;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
 }

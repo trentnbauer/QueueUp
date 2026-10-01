@@ -1,0 +1,113 @@
+import { createContext, useCallback, useContext, useMemo, useRef, useState, type ReactNode } from 'react';
+
+/** Every overlay the app can show, keyed so any component can open/close any of them without
+ * prop-drilling - the design's sheets/dialogs all hang off one shared set of open flags. */
+export type DialogKey =
+  | 'add'
+  | 'import'
+  | 'addRoom'
+  | 'roomSettings'
+  | 'shelfSettings'
+  | 'notifications'
+  | 'me'
+  | 'friends'
+  | 'spin'
+  | 'ranked'
+  | 'deck'
+  | 'needsReview'
+  | 'playtime'
+  | 'completions'
+  | 'playnite'
+  | 'changelog'
+  | 'dlc'
+  | 'review';
+
+export type AddRoomStep = 'options' | 'create' | 'join' | 'browse';
+
+interface DialogPayloads {
+  addRoom: { step: AddRoomStep };
+  add: { query?: string };
+  review: { gameId: string };
+}
+
+type OpenState = { [K in DialogKey]?: K extends keyof DialogPayloads ? DialogPayloads[K] : true };
+
+interface UiContextValue {
+  dialogs: OpenState;
+  openDialog: <K extends DialogKey>(key: K, payload?: K extends keyof DialogPayloads ? DialogPayloads[K] : never) => void;
+  closeDialog: (key: DialogKey) => void;
+  isOpen: (key: DialogKey) => boolean;
+
+  /** The game whose detail is showing (right panel on desktop, sheet on phones). */
+  selectedGameId: string | null;
+  selectGame: (id: string | null) => void;
+
+  /** Transient bottom-centre toast (2.4s, or 5.2s when it carries an action). */
+  toast: { message: string; action?: { label: string; run: () => void }; key: number } | null;
+  notify: (message: string, action?: { label: string; run: () => void }) => void;
+  dismissToast: () => void;
+
+  /** Top-of-page error banner (mirrors the design's dismissible red alert). */
+  errorMessage: string | null;
+  showError: (message: string | null) => void;
+}
+
+const UiContext = createContext<UiContextValue | null>(null);
+
+export function UiProvider({ children }: { children: ReactNode }) {
+  const [dialogs, setDialogs] = useState<OpenState>({});
+  const [selectedGameId, setSelectedGameId] = useState<string | null>(null);
+  const [toast, setToast] = useState<UiContextValue['toast']>(null);
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const toastTimer = useRef<ReturnType<typeof setTimeout>>();
+  const toastKey = useRef(0);
+
+  const openDialog = useCallback<UiContextValue['openDialog']>((key, payload) => {
+    setDialogs((prev) => ({ ...prev, [key]: payload ?? true }));
+  }, []);
+  const closeDialog = useCallback((key: DialogKey) => {
+    setDialogs((prev) => {
+      if (!(key in prev)) return prev;
+      const next = { ...prev };
+      delete next[key];
+      return next;
+    });
+  }, []);
+
+  const dismissToast = useCallback(() => {
+    clearTimeout(toastTimer.current);
+    setToast(null);
+  }, []);
+
+  const notify = useCallback((message: string, action?: { label: string; run: () => void }) => {
+    clearTimeout(toastTimer.current);
+    toastKey.current += 1;
+    setToast({ message, action, key: toastKey.current });
+    toastTimer.current = setTimeout(() => setToast(null), action ? 5200 : 2400);
+  }, []);
+
+  const value = useMemo<UiContextValue>(
+    () => ({
+      dialogs,
+      openDialog,
+      closeDialog,
+      isOpen: (key) => key in dialogs,
+      selectedGameId,
+      selectGame: setSelectedGameId,
+      toast,
+      notify,
+      dismissToast,
+      errorMessage,
+      showError: setErrorMessage,
+    }),
+    [dialogs, openDialog, closeDialog, selectedGameId, toast, notify, dismissToast, errorMessage],
+  );
+
+  return <UiContext.Provider value={value}>{children}</UiContext.Provider>;
+}
+
+export function useUi(): UiContextValue {
+  const ctx = useContext(UiContext);
+  if (!ctx) throw new Error('useUi must be used within UiProvider');
+  return ctx;
+}

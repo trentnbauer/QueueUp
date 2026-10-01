@@ -1,6 +1,6 @@
 import { createContext, useCallback, useContext, useEffect, useState, type ReactNode } from 'react';
 import type { BadgeDefinition } from '@queueup/shared';
-import { TrophyBurst, TROPHY_BURST_DURATION_MS } from '../components/TrophyBurst';
+import { AchievementCelebration, CELEBRATION_MS } from '../ui/AchievementCelebration';
 
 type AnnounceUnlockFn = (badges: BadgeDefinition[]) => void;
 
@@ -34,14 +34,14 @@ export function AchievementUnlockProvider({ children }: { children: ReactNode })
 
   useEffect(() => {
     if (!current) return;
-    const timeout = setTimeout(() => setQueue((prev) => prev.slice(1)), TROPHY_BURST_DURATION_MS);
+    const timeout = setTimeout(() => setQueue((prev) => prev.slice(1)), CELEBRATION_MS);
     return () => clearTimeout(timeout);
   }, [current]);
 
   return (
     <AchievementUnlockContext.Provider value={announceUnlock}>
       {children}
-      {current && <TrophyBurst key={current.id} badge={current.badge} />}
+      {current && <AchievementCelebration key={current.id} badge={current.badge} onDismiss={() => setQueue((prev) => prev.slice(1))} />}
     </AchievementUnlockContext.Provider>
   );
 }

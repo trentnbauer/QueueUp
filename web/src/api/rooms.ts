@@ -17,7 +17,15 @@ import type {
   User,
 } from '@queueup/shared';
 
+/** Optional narrowing the Spin dialog sends along when starting/restarting a room spin. */
+export interface SpinFilters {
+  maxPrice?: number;
+  maxTtb?: number;
+  everyoneOwns?: boolean;
+}
+
 export const roomsApi = {
+  regenerateInvite: (roomId: string) => apiPost<{ inviteCode: string }>(`/api/rooms/${roomId}/invite/regenerate`),
   list: () => apiGet<{ rooms: Room[] }>('/api/rooms'),
   create: (body: CreateRoomRequest) => apiPost<{ room: Room; unlockedBadges: BadgeDefinition[] }>('/api/rooms', body),
   join: (body: JoinRoomRequest) => apiPost<{ room: Room; unlockedBadges: BadgeDefinition[] }>('/api/rooms/join', body),
@@ -60,10 +68,10 @@ export const roomSpinApi = {
   /** Cross-room, cheap-payload counterpart to `get` below - see ActiveRoomSpin's doc comment. */
   activeSpins: () => apiGet<{ spins: ActiveRoomSpin[] }>('/api/rooms/active-spins'),
   get: (roomId: string) => apiGet<{ spin: RoomSpinSession | null }>(`/api/rooms/${roomId}/spin`),
-  start: (roomId: string) => apiPost<{ spin: RoomSpinSession }>(`/api/rooms/${roomId}/spin/start`),
+  start: (roomId: string, filters?: SpinFilters) => apiPost<{ spin: RoomSpinSession }>(`/api/rooms/${roomId}/spin/start`, filters ?? {}),
   nudge: (roomId: string, direction: 'left' | 'right') =>
     apiPost<{ spin: RoomSpinSession }>(`/api/rooms/${roomId}/spin/nudge`, { direction }),
-  restart: (roomId: string) => apiPost<{ spin: RoomSpinSession }>(`/api/rooms/${roomId}/spin/restart`),
+  restart: (roomId: string, filters?: SpinFilters) => apiPost<{ spin: RoomSpinSession }>(`/api/rooms/${roomId}/spin/restart`, filters ?? {}),
   skipWait: (roomId: string) => apiPost<{ spin: RoomSpinSession }>(`/api/rooms/${roomId}/spin/skip-wait`),
   ready: (roomId: string) => apiPost<{ spin: RoomSpinSession; unlockedBadges: BadgeDefinition[] }>(`/api/rooms/${roomId}/spin/ready`),
   close: (roomId: string) => apiDelete(`/api/rooms/${roomId}/spin`),

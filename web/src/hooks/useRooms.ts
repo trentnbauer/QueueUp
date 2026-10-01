@@ -1,21 +1,14 @@
-import { useEffect } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { roomsApi } from '../api/rooms';
-import { useView } from '../context/ViewContext';
 import { useAnnounceUnlock } from '../context/AchievementUnlockContext';
 import type { CreateRoomRequest, JoinRoomRequest, Room } from '@queueup/shared';
 
 const ROOMS_QUERY_KEY = ['rooms'];
 
 export function useRooms() {
-  const { setRooms } = useView();
   const queryClient = useQueryClient();
   const announceUnlock = useAnnounceUnlock();
   const query = useQuery({ queryKey: ROOMS_QUERY_KEY, queryFn: roomsApi.list });
-
-  useEffect(() => {
-    if (query.data) setRooms(query.data.rooms);
-  }, [query.data, setRooms]);
 
   // create/join already return the full Room in their response - merge it straight into the
   // cache instead of refetching the whole list for a change we already have the delta for.

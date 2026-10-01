@@ -4,9 +4,6 @@ import { BrowserRouter } from 'react-router';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import App from './App';
 import { AuthProvider } from './context/AuthContext';
-import { ViewProvider } from './context/ViewContext';
-import { GameFilterProvider } from './context/GameFilterContext';
-import { ThemeProvider } from './context/ThemeContext';
 import { ThemeModeProvider } from './context/ThemeModeContext';
 import { CurrencyRegionProvider } from './context/CurrencyRegionContext';
 import { CardDensityProvider } from './context/CardDensityContext';
@@ -14,6 +11,7 @@ import { ViewModeProvider } from './context/ViewModeContext';
 import { ConfirmProvider } from './context/ConfirmContext';
 import { AchievementUnlockProvider } from './context/AchievementUnlockContext';
 import { ToastProvider } from './context/ToastContext';
+import { UiProvider } from './context/UiContext';
 import { getBasePath } from './utils/basePath';
 import { applyThemeMode, getPreferredThemeMode } from './theme/applyThemeMode';
 import './theme/global.css';
@@ -28,27 +26,23 @@ createRoot(document.getElementById('root')!).render(
     <QueryClientProvider client={queryClient}>
       <BrowserRouter basename={getBasePath()}>
         <AuthProvider>
-          <ViewProvider>
-            <GameFilterProvider>
-              <ThemeModeProvider>
-                <ThemeProvider>
-                  <CurrencyRegionProvider>
-                    <CardDensityProvider>
-                      <ViewModeProvider>
-                        <ConfirmProvider>
-                          <AchievementUnlockProvider>
-                            <ToastProvider>
-                              <App />
-                            </ToastProvider>
-                          </AchievementUnlockProvider>
-                        </ConfirmProvider>
-                      </ViewModeProvider>
-                    </CardDensityProvider>
-                  </CurrencyRegionProvider>
-                </ThemeProvider>
-              </ThemeModeProvider>
-            </GameFilterProvider>
-          </ViewProvider>
+          <ThemeModeProvider>
+            <CurrencyRegionProvider>
+              <CardDensityProvider>
+                <ViewModeProvider>
+                  <UiProvider>
+                    <ConfirmProvider>
+                      <AchievementUnlockProvider>
+                        <ToastProvider>
+                          <App />
+                        </ToastProvider>
+                      </AchievementUnlockProvider>
+                    </ConfirmProvider>
+                  </UiProvider>
+                </ViewModeProvider>
+              </CardDensityProvider>
+            </CurrencyRegionProvider>
+          </ThemeModeProvider>
         </AuthProvider>
       </BrowserRouter>
     </QueryClientProvider>

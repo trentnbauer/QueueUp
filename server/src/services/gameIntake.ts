@@ -426,6 +426,8 @@ export async function createGameForUser(
       actorId: userId,
       type: 'game_added',
       message: `Added "${resolved.title}" to the shelf`,
+      payload: { gameId: game.id, title: game.title, coverImageUrl: game.coverImageUrl, status: game.status },
+      hidden: game.hiddenFromOthers,
     });
   }
 

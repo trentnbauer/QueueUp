@@ -1,6 +1,8 @@
 import { createContext, useCallback, useContext, useRef, useState, type ReactNode } from 'react';
-import { useModalA11y, closeOnBackdropMouseDown } from '../hooks/useModalA11y';
-import styles from './ConfirmContext.module.css';
+import { Dialog } from '../ui/Dialog';
+import { Btn } from '../ui/primitives';
+import { inputField } from '../ui/primitives';
+import { st } from '../ui/st';
 
 interface ConfirmOptions {
   title?: string;
@@ -8,10 +10,7 @@ interface ConfirmOptions {
   confirmLabel?: string;
   cancelLabel?: string;
   danger?: boolean;
-  /** When set, the confirm button stays disabled until the user types this exact phrase into a
-   * text field (e.g. "DELETE"). Mirrors the typed-confirmation pattern from self-service account
-   * deletion, for actions destructive enough that a single misclick shouldn't be enough to trigger
-   * them - deleting someone else's account, or a whole room's worth of games and membership. */
+  /** When set, the confirm button stays disabled until the user types this exact phrase (e.g. "DELETE"). */
   typedConfirmation?: string;
 }
 
@@ -19,69 +18,50 @@ type ConfirmFn = (options: ConfirmOptions | string) => Promise<boolean>;
 
 const ConfirmContext = createContext<ConfirmFn | null>(null);
 
-interface ConfirmDialogProps {
-  options: ConfirmOptions;
-  onSettle: (value: boolean) => void;
-}
-
-// A separate component (rather than inline JSX in ConfirmProvider) so useModalA11y - which must run
-// unconditionally - only mounts/unmounts along with the dialog itself, instead of being called
-// conditionally within ConfirmProvider's own render. Mounting fresh per open also gives the typed-
-// confirmation text field a clean slate every time, with no reset effect needed.
-function ConfirmDialog({ options, onSettle }: ConfirmDialogProps) {
-  const dialogRef = useModalA11y<HTMLDivElement>(() => onSettle(false));
-  const [typedText, setTypedText] = useState('');
-  const requiredText = options.typedConfirmation;
-  const confirmDisabled = requiredText !== undefined && typedText !== requiredText;
+// A separate component so the typed-confirmation field gets a clean slate every time it opens.
+function ConfirmDialog({ options, onSettle }: { options: ConfirmOptions; onSettle: (value: boolean) => void }) {
+  const [typed, setTyped] = useState('');
+  const required = options.typedConfirmation;
+  const blocked = required !== undefined && typed !== required;
 
   return (
-    <div className={styles.backdrop} role="presentation" onMouseDown={closeOnBackdropMouseDown(() => onSettle(false))}>
-      <div
-        ref={dialogRef}
-        className={styles.dialog}
-        role="alertdialog"
-        aria-modal="true"
-        aria-label={options.title ?? 'Confirm'}
-        tabIndex={-1}
-        onClick={(e) => e.stopPropagation()}
-      >
-        {options.title && <div className={styles.title}>{options.title}</div>}
-        <p className={styles.message}>{options.message}</p>
-        {requiredText !== undefined && (
-          <div className={styles.typedConfirmBox}>
-            <label className={styles.typedConfirmLabel} htmlFor="confirm-dialog-typed-input">
-              Type {requiredText} to confirm
-            </label>
+    <Dialog onClose={() => onSettle(false)} alert width={520} ariaLabel={options.title ?? 'Confirm'} bare padded={false}>
+      <div style={st('display:flex;flex-direction:column;gap:14px;padding:24px 22px 22px')}>
+        {options.title && <span style={st('font:700 21px/1.2 var(--font-display);letter-spacing:-0.02em;text-wrap:balance')}>{options.title}</span>}
+        <span style={st('font:400 14.5px/1.5 var(--font-ui);color:var(--text2);text-wrap:pretty')}>{options.message}</span>
+        {required !== undefined && (
+          <label style={st('display:flex;flex-direction:column;gap:8px;font:600 12.5px var(--font-ui);color:var(--muted)')}>
+            Type {required} to confirm
             <input
-              id="confirm-dialog-typed-input"
-              type="text"
-              className={styles.typedConfirmInput}
-              value={typedText}
-              onChange={(e) => setTypedText(e.target.value)}
+              value={typed}
+              onChange={(e) => setTyped(e.target.value)}
               autoComplete="off"
+              style={st(inputField, { width: '100%' })}
             />
-          </div>
+          </label>
         )}
-        <div className={styles.actions}>
-          <button type="button" className={styles.cancelButton} onClick={() => onSettle(false)} autoFocus>
+        <div style={st('display:flex;justify-content:flex-end;gap:8px;margin-top:6px')}>
+          <Btn kind='ghost' height={44} style={{ background: 'var(--chip)', color: 'var(--text)' }} onClick={() => onSettle(false)}>
             {options.cancelLabel ?? 'Cancel'}
-          </button>
-          <button
-            type="button"
-            className={options.danger ? styles.dangerButton : styles.confirmButton}
+          </Btn>
+          <Btn
+            kind={options.danger ? 'danger' : 'text'}
+            height={44}
+            weight={700}
+            fontSize={14}
+            disabled={blocked}
             onClick={() => onSettle(true)}
-            disabled={confirmDisabled}
           >
             {options.confirmLabel ?? 'Confirm'}
-          </button>
+          </Btn>
         </div>
       </div>
-    </div>
+    </Dialog>
   );
 }
 
-/** Replaces window.confirm with an in-app, themed dialog. Renders one modal instance for the
- * whole app and resolves the promise from the last confirm() call whichever button is clicked. */
+/** Replaces window.confirm with the design's centred confirm dialog. One instance for the whole app;
+ * the promise resolves from the last confirm() call whichever button is pressed. */
 export function ConfirmProvider({ children }: { children: ReactNode }) {
   const [options, setOptions] = useState<ConfirmOptions | null>(null);
   const resolveRef = useRef<((value: boolean) => void) | null>(null);

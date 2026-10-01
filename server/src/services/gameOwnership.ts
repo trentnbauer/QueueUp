@@ -103,6 +103,8 @@ export async function isOwnedBy(userId: string, igdbId: number, platform: RoomPl
 export interface GameOwnershipInfo {
   youOwn: boolean;
   ownership: { owned: number; total: number } | null;
+  /** Ids of the current room members who own it (room games only; empty on the shelf). */
+  ownerIds: string[];
   /** How many of the room's *current* members also have this igdbId wishlisted on their own
    * Personal Shelf, out of how many current members there are (issue #368) - parallel to
    * `ownership` above, but sourced from each member's own personal-shelf Game row rather than a
@@ -197,19 +199,21 @@ export async function getOwnershipInfo(games: GameWithRelations[], currentUserId
       const roomPlatform = platformByRoomId.get(game.roomId) ?? null;
       const memberIds = membersByRoom.get(game.roomId) ?? [];
       const youOwn = roomFound && ownsOnPlatform(game.igdbId, currentUserId, roomPlatform);
-      const owned = roomFound ? memberIds.filter((id) => ownsOnPlatform(game.igdbId, id, roomPlatform)).length : 0;
+      const ownerIds = roomFound ? memberIds.filter((id) => ownsOnPlatform(game.igdbId, id, roomPlatform)) : [];
+      const owned = ownerIds.length;
       const wishlisters = wishlistersByIgdbId.get(game.igdbId) ?? new Set<string>();
       const wishlisted = memberIds.filter((id) => wishlisters.has(id)).length;
       result.set(game.id, {
         youOwn,
         ownership: { owned, total: memberIds.length },
+        ownerIds,
         wishlist: { wishlisted, total: memberIds.length },
         ownedPlatforms: [],
       });
     } else {
       const youOwn = game.status !== 'wishlist' && (ownershipByIgdbId.get(game.igdbId)?.has(currentUserId) ?? false);
       const ownedPlatforms = youOwn ? (ownershipByIgdbId.get(game.igdbId)?.get(currentUserId) ?? []) : [];
-      result.set(game.id, { youOwn, ownership: null, wishlist: null, ownedPlatforms });
+      result.set(game.id, { youOwn, ownership: null, ownerIds: [], wishlist: null, ownedPlatforms });
     }
   }
 

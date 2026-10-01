@@ -125,6 +125,49 @@ export interface User {
   isAdmin: boolean;
 }
 
+/** The event kinds a room's Discord webhook can post - each independently toggleable (Room Master
+ * only), see DEFAULT_DISCORD_EVENTS for what's on out of the box. `memberAct` covers members'
+ * own Personal Shelf milestones (hidden games excluded). */
+export type DiscordEventKey = 'added' | 'suggest' | 'votes' | 'spins' | 'status' | 'reviews' | 'members' | 'memberAct';
+
+export type RoomDiscordEvents = Record<DiscordEventKey, boolean>;
+
+export const DEFAULT_DISCORD_EVENTS: RoomDiscordEvents = {
+  added: true,
+  suggest: true,
+  votes: false,
+  spins: true,
+  status: true,
+  reviews: true,
+  members: true,
+  memberAct: false,
+};
+
+export const DISCORD_EVENT_LABELS: Record<DiscordEventKey, string> = {
+  added: 'Games added',
+  suggest: 'Suggestions',
+  votes: 'Votes',
+  spins: 'Spins',
+  status: 'Playing & beaten',
+  reviews: 'Reviews',
+  members: 'Members join or leave',
+  memberAct: 'Member activity',
+};
+
+export const DISCORD_EVENT_KEYS = Object.keys(DEFAULT_DISCORD_EVENTS) as DiscordEventKey[];
+
+/** Merges a stored (possibly partial / null) events blob over the defaults. */
+export function resolveDiscordEvents(stored: unknown): RoomDiscordEvents {
+  const out: RoomDiscordEvents = { ...DEFAULT_DISCORD_EVENTS };
+  if (stored && typeof stored === 'object') {
+    for (const key of DISCORD_EVENT_KEYS) {
+      const v = (stored as Record<string, unknown>)[key];
+      if (typeof v === 'boolean') out[key] = v;
+    }
+  }
+  return out;
+}
+
 export interface Room {
   id: string;
   name: string;
@@ -152,6 +195,12 @@ export interface Room {
    * approve or decline (issue #362), instead of adding directly. Room Masters/Moderators always
    * add directly regardless of this flag. Defaults to false. */
   requireGameApproval: boolean;
+  /** Which event kinds post to the Discord webhook (always fully resolved against the defaults).
+   * Room Master only, like the webhook URL itself. */
+  discordEvents?: RoomDiscordEvents;
+  /** Only on GET /api/rooms: how many members the room has and how many games sit in its Queue. */
+  memberCount?: number;
+  queuedCount?: number;
 }
 
 /** A member's lightweight nomination for a room game, pending a Room Master/Moderator's approval
@@ -289,6 +338,26 @@ export interface Tag {
   createdAt: string;
 }
 
+/** An owner's review of a Beaten game - four independent 1-5 scores (any may be null) plus an
+ * optional one-line note. */
+export interface GameReview {
+  art: number | null;
+  gameplay: number | null;
+  story: number | null;
+  sound: number | null;
+  note: string | null;
+  reviewedAt: string;
+}
+
+export const REVIEW_CATEGORIES = [
+  { key: 'art', label: 'Art style' },
+  { key: 'gameplay', label: 'Gameplay' },
+  { key: 'story', label: 'Story' },
+  { key: 'sound', label: 'Sound & music' },
+] as const;
+
+export type ReviewCategoryKey = (typeof REVIEW_CATEGORIES)[number]['key'];
+
 export interface Game {
   id: string;
   roomId: string | null;
@@ -338,6 +407,8 @@ export interface Game {
    * there are - e.g. {owned: 3, total: 4}. Null on the Personal Shelf, where there's no group
    * ownership to count. */
   ownership: { owned: number; total: number } | null;
+  /** Ids of the current room members who own it (empty on the Personal Shelf). */
+  ownerIds: string[];
   /** How many of the room's *current* members also have this game wishlisted on their own
    * Personal Shelf, out of how many current members there are (issue #368) - parallel to
    * `ownership` above. Null on the Personal Shelf, where there's no group to count. */
@@ -385,8 +456,32 @@ export interface Game {
    * against this rather than the checkpoint-relative figure, since it needs something that keeps
    * climbing instead of zeroing out the moment an individual nudge gets acted on. */
   currentPlaytimeMinutes: number | null;
+  /** When this game entered Replay (null unless its status is currently Replay). */
+  replayedAt: string | null;
+  /** Personal Shelf only: hidden from the public profile and friends' activity. */
+  hiddenFromOthers: boolean;
+  /** The review saved after beating it, if any. */
+  review: GameReview | null;
+  /** "Ping me when it's out" is switched on (only meaningful for an upcoming release). */
+  releaseAlert: boolean;
   createdAt: string;
   updatedAt: string;
+}
+
+export interface SetGameReviewRequest {
+  art?: number | null;
+  gameplay?: number | null;
+  story?: number | null;
+  sound?: number | null;
+  note?: string | null;
+}
+
+export interface SetReleaseAlertRequest {
+  enabled: boolean;
+}
+
+export interface SetGameHiddenRequest {
+  hidden: boolean;
 }
 
 /** A lightweight title-search match, shown in the add-game search dropdown. */
@@ -470,6 +565,8 @@ export interface UpdateRoomRequest {
   spinWheelTheme?: SpinWheelTheme;
   isPublic?: boolean;
   requireGameApproval?: boolean;
+  /** Any subset of event toggles; omitted keys are left unchanged. */
+  discordEvents?: Partial<RoomDiscordEvents>;
 }
 
 export interface JoinRoomRequest {
@@ -767,6 +864,11 @@ export interface AdminAuditLogEntry {
   targetLabel: string | null;
   metadata: Record<string, unknown> | null;
   createdAt: string;
+}
+
+/** GET /api/me/attention - per room, what still needs the caller (drives the red dots). */
+export interface AttentionSummary {
+  rooms: { roomId: string; toVote: number; toApprove: number }[];
 }
 
 export type NotificationType =
@@ -1593,4 +1695,90 @@ export interface PublicUserProfile {
   badges: BadgeSummary[];
   beatenGameCount: number;
   currentlyPlaying: PublicProfileGame[];
+  /** Systems the user owns (User.ownedPlatforms), as display labels. */
+  systems: string[];
+  /** Beaten/Replay games not marked hidden, reviewed ones first. */
+  beatenGames: PublicProfileBeatenGame[];
+  /** When the account was created (ISO). */
+  memberSince: string;
+}
+
+export interface PublicProfileBeatenGame {
+  id: string;
+  title: string;
+  coverImageUrl: string | null;
+  genre: string | null;
+  replaying: boolean;
+  review: GameReview | null;
+}
+
+// ---- Friends -------------------------------------------------------------------------------
+
+export type FriendEventKind = 'added' | 'wishlist' | 'playing' | 'beaten' | 'dropped' | 'ach';
+
+export interface FriendUser {
+  id: string;
+  displayName: string;
+  avatarColor: string;
+  avatarUrl: string | null;
+}
+
+export interface FriendSummary extends FriendUser {
+  /** ISO timestamp the friendship was accepted. */
+  since: string;
+  beatenCount: number;
+  achievementCount: number;
+  sharedRoomCount: number;
+  /** The friend's most recent visible activity, if any. */
+  lastEvent: { kind: FriendEventKind; title: string; at: string } | null;
+}
+
+export interface FriendRequestDto {
+  id: string;
+  user: FriendUser;
+  createdAt: string;
+  sharedRoomCount: number;
+}
+
+export interface FriendsResponse {
+  myCode: string;
+  friends: FriendSummary[];
+  incoming: FriendRequestDto[];
+  outgoing: FriendRequestDto[];
+}
+
+/** One item in the friends' activity feed (and a single friend's profile feed). */
+export interface FriendActivityEntry {
+  id: string;
+  user: FriendUser;
+  kind: FriendEventKind;
+  /** Game title, or the achievement name for kind 'ach'. */
+  title: string;
+  /** Achievement emoji for kind 'ach'. */
+  emoji: string | null;
+  coverImageUrl: string | null;
+  /** ISO timestamp. */
+  at: string;
+  review: GameReview | null;
+  /** True on the viewer's own entries for a game they've hidden from others. */
+  onlyYou: boolean;
+}
+
+export interface FriendActivityPage {
+  entries: FriendActivityEntry[];
+  nextBefore: string | null;
+}
+
+export interface FriendProfile {
+  user: FriendUser;
+  since: string;
+  sharedRoomCount: number;
+  beatenCount: number;
+  achievementCount: number;
+  playing: { id: string; title: string; coverImageUrl: string | null; since: string }[];
+  activity: FriendActivityEntry[];
+}
+
+export interface SendFriendRequestRequest {
+  code: string;
 }

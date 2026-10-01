@@ -160,6 +160,9 @@ model User {
   /// this schema), so there's no separate public-facing slug to manage - toggling this on is what
   /// actually makes GET /api/public/users/:id start answering instead of 404ing.
   publicProfileEnabled Boolean        @default(false) @map("public_profile_enabled")
+  /// Short shareable code other users paste to send a friend request. Generated lazily the first
+  /// time it's needed (GET /api/friends), so pre-existing users need no backfill.
+  friendCode           String?        @unique @map("friend_code")
 
   roomsCreated                  Room[]                         @relation("RoomCreatedBy")
   memberships                   RoomMember[]
@@ -183,6 +186,8 @@ model User {
   roomSpinsStarted              RoomSpin[]
   apiKeys                       ApiKey[]
   pendingLibraryImports         PendingLibraryImport[]
+  friendshipsRequested          Friendship[]                   @relation("FriendshipRequester")
+  friendshipsReceived           Friendship[]                   @relation("FriendshipAddressee")
 
   @@map("users")
 }
@@ -491,6 +496,10 @@ model Room {
   /// Moderators always add directly regardless of this flag, since they're the ones who'd otherwise
   /// be approving their own suggestion.
   requireGameApproval   Boolean        @default(false) @map("require_game_approval")
+  /// Which event kinds get posted to discordWebhookUrl - a partial map of DiscordEventKey ->
+  /// boolean (see RoomDiscordEvents in @queueup/shared); a missing key falls back to its default
+  /// (DEFAULT_DISCORD_EVENTS). Null means "all defaults".
+  discordEvents         Json?          @map("discord_events")
 
   creator       User             @relation("RoomCreatedBy", fields: [createdBy], references: [id])
   members       RoomMember[]
@@ -693,6 +702,25 @@ model Game {
   /// someone repoint or clear it. SetNull on delete, same reasoning as prerequisiteGameId - removing
   /// the base game shouldn't block removing (or orphan) its DLC.
   baseGameId                   String?    @map("base_game_id")
+  /// When this game entered the Replay status (QueueUp v2 UI) - drives the "Replay since {date}"
+  /// chip and the Replay tab's oldest-first ordering. Set on the transition into Replay, cleared on
+  /// the transition out; null for a game that isn't currently a Replay (or pre-dates this field).
+  replayedAt                   DateTime?  @map("replayed_at")
+  /// Personal Shelf only: keeps this game off the public profile and out of friends' activity
+  /// feeds and room Discord "member activity" posts. Its owner still sees it everywhere.
+  hiddenFromOthers             Boolean    @default(false) @map("hidden_from_others")
+  /// The owner's 1-5 review scores for a Beaten game (art style / gameplay / story / sound &
+  /// music), each independently optional, plus an optional one-line note. A room game carries
+  /// whichever member saved a review last - reviews live on the row, not per member.
+  reviewArt                    Int?       @map("review_art")
+  reviewGameplay               Int?       @map("review_gameplay")
+  reviewStory                  Int?       @map("review_story")
+  reviewSound                  Int?       @map("review_sound")
+  reviewNote                   String?    @map("review_note")
+  reviewedAt                   DateTime?  @map("reviewed_at")
+  /// "Ping me when it's out" (the Coming soon bell) - cleared once the release-day notification
+  /// has been sent (see checkGameReleaseAlerts in services/releaseWatch.ts).
+  releaseAlert                 Boolean    @default(false) @map("release_alert")
 
   room                          Room?                          @relation(fields: [roomId], references: [id], onDelete: Cascade)
   adder                         User                           @relation(fields: [addedBy], references: [id], onDelete: Cascade)
@@ -897,6 +925,10 @@ model RoomActivity {
   type        RoomActivityType
   message     String
   createdAt   DateTime         @default(now()) @map("created_at")
+  /// Structured detail for a Personal Shelf game event (gameId/title/coverImageUrl/status and, on a
+  /// Beaten entry, the review) - what the friends' activity feed renders from. Null for room rows
+  /// and for shelf rows written before this column existed.
+  payload     Json?
 
   room      Room? @relation(fields: [roomId], references: [id], onDelete: Cascade)
   recipient User? @relation("RoomActivityRecipient", fields: [recipientId], references: [id], onDelete: Cascade)
@@ -941,4 +973,30 @@ model AppSetting {
   updatedBy String?  @map("updated_by")
 
   @@map("app_settings")
+}
+
+enum FriendshipStatus {
+  pending
+  accepted
+
+  @@map("friendship_status")
+}
+
+/// A friend request and, once accepted, the friendship itself - one row per unordered pair (the
+/// requester/addressee columns just record who asked). Friends see each other's activity feed and
+/// profile; rooms are unaffected.
+model Friendship {
+  id          String           @id @default(uuid())
+  requesterId String           @map("requester_id")
+  addresseeId String           @map("addressee_id")
+  status      FriendshipStatus @default(pending)
+  createdAt   DateTime         @default(now()) @map("created_at")
+  respondedAt DateTime?        @map("responded_at")
+
+  requester User @relation("FriendshipRequester", fields: [requesterId], references: [id], onDelete: Cascade)
+  addressee User @relation("FriendshipAddressee", fields: [addresseeId], references: [id], onDelete: Cascade)
+
+  @@unique([requesterId, addresseeId])
+  @@index([addresseeId, status])
+  @@map("friendships")
 }

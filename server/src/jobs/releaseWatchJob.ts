@@ -1,4 +1,4 @@
-import { checkReleaseWatches } from '../services/releaseWatch.js';
+import { checkGameReleaseAlerts, checkReleaseWatches } from '../services/releaseWatch.js';
 import { scheduleJob, type JobHandle } from './scheduler.js';
 
 // Once a day - resolves issue #510's own "main open question" (polling cadence vs. IGDB rate
@@ -17,6 +17,9 @@ export function startReleaseWatchJob(): JobHandle {
   return scheduleJob({
     name: 'release-watch-check',
     intervalMs: RELEASE_WATCH_CHECK_INTERVAL_MS,
-    run: checkReleaseWatches,
+    run: async () => {
+      await checkReleaseWatches();
+      await checkGameReleaseAlerts();
+    },
   });
 }

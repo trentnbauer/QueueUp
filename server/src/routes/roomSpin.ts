@@ -18,6 +18,7 @@ import { requireMembership, getRoom } from '../services/roomAccess.js';
 import { gameInclude, serializeGames } from '../services/gameSerializer.js';
 import { unlockBadges } from '../services/badges.js';
 import { logRoomActivity } from '../services/roomActivity.js';
+import { applySpinFilters, parseSpinFilters, type SpinFilters } from '../services/spinFilters.js';
 
 // A spin nobody's touched in this long is treated as abandoned (someone started it, then closed
 // their laptop) rather than wedging the room forever - the next GET after this window just
@@ -51,11 +52,15 @@ type RoomSpinRow = Awaited<ReturnType<typeof prisma.roomSpin.findUniqueOrThrow>>
  * loaded, so a fresh spin always draws from up-to-date votes/ownership/prices. A nudge does NOT
  * call this - it moves along the *existing* strip, it never rebuilds one (see RoomSpin's schema
  * doc). */
-async function buildStripAndTheme(roomId: string, userId: string): Promise<{ stripGameIds: string[]; theme: ConcreteSpinWheelTheme }> {
+async function buildStripAndTheme(
+  roomId: string,
+  userId: string,
+  filters: SpinFilters = {},
+): Promise<{ stripGameIds: string[]; theme: ConcreteSpinWheelTheme }> {
   const room = await getRoom(roomId);
   const rows = await prisma.game.findMany({ where: { roomId, archivedAt: null }, include: gameInclude });
   const games = await serializeGames(rows, userId);
-  const candidates = spinCandidates(games, room.spinOwnershipMaxPrice);
+  const candidates = applySpinFilters(spinCandidates(games, room.spinOwnershipMaxPrice), filters);
   const strip = buildSpinStrip(games, candidates, Math.random);
   if (strip.length === 0) throw new HttpError(400, 'No backlog game is eligible for Spin the Wheel right now');
   return { stripGameIds: strip.map((g) => g.id), theme: resolveConcreteTheme(room.spinWheelTheme) };
@@ -211,7 +216,7 @@ export default async function roomSpinRoutes(app: FastifyInstance) {
       const { roomId } = request.params;
       await requireMembership(roomId, userId);
 
-      const { stripGameIds, theme } = await buildStripAndTheme(roomId, userId);
+      const { stripGameIds, theme } = await buildStripAndTheme(roomId, userId, parseSpinFilters(request.body));
       const base = freshBase(Date.now(), SPIN_WAITING_ROOM_MS);
       try {
         const spin = await prisma.roomSpin.create({
@@ -342,7 +347,7 @@ export default async function roomSpinRoutes(app: FastifyInstance) {
       const existing = await prisma.roomSpin.findUnique({ where: { roomId } });
       if (!existing) throw new HttpError(404, 'No spin to restart - start one first');
 
-      const { stripGameIds, theme } = await buildStripAndTheme(roomId, userId);
+      const { stripGameIds, theme } = await buildStripAndTheme(roomId, userId, parseSpinFilters(request.body));
       const base = freshBase(Date.now());
       const spin = await prisma.roomSpin.update({
         where: { roomId },
