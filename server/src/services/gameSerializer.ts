@@ -32,7 +32,7 @@ const UNAVAILABLE_PRICE: GamePrice = {
   lastRefreshedAt: null,
 };
 
-const DEFAULT_OWNERSHIP: GameOwnershipInfo = { youOwn: false, ownership: null, ownerIds: [], wishlist: null, ownedPlatforms: [] };
+const DEFAULT_OWNERSHIP: GameOwnershipInfo = { youOwn: false, ownership: null, ownerIds: [], wishlist: null, wishlisterIds: [], ownedPlatforms: [] };
 
 /** One person's GameReview row as a DTO - null when they haven't reviewed the game. */
 export function toGameReviewDto(
@@ -106,6 +106,7 @@ function buildGameDto(
     ownership: ownership.ownership,
     ownerIds: ownership.ownerIds,
     wishlist: ownership.wishlist,
+    wishlisterIds: ownership.wishlisterIds,
     ownedPlatforms: ownership.ownedPlatforms,
     tags,
     igdbCollectionId: game.igdbCollectionId,

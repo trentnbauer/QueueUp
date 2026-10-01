@@ -130,6 +130,8 @@ export interface GameOwnershipInfo {
    * dedicated table, since (unlike ownership) wishlisting has no cross-context claim of its own.
    * Null on the Personal Shelf, same as `ownership` - there's no group to count there either. */
   wishlist: { wishlisted: number; total: number } | null;
+  /** Ids of the current room members counted in `wishlist` (room games only; empty on the shelf). */
+  wishlisterIds: string[];
   /** Which platform(s) the current viewer's own GameOwnership claim covers for this igdbId
    * (issue #456 - "what system do I own this on") - Personal Shelf only, always [] for a room
    * game (a room's own single Room.platform already answers that there, so there's nothing extra
@@ -221,18 +223,19 @@ export async function getOwnershipInfo(games: GameWithRelations[], currentUserId
       const ownerIds = roomFound ? memberIds.filter((id) => ownsOnPlatform(game.igdbId, id, roomPlatform)) : [];
       const owned = ownerIds.length;
       const wishlisters = wishlistersByIgdbId.get(game.igdbId) ?? new Set<string>();
-      const wishlisted = memberIds.filter((id) => wishlisters.has(id)).length;
+      const wishlisterIds = memberIds.filter((id) => wishlisters.has(id));
       result.set(game.id, {
         youOwn,
         ownership: { owned, total: memberIds.length },
         ownerIds,
-        wishlist: { wishlisted, total: memberIds.length },
+        wishlist: { wishlisted: wishlisterIds.length, total: memberIds.length },
+        wishlisterIds,
         ownedPlatforms: [],
       });
     } else {
       const youOwn = game.status !== 'wishlist' && (ownershipByIgdbId.get(game.igdbId)?.has(currentUserId) ?? false);
       const ownedPlatforms = youOwn ? (ownershipByIgdbId.get(game.igdbId)?.get(currentUserId) ?? []) : [];
-      result.set(game.id, { youOwn, ownership: null, ownerIds: [], wishlist: null, ownedPlatforms });
+      result.set(game.id, { youOwn, ownership: null, ownerIds: [], wishlist: null, wishlisterIds: [], ownedPlatforms });
     }
   }
 

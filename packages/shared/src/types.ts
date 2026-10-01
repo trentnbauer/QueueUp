@@ -574,6 +574,8 @@ export interface Game {
    * Personal Shelf, out of how many current members there are (issue #368) - parallel to
    * `ownership` above. Null on the Personal Shelf, where there's no group to count. */
   wishlist: { wishlisted: number; total: number } | null;
+  /** Ids of the current room members counted in `wishlist` (empty on the Personal Shelf). */
+  wishlisterIds: string[];
   /** Which platform(s) the current viewer owns this on (issue #456) - Personal Shelf only, always
    * [] for a room game (its single Room.platform already says which platform). Also [] when not
    * owned, or when owned but the claim predates platform tracking (pre-migration GameOwnership
