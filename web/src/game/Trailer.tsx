@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { gamesApi } from '../api/games';
 import { st } from '../ui/st';
 
@@ -6,8 +6,23 @@ type State = { kind: 'idle' } | { kind: 'loading' } | { kind: 'none' } | { kind:
 
 /** "Watch trailer": nothing is fetched or embedded until it's tapped. Then the game's YouTube
  * trailer (looked up from IGDB and cached server-side) plays inline in a 16:9 frame. */
-export function Trailer({ gameId, compact }: { gameId: string; compact?: boolean }) {
+export function Trailer({
+  gameId,
+  compact,
+  onPlayingChange,
+}: {
+  gameId: string;
+  compact?: boolean;
+  /** Fires true while the player is showing, so a parent can swap other art out for it. */
+  onPlayingChange?: (playing: boolean) => void;
+}) {
   const [state, setState] = useState<State>({ kind: 'idle' });
+  const playing = state.kind === 'ready';
+  useEffect(() => {
+    onPlayingChange?.(playing);
+    return () => onPlayingChange?.(false);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [playing]);
 
   async function open() {
     setState({ kind: 'loading' });

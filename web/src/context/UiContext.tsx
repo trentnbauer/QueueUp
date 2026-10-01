@@ -44,10 +44,10 @@ interface UiContextValue {
 
   /** Transient bottom-centre toast (2.4s, or 5.2s when it carries an action). */
   toast: { message: string; action?: { label: string; run: () => void }; key: number } | null;
-  notify: (message: string, action?: { label: string; run: () => void }) => void;
+  notify: (message: string, action?: { label: string; run: () => void }, durationMs?: number) => void;
   dismissToast: () => void;
 
-  /** Top-of-page error banner (mirrors the design's dismissible red alert). */
+  /** Errors now surface as a (longer-lived) toast; `errorMessage` stays null. */
   errorMessage: string | null;
   showError: (message: string | null) => void;
 }
@@ -58,7 +58,7 @@ export function UiProvider({ children }: { children: ReactNode }) {
   const [dialogs, setDialogs] = useState<OpenState>({});
   const [selectedGameId, setSelectedGameId] = useState<string | null>(null);
   const [toast, setToast] = useState<UiContextValue['toast']>(null);
-  const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const errorMessage: string | null = null;
   const toastTimer = useRef<ReturnType<typeof setTimeout>>();
   const toastKey = useRef(0);
 
@@ -79,12 +79,19 @@ export function UiProvider({ children }: { children: ReactNode }) {
     setToast(null);
   }, []);
 
-  const notify = useCallback((message: string, action?: { label: string; run: () => void }) => {
+  const notify = useCallback((message: string, action?: { label: string; run: () => void }, durationMs?: number) => {
     clearTimeout(toastTimer.current);
     toastKey.current += 1;
     setToast({ message, action, key: toastKey.current });
-    toastTimer.current = setTimeout(() => setToast(null), action ? 5200 : 2400);
+    toastTimer.current = setTimeout(() => setToast(null), durationMs ?? (action ? 5200 : 2400));
   }, []);
+
+  const showError = useCallback(
+    (message: string | null) => {
+      if (message) notify(message, undefined, 6500);
+    },
+    [notify],
+  );
 
   const value = useMemo<UiContextValue>(
     () => ({
@@ -98,9 +105,9 @@ export function UiProvider({ children }: { children: ReactNode }) {
       notify,
       dismissToast,
       errorMessage,
-      showError: setErrorMessage,
+      showError,
     }),
-    [dialogs, openDialog, closeDialog, selectedGameId, toast, notify, dismissToast, errorMessage],
+    [dialogs, openDialog, closeDialog, selectedGameId, toast, notify, dismissToast, errorMessage, showError],
   );
 
   return <UiContext.Provider value={value}>{children}</UiContext.Provider>;
