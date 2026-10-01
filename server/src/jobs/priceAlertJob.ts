@@ -14,8 +14,7 @@ import { scheduleJob, type JobHandle } from './scheduler.js';
 // the same cadence.
 export const PRICE_ALERT_CHECK_INTERVAL_MS = 6 * 60 * 60 * 1000;
 
-/** Re-runs the same alert checks gameSerializer.ts runs opportunistically on page view (see
- * priceAlerts.ts / #255), for every game that could plausibly have an active watch, independent of
+/** Runs the price alert checks (see priceAlerts.ts / #255) for every game that could plausibly have an active watch, independent of
  * whether anyone has viewed it. "Could plausibly" = has a Steam App ID at all (drop alerts also
  * need targetPrice set, but that gating already lives in runPriceAlertChecks - see priceAlerts.ts
  * - and duplicating it in this query would just be two places that can drift) and isn't archived

@@ -127,9 +127,29 @@ export function coverGradient(title: string): string {
 }
 
 /** CSS `background` value for a cover: the real image if there is one, laid over the gradient. */
-export function coverBg(title: string, url?: string | null): string {
+/** IGDB serves each cover at several fixed sizes, picked by the `t_*` segment of the URL. */
+export type CoverSize = 'small' | 'big' | 'big_2x';
+
+const IGDB_SIZE_SEGMENT = /\/t_[a-z0-9_]+\//;
+
+/** Rewrites an IGDB cover URL to the given size, so a 40px list thumbnail doesn't download the
+ * same 264px image as a grid tile. Non-IGDB URLs pass through unchanged. */
+export function sizedCoverUrl(url: string, size: CoverSize): string {
+  if (!url.includes('images.igdb.com/')) return url;
+  return url.replace(IGDB_SIZE_SEGMENT, `/t_cover_${size}/`);
+}
+
+/** Smallest IGDB size that stays sharp at `width` CSS px on a 2x screen (small 90px, big 264px). */
+export function coverSizeFor(width: number | string | undefined): CoverSize {
+  if (typeof width !== 'number') return 'big';
+  if (width * 2 <= 90) return 'small';
+  if (width * 2 <= 264) return 'big';
+  return 'big_2x';
+}
+
+export function coverBg(title: string, url?: string | null, size: CoverSize = 'big'): string {
   const grad = coverGradient(title);
-  return url ? `url("${url}") center/cover no-repeat, ${grad}` : grad;
+  return url ? `url("${sizedCoverUrl(url, size)}") center/cover no-repeat, ${grad}` : grad;
 }
 
 /** 2:3 cover tile. `width` is in px; the aspect ratio does the rest. */
@@ -155,7 +175,7 @@ export function Cover({
         aspectRatio: '2/3',
         flexShrink: 0,
         borderRadius: radius,
-        background: coverBg(title, url),
+        background: coverBg(title, url, coverSizeFor(width)),
         display: 'block',
         position: 'relative',
         ...style,

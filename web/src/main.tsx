@@ -20,7 +20,9 @@ import './theme/global.css';
 applyThemeMode(getPreferredThemeMode());
 applyAccent(getAccent());
 
-const queryClient = new QueryClient();
+// Polling (notifications, shared spins, import progress) stops while the tab is hidden and picks
+// back up on return. This is TanStack Query's default; it's set here so no hook quietly opts out.
+const queryClient = new QueryClient({ defaultOptions: { queries: { refetchIntervalInBackground: false } } });
 
 createRoot(document.getElementById('root')!).render(
   <StrictMode>
