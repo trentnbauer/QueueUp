@@ -97,9 +97,9 @@ export async function checkAllTimeLowAlert(game: GameWithRelations, price: GameP
 
 /** Runs both alert checks for a game against a freshly-resolved price, applying the same
  * "only a drop alert needs a target price set" gating every call site otherwise has to duplicate
- * (the all-time-low check has no such gate - see checkAllTimeLowAlert above). Shared by the
- * opportunistic per-page-view trigger (gameSerializer.ts) and the scheduled job
- * (jobs/priceAlertJob.ts, #255) so the two triggers can't drift on what "eligible" means. */
+ * (the all-time-low check has no such gate - see checkAllTimeLowAlert above). Called by the
+ * scheduled job (jobs/priceAlertJob.ts, #255); page views no longer trigger it, so a list load
+ * never pays for alert queries. */
 export async function runPriceAlertChecks(game: GameWithRelations, price: GamePrice, onFired?: OnAlertFired): Promise<void> {
   await Promise.all([
     game.targetPrice ? checkPriceDropAlert(game, price, onFired) : Promise.resolve(),

@@ -11,6 +11,8 @@ import { summarizePlayniteSyncCompletion } from './playniteSyncSummary';
 // 30s; a Playnite sync just needs to feel noticed, not caught mid-window) - a Playnite import can
 // also run long for a big library, so a fast poll would mostly be wasted requests.
 const POLL_INTERVAL_MS = 5_000;
+/** No import running: a sync started from Playnite is picked up within this long. */
+const IDLE_POLL_INTERVAL_MS = 30_000;
 
 function startedToastId(startedAt: string): string {
   return `playnite-sync-started-${startedAt}`;
@@ -49,7 +51,10 @@ export function usePlayniteSyncToasts() {
     queryKey: PLAYNITE_IMPORT_PROGRESS_QUERY_KEY,
     queryFn: playniteImportApi.progress,
     enabled: !!user,
-    refetchInterval: POLL_INTERVAL_MS,
+    refetchInterval: (q) => {
+      const progress = q.state.data?.progress;
+      return progress && !progress.done ? POLL_INTERVAL_MS : IDLE_POLL_INTERVAL_MS;
+    },
   });
 
   useEffect(() => {

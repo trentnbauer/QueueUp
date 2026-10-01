@@ -1,7 +1,6 @@
 import type { Prisma } from '@prisma/client';
 import type { Game, GamePrice, GameReview, PriceRegion, RoomPlatform, VoteValue } from '@queueup/shared';
 import { getSteamPrice, getSteamPrices } from './priceService.js';
-import { runPriceAlertChecks } from './priceAlerts.js';
 import { getOwnershipInfo, type GameOwnershipInfo } from './gameOwnership.js';
 import { getRoomPlatform, getRoomPlatforms } from './roomAccess.js';
 import { getPlaytimeSinceCheckpoint, type GamePlaytimeInfo } from './playtimeTracking.js';
@@ -137,12 +136,6 @@ export async function serializeGame(game: GameWithRelations, currentUserId: stri
   const platform = await resolvePricingPlatform(game);
   const price = platform === 'pc' && game.steamAppid ? await getSteamPrice(game.steamAppid, { region }) : UNAVAILABLE_PRICE;
   const ggDealsUrl = platform === 'pc' ? game.ggDealsUrl : null;
-  // Not awaited: this piggybacks on whatever page load happened to trigger a fresh price fetch
-  // (see priceAlerts.ts) rather than gating the response on it - a delayed alert is fine, a
-  // slower shelf/room load for every viewer isn't. Also covered independently of page views by
-  // the scheduled job (jobs/priceAlertJob.ts, #255) - this call stays so a drop is still caught
-  // immediately when a live fetch happens to occur anyway, rather than waiting for the next run.
-  void runPriceAlertChecks(game, price);
   const [ownershipMap, playtimeMap] = await Promise.all([
     getOwnershipInfo([game], currentUserId),
     getPlaytimeSinceCheckpoint([game]),
@@ -188,7 +181,6 @@ export async function serializeGames(games: GameWithRelations[], currentUserId: 
     const platform = platformFor(game);
     const price = (platform === 'pc' && game.steamAppid && prices.get(game.steamAppid)) || UNAVAILABLE_PRICE;
     const ggDealsUrl = platform === 'pc' ? game.ggDealsUrl : null;
-    void runPriceAlertChecks(game, price);
     return buildGameDto(
       game,
       currentUserId,
