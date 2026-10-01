@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { summarizeTimeToBeat, summarizeActiveHoursToBeat, pickMostNeglectedGame, bucketBacklogAge } from './backlogInsights.js';
+import { summarizeTimeToBeat, summarizeActiveHoursToBeat, pickMostNeglectedGame, bucketBacklogAge, backlogAgeRanges } from './backlogInsights.js';
 import type { BacklogInsightGameRow } from './backlogInsights.js';
 
 function game(overrides: Partial<BacklogInsightGameRow> & { id: string }): BacklogInsightGameRow {
@@ -186,5 +186,28 @@ describe('bucketBacklogAge', () => {
       { label: '180-365 days', count: 0 },
       { label: '365+ days', count: 0 },
     ]);
+  });
+});
+
+describe('backlogAgeRanges', () => {
+  const now = new Date('2026-06-01T00:00:00Z').getTime();
+  const DAY = 24 * 60 * 60 * 1000;
+
+  it('matches bucketBacklogAge for games at, just under and just over every edge', () => {
+    const ages = [0, 1, 89, 89.9, 90, 90.1, 179, 180, 364, 365, 400, 2000];
+    const games = ages.map((d) => ({ createdAt: new Date(now - d * DAY) }));
+    const viaRanges = backlogAgeRanges(now).map(({ label, gt, lte }) => ({
+      label,
+      count: games.filter((g) => (!gt || g.createdAt > gt) && (!lte || g.createdAt <= lte)).length,
+    }));
+    expect(viaRanges).toEqual(bucketBacklogAge(games, now));
+  });
+
+  it('every game lands in exactly one bucket', () => {
+    const games = Array.from({ length: 500 }, (_, i) => ({ createdAt: new Date(now - i * 2.7 * DAY) }));
+    const total = backlogAgeRanges(now)
+      .map(({ gt, lte }) => games.filter((g) => (!gt || g.createdAt > gt) && (!lte || g.createdAt <= lte)).length)
+      .reduce((a, b) => a + b, 0);
+    expect(total).toBe(games.length);
   });
 });

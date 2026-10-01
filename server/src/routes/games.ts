@@ -59,7 +59,7 @@ import type { OwnedSteamGame } from '../services/steamLibrary.js';
 import { toggleOwnershipForPlatform, setOwnershipPlatforms, markOwned } from '../services/gameOwnership.js';
 import { recordStatusTransition } from '../services/playLog.js';
 import { getCurrentPlaytimeMinutesForGames } from '../services/playtimeTracking.js';
-import { summarizeTimeToBeat, summarizeActiveHoursToBeat, pickMostNeglectedGame, bucketBacklogAge } from '../services/backlogInsights.js';
+import { summarizeTimeToBeat, summarizeActiveHoursToBeat, pickMostNeglectedGame, backlogAgeRanges } from '../services/backlogInsights.js';
 import { unlockBadges } from '../services/badges.js';
 import {
   logRoomActivity,
@@ -2140,6 +2140,15 @@ export default async function gameRoutes(app: FastifyInstance) {
       const { averageDaysToBeat, finishedEntryCount } = summarizeTimeToBeat(closedEntries);
       const { averageHoursToBeat, hoursTrackedEntryCount } = summarizeActiveHoursToBeat(closedEntries);
 
+      const ageDistribution = await Promise.all(
+        backlogAgeRanges(now).map(async ({ label, gt, lte }) => ({
+          label,
+          count: await prisma.game.count({
+            where: { addedBy: userId, status: 'backlog', archivedAt: null, createdAt: { ...(gt && { gt }), ...(lte && { lte }) } },
+          }),
+        })),
+      );
+
       const result: BacklogInsights = {
         averageDaysToBeat,
         finishedEntryCount,
@@ -2147,7 +2156,9 @@ export default async function gameRoutes(app: FastifyInstance) {
         hoursTrackedEntryCount,
         backlogCount,
         mostNeglectedGame: pickMostNeglectedGame(backlogGames, now),
-        ageDistribution: bucketBacklogAge(backlogGames, now),
+        // Exact per-bucket counts, not the capped sample above - a big import must not make the
+        // chart stop at MAX_GAMES_PER_LIST.
+        ageDistribution,
       };
       return result;
     },
