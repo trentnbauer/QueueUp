@@ -7,6 +7,7 @@ import { useAuth } from '../context/AuthContext';
 import { useConfirm } from '../context/ConfirmContext';
 import { useUi } from '../context/UiContext';
 import { useFriendProfile, useFriends } from '../hooks/useFriends';
+import { FriendStatus } from '../dialogs/RoomDialogs';
 import { Dialog } from '../ui/Dialog';
 import { applyFeedFilter, FeedGroups, FilterChips, type FeedFilter } from './feed';
 import { useRooms } from '../hooks/useRooms';
@@ -264,6 +265,14 @@ function BothOwnBadge({ small = false }: { small?: boolean }) {
   );
 }
 
+/** Add-friend control in the profile header, for a signed-in viewer who isn't this person's friend yet. */
+function ProfileFriendAction({ profile }: { profile: PublicUserProfile }) {
+  const friends = useFriends();
+  const ui = useUi();
+  if (friends.privateInstance) return null;
+  return <FriendStatus userId={profile.userId} name={profile.displayName} friends={friends} notify={ui.notify} onError={ui.notify} />;
+}
+
 export function PublicProfilePage({ userId, signedIn }: { userId: string; signedIn: boolean }) {
   const [profile, setProfile] = useState<PublicUserProfile | null>(null);
   const [state, setState] = useState<'loading' | 'ok' | 'missing'>('loading');
@@ -312,6 +321,7 @@ export function PublicProfilePage({ userId, signedIn }: { userId: string; signed
             <Link to="/" style={st('flex:1;display:flex;text-decoration:none')}>
               <Wordmark size={23} />
             </Link>
+            {signedIn && state === 'ok' && profile?.viewer === 'public' && <ProfileFriendAction profile={profile} />}
             <Link to="/" style={st('height:40px;padding:0 18px;border-radius:999px;border:1px solid var(--line);color:var(--text);font:600 13.5px var(--font-ui);display:flex;align-items:center;text-decoration:none')}>
               {signedIn ? 'Open QueueUp' : 'Sign in'}
             </Link>
