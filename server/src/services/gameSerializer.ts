@@ -108,6 +108,7 @@ function buildGameDto(
     currentPlaytimeMinutes: playtime?.currentMinutes ?? null,
     replayedAt: game.replayedAt ? game.replayedAt.toISOString() : null,
     hiddenFromOthers: game.hiddenFromOthers,
+    sensitiveContent: game.sensitiveContent,
     review: toGameReviewDto(game),
     releaseAlert: game.releaseAlert,
     createdAt: game.createdAt.toISOString(),

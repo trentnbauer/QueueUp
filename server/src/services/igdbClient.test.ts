@@ -1,6 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import {
   platformFamilies,
+  isSensitiveContent,
   escapeApicalypseString,
   isPrimaryEdition,
   isAddonEdition,
@@ -329,5 +330,18 @@ describe('reviewScoreFrom (issue #311)', () => {
 
   it('returns null when IGDB has no review data at all for this game', () => {
     expect(reviewScoreFrom({ id: 1 })).toBeNull();
+  });
+});
+
+describe('isSensitiveContent', () => {
+  it('flags the Erotic theme and sexual-content keywords', () => {
+    expect(isSensitiveContent({ themes: [{ name: 'Erotic' }] })).toBe(true);
+    expect(isSensitiveContent({ keywords: [{ name: 'High Sexual Content' }] })).toBe(true);
+    expect(isSensitiveContent({ keywords: [{ name: ' sexual content ' }] })).toBe(true);
+  });
+
+  it('leaves everything else alone', () => {
+    expect(isSensitiveContent({})).toBe(false);
+    expect(isSensitiveContent({ themes: [{ name: 'Horror' }], keywords: [{ name: 'adult swim' }, { name: undefined }] })).toBe(false);
   });
 });

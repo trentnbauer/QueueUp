@@ -301,6 +301,7 @@ async function runSteamLibraryImportLoop(
             releaseDate: resolved.releaseDate,
             igdbCollectionId: resolved.igdbCollectionId,
             reviewScore: resolved.reviewScore,
+            sensitiveContent: resolved.sensitiveContent,
             // Issue #370: a pre-purchased/pre-loaded but not-yet-released Steam game defaults into
             // the wishlist instead of the backlog, same as the manual add path.
             status: defaultStatusForRelease(resolved.releaseDate),
@@ -395,6 +396,7 @@ async function runSteamWishlistImportLoop(
             releaseDate: resolved.releaseDate,
             igdbCollectionId: resolved.igdbCollectionId,
             reviewScore: resolved.reviewScore,
+            sensitiveContent: resolved.sensitiveContent,
             status: 'wishlist',
           },
         });
@@ -993,6 +995,30 @@ export default async function gameRoutes(app: FastifyInstance) {
     return { game: await serializeGame(await loadGameOr404(game.id), userId) };
   });
 
+  // Adult-tagged shelf games awaiting the "hide from your public library?" answer (issue #627).
+  app.get('/api/me/sensitive-games', async (request) => {
+    const userId = await request.requireAuth();
+    const rows = await prisma.game.findMany({
+      where: { roomId: null, addedBy: userId, sensitiveContent: true, sensitivePrompted: false, hiddenFromOthers: false, archivedAt: null },
+      select: { id: true, title: true, coverImageUrl: true },
+      orderBy: { title: 'asc' },
+      take: 200,
+    });
+    return { games: rows };
+  });
+
+  app.post<{ Body: { hideIds?: string[]; keepIds?: string[] } }>('/api/me/sensitive-games/resolve', async (request, reply) => {
+    const userId = await request.requireAuth();
+    const hideIds = Array.isArray(request.body?.hideIds) ? request.body.hideIds.filter((x) => typeof x === 'string') : [];
+    const keepIds = Array.isArray(request.body?.keepIds) ? request.body.keepIds.filter((x) => typeof x === 'string') : [];
+    const mine = { roomId: null, addedBy: userId } as const;
+    await prisma.$transaction([
+      prisma.game.updateMany({ where: { ...mine, id: { in: hideIds } }, data: { hiddenFromOthers: true, sensitivePrompted: true } }),
+      prisma.game.updateMany({ where: { ...mine, id: { in: keepIds } }, data: { sensitivePrompted: true } }),
+    ]);
+    return reply.status(204).send();
+  });
+
   // The optional review saved after beating a game - four independent 1-5 scores plus a one-line
   // note. Attaches itself to the viewer's latest "Beaten" feed entry for this game (so it shows in
   // friends' feeds and on the public profile) and, for a room game, posts to the room's Discord
@@ -1112,6 +1138,7 @@ export default async function gameRoutes(app: FastifyInstance) {
               releaseDate: resolved.releaseDate,
               igdbCollectionId: resolved.igdbCollectionId,
               reviewScore: resolved.reviewScore,
+              sensitiveContent: resolved.sensitiveContent,
               status: 'done',
             },
           });

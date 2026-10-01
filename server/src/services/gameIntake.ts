@@ -154,6 +154,7 @@ export async function resolveGameForCreation(
    * linkDlcToBaseGame, right after the caller's own prisma.game.create succeeds. */
   category: number | null;
   parentGameIgdbId: number | null;
+  sensitiveContent: boolean;
 }> {
   const detail = await getGameDetail(igdbId);
   assertPlatformMatch(detail, allowedPlatforms);
@@ -177,6 +178,7 @@ export async function resolveGameForCreation(
     reviewScore: detail.reviewScore,
     category: detail.category,
     parentGameIgdbId: detail.parentGameIgdbId,
+    sensitiveContent: detail.sensitiveContent === true,
   };
 }
 
@@ -238,6 +240,7 @@ export async function linkDlcToBaseGame(
             releaseDate: resolved.releaseDate,
             igdbCollectionId: resolved.igdbCollectionId,
             reviewScore: resolved.reviewScore,
+            sensitiveContent: resolved.sensitiveContent,
             status: statusOverride ?? defaultStatusForRelease(resolved.releaseDate),
           },
         });
@@ -387,6 +390,7 @@ export async function createGameForUser(
         releaseDate: resolved.releaseDate,
         igdbCollectionId: resolved.igdbCollectionId,
         reviewScore: resolved.reviewScore,
+        sensitiveContent: resolved.sensitiveContent,
         // Explicit status (Personal Shelf's Add Game modal, or an API push) wins outright;
         // otherwise issue #370's release-date guess (an unreleased game defaults into the wishlist).
         status: status ?? defaultStatusForRelease(resolved.releaseDate),

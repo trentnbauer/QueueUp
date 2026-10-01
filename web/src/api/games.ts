@@ -1,5 +1,7 @@
 import { apiGet, apiPost, apiPatch, apiPut, apiDelete } from './client';
 import type {
+  ResolveSensitiveGamesRequest,
+  SensitiveGamesResponse,
   BacklogInsights,
   BadgeDefinition,
   BarcodeGameMatch,
@@ -113,6 +115,8 @@ export const gamesApi = {
   activity: (before?: string) =>
     apiGet<ShelfActivityPage>(`/api/me/activity${before ? `?before=${encodeURIComponent(before)}` : ''}`),
   setReleaseAlert: (id: string, enabled: boolean) => apiPatch<{ game: Game }>(`/api/games/${id}/release-alert`, { enabled }),
+  sensitiveGames: () => apiGet<SensitiveGamesResponse>('/api/me/sensitive-games'),
+  resolveSensitiveGames: (body: ResolveSensitiveGamesRequest) => apiPost<void>('/api/me/sensitive-games/resolve', body),
   setHidden: (id: string, body: SetGameHiddenRequest) => apiPatch<{ game: Game }>(`/api/games/${id}/hidden`, body),
   setReview: (id: string, body: SetGameReviewRequest) => apiPut<{ game: Game }>(`/api/games/${id}/review`, body),
   syncSteamCompletions: () => apiPost<SteamCompletionsSyncResult>('/api/games/sync-steam-completions'),

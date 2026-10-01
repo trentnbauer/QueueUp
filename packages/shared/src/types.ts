@@ -460,6 +460,8 @@ export interface Game {
   replayedAt: string | null;
   /** Personal Shelf only: hidden from the public profile and friends' activity. */
   hiddenFromOthers: boolean;
+  /** IGDB tags this as adult content (issue #627). */
+  sensitiveContent: boolean;
   /** The review saved after beating it, if any. */
   review: GameReview | null;
   /** "Ping me when it's out" is switched on (only meaningful for an upcoming release). */
@@ -1701,6 +1703,19 @@ export interface PublicUserProfile {
   beatenGames: PublicProfileBeatenGame[];
   /** When the account was created (ISO). */
   memberSince: string;
+}
+
+/** GET /api/me/sensitive-games - Personal Shelf games IGDB tags as adult that the owner hasn't answered
+ * the "hide from your public library?" prompt for yet. */
+export interface SensitiveGamesResponse {
+  games: { id: string; title: string; coverImageUrl: string | null }[];
+}
+
+export interface ResolveSensitiveGamesRequest {
+  /** Ids to hide from the public profile and friends. */
+  hideIds: string[];
+  /** Ids to leave visible. Every id in hideIds + keepIds is marked as answered. */
+  keepIds: string[];
 }
 
 export interface PublicProfileBeatenGame {
