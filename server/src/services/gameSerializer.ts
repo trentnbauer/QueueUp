@@ -1,5 +1,5 @@
 import type { Prisma } from '@prisma/client';
-import type { Game, GamePrice, GameReview, PriceRegion, RoomPlatform, VoteValue } from '@queueup/shared';
+import { sortPlatformLabel, type Game, type GamePrice, type GameReview, type PriceRegion, type RoomPlatform, type VoteValue } from '@queueup/shared';
 import { getSteamPrice, getSteamPrices } from './priceService.js';
 import { getOwnershipInfo, type GameOwnershipInfo } from './gameOwnership.js';
 import { getRoomPlatform, getRoomPlatforms } from './roomAccess.js';
@@ -79,7 +79,7 @@ function buildGameDto(
     roomId: game.roomId,
     addedBy: toUserDto(game.adder),
     title: game.title,
-    platform: game.platform,
+    platform: sortPlatformLabel(game.platform),
     genre: game.genre,
     releaseYear: game.releaseYear,
     releaseDate: game.releaseDate ? game.releaseDate.toISOString() : null,

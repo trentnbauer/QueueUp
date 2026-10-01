@@ -37,41 +37,50 @@ export type RoomPlatform =
   | 'android'
   | 'ios';
 
+/** Key order is display order everywhere platforms are listed: PC first, then newest release first. */
 export const ROOM_PLATFORM_LABELS: Record<RoomPlatform, string> = {
   pc: 'PC',
-  xbox_360: 'Xbox 360',
-  xbox_one: 'Xbox One',
-  xbox_series: 'Xbox Series X|S',
-  ps3: 'PlayStation 3',
-  ps4: 'PlayStation 4',
-  ps5: 'PlayStation 5',
-  switch: 'Switch',
   switch2: 'Switch 2',
-  quest: 'Meta Quest',
-  quest2: 'Meta Quest 2',
   quest3: 'Meta Quest 3',
-  nes: 'NES',
-  snes: 'SNES',
-  n64: 'Nintendo 64',
-  gamecube: 'GameCube',
-  wii: 'Wii',
+  ps5: 'PlayStation 5',
+  xbox_series: 'Xbox Series X|S',
+  quest2: 'Meta Quest 2',
+  quest: 'Meta Quest',
+  switch: 'Switch',
+  xbox_one: 'Xbox One',
+  ps4: 'PlayStation 4',
   wii_u: 'Wii U',
-  gb: 'Game Boy',
-  gbc: 'Game Boy Color',
-  gba: 'Game Boy Advance',
-  ds: 'Nintendo DS',
-  n3ds: 'Nintendo 3DS',
-  ps1: 'PlayStation',
-  ps2: 'PlayStation 2',
-  psp: 'PSP',
   vita: 'PlayStation Vita',
-  master_system: 'Master System',
-  genesis: 'Mega Drive / Genesis',
-  saturn: 'Sega Saturn',
-  dreamcast: 'Dreamcast',
+  n3ds: 'Nintendo 3DS',
   android: 'Android',
   ios: 'iOS',
+  wii: 'Wii',
+  ps3: 'PlayStation 3',
+  xbox_360: 'Xbox 360',
+  psp: 'PSP',
+  ds: 'Nintendo DS',
+  gamecube: 'GameCube',
+  gba: 'Game Boy Advance',
+  ps2: 'PlayStation 2',
+  dreamcast: 'Dreamcast',
+  gbc: 'Game Boy Color',
+  n64: 'Nintendo 64',
+  ps1: 'PlayStation',
+  saturn: 'Sega Saturn',
+  snes: 'SNES',
+  gb: 'Game Boy',
+  genesis: 'Mega Drive / Genesis',
+  master_system: 'Master System',
+  nes: 'NES',
 };
+
+/** Every RoomPlatform in display order (see ROOM_PLATFORM_LABELS). */
+export const PLATFORM_ORDER = Object.keys(ROOM_PLATFORM_LABELS) as RoomPlatform[];
+
+/** Sorts RoomPlatforms into display order (PC first, then newest first). */
+export function sortPlatforms<T extends RoomPlatform>(platforms: readonly T[]): T[] {
+  return [...platforms].sort((a, b) => PLATFORM_ORDER.indexOf(a) - PLATFORM_ORDER.indexOf(b));
+}
 
 /** The exact IGDB platform name(s) each RoomPlatform family corresponds to - shared so both the
  * server (scoping an IGDB search query to a room/owned-systems platform) and the web client
@@ -205,6 +214,22 @@ export function platformFamilyOf(label: string): RoomPlatform | null {
   if (/\bios\b/.test(lower) || lower.includes('iphone') || lower.includes('ipad')) return 'ios';
   if (lower.includes('pc') || lower.includes('windows') || lower.includes('mac') || lower.includes('linux')) return 'pc';
   return null;
+}
+
+/** Re-orders a comma-separated platform label (IGDB's "Xbox Series X|S, PC (Microsoft Windows),
+ * PlayStation 5") into display order: PC first, then newest first. Names we don't model keep their
+ * relative order, after the ones we do. */
+export function sortPlatformLabel(label: string): string {
+  const rank = (name: string) => {
+    const family = platformFamilyOf(name);
+    return family ? PLATFORM_ORDER.indexOf(family) : PLATFORM_ORDER.length;
+  };
+  const names = label.split(',').map((n) => n.trim()).filter(Boolean);
+  return names
+    .map((name, index) => ({ name, index, rank: rank(name) }))
+    .sort((a, b) => a.rank - b.rank || a.index - b.index)
+    .map((n) => n.name)
+    .join(', ');
 }
 
 /** Newer hardware plays older games: a PS5 owner can add PS4 games, Switch 2 plays Switch, Xbox
@@ -1868,6 +1893,8 @@ export interface PublicUserProfile {
   avatarUrl: string | null;
   badges: BadgeSummary[];
   beatenGameCount: number;
+  /** How many of those beaten games were 100%'d (every achievement). */
+  fullyCompletedCount: number;
   currentlyPlaying: PublicProfileGame[];
   /** Systems the user owns (User.ownedPlatforms), as display labels. */
   systems: string[];
@@ -1910,6 +1937,8 @@ export interface PublicProfileBeatenGame {
   genre: string | null;
   replaying: boolean;
   review: GameReview | null;
+  /** Every achievement unlocked (100%) - shown first, with a trophy. */
+  fullyCompleted: boolean;
 }
 
 // ---- Friends -------------------------------------------------------------------------------

@@ -5,6 +5,7 @@ import { getConfigValue } from './configResolver.js';
 import {
   IGDB_PLATFORM_NAMES,
   platformFamilyOf,
+  sortPlatformLabel,
   withBackwardsCompatible,
   type CollectionGamesResult,
   type CollectionSearchResult,
@@ -187,7 +188,7 @@ function coverUrl(cover?: IgdbCover): string | null {
 
 function platformLabel(platforms?: IgdbPlatform[]): string {
   const names = (platforms ?? []).map((p) => p.name).filter((n): n is string => !!n);
-  return names.length > 0 ? names.join(', ') : 'PC';
+  return names.length > 0 ? sortPlatformLabel(names.join(', ')) : 'PC';
 }
 
 function genreLabel(genres?: IgdbGenre[]): string | null {

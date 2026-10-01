@@ -159,12 +159,49 @@ export function coverBg(title: string, url?: string | null, size: CoverSize = 'b
   return url ? `url("${sizedCoverUrl(url, size)}") center/cover no-repeat, ${grad}` : grad;
 }
 
-/** 2:3 cover tile. `width` is in px; the aspect ratio does the rest. */
+/** Gold used for 100%-completed games (trophy badge and cover ring). Same in light and dark. */
+export const GOLD = 'oklch(0.83 0.15 85)';
+/** Ring + glow drawn around a 100%-completed game's cover. */
+export const GOLD_RING = `0 0 0 2px ${GOLD}, 0 0 14px oklch(0.83 0.15 85 / 0.55)`;
+
+/** The 🏆 badge pinned to the bottom-right corner of a 100%-completed game's cover. `size` is the
+ * badge's diameter in px. */
+export function TrophyBadge({ size = 20, style }: { size?: number; style?: CSSProperties }) {
+  return (
+    <span
+      aria-label="100% achievements"
+      title="100% achievements"
+      style={{
+        position: 'absolute',
+        right: -Math.round(size / 4),
+        bottom: -Math.round(size / 4),
+        width: size,
+        height: size,
+        borderRadius: '50%',
+        background: `radial-gradient(circle at 35% 30%, oklch(0.95 0.08 90), ${GOLD} 60%, oklch(0.68 0.14 75))`,
+        boxShadow: '0 2px 6px oklch(0 0 0 / 0.35)',
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        fontSize: Math.round(size * 0.6),
+        lineHeight: 1,
+        zIndex: 1,
+        ...style,
+      }}
+    >
+      🏆
+    </span>
+  );
+}
+
+/** 2:3 cover tile. `width` is in px; the aspect ratio does the rest. `completed` marks a game
+ * 100%'d (all achievements): a gold ring and a 🏆 badge. */
 export function Cover({
   title,
   url,
   width,
   radius = 9,
+  completed = false,
   style,
   children,
 }: {
@@ -172,9 +209,11 @@ export function Cover({
   url?: string | null;
   width?: number | string;
   radius?: number;
+  completed?: boolean;
   style?: CSSProperties;
   children?: ReactNode;
 }) {
+  const badgeSize = typeof width === 'number' ? Math.max(16, Math.min(28, Math.round(width * 0.42))) : 26;
   return (
     <span
       style={{
@@ -186,9 +225,11 @@ export function Cover({
         display: 'block',
         position: 'relative',
         ...style,
+        ...(completed && { boxShadow: style?.boxShadow ? `${GOLD_RING}, ${style.boxShadow}` : GOLD_RING }),
       }}
     >
       {children}
+      {completed && <TrophyBadge size={badgeSize} />}
     </span>
   );
 }

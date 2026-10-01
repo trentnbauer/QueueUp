@@ -1,7 +1,8 @@
 import type { FastifyInstance } from 'fastify';
+import type { GameStatus } from '@prisma/client';
 import { prisma } from '../db/client.js';
 import { HttpError } from '../util/httpError.js';
-import { BADGE_DEFINITIONS, ROOM_PLATFORM_LABELS, type BadgeKey, type PublicProfileGame, type PublicUserProfile } from '@queueup/shared';
+import { BADGE_DEFINITIONS, ROOM_PLATFORM_LABELS, sortPlatformLabel, sortPlatforms, type BadgeKey, type PublicProfileGame, type PublicUserProfile } from '@queueup/shared';
 import { toGameReviewDto } from '../services/gameSerializer.js';
 import { areFriends } from '../services/friendships.js';
 
@@ -86,7 +87,7 @@ export default async function publicProfileRoutes(app: FastifyInstance) {
       id: g.id,
       title: g.title,
       coverImageUrl: g.coverImageUrl,
-      platform: g.platform,
+      platform: sortPlatformLabel(g.platform),
       ...(bothOwnIgdb.has(g.igdbId) && { bothOwn: true }),
     });
     const byScore = (a: (typeof shelfRows)[number], b: (typeof shelfRows)[number]) => score(b) - score(a) || b.updatedAt.getTime() - a.updatedAt.getTime();
@@ -103,9 +104,16 @@ export default async function publicProfileRoutes(app: FastifyInstance) {
 
     const countByKey = new Map(perBadgeCounts.map((r) => [r.badgeKey, r._count.userId]));
 
-    const beatenGameCount = await prisma.game.count({
-      where: { roomId: null, addedBy: user.id, status: { in: ['done', 'replay'] }, hiddenFromOthers: false },
-    });
+    const beatenWhere = { roomId: null, addedBy: user.id, status: { in: ['done', 'replay'] as GameStatus[] }, hiddenFromOthers: false };
+    // 100%: the game's own flag (any Steam sync saw it complete) or this user's own completion
+    // record for the title (AchievementCompletion, keyed by igdbId, not by Game row).
+    const completedIgdbIds = (await prisma.achievementCompletion.findMany({ where: { userId: user.id }, select: { igdbId: true } })).map((r) => r.igdbId);
+    const completedIgdb = new Set(completedIgdbIds);
+    const isFullyCompleted = (g: { steamFullyCompleted: boolean; igdbId: number }) => g.steamFullyCompleted || completedIgdb.has(g.igdbId);
+    const [beatenGameCount, fullyCompletedCount] = await Promise.all([
+      prisma.game.count({ where: beatenWhere }),
+      prisma.game.count({ where: { ...beatenWhere, OR: [{ steamFullyCompleted: true }, { igdbId: { in: completedIgdbIds } }] } }),
+    ]);
     const profile: PublicUserProfile = {
       displayName: user.displayName,
       avatarColor: user.avatarColor,
@@ -127,14 +135,21 @@ export default async function publicProfileRoutes(app: FastifyInstance) {
         };
       }),
       beatenGameCount,
+      fullyCompletedCount,
       currentlyPlaying: currentlyPlayingRows.map(({ igdbId, ...g }) => ({
         ...g,
+        platform: sortPlatformLabel(g.platform),
         ...(bothOwnIgdb.has(igdbId) && { bothOwn: true }),
       })),
-      systems: user.ownedPlatforms.map((p) => ROOM_PLATFORM_LABELS[p]),
-      // Reviewed games first, then the rest, each group newest-first (the query's own order).
+      systems: sortPlatforms(user.ownedPlatforms).map((p) => ROOM_PLATFORM_LABELS[p]),
+      // 100% games first, then reviewed games, then the rest, each group newest-first (the query's
+      // own order).
       beatenGames: [...beatenGameRows]
-        .sort((a, b) => Number(b.reviews.length > 0) - Number(a.reviews.length > 0))
+        .sort(
+          (a, b) =>
+            Number(isFullyCompleted(b)) - Number(isFullyCompleted(a)) ||
+            Number(b.reviews.length > 0) - Number(a.reviews.length > 0),
+        )
         .map((g) => ({
           id: g.id,
           title: g.title,
@@ -142,6 +157,7 @@ export default async function publicProfileRoutes(app: FastifyInstance) {
           genre: g.genre,
           replaying: g.status === 'replay',
           review: toGameReviewDto(g.reviews[0]),
+          fullyCompleted: isFullyCompleted(g),
         })),
       memberSince: user.createdAt.toISOString(),
       wishlist,

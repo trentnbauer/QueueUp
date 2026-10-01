@@ -1,7 +1,7 @@
 import { useEffect, useState, type ReactNode } from 'react';
 import { useNavigate } from 'react-router';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { PRICE_REGION_LABELS, ROOM_PLATFORM_LABELS, type PriceRegion } from '@queueup/shared';
+import { PRICE_REGION_LABELS, ROOM_PLATFORM_LABELS, sortPlatforms, type PriceRegion } from '@queueup/shared';
 import { apiKeysApi, API_KEYS_QUERY_KEY } from '../api/apiKeys';
 import { authApi } from '../api/auth';
 import { badgesApi } from '../api/badges';
@@ -466,7 +466,7 @@ export function MeDialog() {
         <Group>
           <NavRow
             label="Systems owned"
-            sub={ownedPlatforms.length === 0 ? 'Every platform' : ownedPlatforms.map((p) => ROOM_PLATFORM_LABELS[p]).join(', ')}
+            sub={ownedPlatforms.length === 0 ? 'Every platform' : sortPlatforms(ownedPlatforms).map((p) => ROOM_PLATFORM_LABELS[p]).join(', ')}
             onClick={() => setSystemsOpen(true)}
           />
         </Group>
