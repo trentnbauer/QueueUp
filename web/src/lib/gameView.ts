@@ -119,6 +119,15 @@ export function isUpcoming(g: Game, now: number = Date.now()): boolean {
   return !!g.releaseDate && new Date(g.releaseDate).getTime() > now;
 }
 
+const COMING_SOON_DAYS = 30;
+
+/** Releasing within the next 30 days (the "Coming soon" strip's window). */
+export function isComingSoon(g: Game, now: number = Date.now()): boolean {
+  if (!g.releaseDate) return false;
+  const t = new Date(g.releaseDate).getTime();
+  return t > now && (t - now) / DAY <= COMING_SOON_DAYS;
+}
+
 const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
 
 export function shortDate(d: string | Date): string {
