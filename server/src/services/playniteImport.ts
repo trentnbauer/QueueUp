@@ -117,8 +117,11 @@ export async function recordPendingLibraryImport(userId: string, source: string,
 /** Excludes dismissed rows (see dismissPendingLibraryImport) - this backs both the review list
  * itself and the "Needs Review (N)" sidebar badge count, and a dismissed row is exactly the set of
  * things the user already said they don't want to see here again. */
-export async function listPendingLibraryImports(userId: string): Promise<PendingLibraryImportDto[]> {
-  const rows = await prisma.pendingLibraryImport.findMany({ where: { userId, dismissedAt: null }, orderBy: { createdAt: 'desc' } });
+export async function listPendingLibraryImports(userId: string, dismissed = false): Promise<PendingLibraryImportDto[]> {
+  const rows = await prisma.pendingLibraryImport.findMany({
+    where: { userId, dismissedAt: dismissed ? { not: null } : null },
+    orderBy: { createdAt: 'desc' },
+  });
   return rows.map((row) => ({
     id: row.id,
     title: row.title,
@@ -149,6 +152,11 @@ export async function deletePendingLibraryImport(userId: string, id: string): Pr
  * deletePendingLibraryImport's own doc comment. */
 export async function dismissPendingLibraryImport(userId: string, id: string): Promise<void> {
   await prisma.pendingLibraryImport.updateMany({ where: { id, userId }, data: { dismissedAt: new Date() } });
+}
+
+/** Puts a dismissed row back in the review queue (undoes dismissPendingLibraryImport). */
+export async function restorePendingLibraryImport(userId: string, id: string): Promise<void> {
+  await prisma.pendingLibraryImport.updateMany({ where: { id, userId }, data: { dismissedAt: null } });
 }
 
 /** Clears a pending row (if any) once its title resolves on its own during a later import run -

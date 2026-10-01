@@ -9,7 +9,10 @@ import { useConfirm } from '../context/ConfirmContext';
 import { useAttention } from '../hooks/useAttention';
 import { usePendingImportsCount } from '../hooks/usePendingImports';
 import { useVersion } from '../hooks/useVersion';
-import { SHELF_TABS, ROOM_TABS } from '../lib/gameView';
+import { SHELF_TABS, SHELF_MORE_TABS, SHELF_IMPORT_TABS, ROOM_TABS } from '../lib/gameView';
+import { PendingImportsList } from './PendingImportsList';
+import { useQuery } from '@tanstack/react-query';
+import { DISMISSED_IMPORTS_QUERY_KEY, PENDING_IMPORTS_QUERY_KEY, pendingImportsApi } from '../api/pendingImports';
 import { ROOM_PLATFORM_LABELS } from '@queueup/shared';
 import { Avatar, Banner, Btn } from '../ui/primitives';
 import { useIsMobile } from '../ui/useLayout';
@@ -20,6 +23,8 @@ import { Footer } from '../shell/Footer';
 import { BulkBar, BulkStatusSheet } from './BulkBar';
 
 const MAX_SHOWN_HINT = 500;
+
+const SHELF_ALL_TABS = [...SHELF_TABS, ...SHELF_MORE_TABS];
 
 /** The Personal Shelf / room home: header, nudges, tabs + search, lists. One component for both
  * layouts - the row/header geometry branches on `mobile`. */
@@ -36,8 +41,16 @@ export function HomeView() {
   const { isShelf, room, members, games, ops } = scope;
   const navigate = useNavigate();
 
-  const tabs = isShelf ? SHELF_TABS : ROOM_TABS;
+  // The shelf's primary tabs, plus the filters tucked behind the "+" button (Dropped, Won't play and
+  // the two lists of synced titles that never became games).
+  const tabs = isShelf ? SHELF_ALL_TABS : ROOM_TABS;
+  const primaryTabs = isShelf ? SHELF_TABS : ROOM_TABS;
   const [tab, setTab] = useState('queue');
+  const [moreOpen, setMoreOpen] = useState(false);
+  const pendingList = useQuery({ queryKey: PENDING_IMPORTS_QUERY_KEY, queryFn: pendingImportsApi.list, enabled: isShelf });
+  const dismissedList = useQuery({ queryKey: DISMISSED_IMPORTS_QUERY_KEY, queryFn: pendingImportsApi.listDismissed, enabled: isShelf && moreOpen });
+  const importTab = tab === 'matching' || tab === 'dismissed' ? tab : null;
+  const moreActive = tab === 'dropped' || tab === 'wont_play' || importTab !== null;
   const [query, setQuery] = useState('');
   const [bulk, setBulk] = useState(false);
   const [bulkSel, setBulkSel] = useState<string[]>([]);
@@ -46,6 +59,7 @@ export function HomeView() {
   // Switching shelf/room resets the view, like the design.
   useEffect(() => {
     setTab('queue');
+    setMoreOpen(false);
     setQuery('');
     setBulk(false);
     setBulkSel([]);
@@ -55,8 +69,8 @@ export function HomeView() {
   const lists = useMemo(() => buildHomeLists(games, { isShelf, tabs, tab, query }), [games, isShelf, tabs, tab, query]);
   const showRank = tab === 'queue' && !searching;
   const ctx = { isShelf, tab, searching, all: games };
-  const items = lists.list.map((g, i) => toRowItem(g, i + 1, ctx));
-  const playNextItems = lists.playNext.map((g, i) => toRowItem(g, i + 1, ctx));
+  const items = importTab ? [] : lists.list.map((g, i) => toRowItem(g, i + 1, ctx));
+  const playNextItems = importTab ? [] : lists.playNext.map((g, i) => toRowItem(g, i + 1, ctx));
 
   const toVote = room ? attention.toVote(room.id) : 0;
   const toApprove = scope.canManage && !isShelf ? scope.suggestions.length : 0;
@@ -243,7 +257,7 @@ export function HomeView() {
           role="tablist"
           style={st(`${mobile ? '' : 'flex:1 1 380px;min-width:0;'}display:flex;gap:2px;padding:4px;border-radius:999px;background:var(--surf);overflow-x:auto`)}
         >
-          {tabs.map((t) => {
+          {primaryTabs.map((t) => {
             const on = tab === t.id && !searching;
             return (
               <button
@@ -264,6 +278,20 @@ export function HomeView() {
               </button>
             );
           })}
+          {isShelf && (
+            <button
+              type="button"
+              aria-label="More filters"
+              aria-expanded={moreOpen || moreActive}
+              title="More filters"
+              onClick={() => setMoreOpen((o) => !o)}
+              style={st(
+                `flex:0 0 auto;display:flex;align-items:center;justify-content:center;width:36px;height:36px;border-radius:999px;border:none;background:${moreActive ? 'var(--text)' : 'transparent'};color:${moreActive ? 'var(--onText)' : 'var(--muted)'};font:500 20px/1 var(--font-ui);transform:${moreOpen || moreActive ? 'rotate(45deg)' : 'none'};transition:transform 0.15s`,
+              )}
+            >
+              +
+            </button>
+          )}
         </div>
         <div style={st(mobile ? 'display:flex;gap:10px' : 'flex:1 1 320px;min-width:0;display:flex;gap:10px')}>
           <input
@@ -286,7 +314,39 @@ export function HomeView() {
         </div>
       </div>
 
-      {lists.coming.length > 0 && (
+      {isShelf && (moreOpen || moreActive) && (
+        <div role="tablist" aria-label="More filters" style={st('display:flex;flex-wrap:wrap;gap:6px')}>
+          {[
+            ...SHELF_MORE_TABS.map((t) => ({ id: t.id, label: t.label, count: lists.counts[t.id] ?? 0 })),
+            { id: 'matching', label: SHELF_IMPORT_TABS[0].label, count: pendingList.data?.pending.length ?? 0 },
+            { id: 'dismissed', label: SHELF_IMPORT_TABS[1].label, count: dismissedList.data?.pending.length ?? null },
+          ].map((t) => {
+            const on = tab === t.id && !searching;
+            return (
+              <button
+                key={t.id}
+                type="button"
+                role="tab"
+                aria-selected={on}
+                onClick={() => {
+                  setTab(t.id);
+                  setQuery('');
+                }}
+                style={st(
+                  `display:flex;align-items:center;gap:6px;height:34px;padding:0 14px;border-radius:999px;border:1px solid ${on ? 'transparent' : 'var(--line)'};background:${on ? 'var(--text)' : 'transparent'};color:${on ? 'var(--onText)' : 'var(--text2)'};font:600 13px var(--font-ui)`,
+                )}
+              >
+                {t.label}
+                {t.count !== null && <span style={st('font:500 11px var(--font-mono);opacity:0.6')}>{t.count}</span>}
+              </button>
+            );
+          })}
+        </div>
+      )}
+
+      {importTab && <PendingImportsList kind={importTab} />}
+
+      {!importTab && lists.coming.length > 0 && (
         <ComingStrip
           games={lists.coming}
           onOpen={(g) => ui.selectGame(g.id)}
@@ -297,11 +357,11 @@ export function HomeView() {
         />
       )}
 
-      {scope.gamesLoading && items.length === 0 && (
+      {!importTab && scope.gamesLoading && items.length === 0 && (
         <div style={st('padding:36px 12px;text-align:center;font:500 14.5px var(--font-ui);color:var(--muted)')}>Loading…</div>
       )}
 
-      {!scope.gamesLoading && items.length === 0 && (
+      {!importTab && !scope.gamesLoading && items.length === 0 && (
         <div style={st('padding:36px 12px;text-align:center;display:flex;flex-direction:column;align-items:center;gap:12px')}>
           <span style={st('font:500 14.5px var(--font-ui);color:var(--muted);text-wrap:pretty')}>{emptyMsg}</span>
           {emptyAdd && (
