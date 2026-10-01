@@ -86,7 +86,7 @@ interface RowProps {
 /** One game in the list layout on desktop: rank, cover, title/meta, price, votes, score. */
 export function DesktopRow({ item, showRank, bulk, selected, active, onOpen, onVote }: RowProps) {
   const g = item.game;
-  const bg = bulk && selected ? 'oklch(0.74 0.15 45 / 0.1)' : active ? 'var(--surf)' : 'transparent';
+  const bg = bulk && selected ? 'var(--accA10)' : active ? 'var(--surf)' : 'transparent';
   return (
     <div
       role="button"
@@ -136,7 +136,7 @@ export function MobileRow({ item, showRank, bulk, selected, onOpen, onVote }: Ro
       tabIndex={0}
       onClick={onOpen}
       onKeyDown={(e) => (e.key === 'Enter' || e.key === ' ') && (e.preventDefault(), onOpen())}
-      style={st(`display:flex;align-items:center;gap:12px;padding:10px;border-radius:18px;cursor:pointer;background:${bulk && selected ? 'oklch(0.74 0.15 45 / 0.1)' : 'transparent'}`)}
+      style={st(`display:flex;align-items:center;gap:12px;padding:10px;border-radius:18px;cursor:pointer;background:${bulk && selected ? 'var(--accA10)' : 'transparent'}`)}
     >
       {showRank && <span style={st('width:20px;flex-shrink:0;font:700 17px var(--font-display);color:var(--rank);text-align:center')}>{item.rank}</span>}
       {bulk && <SelectMark on={selected} />}
@@ -281,7 +281,7 @@ export function ComingStrip({
                 stop(e);
                 onToggleWatch(g);
               }}
-              style={st(`width:36px;height:36px;flex-shrink:0;border-radius:50%;border:none;background:${g.releaseAlert ? 'oklch(0.74 0.15 45 / 0.18)' : 'var(--chip)'};font-size:15px;line-height:1;padding:0;opacity:${g.releaseAlert ? 1 : 0.45}`)}
+              style={st(`width:36px;height:36px;flex-shrink:0;border-radius:50%;border:none;background:${g.releaseAlert ? 'var(--accA18)' : 'var(--chip)'};font-size:15px;line-height:1;padding:0;opacity:${g.releaseAlert ? 1 : 0.45}`)}
             >
               🔔
             </button>

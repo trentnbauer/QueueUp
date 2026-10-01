@@ -33,7 +33,7 @@ export function GlancePanel() {
         <button
           type="button"
           onClick={() => ui.openDialog('spin')}
-          style={st('align-self:flex-start;height:42px;padding:0 22px;border-radius:999px;border:none;background:var(--acc);color:var(--ink);font:800 14px var(--font-display);box-shadow:0 6px 20px oklch(0.74 0.15 45 / 0.3)')}
+          style={st('align-self:flex-start;height:42px;padding:0 22px;border-radius:999px;border:none;background:var(--acc);color:var(--ink);font:800 14px var(--font-display);box-shadow:0 6px 20px var(--accA30)')}
         >
           Spin
         </button>

@@ -301,7 +301,7 @@ export function GameDetail({ game, onClose, changeStatus }: { game: Game; onClos
                     type="button"
                     onClick={() => ops.setTargetPrice(game.id, null)}
                     aria-label="Remove price alert"
-                    style={st('width:26px;height:26px;border-radius:50%;border:none;background:oklch(0.74 0.15 45 / 0.2);color:var(--accText);font-size:15px;line-height:1;padding:0')}
+                    style={st('width:26px;height:26px;border-radius:50%;border:none;background:var(--accA20);color:var(--accText);font-size:15px;line-height:1;padding:0')}
                   >
                     ×
                   </button>
@@ -490,7 +490,7 @@ export function GameDetail({ game, onClose, changeStatus }: { game: Game; onClos
                 >
                   <span
                     style={st(
-                      `width:20px;height:20px;border-radius:50%;background:${on || past ? 'var(--acc)' : 'var(--surf2)'};box-shadow:${on ? '0 0 0 4px oklch(0.74 0.15 45 / 0.25)' : '0 0 0 3px var(--sheet)'};display:flex;align-items:center;justify-content:center`,
+                      `width:20px;height:20px;border-radius:50%;background:${on || past ? 'var(--acc)' : 'var(--surf2)'};box-shadow:${on ? '0 0 0 4px var(--accA25)' : '0 0 0 3px var(--sheet)'};display:flex;align-items:center;justify-content:center`,
                     )}
                   >
                     <span style={st(`width:8px;height:8px;border-radius:50%;background:${on ? 'var(--ink)' : past ? 'var(--acc)' : 'var(--surf2)'}`)} />

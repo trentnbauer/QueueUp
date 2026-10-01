@@ -26,7 +26,7 @@ import { coverBg } from '../ui/primitives';
 import { useIsMobile } from '../ui/useLayout';
 import { st } from '../ui/st';
 
-const ACC = 'oklch(0.74 0.15 45)';
+const ACC = 'var(--acc)';
 
 interface Run {
   strip: Game[];
@@ -125,7 +125,7 @@ function Reel({ strip, position, tw, th, settled, idle }: { strip: Game[]; posit
           width: tw + 10,
           borderRadius: 16,
           border: `2.5px solid ${ACC}`,
-          boxShadow: `0 0 0 1000px oklch(0 0 0 / 0.35), 0 0 24px oklch(0.74 0.15 45 / ${settled ? 0.7 : 0.45})`,
+          boxShadow: `0 0 0 1000px oklch(0 0 0 / 0.35), 0 0 24px ${settled ? "var(--accA70)" : "var(--accA45)"}`,
           pointerEvents: 'none',
           zIndex: 2,
         }}
@@ -328,7 +328,7 @@ export function SpinDialog({ onClose }: { onClose: () => void }) {
                 type="button"
                 onClick={go}
                 disabled={starting || (!roomId && !candidates.length)}
-                style={st(`height:50px;padding:0 40px;border-radius:999px;border:none;background:${ACC};color:var(--ink);font:800 16px var(--font-display);box-shadow:0 8px 24px oklch(0.74 0.15 45 / 0.35);opacity:${starting ? 0.6 : 1}`)}
+                style={st(`height:50px;padding:0 40px;border-radius:999px;border:none;background:${ACC};color:var(--ink);font:800 16px var(--font-display);box-shadow:0 8px 24px var(--accA35);opacity:${starting ? 0.6 : 1}`)}
               >
                 {starting ? 'Checking prices…' : 'Spin'}
               </button>

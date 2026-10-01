@@ -1,6 +1,9 @@
 import { createContext, useContext, useEffect, useState, type ReactNode } from 'react';
 import {
   applyThemeMode,
+  getPalette,
+  setPalette as storePalette,
+  type Palette,
   getThemePreference,
   setThemePreference,
   watchSystemThemeMode,
@@ -10,6 +13,8 @@ import {
 interface ThemeModeContextValue {
   preference: ThemePreference;
   setPreference: (pref: ThemePreference) => void;
+  palette: Palette;
+  setPalette: (palette: Palette) => void;
 }
 
 const ThemeModeContext = createContext<ThemeModeContextValue | null>(null);
@@ -17,6 +22,7 @@ const ThemeModeContext = createContext<ThemeModeContextValue | null>(null);
 export function ThemeModeProvider({ children }: { children: ReactNode }) {
   // main.tsx already applied the preferred mode before the first render; this just mirrors the choice.
   const [preference, setPreferenceState] = useState<ThemePreference>(getThemePreference);
+  const [palette, setPaletteState] = useState<Palette>(getPalette);
 
   useEffect(() => watchSystemThemeMode((next) => applyThemeMode(next)), []);
 
@@ -25,7 +31,12 @@ export function ThemeModeProvider({ children }: { children: ReactNode }) {
     setPreferenceState(pref);
   }
 
-  return <ThemeModeContext.Provider value={{ preference, setPreference }}>{children}</ThemeModeContext.Provider>;
+  function setPalette(next: Palette) {
+    storePalette(next);
+    setPaletteState(next);
+  }
+
+  return <ThemeModeContext.Provider value={{ preference, setPreference, palette, setPalette }}>{children}</ThemeModeContext.Provider>;
 }
 
 export function useThemeMode(): ThemeModeContextValue {
