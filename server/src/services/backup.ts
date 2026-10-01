@@ -10,7 +10,7 @@ import { isValidCron, nextCronRun, parseCron } from '../util/cron.js';
 
 /** Logical, version-independent database backups: every table in the `public` schema as JSON, gzipped.
  * Deliberately not pg_dump: that has to match the Postgres server's major version, and the app image
- * doesn't carry a client (see docker/backup-entrypoint.sh for the history). Rows are read with
+ * doesn't carry a client (the old standalone pg_dump script was removed for this reason). Rows are read with
  * `json_agg` and written back with `json_populate_recordset`, so Postgres does all type conversion
  * (enums, arrays, json, timestamps, decimals) and nothing here needs to know the schema - a new
  * table or column is picked up automatically. */
