@@ -10,12 +10,12 @@ import { useCardDensity } from '../context/CardDensityContext';
 import { useConfirm } from '../context/ConfirmContext';
 import { useCurrencyRegion } from '../context/CurrencyRegionContext';
 import { useScope } from '../context/ScopeContext';
-import { useSteamImportContext } from '../context/SteamImportContext';
 import { useThemeMode } from '../context/ThemeModeContext';
 import { useUi } from '../context/UiContext';
 import { useViewMode } from '../context/ViewModeContext';
 import { useFriends } from '../hooks/useFriends';
 import { usePendingImportsCount } from '../hooks/usePendingImports';
+import { useSyncSources } from '../hooks/useSyncSources';
 import { useVersion } from '../hooks/useVersion';
 import { Dialog } from '../ui/Dialog';
 import { Avatar, Banner, Btn, Group, Kicker, Segmented, Toggle, inputField } from '../ui/primitives';
@@ -150,7 +150,7 @@ export function MeDialog() {
   const ui = useUi();
   const navigate = useNavigate();
   const confirm = useConfirm();
-  const { user, steamLinked, publicProfileEnabled, profileSlug, primaryProvider, linkedProviders, refetch } = useAuth();
+  const { user, publicProfileEnabled, profileSlug, primaryProvider, linkedProviders, refetch } = useAuth();
   const { rooms, games } = useScope();
   const { version } = useVersion();
   const friends = useFriends();
@@ -159,7 +159,7 @@ export function MeDialog() {
   const { preference, setPreference, palette, setPalette } = useThemeMode();
   const { viewMode, setViewMode } = useViewMode();
   const { density, setDensity } = useCardDensity();
-  const steam = useSteamImportContext();
+  const sync = useSyncSources();
   const { data: badges } = useQuery({ queryKey: ['me', 'badges'], queryFn: badgesApi.list });
   const [providers, setProviders] = useState<string[] | null>(null);
   const [unlinking, setUnlinking] = useState<string | null>(null);
@@ -187,20 +187,34 @@ export function MeDialog() {
   const earned = badges ? badges.badges.filter((b) => b.unlockedAt).length : null;
   const total = badges ? badges.badges.length : null;
   const profileUrl = `${window.location.origin}${getBasePath()}/u/${profileSlug ?? user.id}`;
-  const steamBusy = steam.busy || steam.completions.busy || steam.syncingEverything;
 
-  async function steamSync() {
-    if (steamBusy) return;
-    if (!steamLinked) {
-      steam.startLink('library');
+  async function syncLibraries() {
+    if (sync.busy) return;
+    if (!sync.hasLinked) {
+      sync.linkFirst();
       return;
     }
-    const ok = await confirm({ title: 'Sync your Steam library?', message: 'Imports your library and wishlist, then scans for newly-completed achievements. Skips anything already here.', confirmLabel: 'Sync' });
+    const ok = await confirm({
+      title: 'Sync your libraries?',
+      message: `Pulls new games and wishlist items from ${sync.linkedLabels.join(', ')}. Skips anything already here.`,
+      confirmLabel: 'Sync',
+    });
     if (!ok) return;
     close();
-    ui.notify('Syncing Steam…');
-    await steam.runSyncEverything();
-    ui.notify('Steam sync done');
+    ui.notify('Syncing libraries…');
+    await sync.syncLibraries();
+    ui.notify('Library sync done');
+  }
+
+  async function syncAchievements() {
+    if (sync.busy) return;
+    if (!sync.hasLinked) {
+      sync.linkFirst();
+      return;
+    }
+    close();
+    ui.notify('Checking trophies and achievements…');
+    await sync.syncAchievements();
   }
 
   async function unlink(provider: string) {
@@ -300,19 +314,20 @@ export function MeDialog() {
         </Group>
 
         <ActionCard
-          title="Sync Steam library"
-          sub={!steamLinked ? 'Link Steam to import your library' : steamBusy ? 'Syncing…' : 'Library, wishlist and completions'}
-          cta={!steamLinked ? 'Link' : steamBusy ? '…' : 'Sync'}
-          accent={steamLinked}
-          disabled={steamBusy}
-          onClick={steamSync}
+          title="Sync libraries"
+          sub={!sync.hasLinked ? 'Link Steam to import your library' : sync.busy ? 'Syncing…' : `New games and wishlist from ${sync.linkedLabels.join(', ')}`}
+          cta={!sync.hasLinked ? 'Link' : sync.busy ? '…' : 'Sync'}
+          accent={sync.hasLinked}
+          disabled={sync.busy}
+          onClick={syncLibraries}
         />
-        <ActionCard title="Sync completions from Steam" sub="Find 100%'d games not yet marked Beaten" cta="Check" onClick={async () => {
-          if (!steamLinked) { steam.startLink('library'); return; }
-          close();
-          ui.notify('Checking Steam…');
-          await steam.completions.scan();
-        }} />
+        <ActionCard
+          title="Sync trophies and achievements"
+          sub="Find 100%'d games not yet marked Beaten"
+          cta="Check"
+          disabled={sync.busy}
+          onClick={syncAchievements}
+        />
         <ActionCard title="Sync Playnite" sub="Epic, GOG, Xbox, PlayStation, Nintendo via the desktop app" cta="Set up" onClick={open('playnite')} />
 
         <Section label="APPEARANCE">
