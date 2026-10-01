@@ -211,7 +211,7 @@ type FriendsApi = ReturnType<typeof useFriends>;
 
 /** Per-member friend state in the member list: already a friend, request sent, request waiting on
  * you, or a button to send one. */
-function FriendStatus({ userId, name, friends, notify, onError }: { userId: string; name: string; friends: FriendsApi; notify: (m: string) => void; onError: (m: string) => void }) {
+export function FriendStatus({ userId, name, friends, notify, onError }: { userId: string; name: string; friends: FriendsApi; notify: (m: string) => void; onError: (m: string) => void }) {
   const [busy, setBusy] = useState(false);
   const chip = 'height:28px;padding:0 10px;border-radius:999px;display:flex;align-items:center;font:600 12px var(--font-ui);white-space:nowrap';
   if (friends.friends.some((f) => f.id === userId)) {
