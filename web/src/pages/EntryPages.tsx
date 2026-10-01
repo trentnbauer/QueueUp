@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { Link, useNavigate } from 'react-router';
-import { REVIEW_CATEGORIES, type PublicUserProfile } from '@queueup/shared';
+import { REVIEW_CATEGORIES, type PublicProfileBeatenGame, type PublicUserProfile } from '@queueup/shared';
 import { authApi } from '../api/auth';
 import { publicProfileApi } from '../api/publicProfile';
 import { useAuth } from '../context/AuthContext';
@@ -131,6 +131,7 @@ export function PublicProfilePage({ userId, signedIn }: { userId: string; signed
   const [profile, setProfile] = useState<PublicUserProfile | null>(null);
   const [state, setState] = useState<'loading' | 'ok' | 'missing'>('loading');
   const [modal, setModal] = useState<'achievements' | 'library' | null>(null);
+  const [openGame, setOpenGame] = useState<PublicProfileBeatenGame | null>(null);
   const beatenRef = useRef<HTMLDivElement>(null);
   const playingRef = useRef<HTMLDivElement>(null);
 
@@ -255,11 +256,17 @@ export function PublicProfilePage({ userId, signedIn }: { userId: string; signed
               {profile.beatenGames.map((g) => {
                 const avg = g.review ? reviewAverage(g.review) : null;
                 return (
-                  <div key={g.id} title={g.review?.note ?? undefined} style={st('display:flex;align-items:center;gap:10px;padding:6px 10px 6px 6px;border-radius:12px;background:var(--surf)')}>
+                  <button
+                    key={g.id}
+                    type="button"
+                    onClick={() => setOpenGame(g)}
+                    className="hv-surf2"
+                    style={st('display:flex;align-items:center;gap:10px;padding:6px 10px 6px 6px;border-radius:12px;border:none;background:var(--surf);color:var(--text);text-align:left')}
+                  >
                     <Cover title={g.title} url={g.coverImageUrl} width={30} radius={6} />
                     <span style={st('flex:1;min-width:0;font:600 13px var(--font-ui);white-space:nowrap;overflow:hidden;text-overflow:ellipsis')}>{g.title}</span>
-                    {avg !== null && <span style={st('flex-shrink:0;font:700 12px var(--font-display);color:var(--accText)')}>{avg.toFixed(1)}</span>}
-                  </div>
+                    {avg !== null && <span style={st('flex-shrink:0;font:700 12px var(--font-display);color:var(--accText)')}>{avg.toFixed(1)} / 5</span>}
+                  </button>
                 );
               })}
             </div>
@@ -279,6 +286,43 @@ export function PublicProfilePage({ userId, signedIn }: { userId: string; signed
         </div>
       )}
 
+      {openGame && profile && (
+        <Dialog title={openGame.title} onClose={() => setOpenGame(null)} width={560}>
+          <div style={st('display:flex;gap:16px;align-items:flex-start')}>
+            <Cover title={openGame.title} url={openGame.coverImageUrl} width={110} radius={14} />
+            <div style={st('flex:1;min-width:0;display:flex;flex-direction:column;gap:8px')}>
+              <span style={st('font:400 13px var(--font-ui);color:var(--muted)')}>
+                {[openGame.genre?.split(',')[0], openGame.replaying ? 'Replaying' : 'Beaten'].filter(Boolean).join(' · ')}
+              </span>
+              {openGame.review ? (
+                <>
+                  <span style={st('display:flex;align-items:baseline;gap:8px')}>
+                    <span style={st('font:700 30px/1 var(--font-display);color:var(--accText)')}>{(reviewAverage(openGame.review) ?? 0).toFixed(1)}</span>
+                    <span style={st('font:500 13px var(--font-ui);color:var(--muted)')}>/ 5 total score</span>
+                  </span>
+                  <div style={st('display:flex;flex-direction:column;gap:4px')}>
+                    {REVIEW_CATEGORIES.filter((c) => openGame.review![c.key]).map((c) => (
+                      <span key={c.key} style={st('display:flex;align-items:center;gap:8px;font:500 13px var(--font-ui)')}>
+                        <span style={st('width:92px;color:var(--muted)')}>{c.label}</span>
+                        <span style={st('font-size:16px')}>{REVIEW_EMOJI[openGame.review![c.key] as number]?.e}</span>
+                        <span style={st('color:var(--text2)')}>{openGame.review![c.key]} / 5</span>
+                      </span>
+                    ))}
+                  </div>
+                </>
+              ) : (
+                <span style={st('font:400 14px var(--font-ui);color:var(--muted)')}>{profile.displayName} hasn't reviewed this one.</span>
+              )}
+            </div>
+          </div>
+          {openGame.review?.note && (
+            <div style={st('padding:14px 16px;border-radius:14px;background:var(--surf);display:flex;flex-direction:column;gap:6px')}>
+              <span style={st('font:600 12px var(--font-ui);color:var(--muted)')}>{profile.displayName.toUpperCase()} SAYS</span>
+              <span style={st('font:italic 400 14px/1.5 var(--font-ui);color:var(--text2);text-wrap:pretty')}>“{openGame.review.note}”</span>
+            </div>
+          )}
+        </Dialog>
+      )}
       {modal === 'achievements' && profile && (
         <Dialog title="Achievements" onClose={() => setModal(null)} width={560}>
           {profile.badges.length === 0 && <span style={st('font:400 14px var(--font-ui);color:var(--muted)')}>No achievements unlocked yet.</span>}
