@@ -91,6 +91,10 @@ export function useModalA11y<T extends HTMLElement>(onClose: () => void) {
       // Same "only the topmost modal reacts" rule as Escape below - if this isn't topmost, the
       // entry Back just popped belongs to a nested modal opened on top of this one, not this one.
       if (openModalStack[openModalStack.length - 1] !== id) return;
+      // Our entry is still the current one, so this popstate didn't pop it: it's a nested modal
+      // above us consuming its own entry after it closed (its cleanup's history.back()). Closing
+      // here would take this modal down with the nested one.
+      if (history.state?.queueupModal === modalStateKey) return;
       closedViaPopState = true;
       historyKeyRef.current = null;
       onCloseRef.current();

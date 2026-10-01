@@ -1,7 +1,7 @@
 import { useEffect, useState, type ReactNode } from 'react';
 import { useNavigate } from 'react-router';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { PRICE_REGION_LABELS, type PriceRegion } from '@queueup/shared';
+import { PRICE_REGION_LABELS, ROOM_PLATFORM_LABELS, type PriceRegion } from '@queueup/shared';
 import { apiKeysApi, API_KEYS_QUERY_KEY } from '../api/apiKeys';
 import { authApi } from '../api/auth';
 import { badgesApi } from '../api/badges';
@@ -72,6 +72,21 @@ function Section({ label, children }: { label: string; children: ReactNode }) {
 }
 
 /** Personal API keys: generate once (shown once), revoke. */
+function SystemsDialog({ onClose }: { onClose: () => void }) {
+  const ui = useUi();
+  return (
+    <Dialog onClose={onClose} title="Systems owned" gap={14}>
+      <span style={st('font:400 13px/1.45 var(--font-ui);color:var(--muted)')}>Limits the Personal Shelf's add-game search to these systems. Leave all off to search every platform.</span>
+      <SystemsPicker
+        onSaved={() => {
+          ui.notify('Systems owned saved');
+          onClose();
+        }}
+      />
+    </Dialog>
+  );
+}
+
 function ApiKeysDialog({ onClose }: { onClose: () => void }) {
   const queryClient = useQueryClient();
   const ui = useUi();
@@ -150,7 +165,7 @@ export function MeDialog() {
   const ui = useUi();
   const navigate = useNavigate();
   const confirm = useConfirm();
-  const { user, publicProfileEnabled, profileSlug, primaryProvider, linkedProviders, refetch } = useAuth();
+  const { user, publicProfileEnabled, profileSlug, primaryProvider, linkedProviders, ownedPlatforms, refetch } = useAuth();
   const [nameDraft, setNameDraft] = useState<string | null>(null);
   const { rooms, games } = useScope();
   const { version } = useVersion();
@@ -166,6 +181,7 @@ export function MeDialog() {
   const [unlinking, setUnlinking] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [keysOpen, setKeysOpen] = useState(false);
+  const [systemsOpen, setSystemsOpen] = useState(false);
   const [slugDraft, setSlugDraft] = useState<string | null>(null);
 
   useEffect(() => {
@@ -447,10 +463,13 @@ export function MeDialog() {
           </select>
         </Section>
 
-        <Section label="SYSTEMS OWNED">
-          <span style={st('font:400 13px/1.45 var(--font-ui);color:var(--muted)')}>Limits the Personal Shelf's add-game search to these systems. Leave all off to search every platform.</span>
-          <SystemsPicker onSaved={() => ui.notify('Systems owned saved')} />
-        </Section>
+        <Group>
+          <NavRow
+            label="Systems owned"
+            sub={ownedPlatforms.length === 0 ? 'Every platform' : ownedPlatforms.map((p) => ROOM_PLATFORM_LABELS[p]).join(', ')}
+            onClick={() => setSystemsOpen(true)}
+          />
+        </Group>
 
         {providers && providers.length > 0 && (
           <Section label="SIGN-IN METHODS">
@@ -532,6 +551,7 @@ export function MeDialog() {
         <span style={st('font:500 11.5px var(--font-mono);color:var(--faint)')}>QueueUp{version ? ` ${version}` : ''}</span>
       </Dialog>
       {keysOpen && <ApiKeysDialog onClose={() => setKeysOpen(false)} />}
+      {systemsOpen && <SystemsDialog onClose={() => setSystemsOpen(false)} />}
     </>
   );
 }

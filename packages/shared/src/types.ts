@@ -33,7 +33,9 @@ export type RoomPlatform =
   | 'master_system'
   | 'genesis'
   | 'saturn'
-  | 'dreamcast';
+  | 'dreamcast'
+  | 'android'
+  | 'ios';
 
 export const ROOM_PLATFORM_LABELS: Record<RoomPlatform, string> = {
   pc: 'PC',
@@ -67,6 +69,8 @@ export const ROOM_PLATFORM_LABELS: Record<RoomPlatform, string> = {
   genesis: 'Mega Drive / Genesis',
   saturn: 'Sega Saturn',
   dreamcast: 'Dreamcast',
+  android: 'Android',
+  ios: 'iOS',
 };
 
 /** The exact IGDB platform name(s) each RoomPlatform family corresponds to - shared so both the
@@ -108,6 +112,8 @@ export const IGDB_PLATFORM_NAMES: Record<RoomPlatform, string[]> = {
   genesis: ['Sega Mega Drive/Genesis'],
   saturn: ['Sega Saturn'],
   dreamcast: ['Dreamcast'],
+  android: ['Android'],
+  ios: ['iOS'],
 };
 
 const PLATFORM_FAMILY_BRAND: Record<RoomPlatform, string> = {
@@ -142,6 +148,8 @@ const PLATFORM_FAMILY_BRAND: Record<RoomPlatform, string> = {
   genesis: 'Sega',
   saturn: 'Sega',
   dreamcast: 'Sega',
+  android: 'Android',
+  ios: 'iOS',
 };
 
 /** Which console brand a free-text platform label (e.g. "PlayStation 4", "Xbox Series X|S") belongs
@@ -193,6 +201,8 @@ export function platformFamilyOf(label: string): RoomPlatform | null {
   if (lower.includes('master system')) return 'master_system';
   if (lower.includes('saturn')) return 'saturn';
   if (lower.includes('dreamcast')) return 'dreamcast';
+  if (lower.includes('android')) return 'android';
+  if (/\bios\b/.test(lower) || lower.includes('iphone') || lower.includes('ipad')) return 'ios';
   if (lower.includes('pc') || lower.includes('windows') || lower.includes('mac') || lower.includes('linux')) return 'pc';
   return null;
 }

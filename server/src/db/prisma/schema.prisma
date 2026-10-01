@@ -77,6 +77,8 @@ enum RoomPlatform {
   genesis
   saturn
   dreamcast
+  android
+  ios
 
   @@map("room_platform")
 }

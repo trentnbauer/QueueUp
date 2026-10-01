@@ -32,6 +32,11 @@ describe('platformFamilies', () => {
     expect(platformFamilies(names('Nintendo Switch'))).toEqual(['switch']);
   });
 
+  it('maps Android and iOS to their own families', () => {
+    expect(platformFamilies(names('Android'))).toEqual(['android']);
+    expect(platformFamilies(names('iOS'))).toEqual(['ios']);
+  });
+
   it('distinguishes Switch 2 from plain Switch (order-dependent substring match)', () => {
     expect(platformFamilies(names('Nintendo Switch 2'))).toEqual(['switch2']);
     expect(platformFamilies(names('Nintendo Switch'))).toEqual(['switch']);
