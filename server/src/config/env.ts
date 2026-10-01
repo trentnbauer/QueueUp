@@ -16,7 +16,9 @@ export const envSchema = z.object({
   APP_BASE_URL: z.string().url(),
   DATABASE_URL: z.string().min(1),
   REDIS_URL: z.string().min(1),
-  SESSION_SECRET: z.string().min(16),
+  // @fastify/session refuses a secret shorter than 32 characters - checked here so a short one is
+  // reported as a config error at startup instead of crashing the session plugin.
+  SESSION_SECRET: z.string().min(32, 'SESSION_SECRET must be at least 32 characters'),
 
   // Serves the entire app under this path prefix instead of domain root (issue #438) - e.g.
   // mydomain.com/queueup, for a self-hoster running several apps behind one domain. Optional,

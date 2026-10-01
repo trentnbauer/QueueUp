@@ -59,7 +59,7 @@ export function UiProvider({ children }: { children: ReactNode }) {
   const [selectedGameId, setSelectedGameId] = useState<string | null>(null);
   const [toast, setToast] = useState<UiContextValue['toast']>(null);
   const errorMessage: string | null = null;
-  const toastTimer = useRef<ReturnType<typeof setTimeout>>();
+  const toastTimer = useRef<ReturnType<typeof setTimeout>>(undefined);
   const toastKey = useRef(0);
 
   const openDialog = useCallback<UiContextValue['openDialog']>((key, payload) => {

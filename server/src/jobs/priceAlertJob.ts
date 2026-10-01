@@ -79,9 +79,8 @@ export async function checkAllActivePriceWatches(): Promise<void> {
 }
 
 /** Registers the price-watch check to run on its own schedule, independent of page views (#255).
- * See jobs/scheduler.ts for why this is a plain in-process interval rather than a cron container:
- * unlike the Postgres backup job (#250), this one needs the running app's own Prisma/Redis clients
- * and existing alert-delivery code, not an external OS tool. */
+ * See jobs/scheduler.ts for why this is a plain in-process interval rather than a cron container -
+ * it needs the running app's own Prisma/Redis clients and existing alert-delivery code. */
 export function startPriceAlertJob(): JobHandle {
   return scheduleJob({
     name: 'price-alert-check',

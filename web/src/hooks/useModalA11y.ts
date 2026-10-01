@@ -35,7 +35,7 @@ let modalStateKeyCounter = 0;
 export function useModalA11y<T extends HTMLElement>(onClose: () => void) {
   const ref = useRef<T>(null);
   const onCloseRef = useRef(onClose);
-  const idRef = useRef<symbol>();
+  const idRef = useRef<symbol>(undefined);
   if (!idRef.current) idRef.current = Symbol('modal');
 
   // Both persist across React 18 StrictMode's dev-only mount -> cleanup -> remount cycle (only
