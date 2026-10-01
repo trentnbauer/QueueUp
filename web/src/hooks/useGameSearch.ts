@@ -3,7 +3,7 @@ import { gamesApi } from '../api/games';
 import { useCurrencyRegion } from '../context/CurrencyRegionContext';
 
 /** Server-side title search across a shelf/room's *entire* library - unlike the primary games
- * list (useGames), this isn't capped to the 500 most-recently-added games and isn't restricted to
+ * list (useGames), this isn't capped to the 5000 most-recently-added games and isn't restricted to
  * whatever statuses the main grid shows (Playing/Beaten/Dropped included), since the point of a
  * search is finding a specific game you already know you have, not browsing a curated backlog.
  * `query` should already be debounced by the caller - this fires a request on every value it sees. */

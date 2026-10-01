@@ -21,9 +21,9 @@ export async function recordStatusTransition(
   gameId: string,
   previousStatus: GameStatus,
   newStatus: GameStatus,
-  // Bug fix (issue #562): the bulk status-change route transitions up to MAX_GAMES_PER_LIST (500)
+  // Bug fix (issue #562): the bulk status-change route transitions up to MAX_GAMES_PER_LIST (5000)
   // games in one request via Promise.all - each call here doing its own currentPlaytimeMinutesForGame
-  // lookup meant up to 2 * 500 extra concurrent DB round trips on a route whose whole point (see its
+  // lookup meant up to 2 * 5000 extra concurrent DB round trips on a route whose whole point (see its
   // own comment) is avoiding per-game queries at that volume. A bulk caller now pre-fetches every
   // game's playtime in one batch (getCurrentPlaytimeMinutesForGames) and passes each value through
   // here instead. Omitted (the default, `undefined`) preserves the original single-game lookup for
