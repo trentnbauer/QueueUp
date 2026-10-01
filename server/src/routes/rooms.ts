@@ -21,7 +21,7 @@ import type {
   SpinWheelTheme,
   UpdateRoomRequest,
 } from '@queueup/shared';
-import { friendIdsOf } from '../services/friendships.js';
+import { areFriends, friendIdsOf } from '../services/friendships.js';
 import { DISCORD_EVENT_KEYS, resolveDiscordEvents, ROOM_PLATFORM_LABELS } from '@queueup/shared';
 
 /** #rrggbb - the only colour format a room accent may take (it ends up in inline styles). */
@@ -501,6 +501,11 @@ export default async function roomRoutes(app: FastifyInstance) {
       await requireElevated(roomId, actorId);
       if (!targetUserId) throw new HttpError(400, 'A user id is required');
 
+      // Only the caller's friends can be added directly - the same set invite-candidates offers.
+      // Anyone else joins with the invite link, so nobody can be put into a room by a stranger.
+      if (typeof targetUserId !== 'string' || !(await areFriends(actorId, targetUserId))) {
+        throw new HttpError(404, 'User not found');
+      }
       const targetUser = await prisma.user.findUnique({ where: { id: targetUserId } });
       if (!targetUser) throw new HttpError(404, 'User not found');
 

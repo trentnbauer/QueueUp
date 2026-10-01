@@ -1,4 +1,5 @@
 import type { FastifyRequest } from 'fastify';
+import * as client from 'openid-client';
 import type { AuthProvider, OAuthProfile } from './types.js';
 
 const STEAM_OPENID_URL = 'https://steamcommunity.com/openid/login';
@@ -14,6 +15,45 @@ interface SteamPlayerSummary {
   avatarfull: string;
 }
 
+/** Rejects a callback that wasn't started by this browser session (see buildAuthUrl), or whose
+ * signed fields don't cover what we go on to trust. check_authentication only proves Steam signed
+ * the fields listed in openid.signed, so claimed_id and return_to must be among them - otherwise a
+ * caller could submit a valid signature over some other subset alongside an unsigned claimed_id. */
+export function assertSteamCallbackBoundToSession(
+  query: Record<string, string | undefined>,
+  sessionState: string | undefined,
+  redirectUri: string,
+): void {
+  const state = query.state;
+  if (!sessionState || !state || state !== sessionState) {
+    throw new Error('Steam sign-in state mismatch — please try again');
+  }
+
+  const returnTo = query['openid.return_to'];
+  let returnToUrl: URL;
+  try {
+    returnToUrl = new URL(returnTo ?? '');
+  } catch {
+    throw new Error('Steam sign-in returned to an unexpected address');
+  }
+  const expected = new URL(redirectUri);
+  if (
+    returnToUrl.origin !== expected.origin ||
+    returnToUrl.pathname !== expected.pathname ||
+    returnToUrl.searchParams.get('state') !== sessionState
+  ) {
+    throw new Error('Steam sign-in returned to an unexpected address');
+  }
+
+  const signed = new Set((query['openid.signed'] ?? '').split(','));
+  if (!signed.has('claimed_id') || !signed.has('return_to')) {
+    throw new Error('Steam did not sign this sign-in');
+  }
+  if (query['openid.op_endpoint'] !== STEAM_OPENID_URL) {
+    throw new Error('Steam sign-in came from an unexpected provider');
+  }
+}
+
 // Steam only supports legacy OpenID 2.0, a completely different (and older) protocol from
 // OAuth2/OIDC despite the similar name - openid-client (which is OIDC-only) can't talk to it.
 // The handshake: redirect to Steam, Steam redirects back with a signed assertion in the query
@@ -26,11 +66,23 @@ export function createSteamProvider(config: SteamConfig): AuthProvider {
   return {
     name: 'steam',
 
-    async buildAuthUrl() {
+    async buildAuthUrl(request: FastifyRequest) {
+      // OpenID 2.0 has no `state` parameter of its own, so without this nothing ties a callback to
+      // the browser session that started it: anyone could replay their *own* freshly-signed Steam
+      // assertion into someone else's browser (two top-level navigations from a page they control
+      // - the first to /auth/steam/link, the second to the callback) and attach their SteamID to
+      // that victim's account, then sign in as the victim with Steam. A per-attempt value in
+      // return_to (which Steam signs, so it can't be swapped) closes that, same job as `state`
+      // does for the OAuth providers.
+      const state = client.randomState();
+      request.session.authState = state;
+      const returnTo = new URL(config.redirectUri);
+      returnTo.searchParams.set('state', state);
+
       const url = new URL(STEAM_OPENID_URL);
       url.searchParams.set('openid.ns', 'http://specs.openid.net/auth/2.0');
       url.searchParams.set('openid.mode', 'checkid_setup');
-      url.searchParams.set('openid.return_to', config.redirectUri);
+      url.searchParams.set('openid.return_to', returnTo.href);
       url.searchParams.set('openid.realm', realm);
       url.searchParams.set('openid.identity', 'http://specs.openid.net/auth/2.0/identifier_select');
       url.searchParams.set('openid.claimed_id', 'http://specs.openid.net/auth/2.0/identifier_select');
@@ -43,6 +95,7 @@ export function createSteamProvider(config: SteamConfig): AuthProvider {
       if (query['openid.mode'] !== 'id_res') {
         throw new Error('Steam sign-in was not completed');
       }
+      assertSteamCallbackBoundToSession(query, request.session.authState, config.redirectUri);
 
       const verifyParams = new URLSearchParams();
       for (const [key, value] of Object.entries(query)) {
@@ -93,6 +146,7 @@ export function createSteamProvider(config: SteamConfig): AuthProvider {
       return {
         oidcSub: `steam:${steamId64}`,
         email: `${steamId64}@steamcommunity.unknown`,
+        emailVerified: false,
         displayName,
         avatarUrl,
       };

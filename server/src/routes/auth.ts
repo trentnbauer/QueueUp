@@ -131,6 +131,9 @@ export default async function authRoutes(app: FastifyInstance) {
       throw new HttpError(404, `Unknown sign-in method "${request.params.provider}"`);
     }
 
+    // A link attempt abandoned earlier in this session would otherwise turn this plain sign-in's
+    // callback into "attach this account to whoever started the link".
+    delete request.session.linkTargetUserId;
     const authUrl = await provider.buildAuthUrl(request);
     return reply.redirect(authUrl);
   });
@@ -177,6 +180,9 @@ export default async function authRoutes(app: FastifyInstance) {
     const linkTargetUserId = request.session.linkTargetUserId;
     if (linkTargetUserId) {
       delete request.session.linkTargetUserId;
+      // Single-use, same as the sign-in branch below - a replayed callback must not pass the state check again.
+      delete request.session.authCodeVerifier;
+      delete request.session.authState;
       return reply.redirect(await linkAccount(linkTargetUserId, request.params.provider, profile));
     }
 
