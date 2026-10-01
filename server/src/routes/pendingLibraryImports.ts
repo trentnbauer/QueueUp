@@ -7,6 +7,7 @@ import {
   listPendingLibraryImports,
   deletePendingLibraryImport,
   dismissPendingLibraryImport,
+  restorePendingLibraryImport,
   recordTitleMatchAlias,
   getPlayniteImportProgress,
 } from '../services/playniteImport.js';
@@ -26,6 +27,27 @@ export default async function pendingLibraryImportRoutes(app: FastifyInstance) {
     async (request) => {
       const userId = await request.requireAuth();
       return { pending: await listPendingLibraryImports(userId) };
+    },
+  );
+
+  /** Titles the user dismissed instead of matching (shown under the shelf's "+" filters). */
+  app.get(
+    '/api/library/pending-imports/dismissed',
+    { config: { rateLimit: { max: 20, timeWindow: '1 minute' } } },
+    async (request) => {
+      const userId = await request.requireAuth();
+      return { pending: await listPendingLibraryImports(userId, true) };
+    },
+  );
+
+  /** Undoes a dismissal: the title goes back to the "needs matching" list. */
+  app.post<{ Params: { id: string } }>(
+    '/api/library/pending-imports/:id/restore',
+    { config: { rateLimit: { max: 20, timeWindow: '1 minute' } } },
+    async (request, reply) => {
+      const userId = await request.requireAuth();
+      await restorePendingLibraryImport(userId, request.params.id);
+      reply.status(204);
     },
   );
 

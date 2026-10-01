@@ -77,8 +77,18 @@ export const SHELF_TABS: TabDef[] = [
   { id: 'playing', label: 'Playing', statuses: ['playing', 'play_next'] },
   { id: 'beaten', label: 'Beaten', statuses: ['done'] },
   { id: 'replay', label: 'Replay', statuses: ['replay'] },
-  { id: 'dropped', label: 'Dropped', statuses: ['dropped', 'wont_play'] },
 ];
+
+/** Shelf filters tucked behind the "+" button: game lists by status, plus two lists of synced titles
+ * that never became games (they have no status, see HomeView's PendingImportsList). */
+export const SHELF_MORE_TABS: TabDef[] = [
+  { id: 'dropped', label: 'Dropped', statuses: ['dropped'] },
+  { id: 'wont_play', label: "Won't play", statuses: ['wont_play'] },
+];
+export const SHELF_IMPORT_TABS = [
+  { id: 'matching', label: 'Needs matching' },
+  { id: 'dismissed', label: 'Dismissed' },
+] as const;
 
 // ---------------------------------------------------------------------------------------------
 // Derived per-game values

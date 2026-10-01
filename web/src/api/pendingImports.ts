@@ -3,7 +3,11 @@ import type { PendingLibraryImportDto, ResolvePendingLibraryImportRequest } from
 
 export const PENDING_IMPORTS_QUERY_KEY = ['pending-library-imports'] as const;
 
+export const DISMISSED_IMPORTS_QUERY_KEY = ['pending-library-imports', 'dismissed'] as const;
+
 export const pendingImportsApi = {
+  listDismissed: () => apiGet<{ pending: PendingLibraryImportDto[] }>('/api/library/pending-imports/dismissed'),
+  restore: (id: string) => apiPost<void>(`/api/library/pending-imports/${id}/restore`),
   list: () => apiGet<{ pending: PendingLibraryImportDto[] }>('/api/library/pending-imports'),
   resolve: (id: string, igdbId: number) =>
     apiPost<void>(`/api/library/pending-imports/${id}/resolve`, { igdbId } satisfies ResolvePendingLibraryImportRequest),
