@@ -20,7 +20,7 @@ import {
 import { ggDealsSearchUrl } from '../utils/formatPrice';
 import { formatRelativeTime } from '../utils/relativeTime';
 import { SteamMatchSheet } from './SteamMatchSheet';
-import { coverBg } from '../ui/primitives';
+import { Avatar, coverBg } from '../ui/primitives';
 import { st } from '../ui/st';
 
 const H = 'font:600 15px var(--font-display)';
@@ -382,6 +382,30 @@ export function GameDetail({ game, onClose, changeStatus }: { game: Game; onClos
               );
             })}
           </div>
+          {!isShelf && members.length > 0 && (
+            <div style={st('display:flex;flex-direction:column;gap:1px;border-radius:16px;overflow:hidden;background:var(--chip)')}>
+              {[...members]
+                .map((m) => ({ m, vote: game.votes.find((x) => x.user.id === m.user.id)?.value ?? null }))
+                // Highest vote first, then people who haven't voted yet; "you" sorts among the rest.
+                .sort((a, b) => (b.vote ?? 0) - (a.vote ?? 0) || a.m.user.displayName.localeCompare(b.m.user.displayName))
+                .map(({ m, vote }) => (
+                  <div key={m.user.id} style={st('display:flex;align-items:center;gap:10px;min-height:44px;padding:6px 12px;background:var(--surf)')}>
+                    <Avatar name={m.user.displayName} color={m.user.avatarColor} avatarUrl={m.user.avatarUrl} size={26} fontSize={11} />
+                    <span style={st('flex:1;min-width:0;font:600 13.5px var(--font-ui);white-space:nowrap;overflow:hidden;text-overflow:ellipsis')}>
+                      {m.user.id === user?.id ? 'You' : m.user.displayName}
+                    </span>
+                    {vote ? (
+                      <span style={st('display:flex;align-items:center;gap:6px;font:600 12.5px var(--font-ui);color:var(--text2)')}>
+                        <span style={st('font-size:18px;line-height:1')}>{VOTES[vote].e}</span>
+                        {VOTES[vote].l}
+                      </span>
+                    ) : (
+                      <span style={st('font:400 12.5px var(--font-ui);color:var(--faint)')}>Hasn't voted yet</span>
+                    )}
+                  </div>
+                ))}
+            </div>
+          )}
         </div>
 
         {!isShelf && game.ownership && (
