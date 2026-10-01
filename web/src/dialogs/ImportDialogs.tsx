@@ -473,7 +473,7 @@ export function NeedsReviewDialog() {
   );
 }
 
-/** "Sync completions from Steam": every candidate is a suggestion; nothing changes until applied. */
+/** "Sync trophies and achievements": every candidate is a suggestion; nothing changes until applied. */
 export function CompletionsDialog() {
   const ui = useUi();
   const { ops } = useScope();
@@ -508,7 +508,7 @@ export function CompletionsDialog() {
   return (
     <Dialog
       onClose={close}
-      title="Sync completions from Steam"
+      title="Sync trophies and achievements"
       height="tall"
       footer={
         n > 0 && (
