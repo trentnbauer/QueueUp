@@ -12,14 +12,14 @@ QueueUp has a phone layout and a three-column desktop layout. Your "Personal She
 
 <img width="300" alt="A room on a phone" src="docs/screenshots/mobile-room.png" /> <img width="600" alt="Game detail panel" src="docs/screenshots/desktop-detail.png" />
 
-The app also features an interactive "What are we playing?" pick-a-game reel. The pick-a-game system has some logic behind its recommendations,
+The app also features an interactive "What are we playing?" pick-a-game reel. The pick-a-game system has some logic behind its recommendations:
 - Games of the same genre as last completed are ranked lower (to reduce the chance of playing shooter after shooter after shooter)
 - Voting on a game increases its chance to be picked
 - Price, length and "everyone owns it" filters, plus a per-room price limit
 
 <img width="700" alt="The pick-a-game reel (light theme)" src="docs/screenshots/desktop-spin-light.png" />
 
-Some other things to note
+Some other things to note:
 - Rooms are set per console
 - Marking a game as owned syncs between rooms
 - Discord webhooks for alerts, with a switch per kind of event (games added, suggestions, votes, spins, status changes, reviews, members, member activity)
@@ -32,8 +32,8 @@ Some other things to note
 - Docker + Docker Compose
 - A free [gg.deals API key](https://gg.deals/api/) (account settings → API) — used for live pricing
 - A free IGDB app via [Twitch developer console](https://dev.twitch.tv/console/apps) (Category: "Application Integration") — used for game search/identity
-- A free [Steam API key](https://steamcommunity.com/dev) for importing Steam games (required to match agmes with gg.deals)
-- Optional: A free [Scandex API key](https://scandex.gamery.app/documentation/pricing/) - used for importing phyiscal games via barcode scan
+- A free [Steam API key](https://steamcommunity.com/dev) for importing Steam games (required to match games with gg.deals)
+- Optional: A free [ScanDex API key](https://scandex.gamery.app/documentation/pricing/) - used for importing physical games via barcode scan
 - Optional: Install the [QueueUp Playnite extension](https://github.com/trentnbauer/QueueUpPlayniteExtension) to push your entire Playnite library (including Xbox, PlayStation, and Nintendo games) into QueueUp - set up from Profile → Sync Playnite (or Add game → Import library) once your instance is running
 - A sign-in method (Google, Discord, Steam, or a generic OIDC provider like Authelia/Keycloak/Authentik)
 
@@ -69,4 +69,4 @@ This only works for a Steam account whose games list is set to public in their S
 By default QueueUp expects its own domain or subdomain. If you'd rather run it at `yourdomain.com/queueup` alongside other apps, set `BASE_PATH=/queueup` and update `APP_BASE_URL` to include the same path - no image rebuild or reverse-proxy path-rewriting needed, the container answers on that path directly. See `.env.example` for details.
 
 # What is / isn't QueueUp
-I've set some pretty hard limits with what this app will and won't be used for. This isn't a replacement for Discord, a social media platform etc. It is just to track your game backlog, but as a group. Your scheduling, sharing screens, voice chat etc should be done outside of this app.
+I've set some pretty hard limits with what this app will and won't be used for. This isn't a replacement for Discord, a social media platform etc. It is just to track your game backlog, but as a group. Your scheduling, screen sharing, voice chat etc. should be done outside of this app.
