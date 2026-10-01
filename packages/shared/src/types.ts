@@ -968,7 +968,24 @@ export type IntegrationConfigKey =
   | 'IGDB_CLIENT_SECRET'
   | 'SCANDEX_API_KEY'
   | 'TURNSTILE_SITE_KEY'
-  | 'TURNSTILE_SECRET_KEY';
+  | 'TURNSTILE_SECRET_KEY'
+  | 'CLOUDFLARE_TUNNEL_TOKEN';
+
+/** Cloudflare Tunnel (issue #664) as the server sees it: `off` (no token), `starting` (cloudflared
+ * running, no connection yet), `connected`, `error` (stopped, retrying with backoff) or
+ * `unavailable` (cloudflared isn't installed where the server runs). */
+export type TunnelState = 'off' | 'starting' | 'connected' | 'error' | 'unavailable';
+
+export interface TunnelStatus {
+  state: TunnelState;
+  /** Where the token comes from (env var, Administrator settings, or not set). */
+  source: ConfigSource;
+  /** Open connections to Cloudflare's edge (cloudflared normally holds 4). */
+  connections: number;
+  lastError: string | null;
+  /** When `state` last changed (ISO). */
+  since: string | null;
+}
 
 /** Admin-only views — never sent to non-admin users. */
 /** One backup file in the admin Backups list. */

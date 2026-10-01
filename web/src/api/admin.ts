@@ -1,6 +1,6 @@
 import { apiGet, apiPost, apiPatch, apiDelete } from './client';
 import { getBasePath } from '../utils/basePath';
-import type { AdminBackupInfo, AdminBackupsResponse, AdminBackupSettings, RestoreBackupResponse, UpdateBackupSettingsRequest, AdminIntegrationStatus, AdminRoomSummary, AdminUserSummary, IntegrationConfigKey } from '@queueup/shared';
+import type { AdminBackupInfo, AdminBackupsResponse, AdminBackupSettings, RestoreBackupResponse, UpdateBackupSettingsRequest, AdminIntegrationStatus, AdminRoomSummary, AdminUserSummary, IntegrationConfigKey, TunnelStatus } from '@queueup/shared';
 
 /** Sends a backup file as the raw request body (not JSON), so it can't go through the JSON helpers. */
 async function importBackup(file: File): Promise<RestoreBackupResponse> {
@@ -24,7 +24,7 @@ export const adminApi = {
   deleteBackup: (name: string) => apiDelete(`/api/admin/backups/${encodeURIComponent(name)}`),
   restoreBackup: (name: string) => apiPost<RestoreBackupResponse>(`/api/admin/backups/${encodeURIComponent(name)}/restore`),
   importBackup,
-  overview: () => apiGet<{ status: AdminIntegrationStatus }>('/api/admin/overview'),
+  overview: () => apiGet<{ status: AdminIntegrationStatus; tunnel: TunnelStatus }>('/api/admin/overview'),
   users: () => apiGet<{ users: AdminUserSummary[] }>('/api/admin/users'),
   setUserAdmin: (id: string, isAdmin: boolean) =>
     apiPatch<{ user: AdminUserSummary }>(`/api/admin/users/${id}/admin`, { isAdmin }),

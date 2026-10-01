@@ -65,6 +65,8 @@ services:
       ## Sign-in captcha (Cloudflare Turnstile) - set both to turn it on
       TURNSTILE_SITE_KEY: ${TURNSTILE_SITE_KEY}
       TURNSTILE_SECRET_KEY: ${TURNSTILE_SECRET_KEY}
+      ## Cloudflare Tunnel - with a token set, QueueUp runs cloudflared itself (no open port needed)
+      CLOUDFLARE_TUNNEL_TOKEN: ${CLOUDFLARE_TUNNEL_TOKEN}
       # Backend Config
       DEV_FAKE_AUTH: ${DEV_FAKE_AUTH:-false}                   # Testing - enables automatic login with admin account for everyone accesing QueueUp
       ADMIN_EMAILS: ${ADMIN_EMAILS}                            # QueueUp Administrators

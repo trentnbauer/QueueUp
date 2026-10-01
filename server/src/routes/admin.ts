@@ -14,6 +14,7 @@ import {
   clearConfigValue,
   type ConfigKey,
 } from '../services/configResolver.js';
+import { getTunnelStatus, reloadTunnel } from '../services/cloudflareTunnel.js';
 import type { AdminIntegrationStatus, AdminRoomSummary, AdminUserSummary, AdminAuditLogEntry } from '@queueup/shared';
 
 // Human-readable labels for audit log entries / error messages - keyed by the same ConfigKey used
@@ -25,6 +26,7 @@ const CONFIG_KEY_LABELS: Record<ConfigKey, string> = {
   SCANDEX_API_KEY: 'ScanDex API key',
   TURNSTILE_SITE_KEY: 'Turnstile site key',
   TURNSTILE_SECRET_KEY: 'Turnstile secret key',
+  CLOUDFLARE_TUNNEL_TOKEN: 'Cloudflare Tunnel token',
 };
 
 function envValueFor(key: ConfigKey): string | undefined {
@@ -41,6 +43,8 @@ function envValueFor(key: ConfigKey): string | undefined {
       return env.TURNSTILE_SITE_KEY;
     case 'TURNSTILE_SECRET_KEY':
       return env.TURNSTILE_SECRET_KEY;
+    case 'CLOUDFLARE_TUNNEL_TOKEN':
+      return env.CLOUDFLARE_TUNNEL_TOKEN;
   }
 }
 
@@ -67,7 +71,7 @@ export default async function adminRoutes(app: FastifyInstance) {
       devFakeAuth: env.DEV_FAKE_AUTH,
       activeAuthProviders: Array.from(app.authProviders.keys()),
     };
-    return { status };
+    return { status, tunnel: await getTunnelStatus() };
   });
 
   // Explicit per-route limit (on top of the global one in app.ts) since these write credential
@@ -103,6 +107,8 @@ export default async function adminRoutes(app: FastifyInstance) {
         action: 'integration.set',
         targetLabel: CONFIG_KEY_LABELS[key],
       });
+      // A new tunnel token takes effect straight away, no container restart.
+      if (key === 'CLOUDFLARE_TUNNEL_TOKEN') await reloadTunnel();
       return { ok: true };
     },
   );
@@ -130,6 +136,7 @@ export default async function adminRoutes(app: FastifyInstance) {
         action: 'integration.clear',
         targetLabel: CONFIG_KEY_LABELS[key],
       });
+      if (key === 'CLOUDFLARE_TUNNEL_TOKEN') await reloadTunnel();
       reply.status(204);
       return null;
     },

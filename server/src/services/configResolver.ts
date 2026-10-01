@@ -10,6 +10,7 @@ export const CONFIG_KEYS = [
   'SCANDEX_API_KEY',
   'TURNSTILE_SITE_KEY',
   'TURNSTILE_SECRET_KEY',
+  'CLOUDFLARE_TUNNEL_TOKEN',
 ] as const;
 export type ConfigKey = (typeof CONFIG_KEYS)[number];
 
