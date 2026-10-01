@@ -35,6 +35,7 @@ import {
   findIgdbIdBySteamAppId,
   findIgdbIdByExactTitle,
   getGameDetail,
+  getGameTrailer,
   isAddonCategory,
 } from '../services/igdbClient.js';
 import { getOwnedPlatforms } from '../services/userSettings.js';
@@ -59,7 +60,7 @@ import type { OwnedSteamGame } from '../services/steamLibrary.js';
 import { toggleOwnershipForPlatform, setOwnershipPlatforms, markOwned } from '../services/gameOwnership.js';
 import { recordStatusTransition } from '../services/playLog.js';
 import { getCurrentPlaytimeMinutesForGames } from '../services/playtimeTracking.js';
-import { summarizeTimeToBeat, summarizeActiveHoursToBeat, pickMostNeglectedGame, bucketBacklogAge } from '../services/backlogInsights.js';
+import { summarizeTimeToBeat, summarizeActiveHoursToBeat, pickMostNeglectedGame, backlogAgeRanges } from '../services/backlogInsights.js';
 import { unlockBadges } from '../services/badges.js';
 import {
   logRoomActivity,
@@ -564,6 +565,19 @@ export default async function gameRoutes(app: FastifyInstance) {
       const excludeIgdbIds = await existingIgdbIds(game.roomId, userId);
       const results = await dlcIntake(game.igdbId, platforms, excludeIgdbIds);
       return { results };
+    },
+  );
+
+  // A game's trailer (YouTube id from IGDB) for the vote deck / game detail "Watch trailer" button.
+  // Looked up on demand and cached, so nothing is fetched until someone actually asks for it.
+  app.get<{ Params: { id: string } }>(
+    '/api/games/:id/trailer',
+    { config: { rateLimit: { max: 30, timeWindow: '1 minute' } } },
+    async (request) => {
+      const userId = await request.requireAuth();
+      const game = await loadGameOr404(request.params.id);
+      await requireGameReadAccess(game, userId);
+      return { trailer: await getGameTrailer(game.igdbId) };
     },
   );
 
@@ -2140,6 +2154,15 @@ export default async function gameRoutes(app: FastifyInstance) {
       const { averageDaysToBeat, finishedEntryCount } = summarizeTimeToBeat(closedEntries);
       const { averageHoursToBeat, hoursTrackedEntryCount } = summarizeActiveHoursToBeat(closedEntries);
 
+      const ageDistribution = await Promise.all(
+        backlogAgeRanges(now).map(async ({ label, gt, lte }) => ({
+          label,
+          count: await prisma.game.count({
+            where: { addedBy: userId, status: 'backlog', archivedAt: null, createdAt: { ...(gt && { gt }), ...(lte && { lte }) } },
+          }),
+        })),
+      );
+
       const result: BacklogInsights = {
         averageDaysToBeat,
         finishedEntryCount,
@@ -2147,7 +2170,9 @@ export default async function gameRoutes(app: FastifyInstance) {
         hoursTrackedEntryCount,
         backlogCount,
         mostNeglectedGame: pickMostNeglectedGame(backlogGames, now),
-        ageDistribution: bucketBacklogAge(backlogGames, now),
+        // Exact per-bucket counts, not the capped sample above - a big import must not make the
+        // chart stop at MAX_GAMES_PER_LIST.
+        ageDistribution,
       };
       return result;
     },

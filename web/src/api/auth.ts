@@ -11,6 +11,8 @@ export const authApi = {
       /** Whether the /u/:id public profile page (issue #511) is currently reachable for this
        * account - off by default, see User.publicProfileEnabled's schema doc. */
       publicProfileEnabled: boolean;
+      /** Vanity name for the public profile URL, if the user set one. */
+      profileSlug: string | null;
       primaryProvider: string | null;
       linkedProviders: string[];
       /** True exactly once, on the very first /api/me call after this account was created (issue
@@ -23,6 +25,7 @@ export const authApi = {
     apiPatch<{ ownedPlatforms: RoomPlatform[] }>('/api/me/owned-platforms', { platforms }),
   updatePublicProfile: (enabled: boolean) =>
     apiPatch<{ publicProfileEnabled: boolean }>('/api/me/public-profile', { enabled }),
+  setProfileSlug: (slug: string | null) => apiPatch<{ profileSlug: string | null }>('/api/me/profile-slug', { slug }),
   loginUrl: (provider: string) => `${getBasePath()}/auth/${provider}/login`,
   linkUrl: (provider: string) => `${getBasePath()}/auth/${provider}/link`,
   unlink: (provider: string) => apiDelete(`/auth/${provider}/unlink`),

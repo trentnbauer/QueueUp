@@ -505,7 +505,7 @@ export function RoomSettingsDialog() {
               <div key={m.user.id} style={st('display:flex;align-items:center;gap:12px;min-height:58px;padding:8px 10px 8px 14px;background:var(--surf)')}>
                 <Avatar name={m.user.displayName} color={m.user.avatarColor} avatarUrl={m.user.avatarUrl} size={32} fontSize={13} />
                 <span style={st('flex:1;min-width:0;font:600 14.5px var(--font-ui);white-space:nowrap;overflow:hidden;text-overflow:ellipsis')}>{m.user.displayName}</span>
-                {m.user.id !== user?.id && <FriendStatus userId={m.user.id} name={m.user.displayName} friends={friends} notify={ui.notify} onError={setError} />}
+                {m.user.id !== user?.id && !friends.privateInstance && <FriendStatus userId={m.user.id} name={m.user.displayName} friends={friends} notify={ui.notify} onError={setError} />}
                 {editable ? (
                   <>
                     <select

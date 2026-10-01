@@ -4,6 +4,50 @@ export type ThemePreference = 'dark' | 'light' | 'system';
 export type ThemeMode = 'light' | 'dark';
 
 const STORAGE_KEY = 'sq-theme-mode';
+const PALETTE_KEY = 'sq-palette';
+
+/** The colour family: Warm (the default orange/brown), Cool (slate and blue) or Mono (black and white). */
+export type Palette = 'warm' | 'cool' | 'mono';
+export const PALETTE_LABELS: Record<Palette, string> = { warm: 'Warm', cool: 'Cool', mono: 'Black & white' };
+
+export function getPalette(): Palette {
+  try {
+    const v = localStorage.getItem(PALETTE_KEY);
+    return v === 'cool' || v === 'mono' ? v : 'warm';
+  } catch {
+    return 'warm';
+  }
+}
+
+/** Applies a palette to the document; warm is the unmarked default. */
+export function applyPalette(palette: Palette): void {
+  if (palette === 'warm') delete document.documentElement.dataset.palette;
+  else document.documentElement.dataset.palette = palette;
+  syncThemeColor();
+}
+
+export function setPalette(palette: Palette): void {
+  try {
+    if (palette === 'warm') localStorage.removeItem(PALETTE_KEY);
+    else localStorage.setItem(PALETTE_KEY, palette);
+  } catch {
+    /* storage unavailable - the choice just won't persist */
+  }
+  applyPalette(palette);
+}
+
+// Browser chrome colour per palette and mode (matches each --bg closely enough).
+const THEME_COLORS: Record<Palette, { dark: string; light: string }> = {
+  warm: { dark: '#1a1512', light: '#f6f2ec' },
+  cool: { dark: '#14181f', light: '#f2f5fa' },
+  mono: { dark: '#0d0d0d', light: '#ffffff' },
+};
+
+function syncThemeColor(): void {
+  const mode = document.documentElement.dataset.theme === 'light' ? 'light' : 'dark';
+  const palette = (document.documentElement.dataset.palette as Palette | undefined) ?? 'warm';
+  document.querySelector('meta[name="theme-color"]')?.setAttribute('content', THEME_COLORS[palette][mode]);
+}
 
 /** Absent means "system" - the app follows the OS/browser's prefers-color-scheme live. */
 export function getThemePreference(): ThemePreference {
@@ -30,7 +74,7 @@ export function getPreferredThemeMode(): ThemeMode {
 /** Applies a mode to the document without persisting it. */
 export function applyThemeMode(mode: ThemeMode): void {
   document.documentElement.dataset.theme = mode;
-  document.querySelector('meta[name="theme-color"]')?.setAttribute('content', mode === 'light' ? '#f6f2ec' : '#1a1512');
+  syncThemeColor();
 }
 
 /** Records the person's choice and applies it. */

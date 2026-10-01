@@ -510,6 +510,32 @@ interface IgdbGameWithAddons extends IgdbGame {
   expansions?: IgdbGame[];
 }
 
+const TRAILER_CACHE_PREFIX = 'igdb:trailer:v1:';
+const TRAILER_CACHE_TTL_SECONDS = 60 * 60 * 24 * 7; // a trailer rarely changes; a week is plenty
+
+interface IgdbVideo {
+  video_id?: string;
+  name?: string;
+}
+
+/** The game's trailer as a YouTube video id (IGDB's `game_videos`), preferring one named like a
+ * trailer, else the first video. Cached (including "no video") in Redis, so opening a game's trailer
+ * costs one IGDB call per game per week at most. */
+export async function getGameTrailer(igdbId: number): Promise<{ youtubeId: string; name: string | null } | null> {
+  if (!Number.isInteger(igdbId) || igdbId <= 0) throw new HttpError(400, 'Invalid IGDB game id');
+  const cacheKey = TRAILER_CACHE_PREFIX + igdbId;
+  const cached = await redis.get(cacheKey);
+  if (cached) return JSON.parse(cached) as { youtubeId: string; name: string | null } | null;
+
+  const videos = await igdbRequest<IgdbVideo[]>('game_videos', `fields video_id,name; where game = ${igdbId}; limit 20;`);
+  // YouTube ids are 11 URL-safe characters; anything else is not safe to put in an embed URL.
+  const valid = videos.filter((v) => v.video_id && /^[A-Za-z0-9_-]{11}$/.test(v.video_id));
+  const pick = valid.find((v) => /trailer/i.test(v.name ?? '')) ?? valid[0];
+  const result = pick ? { youtubeId: pick.video_id as string, name: pick.name ?? null } : null;
+  await redis.set(cacheKey, JSON.stringify(result), 'EX', TRAILER_CACHE_TTL_SECONDS);
+  return result;
+}
+
 const DLC_CACHE_PREFIX = 'igdb:dlcs:v1:';
 const DLC_CACHE_TTL_SECONDS = 60 * 60 * 24; // 24h - a game's DLC lineup essentially never changes
 

@@ -21,6 +21,7 @@ import type {
   SpinWheelTheme,
   UpdateRoomRequest,
 } from '@queueup/shared';
+import { friendIdsOf } from '../services/friendships.js';
 import { DISCORD_EVENT_KEYS, resolveDiscordEvents, ROOM_PLATFORM_LABELS } from '@queueup/shared';
 
 const ROOM_PLATFORMS = Object.keys(ROOM_PLATFORM_LABELS) as RoomPlatform[];
@@ -463,11 +464,7 @@ export default async function roomRoutes(app: FastifyInstance) {
       // Only the caller's friends who aren't in the room yet (the v2 UI: "only your friends and
       // this room's members are listed - anyone else joins with the invite link"). This also stops
       // the endpoint doubling as a dump of every user on the server.
-      const friendships = await prisma.friendship.findMany({
-        where: { status: 'accepted', OR: [{ requesterId: userId }, { addresseeId: userId }] },
-        select: { requesterId: true, addresseeId: true },
-      });
-      const friendIds = friendships.map((f) => (f.requesterId === userId ? f.addresseeId : f.requesterId));
+      const friendIds = await friendIdsOf(userId);
       const candidates = await prisma.user.findMany({
         where: { id: { in: friendIds, notIn: existingMemberIds } },
         orderBy: { displayName: 'asc' },

@@ -119,7 +119,11 @@ export async function mapWithConcurrency<T, R>(items: T[], limit: number, fn: (i
 
 /** One gg.deals request for up to PRICE_FETCH_BATCH_SIZE ids - callers needing more than that
  * should go through fetchLiveEntries below, which chunks and concurrency-limits on top of this. */
-async function fetchLiveEntriesBatch(steamAppIds: number[], region: string): Promise<Map<number, PriceEntry>> {
+async function fetchLiveEntriesBatch(
+  steamAppIds: number[],
+  region: string,
+  strict = false,
+): Promise<Map<number, PriceEntry>> {
   // Resolved env-first with a DB fallback (see configResolver.ts) - gg.deals is no longer
   // required at boot, so an unset key here is a real (if unusual) runtime state, not just a
   // hypothetical. Degrade to "unavailable" the same way an API-side hiccup would, rather than
@@ -147,6 +151,16 @@ async function fetchLiveEntriesBatch(steamAppIds: number[], region: string): Pro
     console.error(
       `[priceService] gg.deals request failed (${response.status}) for ${steamAppIds.length} id(s), region ${region}: ${bodyText.slice(0, 300)}`,
     );
+    // A manual refresh (strict) must tell the person what went wrong instead of quietly showing
+    // "unavailable" (and caching that) - it throws, so the UI can toast it.
+    if (strict) {
+      throw new HttpError(
+        response.status === 429 ? 429 : 502,
+        response.status === 429
+          ? 'GG.Deals is rate limiting price lookups right now (too many requests). Try again later.'
+          : `GG.Deals price lookup failed (${response.status}). Try again later.`,
+      );
+    }
     return new Map(steamAppIds.map((id) => [id, unavailableEntry(fetchedAt)]));
   }
 
@@ -167,8 +181,8 @@ async function fetchLiveEntries(steamAppIds: number[], region: string): Promise<
   return merged;
 }
 
-async function fetchLiveEntry(steamAppId: number, region: string): Promise<PriceEntry> {
-  const entries = await fetchLiveEntriesBatch([steamAppId], region);
+async function fetchLiveEntry(steamAppId: number, region: string, strict = false): Promise<PriceEntry> {
+  const entries = await fetchLiveEntriesBatch([steamAppId], region, strict);
   // Always present - fetchLiveEntriesBatch maps every input id to an entry (unavailable on
   // failure/no-key), never drops one.
   return entries.get(steamAppId)!;
@@ -186,7 +200,7 @@ async function getEntry(
     if (cached) return JSON.parse(cached) as PriceEntry;
   }
 
-  const entry = await fetchLiveEntry(steamAppId, region);
+  const entry = await fetchLiveEntry(steamAppId, region, opts.forceRefresh === true);
   await redis.set(cacheKey, JSON.stringify(entry), 'EX', PRICE_CACHE_TTL_SECONDS);
   return entry;
 }

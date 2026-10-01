@@ -7,6 +7,7 @@ import { useChangeStatus } from '../game/useChangeStatus';
 import { Dialog } from '../ui/Dialog';
 import { useIsMobile, useMediaQuery } from '../ui/useLayout';
 import { st } from '../ui/st';
+import { applyRoomHue, hexToOklchHue } from '../theme/roomTheme';
 import { GlancePanel } from './GlancePanel';
 import { MobileTopBar } from './MobileTopBar';
 import { Overlays } from './Overlays';
@@ -42,6 +43,13 @@ export function AppShell({ children }: { children: ReactNode }) {
       /* ignore */
     }
   }, [collapsed]);
+
+  // Tint the whole UI with the room's colour while one is in focus (cleared on the shelf).
+  const roomColour = scope.room?.accentColor ?? null;
+  useEffect(() => {
+    applyRoomHue(roomColour ? hexToOklchHue(roomColour) : null);
+    return () => applyRoomHue(null);
+  }, [roomColour]);
 
   const selected = ui.selectedGameId ? scope.games.find((g) => g.id === ui.selectedGameId) : undefined;
   // A selection that no longer exists (removed, or the scope changed) just closes.

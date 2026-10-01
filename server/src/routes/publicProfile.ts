@@ -12,9 +12,12 @@ import { toGameReviewDto } from '../services/gameSerializer.js';
  * something to notice buried among cookie-gated routes. */
 export default async function publicProfileRoutes(app: FastifyInstance) {
   app.get<{ Params: { id: string } }>('/api/public/users/:id', async (request) => {
-    const user = await prisma.user.findUnique({
-      where: { id: request.params.id },
-      select: { displayName: true, avatarColor: true, avatarUrl: true, publicProfileEnabled: true, ownedPlatforms: true, createdAt: true },
+    // The path segment is either the user id or their vanity profile name (slugs can never look like
+    // an id, see normalizeProfileSlug, so the two can't collide).
+    const key = request.params.id.toLowerCase();
+    const user = await prisma.user.findFirst({
+      where: { OR: [{ id: request.params.id }, { profileSlug: key }] },
+      select: { id: true, displayName: true, avatarColor: true, avatarUrl: true, publicProfileEnabled: true, ownedPlatforms: true, createdAt: true },
     });
     // Same response (404, no distinguishing detail) whether the id doesn't exist at all or exists
     // but hasn't opted in - a scan of ids must not be able to tell "no such user" from "exists but
@@ -26,16 +29,16 @@ export default async function publicProfileRoutes(app: FastifyInstance) {
     // isn't "theirs" to show off the same way a room membership isn't public.
     const [beatenGameRows, currentlyPlayingRows, unlockedBadgeRows, totalUsers, perBadgeCounts] = await Promise.all([
       prisma.game.findMany({
-        where: { roomId: null, addedBy: request.params.id, status: { in: ['done', 'replay'] }, hiddenFromOthers: false },
+        where: { roomId: null, addedBy: user.id, status: { in: ['done', 'replay'] }, hiddenFromOthers: false },
         orderBy: { updatedAt: 'desc' },
         take: 300,
       }),
       prisma.game.findMany({
-        where: { roomId: null, addedBy: request.params.id, status: 'playing', hiddenFromOthers: false },
+        where: { roomId: null, addedBy: user.id, status: 'playing', hiddenFromOthers: false },
         select: { id: true, title: true, coverImageUrl: true, platform: true },
         orderBy: { updatedAt: 'desc' },
       }),
-      prisma.userBadge.findMany({ where: { userId: request.params.id }, select: { badgeKey: true, createdAt: true } }),
+      prisma.userBadge.findMany({ where: { userId: user.id }, select: { badgeKey: true, createdAt: true } }),
       prisma.user.count(),
       prisma.userBadge.groupBy({ by: ['badgeKey'], _count: { userId: true } }),
     ]);
@@ -43,7 +46,7 @@ export default async function publicProfileRoutes(app: FastifyInstance) {
     const countByKey = new Map(perBadgeCounts.map((r) => [r.badgeKey, r._count.userId]));
 
     const beatenGameCount = await prisma.game.count({
-      where: { roomId: null, addedBy: request.params.id, status: { in: ['done', 'replay'] }, hiddenFromOthers: false },
+      where: { roomId: null, addedBy: user.id, status: { in: ['done', 'replay'] }, hiddenFromOthers: false },
     });
     const profile: PublicUserProfile = {
       displayName: user.displayName,

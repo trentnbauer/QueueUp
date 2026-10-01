@@ -154,12 +154,14 @@ model User {
   /// search/create flow there the same way a Room's platform scopes it for a room. Empty means
   /// no opt-in yet, so no filtering is applied (preserves pre-existing behavior).
   ownedPlatforms       RoomPlatform[] @default([]) @map("owned_platforms")
-  /// Opt-in (issue #511) for the public, unauthenticated `/u/:id` profile page (badges, Beaten
-  /// count, Currently Playing) - defaults off, same "opt-in per-user" shape as a Room's own
-  /// isPublic toggle. This id itself is already unguessable (a UUID, same as every other id in
-  /// this schema), so there's no separate public-facing slug to manage - toggling this on is what
-  /// actually makes GET /api/public/users/:id start answering instead of 404ing.
-  publicProfileEnabled Boolean        @default(false) @map("public_profile_enabled")
+  /// Whether the public, unauthenticated `/u/:id` profile page (badges, Beaten count, Currently
+  /// Playing) answers for this user. New accounts default to on (issue #511 originally shipped it
+  /// opt-in; existing rows keep whatever they had). Turning it off makes GET /api/public/users/:id
+  /// 404 again, and hidden games are never shown either way.
+  publicProfileEnabled Boolean        @default(true) @map("public_profile_enabled")
+  /// Optional vanity name for the public profile URL (`/u/<slug>`), instead of the user id. Unique,
+  /// lowercase letters/digits/hyphens (see services/userSettings.ts for the rules).
+  profileSlug          String?        @unique @map("profile_slug")
   /// Short shareable code other users paste to send a friend request. Generated lazily the first
   /// time it's needed (GET /api/friends), so pre-existing users need no backfill.
   friendCode           String?        @unique @map("friend_code")

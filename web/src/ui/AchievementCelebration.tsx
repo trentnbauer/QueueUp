@@ -4,7 +4,7 @@ import { st } from './st';
 
 export const CELEBRATION_MS = 3600;
 
-const COLORS = ['oklch(0.74 0.15 45)', 'oklch(0.82 0.12 160)', '#4A8FE8', '#B87DE8', '#E8C24A', '#ffffff'];
+const COLORS = ['var(--acc)', 'oklch(0.82 0.12 160)', '#4A8FE8', '#B87DE8', '#E8C24A', '#ffffff'];
 const BURSTS: [number, number, number][] = [
   [-70, -40, 0],
   [80, -80, 0.28],

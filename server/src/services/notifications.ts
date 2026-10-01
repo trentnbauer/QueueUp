@@ -296,6 +296,11 @@ export function serializeNotification(row: NotificationWithActor, currentUserId:
  * condition per membership (its own read cutoff) plus one recipient-scoped condition; a
  * notification's own actor is always "read" for them regardless of cutoff, same as
  * serializeNotification. */
+/** "Not caused by `userId`": a plain `actorId: { not: userId }` is SQL `<>`, which also drops rows
+ * with no actor at all (price drops, release alerts, playtime nudges) - those are for everyone, so
+ * they have to match. Used by every unread query so the bell's count and its list can't disagree. */
+export const notCausedBy = (userId: string): Prisma.NotificationWhereInput => ({ OR: [{ actorId: null }, { actorId: { not: userId } }] });
+
 export function unreadNotificationWhere(
   userId: string,
   memberships: { roomId: string; notificationsReadAt: Date | null; joinedAt: Date }[],
@@ -304,10 +309,10 @@ export function unreadNotificationWhere(
     OR: [
       ...memberships.map((m) => ({
         roomId: m.roomId,
-        actorId: { not: userId },
+        AND: [notCausedBy(userId)],
         createdAt: { gt: m.notificationsReadAt ?? m.joinedAt },
       })),
-      { recipientId: userId, actorId: { not: userId }, readAt: null },
+      { recipientId: userId, AND: [notCausedBy(userId)], readAt: null },
     ],
   };
 }
@@ -353,11 +358,11 @@ export async function getNotificationSummary(userId: string): Promise<{ totalUnr
         roomId: m.roomId,
         // A member's own actions never count toward their own unread badge (see notifyRoom).
         unreadCount: await prisma.notification.count({
-          where: { roomId: m.roomId, actorId: { not: userId }, createdAt: { gt: m.notificationsReadAt ?? m.joinedAt } },
+          where: { roomId: m.roomId, AND: [notCausedBy(userId)], createdAt: { gt: m.notificationsReadAt ?? m.joinedAt } },
         }),
       })),
     ),
-    prisma.notification.count({ where: { recipientId: userId, readAt: null } }),
+    prisma.notification.count({ where: { recipientId: userId, AND: [notCausedBy(userId)], readAt: null } }),
   ]);
 
   const rooms = roomCounts.filter((r) => r.unreadCount > 0);

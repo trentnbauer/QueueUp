@@ -8,6 +8,7 @@ import type {
   CollectionGamesResult,
   CollectionSearchResult,
   CreateGameRequest,
+  GameTrailerResponse,
   CreateGameResponse,
   CrossRoomBeaten,
   CrossRoomPlaying,
@@ -68,6 +69,7 @@ export const gamesApi = {
     ),
   /** Every DLC/expansion IGDB has on file for this game (issue #338), already excluding anything
    * that's already on this game's own room/shelf. */
+  trailer: (id: string) => apiGet<GameTrailerResponse>(`/api/games/${id}/trailer`),
   dlc: (id: string) => apiGet<{ results: GameSearchResult[] }>(`/api/games/${id}/dlc`),
   create: (body: CreateGameRequest) => apiPost<CreateGameResponse>('/api/games', body),
   updateStatus: (id: string, body: UpdateGameStatusRequest) =>

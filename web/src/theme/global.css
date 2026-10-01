@@ -30,6 +30,17 @@
   --ink: oklch(0.2 0.03 45);
   --accSoft: oklch(0.74 0.15 45 / 0.14);
   --accSoft2: oklch(0.74 0.15 45 / 0.16);
+  /* The accent at fixed opacities, so palettes can recolour every tint and glow at once. */
+  --accA10: oklch(0.74 0.15 45 / 0.1);
+  --accA18: oklch(0.74 0.15 45 / 0.18);
+  --accA20: oklch(0.74 0.15 45 / 0.2);
+  --accA25: oklch(0.74 0.15 45 / 0.25);
+  --accA30: oklch(0.74 0.15 45 / 0.3);
+  --accA35: oklch(0.74 0.15 45 / 0.35);
+  --accA40: oklch(0.74 0.15 45 / 0.4);
+  --accA45: oklch(0.74 0.15 45 / 0.45);
+  --accA70: oklch(0.74 0.15 45 / 0.7);
+  --accA80: oklch(0.74 0.15 45 / 0.8);
   --dot: oklch(0.68 0.2 25);
   --errBg: oklch(0.62 0.19 25 / 0.14);
   --errLine: oklch(0.62 0.19 25 / 0.35);
@@ -65,6 +76,171 @@
   --danger: oklch(0.54 0.18 25);
   --chip: oklch(0 0 0 / 0.05);
   --line: oklch(0 0 0 / 0.13);
+}
+
+/* ---- Palettes -------------------------------------------------------------------------------
+ * `data-palette` on <html> (see applyThemeMode.ts) recolours the whole UI. Warm is the default and
+ * is simply the tokens above; Cool and Mono override the neutrals, hero gradients and accent for
+ * both dark and light. Semantic colours (owned/mint, errors, warnings, notification dot) stay put. */
+:root[data-palette='cool'] {
+  --bg: oklch(0.165 0.014 255);
+  --bg2: oklch(0.135 0.013 255);
+  --surf: oklch(0.21 0.015 255);
+  --surf2: oklch(0.25 0.016 255);
+  --sheet: oklch(0.19 0.015 255);
+  --text: oklch(0.95 0.008 250);
+  --text2: oklch(0.85 0.01 250);
+  --muted: oklch(0.74 0.014 255);
+  --faint: oklch(0.6 0.014 255);
+  --rank: oklch(0.5 0.014 255);
+  --onText: oklch(0.18 0.015 255);
+  --hero1: oklch(0.26 0.06 250);
+  --hero2: oklch(0.2 0.016 255);
+  --accText: oklch(0.82 0.1 235);
+  --pos: oklch(0.85 0.1 215);
+  --acc: oklch(0.72 0.14 245);
+  --accHover: oklch(0.78 0.12 245);
+  --ink: oklch(0.2 0.04 250);
+  --accSoft: oklch(0.72 0.14 245 / 0.14);
+  --accSoft2: oklch(0.72 0.14 245 / 0.16);
+  --accA10: oklch(0.72 0.14 245 / 0.1);
+  --accA18: oklch(0.72 0.14 245 / 0.18);
+  --accA20: oklch(0.72 0.14 245 / 0.2);
+  --accA25: oklch(0.72 0.14 245 / 0.25);
+  --accA30: oklch(0.72 0.14 245 / 0.3);
+  --accA35: oklch(0.72 0.14 245 / 0.35);
+  --accA40: oklch(0.72 0.14 245 / 0.4);
+  --accA45: oklch(0.72 0.14 245 / 0.45);
+  --accA70: oklch(0.72 0.14 245 / 0.7);
+  --accA80: oklch(0.72 0.14 245 / 0.8);
+}
+:root[data-palette='cool'][data-theme='light'] {
+  --bg: oklch(0.975 0.006 245);
+  --bg2: oklch(0.945 0.01 245);
+  --surf: oklch(0.935 0.01 245);
+  --surf2: oklch(0.9 0.012 245);
+  --sheet: oklch(0.99 0.004 245);
+  --text: oklch(0.2 0.02 255);
+  --text2: oklch(0.32 0.02 255);
+  --muted: oklch(0.45 0.016 255);
+  --faint: oklch(0.53 0.014 255);
+  --rank: oklch(0.72 0.012 255);
+  --onText: oklch(0.98 0.004 245);
+  --hero1: oklch(0.9 0.06 245);
+  --hero2: oklch(0.96 0.014 245);
+  --accText: oklch(0.45 0.15 255);
+  --pos: oklch(0.5 0.15 250);
+}
+:root[data-palette='mono'] {
+  --bg: oklch(0.12 0 0);
+  --bg2: oklch(0.09 0 0);
+  --surf: oklch(0.17 0 0);
+  --surf2: oklch(0.22 0 0);
+  --sheet: oklch(0.15 0 0);
+  --text: oklch(0.97 0 0);
+  --text2: oklch(0.86 0 0);
+  --muted: oklch(0.72 0 0);
+  --faint: oklch(0.58 0 0);
+  --rank: oklch(0.48 0 0);
+  --onText: oklch(0.12 0 0);
+  --hero1: oklch(0.24 0 0);
+  --hero2: oklch(0.16 0 0);
+  --accText: oklch(0.92 0 0);
+  --pos: oklch(0.96 0 0);
+  --acc: oklch(0.96 0 0);
+  --accHover: oklch(1 0 0);
+  --ink: oklch(0.14 0 0);
+  --accSoft: oklch(0.96 0 0 / 0.14);
+  --accSoft2: oklch(0.96 0 0 / 0.16);
+  --accA10: oklch(0.96 0 0 / 0.1);
+  --accA18: oklch(0.96 0 0 / 0.18);
+  --accA20: oklch(0.96 0 0 / 0.2);
+  --accA25: oklch(0.96 0 0 / 0.25);
+  --accA30: oklch(0.96 0 0 / 0.3);
+  --accA35: oklch(0.96 0 0 / 0.35);
+  --accA40: oklch(0.96 0 0 / 0.4);
+  --accA45: oklch(0.96 0 0 / 0.45);
+  --accA70: oklch(0.96 0 0 / 0.7);
+  --accA80: oklch(0.96 0 0 / 0.8);
+}
+:root[data-palette='mono'][data-theme='light'] {
+  --bg: oklch(1 0 0);
+  --bg2: oklch(0.965 0 0);
+  --surf: oklch(0.955 0 0);
+  --surf2: oklch(0.925 0 0);
+  --sheet: oklch(1 0 0);
+  --text: oklch(0.13 0 0);
+  --text2: oklch(0.28 0 0);
+  --muted: oklch(0.42 0 0);
+  --faint: oklch(0.52 0 0);
+  --rank: oklch(0.72 0 0);
+  --onText: oklch(1 0 0);
+  --hero1: oklch(0.92 0 0);
+  --hero2: oklch(0.975 0 0);
+  --accText: oklch(0.2 0 0);
+  --pos: oklch(0.25 0 0);
+  --acc: oklch(0.15 0 0);
+  --accHover: oklch(0.3 0 0);
+  --ink: oklch(1 0 0);
+  --accSoft: oklch(0.15 0 0 / 0.14);
+  --accSoft2: oklch(0.15 0 0 / 0.16);
+  --accA10: oklch(0.15 0 0 / 0.1);
+  --accA18: oklch(0.15 0 0 / 0.18);
+  --accA20: oklch(0.15 0 0 / 0.2);
+  --accA25: oklch(0.15 0 0 / 0.25);
+  --accA30: oklch(0.15 0 0 / 0.3);
+  --accA35: oklch(0.15 0 0 / 0.35);
+  --accA40: oklch(0.15 0 0 / 0.4);
+  --accA45: oklch(0.15 0 0 / 0.45);
+  --accA70: oklch(0.15 0 0 / 0.7);
+  --accA80: oklch(0.15 0 0 / 0.8);
+}
+
+/* ---- Room tint -------------------------------------------------------------------------------
+ * Inside a room, the UI picks up that room's colour (--rh = the hue of the room's accent colour, set
+ * in roomTheme.ts). Warm takes the full tint: accent, highlights, hero gradients and a faint cast on
+ * the neutrals. Cool keeps its own blue neutrals and only swaps the accent. Black & white is never
+ * tinted. Same lightness/chroma ladders as the default palette; only the hue moves. */
+:root[data-room]:not([data-palette='mono']) {
+  --accText: oklch(0.82 0.11 var(--rh));
+  --pos: oklch(0.85 0.1 var(--rh));
+  --acc: oklch(0.74 0.15 var(--rh));
+  --accHover: oklch(0.8 0.13 var(--rh));
+  --ink: oklch(0.2 0.03 var(--rh));
+  --accSoft: oklch(0.74 0.15 var(--rh) / 0.14);
+  --accSoft2: oklch(0.74 0.15 var(--rh) / 0.16);
+  --accA10: oklch(0.74 0.15 var(--rh) / 0.1);
+  --accA18: oklch(0.74 0.15 var(--rh) / 0.18);
+  --accA20: oklch(0.74 0.15 var(--rh) / 0.2);
+  --accA25: oklch(0.74 0.15 var(--rh) / 0.25);
+  --accA30: oklch(0.74 0.15 var(--rh) / 0.3);
+  --accA35: oklch(0.74 0.15 var(--rh) / 0.35);
+  --accA40: oklch(0.74 0.15 var(--rh) / 0.4);
+  --accA45: oklch(0.74 0.15 var(--rh) / 0.45);
+  --accA70: oklch(0.74 0.15 var(--rh) / 0.7);
+  --accA80: oklch(0.74 0.15 var(--rh) / 0.8);
+}
+:root[data-room]:not([data-palette]) {
+  --bg: oklch(0.165 0.016 var(--rh));
+  --bg2: oklch(0.135 0.015 var(--rh));
+  --surf: oklch(0.21 0.018 var(--rh));
+  --surf2: oklch(0.25 0.02 var(--rh));
+  --sheet: oklch(0.19 0.018 var(--rh));
+  --hero1: oklch(0.26 0.06 var(--rh));
+  --hero2: oklch(0.2 0.018 var(--rh));
+}
+:root[data-room][data-theme='light']:not([data-palette='mono']) {
+  --accText: oklch(0.48 0.14 var(--rh));
+  --pos: oklch(0.52 0.15 var(--rh));
+}
+:root[data-room][data-theme='light']:not([data-palette]) {
+  --bg: oklch(0.975 0.01 var(--rh));
+  --bg2: oklch(0.945 0.014 var(--rh));
+  --surf: oklch(0.935 0.015 var(--rh));
+  --surf2: oklch(0.9 0.018 var(--rh));
+  --sheet: oklch(0.99 0.006 var(--rh));
+  --hero1: oklch(0.9 0.07 var(--rh));
+  --hero2: oklch(0.96 0.016 var(--rh));
 }
 
 html,

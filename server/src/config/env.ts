@@ -55,6 +55,13 @@ export const envSchema = z.object({
       return Number.isNaN(n) || v.trim() === '' ? v : n;
     }),
 
+  // Private instance: a server for one group of people who all know each other. Everyone counts as
+  // everyone's friend (no friend codes or requests needed) - see services/friendships.ts.
+  PRIVATE_INSTANCE: z
+    .string()
+    .optional()
+    .transform((v) => v === 'true'),
+
   DEV_FAKE_AUTH: z
     .string()
     .optional()
