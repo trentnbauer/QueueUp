@@ -71,11 +71,17 @@ export function CollapseIcon({ size = 16 }: { size?: number }) {
 // Avatars and covers
 // ---------------------------------------------------------------------------------------------
 
+/** Up to two letters for an avatar or room tile, taken from letters and digits only - symbols and
+ * punctuation ("Trent & Grace", "Co-op Night") are skipped rather than shown. Apostrophes are dropped
+ * first so "Trent's Room" reads TR, not TS. */
 export function initialsOf(name: string): string {
-  const words = name.trim().split(/\s+/).filter(Boolean);
+  const words = name
+    .replace(/['\u2019]/g, '')
+    .split(/[^\p{L}\p{N}]+/u)
+    .filter(Boolean);
   if (!words.length) return '?';
-  if (words.length === 1) return words[0].slice(0, 2).toUpperCase();
-  return (words[0][0] + words[1][0]).toUpperCase();
+  if (words.length === 1) return Array.from(words[0]).slice(0, 2).join('').toUpperCase();
+  return (Array.from(words[0])[0] + Array.from(words[1])[0]).toUpperCase();
 }
 
 interface AvatarProps {
