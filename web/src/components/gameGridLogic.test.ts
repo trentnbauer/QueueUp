@@ -184,10 +184,11 @@ describe('backlogGames', () => {
     expect(backlogGames([borderlands1, borderlands2]).map((g) => g.id)).toEqual(['bl1']);
   });
 
-  it('excludes Play Next games, same as Playing/Done', () => {
+  it('includes Play Next games (they spin at double weight) but not Playing/Done', () => {
     const playNext = makeGame({ id: 'play-next', status: 'play_next', voteScore: 5 });
+    const playing = makeGame({ id: 'playing', status: 'playing' });
     const backlog = makeGame({ id: 'backlog', status: 'backlog', voteScore: 5 });
-    expect(backlogGames([playNext, backlog]).map((g) => g.id)).toEqual(['backlog']);
+    expect(backlogGames([playNext, playing, backlog]).map((g) => g.id)).toEqual(['play-next', 'backlog']);
   });
 
   it('includes a backlog game once its prerequisite is marked Done', () => {
