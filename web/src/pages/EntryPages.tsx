@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { Link, useNavigate } from 'react-router';
-import { REVIEW_CATEGORIES, type PublicProfileBeatenGame, type PublicUserProfile } from '@queueup/shared';
+import { REVIEW_CATEGORIES, type PublicProfileBeatenGame, type PublicProfileGame, type PublicUserProfile } from '@queueup/shared';
 import { authApi } from '../api/auth';
 import { publicProfileApi } from '../api/publicProfile';
 import { useAuth } from '../context/AuthContext';
@@ -12,7 +12,7 @@ import { applyFeedFilter, FeedGroups, FilterChips, type FeedFilter } from './fee
 import { useRooms } from '../hooks/useRooms';
 import { useVersion } from '../hooks/useVersion';
 import { REVIEW_EMOJI, reviewAverage } from '../lib/gameView';
-import { Avatar, Btn, Cover, Wordmark, AppMark } from '../ui/primitives';
+import { Avatar, Btn, Cover, Wordmark, AppMark, inputPill } from '../ui/primitives';
 import { st } from '../ui/st';
 
 const FEATURES: [string, string][] = [
@@ -389,33 +389,59 @@ export function PublicProfilePage({ userId, signedIn }: { userId: string; signed
       {modal === 'bothOwn' && profile && (
         <Dialog title={`You both own · ${profile.bothOwn.length}`} onClose={() => setModal(null)} width={640}>
           <span style={st('font:400 13.5px var(--font-ui);color:var(--muted)')}>You and {profile.displayName} can play these together.</span>
-          <div style={st('display:grid;grid-template-columns:repeat(auto-fill,minmax(100px,1fr));gap:12px')}>
-            {profile.bothOwn.map((g) => (
-              <div key={g.id} style={st('min-width:0;display:flex;flex-direction:column;gap:5px')}>
-                <Cover title={g.title} url={g.coverImageUrl} width="100%" radius={12} />
-                <span style={st('font:600 12px var(--font-ui);white-space:nowrap;overflow:hidden;text-overflow:ellipsis')}>{g.title}</span>
-              </div>
-            ))}
-          </div>
+          <SearchableGameGrid games={profile.bothOwn} />
         </Dialog>
       )}
       {modal === 'library' && profile && (
         <Dialog title={`Library · ${profile.library.length}`} onClose={() => setModal(null)} width={640}>
-          {profile.library.length === 0 && <span style={st('font:400 14px var(--font-ui);color:var(--muted)')}>No games marked as owned yet.</span>}
-          <div style={st('display:grid;grid-template-columns:repeat(auto-fill,minmax(100px,1fr));gap:12px')}>
-            {profile.library.map((g) => (
-              <div key={g.id} style={st('min-width:0;display:flex;flex-direction:column;gap:5px')}>
-                <div style={st('position:relative')}>
-                  <Cover title={g.title} url={g.coverImageUrl} width="100%" radius={12} />
-                  {g.bothOwn && <BothOwnBadge small />}
-                </div>
-                <span style={st('font:600 12px var(--font-ui);white-space:nowrap;overflow:hidden;text-overflow:ellipsis')}>{g.title}</span>
-              </div>
-            ))}
-          </div>
+          {profile.library.length === 0 ? (
+            <span style={st('font:400 14px var(--font-ui);color:var(--muted)')}>No games marked as owned yet.</span>
+          ) : (
+            <SearchableGameGrid games={profile.library} />
+          )}
         </Dialog>
       )}
     </div>
+  );
+}
+
+/** Lower-case with spaces and punctuation stripped, so "spiderman" finds "Spider-Man". Each word
+ * typed must appear somewhere in the title. */
+function searchKey(text: string): string {
+  return text.toLowerCase().replace(/[^\p{L}\p{N}]+/gu, '');
+}
+
+/** A profile game grid (library, you both own) with a search box over it. */
+function SearchableGameGrid({ games }: { games: PublicProfileGame[] }) {
+  const [query, setQuery] = useState('');
+  const words = query.trim().split(/\s+/).map(searchKey).filter(Boolean);
+  const shown = words.length === 0 ? games : games.filter((g) => {
+    const title = searchKey(g.title);
+    return words.every((w) => title.includes(w));
+  });
+  return (
+    <>
+      <input
+        type="search"
+        value={query}
+        onChange={(e) => setQuery(e.target.value)}
+        placeholder={`Search ${games.length} game${games.length === 1 ? '' : 's'}`}
+        aria-label="Search games"
+        style={st(inputPill)}
+      />
+      {shown.length === 0 && <span style={st('font:400 14px var(--font-ui);color:var(--muted)')}>No games match "{query.trim()}".</span>}
+      <div style={st('display:grid;grid-template-columns:repeat(auto-fill,minmax(100px,1fr));gap:12px')}>
+        {shown.map((g) => (
+          <div key={g.id} style={st('min-width:0;display:flex;flex-direction:column;gap:5px')}>
+            <div style={st('position:relative')}>
+              <Cover title={g.title} url={g.coverImageUrl} width="100%" radius={12} />
+              {g.bothOwn && <BothOwnBadge small />}
+            </div>
+            <span title={g.title} style={st('font:600 12px var(--font-ui);white-space:nowrap;overflow:hidden;text-overflow:ellipsis')}>{g.title}</span>
+          </div>
+        ))}
+      </div>
+    </>
   );
 }
 
