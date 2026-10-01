@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { serializeNotification, unreadNotificationWhere } from './notifications.js';
+import { notCausedBy, serializeNotification, unreadNotificationWhere } from './notifications.js';
 
 const VIEWER = 'user-viewer';
 
@@ -59,25 +59,29 @@ describe('unreadNotificationWhere', () => {
     ];
     expect(unreadNotificationWhere(VIEWER, memberships)).toEqual({
       OR: [
-        { roomId: 'room-1', actorId: { not: VIEWER }, createdAt: { gt: new Date('2026-01-01T11:00:00Z') } },
+        { roomId: 'room-1', AND: [notCausedBy(VIEWER)], createdAt: { gt: new Date('2026-01-01T11:00:00Z') } },
         // No notificationsReadAt yet - falls back to joinedAt, same as serializeNotification.
-        { roomId: 'room-2', actorId: { not: VIEWER }, createdAt: { gt: new Date('2026-01-02T00:00:00Z') } },
-        { recipientId: VIEWER, actorId: { not: VIEWER }, readAt: null },
+        { roomId: 'room-2', AND: [notCausedBy(VIEWER)], createdAt: { gt: new Date('2026-01-02T00:00:00Z') } },
+        { recipientId: VIEWER, AND: [notCausedBy(VIEWER)], readAt: null },
       ],
     });
   });
 
   it('still includes the recipient-scoped branch with zero room memberships', () => {
     expect(unreadNotificationWhere(VIEWER, [])).toEqual({
-      OR: [{ recipientId: VIEWER, actorId: { not: VIEWER }, readAt: null }],
+      OR: [{ recipientId: VIEWER, AND: [notCausedBy(VIEWER)], readAt: null }],
     });
   });
 
   it("excludes the caller's own actions from every branch, matching serializeNotification treating your own actions as always-read", () => {
     const memberships = [{ roomId: 'room-1', notificationsReadAt: null, joinedAt: new Date('2026-01-01T00:00:00Z') }];
-    const where = unreadNotificationWhere(VIEWER, memberships) as { OR: { actorId?: { not: string } }[] };
+    const where = unreadNotificationWhere(VIEWER, memberships) as { OR: { AND: unknown[] }[] };
     for (const branch of where.OR) {
-      expect(branch.actorId).toEqual({ not: VIEWER });
+      expect(branch.AND).toEqual([notCausedBy(VIEWER)]);
     }
+  });
+
+  it('keeps actor-less system notifications (price drops, release alerts) - SQL "<>" alone would drop them', () => {
+    expect(notCausedBy(VIEWER)).toEqual({ OR: [{ actorId: null }, { actorId: { not: VIEWER } }] });
   });
 });
