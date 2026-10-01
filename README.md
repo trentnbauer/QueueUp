@@ -45,6 +45,10 @@ Some other things to note
 4. Rename the env file to .env
 5. Run `docker-compose up` to start the stack
 
+## Backups
+
+QueueUp takes a database backup **every night at 03:00 (server time) by default**, keeps the latest 14, and writes them to the `backups` volume (`BACKUP_DIR`, `/backups` in the compose file). Administrators manage it from **Profile → Administrator settings → Backups**: switch it off, change the schedule (a cron expression such as `0 3 * * *`), change how many to keep, back up now, download, delete, **restore**, or **import** a backup file from another server. Restoring replaces the entire database and takes a safety backup of the current data first. Set `TZ` on the container to change the time zone the schedule uses. Restores need the Postgres user to be a superuser (the one the bundled compose file creates is). For disaster recovery, copy the `backups` volume (or download files from the admin page) somewhere off the host.
+
 ## Authentication
 
 - **Google**: create an OAuth client at [console.cloud.google.com](https://console.cloud.google.com/) (APIs & Services → Credentials), fill in `GOOGLE_CLIENT_ID`/`GOOGLE_CLIENT_SECRET`.

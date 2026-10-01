@@ -17,7 +17,8 @@ import { formatRelativeTime } from '../utils/relativeTime';
 
 const GAMES_QUERY_ROOT = ['games'];
 const PLAYNITE_URL = 'https://playnite.link/';
-const EXTENSION_URL = 'https://github.com/trentnbauer/QueueUpPlayniteExtension/releases/latest';
+// Redirects to the latest release's .pext file itself (see server/src/routes/playniteExtension.ts).
+const EXTENSION_URL = `${getBasePath()}/api/playnite-extension`;
 const LINK_POLL_MS = 3000;
 
 function ImportRow({ title, sub, cta, onClick, disabled, accent }: { title: string; sub: string; cta: string; onClick: () => void; disabled?: boolean; accent?: boolean }) {
@@ -148,7 +149,7 @@ export function PlayniteDialog() {
 
   const steps: { t: string; d: string; link?: [string, string] }[] = [
     { t: 'Install Playnite', d: 'The free, open-source launcher for Windows that gathers all your stores in one place.', link: ['Get Playnite', PLAYNITE_URL] },
-    { t: 'Install the QueueUp extension', d: 'Download the .pext file and drag it into Playnite to install it. A QueueUp menu appears under Extensions.', link: ['Get the extension', EXTENSION_URL] },
+    { t: 'Install the QueueUp extension', d: 'Download the .pext file and drag it into Playnite to install it. A QueueUp menu appears under Extensions.', link: ['Download the .pext', EXTENSION_URL] },
     { t: 'Connect to QueueUp', d: 'Generate a code below, then in Playnite choose Extensions → QueueUp → Connect to QueueUp and paste it in.' },
   ];
 

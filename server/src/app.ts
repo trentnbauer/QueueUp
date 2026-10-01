@@ -13,6 +13,8 @@ import roomSpinRoutes from './routes/roomSpin.js';
 import tagRoutes from './routes/tags.js';
 import notificationRoutes from './routes/notifications.js';
 import adminRoutes from './routes/admin.js';
+import adminBackupRoutes from './routes/adminBackups.js';
+import playniteExtensionRoutes from './routes/playniteExtension.js';
 import healthRoutes from './routes/health.js';
 import versionRoutes from './routes/version.js';
 import apiV1Routes from './routes/apiV1.js';
@@ -102,6 +104,8 @@ export async function buildApp() {
       await instance.register(tagRoutes);
       await instance.register(notificationRoutes);
       await instance.register(adminRoutes);
+      await instance.register(adminBackupRoutes);
+      await instance.register(playniteExtensionRoutes);
       await instance.register(pendingLibraryImportRoutes);
       await instance.register(playniteCompletionSuggestionRoutes);
       await instance.register(badgeRoutes);

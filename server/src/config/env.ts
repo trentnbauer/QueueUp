@@ -75,6 +75,11 @@ export const envSchema = z.object({
     .optional()
     .transform((v) => v === 'true'),
 
+  // Where the admin Backups feature writes its files (default ./backups next to the server; the
+  // prod compose file mounts a named volume at /backups). Settings (schedule, retention) live in the
+  // admin UI, not here.
+  BACKUP_DIR: optionalEnvVar(),
+
   // Generic OIDC provider (Authelia, Keycloak, Authentik, ...) - bring your own issuer.
   OIDC_ISSUER_URL: optionalEnvVar(),
   OIDC_CLIENT_ID: optionalEnvVar(),

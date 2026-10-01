@@ -930,6 +930,45 @@ export interface PlayLogEntry {
 export type IntegrationConfigKey = 'GGDEALS_API_KEY' | 'IGDB_CLIENT_ID' | 'IGDB_CLIENT_SECRET' | 'SCANDEX_API_KEY';
 
 /** Admin-only views — never sent to non-admin users. */
+/** One backup file in the admin Backups list. */
+export interface AdminBackupInfo {
+  name: string;
+  sizeBytes: number;
+  createdAt: string;
+  kind: 'nightly' | 'manual' | 'pre-restore';
+}
+
+export interface AdminBackupSettings {
+  /** The nightly backup is on by default. */
+  enabled: boolean;
+  /** 5-field cron expression, evaluated in `timezone`. */
+  cron: string;
+  /** How many backups to keep before the oldest are deleted. */
+  retention: number;
+  nextRunAt: string | null;
+  directory: string;
+  timezone: string;
+  lastRun: { at: string; ok: boolean; message: string } | null;
+}
+
+export interface AdminBackupsResponse {
+  settings: AdminBackupSettings;
+  backups: AdminBackupInfo[];
+}
+
+export interface UpdateBackupSettingsRequest {
+  enabled?: boolean;
+  cron?: string;
+  retention?: number;
+}
+
+export interface RestoreBackupResponse {
+  tables: number;
+  rows: number;
+  skippedTables: string[];
+  safetyBackup: string;
+}
+
 export interface AdminIntegrationStatus {
   ggDealsApiKeyConfigured: boolean;
   ggDealsApiKeySource: ConfigSource;
