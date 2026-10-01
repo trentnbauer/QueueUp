@@ -151,7 +151,7 @@ export function PublicProfilePage({ userId, signedIn }: { userId: string; signed
     };
   }, [userId]);
 
-  const scrollTo = (ref: React.RefObject<HTMLDivElement>) => () => ref.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  const scrollTo = (ref: React.RefObject<HTMLDivElement | null>) => () => ref.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
   const tile = (value: number, label: string, onClick: () => void, arrow: string) => (
     <button
       key={label}

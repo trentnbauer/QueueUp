@@ -68,6 +68,11 @@ describe('envSchema', () => {
     };
   }
 
+  it('rejects a SESSION_SECRET shorter than the 32 characters @fastify/session requires', () => {
+    expect(envSchema.safeParse(baseProcessEnv({ SESSION_SECRET: 'x'.repeat(31) })).success).toBe(false);
+    expect(envSchema.safeParse(baseProcessEnv({ SESSION_SECRET: 'x'.repeat(32) })).success).toBe(true);
+  });
+
   // docker-compose.prod.yml passes every optional credential through as `${VAR}` with no `:-`
   // default, so Compose substitutes an empty string (not "unset") when a self-hoster leaves one
   // blank in .env - this must parse the same as never setting it at all, not crash the container.

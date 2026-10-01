@@ -4,13 +4,7 @@
  * Deliberately just `setInterval` plus overlap/error guards rather than a cron library: prod
  * (docker-compose.prod.yml) runs exactly one `server` container with no replicas and
  * `restart: unless-stopped`, so there's no multi-instance double-run risk to design around, and
- * "every N hours, forever, while the process is up" doesn't need cron's calendar syntax. The
- * Postgres backup job (#250) is deliberately NOT run through this - it needs `pg_dump` built
- * against the exact Postgres major version in use (see docker/backup-entrypoint.sh for why),
- * which means running from the `postgres:*-alpine` image, not this Node process - so it uses a
- * small standalone shell loop as its scheduler instead. Both are the same shape (interval loop,
- * skip-if-already-running, log-and-continue on failure); this one exists for jobs that need
- * in-process app state, and shells out to nothing.
+ * "every N hours, forever, while the process is up" doesn't need cron's calendar syntax.
  */
 
 export interface ScheduledJob {

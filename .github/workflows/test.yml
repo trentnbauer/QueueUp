@@ -83,7 +83,7 @@ jobs:
           APP_BASE_URL=http://localhost:5173
           DATABASE_URL=postgresql://test:test@localhost:5432/test
           REDIS_URL=redis://localhost:6379
-          SESSION_SECRET=ci-dummy-session-secret-value
+          SESSION_SECRET=ci-dummy-session-secret-value-0123456789
           DEV_FAKE_AUTH=true
           GGDEALS_API_KEY=ci-dummy-key
           IGDB_CLIENT_ID=ci-dummy-client-id
