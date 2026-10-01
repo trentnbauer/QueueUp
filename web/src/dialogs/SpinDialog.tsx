@@ -25,7 +25,6 @@ import { Dialog, CloseButton } from '../ui/Dialog';
 import { coverBg } from '../ui/primitives';
 import { useIsMobile } from '../ui/useLayout';
 import { st } from '../ui/st';
-import { ConfettiBurst } from '../components/ConfettiBurst';
 
 const ACC = 'oklch(0.74 0.15 45)';
 
@@ -346,7 +345,6 @@ export function SpinDialog({ onClose }: { onClose: () => void }) {
               </>
             )}
           </div>
-          {settled && winner && run && <ConfettiBurst key={run.settlesAtMs} />}
         </div>
       </Dialog>
       {pickerGame && (

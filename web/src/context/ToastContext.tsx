@@ -1,5 +1,5 @@
 import { createContext, useCallback, useContext, useState, type ReactNode } from 'react';
-import { ToastStack } from '../components/ToastStack';
+import { ToastStack } from '../ui/ToastView';
 import { addToast, removeToast, type Toast, type ToastAction } from './toastReducer';
 
 export type { Toast, ToastAction };

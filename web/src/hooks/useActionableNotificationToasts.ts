@@ -1,7 +1,7 @@
 import { useEffect } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useAuth } from '../context/AuthContext';
-import { useView } from '../context/ViewContext';
+import { useNavigate } from 'react-router';
 import { useToast } from '../context/ToastContext';
 import { notificationsApi } from '../api/notifications';
 import { gamesApi } from '../api/games';
@@ -19,7 +19,7 @@ const POLL_INTERVAL_MS = 30_000;
  * the same endpoint. */
 export function useActionableNotificationToasts() {
   const { user } = useAuth();
-  const { switchView } = useView();
+  const navigate = useNavigate();
   const { showToast } = useToast();
   const queryClient = useQueryClient();
 
@@ -69,7 +69,7 @@ export function useActionableNotificationToasts() {
           actions: [
             {
               label: 'View',
-              onClick: () => switchView(roomId ? { type: 'room', roomId } : { type: 'personal' }),
+              onClick: () => navigate(roomId ? `/room/${roomId}` : '/'),
             },
           ],
           onDismiss: () => markRead.mutate(notification.id),
