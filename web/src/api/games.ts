@@ -49,26 +49,32 @@ function libraryQuery(region?: PriceRegion, q?: string): string {
   return qs ? `?${qs}` : '';
 }
 
+/** Query string shared by the Add Game browse calls (trending, collections). */
+function browseQuery(roomId: string | null | undefined, hideAddons: boolean, allPlatforms: boolean): string {
+  const params = new URLSearchParams();
+  if (roomId) params.set('roomId', roomId);
+  if (!hideAddons) params.set('hideAddons', 'false');
+  if (allPlatforms) params.set('allPlatforms', 'true');
+  const qs = params.toString();
+  return qs ? `?${qs}` : '';
+}
+
 export const gamesApi = {
   shelf: (region?: PriceRegion, q?: string) =>
     apiGet<{ games: Game[]; truncated: boolean; totalCount: number }>(`/api/games${libraryQuery(region, q)}`),
   room: (roomId: string, region?: PriceRegion, q?: string) =>
     apiGet<{ games: Game[]; truncated: boolean; totalCount: number }>(`/api/rooms/${roomId}/games${libraryQuery(region, q)}`),
-  search: (q: string, roomId?: string | null, offset = 0, hideAddons = true, includeOwned = false) =>
+  search: (q: string, roomId?: string | null, offset = 0, hideAddons = true, includeOwned = false, allPlatforms = false) =>
     apiGet<{ results: GameSearchResult[]; collections: CollectionSearchResult[]; nextOffset: number; hasMore: boolean }>(
-      `/api/games/search?q=${encodeURIComponent(q)}${roomId ? `&roomId=${roomId}` : ''}${offset ? `&offset=${offset}` : ''}${hideAddons ? '' : '&hideAddons=false'}${includeOwned ? '&includeOwned=true' : ''}`,
+      `/api/games/search?q=${encodeURIComponent(q)}${roomId ? `&roomId=${roomId}` : ''}${offset ? `&offset=${offset}` : ''}${hideAddons ? '' : '&hideAddons=false'}${includeOwned ? '&includeOwned=true' : ''}${allPlatforms ? '&allPlatforms=true' : ''}`,
     ),
-  collectionGames: (collectionId: number, roomId?: string | null, hideAddons = true) =>
-    apiGet<CollectionGamesResult>(
-      `/api/games/collections/${collectionId}${roomId ? `?roomId=${roomId}` : ''}${hideAddons ? '' : `${roomId ? '&' : '?'}hideAddons=false`}`,
-    ),
+  collectionGames: (collectionId: number, roomId?: string | null, hideAddons = true, allPlatforms = false) =>
+    apiGet<CollectionGamesResult>(`/api/games/collections/${collectionId}${browseQuery(roomId, hideAddons, allPlatforms)}`),
   /** Issue #402 - resolves a scanned UPC/EAN barcode via ScanDex. Null result means no match (or
    * ScanDex isn't configured) - not an error, just "couldn't find that one." */
   barcodeLookup: (value: string) => apiGet<{ result: BarcodeGameMatch | null }>(`/api/games/barcode-lookup?value=${encodeURIComponent(value)}`),
-  trending: (roomId?: string | null, hideAddons = true) =>
-    apiGet<{ results: GameSearchResult[] }>(
-      `/api/games/trending${roomId ? `?roomId=${roomId}` : ''}${hideAddons ? '' : `${roomId ? '&' : '?'}hideAddons=false`}`,
-    ),
+  trending: (roomId?: string | null, hideAddons = true, allPlatforms = false) =>
+    apiGet<{ results: GameSearchResult[] }>(`/api/games/trending${browseQuery(roomId, hideAddons, allPlatforms)}`),
   /** Every DLC/expansion IGDB has on file for this game (issue #338), already excluding anything
    * that's already on this game's own room/shelf. */
   trailer: (id: string) => apiGet<GameTrailerResponse>(`/api/games/${id}/trailer`),

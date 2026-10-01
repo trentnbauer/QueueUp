@@ -10,6 +10,7 @@ import {
 } from '@queueup/shared';
 import { gamesApi } from '../api/games';
 import { useAnnounceUnlock } from '../context/AchievementUnlockContext';
+import { useAuth } from '../context/AuthContext';
 import { useScope } from '../context/ScopeContext';
 import { useUi } from '../context/UiContext';
 import { Dialog } from '../ui/Dialog';
@@ -20,6 +21,24 @@ const BarcodeScanner = lazy(() => import('./BarcodeScanner').then((m) => ({ defa
 
 const PLATFORM_OPTIONS = Object.keys(ROOM_PLATFORM_LABELS) as RoomPlatform[];
 const MAX_CONSECUTIVE_EMPTY_PAGES = 5;
+const OWNED_ONLY_KEY = 'qu-add-owned-only';
+
+/** Defaults to on, matching search being scoped to owned systems before this was a toggle. */
+function readOwnedOnlyPref(): boolean {
+  try {
+    return localStorage.getItem(OWNED_ONLY_KEY) !== 'false';
+  } catch {
+    return true;
+  }
+}
+
+function writeOwnedOnlyPref(on: boolean) {
+  try {
+    localStorage.setItem(OWNED_ONLY_KEY, String(on));
+  } catch {
+    // Private mode or blocked storage - the toggle still works for this visit.
+  }
+}
 
 const ADD_BTN = 'height:36px;padding:0 16px;border-radius:999px;border:none;background:var(--accSoft2);color:var(--accText);font:600 13px var(--font-ui)';
 const ROW = 'display:flex;align-items:center;gap:12px;padding:8px;border-radius:14px';
@@ -182,6 +201,7 @@ function CollectionReview({
   collection,
   roomId,
   hideAddons,
+  allPlatforms,
   onAdded,
   onBack,
   onBusy,
@@ -189,6 +209,7 @@ function CollectionReview({
   collection: CollectionSearchResult;
   roomId: string | null;
   hideAddons: boolean;
+  allPlatforms: boolean;
   onAdded: () => void;
   onBack: () => void;
   onBusy: (b: boolean) => void;
@@ -215,7 +236,7 @@ function CollectionReview({
     setLoading(true);
     setLoadError(null);
     gamesApi
-      .collectionGames(collection.collectionId, roomId, hideAddons)
+      .collectionGames(collection.collectionId, roomId, hideAddons, allPlatforms)
       .then((res) => {
         if (dead) return;
         setData(res);
@@ -226,7 +247,7 @@ function CollectionReview({
     return () => {
       dead = true;
     };
-  }, [collection.collectionId, roomId, hideAddons]);
+  }, [collection.collectionId, roomId, hideAddons, allPlatforms]);
 
   async function addSelected() {
     if (!data || selected.size === 0) return;
@@ -345,6 +366,17 @@ export function AddGameDialog() {
   const [loadingMore, setLoadingMore] = useState(false);
   const [loadMoreError, setLoadMoreError] = useState<string | null>(null);
   const [hideAddons, setHideAddons] = useState(true);
+  const { ownedPlatforms } = useAuth();
+  // "Owned systems only" scopes search to the systems set in Profile & settings. It only applies
+  // where the search isn't already pinned to a room's platform, and only once systems are set.
+  const canScopeToOwned = ownedPlatforms.length > 0 && !scope.room?.platform;
+  const [ownedOnlyPref, setOwnedOnlyPref] = useState(readOwnedOnlyPref);
+  const allPlatforms = canScopeToOwned && !ownedOnlyPref;
+  const toggleOwnedOnly = () =>
+    setOwnedOnlyPref((v) => {
+      writeOwnedOnlyPref(!v);
+      return !v;
+    });
   const [addingId, setAddingId] = useState<number | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [addedIds, setAddedIds] = useState<Set<number>>(new Set());
@@ -363,13 +395,13 @@ export function AddGameDialog() {
   useEffect(() => {
     let dead = false;
     gamesApi
-      .trending(roomId, hideAddons)
+      .trending(roomId, hideAddons, allPlatforms)
       .then(({ results: r }) => !dead && setTrending(r))
       .catch(() => !dead && setTrending([]));
     return () => {
       dead = true;
     };
-  }, [roomId, hideAddons]);
+  }, [roomId, hideAddons, allPlatforms]);
 
   useEffect(() => {
     if (debounce.current) clearTimeout(debounce.current);
@@ -388,7 +420,7 @@ export function AddGameDialog() {
       const id = ++reqId.current;
       emptyPages.current = 0;
       try {
-        const res = await gamesApi.search(query.trim(), roomId, 0, hideAddons);
+        const res = await gamesApi.search(query.trim(), roomId, 0, hideAddons, false, allPlatforms);
         if (id !== reqId.current) return;
         setResults(res.results);
         setCollections(res.collections);
@@ -406,7 +438,7 @@ export function AddGameDialog() {
     return () => {
       if (debounce.current) clearTimeout(debounce.current);
     };
-  }, [query, roomId, hideAddons]);
+  }, [query, roomId, hideAddons, allPlatforms]);
 
   // Infinite scroll through long franchise searches.
   useEffect(() => {
@@ -421,7 +453,7 @@ export function AddGameDialog() {
         setLoadingMore(true);
         setLoadMoreError(null);
         gamesApi
-          .search(q, roomId, nextOffset, hideAddons)
+          .search(q, roomId, nextOffset, hideAddons, false, allPlatforms)
           .then(({ results: more, nextOffset: off, hasMore: still }) => {
             if (id !== reqId.current) return;
             emptyPages.current = more.length > 0 ? 0 : emptyPages.current + 1;
@@ -440,7 +472,7 @@ export function AddGameDialog() {
     );
     obs.observe(el);
     return () => obs.disconnect();
-  }, [hasMore, searching, loadingMore, nextOffset, query, roomId, hideAddons]);
+  }, [hasMore, searching, loadingMore, nextOffset, query, roomId, hideAddons, allPlatforms]);
 
   async function add(result: GameSearchResult, extra?: { status?: 'backlog' | 'wishlist'; ownedPlatforms?: RoomPlatform[] }): Promise<boolean> {
     setAddingId(result.igdbId);
@@ -528,6 +560,11 @@ export function AddGameDialog() {
                     Import library
                   </Btn>
                 )}
+                {canScopeToOwned && (
+                  <ChipToggle on={ownedOnlyPref} onClick={toggleOwnedOnly} height={36} fontSize={13}>
+                    Owned systems only
+                  </ChipToggle>
+                )}
                 <ChipToggle on={hideAddons} onClick={() => setHideAddons((v) => !v)} height={36} fontSize={13}>
                   Hide DLC &amp; add-ons
                 </ChipToggle>
@@ -554,7 +591,7 @@ export function AddGameDialog() {
             </div>
           ) : collection ? (
             <div style={st('padding:0 8px;display:flex;flex-direction:column;gap:14px')}>
-              <CollectionReview collection={collection} roomId={roomId} hideAddons={hideAddons} onAdded={onAdded} onBack={() => setCollection(null)} onBusy={setCollectionBusy} />
+              <CollectionReview collection={collection} roomId={roomId} hideAddons={hideAddons} allPlatforms={allPlatforms} onAdded={onAdded} onBack={() => setCollection(null)} onBusy={setCollectionBusy} />
             </div>
           ) : (
             <>
