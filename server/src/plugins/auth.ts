@@ -94,12 +94,12 @@ async function getOrCreateUser({ emailVerified, ...profile }: {
   const isAdmin = emailIsAdmin || (existing?.isAdmin ?? false);
 
   if (existing) {
-    // Refresh profile fields from whichever provider was just used to sign in, same as before -
-    // this can now be a linked (non-primary) provider, not just the primary one, which means the
-    // displayed name/avatar reflects whichever account you most recently logged in with.
+    // Refresh email/avatar from whichever provider was just used to sign in (this can be a linked,
+    // non-primary provider). displayName is deliberately NOT refreshed: it's user-editable via
+    // PATCH /api/me/display-name, and overwriting it on login reset edits (#682).
     const user = await prisma.user.update({
       where: { id: existing.id },
-      data: { email: profile.email, displayName: profile.displayName, avatarUrl: profile.avatarUrl, isAdmin },
+      data: { email: profile.email, avatarUrl: profile.avatarUrl, isAdmin },
     });
     return { user, isNewUser: false };
   }
