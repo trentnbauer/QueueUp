@@ -27,6 +27,8 @@ function makeGame(overrides: Partial<Game> = {}): Game {
     coverImageUrl: null,
     status: 'backlog',
     steamFullyCompleted: false,
+    myAchievements: null,
+    memberAchievements: [],
     price: { amount: null, currency: null, source: 'unavailable', historicalLow: null, lastRefreshedAt: null },
     targetPrice: null,
     manualPrice: null,
