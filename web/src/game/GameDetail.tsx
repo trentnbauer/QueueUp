@@ -39,6 +39,24 @@ function Section({ title, right, children }: { title: string; right?: ReactNode;
   );
 }
 
+type OwnershipState = 'owned' | 'wishlist' | 'none';
+
+const OWNERSHIP_MARK: Record<OwnershipState, { emoji: string; label: string }> = {
+  owned: { emoji: '✅', label: 'Owns it' },
+  wishlist: { emoji: '💭', label: 'Wishlisted' },
+  none: { emoji: '❌', label: "Doesn't own it" },
+};
+
+/** Whether a room member owns the game, has it wishlisted, or neither - in their vote row. */
+function OwnershipMark({ state }: { state: OwnershipState }) {
+  const { emoji, label } = OWNERSHIP_MARK[state];
+  return (
+    <span title={label} aria-label={label} role="img" style={st(`flex-shrink:0;font-size:15px;line-height:1;opacity:${state === 'none' ? 0.55 : 1}`)}>
+      {emoji}
+    </span>
+  );
+}
+
 /** "🏆 10/20" next to a member's vote in a room, gold once they're at 100%. */
 function MemberAchievements({ counts }: { counts: { unlocked: number; total: number } | null }) {
   if (!counts || counts.total === 0) return null;
@@ -93,6 +111,10 @@ export function GameDetail({ game, onClose, changeStatus }: { game: Game; onClos
     !isShelf && game.maxCoopPlayers != null && members.length > game.maxCoopPlayers
       ? `Only supports ${game.maxCoopPlayers}-player co-op. This room has ${members.length} members.`
       : null;
+
+  // A room member's copy of the game, shown in their vote row: owned wins over wishlisted.
+  const ownershipOf = (userId: string): OwnershipState =>
+    game.ownerIds.includes(userId) ? 'owned' : game.wishlisterIds.includes(userId) ? 'wishlist' : 'none';
 
   // A room member's Steam achievement count, shown next to their vote: the live figure fetched for
   // this modal when it's in, otherwise the stored one that came with the game.
@@ -426,6 +448,7 @@ export function GameDetail({ game, onClose, changeStatus }: { game: Game; onClos
                     <span style={st('flex:1;min-width:0;font:600 13.5px var(--font-ui);white-space:nowrap;overflow:hidden;text-overflow:ellipsis')}>
                       {m.user.id === user?.id ? 'You' : m.user.displayName}
                     </span>
+                    <OwnershipMark state={ownershipOf(m.user.id)} />
                     <MemberAchievements counts={achievementsFor(m.user.id)} />
                     {vote ? (
                       <span style={st('display:flex;align-items:center;gap:6px;font:600 12.5px var(--font-ui);color:var(--text2)')}>
@@ -439,10 +462,12 @@ export function GameDetail({ game, onClose, changeStatus }: { game: Game; onClos
                 ))}
             </div>
           )}
-        </div>
-
-        {!isShelf && game.ownership && (
-          <div style={st('display:flex;flex-direction:column;gap:10px')}>
+          {!isShelf && members.length > 0 && (
+            <span style={st('font:500 11.5px var(--font-ui);color:var(--muted);padding:0 4px')}>
+              {OWNERSHIP_MARK.owned.emoji} owns it · {OWNERSHIP_MARK.wishlist.emoji} wishlisted · {OWNERSHIP_MARK.none.emoji} doesn't own it
+            </span>
+          )}
+          {!isShelf && game.ownership && (
             <button
               type="button"
               onClick={() => ops.setOwnership(game.id, !own)}
@@ -453,15 +478,8 @@ export function GameDetail({ game, onClose, changeStatus }: { game: Game; onClos
                 {own ? 'You own this' : 'Mark as owned'} · {game.ownership.owned}/{game.ownership.total} of the squad
               </span>
             </button>
-            <OwnershipChips game={game} />
-          </div>
-        )}
-
-        {!isShelf && game.wishlist && game.wishlist.wishlisted > 0 && (
-          <div style={st('font:500 13.5px var(--font-ui);color:var(--text2)')}>
-            💭 {game.wishlist.wishlisted}/{game.wishlist.total} of the squad also want this
-          </div>
-        )}
+          )}
+        </div>
 
         {canTag && (
           <Section title="Tags">
@@ -657,24 +675,3 @@ export function GameDetail({ game, onClose, changeStatus }: { game: Game; onClos
   );
 }
 
-/** Per-member "who owns it" chips in a room. */
-function OwnershipChips({ game }: { game: Game }) {
-  const { members } = useScope();
-  const owners = new Set(game.ownerIds);
-  return (
-    <div style={st('display:flex;flex-wrap:wrap;gap:6px')}>
-      {members.map((m) => {
-        const o = owners.has(m.user.id);
-        return (
-          <span
-            key={m.user.id}
-            style={st(`display:flex;align-items:center;gap:7px;height:32px;padding:0 12px 0 4px;border-radius:999px;background:${o ? 'var(--mintSoft)' : 'var(--chip)'};color:${o ? 'var(--mint)' : 'var(--faint)'};font:500 13px var(--font-ui)`)}
-          >
-            <span style={st(`width:24px;height:24px;border-radius:50%;background:${m.user.avatarColor};opacity:${o ? 1 : 0.3}`)} />
-            {m.user.displayName}
-          </span>
-        );
-      })}
-    </div>
-  );
-}
