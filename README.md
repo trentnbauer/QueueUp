@@ -24,6 +24,7 @@ Some other things to note
 - Marking a game as owned syncs between rooms
 - Discord webhooks for alerts, with a switch per kind of event (games added, suggestions, votes, spins, status changes, reviews, members, member activity)
 - Games can be hidden from friends and your public profile
+- `PRIVATE_INSTANCE=true` makes everyone on the server a friend of everyone else (for a server shared by one group); see `.env.example`
 
 # Running your own instance of QueueUp
 ## Prerequisites:
