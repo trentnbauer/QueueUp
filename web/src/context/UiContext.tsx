@@ -20,7 +20,6 @@ export type DialogKey =
   | 'playnite'
   | 'changelog'
   | 'dlc'
-  | 'statusPicker'
   | 'review';
 
 export type AddRoomStep = 'options' | 'create' | 'join' | 'browse';

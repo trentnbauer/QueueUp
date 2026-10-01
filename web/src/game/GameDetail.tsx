@@ -356,7 +356,7 @@ export function GameDetail({ game, onClose, changeStatus }: { game: Game; onClos
           <div style={st('display:flex;justify-content:space-between;align-items:baseline')}>
             <span style={st(H)}>{isShelf ? 'Your hype' : 'Squad vote'}</span>
             <span style={st('font:500 12px var(--font-mono);color:var(--muted)')}>
-              {game.votes.length ? `${score >= 0 ? '+' : ''}${score}` : '—'} · {game.votes.length} votes
+              {game.votes.length ? `${score >= 0 ? '+' : ''}${score}` : '—'} · {game.votes.length} {game.votes.length === 1 ? 'vote' : 'votes'}
             </span>
           </div>
           <div style={st('display:grid;grid-template-columns:repeat(5,1fr);gap:6px')}>

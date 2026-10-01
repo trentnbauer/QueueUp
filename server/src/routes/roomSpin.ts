@@ -18,6 +18,7 @@ import { requireMembership, getRoom } from '../services/roomAccess.js';
 import { gameInclude, serializeGames } from '../services/gameSerializer.js';
 import { unlockBadges } from '../services/badges.js';
 import { logRoomActivity } from '../services/roomActivity.js';
+import { applySpinFilters, parseSpinFilters, type SpinFilters } from '../services/spinFilters.js';
 
 // A spin nobody's touched in this long is treated as abandoned (someone started it, then closed
 // their laptop) rather than wedging the room forever - the next GET after this window just
@@ -41,31 +42,6 @@ const SPIN_WAITING_ROOM_MS = 30_000;
 
 function isStale(spin: { updatedAt: Date }): boolean {
   return Date.now() - spin.updatedAt.getTime() > SPIN_STALE_MS;
-}
-
-/** Optional narrowing the Spin dialog offers on top of the room's own pool rules (issue: v2 UI). */
-interface SpinFilters {
-  /** Only games the caller owns or that cost at most this much. */
-  maxPrice?: number;
-  /** Only games with a known time to beat of at most this many hours. */
-  maxTtb?: number;
-  /** Only games every current member owns. */
-  everyoneOwns?: boolean;
-}
-
-function parseSpinFilters(body: unknown): SpinFilters {
-  const b = (body ?? {}) as Record<string, unknown>;
-  const num = (v: unknown) => (typeof v === 'number' && Number.isFinite(v) && v > 0 ? v : undefined);
-  return { maxPrice: num(b.maxPrice), maxTtb: num(b.maxTtb), everyoneOwns: b.everyoneOwns === true };
-}
-
-function applySpinFilters(candidates: Game[], f: SpinFilters): Game[] {
-  return candidates.filter((g) => {
-    if (f.maxPrice && !(g.youOwn || (g.price.amount !== null && Number(g.price.amount) <= f.maxPrice))) return false;
-    if (f.maxTtb && !(g.timeToBeatHours !== null && g.timeToBeatHours <= f.maxTtb)) return false;
-    if (f.everyoneOwns && !(g.ownership && g.ownership.owned === g.ownership.total && g.ownership.total > 0)) return false;
-    return true;
-  });
 }
 
 type RoomSpinRow = Awaited<ReturnType<typeof prisma.roomSpin.findUniqueOrThrow>>;

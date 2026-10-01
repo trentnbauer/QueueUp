@@ -6,24 +6,18 @@ QUEUEUP IS UNDERGOING MAJOR CHANGES - YOUR DATA MAY BE WIPED - I WOULD RECOMMEND
 
 A self-hosted game backlog and voting system for a friend group — a private "Personal Shelf" plus shared "Communal Rooms," real pricing from gg.deals, and a 5-emoji voting scale.
 
-QueueUp has been built with a Discord-esque look, with your "Personal shelf" listed first, then "Communal rooms" (public or shared) underneath and finally the "add room" button. The rooms are where you queue your games with your friends.
+QueueUp has a phone layout and a three-column desktop layout. Your "Personal Shelf" is listed first, then your rooms (public or shared), then the add-room button. The rooms are where you queue your games with your friends. Friends have their own activity feed, and a finished game can carry a short review that shows up there and on your public profile.
 
-<img width="1684" height="1229" alt="image" src="https://github.com/user-attachments/assets/a36e14fb-b4be-4fc5-ba17-5efaa8d467b1" />
-
-The app also features an interactive 'pick a game' menu with multiple themes
-
-<img width="300" alt="image" src="https://github.com/user-attachments/assets/99959171-af9f-4052-b9b7-3a40aecdcd07" /><img width="300" alt="image" src="https://github.com/user-attachments/assets/401f278e-11b0-4e03-9aff-023f05a66fb9" /><img width="300" alt="image" src="https://github.com/user-attachments/assets/a3c75503-d510-4947-ae35-02a93da72b77" />
-
-
-The pick a game system has some logic behind its recommendations,
+The app also features an interactive "What are we playing?" pick-a-game reel. The pick-a-game system has some logic behind its recommendations,
 - Games of the same genre as last completed are ranked lower (to reduce the chance of playing shooter after shooter after shooter)
 - Voting on a game increases its chance to be picked
-- maximum game cost / everyone must own it toggle
+- Price, length and "everyone owns it" filters, plus a per-room price limit
 
 Some other things to note
 - Rooms are set per console
 - Marking a game as owned syncs between rooms
-- Discord webhooks for alerts
+- Discord webhooks for alerts, with a switch per kind of event (games added, suggestions, votes, spins, status changes, reviews, members, member activity)
+- Games can be hidden from friends and your public profile
 
 # Running your own instance of QueueUp
 ## Prerequisites:
@@ -33,7 +27,7 @@ Some other things to note
 - A free IGDB app via [Twitch developer console](https://dev.twitch.tv/console/apps) (Category: "Application Integration") — used for game search/identity
 - A free [Steam API key](https://steamcommunity.com/dev) for importing Steam games (required to match agmes with gg.deals)
 - Optional: A free [Scandex API key](https://scandex.gamery.app/documentation/pricing/) - used for importing phyiscal games via barcode scan
-- Optional: Install the [QueueUp Playnite extension](https://github.com/trentnbauer/QueueUpPlayniteExtension) to push your entire Playnite library (including Xbox, PlayStation, and Nintendo games) into QueueUp - set up from Import Library → Import from other clients (Playnite) once your instance is running
+- Optional: Install the [QueueUp Playnite extension](https://github.com/trentnbauer/QueueUpPlayniteExtension) to push your entire Playnite library (including Xbox, PlayStation, and Nintendo games) into QueueUp - set up from Profile → Sync Playnite (or Add game → Import library) once your instance is running
 - A sign-in method (Google, Discord, Steam, or a generic OIDC provider like Authelia/Keycloak/Authentik)
 
 ## Docker Compose
