@@ -1,5 +1,5 @@
 import type { FastifyInstance } from 'fastify';
-import { randomBytes } from 'node:crypto';
+import { randomInt } from 'node:crypto';
 import { Prisma } from '@prisma/client';
 import {
   BADGE_DEFINITIONS,
@@ -30,9 +30,8 @@ function toFriendUser(u: { id: string; displayName: string; avatarColor: string;
 /** Friend codes avoid look-alike characters (0/O, 1/I) since people type them in by hand. */
 const CODE_ALPHABET = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
 function generateFriendCode(): string {
-  const bytes = randomBytes(8);
   let out = '';
-  for (let i = 0; i < 8; i++) out += CODE_ALPHABET[bytes[i] % CODE_ALPHABET.length];
+  for (let i = 0; i < 8; i++) out += CODE_ALPHABET[randomInt(CODE_ALPHABET.length)];
   return `${out.slice(0, 4)}-${out.slice(4)}`;
 }
 
