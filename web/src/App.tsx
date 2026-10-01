@@ -12,7 +12,7 @@ import { useUi } from './context/UiContext';
 import { HomeView } from './home/HomeView';
 import { AdminPage } from './pages/AdminPage';
 import { JoinPage, LoginPage, PublicProfilePage } from './pages/EntryPages';
-import { ActivityPage, FriendProfilePage } from './pages/FriendPages';
+import { ActivityPage } from './pages/FriendPages';
 import { AchievementsPage, InsightsPage, YearPage } from './pages/InsightPages';
 import { AppShell } from './shell/AppShell';
 import { Onboarding } from './shell/Onboarding';
@@ -27,6 +27,11 @@ const PENDING_INVITE_KEY = 'sq-pending-invite';
 function JoinRoute() {
   const { inviteCode = '' } = useParams();
   return <JoinPage code={inviteCode} />;
+}
+
+function FriendRedirect() {
+  const { userId = '' } = useParams();
+  return <Navigate to={`/u/${userId}`} replace />;
 }
 
 export default function App() {
@@ -119,7 +124,7 @@ export default function App() {
             <Route path="/" element={<HomeView />} />
             <Route path="/room/:roomId" element={<HomeView />} />
             <Route path="/activity" element={<ActivityPage />} />
-            <Route path="/friends/:userId" element={<FriendProfilePage />} />
+            <Route path="/friends/:userId" element={<FriendRedirect />} />
             <Route path="/insights" element={<InsightsPage />} />
             <Route path="/achievements" element={<AchievementsPage />} />
             <Route path="/year" element={<YearPage />} />

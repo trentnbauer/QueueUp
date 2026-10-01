@@ -3,7 +3,12 @@ import { Link, useNavigate } from 'react-router';
 import { REVIEW_CATEGORIES, type PublicUserProfile } from '@queueup/shared';
 import { authApi } from '../api/auth';
 import { publicProfileApi } from '../api/publicProfile';
+import { useAuth } from '../context/AuthContext';
+import { useConfirm } from '../context/ConfirmContext';
 import { useUi } from '../context/UiContext';
+import { useFriendProfile, useFriends } from '../hooks/useFriends';
+import { Dialog } from '../ui/Dialog';
+import { applyFeedFilter, FeedGroups, FilterChips, type FeedFilter } from './feed';
 import { useRooms } from '../hooks/useRooms';
 import { useVersion } from '../hooks/useVersion';
 import { REVIEW_EMOJI, reviewAverage } from '../lib/gameView';
@@ -120,13 +125,14 @@ export function JoinPage({ code }: { code: string }) {
   );
 }
 
-/** `/u/:id`: the shareable, signed-out-friendly profile. */
+/** `/u/:id`: one profile page for everyone - the anonymous shareable view, and (when signed in) the
+ * same page with a friend's activity and controls (it replaces the old separate /friends/:id page). */
 export function PublicProfilePage({ userId, signedIn }: { userId: string; signedIn: boolean }) {
   const [profile, setProfile] = useState<PublicUserProfile | null>(null);
   const [state, setState] = useState<'loading' | 'ok' | 'missing'>('loading');
+  const [modal, setModal] = useState<'achievements' | 'library' | null>(null);
   const beatenRef = useRef<HTMLDivElement>(null);
   const playingRef = useRef<HTMLDivElement>(null);
-  const achRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     let cancelled = false;
@@ -145,6 +151,20 @@ export function PublicProfilePage({ userId, signedIn }: { userId: string; signed
   }, [userId]);
 
   const scrollTo = (ref: React.RefObject<HTMLDivElement>) => () => ref.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  const tile = (value: number, label: string, onClick: () => void, arrow: string) => (
+    <button
+      key={label}
+      type="button"
+      onClick={onClick}
+      className="hv-surf2"
+      style={st('min-width:104px;display:flex;flex-direction:column;align-items:flex-start;gap:2px;padding:14px 18px;border-radius:18px;border:1px solid transparent;background:var(--surf);color:var(--text);text-align:left')}
+    >
+      <span style={st('font:700 30px/1 var(--font-display)')}>{value}</span>
+      <span style={st('font:400 12.5px var(--font-ui);color:var(--muted)')}>
+        {label} {arrow}
+      </span>
+    </button>
+  );
 
   return (
     <div style={st('min-height:100vh;background:var(--bg);color:var(--text)')}>
@@ -159,40 +179,30 @@ export function PublicProfilePage({ userId, signedIn }: { userId: string; signed
             </Link>
           </div>
           {state === 'ok' && profile && (
-            <div style={st('display:flex;flex-wrap:wrap;align-items:flex-end;gap:24px 40px;padding:36px 0 40px')}>
+            <div style={st('display:flex;flex-wrap:wrap;align-items:flex-end;gap:24px 40px;padding:30px 0 34px')}>
               <div style={st('flex:1 1 360px;display:flex;align-items:center;gap:22px;min-width:0')}>
-                <Avatar name={profile.displayName} color={profile.avatarColor} avatarUrl={profile.avatarUrl} size={112} fontSize={46} style={{ boxShadow: '0 0 0 5px var(--bg)' }} />
+                <Avatar name={profile.displayName} color={profile.avatarColor} avatarUrl={profile.avatarUrl} size={104} fontSize={42} style={{ boxShadow: '0 0 0 5px var(--bg)' }} />
                 <span style={st('display:flex;flex-direction:column;gap:6px;min-width:0')}>
-                  <span style={st('font:700 clamp(32px,6vw,52px)/1 var(--font-display);letter-spacing:-0.035em;overflow-wrap:anywhere')}>{profile.displayName}</span>
+                  <span style={st('font:700 clamp(30px,6vw,48px)/1 var(--font-display);letter-spacing:-0.035em;overflow-wrap:anywhere')}>{profile.displayName}</span>
                   <span style={st('font:400 14.5px var(--font-ui);color:var(--muted)')}>
                     On QueueUp since {new Date(profile.memberSince).toLocaleDateString(undefined, { month: 'long', year: 'numeric' })}
                   </span>
                   {profile.systems.length > 0 && (
                     <span style={st('display:flex;flex-wrap:wrap;gap:6px;margin-top:6px')}>
                       {profile.systems.map((s) => (
-                        <span key={s} style={st('height:26px;padding:0 10px;border-radius:999px;background:var(--chip);color:var(--text2);font:600 12px var(--font-ui);display:flex;align-items:center')}>{s}</span>
+                        <span key={s} style={st('height:26px;padding:0 10px;border-radius:999px;background:var(--chip);color:var(--text2);font:600 12px var(--font-ui);display:flex;align-items:center')}>
+                          {s}
+                        </span>
                       ))}
                     </span>
                   )}
                 </span>
               </div>
               <div style={st('display:flex;gap:10px;flex-wrap:wrap')}>
-                {[
-                  [profile.beatenGameCount, 'beaten', beatenRef],
-                  [profile.currentlyPlaying.length, 'playing', playingRef],
-                  [profile.badges.length, 'achievements', achRef],
-                ].map(([v, l, ref]) => (
-                  <button
-                    key={String(l)}
-                    type="button"
-                    onClick={scrollTo(ref as React.RefObject<HTMLDivElement>)}
-                    className="hv-surf2"
-                    style={st('min-width:110px;display:flex;flex-direction:column;align-items:flex-start;gap:2px;padding:16px 20px;border-radius:18px;border:1px solid transparent;background:var(--surf);color:var(--text);text-align:left')}
-                  >
-                    <span style={st('font:700 32px/1 var(--font-display)')}>{v as number}</span>
-                    <span style={st('font:400 12.5px var(--font-ui);color:var(--muted)')}>{l as string} ↓</span>
-                  </button>
-                ))}
+                {tile(profile.currentlyPlaying.length, 'playing', scrollTo(playingRef), '↓')}
+                {tile(profile.beatenGameCount, 'beaten', scrollTo(beatenRef), '↓')}
+                {tile(profile.library.length, 'library', () => setModal('library'), '›')}
+                {tile(profile.badges.length, 'achievements', () => setModal('achievements'), '›')}
               </div>
             </div>
           )}
@@ -203,85 +213,145 @@ export function PublicProfilePage({ userId, signedIn }: { userId: string; signed
       {state === 'missing' && <div style={st('padding:48px 24px;text-align:center;color:var(--muted)')}>This profile isn't public, or doesn't exist.</div>}
 
       {state === 'ok' && profile && (
-        <div style={st('max-width:1120px;margin:0 auto;padding:36px clamp(16px,4vw,40px) 56px;display:flex;flex-wrap:wrap;gap:40px;align-items:flex-start')}>
-          <div ref={beatenRef} style={st('flex:2 1 520px;min-width:0;display:flex;flex-direction:column;gap:14px;scroll-margin-top:16px')}>
+        <div style={st('max-width:1120px;margin:0 auto;padding:32px clamp(16px,4vw,40px) 56px;display:flex;flex-direction:column;gap:40px')}>
+          <div ref={playingRef} style={st('display:flex;flex-direction:column;gap:14px;scroll-margin-top:16px')}>
+            <span style={st('font:700 26px var(--font-display);letter-spacing:-0.02em')}>Currently playing</span>
+            {profile.currentlyPlaying.length === 0 && <span style={st('font:400 14px var(--font-ui);color:var(--muted)')}>Nothing right now.</span>}
+            <div style={st('display:flex;flex-wrap:wrap;gap:20px')}>
+              {profile.currentlyPlaying.map((g) => (
+                <div key={g.id} style={st('width:min(100%,200px);display:flex;flex-direction:column;gap:8px')}>
+                  <Cover title={g.title} url={g.coverImageUrl} width="100%" radius={18} style={{ boxShadow: '0 20px 44px oklch(0 0 0 / 0.35)' }} />
+                  <span style={st('font:700 16px var(--font-display)')}>{g.title}</span>
+                  <span style={st('font:400 12.5px var(--font-ui);color:var(--muted)')}>{g.platform}</span>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          {profile.upNext.length > 0 && (
+            <div style={st('display:flex;flex-direction:column;gap:12px')}>
+              <span style={st('font:700 20px var(--font-display)')}>Up next</span>
+              <div style={st('display:grid;grid-template-columns:repeat(auto-fill,minmax(110px,1fr));gap:14px')}>
+                {profile.upNext.map((g, i) => (
+                  <div key={g.id} style={st('min-width:0;display:flex;flex-direction:column;gap:6px')}>
+                    <Cover title={g.title} url={g.coverImageUrl} width="100%" radius={14} />
+                    <span style={st('font:600 12.5px var(--font-ui);white-space:nowrap;overflow:hidden;text-overflow:ellipsis')}>
+                      <span style={st('font-family:var(--font-mono);color:var(--muted)')}>{i + 1}. </span>
+                      {g.title}
+                    </span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          <div ref={beatenRef} style={st('display:flex;flex-direction:column;gap:10px;scroll-margin-top:16px')}>
             <span style={st('display:flex;align-items:baseline;gap:10px')}>
-              <span style={st('font:700 24px var(--font-display);letter-spacing:-0.02em')}>Beaten</span>
-              <span style={st('font:500 12.5px var(--font-mono);color:var(--muted)')}>WITH REVIEWS</span>
+              <span style={st('font:700 16px var(--font-display)')}>Beaten</span>
+              <span style={st('font:500 11.5px var(--font-mono);color:var(--muted)')}>{profile.beatenGameCount}</span>
             </span>
             {profile.beatenGames.length === 0 && <span style={st('font:400 14px var(--font-ui);color:var(--muted)')}>Nothing beaten yet.</span>}
-            <div style={st('display:grid;grid-template-columns:repeat(auto-fill,minmax(min(100%,300px),1fr));gap:12px')}>
+            <div style={st('display:grid;grid-template-columns:repeat(auto-fill,minmax(min(100%,230px),1fr));gap:6px')}>
               {profile.beatenGames.map((g) => {
                 const avg = g.review ? reviewAverage(g.review) : null;
                 return (
-                  <div key={g.id} style={st('display:flex;gap:14px;padding:12px;border-radius:18px;background:var(--surf)')}>
-                    <Cover title={g.title} url={g.coverImageUrl} width={52} radius={10} />
-                    <div style={st('flex:1;min-width:0;display:flex;flex-direction:column;gap:6px')}>
-                      <div style={st('display:flex;align-items:flex-start;gap:10px')}>
-                        <span style={st('flex:1;min-width:0;display:flex;flex-direction:column;gap:2px')}>
-                          <span style={st('font:600 15px var(--font-ui)')}>{g.title}</span>
-                          <span style={st('font:400 12.5px var(--font-ui);color:var(--muted)')}>{[g.genre?.split(',')[0], g.replaying ? 'Replaying' : null].filter(Boolean).join(' · ')}</span>
-                        </span>
-                        {avg !== null && (
-                          <span style={st('flex-shrink:0;height:28px;padding:0 10px;border-radius:999px;background:var(--accSoft2);color:var(--accText);font:700 13px var(--font-display);display:flex;align-items:center')}>
-                            {avg.toFixed(1)} / 5
-                          </span>
-                        )}
-                      </div>
-                      {g.review && (
-                        <>
-                          <div style={st('display:flex;flex-wrap:wrap;gap:4px 12px')}>
-                            {REVIEW_CATEGORIES.filter((c) => g.review![c.key]).map((c) => (
-                              <span key={c.key} style={st('display:flex;align-items:center;gap:4px;font:500 12px var(--font-ui);color:var(--muted)')}>
-                                {c.label}
-                                <span style={st('font-size:14px')}>{REVIEW_EMOJI[g.review![c.key] as number]?.e}</span>
-                              </span>
-                            ))}
-                          </div>
-                          {g.review.note && <span style={st('font:italic 400 13px/1.45 var(--font-ui);color:var(--text2);text-wrap:pretty')}>“{g.review.note}”</span>}
-                        </>
-                      )}
-                    </div>
+                  <div key={g.id} title={g.review?.note ?? undefined} style={st('display:flex;align-items:center;gap:10px;padding:6px 10px 6px 6px;border-radius:12px;background:var(--surf)')}>
+                    <Cover title={g.title} url={g.coverImageUrl} width={30} radius={6} />
+                    <span style={st('flex:1;min-width:0;font:600 13px var(--font-ui);white-space:nowrap;overflow:hidden;text-overflow:ellipsis')}>{g.title}</span>
+                    {avg !== null && <span style={st('flex-shrink:0;font:700 12px var(--font-display);color:var(--accText)')}>{avg.toFixed(1)}</span>}
                   </div>
                 );
               })}
             </div>
           </div>
-          <div style={st('flex:1 1 300px;min-width:0;display:flex;flex-direction:column;gap:32px')}>
-            <div ref={playingRef} style={st('display:flex;flex-direction:column;gap:12px;scroll-margin-top:16px')}>
-              <span style={st('font:700 18px var(--font-display)')}>Currently playing</span>
-              {profile.currentlyPlaying.length === 0 && <span style={st('font:400 14px var(--font-ui);color:var(--muted)')}>Nothing right now.</span>}
-              <div style={st('display:grid;grid-template-columns:repeat(auto-fill,minmax(96px,120px));gap:12px')}>
-                {profile.currentlyPlaying.map((g) => (
-                  <div key={g.id} style={st('min-width:0;display:flex;flex-direction:column;gap:6px')}>
-                    <Cover title={g.title} url={g.coverImageUrl} width="100%" radius={14} />
-                    <span style={st('font:600 13px var(--font-ui);white-space:nowrap;overflow:hidden;text-overflow:ellipsis')}>{g.title}</span>
-                  </div>
-                ))}
-              </div>
-            </div>
-            <div ref={achRef} style={st('display:flex;flex-direction:column;gap:12px;scroll-margin-top:16px')}>
-              <span style={st('font:700 18px var(--font-display)')}>Achievements</span>
-              {profile.badges.length === 0 && <span style={st('font:400 14px var(--font-ui);color:var(--muted)')}>No achievements unlocked yet.</span>}
-              <div style={st('display:flex;flex-wrap:wrap;gap:8px')}>
-                {profile.badges.map((b) => (
-                  <span key={b.key} title={b.description} style={st('display:flex;align-items:center;gap:8px;height:40px;padding:0 14px 0 10px;border-radius:999px;background:var(--surf);font:600 13px var(--font-ui)')}>
-                    <span style={st('font-size:18px')}>{b.emoji}</span>
-                    {b.name}
-                  </span>
-                ))}
-              </div>
-            </div>
-            <div style={st('display:flex;flex-direction:column;align-items:flex-start;gap:10px;padding:22px;border-radius:22px;background:linear-gradient(140deg, var(--hero1), var(--surf))')}>
+
+          {signedIn && profile.viewer === 'friend' && <FriendExtras profile={profile} />}
+
+          {!signedIn && (
+            <div style={st('display:flex;flex-direction:column;align-items:flex-start;gap:10px;padding:22px;border-radius:22px;background:linear-gradient(140deg, var(--hero1), var(--surf));max-width:420px')}>
               <span style={st('font:700 20px var(--font-display)')}>Pick a game, together.</span>
               <span style={st('font:400 13.5px/1.45 var(--font-ui);color:var(--muted)')}>Track your backlog and vote on what's next with friends.</span>
               <Link to="/" style={st('height:44px;padding:0 20px;border-radius:999px;background:var(--acc);color:var(--ink);font:700 14px var(--font-ui);display:flex;align-items:center;text-decoration:none')}>
                 Get QueueUp
               </Link>
             </div>
-          </div>
+          )}
         </div>
       )}
+
+      {modal === 'achievements' && profile && (
+        <Dialog title="Achievements" onClose={() => setModal(null)} width={560}>
+          {profile.badges.length === 0 && <span style={st('font:400 14px var(--font-ui);color:var(--muted)')}>No achievements unlocked yet.</span>}
+          {profile.badges.map((b) => (
+            <div key={b.key} style={st('display:flex;align-items:center;gap:14px;padding:10px 12px;border-radius:16px;background:var(--surf)')}>
+              <span style={st('font-size:28px')}>{b.emoji}</span>
+              <span style={st('flex:1;min-width:0;display:flex;flex-direction:column;gap:2px')}>
+                <span style={st('font:700 14.5px var(--font-ui)')}>{b.name}</span>
+                <span style={st('font:400 12.5px var(--font-ui);color:var(--muted)')}>{b.description}</span>
+              </span>
+              <span style={st('flex-shrink:0;text-align:right;display:flex;flex-direction:column')}>
+                <span style={st('font:700 15px var(--font-display);color:var(--accText)')}>{b.rarityPercent}%</span>
+                <span style={st('font:400 11px var(--font-ui);color:var(--muted)')}>of players</span>
+              </span>
+            </div>
+          ))}
+        </Dialog>
+      )}
+      {modal === 'library' && profile && (
+        <Dialog title={`Library · ${profile.library.length}`} onClose={() => setModal(null)} width={640}>
+          {profile.library.length === 0 && <span style={st('font:400 14px var(--font-ui);color:var(--muted)')}>No games marked as owned yet.</span>}
+          <div style={st('display:grid;grid-template-columns:repeat(auto-fill,minmax(100px,1fr));gap:12px')}>
+            {profile.library.map((g) => (
+              <div key={g.id} style={st('min-width:0;display:flex;flex-direction:column;gap:5px')}>
+                <Cover title={g.title} url={g.coverImageUrl} width="100%" radius={12} />
+                <span style={st('font:600 12px var(--font-ui);white-space:nowrap;overflow:hidden;text-overflow:ellipsis')}>{g.title}</span>
+              </div>
+            ))}
+          </div>
+        </Dialog>
+      )}
+    </div>
+  );
+}
+
+/** What only a friend sees on a profile: how long you've been friends, shared rooms, their feed. */
+function FriendExtras({ profile }: { profile: PublicUserProfile }) {
+  const { user } = useAuth();
+  const navigate = useNavigate();
+  const confirm = useConfirm();
+  const ui = useUi();
+  const friends = useFriends();
+  const { data } = useFriendProfile(profile.userId);
+  const [filter, setFilter] = useState<FeedFilter>('all');
+  const entries = applyFeedFilter(data?.activity ?? [], filter);
+
+  async function remove() {
+    const ok = await confirm({
+      title: `Remove ${profile.displayName}?`,
+      message: "They won't see your activity and you won't see theirs. You can add each other again with a friend code.",
+      confirmLabel: 'Remove friend',
+      danger: true,
+    });
+    if (!ok) return;
+    await friends.unfriend(profile.userId);
+    ui.notify(`${profile.displayName} removed`);
+    navigate('/activity');
+  }
+
+  return (
+    <div style={st('display:flex;flex-direction:column;gap:12px')}>
+      <span style={st('font:700 20px var(--font-display)')}>Activity</span>
+      {data && (
+        <span style={st('font:400 13px var(--font-ui);color:var(--muted)')}>
+          Friends since {new Date(data.since).toLocaleDateString(undefined, { month: 'short', year: 'numeric' })} · {data.sharedRoomCount} shared room{data.sharedRoomCount === 1 ? '' : 's'}
+        </span>
+      )}
+      <FilterChips value={filter} onChange={setFilter} />
+      <FeedGroups entries={entries} me={user?.id} compact />
+      {data && entries.length === 0 && <div style={st('padding:12px 0;color:var(--muted);font-size:14px')}>Nothing in this category yet.</div>}
+      <button type="button" onClick={remove} style={st('align-self:flex-start;height:40px;border:none;background:none;padding:0;color:var(--danger);font:600 14px var(--font-ui)')}>
+        Remove friend
+      </button>
     </div>
   );
 }
