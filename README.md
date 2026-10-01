@@ -8,10 +8,16 @@ A self-hosted game backlog and voting system for a friend group — a private "P
 
 QueueUp has a phone layout and a three-column desktop layout. Your "Personal Shelf" is listed first, then your rooms (public or shared), then the add-room button. The rooms are where you queue your games with your friends. Friends have their own activity feed, and a finished game can carry a short review that shows up there and on your public profile.
 
+<img width="900" alt="A room on desktop: sidebar, queue and the at-a-glance panel" src="docs/screenshots/desktop-room.png" />
+
+<img width="300" alt="A room on a phone" src="docs/screenshots/mobile-room.png" /> <img width="600" alt="Game detail panel" src="docs/screenshots/desktop-detail.png" />
+
 The app also features an interactive "What are we playing?" pick-a-game reel. The pick-a-game system has some logic behind its recommendations,
 - Games of the same genre as last completed are ranked lower (to reduce the chance of playing shooter after shooter after shooter)
 - Voting on a game increases its chance to be picked
 - Price, length and "everyone owns it" filters, plus a per-room price limit
+
+<img width="700" alt="The pick-a-game reel (light theme)" src="docs/screenshots/desktop-spin-light.png" />
 
 Some other things to note
 - Rooms are set per console
