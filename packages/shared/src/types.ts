@@ -962,7 +962,13 @@ export interface PlayLogEntry {
 
 /** The integration credentials that can be set via env var or, as a fallback, via the admin
  * Settings panel (see server/src/services/configResolver.ts). */
-export type IntegrationConfigKey = 'GGDEALS_API_KEY' | 'IGDB_CLIENT_ID' | 'IGDB_CLIENT_SECRET' | 'SCANDEX_API_KEY';
+export type IntegrationConfigKey =
+  | 'GGDEALS_API_KEY'
+  | 'IGDB_CLIENT_ID'
+  | 'IGDB_CLIENT_SECRET'
+  | 'SCANDEX_API_KEY'
+  | 'TURNSTILE_SITE_KEY'
+  | 'TURNSTILE_SECRET_KEY';
 
 /** Admin-only views — never sent to non-admin users. */
 /** One backup file in the admin Backups list. */
@@ -1015,6 +1021,10 @@ export interface AdminIntegrationStatus {
    * the camera-scan option degrades to "couldn't look that up," search still works normally. */
   scandexApiKeyConfigured: boolean;
   scandexApiKeySource: ConfigSource;
+  /** Cloudflare Turnstile captcha on the sign-in page (issue #665) - on only when both keys are set. */
+  turnstileConfigured: boolean;
+  turnstileSiteKeySource: ConfigSource;
+  turnstileSecretKeySource: ConfigSource;
   devFakeAuth: boolean;
   activeAuthProviders: string[];
 }

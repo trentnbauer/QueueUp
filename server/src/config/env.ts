@@ -142,6 +142,11 @@ export const envSchema = z.object({
   // camera-scan option (search still works) rather than blocking the app from starting.
   SCANDEX_API_KEY: optionalEnvVar(z.string().min(1)),
 
+  // Cloudflare Turnstile (issue #665) - a captcha on the sign-in page. Both keys are needed to turn
+  // it on; unset means no captcha. Same env-or-admin-Settings-fallback pattern as the keys above.
+  TURNSTILE_SITE_KEY: optionalEnvVar(z.string().min(1)),
+  TURNSTILE_SECRET_KEY: optionalEnvVar(z.string().min(1)),
+
   // Comma-separated emails granted administrator access on login.
   ADMIN_EMAILS: z.string().optional().default(''),
 });

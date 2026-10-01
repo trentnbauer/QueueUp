@@ -23,6 +23,8 @@ const CONFIG_KEY_LABELS: Record<ConfigKey, string> = {
   IGDB_CLIENT_ID: 'IGDB Client ID',
   IGDB_CLIENT_SECRET: 'IGDB Client Secret',
   SCANDEX_API_KEY: 'ScanDex API key',
+  TURNSTILE_SITE_KEY: 'Turnstile site key',
+  TURNSTILE_SECRET_KEY: 'Turnstile secret key',
 };
 
 function envValueFor(key: ConfigKey): string | undefined {
@@ -35,6 +37,10 @@ function envValueFor(key: ConfigKey): string | undefined {
       return env.IGDB_CLIENT_SECRET;
     case 'SCANDEX_API_KEY':
       return env.SCANDEX_API_KEY;
+    case 'TURNSTILE_SITE_KEY':
+      return env.TURNSTILE_SITE_KEY;
+    case 'TURNSTILE_SECRET_KEY':
+      return env.TURNSTILE_SECRET_KEY;
   }
 }
 
@@ -43,7 +49,7 @@ export default async function adminRoutes(app: FastifyInstance) {
     const userId = await request.requireAuth();
     await requireAdmin(userId);
 
-    const [ggDealsApiKeySource, igdbClientIdSource, igdbClientSecretSource, scandexApiKeySource] = await Promise.all(
+    const [ggDealsApiKeySource, igdbClientIdSource, igdbClientSecretSource, scandexApiKeySource, turnstileSiteKeySource, turnstileSecretKeySource] = await Promise.all(
       CONFIG_KEYS.map((key) => getConfigSource(key, envValueFor(key))),
     );
 
@@ -55,6 +61,9 @@ export default async function adminRoutes(app: FastifyInstance) {
       igdbClientSecretSource,
       scandexApiKeyConfigured: scandexApiKeySource !== 'unset',
       scandexApiKeySource,
+      turnstileConfigured: turnstileSiteKeySource !== 'unset' && turnstileSecretKeySource !== 'unset',
+      turnstileSiteKeySource,
+      turnstileSecretKeySource,
       devFakeAuth: env.DEV_FAKE_AUTH,
       activeAuthProviders: Array.from(app.authProviders.keys()),
     };

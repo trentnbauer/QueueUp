@@ -62,6 +62,9 @@ services:
       IGDB_CLIENT_ID: ${IGDB_CLIENT_ID}                        # Required for game search to work
       IGDB_CLIENT_SECRET: ${IGDB_CLIENT_SECRET}                # Required for game search to work
       SCANDEX_API_KEY: ${SCANDEX_API_KEY}                      # For barcode scanning for importing physical games
+      ## Sign-in captcha (Cloudflare Turnstile) - set both to turn it on
+      TURNSTILE_SITE_KEY: ${TURNSTILE_SITE_KEY}
+      TURNSTILE_SECRET_KEY: ${TURNSTILE_SECRET_KEY}
       # Backend Config
       DEV_FAKE_AUTH: ${DEV_FAKE_AUTH:-false}                   # Testing - enables automatic login with admin account for everyone accesing QueueUp
       ADMIN_EMAILS: ${ADMIN_EMAILS}                            # QueueUp Administrators

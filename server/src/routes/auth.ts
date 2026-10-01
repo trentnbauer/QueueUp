@@ -5,6 +5,7 @@ import { prisma } from '../db/client.js';
 import { getOrCreateUser, primaryProviderOf } from '../plugins/auth.js';
 import { toUserDto } from '../util/dto.js';
 import { HttpError } from '../util/httpError.js';
+import { getTurnstileConfig, verifyTurnstileToken } from '../services/turnstile.js';
 import { extractSteamId64, resolveSteamId64 } from '../services/steamLibrary.js';
 import { setOwnedPlatforms, setProfileSlug, setPublicProfileEnabled } from '../services/userSettings.js';
 import { logAdminAction } from '../services/adminAuditLog.js';
@@ -113,15 +114,17 @@ async function unlinkAccount(userId: string, provider: string): Promise<void> {
 
 export default async function authRoutes(app: FastifyInstance) {
   app.get('/api/auth/providers', async () => {
-    if (env.DEV_FAKE_AUTH) return { providers: [] };
-    return { providers: Array.from(app.authProviders.keys()) };
+    if (env.DEV_FAKE_AUTH) return { providers: [], turnstileSiteKey: null };
+    // The sign-in page renders the Turnstile widget (issue #665) when this is set.
+    const turnstile = await getTurnstileConfig();
+    return { providers: Array.from(app.authProviders.keys()), turnstileSiteKey: turnstile?.siteKey ?? null };
   });
 
   // Login/callback get a tighter limit than the global default - these are the endpoints an
   // attacker would actually hammer to brute-force or abuse a sign-in flow.
   const authRateLimit = { config: { rateLimit: { max: 20, timeWindow: '1 minute' } } };
 
-  app.get<{ Params: { provider: string } }>('/auth/:provider/login', authRateLimit, async (request, reply) => {
+  app.get<{ Params: { provider: string }; Querystring: { captcha?: string } }>('/auth/:provider/login', authRateLimit, async (request, reply) => {
     if (env.DEV_FAKE_AUTH) {
       return reply.redirect(env.APP_BASE_URL);
     }
@@ -129,6 +132,13 @@ export default async function authRoutes(app: FastifyInstance) {
     const provider = app.authProviders.get(request.params.provider);
     if (!provider) {
       throw new HttpError(404, `Unknown sign-in method "${request.params.provider}"`);
+    }
+
+    // Issue #665: with Turnstile on, starting a sign-in needs a solved captcha from the sign-in
+    // page. A failure goes back there with a flag so the page can say so, not to a JSON error.
+    const turnstile = await getTurnstileConfig();
+    if (turnstile && !(await verifyTurnstileToken(turnstile.secretKey, request.query.captcha, request.ip))) {
+      return reply.redirect(`${env.APP_BASE_URL}${env.APP_BASE_URL.includes('?') ? '&' : '?'}signin=captcha`);
     }
 
     // A link attempt abandoned earlier in this session would otherwise turn this plain sign-in's
