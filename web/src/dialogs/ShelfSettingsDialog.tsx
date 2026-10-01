@@ -27,7 +27,7 @@ export function ShelfSettingsDialog() {
     <Dialog onClose={() => ui.closeDialog('shelfSettings')} title="Shelf settings" gap={24}>
       <div style={st('display:flex;flex-direction:column;gap:10px')}>
         <Kicker>SYSTEMS OWNED</Kicker>
-        <span style={st('font:400 13px/1.45 var(--font-ui);color:var(--muted)')}>Limits the add-game search to games on these systems. Leave all off to see every platform.</span>
+        <span style={st('font:400 13px/1.45 var(--font-ui);color:var(--muted)')}>Add Game can limit its search to these systems with the "Owned systems only" button.</span>
         <SystemsPicker onSaved={() => ui.notify('Systems saved')} />
       </div>
       <div style={st('display:flex;flex-direction:column;gap:10px')}>

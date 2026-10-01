@@ -119,6 +119,7 @@ import type {
   YearInReviewRareAchievement,
 } from '@queueup/shared';
 import { collectionProgress, IGDB_PLATFORM_NAMES, isNeglectedBacklogGame, PRICE_REGION_LABELS, weightedPick, withBackwardsCompatible } from '@queueup/shared';
+import type { RoomPlatform } from '@queueup/shared';
 
 // Steam ownership only ever implies PC (see resolveGameForCreation's platformLabelOverride) -
 // IGDB_PLATFORM_NAMES.pc[0] is the canonical "PC (Microsoft Windows)" label already used
@@ -248,6 +249,16 @@ function wasNeglectedBacklogGame(game: { status: GameStatus; createdAt: Date; up
     updatedAt: game.updatedAt.toISOString(),
     votes: game.votes.map((v) => ({ createdAt: v.createdAt.toISOString() })),
   });
+}
+
+/** Which platforms an Add Game search/browse is scoped to. A room with a platform always uses that
+ * one. Otherwise (the Personal Shelf, or a platform-less room - issue #473) it's the caller's owned
+ * systems, unless they've switched "Owned systems only" off (`allPlatforms`), which searches every
+ * platform. An empty list means unscoped. */
+async function searchPlatformsFor(roomId: string | undefined, userId: string, allPlatforms: boolean): Promise<RoomPlatform[]> {
+  const roomPlatform = roomId ? await getRoomPlatform(roomId) : null;
+  if (roomPlatform) return [roomPlatform];
+  return allPlatforms ? [] : getOwnedPlatforms(userId);
 }
 
 /** The slow part of a Steam library import - one IGDB lookup (and possibly a create) per unowned
@@ -444,7 +455,7 @@ async function runSteamWishlistImportLoop(
 }
 
 export default async function gameRoutes(app: FastifyInstance) {
-  app.get<{ Querystring: { q?: string; roomId?: string; offset?: string; hideAddons?: string; includeOwned?: string } }>(
+  app.get<{ Querystring: { q?: string; roomId?: string; offset?: string; hideAddons?: string; includeOwned?: string; allPlatforms?: string } }>(
     '/api/games/search',
     // Tighter than the global default (200/min) - matches the collections/:id sibling route below.
     // Worth calling out for this one specifically: infinite-scroll paging means a single search
@@ -455,10 +466,7 @@ export default async function gameRoutes(app: FastifyInstance) {
       const userId = await request.requireAuth();
       const { roomId } = request.query;
       if (roomId) await requireMembership(roomId, userId);
-      // A platform-less room (issue #473) falls back to the caller's own owned platforms, same as
-      // no room at all.
-      const roomPlatform = roomId ? await getRoomPlatform(roomId) : null;
-      const platforms = roomPlatform ? [roomPlatform] : await getOwnedPlatforms(userId);
+      const platforms = await searchPlatformsFor(roomId, userId, request.query.allPlatforms === 'true');
       // Opt-in (pending-import review's "search manually" fallback needs to match an already-owned
       // game onto a new platform - the normal already-added exclusion below would hide it from
       // every result, leaving only its unowned DLC/add-ons visible). Every other caller leaves this
@@ -483,17 +491,14 @@ export default async function gameRoutes(app: FastifyInstance) {
   // Issue #363: "Popular" browse tab in Add Game, alongside search - lets a group discover
   // something nobody had already thought to search for. Same room/platform scoping and
   // already-added exclusion as /api/games/search, no query string of its own.
-  app.get<{ Querystring: { roomId?: string; hideAddons?: string } }>(
+  app.get<{ Querystring: { roomId?: string; hideAddons?: string; allPlatforms?: string } }>(
     '/api/games/trending',
     { config: { rateLimit: { max: 30, timeWindow: '1 minute' } } },
     async (request) => {
       const userId = await request.requireAuth();
       const { roomId } = request.query;
       if (roomId) await requireMembership(roomId, userId);
-      // A platform-less room (issue #473) falls back to the caller's own owned platforms, same as
-      // no room at all.
-      const roomPlatform = roomId ? await getRoomPlatform(roomId) : null;
-      const platforms = roomPlatform ? [roomPlatform] : await getOwnedPlatforms(userId);
+      const platforms = await searchPlatformsFor(roomId, userId, request.query.allPlatforms === 'true');
       const excludeIgdbIds = await existingIgdbIds(roomId ?? null, userId);
       const hideAddons = request.query.hideAddons !== 'false';
 
@@ -526,7 +531,7 @@ export default async function gameRoutes(app: FastifyInstance) {
   // franchise/series at once instead of one title at a time. Filtered/deduped the same way normal
   // search results are, so the review checklist the frontend shows never offers a game that's
   // already in this room/shelf or unavailable on its platform.
-  app.get<{ Params: { id: string }; Querystring: { roomId?: string; hideAddons?: string } }>(
+  app.get<{ Params: { id: string }; Querystring: { roomId?: string; hideAddons?: string; allPlatforms?: string } }>(
     '/api/games/collections/:id',
     { config: { rateLimit: { max: 30, timeWindow: '1 minute' } } },
     async (request) => {
@@ -537,10 +542,7 @@ export default async function gameRoutes(app: FastifyInstance) {
       }
       const { roomId } = request.query;
       if (roomId) await requireMembership(roomId, userId);
-      // A platform-less room (issue #473) falls back to the caller's own owned platforms, same as
-      // no room at all.
-      const roomPlatform = roomId ? await getRoomPlatform(roomId) : null;
-      const platforms = roomPlatform ? [roomPlatform] : await getOwnedPlatforms(userId);
+      const platforms = await searchPlatformsFor(roomId, userId, request.query.allPlatforms === 'true');
       const excludeIgdbIds = await existingIgdbIds(roomId ?? null, userId);
       // Same opt-out as /api/games/search (issue #354) - the collection review screen otherwise
       // ignored the "Hide DLC & add-ons" checkbox entirely.

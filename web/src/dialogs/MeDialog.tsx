@@ -76,7 +76,7 @@ function SystemsDialog({ onClose }: { onClose: () => void }) {
   const ui = useUi();
   return (
     <Dialog onClose={onClose} title="Systems owned" gap={14}>
-      <span style={st('font:400 13px/1.45 var(--font-ui);color:var(--muted)')}>Limits the Personal Shelf's add-game search to these systems. Leave all off to search every platform.</span>
+      <span style={st('font:400 13px/1.45 var(--font-ui);color:var(--muted)')}>Add Game can limit its search to these systems with the "Owned systems only" button.</span>
       <SystemsPicker
         onSaved={() => {
           ui.notify('Systems owned saved');
