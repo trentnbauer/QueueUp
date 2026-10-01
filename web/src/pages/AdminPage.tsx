@@ -8,6 +8,7 @@ import { useUi } from '../context/UiContext';
 import { Avatar, Banner, Btn, Group, Kicker } from '../ui/primitives';
 import { st } from '../ui/st';
 import { getBasePath } from '../utils/basePath';
+import { AdminBackups } from './AdminBackups';
 import { PageShell } from './PageShell';
 
 function fields(s: AdminIntegrationStatus): { key: IntegrationConfigKey; label: string; source: ConfigSource }[] {
@@ -234,6 +235,8 @@ export function AdminPage() {
           })}
         </Group>
       </div>
+
+      <AdminBackups />
 
       <a
         href={`${getBasePath()}/api/admin/logs/export`}

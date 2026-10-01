@@ -9,6 +9,7 @@ import { startAnniversaryBadgeJob } from './jobs/anniversaryBadgeJob.js';
 import { startReleaseWatchJob } from './jobs/releaseWatchJob.js';
 import { startPlaytimeSnapshotJob } from './jobs/playtimeSnapshotJob.js';
 import { startPlayniteSyncReminderJob } from './jobs/playniteSyncReminderJob.js';
+import { startBackupJob } from './jobs/backupJob.js';
 
 const app = await buildApp();
 
@@ -42,6 +43,9 @@ const playtimeSnapshotJob = env.PLAYTIME_TRACKING_ENABLED ? startPlaytimeSnapsho
 // stale Playnite library isn't tied to any user action either.
 const playniteSyncReminderJob = startPlayniteSyncReminderJob();
 
+// Nightly database backup (default on, schedule editable in the admin menu) - see jobs/backupJob.ts.
+const backupJob = startBackupJob();
+
 const SHUTDOWN_TIMEOUT_MS = 10_000;
 let shuttingDown = false;
 
@@ -67,6 +71,7 @@ async function shutdown(signal: string) {
     releaseWatchJob.stop();
     playtimeSnapshotJob?.stop();
     playniteSyncReminderJob.stop();
+    backupJob.stop();
     // Stops accepting new connections, waits for in-flight requests, runs plugins' onClose hooks.
     await app.close();
     await prisma.$disconnect();
