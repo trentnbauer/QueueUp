@@ -49,7 +49,7 @@ declare module 'fastify' {
 // Same size limit as the app's own shelf/room views (see MAX_GAMES_PER_LIST in routes/games.ts) -
 // a pull is meant for "give me my library," not an unbounded export; a script that needs more can
 // page by asking again after removing/archiving older entries, same as the web UI's own guidance.
-const MAX_LIBRARY_PULL = 500;
+const MAX_LIBRARY_PULL = 5000;
 
 // A script/integration hitting this on its own schedule, not a browser - its own limits rather
 // than the per-session ones the cookie-authenticated app routes use (config: rateLimit throughout

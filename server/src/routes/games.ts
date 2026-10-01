@@ -143,10 +143,12 @@ const STATUS_LABELS: Record<GameStatus, string> = {
 // is added elsewhere, quietly 400ing every request for the new value).
 const GAME_STATUSES = Object.keys(STATUS_LABELS) as GameStatus[];
 const PRICE_REGIONS = Object.keys(PRICE_REGION_LABELS) as PriceRegion[];
-// Shelves/rooms are meant to hold an actively-curated backlog, not a lifetime game archive - this
-// caps a single query so one runaway list can't pull unbounded rows (and unbounded price lookups)
-// on every page load. Well above any real shelf/room size today.
-const MAX_GAMES_PER_LIST = 500;
+// A safety ceiling, not a design limit: it only stops one runaway list pulling unbounded rows (and
+// price lookups) on a page load. Raised from 500 because imported libraries (Steam, Playnite) easily
+// pass 1000 games, and every game past the cap silently vanished from the shelf. Prices come from a
+// cache the price-refresh job keeps warm, responses are compressed (app.ts) and the web app renders
+// long lists a page at a time (useIncrementalList), so a few thousand games stays cheap.
+const MAX_GAMES_PER_LIST = 5000;
 
 function parseRegion(region?: string): PriceRegion | undefined {
   return PRICE_REGIONS.includes(region as PriceRegion) ? (region as PriceRegion) : undefined;

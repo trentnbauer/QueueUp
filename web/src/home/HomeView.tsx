@@ -21,8 +21,9 @@ import { buildHomeLists, toRowItem } from './derive';
 import { ComingStrip, CoverCard, DesktopRow, MobileRow, PlayNextRow } from './Rows';
 import { Footer } from '../shell/Footer';
 import { BulkBar, BulkStatusSheet } from './BulkBar';
+import { useIncrementalList } from '../hooks/useIncrementalList';
 
-const MAX_SHOWN_HINT = 500;
+const MAX_SHOWN_HINT = 5000;
 
 const SHELF_ALL_TABS = [...SHELF_TABS, ...SHELF_MORE_TABS];
 
@@ -71,6 +72,7 @@ export function HomeView() {
   const ctx = { isShelf, tab, searching, all: games };
   const items = importTab ? [] : lists.list.map((g, i) => toRowItem(g, i + 1, ctx));
   const playNextItems = importTab ? [] : lists.playNext.map((g, i) => toRowItem(g, i + 1, ctx));
+  const { visible: visibleItems, hasMore, sentinelRef } = useIncrementalList(items, `${scope.scopeId}|${tab}|${query}|${viewMode}`);
 
   const toVote = room ? attention.toVote(room.id) : 0;
   const toApprove = scope.canManage && !isShelf ? scope.suggestions.length : 0;
@@ -374,7 +376,7 @@ export function HomeView() {
 
       {viewMode === 'list' ? (
         <div style={st(mobile ? 'display:flex;flex-direction:column;gap:2px;margin:0 -10px' : 'display:flex;flex-direction:column;margin:0 -12px')}>
-          {items.map((it) => (
+          {visibleItems.map((it) => (
             <Row
               key={it.game.id}
               item={it}
@@ -395,7 +397,7 @@ export function HomeView() {
               : 'display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:18px 12px',
           )}
         >
-          {items.map((it) => (
+          {visibleItems.map((it) => (
             <CoverCard
               key={it.game.id}
               item={it}
@@ -410,6 +412,8 @@ export function HomeView() {
           ))}
         </div>
       )}
+
+      {hasMore && <div ref={sentinelRef} aria-hidden style={st('height:1px')} />}
 
       {playNextItems.length > 0 && (
         <div style={st('display:flex;flex-direction:column;gap:6px;margin-top:6px')}>

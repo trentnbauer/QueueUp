@@ -1,4 +1,5 @@
 import Fastify from 'fastify';
+import compress from '@fastify/compress';
 import cors from '@fastify/cors';
 import helmet from '@fastify/helmet';
 import rateLimit from '@fastify/rate-limit';
@@ -45,6 +46,9 @@ export async function buildApp() {
   // matching and @fastify/cors just omits Access-Control-Allow-Origin rather than rejecting
   // anything server-side - a latent bug for any deployment whose APP_BASE_URL already has a path.
   await app.register(cors, { origin: new URL(env.APP_BASE_URL).origin, credentials: true });
+  // gzip/brotli for responses over 1KB. A shelf of a few thousand games is several MB of JSON
+  // uncompressed (see MAX_GAMES_PER_LIST in routes/games.ts) and compresses to a fraction of that.
+  await app.register(compress, { threshold: 1024 });
   await app.register(helmet, {
     contentSecurityPolicy: {
       directives: {
