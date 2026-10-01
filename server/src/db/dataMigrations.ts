@@ -1,5 +1,6 @@
 import { prisma } from './client.js';
 import { PLAYNITE_SOURCE } from '../services/playniteImport.js';
+import { encryptPlaintextConfig } from '../services/configResolver.js';
 
 /** Reviews moved from columns on the Game row (one review per game, which the last room member to
  * save one overwrote) to the GameReview table (one per person per game). Copies any review still
@@ -56,4 +57,10 @@ export async function resetSharedPlayniteAliases(logger: { info: (msg: string) =
 export async function runDataMigrations(logger: { info: (msg: string) => void; warn: (msg: string) => void }): Promise<void> {
   await migrateLegacyReviews(logger);
   await resetSharedPlayniteAliases(logger);
+  try {
+    const count = await encryptPlaintextConfig();
+    if (count > 0) logger.info(`Encrypted ${count} integration key(s) stored in Administrator settings`);
+  } catch (err) {
+    logger.warn(`Could not encrypt stored integration keys (non-fatal): ${err instanceof Error ? err.message : String(err)}`);
+  }
 }

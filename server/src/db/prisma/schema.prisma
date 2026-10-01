@@ -989,13 +989,11 @@ model AdminAuditLog {
   @@map("admin_audit_log")
 }
 
-/// Small key-value fallback store for admin-configurable integration credentials (gg.deals API
-/// key, IGDB client id/secret) that weren't set via env var - see
-/// server/src/services/configResolver.ts, which always prefers the env var and only reads this
-/// table to fill the gap when it's unset. Values are plain text: these are already admin-only
-/// credentials shown (masked) to admins in the Settings UI. If this table ever grows to hold more
-/// sensitive secrets, add encryption at rest before relying on it further - not done now to avoid
-/// over-engineering a handful of low-sensitivity API keys.
+/// Small key-value store: admin-configurable integration credentials (gg.deals, IGDB, Scandex,
+/// Turnstile, the tunnel token) that weren't set via env var - see
+/// server/src/services/configResolver.ts, which always prefers the env var - plus a few internal
+/// flags. Credential values are encrypted at rest (AES-256-GCM, key derived from SESSION_SECRET,
+/// see settingsCrypto.ts), so a database backup doesn't expose them.
 model AppSetting {
   key       String   @id
   value     String

@@ -6,6 +6,7 @@ import type { AdminBackupInfo, AdminBackupSettings } from '@queueup/shared';
 import { prisma } from '../db/client.js';
 import { env } from '../config/env.js';
 import { HttpError } from '../util/httpError.js';
+import { encryptPlaintextConfig } from './configResolver.js';
 import { isValidCron, nextCronRun, parseCron } from '../util/cron.js';
 
 /** Logical, version-independent database backups: every table in the `public` schema as JSON, gzipped.
@@ -308,5 +309,7 @@ export async function restoreBackup(gz: Buffer): Promise<RestoreResult> {
     }
     throw new HttpError(500, `Restore failed and was rolled back; nothing was changed. ${msg}`.slice(0, 400));
   }
+  // A backup from before settings encryption carries plain-text keys; encrypt them straight away.
+  await encryptPlaintextConfig().catch(() => undefined);
   return { tables: Object.keys(backup.tables).length - skippedTables.length, rows, skippedTables, safetyBackup: safety.name };
 }
