@@ -129,6 +129,22 @@ export function pickMostNeglectedGame(games: BacklogInsightGameRow[], now: numbe
 const AGE_BUCKET_DAY_EDGES = [90, 180, 365];
 const AGE_BUCKET_LABELS = ['Under 90 days', '90-180 days', '180-365 days', '365+ days'];
 
+/** createdAt ranges for the four age buckets, in label order (newest first), as Prisma-style bounds:
+ * `gt` is the exclusive lower bound and `lte` the inclusive upper one, either may be absent. Lets
+ * the route count each bucket in the database instead of bucketing a capped sample in memory, so the
+ * chart always adds up to the real backlog size. Same edges as bucketBacklogAge: a game aged exactly
+ * an edge falls in the older bucket in both. */
+export function backlogAgeRanges(now: number = Date.now()): { label: string; gt?: Date; lte?: Date }[] {
+  const dayMs = 1000 * 60 * 60 * 24;
+  const at = (days: number) => new Date(now - days * dayMs);
+  return AGE_BUCKET_LABELS.map((label, i) => {
+    const range: { label: string; gt?: Date; lte?: Date } = { label };
+    if (i < AGE_BUCKET_DAY_EDGES.length) range.gt = at(AGE_BUCKET_DAY_EDGES[i]);
+    if (i > 0) range.lte = at(AGE_BUCKET_DAY_EDGES[i - 1]);
+    return range;
+  });
+}
+
 /** Buckets `games` (a live backlog) by days since `createdAt` - see BacklogAgeBucket's doc for the
  * exact boundaries/labels. Always returns all four buckets in order, zero-count ones included, so
  * the distribution's shape is stable to render regardless of what's actually in the backlog. */
