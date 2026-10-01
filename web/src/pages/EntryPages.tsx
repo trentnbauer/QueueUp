@@ -127,6 +127,20 @@ export function JoinPage({ code }: { code: string }) {
 
 /** `/u/:id`: one profile page for everyone - the anonymous shareable view, and (when signed in) the
  * same page with a friend's activity and controls (it replaces the old separate /friends/:id page). */
+/** Marks a game the signed-in viewer owns too (see PublicProfileGame.bothOwn), over its cover. */
+function BothOwnBadge({ small = false }: { small?: boolean }) {
+  return (
+    <span
+      title="You both own this - you can play it together"
+      style={st(
+        `position:absolute;left:${small ? 6 : 8}px;bottom:${small ? 6 : 8}px;max-width:calc(100% - ${small ? 12 : 16}px);height:${small ? 20 : 24}px;padding:0 ${small ? 7 : 9}px;border-radius:999px;background:var(--mint);color:var(--ink);font:700 ${small ? 10.5 : 11.5}px var(--font-ui);display:flex;align-items:center;gap:4px;white-space:nowrap;overflow:hidden;box-shadow:0 2px 8px oklch(0 0 0 / 0.35)`,
+      )}
+    >
+      You both own
+    </span>
+  );
+}
+
 export function PublicProfilePage({ userId, signedIn }: { userId: string; signedIn: boolean }) {
   const [profile, setProfile] = useState<PublicUserProfile | null>(null);
   const [state, setState] = useState<'loading' | 'ok' | 'missing'>('loading');
@@ -221,7 +235,10 @@ export function PublicProfilePage({ userId, signedIn }: { userId: string; signed
             <div style={st('display:flex;flex-wrap:wrap;gap:20px')}>
               {profile.currentlyPlaying.map((g) => (
                 <div key={g.id} style={st('width:min(100%,200px);display:flex;flex-direction:column;gap:8px')}>
-                  <Cover title={g.title} url={g.coverImageUrl} width="100%" radius={18} style={{ boxShadow: '0 20px 44px oklch(0 0 0 / 0.35)' }} />
+                  <div style={st('position:relative')}>
+                    <Cover title={g.title} url={g.coverImageUrl} width="100%" radius={18} style={{ boxShadow: '0 20px 44px oklch(0 0 0 / 0.35)' }} />
+                    {g.bothOwn && <BothOwnBadge />}
+                  </div>
                   <span style={st('font:700 16px var(--font-display)')}>{g.title}</span>
                   <span style={st('font:400 12.5px var(--font-ui);color:var(--muted)')}>{g.platform}</span>
                 </div>
@@ -229,17 +246,57 @@ export function PublicProfilePage({ userId, signedIn }: { userId: string; signed
             </div>
           </div>
 
+          {profile.wishlist.length > 0 && (
+            <div style={st('display:flex;flex-direction:column;gap:12px')}>
+              <span style={st('display:flex;align-items:baseline;gap:10px')}>
+                <span style={st('font:700 20px var(--font-display)')}>Wishlist</span>
+                <span style={st('font:500 11.5px var(--font-mono);color:var(--muted)')}>{profile.wishlist.length}</span>
+              </span>
+              <div style={st('display:grid;grid-template-columns:repeat(auto-fill,minmax(110px,1fr));gap:14px')}>
+                {profile.wishlist.map((g) => (
+                  <div key={g.id} style={st('min-width:0;display:flex;flex-direction:column;gap:6px')}>
+                    <Cover title={g.title} url={g.coverImageUrl} width="100%" radius={14} />
+                    <span style={st('font:600 12.5px var(--font-ui);white-space:nowrap;overflow:hidden;text-overflow:ellipsis')}>{g.title}</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
           {profile.upNext.length > 0 && (
             <div style={st('display:flex;flex-direction:column;gap:12px')}>
               <span style={st('font:700 20px var(--font-display)')}>Up next</span>
               <div style={st('display:grid;grid-template-columns:repeat(auto-fill,minmax(110px,1fr));gap:14px')}>
                 {profile.upNext.map((g, i) => (
                   <div key={g.id} style={st('min-width:0;display:flex;flex-direction:column;gap:6px')}>
-                    <Cover title={g.title} url={g.coverImageUrl} width="100%" radius={14} />
+                    <div style={st('position:relative')}>
+                      <Cover title={g.title} url={g.coverImageUrl} width="100%" radius={14} />
+                      {g.bothOwn && <BothOwnBadge small />}
+                    </div>
                     <span style={st('font:600 12.5px var(--font-ui);white-space:nowrap;overflow:hidden;text-overflow:ellipsis')}>
                       <span style={st('font-family:var(--font-mono);color:var(--muted)')}>{i + 1}. </span>
                       {g.title}
                     </span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {profile.bothOwn.length > 0 && (
+            <div style={st('display:flex;flex-direction:column;gap:12px;padding:18px;border-radius:22px;background:linear-gradient(140deg, var(--mintSoft), var(--surf))')}>
+              <span style={st('display:flex;flex-direction:column;gap:2px')}>
+                <span style={st('display:flex;align-items:baseline;gap:10px')}>
+                  <span style={st('font:700 20px var(--font-display)')}>You both own</span>
+                  <span style={st('font:500 11.5px var(--font-mono);color:var(--muted)')}>{profile.bothOwn.length}</span>
+                </span>
+                <span style={st('font:400 13.5px var(--font-ui);color:var(--muted)')}>You and {profile.displayName} can play these together.</span>
+              </span>
+              <div style={st('display:grid;grid-template-columns:repeat(auto-fill,minmax(100px,1fr));gap:12px')}>
+                {profile.bothOwn.map((g) => (
+                  <div key={g.id} style={st('min-width:0;display:flex;flex-direction:column;gap:5px')}>
+                    <Cover title={g.title} url={g.coverImageUrl} width="100%" radius={12} />
+                    <span style={st('font:600 12px var(--font-ui);white-space:nowrap;overflow:hidden;text-overflow:ellipsis')}>{g.title}</span>
                   </div>
                 ))}
               </div>
@@ -347,7 +404,10 @@ export function PublicProfilePage({ userId, signedIn }: { userId: string; signed
           <div style={st('display:grid;grid-template-columns:repeat(auto-fill,minmax(100px,1fr));gap:12px')}>
             {profile.library.map((g) => (
               <div key={g.id} style={st('min-width:0;display:flex;flex-direction:column;gap:5px')}>
-                <Cover title={g.title} url={g.coverImageUrl} width="100%" radius={12} />
+                <div style={st('position:relative')}>
+                  <Cover title={g.title} url={g.coverImageUrl} width="100%" radius={12} />
+                  {g.bothOwn && <BothOwnBadge small />}
+                </div>
                 <span style={st('font:600 12px var(--font-ui);white-space:nowrap;overflow:hidden;text-overflow:ellipsis')}>{g.title}</span>
               </div>
             ))}
