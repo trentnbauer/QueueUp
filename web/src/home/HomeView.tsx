@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import type { Game, VoteValue } from '@queueup/shared';
 import { useScope } from '../context/ScopeContext';
 import { useUi } from '../context/UiContext';
@@ -33,6 +34,7 @@ export function HomeView() {
   const pendingImports = usePendingImportsCount();
   const { version } = useVersion();
   const { isShelf, room, members, games, ops } = scope;
+  const navigate = useNavigate();
 
   const tabs = isShelf ? SHELF_TABS : ROOM_TABS;
   const [tab, setTab] = useState('queue');
@@ -119,6 +121,34 @@ export function HomeView() {
 
   const Row = mobile ? MobileRow : DesktopRow;
 
+  const nudges = (showNudge || (toApprove > 0 && !searching)) ? (
+        <div style={st('display:flex;flex-wrap:wrap;gap:8px')}>
+          {showNudge && (
+            <button
+              type="button"
+              onClick={() => (isShelf ? ui.openDialog('needsReview') : ui.openDialog('deck'))}
+              style={st('align-self:flex-start;display:flex;align-items:center;gap:10px;height:42px;padding:0 8px 0 14px;border-radius:999px;border:none;background:var(--accSoft);color:var(--accText);font:600 13.5px var(--font-ui)')}
+            >
+              <span style={st('width:8px;height:8px;border-radius:50%;background:var(--acc)')} />
+              {nudgeLabel}
+              <span style={st('height:28px;padding:0 11px;border-radius:999px;background:var(--acc);color:var(--ink);display:flex;align-items:center;font-size:12px')}>
+                {isShelf ? 'Match' : 'Vote now'}
+              </span>
+            </button>
+          )}
+          {toApprove > 0 && !searching && (
+            <button
+              type="button"
+              onClick={() => ui.openDialog('roomSettings')}
+              style={st('display:flex;align-items:center;gap:10px;height:42px;padding:0 8px 0 14px;border-radius:999px;border:1px dashed var(--line);background:transparent;color:var(--text);font:600 13.5px var(--font-ui)')}
+            >
+              {toApprove} to approve
+              <span style={st('height:28px;padding:0 11px;border-radius:999px;background:var(--chip);color:var(--accText);display:flex;align-items:center;font-size:12px')}>Review</span>
+            </button>
+          )}
+        </div>
+      ) : null;
+
   return (
     <>
       <header style={st('display:flex;flex-direction:column;gap:8px')}>
@@ -170,23 +200,32 @@ export function HomeView() {
             </span>
           </div>
         ) : (
-          <div style={st('display:flex;align-items:center;gap:12px;margin-top:2px')}>
+          <div style={st('display:flex;flex-wrap:wrap;align-items:center;gap:12px;margin-top:2px')}>
             <div style={{ display: 'flex', paddingLeft: 8 }}>
               {members.map((m) => (
-                <Avatar
+                <button
                   key={m.user.id}
-                  name={m.user.displayName}
-                  color={m.user.avatarColor}
-                  avatarUrl={m.user.avatarUrl}
-                  size={30}
-                  fontSize={12}
-                  style={{ marginLeft: -8, border: '2.5px solid var(--bg)' }}
-                />
+                  type="button"
+                  onClick={() => navigate(`/u/${m.user.id}`)}
+                  aria-label={`${m.user.displayName}'s profile`}
+                  title={m.user.displayName}
+                  style={{ marginLeft: -8, padding: 0, border: 'none', background: 'none', borderRadius: '50%', cursor: 'pointer' }}
+                >
+                  <Avatar
+                    name={m.user.displayName}
+                    color={m.user.avatarColor}
+                    avatarUrl={m.user.avatarUrl}
+                    size={30}
+                    fontSize={12}
+                    style={{ border: '2.5px solid var(--bg)' }}
+                  />
+                </button>
               ))}
             </div>
             <Btn height={32} padX={14} fontSize={13} weight={500} onClick={() => ui.openDialog('roomSettings')} style={{ color: 'var(--muted)' }}>
               Invite
             </Btn>
+            {nudges}
           </div>
         )}
       </header>
@@ -197,33 +236,7 @@ export function HomeView() {
         </Banner>
       )}
 
-      {(showNudge || (toApprove > 0 && !searching)) && (
-        <div style={st('display:flex;flex-wrap:wrap;gap:8px')}>
-          {showNudge && (
-            <button
-              type="button"
-              onClick={() => (isShelf ? ui.openDialog('needsReview') : ui.openDialog('deck'))}
-              style={st('align-self:flex-start;display:flex;align-items:center;gap:10px;height:42px;padding:0 8px 0 14px;border-radius:999px;border:none;background:var(--accSoft);color:var(--accText);font:600 13.5px var(--font-ui)')}
-            >
-              <span style={st('width:8px;height:8px;border-radius:50%;background:var(--acc)')} />
-              {nudgeLabel}
-              <span style={st('height:28px;padding:0 11px;border-radius:999px;background:var(--acc);color:var(--ink);display:flex;align-items:center;font-size:12px')}>
-                {isShelf ? 'Match' : 'Vote now'}
-              </span>
-            </button>
-          )}
-          {toApprove > 0 && !searching && (
-            <button
-              type="button"
-              onClick={() => ui.openDialog('roomSettings')}
-              style={st('display:flex;align-items:center;gap:10px;height:42px;padding:0 8px 0 14px;border-radius:999px;border:1px dashed var(--line);background:transparent;color:var(--text);font:600 13.5px var(--font-ui)')}
-            >
-              {toApprove} to approve
-              <span style={st('height:28px;padding:0 11px;border-radius:999px;background:var(--chip);color:var(--accText);display:flex;align-items:center;font-size:12px')}>Review</span>
-            </button>
-          )}
-        </div>
-      )}
+      {isShelf && nudges}
 
       <div style={st(mobile ? 'display:flex;flex-direction:column;gap:12px' : 'display:flex;flex-wrap:wrap;align-items:center;gap:12px')}>
         <div
