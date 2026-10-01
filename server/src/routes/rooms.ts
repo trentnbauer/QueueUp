@@ -114,7 +114,10 @@ export default async function roomRoutes(app: FastifyInstance) {
 
   app.post<{ Body: CreateRoomRequest }>('/api/rooms', async (request, reply) => {
     const userId = await request.requireAuth();
-    const { name, platform, accentColor, isPublic } = request.body;
+    const { name, platform, accentColor, isPublic } = request.body ?? {};
+    if (typeof name !== 'string' || (accentColor != null && typeof accentColor !== 'string')) {
+      throw new HttpError(400, 'Room name is required');
+    }
     if (accentColor && !HEX_COLOUR.test(accentColor)) throw new HttpError(400, 'Room colour must be a hex colour like #8b5cf6');
     if (!name?.trim()) throw new HttpError(400, 'Room name is required');
     // Issue #473: platform is optional - omitting it (or passing null) leaves the room unrestricted
@@ -147,8 +150,8 @@ export default async function roomRoutes(app: FastifyInstance) {
     { config: { rateLimit: { max: 10, timeWindow: '1 minute' } } },
     async (request) => {
       const userId = await request.requireAuth();
-      const { inviteCode } = request.body;
-      if (!inviteCode?.trim()) throw new HttpError(400, 'Invite code is required');
+      const { inviteCode } = request.body ?? {};
+      if (typeof inviteCode !== 'string' || !inviteCode.trim()) throw new HttpError(400, 'Invite code is required');
 
       const room = await prisma.room.findUnique({ where: { inviteCode: inviteCode.trim() } });
       if (!room) throw new HttpError(404, 'Invalid invite code');
@@ -273,7 +276,9 @@ export default async function roomRoutes(app: FastifyInstance) {
     }
 
     const { name, platform, accentColor, discordWebhookUrl, spinOwnershipMaxPrice, spinWheelTheme, isPublic, requireGameApproval, discordEvents } =
-      request.body;
+      request.body ?? {};
+    if (name !== undefined && (typeof name !== 'string' || !name.trim())) throw new HttpError(400, 'Room name cannot be empty');
+    if (accentColor !== undefined && typeof accentColor !== 'string') throw new HttpError(400, 'Room colour must be a hex colour like #8b5cf6');
     if (name !== undefined && !name.trim()) throw new HttpError(400, 'Room name cannot be empty');
     if (accentColor !== undefined && !HEX_COLOUR.test(accentColor)) throw new HttpError(400, 'Room colour must be a hex colour like #8b5cf6');
     // Issue #473: platform may be explicitly set to null to clear the room's restriction ("any

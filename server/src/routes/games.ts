@@ -7,6 +7,7 @@ import {
   loadGameOr404,
   requireGameReadAccess,
   requireGameDeleteAccess,
+  requireGameSettingsAccess,
   requireNotDuplicate,
   requireNotAlreadySuggested,
   rethrowAsDuplicateGame,
@@ -1043,21 +1044,21 @@ export default async function gameRoutes(app: FastifyInstance) {
     const note = typeof body.note === 'string' ? body.note.trim().slice(0, 280) : '';
     const hasAny = art !== null || gameplay !== null || story !== null || sound !== null || note.length > 0;
 
-    await prisma.game.update({
-      where: { id: game.id },
-      data: {
-        reviewArt: art,
-        reviewGameplay: gameplay,
-        reviewStory: story,
-        reviewSound: sound,
-        reviewNote: note || null,
-        reviewedAt: hasAny ? new Date() : null,
-      },
-    });
+    // The caller's own review only (GameReview is one per person per game) - in a room, every
+    // member keeps their own instead of overwriting whoever saved last. Clearing everything
+    // removes it.
+    const where = { gameId_userId: { gameId: game.id, userId } };
+    let saved = null;
+    if (hasAny) {
+      const data = { art, gameplay, story, sound, note: note || null, reviewedAt: new Date() };
+      saved = await prisma.gameReview.upsert({ where, create: { gameId: game.id, userId, ...data }, update: data });
+    } else {
+      await prisma.gameReview.deleteMany({ where: { gameId: game.id, userId } });
+    }
     const updated = await loadGameOr404(game.id);
 
     if (hasAny) {
-      const review = toGameReviewDto(updated);
+      const review = toGameReviewDto(saved);
       if (game.roomId === null) {
         // Attach to the most recent Beaten entry for this game, falling back to a fresh one so a
         // review saved without a prior logged transition (e.g. a sync-applied Beaten) still shows.
@@ -1472,7 +1473,7 @@ export default async function gameRoutes(app: FastifyInstance) {
     async (request) => {
       const userId = await request.requireAuth();
       const game = await loadGameOr404(request.params.id);
-      await requireGameReadAccess(game, userId);
+      await requireGameSettingsAccess(game, userId);
 
       const { targetPrice } = request.body;
       let normalized: string | null = null;
@@ -1498,7 +1499,7 @@ export default async function gameRoutes(app: FastifyInstance) {
     async (request) => {
       const userId = await request.requireAuth();
       const game = await loadGameOr404(request.params.id);
-      await requireGameReadAccess(game, userId);
+      await requireGameSettingsAccess(game, userId);
 
       const { manualPrice } = request.body;
       let normalized: string | null = null;

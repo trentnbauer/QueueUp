@@ -35,6 +35,20 @@ export async function requireGameDeleteAccess(game: GameWithRelations, userId: s
   }
 }
 
+/** Room-wide settings on a game - its target price (which alerts the whole room) and manual price
+ * estimate: on the shelf only the owner; in a room only whoever added the game, or a Room Master or
+ * Moderator. Any member used to be able to change them for everyone. */
+export async function requireGameSettingsAccess(game: GameWithRelations, userId: string) {
+  if (game.roomId === null) {
+    if (game.addedBy !== userId) throw new HttpError(403, 'This is someone else\'s personal shelf item');
+    return;
+  }
+  const membership = await requireMembership(game.roomId, userId);
+  if (game.addedBy !== userId && membership.role !== 'room_master' && membership.role !== 'moderator') {
+    throw new HttpError(403, 'Only whoever added this game, the Room Master or a Moderator can change its price settings');
+  }
+}
+
 /** Tags are a personal filing scheme (issue #247), not a room feature - only the person who added a
  * game may tag it, whether it's on their Personal Shelf or in a room, matching the issue's stated
  * scope ("a tag you create applies across your Personal Shelf and any room games you added"). This

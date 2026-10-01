@@ -275,7 +275,12 @@ export function MeDialog() {
 
   async function signOut() {
     const ok = await confirm({ title: 'Sign out?', message: 'You can sign back in any time with the same account.', confirmLabel: 'Sign out' });
-    if (ok) window.location.href = authApi.logoutUrl;
+    if (!ok) return;
+    try {
+      await authApi.logout();
+    } finally {
+      window.location.href = `${getBasePath()}/`;
+    }
   }
 
   async function deleteAccount() {

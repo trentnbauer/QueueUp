@@ -100,6 +100,15 @@ export async function buildApp() {
     });
   }
 
+  // Routes destructure request.body directly, so a write with no body (or a bare JSON null/number/
+  // string) would throw a TypeError and come back as a 500. Normalising it to an empty object lets
+  // each route's own "X is required" check answer with a 400 instead.
+  app.addHook('preValidation', async (request) => {
+    if (request.method !== 'GET' && request.method !== 'HEAD' && (request.body == null || typeof request.body !== 'object')) {
+      request.body = {};
+    }
+  });
+
   await app.register(sessionPlugin);
   await app.register(authPlugin);
 

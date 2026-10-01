@@ -1,4 +1,4 @@
-import { apiDelete, apiGet, apiPatch } from './client';
+import { apiDelete, apiGet, apiPatch, apiPost } from './client';
 import { getBasePath } from '../utils/basePath';
 import type { RoomPlatform, User } from '@queueup/shared';
 
@@ -30,6 +30,6 @@ export const authApi = {
   loginUrl: (provider: string) => `${getBasePath()}/auth/${provider}/login`,
   linkUrl: (provider: string) => `${getBasePath()}/auth/${provider}/link`,
   unlink: (provider: string) => apiDelete(`/auth/${provider}/unlink`),
-  logoutUrl: `${getBasePath()}/auth/logout`,
+  logout: () => apiPost<void>('/auth/logout'),
   deleteAccount: () => apiDelete('/api/me'),
 };
