@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import type { Game } from '@queueup/shared';
 import { createPortal } from 'react-dom';
 import { useQueryClient } from '@tanstack/react-query';
 import { useScope } from '../context/ScopeContext';
@@ -6,11 +7,24 @@ import { useUi } from '../context/UiContext';
 import { useModalA11y } from '../hooks/useModalA11y';
 import { ATTENTION_QUERY_KEY } from '../hooks/useAttention';
 import { VOTES, VOTE_VALUES, metaLine, ownLabel } from '../lib/gameView';
-import { Trailer } from '../game/Trailer';
+import { TrailerPlayer, useTrailer } from '../game/Trailer';
 import { Btn, Cover } from '../ui/primitives';
 import { st } from '../ui/st';
 
 const OPEN_STATUSES = ['backlog', 'wishlist', 'play_next'];
+
+/** The game's trailer if QueueUp can find one (it autoplays in place of the box art), otherwise the cover. */
+function DeckArt({ game }: { game: Game }) {
+  const { state } = useTrailer(game.id, true);
+  if (state.kind === 'ready') {
+    return (
+      <div style={st('width:min(640px,100%)')}>
+        <TrailerPlayer youtubeId={state.youtubeId} radius={22} />
+      </div>
+    );
+  }
+  return <Cover title={game.title} url={game.coverImageUrl} width={190} radius={22} style={{ boxShadow: '0 30px 60px oklch(0 0 0 / 0.45)', transform: 'rotate(-2deg)' }} />;
+}
 
 /** "Vote now": one unvoted game at a time, full screen. */
 export function DeckDialog() {
@@ -18,7 +32,6 @@ export function DeckDialog() {
   const { games, ops, room, isShelf } = useScope();
   const queryClient = useQueryClient();
   const [skipped, setSkipped] = useState<string[]>([]);
-  const [trailerPlaying, setTrailerPlaying] = useState(false);
   const close = () => {
     queryClient.invalidateQueries({ queryKey: ATTENTION_QUERY_KEY });
     ui.closeDialog('deck');
@@ -47,13 +60,10 @@ export function DeckDialog() {
           <span style={st('font:500 12px var(--font-mono);color:var(--muted)')}>
             {total} TO VOTE ON
           </span>
-          {!trailerPlaying && <Cover title={g.title} url={g.coverImageUrl} width={190} radius={22} style={{ boxShadow: '0 30px 60px oklch(0 0 0 / 0.45)', transform: 'rotate(-2deg)' }} />}
+          <DeckArt key={g.id} game={g} />
           <div style={st('display:flex;flex-direction:column;align-items:center;gap:4px;text-align:center;max-width:420px')}>
             <span style={st('font:700 28px/1.05 var(--font-display);letter-spacing:-0.02em;text-wrap:balance')}>{g.title}</span>
             <span style={st('font:400 14px var(--font-ui);color:var(--muted)')}>{[metaLine(g), ownLabel(g, isShelf)].filter(Boolean).join(' · ')}</span>
-          </div>
-          <div style={st(`width:min(${trailerPlaying ? 640 : 420}px,100%);display:flex;flex-direction:column;align-items:center`)}>
-            <Trailer key={g.id} gameId={g.id} compact onPlayingChange={setTrailerPlaying} />
           </div>
           <div style={st('display:flex;gap:6px')}>
             {VOTE_VALUES.map((v) => (
