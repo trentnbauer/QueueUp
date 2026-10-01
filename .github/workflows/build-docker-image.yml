@@ -185,10 +185,15 @@ jobs:
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
+        with:
+          # Full history and tags: the changelog script works out which release each PR shipped in.
+          fetch-depth: 0
 
       - name: Generate changelog.json from merged PRs
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          # Labels PRs merged since the last release with the version this run publishes.
+          CHANGELOG_NEXT_VERSION: ${{ needs.check-for-changes.outputs.new_version }}
         run: .github/scripts/generate-changelog.sh
 
       - name: Set up Docker Buildx

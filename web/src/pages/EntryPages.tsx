@@ -52,10 +52,14 @@ interface TurnstileApi {
   remove: (widgetId: string) => void;
 }
 
-/** The Turnstile captcha (issue #665). Reports a token when solved and null when it expires or
- * errors; it refreshes itself on expiry. */
+type CaptchaStatus = 'checking' | 'interactive' | 'verified' | 'error';
+
+/** The Turnstile captcha (issue #665). Runs invisibly for most visitors (Cloudflare only shows its
+ * box when it needs a click), so in its place there's a one-line status that matches the page.
+ * Reports a token when solved and null when it expires or errors; it refreshes itself on expiry. */
 function TurnstileWidget({ siteKey, onToken }: { siteKey: string; onToken: (token: string | null) => void }) {
   const ref = useRef<HTMLDivElement>(null);
+  const [status, setStatus] = useState<CaptchaStatus>('checking');
   const [loadError, setLoadError] = useState(false);
   const onTokenRef = useRef(onToken);
   onTokenRef.current = onToken;
@@ -69,11 +73,24 @@ function TurnstileWidget({ siteKey, onToken }: { siteKey: string; onToken: (toke
         if (cancelled || !api || !ref.current) return;
         widgetId = api.render(ref.current, {
           sitekey: siteKey,
-          theme: 'auto',
+          theme: document.documentElement.dataset.theme === 'light' ? 'light' : 'dark',
+          size: 'flexible',
+          appearance: 'interaction-only',
           'refresh-expired': 'auto',
-          callback: (token: string) => onTokenRef.current(token),
-          'expired-callback': () => onTokenRef.current(null),
-          'error-callback': () => onTokenRef.current(null),
+          callback: (token: string) => {
+            setStatus('verified');
+            onTokenRef.current(token);
+          },
+          'expired-callback': () => {
+            setStatus('checking');
+            onTokenRef.current(null);
+          },
+          'error-callback': () => {
+            setStatus('error');
+            onTokenRef.current(null);
+          },
+          'before-interactive-callback': () => setStatus('interactive'),
+          'after-interactive-callback': () => setStatus('checking'),
         });
       })
       .catch(() => !cancelled && setLoadError(true));
@@ -84,14 +101,30 @@ function TurnstileWidget({ siteKey, onToken }: { siteKey: string; onToken: (toke
     };
   }, [siteKey]);
 
+  const failed = loadError || status === 'error';
   return (
-    <div style={st('display:flex;flex-direction:column;align-items:center;gap:6px;min-height:65px')}>
-      <div ref={ref} />
-      {loadError && (
-        <span role="alert" style={st('font:500 13px var(--font-ui);color:var(--danger);text-align:center')}>
-          The captcha couldn't load. Check your connection or ad blocker, then reload the page.
-        </span>
-      )}
+    <div style={st('display:flex;flex-direction:column;gap:8px')}>
+      {/* Cloudflare's box, only visible when it needs the visitor to click. */}
+      <div ref={ref} style={st(`width:100%;${status === 'interactive' ? '' : 'height:0;overflow:hidden'}`)} />
+      <span
+        role={failed ? 'alert' : 'status'}
+        style={st(
+          `display:flex;align-items:center;justify-content:center;gap:8px;min-height:20px;font:500 13px var(--font-ui);text-align:center;color:${failed ? 'var(--danger)' : status === 'verified' ? 'var(--mint)' : 'var(--muted)'}`,
+        )}
+      >
+        {failed ? (
+          loadError ? "The security check couldn't load. Check your connection or ad blocker, then reload." : 'The security check failed. Reload the page to try again.'
+        ) : status === 'verified' ? (
+          <>✓ Verified, you're good to sign in</>
+        ) : status === 'interactive' ? (
+          'One quick check before you sign in'
+        ) : (
+          <>
+            <span aria-hidden style={st('width:12px;height:12px;border-radius:50%;border:2px solid var(--line);border-top-color:var(--muted);animation:qu-spin 0.8s linear infinite')} />
+            Checking your browser…
+          </>
+        )}
+      </span>
     </div>
   );
 }
@@ -135,7 +168,7 @@ export function LoginPage({ providers, turnstileSiteKey = null }: { providers: s
         <div style={st('display:flex;flex-direction:column;gap:10px')}>
           {captchaFailed && !captcha && (
             <span role="alert" style={st('font:500 13.5px var(--font-ui);color:var(--danger)')}>
-              The captcha check didn't go through. Please try again.
+              The security check didn't go through. Please try again.
             </span>
           )}
           {needsCaptcha && <TurnstileWidget siteKey={turnstileSiteKey!} onToken={setCaptcha} />}
@@ -148,7 +181,7 @@ export function LoginPage({ providers, turnstileSiteKey = null }: { providers: s
                 aria-disabled={!ready}
                 onClick={(e) => !ready && e.preventDefault()}
                 style={st(
-                  `height:52px;border-radius:999px;border:${s.border};background:${s.bg};color:${s.fg};font:700 15px var(--font-ui);display:flex;align-items:center;justify-content:center;text-decoration:none;opacity:${ready ? 1 : 0.45};cursor:${ready ? 'pointer' : 'not-allowed'}`,
+                  `height:52px;border-radius:999px;border:${s.border};background:${s.bg};color:${s.fg};font:700 15px var(--font-ui);display:flex;align-items:center;justify-content:center;text-decoration:none;opacity:${ready ? 1 : 0.7};cursor:${ready ? 'pointer' : 'progress'};transition:opacity 0.2s`,
                 )}
               >
                 {s.label}

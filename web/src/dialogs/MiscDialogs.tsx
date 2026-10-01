@@ -98,18 +98,30 @@ export function DlcDialog() {
 
 const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
 
-/** "What's new": the generated changelog, grouped by month. Closing marks everything seen. */
+/** "What's new": the generated changelog, one group per release ("Updated to v1.5.0"), newest
+ * first. A changelog from before releases were tracked falls back to one group per month. Closing
+ * marks everything seen. */
 export function ChangelogDialog() {
   const ui = useUi();
   const { entries, markAllSeen } = useChangelog();
   const groups = useMemo(() => {
-    const out: { label: string; items: typeof entries }[] = [];
+    const byRelease = entries.some((e) => e.version !== undefined);
+    const out: { key: string; label: string; date: string | null; items: typeof entries }[] = [];
     for (const e of entries) {
       const d = new Date(e.mergedAt);
-      const label = `${MONTHS[d.getMonth()]} ${d.getFullYear()}`;
-      const last = out[out.length - 1];
-      if (last && last.label === label) last.items.push(e);
-      else out.push({ label, items: [e] });
+      const key = byRelease ? (e.version ?? 'next') : `${MONTHS[d.getMonth()]} ${d.getFullYear()}`;
+      const existing = out.find((g) => g.key === key);
+      if (existing) {
+        existing.items.push(e);
+        continue;
+      }
+      out.push({
+        key,
+        label: !byRelease ? key : e.version ? `Updated to ${e.version}` : 'Coming in the next update',
+        // Newest-first, so a group's first entry is its release date.
+        date: byRelease && e.version ? `${d.getDate()} ${MONTHS[d.getMonth()]} ${d.getFullYear()}` : null,
+        items: [e],
+      });
     }
     return out;
   }, [entries]);
@@ -123,8 +135,11 @@ export function ChangelogDialog() {
     <Dialog onClose={close} title="What's new" height="tall" gap={22}>
       {groups.length === 0 && <span style={st('font:400 14px var(--font-ui);color:var(--muted)')}>Nothing to show yet.</span>}
       {groups.map((g) => (
-        <div key={g.label} style={st('display:flex;flex-direction:column;gap:8px')}>
-          <span style={st('font:700 17px var(--font-mono)')}>{g.label}</span>
+        <div key={g.key} style={st('display:flex;flex-direction:column;gap:8px')}>
+          <span style={st('display:flex;align-items:baseline;gap:10px;flex-wrap:wrap')}>
+            <span style={st('font:700 17px var(--font-mono)')}>{g.label}</span>
+            {g.date && <span style={st('font:500 12px var(--font-mono);color:var(--muted)')}>{g.date}</span>}
+          </span>
           {g.items.map((it) => (
             <a
               key={it.number}

@@ -6,6 +6,9 @@ export interface ChangelogEntry {
   title: string;
   url: string;
   mergedAt: string;
+  /** The release this PR shipped in ("v1.5.0"), or null when it isn't in a release yet. Missing from
+   * changelog files generated before releases were tracked. */
+  version?: string | null;
 }
 
 const SEEN_KEY = 'changelogSeenPRs';
