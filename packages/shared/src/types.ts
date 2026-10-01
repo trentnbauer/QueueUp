@@ -1701,6 +1701,14 @@ export interface PublicUserProfile {
   beatenGames: PublicProfileBeatenGame[];
   /** When the account was created (ISO). */
   memberSince: string;
+  /** Up to 10 of the Personal Shelf's Play Next list, topped up with its highest-voted backlog games. */
+  upNext: PublicProfileGame[];
+  /** Games the user has marked as owned (their Personal Shelf entries with an ownership claim). */
+  library: PublicProfileGame[];
+  /** Who's looking: the owner themself, or a friend (who sees the profile even when it isn't public). */
+  viewer: 'self' | 'friend' | 'public';
+  /** The user id, so a signed-in viewer can load friend-only extras. */
+  userId: string;
 }
 
 export interface PublicProfileBeatenGame {

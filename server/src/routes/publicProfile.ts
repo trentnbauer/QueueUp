@@ -1,8 +1,9 @@
 import type { FastifyInstance } from 'fastify';
 import { prisma } from '../db/client.js';
 import { HttpError } from '../util/httpError.js';
-import { BADGE_DEFINITIONS, ROOM_PLATFORM_LABELS, type BadgeKey, type PublicUserProfile } from '@queueup/shared';
+import { BADGE_DEFINITIONS, ROOM_PLATFORM_LABELS, type BadgeKey, type PublicProfileGame, type PublicUserProfile } from '@queueup/shared';
 import { toGameReviewDto } from '../services/gameSerializer.js';
+import { areFriends } from '../services/friendships.js';
 
 /** The shareable, unauthenticated counterpart to a user's Personal Shelf (issue #511) - reachable
  * at GET /api/public/users/:id (and the web app's /u/:id route) with no cookie/session required at
@@ -22,7 +23,13 @@ export default async function publicProfileRoutes(app: FastifyInstance) {
     // Same response (404, no distinguishing detail) whether the id doesn't exist at all or exists
     // but hasn't opted in - a scan of ids must not be able to tell "no such user" from "exists but
     // private" apart from the outside.
-    if (!user || !user.publicProfileEnabled) throw new HttpError(404, 'Profile not found');
+    if (!user) throw new HttpError(404, 'Profile not found');
+    // Signed-in viewers get more than the anonymous page: the owner and their friends see the
+    // profile even when it isn't public (issue #624 - one profile page for /u/ and /friends/).
+    const viewerId = await request.currentUserId();
+    const viewer: 'self' | 'friend' | 'public' =
+      viewerId === user.id ? 'self' : viewerId && (await areFriends(viewerId, user.id)) ? 'friend' : 'public';
+    if (!user.publicProfileEnabled && viewer === 'public') throw new HttpError(404, 'Profile not found');
 
     // Personal Shelf only (roomId: null) - same scope as the release-watch alerts (#510) and the
     // Franchise Finisher/DLC Completionist badges this reuses rarity data alongside; a room game
@@ -42,6 +49,25 @@ export default async function publicProfileRoutes(app: FastifyInstance) {
       prisma.user.count(),
       prisma.userBadge.groupBy({ by: ['badgeKey'], _count: { userId: true } }),
     ]);
+
+    const [shelfRows, ownedRows] = await Promise.all([
+      prisma.game.findMany({
+        where: { roomId: null, addedBy: user.id, hiddenFromOthers: false, archivedAt: null, status: { in: ['play_next', 'backlog', 'replay', 'wishlist', 'playing', 'done', 'dropped'] } },
+        select: { id: true, title: true, coverImageUrl: true, platform: true, status: true, igdbId: true, updatedAt: true, votes: { select: { value: true } } },
+      }),
+      prisma.gameOwnership.findMany({ where: { userId: user.id }, select: { igdbId: true } }),
+    ]);
+    const score = (g: (typeof shelfRows)[number]) => g.votes.reduce((sum, v) => sum + v.value, 0);
+    const toGame = (g: (typeof shelfRows)[number]): PublicProfileGame => ({ id: g.id, title: g.title, coverImageUrl: g.coverImageUrl, platform: g.platform });
+    const byScore = (a: (typeof shelfRows)[number], b: (typeof shelfRows)[number]) => score(b) - score(a) || b.updatedAt.getTime() - a.updatedAt.getTime();
+    const playNext = shelfRows.filter((g) => g.status === 'play_next').sort(byScore);
+    const backlogTop = shelfRows.filter((g) => g.status === 'backlog').sort(byScore);
+    const upNext = [...playNext, ...backlogTop].slice(0, 10).map(toGame);
+    const ownedIgdb = new Set(ownedRows.map((r) => r.igdbId));
+    const library = shelfRows
+      .filter((g) => ownedIgdb.has(g.igdbId))
+      .sort((a, b) => a.title.localeCompare(b.title))
+      .map(toGame);
 
     const countByKey = new Map(perBadgeCounts.map((r) => [r.badgeKey, r._count.userId]));
 
@@ -83,6 +109,10 @@ export default async function publicProfileRoutes(app: FastifyInstance) {
           review: toGameReviewDto(g),
         })),
       memberSince: user.createdAt.toISOString(),
+      upNext,
+      library,
+      viewer,
+      userId: user.id,
     };
     return profile;
   });
