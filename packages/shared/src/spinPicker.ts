@@ -44,12 +44,11 @@ export function hasUnmetPrerequisite(game: Game, games: Game[]): boolean {
  * games that haven't released yet (see isUnreleased) - nobody can actually play them yet, so the
  * wheel shouldn't be able to land on one even though it's sitting in the backlog - and games with
  * an unmet "play after" prerequisite (see hasUnmetPrerequisite), so the wheel can't jump ahead to a
- * sequel before its predecessor is done. Play Next is deliberately not included here (same as
- * Playing/Done/Dropped) - once something's queued up next, the wheel shouldn't be able to bump it
- * for something else. */
+ * sequel before its predecessor is done. Play Next is included too, at double weight (see
+ * PLAY_NEXT_MULTIPLIER) - it's the list you said you want to get to soon. */
 export function backlogGames(games: Game[], now: number = Date.now()): Game[] {
   return games.filter(
-    (g) => (g.status === 'backlog' || g.status === 'replay') && !isUnreleased(g, now) && !hasUnmetPrerequisite(g, games),
+    (g) => (g.status === 'backlog' || g.status === 'replay' || g.status === 'play_next') && !isUnreleased(g, now) && !hasUnmetPrerequisite(g, games),
   );
 }
 
@@ -157,6 +156,24 @@ export function weightedPick<T>(items: T[], weight: (item: T) => number, random:
 // it otherwise would.
 const GENRE_DIVERSITY_MULTIPLIER = 2;
 
+// Play Next games and brand-new releases (out within the last 3 months) each get double the weight.
+// They stack with each other and with the genre boost, but not past the sqrt vote scaling's spirit:
+// still a nudge, not a guarantee.
+const PLAY_NEXT_MULTIPLIER = 2;
+const NEW_RELEASE_MULTIPLIER = 2;
+const NEW_RELEASE_MONTHS = 3;
+
+/** Released (not upcoming) within the last NEW_RELEASE_MONTHS months. Needs the exact releaseDate -
+ * a game with only a releaseYear can't be placed that precisely, so it never counts. */
+export function isNewRelease(game: Game, now: number = Date.now()): boolean {
+  if (game.releaseDate === null) return false;
+  const released = new Date(game.releaseDate).getTime();
+  if (Number.isNaN(released) || released > now) return false;
+  const cutoff = new Date(now);
+  cutoff.setUTCMonth(cutoff.getUTCMonth() - NEW_RELEASE_MONTHS);
+  return released >= cutoff.getTime();
+}
+
 // A candidate with zero votes still gets this much weight, so an unvoted backlog game always has
 // *some* chance of winning instead of a hard-locked 0% - without it, as soon as any one candidate
 // has a vote, every still-unvoted candidate becomes mathematically unpickable (weight 0 always
@@ -182,17 +199,19 @@ export function reviewScoreMultiplier(reviewScore: number | null): number {
 
 /** A candidate's effective Spin the Wheel weight: its vote score (diminishing-returns scaled, plus
  * a small baseline so an unvoted game isn't a guaranteed loser), boosted for genre variety against
- * `avoided` (see avoidedGenres), and nudged by its IGDB review score (see reviewScoreMultiplier).
+ * `avoided` (see avoidedGenres), doubled for Play Next and again for a release from the last 3 months, and nudged by its IGDB review score (see reviewScoreMultiplier).
  * The sqrt scale keeps "more votes = more likely" without letting one heavily-voted game
  * statistically crush every other candidate - a 16-vote game is only 4x as likely as a 1-vote
  * game, not 16x, so the wheel still has real suspense instead of a predictable outcome. Exported
  * mainly for testing - callers should use pickSpinWinner. */
-export function spinCandidateWeight(game: Game, avoided: Set<string>): number {
+export function spinCandidateWeight(game: Game, avoided: Set<string>, now: number = Date.now()): number {
   const primary = primaryGenre(game.genre);
   const differs = avoided.size > 0 && primary !== null && !avoided.has(primary);
   return (
     (Math.sqrt(game.voteScore) + UNVOTED_BASELINE_WEIGHT) *
     (differs ? GENRE_DIVERSITY_MULTIPLIER : 1) *
+    (game.status === 'play_next' ? PLAY_NEXT_MULTIPLIER : 1) *
+    (isNewRelease(game, now) ? NEW_RELEASE_MULTIPLIER : 1) *
     reviewScoreMultiplier(game.reviewScore)
   );
 }

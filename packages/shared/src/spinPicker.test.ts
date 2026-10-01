@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import type { Game } from './types.js';
-import { hasSteamMatch, underPriceCap, spinCandidates, resolveConcreteTheme, buildSpinStrip, isUnreleased } from './spinPicker.js';
+import { hasSteamMatch, underPriceCap, spinCandidates, resolveConcreteTheme, buildSpinStrip, isUnreleased, isNewRelease, spinCandidateWeight } from './spinPicker.js';
 
 function makeGame(overrides: Partial<Game> = {}): Game {
   return {
@@ -202,5 +202,35 @@ describe('buildSpinStrip', () => {
     const strip = buildSpinStrip([popular, unvoted], [popular, unvoted], sequential, N);
     const popularCount = strip.filter((g) => g.id === 'popular').length;
     expect(popularCount).toBeGreaterThan(N / 2);
+  });
+});
+
+describe('spin weights: Play Next and new releases', () => {
+  const now = new Date('2026-10-01T12:00:00.000Z').getTime();
+  const base = { voteScore: 0, genre: null, reviewScore: null, releaseDate: null, releaseYear: null } as const;
+
+  it('doubles the weight of a Play Next game', () => {
+    const backlog = spinCandidateWeight(makeGame({ ...base, status: 'backlog' }), new Set(), now);
+    const next = spinCandidateWeight(makeGame({ ...base, status: 'play_next' }), new Set(), now);
+    expect(next).toBeCloseTo(backlog * 2);
+  });
+
+  it('doubles the weight of a game released in the last 3 months', () => {
+    const old = spinCandidateWeight(makeGame({ ...base, releaseDate: '2025-01-01T00:00:00.000Z' }), new Set(), now);
+    const fresh = spinCandidateWeight(makeGame({ ...base, releaseDate: '2026-08-15T00:00:00.000Z' }), new Set(), now);
+    expect(fresh).toBeCloseTo(old * 2);
+  });
+
+  it('stacks both boosts', () => {
+    const plain = spinCandidateWeight(makeGame({ ...base }), new Set(), now);
+    const both = spinCandidateWeight(makeGame({ ...base, status: 'play_next', releaseDate: '2026-09-01T00:00:00.000Z' }), new Set(), now);
+    expect(both).toBeCloseTo(plain * 4);
+  });
+
+  it('isNewRelease: edges, upcoming and year-only games', () => {
+    expect(isNewRelease(makeGame({ releaseDate: '2026-07-02T00:00:00.000Z' }), now)).toBe(true);
+    expect(isNewRelease(makeGame({ releaseDate: '2026-06-30T00:00:00.000Z' }), now)).toBe(false);
+    expect(isNewRelease(makeGame({ releaseDate: '2026-12-01T00:00:00.000Z' }), now)).toBe(false);
+    expect(isNewRelease(makeGame({ releaseDate: null, releaseYear: 2026 }), now)).toBe(false);
   });
 });
