@@ -144,7 +144,7 @@ function BothOwnBadge({ small = false }: { small?: boolean }) {
 export function PublicProfilePage({ userId, signedIn }: { userId: string; signedIn: boolean }) {
   const [profile, setProfile] = useState<PublicUserProfile | null>(null);
   const [state, setState] = useState<'loading' | 'ok' | 'missing'>('loading');
-  const [modal, setModal] = useState<'achievements' | 'library' | null>(null);
+  const [modal, setModal] = useState<'achievements' | 'library' | 'bothOwn' | null>(null);
   const [openGame, setOpenGame] = useState<PublicProfileBeatenGame | null>(null);
   const beatenRef = useRef<HTMLDivElement>(null);
   const playingRef = useRef<HTMLDivElement>(null);
@@ -217,6 +217,7 @@ export function PublicProfilePage({ userId, signedIn }: { userId: string; signed
                 {tile(profile.currentlyPlaying.length, 'playing', scrollTo(playingRef), '↓')}
                 {tile(profile.beatenGameCount, 'beaten', scrollTo(beatenRef), '↓')}
                 {tile(profile.library.length, 'library', () => setModal('library'), '›')}
+                {profile.bothOwn.length > 0 && tile(profile.bothOwn.length, 'you both own', () => setModal('bothOwn'), '›')}
                 {tile(profile.badges.length, 'achievements', () => setModal('achievements'), '›')}
               </div>
             </div>
@@ -277,26 +278,6 @@ export function PublicProfilePage({ userId, signedIn }: { userId: string; signed
                       <span style={st('font-family:var(--font-mono);color:var(--muted)')}>{i + 1}. </span>
                       {g.title}
                     </span>
-                  </div>
-                ))}
-              </div>
-            </div>
-          )}
-
-          {profile.bothOwn.length > 0 && (
-            <div style={st('display:flex;flex-direction:column;gap:12px;padding:18px;border-radius:22px;background:linear-gradient(140deg, var(--mintSoft), var(--surf))')}>
-              <span style={st('display:flex;flex-direction:column;gap:2px')}>
-                <span style={st('display:flex;align-items:baseline;gap:10px')}>
-                  <span style={st('font:700 20px var(--font-display)')}>You both own</span>
-                  <span style={st('font:500 11.5px var(--font-mono);color:var(--muted)')}>{profile.bothOwn.length}</span>
-                </span>
-                <span style={st('font:400 13.5px var(--font-ui);color:var(--muted)')}>You and {profile.displayName} can play these together.</span>
-              </span>
-              <div style={st('display:grid;grid-template-columns:repeat(auto-fill,minmax(100px,1fr));gap:12px')}>
-                {profile.bothOwn.map((g) => (
-                  <div key={g.id} style={st('min-width:0;display:flex;flex-direction:column;gap:5px')}>
-                    <Cover title={g.title} url={g.coverImageUrl} width="100%" radius={12} />
-                    <span style={st('font:600 12px var(--font-ui);white-space:nowrap;overflow:hidden;text-overflow:ellipsis')}>{g.title}</span>
                   </div>
                 ))}
               </div>
@@ -396,6 +377,19 @@ export function PublicProfilePage({ userId, signedIn }: { userId: string; signed
               </span>
             </div>
           ))}
+        </Dialog>
+      )}
+      {modal === 'bothOwn' && profile && (
+        <Dialog title={`You both own · ${profile.bothOwn.length}`} onClose={() => setModal(null)} width={640}>
+          <span style={st('font:400 13.5px var(--font-ui);color:var(--muted)')}>You and {profile.displayName} can play these together.</span>
+          <div style={st('display:grid;grid-template-columns:repeat(auto-fill,minmax(100px,1fr));gap:12px')}>
+            {profile.bothOwn.map((g) => (
+              <div key={g.id} style={st('min-width:0;display:flex;flex-direction:column;gap:5px')}>
+                <Cover title={g.title} url={g.coverImageUrl} width="100%" radius={12} />
+                <span style={st('font:600 12px var(--font-ui);white-space:nowrap;overflow:hidden;text-overflow:ellipsis')}>{g.title}</span>
+              </div>
+            ))}
+          </div>
         </Dialog>
       )}
       {modal === 'library' && profile && (
