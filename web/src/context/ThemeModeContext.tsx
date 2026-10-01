@@ -1,7 +1,10 @@
 import { createContext, useContext, useEffect, useState, type ReactNode } from 'react';
 import {
   applyThemeMode,
+  getAccent,
   getPalette,
+  setAccent as storeAccent,
+  type Accent,
   setPalette as storePalette,
   type Palette,
   getThemePreference,
@@ -14,6 +17,8 @@ interface ThemeModeContextValue {
   preference: ThemePreference;
   setPreference: (pref: ThemePreference) => void;
   palette: Palette;
+  accent: Accent;
+  setAccent: (accent: Accent) => void;
   setPalette: (palette: Palette) => void;
 }
 
@@ -23,6 +28,7 @@ export function ThemeModeProvider({ children }: { children: ReactNode }) {
   // main.tsx already applied the preferred mode before the first render; this just mirrors the choice.
   const [preference, setPreferenceState] = useState<ThemePreference>(getThemePreference);
   const [palette, setPaletteState] = useState<Palette>(getPalette);
+  const [accent, setAccentState] = useState<Accent>(getAccent);
 
   useEffect(() => watchSystemThemeMode((next) => applyThemeMode(next)), []);
 
@@ -31,12 +37,17 @@ export function ThemeModeProvider({ children }: { children: ReactNode }) {
     setPreferenceState(pref);
   }
 
+  function setAccent(next: Accent) {
+    storeAccent(next);
+    setAccentState(next);
+  }
+
   function setPalette(next: Palette) {
     storePalette(next);
     setPaletteState(next);
   }
 
-  return <ThemeModeContext.Provider value={{ preference, setPreference, palette, setPalette }}>{children}</ThemeModeContext.Provider>;
+  return <ThemeModeContext.Provider value={{ preference, setPreference, palette, setPalette, accent, setAccent }}>{children}</ThemeModeContext.Provider>;
 }
 
 export function useThemeMode(): ThemeModeContextValue {
