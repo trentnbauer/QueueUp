@@ -59,6 +59,8 @@ export async function buildApp() {
         // fonts.gstatic.com serves the font files the stylesheet above points at.
         fontSrc: ["'self'", 'https://fonts.gstatic.com'],
         connectSrc: ["'self'"],
+        // The "Watch trailer" player embeds YouTube (privacy-enhanced domain, no cookies until play).
+        frameSrc: ["'self'", 'https://www.youtube-nocookie.com'],
       },
     },
   });
