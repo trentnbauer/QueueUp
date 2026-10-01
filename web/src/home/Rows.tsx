@@ -1,7 +1,7 @@
 import type { MouseEvent, ReactNode } from 'react';
 import type { Game, VoteValue } from '@queueup/shared';
 import { VOTES, VOTE_VALUES, isNewRelease, releaseLabel, shortDate } from '../lib/gameView';
-import { Cover, coverBg } from '../ui/primitives';
+import { Cover, coverBg, GOLD_RING, TrophyBadge } from '../ui/primitives';
 import { st } from '../ui/st';
 import type { RowItem } from './derive';
 
@@ -100,7 +100,7 @@ export function DesktopRow({ item, showRank, bulk, selected, active, onOpen, onV
         <span style={st('width:24px;flex-shrink:0;font:700 18px var(--font-display);color:var(--rank);text-align:center')}>{item.rank}</span>
       )}
       {bulk && <SelectMark on={selected} />}
-      <Cover title={g.title} url={g.coverImageUrl} width={44} radius={9} />
+      <Cover title={g.title} url={g.coverImageUrl} width={44} radius={9} completed={isFullyCompleted(g)} />
       <div style={st('flex:1;min-width:0;display:flex;flex-direction:column;gap:4px')}>
         <span style={st('font:600 15.5px var(--font-ui);white-space:nowrap;overflow:hidden;text-overflow:ellipsis')}>{g.title}</span>
         <span style={st('display:flex;align-items:center;gap:6px;min-width:0;font:400 12.5px var(--font-ui);color:var(--muted)')}>
@@ -140,7 +140,7 @@ export function MobileRow({ item, showRank, bulk, selected, onOpen, onVote }: Ro
     >
       {showRank && <span style={st('width:20px;flex-shrink:0;font:700 17px var(--font-display);color:var(--rank);text-align:center')}>{item.rank}</span>}
       {bulk && <SelectMark on={selected} />}
-      <Cover title={g.title} url={g.coverImageUrl} width={46} radius={10} />
+      <Cover title={g.title} url={g.coverImageUrl} width={46} radius={10} completed={isFullyCompleted(g)} />
       <div style={st('flex:1;min-width:0;display:flex;flex-direction:column;gap:6px')}>
         <div style={st('display:flex;flex-direction:column;gap:2px;min-width:0')}>
           <span style={st('font:600 15.5px var(--font-ui);white-space:nowrap;overflow:hidden;text-overflow:ellipsis')}>{g.title}</span>
@@ -160,11 +160,17 @@ export function MobileRow({ item, showRank, bulk, selected, onOpen, onVote }: Ro
   );
 }
 
+/** A Beaten (or replayed) game whose achievements synced at 100%. */
+function isFullyCompleted(g: Game): boolean {
+  return g.steamFullyCompleted && (g.status === 'done' || g.status === 'replay');
+}
+
 const BADGE = 'background:oklch(0.15 0.01 55 / 0.62);backdrop-filter:blur(8px);color:#fff';
 
 /** One game in the covers layout. `big` (2 per row) carries the vote overlay, 3 per row doesn't. */
 export function CoverCard({ item, showRank, bulk, selected, big, onOpen, onVote }: RowProps & { big: boolean }) {
   const g = item.game;
+  const completed = isFullyCompleted(g);
   return (
     <div
       role="button"
@@ -175,9 +181,13 @@ export function CoverCard({ item, showRank, bulk, selected, big, onOpen, onVote 
     >
       <div
         style={st(
-          `position:relative;aspect-ratio:2/3;border-radius:16px;background:${coverBg(g.title, g.coverImageUrl)};overflow:hidden;box-shadow:${bulk && selected ? '0 0 0 3px var(--acc)' : '0 8px 22px oklch(0 0 0 / 0.25)'}`,
+          `position:relative;aspect-ratio:2/3;border-radius:16px;background:${coverBg(g.title, g.coverImageUrl)};overflow:hidden;box-shadow:${bulk && selected ? '0 0 0 3px var(--acc)' : completed ? `${GOLD_RING}, 0 8px 22px oklch(0 0 0 / 0.25)` : '0 8px 22px oklch(0 0 0 / 0.25)'}`,
         )}
       >
+        {completed && (
+          <span style={st('position:absolute;inset:0;pointer-events:none;background:linear-gradient(to bottom, oklch(0.83 0.15 85 / 0.35), transparent 45%)')} />
+        )}
+        {completed && <TrophyBadge size={big ? 34 : 28} style={{ top: 6, left: showRank ? 40 : 6, right: 'auto', bottom: 'auto' }} />}
         {showRank && (
           <span style={st(`position:absolute;top:8px;left:8px;min-width:26px;height:26px;padding:0 8px;border-radius:999px;${BADGE};font:700 13px var(--font-display);display:flex;align-items:center;justify-content:center`)}>
             {item.rank}
