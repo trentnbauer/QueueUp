@@ -56,6 +56,9 @@ jobs:
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
+        with:
+          # Full history and tags: the changelog script works out which release each PR shipped in.
+          fetch-depth: 0
 
       - name: Generate changelog.json from merged PRs
         env:
