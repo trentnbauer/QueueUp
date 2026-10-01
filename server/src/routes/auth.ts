@@ -6,7 +6,7 @@ import { getOrCreateUser, primaryProviderOf } from '../plugins/auth.js';
 import { toUserDto } from '../util/dto.js';
 import { HttpError } from '../util/httpError.js';
 import { extractSteamId64, resolveSteamId64 } from '../services/steamLibrary.js';
-import { setOwnedPlatforms, setPublicProfileEnabled } from '../services/userSettings.js';
+import { setOwnedPlatforms, setProfileSlug, setPublicProfileEnabled } from '../services/userSettings.js';
 import { logAdminAction } from '../services/adminAuditLog.js';
 import { generateApiKeyToken, hashApiKeyToken } from '../services/apiKeys.js';
 import type { OAuthProfile } from '../services/authProviders/types.js';
@@ -227,6 +227,7 @@ export default async function authRoutes(app: FastifyInstance) {
       steamLinked: resolveSteamId64(user) !== null,
       ownedPlatforms: user.ownedPlatforms,
       publicProfileEnabled: user.publicProfileEnabled,
+      profileSlug: user.profileSlug,
       primaryProvider,
       linkedProviders,
       isNewAccount,
@@ -252,6 +253,17 @@ export default async function authRoutes(app: FastifyInstance) {
       const userId = await request.requireAuth();
       const publicProfileEnabled = await setPublicProfileEnabled(userId, request.body?.enabled);
       return reply.send({ publicProfileEnabled });
+    },
+  );
+
+  // Vanity name for the public profile URL (/u/<slug>). null or empty clears it.
+  app.patch<{ Body: { slug?: string | null } }>(
+    '/api/me/profile-slug',
+    { config: { rateLimit: { max: 20, timeWindow: '1 minute' } } },
+    async (request, reply) => {
+      const userId = await request.requireAuth();
+      const profileSlug = await setProfileSlug(userId, request.body?.slug);
+      return reply.send({ profileSlug });
     },
   );
 
