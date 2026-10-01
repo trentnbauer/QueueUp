@@ -41,7 +41,10 @@ Some other things to note:
 
 ## Docker Compose
 
-1. Download the Docker Compose Prod file and the Example ENV file
+1. Download the Docker Compose Prod file and one of the example env files:
+   - [`.env.minimal.example`](.env.minimal.example) - only what's needed to run (database password, address, a sign-in method, IGDB)
+   - [`.env.recommended.example`](.env.recommended.example) - adds prices, Steam, and Cloudflare's sign-in captcha and tunnel
+   - [`.env.example`](.env.example) - the full reference, every setting explained
 2. Read and edit the env file to include your API keys, OAuth details etc.
 3. Rename the compose file to docker-compose.yaml
 4. Rename the env file to .env
