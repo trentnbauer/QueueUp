@@ -135,8 +135,15 @@ const IGDB_SIZE_SEGMENT = /\/t_[a-z0-9_]+\//;
 /** Rewrites an IGDB cover URL to the given size, so a 40px list thumbnail doesn't download the
  * same 264px image as a grid tile. Non-IGDB URLs pass through unchanged. */
 export function sizedCoverUrl(url: string, size: CoverSize): string {
-  if (!url.includes('images.igdb.com/')) return url;
-  return url.replace(IGDB_SIZE_SEGMENT, `/t_cover_${size}/`);
+  let parsed: URL;
+  try {
+    parsed = new URL(url);
+  } catch {
+    return url;
+  }
+  if (parsed.hostname !== 'images.igdb.com') return url;
+  parsed.pathname = parsed.pathname.replace(IGDB_SIZE_SEGMENT, `/t_cover_${size}/`);
+  return parsed.toString();
 }
 
 /** Smallest IGDB size that stays sharp at `width` CSS px on a 2x screen (small 90px, big 264px). */
