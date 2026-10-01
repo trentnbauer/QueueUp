@@ -58,7 +58,7 @@ import {
   searchSteamStore,
 } from '../services/steamLibrary.js';
 import type { OwnedSteamGame } from '../services/steamLibrary.js';
-import { toggleOwnershipForPlatform, setOwnershipPlatforms, markOwned } from '../services/gameOwnership.js';
+import { toggleOwnershipForPlatform, setOwnershipPlatforms, markOwned, promoteOwnedWishlistGames } from '../services/gameOwnership.js';
 import { recordStatusTransition } from '../services/playLog.js';
 import { getCurrentPlaytimeMinutesForGames } from '../services/playtimeTracking.js';
 import { summarizeTimeToBeat, summarizeActiveHoursToBeat, pickMostNeglectedGame, backlogAgeRanges } from '../services/backlogInsights.js';
@@ -352,6 +352,9 @@ async function runSteamLibraryImportLoop(
       }
     }
     if (imported > 0) await invalidateExistingIgdbIds(null, userId);
+    // Everything in ownedIgdbIds came from this Steam library, so a match still on the Wishlist has
+    // been bought since it was wishlisted.
+    await promoteOwnedWishlistGames(userId, ownedIgdbIds);
     await markOwned(userId, ownedIgdbIds);
   } finally {
     // Unconditional, not gated on imported > 0 (issue #489) - once a library is fully synced,
@@ -765,6 +768,12 @@ export default async function gameRoutes(app: FastifyInstance) {
         // wishlist-imported game as owned the next time a library import ran (bug report: wishlist
         // imports showing as owned when they aren't).
         const ownedIgdbIds: number[] = shelfGames.filter((g) => g.status !== 'wishlist').map((g) => g.igdbId);
+        // A Wishlist game that *is* in the Steam library has been bought since it was wishlisted:
+        // count it as owned too, and runSteamLibraryImportLoop moves it to the Backlog.
+        const ownedAppIds = new Set(owned.map((game) => game.appId));
+        for (const g of shelfGames) {
+          if (g.status === 'wishlist' && g.steamAppid != null && ownedAppIds.has(g.steamAppid)) ownedIgdbIds.push(g.igdbId);
+        }
 
         const totalOwned = owned.length;
         const consideredCount = considered.length;

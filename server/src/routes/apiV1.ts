@@ -8,7 +8,7 @@ import { gameInclude, serializeGames } from '../services/gameSerializer.js';
 import { createGameForUser, resolveGameForCreation, defaultStatusForRelease, linkDlcToBaseGame } from '../services/gameIntake.js';
 import { isAddonCategory } from '../services/igdbClient.js';
 import { invalidateExistingIgdbIds } from '../services/gameAccess.js';
-import { setOwnershipPlatforms, unionOwnershipPlatforms } from '../services/gameOwnership.js';
+import { promoteOwnedWishlistGames, setOwnershipPlatforms, unionOwnershipPlatforms } from '../services/gameOwnership.js';
 import { unlockBadges } from '../services/badges.js';
 import { unionOwnedPlatforms, VALID_PLATFORMS } from '../services/userSettings.js';
 import { runWithConcurrency } from '../util/concurrency.js';
@@ -153,6 +153,9 @@ async function applyResolvedIgdbEntry(
 ): Promise<ResolvedShelfGame> {
   const existing = existingByIgdbId.get(igdbId);
   if (existing) {
+    // It's in the Playnite library, so a Wishlist entry has been bought since: move it to the
+    // Backlog (unless it's not out yet) before recording ownership.
+    if (existing.status === 'wishlist' && (await promoteOwnedWishlistGames(userId, [igdbId])) > 0) existing.status = 'backlog';
     if (existing.status !== 'wishlist') await unionOwnershipPlatforms(userId, igdbId, entry.platforms);
     return existing;
   }
@@ -188,7 +191,8 @@ async function applyResolvedIgdbEntry(
     const winner = await prisma.game.findFirstOrThrow({ where: { roomId: null, addedBy: userId, igdbId } });
     const result = { id: winner.id, status: winner.status };
     existingByIgdbId.set(igdbId, result);
-    if (winner.status !== 'wishlist') await unionOwnershipPlatforms(userId, igdbId, entry.platforms);
+    if (result.status === 'wishlist' && (await promoteOwnedWishlistGames(userId, [igdbId])) > 0) result.status = 'backlog';
+    if (result.status !== 'wishlist') await unionOwnershipPlatforms(userId, igdbId, entry.platforms);
     return result;
   }
   // Issue #338 precedent, same as the Steam import loop: a library commonly includes DLC

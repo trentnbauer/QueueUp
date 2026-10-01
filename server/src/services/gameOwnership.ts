@@ -86,6 +86,25 @@ export async function markOwned(userId: string, igdbIds: number[]): Promise<Badg
   return (await unlockBadges(userId, ['first_ownership_marked']))[0] ?? null;
 }
 
+/** A library sync (Steam, Playnite) found these titles in the user's own library, so any of them
+ * still sitting on their Personal Shelf Wishlist has been bought since: move those to Backlog.
+ * A wishlist game that isn't out yet stays put (a pre-purchase), same rule as
+ * defaultStatusForRelease in gameIntake.ts. Returns how many games moved. */
+export async function promoteOwnedWishlistGames(userId: string, igdbIds: number[]): Promise<number> {
+  if (igdbIds.length === 0) return 0;
+  const { count } = await prisma.game.updateMany({
+    where: {
+      roomId: null,
+      addedBy: userId,
+      igdbId: { in: [...new Set(igdbIds)] },
+      status: 'wishlist',
+      OR: [{ releaseDate: null }, { releaseDate: { lte: new Date() } }],
+    },
+    data: { status: 'backlog' },
+  });
+  return count;
+}
+
 /** Used by priceAlerts.ts to skip notifying about a game its owner already owns (issue #187) -
  * there's no "should I buy this" decision left to inform once you already have it. Checked
  * against the game's owner (addedBy), not whoever's currently viewing it, since a room game can
