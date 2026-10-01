@@ -161,12 +161,21 @@ export async function checkReleaseWatches(): Promise<void> {
     discoveriesByUser.set(userId, list);
   };
 
+  // One summary line per run, not a stack trace per lookup: when IGDB is down or the credentials
+  // are wrong, every lookup fails the same way, and a big library turned that into hundreds of
+  // near-identical log entries every day.
+  const failures = { collections: 0, dlcLists: 0, first: null as unknown };
+  const noteFailure = (kind: 'collections' | 'dlcLists', err: unknown) => {
+    failures[kind]++;
+    failures.first ??= err;
+  };
+
   await mapWithConcurrency(Array.from(sequelSourcesByCollection.entries()), RELEASE_WATCH_MAX_CONCURRENCY, async ([collectionId, sources]) => {
     let games: ReleaseWatchCandidate[];
     try {
       games = (await getCollectionGames(collectionId)).games;
     } catch (err) {
-      console.error('[releaseWatch] failed to fetch collection', { collectionId, err });
+      noteFailure('collections', err);
       return;
     }
     for (const { userId, sourceTitle } of sources) {
@@ -182,7 +191,7 @@ export async function checkReleaseWatches(): Promise<void> {
     try {
       dlcs = await getGameDlcs(baseIgdbId);
     } catch (err) {
-      console.error('[releaseWatch] failed to fetch DLC list', { baseIgdbId, err });
+      noteFailure('dlcLists', err);
       return;
     }
     for (const { userId, sourceTitle } of sources) {
@@ -192,6 +201,14 @@ export async function checkReleaseWatches(): Promise<void> {
       );
     }
   });
+
+  if (failures.first) {
+    const message = failures.first instanceof Error ? failures.first.message : String(failures.first);
+    console.error(
+      `[releaseWatch] IGDB lookups failed: ${failures.collections}/${sequelSourcesByCollection.size} collections, ` +
+        `${failures.dlcLists}/${dlcSourcesByBaseGame.size} DLC lists (first error: ${message})`,
+    );
+  }
 
   for (const [userId, discoveries] of discoveriesByUser) {
     // The same igdbId could theoretically surface twice for one user (e.g. two beaten games in

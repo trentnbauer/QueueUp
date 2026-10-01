@@ -48,6 +48,15 @@ export default async function staticPlugin(app: FastifyInstance) {
     // right. globIgnore removes index.html from that glob, so it is served exclusively via the
     // setNotFoundHandler below, uniformly for "/", "/index.html", and every SPA deep link.
     globIgnore: ['index.html'],
+    // Vite puts a content hash in every file name under assets/, so a given URL never changes -
+    // browsers can keep those for a year without asking again. The default (max-age=0) made every
+    // page load re-check each JS/CSS file with this container. Everything else at the root
+    // (favicons, changelog.json) keeps a stable name, so it's revalidated (a cheap 304 via ETag).
+    cacheControl: false,
+    setHeaders(res, filePath) {
+      const isHashedAsset = filePath.includes(`${path.sep}assets${path.sep}`);
+      res.header('Cache-Control', isHashedAsset ? 'public, max-age=31536000, immutable' : 'no-cache');
+    },
   });
 
   app.setNotFoundHandler((request, reply) => {
@@ -60,6 +69,7 @@ export default async function staticPlugin(app: FastifyInstance) {
       reply.status(404).send({ error: 'Not found' });
       return;
     }
-    reply.type('text/html').send(indexHtml);
+    // Always revalidated: it's the file that points at the current hashed assets.
+    reply.header('Cache-Control', 'no-cache').type('text/html').send(indexHtml);
   });
 }

@@ -64,6 +64,17 @@ export const envSchema = z.object({
     .optional()
     .transform((v) => v === 'true'),
 
+  // Logging. LOG_LEVEL is pino's level (default info). Every HTTP request used to log two lines
+  // ("incoming request" / "request completed") and the app polls several endpoints every few
+  // seconds, so the container log was mostly that. Requests are no longer logged one by one -
+  // only rate-limited (429) and slow ones are, and server errors already log through the error
+  // handler. LOG_REQUESTS=true logs every request again, for debugging.
+  LOG_LEVEL: z.enum(['fatal', 'error', 'warn', 'info', 'debug', 'trace', 'silent']).default('info'),
+  LOG_REQUESTS: z
+    .string()
+    .optional()
+    .transform((v) => v === 'true'),
+
   DEV_FAKE_AUTH: z
     .string()
     .optional()

@@ -10,6 +10,8 @@ function baseEnv(overrides: Partial<Env> = {}): Env {
     SESSION_SECRET: 'test-secret-test-secret-test-secret',
     TRUST_PROXY: true,
     DEV_FAKE_AUTH: false,
+    LOG_LEVEL: 'info',
+    LOG_REQUESTS: false,
     PRIVATE_INSTANCE: false,
     PLAYTIME_TRACKING_ENABLED: false,
     BASE_PATH: '',
