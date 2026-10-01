@@ -64,7 +64,7 @@ export function AppShell({ children }: { children: ReactNode }) {
         {selected && onHome && (
           <Dialog onClose={() => ui.selectGame(null)} bare padded={false} height="tall" ariaLabel={selected.title}>
             <div style={{ position: 'relative', flex: 1, minHeight: 0 }}>
-              <GameDetail game={selected} onClose={() => ui.selectGame(null)} changeStatus={changeStatus} />
+              <GameDetail key={selected.id} game={selected} onClose={() => ui.selectGame(null)} changeStatus={changeStatus} />
             </div>
           </Dialog>
         )}
@@ -101,7 +101,7 @@ export function AppShell({ children }: { children: ReactNode }) {
           >
             {showDetail && selected ? (
               <div style={{ position: 'relative', height: '100%' }}>
-                <GameDetail game={selected} onClose={() => ui.selectGame(null)} changeStatus={changeStatus} />
+                <GameDetail key={selected.id} game={selected} onClose={() => ui.selectGame(null)} changeStatus={changeStatus} />
               </div>
             ) : (
               <GlancePanel />

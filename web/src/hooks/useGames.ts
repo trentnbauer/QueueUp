@@ -109,13 +109,18 @@ export function useGames(roomId: string | null) {
     onSuccess: ({ game, unlockedBadges }) => {
       patchGame(game);
       announceUnlock(unlockedBadges);
+      // The room's red "needs your vote" dot should clear as soon as the last vote lands.
+      void queryClient.invalidateQueries({ queryKey: ['attention'] });
     },
     onError: (err) => setActionError(errorMessage(err, 'Could not save your vote.')),
   });
 
   const unvote = useMutation({
     mutationFn: (gameId: string) => gamesApi.unvote(gameId),
-    onSuccess: ({ game }) => patchGame(game),
+    onSuccess: ({ game }) => {
+      patchGame(game);
+      void queryClient.invalidateQueries({ queryKey: ['attention'] });
+    },
     onError: (err) => setActionError(errorMessage(err, 'Could not clear your vote.')),
   });
 

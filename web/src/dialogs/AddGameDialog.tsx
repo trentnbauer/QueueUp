@@ -415,8 +415,9 @@ export function AddGameDialog() {
         setSuggestedIds((prev) => new Set(prev).add(result.igdbId));
         ui.notify(`Suggested ${result.title}. A moderator will review it.`);
       } else {
-        ui.notify(`Added ${result.title} to ${scope.isShelf ? 'your shelf' : (scope.room?.name ?? 'the room')}`);
-        if (roomId && res.game.maxCoopPlayers == null) ui.notify(`⚠️ "${result.title}" doesn't appear to support co-op`);
+        // One toast: a second notify() would replace the first straight away.
+        const coopWarn = roomId && res.game.maxCoopPlayers == null ? ` ⚠️ It doesn't appear to support co-op.` : '';
+        ui.notify(`Added ${result.title} to ${scope.isShelf ? 'your shelf' : (scope.room?.name ?? 'the room')}.${coopWarn}`);
       }
       return true;
     } catch (err) {

@@ -28,6 +28,7 @@ export default async function publicProfileRoutes(app: FastifyInstance) {
       prisma.game.findMany({
         where: { roomId: null, addedBy: request.params.id, status: { in: ['done', 'replay'] }, hiddenFromOthers: false },
         orderBy: { updatedAt: 'desc' },
+        take: 300,
       }),
       prisma.game.findMany({
         where: { roomId: null, addedBy: request.params.id, status: { in: ['playing', 'play_next'] }, hiddenFromOthers: false },
@@ -41,6 +42,9 @@ export default async function publicProfileRoutes(app: FastifyInstance) {
 
     const countByKey = new Map(perBadgeCounts.map((r) => [r.badgeKey, r._count.userId]));
 
+    const beatenGameCount = await prisma.game.count({
+      where: { roomId: null, addedBy: request.params.id, status: { in: ['done', 'replay'] }, hiddenFromOthers: false },
+    });
     const profile: PublicUserProfile = {
       displayName: user.displayName,
       avatarColor: user.avatarColor,
@@ -61,7 +65,7 @@ export default async function publicProfileRoutes(app: FastifyInstance) {
           rarityPercent: Math.round((unlockedCount / totalUsers) * 100),
         };
       }),
-      beatenGameCount: beatenGameRows.length,
+      beatenGameCount,
       currentlyPlaying: currentlyPlayingRows,
       systems: user.ownedPlatforms.map((p) => ROOM_PLATFORM_LABELS[p]),
       // Reviewed games first, then the rest, each group newest-first (the query's own order).

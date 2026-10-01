@@ -15,9 +15,10 @@ export function ActivityPage() {
   const ui = useUi();
   const navigate = useNavigate();
   const friends = useFriends();
-  const { data, isLoading } = useFriendActivity();
+  const activity = useFriendActivity();
+  const isLoading = activity.isLoading;
   const [filter, setFilter] = useState<FeedFilter>('all');
-  const entries = applyFeedFilter(data?.entries ?? [], filter);
+  const entries = applyFeedFilter(activity.data?.pages.flatMap((p) => p.entries) ?? [], filter);
 
   return (
     <PageShell title="Activity" hint="What your friends have been playing, beating and unlocking." backLabel="Shelf" to="/">
@@ -28,6 +29,11 @@ export function ActivityPage() {
         <div style={st('padding:20px 0;color:var(--muted);font-size:14.5px')}>
           {friends.friends.length === 0 ? 'Add a friend to see what they are playing.' : 'Nothing here yet.'}
         </div>
+      )}
+      {activity.hasNextPage && (
+        <Btn height={40} fontSize={13.5} style={{ alignSelf: 'flex-start' }} disabled={activity.isFetchingNextPage} onClick={() => activity.fetchNextPage()}>
+          {activity.isFetchingNextPage ? 'Loading…' : 'Load more'}
+        </Btn>
       )}
       <Btn height={40} fontSize={13.5} style={{ alignSelf: 'flex-start' }} onClick={() => ui.openDialog('friends')}>
         Manage friends
