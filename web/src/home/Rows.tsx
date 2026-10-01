@@ -1,7 +1,7 @@
 import type { MouseEvent, ReactNode } from 'react';
 import type { Game, VoteValue } from '@queueup/shared';
 import { VOTES, VOTE_VALUES, isNewRelease, releaseLabel, shortDate } from '../lib/gameView';
-import { Avatar, Cover, coverBg, GOLD, GOLD_RING, TrophyBadge } from '../ui/primitives';
+import { Cover, coverBg, GOLD, GOLD_RING, TrophyBadge } from '../ui/primitives';
 import { st } from '../ui/st';
 import type { RowItem } from './derive';
 
@@ -60,58 +60,19 @@ export function VoteSegment({
 
 const CHIP = 'flex-shrink:0;height:19px;padding:0 7px;border-radius:999px;background:var(--surf2);color:var(--text2);font:600 10.5px var(--font-ui);display:flex;align-items:center';
 
-const GOLD_CHIP = { background: GOLD, color: 'oklch(0.28 0.06 70)' };
-/** Room cards show at most this many other members' counts before collapsing to "+N". */
-const MEMBER_CHIPS = 2;
-
-/** Steam achievement counts on a card: the viewer's own ("🏆 10/20"), then in a room the other
- * members' (avatar + "8/20", best first, the rest as "+N"). Each turns gold at 100%. */
-function AchievementChips({ g }: { g: Game }) {
-  const mine = g.myAchievements;
-  const members = g.memberAchievements;
-  if (!mine && members.length === 0) return null;
-  const shown = members.slice(0, MEMBER_CHIPS);
-  const rest = members.slice(MEMBER_CHIPS);
+/** The viewer's Steam achievement count ("🏆 10/20"), gold once it's 100%. Personal Shelf only:
+ * in a room, everyone's counts show in the game's detail, next to each member's vote. */
+function AchievementChip({ g }: { g: Game }) {
+  const a = g.myAchievements;
+  if (!a || g.roomId) return null;
+  const full = a.unlocked >= a.total;
   return (
-    <>
-      {mine && (
-        <span
-          title={`You: ${mine.unlocked} of ${mine.total} achievements`}
-          aria-label={`You: ${mine.unlocked} of ${mine.total} achievements`}
-          style={st(CHIP, mine.unlocked >= mine.total ? GOLD_CHIP : undefined)}
-        >
-          🏆 {mine.unlocked}/{mine.total}
-        </span>
-      )}
-      {shown.map((m) => {
-        const label = `${m.user.displayName}: ${m.unlocked} of ${m.total} achievements`;
-        return (
-          <span key={m.user.id} title={label} aria-label={label} style={st(CHIP, { gap: 4, paddingLeft: 2, ...(m.unlocked >= m.total ? GOLD_CHIP : {}) })}>
-            <Avatar name={m.user.displayName} color={m.user.avatarColor} avatarUrl={m.user.avatarUrl} size={15} fontSize={8} />
-            {!mine && '🏆 '}
-            {m.unlocked}/{m.total}
-          </span>
-        );
-      })}
-      {rest.length > 0 && (
-        <span
-          title={rest.map((m) => `${m.user.displayName}: ${m.unlocked}/${m.total}`).join('\n')}
-          aria-label={`${rest.length} more members' achievements`}
-          style={st(CHIP)}
-        >
-          +{rest.length}
-        </span>
-      )}
-    </>
-  );
-}
-
-/** The chips on a line of their own, wrapping - used where several members' counts won't fit in
- * the meta line (room rows) and on the narrow artwork cards. */
-function AchievementLine({ g }: { g: Game }) {
-  return (
-    <span style={st('display:flex;flex-wrap:wrap;gap:4px;margin-top:2px')}>
-      <AchievementChips g={g} />
+    <span
+      title={`${a.unlocked} of ${a.total} achievements`}
+      aria-label={`${a.unlocked} of ${a.total} achievements`}
+      style={st(CHIP, full ? { background: GOLD, color: 'oklch(0.28 0.06 70)' } : undefined)}
+    >
+      🏆 {a.unlocked}/{a.total}
     </span>
   );
 }
@@ -150,9 +111,8 @@ export function DesktopRow({ item, showRank, bulk, selected, active, onOpen, onV
       onClick={onOpen}
       onKeyDown={(e) => (e.key === 'Enter' || e.key === ' ') && (e.preventDefault(), onOpen())}
       className="hv-surf"
-      style={st(`display:flex;flex-direction:column;gap:6px;padding:10px 12px;border-radius:16px;cursor:pointer;background:${bg}`)}
+      style={st(`display:flex;align-items:center;gap:16px;padding:10px 12px;border-radius:16px;cursor:pointer;background:${bg}`)}
     >
-      <div style={st('display:flex;align-items:center;gap:16px')}>
       {showRank && (
         <span style={st('width:24px;flex-shrink:0;font:700 18px var(--font-display);color:var(--rank);text-align:center')}>{item.rank}</span>
       )}
@@ -162,7 +122,7 @@ export function DesktopRow({ item, showRank, bulk, selected, active, onOpen, onV
         <span style={st('font:600 15.5px var(--font-ui);white-space:nowrap;overflow:hidden;text-overflow:ellipsis')}>{g.title}</span>
         <span style={st('display:flex;align-items:center;gap:6px;min-width:0;font:400 12.5px var(--font-ui);color:var(--muted)')}>
           {item.chip && <span style={st(CHIP)}>{item.chip}</span>}
-          {g.memberAchievements.length === 0 && <AchievementChips g={g} />}
+          <AchievementChip g={g} />
           <span style={st('white-space:nowrap;overflow:hidden;text-overflow:ellipsis')}>{item.meta}</span>
         </span>
       </div>
@@ -172,14 +132,6 @@ export function DesktopRow({ item, showRank, bulk, selected, active, onOpen, onV
       </span>
       {!bulk && <VoteSegment myVote={item.myVote} onVote={onVote} variant="inline" />}
       <ScoreCol item={item} width={52} size={19} />
-      </div>
-      {/* Room rows: everyone's achievement counts on a line of their own under the title, since
-          the title column is too narrow for several chips. Indented to line up with the title. */}
-      {g.memberAchievements.length > 0 && (
-        <span style={{ paddingLeft: (showRank ? 40 : 0) + (bulk ? 42 : 0) + 60 }}>
-          <AchievementLine g={g} />
-        </span>
-      )}
     </div>
   );
 }
@@ -212,14 +164,13 @@ export function MobileRow({ item, showRank, bulk, selected, onOpen, onVote }: Ro
           <span style={st('font:600 15.5px var(--font-ui);white-space:nowrap;overflow:hidden;text-overflow:ellipsis')}>{g.title}</span>
           <span style={st('display:flex;align-items:center;gap:6px;min-width:0;font:400 12.5px var(--font-ui);color:var(--muted)')}>
             {item.chip && <span style={st(CHIP)}>{item.chip}</span>}
-            {g.memberAchievements.length === 0 && <AchievementChips g={g} />}
+            <AchievementChip g={g} />
             <span style={st('white-space:nowrap;overflow:hidden;text-overflow:ellipsis')}>
               {item.meta}
               {item.meta ? ' · ' : ''}
               <span style={{ color: item.priceOwned ? 'var(--mint)' : 'var(--text)' }}>{item.priceLabel}</span>
             </span>
           </span>
-          {g.memberAchievements.length > 0 && <AchievementLine g={g} />}
         </div>
         {!bulk && <VoteSegment myVote={item.myVote} onVote={onVote} variant="mobile" />}
       </div>
@@ -268,8 +219,10 @@ export function CoverCard({ item, showRank, bulk, selected, big, onOpen, onVote 
       </div>
       <div style={st('display:flex;flex-direction:column;gap:1px;min-width:0;padding:0 2px')}>
         <span style={st('font:600 14px var(--font-ui);white-space:nowrap;overflow:hidden;text-overflow:ellipsis')}>{g.title}</span>
-        <span style={st(`font:400 12px var(--font-ui);color:${item.priceOwned ? 'var(--mint)' : 'var(--text)'};white-space:nowrap;overflow:hidden;text-overflow:ellipsis`)}>{item.priceLabel}</span>
-        {(g.myAchievements || g.memberAchievements.length > 0) && <AchievementLine g={g} />}
+        <span style={st('display:flex;align-items:center;gap:6px;min-width:0')}>
+          <span style={st(`flex:1;min-width:0;font:400 12px var(--font-ui);color:${item.priceOwned ? 'var(--mint)' : 'var(--text)'};white-space:nowrap;overflow:hidden;text-overflow:ellipsis`)}>{item.priceLabel}</span>
+          <AchievementChip g={g} />
+        </span>
       </div>
     </div>
   );
