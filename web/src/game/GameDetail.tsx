@@ -353,7 +353,7 @@ export function GameDetail({ game, onClose, changeStatus }: { game: Game; onClos
           </div>
         )}
 
-        <Trailer gameId={game.id} />
+        <Trailer gameId={game.id} title={game.title} />
 
         <div style={st('display:flex;flex-direction:column;gap:10px')}>
           <div style={st('display:flex;justify-content:space-between;align-items:baseline')}>
