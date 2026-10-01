@@ -3,7 +3,7 @@ import {
   byScore,
   gameScore,
   isNewRelease,
-  isUpcoming,
+  isComingSoon,
   metaLine,
   ownLabel,
   prereqGame,
@@ -63,7 +63,7 @@ export interface HomeLists {
 /** Everything the home screen lists, straight from the design's rules:
  * - Queue/Playing (and Play Next): games released in the last 60 days go first, newest first.
  * - Replay (and replays inside a room's Beaten tab) sort oldest replay first, dateless last.
- * - Upcoming releases sit in a "Coming soon" strip on the Wishlist (shelf) / Queue (room) tab
+ * - Games releasing within the next 30 days sit in a "Coming soon" strip on the Wishlist (shelf) / Queue (room) tab
  *   instead of the main list. */
 export function buildHomeLists(games: Game[], opts: { isShelf: boolean; tabs: TabDef[]; tab: string; query: string }): HomeLists {
   const { isShelf, tabs, tab } = opts;
@@ -77,7 +77,7 @@ export function buildHomeLists(games: Game[], opts: { isShelf: boolean; tabs: Ta
 
   const tabStatuses = tab === 'playing' ? ['playing'] : cur.statuses;
   const comingStatus = isShelf ? 'wishlist' : 'backlog';
-  const isComing = (g: Game) => g.status === comingStatus && isUpcoming(g, now);
+  const isComing = (g: Game) => g.status === comingStatus && isComingSoon(g, now);
 
   let list = (q
     ? games.filter((g) => g.title.toLowerCase().includes(q))

@@ -24,15 +24,23 @@ describe('buildHomeLists', () => {
   });
 
   it('keeps upcoming releases in the Coming soon strip, not the main list', () => {
-    const soon = game({ title: 'Soon', releaseDate: ahead(30) });
+    const soon = game({ title: 'Soon', releaseDate: ahead(20) });
     const out = game({ title: 'Out' });
     const lists = buildHomeLists([soon, out], { isShelf: false, tabs: ROOM_TABS, tab: 'queue', query: '' });
     expect(ids(lists.list)).toEqual(['Out']);
     expect(ids(lists.coming)).toEqual(['Soon']);
   });
 
+  it('only strips games releasing within 30 days; later ones stay in the main list', () => {
+    const soon = game({ title: 'Soon', releaseDate: ahead(20) });
+    const later = game({ title: 'Later', releaseDate: ahead(90) });
+    const lists = buildHomeLists([soon, later], { isShelf: false, tabs: ROOM_TABS, tab: 'queue', query: '' });
+    expect(ids(lists.coming)).toEqual(['Soon']);
+    expect(ids(lists.list)).toEqual(['Later']);
+  });
+
   it('on the shelf the Coming soon strip belongs to the wishlist', () => {
-    const wish = game({ title: 'Wish', status: 'wishlist', releaseDate: ahead(30) });
+    const wish = game({ title: 'Wish', status: 'wishlist', releaseDate: ahead(20) });
     const lists = buildHomeLists([wish], { isShelf: true, tabs: SHELF_TABS, tab: 'wishlist', query: '' });
     expect(ids(lists.coming)).toEqual(['Wish']);
     expect(lists.list).toHaveLength(0);
