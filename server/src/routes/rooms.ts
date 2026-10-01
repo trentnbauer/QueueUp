@@ -24,6 +24,8 @@ import type {
 import { friendIdsOf } from '../services/friendships.js';
 import { DISCORD_EVENT_KEYS, resolveDiscordEvents, ROOM_PLATFORM_LABELS } from '@queueup/shared';
 
+/** #rrggbb - the only colour format a room accent may take (it ends up in inline styles). */
+const HEX_COLOUR = /^#[0-9a-fA-F]{6}$/;
 const ROOM_PLATFORMS = Object.keys(ROOM_PLATFORM_LABELS) as RoomPlatform[];
 const ROOM_ROLES: RoomRole[] = ['room_master', 'moderator', 'member'];
 const SPIN_WHEEL_THEMES: SpinWheelTheme[] = ['slot', 'crate', 'card_flip', 'roulette', 'random'];
@@ -113,6 +115,7 @@ export default async function roomRoutes(app: FastifyInstance) {
   app.post<{ Body: CreateRoomRequest }>('/api/rooms', async (request, reply) => {
     const userId = await request.requireAuth();
     const { name, platform, accentColor, isPublic } = request.body;
+    if (accentColor && !HEX_COLOUR.test(accentColor)) throw new HttpError(400, 'Room colour must be a hex colour like #8b5cf6');
     if (!name?.trim()) throw new HttpError(400, 'Room name is required');
     // Issue #473: platform is optional - omitting it (or passing null) leaves the room unrestricted
     // ("any platform"), rather than forcing every room to lock to one console/PC up front.
@@ -272,6 +275,7 @@ export default async function roomRoutes(app: FastifyInstance) {
     const { name, platform, accentColor, discordWebhookUrl, spinOwnershipMaxPrice, spinWheelTheme, isPublic, requireGameApproval, discordEvents } =
       request.body;
     if (name !== undefined && !name.trim()) throw new HttpError(400, 'Room name cannot be empty');
+    if (accentColor !== undefined && !HEX_COLOUR.test(accentColor)) throw new HttpError(400, 'Room colour must be a hex colour like #8b5cf6');
     // Issue #473: platform may be explicitly set to null to clear the room's restriction ("any
     // platform") - only a non-null, provided value needs to be a real RoomPlatform.
     if (platform !== undefined && platform !== null && !ROOM_PLATFORMS.includes(platform)) {

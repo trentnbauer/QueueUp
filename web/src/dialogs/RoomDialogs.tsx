@@ -275,6 +275,7 @@ export function RoomSettingsDialog() {
 
   const [name, setName] = useState(room?.name ?? '');
   const [hook, setHook] = useState(room?.discordWebhookUrl ?? '');
+  const [hexDraft, setHexDraft] = useState<string | null>(null);
   const [memberQ, setMemberQ] = useState('');
   const [showAll, setShowAll] = useState(false);
   const [showYear, setShowYear] = useState(false);
@@ -613,6 +614,39 @@ export function RoomSettingsDialog() {
                   style={st(`width:34px;height:34px;border-radius:50%;border:none;background:${c};box-shadow:${room.accentColor === c ? '0 0 0 2px var(--surf), 0 0 0 4px var(--text)' : 'none'}`)}
                 />
               ))}
+            </div>
+            <div style={st('display:flex;align-items:center;gap:10px')}>
+              <input
+                type="color"
+                aria-label="Pick a custom room colour"
+                value={/^#[0-9a-fA-F]{6}$/.test(hexDraft ?? '') ? hexDraft! : /^#[0-9a-fA-F]{6}$/.test(room.accentColor) ? room.accentColor : '#8b5cf6'}
+                onChange={(e) => setHexDraft(e.target.value)}
+                style={st('width:42px;height:34px;padding:0;border:none;border-radius:10px;background:none')}
+              />
+              <input
+                value={hexDraft ?? room.accentColor}
+                onChange={(e) => setHexDraft(e.target.value)}
+                placeholder="#8b5cf6"
+                maxLength={7}
+                aria-label="Custom room colour (hex)"
+                style={st(inputField, { width: 112, height: 38, borderRadius: 10, fontSize: 13.5, fontFamily: 'var(--font-mono)' })}
+              />
+              {hexDraft !== null && hexDraft.toLowerCase() !== room.accentColor.toLowerCase() && (
+                <Btn
+                  kind="text"
+                  height={38}
+                  padX={12}
+                  fontSize={13}
+                  weight={700}
+                  disabled={!/^#[0-9a-fA-F]{6}$/.test(hexDraft)}
+                  onClick={() => {
+                    patch({ accentColor: hexDraft.toLowerCase() }, 'Room colour updated');
+                    setHexDraft(null);
+                  }}
+                >
+                  Save
+                </Btn>
+              )}
             </div>
           </div>
           <div style={st('display:flex;flex-direction:column;gap:8px;padding:14px 16px;border-radius:14px;background:var(--surf)')}>
