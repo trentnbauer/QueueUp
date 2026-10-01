@@ -243,12 +243,22 @@ export default async function friendRoutes(app: FastifyInstance) {
     { config: { rateLimit: { max: 20, timeWindow: '1 hour' } } },
     async (request) => {
       const userId = await request.requireAuth();
-      const code = (request.body?.code ?? '').toUpperCase().replace(/[^A-Z0-9]/g, '');
-      if (code.length !== 8) throw new HttpError(400, 'That friend code does not look right');
-      const formatted = `${code.slice(0, 4)}-${code.slice(4)}`;
-
-      const target = await prisma.user.findUnique({ where: { friendCode: formatted }, select: userSelect });
-      if (!target) throw new HttpError(404, 'No one has that friend code');
+      let target;
+      if (request.body?.userId) {
+        // From a room's member list: only people you share a room with, so this can't be used to
+        // poke arbitrary users by id.
+        const targetId = request.body.userId;
+        const shared = await sharedRoomCounts(userId, [targetId]);
+        if (!shared.get(targetId)) throw new HttpError(404, 'You can only add people you share a room with');
+        target = await prisma.user.findUnique({ where: { id: targetId }, select: userSelect });
+        if (!target) throw new HttpError(404, 'User not found');
+      } else {
+        const code = (request.body?.code ?? '').toUpperCase().replace(/[^A-Z0-9]/g, '');
+        if (code.length !== 8) throw new HttpError(400, 'That friend code does not look right');
+        const formatted = `${code.slice(0, 4)}-${code.slice(4)}`;
+        target = await prisma.user.findUnique({ where: { friendCode: formatted }, select: userSelect });
+        if (!target) throw new HttpError(404, 'No one has that friend code');
+      }
       if (target.id === userId) throw new HttpError(400, "That's your own friend code");
 
       const existing = await prisma.friendship.findFirst({

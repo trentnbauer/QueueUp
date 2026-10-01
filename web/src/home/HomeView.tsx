@@ -35,7 +35,7 @@ export function HomeView() {
   const { isShelf, room, members, games, ops } = scope;
 
   const tabs = isShelf ? SHELF_TABS : ROOM_TABS;
-  const [tab, setTab] = useState('playing');
+  const [tab, setTab] = useState('queue');
   const [query, setQuery] = useState('');
   const [bulk, setBulk] = useState(false);
   const [bulkSel, setBulkSel] = useState<string[]>([]);
@@ -43,7 +43,7 @@ export function HomeView() {
 
   // Switching shelf/room resets the view, like the design.
   useEffect(() => {
-    setTab('playing');
+    setTab('queue');
     setQuery('');
     setBulk(false);
     setBulkSel([]);

@@ -31,7 +31,7 @@ export default async function publicProfileRoutes(app: FastifyInstance) {
         take: 300,
       }),
       prisma.game.findMany({
-        where: { roomId: null, addedBy: request.params.id, status: { in: ['playing', 'play_next'] }, hiddenFromOthers: false },
+        where: { roomId: null, addedBy: request.params.id, status: 'playing', hiddenFromOthers: false },
         select: { id: true, title: true, coverImageUrl: true, platform: true },
         orderBy: { updatedAt: 'desc' },
       }),
