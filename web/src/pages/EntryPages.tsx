@@ -1,7 +1,9 @@
 import { useEffect, useRef, useState } from 'react';
+import { useQueryClient } from '@tanstack/react-query';
 import { Link, useNavigate } from 'react-router';
 import { REVIEW_CATEGORIES, type PublicProfileBeatenGame, type PublicProfileGame, type PublicUserProfile } from '@queueup/shared';
 import { authApi } from '../api/auth';
+import { gamesApi } from '../api/games';
 import { publicProfileApi } from '../api/publicProfile';
 import { useAuth } from '../context/AuthContext';
 import { useConfirm } from '../context/ConfirmContext';
@@ -265,6 +267,80 @@ function BothOwnBadge({ small = false }: { small?: boolean }) {
   );
 }
 
+/** Props that make a profile game card open its popup: mouse, Enter and Space. */
+function cardProps(onOpen: () => void) {
+  return {
+    role: 'button' as const,
+    tabIndex: 0,
+    onClick: onOpen,
+    onKeyDown: (e: React.KeyboardEvent) => {
+      if (e.key === 'Enter' || e.key === ' ') {
+        e.preventDefault();
+        onOpen();
+      }
+    },
+  };
+}
+const CARD_CURSOR = 'cursor:pointer;';
+
+/** Popup for a game on someone's profile: cover, platform, and (for a signed-in viewer who doesn't
+ * have it yet) an Add to wishlist button. */
+function ProfileGameDialog({
+  game,
+  ownerName,
+  canAdd,
+  added,
+  onAdded,
+  onClose,
+}: {
+  game: PublicProfileGame;
+  ownerName: string;
+  canAdd: boolean;
+  added: boolean;
+  onAdded: () => void;
+  onClose: () => void;
+}) {
+  const ui = useUi();
+  const queryClient = useQueryClient();
+  const [busy, setBusy] = useState(false);
+  async function addToWishlist() {
+    setBusy(true);
+    try {
+      await gamesApi.create({ igdbId: game.igdbId, status: 'wishlist' });
+      void queryClient.invalidateQueries({ queryKey: ['games', 'shelf'] });
+      ui.notify(`${game.title} added to your wishlist`);
+      onAdded();
+    } catch (e) {
+      ui.notify(e instanceof Error ? e.message : 'Could not add that game');
+    } finally {
+      setBusy(false);
+    }
+  }
+  const have = game.viewerHas || added;
+  return (
+    <Dialog title={game.title} onClose={onClose} width={480}>
+      <div style={st('display:flex;gap:16px;align-items:flex-start')}>
+        <div style={st('position:relative;flex-shrink:0')}>
+          <Cover title={game.title} url={game.coverImageUrl} width={110} radius={14} />
+        </div>
+        <div style={st('flex:1;min-width:0;display:flex;flex-direction:column;gap:10px')}>
+          <span style={st('font:400 13px var(--font-ui);color:var(--muted)')}>{game.platform}</span>
+          {game.bothOwn && <span style={st('font:600 12.5px var(--font-ui);color:var(--mint)')}>You both own this - you can play it together</span>}
+          {canAdd &&
+            (have ? (
+              <span style={st('font:600 13px var(--font-ui);color:var(--muted)')}>{added ? '✓ Added to your wishlist' : '✓ Already on your shelf'}</span>
+            ) : (
+              <Btn kind="soft" disabled={busy} onClick={addToWishlist}>
+                Add to wishlist
+              </Btn>
+            ))}
+          {!canAdd && <span style={st('font:400 13px var(--font-ui);color:var(--muted)')}>On {ownerName}'s shelf.</span>}
+        </div>
+      </div>
+    </Dialog>
+  );
+}
+
 /** Add-friend control in the profile header, for a signed-in viewer who isn't this person's friend yet. */
 function ProfileFriendAction({ profile }: { profile: PublicUserProfile }) {
   const friends = useFriends();
@@ -278,6 +354,8 @@ export function PublicProfilePage({ userId, signedIn }: { userId: string; signed
   const [state, setState] = useState<'loading' | 'ok' | 'missing'>('loading');
   const [modal, setModal] = useState<'achievements' | 'library' | 'bothOwn' | null>(null);
   const [openGame, setOpenGame] = useState<PublicProfileBeatenGame | null>(null);
+  const [cardGame, setCardGame] = useState<PublicProfileGame | null>(null);
+  const [addedIds, setAddedIds] = useState<Set<number>>(new Set());
   const beatenRef = useRef<HTMLDivElement>(null);
   const playingRef = useRef<HTMLDivElement>(null);
 
@@ -368,7 +446,7 @@ export function PublicProfilePage({ userId, signedIn }: { userId: string; signed
             {profile.currentlyPlaying.length === 0 && <span style={st('font:400 14px var(--font-ui);color:var(--muted)')}>Nothing right now.</span>}
             <div style={st('display:grid;grid-template-columns:repeat(auto-fill,minmax(min(100%,140px),200px));gap:16px 14px')}>
               {profile.currentlyPlaying.map((g) => (
-                <div key={g.id} style={st('min-width:0;display:flex;flex-direction:column;gap:8px')}>
+                <div key={g.id} {...cardProps(() => setCardGame(g))} style={st(CARD_CURSOR + 'min-width:0;display:flex;flex-direction:column;gap:8px')}>
                   <div style={st('position:relative')}>
                     <Cover title={g.title} url={g.coverImageUrl} width="100%" radius={18} style={{ boxShadow: '0 20px 44px oklch(0 0 0 / 0.35)' }} />
                     {g.bothOwn && <BothOwnBadge />}
@@ -388,7 +466,7 @@ export function PublicProfilePage({ userId, signedIn }: { userId: string; signed
               </span>
               <div style={st('display:grid;grid-template-columns:repeat(auto-fill,minmax(110px,1fr));gap:14px')}>
                 {profile.wishlist.map((g) => (
-                  <div key={g.id} style={st('min-width:0;display:flex;flex-direction:column;gap:6px')}>
+                  <div key={g.id} {...cardProps(() => setCardGame(g))} style={st(CARD_CURSOR + 'min-width:0;display:flex;flex-direction:column;gap:6px')}>
                     <Cover title={g.title} url={g.coverImageUrl} width="100%" radius={14} />
                     <span style={st('font:600 12.5px var(--font-ui);white-space:nowrap;overflow:hidden;text-overflow:ellipsis')}>{g.title}</span>
                   </div>
@@ -402,7 +480,7 @@ export function PublicProfilePage({ userId, signedIn }: { userId: string; signed
               <span style={st('font:700 20px var(--font-display)')}>Up next</span>
               <div style={st('display:grid;grid-template-columns:repeat(auto-fill,minmax(110px,1fr));gap:14px')}>
                 {profile.upNext.map((g, i) => (
-                  <div key={g.id} style={st('min-width:0;display:flex;flex-direction:column;gap:6px')}>
+                  <div key={g.id} {...cardProps(() => setCardGame(g))} style={st(CARD_CURSOR + 'min-width:0;display:flex;flex-direction:column;gap:6px')}>
                     <div style={st('position:relative')}>
                       <Cover title={g.title} url={g.coverImageUrl} width="100%" radius={14} />
                       {g.bothOwn && <BothOwnBadge small />}
@@ -522,15 +600,25 @@ export function PublicProfilePage({ userId, signedIn }: { userId: string; signed
       {modal === 'bothOwn' && profile && (
         <Dialog title={`You both own · ${profile.bothOwn.length}`} onClose={() => setModal(null)} width={640}>
           <span style={st('font:400 13.5px var(--font-ui);color:var(--muted)')}>You and {profile.displayName} can play these together.</span>
-          <SearchableGameGrid games={profile.bothOwn} />
+          <SearchableGameGrid games={profile.bothOwn} onOpen={setCardGame} />
         </Dialog>
+      )}
+      {cardGame && profile && (
+        <ProfileGameDialog
+          game={cardGame}
+          ownerName={profile.displayName}
+          canAdd={signedIn && profile.viewer !== 'self'}
+          added={addedIds.has(cardGame.igdbId)}
+          onAdded={() => setAddedIds((prev) => new Set(prev).add(cardGame.igdbId))}
+          onClose={() => setCardGame(null)}
+        />
       )}
       {modal === 'library' && profile && (
         <Dialog title={`Library · ${profile.library.length}`} onClose={() => setModal(null)} width={640}>
           {profile.library.length === 0 ? (
             <span style={st('font:400 14px var(--font-ui);color:var(--muted)')}>No games marked as owned yet.</span>
           ) : (
-            <SearchableGameGrid games={profile.library} />
+            <SearchableGameGrid games={profile.library} onOpen={setCardGame} />
           )}
         </Dialog>
       )}
@@ -545,7 +633,7 @@ function searchKey(text: string): string {
 }
 
 /** A profile game grid (library, you both own) with a search box over it. */
-function SearchableGameGrid({ games }: { games: PublicProfileGame[] }) {
+function SearchableGameGrid({ games, onOpen }: { games: PublicProfileGame[]; onOpen: (g: PublicProfileGame) => void }) {
   const [query, setQuery] = useState('');
   const words = query.trim().split(/\s+/).map(searchKey).filter(Boolean);
   const shown = words.length === 0 ? games : games.filter((g) => {
@@ -565,7 +653,7 @@ function SearchableGameGrid({ games }: { games: PublicProfileGame[] }) {
       {shown.length === 0 && <span style={st('font:400 14px var(--font-ui);color:var(--muted)')}>No games match "{query.trim()}".</span>}
       <div style={st('display:grid;grid-template-columns:repeat(auto-fill,minmax(100px,1fr));gap:12px')}>
         {shown.map((g) => (
-          <div key={g.id} style={st('min-width:0;display:flex;flex-direction:column;gap:5px')}>
+          <div key={g.id} {...cardProps(() => onOpen(g))} style={st(CARD_CURSOR + 'min-width:0;display:flex;flex-direction:column;gap:5px')}>
             <div style={st('position:relative')}>
               <Cover title={g.title} url={g.coverImageUrl} width="100%" radius={12} />
               {g.bothOwn && <BothOwnBadge small />}
