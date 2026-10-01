@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
-import { ROOM_PLATFORM_LABELS, type AdminIntegrationStatus, type ConfigSource, type IntegrationConfigKey } from '@queueup/shared';
+import { ROOM_PLATFORM_LABELS, type AdminIntegrationStatus, type ConfigSource, type IntegrationConfigKey, type TunnelState } from '@queueup/shared';
 import { adminApi } from '../api/admin';
 import { useAuth } from '../context/AuthContext';
 import { useConfirm } from '../context/ConfirmContext';
@@ -22,6 +22,17 @@ function fields(s: AdminIntegrationStatus): { key: IntegrationConfigKey; label: 
   ];
 }
 
+/** The container's own port (PORT), which the tunnel's public hostname should point at. */
+const TUNNEL_PORT_HINT = 3000;
+
+const TUNNEL_STATE: Record<TunnelState, { label: string; color: string }> = {
+  off: { label: 'Off', color: 'var(--muted)' },
+  starting: { label: 'Connecting…', color: 'var(--text2)' },
+  connected: { label: 'Connected', color: 'var(--mint)' },
+  error: { label: 'Retrying', color: 'var(--danger)' },
+  unavailable: { label: 'cloudflared not installed', color: 'var(--danger)' },
+};
+
 const PILL = 'height:30px;padding:0 12px;border-radius:999px;background:var(--surf);display:flex;align-items:center;gap:6px;font:500 12.5px var(--font-ui)';
 
 /** Administrator settings: integration keys, rooms and users on this server. */
@@ -35,7 +46,13 @@ export function AdminPage() {
   const [busyKey, setBusyKey] = useState<string | null>(null);
 
   const enabled = !!user?.isAdmin;
-  const overview = useQuery({ queryKey: ['admin', 'overview'], queryFn: adminApi.overview, enabled });
+  const overview = useQuery({
+    queryKey: ['admin', 'overview'],
+    queryFn: adminApi.overview,
+    enabled,
+    // While the tunnel is coming up or retrying, keep its status fresh.
+    refetchInterval: (q) => (q.state.data?.tunnel.state === 'starting' || q.state.data?.tunnel.state === 'error' ? 3000 : false),
+  });
   const users = useQuery({ queryKey: ['admin', 'users'], queryFn: adminApi.users, enabled });
   const rooms = useQuery({ queryKey: ['admin', 'rooms'], queryFn: adminApi.rooms, enabled });
 
@@ -50,6 +67,7 @@ export function AdminPage() {
 
   const fail = (e: unknown, fallback: string) => setError(e instanceof Error ? e.message : fallback);
   const status = overview.data?.status;
+  const tunnel = overview.data?.tunnel;
 
   async function save(key: IntegrationConfigKey) {
     const value = (inputs[key] ?? '').trim();
@@ -124,30 +142,7 @@ export function AdminPage() {
     }
   }
 
-  return (
-    <PageShell title="Administrator settings" hint="Integrations, rooms and users on this server.">
-      {error && <Banner onDismiss={() => setError(null)}>{error}</Banner>}
-      {status && (
-        <div style={st('display:flex;flex-wrap:wrap;gap:6px')}>
-          <span style={st(PILL)}>gg.deals <span style={st(`color:${status.ggDealsApiKeyConfigured ? 'var(--mint)' : 'var(--danger)'};font-weight:600`)}>{status.ggDealsApiKeyConfigured ? 'configured' : 'missing'}</span></span>
-          <span style={st(PILL)}>IGDB <span style={st(`color:${status.igdbConfigured ? 'var(--mint)' : 'var(--danger)'};font-weight:600`)}>{status.igdbConfigured ? 'configured' : 'missing'}</span></span>
-          {status.devFakeAuth ? (
-            <span style={st(PILL)}>Sign-in <span style={st('color:var(--danger);font-weight:600')}>DEV_FAKE_AUTH (not for production)</span></span>
-          ) : status.activeAuthProviders.length ? (
-            status.activeAuthProviders.map((p) => (
-              <span key={p} style={st(PILL)}>Sign-in <span style={st('color:var(--mint);font-weight:600')}>{p}</span></span>
-            ))
-          ) : (
-            <span style={st(PILL)}>Sign-in <span style={st('color:var(--danger);font-weight:600')}>none configured</span></span>
-          )}
-        </div>
-      )}
-
-      {status && (
-        <div style={st('display:flex;flex-direction:column;gap:10px')}>
-          <Kicker>INTEGRATION KEYS</Kicker>
-          <Group>
-            {fields(status).map((f) => (
+  const keyRow = (f: { key: IntegrationConfigKey; label: string; source: ConfigSource }) => (
               <div key={f.key} style={st('display:flex;flex-direction:column;gap:8px;padding:12px 14px;background:var(--surf)')}>
                 <div style={st('display:flex;align-items:center;gap:10px')}>
                   <span style={st('flex:1;min-width:0;display:flex;flex-direction:column;gap:1px')}>
@@ -180,7 +175,58 @@ export function AdminPage() {
                   </div>
                 )}
               </div>
-            ))}
+  );
+
+  return (
+    <PageShell title="Administrator settings" hint="Integrations, rooms and users on this server.">
+      {error && <Banner onDismiss={() => setError(null)}>{error}</Banner>}
+      {status && (
+        <div style={st('display:flex;flex-wrap:wrap;gap:6px')}>
+          <span style={st(PILL)}>gg.deals <span style={st(`color:${status.ggDealsApiKeyConfigured ? 'var(--mint)' : 'var(--danger)'};font-weight:600`)}>{status.ggDealsApiKeyConfigured ? 'configured' : 'missing'}</span></span>
+          <span style={st(PILL)}>IGDB <span style={st(`color:${status.igdbConfigured ? 'var(--mint)' : 'var(--danger)'};font-weight:600`)}>{status.igdbConfigured ? 'configured' : 'missing'}</span></span>
+          {status.devFakeAuth ? (
+            <span style={st(PILL)}>Sign-in <span style={st('color:var(--danger);font-weight:600')}>DEV_FAKE_AUTH (not for production)</span></span>
+          ) : status.activeAuthProviders.length ? (
+            status.activeAuthProviders.map((p) => (
+              <span key={p} style={st(PILL)}>Sign-in <span style={st('color:var(--mint);font-weight:600')}>{p}</span></span>
+            ))
+          ) : (
+            <span style={st(PILL)}>Sign-in <span style={st('color:var(--danger);font-weight:600')}>none configured</span></span>
+          )}
+        </div>
+      )}
+
+      {status && (
+        <div style={st('display:flex;flex-direction:column;gap:10px')}>
+          <Kicker>INTEGRATION KEYS</Kicker>
+          <Group>
+            {fields(status).map(keyRow)}
+          </Group>
+        </div>
+      )}
+
+      {tunnel && (
+        <div style={st('display:flex;flex-direction:column;gap:10px')}>
+          <Kicker>CLOUDFLARE TUNNEL</Kicker>
+          <span style={st('font:400 13px/1.5 var(--font-ui);color:var(--muted)')}>
+            Reach QueueUp through Cloudflare without opening a port. Create a tunnel in Cloudflare Zero Trust (Networks → Tunnels), give it a
+            public hostname that points to <code>http://localhost:{TUNNEL_PORT_HINT}</code>, and paste its token here. Set APP_BASE_URL to that
+            hostname.
+          </span>
+          <Group>
+            <div style={st('display:flex;align-items:center;gap:10px;min-height:52px;padding:10px 14px;background:var(--surf)')}>
+              <span style={st('flex:1;min-width:0;display:flex;flex-direction:column;gap:2px')}>
+                <span style={st('font:600 14.5px var(--font-ui)')}>Status</span>
+                {tunnel.lastError && tunnel.state !== 'connected' && (
+                  <span style={st('font:400 12px var(--font-ui);color:var(--danger);overflow-wrap:anywhere')}>{tunnel.lastError}</span>
+                )}
+              </span>
+              <span style={st(`font:600 12.5px var(--font-ui);color:${TUNNEL_STATE[tunnel.state].color}`)}>
+                {TUNNEL_STATE[tunnel.state].label}
+                {tunnel.state === 'connected' && ` · ${tunnel.connections} connection${tunnel.connections === 1 ? '' : 's'}`}
+              </span>
+            </div>
+            {keyRow({ key: 'CLOUDFLARE_TUNNEL_TOKEN', label: 'Tunnel token', source: tunnel.source })}
           </Group>
         </div>
       )}

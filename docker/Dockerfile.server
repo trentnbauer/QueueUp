@@ -66,6 +66,10 @@ COPY --from=build /repo/server/package.json server/package.json
 COPY --from=build /repo/server/dist server/dist
 COPY --from=build /repo/server/src/db/prisma server/src/db/prisma
 COPY --from=build /repo/web/dist server/web-dist
+# Cloudflare Tunnel (issue #664): the server runs cloudflared itself when a tunnel token is set (see
+# server/src/services/cloudflareTunnel.ts). Copied from Cloudflare's own multi-arch image - a static
+# Go binary, so it runs fine on Alpine. Pinned; bump alongside other base-image updates.
+COPY --from=cloudflare/cloudflared:2026.9.3 /usr/local/bin/cloudflared /usr/local/bin/cloudflared
 COPY docker/server-entrypoint.sh /usr/local/bin/server-entrypoint.sh
 RUN chmod +x /usr/local/bin/server-entrypoint.sh
 

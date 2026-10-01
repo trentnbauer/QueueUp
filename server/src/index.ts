@@ -11,6 +11,7 @@ import { startReleaseWatchJob } from './jobs/releaseWatchJob.js';
 import { startPlaytimeSnapshotJob } from './jobs/playtimeSnapshotJob.js';
 import { startPlayniteSyncReminderJob } from './jobs/playniteSyncReminderJob.js';
 import { startBackupJob } from './jobs/backupJob.js';
+import { reloadTunnel, stopTunnel } from './services/cloudflareTunnel.js';
 
 const app = await buildApp();
 
@@ -48,6 +49,10 @@ const playniteSyncReminderJob = startPlayniteSyncReminderJob();
 // Nightly database backup (default on, schedule editable in the admin menu) - see jobs/backupJob.ts.
 const backupJob = startBackupJob();
 
+// Cloudflare Tunnel (#664) - starts cloudflared if a tunnel token is set; a no-op otherwise. Not
+// awaited past the token lookup, and a failure here never stops the server itself.
+void reloadTunnel(app.log).catch((err) => app.log.error({ err }, 'Could not start Cloudflare Tunnel'));
+
 const SHUTDOWN_TIMEOUT_MS = 10_000;
 let shuttingDown = false;
 
@@ -74,6 +79,7 @@ async function shutdown(signal: string) {
     playtimeSnapshotJob?.stop();
     playniteSyncReminderJob.stop();
     backupJob.stop();
+    await stopTunnel();
     // Stops accepting new connections, waits for in-flight requests, runs plugins' onClose hooks.
     await app.close();
     await prisma.$disconnect();

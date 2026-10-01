@@ -147,6 +147,12 @@ export const envSchema = z.object({
   TURNSTILE_SITE_KEY: optionalEnvVar(z.string().min(1)),
   TURNSTILE_SECRET_KEY: optionalEnvVar(z.string().min(1)),
 
+  // Cloudflare Tunnel (issue #664) - with a token set, the server runs cloudflared itself so the app
+  // is reachable through Cloudflare without opening a port. Settable in Administrator settings too.
+  // CLOUDFLARED_PATH only matters outside the Docker image, which ships the binary on PATH.
+  CLOUDFLARE_TUNNEL_TOKEN: optionalEnvVar(z.string().min(1)),
+  CLOUDFLARED_PATH: z.string().optional().default('cloudflared'),
+
   // Comma-separated emails granted administrator access on login.
   ADMIN_EMAILS: z.string().optional().default(''),
 });

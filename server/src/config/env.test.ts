@@ -12,6 +12,7 @@ function baseEnv(overrides: Partial<Env> = {}): Env {
     DEV_FAKE_AUTH: false,
     LOG_LEVEL: 'info',
     LOG_REQUESTS: false,
+    CLOUDFLARED_PATH: 'cloudflared',
     PRIVATE_INSTANCE: false,
     PLAYTIME_TRACKING_ENABLED: false,
     BASE_PATH: '',
