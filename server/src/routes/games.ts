@@ -1365,8 +1365,14 @@ export default async function gameRoutes(app: FastifyInstance) {
 
     // ...and, for a room destination, membership there (the shelf has no such gate).
     if (destRoomId) {
-      await requireMembership(destRoomId, userId);
-      const destPlatform = await getRoomPlatform(destRoomId);
+      const destMembership = await requireMembership(destRoomId, userId);
+      const destRoom = await getRoom(destRoomId);
+      // Issue #362's approval gate applies to moves too - otherwise a plain Member could skip it by
+      // adding to their Personal Shelf first and then moving the game in.
+      if (destRoom.requireGameApproval && destMembership.role === 'member') {
+        throw new HttpError(403, 'This room needs games approved first - suggest it from Add Game instead.');
+      }
+      const destPlatform = destRoom.platform;
       // A platform-less destination room (issue #473) has nothing to check the game against - any
       // platform is fine there.
       if (destPlatform) {
@@ -1554,7 +1560,10 @@ export default async function gameRoutes(app: FastifyInstance) {
       const game = await loadGameOr404(request.params.id);
       await requireGameReadAccess(game, userId);
 
-      const { prerequisiteGameId } = request.body;
+      const prerequisiteGameId = request.body?.prerequisiteGameId;
+      if (prerequisiteGameId !== null && typeof prerequisiteGameId !== 'string') {
+        throw new HttpError(400, 'prerequisiteGameId must be a game id or null');
+      }
       if (prerequisiteGameId !== null) {
         if (!game.roomId) {
           throw new HttpError(400, '"Play after" is only available for games in a room');

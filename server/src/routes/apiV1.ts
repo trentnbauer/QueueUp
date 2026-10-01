@@ -10,7 +10,7 @@ import { isAddonCategory } from '../services/igdbClient.js';
 import { invalidateExistingIgdbIds } from '../services/gameAccess.js';
 import { setOwnershipPlatforms, unionOwnershipPlatforms } from '../services/gameOwnership.js';
 import { unlockBadges } from '../services/badges.js';
-import { unionOwnedPlatforms } from '../services/userSettings.js';
+import { unionOwnedPlatforms, VALID_PLATFORMS } from '../services/userSettings.js';
 import { runWithConcurrency } from '../util/concurrency.js';
 import {
   PLAYNITE_SOURCE,
@@ -60,6 +60,7 @@ const apiV1RateLimit = { config: { rateLimit: { max: 30, timeWindow: '1 minute' 
 // that motivated this topped out at 1107 games total, ~240 of them non-Steam), just guards against
 // a malformed/malicious request rather than a real usage limit.
 const MAX_PLAYNITE_IMPORT_ENTRIES = 5000;
+const MAX_IMPORT_TITLE_LENGTH = 300;
 
 // Expensive (up to MAX_PLAYNITE_IMPORT_ENTRIES sequential IGDB lookups, in the worst case none of
 // them hitting the TitleMatchAlias cache) - same reasoning as Steam's own library import, but a
@@ -94,13 +95,21 @@ interface GroupedImportEntry {
 export function dedupeImportEntries(entries: LibraryImportEntry[]): LibraryImportEntry[] {
   const byTitle = new Map<string, GroupedImportEntry>();
   for (const entry of entries) {
-    const title = entry.title?.trim();
-    if (!title) continue;
+    // Untrusted JSON from an API client - anything malformed is dropped here rather than left to
+    // fail deep inside the background loop (an unknown platform used to sink the whole batch's
+    // final "systems I own" write, see runPlayniteImportLoop).
+    if (!entry || typeof entry !== 'object' || typeof entry.title !== 'string') continue;
+    const title = entry.title.trim();
+    if (!title || title.length > MAX_IMPORT_TITLE_LENGTH) continue;
     if (!byTitle.has(title)) byTitle.set(title, { platforms: new Set() });
     const grouped = byTitle.get(title)!;
-    for (const platform of entry.platforms ?? []) grouped.platforms.add(platform);
-    if (entry.playtimeMinutes !== undefined) grouped.playtimeMinutes = Math.max(grouped.playtimeMinutes ?? 0, entry.playtimeMinutes);
-    if (entry.isCompleted) grouped.isCompleted = true;
+    for (const platform of Array.isArray(entry.platforms) ? entry.platforms : []) {
+      if (VALID_PLATFORMS.has(platform)) grouped.platforms.add(platform);
+    }
+    if (typeof entry.playtimeMinutes === 'number' && Number.isFinite(entry.playtimeMinutes) && entry.playtimeMinutes >= 0) {
+      grouped.playtimeMinutes = Math.max(grouped.playtimeMinutes ?? 0, Math.floor(entry.playtimeMinutes));
+    }
+    if (entry.isCompleted === true) grouped.isCompleted = true;
   }
   return [...byTitle.entries()].map(([title, g]) => ({
     title,
@@ -268,7 +277,7 @@ async function runPlayniteImportLoop(
   try {
     await runWithConcurrency(entries, PLAYNITE_IMPORT_CONCURRENCY, async (entry) => {
       try {
-        const igdbId = await resolveTitleToIgdbId(PLAYNITE_SOURCE, entry.title);
+        const igdbId = await resolveTitleToIgdbId(PLAYNITE_SOURCE, entry.title, userId);
         if (igdbId === null) {
           await recordPendingLibraryImport(userId, PLAYNITE_SOURCE, entry.title, entry.platforms);
           unmatched++;
@@ -393,6 +402,7 @@ export default async function apiV1Routes(app: FastifyInstance) {
     async (request, reply) => {
       const userId = request.apiKeyUserId;
       const rawEntries = request.body?.entries ?? [];
+      if (!Array.isArray(rawEntries)) throw new HttpError(400, 'entries must be an array');
       if (rawEntries.length > MAX_PLAYNITE_IMPORT_ENTRIES) {
         throw new HttpError(400, `Too many entries (max ${MAX_PLAYNITE_IMPORT_ENTRIES} per import).`);
       }

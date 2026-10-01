@@ -52,6 +52,22 @@ describe('dedupeImportEntries', () => {
     expect(result).toEqual([{ title: 'No Platforms Given', platforms: [] }]);
   });
 
+  it('drops malformed entries and unknown platforms instead of passing them to the import loop', () => {
+    const result = dedupeImportEntries([
+      null,
+      { platforms: ['pc'] },
+      { title: 42, platforms: ['pc'] },
+      { title: 'Hades', platforms: ['pc', 'not-a-platform', 7] },
+      { title: 'Celeste', platforms: 'pc', playtimeMinutes: '90', isCompleted: 'yes' },
+      { title: 'Celeste', platforms: ['switch'], playtimeMinutes: -5 },
+      { title: 'x'.repeat(301), platforms: ['pc'] },
+    ] as unknown as LibraryImportEntry[]);
+    expect(result).toEqual([
+      { title: 'Hades', platforms: ['pc'] },
+      { title: 'Celeste', platforms: ['switch'] },
+    ]);
+  });
+
   it('returns an empty array for an empty input', () => {
     expect(dedupeImportEntries([])).toEqual([]);
   });

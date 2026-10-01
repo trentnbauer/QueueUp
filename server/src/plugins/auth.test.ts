@@ -16,6 +16,12 @@ describe('computeIsAdmin', () => {
     expect(computeIsAdmin('nobody@example.com', { devFakeAuth: false, adminEmails: 'admin@example.com' })).toBe(false);
   });
 
+  it('never grants admin through an email the sign-in provider has not verified', () => {
+    const opts = { devFakeAuth: false, adminEmails: 'admin@example.com' };
+    expect(computeIsAdmin('admin@example.com', { ...opts, emailVerified: false })).toBe(false);
+    expect(computeIsAdmin('admin@example.com', { ...opts, emailVerified: true })).toBe(true);
+  });
+
   it('never grants admin to a synthetic Steam/Discord placeholder email, even if it matches the allowlist', () => {
     const opts = { devFakeAuth: false, adminEmails: '76561198000000000@steamcommunity.unknown' };
     expect(computeIsAdmin('76561198000000000@steamcommunity.unknown', opts)).toBe(false);

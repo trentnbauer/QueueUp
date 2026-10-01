@@ -21,6 +21,7 @@ interface DiscordProfileResponse {
   username: string;
   global_name?: string | null;
   email?: string | null;
+  verified?: boolean;
   avatar?: string | null;
 }
 
@@ -89,6 +90,8 @@ export function createDiscordProvider(config: DiscordConfig): AuthProvider {
       return {
         oidcSub: `discord:${profile.id}`,
         email: profile.email ?? `${profile.id}@discord.unknown`,
+        // Discord lets an account hold an email it never confirmed - `verified` says whether it did.
+        emailVerified: !!profile.email && profile.verified === true,
         displayName: profile.global_name ?? profile.username,
         avatarUrl: profile.avatar ? `https://cdn.discordapp.com/avatars/${profile.id}/${profile.avatar}.png` : null,
       };

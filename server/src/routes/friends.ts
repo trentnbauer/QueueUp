@@ -112,8 +112,11 @@ async function buildFeed(
   });
 
   const gameIds = [...new Set(rows.map((r) => (r.payload as ShelfPayload | null)?.gameId).filter((id): id is string => !!id))];
-  const hiddenIds = new Set(
-    (await prisma.game.findMany({ where: { id: { in: gameIds }, hiddenFromOthers: true }, select: { id: true } })).map((g) => g.id),
+  // A feed row's payload is a snapshot, not a link to the game - once the game is deleted there is
+  // no hiddenFromOthers flag left to check, so a removed game counts as hidden (otherwise deleting a
+  // hidden game would publish it to friends).
+  const visibleIds = new Set(
+    (await prisma.game.findMany({ where: { id: { in: gameIds }, hiddenFromOthers: false }, select: { id: true } })).map((g) => g.id),
   );
 
   const entries: FriendActivityEntry[] = [];
@@ -123,7 +126,7 @@ async function buildFeed(
     if (!payload || !user || !payload.title) continue;
     const kind = kindFor(r.type, payload.status);
     if (!kind) continue;
-    const hidden = !!payload.gameId && hiddenIds.has(payload.gameId);
+    const hidden = !!payload.gameId && !visibleIds.has(payload.gameId);
     if (hidden && user.id !== viewerId) continue;
     entries.push({
       id: r.id,

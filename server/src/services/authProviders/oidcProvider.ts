@@ -53,10 +53,12 @@ export async function createOidcProvider(config: OidcProviderConfig): Promise<Au
       }
 
       let email = typeof claims.email === 'string' ? claims.email : null;
+      let emailVerifiedClaim: unknown = email ? claims.email_verified : undefined;
       let name = typeof claims.name === 'string' ? claims.name : null;
       let picture = typeof claims.picture === 'string' ? claims.picture : null;
       if (!email || !name || !picture) {
         const userInfo = await client.fetchUserInfo(configuration, tokens.access_token, claims.sub);
+        if (!email && typeof userInfo.email === 'string') emailVerifiedClaim = userInfo.email_verified;
         email = email ?? (typeof userInfo.email === 'string' ? userInfo.email : `${claims.sub}@${config.name}.unknown`);
         name = name ?? (typeof userInfo.name === 'string' ? userInfo.name : claims.sub);
         picture = picture ?? (typeof userInfo.picture === 'string' ? userInfo.picture : null);
@@ -65,6 +67,10 @@ export async function createOidcProvider(config: OidcProviderConfig): Promise<Au
       return {
         oidcSub: `${config.subPrefix}:${claims.sub}`,
         email,
+        // Only an explicit `email_verified: false` counts against it. Google always sends the claim;
+        // a self-hosted IdP (the generic OIDC option) often leaves it out entirely, and that IdP is
+        // the instance owner's own, so its addresses are trusted unless it says otherwise.
+        emailVerified: !email.endsWith(`@${config.name}.unknown`) && emailVerifiedClaim !== false && emailVerifiedClaim !== 'false',
         displayName: name,
         avatarUrl: picture,
       };

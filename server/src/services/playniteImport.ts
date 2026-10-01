@@ -51,13 +51,19 @@ export async function getPlayniteImportProgress(userId: string): Promise<Playnit
   return cached ? (JSON.parse(cached) as PlayniteImportProgress) : null;
 }
 
+/** The TitleMatchAlias source a person's own manual resolutions are stored under. Kept per user:
+ * a manual pick is only that person's say-so, and a shared row would let anyone decide what game
+ * a title becomes in everybody else's import (or overwrite a correct mapping) just by resolving
+ * their own pending row to some other igdbId. */
+export function userAliasSource(source: string, userId: string): string {
+  return `${source}:user:${userId}`;
+}
+
 /** Remembers a (source, title) -> igdbId mapping so a future resolveTitleToIgdbId call for the
- * same title - this user's next sync, or a completely different user's library reporting the exact
- * same title string - skips straight to the answer instead of re-running an IGDB search or landing
- * in the review queue again for a title someone already resolved. Called both on a successful
- * exact-title match (see resolveTitleToIgdbId) and when a person manually resolves a
- * PendingLibraryImport row (see resolvePendingLibraryImport) - either way is equally trustworthy
- * evidence of the right mapping. */
+ * same title skips straight to the answer instead of re-running an IGDB search or landing in the
+ * review queue again. A successful exact-title match (see resolveTitleToIgdbId) is shared across
+ * every user; a manual PendingLibraryImport resolution is written under userAliasSource instead,
+ * so it only ever applies to that user's own imports. */
 export async function recordTitleMatchAlias(source: string, title: string, igdbId: number): Promise<void> {
   const normalizedTitle = normalizeGameTitleForComparison(title);
   if (!normalizedTitle) return;
@@ -74,9 +80,15 @@ export async function recordTitleMatchAlias(source: string, title: string, igdbI
  * function's own doc comment: a wrong auto-match silently corrupts the library, which is worse
  * than asking). A successful exact-title match is recorded as a fresh alias too, so the next call
  * for the same title - from this user's next sync or anyone else's - is free. */
-export async function resolveTitleToIgdbId(source: string, title: string): Promise<number | null> {
+export async function resolveTitleToIgdbId(source: string, title: string, userId: string): Promise<number | null> {
   const normalizedTitle = normalizeGameTitleForComparison(title);
   if (!normalizedTitle) return null;
+
+  // The user's own manual pick wins over the shared mapping (see userAliasSource).
+  const ownAlias = await prisma.titleMatchAlias.findUnique({
+    where: { source_normalizedTitle: { source: userAliasSource(source, userId), normalizedTitle } },
+  });
+  if (ownAlias) return ownAlias.igdbId;
 
   const alias = await prisma.titleMatchAlias.findUnique({ where: { source_normalizedTitle: { source, normalizedTitle } } });
   if (alias) return alias.igdbId;
@@ -160,8 +172,8 @@ export async function restorePendingLibraryImport(userId: string, id: string): P
 }
 
 /** Clears a pending row (if any) once its title resolves on its own during a later import run -
- * via a freshly-written TitleMatchAlias, whether from this exact title matching this time or a
- * completely different user having resolved it since. Without this, a title that's now on the
+ * via a freshly-written TitleMatchAlias, whether from this exact title matching this time or this
+ * user having resolved the same title from another pending row since. Without this, a title that's now on the
  * shelf would still show up in the review queue looking like it needs manual attention. No-ops if
  * there's no pending row for this title, which is the common case. */
 export async function deletePendingLibraryImportByTitle(userId: string, source: string, title: string): Promise<void> {

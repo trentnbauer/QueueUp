@@ -9,6 +9,7 @@ import {
   dismissPendingLibraryImport,
   restorePendingLibraryImport,
   recordTitleMatchAlias,
+  userAliasSource,
   getPlayniteImportProgress,
 } from '../services/playniteImport.js';
 import type { PlayniteImportProgress, ResolvePendingLibraryImportRequest } from '@queueup/shared';
@@ -58,8 +59,8 @@ export default async function pendingLibraryImportRoutes(app: FastifyInstance) {
    * requires (see createGameForUser) and matches "I own this" being the entire point of resolving
    * an import. If the igdbId is already on the shelf, unions ownership instead (same wishlist-
    * status guard as the bulk import loop - see its doc comment). Either way, records a
-   * TitleMatchAlias so the next time this exact title comes through - this user's next sync, or
-   * anyone else's - it resolves automatically instead of landing back in the review queue. */
+   * TitleMatchAlias (scoped to this user - see userAliasSource) so the next time this exact title
+   * comes through their sync it resolves automatically instead of landing back in the review queue. */
   app.post<{ Params: { id: string }; Body: ResolvePendingLibraryImportRequest }>(
     '/api/library/pending-imports/:id/resolve',
     { config: { rateLimit: { max: 20, timeWindow: '1 minute' } } },
@@ -81,7 +82,7 @@ export default async function pendingLibraryImportRoutes(app: FastifyInstance) {
         await createGameForUser(userId, null, igdbId, { status: 'backlog', ownedPlatforms: pending.platforms });
       }
 
-      await recordTitleMatchAlias(pending.source, pending.title, igdbId);
+      await recordTitleMatchAlias(userAliasSource(pending.source, userId), pending.title, igdbId);
       await deletePendingLibraryImport(userId, id);
 
       reply.status(204);

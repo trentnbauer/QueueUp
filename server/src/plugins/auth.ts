@@ -11,6 +11,7 @@ import { extractSteamId64 } from '../services/steamLibrary.js';
 const DEV_USER = {
   oidcSub: 'dev-user',
   email: 'dev@localhost',
+  emailVerified: true,
   displayName: 'Dev User',
   avatarColor: '#8b5cf6',
   avatarUrl: null,
@@ -44,8 +45,11 @@ function isSyntheticEmail(email: string): boolean {
 // ADMIN_EMAILS stops it granting admin on future logins, but does not strip admin from an account
 // that already has it (whether granted this way or via the Settings panel's promote/demote). Use
 // the Settings panel, or a direct DB edit, to actually revoke an existing admin.
-function computeIsAdmin(email: string, opts: { devFakeAuth: boolean; adminEmails: string }): boolean {
+function computeIsAdmin(email: string, opts: { devFakeAuth: boolean; adminEmails: string; emailVerified?: boolean }): boolean {
   if (opts.devFakeAuth) return true;
+  // An address the provider hasn't verified proves nothing about who's signing in - see
+  // OAuthProfile.emailVerified.
+  if (opts.emailVerified === false) return false;
   if (isSyntheticEmail(email)) return false;
   const admins = opts.adminEmails
     .split(',')
@@ -75,13 +79,14 @@ async function findUserByOidcSub(oidcSub: string) {
 /** Returns `isNewUser` alongside the row (issue #359) - the auth callback uses it to flag a fresh
  * session as `isNewAccount`, one-shot-consumed by GET /api/me to auto-open the Import Library
  * modal on that account's very first visit. */
-async function getOrCreateUser(profile: {
+async function getOrCreateUser({ emailVerified, ...profile }: {
   oidcSub: string;
   email: string;
+  emailVerified: boolean;
   displayName: string;
   avatarUrl: string | null;
 }) {
-  const emailIsAdmin = computeIsAdmin(profile.email, { devFakeAuth: env.DEV_FAKE_AUTH, adminEmails: env.ADMIN_EMAILS });
+  const emailIsAdmin = computeIsAdmin(profile.email, { devFakeAuth: env.DEV_FAKE_AUTH, adminEmails: env.ADMIN_EMAILS, emailVerified });
   // ADMIN_EMAILS grants admin on every login, but must never revoke it - an admin promoted through
   // the Settings panel (see admin.ts's PATCH /api/admin/users/:id/admin) has no email in that list
   // by definition, and would otherwise lose admin status the next time they signed in.
