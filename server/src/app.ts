@@ -30,7 +30,12 @@ export async function buildApp() {
   // behavior (JSON lines to stdout, `docker logs` unaffected), but also captures recent lines in
   // memory so the admin log-export endpoint (issue #192, routes/admin.ts) works without needing
   // shell/Docker access to the running container.
-  const app = Fastify({ logger: { stream: logCaptureStream }, trustProxy: env.TRUST_PROXY });
+  const app = Fastify({
+    logger: { stream: logCaptureStream },
+    // A numeric TRUST_PROXY (hop count) is still valid at runtime, but newer Fastify typings
+    // no longer list `number` in this overload, hence the cast.
+    trustProxy: env.TRUST_PROXY as boolean | string,
+  });
 
   // new URL(...).origin, not the raw env.APP_BASE_URL string (issue #438 drive-by fix) - the
   // browser's Origin request header is always scheme+host+port, never a path, so once
