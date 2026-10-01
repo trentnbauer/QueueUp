@@ -43,6 +43,7 @@ services:
       BASE_PATH: ${BASE_PATH}                                  # Optional - hosts the app under a sub-path, e.g. /queueup
       SESSION_SECRET: ${SESSION_SECRET}
       TRUST_PROXY: ${TRUST_PROXY:-true}
+      PRIVATE_INSTANCE: ${PRIVATE_INSTANCE:-false}          # Optional - true makes every user everyone's friend
       ## User Authentication Methods
       OIDC_ISSUER_URL: ${OIDC_ISSUER_URL}
       OIDC_CLIENT_ID: ${OIDC_CLIENT_ID}

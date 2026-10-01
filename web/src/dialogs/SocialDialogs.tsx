@@ -202,6 +202,7 @@ export function FriendsDialog() {
         </span>
       }
       footer={
+        friends.privateInstance ? undefined : (
         <div style={st('flex-shrink:0;display:flex;flex-direction:column;gap:8px;padding:12px 20px 26px;border-top:1px solid var(--chip)')}>
           {error && <span style={st('font:500 13px var(--font-ui);color:var(--danger)')}>{error}</span>}
           <div style={st('display:flex;gap:8px')}>
@@ -230,6 +231,7 @@ export function FriendsDialog() {
             </button>
           )}
         </div>
+        )
       }
     >
       <div style={st('flex:1;min-height:0;overflow-y:auto;padding:0 20px 12px;display:flex;flex-direction:column;gap:14px')}>

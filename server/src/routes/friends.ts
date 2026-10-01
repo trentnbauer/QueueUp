@@ -18,6 +18,8 @@ import {
 import { prisma } from '../db/client.js';
 import { HttpError } from '../util/httpError.js';
 import { decodeActivityCursor, encodeActivityCursor } from '../services/roomActivity.js';
+import { areFriends, friendIdsOf } from '../services/friendships.js';
+import { env } from '../config/env.js';
 
 const FEED_PAGE_SIZE = 30;
 
@@ -48,15 +50,6 @@ async function ensureFriendCode(userId: string): Promise<string> {
     }
   }
   throw new HttpError(500, 'Could not generate a friend code');
-}
-
-/** Ids of everyone with an accepted friendship with `userId`, in either direction. */
-async function friendIdsOf(userId: string): Promise<string[]> {
-  const rows = await prisma.friendship.findMany({
-    where: { status: 'accepted', OR: [{ requesterId: userId }, { addresseeId: userId }] },
-    select: { requesterId: true, addresseeId: true },
-  });
-  return rows.map((r) => (r.requesterId === userId ? r.addresseeId : r.requesterId));
 }
 
 async function sharedRoomCounts(userId: string, otherIds: string[]): Promise<Map<string, number>> {
@@ -188,10 +181,17 @@ export default async function friendRoutes(app: FastifyInstance) {
       orderBy: { createdAt: 'desc' },
     });
 
-    const accepted = rows.filter((r) => r.status === 'accepted');
-    const friendIds = accepted.map((r) => (r.requesterId === userId ? r.addresseeId : r.requesterId));
-    const incomingRows = rows.filter((r) => r.status === 'pending' && r.addresseeId === userId);
-    const outgoingRows = rows.filter((r) => r.status === 'pending' && r.requesterId === userId);
+    // On a private instance everyone is a friend: list every other user (since = account creation)
+    // and ignore requests entirely.
+    const privateUsers = env.PRIVATE_INSTANCE
+      ? await prisma.user.findMany({ where: { id: { not: userId } }, select: { ...userSelect, createdAt: true } })
+      : [];
+    const accepted = env.PRIVATE_INSTANCE ? [] : rows.filter((r) => r.status === 'accepted');
+    const friendIds = env.PRIVATE_INSTANCE
+      ? privateUsers.map((u) => u.id)
+      : accepted.map((r) => (r.requesterId === userId ? r.addresseeId : r.requesterId));
+    const incomingRows = env.PRIVATE_INSTANCE ? [] : rows.filter((r) => r.status === 'pending' && r.addresseeId === userId);
+    const outgoingRows = env.PRIVATE_INSTANCE ? [] : rows.filter((r) => r.status === 'pending' && r.requesterId === userId);
     const shared = await sharedRoomCounts(userId, [...friendIds, ...incomingRows.map((r) => r.requesterId)]);
 
     const [beatenGroups, badgeGroups, feed] = await Promise.all([
@@ -208,18 +208,20 @@ export default async function friendRoutes(app: FastifyInstance) {
     const lastBy = new Map<string, FriendActivityEntry>();
     for (const e of feed) if (!lastBy.has(e.user.id)) lastBy.set(e.user.id, e);
 
-    const friends: FriendSummary[] = accepted.map((r) => {
-      const other = r.requesterId === userId ? r.addressee : r.requester;
+    const summarize = (other: { id: string; displayName: string; avatarColor: string; avatarUrl: string | null }, since: Date): FriendSummary => {
       const last = lastBy.get(other.id);
       return {
         ...toFriendUser(other),
-        since: (r.respondedAt ?? r.createdAt).toISOString(),
+        since: since.toISOString(),
         beatenCount: beatenBy.get(other.id) ?? 0,
         achievementCount: badgesBy.get(other.id) ?? 0,
         sharedRoomCount: shared.get(other.id) ?? 0,
         lastEvent: last ? { kind: last.kind, title: last.title, at: last.at } : null,
       };
-    });
+    };
+    const friends: FriendSummary[] = env.PRIVATE_INSTANCE
+      ? privateUsers.map((u) => summarize(u, u.createdAt))
+      : accepted.map((r) => summarize(r.requesterId === userId ? r.addressee : r.requester, r.respondedAt ?? r.createdAt));
     friends.sort((a, b) => a.displayName.localeCompare(b.displayName));
 
     const toRequest = (r: (typeof rows)[number], other: typeof r.requester): FriendRequestDto => ({
@@ -231,6 +233,7 @@ export default async function friendRoutes(app: FastifyInstance) {
 
     const response: FriendsResponse = {
       myCode,
+      privateInstance: env.PRIVATE_INSTANCE,
       friends,
       incoming: incomingRows.map((r) => toRequest(r, r.requester)),
       outgoing: outgoingRows.map((r) => toRequest(r, r.addressee)),
@@ -243,6 +246,7 @@ export default async function friendRoutes(app: FastifyInstance) {
     { config: { rateLimit: { max: 20, timeWindow: '1 hour' } } },
     async (request) => {
       const userId = await request.requireAuth();
+      if (env.PRIVATE_INSTANCE) throw new HttpError(409, 'Everyone on this server is already a friend');
       let target;
       if (request.body?.userId) {
         // From a room's member list: only people you share a room with, so this can't be used to
@@ -337,6 +341,7 @@ export default async function friendRoutes(app: FastifyInstance) {
   app.get<{ Params: { userId: string } }>('/api/friends/:userId/profile', async (request) => {
     const userId = await request.requireAuth();
     const otherId = request.params.userId;
+    if (!(await areFriends(userId, otherId))) throw new HttpError(404, 'Not friends with that user');
     const friendship = await prisma.friendship.findFirst({
       where: {
         status: 'accepted',
@@ -346,9 +351,8 @@ export default async function friendRoutes(app: FastifyInstance) {
         ],
       },
     });
-    if (!friendship) throw new HttpError(404, 'Not friends with that user');
 
-    const user = await prisma.user.findUniqueOrThrow({ where: { id: otherId }, select: userSelect });
+    const user = await prisma.user.findUniqueOrThrow({ where: { id: otherId }, select: { ...userSelect, createdAt: true } });
     const [beatenCount, achievementCount, playingRows, activity, shared] = await Promise.all([
       prisma.game.count({
         where: { roomId: null, addedBy: otherId, status: { in: ['done', 'replay'] }, hiddenFromOthers: false },
@@ -365,7 +369,7 @@ export default async function friendRoutes(app: FastifyInstance) {
 
     const profile: FriendProfile = {
       user: toFriendUser(user),
-      since: (friendship.respondedAt ?? friendship.createdAt).toISOString(),
+      since: (friendship?.respondedAt ?? friendship?.createdAt ?? user.createdAt).toISOString(),
       sharedRoomCount: shared.get(otherId) ?? 0,
       beatenCount,
       achievementCount,
