@@ -10,24 +10,33 @@ import { st } from '../ui/st';
 
 type Scores = Record<'art' | 'gameplay' | 'story' | 'sound', number>;
 
-/** The "how was it?" sheet that opens after marking a game Beaten: four 1-5 scores, a one-line note,
- * and a shortcut to queue a Replay. Skipping (or closing) closes game detail too. */
-export function ReviewSheet({ game }: { game: Game }) {
+/** The "how was it?" sheet: four 1-5 scores, a one-line note, and a shortcut to queue a Replay.
+ * Opens after marking a game Beaten (skipping or closing then closes game detail too), or with
+ * `edit` from an already-Beaten game's detail to write or change its review - prefilled with the
+ * existing one, and leaving the detail open afterwards. */
+export function ReviewSheet({ game, edit = false }: { game: Game; edit?: boolean }) {
   const { ops } = useScope();
   const ui = useUi();
-  const [scores, setScores] = useState<Scores>({ art: 0, gameplay: 0, story: 0, sound: 0 });
-  const [note, setNote] = useState('');
+  const existing = game.review;
+  const [scores, setScores] = useState<Scores>({
+    art: existing?.art ?? 0,
+    gameplay: existing?.gameplay ?? 0,
+    story: existing?.story ?? 0,
+    sound: existing?.sound ?? 0,
+  });
+  const [note, setNote] = useState(existing?.note ?? '');
 
   function finish() {
     ui.closeDialog('review');
-    ui.selectGame(null);
+    if (!edit) ui.selectGame(null);
   }
 
   async function save(replay: boolean) {
     const hasScore = Object.values(scores).some(Boolean);
     const hasAny = hasScore || note.trim().length > 0;
     try {
-      if (hasAny) {
+      // Also sent when everything was cleared on an existing review - that removes it.
+      if (hasAny || existing) {
         await ops.setReview(game.id, {
           art: scores.art || null,
           gameplay: scores.gameplay || null,
@@ -37,7 +46,17 @@ export function ReviewSheet({ game }: { game: Game }) {
         });
       }
       if (replay) ops.updateStatus(game.id, 'replay');
-      ui.notify(replay ? `${game.title} is queued for a Replay` : hasAny ? 'Review shared to your activity' : 'Beaten');
+      ui.notify(
+        replay
+          ? `${game.title} is queued for a Replay`
+          : hasAny
+            ? 'Review shared to your activity'
+            : existing
+              ? 'Review removed'
+              : edit
+                ? 'No review saved'
+                : 'Beaten',
+      );
       finish();
     } catch {
       // The failure shows in the page banner (ops.actionError); keep the sheet open to retry.
@@ -53,7 +72,7 @@ export function ReviewSheet({ game }: { game: Game }) {
       footer={
         <div style={st('flex-shrink:0;display:flex;gap:8px;padding:12px 20px 26px;border-top:1px solid var(--chip)')}>
           <button type="button" onClick={finish} style={st('height:48px;padding:0 20px;border-radius:999px;border:none;background:var(--chip);color:var(--text);font:600 14.5px var(--font-ui)')}>
-            Skip
+            {edit ? 'Cancel' : 'Skip'}
           </button>
           <button type="button" onClick={() => save(false)} style={st('flex:1;height:48px;border-radius:999px;border:none;background:var(--acc);color:var(--ink);font:700 14.5px var(--font-ui)')}>
             Save review
@@ -76,7 +95,9 @@ export function ReviewSheet({ game }: { game: Game }) {
           <span style={st('flex:1;min-width:0;display:flex;flex-direction:column;gap:4px')}>
             <span style={st('font:600 11.5px var(--font-mono);letter-spacing:0.08em;color:var(--mint)')}>BEATEN</span>
             <span style={st('font:700 23px/1.1 var(--font-display);letter-spacing:-0.02em;text-wrap:balance')}>{game.title}</span>
-            <span style={st('font:400 13px/1.4 var(--font-ui);color:var(--muted)')}>How was it? Your review shows in your friends' activity.</span>
+            <span style={st('font:400 13px/1.4 var(--font-ui);color:var(--muted)')}>
+              {existing ? 'Change your review - it updates in your friends\' activity.' : "How was it? Your review shows in your friends' activity."}
+            </span>
           </span>
         </div>
 
@@ -114,17 +135,19 @@ export function ReviewSheet({ game }: { game: Game }) {
           style={st('height:46px;padding:0 16px;border-radius:14px;background:var(--surf);border:1px solid var(--chip);color:var(--text);font-size:14.5px;outline:none')}
         />
 
-        <button
-          type="button"
-          onClick={() => save(true)}
-          style={st('display:flex;align-items:center;gap:12px;min-height:56px;padding:8px 10px 8px 16px;border-radius:16px;border:1px dashed var(--line);background:transparent;color:var(--text);text-align:left')}
-        >
-          <span style={st('flex:1;min-width:0;display:flex;flex-direction:column;gap:1px')}>
-            <span style={st('font:600 14.5px var(--font-ui)')}>Replay?</span>
-            <span style={st('font:400 12.5px var(--font-ui);color:var(--muted)')}>Queue it up for another run</span>
-          </span>
-          <span style={st('height:34px;padding:0 14px;border-radius:999px;background:var(--accSoft2);color:var(--accText);font:700 12.5px var(--font-ui);display:flex;align-items:center')}>Replay it</span>
-        </button>
+        {game.status !== 'replay' && (
+          <button
+            type="button"
+            onClick={() => save(true)}
+            style={st('display:flex;align-items:center;gap:12px;min-height:56px;padding:8px 10px 8px 16px;border-radius:16px;border:1px dashed var(--line);background:transparent;color:var(--text);text-align:left')}
+          >
+            <span style={st('flex:1;min-width:0;display:flex;flex-direction:column;gap:1px')}>
+              <span style={st('font:600 14.5px var(--font-ui)')}>Replay?</span>
+              <span style={st('font:400 12.5px var(--font-ui);color:var(--muted)')}>Queue it up for another run</span>
+            </span>
+            <span style={st('height:34px;padding:0 14px;border-radius:999px;background:var(--accSoft2);color:var(--accText);font:700 12.5px var(--font-ui);display:flex;align-items:center')}>Replay it</span>
+          </button>
+        )}
       </div>
     </Dialog>
   );

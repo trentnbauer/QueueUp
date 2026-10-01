@@ -27,7 +27,9 @@ export type AddRoomStep = 'options' | 'create' | 'join' | 'browse';
 interface DialogPayloads {
   addRoom: { step: AddRoomStep };
   add: { query?: string };
-  review: { gameId: string };
+  /** `edit`: opened to write or change the review of an already-Beaten game, rather than straight
+   * after marking it Beaten - closing it then leaves the game detail open. */
+  review: { gameId: string; edit?: boolean };
 }
 
 type OpenState = { [K in DialogKey]?: K extends keyof DialogPayloads ? DialogPayloads[K] : true };
