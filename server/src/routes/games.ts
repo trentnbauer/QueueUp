@@ -35,6 +35,7 @@ import {
   findIgdbIdBySteamAppId,
   findIgdbIdByExactTitle,
   getGameDetail,
+  getGameTrailer,
   isAddonCategory,
 } from '../services/igdbClient.js';
 import { getOwnedPlatforms } from '../services/userSettings.js';
@@ -564,6 +565,19 @@ export default async function gameRoutes(app: FastifyInstance) {
       const excludeIgdbIds = await existingIgdbIds(game.roomId, userId);
       const results = await dlcIntake(game.igdbId, platforms, excludeIgdbIds);
       return { results };
+    },
+  );
+
+  // A game's trailer (YouTube id from IGDB) for the vote deck / game detail "Watch trailer" button.
+  // Looked up on demand and cached, so nothing is fetched until someone actually asks for it.
+  app.get<{ Params: { id: string } }>(
+    '/api/games/:id/trailer',
+    { config: { rateLimit: { max: 30, timeWindow: '1 minute' } } },
+    async (request) => {
+      const userId = await request.requireAuth();
+      const game = await loadGameOr404(request.params.id);
+      await requireGameReadAccess(game, userId);
+      return { trailer: await getGameTrailer(game.igdbId) };
     },
   );
 

@@ -1782,6 +1782,11 @@ export interface FriendProfile {
 }
 
 /** Either a friend code, or the id of someone you share a room with (the room settings member list). */
+/** GET /api/games/:id/trailer - a YouTube video id for the game's trailer, or null if IGDB has none. */
+export interface GameTrailerResponse {
+  trailer: { youtubeId: string; name: string | null } | null;
+}
+
 export interface SendFriendRequestRequest {
   code?: string;
   userId?: string;

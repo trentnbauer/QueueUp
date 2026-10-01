@@ -6,6 +6,7 @@ import { useUi } from '../context/UiContext';
 import { useModalA11y } from '../hooks/useModalA11y';
 import { ATTENTION_QUERY_KEY } from '../hooks/useAttention';
 import { VOTES, VOTE_VALUES, metaLine, ownLabel } from '../lib/gameView';
+import { Trailer } from '../game/Trailer';
 import { Btn, Cover } from '../ui/primitives';
 import { st } from '../ui/st';
 
@@ -49,6 +50,9 @@ export function DeckDialog() {
           <div style={st('display:flex;flex-direction:column;align-items:center;gap:4px;text-align:center;max-width:420px')}>
             <span style={st('font:700 28px/1.05 var(--font-display);letter-spacing:-0.02em;text-wrap:balance')}>{g.title}</span>
             <span style={st('font:400 14px var(--font-ui);color:var(--muted)')}>{[metaLine(g), ownLabel(g, isShelf)].filter(Boolean).join(' · ')}</span>
+          </div>
+          <div style={st('width:min(420px,100%);display:flex;flex-direction:column;align-items:center')}>
+            <Trailer key={g.id} gameId={g.id} compact />
           </div>
           <div style={st('display:flex;gap:6px')}>
             {VOTE_VALUES.map((v) => (

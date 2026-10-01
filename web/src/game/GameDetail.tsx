@@ -21,6 +21,7 @@ import { ggDealsSearchUrl } from '../utils/formatPrice';
 import { formatRelativeTime } from '../utils/relativeTime';
 import { SteamMatchSheet } from './SteamMatchSheet';
 import { Avatar, coverBg } from '../ui/primitives';
+import { Trailer } from './Trailer';
 import { st } from '../ui/st';
 
 const H = 'font:600 15px var(--font-display)';
@@ -351,6 +352,8 @@ export function GameDetail({ game, onClose, changeStatus }: { game: Game; onClos
             </button>
           </div>
         )}
+
+        <Trailer gameId={game.id} />
 
         <div style={st('display:flex;flex-direction:column;gap:10px')}>
           <div style={st('display:flex;justify-content:space-between;align-items:baseline')}>
