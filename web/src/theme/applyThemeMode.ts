@@ -98,3 +98,32 @@ export function watchSystemThemeMode(onChange: (mode: ThemeMode) => void): () =>
   query.addEventListener('change', listener);
   return () => query.removeEventListener('change', listener);
 }
+
+const ACCENT_KEY = 'sq-accent';
+
+/** Where the accent colour comes from: the current room's colour, or neutral (monochrome). */
+export type Accent = 'room' | 'mono';
+export const ACCENT_LABELS: Record<Accent, string> = { room: 'Room theme', mono: 'Monochrome' };
+
+export function getAccent(): Accent {
+  try {
+    return localStorage.getItem(ACCENT_KEY) === 'mono' ? 'mono' : 'room';
+  } catch {
+    return 'room';
+  }
+}
+
+export function applyAccent(accent: Accent): void {
+  if (accent === 'mono') document.documentElement.dataset.accent = 'mono';
+  else delete document.documentElement.dataset.accent;
+}
+
+export function setAccent(accent: Accent): void {
+  try {
+    if (accent === 'room') localStorage.removeItem(ACCENT_KEY);
+    else localStorage.setItem(ACCENT_KEY, accent);
+  } catch {
+    /* storage unavailable - the choice just won't persist */
+  }
+  applyAccent(accent);
+}

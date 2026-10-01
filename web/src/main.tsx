@@ -13,12 +13,13 @@ import { AchievementUnlockProvider } from './context/AchievementUnlockContext';
 import { ToastProvider } from './context/ToastContext';
 import { UiProvider } from './context/UiContext';
 import { getBasePath } from './utils/basePath';
-import { applyPalette, applyThemeMode, getPalette, getPreferredThemeMode } from './theme/applyThemeMode';
+import { applyAccent, applyPalette, applyThemeMode, getAccent, getPalette, getPreferredThemeMode } from './theme/applyThemeMode';
 import './theme/global.css';
 
 // Applied synchronously, before the first render, so the page never flashes the wrong theme.
 applyThemeMode(getPreferredThemeMode());
 applyPalette(getPalette());
+applyAccent(getAccent());
 
 const queryClient = new QueryClient();
 
