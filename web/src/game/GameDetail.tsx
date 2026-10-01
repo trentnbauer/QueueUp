@@ -20,7 +20,7 @@ import {
 import { ggDealsSearchUrl } from '../utils/formatPrice';
 import { formatRelativeTime } from '../utils/relativeTime';
 import { SteamMatchSheet } from './SteamMatchSheet';
-import { Avatar, coverBg } from '../ui/primitives';
+import { Avatar, coverBg, GOLD } from '../ui/primitives';
 import { Trailer } from './Trailer';
 import { st } from '../ui/st';
 
@@ -36,6 +36,26 @@ function Section({ title, right, children }: { title: string; right?: ReactNode;
       </div>
       {children}
     </div>
+  );
+}
+
+/** "🏆 10/20" next to a member's vote in a room, gold once they're at 100%. */
+function MemberAchievements({ counts }: { counts: { unlocked: number; total: number } | null }) {
+  if (!counts || counts.total === 0) return null;
+  const full = counts.unlocked >= counts.total;
+  const label = `${counts.unlocked} of ${counts.total} achievements`;
+  return (
+    <span
+      title={label}
+      aria-label={label}
+      style={st(
+        `flex-shrink:0;height:22px;padding:0 8px;border-radius:999px;display:flex;align-items:center;font:600 11.5px var(--font-ui);${
+          full ? `background:${GOLD};color:oklch(0.28 0.06 70)` : 'background:var(--surf2);color:var(--text2)'
+        }`,
+      )}
+    >
+      🏆 {counts.unlocked}/{counts.total}
+    </span>
   );
 }
 
@@ -73,6 +93,15 @@ export function GameDetail({ game, onClose, changeStatus }: { game: Game; onClos
     !isShelf && game.maxCoopPlayers != null && members.length > game.maxCoopPlayers
       ? `Only supports ${game.maxCoopPlayers}-player co-op. This room has ${members.length} members.`
       : null;
+
+  // A room member's Steam achievement count, shown next to their vote: the live figure fetched for
+  // this modal when it's in, otherwise the stored one that came with the game.
+  const achievementsFor = (userId: string): { unlocked: number; total: number } | null => {
+    const live = players.find((p) => p.user.id === userId);
+    if (live) return live;
+    if (userId === user?.id) return game.myAchievements;
+    return game.memberAchievements.find((a) => a.user.id === userId) ?? null;
+  };
 
   // Nudges (never automatic): 100% Steam achievements, or playtime near the time to beat.
   const mine = players.find((p) => p.user.id === user?.id);
@@ -397,6 +426,7 @@ export function GameDetail({ game, onClose, changeStatus }: { game: Game; onClos
                     <span style={st('flex:1;min-width:0;font:600 13.5px var(--font-ui);white-space:nowrap;overflow:hidden;text-overflow:ellipsis')}>
                       {m.user.id === user?.id ? 'You' : m.user.displayName}
                     </span>
+                    <MemberAchievements counts={achievementsFor(m.user.id)} />
                     {vote ? (
                       <span style={st('display:flex;align-items:center;gap:6px;font:600 12.5px var(--font-ui);color:var(--text2)')}>
                         <span style={st('font-size:18px;line-height:1')}>{VOTES[vote].e}</span>
