@@ -189,6 +189,7 @@ model User {
   memberships                   RoomMember[]
   gamesAdded                    Game[]
   votes                         Vote[]
+  gameReviews                   GameReview[]
   auditLogEntries               AdminAuditLog[]
   notificationsReceived         Notification[]                 @relation("NotificationRecipient")
   notificationsActed            Notification[]                 @relation("NotificationActor")
@@ -734,9 +735,10 @@ model Game {
   /// Personal Shelf only: keeps this game off the public profile and out of friends' activity
   /// feeds and room Discord "member activity" posts. Its owner still sees it everywhere.
   hiddenFromOthers             Boolean    @default(false) @map("hidden_from_others")
-  /// The owner's 1-5 review scores for a Beaten game (art style / gameplay / story / sound &
-  /// music), each independently optional, plus an optional one-line note. A room game carries
-  /// whichever member saved a review last - reviews live on the row, not per member.
+  /// Legacy, no longer read or written: reviews moved to GameReview (one per person per game) so a
+  /// room member's review can't overwrite another's. Kept only so upgrading doesn't need a
+  /// destructive schema push; db/migrateReviews.ts copies any values here into GameReview once
+  /// and clears them.
   reviewArt                    Int?       @map("review_art")
   reviewGameplay               Int?       @map("review_gameplay")
   reviewStory                  Int?       @map("review_story")
@@ -756,6 +758,7 @@ model Game {
   baseGame                      Game?                          @relation("GameBaseGame", fields: [baseGameId], references: [id], onDelete: SetNull)
   dlc                           Game[]                         @relation("GameBaseGame")
   playLogs                      PlayLog[]
+  reviews                       GameReview[]
   notifications                 Notification[]
   playnitePlaytimeSnapshots     PlaynitePlaytimeSnapshot[]
   playniteCompletionSuggestions PlayniteCompletionSuggestion[]
@@ -1024,4 +1027,26 @@ model Friendship {
   @@unique([requesterId, addresseeId])
   @@index([addresseeId, status])
   @@map("friendships")
+}
+
+/// A person's review of a game they've beaten: four 1-5 scores (each optional) and a one-line
+/// note. One per (game, user), so in a room every member keeps their own review - the Game row
+/// used to hold a single review that the last member to save one overwrote.
+model GameReview {
+  id         String   @id @default(uuid())
+  gameId     String   @map("game_id")
+  userId     String   @map("user_id")
+  art        Int?
+  gameplay   Int?
+  story      Int?
+  sound      Int?
+  note       String?
+  reviewedAt DateTime @default(now()) @map("reviewed_at")
+
+  game Game @relation(fields: [gameId], references: [id], onDelete: Cascade)
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([gameId, userId])
+  @@index([userId])
+  @@map("game_reviews")
 }

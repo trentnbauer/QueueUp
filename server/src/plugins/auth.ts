@@ -165,6 +165,13 @@ export default fp(async function authPlugin(app: FastifyInstance) {
   });
 
   app.setErrorHandler((error: FastifyError, _request, reply: FastifyReply) => {
+    // A request body with the wrong type in it (a number where a string id goes, an object for a
+    // boolean) reaches Prisma as a query it refuses to build - that's the caller's mistake, not a
+    // server fault, so it gets a 400 instead of a logged 500.
+    if (error instanceof Prisma.PrismaClientValidationError) {
+      reply.status(400).send({ error: 'Invalid request' });
+      return;
+    }
     const statusCode = (error as { statusCode?: number }).statusCode ?? 500;
     // Below 500, error.message is always something a route deliberately wrote for the caller
     // (HttpError, Fastify's own body/param validation) - safe to forward as-is. At/above 500 it's

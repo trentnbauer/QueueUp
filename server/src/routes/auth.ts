@@ -201,9 +201,11 @@ export default async function authRoutes(app: FastifyInstance) {
     return reply.redirect(env.APP_BASE_URL);
   });
 
-  app.get('/auth/logout', async (request, reply) => {
+  // POST, not GET: a GET sign-out can be fired by any page that embeds an <img> or link to it.
+  // The session cookie is SameSite=Lax, so a cross-site POST never carries it.
+  app.post('/auth/logout', async (request, reply) => {
     await request.session.destroy();
-    return reply.redirect(env.APP_BASE_URL);
+    return reply.status(204).send();
   });
 
   app.get('/api/me', async (request, reply) => {
@@ -279,7 +281,8 @@ export default async function authRoutes(app: FastifyInstance) {
     { config: { rateLimit: { max: 20, timeWindow: '1 minute' } } },
     async (request, reply) => {
       const userId = await request.requireAuth();
-      const displayName = (request.body?.displayName ?? '').trim().replace(/\s+/g, ' ');
+      const raw = request.body?.displayName;
+      const displayName = (typeof raw === 'string' ? raw : '').trim().replace(/\s+/g, ' ');
       if (displayName.length < 1 || displayName.length > 40) {
         throw new HttpError(400, 'Display name must be 1-40 characters.');
       }
@@ -308,7 +311,8 @@ export default async function authRoutes(app: FastifyInstance) {
     { config: { rateLimit: { max: 20, timeWindow: '1 minute' } } },
     async (request, reply) => {
       const userId = await request.requireAuth();
-      const label = request.body?.label?.trim();
+      const rawLabel = request.body?.label;
+      const label = typeof rawLabel === 'string' ? rawLabel.trim() : '';
       if (!label) throw new HttpError(400, 'A label is required');
 
       const token = generateApiKeyToken();

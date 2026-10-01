@@ -15,6 +15,9 @@ const gameWithRelations = {
     // filtered down to the current viewer's own tags in buildGameDto below, not here, since this
     // shared `include` isn't scoped to a particular viewer.
     tags: { include: { tag: true } },
+    // Everyone's reviews of this game (a room game has at most one per member); buildGameDto
+    // picks out the viewer's own.
+    reviews: true,
   },
 } satisfies Prisma.GameDefaultArgs;
 
@@ -31,24 +34,25 @@ const UNAVAILABLE_PRICE: GamePrice = {
 
 const DEFAULT_OWNERSHIP: GameOwnershipInfo = { youOwn: false, ownership: null, ownerIds: [], wishlist: null, ownedPlatforms: [] };
 
-/** The review columns on a Game row, folded into one DTO - null unless at least a score or a note
- * was ever saved (reviewedAt is only set by the review route). */
-export function toGameReviewDto(game: {
-  reviewArt: number | null;
-  reviewGameplay: number | null;
-  reviewStory: number | null;
-  reviewSound: number | null;
-  reviewNote: string | null;
-  reviewedAt: Date | null;
-}): GameReview | null {
-  if (!game.reviewedAt) return null;
+/** One person's GameReview row as a DTO - null when they haven't reviewed the game. */
+export function toGameReviewDto(
+  review: {
+    art: number | null;
+    gameplay: number | null;
+    story: number | null;
+    sound: number | null;
+    note: string | null;
+    reviewedAt: Date;
+  } | null | undefined,
+): GameReview | null {
+  if (!review) return null;
   return {
-    art: game.reviewArt,
-    gameplay: game.reviewGameplay,
-    story: game.reviewStory,
-    sound: game.reviewSound,
-    note: game.reviewNote,
-    reviewedAt: game.reviewedAt.toISOString(),
+    art: review.art,
+    gameplay: review.gameplay,
+    story: review.story,
+    sound: review.sound,
+    note: review.note,
+    reviewedAt: review.reviewedAt.toISOString(),
   };
 }
 
@@ -109,7 +113,7 @@ function buildGameDto(
     replayedAt: game.replayedAt ? game.replayedAt.toISOString() : null,
     hiddenFromOthers: game.hiddenFromOthers,
     sensitiveContent: game.sensitiveContent,
-    review: toGameReviewDto(game),
+    review: toGameReviewDto(game.reviews.find((r) => r.userId === currentUserId)),
     releaseAlert: game.releaseAlert,
     createdAt: game.createdAt.toISOString(),
     updatedAt: game.updatedAt.toISOString(),

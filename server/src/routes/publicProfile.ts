@@ -46,6 +46,7 @@ export default async function publicProfileRoutes(app: FastifyInstance) {
         where: { roomId: null, addedBy: user.id, status: { in: ['done', 'replay'] }, hiddenFromOthers: false },
         orderBy: { updatedAt: 'desc' },
         take: 300,
+        include: { reviews: { where: { userId: user.id } } },
       }),
       prisma.game.findMany({
         where: { roomId: null, addedBy: user.id, status: 'playing', hiddenFromOthers: false },
@@ -133,14 +134,14 @@ export default async function publicProfileRoutes(app: FastifyInstance) {
       systems: user.ownedPlatforms.map((p) => ROOM_PLATFORM_LABELS[p]),
       // Reviewed games first, then the rest, each group newest-first (the query's own order).
       beatenGames: [...beatenGameRows]
-        .sort((a, b) => Number(!!b.reviewedAt) - Number(!!a.reviewedAt))
+        .sort((a, b) => Number(b.reviews.length > 0) - Number(a.reviews.length > 0))
         .map((g) => ({
           id: g.id,
           title: g.title,
           coverImageUrl: g.coverImageUrl,
           genre: g.genre,
           replaying: g.status === 'replay',
-          review: toGameReviewDto(g),
+          review: toGameReviewDto(g.reviews[0]),
         })),
       memberSince: user.createdAt.toISOString(),
       wishlist,

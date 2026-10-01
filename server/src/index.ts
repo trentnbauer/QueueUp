@@ -2,6 +2,7 @@ import { buildApp } from './app.js';
 import { env } from './config/env.js';
 import { prisma } from './db/client.js';
 import { ensureDbConstraints } from './db/ensureConstraints.js';
+import { runDataMigrations } from './db/dataMigrations.js';
 import { redis } from './services/redisClient.js';
 import { startPriceAlertJob } from './jobs/priceAlertJob.js';
 import { startPriceRefreshJob } from './jobs/priceRefreshJob.js';
@@ -14,6 +15,7 @@ import { startBackupJob } from './jobs/backupJob.js';
 const app = await buildApp();
 
 await ensureDbConstraints(app.log);
+await runDataMigrations(app.log);
 
 app
   .listen({ port: env.PORT, host: '0.0.0.0' })
