@@ -21,7 +21,3 @@ It's deliberately **not** a chat app, a social network, a game library manager, 
 ## Status
 
 This is an actively developed, self-hosted app (Node/TypeScript, Postgres, Redis). The v2 UI shipped on 1 October 2026 along with a lot of changes in the same week, and the README currently warns that **data may be wiped** while things settle, so keep backups (see [Configuration](Configuration#backups)). See [Architecture](Architecture) for the stack and [Deployment](Deployment) for running it yourself.
-
-## Editing this wiki
-
-The pages live in the main repository under [`docs/wiki/`](https://github.com/trentnbauer/QueueUp/tree/main/docs/wiki) and are copied here automatically whenever a change to them merges (`.github/workflows/wiki-sync.yml`). Change them there through a pull request - edits made directly in the wiki's web editor are overwritten on the next sync.
