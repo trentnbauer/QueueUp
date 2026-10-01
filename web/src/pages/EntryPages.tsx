@@ -30,10 +30,90 @@ const PROVIDER_STYLE: Record<string, { label: string; bg: string; fg: string; bo
   dev: { label: 'Sign in (development)', bg: 'var(--text)', fg: 'var(--onText)', border: 'none' },
 };
 
+/** Cloudflare's widget script, loaded once on first use. */
+let turnstileScript: Promise<void> | null = null;
+function loadTurnstile(): Promise<void> {
+  turnstileScript ??= new Promise<void>((resolve, reject) => {
+    const el = document.createElement('script');
+    el.src = 'https://challenges.cloudflare.com/turnstile/v0/api.js?render=explicit';
+    el.async = true;
+    el.onload = () => resolve();
+    el.onerror = () => {
+      turnstileScript = null;
+      reject(new Error('Could not load the captcha'));
+    };
+    document.head.appendChild(el);
+  });
+  return turnstileScript;
+}
+
+interface TurnstileApi {
+  render: (el: HTMLElement, options: Record<string, unknown>) => string;
+  remove: (widgetId: string) => void;
+}
+
+/** The Turnstile captcha (issue #665). Reports a token when solved and null when it expires or
+ * errors; it refreshes itself on expiry. */
+function TurnstileWidget({ siteKey, onToken }: { siteKey: string; onToken: (token: string | null) => void }) {
+  const ref = useRef<HTMLDivElement>(null);
+  const [loadError, setLoadError] = useState(false);
+  const onTokenRef = useRef(onToken);
+  onTokenRef.current = onToken;
+
+  useEffect(() => {
+    let widgetId: string | null = null;
+    let cancelled = false;
+    loadTurnstile()
+      .then(() => {
+        const api = (window as unknown as { turnstile?: TurnstileApi }).turnstile;
+        if (cancelled || !api || !ref.current) return;
+        widgetId = api.render(ref.current, {
+          sitekey: siteKey,
+          theme: 'auto',
+          'refresh-expired': 'auto',
+          callback: (token: string) => onTokenRef.current(token),
+          'expired-callback': () => onTokenRef.current(null),
+          'error-callback': () => onTokenRef.current(null),
+        });
+      })
+      .catch(() => !cancelled && setLoadError(true));
+    return () => {
+      cancelled = true;
+      const api = (window as unknown as { turnstile?: TurnstileApi }).turnstile;
+      if (widgetId && api) api.remove(widgetId);
+    };
+  }, [siteKey]);
+
+  return (
+    <div style={st('display:flex;flex-direction:column;align-items:center;gap:6px;min-height:65px')}>
+      <div ref={ref} />
+      {loadError && (
+        <span role="alert" style={st('font:500 13px var(--font-ui);color:var(--danger);text-align:center')}>
+          The captcha couldn't load. Check your connection or ad blocker, then reload the page.
+        </span>
+      )}
+    </div>
+  );
+}
+
 /** Signed-out landing page: what QueueUp is, then one button per configured sign-in method. */
-export function LoginPage({ providers }: { providers: string[] | null }) {
+export function LoginPage({ providers, turnstileSiteKey = null }: { providers: string[] | null; turnstileSiteKey?: string | null }) {
   const { version } = useVersion();
   const list = providers === null ? [] : providers.length > 0 ? providers : ['dev'];
+  // Issue #665: with the captcha on, the sign-in buttons wait for a solved Turnstile token, which
+  // rides along on the login URL for the server to verify.
+  const [captcha, setCaptcha] = useState<string | null>(null);
+  const needsCaptcha = !!turnstileSiteKey && list[0] !== 'dev';
+  const ready = !needsCaptcha || !!captcha;
+  // The server sends a failed captcha back here with ?signin=captcha.
+  const [captchaFailed] = useState(() => {
+    const params = new URLSearchParams(window.location.search);
+    if (params.get('signin') !== 'captcha') return false;
+    params.delete('signin');
+    const qs = params.toString();
+    window.history.replaceState(window.history.state, '', `${window.location.pathname}${qs ? `?${qs}` : ''}`);
+    return true;
+  });
   return (
     <div style={st('min-height:100vh;background:var(--bg);color:var(--text);display:flex;flex-direction:column;overflow-y:auto')}>
       <div style={st('flex:1;display:flex;flex-direction:column;justify-content:center;gap:28px;padding:40px 24px 24px;max-width:440px;width:100%;margin:0 auto')}>
@@ -53,13 +133,23 @@ export function LoginPage({ providers }: { providers: string[] | null }) {
           ))}
         </div>
         <div style={st('display:flex;flex-direction:column;gap:10px')}>
+          {captchaFailed && !captcha && (
+            <span role="alert" style={st('font:500 13.5px var(--font-ui);color:var(--danger)')}>
+              The captcha check didn't go through. Please try again.
+            </span>
+          )}
+          {needsCaptcha && <TurnstileWidget siteKey={turnstileSiteKey!} onToken={setCaptcha} />}
           {list.map((p) => {
             const s = PROVIDER_STYLE[p] ?? { label: `Sign in with ${p}`, bg: 'transparent', fg: 'var(--text)', border: '1px solid var(--line)' };
             return (
               <a
                 key={p}
-                href={authApi.loginUrl(p)}
-                style={st(`height:52px;border-radius:999px;border:${s.border};background:${s.bg};color:${s.fg};font:700 15px var(--font-ui);display:flex;align-items:center;justify-content:center;text-decoration:none`)}
+                href={ready ? authApi.loginUrl(p, captcha) : undefined}
+                aria-disabled={!ready}
+                onClick={(e) => !ready && e.preventDefault()}
+                style={st(
+                  `height:52px;border-radius:999px;border:${s.border};background:${s.bg};color:${s.fg};font:700 15px var(--font-ui);display:flex;align-items:center;justify-content:center;text-decoration:none;opacity:${ready ? 1 : 0.45};cursor:${ready ? 'pointer' : 'not-allowed'}`,
+                )}
               >
                 {s.label}
               </a>

@@ -70,9 +70,12 @@ export async function buildApp() {
         imgSrc: ["'self'", 'data:', 'https:'],
         // fonts.gstatic.com serves the font files the stylesheet above points at.
         fontSrc: ["'self'", 'https://fonts.gstatic.com'],
+        // Cloudflare Turnstile's widget script (the sign-in captcha, issue #665, when it's set up).
+        scriptSrc: ["'self'", 'https://challenges.cloudflare.com'],
         connectSrc: ["'self'"],
-        // The "Watch trailer" player embeds YouTube (privacy-enhanced domain, no cookies until play).
-        frameSrc: ["'self'", 'https://www.youtube-nocookie.com'],
+        // The "Watch trailer" player embeds YouTube (privacy-enhanced domain, no cookies until play);
+        // Turnstile's challenge runs in a Cloudflare iframe.
+        frameSrc: ["'self'", 'https://www.youtube-nocookie.com', 'https://challenges.cloudflare.com'],
       },
     },
   });

@@ -3,7 +3,14 @@ import { prisma } from '../db/client.js';
 /** Integration credentials that can be set via env var OR, as a fallback, via the admin Settings
  * panel (stored in the app_settings table). Kept to a small explicit list rather than accepting
  * arbitrary keys from the client, since these end up in a PATCH request body. */
-export const CONFIG_KEYS = ['GGDEALS_API_KEY', 'IGDB_CLIENT_ID', 'IGDB_CLIENT_SECRET', 'SCANDEX_API_KEY'] as const;
+export const CONFIG_KEYS = [
+  'GGDEALS_API_KEY',
+  'IGDB_CLIENT_ID',
+  'IGDB_CLIENT_SECRET',
+  'SCANDEX_API_KEY',
+  'TURNSTILE_SITE_KEY',
+  'TURNSTILE_SECRET_KEY',
+] as const;
 export type ConfigKey = (typeof CONFIG_KEYS)[number];
 
 export function isConfigKey(value: string): value is ConfigKey {

@@ -20,14 +20,16 @@ export const authApi = {
        * never sees it true again. Drives auto-opening the Import Library modal for a new account. */
       isNewAccount: boolean;
     }>('/api/me'),
-  providers: () => apiGet<{ providers: string[] }>('/api/auth/providers'),
+  /** Sign-in methods, plus the Turnstile site key when the sign-in captcha is on (issue #665). */
+  providers: () => apiGet<{ providers: string[]; turnstileSiteKey: string | null }>('/api/auth/providers'),
   updateOwnedPlatforms: (platforms: RoomPlatform[]) =>
     apiPatch<{ ownedPlatforms: RoomPlatform[] }>('/api/me/owned-platforms', { platforms }),
   updatePublicProfile: (enabled: boolean) =>
     apiPatch<{ publicProfileEnabled: boolean }>('/api/me/public-profile', { enabled }),
   setDisplayName: (displayName: string) => apiPatch<{ displayName: string }>('/api/me/display-name', { displayName }),
   setProfileSlug: (slug: string | null) => apiPatch<{ profileSlug: string | null }>('/api/me/profile-slug', { slug }),
-  loginUrl: (provider: string) => `${getBasePath()}/auth/${provider}/login`,
+  loginUrl: (provider: string, captcha?: string | null) =>
+    `${getBasePath()}/auth/${provider}/login${captcha ? `?captcha=${encodeURIComponent(captcha)}` : ''}`,
   linkUrl: (provider: string) => `${getBasePath()}/auth/${provider}/link`,
   unlink: (provider: string) => apiDelete(`/auth/${provider}/unlink`),
   logout: () => apiPost<void>('/auth/logout'),

@@ -44,6 +44,7 @@ export default function App() {
   useActiveRoomSpinToasts();
   usePlayniteSyncToasts();
   const [providers, setProviders] = useState<string[] | null>(null);
+  const [turnstileSiteKey, setTurnstileSiteKey] = useState<string | null>(null);
   const [showOnboarding, setShowOnboarding] = useState(false);
   const completingPendingJoin = useRef(false);
 
@@ -62,7 +63,11 @@ export default function App() {
   }, []);
 
   useEffect(() => {
-    if (!user) authApi.providers().then(({ providers }) => setProviders(providers));
+    if (!user)
+      authApi.providers().then(({ providers, turnstileSiteKey }) => {
+        setProviders(providers);
+        setTurnstileSiteKey(turnstileSiteKey);
+      });
   }, [user]);
 
   useEffect(() => {
@@ -114,7 +119,7 @@ export default function App() {
   const publicMatch = location.pathname.match(/^\/u\/([^/]+)$/);
   if (publicMatch) return <PublicProfilePage userId={decodeURIComponent(publicMatch[1])} signedIn={!!user} />;
 
-  if (!user) return <LoginPage providers={providers} />;
+  if (!user) return <LoginPage providers={providers} turnstileSiteKey={turnstileSiteKey} />;
 
   return (
     <SteamImportProvider>
