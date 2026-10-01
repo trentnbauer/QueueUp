@@ -4,6 +4,7 @@ import { getSteamPrice, getSteamPrices } from './priceService.js';
 import { getOwnershipInfo, type GameOwnershipInfo } from './gameOwnership.js';
 import { getRoomPlatform, getRoomPlatforms } from './roomAccess.js';
 import { getPlaytimeSinceCheckpoint, type GamePlaytimeInfo } from './playtimeTracking.js';
+import { getAchievementProgressMap, type AchievementCount } from './achievementProgress.js';
 import { toUserDto } from '../util/dto.js';
 
 const gameWithRelations = {
@@ -62,6 +63,7 @@ function buildGameDto(
   ggDealsUrl: string | null,
   ownership: GameOwnershipInfo,
   playtime: GamePlaytimeInfo | undefined,
+  achievements: AchievementCount | undefined,
 ): Game {
   const myVote = game.votes.find((v) => v.userId === currentUserId);
   const voteScore = game.votes.reduce((sum, v) => sum + v.value, 0);
@@ -91,6 +93,7 @@ function buildGameDto(
     coverImageUrl: game.coverImageUrl,
     status: game.status,
     steamFullyCompleted: game.steamFullyCompleted,
+    myAchievements: achievements ?? null,
     price,
     targetPrice: game.targetPrice,
     manualPrice: game.manualPrice,
@@ -136,9 +139,10 @@ export async function serializeGame(game: GameWithRelations, currentUserId: stri
   const platform = await resolvePricingPlatform(game);
   const price = platform === 'pc' && game.steamAppid ? await getSteamPrice(game.steamAppid, { region }) : UNAVAILABLE_PRICE;
   const ggDealsUrl = platform === 'pc' ? game.ggDealsUrl : null;
-  const [ownershipMap, playtimeMap] = await Promise.all([
+  const [ownershipMap, playtimeMap, achievementMap] = await Promise.all([
     getOwnershipInfo([game], currentUserId),
     getPlaytimeSinceCheckpoint([game]),
+    getAchievementProgressMap(currentUserId, [game.igdbId]),
   ]);
   return buildGameDto(
     game,
@@ -147,6 +151,7 @@ export async function serializeGame(game: GameWithRelations, currentUserId: stri
     ggDealsUrl,
     ownershipMap.get(game.id) ?? DEFAULT_OWNERSHIP,
     playtimeMap.get(game.id),
+    achievementMap.get(game.igdbId),
   );
 }
 
@@ -171,10 +176,11 @@ export async function serializeGames(games: GameWithRelations[], currentUserId: 
     .filter((g) => platformFor(g) === 'pc')
     .map((g) => g.steamAppid)
     .filter((id): id is number => id != null);
-  const [prices, ownershipMap, playtimeMap] = await Promise.all([
+  const [prices, ownershipMap, playtimeMap, achievementMap] = await Promise.all([
     getSteamPrices(pcSteamAppIds, { region }),
     getOwnershipInfo(games, currentUserId),
     getPlaytimeSinceCheckpoint(games),
+    getAchievementProgressMap(currentUserId, games.map((g) => g.igdbId)),
   ]);
 
   return games.map((game) => {
@@ -188,6 +194,7 @@ export async function serializeGames(games: GameWithRelations[], currentUserId: 
       ggDealsUrl,
       ownershipMap.get(game.id) ?? DEFAULT_OWNERSHIP,
       playtimeMap.get(game.id),
+      achievementMap.get(game.igdbId),
     );
   });
 }

@@ -8,7 +8,7 @@ import { startPriceAlertJob } from './jobs/priceAlertJob.js';
 import { startPriceRefreshJob } from './jobs/priceRefreshJob.js';
 import { startAnniversaryBadgeJob } from './jobs/anniversaryBadgeJob.js';
 import { startReleaseWatchJob } from './jobs/releaseWatchJob.js';
-import { startPlaytimeSnapshotJob } from './jobs/playtimeSnapshotJob.js';
+import { startAchievementProgressJob, startPlaytimeSnapshotJob } from './jobs/playtimeSnapshotJob.js';
 import { startPlayniteSyncReminderJob } from './jobs/playniteSyncReminderJob.js';
 import { startBackupJob } from './jobs/backupJob.js';
 import { reloadTunnel, stopTunnel } from './services/cloudflareTunnel.js';
@@ -42,6 +42,9 @@ const releaseWatchJob = startReleaseWatchJob();
 // Playtime tracking (#548) - dormant by default (see env.ts), ships in sections across several
 // PRs before any user-facing nudge exists yet to consume what it snapshots.
 const playtimeSnapshotJob = env.PLAYTIME_TRACKING_ENABLED ? startPlaytimeSnapshotJob() : null;
+// The playtime job also refreshes the stored achievement counts behind the "10/20" on game cards;
+// with it off, this keeps those filling in on their own.
+const achievementProgressJob = env.PLAYTIME_TRACKING_ENABLED ? null : startAchievementProgressJob();
 // Playnite sync staleness reminder (#570) - same single-process reasoning as the jobs above; a
 // stale Playnite library isn't tied to any user action either.
 const playniteSyncReminderJob = startPlayniteSyncReminderJob();
@@ -77,6 +80,7 @@ async function shutdown(signal: string) {
     anniversaryBadgeJob.stop();
     releaseWatchJob.stop();
     playtimeSnapshotJob?.stop();
+    achievementProgressJob?.stop();
     playniteSyncReminderJob.stop();
     backupJob.stop();
     await stopTunnel();

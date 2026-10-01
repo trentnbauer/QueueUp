@@ -1,7 +1,7 @@
 import type { MouseEvent, ReactNode } from 'react';
 import type { Game, VoteValue } from '@queueup/shared';
 import { VOTES, VOTE_VALUES, isNewRelease, releaseLabel, shortDate } from '../lib/gameView';
-import { Cover, coverBg, GOLD_RING, TrophyBadge } from '../ui/primitives';
+import { Cover, coverBg, GOLD, GOLD_RING, TrophyBadge } from '../ui/primitives';
 import { st } from '../ui/st';
 import type { RowItem } from './derive';
 
@@ -60,6 +60,22 @@ export function VoteSegment({
 
 const CHIP = 'flex-shrink:0;height:19px;padding:0 7px;border-radius:999px;background:var(--surf2);color:var(--text2);font:600 10.5px var(--font-ui);display:flex;align-items:center';
 
+/** The viewer's Steam achievement count ("🏆 10/20"), gold once it's 100%. */
+function AchievementChip({ g }: { g: Game }) {
+  const a = g.myAchievements;
+  if (!a) return null;
+  const full = a.unlocked >= a.total;
+  return (
+    <span
+      title={`${a.unlocked} of ${a.total} achievements`}
+      aria-label={`${a.unlocked} of ${a.total} achievements`}
+      style={st(CHIP, full ? { background: GOLD, color: 'oklch(0.28 0.06 70)' } : undefined)}
+    >
+      🏆 {a.unlocked}/{a.total}
+    </span>
+  );
+}
+
 function SelectMark({ on }: { on: boolean }) {
   return (
     <span
@@ -105,6 +121,7 @@ export function DesktopRow({ item, showRank, bulk, selected, active, onOpen, onV
         <span style={st('font:600 15.5px var(--font-ui);white-space:nowrap;overflow:hidden;text-overflow:ellipsis')}>{g.title}</span>
         <span style={st('display:flex;align-items:center;gap:6px;min-width:0;font:400 12.5px var(--font-ui);color:var(--muted)')}>
           {item.chip && <span style={st(CHIP)}>{item.chip}</span>}
+          <AchievementChip g={g} />
           <span style={st('white-space:nowrap;overflow:hidden;text-overflow:ellipsis')}>{item.meta}</span>
         </span>
       </div>
@@ -146,6 +163,7 @@ export function MobileRow({ item, showRank, bulk, selected, onOpen, onVote }: Ro
           <span style={st('font:600 15.5px var(--font-ui);white-space:nowrap;overflow:hidden;text-overflow:ellipsis')}>{g.title}</span>
           <span style={st('display:flex;align-items:center;gap:6px;min-width:0;font:400 12.5px var(--font-ui);color:var(--muted)')}>
             {item.chip && <span style={st(CHIP)}>{item.chip}</span>}
+            <AchievementChip g={g} />
             <span style={st('white-space:nowrap;overflow:hidden;text-overflow:ellipsis')}>
               {item.meta}
               {item.meta ? ' · ' : ''}
@@ -200,7 +218,10 @@ export function CoverCard({ item, showRank, bulk, selected, big, onOpen, onVote 
       </div>
       <div style={st('display:flex;flex-direction:column;gap:1px;min-width:0;padding:0 2px')}>
         <span style={st('font:600 14px var(--font-ui);white-space:nowrap;overflow:hidden;text-overflow:ellipsis')}>{g.title}</span>
-        <span style={st(`font:400 12px var(--font-ui);color:${item.priceOwned ? 'var(--mint)' : 'var(--text)'};white-space:nowrap;overflow:hidden;text-overflow:ellipsis`)}>{item.priceLabel}</span>
+        <span style={st('display:flex;align-items:center;gap:6px;min-width:0')}>
+          <span style={st(`flex:1;min-width:0;font:400 12px var(--font-ui);color:${item.priceOwned ? 'var(--mint)' : 'var(--text)'};white-space:nowrap;overflow:hidden;text-overflow:ellipsis`)}>{item.priceLabel}</span>
+          <AchievementChip g={g} />
+        </span>
       </div>
     </div>
   );

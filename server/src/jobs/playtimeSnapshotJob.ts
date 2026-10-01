@@ -1,6 +1,8 @@
 import { prisma } from '../db/client.js';
 import { snapshotAllPlaytimes, dedupeByOwnerAndSteamApp, type PlaytimeIncrease } from '../services/playtimeTracking.js';
 import { notifyPlaytimeMarkPlaying } from '../services/notifications.js';
+import { refreshAllAchievementProgress } from '../services/achievementProgress.js';
+import { env } from '../config/env.js';
 import { scheduleJob, type JobHandle } from './scheduler.js';
 
 // Steam's own playtime figures only update every so often on their end too - polling much more
@@ -39,6 +41,21 @@ export function startPlaytimeSnapshotJob(): JobHandle {
     run: async () => {
       const increases = await snapshotAllPlaytimes();
       await notifyPlayingCandidates(increases);
+      // Achievements only move when you play, so the games whose playtime just went up get their
+      // "10/20" refreshed (plus a few never-checked ones each run - see achievementProgress.ts).
+      if (env.STEAM_API_KEY) await refreshAllAchievementProgress(env.STEAM_API_KEY, increases);
+    },
+  });
+}
+
+/** With playtime tracking off there are no playtime increases to go on, so this just keeps the
+ * stored achievement counts filling in (never-checked titles, a few per user per run). */
+export function startAchievementProgressJob(): JobHandle {
+  return scheduleJob({
+    name: 'achievement-progress',
+    intervalMs: PLAYTIME_SNAPSHOT_INTERVAL_MS,
+    run: async () => {
+      if (env.STEAM_API_KEY) await refreshAllAchievementProgress(env.STEAM_API_KEY, []);
     },
   });
 }

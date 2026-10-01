@@ -73,6 +73,7 @@ import {
 } from '../services/roomActivity.js';
 import { lookupBarcodeGame } from '../services/barcodeService.js';
 import { findDetectedSteamCompletions } from '../services/steamCompletionDetection.js';
+import { recordAchievementProgress } from '../services/achievementProgress.js';
 import { toUserDto } from '../util/dto.js';
 import { env } from '../config/env.js';
 import type {
@@ -1300,6 +1301,8 @@ export default async function gameRoutes(app: FastifyInstance) {
             const steamId64 = resolveSteamId64(player);
             if (!steamId64) return null;
             const counts = await getAchievementCounts(steamId64, steamAppid, env.STEAM_API_KEY!);
+            // Saved for the "10/20" on game cards (see services/achievementProgress.ts).
+            await recordAchievementProgress(player.id, game.igdbId, counts);
             return counts && { user: toUserDto(player), unlocked: counts.unlocked, total: counts.total };
           }),
         )
