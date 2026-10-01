@@ -128,7 +128,7 @@ export function Overlays() {
       {d.playnite && <PlayniteDialog />}
       {d.changelog && <ChangelogDialog />}
       {d.dlc && <DlcDialog />}
-      {d.review && reviewGame && <ReviewSheet game={reviewGame} />}
+      {d.review && reviewGame && <ReviewSheet game={reviewGame} edit={!!d.review.edit} />}
       <SensitiveGamesPrompt active={isShelf && !busy} />
       <UiToast />
     </>

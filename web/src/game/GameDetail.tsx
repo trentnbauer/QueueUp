@@ -547,6 +547,15 @@ export function GameDetail({ game, onClose, changeStatus }: { game: Game; onClos
               </button>
             ))}
           </div>
+          {(game.status === 'done' || game.status === 'replay') && (
+            <button
+              type="button"
+              onClick={() => ui.openDialog('review', { gameId: game.id, edit: true })}
+              style={st('align-self:flex-start;height:36px;padding:0 14px;border-radius:999px;border:none;background:var(--accSoft2);color:var(--accText);font:600 13px var(--font-ui)')}
+            >
+              {game.review ? 'Edit review' : 'Write a review'}
+            </button>
+          )}
         </div>
 
         {playLog.length > 0 && (
