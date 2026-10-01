@@ -1,4 +1,6 @@
+import type { User } from '@queueup/shared';
 import { prisma } from '../db/client.js';
+import { toUserDto } from '../util/dto.js';
 import { getAchievementCounts, resolveSteamId64, type SteamAchievementCounts } from './steamLibrary.js';
 
 /** Stored Steam achievement counts per (user, game), for the "10/20" on game cards - see the
@@ -106,4 +108,46 @@ export async function refreshAllAchievementProgress(apiKey: string, played: { us
       console.error(`achievement-progress: could not refresh for user ${user.id}`, err);
     }
   }
+}
+
+export interface MemberAchievementCount extends AchievementCount {
+  user: User;
+}
+
+/** For room games: every other member's stored count, by game id - the room cards show these next
+ * to the viewer's own (myAchievements). Same members the detail view's achievements list covers,
+ * best first. Shelf games get nothing here. */
+export async function getRoomMemberAchievementMap(
+  games: { id: string; roomId: string | null; igdbId: number }[],
+  viewerId: string,
+): Promise<Map<string, MemberAchievementCount[]>> {
+  const roomGames = games.filter((g) => g.roomId);
+  if (roomGames.length === 0) return new Map();
+  const members = await prisma.roomMember.findMany({
+    where: { roomId: { in: [...new Set(roomGames.map((g) => g.roomId!))] }, userId: { not: viewerId } },
+    include: { user: true },
+  });
+  if (members.length === 0) return new Map();
+  const rows = await prisma.achievementProgress.findMany({
+    where: {
+      userId: { in: [...new Set(members.map((m) => m.userId))] },
+      igdbId: { in: [...new Set(roomGames.map((g) => g.igdbId))] },
+      total: { gt: 0 },
+    },
+    select: { userId: true, igdbId: true, unlocked: true, total: true },
+  });
+  const byUserTitle = new Map(rows.map((r) => [`${r.userId}:${r.igdbId}`, r]));
+
+  const result = new Map<string, MemberAchievementCount[]>();
+  for (const g of roomGames) {
+    const counts = members
+      .filter((m) => m.roomId === g.roomId)
+      .flatMap((m) => {
+        const r = byUserTitle.get(`${m.userId}:${g.igdbId}`);
+        return r ? [{ user: toUserDto(m.user), unlocked: r.unlocked, total: r.total }] : [];
+      })
+      .sort((a, b) => b.unlocked / b.total - a.unlocked / a.total);
+    if (counts.length > 0) result.set(g.id, counts);
+  }
+  return result;
 }

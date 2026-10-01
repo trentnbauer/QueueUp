@@ -546,6 +546,9 @@ export interface Game {
    * from Steam - null when they have no Steam account linked, the game has no achievements, or it
    * hasn't been checked yet. */
   myAchievements: { unlocked: number; total: number } | null;
+  /** Room games only: the other members' stored counts (same source as myAchievements), best
+   * first. Members with nothing stored are left out; always empty on the Personal Shelf. */
+  memberAchievements: { user: User; unlocked: number; total: number }[];
   price: GamePrice;
   /** A price to alert at, if set (issue #162) - shared per-game, not per-user, so a room game
    * notifies everyone in the room once it's hit. Null when no alert is set. */
