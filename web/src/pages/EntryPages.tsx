@@ -366,9 +366,9 @@ export function PublicProfilePage({ userId, signedIn }: { userId: string; signed
           <div ref={playingRef} style={st('display:flex;flex-direction:column;gap:14px;scroll-margin-top:16px')}>
             <span style={st('font:700 26px var(--font-display);letter-spacing:-0.02em')}>Currently playing</span>
             {profile.currentlyPlaying.length === 0 && <span style={st('font:400 14px var(--font-ui);color:var(--muted)')}>Nothing right now.</span>}
-            <div style={st('display:flex;flex-wrap:wrap;gap:20px')}>
+            <div style={st('display:grid;grid-template-columns:repeat(auto-fill,minmax(min(100%,140px),200px));gap:16px 14px')}>
               {profile.currentlyPlaying.map((g) => (
-                <div key={g.id} style={st('width:min(100%,200px);display:flex;flex-direction:column;gap:8px')}>
+                <div key={g.id} style={st('min-width:0;display:flex;flex-direction:column;gap:8px')}>
                   <div style={st('position:relative')}>
                     <Cover title={g.title} url={g.coverImageUrl} width="100%" radius={18} style={{ boxShadow: '0 20px 44px oklch(0 0 0 / 0.35)' }} />
                     {g.bothOwn && <BothOwnBadge />}
