@@ -174,6 +174,15 @@ export function FriendsDialog() {
   const [error, setError] = useState<string | null>(null);
   const [sending, setSending] = useState(false);
 
+  async function resolve(fn: () => Promise<unknown>, done: string) {
+    try {
+      await fn();
+      ui.notify(done);
+    } catch (e) {
+      setError(friends.errorMessage(e, 'Something went wrong'));
+    }
+  }
+
   async function send() {
     const c = code.trim();
     if (!c) return;
@@ -235,10 +244,39 @@ export function FriendsDialog() {
       }
     >
       <div style={st('flex:1;min-height:0;overflow-y:auto;padding:0 20px 12px;display:flex;flex-direction:column;gap:14px')}>
-        {friends.outgoing.length > 0 && (
-          <span style={st('font:400 12.5px var(--font-ui);color:var(--muted)')}>
-            Waiting on {friends.outgoing.map((o) => o.user.displayName).join(', ')}
-          </span>
+        {(friends.incoming.length > 0 || friends.outgoing.length > 0) && (
+          <div style={st('display:flex;flex-direction:column;gap:8px')}>
+            <span style={st('padding:4px 4px 0;font:600 11.5px var(--font-mono);letter-spacing:0.06em;color:var(--muted)')}>
+              PENDING REQUESTS · {friends.incoming.length + friends.outgoing.length}
+            </span>
+            {friends.incoming.map((r) => (
+              <div key={r.id} style={st('display:flex;align-items:center;gap:10px;padding:10px 12px;border-radius:16px;background:var(--surf)')}>
+                <Avatar name={r.user.displayName} color={r.user.avatarColor} avatarUrl={r.user.avatarUrl} size={36} fontSize={14} />
+                <span style={st('flex:1;min-width:0;display:flex;flex-direction:column;gap:2px')}>
+                  <span style={st('font:600 14px var(--font-ui)')}>{r.user.displayName}</span>
+                  <span style={st('font:400 12.5px var(--font-ui);color:var(--muted)')}>Wants to be friends</span>
+                </span>
+                <Btn kind="ghost" height={34} padX={8} fontSize={12.5} onClick={() => resolve(() => friends.removeRequest(r.id), 'Request declined')}>
+                  Decline
+                </Btn>
+                <Btn kind="text" height={34} padX={14} fontSize={12.5} weight={700} onClick={() => resolve(() => friends.accept(r.id), `You and ${r.user.displayName} are friends`)}>
+                  Accept
+                </Btn>
+              </div>
+            ))}
+            {friends.outgoing.map((r) => (
+              <div key={r.id} style={st('display:flex;align-items:center;gap:10px;padding:10px 12px;border-radius:16px;background:var(--surf)')}>
+                <Avatar name={r.user.displayName} color={r.user.avatarColor} avatarUrl={r.user.avatarUrl} size={36} fontSize={14} />
+                <span style={st('flex:1;min-width:0;display:flex;flex-direction:column;gap:2px')}>
+                  <span style={st('font:600 14px var(--font-ui)')}>{r.user.displayName}</span>
+                  <span style={st('font:400 12.5px var(--font-ui);color:var(--muted)')}>Request sent · waiting for a reply</span>
+                </span>
+                <Btn kind="ghost" height={34} padX={10} fontSize={12.5} onClick={() => resolve(() => friends.removeRequest(r.id), 'Request cancelled')}>
+                  Cancel
+                </Btn>
+              </div>
+            ))}
+          </div>
         )}
         <Group>
           {friends.friends.map((f) => (
