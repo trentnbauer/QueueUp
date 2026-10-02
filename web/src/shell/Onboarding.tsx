@@ -36,6 +36,7 @@ export function Onboarding({ onDone }: { onDone: () => void }) {
 
   /** Saves the name (only if it changed) and moves on; stays put with an inline error if it's rejected. */
   async function next() {
+    if (savingName) return;
     if (step === 0) {
       const trimmed = name.trim().replace(/\s+/g, ' ');
       if (trimmed.length < 1 || trimmed.length > 40) {
