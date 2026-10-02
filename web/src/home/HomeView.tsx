@@ -14,7 +14,7 @@ import { PendingImportsList } from './PendingImportsList';
 import { useQuery } from '@tanstack/react-query';
 import { DISMISSED_IMPORTS_QUERY_KEY, PENDING_IMPORTS_QUERY_KEY, pendingImportsApi } from '../api/pendingImports';
 import { ROOM_PLATFORM_LABELS } from '@queueup/shared';
-import { Avatar, Banner, Btn } from '../ui/primitives';
+import { Avatar, Banner, Btn, SearchField } from '../ui/primitives';
 import { useIsMobile } from '../ui/useLayout';
 import { st } from '../ui/st';
 import { buildHomeLists, toRowItem } from './derive';
@@ -325,12 +325,13 @@ export function HomeView() {
           )}
         </div>
         <div style={st(mobile ? 'display:flex;gap:10px' : 'flex:1 1 320px;min-width:0;display:flex;gap:10px')}>
-          <input
+          <SearchField
             value={query}
-            onChange={(e) => setQuery(e.target.value)}
+            onChange={setQuery}
             placeholder={`Search ${isShelf ? 'your shelf' : 'this room'}`}
-            aria-label="Search games"
-            style={st('flex:1;min-width:0;height:44px;padding:0 16px;border-radius:999px;background:var(--surf);border:1px solid var(--chip);color:var(--text);font-size:15px;outline:none')}
+            ariaLabel="Search games"
+            wrapStyle="flex:1"
+            style="height:44px;padding-left:16px;border-radius:999px;background:var(--surf);border:1px solid var(--chip);color:var(--text);font-size:15px;outline:none"
           />
           {isShelf && !bulk && items.length > 0 && (
             <Btn height={44} padX={16} onClick={() => { setBulk(true); setBulkSel([]); ui.selectGame(null); }}>
