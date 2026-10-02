@@ -5,7 +5,7 @@ import { toRowItem } from '../home/derive';
 import { VoteSegment } from '../home/Rows';
 import { byScore, isUpcoming, prereqGame, ttbLabel } from '../lib/gameView';
 import { Dialog } from '../ui/Dialog';
-import { Cover } from '../ui/primitives';
+import { Cover, OpenOverlay } from '../ui/primitives';
 import { st } from '../ui/st';
 
 /** The pool Spin draws from, in vote order: backlog/play-next/replay, released, "play after" met. */
@@ -51,16 +51,16 @@ export function RankedDialog() {
           return (
             <div
               key={g.id}
-              role="button"
-              tabIndex={0}
-              onClick={() => {
-                ui.closeDialog('ranked');
-                ui.selectGame(g.id);
-              }}
-              onKeyDown={(e) => e.key === 'Enter' && (ui.closeDialog('ranked'), ui.selectGame(g.id))}
-              style={st('display:flex;align-items:center;gap:12px;padding:10px;border-radius:18px;cursor:pointer')}
+              style={st('position:relative;display:flex;align-items:center;gap:12px;padding:10px;border-radius:18px;cursor:pointer')}
               className="hv-surf"
             >
+              <OpenOverlay
+                label={`Open ${g.title}`}
+                onOpen={() => {
+                  ui.closeDialog('ranked');
+                  ui.selectGame(g.id);
+                }}
+              />
               <span style={st('width:24px;flex-shrink:0;font:700 18px var(--font-display);color:var(--rank);text-align:center')}>{i + 1}</span>
               <Cover title={g.title} url={g.coverImageUrl} width={42} radius={9} />
               <div style={st('flex:1;min-width:0;display:flex;flex-direction:column;gap:6px')}>

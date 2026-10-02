@@ -3,7 +3,7 @@ import type { FeedReactionSummary, FriendActivityEntry, FriendEventKind } from '
 import { FEED_REACTION_EMOJI, REVIEW_CATEGORIES } from '@queueup/shared';
 import { friendsApi } from '../api/friends';
 import { REVIEW_EMOJI } from '../lib/gameView';
-import { Avatar, Cover } from '../ui/primitives';
+import { ABOVE, Avatar, Cover, OpenOverlay } from '../ui/primitives';
 import { st } from '../ui/st';
 
 const EVT: Record<FriendEventKind, { verb: string; cap: string; tag: string; bg: string; fg: string }> = {
@@ -138,10 +138,7 @@ function ReactionBar({ e, canReact }: { e: FriendActivityEntry; canReact: boolea
   const chip = (on: boolean) =>
     `height:26px;padding:0 9px;border-radius:999px;border:1px solid ${on ? 'var(--acc)' : 'var(--line)'};background:${on ? 'var(--accSoft2)' : 'transparent'};color:var(--text2);font:600 12px var(--font-ui);display:flex;align-items:center;gap:4px`;
   return (
-    <span
-      onClick={(ev) => ev.stopPropagation()}
-      style={st('display:flex;flex-wrap:wrap;align-items:center;gap:6px;padding-top:4px')}
-    >
+    <span style={st(ABOVE + 'display:flex;flex-wrap:wrap;align-items:center;gap:6px;padding-top:4px')}>
       {reactions.map((r) =>
         canReact ? (
           <button key={r.emoji} type="button" aria-pressed={r.mine} aria-label={`${r.emoji} ${r.count}: ${who(r)}`} title={who(r)} onClick={() => void choose(r.mine ? null : r.emoji)} style={st(chip(r.mine))}>
@@ -186,13 +183,8 @@ export function FeedRow({ e, me, compact, onOpen }: { e: FriendActivityEntry; me
   const tag = e.onlyYou ? `${t.tag} · only you` : t.tag;
   const clickable = !!onOpen && !mine;
   return (
-    <div
-      role={clickable ? 'button' : undefined}
-      tabIndex={clickable ? 0 : undefined}
-      onClick={clickable ? onOpen : undefined}
-      onKeyDown={clickable ? (ev) => ev.key === 'Enter' && onOpen?.() : undefined}
-      style={st(`display:flex;align-items:center;gap:12px;padding:10px 0;cursor:${clickable ? 'pointer' : 'default'}`)}
-    >
+    <div style={st(`position:relative;display:flex;align-items:center;gap:12px;padding:10px 0;cursor:${clickable ? 'pointer' : 'default'}`)}>
+      {clickable && <OpenOverlay label={`Open ${e.title}`} onOpen={() => onOpen?.()} />}
       {compact ? (
         isAch ? (
           <span style={st('width:34px;height:34px;flex-shrink:0;border-radius:10px;background:var(--surf);display:flex;align-items:center;justify-content:center;font-size:19px')}>{e.emoji}</span>

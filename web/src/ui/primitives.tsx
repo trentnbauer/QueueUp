@@ -136,7 +136,7 @@ function AvatarProfileLink({ userId, name, onOpen, children }: { userId: string;
         onOpen?.();
         navigate(`/u/${userId}`);
       }}
-      style={{ flexShrink: 0, padding: 0, border: 'none', background: 'none', borderRadius: '50%', cursor: 'pointer', display: 'flex' }}
+      style={{ flexShrink: 0, padding: 0, border: 'none', background: 'none', borderRadius: '50%', cursor: 'pointer', display: 'flex', position: 'relative', zIndex: 2 }}
     >
       {children}
     </button>
@@ -580,3 +580,19 @@ export function SearchField({
     </div>
   );
 }
+
+/** An invisible button laid over a row so the whole row opens the game without making the row itself
+ * a button: a button inside a button is invalid, and screen readers and keyboards handle it badly.
+ * The row's own controls (votes, Start, the bell) sit above it - see ABOVE. */
+export function OpenOverlay({ label, onOpen }: { label: string; onOpen: () => void }) {
+  return (
+    <button
+      type="button"
+      aria-label={label}
+      onClick={onOpen}
+      style={st('position:absolute;inset:0;z-index:1;width:100%;height:100%;border:none;background:transparent;padding:0;border-radius:inherit;cursor:pointer')}
+    />
+  );
+}
+/** Added to a row's own controls so they stay clickable above the OpenOverlay. */
+export const ABOVE = 'position:relative;z-index:2;';

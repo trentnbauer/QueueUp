@@ -1,7 +1,7 @@
 import type { MouseEvent, ReactNode } from 'react';
 import type { Game, VoteValue } from '@queueup/shared';
 import { VOTES, VOTE_VALUES, isNewRelease, releaseLabel, reviewAverage, shortDate } from '../lib/gameView';
-import { Cover, coverBg, GOLD, GOLD_RING, StatusBadge, statusOutlineFor, statusRing, TrophyBadge } from '../ui/primitives';
+import { ABOVE, Cover, coverBg, GOLD, GOLD_RING, OpenOverlay, StatusBadge, statusOutlineFor, statusRing, TrophyBadge } from '../ui/primitives';
 import { st } from '../ui/st';
 import type { RowItem } from './derive';
 
@@ -23,8 +23,8 @@ export function VoteSegment({
 }) {
   const wrap =
     variant === 'cover'
-      ? 'position:absolute;left:6px;right:6px;bottom:6px;display:flex;gap:1px;padding:3px;border-radius:999px;background:oklch(0.15 0.01 55 / 0.62);backdrop-filter:blur(10px)'
-      : `display:flex;${variant === 'mobile' ? 'align-self:flex-start;' : 'flex-shrink:0;'}gap:1px;padding:3px;border-radius:999px;background:var(--surf)`;
+      ? 'position:absolute;z-index:2;left:6px;right:6px;bottom:6px;display:flex;gap:1px;padding:3px;border-radius:999px;background:oklch(0.15 0.01 55 / 0.62);backdrop-filter:blur(10px)'
+      : `${ABOVE}display:flex;${variant === 'mobile' ? 'align-self:flex-start;' : 'flex-shrink:0;'}gap:1px;padding:3px;border-radius:999px;background:var(--surf)`;
   return (
     <div style={st(wrap)} onClick={stop} role="group" aria-label="Your vote">
       {VOTE_VALUES.map((v) => {
@@ -106,13 +106,10 @@ export function DesktopRow({ item, showRank, bulk, selected, active, onOpen, onV
   const bg = bulk && selected ? 'var(--accA10)' : active ? 'var(--surf)' : 'transparent';
   return (
     <div
-      role="button"
-      tabIndex={0}
-      onClick={onOpen}
-      onKeyDown={(e) => (e.key === 'Enter' || e.key === ' ') && (e.preventDefault(), onOpen())}
       className="hv-surf"
-      style={st(`display:flex;align-items:center;gap:16px;padding:10px 12px;border-radius:16px;cursor:pointer;background:${bg}`)}
+      style={st(`position:relative;display:flex;align-items:center;gap:16px;padding:10px 12px;border-radius:16px;cursor:pointer;background:${bg}`)}
     >
+      <OpenOverlay label={`Open ${g.title}`} onOpen={onOpen} />
       {showRank && (
         <span style={st('width:24px;flex-shrink:0;font:700 18px var(--font-display);color:var(--rank);text-align:center')}>{item.rank}</span>
       )}
@@ -164,12 +161,9 @@ export function MobileRow({ item, showRank, bulk, selected, onOpen, onVote }: Ro
   const g = item.game;
   return (
     <div
-      role="button"
-      tabIndex={0}
-      onClick={onOpen}
-      onKeyDown={(e) => (e.key === 'Enter' || e.key === ' ') && (e.preventDefault(), onOpen())}
-      style={st(`display:flex;align-items:center;gap:12px;padding:10px;border-radius:18px;cursor:pointer;background:${bulk && selected ? 'var(--accA10)' : 'transparent'}`)}
+      style={st(`position:relative;display:flex;align-items:center;gap:12px;padding:10px;border-radius:18px;cursor:pointer;background:${bulk && selected ? 'var(--accA10)' : 'transparent'}`)}
     >
+      <OpenOverlay label={`Open ${g.title}`} onOpen={onOpen} />
       {showRank && <span style={st('width:20px;flex-shrink:0;font:700 17px var(--font-display);color:var(--rank);text-align:center')}>{item.rank}</span>}
       {bulk && <SelectMark on={selected} />}
       <Cover title={g.title} url={g.coverImageUrl} width={46} radius={10} completed={isFullyCompleted(g)} status={g.status} statusRing={false} badgeScale={2} />
@@ -210,12 +204,9 @@ export function CoverCard({ item, showRank, bulk, selected, big, onOpen, onVote 
   const outline = completed ? null : statusOutlineFor(g.status);
   return (
     <div
-      role="button"
-      tabIndex={0}
-      onClick={onOpen}
-      onKeyDown={(e) => (e.key === 'Enter' || e.key === ' ') && (e.preventDefault(), onOpen())}
-      style={st('display:flex;flex-direction:column;gap:8px;min-width:0;cursor:pointer')}
+      style={st('position:relative;display:flex;flex-direction:column;gap:8px;min-width:0;cursor:pointer')}
     >
+      <OpenOverlay label={`Open ${g.title}`} onOpen={onOpen} />
       <div
         style={st(
           `position:relative;aspect-ratio:2/3;border-radius:16px;background:${coverBg(g.title, g.coverImageUrl)};overflow:hidden;box-shadow:${bulk && selected ? '0 0 0 3px var(--acc)' : completed ? `${GOLD_RING}, 0 8px 22px oklch(0 0 0 / 0.25)` : outline ? `${statusRing(outline)}, 0 8px 22px oklch(0 0 0 / 0.25)` : '0 8px 22px oklch(0 0 0 / 0.25)'}`,
@@ -263,13 +254,10 @@ export function PlayNextRow({
   const isNew = isNewRelease(g);
   return (
     <div
-      role="button"
-      tabIndex={0}
-      onClick={onOpen}
-      onKeyDown={(e) => (e.key === 'Enter' || e.key === ' ') && (e.preventDefault(), onOpen())}
       className={desktop ? 'hv-surf' : undefined}
-      style={st('display:flex;align-items:center;gap:12px;padding:10px;border-radius:18px;cursor:pointer')}
+      style={st('position:relative;display:flex;align-items:center;gap:12px;padding:10px;border-radius:18px;cursor:pointer')}
     >
+      <OpenOverlay label={`Open ${g.title}`} onOpen={onOpen} />
       <Cover title={g.title} url={g.coverImageUrl} width={40} radius={9} status={g.status} statusRing={false} badgeScale={2} />
       <div style={st('flex:1;min-width:0;display:flex;flex-direction:column;gap:2px')}>
         <span style={st('font:600 15px var(--font-ui);white-space:nowrap;overflow:hidden;text-overflow:ellipsis')}>{g.title}</span>
@@ -288,7 +276,7 @@ export function PlayNextRow({
           stop(e);
           onStart();
         }}
-        style={st('flex-shrink:0;height:34px;padding:0 14px;border-radius:999px;border:1px solid var(--line);background:transparent;color:var(--text);font:600 12.5px var(--font-ui)')}
+        style={st(ABOVE + 'flex-shrink:0;height:34px;padding:0 14px;border-radius:999px;border:1px solid var(--line);background:transparent;color:var(--text);font:600 12.5px var(--font-ui)')}
       >
         Start
       </button>
@@ -313,12 +301,9 @@ export function ComingStrip({
         {games.map((g) => (
           <div
             key={g.id}
-            role="button"
-            tabIndex={0}
-            onClick={() => onOpen(g)}
-            onKeyDown={(e) => (e.key === 'Enter' || e.key === ' ') && (e.preventDefault(), onOpen(g))}
-            style={st('flex-shrink:0;width:250px;display:flex;align-items:center;gap:12px;padding:10px;border-radius:18px;background:var(--surf);cursor:pointer')}
+            style={st('position:relative;flex-shrink:0;width:250px;display:flex;align-items:center;gap:12px;padding:10px;border-radius:18px;background:var(--surf);cursor:pointer')}
           >
+            <OpenOverlay label={`Open ${g.title}`} onOpen={() => onOpen(g)} />
             <Cover title={g.title} url={g.coverImageUrl} width={44} radius={9} />
             <span style={st('flex:1;min-width:0;display:flex;flex-direction:column;gap:3px')}>
               <span style={st('font:600 14.5px var(--font-ui);white-space:nowrap;overflow:hidden;text-overflow:ellipsis')}>{g.title}</span>
@@ -332,7 +317,7 @@ export function ComingStrip({
                 stop(e);
                 onToggleWatch(g);
               }}
-              style={st(`width:36px;height:36px;flex-shrink:0;border-radius:50%;border:none;background:${g.releaseAlert ? 'var(--accA18)' : 'var(--chip)'};font-size:15px;line-height:1;padding:0;opacity:${g.releaseAlert ? 1 : 0.45}`)}
+              style={st(`${ABOVE}width:36px;height:36px;flex-shrink:0;border-radius:50%;border:none;background:${g.releaseAlert ? 'var(--accA18)' : 'var(--chip)'};font-size:15px;line-height:1;padding:0;opacity:${g.releaseAlert ? 1 : 0.45}`)}
             >
               🔔
             </button>

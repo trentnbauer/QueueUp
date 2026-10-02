@@ -54,6 +54,7 @@ export function InsightsPage() {
                 role="button"
                 tabIndex={0}
                 onClick={() => ui.selectGame(data.mostNeglectedGame!.id)}
+                onKeyDown={(e) => (e.key === 'Enter' || e.key === ' ') && (e.preventDefault(), ui.selectGame(data.mostNeglectedGame!.id))}
                 style={st('display:flex;align-items:center;gap:14px;padding:12px;border-radius:18px;background:var(--surf);cursor:pointer')}
               >
                 <Cover title={data.mostNeglectedGame.title} url={data.mostNeglectedGame.coverImageUrl} width={52} radius={10} />
