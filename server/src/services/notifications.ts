@@ -217,6 +217,19 @@ export async function notifyAccountChange(userId: string, message: string): Prom
   }
 }
 
+/** Tells a person a wishlist game is at a good price (near its lowest, or well under its usual
+ * price). Direct and tied to their copy of the game so the bell can open it. Failures are logged and
+ * swallowed. */
+export async function notifyGoodTimeToBuy(userId: string, gameId: string, message: string): Promise<void> {
+  try {
+    await prisma.notification.create({
+      data: { recipientId: userId, roomName: 'Personal Shelf', gameId, type: 'good_time_to_buy', message },
+    });
+  } catch (err) {
+    console.error('[notifications] failed to write good-time-to-buy notification', err);
+  }
+}
+
 export async function notifyPlayniteSyncReminder(userId: string): Promise<void> {
   try {
     const existing = await prisma.notification.findFirst({

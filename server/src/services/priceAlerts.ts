@@ -4,6 +4,9 @@ import { notifyPriceDrop } from './notifications.js';
 import { isOwnedBy } from './gameOwnership.js';
 import { unlockBadges } from './badges.js';
 import type { GameWithRelations } from './gameSerializer.js';
+import { goodTimeReason, getPriceHistory, usualPrice } from './priceHistory.js';
+import { isInAppEnabled } from './notificationPreferences.js';
+import { notifyGoodTimeToBuy } from './notifications.js';
 
 /** Called (by runPriceAlertChecks' callers - see priceAlertJob.ts) exactly when a check below
  * actually fires a fresh alert - not on every game checked, and not on a re-check that found
@@ -95,6 +98,43 @@ export async function checkAllTimeLowAlert(game: GameWithRelations, price: GameP
   }
 }
 
+/** "Good time to buy" for a wishlist game: its live price is near the lowest known price or well
+ * under the usual one (see goodTimeReason). Fires once per dip: the price it fired at is stored, a
+ * further drop re-alerts, and the marker clears when the price climbs back out of the good range so
+ * the next dip alerts again. Owned games and games the person has switched this alert off for are
+ * skipped. Independent of the target-price and all-time-low alerts, which can fire in the same run. */
+export async function checkGoodTimeToBuy(game: GameWithRelations, price: GamePrice): Promise<void> {
+  if (game.status !== 'wishlist' || game.steamAppid == null || price.source !== 'live' || !price.amount || !price.currency) return;
+  const amount = Number(price.amount);
+  const history = await getPriceHistory(game.steamAppid, price.currency);
+  const reason = goodTimeReason(amount, history, price.historicalLow !== null ? Number(price.historicalLow) : null);
+
+  if (!reason) {
+    if (game.notifiedGoodTimePrice !== null) {
+      await prisma.game.updateMany({ where: { id: game.id, notifiedGoodTimePrice: game.notifiedGoodTimePrice }, data: { notifiedGoodTimePrice: null } });
+    }
+    return;
+  }
+  if (game.notifiedGoodTimePrice !== null && amount >= Number(game.notifiedGoodTimePrice)) return;
+  if (await isOwnedBy(game.addedBy, game.igdbId, null)) return;
+
+  try {
+    const claimed = await prisma.game.updateMany({
+      where: { id: game.id, notifiedGoodTimePrice: game.notifiedGoodTimePrice },
+      data: { notifiedGoodTimePrice: price.amount },
+    });
+    if (claimed.count === 0) return;
+    if (!(await isInAppEnabled(game.addedBy, 'good_time_to_buy'))) return;
+
+    const usual = usualPrice(history);
+    const now = `${price.amount} ${price.currency}`;
+    const why = reason === 'near_low' ? 'at or near its lowest price' : usual !== null ? `well under its usual ${usual.toFixed(2)}` : 'well under its usual price';
+    await notifyGoodTimeToBuy(game.addedBy, game.id, `Good time to buy "${game.title}": now ${now}, ${why}`);
+  } catch (err) {
+    console.error('[priceAlerts] failed to process good-time-to-buy alert', err);
+  }
+}
+
 /** Runs both alert checks for a game against a freshly-resolved price, applying the same
  * "only a drop alert needs a target price set" gating every call site otherwise has to duplicate
  * (the all-time-low check has no such gate - see checkAllTimeLowAlert above). Called by the
@@ -104,5 +144,6 @@ export async function runPriceAlertChecks(game: GameWithRelations, price: GamePr
   await Promise.all([
     game.targetPrice ? checkPriceDropAlert(game, price, onFired) : Promise.resolve(),
     checkAllTimeLowAlert(game, price, onFired),
+    checkGoodTimeToBuy(game, price),
   ]);
 }
