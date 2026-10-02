@@ -146,7 +146,7 @@ export function AddRoomDialog() {
       {step === 'create' && (
         <>
           <Field label="ROOM NAME">
-            <input value={name} onChange={(e) => setName(e.target.value)} placeholder="e.g. Friday Night Co-op" autoFocus style={st(inputField, { height: 48, borderRadius: 14, background: 'var(--surf)', fontSize: 16 })} />
+            <input value={name} onChange={(e) => setName(e.target.value)} placeholder="e.g. Friday Night Co-op" aria-label="Room name" autoFocus style={st(inputField, { height: 48, borderRadius: 14, background: 'var(--surf)', fontSize: 16 })} />
           </Field>
           <Field label="PLATFORM">
             <div style={st('display:flex;flex-wrap:wrap;gap:6px')}>
@@ -176,7 +176,7 @@ export function AddRoomDialog() {
       {step === 'join' && (
         <>
           <Field label="INVITE CODE OR LINK">
-            <input value={code} onChange={(e) => setCode(e.target.value)} placeholder="ABCD-123 or https://…/join/…" autoFocus style={st(inputField, { height: 48, borderRadius: 14, background: 'var(--surf)', fontSize: 16 })} />
+            <input value={code} onChange={(e) => setCode(e.target.value)} placeholder="ABCD-123 or https://…/join/…" aria-label="Invite code or link" autoFocus style={st(inputField, { height: 48, borderRadius: 14, background: 'var(--surf)', fontSize: 16 })} />
           </Field>
           <Btn kind="accent" height={50} fontSize={15} weight={700} disabled={!code.trim() || busy === 'join'} onClick={join}>
             {busy === 'join' ? 'Joining…' : 'Join room'}

@@ -198,6 +198,7 @@ export const GOLD_RING = `0 0 0 2px ${GOLD}, 0 0 14px oklch(0.83 0.15 85 / 0.55)
 export function TrophyBadge({ size = 20, style }: { size?: number; style?: CSSProperties }) {
   return (
     <span
+      role="img"
       aria-label="100% achievements"
       title="100% achievements"
       style={{
@@ -250,6 +251,7 @@ export function statusRing(o: StatusOutline): string {
 export function StatusBadge({ outline, size = 20, style }: { outline: StatusOutline; size?: number; style?: CSSProperties }) {
   return (
     <span
+      role="img"
       aria-label={outline.label}
       title={outline.label}
       style={{
