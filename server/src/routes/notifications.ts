@@ -39,7 +39,7 @@ export default async function notificationRoutes(app: FastifyInstance) {
             where: {
               roomId: { in: roomIds },
               archivedAt: null,
-              status: { in: ['backlog', 'wishlist', 'play_next'] },
+              status: { in: ['backlog', 'wishlist', 'play_next', 'paused'] },
               votes: { none: { userId } },
             },
             _count: { _all: true },

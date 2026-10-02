@@ -32,11 +32,12 @@ export const ALL_FILTER_VALUE = '__all__';
 export const GAME_STATUS_LABEL: Record<GameStatus, string> = {
   backlog: 'Backlog',
   play_next: 'Play Next',
+  paused: '⏸️ Paused',
   playing: 'Playing',
   done: 'Beaten',
   dropped: 'Dropped',
   wishlist: 'Wishlist',
-  replay: 'Replay',
+  replay: '🔄 Replay',
   wont_play: "Won't Play",
 };
 
@@ -44,6 +45,7 @@ export const GAME_STATUS_LIST: GameStatus[] = [
   'wishlist',
   'backlog',
   'play_next',
+  'paused',
   'playing',
   'done',
   'replay',
@@ -243,7 +245,7 @@ export function defaultPrerequisite(game: Game, roomGames: Game[]): Game | null 
  * the backlog (replay-queued games interleaved with it), then Wishlist, then Completed, then
  * Dropped/Won't Play last (same tier - see DroppedStrip, which shows both together). */
 export function statusBucket(game: Game): number {
-  if (game.status === 'playing' || game.status === 'play_next') return 0;
+  if (game.status === 'playing' || game.status === 'play_next' || game.status === 'paused') return 0;
   if (game.status === 'backlog' || game.status === 'replay') return 1;
   if (game.status === 'wishlist') return 2;
   if (game.status === 'done') return 3;

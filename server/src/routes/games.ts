@@ -132,6 +132,7 @@ const STEAM_IMPORT_PLATFORM_LABEL = IGDB_PLATFORM_NAMES.pc[0];
 const STATUS_LABELS: Record<GameStatus, string> = {
   backlog: 'Backlog',
   play_next: 'Play Next',
+  paused: 'Paused',
   playing: 'Playing',
   done: 'Beaten',
   dropped: 'Dropped',
@@ -597,7 +598,7 @@ export default async function gameRoutes(app: FastifyInstance) {
   // global 200/min default.
   const gamesListRateLimit = { config: { rateLimit: { max: 30, timeWindow: '1 minute' } } };
 
-  const PLAYING_STATUSES: Prisma.GameWhereInput['status'] = { in: ['playing', 'play_next'] };
+  const PLAYING_STATUSES: Prisma.GameWhereInput['status'] = { in: ['playing', 'play_next', 'paused'] };
   // #480: same class of bug as #459 below, but for Beaten/Dropped - a bulk import's flood of
   // freshly-created backlog rows can just as easily push an old Beaten or Dropped game past the
   // recency window's cutoff, silently dropping it from the shelf view even though its `status` was
@@ -605,7 +606,7 @@ export default async function gameRoutes(app: FastifyInstance) {
   // import - the games were still marked done/dropped on file, just no longer in the returned set).
   const FINISHED_STATUSES: Prisma.GameWhereInput['status'] = { in: ['done', 'dropped', 'wont_play'] };
   const RECENCY_CAPPED_STATUSES: Prisma.GameWhereInput['status'] = {
-    notIn: ['playing', 'play_next', 'done', 'dropped', 'wont_play'],
+    notIn: ['playing', 'play_next', 'paused', 'done', 'dropped', 'wont_play'],
   };
 
   // #459/#480: a plain createdAt-desc top-MAX_GAMES_PER_LIST query can push a user's actual
@@ -1903,7 +1904,7 @@ export default async function gameRoutes(app: FastifyInstance) {
 
       const [personalGames, memberships] = await Promise.all([
         prisma.game.findMany({
-          where: { roomId: null, addedBy: userId, archivedAt: null, status: { in: ['playing', 'play_next'] } },
+          where: { roomId: null, addedBy: userId, archivedAt: null, status: { in: ['playing', 'play_next', 'paused'] } },
           include: gameInclude,
           take: CROSS_ROOM_PLAYING_LIMIT,
         }),
@@ -1914,15 +1915,15 @@ export default async function gameRoutes(app: FastifyInstance) {
       const roomGamesRaw =
         roomIds.length > 0
           ? await prisma.game.findMany({
-              where: { roomId: { in: roomIds }, archivedAt: null, status: { in: ['playing', 'play_next'] } },
+              where: { roomId: { in: roomIds }, archivedAt: null, status: { in: ['playing', 'play_next', 'paused'] } },
               include: gameInclude,
               take: CROSS_ROOM_PLAYING_LIMIT,
             })
           : [];
 
-      // Playing sorts first, Play Next after - same convention as PlayingStrip.tsx.
+      // Playing sorts first, Play Next and Paused after - same convention as PlayingStrip.tsx.
       const byPlayNextLast = (a: { status: string }, b: { status: string }) =>
-        Number(a.status === 'play_next') - Number(b.status === 'play_next');
+        Number(a.status !== 'playing') - Number(b.status !== 'playing');
 
       const [personalSerialized, roomSerialized] = await Promise.all([
         serializeGames([...personalGames].sort(byPlayNextLast), userId),

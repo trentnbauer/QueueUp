@@ -592,7 +592,8 @@ export function GameDetail({ game, onClose, changeStatus }: { game: Game; onClos
             <span style={st('font:500 12.5px var(--font-ui);color:var(--faint);margin-right:4px')}>Or</span>
             {(
               [
-                ['replay', 'Replay'],
+                ['paused', '⏸️ Paused'],
+                ['replay', '🔄 Replay'],
                 ['dropped', 'Dropped'],
                 ['wont_play', "Won't Play"],
               ] as [GameStatus, string][]

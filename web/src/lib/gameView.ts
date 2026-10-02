@@ -26,9 +26,10 @@ export const STATUS_OPTIONS: [GameStatus, string][] = [
   ['wishlist', 'Wishlist'],
   ['backlog', 'Backlog'],
   ['play_next', 'Play Next'],
+  ['paused', '⏸️ Paused'],
   ['playing', 'Playing'],
   ['done', 'Beaten'],
-  ['replay', 'Replay'],
+  ['replay', '🔄 Replay'],
   ['dropped', 'Dropped'],
   ['wont_play', "Won't Play"],
 ];
@@ -39,6 +40,7 @@ export const STATUS_DESC: Record<GameStatus, string> = {
   wishlist: "Want it, don't own it yet",
   backlog: "Own it, haven't started",
   play_next: "Up after what you're playing",
+  paused: 'On hold, coming back to it',
   playing: 'In progress now',
   done: 'Finished it',
   replay: 'Going back for another run',
@@ -51,7 +53,8 @@ export const NEXT_ACTIONS: Record<GameStatus, [GameStatus, string][]> = {
   wishlist: [['backlog', 'Move to Backlog'], ['playing', 'Start playing']],
   backlog: [['playing', 'Start playing'], ['play_next', 'Play next']],
   play_next: [['playing', 'Start playing'], ['backlog', 'Back to Backlog']],
-  playing: [['done', 'Mark Beaten'], ['dropped', 'Drop it']],
+  paused: [['playing', 'Resume'], ['dropped', 'Drop it']],
+  playing: [['done', 'Mark Beaten'], ['paused', 'Pause it'], ['dropped', 'Drop it']],
   done: [['replay', 'Replay it']],
   replay: [['done', 'Beaten again'], ['dropped', 'Drop replay']],
   dropped: [['playing', 'Pick back up'], ['backlog', 'Back to Backlog']],
@@ -66,7 +69,7 @@ export interface TabDef {
 
 export const ROOM_TABS: TabDef[] = [
   { id: 'queue', label: 'Queue', statuses: ['backlog'] },
-  { id: 'playing', label: 'Playing', statuses: ['playing', 'play_next'] },
+  { id: 'playing', label: 'Playing', statuses: ['playing', 'play_next', 'paused'] },
   { id: 'beaten', label: 'Beaten', statuses: ['done', 'replay'] },
   { id: 'dropped', label: 'Dropped', statuses: ['dropped', 'wont_play'] },
 ];
@@ -74,7 +77,7 @@ export const ROOM_TABS: TabDef[] = [
 export const SHELF_TABS: TabDef[] = [
   { id: 'wishlist', label: 'Wishlist', statuses: ['wishlist'] },
   { id: 'queue', label: 'Backlog', statuses: ['backlog'] },
-  { id: 'playing', label: 'Playing', statuses: ['playing', 'play_next'] },
+  { id: 'playing', label: 'Playing', statuses: ['playing', 'play_next', 'paused'] },
   { id: 'beaten', label: 'Beaten', statuses: ['done'] },
   { id: 'replay', label: 'Replay', statuses: ['replay'] },
 ];
@@ -202,7 +205,7 @@ export function rowChip(
   }
   // Search results span every status, so say which one each game is in.
   if (ctx.searching) return STATUS_LABEL[g.status];
-  if (['wishlist', 'play_next', 'replay', 'wont_play'].includes(g.status)) return STATUS_LABEL[g.status];
+  if (['wishlist', 'play_next', 'paused', 'replay', 'wont_play'].includes(g.status)) return STATUS_LABEL[g.status];
   return '';
 }
 

@@ -522,7 +522,7 @@ export function PublicProfilePage({ userId, signedIn }: { userId: string; signed
                 {bothOwnFirst(profile.upNext).map((g) => (
                   <div key={g.id} {...cardProps(() => setCardGame(g))} style={st(CARD_CURSOR + 'min-width:0;scroll-snap-align:start;display:flex;flex-direction:column;gap:6px')}>
                     <div style={st('position:relative')}>
-                      <Cover title={g.title} url={g.coverImageUrl} width="100%" radius={14} />
+                      <Cover title={g.title} url={g.coverImageUrl} width="100%" radius={14} status={g.paused ? 'paused' : undefined} />
                       {g.bothOwn && <BothOwnBadge small />}
                     </div>
                     <span style={st('font:600 12.5px var(--font-ui);white-space:nowrap;overflow:hidden;text-overflow:ellipsis')}>
@@ -559,7 +559,7 @@ export function PublicProfilePage({ userId, signedIn }: { userId: string; signed
                     className="hv-surf2"
                     style={st(`display:flex;align-items:center;gap:10px;padding:6px 10px 6px 6px;border-radius:12px;border:1px solid ${g.dropped ? 'var(--danger)' : g.replaying ? 'var(--mint)' : 'transparent'};background:var(--surf);color:var(--text);text-align:left`)}
                   >
-                    <Cover title={g.title} url={g.coverImageUrl} width={30} radius={6} completed={g.fullyCompleted} />
+                    <Cover title={g.title} url={g.coverImageUrl} width={30} radius={6} completed={g.fullyCompleted} status={g.dropped ? 'dropped' : g.replaying ? 'replay' : 'done'} />
                     <span style={st('flex:1;min-width:0;font:600 13px var(--font-ui);white-space:nowrap;overflow:hidden;text-overflow:ellipsis')}>{g.title}</span>
                     {avg !== null && <span style={st('flex-shrink:0;font:700 12px var(--font-display);color:var(--accText)')}>{avg.toFixed(1)} / 5</span>}
                   </button>
@@ -585,7 +585,7 @@ export function PublicProfilePage({ userId, signedIn }: { userId: string; signed
       {openGame && profile && (
         <Dialog title={openGame.title} onClose={() => setOpenGame(null)} width={560}>
           <div style={st('display:flex;gap:16px;align-items:flex-start')}>
-            <Cover title={openGame.title} url={openGame.coverImageUrl} width={110} radius={14} completed={openGame.fullyCompleted} style={openGame.dropped || openGame.replaying ? { boxShadow: `0 0 0 2px ${openGame.dropped ? 'var(--danger)' : 'var(--mint)'}` } : undefined} />
+            <Cover title={openGame.title} url={openGame.coverImageUrl} width={110} radius={14} completed={openGame.fullyCompleted} status={openGame.dropped ? 'dropped' : openGame.replaying ? 'replay' : 'done'} />
             <div style={st('flex:1;min-width:0;display:flex;flex-direction:column;gap:8px')}>
               <span style={st('font:400 13px var(--font-ui);color:var(--muted)')}>
                 {[openGame.genre?.split(',')[0], openGame.dropped ? 'Dropped' : openGame.replaying ? 'Replaying' : 'Beaten'].filter(Boolean).join(' · ')}

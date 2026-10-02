@@ -72,7 +72,7 @@ export default async function publicProfileRoutes(app: FastifyInstance) {
 
     const [shelfRows, ownedRows] = await Promise.all([
       prisma.game.findMany({
-        where: { roomId: null, addedBy: user.id, hiddenFromOthers: false, archivedAt: null, status: { in: ['play_next', 'backlog', 'replay', 'wishlist', 'playing', 'done', 'dropped'] } },
+        where: { roomId: null, addedBy: user.id, hiddenFromOthers: false, archivedAt: null, status: { in: ['play_next', 'paused', 'backlog', 'replay', 'wishlist', 'playing', 'done', 'dropped'] } },
         select: { id: true, title: true, coverImageUrl: true, platform: true, status: true, igdbId: true, updatedAt: true, votes: { select: { value: true } } },
       }),
       prisma.gameOwnership.findMany({ where: { userId: user.id }, select: { igdbId: true, platforms: true } }),
@@ -114,9 +114,10 @@ export default async function publicProfileRoutes(app: FastifyInstance) {
       igdbId: g.igdbId,
       ...(bothOwnIgdb.has(g.igdbId) && { bothOwn: true }),
       ...(viewerHasGame(g.igdbId) && { viewerHas: true }),
+      ...(g.status === 'paused' && { paused: true }),
     });
     const byScore = (a: (typeof shelfRows)[number], b: (typeof shelfRows)[number]) => score(b) - score(a) || b.updatedAt.getTime() - a.updatedAt.getTime();
-    const playNext = shelfRows.filter((g) => g.status === 'play_next').sort(byScore);
+    const playNext = shelfRows.filter((g) => g.status === 'play_next' || g.status === 'paused').sort(byScore);
     const backlogTop = shelfRows.filter((g) => g.status === 'backlog').sort(byScore);
     const upNext = [...playNext, ...backlogTop].slice(0, 10).map(toGame);
     const wishlist = shelfRows.filter((g) => g.status === 'wishlist').sort(byScore).map(toGame);
