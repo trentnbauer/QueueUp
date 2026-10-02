@@ -1,5 +1,7 @@
+import { useState } from 'react';
 import type { FriendActivityEntry, FriendEventKind } from '@queueup/shared';
-import { REVIEW_CATEGORIES } from '@queueup/shared';
+import { FEED_REACTION_EMOJI, REVIEW_CATEGORIES } from '@queueup/shared';
+import { friendsApi } from '../api/friends';
 import { REVIEW_EMOJI } from '../lib/gameView';
 import { Avatar, Cover } from '../ui/primitives';
 import { st } from '../ui/st';
@@ -93,6 +95,79 @@ function when(iso: string): string {
   return `${MONTHS[d.getMonth()].charAt(0)}${MONTHS[d.getMonth()].slice(1).toLowerCase()} ${d.getDate()}`;
 }
 
+/** Emoji reactions under a feed entry: a chip per emoji used (tap to add or remove yours) and a
+ * "+" that opens the emoji choices. Other people's entries only; your own just show the counts. */
+function ReactionBar({ e, canReact }: { e: FriendActivityEntry; canReact: boolean }) {
+  const [reactions, setReactions] = useState(e.reactions ?? []);
+  const [picking, setPicking] = useState(false);
+  const [busy, setBusy] = useState(false);
+  const mine = reactions.find((r) => r.mine)?.emoji ?? null;
+
+  async function choose(emoji: string | null) {
+    if (busy) return;
+    setBusy(true);
+    const before = reactions;
+    // Optimistic: drop my old reaction, add the new one.
+    const next = reactions
+      .map((r) => (r.mine ? { ...r, count: r.count - 1, mine: false } : r))
+      .filter((r) => r.count > 0);
+    if (emoji) {
+      const hit = next.find((r) => r.emoji === emoji);
+      if (hit) {
+        hit.count += 1;
+        hit.mine = true;
+      } else next.push({ emoji, count: 1, mine: true });
+    }
+    setReactions(next);
+    setPicking(false);
+    try {
+      await friendsApi.react({ entryId: e.id, emoji });
+    } catch {
+      setReactions(before);
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  if (!canReact && reactions.length === 0) return null;
+  const chip = (on: boolean) =>
+    `height:26px;padding:0 9px;border-radius:999px;border:1px solid ${on ? 'var(--acc)' : 'var(--line)'};background:${on ? 'var(--accSoft2)' : 'transparent'};color:var(--text2);font:600 12px var(--font-ui);display:flex;align-items:center;gap:4px`;
+  return (
+    <span
+      onClick={(ev) => ev.stopPropagation()}
+      style={st('display:flex;flex-wrap:wrap;align-items:center;gap:6px;padding-top:4px')}
+    >
+      {reactions.map((r) =>
+        canReact ? (
+          <button key={r.emoji} type="button" aria-pressed={r.mine} aria-label={`${r.emoji} ${r.count}`} onClick={() => void choose(r.mine ? null : r.emoji)} style={st(chip(r.mine))}>
+            <span>{r.emoji}</span>
+            {r.count}
+          </button>
+        ) : (
+          <span key={r.emoji} style={st(chip(false))}>
+            <span>{r.emoji}</span>
+            {r.count}
+          </span>
+        ),
+      )}
+      {canReact && !picking && (
+        <button type="button" aria-label="Add a reaction" onClick={() => setPicking(true)} style={st(chip(false) + ';color:var(--muted)')}>
+          {mine ? '✎' : '+'}
+        </button>
+      )}
+      {canReact && picking && (
+        <span style={st('display:flex;gap:4px')}>
+          {FEED_REACTION_EMOJI.map((emoji) => (
+            <button key={emoji} type="button" aria-label={`React ${emoji}`} onClick={() => void choose(emoji)} style={st('width:32px;height:32px;border-radius:50%;border:none;background:var(--surf);font-size:16px;line-height:1')}>
+              {emoji}
+            </button>
+          ))}
+        </span>
+      )}
+    </span>
+  );
+}
+
 /** One activity row. `compact` is the friend-profile variant (no avatar, cover leads). */
 export function FeedRow({ e, me, compact, onOpen }: { e: FriendActivityEntry; me: string | undefined; compact?: boolean; onOpen?: () => void }) {
   const t = EVT[e.kind];
@@ -137,6 +212,7 @@ export function FeedRow({ e, me, compact, onOpen }: { e: FriendActivityEntry; me
           {when(e.at)}
         </span>
         {e.review && <ReviewBlock review={e.review} />}
+        <ReactionBar e={e} canReact={!mine} />
       </span>
       {compact ? (
         <span style={st(`height:20px;padding:0 8px;border-radius:999px;background:${t.bg};color:${t.fg};font:600 10.5px var(--font-ui);display:flex;align-items:center`)}>{tag}</span>

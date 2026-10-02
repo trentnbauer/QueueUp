@@ -103,6 +103,26 @@ function kindFor(type: string, status: string | undefined): FriendEventKind | nu
 /** Builds feed entries for the given users - their non-hidden Personal Shelf game events plus
  * badges they've unlocked - newest first. `viewerId`'s own hidden games are still included, flagged
  * `onlyYou`. */
+/** Fills in each entry's reaction summaries (one query for the whole page). */
+async function attachReactions(entries: FriendActivityEntry[], viewerId: string): Promise<void> {
+  if (entries.length === 0) return;
+  const rows = await prisma.feedReaction.findMany({
+    where: { entryId: { in: entries.map((e) => e.id) } },
+    select: { entryId: true, userId: true, emoji: true },
+  });
+  for (const e of entries) {
+    const byEmoji = new Map<string, { count: number; mine: boolean }>();
+    for (const r of rows) {
+      if (r.entryId !== e.id) continue;
+      const cur = byEmoji.get(r.emoji) ?? { count: 0, mine: false };
+      cur.count += 1;
+      if (r.userId === viewerId) cur.mine = true;
+      byEmoji.set(r.emoji, cur);
+    }
+    e.reactions = [...byEmoji].map(([emoji, v]) => ({ emoji, ...v })).sort((a, b) => b.count - a.count);
+  }
+}
+
 async function buildFeed(
   viewerId: string,
   userIds: string[],
@@ -153,6 +173,7 @@ async function buildFeed(
       at: r.createdAt.toISOString(),
       review: kind === 'beaten' ? (payload.review ?? null) : null,
       onlyYou: hidden,
+      reactions: [],
     });
   }
 
@@ -180,12 +201,15 @@ async function buildFeed(
       at: b.createdAt.toISOString(),
       review: null,
       onlyYou: false,
+      reactions: [],
     });
   }
 
   entries.sort((a, b) => (a.at < b.at ? 1 : a.at > b.at ? -1 : a.id < b.id ? 1 : -1));
   const filtered = options.kinds && options.kinds.length ? entries.filter((e) => options.kinds!.includes(e.kind)) : entries;
-  return filtered.slice(0, options.take);
+  const page = filtered.slice(0, options.take);
+  await attachReactions(page, viewerId);
+  return page;
 }
 
 export default async function friendRoutes(app: FastifyInstance) {

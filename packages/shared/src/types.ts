@@ -2050,6 +2050,22 @@ export interface FriendsResponse {
 }
 
 /** One item in the friends' activity feed (and a single friend's profile feed). */
+/** The reactions people can leave on an activity feed entry. */
+export const FEED_REACTION_EMOJI = ['👍', '❤️', '😂', '🔥', '🎉'] as const;
+
+/** How many people reacted to a feed entry with one emoji, and whether the viewer is one of them. */
+export interface FeedReactionSummary {
+  emoji: string;
+  count: number;
+  mine: boolean;
+}
+
+/** Body for POST /api/feed-reactions. A null emoji removes the viewer's reaction. */
+export interface SetFeedReactionRequest {
+  entryId: string;
+  emoji: string | null;
+}
+
 export interface FriendActivityEntry {
   id: string;
   user: FriendUser;
@@ -2064,6 +2080,8 @@ export interface FriendActivityEntry {
   review: GameReview | null;
   /** True on the viewer's own entries for a game they've hidden from others. */
   onlyYou: boolean;
+  /** Reactions left on this entry, one summary per emoji used. */
+  reactions: FeedReactionSummary[];
 }
 
 export interface FriendActivityPage {
