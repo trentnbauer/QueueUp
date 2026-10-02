@@ -2,6 +2,21 @@ import { Prisma } from '@prisma/client';
 import { prisma } from '../db/client.js';
 import { HttpError } from '../util/httpError.js';
 import { ROOM_PLATFORM_LABELS, type RoomPlatform } from '@queueup/shared';
+import { logShelfActivity } from './roomActivity.js';
+
+/** One friends-feed / shelf-history entry for each system that was just added. */
+function logConsolesAdded(userId: string, added: RoomPlatform[]): void {
+  for (const platform of added) {
+    const label = ROOM_PLATFORM_LABELS[platform];
+    void logShelfActivity({
+      recipientId: userId,
+      actorId: userId,
+      type: 'console_added',
+      message: `Added ${label} to your systems`,
+      payload: { title: label, platform },
+    });
+  }
+}
 
 export const VALID_PLATFORMS = new Set(Object.keys(ROOM_PLATFORM_LABELS) as RoomPlatform[]);
 
@@ -18,10 +33,13 @@ export async function setOwnedPlatforms(userId: string, platforms: unknown): Pro
   }
   // Dedupe, and drop the DB round trip if nothing actually changed.
   const deduped = Array.from(new Set(platforms as RoomPlatform[]));
+  const before = await prisma.user.findUnique({ where: { id: userId }, select: { ownedPlatforms: true } });
   const updated = await prisma.user.update({
     where: { id: userId },
     data: { ownedPlatforms: deduped },
   });
+  const had = new Set(before?.ownedPlatforms ?? []);
+  logConsolesAdded(userId, deduped.filter((p) => !had.has(p)));
   return updated.ownedPlatforms;
 }
 
@@ -36,6 +54,7 @@ export async function unionOwnedPlatforms(userId: string, platforms: RoomPlatfor
   const merged = Array.from(new Set([...user.ownedPlatforms, ...platforms]));
   if (merged.length === user.ownedPlatforms.length) return user.ownedPlatforms;
   const updated = await prisma.user.update({ where: { id: userId }, data: { ownedPlatforms: merged } });
+  logConsolesAdded(userId, platforms.filter((p) => !user.ownedPlatforms.includes(p)));
   return updated.ownedPlatforms;
 }
 

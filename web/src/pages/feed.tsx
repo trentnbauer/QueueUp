@@ -12,6 +12,7 @@ const EVT: Record<FriendEventKind, { verb: string; cap: string; tag: string; bg:
   playing: { verb: 'started playing', cap: 'Started playing', tag: 'Playing', bg: 'var(--accSoft2)', fg: 'var(--accText)' },
   beaten: { verb: 'beat', cap: 'Beat', tag: 'Beaten', bg: 'var(--mintSoft)', fg: 'var(--mint)' },
   dropped: { verb: 'dropped', cap: 'Dropped', tag: 'Dropped', bg: 'var(--chip)', fg: 'var(--muted)' },
+  console: { verb: 'added', cap: 'Added', tag: 'System', bg: 'oklch(0.72 0.1 200 / 0.16)', fg: 'oklch(0.72 0.1 200)' },
   ach: { verb: 'earned', cap: 'Earned', tag: 'Achievement', bg: 'oklch(0.7 0.12 300 / 0.16)', fg: 'oklch(0.72 0.12 300)' },
 };
 
@@ -178,7 +179,7 @@ function ReactionBar({ e, canReact }: { e: FriendActivityEntry; canReact: boolea
 /** One activity row. `compact` is the friend-profile variant (no avatar, cover leads). */
 export function FeedRow({ e, me, compact, onOpen }: { e: FriendActivityEntry; me: string | undefined; compact?: boolean; onOpen?: () => void }) {
   const t = EVT[e.kind];
-  const isAch = e.kind === 'ach';
+  const isAch = e.kind === 'ach' || e.kind === 'console';
   const mine = e.user.id === me;
   const tag = e.onlyYou ? `${t.tag} · only you` : t.tag;
   const clickable = !!onOpen && !mine;

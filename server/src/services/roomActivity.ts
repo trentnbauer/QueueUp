@@ -104,6 +104,12 @@ export interface ShelfActivityPayload {
   review?: unknown;
 }
 
+/** Detail on a console_added entry: the system's display name. */
+export interface ConsolePayload {
+  title: string;
+  platform: string;
+}
+
 export interface LogShelfActivityInput {
   recipientId: string;
   actorId: string | null;
@@ -112,9 +118,9 @@ export interface LogShelfActivityInput {
    * voting, none of which exist on a Personal Shelf. Callers get this enforced statically rather
    * than by convention alone, same reasoning as NotifyRoomInput's `type` narrowing in
    * notifications.ts. */
-  type: Extract<RoomActivityType, 'game_added' | 'status_changed' | 'price_drop'>;
+  type: Extract<RoomActivityType, 'game_added' | 'status_changed' | 'price_drop' | 'console_added'>;
   message: string;
-  payload?: ShelfActivityPayload;
+  payload?: ShelfActivityPayload | ConsolePayload;
   /** True when the game is hidden from others - keeps the event out of Discord "member activity"
    * posts (the friends feed filters hidden games at read time instead, since hiding can change
    * after the fact). */
