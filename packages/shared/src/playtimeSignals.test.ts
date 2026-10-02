@@ -217,3 +217,10 @@ describe('computePlaytimeReviewCandidates', () => {
     expect(computePlaytimeReviewCandidates(games, null)).toEqual([]);
   });
 });
+
+describe('suggestsPlayingFromMinutes and paused games', () => {
+  it('does not nudge to mark a Paused game as Playing - pausing was a deliberate call', () => {
+    expect(suggestsPlayingFromMinutes('paused', null, 120)).toBe(false);
+    expect(suggestsPlayingFromMinutes('backlog', null, 120)).toBe(true);
+  });
+});
