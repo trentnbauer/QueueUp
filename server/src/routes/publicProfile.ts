@@ -44,7 +44,7 @@ export default async function publicProfileRoutes(app: FastifyInstance) {
     // isn't "theirs" to show off the same way a room membership isn't public.
     const [beatenGameRows, currentlyPlayingRows, unlockedBadgeRows, totalUsers, perBadgeCounts] = await Promise.all([
       prisma.game.findMany({
-        where: { roomId: null, addedBy: user.id, status: { in: ['done', 'replay'] }, hiddenFromOthers: false },
+        where: { roomId: null, addedBy: user.id, status: { in: ['done', 'replay', 'dropped'] }, hiddenFromOthers: false },
         orderBy: { updatedAt: 'desc' },
         take: 300,
         include: { reviews: { where: { userId: user.id } } },
@@ -118,7 +118,9 @@ export default async function publicProfileRoutes(app: FastifyInstance) {
 
     const countByKey = new Map(perBadgeCounts.map((r) => [r.badgeKey, r._count.userId]));
 
-    const beatenWhere = { roomId: null, addedBy: user.id, status: { in: ['done', 'replay'] as GameStatus[] }, hiddenFromOthers: false };
+    // "Played" covers dropped games too, but 100% completions only ever count finished ones.
+    const beatenWhere = { roomId: null, addedBy: user.id, status: { in: ['done', 'replay', 'dropped'] as GameStatus[] }, hiddenFromOthers: false };
+    const finishedWhere = { ...beatenWhere, status: { in: ['done', 'replay'] as GameStatus[] } };
     // 100%: the game's own flag (any Steam sync saw it complete) or this user's own completion
     // record for the title (AchievementCompletion, keyed by igdbId, not by Game row).
     const completedIgdbIds = (await prisma.achievementCompletion.findMany({ where: { userId: user.id }, select: { igdbId: true } })).map((r) => r.igdbId);
@@ -126,7 +128,7 @@ export default async function publicProfileRoutes(app: FastifyInstance) {
     const isFullyCompleted = (g: { steamFullyCompleted: boolean; igdbId: number }) => g.steamFullyCompleted || completedIgdb.has(g.igdbId);
     const [beatenGameCount, fullyCompletedCount] = await Promise.all([
       prisma.game.count({ where: beatenWhere }),
-      prisma.game.count({ where: { ...beatenWhere, OR: [{ steamFullyCompleted: true }, { igdbId: { in: completedIgdbIds } }] } }),
+      prisma.game.count({ where: { ...finishedWhere, OR: [{ steamFullyCompleted: true }, { igdbId: { in: completedIgdbIds } }] } }),
     ]);
     const profile: PublicUserProfile = {
       displayName: user.displayName,
@@ -162,6 +164,7 @@ export default async function publicProfileRoutes(app: FastifyInstance) {
       beatenGames: [...beatenGameRows]
         .sort(
           (a, b) =>
+            Number(a.status === 'dropped') - Number(b.status === 'dropped') ||
             Number(isFullyCompleted(b)) - Number(isFullyCompleted(a)) ||
             Number(b.reviews.length > 0) - Number(a.reviews.length > 0),
         )
@@ -171,6 +174,7 @@ export default async function publicProfileRoutes(app: FastifyInstance) {
           coverImageUrl: g.coverImageUrl,
           genre: g.genre,
           replaying: g.status === 'replay',
+          dropped: g.status === 'dropped',
           review: toGameReviewDto(g.reviews[0]),
           fullyCompleted: isFullyCompleted(g),
         })),

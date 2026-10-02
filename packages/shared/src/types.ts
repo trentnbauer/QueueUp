@@ -1984,6 +1984,8 @@ export interface PublicProfileBeatenGame {
   coverImageUrl: string | null;
   genre: string | null;
   replaying: boolean;
+  /** Dropped rather than finished - listed with the played games, flagged with a red border. */
+  dropped: boolean;
   review: GameReview | null;
   /** Every achievement unlocked (100%) - shown first, with a trophy. */
   fullyCompleted: boolean;
