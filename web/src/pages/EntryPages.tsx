@@ -557,7 +557,7 @@ export function PublicProfilePage({ userId, signedIn }: { userId: string; signed
                     type="button"
                     onClick={() => setOpenGame(g)}
                     className="hv-surf2"
-                    style={st(`display:flex;align-items:center;gap:10px;padding:6px 10px 6px 6px;border-radius:12px;border:1px solid ${g.dropped ? 'var(--danger)' : g.replaying ? 'var(--mint)' : 'transparent'};background:var(--surf);color:var(--text);text-align:left`)}
+                    style={st(`display:flex;align-items:center;gap:10px;padding:6px 10px 6px 6px;border-radius:12px;border:none;background:var(--surf);color:var(--text);text-align:left`)}
                   >
                     <Cover title={g.title} url={g.coverImageUrl} width={30} radius={6} completed={g.fullyCompleted} status={g.dropped ? 'dropped' : g.replaying ? 'replay' : 'done'} />
                     <span style={st('flex:1;min-width:0;font:600 13px var(--font-ui);white-space:nowrap;overflow:hidden;text-overflow:ellipsis')}>{g.title}</span>
