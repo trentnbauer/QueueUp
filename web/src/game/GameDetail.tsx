@@ -16,6 +16,7 @@ import {
   fmtMoney,
   gameScore,
   hasLivePrice,
+  releaseLabel,
   shortDate,
 } from '../lib/gameView';
 import { ggDealsSearchUrl } from '../utils/formatPrice';
@@ -238,6 +239,7 @@ export function GameDetail({ game, onClose, changeStatus }: { game: Game; onClos
           <span style={st('font:500 11.5px var(--font-mono);color:var(--accText)')}>{kicker}</span>
           <span style={st('font:700 24px/1.05 var(--font-display);letter-spacing:-0.02em;text-wrap:balance')}>{game.title}</span>
           {game.genre && <span style={st('font:400 13px var(--font-ui);color:var(--muted)')}>{game.genre}</span>}
+          {releaseLabel(game) && <span style={st('font:400 12.5px var(--font-ui);color:var(--muted)')}>{releaseLabel(game)}</span>}
           {ttb.length > 0 && <span style={st('font:400 12.5px var(--font-ui);color:var(--muted)')}>{ttb.join(' · ')}</span>}
           {game.reviewScore !== null && (
             <span style={st('font:500 12.5px var(--font-ui);color:var(--text2)')}>⭐ {game.reviewScore}/100 on IGDB</span>
