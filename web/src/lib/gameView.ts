@@ -200,7 +200,9 @@ export function rowChip(
   if (!ctx.searching && (ctx.tab === 'replay' || ctx.tab === 'beaten') && g.status === 'replay' && g.replayedAt) {
     return `Replay since ${shortDate(g.replayedAt)}`;
   }
-  if (['wishlist', 'play_next', 'replay', 'wont_play'].includes(g.status) && !ctx.searching) return STATUS_LABEL[g.status];
+  // Search results span every status, so say which one each game is in.
+  if (ctx.searching) return STATUS_LABEL[g.status];
+  if (['wishlist', 'play_next', 'replay', 'wont_play'].includes(g.status)) return STATUS_LABEL[g.status];
   return '';
 }
 
