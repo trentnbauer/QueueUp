@@ -269,7 +269,7 @@ export default async function friendRoutes(app: FastifyInstance) {
         target = await prisma.user.findUnique({ where: { id: targetId }, select: userSelect });
         if (!target) throw new HttpError(404, 'User not found');
       } else {
-        const code = (request.body?.code ?? '').toUpperCase().replace(/[^A-Z0-9]/g, '');
+        const code = String(request.body?.code ?? '').toUpperCase().replace(/[^A-Z0-9]/g, '');
         if (code.length !== 8) throw new HttpError(400, 'That friend code does not look right');
         const formatted = `${code.slice(0, 4)}-${code.slice(4)}`;
         const owner = await prisma.user.findUnique({ where: { friendCode: formatted }, select: { ...userSelect, friendCodeIssuedAt: true } });
@@ -293,8 +293,9 @@ export default async function friendRoutes(app: FastifyInstance) {
       });
       if (existing) {
         if (existing.status === 'accepted') throw new HttpError(409, `You and ${target.displayName} are already friends`);
-        if (existing.requesterId === userId) throw new HttpError(409, 'Request already sent');
-        // They already asked us - sending a request back is the same as accepting theirs.
+        // Using their current code is their say-so, so it settles a request we'd already sent.
+        if (existing.requesterId === userId && !viaCode) throw new HttpError(409, 'Request already sent');
+        // They already asked us (or we asked and now hold their code) - same as accepting.
         await prisma.friendship.update({ where: { id: existing.id }, data: { status: 'accepted', respondedAt: new Date() } });
         return { accepted: true, user: toFriendUser(target) };
       }
