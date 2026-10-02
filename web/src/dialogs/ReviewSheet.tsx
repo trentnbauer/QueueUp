@@ -10,11 +10,11 @@ import { st } from '../ui/st';
 
 type Scores = Record<'art' | 'gameplay' | 'story' | 'sound', number>;
 
-/** The "how was it?" sheet: four 1-5 scores, a one-line note, and a shortcut to queue a Replay.
- * Opens after marking a game Beaten (skipping or closing then closes game detail too), or with
- * `edit` from an already-Beaten game's detail to write or change its review - prefilled with the
- * existing one. Saving closes the game detail too; cancelling an edit leaves it open. */
-export function ReviewSheet({ game, edit = false }: { game: Game; edit?: boolean }) {
+/** The person's draft of a game's review (four 1-5 scores + a one-line note) and the save action,
+ * shared by the review sheet and the review embedded in the game card. `onSaved` runs after a
+ * successful save; a failure shows in the page banner (ops.actionError) and leaves the form open
+ * to retry. */
+export function useReviewDraft(game: Game, edit: boolean, onSaved: () => void) {
   const { ops } = useScope();
   const ui = useUi();
   const existing = game.review;
@@ -25,12 +25,6 @@ export function ReviewSheet({ game, edit = false }: { game: Game; edit?: boolean
     sound: existing?.sound ?? 0,
   });
   const [note, setNote] = useState(existing?.note ?? '');
-
-  /** Skipping or closing leaves the game card open when this was an edit; saving always closes both. */
-  function finish(closeCard = !edit) {
-    ui.closeDialog('review');
-    if (closeCard) ui.selectGame(null);
-  }
 
   async function save(replay: boolean) {
     const hasScore = Object.values(scores).some(Boolean);
@@ -58,11 +52,90 @@ export function ReviewSheet({ game, edit = false }: { game: Game; edit?: boolean
                 ? 'No review saved'
                 : 'Beaten',
       );
-      finish(true);
+      onSaved();
     } catch {
-      // The failure shows in the page banner (ops.actionError); keep the sheet open to retry.
+      // Shown in the page banner; keep the form open to retry.
     }
   }
+
+  return { existing, scores, setScores, note, setNote, save };
+}
+
+/** The four score rows and the note box. */
+export function ReviewFields({ draft }: { draft: ReturnType<typeof useReviewDraft> }) {
+  const { scores, setScores, note, setNote } = draft;
+  return (
+    <>
+      <div style={st('display:flex;flex-direction:column;gap:10px')}>
+        {REVIEW_CATEGORIES.map((c) => (
+          <div key={c.key} style={st('display:flex;align-items:center;gap:10px')}>
+            <span style={st('flex:1;min-width:0;font:600 14px var(--font-ui)')}>{c.label}</span>
+            <div style={st('display:flex;gap:1px;padding:3px;border-radius:999px;background:var(--surf)')} role="group" aria-label={c.label}>
+              {[1, 2, 3, 4, 5].map((v) => {
+                const on = scores[c.key] === v;
+                return (
+                  <button
+                    key={v}
+                    type="button"
+                    aria-label={REVIEW_EMOJI[v].l}
+                    aria-pressed={on}
+                    onClick={() => setScores((s) => ({ ...s, [c.key]: s[c.key] === v ? 0 : v }))}
+                    style={st(`width:38px;height:34px;border:none;border-radius:999px;background:${on ? 'var(--acc)' : 'transparent'};opacity:${scores[c.key] && !on ? 0.4 : 1};font-size:17px;line-height:1;padding:0`)}
+                  >
+                    {REVIEW_EMOJI[v].e}
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+        ))}
+      </div>
+
+      <input
+        value={note}
+        onChange={(e) => setNote(e.target.value)}
+        maxLength={280}
+        placeholder="One line about it (optional)"
+        aria-label="Review note"
+        style={st('height:46px;padding:0 16px;border-radius:14px;background:var(--surf);border:1px solid var(--chip);color:var(--text);font-size:14.5px;outline:none')}
+      />
+    </>
+  );
+}
+
+/** The review form inside the game card: same fields as the sheet, with its own Save button.
+ * Saving closes the card. */
+export function ReviewEmbed({ game, onSaved }: { game: Game; onSaved: () => void }) {
+  const draft = useReviewDraft(game, true, onSaved);
+  return (
+    <div style={st('display:flex;flex-direction:column;gap:14px')}>
+      <ReviewFields draft={draft} />
+      <button
+        type="button"
+        onClick={() => void draft.save(false)}
+        style={st('height:46px;border-radius:999px;border:none;background:var(--acc);color:var(--ink);font:700 14.5px var(--font-ui)')}
+      >
+        Save review
+      </button>
+    </div>
+  );
+}
+
+/** The "how was it?" sheet: four 1-5 scores, a one-line note, and a shortcut to queue a Replay.
+ * Opens after marking a game Beaten (skipping or closing then closes game detail too), or with
+ * `edit` to write or change the review of a game that already has a status - prefilled with the
+ * existing one. Saving closes the game detail too; cancelling an edit leaves it open. */
+export function ReviewSheet({ game, edit = false }: { game: Game; edit?: boolean }) {
+  const ui = useUi();
+
+  /** Skipping or closing leaves the game card open when this was an edit; saving always closes both. */
+  function finish(closeCard = !edit) {
+    ui.closeDialog('review');
+    if (closeCard) ui.selectGame(null);
+  }
+
+  const draft = useReviewDraft(game, edit, () => finish(true));
+  const { existing, save } = draft;
 
   return (
     <Dialog
@@ -102,39 +175,7 @@ export function ReviewSheet({ game, edit = false }: { game: Game; edit?: boolean
           </span>
         </div>
 
-        <div style={st('display:flex;flex-direction:column;gap:10px')}>
-          {REVIEW_CATEGORIES.map((c) => (
-            <div key={c.key} style={st('display:flex;align-items:center;gap:10px')}>
-              <span style={st('flex:1;min-width:0;font:600 14px var(--font-ui)')}>{c.label}</span>
-              <div style={st('display:flex;gap:1px;padding:3px;border-radius:999px;background:var(--surf)')} role="group" aria-label={c.label}>
-                {[1, 2, 3, 4, 5].map((v) => {
-                  const on = scores[c.key] === v;
-                  return (
-                    <button
-                      key={v}
-                      type="button"
-                      aria-label={REVIEW_EMOJI[v].l}
-                      aria-pressed={on}
-                      onClick={() => setScores((s) => ({ ...s, [c.key]: s[c.key] === v ? 0 : v }))}
-                      style={st(`width:38px;height:34px;border:none;border-radius:999px;background:${on ? 'var(--acc)' : 'transparent'};opacity:${scores[c.key] && !on ? 0.4 : 1};font-size:17px;line-height:1;padding:0`)}
-                    >
-                      {REVIEW_EMOJI[v].e}
-                    </button>
-                  );
-                })}
-              </div>
-            </div>
-          ))}
-        </div>
-
-        <input
-          value={note}
-          onChange={(e) => setNote(e.target.value)}
-          maxLength={280}
-          placeholder="One line about it (optional)"
-          aria-label="Review note"
-          style={st('height:46px;padding:0 16px;border-radius:14px;background:var(--surf);border:1px solid var(--chip);color:var(--text);font-size:14.5px;outline:none')}
-        />
+        <ReviewFields draft={draft} />
 
         {game.status !== 'replay' && (
           <button
