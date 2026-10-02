@@ -1,11 +1,12 @@
 import type { Prisma } from '@prisma/client';
-import { sortPlatformLabel, type Game, type GamePrice, type GameReview, type PriceRegion, type RoomPlatform, type VoteValue } from '@queueup/shared';
+import { sortPlatformLabel, type Game, type GamePrice, type GameReview, type PriceRegion, type RoomPlatform, type SyncSource, type VoteValue } from '@queueup/shared';
 import { getSteamPrice, getSteamPrices } from './priceService.js';
 import { getOwnershipInfo, type GameOwnershipInfo } from './gameOwnership.js';
 import { getRoomPlatform, getRoomPlatforms } from './roomAccess.js';
 import { getPlaytimeSinceCheckpoint, type GamePlaytimeInfo } from './playtimeTracking.js';
 import { getAchievementProgressMap, getRoomMemberAchievementMap, type AchievementCount, type MemberAchievementCount } from './achievementProgress.js';
 import { getRemovalInfo, type RemovalInfo } from './removalVote.js';
+import { getSyncSources } from './syncSources.js';
 import { toUserDto } from '../util/dto.js';
 
 const gameWithRelations = {
@@ -69,6 +70,7 @@ function buildGameDto(
   achievements: AchievementCount | undefined,
   memberAchievements: MemberAchievementCount[] | undefined,
   removal: RemovalInfo | undefined,
+  syncSources: SyncSource[],
 ): Game {
   const myVote = game.votes.find((v) => v.userId === currentUserId);
   const voteScore = game.votes.reduce((sum, v) => sum + v.value, 0);
@@ -124,6 +126,7 @@ function buildGameDto(
     removeVotes: removal?.votes ?? 0,
     removeVotesNeeded: removal?.needed ?? 0,
     youVotedRemove: game.removalVotes.some((v) => v.userId === currentUserId),
+    syncSources,
     sensitiveContent: game.sensitiveContent,
     review: toGameReviewDto(game.reviews.find((r) => r.userId === currentUserId)),
     releaseAlert: game.releaseAlert,
@@ -149,12 +152,13 @@ export async function serializeGame(game: GameWithRelations, currentUserId: stri
   const platform = await resolvePricingPlatform(game);
   const price = platform === 'pc' && game.steamAppid ? await getSteamPrice(game.steamAppid, { region }) : UNAVAILABLE_PRICE;
   const ggDealsUrl = platform === 'pc' ? game.ggDealsUrl : null;
-  const [ownershipMap, playtimeMap, achievementMap, memberAchievementMap, removalMap] = await Promise.all([
+  const [ownershipMap, playtimeMap, achievementMap, memberAchievementMap, removalMap, syncMap] = await Promise.all([
     getOwnershipInfo([game], currentUserId),
     getPlaytimeSinceCheckpoint([game]),
     getAchievementProgressMap(currentUserId, [game.igdbId]),
     getRoomMemberAchievementMap([game], currentUserId),
     getRemovalInfo([game]),
+    getSyncSources([game], currentUserId),
   ]);
   return buildGameDto(
     game,
@@ -166,6 +170,7 @@ export async function serializeGame(game: GameWithRelations, currentUserId: stri
     achievementMap.get(game.igdbId),
     memberAchievementMap.get(game.id),
     removalMap.get(game.id),
+    syncMap.get(game.id) ?? [],
   );
 }
 
@@ -190,13 +195,14 @@ export async function serializeGames(games: GameWithRelations[], currentUserId: 
     .filter((g) => platformFor(g) === 'pc')
     .map((g) => g.steamAppid)
     .filter((id): id is number => id != null);
-  const [prices, ownershipMap, playtimeMap, achievementMap, memberAchievementMap, removalMap] = await Promise.all([
+  const [prices, ownershipMap, playtimeMap, achievementMap, memberAchievementMap, removalMap, syncMap] = await Promise.all([
     getSteamPrices(pcSteamAppIds, { region }),
     getOwnershipInfo(games, currentUserId),
     getPlaytimeSinceCheckpoint(games),
     getAchievementProgressMap(currentUserId, games.map((g) => g.igdbId)),
     getRoomMemberAchievementMap(games, currentUserId),
     getRemovalInfo(games),
+    getSyncSources(games, currentUserId),
   ]);
 
   return games.map((game) => {
@@ -213,6 +219,7 @@ export async function serializeGames(games: GameWithRelations[], currentUserId: 
       achievementMap.get(game.igdbId),
       memberAchievementMap.get(game.id),
       removalMap.get(game.id),
+      syncMap.get(game.id) ?? [],
     );
   });
 }

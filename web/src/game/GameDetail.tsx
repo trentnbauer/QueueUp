@@ -1,6 +1,6 @@
 import { useMemo, useState, type ReactNode } from 'react';
 import { useNavigate } from 'react-router';
-import { suggestsBeatenByPlaytime, suggestsPlaying, type Game, type GameStatus, type VoteValue } from '@queueup/shared';
+import { suggestsBeatenByPlaytime, suggestsPlaying, type Game, type GameStatus, type SyncSource, type VoteValue } from '@queueup/shared';
 import { useAuth } from '../context/AuthContext';
 import { useConfirm } from '../context/ConfirmContext';
 import { useScope } from '../context/ScopeContext';
@@ -80,6 +80,8 @@ function MemberAchievements({ counts }: { counts: { unlocked: number; total: num
     </span>
   );
 }
+
+const SYNC_SOURCE_LABEL: Record<SyncSource, string> = { steam: 'Steam library', steam_wishlist: 'Steam wishlist', playnite: 'Playnite' };
 
 /** Everything about one game - the body of both the desktop right panel and the phone sheet. */
 export function GameDetail({ game, onClose, changeStatus }: { game: Game; onClose: () => void; changeStatus: (game: Game, status: GameStatus) => void }) {
@@ -689,6 +691,17 @@ export function GameDetail({ game, onClose, changeStatus }: { game: Game; onClos
               <span style={st('font:400 12.5px var(--font-ui);color:var(--muted)')}>Friends won't see it in your activity, and it's left off your public profile</span>
             </span>
           </button>
+        )}
+
+        {isShelf && game.syncSources.length > 0 && (
+          <div style={st('display:flex;flex-wrap:wrap;align-items:center;gap:6px;font:400 12.5px var(--font-ui);color:var(--muted)')}>
+            Synced from
+            {game.syncSources.map((s) => (
+              <span key={s} style={st('padding:3px 10px;border-radius:999px;background:var(--chip);color:var(--text);font:600 12px var(--font-ui)')}>
+                {SYNC_SOURCE_LABEL[s]}
+              </span>
+            ))}
+          </div>
         )}
 
         <div style={st('display:flex;justify-content:space-between;align-items:center;padding-top:14px;border-top:1px solid var(--chip)')}>
