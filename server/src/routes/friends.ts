@@ -84,6 +84,7 @@ async function sharedRoomCounts(userId: string, otherIds: string[]): Promise<Map
 
 interface ShelfPayload {
   gameId?: string;
+  platform?: string;
   title?: string;
   coverImageUrl?: string | null;
   status?: string;
@@ -91,6 +92,7 @@ interface ShelfPayload {
 }
 
 function kindFor(type: string, status: string | undefined): FriendEventKind | null {
+  if (type === 'console_added') return 'console';
   if (type === 'game_added') return status === 'wishlist' ? 'wishlist' : 'added';
   if (type === 'status_changed') {
     if (status === 'playing') return 'playing';
@@ -146,7 +148,7 @@ async function buildFeed(
   const rows = await prisma.roomActivity.findMany({
     where: {
       recipientId: { in: userIds },
-      type: { in: ['game_added', 'status_changed'] },
+      type: { in: ['game_added', 'status_changed', 'console_added'] },
       payload: { not: Prisma.DbNull },
       ...(before
         ? { OR: [{ createdAt: { lt: before.createdAt } }, { createdAt: before.createdAt, id: { lt: before.id } }] }
@@ -178,7 +180,7 @@ async function buildFeed(
       user,
       kind,
       title: payload.title,
-      emoji: null,
+      emoji: kind === 'console' ? '🎮' : null,
       coverImageUrl: payload.coverImageUrl ?? null,
       at: r.createdAt.toISOString(),
       review: kind === 'beaten' ? (payload.review ?? null) : null,

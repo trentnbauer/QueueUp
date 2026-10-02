@@ -182,6 +182,8 @@ enum RoomActivityType {
   member_promoted
   /// A member left, or was removed by a Room Master/Moderator.
   member_left
+  /// Someone added a system to their "systems I own" (shown to friends and in their own shelf history).
+  console_added
 
   @@map("room_activity_type")
 }

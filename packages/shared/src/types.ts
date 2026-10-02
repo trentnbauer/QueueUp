@@ -1287,7 +1287,8 @@ export type RoomActivityType =
   | 'vote_cast'
   | 'spin_result'
   | 'member_promoted'
-  | 'member_left';
+  | 'member_left'
+  | 'console_added';
 
 export interface RoomActivityEntry {
   id: string;
@@ -1308,7 +1309,7 @@ export interface RoomActivityPage {
  * shelf has no members, no shared spin session, and no voting to log any of RoomActivityType's
  * other values for. See RoomActivity's schema doc (server/src/db/prisma/schema.prisma) for how one
  * table backs both feeds. */
-export type ShelfActivityType = Extract<RoomActivityType, 'game_added' | 'status_changed' | 'price_drop'>;
+export type ShelfActivityType = Extract<RoomActivityType, 'game_added' | 'status_changed' | 'price_drop' | 'console_added'>;
 
 /** Unlike RoomActivityEntry, no `actor` - a shelf entry's only possible actor is its own owner (or
  * nobody, for a system-generated price_drop), so there's no separate identity worth showing. */
@@ -2137,7 +2138,7 @@ export interface PublicProfileBeatenGame {
 
 // ---- Friends -------------------------------------------------------------------------------
 
-export type FriendEventKind = 'added' | 'wishlist' | 'playing' | 'beaten' | 'dropped' | 'ach';
+export type FriendEventKind = 'added' | 'wishlist' | 'playing' | 'beaten' | 'dropped' | 'ach' | 'console';
 
 export interface FriendUser {
   id: string;
@@ -2199,9 +2200,9 @@ export interface FriendActivityEntry {
   id: string;
   user: FriendUser;
   kind: FriendEventKind;
-  /** Game title, or the achievement name for kind 'ach'. */
+  /** Game title, the achievement name for kind 'ach', or the system name for kind 'console'. */
   title: string;
-  /** Achievement emoji for kind 'ach'. */
+  /** Achievement emoji for kind 'ach'; a controller for kind 'console'. */
   emoji: string | null;
   coverImageUrl: string | null;
   /** ISO timestamp. */
