@@ -13,6 +13,8 @@ interface NotifyRoomInput {
   roomId: string;
   roomName: string;
   actorId: string;
+  /** The game this is about, so clicking the notification can open its card. */
+  gameId?: string;
   // Excludes room_deleted/price_drop/release_watch/playtime_mark_playing/playnite_sync_reminder/
   // wishlist_bundle_deal (none of the six ever reaches notifyRoom - see the notes on
   // notifyRoomMembersDirect, notifyPriceDrop, notifyReleaseWatch, notifyPlaytimeMarkPlaying,
@@ -45,6 +47,7 @@ export async function notifyRoom(input: NotifyRoomInput): Promise<void> {
         roomId: input.roomId,
         roomName: input.roomName,
         actorId: input.actorId,
+        gameId: input.gameId,
         type: input.type,
         message,
       },

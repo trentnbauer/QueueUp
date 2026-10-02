@@ -421,6 +421,7 @@ export async function createGameForUser(
       roomId,
       roomName: room.name,
       actorId: userId,
+      gameId: created.id,
       type: 'game_added',
       message: (actorName) => `${actorName} added "${resolved.title}" to the room`,
     });
