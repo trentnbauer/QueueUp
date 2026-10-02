@@ -11,10 +11,16 @@ const ACTION =
 /** The design's bottom-centre toast: a transient message from useUi().notify. */
 export function UiToast() {
   const { toast, dismissToast } = useUi();
-  if (!toast) return null;
+  // The live region stays mounted and only its content changes: a region that appears together with
+  // its text is often not announced by screen readers. Errors are announced assertively.
   return (
-    <div style={st('position:fixed;left:0;right:0;bottom:24px;z-index:300;display:flex;justify-content:center;pointer-events:none;padding:0 16px')}>
-      <div key={toast.key} role="status" style={st(`${PILL};pointer-events:auto`)}>
+    <div
+      role={toast?.error ? 'alert' : 'status'}
+      aria-live={toast?.error ? 'assertive' : 'polite'}
+      aria-atomic="true"
+      style={st('position:fixed;left:0;right:0;bottom:24px;z-index:300;display:flex;justify-content:center;pointer-events:none;padding:0 16px')}
+    >
+      {toast && <div key={toast.key} style={st(`${PILL};pointer-events:auto`)}>
         <span style={{ minWidth: 0, textWrap: 'pretty' }}>{toast.message}</span>
         {toast.action && (
           <button
@@ -28,7 +34,7 @@ export function UiToast() {
             {toast.action.label}
           </button>
         )}
-      </div>
+      </div>}
     </div>
   );
 }

@@ -45,8 +45,8 @@ interface UiContextValue {
   selectGame: (id: string | null) => void;
 
   /** Transient bottom-centre toast (2.4s, or 5.2s when it carries an action). */
-  toast: { message: string; action?: { label: string; run: () => void }; key: number } | null;
-  notify: (message: string, action?: { label: string; run: () => void }, durationMs?: number) => void;
+  toast: { message: string; action?: { label: string; run: () => void }; key: number; error?: boolean } | null;
+  notify: (message: string, action?: { label: string; run: () => void }, durationMs?: number, isError?: boolean) => void;
   dismissToast: () => void;
 
   /** Errors now surface as a (longer-lived) toast; `errorMessage` stays null. */
@@ -81,16 +81,16 @@ export function UiProvider({ children }: { children: ReactNode }) {
     setToast(null);
   }, []);
 
-  const notify = useCallback((message: string, action?: { label: string; run: () => void }, durationMs?: number) => {
+  const notify = useCallback((message: string, action?: { label: string; run: () => void }, durationMs?: number, isError?: boolean) => {
     clearTimeout(toastTimer.current);
     toastKey.current += 1;
-    setToast({ message, action, key: toastKey.current });
+    setToast({ message, action, key: toastKey.current, error: isError });
     toastTimer.current = setTimeout(() => setToast(null), durationMs ?? (action ? 5200 : 2400));
   }, []);
 
   const showError = useCallback(
     (message: string | null) => {
-      if (message) notify(message, undefined, 6500);
+      if (message) notify(message, undefined, 6500, true);
     },
     [notify],
   );

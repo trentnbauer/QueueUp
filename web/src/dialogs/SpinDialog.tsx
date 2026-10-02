@@ -221,7 +221,12 @@ export function SpinDialog({ onClose }: { onClose: () => void }) {
   function clickReel(e: React.MouseEvent<HTMLDivElement>) {
     if (!run || settled || waiting) return;
     const rect = e.currentTarget.getBoundingClientRect();
-    const dir = e.clientX - rect.left > rect.width / 2 ? 'right' : 'left';
+    nudgeReel(e.clientX - rect.left > rect.width / 2 ? 'right' : 'left');
+  }
+
+  /** Slow the reel down ('left') or speed it up ('right'): from a click on either half, or the arrow keys. */
+  function nudgeReel(dir: 'left' | 'right') {
+    if (!run || settled || waiting) return;
     setNudge(dir);
     setTimeout(() => setNudge(null), 300);
     if (session) void shared.nudgeSpin(dir).catch(() => {});
@@ -320,7 +325,20 @@ export function SpinDialog({ onClose }: { onClose: () => void }) {
               </button>
             </div>
           ) : (
-            <div onClick={clickReel} style={{ cursor: spinning ? 'pointer' : 'default' }} title={spinning ? 'Click the left side to slow it down, the right side to speed it up' : undefined}>
+            <div
+              onClick={clickReel}
+              onKeyDown={(e) => {
+                if (e.key === 'ArrowLeft' || e.key === 'ArrowRight') {
+                  e.preventDefault();
+                  nudgeReel(e.key === 'ArrowLeft' ? 'left' : 'right');
+                }
+              }}
+              tabIndex={spinning ? 0 : undefined}
+              role={spinning ? 'group' : undefined}
+              aria-label={spinning ? 'Spinning reel. Press the left arrow to slow it down and the right arrow to speed it up.' : undefined}
+              style={{ cursor: spinning ? 'pointer' : 'default' }}
+              title={spinning ? 'Click the left side to slow it down, the right side to speed it up' : undefined}
+            >
               <Reel strip={run?.strip ?? []} position={position} tw={tw} th={th} settled={settled} idle={idle} />
             </div>
           )}
