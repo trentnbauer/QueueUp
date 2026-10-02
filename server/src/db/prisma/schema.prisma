@@ -232,6 +232,7 @@ model User {
   votes                         Vote[]
   removalVotes                  RemovalVote[]
   syncSources                   GameSyncSource[]
+  accountEvents                 AccountEvent[]
   gameReviews                   GameReview[]
   auditLogEntries               AdminAuditLog[]
   notificationsReceived         Notification[]                 @relation("NotificationRecipient")
@@ -1005,6 +1006,23 @@ model Vote {
 
   @@id([gameId, userId])
   @@map("votes")
+}
+
+/// A person's own record of changes to their account and settings (shown under Settings -> Account
+/// history): name, systems owned, alert email, sign-in methods, API keys, sharing and notification
+/// switches. Unlike the bell notification for the same change it cannot be cleared away. `type` is a
+/// short free-text tag (e.g. "display_name") so new kinds need no schema change.
+model AccountEvent {
+  id        String   @id @default(uuid())
+  userId    String   @map("user_id")
+  type      String
+  message   String
+  createdAt DateTime @default(now()) @map("created_at")
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, createdAt])
+  @@map("account_events")
 }
 
 /// Which sync has seen a game for a person: 'steam' (library), 'steam_wishlist' or 'playnite'.

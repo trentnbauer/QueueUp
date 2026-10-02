@@ -1,3 +1,4 @@
+import { logAccountEvent } from '../services/accountEvents.js';
 import type { FastifyInstance } from 'fastify';
 import type { ActivityVisibilityResponse, SetActivityVisibilityRequest } from '@queueup/shared';
 import { prisma } from '../db/client.js';
@@ -21,6 +22,7 @@ export default async function activityVisibilityRoutes(app: FastifyInstance) {
       const hidden = request.body?.hidden;
       if (typeof hidden !== 'boolean') throw new HttpError(400, 'hidden must be true or false');
       await prisma.user.update({ where: { id: userId }, data: { activityHidden: hidden } });
+      void logAccountEvent(userId, 'activity_sharing', hidden ? 'Activity hidden from friends.' : 'Activity shared with friends.');
       return { hidden };
     },
   );

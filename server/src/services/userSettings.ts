@@ -3,6 +3,7 @@ import { prisma } from '../db/client.js';
 import { HttpError } from '../util/httpError.js';
 import { ROOM_PLATFORM_LABELS, type RoomPlatform } from '@queueup/shared';
 import { logShelfActivity } from './roomActivity.js';
+import { logAccountEvent } from './accountEvents.js';
 
 /** One friends-feed / shelf-history entry for each system that was just added. */
 function logConsolesAdded(userId: string, added: RoomPlatform[]): void {
@@ -39,7 +40,14 @@ export async function setOwnedPlatforms(userId: string, platforms: unknown): Pro
     data: { ownedPlatforms: deduped },
   });
   const had = new Set(before?.ownedPlatforms ?? []);
-  logConsolesAdded(userId, deduped.filter((p) => !had.has(p)));
+  const added = deduped.filter((p) => !had.has(p));
+  const removed = [...had].filter((p) => !deduped.includes(p));
+  logConsolesAdded(userId, added);
+  if (added.length > 0 || removed.length > 0) {
+    const names = (list: RoomPlatform[]) => list.map((p) => ROOM_PLATFORM_LABELS[p]).join(', ');
+    const parts = [added.length > 0 && `added ${names(added)}`, removed.length > 0 && `removed ${names(removed)}`].filter(Boolean);
+    void logAccountEvent(userId, 'owned_systems', `Systems owned: ${parts.join('; ')}.`);
+  }
   return updated.ownedPlatforms;
 }
 
@@ -54,7 +62,9 @@ export async function unionOwnedPlatforms(userId: string, platforms: RoomPlatfor
   const merged = Array.from(new Set([...user.ownedPlatforms, ...platforms]));
   if (merged.length === user.ownedPlatforms.length) return user.ownedPlatforms;
   const updated = await prisma.user.update({ where: { id: userId }, data: { ownedPlatforms: merged } });
-  logConsolesAdded(userId, platforms.filter((p) => !user.ownedPlatforms.includes(p)));
+  const newlyAdded = platforms.filter((p) => !user.ownedPlatforms.includes(p));
+  logConsolesAdded(userId, newlyAdded);
+  void logAccountEvent(userId, 'owned_systems', `Systems owned: added ${[...new Set(newlyAdded)].map((p) => ROOM_PLATFORM_LABELS[p]).join(', ')} (from a library sync).`);
   return updated.ownedPlatforms;
 }
 

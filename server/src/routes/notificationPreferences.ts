@@ -1,3 +1,4 @@
+import { logAccountEvent } from '../services/accountEvents.js';
 import type { FastifyInstance } from 'fastify';
 import {
   EMAIL_ALERT_LABELS,
@@ -55,6 +56,13 @@ export default async function notificationPreferenceRoutes(app: FastifyInstance)
           ...(startingEmail && { updatedAt: new Date() }),
         },
       });
+      const what = type.replace(/_/g, ' ');
+      if (email !== undefined && email !== (existing?.email ?? false)) {
+        void logAccountEvent(userId, 'notification_email', `Email alerts for ${what} turned ${email ? 'on' : 'off'}.`);
+      }
+      if (inApp !== undefined && inApp !== (existing?.inApp ?? true)) {
+        void logAccountEvent(userId, 'notification_in_app', `In-app alerts for ${what} turned ${inApp ? 'on' : 'off'}.`);
+      }
       return { ok: true };
     },
   );

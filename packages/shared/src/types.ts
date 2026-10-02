@@ -644,6 +644,20 @@ export interface Game {
   updatedAt: string;
 }
 
+/** One line in Settings -> Account history. */
+export interface AccountEventEntry {
+  id: string;
+  type: string;
+  message: string;
+  createdAt: string;
+}
+
+/** GET /api/me/events - `nextBefore` is the cursor for the next older page, or null at the end. */
+export interface AccountEventPage {
+  entries: AccountEventEntry[];
+  nextBefore: string | null;
+}
+
 /** Where a shelf game was synced from. */
 export type SyncSource = 'steam' | 'steam_wishlist' | 'playnite';
 
