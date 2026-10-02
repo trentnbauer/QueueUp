@@ -82,13 +82,27 @@ export default async function publicProfileRoutes(app: FastifyInstance) {
         .filter((v) => ownershipPlatformsOverlap(ownerPlatformsByIgdb.get(v.igdbId) ?? [], v.platforms))
         .map((v) => v.igdbId),
     );
+    // Anything the viewer already has: owned, or on their own Personal Shelf in any status (adding
+    // it again would just duplicate it).
+    const viewerHasIgdb = new Set<number>();
+    if (viewerId && viewer !== 'self') {
+      const igdbIds = [...new Set([...shelfRows.map((g) => g.igdbId), ...currentlyPlayingRows.map((g) => g.igdbId)])];
+      const [viewerShelf, viewerOwnership] = await Promise.all([
+        prisma.game.findMany({ where: { roomId: null, addedBy: viewerId, igdbId: { in: igdbIds } }, select: { igdbId: true } }),
+        prisma.gameOwnership.findMany({ where: { userId: viewerId, igdbId: { in: igdbIds } }, select: { igdbId: true } }),
+      ]);
+      for (const r of [...viewerShelf, ...viewerOwnership]) viewerHasIgdb.add(r.igdbId);
+    }
+    const viewerHasGame = (igdbId: number) => viewerHasIgdb.has(igdbId);
     const score = (g: (typeof shelfRows)[number]) => g.votes.reduce((sum, v) => sum + v.value, 0);
     const toGame = (g: (typeof shelfRows)[number]): PublicProfileGame => ({
       id: g.id,
       title: g.title,
       coverImageUrl: g.coverImageUrl,
       platform: sortPlatformLabel(g.platform),
+      igdbId: g.igdbId,
       ...(bothOwnIgdb.has(g.igdbId) && { bothOwn: true }),
+      ...(viewerHasGame(g.igdbId) && { viewerHas: true }),
     });
     const byScore = (a: (typeof shelfRows)[number], b: (typeof shelfRows)[number]) => score(b) - score(a) || b.updatedAt.getTime() - a.updatedAt.getTime();
     const playNext = shelfRows.filter((g) => g.status === 'play_next').sort(byScore);
@@ -136,10 +150,11 @@ export default async function publicProfileRoutes(app: FastifyInstance) {
       }),
       beatenGameCount,
       fullyCompletedCount,
-      currentlyPlaying: currentlyPlayingRows.map(({ igdbId, ...g }) => ({
+      currentlyPlaying: currentlyPlayingRows.map((g) => ({
         ...g,
         platform: sortPlatformLabel(g.platform),
-        ...(bothOwnIgdb.has(igdbId) && { bothOwn: true }),
+        ...(bothOwnIgdb.has(g.igdbId) && { bothOwn: true }),
+        ...(viewerHasGame(g.igdbId) && { viewerHas: true }),
       })),
       systems: sortPlatforms(user.ownedPlatforms).map((p) => ROOM_PLATFORM_LABELS[p]),
       // 100% games first, then reviewed games, then the rest, each group newest-first (the query's

@@ -1918,6 +1918,12 @@ export interface PublicProfileGame {
    * platform in common with the owner - "you can play this together". Never set for an anonymous
    * viewer or the owner themself. */
   bothOwn?: boolean;
+  /** IGDB id, so a signed-in viewer can add the game to their own shelf from the profile. */
+  igdbId: number;
+  /** True when the signed-in viewer (someone other than the profile owner) already has this game -
+   * on their Personal Shelf in any status, or marked owned. Never set for an anonymous viewer or the
+   * owner themself. */
+  viewerHas?: boolean;
 }
 
 /** Response for GET /api/public/users/:id (issue #511) - the shareable, unauthenticated
