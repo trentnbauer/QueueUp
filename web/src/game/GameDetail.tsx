@@ -200,6 +200,30 @@ export function GameDetail({ game, onClose, changeStatus }: { game: Game; onClos
     ui.notify(`Removed ${game.title}`);
   }
 
+  // In a room, only whoever added a game or a Room Master / Moderator can remove it outright;
+  // everyone else can vote to, and it goes once most of the room has.
+  const canRemoveDirectly = isShelf || game.addedBy.id === user?.id || scope.canManage;
+
+  async function voteToRemove() {
+    if (game.youVotedRemove) {
+      ops.unvoteRemove(game.id);
+      return;
+    }
+    const ok = await confirm({
+      title: 'Vote to remove this game?',
+      message: `"${game.title}" is removed once ${game.removeVotesNeeded} of the room's members have voted to (${game.removeVotes} so far). You can withdraw your vote until then.`,
+      confirmLabel: 'Vote to remove',
+      danger: true,
+    });
+    if (!ok) return;
+    if (await ops.voteRemove(game.id)) {
+      ui.selectGame(null);
+      ui.notify(`Removed ${game.title}`);
+    } else {
+      ui.notify('Vote to remove recorded');
+    }
+  }
+
   // Status journey: Wishlist (shelf only) -> Backlog -> Up next -> Playing -> Beaten.
   const main: [GameStatus, string][] = (
     [
@@ -684,9 +708,21 @@ export function GameDetail({ game, onClose, changeStatus }: { game: Game; onClos
             )}
             Added by {game.addedBy.id === user?.id ? 'you' : game.addedBy.displayName}
           </span>
-          <button type="button" onClick={remove} style={st('height:40px;border:none;background:none;padding:0;color:var(--danger);font:600 13.5px var(--font-ui)')}>
-            Remove game
-          </button>
+          {canRemoveDirectly ? (
+            <button type="button" onClick={remove} style={st('height:40px;border:none;background:none;padding:0;color:var(--danger);font:600 13.5px var(--font-ui)')}>
+              Remove game
+            </button>
+          ) : (
+            <button
+              type="button"
+              onClick={() => void voteToRemove()}
+              aria-pressed={game.youVotedRemove}
+              style={st('height:40px;border:none;background:none;padding:0;color:var(--danger);font:600 13.5px var(--font-ui)')}
+            >
+              {game.youVotedRemove ? 'Withdraw vote to remove' : 'Vote to remove'}
+              {game.removeVotes > 0 && ` (${game.removeVotes}/${game.removeVotesNeeded})`}
+            </button>
+          )}
         </div>
       </div>
 

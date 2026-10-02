@@ -152,6 +152,23 @@ export function useGames(roomId: string | null) {
     onError: (err) => setActionError(errorMessage(err, 'Could not remove that game.')),
   });
 
+  const voteRemove = useMutation({
+    mutationFn: (gameId: string) => gamesApi.voteRemove(gameId),
+    onSuccess: ({ removed, game }, gameId) => {
+      if (removed) removeGameFromCache(gameId);
+      else if (game) patchGame(game);
+    },
+    onError: (err) => setActionError(errorMessage(err, 'Could not save your vote.')),
+  });
+
+  const unvoteRemove = useMutation({
+    mutationFn: (gameId: string) => gamesApi.unvoteRemove(gameId),
+    onSuccess: ({ game }) => {
+      if (game) patchGame(game);
+    },
+    onError: (err) => setActionError(errorMessage(err, 'Could not withdraw your vote.')),
+  });
+
   const refreshPrice = useMutation({
     mutationFn: (gameId: string) => gamesApi.refreshPrice(gameId, region),
     onSuccess: ({ game }) => patchGame(game),
@@ -259,6 +276,9 @@ export function useGames(roomId: string | null) {
     dismissShelfSync: () => setShelfSyncPrompt(null),
     vote: (gameId: string, value: VoteValue) => vote.mutate({ gameId, value }),
     unvote: (gameId: string) => unvote.mutate(gameId),
+    /** Resolves true when that vote removed the game. */
+    voteRemove: (gameId: string) => voteRemove.mutateAsync(gameId).then((r) => r.removed),
+    unvoteRemove: (gameId: string) => unvoteRemove.mutate(gameId),
     setHidden: (gameId: string, hidden: boolean) => setHidden.mutate({ gameId, hidden }),
     setReleaseAlert: (gameId: string, enabled: boolean) => setReleaseAlert.mutate({ gameId, enabled }),
     setReview: (gameId: string, review: SetGameReviewRequest) => setReview.mutateAsync({ gameId, review }),

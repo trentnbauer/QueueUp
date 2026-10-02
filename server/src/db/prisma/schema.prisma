@@ -228,6 +228,7 @@ model User {
   memberships                   RoomMember[]
   gamesAdded                    Game[]
   votes                         Vote[]
+  removalVotes                  RemovalVote[]
   gameReviews                   GameReview[]
   auditLogEntries               AdminAuditLog[]
   notificationsReceived         Notification[]                 @relation("NotificationRecipient")
@@ -903,6 +904,7 @@ model Game {
   room                          Room?                          @relation(fields: [roomId], references: [id], onDelete: Cascade)
   adder                         User                           @relation(fields: [addedBy], references: [id], onDelete: Cascade)
   votes                         Vote[]
+  removalVotes                  RemovalVote[]
   tags                          GameTag[]
   prerequisiteGame              Game?                          @relation("GamePrerequisite", fields: [prerequisiteGameId], references: [id], onDelete: SetNull)
   successorGames                Game[]                         @relation("GamePrerequisite")
@@ -1000,6 +1002,22 @@ model Vote {
 
   @@id([gameId, userId])
   @@map("votes")
+}
+
+/// A room member's vote to take a game out of the room. Once more than half of the room's current
+/// members have one on a game it is deleted (see services/removalVote.ts). Only room games - on the
+/// Personal Shelf the owner just removes it. Cascades away with the game or the voter.
+model RemovalVote {
+  gameId    String   @map("game_id")
+  userId    String   @map("user_id")
+  createdAt DateTime @default(now()) @map("created_at")
+
+  game Game @relation(fields: [gameId], references: [id], onDelete: Cascade)
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@id([gameId, userId])
+  @@index([userId])
+  @@map("removal_votes")
 }
 
 /// A user-defined organizational label (issue #247), layered on top of the fixed GameStatus enum -

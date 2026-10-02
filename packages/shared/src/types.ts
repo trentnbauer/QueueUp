@@ -626,6 +626,12 @@ export interface Game {
   replayedAt: string | null;
   /** Personal Shelf only: hidden from the public profile and friends' activity. */
   hiddenFromOthers: boolean;
+  /** Room games: members who have voted to remove it (current members only). Always 0 on the shelf. */
+  removeVotes: number;
+  /** Room games: how many of those votes remove it (a majority of the room). 0 on the shelf. */
+  removeVotesNeeded: number;
+  /** The viewer has voted to remove it. */
+  youVotedRemove: boolean;
   /** IGDB tags this as adult content (issue #627). */
   sensitiveContent: boolean;
   /** The review saved after beating it, if any. */
@@ -634,6 +640,12 @@ export interface Game {
   releaseAlert: boolean;
   createdAt: string;
   updatedAt: string;
+}
+
+/** POST/DELETE /api/games/:id/remove-vote. `removed` is true when that vote tipped it over and the game is gone. */
+export interface RemoveVoteResponse {
+  removed: boolean;
+  game: Game | null;
 }
 
 export interface SetGameReviewRequest {
