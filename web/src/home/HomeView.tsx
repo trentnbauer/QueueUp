@@ -71,7 +71,7 @@ export function HomeView() {
   const pendingList = useQuery({ queryKey: PENDING_IMPORTS_QUERY_KEY, queryFn: pendingImportsApi.list, enabled: isShelf });
   const dismissedList = useQuery({ queryKey: DISMISSED_IMPORTS_QUERY_KEY, queryFn: pendingImportsApi.listDismissed, enabled: isShelf && moreOpen });
   const importTab = tab === 'matching' || tab === 'dismissed' ? tab : null;
-  const moreActive = tab === 'dropped' || tab === 'wont_play' || importTab !== null;
+  const moreActive = SHELF_MORE_TABS.some((t) => t.id === tab) || importTab !== null;
   const [query, setQuery] = useState('');
   const [bulk, setBulk] = useState(false);
   const [bulkSel, setBulkSel] = useState<string[]>([]);
