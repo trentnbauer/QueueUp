@@ -262,11 +262,10 @@ export default async function friendRoutes(app: FastifyInstance) {
       let target;
       let viaCode = false;
       if (request.body?.userId) {
-        // From a room's member list: only people you share a room with, so this can't be used to
-        // poke arbitrary users by id.
+        // From a room's member list or a profile page. User ids are unguessable, and the endpoint
+        // is rate limited, so anyone you can reach this way can be sent a request.
         const targetId = request.body.userId;
-        const shared = await sharedRoomCounts(userId, [targetId]);
-        if (!shared.get(targetId)) throw new HttpError(404, 'You can only add people you share a room with');
+        if (typeof targetId !== 'string') throw new HttpError(400, 'A user id is required');
         target = await prisma.user.findUnique({ where: { id: targetId }, select: userSelect });
         if (!target) throw new HttpError(404, 'User not found');
       } else {
