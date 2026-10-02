@@ -172,7 +172,7 @@ export function HomeView() {
         <div style={st('display:flex;flex-wrap:wrap;align-items:center;gap:10px')}>
           <h1
             style={st(
-              `flex:1 1 ${mobile ? 0 : 280}px;min-width:0;margin:0;font:700 ${mobile ? 34 : 44}px/${mobile ? 1.05 : 1.02} var(--font-display);letter-spacing:-0.03${mobile ? '' : '5'}em;text-wrap:balance`,
+              `flex:1 1 ${mobile ? 0 : 280}px;min-width:0;margin:0;${mobile ? 'min-height:calc(2 * 1.05em);display:flex;align-items:center;' : ''}font:700 ${mobile ? 34 : 44}px/${mobile ? 1.05 : 1.02} var(--font-display);letter-spacing:-0.03${mobile ? '' : '5'}em;text-wrap:balance`,
             )}
           >
             {title}
