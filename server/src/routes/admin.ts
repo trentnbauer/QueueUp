@@ -14,8 +14,9 @@ import {
   clearConfigValue,
   type ConfigKey,
 } from '../services/configResolver.js';
+import { sendMail, smtpIsConfigured } from '../services/mailer.js';
 import { getTunnelStatus, reloadTunnel } from '../services/cloudflareTunnel.js';
-import type { AdminIntegrationStatus, AdminRoomSummary, AdminUserSummary, AdminAuditLogEntry } from '@queueup/shared';
+import type { ConfigSource, AdminIntegrationStatus, AdminRoomSummary, AdminUserSummary, AdminAuditLogEntry } from '@queueup/shared';
 
 // Human-readable labels for audit log entries / error messages - keyed by the same ConfigKey used
 // server-side and sent from the client, so a typo'd key surfaces a clear "unknown setting" error.
@@ -27,6 +28,11 @@ const CONFIG_KEY_LABELS: Record<ConfigKey, string> = {
   TURNSTILE_SITE_KEY: 'Turnstile site key',
   TURNSTILE_SECRET_KEY: 'Turnstile secret key',
   CLOUDFLARE_TUNNEL_TOKEN: 'Cloudflare Tunnel token',
+  SMTP_HOST: 'SMTP host',
+  SMTP_PORT: 'SMTP port',
+  SMTP_USER: 'SMTP user',
+  SMTP_PASSWORD: 'SMTP password',
+  SMTP_FROM: 'SMTP from address',
 };
 
 function envValueFor(key: ConfigKey): string | undefined {
@@ -45,6 +51,16 @@ function envValueFor(key: ConfigKey): string | undefined {
       return env.TURNSTILE_SECRET_KEY;
     case 'CLOUDFLARE_TUNNEL_TOKEN':
       return env.CLOUDFLARE_TUNNEL_TOKEN;
+    case 'SMTP_HOST':
+      return env.SMTP_HOST;
+    case 'SMTP_PORT':
+      return env.SMTP_PORT;
+    case 'SMTP_USER':
+      return env.SMTP_USER;
+    case 'SMTP_PASSWORD':
+      return env.SMTP_PASSWORD;
+    case 'SMTP_FROM':
+      return env.SMTP_FROM;
   }
 }
 
@@ -53,9 +69,16 @@ export default async function adminRoutes(app: FastifyInstance) {
     const userId = await request.requireAuth();
     await requireAdmin(userId);
 
-    const [ggDealsApiKeySource, igdbClientIdSource, igdbClientSecretSource, scandexApiKeySource, turnstileSiteKeySource, turnstileSecretKeySource] = await Promise.all(
-      CONFIG_KEYS.map((key) => getConfigSource(key, envValueFor(key))),
+    const sources = new Map<ConfigKey, ConfigSource>(
+      await Promise.all(CONFIG_KEYS.map(async (key) => [key, await getConfigSource(key, envValueFor(key))] as const)),
     );
+    const src = (key: ConfigKey): ConfigSource => sources.get(key) ?? 'unset';
+    const ggDealsApiKeySource = src('GGDEALS_API_KEY');
+    const igdbClientIdSource = src('IGDB_CLIENT_ID');
+    const igdbClientSecretSource = src('IGDB_CLIENT_SECRET');
+    const scandexApiKeySource = src('SCANDEX_API_KEY');
+    const turnstileSiteKeySource = src('TURNSTILE_SITE_KEY');
+    const turnstileSecretKeySource = src('TURNSTILE_SECRET_KEY');
 
     const status: AdminIntegrationStatus = {
       ggDealsApiKeyConfigured: ggDealsApiKeySource !== 'unset',
@@ -68,6 +91,14 @@ export default async function adminRoutes(app: FastifyInstance) {
       turnstileConfigured: turnstileSiteKeySource !== 'unset' && turnstileSecretKeySource !== 'unset',
       turnstileSiteKeySource,
       turnstileSecretKeySource,
+      smtpConfigured: src('SMTP_HOST') !== 'unset' && src('SMTP_PORT') !== 'unset' && src('SMTP_FROM') !== 'unset',
+      smtpSources: {
+        SMTP_HOST: src('SMTP_HOST'),
+        SMTP_PORT: src('SMTP_PORT'),
+        SMTP_USER: src('SMTP_USER'),
+        SMTP_PASSWORD: src('SMTP_PASSWORD'),
+        SMTP_FROM: src('SMTP_FROM'),
+      },
       devFakeAuth: env.DEV_FAKE_AUTH,
       activeAuthProviders: Array.from(app.authProviders.keys()),
     };
@@ -139,6 +170,27 @@ export default async function adminRoutes(app: FastifyInstance) {
       if (key === 'CLOUDFLARE_TUNNEL_TOKEN') await reloadTunnel();
       reply.status(204);
       return null;
+    },
+  );
+
+  // Sends a test message to the admin's own address so they can check the SMTP settings work.
+  app.post(
+    '/api/admin/smtp/test',
+    { config: { rateLimit: { max: 5, timeWindow: '1 minute' } } },
+    async (request) => {
+      const actorId = await request.requireAuth();
+      const actor = await requireAdmin(actorId);
+      if (!(await smtpIsConfigured())) throw new HttpError(400, 'Set the SMTP host, port and from address first');
+      try {
+        await sendMail({
+          to: actor.email,
+          subject: 'QueueUp test email',
+          text: 'If you can read this, QueueUp can send email alerts.',
+        });
+      } catch (err) {
+        throw new HttpError(502, `Could not send the test email: ${err instanceof Error ? err.message : 'unknown error'}`);
+      }
+      return { ok: true, sentTo: actor.email };
     },
   );
 

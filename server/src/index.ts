@@ -11,6 +11,7 @@ import { startReleaseWatchJob } from './jobs/releaseWatchJob.js';
 import { startAchievementProgressJob, startPlaytimeSnapshotJob } from './jobs/playtimeSnapshotJob.js';
 import { startPlayniteSyncReminderJob } from './jobs/playniteSyncReminderJob.js';
 import { startBackupJob } from './jobs/backupJob.js';
+import { startEmailAlertJob } from './jobs/emailAlertJob.js';
 import { reloadTunnel, stopTunnel } from './services/cloudflareTunnel.js';
 
 const app = await buildApp();
@@ -51,6 +52,9 @@ const playniteSyncReminderJob = startPlayniteSyncReminderJob();
 
 // Nightly database backup (default on, schedule editable in the admin menu) - see jobs/backupJob.ts.
 const backupJob = startBackupJob();
+// Emails each person's unread alerts they've switched email on for - see jobs/emailAlertJob.ts. Does
+// nothing until SMTP is set up.
+const emailAlertJob = startEmailAlertJob();
 
 // Cloudflare Tunnel (#664) - starts cloudflared if a tunnel token is set; a no-op otherwise. Not
 // awaited past the token lookup, and a failure here never stops the server itself.
@@ -83,6 +87,7 @@ async function shutdown(signal: string) {
     achievementProgressJob?.stop();
     playniteSyncReminderJob.stop();
     backupJob.stop();
+    emailAlertJob.stop();
     await stopTunnel();
     // Stops accepting new connections, waits for in-flight requests, runs plugins' onClose hooks.
     await app.close();
