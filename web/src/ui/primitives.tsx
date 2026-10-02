@@ -1,4 +1,5 @@
 import type { CSSProperties, ReactNode } from 'react';
+import type { GameStatus } from '@queueup/shared';
 import { useNavigate } from 'react-router';
 import { st } from './st';
 
@@ -222,14 +223,66 @@ export function TrophyBadge({ size = 20, style }: { size?: number; style?: CSSPr
   );
 }
 
+/** The colour ring and emoji shown on a cover for games you're finished with, in the same style as
+ * the 100% trophy: Beaten (green), Dropped (red) and Won't Play (grey). Other statuses have none. */
+export interface StatusOutline {
+  color: string;
+  emoji: string;
+  label: string;
+}
+
+export function statusOutlineFor(status: GameStatus): StatusOutline | null {
+  if (status === 'done') return { color: 'var(--mint)', emoji: '✅', label: 'Beaten' };
+  if (status === 'dropped') return { color: 'var(--danger)', emoji: '👎', label: 'Dropped' };
+  if (status === 'wont_play') return { color: 'var(--muted)', emoji: '🚫', label: "Won't Play" };
+  return null;
+}
+
+/** Ring + glow drawn around a cover for a status outline. */
+export function statusRing(o: StatusOutline): string {
+  return `0 0 0 2px ${o.color}, 0 0 12px color-mix(in oklab, ${o.color} 45%, transparent)`;
+}
+
+/** The emoji badge pinned to a cover's corner (bottom-right by default, like the trophy). */
+export function StatusBadge({ outline, size = 20, style }: { outline: StatusOutline; size?: number; style?: CSSProperties }) {
+  return (
+    <span
+      aria-label={outline.label}
+      title={outline.label}
+      style={{
+        position: 'absolute',
+        right: -Math.round(size / 4),
+        bottom: -Math.round(size / 4),
+        width: size,
+        height: size,
+        borderRadius: '50%',
+        background: 'var(--sheet)',
+        border: `1.5px solid ${outline.color}`,
+        boxShadow: '0 2px 6px oklch(0 0 0 / 0.35)',
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        fontSize: Math.round(size * 0.55),
+        lineHeight: 1,
+        zIndex: 1,
+        ...style,
+      }}
+    >
+      {outline.emoji}
+    </span>
+  );
+}
+
 /** 2:3 cover tile. `width` is in px; the aspect ratio does the rest. `completed` marks a game
- * 100%'d (all achievements): a gold ring and a 🏆 badge. */
+ * 100%'d (all achievements): a gold ring and a 🏆 badge. `status` adds the Beaten / Dropped /
+ * Won't Play ring and emoji instead (the gold trophy wins when both apply). */
 export function Cover({
   title,
   url,
   width,
   radius = 9,
   completed = false,
+  status,
   style,
   children,
 }: {
@@ -238,10 +291,13 @@ export function Cover({
   width?: number | string;
   radius?: number;
   completed?: boolean;
+  status?: GameStatus;
   style?: CSSProperties;
   children?: ReactNode;
 }) {
   const badgeSize = typeof width === 'number' ? Math.max(16, Math.min(28, Math.round(width * 0.42))) : 26;
+  const outline = !completed && status ? statusOutlineFor(status) : null;
+  const ring = completed ? GOLD_RING : outline ? statusRing(outline) : null;
   return (
     <span
       style={{
@@ -253,11 +309,12 @@ export function Cover({
         display: 'block',
         position: 'relative',
         ...style,
-        ...(completed && { boxShadow: style?.boxShadow ? `${GOLD_RING}, ${style.boxShadow}` : GOLD_RING }),
+        ...(ring && { boxShadow: style?.boxShadow ? `${ring}, ${style.boxShadow}` : ring }),
       }}
     >
       {children}
       {completed && <TrophyBadge size={badgeSize} />}
+      {outline && <StatusBadge outline={outline} size={badgeSize} />}
     </span>
   );
 }
