@@ -17,6 +17,7 @@ import { useRooms } from '../hooks/useRooms';
 import { useVersion } from '../hooks/useVersion';
 import { REVIEW_EMOJI, reviewAverage } from '../lib/gameView';
 import { Avatar, Btn, Cover, Wordmark, AppMark, inputPill } from '../ui/primitives';
+import { useIsMobile } from '../ui/useLayout';
 import { st } from '../ui/st';
 
 const FEATURES: [string, string][] = [
@@ -354,6 +355,7 @@ export function PublicProfilePage({ userId, signedIn }: { userId: string; signed
   const [profile, setProfile] = useState<PublicUserProfile | null>(null);
   const [state, setState] = useState<'loading' | 'ok' | 'missing'>('loading');
   const [modal, setModal] = useState<'achievements' | 'library' | 'bothOwn' | null>(null);
+  const mobile = useIsMobile();
   const [openGame, setOpenGame] = useState<PublicProfileBeatenGame | null>(null);
   const [cardGame, setCardGame] = useState<PublicProfileGame | null>(null);
   const [addedIds, setAddedIds] = useState<Set<number>>(new Set());
@@ -465,9 +467,16 @@ export function PublicProfilePage({ userId, signedIn }: { userId: string; signed
                 <span style={st('font:700 20px var(--font-display)')}>Wishlist</span>
                 <span style={st('font:500 11.5px var(--font-mono);color:var(--muted)')}>{profile.wishlist.length}</span>
               </span>
-              <div style={st('display:grid;grid-template-columns:repeat(auto-fill,minmax(110px,1fr));gap:14px')}>
+              <div
+                style={st(
+                  mobile
+                    ? // Phones: two rows that scroll sideways, three cards visible at a time.
+                      'display:grid;grid-auto-flow:column;grid-template-rows:repeat(2,auto);grid-auto-columns:calc((100% - 28px) / 3);gap:14px;overflow-x:auto;scroll-snap-type:x proximity;padding-bottom:10px;-webkit-overflow-scrolling:touch'
+                    : 'display:grid;grid-template-columns:repeat(auto-fill,minmax(110px,1fr));gap:14px',
+                )}
+              >
                 {profile.wishlist.map((g) => (
-                  <div key={g.id} {...cardProps(() => setCardGame(g))} style={st(CARD_CURSOR + 'min-width:0;display:flex;flex-direction:column;gap:6px')}>
+                  <div key={g.id} {...cardProps(() => setCardGame(g))} style={st(CARD_CURSOR + 'min-width:0;scroll-snap-align:start;display:flex;flex-direction:column;gap:6px')}>
                     <Cover title={g.title} url={g.coverImageUrl} width="100%" radius={14} />
                     <span style={st('font:600 12.5px var(--font-ui);white-space:nowrap;overflow:hidden;text-overflow:ellipsis')}>{g.title}</span>
                   </div>
