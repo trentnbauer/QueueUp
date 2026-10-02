@@ -60,6 +60,7 @@ import {
 import type { OwnedSteamGame } from '../services/steamLibrary.js';
 import { toggleOwnershipForPlatform, setOwnershipPlatforms, markOwned, promoteOwnedWishlistGames } from '../services/gameOwnership.js';
 import { recordStatusTransition } from '../services/playLog.js';
+import { notifyFriendRecommendation } from '../services/friendRecommendations.js';
 import { getCurrentPlaytimeMinutesForGames } from '../services/playtimeTracking.js';
 import { summarizeTimeToBeat, summarizeActiveHoursToBeat, pickMostNeglectedGame, backlogAgeRanges } from '../services/backlogInsights.js';
 import { unlockBadges } from '../services/badges.js';
@@ -1072,6 +1073,8 @@ export default async function gameRoutes(app: FastifyInstance) {
 
     if (hasAny) {
       const review = toGameReviewDto(saved);
+      // A high score on a Personal Shelf game is worth telling friends who have it on their list.
+      if (game.roomId === null) void notifyFriendRecommendation(userId, game, { art, gameplay, story, sound });
       if (game.roomId === null) {
         // Attach to the most recent Beaten entry for this game, falling back to a fresh one so a
         // review saved without a prior logged transition (e.g. a sync-applied Beaten) still shows.
