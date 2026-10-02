@@ -1,3 +1,4 @@
+import { getBasePath } from '../utils/basePath';
 import { useState } from 'react';
 import { useNavigate } from 'react-router';
 import { useQueryClient } from '@tanstack/react-query';
@@ -164,6 +165,11 @@ export function NotificationsDialog() {
   );
 }
 
+/** The shareable link for a friend code: whoever opens it (once signed in) becomes the owner's friend. */
+export function friendLink(code: string): string {
+  return `${window.location.origin}${getBasePath()}/add/${code}`;
+}
+
 /** Friends list + add by code. Tapping a friend opens their profile page. */
 export function FriendsDialog() {
   const ui = useUi();
@@ -184,7 +190,8 @@ export function FriendsDialog() {
   }
 
   async function send() {
-    const c = code.trim();
+    // Accepts a pasted friend link as well as a bare code.
+    const c = (code.trim().match(/\/add\/([^/?#\s]+)/)?.[1] ?? code.trim());
     if (!c) return;
     setSending(true);
     setError(null);
@@ -231,12 +238,14 @@ export function FriendsDialog() {
             <button
               type="button"
               onClick={async () => {
-                await navigator.clipboard.writeText(friends.myCode);
-                ui.notify('Friend code copied');
+                await navigator.clipboard.writeText(friendLink(friends.myCode));
+                ui.notify('Friend link copied');
               }}
-              style={st('align-self:flex-start;border:none;background:none;padding:2px 0;color:var(--muted);font:500 12.5px var(--font-ui)')}
+              style={st('align-self:flex-start;border:none;background:none;padding:2px 0;color:var(--muted);font:500 12.5px var(--font-ui);text-align:left')}
             >
-              Your code: <span style={st('font-family:var(--font-mono);color:var(--text)')}>{friends.myCode}</span> · tap to copy
+              Share your friend link · <span style={st('color:var(--text)')}>tap to copy</span>
+              <br />
+              Anyone who opens it becomes your friend. It changes every 3 hours (code <span style={st('font-family:var(--font-mono);color:var(--text)')}>{friends.myCode}</span>).
             </button>
           )}
         </div>

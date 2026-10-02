@@ -37,14 +37,22 @@ function generateFriendCode(): string {
   return `${out.slice(0, 4)}-${out.slice(4)}`;
 }
 
-async function ensureFriendCode(userId: string): Promise<string> {
-  const existing = await prisma.user.findUniqueOrThrow({ where: { id: userId }, select: { friendCode: true } });
-  if (existing.friendCode) return existing.friendCode;
+/** A friend code (and the link built from it) is only good for this long, then it's replaced. */
+export const FRIEND_CODE_TTL_MS = 3 * 60 * 60 * 1000;
+
+/** The user's current friend code, replaced with a fresh one when missing or older than the TTL
+ * (codes issued before rotation existed have no issue time, so they rotate on first read). */
+async function ensureFriendCode(userId: string): Promise<{ code: string; expiresAt: Date }> {
+  const existing = await prisma.user.findUniqueOrThrow({ where: { id: userId }, select: { friendCode: true, friendCodeIssuedAt: true } });
+  if (existing.friendCode && existing.friendCodeIssuedAt && Date.now() - existing.friendCodeIssuedAt.getTime() < FRIEND_CODE_TTL_MS) {
+    return { code: existing.friendCode, expiresAt: new Date(existing.friendCodeIssuedAt.getTime() + FRIEND_CODE_TTL_MS) };
+  }
   for (let attempt = 0; attempt < 5; attempt++) {
     const code = generateFriendCode();
+    const issuedAt = new Date();
     try {
-      await prisma.user.update({ where: { id: userId }, data: { friendCode: code } });
-      return code;
+      await prisma.user.update({ where: { id: userId }, data: { friendCode: code, friendCodeIssuedAt: issuedAt } });
+      return { code, expiresAt: new Date(issuedAt.getTime() + FRIEND_CODE_TTL_MS) };
     } catch (err) {
       if (!(err instanceof Prisma.PrismaClientKnownRequestError && err.code === 'P2002')) throw err;
     }
@@ -176,7 +184,7 @@ async function buildFeed(
 export default async function friendRoutes(app: FastifyInstance) {
   app.get('/api/friends', async (request) => {
     const userId = await request.requireAuth();
-    const myCode = await ensureFriendCode(userId);
+    const { code: myCode, expiresAt: myCodeExpiresAt } = await ensureFriendCode(userId);
 
     const rows = await prisma.friendship.findMany({
       where: { OR: [{ requesterId: userId }, { addresseeId: userId }] },
@@ -236,6 +244,7 @@ export default async function friendRoutes(app: FastifyInstance) {
 
     const response: FriendsResponse = {
       myCode,
+      myCodeExpiresAt: myCodeExpiresAt.toISOString(),
       privateInstance: env.PRIVATE_INSTANCE,
       friends,
       incoming: incomingRows.map((r) => toRequest(r, r.requester)),
@@ -251,6 +260,7 @@ export default async function friendRoutes(app: FastifyInstance) {
       const userId = await request.requireAuth();
       if (env.PRIVATE_INSTANCE) throw new HttpError(409, 'Everyone on this server is already a friend');
       let target;
+      let viaCode = false;
       if (request.body?.userId) {
         // From a room's member list: only people you share a room with, so this can't be used to
         // poke arbitrary users by id.
@@ -263,8 +273,14 @@ export default async function friendRoutes(app: FastifyInstance) {
         const code = (request.body?.code ?? '').toUpperCase().replace(/[^A-Z0-9]/g, '');
         if (code.length !== 8) throw new HttpError(400, 'That friend code does not look right');
         const formatted = `${code.slice(0, 4)}-${code.slice(4)}`;
-        target = await prisma.user.findUnique({ where: { friendCode: formatted }, select: userSelect });
-        if (!target) throw new HttpError(404, 'No one has that friend code');
+        const owner = await prisma.user.findUnique({ where: { friendCode: formatted }, select: { ...userSelect, friendCodeIssuedAt: true } });
+        if (!owner) throw new HttpError(404, 'No one has that friend code');
+        if (!owner.friendCodeIssuedAt || Date.now() - owner.friendCodeIssuedAt.getTime() >= FRIEND_CODE_TTL_MS) {
+          throw new HttpError(410, 'That friend code has expired - ask for a new one');
+        }
+        target = owner;
+        // Using someone's current code (or link) is their say-so: you become friends straight away.
+        viaCode = true;
       }
       if (target.id === userId) throw new HttpError(400, "That's your own friend code");
 
@@ -281,6 +297,10 @@ export default async function friendRoutes(app: FastifyInstance) {
         if (existing.requesterId === userId) throw new HttpError(409, 'Request already sent');
         // They already asked us - sending a request back is the same as accepting theirs.
         await prisma.friendship.update({ where: { id: existing.id }, data: { status: 'accepted', respondedAt: new Date() } });
+        return { accepted: true, user: toFriendUser(target) };
+      }
+      if (viaCode) {
+        await prisma.friendship.create({ data: { requesterId: userId, addresseeId: target.id, status: 'accepted', respondedAt: new Date() } });
         return { accepted: true, user: toFriendUser(target) };
       }
       await prisma.friendship.create({ data: { requesterId: userId, addresseeId: target.id } });

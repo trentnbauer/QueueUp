@@ -186,6 +186,8 @@ model User {
   /// Short shareable code other users paste to send a friend request. Generated lazily the first
   /// time it's needed (GET /api/friends), so pre-existing users need no backfill.
   friendCode           String?        @unique @map("friend_code")
+  /// When the current friendCode was issued - codes expire (and are replaced on next read) after 3h.
+  friendCodeIssuedAt   DateTime?      @map("friend_code_issued_at")
 
   roomsCreated                  Room[]                         @relation("RoomCreatedBy")
   memberships                   RoomMember[]

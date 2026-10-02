@@ -1,7 +1,9 @@
 import { Navigate, Routes, Route, useLocation, useNavigate, useParams } from 'react-router';
 import { useEffect, useRef, useState } from 'react';
+import { useQueryClient } from '@tanstack/react-query';
 import { useAuth } from './context/AuthContext';
 import { authApi } from './api/auth';
+import { friendsApi } from './api/friends';
 import { useRooms } from './hooks/useRooms';
 import { useActionableNotificationToasts } from './hooks/useActionableNotificationToasts';
 import { useActiveRoomSpinToasts } from './hooks/useActiveRoomSpinToasts';
@@ -23,10 +25,35 @@ const ONBOARDED_KEY = 'sq-onboarded';
 // Stashing the code in sessionStorage lets us pick it back up and finish the join automatically once
 // the user lands back in the app authenticated.
 const PENDING_INVITE_KEY = 'sq-pending-invite';
+// Same idea for friend links (`/add/:friendCode`).
+const PENDING_FRIEND_KEY = 'sq-pending-friend';
 
 function JoinRoute() {
   const { inviteCode = '' } = useParams();
   return <JoinPage code={inviteCode} />;
+}
+
+/** `/add/:code` while signed in: using someone's friend link makes you friends straight away. */
+function AddFriendRoute() {
+  const { code = '' } = useParams();
+  const navigate = useNavigate();
+  const ui = useUi();
+  const queryClient = useQueryClient();
+  const attempted = useRef(false);
+  useEffect(() => {
+    if (attempted.current) return;
+    attempted.current = true;
+    friendsApi
+      .sendRequest({ code })
+      .then((res) => ui.notify(res.accepted ? `You and ${res.user.displayName} are friends` : `Request sent to ${res.user.displayName}`))
+      .catch((err) => ui.showError(err instanceof Error ? err.message : 'That friend link is invalid or has expired.'))
+      .finally(() => {
+        void queryClient.invalidateQueries({ queryKey: ['friends'] });
+        navigate('/', { replace: true });
+      });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [code]);
+  return null;
 }
 
 function FriendRedirect() {
@@ -85,6 +112,23 @@ export default function App() {
     if (match) sessionStorage.setItem(PENDING_INVITE_KEY, decodeURIComponent(match[1]));
   }, [location.pathname, user]);
 
+  // Same for a shared `/add/:friendCode` link: stash it, and AddFriendRoute finishes it after sign-in.
+  useEffect(() => {
+    if (user) return;
+    const match = location.pathname.match(/^\/add\/([^/]+)$/);
+    if (match) sessionStorage.setItem(PENDING_FRIEND_KEY, decodeURIComponent(match[1]));
+  }, [location.pathname, user]);
+
+  // Once signed in, finish a friend link stashed above (right after the OAuth callback redirect).
+  useEffect(() => {
+    if (!user || location.pathname.startsWith('/add/')) return;
+    const pendingCode = sessionStorage.getItem(PENDING_FRIEND_KEY);
+    if (!pendingCode) return;
+    sessionStorage.removeItem(PENDING_FRIEND_KEY);
+    navigate(`/add/${encodeURIComponent(pendingCode)}`, { replace: true });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [user, location.pathname]);
+
   // Once signed in, finish any join that was stashed above (right after the OAuth callback redirect).
   // Visiting /join/:inviteCode directly while signed in is handled by JoinPage instead.
   useEffect(() => {
@@ -135,6 +179,7 @@ export default function App() {
             <Route path="/year" element={<YearPage />} />
             <Route path="/admin" element={<AdminPage />} />
             <Route path="/join/:inviteCode" element={<JoinRoute />} />
+            <Route path="/add/:code" element={<AddFriendRoute />} />
             <Route path="*" element={<Navigate to="/" replace />} />
           </Routes>
         </AppShell>

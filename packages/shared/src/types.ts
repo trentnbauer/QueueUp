@@ -2021,6 +2021,8 @@ export interface FriendRequestDto {
 
 export interface FriendsResponse {
   myCode: string;
+  /** When myCode (and the /add/<code> link built from it) stops working; a fresh one replaces it. */
+  myCodeExpiresAt: string;
   /** True on a PRIVATE_INSTANCE: everyone is a friend, so the UI hides friend codes and requests. */
   privateInstance: boolean;
   friends: FriendSummary[];
