@@ -1,6 +1,6 @@
 import type { MouseEvent, ReactNode } from 'react';
 import type { Game, VoteValue } from '@queueup/shared';
-import { VOTES, VOTE_VALUES, isNewRelease, releaseLabel, shortDate } from '../lib/gameView';
+import { VOTES, VOTE_VALUES, isNewRelease, releaseLabel, reviewAverage, shortDate } from '../lib/gameView';
 import { Cover, coverBg, GOLD, GOLD_RING, TrophyBadge } from '../ui/primitives';
 import { st } from '../ui/st';
 import type { RowItem } from './derive';
@@ -130,6 +130,7 @@ export function DesktopRow({ item, showRank, bulk, selected, active, onOpen, onV
         <span style={st(`font:600 13px var(--font-ui);color:${item.priceOwned ? 'var(--mint)' : 'var(--text)'};white-space:nowrap`)}>{item.priceLabel}</span>
         <span style={st('font:500 11.5px var(--font-ui);color:var(--faint);white-space:nowrap')}>{item.ownSub}</span>
       </span>
+      <ReviewScore g={g} />
       {!bulk && <VoteSegment myVote={item.myVote} onVote={onVote} variant="inline" />}
       <ScoreCol item={item} width={52} size={19} />
     </div>
@@ -142,6 +143,19 @@ function ScoreCol({ item, width, size }: { item: RowItem; width: number; size: n
       <span style={st(`font:700 ${size}px var(--font-display);color:${item.scoreHot ? 'var(--pos)' : 'var(--faint)'}`)}>{item.scoreLabel}</span>
       <span style={st('font:500 10.5px var(--font-mono);color:var(--faint);white-space:nowrap')}>{item.countLabel}</span>
     </div>
+  );
+}
+
+/** Your own review score for the game as "4.3/5" (average of the scored categories); nothing when
+ * there's no review or it has no scores. */
+function ReviewScore({ g }: { g: Game }) {
+  const avg = g.review ? reviewAverage(g.review) : null;
+  if (avg === null) return null;
+  return (
+    <span title="Your review" style={st('flex-shrink:0;display:flex;align-items:center;gap:4px;font:700 14px var(--font-display);color:var(--accText);white-space:nowrap')}>
+      <span aria-hidden="true">★</span>
+      {avg.toFixed(1)}/5
+    </span>
   );
 }
 
@@ -172,7 +186,10 @@ export function MobileRow({ item, showRank, bulk, selected, onOpen, onVote }: Ro
             </span>
           </span>
         </div>
-        {!bulk && <VoteSegment myVote={item.myVote} onVote={onVote} variant="mobile" />}
+        <div style={st('display:flex;align-items:center;gap:12px;min-width:0')}>
+          {!bulk && <VoteSegment myVote={item.myVote} onVote={onVote} variant="mobile" />}
+          <ReviewScore g={g} />
+        </div>
       </div>
       <ScoreCol item={item} width={44} size={18} />
     </div>
