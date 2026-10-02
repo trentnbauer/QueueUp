@@ -11,6 +11,7 @@ const BASE = {
   actorId: 'user-trent',
   actor: null,
   gameId: null,
+  emailedAt: null,
 };
 
 describe('serializeNotification', () => {
