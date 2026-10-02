@@ -27,6 +27,7 @@ import friendRoutes from './routes/friends.js';
 import playTogetherRoutes from './routes/playTogether.js';
 import feedReactionRoutes from './routes/feedReactions.js';
 import notificationPreferenceRoutes from './routes/notificationPreferences.js';
+import alertEmailRoutes from './routes/alertEmail.js';
 import { env } from './config/env.js';
 import { redis } from './services/redisClient.js';
 import { logCaptureStream } from './services/logBuffer.js';
@@ -150,6 +151,7 @@ export async function buildApp() {
       await instance.register(friendRoutes);
       await instance.register(playTogetherRoutes);
       await instance.register(notificationPreferenceRoutes);
+      await instance.register(alertEmailRoutes);
       await instance.register(feedReactionRoutes);
       // Bearer-token-authenticated, scoped under its own prefix and preHandler (see apiV1.ts) -
       // registered as a distinct plugin, not folded into gameRoutes/roomRoutes, so its auth hook

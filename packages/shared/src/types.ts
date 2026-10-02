@@ -1176,6 +1176,25 @@ export interface NotificationPreferenceDto {
   inApp: boolean;
 }
 
+/** GET /api/me/alert-email. `alertEmail` is the address the person set (null = use the account
+ * email); `pending` is a new address still waiting to be confirmed from the emailed link. */
+export interface AlertEmailResponse {
+  accountEmail: string;
+  alertEmail: string | null;
+  effectiveEmail: string;
+  pending: string | null;
+}
+
+/** Body for PUT /api/me/alert-email. An empty or null email goes back to the account email. */
+export interface SetAlertEmailRequest {
+  email: string | null;
+}
+
+/** `saved` took effect straight away; `confirmation_sent` takes effect once the emailed link is opened. */
+export interface SetAlertEmailResponse {
+  status: 'saved' | 'confirmation_sent';
+}
+
 export interface NotificationPreferencesResponse {
   /** True when the server can send email, so the email switches do something. */
   emailAvailable: boolean;
