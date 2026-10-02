@@ -15,7 +15,10 @@ const { createBackup, rotateBackups, getBackupSettings } = await import('../serv
  * push - no backup, no destructive change. */
 try {
   const info = await createBackup('pre-schema-push');
-  await rotateBackups((await getBackupSettings()).retention).catch(() => undefined);
+  // Housekeeping only: the backup is already safely written, so a failure here must not abort the deploy.
+  await getBackupSettings()
+    .then((settings) => rotateBackups(settings.retention))
+    .catch(() => undefined);
   console.log(`[schema-push] Backed up the database to ${info.name} before applying a destructive schema change.`);
   await prisma.$disconnect();
 } catch (err) {
