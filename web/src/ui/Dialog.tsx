@@ -7,6 +7,25 @@ import { st } from './st';
 // Nested dialogs (e.g. the barcode scanner opened over Add game) stack above their parent.
 const DepthContext = createContext(0);
 
+// Several dialogs can be open at once (a game card and the review sheet it opens). Each one used to
+// save and restore body overflow on its own, so closing them in a different order than they opened
+// restored "hidden" last and left the page unable to scroll. One shared count avoids that: the page
+// unlocks only when the last dialog closes.
+let scrollLocks = 0;
+let scrollBefore = '';
+
+function lockPageScroll(): () => void {
+  if (scrollLocks === 0) {
+    scrollBefore = document.body.style.overflow;
+    document.body.style.overflow = 'hidden';
+  }
+  scrollLocks += 1;
+  return () => {
+    scrollLocks = Math.max(0, scrollLocks - 1);
+    if (scrollLocks === 0) document.body.style.overflow = scrollBefore;
+  };
+}
+
 interface DialogProps {
   onClose: () => void;
   /** Plain-text title (rendered in the standard header) - or pass `header` for a custom one. */
@@ -74,13 +93,7 @@ export function Dialog({
   const z = 60 + depth * 4;
 
   // Lock page scroll behind the dialog.
-  useEffect(() => {
-    const prev = document.body.style.overflow;
-    document.body.style.overflow = 'hidden';
-    return () => {
-      document.body.style.overflow = prev;
-    };
-  }, []);
+  useEffect(() => lockPageScroll(), []);
 
   const shell: CSSProperties = mobile
     ? {
