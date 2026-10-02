@@ -8,6 +8,7 @@ import {
   type GameSearchResult,
   type RoomPlatform,
 } from '@queueup/shared';
+import { authApi } from '../api/auth';
 import { gamesApi } from '../api/games';
 import { useAnnounceUnlock } from '../context/AchievementUnlockContext';
 import { useAuth } from '../context/AuthContext';
@@ -92,6 +93,8 @@ function OwnershipStep({
   onBack: () => void;
 }) {
   const year = new Date().getFullYear();
+  const { ownedPlatforms, refetch } = useAuth();
+  const [addingSystems, setAddingSystems] = useState(false);
   const [owned, setOwned] = useState(forced != null || result.releaseYear === null || result.releaseYear <= year);
   // Nothing is pre-ticked: you pick the platform(s) you own it on. A scanned physical copy is the
   // exception, since the scan already says which platform it's for.
@@ -116,6 +119,18 @@ function OwnershipStep({
       else next.add(p);
       return next;
     });
+  // Not blocked: you can own a game on a system you haven't listed in your profile. We just point it
+  // out and offer to add the system. (An empty list means "every platform", so nothing to warn about.)
+  const missingSystems = owned && ownedPlatforms.length > 0 ? Array.from(platforms).filter((p) => !ownedPlatforms.includes(p)) : [];
+  async function addSystemsToProfile() {
+    setAddingSystems(true);
+    try {
+      await authApi.updateOwnedPlatforms([...ownedPlatforms, ...missingSystems]);
+      await refetch();
+    } finally {
+      setAddingSystems(false);
+    }
+  }
   return (
     <>
       <div style={st(ROW)}>
@@ -125,6 +140,16 @@ function OwnershipStep({
           <span style={st('font:400 12.5px var(--font-ui);color:var(--muted)')}>{result.platform}</span>
         </div>
       </div>
+      {missingSystems.length > 0 && (
+        <div role="status" style={st('display:flex;flex-direction:column;gap:10px;padding:12px 14px;border-radius:14px;background:var(--surf);border:1px solid var(--line);font:500 13.5px/1.4 var(--font-ui)')}>
+          <span>
+            {missingSystems.map((p) => ROOM_PLATFORM_LABELS[p]).join(', ')} {missingSystems.length === 1 ? "isn't" : "aren't"} in your owned systems. You can still add this game.
+          </span>
+          <Btn kind="soft" height={38} fontSize={13} disabled={busy || addingSystems} onClick={addSystemsToProfile} style={{ alignSelf: 'flex-start' }}>
+            {addingSystems ? 'Adding…' : `Add ${missingSystems.map((p) => ROOM_PLATFORM_LABELS[p]).join(', ')} to my systems`}
+          </Btn>
+        </div>
+      )}
       {error && <div role="alert" style={st('padding:12px 14px;border-radius:14px;background:var(--errBg);border:1px solid var(--errLine);font:500 13.5px/1.4 var(--font-ui)')}>{error}</div>}
       <div style={st('display:grid;grid-template-columns:1fr 1fr;gap:2px;padding:4px;border-radius:999px;background:var(--surf)')}>
         {(

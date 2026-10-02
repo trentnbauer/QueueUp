@@ -1132,7 +1132,7 @@ export default async function gameRoutes(app: FastifyInstance) {
         await prisma.game.update({ where: { id: shelfGame.id }, data: { status: 'done' } });
         await recordStatusTransition(shelfGame.id, shelfGame.status, 'done');
       } else {
-        const resolved = await resolveGameForCreation(game.igdbId, await getOwnedPlatforms(userId));
+        const resolved = await resolveGameForCreation(game.igdbId);
         try {
           const created = await prisma.game.create({
             data: {

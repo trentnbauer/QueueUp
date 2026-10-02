@@ -24,7 +24,7 @@ import {
 import { getRoom, requireMembership } from './roomAccess.js';
 import { serializeGame } from './gameSerializer.js';
 import { setOwnershipPlatforms } from './gameOwnership.js';
-import { getOwnedPlatforms, VALID_PLATFORMS } from './userSettings.js';
+import { VALID_PLATFORMS } from './userSettings.js';
 import { notifyRoom } from './notifications.js';
 import { logShelfActivity } from './roomActivity.js';
 import { toUserDto } from '../util/dto.js';
@@ -364,9 +364,10 @@ export async function createGameForUser(
     };
   }
 
-  // A platform-less room (issue #473) resolves candidates the same way the Personal Shelf does -
-  // off the adding user's own owned platforms - since there's no single room platform to pin to.
-  const platforms = room?.platform ? [room.platform] : await getOwnedPlatforms(userId);
+  // Only a room pinned to one platform restricts what can be added. The Personal Shelf and
+  // platform-less rooms (issue #473) accept any game: owning it on a system that isn't in your
+  // profile's owned systems is allowed, and the add dialog just offers to add that system.
+  const platforms = room?.platform ? [room.platform] : undefined;
   await requireNotDuplicate(roomId ?? null, userId, igdbId);
 
   const resolved = await resolveGameForCreation(igdbId, platforms);
