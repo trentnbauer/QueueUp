@@ -3,6 +3,7 @@ import { createPortal } from 'react-dom';
 import { Html5Qrcode, Html5QrcodeSupportedFormats } from 'html5-qrcode';
 import type { BarcodeGameMatch } from '@queueup/shared';
 import { gamesApi } from '../api/games';
+import { useKeepScreenAwake } from '../hooks/useKeepScreenAwake';
 import { useModalA11y } from '../hooks/useModalA11y';
 import { Cover } from '../ui/primitives';
 import { st } from '../ui/st';
@@ -18,6 +19,7 @@ const CORNER = (pos: string, radius: string) =>
  * an inline error and scanning resumes. */
 export function BarcodeScanner({ onPick, onClose }: { onPick: (match: BarcodeGameMatch) => void; onClose: () => void }) {
   const ref = useModalA11y<HTMLDivElement>(onClose);
+  useKeepScreenAwake();
   const [cameraError, setCameraError] = useState<string | null>(null);
   const [starting, setStarting] = useState(true);
   const [value, setValue] = useState('');

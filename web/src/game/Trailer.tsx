@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import { gamesApi } from '../api/games';
+import { useKeepScreenAwake } from '../hooks/useKeepScreenAwake';
 import { Dialog } from '../ui/Dialog';
 import { st } from '../ui/st';
 
@@ -36,8 +37,9 @@ export function useTrailer(gameId: string, auto = false) {
   return { state, load, reset: () => setState({ kind: 'idle' }) };
 }
 
-/** A 16:9 YouTube (no-cookie) player that fills its container. */
+/** A 16:9 YouTube (no-cookie) player that fills its container. Keeps the screen awake while it's open. */
 export function TrailerPlayer({ youtubeId, radius = 16 }: { youtubeId: string; radius?: number }) {
+  useKeepScreenAwake();
   return (
     <div style={st(`position:relative;width:100%;aspect-ratio:16/9;border-radius:${radius}px;overflow:hidden;background:#000`)}>
       <iframe
