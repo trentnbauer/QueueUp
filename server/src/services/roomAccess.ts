@@ -43,6 +43,17 @@ export async function requireElevated(roomId: string, userId: string) {
   return membership;
 }
 
+/** Room Master/Moderator always; a plain member only when the room lets members invite. */
+export async function requireCanInvite(roomId: string, userId: string) {
+  const membership = await requireMembership(roomId, userId);
+  if (membership.role === 'room_master' || membership.role === 'moderator') return membership;
+  const room = await prisma.room.findUniqueOrThrow({ where: { id: roomId }, select: { invitePermission: true } });
+  if (room.invitePermission !== 'members') {
+    throw new HttpError(403, 'Only the Room Master or a Moderator can invite people to this room');
+  }
+  return membership;
+}
+
 // A room's invite code is its sole access-control secret, so it needs a CSPRNG rather than
 // Math.random() (whose internal state can potentially be inferred from observed outputs).
 const INVITE_CODE_ALPHABET = 'abcdefghijklmnopqrstuvwxyz0123456789';
