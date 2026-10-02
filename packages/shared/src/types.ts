@@ -2143,6 +2143,10 @@ export interface FeedReactionSummary {
   emoji: string;
   count: number;
   mine: boolean;
+  /** Display names of the other people who used this emoji and are friends of the viewer. Reactors the
+   * viewer isn't friends with are only counted (in `count`), never named. The viewer is not listed
+   * here (see `mine`). */
+  names: string[];
 }
 
 /** Body for POST /api/feed-reactions. A null emoji removes the viewer's reaction. */
