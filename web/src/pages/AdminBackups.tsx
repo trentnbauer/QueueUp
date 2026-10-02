@@ -93,7 +93,7 @@ function SessionKeyDialog({
   );
 }
 
-const KIND_LABEL: Record<AdminBackupInfo['kind'], string> = { nightly: 'Scheduled', manual: 'Manual', 'pre-restore': 'Before a restore' };
+const KIND_LABEL: Record<AdminBackupInfo['kind'], string> = { nightly: 'Scheduled', manual: 'Manual', 'pre-restore': 'Before a restore', 'pre-schema-push': 'Before a schema change' };
 
 /** Administrator menu > Backups: nightly backup settings (on by default, editable cron), the stored
  * backups, back up now, download, delete, restore, and import from a file. */
