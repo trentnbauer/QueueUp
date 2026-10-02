@@ -90,6 +90,7 @@ function SystemsDialog({ onClose }: { onClose: () => void }) {
 function ApiKeysDialog({ onClose }: { onClose: () => void }) {
   const queryClient = useQueryClient();
   const ui = useUi();
+  const confirm = useConfirm();
   const [label, setLabel] = useState('');
   const [fresh, setFresh] = useState<string | null>(null);
   const { data } = useQuery({ queryKey: API_KEYS_QUERY_KEY, queryFn: apiKeysApi.list });
@@ -102,6 +103,10 @@ function ApiKeysDialog({ onClose }: { onClose: () => void }) {
     },
   });
   const revoke = useMutation({ mutationFn: apiKeysApi.revoke, onSuccess: () => queryClient.invalidateQueries({ queryKey: API_KEYS_QUERY_KEY }) });
+  async function confirmRevoke(id: string, keyLabel: string) {
+    const ok = await confirm({ title: `Revoke "${keyLabel}"?`, message: 'Anything using this key stops working straight away.', confirmLabel: 'Revoke', danger: true });
+    if (ok) revoke.mutate(id);
+  }
   const active = (data?.keys ?? []).filter((k) => !k.revokedAt);
   const err = create.error ?? revoke.error;
 
@@ -147,7 +152,7 @@ function ApiKeysDialog({ onClose }: { onClose: () => void }) {
                   Created {formatRelativeTime(k.createdAt)} · {k.lastUsedAt ? `Last used ${formatRelativeTime(k.lastUsedAt)}` : 'Never used'}
                 </span>
               </span>
-              <Btn kind="ghost" height={34} padX={10} fontSize={12.5} disabled={revoke.isPending && revoke.variables === k.id} onClick={() => revoke.mutate(k.id)}>
+              <Btn kind="ghost" height={34} padX={10} fontSize={12.5} disabled={revoke.isPending && revoke.variables === k.id} onClick={() => void confirmRevoke(k.id, k.label)}>
                 Revoke
               </Btn>
             </div>

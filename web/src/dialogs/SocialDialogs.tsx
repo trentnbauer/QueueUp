@@ -131,6 +131,11 @@ export function NotificationsDialog() {
     navigate(to);
   }
 
+  async function declineRequest(id: string, name: string) {
+    const ok = await confirm({ title: `Decline ${name}?`, message: 'They can send another request later.', confirmLabel: 'Decline', danger: true });
+    if (ok) await act(() => friends.removeRequest(id), 'Request declined');
+  }
+
   async function act(fn: () => Promise<unknown>, done: string) {
     setError(null);
     try {
@@ -170,7 +175,7 @@ export function NotificationsDialog() {
               <span style={st('flex:1;min-width:0;font:500 14px/1.35 var(--font-ui)')}>
                 <b style={{ fontWeight: 600 }}>{r.user.displayName}</b> wants to be friends
               </span>
-              <Btn kind="ghost" height={34} padX={8} fontSize={12.5} onClick={() => act(() => friends.removeRequest(r.id), 'Request declined')}>
+              <Btn kind="ghost" height={34} padX={8} fontSize={12.5} onClick={() => void declineRequest(r.id, r.user.displayName)}>
                 Decline
               </Btn>
               <Btn kind="text" height={34} padX={14} fontSize={12.5} weight={700} onClick={() => act(() => friends.accept(r.id), `You and ${r.user.displayName} are friends`)}>
@@ -271,6 +276,15 @@ export function FriendsDialog() {
     }
   }
 
+  async function dropRequest(id: string, name: string, cancel: boolean) {
+    const ok = await confirm(
+      cancel
+        ? { title: `Cancel your request to ${name}?`, message: 'You can send another one later.', confirmLabel: 'Cancel request', danger: true }
+        : { title: `Decline ${name}?`, message: 'They can send another request later.', confirmLabel: 'Decline', danger: true },
+    );
+    if (ok) await resolve(() => friends.removeRequest(id), cancel ? 'Request cancelled' : 'Request declined');
+  }
+
   async function resolve(fn: () => Promise<unknown>, done: string) {
     try {
       await fn();
@@ -356,7 +370,7 @@ export function FriendsDialog() {
                   <span style={st('font:600 14px var(--font-ui)')}>{r.user.displayName}</span>
                   <span style={st('font:400 12.5px var(--font-ui);color:var(--muted)')}>Wants to be friends</span>
                 </span>
-                <Btn kind="ghost" height={34} padX={8} fontSize={12.5} onClick={() => resolve(() => friends.removeRequest(r.id), 'Request declined')}>
+                <Btn kind="ghost" height={34} padX={8} fontSize={12.5} onClick={() => void dropRequest(r.id, r.user.displayName, false)}>
                   Decline
                 </Btn>
                 <Btn kind="text" height={34} padX={14} fontSize={12.5} weight={700} onClick={() => resolve(() => friends.accept(r.id), `You and ${r.user.displayName} are friends`)}>
@@ -371,7 +385,7 @@ export function FriendsDialog() {
                   <span style={st('font:600 14px var(--font-ui)')}>{r.user.displayName}</span>
                   <span style={st('font:400 12.5px var(--font-ui);color:var(--muted)')}>Request sent · waiting for a reply</span>
                 </span>
-                <Btn kind="ghost" height={34} padX={10} fontSize={12.5} onClick={() => resolve(() => friends.removeRequest(r.id), 'Request cancelled')}>
+                <Btn kind="ghost" height={34} padX={10} fontSize={12.5} onClick={() => void dropRequest(r.id, r.user.displayName, true)}>
                   Cancel
                 </Btn>
               </div>
