@@ -512,7 +512,7 @@ export function RoomSettingsDialog() {
             const editable = canManage && m.user.id !== user?.id && m.role !== 'room_master' && (isMaster || m.role === 'member');
             return (
               <div key={m.user.id} style={st('display:flex;align-items:center;gap:12px;min-height:58px;padding:8px 10px 8px 14px;background:var(--surf)')}>
-                <Avatar name={m.user.displayName} color={m.user.avatarColor} avatarUrl={m.user.avatarUrl} size={32} fontSize={13} />
+                <Avatar name={m.user.displayName} color={m.user.avatarColor} avatarUrl={m.user.avatarUrl} size={32} fontSize={13} profileUserId={m.user.id === user?.id ? undefined : m.user.id} onOpenProfile={close} />
                 <span style={st('flex:1;min-width:0;font:600 14.5px var(--font-ui);white-space:nowrap;overflow:hidden;text-overflow:ellipsis')}>{m.user.displayName}</span>
                 {m.user.id !== user?.id && !friends.privateInstance && <FriendStatus userId={m.user.id} name={m.user.displayName} friends={friends} notify={ui.notify} onError={setError} />}
                 {editable ? (
@@ -550,7 +550,7 @@ export function RoomSettingsDialog() {
             <Group>
               {candidates.data!.users.map((c) => (
                 <div key={c.id} style={st('display:flex;align-items:center;gap:12px;min-height:56px;padding:8px 10px 8px 14px;background:var(--surf)')}>
-                  <Avatar name={c.displayName} color={c.avatarColor} avatarUrl={c.avatarUrl} size={32} fontSize={13} />
+                  <Avatar name={c.displayName} color={c.avatarColor} avatarUrl={c.avatarUrl} size={32} fontSize={13} profileUserId={c.id} onOpenProfile={close} />
                   <span style={st('flex:1;min-width:0;font:600 14.5px var(--font-ui)')}>{c.displayName}</span>
                   <Btn kind="soft" height={34} padX={14} fontSize={12.5} onClick={() => addMember(c.id, c.displayName)}>
                     Add
