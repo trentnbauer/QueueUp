@@ -15,7 +15,7 @@ import { useAuth } from '../context/AuthContext';
 import { useScope } from '../context/ScopeContext';
 import { useUi } from '../context/UiContext';
 import { Dialog } from '../ui/Dialog';
-import { Btn, ChipToggle, Cover, Kicker, inputPill } from '../ui/primitives';
+import { Btn, ChipToggle, Cover, Kicker, SearchField, inputPill } from '../ui/primitives';
 import { st } from '../ui/st';
 
 const BarcodeScanner = lazy(() => import('./BarcodeScanner').then((m) => ({ default: m.BarcodeScanner })));
@@ -565,14 +565,14 @@ export function AddGameDialog() {
         top={
           pending || collection ? undefined : (
             <div style={st('padding:0 20px 12px;display:flex;flex-direction:column;gap:10px;flex-shrink:0')}>
-              <input
+              <SearchField
                 value={query}
-                onChange={(e) => setQuery(e.target.value)}
+                onChange={setQuery}
                 placeholder="Search games"
-                aria-label="Search games"
+                ariaLabel="Search games"
                 autoFocus
                 disabled={busy}
-                style={st('height:48px;padding:0 18px;border-radius:999px;background:var(--surf);border:1px solid var(--line);color:var(--text);font-size:16px;outline:none')}
+                style="height:48px;padding-left:18px;border-radius:999px;background:var(--surf);border:1px solid var(--line);color:var(--text);font-size:16px;outline:none"
               />
               <div style={st('display:flex;gap:8px;flex-wrap:wrap')}>
                 {roomId === null && (

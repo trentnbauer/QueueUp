@@ -465,3 +465,50 @@ export function Group({ children, style }: { children: ReactNode; style?: CSSPro
 /** Text input in the design's pill style. */
 export const inputPill = 'height:44px;padding:0 16px;border-radius:999px;background:var(--surf);border:1px solid var(--chip);color:var(--text);font-size:15px;outline:none';
 export const inputField = 'height:44px;padding:0 14px;border-radius:999px;background:var(--bg);border:1px solid var(--line);color:var(--text);font-size:15px;outline:none';
+
+/** A search box with an × inside it that clears the text in one tap (shown only while there is text). */
+export function SearchField({
+  value,
+  onChange,
+  placeholder,
+  ariaLabel,
+  style,
+  wrapStyle,
+  autoFocus,
+  disabled,
+}: {
+  value: string;
+  onChange: (value: string) => void;
+  placeholder: string;
+  ariaLabel: string;
+  /** Declarations for the input itself (height, background, border...). */
+  style: string;
+  /** Declarations for the wrapper, which is what takes part in the surrounding flex/grid layout. */
+  wrapStyle?: string;
+  autoFocus?: boolean;
+  disabled?: boolean;
+}) {
+  return (
+    <div style={st('position:relative;display:flex;min-width:0;' + (wrapStyle ?? ''))}>
+      <input
+        value={value}
+        onChange={(e) => onChange(e.target.value)}
+        placeholder={placeholder}
+        aria-label={ariaLabel}
+        autoFocus={autoFocus}
+        disabled={disabled}
+        style={st('flex:1;min-width:0;padding-right:44px;' + style)}
+      />
+      {value && !disabled && (
+        <button
+          type="button"
+          aria-label="Clear search"
+          onClick={() => onChange('')}
+          style={st('position:absolute;right:6px;top:50%;transform:translateY(-50%);width:32px;height:32px;border-radius:50%;border:none;background:var(--chip);color:var(--text2);font-size:16px;line-height:1')}
+        >
+          ×
+        </button>
+      )}
+    </div>
+  );
+}
