@@ -213,14 +213,14 @@ type FriendsApi = ReturnType<typeof useFriends>;
  * you, or a button to send one. */
 export function FriendStatus({ userId, name, friends, notify, onError }: { userId: string; name: string; friends: FriendsApi; notify: (m: string) => void; onError: (m: string) => void }) {
   const [busy, setBusy] = useState(false);
-  // Flip to "Requested" right away instead of waiting for the friends list to refetch.
+  // Flip to "Request sent" right away instead of waiting for the friends list to refetch.
   const [sent, setSent] = useState(false);
   const chip = 'height:28px;padding:0 10px;border-radius:999px;display:flex;align-items:center;font:600 12px var(--font-ui);white-space:nowrap';
   if (friends.friends.some((f) => f.id === userId)) {
     return <span style={st(`${chip};background:var(--mintSoft);color:var(--mint)`)}>✓ Friend</span>;
   }
   if (sent || friends.outgoing.some((r) => r.user.id === userId)) {
-    return <span style={st(`${chip};background:var(--chip);color:var(--muted)`)}>Requested</span>;
+    return <span style={st(`${chip};background:var(--chip);color:var(--muted)`)}>Request sent</span>;
   }
   const incoming = friends.incoming.find((r) => r.user.id === userId);
   async function run(fn: () => Promise<unknown>, done: string) {
