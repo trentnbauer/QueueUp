@@ -13,12 +13,23 @@ export function useStableOrder<T extends { id: string }>(list: T[], key: string)
   const kept = useRef<{ key: string; ids: string[] } | null>(null);
 
   return useMemo(() => {
-    const previous = kept.current;
-    if (previous && previous.key === key && previous.ids.length === list.length) {
-      const byId = new Map(list.map((g) => [g.id, g]));
-      if (previous.ids.every((id) => byId.has(id))) return previous.ids.map((id) => byId.get(id)!);
-    }
-    kept.current = { key, ids: list.map((g) => g.id) };
-    return list;
+    const { items, ids } = stableOrder(kept.current, list, key);
+    kept.current = ids;
+    return items;
   }, [list, key]);
+}
+
+/** The pure part of useStableOrder: given the order kept from last time (or null), the freshly
+ * sorted list and the view key, returns what to show and what to keep. The kept order is reused
+ * only for the same view and the same set of games. */
+export function stableOrder<T extends { id: string }>(
+  previous: { key: string; ids: string[] } | null,
+  list: T[],
+  key: string,
+): { items: T[]; ids: { key: string; ids: string[] } } {
+  if (previous && previous.key === key && previous.ids.length === list.length) {
+    const byId = new Map(list.map((g) => [g.id, g]));
+    if (previous.ids.every((id) => byId.has(id))) return { items: previous.ids.map((id) => byId.get(id)!), ids: previous };
+  }
+  return { items: list, ids: { key, ids: list.map((g) => g.id) } };
 }

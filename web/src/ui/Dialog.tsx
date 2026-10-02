@@ -14,7 +14,7 @@ const DepthContext = createContext(0);
 let scrollLocks = 0;
 let scrollBefore = '';
 
-function lockPageScroll(): () => void {
+export function lockPageScroll(): () => void {
   if (scrollLocks === 0) {
     scrollBefore = document.body.style.overflow;
     document.body.style.overflow = 'hidden';

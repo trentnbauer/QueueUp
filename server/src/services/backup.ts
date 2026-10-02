@@ -129,7 +129,7 @@ export function isBackupName(name: string): boolean {
   return FILE_RE.test(name);
 }
 
-function assertName(name: string): string {
+export function assertName(name: string): string {
   if (typeof name !== 'string' || !isBackupName(name)) throw new HttpError(400, 'Not a QueueUp backup file name');
   // Belt and braces on top of the name check: the resolved path must stay inside the backup folder.
   const dir = path.resolve(backupDir());

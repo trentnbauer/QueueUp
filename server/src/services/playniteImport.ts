@@ -1,5 +1,6 @@
 import type { Prisma } from '@prisma/client';
 import { prisma } from '../db/client.js';
+import { orderCandidates } from './matchSuggestions.js';
 import { redis } from './redisClient.js';
 import { findIgdbIdByExactTitle, normalizeGameTitleForComparison, searchGames } from './igdbClient.js';
 import type { GameSearchResult, PendingImportCandidate, PendingLibraryImportDto, PlayniteImportProgress, RoomPlatform } from '@queueup/shared';
@@ -87,8 +88,6 @@ export async function recordTitleMatchSuggestion(source: string, title: string, 
   });
 }
 
-const MAX_SUGGESTIONS = 3;
-
 /** Puts what other people matched each title to at the front of its candidates, most-picked first
  * (at most MAX_SUGGESTIONS, never the viewer's own picks). Cover/title come from a game already in
  * the database, so this costs no IGDB call; a suggestion with no such game is skipped. A candidate
@@ -117,17 +116,8 @@ async function withSuggestions(
     const key = keys[i];
     const mine = picks
       .filter((p) => p.source === key.source && p.normalizedTitle === key.normalizedTitle)
-      .sort((a, b) => b._count.userId - a._count.userId)
-      .slice(0, MAX_SUGGESTIONS);
-    const suggested: PendingImportCandidate[] = [];
-    for (const pick of mine) {
-      const fromIgdb = row.candidates.find((c) => c.igdbId === pick.igdbId);
-      const game = byId.get(pick.igdbId);
-      const base = fromIgdb ?? (game ? { igdbId: game.igdbId, title: game.title, platform: game.platform, coverImageUrl: game.coverImageUrl, releaseYear: game.releaseYear } : null);
-      if (base) suggested.push({ ...base, suggestedBy: pick._count.userId });
-    }
-    const rest = row.candidates.filter((c) => !suggested.some((s) => s.igdbId === c.igdbId));
-    return [...suggested, ...rest];
+      .map((p) => ({ igdbId: p.igdbId, count: p._count.userId }));
+    return orderCandidates(row.candidates, mine, byId);
   });
 }
 
