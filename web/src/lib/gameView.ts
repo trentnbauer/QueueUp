@@ -85,6 +85,7 @@ export const SHELF_TABS: TabDef[] = [
 /** Shelf filters tucked behind the "+" button: game lists by status, plus two lists of synced titles
  * that never became games (they have no status, see HomeView's PendingImportsList). */
 export const SHELF_MORE_TABS: TabDef[] = [
+  { id: 'paused', label: 'Paused', statuses: ['paused'] },
   { id: 'dropped', label: 'Dropped', statuses: ['dropped'] },
   { id: 'wont_play', label: "Won't play", statuses: ['wont_play'] },
 ];

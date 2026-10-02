@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import type { Game } from '@queueup/shared';
-import { ROOM_TABS, SHELF_TABS } from '../lib/gameView';
+import { ROOM_TABS, SHELF_MORE_TABS, SHELF_TABS } from '../lib/gameView';
 import { buildHomeLists } from './derive';
 
 const DAY = 864e5;
@@ -59,6 +59,16 @@ describe('buildHomeLists', () => {
     const done = game({ title: 'Finished thing', status: 'done' });
     expect(ids(buildHomeLists([next, done], { isShelf: true, tabs: SHELF_TABS, tab: 'playing', query: '' }).playNext)).toEqual(['Queued next']);
     expect(ids(buildHomeLists([next, done], { isShelf: true, tabs: SHELF_TABS, tab: 'playing', query: 'finished' }).list)).toEqual(['Finished thing']);
+  });
+
+  it('Paused games get their own filter under the plus menu and also show in the Play Next section', () => {
+    const paused = game({ title: 'On hold', status: 'paused' });
+    const other = game({ title: 'Other', status: 'backlog' });
+    const tabs = [...SHELF_TABS, ...SHELF_MORE_TABS];
+    const filter = buildHomeLists([paused, other], { isShelf: true, tabs, tab: 'paused', query: '' });
+    expect(ids(filter.list)).toEqual(['On hold']);
+    expect(filter.counts.paused).toBe(1);
+    expect(ids(buildHomeLists([paused, other], { isShelf: true, tabs, tab: 'playing', query: '' }).playNext)).toEqual(['On hold']);
   });
 
   it('counts per tab', () => {
