@@ -147,6 +147,15 @@ export const envSchema = z.object({
   TURNSTILE_SITE_KEY: optionalEnvVar(z.string().min(1)),
   TURNSTILE_SECRET_KEY: optionalEnvVar(z.string().min(1)),
 
+  // SMTP email alerts - the server that sends notification emails. Host, port and from-address are
+  // needed to turn it on; user/password are optional (an open relay). Same
+  // env-or-admin-Settings-fallback pattern as the keys above; unset just means no email is sent.
+  SMTP_HOST: optionalEnvVar(z.string().min(1)),
+  SMTP_PORT: optionalEnvVar(z.string().min(1)),
+  SMTP_USER: optionalEnvVar(z.string().min(1)),
+  SMTP_PASSWORD: optionalEnvVar(z.string().min(1)),
+  SMTP_FROM: optionalEnvVar(z.string().min(1)),
+
   // Cloudflare Tunnel (issue #664) - with a token set, the server runs cloudflared itself so the app
   // is reachable through Cloudflare without opening a port. Settable in Administrator settings too.
   // CLOUDFLARED_PATH only matters outside the Docker image, which ships the binary on PATH.

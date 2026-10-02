@@ -5,6 +5,7 @@ import { PRICE_REGION_LABELS, ROOM_PLATFORM_LABELS, sortPlatforms, type PriceReg
 import { apiKeysApi, API_KEYS_QUERY_KEY } from '../api/apiKeys';
 import { authApi } from '../api/auth';
 import { badgesApi } from '../api/badges';
+import { NOTIFICATION_PREFERENCES_QUERY_KEY, notificationPreferencesApi } from '../api/notificationPreferences';
 import { useAuth } from '../context/AuthContext';
 import { useCardDensity } from '../context/CardDensityContext';
 import { useConfirm } from '../context/ConfirmContext';
@@ -83,6 +84,58 @@ function SystemsDialog({ onClose }: { onClose: () => void }) {
           onClose();
         }}
       />
+    </Dialog>
+  );
+}
+
+/** Which alerts you get: email (needs SMTP set up on the server) and, for the newer alert types, the bell. */
+function NotificationsDialog({ onClose }: { onClose: () => void }) {
+  const queryClient = useQueryClient();
+  const { data, isLoading } = useQuery({ queryKey: NOTIFICATION_PREFERENCES_QUERY_KEY, queryFn: notificationPreferencesApi.get });
+  const [error, setError] = useState<string | null>(null);
+  const set = useMutation({
+    mutationFn: notificationPreferencesApi.set,
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: NOTIFICATION_PREFERENCES_QUERY_KEY }),
+    onError: (err) => setError(err instanceof Error ? err.message : 'Could not save that'),
+  });
+  // Only these can be hidden from the bell; the older types always show there.
+  const canHideInApp = new Set(['feed_reaction', 'friend_recommendation', 'good_time_to_buy']);
+  return (
+    <Dialog onClose={onClose} title="Notifications" gap={14}>
+      {error && <Banner onDismiss={() => setError(null)}>{error}</Banner>}
+      {data && !data.emailAvailable && (
+        <span style={st('font:400 13px/1.45 var(--font-ui);color:var(--muted)')}>Email alerts aren't set up on this server, so the email switches are off.</span>
+      )}
+      {data && data.emailAvailable && (
+        <span style={st('font:400 13px/1.45 var(--font-ui);color:var(--muted)')}>
+          Email alerts go to {data.email}. You only get an email for an alert you haven't already read in the app.
+        </span>
+      )}
+      {isLoading && <span style={st('font:400 13.5px var(--font-ui);color:var(--muted)')}>Loading…</span>}
+      <Group>
+        {data?.preferences.map((p) => (
+          <div key={p.type} style={st('display:flex;flex-direction:column;gap:8px;padding:12px 14px;background:var(--surf)')}>
+            <span style={st('font:600 14.5px var(--font-ui)')}>{p.label}</span>
+            <div style={st('display:flex;align-items:center;gap:16px;flex-wrap:wrap')}>
+              <span style={st('display:flex;align-items:center;gap:8px;font:500 13px var(--font-ui);color:var(--text2)')}>
+                Email
+                <Toggle
+                  on={p.email}
+                  disabled={!data.emailAvailable || set.isPending}
+                  label={`Email me: ${p.label}`}
+                  onChange={(v) => set.mutate({ type: p.type, email: v })}
+                />
+              </span>
+              {canHideInApp.has(p.type) && (
+                <span style={st('display:flex;align-items:center;gap:8px;font:500 13px var(--font-ui);color:var(--text2)')}>
+                  In the app
+                  <Toggle on={p.inApp} disabled={set.isPending} label={`Show in the app: ${p.label}`} onChange={(v) => set.mutate({ type: p.type, inApp: v })} />
+                </span>
+              )}
+            </div>
+          </div>
+        ))}
+      </Group>
     </Dialog>
   );
 }
@@ -186,6 +239,7 @@ export function MeDialog() {
   const [unlinking, setUnlinking] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [keysOpen, setKeysOpen] = useState(false);
+  const [notifOpen, setNotifOpen] = useState(false);
   const [systemsOpen, setSystemsOpen] = useState(false);
   const [slugDraft, setSlugDraft] = useState<string | null>(null);
 
@@ -540,6 +594,7 @@ export function MeDialog() {
                 </div>
               </>
             )}
+            <NavRow label="Notifications" onClick={() => setNotifOpen(true)} />
             <NavRow label="API keys" onClick={() => setKeysOpen(true)} />
           </Group>
         </Section>
@@ -566,6 +621,7 @@ export function MeDialog() {
         <span style={st('font:500 11.5px var(--font-mono);color:var(--faint)')}>QueueUp{version ? ` ${version}` : ''}</span>
       </Dialog>
       {keysOpen && <ApiKeysDialog onClose={() => setKeysOpen(false)} />}
+      {notifOpen && <NotificationsDialog onClose={() => setNotifOpen(false)} />}
       {systemsOpen && <SystemsDialog onClose={() => setSystemsOpen(false)} />}
     </>
   );

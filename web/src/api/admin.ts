@@ -52,4 +52,5 @@ export const adminApi = {
   setIntegrationConfig: (key: IntegrationConfigKey, value: string) =>
     apiPatch<{ ok: true }>('/api/admin/integrations', { key, value }),
   clearIntegrationConfig: (key: IntegrationConfigKey) => apiDelete(`/api/admin/integrations/${key}`),
+  sendTestEmail: () => apiPost<{ ok: true; sentTo: string }>('/api/admin/smtp/test'),
 };

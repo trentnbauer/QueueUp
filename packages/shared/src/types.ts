@@ -984,7 +984,12 @@ export type IntegrationConfigKey =
   | 'SCANDEX_API_KEY'
   | 'TURNSTILE_SITE_KEY'
   | 'TURNSTILE_SECRET_KEY'
-  | 'CLOUDFLARE_TUNNEL_TOKEN';
+  | 'CLOUDFLARE_TUNNEL_TOKEN'
+  | 'SMTP_HOST'
+  | 'SMTP_PORT'
+  | 'SMTP_USER'
+  | 'SMTP_PASSWORD'
+  | 'SMTP_FROM';
 
 /** Cloudflare Tunnel (issue #664) as the server sees it: `off` (no token), `starting` (cloudflared
  * running, no connection yet), `connected`, `error` (stopped, retrying with backoff) or
@@ -1063,6 +1068,9 @@ export interface AdminIntegrationStatus {
   turnstileConfigured: boolean;
   turnstileSiteKeySource: ConfigSource;
   turnstileSecretKeySource: ConfigSource;
+  /** Email alerts: on only when the host, port and from address are all set. */
+  smtpConfigured: boolean;
+  smtpSources: Record<'SMTP_HOST' | 'SMTP_PORT' | 'SMTP_USER' | 'SMTP_PASSWORD' | 'SMTP_FROM', ConfigSource>;
   devFakeAuth: boolean;
   activeAuthProviders: string[];
 }
@@ -1131,6 +1139,56 @@ export type NotificationType =
   | 'feed_reaction'
   | 'friend_recommendation'
   | 'good_time_to_buy';
+
+/** Notification types a person can choose to receive by email (direct ones, never room-scoped). */
+export const EMAIL_ALERT_TYPES = [
+  'price_drop',
+  'release_watch',
+  'wishlist_bundle_deal',
+  'playtime_mark_playing',
+  'playnite_sync_reminder',
+  'play_together_request',
+  'feed_reaction',
+  'friend_recommendation',
+  'good_time_to_buy',
+] as const;
+export type EmailAlertType = (typeof EMAIL_ALERT_TYPES)[number];
+
+export const EMAIL_ALERT_LABELS: Record<EmailAlertType, string> = {
+  price_drop: 'Price drops on your wishlist',
+  release_watch: 'New releases and DLC',
+  wishlist_bundle_deal: 'Wishlist bundle deals',
+  playtime_mark_playing: 'Suggestions to mark a game as Playing',
+  playnite_sync_reminder: 'Playnite sync reminders',
+  play_together_request: 'Ask to play together requests',
+  feed_reaction: 'Reactions to your activity',
+  friend_recommendation: 'Games your friends rate highly',
+  good_time_to_buy: 'Good time to buy',
+};
+
+/** One alert type's settings for the signed-in person. `email` sends it by email (needs SMTP set
+ * up on the server, off by default); `inApp` lets it appear in the notification bell at all
+ * (on by default; only the newer alert types honour turning it off). */
+export interface NotificationPreferenceDto {
+  type: EmailAlertType;
+  label: string;
+  email: boolean;
+  inApp: boolean;
+}
+
+export interface NotificationPreferencesResponse {
+  /** True when the server can send email, so the email switches do something. */
+  emailAvailable: boolean;
+  /** The address alerts are sent to (the account's email). */
+  email: string;
+  preferences: NotificationPreferenceDto[];
+}
+
+export interface SetNotificationPreferenceRequest {
+  type: EmailAlertType;
+  email?: boolean;
+  inApp?: boolean;
+}
 
 export interface Notification {
   id: string;

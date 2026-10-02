@@ -239,6 +239,7 @@ model User {
   pendingLibraryImports         PendingLibraryImport[]
   titleMatchSuggestions         TitleMatchSuggestion[]
   feedReactions                 FeedReaction[]
+  notificationPreferences       NotificationPreference[]
   friendshipsRequested          Friendship[]                   @relation("FriendshipRequester")
   friendshipsReceived           Friendship[]                   @relation("FriendshipAddressee")
 
@@ -326,6 +327,24 @@ model FeedReaction {
   @@id([entryId, userId])
   @@index([entryId])
   @@map("feed_reactions")
+}
+
+/// A person's delivery choices for one kind of alert. `email`: also send it by email (off unless
+/// switched on, and only works when the server has SMTP set up). `inApp`: show it in the
+/// notification bell (on unless switched off, for the alert types that support turning it off).
+/// `updatedAt` marks when email was switched on: only alerts created after that are emailed, so
+/// turning it on never mails a backlog.
+model NotificationPreference {
+  userId    String           @map("user_id")
+  type      NotificationType
+  email     Boolean          @default(false)
+  inApp     Boolean          @default(true) @map("in_app")
+  updatedAt DateTime         @default(now()) @updatedAt @map("updated_at")
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@id([userId, type])
+  @@map("notification_preferences")
 }
 
 /// One person's manual pick of an igdbId for an external-library title. Never applied on its own
@@ -999,6 +1018,9 @@ model Notification {
   createdAt   DateTime         @default(now()) @map("created_at")
   /// Only meaningful for direct (recipientId set) rows - see the model doc above.
   readAt      DateTime?        @map("read_at")
+  /// When this was included in an alert email (null = not emailed, or the person doesn't get email
+  /// for this type). See jobs/emailAlertJob.ts.
+  emailedAt   DateTime?        @map("emailed_at")
   /// The specific game this notification is about, if any (issue #554's playtime_mark_playing is
   /// the first type to set this) - lets the client's action button target the right game without
   /// parsing `message`. SetNull rather than Cascade on delete: a removed game shouldn't take an

@@ -22,6 +22,16 @@ function fields(s: AdminIntegrationStatus): { key: IntegrationConfigKey; label: 
   ];
 }
 
+function smtpFields(s: AdminIntegrationStatus): { key: IntegrationConfigKey; label: string; source: ConfigSource; plain?: boolean }[] {
+  return [
+    { key: 'SMTP_HOST', label: 'SMTP host', source: s.smtpSources.SMTP_HOST, plain: true },
+    { key: 'SMTP_PORT', label: 'SMTP port (465 uses TLS, others use STARTTLS)', source: s.smtpSources.SMTP_PORT, plain: true },
+    { key: 'SMTP_USER', label: 'SMTP user (optional)', source: s.smtpSources.SMTP_USER, plain: true },
+    { key: 'SMTP_PASSWORD', label: 'SMTP password (optional)', source: s.smtpSources.SMTP_PASSWORD },
+    { key: 'SMTP_FROM', label: 'From address, e.g. QueueUp <alerts@example.com>', source: s.smtpSources.SMTP_FROM, plain: true },
+  ];
+}
+
 /** The container's own port (PORT), which the tunnel's public hostname should point at. */
 const TUNNEL_PORT_HINT = 3000;
 
@@ -142,7 +152,19 @@ export function AdminPage() {
     }
   }
 
-  const keyRow = (f: { key: IntegrationConfigKey; label: string; source: ConfigSource }) => (
+  async function sendTest() {
+    setBusyKey('smtp-test');
+    try {
+      const res = await adminApi.sendTestEmail();
+      ui.notify(`Test email sent to ${res.sentTo}`);
+    } catch (e) {
+      fail(e, 'Could not send the test email');
+    } finally {
+      setBusyKey(null);
+    }
+  }
+
+  const keyRow = (f: { key: IntegrationConfigKey; label: string; source: ConfigSource; plain?: boolean }) => (
               <div key={f.key} style={st('display:flex;flex-direction:column;gap:8px;padding:12px 14px;background:var(--surf)')}>
                 <div style={st('display:flex;align-items:center;gap:10px')}>
                   <span style={st('flex:1;min-width:0;display:flex;flex-direction:column;gap:1px')}>
@@ -156,7 +178,7 @@ export function AdminPage() {
                 {f.source !== 'env' && (
                   <div style={st('display:flex;gap:6px')}>
                     <input
-                      type="password"
+                      type={f.plain ? 'text' : 'password'}
                       autoComplete="off"
                       value={inputs[f.key] ?? ''}
                       onChange={(e) => setInputs((p) => ({ ...p, [f.key]: e.target.value }))}
@@ -202,6 +224,23 @@ export function AdminPage() {
           <Group>
             {fields(status).map(keyRow)}
           </Group>
+        </div>
+      )}
+
+      {status && (
+        <div style={st('display:flex;flex-direction:column;gap:10px')}>
+          <Kicker>EMAIL ALERTS (SMTP)</Kicker>
+          <span style={st('font:400 13px/1.5 var(--font-ui);color:var(--muted)')}>
+            Lets people get their alerts by email. Each person switches on the alert types they want under Settings → Notifications; nothing is
+            sent until they do.
+          </span>
+          <Group>{smtpFields(status).map(keyRow)}</Group>
+          <div style={st('display:flex;align-items:center;gap:10px')}>
+            <Btn kind="soft" height={40} padX={16} disabled={!status.smtpConfigured || busyKey === 'smtp-test'} onClick={sendTest}>
+              {busyKey === 'smtp-test' ? 'Sending…' : 'Send a test email to me'}
+            </Btn>
+            {!status.smtpConfigured && <span style={st('font:400 12.5px var(--font-ui);color:var(--muted)')}>Set the host, port and from address first.</span>}
+          </div>
         </div>
       )}
 

@@ -66,6 +66,12 @@ services:
       ## Sign-in captcha (Cloudflare Turnstile) - optional, set both to turn it on
       TURNSTILE_SITE_KEY: ${TURNSTILE_SITE_KEY}
       TURNSTILE_SECRET_KEY: ${TURNSTILE_SECRET_KEY}
+      ## Email alerts (SMTP) - optional; host, port and from address turn it on
+      SMTP_HOST: ${SMTP_HOST}
+      SMTP_PORT: ${SMTP_PORT}
+      SMTP_USER: ${SMTP_USER}
+      SMTP_PASSWORD: ${SMTP_PASSWORD}
+      SMTP_FROM: ${SMTP_FROM}
       ## Cloudflare Tunnel - optional; with a token set, QueueUp runs cloudflared itself (no open port needed)
       CLOUDFLARE_TUNNEL_TOKEN: ${CLOUDFLARE_TUNNEL_TOKEN}
       # Backend Config

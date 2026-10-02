@@ -12,6 +12,11 @@ export const CONFIG_KEYS = [
   'TURNSTILE_SITE_KEY',
   'TURNSTILE_SECRET_KEY',
   'CLOUDFLARE_TUNNEL_TOKEN',
+  'SMTP_HOST',
+  'SMTP_PORT',
+  'SMTP_USER',
+  'SMTP_PASSWORD',
+  'SMTP_FROM',
 ] as const;
 export type ConfigKey = (typeof CONFIG_KEYS)[number];
 
