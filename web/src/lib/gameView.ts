@@ -181,7 +181,7 @@ export function metaLine(g: Game): string {
 /** "Released 12 Mar 2020" / "Releases 3 Nov 2026" for the game card; just the year when only that is
  * known, and '' when there's nothing. Dates are shown as stored (UTC) so a midnight release doesn't
  * slip to the previous day in timezones behind UTC. */
-export function releaseLabel(g: Pick<Game, 'releaseDate' | 'releaseYear'>, now: number = Date.now()): string {
+export function releaseDateLabel(g: Pick<Game, 'releaseDate' | 'releaseYear'>, now: number = Date.now()): string {
   if (g.releaseDate) {
     const d = new Date(g.releaseDate);
     if (!Number.isNaN(d.getTime())) {
