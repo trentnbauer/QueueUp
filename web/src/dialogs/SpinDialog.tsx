@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
+import { useKeepScreenAwake } from '../hooks/useKeepScreenAwake';
 import type { Game, RoomSpinSession } from '@queueup/shared';
 import {
   applyNudge,
@@ -245,6 +246,8 @@ export function SpinDialog({ onClose }: { onClose: () => void }) {
 
   const idle = !run;
   const spinning = !!run && !settled && !waiting;
+  // Stop the screen dimming mid-spin; released as soon as the wheel settles.
+  useKeepScreenAwake(spinning);
   const tw = mobile ? 84 : 104;
   const th = mobile ? 126 : 156;
 
