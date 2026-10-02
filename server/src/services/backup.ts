@@ -151,7 +151,7 @@ export async function listBackups(): Promise<AdminBackupInfo[]> {
       name,
       sizeBytes: stat.size,
       createdAt: stat.mtime.toISOString(),
-      kind: name.includes('-pre-restore') ? 'pre-restore' : name.includes('-manual') ? 'manual' : 'nightly',
+      kind: name.includes('-pre-restore') ? 'pre-restore' : name.includes('-pre-schema-push') ? 'pre-schema-push' : name.includes('-manual') ? 'manual' : 'nightly',
     });
   }
   return out.sort((a, b) => b.createdAt.localeCompare(a.createdAt));
@@ -171,18 +171,20 @@ export async function deleteBackup(name: string): Promise<void> {
   await fs.rm(file, { force: true });
 }
 
-/** Keeps the newest `keep` automatic/manual backups. Pre-restore safety copies are kept separately
- * (newest 5), so a busy night of restores can't push real backups out. */
+/** Keeps the newest `keep` automatic/manual backups. Safety copies (taken before a restore or a
+ * destructive schema push) are kept separately (newest 5), so a busy night of restores can't push
+ * real backups out. */
 export async function rotateBackups(keep: number): Promise<void> {
   const all = await listBackups();
-  const regular = all.filter((b) => b.kind !== 'pre-restore');
-  const safety = all.filter((b) => b.kind === 'pre-restore');
+  const isSafety = (b: { kind: string }) => b.kind === 'pre-restore' || b.kind === 'pre-schema-push';
+  const regular = all.filter((b) => !isSafety(b));
+  const safety = all.filter(isSafety);
   for (const old of [...regular.slice(keep), ...safety.slice(5)]) await deleteBackup(old.name);
 }
 
 // ---- create ---------------------------------------------------------------------------------------
 
-export type BackupKind = 'nightly' | 'manual' | 'pre-restore';
+export type BackupKind = 'nightly' | 'manual' | 'pre-restore' | 'pre-schema-push';
 
 export async function createBackup(kind: BackupKind): Promise<AdminBackupInfo> {
   // One transaction at REPEATABLE READ so every table is read from the same snapshot.
