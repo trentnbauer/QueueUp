@@ -72,7 +72,7 @@ describe('buildHomeLists', () => {
   });
 
   it('counts per tab', () => {
-    const lists = buildHomeLists([game({ status: 'playing' }), game({ status: 'playing' }), game({ status: 'done' })], { isShelf: true, tabs: SHELF_TABS, tab: 'playing', query: '' });
+    const lists = buildHomeLists([game({ status: 'playing' }), game({ status: 'playing' }), game({ status: 'done' })], { isShelf: true, tabs: [...SHELF_TABS, ...SHELF_MORE_TABS], tab: 'playing', query: '' });
     expect(lists.counts.playing).toBe(2);
     expect(lists.counts.beaten).toBe(1);
   });
