@@ -112,7 +112,7 @@ export function buildHomeLists(games: Game[], opts: { isShelf: boolean; tabs: Ta
   }
 
   const coming = q || tab !== comingTab ? [] : games.filter(isComing).sort((a, b) => (a.releaseDate ?? '').localeCompare(b.releaseDate ?? ''));
-  const playNext = tab === 'playing' && !q ? games.filter((g) => g.status === 'play_next').sort(newFirst) : [];
+  const playNext = tab === 'playing' && !q ? games.filter((g) => g.status === 'play_next' || g.status === 'paused').sort(newFirst) : [];
 
   return { list, coming, playNext, counts, comingTab };
 }

@@ -23,7 +23,7 @@ async function notifyPlayingCandidates(increases: PlaytimeIncrease[]): Promise<v
   const games = await prisma.game.findMany({
     where: {
       roomId: null,
-      status: { notIn: ['playing', 'done', 'dropped', 'wont_play'] },
+      status: { notIn: ['playing', 'paused', 'done', 'dropped', 'wont_play'] },
       OR: increases.map((inc) => ({ addedBy: inc.userId, steamAppid: inc.steamAppId })),
     },
     select: { id: true, title: true, addedBy: true, steamAppid: true },

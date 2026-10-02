@@ -223,8 +223,9 @@ export function TrophyBadge({ size = 20, style }: { size?: number; style?: CSSPr
   );
 }
 
-/** The colour ring and emoji shown on a cover for games you're finished with, in the same style as
- * the 100% trophy: Beaten (green), Dropped (red) and Won't Play (grey). Other statuses have none. */
+/** The colour ring and emoji shown on a cover for games you're finished with or have on hold, in
+ * the same style as the 100% trophy: Beaten (green), Dropped (red), Won't Play (grey) and Paused
+ * (accent). Other statuses have none. */
 export interface StatusOutline {
   color: string;
   emoji: string;
@@ -233,7 +234,9 @@ export interface StatusOutline {
 
 export function statusOutlineFor(status: GameStatus): StatusOutline | null {
   if (status === 'done') return { color: 'var(--mint)', emoji: '✅', label: 'Beaten' };
+  if (status === 'replay') return { color: 'var(--mint)', emoji: '🔄', label: 'Replay' };
   if (status === 'dropped') return { color: 'var(--danger)', emoji: '👎', label: 'Dropped' };
+  if (status === 'paused') return { color: 'var(--acc)', emoji: '⏸️', label: 'Paused' };
   if (status === 'wont_play') return { color: 'var(--muted)', emoji: '🚫', label: "Won't Play" };
   return null;
 }

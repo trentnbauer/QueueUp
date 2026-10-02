@@ -33,6 +33,10 @@ enum GameStatus {
   /// shown alongside dropped in one combined "Dropped / Won't Play" strip rather than a third
   /// permanently-visible section.
   wont_play
+  /// "Playing, but on hold" - shown with Play Next in the Playing tab (and the cross-room playing
+  /// strip, and a profile's Up next) rather than back in the backlog, so it stays in sight. Left out
+  /// of Spin the Wheel and playtime "mark Playing" nudges, like playing itself.
+  paused
 
   @@map("game_status")
 }

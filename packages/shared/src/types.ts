@@ -1,4 +1,4 @@
-export type GameStatus = 'backlog' | 'playing' | 'done' | 'dropped' | 'wishlist' | 'replay' | 'play_next' | 'wont_play';
+export type GameStatus = 'backlog' | 'playing' | 'done' | 'dropped' | 'wishlist' | 'replay' | 'play_next' | 'paused' | 'wont_play';
 
 export type RoomRole = 'room_master' | 'moderator' | 'member';
 
@@ -1938,6 +1938,8 @@ export interface PublicProfileGame {
    * on their Personal Shelf in any status, or marked owned. Never set for an anonymous viewer or the
    * owner themself. */
   viewerHas?: boolean;
+  /** True when the game is Paused (it shows in the profile's Up next list, with a pause emoji). */
+  paused?: boolean;
 }
 
 /** Response for GET /api/public/users/:id (issue #511) - the shareable, unauthenticated

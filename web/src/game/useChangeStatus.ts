@@ -19,6 +19,8 @@ export function useChangeStatus() {
     else if (status === 'done') {
       ui.notify(`${game.title} marked Beaten`);
       ui.openDialog('review', { gameId: game.id });
+    } else if (status === 'paused') {
+      ui.notify(`${game.title} paused`);
     } else if (status === 'wont_play') {
       ui.notify(`${game.title} marked Won't Play`);
     } else if (status === 'replay') {

@@ -10,7 +10,7 @@ import { monthsAgoUtc, NEGLECTED_BACKLOG_MONTHS } from './backlogHeuristics.js';
  * excluded for the same reason Done/Dropped are - the user already made a call on this game, a
  * playtime uptick shouldn't second-guess it. */
 export function suggestsPlayingFromMinutes(status: GameStatus, roomId: string | null, minutes: number): boolean {
-  return roomId === null && minutes > 0 && status !== 'playing' && status !== 'done' && status !== 'dropped' && status !== 'wont_play';
+  return roomId === null && minutes > 0 && status !== 'playing' && status !== 'done' && status !== 'dropped' && status !== 'wont_play' && status !== 'paused';
 }
 
 /** Currently Playing, with time-to-beat data, and `minutes` worth of hours reaches it - the "mark
