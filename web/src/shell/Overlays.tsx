@@ -34,17 +34,20 @@ export function Overlays() {
   const d = ui.dialogs;
 
   // "Mark it Beaten on your shelf too?" after finishing a room game.
+  // Asked after the review sheet (which opens first when marking Beaten) is out of the way, so the
+  // review can be carried over to the shelf copy.
   const promptId = ops.shelfSyncPrompt?.roomGameId;
+  const reviewOpen = !!d.review;
   useEffect(() => {
     const p = ops.shelfSyncPrompt;
-    if (!p) return;
+    if (!p || reviewOpen) return;
     void (async () => {
       const exists = !!p.suggestion.shelfGameId;
       const ok = await confirm({
-        title: 'Mark it Beaten on your shelf too?',
+        title: 'Mark it Beaten in your library too?',
         message: exists
-          ? `"${p.suggestion.title}" is on your Personal Shelf too. Mark it Beaten there as well?`
-          : `"${p.suggestion.title}" isn't on your Personal Shelf yet. Add it there, already marked Beaten?`,
+          ? `"${p.suggestion.title}" is on your Personal Shelf too. Mark it Beaten there as well? The room goes in its play journal and your review comes with it.`
+          : `"${p.suggestion.title}" isn't on your Personal Shelf yet. Add it there, already marked Beaten? The room goes in its play journal and your review comes with it.`,
         confirmLabel: 'Yes, sync it',
         cancelLabel: 'No thanks',
       });
@@ -56,7 +59,7 @@ export function Overlays() {
       }
     })();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [promptId]);
+  }, [promptId, reviewOpen]);
 
   // A shared spin starting in the room you're looking at opens the reel for you.
   const roomId = room?.id;

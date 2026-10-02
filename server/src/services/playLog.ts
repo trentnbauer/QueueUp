@@ -6,6 +6,7 @@ import { currentPlaytimeMinutesForGame } from './playtimeTracking.js';
  * #489's Marathoner/Comeback badges need the entries' start/finish timestamps and count - not
  * available from a bare updateMany, which only reports how many rows it touched). */
 export interface ClosedPlayLogEntry {
+  id: string;
   startedAt: Date;
   finishedAt: Date;
 }
@@ -61,7 +62,7 @@ export async function recordStatusTransition(
     const openEntries = await prisma.playLog.findMany({ where: { gameId, finishedAt: null } });
     if (openEntries.length > 0) {
       await prisma.playLog.updateMany({ where: { gameId, finishedAt: null }, data: { finishedAt: now, finishPlaytimeMinutes } });
-      return openEntries.map((entry) => ({ startedAt: entry.startedAt, finishedAt: now }));
+      return openEntries.map((entry) => ({ id: entry.id, startedAt: entry.startedAt, finishedAt: now }));
     }
     // Won't Play is "decided against it," not a playthrough - unlike Done/Dropped below, jumping
     // straight to it with no open entry (the common case: backlog/wishlist cruft never even
@@ -77,7 +78,7 @@ export async function recordStatusTransition(
     const created = await prisma.playLog.create({
       data: { gameId, startedAt: now, finishedAt: now, startPlaytimeMinutes: finishPlaytimeMinutes, finishPlaytimeMinutes },
     });
-    return [{ startedAt: created.startedAt, finishedAt: now }];
+    return [{ id: created.id, startedAt: created.startedAt, finishedAt: now }];
   }
 
   return [];

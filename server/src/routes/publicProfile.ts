@@ -58,7 +58,7 @@ export default async function publicProfileRoutes(app: FastifyInstance) {
         where: { roomId: null, addedBy: user.id, status: { in: ['done', 'replay', 'dropped'] }, hiddenFromOthers: false },
         orderBy: { updatedAt: 'desc' },
         take: 300,
-        include: { reviews: { where: { userId: user.id } }, playLogs: { select: { startedAt: true, finishedAt: true } } },
+        include: { reviews: { where: { userId: user.id } }, playLogs: { select: { startedAt: true, finishedAt: true, roomName: true } } },
       }),
       prisma.game.findMany({
         where: { roomId: null, addedBy: user.id, status: 'playing', hiddenFromOthers: false },
@@ -189,6 +189,7 @@ export default async function publicProfileRoutes(app: FastifyInstance) {
           genre: g.genre,
           replaying: g.status === 'replay',
           dropped: g.status === 'dropped',
+          inGroup: g.playLogs.some((l) => l.roomName !== null),
           review: toGameReviewDto(g.reviews[0]),
           fullyCompleted: isFullyCompleted(g),
         })),

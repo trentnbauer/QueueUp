@@ -561,6 +561,7 @@ export function PublicProfilePage({ userId, signedIn }: { userId: string; signed
                   >
                     <Cover title={g.title} url={g.coverImageUrl} width={30} radius={6} completed={g.fullyCompleted} status={g.dropped ? 'dropped' : g.replaying ? 'replay' : 'done'} />
                     <span style={st('flex:1;min-width:0;font:600 13px var(--font-ui);white-space:nowrap;overflow:hidden;text-overflow:ellipsis')}>{g.title}</span>
+                    {g.inGroup && <span title="Beaten as part of a group" aria-label="Beaten as part of a group" style={st('flex-shrink:0;font-size:14px;line-height:1')}>👥</span>}
                     {avg !== null && <span style={st('flex-shrink:0;font:700 12px var(--font-display);color:var(--accText)')}>{avg.toFixed(1)} / 5</span>}
                   </button>
                 );
@@ -588,7 +589,7 @@ export function PublicProfilePage({ userId, signedIn }: { userId: string; signed
             <Cover title={openGame.title} url={openGame.coverImageUrl} width={110} radius={14} completed={openGame.fullyCompleted} status={openGame.dropped ? 'dropped' : openGame.replaying ? 'replay' : 'done'} />
             <div style={st('flex:1;min-width:0;display:flex;flex-direction:column;gap:8px')}>
               <span style={st('font:400 13px var(--font-ui);color:var(--muted)')}>
-                {[openGame.genre?.split(',')[0], openGame.dropped ? 'Dropped' : openGame.replaying ? 'Replaying' : 'Beaten'].filter(Boolean).join(' · ')}
+                {[openGame.genre?.split(',')[0], openGame.dropped ? 'Dropped' : openGame.replaying ? 'Replaying' : 'Beaten', openGame.inGroup ? '👥 With a group' : null].filter(Boolean).join(' · ')}
               </span>
               {openGame.review ? (
                 <>

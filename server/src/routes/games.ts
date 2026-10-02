@@ -1128,10 +1128,19 @@ export default async function gameRoutes(app: FastifyInstance) {
       const game = await loadGameOr404(request.params.id);
       await requireGameReadAccess(game, userId);
 
+      // The room it was finished in goes in the shelf copy's play journal ("beaten with a group").
+      const room = game.roomId ? await prisma.room.findUnique({ where: { id: game.roomId }, select: { name: true } }) : null;
+      const tagWithRoom = async (entries: { id: string }[]) => {
+        if (room && entries.length > 0) {
+          await prisma.playLog.updateMany({ where: { id: { in: entries.map((e) => e.id) } }, data: { roomName: room.name } });
+        }
+      };
+      let shelfGameId: string | null = null;
       const shelfGame = await prisma.game.findFirst({ where: { roomId: null, addedBy: userId, igdbId: game.igdbId } });
       if (shelfGame) {
+        shelfGameId = shelfGame.id;
         await prisma.game.update({ where: { id: shelfGame.id }, data: { status: 'done' } });
-        await recordStatusTransition(shelfGame.id, shelfGame.status, 'done');
+        await tagWithRoom(await recordStatusTransition(shelfGame.id, shelfGame.status, 'done'));
       } else {
         const resolved = await resolveGameForCreation(game.igdbId);
         try {
@@ -1158,7 +1167,8 @@ export default async function gameRoutes(app: FastifyInstance) {
               status: 'done',
             },
           });
-          await recordStatusTransition(created.id, 'backlog', 'done');
+          shelfGameId = created.id;
+          await tagWithRoom(await recordStatusTransition(created.id, 'backlog', 'done'));
         } catch (err) {
           if (!(err instanceof Prisma.PrismaClientKnownRequestError && err.code === 'P2002')) throw err;
           // Lost a race with an identical concurrent sync (e.g. a double-click on the confirm
@@ -1176,6 +1186,27 @@ export default async function gameRoutes(app: FastifyInstance) {
       // a status-change request body (issue #489 - this hook point was missed when the badge
       // system first shipped, so marking Beaten via "sync to shelf" never unlocked it).
       const unlockedBadges = await unlockBadges(userId, ['first_solo_beat']);
+
+      // Carry the review over: the person already reviewed it in the room, so the shelf copy gets the
+      // same one (unless they've already written a different one there).
+      if (shelfGameId) {
+        const roomReview = await prisma.gameReview.findUnique({ where: { gameId_userId: { gameId: game.id, userId } } });
+        const shelfReview = await prisma.gameReview.findUnique({ where: { gameId_userId: { gameId: shelfGameId, userId } } });
+        if (roomReview && !shelfReview) {
+          await prisma.gameReview.create({
+            data: {
+              gameId: shelfGameId,
+              userId,
+              art: roomReview.art,
+              gameplay: roomReview.gameplay,
+              story: roomReview.story,
+              sound: roomReview.sound,
+              note: roomReview.note,
+              reviewedAt: roomReview.reviewedAt,
+            },
+          });
+        }
+      }
       return { ok: true, unlockedBadges };
     },
   );
@@ -1352,7 +1383,7 @@ export default async function gameRoutes(app: FastifyInstance) {
       const entries = await prisma.playLog.findMany({
         where: { gameId: game.id },
         orderBy: { startedAt: 'desc' },
-        select: { id: true, startedAt: true, finishedAt: true, startPlaytimeMinutes: true, finishPlaytimeMinutes: true },
+        select: { id: true, startedAt: true, finishedAt: true, startPlaytimeMinutes: true, finishPlaytimeMinutes: true, roomName: true },
       });
 
       const response: { entries: PlayLogEntry[] } = {
@@ -1360,6 +1391,7 @@ export default async function gameRoutes(app: FastifyInstance) {
           id: e.id,
           startedAt: e.startedAt.toISOString(),
           finishedAt: e.finishedAt ? e.finishedAt.toISOString() : null,
+          roomName: e.roomName,
           minutesPlayed:
             e.startPlaytimeMinutes != null && e.finishPlaytimeMinutes != null
               ? Math.max(0, e.finishPlaytimeMinutes - e.startPlaytimeMinutes)
