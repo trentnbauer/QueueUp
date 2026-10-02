@@ -282,3 +282,7 @@ textarea:focus-visible,
     transition-duration: 0.01ms !important;
   }
 }
+
+/* Room header: when the member/vote/approve row would wrap, the nudges shrink to just their buttons. */
+[data-compact='1'] .nudge { padding: 0 6px; }
+[data-compact='1'] .nudge .nudge-text { display: none; }
