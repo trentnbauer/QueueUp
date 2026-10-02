@@ -13,7 +13,7 @@ type Scores = Record<'art' | 'gameplay' | 'story' | 'sound', number>;
 /** The "how was it?" sheet: four 1-5 scores, a one-line note, and a shortcut to queue a Replay.
  * Opens after marking a game Beaten (skipping or closing then closes game detail too), or with
  * `edit` from an already-Beaten game's detail to write or change its review - prefilled with the
- * existing one, and leaving the detail open afterwards. */
+ * existing one. Saving closes the game detail too; cancelling an edit leaves it open. */
 export function ReviewSheet({ game, edit = false }: { game: Game; edit?: boolean }) {
   const { ops } = useScope();
   const ui = useUi();
@@ -26,9 +26,10 @@ export function ReviewSheet({ game, edit = false }: { game: Game; edit?: boolean
   });
   const [note, setNote] = useState(existing?.note ?? '');
 
-  function finish() {
+  /** Skipping or closing leaves the game card open when this was an edit; saving always closes both. */
+  function finish(closeCard = !edit) {
     ui.closeDialog('review');
-    if (!edit) ui.selectGame(null);
+    if (closeCard) ui.selectGame(null);
   }
 
   async function save(replay: boolean) {
@@ -57,7 +58,7 @@ export function ReviewSheet({ game, edit = false }: { game: Game; edit?: boolean
                 ? 'No review saved'
                 : 'Beaten',
       );
-      finish();
+      finish(true);
     } catch {
       // The failure shows in the page banner (ops.actionError); keep the sheet open to retry.
     }
@@ -65,13 +66,13 @@ export function ReviewSheet({ game, edit = false }: { game: Game; edit?: boolean
 
   return (
     <Dialog
-      onClose={finish}
+      onClose={() => finish()}
       ariaLabel="Review this game"
       bare
       padded={false}
       footer={
         <div style={st('flex-shrink:0;display:flex;gap:8px;padding:12px 20px 26px;border-top:1px solid var(--chip)')}>
-          <button type="button" onClick={finish} style={st('height:48px;padding:0 20px;border-radius:999px;border:none;background:var(--chip);color:var(--text);font:600 14.5px var(--font-ui)')}>
+          <button type="button" onClick={() => finish()} style={st('height:48px;padding:0 20px;border-radius:999px;border:none;background:var(--chip);color:var(--text);font:600 14.5px var(--font-ui)')}>
             {edit ? 'Cancel' : 'Skip'}
           </button>
           <button type="button" onClick={() => save(false)} style={st('flex:1;height:48px;border-radius:999px;border:none;background:var(--acc);color:var(--ink);font:700 14.5px var(--font-ui)')}>
