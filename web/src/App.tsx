@@ -14,6 +14,7 @@ import { useUi } from './context/UiContext';
 import { HomeView } from './home/HomeView';
 import { AdminPage } from './pages/AdminPage';
 import { JoinPage, LoginPage, PublicProfilePage } from './pages/EntryPages';
+import { PrivacyPage } from './pages/PrivacyPage';
 import { ActivityPage } from './pages/FriendPages';
 import { AchievementsPage, InsightsPage, YearPage } from './pages/InsightPages';
 import { AppShell } from './shell/AppShell';
@@ -161,6 +162,7 @@ export default function App() {
 
   // Reachable regardless of sign-in state: checked before the sign-in gate, outside the app shell.
   const publicMatch = location.pathname.match(/^\/u\/([^/]+)$/);
+  if (location.pathname === '/privacy') return <PrivacyPage signedIn={!!user} />;
   if (publicMatch) return <PublicProfilePage userId={decodeURIComponent(publicMatch[1])} signedIn={!!user} />;
 
   if (!user) return <LoginPage providers={providers} turnstileSiteKey={turnstileSiteKey} />;

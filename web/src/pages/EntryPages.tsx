@@ -198,6 +198,10 @@ export function LoginPage({ providers, turnstileSiteKey = null }: { providers: s
       </div>
       <div style={st('flex-shrink:0;padding:16px 24px 24px;text-align:center;font:400 12px var(--font-ui);color:var(--faint)')}>
         Self-hosted QueueUp{version ? ` · ${version}` : ''} ·{' '}
+        <Link to="/privacy" style={st('color:var(--muted)')}>
+          Privacy
+        </Link>{' '}
+        ·{' '}
         <a href="https://github.com/trentnbauer/QueueUp" target="_blank" rel="noopener noreferrer" style={st('color:var(--muted)')}>
           Source
         </a>

@@ -548,6 +548,16 @@ export function MeDialog() {
         <button type="button" onClick={deleteAccount} style={st('align-self:flex-start;height:40px;border:none;background:none;padding:0;color:var(--danger);font:600 14px var(--font-ui)')}>
           Delete my account
         </button>
+        <button
+          type="button"
+          onClick={() => {
+            ui.closeDialog('me');
+            navigate('/privacy');
+          }}
+          style={st('align-self:flex-start;border:none;background:none;padding:0;color:var(--muted);font:500 13px var(--font-ui);text-decoration:underline;text-underline-offset:3px')}
+        >
+          Privacy policy
+        </button>
         <span style={st('font:500 11.5px var(--font-mono);color:var(--faint)')}>QueueUp{version ? ` ${version}` : ''}</span>
       </Dialog>
       {keysOpen && <ApiKeysDialog onClose={() => setKeysOpen(false)} />}
