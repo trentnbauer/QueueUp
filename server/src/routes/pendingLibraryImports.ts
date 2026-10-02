@@ -9,6 +9,7 @@ import {
   dismissPendingLibraryImport,
   restorePendingLibraryImport,
   recordTitleMatchAlias,
+  recordTitleMatchSuggestion,
   userAliasSource,
   getPlayniteImportProgress,
 } from '../services/playniteImport.js';
@@ -83,6 +84,7 @@ export default async function pendingLibraryImportRoutes(app: FastifyInstance) {
       }
 
       await recordTitleMatchAlias(userAliasSource(pending.source, userId), pending.title, igdbId);
+      await recordTitleMatchSuggestion(pending.source, pending.title, igdbId, userId);
       await deletePendingLibraryImport(userId, id);
 
       reply.status(204);

@@ -2,7 +2,7 @@ import type { Prisma } from '@prisma/client';
 import { prisma } from '../db/client.js';
 import { redis } from './redisClient.js';
 import { findIgdbIdByExactTitle, normalizeGameTitleForComparison, searchGames } from './igdbClient.js';
-import type { GameSearchResult, PendingLibraryImportDto, PlayniteImportProgress, RoomPlatform } from '@queueup/shared';
+import type { GameSearchResult, PendingImportCandidate, PendingLibraryImportDto, PlayniteImportProgress, RoomPlatform } from '@queueup/shared';
 
 /** Source label for every PendingLibraryImport/TitleMatchAlias row this service writes - free text
  * rather than an enum on those models (see their doc comments) so a future external-library source
@@ -74,6 +74,63 @@ export async function recordTitleMatchAlias(source: string, title: string, igdbI
   });
 }
 
+/** Remembers that this person picked this game for this title, so it can be offered as a suggestion
+ * to other people matching the same title (see withSuggestions). Not an alias: it never resolves
+ * anything on its own. */
+export async function recordTitleMatchSuggestion(source: string, title: string, igdbId: number, userId: string): Promise<void> {
+  const normalizedTitle = normalizeGameTitleForComparison(title);
+  if (!normalizedTitle) return;
+  await prisma.titleMatchSuggestion.upsert({
+    where: { source_normalizedTitle_igdbId_userId: { source, normalizedTitle, igdbId, userId } },
+    create: { source, normalizedTitle, igdbId, userId },
+    update: {},
+  });
+}
+
+const MAX_SUGGESTIONS = 3;
+
+/** Puts what other people matched each title to at the front of its candidates, most-picked first
+ * (at most MAX_SUGGESTIONS, never the viewer's own picks). Cover/title come from a game already in
+ * the database, so this costs no IGDB call; a suggestion with no such game is skipped. A candidate
+ * IGDB also returned is moved up and tagged rather than listed twice. */
+async function withSuggestions(
+  userId: string,
+  rows: { source: string; title: string; candidates: GameSearchResult[] }[],
+): Promise<PendingImportCandidate[][]> {
+  const keys = rows.map((r) => ({ source: r.source, normalizedTitle: normalizeGameTitleForComparison(r.title) }));
+  const picks = await prisma.titleMatchSuggestion.groupBy({
+    by: ['source', 'normalizedTitle', 'igdbId'],
+    where: { userId: { not: userId }, OR: keys.filter((k) => k.normalizedTitle) },
+    _count: { userId: true },
+  });
+  const igdbIds = [...new Set(picks.map((p) => p.igdbId))];
+  const known = igdbIds.length
+    ? await prisma.game.findMany({
+        where: { igdbId: { in: igdbIds } },
+        distinct: ['igdbId'],
+        select: { igdbId: true, title: true, platform: true, coverImageUrl: true, releaseYear: true },
+      })
+    : [];
+  const byId = new Map(known.map((g) => [g.igdbId, g]));
+
+  return rows.map((row, i) => {
+    const key = keys[i];
+    const mine = picks
+      .filter((p) => p.source === key.source && p.normalizedTitle === key.normalizedTitle)
+      .sort((a, b) => b._count.userId - a._count.userId)
+      .slice(0, MAX_SUGGESTIONS);
+    const suggested: PendingImportCandidate[] = [];
+    for (const pick of mine) {
+      const fromIgdb = row.candidates.find((c) => c.igdbId === pick.igdbId);
+      const game = byId.get(pick.igdbId);
+      const base = fromIgdb ?? (game ? { igdbId: game.igdbId, title: game.title, platform: game.platform, coverImageUrl: game.coverImageUrl, releaseYear: game.releaseYear } : null);
+      if (base) suggested.push({ ...base, suggestedBy: pick._count.userId });
+    }
+    const rest = row.candidates.filter((c) => !suggested.some((s) => s.igdbId === c.igdbId));
+    return [...suggested, ...rest];
+  });
+}
+
 /** Resolves an external-library title to an igdbId: checks the crowd-sourced TitleMatchAlias cache
  * first (free - no IGDB call at all), then falls back to an exact IGDB title search
  * (findIgdbIdByExactTitle - deliberately not a fuzzy/best-guess match, same reasoning as that
@@ -134,12 +191,15 @@ export async function listPendingLibraryImports(userId: string, dismissed = fals
     where: { userId, dismissedAt: dismissed ? { not: null } : null },
     orderBy: { createdAt: 'desc' },
   });
-  return rows.map((row) => ({
+  const candidates = rows.length
+    ? await withSuggestions(userId, rows.map((r) => ({ source: r.source, title: r.title, candidates: r.candidates as unknown as GameSearchResult[] })))
+    : [];
+  return rows.map((row, i) => ({
     id: row.id,
     title: row.title,
     platforms: row.platforms,
     source: row.source,
-    candidates: row.candidates as unknown as GameSearchResult[],
+    candidates: candidates[i],
     createdAt: row.createdAt.toISOString(),
   }));
 }
