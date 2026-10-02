@@ -1,14 +1,17 @@
 import { useState } from 'react';
+import { authApi } from '../api/auth';
 import { PRICE_REGION_LABELS, type PriceRegion } from '@queueup/shared';
 import { useAuth } from '../context/AuthContext';
 import { useCurrencyRegion } from '../context/CurrencyRegionContext';
 import { useSteamImportContext } from '../context/SteamImportContext';
 import { useUi } from '../context/UiContext';
+import { inputPill } from '../ui/primitives';
 import { SystemsPicker } from '../ui/SystemsPicker';
 import { st } from '../ui/st';
 
 const REGIONS = Object.keys(PRICE_REGION_LABELS) as PriceRegion[];
 const TITLES: [string, string][] = [
+  ['What should we call you?', 'This is the name friends and room members see. We filled in the one from your sign-in - change it if you like.'],
   ['Welcome to QueueUp', 'Pick a currency for prices. You can change it anytime from your profile.'],
   ['Which systems do you own?', 'We use this to limit game search to what you can actually play. Skip it to see every platform.'],
   ['Bring in your library', 'Import what you already own so your shelf starts full.'],
@@ -20,12 +23,42 @@ const STORES = ['Steam', 'Epic', 'GOG', 'Xbox', 'PlayStation', 'Nintendo'];
  * rooms) stack above it. */
 export function Onboarding({ onDone }: { onDone: () => void }) {
   const ui = useUi();
-  const { steamLinked } = useAuth();
+  const { user, steamLinked, refetch } = useAuth();
   const { region, setRegion } = useCurrencyRegion();
   const steam = useSteamImportContext();
   const [step, setStep] = useState(0);
+  // Prefilled from the sign-in provider's profile (or whatever the account already has).
+  const [name, setName] = useState(user?.displayName ?? '');
+  const [nameError, setNameError] = useState<string | null>(null);
+  const [savingName, setSavingName] = useState(false);
   const last = step === TITLES.length - 1;
   const [title, sub] = TITLES[step];
+
+  /** Saves the name (only if it changed) and moves on; stays put with an inline error if it's rejected. */
+  async function next() {
+    if (step === 0) {
+      const trimmed = name.trim().replace(/\s+/g, ' ');
+      if (trimmed.length < 1 || trimmed.length > 40) {
+        setNameError('Pick a name between 1 and 40 characters.');
+        return;
+      }
+      if (trimmed !== user?.displayName) {
+        setSavingName(true);
+        try {
+          await authApi.setDisplayName(trimmed);
+          await refetch();
+        } catch (e) {
+          setNameError(e instanceof Error ? e.message : 'Could not save your name');
+          return;
+        } finally {
+          setSavingName(false);
+        }
+      }
+      setNameError(null);
+    }
+    if (last) onDone();
+    else setStep(step + 1);
+  }
 
   return (
     <div
@@ -55,6 +88,24 @@ export function Onboarding({ onDone }: { onDone: () => void }) {
         <span style={st('flex-shrink:0;font:400 15px/1.5 var(--font-ui);color:var(--muted);text-wrap:pretty')}>{sub}</span>
 
         {step === 0 && (
+          <>
+            <input
+              value={name}
+              onChange={(e) => {
+                setName(e.target.value);
+                setNameError(null);
+              }}
+              onKeyDown={(e) => e.key === 'Enter' && void next()}
+              maxLength={40}
+              autoFocus
+              aria-label="Display name"
+              style={st(inputPill, { height: 52, flexShrink: 0, border: '1px solid var(--line)', fontSize: 16 })}
+            />
+            {nameError && <span style={st('flex-shrink:0;font:500 13px var(--font-ui);color:var(--danger)')}>{nameError}</span>}
+          </>
+        )}
+
+        {step === 1 && (
           <select
             value={region ?? ''}
             aria-label="Price currency"
@@ -70,9 +121,9 @@ export function Onboarding({ onDone }: { onDone: () => void }) {
           </select>
         )}
 
-        {step === 1 && <SystemsPicker saveLabel="Save systems" onSaved={() => ui.notify('Systems saved')} />}
+        {step === 2 && <SystemsPicker saveLabel="Save systems" onSaved={() => ui.notify('Systems saved')} />}
 
-        {step === 2 && (
+        {step === 3 && (
           <>
             <div style={st('flex-shrink:0;display:flex;flex-direction:column;gap:14px;padding:20px;border-radius:24px;background:linear-gradient(150deg, oklch(0.55 0.2 300 / 0.28), var(--surf) 70%);border:1px solid oklch(0.55 0.2 300 / 0.35)')}>
               <div style={st('display:flex;align-items:center;gap:14px')}>
@@ -112,7 +163,7 @@ export function Onboarding({ onDone }: { onDone: () => void }) {
           </>
         )}
 
-        {step === 3 && (
+        {step === 4 && (
           <div style={st('flex-shrink:0;display:flex;flex-direction:column;gap:1px;border-radius:20px;overflow:hidden;background:var(--chip)')}>
             {(
               [
@@ -141,10 +192,11 @@ export function Onboarding({ onDone }: { onDone: () => void }) {
       <div style={st('flex-shrink:0;padding:12px 22px 26px;width:100%;max-width:560px;margin:0 auto')}>
         <button
           type="button"
-          onClick={() => (last ? onDone() : setStep(step + 1))}
+          disabled={savingName}
+          onClick={() => void next()}
           style={st('width:100%;height:54px;border-radius:999px;border:none;background:var(--acc);color:var(--ink);font:700 15.5px var(--font-ui)')}
         >
-          {last ? 'Start queueing' : step === 2 ? 'Continue' : 'Next'}
+          {last ? 'Start queueing' : step === 3 ? 'Continue' : 'Next'}
         </button>
       </div>
     </div>
