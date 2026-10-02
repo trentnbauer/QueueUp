@@ -37,6 +37,13 @@ function generateFriendCode(): string {
   return `${out.slice(0, 4)}-${out.slice(4)}`;
 }
 
+/** Accepts a request only if it's still pending, so one that was cancelled or declined in the
+ * meantime isn't resurrected (or thrown on). Returns whether this call accepted it. */
+async function acceptPending(id: string): Promise<boolean> {
+  const { count } = await prisma.friendship.updateMany({ where: { id, status: 'pending' }, data: { status: 'accepted', respondedAt: new Date() } });
+  return count > 0;
+}
+
 /** A friend code (and the link built from it) is only good for this long, then it's replaced. */
 export const FRIEND_CODE_TTL_MS = 3 * 60 * 60 * 1000;
 
@@ -296,14 +303,32 @@ export default async function friendRoutes(app: FastifyInstance) {
         // Using their current code is their say-so, so it settles a request we'd already sent.
         if (existing.requesterId === userId && !viaCode) throw new HttpError(409, 'Request already sent');
         // They already asked us (or we asked and now hold their code) - same as accepting.
-        await prisma.friendship.update({ where: { id: existing.id }, data: { status: 'accepted', respondedAt: new Date() } });
+        await acceptPending(existing.id);
         return { accepted: true, user: toFriendUser(target) };
       }
-      if (viaCode) {
-        await prisma.friendship.create({ data: { requesterId: userId, addresseeId: target.id, status: 'accepted', respondedAt: new Date() } });
+      try {
+        await prisma.friendship.create({
+          data: { requesterId: userId, addresseeId: target.id, ...(viaCode && { status: 'accepted' as const, respondedAt: new Date() }) },
+        });
+      } catch (err) {
+        // The same request landed twice at once (double-click, two tabs): the unique pair already
+        // exists, so settle it instead of surfacing a 500.
+        if (!(err instanceof Prisma.PrismaClientKnownRequestError && err.code === 'P2002')) throw err;
+        const raced = await prisma.friendship.findFirst({ where: { requesterId: userId, addresseeId: target.id } });
+        if (viaCode && raced) await acceptPending(raced.id);
+        else if (!raced) throw err;
+        else throw new HttpError(409, 'Request already sent');
         return { accepted: true, user: toFriendUser(target) };
       }
-      await prisma.friendship.create({ data: { requesterId: userId, addresseeId: target.id } });
+      if (viaCode) return { accepted: true, user: toFriendUser(target) };
+      // We and they may have asked each other at the same moment, leaving a request in each
+      // direction. If theirs is there, take it and drop ours so we end up friends, not stuck.
+      const theirs = await prisma.friendship.findFirst({ where: { requesterId: target.id, addresseeId: userId, status: 'pending' } });
+      if (theirs) {
+        await acceptPending(theirs.id);
+        await prisma.friendship.deleteMany({ where: { requesterId: userId, addresseeId: target.id, status: 'pending' } });
+        return { accepted: true, user: toFriendUser(target) };
+      }
       return { accepted: false, user: toFriendUser(target) };
     },
   );
@@ -312,7 +337,7 @@ export default async function friendRoutes(app: FastifyInstance) {
     const userId = await request.requireAuth();
     const req = await prisma.friendship.findUnique({ where: { id: request.params.id } });
     if (!req || req.addresseeId !== userId || req.status !== 'pending') throw new HttpError(404, 'Request not found');
-    await prisma.friendship.update({ where: { id: req.id }, data: { status: 'accepted', respondedAt: new Date() } });
+    if (!(await acceptPending(req.id))) throw new HttpError(404, 'Request not found');
     return { ok: true };
   });
 
