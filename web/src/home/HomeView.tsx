@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate } from 'react-router';
 import type { Game, VoteValue } from '@queueup/shared';
 import { useScope } from '../context/ScopeContext';
@@ -41,6 +41,25 @@ export function HomeView() {
   const { version } = useVersion();
   const { isShelf, room, members, games, ops } = scope;
   const navigate = useNavigate();
+
+  // Room header row (members, Invite, vote/approve nudges): if it spills onto a second line, first
+  // try collapsing the nudges to just their buttons (data-compact="1" hides .nudge-text, see
+  // global.css). Done on the DOM directly so there's no flash of the wrapped layout.
+  const metaRowRef = useRef<HTMLDivElement>(null);
+  useLayoutEffect(() => {
+    const el = metaRowRef.current;
+    if (!el) return;
+    const check = () => {
+      el.dataset.compact = '0';
+      const items = Array.from(el.querySelectorAll<HTMLElement>(':scope > *, :scope > * > button'));
+      const top = items[0]?.getBoundingClientRect().top ?? 0;
+      el.dataset.compact = items.some((i) => i.getBoundingClientRect().top - top > 4) ? '1' : '0';
+    };
+    check();
+    const ro = new ResizeObserver(check);
+    ro.observe(el);
+    return () => ro.disconnect();
+  });
 
   // The shelf's primary tabs, plus the filters tucked behind the "+" button (Dropped, Won't play and
   // the two lists of synced titles that never became games).
@@ -143,10 +162,15 @@ export function HomeView() {
             <button
               type="button"
               onClick={() => (isShelf ? ui.openDialog('needsReview') : ui.openDialog('deck'))}
+              aria-label={`${nudgeLabel} - ${isShelf ? 'Match' : 'Vote now'}`}
+              title={nudgeLabel}
+              className="nudge"
               style={st('align-self:flex-start;display:flex;align-items:center;gap:10px;height:42px;padding:0 8px 0 14px;border-radius:999px;border:none;background:var(--accSoft);color:var(--accText);font:600 13.5px var(--font-ui)')}
             >
-              <span style={st('width:8px;height:8px;border-radius:50%;background:var(--acc)')} />
-              {nudgeLabel}
+              <span className="nudge-text" style={st('display:flex;align-items:center;gap:10px')}>
+                <span style={st('width:8px;height:8px;border-radius:50%;background:var(--acc)')} />
+                {nudgeLabel}
+              </span>
               <span style={st('height:28px;padding:0 11px;border-radius:999px;background:var(--acc);color:var(--ink);display:flex;align-items:center;font-size:12px')}>
                 {isShelf ? 'Match' : 'Vote now'}
               </span>
@@ -156,9 +180,12 @@ export function HomeView() {
             <button
               type="button"
               onClick={() => ui.openDialog('roomSettings')}
+              aria-label={`${toApprove} to approve - Review`}
+              title={`${toApprove} to approve`}
+              className="nudge"
               style={st('display:flex;align-items:center;gap:10px;height:42px;padding:0 8px 0 14px;border-radius:999px;border:1px dashed var(--line);background:transparent;color:var(--text);font:600 13.5px var(--font-ui)')}
             >
-              {toApprove} to approve
+              <span className="nudge-text">{toApprove} to approve</span>
               <span style={st('height:28px;padding:0 11px;border-radius:999px;background:var(--chip);color:var(--accText);display:flex;align-items:center;font-size:12px')}>Review</span>
             </button>
           )}
@@ -216,7 +243,7 @@ export function HomeView() {
             </span>
           </div>
         ) : (
-          <div style={st('display:flex;flex-wrap:wrap;align-items:center;gap:12px;margin-top:2px')}>
+          <div ref={metaRowRef} style={st('display:flex;flex-wrap:wrap;align-items:center;gap:12px;margin-top:2px')}>
             <div style={{ display: 'flex', paddingLeft: 8 }}>
               {members.map((m) => (
                 <button
