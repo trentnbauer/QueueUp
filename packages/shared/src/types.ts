@@ -2051,7 +2051,7 @@ export interface FriendsResponse {
 
 /** One item in the friends' activity feed (and a single friend's profile feed). */
 /** The reactions people can leave on an activity feed entry. */
-export const FEED_REACTION_EMOJI = ['👍', '❤️', '😂', '🔥', '🎉'] as const;
+export const FEED_REACTION_EMOJI = ['👍', '❤️', '😂', '🔥', '🎉', '💩', '😡', '💸'] as const;
 
 /** How many people reacted to a feed entry with one emoji, and whether the viewer is one of them. */
 export interface FeedReactionSummary {
