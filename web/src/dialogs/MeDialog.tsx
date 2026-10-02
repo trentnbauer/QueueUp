@@ -1,6 +1,6 @@
 import { useEffect, useState, type ReactNode } from 'react';
 import { useNavigate } from 'react-router';
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { useInfiniteQuery, useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { PRICE_REGION_LABELS, ROOM_PLATFORM_LABELS, sortPlatforms, type PriceRegion } from '@queueup/shared';
 import { apiKeysApi, API_KEYS_QUERY_KEY } from '../api/apiKeys';
 import { authApi } from '../api/auth';
@@ -234,6 +234,38 @@ function NotificationsDialog({ onClose }: { onClose: () => void }) {
   );
 }
 
+/** Account history: a log of changes to this account and its settings. */
+function AccountHistoryDialog({ onClose }: { onClose: () => void }) {
+  const history = useInfiniteQuery({
+    queryKey: ['account-events'],
+    queryFn: ({ pageParam }: { pageParam: string | undefined }) => authApi.accountEvents(pageParam),
+    initialPageParam: undefined as string | undefined,
+    getNextPageParam: (last) => last.nextBefore ?? undefined,
+  });
+  const entries = history.data?.pages.flatMap((p) => p.entries) ?? [];
+  return (
+    <Dialog onClose={onClose} title="Account history" gap={4}>
+      <span style={st('font:400 13px/1.45 var(--font-ui);color:var(--muted);padding-bottom:8px')}>Changes to your account and settings, newest first.</span>
+      {history.isLoading && <span style={st('font:400 13.5px var(--font-ui);color:var(--muted)')}>Loading…</span>}
+      {history.isError && <span style={st('font:400 13.5px var(--font-ui);color:var(--danger)')}>Could not load your history.</span>}
+      {!history.isLoading && !history.isError && entries.length === 0 && (
+        <span style={st('font:400 13.5px var(--font-ui);color:var(--muted)')}>Nothing yet. Changes you make from now on show up here.</span>
+      )}
+      {entries.map((e) => (
+        <div key={e.id} style={st('display:flex;justify-content:space-between;gap:12px;padding:10px 0;border-bottom:1px solid var(--chip);font:400 13.5px var(--font-ui)')}>
+          <span>{e.message}</span>
+          <span style={st('flex-shrink:0;color:var(--faint);font-size:12px')}>{formatRelativeTime(e.createdAt)}</span>
+        </div>
+      ))}
+      {history.hasNextPage && (
+        <Btn height={36} fontSize={13} style={{ alignSelf: 'flex-start', marginTop: 8 }} disabled={history.isFetchingNextPage} onClick={() => history.fetchNextPage()}>
+          {history.isFetchingNextPage ? 'Loading…' : 'Load more'}
+        </Btn>
+      )}
+    </Dialog>
+  );
+}
+
 function ApiKeysDialog({ onClose }: { onClose: () => void }) {
   const queryClient = useQueryClient();
   const ui = useUi();
@@ -333,6 +365,7 @@ export function MeDialog() {
   const [unlinking, setUnlinking] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [keysOpen, setKeysOpen] = useState(false);
+  const [historyOpen, setHistoryOpen] = useState(false);
   const [notifOpen, setNotifOpen] = useState(false);
   const [systemsOpen, setSystemsOpen] = useState(false);
   const [slugDraft, setSlugDraft] = useState<string | null>(null);
@@ -691,6 +724,7 @@ export function MeDialog() {
             )}
             <NavRow label="Notifications" onClick={() => setNotifOpen(true)} />
             <NavRow label="API keys" onClick={() => setKeysOpen(true)} />
+            <NavRow label="Account history" onClick={() => setHistoryOpen(true)} />
           </Group>
         </Section>
 
@@ -716,6 +750,7 @@ export function MeDialog() {
         <span style={st('font:500 11.5px var(--font-mono);color:var(--faint)')}>QueueUp{version ? ` ${version}` : ''}</span>
       </Dialog>
       {keysOpen && <ApiKeysDialog onClose={() => setKeysOpen(false)} />}
+      {historyOpen && <AccountHistoryDialog onClose={() => setHistoryOpen(false)} />}
       {notifOpen && <NotificationsDialog onClose={() => setNotifOpen(false)} />}
       {systemsOpen && <SystemsDialog onClose={() => setSystemsOpen(false)} />}
     </>

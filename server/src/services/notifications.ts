@@ -1,4 +1,5 @@
 import type { NotificationType, Prisma } from '@prisma/client';
+import { logAccountEvent } from './accountEvents.js';
 import { prisma } from '../db/client.js';
 import { toUserDto } from '../util/dto.js';
 import { logRoomActivity, logShelfActivity } from './roomActivity.js';
@@ -211,6 +212,7 @@ export async function notifyPlaytimeMarkPlaying(
  * stands out. Direct and actor-less. Delivery problems are logged, never thrown: this runs after the
  * change itself already succeeded. */
 export async function notifyAccountChange(userId: string, message: string): Promise<void> {
+  void logAccountEvent(userId, 'account_change', message);
   try {
     await prisma.notification.create({
       data: { recipientId: userId, roomName: 'Account', type: 'account_change', message },

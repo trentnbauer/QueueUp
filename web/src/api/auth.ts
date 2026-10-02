@@ -1,6 +1,6 @@
 import { apiDelete, apiGet, apiPatch, apiPost, apiPut } from './client';
 import { getBasePath } from '../utils/basePath';
-import type { ActivityVisibilityResponse, RoomPlatform, User } from '@queueup/shared';
+import type { AccountEventPage, ActivityVisibilityResponse, RoomPlatform, User } from '@queueup/shared';
 
 export const authApi = {
   me: () =>
@@ -26,6 +26,7 @@ export const authApi = {
     apiPatch<{ ownedPlatforms: RoomPlatform[] }>('/api/me/owned-platforms', { platforms }),
   updatePublicProfile: (enabled: boolean) =>
     apiPatch<{ publicProfileEnabled: boolean }>('/api/me/public-profile', { enabled }),
+  accountEvents: (before?: string) => apiGet<AccountEventPage>(`/api/me/events${before ? `?before=${encodeURIComponent(before)}` : ''}`),
   activityVisibility: () => apiGet<ActivityVisibilityResponse>('/api/me/activity-visibility'),
   setActivityVisibility: (hidden: boolean) => apiPut<ActivityVisibilityResponse>('/api/me/activity-visibility', { hidden }),
   setDisplayName: (displayName: string) => apiPatch<{ displayName: string }>('/api/me/display-name', { displayName }),

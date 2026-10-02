@@ -1,3 +1,4 @@
+import { logAccountEvent } from '../services/accountEvents.js';
 import type { FastifyInstance } from 'fastify';
 import { Prisma } from '@prisma/client';
 import { env } from '../config/env.js';
@@ -274,6 +275,7 @@ export default async function authRoutes(app: FastifyInstance) {
     async (request, reply) => {
       const userId = await request.requireAuth();
       const publicProfileEnabled = await setPublicProfileEnabled(userId, request.body?.enabled);
+      void logAccountEvent(userId, 'public_profile', publicProfileEnabled ? 'Public profile turned on.' : 'Public profile turned off.');
       return reply.send({ publicProfileEnabled });
     },
   );
@@ -285,6 +287,7 @@ export default async function authRoutes(app: FastifyInstance) {
     async (request, reply) => {
       const userId = await request.requireAuth();
       const profileSlug = await setProfileSlug(userId, request.body?.slug);
+      void logAccountEvent(userId, 'profile_link', profileSlug ? `Custom profile link set to /u/${profileSlug}.` : 'Custom profile link removed.');
       return reply.send({ profileSlug });
     },
   );
