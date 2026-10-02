@@ -22,13 +22,13 @@ export async function sendEmailAlerts(): Promise<void> {
 
   const prefs = await prisma.notificationPreference.findMany({
     where: { email: true },
-    select: { userId: true, type: true, updatedAt: true, user: { select: { email: true } } },
+    select: { userId: true, type: true, updatedAt: true, user: { select: { email: true, alertEmail: true } } },
   });
   if (prefs.length === 0) return;
 
   const byUser = new Map<string, { email: string; types: { type: (typeof prefs)[number]['type']; since: Date }[] }>();
   for (const p of prefs) {
-    const entry = byUser.get(p.userId) ?? { email: p.user.email, types: [] };
+    const entry = byUser.get(p.userId) ?? { email: p.user.alertEmail ?? p.user.email, types: [] };
     entry.types.push({ type: p.type, since: p.updatedAt });
     byUser.set(p.userId, entry);
   }

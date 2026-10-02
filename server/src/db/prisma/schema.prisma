@@ -190,6 +190,10 @@ model User {
   /// Steam sign-in users don't need this populated; their Steam ID lives in oidcSub instead.
   steamId64            String?        @unique @map("steam_id64")
   email                String
+  /// Where alert emails go when it isn't the account email. Set (and confirmed) by the person in
+  /// Settings; the account email above comes from the sign-in provider and is refreshed on every
+  /// sign-in, so it can't be edited by hand. Null = use `email`.
+  alertEmail           String?        @map("alert_email")
   displayName          String         @map("display_name")
   avatarColor          String         @default("#8f8aa8") @map("avatar_color")
   avatarUrl            String?        @map("avatar_url")
@@ -240,6 +244,7 @@ model User {
   titleMatchSuggestions         TitleMatchSuggestion[]
   feedReactions                 FeedReaction[]
   notificationPreferences       NotificationPreference[]
+  emailChangeRequest            EmailChangeRequest?
   friendshipsRequested          Friendship[]                   @relation("FriendshipRequester")
   friendshipsReceived           Friendship[]                   @relation("FriendshipAddressee")
 
@@ -327,6 +332,20 @@ model FeedReaction {
   @@id([entryId, userId])
   @@index([entryId])
   @@map("feed_reactions")
+}
+
+/// A new alert address waiting to be confirmed from the link emailed to it. One pending request per
+/// person (a new one replaces the old); only the token's hash is kept.
+model EmailChangeRequest {
+  userId    String   @id @map("user_id")
+  email     String
+  tokenHash String   @unique @map("token_hash")
+  expiresAt DateTime @map("expires_at")
+  createdAt DateTime @default(now()) @map("created_at")
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("email_change_requests")
 }
 
 /// A person's delivery choices for one kind of alert. `email`: also send it by email (off unless

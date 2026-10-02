@@ -5,7 +5,7 @@ import { PRICE_REGION_LABELS, ROOM_PLATFORM_LABELS, sortPlatforms, type PriceReg
 import { apiKeysApi, API_KEYS_QUERY_KEY } from '../api/apiKeys';
 import { authApi } from '../api/auth';
 import { badgesApi } from '../api/badges';
-import { NOTIFICATION_PREFERENCES_QUERY_KEY, notificationPreferencesApi } from '../api/notificationPreferences';
+import { ALERT_EMAIL_QUERY_KEY, NOTIFICATION_PREFERENCES_QUERY_KEY, alertEmailApi, notificationPreferencesApi } from '../api/notificationPreferences';
 import { useAuth } from '../context/AuthContext';
 import { useCardDensity } from '../context/CardDensityContext';
 import { useConfirm } from '../context/ConfirmContext';
@@ -88,6 +88,74 @@ function SystemsDialog({ onClose }: { onClose: () => void }) {
   );
 }
 
+/** The address alert emails go to, with an edit box. A new address is confirmed from a link emailed to it. */
+function AlertEmailRow() {
+  const queryClient = useQueryClient();
+  const ui = useUi();
+  const { data } = useQuery({ queryKey: ALERT_EMAIL_QUERY_KEY, queryFn: alertEmailApi.get });
+  const [draft, setDraft] = useState<string | null>(null);
+  const [saving, setSaving] = useState(false);
+
+  async function save() {
+    if (draft === null) return;
+    setSaving(true);
+    try {
+      const res = await alertEmailApi.set({ email: draft.trim() || null });
+      setDraft(null);
+      void queryClient.invalidateQueries({ queryKey: ALERT_EMAIL_QUERY_KEY });
+      void queryClient.invalidateQueries({ queryKey: NOTIFICATION_PREFERENCES_QUERY_KEY });
+      ui.notify(res.status === 'confirmation_sent' ? 'Check your inbox to confirm the new address' : 'Email saved');
+    } catch (e) {
+      ui.showError(e instanceof Error ? e.message : 'Could not save that email');
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  if (!data) return null;
+  return (
+    <div style={st('display:flex;flex-direction:column;gap:8px;padding:12px 14px;border-radius:16px;background:var(--surf)')}>
+      <span style={st('font:600 14.5px var(--font-ui)')}>Email address for alerts</span>
+      {draft === null ? (
+        <div style={st('display:flex;align-items:center;gap:10px')}>
+          <span style={st('flex:1;min-width:0;font:400 14px var(--font-ui);overflow-wrap:anywhere')}>{data.effectiveEmail}</span>
+          <Btn kind="soft" height={34} padX={14} fontSize={12.5} onClick={() => setDraft(data.alertEmail ?? '')}>
+            Change
+          </Btn>
+        </div>
+      ) : (
+        <form
+          onSubmit={(e) => {
+            e.preventDefault();
+            void save();
+          }}
+          style={st('display:flex;align-items:center;gap:6px')}
+        >
+          <input
+            autoFocus
+            type="email"
+            value={draft}
+            onChange={(e) => setDraft(e.target.value)}
+            placeholder={data.accountEmail}
+            aria-label="Email address for alerts"
+            style={st(inputField, { flex: 1, minWidth: 0, height: 38 })}
+          />
+          <Btn kind="accent" height={38} padX={12} fontSize={13} disabled={saving} onClick={() => void save()}>
+            Save
+          </Btn>
+          <Btn height={38} padX={12} fontSize={13} onClick={() => setDraft(null)}>
+            Cancel
+          </Btn>
+        </form>
+      )}
+      {data.pending && <span style={st('font:400 12.5px var(--font-ui);color:var(--muted)')}>Waiting for you to confirm {data.pending} from the email we sent it.</span>}
+      <span style={st('font:400 12.5px/1.4 var(--font-ui);color:var(--muted)')}>
+        {data.alertEmail ? `Your sign-in email is ${data.accountEmail}. Leave this blank to use it again.` : 'This is your sign-in email. Enter a different address to use that instead; it changes nothing about how you sign in.'}
+      </span>
+    </div>
+  );
+}
+
 /** Which alerts you get: email (needs SMTP set up on the server) and, for the newer alert types, the bell. */
 function NotificationsDialog({ onClose }: { onClose: () => void }) {
   const queryClient = useQueryClient();
@@ -103,6 +171,7 @@ function NotificationsDialog({ onClose }: { onClose: () => void }) {
   return (
     <Dialog onClose={onClose} title="Notifications" gap={14}>
       {error && <Banner onDismiss={() => setError(null)}>{error}</Banner>}
+      <AlertEmailRow />
       {data && !data.emailAvailable && (
         <span style={st('font:400 13px/1.45 var(--font-ui);color:var(--muted)')}>Email alerts aren't set up on this server, so the email switches are off.</span>
       )}

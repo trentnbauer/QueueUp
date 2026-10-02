@@ -16,7 +16,7 @@ export default async function notificationPreferenceRoutes(app: FastifyInstance)
   app.get('/api/me/notification-preferences', async (request): Promise<NotificationPreferencesResponse> => {
     const userId = await request.requireAuth();
     const [user, rows, emailAvailable] = await Promise.all([
-      prisma.user.findUniqueOrThrow({ where: { id: userId }, select: { email: true } }),
+      prisma.user.findUniqueOrThrow({ where: { id: userId }, select: { email: true, alertEmail: true } }),
       prisma.notificationPreference.findMany({ where: { userId } }),
       smtpIsConfigured(),
     ]);
@@ -27,7 +27,7 @@ export default async function notificationPreferenceRoutes(app: FastifyInstance)
       email: byType.get(type)?.email ?? false,
       inApp: byType.get(type)?.inApp ?? true,
     }));
-    return { emailAvailable, email: user.email, preferences };
+    return { emailAvailable, email: user.alertEmail ?? user.email, preferences };
   });
 
   app.put<{ Body: SetNotificationPreferenceRequest }>(
