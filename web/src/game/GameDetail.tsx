@@ -22,6 +22,7 @@ import {
 import { ggDealsSearchUrl } from '../utils/formatPrice';
 import { formatRelativeTime } from '../utils/relativeTime';
 import { ReviewEmbed } from '../dialogs/ReviewSheet';
+import { PriceHistoryChart } from './PriceHistoryChart';
 import { SteamMatchSheet } from './SteamMatchSheet';
 import { Avatar, coverBg, GOLD } from '../ui/primitives';
 import { Trailer } from './Trailer';
@@ -282,6 +283,7 @@ export function GameDetail({ game, onClose, changeStatus }: { game: Game; onClos
               {showLow && <span style={st('color:var(--accText);font-weight:600')}>All-time low: {fmtMoney(game.price.historicalLow, currency)}</span>}
               {atLow && <span style={st('color:var(--mint);font-weight:600')}>At its all-time low right now</span>}
             </div>
+            {live && <PriceHistoryChart gameId={game.id} currency={game.price.currency} />}
 
             {!live &&
               (editManual ? (

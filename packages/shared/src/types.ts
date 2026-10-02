@@ -962,6 +962,20 @@ export interface PlayerAchievements {
 /** One playthrough attempt's dated record (issue #361) - see PlayLog in schema.prisma for why this
  * exists separately from Game.status. `finishedAt` is null while still in progress (or paused -
  * see recordStatusTransition.ts). Newest attempt first. */
+/** One recorded price for a game (see GET /api/games/:id/price-history). */
+export interface PriceHistoryPoint {
+  at: string;
+  amount: number;
+}
+
+export interface PriceHistoryResponse {
+  currency: string | null;
+  points: PriceHistoryPoint[];
+  /** The middle of the recorded prices, or null without enough history. */
+  usual: number | null;
+  lowest: number | null;
+}
+
 export interface PlayLogEntry {
   id: string;
   startedAt: string;

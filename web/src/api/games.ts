@@ -1,5 +1,6 @@
 import { apiGet, apiPost, apiPatch, apiPut, apiDelete } from './client';
 import type {
+  PriceHistoryResponse,
   ResolveSensitiveGamesRequest,
   SensitiveGamesResponse,
   BacklogInsights,
@@ -77,6 +78,8 @@ export const gamesApi = {
     apiGet<{ results: GameSearchResult[] }>(`/api/games/trending${browseQuery(roomId, hideAddons, allPlatforms)}`),
   /** Every DLC/expansion IGDB has on file for this game (issue #338), already excluding anything
    * that's already on this game's own room/shelf. */
+  priceHistory: (id: string, currency?: string | null) =>
+    apiGet<PriceHistoryResponse>(`/api/games/${id}/price-history${currency ? `?currency=${encodeURIComponent(currency)}` : ''}`),
   trailer: (id: string) => apiGet<GameTrailerResponse>(`/api/games/${id}/trailer`),
   dlc: (id: string) => apiGet<{ results: GameSearchResult[] }>(`/api/games/${id}/dlc`),
   create: (body: CreateGameRequest) => apiPost<CreateGameResponse>('/api/games', body),

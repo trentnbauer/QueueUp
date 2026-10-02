@@ -2,6 +2,7 @@ import { prisma } from '../db/client.js';
 import { gameInclude, type GameWithRelations } from '../services/gameSerializer.js';
 import { getSteamPrices } from '../services/priceService.js';
 import { runPriceAlertChecks } from '../services/priceAlerts.js';
+import { prunePriceHistory, recordPricePoints } from '../services/priceHistory.js';
 import { getRoomPlatforms } from '../services/roomAccess.js';
 import { notifyWishlistBundle } from '../services/notifications.js';
 import { scheduleJob, type JobHandle } from './scheduler.js';
@@ -47,6 +48,14 @@ export async function checkAllActivePriceWatches(): Promise<void> {
 
   const pcSteamAppIds = games.filter(isPcGame).map((g) => g.steamAppid).filter((id): id is number => id != null);
   const prices = await getSteamPrices(pcSteamAppIds);
+  // Keep a history of what these cost, so the game card can chart it and "good time to buy" has
+  // something to compare against. Written before the alert checks so they see the latest point.
+  try {
+    await recordPricePoints(prices);
+    await prunePriceHistory();
+  } catch (err) {
+    console.error('[priceAlerts] failed to record price history', err);
+  }
 
   // Wishlist bundle digest (#570 follow-up): collects every Wishlist game whose alert actually
   // fired *in this run*, per user, keyed by gameId so a game that fires both the target-price and

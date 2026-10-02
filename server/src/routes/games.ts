@@ -61,6 +61,7 @@ import type { OwnedSteamGame } from '../services/steamLibrary.js';
 import { toggleOwnershipForPlatform, setOwnershipPlatforms, markOwned, promoteOwnedWishlistGames } from '../services/gameOwnership.js';
 import { recordStatusTransition } from '../services/playLog.js';
 import { notifyFriendRecommendation } from '../services/friendRecommendations.js';
+import { getPriceHistory, usualPrice } from '../services/priceHistory.js';
 import { getCurrentPlaytimeMinutesForGames } from '../services/playtimeTracking.js';
 import { summarizeTimeToBeat, summarizeActiveHoursToBeat, pickMostNeglectedGame, backlogAgeRanges } from '../services/backlogInsights.js';
 import { unlockBadges } from '../services/badges.js';
@@ -99,6 +100,7 @@ import type {
   NextPickSuggestion,
   PlayerAchievements,
   PlayLogEntry,
+  PriceHistoryResponse,
   PriceRegion,
   SetGameOwnershipRequest,
   SetGamePrerequisiteRequest,
@@ -578,6 +580,34 @@ export default async function gameRoutes(app: FastifyInstance) {
       const excludeIgdbIds = await existingIgdbIds(game.roomId, userId);
       const results = await dlcIntake(game.igdbId, platforms, excludeIgdbIds);
       return { results };
+    },
+  );
+
+  // Recorded prices for a game's Steam app, for the chart on the game card. The currency is the one
+  // the viewer sees (query), falling back to whichever one has been recorded.
+  app.get<{ Params: { id: string }; Querystring: { currency?: string } }>(
+    '/api/games/:id/price-history',
+    { config: { rateLimit: { max: 30, timeWindow: '1 minute' } } },
+    async (request): Promise<PriceHistoryResponse> => {
+      const userId = await request.requireAuth();
+      const game = await loadGameOr404(request.params.id);
+      await requireGameReadAccess(game, userId);
+      if (game.steamAppid == null) return { currency: null, points: [], usual: null, lowest: null };
+
+      let currency = typeof request.query.currency === 'string' ? request.query.currency.slice(0, 8) : '';
+      if (!currency) {
+        const any = await prisma.priceHistory.findFirst({ where: { steamAppid: game.steamAppid }, orderBy: { recordedAt: 'desc' }, select: { currency: true } });
+        currency = any?.currency ?? '';
+      }
+      if (!currency) return { currency: null, points: [], usual: null, lowest: null };
+
+      const points = await getPriceHistory(game.steamAppid, currency);
+      return {
+        currency,
+        points: points.map((p) => ({ at: p.at.toISOString(), amount: p.amount })),
+        usual: usualPrice(points),
+        lowest: points.length ? Math.min(...points.map((p) => p.amount)) : null,
+      };
     },
   );
 

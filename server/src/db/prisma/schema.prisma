@@ -355,6 +355,20 @@ model EmailChangeRequest {
   @@map("email_change_requests")
 }
 
+/// One observed price for a Steam app, written by the scheduled price job whenever the price differs
+/// from the last point stored for that app and currency. Shared by everyone tracking the app (the
+/// price is the same for all of them), so it isn't tied to a game or a user. Pruned after a year.
+model PriceHistory {
+  id         String   @id @default(uuid())
+  steamAppid Int      @map("steam_appid")
+  currency   String
+  amount     Float
+  recordedAt DateTime @default(now()) @map("recorded_at")
+
+  @@index([steamAppid, currency, recordedAt])
+  @@map("price_history")
+}
+
 /// A person's delivery choices for one kind of alert. `email`: also send it by email (off unless
 /// switched on, and only works when the server has SMTP set up). `inApp`: show it in the
 /// notification bell (on unless switched off, for the alert types that support turning it off).
@@ -845,6 +859,10 @@ model Game {
   /// again if the price drops even further, without re-notifying on every subsequent check while
   /// it sits at the same low. Independent of targetPrice, which is a user-set threshold.
   notifiedAtlPrice             String?    @map("notified_atl_price")
+  /// The price a "good time to buy" alert last fired at for this (wishlist) game. Cleared when the
+  /// price climbs back out of the "good" range, so the next dip alerts again. See
+  /// services/priceAlerts.ts checkGoodTimeToBuy.
+  notifiedGoodTimePrice        String?    @map("notified_good_time_price")
   /// User-set "play this after" pointer to another game in the same room (issue: play-after
   /// dropdown) - e.g. Borderlands 2 pointed at Borderlands 1. Purely organizational: nothing
   /// enforces it at write time beyond same-room + not-self (checked at the API layer, not here),
