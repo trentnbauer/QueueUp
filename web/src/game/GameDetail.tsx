@@ -20,6 +20,7 @@ import {
 } from '../lib/gameView';
 import { ggDealsSearchUrl } from '../utils/formatPrice';
 import { formatRelativeTime } from '../utils/relativeTime';
+import { ReviewEmbed } from '../dialogs/ReviewSheet';
 import { SteamMatchSheet } from './SteamMatchSheet';
 import { Avatar, coverBg, GOLD } from '../ui/primitives';
 import { Trailer } from './Trailer';
@@ -611,13 +612,10 @@ export function GameDetail({ game, onClose, changeStatus }: { game: Game; onClos
             ))}
           </div>
           {(game.status === 'done' || game.status === 'replay' || game.status === 'dropped') && (
-            <button
-              type="button"
-              onClick={() => ui.openDialog('review', { gameId: game.id, edit: true })}
-              style={st('align-self:flex-start;height:36px;padding:0 14px;border-radius:999px;border:none;background:var(--accSoft2);color:var(--accText);font:600 13px var(--font-ui)')}
-            >
-              {game.review ? 'Edit review' : 'Write a review'}
-            </button>
+            <div style={st('display:flex;flex-direction:column;gap:10px;padding-top:6px')}>
+              <span style={st(H)}>Review</span>
+              <ReviewEmbed key={game.id} game={game} onSaved={onClose} />
+            </div>
           )}
         </div>
 
