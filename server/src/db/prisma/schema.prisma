@@ -151,6 +151,10 @@ enum NotificationType {
   /// A wishlist game is at or near its all-time low (see the price history). Direct, sent alongside
   /// the usual price_drop alert, with its own setting.
   good_time_to_buy
+  /// Something about the person's own account changed: a sign-in method linked or unlinked, the
+  /// display name or alert email changed, an API key created or revoked. Direct, no actor. Lets
+  /// someone spot a change they didn't make.
+  account_change
 
   @@map("notification_type")
 }
