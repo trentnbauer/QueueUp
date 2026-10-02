@@ -250,9 +250,26 @@ export function FriendsDialog() {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
   const friends = useFriends();
+  const confirm = useConfirm();
   const [code, setCode] = useState('');
   const [error, setError] = useState<string | null>(null);
   const [sending, setSending] = useState(false);
+
+  async function removeFriend(id: string, name: string) {
+    const ok = await confirm({
+      title: `Remove ${name}?`,
+      message: "They won't see your activity and you won't see theirs. You can add each other again with a friend code.",
+      confirmLabel: 'Remove friend',
+      danger: true,
+    });
+    if (!ok) return;
+    try {
+      await friends.unfriend(id);
+      ui.notify(`${name} removed`);
+    } catch (e) {
+      setError(friends.errorMessage(e, 'Could not remove that friend'));
+    }
+  }
 
   async function resolve(fn: () => Promise<unknown>, done: string) {
     try {
@@ -363,8 +380,8 @@ export function FriendsDialog() {
         )}
         <Group>
           {friends.friends.map((f) => (
+            <div key={f.id} style={st('display:flex;align-items:stretch;background:var(--surf)')}>
             <button
-              key={f.id}
               type="button"
               className="hv-surf2"
               onClick={() => {
@@ -372,7 +389,7 @@ export function FriendsDialog() {
                 ui.selectGame(null);
                 navigate(`/friends/${f.id}`);
               }}
-              style={st('display:flex;align-items:center;gap:12px;min-height:64px;padding:10px 16px 10px 14px;border:none;background:var(--surf);color:var(--text);text-align:left;width:100%')}
+              style={st('display:flex;align-items:center;gap:12px;min-height:64px;padding:10px 8px 10px 14px;border:none;background:var(--surf);color:var(--text);text-align:left;flex:1;min-width:0')}
             >
               <Avatar name={f.displayName} color={f.avatarColor} avatarUrl={f.avatarUrl} size={40} fontSize={15} />
               <span style={st('flex:1;min-width:0;display:flex;flex-direction:column;gap:2px')}>
@@ -383,6 +400,17 @@ export function FriendsDialog() {
               </span>
               <span style={st('color:var(--muted);font-size:20px')}>›</span>
             </button>
+            <button
+              type="button"
+              className="hv-surf2"
+              aria-label={`Remove ${f.displayName}`}
+              title="Remove friend"
+              onClick={() => void removeFriend(f.id, f.displayName)}
+              style={st('flex-shrink:0;width:48px;border:none;background:var(--surf);color:var(--danger);font:600 20px var(--font-ui)')}
+            >
+              ×
+            </button>
+            </div>
           ))}
         </Group>
         {!friends.isLoading && friends.friends.length === 0 && <div style={st('padding:20px 4px;color:var(--muted);font-size:14.5px')}>No friends yet. Share your code below.</div>}
