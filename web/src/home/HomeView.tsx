@@ -238,9 +238,11 @@ export function HomeView() {
                 </button>
               ))}
             </div>
-            <Btn height={32} padX={14} fontSize={13} weight={500} onClick={() => ui.openDialog('roomSettings')} style={{ color: 'var(--muted)' }}>
-              Invite
-            </Btn>
+            {(scope.canManage || room?.invitePermission === 'members') && (
+              <Btn height={32} padX={14} fontSize={13} weight={500} onClick={() => ui.openDialog('roomSettings')} style={{ color: 'var(--muted)' }}>
+                Invite
+              </Btn>
+            )}
             {nudges}
           </div>
         )}

@@ -276,6 +276,7 @@ export function RoomSettingsDialog() {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
   const { room, members, games, canManage, suggestions } = scope;
+  const canInvite = canManage || room?.invitePermission === 'members';
   const friends = useFriends();
 
   const [name, setName] = useState(room?.name ?? '');
@@ -291,7 +292,7 @@ export function RoomSettingsDialog() {
   const roomId = room?.id ?? '';
   const isMaster = room?.myRole === 'room_master';
 
-  const candidates = useQuery({ queryKey: ['room-invite-candidates', roomId], queryFn: () => roomsApi.inviteCandidates(roomId), enabled: !!room && canManage });
+  const candidates = useQuery({ queryKey: ['room-invite-candidates', roomId], queryFn: () => roomsApi.inviteCandidates(roomId), enabled: !!room && canInvite });
   const activity = useInfiniteQuery({
     queryKey: ['room-activity', roomId],
     queryFn: ({ pageParam }: { pageParam: string | undefined }) => roomsApi.activity(roomId, pageParam),
@@ -461,6 +462,7 @@ export function RoomSettingsDialog() {
     >
       {error && <Banner onDismiss={() => setError(null)}>{error}</Banner>}
 
+      {canInvite && (
       <Field label="INVITE">
         <div style={st('display:flex;align-items:center;gap:10px;padding:10px 10px 10px 16px;border-radius:16px;background:var(--surf)')}>
           <span style={st('flex:1;min-width:0;font:600 17px var(--font-mono);letter-spacing:0.04em;white-space:nowrap;overflow:hidden;text-overflow:ellipsis')}>{invite ?? '—'}</span>
@@ -474,6 +476,7 @@ export function RoomSettingsDialog() {
           </button>
         )}
       </Field>
+      )}
 
       {canManage && suggestions.length > 0 && (
         <Field label={`SUGGESTED GAMES · ${suggestions.length}`}>
@@ -541,7 +544,7 @@ export function RoomSettingsDialog() {
           </button>
         )}
         {q && filtered.length === 0 && <span style={st('font:400 13.5px var(--font-ui);color:var(--muted)')}>No members match.</span>}
-        {canManage && (candidates.data?.users.length ?? 0) > 0 && (
+        {canInvite && (candidates.data?.users.length ?? 0) > 0 && (
           <>
             <span style={{ ...st(LABEL), marginTop: 8 }}>ADD FRIENDS</span>
             <Group>
@@ -593,6 +596,20 @@ export function RoomSettingsDialog() {
             on={!room.requireGameApproval}
             onChange={(v) => patch({ requireGameApproval: !v }, v ? 'Anyone can add games' : 'New games need approval')}
           />
+          <div style={st('display:flex;flex-direction:column;gap:10px;padding:14px 16px;border-radius:14px;background:var(--surf)')}>
+            <span style={st('display:flex;flex-direction:column;gap:2px')}>
+              <span style={st('font:500 14.5px var(--font-ui)')}>Who can invite people</span>
+              <span style={st('font:400 12px/1.45 var(--font-ui);color:var(--muted)')}>Share the invite link and add friends to the room.</span>
+            </span>
+            <div style={st('display:flex;flex-wrap:wrap;gap:6px')}>
+              <ChipToggle on={room.invitePermission === 'members'} onClick={() => patch({ invitePermission: 'members' }, 'Any member can invite')}>
+                Any member
+              </ChipToggle>
+              <ChipToggle on={room.invitePermission === 'moderators'} onClick={() => patch({ invitePermission: 'moderators' }, 'Only moderators and above can invite')}>
+                Moderators and above
+              </ChipToggle>
+            </div>
+          </div>
           <div style={st('display:flex;flex-direction:column;gap:10px;padding:14px 16px;border-radius:14px;background:var(--surf)')}>
             <span style={st('display:flex;flex-direction:column;gap:2px')}>
               <span style={st('font:500 14.5px var(--font-ui)')}>Spin price limit</span>

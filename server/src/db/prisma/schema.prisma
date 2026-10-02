@@ -87,6 +87,13 @@ enum RoomPlatform {
 /// gating as Room.spinOwnershipMaxPrice. "random" isn't itself a renderable theme - it resolves to
 /// one of the other four at spin time (see resolveConcreteTheme in the web app), re-rolled fresh
 /// on every spin rather than fixed once per room.
+/// Who may invite people to a room (share its invite link, add friends directly): any member, or
+/// only Moderators and the Room Master.
+enum RoomInvitePermission {
+  members
+  moderators
+}
+
 enum SpinWheelTheme {
   slot
   crate
@@ -542,6 +549,9 @@ model Room {
   /// Moderators always add directly regardless of this flag, since they're the ones who'd otherwise
   /// be approving their own suggestion.
   requireGameApproval   Boolean        @default(false) @map("require_game_approval")
+  /// Who can invite people (see RoomInvitePermission). Defaults to members, which keeps the invite
+  /// link visible to everyone as it always was.
+  invitePermission      RoomInvitePermission @default(members) @map("invite_permission")
   /// Which event kinds get posted to discordWebhookUrl - a partial map of DiscordEventKey ->
   /// boolean (see RoomDiscordEvents in @queueup/shared); a missing key falls back to its default
   /// (DEFAULT_DISCORD_EVENTS). Null means "all defaults".

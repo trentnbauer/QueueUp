@@ -349,6 +349,9 @@ export interface Room {
    * approve or decline (issue #362), instead of adding directly. Room Masters/Moderators always
    * add directly regardless of this flag. Defaults to false. */
   requireGameApproval: boolean;
+  /** Who can invite people to the room: any member, or only Moderators and the Room Master. Only
+   * those allowed get the invite code in `inviteCode` (and may add friends directly). */
+  invitePermission: RoomInvitePermission;
   /** Which event kinds post to the Discord webhook (always fully resolved against the defaults).
    * Room Master only, like the webhook URL itself. */
   discordEvents?: RoomDiscordEvents;
@@ -719,6 +722,8 @@ export interface CreateRoomRequest {
 }
 
 /** Room Master only. Any subset of fields may be provided. */
+export type RoomInvitePermission = 'members' | 'moderators';
+
 export interface UpdateRoomRequest {
   name?: string;
   /** Pass null to clear the room's platform restriction (issue #473); omit to leave it unchanged. */
@@ -730,6 +735,7 @@ export interface UpdateRoomRequest {
   spinWheelTheme?: SpinWheelTheme;
   isPublic?: boolean;
   requireGameApproval?: boolean;
+  invitePermission?: RoomInvitePermission;
   /** Any subset of event toggles; omitted keys are left unchanged. */
   discordEvents?: Partial<RoomDiscordEvents>;
 }

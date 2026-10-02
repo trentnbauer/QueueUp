@@ -3,7 +3,7 @@ import { Prisma } from '@prisma/client';
 import { prisma } from '../db/client.js';
 import { toUserDto } from '../util/dto.js';
 import { HttpError } from '../util/httpError.js';
-import { requireElevated, requireMembership, generateUniqueInviteCode, getRoom } from '../services/roomAccess.js';
+import { requireElevated, requireCanInvite, requireMembership, generateUniqueInviteCode, getRoom } from '../services/roomAccess.js';
 import { logAdminAction } from '../services/adminAuditLog.js';
 import { notifyRoom, notifyRoomMembersDirect } from '../services/notifications.js';
 import { unlockBadges } from '../services/badges.js';
@@ -19,6 +19,7 @@ import type {
   RoomDiscordEvents,
   RoomRole,
   SpinWheelTheme,
+  RoomInvitePermission,
   UpdateRoomRequest,
 } from '@queueup/shared';
 import { areFriends, friendIdsOf } from '../services/friendships.js';
@@ -43,6 +44,7 @@ function toRoomDto(
     spinWheelTheme: SpinWheelTheme;
     isPublic: boolean;
     requireGameApproval: boolean;
+    invitePermission: RoomInvitePermission;
     discordEvents: unknown;
   },
   role: Room['myRole'],
@@ -56,7 +58,8 @@ function toRoomDto(
     createdBy: room.createdBy,
     createdAt: room.createdAt.toISOString(),
     myRole: role,
-    inviteCode,
+    // The invite code is the room's access secret, so only people allowed to invite get it.
+    inviteCode: role !== 'member' || room.invitePermission === 'members' ? inviteCode : '',
     // The webhook URL embeds Discord's own auth token (discord.com/api/webhooks/<id>/<token>) -
     // whoever has it can post to that channel as the webhook, so only the Room Master (who can
     // also change it) gets the real value; other members just don't see it at all.
@@ -65,6 +68,7 @@ function toRoomDto(
     spinWheelTheme: room.spinWheelTheme,
     isPublic: room.isPublic,
     requireGameApproval: room.requireGameApproval,
+    invitePermission: room.invitePermission,
     discordEvents: role === 'room_master' ? resolveDiscordEvents(room.discordEvents) : undefined,
   };
 }
@@ -275,8 +279,11 @@ export default async function roomRoutes(app: FastifyInstance) {
       throw new HttpError(403, 'Only the Room Master can change room settings');
     }
 
-    const { name, platform, accentColor, discordWebhookUrl, spinOwnershipMaxPrice, spinWheelTheme, isPublic, requireGameApproval, discordEvents } =
+    const { name, platform, accentColor, discordWebhookUrl, spinOwnershipMaxPrice, spinWheelTheme, isPublic, requireGameApproval, invitePermission, discordEvents } =
       request.body ?? {};
+    if (invitePermission !== undefined && invitePermission !== 'members' && invitePermission !== 'moderators') {
+      throw new HttpError(400, 'Invite permission must be members or moderators');
+    }
     if (name !== undefined && (typeof name !== 'string' || !name.trim())) throw new HttpError(400, 'Room name cannot be empty');
     if (accentColor !== undefined && typeof accentColor !== 'string') throw new HttpError(400, 'Room colour must be a hex colour like #8b5cf6');
     if (name !== undefined && !name.trim()) throw new HttpError(400, 'Room name cannot be empty');
@@ -316,6 +323,7 @@ export default async function roomRoutes(app: FastifyInstance) {
         ...(spinWheelTheme !== undefined && { spinWheelTheme }),
         ...(isPublic !== undefined && { isPublic }),
         ...(requireGameApproval !== undefined && { requireGameApproval }),
+        ...(invitePermission !== undefined && { invitePermission }),
         ...(discordEvents !== undefined && {
           discordEvents: { ...resolveDiscordEvents(before.discordEvents), ...pickDiscordEvents(discordEvents) },
         }),
@@ -457,14 +465,14 @@ export default async function roomRoutes(app: FastifyInstance) {
 
   app.get<{ Params: { roomId: string } }>(
     '/api/rooms/:roomId/invite-candidates',
-    // Elevated-only, but the response is effectively a dump of every user on the server (minus
+    // Invite-permitted only, but the response is effectively a dump of every user on the server (minus
     // current members) - a tighter limit than the global default costs a legitimate moderator
     // nothing while blunting use of this as a user-enumeration endpoint.
     { config: { rateLimit: { max: 30, timeWindow: '1 minute' } } },
     async (request) => {
       const userId = await request.requireAuth();
       const { roomId } = request.params;
-      await requireElevated(roomId, userId);
+      await requireCanInvite(roomId, userId);
 
       const existingMemberIds = (
         await prisma.roomMember.findMany({ where: { roomId }, select: { userId: true } })
@@ -503,7 +511,7 @@ export default async function roomRoutes(app: FastifyInstance) {
       const actorId = await request.requireAuth();
       const { roomId } = request.params;
       const { userId: targetUserId } = request.body;
-      await requireElevated(roomId, actorId);
+      await requireCanInvite(roomId, actorId);
       if (!targetUserId) throw new HttpError(400, 'A user id is required');
 
       // Only the caller's friends can be added directly - the same set invite-candidates offers.
