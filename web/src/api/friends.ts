@@ -5,6 +5,7 @@ import type {
   FriendsResponse,
   FriendUser,
   SendFriendRequestRequest,
+  SetFeedReactionRequest,
 } from '@queueup/shared';
 
 export const friendsApi = {
@@ -17,5 +18,6 @@ export const friendsApi = {
   unfriend: (userId: string) => apiDelete(`/api/friends/${userId}`),
   activity: (before?: string) =>
     apiGet<FriendActivityPage>(`/api/friends/activity${before ? `?before=${encodeURIComponent(before)}` : ''}`),
+  react: (body: SetFeedReactionRequest) => apiPost<{ ok: true }>('/api/feed-reactions', body),
   profile: (userId: string) => apiGet<FriendProfile>(`/api/friends/${userId}/profile`),
 };

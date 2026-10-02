@@ -238,6 +238,7 @@ model User {
   apiKeys                       ApiKey[]
   pendingLibraryImports         PendingLibraryImport[]
   titleMatchSuggestions         TitleMatchSuggestion[]
+  feedReactions                 FeedReaction[]
   friendshipsRequested          Friendship[]                   @relation("FriendshipRequester")
   friendshipsReceived           Friendship[]                   @relation("FriendshipAddressee")
 
@@ -308,6 +309,23 @@ model TitleMatchAlias {
 
   @@id([source, normalizedTitle])
   @@map("title_match_aliases")
+}
+
+/// A friend's emoji reaction to an activity feed entry. `entryId` is the feed entry's id: a
+/// RoomActivity id, or "badge:<userId>:<badge>" for achievements, which have no row of their own -
+/// so it is deliberately not a foreign key. One reaction per person per entry (changing it replaces
+/// it). Removed with the reacting user.
+model FeedReaction {
+  entryId   String   @map("entry_id")
+  userId    String   @map("user_id")
+  emoji     String
+  createdAt DateTime @default(now()) @map("created_at")
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@id([entryId, userId])
+  @@index([entryId])
+  @@map("feed_reactions")
 }
 
 /// One person's manual pick of an igdbId for an external-library title. Never applied on its own
