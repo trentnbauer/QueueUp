@@ -973,6 +973,9 @@ export interface PlayLogEntry {
    * - playtime tracking was off, this game was never Steam-matched, or the entry predates issue
    * #548 entirely. */
   minutesPlayed: number | null;
+  /** The room the game was finished in, when this entry came from "mark it Beaten on your shelf too?"
+   * after beating it in a group. Null for a game beaten on the shelf itself. */
+  roomName: string | null;
 }
 
 /** The integration credentials that can be set via env var or, as a fallback, via the admin
@@ -2083,6 +2086,8 @@ export interface PublicProfileBeatenGame {
   coverImageUrl: string | null;
   genre: string | null;
   replaying: boolean;
+  /** Beaten as part of a group (finished in a room, then marked Beaten on the shelf from there). */
+  inGroup: boolean;
   /** Dropped rather than finished - listed with the played games, flagged with a red border. */
   dropped: boolean;
   review: GameReview | null;

@@ -924,6 +924,10 @@ model PlayLog {
   /// between startedAt/finishedAt (which includes any stretch the game sat untouched).
   startPlaytimeMinutes  Int?      @map("start_playtime_minutes")
   finishPlaytimeMinutes Int?      @map("finish_playtime_minutes")
+  /// Set when a Personal Shelf copy was marked Beaten because the game was finished in a room (the
+  /// "mark it Beaten on your shelf too?" prompt): the room's name at the time, kept as text so it
+  /// survives the room being renamed or deleted. Null for a game beaten on the shelf itself.
+  roomName              String?   @map("room_name")
 
   game Game @relation(fields: [gameId], references: [id], onDelete: Cascade)
 

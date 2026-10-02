@@ -632,6 +632,7 @@ export function GameDetail({ game, onClose, changeStatus }: { game: Game; onClos
                 <span>
                   {e.finishedAt ? `Finished after starting ${shortDate(e.startedAt)}` : `Started ${shortDate(e.startedAt)} · in progress`}
                   {e.minutesPlayed !== null && ` · ${Math.round(e.minutesPlayed / 60)}h played`}
+                  {e.roomName && ` · beaten with ${e.roomName}`}
                 </span>
               </div>
             ))}
