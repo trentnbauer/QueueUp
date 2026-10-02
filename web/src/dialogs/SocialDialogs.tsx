@@ -3,6 +3,8 @@ import { useState } from 'react';
 import { useNavigate } from 'react-router';
 import { useQueryClient } from '@tanstack/react-query';
 import type { Notification } from '@queueup/shared';
+import { playTogetherApi } from '../api/playTogether';
+import { notificationsApi } from '../api/notifications';
 import { useConfirm } from '../context/ConfirmContext';
 import { useSteamImportContext } from '../context/SteamImportContext';
 import { useUi } from '../context/UiContext';
@@ -15,6 +17,77 @@ import { st } from '../ui/st';
 import { formatRelativeTime } from '../utils/relativeTime';
 
 const SHELF_TYPES: Notification['type'][] = ['price_drop', 'release_watch', 'playnite_sync_reminder', 'wishlist_bundle_deal'];
+
+/** A "wants to play this together" request: add the game to a room you're both in, or start a new
+ * room with the two of you. Stays until answered (mark-all-read skips it). */
+function PlayTogetherRequest({ n, onDone }: { n: Notification; onDone: () => void }) {
+  const queryClient = useQueryClient();
+  const ui = useUi();
+  const navigate = useNavigate();
+  const [busy, setBusy] = useState(false);
+  const [choosing, setChoosing] = useState(false);
+  const [rooms, setRooms] = useState<{ id: string; name: string }[] | null>(null);
+
+  async function accept(roomId?: string) {
+    setBusy(true);
+    try {
+      const res = await playTogetherApi.accept(n.id, { roomId });
+      void queryClient.invalidateQueries({ queryKey: ['rooms'] });
+      void queryClient.invalidateQueries({ queryKey: ['notifications'] });
+      void queryClient.invalidateQueries({ queryKey: ['games'] });
+      ui.notify(res.created ? `Created ${res.roomName}` : `Added to ${res.roomName}`);
+      onDone();
+      ui.selectGame(null);
+      navigate(`/room/${res.roomId}`);
+    } catch (e) {
+      ui.notify(e instanceof Error ? e.message : 'Something went wrong');
+      setBusy(false);
+    }
+  }
+  async function showRooms() {
+    setChoosing(true);
+    try {
+      setRooms((await playTogetherApi.rooms(n.id)).rooms);
+    } catch {
+      setRooms([]);
+    }
+  }
+  async function decline() {
+    setBusy(true);
+    await notificationsApi.markRead(n.id).catch(() => undefined);
+    void queryClient.invalidateQueries({ queryKey: ['notifications'] });
+    setBusy(false);
+  }
+
+  return (
+    <div style={st('display:flex;flex-direction:column;gap:10px;padding:12px;border-radius:16px;background:var(--surf)')}>
+      <span style={st('font:600 11.5px var(--font-mono);color:var(--muted)')}>PLAY TOGETHER</span>
+      <span style={st('font:500 14px/1.4 var(--font-ui);text-wrap:pretty')}>{n.message}</span>
+      <div style={st('display:flex;flex-wrap:wrap;gap:8px')}>
+        <Btn kind="soft" height={34} padX={14} fontSize={12.5} disabled={busy} onClick={showRooms}>
+          Add to a room
+        </Btn>
+        <Btn kind="soft" height={34} padX={14} fontSize={12.5} disabled={busy} onClick={() => accept()}>
+          New room for us
+        </Btn>
+        <Btn kind="ghost" height={34} padX={10} fontSize={12.5} disabled={busy} onClick={decline}>
+          Not now
+        </Btn>
+      </div>
+      {choosing && (
+        <div style={st('display:flex;flex-direction:column;gap:6px')}>
+          {rooms === null && <span style={st('font:400 13px var(--font-ui);color:var(--muted)')}>Loading rooms…</span>}
+          {rooms?.length === 0 && <span style={st('font:400 13px var(--font-ui);color:var(--muted)')}>You're not in any rooms together yet - start a new one.</span>}
+          {rooms?.map((r) => (
+            <Btn key={r.id} kind="ghost" height={36} padX={12} fontSize={13} disabled={busy} onClick={() => accept(r.id)}>
+              {r.name}
+            </Btn>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
 
 /** Bell: friend requests, import status, anything waiting for a match, then the unread feed.
  * Closing marks the feed read (so it's empty next time), same as before. */
@@ -138,6 +211,7 @@ export function NotificationsDialog() {
       )}
       {isLoading && <div style={st('padding:24px 12px;color:var(--muted);font:400 14px var(--font-ui)')}>Loading…</div>}
       {notifications.map((n) => {
+        if (n.type === 'play_together_request') return <PlayTogetherRequest key={n.id} n={n} onDone={() => ui.closeDialog('notifications')} />;
         const where = n.roomId ? n.roomName : SHELF_TYPES.includes(n.type) ? 'Personal Shelf' : 'Announcement';
         const clickable = !!n.roomId || SHELF_TYPES.includes(n.type);
         return (

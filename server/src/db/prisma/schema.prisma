@@ -134,6 +134,10 @@ enum NotificationType {
   /// alongside the normal per-game price_drop notification for each one, not instead of it. Always
   /// direct (recipientId), never room-scoped, same shape as release_watch.
   wishlist_bundle_deal
+  /// Someone who also owns one of your games asked to play it together (see routes/playTogether.ts) -
+  /// direct (recipientId), actorId is the asker, gameId is the recipient's own copy. Survives
+  /// "mark all read" until it's accepted into a room or declined.
+  play_together_request
 
   @@map("notification_type")
 }

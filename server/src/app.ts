@@ -24,6 +24,7 @@ import playniteCompletionSuggestionRoutes from './routes/playniteCompletionSugge
 import badgeRoutes from './routes/badges.js';
 import publicProfileRoutes from './routes/publicProfile.js';
 import friendRoutes from './routes/friends.js';
+import playTogetherRoutes from './routes/playTogether.js';
 import { env } from './config/env.js';
 import { redis } from './services/redisClient.js';
 import { logCaptureStream } from './services/logBuffer.js';
@@ -145,6 +146,7 @@ export async function buildApp() {
       await instance.register(badgeRoutes);
       await instance.register(publicProfileRoutes);
       await instance.register(friendRoutes);
+      await instance.register(playTogetherRoutes);
       // Bearer-token-authenticated, scoped under its own prefix and preHandler (see apiV1.ts) -
       // registered as a distinct plugin, not folded into gameRoutes/roomRoutes, so its auth hook
       // can never leak onto any cookie-authenticated route above. Fastify combines nested
