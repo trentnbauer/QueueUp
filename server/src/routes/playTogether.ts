@@ -78,41 +78,50 @@ export default async function playTogetherRoutes(app: FastifyInstance) {
       const { notification, asker, game } = await loadRequest(request.params.id, me);
       if (!game) throw new HttpError(404, 'That game is no longer on your shelf');
 
-      let roomId = request.body?.roomId;
-      let roomName: string;
-      let created = false;
-      if (roomId) {
-        const room = await prisma.room.findFirst({
-          where: { id: roomId, AND: [{ members: { some: { userId: me } } }, { members: { some: { userId: asker.id } } }] },
-          select: { id: true, name: true },
-        });
-        if (!room) throw new HttpError(403, 'You both need to be members of that room');
-        roomName = room.name;
-      } else {
-        const meUser = await prisma.user.findUniqueOrThrow({ where: { id: me }, select: { displayName: true } });
-        roomName = `${meUser.displayName} & ${asker.displayName}`.slice(0, 60);
-        const room = await prisma.room.create({
-          data: {
-            name: roomName,
-            platform: null,
-            accentColor: '#8b5cf6',
-            createdBy: me,
-            inviteCode: await generateUniqueInviteCode(),
-            members: { create: [{ userId: me, role: 'room_master' }, { userId: asker.id, role: 'member' }] },
-          },
-        });
-        roomId = room.id;
-        created = true;
-      }
+      // Claim the request first so a double-click or two tabs can't both create a room: only the
+      // call that flips readAt from null wins. Released again if the accept then fails.
+      const claimed = await prisma.notification.updateMany({ where: { id: notification.id, readAt: null }, data: { readAt: new Date() } });
+      if (claimed.count === 0) throw new HttpError(409, 'That request has already been answered');
 
       try {
-        await createGameForUser(me, roomId, game.igdbId);
+        let roomId = request.body?.roomId;
+        let roomName: string;
+        let created = false;
+        if (roomId) {
+          const room = await prisma.room.findFirst({
+            where: { id: roomId, AND: [{ members: { some: { userId: me } } }, { members: { some: { userId: asker.id } } }] },
+            select: { id: true, name: true },
+          });
+          if (!room) throw new HttpError(403, 'You both need to be members of that room');
+          roomName = room.name;
+        } else {
+          const meUser = await prisma.user.findUniqueOrThrow({ where: { id: me }, select: { displayName: true } });
+          roomName = `${meUser.displayName} & ${asker.displayName}`.slice(0, 60);
+          const room = await prisma.room.create({
+            data: {
+              name: roomName,
+              platform: null,
+              accentColor: '#8b5cf6',
+              createdBy: me,
+              inviteCode: await generateUniqueInviteCode(),
+              members: { create: [{ userId: me, role: 'room_master' }, { userId: asker.id, role: 'member' }] },
+            },
+          });
+          roomId = room.id;
+          created = true;
+        }
+
+        try {
+          await createGameForUser(me, roomId, game.igdbId);
+        } catch (err) {
+          // Already in that room: fine, that's what was wanted.
+          if (!(err instanceof HttpError && err.statusCode === 409)) throw err;
+        }
+        return { roomId, roomName, created };
       } catch (err) {
-        // Already in that room: fine, that's what was wanted.
-        if (!(err instanceof HttpError && err.statusCode === 409)) throw err;
+        await prisma.notification.update({ where: { id: notification.id }, data: { readAt: null } }).catch(() => undefined);
+        throw err;
       }
-      await prisma.notification.update({ where: { id: notification.id }, data: { readAt: new Date() } });
-      return { roomId, roomName, created };
     },
   );
 }
