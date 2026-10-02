@@ -3,9 +3,10 @@ import { useEffect } from 'react';
 /** Keeps the screen awake while mounted (Screen Wake Lock API), so a trailer or a scan isn't cut off by the
  * screen dimming. The browser drops the lock whenever the tab is hidden, so it's asked for again
  * when the tab comes back. Browsers without the API, or that refuse it (e.g. low battery), just
- * carry on without it. */
-export function useKeepScreenAwake() {
+ * carry on without it. Pass `active` to hold it only for part of the component's life. */
+export function useKeepScreenAwake(active = true) {
   useEffect(() => {
+    if (!active) return;
     if (typeof navigator === 'undefined' || !('wakeLock' in navigator)) return;
     let lock: WakeLockSentinel | null = null;
     let cancelled = false;
@@ -31,5 +32,5 @@ export function useKeepScreenAwake() {
       document.removeEventListener('visibilitychange', onVisible);
       void lock?.release().catch(() => undefined);
     };
-  }, []);
+  }, [active]);
 }
