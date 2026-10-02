@@ -16,7 +16,7 @@ import { Avatar, Banner, Btn, Group, inputPill } from '../ui/primitives';
 import { st } from '../ui/st';
 import { formatRelativeTime } from '../utils/relativeTime';
 
-const SHELF_TYPES: Notification['type'][] = ['price_drop', 'release_watch', 'playnite_sync_reminder', 'wishlist_bundle_deal'];
+const SHELF_TYPES: Notification['type'][] = ['friend_recommendation', 'price_drop', 'release_watch', 'playnite_sync_reminder', 'wishlist_bundle_deal'];
 
 /** A "wants to play this together" request: add the game to a room you're both in, or start a new
  * room with the two of you. Stays until answered (mark-all-read skips it). */
@@ -127,8 +127,9 @@ export function NotificationsDialog() {
     if (!to) return;
     if (notifications.length > 0) markAllRead();
     ui.closeDialog('notifications');
-    ui.selectGame(null);
     navigate(to);
+    // A recommendation opens the game it is about, on your own shelf.
+    ui.selectGame(n.type === 'friend_recommendation' ? n.gameId : null);
   }
 
   async function declineRequest(id: string, name: string) {
