@@ -286,6 +286,8 @@ export function Cover({
   radius = 9,
   completed = false,
   status,
+  statusRing: showStatusRing = true,
+  badgeScale = 1,
   style,
   children,
 }: {
@@ -295,12 +297,16 @@ export function Cover({
   radius?: number;
   completed?: boolean;
   status?: GameStatus;
+  /** With a `status`: draw the colour ring (default) or just the emoji badge. */
+  statusRing?: boolean;
+  /** With a `status`: multiplies the emoji badge's size. */
+  badgeScale?: number;
   style?: CSSProperties;
   children?: ReactNode;
 }) {
   const badgeSize = typeof width === 'number' ? Math.max(16, Math.min(28, Math.round(width * 0.42))) : 26;
   const outline = !completed && status ? statusOutlineFor(status) : null;
-  const ring = completed ? GOLD_RING : outline ? statusRing(outline) : null;
+  const ring = completed ? GOLD_RING : outline && showStatusRing ? statusRing(outline) : null;
   return (
     <span
       style={{
@@ -317,7 +323,7 @@ export function Cover({
     >
       {children}
       {completed && <TrophyBadge size={badgeSize} />}
-      {outline && <StatusBadge outline={outline} size={badgeSize} />}
+      {outline && <StatusBadge outline={outline} size={Math.round(badgeSize * badgeScale)} />}
     </span>
   );
 }

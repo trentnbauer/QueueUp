@@ -117,7 +117,7 @@ export function DesktopRow({ item, showRank, bulk, selected, active, onOpen, onV
         <span style={st('width:24px;flex-shrink:0;font:700 18px var(--font-display);color:var(--rank);text-align:center')}>{item.rank}</span>
       )}
       {bulk && <SelectMark on={selected} />}
-      <Cover title={g.title} url={g.coverImageUrl} width={44} radius={9} completed={isFullyCompleted(g)} status={g.status} />
+      <Cover title={g.title} url={g.coverImageUrl} width={44} radius={9} completed={isFullyCompleted(g)} status={g.status} statusRing={false} badgeScale={2} />
       <div style={st('flex:1;min-width:0;display:flex;flex-direction:column;gap:4px')}>
         <span style={st('font:600 15.5px var(--font-ui);white-space:nowrap;overflow:hidden;text-overflow:ellipsis')}>{g.title}</span>
         <span style={st('display:flex;align-items:center;gap:6px;min-width:0;font:400 12.5px var(--font-ui);color:var(--muted)')}>
@@ -172,7 +172,7 @@ export function MobileRow({ item, showRank, bulk, selected, onOpen, onVote }: Ro
     >
       {showRank && <span style={st('width:20px;flex-shrink:0;font:700 17px var(--font-display);color:var(--rank);text-align:center')}>{item.rank}</span>}
       {bulk && <SelectMark on={selected} />}
-      <Cover title={g.title} url={g.coverImageUrl} width={46} radius={10} completed={isFullyCompleted(g)} status={g.status} />
+      <Cover title={g.title} url={g.coverImageUrl} width={46} radius={10} completed={isFullyCompleted(g)} status={g.status} statusRing={false} badgeScale={2} />
       <div style={st('flex:1;min-width:0;display:flex;flex-direction:column;gap:6px')}>
         <div style={st('display:flex;flex-direction:column;gap:2px;min-width:0')}>
           <span style={st('font:600 15.5px var(--font-ui);white-space:nowrap;overflow:hidden;text-overflow:ellipsis')}>{g.title}</span>
@@ -270,7 +270,7 @@ export function PlayNextRow({
       className={desktop ? 'hv-surf' : undefined}
       style={st('display:flex;align-items:center;gap:12px;padding:10px;border-radius:18px;cursor:pointer')}
     >
-      <Cover title={g.title} url={g.coverImageUrl} width={40} radius={9} status={g.status} />
+      <Cover title={g.title} url={g.coverImageUrl} width={40} radius={9} status={g.status} statusRing={false} badgeScale={2} />
       <div style={st('flex:1;min-width:0;display:flex;flex-direction:column;gap:2px')}>
         <span style={st('font:600 15px var(--font-ui);white-space:nowrap;overflow:hidden;text-overflow:ellipsis')}>{g.title}</span>
         <span style={st('display:flex;align-items:center;gap:6px;min-width:0;font:400 12.5px var(--font-ui);color:var(--muted)')}>
