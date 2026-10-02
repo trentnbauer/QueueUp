@@ -11,6 +11,9 @@ export interface Toast {
   id: string;
   message: string;
   actions: ToastAction[];
+  /** Makes the message itself clickable (e.g. open the game card the toast is about); the toast is
+   * dismissed afterwards, same as an action button. */
+  onOpen?: () => void;
   /** Called whenever this toast leaves the stack, whether via the dismiss (x) button or an action
    * button (issue #554) - the one place to record "the person has seen/handled this," regardless
    * of which path they took. Optional since not every toast needs a persisted seen-state - a

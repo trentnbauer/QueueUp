@@ -2,6 +2,7 @@ import { useEffect } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useAuth } from '../context/AuthContext';
 import { useNavigate } from 'react-router';
+import { useUi } from '../context/UiContext';
 import { useToast } from '../context/ToastContext';
 import { notificationsApi } from '../api/notifications';
 import { gamesApi } from '../api/games';
@@ -21,6 +22,7 @@ export function useActionableNotificationToasts() {
   const { user } = useAuth();
   const navigate = useNavigate();
   const { showToast } = useToast();
+  const ui = useUi();
   const queryClient = useQueryClient();
 
   const { data } = useQuery({
@@ -52,8 +54,16 @@ export function useActionableNotificationToasts() {
       if (notification.gameId === null) continue;
       const gameId = notification.gameId;
 
+      // Jump to the room/Personal Shelf the game's in and open its card (clicking the toast text, or
+      // View, both do this).
+      const openGame = () => {
+        navigate(notification.roomId ? `/room/${notification.roomId}` : '/');
+        ui.selectGame(gameId);
+      };
+
       if (notification.type === 'playtime_mark_playing') {
         showToast({
+          onOpen: openGame,
           id: `notification-${notification.id}`,
           message: notification.message,
           // mutateAsync (not the fire-and-forget mutate) so ToastStack's action handler can await
@@ -62,16 +72,11 @@ export function useActionableNotificationToasts() {
           onDismiss: () => markRead.mutate(notification.id),
         });
       } else if (notification.type === 'price_drop') {
-        const roomId = notification.roomId;
         showToast({
           id: `notification-${notification.id}`,
           message: notification.message,
-          actions: [
-            {
-              label: 'View',
-              onClick: () => navigate(roomId ? `/room/${roomId}` : '/'),
-            },
-          ],
+          onOpen: openGame,
+          actions: [{ label: 'View', onClick: openGame }],
           onDismiss: () => markRead.mutate(notification.id),
         });
       }
