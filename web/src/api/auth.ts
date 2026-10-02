@@ -1,6 +1,6 @@
-import { apiDelete, apiGet, apiPatch, apiPost } from './client';
+import { apiDelete, apiGet, apiPatch, apiPost, apiPut } from './client';
 import { getBasePath } from '../utils/basePath';
-import type { RoomPlatform, User } from '@queueup/shared';
+import type { ActivityVisibilityResponse, RoomPlatform, User } from '@queueup/shared';
 
 export const authApi = {
   me: () =>
@@ -26,6 +26,8 @@ export const authApi = {
     apiPatch<{ ownedPlatforms: RoomPlatform[] }>('/api/me/owned-platforms', { platforms }),
   updatePublicProfile: (enabled: boolean) =>
     apiPatch<{ publicProfileEnabled: boolean }>('/api/me/public-profile', { enabled }),
+  activityVisibility: () => apiGet<ActivityVisibilityResponse>('/api/me/activity-visibility'),
+  setActivityVisibility: (hidden: boolean) => apiPut<ActivityVisibilityResponse>('/api/me/activity-visibility', { hidden }),
   setDisplayName: (displayName: string) => apiPatch<{ displayName: string }>('/api/me/display-name', { displayName }),
   setProfileSlug: (slug: string | null) => apiPatch<{ profileSlug: string | null }>('/api/me/profile-slug', { slug }),
   loginUrl: (provider: string, captcha?: string | null) =>

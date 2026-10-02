@@ -125,9 +125,15 @@ async function attachReactions(entries: FriendActivityEntry[], viewerId: string)
 
 async function buildFeed(
   viewerId: string,
-  userIds: string[],
+  allUserIds: string[],
   options: { before?: { createdAt: Date; id: string }; take: number; kinds?: FriendEventKind[] },
 ): Promise<FriendActivityEntry[]> {
+  let userIds = allUserIds;
+  if (userIds.length === 0) return [];
+  // People who chose to hide their activity from friends are left out, except from their own view.
+  const hidden = await prisma.user.findMany({ where: { id: { in: userIds }, activityHidden: true }, select: { id: true } });
+  const hiddenIds = new Set(hidden.map((u) => u.id));
+  userIds = userIds.filter((id) => id === viewerId || !hiddenIds.has(id));
   if (userIds.length === 0) return [];
   const users = await prisma.user.findMany({ where: { id: { in: userIds } }, select: userSelect });
   const userById = new Map(users.map((u) => [u.id, toFriendUser(u)]));

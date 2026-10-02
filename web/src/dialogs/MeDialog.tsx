@@ -88,6 +88,31 @@ function SystemsDialog({ onClose }: { onClose: () => void }) {
   );
 }
 
+/** "Share my activity with friends": off hides everything you do from your friends' feeds. */
+function ActivitySharingRow() {
+  const queryClient = useQueryClient();
+  const ui = useUi();
+  const { data } = useQuery({ queryKey: ['activity-visibility'], queryFn: authApi.activityVisibility });
+  const set = useMutation({
+    mutationFn: authApi.setActivityVisibility,
+    onSuccess: (res) => {
+      queryClient.setQueryData(['activity-visibility'], res);
+      void queryClient.invalidateQueries({ queryKey: ['friends'] });
+      ui.notify(res.hidden ? 'Your activity is hidden from friends' : 'Friends can see your activity');
+    },
+    onError: (err) => ui.showError(err instanceof Error ? err.message : 'Could not change that'),
+  });
+  return (
+    <div style={st('display:flex;align-items:center;gap:12px;min-height:58px;padding:0 14px 0 16px;background:var(--surf)')}>
+      <span style={st('flex:1;display:flex;flex-direction:column;gap:1px')}>
+        <span style={st('font:600 15px var(--font-ui)')}>Share my activity with friends</span>
+        <span style={st('font:400 12.5px var(--font-ui);color:var(--muted)')}>Turn off to keep what you play and finish out of their feeds</span>
+      </span>
+      <Toggle on={data ? !data.hidden : true} disabled={!data || set.isPending} onChange={(on) => set.mutate(!on)} label="Share my activity with friends" />
+    </div>
+  );
+}
+
 /** The address alert emails go to, with an edit box. A new address is confirmed from a link emailed to it. */
 function AlertEmailRow() {
   const queryClient = useQueryClient();
@@ -628,6 +653,7 @@ export function MeDialog() {
 
         <Section label="SHARING">
           <Group>
+            <ActivitySharingRow />
             <div style={st('display:flex;align-items:center;gap:12px;min-height:58px;padding:0 14px 0 16px;background:var(--surf)')}>
               <span style={st('flex:1;display:flex;flex-direction:column;gap:1px')}>
                 <span style={st('font:600 15px var(--font-ui)')}>Public profile</span>

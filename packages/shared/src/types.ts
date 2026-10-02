@@ -1182,6 +1182,15 @@ export interface NotificationPreferenceDto {
   inApp: boolean;
 }
 
+/** GET/PUT /api/me/activity-visibility: whether the person's activity is hidden from friends' feeds. */
+export interface ActivityVisibilityResponse {
+  hidden: boolean;
+}
+
+export interface SetActivityVisibilityRequest {
+  hidden: boolean;
+}
+
 /** GET /api/me/alert-email. `alertEmail` is the address the person set (null = use the account
  * email); `pending` is a new address still waiting to be confirmed from the emailed link. */
 export interface AlertEmailResponse {
