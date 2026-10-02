@@ -130,8 +130,12 @@ export function isBackupName(name: string): boolean {
 }
 
 function assertName(name: string): string {
-  if (!isBackupName(name)) throw new HttpError(400, 'Not a QueueUp backup file name');
-  return path.join(backupDir(), name);
+  if (typeof name !== 'string' || !isBackupName(name)) throw new HttpError(400, 'Not a QueueUp backup file name');
+  // Belt and braces on top of the name check: the resolved path must stay inside the backup folder.
+  const dir = path.resolve(backupDir());
+  const file = path.resolve(dir, name);
+  if (!file.startsWith(dir + path.sep)) throw new HttpError(400, 'Not a QueueUp backup file name');
+  return file;
 }
 
 const stamp = () => new Date().toISOString().replace(/[-:]/g, '').replace(/\.\d+Z$/, 'Z');
