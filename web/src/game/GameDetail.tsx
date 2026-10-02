@@ -1,4 +1,5 @@
 import { useMemo, useState, type ReactNode } from 'react';
+import { useNavigate } from 'react-router';
 import { suggestsBeatenByPlaytime, suggestsPlaying, type Game, type GameStatus, type VoteValue } from '@queueup/shared';
 import { useAuth } from '../context/AuthContext';
 import { useConfirm } from '../context/ConfirmContext';
@@ -80,6 +81,7 @@ function MemberAchievements({ counts }: { counts: { unlocked: number; total: num
 /** Everything about one game - the body of both the desktop right panel and the phone sheet. */
 export function GameDetail({ game, onClose, changeStatus }: { game: Game; onClose: () => void; changeStatus: (game: Game, status: GameStatus) => void }) {
   const scope = useScope();
+  const navigate = useNavigate();
   const ui = useUi();
   const confirm = useConfirm();
   const { user } = useAuth();
@@ -444,10 +446,20 @@ export function GameDetail({ game, onClose, changeStatus }: { game: Game; onClos
                 .sort((a, b) => (b.vote ?? 0) - (a.vote ?? 0) || a.m.user.displayName.localeCompare(b.m.user.displayName))
                 .map(({ m, vote }) => (
                   <div key={m.user.id} style={st('display:flex;align-items:center;gap:10px;min-height:44px;padding:6px 12px;background:var(--surf)')}>
-                    <Avatar name={m.user.displayName} color={m.user.avatarColor} avatarUrl={m.user.avatarUrl} size={26} fontSize={11} />
-                    <span style={st('flex:1;min-width:0;font:600 13.5px var(--font-ui);white-space:nowrap;overflow:hidden;text-overflow:ellipsis')}>
-                      {m.user.id === user?.id ? 'You' : m.user.displayName}
-                    </span>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        onClose();
+                        navigate(`/u/${m.user.id}`);
+                      }}
+                      aria-label={`View ${m.user.displayName}'s profile`}
+                      style={st('flex:1;min-width:0;display:flex;align-items:center;gap:10px;align-self:stretch;padding:0;border:none;background:none;color:inherit;text-align:left')}
+                    >
+                      <Avatar name={m.user.displayName} color={m.user.avatarColor} avatarUrl={m.user.avatarUrl} size={26} fontSize={11} />
+                      <span style={st('flex:1;min-width:0;font:600 13.5px var(--font-ui);white-space:nowrap;overflow:hidden;text-overflow:ellipsis')}>
+                        {m.user.id === user?.id ? 'You' : m.user.displayName}
+                      </span>
+                    </button>
                     <OwnershipMark state={ownershipOf(m.user.id)} />
                     <MemberAchievements counts={achievementsFor(m.user.id)} />
                     {vote ? (
