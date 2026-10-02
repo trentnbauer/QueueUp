@@ -1600,12 +1600,19 @@ export interface PlayniteImportProgress {
  * external-library title that didn't resolve to an igdbId, with whatever IGDB search candidates
  * were found for it at import time, for the "pick one" review UI in Profile Settings
  * (PendingImportsSection, #452). */
+/** A candidate for matching an imported title. `suggestedBy` is set when other people already
+ * matched this same title to this game (shown as "Matched by N others"); it is a hint, never applied
+ * automatically. */
+export interface PendingImportCandidate extends GameSearchResult {
+  suggestedBy?: number;
+}
+
 export interface PendingLibraryImportDto {
   id: string;
   title: string;
   platforms: RoomPlatform[];
   source: string;
-  candidates: GameSearchResult[];
+  candidates: PendingImportCandidate[];
   createdAt: string;
 }
 

@@ -437,7 +437,10 @@ export function NeedsReviewDialog() {
                         {c.title}
                         {c.releaseYear ? ` (${c.releaseYear})` : ''}
                       </span>
-                      <span style={st('font:400 12.5px var(--font-ui);color:var(--muted)')}>{c.platform}</span>
+                      <span style={st('font:400 12.5px var(--font-ui);color:var(--muted)')}>
+                        {c.platform}
+                        {c.suggestedBy ? ` · Matched by ${c.suggestedBy} other${c.suggestedBy === 1 ? '' : 's'}` : ''}
+                      </span>
                     </span>
                     <span style={st(`width:24px;height:24px;flex-shrink:0;border-radius:50%;border:2px solid ${on ? 'var(--acc)' : 'var(--line)'};background:${on ? 'var(--acc)' : 'transparent'}`)} />
                   </button>

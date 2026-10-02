@@ -224,6 +224,7 @@ model User {
   roomSpinsStarted              RoomSpin[]
   apiKeys                       ApiKey[]
   pendingLibraryImports         PendingLibraryImport[]
+  titleMatchSuggestions         TitleMatchSuggestion[]
   friendshipsRequested          Friendship[]                   @relation("FriendshipRequester")
   friendshipsReceived           Friendship[]                   @relation("FriendshipAddressee")
 
@@ -294,6 +295,24 @@ model TitleMatchAlias {
 
   @@id([source, normalizedTitle])
   @@map("title_match_aliases")
+}
+
+/// One person's manual pick of an igdbId for an external-library title. Never applied on its own
+/// (manual picks stay per-user, see userAliasSource in playniteImport.ts - one person's say-so must
+/// not decide what a title becomes for everyone else). It is only offered as an extra candidate,
+/// labelled with how many people picked it, when someone else is matching the same title.
+model TitleMatchSuggestion {
+  source          String
+  normalizedTitle String   @map("normalized_title")
+  igdbId          Int      @map("igdb_id")
+  userId          String   @map("user_id")
+  createdAt       DateTime @default(now()) @map("created_at")
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@id([source, normalizedTitle, igdbId, userId])
+  @@index([source, normalizedTitle])
+  @@map("title_match_suggestions")
 }
 
 /// An external-library title (e.g. from a Playnite import) that didn't resolve to an igdbId - no
