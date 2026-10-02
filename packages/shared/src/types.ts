@@ -1138,7 +1138,8 @@ export type NotificationType =
   | 'play_together_request'
   | 'feed_reaction'
   | 'friend_recommendation'
-  | 'good_time_to_buy';
+  | 'good_time_to_buy'
+  | 'account_change';
 
 /** Notification types a person can choose to receive by email (direct ones, never room-scoped). */
 export const EMAIL_ALERT_TYPES = [
@@ -1151,6 +1152,7 @@ export const EMAIL_ALERT_TYPES = [
   'feed_reaction',
   'friend_recommendation',
   'good_time_to_buy',
+  'account_change',
 ] as const;
 export type EmailAlertType = (typeof EMAIL_ALERT_TYPES)[number];
 
@@ -1164,6 +1166,7 @@ export const EMAIL_ALERT_LABELS: Record<EmailAlertType, string> = {
   feed_reaction: 'Reactions to your activity',
   friend_recommendation: 'Games your friends rate highly',
   good_time_to_buy: 'Good time to buy',
+  account_change: 'Changes to your account',
 };
 
 /** One alert type's settings for the signed-in person. `email` sends it by email (needs SMTP set

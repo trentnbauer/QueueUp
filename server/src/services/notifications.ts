@@ -21,7 +21,7 @@ interface NotifyRoomInput {
   // RoomActivityType, not just documented as one.
   type: Exclude<
     NotificationType,
-    'room_deleted' | 'price_drop' | 'release_watch' | 'playtime_mark_playing' | 'playnite_sync_reminder' | 'wishlist_bundle_deal' | 'play_together_request' | 'feed_reaction' | 'friend_recommendation' | 'good_time_to_buy'
+    'room_deleted' | 'price_drop' | 'release_watch' | 'playtime_mark_playing' | 'playnite_sync_reminder' | 'wishlist_bundle_deal' | 'play_together_request' | 'feed_reaction' | 'friend_recommendation' | 'good_time_to_buy' | 'account_change'
   >;
   message: (actorName: string) => string;
 }
@@ -203,6 +203,20 @@ export async function notifyPlaytimeMarkPlaying(
  * creating a new row if this user already has one unread, so the job (checking every few hours)
  * doesn't pile up a fresh nudge on top of one they haven't acted on or dismissed yet. Same shape as
  * notifyReleaseWatch otherwise (direct, Personal-Shelf-scoped, system-generated). */
+/** Tells a person something about their own account changed (a sign-in method linked or unlinked,
+ * display name or alert email changed, an API key created or revoked), so a change they didn't make
+ * stands out. Direct and actor-less. Delivery problems are logged, never thrown: this runs after the
+ * change itself already succeeded. */
+export async function notifyAccountChange(userId: string, message: string): Promise<void> {
+  try {
+    await prisma.notification.create({
+      data: { recipientId: userId, roomName: 'Account', type: 'account_change', message },
+    });
+  } catch (err) {
+    console.error('[notifications] failed to write account change notification', err);
+  }
+}
+
 export async function notifyPlayniteSyncReminder(userId: string): Promise<void> {
   try {
     const existing = await prisma.notification.findFirst({

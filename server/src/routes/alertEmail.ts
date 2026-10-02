@@ -5,6 +5,7 @@ import { env } from '../config/env.js';
 import { prisma } from '../db/client.js';
 import { HttpError } from '../util/httpError.js';
 import { sendMail, smtpIsConfigured } from '../services/mailer.js';
+import { notifyAccountChange } from '../services/notifications.js';
 
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 const CONFIRM_TTL_MS = 24 * 60 * 60 * 1000;
@@ -49,6 +50,7 @@ export default async function alertEmailRoutes(app: FastifyInstance) {
           prisma.user.update({ where: { id: userId }, data: { alertEmail: null } }),
           prisma.emailChangeRequest.deleteMany({ where: { userId } }),
         ]);
+        await notifyAccountChange(userId, 'Your email address for alerts was reset to your sign-in email.');
         return { status: 'saved' };
       }
       if (typeof raw !== 'string') throw new HttpError(400, 'Enter an email address');
@@ -57,6 +59,7 @@ export default async function alertEmailRoutes(app: FastifyInstance) {
 
       if (!(await smtpIsConfigured())) {
         await prisma.user.update({ where: { id: userId }, data: { alertEmail: email } });
+        await notifyAccountChange(userId, `Your email address for alerts was changed to ${email}.`);
         return { status: 'saved' };
       }
 
@@ -100,6 +103,7 @@ export default async function alertEmailRoutes(app: FastifyInstance) {
         prisma.user.update({ where: { id: row.userId }, data: { alertEmail: row.email } }),
         prisma.emailChangeRequest.delete({ where: { userId: row.userId } }),
       ]);
+      await notifyAccountChange(row.userId, `Your email address for alerts was changed to ${row.email}.`);
       return { email: row.email };
     },
   );

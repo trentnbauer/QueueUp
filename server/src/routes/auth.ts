@@ -1,6 +1,7 @@
 import type { FastifyInstance } from 'fastify';
 import { Prisma } from '@prisma/client';
 import { env } from '../config/env.js';
+import { notifyAccountChange } from '../services/notifications.js';
 import { prisma } from '../db/client.js';
 import { getOrCreateUser, primaryProviderOf } from '../plugins/auth.js';
 import { toUserDto } from '../util/dto.js';
@@ -65,6 +66,7 @@ async function linkAccount(targetUserId: string, provider: string, profile: OAut
       }
       throw err;
     }
+    await notifyAccountChange(targetUserId, 'Steam was linked as a sign-in method for your account.');
     return `${env.APP_BASE_URL}/?accountLinked=steam`;
   }
 
@@ -91,6 +93,7 @@ async function linkAccount(targetUserId: string, provider: string, profile: OAut
     }
     throw err;
   }
+  await notifyAccountChange(targetUserId, `${provider} was linked as a sign-in method for your account.`);
   return `${env.APP_BASE_URL}/?accountLinked=${provider}`;
 }
 
@@ -172,6 +175,7 @@ export default async function authRoutes(app: FastifyInstance) {
   app.delete<{ Params: { provider: string } }>('/auth/:provider/unlink', authRateLimit, async (request, reply) => {
     const userId = await request.requireAuth();
     await unlinkAccount(userId, request.params.provider);
+    await notifyAccountChange(userId, `${request.params.provider} was unlinked as a sign-in method for your account.`);
     return reply.send({ ok: true });
   });
 
@@ -296,7 +300,12 @@ export default async function authRoutes(app: FastifyInstance) {
       if (displayName.length < 1 || displayName.length > 40) {
         throw new HttpError(400, 'Display name must be 1-40 characters.');
       }
+      const before = await prisma.user.findUniqueOrThrow({ where: { id: userId }, select: { displayName: true, createdAt: true } });
       await prisma.user.update({ where: { id: userId }, data: { displayName } });
+      // Setting the name during first-run onboarding isn't news; only tell people about later changes.
+      if (displayName !== before.displayName && Date.now() - before.createdAt.getTime() > 60 * 60 * 1000) {
+        await notifyAccountChange(userId, `Your display name was changed to ${displayName}.`);
+      }
       return reply.send({ displayName });
     },
   );
@@ -329,6 +338,7 @@ export default async function authRoutes(app: FastifyInstance) {
       const created = await prisma.apiKey.create({
         data: { userId, label, hash: hashApiKeyToken(token) },
       });
+      await notifyAccountChange(userId, `A new API key was created: ${label}.`);
       reply.status(201);
       const response: CreateApiKeyResponse = { ...toApiKeySummary(created), key: token };
       return reply.send(response);
@@ -345,6 +355,7 @@ export default async function authRoutes(app: FastifyInstance) {
       if (!key || key.userId !== userId) throw new HttpError(404, 'API key not found');
       if (!key.revokedAt) {
         await prisma.apiKey.update({ where: { id: key.id }, data: { revokedAt: new Date() } });
+        await notifyAccountChange(userId, `The API key ${key.label} was revoked.`);
       }
       reply.status(204);
       return reply.send();
