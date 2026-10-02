@@ -108,15 +108,19 @@ async function attachReactions(entries: FriendActivityEntry[], viewerId: string)
   if (entries.length === 0) return;
   const rows = await prisma.feedReaction.findMany({
     where: { entryId: { in: entries.map((e) => e.id) } },
-    select: { entryId: true, userId: true, emoji: true },
+    select: { entryId: true, userId: true, emoji: true, user: { select: { displayName: true } } },
+    orderBy: { createdAt: 'asc' },
   });
+  // Name only the reactors the viewer is friends with; everyone else is just part of the count.
+  const friendIds = new Set(await friendIdsOf(viewerId));
   for (const e of entries) {
-    const byEmoji = new Map<string, { count: number; mine: boolean }>();
+    const byEmoji = new Map<string, { count: number; mine: boolean; names: string[] }>();
     for (const r of rows) {
       if (r.entryId !== e.id) continue;
-      const cur = byEmoji.get(r.emoji) ?? { count: 0, mine: false };
+      const cur = byEmoji.get(r.emoji) ?? { count: 0, mine: false, names: [] };
       cur.count += 1;
       if (r.userId === viewerId) cur.mine = true;
+      else if (friendIds.has(r.userId)) cur.names.push(r.user.displayName);
       byEmoji.set(r.emoji, cur);
     }
     e.reactions = [...byEmoji].map(([emoji, v]) => ({ emoji, ...v })).sort((a, b) => b.count - a.count);

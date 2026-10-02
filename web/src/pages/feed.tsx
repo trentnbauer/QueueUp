@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import type { FriendActivityEntry, FriendEventKind } from '@queueup/shared';
+import type { FeedReactionSummary, FriendActivityEntry, FriendEventKind } from '@queueup/shared';
 import { FEED_REACTION_EMOJI, REVIEW_CATEGORIES } from '@queueup/shared';
 import { friendsApi } from '../api/friends';
 import { REVIEW_EMOJI } from '../lib/gameView';
@@ -116,7 +116,7 @@ function ReactionBar({ e, canReact }: { e: FriendActivityEntry; canReact: boolea
       if (hit) {
         hit.count += 1;
         hit.mine = true;
-      } else next.push({ emoji, count: 1, mine: true });
+      } else next.push({ emoji, count: 1, mine: true, names: [] });
     }
     setReactions(next);
     setPicking(false);
@@ -130,6 +130,11 @@ function ReactionBar({ e, canReact }: { e: FriendActivityEntry; canReact: boolea
   }
 
   if (!canReact && reactions.length === 0) return null;
+  const who = (r: FeedReactionSummary) => {
+    const named = [...(r.mine ? ['You'] : []), ...r.names];
+    const others = r.count - named.length;
+    return [...named, ...(others > 0 ? [`${others} other${others === 1 ? '' : 's'}`] : [])].join(', ');
+  };
   const chip = (on: boolean) =>
     `height:26px;padding:0 9px;border-radius:999px;border:1px solid ${on ? 'var(--acc)' : 'var(--line)'};background:${on ? 'var(--accSoft2)' : 'transparent'};color:var(--text2);font:600 12px var(--font-ui);display:flex;align-items:center;gap:4px`;
   return (
@@ -139,16 +144,21 @@ function ReactionBar({ e, canReact }: { e: FriendActivityEntry; canReact: boolea
     >
       {reactions.map((r) =>
         canReact ? (
-          <button key={r.emoji} type="button" aria-pressed={r.mine} aria-label={`${r.emoji} ${r.count}`} onClick={() => void choose(r.mine ? null : r.emoji)} style={st(chip(r.mine))}>
+          <button key={r.emoji} type="button" aria-pressed={r.mine} aria-label={`${r.emoji} ${r.count}: ${who(r)}`} title={who(r)} onClick={() => void choose(r.mine ? null : r.emoji)} style={st(chip(r.mine))}>
             <span>{r.emoji}</span>
             {r.count}
           </button>
         ) : (
-          <span key={r.emoji} style={st(chip(false))}>
+          <span key={r.emoji} title={who(r)} aria-label={`${r.emoji} ${r.count}: ${who(r)}`} style={st(chip(false))}>
             <span>{r.emoji}</span>
             {r.count}
           </span>
         ),
+      )}
+      {reactions.length > 0 && (
+        <span style={st('flex-basis:100%;font:400 12px/1.4 var(--font-ui);color:var(--muted)')}>
+          {reactions.map((r) => `${r.emoji} ${who(r)}`).join('  ·  ')}
+        </span>
       )}
       {canReact && !picking && (
         <button type="button" aria-label="Add a reaction" onClick={() => setPicking(true)} style={st(chip(false) + ';color:var(--muted)')}>
