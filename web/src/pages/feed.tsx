@@ -115,7 +115,7 @@ export function FeedRow({ e, me, compact, onOpen }: { e: FriendActivityEntry; me
           <Cover title={e.title} url={e.coverImageUrl} width={34} radius={7} />
         )
       ) : (
-        <Avatar name={e.user.displayName} color={e.user.avatarColor} avatarUrl={e.user.avatarUrl} size={36} fontSize={14} />
+        <Avatar name={e.user.displayName} color={e.user.avatarColor} avatarUrl={e.user.avatarUrl} size={36} fontSize={14} profileUserId={mine ? undefined : e.user.id} />
       )}
       <span style={st('flex:1;min-width:0;display:flex;flex-direction:column;gap:2px')}>
         <span style={st('font:400 14px/1.35 var(--font-ui);color:var(--text2);text-wrap:pretty')}>

@@ -171,7 +171,7 @@ export function NotificationsDialog() {
           <span style={st('padding:4px 8px;font:600 11.5px var(--font-mono);letter-spacing:0.06em;color:var(--muted)')}>FRIEND REQUESTS</span>
           {friends.incoming.map((r) => (
             <div key={r.id} style={st('display:flex;align-items:center;gap:10px;padding:10px 12px;border-radius:16px;background:var(--surf)')}>
-              <Avatar name={r.user.displayName} color={r.user.avatarColor} avatarUrl={r.user.avatarUrl} size={36} fontSize={14} />
+              <Avatar name={r.user.displayName} color={r.user.avatarColor} avatarUrl={r.user.avatarUrl} size={36} fontSize={14} profileUserId={r.user.id} onOpenProfile={() => ui.closeDialog('notifications')} />
               <span style={st('flex:1;min-width:0;font:500 14px/1.35 var(--font-ui)')}>
                 <b style={{ fontWeight: 600 }}>{r.user.displayName}</b> wants to be friends
               </span>
@@ -365,7 +365,7 @@ export function FriendsDialog() {
             </span>
             {friends.incoming.map((r) => (
               <div key={r.id} style={st('display:flex;align-items:center;gap:10px;padding:10px 12px;border-radius:16px;background:var(--surf)')}>
-                <Avatar name={r.user.displayName} color={r.user.avatarColor} avatarUrl={r.user.avatarUrl} size={36} fontSize={14} />
+                <Avatar name={r.user.displayName} color={r.user.avatarColor} avatarUrl={r.user.avatarUrl} size={36} fontSize={14} profileUserId={r.user.id} onOpenProfile={() => ui.closeDialog('friends')} />
                 <span style={st('flex:1;min-width:0;display:flex;flex-direction:column;gap:2px')}>
                   <span style={st('font:600 14px var(--font-ui)')}>{r.user.displayName}</span>
                   <span style={st('font:400 12.5px var(--font-ui);color:var(--muted)')}>Wants to be friends</span>
@@ -380,7 +380,7 @@ export function FriendsDialog() {
             ))}
             {friends.outgoing.map((r) => (
               <div key={r.id} style={st('display:flex;align-items:center;gap:10px;padding:10px 12px;border-radius:16px;background:var(--surf)')}>
-                <Avatar name={r.user.displayName} color={r.user.avatarColor} avatarUrl={r.user.avatarUrl} size={36} fontSize={14} />
+                <Avatar name={r.user.displayName} color={r.user.avatarColor} avatarUrl={r.user.avatarUrl} size={36} fontSize={14} profileUserId={r.user.id} onOpenProfile={() => ui.closeDialog('friends')} />
                 <span style={st('flex:1;min-width:0;display:flex;flex-direction:column;gap:2px')}>
                   <span style={st('font:600 14px var(--font-ui)')}>{r.user.displayName}</span>
                   <span style={st('font:400 12.5px var(--font-ui);color:var(--muted)')}>Request sent · waiting for a reply</span>

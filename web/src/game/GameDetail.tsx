@@ -665,7 +665,19 @@ export function GameDetail({ game, onClose, changeStatus }: { game: Game; onClos
 
         <div style={st('display:flex;justify-content:space-between;align-items:center;padding-top:14px;border-top:1px solid var(--chip)')}>
           <span style={st('display:flex;align-items:center;gap:8px;font:400 12.5px var(--font-ui);color:var(--muted)')}>
-            <span style={st(`width:18px;height:18px;border-radius:50%;background:${game.addedBy.avatarColor}`)} />
+            {game.addedBy.id === user?.id ? (
+              <span style={st(`width:18px;height:18px;border-radius:50%;background:${game.addedBy.avatarColor}`)} />
+            ) : (
+              <Avatar
+                name={game.addedBy.displayName}
+                color={game.addedBy.avatarColor}
+                avatarUrl={game.addedBy.avatarUrl}
+                size={18}
+                fontSize={9}
+                profileUserId={game.addedBy.id}
+                onOpenProfile={onClose}
+              />
+            )}
             Added by {game.addedBy.id === user?.id ? 'you' : game.addedBy.displayName}
           </span>
           <button type="button" onClick={remove} style={st('height:40px;border:none;background:none;padding:0;color:var(--danger);font:600 13.5px var(--font-ui)')}>

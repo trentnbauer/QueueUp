@@ -1,4 +1,5 @@
 import type { CSSProperties, ReactNode } from 'react';
+import { useNavigate } from 'react-router';
 import { st } from './st';
 
 // ---------------------------------------------------------------------------------------------
@@ -93,24 +94,51 @@ interface AvatarProps {
   style?: CSSProperties;
   fontSize?: number;
   title?: string;
+  /** Another person's id: the avatar becomes a button that opens their profile page. Leave unset for
+   * your own avatar, or where the avatar already sits inside something clickable. */
+  profileUserId?: string;
+  /** Runs just before navigating to the profile (e.g. to close the dialog the avatar is in). */
+  onOpenProfile?: () => void;
 }
 
-export function Avatar({ name, color, avatarUrl, size = 36, style, fontSize, title }: AvatarProps) {
+export function Avatar({ name, color, avatarUrl, size = 36, style, fontSize, title, profileUserId, onOpenProfile }: AvatarProps) {
   const base = st(
     `width:${size}px;height:${size}px;flex-shrink:0;border-radius:50%;background:${color};color:#fff;display:flex;align-items:center;justify-content:center;font:600 ${fontSize ?? Math.round(size * 0.39)}px var(--font-ui);overflow:hidden`,
     style,
   );
-  if (avatarUrl) {
-    return (
-      <span title={title ?? name} style={base}>
-        <img src={avatarUrl} alt={name} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
-      </span>
-    );
-  }
-  return (
+  const circle = avatarUrl ? (
+    <span title={title ?? name} style={base}>
+      <img src={avatarUrl} alt={name} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+    </span>
+  ) : (
     <span title={title ?? name} style={base}>
       {name.trim().charAt(0).toUpperCase() || '?'}
     </span>
+  );
+  if (!profileUserId) return circle;
+  return (
+    <AvatarProfileLink userId={profileUserId} name={name} onOpen={onOpenProfile}>
+      {circle}
+    </AvatarProfileLink>
+  );
+}
+
+// Separate component so plain avatars never need a router.
+function AvatarProfileLink({ userId, name, onOpen, children }: { userId: string; name: string; onOpen?: () => void; children: ReactNode }) {
+  const navigate = useNavigate();
+  return (
+    <button
+      type="button"
+      aria-label={`View ${name}'s profile`}
+      onClick={(e) => {
+        e.stopPropagation();
+        onOpen?.();
+        navigate(`/u/${userId}`);
+      }}
+      style={{ flexShrink: 0, padding: 0, border: 'none', background: 'none', borderRadius: '50%', cursor: 'pointer', display: 'flex' }}
+    >
+      {children}
+    </button>
   );
 }
 
