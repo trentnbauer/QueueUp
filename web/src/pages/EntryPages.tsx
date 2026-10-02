@@ -517,7 +517,7 @@ export function PublicProfilePage({ userId, signedIn }: { userId: string; signed
                     type="button"
                     onClick={() => setOpenGame(g)}
                     className="hv-surf2"
-                    style={st(`display:flex;align-items:center;gap:10px;padding:6px 10px 6px 6px;border-radius:12px;border:1px solid ${g.dropped ? 'var(--danger)' : 'transparent'};background:var(--surf);color:var(--text);text-align:left`)}
+                    style={st(`display:flex;align-items:center;gap:10px;padding:6px 10px 6px 6px;border-radius:12px;border:1px solid ${g.dropped ? 'var(--danger)' : g.replaying ? 'var(--mint)' : 'transparent'};background:var(--surf);color:var(--text);text-align:left`)}
                   >
                     <Cover title={g.title} url={g.coverImageUrl} width={30} radius={6} completed={g.fullyCompleted} />
                     <span style={st('flex:1;min-width:0;font:600 13px var(--font-ui);white-space:nowrap;overflow:hidden;text-overflow:ellipsis')}>{g.title}</span>
@@ -545,7 +545,7 @@ export function PublicProfilePage({ userId, signedIn }: { userId: string; signed
       {openGame && profile && (
         <Dialog title={openGame.title} onClose={() => setOpenGame(null)} width={560}>
           <div style={st('display:flex;gap:16px;align-items:flex-start')}>
-            <Cover title={openGame.title} url={openGame.coverImageUrl} width={110} radius={14} completed={openGame.fullyCompleted} style={openGame.dropped ? { boxShadow: '0 0 0 2px var(--danger)' } : undefined} />
+            <Cover title={openGame.title} url={openGame.coverImageUrl} width={110} radius={14} completed={openGame.fullyCompleted} style={openGame.dropped || openGame.replaying ? { boxShadow: `0 0 0 2px ${openGame.dropped ? 'var(--danger)' : 'var(--mint)'}` } : undefined} />
             <div style={st('flex:1;min-width:0;display:flex;flex-direction:column;gap:8px')}>
               <span style={st('font:400 13px var(--font-ui);color:var(--muted)')}>
                 {[openGame.genre?.split(',')[0], openGame.dropped ? 'Dropped' : openGame.replaying ? 'Replaying' : 'Beaten'].filter(Boolean).join(' · ')}

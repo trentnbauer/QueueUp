@@ -19,6 +19,17 @@ export function ownershipPlatformsOverlap(a: readonly string[], b: readonly stri
  * folded into auth.ts/badges.ts - the one place in the app where a route is intentionally reachable
  * by a client with no session, so keeping it visually separate makes that easy to audit rather than
  * something to notice buried among cookie-gated routes. */
+/** Newest play-journal moment (finish, else start) across a game's entries; -1 when it has none. */
+function journalTime(logs: { startedAt: Date; finishedAt: Date | null }[]): number {
+  return logs.reduce((latest, l) => Math.max(latest, (l.finishedAt ?? l.startedAt).getTime()), -1);
+}
+
+/** Average of the review's scored categories; -1 when there's no review or no scores. */
+function reviewScore(r: { art: number | null; gameplay: number | null; story: number | null; sound: number | null } | undefined): number {
+  const vals = r ? [r.art, r.gameplay, r.story, r.sound].filter((v): v is number => v !== null) : [];
+  return vals.length ? vals.reduce((x, y) => x + y, 0) / vals.length : -1;
+}
+
 export default async function publicProfileRoutes(app: FastifyInstance) {
   app.get<{ Params: { id: string } }>('/api/public/users/:id', async (request) => {
     // The path segment is either the user id or their vanity profile name (slugs can never look like
@@ -47,7 +58,7 @@ export default async function publicProfileRoutes(app: FastifyInstance) {
         where: { roomId: null, addedBy: user.id, status: { in: ['done', 'replay', 'dropped'] }, hiddenFromOthers: false },
         orderBy: { updatedAt: 'desc' },
         take: 300,
-        include: { reviews: { where: { userId: user.id } } },
+        include: { reviews: { where: { userId: user.id } }, playLogs: { select: { startedAt: true, finishedAt: true } } },
       }),
       prisma.game.findMany({
         where: { roomId: null, addedBy: user.id, status: 'playing', hiddenFromOthers: false },
@@ -162,12 +173,14 @@ export default async function publicProfileRoutes(app: FastifyInstance) {
       // 100% games first, then reviewed games, then the rest, each group newest-first (the query's
       // own order).
       beatenGames: [...beatenGameRows]
-        .sort(
-          (a, b) =>
-            Number(a.status === 'dropped') - Number(b.status === 'dropped') ||
-            Number(isFullyCompleted(b)) - Number(isFullyCompleted(a)) ||
-            Number(b.reviews.length > 0) - Number(a.reviews.length > 0),
-        )
+        // Most recently marked in the play journal first (a game with no journal entry sorts after
+        // every journaled one), then by review score, best first.
+        .sort((a, b) => {
+          const ja = journalTime(a.playLogs);
+          const jb = journalTime(b.playLogs);
+          if (ja !== jb) return jb - ja;
+          return reviewScore(b.reviews[0]) - reviewScore(a.reviews[0]);
+        })
         .map((g) => ({
           id: g.id,
           title: g.title,
