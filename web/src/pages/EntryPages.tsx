@@ -426,7 +426,7 @@ export function PublicProfilePage({ userId, signedIn }: { userId: string; signed
               </div>
               <div style={st('display:flex;gap:10px;flex-wrap:wrap')}>
                 {tile(profile.currentlyPlaying.length, 'playing', scrollTo(playingRef), '↓')}
-                {tile(profile.beatenGameCount, 'beaten', scrollTo(beatenRef), '↓')}
+                {tile(profile.beatenGameCount, 'played', scrollTo(beatenRef), '↓')}
                 {tile(profile.library.length, 'library', () => setModal('library'), '›')}
                 {profile.bothOwn.length > 0 && tile(profile.bothOwn.length, 'you both own', () => setModal('bothOwn'), '›')}
                 {tile(profile.badges.length, 'achievements', () => setModal('achievements'), '›')}
@@ -498,7 +498,7 @@ export function PublicProfilePage({ userId, signedIn }: { userId: string; signed
           <div ref={beatenRef} style={st('display:flex;flex-direction:column;gap:10px;scroll-margin-top:16px')}>
             <span style={st('display:flex;flex-direction:column;gap:2px')}>
               <span style={st('display:flex;align-items:baseline;gap:10px')}>
-                <span style={st('font:700 16px var(--font-display)')}>Beaten</span>
+                <span style={st('font:700 16px var(--font-display)')}>Played</span>
                 <span style={st('font:500 11.5px var(--font-mono);color:var(--muted)')}>{profile.beatenGameCount}</span>
               </span>
               {profile.fullyCompletedCount > 0 && (
@@ -507,7 +507,7 @@ export function PublicProfilePage({ userId, signedIn }: { userId: string; signed
                 </span>
               )}
             </span>
-            {profile.beatenGames.length === 0 && <span style={st('font:400 14px var(--font-ui);color:var(--muted)')}>Nothing beaten yet.</span>}
+            {profile.beatenGames.length === 0 && <span style={st('font:400 14px var(--font-ui);color:var(--muted)')}>Nothing played yet.</span>}
             <div style={st('display:grid;grid-template-columns:repeat(auto-fill,minmax(min(100%,230px),1fr));gap:6px')}>
               {profile.beatenGames.map((g) => {
                 const avg = g.review ? reviewAverage(g.review) : null;
@@ -517,7 +517,7 @@ export function PublicProfilePage({ userId, signedIn }: { userId: string; signed
                     type="button"
                     onClick={() => setOpenGame(g)}
                     className="hv-surf2"
-                    style={st('display:flex;align-items:center;gap:10px;padding:6px 10px 6px 6px;border-radius:12px;border:none;background:var(--surf);color:var(--text);text-align:left')}
+                    style={st(`display:flex;align-items:center;gap:10px;padding:6px 10px 6px 6px;border-radius:12px;border:1px solid ${g.dropped ? 'var(--danger)' : 'transparent'};background:var(--surf);color:var(--text);text-align:left`)}
                   >
                     <Cover title={g.title} url={g.coverImageUrl} width={30} radius={6} completed={g.fullyCompleted} />
                     <span style={st('flex:1;min-width:0;font:600 13px var(--font-ui);white-space:nowrap;overflow:hidden;text-overflow:ellipsis')}>{g.title}</span>
@@ -545,10 +545,10 @@ export function PublicProfilePage({ userId, signedIn }: { userId: string; signed
       {openGame && profile && (
         <Dialog title={openGame.title} onClose={() => setOpenGame(null)} width={560}>
           <div style={st('display:flex;gap:16px;align-items:flex-start')}>
-            <Cover title={openGame.title} url={openGame.coverImageUrl} width={110} radius={14} completed={openGame.fullyCompleted} />
+            <Cover title={openGame.title} url={openGame.coverImageUrl} width={110} radius={14} completed={openGame.fullyCompleted} style={openGame.dropped ? { boxShadow: '0 0 0 2px var(--danger)' } : undefined} />
             <div style={st('flex:1;min-width:0;display:flex;flex-direction:column;gap:8px')}>
               <span style={st('font:400 13px var(--font-ui);color:var(--muted)')}>
-                {[openGame.genre?.split(',')[0], openGame.replaying ? 'Replaying' : 'Beaten'].filter(Boolean).join(' · ')}
+                {[openGame.genre?.split(',')[0], openGame.dropped ? 'Dropped' : openGame.replaying ? 'Replaying' : 'Beaten'].filter(Boolean).join(' · ')}
               </span>
               {openGame.review ? (
                 <>
