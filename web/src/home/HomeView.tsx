@@ -1,6 +1,6 @@
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate } from 'react-router';
-import type { Game, VoteValue } from '@queueup/shared';
+import type { Game, GameStatus, VoteValue } from '@queueup/shared';
 import { useScope } from '../context/ScopeContext';
 import { useUi } from '../context/UiContext';
 import { useViewMode } from '../context/ViewModeContext';
@@ -10,6 +10,7 @@ import { useAttention } from '../hooks/useAttention';
 import { usePendingImportsCount } from '../hooks/usePendingImports';
 import { useVersion } from '../hooks/useVersion';
 import { SHELF_TABS, SHELF_MORE_TABS, SHELF_IMPORT_TABS, ROOM_TABS } from '../lib/gameView';
+import { UNDO_MS } from '../game/useChangeStatus';
 import { PendingImportsList } from './PendingImportsList';
 import { useQuery } from '@tanstack/react-query';
 import { DISMISSED_IMPORTS_QUERY_KEY, PENDING_IMPORTS_QUERY_KEY, pendingImportsApi } from '../api/pendingImports';
@@ -495,10 +496,24 @@ export function HomeView() {
           onClose={() => setBulkStatusOpen(false)}
           onPick={async (status, label) => {
             const n = bulkSel.length;
+            // Remember where each game was so Undo can put them all back (grouped by old status).
+            const before = new Map<GameStatus, string[]>();
+            for (const g of games) {
+              if (bulkSel.includes(g.id) && g.status !== status) before.set(g.status, [...(before.get(g.status) ?? []), g.id]);
+            }
             await ops.bulkUpdateStatus(bulkSel, status);
             setBulkSel([]);
             setBulkStatusOpen(false);
-            ui.notify(`${n} games set to ${label}`);
+            ui.notify(
+              `${n} games set to ${label}`,
+              {
+                label: 'Undo',
+                run: () => {
+                  for (const [old, ids] of before) void ops.bulkUpdateStatus(ids, old);
+                },
+              },
+              UNDO_MS,
+            );
           }}
         />
       )}
