@@ -11,6 +11,7 @@ import { useUi } from '../context/UiContext';
 import { useFriendProfile, useFriends } from '../hooks/useFriends';
 import { FriendStatus } from '../dialogs/RoomDialogs';
 import { Dialog } from '../ui/Dialog';
+import { UiToast } from '../ui/ToastView';
 import { applyFeedFilter, FeedGroups, FilterChips, type FeedFilter } from './feed';
 import { useRooms } from '../hooks/useRooms';
 import { useVersion } from '../hooks/useVersion';
@@ -622,6 +623,7 @@ export function PublicProfilePage({ userId, signedIn }: { userId: string; signed
           )}
         </Dialog>
       )}
+      <UiToast />
     </div>
   );
 }
