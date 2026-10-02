@@ -334,6 +334,9 @@ export function NeedsReviewDialog() {
   const pending = data?.pending ?? [];
   const ordered = [...pending.filter((p) => !skipped.includes(p.id)), ...pending.filter((p) => skipped.includes(p.id))];
   const entry: PendingLibraryImportDto | undefined = ordered[0];
+  // The top candidate (a match other people made, else IGDB's best guess) is selected until the
+  // person taps another, so the usual case is a single tap on "Use this match".
+  const selected = pick ?? (entry && entry.candidates.length > 0 ? 0 : null);
 
   const refresh = () => {
     queryClient.invalidateQueries({ queryKey: PENDING_IMPORTS_QUERY_KEY });
@@ -354,8 +357,8 @@ export function NeedsReviewDialog() {
   const platforms = entry ? entry.platforms.map((p) => ROOM_PLATFORM_LABELS[p]).join(', ') || 'Unknown platform' : '';
 
   async function confirmPick() {
-    if (!entry || pick === null) return;
-    const c = entry.candidates[pick];
+    if (!entry || selected === null) return;
+    const c = entry.candidates[selected];
     setError(null);
     await resolve.mutateAsync({ id: entry.id, igdbId: c.igdbId });
     setPick(null);
@@ -403,7 +406,7 @@ export function NeedsReviewDialog() {
               >
                 Skip
               </Btn>
-              <Btn kind="accent" height={50} weight={700} fontSize={14} disabled={pick === null || resolve.isPending} onClick={confirmPick}>
+              <Btn kind="accent" height={50} weight={700} fontSize={14} disabled={selected === null || resolve.isPending} onClick={confirmPick}>
                 {resolve.isPending ? 'Matching…' : 'Use this match'}
               </Btn>
             </div>
@@ -423,7 +426,7 @@ export function NeedsReviewDialog() {
             <Kicker style={{ padding: '14px 20px 8px', flexShrink: 0 }}>WHICH GAME IS IT?</Kicker>
             <div style={st('flex:1;min-height:0;overflow-y:auto;padding:0 16px 12px;display:flex;flex-direction:column;gap:8px')}>
               {entry.candidates.map((c, i) => {
-                const on = pick === i;
+                const on = selected === i;
                 return (
                   <button
                     key={c.igdbId}
