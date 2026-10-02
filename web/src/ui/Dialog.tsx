@@ -55,6 +55,8 @@ interface DialogProps {
   bare?: boolean;
   /** Alert dialogs (confirmations) use role=alertdialog. */
   alert?: boolean;
+  /** Keep the dialog a centred card on phones too, instead of a bottom sheet (e.g. a video). */
+  centered?: boolean;
 }
 
 const CLOSE_BTN =
@@ -86,6 +88,7 @@ export function Dialog({
   children,
   bare,
   alert,
+  centered,
 }: DialogProps) {
   const mobile = useIsMobile();
   const depth = useContext(DepthContext);
@@ -95,7 +98,7 @@ export function Dialog({
   // Lock page scroll behind the dialog.
   useEffect(() => lockPageScroll(), []);
 
-  const shell: CSSProperties = mobile
+  const shell: CSSProperties = mobile && !centered
     ? {
         position: 'fixed',
         left: 0,
@@ -112,7 +115,7 @@ export function Dialog({
         left: '50%',
         top: '50%',
         transform: 'translate(-50%,-50%)',
-        width: `min(${width}px, calc(100% - 64px))`,
+        width: `min(${width}px, calc(100% - ${mobile ? 32 : 64}px))`,
         maxHeight: 'calc(100% - 64px)',
         borderRadius: 24,
         boxShadow: '0 24px 60px oklch(0 0 0 / 0.5)',

@@ -81,6 +81,7 @@ export function Trailer({ gameId, title }: { gameId: string; title?: string }) {
         <Dialog
           title={title ? `${title} · trailer` : 'Trailer'}
           width={960}
+          centered
           onClose={() => {
             setOpen(false);
             reset();
