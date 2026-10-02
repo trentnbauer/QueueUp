@@ -40,6 +40,7 @@ export function useFriends() {
     incoming: query.data?.incoming ?? [],
     outgoing: query.data?.outgoing ?? [],
     myCode: query.data?.myCode ?? '',
+    myCodeExpiresAt: query.data?.myCodeExpiresAt ?? null,
     /** Everyone on this server is a friend: hide friend codes, requests and per-member add buttons. */
     privateInstance: query.data?.privateInstance ?? false,
     sendRequest: (code: string) => sendRequest.mutateAsync({ code }),
