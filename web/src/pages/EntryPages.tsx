@@ -261,6 +261,18 @@ export function JoinPage({ code }: { code: string }) {
 /** `/u/:id`: one profile page for everyone - the anonymous shareable view, and (when signed in) the
  * same page with a friend's activity and controls (it replaces the old separate /friends/:id page). */
 /** Marks a game the signed-in viewer owns too (see PublicProfileGame.bothOwn), over its cover. */
+/** Games you and the profile owner both own first; otherwise the list's own order is kept. */
+function bothOwnFirst<T extends { bothOwn?: boolean }>(games: T[]): T[] {
+  return [...games.filter((g) => g.bothOwn), ...games.filter((g) => !g.bothOwn)];
+}
+
+/** Phones: two rows that scroll sideways, three cards visible at a time. Larger screens: a normal wrapping grid. */
+function profileCardGridStyle(mobile: boolean): string {
+  return mobile
+    ? 'display:grid;grid-auto-flow:column;grid-template-rows:repeat(2,auto);grid-auto-columns:calc((100% - 28px) / 3);gap:14px;overflow-x:auto;scroll-snap-type:x proximity;padding-bottom:10px;-webkit-overflow-scrolling:touch'
+    : 'display:grid;grid-template-columns:repeat(auto-fill,minmax(110px,1fr));gap:14px';
+}
+
 function BothOwnBadge({ small = false }: { small?: boolean }) {
   return (
     <span
@@ -473,7 +485,7 @@ export function PublicProfilePage({ userId, signedIn }: { userId: string; signed
             <span style={st('font:700 26px var(--font-display);letter-spacing:-0.02em')}>Currently playing</span>
             {profile.currentlyPlaying.length === 0 && <span style={st('font:400 14px var(--font-ui);color:var(--muted)')}>Nothing right now.</span>}
             <div style={st('display:flex;gap:14px;overflow-x:auto;scroll-snap-type:x proximity;padding-bottom:10px;-webkit-overflow-scrolling:touch')}>
-              {profile.currentlyPlaying.map((g) => (
+              {bothOwnFirst(profile.currentlyPlaying).map((g) => (
                 <div key={g.id} {...cardProps(() => setCardGame(g))} style={st(CARD_CURSOR + 'flex:0 0 auto;width:min(44vw,180px);scroll-snap-align:start;display:flex;flex-direction:column;gap:8px')}>
                   <div style={st('position:relative')}>
                     <Cover title={g.title} url={g.coverImageUrl} width="100%" radius={18} style={{ boxShadow: '0 20px 44px oklch(0 0 0 / 0.35)' }} />
@@ -492,15 +504,8 @@ export function PublicProfilePage({ userId, signedIn }: { userId: string; signed
                 <span style={st('font:700 20px var(--font-display)')}>Wishlist</span>
                 <span style={st('font:500 11.5px var(--font-mono);color:var(--muted)')}>{profile.wishlist.length}</span>
               </span>
-              <div
-                style={st(
-                  mobile
-                    ? // Phones: two rows that scroll sideways, three cards visible at a time.
-                      'display:grid;grid-auto-flow:column;grid-template-rows:repeat(2,auto);grid-auto-columns:calc((100% - 28px) / 3);gap:14px;overflow-x:auto;scroll-snap-type:x proximity;padding-bottom:10px;-webkit-overflow-scrolling:touch'
-                    : 'display:grid;grid-template-columns:repeat(auto-fill,minmax(110px,1fr));gap:14px',
-                )}
-              >
-                {profile.wishlist.map((g) => (
+              <div style={st(profileCardGridStyle(mobile))}>
+                {bothOwnFirst(profile.wishlist).map((g) => (
                   <div key={g.id} {...cardProps(() => setCardGame(g))} style={st(CARD_CURSOR + 'min-width:0;scroll-snap-align:start;display:flex;flex-direction:column;gap:6px')}>
                     <Cover title={g.title} url={g.coverImageUrl} width="100%" radius={14} />
                     <span style={st('font:600 12.5px var(--font-ui);white-space:nowrap;overflow:hidden;text-overflow:ellipsis')}>{g.title}</span>
@@ -513,15 +518,15 @@ export function PublicProfilePage({ userId, signedIn }: { userId: string; signed
           {profile.upNext.length > 0 && (
             <div style={st('display:flex;flex-direction:column;gap:12px')}>
               <span style={st('font:700 20px var(--font-display)')}>Up next</span>
-              <div style={st('display:grid;grid-template-columns:repeat(auto-fill,minmax(110px,1fr));gap:14px')}>
-                {profile.upNext.map((g, i) => (
-                  <div key={g.id} {...cardProps(() => setCardGame(g))} style={st(CARD_CURSOR + 'min-width:0;display:flex;flex-direction:column;gap:6px')}>
+              <div style={st(profileCardGridStyle(mobile))}>
+                {bothOwnFirst(profile.upNext).map((g) => (
+                  <div key={g.id} {...cardProps(() => setCardGame(g))} style={st(CARD_CURSOR + 'min-width:0;scroll-snap-align:start;display:flex;flex-direction:column;gap:6px')}>
                     <div style={st('position:relative')}>
                       <Cover title={g.title} url={g.coverImageUrl} width="100%" radius={14} />
                       {g.bothOwn && <BothOwnBadge small />}
                     </div>
                     <span style={st('font:600 12.5px var(--font-ui);white-space:nowrap;overflow:hidden;text-overflow:ellipsis')}>
-                      <span style={st('font-family:var(--font-mono);color:var(--muted)')}>{i + 1}. </span>
+                      <span style={st('font-family:var(--font-mono);color:var(--muted)')}>{profile.upNext.indexOf(g) + 1}. </span>
                       {g.title}
                     </span>
                   </div>
