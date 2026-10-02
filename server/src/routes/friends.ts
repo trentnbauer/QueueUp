@@ -408,7 +408,7 @@ export default async function friendRoutes(app: FastifyInstance) {
       const userId = await request.requireAuth();
       const friendIds = await friendIdsOf(userId);
       const before = request.query.before ? decodeActivityCursor(request.query.before) : undefined;
-      const entries = await buildFeed(userId, [userId, ...friendIds], { before, take: FEED_PAGE_SIZE + 1 });
+      const entries = await buildFeed(userId, friendIds, { before, take: FEED_PAGE_SIZE + 1 });
       const hasMore = entries.length > FEED_PAGE_SIZE;
       const page = hasMore ? entries.slice(0, FEED_PAGE_SIZE) : entries;
       const last = page[page.length - 1];
