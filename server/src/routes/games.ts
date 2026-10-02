@@ -63,6 +63,7 @@ import { recordStatusTransition } from '../services/playLog.js';
 import { notifyFriendRecommendation } from '../services/friendRecommendations.js';
 import { getPriceHistory, usualPrice } from '../services/priceHistory.js';
 import { getRemovalInfo } from '../services/removalVote.js';
+import { recordSyncSources } from '../services/syncSources.js';
 import { getCurrentPlaytimeMinutesForGames } from '../services/playtimeTracking.js';
 import { summarizeTimeToBeat, summarizeActiveHoursToBeat, pickMostNeglectedGame, backlogAgeRanges } from '../services/backlogInsights.js';
 import { unlockBadges } from '../services/badges.js';
@@ -350,6 +351,7 @@ async function runSteamLibraryImportLoop(
         }
         existingIgdbIdSet.add(igdbId);
         ownedIgdbIds.push(igdbId);
+        await recordSyncSources(userId, [igdbId], 'steam');
         imported++;
       } catch {
         // One game failing to resolve (IGDB hiccup, no match, etc.) shouldn't abort the batch.
@@ -442,6 +444,7 @@ async function runSteamWishlistImportLoop(
           );
           if (base) existingIgdbIdSet.add(base.baseIgdbId);
         }
+        await recordSyncSources(userId, [igdbId], 'steam_wishlist');
         existingIgdbIdSet.add(igdbId);
         imported++;
       } catch {
@@ -810,6 +813,12 @@ export default async function gameRoutes(app: FastifyInstance) {
           if (g.status === 'wishlist' && g.steamAppid != null && ownedAppIds.has(g.steamAppid)) ownedIgdbIds.push(g.igdbId);
         }
 
+        await recordSyncSources(
+          userId,
+          shelfGames.filter((g) => g.steamAppid != null && ownedAppIds.has(g.steamAppid)).map((g) => g.igdbId),
+          'steam',
+        );
+
         const totalOwned = owned.length;
         const consideredCount = considered.length;
         // Progress is written to Redis before the slow loop starts (and after every game once it's
@@ -878,9 +887,15 @@ export default async function gameRoutes(app: FastifyInstance) {
 
         const [existingIgdbIdSet, shelfGames] = await Promise.all([
           existingIgdbIds(null, userId),
-          prisma.game.findMany({ where: { roomId: null, addedBy: userId }, select: { steamAppid: true } }),
+          prisma.game.findMany({ where: { roomId: null, addedBy: userId }, select: { steamAppid: true, igdbId: true } }),
         ]);
         const existingSteamAppIds = new Set(shelfGames.map((g) => g.steamAppid).filter((id): id is number => id != null));
+        const wishlistSet = new Set(wishlistAppIds);
+        await recordSyncSources(
+          userId,
+          shelfGames.filter((g) => g.steamAppid != null && wishlistSet.has(g.steamAppid)).map((g) => g.igdbId),
+          'steam_wishlist',
+        );
 
         const considered = wishlistAppIds.filter((appId) => !existingSteamAppIds.has(appId));
 

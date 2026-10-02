@@ -229,6 +229,7 @@ model User {
   gamesAdded                    Game[]
   votes                         Vote[]
   removalVotes                  RemovalVote[]
+  syncSources                   GameSyncSource[]
   gameReviews                   GameReview[]
   auditLogEntries               AdminAuditLog[]
   notificationsReceived         Notification[]                 @relation("NotificationRecipient")
@@ -1002,6 +1003,22 @@ model Vote {
 
   @@id([gameId, userId])
   @@map("votes")
+}
+
+/// Which sync has seen a game for a person: 'steam' (library), 'steam_wishlist' or 'playnite'.
+/// Keyed by igdbId like GameOwnership, since it is a fact about the person and the title. Written
+/// by the import loops (services/syncSources.ts) and shown on the Personal Shelf game card.
+/// Free text rather than an enum so a new source needs no schema change.
+model GameSyncSource {
+  userId    String   @map("user_id")
+  igdbId    Int      @map("igdb_id")
+  source    String
+  createdAt DateTime @default(now()) @map("created_at")
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@id([userId, igdbId, source])
+  @@map("game_sync_sources")
 }
 
 /// A room member's vote to take a game out of the room. Once more than half of the room's current

@@ -632,6 +632,8 @@ export interface Game {
   removeVotesNeeded: number;
   /** The viewer has voted to remove it. */
   youVotedRemove: boolean;
+  /** Personal Shelf: which syncs have seen this game (empty for room games and unsynced games). */
+  syncSources: SyncSource[];
   /** IGDB tags this as adult content (issue #627). */
   sensitiveContent: boolean;
   /** The review saved after beating it, if any. */
@@ -641,6 +643,9 @@ export interface Game {
   createdAt: string;
   updatedAt: string;
 }
+
+/** Where a shelf game was synced from. */
+export type SyncSource = 'steam' | 'steam_wishlist' | 'playnite';
 
 /** POST/DELETE /api/games/:id/remove-vote. `removed` is true when that vote tipped it over and the game is gone. */
 export interface RemoveVoteResponse {

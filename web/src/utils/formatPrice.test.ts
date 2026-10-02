@@ -46,6 +46,7 @@ function makeGame(overrides: Partial<Game> = {}): Game {
     removeVotes: 0,
     removeVotesNeeded: 0,
     youVotedRemove: false,
+    syncSources: [],
     sensitiveContent: false,
     review: null,
     releaseAlert: false,

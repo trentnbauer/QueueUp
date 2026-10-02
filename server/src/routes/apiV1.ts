@@ -5,6 +5,7 @@ import { prisma } from '../db/client.js';
 import { resolveApiKeyUserId } from '../services/apiKeys.js';
 import { requireMembership } from '../services/roomAccess.js';
 import { gameInclude, serializeGames } from '../services/gameSerializer.js';
+import { recordSyncSources } from '../services/syncSources.js';
 import { createGameForUser, resolveGameForCreation, defaultStatusForRelease, linkDlcToBaseGame } from '../services/gameIntake.js';
 import { isAddonCategory } from '../services/igdbClient.js';
 import { invalidateExistingIgdbIds } from '../services/gameAccess.js';
@@ -278,6 +279,7 @@ async function runPlayniteImportLoop(
   // Also used to auto-tick User.ownedPlatforms once at the end (see unionOwnedPlatforms below) -
   // same batching reasoning as touchedPlatformFamilies above.
   const seenPlatforms = new Set<RoomPlatform>();
+  const matchedIgdbIds: number[] = [];
   try {
     await runWithConcurrency(entries, PLAYNITE_IMPORT_CONCURRENCY, async (entry) => {
       try {
@@ -310,6 +312,7 @@ async function runPlayniteImportLoop(
         // up in the review queue as if it needed manual attention.
         await deletePendingLibraryImportByTitle(userId, PLAYNITE_SOURCE, entry.title);
         matched++;
+        matchedIgdbIds.push(igdbId);
         for (const platform of entry.platforms) seenPlatforms.add(platform);
       } catch (err) {
         // One entry failing to resolve/create shouldn't abort the batch - but it needs to be
@@ -334,6 +337,7 @@ async function runPlayniteImportLoop(
       }
     });
     if (matched > 0) await invalidateExistingIgdbIds(null, userId);
+    await recordSyncSources(userId, matchedIgdbIds, 'playnite');
     if (seenPlatforms.size > 0) await unionOwnedPlatforms(userId, [...seenPlatforms]);
   } finally {
     // Issue #583: routes/pendingLibraryImports.ts now exposes this same progress row to a
