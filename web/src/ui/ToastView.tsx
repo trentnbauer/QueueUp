@@ -54,7 +54,20 @@ function StackItem({ toast, onDismiss }: { toast: Toast; onDismiss: (id: string)
 
   return (
     <div role="status" style={st(`${PILL};pointer-events:auto;border-radius:22px`)}>
-      <span style={{ flex: 1, minWidth: 0, textWrap: 'pretty' }}>{toast.message}</span>
+      {toast.onOpen ? (
+        <button
+          type="button"
+          onClick={() => {
+            toast.onOpen?.();
+            dismiss();
+          }}
+          style={st('flex:1;min-width:0;padding:0;border:none;background:none;color:inherit;font:inherit;text-align:left;cursor:pointer;text-wrap:pretty')}
+        >
+          {toast.message}
+        </button>
+      ) : (
+        <span style={{ flex: 1, minWidth: 0, textWrap: 'pretty' }}>{toast.message}</span>
+      )}
       {toast.actions.map((a) => (
         <button key={a.label} type="button" disabled={pendingLabel !== null} style={st(`${ACTION};${pendingLabel !== null ? 'opacity:0.6' : ''}`)} onClick={() => run(a)}>
           {pendingLabel === a.label ? '…' : a.label}
