@@ -1,6 +1,7 @@
 import { apiGet, apiPost, apiPatch, apiPut, apiDelete } from './client';
 import type {
   PriceHistoryResponse,
+  RemoveVoteResponse,
   ResolveSensitiveGamesRequest,
   SensitiveGamesResponse,
   BacklogInsights,
@@ -101,6 +102,8 @@ export const gamesApi = {
   setManualPrice: (id: string, body: SetManualPriceRequest) =>
     apiPatch<{ game: Game }>(`/api/games/${id}/manual-price`, body),
   vote: (id: string, body: VoteRequest) => apiPut<{ game: Game; unlockedBadges: BadgeDefinition[] }>(`/api/games/${id}/vote`, body),
+  voteRemove: (id: string) => apiPost<RemoveVoteResponse>(`/api/games/${id}/remove-vote`, {}),
+  unvoteRemove: (id: string) => apiDelete<RemoveVoteResponse>(`/api/games/${id}/remove-vote`),
   unvote: (id: string) => apiDelete<{ game: Game }>(`/api/games/${id}/vote`),
   setOwnership: (id: string, body: SetGameOwnershipRequest) =>
     apiPatch<{ game: Game; unlockedBadges: BadgeDefinition[] }>(`/api/games/${id}/ownership`, body),

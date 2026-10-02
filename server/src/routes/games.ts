@@ -62,6 +62,7 @@ import { toggleOwnershipForPlatform, setOwnershipPlatforms, markOwned, promoteOw
 import { recordStatusTransition } from '../services/playLog.js';
 import { notifyFriendRecommendation } from '../services/friendRecommendations.js';
 import { getPriceHistory, usualPrice } from '../services/priceHistory.js';
+import { getRemovalInfo } from '../services/removalVote.js';
 import { getCurrentPlaytimeMinutesForGames } from '../services/playtimeTracking.js';
 import { summarizeTimeToBeat, summarizeActiveHoursToBeat, pickMostNeglectedGame, backlogAgeRanges } from '../services/backlogInsights.js';
 import { unlockBadges } from '../services/badges.js';
@@ -116,6 +117,7 @@ import type {
   SteamWishlistImportStarted,
   UpdateGameStatusRequest,
   VoteRequest,
+  RemoveVoteResponse,
   YearInReview,
   YearInReviewGenreCount,
   YearInReviewGameHours,
@@ -1335,6 +1337,39 @@ export default async function gameRoutes(app: FastifyInstance) {
     await invalidateExistingIgdbIds(game.roomId, game.addedBy);
     reply.status(204);
     return null;
+  });
+
+  // Vote to remove a room game (any member; the adder, Room Master and Moderators can also just
+  // remove it outright). Once more than half of the room's members have voted, the game is deleted.
+  app.post<{ Params: { id: string } }>('/api/games/:id/remove-vote', async (request): Promise<RemoveVoteResponse> => {
+    const userId = await request.requireAuth();
+    const game = await loadGameOr404(request.params.id);
+    if (game.roomId === null) throw new HttpError(400, 'Voting to remove only applies to room games - remove it from your shelf directly');
+    await requireGameReadAccess(game, userId);
+
+    await prisma.removalVote.upsert({
+      where: { gameId_userId: { gameId: game.id, userId } },
+      update: {},
+      create: { gameId: game.id, userId },
+    });
+
+    const withVotes = await prisma.game.findUniqueOrThrow({ where: { id: game.id }, include: gameInclude });
+    const info = (await getRemovalInfo([withVotes])).get(game.id);
+    if (info && info.votes >= info.needed) {
+      await prisma.game.delete({ where: { id: game.id } });
+      await invalidateExistingIgdbIds(game.roomId, game.addedBy);
+      return { removed: true, game: null };
+    }
+    return { removed: false, game: await serializeGame(withVotes, userId) };
+  });
+
+  app.delete<{ Params: { id: string } }>('/api/games/:id/remove-vote', async (request): Promise<RemoveVoteResponse> => {
+    const userId = await request.requireAuth();
+    const game = await loadGameOr404(request.params.id);
+    await requireGameReadAccess(game, userId);
+    await prisma.removalVote.deleteMany({ where: { gameId: game.id, userId } });
+    const updated = await prisma.game.findUniqueOrThrow({ where: { id: game.id }, include: gameInclude });
+    return { removed: false, game: await serializeGame(updated, userId) };
   });
 
   // Room members' (or, on the Personal Shelf, just the caller's) Steam achievement progress on
