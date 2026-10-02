@@ -198,6 +198,9 @@ model User {
   /// Settings; the account email above comes from the sign-in provider and is refreshed on every
   /// sign-in, so it can't be edited by hand. Null = use `email`.
   alertEmail           String?        @map("alert_email")
+  /// When true, this person's activity is left out of their friends' activity feeds (and out of
+  /// their friend profile feed). They still see their own. See routes/activityVisibility.ts.
+  activityHidden       Boolean        @default(false) @map("activity_hidden")
   displayName          String         @map("display_name")
   avatarColor          String         @default("#8f8aa8") @map("avatar_color")
   avatarUrl            String?        @map("avatar_url")
