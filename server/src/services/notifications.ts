@@ -223,10 +223,21 @@ export async function notifyAccountChange(userId: string, message: string): Prom
 }
 
 /** Tells a person a wishlist game is at a good price (near its lowest, or well under its usual
- * price). Direct and tied to their copy of the game so the bell can open it. Failures are logged and
- * swallowed. */
+ * price). Direct and tied to their copy of the game so the bell can open it. If an earlier alert for
+ * the same game is still unread, that row is refreshed with the new price instead of a second one
+ * piling up next to it (it keeps its emailedAt, so a further drop doesn't re-email the same alert).
+ * Failures are logged and swallowed. */
 export async function notifyGoodTimeToBuy(userId: string, gameId: string, message: string): Promise<void> {
   try {
+    const existing = await prisma.notification.findFirst({
+      where: { recipientId: userId, gameId, type: 'good_time_to_buy', readAt: null },
+      select: { id: true },
+    });
+    if (existing) {
+      await prisma.notification.update({ where: { id: existing.id }, data: { message, createdAt: new Date() } });
+      return;
+    }
+
     await prisma.notification.create({
       data: { recipientId: userId, roomName: 'Personal Shelf', gameId, type: 'good_time_to_buy', message },
     });

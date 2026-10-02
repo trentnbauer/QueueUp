@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { goodTimeReason, usualPrice } from './priceHistory.js';
+import { goodTimeReason, isMeaningfulFurtherDrop, usualPrice } from './priceHistory.js';
 
 const pts = (...amounts: number[]) => amounts.map((amount) => ({ amount }));
 
@@ -33,5 +33,21 @@ describe('goodTimeReason', () => {
     // Usual 30 (median of 30,30,30,30,12) and gg.deals low of 5, so only the 20%-under rule applies.
     expect(goodTimeReason(23, pts(30, 30, 30, 30, 12), 5)).toBe('below_usual');
     expect(goodTimeReason(25, pts(30, 30, 30, 30, 12), 5)).toBeNull();
+  });
+});
+
+describe('isMeaningfulFurtherDrop', () => {
+  it('always qualifies when nothing has been alerted yet', () => {
+    expect(isMeaningfulFurtherDrop(78.78, null)).toBe(true);
+  });
+
+  it('ignores a few cents of jitter under the last alerted price', () => {
+    expect(isMeaningfulFurtherDrop(78.59, 78.78)).toBe(false);
+    expect(isMeaningfulFurtherDrop(78.78, 78.78)).toBe(false);
+  });
+
+  it('re-alerts once the price falls at least 5% further', () => {
+    expect(isMeaningfulFurtherDrop(74.84, 78.78)).toBe(true);
+    expect(isMeaningfulFurtherDrop(60, 78.78)).toBe(true);
   });
 });
