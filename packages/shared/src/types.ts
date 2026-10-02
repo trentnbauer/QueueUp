@@ -1127,7 +1127,10 @@ export type NotificationType =
   | 'playtime_mark_playing'
   | 'playnite_sync_reminder'
   | 'wishlist_bundle_deal'
-  | 'play_together_request';
+  | 'play_together_request'
+  | 'feed_reaction'
+  | 'friend_recommendation'
+  | 'good_time_to_buy';
 
 export interface Notification {
   id: string;

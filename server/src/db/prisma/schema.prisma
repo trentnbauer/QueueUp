@@ -142,6 +142,15 @@ enum NotificationType {
   /// direct (recipientId), actorId is the asker, gameId is the recipient's own copy. Survives
   /// "mark all read" until it's accepted into a room or declined.
   play_together_request
+  /// A friend reacted to one of your activity feed entries. Direct (recipientId), actorId is the
+  /// reactor.
+  feed_reaction
+  /// A friend rated a game highly that you have on your shelf or wishlist (or could add). Direct,
+  /// actorId is the friend, gameId is your copy when you have one.
+  friend_recommendation
+  /// A wishlist game is at or near its all-time low (see the price history). Direct, sent alongside
+  /// the usual price_drop alert, with its own setting.
+  good_time_to_buy
 
   @@map("notification_type")
 }
