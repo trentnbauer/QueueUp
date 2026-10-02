@@ -15,6 +15,7 @@ import { useQuery } from '@tanstack/react-query';
 import { DISMISSED_IMPORTS_QUERY_KEY, PENDING_IMPORTS_QUERY_KEY, pendingImportsApi } from '../api/pendingImports';
 import { ROOM_PLATFORM_LABELS } from '@queueup/shared';
 import { Avatar, Banner, Btn, SearchField } from '../ui/primitives';
+import { useStableOrder } from './useStableOrder';
 import { useIsMobile } from '../ui/useLayout';
 import { st } from '../ui/st';
 import { buildHomeLists, toRowItem } from './derive';
@@ -89,8 +90,12 @@ export function HomeView() {
   const lists = useMemo(() => buildHomeLists(games, { isShelf, tabs, tab, query }), [games, isShelf, tabs, tab, query]);
   const showRank = tab === 'queue' && !searching;
   const ctx = { isShelf, tab, searching, all: games };
-  const items = importTab ? [] : lists.list.map((g, i) => toRowItem(g, i + 1, ctx));
-  const playNextItems = importTab ? [] : lists.playNext.map((g, i) => toRowItem(g, i + 1, ctx));
+  // Voting changes scores, which would re-sort the list under you - keep the order until the view changes.
+  const orderKey = `${scope.scopeId}|${tab}|${query}`;
+  const orderedList = useStableOrder(lists.list, orderKey);
+  const orderedPlayNext = useStableOrder(lists.playNext, `${orderKey}|next`);
+  const items = importTab ? [] : orderedList.map((g, i) => toRowItem(g, i + 1, ctx));
+  const playNextItems = importTab ? [] : orderedPlayNext.map((g, i) => toRowItem(g, i + 1, ctx));
   const { visible: visibleItems, hasMore, sentinelRef } = useIncrementalList(items, `${scope.scopeId}|${tab}|${query}|${viewMode}`);
 
   const toVote = room ? attention.toVote(room.id) : 0;
