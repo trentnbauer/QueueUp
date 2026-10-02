@@ -1,22 +1,44 @@
 import { useState } from 'react';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { authApi } from '../api/auth';
-import { PRICE_REGION_LABELS, type PriceRegion } from '@queueup/shared';
+import {
+  ALERT_EMAIL_QUERY_KEY,
+  NOTIFICATION_PREFERENCES_QUERY_KEY,
+  alertEmailApi,
+  notificationPreferencesApi,
+} from '../api/notificationPreferences';
+import { PRICE_REGION_LABELS, type EmailAlertType, type PriceRegion } from '@queueup/shared';
 import { useAuth } from '../context/AuthContext';
 import { useCurrencyRegion } from '../context/CurrencyRegionContext';
 import { useSteamImportContext } from '../context/SteamImportContext';
 import { useUi } from '../context/UiContext';
-import { inputPill } from '../ui/primitives';
+import { Toggle, inputPill } from '../ui/primitives';
 import { SystemsPicker } from '../ui/SystemsPicker';
 import { st } from '../ui/st';
 
 const REGIONS = Object.keys(PRICE_REGION_LABELS) as PriceRegion[];
-const TITLES: [string, string][] = [
-  ['What should we call you?', 'This is the name friends and room members see. We filled in the one from your sign-in - change it if you like.'],
-  ['Welcome to QueueUp', 'Pick a currency for prices. You can change it anytime from your profile.'],
-  ['Which systems do you own?', 'We use this to limit game search to what you can actually play. Skip it to see every platform.'],
-  ['Bring in your library', 'Import what you already own so your shelf starts full.'],
-  ['Play with friends', 'Rooms are where your group votes on what to play next.'],
+type StepKind = 'name' | 'currency' | 'systems' | 'library' | 'email' | 'rooms';
+const STEP_TEXT: Record<StepKind, [string, string]> = {
+  name: ['What should we call you?', 'This is the name friends and room members see. We filled in the one from your sign-in - change it if you like.'],
+  currency: ['Welcome to QueueUp', 'Pick a currency for prices. You can change it anytime from your profile.'],
+  systems: ['Which systems do you own?', 'We use this to limit game search to what you can actually play. Skip it to see every platform.'],
+  library: ['Bring in your library', 'Import what you already own so your shelf starts full.'],
+  email: ['Get alerts by email?', 'Hear about price drops, friend activity and play requests without opening QueueUp. You can change this anytime in Settings.'],
+  rooms: ['Play with friends', 'Rooms are where your group votes on what to play next.'],
+};
+
+/** The alerts offered during sign-up, and which start switched on. Everything else stays in Settings. */
+const EMAIL_CHOICES: { type: EmailAlertType; label: string; on: boolean }[] = [
+  { type: 'price_drop', label: 'Price drops on your wishlist', on: true },
+  { type: 'good_time_to_buy', label: 'Good time to buy', on: true },
+  { type: 'play_together_request', label: 'Ask to play together requests', on: true },
+  { type: 'friend_recommendation', label: 'Games your friends rate highly', on: false },
+  { type: 'feed_reaction', label: 'Reactions to your activity', on: false },
+  { type: 'release_watch', label: 'New releases and DLC', on: false },
 ];
+
+// Sign-in providers that gave us no real email use one of these placeholder domains.
+const isPlaceholderEmail = (email: string) => ['steamcommunity.unknown', 'discord.unknown'].includes(email.toLowerCase().split('@')[1] ?? '');
 const STORES = ['Steam', 'Epic', 'GOG', 'Xbox', 'PlayStation', 'Nintendo'];
 
 /** First-run flow: currency, systems, library import, rooms. Full screen; dialogs it opens (Playnite,
@@ -26,18 +48,53 @@ export function Onboarding({ onDone }: { onDone: () => void }) {
   const { user, steamLinked, refetch } = useAuth();
   const { region, setRegion } = useCurrencyRegion();
   const steam = useSteamImportContext();
+  const queryClient = useQueryClient();
+  // The email step only appears when this server can send email.
+  const prefs = useQuery({ queryKey: NOTIFICATION_PREFERENCES_QUERY_KEY, queryFn: notificationPreferencesApi.get });
+  const alertEmail = useQuery({ queryKey: ALERT_EMAIL_QUERY_KEY, queryFn: alertEmailApi.get });
+  const kinds: StepKind[] = ['name', 'currency', 'systems', 'library', ...(prefs.data?.emailAvailable ? (['email'] as const) : []), 'rooms'];
   const [step, setStep] = useState(0);
+  const [wantEmail, setWantEmail] = useState(false);
+  const [emailDraft, setEmailDraft] = useState<string | null>(null);
+  const [emailTypes, setEmailTypes] = useState<Set<EmailAlertType>>(new Set(EMAIL_CHOICES.filter((c) => c.on).map((c) => c.type)));
+  const [emailError, setEmailError] = useState<string | null>(null);
   // Prefilled from the sign-in provider's profile (or whatever the account already has).
   const [name, setName] = useState(user?.displayName ?? '');
   const [nameError, setNameError] = useState<string | null>(null);
   const [savingName, setSavingName] = useState(false);
-  const last = step === TITLES.length - 1;
-  const [title, sub] = TITLES[step];
+  const kind = kinds[Math.min(step, kinds.length - 1)];
+  const last = step >= kinds.length - 1;
+  const [title, sub] = STEP_TEXT[kind];
+  const effectiveEmail = alertEmail.data?.effectiveEmail ?? '';
+  const shownEmail = emailDraft ?? (isPlaceholderEmail(effectiveEmail) ? '' : effectiveEmail);
 
   /** Saves the name (only if it changed) and moves on; stays put with an inline error if it's rejected. */
   async function next() {
     if (savingName) return;
-    if (step === 0) {
+    if (kind === 'email' && wantEmail) {
+      const address = shownEmail.trim().toLowerCase();
+      if (!address) {
+        setEmailError('Enter the email address to send alerts to.');
+        return;
+      }
+      setSavingName(true);
+      try {
+        if (address !== effectiveEmail.toLowerCase()) {
+          const res = await alertEmailApi.set({ email: address });
+          if (res.status === 'confirmation_sent') ui.notify('Check your inbox to confirm the address');
+        }
+        await Promise.all([...emailTypes].map((type) => notificationPreferencesApi.set({ type, email: true })));
+        void queryClient.invalidateQueries({ queryKey: NOTIFICATION_PREFERENCES_QUERY_KEY });
+        void queryClient.invalidateQueries({ queryKey: ALERT_EMAIL_QUERY_KEY });
+        setEmailError(null);
+      } catch (e) {
+        setEmailError(e instanceof Error ? e.message : 'Could not save your email settings');
+        return;
+      } finally {
+        setSavingName(false);
+      }
+    }
+    if (kind === 'name') {
       const trimmed = name.trim().replace(/\s+/g, ' ');
       if (trimmed.length < 1 || trimmed.length > 40) {
         setNameError('Pick a name between 1 and 40 characters.');
@@ -75,7 +132,7 @@ export function Onboarding({ onDone }: { onDone: () => void }) {
           </button>
         )}
         <div style={st('flex:1;display:flex;gap:6px')}>
-          {TITLES.map((_, i) => (
+          {kinds.map((_, i) => (
             <span key={i} style={st(`flex:1;height:4px;border-radius:999px;background:${i <= step ? 'var(--acc)' : 'var(--chip)'}`)} />
           ))}
         </div>
@@ -84,11 +141,11 @@ export function Onboarding({ onDone }: { onDone: () => void }) {
         </button>
       </div>
       <div style={st('flex:1;min-height:0;overflow-y:auto;padding:28px 22px 20px;display:flex;flex-direction:column;gap:16px;width:100%;max-width:560px;margin:0 auto')}>
-        <span style={st('flex-shrink:0;font:600 12px var(--font-mono);letter-spacing:0.06em;color:var(--muted)')}>STEP {step + 1} OF {TITLES.length}</span>
+        <span style={st('flex-shrink:0;font:600 12px var(--font-mono);letter-spacing:0.06em;color:var(--muted)')}>STEP {step + 1} OF {kinds.length}</span>
         <span style={st('flex-shrink:0;font:700 30px/1.08 var(--font-display);letter-spacing:-0.025em;text-wrap:balance')}>{title}</span>
         <span style={st('flex-shrink:0;font:400 15px/1.5 var(--font-ui);color:var(--muted);text-wrap:pretty')}>{sub}</span>
 
-        {step === 0 && (
+        {kind === 'name' && (
           <>
             <input
               value={name}
@@ -106,7 +163,7 @@ export function Onboarding({ onDone }: { onDone: () => void }) {
           </>
         )}
 
-        {step === 1 && (
+        {kind === 'currency' && (
           <select
             value={region ?? ''}
             aria-label="Price currency"
@@ -122,9 +179,9 @@ export function Onboarding({ onDone }: { onDone: () => void }) {
           </select>
         )}
 
-        {step === 2 && <SystemsPicker saveLabel="Save systems" onSaved={() => ui.notify('Systems saved')} />}
+        {kind === 'systems' && <SystemsPicker saveLabel="Save systems" onSaved={() => ui.notify('Systems saved')} />}
 
-        {step === 3 && (
+        {kind === 'library' && (
           <>
             <div style={st('flex-shrink:0;display:flex;flex-direction:column;gap:14px;padding:20px;border-radius:24px;background:linear-gradient(150deg, oklch(0.55 0.2 300 / 0.28), var(--surf) 70%);border:1px solid oklch(0.55 0.2 300 / 0.35)')}>
               <div style={st('display:flex;align-items:center;gap:14px')}>
@@ -164,7 +221,52 @@ export function Onboarding({ onDone }: { onDone: () => void }) {
           </>
         )}
 
-        {step === 4 && (
+        {kind === 'email' && (
+          <div style={st('flex-shrink:0;display:flex;flex-direction:column;gap:14px')}>
+            <div style={st('display:flex;align-items:center;gap:12px;padding:14px 16px;border-radius:16px;background:var(--surf)')}>
+              <span style={st('flex:1;font:600 15px var(--font-ui)')}>Email me alerts</span>
+              <Toggle on={wantEmail} onChange={setWantEmail} label="Email me alerts" />
+            </div>
+            {wantEmail && (
+              <>
+                <input
+                  type="email"
+                  value={shownEmail}
+                  onChange={(e) => {
+                    setEmailDraft(e.target.value);
+                    setEmailError(null);
+                  }}
+                  placeholder="you@example.com"
+                  aria-label="Email address for alerts"
+                  style={st(inputPill, { height: 52, flexShrink: 0, border: '1px solid var(--line)', fontSize: 16 })}
+                />
+                {emailError && <span style={st('flex-shrink:0;font:500 13px var(--font-ui);color:var(--danger)')}>{emailError}</span>}
+                <span style={st('font:600 12px var(--font-mono);letter-spacing:0.06em;color:var(--muted)')}>WHICH ALERTS?</span>
+                <div style={st('display:flex;flex-direction:column;gap:1px;border-radius:16px;overflow:hidden;background:var(--chip)')}>
+                  {EMAIL_CHOICES.map((c) => (
+                    <div key={c.type} style={st('display:flex;align-items:center;gap:12px;min-height:54px;padding:8px 16px;background:var(--surf)')}>
+                      <span style={st('flex:1;min-width:0;font:500 14.5px var(--font-ui)')}>{c.label}</span>
+                      <Toggle
+                        on={emailTypes.has(c.type)}
+                        label={c.label}
+                        onChange={(v) =>
+                          setEmailTypes((prev) => {
+                            const next = new Set(prev);
+                            if (v) next.add(c.type);
+                            else next.delete(c.type);
+                            return next;
+                          })
+                        }
+                      />
+                    </div>
+                  ))}
+                </div>
+              </>
+            )}
+          </div>
+        )}
+
+        {kind === 'rooms' && (
           <div style={st('flex-shrink:0;display:flex;flex-direction:column;gap:1px;border-radius:20px;overflow:hidden;background:var(--chip)')}>
             {(
               [
@@ -197,7 +299,7 @@ export function Onboarding({ onDone }: { onDone: () => void }) {
           onClick={() => void next()}
           style={st('width:100%;height:54px;border-radius:999px;border:none;background:var(--acc);color:var(--ink);font:700 15.5px var(--font-ui)')}
         >
-          {last ? 'Start queueing' : step === 3 ? 'Continue' : 'Next'}
+          {last ? 'Start queueing' : kind === 'library' ? 'Continue' : 'Next'}
         </button>
       </div>
     </div>
