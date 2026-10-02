@@ -1126,7 +1126,8 @@ export type NotificationType =
   | 'release_watch'
   | 'playtime_mark_playing'
   | 'playnite_sync_reminder'
-  | 'wishlist_bundle_deal';
+  | 'wishlist_bundle_deal'
+  | 'play_together_request';
 
 export interface Notification {
   id: string;
@@ -2077,4 +2078,20 @@ export interface GameTrailerResponse {
 export interface SendFriendRequestRequest {
   code?: string;
   userId?: string;
+}
+
+/** GET /api/play-together/:notificationId/rooms - rooms both people are in, as options for adding the game. */
+export interface PlayTogetherRoomsResponse {
+  rooms: { id: string; name: string }[];
+}
+
+/** POST /api/play-together/:notificationId/accept - add to an existing shared room (roomId), or
+ * omit it to create a new room with just the two of you. */
+export interface AcceptPlayTogetherRequest {
+  roomId?: string;
+}
+export interface AcceptPlayTogetherResponse {
+  roomId: string;
+  roomName: string;
+  created: boolean;
 }

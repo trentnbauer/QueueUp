@@ -21,7 +21,7 @@ interface NotifyRoomInput {
   // RoomActivityType, not just documented as one.
   type: Exclude<
     NotificationType,
-    'room_deleted' | 'price_drop' | 'release_watch' | 'playtime_mark_playing' | 'playnite_sync_reminder' | 'wishlist_bundle_deal'
+    'room_deleted' | 'price_drop' | 'release_watch' | 'playtime_mark_playing' | 'playnite_sync_reminder' | 'wishlist_bundle_deal' | 'play_together_request'
   >;
   message: (actorName: string) => string;
 }
@@ -374,7 +374,8 @@ export async function markAllNotificationsRead(userId: string): Promise<void> {
   const now = new Date();
   await prisma.$transaction([
     prisma.roomMember.updateMany({ where: { userId }, data: { notificationsReadAt: now } }),
-    prisma.notification.updateMany({ where: { recipientId: userId, readAt: null }, data: { readAt: now } }),
+    // Play-together requests wait for an answer (accept into a room, or decline), so "mark all read" leaves them.
+    prisma.notification.updateMany({ where: { recipientId: userId, readAt: null, type: { not: 'play_together_request' } }, data: { readAt: now } }),
   ]);
 }
 

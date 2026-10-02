@@ -4,6 +4,7 @@ import { Link, useNavigate } from 'react-router';
 import { REVIEW_CATEGORIES, type PublicProfileBeatenGame, type PublicProfileGame, type PublicUserProfile } from '@queueup/shared';
 import { authApi } from '../api/auth';
 import { gamesApi } from '../api/games';
+import { playTogetherApi } from '../api/playTogether';
 import { publicProfileApi } from '../api/publicProfile';
 import { useAuth } from '../context/AuthContext';
 import { useConfirm } from '../context/ConfirmContext';
@@ -289,6 +290,7 @@ const CARD_CURSOR = 'cursor:pointer;';
  * have it yet) an Add to wishlist button. */
 function ProfileGameDialog({
   game,
+  ownerId,
   ownerName,
   canAdd,
   added,
@@ -296,6 +298,7 @@ function ProfileGameDialog({
   onClose,
 }: {
   game: PublicProfileGame;
+  ownerId: string;
   ownerName: string;
   canAdd: boolean;
   added: boolean;
@@ -318,6 +321,19 @@ function ProfileGameDialog({
       setBusy(false);
     }
   }
+  const [asked, setAsked] = useState(false);
+  async function askToPlay() {
+    setBusy(true);
+    try {
+      await playTogetherApi.ask(ownerId, game.igdbId);
+      setAsked(true);
+      ui.notify(`Asked ${ownerName} to play ${game.title} together`);
+    } catch (e) {
+      ui.notify(e instanceof Error ? e.message : 'Could not send that request');
+    } finally {
+      setBusy(false);
+    }
+  }
   const have = game.viewerHas || added;
   return (
     <Dialog title={game.title} onClose={onClose} width={480}>
@@ -328,6 +344,11 @@ function ProfileGameDialog({
         <div style={st('flex:1;min-width:0;display:flex;flex-direction:column;gap:10px')}>
           <span style={st('font:400 13px var(--font-ui);color:var(--muted)')}>{game.platform}</span>
           {game.bothOwn && <span style={st('font:600 12.5px var(--font-ui);color:var(--mint)')}>You both own this - you can play it together</span>}
+          {game.bothOwn && canAdd && (
+            <Btn kind="soft" disabled={busy || asked} onClick={askToPlay}>
+              {asked ? '✓ Asked to play together' : 'Ask to play together'}
+            </Btn>
+          )}
           {canAdd &&
             (have ? (
               <span style={st('font:600 13px var(--font-ui);color:var(--muted)')}>{added ? '✓ Added to your wishlist' : '✓ Already on your shelf'}</span>
@@ -616,6 +637,7 @@ export function PublicProfilePage({ userId, signedIn }: { userId: string; signed
       {cardGame && profile && (
         <ProfileGameDialog
           game={cardGame}
+          ownerId={profile.userId}
           ownerName={profile.displayName}
           canAdd={signedIn && profile.viewer !== 'self'}
           added={addedIds.has(cardGame.igdbId)}
