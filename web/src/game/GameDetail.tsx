@@ -587,7 +587,10 @@ export function GameDetail({ game, onClose, changeStatus }: { game: Game; onClos
               <button
                 key={k}
                 type="button"
-                onClick={() => changeStatus(game, k)}
+                onClick={() => {
+                  changeStatus(game, k);
+                  if (k === 'wont_play') onClose();
+                }}
                 aria-pressed={game.status === k}
                 style={st(`height:36px;padding:0 10px;border-radius:999px;border:none;background:${game.status === k ? 'var(--text)' : 'transparent'};color:${game.status === k ? 'var(--onText)' : 'var(--muted)'};font:600 13px var(--font-ui)`)}
               >
@@ -595,7 +598,7 @@ export function GameDetail({ game, onClose, changeStatus }: { game: Game; onClos
               </button>
             ))}
           </div>
-          {(game.status === 'done' || game.status === 'replay') && (
+          {(game.status === 'done' || game.status === 'replay' || game.status === 'dropped') && (
             <button
               type="button"
               onClick={() => ui.openDialog('review', { gameId: game.id, edit: true })}
