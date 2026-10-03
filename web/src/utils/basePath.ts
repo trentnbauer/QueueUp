@@ -13,5 +13,10 @@ declare global {
  * build /auth or /api URLs outside the fetch client. Returns '' at root hosting (the default);
  * every caller can unconditionally string-concatenate without an empty-string special case. */
 export function getBasePath(): string {
-  return window.__QUEUEUP_BASE_PATH__ ?? '';
+  if (window.__QUEUEUP_BASE_PATH__ !== undefined) return window.__QUEUEUP_BASE_PATH__;
+  // The server's Content-Security-Policy (script-src 'self') blocks the inline script that sets the
+  // global above in production, so fall back to the <base href> injected beside it ("/queueup/" or
+  // "/"), which carries the same path without needing an inline script to run.
+  const href = document.querySelector('base')?.getAttribute('href') ?? '/';
+  return href.replace(/\/+$/, '');
 }

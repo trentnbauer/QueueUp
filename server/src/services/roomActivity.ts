@@ -32,7 +32,9 @@ export async function postRoomDiscord(roomId: string, content: string, event: Di
     await fetch(room.discordWebhookUrl, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ username: room.name, content }),
+      // Content carries text any member writes (display names, review notes, game titles), so
+      // mentions are switched off - otherwise "@everyone" in a note pings the whole Discord server.
+      body: JSON.stringify({ username: room.name, content, allowed_mentions: { parse: [] } }),
     });
   } catch (err) {
     console.error('[roomActivity] failed to post to Discord webhook', err);

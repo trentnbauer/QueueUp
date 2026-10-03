@@ -116,6 +116,23 @@ describe('envSchema', () => {
     expect(result.success).toBe(false);
   });
 
+  describe('TRUST_PROXY', () => {
+    // `true` would make Fastify take the leftmost (client-written) X-Forwarded-For entry as the
+    // client IP, letting anyone dodge per-IP rate limits by sending a fake one.
+    it.each([
+      [undefined, 1],
+      ['true', 1],
+      ['false', false],
+      ['2', 2],
+      ['10.0.0.0/8', '10.0.0.0/8'],
+    ])('maps %j to %j', (input, expected) => {
+      const result = envSchema.safeParse(baseProcessEnv(input === undefined ? {} : { TRUST_PROXY: input }));
+      expect(result.success).toBe(true);
+      if (!result.success) return;
+      expect(result.data.TRUST_PROXY).toBe(expected);
+    });
+  });
+
   describe('BASE_PATH normalization', () => {
     it.each([
       [undefined, ''],

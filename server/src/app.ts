@@ -33,6 +33,7 @@ import accountEventRoutes from './routes/accountEvents.js';
 import { env } from './config/env.js';
 import { redis } from './services/redisClient.js';
 import { logCaptureStream } from './services/logBuffer.js';
+import { isCrossOriginWrite } from './util/crossOrigin.js';
 
 /** Requests slower than this are logged even with per-request logging off (see LOG_REQUESTS). */
 const SLOW_REQUEST_MS = 2000;
@@ -115,6 +116,15 @@ export async function buildApp() {
   app.addHook('preValidation', async (request) => {
     if (request.method !== 'GET' && request.method !== 'HEAD' && (request.body == null || typeof request.body !== 'object')) {
       request.body = {};
+    }
+  });
+
+  // CSRF backstop on top of the SameSite=Lax session cookie - see isCrossOriginWrite.
+  const appOrigin = new URL(env.APP_BASE_URL).origin;
+  const apiV1Prefix = `${env.BASE_PATH}/api/v1/`;
+  app.addHook('onRequest', async (request, reply) => {
+    if (isCrossOriginWrite(request.method, request.headers.origin, request.url, appOrigin, apiV1Prefix)) {
+      return reply.status(403).send({ error: 'Cross-origin request refused' });
     }
   });
 

@@ -51,7 +51,13 @@ export const envSchema = z.object({
     .optional()
     .default('true')
     .transform((v): boolean | number | string => {
-      if (v === 'true') return true;
+      // "true" means the one proxy directly in front of this container, i.e. a hop count of 1 - not
+      // Fastify's own `true`, which trusts every hop and so takes the client IP from the leftmost
+      // X-Forwarded-For entry. A client writes that entry itself, so with `true` anyone could send a
+      // fresh fake IP per request and slip every per-IP rate limit (invite-code and friend-code
+      // guessing, sign-in). Behind two proxies (e.g. Cloudflare in front of NGINX Proxy Manager),
+      // set 2.
+      if (v === 'true') return 1;
       if (v === 'false') return false;
       const n = Number(v);
       return Number.isNaN(n) || v.trim() === '' ? v : n;
