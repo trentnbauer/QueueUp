@@ -546,18 +546,14 @@ export function MeDialog() {
 
         {publicProfileEnabled && (
           <Group>
-            <div style={st('display:flex;align-items:center;gap:8px;min-height:58px;padding:0 10px 0 16px;background:var(--surf)')}>
+            {/* The whole row opens the profile. */}
+            <button type="button" onClick={() => window.open(profileUrl, '_blank', 'noopener')} style={st(ROW_BASE)} className="hv-surf2">
               <span style={st('flex:1;min-width:0;display:flex;flex-direction:column;gap:1px')}>
                 <span style={st('font:600 15px var(--font-ui)')}>Public profile</span>
                 <span style={st('font:500 12.5px var(--font-mono);color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis')}>{profileUrl.replace(/^https?:\/\//, '')}</span>
               </span>
-              <Btn kind="text" height={34} padX={12} fontSize={12.5} weight={700} onClick={() => window.open(profileUrl, '_blank', 'noopener')}>
-                View
-              </Btn>
-              <Btn kind="text" height={34} padX={12} fontSize={12.5} weight={700} onClick={async () => { await navigator.clipboard.writeText(profileUrl); ui.notify('Profile link copied'); }}>
-                Copy link
-              </Btn>
-            </div>
+              <span style={st('color:var(--muted);font-size:20px')}>›</span>
+            </button>
           </Group>
         )}
 
