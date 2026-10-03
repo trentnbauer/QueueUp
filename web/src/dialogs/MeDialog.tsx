@@ -21,6 +21,7 @@ import { useVersion } from '../hooks/useVersion';
 import { Dialog } from '../ui/Dialog';
 import { Avatar, Banner, Btn, Group, Kicker, Segmented, Toggle, inputField } from '../ui/primitives';
 import { SystemsPicker } from '../ui/SystemsPicker';
+import { rerunOnboarding } from '../shell/Onboarding';
 import { st } from '../ui/st';
 import { ACCENT_LABELS, type Accent } from '../theme/applyThemeMode';
 import { getBasePath } from '../utils/basePath';
@@ -732,6 +733,13 @@ export function MeDialog() {
           <NavRow label="What's new" onClick={open('changelog')} />
           <NavRow label="Report an issue" onClick={() => window.open(ISSUES_URL, '_blank', 'noopener')} />
           <NavRow label="Download my data" onClick={() => { window.location.href = `${getBasePath()}/api/me/export`; }} />
+          <NavRow
+            label="Run setup again"
+            onClick={() => {
+              close();
+              rerunOnboarding();
+            }}
+          />
           <NavRow label="Sign out" onClick={signOut} />
         </Group>
         <button type="button" onClick={deleteAccount} style={st('align-self:flex-start;height:40px;border:none;background:none;padding:0;color:var(--danger);font:600 14px var(--font-ui)')}>

@@ -19,7 +19,7 @@ import { ConfirmEmailPage } from './pages/ConfirmEmailPage';
 import { ActivityPage } from './pages/FriendPages';
 import { AchievementsPage, InsightsPage, YearPage } from './pages/InsightPages';
 import { AppShell } from './shell/AppShell';
-import { Onboarding } from './shell/Onboarding';
+import { Onboarding, onRerunOnboarding } from './shell/Onboarding';
 
 const ONBOARDED_KEY = 'sq-onboarded';
 // Invite links (`/join/:inviteCode`) need to survive a full-page OAuth sign-in/callback round trip,
@@ -106,6 +106,8 @@ export default function App() {
       /* storage unavailable: skip onboarding */
     }
   }, [user]);
+
+  useEffect(() => onRerunOnboarding(() => setShowOnboarding(true)), []);
 
   // Capture an invite code from a shared `/join/:inviteCode` link before the sign-in gate can swallow it.
   useEffect(() => {

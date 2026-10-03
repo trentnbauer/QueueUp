@@ -49,6 +49,19 @@ const EMAIL_CHOICES: { type: EmailAlertType; label: string; on: boolean }[] = [
 const isPlaceholderEmail = (email: string) => ['steamcommunity.unknown', 'discord.unknown'].includes(email.toLowerCase().split('@')[1] ?? '');
 const STORES = ['Steam', 'Epic', 'GOG', 'Xbox', 'PlayStation', 'Nintendo'];
 
+const RERUN_EVENT = 'queueup:rerun-onboarding';
+
+/** Opens the first-run flow again (Settings > "Run setup again"); App listens for this. */
+export function rerunOnboarding(): void {
+  window.dispatchEvent(new Event(RERUN_EVENT));
+}
+
+/** Subscribes to rerunOnboarding() requests; returns the unsubscribe. */
+export function onRerunOnboarding(listener: () => void): () => void {
+  window.addEventListener(RERUN_EVENT, listener);
+  return () => window.removeEventListener(RERUN_EVENT, listener);
+}
+
 /** A screenshot of the app, from web/public/onboarding (captured from a real shelf and room). */
 const shot = (name: string) => `${getBasePath()}/onboarding/${name}.jpg`;
 
