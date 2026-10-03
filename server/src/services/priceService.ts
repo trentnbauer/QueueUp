@@ -162,7 +162,7 @@ async function fetchLiveEntriesBatch(
     response = await fetch(url);
   } catch (err) {
     // A network failure must not take down every page that shows a price.
-    console.error(`[priceService] gg.deals request errored for ${steamAppIds.length} id(s), region ${region}`, err);
+    console.error('[priceService] gg.deals request errored for %d id(s), region %s', steamAppIds.length, region, err);
     if (strict) throw new HttpError(502, 'GG.Deals price lookup failed. Try again later.');
     return failedEntriesFor(steamAppIds, fetchedAt);
   }
