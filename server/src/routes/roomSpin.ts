@@ -218,6 +218,10 @@ export default async function roomSpinRoutes(app: FastifyInstance) {
 
       const { stripGameIds, theme } = await buildStripAndTheme(roomId, userId, parseSpinFilters(request.body));
       const base = freshBase(Date.now(), SPIN_WAITING_ROOM_MS);
+      // A stale session left over from an earlier spin would otherwise block this create (one spin
+      // per room) until something else happened to clean it up.
+      const leftover = await prisma.roomSpin.findUnique({ where: { roomId } });
+      if (leftover && isStale(leftover)) await prisma.roomSpin.deleteMany({ where: { id: leftover.id } });
       try {
         const spin = await prisma.roomSpin.create({
           data: {

@@ -334,7 +334,7 @@ export default async function authRoutes(app: FastifyInstance) {
     async (request, reply) => {
       const userId = await request.requireAuth();
       const rawLabel = request.body?.label;
-      const label = typeof rawLabel === 'string' ? rawLabel.trim() : '';
+      const label = typeof rawLabel === 'string' ? rawLabel.trim().slice(0, 100) : '';
       if (!label) throw new HttpError(400, 'A label is required');
 
       const token = generateApiKeyToken();

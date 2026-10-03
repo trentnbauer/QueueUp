@@ -34,11 +34,9 @@ async function remindStaleSyncs(): Promise<void> {
   }
 
   const staleBefore = Date.now() - PLAYNITE_SYNC_STALE_MS;
-  const staleUserIds = Array.from(mostRecentActivityByUser.entries())
-    .filter(([, activity]) => activity < staleBefore)
-    .map(([userId]) => userId);
+  const stale = Array.from(mostRecentActivityByUser.entries()).filter(([, activity]) => activity < staleBefore);
 
-  await Promise.all(staleUserIds.map((userId) => notifyPlayniteSyncReminder(userId)));
+  await Promise.all(stale.map(([userId, activity]) => notifyPlayniteSyncReminder(userId, new Date(activity))));
 }
 
 /** Registers the Playnite sync-staleness check to run on its own schedule (#570) - same

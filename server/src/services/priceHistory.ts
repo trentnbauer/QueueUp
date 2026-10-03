@@ -27,14 +27,14 @@ export function usualPrice(points: { amount: number }[], minPoints = MIN_POINTS_
   return sorted.length % 2 ? sorted[mid] : (sorted[mid - 1] + sorted[mid]) / 2;
 }
 
-/** Whether `amount` is a good time to buy given what's been recorded and gg.deals' all-time low: at
- * or within 5% of the lowest price known, or at least 20% under the usual price. Returns why, or null. */
 /** Whether a good-time price is far enough under the one last alerted at to be worth a new alert.
  * No previous alert (null) always qualifies. */
 export function isMeaningfulFurtherDrop(amount: number, lastNotified: number | null): boolean {
   return lastNotified === null || amount <= lastNotified * GOOD_TIME_REALERT_FACTOR;
 }
 
+/** Whether `amount` is a good time to buy given what's been recorded and gg.deals' all-time low: at
+ * or within 5% of the lowest price known, or at least 20% under the usual price. Returns why, or null. */
 export function goodTimeReason(
   amount: number,
   history: { amount: number }[],

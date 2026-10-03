@@ -785,6 +785,7 @@ export async function getGameDetail(igdbId: number): Promise<IgdbGameDetail> {
 
 const STEAM_APP_ID_LOOKUP_CACHE_PREFIX = 'igdb:steam-appid-to-igdbid:v1:';
 const STEAM_APP_ID_LOOKUP_CACHE_TTL_SECONDS = 60 * 60 * 24; // 24h — this mapping essentially never changes
+const EXACT_TITLE_LOOKUP_CACHE_PREFIX = 'igdb:exact-title:v1:';
 
 /** Reverse of getGameDetail's steamAppId lookup: given a Steam AppID, finds the IGDB game id it
  * maps to (or null if IGDB has no external_games record for it). Used by Steam library import,
@@ -892,10 +893,20 @@ export async function findIgdbIdByExactTitle(title: string): Promise<number | nu
   const trimmed = title.trim();
   if (!trimmed) return null;
 
-  const direct = await searchExactTitle(trimmed);
-  if (direct !== null) return direct;
+  // Cached (a miss included) for the same reason as findIgdbIdBySteamAppId: a Steam library sync
+  // re-considers every owned game that isn't on the shelf yet, so without this each sync re-ran one
+  // or two IGDB searches for every soundtrack/tool/demo IGDB will never match - minutes per sync
+  // on a big library.
+  const cacheKey = EXACT_TITLE_LOOKUP_CACHE_PREFIX + normalizeGameTitleForComparison(trimmed);
+  const cached = await redis.get(cacheKey);
+  if (cached) return cached === 'null' ? null : Number(cached);
 
-  const stripped = stripEditionSuffix(trimmed);
-  if (!stripped || stripped.toLowerCase() === trimmed.toLowerCase()) return null;
-  return searchExactTitle(stripped);
+  let igdbId = await searchExactTitle(trimmed);
+  if (igdbId === null) {
+    const stripped = stripEditionSuffix(trimmed);
+    if (stripped && stripped.toLowerCase() !== trimmed.toLowerCase()) igdbId = await searchExactTitle(stripped);
+  }
+
+  await redis.set(cacheKey, igdbId === null ? 'null' : String(igdbId), 'EX', STEAM_APP_ID_LOOKUP_CACHE_TTL_SECONDS);
+  return igdbId;
 }

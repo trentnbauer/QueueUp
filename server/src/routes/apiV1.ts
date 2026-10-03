@@ -344,7 +344,7 @@ async function runPlayniteImportLoop(
     // cookie-authenticated browser session (usePlayniteSyncToasts.ts polls it), so unlockedBadges
     // reaches an announceUnlock round trip same as every other badge-unlocking route, not just
     // "next time the person has the panel open."
-    const unlockedBadges = touchedPlatformFamilies.size > 0 ? await unlockBadges(userId, [...touchedPlatformFamilies]) : [];
+    const unlockedBadges = touchedPlatformFamilies.size > 0 ? await unlockBadges(userId, [...touchedPlatformFamilies]).catch(() => []) : [];
     await setPlayniteImportProgress(userId, { startedAt, consideredCount, matched, unmatched, errored, done: true, unlockedBadges });
   }
 }

@@ -1,6 +1,6 @@
 import type { MouseEvent, ReactNode } from 'react';
 import type { Game, VoteValue } from '@queueup/shared';
-import { VOTES, VOTE_VALUES, isNewRelease, releaseLabel, reviewAverage, shortDate } from '../lib/gameView';
+import { VOTES, VOTE_VALUES, isNewRelease, releaseLabel, reviewAverage, releaseShortDate } from '../lib/gameView';
 import { ABOVE, Cover, coverBg, GOLD, GOLD_RING, OpenOverlay, StatusBadge, statusOutlineFor, statusRing, TrophyBadge } from '../ui/primitives';
 import { st } from '../ui/st';
 import type { RowItem } from './derive';
@@ -262,7 +262,7 @@ export function PlayNextRow({
       <div style={st('flex:1;min-width:0;display:flex;flex-direction:column;gap:2px')}>
         <span style={st('font:600 15px var(--font-ui);white-space:nowrap;overflow:hidden;text-overflow:ellipsis')}>{g.title}</span>
         <span style={st('display:flex;align-items:center;gap:6px;min-width:0;font:400 12.5px var(--font-ui);color:var(--muted)')}>
-          {isNew && g.releaseDate && <span style={st(CHIP)}>{`New · out ${shortDate(g.releaseDate)}`}</span>}
+          {isNew && g.releaseDate && <span style={st(CHIP)}>{`New · out ${releaseShortDate(g.releaseDate)}`}</span>}
           <span style={st('white-space:nowrap;overflow:hidden;text-overflow:ellipsis')}>
             {item.meta}
             {item.meta ? ' · ' : ''}

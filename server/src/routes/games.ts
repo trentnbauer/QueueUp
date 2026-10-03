@@ -373,7 +373,7 @@ async function runSteamLibraryImportLoop(
     // function at all already means a real sync ran (Steam-linked, considered set built, loop
     // attempted) - that's "you synced your library from Steam," independent of whether this
     // particular run happened to find anything new.
-    const unlockedBadges = await unlockBadges(userId, ['first_library_sync']);
+    const unlockedBadges = await unlockBadges(userId, ['first_library_sync']).catch(() => []);
     await setSteamImportProgress(userId, { totalOwned, consideredCount, imported, skipped, done: true, unlockedBadges });
   }
 }
@@ -462,7 +462,7 @@ async function runSteamWishlistImportLoop(
     // already means a real wishlist sync ran, so it's unconditional here too rather than
     // permanently unreachable once someone's wishlist is already fully synced (issue #489).
     const badgeKeys: BadgeKey[] = imported > 0 ? ['first_wishlist', 'first_library_sync'] : ['first_library_sync'];
-    const unlockedBadges = await unlockBadges(userId, badgeKeys);
+    const unlockedBadges = await unlockBadges(userId, badgeKeys).catch(() => []);
     await setSteamWishlistImportProgress(userId, { totalWishlisted, consideredCount, imported, skipped, done: true, unlockedBadges });
   }
 }
@@ -1371,7 +1371,9 @@ export default async function gameRoutes(app: FastifyInstance) {
     const withVotes = await prisma.game.findUniqueOrThrow({ where: { id: game.id }, include: gameInclude });
     const info = (await getRemovalInfo([withVotes])).get(game.id);
     if (info && info.votes >= info.needed) {
-      await prisma.game.delete({ where: { id: game.id } });
+      // deleteMany, not delete: two final votes landing together would otherwise both try to
+      // delete the row and the second would fail with a not-found error.
+      await prisma.game.deleteMany({ where: { id: game.id } });
       await invalidateExistingIgdbIds(game.roomId, game.addedBy);
       return { removed: true, game: null };
     }
@@ -1490,9 +1492,9 @@ export default async function gameRoutes(app: FastifyInstance) {
     const game = await loadGameOr404(request.params.id);
     // Moving is a relocate: you need rights to remove it from where it is...
     await requireGameDeleteAccess(game, userId);
-    const { roomId: destRoomId } = request.body;
+    const { roomId: destRoomId } = request.body ?? {};
 
-    if (destRoomId === game.roomId) {
+    if ((destRoomId ?? null) === game.roomId) {
       throw new HttpError(400, "That game is already there.");
     }
 

@@ -246,10 +246,12 @@ export async function notifyGoodTimeToBuy(userId: string, gameId: string, messag
   }
 }
 
-export async function notifyPlayniteSyncReminder(userId: string): Promise<void> {
+export async function notifyPlayniteSyncReminder(userId: string, lastSyncAt: Date): Promise<void> {
   try {
+    // One reminder per lapse: skip while one is still unread, and also when one was already sent
+    // since the last sync - otherwise reading it just brings a fresh one back on the next run.
     const existing = await prisma.notification.findFirst({
-      where: { recipientId: userId, type: 'playnite_sync_reminder', readAt: null },
+      where: { recipientId: userId, type: 'playnite_sync_reminder', OR: [{ readAt: null }, { createdAt: { gte: lastSyncAt } }] },
       select: { id: true },
     });
     if (existing) return;

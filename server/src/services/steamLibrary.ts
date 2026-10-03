@@ -35,11 +35,16 @@ async function steamStoreSearch(query: string): Promise<SteamStoreSearchItem[]> 
   url.searchParams.set('l', 'english');
   url.searchParams.set('cc', 'us');
 
-  const response = await fetch(url);
-  if (!response.ok) return [];
-
-  const body = (await response.json()) as SteamStoreSearchResponse;
-  return (body.items ?? []).filter((item) => item.type === 'app');
+  // Best-effort: this is only ever a fallback match/suggestion, so a Steam store hiccup must not
+  // fail whatever called it (adding a game, for one).
+  try {
+    const response = await fetch(url);
+    if (!response.ok) return [];
+    const body = (await response.json()) as SteamStoreSearchResponse;
+    return (body.items ?? []).filter((item) => item.type === 'app');
+  } catch {
+    return [];
+  }
 }
 
 /** Public, unauthenticated Steam store search - no API key needed, unlike everything else in this
@@ -267,7 +272,7 @@ export async function getAchievementDetails(
 }
 
 interface SteamGlobalAchievementPercentagesResponse {
-  achievementpercentages?: { achievements?: { name: string; percent: number }[] };
+  achievementpercentages?: { achievements?: { name: string; percent: number | string }[] };
 }
 
 const GLOBAL_ACHIEVEMENT_RARITY_CACHE_TTL_SECONDS = 60 * 60 * 12; // community-wide unlock rates barely move day to day
@@ -283,7 +288,7 @@ function globalAchievementRarityCacheKey(appId: number): string {
 export async function getGlobalAchievementRarity(appId: number): Promise<Map<string, number>> {
   const cacheKey = globalAchievementRarityCacheKey(appId);
   const cached = await redis.get(cacheKey);
-  if (cached !== null) return new Map(JSON.parse(cached) as [string, number][]);
+  if (cached !== null) return new Map((JSON.parse(cached) as [string, number | string][]).map(([name, percent]) => [name, Number(percent)]));
 
   const url = new URL('https://api.steampowered.com/ISteamUserStats/GetGlobalAchievementPercentagesForApp/v0002/');
   url.searchParams.set('gameid', String(appId));
@@ -299,7 +304,10 @@ export async function getGlobalAchievementRarity(appId: number): Promise<Map<str
 
   const body = (await response.json()) as SteamGlobalAchievementPercentagesResponse;
   const entries = body.achievementpercentages?.achievements ?? [];
-  const rarity = new Map(entries.map((a) => [a.name, a.percent] as const));
+  // Steam sends `percent` as a string on this endpoint; coerced so callers can treat it as a number.
+  const rarity = new Map(
+    entries.map((a) => [a.name, Number(a.percent)] as const).filter(([, percent]) => Number.isFinite(percent)),
+  );
 
   await redis.set(cacheKey, JSON.stringify(Array.from(rarity.entries())), 'EX', GLOBAL_ACHIEVEMENT_RARITY_CACHE_TTL_SECONDS);
   return rarity;
@@ -316,6 +324,9 @@ function importProgressKey(userId: string): string {
  * a bare "Importing…" for however long the whole batch takes. */
 export async function setSteamImportProgress(userId: string, progress: SteamImportProgress): Promise<void> {
   await redis.set(importProgressKey(userId), JSON.stringify(progress), 'EX', IMPORT_PROGRESS_TTL_SECONDS);
+  // A run still making progress keeps its lock alive - otherwise a library big enough to take
+  // longer than the lock TTL lets a second, overlapping import start and create duplicates.
+  if (!progress.done) await redis.expire(importLockKey(userId), IMPORT_LOCK_TTL_SECONDS);
 }
 
 export async function getSteamImportProgress(userId: string): Promise<SteamImportProgress | null> {
@@ -355,6 +366,8 @@ function wishlistImportProgressKey(userId: string): string {
  * user at once don't clobber each other's progress. */
 export async function setSteamWishlistImportProgress(userId: string, progress: SteamWishlistImportProgress): Promise<void> {
   await redis.set(wishlistImportProgressKey(userId), JSON.stringify(progress), 'EX', IMPORT_PROGRESS_TTL_SECONDS);
+  // Same lock keep-alive as setSteamImportProgress above.
+  if (!progress.done) await redis.expire(wishlistImportLockKey(userId), IMPORT_LOCK_TTL_SECONDS);
 }
 
 export async function getSteamWishlistImportProgress(userId: string): Promise<SteamWishlistImportProgress | null> {

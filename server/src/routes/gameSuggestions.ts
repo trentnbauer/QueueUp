@@ -8,7 +8,6 @@ import { resolveGameForCreation, defaultStatusForRelease, linkDlcToBaseGame } fr
 import { isAddonCategory } from '../services/igdbClient.js';
 import { serializeGame } from '../services/gameSerializer.js';
 import { notifyRoom } from '../services/notifications.js';
-import { getOwnedPlatforms } from '../services/userSettings.js';
 import type { GameSuggestion } from '@queueup/shared';
 
 function toSuggestionDto(suggestion: {
@@ -80,15 +79,21 @@ export default async function gameSuggestionRoutes(app: FastifyInstance) {
       // to keep re-declining.
       // A platform-less room (issue #473) resolves candidates off the suggester's own owned
       // platforms, same fallback as a direct add (see createGameForUser in gameIntake.ts).
-      const platforms = room.platform ? [room.platform] : await getOwnedPlatforms(suggestion.suggestedBy);
+      // Same rule as adding to the room directly (createGameForUser) and as the suggestion was
+      // checked against when it was made: a platform-less room accepts any platform.
+      const platforms = room.platform ? [room.platform] : undefined;
 
       let resolved;
       try {
         await requireNotDuplicate(roomId, suggestion.suggestedBy, suggestion.igdbId);
         resolved = await resolveGameForCreation(suggestion.igdbId, platforms);
       } catch (err) {
-        await deleteSuggestionIfExists(suggestionId);
-        await invalidateExistingIgdbIds(roomId, suggestion.suggestedBy);
+        // Only a definitive "this can't be added" (already in the room, wrong platform) retires
+        // the suggestion - a temporary IGDB/Steam failure leaves it to approve again later.
+        if (err instanceof HttpError && err.statusCode < 500) {
+          await deleteSuggestionIfExists(suggestionId);
+          await invalidateExistingIgdbIds(roomId, suggestion.suggestedBy);
+        }
         throw err;
       }
 

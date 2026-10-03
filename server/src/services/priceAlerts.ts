@@ -103,7 +103,7 @@ export async function checkAllTimeLowAlert(game: GameWithRelations, price: GameP
  * a meaningful further drop re-alerts (see isMeaningfulFurtherDrop - a few cents of jitter doesn't), and the marker clears when the price climbs back out of the good range so
  * the next dip alerts again. Owned games and games the person has switched this alert off for are
  * skipped. Independent of the target-price and all-time-low alerts, which can fire in the same run. */
-export async function checkGoodTimeToBuy(game: GameWithRelations, price: GamePrice): Promise<void> {
+export async function checkGoodTimeToBuy(game: GameWithRelations, price: GamePrice, opts: { silent?: boolean } = {}): Promise<void> {
   if (game.status !== 'wishlist' || game.steamAppid == null || price.source !== 'live' || !price.amount || !price.currency) return;
   const amount = Number(price.amount);
   const history = await getPriceHistory(game.steamAppid, price.currency);
@@ -124,6 +124,9 @@ export async function checkGoodTimeToBuy(game: GameWithRelations, price: GamePri
       data: { notifiedGoodTimePrice: price.amount },
     });
     if (claimed.count === 0) return;
+    // Silent: another alert already told the person about this same price this run - the price is
+    // still recorded above so this dip doesn't alert on its own next run either.
+    if (opts.silent) return;
     if (!(await isInAppEnabled(game.addedBy, 'good_time_to_buy'))) return;
 
     const usual = usualPrice(history);
@@ -135,15 +138,22 @@ export async function checkGoodTimeToBuy(game: GameWithRelations, price: GamePri
   }
 }
 
-/** Runs both alert checks for a game against a freshly-resolved price, applying the same
+/** Runs the alert checks for a game against a freshly-resolved price, applying the same
  * "only a drop alert needs a target price set" gating every call site otherwise has to duplicate
  * (the all-time-low check has no such gate - see checkAllTimeLowAlert above). Called by the
  * scheduled job (jobs/priceAlertJob.ts, #255); page views no longer trigger it, so a list load
  * never pays for alert queries. */
 export async function runPriceAlertChecks(game: GameWithRelations, price: GamePrice, onFired?: OnAlertFired): Promise<void> {
+  let fired = false;
+  const trackFired: OnAlertFired = (g) => {
+    fired = true;
+    onFired?.(g);
+  };
   await Promise.all([
-    game.targetPrice ? checkPriceDropAlert(game, price, onFired) : Promise.resolve(),
-    checkAllTimeLowAlert(game, price, onFired),
-    checkGoodTimeToBuy(game, price),
+    game.targetPrice ? checkPriceDropAlert(game, price, trackFired) : Promise.resolve(),
+    checkAllTimeLowAlert(game, price, trackFired),
   ]);
+  // After the others, so a price that just hit a new low (or a target) doesn't also send a
+  // near-identical "good time to buy" for the same drop.
+  await checkGoodTimeToBuy(game, price, { silent: fired });
 }

@@ -111,12 +111,12 @@ export default async function playTogetherRoutes(app: FastifyInstance) {
           created = true;
         }
 
-        try {
-          await createGameForUser(me, roomId, game.igdbId);
-        } catch (err) {
-          // Already in that room: fine, that's what was wanted.
-          if (!(err instanceof HttpError && err.statusCode === 409)) throw err;
-        }
+        // Already in (or already suggested for) that room: fine, that's what was wanted. Checked up
+        // front - the duplicate check inside createGameForUser answers with a 400, not a 409.
+        const alreadyThere =
+          (await prisma.game.count({ where: { roomId, igdbId: game.igdbId } })) > 0 ||
+          (await prisma.gameSuggestion.count({ where: { roomId, igdbId: game.igdbId } })) > 0;
+        if (!alreadyThere) await createGameForUser(me, roomId, game.igdbId);
         return { roomId, roomName, created };
       } catch (err) {
         await prisma.notification.update({ where: { id: notification.id }, data: { readAt: null } }).catch(() => undefined);

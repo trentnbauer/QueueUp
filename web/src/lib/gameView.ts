@@ -139,6 +139,12 @@ export function shortDate(d: string | Date): string {
   return `${MONTHS[x.getMonth()]} ${x.getDate()}`;
 }
 
+/** shortDate for a release date: read in UTC, as stored (see releaseLabel). */
+export function releaseShortDate(d: string): string {
+  const x = new Date(d);
+  return `${MONTHS[x.getUTCMonth()]} ${x.getUTCDate()}`;
+}
+
 export function monthYear(d: string | Date): string {
   const x = typeof d === 'string' ? new Date(d) : d;
   return `${MONTHS[x.getMonth()]} ${x.getFullYear()}`;
@@ -146,7 +152,12 @@ export function monthYear(d: string | Date): string {
 
 /** "Mar 2027" style label for an upcoming game's release. */
 export function releaseLabel(g: Game): string {
-  if (g.releaseDate) return shortDate(g.releaseDate) + ', ' + new Date(g.releaseDate).getFullYear();
+  if (g.releaseDate) {
+    // Read in UTC, as stored - same reason as releaseDateLabel below: local time slips a midnight-UTC
+    // release to the previous day (and a 1 January release to the previous year) west of UTC.
+    const d = new Date(g.releaseDate);
+    return `${MONTHS[d.getUTCMonth()]} ${d.getUTCDate()}, ${d.getUTCFullYear()}`;
+  }
   return g.releaseYear ? String(g.releaseYear) : 'TBA';
 }
 
@@ -213,7 +224,7 @@ export function rowChip(
     return `${atTarget ? 'At target' : 'Target'} ${fmtMoney(g.targetPrice, g.price.currency)}`;
   }
   if (!ctx.searching && (ctx.tab === 'queue' || ctx.tab === 'playing') && isNewRelease(g, now) && g.releaseDate) {
-    return `New · out ${shortDate(g.releaseDate)}`;
+    return `New · out ${releaseShortDate(g.releaseDate)}`;
   }
   if (!ctx.searching && (ctx.tab === 'replay' || ctx.tab === 'beaten') && g.status === 'replay' && g.replayedAt) {
     return `Replay since ${shortDate(g.replayedAt)}`;
