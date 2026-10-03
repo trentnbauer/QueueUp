@@ -6,6 +6,10 @@ export const PRICE_HISTORY_RETENTION_MS = 365 * 24 * 60 * 60 * 1000;
 /** A price this close to the lowest ever recorded, or this far under the usual price, is a good time to buy. */
 export const NEAR_LOW_FACTOR = 1.05;
 export const BELOW_USUAL_FACTOR = 0.8;
+/** Once a good-time alert has fired, the price has to fall at least this much further (5%) before
+ * it alerts again - otherwise day-to-day jitter (currency conversion, a few cents either way) sends
+ * a near-identical repeat of an alert the person already has. */
+export const GOOD_TIME_REALERT_FACTOR = 0.95;
 /** The "usual price" needs at least this many recorded points to mean anything. */
 export const MIN_POINTS_FOR_USUAL = 5;
 
@@ -25,6 +29,12 @@ export function usualPrice(points: { amount: number }[], minPoints = MIN_POINTS_
 
 /** Whether `amount` is a good time to buy given what's been recorded and gg.deals' all-time low: at
  * or within 5% of the lowest price known, or at least 20% under the usual price. Returns why, or null. */
+/** Whether a good-time price is far enough under the one last alerted at to be worth a new alert.
+ * No previous alert (null) always qualifies. */
+export function isMeaningfulFurtherDrop(amount: number, lastNotified: number | null): boolean {
+  return lastNotified === null || amount <= lastNotified * GOOD_TIME_REALERT_FACTOR;
+}
+
 export function goodTimeReason(
   amount: number,
   history: { amount: number }[],

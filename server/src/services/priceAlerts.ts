@@ -4,7 +4,7 @@ import { notifyPriceDrop } from './notifications.js';
 import { isOwnedBy } from './gameOwnership.js';
 import { unlockBadges } from './badges.js';
 import type { GameWithRelations } from './gameSerializer.js';
-import { goodTimeReason, getPriceHistory, usualPrice } from './priceHistory.js';
+import { goodTimeReason, getPriceHistory, isMeaningfulFurtherDrop, usualPrice } from './priceHistory.js';
 import { isInAppEnabled } from './notificationPreferences.js';
 import { notifyGoodTimeToBuy } from './notifications.js';
 
@@ -99,8 +99,8 @@ export async function checkAllTimeLowAlert(game: GameWithRelations, price: GameP
 }
 
 /** "Good time to buy" for a wishlist game: its live price is near the lowest known price or well
- * under the usual one (see goodTimeReason). Fires once per dip: the price it fired at is stored, a
- * further drop re-alerts, and the marker clears when the price climbs back out of the good range so
+ * under the usual one (see goodTimeReason). Fires once per dip: the price it fired at is stored, only
+ * a meaningful further drop re-alerts (see isMeaningfulFurtherDrop - a few cents of jitter doesn't), and the marker clears when the price climbs back out of the good range so
  * the next dip alerts again. Owned games and games the person has switched this alert off for are
  * skipped. Independent of the target-price and all-time-low alerts, which can fire in the same run. */
 export async function checkGoodTimeToBuy(game: GameWithRelations, price: GamePrice): Promise<void> {
@@ -115,7 +115,7 @@ export async function checkGoodTimeToBuy(game: GameWithRelations, price: GamePri
     }
     return;
   }
-  if (game.notifiedGoodTimePrice !== null && amount >= Number(game.notifiedGoodTimePrice)) return;
+  if (!isMeaningfulFurtherDrop(amount, game.notifiedGoodTimePrice !== null ? Number(game.notifiedGoodTimePrice) : null)) return;
   if (await isOwnedBy(game.addedBy, game.igdbId, null)) return;
 
   try {
