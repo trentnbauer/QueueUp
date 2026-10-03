@@ -60,6 +60,18 @@ export function toGameReviewDto(
   };
 }
 
+/** The gg.deals link comes from a third-party API response and the client opens it directly, so only
+ * a plain http(s) URL is passed through - never a javascript: or data: one. */
+function safeExternalUrl(url: string | null): string | null {
+  if (!url) return null;
+  try {
+    const parsed = new URL(url);
+    return parsed.protocol === 'https:' || parsed.protocol === 'http:' ? url : null;
+  } catch {
+    return null;
+  }
+}
+
 function buildGameDto(
   game: GameWithRelations,
   currentUserId: string,
@@ -96,7 +108,7 @@ function buildGameDto(
     timeToBeatHours: game.timeToBeatHours,
     timeToBeatRushedHours: game.timeToBeatRushedHours,
     timeToBeatCompletionistHours: game.timeToBeatCompletionistHours,
-    ggDealsUrl,
+    ggDealsUrl: safeExternalUrl(ggDealsUrl),
     coverImageUrl: game.coverImageUrl,
     status: game.status,
     steamFullyCompleted: game.steamFullyCompleted,
