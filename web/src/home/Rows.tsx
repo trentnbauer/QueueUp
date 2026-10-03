@@ -198,7 +198,16 @@ function isFullyCompleted(g: Game): boolean {
 const BADGE = 'background:oklch(0.15 0.01 55 / 0.62);backdrop-filter:blur(8px);color:#fff';
 
 /** One game in the covers layout. `big` (2 per row) carries the vote overlay, 3 per row doesn't. */
-export function CoverCard({ item, showRank, bulk, selected, big, onOpen, onVote }: RowProps & { big: boolean }) {
+export function CoverCard({
+  item,
+  showRank,
+  bulk,
+  selected,
+  big,
+  onOpen,
+  onVote,
+  onStart,
+}: RowProps & { big: boolean; /** Play Next: a Start button in place of the vote bar. */ onStart?: () => void }) {
   const g = item.game;
   const completed = isFullyCompleted(g);
   const outline = completed ? null : statusOutlineFor(g.status);
@@ -225,7 +234,7 @@ export function CoverCard({ item, showRank, bulk, selected, big, onOpen, onVote 
         <span style={st(`position:absolute;top:8px;right:8px;height:26px;padding:0 9px;border-radius:999px;${BADGE};font:700 12px var(--font-ui);display:flex;align-items:center`)}>
           {item.scoreLabel}
         </span>
-        {big && !bulk && <VoteSegment myVote={item.myVote} onVote={onVote} variant="cover" />}
+        {big && !bulk && !onStart && <VoteSegment myVote={item.myVote} onVote={onVote} variant="cover" />}
       </div>
       <div style={st('display:flex;flex-direction:column;gap:1px;min-width:0;padding:0 2px')}>
         <span style={st('font:600 14px var(--font-ui);white-space:nowrap;overflow:hidden;text-overflow:ellipsis')}>{g.title}</span>
@@ -234,6 +243,18 @@ export function CoverCard({ item, showRank, bulk, selected, big, onOpen, onVote 
           <AchievementChip g={g} />
         </span>
       </div>
+      {onStart && (
+        <button
+          type="button"
+          onClick={(e) => {
+            stop(e);
+            onStart();
+          }}
+          style={st(ABOVE + 'height:34px;border-radius:999px;border:1px solid var(--line);background:transparent;color:var(--text);font:600 12.5px var(--font-ui)')}
+        >
+          Start
+        </button>
+      )}
     </div>
   );
 }

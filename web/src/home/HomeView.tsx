@@ -161,6 +161,13 @@ export function HomeView() {
     : `${toVote} to vote on`;
 
   const Row = mobile ? MobileRow : DesktopRow;
+  const coverGridStyle = mobile
+    ? `display:grid;grid-template-columns:repeat(${density === 'small' ? 3 : 2},minmax(0,1fr));gap:18px 12px`
+    : 'display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:18px 12px';
+  const startPlaying = (game: Game) => {
+    ops.updateStatus(game.id, 'playing');
+    ui.notify(`${game.title} is now Playing`);
+  };
 
   const nudges = (showNudge || (toApprove > 0 && !searching)) ? (
         <div style={st('display:flex;flex-wrap:wrap;gap:8px')}>
@@ -426,13 +433,7 @@ export function HomeView() {
           ))}
         </div>
       ) : (
-        <div
-          style={st(
-            mobile
-              ? `display:grid;grid-template-columns:repeat(${density === 'small' ? 3 : 2},minmax(0,1fr));gap:18px 12px`
-              : 'display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:18px 12px',
-          )}
-        >
+        <div style={st(coverGridStyle)}>
           {visibleItems.map((it) => (
             <CoverCard
               key={it.game.id}
@@ -457,20 +458,31 @@ export function HomeView() {
             <span style={st('font:600 12px var(--font-mono);letter-spacing:0.06em;color:var(--muted)')}>PLAY NEXT · {playNextItems.length}</span>
             <span style={st('font:400 12px var(--font-ui);color:var(--faint)')}>Up after what you're playing</span>
           </div>
-          <div style={st('display:flex;flex-direction:column;gap:2px;margin:0 -10px')}>
-            {playNextItems.map((it) => (
-              <PlayNextRow
-                key={it.game.id}
-                item={it}
-                desktop={!mobile}
-                onOpen={() => ui.selectGame(it.game.id)}
-                onStart={() => {
-                  ops.updateStatus(it.game.id, 'playing');
-                  ui.notify(`${it.game.title} is now Playing`);
-                }}
-              />
-            ))}
-          </div>
+          {/* Same List/Covers choice as the main list above - the app-wide view setting. */}
+          {viewMode === 'list' ? (
+            <div style={st('display:flex;flex-direction:column;gap:2px;margin:0 -10px')}>
+              {playNextItems.map((it) => (
+                <PlayNextRow key={it.game.id} item={it} desktop={!mobile} onOpen={() => ui.selectGame(it.game.id)} onStart={() => startPlaying(it.game)} />
+              ))}
+            </div>
+          ) : (
+            <div style={st(coverGridStyle)}>
+              {playNextItems.map((it) => (
+                <CoverCard
+                  key={it.game.id}
+                  item={it}
+                  showRank={false}
+                  bulk={false}
+                  selected={false}
+                  active={ui.selectedGameId === it.game.id}
+                  big={!mobile || density !== 'small'}
+                  onOpen={() => ui.selectGame(it.game.id)}
+                  onVote={(v) => onVote(it.game, v)}
+                  onStart={() => startPlaying(it.game)}
+                />
+              ))}
+            </div>
+          )}
         </div>
       )}
 

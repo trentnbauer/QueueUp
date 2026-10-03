@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, type ReactNode } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { authApi } from '../api/auth';
 import {
@@ -9,18 +9,26 @@ import {
 } from '../api/notificationPreferences';
 import { PRICE_REGION_LABELS, type EmailAlertType, type PriceRegion } from '@queueup/shared';
 import { useAuth } from '../context/AuthContext';
+import { useCardDensity } from '../context/CardDensityContext';
 import { useCurrencyRegion } from '../context/CurrencyRegionContext';
 import { useSteamImportContext } from '../context/SteamImportContext';
+import { useThemeMode } from '../context/ThemeModeContext';
 import { useUi } from '../context/UiContext';
+import { useViewMode } from '../context/ViewModeContext';
+import { resolveThemeMode, type Accent, type ThemePreference } from '../theme/applyThemeMode';
+import { getBasePath } from '../utils/basePath';
 import { Toggle, inputPill } from '../ui/primitives';
 import { SystemsPicker } from '../ui/SystemsPicker';
 import { st } from '../ui/st';
 
 const REGIONS = Object.keys(PRICE_REGION_LABELS) as PriceRegion[];
-type StepKind = 'name' | 'currency' | 'systems' | 'library' | 'email' | 'rooms';
+type StepKind = 'name' | 'theme' | 'layout' | 'currency' | 'systems' | 'library' | 'email' | 'accent' | 'rooms';
 const STEP_TEXT: Record<StepKind, [string, string]> = {
   name: ['What should we call you?', 'This is the name friends and room members see. We filled in the one from your sign-in - change it if you like.'],
-  currency: ['Welcome to QueueUp', 'Pick a currency for prices. You can change it anytime from your profile.'],
+  theme: ['Light or dark?', 'Pick how QueueUp looks. Auto follows your device. You can change this anytime in your profile.'],
+  layout: ['List or covers?', 'How games show on your shelf and in every room. You can switch anytime in your profile.'],
+  accent: ['Room colours', "Every room has its own colour. Let it tint the room you're in, or keep everything neutral."],
+  currency: ['Which currency?', 'Pick a currency for prices. You can change it anytime from your profile.'],
   systems: ['Which systems do you own?', 'We use this to limit game search to what you can actually play. Skip it to see every platform.'],
   library: ['Bring in your library', 'Import what you already own so your shelf starts full.'],
   email: ['Get alerts by email?', 'Hear about price drops, friend activity and play requests without opening QueueUp. You can change this anytime in Settings.'],
@@ -41,18 +49,90 @@ const EMAIL_CHOICES: { type: EmailAlertType; label: string; on: boolean }[] = [
 const isPlaceholderEmail = (email: string) => ['steamcommunity.unknown', 'discord.unknown'].includes(email.toLowerCase().split('@')[1] ?? '');
 const STORES = ['Steam', 'Epic', 'GOG', 'Xbox', 'PlayStation', 'Nintendo'];
 
-/** First-run flow: currency, systems, library import, rooms. Full screen; dialogs it opens (Playnite,
+const RERUN_EVENT = 'queueup:rerun-onboarding';
+
+/** Opens the first-run flow again (Settings > "Run setup again"); App listens for this. */
+export function rerunOnboarding(): void {
+  window.dispatchEvent(new Event(RERUN_EVENT));
+}
+
+/** Subscribes to rerunOnboarding() requests; returns the unsubscribe. */
+export function onRerunOnboarding(listener: () => void): () => void {
+  window.addEventListener(RERUN_EVENT, listener);
+  return () => window.removeEventListener(RERUN_EVENT, listener);
+}
+
+/** A screenshot of the app, from web/public/onboarding (captured from a real shelf and room). */
+const shot = (name: string) => `${getBasePath()}/onboarding/${name}.jpg`;
+
+/** One option in a picture picker: a screenshot, a label, and a ring when it's the current choice. */
+function ChoiceCard({ selected, label, sub, onClick, children }: { selected: boolean; label: string; sub?: string; onClick: () => void; children: ReactNode }) {
+  return (
+    <button
+      type="button"
+      role="radio"
+      aria-checked={selected}
+      onClick={onClick}
+      style={st(
+        `min-width:0;display:flex;flex-direction:column;gap:8px;padding:8px;border-radius:20px;border:none;background:var(--surf);color:var(--text);text-align:left;box-shadow:${selected ? '0 0 0 2px var(--acc)' : '0 0 0 1px var(--line)'}`,
+      )}
+    >
+      <span style={st('position:relative;display:block;aspect-ratio:390/600;border-radius:13px;overflow:hidden;background:var(--chip)')}>{children}</span>
+      <span style={st('display:flex;align-items:center;gap:8px;padding:0 4px 2px')}>
+        <span
+          aria-hidden
+          style={st(`width:18px;height:18px;flex-shrink:0;border-radius:50%;border:2px solid ${selected ? 'var(--acc)' : 'var(--line)'};display:flex;align-items:center;justify-content:center`)}
+        >
+          {selected && <span style={st('width:8px;height:8px;border-radius:50%;background:var(--acc)')} />}
+        </span>
+        <span style={st('min-width:0;display:flex;flex-direction:column;gap:1px')}>
+          <span style={st('font:600 14px var(--font-ui)')}>{label}</span>
+          {sub && <span style={st('font:400 12px var(--font-ui);color:var(--muted)')}>{sub}</span>}
+        </span>
+      </span>
+    </button>
+  );
+}
+
+function Shot({ name, alt }: { name: string; alt: string }) {
+  return <img src={shot(name)} alt={alt} loading="lazy" style={st('position:absolute;inset:0;width:100%;height:100%;object-fit:cover;object-position:top')} />;
+}
+
+function ChoiceGrid({ columns, label, children }: { columns: number; label: string; children: ReactNode }) {
+  return (
+    <div role="radiogroup" aria-label={label} style={st(`flex-shrink:0;display:grid;grid-template-columns:repeat(${columns},minmax(0,1fr));gap:12px`)}>
+      {children}
+    </div>
+  );
+}
+
+/** First-run flow: name, look, currency, systems, library import, email, room colours, rooms. Full screen; dialogs it opens (Playnite,
  * rooms) stack above it. */
 export function Onboarding({ onDone }: { onDone: () => void }) {
   const ui = useUi();
   const { user, steamLinked, refetch } = useAuth();
   const { region, setRegion } = useCurrencyRegion();
+  const { preference, setPreference, accent, setAccent } = useThemeMode();
+  const { viewMode, setViewMode } = useViewMode();
+  const { density, setDensity } = useCardDensity();
+  // Screenshots match the theme in use, so the layout and colour pictures look like what you'll get.
+  const tone = resolveThemeMode(preference);
   const steam = useSteamImportContext();
   const queryClient = useQueryClient();
   // The email step only appears when this server can send email.
   const prefs = useQuery({ queryKey: NOTIFICATION_PREFERENCES_QUERY_KEY, queryFn: notificationPreferencesApi.get });
   const alertEmail = useQuery({ queryKey: ALERT_EMAIL_QUERY_KEY, queryFn: alertEmailApi.get });
-  const kinds: StepKind[] = ['name', 'currency', 'systems', 'library', ...(prefs.data?.emailAvailable ? (['email'] as const) : []), 'rooms'];
+  const kinds: StepKind[] = [
+    'name',
+    'theme',
+    'layout',
+    'currency',
+    'systems',
+    'library',
+    ...(prefs.data?.emailAvailable ? (['email'] as const) : []),
+    'accent',
+    'rooms',
+  ];
   const [step, setStep] = useState(0);
   const [wantEmail, setWantEmail] = useState(false);
   const [emailDraft, setEmailDraft] = useState<string | null>(null);
@@ -161,6 +241,72 @@ export function Onboarding({ onDone }: { onDone: () => void }) {
             />
             {nameError && <span style={st('flex-shrink:0;font:500 13px var(--font-ui);color:var(--danger)')}>{nameError}</span>}
           </>
+        )}
+
+        {kind === 'theme' && (
+          <ChoiceGrid columns={3} label="Theme">
+            {(
+              [
+                ['dark', 'Dark'],
+                ['light', 'Light'],
+                ['system', 'Auto'],
+              ] as [ThemePreference, string][]
+            ).map(([value, label]) => (
+              <ChoiceCard key={value} selected={preference === value} label={label} onClick={() => setPreference(value)}>
+                {value === 'system' ? (
+                  <>
+                    <Shot name="layout-list-dark" alt="QueueUp in dark mode" />
+                    <span style={st('position:absolute;inset:0;clip-path:inset(0 0 0 50%)')}>
+                      <Shot name="layout-list-light" alt="" />
+                    </span>
+                  </>
+                ) : (
+                  <Shot name={`layout-list-${value}`} alt={`QueueUp in ${label.toLowerCase()} mode`} />
+                )}
+              </ChoiceCard>
+            ))}
+          </ChoiceGrid>
+        )}
+
+        {kind === 'layout' && (
+          <>
+            <ChoiceGrid columns={2} label="Game layout">
+              <ChoiceCard selected={viewMode === 'list'} label="List" sub="Details at a glance" onClick={() => setViewMode('list')}>
+                <Shot name={`layout-list-${tone}`} alt="Games shown as a list" />
+              </ChoiceCard>
+              <ChoiceCard selected={viewMode === 'artwork'} label="Covers" sub="Box art front and centre" onClick={() => setViewMode('artwork')}>
+                <Shot name={`layout-covers2-${tone}`} alt="Games shown as cover art" />
+              </ChoiceCard>
+            </ChoiceGrid>
+            {viewMode === 'artwork' && (
+              <>
+                <span style={st('flex-shrink:0;font:600 12px var(--font-mono);letter-spacing:0.06em;color:var(--muted);margin-top:6px')}>COVERS PER ROW ON PHONES</span>
+                <ChoiceGrid columns={2} label="Covers per row">
+                  <ChoiceCard selected={density !== 'small'} label="2 per row" sub="Bigger art, vote buttons on each" onClick={() => setDensity('medium')}>
+                    <Shot name={`density-covers2-${tone}`} alt="Two covers per row" />
+                  </ChoiceCard>
+                  <ChoiceCard selected={density === 'small'} label="3 per row" sub="More games on screen" onClick={() => setDensity('small')}>
+                    <Shot name={`density-covers3-${tone}`} alt="Three covers per row" />
+                  </ChoiceCard>
+                </ChoiceGrid>
+              </>
+            )}
+          </>
+        )}
+
+        {kind === 'accent' && (
+          <ChoiceGrid columns={2} label="Room colours">
+            {(
+              [
+                ['room', 'Room colours', "Each room's colour tints its buttons"],
+                ['mono', 'Monochrome', 'Neutral everywhere'],
+              ] as [Accent, string, string][]
+            ).map(([value, label, sub]) => (
+              <ChoiceCard key={value} selected={accent === value} label={label} sub={sub} onClick={() => setAccent(value)}>
+                <Shot name={`accent-${value}-${tone}`} alt={`A room with ${label.toLowerCase()}`} />
+              </ChoiceCard>
+            ))}
+          </ChoiceGrid>
         )}
 
         {kind === 'currency' && (
