@@ -293,6 +293,10 @@ export default async function roomRoutes(app: FastifyInstance) {
     if (platform !== undefined && platform !== null && !ROOM_PLATFORMS.includes(platform)) {
       throw new HttpError(400, 'A valid platform is required');
     }
+    if (isPublic !== undefined && typeof isPublic !== 'boolean') throw new HttpError(400, 'isPublic must be true or false');
+    if (requireGameApproval !== undefined && typeof requireGameApproval !== 'boolean') {
+      throw new HttpError(400, 'requireGameApproval must be true or false');
+    }
     if (spinWheelTheme !== undefined && !SPIN_WHEEL_THEMES.includes(spinWheelTheme)) {
       throw new HttpError(400, 'A valid Spin the Wheel theme is required');
     }

@@ -5,6 +5,11 @@ import { useAnnounceUnlock } from '../context/AchievementUnlockContext';
 import { getBasePath } from '../utils/basePath';
 
 const PROGRESS_POLL_INTERVAL_MS = 1000;
+// The server writes progress before its "started" response, so a missing record afterwards means
+// the run was lost (server restart mid-import, or the record expired). After this many polls in a
+// row with nothing there, stop instead of showing "Importing…" forever.
+const MAX_MISSING_PROGRESS_POLLS = 10;
+const LOST_IMPORT_MESSAGE = 'Lost track of the import - some games may have been added. Try importing again.';
 
 type ImportKind = 'library' | 'wishlist';
 
@@ -94,12 +99,25 @@ export function useSteamImport(steamLinked: boolean, onImported: () => void) {
     }
     if (!mountedRef.current) return;
 
+    let missingPolls = 0;
     await new Promise<void>((resolve) => {
       pollIntervalRef.current = setInterval(async () => {
         if (!mountedRef.current) return;
         try {
           const { progress: latest } = await gamesApi.importSteamWishlistProgress();
-          if (!mountedRef.current || !latest) return;
+          if (!mountedRef.current) return;
+          if (!latest) {
+            if (++missingPolls < MAX_MISSING_PROGRESS_POLLS) return;
+            if (pollIntervalRef.current) clearInterval(pollIntervalRef.current);
+            pollIntervalRef.current = null;
+            setWishlistProgress(null);
+            setError(LOST_IMPORT_MESSAGE);
+            onImported();
+            setBusy(false);
+            resolve();
+            return;
+          }
+          missingPolls = 0;
           if (!latest.done) {
             setWishlistProgress(latest);
             return;
@@ -147,12 +165,25 @@ export function useSteamImport(steamLinked: boolean, onImported: () => void) {
     }
     if (!mountedRef.current) return;
 
+    let missingPolls = 0;
     await new Promise<void>((resolve) => {
       pollIntervalRef.current = setInterval(async () => {
         if (!mountedRef.current) return;
         try {
           const { progress: latest } = await gamesApi.importSteamLibraryProgress();
-          if (!mountedRef.current || !latest) return;
+          if (!mountedRef.current) return;
+          if (!latest) {
+            if (++missingPolls < MAX_MISSING_PROGRESS_POLLS) return;
+            if (pollIntervalRef.current) clearInterval(pollIntervalRef.current);
+            pollIntervalRef.current = null;
+            setProgress(null);
+            setError(LOST_IMPORT_MESSAGE);
+            onImported();
+            setBusy(false);
+            resolve();
+            return;
+          }
+          missingPolls = 0;
           if (!latest.done) {
             setProgress(latest);
             return;

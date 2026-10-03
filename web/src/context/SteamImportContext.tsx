@@ -4,7 +4,7 @@ import { useGames } from '../hooks/useGames';
 import { useSteamImport } from '../hooks/useSteamImport';
 import { useSteamCompletionsSync } from '../hooks/useSteamCompletionsSync';
 
-// Issue #359: "update library when user logs into QueueUp" - once per browser session (not every
+// Issue #359: "update library when user logs into QueueUp" - at most once an hour across tabs (not every
 // SPA navigation, which would remount nothing here anyway since this provider sits above the
 // router, but guards against a page reload re-triggering it), silently re-check library+wishlist
 // for anyone already Steam-linked. Deliberately excludes the achievements scan the manual "Sync
@@ -13,7 +13,24 @@ import { useSteamCompletionsSync } from '../hooks/useSteamCompletionsSync';
 // several tabs or logging in a few times a day shouldn't burn through that budget just by showing
 // up, for a step whose result already keeps quietly waiting in `completions.result` until they
 // next open Import Library anyway.
-const AUTO_SYNC_SESSION_KEY = 'queueup-auto-synced-this-session';
+const AUTO_SYNC_LAST_RUN_KEY = 'queueup-last-auto-sync';
+const AUTO_SYNC_MIN_INTERVAL_MS = 60 * 60 * 1000;
+
+function readLastAutoSync(): number {
+  try {
+    return Number(localStorage.getItem(AUTO_SYNC_LAST_RUN_KEY)) || 0;
+  } catch {
+    return 0;
+  }
+}
+
+function writeLastAutoSync(at: number): void {
+  try {
+    localStorage.setItem(AUTO_SYNC_LAST_RUN_KEY, String(at));
+  } catch {
+    /* storage blocked - auto-sync just isn't throttled across tabs */
+  }
+}
 
 /** One shared useSteamImport instance for the whole app, not one per caller. The Personal Shelf's
  * Steam import can be triggered from more than one place at once - the header's Import Library
@@ -75,14 +92,14 @@ export function SteamImportProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     if (!steamLinked || autoSyncedRef.current) return;
     autoSyncedRef.current = true;
-    if (sessionStorage.getItem(AUTO_SYNC_SESSION_KEY)) return;
+    // sessionStorage is per tab, so "once per session" used to mean once per tab: a few tabs opened
+    // within the hour ran into the server's 3-imports-an-hour limit and showed its error in the
+    // bell. The last run is shared across tabs (localStorage) and stamped before starting, so tabs
+    // opened together don't all fire at once.
+    if (Date.now() - readLastAutoSync() < AUTO_SYNC_MIN_INTERVAL_MS) return;
     if (!beginSyncingEverything()) return;
+    writeLastAutoSync(Date.now());
     runSyncLibraryAndWishlist()
-      // Only marked done-for-this-session on success - if it throws (Steam down, rate limited, a
-      // network blip), the flag stays unset so a later reload within the same browser session
-      // gets another chance, instead of auto-sync going silently dead for the rest of the tab's
-      // life after one transient failure.
-      .then(() => sessionStorage.setItem(AUTO_SYNC_SESSION_KEY, '1'))
       .catch(() => {})
       .finally(() => endSyncingEverything());
     // eslint-disable-next-line react-hooks/exhaustive-deps

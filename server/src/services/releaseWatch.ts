@@ -105,6 +105,10 @@ export async function checkGameReleaseAlerts(): Promise<void> {
   });
   for (const game of due) {
     try {
+      // Claimed (flag cleared) before sending, so a failure after this point or an overlapping run
+      // can't send the same release-day alert twice.
+      const claimed = await prisma.game.updateMany({ where: { id: game.id, releaseAlert: true }, data: { releaseAlert: false } });
+      if (claimed.count === 0) continue;
       const recipients = game.roomId
         ? (await prisma.roomMember.findMany({ where: { roomId: game.roomId }, select: { userId: true } })).map((m) => m.userId)
         : [game.addedBy];
@@ -117,7 +121,6 @@ export async function checkGameReleaseAlerts(): Promise<void> {
           gameId: game.id,
         })),
       });
-      await prisma.game.update({ where: { id: game.id }, data: { releaseAlert: false } });
     } catch (err) {
       console.error('[releaseWatch] failed to send a release alert', err);
     }

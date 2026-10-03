@@ -1,5 +1,5 @@
 import type { FastifyInstance } from 'fastify';
-import { FEED_REACTION_EMOJI, type SetFeedReactionRequest } from '@queueup/shared';
+import { BADGE_DEFINITIONS, FEED_REACTION_EMOJI, type BadgeKey, type SetFeedReactionRequest } from '@queueup/shared';
 import { prisma } from '../db/client.js';
 import { HttpError } from '../util/httpError.js';
 import { areFriends } from '../services/friendships.js';
@@ -13,7 +13,9 @@ async function resolveEntry(entryId: string): Promise<{ ownerId: string; title: 
   if (entryId.startsWith('badge:')) {
     const [, ownerId, badge] = entryId.split(':');
     if (!ownerId || !badge) return null;
-    return { ownerId, title: badge.replace(/-/g, ' ') };
+    // Feed ids carry the badge key with dashes (see buildFeed in friends.ts).
+    const def = BADGE_DEFINITIONS[badge.replace(/-/g, '_') as BadgeKey];
+    return { ownerId, title: def ? `the ${def.name} badge` : badge.replace(/-/g, ' ') };
   }
   const row = await prisma.roomActivity.findUnique({ where: { id: entryId } });
   const payload = row?.payload as { gameId?: string; title?: string } | null;

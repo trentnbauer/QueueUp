@@ -55,13 +55,13 @@ export default async function publicProfileRoutes(app: FastifyInstance) {
     // isn't "theirs" to show off the same way a room membership isn't public.
     const [beatenGameRows, currentlyPlayingRows, unlockedBadgeRows, totalUsers, perBadgeCounts] = await Promise.all([
       prisma.game.findMany({
-        where: { roomId: null, addedBy: user.id, status: { in: ['done', 'replay', 'dropped'] }, hiddenFromOthers: false },
+        where: { roomId: null, addedBy: user.id, status: { in: ['done', 'replay', 'dropped'] }, hiddenFromOthers: false, archivedAt: null },
         orderBy: { updatedAt: 'desc' },
         take: 300,
         include: { reviews: { where: { userId: user.id } }, playLogs: { select: { startedAt: true, finishedAt: true, roomName: true } } },
       }),
       prisma.game.findMany({
-        where: { roomId: null, addedBy: user.id, status: 'playing', hiddenFromOthers: false },
+        where: { roomId: null, addedBy: user.id, status: 'playing', hiddenFromOthers: false, archivedAt: null },
         select: { id: true, title: true, coverImageUrl: true, platform: true, igdbId: true },
         orderBy: { updatedAt: 'desc' },
       }),
@@ -131,7 +131,7 @@ export default async function publicProfileRoutes(app: FastifyInstance) {
     const countByKey = new Map(perBadgeCounts.map((r) => [r.badgeKey, r._count.userId]));
 
     // "Played" covers dropped games too, but 100% completions only ever count finished ones.
-    const beatenWhere = { roomId: null, addedBy: user.id, status: { in: ['done', 'replay', 'dropped'] as GameStatus[] }, hiddenFromOthers: false };
+    const beatenWhere = { roomId: null, addedBy: user.id, status: { in: ['done', 'replay', 'dropped'] as GameStatus[] }, hiddenFromOthers: false, archivedAt: null };
     const finishedWhere = { ...beatenWhere, status: { in: ['done', 'replay'] as GameStatus[] } };
     // 100%: the game's own flag (any Steam sync saw it complete) or this user's own completion
     // record for the title (AchievementCompletion, keyed by igdbId, not by Game row).
@@ -148,7 +148,9 @@ export default async function publicProfileRoutes(app: FastifyInstance) {
       avatarUrl: user.avatarUrl,
       // Only what's actually unlocked (unlike GET /api/me/badges' full locked+unlocked catalog) -
       // see PublicUserProfile's own doc comment for why.
-      badges: unlockedBadgeRows.map((row) => {
+      // A badge retired from BADGE_DEFINITIONS can still have rows on file - skipped rather than
+      // crashing the whole profile.
+      badges: unlockedBadgeRows.filter((row) => BADGE_DEFINITIONS[row.badgeKey as BadgeKey]).map((row) => {
         const def = BADGE_DEFINITIONS[row.badgeKey as BadgeKey];
         const unlockedCount = countByKey.get(row.badgeKey) ?? 0;
         return {

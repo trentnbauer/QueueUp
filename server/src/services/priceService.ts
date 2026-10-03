@@ -6,6 +6,24 @@ import { FORCED_REFRESH_COOLDOWN_MS, cooldownRemainingMs, formatCooldownMessage 
 import type { GamePrice } from '@queueup/shared';
 
 const PRICE_CACHE_TTL_SECONDS = 60 * 60 * 6; // 6h — prices/sales move faster than metadata
+// A failed lookup (gg.deals down, rate limited, network error) is cached only briefly, so one
+// outage doesn't hide prices for the full 6h.
+const FAILED_PRICE_CACHE_TTL_SECONDS = 60 * 10;
+const failedEntries = new WeakSet<PriceEntry>();
+
+function cacheTtlFor(entry: PriceEntry): number {
+  return failedEntries.has(entry) ? FAILED_PRICE_CACHE_TTL_SECONDS : PRICE_CACHE_TTL_SECONDS;
+}
+
+function failedEntriesFor(steamAppIds: number[], fetchedAt: string): Map<number, PriceEntry> {
+  return new Map(
+    steamAppIds.map((id) => {
+      const entry = unavailableEntry(fetchedAt);
+      failedEntries.add(entry);
+      return [id, entry];
+    }),
+  );
+}
 // v4: namespaced by platform, not just "steam" - this module only ever fetches/caches the `pc`
 // segment (gg.deals' API is Steam-App-ID-based, i.e. PC-only - see getSteamPrice's own comment),
 // but the key shape is ready for a sibling per-console fetcher to land its own `ps5:`/`xbox_*:`/
@@ -61,7 +79,7 @@ function unavailableEntry(fetchedAt: string): PriceEntry {
 }
 
 function parseEntry(entry: GGDealsPricesResponse['data'][string] | undefined, fetchedAt: string): PriceEntry {
-  if (!entry) return unavailableEntry(fetchedAt);
+  if (!entry?.prices) return unavailableEntry(fetchedAt);
 
   const amount = lowestOf(entry.prices.currentRetail, entry.prices.currentKeyshops);
   if (amount === null) {
@@ -139,7 +157,15 @@ async function fetchLiveEntriesBatch(
   url.searchParams.set('key', apiKey);
   url.searchParams.set('region', region);
 
-  const response = await fetch(url);
+  let response: Response;
+  try {
+    response = await fetch(url);
+  } catch (err) {
+    // A network failure must not take down every page that shows a price.
+    console.error('[priceService] gg.deals request errored for %d id(s), region %s', steamAppIds.length, region, err);
+    if (strict) throw new HttpError(502, 'GG.Deals price lookup failed. Try again later.');
+    return failedEntriesFor(steamAppIds, fetchedAt);
+  }
   if (!response.ok) {
     // Price API hiccup shouldn't break the whole card — degrade to "unavailable" and let a later
     // refresh retry. But this used to fail completely silently: a persistent misconfiguration
@@ -161,10 +187,17 @@ async function fetchLiveEntriesBatch(
           : `GG.Deals price lookup failed (${response.status}). Try again later.`,
       );
     }
-    return new Map(steamAppIds.map((id) => [id, unavailableEntry(fetchedAt)]));
+    return failedEntriesFor(steamAppIds, fetchedAt);
   }
 
-  const body = (await response.json()) as GGDealsPricesResponse;
+  let body: GGDealsPricesResponse;
+  try {
+    body = (await response.json()) as GGDealsPricesResponse;
+  } catch (err) {
+    console.error('[priceService] gg.deals returned an unreadable response', err);
+    if (strict) throw new HttpError(502, 'GG.Deals price lookup failed. Try again later.');
+    return failedEntriesFor(steamAppIds, fetchedAt);
+  }
   return new Map(steamAppIds.map((id) => [id, parseEntry(body.data?.[String(id)], fetchedAt)]));
 }
 
@@ -201,7 +234,7 @@ async function getEntry(
   }
 
   const entry = await fetchLiveEntry(steamAppId, region, opts.forceRefresh === true);
-  await redis.set(cacheKey, JSON.stringify(entry), 'EX', PRICE_CACHE_TTL_SECONDS);
+  await redis.set(cacheKey, JSON.stringify(entry), 'EX', cacheTtlFor(entry));
   return entry;
 }
 
@@ -245,7 +278,7 @@ export async function getSteamPrices(
     misses.forEach((id) => {
       const entry = fetched.get(id)!;
       result.set(id, entry.price);
-      pipeline.set(`${PRICE_CACHE_PREFIX}${id}:${region}`, JSON.stringify(entry), 'EX', PRICE_CACHE_TTL_SECONDS);
+      pipeline.set(`${PRICE_CACHE_PREFIX}${id}:${region}`, JSON.stringify(entry), 'EX', cacheTtlFor(entry));
     });
     await pipeline.exec();
   }

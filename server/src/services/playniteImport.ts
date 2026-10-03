@@ -45,6 +45,9 @@ function importProgressKey(userId: string): string {
  * setSteamImportProgress/getSteamImportProgress. */
 export async function setPlayniteImportProgress(userId: string, progress: PlayniteImportProgress): Promise<void> {
   await redis.set(importProgressKey(userId), JSON.stringify(progress), 'EX', IMPORT_PROGRESS_TTL_SECONDS);
+  // A run still making progress keeps its lock alive, so a library big enough to outlast the lock
+  // TTL can't have a second, overlapping import start on top of it.
+  if (!progress.done) await redis.expire(importLockKey(userId), IMPORT_LOCK_TTL_SECONDS);
 }
 
 export async function getPlayniteImportProgress(userId: string): Promise<PlayniteImportProgress | null> {
