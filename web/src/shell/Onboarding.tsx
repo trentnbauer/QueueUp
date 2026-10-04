@@ -108,7 +108,8 @@ function ChoiceGrid({ columns, label, children }: { columns: number; label: stri
   );
 }
 
-/** First-run flow: name, look, currency, systems, library import, email, room colours, rooms. Full screen; dialogs it opens (Playnite,
+/** First-run flow: name, look, currency, systems, library import, email, room colours, rooms, then
+ * the usage-stats question. Full screen; dialogs it opens (Playnite,
  * rooms) stack above it. */
 export function Onboarding({ onDone }: { onDone: () => void }) {
   const ui = useUi();
@@ -133,10 +134,10 @@ export function Onboarding({ onDone }: { onDone: () => void }) {
     'systems',
     'library',
     ...(prefs.data?.emailAvailable ? (['email'] as const) : []),
-    // Only when the operator has set a Google Analytics measurement id.
-    ...(analytics.available ? (['analytics'] as const) : []),
     'accent',
     'rooms',
+    // Always the very last step (#795), and only when the operator has set a Google Analytics id.
+    ...(analytics.available ? (['analytics'] as const) : []),
   ];
   const [step, setStep] = useState(0);
   const [wantEmail, setWantEmail] = useState(false);

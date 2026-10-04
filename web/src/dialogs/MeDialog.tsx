@@ -1,7 +1,7 @@
 import { useEffect, useState, type ReactNode } from 'react';
 import { useNavigate } from 'react-router';
 import { useInfiniteQuery, useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { PRICE_REGION_LABELS, ROOM_PLATFORM_LABELS, sortPlatforms, type PriceRegion, type ProfileVisibility } from '@queueup/shared';
+import { PLAYNITE_API_KEY_LABEL, PRICE_REGION_LABELS, ROOM_PLATFORM_LABELS, sortPlatforms, type PriceRegion, type ProfileVisibility } from '@queueup/shared';
 import { apiKeysApi, API_KEYS_QUERY_KEY } from '../api/apiKeys';
 import { authApi } from '../api/auth';
 import { badgesApi } from '../api/badges';
@@ -397,6 +397,11 @@ export function MeDialog() {
   const { viewMode, setViewMode } = useViewMode();
   const { density, setDensity } = useCardDensity();
   const sync = useSyncSources();
+  // The Playnite card reflects whether its connection code has been used (#793).
+  const { data: apiKeys } = useQuery({ queryKey: API_KEYS_QUERY_KEY, queryFn: apiKeysApi.list });
+  const playniteKey = apiKeys?.keys
+    .filter((k) => k.label === PLAYNITE_API_KEY_LABEL && !k.revokedAt)
+    .sort((a, b) => (b.lastUsedAt ?? b.createdAt).localeCompare(a.lastUsedAt ?? a.createdAt))[0];
   const { data: badges } = useQuery({ queryKey: ['me', 'badges'], queryFn: badgesApi.list });
   const [providers, setProviders] = useState<string[] | null>(null);
   const [unlinking, setUnlinking] = useState<string | null>(null);
@@ -615,7 +620,19 @@ export function MeDialog() {
           disabled={sync.busy}
           onClick={syncAchievements}
         />
-        <ActionCard title="Sync Playnite" sub="Epic, GOG, Xbox, PlayStation, Nintendo via the desktop app" cta="Set up" onClick={open('playnite')} />
+        <ActionCard
+          title="Sync Playnite"
+          sub={
+            playniteKey?.lastUsedAt
+              ? `Last synced ${formatRelativeTime(playniteKey.lastUsedAt)}`
+              : playniteKey
+                ? 'Paste your connection code into Playnite to finish'
+                : 'Epic, GOG, Xbox, PlayStation, Nintendo via the desktop app'
+          }
+          cta={playniteKey?.lastUsedAt ? 'Manage' : playniteKey ? 'Finish setup' : 'Set up'}
+          accent={!!playniteKey?.lastUsedAt}
+          onClick={open('playnite')}
+        />
 
         <Section label="APPEARANCE">
           <Segmented
