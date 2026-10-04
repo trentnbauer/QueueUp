@@ -180,6 +180,15 @@ export function priceLabel(g: Game): { label: string; owned: boolean } {
   return { label: 'No price yet', owned: false };
 }
 
+/** How far (whole %) the current price sits above the all-time low (issue #797), 0 at the low.
+ * Null when either is missing or free - "100% above Free" says nothing useful. */
+export function pctAboveLow(amount: string | null, low: string | null): number | null {
+  const now = Number(amount);
+  const min = Number(low);
+  if (!amount || !low || !(now > 0) || !(min > 0)) return null;
+  return Math.max(0, Math.round(((now - min) / min) * 100));
+}
+
 export function hasLivePrice(g: Game): boolean {
   return !!g.price.amount;
 }
