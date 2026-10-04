@@ -9,6 +9,7 @@ import {
 } from '../api/notificationPreferences';
 import { PRICE_REGION_LABELS, type EmailAlertType, type PriceRegion } from '@queueup/shared';
 import { useAuth } from '../context/AuthContext';
+import { LANGUAGES, useI18n } from '../i18n';
 import { useAnalyticsConsent } from '../hooks/useAnalyticsConsent';
 import { useCardDensity } from '../context/CardDensityContext';
 import { useCurrencyRegion } from '../context/CurrencyRegionContext';
@@ -23,8 +24,8 @@ import { SystemsPicker } from '../ui/SystemsPicker';
 import { st } from '../ui/st';
 
 const REGIONS = Object.keys(PRICE_REGION_LABELS) as PriceRegion[];
-type StepKind = 'name' | 'theme' | 'layout' | 'currency' | 'systems' | 'library' | 'email' | 'analytics' | 'accent' | 'rooms';
-const STEP_TEXT: Record<StepKind, [string, string]> = {
+type StepKind = 'language' | 'name' | 'theme' | 'layout' | 'currency' | 'systems' | 'library' | 'email' | 'analytics' | 'accent' | 'rooms';
+const STEP_TEXT: Record<Exclude<StepKind, 'language'>, [string, string]> = {
   name: ['What should we call you?', 'This is the name friends and room members see. We filled in the one from your sign-in - change it if you like.'],
   theme: ['Light or dark?', 'Pick how QueueUp looks. Auto follows your device. You can change this anytime in your profile.'],
   layout: ['List or covers?', 'How games show on your shelf and in every room. You can switch anytime in your profile.'],
@@ -108,7 +109,7 @@ function ChoiceGrid({ columns, label, children }: { columns: number; label: stri
   );
 }
 
-/** First-run flow: name, look, currency, systems, library import, email, room colours, rooms, then
+/** First-run flow: language, name, look, currency, systems, library import, email, room colours, rooms, then
  * the usage-stats question. Full screen; dialogs it opens (Playnite,
  * rooms) stack above it. */
 export function Onboarding({ onDone }: { onDone: () => void }) {
@@ -126,7 +127,10 @@ export function Onboarding({ onDone }: { onDone: () => void }) {
   const prefs = useQuery({ queryKey: NOTIFICATION_PREFERENCES_QUERY_KEY, queryFn: notificationPreferencesApi.get });
   const alertEmail = useQuery({ queryKey: ALERT_EMAIL_QUERY_KEY, queryFn: alertEmailApi.get });
   const analytics = useAnalyticsConsent();
+  const { language, setLanguage, t } = useI18n();
   const kinds: StepKind[] = [
+    // Language comes first (#776), so everything after it is in the language they picked.
+    'language',
     'name',
     'theme',
     'layout',
@@ -151,7 +155,7 @@ export function Onboarding({ onDone }: { onDone: () => void }) {
   const [savingName, setSavingName] = useState(false);
   const kind = kinds[Math.min(step, kinds.length - 1)];
   const last = step >= kinds.length - 1;
-  const [title, sub] = STEP_TEXT[kind];
+  const [title, sub] = kind === 'language' ? [t('onboarding.language.title'), t('onboarding.language.sub')] : STEP_TEXT[kind];
   const effectiveEmail = alertEmail.data?.effectiveEmail ?? '';
   const shownEmail = emailDraft ?? (isPlaceholderEmail(effectiveEmail) ? '' : effectiveEmail);
 
@@ -233,6 +237,36 @@ export function Onboarding({ onDone }: { onDone: () => void }) {
         <span style={st('flex-shrink:0;font:600 12px var(--font-mono);letter-spacing:0.06em;color:var(--muted)')}>STEP {step + 1} OF {kinds.length}</span>
         <span style={st('flex-shrink:0;font:700 30px/1.08 var(--font-display);letter-spacing:-0.025em;text-wrap:balance')}>{title}</span>
         <span style={st('flex-shrink:0;font:400 15px/1.5 var(--font-ui);color:var(--muted);text-wrap:pretty')}>{sub}</span>
+
+        {kind === 'language' && (
+          <div role="radiogroup" aria-label={t('settings.language')} style={st('flex-shrink:0;display:flex;flex-direction:column;gap:1px;border-radius:20px;overflow:hidden;background:var(--chip)')}>
+            {LANGUAGES.map((l) => {
+              const on = language === l.code;
+              return (
+                <button
+                  key={l.code}
+                  type="button"
+                  role="radio"
+                  aria-checked={on}
+                  lang={l.code}
+                  onClick={() => setLanguage(l.code)}
+                  style={st('display:flex;align-items:center;gap:14px;min-height:62px;padding:0 18px;border:none;background:var(--surf);color:var(--text);text-align:left')}
+                >
+                  <span style={st('flex:1;display:flex;flex-direction:column;gap:2px')}>
+                    <span style={st('font:600 16px var(--font-ui)')}>{l.nativeName}</span>
+                    {l.nativeName !== l.name && <span style={st('font:400 12.5px var(--font-ui);color:var(--muted)')}>{l.name}</span>}
+                  </span>
+                  <span
+                    aria-hidden
+                    style={st(`width:20px;height:20px;flex-shrink:0;border-radius:50%;border:2px solid ${on ? 'var(--acc)' : 'var(--line)'};display:flex;align-items:center;justify-content:center`)}
+                  >
+                    {on && <span style={st('width:9px;height:9px;border-radius:50%;background:var(--acc)')} />}
+                  </span>
+                </button>
+              );
+            })}
+          </div>
+        )}
 
         {kind === 'name' && (
           <>

@@ -22,6 +22,7 @@ import { Dialog } from '../ui/Dialog';
 import { Avatar, Banner, Btn, Group, Kicker, Segmented, Toggle, inputField } from '../ui/primitives';
 import { SystemsPicker } from '../ui/SystemsPicker';
 import { useAnalyticsConsent } from '../hooks/useAnalyticsConsent';
+import { LANGUAGES, useI18n, type Language } from '../i18n';
 import { rerunOnboarding } from '../shell/Onboarding';
 import { st } from '../ui/st';
 import { ACCENT_LABELS, type Accent } from '../theme/applyThemeMode';
@@ -384,6 +385,7 @@ function ApiKeysDialog({ onClose }: { onClose: () => void }) {
 /** Profile & settings: pages, syncs, appearance, currency, systems, sign-in methods, sharing, account. */
 export function MeDialog() {
   const ui = useUi();
+  const { language, setLanguage, t } = useI18n();
   const navigate = useNavigate();
   const confirm = useConfirm();
   const { user, profileVisibility, profileSlug, primaryProvider, linkedProviders, ownedPlatforms, refetch } = useAuth();
@@ -635,6 +637,24 @@ export function MeDialog() {
         />
 
         <Section label="APPEARANCE">
+          <div style={st('display:flex;align-items:center;gap:12px;min-height:58px;padding:0 14px 0 16px;border-radius:16px;background:var(--surf)')}>
+            <span style={st('flex:1;display:flex;flex-direction:column;gap:1px')}>
+              <span style={st('font:600 15px var(--font-ui)')}>{t('settings.language')}</span>
+              {LANGUAGES.length === 1 && <span style={st('font:400 12.5px var(--font-ui);color:var(--muted)')}>{t('settings.language.sub')}</span>}
+            </span>
+            <select
+              value={language}
+              aria-label={t('settings.language')}
+              onChange={(e) => setLanguage(e.target.value as Language)}
+              style={st('height:38px;padding:0 10px;border-radius:12px;background:var(--bg);border:1px solid var(--line);color:var(--text);font:500 14px var(--font-ui);outline:none')}
+            >
+              {LANGUAGES.map((l) => (
+                <option key={l.code} value={l.code} lang={l.code}>
+                  {l.nativeName}
+                </option>
+              ))}
+            </select>
+          </div>
           <Segmented
             columns={3}
             value={preference}
