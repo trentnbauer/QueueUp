@@ -173,8 +173,8 @@ describe('resolveConcreteTheme', () => {
   });
 
   it('resolves "random" deterministically from an injected random()', () => {
-    expect(resolveConcreteTheme('random', () => 0)).toBe('slot');
-    expect(resolveConcreteTheme('random', () => 0.99)).toBe('roulette');
+    expect(resolveConcreteTheme('random', () => 0)).toBe('reel');
+    expect(resolveConcreteTheme('random', () => 0.99)).toBe('match_three');
   });
 });
 
