@@ -639,12 +639,12 @@ export function MeDialog() {
         <Section label="APPEARANCE">
           <div style={st('display:flex;align-items:center;gap:12px;min-height:58px;padding:0 14px 0 16px;border-radius:16px;background:var(--surf)')}>
             <span style={st('flex:1;display:flex;flex-direction:column;gap:1px')}>
-              <span style={st('font:600 15px var(--font-ui)')}>{t('settings.language')}</span>
-              <span style={st('font:400 12.5px var(--font-ui);color:var(--muted)')}>{t('settings.language.sub')}</span>
+              <span style={st('font:600 15px var(--font-ui)')}>{t('core.settings.language')}</span>
+              <span style={st('font:400 12.5px var(--font-ui);color:var(--muted)')}>{t('core.settings.language.sub')}</span>
             </span>
             <select
               value={language}
-              aria-label={t('settings.language')}
+              aria-label={t('core.settings.language')}
               onChange={(e) => setLanguage(e.target.value as Language)}
               style={st('height:38px;padding:0 10px;border-radius:12px;background:var(--bg);border:1px solid var(--line);color:var(--text);font:500 14px var(--font-ui);outline:none')}
             >

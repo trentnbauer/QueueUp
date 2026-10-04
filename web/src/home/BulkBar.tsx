@@ -1,5 +1,5 @@
 import type { GameStatus } from '@queueup/shared';
-import { STATUS_OPTIONS } from '../lib/gameView';
+import { STATUS_LABEL, STATUS_ORDER } from '../lib/gameView';
 import { Dialog } from '../ui/Dialog';
 import { st } from '../ui/st';
 
@@ -65,7 +65,7 @@ export function BulkStatusSheet({
   return (
     <Dialog onClose={onClose} title={`Set status for ${count} games`} gap={14}>
       <div style={st('display:grid;grid-template-columns:1fr 1fr;gap:8px')}>
-        {STATUS_OPTIONS.map(([key, label]) => (
+        {STATUS_ORDER.map((key) => [key, STATUS_LABEL[key]] as const).map(([key, label]) => (
           <button
             key={key}
             type="button"

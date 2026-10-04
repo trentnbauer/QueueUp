@@ -21,22 +21,22 @@ import { REVIEW_EMOJI, reviewAverage } from '../lib/gameView';
 import { Avatar, Btn, Cover, Wordmark, AppMark, inputPill } from '../ui/primitives';
 import { useIsMobile } from '../ui/useLayout';
 import { translate, useCyclingLanguage, useI18n } from '../i18n';
-import type { MessageKey } from '../i18n/en';
+import type { MessageKey } from '../i18n';
 import { st } from '../ui/st';
 
 const FEATURES: [string, MessageKey][] = [
-  ['🎮', 'login.feature.backlog'],
-  ['🗳️', 'login.feature.vote'],
-  ['🎡', 'login.feature.spin'],
-  ['💸', 'login.feature.prices'],
+  ['🎮', 'core.login.feature.backlog'],
+  ['🗳️', 'core.login.feature.vote'],
+  ['🎡', 'core.login.feature.spin'],
+  ['💸', 'core.login.feature.prices'],
 ];
 
 const PROVIDER_STYLE: Record<string, { label: (t: ReturnType<typeof useI18n>['t']) => string; bg: string; fg: string; border: string }> = {
-  google: { label: (t) => t('login.signInWith', { provider: 'Google' }), bg: 'var(--text)', fg: 'var(--onText)', border: 'none' },
-  discord: { label: (t) => t('login.signInWith', { provider: 'Discord' }), bg: '#5865F2', fg: '#fff', border: 'none' },
-  steam: { label: (t) => t('login.signInWith', { provider: 'Steam' }), bg: '#1b2838', fg: '#fff', border: 'none' },
-  oidc: { label: (t) => t('login.sso'), bg: 'transparent', fg: 'var(--text)', border: '1px solid var(--line)' },
-  dev: { label: (t) => t('login.dev'), bg: 'var(--text)', fg: 'var(--onText)', border: 'none' },
+  google: { label: (t) => t('core.login.signInWith', { provider: 'Google' }), bg: 'var(--text)', fg: 'var(--onText)', border: 'none' },
+  discord: { label: (t) => t('core.login.signInWith', { provider: 'Discord' }), bg: '#5865F2', fg: '#fff', border: 'none' },
+  steam: { label: (t) => t('core.login.signInWith', { provider: 'Steam' }), bg: '#1b2838', fg: '#fff', border: 'none' },
+  oidc: { label: (t) => t('core.login.sso'), bg: 'transparent', fg: 'var(--text)', border: '1px solid var(--line)' },
+  dev: { label: (t) => t('core.login.dev'), bg: 'var(--text)', fg: 'var(--onText)', border: 'none' },
 };
 
 /** Cloudflare's widget script, loaded once on first use. */
@@ -168,7 +168,7 @@ export function LoginPage({ providers, turnstileSiteKey = null }: { providers: s
             <Wordmark size={46} />
           </div>
           <span key={`tag-${shown}`} lang={shown} style={st('font:500 18px var(--font-ui);color:var(--text2);animation:qu-fade .4s ease both')}>
-            {translate(shown, 'login.tagline')}
+            {translate(shown, 'core.login.tagline')}
           </span>
         </div>
         <div key={`features-${shown}`} lang={shown} style={st('display:flex;flex-direction:column;gap:12px;animation:qu-fade .4s ease both')}>
@@ -182,12 +182,12 @@ export function LoginPage({ providers, turnstileSiteKey = null }: { providers: s
         <div style={st('display:flex;flex-direction:column;gap:10px')}>
           {captchaFailed && !captcha && (
             <span role="alert" style={st('font:500 13.5px var(--font-ui);color:var(--danger)')}>
-              {t('login.captchaFailed')}
+              {t('core.login.captchaFailed')}
             </span>
           )}
           {needsCaptcha && <TurnstileWidget siteKey={turnstileSiteKey!} onToken={setCaptcha} />}
           {list.map((p) => {
-            const s = PROVIDER_STYLE[p] ?? { label: () => t('login.signInWith', { provider: p }), bg: 'transparent', fg: 'var(--text)', border: '1px solid var(--line)' };
+            const s = PROVIDER_STYLE[p] ?? { label: () => t('core.login.signInWith', { provider: p }), bg: 'transparent', fg: 'var(--text)', border: '1px solid var(--line)' };
             return (
               <a
                 key={p}
@@ -205,14 +205,14 @@ export function LoginPage({ providers, turnstileSiteKey = null }: { providers: s
         </div>
       </div>
       <div style={st('flex-shrink:0;padding:16px 24px 24px;text-align:center;font:400 12px var(--font-ui);color:var(--faint)')}>
-        {t('login.selfHosted')}
+        {t('core.login.selfHosted')}
         {version ? ` · ${version}` : ''} ·{' '}
         <Link to="/privacy" style={st('color:var(--muted)')}>
-          {t('login.privacy')}
+          {t('core.login.privacy')}
         </Link>{' '}
         ·{' '}
         <a href="https://github.com/trentnbauer/QueueUp" target="_blank" rel="noopener noreferrer" style={st('color:var(--muted)')}>
-          {t('login.source')}
+          {t('core.login.source')}
         </a>
       </div>
     </div>

@@ -155,7 +155,7 @@ export function Onboarding({ onDone }: { onDone: () => void }) {
   const [savingName, setSavingName] = useState(false);
   const kind = kinds[Math.min(step, kinds.length - 1)];
   const last = step >= kinds.length - 1;
-  const [title, sub] = kind === 'language' ? [t('onboarding.language.title'), t('onboarding.language.sub')] : STEP_TEXT[kind];
+  const [title, sub] = kind === 'language' ? [t('core.onboarding.language.title'), t('core.onboarding.language.sub')] : STEP_TEXT[kind];
   const effectiveEmail = alertEmail.data?.effectiveEmail ?? '';
   const shownEmail = emailDraft ?? (isPlaceholderEmail(effectiveEmail) ? '' : effectiveEmail);
 
@@ -239,7 +239,7 @@ export function Onboarding({ onDone }: { onDone: () => void }) {
         <span style={st('flex-shrink:0;font:400 15px/1.5 var(--font-ui);color:var(--muted);text-wrap:pretty')}>{sub}</span>
 
         {kind === 'language' && (
-          <div role="radiogroup" aria-label={t('settings.language')} style={st('flex-shrink:0;display:flex;flex-direction:column;gap:1px;border-radius:20px;overflow:hidden;background:var(--chip)')}>
+          <div role="radiogroup" aria-label={t('core.settings.language')} style={st('flex-shrink:0;display:flex;flex-direction:column;gap:1px;border-radius:20px;overflow:hidden;background:var(--chip)')}>
             {LANGUAGES.map((l) => {
               const on = language === l.code;
               return (

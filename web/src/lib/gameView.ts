@@ -1,52 +1,39 @@
 import type { Game, GameStatus, VoteValue } from '@queueup/shared';
+import { t, type MessageKey } from '../i18n';
+import { liveMap, reviewScoreLabel, statusDesc, statusLabel } from '../i18n/labels';
 import { formatAmount } from '../utils/formatPrice';
 
 // ---------------------------------------------------------------------------------------------
 // Scales and labels (straight from the design handoff)
 // ---------------------------------------------------------------------------------------------
 
-export const VOTES: Record<VoteValue, { e: string; l: string }> = {
-  1: { e: '😴', l: 'Meh' },
-  2: { e: '🙂', l: 'Sure' },
-  3: { e: '😃', l: 'Keen' },
-  4: { e: '🤩', l: 'Hyped' },
-  5: { e: '🔥', l: 'Must' },
-};
+const VOTE_EMOJI: Record<VoteValue, string> = { 1: '😴', 2: '🙂', 3: '😃', 4: '🤩', 5: '🔥' };
+/** Each vote's emoji and (translated) word: Meh, Sure, Keen, Hyped, Must. */
+export const VOTES = new Proxy({} as Record<VoteValue, { e: string; l: string }>, {
+  get: (_target, key) => {
+    const v = Number(key) as VoteValue;
+    return VOTE_EMOJI[v] ? { e: VOTE_EMOJI[v], l: t(`labels.vote.${v}` as MessageKey) } : undefined;
+  },
+});
 export const VOTE_VALUES: VoteValue[] = [1, 2, 3, 4, 5];
 
-export const REVIEW_EMOJI: Record<number, { e: string; l: string }> = {
-  1: { e: '😖', l: 'Poor' },
-  2: { e: '😕', l: 'Meh' },
-  3: { e: '😐', l: 'OK' },
-  4: { e: '😊', l: 'Good' },
-  5: { e: '😍', l: 'Great' },
-};
+const REVIEW_FACES: Record<number, string> = { 1: '😖', 2: '😕', 3: '😐', 4: '😊', 5: '😍' };
+/** Each review score's face and (translated) word: Poor, Meh, OK, Good, Great. */
+export const REVIEW_EMOJI = new Proxy({} as Record<number, { e: string; l: string }>, {
+  get: (_target, key) => {
+    const n = Number(key);
+    return REVIEW_FACES[n] ? { e: REVIEW_FACES[n], l: reviewScoreLabel(n) } : undefined;
+  },
+});
 
-export const STATUS_OPTIONS: [GameStatus, string][] = [
-  ['wishlist', 'Wishlist'],
-  ['backlog', 'Backlog'],
-  ['play_next', 'Play Next'],
-  ['paused', '⏸️ Paused'],
-  ['playing', 'Playing'],
-  ['done', 'Beaten'],
-  ['replay', '🔄 Replay'],
-  ['dropped', 'Dropped'],
-  ['wont_play', "Won't Play"],
-];
+/** Every status, in the order the status pickers list them. */
+export const STATUS_ORDER: GameStatus[] = ['wishlist', 'backlog', 'play_next', 'paused', 'playing', 'done', 'replay', 'dropped', 'wont_play'];
 
-export const STATUS_LABEL: Record<GameStatus, string> = Object.fromEntries(STATUS_OPTIONS) as Record<GameStatus, string>;
+/** Each status's (translated) label. */
+export const STATUS_LABEL: Record<GameStatus, string> = liveMap(statusLabel);
 
-export const STATUS_DESC: Record<GameStatus, string> = {
-  wishlist: "Want it, don't own it yet",
-  backlog: "Own it, haven't started",
-  play_next: "Up after what you're playing",
-  paused: 'On hold, coming back to it',
-  playing: 'In progress now',
-  done: 'Finished it',
-  replay: 'Going back for another run',
-  dropped: 'Stopped, not coming back',
-  wont_play: 'Never going to play it',
-};
+/** One line on what each status means (translated). */
+export const STATUS_DESC: Record<GameStatus, string> = liveMap(statusDesc);
 
 /** What the status card offers as the next step from each status. */
 export const NEXT_ACTIONS: Record<GameStatus, [GameStatus, string][]> = {

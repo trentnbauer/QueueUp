@@ -1,47 +1,50 @@
 import { describe, expect, it } from 'vitest';
-import { en } from './en';
-import { LANGUAGES, translate } from './index';
-import { keepPattern, piratize } from './pirate';
+import { en } from './locales/en';
+import { pirate } from './locales/pirate';
+import { isValidElement } from 'react';
+import { LANGUAGES, rich, translate, type MessageKey } from './index';
+
+const placeholders = (s: string) => [...s.matchAll(/\{(\w+)\}/g)].map((m) => m[1]).sort();
 
 describe('translate', () => {
   it('fills in placeholders', () => {
-    expect(translate('en', 'login.signInWith', { provider: 'Discord' })).toBe('Sign in with Discord');
+    expect(translate('en', 'core.login.signInWith', { provider: 'Discord' })).toBe('Sign in with Discord');
   });
 
   it('leaves unknown placeholders alone', () => {
-    expect(translate('en', 'login.signInWith', {})).toBe('Sign in with {provider}');
+    expect(translate('en', 'core.login.signInWith', {})).toBe('Sign in with {provider}');
   });
 
-  it('has English and Pirate, and English has every key', () => {
+  it('has English and Pirate', () => {
     expect(LANGUAGES.map((l) => l.code)).toEqual(['en', 'pirate']);
-    expect(Object.values(en).every((v) => v.length > 0)).toBe(true);
-  });
-
-  it('speaks Pirate, keeping placeholders', () => {
-    expect(translate('pirate', 'login.signInWith', { provider: 'Discord' })).toBe('Come aboard with Discord');
+    expect(translate('pirate', 'core.login.signInWith', { provider: 'Discord' })).toBe('Come aboard with Discord');
   });
 });
 
-describe('piratize', () => {
-  it('swaps words and keeps their case', () => {
-    expect(piratize('Your friends are in this room')).toBe('Yer hearties be in this ship');
-    expect(piratize('ROOMS · 3')).toBe('SHIPS · 3');
-    expect(piratize('Sign in to see your Personal Shelf')).toBe('Come aboard to see yer Personal treasure chest');
+describe('catalogs', () => {
+  const keys = Object.keys(en) as MessageKey[];
+
+  it('every English string is filled in', () => {
+    for (const key of keys) expect(en[key].length, key).toBeGreaterThan(0);
   });
 
-  it('never renames games or people', () => {
-    const keep = keepPattern(['Your Friends Are Here', 'Hades', 'Hades II', 'You']);
-    expect(piratize('Your room added "Your Friends Are Here" and Hades II', keep)).toBe('Yer ship added "Your Friends Are Here" and Hades II');
-    expect(keepPattern([])).toBeNull();
-    expect(keepPattern(['a.b (c)'])!.test('a.b (c)')).toBe(true);
+  it('every key starts with its area', () => {
+    for (const key of keys) expect(key, key).toMatch(/^[a-z]+\.[\w.]+$/);
   });
 
-  it('leaves game titles like Hi-Fi Rush alone', () => {
-    expect(piratize('Hi-Fi Rush')).toBe('Hi-Fi Rush');
+  it('Pirate translates every key, with the same placeholders', () => {
+    for (const key of keys) {
+      expect(pirate[key], key).toBeTruthy();
+      expect(placeholders(pirate[key]), key).toEqual(placeholders(en[key]));
+    }
+    expect(Object.keys(pirate).sort()).toEqual([...keys].sort());
   });
+});
 
-  it('drops the g from long -ing words only', () => {
-    expect(piratize('Playing')).toBe('Playin’');
-    expect(piratize('King of the ring')).toBe('King o’ the ring');
+describe('rich', () => {
+  it('drops React nodes into the placeholders', () => {
+    const out = rich('{who} beat {title}!', { who: 'Trent', title: 'Hades' }) as unknown[];
+    expect(out).toHaveLength(5);
+    expect(out.every((p) => isValidElement(p))).toBe(true);
   });
 });

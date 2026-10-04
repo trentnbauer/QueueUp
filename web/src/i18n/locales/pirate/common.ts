@@ -1,0 +1,30 @@
+import type { common as en } from '../en/common';
+
+/** Pirate for the "common" strings. Every English key must be here, with the same {placeholders}. */
+export const common: Record<keyof typeof en, string> = {
+  "common.cancel": "Belay that",
+  "common.save": "Stow it",
+  "common.close": "Close",
+  "common.done": "Done",
+  "common.remove": "Toss overboard",
+  "common.delete": "Scuttle",
+  "common.back": "Back",
+  "common.next": "Onward",
+  "common.skip": "Skip",
+  "common.loading": "Hoistin’ the sails…",
+  "common.yes": "Aye",
+  "common.no": "Nay",
+  "common.undo": "Undo",
+  "common.tryAgain": "Try again, matey",
+  "common.add": "Stow",
+  "common.edit": "Edit",
+  "common.search": "Seek",
+  "common.confirm": "Aye, do it",
+  "common.dismiss": "Dismiss",
+  "common.view": "Have a look",
+  "common.you": "Ye",
+  "common.someone": "Some scallywag",
+  "common.notNow": "Not this tide",
+  "common.saving": "Stowin’…",
+  "common.retry": "Try again",
+};
