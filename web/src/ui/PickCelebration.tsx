@@ -39,8 +39,9 @@ interface Rocket {
   hue: number;
 }
 
-/** Canvas fireworks: rockets rise from the bottom and burst into falling, fading sparks. */
-function Fireworks() {
+/** Canvas fireworks: rockets rise from the bottom and burst into falling, fading sparks, for about
+ * `durationMs`. Shared by the spin pick (#804) and achievement unlocks. */
+export function Fireworks({ durationMs = SHOW_MS }: { durationMs?: number }) {
   const ref = useRef<HTMLCanvasElement>(null);
   useEffect(() => {
     const canvas = ref.current;
@@ -77,7 +78,7 @@ function Fireworks() {
       last = t;
       const elapsed = t - start;
       // Launch a rocket every ~260ms for the first 3 seconds.
-      if (elapsed < SHOW_MS - 1200 && elapsed >= nextLaunch) {
+      if (elapsed < durationMs - 1200 && elapsed >= nextLaunch) {
         nextLaunch = elapsed + 180 + Math.random() * 180;
         rockets.push({ x: w() * (0.12 + Math.random() * 0.76), y: h(), vy: -(h() * 0.9 + Math.random() * h() * 0.3), targetY: h() * (0.12 + Math.random() * 0.35), hue: Math.random() * 360 });
       }
@@ -112,15 +113,19 @@ function Fireworks() {
         ctx.arc(s.x, s.y, s.size * (0.5 + fade * 0.5), 0, Math.PI * 2);
         ctx.fill();
       }
-      if (elapsed < SHOW_MS + 1500 || sparks.length) raf = requestAnimationFrame(frame);
+      if (elapsed < durationMs + 1500 || sparks.length) raf = requestAnimationFrame(frame);
     };
     raf = requestAnimationFrame(frame);
     return () => {
       cancelAnimationFrame(raf);
       window.removeEventListener('resize', resize);
     };
-  }, []);
+  }, [durationMs]);
   return <canvas ref={ref} aria-hidden style={st('position:absolute;inset:0;width:100%;height:100%;pointer-events:none')} />;
+}
+
+export function prefersReducedMotion(): boolean {
+  return !!window.matchMedia?.('(prefers-reduced-motion: reduce)').matches;
 }
 
 /** Mounted once (see Overlays): listens for celebratePick and shows the fireworks and box art. */
@@ -142,7 +147,7 @@ export function PickCelebrationHost() {
     };
   }, [picked]);
   if (!picked) return null;
-  const calm = window.matchMedia?.('(prefers-reduced-motion: reduce)').matches;
+  const calm = prefersReducedMotion();
   return (
     <div
       key={picked.key}
