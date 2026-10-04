@@ -433,6 +433,8 @@ export function SpinDialog({ onClose }: { onClose: () => void }) {
             </div>
           )}
 
+          {/* A running spin mode draws its own footer under its stage; this one is for idle, the reel and results. */}
+          {!(isMode && play && !settled) && (
           <div style={st('min-height:112px;margin-top:16px;text-align:center;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:4px')} aria-live="polite">
             {idle && (
               <button
@@ -475,6 +477,7 @@ export function SpinDialog({ onClose }: { onClose: () => void }) {
               </>
             )}
           </div>
+          )}
         </div>
       </Dialog>
     </>

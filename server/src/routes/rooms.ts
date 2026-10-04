@@ -3,7 +3,8 @@ import { Prisma } from '@prisma/client';
 import { prisma } from '../db/client.js';
 import { toUserDto } from '../util/dto.js';
 import { HttpError } from '../util/httpError.js';
-import { requireElevated, requireCanInvite, requireMembership, generateUniqueInviteCode, getRoom } from '../services/roomAccess.js';
+import { requireElevated, requireCanInvite, requireMembership, generateUniqueInviteCode, getRoom, adminManagedRoomIds, adminManageKey } from '../services/roomAccess.js';
+import { redis } from '../services/redisClient.js';
 import { logAdminAction } from '../services/adminAuditLog.js';
 import { notifyRoom, notifyRoomMembersDirect } from '../services/notifications.js';
 import { unlockBadges } from '../services/badges.js';
@@ -113,6 +114,20 @@ export default async function roomRoutes(app: FastifyInstance) {
       memberCount: memberCountByRoom.get(m.roomId) ?? 0,
       queuedCount: queuedByRoom.get(m.roomId) ?? 0,
     }));
+    // #792: rooms an administrator is managing without being a member, listed after their own.
+    const managedIds = (await adminManagedRoomIds(userId)).filter((id) => !roomIds.includes(id));
+    if (managedIds.length) {
+      const managed = await prisma.room.findMany({ where: { id: { in: managedIds } }, include: { _count: { select: { members: true } } } });
+      for (const room of managed) {
+        const ttl = await redis.ttl(adminManageKey(userId, room.id));
+        rooms.push({
+          ...toRoomDto(room, 'room_master', room.inviteCode),
+          memberCount: room._count.members,
+          queuedCount: await prisma.game.count({ where: { roomId: room.id, status: 'backlog', archivedAt: null } }),
+          adminManagedUntil: new Date(Date.now() + Math.max(0, ttl) * 1000).toISOString(),
+        });
+      }
+    }
     return { rooms };
   });
 
@@ -268,7 +283,13 @@ export default async function roomRoutes(app: FastifyInstance) {
     const membership = await requireMembership(roomId, userId);
 
     const room = await prisma.room.findUniqueOrThrow({ where: { id: roomId } });
-    return { room: toRoomDto(room, membership.role, room.inviteCode) };
+    const ttl = membership.adminManaged ? await redis.ttl(adminManageKey(userId, roomId)) : 0;
+    return {
+      room: {
+        ...toRoomDto(room, membership.role, room.inviteCode),
+        ...(membership.adminManaged && { adminManagedUntil: new Date(Date.now() + Math.max(0, ttl) * 1000).toISOString() }),
+      },
+    };
   });
 
   app.patch<{ Params: { roomId: string }; Body: UpdateRoomRequest }>('/api/rooms/:roomId', async (request) => {
@@ -561,8 +582,15 @@ export default async function roomRoutes(app: FastifyInstance) {
         throw new HttpError(400, 'Transfer ownership to another member instead of changing your own role');
       }
       const target = await requireMembership(roomId, targetUserId);
+      if (target.adminManaged) throw new HttpError(400, "An administrator managing this room isn't a member, so their role can't change");
+      // An administrator managing the room (#792) acts as its Room Master without a membership row,
+      // so a transfer they make moves ownership from the room's actual Room Master.
+      const fromUserId = actor.adminManaged
+        ? ((await prisma.roomMember.findFirst({ where: { roomId, role: 'room_master' }, select: { userId: true } }))?.userId ?? null)
+        : actorId;
 
       if (role === 'room_master') {
+        if (!fromUserId || fromUserId === targetUserId) throw new HttpError(400, 'They are already the Room Master');
         const [targetUser, room] = await Promise.all([
           prisma.user.findUniqueOrThrow({ where: { id: targetUserId }, select: { displayName: true } }),
           getRoom(roomId),
@@ -577,7 +605,7 @@ export default async function roomRoutes(app: FastifyInstance) {
         // room.
         const [, updatedTarget] = await prisma.$transaction([
           prisma.roomMember.update({
-            where: { roomId_userId: { roomId, userId: actorId } },
+            where: { roomId_userId: { roomId, userId: fromUserId } },
             data: { role: 'moderator' },
           }),
           prisma.roomMember.update({

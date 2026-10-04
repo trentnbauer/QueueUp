@@ -425,10 +425,8 @@ export async function markAllNotificationsRead(userId: string): Promise<void> {
 }
 
 export async function markRoomNotificationsRead(roomId: string, userId: string): Promise<void> {
-  await prisma.roomMember.update({
-    where: { roomId_userId: { roomId, userId } },
-    data: { notificationsReadAt: new Date() },
-  });
+  // updateMany: an administrator managing the room (#792) has no membership row to mark.
+  await prisma.roomMember.updateMany({ where: { roomId, userId }, data: { notificationsReadAt: new Date() } });
 }
 
 /** Marks a single direct notification read (issue #554) - only meaningful for a recipientId-based

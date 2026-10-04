@@ -200,6 +200,8 @@ enum RoomActivityType {
   member_left
   /// Someone added a system to their "systems I own" (shown to friends and in their own shelf history).
   console_added
+  /// A server administrator started managing the room as its Room Master (#792).
+  admin_manage
 
   @@map("room_activity_type")
 }

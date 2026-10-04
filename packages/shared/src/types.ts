@@ -359,6 +359,9 @@ export interface Room {
   /** Only on GET /api/rooms: how many members the room has and how many games sit in its Queue. */
   memberCount?: number;
   queuedCount?: number;
+  /** Set when the caller is an administrator managing this room as its Room Master without being a
+   * member (#792): when that runs out, as an ISO timestamp. */
+  adminManagedUntil?: string;
 }
 
 /** A member's lightweight nomination for a room game, pending a Room Master/Moderator's approval
@@ -1219,6 +1222,21 @@ export interface AdminRoomSummary {
   memberCount: number;
   gameCount: number;
   createdAt: string;
+  /** When the calling administrator's "Manage as Room Master" for this room runs out, if it's on. */
+  managingUntil: string | null;
+}
+
+/** A read-only look at one room for administrators (#792). */
+export interface AdminRoomDetail {
+  room: AdminRoomSummary & {
+    isPublic: boolean;
+    requireGameApproval: boolean;
+    invitePermission: RoomInvitePermission;
+    spinOwnershipMaxPrice: number;
+    spinWheelTheme: SpinWheelTheme;
+  };
+  members: { user: User; role: RoomRole; joinedAt: string }[];
+  games: { id: string; title: string; status: GameStatus; voteScore: number; coverImageUrl: string | null; addedByName: string }[];
 }
 
 /** A durable record of a destructive admin action - see AdminAuditLog in schema.prisma.
@@ -1370,7 +1388,8 @@ export type RoomActivityType =
   | 'spin_result'
   | 'member_promoted'
   | 'member_left'
-  | 'console_added';
+  | 'console_added'
+  | 'admin_manage';
 
 export interface RoomActivityEntry {
   id: string;
