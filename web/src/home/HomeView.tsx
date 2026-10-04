@@ -77,8 +77,9 @@ export function HomeView() {
   const importTab = tab === 'matching' || tab === 'dismissed' ? tab : null;
   const moreActive = SHELF_MORE_TABS.some((t) => t.id === tab) || importTab !== null;
   const [query, setQuery] = useState('');
-  // A room's 📖 tab shows its play journal instead of a game list (a search still searches games).
-  const journalTab = !isShelf && !!room && tab === 'journal' && query.trim().length === 0;
+  // The 📖 tab shows the play journal instead of a game list - the room's, or on the shelf your own
+  // across the shelf and your rooms (a search still searches games).
+  const journalTab = tab === 'journal' && query.trim().length === 0;
   const otherTab = importTab !== null || journalTab;
   const [bulk, setBulk] = useState(false);
   const [bulkSel, setBulkSel] = useState<string[]>([]);
@@ -352,25 +353,23 @@ export function HomeView() {
               </button>
             );
           })}
-          {!isShelf && (
-            <button
-              type="button"
-              role="tab"
-              aria-selected={journalTab}
-              aria-label="Play journal"
-              title="Play journal"
-              onClick={() => {
-                setTab('journal');
-                setQuery('');
-              }}
-              style={st(
-                // Pinned to the end so it stays in view when the tabs scroll on a phone.
-                `position:sticky;right:0;flex:0 0 auto;display:flex;align-items:center;justify-content:center;width:40px;height:36px;border-radius:999px;border:none;background:${journalTab ? 'var(--text)' : 'var(--surf)'};box-shadow:-8px 0 8px var(--surf);font:400 17px/1 var(--font-ui)`,
-              )}
-            >
-              <span aria-hidden>📖</span>
-            </button>
-          )}
+          <button
+            type="button"
+            role="tab"
+            aria-selected={journalTab}
+            aria-label="Play journal"
+            title="Play journal"
+            onClick={() => {
+              setTab('journal');
+              setQuery('');
+            }}
+            style={st(
+              // Pinned to the end so it stays in view when the tabs scroll on a phone.
+              `position:sticky;right:${isShelf ? 32 : 0}px;z-index:1;flex:0 0 auto;display:flex;align-items:center;justify-content:center;width:40px;height:36px;border-radius:999px;border:none;background:${journalTab ? 'var(--text)' : 'var(--surf)'};box-shadow:-8px 0 8px var(--surf);font:400 17px/1 var(--font-ui)`,
+            )}
+          >
+            <span aria-hidden>📖</span>
+          </button>
           {isShelf && (
             <button
               type="button"
@@ -379,7 +378,7 @@ export function HomeView() {
               title="More filters"
               onClick={() => setMoreOpen((o) => !o)}
               style={st(
-                `flex:0 0 auto;display:flex;align-items:center;justify-content:center;width:36px;height:36px;border-radius:999px;border:none;background:${moreActive ? 'var(--text)' : 'transparent'};color:${moreActive ? 'var(--onText)' : 'var(--muted)'};font:500 20px/1 var(--font-ui);transform:${moreOpen || moreActive ? 'rotate(45deg)' : 'none'};transition:transform 0.15s`,
+                `position:sticky;right:0;flex:0 0 auto;display:flex;align-items:center;justify-content:center;width:36px;height:36px;border-radius:999px;border:none;background:${moreActive ? 'var(--text)' : 'var(--surf)'};box-shadow:6px 0 0 var(--surf);color:${moreActive ? 'var(--onText)' : 'var(--muted)'};font:500 20px/1 var(--font-ui);transform:${moreOpen || moreActive ? 'rotate(45deg)' : 'none'};transition:transform 0.15s`,
               )}
             >
               +
@@ -439,7 +438,16 @@ export function HomeView() {
       )}
 
       {importTab && <PendingImportsList kind={importTab} />}
-      {journalTab && room && <JournalList roomId={room.id} onOpen={(e) => ui.selectGame(e.gameId)} />}
+      {journalTab && (
+        <JournalList
+          roomId={room?.id}
+          onOpen={(e) => {
+            // A shelf journal entry can be from a room: go there before opening it.
+            if (e.roomId !== (room?.id ?? null)) navigate(e.roomId ? `/room/${e.roomId}` : '/');
+            ui.selectGame(e.gameId);
+          }}
+        />
+      )}
 
       {!otherTab && lists.coming.length > 0 && (
         <ComingStrip
