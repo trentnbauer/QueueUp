@@ -4,6 +4,7 @@ import { VOTES, VOTE_VALUES, isNewRelease, releaseLabel, reviewAverage, releaseS
 import { ABOVE, Cover, coverBg, GOLD, GOLD_RING, OpenOverlay, StatusBadge, statusOutlineFor, statusRing, TrophyBadge } from '../ui/primitives';
 import { st } from '../ui/st';
 import type { RowItem } from './derive';
+import { useT } from '../i18n';
 
 const stop = (e: MouseEvent) => e.stopPropagation();
 
@@ -21,12 +22,13 @@ export function VoteSegment({
   /** The Ranked queue's slightly smaller buttons. */
   compact?: boolean;
 }) {
+  const t = useT();
   const wrap =
     variant === 'cover'
       ? 'position:absolute;z-index:2;left:6px;right:6px;bottom:6px;display:flex;gap:1px;padding:3px;border-radius:999px;background:oklch(0.15 0.01 55 / 0.62);backdrop-filter:blur(10px)'
       : `${ABOVE}display:flex;${variant === 'mobile' ? 'align-self:flex-start;' : 'flex-shrink:0;'}gap:1px;padding:3px;border-radius:999px;background:var(--surf)`;
   return (
-    <div style={st(wrap)} onClick={stop} role="group" aria-label="Your vote">
+    <div style={st(wrap)} onClick={stop} role="group" aria-label={t('home.row.yourVote')}>
       {VOTE_VALUES.map((v) => {
         const on = myVote === v;
         const geo =
@@ -63,13 +65,14 @@ const CHIP = 'flex-shrink:0;height:19px;padding:0 7px;border-radius:999px;backgr
 /** The viewer's Steam achievement count ("🏆 10/20"), gold once it's 100%. Personal Shelf only:
  * in a room, everyone's counts show in the game's detail, next to each member's vote. */
 function AchievementChip({ g }: { g: Game }) {
+  const t = useT();
   const a = g.myAchievements;
   if (!a || g.roomId) return null;
   const full = a.unlocked >= a.total;
   return (
     <span
-      title={`${a.unlocked} of ${a.total} achievements`}
-      aria-label={`${a.unlocked} of ${a.total} achievements`}
+      title={t('home.row.achievements', { unlocked: a.unlocked, total: a.total })}
+      aria-label={t('home.row.achievements', { unlocked: a.unlocked, total: a.total })}
       style={st(CHIP, full ? { background: GOLD, color: 'oklch(0.28 0.06 70)' } : undefined)}
     >
       🏆 {a.unlocked}/{a.total}
@@ -79,21 +82,23 @@ function AchievementChip({ g }: { g: Game }) {
 
 /** Flags a game IGDB lists as single player only - worth knowing before picking it for a group. */
 function SinglePlayerChip({ g }: { g: Game }) {
+  const t = useT();
   if (g.singlePlayerOnly !== true) return null;
   return (
-    <span title="Single player only, per IGDB" aria-label="Single player only" style={st(CHIP)}>
-      👤 Single player
+    <span title={t('home.row.singlePlayerTitle')} aria-label={t('home.row.singlePlayerAria')} style={st(CHIP)}>
+      {t('home.row.singlePlayer')}
     </span>
   );
 }
 
 /** PC install size from Steam (#800), e.g. "60 GB", when known. */
 function SizeChip({ g }: { g: Game }) {
+  const t = useT();
   if (g.downloadSizeMb === null) return null;
   const gb = g.downloadSizeMb / 1024;
   const label = gb >= 10 ? `${Math.round(gb)} GB` : gb >= 1 ? `${gb.toFixed(1)} GB` : `${g.downloadSizeMb} MB`;
   return (
-    <span title="PC install size, from Steam" aria-label={`Install size ${label}`} style={st(CHIP)}>
+    <span title={t('home.row.sizeTitle')} aria-label={t('home.row.sizeAria', { size: label })} style={st(CHIP)}>
       💾 {label}
     </span>
   );
@@ -101,9 +106,10 @@ function SizeChip({ g }: { g: Game }) {
 
 /** IGDB's 0-100 critic/user score as a gold star out of 10 ("★ 8.7"), when IGDB has one. */
 function IgdbScoreChip({ g }: { g: Game }) {
+  const t = useT();
   if (g.reviewScore === null) return null;
   return (
-    <span title={`${g.reviewScore}/100 on IGDB`} aria-label={`IGDB score ${g.reviewScore} out of 100`} style={st(CHIP, { color: 'var(--star)' })}>
+    <span title={t('home.row.igdbTitle', { score: g.reviewScore })} aria-label={t('home.row.igdbAria', { score: g.reviewScore })} style={st(CHIP, { color: 'var(--star)' })}>
       ★ {(g.reviewScore / 10).toFixed(1)}
     </span>
   );
@@ -134,6 +140,7 @@ interface RowProps {
 
 /** One game in the list layout on desktop: rank, cover, title/meta, price, votes, score. */
 export function DesktopRow({ item, showRank, bulk, selected, active, onOpen, onVote }: RowProps) {
+  const t = useT();
   const g = item.game;
   const bg = bulk && selected ? 'var(--accA10)' : active ? 'var(--surf)' : 'transparent';
   return (
@@ -141,7 +148,7 @@ export function DesktopRow({ item, showRank, bulk, selected, active, onOpen, onV
       className="hv-surf"
       style={st(`position:relative;display:flex;align-items:center;gap:16px;padding:10px 12px;border-radius:16px;cursor:pointer;background:${bg}`)}
     >
-      <OpenOverlay label={`Open ${g.title}`} onOpen={onOpen} />
+      <OpenOverlay label={t('home.row.open', { title: g.title })} onOpen={onOpen} />
       {showRank && (
         <span style={st('width:24px;flex-shrink:0;font:700 18px var(--font-display);color:var(--rank);text-align:center')}>{item.rank}</span>
       )}
@@ -181,10 +188,11 @@ function ScoreCol({ item, width, size }: { item: RowItem; width: number; size: n
 /** Your own review score for the game as "4.3/5" (average of the scored categories); nothing when
  * there's no review or it has no scores. */
 function ReviewScore({ g }: { g: Game }) {
+  const t = useT();
   const avg = g.review ? reviewAverage(g.review) : null;
   if (avg === null) return null;
   return (
-    <span title="Your review" style={st('flex-shrink:0;display:flex;align-items:center;gap:4px;font:700 14px var(--font-display);color:var(--accText);white-space:nowrap')}>
+    <span title={t('home.row.yourReview')} style={st('flex-shrink:0;display:flex;align-items:center;gap:4px;font:700 14px var(--font-display);color:var(--accText);white-space:nowrap')}>
       <span aria-hidden="true">★</span>
       {avg.toFixed(1)}/5
     </span>
@@ -193,12 +201,13 @@ function ReviewScore({ g }: { g: Game }) {
 
 /** One game in the list layout on phones: votes sit under the title, tap highlights the row. */
 export function MobileRow({ item, showRank, bulk, selected, onOpen, onVote }: RowProps) {
+  const t = useT();
   const g = item.game;
   return (
     <div
       style={st(`position:relative;display:flex;align-items:center;gap:12px;padding:10px;border-radius:18px;cursor:pointer;background:${bulk && selected ? 'var(--accA10)' : 'transparent'}`)}
     >
-      <OpenOverlay label={`Open ${g.title}`} onOpen={onOpen} />
+      <OpenOverlay label={t('home.row.open', { title: g.title })} onOpen={onOpen} />
       {showRank && <span style={st('width:20px;flex-shrink:0;font:700 17px var(--font-display);color:var(--rank);text-align:center')}>{item.rank}</span>}
       {bulk && <SelectMark on={selected} />}
       <Cover title={g.title} url={g.coverImageUrl} width={46} radius={10} completed={isFullyCompleted(g)} status={g.status} recommend={g.review?.recommend} statusRing={false} badgeScale={2} />
@@ -246,6 +255,7 @@ export function CoverCard({
   onVote,
   onStart,
 }: RowProps & { big: boolean; /** Play Next: a Start button in place of the vote bar. */ onStart?: () => void }) {
+  const t = useT();
   const g = item.game;
   const completed = isFullyCompleted(g);
   const outline = completed ? null : statusOutlineFor(g.status, g.review?.recommend);
@@ -253,7 +263,7 @@ export function CoverCard({
     <div
       style={st('position:relative;display:flex;flex-direction:column;gap:8px;min-width:0;cursor:pointer')}
     >
-      <OpenOverlay label={`Open ${g.title}`} onOpen={onOpen} />
+      <OpenOverlay label={t('home.row.open', { title: g.title })} onOpen={onOpen} />
       <div
         style={st(
           `position:relative;aspect-ratio:2/3;border-radius:16px;background:${coverBg(g.title, g.coverImageUrl)};overflow:hidden;box-shadow:${bulk && selected ? '0 0 0 3px var(--acc)' : completed ? `${GOLD_RING}, 0 8px 22px oklch(0 0 0 / 0.25)` : outline ? `${statusRing(outline)}, 0 8px 22px oklch(0 0 0 / 0.25)` : '0 8px 22px oklch(0 0 0 / 0.25)'}`,
@@ -293,7 +303,7 @@ export function CoverCard({
           }}
           style={st(ABOVE + 'height:34px;border-radius:999px;border:1px solid var(--line);background:transparent;color:var(--text);font:600 12.5px var(--font-ui)')}
         >
-          Start
+          {t('home.row.start')}
         </button>
       )}
     </div>
@@ -312,6 +322,7 @@ export function PlayNextRow({
   onStart: () => void;
   desktop: boolean;
 }) {
+  const t = useT();
   const g = item.game;
   const isNew = isNewRelease(g);
   return (
@@ -319,12 +330,12 @@ export function PlayNextRow({
       className={desktop ? 'hv-surf' : undefined}
       style={st('position:relative;display:flex;align-items:center;gap:12px;padding:10px;border-radius:18px;cursor:pointer')}
     >
-      <OpenOverlay label={`Open ${g.title}`} onOpen={onOpen} />
+      <OpenOverlay label={t('home.row.open', { title: g.title })} onOpen={onOpen} />
       <Cover title={g.title} url={g.coverImageUrl} width={40} radius={9} status={g.status} recommend={g.review?.recommend} statusRing={false} badgeScale={2} />
       <div style={st('flex:1;min-width:0;display:flex;flex-direction:column;gap:2px')}>
         <span style={st('font:600 15px var(--font-ui);white-space:nowrap;overflow:hidden;text-overflow:ellipsis')}>{g.title}</span>
         <span style={st('display:flex;align-items:center;gap:6px;min-width:0;font:400 12.5px var(--font-ui);color:var(--muted)')}>
-          {isNew && g.releaseDate && <span style={st(CHIP)}>{`New · out ${releaseShortDate(g.releaseDate)}`}</span>}
+          {isNew && g.releaseDate && <span style={st(CHIP)}>{t('home.chip.new', { date: releaseShortDate(g.releaseDate) })}</span>}
           <IgdbScoreChip g={g} />
           <SizeChip g={g} />
           <SinglePlayerChip g={g} />
@@ -343,7 +354,7 @@ export function PlayNextRow({
         }}
         style={st(ABOVE + 'flex-shrink:0;height:34px;padding:0 14px;border-radius:999px;border:1px solid var(--line);background:transparent;color:var(--text);font:600 12.5px var(--font-ui)')}
       >
-        Start
+        {t('home.row.start')}
       </button>
     </div>
   );
@@ -359,24 +370,25 @@ export function ComingStrip({
   onOpen: (g: Game) => void;
   onToggleWatch: (g: Game) => void;
 }): ReactNode {
+  const t = useT();
   return (
     <div style={st('display:flex;flex-direction:column;gap:10px')}>
-      <span style={st('font:600 12px var(--font-mono);letter-spacing:0.06em;color:var(--muted)')}>COMING SOON · {games.length}</span>
+      <span style={st('font:600 12px var(--font-mono);letter-spacing:0.06em;color:var(--muted)')}>{t('home.coming.heading', { n: games.length })}</span>
       <div style={st('display:flex;gap:10px;overflow-x:auto;margin:0 -16px;padding:0 16px')}>
         {games.map((g) => (
           <div
             key={g.id}
             style={st('position:relative;flex-shrink:0;width:250px;display:flex;align-items:center;gap:12px;padding:10px;border-radius:18px;background:var(--surf);cursor:pointer')}
           >
-            <OpenOverlay label={`Open ${g.title}`} onOpen={() => onOpen(g)} />
+            <OpenOverlay label={t('home.row.open', { title: g.title })} onOpen={() => onOpen(g)} />
             <Cover title={g.title} url={g.coverImageUrl} width={44} radius={9} />
             <span style={st('flex:1;min-width:0;display:flex;flex-direction:column;gap:3px')}>
               <span style={st('font:600 14.5px var(--font-ui);white-space:nowrap;overflow:hidden;text-overflow:ellipsis')}>{g.title}</span>
-              <span style={st('font:500 12px var(--font-ui);color:var(--accText)')}>Releases {releaseLabel(g)}</span>
+              <span style={st('font:500 12px var(--font-ui);color:var(--accText)')}>{t('home.release.releases', { date: releaseLabel(g) })}</span>
             </span>
             <button
               type="button"
-              aria-label="Release alert"
+              aria-label={t('home.coming.releaseAlert')}
               aria-pressed={g.releaseAlert}
               onClick={(e) => {
                 stop(e);

@@ -4,6 +4,7 @@ import { BACKWARDS_COMPATIBLE, ROOM_PLATFORM_LABELS, sortPlatforms, type RoomPla
 import { apiGet } from '../api/client';
 import { useAuth } from '../context/AuthContext';
 import { st } from '../ui/st';
+import { t as tr, useT } from '../i18n';
 
 const isPlatform = (v: string | null): v is RoomPlatform => !!v && v in ROOM_PLATFORM_LABELS;
 const storageKey = (scopeId: string) => `sq-platform-filter:${scopeId}`;
@@ -62,7 +63,7 @@ export function useIncludeOlder(scopeId: string): [boolean, (on: boolean) => voi
 /** The older consoles `p` plays, e.g. PS5 -> "PS4". */
 export function olderLabel(p: RoomPlatform): string | null {
   const older = BACKWARDS_COMPATIBLE[p];
-  return older?.length ? older.map((o) => ROOM_PLATFORM_LABELS[o]).join(' and ') : null;
+  return older?.length ? older.map((o) => ROOM_PLATFORM_LABELS[o]).reduce((a, b) => tr('home.platform.and', { a, b })) : null;
 }
 
 /** What the filter offers: the consoles you own (Systems owned) on the shelf; in a room, the
@@ -92,6 +93,7 @@ export function PlatformMenu({ value, options, allLabel, onChange, includeOlder,
   /** Shown when there are no owned consoles to pick from. */
   emptyHint: string;
 }) {
+  const t = useT();
   const [open, setOpen] = useState(false);
   const triggerRef = useRef<HTMLButtonElement>(null);
   const menuRef = useRef<HTMLDivElement>(null);
@@ -116,8 +118,8 @@ export function PlatformMenu({ value, options, allLabel, onChange, includeOlder,
       }
     };
     const onDown = (e: PointerEvent) => {
-      const t = e.target as Node;
-      if (!menuRef.current?.contains(t) && !triggerRef.current?.contains(t)) close(false);
+      const target = e.target as Node;
+      if (!menuRef.current?.contains(target) && !triggerRef.current?.contains(target)) close(false);
     };
     window.addEventListener('keydown', onKey);
     document.addEventListener('pointerdown', onDown);
@@ -174,7 +176,13 @@ export function PlatformMenu({ value, options, allLabel, onChange, includeOlder,
         type="button"
         aria-haspopup="menu"
         aria-expanded={open}
-        aria-label={`Platform filter: ${value ? `${ROOM_PLATFORM_LABELS[value]}${includeOlder && olderLabel(value) ? ` and ${olderLabel(value)}` : ''}` : allLabel}`}
+        aria-label={t('home.platform.filterAria', {
+          label: value
+            ? includeOlder && olderLabel(value)
+              ? t('home.platform.and', { a: ROOM_PLATFORM_LABELS[value], b: olderLabel(value) ?? '' })
+              : ROOM_PLATFORM_LABELS[value]
+            : allLabel,
+        })}
         onClick={() => setOpen((o) => !o)}
         style={st(
           `display:inline-flex;align-items:center;gap:4px;border:none;background:none;padding:0;color:${value ? 'var(--text)' : 'inherit'};font:inherit;letter-spacing:inherit;text-transform:uppercase;cursor:pointer`,
@@ -188,7 +196,7 @@ export function PlatformMenu({ value, options, allLabel, onChange, includeOlder,
         <div
           ref={menuRef}
           role="menu"
-          aria-label="Filter by platform"
+          aria-label={t('home.platform.menuAria')}
           onKeyDown={onMenuKey}
           style={st(
             'position:absolute;left:-6px;top:calc(100% + 8px);z-index:41;min-width:200px;max-height:min(60vh,420px);overflow-y:auto;display:flex;flex-direction:column;padding:6px;border-radius:16px;border:1px solid var(--line);background:var(--surf);box-shadow:0 12px 32px rgba(0,0,0,0.28)',
@@ -210,7 +218,7 @@ export function PlatformMenu({ value, options, allLabel, onChange, includeOlder,
               <span aria-hidden="true" style={st(`width:16px;height:16px;flex-shrink:0;border-radius:5px;border:1.5px solid ${includeOlder ? 'var(--acc)' : 'var(--line)'};background:${includeOlder ? 'var(--acc)' : 'transparent'};color:var(--ink);font-size:11px;line-height:13px;text-align:center`)}>
                 {includeOlder ? '✓' : ''}
               </span>
-              Include {olderLabel(value)} games
+              {t('home.platform.includeOlder', { older: olderLabel(value) ?? '' })}
             </button>
           )}
         </div>

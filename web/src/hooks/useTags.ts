@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { tagsApi } from '../api/tags';
+import { t } from '../i18n';
 
 const TAGS_QUERY_KEY = ['tags'] as const;
 // Same root useGames() mutations invalidate after a move - every shelf/room games query, any
@@ -27,7 +28,7 @@ export function useTags() {
   const create = useMutation({
     mutationFn: (name: string) => tagsApi.create({ name }),
     onSuccess: () => queryClient.invalidateQueries({ queryKey: TAGS_QUERY_KEY }),
-    onError: (err) => setActionError(errorMessage(err, 'Could not create that tag.')),
+    onError: (err) => setActionError(errorMessage(err, t('shell.tags.error.create'))),
   });
 
   const rename = useMutation({
@@ -36,7 +37,7 @@ export function useTags() {
       queryClient.invalidateQueries({ queryKey: TAGS_QUERY_KEY });
       queryClient.invalidateQueries({ queryKey: GAMES_QUERY_ROOT });
     },
-    onError: (err) => setActionError(errorMessage(err, 'Could not rename that tag.')),
+    onError: (err) => setActionError(errorMessage(err, t('shell.tags.error.rename'))),
   });
 
   const remove = useMutation({
@@ -45,7 +46,7 @@ export function useTags() {
       queryClient.invalidateQueries({ queryKey: TAGS_QUERY_KEY });
       queryClient.invalidateQueries({ queryKey: GAMES_QUERY_ROOT });
     },
-    onError: (err) => setActionError(errorMessage(err, 'Could not delete that tag.')),
+    onError: (err) => setActionError(errorMessage(err, t('shell.tags.error.delete'))),
   });
 
   return {

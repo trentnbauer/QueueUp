@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import type { Game } from '@queueup/shared';
 import { coverBg } from './primitives';
 import { st } from './st';
+import { t, useT } from '../i18n';
 
 const EVENT = 'queueup:celebrate-pick';
 /** How long the fireworks run before the overlay fades out on its own. */
@@ -16,7 +17,7 @@ interface Picked {
 /** Shows fireworks with `game`'s box art (#804) - when a spin's pick is agreed ("Let's play"), for
  * whoever pressed it and everyone else watching that room's spin. */
 export function celebratePick(game: Game): void {
-  const meta = [game.genre?.split(',')[0], game.timeToBeatHours ? `~${game.timeToBeatHours}h` : ''].filter(Boolean).join(' · ');
+  const meta = [game.genre?.split(',')[0], game.timeToBeatHours ? t('spin.result.hours', { n: game.timeToBeatHours }) : ''].filter(Boolean).join(' · ');
   window.dispatchEvent(new CustomEvent<Picked>(EVENT, { detail: { title: game.title, coverImageUrl: game.coverImageUrl, meta } }));
 }
 
@@ -132,6 +133,7 @@ export function prefersReducedMotion(): boolean {
 
 /** Mounted once (see Overlays): listens for celebratePick and shows the fireworks and box art. */
 export function PickCelebrationHost() {
+  const t = useT();
   const [picked, setPicked] = useState<(Picked & { key: number }) | null>(null);
   useEffect(() => {
     const on = (e: Event) => setPicked({ ...(e as CustomEvent<Picked>).detail, key: Date.now() });
@@ -155,7 +157,7 @@ export function PickCelebrationHost() {
       key={picked.key}
       onClick={() => setPicked(null)}
       role="status"
-      aria-label={`Tonight's pick: ${picked.title}`}
+      aria-label={t('spin.celebrate.aria', { title: picked.title })}
       style={st('position:fixed;inset:0;z-index:400;display:flex;align-items:center;justify-content:center;background:oklch(0 0 0 / 0.55);animation:qu-fade .25s ease both;cursor:pointer')}
     >
       {!calm && <Fireworks />}
@@ -165,7 +167,7 @@ export function PickCelebrationHost() {
             `width:min(200px,46vw);aspect-ratio:3/4;border-radius:18px;background:${coverBg(picked.title, picked.coverImageUrl)};box-shadow:0 0 0 3px var(--acc), 0 0 60px var(--accA70), 0 30px 70px oklch(0 0 0 / 0.6);margin-bottom:10px`,
           )}
         />
-        <span style={st('font:600 12px var(--font-mono);letter-spacing:0.1em;color:var(--accText)')}>TONIGHT'S PICK</span>
+        <span style={st('font:600 12px var(--font-mono);letter-spacing:0.1em;color:var(--accText)')}>{t('spin.celebrate.kicker')}</span>
         <span style={st('font:800 32px/1.05 var(--font-display);letter-spacing:-0.03em;color:#fff;text-wrap:balance;max-width:520px')}>{picked.title}</span>
         {picked.meta && <span style={st('font:500 14px var(--font-ui);color:oklch(1 0 0 / 0.75)')}>{picked.meta}</span>}
       </div>

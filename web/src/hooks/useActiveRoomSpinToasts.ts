@@ -5,6 +5,7 @@ import { useLocation, useNavigate } from 'react-router';
 import { useUi } from '../context/UiContext';
 import { useToast } from '../context/ToastContext';
 import { roomSpinApi } from '../api/rooms';
+import { t } from '../i18n';
 
 // Confirmed requirement (issue #555): this needs to feel near-instant, unlike the 30s notification
 // poll #554 uses - a spin's pre-start waiting room only lasts SPIN_WAITING_ROOM_MS (30s, see
@@ -69,8 +70,8 @@ export function useActiveRoomSpinToasts() {
       if (dismissedSpinIds.current.has(spin.spinId)) continue;
       showToast({
         id: toastId(spin.spinId),
-        message: `${spin.roomName} just started a Spin the Wheel!`,
-        actions: [{ label: 'Join', onClick: () => { navigate(`/room/${spin.roomId}`); ui.openDialog('spin'); } }],
+        message: t('spin.toast.started', { room: spin.roomName }),
+        actions: [{ label: t('spin.toast.join'), onClick: () => { navigate(`/room/${spin.roomId}`); ui.openDialog('spin'); } }],
         onDismiss: () => dismissedSpinIds.current.add(spin.spinId),
       });
     }

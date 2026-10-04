@@ -10,10 +10,13 @@ import { usePlaytimeReview } from '../hooks/usePlaytimeReview';
 import { Dialog } from '../ui/Dialog';
 import { Banner, Btn, Cover } from '../ui/primitives';
 import { st } from '../ui/st';
+import { useT, type MessageKey } from '../i18n';
+import { statusLabel } from '../i18n/labels';
 
 /** DLC & expansions for the selected game, one tap to add each. */
 export function DlcDialog() {
   const ui = useUi();
+  const t = useT();
   const { games } = useScope();
   const queryClient = useQueryClient();
   const base = games.find((g) => g.id === ui.selectedGameId);
@@ -31,7 +34,7 @@ export function DlcDialog() {
     gamesApi
       .dlc(base.id)
       .then(({ results }) => !cancelled && setResults(results))
-      .catch((e) => !cancelled && setLoadError(e instanceof Error ? e.message : 'Could not load DLC for this game.'))
+      .catch((e) => !cancelled && setLoadError(e instanceof Error ? e.message : t('settings.dlc.loadFailed')))
       .finally(() => !cancelled && setLoading(false));
     return () => {
       cancelled = true;
@@ -47,9 +50,9 @@ export function DlcDialog() {
       const res = await gamesApi.create({ igdbId: r.igdbId, roomId: base!.roomId });
       setAdded((a) => ({ ...a, [r.igdbId]: 'suggestion' in res ? 'suggested' : 'added' }));
       if (!('suggestion' in res)) await queryClient.invalidateQueries({ queryKey: ['games'] });
-      ui.notify('suggestion' in res ? `${r.title} suggested` : `${r.title} added`);
+      ui.notify('suggestion' in res ? t('settings.dlc.suggested', { title: r.title }) : t('settings.dlc.added', { title: r.title }));
     } catch (e) {
-      setError(e instanceof Error ? e.message : 'Could not add that DLC.');
+      setError(e instanceof Error ? e.message : t('settings.dlc.addFailed'));
     } finally {
       setAdding(null);
     }
@@ -61,16 +64,16 @@ export function DlcDialog() {
       padded={false}
       header={
         <span style={st('flex:1;min-width:0;display:flex;flex-direction:column')}>
-          <span style={st('font:700 21px var(--font-display);letter-spacing:-0.02em')}>DLC &amp; expansions</span>
-          <span style={st('font:400 12.5px var(--font-ui);color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis')}>for {base.title}</span>
+          <span style={st('font:700 21px var(--font-display);letter-spacing:-0.02em')}>{t('settings.dlc.title')}</span>
+          <span style={st('font:400 12.5px var(--font-ui);color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis')}>{t('settings.dlc.for', { title: base.title })}</span>
         </span>
       }
     >
       <div style={st('overflow-y:auto;padding:0 12px 28px')}>
         {error && <div style={{ padding: '0 8px 10px' }}><Banner onDismiss={() => setError(null)}>{error}</Banner></div>}
-        {loading && <div style={st('padding:20px 10px;color:var(--muted);font-size:14px')}>Loading…</div>}
+        {loading && <div style={st('padding:20px 10px;color:var(--muted);font-size:14px')}>{t('common.loading')}</div>}
         {loadError && <div style={{ padding: '0 8px' }}><Banner>{loadError}</Banner></div>}
-        {!loading && !loadError && results.length === 0 && <div style={st('padding:20px 10px;color:var(--muted);font-size:14px')}>No DLC on file for this game, or it's all already here.</div>}
+        {!loading && !loadError && results.length === 0 && <div style={st('padding:20px 10px;color:var(--muted);font-size:14px')}>{t('settings.dlc.empty')}</div>}
         {results.map((r) => {
           const state = added[r.igdbId];
           return (
@@ -86,7 +89,7 @@ export function DlcDialog() {
                 onClick={() => add(r)}
                 style={st(`height:36px;padding:0 14px;border-radius:999px;border:none;background:${state ? 'var(--mintSoft)' : 'var(--accSoft2)'};color:${state ? 'var(--mint)' : 'var(--accText)'};font:600 13px var(--font-ui)`)}
               >
-                {adding === r.igdbId ? 'Adding…' : state === 'suggested' ? 'Suggested ✓' : state ? 'Added ✓' : 'Add'}
+                {adding === r.igdbId ? t('settings.dlc.adding') : state === 'suggested' ? t('settings.dlc.suggestedDone') : state ? t('settings.dlc.addedDone') : t('common.add')}
               </button>
             </div>
           );
@@ -96,20 +99,22 @@ export function DlcDialog() {
   );
 }
 
-const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+const MONTHS = ['jan', 'feb', 'mar', 'apr', 'may', 'jun', 'jul', 'aug', 'sep', 'oct', 'nov', 'dec'];
 
 /** "What's new": the generated changelog, one group per release ("Updated to v1.5.0"), newest
  * first. A changelog from before releases were tracked falls back to one group per month. Closing
  * marks everything seen. */
 export function ChangelogDialog() {
   const ui = useUi();
+  const t = useT();
   const { entries, markAllSeen } = useChangelog();
+  const month = (d: Date) => t(`settings.changelog.month.${MONTHS[d.getMonth()]}` as MessageKey);
   const groups = useMemo(() => {
     const byRelease = entries.some((e) => e.version !== undefined);
     const out: { key: string; label: string; date: string | null; items: typeof entries }[] = [];
     for (const e of entries) {
       const d = new Date(e.mergedAt);
-      const key = byRelease ? (e.version ?? 'next') : `${MONTHS[d.getMonth()]} ${d.getFullYear()}`;
+      const key = byRelease ? (e.version ?? 'next') : `${month(d)} ${d.getFullYear()}`;
       const existing = out.find((g) => g.key === key);
       if (existing) {
         existing.items.push(e);
@@ -117,14 +122,14 @@ export function ChangelogDialog() {
       }
       out.push({
         key,
-        label: !byRelease ? key : e.version ? `Updated to ${e.version}` : 'Coming in the next update',
+        label: !byRelease ? key : e.version ? t('settings.changelog.updatedTo', { version: e.version }) : t('settings.changelog.next'),
         // Newest-first, so a group's first entry is its release date.
-        date: byRelease && e.version ? `${d.getDate()} ${MONTHS[d.getMonth()]} ${d.getFullYear()}` : null,
+        date: byRelease && e.version ? `${d.getDate()} ${month(d)} ${d.getFullYear()}` : null,
         items: [e],
       });
     }
     return out;
-  }, [entries]);
+  }, [entries, t]);
 
   const close = () => {
     markAllSeen();
@@ -132,8 +137,8 @@ export function ChangelogDialog() {
   };
 
   return (
-    <Dialog onClose={close} title="What's new" height="tall" gap={22}>
-      {groups.length === 0 && <span style={st('font:400 14px var(--font-ui);color:var(--muted)')}>Nothing to show yet.</span>}
+    <Dialog onClose={close} title={t('settings.changelog.title')} height="tall" gap={22}>
+      {groups.length === 0 && <span style={st('font:400 14px var(--font-ui);color:var(--muted)')}>{t('settings.changelog.empty')}</span>}
       {groups.map((g) => (
         <div key={g.key} style={st('display:flex;flex-direction:column;gap:8px')}>
           <span style={st('display:flex;align-items:baseline;gap:10px;flex-wrap:wrap')}>
@@ -161,6 +166,7 @@ export function ChangelogDialog() {
 /** "Played anything?": Steam playtime that rose since last time, with one-tap Mark Playing / Beaten. */
 export function PlaytimeDialog() {
   const ui = useUi();
+  const t = useT();
   const { games, ops } = useScope();
   const changeStatus = useChangeStatus();
   const { entries, markReviewed } = usePlaytimeReview(games);
@@ -171,11 +177,11 @@ export function PlaytimeDialog() {
   };
 
   return (
-    <Dialog onClose={close} bare padded={false} width={520} ariaLabel="Review played games">
+    <Dialog onClose={close} bare padded={false} width={520} ariaLabel={t('settings.playtime.aria')}>
       <div style={st('padding:22px 18px 18px;display:flex;flex-direction:column;gap:14px;overflow-y:auto')}>
         <div style={st('display:flex;flex-direction:column;gap:4px;padding:0 4px')}>
-          <span style={st('font:700 23px/1.1 var(--font-display);letter-spacing:-0.02em')}>Played anything?</span>
-          <span style={st('font:400 14px/1.45 var(--font-ui);color:var(--muted)')}>Steam says these picked up playtime since we last checked.</span>
+          <span style={st('font:700 23px/1.1 var(--font-display);letter-spacing:-0.02em')}>{t('settings.playtime.title')}</span>
+          <span style={st('font:400 14px/1.45 var(--font-ui);color:var(--muted)')}>{t('settings.playtime.intro')}</span>
         </div>
         <div style={st('display:flex;flex-direction:column;gap:6px')}>
           {entries.map(({ game, currentMinutes }) => {
@@ -187,7 +193,7 @@ export function PlaytimeDialog() {
                 <Cover title={game.title} url={game.coverImageUrl} width={38} radius={8} />
                 <span style={st('flex:1;min-width:0;display:flex;flex-direction:column;gap:2px')}>
                   <span style={st('font:600 14.5px var(--font-ui);white-space:nowrap;overflow:hidden;text-overflow:ellipsis')}>{game.title}</span>
-                  <span style={st('font:500 12px var(--font-mono);color:var(--muted)')}>{Math.round(currentMinutes / 60)}h played</span>
+                  <span style={st('font:500 12px var(--font-mono);color:var(--muted)')}>{t('settings.playtime.hours', { h: Math.round(currentMinutes / 60) })}</span>
                 </span>
                 <div style={st('display:flex;flex-direction:column;gap:6px;flex-shrink:0;align-items:flex-end')}>
                   {done ? (
@@ -195,13 +201,13 @@ export function PlaytimeDialog() {
                   ) : (
                     <>
                       {canPlay && (
-                        <Btn kind="text" height={32} padX={12} fontSize={12.5} weight={700} onClick={() => { ops.updateStatus(game.id, 'playing'); setSettled((s) => ({ ...s, [game.id]: 'Playing' })); }}>
-                          Mark Playing
+                        <Btn kind="text" height={32} padX={12} fontSize={12.5} weight={700} onClick={() => { ops.updateStatus(game.id, 'playing'); setSettled((s) => ({ ...s, [game.id]: statusLabel('playing') })); }}>
+                          {t('settings.playtime.markPlaying')}
                         </Btn>
                       )}
                       {canBeat && (
-                        <Btn kind="accent" height={32} padX={12} fontSize={12.5} weight={700} onClick={() => { changeStatus(game, 'done'); setSettled((s) => ({ ...s, [game.id]: 'Beaten' })); }}>
-                          Mark Beaten
+                        <Btn kind="accent" height={32} padX={12} fontSize={12.5} weight={700} onClick={() => { changeStatus(game, 'done'); setSettled((s) => ({ ...s, [game.id]: statusLabel('done') })); }}>
+                          {t('settings.playtime.markBeaten')}
                         </Btn>
                       )}
                     </>
@@ -212,7 +218,7 @@ export function PlaytimeDialog() {
           })}
         </div>
         <Btn height={48} fontSize={14.5} weight={700} style={{ background: 'var(--chip)', border: 'none' }} onClick={close}>
-          Got it
+          {t('settings.playtime.gotIt')}
         </Btn>
       </div>
     </Dialog>

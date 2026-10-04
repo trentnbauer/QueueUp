@@ -5,13 +5,15 @@ import { useIsMobile } from '../ui/useLayout';
 import { st } from '../ui/st';
 import { Footer } from '../shell/Footer';
 import { useVersion } from '../hooks/useVersion';
+import { useT } from '../i18n';
 
 /** Page chrome for everything that isn't the shelf/room home: back button, title, hint. */
-export function PageShell({ title, hint, backLabel = 'Back', to, children }: { title: string; hint?: string; backLabel?: string; to?: string; children: ReactNode }) {
+export function PageShell({ title, hint, backLabel, to, children }: { title: string; hint?: string; backLabel?: string; to?: string; children: ReactNode }) {
   const navigate = useNavigate();
   const ui = useUi();
   const mobile = useIsMobile();
   const { version } = useVersion();
+  const t = useT();
 
   return (
     <>
@@ -23,12 +25,12 @@ export function PageShell({ title, hint, backLabel = 'Back', to, children }: { t
             if (to) navigate(to);
             else navigate(-1);
           }}
-          aria-label="Back"
+          aria-label={t('common.back')}
           style={st('width:40px;height:40px;flex-shrink:0;border-radius:50%;border:1px solid var(--line);background:transparent;color:var(--text);font-size:20px;line-height:1;padding:0 0 2px')}
         >
           ‹
         </button>
-        <span style={st('font:600 14px var(--font-ui);color:var(--muted)')}>{backLabel}</span>
+        <span style={st('font:600 14px var(--font-ui);color:var(--muted)')}>{backLabel ?? t('common.back')}</span>
       </div>
       <div style={st('display:flex;flex-direction:column;gap:8px')}>
         <h1 style={st(`margin:0;font:700 ${mobile ? 34 : 44}px/1.05 var(--font-display);letter-spacing:-0.03em;text-wrap:balance`)}>{title}</h1>

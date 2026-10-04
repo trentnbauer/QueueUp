@@ -2,6 +2,7 @@ import type { CSSProperties, ReactNode } from 'react';
 import type { GameStatus } from '@queueup/shared';
 import { useNavigate } from 'react-router';
 import { st } from './st';
+import { t } from '../i18n';
 
 // ---------------------------------------------------------------------------------------------
 // Brand
@@ -130,7 +131,7 @@ function AvatarProfileLink({ userId, name, onOpen, children }: { userId: string;
   return (
     <button
       type="button"
-      aria-label={`View ${name}'s profile`}
+      aria-label={t('shell.avatar.viewProfile', { name })}
       onClick={(e) => {
         e.stopPropagation();
         onOpen?.();
@@ -199,8 +200,8 @@ export function TrophyBadge({ size = 20, style }: { size?: number; style?: CSSPr
   return (
     <span
       role="img"
-      aria-label="100% achievements"
-      title="100% achievements"
+      aria-label={t('shell.trophy.label')}
+      title={t('shell.trophy.label')}
       style={{
         position: 'absolute',
         right: -Math.round(size / 4),
@@ -237,13 +238,13 @@ export interface StatusOutline {
 }
 
 export function statusOutlineFor(status: GameStatus, recommend?: boolean | null): StatusOutline | null {
-  if (recommend === true) return { color: 'var(--mint)', emoji: '👍', label: 'Recommended' };
-  if (recommend === false) return { color: 'var(--danger)', emoji: '👎', label: "Don't recommend" };
-  if (status === 'done') return { color: 'var(--mint)', emoji: '✅', label: 'Beaten' };
-  if (status === 'replay') return { color: 'var(--mint)', emoji: '🔄', label: 'Replay' };
-  if (status === 'dropped') return { color: DROPPED, emoji: '🛑', label: 'Dropped' };
-  if (status === 'paused') return { color: 'var(--acc)', emoji: '⏸️', label: 'Paused' };
-  if (status === 'wont_play') return { color: 'var(--muted)', emoji: '🚫', label: "Won't Play" };
+  if (recommend === true) return { color: 'var(--mint)', emoji: '👍', label: t('shell.outline.recommended') };
+  if (recommend === false) return { color: 'var(--danger)', emoji: '👎', label: t('shell.outline.notRecommended') };
+  if (status === 'done') return { color: 'var(--mint)', emoji: '✅', label: t('shell.outline.done') };
+  if (status === 'replay') return { color: 'var(--mint)', emoji: '🔄', label: t('shell.outline.replay') };
+  if (status === 'dropped') return { color: DROPPED, emoji: '🛑', label: t('shell.outline.dropped') };
+  if (status === 'paused') return { color: 'var(--acc)', emoji: '⏸️', label: t('shell.outline.paused') };
+  if (status === 'wont_play') return { color: 'var(--muted)', emoji: '🚫', label: t('shell.outline.wontPlay') };
   return null;
 }
 
@@ -519,7 +520,7 @@ export function Banner({ kind = 'error', children, onDismiss }: { kind?: 'error'
         <button
           type="button"
           onClick={onDismiss}
-          aria-label="Dismiss"
+          aria-label={t('common.dismiss')}
           style={st('width:30px;height:30px;flex-shrink:0;border-radius:50%;border:none;background:transparent;color:var(--muted);font-size:17px;line-height:1;margin-top:-5px')}
         >
           ×
@@ -578,7 +579,7 @@ export function SearchField({
       {value && !disabled && (
         <button
           type="button"
-          aria-label="Clear search"
+          aria-label={t('shell.search.clear')}
           onClick={() => onChange('')}
           style={st('position:absolute;right:6px;top:50%;transform:translateY(-50%);width:32px;height:32px;border-radius:50%;border:none;background:var(--chip);color:var(--text2);font-size:16px;line-height:1')}
         >

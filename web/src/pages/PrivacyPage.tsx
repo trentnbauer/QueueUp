@@ -1,7 +1,8 @@
-import type { ReactNode } from 'react';
+import { Fragment, type ReactNode } from 'react';
 import { Link } from 'react-router';
 import { Wordmark } from '../ui/primitives';
 import { st } from '../ui/st';
+import { useT, type MessageKey } from '../i18n';
 
 const H2 = 'font:700 22px var(--font-display);letter-spacing:-0.02em;margin:0';
 const P = 'font:400 14.5px/1.6 var(--font-ui);color:var(--text2);margin:0;text-wrap:pretty';
@@ -28,9 +29,22 @@ function List({ items }: { items: ReactNode[] }) {
   );
 }
 
+/** A translated paragraph with its formatting: **bold**, `code`, and {placeholders} filled from
+ * `nodes` (e.g. a link). Keeps each sentence whole in the catalog, so it can be reordered. */
+function md(text: string, nodes: Record<string, ReactNode> = {}): ReactNode {
+  return text.split(/(\*\*[^*]+\*\*|`[^`]+`|\{\w+\})/g).map((part, i) => {
+    if (part.startsWith('**') && part.endsWith('**') && part.length > 4) return <b key={i}>{part.slice(2, -2)}</b>;
+    if (part.startsWith('`') && part.endsWith('`') && part.length > 2) return <code key={i}>{part.slice(1, -1)}</code>;
+    const name = /^\{(\w+)\}$/.exec(part)?.[1];
+    return <Fragment key={i}>{name && name in nodes ? nodes[name] : part}</Fragment>;
+  });
+}
+
 /** `/privacy`: what QueueUp stores about you and what is and isn't encrypted. Reachable signed out
  * (linked from the login page) and from Settings. */
 export function PrivacyPage({ signedIn }: { signedIn: boolean }) {
+  const t = useT();
+  const items = (...keys: MessageKey[]) => keys.map((k) => md(t(k)));
   return (
     <div style={st('min-height:100vh;background:var(--bg);color:var(--text)')}>
       <div style={st('max-width:760px;margin:0 auto;padding:0 clamp(16px,4vw,40px) 64px;display:flex;flex-direction:column;gap:32px')}>
@@ -39,194 +53,85 @@ export function PrivacyPage({ signedIn }: { signedIn: boolean }) {
             <Wordmark size={23} />
           </Link>
           <Link to="/" style={st('height:40px;padding:0 18px;border-radius:999px;border:1px solid var(--line);color:var(--text);font:600 13.5px var(--font-ui);display:flex;align-items:center;text-decoration:none')}>
-            {signedIn ? 'Back to QueueUp' : 'Sign in'}
+            {signedIn ? t('pages.common.backToQueueUp') : t('pages.common.signIn')}
           </Link>
         </div>
 
         <div style={st('display:flex;flex-direction:column;gap:10px')}>
-          <h1 style={st('font:700 clamp(30px,6vw,44px)/1.05 var(--font-display);letter-spacing:-0.03em;margin:0')}>Privacy policy</h1>
-          <p style={st(P)}>
-            QueueUp is self-hosted software. The person or group running this server (the operator) controls the database it
-            runs on and can access everything described below. This page describes what the software itself stores and protects;
-            how the server is hosted, backed up and secured beyond that is up to the operator.
-          </p>
+          <h1 style={st('font:700 clamp(30px,6vw,44px)/1.05 var(--font-display);letter-spacing:-0.03em;margin:0')}>{t('pages.privacy.title')}</h1>
+          <p style={st(P)}>{t('pages.privacy.intro')}</p>
         </div>
 
-        <Section title="What we collect and save">
+        <Section title={t('pages.privacy.collect.title')}>
           <List
-            items={[
-              <>
-                <b>Your account:</b> the identifier your sign-in provider gives us (Discord, Google, Steam or a custom OpenID
-                provider), your email address, display name and avatar, the date you joined, and any extra sign-in methods you link.
-                QueueUp never sees or stores a password; sign-in is handled by those providers. If you set a different email address
-                for alerts, that is stored too, along with a one-time confirmation link (kept only as a hash and valid for 24 hours)
-                until you confirm it. Changes to your account, such as linking a sign-in method or changing your name, are recorded
-                as notifications to you.
-              </>,
-              <>
-                <b>Your profile settings:</b> the systems you own, who can see your profile, an optional profile link name,
-                your currency choice, which alerts you want in the app and by email, and your friend code (and when it was issued: the
-                code and the link made from it are replaced every 3 hours).
-              </>,
-              <>
-                <b>Your library and activity:</b> the games on your Personal Shelf and in your rooms, their statuses, votes, reviews,
-                tags, which games you own and on what platform, your play journal (including the name of the room, if you marked a game
-                Beaten on your shelf after finishing it with a group), and playtime and achievement progress when you connect Steam or
-                Playnite. Prices of games on Steam are recorded over time and kept for a year; that history belongs to the game, not to
-                you. When you manually match an imported title to a game, your choice is remembered for you and also offered to other
-                people matching the same title, as "Matched by N others", without your name.
-              </>,
-              <>
-                <b>Social data:</b> friends and friend requests (anyone on the server can send you one), room memberships and roles,
-                room invite codes, "ask to play together" requests, emoji reactions to activity, and the activity feed and
-                notifications generated by all of the above. When you give a game a high review, friends who have that game on their
-                wishlist or backlog get a notification saying you rated it, unless the game is hidden from others.
-              </>,
-              <>
-                <b>Imports and keys:</b> your Steam ID if you link Steam, library data you import through Playnite, and the API keys
-                you create (see below for how those are stored).
-              </>,
-              <>
-                <b>Your session:</b> a cookie named <code>sq_session</code> keeps you signed in for up to 30 days. It is
-                HTTP-only, and the session itself is kept on the server.
-              </>,
-              <>
-                <b>Email alerts:</b> if the operator has set up email and you switch an alert type on in Settings, QueueUp sends the
-                text of those alerts to your email address (the alert address if you set one, otherwise your sign-in email). Nothing
-                is emailed until you opt in, and you can switch each type off at any time.
-              </>,
-              <>
-                <b>Server logs:</b> the server may log requests (such as the page requested, the response and your IP address), depending
-                on the operator's logging settings.
-              </>,
-            ]}
+            items={items(
+              'pages.privacy.collect.account',
+              'pages.privacy.collect.profile',
+              'pages.privacy.collect.library',
+              'pages.privacy.collect.social',
+              'pages.privacy.collect.imports',
+              'pages.privacy.collect.session',
+              'pages.privacy.collect.email',
+              'pages.privacy.collect.logs',
+            )}
           />
-          <p style={st(P)}>We do not run ads or analytics, and we do not sell your data.</p>
+          <p style={st(P)}>{t('pages.privacy.collect.noAds')}</p>
         </Section>
 
-        <Section title="What is encrypted, and what isn't">
+        <Section title={t('pages.privacy.encryption.title')}>
           <p style={st(P)}>
-            <b>Protected by QueueUp:</b>
+            <b>{t('pages.privacy.encryption.protected')}</b>
+          </p>
+          <List items={items('pages.privacy.encryption.credentials', 'pages.privacy.encryption.apiKeys', 'pages.privacy.encryption.cookie')} />
+          <p style={st(P)}>
+            <b>{t('pages.privacy.encryption.notProtected')}</b>
           </p>
           <List
-            items={[
-              <>
-                <b>Integration credentials</b> an admin enters in Settings (for example API keys, the tunnel token and the email server
-                password) are encrypted at
-                rest with AES-256-GCM, using a key derived from the server's <code>SESSION_SECRET</code>.
-              </>,
-              <>
-                <b>Your API keys</b> are stored only as a one-way SHA-256 hash. The real key is shown once when you create it and can't
-                be recovered afterwards.
-              </>,
-              <>
-                Your <b>session cookie</b> is HTTP-only and marked Secure whenever the site is served over HTTPS.
-              </>,
-            ]}
+            items={items(
+              'pages.privacy.encryption.everythingElse',
+              'pages.privacy.encryption.webhook',
+              'pages.privacy.encryption.sessions',
+              'pages.privacy.encryption.alertEmails',
+              'pages.privacy.encryption.transit',
+            )}
           />
-          <p style={st(P)}>
-            <b>Not encrypted by QueueUp:</b>
-          </p>
+        </Section>
+
+        <Section title={t('pages.privacy.visibility.title')}>
+          <List items={items('pages.privacy.visibility.others', 'pages.privacy.visibility.operator')} />
+        </Section>
+
+        <Section title={t('pages.privacy.services.title')}>
+          <p style={st(P)}>{t('pages.privacy.services.intro')}</p>
+          <List
+            items={items(
+              'pages.privacy.services.signIn',
+              'pages.privacy.services.data',
+              'pages.privacy.services.discord',
+              'pages.privacy.services.email',
+              'pages.privacy.services.other',
+            )}
+          />
+        </Section>
+
+        <Section title={t('pages.privacy.analytics.title')}>
+          <p style={st(P)}>{md(t('pages.privacy.analytics.intro'))}</p>
           <List
             items={[
-              <>
-                Everything else in the database is stored as ordinary readable data: your email and alert email, display name and avatar
-                link, your library, reviews, votes, friends, reactions, notifications and activity. Anyone with access to the database, or a copy of it, can read
-                it.
-              </>,
-              <>
-                A room's <b>Discord webhook URL</b> is stored as plain text (only the Room Master can see it in the app).
-              </>,
-              <>
-                <b>Sessions</b> are held in the server's Redis store unencrypted, and <b>database backups</b> contain all of the above;
-                only the encrypted admin credentials stay encrypted inside them.
-              </>,
-              <>
-                <b>Alert emails</b> travel over whatever the operator's mail server supports (QueueUp asks for an encrypted
-                connection where the server offers one) and are readable by that mail service and your own mailbox provider.
-              </>,
-              <>
-                <b>Encryption in transit</b> (HTTPS) is not provided by QueueUp itself. It depends on the operator putting the server
-                behind HTTPS, which they should always do. Disk-level encryption of the server is also the operator's responsibility.
-              </>,
+              ...items('pages.privacy.analytics.receives', 'pages.privacy.analytics.never', 'pages.privacy.analytics.cookies', 'pages.privacy.analytics.optOut'),
+              md(t('pages.privacy.analytics.handler'), {
+                link: (
+                  <a href="https://policies.google.com/privacy" target="_blank" rel="noopener noreferrer" style={{ color: 'var(--accText)' }}>
+                    {t('pages.privacy.analytics.googlePolicy')}
+                  </a>
+                ),
+              }),
             ]}
           />
         </Section>
 
-        <Section title="Who can see your data">
-          <List
-            items={[
-              <>
-                <b>Other members and the public:</b> room members see your display name and avatar, and what you add, vote on and
-                review in shared rooms. Friends see your activity, and can react to it with an emoji, which tells you who reacted. If your profile is public (it is by default), anyone with the link
-                can see your name, avatar, systems, achievements, and the games on your shelf that aren't hidden, including whether you
-                finished one with a group (not which room). You can limit it to friends or to just you in
-                Settings, and hide individual games. Your email address is not shown to other users or on your public profile.
-              </>,
-              <>
-                <b>The operator and admins</b> can see accounts, including email addresses, and can access the database.
-              </>,
-            ]}
-          />
-        </Section>
-
-        <Section title="Other services involved">
-          <p style={st(P)}>To do its job the server talks to a few outside services, and some of your data is sent to them:</p>
-          <List
-            items={[
-              'Your sign-in provider (Discord, Google, Steam or your organisation\'s OpenID provider) when you sign in or link an account.',
-              'IGDB (via Twitch) for game details, Steam for library, wishlist and playtime data, and GG.deals for prices. These receive game titles and ids, and the Steam ID you link.',
-              'Discord, only if a Room Master adds a webhook: room events are posted to that channel.',
-              'The operator\'s email server, only if email alerts are set up and you opt in: it receives your email address and the text of your alerts.',
-              'Cloudflare Turnstile, if the operator turns on the sign-in security check; Google Analytics, only if you choose to share usage stats (see below); YouTube (privacy-enhanced mode) when you play a trailer; and Google Fonts for the typefaces.',
-            ]}
-          />
-        </Section>
-
-        <Section title="Google Analytics">
-          <p style={st(P)}>
-            The operator of this server can connect Google Analytics to see which parts of QueueUp get used. It's off unless they set it up, and even
-            then nothing is sent for you until you say yes, either during setup or with <b>Share usage stats</b> in Settings → Sharing. Your answer
-            is kept in this browser, so a new browser or device asks again.
-          </p>
-          <List
-            items={[
-              <>
-                <b>What Google receives:</b> the pages you open, with room, profile and friend ids and invite and email-confirmation codes replaced
-                (for example <code>/room/:id</code>); the page title (always "QueueUp"); your browser, device type and screen size; and an approximate
-                location Google works out from your IP address.
-              </>,
-              'What it never receives: your name, email, games, rooms, votes, reviews or anything else you store in QueueUp.',
-              <>
-                <b>Cookies:</b> Google sets <code>_ga</code> and <code>_ga_…</code> cookies to tell return visits apart. They are only set after you
-                say yes.
-              </>,
-              <>
-                <b>Changing your mind:</b> turn <b>Share usage stats</b> off in Settings → Sharing. Sending stops straight away and QueueUp deletes
-                the <code>_ga</code> cookies from your browser.
-              </>,
-              <>
-                <b>Who handles it:</b> Google, under{' '}
-                <a href="https://policies.google.com/privacy" target="_blank" rel="noopener noreferrer" style={{ color: 'var(--accText)' }}>
-                  Google's privacy policy
-                </a>
-                . How long Google keeps the data is set by the operator in their Google Analytics account (2 months by default, at most 14).
-              </>,
-            ]}
-          />
-        </Section>
-
-        <Section title="Your choices">
-          <List
-            items={[
-              <>
-                <b>Download my data</b> and <b>Delete my account</b> are both in Settings. Deleting your account removes your data from
-                this server.
-              </>,
-              'You can revoke API keys, unlink sign-in methods, change or reset the email address for alerts, turn alerts on and off, remove your reactions, limit who can see your profile, turn usage stats on or off and hide games at any time.',
-              'To ask about anything else, contact the operator of this server.',
-            ]}
-          />
+        <Section title={t('pages.privacy.choices.title')}>
+          <List items={items('pages.privacy.choices.data', 'pages.privacy.choices.anytime', 'pages.privacy.choices.contact')} />
         </Section>
       </div>
     </div>

@@ -1,5 +1,6 @@
 import { slotSpinEnd, slotStopTimes, type SlotPlay, type SlotSpin } from '@queueup/shared';
 import { st } from '../../ui/st';
+import { t, useT } from '../../i18n';
 import { cubicBezier } from './RouletteMode';
 import { Counter, Cover, Stage, WIN_RING, type ModeProps } from './shared';
 
@@ -34,13 +35,14 @@ function reelPosition(spin: SlotSpin, i: number, now: number): { pos: number; fi
 
 function statusFor(spin: SlotSpin, title: (id: string) => string): string {
   const odd = spin.held.indexOf(false);
-  if (odd < 0 || !spin.held.some(Boolean)) return 'No match. Respinning all three.';
+  if (odd < 0 || !spin.held.some(Boolean)) return t('spin.slot.noMatch');
   const pairId = spin.reels[spin.held.indexOf(true)];
-  return `Pair of ${title(pairId)}. Holding and respinning the ${odd === 2 ? 'last' : odd === 0 ? 'first' : 'middle'} reel.`;
+  return t(odd === 2 ? 'spin.slot.pairLast' : odd === 0 ? 'spin.slot.pairFirst' : 'spin.slot.pairMiddle', { title: title(pairId) });
 }
 
 /** 1b Hold & respin slots: replays the server's precomputed spins. Pairs hold, the odd reel respins. */
 export function SlotMode({ play, games, now, mobile, settled }: ModeProps<SlotPlay>) {
+  const t = useT();
   const reelW = mobile ? 96 : 150;
   const reelH = mobile ? 172 : 250;
   const cellH = mobile ? 138 : 200;
@@ -59,7 +61,7 @@ export function SlotMode({ play, games, now, mobile, settled }: ModeProps<SlotPl
   const next = stopped && !lastSpin ? play.spins[idx + 1] : null;
   const prev = idx > 0 ? play.spins[idx - 1] : null;
 
-  const status = next ? statusFor(next, title) : idx === 0 ? 'Rolling…' : statusFor(spin, title);
+  const status = next ? statusFor(next, title) : idx === 0 ? t('spin.slot.rolling') : statusFor(spin, title);
   const done = stopped && lastSpin;
 
   const reels = [0, 1, 2].map((i) => {
@@ -88,7 +90,7 @@ export function SlotMode({ play, games, now, mobile, settled }: ModeProps<SlotPl
     return (
       <div
         key={i}
-        aria-label={moving ? `Reel ${i + 1} spinning` : `Reel ${i + 1}: ${title(spin.reels[i])}${held && !settled ? ', held' : ''}`}
+        aria-label={moving ? t('spin.slot.reelSpinning', { n: i + 1 }) : t(held && !settled ? 'spin.slot.reelHeld' : 'spin.slot.reel', { n: i + 1, title: title(spin.reels[i]) })}
         style={st(
           `position:relative;width:${reelW}px;height:${reelH}px;flex-shrink:0;border-radius:16px;overflow:hidden;background:var(--bg2);box-shadow:inset 0 0 0 1px var(--chip);transition:opacity .3s`,
           { opacity: settled && !won ? 0.35 : 1 },
@@ -111,7 +113,7 @@ export function SlotMode({ play, games, now, mobile, settled }: ModeProps<SlotPl
         />
         {held && !settled && (
           <span style={st('position:absolute;left:50%;bottom:3px;transform:translateX(-50%);height:18px;padding:0 8px;border-radius:999px;background:var(--acc);color:var(--ink);font:700 10px/18px var(--font-mono);letter-spacing:0.06em')}>
-            HELD
+            {t('spin.slot.held')}
           </span>
         )}
       </div>
@@ -122,8 +124,8 @@ export function SlotMode({ play, games, now, mobile, settled }: ModeProps<SlotPl
     <>
       <Stage height={mobile ? 268 : 372} style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: mobile ? 12 : 16 }}>
         <div style={st(`display:flex;gap:${mobile ? 8 : 12}px`)}>{reels}</div>
-        <div style={st('display:flex;align-items:center;gap:10px')} aria-label={`${idx} of ${play.respinLimit} respins used`}>
-          <span style={st('font:500 11px var(--font-mono);letter-spacing:0.06em;color:var(--faint)')}>RESPINS</span>
+        <div style={st('display:flex;align-items:center;gap:10px')} aria-label={t('spin.slot.respinsUsed', { n: idx, total: play.respinLimit })}>
+          <span style={st('font:500 11px var(--font-mono);letter-spacing:0.06em;color:var(--faint)')}>{t('spin.slot.respins')}</span>
           <div style={st('display:flex;gap:4px')}>
             {Array.from({ length: play.respinLimit }, (_, i) => (
               <span key={i} style={st(`width:${mobile ? 14 : 20}px;height:6px;border-radius:3px;transition:background .2s`, { background: i < idx ? 'var(--acc)' : 'var(--chip)' })} />
@@ -133,8 +135,8 @@ export function SlotMode({ play, games, now, mobile, settled }: ModeProps<SlotPl
       </Stage>
       {!settled && (
         <div style={st('margin-top:16px;display:flex;flex-direction:column;align-items:center;gap:6px;text-align:center')}>
-          <Counter>{idx === 0 ? 'FIRST PULL' : `RESPIN ${idx} OF ${play.respinLimit}`}</Counter>
-          <span style={st('font:500 14px var(--font-ui);color:var(--muted)')}>{done ? 'That settles it.' : status}</span>
+          <Counter>{idx === 0 ? t('spin.slot.firstPull') : t('spin.slot.respinOf', { n: idx, total: play.respinLimit })}</Counter>
+          <span style={st('font:500 14px var(--font-ui);color:var(--muted)')}>{done ? t('spin.slot.settled') : status}</span>
         </div>
       )}
     </>

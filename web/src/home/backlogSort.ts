@@ -1,15 +1,24 @@
 import { useSyncExternalStore } from 'react';
 import type { Game } from '@queueup/shared';
 import { gameScore, isNewRelease } from '../lib/gameView';
+import { t, type MessageKey } from '../i18n';
 
 /** Issue #798: how the Personal Shelf's Backlog is ordered. Several keys can be picked; the order
  * they were picked in is their priority (first key sorts, the next breaks its ties, and so on). */
 export type BacklogSortKey = 'want' | 'review' | 'release';
 
+const sortOption = (key: BacklogSortKey, labelKey: MessageKey) => ({
+  key,
+  get label() {
+    return t(labelKey);
+  },
+});
+
+/** The sort chips, with labels in the current language. */
 export const BACKLOG_SORT_OPTIONS: { key: BacklogSortKey; label: string }[] = [
-  { key: 'want', label: 'Want to play' },
-  { key: 'review', label: 'IGDB review score' },
-  { key: 'release', label: 'Release date' },
+  sortOption('want', 'home.sort.want'),
+  sortOption('review', 'home.sort.review'),
+  sortOption('release', 'home.sort.release'),
 ];
 
 export const DEFAULT_BACKLOG_SORT: BacklogSortKey[] = ['want'];

@@ -21,6 +21,7 @@ import {
   type ClawTry,
 } from '@queueup/shared';
 import { st } from '../../ui/st';
+import { useT } from '../../i18n';
 import { Counter, Cover, Hint, Pill, Roster, ScaledBoard, TimerBar, WIN_RING, nameOf, type ModeProps } from './shared';
 
 const REST_CABLE = 40;
@@ -98,6 +99,7 @@ function tryFrame(tr: ClawTry, t: number): ClawFrame {
  * replayed from its timestamp: drop, grip, then carry to the chute or slip. Three misses and the
  * machine takes pity on a weighted pick. */
 export function ClawMode({ play, games, members, me, now, act, settled }: ModeProps<ClawPlay>) {
+  const t = useT();
   const [sentFor, setSentFor] = useState(-1);
   const tries = play.tries;
   const last = tries[tries.length - 1];
@@ -134,8 +136,8 @@ export function ClawMode({ play, games, members, me, now, act, settled }: ModePr
   const toast =
     lastSlip && now >= lastSlip.at + CLAW_DOWN_MS + CLAW_CLOSE_MS + (lastSlip.item === null ? 0 : CLAW_SLIP_MS * 0.4) && now < lastEnd + CLAW_TURN_GAP_MS + CLAW_LEAD_MS
       ? lastSlip.item === null
-        ? 'Missed'
-        : 'Slipped!'
+        ? t('spin.claw.missed')
+        : t('spin.claw.slipped')
       : null;
   const finished = play.winnerId !== null && !animating;
   const actor = animating?.userId ?? turn;
@@ -149,7 +151,7 @@ export function ClawMode({ play, games, members, me, now, act, settled }: ModePr
             'position:absolute;left:14px;bottom:12px;width:96px;height:132px;border-radius:12px;border:2px dashed var(--line);display:flex;align-items:flex-start;justify-content:center;padding-top:10px;font:500 10.5px var(--font-mono);letter-spacing:0.08em;color:var(--faint)',
           )}
         >
-          CHUTE
+          {t('spin.claw.chute')}
         </div>
         {play.items.map((it, i) => {
           const moving = frame.item === i;
@@ -172,7 +174,7 @@ export function ClawMode({ play, games, members, me, now, act, settled }: ModePr
                 zIndex: moving ? 2 : undefined,
               }}
             >
-              <Pill style={{ position: 'absolute', top: 6, left: 6, height: 18, padding: '0 6px', background: 'oklch(0 0 0 / 0.5)' }}>{Math.round(play.grips[i] * 100)}% grip</Pill>
+              <Pill style={{ position: 'absolute', top: 6, left: 6, height: 18, padding: '0 6px', background: 'oklch(0 0 0 / 0.5)' }}>{t('spin.claw.grip', { n: Math.round(play.grips[i] * 100) })}</Pill>
             </Cover>
           );
         })}
@@ -186,17 +188,20 @@ export function ClawMode({ play, games, members, me, now, act, settled }: ModePr
           </div>
         </div>
         {toast && <span style={st('position:absolute;right:16px;top:30px;height:26px;padding:0 11px;border-radius:999px;background:var(--surf2);color:var(--text);font:600 12px/26px var(--font-ui)')}>{toast}</span>}
-        {myTurn && <button type="button" aria-label="Drop the claw here" onClick={dropNow} style={st('position:absolute;inset:0;border:none;background:transparent;cursor:pointer;z-index:4')} />}
+        {myTurn && <button type="button" aria-label={t('spin.claw.dropHere')} onClick={dropNow} style={st('position:absolute;inset:0;border:none;background:transparent;cursor:pointer;z-index:4')} />}
       </ScaledBoard>
       {!settled && (
         <div style={st('min-height:112px;margin-top:16px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:6px;text-align:center')}>
           {finished ? (
-            <span style={st('font:500 14px var(--font-ui);color:var(--muted)')}>{play.pity ? 'Three misses. The machine is taking pity…' : 'Got it!'}</span>
+            <span style={st('font:500 14px var(--font-ui);color:var(--muted)')}>{play.pity ? t('spin.claw.pity') : t('spin.claw.gotIt')}</span>
           ) : (
             <>
               <Counter>
-                Try {Math.min(CLAW_TRIES, animating ? tries.length : tries.length + 1)} of {CLAW_TRIES}
-                {actor ? ` · ${actor === me ? 'Your' : `${nameOf(members, actor)}'s`} turn` : ''}
+                {t(!actor ? 'spin.claw.try' : actor === me ? 'spin.claw.tryYourTurn' : 'spin.claw.tryTheirTurn', {
+                  n: Math.min(CLAW_TRIES, animating ? tries.length : tries.length + 1),
+                  total: CLAW_TRIES,
+                  name: actor ? nameOf(members, actor) : '',
+                })}
               </Counter>
               {sweeping && play.turnEndsAt !== null && <TimerBar from={play.turnStartedAt!} to={play.turnEndsAt} now={now} />}
               <Roster members={members} userIds={play.participants} active={actor} />
@@ -206,16 +211,18 @@ export function ClawMode({ play, games, members, me, now, act, settled }: ModePr
                   onClick={dropNow}
                   style={st('margin-top:4px;height:46px;padding:0 32px;border-radius:999px;border:none;background:var(--acc);color:var(--ink);font:800 15px var(--font-display);box-shadow:0 8px 24px var(--accA35);cursor:pointer')}
                 >
-                  Drop claw
+                  {t('spin.claw.drop')}
                 </button>
               ) : (
                 <Hint>
                   {animating
-                    ? `${animating.userId === me ? 'Your' : `${nameOf(members, animating.userId)}'s`} claw is dropping…`
+                    ? animating.userId === me
+                      ? t('spin.claw.yourDropping')
+                      : t('spin.claw.theirDropping', { name: nameOf(members, animating.userId) })
                     : actor === me
-                      ? 'Get ready…'
+                      ? t('spin.claw.getReady')
                       : actor
-                        ? `${nameOf(members, actor)} is lining up…`
+                        ? t('spin.claw.liningUp', { name: nameOf(members, actor) })
                         : ''}
                 </Hint>
               )}

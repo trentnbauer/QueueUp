@@ -20,7 +20,8 @@ import { useVersion } from '../hooks/useVersion';
 import { REVIEW_EMOJI, reviewAverage } from '../lib/gameView';
 import { Avatar, Btn, Cover, Wordmark, AppMark, inputPill } from '../ui/primitives';
 import { useIsMobile } from '../ui/useLayout';
-import { translate, useCyclingLanguage, useI18n } from '../i18n';
+import { rich, t as tr, translate, useCyclingLanguage, useI18n, useT } from '../i18n';
+import { reviewCategoryLabel } from '../i18n/labels';
 import type { MessageKey } from '../i18n';
 import { st } from '../ui/st';
 
@@ -68,6 +69,7 @@ type CaptchaStatus = 'checking' | 'interactive' | 'verified' | 'error';
  * Reports a token when solved and null when it expires or errors; it refreshes itself on expiry. */
 function TurnstileWidget({ siteKey, onToken }: { siteKey: string; onToken: (token: string | null) => void }) {
   const ref = useRef<HTMLDivElement>(null);
+  const t = useT();
   const [status, setStatus] = useState<CaptchaStatus>('checking');
   const [loadError, setLoadError] = useState(false);
   const onTokenRef = useRef(onToken);
@@ -122,15 +124,15 @@ function TurnstileWidget({ siteKey, onToken }: { siteKey: string; onToken: (toke
         )}
       >
         {failed ? (
-          loadError ? "The security check couldn't load. Check your connection or ad blocker, then reload." : 'The security check failed. Reload the page to try again.'
+          loadError ? t('pages.captcha.loadError') : t('pages.captcha.failed')
         ) : status === 'verified' ? (
-          <>✓ Verified, you're good to sign in</>
+          t('pages.captcha.verified')
         ) : status === 'interactive' ? (
-          'One quick check before you sign in'
+          t('pages.captcha.interactive')
         ) : (
           <>
             <span aria-hidden style={st('width:12px;height:12px;border-radius:50%;border:2px solid var(--line);border-top-color:var(--muted);animation:qu-spin 0.8s linear infinite')} />
-            Checking your browser…
+            {t('pages.captcha.checking')}
           </>
         )}
       </span>
@@ -225,6 +227,7 @@ export function JoinPage({ code }: { code: string }) {
   const navigate = useNavigate();
   const ui = useUi();
   const { joinRoom } = useRooms();
+  const t = useT();
   const [error, setError] = useState<string | null>(null);
   const [preview, setPreview] = useState<{ name: string; accentColor: string; memberCount: number } | null>(null);
   const [joining, setJoining] = useState(false);
@@ -233,7 +236,7 @@ export function JoinPage({ code }: { code: string }) {
     let dead = false;
     apiGet<{ room: { name: string; accentColor: string; memberCount: number } }>(`/api/rooms/invite/${encodeURIComponent(code)}`)
       .then(({ room }) => !dead && setPreview(room))
-      .catch(() => !dead && setError(`Couldn't join with ${code}`));
+      .catch(() => !dead && setError(tr('pages.join.error', { code })));
     return () => {
       dead = true;
     };
@@ -245,9 +248,9 @@ export function JoinPage({ code }: { code: string }) {
       .mutateAsync({ inviteCode: code })
       .then(({ room }) => {
         navigate(`/room/${room.id}`, { replace: true });
-        ui.notify(`Joined ${room.name}`);
+        ui.notify(tr('pages.join.joined', { room: room.name }));
       })
-      .catch(() => setError(`Couldn't join with ${code}`))
+      .catch(() => setError(tr('pages.join.error', { code })))
       .finally(() => setJoining(false));
   }
 
@@ -258,17 +261,17 @@ export function JoinPage({ code }: { code: string }) {
           <span style={st('width:44px;height:44px;border-radius:50%;border:4px solid var(--chip);border-top-color:var(--acc);animation:qu-spin .9s linear infinite')} />
         ) : (
           <>
-            <span style={st('font:600 12px var(--font-mono);letter-spacing:0.08em;color:var(--muted)')}>YOU'RE INVITED TO</span>
+            <span style={st('font:600 12px var(--font-mono);letter-spacing:0.08em;color:var(--muted)')}>{t('pages.join.invitedTo')}</span>
             <span style={st(`font:700 30px/1.05 var(--font-display);letter-spacing:-0.02em;color:${preview.accentColor}`)}>{preview.name}</span>
             <span style={st('font:400 14px/1.45 var(--font-ui);color:var(--muted)')}>
-              {preview.memberCount} member{preview.memberCount === 1 ? '' : 's'}. Members can see your systems and what you play in this room.
+              {t(preview.memberCount === 1 ? 'pages.join.members.one' : 'pages.join.members.other', { n: preview.memberCount })}
             </span>
             <div style={st('display:flex;gap:10px;margin-top:6px')}>
               <Btn height={48} padX={22} fontSize={14.5} onClick={() => navigate('/', { replace: true })}>
-                Not now
+                {t('common.notNow')}
               </Btn>
               <Btn kind="accent" height={48} padX={26} fontSize={14.5} disabled={joining} onClick={join}>
-                {joining ? 'Joining…' : 'Join room'}
+                {joining ? t('pages.join.joining') : t('pages.join.join')}
               </Btn>
             </div>
           </>
@@ -279,11 +282,11 @@ export function JoinPage({ code }: { code: string }) {
             <span style={st('flex-shrink:0;width:20px;height:20px;border-radius:50%;background:var(--errBadge);color:#fff;display:flex;align-items:center;justify-content:center;font:700 12px var(--font-ui);margin-top:1px')}>!</span>
             <span style={st('flex:1;min-width:0;display:flex;flex-direction:column;gap:3px')}>
               <span style={st('font:600 14.5px var(--font-ui)')}>{error}</span>
-              <span style={st('font:400 13.5px/1.45 var(--font-ui);color:var(--text2)')}>This invite link is invalid or has expired. Ask whoever sent it for a fresh one.</span>
+              <span style={st('font:400 13.5px/1.45 var(--font-ui);color:var(--text2)')}>{t('pages.join.invalid')}</span>
             </span>
           </div>
           <Btn height={48} padX={22} fontSize={14.5} onClick={() => navigate('/', { replace: true })}>
-            Back to your shelf
+            {t('pages.join.backToShelf')}
           </Btn>
         </>
       )}
@@ -307,14 +310,15 @@ function profileCardGridStyle(mobile: boolean): string {
 }
 
 function BothOwnBadge({ small = false }: { small?: boolean }) {
+  const t = useT();
   return (
     <span
-      title="You both own this - you can play it together"
+      title={t('pages.profile.bothOwnThis')}
       style={st(
         `position:absolute;left:${small ? 6 : 8}px;bottom:${small ? 6 : 8}px;max-width:calc(100% - ${small ? 12 : 16}px);height:${small ? 20 : 24}px;padding:0 ${small ? 7 : 9}px;border-radius:999px;background:var(--mint);color:var(--ink);font:700 ${small ? 10.5 : 11.5}px var(--font-ui);display:flex;align-items:center;gap:4px;white-space:nowrap;overflow:hidden;box-shadow:0 2px 8px oklch(0 0 0 / 0.35)`,
       )}
     >
-      You both own
+      {t('pages.profile.bothOwnBadge')}
     </span>
   );
 }
@@ -355,6 +359,7 @@ function ProfileGameDialog({
   onClose: () => void;
 }) {
   const ui = useUi();
+  const t = useT();
   const queryClient = useQueryClient();
   const [busy, setBusy] = useState(false);
   async function addToWishlist() {
@@ -362,10 +367,10 @@ function ProfileGameDialog({
     try {
       await gamesApi.create({ igdbId: game.igdbId, status: 'wishlist' });
       void queryClient.invalidateQueries({ queryKey: ['games', 'shelf'] });
-      ui.notify(`${game.title} added to your wishlist`);
+      ui.notify(tr('pages.profile.addedToWishlist', { title: game.title }));
       onAdded();
     } catch (e) {
-      ui.notify(e instanceof Error ? e.message : 'Could not add that game');
+      ui.notify(e instanceof Error ? e.message : tr('pages.profile.addFailed'));
     } finally {
       setBusy(false);
     }
@@ -376,9 +381,9 @@ function ProfileGameDialog({
     try {
       await playTogetherApi.ask(ownerId, game.igdbId);
       setAsked(true);
-      ui.notify(`Asked ${ownerName} to play ${game.title} together`);
+      ui.notify(tr('pages.profile.askedToPlay', { name: ownerName, title: game.title }));
     } catch (e) {
-      ui.notify(e instanceof Error ? e.message : 'Could not send that request');
+      ui.notify(e instanceof Error ? e.message : tr('pages.profile.askFailed'));
     } finally {
       setBusy(false);
     }
@@ -392,21 +397,21 @@ function ProfileGameDialog({
         </div>
         <div style={st('flex:1;min-width:0;display:flex;flex-direction:column;gap:10px')}>
           <span style={st('font:400 13px var(--font-ui);color:var(--muted)')}>{game.platform}</span>
-          {game.bothOwn && <span style={st('font:600 12.5px var(--font-ui);color:var(--mint)')}>You both own this - you can play it together</span>}
+          {game.bothOwn && <span style={st('font:600 12.5px var(--font-ui);color:var(--mint)')}>{t('pages.profile.bothOwnThis')}</span>}
           {game.bothOwn && canAdd && (
             <Btn kind="soft" disabled={busy || asked} onClick={askToPlay}>
-              {asked ? '✓ Asked to play together' : 'Ask to play together'}
+              {asked ? t('pages.profile.askedDone') : t('pages.profile.askToPlay')}
             </Btn>
           )}
           {canAdd &&
             (have ? (
-              <span style={st('font:600 13px var(--font-ui);color:var(--muted)')}>{added ? '✓ Added to your wishlist' : '✓ Already on your shelf'}</span>
+              <span style={st('font:600 13px var(--font-ui);color:var(--muted)')}>{added ? t('pages.profile.addedDone') : t('pages.profile.alreadyOnShelf')}</span>
             ) : (
               <Btn kind="soft" disabled={busy} onClick={addToWishlist}>
-                Add to wishlist
+                {t('pages.profile.addToWishlist')}
               </Btn>
             ))}
-          {!canAdd && <span style={st('font:400 13px var(--font-ui);color:var(--muted)')}>On {ownerName}'s shelf.</span>}
+          {!canAdd && <span style={st('font:400 13px var(--font-ui);color:var(--muted)')}>{t('pages.profile.onShelf', { name: ownerName })}</span>}
         </div>
       </div>
     </Dialog>
@@ -422,6 +427,7 @@ function ProfileFriendAction({ profile }: { profile: PublicUserProfile }) {
 }
 
 export function PublicProfilePage({ userId, signedIn }: { userId: string; signedIn: boolean }) {
+  const t = useT();
   const [profile, setProfile] = useState<PublicUserProfile | null>(null);
   const [state, setState] = useState<'loading' | 'ok' | 'missing'>('loading');
   const [modal, setModal] = useState<'achievements' | 'library' | 'bothOwn' | null>(null);
@@ -474,7 +480,7 @@ export function PublicProfilePage({ userId, signedIn }: { userId: string; signed
             </Link>
             {signedIn && state === 'ok' && profile?.viewer === 'public' && <ProfileFriendAction profile={profile} />}
             <Link to="/" style={st('height:40px;padding:0 18px;border-radius:999px;border:1px solid var(--line);color:var(--text);font:600 13.5px var(--font-ui);display:flex;align-items:center;text-decoration:none')}>
-              {signedIn ? 'Open QueueUp' : 'Sign in'}
+              {signedIn ? t('pages.profile.openQueueUp') : t('pages.common.signIn')}
             </Link>
           </div>
           {state === 'ok' && profile && (
@@ -484,7 +490,7 @@ export function PublicProfilePage({ userId, signedIn }: { userId: string; signed
                 <span style={st('display:flex;flex-direction:column;gap:6px;min-width:0')}>
                   <span style={st('font:700 clamp(30px,6vw,48px)/1 var(--font-display);letter-spacing:-0.035em;overflow-wrap:anywhere')}>{profile.displayName}</span>
                   <span style={st('font:400 14.5px var(--font-ui);color:var(--muted)')}>
-                    On QueueUp since {new Date(profile.memberSince).toLocaleDateString(undefined, { month: 'long', year: 'numeric' })}
+                    {t('pages.profile.since', { date: new Date(profile.memberSince).toLocaleDateString(undefined, { month: 'long', year: 'numeric' }) })}
                   </span>
                   {profile.systems.length > 0 && (
                     <span style={st('display:flex;flex-wrap:wrap;gap:6px;margin-top:6px')}>
@@ -498,26 +504,26 @@ export function PublicProfilePage({ userId, signedIn }: { userId: string; signed
                 </span>
               </div>
               <div style={st('display:flex;gap:10px;flex-wrap:wrap')}>
-                {tile(profile.currentlyPlaying.length, 'playing', scrollTo(playingRef), '↓')}
-                {tile(profile.beatenGameCount, 'played', scrollTo(beatenRef), '↓')}
-                {profile.beatenGames.some((g) => g.review?.recommend) && tile(profile.beatenGames.filter((g) => g.review?.recommend).length, '👍 recommended', scrollTo(beatenRef), '↓')}
-                {tile(profile.library.length, 'library', () => setModal('library'), '›')}
-                {profile.bothOwn.length > 0 && tile(profile.bothOwn.length, 'you both own', () => setModal('bothOwn'), '›')}
-                {tile(profile.badges.length, 'achievements', () => setModal('achievements'), '›')}
+                {tile(profile.currentlyPlaying.length, t('pages.profile.tile.playing'), scrollTo(playingRef), '↓')}
+                {tile(profile.beatenGameCount, t('pages.profile.tile.played'), scrollTo(beatenRef), '↓')}
+                {profile.beatenGames.some((g) => g.review?.recommend) && tile(profile.beatenGames.filter((g) => g.review?.recommend).length, t('pages.profile.tile.recommended'), scrollTo(beatenRef), '↓')}
+                {tile(profile.library.length, t('pages.profile.tile.library'), () => setModal('library'), '›')}
+                {profile.bothOwn.length > 0 && tile(profile.bothOwn.length, t('pages.profile.tile.bothOwn'), () => setModal('bothOwn'), '›')}
+                {tile(profile.badges.length, t('pages.profile.tile.achievements'), () => setModal('achievements'), '›')}
               </div>
             </div>
           )}
         </div>
       </div>
 
-      {state === 'loading' && <div style={st('padding:48px 24px;text-align:center;color:var(--muted)')}>Loading…</div>}
-      {state === 'missing' && <div style={st('padding:48px 24px;text-align:center;color:var(--muted)')}>This profile isn't public, or doesn't exist.</div>}
+      {state === 'loading' && <div style={st('padding:48px 24px;text-align:center;color:var(--muted)')}>{t('common.loading')}</div>}
+      {state === 'missing' && <div style={st('padding:48px 24px;text-align:center;color:var(--muted)')}>{t('pages.profile.missing')}</div>}
 
       {state === 'ok' && profile && (
         <div style={st('max-width:1120px;margin:0 auto;padding:32px clamp(16px,4vw,40px) 56px;display:flex;flex-direction:column;gap:40px')}>
           <div ref={playingRef} style={st('display:flex;flex-direction:column;gap:14px;scroll-margin-top:16px')}>
-            <span style={st('font:700 26px var(--font-display);letter-spacing:-0.02em')}>Currently playing</span>
-            {profile.currentlyPlaying.length === 0 && <span style={st('font:400 14px var(--font-ui);color:var(--muted)')}>Nothing right now.</span>}
+            <span style={st('font:700 26px var(--font-display);letter-spacing:-0.02em')}>{t('pages.profile.currentlyPlaying')}</span>
+            {profile.currentlyPlaying.length === 0 && <span style={st('font:400 14px var(--font-ui);color:var(--muted)')}>{t('pages.profile.nothingNow')}</span>}
             <div style={st('display:flex;gap:14px;overflow-x:auto;scroll-snap-type:x proximity;padding-bottom:10px;-webkit-overflow-scrolling:touch')}>
               {bothOwnFirst(profile.currentlyPlaying).map((g) => (
                 <div key={g.id} {...cardProps(() => setCardGame(g))} style={st(CARD_CURSOR + 'flex:0 0 auto;width:min(44vw,180px);scroll-snap-align:start;display:flex;flex-direction:column;gap:8px')}>
@@ -535,7 +541,7 @@ export function PublicProfilePage({ userId, signedIn }: { userId: string; signed
           {profile.wishlist.length > 0 && (
             <div style={st('display:flex;flex-direction:column;gap:12px')}>
               <span style={st('display:flex;align-items:baseline;gap:10px')}>
-                <span style={st('font:700 20px var(--font-display)')}>Wishlist</span>
+                <span style={st('font:700 20px var(--font-display)')}>{t('pages.profile.wishlist')}</span>
                 <span style={st('font:500 11.5px var(--font-mono);color:var(--muted)')}>{profile.wishlist.length}</span>
               </span>
               <div style={st(profileCardGridStyle(mobile))}>
@@ -551,7 +557,7 @@ export function PublicProfilePage({ userId, signedIn }: { userId: string; signed
 
           {profile.upNext.length > 0 && (
             <div style={st('display:flex;flex-direction:column;gap:12px')}>
-              <span style={st('font:700 20px var(--font-display)')}>Up next</span>
+              <span style={st('font:700 20px var(--font-display)')}>{t('pages.profile.upNext')}</span>
               <div style={st(profileCardGridStyle(mobile))}>
                 {bothOwnFirst(profile.upNext).map((g) => (
                   <div key={g.id} {...cardProps(() => setCardGame(g))} style={st(CARD_CURSOR + 'min-width:0;scroll-snap-align:start;display:flex;flex-direction:column;gap:6px')}>
@@ -572,16 +578,16 @@ export function PublicProfilePage({ userId, signedIn }: { userId: string; signed
           <div ref={beatenRef} style={st('display:flex;flex-direction:column;gap:10px;scroll-margin-top:16px')}>
             <span style={st('display:flex;flex-direction:column;gap:2px')}>
               <span style={st('display:flex;align-items:baseline;gap:10px')}>
-                <span style={st('font:700 16px var(--font-display)')}>Played</span>
+                <span style={st('font:700 16px var(--font-display)')}>{t('pages.profile.played')}</span>
                 <span style={st('font:500 11.5px var(--font-mono);color:var(--muted)')}>{profile.beatenGameCount}</span>
               </span>
               {profile.fullyCompletedCount > 0 && (
                 <span style={st('font:500 12.5px var(--font-ui);color:var(--muted)')}>
-                  🏆 100% Games: <span style={st('font-weight:700;color:var(--text)')}>{profile.fullyCompletedCount}</span>
+                  {rich(t('pages.profile.fullyCompleted'), { n: <span style={st('font-weight:700;color:var(--text)')}>{profile.fullyCompletedCount}</span> })}
                 </span>
               )}
             </span>
-            {profile.beatenGames.length === 0 && <span style={st('font:400 14px var(--font-ui);color:var(--muted)')}>Nothing played yet.</span>}
+            {profile.beatenGames.length === 0 && <span style={st('font:400 14px var(--font-ui);color:var(--muted)')}>{t('pages.profile.nothingPlayed')}</span>}
             <div style={st('display:grid;grid-template-columns:repeat(auto-fill,minmax(min(100%,230px),1fr));gap:6px')}>
               {profile.beatenGames.map((g) => {
                 const avg = g.review ? reviewAverage(g.review) : null;
@@ -595,10 +601,10 @@ export function PublicProfilePage({ userId, signedIn }: { userId: string; signed
                   >
                     <Cover title={g.title} url={g.coverImageUrl} width={30} radius={6} completed={g.fullyCompleted} status={g.dropped ? 'dropped' : g.replaying ? 'replay' : 'done'} recommend={g.review?.recommend} />
                     <span style={st('flex:1;min-width:0;font:600 13px var(--font-ui);white-space:nowrap;overflow:hidden;text-overflow:ellipsis')}>{g.title}</span>
-                    {g.inGroup && <span title="Beaten as part of a group" aria-label="Beaten as part of a group" style={st('flex-shrink:0;font-size:14px;line-height:1')}>👥</span>}
+                    {g.inGroup && <span title={t('pages.profile.inGroup')} aria-label={t('pages.profile.inGroup')} style={st('flex-shrink:0;font-size:14px;line-height:1')}>👥</span>}
                     {avg !== null && <span style={st('flex-shrink:0;font:700 12px var(--font-display);color:var(--accText)')}>{avg.toFixed(1)} / 5</span>}
                     {g.review?.recommend != null && (
-                      <span role="img" aria-label={g.review.recommend ? 'Recommends it' : "Doesn't recommend it"} title={g.review.recommend ? 'Recommends it' : "Doesn't recommend it"} style={st('flex-shrink:0;font-size:14px;line-height:1')}>
+                      <span role="img" aria-label={g.review.recommend ? t('pages.profile.recommends') : t('pages.profile.doesntRecommend')} title={g.review.recommend ? t('pages.profile.recommends') : t('pages.profile.doesntRecommend')} style={st('flex-shrink:0;font-size:14px;line-height:1')}>
                         {g.review.recommend ? '👍' : '👎'}
                       </span>
                     )}
@@ -612,10 +618,10 @@ export function PublicProfilePage({ userId, signedIn }: { userId: string; signed
 
           {!signedIn && (
             <div style={st('display:flex;flex-direction:column;align-items:flex-start;gap:10px;padding:22px;border-radius:22px;background:linear-gradient(140deg, var(--hero1), var(--surf));max-width:420px')}>
-              <span style={st('font:700 20px var(--font-display)')}>Pick a game, together.</span>
-              <span style={st('font:400 13.5px/1.45 var(--font-ui);color:var(--muted)')}>Track your backlog and vote on what's next with friends.</span>
+              <span style={st('font:700 20px var(--font-display)')}>{t('pages.profile.ctaTitle')}</span>
+              <span style={st('font:400 13.5px/1.45 var(--font-ui);color:var(--muted)')}>{t('pages.profile.ctaBody')}</span>
               <Link to="/" style={st('height:44px;padding:0 20px;border-radius:999px;background:var(--acc);color:var(--ink);font:700 14px var(--font-ui);display:flex;align-items:center;text-decoration:none')}>
-                Get QueueUp
+                {t('pages.profile.getQueueUp')}
               </Link>
             </div>
           )}
@@ -630,9 +636,9 @@ export function PublicProfilePage({ userId, signedIn }: { userId: string; signed
               <span style={st('font:400 13px var(--font-ui);color:var(--muted)')}>
                 {[
                   openGame.genre?.split(',')[0],
-                  openGame.dropped ? 'Dropped' : openGame.replaying ? 'Replaying' : 'Beaten',
-                  openGame.inGroup ? '👥 With a group' : null,
-                  openGame.review?.recommend === true ? '👍 Recommends it' : openGame.review?.recommend === false ? "👎 Doesn't recommend it" : null,
+                  openGame.dropped ? t('pages.profile.meta.dropped') : openGame.replaying ? t('pages.profile.meta.replaying') : t('pages.profile.meta.beaten'),
+                  openGame.inGroup ? t('pages.profile.meta.withGroup') : null,
+                  openGame.review?.recommend === true ? t('pages.profile.meta.recommends') : openGame.review?.recommend === false ? t('pages.profile.meta.doesntRecommend') : null,
                 ]
                   .filter(Boolean)
                   .join(' · ')}
@@ -641,12 +647,12 @@ export function PublicProfilePage({ userId, signedIn }: { userId: string; signed
                 <>
                   <span style={st('display:flex;align-items:baseline;gap:8px')}>
                     <span style={st('font:700 30px/1 var(--font-display);color:var(--accText)')}>{(reviewAverage(openGame.review) ?? 0).toFixed(1)}</span>
-                    <span style={st('font:500 13px var(--font-ui);color:var(--muted)')}>/ 5 total score</span>
+                    <span style={st('font:500 13px var(--font-ui);color:var(--muted)')}>{t('pages.profile.totalScore')}</span>
                   </span>
                   <div style={st('display:flex;flex-direction:column;gap:4px')}>
                     {REVIEW_CATEGORIES.filter((c) => openGame.review![c.key]).map((c) => (
                       <span key={c.key} style={st('display:flex;align-items:center;gap:8px;font:500 13px var(--font-ui)')}>
-                        <span style={st('width:92px;color:var(--muted)')}>{c.label}</span>
+                        <span style={st('width:92px;color:var(--muted)')}>{reviewCategoryLabel(c.key)}</span>
                         <span style={st('font-size:16px')}>{REVIEW_EMOJI[openGame.review![c.key] as number]?.e}</span>
                         <span style={st('color:var(--text2)')}>{openGame.review![c.key]} / 5</span>
                       </span>
@@ -654,21 +660,21 @@ export function PublicProfilePage({ userId, signedIn }: { userId: string; signed
                   </div>
                 </>
               ) : (
-                <span style={st('font:400 14px var(--font-ui);color:var(--muted)')}>{profile.displayName} hasn't reviewed this one.</span>
+                <span style={st('font:400 14px var(--font-ui);color:var(--muted)')}>{t('pages.profile.notReviewed', { name: profile.displayName })}</span>
               )}
             </div>
           </div>
           {openGame.review?.note && (
             <div style={st('padding:14px 16px;border-radius:14px;background:var(--surf);display:flex;flex-direction:column;gap:6px')}>
-              <span style={st('font:600 12px var(--font-ui);color:var(--muted)')}>{profile.displayName.toUpperCase()} SAYS</span>
+              <span style={st('font:600 12px var(--font-ui);color:var(--muted)')}>{t('pages.profile.says', { name: profile.displayName.toUpperCase() })}</span>
               <span style={st('font:italic 400 14px/1.5 var(--font-ui);color:var(--text2);text-wrap:pretty')}>“{openGame.review.note}”</span>
             </div>
           )}
         </Dialog>
       )}
       {modal === 'achievements' && profile && (
-        <Dialog title="Achievements" onClose={() => setModal(null)} width={560}>
-          {profile.badges.length === 0 && <span style={st('font:400 14px var(--font-ui);color:var(--muted)')}>No achievements unlocked yet.</span>}
+        <Dialog title={t('pages.profile.achievements')} onClose={() => setModal(null)} width={560}>
+          {profile.badges.length === 0 && <span style={st('font:400 14px var(--font-ui);color:var(--muted)')}>{t('pages.profile.noAchievements')}</span>}
           {profile.badges.map((b) => (
             <div key={b.key} style={st('display:flex;align-items:center;gap:14px;padding:10px 12px;border-radius:16px;background:var(--surf)')}>
               <span style={st('font-size:28px')}>{b.emoji}</span>
@@ -678,15 +684,15 @@ export function PublicProfilePage({ userId, signedIn }: { userId: string; signed
               </span>
               <span style={st('flex-shrink:0;text-align:right;display:flex;flex-direction:column')}>
                 <span style={st('font:700 15px var(--font-display);color:var(--accText)')}>{b.rarityPercent}%</span>
-                <span style={st('font:400 11px var(--font-ui);color:var(--muted)')}>of players</span>
+                <span style={st('font:400 11px var(--font-ui);color:var(--muted)')}>{t('pages.profile.ofPlayers')}</span>
               </span>
             </div>
           ))}
         </Dialog>
       )}
       {modal === 'bothOwn' && profile && (
-        <Dialog title={`You both own · ${profile.bothOwn.length}`} onClose={() => setModal(null)} width={640}>
-          <span style={st('font:400 13.5px var(--font-ui);color:var(--muted)')}>You and {profile.displayName} can play these together.</span>
+        <Dialog title={t('pages.profile.bothOwnTitle', { n: profile.bothOwn.length })} onClose={() => setModal(null)} width={640}>
+          <span style={st('font:400 13.5px var(--font-ui);color:var(--muted)')}>{t('pages.profile.bothOwnHint', { name: profile.displayName })}</span>
           <SearchableGameGrid games={profile.bothOwn} onOpen={setCardGame} />
         </Dialog>
       )}
@@ -702,9 +708,9 @@ export function PublicProfilePage({ userId, signedIn }: { userId: string; signed
         />
       )}
       {modal === 'library' && profile && (
-        <Dialog title={`Library · ${profile.library.length}`} onClose={() => setModal(null)} width={640}>
+        <Dialog title={t('pages.profile.libraryTitle', { n: profile.library.length })} onClose={() => setModal(null)} width={640}>
           {profile.library.length === 0 ? (
-            <span style={st('font:400 14px var(--font-ui);color:var(--muted)')}>No games marked as owned yet.</span>
+            <span style={st('font:400 14px var(--font-ui);color:var(--muted)')}>{t('pages.profile.noOwned')}</span>
           ) : (
             <SearchableGameGrid games={profile.library} onOpen={setCardGame} />
           )}
@@ -723,6 +729,7 @@ function searchKey(text: string): string {
 
 /** A profile game grid (library, you both own) with a search box over it. */
 function SearchableGameGrid({ games, onOpen }: { games: PublicProfileGame[]; onOpen: (g: PublicProfileGame) => void }) {
+  const t = useT();
   const [query, setQuery] = useState('');
   const words = query.trim().split(/\s+/).map(searchKey).filter(Boolean);
   const shown = words.length === 0 ? games : games.filter((g) => {
@@ -735,11 +742,11 @@ function SearchableGameGrid({ games, onOpen }: { games: PublicProfileGame[]; onO
         type="search"
         value={query}
         onChange={(e) => setQuery(e.target.value)}
-        placeholder={`Search ${games.length} game${games.length === 1 ? '' : 's'}`}
-        aria-label="Search games"
+        placeholder={t(games.length === 1 ? 'pages.profile.searchGames.one' : 'pages.profile.searchGames.other', { n: games.length })}
+        aria-label={t('pages.profile.searchAria')}
         style={st(inputPill)}
       />
-      {shown.length === 0 && <span style={st('font:400 14px var(--font-ui);color:var(--muted)')}>No games match "{query.trim()}".</span>}
+      {shown.length === 0 && <span style={st('font:400 14px var(--font-ui);color:var(--muted)')}>{t('pages.profile.noMatch', { query: query.trim() })}</span>}
       <div style={st('display:grid;grid-template-columns:repeat(auto-fill,minmax(100px,1fr));gap:12px')}>
         {shown.map((g) => (
           <div key={g.id} {...cardProps(() => onOpen(g))} style={st(CARD_CURSOR + 'min-width:0;display:flex;flex-direction:column;gap:5px')}>
@@ -761,6 +768,7 @@ function FriendExtras({ profile }: { profile: PublicUserProfile }) {
   const navigate = useNavigate();
   const confirm = useConfirm();
   const ui = useUi();
+  const t = useT();
   const friends = useFriends();
   const { data } = useFriendProfile(profile.userId);
   const [filter, setFilter] = useState<FeedFilter>('all');
@@ -768,30 +776,33 @@ function FriendExtras({ profile }: { profile: PublicUserProfile }) {
 
   async function remove() {
     const ok = await confirm({
-      title: `Remove ${profile.displayName}?`,
-      message: "They won't see your activity and you won't see theirs. You can add each other again with a friend code.",
-      confirmLabel: 'Remove friend',
+      title: t('pages.profile.removeTitle', { name: profile.displayName }),
+      message: t('pages.profile.removeMessage'),
+      confirmLabel: t('pages.profile.removeFriend'),
       danger: true,
     });
     if (!ok) return;
     await friends.unfriend(profile.userId);
-    ui.notify(`${profile.displayName} removed`);
+    ui.notify(t('pages.profile.removed', { name: profile.displayName }));
     navigate('/activity');
   }
 
   return (
     <div style={st('display:flex;flex-direction:column;gap:12px')}>
-      <span style={st('font:700 20px var(--font-display)')}>Activity</span>
+      <span style={st('font:700 20px var(--font-display)')}>{t('pages.profile.activity')}</span>
       {data && (
         <span style={st('font:400 13px var(--font-ui);color:var(--muted)')}>
-          Friends since {new Date(data.since).toLocaleDateString(undefined, { month: 'short', year: 'numeric' })} · {data.sharedRoomCount} shared room{data.sharedRoomCount === 1 ? '' : 's'}
+          {t(data.sharedRoomCount === 1 ? 'pages.profile.friendsSince.one' : 'pages.profile.friendsSince.other', {
+            date: new Date(data.since).toLocaleDateString(undefined, { month: 'short', year: 'numeric' }),
+            n: data.sharedRoomCount,
+          })}
         </span>
       )}
       <FilterChips value={filter} onChange={setFilter} />
       <FeedGroups entries={entries} me={user?.id} compact />
-      {data && entries.length === 0 && <div style={st('padding:12px 0;color:var(--muted);font-size:14px')}>Nothing in this category yet.</div>}
+      {data && entries.length === 0 && <div style={st('padding:12px 0;color:var(--muted);font-size:14px')}>{t('pages.profile.nothingInCategory')}</div>}
       <button type="button" onClick={remove} style={st('align-self:flex-start;height:40px;border:none;background:none;padding:0;color:var(--danger);font:600 14px var(--font-ui)')}>
-        Remove friend
+        {t('pages.profile.removeFriend')}
       </button>
     </div>
   );

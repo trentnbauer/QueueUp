@@ -2,6 +2,7 @@ import { useEffect, useRef, useState, type CSSProperties, type ReactNode } from 
 import type { Game, RoomMember, SpinPlay, SpinPlayAction } from '@queueup/shared';
 import { Avatar, coverBg } from '../../ui/primitives';
 import { st } from '../../ui/st';
+import { t } from '../../i18n';
 
 /** What every spin mode screen gets from SpinDialog. */
 export interface ModeProps<P extends SpinPlay = SpinPlay> {
@@ -102,8 +103,8 @@ export function memberOf(members: RoomMember[], userId: string): RoomMember | un
 }
 
 export function nameOf(members: RoomMember[], userId: string, me?: string): string {
-  if (me && userId === me) return 'You';
-  return memberOf(members, userId)?.user.displayName ?? 'Someone';
+  if (me && userId === me) return t('common.you');
+  return memberOf(members, userId)?.user.displayName ?? t('common.someone');
 }
 
 /** A member's avatar (22px by default), dimmed when inactive, ringed when active. */

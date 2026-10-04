@@ -3,6 +3,7 @@ import { Dialog } from '../ui/Dialog';
 import { Btn } from '../ui/primitives';
 import { inputField } from '../ui/primitives';
 import { st } from '../ui/st';
+import { useT } from '../i18n';
 
 interface ConfirmOptions {
   title?: string;
@@ -20,18 +21,19 @@ const ConfirmContext = createContext<ConfirmFn | null>(null);
 
 // A separate component so the typed-confirmation field gets a clean slate every time it opens.
 function ConfirmDialog({ options, onSettle }: { options: ConfirmOptions; onSettle: (value: boolean) => void }) {
+  const t = useT();
   const [typed, setTyped] = useState('');
   const required = options.typedConfirmation;
   const blocked = required !== undefined && typed !== required;
 
   return (
-    <Dialog onClose={() => onSettle(false)} alert width={520} ariaLabel={options.title ?? 'Confirm'} bare padded={false}>
+    <Dialog onClose={() => onSettle(false)} alert width={520} ariaLabel={options.title ?? t('common.confirm')} bare padded={false}>
       <div style={st('display:flex;flex-direction:column;gap:14px;padding:24px 22px 22px')}>
         {options.title && <span style={st('font:700 21px/1.2 var(--font-display);letter-spacing:-0.02em;text-wrap:balance')}>{options.title}</span>}
         <span style={st('font:400 14.5px/1.5 var(--font-ui);color:var(--text2);text-wrap:pretty')}>{options.message}</span>
         {required !== undefined && (
           <label style={st('display:flex;flex-direction:column;gap:8px;font:600 12.5px var(--font-ui);color:var(--muted)')}>
-            Type {required} to confirm
+            {t('shell.confirm.typeToConfirm', { phrase: required })}
             <input
               value={typed}
               onChange={(e) => setTyped(e.target.value)}
@@ -42,7 +44,7 @@ function ConfirmDialog({ options, onSettle }: { options: ConfirmOptions; onSettl
         )}
         <div style={st('display:flex;justify-content:flex-end;gap:8px;margin-top:6px')}>
           <Btn kind='ghost' height={44} style={{ background: 'var(--chip)', color: 'var(--text)' }} onClick={() => onSettle(false)}>
-            {options.cancelLabel ?? 'Cancel'}
+            {options.cancelLabel ?? t('common.cancel')}
           </Btn>
           <Btn
             kind={options.danger ? 'danger' : 'text'}
@@ -52,7 +54,7 @@ function ConfirmDialog({ options, onSettle }: { options: ConfirmOptions; onSettl
             disabled={blocked}
             onClick={() => onSettle(true)}
           >
-            {options.confirmLabel ?? 'Confirm'}
+            {options.confirmLabel ?? t('common.confirm')}
           </Btn>
         </div>
       </div>

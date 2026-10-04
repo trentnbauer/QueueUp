@@ -21,7 +21,6 @@ import {
   spinCandidates,
   spinCandidateWeight,
   SPIN_INITIAL_VELOCITY,
-  SPIN_WHEEL_THEME_LABELS,
   type SpinBase,
 } from '@queueup/shared';
 import type { SpinFilters } from '../api/rooms';
@@ -40,6 +39,8 @@ import { st } from '../ui/st';
 import { celebratePick } from '../ui/PickCelebration';
 import { MODE_EXPLAINER, ModeStage } from './spinModes';
 import { nameOf } from './spinModes/shared';
+import { t, useT, type MessageKey } from '../i18n';
+import { spinThemeLabel } from '../i18n/labels';
 
 const ACC = 'var(--acc)';
 
@@ -96,14 +97,38 @@ function useModeNow(on: boolean, offset: number): number {
   return now;
 }
 
+/** The shared engine's kicker lines (spinModes.ts), translated. */
+const KNOWN_KICKERS: Record<string, MessageKey> = {
+  'THREE OF A KIND, FIRST PULL': 'spin.kicker.slotFirstPull',
+  'THREE OF A KIND': 'spin.kicker.slotThree',
+  'OUT OF RESPINS · THE PAIR WINS': 'spin.kicker.slotPair',
+  'OUT OF RESPINS · BEST ON THE LINE': 'spin.kicker.slotBest',
+  'THREE MISSES · THE MACHINE TOOK PITY': 'spin.kicker.clawPity',
+  'NO VOTES · WEIGHTED DRAW PICKED IT': 'spin.kicker.noVotes',
+  'TIED · WEIGHTED DRAW BROKE IT': 'spin.kicker.tied',
+  'AN UPSET, NO CHIPS': 'spin.kicker.upset',
+};
+
+/** A kicker from the shared engine in the current language; anything unknown shows as sent. */
+function translateKicker(kicker: string): string {
+  const known = KNOWN_KICKERS[kicker];
+  if (known) return t(known);
+  const chips = /^TONIGHT'S PICK · (\d+) CHIPS? ON IT$/.exec(kicker);
+  if (chips) {
+    const n = Number(chips[1]);
+    return t(n === 1 ? 'spin.kicker.chips.one' : 'spin.kicker.chips.other', { n });
+  }
+  return kicker;
+}
+
 /** The result's kicker line for a spin mode. */
 function modeKicker(play: SpinPlay, members: Parameters<typeof nameOf>[0], me: string): string {
-  if (play.kicker) return play.kicker;
+  if (play.kicker) return translateKicker(play.kicker);
   if (play.mode === 'match_three' && play.flips.length) {
     const last = play.flips[play.flips.length - 1];
-    return `THREE OF A KIND · ${nameOf(members, last.userId, me).toUpperCase()} FLIPPED THE THIRD`;
+    return t('spin.kicker.matchThree', { name: nameOf(members, last.userId, me).toUpperCase() });
   }
-  return "TONIGHT'S PICK";
+  return t('spin.kicker.tonightsPick');
 }
 
 /** A result that sat this long before the session ended most likely expired rather than being picked. */
@@ -120,6 +145,7 @@ const PILL = 'height:32px;padding:0 12px;border-radius:999px;border:none;font:60
 /** The horizontal reel: tiles laid out around the live `position` (strip slots), wrapping round the
  * circular strip, with the gold marker fixed in the middle. */
 function Reel({ strip, position, tw, th, settled, idle }: { strip: Game[]; position: number; tw: number; th: number; settled: boolean; idle: boolean }) {
+  const t = useT();
   const gap = 8;
   const n = strip.length;
   const reelH = th + 24;
@@ -160,7 +186,7 @@ function Reel({ strip, position, tw, th, settled, idle }: { strip: Game[]; posit
       </div>
       {idle && (
         <div style={st('position:absolute;inset:0;display:flex;align-items:center;justify-content:center')}>
-          <span style={st('font:500 12.5px var(--font-ui);color:var(--faint)')}>Higher votes land more often</span>
+          <span style={st('font:500 12.5px var(--font-ui);color:var(--faint)')}>{t('spin.reel.idle')}</span>
         </div>
       )}
       <div
@@ -206,6 +232,7 @@ function matchPricesInBackground(games: Game[], setSteamMatch: (gameId: string, 
  * the room's shared session (everyone watching sees the same spin, the waiting room, and can nudge
  * it left/right) via the same physics the server uses. */
 export function SpinDialog({ onClose }: { onClose: () => void }) {
+  const t = useT();
   const scope = useScope();
   const ui = useUi();
   const mobile = useIsMobile();
@@ -312,14 +339,14 @@ export function SpinDialog({ onClose }: { onClose: () => void }) {
         setLocalPlay({ ...cur, stored: applyPlayAction(cur.stored, me, action, Date.now(), Math.random) });
         return Promise.resolve(true);
       } catch (err) {
-        ui.showError(err instanceof Error ? err.message : "Couldn't do that");
+        ui.showError(err instanceof Error ? err.message : t('spin.error.action'));
         return Promise.resolve(false);
       }
     }
     return shared.act(action).then(
       () => true,
       (err) => {
-        ui.showError(err instanceof Error ? err.message : "Couldn't do that");
+        ui.showError(err instanceof Error ? err.message : t('spin.error.action'));
         return false;
       },
     );
@@ -355,7 +382,7 @@ export function SpinDialog({ onClose }: { onClose: () => void }) {
       try {
         await shared.startSpin(filters);
       } catch (err) {
-        ui.showError(err instanceof Error ? err.message : 'Could not start a spin.');
+        ui.showError(err instanceof Error ? err.message : t('spin.error.start'));
       } finally {
         setStarting(false);
       }
@@ -363,7 +390,7 @@ export function SpinDialog({ onClose }: { onClose: () => void }) {
     }
     const pool = candidates.filter((g) => !skipped.has(g.id));
     if (!pool.length) {
-      ui.notify('Nothing in the pool. Loosen the filters.');
+      ui.notify(t('spin.notify.emptyPool'));
       return;
     }
     startLocal(pool);
@@ -409,14 +436,14 @@ export function SpinDialog({ onClose }: { onClose: () => void }) {
     try {
       await shared.voteRespin();
     } catch (err) {
-      ui.showError(err instanceof Error ? err.message : 'Could not vote to respin.');
+      ui.showError(err instanceof Error ? err.message : t('spin.error.respin'));
     }
   }
 
   function letsPlay() {
     if (winner) {
       ops.updateStatus(winner.id, 'playing');
-      ui.notify(`${winner.title} is now Playing`);
+      ui.notify(t('spin.notify.nowPlaying', { title: winner.title }));
       celebratePick(winner);
     }
     closedByMe.current = true;
@@ -445,9 +472,9 @@ export function SpinDialog({ onClose }: { onClose: () => void }) {
   async function wontPlay() {
     if (!winner) return;
     const ok = await confirm({
-      title: `Won't play ${winner.title}?`,
-      message: "It moves to your Won't play list and won't come up in a spin again. Then the wheel spins again.",
-      confirmLabel: "Won't play",
+      title: t('spin.wontPlay.title', { title: winner.title }),
+      message: t('spin.wontPlay.message'),
+      confirmLabel: t('spin.wontPlay.confirm'),
     });
     if (!ok) return;
     ops.updateStatus(winner.id, 'wont_play');
@@ -456,7 +483,7 @@ export function SpinDialog({ onClose }: { onClose: () => void }) {
     if (!rest.length) {
       setLocal(null);
       setLocalPlay(null);
-      ui.notify('Nothing left in the pool. Loosen the filters.');
+      ui.notify(t('spin.notify.emptyPoolLeft'));
       return;
     }
     startLocal(rest);
@@ -474,9 +501,13 @@ export function SpinDialog({ onClose }: { onClose: () => void }) {
   const noPrice = useMemo(() => (gate === undefined ? 0 : backlog.filter((g) => !isFullyOwned(g) && g.price.amount === null && g.manualPrice === null).length), [backlog, gate]);
   const waitN = useMemo(() => games.filter((g) => ['backlog', 'replay'].includes(g.status) && hasUnmetPrerequisite(g, games)).length, [games]);
   const gateNote = [
-    gate !== undefined && gate > 0 ? `Room limit: everyone owns it, or ${fmtMoney(gate, backlog.find((g) => g.price.currency)?.price.currency ?? 'USD')} or less` : gate === 0 ? 'Room limit: only games everyone owns' : null,
-    noPrice ? `${noPrice} skipped, no price yet` : null,
-    waitN ? `${waitN} waiting on Play after` : null,
+    gate !== undefined && gate > 0
+      ? t('spin.gate.limit', { price: fmtMoney(gate, backlog.find((g) => g.price.currency)?.price.currency ?? 'USD') })
+      : gate === 0
+        ? t('spin.gate.ownedOnly')
+        : null,
+    noPrice ? t('spin.gate.noPrice', { n: noPrice }) : null,
+    waitN ? t('spin.gate.waiting', { n: waitN }) : null,
   ]
     .filter(Boolean)
     .join(' · ');
@@ -486,14 +517,14 @@ export function SpinDialog({ onClose }: { onClose: () => void }) {
 
   return (
     <>
-      <Dialog onClose={onClose} bare padded={false} width={680} ariaLabel="Spin the Wheel">
+      <Dialog onClose={onClose} bare padded={false} width={680} ariaLabel={t('spin.dialog.ariaLabel')}>
         <div
           style={st(
             `padding:18px;display:flex;flex-direction:column;overflow-y:auto;${nudge ? `animation:qu-fade .3s ease both;` : ''}`,
           )}
         >
           <div style={st('display:flex;align-items:center;justify-content:space-between;margin-bottom:12px')}>
-            <span style={st('font:700 22px var(--font-display);letter-spacing:-0.02em')}>What are we playing?</span>
+            <span style={st('font:700 22px var(--font-display);letter-spacing:-0.02em')}>{t('spin.dialog.title')}</span>
             <CloseButton onClick={onClose} />
           </div>
 
@@ -502,33 +533,33 @@ export function SpinDialog({ onClose }: { onClose: () => void }) {
               <div style={st('display:flex;flex-wrap:wrap;align-items:center;gap:6px;margin-bottom:8px')}>
                 {PRICE_OPTS.map((p) => (
                   <button key={p} type="button" onClick={() => setMaxPrice(p)} style={st(`${PILL};background:${maxPrice === p ? 'var(--text)' : 'var(--chip)'};color:${maxPrice === p ? 'var(--onText)' : 'var(--muted)'}`)}>
-                    {p ? `Under ${fmtMoney(p, 'USD').replace(/\.00$/, '')}` : 'Any price'}
+                    {p ? t('spin.filter.underPrice', { price: fmtMoney(p, 'USD').replace(/\.00$/, '') }) : t('spin.filter.anyPrice')}
                   </button>
                 ))}
                 {!isShelf && (
                   <button type="button" onClick={() => setEveryone((v) => !v)} style={st(`${PILL};background:${everyone ? 'var(--text)' : 'var(--chip)'};color:${everyone ? 'var(--onText)' : 'var(--muted)'}`)}>
-                    Everyone owns it
+                    {t('spin.filter.everyoneOwns')}
                   </button>
                 )}
               </div>
               <div style={st('display:flex;flex-wrap:wrap;align-items:center;gap:6px;margin-bottom:8px')}>
                 {TTB_OPTS.map((h) => (
                   <button key={h} type="button" onClick={() => setMaxTtb(h)} style={st(`${PILL};background:${maxTtb === h ? 'var(--text)' : 'var(--chip)'};color:${maxTtb === h ? 'var(--onText)' : 'var(--muted)'}`)}>
-                    {h ? `Under ${h}h` : 'Any length'}
+                    {h ? t('spin.filter.underHours', { n: h }) : t('spin.filter.anyLength')}
                   </button>
                 ))}
               </div>
               <div style={st('display:flex;flex-wrap:wrap;align-items:center;gap:6px;margin-bottom:8px')}>
                 {SCORE_OPTS.map((n) => (
                   <button key={n} type="button" onClick={() => setMinScore(n)} style={st(`${PILL};background:${minScore === n ? 'var(--text)' : 'var(--chip)'};color:${minScore === n ? 'var(--onText)' : 'var(--muted)'}`)}>
-                    {n ? `★ ${n}+` : 'Any score'}
+                    {n ? `★ ${n}+` : t('spin.filter.anyScore')}
                   </button>
                 ))}
               </div>
               <div style={st('display:flex;flex-wrap:wrap;align-items:center;gap:6px;margin-bottom:8px')}>
                 {SIZE_OPTS.map((n) => (
-                  <button key={n} type="button" onClick={() => setMaxSize(n)} title={n ? 'PC install size from Steam; games with no size listed are left out' : undefined} style={st(`${PILL};background:${maxSize === n ? 'var(--text)' : 'var(--chip)'};color:${maxSize === n ? 'var(--onText)' : 'var(--muted)'}`)}>
-                    {n ? `Under ${n} GB` : 'Any size'}
+                  <button key={n} type="button" onClick={() => setMaxSize(n)} title={n ? t('spin.filter.sizeHint') : undefined} style={st(`${PILL};background:${maxSize === n ? 'var(--text)' : 'var(--chip)'};color:${maxSize === n ? 'var(--onText)' : 'var(--muted)'}`)}>
+                    {n ? t('spin.filter.underSize', { n }) : t('spin.filter.anySize')}
                   </button>
                 ))}
               </div>
@@ -538,27 +569,27 @@ export function SpinDialog({ onClose }: { onClose: () => void }) {
             <div style={st('margin-bottom:8px;padding:9px 12px;border-radius:12px;background:var(--surf);font:500 12.5px/1.4 var(--font-ui);color:var(--text2);text-wrap:pretty')}>{gateNote}</div>
           )}
           <div style={st('display:flex;justify-content:space-between;gap:10px;margin-bottom:14px;font:500 12px var(--font-ui);color:var(--faint)')}>
-            <span style={{ textWrap: 'pretty' }}>{isMode && modeTheme && modeTheme !== 'reel' ? MODE_EXPLAINER[modeTheme] : 'Votes and review scores weight the pick'}</span>
+            <span style={{ textWrap: 'pretty' }}>{isMode && modeTheme && modeTheme !== 'reel' ? MODE_EXPLAINER[modeTheme] : t('spin.dialog.weightHint')}</span>
             <span style={st('flex-shrink:0;font-family:var(--font-mono);text-transform:uppercase')}>
-              {isMode && modeTheme ? SPIN_WHEEL_THEME_LABELS[modeTheme] : session ? `${session.strip.length} slots` : `${candidates.length} in the pool`}
+              {isMode && modeTheme ? spinThemeLabel(modeTheme) : session ? t('spin.dialog.slots', { n: session.strip.length }) : t('spin.dialog.inPool', { n: candidates.length })}
             </span>
           </div>
 
           {waiting && session ? (
             <div style={st('display:flex;flex-direction:column;align-items:center;gap:10px;padding:26px 12px;border-radius:20px;background:var(--bg);text-align:center')}>
-              <span style={st('font:600 15px var(--font-ui)')}>⏳ Waiting for members to be ready…</span>
+              <span style={st('font:600 15px var(--font-ui)')}>{t('spin.waiting.title')}</span>
               <span style={st('font:500 13px var(--font-ui);color:var(--muted)')}>
-                {session.readyCount} of {members.length} member{members.length === 1 ? '' : 's'} ready · Starting in {countdown}s
+                {t(members.length === 1 ? 'spin.waiting.status.one' : 'spin.waiting.status.other', { ready: session.readyCount, total: members.length, n: countdown })}
               </span>
               <button type="button" onClick={() => void shared.skipWaitSpin().catch(() => {})} style={st('height:40px;padding:0 20px;border-radius:999px;border:none;background:var(--text);color:var(--onText);font:700 13.5px var(--font-ui)')}>
-                Start now
+                {t('spin.waiting.startNow')}
               </button>
             </div>
           ) : isMode ? (
             play ? (
               <ModeStage play={play} games={poolById} members={modeMembers} me={me} now={now} act={act} mobile={mobile} settled={settled} />
             ) : (
-              <div style={st('display:flex;align-items:center;justify-content:center;height:372px;border-radius:20px;background:var(--bg);font:500 13px var(--font-ui);color:var(--muted)')}>Dealing…</div>
+              <div style={st('display:flex;align-items:center;justify-content:center;height:372px;border-radius:20px;background:var(--bg);font:500 13px var(--font-ui);color:var(--muted)')}>{t('spin.dialog.dealing')}</div>
             )
           ) : (
             <div
@@ -571,9 +602,9 @@ export function SpinDialog({ onClose }: { onClose: () => void }) {
               }}
               tabIndex={nudgeable ? 0 : undefined}
               role={nudgeable ? 'group' : undefined}
-              aria-label={nudgeable ? 'Spinning reel. Press the left arrow to slow it down and the right arrow to speed it up.' : undefined}
+              aria-label={nudgeable ? t('spin.reel.ariaLabel') : undefined}
               style={{ cursor: nudgeable ? 'pointer' : 'default' }}
-              title={nudgeable ? 'Click the left side to slow it down, the right side to speed it up' : undefined}
+              title={nudgeable ? t('spin.reel.title') : undefined}
             >
               <Reel strip={run?.strip ?? []} position={position} tw={tw} th={th} settled={settled} idle={idle} />
             </div>
@@ -589,16 +620,16 @@ export function SpinDialog({ onClose }: { onClose: () => void }) {
                 disabled={starting || (!roomId && !candidates.length)}
                 style={st(`height:50px;padding:0 40px;border-radius:999px;border:none;background:${ACC};color:var(--ink);font:800 16px var(--font-display);box-shadow:0 8px 24px var(--accA35);opacity:${starting ? 0.6 : 1}`)}
               >
-                {starting ? 'Checking prices…' : 'Spin'}
+                {starting ? t('spin.dialog.checkingPrices') : t('spin.dialog.spin')}
               </button>
             )}
-            {reelSpinning && <span style={st('font:500 14px var(--font-ui);color:var(--muted)')}>{session ? 'Rolling…' : 'Rolling… click left to slow it, right to speed it up'}</span>}
+            {reelSpinning && <span style={st('font:500 14px var(--font-ui);color:var(--muted)')}>{session ? t('spin.reel.rolling') : t('spin.reel.rollingNudge')}</span>}
             {settled && winner && (
               <>
-                <span style={st('font:500 12px var(--font-mono);color:var(--accText)')}>{play ? modeKicker(play, modeMembers, me) : "TONIGHT'S PICK"}</span>
+                <span style={st('font:500 12px var(--font-mono);color:var(--accText)')}>{play ? modeKicker(play, modeMembers, me) : t('spin.kicker.tonightsPick')}</span>
                 <span style={st('font:700 28px/1.05 var(--font-display);letter-spacing:-0.02em')}>{winner.title}</span>
                 <span style={st('font:400 13.5px var(--font-ui);color:var(--muted)')}>
-                  {[winner.genre?.split(',')[0], winner.timeToBeatHours ? `~${winner.timeToBeatHours}h` : '', resPrice].filter(Boolean).join(' · ')}
+                  {[winner.genre?.split(',')[0], winner.timeToBeatHours ? t('spin.result.hours', { n: winner.timeToBeatHours }) : '', resPrice].filter(Boolean).join(' · ')}
                 </span>
                 <div style={st('display:flex;gap:8px;margin-top:12px')}>
                   {session ? (
@@ -606,23 +637,23 @@ export function SpinDialog({ onClose }: { onClose: () => void }) {
                       type="button"
                       onClick={() => void voteRespin()}
                       disabled={session.youVotedRespin || shared.votingRespin}
-                      title={session.youVotedRespin ? 'Waiting for the rest of the room' : 'Respins once most of the room votes'}
+                      title={session.youVotedRespin ? t('spin.result.respinWaiting') : t('spin.result.respinHint')}
                       style={st(`height:42px;padding:0 16px;white-space:nowrap;border-radius:999px;border:1px solid var(--line);background:transparent;color:var(--text);font:600 13.5px var(--font-ui);opacity:${session.youVotedRespin ? 0.6 : 1}`)}
                     >
-                      {session.youVotedRespin ? 'Voted to respin' : 'Vote to respin'} ({session.respinVotes}/{session.respinNeeded})
+                      {t(session.youVotedRespin ? 'spin.result.votedRespin' : 'spin.result.voteRespin', { votes: session.respinVotes, needed: session.respinNeeded })}
                     </button>
                   ) : (
                     <>
                       <button type="button" onClick={() => void wontPlay()} style={st('height:42px;padding:0 16px;white-space:nowrap;border-radius:999px;border:1px solid var(--line);background:transparent;color:var(--muted);font:600 13.5px var(--font-ui)')}>
-                        Won't play
+                        {t('spin.result.wontPlay')}
                       </button>
                       <button type="button" onClick={() => go()} style={st('height:42px;padding:0 16px;white-space:nowrap;border-radius:999px;border:1px solid var(--line);background:transparent;color:var(--text);font:600 13.5px var(--font-ui)')}>
-                        Spin again
+                        {t('spin.result.spinAgain')}
                       </button>
                     </>
                   )}
                   <button type="button" onClick={letsPlay} style={st('height:42px;padding:0 16px;white-space:nowrap;border-radius:999px;border:none;background:var(--text);color:var(--onText);font:700 13.5px var(--font-ui)')}>
-                    Let's play
+                    {t('spin.result.letsPlay')}
                   </button>
                 </div>
               </>

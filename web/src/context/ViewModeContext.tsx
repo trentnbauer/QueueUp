@@ -1,10 +1,16 @@
 import { createContext, useContext, useState, type ReactNode } from 'react';
+import { t } from '../i18n';
 
 export type ViewMode = 'artwork' | 'list';
 
+// Getters, so each read follows the current language.
 export const VIEW_MODE_LABELS: Record<ViewMode, string> = {
-  artwork: 'Covers',
-  list: 'List',
+  get artwork() {
+    return t('shell.viewMode.artwork');
+  },
+  get list() {
+    return t('shell.viewMode.list');
+  },
 };
 
 const STORAGE_KEY = 'sq-view-mode';

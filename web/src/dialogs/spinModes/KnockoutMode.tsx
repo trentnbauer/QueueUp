@@ -1,5 +1,6 @@
 import { KNOCKOUT_PAUSE_MS, knockoutAlive, knockoutHopMs, type KnockoutPlay } from '@queueup/shared';
 import { st } from '../../ui/st';
+import { useT } from '../../i18n';
 import { Counter, Cover, DANGER, Hint, MINT, MemberAvatar, Roster, Stage, WIN_RING, nameOf, secondsLeft, type ModeProps } from './shared';
 
 /** Dark text on the mint shield pills. */
@@ -23,17 +24,18 @@ function timeline(play: KnockoutPlay) {
 /** 1c Knockout: a highlight hops across the pool and knocks games out until one is left. Each
  * participant can shield one game once. */
 export function KnockoutMode({ play, games, members, me, now, act, mobile, settled }: ModeProps<KnockoutPlay>) {
+  const t = useT();
   const rounds = timeline(play);
-  const t = settled ? Infinity : now;
+  const clock = settled ? Infinity : now;
   const outAt = new Map<string, number>();
   let scan: string | null = null;
   let blocked: (typeof rounds)[number] | null = null;
   for (const [i, r] of rounds.entries()) {
-    if (t >= r.end) {
+    if (clock >= r.end) {
       if (!r.blocked) outAt.set(r.hit, r.outN);
-      else if (t < Math.min(r.end + KNOCKOUT_PAUSE_MS, rounds[i + 1]?.at ?? Infinity)) blocked = r;
-    } else if (t >= r.at) {
-      scan = r.hops[Math.min(r.hops.length - 1, Math.floor((t - r.at) / r.hopMs))];
+      else if (clock < Math.min(r.end + KNOCKOUT_PAUSE_MS, rounds[i + 1]?.at ?? Infinity)) blocked = r;
+    } else if (clock >= r.at) {
+      scan = r.hops[Math.min(r.hops.length - 1, Math.floor((clock - r.at) / r.hopMs))];
     }
   }
   const aliveCount = play.cards.length - outAt.size;
@@ -42,7 +44,7 @@ export function KnockoutMode({ play, games, members, me, now, act, mobile, settl
   const shields: Record<string, string> = { ...play.shields };
   const pendingUse = new Set<string>();
   for (const r of rounds) {
-    if (r.blocked && r.blockedBy && t < r.end) {
+    if (r.blocked && r.blockedBy && clock < r.end) {
       shields[r.blockedBy] = r.hit;
       pendingUse.add(r.blockedBy);
     }
@@ -60,16 +62,16 @@ export function KnockoutMode({ play, games, members, me, now, act, mobile, settl
   const cardH = mobile ? 112 : 150;
 
   let status: string;
-  if (blocked) status = `${nameOf(members, blocked.blockedBy ?? '', me)}'s shield blocked the hit`;
-  else if (scan) status = 'Knocking out…';
-  else if (play.nextRoundAt && now < play.nextRoundAt) status = `Next knockout in ${secondsLeft(play.nextRoundAt, now)}s`;
-  else status = 'Knocking out…';
+  if (blocked) status = blocked.blockedBy === me ? t('spin.knockout.blockedYou') : t('spin.knockout.blocked', { name: nameOf(members, blocked.blockedBy ?? '', me) });
+  else if (scan) status = t('spin.knockout.knocking');
+  else if (play.nextRoundAt && now < play.nextRoundAt) status = t('spin.knockout.next', { s: secondsLeft(play.nextRoundAt, now) });
+  else status = t('spin.knockout.knocking');
 
   let shieldLine: string | null = null;
   if (play.shieldsOn && participant) {
-    if (used.includes(me)) shieldLine = 'Shield used';
-    else if (myShield) shieldLine = `Shielding ${games.get(myShield)?.title ?? 'a game'}. Tap another game to move it.`;
-    else shieldLine = 'Your shield: tap a game to protect it';
+    if (used.includes(me)) shieldLine = t('spin.knockout.shieldUsed');
+    else if (myShield) shieldLine = t('spin.knockout.shielding', { title: games.get(myShield)?.title ?? t('spin.fallback.aGame') });
+    else shieldLine = t('spin.knockout.yourShield');
   }
 
   return (
@@ -84,13 +86,22 @@ export function KnockoutMode({ play, games, members, me, now, act, mobile, settl
             const shielders = out ? [] : shieldersOf(c.gameId);
             const tappable = canShield && !out && serverAlive.has(c.gameId);
             const v = g?.voteScore ?? 0;
+            const name = g?.title ?? t('spin.fallback.game');
             return (
               <button
                 key={c.gameId}
                 type="button"
                 disabled={!tappable}
                 onClick={() => act({ type: 'shield', gameId: c.gameId })}
-                aria-label={`${g?.title ?? 'Game'}${out ? ', out' : ''}${shielders.length ? ', shielded' : ''}${tappable ? '. Shield this game' : ''}`}
+                aria-label={
+                  out !== undefined
+                    ? t('spin.knockout.ariaOut', { title: name })
+                    : shielders.length
+                      ? t(tappable ? 'spin.knockout.ariaShieldedShieldable' : 'spin.knockout.ariaShielded', { title: name })
+                      : tappable
+                        ? t('spin.knockout.ariaShieldable', { title: name })
+                        : name
+                }
                 style={st(
                   `position:relative;display:block;width:100%;height:${cardH}px;padding:0;border:none;border-radius:12px;overflow:hidden;background:var(--surf);text-align:left;transition:transform .12s, box-shadow .1s, opacity .3s`,
                   {
@@ -125,13 +136,13 @@ export function KnockoutMode({ play, games, members, me, now, act, mobile, settl
                 )}
                 {out !== undefined && (
                   <span style={st('position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:6px')}>
-                    <span style={st(`padding:3px 10px;border-radius:8px;font:800 16px var(--font-display);letter-spacing:0.02em;transform:rotate(-8deg)`, { border: `2px solid ${DANGER}`, color: DANGER })}>OUT</span>
-                    <span style={st('font:500 10.5px var(--font-mono);color:var(--muted)')}>#{out} out</span>
+                    <span style={st(`padding:3px 10px;border-radius:8px;font:800 16px var(--font-display);letter-spacing:0.02em;transform:rotate(-8deg)`, { border: `2px solid ${DANGER}`, color: DANGER })}>{t('spin.knockout.out')}</span>
+                    <span style={st('font:500 10.5px var(--font-mono);color:var(--muted)')}>{t('spin.knockout.outN', { n: out })}</span>
                   </span>
                 )}
                 {blocked?.hit === c.gameId && (
                   <span style={st('position:absolute;inset:0;display:flex;align-items:center;justify-content:center;background:color-mix(in oklch, var(--mint) 25%, transparent)')}>
-                    <span style={st('padding:4px 10px;border-radius:8px;font:800 14px var(--font-display)', { background: MINT, color: ON_MINT })}>BLOCKED</span>
+                    <span style={st('padding:4px 10px;border-radius:8px;font:800 14px var(--font-display)', { background: MINT, color: ON_MINT })}>{t('spin.knockout.blockedBadge')}</span>
                   </span>
                 )}
               </button>
@@ -141,7 +152,7 @@ export function KnockoutMode({ play, games, members, me, now, act, mobile, settl
       </Stage>
       {!settled && (
         <div style={st('margin-top:16px;display:flex;flex-direction:column;align-items:center;gap:6px;text-align:center')}>
-          <Counter>{aliveCount} LEFT</Counter>
+          <Counter>{t('spin.knockout.left', { n: aliveCount })}</Counter>
           <span style={st('font:500 14px var(--font-ui);color:var(--muted)')}>{status}</span>
           {shieldLine && <Hint>{shieldLine}</Hint>}
           {play.shieldsOn && <Roster members={members} userIds={play.participants} done={(id) => !used.includes(id)} />}

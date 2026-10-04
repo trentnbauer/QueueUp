@@ -3,10 +3,12 @@ import { Link } from 'react-router';
 import { alertEmailApi } from '../api/notificationPreferences';
 import { Wordmark } from '../ui/primitives';
 import { st } from '../ui/st';
+import { t as tr, useT } from '../i18n';
 
 /** `/confirm-email/:token`, opened from the link in the confirmation email. Works signed in or not:
  * the link's token is the proof. */
 export function ConfirmEmailPage({ token }: { token: string }) {
+  const t = useT();
   const [state, setState] = useState<{ kind: 'working' } | { kind: 'done'; email: string } | { kind: 'failed'; message: string }>({ kind: 'working' });
 
   useEffect(() => {
@@ -14,7 +16,7 @@ export function ConfirmEmailPage({ token }: { token: string }) {
     alertEmailApi
       .confirm(token)
       .then((res) => !cancelled && setState({ kind: 'done', email: res.email }))
-      .catch((e) => !cancelled && setState({ kind: 'failed', message: e instanceof Error ? e.message : 'This link is not valid or has expired' }));
+      .catch((e) => !cancelled && setState({ kind: 'failed', message: e instanceof Error ? e.message : tr('pages.confirmEmail.invalid') }));
     return () => {
       cancelled = true;
     };
@@ -28,14 +30,14 @@ export function ConfirmEmailPage({ token }: { token: string }) {
             <Wordmark size={23} />
           </Link>
         </div>
-        <h1 style={st('font:700 clamp(26px,5vw,36px)/1.1 var(--font-display);letter-spacing:-0.03em;margin:0')}>Confirm your email</h1>
+        <h1 style={st('font:700 clamp(26px,5vw,36px)/1.1 var(--font-display);letter-spacing:-0.03em;margin:0')}>{t('pages.confirmEmail.title')}</h1>
         <p style={st('font:400 15px/1.5 var(--font-ui);margin:0')} role="status">
-          {state.kind === 'working' && 'Confirming…'}
-          {state.kind === 'done' && `Done. QueueUp alerts will go to ${state.email}.`}
+          {state.kind === 'working' && t('pages.confirmEmail.confirming')}
+          {state.kind === 'done' && t('pages.confirmEmail.done', { email: state.email })}
           {state.kind === 'failed' && state.message}
         </p>
         <Link to="/" style={st('color:var(--accText);font:600 14px var(--font-ui);text-decoration:none')}>
-          Back to QueueUp
+          {t('pages.common.backToQueueUp')}
         </Link>
       </div>
     </div>

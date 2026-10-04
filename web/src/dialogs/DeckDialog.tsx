@@ -10,6 +10,7 @@ import { VOTES, VOTE_VALUES, metaLine, ownLabel } from '../lib/gameView';
 import { TrailerPlayer, useTrailer } from '../game/Trailer';
 import { Btn, Cover } from '../ui/primitives';
 import { st } from '../ui/st';
+import { useT } from '../i18n';
 
 const OPEN_STATUSES = ['backlog', 'wishlist', 'play_next'];
 
@@ -29,6 +30,7 @@ function DeckArt({ game }: { game: Game }) {
 /** "Vote now": one unvoted game at a time, full screen. */
 export function DeckDialog() {
   const ui = useUi();
+  const t = useT();
   const { games, ops, room, isShelf } = useScope();
   const queryClient = useQueryClient();
   const [skipped, setSkipped] = useState<string[]>([]);
@@ -48,17 +50,17 @@ export function DeckDialog() {
       ref={ref}
       role="dialog"
       aria-modal="true"
-      aria-label="Vote now"
+      aria-label={t('settings.deck.title')}
       tabIndex={-1}
       style={st('position:fixed;inset:0;z-index:70;background:var(--bg);color:var(--text);display:flex;flex-direction:column;align-items:center;justify-content:center;padding:24px 20px;gap:18px;outline:none;overflow-y:auto')}
     >
       <button type="button" onClick={close} style={st('position:absolute;top:16px;right:16px;height:38px;padding:0 16px;border-radius:999px;border:none;background:var(--chip);color:var(--text);font:600 13.5px var(--font-ui)')}>
-        Done
+        {t('common.done')}
       </button>
       {g ? (
         <>
           <span style={st('font:500 12px var(--font-mono);color:var(--muted)')}>
-            {total} TO VOTE ON
+            {t('settings.deck.toVote', { n: total })}
           </span>
           <DeckArt key={g.id} game={g} />
           <div style={st('display:flex;flex-direction:column;align-items:center;gap:4px;text-align:center;max-width:420px')}>
@@ -83,15 +85,15 @@ export function DeckDialog() {
             onClick={() => setSkipped((s) => [...s.filter((x) => x !== g.id), g.id])}
             style={st('height:40px;border:none;background:none;color:var(--muted);font:500 13.5px var(--font-ui);text-decoration:underline;text-underline-offset:3px')}
           >
-            Skip for now
+            {t('settings.deck.skip')}
           </button>
         </>
       ) : (
         <>
-          <span style={st('font:700 32px var(--font-display);letter-spacing:-0.02em;text-align:center')}>You're all caught up.</span>
-          <span style={st('font:400 15px var(--font-ui);color:var(--muted);text-align:center')}>Every game in {room?.name ?? 'here'} has your vote.</span>
+          <span style={st('font:700 32px var(--font-display);letter-spacing:-0.02em;text-align:center')}>{t('settings.deck.caughtUp')}</span>
+          <span style={st('font:400 15px var(--font-ui);color:var(--muted);text-align:center')}>{room ? t('settings.deck.allVoted', { room: room.name }) : t('settings.deck.allVotedHere')}</span>
           <Btn kind="accent" height={46} padX={22} fontSize={14} weight={700} onClick={close}>
-            Back to the queue
+            {t('settings.deck.back')}
           </Btn>
         </>
       )}

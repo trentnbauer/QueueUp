@@ -1,11 +1,19 @@
 import { createContext, useContext, useEffect, useState, type ReactNode } from 'react';
+import { t } from '../i18n';
 
 export type CardDensity = 'large' | 'medium' | 'small';
 
+// Getters, so each read follows the current language.
 export const CARD_DENSITY_LABELS: Record<CardDensity, string> = {
-  large: '1 per row',
-  medium: '2 per row',
-  small: '3 per row',
+  get large() {
+    return t('shell.density.large');
+  },
+  get medium() {
+    return t('shell.density.medium');
+  },
+  get small() {
+    return t('shell.density.small');
+  },
 };
 
 // Only affects the narrow-viewport grid (see the <=640px breakpoint in GameGrid.module.css) - the

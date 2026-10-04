@@ -11,6 +11,8 @@ import { REVIEW_EMOJI } from '../lib/gameView';
 import { Dialog } from '../ui/Dialog';
 import { Avatar, coverBg } from '../ui/primitives';
 import { st } from '../ui/st';
+import { t as tr, useT } from '../i18n';
+import { reviewCategoryLabel } from '../i18n/labels';
 
 type Scores = Record<'art' | 'gameplay' | 'story' | 'sound', number>;
 
@@ -49,14 +51,14 @@ export function useReviewDraft(game: Game, edit: boolean, onSaved: (saved: { has
       }
       if (replay) ops.updateStatus(game.id, 'replay');
       const message = replay
-        ? `${game.title} is queued for a Replay`
+        ? tr('game.review.queuedReplay', { title: game.title })
         : hasAny
-          ? 'Review shared to your activity'
+          ? tr('game.review.shared')
           : existing
-            ? 'Review removed'
+            ? tr('game.review.removed')
             : edit
-              ? 'No review saved'
-              : 'Beaten';
+              ? tr('game.review.noneSaved')
+              : tr('game.review.beaten');
       if (!onSaved({ hasAny, recommend })) ui.notify(message);
     } catch {
       // Shown in the page banner; keep the form open to retry.
@@ -68,20 +70,21 @@ export function useReviewDraft(game: Game, edit: boolean, onSaved: (saved: { has
 
 /** Would you recommend it (#809), the four score rows and the note box. */
 export function ReviewFields({ draft }: { draft: ReturnType<typeof useReviewDraft> }) {
+  const t = useT();
   const { scores, setScores, note, setNote, recommend, setRecommend } = draft;
   return (
     <>
       <div style={st('display:flex;align-items:center;gap:10px')}>
-        <span style={st('flex:1;min-width:0;font:600 14px var(--font-ui)')}>Would you recommend it?</span>
-        <div style={st('display:flex;gap:6px')} role="group" aria-label="Would you recommend it?">
+        <span style={st('flex:1;min-width:0;font:600 14px var(--font-ui)')}>{t('game.review.recommendQuestion')}</span>
+        <div style={st('display:flex;gap:6px')} role="group" aria-label={t('game.review.recommendQuestion')}>
           {([
-            [true, '👍', 'Yes', 'var(--mint)'],
-            [false, '👎', 'No', 'var(--danger)'],
+            [true, '👍', t('common.yes'), 'var(--mint)'],
+            [false, '👎', t('common.no'), 'var(--danger)'],
           ] as const).map(([value, emoji, label, color]) => {
             const on = recommend === value;
             return (
               <button
-                key={label}
+                key={String(value)}
                 type="button"
                 aria-pressed={on}
                 onClick={() => setRecommend(on ? null : value)}
@@ -99,8 +102,8 @@ export function ReviewFields({ draft }: { draft: ReturnType<typeof useReviewDraf
       <div style={st('display:flex;flex-direction:column;gap:10px')}>
         {REVIEW_CATEGORIES.map((c) => (
           <div key={c.key} style={st('display:flex;align-items:center;gap:10px')}>
-            <span style={st('flex:1;min-width:0;font:600 14px var(--font-ui)')}>{c.label}</span>
-            <div style={st('display:flex;gap:1px;padding:3px;border-radius:999px;background:var(--surf)')} role="group" aria-label={c.label}>
+            <span style={st('flex:1;min-width:0;font:600 14px var(--font-ui)')}>{reviewCategoryLabel(c.key)}</span>
+            <div style={st('display:flex;gap:1px;padding:3px;border-radius:999px;background:var(--surf)')} role="group" aria-label={reviewCategoryLabel(c.key)}>
               {[1, 2, 3, 4, 5].map((v) => {
                 const on = scores[c.key] === v;
                 return (
@@ -125,8 +128,8 @@ export function ReviewFields({ draft }: { draft: ReturnType<typeof useReviewDraf
         value={note}
         onChange={(e) => setNote(e.target.value)}
         maxLength={280}
-        placeholder="One line about it (optional)"
-        aria-label="Review note"
+        placeholder={t('game.review.notePlaceholder')}
+        aria-label={t('game.review.noteAria')}
         style={st('height:46px;padding:0 16px;border-radius:14px;background:var(--surf);border:1px solid var(--chip);color:var(--text);font-size:14.5px;outline:none')}
       />
     </>
@@ -136,6 +139,7 @@ export function ReviewFields({ draft }: { draft: ReturnType<typeof useReviewDraf
 /** The review form inside the game card: same fields as the sheet, with its own Save button.
  * Saving closes the card. */
 export function ReviewEmbed({ game, onSaved }: { game: Game; onSaved: () => void }) {
+  const t = useT();
   const draft = useReviewDraft(game, true, onSaved);
   return (
     <div style={st('display:flex;flex-direction:column;gap:14px')}>
@@ -145,7 +149,7 @@ export function ReviewEmbed({ game, onSaved }: { game: Game; onSaved: () => void
         onClick={() => void draft.save(false)}
         style={st('height:46px;border-radius:999px;border:none;background:var(--acc);color:var(--ink);font:700 14.5px var(--font-ui)')}
       >
-        Save review
+        {t('game.review.save')}
       </button>
     </div>
   );
@@ -158,6 +162,7 @@ export function ReviewEmbed({ game, onSaved }: { game: Game; onSaved: () => void
  * `syncShelf` (another member beat this room game), saving or skipping also marks it Beaten on the
  * viewer's Personal Shelf - after the save, so the review goes with it. */
 export function ReviewSheet({ game, edit = false, syncShelf = false }: { game: Game; edit?: boolean; syncShelf?: boolean }) {
+  const t = useT();
   const ui = useUi();
   const queryClient = useQueryClient();
 
@@ -165,9 +170,9 @@ export function ReviewSheet({ game, edit = false, syncShelf = false }: { game: G
     try {
       await gamesApi.syncShelfBeaten(game.id);
       void queryClient.invalidateQueries({ queryKey: ['games'] });
-      ui.notify(`${game.title} marked Beaten on your shelf`);
+      ui.notify(tr('game.review.shelfBeaten', { title: game.title }));
     } catch (err) {
-      ui.showError(err instanceof Error ? err.message : "Couldn't update your shelf. Try again.");
+      ui.showError(err instanceof Error ? err.message : tr('game.review.shelfError'));
     }
   }
 
@@ -199,16 +204,16 @@ export function ReviewSheet({ game, edit = false, syncShelf = false }: { game: G
   return (
     <Dialog
       onClose={() => finish()}
-      ariaLabel="Review this game"
+      ariaLabel={t('game.review.sheetAria')}
       bare
       padded={false}
       footer={
         <div style={st('flex-shrink:0;display:flex;gap:8px;padding:12px 20px 26px;border-top:1px solid var(--chip)')}>
           <button type="button" onClick={() => finish(!edit, true)} style={st('height:48px;padding:0 20px;border-radius:999px;border:none;background:var(--chip);color:var(--text);font:600 14.5px var(--font-ui)')}>
-            {edit ? 'Cancel' : syncShelf ? 'Skip review' : 'Skip'}
+            {edit ? t('common.cancel') : syncShelf ? t('game.review.skipReview') : t('common.skip')}
           </button>
           <button type="button" onClick={() => save(false)} style={st('flex:1;height:48px;border-radius:999px;border:none;background:var(--acc);color:var(--ink);font:700 14.5px var(--font-ui)')}>
-            Save review
+            {t('game.review.save')}
           </button>
         </div>
       }
@@ -226,11 +231,11 @@ export function ReviewSheet({ game, edit = false, syncShelf = false }: { game: G
             }}
           />
           <span style={st('flex:1;min-width:0;display:flex;flex-direction:column;gap:4px')}>
-            <span style={st('font:600 11.5px var(--font-mono);letter-spacing:0.08em;color:var(--mint)')}>BEATEN</span>
+            <span style={st('font:600 11.5px var(--font-mono);letter-spacing:0.08em;color:var(--mint)')}>{t('game.review.kicker')}</span>
             <span style={st('font:700 23px/1.1 var(--font-display);letter-spacing:-0.02em;text-wrap:balance')}>{game.title}</span>
             <span style={st('font:400 13px/1.4 var(--font-ui);color:var(--muted)')}>
-              {existing ? 'Change your review - it updates in your friends\' activity.' : "How was it? Your review shows in your friends' activity."}
-              {syncShelf && ' Saving or skipping also marks it Beaten on your shelf.'}
+              {existing ? t('game.review.introChange') : t('game.review.introNew')}
+              {syncShelf && ` ${t('game.review.introSyncShelf')}`}
             </span>
           </span>
         </div>
@@ -244,10 +249,10 @@ export function ReviewSheet({ game, edit = false, syncShelf = false }: { game: G
             style={st('display:flex;align-items:center;gap:12px;min-height:56px;padding:8px 10px 8px 16px;border-radius:16px;border:1px dashed var(--line);background:transparent;color:var(--text);text-align:left')}
           >
             <span style={st('flex:1;min-width:0;display:flex;flex-direction:column;gap:1px')}>
-              <span style={st('font:600 14.5px var(--font-ui)')}>Replay?</span>
-              <span style={st('font:400 12.5px var(--font-ui);color:var(--muted)')}>Queue it up for another run</span>
+              <span style={st('font:600 14.5px var(--font-ui)')}>{t('game.review.replayQuestion')}</span>
+              <span style={st('font:400 12.5px var(--font-ui);color:var(--muted)')}>{t('game.review.replayHint')}</span>
             </span>
-            <span style={st('height:34px;padding:0 14px;border-radius:999px;background:var(--accSoft2);color:var(--accText);font:700 12.5px var(--font-ui);display:flex;align-items:center')}>Replay it</span>
+            <span style={st('height:34px;padding:0 14px;border-radius:999px;background:var(--accSoft2);color:var(--accText);font:700 12.5px var(--font-ui);display:flex;align-items:center')}>{t('game.review.replayIt')}</span>
           </button>
         )}
       </div>
@@ -258,6 +263,7 @@ export function ReviewSheet({ game, edit = false, syncShelf = false }: { game: G
 /** #808: tick the friends to tell about a game you just reviewed. They get a notification (pointing
  * at their own copy when they have it). */
 function RecommendToFriends({ game, friends, onDone }: { game: Game; friends: FriendUser[]; onDone: () => void }) {
+  const t = useT();
   const ui = useUi();
   const [picked, setPicked] = useState<Set<string>>(new Set());
   const [sending, setSending] = useState(false);
@@ -273,10 +279,10 @@ function RecommendToFriends({ game, friends, onDone }: { game: Game; friends: Fr
     setSending(true);
     try {
       const { sent } = await apiPost<{ sent: number }>(`/api/games/${game.id}/recommend`, { friendIds: [...picked] });
-      ui.notify(sent ? `Recommended to ${sent} friend${sent === 1 ? '' : 's'}` : 'They already have your recommendation');
+      ui.notify(sent ? tr(sent === 1 ? 'game.recommend.sent.one' : 'game.recommend.sent.other', { n: sent }) : tr('game.recommend.already'));
       onDone();
     } catch (err) {
-      ui.showError(err instanceof Error ? err.message : "Couldn't send that. Try again.");
+      ui.showError(err instanceof Error ? err.message : tr('game.recommend.error'));
       setSending(false);
     }
   }
@@ -284,12 +290,12 @@ function RecommendToFriends({ game, friends, onDone }: { game: Game; friends: Fr
   return (
     <Dialog
       onClose={onDone}
-      title="Recommend it to friends?"
+      title={t('game.recommend.title')}
       gap={12}
       footer={
         <div style={st('flex-shrink:0;display:flex;gap:8px;padding:12px 20px 26px;border-top:1px solid var(--chip)')}>
           <button type="button" onClick={onDone} style={st('height:48px;padding:0 20px;border-radius:999px;border:none;background:var(--chip);color:var(--text);font:600 14.5px var(--font-ui)')}>
-            Not now
+            {t('common.notNow')}
           </button>
           <button
             type="button"
@@ -297,12 +303,12 @@ function RecommendToFriends({ game, friends, onDone }: { game: Game; friends: Fr
             onClick={() => void send()}
             style={st(`flex:1;height:48px;border-radius:999px;border:none;background:var(--acc);color:var(--ink);font:700 14.5px var(--font-ui);opacity:${picked.size === 0 || sending ? 0.5 : 1}`)}
           >
-            {sending ? 'Sending…' : picked.size ? `Recommend to ${picked.size}` : 'Pick friends'}
+            {sending ? t('game.recommend.sending') : picked.size ? t('game.recommend.sendTo', { n: picked.size }) : t('game.recommend.pick')}
           </button>
         </div>
       }
     >
-      <span style={st('font:400 13.5px/1.45 var(--font-ui);color:var(--muted)')}>Tick who should play {game.title}. They get a notification with your review score.</span>
+      <span style={st('font:400 13.5px/1.45 var(--font-ui);color:var(--muted)')}>{t('game.recommend.hint', { title: game.title })}</span>
       <div style={st('display:flex;flex-direction:column;gap:4px')}>
         {friends.map((f) => {
           const on = picked.has(f.id);

@@ -1,3 +1,5 @@
+import { t } from '../i18n';
+
 /** What the person chose: a fixed theme, or follow the OS/browser. */
 export type ThemePreference = 'dark' | 'light' | 'system';
 /** What's actually applied to the document. */
@@ -66,7 +68,15 @@ const ACCENT_KEY = 'sq-accent';
 
 /** Where the accent colour comes from: the current room's colour, or neutral (monochrome). */
 export type Accent = 'room' | 'mono';
-export const ACCENT_LABELS: Record<Accent, string> = { room: 'Room theme', mono: 'Monochrome' };
+// Getters, so each read follows the current language (and Object.keys still lists both).
+export const ACCENT_LABELS: Record<Accent, string> = {
+  get room() {
+    return t('shell.accent.room');
+  },
+  get mono() {
+    return t('shell.accent.mono');
+  },
+};
 
 export function getAccent(): Accent {
   try {

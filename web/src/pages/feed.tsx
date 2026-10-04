@@ -5,48 +5,49 @@ import { friendsApi } from '../api/friends';
 import { REVIEW_EMOJI } from '../lib/gameView';
 import { ABOVE, Avatar, Cover, OpenOverlay } from '../ui/primitives';
 import { st } from '../ui/st';
+import { rich, t as tr, useT, type MessageKey } from '../i18n';
+import { reviewCategoryLabel } from '../i18n/labels';
 
-const EVT: Record<FriendEventKind, { verb: string; cap: string; tag: string; bg: string; fg: string }> = {
-  added: { verb: 'added', cap: 'Added', tag: 'Library', bg: 'var(--chip)', fg: 'var(--text2)' },
-  wishlist: { verb: 'wishlisted', cap: 'Wishlisted', tag: 'Wishlist', bg: 'oklch(0.72 0.1 250 / 0.16)', fg: 'oklch(0.72 0.1 250)' },
-  playing: { verb: 'started playing', cap: 'Started playing', tag: 'Playing', bg: 'var(--accSoft2)', fg: 'var(--accText)' },
-  beaten: { verb: 'beat', cap: 'Beat', tag: 'Beaten', bg: 'var(--mintSoft)', fg: 'var(--mint)' },
-  dropped: { verb: 'dropped', cap: 'Dropped', tag: 'Dropped', bg: 'var(--chip)', fg: 'var(--muted)' },
-  console: { verb: 'added', cap: 'Added', tag: 'System', bg: 'oklch(0.72 0.1 200 / 0.16)', fg: 'oklch(0.72 0.1 200)' },
-  ach: { verb: 'earned', cap: 'Earned', tag: 'Achievement', bg: 'oklch(0.7 0.12 300 / 0.16)', fg: 'oklch(0.72 0.12 300)' },
+/** Tag colours per event. The words are `pages.feed.row.<kind>` ("{who} added {title}"),
+ * `pages.feed.compact.<kind>` ("Added {title}") and `pages.feed.tag.<kind>`. */
+const EVT: Record<FriendEventKind, { bg: string; fg: string }> = {
+  added: { bg: 'var(--chip)', fg: 'var(--text2)' },
+  wishlist: { bg: 'oklch(0.72 0.1 250 / 0.16)', fg: 'oklch(0.72 0.1 250)' },
+  playing: { bg: 'var(--accSoft2)', fg: 'var(--accText)' },
+  beaten: { bg: 'var(--mintSoft)', fg: 'var(--mint)' },
+  dropped: { bg: 'var(--chip)', fg: 'var(--muted)' },
+  console: { bg: 'oklch(0.72 0.1 200 / 0.16)', fg: 'oklch(0.72 0.1 200)' },
+  ach: { bg: 'oklch(0.7 0.12 300 / 0.16)', fg: 'oklch(0.72 0.12 300)' },
 };
 
 export type FeedFilter = 'all' | 'playing' | 'beaten' | 'dropped' | 'ach';
-export const FEED_FILTERS: [FeedFilter, string][] = [
-  ['all', 'All'],
-  ['playing', 'Playing'],
-  ['beaten', 'Beaten'],
-  ['dropped', 'Dropped'],
-  ['ach', 'Achievements'],
-];
+/** Each filter's label is `pages.feed.filter.<filter>`. */
+export const FEED_FILTERS: FeedFilter[] = ['all', 'playing', 'beaten', 'dropped', 'ach'];
 
 export function applyFeedFilter(entries: FriendActivityEntry[], filter: FeedFilter): FriendActivityEntry[] {
   return filter === 'all' ? entries : entries.filter((e) => e.kind === filter);
 }
 
 export function FilterChips({ value, onChange }: { value: FeedFilter; onChange: (f: FeedFilter) => void }) {
+  const t = useT();
   return (
     <div style={st('display:flex;gap:6px;overflow-x:auto;scrollbar-width:none;flex-shrink:0')}>
-      {FEED_FILTERS.map(([k, l]) => (
+      {FEED_FILTERS.map((k) => (
         <button
           key={k}
           type="button"
           onClick={() => onChange(k)}
           style={st(`flex-shrink:0;height:34px;padding:0 14px;border-radius:999px;border:none;background:${value === k ? 'var(--text)' : 'var(--chip)'};color:${value === k ? 'var(--onText)' : 'var(--muted)'};font:600 13px var(--font-ui)`)}
         >
-          {l}
+          {t(`pages.feed.filter.${k}`)}
         </button>
       ))}
     </div>
   );
 }
 
-const MONTHS = ['JAN', 'FEB', 'MAR', 'APR', 'MAY', 'JUN', 'JUL', 'AUG', 'SEP', 'OCT', 'NOV', 'DEC'];
+/** Short month name, upper case ("JAN"); `pages.feed.month.0` is January. */
+const month = (d: Date) => tr(`pages.feed.month.${d.getMonth()}` as MessageKey);
 
 function dayLabel(iso: string): string {
   const d = new Date(iso);
@@ -54,10 +55,10 @@ function dayLabel(iso: string): string {
   const a = new Date(d.getFullYear(), d.getMonth(), d.getDate()).getTime();
   const b = new Date(today.getFullYear(), today.getMonth(), today.getDate()).getTime();
   const diff = Math.round((b - a) / 864e5);
-  if (diff <= 0) return 'TODAY';
-  if (diff === 1) return 'YESTERDAY';
-  if (diff < 7) return `${diff} DAYS AGO`;
-  return `${MONTHS[d.getMonth()]} ${d.getDate()}`;
+  if (diff <= 0) return tr('pages.feed.day.today');
+  if (diff === 1) return tr('pages.feed.day.yesterday');
+  if (diff < 7) return tr('pages.feed.day.daysAgo', { n: diff });
+  return `${month(d)} ${d.getDate()}`;
 }
 
 export function groupByDay(entries: FriendActivityEntry[]): { label: string; items: FriendActivityEntry[] }[] {
@@ -80,7 +81,7 @@ function ReviewBlock({ review }: { review: NonNullable<FriendActivityEntry['revi
         <div style={st('display:flex;flex-wrap:wrap;gap:4px 12px')}>
           {scored.map((c) => (
             <span key={c.key} style={st('display:flex;align-items:center;gap:4px;font:500 12px var(--font-ui);color:var(--muted)')}>
-              {c.label}
+              {reviewCategoryLabel(c.key)}
               <span style={st('font-size:14px')}>{REVIEW_EMOJI[review[c.key] as number]?.e}</span>
             </span>
           ))}
@@ -93,12 +94,14 @@ function ReviewBlock({ review }: { review: NonNullable<FriendActivityEntry['revi
 
 function when(iso: string): string {
   const d = new Date(iso);
-  return `${MONTHS[d.getMonth()].charAt(0)}${MONTHS[d.getMonth()].slice(1).toLowerCase()} ${d.getDate()}`;
+  const m = month(d);
+  return `${m.charAt(0)}${m.slice(1).toLowerCase()} ${d.getDate()}`;
 }
 
 /** Emoji reactions under a feed entry: a chip per emoji used (tap to add or remove yours) and a
  * "+" that opens the emoji choices. Other people's entries only; your own just show the counts. */
 function ReactionBar({ e, canReact }: { e: FriendActivityEntry; canReact: boolean }) {
+  const t = useT();
   const [reactions, setReactions] = useState(e.reactions ?? []);
   const [picking, setPicking] = useState(false);
   const [busy, setBusy] = useState(false);
@@ -132,9 +135,9 @@ function ReactionBar({ e, canReact }: { e: FriendActivityEntry; canReact: boolea
 
   if (!canReact && reactions.length === 0) return null;
   const who = (r: FeedReactionSummary) => {
-    const named = [...(r.mine ? ['You'] : []), ...r.names];
+    const named = [...(r.mine ? [t('common.you')] : []), ...r.names];
     const others = r.count - named.length;
-    return [...named, ...(others > 0 ? [`${others} other${others === 1 ? '' : 's'}`] : [])].join(', ');
+    return [...named, ...(others > 0 ? [t(others === 1 ? 'pages.feed.others.one' : 'pages.feed.others.other', { n: others })] : [])].join(', ');
   };
   const chip = (on: boolean) =>
     `height:26px;padding:0 9px;border-radius:999px;border:1px solid ${on ? 'var(--acc)' : 'var(--line)'};background:${on ? 'var(--accSoft2)' : 'transparent'};color:var(--text2);font:600 12px var(--font-ui);display:flex;align-items:center;gap:4px`;
@@ -159,14 +162,14 @@ function ReactionBar({ e, canReact }: { e: FriendActivityEntry; canReact: boolea
         </span>
       )}
       {canReact && !picking && (
-        <button type="button" aria-label="Add a reaction" onClick={() => setPicking(true)} style={st(chip(false) + ';color:var(--muted)')}>
+        <button type="button" aria-label={t('pages.feed.addReaction')} onClick={() => setPicking(true)} style={st(chip(false) + ';color:var(--muted)')}>
           {mine ? '✎' : '+'}
         </button>
       )}
       {canReact && picking && (
         <span style={st('display:flex;gap:4px')}>
           {FEED_REACTION_EMOJI.map((emoji) => (
-            <button key={emoji} type="button" aria-label={`React ${emoji}`} onClick={() => void choose(emoji)} style={st('width:32px;height:32px;border-radius:50%;border:none;background:var(--surf);font-size:16px;line-height:1')}>
+            <button key={emoji} type="button" aria-label={t('pages.feed.react', { emoji })} onClick={() => void choose(emoji)} style={st('width:32px;height:32px;border-radius:50%;border:none;background:var(--surf);font-size:16px;line-height:1')}>
               {emoji}
             </button>
           ))}
@@ -178,14 +181,17 @@ function ReactionBar({ e, canReact }: { e: FriendActivityEntry; canReact: boolea
 
 /** One activity row. `compact` is the friend-profile variant (no avatar, cover leads). */
 export function FeedRow({ e, me, compact, onOpen }: { e: FriendActivityEntry; me: string | undefined; compact?: boolean; onOpen?: () => void }) {
-  const t = EVT[e.kind];
+  const t = useT();
+  const c = EVT[e.kind];
   const isAch = e.kind === 'ach' || e.kind === 'console';
   const mine = e.user.id === me;
-  const tag = e.onlyYou ? `${t.tag} · only you` : t.tag;
+  const kindTag = t(`pages.feed.tag.${e.kind}`);
+  const tag = e.onlyYou ? t('pages.feed.onlyYou', { tag: kindTag }) : kindTag;
+  const title = <b style={{ fontWeight: 600, color: 'var(--text)' }}>{e.title}</b>;
   const clickable = !!onOpen && !mine;
   return (
     <div style={st(`position:relative;display:flex;align-items:center;gap:12px;padding:10px 0;cursor:${clickable ? 'pointer' : 'default'}`)}>
-      {clickable && <OpenOverlay label={`Open ${e.title}`} onOpen={() => onOpen?.()} />}
+      {clickable && <OpenOverlay label={t('pages.feed.open', { title: e.title })} onOpen={() => onOpen?.()} />}
       {compact ? (
         isAch ? (
           <span style={st('width:34px;height:34px;flex-shrink:0;border-radius:10px;background:var(--surf);display:flex;align-items:center;justify-content:center;font-size:19px')}>{e.emoji}</span>
@@ -197,20 +203,13 @@ export function FeedRow({ e, me, compact, onOpen }: { e: FriendActivityEntry; me
       )}
       <span style={st('flex:1;min-width:0;display:flex;flex-direction:column;gap:2px')}>
         <span style={st('font:400 14px/1.35 var(--font-ui);color:var(--text2);text-wrap:pretty')}>
-          {compact ? (
-            <>
-              {t.cap} <b style={{ fontWeight: 600, color: 'var(--text)' }}>{e.title}</b>
-            </>
-          ) : (
-            <>
-              <b style={{ fontWeight: 600, color: 'var(--text)' }}>{mine ? 'You' : e.user.displayName}</b> {t.verb}{' '}
-              <b style={{ fontWeight: 600, color: 'var(--text)' }}>{e.title}</b>
-            </>
-          )}
+          {compact
+            ? rich(t(`pages.feed.compact.${e.kind}`), { title })
+            : rich(t(`pages.feed.row.${e.kind}`), { who: <b style={{ fontWeight: 600, color: 'var(--text)' }}>{mine ? t('common.you') : e.user.displayName}</b>, title })}
         </span>
         <span style={st('display:flex;align-items:center;gap:6px;font:500 12px var(--font-ui);color:var(--faint)')}>
           {!compact && (
-            <span style={st(`height:18px;padding:0 7px;border-radius:999px;background:${t.bg};color:${t.fg};font:600 10.5px var(--font-ui);display:flex;align-items:center`)}>{tag}</span>
+            <span style={st(`height:18px;padding:0 7px;border-radius:999px;background:${c.bg};color:${c.fg};font:600 10.5px var(--font-ui);display:flex;align-items:center`)}>{tag}</span>
           )}
           {when(e.at)}
         </span>
@@ -218,7 +217,7 @@ export function FeedRow({ e, me, compact, onOpen }: { e: FriendActivityEntry; me
         <ReactionBar e={e} canReact={!mine} />
       </span>
       {compact ? (
-        <span style={st(`height:20px;padding:0 8px;border-radius:999px;background:${t.bg};color:${t.fg};font:600 10.5px var(--font-ui);display:flex;align-items:center`)}>{tag}</span>
+        <span style={st(`height:20px;padding:0 8px;border-radius:999px;background:${c.bg};color:${c.fg};font:600 10.5px var(--font-ui);display:flex;align-items:center`)}>{tag}</span>
       ) : isAch ? (
         <span style={st('width:40px;height:40px;flex-shrink:0;border-radius:12px;background:var(--surf);display:flex;align-items:center;justify-content:center;font-size:22px')}>{e.emoji}</span>
       ) : (

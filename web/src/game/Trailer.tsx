@@ -3,6 +3,7 @@ import { gamesApi } from '../api/games';
 import { useKeepScreenAwake } from '../hooks/useKeepScreenAwake';
 import { Dialog } from '../ui/Dialog';
 import { st } from '../ui/st';
+import { useT } from '../i18n';
 
 type State = { kind: 'idle' } | { kind: 'loading' } | { kind: 'none' } | { kind: 'error' } | { kind: 'ready'; youtubeId: string };
 
@@ -39,11 +40,12 @@ export function useTrailer(gameId: string, auto = false) {
 
 /** A 16:9 YouTube (no-cookie) player that fills its container. Keeps the screen awake while it's open. */
 export function TrailerPlayer({ youtubeId, radius = 16 }: { youtubeId: string; radius?: number }) {
+  const t = useT();
   useKeepScreenAwake();
   return (
     <div style={st(`position:relative;width:100%;aspect-ratio:16/9;border-radius:${radius}px;overflow:hidden;background:#000`)}>
       <iframe
-        title="Game trailer"
+        title={t('game.trailer.iframeTitle')}
         src={`https://www.youtube-nocookie.com/embed/${youtubeId}?autoplay=1&rel=0&modestbranding=1`}
         allow="autoplay; encrypted-media; picture-in-picture; fullscreen"
         allowFullScreen
@@ -56,6 +58,7 @@ export function TrailerPlayer({ youtubeId, radius = 16 }: { youtubeId: string; r
 
 /** "Watch trailer": nothing is fetched until it's tapped, then the trailer pops out in a large modal. */
 export function Trailer({ gameId, title }: { gameId: string; title?: string }) {
+  const t = useT();
   const { state, load, reset } = useTrailer(gameId);
   const [open, setOpen] = useState(false);
 
@@ -64,7 +67,14 @@ export function Trailer({ gameId, title }: { gameId: string; title?: string }) {
     if (state.kind !== 'ready') await load();
   }
 
-  const label = state.kind === 'loading' ? 'Finding trailer…' : state.kind === 'none' ? 'No trailer found' : state.kind === 'error' ? "Couldn't load the trailer. Tap to retry" : '▶ Watch trailer';
+  const label =
+    state.kind === 'loading'
+      ? t('game.trailer.finding')
+      : state.kind === 'none'
+        ? t('game.trailer.none')
+        : state.kind === 'error'
+          ? t('game.trailer.error')
+          : t('game.trailer.watch');
   return (
     <>
       <button
@@ -79,7 +89,7 @@ export function Trailer({ gameId, title }: { gameId: string; title?: string }) {
       </button>
       {open && state.kind === 'ready' && (
         <Dialog
-          title={title ? `${title} · trailer` : 'Trailer'}
+          title={title ? t('game.trailer.dialogTitle', { title }) : t('game.trailer.dialogTitleBare')}
           width={960}
           centered
           onClose={() => {

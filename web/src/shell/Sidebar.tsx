@@ -3,6 +3,7 @@ import { useUi } from '../context/UiContext';
 import { Avatar, BellIcon, CollapseIcon, PulseIcon, Wordmark } from '../ui/primitives';
 import { st } from '../ui/st';
 import { useShell, type TileModel } from './useShell';
+import { useT } from '../i18n';
 
 const DOT = 'background:var(--dot)';
 
@@ -44,6 +45,7 @@ function Row({ tile, active, onClick, children }: { tile: TileModel; active: boo
 export function Sidebar({ onCollapse }: { onCollapse: () => void }) {
   const shell = useShell();
   const ui = useUi();
+  const t = useT();
   const { user } = shell;
 
   return (
@@ -57,8 +59,8 @@ export function Sidebar({ onCollapse }: { onCollapse: () => void }) {
         <button
           type="button"
           onClick={onCollapse}
-          aria-label="Collapse sidebar"
-          title="Collapse sidebar"
+          aria-label={t('shell.sidebar.collapse')}
+          title={t('shell.sidebar.collapse')}
           className="hv-surf"
           style={st('width:32px;height:32px;flex-shrink:0;border-radius:10px;border:none;background:transparent;color:var(--muted);display:flex;align-items:center;justify-content:center;padding:0')}
         >
@@ -81,24 +83,24 @@ export function Sidebar({ onCollapse }: { onCollapse: () => void }) {
             <PulseIcon />
           </span>
           <span style={st('flex:1;min-width:0;display:flex;flex-direction:column;gap:1px')}>
-            <span style={st('font:600 14.5px var(--font-ui)')}>Activity</span>
-            <span style={st('font:400 12px var(--font-ui);color:var(--muted)')}>What friends are playing</span>
+            <span style={st('font:600 14.5px var(--font-ui)')}>{t('shell.sidebar.activity')}</span>
+            <span style={st('font:400 12px var(--font-ui);color:var(--muted)')}>{t('shell.sidebar.activitySub')}</span>
           </span>
         </button>
 
         <div style={st('display:flex;align-items:center;justify-content:space-between;padding:18px 10px 6px')}>
-          <span style={st('font:600 11.5px var(--font-mono);letter-spacing:0.08em;color:var(--muted)')}>ROOMS · {shell.roomCount}</span>
+          <span style={st('font:600 11.5px var(--font-mono);letter-spacing:0.08em;color:var(--muted)')}>{t('shell.sidebar.rooms', { n: shell.roomCount })}</span>
           <button
             type="button"
             onClick={() => ui.openDialog('addRoom', { step: 'options' })}
-            aria-label="Create or join a room"
+            aria-label={t('shell.mobile.createOrJoin')}
             style={st("width:28px;height:28px;border-radius:9px;border:1px dashed var(--line);background:transparent;color:var(--muted);font:500 16px/1 var(--font-ui);padding:0")}
           >
             +
           </button>
         </div>
-        {shell.roomTiles.map((t) => (
-          <Row key={t.id} tile={t} active={t.active && !shell.onActivity} onClick={t.go} />
+        {shell.roomTiles.map((tile) => (
+          <Row key={tile.id} tile={tile} active={tile.active && !shell.onActivity} onClick={tile.go} />
         ))}
       </div>
 
@@ -112,7 +114,7 @@ export function Sidebar({ onCollapse }: { onCollapse: () => void }) {
           <Avatar name={user?.displayName ?? '?'} color={user?.avatarColor ?? '#E8734A'} avatarUrl={user?.avatarUrl} size={36} fontSize={14} />
           <span style={st('flex:1;min-width:0;display:flex;flex-direction:column;gap:1px')}>
             <span style={st('font:600 14px var(--font-ui);white-space:nowrap;overflow:hidden;text-overflow:ellipsis')}>{user?.displayName}</span>
-            <span style={st('font:400 12px var(--font-ui);color:var(--muted)')}>Profile &amp; settings</span>
+            <span style={st('font:400 12px var(--font-ui);color:var(--muted)')}>{t('shell.sidebar.profileSettings')}</span>
           </span>
         </button>
         <BellButton size={40} ring="var(--bg2)" />
@@ -124,12 +126,13 @@ export function Sidebar({ onCollapse }: { onCollapse: () => void }) {
 function BellButton({ size, ring }: { size: number; ring: string }) {
   const shell = useShell();
   const ui = useUi();
+  const t = useT();
   return (
     <button
       type="button"
       onClick={() => ui.openDialog('notifications')}
-      aria-label="Notifications"
-      title="Notifications"
+      aria-label={t('shell.nav.notifications')}
+      title={t('shell.nav.notifications')}
       style={st(
         `position:relative;flex-shrink:0;width:${size}px;height:${size}px;border-radius:50%;border:1px solid var(--line);background:transparent;color:var(--text);display:flex;align-items:center;justify-content:center;padding:0`,
       )}
@@ -146,6 +149,7 @@ function BellButton({ size, ring }: { size: number; ring: string }) {
 export function Rail({ onExpand }: { onExpand: () => void }) {
   const shell = useShell();
   const ui = useUi();
+  const t = useT();
   const { user } = shell;
   const tiles = [shell.shelfTile, ...shell.roomTiles];
 
@@ -156,8 +160,8 @@ export function Rail({ onExpand }: { onExpand: () => void }) {
       <button
         type="button"
         onClick={onExpand}
-        aria-label="Expand sidebar"
-        title="Expand sidebar"
+        aria-label={t('shell.sidebar.expand')}
+        title={t('shell.sidebar.expand')}
         className="hv-surf2"
         style={st('width:46px;height:46px;flex-shrink:0;border-radius:14px;border:none;padding:0;margin-bottom:8px;background:var(--surf);color:var(--text);display:flex;align-items:center;justify-content:center')}
       >
@@ -169,29 +173,29 @@ export function Rail({ onExpand }: { onExpand: () => void }) {
       <div
         style={st('flex:1;min-height:0;width:100%;overflow-y:auto;overflow-x:hidden;display:flex;flex-direction:column;align-items:center;gap:12px;padding:6px 0')}
       >
-        {tiles.map((t) => {
-          const a = t.active && !shell.onActivity;
+        {tiles.map((tile) => {
+          const a = tile.active && !shell.onActivity;
           return (
             <button
-              key={t.id}
+              key={tile.id}
               type="button"
-              onClick={t.go}
-              aria-label={t.name}
-              title={t.name}
+              onClick={tile.go}
+              aria-label={tile.name}
+              title={tile.name}
               style={st(
-                `position:relative;flex-shrink:0;width:46px;height:46px;border:none;border-radius:${a ? '15px' : '50%'};background:${t.color};color:#fff;font:600 12px var(--font-mono);box-shadow:${a ? '0 0 0 2px var(--bg2), 0 0 0 4px var(--text)' : 'none'}`,
+                `position:relative;flex-shrink:0;width:46px;height:46px;border:none;border-radius:${a ? '15px' : '50%'};background:${tile.color};color:#fff;font:600 12px var(--font-mono);box-shadow:${a ? '0 0 0 2px var(--bg2), 0 0 0 4px var(--text)' : 'none'}`,
               )}
             >
-              {t.short}
-              {t.dot && <span style={st(`position:absolute;right:-2px;top:-2px;width:11px;height:11px;border-radius:50%;${DOT};border:2px solid var(--bg2)`)} />}
+              {tile.short}
+              {tile.dot && <span style={st(`position:absolute;right:-2px;top:-2px;width:11px;height:11px;border-radius:50%;${DOT};border:2px solid var(--bg2)`)} />}
             </button>
           );
         })}
         <button
           type="button"
           onClick={() => ui.openDialog('addRoom', { step: 'options' })}
-          aria-label="Create or join a room"
-          title="Create or join a room"
+          aria-label={t('shell.mobile.createOrJoin')}
+          title={t('shell.mobile.createOrJoin')}
           style={st("flex-shrink:0;width:46px;height:46px;border-radius:16px;border:1.5px dashed var(--line);background:transparent;color:var(--muted);font:500 20px var(--font-ui)")}
         >
           +
@@ -200,8 +204,8 @@ export function Rail({ onExpand }: { onExpand: () => void }) {
       <button
         type="button"
         onClick={shell.goActivity}
-        aria-label="Friend activity"
-        title="Activity"
+        aria-label={t('shell.nav.friendActivity')}
+        title={t('shell.sidebar.activity')}
         style={st(
           `flex-shrink:0;width:42px;height:42px;border-radius:50%;border:1px solid ${shell.onActivity ? 'var(--text)' : 'var(--line)'};background:${shell.onActivity ? 'var(--text)' : 'transparent'};color:${shell.onActivity ? 'var(--onText)' : 'var(--text)'};display:flex;align-items:center;justify-content:center;padding:0`,
         )}
@@ -212,8 +216,8 @@ export function Rail({ onExpand }: { onExpand: () => void }) {
       <button
         type="button"
         onClick={() => ui.openDialog('me')}
-        aria-label="Profile and settings"
-        title="Profile"
+        aria-label={t('shell.nav.profileSettings')}
+        title={t('shell.sidebar.profile')}
         style={st('flex-shrink:0;width:42px;height:42px;border-radius:50%;border:2px solid var(--line);padding:0;background:transparent;overflow:hidden')}
       >
         <Avatar name={user?.displayName ?? '?'} color={user?.avatarColor ?? '#E8734A'} avatarUrl={user?.avatarUrl} size={38} fontSize={14} />

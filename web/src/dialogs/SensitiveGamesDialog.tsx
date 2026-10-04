@@ -5,11 +5,13 @@ import { useUi } from '../context/UiContext';
 import { Btn, Cover } from '../ui/primitives';
 import { Dialog } from '../ui/Dialog';
 import { st } from '../ui/st';
+import { useT } from '../i18n';
 
 /** After games tagged as adult by IGDB land on the Personal Shelf (an import or a manual add), ask
  * whether to hide them from the public profile and friends' activity. Ticked by default; whatever
  * the answer, those games are not asked about again. */
 export function SensitiveGamesPrompt({ active }: { active: boolean }) {
+  const t = useT();
   const ui = useUi();
   const queryClient = useQueryClient();
   const [skipped, setSkipped] = useState(false);
@@ -24,7 +26,7 @@ export function SensitiveGamesPrompt({ active }: { active: boolean }) {
   const resolve = useMutation({
     mutationFn: gamesApi.resolveSensitiveGames,
     onSuccess: () => void queryClient.invalidateQueries({ queryKey: ['games'] }),
-    onError: () => ui.showError('Could not save that choice.'),
+    onError: () => ui.showError(t('add.sensitive.saveFailed')),
   });
 
   const games = data?.games ?? [];
@@ -36,7 +38,7 @@ export function SensitiveGamesPrompt({ active }: { active: boolean }) {
 
   return (
     <Dialog
-      title="Hide adult games from your public library?"
+      title={t('add.sensitive.title')}
       width={560}
       onClose={() => setSkipped(true)}
       footer={
@@ -48,24 +50,24 @@ export function SensitiveGamesPrompt({ active }: { active: boolean }) {
               setSkipped(true);
             }}
           >
-            Keep all visible
+            {t('add.sensitive.keepAll')}
           </Btn>
           <Btn
             kind="accent"
             height={42}
             onClick={() => {
               resolve.mutate({ hideIds, keepIds });
-              ui.notify(hideIds.length > 0 ? `${hideIds.length} game${hideIds.length === 1 ? '' : 's'} hidden from others` : 'Left visible');
+              ui.notify(hideIds.length > 0 ? t(hideIds.length === 1 ? 'add.sensitive.hidden.one' : 'add.sensitive.hidden.other', { n: hideIds.length }) : t('add.sensitive.leftVisible'));
               setSkipped(true);
             }}
           >
-            {hideIds.length > 0 ? `Hide ${hideIds.length}` : 'Done'}
+            {hideIds.length > 0 ? t('add.sensitive.hideN', { n: hideIds.length }) : t('common.done')}
           </Btn>
         </div>
       }
     >
       <span style={st('font:400 14px/1.45 var(--font-ui);color:var(--muted)')}>
-        IGDB tags {games.length === 1 ? 'this game' : 'these games'} as containing sexual content. Hidden games stay in your library, but friends won't see them in your activity and they're left off your public profile.
+        {t(games.length === 1 ? 'add.sensitive.body.one' : 'add.sensitive.body.other')}
       </span>
       <div style={st('display:flex;flex-direction:column;gap:6px')}>
         {games.map((g) => {
@@ -88,7 +90,7 @@ export function SensitiveGamesPrompt({ active }: { active: boolean }) {
               </span>
               <Cover title={g.title} url={g.coverImageUrl} width={32} radius={6} />
               <span style={st('flex:1;min-width:0;font:600 14px var(--font-ui);white-space:nowrap;overflow:hidden;text-overflow:ellipsis')}>{g.title}</span>
-              <span style={st('font:500 12px var(--font-ui);color:var(--muted)')}>{hide ? 'Hide' : 'Keep visible'}</span>
+              <span style={st('font:500 12px var(--font-ui);color:var(--muted)')}>{hide ? t('add.sensitive.hide') : t('add.sensitive.keepVisible')}</span>
             </button>
           );
         })}

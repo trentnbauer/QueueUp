@@ -7,6 +7,7 @@ import { byScore, isUpcoming, prereqGame, ttbLabel } from '../lib/gameView';
 import { Dialog } from '../ui/Dialog';
 import { Cover, OpenOverlay } from '../ui/primitives';
 import { st } from '../ui/st';
+import { useT } from '../i18n';
 
 /** The pool Spin draws from, in vote order: backlog/play-next/replay, released, "play after" met. */
 export function rankedPool(games: Game[]): Game[] {
@@ -18,6 +19,7 @@ export function rankedPool(games: Game[]): Game[] {
 export function RankedDialog() {
   const scope = useScope();
   const ui = useUi();
+  const t = useT();
   const { isShelf, games, ops } = scope;
   const list = rankedPool(games);
 
@@ -27,24 +29,24 @@ export function RankedDialog() {
       height="tall"
       bare
       padded={false}
-      ariaLabel="Ranked queue"
+      ariaLabel={t('settings.ranked.title')}
     >
       <div style={st('flex-shrink:0;display:flex;flex-direction:column;gap:6px;padding:18px 20px 12px')}>
         <div style={st('display:flex;align-items:center;gap:12px')}>
-          <span style={st('flex:1;font:700 22px var(--font-display);letter-spacing:-0.02em')}>Ranked queue</span>
-          <button type="button" onClick={() => ui.closeDialog('ranked')} aria-label="Close" style={st('width:36px;height:36px;flex-shrink:0;border-radius:50%;border:none;background:var(--chip);color:var(--text);font-size:18px;line-height:1')}>
+          <span style={st('flex:1;font:700 22px var(--font-display);letter-spacing:-0.02em')}>{t('settings.ranked.title')}</span>
+          <button type="button" onClick={() => ui.closeDialog('ranked')} aria-label={t('common.close')} style={st('width:36px;height:36px;flex-shrink:0;border-radius:50%;border:none;background:var(--chip);color:var(--text);font-size:18px;line-height:1')}>
             ×
           </button>
         </div>
         <span style={st('font:400 13px/1.45 var(--font-ui);color:var(--muted);text-wrap:pretty')}>
           {isShelf
-            ? 'Your backlog in priority order. The same pool Spin draws from.'
-            : 'The same pool Spin draws from, in vote order. Votes here count straight away.'}
+            ? t('settings.ranked.shelfHint')
+            : t('settings.ranked.roomHint')}
         </span>
       </div>
       <div style={st('flex:1;min-height:0;overflow-y:auto;padding:0 10px 28px;display:flex;flex-direction:column;gap:2px')}>
         {list.length === 0 && (
-          <div style={st('padding:32px 12px;text-align:center;font:500 14px var(--font-ui);color:var(--muted)')}>Add a backlog game to see it ranked here.</div>
+          <div style={st('padding:32px 12px;text-align:center;font:500 14px var(--font-ui);color:var(--muted)')}>{t('settings.ranked.empty')}</div>
         )}
         {list.map((g, i) => {
           const it = toRowItem(g, i + 1, { isShelf, tab: 'queue', searching: true, all: games });
@@ -55,7 +57,7 @@ export function RankedDialog() {
               className="hv-surf"
             >
               <OpenOverlay
-                label={`Open ${g.title}`}
+                label={t('settings.ranked.open', { title: g.title })}
                 onOpen={() => {
                   ui.closeDialog('ranked');
                   ui.selectGame(g.id);

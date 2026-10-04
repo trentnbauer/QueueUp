@@ -35,18 +35,22 @@ export const STATUS_LABEL: Record<GameStatus, string> = liveMap(statusLabel);
 /** One line on what each status means (translated). */
 export const STATUS_DESC: Record<GameStatus, string> = liveMap(statusDesc);
 
-/** What the status card offers as the next step from each status. */
-export const NEXT_ACTIONS: Record<GameStatus, [GameStatus, string][]> = {
-  wishlist: [['backlog', 'Move to Backlog'], ['playing', 'Start playing']],
-  backlog: [['playing', 'Start playing'], ['play_next', 'Play next']],
-  play_next: [['playing', 'Start playing'], ['backlog', 'Back to Backlog']],
-  paused: [['playing', 'Resume'], ['dropped', 'Drop it']],
-  playing: [['done', 'Mark Beaten'], ['paused', 'Pause it'], ['dropped', 'Drop it']],
-  done: [['replay', 'Replay it']],
-  replay: [['done', 'Beaten again'], ['dropped', 'Drop replay']],
-  dropped: [['playing', 'Pick back up'], ['backlog', 'Back to Backlog']],
-  wont_play: [['backlog', 'Back to Backlog']],
+const NEXT_ACTION_KEYS: Record<GameStatus, [GameStatus, MessageKey][]> = {
+  wishlist: [['backlog', 'home.next.moveToBacklog'], ['playing', 'home.next.startPlaying']],
+  backlog: [['playing', 'home.next.startPlaying'], ['play_next', 'home.next.playNext']],
+  play_next: [['playing', 'home.next.startPlaying'], ['backlog', 'home.next.backToBacklog']],
+  paused: [['playing', 'home.next.resume'], ['dropped', 'home.next.dropIt']],
+  playing: [['done', 'home.next.markBeaten'], ['paused', 'home.next.pauseIt'], ['dropped', 'home.next.dropIt']],
+  done: [['replay', 'home.next.replayIt']],
+  replay: [['done', 'home.next.beatenAgain'], ['dropped', 'home.next.dropReplay']],
+  dropped: [['playing', 'home.next.pickBackUp'], ['backlog', 'home.next.backToBacklog']],
+  wont_play: [['backlog', 'home.next.backToBacklog']],
 };
+
+/** What the status card offers as the next step from each status (labels translated when read). */
+export const NEXT_ACTIONS = new Proxy({} as Record<GameStatus, [GameStatus, string][]>, {
+  get: (_target, key) => NEXT_ACTION_KEYS[key as GameStatus]?.map(([s, k]) => [s, t(k)] as [GameStatus, string]),
+});
 
 export interface TabDef {
   id: string;
@@ -54,31 +58,50 @@ export interface TabDef {
   statuses: GameStatus[];
 }
 
+/** A tab whose label is looked up (in the current language) each time it's read. */
+const tabDef = (id: string, key: MessageKey, statuses: GameStatus[]): TabDef => ({
+  id,
+  get label() {
+    return t(key);
+  },
+  statuses,
+});
+
 export const ROOM_TABS: TabDef[] = [
-  { id: 'queue', label: 'Queue', statuses: ['backlog'] },
-  { id: 'playing', label: 'Playing', statuses: ['playing', 'play_next', 'paused'] },
-  { id: 'beaten', label: 'Beaten', statuses: ['done', 'replay'] },
-  { id: 'dropped', label: 'Dropped', statuses: ['dropped', 'wont_play'] },
+  tabDef('queue', 'home.tab.queue', ['backlog']),
+  tabDef('playing', 'home.tab.playing', ['playing', 'play_next', 'paused']),
+  tabDef('beaten', 'home.tab.beaten', ['done', 'replay']),
+  tabDef('dropped', 'home.tab.dropped', ['dropped', 'wont_play']),
 ];
 
 export const SHELF_TABS: TabDef[] = [
-  { id: 'wishlist', label: 'Wishlist', statuses: ['wishlist'] },
-  { id: 'queue', label: 'Backlog', statuses: ['backlog'] },
-  { id: 'playing', label: 'Playing', statuses: ['playing', 'play_next', 'paused'] },
-  { id: 'replay', label: 'Replay', statuses: ['replay'] },
+  tabDef('wishlist', 'home.tab.wishlist', ['wishlist']),
+  tabDef('queue', 'home.tab.backlog', ['backlog']),
+  tabDef('playing', 'home.tab.playing', ['playing', 'play_next', 'paused']),
+  tabDef('replay', 'home.tab.replay', ['replay']),
 ];
 
 /** Shelf filters tucked behind the "+" button: game lists by status, plus two lists of synced titles
  * that never became games (they have no status, see HomeView's PendingImportsList). */
 export const SHELF_MORE_TABS: TabDef[] = [
-  { id: 'beaten', label: 'Beaten', statuses: ['done'] },
-  { id: 'paused', label: 'Paused', statuses: ['paused'] },
-  { id: 'dropped', label: 'Dropped', statuses: ['dropped'] },
-  { id: 'wont_play', label: "Won't play", statuses: ['wont_play'] },
+  tabDef('beaten', 'home.tab.beaten', ['done']),
+  tabDef('paused', 'home.tab.paused', ['paused']),
+  tabDef('dropped', 'home.tab.dropped', ['dropped']),
+  tabDef('wont_play', 'home.tab.wontPlay', ['wont_play']),
 ];
 export const SHELF_IMPORT_TABS = [
-  { id: 'matching', label: 'Needs matching' },
-  { id: 'dismissed', label: 'Dismissed' },
+  {
+    id: 'matching',
+    get label() {
+      return t('home.tab.matching');
+    },
+  },
+  {
+    id: 'dismissed',
+    get label() {
+      return t('home.tab.dismissed');
+    },
+  },
 ] as const;
 
 // ---------------------------------------------------------------------------------------------
@@ -145,13 +168,13 @@ export function releaseLabel(g: Game): string {
     const d = new Date(g.releaseDate);
     return `${MONTHS[d.getUTCMonth()]} ${d.getUTCDate()}, ${d.getUTCFullYear()}`;
   }
-  return g.releaseYear ? String(g.releaseYear) : 'TBA';
+  return g.releaseYear ? String(g.releaseYear) : t('home.release.tba');
 }
 
 export function fmtMoney(amount: string | number | null | undefined, currency: string | null | undefined): string {
   if (amount === null || amount === undefined || amount === '') return '';
   const n = Number(amount);
-  if (n === 0) return 'Free';
+  if (n === 0) return t('home.price.free');
   return formatAmount(String(amount), currency ?? 'USD');
 }
 
@@ -161,10 +184,10 @@ export function priceOf(g: Game): string {
 
 /** What the price column shows: "Owned" in mint, else the live price, else the manual fallback. */
 export function priceLabel(g: Game): { label: string; owned: boolean } {
-  if (g.youOwn) return { label: 'Owned', owned: true };
+  if (g.youOwn) return { label: t('home.price.owned'), owned: true };
   if (g.price.amount) return { label: fmtMoney(g.price.amount, g.price.currency), owned: false };
   if (g.manualPrice) return { label: fmtMoney(g.manualPrice, g.price.currency), owned: false };
-  return { label: 'No price yet', owned: false };
+  return { label: t('home.price.none'), owned: false };
 }
 
 /** How far (whole %) the current price sits above the all-time low (issue #797), 0 at the low.
@@ -181,7 +204,7 @@ export function hasLivePrice(g: Game): boolean {
 }
 
 export function ttbLabel(g: Game): string {
-  return g.timeToBeatHours ? `~${g.timeToBeatHours}h` : '';
+  return g.timeToBeatHours ? t('home.ttb', { hours: g.timeToBeatHours }) : '';
 }
 
 /** "Genre · ~12h" meta line, skipping whichever half is missing. */
@@ -197,15 +220,15 @@ export function releaseDateLabel(g: Pick<Game, 'releaseDate' | 'releaseYear'>, n
     const d = new Date(g.releaseDate);
     if (!Number.isNaN(d.getTime())) {
       const text = d.toLocaleDateString(undefined, { day: 'numeric', month: 'short', year: 'numeric', timeZone: 'UTC' });
-      return `${d.getTime() > now ? 'Releases' : 'Released'} ${text}`;
+      return t(d.getTime() > now ? 'home.release.releases' : 'home.release.released', { date: text });
     }
   }
-  return g.releaseYear ? `Released ${g.releaseYear}` : '';
+  return g.releaseYear ? t('home.release.released', { date: g.releaseYear }) : '';
 }
 
 export function ownLabel(g: Game, isShelf: boolean): string {
   if (isShelf || !g.ownership) return '';
-  return `${g.ownership.owned}/${g.ownership.total} own it`;
+  return t('home.ownCount', { owned: g.ownership.owned, total: g.ownership.total });
 }
 
 /** The chip shown beside a row's title (New / Replay since / After / Target...). */
@@ -214,16 +237,16 @@ export function rowChip(
   ctx: { tab: string; searching: boolean; prereqTitle: string | null; now?: number },
 ): string {
   const now = ctx.now ?? Date.now();
-  if (ctx.prereqTitle) return `After ${ctx.prereqTitle}`;
+  if (ctx.prereqTitle) return t('home.chip.after', { title: ctx.prereqTitle });
   if (g.targetPrice && g.status === 'wishlist') {
     const atTarget = g.price.amount && Number(g.price.amount) <= Number(g.targetPrice);
-    return `${atTarget ? 'At target' : 'Target'} ${fmtMoney(g.targetPrice, g.price.currency)}`;
+    return t(atTarget ? 'home.chip.atTarget' : 'home.chip.target', { price: fmtMoney(g.targetPrice, g.price.currency) });
   }
   if (!ctx.searching && (ctx.tab === 'queue' || ctx.tab === 'playing') && isNewRelease(g, now) && g.releaseDate) {
-    return `New · out ${releaseShortDate(g.releaseDate)}`;
+    return t('home.chip.new', { date: releaseShortDate(g.releaseDate) });
   }
   if (!ctx.searching && (ctx.tab === 'replay' || ctx.tab === 'beaten') && g.status === 'replay' && g.replayedAt) {
-    return `Replay since ${shortDate(g.replayedAt)}`;
+    return t('home.chip.replaySince', { date: shortDate(g.replayedAt) });
   }
   // Search results span every status, so say which one each game is in.
   if (ctx.searching) return STATUS_LABEL[g.status];

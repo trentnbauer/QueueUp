@@ -23,6 +23,7 @@ import { JournalDialog } from '../dialogs/JournalDialog';
 import { useChangelog } from '../hooks/useChangelog';
 import { usePlaytimeReview } from '../hooks/usePlaytimeReview';
 import { UiToast } from '../ui/ToastView';
+import { t } from '../i18n';
 
 /** Every dialog/sheet the app can open, mounted from the shared open-flags in UiContext, plus the
  * things that open themselves (shared spin starting, new changelog, playtime review, steam
@@ -46,16 +47,14 @@ export function Overlays() {
     void (async () => {
       const exists = !!p.suggestion.shelfGameId;
       const ok = await confirm({
-        title: 'Mark it Beaten in your library too?',
-        message: exists
-          ? `"${p.suggestion.title}" is on your Personal Shelf too. Mark it Beaten there as well? The room goes in its play journal and your review comes with it.`
-          : `"${p.suggestion.title}" isn't on your Personal Shelf yet. Add it there, already marked Beaten? The room goes in its play journal and your review comes with it.`,
-        confirmLabel: 'Yes, sync it',
-        cancelLabel: 'No thanks',
+        title: t('shell.shelfSync.title'),
+        message: t(exists ? 'shell.shelfSync.messageExists' : 'shell.shelfSync.messageNew', { title: p.suggestion.title }),
+        confirmLabel: t('shell.shelfSync.confirm'),
+        cancelLabel: t('shell.shelfSync.cancel'),
       });
       if (ok) {
         ops.confirmShelfSync();
-        ui.notify('Synced to your Personal Shelf');
+        ui.notify(t('shell.shelfSync.done'));
       } else {
         ops.dismissShelfSync();
       }

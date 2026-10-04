@@ -9,7 +9,8 @@ import {
 } from '../api/notificationPreferences';
 import { PRICE_REGION_LABELS, type EmailAlertType, type PriceRegion } from '@queueup/shared';
 import { useAuth } from '../context/AuthContext';
-import { LANGUAGES, useI18n } from '../i18n';
+import { LANGUAGES, useI18n, type MessageKey } from '../i18n';
+import { priceRegionLabel } from '../i18n/labels';
 import { useAnalyticsConsent } from '../hooks/useAnalyticsConsent';
 import { useCardDensity } from '../context/CardDensityContext';
 import { useCurrencyRegion } from '../context/CurrencyRegionContext';
@@ -25,27 +26,20 @@ import { st } from '../ui/st';
 
 const REGIONS = Object.keys(PRICE_REGION_LABELS) as PriceRegion[];
 type StepKind = 'language' | 'name' | 'theme' | 'layout' | 'currency' | 'systems' | 'library' | 'email' | 'analytics' | 'accent' | 'rooms';
-const STEP_TEXT: Record<Exclude<StepKind, 'language'>, [string, string]> = {
-  name: ['What should we call you?', 'This is the name friends and room members see. We filled in the one from your sign-in - change it if you like.'],
-  theme: ['Light or dark?', 'Pick how QueueUp looks. Auto follows your device. You can change this anytime in your profile.'],
-  layout: ['List or covers?', 'How games show on your shelf and in every room. You can switch anytime in your profile.'],
-  accent: ['Room colours', "Every room has its own colour. Let it tint the room you're in, or keep everything neutral."],
-  currency: ['Which currency?', 'Pick a currency for prices. You can change it anytime from your profile.'],
-  systems: ['Which systems do you own?', 'We use this to limit game search to what you can actually play. Skip it to see every platform.'],
-  library: ['Bring in your library', 'Import what you already own so your shelf starts full.'],
-  email: ['Get alerts by email?', 'Hear about price drops, friend activity and play requests without opening QueueUp. You can change this anytime in Settings.'],
-  analytics: ['Help improve QueueUp?', 'This server can use Google Analytics to see which parts of the app get used. Nothing is sent unless you turn it on, and you can change this anytime in Settings.'],
-  rooms: ['Play with friends', 'Rooms are where your group votes on what to play next.'],
-};
+/** Each step's title and sub, as `shell.onboarding.<kind>.title` / `.sub` keys. */
+const stepText = (t: (key: MessageKey) => string, kind: Exclude<StepKind, 'language'>): [string, string] => [
+  t(`shell.onboarding.${kind}.title` as MessageKey),
+  t(`shell.onboarding.${kind}.sub` as MessageKey),
+];
 
 /** The alerts offered during sign-up, and which start switched on. Everything else stays in Settings. */
-const EMAIL_CHOICES: { type: EmailAlertType; label: string; on: boolean }[] = [
-  { type: 'price_drop', label: 'Price drops on your wishlist', on: true },
-  { type: 'good_time_to_buy', label: 'Good time to buy', on: true },
-  { type: 'play_together_request', label: 'Ask to play together requests', on: true },
-  { type: 'friend_recommendation', label: 'Games your friends rate highly', on: false },
-  { type: 'feed_reaction', label: 'Reactions to your activity', on: false },
-  { type: 'release_watch', label: 'New releases and DLC', on: false },
+const EMAIL_CHOICES: { type: EmailAlertType; label: MessageKey; on: boolean }[] = [
+  { type: 'price_drop', label: 'shell.onboarding.emailChoice.priceDrop', on: true },
+  { type: 'good_time_to_buy', label: 'shell.onboarding.emailChoice.goodTimeToBuy', on: true },
+  { type: 'play_together_request', label: 'shell.onboarding.emailChoice.playTogether', on: true },
+  { type: 'friend_recommendation', label: 'shell.onboarding.emailChoice.friendRecommendation', on: false },
+  { type: 'feed_reaction', label: 'shell.onboarding.emailChoice.feedReaction', on: false },
+  { type: 'release_watch', label: 'shell.onboarding.emailChoice.releaseWatch', on: false },
 ];
 
 // Sign-in providers that gave us no real email use one of these placeholder domains.
@@ -155,7 +149,7 @@ export function Onboarding({ onDone }: { onDone: () => void }) {
   const [savingName, setSavingName] = useState(false);
   const kind = kinds[Math.min(step, kinds.length - 1)];
   const last = step >= kinds.length - 1;
-  const [title, sub] = kind === 'language' ? [t('core.onboarding.language.title'), t('core.onboarding.language.sub')] : STEP_TEXT[kind];
+  const [title, sub] = kind === 'language' ? [t('core.onboarding.language.title'), t('core.onboarding.language.sub')] : stepText(t, kind);
   const effectiveEmail = alertEmail.data?.effectiveEmail ?? '';
   const shownEmail = emailDraft ?? (isPlaceholderEmail(effectiveEmail) ? '' : effectiveEmail);
 
@@ -165,21 +159,21 @@ export function Onboarding({ onDone }: { onDone: () => void }) {
     if (kind === 'email' && wantEmail) {
       const address = shownEmail.trim().toLowerCase();
       if (!address) {
-        setEmailError('Enter the email address to send alerts to.');
+        setEmailError(t('shell.onboarding.email.enterAddress'));
         return;
       }
       setSavingName(true);
       try {
         if (address !== effectiveEmail.toLowerCase()) {
           const res = await alertEmailApi.set({ email: address });
-          if (res.status === 'confirmation_sent') ui.notify('Check your inbox to confirm the address');
+          if (res.status === 'confirmation_sent') ui.notify(t('shell.onboarding.email.checkInbox'));
         }
         await Promise.all([...emailTypes].map((type) => notificationPreferencesApi.set({ type, email: true })));
         void queryClient.invalidateQueries({ queryKey: NOTIFICATION_PREFERENCES_QUERY_KEY });
         void queryClient.invalidateQueries({ queryKey: ALERT_EMAIL_QUERY_KEY });
         setEmailError(null);
       } catch (e) {
-        setEmailError(e instanceof Error ? e.message : 'Could not save your email settings');
+        setEmailError(e instanceof Error ? e.message : t('shell.onboarding.email.saveFailed'));
         return;
       } finally {
         setSavingName(false);
@@ -190,7 +184,7 @@ export function Onboarding({ onDone }: { onDone: () => void }) {
     if (kind === 'name') {
       const trimmed = name.trim().replace(/\s+/g, ' ');
       if (trimmed.length < 1 || trimmed.length > 40) {
-        setNameError('Pick a name between 1 and 40 characters.');
+        setNameError(t('shell.onboarding.name.length'));
         return;
       }
       if (trimmed !== user?.displayName) {
@@ -199,7 +193,7 @@ export function Onboarding({ onDone }: { onDone: () => void }) {
           await authApi.setDisplayName(trimmed);
           await refetch();
         } catch (e) {
-          setNameError(e instanceof Error ? e.message : 'Could not save your name');
+          setNameError(e instanceof Error ? e.message : t('shell.onboarding.name.saveFailed'));
           return;
         } finally {
           setSavingName(false);
@@ -215,12 +209,12 @@ export function Onboarding({ onDone }: { onDone: () => void }) {
     <div
       role="dialog"
       aria-modal="true"
-      aria-label="Welcome to QueueUp"
+      aria-label={t('shell.onboarding.welcome')}
       style={st('position:fixed;inset:0;z-index:50;background:var(--bg);color:var(--text);display:flex;flex-direction:column')}
     >
       <div style={st('flex-shrink:0;display:flex;align-items:center;gap:12px;padding:18px 20px 8px')}>
         {step > 0 && (
-          <button type="button" onClick={() => setStep(step - 1)} aria-label="Back" style={st('width:38px;height:38px;border-radius:50%;border:1px solid var(--line);background:transparent;color:var(--text);font-size:20px;line-height:1;padding:0 0 2px')}>
+          <button type="button" onClick={() => setStep(step - 1)} aria-label={t('common.back')} style={st('width:38px;height:38px;border-radius:50%;border:1px solid var(--line);background:transparent;color:var(--text);font-size:20px;line-height:1;padding:0 0 2px')}>
             ‹
           </button>
         )}
@@ -230,11 +224,11 @@ export function Onboarding({ onDone }: { onDone: () => void }) {
           ))}
         </div>
         <button type="button" onClick={onDone} style={st('height:38px;padding:0 6px;border:none;background:none;color:var(--muted);font:600 13.5px var(--font-ui)')}>
-          Skip
+          {t('common.skip')}
         </button>
       </div>
       <div style={st('flex:1;min-height:0;overflow-y:auto;padding:28px 22px 20px;display:flex;flex-direction:column;gap:16px;width:100%;max-width:560px;margin:0 auto')}>
-        <span style={st('flex-shrink:0;font:600 12px var(--font-mono);letter-spacing:0.06em;color:var(--muted)')}>STEP {step + 1} OF {kinds.length}</span>
+        <span style={st('flex-shrink:0;font:600 12px var(--font-mono);letter-spacing:0.06em;color:var(--muted)')}>{t('shell.onboarding.stepOf', { n: step + 1, total: kinds.length })}</span>
         <span style={st('flex-shrink:0;font:700 30px/1.08 var(--font-display);letter-spacing:-0.025em;text-wrap:balance')}>{title}</span>
         <span style={st('flex-shrink:0;font:400 15px/1.5 var(--font-ui);color:var(--muted);text-wrap:pretty')}>{sub}</span>
 
@@ -279,7 +273,7 @@ export function Onboarding({ onDone }: { onDone: () => void }) {
               onKeyDown={(e) => e.key === 'Enter' && void next()}
               maxLength={40}
               autoFocus
-              aria-label="Display name"
+              aria-label={t('shell.onboarding.name.aria')}
               style={st(inputPill, { height: 52, flexShrink: 0, border: '1px solid var(--line)', fontSize: 16 })}
             />
             {nameError && <span style={st('flex-shrink:0;font:500 13px var(--font-ui);color:var(--danger)')}>{nameError}</span>}
@@ -287,24 +281,24 @@ export function Onboarding({ onDone }: { onDone: () => void }) {
         )}
 
         {kind === 'theme' && (
-          <ChoiceGrid columns={3} label="Theme">
+          <ChoiceGrid columns={3} label={t('shell.onboarding.theme.aria')}>
             {(
               [
-                ['dark', 'Dark'],
-                ['light', 'Light'],
-                ['system', 'Auto'],
+                ['dark', t('shell.onboarding.theme.dark')],
+                ['light', t('shell.onboarding.theme.light')],
+                ['system', t('shell.onboarding.theme.auto')],
               ] as [ThemePreference, string][]
             ).map(([value, label]) => (
               <ChoiceCard key={value} selected={preference === value} label={label} onClick={() => setPreference(value)}>
                 {value === 'system' ? (
                   <>
-                    <Shot name="layout-list-dark" alt="QueueUp in dark mode" />
+                    <Shot name="layout-list-dark" alt={t('shell.onboarding.theme.altDark')} />
                     <span style={st('position:absolute;inset:0;clip-path:inset(0 0 0 50%)')}>
                       <Shot name="layout-list-light" alt="" />
                     </span>
                   </>
                 ) : (
-                  <Shot name={`layout-list-${value}`} alt={`QueueUp in ${label.toLowerCase()} mode`} />
+                  <Shot name={`layout-list-${value}`} alt={t(value === 'dark' ? 'shell.onboarding.theme.altDark' : 'shell.onboarding.theme.altLight')} />
                 )}
               </ChoiceCard>
             ))}
@@ -313,23 +307,23 @@ export function Onboarding({ onDone }: { onDone: () => void }) {
 
         {kind === 'layout' && (
           <>
-            <ChoiceGrid columns={2} label="Game layout">
-              <ChoiceCard selected={viewMode === 'list'} label="List" sub="Details at a glance" onClick={() => setViewMode('list')}>
-                <Shot name={`layout-list-${tone}`} alt="Games shown as a list" />
+            <ChoiceGrid columns={2} label={t('shell.onboarding.layout.aria')}>
+              <ChoiceCard selected={viewMode === 'list'} label={t('shell.onboarding.layout.list')} sub={t('shell.onboarding.layout.listSub')} onClick={() => setViewMode('list')}>
+                <Shot name={`layout-list-${tone}`} alt={t('shell.onboarding.layout.listAlt')} />
               </ChoiceCard>
-              <ChoiceCard selected={viewMode === 'artwork'} label="Covers" sub="Box art front and centre" onClick={() => setViewMode('artwork')}>
-                <Shot name={`layout-covers2-${tone}`} alt="Games shown as cover art" />
+              <ChoiceCard selected={viewMode === 'artwork'} label={t('shell.onboarding.layout.covers')} sub={t('shell.onboarding.layout.coversSub')} onClick={() => setViewMode('artwork')}>
+                <Shot name={`layout-covers2-${tone}`} alt={t('shell.onboarding.layout.coversAlt')} />
               </ChoiceCard>
             </ChoiceGrid>
             {viewMode === 'artwork' && (
               <>
-                <span style={st('flex-shrink:0;font:600 12px var(--font-mono);letter-spacing:0.06em;color:var(--muted);margin-top:6px')}>COVERS PER ROW ON PHONES</span>
-                <ChoiceGrid columns={2} label="Covers per row">
-                  <ChoiceCard selected={density !== 'small'} label="2 per row" sub="Bigger art, vote buttons on each" onClick={() => setDensity('medium')}>
-                    <Shot name={`density-covers2-${tone}`} alt="Two covers per row" />
+                <span style={st('flex-shrink:0;font:600 12px var(--font-mono);letter-spacing:0.06em;color:var(--muted);margin-top:6px')}>{t('shell.onboarding.density.heading')}</span>
+                <ChoiceGrid columns={2} label={t('shell.onboarding.density.aria')}>
+                  <ChoiceCard selected={density !== 'small'} label={t('shell.onboarding.density.two')} sub={t('shell.onboarding.density.twoSub')} onClick={() => setDensity('medium')}>
+                    <Shot name={`density-covers2-${tone}`} alt={t('shell.onboarding.density.twoAlt')} />
                   </ChoiceCard>
-                  <ChoiceCard selected={density === 'small'} label="3 per row" sub="More games on screen" onClick={() => setDensity('small')}>
-                    <Shot name={`density-covers3-${tone}`} alt="Three covers per row" />
+                  <ChoiceCard selected={density === 'small'} label={t('shell.onboarding.density.three')} sub={t('shell.onboarding.density.threeSub')} onClick={() => setDensity('small')}>
+                    <Shot name={`density-covers3-${tone}`} alt={t('shell.onboarding.density.threeAlt')} />
                   </ChoiceCard>
                 </ChoiceGrid>
               </>
@@ -338,15 +332,15 @@ export function Onboarding({ onDone }: { onDone: () => void }) {
         )}
 
         {kind === 'accent' && (
-          <ChoiceGrid columns={2} label="Room colours">
+          <ChoiceGrid columns={2} label={t('shell.onboarding.accent.title')}>
             {(
               [
-                ['room', 'Room colours', "Each room's colour tints its buttons"],
-                ['mono', 'Monochrome', 'Neutral everywhere'],
+                ['room', t('shell.onboarding.accent.title'), t('shell.onboarding.accent.roomSub')],
+                ['mono', t('shell.onboarding.accent.mono'), t('shell.onboarding.accent.monoSub')],
               ] as [Accent, string, string][]
             ).map(([value, label, sub]) => (
               <ChoiceCard key={value} selected={accent === value} label={label} sub={sub} onClick={() => setAccent(value)}>
-                <Shot name={`accent-${value}-${tone}`} alt={`A room with ${label.toLowerCase()}`} />
+                <Shot name={`accent-${value}-${tone}`} alt={t(value === 'room' ? 'shell.onboarding.accent.roomAlt' : 'shell.onboarding.accent.monoAlt')} />
               </ChoiceCard>
             ))}
           </ChoiceGrid>
@@ -355,20 +349,20 @@ export function Onboarding({ onDone }: { onDone: () => void }) {
         {kind === 'currency' && (
           <select
             value={region ?? ''}
-            aria-label="Price currency"
+            aria-label={t('shell.onboarding.currency.aria')}
             onChange={(e) => setRegion((e.target.value || undefined) as PriceRegion | undefined)}
             style={st('flex-shrink:0;height:52px;padding:0 14px;border-radius:14px;background:var(--surf);border:1px solid var(--line);color:var(--text);font-size:16px;outline:none')}
           >
-            <option value="">Server default</option>
+            <option value="">{t('shell.onboarding.currency.serverDefault')}</option>
             {REGIONS.map((r) => (
               <option key={r} value={r}>
-                {PRICE_REGION_LABELS[r]}
+                {priceRegionLabel(r)}
               </option>
             ))}
           </select>
         )}
 
-        {kind === 'systems' && <SystemsPicker saveLabel="Save systems" onSaved={() => ui.notify('Systems saved')} />}
+        {kind === 'systems' && <SystemsPicker saveLabel={t('shell.onboarding.systems.save')} onSaved={() => ui.notify(t('shell.onboarding.systems.saved'))} />}
 
         {kind === 'library' && (
           <>
@@ -377,20 +371,20 @@ export function Onboarding({ onDone }: { onDone: () => void }) {
                 <span style={st('width:56px;height:56px;flex-shrink:0;border-radius:16px;background:oklch(0.55 0.2 300);color:#fff;display:flex;align-items:center;justify-content:center;font:800 22px var(--font-display)')}>P</span>
                 <span style={st('flex:1;min-width:0;display:flex;flex-direction:column;gap:3px')}>
                   <span style={st('font:700 19px var(--font-display)')}>Playnite</span>
-                  <span style={st('font:500 12.5px var(--font-ui);color:var(--text2)')}>Recommended · every launcher at once</span>
+                  <span style={st('font:500 12.5px var(--font-ui);color:var(--text2)')}>{t('shell.onboarding.library.playniteTag')}</span>
                 </span>
               </div>
-              <span style={st('font:400 13.5px/1.45 var(--font-ui);color:var(--text2)')}>Free desktop app that gathers Epic, GOG, Xbox, PlayStation, Nintendo and more, then sends the lot to QueueUp.</span>
+              <span style={st('font:400 13.5px/1.45 var(--font-ui);color:var(--text2)')}>{t('shell.onboarding.library.playniteBlurb')}</span>
               <div style={st('display:flex;flex-wrap:wrap;gap:6px')}>
                 {STORES.map((s) => (
                   <span key={s} style={st('height:26px;padding:0 10px;border-radius:999px;background:oklch(1 0 0 / 0.08);font:600 11.5px var(--font-ui);color:var(--text2);display:flex;align-items:center')}>{s}</span>
                 ))}
               </div>
               <button type="button" onClick={() => ui.openDialog('playnite')} style={st('height:50px;border-radius:999px;border:none;background:var(--acc);color:var(--ink);font:700 14.5px var(--font-ui)')}>
-                Set up Playnite
+                {t('shell.onboarding.library.setUpPlaynite')}
               </button>
             </div>
-            <span style={st('flex-shrink:0;font:600 12px var(--font-mono);letter-spacing:0.06em;color:var(--muted);margin-top:6px')}>OR CONNECT DIRECTLY</span>
+            <span style={st('flex-shrink:0;font:600 12px var(--font-mono);letter-spacing:0.06em;color:var(--muted);margin-top:6px')}>{t('shell.onboarding.library.orConnect')}</span>
             <div style={st('flex-shrink:0;display:flex;flex-wrap:wrap;gap:14px')}>
               <button
                 type="button"
@@ -404,7 +398,7 @@ export function Onboarding({ onDone }: { onDone: () => void }) {
                     <span style={st('position:absolute;right:-4px;bottom:-4px;width:22px;height:22px;border-radius:50%;background:var(--mint);color:#fff;border:2px solid var(--bg);display:flex;align-items:center;justify-content:center;font:800 11px var(--font-ui)')}>✓</span>
                   )}
                 </span>
-                <span style={st('font:600 12px/1.25 var(--font-ui);text-align:center')}>{steam.busy || steam.syncingEverything ? 'Importing…' : steamLinked ? 'Import now' : 'Link Steam'}</span>
+                <span style={st('font:600 12px/1.25 var(--font-ui);text-align:center')}>{steam.busy || steam.syncingEverything ? t('shell.onboarding.library.importing') : steamLinked ? t('shell.onboarding.library.importNow') : t('shell.onboarding.library.linkSteam')}</span>
               </button>
             </div>
           </>
@@ -413,18 +407,18 @@ export function Onboarding({ onDone }: { onDone: () => void }) {
         {kind === 'analytics' && (
           <div style={st('flex-shrink:0;display:flex;flex-direction:column;gap:14px')}>
             <div style={st('display:flex;align-items:center;gap:12px;padding:14px 16px;border-radius:16px;background:var(--surf)')}>
-              <span style={st('flex:1;font:600 15px var(--font-ui)')}>Share usage stats</span>
-              <Toggle on={shareStats} onChange={setShareStats} label="Share usage stats" />
+              <span style={st('flex:1;font:600 15px var(--font-ui)')}>{t('shell.onboarding.analytics.share')}</span>
+              <Toggle on={shareStats} onChange={setShareStats} label={t('shell.onboarding.analytics.share')} />
             </div>
             <div style={st('display:flex;flex-direction:column;gap:8px;padding:14px 16px;border-radius:16px;border:1px solid var(--line);font:400 13.5px/1.45 var(--font-ui);color:var(--text2)')}>
-              <span style={st('font:600 12px var(--font-mono);letter-spacing:0.06em;color:var(--muted)')}>WHAT GOOGLE GETS</span>
-              <span>• The pages you open, with room, profile and invite ids removed</span>
-              <span>• Your browser, device type and rough location</span>
-              <span>• A cookie to count return visits</span>
+              <span style={st('font:600 12px var(--font-mono);letter-spacing:0.06em;color:var(--muted)')}>{t('shell.onboarding.analytics.whatGoogleGets')}</span>
+              <span>{t('shell.onboarding.analytics.pages')}</span>
+              <span>{t('shell.onboarding.analytics.device')}</span>
+              <span>{t('shell.onboarding.analytics.cookie')}</span>
               <span style={st('color:var(--muted)')}>
-                Never your games, rooms, name or email.{' '}
+                {t('shell.onboarding.analytics.never')}{' '}
                 <a href={`${getBasePath()}/privacy`} target="_blank" rel="noopener" style={st('color:var(--accText)')}>
-                  Privacy policy
+                  {t('shell.onboarding.analytics.privacy')}
                 </a>
               </span>
             </div>
@@ -434,8 +428,8 @@ export function Onboarding({ onDone }: { onDone: () => void }) {
         {kind === 'email' && (
           <div style={st('flex-shrink:0;display:flex;flex-direction:column;gap:14px')}>
             <div style={st('display:flex;align-items:center;gap:12px;padding:14px 16px;border-radius:16px;background:var(--surf)')}>
-              <span style={st('flex:1;font:600 15px var(--font-ui)')}>Email me alerts</span>
-              <Toggle on={wantEmail} onChange={setWantEmail} label="Email me alerts" />
+              <span style={st('flex:1;font:600 15px var(--font-ui)')}>{t('shell.onboarding.email.toggle')}</span>
+              <Toggle on={wantEmail} onChange={setWantEmail} label={t('shell.onboarding.email.toggle')} />
             </div>
             {wantEmail && (
               <>
@@ -446,19 +440,19 @@ export function Onboarding({ onDone }: { onDone: () => void }) {
                     setEmailDraft(e.target.value);
                     setEmailError(null);
                   }}
-                  placeholder="you@example.com"
-                  aria-label="Email address for alerts"
+                  placeholder={t('shell.onboarding.email.placeholder')}
+                  aria-label={t('shell.onboarding.email.aria')}
                   style={st(inputPill, { height: 52, flexShrink: 0, border: '1px solid var(--line)', fontSize: 16 })}
                 />
                 {emailError && <span style={st('flex-shrink:0;font:500 13px var(--font-ui);color:var(--danger)')}>{emailError}</span>}
-                <span style={st('font:600 12px var(--font-mono);letter-spacing:0.06em;color:var(--muted)')}>WHICH ALERTS?</span>
+                <span style={st('font:600 12px var(--font-mono);letter-spacing:0.06em;color:var(--muted)')}>{t('shell.onboarding.email.which')}</span>
                 <div style={st('display:flex;flex-direction:column;gap:1px;border-radius:16px;overflow:hidden;background:var(--chip)')}>
                   {EMAIL_CHOICES.map((c) => (
                     <div key={c.type} style={st('display:flex;align-items:center;gap:12px;min-height:54px;padding:8px 16px;background:var(--surf)')}>
-                      <span style={st('flex:1;min-width:0;font:500 14.5px var(--font-ui)')}>{c.label}</span>
+                      <span style={st('flex:1;min-width:0;font:500 14.5px var(--font-ui)')}>{t(c.label)}</span>
                       <Toggle
                         on={emailTypes.has(c.type)}
-                        label={c.label}
+                        label={t(c.label)}
                         onChange={(v) =>
                           setEmailTypes((prev) => {
                             const next = new Set(prev);
@@ -480,11 +474,11 @@ export function Onboarding({ onDone }: { onDone: () => void }) {
           <div style={st('flex-shrink:0;display:flex;flex-direction:column;gap:1px;border-radius:20px;overflow:hidden;background:var(--chip)')}>
             {(
               [
-                ['🏠', 'Create a room', 'Pick a name and a platform', 'create'],
-                ['🔗', 'Join with an invite code', 'Paste a code or link from a friend', 'join'],
-                ['🌐', 'Browse public rooms', 'Open rooms on this server', 'browse'],
+                ['🏠', t('shell.onboarding.rooms.create'), t('shell.onboarding.rooms.createSub'), 'create'],
+                ['🔗', t('shell.onboarding.rooms.join'), t('shell.onboarding.rooms.joinSub'), 'join'],
+                ['🌐', t('shell.onboarding.rooms.browse'), t('shell.onboarding.rooms.browseSub'), 'browse'],
               ] as const
-            ).map(([e, t, d, k]) => (
+            ).map(([e, label, d, k]) => (
               <button
                 key={k}
                 type="button"
@@ -493,7 +487,7 @@ export function Onboarding({ onDone }: { onDone: () => void }) {
               >
                 <span style={st('width:40px;height:40px;flex-shrink:0;border-radius:12px;background:var(--chip);display:flex;align-items:center;justify-content:center;font-size:18px')}>{e}</span>
                 <span style={st('flex:1;min-width:0;display:flex;flex-direction:column;gap:2px')}>
-                  <span style={st('font:600 15px var(--font-ui)')}>{t}</span>
+                  <span style={st('font:600 15px var(--font-ui)')}>{label}</span>
                   <span style={st('font:400 12.5px var(--font-ui);color:var(--muted)')}>{d}</span>
                 </span>
                 <span style={st('color:var(--muted);font-size:20px')}>›</span>
@@ -509,7 +503,7 @@ export function Onboarding({ onDone }: { onDone: () => void }) {
           onClick={() => void next()}
           style={st('width:100%;height:54px;border-radius:999px;border:none;background:var(--acc);color:var(--ink);font:700 15.5px var(--font-ui)')}
         >
-          {last ? 'Start queueing' : kind === 'library' ? 'Continue' : 'Next'}
+          {last ? t('shell.onboarding.start') : kind === 'library' ? t('shell.onboarding.continue') : t('common.next')}
         </button>
       </div>
     </div>
