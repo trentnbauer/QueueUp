@@ -807,6 +807,19 @@ export function RoomSettingsDialog() {
       </Field>
 
       <Group>
+        <button
+          type="button"
+          onClick={() => {
+            ui.closeDialog('roomSettings');
+            ui.openDialog('journal', { roomId });
+          }}
+          style={st('min-height:52px;padding:0 16px;border:none;background:var(--surf);color:var(--text);text-align:left;font:600 14.5px var(--font-ui)')}
+        >
+          Play journal
+        </button>
+      </Group>
+
+      <Group>
         {!isMaster && (
           <button type="button" onClick={leave} style={st('min-height:52px;padding:0 16px;border:none;background:var(--surf);color:var(--danger);text-align:left;font:600 14.5px var(--font-ui)')}>
             Leave room

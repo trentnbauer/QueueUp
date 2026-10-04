@@ -782,6 +782,7 @@ export function MeDialog() {
             )}
             <NavRow label="Notifications" onClick={() => setNotifOpen(true)} />
             <NavRow label="API keys" onClick={() => setKeysOpen(true)} />
+            <NavRow label="Play journal" onClick={() => { close(); ui.openDialog('journal', {}); }} />
             <NavRow label="Account history" onClick={() => setHistoryOpen(true)} />
           </Group>
         </Section>

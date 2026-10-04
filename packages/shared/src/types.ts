@@ -1088,6 +1088,24 @@ export interface PriceHistoryResponse {
   lowest: number | null;
 }
 
+/** One playthrough in a play journal (#802): a game, where it was played, when, and time logged. */
+export interface JournalEntry {
+  id: string;
+  gameId: string;
+  title: string;
+  coverImageUrl: string | null;
+  status: GameStatus;
+  /** The room it was played in, or null for the Personal Shelf. */
+  roomId: string | null;
+  roomName: string | null;
+  startedAt: string;
+  finishedAt: string | null;
+  /** Minutes played in this playthrough (Steam playtime at start and finish), when known. */
+  minutesPlayed: number | null;
+  /** The viewer's all-time playtime for the game from Steam or Playnite, when known. */
+  totalMinutes: number | null;
+}
+
 export interface PlayLogEntry {
   id: string;
   startedAt: string;
