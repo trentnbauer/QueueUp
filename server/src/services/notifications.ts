@@ -24,7 +24,7 @@ interface NotifyRoomInput {
   // RoomActivityType, not just documented as one.
   type: Exclude<
     NotificationType,
-    'room_deleted' | 'price_drop' | 'release_watch' | 'playtime_mark_playing' | 'playnite_sync_reminder' | 'wishlist_bundle_deal' | 'play_together_request' | 'feed_reaction' | 'friend_recommendation' | 'good_time_to_buy' | 'account_change'
+    'room_deleted' | 'price_drop' | 'release_watch' | 'playtime_mark_playing' | 'playnite_sync_reminder' | 'wishlist_bundle_deal' | 'play_together_request' | 'feed_reaction' | 'friend_recommendation' | 'good_time_to_buy' | 'account_change' | 'platform_unowned'
   >;
   message: (actorName: string) => string;
 }
@@ -328,6 +328,7 @@ export function serializeNotification(row: NotificationWithActor, currentUserId:
     createdAt: row.createdAt.toISOString(),
     read,
     gameId: row.gameId,
+    platform: row.platform,
   };
 }
 

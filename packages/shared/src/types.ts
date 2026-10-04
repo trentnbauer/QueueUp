@@ -1306,7 +1306,8 @@ export type NotificationType =
   | 'feed_reaction'
   | 'friend_recommendation'
   | 'good_time_to_buy'
-  | 'account_change';
+  | 'account_change'
+  | 'platform_unowned';
 
 /** Notification types a person can choose to receive by email (direct ones, never room-scoped). */
 export const EMAIL_ALERT_TYPES = [
@@ -1403,6 +1404,8 @@ export interface Notification {
    * except playtime_mark_playing. Lets a client action button (e.g. "Mark Playing") target the
    * right game without parsing `message`. */
   gameId: string | null;
+  /** The console a platform_unowned notification asks about adding to Systems owned. */
+  platform: RoomPlatform | null;
 }
 
 /** Issue #509 - a room's full, paginated activity history, distinct from NotificationType above:

@@ -6,6 +6,7 @@ import { useUi } from '../context/UiContext';
 import { useToast } from '../context/ToastContext';
 import { notificationsApi } from '../api/notifications';
 import { gamesApi } from '../api/games';
+import { apiPost } from '../api/client';
 
 const POLL_INTERVAL_MS = 30_000;
 
@@ -19,7 +20,7 @@ const POLL_INTERVAL_MS = 30_000;
  * always-on 30s poll keeps that cache warm for both, rather than the two independently fetching
  * the same endpoint. */
 export function useActionableNotificationToasts() {
-  const { user } = useAuth();
+  const { user, refetch } = useAuth();
   const navigate = useNavigate();
   const { showToast } = useToast();
   const ui = useUi();
@@ -51,6 +52,26 @@ export function useActionableNotificationToasts() {
 
   useEffect(() => {
     for (const notification of data?.notifications ?? []) {
+      // A sync found games on a console the person had unticked: ask before adding it back.
+      if (notification.type === 'platform_unowned' && notification.platform && !notification.read) {
+        const platform = notification.platform;
+        const answer = async (add: boolean) => {
+          await apiPost(`/api/me/owned-platforms/${platform}/answer`, { add });
+          queryClient.invalidateQueries({ queryKey: ['notifications', 'feed'] });
+          queryClient.invalidateQueries({ queryKey: ['notifications', 'summary'] });
+          if (add) void refetch();
+        };
+        showToast({
+          id: `notification-${notification.id}`,
+          message: notification.message,
+          actions: [
+            { label: 'Yes, add it', onClick: () => answer(true) },
+            { label: 'No', onClick: () => answer(false) },
+          ],
+          onDismiss: () => markRead.mutate(notification.id),
+        });
+        continue;
+      }
       if (notification.gameId === null) continue;
       const gameId = notification.gameId;
 

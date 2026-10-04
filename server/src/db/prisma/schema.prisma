@@ -173,6 +173,9 @@ enum NotificationType {
   account_change
 
   @@map("notification_type")
+  /// A library sync found games on a console the person unticked from Systems owned: asks whether
+  /// to add it back (Yes/No), instead of re-adding it on its own. `platform` says which.
+  platform_unowned
 }
 
 /// See RoomActivity's doc comment. A superset of NotificationType's room-scoped values (everything
@@ -230,6 +233,11 @@ model User {
   /// search/create flow there the same way a Room's platform scopes it for a room. Empty means
   /// no opt-in yet, so no filtering is applied (preserves pre-existing behavior).
   ownedPlatforms       RoomPlatform[] @default([]) @map("owned_platforms")
+  /// Consoles the person unticked from Systems owned. A library sync never ticks these again on its
+  /// own; it asks instead (platform_unowned notification). Re-ticking one clears it.
+  dismissedPlatforms  RoomPlatform[] @default([]) @map("dismissed_platforms")
+  /// Consoles they answered "No" to adding back - not asked about again until ticked and unticked again.
+  declinedPlatforms   RoomPlatform[] @default([]) @map("declined_platforms")
   /// Whether the public, unauthenticated `/u/:id` profile page (badges, Beaten count, Currently
   /// Playing) answers for this user. New accounts default to on (issue #511 originally shipped it
   /// opt-in; existing rows keep whatever they had). Turning it off makes GET /api/public/users/:id
@@ -1167,6 +1175,8 @@ model Notification {
   /// parsing `message`. SetNull rather than Cascade on delete: a removed game shouldn't take an
   /// already-delivered notification with it, just leave it unable to offer its action anymore.
   gameId      String?          @map("game_id")
+  /// The console a platform_unowned notification is about.
+  platform    RoomPlatform?    @map("platform")
 
   room      Room? @relation(fields: [roomId], references: [id], onDelete: Cascade)
   recipient User? @relation("NotificationRecipient", fields: [recipientId], references: [id], onDelete: Cascade)
