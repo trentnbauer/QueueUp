@@ -24,12 +24,23 @@ import type {
   UpdateRoomRequest,
 } from '@queueup/shared';
 import { areFriends, friendIdsOf } from '../services/friendships.js';
-import { DISCORD_EVENT_KEYS, resolveDiscordEvents, ROOM_PLATFORM_LABELS, SPIN_WHEEL_THEMES } from '@queueup/shared';
+import { DISCORD_EVENT_KEYS, resolveDiscordEvents, ROOM_PLATFORM_LABELS, SPIN_WHEEL_THEMES, type SpinDefaults } from '@queueup/shared';
+import { parseSpinFilters } from '../services/spinFilters.js';
 
 /** #rrggbb - the only colour format a room accent may take (it ends up in inline styles). */
 const HEX_COLOUR = /^#[0-9a-fA-F]{6}$/;
 const ROOM_PLATFORMS = Object.keys(ROOM_PLATFORM_LABELS) as RoomPlatform[];
 const ROOM_ROLES: RoomRole[] = ['room_master', 'moderator', 'member'];
+
+/** The stored spin defaults, keeping only valid values. */
+function toSpinDefaults(raw: unknown): SpinDefaults {
+  const f = parseSpinFilters(raw);
+  return {
+    ...(f.maxTtb && { maxTtb: f.maxTtb }),
+    ...(f.minScore && { minScore: f.minScore }),
+    ...(f.everyoneOwns && { everyoneOwns: true }),
+  };
+}
 
 function toRoomDto(
   room: {
@@ -42,6 +53,7 @@ function toRoomDto(
     discordWebhookUrl: string | null;
     spinOwnershipMaxPrice: number;
     spinWheelTheme: string;
+    spinDefaults: unknown;
     isPublic: boolean;
     requireGameApproval: boolean;
     invitePermission: RoomInvitePermission;
@@ -67,6 +79,7 @@ function toRoomDto(
     spinOwnershipMaxPrice: room.spinOwnershipMaxPrice,
     // The retired crate/card_flip values only ever showed the reel.
     spinWheelTheme: SPIN_WHEEL_THEMES.includes(room.spinWheelTheme as SpinWheelTheme) ? (room.spinWheelTheme as SpinWheelTheme) : 'reel',
+    spinDefaults: toSpinDefaults(room.spinDefaults),
     isPublic: room.isPublic,
     requireGameApproval: room.requireGameApproval,
     invitePermission: room.invitePermission,
@@ -300,7 +313,7 @@ export default async function roomRoutes(app: FastifyInstance) {
       throw new HttpError(403, 'Only the Room Master can change room settings');
     }
 
-    const { name, platform, accentColor, discordWebhookUrl, spinOwnershipMaxPrice, spinWheelTheme, isPublic, requireGameApproval, invitePermission, discordEvents } =
+    const { name, platform, accentColor, discordWebhookUrl, spinOwnershipMaxPrice, spinWheelTheme, spinDefaults, isPublic, requireGameApproval, invitePermission, discordEvents } =
       request.body ?? {};
     if (invitePermission !== undefined && invitePermission !== 'members' && invitePermission !== 'moderators') {
       throw new HttpError(400, 'Invite permission must be members or moderators');
@@ -345,6 +358,7 @@ export default async function roomRoutes(app: FastifyInstance) {
         ...(accentColor !== undefined && { accentColor }),
         ...(discordWebhookUrl !== undefined && { discordWebhookUrl }),
         ...(spinOwnershipMaxPrice !== undefined && { spinOwnershipMaxPrice }),
+        ...(spinDefaults !== undefined && { spinDefaults: toSpinDefaults(spinDefaults) as Prisma.InputJsonValue }),
         ...(spinWheelTheme !== undefined && { spinWheelTheme }),
         ...(isPublic !== undefined && { isPublic }),
         ...(requireGameApproval !== undefined && { requireGameApproval }),

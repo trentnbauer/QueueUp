@@ -198,9 +198,11 @@ export function SpinDialog({ onClose }: { onClose: () => void }) {
   const shared = useRoomSpin(roomId);
 
   const [maxPrice, setMaxPrice] = useState(0);
-  const [maxTtb, setMaxTtb] = useState(0);
-  const [minScore, setMinScore] = useState(0);
-  const [everyone, setEveryone] = useState(false);
+  // A room's Spin defaults (#801) pick where the filters start.
+  const defaults = !isShelf ? room?.spinDefaults : undefined;
+  const [maxTtb, setMaxTtb] = useState(defaults?.maxTtb ?? 0);
+  const [minScore, setMinScore] = useState(defaults?.minScore ? defaults.minScore / 10 : 0);
+  const [everyone, setEveryone] = useState(!!defaults?.everyoneOwns);
   const [local, setLocal] = useState<Run | null>(null);
   const [nudge, setNudge] = useState<'left' | 'right' | null>(null);
   const [starting, setStarting] = useState(false);

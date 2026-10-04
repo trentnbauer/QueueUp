@@ -676,6 +676,9 @@ model Room {
   /// loosen "everyone must already own it" into "or it's cheap enough that buying in isn't a big
   /// ask." $0 reproduces the old fully-owned-only behavior.
   spinOwnershipMaxPrice Int            @default(15) @map("spin_ownership_max_price")
+  /// Spin filters the Spin dialog starts with in this room (SpinDefaults in packages/shared): length,
+  /// review score and "everyone owns it" (#801). Null = none.
+  spinDefaults          Json?          @map("spin_defaults")
   /// Which visual presentation Spin the Wheel uses (issue #297) - defaults to the original
   /// slot-machine reel so existing rooms don't change.
   spinWheelTheme        SpinWheelTheme @default(reel) @map("spin_wheel_theme")

@@ -343,6 +343,8 @@ export interface Room {
   spinOwnershipMaxPrice: number;
   /** Which visual presentation Spin the Wheel uses - see SpinWheelTheme. */
   spinWheelTheme: SpinWheelTheme;
+  /** Filters the Spin dialog starts with in this room (#801). */
+  spinDefaults: SpinDefaults;
   /** When true, this room is listed in the public room directory and any signed-in user can
    * self-join it instantly (no invite code, no approval step). Defaults to false. */
   isPublic: boolean;
@@ -441,6 +443,16 @@ export interface PublicRoomSummary {
   platform: RoomPlatform | null;
   accentColor: string;
   memberCount: number;
+}
+
+/** Spin filters a room's Spin dialog starts with (#801). Each is optional; unset means "any". */
+export interface SpinDefaults {
+  /** Longest time to beat, in hours. */
+  maxTtb?: number;
+  /** Lowest IGDB score, 0-100. */
+  minScore?: number;
+  /** Only games every member owns. */
+  everyoneOwns?: boolean;
 }
 
 /** How Spin the Wheel picks a game, room-settable. "reel" is the original horizontal reel; the
@@ -822,6 +834,7 @@ export interface UpdateRoomRequest {
   /** Set to null to clear/disable the webhook. */
   discordWebhookUrl?: string | null;
   spinOwnershipMaxPrice?: number;
+  spinDefaults?: SpinDefaults;
   spinWheelTheme?: SpinWheelTheme;
   isPublic?: boolean;
   requireGameApproval?: boolean;

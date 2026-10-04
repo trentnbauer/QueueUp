@@ -31,6 +31,9 @@ import { formatRelativeTime } from '../utils/relativeTime';
 const PLATFORMS = Object.keys(ROOM_PLATFORM_LABELS) as RoomPlatform[];
 // The design's six room colours, as hex (room colours also feed Discord and other non-CSS-colour
 // consumers, so they're stored as hex rather than the design's oklch strings).
+/** Small mono heading for each row of Spin defaults. */
+const DEFAULT_LABEL = 'font:600 11px var(--font-mono);letter-spacing:0.06em;color:var(--faint);margin-top:2px';
+
 const ROOM_COLORS = ['#c0693c', '#2e8a63', '#5a73c4', '#b05a9c', '#3b86a3', '#6c9136'];
 const LABEL = 'font:600 12px var(--font-mono);letter-spacing:0.06em;color:var(--muted)';
 const ROW = 'display:flex;align-items:center;gap:12px;min-height:64px;padding:10px 16px;background:var(--surf);color:var(--text);text-align:left;border:none;width:100%';
@@ -447,6 +450,7 @@ export function RoomSettingsDialog() {
   const entries = activity.data?.pages.flatMap((p) => p.entries) ?? [];
   const topGenre = year.genreSpread[0]?.genre ?? '—';
   const spinMax = room.spinOwnershipMaxPrice;
+  const spinDefaults = room.spinDefaults ?? {};
 
   return (
     <Dialog
@@ -615,15 +619,37 @@ export function RoomSettingsDialog() {
           </div>
           <div style={st('display:flex;flex-direction:column;gap:10px;padding:14px 16px;border-radius:14px;background:var(--surf)')}>
             <span style={st('display:flex;flex-direction:column;gap:2px')}>
-              <span style={st('font:500 14.5px var(--font-ui)')}>Spin price limit</span>
-              <span style={st('font:400 12px/1.45 var(--font-ui);color:var(--muted)')}>Spin only picks games everyone owns, or ones priced at or under this.</span>
+              <span style={st('font:500 14.5px var(--font-ui)')}>Spin defaults</span>
+              <span style={st('font:400 12px/1.45 var(--font-ui);color:var(--muted)')}>The filters Spin starts with in this room. Anyone can change them for a single spin.</span>
             </span>
+            <span style={st(DEFAULT_LABEL)}>PRICE · EVERYONE OWNS IT, OR UNDER</span>
             <div style={st('display:flex;flex-wrap:wrap;gap:6px')}>
               {[0, 10, 20, 40].map((v) => (
                 <ChipToggle key={v} on={spinMax === v} onClick={() => patch({ spinOwnershipMaxPrice: v }, v === 0 ? 'Spin picks games everyone owns' : `Spin picks games everyone owns, or $${v} or less`)}>
                   {v === 0 ? 'Owned only' : `$${v}`}
                 </ChipToggle>
               ))}
+            </div>
+            <span style={st(DEFAULT_LABEL)}>LENGTH</span>
+            <div style={st('display:flex;flex-wrap:wrap;gap:6px')}>
+              {[0, 10, 20, 40].map((h) => (
+                <ChipToggle key={h} on={(spinDefaults.maxTtb ?? 0) === h} onClick={() => patch({ spinDefaults: { ...spinDefaults, maxTtb: h || undefined } }, 'Spin defaults saved')}>
+                  {h ? `Under ${h}h` : 'Any length'}
+                </ChipToggle>
+              ))}
+            </div>
+            <span style={st(DEFAULT_LABEL)}>REVIEW SCORE</span>
+            <div style={st('display:flex;flex-wrap:wrap;gap:6px')}>
+              {[0, 7, 8, 9].map((n) => (
+                <ChipToggle key={n} on={(spinDefaults.minScore ?? 0) === n * 10} onClick={() => patch({ spinDefaults: { ...spinDefaults, minScore: n ? n * 10 : undefined } }, 'Spin defaults saved')}>
+                  {n ? `★ ${n}+` : 'Any score'}
+                </ChipToggle>
+              ))}
+            </div>
+            <div style={st('display:flex;flex-wrap:wrap;gap:6px')}>
+              <ChipToggle on={!!spinDefaults.everyoneOwns} onClick={() => patch({ spinDefaults: { ...spinDefaults, everyoneOwns: !spinDefaults.everyoneOwns || undefined } }, 'Spin defaults saved')}>
+                Everyone owns it
+              </ChipToggle>
             </div>
           </div>
           <div style={st('display:flex;flex-direction:column;gap:10px;padding:14px 16px;border-radius:14px;background:var(--surf)')}>
