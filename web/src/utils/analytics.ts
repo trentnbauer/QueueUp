@@ -27,38 +27,96 @@ export function analyticsPath(pathname: string): string {
   return path;
 }
 
-let measurementId: string | null = null;
-let started = false;
+const CONSENT_KEY = 'sq-analytics-consent';
 
-/** Starts Google Analytics if this server has a measurement id set (Administrator settings or
- * GA_MEASUREMENT_ID); otherwise nothing from Google is loaded. Automatic page views are off - they
- * would report the raw URL - so pages are sent by trackPageView instead. */
-export async function initAnalytics(): Promise<void> {
-  // Once per page load - React's dev-mode double effects (or a remount) must not add a second tag.
-  if (started) return;
-  started = true;
+/** The visitor's answer to "share usage stats?" in this browser; null until they've answered. */
+export type AnalyticsConsent = 'granted' | 'denied' | null;
+
+export function getAnalyticsConsent(): AnalyticsConsent {
   try {
-    const res = await fetch(`${getBasePath()}/api/analytics-config`);
-    if (!res.ok) return;
-    const { gaMeasurementId } = (await res.json()) as { gaMeasurementId: string | null };
-    if (!gaMeasurementId) return;
-    window.dataLayer = window.dataLayer ?? [];
-    // gtag reads `arguments`, not an array, so this has to stay a plain function.
-    window.gtag = function gtag() {
-      // eslint-disable-next-line prefer-rest-params
-      window.dataLayer!.push(arguments);
-    };
-    window.gtag('js', new Date());
-    window.gtag('config', gaMeasurementId, { send_page_view: false });
-    const script = document.createElement('script');
-    script.async = true;
-    script.src = `https://www.googletagmanager.com/gtag/js?id=${encodeURIComponent(gaMeasurementId)}`;
-    document.head.appendChild(script);
-    measurementId = gaMeasurementId;
-    trackPageView(window.location.pathname);
+    const v = localStorage.getItem(CONSENT_KEY);
+    return v === 'granted' || v === 'denied' ? v : null;
   } catch {
-    /* analytics is best-effort */
+    return null;
   }
+}
+
+let configRequest: Promise<string | null> | null = null;
+
+/** This server's GA4 measurement id (Administrator settings or GA_MEASUREMENT_ID), or null when
+ * analytics isn't set up - in which case the consent question is never shown. Fetched once. */
+export function fetchAnalyticsId(): Promise<string | null> {
+  configRequest ??= fetch(`${getBasePath()}/api/analytics-config`)
+    .then(async (res) => (res.ok ? ((await res.json()) as { gaMeasurementId: string | null }).gaMeasurementId : null))
+    .catch(() => {
+      configRequest = null;
+      return null;
+    });
+  return configRequest;
+}
+
+let measurementId: string | null = null;
+let loadedId: string | null = null;
+
+function disableFlag(id: string): string {
+  return `ga-disable-${id}`;
+}
+
+/** Loads gtag.js for `id` (once per page) and switches sending back on if it was turned off. */
+function start(id: string): void {
+  (window as unknown as Record<string, unknown>)[disableFlag(id)] = false;
+  measurementId = id;
+  if (loadedId) return;
+  loadedId = id;
+  window.dataLayer = window.dataLayer ?? [];
+  // gtag reads `arguments`, not an array, so this has to stay a plain function.
+  window.gtag = function gtag() {
+    // eslint-disable-next-line prefer-rest-params
+    window.dataLayer!.push(arguments);
+  };
+  window.gtag('js', new Date());
+  window.gtag('config', id, { send_page_view: false });
+  const script = document.createElement('script');
+  script.async = true;
+  script.src = `https://www.googletagmanager.com/gtag/js?id=${encodeURIComponent(id)}`;
+  document.head.appendChild(script);
+}
+
+/** Stops anything more being sent this page load and deletes Google's _ga cookies. */
+function stop(): void {
+  if (loadedId) (window as unknown as Record<string, unknown>)[disableFlag(loadedId)] = true;
+  measurementId = null;
+  const host = window.location.hostname;
+  const parts = host.split('.');
+  // gtag sets its cookies on the widest domain it can, so try each parent of this host too.
+  const domains = ['', ...parts.map((_, i) => parts.slice(i).join('.')).filter((d) => d.includes('.'))];
+  for (const name of document.cookie.split(';').map((c) => c.split('=')[0].trim())) {
+    if (name !== '_ga' && !name.startsWith('_ga_')) continue;
+    for (const d of domains) document.cookie = `${name}=; Max-Age=0; path=/${d ? `; domain=${d}` : ''}`;
+  }
+}
+
+/** Starts Google Analytics when this server has a measurement id set AND the visitor said yes
+ * (onboarding or Settings); otherwise nothing from Google is loaded. Automatic page views are off -
+ * they would report the raw URL - so pages are sent by trackPageView instead. */
+export async function initAnalytics(): Promise<void> {
+  if (getAnalyticsConsent() !== 'granted') return;
+  const id = await fetchAnalyticsId();
+  // Re-checked: the answer could have changed while the config was loading.
+  if (!id || getAnalyticsConsent() !== 'granted' || measurementId) return;
+  start(id);
+  trackPageView(window.location.pathname);
+}
+
+/** Records the visitor's answer for this browser and applies it straight away. */
+export async function setAnalyticsConsent(granted: boolean): Promise<void> {
+  try {
+    localStorage.setItem(CONSENT_KEY, granted ? 'granted' : 'denied');
+  } catch {
+    /* private mode - the choice just won't stick */
+  }
+  if (granted) await initAnalytics();
+  else stop();
 }
 
 /** Reports one page view with ids and codes stripped from the address. No-op when analytics is off. */

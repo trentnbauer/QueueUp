@@ -71,6 +71,10 @@ Each method's `*_REDIRECT_URI` must exactly match what you register with that pr
 
 Optional. Create a widget at [Cloudflare → Turnstile](https://dash.cloudflare.com/?to=/:account/turnstile), add your QueueUp hostname to its allowed hostnames, then set `TURNSTILE_SITE_KEY` and `TURNSTILE_SECRET_KEY` (or enter them in Administrator settings). With both set, the sign-in page checks visitors with Turnstile before any sign-in starts. Most people never see a challenge, and anyone who does gets Cloudflare's "Verify you are human" box. If Cloudflare can't be reached, sign-in is refused rather than let through. Leave both blank for no captcha.
 
+## Google Analytics
+
+Optional. Create a GA4 property at [Google Analytics](https://analytics.google.com), then set its measurement ID as the `GA_MEASUREMENT_ID` environment variable (it's already listed in `docker-compose.prod.yml`, so add `GA_MEASUREMENT_ID=G-XXXXXXXXXX` to your `.env`), or enter it in Administrator settings → Integrations. With an ID set, each user is asked during setup whether to share usage stats, and can change their answer in Settings → Sharing. Google's script isn't loaded for anyone who hasn't said yes. Page views are sent with room, profile and invite ids stripped out of the address. Leave it blank and the question never appears.
+
 ## Cloudflare Tunnel
 
 Optional, and an alternative to opening a port or running a reverse proxy. QueueUp's image includes `cloudflared` and runs it for you:

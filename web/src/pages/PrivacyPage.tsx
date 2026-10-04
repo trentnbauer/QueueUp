@@ -178,7 +178,7 @@ export function PrivacyPage({ signedIn }: { signedIn: boolean }) {
               'IGDB (via Twitch) for game details, Steam for library, wishlist and playtime data, and GG.deals for prices. These receive game titles and ids, and the Steam ID you link.',
               'Discord, only if a Room Master adds a webhook: room events are posted to that channel.',
               'The operator\'s email server, only if email alerts are set up and you opt in: it receives your email address and the text of your alerts.',
-              'Cloudflare Turnstile, if the operator turns on the sign-in security check; Google Analytics, if the operator turns it on, which records the pages you visit (with room, profile and invite ids removed from the address), your browser and device type, and an approximate location, using cookies; YouTube (privacy-enhanced mode) when you play a trailer; and Google Fonts for the typefaces.',
+              'Cloudflare Turnstile, if the operator turns on the sign-in security check; Google Analytics, only if the operator turns it on and you choose to share usage stats, which records the pages you visit (with room, profile and invite ids removed from the address), your browser and device type, and an approximate location, using cookies; YouTube (privacy-enhanced mode) when you play a trailer; and Google Fonts for the typefaces.',
             ]}
           />
         </Section>
@@ -190,7 +190,7 @@ export function PrivacyPage({ signedIn }: { signedIn: boolean }) {
                 <b>Download my data</b> and <b>Delete my account</b> are both in Settings. Deleting your account removes your data from
                 this server.
               </>,
-              'You can revoke API keys, unlink sign-in methods, change or reset the email address for alerts, turn alerts on and off, remove your reactions, limit who can see your profile and hide games at any time.',
+              'You can revoke API keys, unlink sign-in methods, change or reset the email address for alerts, turn alerts on and off, remove your reactions, limit who can see your profile, turn usage stats on or off and hide games at any time.',
               'To ask about anything else, contact the operator of this server.',
             ]}
           />
