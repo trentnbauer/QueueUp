@@ -68,6 +68,8 @@ export interface RoomGamePayload {
   coverImageUrl: string | null;
   /** The game's status after this event. */
   status: string;
+  /** status_changed: the status it changed from. */
+  from?: string;
   /** game_reviewed: the review's average score out of 5, when it has scores. */
   score?: number | null;
 }
@@ -123,6 +125,8 @@ export interface ShelfActivityPayload {
   coverImageUrl: string | null;
   /** The game's status after this event (for game_added, the status it was added with). */
   status: string;
+  /** status_changed: the status it changed from. */
+  from?: string;
   /** Set on a Beaten entry once its review is saved (see PUT /api/games/:id/review). */
   review?: unknown;
 }

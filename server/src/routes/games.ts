@@ -1036,7 +1036,7 @@ export default async function gameRoutes(app: FastifyInstance) {
           actorId: userId,
           type: 'status_changed',
           message: (actorName) => `${actorName} marked "${updated.title}" as ${STATUS_LABELS[status]}`,
-          payload: { gameId: updated.id, title: updated.title, coverImageUrl: updated.coverImageUrl, status },
+          payload: { gameId: updated.id, title: updated.title, coverImageUrl: updated.coverImageUrl, status, from: game.status },
         });
         if (enteringDone) {
           const room = await prisma.room.findUnique({ where: { id: game.roomId }, select: { name: true } });
@@ -1048,7 +1048,7 @@ export default async function gameRoutes(app: FastifyInstance) {
           actorId: userId,
           type: 'status_changed',
           message: `Marked "${updated.title}" as ${STATUS_LABELS[status]}`,
-          payload: { gameId: updated.id, title: updated.title, coverImageUrl: updated.coverImageUrl, status },
+          payload: { gameId: updated.id, title: updated.title, coverImageUrl: updated.coverImageUrl, status, from: game.status },
           hidden: updated.hiddenFromOthers,
         });
       }

@@ -1,15 +1,43 @@
 import { useState } from 'react';
 import { useInfiniteQuery } from '@tanstack/react-query';
+import { ROOM_PLATFORM_LABELS, SPIN_WHEEL_THEMES, SPIN_WHEEL_THEME_HINTS, SPIN_WHEEL_THEME_LABELS, sortPlatforms } from '@queueup/shared';
 import { gamesApi } from '../api/games';
+import { useAuth } from '../context/AuthContext';
 import { useScope } from '../context/ScopeContext';
 import { useUi } from '../context/UiContext';
 import { Dialog } from '../ui/Dialog';
-import { Btn, ChipToggle, Kicker } from '../ui/primitives';
-import { SystemsPicker } from '../ui/SystemsPicker';
+import { Btn, ChipToggle, Group, Kicker } from '../ui/primitives';
 import { st } from '../ui/st';
 import { exportGames } from '../utils/exportGames';
 import { BACKLOG_SORT_OPTIONS, toggleBacklogSort, useBacklogSort } from '../home/backlogSort';
 import { formatRelativeTime } from '../utils/relativeTime';
+import { useShelfSpinTheme } from '../home/shelfSpinTheme';
+import { NavRow, SystemsDialog } from './MeDialog';
+
+/** The shelf's Spin type: the reel or one of the spin modes, or a random one each time. */
+function ShelfSpinTypeDialog({ onClose }: { onClose: () => void }) {
+  const ui = useUi();
+  const [theme, setTheme] = useShelfSpinTheme();
+  return (
+    <Dialog onClose={onClose} title="Spin type" gap={12}>
+      <span style={st('font:400 13px/1.45 var(--font-ui);color:var(--muted)')}>{SPIN_WHEEL_THEME_HINTS[theme]}</span>
+      <div style={st('display:flex;flex-wrap:wrap;gap:6px')}>
+        {SPIN_WHEEL_THEMES.map((t) => (
+          <ChipToggle
+            key={t}
+            on={theme === t}
+            onClick={() => {
+              setTheme(t);
+              ui.notify(`Spin type: ${SPIN_WHEEL_THEME_LABELS[t]}`);
+            }}
+          >
+            {t === 'random' ? '🎲 Random' : SPIN_WHEEL_THEME_LABELS[t]}
+          </ChipToggle>
+        ))}
+      </div>
+    </Dialog>
+  );
+}
 
 export function ShelfSettingsDialog() {
   const ui = useUi();
@@ -24,14 +52,22 @@ export function ShelfSettingsDialog() {
   });
   const entries = activity.data?.pages.flatMap((p) => p.entries) ?? [];
   const [backlogSort, setBacklogSort] = useBacklogSort();
+  const { ownedPlatforms } = useAuth();
+  const [spinTheme] = useShelfSpinTheme();
+  const [systemsOpen, setSystemsOpen] = useState(false);
+  const [spinOpen, setSpinOpen] = useState(false);
 
   return (
+    <>
     <Dialog onClose={() => ui.closeDialog('shelfSettings')} title="Shelf settings" gap={24}>
-      <div style={st('display:flex;flex-direction:column;gap:10px')}>
-        <Kicker>SYSTEMS OWNED</Kicker>
-        <span style={st('font:400 13px/1.45 var(--font-ui);color:var(--muted)')}>Add Game can limit its search to these systems with the "Owned systems only" button.</span>
-        <SystemsPicker onSaved={() => ui.notify('Systems saved')} />
-      </div>
+      <Group>
+        <NavRow
+          label="Systems owned"
+          sub={ownedPlatforms.length === 0 ? 'Every platform' : sortPlatforms(ownedPlatforms).map((p) => ROOM_PLATFORM_LABELS[p]).join(', ')}
+          onClick={() => setSystemsOpen(true)}
+        />
+        <NavRow label="Spin type" sub={spinTheme === 'random' ? 'Random' : SPIN_WHEEL_THEME_LABELS[spinTheme]} onClick={() => setSpinOpen(true)} />
+      </Group>
       <div style={st('display:flex;flex-direction:column;gap:10px')}>
         <Kicker>SORT BACKLOG BY</Kicker>
         <span style={st('font:400 13px/1.45 var(--font-ui);color:var(--muted)')}>Pick one or more. The first you pick sorts the Backlog; the next breaks ties.</span>
@@ -92,5 +128,8 @@ export function ShelfSettingsDialog() {
         <span style={st('color:var(--accText);text-decoration:underline;text-underline-offset:3px')}>your profile</span>.
       </button>
     </Dialog>
+    {systemsOpen && <SystemsDialog onClose={() => setSystemsOpen(false)} />}
+    {spinOpen && <ShelfSpinTypeDialog onClose={() => setSpinOpen(false)} />}
+    </>
   );
 }

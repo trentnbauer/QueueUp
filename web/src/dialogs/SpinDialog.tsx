@@ -1,17 +1,25 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useKeepScreenAwake } from '../hooks/useKeepScreenAwake';
-import type { Game, RoomSpinSession, SpinPlay, SpinPlayAction } from '@queueup/shared';
+import type { Game, RoomMember, RoomSpinSession, SpinPlay, SpinPlayAction, StoredPlay } from '@queueup/shared';
 import {
+  advancePlay,
   applyNudge,
+  applyPlayAction,
+  avoidedGenres,
   buildSpinStrip,
   candidateIndexAt,
   hasUnmetPrerequisite,
   isFullyOwned,
+  isPlayMode,
   isUnreleased,
+  pendingPlay,
   positionAt,
+  publicPlay,
+  resolveConcreteTheme,
   settledPositionOf,
   settlesAtOf,
   spinCandidates,
+  spinCandidateWeight,
   SPIN_INITIAL_VELOCITY,
   SPIN_WHEEL_THEME_LABELS,
   type SpinBase,
@@ -22,6 +30,7 @@ import { useConfirm } from '../context/ConfirmContext';
 import { useScope } from '../context/ScopeContext';
 import { useUi } from '../context/UiContext';
 import { useRoomSpin } from '../hooks/useRoomSpin';
+import { useShelfSpinTheme } from '../home/shelfSpinTheme';
 import { gamesApi } from '../api/games';
 import { fmtMoney, priceLabel } from '../lib/gameView';
 import { Dialog, CloseButton } from '../ui/Dialog';
@@ -212,6 +221,14 @@ export function SpinDialog({ onClose }: { onClose: () => void }) {
   const [everyone, setEveryone] = useState(!!defaults?.everyoneOwns);
   const [maxSize, setMaxSize] = useState(0);
   const [local, setLocal] = useState<Run | null>(null);
+  // A Personal Shelf spin mode, run right here with the same engine the server runs for rooms.
+  const [shelfTheme] = useShelfSpinTheme();
+  const [localPlay, setLocalPlayState] = useState<{ stored: StoredPlay; startAt: number } | null>(null);
+  const localPlayRef = useRef(localPlay);
+  const setLocalPlay = (next: { stored: StoredPlay; startAt: number } | null) => {
+    localPlayRef.current = next;
+    setLocalPlayState(next);
+  };
   const [nudge, setNudge] = useState<'left' | 'right' | null>(null);
   const [starting, setStarting] = useState(false);
   // Shelf picks marked Won't play this session, kept out of the next spin straight away (#803).
@@ -236,18 +253,42 @@ export function SpinDialog({ onClose }: { onClose: () => void }) {
   const { user } = useAuth();
   const me = user?.id ?? '';
   const session = shared.spin;
-  // Every mode but the reel: the server runs the round (see spinModes.ts in packages/shared).
-  const isMode = !!session && session.theme !== 'reel';
-  const play = isMode ? session.play : null;
+  // Every mode but the reel: the server runs a room's round (see spinModes.ts in packages/shared);
+  // the shelf runs its own locally.
+  const isMode = (!!session && session.theme !== 'reel') || (!session && !!localPlay);
+  const modeTheme = session ? session.theme : localPlay?.stored.mode;
+  const localDealt = localPlay && !('pending' in localPlay.stored) ? localPlay.stored : null;
+  const localPublic = useMemo(() => (localDealt ? publicPlay(localDealt) : null), [localDealt]);
+  const play = !isMode ? null : session ? session.play : localPublic;
+  const offset = session ? shared.clockOffset : 0;
   // The clock only needs to tick until the result has shown (plus a beat for its last animation).
-  const revealed = !!play && play.revealAt !== null && Date.now() + shared.clockOffset >= play.revealAt + 1500;
-  const modeNow = useModeNow(isMode && !revealed, shared.clockOffset);
+  const revealed = !!play && play.revealAt !== null && Date.now() + offset >= play.revealAt + 1500;
+  const modeNow = useModeNow(isMode && !revealed, offset);
   const run: Run | null = session ? sessionRun(session) : local;
   const reelNow = useLiveNow(run?.settlesAtMs ?? 0);
   const now = isMode ? modeNow : reelNow;
   const settled = isMode ? !!play && play.revealAt !== null && now >= play.revealAt : !!run && now >= run.settlesAtMs;
   const waiting = !!session && !!run && now < run.base.timestamp0;
-  const poolById = useMemo(() => new Map((session?.strip ?? []).map((g) => [g.id, g])), [session?.strip]);
+  const poolById = useMemo(() => new Map((session ? session.strip : games).map((g) => [g.id, g])), [session, games]);
+  // A shelf round has just you in it.
+  const modeMembers = useMemo<RoomMember[]>(
+    () => (session || !user ? members : [{ roomId: '', user, role: 'room_master', joinedAt: '' }]),
+    [session, user, members],
+  );
+
+  // Runs a shelf round's timers forward (deals, closes votes, plays out the claw...).
+  const localRunning = !!localPlay && !play?.winnerId;
+  useEffect(() => {
+    if (!localRunning) return;
+    const id = setInterval(() => {
+      const cur = localPlayRef.current;
+      if (!cur) return;
+      const next = advancePlay(cur.stored, Date.now(), cur.startAt, [me], Math.random);
+      if (next !== cur.stored) setLocalPlay({ ...cur, stored: next });
+    }, 100);
+    return () => clearInterval(id);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [localRunning, me]);
 
   useEffect(() => {
     if (session) void shared.markReady().catch(() => {});
@@ -264,6 +305,17 @@ export function SpinDialog({ onClose }: { onClose: () => void }) {
       : null;
 
   function act(action: SpinPlayAction): Promise<boolean> {
+    const cur = localPlayRef.current;
+    if (!session && cur) {
+      if ('pending' in cur.stored) return Promise.resolve(false);
+      try {
+        setLocalPlay({ ...cur, stored: applyPlayAction(cur.stored, me, action, Date.now(), Math.random) });
+        return Promise.resolve(true);
+      } catch (err) {
+        ui.showError(err instanceof Error ? err.message : "Couldn't do that");
+        return Promise.resolve(false);
+      }
+    }
     return shared.act(action).then(
       () => true,
       (err) => {
@@ -314,6 +366,21 @@ export function SpinDialog({ onClose }: { onClose: () => void }) {
       ui.notify('Nothing in the pool. Loosen the filters.');
       return;
     }
+    startLocal(pool);
+  }
+
+  /** A shelf spin: the reel, or the Spin type picked in Shelf settings. */
+  function startLocal(pool: Game[]) {
+    const theme = resolveConcreteTheme(shelfTheme);
+    if (isPlayMode(theme)) {
+      const avoided = avoidedGenres(games);
+      const pending = pendingPlay(theme, pool.map((g) => ({ gameId: g.id, weight: spinCandidateWeight(g, avoided) })), Math.random);
+      const startAt = Date.now();
+      setLocal(null);
+      setLocalPlay({ stored: advancePlay(pending, startAt, startAt, [me], Math.random), startAt });
+      return;
+    }
+    setLocalPlay(null);
     setLocal(localRun(games, pool));
   }
 
@@ -388,14 +455,15 @@ export function SpinDialog({ onClose }: { onClose: () => void }) {
     setSkipped((prev) => new Set(prev).add(winner.id));
     if (!rest.length) {
       setLocal(null);
+      setLocalPlay(null);
       ui.notify('Nothing left in the pool. Loosen the filters.');
       return;
     }
-    setLocal(localRun(games, rest));
+    startLocal(rest);
   }
 
-  const idle = !run;
-  const spinning = !!run && !settled && !waiting;
+  const idle = !run && !play;
+  const spinning = (!!run || !!play) && !settled && !waiting;
   const nudgeable = spinning && !session;
   const reelSpinning = spinning && !isMode;
   // Stop the screen dimming mid-spin; released as soon as the wheel settles.
@@ -470,9 +538,9 @@ export function SpinDialog({ onClose }: { onClose: () => void }) {
             <div style={st('margin-bottom:8px;padding:9px 12px;border-radius:12px;background:var(--surf);font:500 12.5px/1.4 var(--font-ui);color:var(--text2);text-wrap:pretty')}>{gateNote}</div>
           )}
           <div style={st('display:flex;justify-content:space-between;gap:10px;margin-bottom:14px;font:500 12px var(--font-ui);color:var(--faint)')}>
-            <span style={{ textWrap: 'pretty' }}>{isMode && session.theme !== 'reel' ? MODE_EXPLAINER[session.theme] : 'Votes and review scores weight the pick'}</span>
+            <span style={{ textWrap: 'pretty' }}>{isMode && modeTheme && modeTheme !== 'reel' ? MODE_EXPLAINER[modeTheme] : 'Votes and review scores weight the pick'}</span>
             <span style={st('flex-shrink:0;font-family:var(--font-mono);text-transform:uppercase')}>
-              {isMode ? SPIN_WHEEL_THEME_LABELS[session.theme] : session ? `${session.strip.length} slots` : `${candidates.length} in the pool`}
+              {isMode && modeTheme ? SPIN_WHEEL_THEME_LABELS[modeTheme] : session ? `${session.strip.length} slots` : `${candidates.length} in the pool`}
             </span>
           </div>
 
@@ -488,7 +556,7 @@ export function SpinDialog({ onClose }: { onClose: () => void }) {
             </div>
           ) : isMode ? (
             play ? (
-              <ModeStage play={play} games={poolById} members={members} me={me} now={now} act={act} mobile={mobile} settled={settled} />
+              <ModeStage play={play} games={poolById} members={modeMembers} me={me} now={now} act={act} mobile={mobile} settled={settled} />
             ) : (
               <div style={st('display:flex;align-items:center;justify-content:center;height:372px;border-radius:20px;background:var(--bg);font:500 13px var(--font-ui);color:var(--muted)')}>Dealing…</div>
             )
@@ -527,7 +595,7 @@ export function SpinDialog({ onClose }: { onClose: () => void }) {
             {reelSpinning && <span style={st('font:500 14px var(--font-ui);color:var(--muted)')}>{session ? 'Rolling…' : 'Rolling… click left to slow it, right to speed it up'}</span>}
             {settled && winner && (
               <>
-                <span style={st('font:500 12px var(--font-mono);color:var(--accText)')}>{play ? modeKicker(play, members, me) : "TONIGHT'S PICK"}</span>
+                <span style={st('font:500 12px var(--font-mono);color:var(--accText)')}>{play ? modeKicker(play, modeMembers, me) : "TONIGHT'S PICK"}</span>
                 <span style={st('font:700 28px/1.05 var(--font-display);letter-spacing:-0.02em')}>{winner.title}</span>
                 <span style={st('font:400 13.5px var(--font-ui);color:var(--muted)')}>
                   {[winner.genre?.split(',')[0], winner.timeToBeatHours ? `~${winner.timeToBeatHours}h` : '', resPrice].filter(Boolean).join(' · ')}
@@ -539,21 +607,21 @@ export function SpinDialog({ onClose }: { onClose: () => void }) {
                       onClick={() => void voteRespin()}
                       disabled={session.youVotedRespin || shared.votingRespin}
                       title={session.youVotedRespin ? 'Waiting for the rest of the room' : 'Respins once most of the room votes'}
-                      style={st(`height:42px;padding:0 18px;border-radius:999px;border:1px solid var(--line);background:transparent;color:var(--text);font:600 13.5px var(--font-ui);opacity:${session.youVotedRespin ? 0.6 : 1}`)}
+                      style={st(`height:42px;padding:0 16px;white-space:nowrap;border-radius:999px;border:1px solid var(--line);background:transparent;color:var(--text);font:600 13.5px var(--font-ui);opacity:${session.youVotedRespin ? 0.6 : 1}`)}
                     >
                       {session.youVotedRespin ? 'Voted to respin' : 'Vote to respin'} ({session.respinVotes}/{session.respinNeeded})
                     </button>
                   ) : (
                     <>
-                      <button type="button" onClick={() => void wontPlay()} style={st('height:42px;padding:0 18px;border-radius:999px;border:1px solid var(--line);background:transparent;color:var(--muted);font:600 13.5px var(--font-ui)')}>
+                      <button type="button" onClick={() => void wontPlay()} style={st('height:42px;padding:0 16px;white-space:nowrap;border-radius:999px;border:1px solid var(--line);background:transparent;color:var(--muted);font:600 13.5px var(--font-ui)')}>
                         Won't play
                       </button>
-                      <button type="button" onClick={() => go()} style={st('height:42px;padding:0 18px;border-radius:999px;border:1px solid var(--line);background:transparent;color:var(--text);font:600 13.5px var(--font-ui)')}>
+                      <button type="button" onClick={() => go()} style={st('height:42px;padding:0 16px;white-space:nowrap;border-radius:999px;border:1px solid var(--line);background:transparent;color:var(--text);font:600 13.5px var(--font-ui)')}>
                         Spin again
                       </button>
                     </>
                   )}
-                  <button type="button" onClick={letsPlay} style={st('height:42px;padding:0 18px;border-radius:999px;border:none;background:var(--text);color:var(--onText);font:700 13.5px var(--font-ui)')}>
+                  <button type="button" onClick={letsPlay} style={st('height:42px;padding:0 16px;white-space:nowrap;border-radius:999px;border:none;background:var(--text);color:var(--onText);font:700 13.5px var(--font-ui)')}>
                     Let's play
                   </button>
                 </div>

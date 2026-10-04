@@ -41,7 +41,7 @@ const PROFILE_VISIBILITY_TEXT: Record<ProfileVisibility, { sub: string; toast: s
   private: { sub: 'Only you can open it', toast: 'Your profile is private' },
 };
 
-function NavRow({ label, sub, badge, onClick }: { label: string; sub?: string; badge?: number; onClick: () => void }) {
+export function NavRow({ label, sub, badge, onClick }: { label: string; sub?: string; badge?: number; onClick: () => void }) {
   return (
     <button type="button" onClick={onClick} style={st(ROW_BASE)} className="hv-surf2">
       <span style={st('flex:1;display:flex;flex-direction:column;gap:1px')}>
@@ -82,8 +82,8 @@ function Section({ label, children }: { label: string; children: ReactNode }) {
   );
 }
 
-/** Personal API keys: generate once (shown once), revoke. */
-function SystemsDialog({ onClose }: { onClose: () => void }) {
+/** Systems owned, in its own dialog (one row in Settings and in Shelf settings). */
+export function SystemsDialog({ onClose }: { onClose: () => void }) {
   const ui = useUi();
   return (
     <Dialog onClose={onClose} title="Systems owned" gap={14}>

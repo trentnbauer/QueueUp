@@ -8,6 +8,7 @@ import { coverBg } from '../ui/primitives';
 import { st } from '../ui/st';
 
 const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+const DAYS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
 
 /** "12h 30m", "45m". */
 export function formatMinutes(minutes: number): string {
@@ -31,10 +32,14 @@ const ICON: Record<JournalEventKind, { emoji: string; label: string; tint: strin
   reviewed: { emoji: '⭐', label: 'Reviewed', tint: 'oklch(0.83 0.15 85 / 0.35)' },
 };
 
-function when(iso: string): string {
+function time(iso: string): string {
+  return new Date(iso).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' });
+}
+
+/** "Sat 4 Oct 2026" - the day heading entries are grouped under. */
+function dayLabel(iso: string): string {
   const d = new Date(iso);
-  const time = d.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' });
-  return `${d.getDate()} ${MONTHS[d.getMonth()]} · ${time}`;
+  return `${DAYS[d.getDay()]} ${d.getDate()} ${MONTHS[d.getMonth()]} ${d.getFullYear()}`;
 }
 
 /** The entry as a sentence: who did what to which game ("Trent started playing Hades"). Entries
@@ -67,8 +72,8 @@ function sentence(e: JournalEntry, meId: string | undefined, onShelf: boolean): 
   }
 }
 
-/** Play journal (#802) as a list of events, newest first and grouped by month: who added,
- * started, beat, dropped, spun or reviewed which game. One room's (its 📖 tab), or (no roomId)
+/** Play journal (#802): game status changes, newest first and grouped by day - who started, beat,
+ * dropped or moved which game. One room's (its 📖 tab), or (no roomId)
  * everything the viewer did on their shelf and in their rooms (Settings > Play journal). */
 export function JournalList({ roomId, onOpen }: { roomId?: string; onOpen: (e: JournalEntry & { gameId: string }) => void }) {
   const { user } = useAuth();
@@ -83,8 +88,7 @@ export function JournalList({ roomId, onOpen }: { roomId?: string; onOpen: (e: J
   const groups = useMemo(() => {
     const out: { label: string; items: JournalEntry[] }[] = [];
     for (const e of entries) {
-      const d = new Date(e.at);
-      const label = `${MONTHS[d.getMonth()]} ${d.getFullYear()}`;
+      const label = dayLabel(e.at);
       const last = out[out.length - 1];
       if (last?.label === label) last.items.push(e);
       else out.push({ label, items: [e] });
@@ -97,7 +101,7 @@ export function JournalList({ roomId, onOpen }: { roomId?: string; onOpen: (e: J
   if (entries.length === 0) {
     return (
       <span style={st('padding:24px 4px;font:400 14px/1.45 var(--font-ui);color:var(--muted);text-wrap:pretty')}>
-        Nothing yet. Adding a game, marking one Playing or Beaten, a spin and a review all show up here.
+        Nothing yet. Mark a game Playing, then Beaten or Dropped, and it shows up here.
       </span>
     );
   }
@@ -111,7 +115,7 @@ export function JournalList({ roomId, onOpen }: { roomId?: string; onOpen: (e: J
             const icon = ICON[e.kind];
             const gameId = e.gameId;
             const meta = [
-              when(e.at),
+              time(e.at),
               // The personal journal spans rooms: say where it happened.
               roomId ? null : (e.roomName ?? 'Personal shelf'),
               e.kind === 'reviewed' && e.score != null ? `★ ${e.score.toFixed(1)}/5` : null,

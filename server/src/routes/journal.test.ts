@@ -4,7 +4,8 @@ import { detailOf, kindOf } from './journal.js';
 describe('play journal entries', () => {
   it('reads the game and status from the payload', () => {
     const d = detailOf('status_changed', 'Trent marked "Hades" as Beaten', { gameId: 'g1', title: 'Hades', coverImageUrl: null, status: 'done' });
-    expect(d).toMatchObject({ gameId: 'g1', title: 'Hades', status: 'done' });
+    expect(d).toMatchObject({ gameId: 'g1', title: 'Hades', status: 'done', from: null });
+    expect(detailOf('status_changed', '', { gameId: 'g1', title: 'Hades', status: 'done', from: 'playing' }).from).toBe('playing');
     expect(kindOf('status_changed', d.status)).toBe('beaten');
   });
 
