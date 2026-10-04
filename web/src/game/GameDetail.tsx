@@ -25,6 +25,7 @@ import { formatRelativeTime } from '../utils/relativeTime';
 import { ReviewEmbed } from '../dialogs/ReviewSheet';
 import { PriceHistoryChart } from './PriceHistoryChart';
 import { SteamMatchSheet } from './SteamMatchSheet';
+import { IgdbMatchSheet } from './IgdbMatchSheet';
 import { Avatar, coverBg, GOLD } from '../ui/primitives';
 import { Trailer } from './Trailer';
 import { st } from '../ui/st';
@@ -105,6 +106,7 @@ export function GameDetail({ game, onClose, changeStatus }: { game: Game; onClos
   const { entries: playLog } = useGamePlayLog(game.id);
   const { players } = useGameAchievements(game.id);
   const steamMatch = useSteamAutoMatch();
+  const [rematching, setRematching] = useState(false);
   const [editTarget, setEditTarget] = useState(false);
   const [targetDraft, setTargetDraft] = useState('');
   const [editManual, setEditManual] = useState(false);
@@ -719,6 +721,16 @@ export function GameDetail({ game, onClose, changeStatus }: { game: Game; onClos
           </div>
         )}
 
+        {canRemoveDirectly && (
+          <button
+            type="button"
+            onClick={() => setRematching(true)}
+            style={st('align-self:flex-start;border:none;background:none;padding:0;color:var(--muted);font:500 12.5px var(--font-ui);text-decoration:underline;text-underline-offset:3px')}
+          >
+            {t('game.igdbMatch.button')}
+          </button>
+        )}
+
         <div style={st('display:flex;justify-content:space-between;align-items:center;padding-top:14px;border-top:1px solid var(--chip)')}>
           <span style={st('display:flex;align-items:center;gap:8px;font:400 12.5px var(--font-ui);color:var(--muted)')}>
             {game.addedBy.id === user?.id ? (
@@ -753,6 +765,18 @@ export function GameDetail({ game, onClose, changeStatus }: { game: Game; onClos
           )}
         </div>
       </div>
+
+      {rematching && (
+        <IgdbMatchSheet
+          gameId={game.id}
+          gameTitle={game.title}
+          onClose={() => setRematching(false)}
+          onMatched={(igdbId) => {
+            ops.setIgdbMatch(game.id, igdbId);
+            setRematching(false);
+          }}
+        />
+      )}
 
       {steamMatch.pickerGameId === game.id && (
         <SteamMatchSheet

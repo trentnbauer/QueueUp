@@ -179,6 +179,7 @@ export const shell: Record<keyof typeof en, string> = {
   "shell.games.error.ownership": "Couldn’t update who owns it.",
   "shell.games.error.save": "Couldn’t stow that.",
   "shell.games.error.priceMatch": "Couldn’t stow that bounty match.",
+  "shell.games.error.rematch": "Couldn’t re-match that game.",
   "shell.games.error.addTag": "Couldn’t stow that tag.",
   "shell.games.error.removeTag": "Couldn’t remove that tag.",
   "shell.games.error.move": "Couldn’t move that game.",

@@ -977,6 +977,11 @@ export interface SetSteamMatchRequest {
   steamAppId: number | null;
 }
 
+/** "Incorrect match" (issue #814): re-points a game card at a different IGDB entry. */
+export interface SetIgdbMatchRequest {
+  igdbId: number;
+}
+
 /** Relocates a game to a different room, or to the mover's Personal Shelf (roomId: null). */
 export interface MoveGameRequest {
   roomId: string | null;

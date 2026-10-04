@@ -23,6 +23,7 @@ import {
   refreshGamePricing,
   backfillSteamAppId,
   setManualSteamMatch,
+  rematchGame,
   defaultStatusForRelease,
   assertPlatformMatch,
   trendingIntake,
@@ -110,6 +111,7 @@ import type {
   SetGamePrerequisiteRequest,
   SetManualPriceRequest,
   SetSteamMatchRequest,
+  SetIgdbMatchRequest,
   SetTargetPriceRequest,
   ShelfActivityPage,
   ShelfActivityType,
@@ -1653,6 +1655,41 @@ export default async function gameRoutes(app: FastifyInstance) {
       }
 
       await setManualSteamMatch(game.id, steamAppId);
+      const updated = await loadGameOr404(game.id);
+      return { game: await serializeGame(updated, userId) };
+    },
+  );
+
+  app.get<{ Params: { id: string }; Querystring: { q?: string; offset?: string } }>(
+    '/api/games/:id/igdb-search',
+    // Live IGDB search, same class of route (and limit) as /api/games/search.
+    { config: { rateLimit: { max: 30, timeWindow: '1 minute' } } },
+    async (request) => {
+      const userId = await request.requireAuth();
+      const game = await loadGameOr404(request.params.id);
+      await requireGameSettingsAccess(game, userId);
+
+      const platform = game.roomId ? await getRoomPlatform(game.roomId) : null;
+      const offset = Math.max(0, Number.parseInt(request.query.offset ?? '0', 10) || 0);
+      const taken = new Set(await existingIgdbIds(game.roomId, game.addedBy));
+      taken.delete(game.igdbId);
+      // Add-ons are shown: the right match may well be a remaster or expansion.
+      return searchIntake(request.query.q?.trim() || game.title, platform ? [platform] : undefined, taken, offset, false);
+    },
+  );
+
+  app.patch<{ Params: { id: string }; Body: SetIgdbMatchRequest }>(
+    '/api/games/:id/igdb-match',
+    { config: { rateLimit: { max: 20, timeWindow: '1 minute' } } },
+    async (request) => {
+      const userId = await request.requireAuth();
+      const game = await loadGameOr404(request.params.id);
+      await requireGameSettingsAccess(game, userId);
+
+      const platform = game.roomId ? await getRoomPlatform(game.roomId) : null;
+      await rematchGame(game, request.body.igdbId, platform ? [platform] : undefined);
+      await invalidateExistingIgdbIds(game.roomId, game.addedBy);
+
       const updated = await loadGameOr404(game.id);
       return { game: await serializeGame(updated, userId) };
     },

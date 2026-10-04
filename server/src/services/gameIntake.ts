@@ -478,6 +478,52 @@ export async function backfillSteamAppId(gameId: string, igdbId: number): Promis
   return steamAppId;
 }
 
+/** "Incorrect match" (issue #814): points an existing game at a different IGDB entry, refreshing
+ * everything captured from IGDB at intake (title, cover, release, play modes, review score, Steam
+ * price match) while keeping what belongs to the card itself - status, votes, tags, play logs,
+ * reviews. Refuses a target that's already in the same room/shelf, since two cards for one IGDB
+ * game would break duplicate detection. Price-alert state is reset: it described the old game. */
+export async function rematchGame(
+  game: { id: string; roomId: string | null; addedBy: string; igdbId: number },
+  newIgdbId: number,
+  platforms?: RoomPlatform[],
+): Promise<void> {
+  if (!Number.isInteger(newIgdbId) || newIgdbId <= 0) throw new HttpError(400, 'A valid igdbId is required');
+  if (newIgdbId === game.igdbId) return;
+  await requireNotDuplicate(game.roomId, game.addedBy, newIgdbId);
+
+  const resolved = await resolveGameForCreation(newIgdbId, platforms);
+  try {
+    await prisma.game.update({
+      where: { id: game.id },
+      data: {
+        igdbId: newIgdbId,
+        title: resolved.title,
+        platform: resolved.platform,
+        genre: resolved.genre,
+        maxCoopPlayers: resolved.maxCoopPlayers,
+        singlePlayerOnly: resolved.singlePlayerOnly,
+        timeToBeatHours: resolved.timeToBeatHours,
+        timeToBeatRushedHours: resolved.timeToBeatRushedHours,
+        timeToBeatCompletionistHours: resolved.timeToBeatCompletionistHours,
+        ggDealsUrl: resolved.ggDealsUrl,
+        steamAppid: resolved.steamAppId,
+        coverImageUrl: resolved.coverImageUrl,
+        releaseYear: resolved.releaseYear,
+        releaseDate: resolved.releaseDate,
+        igdbCollectionId: resolved.igdbCollectionId,
+        reviewScore: resolved.reviewScore,
+        sensitiveContent: resolved.sensitiveContent,
+        downloadSizeMb: null,
+        notifiedAtlPrice: null,
+        notifiedGoodTimePrice: null,
+      },
+    });
+  } catch (err) {
+    rethrowAsDuplicateGame(err, game.roomId, resolved.title);
+  }
+}
+
 /** Manually pins a game's Steam App ID (issue: manual gg.deals match) - for when neither the IGDB
  * link nor the exact-title Steam search fallback found the right release (or found none at all),
  * and the person looking at the card can see for themselves which Steam store result is actually
