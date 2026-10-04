@@ -77,12 +77,12 @@ function AchievementChip({ g }: { g: Game }) {
   );
 }
 
-/** IGDB's 0-100 critic/user score, when IGDB has one for the game. */
+/** IGDB's 0-100 critic/user score as a gold star out of 10 ("★ 8.7"), when IGDB has one. */
 function IgdbScoreChip({ g }: { g: Game }) {
   if (g.reviewScore === null) return null;
   return (
-    <span title={`${g.reviewScore}/100 on IGDB`} aria-label={`IGDB score ${g.reviewScore} out of 100`} style={st(CHIP)}>
-      IGDB {g.reviewScore}
+    <span title={`${g.reviewScore}/100 on IGDB`} aria-label={`IGDB score ${g.reviewScore} out of 100`} style={st(CHIP, { color: 'var(--star)' })}>
+      ★ {(g.reviewScore / 10).toFixed(1)}
     </span>
   );
 }

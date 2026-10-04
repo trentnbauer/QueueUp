@@ -390,6 +390,10 @@ export interface RoomSpinSession {
    * instead of counting down blind. Meaningless once the spin has started moving (nothing clears
    * it then, but nothing reads it then either - see SPIN_WAITING_ROOM_MS in roomSpin.ts). */
   readyCount: number;
+  /** Votes to respin the settled result, how many it takes, and whether the viewer has voted. */
+  respinVotes: number;
+  respinNeeded: number;
+  youVotedRespin: boolean;
 }
 
 /** A room's spin session, but only the sliver a cross-room "someone just started a spin" popup

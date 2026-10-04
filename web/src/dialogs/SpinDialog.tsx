@@ -67,6 +67,8 @@ function useLiveNow(settlesAtMs: number): number {
 
 const PRICE_OPTS = [0, 10, 20, 40];
 const TTB_OPTS = [0, 10, 20, 40];
+/** Minimum IGDB score, on the same out-of-10 scale as the ★ on game cards. */
+const SCORE_OPTS = [0, 7, 8, 9];
 const PILL = 'height:32px;padding:0 12px;border-radius:999px;border:none;font:600 12.5px var(--font-ui)';
 
 /** The horizontal reel: tiles laid out around the live `position` (strip slots), wrapping round the
@@ -167,6 +169,7 @@ export function SpinDialog({ onClose }: { onClose: () => void }) {
 
   const [maxPrice, setMaxPrice] = useState(0);
   const [maxTtb, setMaxTtb] = useState(0);
+  const [minScore, setMinScore] = useState(0);
   const [everyone, setEveryone] = useState(false);
   const [local, setLocal] = useState<Run | null>(null);
   const [nudge, setNudge] = useState<'left' | 'right' | null>(null);
@@ -179,10 +182,11 @@ export function SpinDialog({ onClose }: { onClose: () => void }) {
       base.filter((g) => {
         if (maxPrice && !(g.youOwn || (g.price.amount !== null && Number(g.price.amount) <= maxPrice))) return false;
         if (maxTtb && !(g.timeToBeatHours !== null && g.timeToBeatHours <= maxTtb)) return false;
+        if (minScore && !(g.reviewScore !== null && g.reviewScore >= minScore * 10)) return false;
         if (everyone && !isFullyOwned(g)) return false;
         return true;
       }),
-    [base, maxPrice, maxTtb, everyone],
+    [base, maxPrice, maxTtb, minScore, everyone],
   );
 
   const session = shared.spin;
@@ -199,7 +203,12 @@ export function SpinDialog({ onClose }: { onClose: () => void }) {
   const position = run ? (settled ? run.settledPosition : positionAt(run.base, now)) : 0;
   const winner = run && settled && run.strip.length ? run.strip[candidateIndexAt(run.settledPosition, run.strip.length)] : null;
 
-  const filters: SpinFilters = { maxPrice: maxPrice || undefined, maxTtb: maxTtb || undefined, everyoneOwns: everyone || undefined };
+  const filters: SpinFilters = {
+    maxPrice: maxPrice || undefined,
+    maxTtb: maxTtb || undefined,
+    everyoneOwns: everyone || undefined,
+    minScore: minScore ? minScore * 10 : undefined,
+  };
 
   // Games whose price the room's limit can't judge yet (no Steam match): try a silent match first.
   const backlog = games.filter((g) => g.status === 'backlog' && !isUnreleased(g) && !hasUnmetPrerequisite(g, games));
@@ -213,7 +222,7 @@ export function SpinDialog({ onClose }: { onClose: () => void }) {
       // manual picker. It now runs alongside instead, quietly, and helps the next spin.
       matchPricesInBackground(undecided, ops.setSteamMatch);
       try {
-        await (session ? shared.restartSpin(filters) : shared.startSpin(filters));
+        await shared.startSpin(filters);
       } catch (err) {
         ui.showError(err instanceof Error ? err.message : 'Could not start a spin.');
       } finally {
@@ -228,25 +237,32 @@ export function SpinDialog({ onClose }: { onClose: () => void }) {
     setLocal(localRun(games, candidates));
   }
 
+  // Nudging is a Personal Shelf thing: in a room nobody steers the shared wheel on their own - the
+  // room votes to respin instead (see voteRespin below).
   function clickReel(e: React.MouseEvent<HTMLDivElement>) {
-    if (!run || settled || waiting) return;
+    if (!run || settled || waiting || session) return;
     const rect = e.currentTarget.getBoundingClientRect();
     nudgeReel(e.clientX - rect.left > rect.width / 2 ? 'right' : 'left');
   }
 
   /** Slow the reel down ('left') or speed it up ('right'): from a click on either half, or the arrow keys. */
   function nudgeReel(dir: 'left' | 'right') {
-    if (!run || settled || waiting) return;
+    if (!run || settled || waiting || session) return;
     setNudge(dir);
     setTimeout(() => setNudge(null), 300);
-    if (session) void shared.nudgeSpin(dir).catch(() => {});
-    else {
-      const at = Date.now();
-      setLocal((prev) => {
-        if (!prev) return prev;
-        const nudged = applyNudge(prev.base, at, dir);
-        return { ...prev, base: nudged, settlesAtMs: settlesAtOf(nudged), settledPosition: settledPositionOf(nudged) };
-      });
+    const at = Date.now();
+    setLocal((prev) => {
+      if (!prev) return prev;
+      const nudged = applyNudge(prev.base, at, dir);
+      return { ...prev, base: nudged, settlesAtMs: settlesAtOf(nudged), settledPosition: settledPositionOf(nudged) };
+    });
+  }
+
+  async function voteRespin() {
+    try {
+      await shared.voteRespin();
+    } catch (err) {
+      ui.showError(err instanceof Error ? err.message : 'Could not vote to respin.');
     }
   }
 
@@ -261,6 +277,7 @@ export function SpinDialog({ onClose }: { onClose: () => void }) {
 
   const idle = !run;
   const spinning = !!run && !settled && !waiting;
+  const nudgeable = spinning && !session;
   // Stop the screen dimming mid-spin; released as soon as the wheel settles.
   useKeepScreenAwake(spinning);
   const tw = mobile ? 84 : 104;
@@ -313,6 +330,13 @@ export function SpinDialog({ onClose }: { onClose: () => void }) {
                   </button>
                 ))}
               </div>
+              <div style={st('display:flex;flex-wrap:wrap;align-items:center;gap:6px;margin-bottom:8px')}>
+                {SCORE_OPTS.map((n) => (
+                  <button key={n} type="button" onClick={() => setMinScore(n)} style={st(`${PILL};background:${minScore === n ? 'var(--text)' : 'var(--chip)'};color:${minScore === n ? 'var(--onText)' : 'var(--muted)'}`)}>
+                    {n ? `★ ${n}+` : 'Any score'}
+                  </button>
+                ))}
+              </div>
             </>
           )}
           {gateNote && (
@@ -342,11 +366,11 @@ export function SpinDialog({ onClose }: { onClose: () => void }) {
                   nudgeReel(e.key === 'ArrowLeft' ? 'left' : 'right');
                 }
               }}
-              tabIndex={spinning ? 0 : undefined}
-              role={spinning ? 'group' : undefined}
-              aria-label={spinning ? 'Spinning reel. Press the left arrow to slow it down and the right arrow to speed it up.' : undefined}
-              style={{ cursor: spinning ? 'pointer' : 'default' }}
-              title={spinning ? 'Click the left side to slow it down, the right side to speed it up' : undefined}
+              tabIndex={nudgeable ? 0 : undefined}
+              role={nudgeable ? 'group' : undefined}
+              aria-label={nudgeable ? 'Spinning reel. Press the left arrow to slow it down and the right arrow to speed it up.' : undefined}
+              style={{ cursor: nudgeable ? 'pointer' : 'default' }}
+              title={nudgeable ? 'Click the left side to slow it down, the right side to speed it up' : undefined}
             >
               <Reel strip={run?.strip ?? []} position={position} tw={tw} th={th} settled={settled} idle={idle} />
             </div>
@@ -363,7 +387,7 @@ export function SpinDialog({ onClose }: { onClose: () => void }) {
                 {starting ? 'Checking prices…' : 'Spin'}
               </button>
             )}
-            {spinning && <span style={st('font:500 14px var(--font-ui);color:var(--muted)')}>Rolling… click left to slow it, right to speed it up</span>}
+            {spinning && <span style={st('font:500 14px var(--font-ui);color:var(--muted)')}>{session ? 'Rolling…' : 'Rolling… click left to slow it, right to speed it up'}</span>}
             {settled && winner && (
               <>
                 <span style={st('font:500 12px var(--font-mono);color:var(--accText)')}>TONIGHT'S PICK</span>
@@ -372,9 +396,21 @@ export function SpinDialog({ onClose }: { onClose: () => void }) {
                   {[winner.genre?.split(',')[0], winner.timeToBeatHours ? `~${winner.timeToBeatHours}h` : '', resPrice].filter(Boolean).join(' · ')}
                 </span>
                 <div style={st('display:flex;gap:8px;margin-top:12px')}>
-                  <button type="button" onClick={() => (session ? void shared.restartSpin(filters).catch(() => {}) : go())} style={st('height:42px;padding:0 18px;border-radius:999px;border:1px solid var(--line);background:transparent;color:var(--text);font:600 13.5px var(--font-ui)')}>
-                    Spin again
-                  </button>
+                  {session ? (
+                    <button
+                      type="button"
+                      onClick={() => void voteRespin()}
+                      disabled={session.youVotedRespin || shared.votingRespin}
+                      title={session.youVotedRespin ? 'Waiting for the rest of the room' : 'Respins once most of the room votes'}
+                      style={st(`height:42px;padding:0 18px;border-radius:999px;border:1px solid var(--line);background:transparent;color:var(--text);font:600 13.5px var(--font-ui);opacity:${session.youVotedRespin ? 0.6 : 1}`)}
+                    >
+                      {session.youVotedRespin ? 'Voted to respin' : 'Vote to respin'} ({session.respinVotes}/{session.respinNeeded})
+                    </button>
+                  ) : (
+                    <button type="button" onClick={() => go()} style={st('height:42px;padding:0 18px;border-radius:999px;border:1px solid var(--line);background:transparent;color:var(--text);font:600 13.5px var(--font-ui)')}>
+                      Spin again
+                    </button>
+                  )}
                   <button type="button" onClick={play} style={st('height:42px;padding:0 18px;border-radius:999px;border:none;background:var(--text);color:var(--onText);font:700 13.5px var(--font-ui)')}>
                     Let's play
                   </button>

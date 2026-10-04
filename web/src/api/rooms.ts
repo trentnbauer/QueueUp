@@ -17,11 +17,13 @@ import type {
   User,
 } from '@queueup/shared';
 
-/** Optional narrowing the Spin dialog sends along when starting/restarting a room spin. */
+/** Optional narrowing the Spin dialog sends along when starting a room spin (a voted respin reuses it). */
 export interface SpinFilters {
   maxPrice?: number;
   maxTtb?: number;
   everyoneOwns?: boolean;
+  /** Minimum IGDB score, 0-100. */
+  minScore?: number;
 }
 
 export const roomsApi = {
@@ -69,9 +71,8 @@ export const roomSpinApi = {
   activeSpins: () => apiGet<{ spins: ActiveRoomSpin[] }>('/api/rooms/active-spins'),
   get: (roomId: string) => apiGet<{ spin: RoomSpinSession | null }>(`/api/rooms/${roomId}/spin`),
   start: (roomId: string, filters?: SpinFilters) => apiPost<{ spin: RoomSpinSession }>(`/api/rooms/${roomId}/spin/start`, filters ?? {}),
-  nudge: (roomId: string, direction: 'left' | 'right') =>
-    apiPost<{ spin: RoomSpinSession }>(`/api/rooms/${roomId}/spin/nudge`, { direction }),
-  restart: (roomId: string, filters?: SpinFilters) => apiPost<{ spin: RoomSpinSession }>(`/api/rooms/${roomId}/spin/restart`, filters ?? {}),
+  /** Vote to respin a settled result; a majority of the spin's participants respins it. */
+  respinVote: (roomId: string) => apiPost<{ spin: RoomSpinSession }>(`/api/rooms/${roomId}/spin/respin-vote`),
   skipWait: (roomId: string) => apiPost<{ spin: RoomSpinSession }>(`/api/rooms/${roomId}/spin/skip-wait`),
   ready: (roomId: string) => apiPost<{ spin: RoomSpinSession; unlockedBadges: BadgeDefinition[] }>(`/api/rooms/${roomId}/spin/ready`),
   close: (roomId: string) => apiDelete(`/api/rooms/${roomId}/spin`),
