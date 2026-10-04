@@ -14,6 +14,7 @@ import { startBackupJob } from './jobs/backupJob.js';
 import { startEmailAlertJob } from './jobs/emailAlertJob.js';
 import { startReviewScoreBackfillJob } from './jobs/reviewScoreBackfillJob.js';
 import { startDownloadSizeBackfillJob } from './jobs/downloadSizeBackfillJob.js';
+import { startPlayModesBackfillJob } from './jobs/playModesBackfillJob.js';
 import { reloadTunnel, stopTunnel } from './services/cloudflareTunnel.js';
 
 const app = await buildApp();
@@ -61,6 +62,8 @@ const emailAlertJob = startEmailAlertJob();
 const reviewScoreBackfillJob = startReviewScoreBackfillJob();
 // Fills in install sizes from Steam store pages (#800) - see jobs/downloadSizeBackfillJob.ts.
 const downloadSizeBackfillJob = startDownloadSizeBackfillJob();
+// Fills in "single player only" from IGDB's game modes for older games - see jobs/playModesBackfillJob.ts.
+const playModesBackfillJob = startPlayModesBackfillJob();
 
 // Cloudflare Tunnel (#664) - starts cloudflared if a tunnel token is set; a no-op otherwise. Not
 // awaited past the token lookup, and a failure here never stops the server itself.
@@ -96,6 +99,7 @@ async function shutdown(signal: string) {
     emailAlertJob.stop();
     reviewScoreBackfillJob.stop();
     downloadSizeBackfillJob.stop();
+    playModesBackfillJob.stop();
     await stopTunnel();
     // Stops accepting new connections, waits for in-flight requests, runs plugins' onClose hooks.
     await app.close();

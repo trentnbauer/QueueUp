@@ -173,6 +173,7 @@ async function applyResolvedIgdbEntry(
         platform: resolved.platform,
         genre: resolved.genre,
         maxCoopPlayers: resolved.maxCoopPlayers,
+        singlePlayerOnly: resolved.singlePlayerOnly,
         timeToBeatHours: resolved.timeToBeatHours,
         timeToBeatRushedHours: resolved.timeToBeatRushedHours,
         timeToBeatCompletionistHours: resolved.timeToBeatCompletionistHours,

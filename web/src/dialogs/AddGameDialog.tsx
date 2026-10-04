@@ -1,4 +1,4 @@
-import { lazy, Suspense, useEffect, useMemo, useRef, useState } from 'react';
+import { lazy, Suspense, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import {
   ROOM_PLATFORM_LABELS,
   platformFamilyOf,
@@ -6,6 +6,7 @@ import {
   type CollectionGamesResult,
   type CollectionSearchResult,
   type GameSearchResult,
+  type RecommendedGame,
   type RoomPlatform,
 } from '@queueup/shared';
 import { authApi } from '../api/auth';
@@ -44,6 +45,9 @@ function writeOwnedOnlyPref(on: boolean) {
 const ADD_BTN = 'height:36px;padding:0 16px;border-radius:999px;border:none;background:var(--accSoft2);color:var(--accText);font:600 13px var(--font-ui)';
 const ROW = 'display:flex;align-items:center;gap:12px;padding:8px;border-radius:14px';
 
+/** A small tag on a recommended game (Co-op, Single player). */
+const TAG = 'height:18px;padding:0 7px;border-radius:999px;background:var(--chip);color:var(--text2);font:600 10.5px var(--font-ui);display:inline-flex;align-items:center';
+
 function ResultRow({
   r,
   added,
@@ -51,6 +55,7 @@ function ResultRow({
   adding,
   busy,
   onAdd,
+  extra,
 }: {
   r: GameSearchResult;
   added: boolean;
@@ -58,6 +63,8 @@ function ResultRow({
   adding: boolean;
   busy: boolean;
   onAdd: () => void;
+  /** An extra line under the platform, e.g. why it's recommended. */
+  extra?: ReactNode;
 }) {
   return (
     <div style={st(ROW)}>
@@ -68,6 +75,7 @@ function ResultRow({
           {r.releaseYear ? ` (${r.releaseYear})` : ''}
         </span>
         <span style={st('font:400 12.5px var(--font-ui);color:var(--muted)')}>{r.platform}</span>
+        {extra}
       </div>
       <button type="button" onClick={onAdd} disabled={busy || added} style={st(ADD_BTN, added ? { background: 'var(--mintSoft)', color: 'var(--mint)' } : undefined)}>
         {adding ? 'Adding…' : added ? (suggested ? 'Suggested ✓' : 'Added ✓') : 'Add'}
@@ -416,6 +424,20 @@ export function AddGameDialog() {
   const sentinel = useRef<HTMLDivElement | null>(null);
   const emptyPages = useRef(0);
 
+  // Recommendations (IGDB's similar games for what's here) above Trending, with a co-op filter in rooms.
+  const [recs, setRecs] = useState<RecommendedGame[]>([]);
+  const [coopOnly, setCoopOnly] = useState(false);
+  useEffect(() => {
+    let dead = false;
+    gamesApi
+      .recommendations(roomId, roomId !== null && coopOnly, allPlatforms)
+      .then(({ results: r }) => !dead && setRecs(r))
+      .catch(() => !dead && setRecs([]));
+    return () => {
+      dead = true;
+    };
+  }, [roomId, coopOnly, allPlatforms]);
+
   // Trending whenever there's no query.
   useEffect(() => {
     let dead = false;
@@ -629,6 +651,37 @@ export function AddGameDialog() {
                     </button>
                   ))}
                 </div>
+              )}
+              {!showingResults && (recs.length > 0 || coopOnly) && (
+                <>
+                  <span style={st('display:flex;align-items:center;justify-content:space-between;gap:8px;padding:8px 8px 6px')}>
+                    <Kicker size={11.5}>RECOMMENDED</Kicker>
+                    {roomId !== null && (
+                      <ChipToggle on={coopOnly} onClick={() => setCoopOnly((v) => !v)} height={30} fontSize={12.5}>
+                        Co-op only
+                      </ChipToggle>
+                    )}
+                  </span>
+                  {recs.length === 0 && <div style={st('padding:4px 10px 10px;color:var(--muted);font-size:13.5px')}>No co-op games like these yet.</div>}
+                  {recs.slice(0, 8).map((r) => (
+                    <ResultRow
+                      key={`rec-${r.igdbId}`}
+                      r={r}
+                      added={addedIds.has(r.igdbId)}
+                      suggested={suggestedIds.has(r.igdbId)}
+                      adding={addingId === r.igdbId}
+                      busy={busy}
+                      onAdd={() => clickAdd(r)}
+                      extra={
+                        <span style={st('display:flex;flex-wrap:wrap;align-items:center;gap:6px;font:500 12px var(--font-ui);color:var(--accText)')}>
+                          {r.reason}
+                          {r.coop && <span style={st(TAG)}>Co-op</span>}
+                          {r.singlePlayerOnly && <span style={st(TAG)}>Single player</span>}
+                        </span>
+                      }
+                    />
+                  ))}
+                </>
               )}
               <span style={{ display: 'block', padding: '8px 8px 6px' }}>
                 <Kicker size={11.5}>{showingResults ? 'RESULTS' : 'TRENDING'}</Kicker>

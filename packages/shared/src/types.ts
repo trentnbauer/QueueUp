@@ -676,6 +676,8 @@ export interface Game {
   reviewScore: number | null;
   /** PC install size in MB from Steam's system requirements (#800); null when unknown. */
   downloadSizeMb: number | null;
+  /** IGDB lists single player as its only mode - no multiplayer or co-op. Null when unknown. */
+  singlePlayerOnly: boolean | null;
   /** User-set "play this after" pointer to another game in the same room (e.g. Borderlands 2 ->
    * Borderlands 1) - null when unset. Room games only; always null on the Personal Shelf. Spin the
    * Wheel excludes a backlog game from its candidate pool while its prerequisite isn't yet Done -
@@ -769,6 +771,18 @@ export interface GameSearchResult {
   platform: string;
   coverImageUrl: string | null;
   releaseYear: number | null;
+}
+
+/** A game QueueUp suggests from IGDB's "similar games" for what's already on the shelf or in the
+ * room, with why and how it plays. */
+export interface RecommendedGame extends GameSearchResult {
+  /** e.g. "Like Hades II". */
+  reason: string;
+  /** Has co-op (online, local or split screen). */
+  coop: boolean;
+  /** Single player is its only mode. Null when IGDB doesn't say. */
+  singlePlayerOnly: boolean | null;
+  reviewScore: number | null;
 }
 
 /** Result of looking up a scanned physical-game barcode (issue #402) - same shape as a normal

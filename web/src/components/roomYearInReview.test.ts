@@ -51,6 +51,7 @@ function makeGame(overrides: Partial<Game> = {}): Game {
     igdbCollectionId: null,
     reviewScore: null,
     downloadSizeMb: null,
+    singlePlayerOnly: null,
     prerequisiteGameId: null,
     baseGameId: null,
     playtimeSinceCheckpointMinutes: null,

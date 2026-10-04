@@ -3,6 +3,7 @@ import type {
   PriceHistoryResponse,
   RemoveVoteResponse,
   ResolveSensitiveGamesRequest,
+  RecommendedGame,
   SensitiveGamesResponse,
   BacklogInsights,
   BadgeDefinition,
@@ -75,6 +76,11 @@ export const gamesApi = {
   /** Issue #402 - resolves a scanned UPC/EAN barcode via ScanDex. Null result means no match (or
    * ScanDex isn't configured) - not an error, just "couldn't find that one." */
   barcodeLookup: (value: string) => apiGet<{ result: BarcodeGameMatch | null }>(`/api/games/barcode-lookup?value=${encodeURIComponent(value)}`),
+  /** Games like what's already on the shelf / in the room (IGDB similar games); `coop` keeps co-op only. */
+  recommendations: (roomId: string | null, coop: boolean, allPlatforms = false) =>
+    apiGet<{ results: RecommendedGame[] }>(
+      `/api/games/recommendations?${new URLSearchParams({ ...(roomId && { roomId }), ...(coop && { coop: 'true' }), ...(allPlatforms && { allPlatforms: 'true' }) })}`,
+    ),
   trending: (roomId?: string | null, hideAddons = true, allPlatforms = false) =>
     apiGet<{ results: GameSearchResult[] }>(`/api/games/trending${browseQuery(roomId, hideAddons, allPlatforms)}`),
   /** Every DLC/expansion IGDB has on file for this game (issue #338), already excluding anything

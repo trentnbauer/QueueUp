@@ -108,6 +108,7 @@ export default async function gameSuggestionRoutes(app: FastifyInstance) {
             platform: resolved.platform,
             genre: resolved.genre,
             maxCoopPlayers: resolved.maxCoopPlayers,
+            singlePlayerOnly: resolved.singlePlayerOnly,
             timeToBeatHours: resolved.timeToBeatHours,
             timeToBeatRushedHours: resolved.timeToBeatRushedHours,
             timeToBeatCompletionistHours: resolved.timeToBeatCompletionistHours,

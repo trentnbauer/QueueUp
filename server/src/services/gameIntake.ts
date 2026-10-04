@@ -144,6 +144,7 @@ export async function resolveGameForCreation(
   coverImageUrl: string | null;
   steamAppId: number | null;
   maxCoopPlayers: number | null;
+  singlePlayerOnly: boolean | null;
   releaseYear: number | null;
   releaseDate: Date | null;
   timeToBeatHours: number | null;
@@ -171,6 +172,7 @@ export async function resolveGameForCreation(
     coverImageUrl: detail.coverImageUrl,
     steamAppId,
     maxCoopPlayers: detail.maxCoopPlayers,
+    singlePlayerOnly: detail.singlePlayerOnly ?? null,
     releaseYear: detail.releaseYear,
     releaseDate: detail.releaseDate,
     timeToBeatHours: detail.timeToBeatHours,
@@ -232,6 +234,7 @@ export async function linkDlcToBaseGame(
             platform: resolved.platform,
             genre: resolved.genre,
             maxCoopPlayers: resolved.maxCoopPlayers,
+            singlePlayerOnly: resolved.singlePlayerOnly,
             timeToBeatHours: resolved.timeToBeatHours,
             timeToBeatRushedHours: resolved.timeToBeatRushedHours,
             timeToBeatCompletionistHours: resolved.timeToBeatCompletionistHours,
@@ -383,6 +386,7 @@ export async function createGameForUser(
         platform: resolved.platform,
         genre: resolved.genre,
         maxCoopPlayers: resolved.maxCoopPlayers,
+        singlePlayerOnly: resolved.singlePlayerOnly,
         timeToBeatHours: resolved.timeToBeatHours,
         timeToBeatRushedHours: resolved.timeToBeatRushedHours,
         timeToBeatCompletionistHours: resolved.timeToBeatCompletionistHours,

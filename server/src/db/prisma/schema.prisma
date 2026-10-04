@@ -847,6 +847,10 @@ model Game {
   /// before this field existed, and on any game IGDB doesn't have in a collection.
   igdbCollectionId             Int?       @map("igdb_collection_id")
   maxCoopPlayers               Int?       @map("max_coop_players")
+  /// True when IGDB lists single player as the game's only mode (no multiplayer or co-op), so cards
+  /// can flag it. Null when unknown - set at intake, filled in for older games by
+  /// jobs/playModesBackfillJob.ts.
+  singlePlayerOnly             Boolean?   @map("single_player_only")
   /// Hours for an average "main story" playthrough, from IGDB's game_time_to_beats endpoint
   /// (issue #189) - same capture-at-intake reasoning as releaseYear/maxCoopPlayers above. Null
   /// when IGDB has no time-to-beat data for this game. Sourced from IGDB's "normally" figure -
