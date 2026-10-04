@@ -584,6 +584,8 @@ export interface GameReview {
   story: number | null;
   sound: number | null;
   note: string | null;
+  /** Would they recommend it: 👍 true, 👎 false, null when they didn't say. */
+  recommend: boolean | null;
   reviewedAt: string;
 }
 
@@ -758,6 +760,12 @@ export interface SetGameReviewRequest {
   story?: number | null;
   sound?: number | null;
   note?: string | null;
+  recommend?: boolean | null;
+}
+
+/** POST /api/games/:id/recommend - tell these friends about a game you reviewed. */
+export interface RecommendToFriendsRequest {
+  friendIds: string[];
 }
 
 export interface SetReleaseAlertRequest {

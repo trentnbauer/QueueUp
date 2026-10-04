@@ -500,6 +500,7 @@ export function PublicProfilePage({ userId, signedIn }: { userId: string; signed
               <div style={st('display:flex;gap:10px;flex-wrap:wrap')}>
                 {tile(profile.currentlyPlaying.length, 'playing', scrollTo(playingRef), '↓')}
                 {tile(profile.beatenGameCount, 'played', scrollTo(beatenRef), '↓')}
+                {profile.beatenGames.some((g) => g.review?.recommend) && tile(profile.beatenGames.filter((g) => g.review?.recommend).length, '👍 recommended', scrollTo(beatenRef), '↓')}
                 {tile(profile.library.length, 'library', () => setModal('library'), '›')}
                 {profile.bothOwn.length > 0 && tile(profile.bothOwn.length, 'you both own', () => setModal('bothOwn'), '›')}
                 {tile(profile.badges.length, 'achievements', () => setModal('achievements'), '›')}
@@ -592,10 +593,15 @@ export function PublicProfilePage({ userId, signedIn }: { userId: string; signed
                     className="hv-surf2"
                     style={st(`display:flex;align-items:center;gap:10px;padding:6px 10px 6px 6px;border-radius:12px;border:none;background:var(--surf);color:var(--text);text-align:left`)}
                   >
-                    <Cover title={g.title} url={g.coverImageUrl} width={30} radius={6} completed={g.fullyCompleted} status={g.dropped ? 'dropped' : g.replaying ? 'replay' : 'done'} />
+                    <Cover title={g.title} url={g.coverImageUrl} width={30} radius={6} completed={g.fullyCompleted} status={g.dropped ? 'dropped' : g.replaying ? 'replay' : 'done'} recommend={g.review?.recommend} />
                     <span style={st('flex:1;min-width:0;font:600 13px var(--font-ui);white-space:nowrap;overflow:hidden;text-overflow:ellipsis')}>{g.title}</span>
                     {g.inGroup && <span title="Beaten as part of a group" aria-label="Beaten as part of a group" style={st('flex-shrink:0;font-size:14px;line-height:1')}>👥</span>}
                     {avg !== null && <span style={st('flex-shrink:0;font:700 12px var(--font-display);color:var(--accText)')}>{avg.toFixed(1)} / 5</span>}
+                    {g.review?.recommend != null && (
+                      <span role="img" aria-label={g.review.recommend ? 'Recommends it' : "Doesn't recommend it"} title={g.review.recommend ? 'Recommends it' : "Doesn't recommend it"} style={st('flex-shrink:0;font-size:14px;line-height:1')}>
+                        {g.review.recommend ? '👍' : '👎'}
+                      </span>
+                    )}
                   </button>
                 );
               })}
@@ -619,10 +625,17 @@ export function PublicProfilePage({ userId, signedIn }: { userId: string; signed
       {openGame && profile && (
         <Dialog title={openGame.title} onClose={() => setOpenGame(null)} width={560}>
           <div style={st('display:flex;gap:16px;align-items:flex-start')}>
-            <Cover title={openGame.title} url={openGame.coverImageUrl} width={110} radius={14} completed={openGame.fullyCompleted} status={openGame.dropped ? 'dropped' : openGame.replaying ? 'replay' : 'done'} />
+            <Cover title={openGame.title} url={openGame.coverImageUrl} width={110} radius={14} completed={openGame.fullyCompleted} status={openGame.dropped ? 'dropped' : openGame.replaying ? 'replay' : 'done'} recommend={openGame.review?.recommend} />
             <div style={st('flex:1;min-width:0;display:flex;flex-direction:column;gap:8px')}>
               <span style={st('font:400 13px var(--font-ui);color:var(--muted)')}>
-                {[openGame.genre?.split(',')[0], openGame.dropped ? 'Dropped' : openGame.replaying ? 'Replaying' : 'Beaten', openGame.inGroup ? '👥 With a group' : null].filter(Boolean).join(' · ')}
+                {[
+                  openGame.genre?.split(',')[0],
+                  openGame.dropped ? 'Dropped' : openGame.replaying ? 'Replaying' : 'Beaten',
+                  openGame.inGroup ? '👥 With a group' : null,
+                  openGame.review?.recommend === true ? '👍 Recommends it' : openGame.review?.recommend === false ? "👎 Doesn't recommend it" : null,
+                ]
+                  .filter(Boolean)
+                  .join(' · ')}
               </span>
               {openGame.review ? (
                 <>

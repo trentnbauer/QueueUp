@@ -146,7 +146,7 @@ export function DesktopRow({ item, showRank, bulk, selected, active, onOpen, onV
         <span style={st('width:24px;flex-shrink:0;font:700 18px var(--font-display);color:var(--rank);text-align:center')}>{item.rank}</span>
       )}
       {bulk && <SelectMark on={selected} />}
-      <Cover title={g.title} url={g.coverImageUrl} width={44} radius={9} completed={isFullyCompleted(g)} status={g.status} statusRing={false} badgeScale={2} />
+      <Cover title={g.title} url={g.coverImageUrl} width={44} radius={9} completed={isFullyCompleted(g)} status={g.status} recommend={g.review?.recommend} statusRing={false} badgeScale={2} />
       <div style={st('flex:1;min-width:0;display:flex;flex-direction:column;gap:4px')}>
         <span style={st('font:600 15.5px var(--font-ui);white-space:nowrap;overflow:hidden;text-overflow:ellipsis')}>{g.title}</span>
         <span style={st('display:flex;align-items:center;gap:6px;min-width:0;font:400 12.5px var(--font-ui);color:var(--muted)')}>
@@ -201,7 +201,7 @@ export function MobileRow({ item, showRank, bulk, selected, onOpen, onVote }: Ro
       <OpenOverlay label={`Open ${g.title}`} onOpen={onOpen} />
       {showRank && <span style={st('width:20px;flex-shrink:0;font:700 17px var(--font-display);color:var(--rank);text-align:center')}>{item.rank}</span>}
       {bulk && <SelectMark on={selected} />}
-      <Cover title={g.title} url={g.coverImageUrl} width={46} radius={10} completed={isFullyCompleted(g)} status={g.status} statusRing={false} badgeScale={2} />
+      <Cover title={g.title} url={g.coverImageUrl} width={46} radius={10} completed={isFullyCompleted(g)} status={g.status} recommend={g.review?.recommend} statusRing={false} badgeScale={2} />
       <div style={st('flex:1;min-width:0;display:flex;flex-direction:column;gap:6px')}>
         <div style={st('display:flex;flex-direction:column;gap:2px;min-width:0')}>
           <span style={st('font:600 15.5px var(--font-ui);white-space:nowrap;overflow:hidden;text-overflow:ellipsis')}>{g.title}</span>
@@ -248,7 +248,7 @@ export function CoverCard({
 }: RowProps & { big: boolean; /** Play Next: a Start button in place of the vote bar. */ onStart?: () => void }) {
   const g = item.game;
   const completed = isFullyCompleted(g);
-  const outline = completed ? null : statusOutlineFor(g.status);
+  const outline = completed ? null : statusOutlineFor(g.status, g.review?.recommend);
   return (
     <div
       style={st('position:relative;display:flex;flex-direction:column;gap:8px;min-width:0;cursor:pointer')}
@@ -320,7 +320,7 @@ export function PlayNextRow({
       style={st('position:relative;display:flex;align-items:center;gap:12px;padding:10px;border-radius:18px;cursor:pointer')}
     >
       <OpenOverlay label={`Open ${g.title}`} onOpen={onOpen} />
-      <Cover title={g.title} url={g.coverImageUrl} width={40} radius={9} status={g.status} statusRing={false} badgeScale={2} />
+      <Cover title={g.title} url={g.coverImageUrl} width={40} radius={9} status={g.status} recommend={g.review?.recommend} statusRing={false} badgeScale={2} />
       <div style={st('flex:1;min-width:0;display:flex;flex-direction:column;gap:2px')}>
         <span style={st('font:600 15px var(--font-ui);white-space:nowrap;overflow:hidden;text-overflow:ellipsis')}>{g.title}</span>
         <span style={st('display:flex;align-items:center;gap:6px;min-width:0;font:400 12.5px var(--font-ui);color:var(--muted)')}>

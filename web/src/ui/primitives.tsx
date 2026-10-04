@@ -225,18 +225,23 @@ export function TrophyBadge({ size = 20, style }: { size?: number; style?: CSSPr
 }
 
 /** The colour ring and emoji shown on a cover for games you're finished with or have on hold, in
- * the same style as the 100% trophy: Beaten (green), Dropped (red), Won't Play (grey) and Paused
- * (accent). Other statuses have none. */
+ * the same style as the 100% trophy: Beaten (green), Dropped (orange), Won't Play (grey) and Paused
+ * (accent). Your review's recommend (#809) wins over the status: 👍 (green) or 👎 (red). Other
+ * statuses have none. Only the 100% trophy outranks these. */
+const DROPPED = 'oklch(0.76 0.15 60)';
+
 export interface StatusOutline {
   color: string;
   emoji: string;
   label: string;
 }
 
-export function statusOutlineFor(status: GameStatus): StatusOutline | null {
+export function statusOutlineFor(status: GameStatus, recommend?: boolean | null): StatusOutline | null {
+  if (recommend === true) return { color: 'var(--mint)', emoji: '👍', label: 'Recommended' };
+  if (recommend === false) return { color: 'var(--danger)', emoji: '👎', label: "Don't recommend" };
   if (status === 'done') return { color: 'var(--mint)', emoji: '✅', label: 'Beaten' };
   if (status === 'replay') return { color: 'var(--mint)', emoji: '🔄', label: 'Replay' };
-  if (status === 'dropped') return { color: 'var(--danger)', emoji: '👎', label: 'Dropped' };
+  if (status === 'dropped') return { color: DROPPED, emoji: '🛑', label: 'Dropped' };
   if (status === 'paused') return { color: 'var(--acc)', emoji: '⏸️', label: 'Paused' };
   if (status === 'wont_play') return { color: 'var(--muted)', emoji: '🚫', label: "Won't Play" };
   return null;
@@ -288,6 +293,7 @@ export function Cover({
   radius = 9,
   completed = false,
   status,
+  recommend,
   statusRing: showStatusRing = true,
   badgeScale = 1,
   style,
@@ -299,6 +305,8 @@ export function Cover({
   radius?: number;
   completed?: boolean;
   status?: GameStatus;
+  /** The viewer's (or profile owner's) review verdict, which outranks `status` (#809). */
+  recommend?: boolean | null;
   /** With a `status`: draw the colour ring (default) or just the emoji badge. */
   statusRing?: boolean;
   /** With a `status`: multiplies the emoji badge's size. */
@@ -307,7 +315,7 @@ export function Cover({
   children?: ReactNode;
 }) {
   const badgeSize = typeof width === 'number' ? Math.max(16, Math.min(28, Math.round(width * 0.42))) : 26;
-  const outline = !completed && status ? statusOutlineFor(status) : null;
+  const outline = !completed && status ? statusOutlineFor(status, recommend) : null;
   const ring = completed ? GOLD_RING : outline && showStatusRing ? statusRing(outline) : null;
   return (
     <span

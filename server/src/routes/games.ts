@@ -61,7 +61,7 @@ import type { OwnedSteamGame } from '../services/steamLibrary.js';
 import { toggleOwnershipForPlatform, setOwnershipPlatforms, markOwned, promoteOwnedWishlistGames } from '../services/gameOwnership.js';
 import { recordStatusTransition } from '../services/playLog.js';
 import { recommendationsFor } from '../services/recommendations.js';
-import { notifyFriendRecommendation } from '../services/friendRecommendations.js';
+import { notifyFriendRecommendation, recommendToFriends } from '../services/friendRecommendations.js';
 import { getPriceHistory, usualPrice } from '../services/priceHistory.js';
 import { getRemovalInfo } from '../services/removalVote.js';
 import { recordSyncSources } from '../services/syncSources.js';
@@ -81,6 +81,7 @@ import { findDetectedSteamCompletions } from '../services/steamCompletionDetecti
 import { recordAchievementProgress } from '../services/achievementProgress.js';
 import { toUserDto } from '../util/dto.js';
 import { env } from '../config/env.js';
+import type { RecommendToFriendsRequest } from '@queueup/shared';
 import type {
   BacklogInsights,
   SetGameHiddenRequest,
@@ -1127,7 +1128,8 @@ export default async function gameRoutes(app: FastifyInstance) {
     const story = score(body.story);
     const sound = score(body.sound);
     const note = typeof body.note === 'string' ? body.note.trim().slice(0, 280) : '';
-    const hasAny = art !== null || gameplay !== null || story !== null || sound !== null || note.length > 0;
+    const recommend = typeof body.recommend === 'boolean' ? body.recommend : null;
+    const hasAny = art !== null || gameplay !== null || story !== null || sound !== null || note.length > 0 || recommend !== null;
 
     // The caller's own review only (GameReview is one per person per game) - in a room, every
     // member keeps their own instead of overwriting whoever saved last. Clearing everything
@@ -1137,7 +1139,7 @@ export default async function gameRoutes(app: FastifyInstance) {
     // A room's play journal logs a member's first review of a game, not every later edit.
     const firstReview = hasAny && game.roomId !== null && !(await prisma.gameReview.findUnique({ where, select: { gameId: true } }));
     if (hasAny) {
-      const data = { art, gameplay, story, sound, note: note || null, reviewedAt: new Date() };
+      const data = { art, gameplay, story, sound, note: note || null, recommend, reviewedAt: new Date() };
       saved = await prisma.gameReview.upsert({ where, create: { gameId: game.id, userId, ...data }, update: data });
     } else {
       await prisma.gameReview.deleteMany({ where: { gameId: game.id, userId } });
@@ -1202,6 +1204,24 @@ export default async function gameRoutes(app: FastifyInstance) {
 
     return { game: await serializeGame(updated, userId) };
   });
+
+  // #808: after reviewing a game, tell the friends you pick about it.
+  app.post<{ Params: { id: string }; Body: RecommendToFriendsRequest }>(
+    '/api/games/:id/recommend',
+    { config: { rateLimit: { max: 20, timeWindow: '1 minute' } } },
+    async (request) => {
+      const userId = await request.requireAuth();
+      const game = await loadGameOr404(request.params.id);
+      await requireGameReadAccess(game, userId);
+      const ids = request.body?.friendIds;
+      if (!Array.isArray(ids) || ids.length === 0 || ids.length > 100 || !ids.every((id) => typeof id === 'string')) {
+        throw new HttpError(400, 'Pick between 1 and 100 friends');
+      }
+      if (game.roomId === null && game.hiddenFromOthers) throw new HttpError(400, "This game is hidden from others, so it can't be recommended");
+      const sent = await recommendToFriends(userId, game, ids);
+      return { sent };
+    },
+  );
 
   app.post<{ Params: { id: string } }>(
     '/api/games/:id/sync-shelf-beaten',
@@ -1288,6 +1308,7 @@ export default async function gameRoutes(app: FastifyInstance) {
               story: roomReview.story,
               sound: roomReview.sound,
               note: roomReview.note,
+              recommend: roomReview.recommend,
               reviewedAt: roomReview.reviewedAt,
             },
           });
