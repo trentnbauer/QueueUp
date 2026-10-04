@@ -1,6 +1,6 @@
 import { apiGet, apiPost, apiPatch, apiDelete } from './client';
 import { getBasePath } from '../utils/basePath';
-import type { AdminBackupInfo, AdminBackupsResponse, AdminBackupSettings, RestoreBackupResponse, RestoreSessionKeyCode, UpdateBackupSettingsRequest, AdminIntegrationStatus, AdminRoomSummary, AdminUserSummary, IntegrationConfigKey, TunnelStatus } from '@queueup/shared';
+import type { AdminBackupInfo, AdminBackupsResponse, AdminBackupSettings, RestoreBackupResponse, RestoreSessionKeyCode, UpdateBackupSettingsRequest, AdminIntegrationStatus, AdminRoomDetail, AdminRoomSummary, AdminUserSummary, IntegrationConfigKey, TunnelStatus } from '@queueup/shared';
 
 /** Options for a restore or import whose backup holds encrypted keys made with another session key. */
 export interface RestoreOptions {
@@ -49,6 +49,11 @@ export const adminApi = {
   deleteUser: (id: string) => apiDelete(`/api/admin/users/${id}`),
   rooms: () => apiGet<{ rooms: AdminRoomSummary[] }>('/api/admin/rooms'),
   deleteRoom: (id: string) => apiDelete(`/api/admin/rooms/${id}`),
+  /** A read-only look at a room (#792). */
+  room: (id: string) => apiGet<AdminRoomDetail>(`/api/admin/rooms/${id}`),
+  /** "Manage as Room Master" for an hour (#792). */
+  manageRoom: (id: string) => apiPost<{ managingUntil: string | null }>(`/api/admin/rooms/${id}/manage`),
+  stopManagingRoom: (id: string) => apiDelete(`/api/admin/rooms/${id}/manage`),
   setIntegrationConfig: (key: IntegrationConfigKey, value: string) =>
     apiPatch<{ ok: true }>('/api/admin/integrations', { key, value }),
   clearIntegrationConfig: (key: IntegrationConfigKey) => apiDelete(`/api/admin/integrations/${key}`),

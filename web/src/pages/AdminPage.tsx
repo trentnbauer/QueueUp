@@ -1,4 +1,5 @@
-import { useState } from 'react';
+import { Fragment, useState } from 'react';
+import { useNavigate } from 'react-router';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { ROOM_PLATFORM_LABELS, type AdminIntegrationStatus, type ConfigSource, type IntegrationConfigKey, type TunnelState } from '@queueup/shared';
 import { adminApi } from '../api/admin';
@@ -9,6 +10,7 @@ import { Avatar, Banner, Btn, Group, Kicker } from '../ui/primitives';
 import { st } from '../ui/st';
 import { getBasePath } from '../utils/basePath';
 import { AdminBackups } from './AdminBackups';
+import { AdminRoomView } from './AdminRoomView';
 import { PageShell } from './PageShell';
 
 function fields(s: AdminIntegrationStatus): { key: IntegrationConfigKey; label: string; source: ConfigSource }[] {
@@ -55,6 +57,9 @@ export function AdminPage() {
   const [error, setError] = useState<string | null>(null);
   const [inputs, setInputs] = useState<Record<string, string>>({});
   const [busyKey, setBusyKey] = useState<string | null>(null);
+  const [openRoom, setOpenRoom] = useState<string | null>(null);
+  const navigate = useNavigate();
+  const go = (path: string) => () => navigate(path);
 
   const enabled = !!user?.isAdmin;
   const overview = useQuery({
@@ -112,6 +117,35 @@ export function AdminPage() {
       fail(e, 'Could not clear setting');
     } finally {
       setBusyKey(null);
+    }
+  }
+
+  /** #792: act as the room's Room Master for an hour, without joining it. */
+  async function manageRoom(id: string, name: string) {
+    const ok = await confirm({
+      title: `Manage ${name}?`,
+      message:
+        "For the next hour you can change anything in this room as if you were its Room Master, without joining it. Its members will see a note in the room's activity, and this is recorded in the audit log.",
+      confirmLabel: 'Manage as Room Master',
+    });
+    if (!ok) return;
+    try {
+      await adminApi.manageRoom(id);
+      qc.invalidateQueries({ queryKey: ['admin', 'rooms'] });
+      qc.invalidateQueries({ queryKey: ['rooms'] });
+      ui.notify(`You're managing ${name} for the next hour`);
+    } catch (e) {
+      fail(e, 'Could not manage that room');
+    }
+  }
+
+  async function stopManaging(id: string) {
+    try {
+      await adminApi.stopManagingRoom(id);
+      qc.invalidateQueries({ queryKey: ['admin', 'rooms'] });
+      qc.invalidateQueries({ queryKey: ['rooms'] });
+    } catch (e) {
+      fail(e, 'Could not stop managing that room');
     }
   }
 
@@ -275,17 +309,42 @@ export function AdminPage() {
         <Kicker>ROOMS · {rooms.data?.rooms.length ?? 0}</Kicker>
         <Group>
           {rooms.data?.rooms.map((r) => (
-            <div key={r.id} style={st('display:flex;align-items:center;gap:10px;min-height:60px;padding:8px 10px 8px 16px;background:var(--surf)')}>
+            <Fragment key={r.id}>
+            <div style={st('display:flex;flex-wrap:wrap;align-items:center;gap:6px 10px;min-height:60px;padding:8px 10px 8px 16px;background:var(--surf)')}>
               <span style={st('flex:1;min-width:0;display:flex;flex-direction:column;gap:1px')}>
                 <span style={st('font:600 14.5px var(--font-ui)')}>{r.name}</span>
                 <span style={st('font:400 12px var(--font-ui);color:var(--muted)')}>
                   {r.platform ? ROOM_PLATFORM_LABELS[r.platform] : 'Any platform'} · by {r.creatorDisplayName} · {r.memberCount} member{r.memberCount === 1 ? '' : 's'} · {r.gameCount} game{r.gameCount === 1 ? '' : 's'}
                 </span>
+                {r.managingUntil && (
+                  <span style={st('font:500 12px var(--font-ui);color:var(--accText)')}>
+                    You're managing this room until {new Date(r.managingUntil).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })}
+                  </span>
+                )}
               </span>
+              <Btn kind="ghost" height={32} padX={12} fontSize={12.5} onClick={() => setOpenRoom(openRoom === r.id ? null : r.id)} aria-expanded={openRoom === r.id}>
+                {openRoom === r.id ? 'Hide' : 'View'}
+              </Btn>
+              {r.managingUntil ? (
+                <>
+                  <Btn kind="soft" height={32} padX={12} fontSize={12.5} onClick={go(`/room/${r.id}`)}>
+                    Open
+                  </Btn>
+                  <Btn kind="ghost" height={32} padX={12} fontSize={12.5} onClick={() => stopManaging(r.id)}>
+                    Stop managing
+                  </Btn>
+                </>
+              ) : (
+                <Btn kind="ghost" height={32} padX={12} fontSize={12.5} onClick={() => manageRoom(r.id, r.name)}>
+                  Manage
+                </Btn>
+              )}
               <Btn kind="ghost" height={32} padX={12} fontSize={12.5} style={{ color: 'var(--danger)' }} onClick={() => deleteRoom(r.id, r.name)}>
                 Delete
               </Btn>
             </div>
+            {openRoom === r.id && <AdminRoomView roomId={r.id} />}
+            </Fragment>
           ))}
           {rooms.data?.rooms.length === 0 && <div style={st('padding:16px;background:var(--surf);color:var(--muted);font-size:14px')}>No rooms yet.</div>}
         </Group>
