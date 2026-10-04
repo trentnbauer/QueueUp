@@ -60,6 +60,7 @@ import {
 import type { OwnedSteamGame } from '../services/steamLibrary.js';
 import { toggleOwnershipForPlatform, setOwnershipPlatforms, markOwned, promoteOwnedWishlistGames } from '../services/gameOwnership.js';
 import { recordStatusTransition } from '../services/playLog.js';
+import { recommendationsFor } from '../services/recommendations.js';
 import { notifyFriendRecommendation } from '../services/friendRecommendations.js';
 import { getPriceHistory, usualPrice } from '../services/priceHistory.js';
 import { getRemovalInfo } from '../services/removalVote.js';
@@ -313,6 +314,7 @@ async function runSteamLibraryImportLoop(
             platform: resolved.platform,
             genre: resolved.genre,
             maxCoopPlayers: resolved.maxCoopPlayers,
+            singlePlayerOnly: resolved.singlePlayerOnly,
             timeToBeatHours: resolved.timeToBeatHours,
             timeToBeatRushedHours: resolved.timeToBeatRushedHours,
             timeToBeatCompletionistHours: resolved.timeToBeatCompletionistHours,
@@ -412,6 +414,7 @@ async function runSteamWishlistImportLoop(
             platform: resolved.platform,
             genre: resolved.genre,
             maxCoopPlayers: resolved.maxCoopPlayers,
+            singlePlayerOnly: resolved.singlePlayerOnly,
             timeToBeatHours: resolved.timeToBeatHours,
             timeToBeatRushedHours: resolved.timeToBeatRushedHours,
             timeToBeatCompletionistHours: resolved.timeToBeatCompletionistHours,
@@ -516,6 +519,22 @@ export default async function gameRoutes(app: FastifyInstance) {
       const hideAddons = request.query.hideAddons !== 'false';
 
       const results = await trendingIntake(platforms, excludeIgdbIds, hideAddons);
+      return { results };
+    },
+  );
+
+  // Games like the ones already on the shelf / in the room, from IGDB's similar_games - shown above
+  // Trending in Add Game. `coop=true` keeps only games with co-op (offered in rooms). Same
+  // platform scoping and already-added exclusion as trending.
+  app.get<{ Querystring: { roomId?: string; coop?: string; allPlatforms?: string } }>(
+    '/api/games/recommendations',
+    { config: { rateLimit: { max: 30, timeWindow: '1 minute' } } },
+    async (request) => {
+      const userId = await request.requireAuth();
+      const { roomId } = request.query;
+      if (roomId) await requireMembership(roomId, userId);
+      const platforms = await searchPlatformsFor(roomId, userId, request.query.allPlatforms === 'true');
+      const results = await recommendationsFor({ roomId: roomId ?? null, userId }, { platforms, coopOnly: request.query.coop === 'true' });
       return { results };
     },
   );
@@ -1203,6 +1222,7 @@ export default async function gameRoutes(app: FastifyInstance) {
               platform: resolved.platform,
               genre: resolved.genre,
               maxCoopPlayers: resolved.maxCoopPlayers,
+              singlePlayerOnly: resolved.singlePlayerOnly,
               timeToBeatHours: resolved.timeToBeatHours,
               timeToBeatRushedHours: resolved.timeToBeatRushedHours,
               timeToBeatCompletionistHours: resolved.timeToBeatCompletionistHours,

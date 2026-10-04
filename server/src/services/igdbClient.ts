@@ -82,6 +82,11 @@ interface IgdbCollectionRef {
 export interface IgdbGame {
   id: number;
   name?: string;
+  /** "Single player", "Multiplayer", "Co-operative", "Split screen", "Massively Multiplayer Online (MMO)", "Battle Royale". */
+  game_modes?: { name?: string }[];
+  multiplayer_modes?: IgdbMultiplayerMode[];
+  /** IGDB's own "games like this" list (#recommendations). */
+  similar_games?: number[];
   cover?: IgdbCover;
   platforms?: IgdbPlatform[];
   genres?: IgdbGenre[];
@@ -617,6 +622,8 @@ export interface IgdbGameDetail {
   coverImageUrl: string | null;
   steamAppId: number | null;
   maxCoopPlayers: number | null;
+  /** Single player is IGDB's only mode for it; null when unknown. Absent on details cached before this existed. */
+  singlePlayerOnly?: boolean | null;
   releaseYear: number | null;
   /** Full precision alongside releaseYear (issue #284) - see the schema comment on Game.releaseDate. */
   releaseDate: Date | null;
@@ -656,6 +663,100 @@ interface IgdbExternalGame {
 interface IgdbMultiplayerMode {
   onlinecoopmax?: number;
   offlinecoopmax?: number;
+  campaigncoop?: boolean;
+  lancoop?: boolean;
+  offlinecoop?: boolean;
+  onlinecoop?: boolean;
+  splitscreen?: boolean;
+}
+
+/** How a game can be played, from IGDB's game modes and multiplayer modes. */
+export interface PlayModes {
+  /** Single player is its only mode. Null when IGDB lists no modes at all. */
+  singlePlayerOnly: boolean | null;
+  /** Has co-op (online, local, LAN, split screen or a co-op campaign). */
+  coop: boolean;
+}
+
+export function playModesFrom(modes: { name?: string }[] | undefined, multiplayer: IgdbMultiplayerMode[] | undefined): PlayModes {
+  const names = (modes ?? []).map((m) => m.name?.toLowerCase() ?? '').filter(Boolean);
+  const mp = multiplayer ?? [];
+  const coop =
+    names.some((n) => n.includes('co-op') || n.includes('cooperative') || n.includes('co-operative') || n.includes('split screen')) ||
+    mp.some((m) => m.campaigncoop || m.lancoop || m.offlinecoop || m.onlinecoop || m.splitscreen || (m.onlinecoopmax ?? 0) > 1 || (m.offlinecoopmax ?? 0) > 1);
+  if (names.length === 0) return { singlePlayerOnly: null, coop };
+  return { singlePlayerOnly: !coop && names.every((n) => n === 'single player'), coop };
+}
+
+const PLAY_MODE_FIELDS = 'game_modes.name,multiplayer_modes.onlinecoopmax,multiplayer_modes.offlinecoopmax,multiplayer_modes.campaigncoop,multiplayer_modes.lancoop,multiplayer_modes.offlinecoop,multiplayer_modes.onlinecoop,multiplayer_modes.splitscreen';
+
+/** Play modes for up to 500 games in one request. Games IGDB doesn't return are left out. */
+export async function getPlayModes(igdbIds: number[]): Promise<Map<number, PlayModes>> {
+  const ids = [...new Set(igdbIds)].filter((id) => Number.isInteger(id) && id > 0).slice(0, 500);
+  if (ids.length === 0) return new Map();
+  const games = await igdbRequest<IgdbGame[]>('games', `fields ${PLAY_MODE_FIELDS}; where id = (${ids.join(',')}); limit 500;`);
+  return new Map(games.map((g) => [g.id, playModesFrom(g.game_modes, g.multiplayer_modes)]));
+}
+
+/** A game suggested because it's like something already in the shelf/room. */
+export interface SimilarGameCandidate extends GameSearchResult {
+  /** How many of the seed games list it as similar - the strongest signal. */
+  hits: number;
+  /** The seed game it was most directly suggested by. */
+  becauseOf: number;
+  reviewScore: number | null;
+  ratingCount: number;
+  playModes: PlayModes;
+  platformFamilies: RoomPlatform[];
+}
+
+const SIMILAR_CANDIDATE_LIMIT = 120;
+
+/** Games IGDB lists as similar to `seedIds`, with their details and play modes, excluding
+ * `exclude` (already owned/added). Two requests: the seeds' similar_games lists, then details for
+ * the most-mentioned candidates. */
+export async function getSimilarGames(seedIds: number[], exclude: Set<number>): Promise<SimilarGameCandidate[]> {
+  const seeds = [...new Set(seedIds)].filter((id) => Number.isInteger(id) && id > 0).slice(0, 50);
+  if (seeds.length === 0) return [];
+  const seedRows = await igdbRequest<IgdbGame[]>('games', `fields similar_games; where id = (${seeds.join(',')}); limit 50;`);
+  const hits = new Map<number, { count: number; becauseOf: number }>();
+  // Seeds come in priority order, so the first seed to mention a game is the best "because of".
+  const order = new Map(seeds.map((id, i) => [id, i]));
+  for (const row of [...seedRows].sort((a, b) => (order.get(a.id) ?? 0) - (order.get(b.id) ?? 0))) {
+    for (const id of row.similar_games ?? []) {
+      if (exclude.has(id) || seeds.includes(id)) continue;
+      const h = hits.get(id);
+      if (h) h.count++;
+      else hits.set(id, { count: 1, becauseOf: row.id });
+    }
+  }
+  const ranked = [...hits.entries()].sort((a, b) => b[1].count - a[1].count).slice(0, SIMILAR_CANDIDATE_LIMIT);
+  if (ranked.length === 0) return [];
+  const rows = await igdbRequest<IgdbGame[]>(
+    'games',
+    `fields name,cover.image_id,platforms.name,first_release_date,category,version_parent,total_rating,aggregated_rating,rating,total_rating_count,${PLAY_MODE_FIELDS}; where id = (${ranked.map(([id]) => id).join(',')}); limit ${SIMILAR_CANDIDATE_LIMIT};`,
+  );
+  return rows
+    .filter((g) => g.name)
+    .filter(isPrimaryEdition)
+    .filter((g) => !isAddonEdition(g))
+    .filter((g) => !isSensitiveContent(g))
+    .map((g) => {
+      const h = hits.get(g.id)!;
+      return {
+        igdbId: g.id,
+        title: g.name!,
+        platform: platformLabel(g.platforms),
+        coverImageUrl: coverUrl(g.cover),
+        releaseYear: releaseYear(g.first_release_date),
+        hits: h.count,
+        becauseOf: h.becauseOf,
+        reviewScore: reviewScoreFrom(g),
+        ratingCount: g.total_rating_count ?? 0,
+        playModes: playModesFrom(g.game_modes, g.multiplayer_modes),
+        platformFamilies: platformFamilies(g.platforms),
+      };
+    });
 }
 
 // A game can have several multiplayer_modes rows (one per platform/mode) — take the highest
@@ -741,9 +842,9 @@ export async function getGameDetail(igdbId: number): Promise<IgdbGameDetail> {
     ]
   >(
     'multiquery',
-    `query games "Game" { fields name,cover.image_id,platforms.name,genres.name,themes.name,keywords.name,first_release_date,collection.id,total_rating,aggregated_rating,rating,category,parent_game; where id = ${igdbId}; };
+    `query games "Game" { fields name,cover.image_id,platforms.name,genres.name,themes.name,keywords.name,first_release_date,collection.id,total_rating,aggregated_rating,rating,category,parent_game,game_modes.name; where id = ${igdbId}; };
      query external_games "External" { fields uid; where game = ${igdbId} & external_game_source = ${STEAM_EXTERNAL_SOURCE_ID}; };
-     query multiplayer_modes "Modes" { fields onlinecoopmax,offlinecoopmax; where game = ${igdbId}; };
+     query multiplayer_modes "Modes" { fields onlinecoopmax,offlinecoopmax,campaigncoop,lancoop,offlinecoop,onlinecoop,splitscreen; where game = ${igdbId}; };
      query game_time_to_beats "TimeToBeat" { fields normally,hastily,completely; where game_id = ${igdbId}; };`,
   );
 
@@ -767,6 +868,7 @@ export async function getGameDetail(igdbId: number): Promise<IgdbGameDetail> {
     coverImageUrl: coverUrl(game.cover),
     steamAppId: steamUid && /^\d+$/.test(steamUid) ? Number(steamUid) : null,
     maxCoopPlayers: maxCoopFrom(multiplayerModes),
+    singlePlayerOnly: playModesFrom(game.game_modes, multiplayerModes).singlePlayerOnly,
     releaseYear: releaseYear(game.first_release_date),
     releaseDate: releaseDate(game.first_release_date),
     timeToBeatHours: timeToBeatHoursFrom(timeToBeatRows),
