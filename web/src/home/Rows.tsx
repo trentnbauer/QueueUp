@@ -77,6 +77,16 @@ function AchievementChip({ g }: { g: Game }) {
   );
 }
 
+/** IGDB's 0-100 critic/user score, when IGDB has one for the game. */
+function IgdbScoreChip({ g }: { g: Game }) {
+  if (g.reviewScore === null) return null;
+  return (
+    <span title={`${g.reviewScore}/100 on IGDB`} aria-label={`IGDB score ${g.reviewScore} out of 100`} style={st(CHIP)}>
+      IGDB {g.reviewScore}
+    </span>
+  );
+}
+
 function SelectMark({ on }: { on: boolean }) {
   return (
     <span
@@ -120,6 +130,7 @@ export function DesktopRow({ item, showRank, bulk, selected, active, onOpen, onV
         <span style={st('display:flex;align-items:center;gap:6px;min-width:0;font:400 12.5px var(--font-ui);color:var(--muted)')}>
           {item.chip && <span style={st(CHIP)}>{item.chip}</span>}
           <AchievementChip g={g} />
+          <IgdbScoreChip g={g} />
           <span style={st('white-space:nowrap;overflow:hidden;text-overflow:ellipsis')}>{item.meta}</span>
         </span>
       </div>
@@ -173,6 +184,7 @@ export function MobileRow({ item, showRank, bulk, selected, onOpen, onVote }: Ro
           <span style={st('display:flex;align-items:center;gap:6px;min-width:0;font:400 12.5px var(--font-ui);color:var(--muted)')}>
             {item.chip && <span style={st(CHIP)}>{item.chip}</span>}
             <AchievementChip g={g} />
+            <IgdbScoreChip g={g} />
             <span style={st('white-space:nowrap;overflow:hidden;text-overflow:ellipsis')}>
               {item.meta}
               {item.meta ? ' · ' : ''}
@@ -241,6 +253,7 @@ export function CoverCard({
         <span style={st('display:flex;align-items:center;gap:6px;min-width:0')}>
           <span style={st(`flex:1;min-width:0;font:400 12px var(--font-ui);color:${item.priceOwned ? 'var(--mint)' : 'var(--text)'};white-space:nowrap;overflow:hidden;text-overflow:ellipsis`)}>{item.priceLabel}</span>
           <AchievementChip g={g} />
+          <IgdbScoreChip g={g} />
         </span>
       </div>
       {onStart && (
@@ -284,6 +297,7 @@ export function PlayNextRow({
         <span style={st('font:600 15px var(--font-ui);white-space:nowrap;overflow:hidden;text-overflow:ellipsis')}>{g.title}</span>
         <span style={st('display:flex;align-items:center;gap:6px;min-width:0;font:400 12.5px var(--font-ui);color:var(--muted)')}>
           {isNew && g.releaseDate && <span style={st(CHIP)}>{`New · out ${releaseShortDate(g.releaseDate)}`}</span>}
+          <IgdbScoreChip g={g} />
           <span style={st('white-space:nowrap;overflow:hidden;text-overflow:ellipsis')}>
             {item.meta}
             {item.meta ? ' · ' : ''}
