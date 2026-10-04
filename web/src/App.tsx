@@ -21,6 +21,7 @@ import { AchievementsPage, InsightsPage, YearPage } from './pages/InsightPages';
 import { AppShell } from './shell/AppShell';
 import { Onboarding, onRerunOnboarding } from './shell/Onboarding';
 import { initAnalytics, trackPageView } from './utils/analytics';
+import { t } from './i18n';
 
 const ONBOARDED_KEY = 'sq-onboarded';
 // Invite links (`/join/:inviteCode`) need to survive a full-page OAuth sign-in/callback round trip,
@@ -52,17 +53,17 @@ function AddFriendRoute() {
       try {
         const { user } = await friendsApi.byCode(code);
         const ok = await confirm({
-          title: `Add ${user.displayName} as a friend?`,
-          message: 'Friends can see your friends-only profile and activity, and can add you to their rooms.',
-          confirmLabel: 'Add friend',
+          title: t('shell.addFriend.title', { name: user.displayName }),
+          message: t('shell.addFriend.message'),
+          confirmLabel: t('shell.addFriend.confirm'),
         });
         if (ok) {
           const res = await friendsApi.sendRequest({ code });
-          ui.notify(res.accepted ? `You and ${res.user.displayName} are friends` : `Request sent to ${res.user.displayName}`);
+          ui.notify(t(res.accepted ? 'shell.addFriend.nowFriends' : 'shell.addFriend.requestSent', { name: res.user.displayName }));
           void queryClient.invalidateQueries({ queryKey: ['friends'] });
         }
       } catch (err) {
-        ui.showError(err instanceof Error ? err.message : 'That friend link is invalid or has expired.');
+        ui.showError(err instanceof Error ? err.message : t('shell.addFriend.invalidLink'));
       } finally {
         navigate('/', { replace: true });
       }

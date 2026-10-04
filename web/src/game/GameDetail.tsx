@@ -28,6 +28,8 @@ import { SteamMatchSheet } from './SteamMatchSheet';
 import { Avatar, coverBg, GOLD } from '../ui/primitives';
 import { Trailer } from './Trailer';
 import { st } from '../ui/st';
+import { useT, type MessageKey } from '../i18n';
+import { statusLabel } from '../i18n/labels';
 
 const H = 'font:600 15px var(--font-display)';
 const FIELD = 'flex:1;min-width:0;height:42px;padding:0 14px;border-radius:999px;background:var(--surf);border:1px solid var(--line);color:var(--text);font-size:15px;outline:none';
@@ -46,15 +48,17 @@ function Section({ title, right, children }: { title: string; right?: ReactNode;
 
 type OwnershipState = 'owned' | 'wishlist' | 'none';
 
-const OWNERSHIP_MARK: Record<OwnershipState, { emoji: string; label: string }> = {
-  owned: { emoji: '✅', label: 'Owns it' },
-  wishlist: { emoji: '🎁', label: 'Wishlisted' },
-  none: { emoji: '❌', label: "Doesn't own it" },
+const OWNERSHIP_MARK: Record<OwnershipState, { emoji: string; label: MessageKey }> = {
+  owned: { emoji: '✅', label: 'game.detail.ownership.owned' },
+  wishlist: { emoji: '🎁', label: 'game.detail.ownership.wishlist' },
+  none: { emoji: '❌', label: 'game.detail.ownership.none' },
 };
 
 /** Whether a room member owns the game, has it wishlisted, or neither - in their vote row. */
 function OwnershipMark({ state }: { state: OwnershipState }) {
-  const { emoji, label } = OWNERSHIP_MARK[state];
+  const t = useT();
+  const { emoji } = OWNERSHIP_MARK[state];
+  const label = t(OWNERSHIP_MARK[state].label);
   return (
     <span title={label} aria-label={label} role="img" style={st(`flex-shrink:0;font-size:15px;line-height:1;opacity:${state === 'none' ? 0.55 : 1}`)}>
       {emoji}
@@ -64,9 +68,10 @@ function OwnershipMark({ state }: { state: OwnershipState }) {
 
 /** "🏆 10/20" next to a member's vote in a room, gold once they're at 100%. */
 function MemberAchievements({ counts }: { counts: { unlocked: number; total: number } | null }) {
+  const t = useT();
   if (!counts || counts.total === 0) return null;
   const full = counts.unlocked >= counts.total;
-  const label = `${counts.unlocked} of ${counts.total} achievements`;
+  const label = t('game.detail.memberAchievements', { unlocked: counts.unlocked, total: counts.total });
   return (
     <span
       title={label}
@@ -82,10 +87,15 @@ function MemberAchievements({ counts }: { counts: { unlocked: number; total: num
   );
 }
 
-const SYNC_SOURCE_LABEL: Record<SyncSource, string> = { steam: 'Steam library', steam_wishlist: 'Steam wishlist', playnite: 'Playnite' };
+const SYNC_SOURCE_KEY: Record<SyncSource, MessageKey> = {
+  steam: 'game.detail.syncSource.steam',
+  steam_wishlist: 'game.detail.syncSource.steamWishlist',
+  playnite: 'game.detail.syncSource.playnite',
+};
 
 /** Everything about one game - the body of both the desktop right panel and the phone sheet. */
 export function GameDetail({ game, onClose, changeStatus }: { game: Game; onClose: () => void; changeStatus: (game: Game, status: GameStatus) => void }) {
+  const t = useT();
   const scope = useScope();
   const navigate = useNavigate();
   const ui = useUi();
@@ -112,16 +122,16 @@ export function GameDetail({ game, onClose, changeStatus }: { game: Game; onClos
   const abovePct = pctAboveLow(game.price.amount, game.price.historicalLow);
 
   const ttb = [
-    game.timeToBeatRushedHours != null && `${game.timeToBeatRushedHours}h rushed`,
-    game.timeToBeatHours != null && `${game.timeToBeatHours}h main`,
-    game.timeToBeatCompletionistHours != null && `${game.timeToBeatCompletionistHours}h completionist`,
+    game.timeToBeatRushedHours != null && t('game.detail.ttb.rushed', { hours: game.timeToBeatRushedHours }),
+    game.timeToBeatHours != null && t('game.detail.ttb.main', { hours: game.timeToBeatHours }),
+    game.timeToBeatCompletionistHours != null && t('game.detail.ttb.completionist', { hours: game.timeToBeatCompletionistHours }),
   ].filter(Boolean) as string[];
 
   const coopWarn =
     !isShelf && game.singlePlayerOnly === true && members.length > 1
-      ? 'Single player only: there is no multiplayer or co-op, so only one of you can play it at a time.'
+      ? t('game.detail.coop.singlePlayer')
       : !isShelf && game.maxCoopPlayers != null && members.length > game.maxCoopPlayers
-      ? `Only supports ${game.maxCoopPlayers}-player co-op. This room has ${members.length} members.`
+      ? t('game.detail.coop.tooMany', { max: game.maxCoopPlayers, count: members.length })
       : null;
 
   // A room member's copy of the game, shown in their vote row: owned wins over wishlisted.
@@ -144,7 +154,7 @@ export function GameDetail({ game, onClose, changeStatus }: { game: Game; onClos
   const nudgeBeaten = fullyAchieved || suggestsBeatenByPlaytime(game);
   const nudgePlaying = !nudgeBeaten && suggestsPlaying(game);
 
-  const kicker = [isShelf ? 'PERSONAL SHELF' : (scope.room?.name ?? '').toUpperCase(), STATUS_LABEL[game.status].toUpperCase(), game.hiddenFromOthers ? 'HIDDEN' : '']
+  const kicker = [isShelf ? t('game.detail.kicker.shelf') : (scope.room?.name ?? '').toUpperCase(), STATUS_LABEL[game.status].toUpperCase(), game.hiddenFromOthers ? t('game.detail.kicker.hidden') : '']
     .filter(Boolean)
     .join(' · ');
 
@@ -172,9 +182,9 @@ export function GameDetail({ game, onClose, changeStatus }: { game: Game; onClos
   async function buy() {
     if (own && !game.ggDealsUrl) {
       const ok = await confirm({
-        title: 'You already own this game',
-        message: `QueueUp doesn't have a specific gg.deals listing for "${game.title}" yet - want to look it up there anyway?`,
-        confirmLabel: 'Search gg.deals',
+        title: t('game.detail.buy.ownedTitle'),
+        message: t('game.detail.buy.ownedMessage', { title: game.title }),
+        confirmLabel: t('game.detail.buy.searchGgDeals'),
       });
       if (ok) window.open(ggDealsSearchUrl(game.title), '_blank', 'noopener,noreferrer');
       return;
@@ -188,23 +198,23 @@ export function GameDetail({ game, onClose, changeStatus }: { game: Game; onClos
   }
 
   function saveTag() {
-    const t = tagDraft.trim();
-    if (!t) return;
-    void ops.applyTag(game.id, t);
+    const tag = tagDraft.trim();
+    if (!tag) return;
+    void ops.applyTag(game.id, tag);
     setTagDraft('');
   }
 
   async function remove() {
     const ok = await confirm({
-      title: 'Remove this game?',
-      message: `"${game.title}" and its votes will be removed.`,
-      confirmLabel: 'Remove',
+      title: t('game.detail.remove.title'),
+      message: t('game.detail.remove.message', { title: game.title }),
+      confirmLabel: t('common.remove'),
       danger: true,
     });
     if (!ok) return;
     ops.remove(game.id);
     ui.selectGame(null);
-    ui.notify(`Removed ${game.title}`);
+    ui.notify(t('game.detail.remove.done', { title: game.title }));
   }
 
   // In a room, only whoever added a game or a Room Master / Moderator can remove it outright;
@@ -217,28 +227,28 @@ export function GameDetail({ game, onClose, changeStatus }: { game: Game; onClos
       return;
     }
     const ok = await confirm({
-      title: 'Vote to remove this game?',
-      message: `"${game.title}" is removed once ${game.removeVotesNeeded} of the room's members have voted to (${game.removeVotes} so far). You can withdraw your vote until then.`,
-      confirmLabel: 'Vote to remove',
+      title: t('game.detail.voteRemove.title'),
+      message: t('game.detail.voteRemove.message', { title: game.title, needed: game.removeVotesNeeded, votes: game.removeVotes }),
+      confirmLabel: t('game.detail.voteRemove.confirm'),
       danger: true,
     });
     if (!ok) return;
     if (await ops.voteRemove(game.id)) {
       ui.selectGame(null);
-      ui.notify(`Removed ${game.title}`);
+      ui.notify(t('game.detail.remove.done', { title: game.title }));
     } else {
-      ui.notify('Vote to remove recorded');
+      ui.notify(t('game.detail.voteRemove.recorded'));
     }
   }
 
   // Status journey: Wishlist (shelf only) -> Backlog -> Up next -> Playing -> Beaten.
   const main: [GameStatus, string][] = (
     [
-      ['wishlist', 'Wishlist'],
-      ['backlog', 'Backlog'],
-      ['play_next', 'Up next'],
-      ['playing', 'Playing'],
-      ['done', 'Beaten'],
+      ['wishlist', statusLabel('wishlist')],
+      ['backlog', statusLabel('backlog')],
+      ['play_next', t('game.detail.journey.upNext')],
+      ['playing', statusLabel('playing')],
+      ['done', statusLabel('done')],
     ] as [GameStatus, string][]
   ).filter(([k]) => isShelf || k !== 'wishlist');
   const ci = main.findIndex(([k]) => k === game.status);
@@ -250,13 +260,13 @@ export function GameDetail({ game, onClose, changeStatus }: { game: Game; onClos
   // Owners still see the going price (issue #797), so a game doesn't read as "free" just because it's owned.
   const buyLabel = own
     ? live
-      ? `✓ You own this · ${fmtMoney(game.price.amount, currency)} now`
-      : '✓ You own this'
+      ? t('game.detail.buyLabel.ownedNow', { price: fmtMoney(game.price.amount, currency) })
+      : t('game.detail.buyLabel.owned')
     : live
-      ? `🛒 ${fmtMoney(game.price.amount, currency)} on gg.deals`
+      ? t('game.detail.buyLabel.ggDeals', { price: fmtMoney(game.price.amount, currency) })
       : game.manualPrice
-        ? `✏️ ${fmtMoney(game.manualPrice, currency)} (set by you)`
-        : 'No live price';
+        ? t('game.detail.buyLabel.manual', { price: fmtMoney(game.manualPrice, currency) })
+        : t('game.detail.buyLabel.noPrice');
 
   return (
     <div style={st('position:absolute;inset:0;background:var(--sheet);display:flex;flex-direction:column;overflow:hidden')}>
@@ -278,13 +288,13 @@ export function GameDetail({ game, onClose, changeStatus }: { game: Game; onClos
           {releaseDateLabel(game) && <span style={st('font:400 12.5px var(--font-ui);color:var(--muted)')}>{releaseDateLabel(game)}</span>}
           {ttb.length > 0 && <span style={st('font:400 12.5px var(--font-ui);color:var(--muted)')}>{ttb.join(' · ')}</span>}
           {game.reviewScore !== null && (
-            <span style={st('font:500 12.5px var(--font-ui);color:var(--text2)')}>⭐ {game.reviewScore}/100 on IGDB</span>
+            <span style={st('font:500 12.5px var(--font-ui);color:var(--text2)')}>{t('game.detail.igdbScore', { score: game.reviewScore })}</span>
           )}
         </div>
         <button
           type="button"
           onClick={onClose}
-          aria-label="Close"
+          aria-label={t('common.close')}
           style={st('position:absolute;top:14px;right:14px;width:34px;height:34px;border-radius:50%;border:none;background:var(--chip);color:var(--text);font-size:18px;line-height:1')}
         >
           ×
@@ -305,7 +315,7 @@ export function GameDetail({ game, onClose, changeStatus }: { game: Game; onClos
               <button
                 type="button"
                 onClick={refresh}
-                aria-label="Refresh price"
+                aria-label={t('game.detail.refreshPrice')}
                 aria-busy={refreshing}
                 style={st(`width:46px;height:46px;flex-shrink:0;border-radius:50%;border:1px solid var(--line);background:transparent;color:var(--text);font-size:18px;opacity:${refreshing ? 0.4 : 1}`)}
               >
@@ -313,10 +323,10 @@ export function GameDetail({ game, onClose, changeStatus }: { game: Game; onClos
               </button>
             </div>
             <div style={st('display:flex;flex-wrap:wrap;gap:6px 12px;font:400 12.5px var(--font-ui);color:var(--muted)')}>
-              {live && game.price.lastRefreshedAt && <span>{refreshing ? 'Checking…' : `Updated ${formatRelativeTime(game.price.lastRefreshedAt)}`}</span>}
-              {showLow && <span style={st('color:var(--accText);font-weight:600')}>All-time low: {fmtMoney(game.price.historicalLow, currency)}</span>}
-              {showLow && abovePct != null && abovePct > 0 && <span>Now {abovePct}% above its lowest</span>}
-              {atLow && <span style={st('color:var(--mint);font-weight:600')}>At its all-time low right now</span>}
+              {live && game.price.lastRefreshedAt && <span>{refreshing ? t('game.detail.checking') : t('game.detail.updated', { time: formatRelativeTime(game.price.lastRefreshedAt) })}</span>}
+              {showLow && <span style={st('color:var(--accText);font-weight:600')}>{t('game.detail.allTimeLow', { price: fmtMoney(game.price.historicalLow, currency) })}</span>}
+              {showLow && abovePct != null && abovePct > 0 && <span>{t('game.detail.aboveLow', { pct: abovePct })}</span>}
+              {atLow && <span style={st('color:var(--mint);font-weight:600')}>{t('game.detail.atLow')}</span>}
             </div>
             {live && <PriceHistoryChart gameId={game.id} currency={game.price.currency} />}
 
@@ -327,8 +337,8 @@ export function GameDetail({ game, onClose, changeStatus }: { game: Game; onClos
                     value={manualDraft}
                     onChange={(e) => setManualDraft(e.target.value)}
                     inputMode="decimal"
-                    placeholder="Price you know it's at"
-                    aria-label="Manual price"
+                    placeholder={t('game.detail.manual.placeholder')}
+                    aria-label={t('game.detail.manual.aria')}
                     style={st(FIELD)}
                   />
                   <button
@@ -341,10 +351,10 @@ export function GameDetail({ game, onClose, changeStatus }: { game: Game; onClos
                     }}
                     style={st('height:42px;padding:0 16px;border-radius:999px;border:none;background:var(--text);color:var(--onText);font:700 13.5px var(--font-ui)')}
                   >
-                    Set
+                    {t('game.detail.set')}
                   </button>
                   <button type="button" onClick={() => setEditManual(false)} style={st('height:42px;padding:0 12px;border:none;background:none;color:var(--muted);font:600 13.5px var(--font-ui)')}>
-                    Cancel
+                    {t('common.cancel')}
                   </button>
                 </div>
               ) : (
@@ -356,7 +366,7 @@ export function GameDetail({ game, onClose, changeStatus }: { game: Game; onClos
                   }}
                   style={st('align-self:flex-start;height:36px;padding:0 14px;border-radius:999px;border:1px dashed var(--line);background:transparent;color:var(--text2);font:600 13px var(--font-ui)')}
                 >
-                  {game.manualPrice ? '✏️ Change manual price' : '✏️ Set a price manually'}
+                  {game.manualPrice ? t('game.detail.manual.change') : t('game.detail.manual.set')}
                 </button>
               ))}
 
@@ -367,8 +377,8 @@ export function GameDetail({ game, onClose, changeStatus }: { game: Game; onClos
                     value={targetDraft}
                     onChange={(e) => setTargetDraft(e.target.value)}
                     inputMode="decimal"
-                    placeholder="Alert me at…"
-                    aria-label="Alert price"
+                    placeholder={t('game.detail.alert.placeholder')}
+                    aria-label={t('game.detail.alert.aria')}
                     style={st(FIELD)}
                   />
                   <button
@@ -378,23 +388,23 @@ export function GameDetail({ game, onClose, changeStatus }: { game: Game; onClos
                       if (!(v > 0)) return;
                       ops.setTargetPrice(game.id, String(v));
                       setEditTarget(false);
-                      ui.notify(`We'll ping you at ${fmtMoney(v, currency)} or less`);
+                      ui.notify(t('game.detail.alert.saved', { price: fmtMoney(v, currency) }));
                     }}
                     style={st('height:42px;padding:0 16px;border-radius:999px;border:none;background:var(--text);color:var(--onText);font:700 13.5px var(--font-ui)')}
                   >
-                    Set
+                    {t('game.detail.set')}
                   </button>
                   <button type="button" onClick={() => setEditTarget(false)} style={st('height:42px;padding:0 12px;border:none;background:none;color:var(--muted);font:600 13.5px var(--font-ui)')}>
-                    Cancel
+                    {t('common.cancel')}
                   </button>
                 </div>
               ) : game.targetPrice ? (
                 <span style={st('align-self:flex-start;display:flex;align-items:center;gap:8px;height:36px;padding:0 6px 0 14px;border-radius:999px;background:var(--accSoft);color:var(--accText);font:600 13px var(--font-ui)')}>
-                  🔔 Alert at {fmtMoney(game.targetPrice, currency)}
+                  {t('game.detail.alert.at', { price: fmtMoney(game.targetPrice, currency) })}
                   <button
                     type="button"
                     onClick={() => ops.setTargetPrice(game.id, null)}
-                    aria-label="Remove price alert"
+                    aria-label={t('game.detail.alert.remove')}
                     style={st('width:26px;height:26px;border-radius:50%;border:none;background:var(--accA20);color:var(--accText);font-size:15px;line-height:1;padding:0')}
                   >
                     ×
@@ -409,7 +419,7 @@ export function GameDetail({ game, onClose, changeStatus }: { game: Game; onClos
                   }}
                   style={st('align-self:flex-start;height:36px;padding:0 14px;border-radius:999px;border:1px dashed var(--line);background:transparent;color:var(--text2);font:600 13px var(--font-ui)')}
                 >
-                  🔔 Alert me on a price drop
+                  {t('game.detail.alert.add')}
                 </button>
               ))}
 
@@ -418,7 +428,7 @@ export function GameDetail({ game, onClose, changeStatus }: { game: Game; onClos
               onClick={() => (live || game.ggDealsUrl ? steamMatch.openPicker(game.id) : void steamMatch.attemptAutoMatch(game.id, game.title, (id) => ops.setSteamMatch(game.id, id)))}
               style={st('align-self:flex-start;border:none;background:none;padding:0;color:var(--muted);font:500 12.5px var(--font-ui);text-decoration:underline;text-underline-offset:3px')}
             >
-              {live ? 'Wrong game matched?' : 'Not finding a price? Fix match'}
+              {live ? t('game.detail.match.wrong') : t('game.detail.match.fix')}
             </button>
           </div>
         )}
@@ -431,17 +441,17 @@ export function GameDetail({ game, onClose, changeStatus }: { game: Game; onClos
           <div style={st('display:flex;flex-direction:column;gap:10px;padding:14px;border-radius:18px;background:var(--surf)')}>
             <span style={st('font:500 14px/1.4 var(--font-ui)')}>
               {fullyAchieved
-                ? "🏆 Steam says you've 100%'d this. Mark it Beaten?"
+                ? t('game.detail.nudge.fullyAchieved')
                 : nudgeBeaten
-                  ? `⏱️ You've played about ${playedHours}h, around this game's time to beat. Mark it Beaten?`
-                  : `⏱️ You've been playing this (about ${playedHours}h). Mark it Playing?`}
+                  ? t('game.detail.nudge.beaten', { hours: playedHours })
+                  : t('game.detail.nudge.playing', { hours: playedHours })}
             </span>
             <button
               type="button"
               onClick={() => changeStatus(game, nudgeBeaten ? 'done' : 'playing')}
               style={st('align-self:flex-start;height:36px;padding:0 16px;border-radius:999px;border:none;background:var(--text);color:var(--onText);font:700 13px var(--font-ui)')}
             >
-              {nudgeBeaten ? 'Mark Beaten' : 'Mark Playing'}
+              {nudgeBeaten ? t('game.detail.nudge.markBeaten') : t('game.detail.nudge.markPlaying')}
             </button>
           </div>
         )}
@@ -450,9 +460,12 @@ export function GameDetail({ game, onClose, changeStatus }: { game: Game; onClos
 
         <div style={st('display:flex;flex-direction:column;gap:10px')}>
           <div style={st('display:flex;justify-content:space-between;align-items:baseline')}>
-            <span style={st(H)}>{isShelf ? 'Your hype' : 'Squad vote'}</span>
+            <span style={st(H)}>{isShelf ? t('game.detail.yourHype') : t('game.detail.squadVote')}</span>
             <span style={st('font:500 12px var(--font-mono);color:var(--muted)')}>
-              {game.votes.length ? `${score >= 0 ? '+' : ''}${score}` : '—'} · {game.votes.length} {game.votes.length === 1 ? 'vote' : 'votes'}
+              {t(game.votes.length === 1 ? 'game.detail.votes.one' : 'game.detail.votes.other', {
+                score: game.votes.length ? `${score >= 0 ? '+' : ''}${score}` : '—',
+                n: game.votes.length,
+              })}
             </span>
           </div>
           <div style={st('display:grid;grid-template-columns:repeat(5,1fr);gap:6px')}>
@@ -492,12 +505,12 @@ export function GameDetail({ game, onClose, changeStatus }: { game: Game; onClos
                         onClose();
                         navigate(`/u/${m.user.id}`);
                       }}
-                      aria-label={`View ${m.user.displayName}'s profile`}
+                      aria-label={t('game.detail.viewProfile', { name: m.user.displayName })}
                       style={st('flex:1;min-width:0;display:flex;align-items:center;gap:10px;align-self:stretch;padding:0;border:none;background:none;color:inherit;text-align:left')}
                     >
                       <Avatar name={m.user.displayName} color={m.user.avatarColor} avatarUrl={m.user.avatarUrl} size={26} fontSize={11} />
                       <span style={st('flex:1;min-width:0;font:600 13.5px var(--font-ui);white-space:nowrap;overflow:hidden;text-overflow:ellipsis')}>
-                        {m.user.id === user?.id ? 'You' : m.user.displayName}
+                        {m.user.id === user?.id ? t('common.you') : m.user.displayName}
                       </span>
                     </button>
                     <OwnershipMark state={ownershipOf(m.user.id)} />
@@ -508,7 +521,7 @@ export function GameDetail({ game, onClose, changeStatus }: { game: Game; onClos
                         {VOTES[vote].l}
                       </span>
                     ) : (
-                      <span style={st('font:400 12.5px var(--font-ui);color:var(--faint)')}>Hasn't voted yet</span>
+                      <span style={st('font:400 12.5px var(--font-ui);color:var(--faint)')}>{t('game.detail.notVoted')}</span>
                     )}
                   </div>
                 ))}
@@ -516,7 +529,7 @@ export function GameDetail({ game, onClose, changeStatus }: { game: Game; onClos
           )}
           {!isShelf && members.length > 0 && (
             <span style={st('font:500 11.5px var(--font-ui);color:var(--muted);padding:0 4px')}>
-              {OWNERSHIP_MARK.owned.emoji} owns it · {OWNERSHIP_MARK.wishlist.emoji} wishlisted · {OWNERSHIP_MARK.none.emoji} doesn't own it
+              {t('game.detail.ownership.legend', { owned: OWNERSHIP_MARK.owned.emoji, wishlist: OWNERSHIP_MARK.wishlist.emoji, none: OWNERSHIP_MARK.none.emoji })}
             </span>
           )}
           {!isShelf && game.ownership && (
@@ -527,22 +540,22 @@ export function GameDetail({ game, onClose, changeStatus }: { game: Game; onClos
             >
               <span>{own ? '✅' : '➕'}</span>
               <span style={{ flex: 1 }}>
-                {own ? 'You own this' : 'Mark as owned'} · {game.ownership.owned}/{game.ownership.total} of the squad
+                {t(own ? 'game.detail.ownership.youOwn' : 'game.detail.ownership.markOwned', { owned: game.ownership.owned, total: game.ownership.total })}
               </span>
             </button>
           )}
         </div>
 
         {canTag && (
-          <Section title="Tags">
+          <Section title={t('game.detail.tags')}>
             <div style={st('display:flex;flex-wrap:wrap;gap:6px')}>
-              {game.tags.map((t) => (
-                <span key={t.id} style={st('display:flex;align-items:center;gap:4px;height:32px;padding:0 4px 0 12px;border-radius:999px;background:var(--surf);font:500 13px var(--font-ui)')}>
-                  #{t.name}
+              {game.tags.map((tag) => (
+                <span key={tag.id} style={st('display:flex;align-items:center;gap:4px;height:32px;padding:0 4px 0 12px;border-radius:999px;background:var(--surf);font:500 13px var(--font-ui)')}>
+                  #{tag.name}
                   <button
                     type="button"
-                    onClick={() => ops.removeTag(game.id, t.id)}
-                    aria-label="Remove tag"
+                    onClick={() => ops.removeTag(game.id, tag.id)}
+                    aria-label={t('game.detail.removeTag')}
                     style={st('width:24px;height:24px;border-radius:50%;border:none;background:transparent;color:var(--muted);font-size:15px;line-height:1;padding:0')}
                   >
                     ×
@@ -554,13 +567,13 @@ export function GameDetail({ game, onClose, changeStatus }: { game: Game; onClos
                   value={tagDraft}
                   onChange={(e) => setTagDraft(e.target.value.replace(/\s+/g, '-').toLowerCase())}
                   onKeyDown={(e) => e.key === 'Enter' && saveTag()}
-                  placeholder="Add a tag"
-                  aria-label="Add a tag"
+                  placeholder={t('game.detail.addTag')}
+                  aria-label={t('game.detail.addTag')}
                   style={st('width:120px;height:32px;padding:0 12px;border-radius:999px;background:transparent;border:1px dashed var(--line);color:var(--text);font-size:13px;outline:none')}
                 />
                 {tagDraft.trim() && (
                   <button type="button" onClick={saveTag} style={st('height:32px;padding:0 12px;border-radius:999px;border:none;background:var(--text);color:var(--onText);font:700 12.5px var(--font-ui)')}>
-                    Add
+                    {t('common.add')}
                   </button>
                 )}
               </div>
@@ -569,14 +582,14 @@ export function GameDetail({ game, onClose, changeStatus }: { game: Game; onClos
         )}
 
         {!isShelf && (
-          <Section title="Play after">
+          <Section title={t('game.detail.playAfter')}>
             <select
               value={prereqId}
               onChange={(e) => ops.setPrerequisite(game.id, e.target.value || null)}
-              aria-label="Play after"
+              aria-label={t('game.detail.playAfter')}
               style={st('height:46px;padding:0 14px;border-radius:14px;background:var(--surf);border:1px solid var(--chip);color:var(--text);font-size:15px;outline:none')}
             >
-              <option value="">None</option>
+              <option value="">{t('game.detail.none')}</option>
               {others.map((o) => (
                 <option key={o.id} value={o.id}>
                   {o.title}
@@ -588,10 +601,10 @@ export function GameDetail({ game, onClose, changeStatus }: { game: Game; onClos
 
         {!game.baseGameId && (
           <Section
-            title="DLC"
+            title={t('game.detail.dlc')}
             right={
               <button type="button" onClick={() => ui.openDialog('dlc')} style={st('height:32px;padding:0 12px;border-radius:999px;border:none;background:var(--chip);color:var(--text2);font:600 12.5px var(--font-ui)')}>
-                Browse DLC
+                {t('game.detail.browseDlc')}
               </button>
             }
           >
@@ -600,7 +613,7 @@ export function GameDetail({ game, onClose, changeStatus }: { game: Game; onClos
         )}
 
         <div style={st('display:flex;flex-direction:column;gap:10px')}>
-          <span style={st(H)}>Status</span>
+          <span style={st(H)}>{t('game.detail.status')}</span>
           <div style={st(`position:relative;display:grid;grid-template-columns:repeat(${n},minmax(0,1fr));padding:6px 0 2px`)}>
             <span style={st(`position:absolute;top:15px;left:${50 / n}%;right:${50 / n}%;height:2px;border-radius:2px;background:var(--chip)`)} />
             <span style={st(`position:absolute;top:15px;left:${50 / n}%;width:${jFill}%;height:2px;border-radius:2px;background:var(--acc)`)} />
@@ -628,15 +641,8 @@ export function GameDetail({ game, onClose, changeStatus }: { game: Game; onClos
             })}
           </div>
           <div style={st('display:flex;align-items:center;gap:4px;flex-wrap:wrap;padding-top:4px;border-top:1px solid var(--chip)')}>
-            <span style={st('font:500 12.5px var(--font-ui);color:var(--faint);margin-right:4px')}>Or</span>
-            {(
-              [
-                ['paused', '⏸️ Paused'],
-                ['replay', '🔄 Replay'],
-                ['dropped', 'Dropped'],
-                ['wont_play', "Won't Play"],
-              ] as [GameStatus, string][]
-            ).map(([k, l]) => (
+            <span style={st('font:500 12.5px var(--font-ui);color:var(--faint);margin-right:4px')}>{t('game.detail.or')}</span>
+            {(['paused', 'replay', 'dropped', 'wont_play'] as GameStatus[]).map((k) => (
               <button
                 key={k}
                 type="button"
@@ -647,29 +653,29 @@ export function GameDetail({ game, onClose, changeStatus }: { game: Game; onClos
                 aria-pressed={game.status === k}
                 style={st(`height:36px;padding:0 10px;border-radius:999px;border:none;background:${game.status === k ? 'var(--text)' : 'transparent'};color:${game.status === k ? 'var(--onText)' : 'var(--muted)'};font:600 13px var(--font-ui)`)}
               >
-                {l}
+                {statusLabel(k)}
               </button>
             ))}
           </div>
           {(game.status === 'done' || game.status === 'replay' || game.status === 'dropped') && (
             <div style={st('display:flex;flex-direction:column;gap:10px;padding-top:6px')}>
-              <span style={st(H)}>Review</span>
+              <span style={st(H)}>{t('game.detail.review')}</span>
               <ReviewEmbed key={game.id} game={game} onSaved={onClose} />
             </div>
           )}
         </div>
 
         {playLog.length > 0 && (
-          <Section title="Play journal">
+          <Section title={t('game.detail.journal')}>
             {playLog.map((e) => (
               <div key={e.id} style={st('display:flex;gap:12px;font:400 13.5px var(--font-ui)')}>
                 <span style={st('width:52px;flex-shrink:0;font:500 12px var(--font-mono);color:var(--muted);padding-top:1px')}>
                   {shortDate(e.finishedAt ?? e.startedAt)}
                 </span>
                 <span>
-                  {e.finishedAt ? `Finished after starting ${shortDate(e.startedAt)}` : `Started ${shortDate(e.startedAt)} · in progress`}
-                  {e.minutesPlayed !== null && ` · ${Math.round(e.minutesPlayed / 60)}h played`}
-                  {e.roomName && ` · beaten with ${e.roomName}`}
+                  {e.finishedAt ? t('game.detail.journal.finished', { date: shortDate(e.startedAt) }) : t('game.detail.journal.started', { date: shortDate(e.startedAt) })}
+                  {e.minutesPlayed !== null && ` · ${t('game.detail.journal.played', { hours: Math.round(e.minutesPlayed / 60) })}`}
+                  {e.roomName && ` · ${t('game.detail.journal.beatenWith', { room: e.roomName })}`}
                 </span>
               </div>
             ))}
@@ -684,7 +690,7 @@ export function GameDetail({ game, onClose, changeStatus }: { game: Game; onClos
             onClick={() => {
               const v = !game.hiddenFromOthers;
               ops.setHidden(game.id, v);
-              ui.notify(v ? `${game.title} is now hidden from others` : `${game.title} is visible again`);
+              ui.notify(v ? t('game.detail.hide.nowHidden', { title: game.title }) : t('game.detail.hide.visible', { title: game.title }));
             }}
             style={st('display:flex;align-items:center;gap:12px;min-height:56px;padding:10px 14px;border-radius:16px;border:none;background:var(--surf);color:var(--text);text-align:left')}
           >
@@ -696,18 +702,18 @@ export function GameDetail({ game, onClose, changeStatus }: { game: Game; onClos
               {game.hiddenFromOthers ? '✓' : ''}
             </span>
             <span style={st('flex:1;min-width:0;display:flex;flex-direction:column;gap:1px')}>
-              <span style={st('font:600 14.5px var(--font-ui)')}>Hide from others</span>
-              <span style={st('font:400 12.5px var(--font-ui);color:var(--muted)')}>Friends won't see it in your activity, and it's left off your public profile</span>
+              <span style={st('font:600 14.5px var(--font-ui)')}>{t('game.detail.hide.label')}</span>
+              <span style={st('font:400 12.5px var(--font-ui);color:var(--muted)')}>{t('game.detail.hide.hint')}</span>
             </span>
           </button>
         )}
 
         {isShelf && game.syncSources.length > 0 && (
           <div style={st('display:flex;flex-wrap:wrap;align-items:center;gap:6px;font:400 12.5px var(--font-ui);color:var(--muted)')}>
-            Synced from
+            {t('game.detail.syncedFrom')}
             {game.syncSources.map((s) => (
               <span key={s} style={st('padding:3px 10px;border-radius:999px;background:var(--chip);color:var(--text);font:600 12px var(--font-ui)')}>
-                {SYNC_SOURCE_LABEL[s]}
+                {t(SYNC_SOURCE_KEY[s])}
               </span>
             ))}
           </div>
@@ -728,11 +734,11 @@ export function GameDetail({ game, onClose, changeStatus }: { game: Game; onClos
                 onOpenProfile={onClose}
               />
             )}
-            Added by {game.addedBy.id === user?.id ? 'you' : game.addedBy.displayName}
+            {game.addedBy.id === user?.id ? t('game.detail.addedByYou') : t('game.detail.addedBy', { name: game.addedBy.displayName })}
           </span>
           {canRemoveDirectly ? (
             <button type="button" onClick={remove} style={st('height:40px;border:none;background:none;padding:0;color:var(--danger);font:600 13.5px var(--font-ui)')}>
-              Remove game
+              {t('game.detail.removeGame')}
             </button>
           ) : (
             <button
@@ -741,7 +747,7 @@ export function GameDetail({ game, onClose, changeStatus }: { game: Game; onClos
               aria-pressed={game.youVotedRemove}
               style={st('height:40px;border:none;background:none;padding:0;color:var(--danger);font:600 13.5px var(--font-ui)')}
             >
-              {game.youVotedRemove ? 'Withdraw vote to remove' : 'Vote to remove'}
+              {game.youVotedRemove ? t('game.detail.voteRemove.withdraw') : t('game.detail.voteRemove.confirm')}
               {game.removeVotes > 0 && ` (${game.removeVotes}/${game.removeVotesNeeded})`}
             </button>
           )}

@@ -1,5 +1,6 @@
 import { CARD_DEAL_MS, type CardVotePlay, type Game } from '@queueup/shared';
 import { st } from '../../ui/st';
+import { t, useT } from '../../i18n';
 import { AvatarStack, CardBack, Counter, Cover, Hint, MINE_RING, Roster, Stage, TimerBar, WIN_RING, secondsLeft, type ModeProps } from './shared';
 
 const FLIP_GAP_MS = 320;
@@ -9,12 +10,13 @@ const FLIP_MS = 600;
 const easeOut = (t: number) => 1 - Math.pow(1 - t, 3);
 
 function metaLine(game: Game | undefined): string {
-  return [game?.genre?.split(',')[0], game?.timeToBeatHours ? `~${game.timeToBeatHours}h` : ''].filter(Boolean).join(' · ');
+  return [game?.genre?.split(',')[0], game?.timeToBeatHours ? t('spin.result.hours', { n: game.timeToBeatHours }) : ''].filter(Boolean).join(' · ');
 }
 
 /** 1a Three-card vote: three cards deal face down and flip 320ms apart, then everyone taps the one
  * they want. Voters stack under each card; the winner lifts once the vote closes. */
 export function CardVoteMode({ play, games, members, me, now, act, mobile, settled }: ModeProps<CardVotePlay>) {
+  const t = useT();
   const dealtAt = play.startAt + CARD_DEAL_MS;
   const dealing = now < dealtAt;
   const decided = !!play.winnerId;
@@ -43,7 +45,7 @@ export function CardVoteMode({ play, games, members, me, now, act, mobile, settl
                   type="button"
                   disabled={!canVote}
                   onClick={() => act({ type: 'vote', card: i })}
-                  aria-label={`Vote for ${game?.title ?? 'this game'}`}
+                  aria-label={t('spin.card.voteFor', { title: game?.title ?? t('spin.fallback.thisGame') })}
                   aria-pressed={mine === i}
                   style={st(
                     `display:block;width:100%;max-width:${cardW}px;aspect-ratio:2/3;padding:0;border:none;background:none;font:inherit;color:inherit;perspective:900px;cursor:${canVote ? 'pointer' : 'default'};transition:transform .35s ease, opacity .35s ease`,
@@ -79,7 +81,7 @@ export function CardVoteMode({ play, games, members, me, now, act, mobile, settl
                   <AvatarStack members={members} userIds={voters} size={mobile ? 20 : 24} />
                   {voters.length > 0 && (
                     <span style={st('font:500 11.5px var(--font-mono);color:var(--muted);white-space:nowrap')}>
-                      {voters.length} vote{voters.length === 1 ? '' : 's'}
+                      {t(voters.length === 1 ? 'spin.card.votes.one' : 'spin.card.votes.other', { n: voters.length })}
                     </span>
                   )}
                 </div>
@@ -92,19 +94,21 @@ export function CardVoteMode({ play, games, members, me, now, act, mobile, settl
       {!settled && (
         <div style={st('margin-top:16px;display:flex;flex-direction:column;align-items:center;gap:4px;text-align:center')}>
           {dealing ? (
-            <Hint>Dealing…</Hint>
+            <Hint>{t('spin.card.dealing')}</Hint>
           ) : decided ? (
-            <Counter>VOTING CLOSED</Counter>
+            <Counter>{t('spin.card.closed')}</Counter>
           ) : (
             <>
               <Counter>
-                {playing ? (mine === undefined ? 'TAP A CARD TO VOTE' : 'TAP ANOTHER CARD TO CHANGE') : `${voted} OF ${play.participants.length} VOTED`} · {secondsLeft(play.closesAt, now)}s
+                {playing
+                  ? t(mine === undefined ? 'spin.card.tapToVote' : 'spin.card.tapToChange', { s: secondsLeft(play.closesAt, now) })
+                  : t('spin.card.votedCount', { n: voted, total: play.participants.length, s: secondsLeft(play.closesAt, now) })}
               </Counter>
               <TimerBar from={dealtAt} to={play.closesAt} now={now} />
             </>
           )}
           <Roster members={members} userIds={play.participants} done={(id) => id in play.votes} />
-          {!playing && <Hint>You joined after this round started. You can watch this one.</Hint>}
+          {!playing && <Hint>{t('spin.mode.lateJoin')}</Hint>}
         </div>
       )}
     </>

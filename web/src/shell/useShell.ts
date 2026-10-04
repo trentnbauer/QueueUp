@@ -7,6 +7,7 @@ import { useIncomingFriendRequestCount } from '../hooks/useFriends';
 import { useNotificationSummary } from '../hooks/useNotifications';
 import { usePendingImportsCount } from '../hooks/usePendingImports';
 import { initialsOf } from '../ui/primitives';
+import { useT } from '../i18n';
 
 export interface TileModel {
   id: string;
@@ -27,6 +28,7 @@ export function useShell() {
   const { user } = useAuth();
   const scope = useScope();
   const ui = useUi();
+  const t = useT();
   const navigate = useNavigate();
   const location = useLocation();
   const attention = useAttention();
@@ -41,10 +43,10 @@ export function useShell() {
 
   const shelfTile: TileModel = {
     id: SHELF_ID,
-    name: 'Personal Shelf',
+    name: t('shell.glance.personalShelf'),
     short: initialsOf(user?.displayName ?? 'T').slice(0, 1),
     color: user?.avatarColor ?? '#E8734A',
-    sub: 'Your games, every platform',
+    sub: t('shell.tile.shelfSub'),
     active: scope.isShelf,
     dot: pendingImports > 0,
     go: go('/'),
@@ -55,7 +57,7 @@ export function useShell() {
     name: r.name,
     short: initialsOf(r.name),
     color: r.accentColor,
-    sub: `${r.memberCount ?? 0} ${r.memberCount === 1 ? 'member' : 'members'} · ${r.queuedCount ?? 0} queued`,
+    sub: t(r.memberCount === 1 ? 'shell.tile.roomSub.one' : 'shell.tile.roomSub.other', { n: r.memberCount ?? 0, queued: r.queuedCount ?? 0 }),
     active: scope.scopeId === r.id,
     dot: attention.needsYou(r.id),
     go: go(`/room/${r.id}`),

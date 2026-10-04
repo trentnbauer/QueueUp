@@ -14,6 +14,7 @@ import { Banner, Btn, Cover, Group, Kicker, inputPill } from '../ui/primitives';
 import { st } from '../ui/st';
 import { getBasePath } from '../utils/basePath';
 import { formatRelativeTime } from '../utils/relativeTime';
+import { useT } from '../i18n';
 
 const GAMES_QUERY_ROOT = ['games'];
 const PLAYNITE_URL = 'https://playnite.link/';
@@ -42,6 +43,7 @@ function ImportRow({ title, sub, cta, onClick, disabled, accent }: { title: stri
 
 /** "Import your library": Steam (library + wishlist + completions) and Playnite. */
 export function ImportDialog() {
+  const t = useT();
   const ui = useUi();
   const confirm = useConfirm();
   const { steamLinked } = useAuth();
@@ -54,43 +56,43 @@ export function ImportDialog() {
       return;
     }
     const ok = await confirm({
-      title: 'Import from Steam?',
-      message: 'Imports your library and wishlist, then scans for newly-completed achievements. Skips anything already here. This can take a little while.',
-      confirmLabel: 'Import',
+      title: t('add.import.steamConfirmTitle'),
+      message: t('add.import.steamConfirmMessage'),
+      confirmLabel: t('add.import.import'),
     });
     if (!ok) return;
     await runSyncEverything();
-    ui.notify('Steam import done');
+    ui.notify(t('add.import.steamDone'));
   }
 
   const status = busy && activeKind === 'library'
     ? progress
-      ? `Library: ${progress.totalOwned} owned · checked ${progress.imported + progress.skipped} of ${progress.consideredCount} · ${progress.imported} imported so far`
-      : 'Checking your Steam library…'
+      ? t('add.import.libraryProgress', { owned: progress.totalOwned, checked: progress.imported + progress.skipped, total: progress.consideredCount, imported: progress.imported })
+      : t('add.import.checkingLibrary')
     : busy && activeKind === 'wishlist'
       ? wishlistProgress
-        ? `Wishlist: ${wishlistProgress.totalWishlisted} wishlisted · checked ${wishlistProgress.imported + wishlistProgress.skipped} of ${wishlistProgress.consideredCount}`
-        : 'Checking your Steam wishlist…'
+        ? t('add.import.wishlistProgress', { wishlisted: wishlistProgress.totalWishlisted, checked: wishlistProgress.imported + wishlistProgress.skipped, total: wishlistProgress.consideredCount })
+        : t('add.import.checkingWishlist')
       : completions.busy
-        ? 'Checking Steam for newly-completed achievements…'
+        ? t('add.import.checkingAchievements')
         : (error ?? completions.error ?? result);
 
   return (
-    <Dialog onClose={() => ui.closeDialog('import')} title="Import your library" gap={16}>
+    <Dialog onClose={() => ui.closeDialog('import')} title={t('add.import.title')} gap={16}>
       {status && <div style={st('padding:12px 14px;border-radius:14px;background:var(--surf);font:500 13.5px var(--font-ui);text-wrap:pretty')}>{status}</div>}
       <Group>
         <ImportRow
-          title="Steam Import"
-          sub={steamLinked ? 'Library + wishlist + achievement completions. Skips anything already here.' : 'Link your Steam account to import'}
-          cta={running ? 'Importing…' : steamLinked ? 'Import' : 'Link Steam'}
+          title={t('add.import.steamTitle')}
+          sub={steamLinked ? t('add.import.steamSub') : t('add.import.steamLinkSub')}
+          cta={running ? t('add.import.importing') : steamLinked ? t('add.import.import') : t('add.import.linkSteam')}
           disabled={running}
           accent
           onClick={steamImport}
         />
         <ImportRow
           title="Playnite"
-          sub="Pull in Epic, GOG, Xbox, PlayStation and Nintendo via the free Playnite desktop app"
-          cta="Set up"
+          sub={t('add.import.playniteSub')}
+          cta={t('add.import.setUp')}
           onClick={() => {
             ui.closeDialog('import');
             ui.openDialog('playnite');
@@ -104,6 +106,7 @@ export function ImportDialog() {
 /** Playnite setup: install Playnite, install the extension, paste the setup code. Detects the first
  * call from Playnite itself (the key's lastUsedAt) and flips to a success state. */
 export function PlayniteDialog() {
+  const t = useT();
   const ui = useUi();
   const queryClient = useQueryClient();
   const [generating, setGenerating] = useState(false);
@@ -122,7 +125,7 @@ export function PlayniteDialog() {
     if (!keyId || linked) return;
     if (linkStatus.data?.keys.find((k) => k.id === keyId)?.lastUsedAt) {
       setLinked(true);
-      ui.notify('Playnite connected');
+      ui.notify(t('add.playniteSetup.connected'));
     }
   }, [keyId, linked, linkStatus.data, ui]);
 
@@ -135,7 +138,7 @@ export function PlayniteDialog() {
       setKeyId(created.id);
       queryClient.invalidateQueries({ queryKey: API_KEYS_QUERY_KEY });
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Could not generate a Playnite setup code');
+      setError(err instanceof Error ? err.message : t('add.playniteSetup.generateFailed'));
     } finally {
       setGenerating(false);
     }
@@ -144,26 +147,26 @@ export function PlayniteDialog() {
   async function copy() {
     if (!code) return;
     await navigator.clipboard.writeText(code);
-    ui.notify('Connection code copied');
+    ui.notify(t('add.playniteSetup.copied'));
   }
 
   const steps: { t: string; d: string; link?: [string, string] }[] = [
-    { t: 'Install Playnite', d: 'The free, open-source launcher for Windows that gathers all your stores in one place.', link: ['Get Playnite', PLAYNITE_URL] },
-    { t: 'Install the QueueUp extension', d: 'Download the .pext file and drag it into Playnite to install it. A QueueUp menu appears under Extensions.', link: ['Download the .pext', EXTENSION_URL] },
-    { t: 'Connect to QueueUp', d: 'Generate a code below, then in Playnite choose Extensions → QueueUp → Connect to QueueUp and paste it in.' },
+    { t: t('add.playniteSetup.step1Title'), d: t('add.playniteSetup.step1Body'), link: [t('add.playniteSetup.step1Link'), PLAYNITE_URL] },
+    { t: t('add.playniteSetup.step2Title'), d: t('add.playniteSetup.step2Body'), link: [t('add.playniteSetup.step2Link'), EXTENSION_URL] },
+    { t: t('add.playniteSetup.step3Title'), d: t('add.playniteSetup.step3Body') },
   ];
 
   return (
-    <Dialog onClose={() => ui.closeDialog('playnite')} title="Import from Playnite" gap={16}>
+    <Dialog onClose={() => ui.closeDialog('playnite')} title={t('add.playniteSetup.title')} gap={16}>
       {error && <Banner>{error}</Banner>}
       {linked ? (
         <div style={st('display:flex;flex-direction:column;gap:10px')}>
-          <span style={st('font:700 20px var(--font-display)')}>Successfully linked!</span>
+          <span style={st('font:700 20px var(--font-display)')}>{t('add.playniteSetup.linked')}</span>
           <span style={st('font:400 13.5px/1.5 var(--font-ui);color:var(--muted);text-wrap:pretty')}>
-            Run Extensions → QueueUp → Push library to QueueUp in Playnite whenever your library changes. Download metadata for your whole library first (Library → Download Metadata) so QueueUp has full details for each game.
+            {t('add.playniteSetup.linkedBody')}
           </span>
           <Btn kind="text" height={46} weight={700} onClick={() => ui.closeDialog('playnite')}>
-            Finish
+            {t('add.playniteSetup.finish')}
           </Btn>
         </div>
       ) : (
@@ -193,17 +196,17 @@ export function PlayniteDialog() {
               <div style={st('display:flex;align-items:center;gap:10px;padding:10px 10px 10px 16px;border-radius:16px;background:var(--surf)')}>
                 <span style={st('flex:1;min-width:0;font:600 13px var(--font-mono);letter-spacing:0.02em;word-break:break-all')}>{code}</span>
                 <Btn kind="text" height={36} padX={14} fontSize={13} weight={700} onClick={copy}>
-                  Copy
+                  {t('add.playniteSetup.copy')}
                 </Btn>
               </div>
               <span style={st('display:flex;align-items:center;gap:10px;font:400 13px var(--font-ui);color:var(--muted)')}>
                 <span style={st('width:14px;height:14px;border-radius:50%;border:2px solid var(--line);border-top-color:var(--acc);animation:qu-spin .9s linear infinite')} />
-                Waiting for Playnite to connect. This continues on its own once it does.
+                {t('add.playniteSetup.waiting')}
               </span>
             </>
           ) : (
             <Btn kind="accent" height={48} weight={700} fontSize={14} disabled={generating} onClick={generate}>
-              {generating ? 'Generating…' : 'Generate setup code'}
+              {generating ? t('add.playniteSetup.generating') : t('add.playniteSetup.generate')}
             </Btn>
           )}
         </>
@@ -214,6 +217,7 @@ export function PlayniteDialog() {
 
 /** Find the right game for a pending import by searching (including games already owned). */
 function ManualMatchDialog({ entry, onClose, onResolved }: { entry: PendingLibraryImportDto; onClose: () => void; onResolved: () => void }) {
+  const t = useT();
   const [query, setQuery] = useState(entry.title);
   const [results, setResults] = useState<GameSearchResult[]>([]);
   const [searching, setSearching] = useState(false);
@@ -240,7 +244,7 @@ function ManualMatchDialog({ entry, onClose, onResolved }: { entry: PendingLibra
           setResults(results);
           setError(null);
         })
-        .catch((err) => latest.current === id && setError(err instanceof Error ? err.message : 'Search failed'))
+        .catch((err) => latest.current === id && setError(err instanceof Error ? err.message : t('add.manualMatch.searchFailed')))
         .finally(() => latest.current === id && setSearching(false));
     }, 350);
     return () => clearTimeout(handle);
@@ -253,18 +257,18 @@ function ManualMatchDialog({ entry, onClose, onResolved }: { entry: PendingLibra
       await pendingImportsApi.resolve(entry.id, igdbId);
       onResolved();
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Could not match this game');
+      setError(err instanceof Error ? err.message : t('add.review.matchFailed'));
       setResolving(null);
     }
   }
 
   function submitId() {
-    const t = idQuery.trim();
-    if (!/^\d+$/.test(t)) {
-      setError('Enter a valid IGDB game ID (a positive whole number).');
+    const id = idQuery.trim();
+    if (!/^\d+$/.test(id)) {
+      setError(t('add.manualMatch.invalidId'));
       return;
     }
-    void pick(Number(t));
+    void pick(Number(id));
   }
 
   return (
@@ -274,22 +278,22 @@ function ManualMatchDialog({ entry, onClose, onResolved }: { entry: PendingLibra
       padded={false}
       header={
         <span style={st('flex:1;min-width:0;display:flex;flex-direction:column')}>
-          <span style={st('font:700 21px var(--font-display)')}>Find the right game</span>
+          <span style={st('font:700 21px var(--font-display)')}>{t('add.manualMatch.title')}</span>
           <span style={st('font:400 12.5px var(--font-ui);color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis')}>
-            for “{entry.title}” · includes games you already own
+            {t('add.manualMatch.subtitle', { title: entry.title })}
           </span>
         </span>
       }
       top={
         <div style={st('flex-shrink:0;padding:6px 20px 10px')}>
-          <input value={query} onChange={(e) => setQuery(e.target.value)} placeholder="Search games" aria-label="Search games" style={st(inputPill, { width: '100%', height: 48 })} />
+          <input value={query} onChange={(e) => setQuery(e.target.value)} placeholder={t('add.manualMatch.searchGames')} aria-label={t('add.manualMatch.searchGames')} style={st(inputPill, { width: '100%', height: 48 })} />
         </div>
       }
     >
       <div style={st('flex:1;min-height:0;overflow-y:auto;padding:0 12px 20px')}>
         {error && <div style={{ padding: '0 8px 10px' }}><Banner>{error}</Banner></div>}
-        {searching && <div style={st('padding:12px 10px;color:var(--muted);font-size:14px')}>Searching…</div>}
-        {!searching && query.trim() && results.length === 0 && !error && <div style={st('padding:18px 10px;color:var(--muted);font-size:14px')}>No matches. Try a shorter title.</div>}
+        {searching && <div style={st('padding:12px 10px;color:var(--muted);font-size:14px')}>{t('add.manualMatch.searching')}</div>}
+        {!searching && query.trim() && results.length === 0 && !error && <div style={st('padding:18px 10px;color:var(--muted);font-size:14px')}>{t('add.manualMatch.noMatches')}</div>}
         {results.map((r) => (
           <div key={r.igdbId} style={st('min-height:64px;display:flex;align-items:center;gap:12px;padding:6px 8px;border-radius:14px')}>
             <Cover title={r.title} url={r.coverImageUrl} width={36} radius={7} />
@@ -301,16 +305,16 @@ function ManualMatchDialog({ entry, onClose, onResolved }: { entry: PendingLibra
               <span style={st('font:400 12px var(--font-ui);color:var(--muted)')}>{r.platform}</span>
             </span>
             <button type="button" disabled={resolving !== null} onClick={() => pick(r.igdbId)} style={st('height:34px;padding:0 14px;border-radius:999px;border:none;background:var(--accSoft2);color:var(--accText);font:600 12.5px var(--font-ui)')}>
-              {resolving === r.igdbId ? 'Matching…' : 'This one'}
+              {resolving === r.igdbId ? t('add.manualMatch.matching') : t('add.manualMatch.thisOne')}
             </button>
           </div>
         ))}
         <div style={st('margin:10px 8px 0;padding-top:14px;border-top:1px solid var(--chip);display:flex;flex-direction:column;gap:8px')}>
-          <span style={st('font:400 12.5px var(--font-ui);color:var(--muted)')}>Can't find it by title? Match by IGDB game ID instead.</span>
+          <span style={st('font:400 12.5px var(--font-ui);color:var(--muted)')}>{t('add.manualMatch.byIdHint')}</span>
           <div style={st('display:flex;gap:8px')}>
-            <input value={idQuery} onChange={(e) => setIdQuery(e.target.value)} inputMode="numeric" placeholder="IGDB ID, e.g. 1234" aria-label="IGDB game ID" style={st(inputPill, { flex: 1, minWidth: 0 })} />
+            <input value={idQuery} onChange={(e) => setIdQuery(e.target.value)} inputMode="numeric" placeholder={t('add.manualMatch.idPlaceholder')} aria-label={t('add.manualMatch.idLabel')} style={st(inputPill, { flex: 1, minWidth: 0 })} />
             <Btn height={44} onClick={submitId} disabled={resolving !== null || !idQuery.trim()}>
-              Match
+              {t('add.manualMatch.match')}
             </Btn>
           </div>
         </div>
@@ -321,6 +325,7 @@ function ManualMatchDialog({ entry, onClose, onResolved }: { entry: PendingLibra
 
 /** Needs Review: imported titles that didn't confidently match, one at a time. */
 export function NeedsReviewDialog() {
+  const t = useT();
   const ui = useUi();
   const confirm = useConfirm();
   const queryClient = useQueryClient();
@@ -346,15 +351,15 @@ export function NeedsReviewDialog() {
   const resolve = useMutation({
     mutationFn: ({ id, igdbId }: { id: string; igdbId: number }) => pendingImportsApi.resolve(id, igdbId),
     onSuccess: () => refresh(),
-    onError: (err) => setError(err instanceof Error ? err.message : 'Could not match this game'),
+    onError: (err) => setError(err instanceof Error ? err.message : t('add.review.matchFailed')),
   });
   const dismiss = useMutation({
     mutationFn: (id: string) => pendingImportsApi.dismiss(id),
     onSuccess: () => queryClient.invalidateQueries({ queryKey: PENDING_IMPORTS_QUERY_KEY }),
-    onError: (err) => setError(err instanceof Error ? err.message : 'Could not dismiss this game'),
+    onError: (err) => setError(err instanceof Error ? err.message : t('add.review.dismissFailed')),
   });
 
-  const platforms = entry ? entry.platforms.map((p) => ROOM_PLATFORM_LABELS[p]).join(', ') || 'Unknown platform' : '';
+  const platforms = entry ? entry.platforms.map((p) => ROOM_PLATFORM_LABELS[p]).join(', ') || t('add.review.unknownPlatform') : '';
 
   async function confirmPick() {
     if (!entry || selected === null) return;
@@ -362,21 +367,21 @@ export function NeedsReviewDialog() {
     setError(null);
     await resolve.mutateAsync({ id: entry.id, igdbId: c.igdbId });
     setPick(null);
-    ui.notify(`Matched: ${c.title}`);
+    ui.notify(t('add.review.matchedTitle', { title: c.title }));
   }
 
   async function dismissEntry() {
     if (!entry) return;
     const ok = await confirm({
-      title: `Dismiss ${entry.title}?`,
-      message: "It won't be added to your shelf. It comes back if your library syncs it again.",
-      confirmLabel: 'Dismiss',
+      title: t('add.review.dismissTitle', { title: entry.title }),
+      message: t('add.review.dismissMessage'),
+      confirmLabel: t('common.dismiss'),
       danger: true,
     });
     if (!ok) return;
     await dismiss.mutateAsync(entry.id);
     setPick(null);
-    ui.notify(`Dismissed ${entry.title}`);
+    ui.notify(t('add.review.dismissed', { title: entry.title }));
   }
 
   return (
@@ -387,14 +392,14 @@ export function NeedsReviewDialog() {
         padded={false}
         header={
           <Kicker size={12} style={{ flex: 1 }}>
-            {entry ? `NEEDS REVIEW · ${pending.length} LEFT` : 'NEEDS REVIEW'}
+            {entry ? t('add.review.kickerLeft', { n: pending.length }) : t('add.review.kicker')}
           </Kicker>
         }
         footer={
           entry && (
             <div style={st('flex-shrink:0;display:grid;grid-template-columns:1fr 1fr 1.4fr;gap:8px;padding:12px 16px 26px;border-top:1px solid var(--chip)')}>
               <Btn kind="soft" height={50} style={{ background: 'var(--chip)', color: 'var(--text)' }} onClick={dismissEntry} disabled={dismiss.isPending}>
-                Dismiss
+                {t('common.dismiss')}
               </Btn>
               <Btn
                 height={50}
@@ -404,10 +409,10 @@ export function NeedsReviewDialog() {
                   setPick(null);
                 }}
               >
-                Skip
+                {t('common.skip')}
               </Btn>
               <Btn kind="accent" height={50} weight={700} fontSize={14} disabled={selected === null || resolve.isPending} onClick={confirmPick}>
-                {resolve.isPending ? 'Matching…' : 'Use this match'}
+                {resolve.isPending ? t('add.manualMatch.matching') : t('add.review.useMatch')}
               </Btn>
             </div>
           )
@@ -417,13 +422,13 @@ export function NeedsReviewDialog() {
           <>
             {error && <div style={{ padding: '0 20px 6px' }}><Banner onDismiss={() => setError(null)}>{error}</Banner></div>}
             <div style={st('flex-shrink:0;min-height:92px;padding:0 20px;display:flex;flex-direction:column;justify-content:center;gap:4px')}>
-              <span style={st('font:400 13px var(--font-ui);color:var(--muted)')}>Imported as</span>
-              <span style={st('font:700 26px/1.1 var(--font-display);letter-spacing:-0.02em;overflow:hidden;text-overflow:ellipsis')}>“{entry.title}”</span>
+              <span style={st('font:400 13px var(--font-ui);color:var(--muted)')}>{t('add.review.importedAs')}</span>
+              <span style={st('font:700 26px/1.1 var(--font-display);letter-spacing:-0.02em;overflow:hidden;text-overflow:ellipsis')}>{t('add.review.quotedTitle', { title: entry.title })}</span>
               <span style={st('font:400 13px var(--font-ui);color:var(--muted)')}>
-                {platforms} · via {entry.source.charAt(0).toUpperCase() + entry.source.slice(1)}
+                {t('add.review.platformsVia', { platforms, source: entry.source.charAt(0).toUpperCase() + entry.source.slice(1) })}
               </span>
             </div>
-            <Kicker style={{ padding: '14px 20px 8px', flexShrink: 0 }}>WHICH GAME IS IT?</Kicker>
+            <Kicker style={{ padding: '14px 20px 8px', flexShrink: 0 }}>{t('add.review.whichGame')}</Kicker>
             <div style={st('flex:1;min-height:0;overflow-y:auto;padding:0 16px 12px;display:flex;flex-direction:column;gap:8px')}>
               {entry.candidates.map((c, i) => {
                 const on = selected === i;
@@ -442,25 +447,25 @@ export function NeedsReviewDialog() {
                       </span>
                       <span style={st('font:400 12.5px var(--font-ui);color:var(--muted)')}>
                         {c.platform}
-                        {c.suggestedBy ? ` · Matched by ${c.suggestedBy} other${c.suggestedBy === 1 ? '' : 's'}` : ''}
+                        {c.suggestedBy ? t(c.suggestedBy === 1 ? 'add.review.matchedByOthers.one' : 'add.review.matchedByOthers.other', { n: c.suggestedBy }) : ''}
                       </span>
                     </span>
                     <span style={st(`width:24px;height:24px;flex-shrink:0;border-radius:50%;border:2px solid ${on ? 'var(--acc)' : 'var(--line)'};background:${on ? 'var(--acc)' : 'transparent'}`)} />
                   </button>
                 );
               })}
-              {entry.candidates.length === 0 && <span style={st('font:400 13.5px var(--font-ui);color:var(--muted);padding:4px 4px 8px')}>No close matches found.</span>}
+              {entry.candidates.length === 0 && <span style={st('font:400 13.5px var(--font-ui);color:var(--muted);padding:4px 4px 8px')}>{t('add.review.noCloseMatches')}</span>}
               <button type="button" onClick={() => setManual(true)} style={st('flex-shrink:0;height:52px;border-radius:18px;border:1.5px dashed var(--line);background:transparent;color:var(--text2);font:600 14px var(--font-ui)')}>
-                None of these, search manually
+                {t('add.review.searchManually')}
               </button>
             </div>
           </>
         ) : (
           <div style={st('flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:12px;padding:24px;text-align:center')}>
-            <span style={st('font:700 28px var(--font-display);letter-spacing:-0.02em')}>All matched.</span>
-            <span style={st('font:400 14.5px var(--font-ui);color:var(--muted)')}>Nothing needs review right now.</span>
+            <span style={st('font:700 28px var(--font-display);letter-spacing:-0.02em')}>{t('add.review.allMatched')}</span>
+            <span style={st('font:400 14.5px var(--font-ui);color:var(--muted)')}>{t('add.review.nothingToReview')}</span>
             <Btn kind="text" height={46} padX={22} weight={700} fontSize={14} onClick={() => ui.closeDialog('needsReview')}>
-              Done
+              {t('common.done')}
             </Btn>
           </div>
         )}
@@ -472,7 +477,7 @@ export function NeedsReviewDialog() {
           onResolved={() => {
             setManual(false);
             refresh();
-            ui.notify('Matched');
+            ui.notify(t('add.review.matched'));
           }}
         />
       )}
@@ -482,6 +487,7 @@ export function NeedsReviewDialog() {
 
 /** "Sync trophies and achievements": every candidate is a suggestion; nothing changes until applied. */
 export function CompletionsDialog() {
+  const t = useT();
   const ui = useUi();
   const { ops } = useScope();
   const { completions } = useSteamImportContext();
@@ -503,7 +509,7 @@ export function CompletionsDialog() {
       await ops.bulkUpdateStatus(ids, 'done');
       setCandidates((c) => c.filter((x) => !ids.includes(x.id)));
       setSelected((s) => s.filter((id) => !ids.includes(id)));
-      ui.notify(`${ids.length} marked Beaten`);
+      ui.notify(t('add.completions.marked', { n: ids.length }));
     } catch {
       /* the games hook surfaces the failure itself */
     } finally {
@@ -515,16 +521,16 @@ export function CompletionsDialog() {
   return (
     <Dialog
       onClose={close}
-      title="Sync trophies and achievements"
+      title={t('add.completions.title')}
       height="tall"
       footer={
         n > 0 && (
           <div style={st('flex-shrink:0;display:flex;align-items:center;gap:6px;padding:12px 20px 26px;border-top:1px solid var(--chip)')}>
-            <Btn kind="ghost" height={40} padX={10} fontSize={13} onClick={() => setSelected(candidates.map((c) => c.id))}>Select all</Btn>
-            <Btn kind="ghost" height={40} padX={10} fontSize={13} onClick={() => setSelected([])}>Clear</Btn>
+            <Btn kind="ghost" height={40} padX={10} fontSize={13} onClick={() => setSelected(candidates.map((c) => c.id))}>{t('add.completions.selectAll')}</Btn>
+            <Btn kind="ghost" height={40} padX={10} fontSize={13} onClick={() => setSelected([])}>{t('add.completions.clear')}</Btn>
             <span style={{ flex: 1 }} />
             <Btn kind="accent" height={46} padX={20} fontSize={14} weight={700} disabled={applying || selected.length === 0} onClick={apply}>
-              {applying ? 'Marking Beaten…' : `Mark Beaten (${selected.length})`}
+              {applying ? t('add.completions.marking') : t('add.completions.markN', { n: selected.length })}
             </Btn>
           </div>
         )
@@ -534,13 +540,13 @@ export function CompletionsDialog() {
       {n === 0 ? (
         <div style={st('padding:20px 4px 12px;font:500 14px/1.5 var(--font-ui);color:var(--muted);text-wrap:pretty')}>
           {result && result.candidates.length === 0
-            ? `Checked ${result.consideredCount} not-yet-Beaten shelf game${result.consideredCount === 1 ? '' : 's'} with a linked Steam app. Nothing is 100%'d that isn't already marked Beaten.`
-            : "That's everything reviewed."}
+            ? t(result.consideredCount === 1 ? 'add.completions.noneFound.one' : 'add.completions.noneFound.other', { n: result.consideredCount })
+            : t('add.completions.allReviewed')}
         </div>
       ) : (
         <>
           <span style={st('font:400 13.5px/1.5 var(--font-ui);color:var(--text2);text-wrap:pretty')}>
-            Steam says you've 100%'d {n} game{n === 1 ? '' : 's'} that {n === 1 ? "isn't" : "aren't"} marked Beaten yet (checked {result?.consideredCount}). Pick which to update. Nothing changes until you apply.
+            {t(n === 1 ? 'add.completions.intro.one' : 'add.completions.intro.other', { n, checked: result?.consideredCount ?? '' })}
           </span>
           <div style={st('display:flex;flex-direction:column;gap:6px')}>
             {candidates.map((c) => {
@@ -558,7 +564,7 @@ export function CompletionsDialog() {
                     <Cover title={c.title} url={c.coverImageUrl} width={36} radius={8} />
                     <span style={st('flex:1;min-width:0;display:flex;flex-direction:column;gap:2px')}>
                       <span style={st('font:600 14.5px var(--font-ui);white-space:nowrap;overflow:hidden;text-overflow:ellipsis')}>{c.title}</span>
-                      <span style={st('font:400 12.5px var(--font-ui);color:var(--muted)')}>100%'d {formatRelativeTime(c.lastUnlockedAt)}</span>
+                      <span style={st('font:400 12.5px var(--font-ui);color:var(--muted)')}>{t('add.completions.completedWhen', { when: formatRelativeTime(c.lastUnlockedAt) })}</span>
                     </span>
                   </button>
                   <button
@@ -569,7 +575,7 @@ export function CompletionsDialog() {
                     }}
                     style={st('flex-shrink:0;height:34px;padding:0 10px;border:none;background:none;color:var(--muted);font:600 12.5px var(--font-ui)')}
                   >
-                    Dismiss
+                    {t('common.dismiss')}
                   </button>
                 </div>
               );

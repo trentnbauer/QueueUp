@@ -2,6 +2,7 @@ import type { ReactNode } from 'react';
 import { PLINKO_FALL_MS, PLINKO_ROWS, PLINKO_SEGMENT_MS, type Game, type PlinkoPlay } from '@queueup/shared';
 import { coverBg } from '../../ui/primitives';
 import { st } from '../../ui/st';
+import { useT } from '../../i18n';
 import { Hint, ScaledBoard, WIN_RING, pct, type ModeProps } from './shared';
 
 // Board geometry (board pixels, the design's 644x372).
@@ -115,12 +116,13 @@ export function PlinkoBoard({
 /** Solo plinko: bins sized by weight share; the server picks the bin and the path, and the chip
  * drops on its own at `dropAt`. */
 export function PlinkoMode({ play, games, now, settled }: ModeProps<PlinkoPlay>) {
+  const t = useT();
   const weights = play.bins.map((b) => b.weight);
   const total = weights.reduce((s, w) => s + w, 0);
   const landed = plinkoLanded(play.dropAt, now);
   return (
     <>
-      <PlinkoBoard rail={landed ? 'LANDED' : 'DROP ANYWHERE ALONG HERE'} weights={weights} binHeight={96} path={play.path} dropAt={play.dropAt} now={now}>
+      <PlinkoBoard rail={landed ? t('spin.plinko.landed') : t('spin.plinko.dropAnywhere')} weights={weights} binHeight={96} path={play.path} dropAt={play.dropAt} now={now}>
         {play.bins.map((b) => {
           const game = games.get(b.gameId);
           const win = landed && b.gameId === play.winnerId;
@@ -140,8 +142,8 @@ export function PlinkoMode({ play, games, now, settled }: ModeProps<PlinkoPlay>)
       </PlinkoBoard>
       {!settled && (
         <div style={st('min-height:112px;margin-top:16px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:6px;text-align:center')}>
-          <span style={st('font:500 14px var(--font-ui);color:var(--muted)')}>{now < play.dropAt ? 'Lining up the drop…' : landed ? 'Landed!' : 'Bouncing…'}</span>
-          <Hint>Where it drops changes the bounce, not the odds</Hint>
+          <span style={st('font:500 14px var(--font-ui);color:var(--muted)')}>{now < play.dropAt ? t('spin.plinko.liningUp') : landed ? t('spin.plinko.landedBang') : t('spin.plinko.bouncing')}</span>
+          <Hint>{t('spin.plinko.oddsHint')}</Hint>
         </div>
       )}
     </>

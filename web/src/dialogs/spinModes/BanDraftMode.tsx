@@ -1,9 +1,10 @@
 import { BAN_TURN_MS, currentTurn, type BanDraftPlay, type Game } from '@queueup/shared';
 import { st } from '../../ui/st';
+import { t, useT } from '../../i18n';
 import { Counter, Cover, DANGER, DANGER_BG, Hint, MemberAvatar, TimerBar, WIN_RING, nameOf, secondsLeft, type ModeProps } from './shared';
 
 function metaLine(game: Game | undefined): string {
-  return [game?.genre?.split(',')[0], game?.timeToBeatHours ? `~${game.timeToBeatHours}h` : ''].filter(Boolean).join(' · ');
+  return [game?.genre?.split(',')[0], game?.timeToBeatHours ? t('spin.result.hours', { n: game.timeToBeatHours }) : ''].filter(Boolean).join(' · ');
 }
 
 /** Cards per row: one row while they fit, otherwise two (three across on phones). */
@@ -15,6 +16,7 @@ function columns(n: number, mobile: boolean): number {
 /** 1e Ban draft: members take turns banning one of the dealt games (members + 1 of them); the
  * last one standing wins. A turn that times out bans the lowest-weighted game for them. */
 export function BanDraftMode({ play, games, members, me, now, act, mobile, settled }: ModeProps<BanDraftPlay>) {
+  const t = useT();
   const turn = currentTurn(play);
   const myTurn = turn === me;
   const banOf = (gameId: string) => play.bans.find((b) => b.gameId === gameId);
@@ -30,8 +32,8 @@ export function BanDraftMode({ play, games, members, me, now, act, mobile, settl
             const own = play.bans.filter((_, k) => k % n === i);
             const active = turn === id;
             const last = own[own.length - 1];
-            const lastTitle = last ? games.get(last.gameId)?.title ?? 'a game' : '';
-            const sub = active ? (id === me ? 'Your ban' : 'Thinking…') : last ? (last.auto ? `Timed out · ${lastTitle}` : `Banned ${lastTitle}`) : `Ban ${i + 1}`;
+            const lastTitle = last ? games.get(last.gameId)?.title ?? t('spin.fallback.aGame') : '';
+            const sub = active ? (id === me ? t('spin.ban.yourBan') : t('spin.ban.thinking')) : last ? (last.auto ? t('spin.ban.timedOutTitle', { title: lastTitle }) : t('spin.ban.bannedTitle', { title: lastTitle })) : t('spin.ban.slot', { n: i + 1 });
             const done = !!last && !active;
             return (
               <div
@@ -64,7 +66,7 @@ export function BanDraftMode({ play, games, members, me, now, act, mobile, settl
                 type="button"
                 disabled={!canBan}
                 onClick={() => act({ type: 'ban', gameId: card.gameId })}
-                aria-label={ban ? `${game?.title ?? 'Game'}, banned` : `Ban ${game?.title ?? 'this game'}`}
+                aria-label={ban ? t('spin.ban.cardBanned', { title: game?.title ?? t('spin.fallback.game') }) : t('spin.ban.cardBan', { title: game?.title ?? t('spin.fallback.thisGame') })}
                 style={st(`position:relative;display:block;aspect-ratio:2/3;padding:0;border:none;border-radius:12px;overflow:hidden;background:none;font:inherit;color:inherit;transition:transform .25s, box-shadow .25s, opacity .35s`, {
                   cursor: canBan ? 'pointer' : 'default',
                   boxShadow: isWin ? WIN_RING : '0 8px 20px oklch(0 0 0 / 0.3)',
@@ -85,12 +87,12 @@ export function BanDraftMode({ play, games, members, me, now, act, mobile, settl
                 {ban && (
                   <div style={st('position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:6px')}>
                     <MemberAvatar members={members} userId={ban.userId} size={30} style={{ border: '2px solid var(--bg)' }} />
-                    <span style={st(`font:800 ${mobile ? 11.5 : 13}px var(--font-display);letter-spacing:0.04em;color:${DANGER}`)}>BANNED</span>
-                    {ban.auto && <span style={st('font:600 9.5px var(--font-mono);letter-spacing:0.06em;color:var(--muted)')}>TIMED OUT</span>}
+                    <span style={st(`font:800 ${mobile ? 11.5 : 13}px var(--font-display);letter-spacing:0.04em;color:${DANGER}`)}>{t('spin.ban.banned')}</span>
+                    {ban.auto && <span style={st('font:600 9.5px var(--font-mono);letter-spacing:0.06em;color:var(--muted)')}>{t('spin.ban.timedOut')}</span>}
                   </div>
                 )}
                 {canBan && (
-                  <span style={st(`position:absolute;top:8px;right:8px;height:22px;padding:0 9px;border-radius:999px;background:${DANGER_BG};color:#fff;font:700 11px/22px var(--font-ui)`)}>Ban</span>
+                  <span style={st(`position:absolute;top:8px;right:8px;height:22px;padding:0 9px;border-radius:999px;background:${DANGER_BG};color:#fff;font:700 11px/22px var(--font-ui)`)}>{t('spin.ban.pill')}</span>
                 )}
               </button>
             );
@@ -102,16 +104,14 @@ export function BanDraftMode({ play, games, members, me, now, act, mobile, settl
         <div style={st('margin-top:16px;display:flex;flex-direction:column;align-items:center;gap:6px;text-align:center')}>
           {turn && play.turnEndsAt !== null ? (
             <>
-              <Counter>
-                BAN {play.bans.length + 1} OF {play.banCount} · {secondsLeft(play.turnEndsAt, now)}s
-              </Counter>
+              <Counter>{t('spin.ban.counter', { n: play.bans.length + 1, total: play.banCount, s: secondsLeft(play.turnEndsAt, now) })}</Counter>
               <TimerBar from={play.turnEndsAt - BAN_TURN_MS} to={play.turnEndsAt} now={now} />
-              <Hint>{myTurn ? 'Your turn. Tap the game you least want to play.' : `${nameOf(members, turn)} is choosing…`}</Hint>
+              <Hint>{myTurn ? t('spin.ban.yourTurn') : t('spin.ban.choosing', { name: nameOf(members, turn) })}</Hint>
             </>
           ) : (
-            <Hint>Last one standing…</Hint>
+            <Hint>{t('spin.ban.lastStanding')}</Hint>
           )}
-          {!play.participants.includes(me) && <Hint>You joined after this round started. You can watch this one.</Hint>}
+          {!play.participants.includes(me) && <Hint>{t('spin.mode.lateJoin')}</Hint>}
         </div>
       )}
     </>

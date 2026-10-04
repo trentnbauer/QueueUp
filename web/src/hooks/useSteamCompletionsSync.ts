@@ -2,6 +2,7 @@ import { useState } from 'react';
 import type { SteamCompletionsSyncResult } from '@queueup/shared';
 import { gamesApi } from '../api/games';
 import { useAnnounceUnlock } from '../context/AchievementUnlockContext';
+import { t } from '../i18n';
 
 /** Drives the "Sync completions from Steam" tile (issue #244) - a single scan-and-review flow, not
  * shared across multiple trigger points the way useSteamImport is (see SteamImportContext), since
@@ -23,7 +24,7 @@ export function useSteamCompletionsSync() {
       setResult(res);
       announceUnlock(res.unlockedBadges);
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Could not sync completions from Steam');
+      setError(err instanceof Error ? err.message : t('add.completions.syncFailed'));
     } finally {
       setBusy(false);
     }

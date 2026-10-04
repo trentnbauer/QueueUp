@@ -27,6 +27,7 @@ import { ComingStrip, CoverCard, DesktopRow, MobileRow, PlayNextRow } from './Ro
 import { Footer } from '../shell/Footer';
 import { BulkBar, BulkStatusSheet } from './BulkBar';
 import { useIncrementalList } from '../hooks/useIncrementalList';
+import { rich, useT } from '../i18n';
 
 const MAX_SHOWN_HINT = 5000;
 
@@ -35,6 +36,7 @@ const SHELF_ALL_TABS = [...SHELF_TABS, ...SHELF_MORE_TABS];
 /** The Personal Shelf / room home: header, nudges, tabs + search, lists. One component for both
  * layouts - the row/header geometry branches on `mobile`. */
 export function HomeView() {
+  const t = useT();
   const scope = useScope();
   const ui = useUi();
   const mobile = useIsMobile();
@@ -75,7 +77,7 @@ export function HomeView() {
   const pendingList = useQuery({ queryKey: PENDING_IMPORTS_QUERY_KEY, queryFn: pendingImportsApi.list, enabled: isShelf });
   const dismissedList = useQuery({ queryKey: DISMISSED_IMPORTS_QUERY_KEY, queryFn: pendingImportsApi.listDismissed, enabled: isShelf && moreOpen });
   const importTab = tab === 'matching' || tab === 'dismissed' ? tab : null;
-  const moreActive = SHELF_MORE_TABS.some((t) => t.id === tab) || importTab !== null;
+  const moreActive = SHELF_MORE_TABS.some((tb) => tb.id === tab) || importTab !== null;
   const [query, setQuery] = useState('');
   // The 📖 tab shows the play journal instead of a game list - the room's, or on the shelf your own
   // across the shelf and your rooms (a search still searches games).
@@ -130,34 +132,34 @@ export function HomeView() {
     <PlatformMenu
       value={platform}
       options={platformOptions}
-      allLabel={isShelf ? 'Every platform' : 'Any platform'}
+      allLabel={isShelf ? t('home.platform.every') : t('home.platform.any')}
       onChange={setPlatform}
       includeOlder={includeOlder}
       onIncludeOlder={setIncludeOlder}
-      emptyHint={isShelf ? 'Add the consoles you own in Settings → Systems owned to filter by them.' : 'Nobody in this room has set their Systems owned yet.'}
+      emptyHint={isShelf ? t('home.platform.emptyShelf') : t('home.platform.emptyRoom')}
     />
   ) : (
     ROOM_PLATFORM_LABELS[room.platform].toUpperCase()
   );
   const meta = isShelf ? (
-    <>JUST YOU · {platformMenu}</>
+    <>{rich(t('home.meta.justYou'), { platform: platformMenu })}</>
   ) : (
     <>
-      {platformMenu} · {`${members.length} members · ${games.filter((g) => g.status === 'backlog').length} queued`.toUpperCase()}
+      {platformMenu} · {t(members.length === 1 ? 'home.meta.room.one' : 'home.meta.room.other', { n: members.length, queued: games.filter((g) => g.status === 'backlog').length }).toUpperCase()}
     </>
   );
 
-  const title = isShelf ? 'Personal Shelf' : (room?.name ?? '');
+  const title = isShelf ? t('home.title.shelf') : (room?.name ?? '');
   const emptyAdd = !searching && !platform && tab === 'queue';
   const emptyMsg = searching
-    ? `No games match "${query}".`
+    ? t('home.empty.search', { query })
     : platform
-      ? `Nothing here for ${ROOM_PLATFORM_LABELS[platform]}.`
+      ? t('home.empty.platform', { platform: ROOM_PLATFORM_LABELS[platform] })
     : tab === 'queue'
-      ? 'Nothing queued yet. Add the first game.'
+      ? t('home.empty.queue')
       : tab === 'playing'
-        ? 'Nothing being played right now.'
-        : 'Nothing here yet.';
+        ? t('home.empty.playing')
+        : t('home.empty.default');
 
   const allSelected = items.length > 0 && items.every((it) => bulkSel.includes(it.game.id));
   // Action failures (e.g. a rate-limited price refresh) show as a toast, wherever they came from.
@@ -173,23 +175,22 @@ export function HomeView() {
     const n = bulkSel.length;
     if (!n) return;
     const ok = await confirm({
-      title: `Remove ${n} game${n === 1 ? '' : 's'}?`,
-      message: "This removes them from your Personal Shelf for good. It can't be undone.",
-      confirmLabel: 'Remove',
+      title: t(n === 1 ? 'home.bulk.removeTitle.one' : 'home.bulk.removeTitle.other', { n }),
+      message: t('home.bulk.removeMessage'),
+      confirmLabel: t('common.remove'),
       danger: true,
     });
     if (!ok) return;
     await ops.bulkRemove(bulkSel);
     setBulkSel([]);
-    ui.notify(`Removed ${n} games`);
+    ui.notify(t(n === 1 ? 'home.bulk.removed.one' : 'home.bulk.removed.other', { n }));
   }
 
   const showNudge = !searching && (isShelf ? pendingImports > 0 : toVote > 0);
   const nudgeLabel = isShelf
-    ? pendingImports === 1
-      ? '1 synced game needs a match'
-      : `${pendingImports} synced games need a match`
-    : `${toVote} to vote on`;
+    ? t(pendingImports === 1 ? 'home.nudge.match.one' : 'home.nudge.match.other', { n: pendingImports })
+    : t('home.nudge.toVote', { n: toVote });
+  const nudgeAction = isShelf ? t('home.nudge.matchBtn') : t('home.nudge.voteNow');
 
   const Row = mobile ? MobileRow : DesktopRow;
   const coverGridStyle = mobile
@@ -197,7 +198,7 @@ export function HomeView() {
     : 'display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:18px 12px';
   const startPlaying = (game: Game) => {
     ops.updateStatus(game.id, 'playing');
-    ui.notify(`${game.title} is now Playing`);
+    ui.notify(t('home.notify.nowPlaying', { title: game.title }));
   };
 
   const nudges = (showNudge || (toApprove > 0 && !searching)) ? (
@@ -206,7 +207,7 @@ export function HomeView() {
             <button
               type="button"
               onClick={() => (isShelf ? ui.openDialog('needsReview') : ui.openDialog('deck'))}
-              aria-label={`${nudgeLabel} - ${isShelf ? 'Match' : 'Vote now'}`}
+              aria-label={t('home.nudge.aria', { label: nudgeLabel, action: nudgeAction })}
               title={nudgeLabel}
               className="nudge"
               style={st('align-self:flex-start;display:flex;align-items:center;gap:10px;height:42px;padding:0 8px 0 14px;border-radius:999px;border:none;background:var(--accSoft);color:var(--accText);font:600 13.5px var(--font-ui)')}
@@ -216,7 +217,7 @@ export function HomeView() {
                 {nudgeLabel}
               </span>
               <span style={st('height:28px;padding:0 11px;border-radius:999px;background:var(--acc);color:var(--ink);display:flex;align-items:center;font-size:12px')}>
-                {isShelf ? 'Match' : 'Vote now'}
+                {nudgeAction}
               </span>
             </button>
           )}
@@ -224,13 +225,13 @@ export function HomeView() {
             <button
               type="button"
               onClick={() => ui.openDialog('roomSettings')}
-              aria-label={`${toApprove} to approve - Review`}
-              title={`${toApprove} to approve`}
+              aria-label={t('home.nudge.toApproveAria', { n: toApprove })}
+              title={t('home.nudge.toApprove', { n: toApprove })}
               className="nudge"
               style={st('display:flex;align-items:center;gap:10px;height:42px;padding:0 8px 0 14px;border-radius:999px;border:1px dashed var(--line);background:transparent;color:var(--text);font:600 13.5px var(--font-ui)')}
             >
-              <span className="nudge-text">{toApprove} to approve</span>
-              <span style={st('height:28px;padding:0 11px;border-radius:999px;background:var(--chip);color:var(--accText);display:flex;align-items:center;font-size:12px')}>Review</span>
+              <span className="nudge-text">{t('home.nudge.toApprove', { n: toApprove })}</span>
+              <span style={st('height:28px;padding:0 11px;border-radius:999px;background:var(--chip);color:var(--accText);display:flex;align-items:center;font-size:12px')}>{t('home.nudge.review')}</span>
             </button>
           )}
         </div>
@@ -251,10 +252,10 @@ export function HomeView() {
           {!mobile && (
             <>
               <Btn hover height={42} fontSize={14} onClick={() => ui.openDialog('ranked')}>
-                Ranked
+                {t('home.header.ranked')}
               </Btn>
               <Btn hover height={42} fontSize={14} onClick={() => ui.openDialog('add', {})}>
-                + Add game
+                {t('home.header.addGame')}
               </Btn>
             </>
           )}
@@ -267,12 +268,12 @@ export function HomeView() {
             onClick={() => ui.openDialog('spin')}
             style={{ fontFamily: 'var(--font-display)', boxShadow: '0 6px 20px var(--accA30)' }}
           >
-            Spin
+            {t('home.header.spin')}
           </Btn>
           <button
             type="button"
             onClick={() => ui.openDialog(isShelf ? 'shelfSettings' : 'roomSettings')}
-            aria-label={isShelf ? 'Shelf settings' : 'Room settings'}
+            aria-label={isShelf ? t('home.header.shelfSettings') : t('home.header.roomSettings')}
             style={st(
               `flex-shrink:0;width:${mobile ? 40 : 42}px;height:${mobile ? 40 : 42}px;border-radius:50%;border:1px solid var(--line);background:transparent;color:var(--text);font:700 16px var(--font-ui);letter-spacing:1px;padding:0 0 6px`,
             )}
@@ -283,7 +284,7 @@ export function HomeView() {
         {isShelf ? (
           <div style={st('display:flex;align-items:center;height:32px;margin-top:2px;min-width:0')}>
             <span style={st('min-width:0;font:400 13.5px var(--font-ui);color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis')}>
-              Every game you own or want, kept in sync with your imported libraries
+              {t('home.header.shelfSub')}
             </span>
           </div>
         ) : (
@@ -294,7 +295,7 @@ export function HomeView() {
                   key={m.user.id}
                   type="button"
                   onClick={() => navigate(`/u/${m.user.id}`)}
-                  aria-label={`${m.user.displayName}'s profile`}
+                  aria-label={t('home.header.memberProfile', { name: m.user.displayName })}
                   title={m.user.displayName}
                   style={{ marginLeft: -8, padding: 0, border: 'none', background: 'none', borderRadius: '50%', cursor: 'pointer' }}
                 >
@@ -311,7 +312,7 @@ export function HomeView() {
             </div>
             {(scope.canManage || room?.invitePermission === 'members') && (
               <Btn height={32} padX={14} fontSize={13} weight={500} onClick={() => ui.openDialog('roomSettings')} style={{ color: 'var(--muted)' }}>
-                Invite
+                {t('home.header.invite')}
               </Btn>
             )}
             {nudges}
@@ -321,7 +322,7 @@ export function HomeView() {
 
       {scope.truncated && (
         <Banner kind="warn">
-          Showing the {MAX_SHOWN_HINT} most recently added games. Older ones are hidden. Mark some Beaten or remove ones you no longer want to track.
+          {t('home.truncated', { n: MAX_SHOWN_HINT })}
         </Banner>
       )}
 
@@ -332,24 +333,24 @@ export function HomeView() {
           role="tablist"
           style={st(`${mobile ? '' : 'flex:1 1 380px;min-width:0;'}display:flex;gap:2px;padding:4px;border-radius:999px;background:var(--surf);overflow-x:auto`)}
         >
-          {primaryTabs.map((t) => {
-            const on = tab === t.id && !searching;
+          {primaryTabs.map((tb) => {
+            const on = tab === tb.id && !searching;
             return (
               <button
-                key={t.id}
+                key={tb.id}
                 type="button"
                 role="tab"
                 aria-selected={on}
                 onClick={() => {
-                  setTab(t.id);
+                  setTab(tb.id);
                   setQuery('');
                 }}
                 style={st(
                   `flex:1 0 auto;display:flex;align-items:center;justify-content:center;gap:5px;height:36px;padding:0 12px;border-radius:999px;border:none;background:${on ? 'var(--text)' : 'transparent'};color:${on ? 'var(--onText)' : 'var(--muted)'};font:600 13.5px var(--font-ui)`,
                 )}
               >
-                {t.label}
-                <span style={st('font:500 11px var(--font-mono);opacity:0.6')}>{lists.counts[t.id] ?? 0}</span>
+                {tb.label}
+                <span style={st('font:500 11px var(--font-mono);opacity:0.6')}>{lists.counts[tb.id] ?? 0}</span>
               </button>
             );
           })}
@@ -357,8 +358,8 @@ export function HomeView() {
             type="button"
             role="tab"
             aria-selected={journalTab}
-            aria-label="Play journal"
-            title="Play journal"
+            aria-label={t('home.journalTab')}
+            title={t('home.journalTab')}
             onClick={() => {
               setTab('journal');
               setQuery('');
@@ -373,9 +374,9 @@ export function HomeView() {
           {isShelf && (
             <button
               type="button"
-              aria-label="More filters"
+              aria-label={t('home.moreFilters')}
               aria-expanded={moreOpen || moreActive}
-              title="More filters"
+              title={t('home.moreFilters')}
               onClick={() => setMoreOpen((o) => !o)}
               style={st(
                 `position:sticky;right:0;flex:0 0 auto;display:flex;align-items:center;justify-content:center;width:36px;height:36px;border-radius:999px;border:none;background:${moreActive ? 'var(--text)' : 'var(--surf)'};box-shadow:6px 0 0 var(--surf);color:${moreActive ? 'var(--onText)' : 'var(--muted)'};font:500 20px/1 var(--font-ui);transform:${moreOpen || moreActive ? 'rotate(45deg)' : 'none'};transition:transform 0.15s`,
@@ -389,48 +390,48 @@ export function HomeView() {
           <SearchField
             value={query}
             onChange={setQuery}
-            placeholder={`Search ${isShelf ? 'your shelf' : 'this room'}`}
-            ariaLabel="Search games"
+            placeholder={isShelf ? t('home.search.shelf') : t('home.search.room')}
+            ariaLabel={t('home.search.aria')}
             wrapStyle="flex:1"
             style="height:44px;padding-left:16px;border-radius:999px;background:var(--surf);border:1px solid var(--chip);color:var(--text);font-size:15px;outline:none"
           />
           {isShelf && !bulk && items.length > 0 && (
             <Btn height={44} padX={16} onClick={() => { setBulk(true); setBulkSel([]); ui.selectGame(null); }}>
-              Select
+              {t('home.select')}
             </Btn>
           )}
           {mobile && (tab === 'queue' || tab === 'playing') && (
             <Btn height={44} padX={16} onClick={() => ui.openDialog('ranked')}>
-              Ranked
+              {t('home.header.ranked')}
             </Btn>
           )}
         </div>
       </div>
 
       {isShelf && (moreOpen || moreActive) && (
-        <div role="tablist" aria-label="More filters" style={st('display:flex;flex-wrap:wrap;gap:6px')}>
+        <div role="tablist" aria-label={t('home.moreFilters')} style={st('display:flex;flex-wrap:wrap;gap:6px')}>
           {[
-            ...SHELF_MORE_TABS.map((t) => ({ id: t.id, label: t.label, count: lists.counts[t.id] ?? 0 })),
+            ...SHELF_MORE_TABS.map((tb) => ({ id: tb.id, label: tb.label, count: lists.counts[tb.id] ?? 0 })),
             { id: 'matching', label: SHELF_IMPORT_TABS[0].label, count: pendingList.data?.pending.length ?? 0 },
             { id: 'dismissed', label: SHELF_IMPORT_TABS[1].label, count: dismissedList.data?.pending.length ?? null },
-          ].map((t) => {
-            const on = tab === t.id && !searching;
+          ].map((tb) => {
+            const on = tab === tb.id && !searching;
             return (
               <button
-                key={t.id}
+                key={tb.id}
                 type="button"
                 role="tab"
                 aria-selected={on}
                 onClick={() => {
-                  setTab(t.id);
+                  setTab(tb.id);
                   setQuery('');
                 }}
                 style={st(
                   `display:flex;align-items:center;gap:6px;height:34px;padding:0 14px;border-radius:999px;border:1px solid ${on ? 'transparent' : 'var(--line)'};background:${on ? 'var(--text)' : 'transparent'};color:${on ? 'var(--onText)' : 'var(--text2)'};font:600 13px var(--font-ui)`,
                 )}
               >
-                {t.label}
-                {t.count !== null && <span style={st('font:500 11px var(--font-mono);opacity:0.6')}>{t.count}</span>}
+                {tb.label}
+                {tb.count !== null && <span style={st('font:500 11px var(--font-mono);opacity:0.6')}>{tb.count}</span>}
               </button>
             );
           })}
@@ -455,13 +456,13 @@ export function HomeView() {
           onOpen={(g) => ui.selectGame(g.id)}
           onToggleWatch={(g) => {
             ops.setReleaseAlert(g.id, !g.releaseAlert);
-            ui.notify(g.releaseAlert ? 'Release alert off' : `We'll ping you when ${g.title} is out`);
+            ui.notify(g.releaseAlert ? t('home.notify.alertOff') : t('home.notify.alertOn', { title: g.title }));
           }}
         />
       )}
 
       {!otherTab && scope.gamesLoading && items.length === 0 && (
-        <div style={st('padding:36px 12px;text-align:center;font:500 14.5px var(--font-ui);color:var(--muted)')}>Loading…</div>
+        <div style={st('padding:36px 12px;text-align:center;font:500 14.5px var(--font-ui);color:var(--muted)')}>{t('common.loading')}</div>
       )}
 
       {!otherTab && !scope.gamesLoading && items.length === 0 && (
@@ -469,7 +470,7 @@ export function HomeView() {
           <span style={st('font:500 14.5px var(--font-ui);color:var(--muted);text-wrap:pretty')}>{emptyMsg}</span>
           {emptyAdd && (
             <Btn height={40} onClick={() => ui.openDialog('add', {})}>
-              + Add a game
+              {t('home.empty.addGame')}
             </Btn>
           )}
         </div>
@@ -513,8 +514,8 @@ export function HomeView() {
       {playNextItems.length > 0 && (
         <div style={st('display:flex;flex-direction:column;gap:6px;margin-top:6px')}>
           <div style={st('display:flex;align-items:baseline;justify-content:space-between;padding-top:14px;border-top:1px solid var(--chip)')}>
-            <span style={st('font:600 12px var(--font-mono);letter-spacing:0.06em;color:var(--muted)')}>PLAY NEXT · {playNextItems.length}</span>
-            <span style={st('font:400 12px var(--font-ui);color:var(--faint)')}>Up after what you're playing</span>
+            <span style={st('font:600 12px var(--font-mono);letter-spacing:0.06em;color:var(--muted)')}>{t('home.playNext.heading', { n: playNextItems.length })}</span>
+            <span style={st('font:400 12px var(--font-ui);color:var(--faint)')}>{t('home.playNext.sub')}</span>
           </div>
           {/* Same List/Covers choice as the main list above - the app-wide view setting. */}
           {viewMode === 'list' ? (
@@ -575,9 +576,9 @@ export function HomeView() {
             setBulkSel([]);
             setBulkStatusOpen(false);
             ui.notify(
-              `${n} games set to ${label}`,
+              t(n === 1 ? 'home.bulk.statusSet.one' : 'home.bulk.statusSet.other', { n, label }),
               {
-                label: 'Undo',
+                label: t('common.undo'),
                 run: () => {
                   for (const [old, ids] of before) void ops.bulkUpdateStatus(ids, old);
                 },
@@ -592,11 +593,11 @@ export function HomeView() {
         <button
           type="button"
           onClick={() => ui.openDialog('add', {})}
-          aria-label="Add a game"
+          aria-label={t('home.fab.aria')}
           style={st('position:fixed;right:16px;bottom:20px;z-index:30;width:60px;height:60px;border-radius:50%;border:none;background:var(--acc);color:var(--ink);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:1px;box-shadow:0 10px 28px var(--accA40)')}
         >
           <span style={st('font:500 24px/1 var(--font-ui)')}>+</span>
-          <span style={st('font:700 10px var(--font-ui)')}>Add</span>
+          <span style={st('font:700 10px var(--font-ui)')}>{t('common.add')}</span>
         </button>
       )}
     </>

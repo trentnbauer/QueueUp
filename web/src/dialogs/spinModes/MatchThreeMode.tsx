@@ -1,5 +1,6 @@
 import { MATCH_TURN_MS, currentTurn, type MatchThreePlay } from '@queueup/shared';
 import { st } from '../../ui/st';
+import { useT } from '../../i18n';
 import { CardBack, Counter, Cover, Hint, MemberAvatar, Roster, TimerBar, WIN_RING, nameOf, secondsLeft, type ModeProps } from './shared';
 
 const FLIP_MS = 500;
@@ -10,6 +11,7 @@ const easeOut = (t: number) => 1 - Math.pow(1 - t, 3);
 /** 3c Match three: twelve face-down tiles, members flip one each in turn and tiles stay up. The
  * first game to show three times wins. */
 export function MatchThreeMode({ play, games, members, me, now, act, mobile, settled }: ModeProps<MatchThreePlay>) {
+  const t = useT();
   const turn = currentTurn(play);
   const myTurn = turn === me;
   const flipOf = new Map(play.flips.map((f) => [f.tile, f]));
@@ -29,13 +31,13 @@ export function MatchThreeMode({ play, games, members, me, now, act, mobile, set
             tally.map(([id, n]) => (
               <div key={id} style={st(`height:26px;display:flex;align-items:center;gap:7px;padding:0 10px;border-radius:999px;max-width:100%;background:${n >= 2 ? 'var(--surf2)' : 'var(--surf)'}`)}>
                 <span style={st('font:500 12px var(--font-ui);color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;min-width:0')}>{games.get(id)?.title ?? '…'}</span>
-                <span aria-label={`${n} of 3`} style={st('flex-shrink:0;font:600 11px var(--font-mono);letter-spacing:0.1em;color:var(--accText)')}>
+                <span aria-label={t('spin.match.tileCount', { n })} style={st('flex-shrink:0;font:600 11px var(--font-mono);letter-spacing:0.1em;color:var(--accText)')}>
                   {'●'.repeat(Math.min(3, n)) + '○'.repeat(Math.max(0, 3 - n))}
                 </span>
               </div>
             ))
           ) : (
-            <span style={st('font:500 12px/26px var(--font-ui);color:var(--faint)')}>Nothing flipped yet</span>
+            <span style={st('font:500 12px/26px var(--font-ui);color:var(--faint)')}>{t('spin.match.nothingYet')}</span>
           )}
         </div>
 
@@ -53,7 +55,7 @@ export function MatchThreeMode({ play, games, members, me, now, act, mobile, set
                 type="button"
                 disabled={!canFlip}
                 onClick={() => act({ type: 'flip', tile: i })}
-                aria-label={up ? `Tile ${i + 1}: ${game?.title ?? 'a game'}` : `Flip tile ${i + 1}`}
+                aria-label={up ? t('spin.match.tileUp', { n: i + 1, title: game?.title ?? t('spin.fallback.aGame') }) : t('spin.match.flipTile', { n: i + 1 })}
                 style={st(`display:block;height:${mobile ? 72 : 96}px;padding:0;border:none;background:none;font:inherit;color:inherit;perspective:800px;transition:transform .3s, opacity .3s`, {
                   cursor: canFlip ? 'pointer' : 'default',
                   transform: inTrip ? 'translateY(-4px)' : 'none',
@@ -83,17 +85,15 @@ export function MatchThreeMode({ play, games, members, me, now, act, mobile, set
         <div style={st('margin-top:16px;display:flex;flex-direction:column;align-items:center;gap:4px;text-align:center')}>
           {turn && play.turnEndsAt !== null ? (
             <>
-              <Counter>
-                FLIP {play.flips.length + 1} OF {play.tiles.length} · {secondsLeft(play.turnEndsAt, now)}s
-              </Counter>
+              <Counter>{t('spin.match.counter', { n: play.flips.length + 1, total: play.tiles.length, s: secondsLeft(play.turnEndsAt, now) })}</Counter>
               <TimerBar from={play.turnEndsAt - MATCH_TURN_MS} to={play.turnEndsAt} now={now} />
               <Roster members={members} userIds={play.participants} active={turn} />
-              <Hint>{myTurn ? 'Your flip. Tap any tile.' : `${nameOf(members, turn)} is flipping…`}</Hint>
+              <Hint>{myTurn ? t('spin.match.yourFlip') : t('spin.match.flipping', { name: nameOf(members, turn) })}</Hint>
             </>
           ) : (
-            <Hint>Three of a kind!</Hint>
+            <Hint>{t('spin.match.threeOfAKind')}</Hint>
           )}
-          {!play.participants.includes(me) && <Hint>You joined after this round started. You can watch this one.</Hint>}
+          {!play.participants.includes(me) && <Hint>{t('spin.mode.lateJoin')}</Hint>}
         </div>
       )}
     </>

@@ -1,0 +1,19 @@
+/** Sign-in page, the onboarding language step and the Language setting. English source strings; keys start with "core.". Placeholders look like {name}. */
+export const core = {
+  "core.login.tagline": "Pick a game, together.",
+  "core.login.feature.backlog": "Track your backlog across every platform you own",
+  "core.login.feature.vote": "Vote with your squad on what's up next",
+  "core.login.feature.spin": "Spin the Wheel when nobody can decide",
+  "core.login.feature.prices": "Watch prices and auto-sync Steam achievements",
+  "core.login.signInWith": "Sign in with {provider}",
+  "core.login.sso": "Single sign-on",
+  "core.login.dev": "Sign in (development)",
+  "core.login.captchaFailed": "The security check didn't go through. Please try again.",
+  "core.login.selfHosted": "Self-hosted QueueUp",
+  "core.login.privacy": "Privacy",
+  "core.login.source": "Source",
+  "core.onboarding.language.title": "Pick your language",
+  "core.onboarding.language.sub": "QueueUp will use this everywhere. You can change it anytime in Settings.",
+  "core.settings.language": "Language",
+  "core.settings.language.sub": "More languages are on the way.",
+} as const;

@@ -3,6 +3,7 @@ import { createPortal } from 'react-dom';
 import { closeOnBackdropMouseDown, useModalA11y } from '../hooks/useModalA11y';
 import { useIsMobile } from './useLayout';
 import { st } from './st';
+import { t } from '../i18n';
 
 // Nested dialogs (e.g. the barcode scanner opened over Add game) stack above their parent.
 const DepthContext = createContext(0);
@@ -62,7 +63,7 @@ interface DialogProps {
 const CLOSE_BTN =
   'width:36px;height:36px;flex-shrink:0;border-radius:50%;border:none;background:var(--chip);color:var(--text);font-size:18px;line-height:1';
 
-export function CloseButton({ onClick, label = 'Close' }: { onClick: () => void; label?: string }) {
+export function CloseButton({ onClick, label = t('common.close') }: { onClick: () => void; label?: string }) {
   return (
     <button type="button" onClick={onClick} aria-label={label} style={st(CLOSE_BTN)}>
       ×
@@ -149,7 +150,7 @@ export function Dialog({
         {!bare && (
           <div style={st('display:flex;align-items:center;gap:10px;padding:18px 20px 12px;flex-shrink:0')}>
             {onBack && (
-              <button type="button" onClick={onBack} aria-label="Back" style={st(CLOSE_BTN)}>
+              <button type="button" onClick={onBack} aria-label={t('common.back')} style={st(CLOSE_BTN)}>
                 ‹
               </button>
             )}

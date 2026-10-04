@@ -2,6 +2,7 @@ import type { Game, GameStatus } from '@queueup/shared';
 import { useScope } from '../context/ScopeContext';
 import { useUi } from '../context/UiContext';
 import { STATUS_LABEL } from '../lib/gameView';
+import { t } from '../i18n';
 
 /** How long the Undo toast stays up. */
 export const UNDO_MS = 7000;
@@ -21,23 +22,23 @@ export function useChangeStatus() {
     const previous = game.status;
     ops.updateStatus(game.id, status);
     // Every status change can be taken back from the toast for a few seconds.
-    const say = (message: string) => ui.notify(message, { label: 'Undo', run: () => ops.updateStatus(game.id, previous) }, UNDO_MS);
-    if (status === 'playing') say(`${game.title} is now Playing`);
+    const say = (message: string) => ui.notify(message, { label: t('common.undo'), run: () => ops.updateStatus(game.id, previous) }, UNDO_MS);
+    if (status === 'playing') say(t('game.status.playing', { title: game.title }));
     else if (status === 'done') {
-      say(`${game.title} marked Beaten`);
+      say(t('game.status.beaten', { title: game.title }));
       ui.openDialog('review', { gameId: game.id });
     } else if (status === 'paused') {
-      say(`${game.title} paused`);
+      say(t('game.status.paused', { title: game.title }));
     } else if (status === 'wont_play') {
-      say(`${game.title} marked Won't Play`);
+      say(t('game.status.wontPlay', { title: game.title }));
     } else if (status === 'replay') {
-      say(`${game.title} marked Replay`);
+      say(t('game.status.replay', { title: game.title }));
       ui.openDialog('review', { gameId: game.id });
     } else if (status === 'dropped') {
-      say(`${game.title} marked Dropped`);
+      say(t('game.status.dropped', { title: game.title }));
       ui.openDialog('review', { gameId: game.id });
     } else {
-      say(`${game.title} moved to ${STATUS_LABEL[status]}`);
+      say(t('game.status.moved', { title: game.title, status: STATUS_LABEL[status] }));
     }
   };
 }

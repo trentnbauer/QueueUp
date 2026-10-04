@@ -13,6 +13,7 @@ import {
   voteCount,
   type TabDef,
 } from '../lib/gameView';
+import { t } from '../i18n';
 
 /** A game shaped for a list row / cover card. */
 export interface RowItem {
@@ -48,7 +49,7 @@ export function toRowItem(g: Game, rank: number, ctx: { isShelf: boolean; tab: s
     votes: n,
     scoreLabel: n ? `${score >= 0 ? '+' : ''}${score}` : '—',
     scoreHot: n > 0 && score > 0,
-    countLabel: n ? `${n} ${n === 1 ? 'vote' : 'votes'}` : 'no votes',
+    countLabel: n ? t(n === 1 ? 'home.votes.one' : 'home.votes.other', { n }) : t('home.votes.none'),
     myVote: g.myVote ?? 0,
   };
 }

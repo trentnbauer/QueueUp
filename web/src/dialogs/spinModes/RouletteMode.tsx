@@ -1,5 +1,6 @@
 import { ROULETTE_SPIN_MS, type RoulettePlay } from '@queueup/shared';
 import { st } from '../../ui/st';
+import { useT } from '../../i18n';
 import { Hint, QuMark, pct, type ModeProps } from './shared';
 
 /** A CSS-style cubic-bezier easing as a function of progress (0..1). Solves x(t) by bisection. */
@@ -33,6 +34,7 @@ const mod360 = (n: number) => ((n % 360) + 360) % 360;
 
 /** 3a Prize wheel: weight-sized wedges, one long spin that lands on the server's pick. */
 export function RouletteMode({ play, games, now, mobile, settled }: ModeProps<RoulettePlay>) {
+  const t = useT();
   const size = mobile ? 260 : 330;
   const total = play.wedges.reduce((s, w) => s + w.weight, 0) || 1;
   let edge = 0;
@@ -48,8 +50,8 @@ export function RouletteMode({ play, games, now, mobile, settled }: ModeProps<Ro
   // Rest with wedge 0 centred under the pointer, then 6 turns plus whatever brings `landing` to the top.
   const from = -(wedges[0]?.mid ?? 0);
   const to = from + 360 * 6 + mod360(-play.landing * 360 - from);
-  const t = Math.max(0, now - play.startAt) / ROULETTE_SPIN_MS;
-  const rot = settled ? to : from + (to - from) * spinEase(Math.min(1, t));
+  const progress = Math.max(0, now - play.startAt) / ROULETTE_SPIN_MS;
+  const rot = settled ? to : from + (to - from) * spinEase(Math.min(1, progress));
   const labelWidth = size / 2 - 46 - 12;
 
   const wheel = (
@@ -106,7 +108,7 @@ export function RouletteMode({ play, games, now, mobile, settled }: ModeProps<Ro
     <>
       <div
         role="img"
-        aria-label={settled ? `Prize wheel landed on ${games.get(play.winnerId ?? '')?.title ?? 'the pick'}` : 'Prize wheel spinning'}
+        aria-label={settled ? t('spin.roulette.landedOn', { title: games.get(play.winnerId ?? '')?.title ?? t('spin.fallback.thePick') }) : t('spin.roulette.spinning')}
         style={st(
           mobile
             ? 'border-radius:20px;background:var(--bg);padding:26px 12px 14px;display:flex;flex-direction:column;align-items:center;gap:18px'
@@ -118,8 +120,8 @@ export function RouletteMode({ play, games, now, mobile, settled }: ModeProps<Ro
       </div>
       {!settled && (
         <div style={st('margin-top:16px;display:flex;flex-direction:column;align-items:center;gap:6px;text-align:center')}>
-          <span style={st('font:500 14px var(--font-ui);color:var(--muted)')}>Round and round…</span>
-          <Hint>Bigger slice, better odds</Hint>
+          <span style={st('font:500 14px var(--font-ui);color:var(--muted)')}>{t('spin.roulette.round')}</span>
+          <Hint>{t('spin.roulette.hint')}</Hint>
         </div>
       )}
     </>

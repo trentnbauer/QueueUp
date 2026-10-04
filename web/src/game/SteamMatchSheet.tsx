@@ -4,6 +4,7 @@ import { gamesApi } from '../api/games';
 import { Dialog } from '../ui/Dialog';
 import { inputPill } from '../ui/primitives';
 import { st } from '../ui/st';
+import { useT } from '../i18n';
 
 /** "Fix Steam match": search Steam's store and pin the release a game's prices should come from. */
 export function SteamMatchSheet({
@@ -19,6 +20,7 @@ export function SteamMatchSheet({
   onMatched: (steamAppId: number | null) => void;
   onClose: () => void;
 }) {
+  const t = useT();
   const [query, setQuery] = useState(gameTitle);
   const [results, setResults] = useState<SteamStoreMatch[] | null>(null);
   const [searching, setSearching] = useState(true);
@@ -33,7 +35,7 @@ export function SteamMatchSheet({
       const { results: found } = await gamesApi.steamSearch(gameId, q);
       if (id === requestId.current) setResults(found);
     } catch {
-      if (id === requestId.current) setError('Could not search Steam right now.');
+      if (id === requestId.current) setError(t('game.steamMatch.error'));
     } finally {
       if (id === requestId.current) setSearching(false);
     }
@@ -51,24 +53,24 @@ export function SteamMatchSheet({
   }
 
   return (
-    <Dialog onClose={onClose} title="Fix Steam match" gap={12}>
+    <Dialog onClose={onClose} title={t('game.steamMatch.title')} gap={12}>
       <form onSubmit={submit} style={st('display:flex;gap:8px')}>
         <input
           value={query}
           onChange={(e) => setQuery(e.target.value)}
-          placeholder="Search Steam by title…"
-          aria-label="Search Steam by title"
+          placeholder={t('game.steamMatch.placeholder')}
+          aria-label={t('game.steamMatch.aria')}
           autoFocus
           style={st(`flex:1;min-width:0;${inputPill}`)}
         />
         <button type="submit" disabled={searching} style={st('height:44px;padding:0 16px;border-radius:999px;border:none;background:var(--text);color:var(--onText);font:700 13.5px var(--font-ui);opacity:' + (searching ? 0.5 : 1))}>
-          Search
+          {t('common.search')}
         </button>
       </form>
       {error && <div role="alert" style={st('padding:12px 14px;border-radius:14px;background:var(--errBg);border:1px solid var(--errLine);font:500 13.5px/1.4 var(--font-ui)')}>{error}</div>}
-      {searching && <div style={st('color:var(--muted);font-size:14px')}>Searching…</div>}
+      {searching && <div style={st('color:var(--muted);font-size:14px')}>{t('game.steamMatch.searching')}</div>}
       {!searching && !error && results && results.length === 0 && (
-        <div style={st('color:var(--muted);font-size:14px')}>No matches on Steam for that title.</div>
+        <div style={st('color:var(--muted);font-size:14px')}>{t('game.steamMatch.noResults')}</div>
       )}
       {!searching && results && results.length > 0 && (
         <div style={st('display:flex;flex-direction:column;gap:1px;border-radius:18px;overflow:hidden;background:var(--chip)')}>
@@ -89,7 +91,7 @@ export function SteamMatchSheet({
                 }}
               />
               <span style={st('flex:1;min-width:0;font:600 14.5px var(--font-ui)')}>{r.title}</span>
-              <span style={st('height:30px;padding:0 12px;border-radius:999px;background:var(--accSoft2);color:var(--accText);font:600 12.5px var(--font-ui);display:flex;align-items:center')}>This one</span>
+              <span style={st('height:30px;padding:0 12px;border-radius:999px;background:var(--accSoft2);color:var(--accText);font:600 12.5px var(--font-ui);display:flex;align-items:center')}>{t('game.steamMatch.pick')}</span>
             </button>
           ))}
         </div>
@@ -100,7 +102,7 @@ export function SteamMatchSheet({
           onClick={() => onMatched(null)}
           style={st('align-self:flex-start;border:none;background:none;padding:0;color:var(--danger);font:600 13.5px var(--font-ui)')}
         >
-          Clear match (show as unavailable)
+          {t('game.steamMatch.clear')}
         </button>
       )}
     </Dialog>

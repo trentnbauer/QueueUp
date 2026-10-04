@@ -7,6 +7,7 @@ import { useKeepScreenAwake } from '../hooks/useKeepScreenAwake';
 import { useModalA11y } from '../hooks/useModalA11y';
 import { Cover } from '../ui/primitives';
 import { st } from '../ui/st';
+import { t as tNow, useT } from '../i18n';
 
 const REGION = 'qu-barcode-region';
 let regionSeq = 0;
@@ -18,9 +19,10 @@ const CORNER = (pos: string, radius: string) =>
  * type-the-number fallback. A lookup that resolves shows the match with an Add button; a miss shows
  * an inline error and scanning resumes. */
 export function BarcodeScanner({ onPick, onClose }: { onPick: (match: BarcodeGameMatch) => void; onClose: () => void }) {
+  const t = useT();
   const ref = useModalA11y<HTMLDivElement>(onClose);
   useKeepScreenAwake();
-  const [cameraError, setCameraError] = useState<string | null>(null);
+  const [cameraError, setCameraError] = useState<'denied' | 'failed' | null>(null);
   const [starting, setStarting] = useState(true);
   const [value, setValue] = useState('');
   const [busy, setBusy] = useState(false);
@@ -36,9 +38,9 @@ export function BarcodeScanner({ onPick, onClose }: { onPick: (match: BarcodeGam
     try {
       const { result } = await gamesApi.barcodeLookup(code);
       if (result) setFound(result);
-      else setMiss("Couldn't find that one. Try searching by name instead.");
+      else setMiss(tNow('add.barcode.notFound'));
     } catch (err) {
-      setMiss(err instanceof Error ? err.message : "Couldn't look up that barcode.");
+      setMiss(err instanceof Error ? err.message : tNow('add.barcode.lookupFailed'));
     } finally {
       setBusy(false);
       scanned.current = false;
@@ -88,8 +90,8 @@ export function BarcodeScanner({ onPick, onClose }: { onPick: (match: BarcodeGam
           setStarting(false);
           setCameraError(
             err instanceof Error && err.name === 'NotAllowedError'
-              ? 'Camera access was denied. Allow it in your browser, or type the number below.'
-              : 'Could not start the camera. Type the number under the barcode instead.',
+              ? 'denied'
+              : 'failed',
           );
         }
         return false;
@@ -105,20 +107,30 @@ export function BarcodeScanner({ onPick, onClose }: { onPick: (match: BarcodeGam
   }, []);
 
   const digits = value.replace(/\D/g, '');
-  const hint = found ? 'Found it' : cameraError ? cameraError : starting ? 'Starting camera…' : busy ? 'Looking that up…' : 'Point your camera at the barcode on the box';
+  const hint = found
+    ? t('add.barcode.found')
+    : cameraError === 'denied'
+      ? t('add.barcode.cameraDenied')
+      : cameraError
+        ? t('add.barcode.cameraFailed')
+        : starting
+          ? t('add.barcode.startingCamera')
+          : busy
+            ? t('add.barcode.lookingUp')
+            : t('add.barcode.pointCamera');
 
   return createPortal(
     <div
       ref={ref}
       role="dialog"
       aria-modal="true"
-      aria-label="Scan a barcode"
+      aria-label={t('add.barcode.title')}
       tabIndex={-1}
       style={st('position:fixed;inset:0;z-index:200;background:oklch(0.12 0.005 55);color:oklch(0.95 0.006 70);display:flex;flex-direction:column;outline:none')}
     >
       <div style={st('flex-shrink:0;display:flex;align-items:center;gap:12px;padding:16px 16px 10px')}>
-        <span style={st('flex:1;font:700 20px var(--font-display)')}>Scan a barcode</span>
-        <button type="button" onClick={onClose} aria-label="Close" style={st('width:36px;height:36px;border-radius:50%;border:none;background:oklch(1 0 0 / 0.1);color:inherit;font-size:18px;line-height:1')}>
+        <span style={st('flex:1;font:700 20px var(--font-display)')}>{t('add.barcode.title')}</span>
+        <button type="button" onClick={onClose} aria-label={t('common.close')} style={st('width:36px;height:36px;border-radius:50%;border:none;background:oklch(1 0 0 / 0.1);color:inherit;font-size:18px;line-height:1')}>
           ×
         </button>
       </div>
@@ -137,7 +149,7 @@ export function BarcodeScanner({ onPick, onClose }: { onPick: (match: BarcodeGam
           <span style={st('position:absolute;bottom:14px;left:0;right:0;text-align:center;font:500 13px var(--font-ui);color:oklch(0.8 0.01 65);padding:0 16px')}>{hint}</span>
         </div>
         <div style={st('flex:1;overflow-y:auto;padding:16px 0;display:flex;flex-direction:column;gap:12px')}>
-          <span style={st('font:600 12px var(--font-mono);letter-spacing:0.06em;color:oklch(0.7 0.01 65)')}>OR TYPE THE NUMBER UNDER THE BARCODE</span>
+          <span style={st('font:600 12px var(--font-mono);letter-spacing:0.06em;color:oklch(0.7 0.01 65)')}>{t('add.barcode.typeNumber')}</span>
           <div style={st('display:flex;gap:8px')}>
             <input
               value={value}
@@ -147,8 +159,8 @@ export function BarcodeScanner({ onPick, onClose }: { onPick: (match: BarcodeGam
                 setMiss(null);
               }}
               inputMode="numeric"
-              placeholder="e.g. 045496590420"
-              aria-label="Barcode number"
+              placeholder={t('add.barcode.placeholder')}
+              aria-label={t('add.barcode.numberLabel')}
               style={st('flex:1;min-width:0;height:46px;padding:0 14px;border-radius:14px;background:oklch(0.2 0.006 55);border:1px solid oklch(1 0 0 / 0.14);color:inherit;font:500 15px var(--font-mono);outline:none')}
             />
             <button
@@ -157,7 +169,7 @@ export function BarcodeScanner({ onPick, onClose }: { onPick: (match: BarcodeGam
               onClick={() => void lookup(value)}
               style={st(`height:46px;padding:0 16px;border-radius:999px;border:none;background:oklch(0.95 0.006 70);color:oklch(0.18 0.01 55);font:700 13.5px var(--font-ui);opacity:${digits.length >= 8 && !busy ? 1 : 0.4}`)}
             >
-              Look up
+              {t('add.barcode.lookUp')}
             </button>
           </div>
           {found && (
@@ -168,7 +180,7 @@ export function BarcodeScanner({ onPick, onClose }: { onPick: (match: BarcodeGam
                 <span style={st('font:400 12.5px var(--font-ui);color:oklch(0.7 0.01 65)')}>{found.platform}</span>
               </span>
               <button type="button" onClick={() => onPick(found)} style={st(`height:38px;padding:0 16px;border-radius:999px;border:none;background:${ACC};color:var(--ink);font:700 13px var(--font-ui)`)}>
-                Add
+                {t('common.add')}
               </button>
             </div>
           )}

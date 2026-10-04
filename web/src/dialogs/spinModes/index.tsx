@@ -1,5 +1,7 @@
 import type { SpinPlay, SpinPlayMode } from '@queueup/shared';
 import type { ModeProps } from './shared';
+import { t, type MessageKey } from '../../i18n';
+import { liveMap } from '../../i18n/labels';
 import { CardVoteMode } from './CardVoteMode';
 import { SlotMode } from './SlotMode';
 import { KnockoutMode } from './KnockoutMode';
@@ -11,17 +13,7 @@ import { ClawMode } from './ClawMode';
 import { MatchThreeMode } from './MatchThreeMode';
 
 /** The small line above the stage: how this mode picks. */
-export const MODE_EXPLAINER: Record<SpinPlayMode, string> = {
-  card_vote: 'Three cards, one vote each',
-  slot: 'Pairs hold, the odd reel respins',
-  knockout: 'Lowest weight tends to go first',
-  plinko: 'Bin width = chance to land',
-  plinko_stake: 'Your chip boosts that bin',
-  ban_draft: 'Take turns banning; last one standing wins',
-  roulette: 'Wedge size = chance to land',
-  claw: 'Higher votes = stronger grip',
-  match_three: 'First game to three wins',
-};
+export const MODE_EXPLAINER: Record<SpinPlayMode, string> = liveMap((mode: SpinPlayMode) => t(`spin.explainer.${mode}` as MessageKey));
 
 /** Draws the round for `play.mode`. */
 export function ModeStage(props: ModeProps<SpinPlay>) {

@@ -7,6 +7,7 @@ import { useToast } from '../context/ToastContext';
 import { notificationsApi } from '../api/notifications';
 import { gamesApi } from '../api/games';
 import { apiPost } from '../api/client';
+import { t } from '../i18n';
 
 const POLL_INTERVAL_MS = 30_000;
 
@@ -59,7 +60,7 @@ export function useActionableNotificationToasts() {
           try {
             await apiPost(`/api/me/owned-platforms/${platform}/answer`, { add });
           } catch (err) {
-            ui.showError(err instanceof Error ? err.message : "Couldn't save that. Try again.");
+            ui.showError(err instanceof Error ? err.message : t('shell.toasts.saveFailed'));
             throw err;
           }
           queryClient.invalidateQueries({ queryKey: ['notifications', 'feed'] });
@@ -70,8 +71,8 @@ export function useActionableNotificationToasts() {
           id: `notification-${notification.id}`,
           message: notification.message,
           actions: [
-            { label: 'Yes, add it', onClick: () => answer(true) },
-            { label: 'No', onClick: () => answer(false) },
+            { label: t('shell.toasts.yesAddIt'), onClick: () => answer(true) },
+            { label: t('common.no'), onClick: () => answer(false) },
           ],
           onDismiss: () => markRead.mutate(notification.id),
         });
@@ -83,7 +84,7 @@ export function useActionableNotificationToasts() {
         showToast({
           id: `notification-${notification.id}`,
           message: notification.message,
-          actions: title ? [{ label: 'Find it', onClick: () => ui.openDialog('add', { query: title }) }] : [],
+          actions: title ? [{ label: t('shell.toasts.findIt'), onClick: () => ui.openDialog('add', { query: title }) }] : [],
           onDismiss: () => markRead.mutate(notification.id),
         });
         continue;
@@ -105,7 +106,7 @@ export function useActionableNotificationToasts() {
           message: notification.message,
           // mutateAsync (not the fire-and-forget mutate) so ToastStack's action handler can await
           // it and only dismiss the toast on actual success - see ToastStack.tsx's bug-fix comment.
-          actions: [{ label: 'Mark Playing', onClick: () => markPlaying.mutateAsync(gameId) }],
+          actions: [{ label: t('shell.toasts.markPlaying'), onClick: () => markPlaying.mutateAsync(gameId) }],
           onDismiss: () => markRead.mutate(notification.id),
         });
       } else if (notification.type === 'room_game_beaten') {
@@ -117,23 +118,23 @@ export function useActionableNotificationToasts() {
           onOpen: openGame,
           actions: [
             {
-              label: 'Review it',
+              label: t('shell.toasts.reviewIt'),
               onClick: () => {
                 openGame();
                 ui.openDialog('review', { gameId, syncShelf: true });
               },
             },
             {
-              label: 'Mark Beaten',
+              label: t('shell.toasts.markBeaten'),
               onClick: async () => {
                 try {
                   await gamesApi.syncShelfBeaten(gameId);
                 } catch (err) {
-                  ui.showError(err instanceof Error ? err.message : "Couldn't update your shelf. Try again.");
+                  ui.showError(err instanceof Error ? err.message : t('shell.toasts.shelfFailed'));
                   throw err;
                 }
                 void queryClient.invalidateQueries({ queryKey: ['games'] });
-                ui.notify('Marked Beaten on your shelf');
+                ui.notify(t('shell.toasts.markedBeaten'));
               },
             },
           ],
@@ -144,7 +145,7 @@ export function useActionableNotificationToasts() {
           id: `notification-${notification.id}`,
           message: notification.message,
           onOpen: openGame,
-          actions: [{ label: 'View', onClick: openGame }],
+          actions: [{ label: t('common.view'), onClick: openGame }],
           onDismiss: () => markRead.mutate(notification.id),
         });
       } else if (notification.type === 'price_drop') {
@@ -152,7 +153,7 @@ export function useActionableNotificationToasts() {
           id: `notification-${notification.id}`,
           message: notification.message,
           onOpen: openGame,
-          actions: [{ label: 'View', onClick: openGame }],
+          actions: [{ label: t('common.view'), onClick: openGame }],
           onDismiss: () => markRead.mutate(notification.id),
         });
       }

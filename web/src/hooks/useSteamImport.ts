@@ -3,13 +3,14 @@ import type { SteamImportProgress, SteamWishlistImportProgress } from '@queueup/
 import { gamesApi } from '../api/games';
 import { useAnnounceUnlock } from '../context/AchievementUnlockContext';
 import { getBasePath } from '../utils/basePath';
+import { t } from '../i18n';
 
 const PROGRESS_POLL_INTERVAL_MS = 1000;
 // The server writes progress before its "started" response, so a missing record afterwards means
 // the run was lost (server restart mid-import, or the record expired). After this many polls in a
 // row with nothing there, stop instead of showing "Importing…" forever.
 const MAX_MISSING_PROGRESS_POLLS = 10;
-const LOST_IMPORT_MESSAGE = 'Lost track of the import - some games may have been added. Try importing again.';
+const lostImportMessage = () => t('add.steamImport.lost');
 
 type ImportKind = 'library' | 'wishlist';
 
@@ -93,7 +94,7 @@ export function useSteamImport(steamLinked: boolean, onImported: () => void) {
       await gamesApi.importSteamWishlist();
     } catch (err) {
       if (!mountedRef.current) return;
-      setError(err instanceof Error ? err.message : 'Could not import your Steam wishlist');
+      setError(err instanceof Error ? err.message : t('add.steamImport.wishlistFailed'));
       setBusy(false);
       return;
     }
@@ -111,7 +112,7 @@ export function useSteamImport(steamLinked: boolean, onImported: () => void) {
             if (pollIntervalRef.current) clearInterval(pollIntervalRef.current);
             pollIntervalRef.current = null;
             setWishlistProgress(null);
-            setError(LOST_IMPORT_MESSAGE);
+            setError(lostImportMessage());
             onImported();
             setBusy(false);
             resolve();
@@ -128,8 +129,13 @@ export function useSteamImport(steamLinked: boolean, onImported: () => void) {
           setWishlistProgress(null);
           setResult(
             latest.imported === 0
-              ? `No new wishlist games to add (checked ${latest.consideredCount} of ${latest.totalWishlisted} wishlisted).`
-              : `Added ${latest.imported} game${latest.imported === 1 ? '' : 's'} to your Wishlist (skipped ${latest.skipped}, checked ${latest.consideredCount} of ${latest.totalWishlisted} wishlisted).`,
+              ? t('add.steamImport.wishlistNone', { checked: latest.consideredCount, total: latest.totalWishlisted })
+              : t(latest.imported === 1 ? 'add.steamImport.wishlistAdded.one' : 'add.steamImport.wishlistAdded.other', {
+                  n: latest.imported,
+                  skipped: latest.skipped,
+                  checked: latest.consideredCount,
+                  total: latest.totalWishlisted,
+                }),
           );
           if (latest.imported > 0) onImported();
           if (latest.unlockedBadges) announceUnlock(latest.unlockedBadges);
@@ -159,7 +165,7 @@ export function useSteamImport(steamLinked: boolean, onImported: () => void) {
       await gamesApi.importSteamLibrary();
     } catch (err) {
       if (!mountedRef.current) return;
-      setError(err instanceof Error ? err.message : 'Could not import your Steam library');
+      setError(err instanceof Error ? err.message : t('add.steamImport.libraryFailed'));
       setBusy(false);
       return;
     }
@@ -177,7 +183,7 @@ export function useSteamImport(steamLinked: boolean, onImported: () => void) {
             if (pollIntervalRef.current) clearInterval(pollIntervalRef.current);
             pollIntervalRef.current = null;
             setProgress(null);
-            setError(LOST_IMPORT_MESSAGE);
+            setError(lostImportMessage());
             onImported();
             setBusy(false);
             resolve();
@@ -194,8 +200,13 @@ export function useSteamImport(steamLinked: boolean, onImported: () => void) {
           setProgress(null);
           setResult(
             latest.imported === 0
-              ? `No new games to add (checked ${latest.consideredCount} of ${latest.totalOwned} owned).`
-              : `Added ${latest.imported} game${latest.imported === 1 ? '' : 's'} (skipped ${latest.skipped}, checked ${latest.consideredCount} of ${latest.totalOwned} owned).`,
+              ? t('add.steamImport.libraryNone', { checked: latest.consideredCount, total: latest.totalOwned })
+              : t(latest.imported === 1 ? 'add.steamImport.libraryAdded.one' : 'add.steamImport.libraryAdded.other', {
+                  n: latest.imported,
+                  skipped: latest.skipped,
+                  checked: latest.consideredCount,
+                  total: latest.totalOwned,
+                }),
           );
           if (latest.imported > 0) onImported();
           if (latest.unlockedBadges) announceUnlock(latest.unlockedBadges);

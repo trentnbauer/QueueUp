@@ -1,5 +1,6 @@
 import type { Game, GameStatus } from '@queueup/shared';
 import { isFullyOwned, isNeglectedBacklogGame, isStaleWishlistGame, platformBrand } from '@queueup/shared';
+import { liveMap, statusLabel } from '../i18n/labels';
 
 // Spin the Wheel's candidate-selection and winner-picking logic lives in packages/shared (moved
 // there alongside the shared room spin session) so the server can compute the exact same pool and
@@ -29,17 +30,8 @@ export {
 /** Sentinel meaning "no filter applied" for both the platform and genre pill filters. */
 export const ALL_FILTER_VALUE = '__all__';
 
-export const GAME_STATUS_LABEL: Record<GameStatus, string> = {
-  backlog: 'Backlog',
-  play_next: 'Play Next',
-  paused: '⏸️ Paused',
-  playing: 'Playing',
-  done: 'Beaten',
-  dropped: 'Dropped',
-  wishlist: 'Wishlist',
-  replay: '🔄 Replay',
-  wont_play: "Won't Play",
-};
+/** Each status's (translated) label. */
+export const GAME_STATUS_LABEL: Record<GameStatus, string> = liveMap(statusLabel);
 
 export const GAME_STATUS_LIST: GameStatus[] = [
   'wishlist',

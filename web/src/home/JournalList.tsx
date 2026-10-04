@@ -6,6 +6,7 @@ import { useAuth } from '../context/AuthContext';
 import { STATUS_LABEL } from '../lib/gameView';
 import { coverBg } from '../ui/primitives';
 import { st } from '../ui/st';
+import { rich, t, useT, type MessageKey } from '../i18n';
 
 const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
 const DAYS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
@@ -14,22 +15,22 @@ const DAYS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
 export function formatMinutes(minutes: number): string {
   const h = Math.floor(minutes / 60);
   const m = minutes % 60;
-  if (!h) return `${m}m`;
-  return m ? `${h}h ${m}m` : `${h}h`;
+  if (!h) return t('home.duration.minutes', { m });
+  return m ? t('home.duration.hoursMinutes', { h, m }) : t('home.duration.hours', { h });
 }
 
-/** Each kind's icon and the tint behind it. */
-const ICON: Record<JournalEventKind, { emoji: string; label: string; tint: string }> = {
-  added: { emoji: '➕', label: 'Added', tint: 'var(--surf2)' },
-  started: { emoji: '▶️', label: 'Started playing', tint: 'var(--accA35)' },
-  beaten: { emoji: '🏆', label: 'Beaten', tint: 'oklch(0.83 0.15 85 / 0.35)' },
-  dropped: { emoji: '🛑', label: 'Dropped', tint: 'var(--surf2)' },
-  paused: { emoji: '⏸️', label: 'Paused', tint: 'var(--surf2)' },
-  replay: { emoji: '🔁', label: 'Replaying', tint: 'var(--accA35)' },
-  skipped: { emoji: '🚫', label: "Won't play", tint: 'var(--surf2)' },
-  moved: { emoji: '📋', label: 'Moved', tint: 'var(--surf2)' },
-  spin: { emoji: '🎡', label: 'Spin', tint: 'var(--accA35)' },
-  reviewed: { emoji: '⭐', label: 'Reviewed', tint: 'oklch(0.83 0.15 85 / 0.35)' },
+/** Each kind's icon, the tint behind it, and its (translated) label. */
+const ICON: Record<JournalEventKind, { emoji: string; label: MessageKey; tint: string }> = {
+  added: { emoji: '➕', label: 'home.journal.kind.added', tint: 'var(--surf2)' },
+  started: { emoji: '▶️', label: 'home.journal.kind.started', tint: 'var(--accA35)' },
+  beaten: { emoji: '🏆', label: 'home.journal.kind.beaten', tint: 'oklch(0.83 0.15 85 / 0.35)' },
+  dropped: { emoji: '🛑', label: 'home.journal.kind.dropped', tint: 'var(--surf2)' },
+  paused: { emoji: '⏸️', label: 'home.journal.kind.paused', tint: 'var(--surf2)' },
+  replay: { emoji: '🔁', label: 'home.journal.kind.replay', tint: 'var(--accA35)' },
+  skipped: { emoji: '🚫', label: 'home.journal.kind.skipped', tint: 'var(--surf2)' },
+  moved: { emoji: '📋', label: 'home.journal.kind.moved', tint: 'var(--surf2)' },
+  spin: { emoji: '🎡', label: 'home.journal.kind.spin', tint: 'var(--accA35)' },
+  reviewed: { emoji: '⭐', label: 'home.journal.kind.reviewed', tint: 'oklch(0.83 0.15 85 / 0.35)' },
 };
 
 function time(iso: string): string {
@@ -45,30 +46,30 @@ function dayLabel(iso: string): string {
 /** The entry as a sentence: who did what to which game ("Trent started playing Hades"). Entries
  * logged before the journal kept that detail fall back to the sentence they were written with. */
 function sentence(e: JournalEntry, meId: string | undefined, onShelf: boolean): ReactNode {
-  const who = !e.actor ? 'Someone' : e.actor.id === meId ? 'You' : e.actor.displayName;
+  const who = !e.actor ? t('common.someone') : e.actor.id === meId ? t('common.you') : e.actor.displayName;
   if (!e.title) return e.message;
-  const t = <b style={st('font-weight:700;color:var(--text)')}>{e.title}</b>;
+  const title = <b style={st('font-weight:700;color:var(--text)')}>{e.title}</b>;
   switch (e.kind) {
     case 'added':
-      return <>{who} added {t} to {onShelf ? 'the shelf' : 'the list'}</>;
+      return rich(t(onShelf ? 'home.journal.added.shelf' : 'home.journal.added.list'), { who, title });
     case 'started':
-      return <>{who} started playing {t}</>;
+      return rich(t('home.journal.started'), { who, title });
     case 'beaten':
-      return <>{who} beat {t}</>;
+      return rich(t('home.journal.beaten'), { who, title });
     case 'dropped':
-      return <>{who} dropped {t}</>;
+      return rich(t('home.journal.dropped'), { who, title });
     case 'paused':
-      return <>{who} paused {t}</>;
+      return rich(t('home.journal.paused'), { who, title });
     case 'replay':
-      return <>{who} started a replay of {t}</>;
+      return rich(t('home.journal.replay'), { who, title });
     case 'skipped':
-      return <>{who} decided not to play {t}</>;
+      return rich(t('home.journal.skipped'), { who, title });
     case 'spin':
-      return <>{who} spun the wheel and landed on {t}</>;
+      return rich(t('home.journal.spin'), { who, title });
     case 'reviewed':
-      return <>{who} reviewed {t}</>;
+      return rich(t('home.journal.reviewed'), { who, title });
     case 'moved':
-      return e.status ? <>{who} moved {t} to {STATUS_LABEL[e.status]}</> : e.message;
+      return e.status ? rich(t('home.journal.moved'), { who, title, status: STATUS_LABEL[e.status] }) : e.message;
   }
 }
 
@@ -77,6 +78,7 @@ function sentence(e: JournalEntry, meId: string | undefined, onShelf: boolean): 
  * everything the viewer did on their shelf and in their rooms (Settings > Play journal). */
 export function JournalList({ roomId, onOpen }: { roomId?: string; onOpen: (e: JournalEntry & { gameId: string }) => void }) {
   const { user } = useAuth();
+  const t = useT();
   const { data, isLoading, isError } = useQuery({
     queryKey: ['journal', roomId ?? 'me'],
     // Always fresh when shown, and kept current while it's open (other members' moves land here too).
@@ -96,12 +98,12 @@ export function JournalList({ roomId, onOpen }: { roomId?: string; onOpen: (e: J
     return out;
   }, [entries]);
 
-  if (isLoading) return <span style={st('padding:24px 4px;font:400 14px var(--font-ui);color:var(--muted)')}>Loading…</span>;
-  if (isError) return <span style={st('padding:24px 4px;font:400 14px var(--font-ui);color:var(--muted)')}>Couldn't load the journal. Try again in a moment.</span>;
+  if (isLoading) return <span style={st('padding:24px 4px;font:400 14px var(--font-ui);color:var(--muted)')}>{t('common.loading')}</span>;
+  if (isError) return <span style={st('padding:24px 4px;font:400 14px var(--font-ui);color:var(--muted)')}>{t('home.journal.loadFailed')}</span>;
   if (entries.length === 0) {
     return (
       <span style={st('padding:24px 4px;font:400 14px/1.45 var(--font-ui);color:var(--muted);text-wrap:pretty')}>
-        Nothing yet. Mark a game Playing, then Beaten or Dropped, and it shows up here.
+        {t('home.journal.empty')}
       </span>
     );
   }
@@ -117,7 +119,7 @@ export function JournalList({ roomId, onOpen }: { roomId?: string; onOpen: (e: J
             const meta = [
               time(e.at),
               // The personal journal spans rooms: say where it happened.
-              roomId ? null : (e.roomName ?? 'Personal shelf'),
+              roomId ? null : (e.roomName ?? t('home.journal.personalShelf')),
               e.kind === 'reviewed' && e.score != null ? `★ ${e.score.toFixed(1)}/5` : null,
             ]
               .filter(Boolean)
@@ -131,8 +133,8 @@ export function JournalList({ roomId, onOpen }: { roomId?: string; onOpen: (e: J
                   />
                   <span
                     role="img"
-                    aria-label={icon.label}
-                    title={icon.label}
+                    aria-label={t(icon.label)}
+                    title={t(icon.label)}
                     style={st(
                       `position:absolute;right:-7px;bottom:-5px;width:24px;height:24px;border-radius:999px;display:flex;align-items:center;justify-content:center;font-size:12.5px;line-height:1;background:${icon.tint};backdrop-filter:blur(6px);-webkit-backdrop-filter:blur(6px);box-shadow:0 0 0 2px var(--sheet)`,
                     )}
@@ -146,8 +148,8 @@ export function JournalList({ roomId, onOpen }: { roomId?: string; onOpen: (e: J
                 </span>
                 {(e.minutesPlayed !== null || e.totalMinutes !== null) && (
                   <span style={st('flex-shrink:0;display:flex;flex-direction:column;align-items:flex-end;gap:2px;font:600 12.5px var(--font-mono)')}>
-                    {e.minutesPlayed !== null && <span title="Played this run">{formatMinutes(e.minutesPlayed)}</span>}
-                    {e.totalMinutes !== null && <span style={st('font-weight:500;color:var(--faint)')}>{formatMinutes(e.totalMinutes)} total</span>}
+                    {e.minutesPlayed !== null && <span title={t('home.journal.playedThisRun')}>{formatMinutes(e.minutesPlayed)}</span>}
+                    {e.totalMinutes !== null && <span style={st('font-weight:500;color:var(--faint)')}>{t('home.journal.total', { time: formatMinutes(e.totalMinutes) })}</span>}
                   </span>
                 )}
               </>

@@ -3,11 +3,13 @@ import { useUi } from '../context/UiContext';
 import { Avatar, BellIcon, PulseIcon } from '../ui/primitives';
 import { st } from '../ui/st';
 import { useShell } from './useShell';
+import { useT } from '../i18n';
 
 /** Phone top bar: a scrolling row of shelf/room tiles, then one button that opens Activity, Notifications and profile. */
 export function MobileTopBar() {
   const shell = useShell();
   const ui = useUi();
+  const t = useT();
   const { user } = shell;
   const tiles = [shell.shelfTile, ...shell.roomTiles];
   // Activity, notifications and settings share one button that opens a small menu, which leaves
@@ -29,20 +31,20 @@ export function MobileTopBar() {
       <div
         style={st('flex:1;min-width:0;display:flex;gap:10px;overflow-x:auto;margin:-6px 0 -6px -16px;padding:6px 6px 6px 16px')}
       >
-        {tiles.map((t) => {
-          const a = t.active && !shell.onActivity;
+        {tiles.map((tile) => {
+          const a = tile.active && !shell.onActivity;
           return (
             <button
-              key={t.id}
+              key={tile.id}
               type="button"
-              onClick={t.go}
-              aria-label={t.name}
+              onClick={tile.go}
+              aria-label={tile.name}
               style={st(
-                `position:relative;flex-shrink:0;width:44px;height:44px;border:none;border-radius:${a ? '15px' : '50%'};background:${t.color};color:#fff;font:600 12px var(--font-mono);box-shadow:${a ? '0 0 0 2px var(--bg), 0 0 0 4px var(--text)' : 'none'}`,
+                `position:relative;flex-shrink:0;width:44px;height:44px;border:none;border-radius:${a ? '15px' : '50%'};background:${tile.color};color:#fff;font:600 12px var(--font-mono);box-shadow:${a ? '0 0 0 2px var(--bg), 0 0 0 4px var(--text)' : 'none'}`,
               )}
             >
-              {t.short}
-              {t.dot && (
+              {tile.short}
+              {tile.dot && (
                 <span style={st('position:absolute;right:-2px;top:-2px;width:11px;height:11px;border-radius:50%;background:var(--dot);border:2px solid var(--bg)')} />
               )}
             </button>
@@ -51,7 +53,7 @@ export function MobileTopBar() {
         <button
           type="button"
           onClick={() => ui.openDialog('addRoom', { step: 'options' })}
-          aria-label="Create or join a room"
+          aria-label={t('shell.mobile.createOrJoin')}
           style={st("flex-shrink:0;width:44px;height:44px;border-radius:16px;border:1.5px dashed var(--line);background:transparent;color:var(--muted);font:500 20px var(--font-ui)")}
         >
           +
@@ -61,7 +63,7 @@ export function MobileTopBar() {
         <button
           type="button"
           onClick={() => setMenuOpen((o) => !o)}
-          aria-label="Activity, notifications and settings"
+          aria-label={t('shell.mobile.menu')}
           aria-haspopup="menu"
           aria-expanded={menuOpen}
           style={st(`position:relative;width:40px;height:40px;border-radius:50%;border:2px solid ${menuOpen || shell.onActivity ? 'var(--text)' : 'var(--line)'};padding:0;background:transparent`)}
@@ -75,7 +77,7 @@ export function MobileTopBar() {
           <>
             <button
               type="button"
-              aria-label="Close menu"
+              aria-label={t('shell.mobile.closeMenu')}
               tabIndex={-1}
               onClick={() => setMenuOpen(false)}
               style={st('position:fixed;inset:0;z-index:40;border:none;background:transparent;padding:0')}
@@ -84,13 +86,13 @@ export function MobileTopBar() {
               role="menu"
               style={st('position:absolute;right:0;top:48px;z-index:41;min-width:210px;display:flex;flex-direction:column;padding:6px;border-radius:18px;border:1px solid var(--line);background:var(--surf);box-shadow:0 12px 32px rgba(0,0,0,0.28)')}
             >
-              <MenuItem label="Friend activity" active={shell.onActivity} onClick={pick(shell.goActivity)}>
+              <MenuItem label={t('shell.nav.friendActivity')} active={shell.onActivity} onClick={pick(shell.goActivity)}>
                 <PulseIcon />
               </MenuItem>
-              <MenuItem label="Notifications" dot={shell.hasUnread} onClick={pick(() => ui.openDialog('notifications'))}>
+              <MenuItem label={t('shell.nav.notifications')} dot={shell.hasUnread} onClick={pick(() => ui.openDialog('notifications'))}>
                 <BellIcon />
               </MenuItem>
-              <MenuItem label="Profile and settings" onClick={pick(() => ui.openDialog('me'))}>
+              <MenuItem label={t('shell.nav.profileSettings')} onClick={pick(() => ui.openDialog('me'))}>
                 <Avatar name={user?.displayName ?? '?'} color={user?.avatarColor ?? '#E8734A'} avatarUrl={user?.avatarUrl} size={20} fontSize={9} />
               </MenuItem>
             </div>

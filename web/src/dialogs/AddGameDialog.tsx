@@ -18,6 +18,7 @@ import { useUi } from '../context/UiContext';
 import { Dialog } from '../ui/Dialog';
 import { Btn, ChipToggle, Cover, Kicker, SearchField, inputPill } from '../ui/primitives';
 import { st } from '../ui/st';
+import { t as tNow, useT } from '../i18n';
 
 const BarcodeScanner = lazy(() => import('./BarcodeScanner').then((m) => ({ default: m.BarcodeScanner })));
 
@@ -66,6 +67,7 @@ function ResultRow({
   /** An extra line under the platform, e.g. why it's recommended. */
   extra?: ReactNode;
 }) {
+  const t = useT();
   return (
     <div style={st(ROW)}>
       <Cover title={r.title} url={r.coverImageUrl} width={38} radius={7} />
@@ -78,7 +80,7 @@ function ResultRow({
         {extra}
       </div>
       <button type="button" onClick={onAdd} disabled={busy || added} style={st(ADD_BTN, added ? { background: 'var(--mintSoft)', color: 'var(--mint)' } : undefined)}>
-        {adding ? 'Adding…' : added ? (suggested ? 'Suggested ✓' : 'Added ✓') : 'Add'}
+        {adding ? t('add.game.adding') : added ? (suggested ? t('add.game.suggestedCheck') : t('add.game.addedCheck')) : t('common.add')}
       </button>
     </div>
   );
@@ -100,6 +102,7 @@ function OwnershipStep({
   onConfirm: (status: 'backlog' | 'wishlist', platforms: RoomPlatform[]) => void;
   onBack: () => void;
 }) {
+  const t = useT();
   const year = new Date().getFullYear();
   const { ownedPlatforms, refetch } = useAuth();
   const [addingSystems, setAddingSystems] = useState(false);
@@ -151,10 +154,10 @@ function OwnershipStep({
       {missingSystems.length > 0 && (
         <div role="status" style={st('display:flex;flex-direction:column;gap:10px;padding:12px 14px;border-radius:14px;background:var(--surf);border:1px solid var(--line);font:500 13.5px/1.4 var(--font-ui)')}>
           <span>
-            {missingSystems.map((p) => ROOM_PLATFORM_LABELS[p]).join(', ')} {missingSystems.length === 1 ? "isn't" : "aren't"} in your owned systems. You can still add this game.
+            {t(missingSystems.length === 1 ? 'add.ownership.missingSystems.one' : 'add.ownership.missingSystems.other', { systems: missingSystems.map((p) => ROOM_PLATFORM_LABELS[p]).join(', ') })}
           </span>
           <Btn kind="soft" height={38} fontSize={13} disabled={busy || addingSystems} onClick={addSystemsToProfile} style={{ alignSelf: 'flex-start' }}>
-            {addingSystems ? 'Adding…' : `Add ${missingSystems.map((p) => ROOM_PLATFORM_LABELS[p]).join(', ')} to my systems`}
+            {addingSystems ? t('add.game.adding') : t('add.ownership.addSystems', { systems: missingSystems.map((p) => ROOM_PLATFORM_LABELS[p]).join(', ') })}
           </Btn>
         </div>
       )}
@@ -162,8 +165,8 @@ function OwnershipStep({
       <div style={st('display:grid;grid-template-columns:1fr 1fr;gap:2px;padding:4px;border-radius:999px;background:var(--surf)')}>
         {(
           [
-            [true, 'I own this'],
-            [false, "Don't own it yet"],
+            [true, t('add.ownership.own')],
+            [false, t('add.ownership.notOwned')],
           ] as [boolean, string][]
         ).map(([k, l]) => (
           <button
@@ -196,9 +199,9 @@ function OwnershipStep({
               style={st('align-self:flex-start;display:flex;align-items:center;gap:6px;padding:4px 2px;border:none;background:none;color:var(--muted);font:600 13px var(--font-ui)')}
             >
               <span style={st(`display:inline-block;transition:transform 0.15s;transform:rotate(${showOthers ? 90 : 0}deg)`)}>›</span>
-              Other platforms
+              {t('add.ownership.otherPlatforms')}
               {!showOthers && otherPlatforms.some((p) => platforms.has(p)) && (
-                <span style={st('color:var(--accText)')}>· {otherPlatforms.filter((p) => platforms.has(p)).length} selected</span>
+                <span style={st('color:var(--accText)')}>{t('add.ownership.selectedCount', { n: otherPlatforms.filter((p) => platforms.has(p)).length })}</span>
               )}
             </button>
           )}
@@ -221,10 +224,10 @@ function OwnershipStep({
         disabled={busy || (owned && platforms.size === 0)}
         onClick={() => onConfirm(owned ? 'backlog' : 'wishlist', owned ? Array.from(platforms) : [])}
       >
-        {busy ? 'Adding…' : owned ? 'Add as owned' : 'Add to Wishlist'}
+        {busy ? t('add.game.adding') : owned ? t('add.ownership.addOwned') : t('add.ownership.addWishlist')}
       </Btn>
       <Btn kind="ghost" height={40} disabled={busy} onClick={onBack} style={{ alignSelf: 'flex-start' }}>
-        Back
+        {t('common.back')}
       </Btn>
     </>
   );
@@ -247,6 +250,7 @@ function CollectionReview({
   onBack: () => void;
   onBusy: (b: boolean) => void;
 }) {
+  const t = useT();
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState<string | null>(null);
   const [data, setData] = useState<CollectionGamesResult | null>(null);
@@ -275,7 +279,7 @@ function CollectionReview({
         setData(res);
         setSelected(new Set(res.games.map((g) => g.igdbId)));
       })
-      .catch((err) => !dead && setLoadError(err instanceof Error ? err.message : 'Could not load that collection'))
+      .catch((err) => !dead && setLoadError(err instanceof Error ? err.message : tNow('add.collection.loadFailed')))
       .finally(() => !dead && setLoading(false));
     return () => {
       dead = true;
@@ -311,16 +315,18 @@ function CollectionReview({
     onBusy(false);
     setProgress(null);
     if (added > 0 || suggested > 0) onAdded();
+    // Each part is a whole phrase of its own; the summary sentence lists them.
     const parts: string[] = [];
-    if (added) parts.push(`Added ${added} game${added === 1 ? '' : 's'}`);
-    if (suggested) parts.push(`Suggested ${suggested} for approval`);
-    if (!parts.length) parts.push('Added 0 games');
-    setSummary(failed.size ? `${parts.join(' · ')} - ${failed.size} couldn't be added.` : `${parts.join(' · ')}.`);
-    if (failed.size) setAddError(`${failed.size} failed to add - try again individually from search.`);
+    if (added) parts.push(tNow(added === 1 ? 'add.collection.part.added.one' : 'add.collection.part.added.other', { n: added }));
+    if (suggested) parts.push(tNow('add.collection.part.suggested', { n: suggested }));
+    if (!parts.length) parts.push(tNow('add.collection.part.added.other', { n: 0 }));
+    const joined = parts.join(tNow('add.collection.partSeparator'));
+    setSummary(failed.size ? tNow('add.collection.summaryWithFailures', { parts: joined, n: failed.size }) : tNow('add.collection.summary', { parts: joined }));
+    if (failed.size) setAddError(tNow('add.collection.failed', { n: failed.size }));
   }
 
-  if (loading) return <div style={st('color:var(--muted);font-size:14px')}>Loading collection…</div>;
-  if (loadError || !data) return <div role="alert" style={st('color:var(--danger);font-size:14px')}>{loadError ?? 'Could not load that collection'}</div>;
+  if (loading) return <div style={st('color:var(--muted);font-size:14px')}>{t('add.collection.loading')}</div>;
+  if (loadError || !data) return <div role="alert" style={st('color:var(--danger);font-size:14px')}>{loadError ?? t('add.collection.loadFailed')}</div>;
 
   return (
     <>
@@ -328,7 +334,7 @@ function CollectionReview({
       {summary && !addError && <div style={st('padding:12px 14px;border-radius:14px;background:var(--mintSoft);color:var(--mint);font:500 13.5px/1.4 var(--font-ui)')}>{summary}</div>}
       {data.games.length === 0 ? (
         <div style={st('color:var(--muted);font-size:14px')}>
-          {summary ? 'Nothing else left to add from this collection.' : `Nothing left to add from ${data.name}.`}
+          {summary ? t('add.collection.nothingElse') : t('add.collection.nothingLeft', { name: data.name })}
         </div>
       ) : (
         <div style={st('display:flex;flex-direction:column;gap:2px')}>
@@ -364,12 +370,12 @@ function CollectionReview({
             );
           })}
           <Btn kind="accent" height={48} fontSize={14} weight={700} disabled={adding || selected.size === 0} onClick={addSelected} style={{ marginTop: 10 }}>
-            {adding && progress ? `Adding ${progress.done}/${progress.total}…` : `Add ${selected.size} game${selected.size === 1 ? '' : 's'}`}
+            {adding && progress ? t('add.collection.addingProgress', { done: progress.done, total: progress.total }) : t(selected.size === 1 ? 'add.collection.addN.one' : 'add.collection.addN.other', { n: selected.size })}
           </Btn>
         </div>
       )}
       <Btn kind="ghost" height={40} disabled={adding} onClick={onBack} style={{ alignSelf: 'flex-start' }}>
-        Back to search
+        {t('add.collection.backToSearch')}
       </Btn>
     </>
   );
@@ -378,11 +384,11 @@ function CollectionReview({
 /** "Add to {shelf/room}": search IGDB (or browse what's trending), scan a box's barcode, or jump to
  * library import. Adding several in a row keeps the dialog open. */
 export function AddGameDialog() {
+  const t = useT();
   const scope = useScope();
   const ui = useUi();
   const announceUnlock = useAnnounceUnlock();
   const roomId = scope.isShelf ? null : scope.scopeId;
-  const target = scope.isShelf ? 'your shelf' : (scope.room?.name ?? 'this room');
 
   const close = () => ui.closeDialog('add');
   const onAdded = () => {
@@ -511,7 +517,7 @@ export function AddGameDialog() {
           .catch((err) => {
             if (id !== reqId.current) return;
             setHasMore(false);
-            setLoadMoreError(err instanceof Error ? err.message : 'Could not load more results.');
+            setLoadMoreError(err instanceof Error ? err.message : tNow('add.game.loadMoreFailed'));
           })
           .finally(() => id === reqId.current && setLoadingMore(false));
       },
@@ -531,15 +537,22 @@ export function AddGameDialog() {
       setAddedIds((prev) => new Set(prev).add(result.igdbId));
       if ('suggestion' in res) {
         setSuggestedIds((prev) => new Set(prev).add(result.igdbId));
-        ui.notify(`Suggested ${result.title}. A moderator will review it.`);
+        ui.notify(tNow('add.game.suggested', { title: result.title }));
       } else {
         // One toast: a second notify() would replace the first straight away.
-        const coopWarn = roomId && res.game.maxCoopPlayers == null ? ` ⚠️ It doesn't appear to support co-op.` : '';
-        ui.notify(`Added ${result.title} to ${scope.isShelf ? 'your shelf' : (scope.room?.name ?? 'the room')}.${coopWarn}`);
+        const noCoop = !!roomId && res.game.maxCoopPlayers == null;
+        const room = scope.room?.name;
+        ui.notify(
+          scope.isShelf
+            ? tNow('add.game.addedToShelf', { title: result.title })
+            : room != null
+              ? tNow(noCoop ? 'add.game.addedToRoomNoCoop' : 'add.game.addedToRoom', { title: result.title, room })
+              : tNow(noCoop ? 'add.game.addedToTheRoomNoCoop' : 'add.game.addedToTheRoom', { title: result.title }),
+        );
       }
       return true;
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Could not add that game');
+      setError(err instanceof Error ? err.message : tNow('add.game.addFailed'));
       return false;
     } finally {
       setAddingId(null);
@@ -580,7 +593,7 @@ export function AddGameDialog() {
     <>
       <Dialog
         onClose={collectionBusy ? () => {} : close}
-        title={pending ? `Add "${pending.title}"` : collection ? collection.name : `Add to ${target}`}
+        title={pending ? t('add.game.addTitle', { title: pending.title }) : collection ? collection.name : scope.isShelf ? t('add.game.addToShelf') : scope.room?.name != null ? t('add.game.addToRoom', { room: scope.room.name }) : t('add.game.addToThisRoom')}
         height="tall"
         bare={false}
         padded={false}
@@ -590,8 +603,8 @@ export function AddGameDialog() {
               <SearchField
                 value={query}
                 onChange={setQuery}
-                placeholder="Search games"
-                ariaLabel="Search games"
+                placeholder={t('add.manualMatch.searchGames')}
+                ariaLabel={t('add.manualMatch.searchGames')}
                 autoFocus
                 disabled={busy}
                 style="height:48px;padding-left:18px;border-radius:999px;background:var(--surf);border:1px solid var(--line);color:var(--text);font-size:16px;outline:none"
@@ -599,21 +612,21 @@ export function AddGameDialog() {
               <div style={st('display:flex;gap:8px;flex-wrap:wrap')}>
                 {roomId === null && (
                   <Btn height={36} padX={14} fontSize={13} onClick={() => setScanning(true)} style={{ color: 'var(--text2)' }}>
-                    Scan a barcode
+                    {t('add.barcode.title')}
                   </Btn>
                 )}
                 {roomId === null && (
                   <Btn height={36} padX={14} fontSize={13} onClick={() => ui.openDialog('import')} style={{ color: 'var(--text2)' }}>
-                    Import library
+                    {t('add.game.importLibrary')}
                   </Btn>
                 )}
                 {canScopeToOwned && (
                   <ChipToggle on={ownedOnlyPref} onClick={toggleOwnedOnly} height={36} fontSize={13}>
-                    Owned systems only
+                    {t('add.game.ownedOnly')}
                   </ChipToggle>
                 )}
                 <ChipToggle on={hideAddons} onClick={() => setHideAddons((v) => !v)} height={36} fontSize={13}>
-                  Hide DLC &amp; add-ons
+                  {t('add.game.hideAddons')}
                 </ChipToggle>
               </div>
             </div>
@@ -647,7 +660,7 @@ export function AddGameDialog() {
                 <div style={st('display:flex;flex-wrap:wrap;gap:6px;padding:0 8px 8px')}>
                   {collections.map((c) => (
                     <button key={c.collectionId} type="button" onClick={() => setCollection(c)} style={st('height:34px;padding:0 14px;border-radius:999px;border:1px dashed var(--line);background:transparent;color:var(--text2);font:600 13px var(--font-ui)')}>
-                      📚 {c.name} · View series
+                      {t('add.game.viewSeries', { name: c.name })}
                     </button>
                   ))}
                 </div>
@@ -655,14 +668,14 @@ export function AddGameDialog() {
               {!showingResults && (recs.length > 0 || coopOnly) && (
                 <>
                   <span style={st('display:flex;align-items:center;justify-content:space-between;gap:8px;padding:8px 8px 6px')}>
-                    <Kicker size={11.5}>RECOMMENDED</Kicker>
+                    <Kicker size={11.5}>{t('add.game.recommended')}</Kicker>
                     {roomId !== null && (
                       <ChipToggle on={coopOnly} onClick={() => setCoopOnly((v) => !v)} height={30} fontSize={12.5}>
-                        Co-op only
+                        {t('add.game.coopOnly')}
                       </ChipToggle>
                     )}
                   </span>
-                  {recs.length === 0 && <div style={st('padding:4px 10px 10px;color:var(--muted);font-size:13.5px')}>No co-op games like these yet.</div>}
+                  {recs.length === 0 && <div style={st('padding:4px 10px 10px;color:var(--muted);font-size:13.5px')}>{t('add.game.noCoopRecs')}</div>}
                   {recs.slice(0, 8).map((r) => (
                     <ResultRow
                       key={`rec-${r.igdbId}`}
@@ -675,8 +688,8 @@ export function AddGameDialog() {
                       extra={
                         <span style={st('display:flex;flex-wrap:wrap;align-items:center;gap:6px;font:500 12px var(--font-ui);color:var(--accText)')}>
                           {r.reason}
-                          {r.coop && <span style={st(TAG)}>Co-op</span>}
-                          {r.singlePlayerOnly && <span style={st(TAG)}>Single player</span>}
+                          {r.coop && <span style={st(TAG)}>{t('add.game.coopTag')}</span>}
+                          {r.singlePlayerOnly && <span style={st(TAG)}>{t('add.game.singlePlayerTag')}</span>}
                         </span>
                       }
                     />
@@ -684,9 +697,9 @@ export function AddGameDialog() {
                 </>
               )}
               <span style={{ display: 'block', padding: '8px 8px 6px' }}>
-                <Kicker size={11.5}>{showingResults ? 'RESULTS' : 'TRENDING'}</Kicker>
+                <Kicker size={11.5}>{showingResults ? t('add.game.results') : t('add.game.trending')}</Kicker>
               </span>
-              {searching && <div style={st('padding:8px;color:var(--muted);font-size:14px')}>Searching…</div>}
+              {searching && <div style={st('padding:8px;color:var(--muted);font-size:14px')}>{t('add.manualMatch.searching')}</div>}
               {list.map((r) => (
                 <ResultRow
                   key={r.igdbId}
@@ -699,11 +712,11 @@ export function AddGameDialog() {
                 />
               ))}
               {showingResults && hasMore && <div ref={sentinel} style={{ height: 1 }} aria-hidden="true" />}
-              {loadingMore && <div style={st('padding:8px;color:var(--muted);font-size:14px')}>Loading more…</div>}
+              {loadingMore && <div style={st('padding:8px;color:var(--muted);font-size:14px')}>{t('add.game.loadingMore')}</div>}
               {loadMoreError && !loadingMore && <div style={st('padding:8px;color:var(--danger);font-size:14px')}>{loadMoreError}</div>}
               {!searching && list.length === 0 && (
                 <div style={st('padding:18px 10px;color:var(--muted);font-size:14px')}>
-                  {showingResults ? "No matches. Try another title, or scan the box's barcode." : 'Nothing to show yet. Search for a game above.'}
+                  {showingResults ? t('add.game.noMatches') : t('add.game.nothingYet')}
                 </div>
               )}
             </>

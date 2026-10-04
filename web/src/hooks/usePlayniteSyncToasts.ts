@@ -6,6 +6,7 @@ import { useToast } from '../context/ToastContext';
 import { useAnnounceUnlock } from '../context/AchievementUnlockContext';
 import { playniteImportApi, PLAYNITE_IMPORT_PROGRESS_QUERY_KEY } from '../api/playniteImport';
 import { summarizePlayniteSyncCompletion } from './playniteSyncSummary';
+import { t } from '../i18n';
 
 // Not time-critical the way useActiveRoomSpinToasts' 2s poll is (a spin's waiting room closes in
 // 30s; a Playnite sync just needs to feel noticed, not caught mid-window) - a Playnite import can
@@ -65,7 +66,7 @@ export function usePlayniteSyncToasts() {
       seenStartedAtRef.current = progress.startedAt;
       showToast({
         id: startedToastId(progress.startedAt),
-        message: 'Playnite library sync started - this can take a bit for a big library.',
+        message: t('add.playnite.syncStarted'),
         actions: [],
       });
       return;
@@ -80,7 +81,7 @@ export function usePlayniteSyncToasts() {
       showToast({
         id: `playnite-sync-complete-${progress.startedAt}`,
         message: summarizePlayniteSyncCompletion(progress),
-        actions: progress.unmatched > 0 ? [{ label: 'Review', onClick: () => ui.openDialog('needsReview') }] : [],
+        actions: progress.unmatched > 0 ? [{ label: t('add.playnite.review'), onClick: () => ui.openDialog('needsReview') }] : [],
       });
       if (progress.unlockedBadges) announceUnlock(progress.unlockedBadges);
     }

@@ -4,6 +4,7 @@ import { gamesApi } from '../api/games';
 import { tagsApi } from '../api/tags';
 import { useCurrencyRegion } from '../context/CurrencyRegionContext';
 import { useAnnounceUnlock } from '../context/AchievementUnlockContext';
+import { t } from '../i18n';
 import type { Game, GameStatus, SetGameReviewRequest, ShelfSyncSuggestion, VoteValue } from '@queueup/shared';
 
 const GAMES_QUERY_ROOT = ['games'] as const;
@@ -90,7 +91,7 @@ export function useGames(roomId: string | null) {
       void queryClient.invalidateQueries({ queryKey: ['journal'] });
       announceUnlock(unlockedBadges);
     },
-    onError: (err) => setActionError(errorMessage(err, 'Could not update that game\'s status.')),
+    onError: (err) => setActionError(errorMessage(err, t('shell.games.error.status'))),
   });
 
   const syncShelfBeaten = useMutation({
@@ -102,7 +103,7 @@ export function useGames(roomId: string | null) {
       queryClient.invalidateQueries({ queryKey: GAMES_QUERY_ROOT });
       announceUnlock(unlockedBadges);
     },
-    onError: (err) => setActionError(errorMessage(err, 'Could not update your Personal Shelf.')),
+    onError: (err) => setActionError(errorMessage(err, t('shell.games.error.shelf'))),
   });
 
   const vote = useMutation({
@@ -113,7 +114,7 @@ export function useGames(roomId: string | null) {
       // The room's red "needs your vote" dot should clear as soon as the last vote lands.
       void queryClient.invalidateQueries({ queryKey: ['attention'] });
     },
-    onError: (err) => setActionError(errorMessage(err, 'Could not save your vote.')),
+    onError: (err) => setActionError(errorMessage(err, t('shell.games.error.vote'))),
   });
 
   const unvote = useMutation({
@@ -122,19 +123,19 @@ export function useGames(roomId: string | null) {
       patchGame(game);
       void queryClient.invalidateQueries({ queryKey: ['attention'] });
     },
-    onError: (err) => setActionError(errorMessage(err, 'Could not clear your vote.')),
+    onError: (err) => setActionError(errorMessage(err, t('shell.games.error.clearVote'))),
   });
 
   const setReleaseAlert = useMutation({
     mutationFn: ({ gameId, enabled }: { gameId: string; enabled: boolean }) => gamesApi.setReleaseAlert(gameId, enabled),
     onSuccess: ({ game }) => patchGame(game),
-    onError: (err) => setActionError(errorMessage(err, 'Could not change that release alert.')),
+    onError: (err) => setActionError(errorMessage(err, t('shell.games.error.releaseAlert'))),
   });
 
   const setHidden = useMutation({
     mutationFn: ({ gameId, hidden }: { gameId: string; hidden: boolean }) => gamesApi.setHidden(gameId, { hidden }),
     onSuccess: ({ game }) => patchGame(game),
-    onError: (err) => setActionError(errorMessage(err, 'Could not change that game\'s visibility.')),
+    onError: (err) => setActionError(errorMessage(err, t('shell.games.error.visibility'))),
   });
 
   const setReview = useMutation({
@@ -145,13 +146,13 @@ export function useGames(roomId: string | null) {
       void queryClient.invalidateQueries({ queryKey: ['friends', 'activity'] });
       void queryClient.invalidateQueries({ queryKey: ['journal'] });
     },
-    onError: (err) => setActionError(errorMessage(err, 'Could not save that review.')),
+    onError: (err) => setActionError(errorMessage(err, t('shell.games.error.review'))),
   });
 
   const remove = useMutation({
     mutationFn: (gameId: string) => gamesApi.remove(gameId),
     onSuccess: (_data, gameId) => removeGameFromCache(gameId),
-    onError: (err) => setActionError(errorMessage(err, 'Could not remove that game.')),
+    onError: (err) => setActionError(errorMessage(err, t('shell.games.error.remove'))),
   });
 
   const voteRemove = useMutation({
@@ -160,7 +161,7 @@ export function useGames(roomId: string | null) {
       if (removed) removeGameFromCache(gameId);
       else if (game) patchGame(game);
     },
-    onError: (err) => setActionError(errorMessage(err, 'Could not save your vote.')),
+    onError: (err) => setActionError(errorMessage(err, t('shell.games.error.vote'))),
   });
 
   const unvoteRemove = useMutation({
@@ -168,13 +169,13 @@ export function useGames(roomId: string | null) {
     onSuccess: ({ game }) => {
       if (game) patchGame(game);
     },
-    onError: (err) => setActionError(errorMessage(err, 'Could not withdraw your vote.')),
+    onError: (err) => setActionError(errorMessage(err, t('shell.games.error.withdrawVote'))),
   });
 
   const refreshPrice = useMutation({
     mutationFn: (gameId: string) => gamesApi.refreshPrice(gameId, region),
     onSuccess: ({ game }) => patchGame(game),
-    onError: (err) => setActionError(errorMessage(err, 'Could not refresh that game\'s price.')),
+    onError: (err) => setActionError(errorMessage(err, t('shell.games.error.refreshPrice'))),
   });
 
   const bulkUpdateStatus = useMutation({
@@ -184,27 +185,27 @@ export function useGames(roomId: string | null) {
       patchGames(updated);
       announceUnlock(unlockedBadges);
     },
-    onError: (err) => setActionError(errorMessage(err, 'Could not update those games.')),
+    onError: (err) => setActionError(errorMessage(err, t('shell.games.error.bulkUpdate'))),
   });
 
   const bulkRemove = useMutation({
     mutationFn: (gameIds: string[]) => gamesApi.bulkRemove({ gameIds }),
     onSuccess: (_data, gameIds) => removeGamesFromCache(gameIds),
-    onError: (err) => setActionError(errorMessage(err, 'Could not remove those games.')),
+    onError: (err) => setActionError(errorMessage(err, t('shell.games.error.bulkRemove'))),
   });
 
   const setTargetPrice = useMutation({
     mutationFn: ({ gameId, targetPrice }: { gameId: string; targetPrice: string | null }) =>
       gamesApi.setTargetPrice(gameId, { targetPrice }),
     onSuccess: ({ game }) => patchGame(game),
-    onError: (err) => setActionError(errorMessage(err, 'Could not save that price alert.')),
+    onError: (err) => setActionError(errorMessage(err, t('shell.games.error.priceAlert'))),
   });
 
   const setManualPrice = useMutation({
     mutationFn: ({ gameId, manualPrice }: { gameId: string; manualPrice: string | null }) =>
       gamesApi.setManualPrice(gameId, { manualPrice }),
     onSuccess: ({ game }) => patchGame(game),
-    onError: (err) => setActionError(errorMessage(err, 'Could not save that price.')),
+    onError: (err) => setActionError(errorMessage(err, t('shell.games.error.price'))),
   });
 
   const setOwnership = useMutation({
@@ -213,21 +214,21 @@ export function useGames(roomId: string | null) {
       patchGame(game);
       announceUnlock(unlockedBadges);
     },
-    onError: (err) => setActionError(errorMessage(err, 'Could not update ownership.')),
+    onError: (err) => setActionError(errorMessage(err, t('shell.games.error.ownership'))),
   });
 
   const setPrerequisite = useMutation({
     mutationFn: ({ gameId, prerequisiteGameId }: { gameId: string; prerequisiteGameId: string | null }) =>
       gamesApi.setPrerequisite(gameId, { prerequisiteGameId }),
     onSuccess: ({ game }) => patchGame(game),
-    onError: (err) => setActionError(errorMessage(err, 'Could not save that.')),
+    onError: (err) => setActionError(errorMessage(err, t('shell.games.error.save'))),
   });
 
   const setSteamMatch = useMutation({
     mutationFn: ({ gameId, steamAppId }: { gameId: string; steamAppId: number | null }) =>
       gamesApi.setSteamMatch(gameId, { steamAppId }),
     onSuccess: ({ game }) => patchGame(game),
-    onError: (err) => setActionError(errorMessage(err, 'Could not save that price match.')),
+    onError: (err) => setActionError(errorMessage(err, t('shell.games.error.priceMatch'))),
   });
 
   // Applies/removes a tag on one game (issue #247) - same patch-the-cache shape as
@@ -239,13 +240,13 @@ export function useGames(roomId: string | null) {
       patchGame(game);
       announceUnlock(unlockedBadges);
     },
-    onError: (err) => setActionError(errorMessage(err, 'Could not add that tag.')),
+    onError: (err) => setActionError(errorMessage(err, t('shell.games.error.addTag'))),
   });
 
   const removeTag = useMutation({
     mutationFn: ({ gameId, tagId }: { gameId: string; tagId: string }) => tagsApi.removeFromGame(gameId, tagId),
     onSuccess: ({ game }) => patchGame(game),
-    onError: (err) => setActionError(errorMessage(err, 'Could not remove that tag.')),
+    onError: (err) => setActionError(errorMessage(err, t('shell.games.error.removeTag'))),
   });
 
   const move = useMutation({
@@ -254,7 +255,7 @@ export function useGames(roomId: string | null) {
     // A move changes which list(s) a game belongs to, not just this one - invalidate every
     // games query (shelf and every room, any region) rather than just the current view's.
     onSuccess: () => queryClient.invalidateQueries({ queryKey: GAMES_QUERY_ROOT }),
-    onError: (err) => setActionError(errorMessage(err, 'Could not move that game.')),
+    onError: (err) => setActionError(errorMessage(err, t('shell.games.error.move'))),
   });
 
   return {
@@ -263,7 +264,7 @@ export function useGames(roomId: string | null) {
     totalCount: query.data?.totalCount ?? 0,
     isLoading: query.isLoading,
     isError: query.isError,
-    loadError: query.error ? errorMessage(query.error, 'Could not load games.') : null,
+    loadError: query.error ? errorMessage(query.error, t('shell.games.error.load')) : null,
     refetch: query.refetch,
     invalidate,
     actionError,
