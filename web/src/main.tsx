@@ -3,6 +3,7 @@ import { createRoot } from 'react-dom/client';
 import { BrowserRouter } from 'react-router';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import App from './App';
+import { I18nProvider } from './i18n';
 import { AuthProvider } from './context/AuthContext';
 import { ThemeModeProvider } from './context/ThemeModeContext';
 import { CurrencyRegionProvider } from './context/CurrencyRegionContext';
@@ -28,6 +29,7 @@ createRoot(document.getElementById('root')!).render(
   <StrictMode>
     <QueryClientProvider client={queryClient}>
       <BrowserRouter basename={getBasePath()}>
+        <I18nProvider>
         <AuthProvider>
           <ThemeModeProvider>
             <CurrencyRegionProvider>
@@ -47,6 +49,7 @@ createRoot(document.getElementById('root')!).render(
             </CurrencyRegionProvider>
           </ThemeModeProvider>
         </AuthProvider>
+        </I18nProvider>
       </BrowserRouter>
     </QueryClientProvider>
   </StrictMode>,

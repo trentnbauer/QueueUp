@@ -338,7 +338,7 @@ async function runPlayniteImportLoop(
     });
     if (matched > 0) await invalidateExistingIgdbIds(null, userId);
     await recordSyncSources(userId, matchedIgdbIds, 'playnite');
-    if (seenPlatforms.size > 0) await unionOwnedPlatforms(userId, [...seenPlatforms]);
+    if (seenPlatforms.size > 0) await unionOwnedPlatforms(userId, [...seenPlatforms], 'Your Playnite sync');
   } finally {
     // Issue #583: routes/pendingLibraryImports.ts now exposes this same progress row to a
     // cookie-authenticated browser session (usePlayniteSyncToasts.ts polls it), so unlockedBadges

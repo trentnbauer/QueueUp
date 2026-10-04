@@ -16,7 +16,17 @@ import {
 } from '../services/configResolver.js';
 import { sendMail, smtpIsConfigured } from '../services/mailer.js';
 import { getTunnelStatus, reloadTunnel } from '../services/cloudflareTunnel.js';
-import type { ConfigSource, AdminIntegrationStatus, AdminRoomSummary, AdminUserSummary, AdminAuditLogEntry } from '@queueup/shared';
+import type { ConfigSource, AdminIntegrationStatus, AdminRoomDetail, AdminRoomSummary, AdminUserSummary, AdminAuditLogEntry } from '@queueup/shared';
+import { normalizeSpinTheme } from '@queueup/shared';
+import { redis } from '../services/redisClient.js';
+import { ADMIN_MANAGE_TTL_SECONDS, adminManageKey, adminManagedRoomIds } from '../services/roomAccess.js';
+import { logRoomActivity } from '../services/roomActivity.js';
+
+/** When the administrator's "Manage as Room Master" for the room runs out, or null if it's off. */
+async function managingUntil(userId: string, roomId: string): Promise<string | null> {
+  const ttl = await redis.ttl(adminManageKey(userId, roomId));
+  return ttl > 0 ? new Date(Date.now() + ttl * 1000).toISOString() : null;
+}
 
 // Human-readable labels for audit log entries / error messages - keyed by the same ConfigKey used
 // server-side and sent from the client, so a typo'd key surfaces a clear "unknown setting" error.
@@ -323,7 +333,9 @@ export default async function adminRoutes(app: FastifyInstance) {
       include: { creator: true, _count: { select: { members: true, games: true } } },
       orderBy: { createdAt: 'asc' },
     });
-    const summaries: AdminRoomSummary[] = rooms.map((r) => ({
+    const managed = new Set(await adminManagedRoomIds(userId));
+    const until = await Promise.all(rooms.map((r) => (managed.has(r.id) ? managingUntil(userId, r.id) : null)));
+    const summaries: AdminRoomSummary[] = rooms.map((r, i) => ({
       id: r.id,
       name: r.name,
       platform: r.platform,
@@ -332,8 +344,85 @@ export default async function adminRoutes(app: FastifyInstance) {
       memberCount: r._count.members,
       gameCount: r._count.games,
       createdAt: r.createdAt.toISOString(),
+      managingUntil: until[i],
     }));
     return { rooms: summaries };
+  });
+
+  // #792: a read-only look at any room - its settings, members and games - without joining it.
+  app.get<{ Params: { id: string } }>('/api/admin/rooms/:id', async (request) => {
+    const userId = await request.requireAuth();
+    await requireAdmin(userId);
+    const r = await prisma.room.findUnique({
+      where: { id: request.params.id },
+      include: {
+        creator: true,
+        members: { include: { user: true }, orderBy: { joinedAt: 'asc' } },
+        games: { where: { archivedAt: null }, include: { votes: { select: { value: true } }, adder: { select: { displayName: true } } }, orderBy: { createdAt: 'desc' } },
+        _count: { select: { members: true, games: true } },
+      },
+    });
+    if (!r) throw new HttpError(404, 'Room not found');
+    const detail: AdminRoomDetail = {
+      room: {
+        id: r.id,
+        name: r.name,
+        platform: r.platform,
+        createdBy: r.createdBy,
+        creatorDisplayName: r.creator.displayName,
+        memberCount: r._count.members,
+        gameCount: r._count.games,
+        createdAt: r.createdAt.toISOString(),
+        managingUntil: await managingUntil(userId, r.id),
+        isPublic: r.isPublic,
+        requireGameApproval: r.requireGameApproval,
+        invitePermission: r.invitePermission,
+        spinOwnershipMaxPrice: r.spinOwnershipMaxPrice,
+        spinWheelTheme: normalizeSpinTheme(r.spinWheelTheme),
+      },
+      members: r.members.map((m) => ({
+        user: { id: m.user.id, displayName: m.user.displayName, avatarColor: m.user.avatarColor, avatarUrl: m.user.avatarUrl, isAdmin: m.user.isAdmin },
+        role: m.role,
+        joinedAt: m.joinedAt.toISOString(),
+      })),
+      games: r.games.map((g) => ({
+        id: g.id,
+        title: g.title,
+        status: g.status,
+        voteScore: g.votes.reduce((sum, v) => sum + v.value, 0),
+        coverImageUrl: g.coverImageUrl,
+        addedByName: g.adder.displayName,
+      })),
+    };
+    return detail;
+  });
+
+  // #792: "Manage as Room Master" - for the next hour the administrator can change anything in the
+  // room as if they owned it (see requireMembership), without joining it or replacing its actual
+  // Room Master. Audited, and posted to the room's activity feed so its members can see it.
+  app.post<{ Params: { id: string } }>('/api/admin/rooms/:id/manage', sensitiveAdminActionRateLimit, async (request) => {
+    const actorId = await request.requireAuth();
+    const actor = await requireAdmin(actorId);
+    const room = await prisma.room.findUnique({ where: { id: request.params.id }, select: { id: true, name: true } });
+    if (!room) throw new HttpError(404, 'Room not found');
+    await redis.set(adminManageKey(actorId, room.id), '1', 'EX', ADMIN_MANAGE_TTL_SECONDS);
+    app.log.warn({ adminAction: 'room.manage', actorId, targetId: room.id }, `Admin ${actorId} is managing room ${room.id} (${room.name})`);
+    await logAdminAction({ actorId, actorLabel: actor.email, action: 'room.manage', targetLabel: room.name, metadata: { targetId: room.id } });
+    void logRoomActivity({
+      roomId: room.id,
+      actorId,
+      type: 'admin_manage',
+      message: (actorName) => `${actorName} (server administrator) is managing this room`,
+    });
+    return { managingUntil: await managingUntil(actorId, room.id) };
+  });
+
+  app.delete<{ Params: { id: string } }>('/api/admin/rooms/:id/manage', async (request, reply) => {
+    const actorId = await request.requireAuth();
+    await requireAdmin(actorId);
+    await redis.del(adminManageKey(actorId, request.params.id));
+    reply.status(204);
+    return null;
   });
 
   app.delete<{ Params: { id: string } }>('/api/admin/rooms/:id', async (request, reply) => {

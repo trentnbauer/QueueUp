@@ -34,14 +34,22 @@ export async function setOwnedPlatforms(userId: string, platforms: unknown): Pro
   }
   // Dedupe, and drop the DB round trip if nothing actually changed.
   const deduped = Array.from(new Set(platforms as RoomPlatform[]));
-  const before = await prisma.user.findUnique({ where: { id: userId }, select: { ownedPlatforms: true } });
-  const updated = await prisma.user.update({
-    where: { id: userId },
-    data: { ownedPlatforms: deduped },
-  });
+  const before = await prisma.user.findUnique({ where: { id: userId }, select: { ownedPlatforms: true, dismissedPlatforms: true, declinedPlatforms: true } });
   const had = new Set(before?.ownedPlatforms ?? []);
   const added = deduped.filter((p) => !had.has(p));
   const removed = [...had].filter((p) => !deduped.includes(p));
+  // An unticked console stays unticked through library syncs (they ask instead, see
+  // unionOwnedPlatforms); ticking it again clears that.
+  const dismissed = Array.from(new Set([...(before?.dismissedPlatforms ?? []), ...removed])).filter((p) => !deduped.includes(p));
+  const declined = (before?.declinedPlatforms ?? []).filter((p) => !deduped.includes(p) && !removed.includes(p));
+  const updated = await prisma.user.update({
+    where: { id: userId },
+    data: { ownedPlatforms: deduped, dismissedPlatforms: dismissed, declinedPlatforms: declined },
+  });
+  // Unticking (again) re-arms the "Add it back?" question for that console.
+  if (removed.length > 0) {
+    await prisma.notification.deleteMany({ where: { recipientId: userId, type: 'platform_unowned', platform: { in: removed } } });
+  }
   logConsolesAdded(userId, added);
   if (added.length > 0 || removed.length > 0) {
     const names = (list: RoomPlatform[]) => list.map((p) => ROOM_PLATFORM_LABELS[p]).join(', ');
@@ -55,10 +63,32 @@ export async function setOwnedPlatforms(userId: string, platforms: unknown): Pro
  * - used to auto-tick a system when a library import (e.g. Playnite) reports games on it, so a
  * user who's clearly playing on a system they never got around to ticking manually doesn't stay
  * filtered out of it (see ROOM_PLATFORM_LABELS / ProfileSettingsView's "Systems owned" list, the
- * same setting this writes to). A no-op, not an error, for platforms already ticked. */
-export async function unionOwnedPlatforms(userId: string, platforms: RoomPlatform[]): Promise<RoomPlatform[]> {
+ * same setting this writes to). A no-op, not an error, for platforms already ticked.
+ *
+ * A console the person unticked themselves is never ticked again this way: they get a
+ * platform_unowned notification asking whether to add it (once per console, until they answer). */
+export async function unionOwnedPlatforms(userId: string, platforms: RoomPlatform[], source = 'A library sync'): Promise<RoomPlatform[]> {
   if (platforms.length === 0) return getOwnedPlatforms(userId);
   const user = await prisma.user.findUniqueOrThrow({ where: { id: userId } });
+  const unticked = [...new Set(platforms)].filter((p) => user.dismissedPlatforms.includes(p) && !user.ownedPlatforms.includes(p));
+  for (const platform of unticked) {
+    if (user.declinedPlatforms.includes(platform)) continue;
+    // Asked once per untick: a question that was dismissed or read without an answer still counts.
+    const asked = await prisma.notification.count({ where: { recipientId: userId, type: 'platform_unowned', platform } });
+    if (asked) continue;
+    const name = ROOM_PLATFORM_LABELS[platform];
+    await prisma.notification.create({
+      data: {
+        recipientId: userId,
+        roomName: 'Personal Shelf',
+        type: 'platform_unowned',
+        platform,
+        message: `${source} found games for ${name}, which isn't in your Systems owned. Add ${name}?`,
+      },
+    });
+  }
+  platforms = platforms.filter((p) => !unticked.includes(p));
+  if (platforms.length === 0) return user.ownedPlatforms;
   const merged = Array.from(new Set([...user.ownedPlatforms, ...platforms]));
   if (merged.length === user.ownedPlatforms.length) return user.ownedPlatforms;
   const updated = await prisma.user.update({ where: { id: userId }, data: { ownedPlatforms: merged } });
@@ -123,4 +153,16 @@ export async function setPublicProfileEnabled(userId: string, enabled: unknown):
     data: { publicProfileEnabled: enabled, profileVisibility: enabled ? 'public' : 'friends' },
   });
   return updated.publicProfileEnabled;
+}
+
+/** The answer to a platform_unowned notification: Yes ticks the console in Systems owned, No stops
+ * asking about it (until it's ticked and unticked again). Either way the question is marked read. */
+export async function answerUnownedPlatform(userId: string, platform: RoomPlatform, add: boolean): Promise<RoomPlatform[]> {
+  const user = await prisma.user.findUniqueOrThrow({ where: { id: userId } });
+  await prisma.notification.updateMany({ where: { recipientId: userId, type: 'platform_unowned', platform, readAt: null }, data: { readAt: new Date() } });
+  if (add) return setOwnedPlatforms(userId, [...user.ownedPlatforms, platform]);
+  if (!user.declinedPlatforms.includes(platform)) {
+    await prisma.user.update({ where: { id: userId }, data: { declinedPlatforms: { push: platform } } });
+  }
+  return user.ownedPlatforms;
 }

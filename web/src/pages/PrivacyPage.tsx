@@ -178,7 +178,40 @@ export function PrivacyPage({ signedIn }: { signedIn: boolean }) {
               'IGDB (via Twitch) for game details, Steam for library, wishlist and playtime data, and GG.deals for prices. These receive game titles and ids, and the Steam ID you link.',
               'Discord, only if a Room Master adds a webhook: room events are posted to that channel.',
               'The operator\'s email server, only if email alerts are set up and you opt in: it receives your email address and the text of your alerts.',
-              'Cloudflare Turnstile, if the operator turns on the sign-in security check; Google Analytics, only if the operator turns it on and you choose to share usage stats, which records the pages you visit (with room, profile and invite ids removed from the address), your browser and device type, and an approximate location, using cookies; YouTube (privacy-enhanced mode) when you play a trailer; and Google Fonts for the typefaces.',
+              'Cloudflare Turnstile, if the operator turns on the sign-in security check; Google Analytics, only if you choose to share usage stats (see below); YouTube (privacy-enhanced mode) when you play a trailer; and Google Fonts for the typefaces.',
+            ]}
+          />
+        </Section>
+
+        <Section title="Google Analytics">
+          <p style={st(P)}>
+            The operator of this server can connect Google Analytics to see which parts of QueueUp get used. It's off unless they set it up, and even
+            then nothing is sent for you until you say yes, either during setup or with <b>Share usage stats</b> in Settings → Sharing. Your answer
+            is kept in this browser, so a new browser or device asks again.
+          </p>
+          <List
+            items={[
+              <>
+                <b>What Google receives:</b> the pages you open, with room, profile and friend ids and invite and email-confirmation codes replaced
+                (for example <code>/room/:id</code>); the page title (always "QueueUp"); your browser, device type and screen size; and an approximate
+                location Google works out from your IP address.
+              </>,
+              'What it never receives: your name, email, games, rooms, votes, reviews or anything else you store in QueueUp.',
+              <>
+                <b>Cookies:</b> Google sets <code>_ga</code> and <code>_ga_…</code> cookies to tell return visits apart. They are only set after you
+                say yes.
+              </>,
+              <>
+                <b>Changing your mind:</b> turn <b>Share usage stats</b> off in Settings → Sharing. Sending stops straight away and QueueUp deletes
+                the <code>_ga</code> cookies from your browser.
+              </>,
+              <>
+                <b>Who handles it:</b> Google, under{' '}
+                <a href="https://policies.google.com/privacy" target="_blank" rel="noopener noreferrer" style={{ color: 'var(--accText)' }}>
+                  Google's privacy policy
+                </a>
+                . How long Google keeps the data is set by the operator in their Google Analytics account (2 months by default, at most 14).
+              </>,
             ]}
           />
         </Section>

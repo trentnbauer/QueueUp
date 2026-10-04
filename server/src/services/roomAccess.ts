@@ -1,5 +1,7 @@
 import { randomInt } from 'node:crypto';
+import type { RoomMember } from '@prisma/client';
 import { prisma } from '../db/client.js';
+import { redis } from './redisClient.js';
 import { HttpError } from '../util/httpError.js';
 import type { RoomPlatform } from '@queueup/shared';
 
@@ -25,14 +27,49 @@ export async function getRoom(roomId: string) {
   return prisma.room.findUniqueOrThrow({ where: { id: roomId } });
 }
 
-export async function requireMembership(roomId: string, userId: string) {
+/** How long "Manage as Room Master" (Administrator settings) lasts before it has to be renewed. */
+export const ADMIN_MANAGE_TTL_SECONDS = 60 * 60;
+
+export function adminManageKey(userId: string, roomId: string): string {
+  return `admin-manage:${userId}:${roomId}`;
+}
+
+/** True while an administrator has chosen "Manage as Room Master" for a room they aren't in (#792).
+ * Rechecks that they're still an administrator, so demoting someone ends it straight away. */
+export async function isAdminManaging(userId: string, roomId: string): Promise<boolean> {
+  if (!(await redis.exists(adminManageKey(userId, roomId)))) return false;
+  const user = await prisma.user.findUnique({ where: { id: userId }, select: { isAdmin: true } });
+  return !!user?.isAdmin;
+}
+
+/** Rooms an administrator is currently managing without being a member. */
+export async function adminManagedRoomIds(userId: string): Promise<string[]> {
+  // Only administrators can manage rooms, so everyone else skips Redis entirely.
+  const user = await prisma.user.findUnique({ where: { id: userId }, select: { isAdmin: true } });
+  if (!user?.isAdmin) return [];
+  const prefix = adminManageKey(userId, '');
+  const ids: string[] = [];
+  let cursor = '0';
+  do {
+    const [next, keys] = await redis.scan(cursor, 'MATCH', `${prefix}*`, 'COUNT', 200);
+    cursor = next;
+    ids.push(...keys.map((k) => k.slice(prefix.length)));
+  } while (cursor !== '0');
+  return [...new Set(ids)];
+}
+
+/** The caller's membership of the room. An administrator managing the room (see isAdminManaging)
+ * gets a stand-in Room Master membership, so every room route treats them as the owner without
+ * them joining or the real Room Master being replaced. */
+export async function requireMembership(roomId: string, userId: string): Promise<RoomMember & { adminManaged?: true }> {
   const membership = await prisma.roomMember.findUnique({
     where: { roomId_userId: { roomId, userId } },
   });
-  if (!membership) {
-    throw new HttpError(403, 'You are not a member of this room');
+  if (membership) return membership;
+  if (await isAdminManaging(userId, roomId)) {
+    return { roomId, userId, role: 'room_master', joinedAt: new Date(), notificationsReadAt: null, adminManaged: true };
   }
-  return membership;
+  throw new HttpError(403, 'You are not a member of this room');
 }
 
 export async function requireElevated(roomId: string, userId: string) {

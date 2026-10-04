@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import type { Game } from '@queueup/shared';
 import { ROOM_TABS, SHELF_MORE_TABS, SHELF_TABS } from '../lib/gameView';
-import { buildHomeLists } from './derive';
+import { buildHomeLists, playsOn } from './derive';
 
 const DAY = 864e5;
 let n = 0;
@@ -75,5 +75,42 @@ describe('buildHomeLists', () => {
     const lists = buildHomeLists([game({ status: 'playing' }), game({ status: 'playing' }), game({ status: 'done' })], { isShelf: true, tabs: [...SHELF_TABS, ...SHELF_MORE_TABS], tab: 'playing', query: '' });
     expect(lists.counts.playing).toBe(2);
     expect(lists.counts.beaten).toBe(1);
+  });
+});
+
+describe('platform filter and shelf backlog sort', () => {
+  it('playsOn matches the platform label, backwards compatibility and owned-on platforms', () => {
+    const ps4 = game({ platform: 'PlayStation 4, PC (Microsoft Windows)', ownedPlatforms: [] });
+    const sw = game({ platform: 'Nintendo Switch', ownedPlatforms: [] });
+    const ownedPc = game({ platform: '', ownedPlatforms: ['pc'] });
+    expect(playsOn(ps4, 'ps5')).toBe(true);
+    expect(playsOn(ps4, 'pc')).toBe(true);
+    expect(playsOn(sw, 'ps5')).toBe(false);
+    expect(playsOn(ownedPc, 'pc')).toBe(true);
+  });
+
+  it('playsOn can leave out older consoles: PS5 alone shows only PS5 games, PS4 only PS4', () => {
+    const ps4 = game({ platform: 'PlayStation 4', ownedPlatforms: [] });
+    const ps5 = game({ platform: 'PlayStation 5', ownedPlatforms: [] });
+    expect(playsOn(ps4, 'ps5', false)).toBe(false);
+    expect(playsOn(ps5, 'ps5', false)).toBe(true);
+    expect(playsOn(ps5, 'ps4')).toBe(false);
+    expect(playsOn(ps4, 'ps4')).toBe(true);
+  });
+
+  it('filters every list to the picked platform', () => {
+    const a = game({ title: 'On Switch', platform: 'Nintendo Switch', ownedPlatforms: [] });
+    const b = game({ title: 'On PC', platform: 'PC (Microsoft Windows)', ownedPlatforms: [] });
+    const lists = buildHomeLists([a, b], { isShelf: true, tabs: SHELF_TABS, tab: 'queue', query: '', platform: 'switch' });
+    expect(ids(lists.list)).toEqual(['On Switch']);
+    expect(lists.counts.queue).toBe(1);
+  });
+
+  it('sorts the shelf Backlog by the picked keys', () => {
+    const a = game({ title: 'Liked', votes: [vote(5)], reviewScore: 70 });
+    const b = game({ title: 'Acclaimed', reviewScore: 95 });
+    const opts = { isShelf: true, tabs: SHELF_TABS, tab: 'queue', query: '' };
+    expect(ids(buildHomeLists([a, b], opts).list)).toEqual(['Liked', 'Acclaimed']);
+    expect(ids(buildHomeLists([a, b], { ...opts, backlogSort: ['review'] }).list)).toEqual(['Acclaimed', 'Liked']);
   });
 });

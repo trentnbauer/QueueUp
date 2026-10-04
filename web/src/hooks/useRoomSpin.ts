@@ -1,5 +1,6 @@
+import { useMemo, useRef } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import type { RoomSpinSession } from '@queueup/shared';
+import type { RoomSpinSession, SpinPlayAction } from '@queueup/shared';
 import { roomSpinApi, type SpinFilters } from '../api/rooms';
 import { useAnnounceUnlock } from '../context/AchievementUnlockContext';
 
@@ -46,6 +47,28 @@ export function useRoomSpin(roomId: string | undefined) {
     if (roomId) queryClient.setQueryData(queryKey(roomId), data);
   };
 
+  // Server clock minus ours, from the latest response: spin modes timestamp everything on the
+  // server's clock, so timers and animations line up for everyone whatever their own clock says.
+  // Each response's estimate includes its own network delay, so it's smoothed rather than taken
+  // as-is - otherwise timers and the claw would jitter by the latency on every poll. A big jump
+  // (the device's clock changed) is taken straight away.
+  const serverNow = query.data?.spin?.serverNow;
+  const offsetRef = useRef<number | null>(null);
+  const clockOffset = useMemo(() => {
+    if (!serverNow) return offsetRef.current ?? 0;
+    const sample = new Date(serverNow).getTime() - Date.now();
+    const prev = offsetRef.current;
+    const next = prev === null || Math.abs(sample - prev) > 2000 ? sample : Math.round(prev * 0.85 + sample * 0.15);
+    offsetRef.current = next;
+    return next;
+  }, [serverNow]);
+
+  const act = useMutation({
+    mutationFn: (action: SpinPlayAction) => roomSpinApi.action(roomId!, action),
+    onSuccess: setCache,
+    onError: () => roomId && queryClient.invalidateQueries({ queryKey: queryKey(roomId) }),
+  });
+
   const start = useMutation({
     mutationFn: (filters?: SpinFilters) => roomSpinApi.start(roomId!, filters),
     onSuccess: setCache,
@@ -82,6 +105,8 @@ export function useRoomSpin(roomId: string | undefined) {
     spin: query.data?.spin ?? null,
     startSpin: (filters?: SpinFilters) => start.mutateAsync(filters),
     voteRespin: () => respinVote.mutateAsync(),
+    act: (action: SpinPlayAction) => act.mutateAsync(action),
+    clockOffset,
     skipWaitSpin: () => skipWait.mutateAsync(),
     markReady: () => markReady.mutateAsync(),
     closeSpin: () => close.mutateAsync(),

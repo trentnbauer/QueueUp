@@ -1,7 +1,7 @@
 import { useEffect, useState, type ReactNode } from 'react';
 import { useNavigate } from 'react-router';
 import { useInfiniteQuery, useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { PRICE_REGION_LABELS, ROOM_PLATFORM_LABELS, sortPlatforms, type PriceRegion, type ProfileVisibility } from '@queueup/shared';
+import { PLAYNITE_API_KEY_LABEL, PRICE_REGION_LABELS, ROOM_PLATFORM_LABELS, sortPlatforms, type PriceRegion, type ProfileVisibility } from '@queueup/shared';
 import { apiKeysApi, API_KEYS_QUERY_KEY } from '../api/apiKeys';
 import { authApi } from '../api/auth';
 import { badgesApi } from '../api/badges';
@@ -22,6 +22,7 @@ import { Dialog } from '../ui/Dialog';
 import { Avatar, Banner, Btn, Group, Kicker, Segmented, Toggle, inputField } from '../ui/primitives';
 import { SystemsPicker } from '../ui/SystemsPicker';
 import { useAnalyticsConsent } from '../hooks/useAnalyticsConsent';
+import { LANGUAGES, useI18n, type Language } from '../i18n';
 import { rerunOnboarding } from '../shell/Onboarding';
 import { st } from '../ui/st';
 import { ACCENT_LABELS, type Accent } from '../theme/applyThemeMode';
@@ -384,6 +385,7 @@ function ApiKeysDialog({ onClose }: { onClose: () => void }) {
 /** Profile & settings: pages, syncs, appearance, currency, systems, sign-in methods, sharing, account. */
 export function MeDialog() {
   const ui = useUi();
+  const { language, setLanguage, t } = useI18n();
   const navigate = useNavigate();
   const confirm = useConfirm();
   const { user, profileVisibility, profileSlug, primaryProvider, linkedProviders, ownedPlatforms, refetch } = useAuth();
@@ -397,6 +399,11 @@ export function MeDialog() {
   const { viewMode, setViewMode } = useViewMode();
   const { density, setDensity } = useCardDensity();
   const sync = useSyncSources();
+  // The Playnite card reflects whether its connection code has been used (#793).
+  const { data: apiKeys } = useQuery({ queryKey: API_KEYS_QUERY_KEY, queryFn: apiKeysApi.list });
+  const playniteKey = apiKeys?.keys
+    .filter((k) => k.label === PLAYNITE_API_KEY_LABEL && !k.revokedAt)
+    .sort((a, b) => (b.lastUsedAt ?? b.createdAt).localeCompare(a.lastUsedAt ?? a.createdAt))[0];
   const { data: badges } = useQuery({ queryKey: ['me', 'badges'], queryFn: badgesApi.list });
   const [providers, setProviders] = useState<string[] | null>(null);
   const [unlinking, setUnlinking] = useState<string | null>(null);
@@ -615,9 +622,39 @@ export function MeDialog() {
           disabled={sync.busy}
           onClick={syncAchievements}
         />
-        <ActionCard title="Sync Playnite" sub="Epic, GOG, Xbox, PlayStation, Nintendo via the desktop app" cta="Set up" onClick={open('playnite')} />
+        <ActionCard
+          title="Sync Playnite"
+          sub={
+            playniteKey?.lastUsedAt
+              ? `Last synced ${formatRelativeTime(playniteKey.lastUsedAt)}`
+              : playniteKey
+                ? 'Paste your connection code into Playnite to finish'
+                : 'Epic, GOG, Xbox, PlayStation, Nintendo via the desktop app'
+          }
+          cta={playniteKey?.lastUsedAt ? 'Manage' : playniteKey ? 'Finish setup' : 'Set up'}
+          accent={!!playniteKey?.lastUsedAt}
+          onClick={open('playnite')}
+        />
 
         <Section label="APPEARANCE">
+          <div style={st('display:flex;align-items:center;gap:12px;min-height:58px;padding:0 14px 0 16px;border-radius:16px;background:var(--surf)')}>
+            <span style={st('flex:1;display:flex;flex-direction:column;gap:1px')}>
+              <span style={st('font:600 15px var(--font-ui)')}>{t('settings.language')}</span>
+              {LANGUAGES.length === 1 && <span style={st('font:400 12.5px var(--font-ui);color:var(--muted)')}>{t('settings.language.sub')}</span>}
+            </span>
+            <select
+              value={language}
+              aria-label={t('settings.language')}
+              onChange={(e) => setLanguage(e.target.value as Language)}
+              style={st('height:38px;padding:0 10px;border-radius:12px;background:var(--bg);border:1px solid var(--line);color:var(--text);font:500 14px var(--font-ui);outline:none')}
+            >
+              {LANGUAGES.map((l) => (
+                <option key={l.code} value={l.code} lang={l.code}>
+                  {l.nativeName}
+                </option>
+              ))}
+            </select>
+          </div>
           <Segmented
             columns={3}
             value={preference}
@@ -765,6 +802,7 @@ export function MeDialog() {
             )}
             <NavRow label="Notifications" onClick={() => setNotifOpen(true)} />
             <NavRow label="API keys" onClick={() => setKeysOpen(true)} />
+            <NavRow label="Play journal" onClick={() => { close(); ui.openDialog('journal', {}); }} />
             <NavRow label="Account history" onClick={() => setHistoryOpen(true)} />
           </Group>
         </Section>

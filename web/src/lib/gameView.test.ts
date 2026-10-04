@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import type { Game } from '@queueup/shared';
-import { byScore, gameScore, isNewRelease, isUpcoming, reviewAverage, voteCount } from './gameView';
+import { byScore, gameScore, isNewRelease, isUpcoming, pctAboveLow, reviewAverage, voteCount } from './gameView';
 
 const DAY = 864e5;
 const NOW = new Date('2026-09-30T12:00:00Z').getTime();
@@ -44,5 +44,21 @@ describe('reviewAverage', () => {
   it('averages only the scored categories', () => {
     expect(reviewAverage({ art: 5, gameplay: 3, story: null, sound: null })).toBe(4);
     expect(reviewAverage({ art: null, gameplay: null, story: null, sound: null })).toBeNull();
+  });
+});
+
+describe('pctAboveLow', () => {
+  it('is the rounded % the current price sits above the all-time low', () => {
+    expect(pctAboveLow('19.99', '9.99')).toBe(100);
+    expect(pctAboveLow('11.99', '9.99')).toBe(20);
+    expect(pctAboveLow('9.99', '9.99')).toBe(0);
+    expect(pctAboveLow('8.99', '9.99')).toBe(0);
+  });
+
+  it('ignores free or missing prices', () => {
+    expect(pctAboveLow('19.99', '0')).toBeNull();
+    expect(pctAboveLow('0', '9.99')).toBeNull();
+    expect(pctAboveLow(null, '9.99')).toBeNull();
+    expect(pctAboveLow('19.99', null)).toBeNull();
   });
 });
