@@ -549,7 +549,7 @@ export function MeDialog() {
             {/* The whole row opens the profile. */}
             <button type="button" onClick={() => window.open(profileUrl, '_blank', 'noopener')} style={st(ROW_BASE)} className="hv-surf2">
               <span style={st('flex:1;min-width:0;display:flex;flex-direction:column;gap:1px')}>
-                <span style={st('font:600 15px var(--font-ui)')}>Public profile</span>
+                <span style={st('font:600 15px var(--font-ui)')}>My profile</span>
                 <span style={st('font:500 12.5px var(--font-mono);color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis')}>{profileUrl.replace(/^https?:\/\//, '')}</span>
               </span>
               <span style={st('color:var(--muted);font-size:20px')}>›</span>
