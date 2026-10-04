@@ -91,7 +91,9 @@ export function HomeView() {
 
   const searching = query.trim().length > 0;
   // Header platform filter (#799) and the shelf's Backlog sort from Shelf settings (#798).
-  const [platform, setPlatform] = usePlatformFilter(scope.scopeId);
+  const [savedPlatform, setPlatform] = usePlatformFilter(scope.scopeId);
+  // A room locked to one platform shows no filter, so a pick saved before it was locked mustn't apply.
+  const platform = isShelf || !room?.platform ? savedPlatform : null;
   const [includeOlder, setIncludeOlder] = useIncludeOlder(scope.scopeId);
   const platformOptions = usePlatformOptions({ isShelf, roomId: room?.id ?? null });
   const [backlogSort] = useBacklogSort();

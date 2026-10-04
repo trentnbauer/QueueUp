@@ -674,7 +674,7 @@ interface IgdbMultiplayerMode {
 export interface PlayModes {
   /** Single player is its only mode. Null when IGDB lists no modes at all. */
   singlePlayerOnly: boolean | null;
-  /** Has co-op (online, local, LAN, split screen or a co-op campaign). */
+  /** Has co-op (online, local, LAN or a co-op campaign). */
   coop: boolean;
 }
 
@@ -682,8 +682,9 @@ export function playModesFrom(modes: { name?: string }[] | undefined, multiplaye
   const names = (modes ?? []).map((m) => m.name?.toLowerCase() ?? '').filter(Boolean);
   const mp = multiplayer ?? [];
   const coop =
-    names.some((n) => n.includes('co-op') || n.includes('cooperative') || n.includes('co-operative') || n.includes('split screen')) ||
-    mp.some((m) => m.campaigncoop || m.lancoop || m.offlinecoop || m.onlinecoop || m.splitscreen || (m.onlinecoopmax ?? 0) > 1 || (m.offlinecoopmax ?? 0) > 1);
+    // Split screen alone isn't co-op: it also covers competitive local play (a kart racer).
+    names.some((n) => n.includes('co-op') || n.includes('cooperative') || n.includes('co-operative')) ||
+    mp.some((m) => m.campaigncoop || m.lancoop || m.offlinecoop || m.onlinecoop || (m.onlinecoopmax ?? 0) > 1 || (m.offlinecoopmax ?? 0) > 1);
   if (names.length === 0) return { singlePlayerOnly: null, coop };
   return { singlePlayerOnly: !coop && names.every((n) => n === 'single player'), coop };
 }

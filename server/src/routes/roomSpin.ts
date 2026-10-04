@@ -323,9 +323,13 @@ export default async function roomSpinRoutes(app: FastifyInstance) {
         spin = await prisma.roomSpin.update({ where: { roomId }, data: { readyUserIds: { push: userId } } });
         justMarkedReady = true;
         // Everyone's here: end the waiting room now instead of sitting out the rest of the timer.
-        const memberCount = await prisma.roomMember.count({ where: { roomId } });
+        // Only real members count: an administrator managing the room isn't one (see requireMembership).
+        const [memberCount, readyMembers] = await Promise.all([
+          prisma.roomMember.count({ where: { roomId } }),
+          prisma.roomMember.count({ where: { roomId, userId: { in: [...new Set(spin.readyUserIds)] } } }),
+        ]);
         const now = Date.now();
-        if (new Set(spin.readyUserIds).size >= memberCount && now < spin.timestamp0.getTime()) {
+        if (readyMembers >= memberCount && now < spin.timestamp0.getTime()) {
           const base: SpinBase = { position0: spin.position0, velocity0: spin.velocity0, timestamp0: now };
           spin = await prisma.roomSpin.update({
             where: { roomId },
@@ -348,12 +352,13 @@ export default async function roomSpinRoutes(app: FastifyInstance) {
     async (request, reply) => {
       const userId = await request.requireAuth();
       const { roomId } = request.params;
-      await requireMembership(roomId, userId);
+      const starter = await requireMembership(roomId, userId);
 
       const filters = parseSpinFilters(request.body);
       const { stripGameIds, theme, modeState } = await buildRound(roomId, userId, filters);
       // Nobody else to wait for when you're the room's only member - spin straight away.
-      const memberCount = await prisma.roomMember.count({ where: { roomId } });
+      // An administrator managing the room isn't a member, so a room with one member still waits for them.
+      const memberCount = (await prisma.roomMember.count({ where: { roomId } })) + (starter.adminManaged ? 1 : 0);
       const base = freshBase(Date.now(), memberCount > 1 ? SPIN_WAITING_ROOM_MS : 0);
       // A stale session left over from an earlier spin would otherwise block this create (one spin
       // per room) until something else happened to clean it up.

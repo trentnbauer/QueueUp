@@ -633,7 +633,7 @@ export function RoomSettingsDialog() {
             <span style={st(DEFAULT_LABEL)}>LENGTH</span>
             <div style={st('display:flex;flex-wrap:wrap;gap:6px')}>
               {[0, 10, 20, 40].map((h) => (
-                <ChipToggle key={h} on={(spinDefaults.maxTtb ?? 0) === h} onClick={() => patch({ spinDefaults: { ...spinDefaults, maxTtb: h || undefined } }, 'Spin defaults saved')}>
+                <ChipToggle key={h} on={(spinDefaults.maxTtb ?? 0) === h} onClick={() => patch({ spinDefaults: { maxTtb: h } }, 'Spin defaults saved')}>
                   {h ? `Under ${h}h` : 'Any length'}
                 </ChipToggle>
               ))}
@@ -641,13 +641,13 @@ export function RoomSettingsDialog() {
             <span style={st(DEFAULT_LABEL)}>REVIEW SCORE</span>
             <div style={st('display:flex;flex-wrap:wrap;gap:6px')}>
               {[0, 7, 8, 9].map((n) => (
-                <ChipToggle key={n} on={(spinDefaults.minScore ?? 0) === n * 10} onClick={() => patch({ spinDefaults: { ...spinDefaults, minScore: n ? n * 10 : undefined } }, 'Spin defaults saved')}>
+                <ChipToggle key={n} on={(spinDefaults.minScore ?? 0) === n * 10} onClick={() => patch({ spinDefaults: { minScore: n * 10 } }, 'Spin defaults saved')}>
                   {n ? `★ ${n}+` : 'Any score'}
                 </ChipToggle>
               ))}
             </div>
             <div style={st('display:flex;flex-wrap:wrap;gap:6px')}>
-              <ChipToggle on={!!spinDefaults.everyoneOwns} onClick={() => patch({ spinDefaults: { ...spinDefaults, everyoneOwns: !spinDefaults.everyoneOwns || undefined } }, 'Spin defaults saved')}>
+              <ChipToggle on={!!spinDefaults.everyoneOwns} onClick={() => patch({ spinDefaults: { everyoneOwns: !spinDefaults.everyoneOwns } }, 'Spin defaults saved')}>
                 Everyone owns it
               </ChipToggle>
             </div>

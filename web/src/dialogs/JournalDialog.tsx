@@ -1,5 +1,6 @@
 import { useMemo } from 'react';
 import { useQuery } from '@tanstack/react-query';
+import { useNavigate } from 'react-router';
 import type { JournalEntry } from '@queueup/shared';
 import { apiGet } from '../api/client';
 import { useUi } from '../context/UiContext';
@@ -27,8 +28,11 @@ function day(iso: string): string {
  * your shelf and all your rooms (from Settings), or one room (from its settings). */
 export function JournalDialog({ roomId }: { roomId?: string }) {
   const ui = useUi();
+  const navigate = useNavigate();
   const { data, isLoading } = useQuery({
     queryKey: ['journal', roomId ?? 'me'],
+    // Always fresh when opened: status changes (which add entries) don't invalidate it.
+    staleTime: 0,
     queryFn: () => apiGet<{ entries: JournalEntry[] }>(roomId ? `/api/rooms/${roomId}/journal` : '/api/me/journal'),
   });
   const entries = data?.entries ?? [];
@@ -64,6 +68,8 @@ export function JournalDialog({ roomId }: { roomId?: string }) {
               type="button"
               onClick={() => {
                 ui.closeDialog('journal');
+                // The game may be on the shelf or in another room: go there before opening it.
+                navigate(e.roomId ? `/room/${e.roomId}` : '/');
                 ui.selectGame(e.gameId);
               }}
               style={st('display:flex;align-items:center;gap:12px;padding:8px;border:none;border-radius:14px;background:var(--surf);color:var(--text);text-align:left;font:inherit')}

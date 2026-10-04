@@ -263,8 +263,14 @@ export function SpinDialog({ onClose }: { onClose: () => void }) {
       ? run.strip[candidateIndexAt(run.settledPosition, run.strip.length)]
       : null;
 
-  function act(action: SpinPlayAction) {
-    shared.act(action).catch((err) => ui.showError(err instanceof Error ? err.message : "Couldn't do that"));
+  function act(action: SpinPlayAction): Promise<boolean> {
+    return shared.act(action).then(
+      () => true,
+      (err) => {
+        ui.showError(err instanceof Error ? err.message : "Couldn't do that");
+        return false;
+      },
+    );
   }
 
   const filters: SpinFilters = {
@@ -277,7 +283,11 @@ export function SpinDialog({ onClose }: { onClose: () => void }) {
 
   // Games whose price the room's limit can't judge yet (no Steam match): try a silent match first.
   // Memoized: the dialog re-renders every animation frame while a spin runs.
-  const backlog = useMemo(() => games.filter((g) => g.status === 'backlog' && !isUnreleased(g) && !hasUnmetPrerequisite(g, games)), [games]);
+  // The same statuses the spin pool draws from (backlogGames in spinPicker.ts).
+  const backlog = useMemo(
+    () => games.filter((g) => (g.status === 'backlog' || g.status === 'replay' || g.status === 'play_next') && !isUnreleased(g) && !hasUnmetPrerequisite(g, games)),
+    [games],
+  );
   const undecided = useMemo(
     () => (gate !== undefined ? backlog.filter((g) => !isFullyOwned(g) && !(g.price.source === 'live' || g.ggDealsUrl !== null) && g.manualPrice === null) : []),
     [backlog, gate],

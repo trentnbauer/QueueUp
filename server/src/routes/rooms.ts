@@ -369,7 +369,11 @@ export default async function roomRoutes(app: FastifyInstance) {
         ...(accentColor !== undefined && { accentColor }),
         ...(discordWebhookUrl !== undefined && { discordWebhookUrl }),
         ...(spinOwnershipMaxPrice !== undefined && { spinOwnershipMaxPrice }),
-        ...(spinDefaults !== undefined && { spinDefaults: toSpinDefaults(spinDefaults) as Prisma.InputJsonValue }),
+        // Merged over what's stored, so saving one default (0 / false clears it) can't drop another
+        // that was saved a moment earlier from a stale copy.
+        ...(spinDefaults !== undefined && {
+          spinDefaults: toSpinDefaults({ ...toSpinDefaults(before.spinDefaults), ...(spinDefaults as object) }) as Prisma.InputJsonValue,
+        }),
         ...(spinWheelTheme !== undefined && { spinWheelTheme }),
         ...(isPublic !== undefined && { isPublic }),
         ...(requireGameApproval !== undefined && { requireGameApproval }),
