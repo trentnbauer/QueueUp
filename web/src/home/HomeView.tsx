@@ -20,6 +20,8 @@ import { useStableOrder } from './useStableOrder';
 import { useIsMobile } from '../ui/useLayout';
 import { st } from '../ui/st';
 import { buildHomeLists, toRowItem } from './derive';
+import { useBacklogSort } from './backlogSort';
+import { PlatformMenu, usePlatformFilter, usePlatformOptions } from './PlatformMenu';
 import { ComingStrip, CoverCard, DesktopRow, MobileRow, PlayNextRow } from './Rows';
 import { Footer } from '../shell/Footer';
 import { BulkBar, BulkStatusSheet } from './BulkBar';
@@ -88,16 +90,23 @@ export function HomeView() {
   }, [scope.scopeId]);
 
   const searching = query.trim().length > 0;
-  const lists = useMemo(() => buildHomeLists(games, { isShelf, tabs, tab, query }), [games, isShelf, tabs, tab, query]);
+  // Header platform filter (#799) and the shelf's Backlog sort from Shelf settings (#798).
+  const [platform, setPlatform] = usePlatformFilter(scope.scopeId);
+  const platformOptions = usePlatformOptions({ isShelf, roomId: room?.id ?? null, games });
+  const [backlogSort] = useBacklogSort();
+  const lists = useMemo(
+    () => buildHomeLists(games, { isShelf, tabs, tab, query, platform, backlogSort }),
+    [games, isShelf, tabs, tab, query, platform, backlogSort],
+  );
   const showRank = tab === 'queue' && !searching;
   const ctx = { isShelf, tab, searching, all: games };
   // Voting changes scores, which would re-sort the list under you - keep the order until the view changes.
-  const orderKey = `${scope.scopeId}|${tab}|${query}`;
+  const orderKey = `${scope.scopeId}|${tab}|${query}|${platform ?? ''}|${backlogSort.join(',')}`;
   const orderedList = useStableOrder(lists.list, orderKey);
   const orderedPlayNext = useStableOrder(lists.playNext, `${orderKey}|next`);
   const items = importTab ? [] : orderedList.map((g, i) => toRowItem(g, i + 1, ctx));
   const playNextItems = importTab ? [] : orderedPlayNext.map((g, i) => toRowItem(g, i + 1, ctx));
-  const { visible: visibleItems, hasMore, sentinelRef } = useIncrementalList(items, `${scope.scopeId}|${tab}|${query}|${viewMode}`);
+  const { visible: visibleItems, hasMore, sentinelRef } = useIncrementalList(items, `${orderKey}|${viewMode}`);
 
   const toVote = room ? attention.toVote(room.id) : 0;
   const toApprove = scope.canManage && !isShelf ? scope.suggestions.length : 0;
@@ -108,20 +117,26 @@ export function HomeView() {
     else ui.selectGame(g.id);
   };
 
-  const meta = isShelf
-    ? 'JUST YOU · EVERY PLATFORM'
-    : [
-        room?.platform ? ROOM_PLATFORM_LABELS[room.platform] : 'Any platform',
-        `${members.length} members`,
-        `${games.filter((g) => g.status === 'backlog').length} queued`,
-      ]
-        .join(' · ')
-        .toUpperCase();
+  // A room locked to one platform has nothing to filter - its platform stays plain text.
+  const platformMenu = isShelf || !room?.platform ? (
+    <PlatformMenu value={platform} options={platformOptions} allLabel={isShelf ? 'Every platform' : 'Any platform'} onChange={setPlatform} />
+  ) : (
+    ROOM_PLATFORM_LABELS[room.platform].toUpperCase()
+  );
+  const meta = isShelf ? (
+    <>JUST YOU · {platformMenu}</>
+  ) : (
+    <>
+      {platformMenu} · {`${members.length} members · ${games.filter((g) => g.status === 'backlog').length} queued`.toUpperCase()}
+    </>
+  );
 
   const title = isShelf ? 'Personal Shelf' : (room?.name ?? '');
-  const emptyAdd = !searching && tab === 'queue';
+  const emptyAdd = !searching && !platform && tab === 'queue';
   const emptyMsg = searching
     ? `No games match "${query}".`
+    : platform
+      ? `Nothing here for ${ROOM_PLATFORM_LABELS[platform]}.`
     : tab === 'queue'
       ? 'Nothing queued yet. Add the first game.'
       : tab === 'playing'

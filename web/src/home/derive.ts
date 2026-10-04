@@ -1,4 +1,5 @@
-import type { Game } from '@queueup/shared';
+import { platformFamilyOf, withBackwardsCompatible, type Game, type RoomPlatform } from '@queueup/shared';
+import { backlogComparator, type BacklogSortKey } from './backlogSort';
 import {
   byScore,
   gameScore,
@@ -52,6 +53,18 @@ export function toRowItem(g: Game, rank: number, ctx: { isShelf: boolean; tab: s
   };
 }
 
+/** Issue #799's platform filter: can this game be played on `platform`? True when its platform label
+ * names that system or one it plays through backwards compatibility (PS5 also shows PS4 games), or
+ * the viewer marked it owned on that system. */
+export function playsOn(g: Game, platform: RoomPlatform): boolean {
+  const playable = withBackwardsCompatible([platform]);
+  if (g.ownedPlatforms.some((p) => playable.includes(p))) return true;
+  return g.platform.split(',').some((name) => {
+    const family = platformFamilyOf(name.trim());
+    return family !== null && playable.includes(family);
+  });
+}
+
 export interface HomeLists {
   list: Game[];
   coming: Game[];
@@ -65,8 +78,12 @@ export interface HomeLists {
  * - Replay (and replays inside a room's Beaten tab) sort oldest replay first, dateless last.
  * - Games releasing within the next 30 days sit in a "Coming soon" strip on the Wishlist (shelf) / Queue (room) tab
  *   instead of the main list. */
-export function buildHomeLists(games: Game[], opts: { isShelf: boolean; tabs: TabDef[]; tab: string; query: string }): HomeLists {
-  const { isShelf, tabs, tab } = opts;
+export function buildHomeLists(
+  allGames: Game[],
+  opts: { isShelf: boolean; tabs: TabDef[]; tab: string; query: string; platform?: RoomPlatform | null; backlogSort?: BacklogSortKey[] },
+): HomeLists {
+  const { isShelf, tabs, tab, platform } = opts;
+  const games = platform ? allGames.filter((g) => playsOn(g, platform)) : allGames;
   const q = opts.query.trim().toLowerCase();
   const comingTab = isShelf ? 'wishlist' : 'queue';
   const cur = tabs.find((t) => t.id === tab) ?? tabs[1] ?? tabs[0];
@@ -101,7 +118,10 @@ export function buildHomeLists(games: Game[], opts: { isShelf: boolean; tabs: Ta
     if (na && nb) return (b.releaseDate ?? '').localeCompare(a.releaseDate ?? '');
     return byScore(a, b);
   };
-  if (!q && (tab === 'queue' || tab === 'playing')) {
+  if (!q && isShelf && tab === 'queue') {
+    // The shelf's Backlog follows the sort picked in Shelf settings (issue #798; default "Want to play").
+    list = [...list].sort(backlogComparator(opts.backlogSort ?? [], now));
+  } else if (!q && (tab === 'queue' || tab === 'playing')) {
     list = [...list].sort((a, b) => {
       const na = isNewRelease(a, now);
       const nb = isNewRelease(b, now);
