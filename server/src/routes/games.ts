@@ -1604,7 +1604,11 @@ export default async function gameRoutes(app: FastifyInstance) {
     async (request) => {
       const userId = await request.requireAuth();
       const game = await loadGameOr404(request.params.id);
-      await requireGameReadAccess(game, userId);
+      // Any member may match a game that has no Steam match yet (Spin's background price matching
+      // does this); changing or clearing an existing match moves its price, size and the room's
+      // price filter, so that's for whoever added it, the Room Master or a Moderator.
+      if (game.steamAppid === null) await requireGameReadAccess(game, userId);
+      else await requireGameSettingsAccess(game, userId);
 
       const { steamAppId } = request.body;
       if (steamAppId !== null && (!Number.isInteger(steamAppId) || steamAppId <= 0)) {

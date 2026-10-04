@@ -10,6 +10,8 @@ import type {
 
 export const friendsApi = {
   list: () => apiGet<FriendsResponse>('/api/friends'),
+  /** Whose friend link `code` is - shown before adding them. */
+  byCode: (code: string) => apiGet<{ user: { id: string; displayName: string; avatarColor: string; avatarUrl: string | null } }>(`/api/friends/code/${encodeURIComponent(code)}`),
   incomingCount: () => apiGet<{ count: number }>('/api/friends/incoming-count'),
   sendRequest: (body: SendFriendRequestRequest) =>
     apiPost<{ accepted: boolean; user: FriendUser }>('/api/friends/requests', body),

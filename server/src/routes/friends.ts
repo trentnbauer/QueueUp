@@ -304,6 +304,18 @@ export default async function friendRoutes(app: FastifyInstance) {
     return response;
   });
 
+  // Whose friend link this is, so opening one asks "Add <name>?" instead of adding straight away.
+  app.get<{ Params: { code: string } }>('/api/friends/code/:code', { config: { rateLimit: { max: 30, timeWindow: '1 hour' } } }, async (request) => {
+    await request.requireAuth();
+    const code = String(request.params.code ?? '').toUpperCase().replace(/[^A-Z0-9]/g, '');
+    if (code.length !== 8) throw new HttpError(400, 'That friend code does not look right');
+    const owner = await prisma.user.findUnique({ where: { friendCode: `${code.slice(0, 4)}-${code.slice(4)}` }, select: { ...userSelect, friendCodeIssuedAt: true } });
+    if (!owner || !owner.friendCodeIssuedAt || Date.now() - owner.friendCodeIssuedAt.getTime() >= FRIEND_CODE_TTL_MS) {
+      throw new HttpError(404, 'That friend link is invalid or has expired');
+    }
+    return { user: { id: owner.id, displayName: owner.displayName, avatarColor: owner.avatarColor, avatarUrl: owner.avatarUrl } };
+  });
+
   app.post<{ Body: SendFriendRequestRequest }>(
     '/api/friends/requests',
     { config: { rateLimit: { max: 20, timeWindow: '1 hour' } } },

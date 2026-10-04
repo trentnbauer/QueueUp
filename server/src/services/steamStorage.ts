@@ -3,12 +3,15 @@
  * 60 GB available space", or "Hard Drive:" on older pages) - close enough to the download size to
  * filter by. Only PC requirements exist, so it's the PC install size. */
 
-const SIZE = /(?:storage|hard\s*(?:disk|drive)(?:\s*space)?|disk\s*space|hdd|free\s*space)\s*(?:<\/strong>)?\s*:?\s*(?:<\/strong>)?\s*(?:at\s*least\s*)?([\d.,]+)\s*(tb|gb|mb)\b/i;
+// Run on whitespace-collapsed text (see parseStorageMb), so every gap is at most one space and
+// nothing here can backtrack its way into a slow match.
+const SIZE = /(?:storage|hard ?(?:disk|drive)(?: ?space)?|disk ?space|hdd|free ?space)(?:[ :]|<\/strong>)*(?:at least )?(\d[\d.,]*) ?(tb|gb|mb)\b/i;
 
 /** Megabytes of disk space from a Steam requirements HTML/text block, or null if it doesn't say. */
 export function parseStorageMb(requirements: string | null | undefined): number | null {
   if (!requirements) return null;
-  const text = requirements.replace(/&nbsp;/g, ' ');
+  // Store pages are written by publishers: cap the length and collapse whitespace before matching.
+  const text = requirements.slice(0, 20_000).replace(/&nbsp;/g, ' ').replace(/\s+/g, ' ');
   const m = SIZE.exec(text);
   if (!m) return null;
   // "1,500 MB" is fifteen hundred; "8,5 GB" is eight and a half.
