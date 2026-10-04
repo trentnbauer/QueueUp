@@ -552,7 +552,7 @@ export default async function roomSpinRoutes(app: FastifyInstance) {
         // Absent if the winning game was removed mid-spin (see stripGameIds' own schema doc on
         // this exact edge case) - nothing to credit in that case, not an error.
         const winnerGame = winnerGameId
-          ? await prisma.game.findUnique({ where: { id: winnerGameId }, select: { addedBy: true, title: true } })
+          ? await prisma.game.findUnique({ where: { id: winnerGameId }, select: { id: true, addedBy: true, title: true, coverImageUrl: true, status: true } })
           : null;
         if (winnerGame) await unlockBadges(winnerGame.addedBy, ['first_spin_winner']);
         // Room activity feed (issue #509) - credited to whoever committed ("Let's play"), unlike
@@ -564,6 +564,9 @@ export default async function roomSpinRoutes(app: FastifyInstance) {
           type: 'spin_result',
           message: (actorName) =>
             winnerGame ? `${actorName} spun and landed on "${winnerGame.title}"` : `${actorName} committed to a spin result`,
+          ...(winnerGame && {
+            payload: { gameId: winnerGame.id, title: winnerGame.title, coverImageUrl: winnerGame.coverImageUrl, status: winnerGame.status },
+          }),
         });
       }
 

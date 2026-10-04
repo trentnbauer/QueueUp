@@ -176,6 +176,10 @@ enum NotificationType {
   /// A library sync found games on a console the person unticked from Systems owned: asks whether
   /// to add it back (Yes/No), instead of re-adding it on its own. `platform` says which.
   platform_unowned
+  /// Another member marked a room game Beaten: asks the recipient to review it and mark it Beaten on
+  /// their own shelf too. Direct (recipientId), but also carries roomId and gameId so the toast can
+  /// open the game in its room - room-scoped unread queries skip rows with a recipientId.
+  room_game_beaten
 }
 
 /// See RoomActivity's doc comment. A superset of NotificationType's room-scoped values (everything
@@ -205,6 +209,8 @@ enum RoomActivityType {
   console_added
   /// A server administrator started managing the room as its Room Master (#792).
   admin_manage
+  /// A member saved their first review of a room game.
+  game_reviewed
 
   @@map("room_activity_type")
 }
@@ -1221,9 +1227,9 @@ model RoomActivity {
   type        RoomActivityType
   message     String
   createdAt   DateTime         @default(now()) @map("created_at")
-  /// Structured detail for a Personal Shelf game event (gameId/title/coverImageUrl/status and, on a
-  /// Beaten entry, the review) - what the friends' activity feed renders from. Null for room rows
-  /// and for shelf rows written before this column existed.
+  /// Structured detail for a game event (gameId/title/coverImageUrl/status and, on a shelf Beaten
+  /// entry, the review) - what the friends' activity feed and the play journal render from. Null for
+  /// events with no game and for rows written before each kind started setting it.
   payload     Json?
 
   room      Room? @relation(fields: [roomId], references: [id], onDelete: Cascade)

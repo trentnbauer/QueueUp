@@ -1,54 +1,155 @@
 import type { FastifyInstance } from 'fastify';
-import type { JournalEntry } from '@queueup/shared';
+import type { Prisma } from '@prisma/client';
+import type { GameStatus, JournalEntry, JournalEventKind } from '@queueup/shared';
 import { prisma } from '../db/client.js';
 import { requireMembership } from '../services/roomAccess.js';
+import { toUserDto } from '../util/dto.js';
 
 const LIMIT = 300;
+/** The activity types a play journal is made of - game events, not room admin. */
+const JOURNAL_TYPES = ['game_added', 'status_changed', 'spin_result', 'game_reviewed'] as const;
 
-/** Builds journal entries for every play-log row on `where`'s games, newest first, with the
- * viewer's all-time playtime from their Steam or Playnite snapshots where there is one. */
-async function journal(userId: string, where: { roomId?: string | { in: string[] } | null; OR?: object[] }): Promise<JournalEntry[]> {
-  const logs = await prisma.playLog.findMany({
-    where: { game: { ...where, archivedAt: null } },
-    orderBy: { startedAt: 'desc' },
+/** Labels as the status-change messages wrote them, for reading old entries back. */
+const STATUS_BY_LABEL: Record<string, GameStatus> = {
+  Backlog: 'backlog',
+  'Play Next': 'play_next',
+  Paused: 'paused',
+  Playing: 'playing',
+  Beaten: 'done',
+  Dropped: 'dropped',
+  Wishlist: 'wishlist',
+  Replay: 'replay',
+  "Won't Play": 'wont_play',
+};
+
+const KIND_BY_STATUS: Partial<Record<GameStatus, JournalEventKind>> = {
+  playing: 'started',
+  done: 'beaten',
+  dropped: 'dropped',
+  paused: 'paused',
+  replay: 'replay',
+  wont_play: 'skipped',
+};
+
+interface Payload {
+  gameId?: string;
+  title?: string;
+  coverImageUrl?: string | null;
+  status?: string;
+  score?: number | null;
+}
+
+/** The game an entry is about: from its payload, or (for an entry logged before payloads) read
+ * back out of its sentence - `... "Title" ...` and, for a status change, `... as Label`. */
+export function detailOf(type: string, message: string, raw: Prisma.JsonValue): { gameId: string | null; title: string | null; coverImageUrl: string | null; status: GameStatus | null; score: number | null } {
+  const p = (raw ?? {}) as Payload;
+  if (p.title) {
+    return { gameId: p.gameId ?? null, title: p.title, coverImageUrl: p.coverImageUrl ?? null, status: (p.status as GameStatus) ?? null, score: p.score ?? null };
+  }
+  const title = /"(.+)"/.exec(message)?.[1] ?? null;
+  const label = type === 'status_changed' ? / as (.+)$/.exec(message)?.[1] : undefined;
+  return { gameId: null, title, coverImageUrl: null, status: label ? (STATUS_BY_LABEL[label] ?? null) : null, score: null };
+}
+
+export function kindOf(type: string, status: GameStatus | null): JournalEventKind {
+  if (type === 'game_added') return 'added';
+  if (type === 'spin_result') return 'spin';
+  if (type === 'game_reviewed') return 'reviewed';
+  return (status && KIND_BY_STATUS[status]) || 'moved';
+}
+
+/** Builds journal entries from the activity rows on `where`, newest first: who added, started,
+ * beat, dropped, spun or reviewed which game. Beaten entries carry the playthrough's playtime, and
+ * the viewer's all-time playtime from their Steam or Playnite snapshots where there is one. */
+async function journal(userId: string, where: Prisma.RoomActivityWhereInput): Promise<JournalEntry[]> {
+  const rows = await prisma.roomActivity.findMany({
+    where: { AND: [where, { type: { in: [...JOURNAL_TYPES] } }] },
+    orderBy: [{ createdAt: 'desc' }, { id: 'desc' }],
     take: LIMIT,
-    include: { game: { select: { id: true, title: true, coverImageUrl: true, status: true, roomId: true, steamAppid: true, room: { select: { name: true } } } } },
+    include: { actor: true, room: { select: { name: true } } },
   });
-  const appIds = [...new Set(logs.map((l) => l.game.steamAppid).filter((id): id is number => id !== null))];
-  const gameIds = [...new Set(logs.map((l) => l.game.id))];
-  const [steam, playnite] = await Promise.all([
+  const items = rows
+    .map((row) => ({ row, detail: detailOf(row.type, row.message, row.payload) }))
+    // "The room voted to respin" has no game to show.
+    .filter(({ row, detail }) => row.type !== 'spin_result' || detail.title);
+
+  // Games still around: by id for entries with a payload, by title (in the same room or shelf) for
+  // older ones. A removed game's entry stays, just without a link.
+  const ids = [...new Set(items.map((i) => i.detail.gameId).filter((id): id is string => !!id))];
+  const legacy = items.filter((i) => !i.detail.gameId && i.detail.title);
+  const titles = [...new Set(legacy.map((i) => i.detail.title!))];
+  const legacyRooms = [...new Set(legacy.map((i) => i.row.roomId).filter((id): id is string => !!id))];
+  const games = !ids.length && !titles.length ? [] : await prisma.game.findMany({
+    where: {
+      OR: [
+        ...(ids.length ? [{ id: { in: ids } }] : []),
+        ...(titles.length
+          ? [
+              ...(legacyRooms.length ? [{ roomId: { in: legacyRooms }, title: { in: titles } }] : []),
+              { roomId: null, addedBy: userId, title: { in: titles } },
+            ]
+          : []),
+      ],
+    },
+    select: { id: true, title: true, roomId: true, coverImageUrl: true, steamAppid: true },
+  });
+  const byId = new Map(games.map((g) => [g.id, g]));
+  const byTitle = new Map(games.map((g) => [`${g.roomId ?? 'shelf'}|${g.title}`, g]));
+  const gameOf = (i: (typeof items)[number]) =>
+    i.detail.gameId ? byId.get(i.detail.gameId) : i.detail.title ? byTitle.get(`${i.row.roomId ?? 'shelf'}|${i.detail.title}`) : undefined;
+
+  const beatenIds = [...new Set(items.filter((i) => kindOf(i.row.type, i.detail.status) === 'beaten').map((i) => gameOf(i)?.id).filter((id): id is string => !!id))];
+  const beatenGames = beatenIds.map((id) => byId.get(id)!).filter(Boolean);
+  const appIds = [...new Set(beatenGames.map((g) => g.steamAppid).filter((id): id is number => id !== null))];
+  const [logs, steam, playnite] = await Promise.all([
+    beatenIds.length ? prisma.playLog.findMany({ where: { gameId: { in: beatenIds }, finishedAt: { not: null } } }) : [],
     appIds.length ? prisma.playtimeSnapshot.findMany({ where: { userId, steamAppId: { in: appIds } }, select: { steamAppId: true, playtimeMinutes: true } }) : [],
-    gameIds.length ? prisma.playnitePlaytimeSnapshot.findMany({ where: { userId, gameId: { in: gameIds } }, select: { gameId: true, playtimeMinutes: true } }) : [],
+    beatenIds.length ? prisma.playnitePlaytimeSnapshot.findMany({ where: { userId, gameId: { in: beatenIds } }, select: { gameId: true, playtimeMinutes: true } }) : [],
   ]);
   const steamBy = new Map(steam.map((s) => [s.steamAppId, s.playtimeMinutes]));
   const playniteBy = new Map(playnite.map((s) => [s.gameId, s.playtimeMinutes]));
-  return logs.map((l) => ({
-    id: l.id,
-    gameId: l.game.id,
-    title: l.game.title,
-    coverImageUrl: l.game.coverImageUrl,
-    status: l.game.status,
-    roomId: l.game.roomId,
-    // For a shelf copy, PlayLog.roomName is the room it was beaten in (see the dialog's label).
-    roomName: l.game.room?.name ?? l.roomName,
-    startedAt: l.startedAt.toISOString(),
-    finishedAt: l.finishedAt?.toISOString() ?? null,
-    minutesPlayed: l.startPlaytimeMinutes != null && l.finishPlaytimeMinutes != null ? Math.max(0, l.finishPlaytimeMinutes - l.startPlaytimeMinutes) : null,
-    totalMinutes: (l.game.steamAppid !== null ? steamBy.get(l.game.steamAppid) : undefined) ?? playniteBy.get(l.game.id) ?? null,
-  }));
+
+  return items.map(({ row, detail }) => {
+    const kind = kindOf(row.type, detail.status);
+    const game = gameOf({ row, detail });
+    let minutesPlayed: number | null = null;
+    let totalMinutes: number | null = null;
+    if (kind === 'beaten' && game) {
+      // The playthrough this Beaten closed: finished within a couple of minutes of the entry.
+      const log = logs.find((l) => l.gameId === game.id && Math.abs(l.finishedAt!.getTime() - row.createdAt.getTime()) < 2 * 60_000);
+      if (log?.startPlaytimeMinutes != null && log.finishPlaytimeMinutes != null) minutesPlayed = Math.max(0, log.finishPlaytimeMinutes - log.startPlaytimeMinutes);
+      totalMinutes = (game.steamAppid !== null ? steamBy.get(game.steamAppid) : undefined) ?? playniteBy.get(game.id) ?? null;
+    }
+    return {
+      id: row.id,
+      kind,
+      actor: row.actor ? toUserDto(row.actor) : null,
+      gameId: game?.id ?? null,
+      title: detail.title,
+      coverImageUrl: detail.coverImageUrl ?? game?.coverImageUrl ?? null,
+      status: detail.status,
+      roomId: row.roomId,
+      roomName: row.room?.name ?? null,
+      at: row.createdAt.toISOString(),
+      message: row.message,
+      minutesPlayed,
+      totalMinutes,
+      score: detail.score,
+    };
+  });
 }
 
-/** Play journal (#802): when each game was started and finished, and time played where known. */
+/** Play journal (#802): what happened to which game, by whom - added, started, beaten, spun... */
 export default async function journalRoutes(app: FastifyInstance) {
-  // Everything the caller has played: their Personal Shelf plus every room they're in.
+  // Everything the caller did: on their Personal Shelf plus their own actions in every room they're in.
   app.get('/api/me/journal', { config: { rateLimit: { max: 30, timeWindow: '1 minute' } } }, async (request) => {
     const userId = await request.requireAuth();
     const rooms = await prisma.roomMember.findMany({ where: { userId }, select: { roomId: true } });
-    const entries = await journal(userId, { OR: [{ roomId: null, addedBy: userId }, { roomId: { in: rooms.map((r) => r.roomId) } }] });
+    const entries = await journal(userId, { OR: [{ recipientId: userId }, { roomId: { in: rooms.map((r) => r.roomId) }, actorId: userId }] });
     return { entries };
   });
 
-  // Just one room's games.
+  // Everything that happened in one room, by anyone.
   app.get<{ Params: { roomId: string } }>('/api/rooms/:roomId/journal', { config: { rateLimit: { max: 30, timeWindow: '1 minute' } } }, async (request) => {
     const userId = await request.requireAuth();
     await requireMembership(request.params.roomId, userId);

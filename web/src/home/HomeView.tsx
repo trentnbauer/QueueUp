@@ -10,6 +10,7 @@ import { useAttention } from '../hooks/useAttention';
 import { usePendingImportsCount } from '../hooks/usePendingImports';
 import { useVersion } from '../hooks/useVersion';
 import { SHELF_TABS, SHELF_MORE_TABS, SHELF_IMPORT_TABS, ROOM_TABS } from '../lib/gameView';
+import { JournalList } from './JournalList';
 import { UNDO_MS } from '../game/useChangeStatus';
 import { PendingImportsList } from './PendingImportsList';
 import { useQuery } from '@tanstack/react-query';
@@ -76,6 +77,9 @@ export function HomeView() {
   const importTab = tab === 'matching' || tab === 'dismissed' ? tab : null;
   const moreActive = SHELF_MORE_TABS.some((t) => t.id === tab) || importTab !== null;
   const [query, setQuery] = useState('');
+  // A room's 📖 tab shows its play journal instead of a game list (a search still searches games).
+  const journalTab = !isShelf && !!room && tab === 'journal' && query.trim().length === 0;
+  const otherTab = importTab !== null || journalTab;
   const [bulk, setBulk] = useState(false);
   const [bulkSel, setBulkSel] = useState<string[]>([]);
   const [bulkStatusOpen, setBulkStatusOpen] = useState(false);
@@ -107,8 +111,8 @@ export function HomeView() {
   const orderKey = `${scope.scopeId}|${tab}|${query}|${platform ?? ''}|${includeOlder}|${backlogSort.join(',')}`;
   const orderedList = useStableOrder(lists.list, orderKey);
   const orderedPlayNext = useStableOrder(lists.playNext, `${orderKey}|next`);
-  const items = importTab ? [] : orderedList.map((g, i) => toRowItem(g, i + 1, ctx));
-  const playNextItems = importTab ? [] : orderedPlayNext.map((g, i) => toRowItem(g, i + 1, ctx));
+  const items = otherTab ? [] : orderedList.map((g, i) => toRowItem(g, i + 1, ctx));
+  const playNextItems = otherTab ? [] : orderedPlayNext.map((g, i) => toRowItem(g, i + 1, ctx));
   const { visible: visibleItems, hasMore, sentinelRef } = useIncrementalList(items, `${orderKey}|${viewMode}`);
 
   const toVote = room ? attention.toVote(room.id) : 0;
@@ -348,6 +352,25 @@ export function HomeView() {
               </button>
             );
           })}
+          {!isShelf && (
+            <button
+              type="button"
+              role="tab"
+              aria-selected={journalTab}
+              aria-label="Play journal"
+              title="Play journal"
+              onClick={() => {
+                setTab('journal');
+                setQuery('');
+              }}
+              style={st(
+                // Pinned to the end so it stays in view when the tabs scroll on a phone.
+                `position:sticky;right:0;flex:0 0 auto;display:flex;align-items:center;justify-content:center;width:40px;height:36px;border-radius:999px;border:none;background:${journalTab ? 'var(--text)' : 'var(--surf)'};box-shadow:-8px 0 8px var(--surf);font:400 17px/1 var(--font-ui)`,
+              )}
+            >
+              <span aria-hidden>📖</span>
+            </button>
+          )}
           {isShelf && (
             <button
               type="button"
@@ -416,8 +439,9 @@ export function HomeView() {
       )}
 
       {importTab && <PendingImportsList kind={importTab} />}
+      {journalTab && room && <JournalList roomId={room.id} onOpen={(e) => ui.selectGame(e.gameId)} />}
 
-      {!importTab && lists.coming.length > 0 && (
+      {!otherTab && lists.coming.length > 0 && (
         <ComingStrip
           games={lists.coming}
           onOpen={(g) => ui.selectGame(g.id)}
@@ -428,11 +452,11 @@ export function HomeView() {
         />
       )}
 
-      {!importTab && scope.gamesLoading && items.length === 0 && (
+      {!otherTab && scope.gamesLoading && items.length === 0 && (
         <div style={st('padding:36px 12px;text-align:center;font:500 14.5px var(--font-ui);color:var(--muted)')}>Loading…</div>
       )}
 
-      {!importTab && !scope.gamesLoading && items.length === 0 && (
+      {!otherTab && !scope.gamesLoading && items.length === 0 && (
         <div style={st('padding:36px 12px;text-align:center;display:flex;flex-direction:column;align-items:center;gap:12px')}>
           <span style={st('font:500 14.5px var(--font-ui);color:var(--muted);text-wrap:pretty')}>{emptyMsg}</span>
           {emptyAdd && (

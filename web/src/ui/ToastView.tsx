@@ -4,7 +4,7 @@ import { useUi } from '../context/UiContext';
 import { st } from './st';
 
 const PILL =
-  'display:flex;align-items:center;gap:12px;max-width:min(560px, calc(100vw - 32px));padding:12px 12px 12px 18px;border-radius:999px;background:var(--text);color:var(--onText);box-shadow:0 12px 32px oklch(0 0 0 / 0.35);font:600 14px var(--font-ui);animation:qu-pop .2s ease both';
+  'display:flex;flex-wrap:wrap;align-items:center;gap:12px;max-width:min(560px, calc(100vw - 32px));padding:12px 12px 12px 18px;border-radius:999px;background:var(--text);color:var(--onText);box-shadow:0 12px 32px oklch(0 0 0 / 0.35);font:600 14px var(--font-ui);animation:qu-pop .2s ease both';
 const ACTION =
   'flex-shrink:0;height:32px;padding:0 14px;border-radius:999px;border:none;background:var(--acc);color:var(--ink);font:700 13px var(--font-ui)';
 
@@ -67,12 +67,12 @@ function StackItem({ toast, onDismiss }: { toast: Toast; onDismiss: (id: string)
             toast.onOpen?.();
             dismiss();
           }}
-          style={st('flex:1;min-width:0;padding:0;border:none;background:none;color:inherit;font:inherit;text-align:left;cursor:pointer;text-wrap:pretty')}
+          style={st('flex:1 1 180px;min-width:0;padding:0;border:none;background:none;color:inherit;font:inherit;text-align:left;cursor:pointer;text-wrap:pretty')}
         >
           {toast.message}
         </button>
       ) : (
-        <span style={{ flex: 1, minWidth: 0, textWrap: 'pretty' }}>{toast.message}</span>
+        <span style={{ flex: '1 1 180px', minWidth: 0, textWrap: 'pretty' }}>{toast.message}</span>
       )}
       {toast.actions.map((a) => (
         <button key={a.label} type="button" disabled={pendingLabel !== null} style={st(`${ACTION};${pendingLabel !== null ? 'opacity:0.6' : ''}`)} onClick={() => run(a)}>

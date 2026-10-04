@@ -142,6 +142,7 @@ export default async function gameSuggestionRoutes(app: FastifyInstance) {
         gameId: created.id,
         type: 'game_added',
         message: (actorName) => `${actorName} approved "${resolved.title}" into the room`,
+        payload: { gameId: game.id, title: game.title, coverImageUrl: game.coverImageUrl, status: game.status },
       });
 
       reply.status(201);

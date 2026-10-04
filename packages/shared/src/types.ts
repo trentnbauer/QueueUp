@@ -1115,21 +1115,33 @@ export interface PriceHistoryResponse {
 }
 
 /** One playthrough in a play journal (#802): a game, where it was played, when, and time logged. */
+/** What a play-journal entry records - each gets its own icon and sentence. */
+export type JournalEventKind = 'added' | 'started' | 'beaten' | 'dropped' | 'paused' | 'replay' | 'skipped' | 'moved' | 'spin' | 'reviewed';
+
+/** One event in a play journal (#802): who did what to which game, and when. */
 export interface JournalEntry {
   id: string;
-  gameId: string;
-  title: string;
+  kind: JournalEventKind;
+  /** Who did it - null for an account since deleted. */
+  actor: User | null;
+  /** Null for an old entry whose game QueueUp can no longer match (then `message` says it all). */
+  gameId: string | null;
+  title: string | null;
   coverImageUrl: string | null;
-  status: GameStatus;
-  /** The room it was played in, or null for the Personal Shelf. */
+  /** The game's status after this event ('moved' entries say which). */
+  status: GameStatus | null;
+  /** The room it happened in, or null for the Personal Shelf. */
   roomId: string | null;
   roomName: string | null;
-  startedAt: string;
-  finishedAt: string | null;
-  /** Minutes played in this playthrough (Steam playtime at start and finish), when known. */
+  at: string;
+  /** The logged sentence, for entries written before the journal kept structured detail. */
+  message: string;
+  /** Beaten: minutes played in that playthrough (Steam playtime at start and finish), when known. */
   minutesPlayed: number | null;
-  /** The viewer's all-time playtime for the game from Steam or Playnite, when known. */
+  /** Beaten: the viewer's all-time playtime from Steam or Playnite, when known. */
   totalMinutes: number | null;
+  /** Reviewed: the review's average score out of 5. */
+  score: number | null;
 }
 
 export interface PlayLogEntry {
@@ -1331,7 +1343,8 @@ export type NotificationType =
   | 'friend_recommendation'
   | 'good_time_to_buy'
   | 'account_change'
-  | 'platform_unowned';
+  | 'platform_unowned'
+  | 'room_game_beaten';
 
 /** Notification types a person can choose to receive by email (direct ones, never room-scoped). */
 export const EMAIL_ALERT_TYPES = [
@@ -1345,6 +1358,7 @@ export const EMAIL_ALERT_TYPES = [
   'friend_recommendation',
   'good_time_to_buy',
   'account_change',
+  'room_game_beaten',
 ] as const;
 export type EmailAlertType = (typeof EMAIL_ALERT_TYPES)[number];
 
@@ -1359,6 +1373,7 @@ export const EMAIL_ALERT_LABELS: Record<EmailAlertType, string> = {
   friend_recommendation: 'Games your friends rate highly',
   good_time_to_buy: 'Good time to buy',
   account_change: 'Changes to your account',
+  room_game_beaten: 'Room games to review after someone beats them',
 };
 
 /** One alert type's settings for the signed-in person. `email` sends it by email (needs SMTP set
@@ -1449,7 +1464,8 @@ export type RoomActivityType =
   | 'member_promoted'
   | 'member_left'
   | 'console_added'
-  | 'admin_manage';
+  | 'admin_manage'
+  | 'game_reviewed';
 
 export interface RoomActivityEntry {
   id: string;

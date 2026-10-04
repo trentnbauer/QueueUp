@@ -29,8 +29,10 @@ interface DialogPayloads {
   addRoom: { step: AddRoomStep };
   add: { query?: string };
   /** `edit`: opened to write or change the review of an already-Beaten game, rather than straight
-   * after marking it Beaten - closing it then leaves the game detail open. */
-  review: { gameId: string; edit?: boolean };
+   * after marking it Beaten - closing it then leaves the game detail open. `syncShelf`: opened from
+   * "someone beat this in the room" - saving or skipping then marks it Beaten on the viewer's shelf
+   * too, review included. */
+  review: { gameId: string; edit?: boolean; syncShelf?: boolean };
   /** Play journal (#802): one room's, or (no roomId) everything the viewer has played. */
   journal: { roomId?: string };
 }

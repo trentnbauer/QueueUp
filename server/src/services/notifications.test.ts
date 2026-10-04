@@ -61,9 +61,9 @@ describe('unreadNotificationWhere', () => {
     ];
     expect(unreadNotificationWhere(VIEWER, memberships)).toEqual({
       OR: [
-        { roomId: 'room-1', AND: [notCausedBy(VIEWER)], createdAt: { gt: new Date('2026-01-01T11:00:00Z') } },
+        { roomId: 'room-1', recipientId: null, AND: [notCausedBy(VIEWER)], createdAt: { gt: new Date('2026-01-01T11:00:00Z') } },
         // No notificationsReadAt yet - falls back to joinedAt, same as serializeNotification.
-        { roomId: 'room-2', AND: [notCausedBy(VIEWER)], createdAt: { gt: new Date('2026-01-02T00:00:00Z') } },
+        { roomId: 'room-2', recipientId: null, AND: [notCausedBy(VIEWER)], createdAt: { gt: new Date('2026-01-02T00:00:00Z') } },
         { recipientId: VIEWER, AND: [notCausedBy(VIEWER)], readAt: null },
       ],
     });

@@ -135,7 +135,7 @@ export function Overlays() {
       {d.changelog && <ChangelogDialog />}
       {d.journal && <JournalDialog roomId={d.journal.roomId} />}
       {d.dlc && <DlcDialog />}
-      {d.review && reviewGame && <ReviewSheet game={reviewGame} edit={!!d.review.edit} />}
+      {d.review && reviewGame && <ReviewSheet game={reviewGame} edit={!!d.review.edit} syncShelf={!!d.review.syncShelf} />}
       <SensitiveGamesPrompt active={isShelf && !busy} />
       <UiToast />
     </>

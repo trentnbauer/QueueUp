@@ -2,7 +2,7 @@ import type { NotificationType, Prisma } from '@prisma/client';
 import { logAccountEvent } from './accountEvents.js';
 import { prisma } from '../db/client.js';
 import { toUserDto } from '../util/dto.js';
-import { logRoomActivity, logShelfActivity } from './roomActivity.js';
+import { logRoomActivity, logShelfActivity, type RoomGamePayload } from './roomActivity.js';
 import type { Notification } from '@queueup/shared';
 
 async function actorDisplayName(actorId: string): Promise<string> {
@@ -24,9 +24,11 @@ interface NotifyRoomInput {
   // RoomActivityType, not just documented as one.
   type: Exclude<
     NotificationType,
-    'room_deleted' | 'price_drop' | 'release_watch' | 'playtime_mark_playing' | 'playnite_sync_reminder' | 'wishlist_bundle_deal' | 'play_together_request' | 'feed_reaction' | 'friend_recommendation' | 'good_time_to_buy' | 'account_change' | 'platform_unowned'
+    'room_deleted' | 'price_drop' | 'release_watch' | 'playtime_mark_playing' | 'playnite_sync_reminder' | 'wishlist_bundle_deal' | 'play_together_request' | 'feed_reaction' | 'friend_recommendation' | 'good_time_to_buy' | 'account_change' | 'platform_unowned' | 'room_game_beaten'
   >;
   message: (actorName: string) => string;
+  /** The game event's structured detail, for the room's play journal. */
+  payload?: RoomGamePayload;
 }
 
 /** Writes a room-scoped notification. The actor never sees their own action as unread (see
@@ -57,7 +59,7 @@ export async function notifyRoom(input: NotifyRoomInput): Promise<void> {
     // narrowed type (see NotifyRoomInput above) makes this a plain assignment, no cast needed.
     // logRoomActivity has its own independent try/catch, so a feed-write hiccup here can't mask or
     // roll back the notification write above.
-    void logRoomActivity({ roomId: input.roomId, actorId: input.actorId, type: input.type, message: () => message });
+    void logRoomActivity({ roomId: input.roomId, actorId: input.actorId, type: input.type, message: () => message, payload: input.payload });
   } catch (err) {
     console.error('[notifications] failed to write room notification', err);
   }
@@ -98,6 +100,38 @@ export async function notifyRoomMembersDirect(input: NotifyRoomMembersDirectInpu
     });
   } catch (err) {
     console.error('[notifications] failed to write direct notifications', err);
+  }
+}
+
+/** A member marked a room game Beaten: asks every other member to review it and mark it Beaten on
+ * their own shelf. One unread nudge per member per game - a re-beat while the last one is still
+ * unread doesn't stack another. Direct rows, but with roomId and gameId so the toast opens the
+ * game in its room (the room-scoped unread queries skip rows with a recipientId). */
+export async function notifyRoomGameBeaten(input: { roomId: string; roomName: string; actorId: string; gameId: string; title: string }): Promise<void> {
+  try {
+    const members = await prisma.roomMember.findMany({ where: { roomId: input.roomId, userId: { not: input.actorId } }, select: { userId: true } });
+    if (members.length === 0) return;
+    const pending = await prisma.notification.findMany({
+      where: { type: 'room_game_beaten', gameId: input.gameId, readAt: null, recipientId: { in: members.map((m) => m.userId) } },
+      select: { recipientId: true },
+    });
+    const skip = new Set(pending.map((n) => n.recipientId));
+    const recipients = members.map((m) => m.userId).filter((id) => !skip.has(id));
+    if (recipients.length === 0) return;
+    const actorName = await actorDisplayName(input.actorId);
+    await prisma.notification.createMany({
+      data: recipients.map((recipientId) => ({
+        recipientId,
+        roomId: input.roomId,
+        roomName: input.roomName,
+        actorId: input.actorId,
+        gameId: input.gameId,
+        type: 'room_game_beaten' as const,
+        message: `${actorName} marked "${input.title}" as Beaten in ${input.roomName}. Review it and mark it Beaten on your shelf?`,
+      })),
+    });
+  } catch (err) {
+    console.error('[notifications] failed to write room-game-beaten notifications', err);
   }
 }
 
@@ -355,6 +389,7 @@ export function unreadNotificationWhere(
     OR: [
       ...memberships.map((m) => ({
         roomId: m.roomId,
+        recipientId: null,
         AND: [notCausedBy(userId)],
         createdAt: { gt: m.notificationsReadAt ?? m.joinedAt },
       })),
@@ -404,7 +439,7 @@ export async function getNotificationSummary(userId: string): Promise<{ totalUnr
         roomId: m.roomId,
         // A member's own actions never count toward their own unread badge (see notifyRoom).
         unreadCount: await prisma.notification.count({
-          where: { roomId: m.roomId, AND: [notCausedBy(userId)], createdAt: { gt: m.notificationsReadAt ?? m.joinedAt } },
+          where: { roomId: m.roomId, recipientId: null, AND: [notCausedBy(userId)], createdAt: { gt: m.notificationsReadAt ?? m.joinedAt } },
         }),
       })),
     ),
