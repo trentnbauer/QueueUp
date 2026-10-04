@@ -105,11 +105,21 @@ enum RoomInvitePermission {
 }
 
 enum SpinWheelTheme {
+  reel
+  card_vote
   slot
+  knockout
+  plinko
+  plinko_stake
+  ban_draft
+  roulette
+  claw
+  match_three
+  random
+  /// Retired themes (never drawn - they all showed the reel). Kept so older rows still load;
+  /// migrateSpinModes moves rooms off them.
   crate
   card_flip
-  roulette
-  random
 
   @@map("spin_wheel_theme")
 }
@@ -163,6 +173,9 @@ enum NotificationType {
   account_change
 
   @@map("notification_type")
+  /// A library sync found games on a console the person unticked from Systems owned: asks whether
+  /// to add it back (Yes/No), instead of re-adding it on its own. `platform` says which.
+  platform_unowned
 }
 
 /// See RoomActivity's doc comment. A superset of NotificationType's room-scoped values (everything
@@ -190,6 +203,8 @@ enum RoomActivityType {
   member_left
   /// Someone added a system to their "systems I own" (shown to friends and in their own shelf history).
   console_added
+  /// A server administrator started managing the room as its Room Master (#792).
+  admin_manage
 
   @@map("room_activity_type")
 }
@@ -218,6 +233,11 @@ model User {
   /// search/create flow there the same way a Room's platform scopes it for a room. Empty means
   /// no opt-in yet, so no filtering is applied (preserves pre-existing behavior).
   ownedPlatforms       RoomPlatform[] @default([]) @map("owned_platforms")
+  /// Consoles the person unticked from Systems owned. A library sync never ticks these again on its
+  /// own; it asks instead (platform_unowned notification). Re-ticking one clears it.
+  dismissedPlatforms  RoomPlatform[] @default([]) @map("dismissed_platforms")
+  /// Consoles they answered "No" to adding back - not asked about again until ticked and unticked again.
+  declinedPlatforms   RoomPlatform[] @default([]) @map("declined_platforms")
   /// Whether the public, unauthenticated `/u/:id` profile page (badges, Beaten count, Currently
   /// Playing) answers for this user. New accounts default to on (issue #511 originally shipped it
   /// opt-in; existing rows keep whatever they had). Turning it off makes GET /api/public/users/:id
@@ -664,9 +684,12 @@ model Room {
   /// loosen "everyone must already own it" into "or it's cheap enough that buying in isn't a big
   /// ask." $0 reproduces the old fully-owned-only behavior.
   spinOwnershipMaxPrice Int            @default(15) @map("spin_ownership_max_price")
+  /// Spin filters the Spin dialog starts with in this room (SpinDefaults in packages/shared): length,
+  /// review score and "everyone owns it" (#801). Null = none.
+  spinDefaults          Json?          @map("spin_defaults")
   /// Which visual presentation Spin the Wheel uses (issue #297) - defaults to the original
   /// slot-machine reel so existing rooms don't change.
-  spinWheelTheme        SpinWheelTheme @default(slot) @map("spin_wheel_theme")
+  spinWheelTheme        SpinWheelTheme @default(reel) @map("spin_wheel_theme")
   /// When true, this room is listed in the public room directory (GET /api/rooms/public) and any
   /// signed-in user can self-join it instantly via POST /api/rooms/:roomId/join-public, without an
   /// invite code. Defaults to false (invite-only) so existing rooms are unaffected. The invite-code
@@ -763,6 +786,9 @@ model RoomSpin {
   /// The filters the spin was started with (SpinFilters in services/spinFilters.ts), so a voted
   /// respin draws from the same pool.
   filters         Json?          @map("filters")
+  /// The round's state for every mode but the reel (StoredPlay in packages/shared spinModes.ts):
+  /// the weighted pool until the waiting room closes, then the dealt round. Null for the reel.
+  modeState       Json?          @map("mode_state")
   startedBy       String         @map("started_by")
   createdAt       DateTime       @default(now()) @map("created_at")
   updatedAt       DateTime       @updatedAt @map("updated_at")
@@ -846,6 +872,9 @@ model Game {
   /// Wheel's weighting treats it the same as a game nobody's voted on), or on games added before
   /// this field existed.
   reviewScore                  Int?       @map("review_score")
+  /// PC install size in MB from the Steam store page's system requirements (#800) - IGDB has no
+  /// size data. Filled in by jobs/downloadSizeBackfillJob.ts for Steam-matched games; null otherwise.
+  downloadSizeMb               Int?       @map("download_size_mb")
   ggDealsUrl                   String?    @map("gg_deals_url")
   steamAppid                   Int?       @map("steam_appid")
   coverImageUrl                String?    @map("cover_image_url")
@@ -1146,6 +1175,8 @@ model Notification {
   /// parsing `message`. SetNull rather than Cascade on delete: a removed game shouldn't take an
   /// already-delivered notification with it, just leave it unable to offer its action anymore.
   gameId      String?          @map("game_id")
+  /// The console a platform_unowned notification is about.
+  platform    RoomPlatform?    @map("platform")
 
   room      Room? @relation(fields: [roomId], references: [id], onDelete: Cascade)
   recipient User? @relation("NotificationRecipient", fields: [recipientId], references: [id], onDelete: Cascade)

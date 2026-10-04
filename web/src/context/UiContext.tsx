@@ -20,7 +20,8 @@ export type DialogKey =
   | 'playnite'
   | 'changelog'
   | 'dlc'
-  | 'review';
+  | 'review'
+  | 'journal';
 
 export type AddRoomStep = 'options' | 'create' | 'join' | 'browse';
 
@@ -30,6 +31,8 @@ interface DialogPayloads {
   /** `edit`: opened to write or change the review of an already-Beaten game, rather than straight
    * after marking it Beaten - closing it then leaves the game detail open. */
   review: { gameId: string; edit?: boolean };
+  /** Play journal (#802): one room's, or (no roomId) everything the viewer has played. */
+  journal: { roomId?: string };
 }
 
 type OpenState = { [K in DialogKey]?: K extends keyof DialogPayloads ? DialogPayloads[K] : true };

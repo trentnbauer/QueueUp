@@ -65,3 +65,16 @@ describe('minScore filter', () => {
     expect(parseSpinFilters({ minScore: '80' }).minScore).toBeUndefined();
   });
 });
+
+describe('maxSizeMb filter (#800)', () => {
+  it('keeps games at or under the size and leaves out ones with no size known', () => {
+    const games = [game({ id: 'small', downloadSizeMb: 8000 }), game({ id: 'big', downloadSizeMb: 90000 }), game({ id: 'unknown', downloadSizeMb: null })];
+    expect(applySpinFilters(games, { maxSizeMb: 10240 }).map((g) => g.id)).toEqual(['small']);
+    expect(applySpinFilters(games, {}).map((g) => g.id)).toEqual(['small', 'big', 'unknown']);
+  });
+
+  it('reads it from the request body', () => {
+    expect(parseSpinFilters({ maxSizeMb: 30720 }).maxSizeMb).toBe(30720);
+    expect(parseSpinFilters({ maxSizeMb: -5 }).maxSizeMb).toBeUndefined();
+  });
+});

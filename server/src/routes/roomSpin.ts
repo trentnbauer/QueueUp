@@ -1,7 +1,17 @@
 import type { FastifyInstance } from 'fastify';
 import { Prisma } from '@prisma/client';
-import type { ActiveRoomSpin, ConcreteSpinWheelTheme, Game, RoomSpinSession } from '@queueup/shared';
+import type { ActiveRoomSpin, ConcreteSpinWheelTheme, Game, RoomSpinSession, SpinPlayAction, StoredPlay } from '@queueup/shared';
 import {
+  advancePlay,
+  applyPlayAction,
+  avoidedGenres,
+  isPending,
+  isPlayMode,
+  pendingPlay,
+  playSettlesAt,
+  publicPlay,
+  PlayActionError,
+  spinCandidateWeight,
   spinCandidates,
   buildSpinStrip,
   resolveConcreteTheme,
@@ -18,6 +28,7 @@ import { gameInclude, serializeGames } from '../services/gameSerializer.js';
 import { unlockBadges } from '../services/badges.js';
 import { logRoomActivity } from '../services/roomActivity.js';
 import { applySpinFilters, parseSpinFilters, type SpinFilters } from '../services/spinFilters.js';
+import { SPIN_WHEEL_THEMES, type SpinWheelTheme } from '@queueup/shared';
 
 // A spin nobody's touched in this long is treated as abandoned (someone started it, then closed
 // their laptop) rather than wedging the room forever - the next GET after this window just
@@ -45,22 +56,92 @@ function isStale(spin: { updatedAt: Date }): boolean {
 
 type RoomSpinRow = Awaited<ReturnType<typeof prisma.roomSpin.findUniqueOrThrow>>;
 
-/** Builds a fresh candidate strip (and, if the room's theme setting is "random," a fresh concrete
- * theme) from the room's *current* backlog - re-read from the DB on every call (start and a
- * voted respin both call this) rather than trusting anything the caller already had
- * loaded, so a fresh spin always draws from up-to-date votes/ownership/prices. */
-async function buildStripAndTheme(
+/** Builds a fresh round from the room's *current* backlog - re-read from the DB on every call
+ * (start and a voted respin both call this) rather than trusting anything the caller already had
+ * loaded, so a fresh spin always draws from up-to-date votes/ownership/prices. Resolves "random" to
+ * a mode. The reel gets its weighted strip; every other mode gets its weighted pool (dealt once the
+ * waiting room closes - see spinModes.ts), and stripGameIds then lists the pool's games so the
+ * session can hand clients their details. */
+async function buildRound(
   roomId: string,
   userId: string,
   filters: SpinFilters = {},
-): Promise<{ stripGameIds: string[]; theme: ConcreteSpinWheelTheme }> {
+): Promise<{ stripGameIds: string[]; theme: ConcreteSpinWheelTheme; modeState: StoredPlay | null }> {
   const room = await getRoom(roomId);
   const rows = await prisma.game.findMany({ where: { roomId, archivedAt: null }, include: gameInclude });
   const games = await serializeGames(rows, userId);
   const candidates = applySpinFilters(spinCandidates(games, room.spinOwnershipMaxPrice), filters);
+  if (candidates.length === 0) throw new HttpError(400, 'No backlog game is eligible for Spin the Wheel right now');
+  // Rooms still on a retired theme (crate, card_flip) only ever saw the reel.
+  const setting = (SPIN_WHEEL_THEMES as string[]).includes(room.spinWheelTheme) ? (room.spinWheelTheme as SpinWheelTheme) : 'reel';
+  const theme = resolveConcreteTheme(setting);
+  if (isPlayMode(theme)) {
+    const avoided = avoidedGenres(games);
+    const pending = pendingPlay(theme, candidates.map((g) => ({ gameId: g.id, weight: spinCandidateWeight(g, avoided) })), Math.random);
+    return { stripGameIds: pending.pool.map((c) => c.gameId), theme, modeState: pending };
+  }
   const strip = buildSpinStrip(games, candidates, Math.random);
-  if (strip.length === 0) throw new HttpError(400, 'No backlog game is eligible for Spin the Wheel right now');
-  return { stripGameIds: strip.map((g) => g.id), theme: resolveConcreteTheme(room.spinWheelTheme) };
+  return { stripGameIds: strip.map((g) => g.id), theme, modeState: null };
+}
+
+/** The round's stored mode state, or null for the reel (and for a row from before spin modes). */
+function storedPlay(spin: RoomSpinRow): StoredPlay | null {
+  return (spin.modeState as StoredPlay | null) ?? null;
+}
+
+/** settlesAt/settledPosition for a round starting from `base`: the reel's physics, or the mode's
+ * reveal time (far off until it's decided). */
+function settleFields(modeState: StoredPlay | null, base: SpinBase): { settlesAt: Date; settledPosition: number } {
+  if (modeState) return { settlesAt: new Date(playSettlesAt(modeState, base.timestamp0)), settledPosition: 0 };
+  return { settlesAt: new Date(settlesAtOf(base)), settledPosition: settledPositionOf(base) };
+}
+
+/** Brings a mode's round up to now (deals once the waiting room closes, runs out timers - see
+ * advancePlay) and saves it. Only saves if nobody else saved first; if someone did, theirs is just
+ * as valid, so it's re-read rather than overwritten. */
+async function syncPlay(spin: RoomSpinRow): Promise<RoomSpinRow> {
+  const stored = storedPlay(spin);
+  if (!stored) return spin;
+  const startAt = spin.timestamp0.getTime();
+  const next = advancePlay(stored, Date.now(), startAt, [...new Set(spin.readyUserIds)], Math.random);
+  if (next === stored) return spin;
+  await prisma.roomSpin.updateMany({
+    where: { id: spin.id, updatedAt: spin.updatedAt },
+    data: { modeState: next as unknown as Prisma.InputJsonValue, settlesAt: new Date(playSettlesAt(next, startAt)) },
+  });
+  return (await prisma.roomSpin.findUnique({ where: { id: spin.id } })) ?? spin;
+}
+
+/** The game a settled round landed on, or null while it's still running. */
+function winnerGameIdOf(spin: RoomSpinRow): string | null {
+  if (Date.now() < spin.settlesAt.getTime()) return null;
+  const stored = storedPlay(spin);
+  if (stored) return isPending(stored) ? null : stored.winnerId;
+  if (spin.stripGameIds.length === 0) return null;
+  return spin.stripGameIds[candidateIndexAt(spin.settledPosition, spin.stripGameIds.length)] ?? null;
+}
+
+/** Validates a member's move from the request body. */
+function parseAction(body: unknown): SpinPlayAction {
+  const b = (body ?? {}) as Record<string, unknown>;
+  const int = (v: unknown) => (typeof v === 'number' && Number.isInteger(v) ? v : NaN);
+  const id = (v: unknown) => (typeof v === 'string' && v.length > 0 && v.length < 100 ? v : '');
+  switch (b.type) {
+    case 'vote':
+      return { type: 'vote', card: int(b.card) };
+    case 'stake':
+      return { type: 'stake', bin: int(b.bin) };
+    case 'ban':
+      return { type: 'ban', gameId: id(b.gameId) };
+    case 'shield':
+      return { type: 'shield', gameId: id(b.gameId) };
+    case 'drop':
+      return { type: 'drop', x: typeof b.x === 'number' ? b.x : NaN };
+    case 'flip':
+      return { type: 'flip', tile: int(b.tile) };
+    default:
+      throw new HttpError(400, 'Unknown move');
+  }
 }
 
 /** Fetches every game referenced by `stripGameIds` (deduped) and re-expands them back into strip
@@ -87,13 +168,17 @@ async function hydrateStrip(stripGameIds: string[], userId: string): Promise<Gam
 
 // The DB column reuses the room's own SpinWheelTheme enum (which includes 'random'), but a
 // RoomSpin row is only ever written with resolveConcreteTheme's output - this narrows that back
-// to the concrete-only type RoomSpinSession promises callers.
+// to the concrete-only type RoomSpinSession promises callers. A row with no mode state is the reel,
+// whatever its theme says (rows from before spin modes said "slot" and drew the reel).
 async function toSpinDto(spin: RoomSpinRow, userId: string): Promise<RoomSpinSession | null> {
   const strip = await hydrateStrip(spin.stripGameIds, userId);
   if (!strip) return null;
+  const stored = storedPlay(spin);
   return {
     id: spin.id,
-    theme: spin.theme as ConcreteSpinWheelTheme,
+    theme: stored ? (spin.theme as ConcreteSpinWheelTheme) : 'reel',
+    play: stored && !isPending(stored) ? publicPlay(stored) : null,
+    serverNow: new Date().toISOString(),
     strip,
     position0: spin.position0,
     velocity0: spin.velocity0,
@@ -170,11 +255,12 @@ export default async function roomSpinRoutes(app: FastifyInstance) {
       const { roomId } = request.params;
       await requireMembership(roomId, userId);
 
-      const spin = await prisma.roomSpin.findUnique({ where: { roomId } });
+      let spin = await prisma.roomSpin.findUnique({ where: { roomId } });
       if (!spin || isStale(spin)) {
         if (spin) await prisma.roomSpin.deleteMany({ where: { id: spin.id } });
         return { spin: null };
       }
+      spin = await syncPlay(spin);
       const dto = await toSpinDto(spin, userId);
       if (!dto) {
         await prisma.roomSpin.deleteMany({ where: { id: spin.id } });
@@ -213,10 +299,11 @@ export default async function roomSpinRoutes(app: FastifyInstance) {
           const base: SpinBase = { position0: spin.position0, velocity0: spin.velocity0, timestamp0: now };
           spin = await prisma.roomSpin.update({
             where: { roomId },
-            data: { timestamp0: new Date(now), settlesAt: new Date(settlesAtOf(base)), settledPosition: settledPositionOf(base) },
+            data: { timestamp0: new Date(now), ...settleFields(storedPlay(spin), base) },
           });
         }
       }
+      spin = await syncPlay(spin);
 
       const dto = await toSpinDto(spin, userId);
       if (!dto) throw new HttpError(404, 'No active spin');
@@ -234,7 +321,7 @@ export default async function roomSpinRoutes(app: FastifyInstance) {
       await requireMembership(roomId, userId);
 
       const filters = parseSpinFilters(request.body);
-      const { stripGameIds, theme } = await buildStripAndTheme(roomId, userId, filters);
+      const { stripGameIds, theme, modeState } = await buildRound(roomId, userId, filters);
       // Nobody else to wait for when you're the room's only member - spin straight away.
       const memberCount = await prisma.roomMember.count({ where: { roomId } });
       const base = freshBase(Date.now(), memberCount > 1 ? SPIN_WAITING_ROOM_MS : 0);
@@ -251,8 +338,8 @@ export default async function roomSpinRoutes(app: FastifyInstance) {
             position0: base.position0,
             velocity0: base.velocity0,
             timestamp0: new Date(base.timestamp0),
-            settlesAt: new Date(settlesAtOf(base)),
-            settledPosition: settledPositionOf(base),
+            ...settleFields(modeState, base),
+            modeState: modeState ? (modeState as unknown as Prisma.InputJsonValue) : Prisma.DbNull,
             startedBy: userId,
             // Issue #488: whoever clicked "Pick a Game" obviously has it open - count them as
             // ready immediately rather than waiting for their own next poll to add them.
@@ -261,7 +348,7 @@ export default async function roomSpinRoutes(app: FastifyInstance) {
           },
         });
         reply.status(201);
-        return { spin: await toSpinDto(spin, userId) };
+        return { spin: await toSpinDto(await syncPlay(spin), userId) };
       } catch (err) {
         // Someone else's "Pick a Game" click won the race (unique roomId) - join their session
         // instead of erroring, same idea as the concurrent-suggestion-approve fix (#421).
@@ -300,15 +387,51 @@ export default async function roomSpinRoutes(app: FastifyInstance) {
       const base: SpinBase = { position0: spin.position0, velocity0: spin.velocity0, timestamp0: now };
       const updated = await prisma.roomSpin.update({
         where: { roomId },
-        data: {
-          timestamp0: new Date(now),
-          settlesAt: new Date(settlesAtOf(base)),
-          settledPosition: settledPositionOf(base),
-        },
+        data: { timestamp0: new Date(now), ...settleFields(storedPlay(spin), base) },
       });
-      const dto = await toSpinDto(updated, userId);
+      const dto = await toSpinDto(await syncPlay(updated), userId);
       if (!dto) throw new HttpError(404, 'No active spin');
       return { spin: dto };
+    },
+  );
+
+  // A member's move in a spin mode: a vote, a chip, a ban, a shield, a claw drop or a tile flip
+  // (see SpinPlayAction). The round is brought up to date first, so a move lands after any timer
+  // that ran out before it. Saved only if nobody else saved in between; otherwise it's retried on
+  // the fresh state, so two members acting at once can't overwrite each other.
+  app.post<{ Params: { roomId: string } }>(
+    '/api/rooms/:roomId/spin/action',
+    { config: { rateLimit: { max: 120, timeWindow: '1 minute' } } },
+    async (request) => {
+      const userId = await request.requireAuth();
+      const { roomId } = request.params;
+      await requireMembership(roomId, userId);
+      const action = parseAction(request.body);
+
+      for (let attempt = 0; attempt < 4; attempt++) {
+        const found = await prisma.roomSpin.findUnique({ where: { roomId } });
+        if (!found || isStale(found)) throw new HttpError(404, 'No active spin');
+        const spin = await syncPlay(found);
+        const stored = storedPlay(spin);
+        if (!stored) throw new HttpError(409, "This spin doesn't take moves");
+        if (isPending(stored)) throw new HttpError(409, "The round hasn't started yet");
+        let next;
+        try {
+          next = applyPlayAction(stored, userId, action, Date.now(), Math.random);
+        } catch (err) {
+          if (err instanceof PlayActionError) throw new HttpError(409, err.message);
+          throw err;
+        }
+        const saved = await prisma.roomSpin.updateMany({
+          where: { id: spin.id, updatedAt: spin.updatedAt },
+          data: { modeState: next as unknown as Prisma.InputJsonValue, settlesAt: new Date(playSettlesAt(next, spin.timestamp0.getTime())) },
+        });
+        if (saved.count === 0) continue;
+        const dto = await toSpinDto(await prisma.roomSpin.findUniqueOrThrow({ where: { id: spin.id } }), userId);
+        if (!dto) throw new HttpError(404, 'No active spin');
+        return { spin: dto };
+      }
+      throw new HttpError(409, 'Busy - try that again');
     },
   );
 
@@ -326,6 +449,7 @@ export default async function roomSpinRoutes(app: FastifyInstance) {
 
       let spin = await prisma.roomSpin.findUnique({ where: { roomId } });
       if (!spin || isStale(spin)) throw new HttpError(404, 'No spin to respin');
+      spin = await syncPlay(spin);
       if (Date.now() < spin.settlesAt.getTime()) throw new HttpError(409, 'Wait for the wheel to stop first');
 
       if (!spin.respinVoteUserIds.includes(userId)) {
@@ -333,7 +457,7 @@ export default async function roomSpinRoutes(app: FastifyInstance) {
       }
 
       if (new Set(spin.respinVoteUserIds).size >= respinVotesNeeded(spin)) {
-        const { stripGameIds, theme } = await buildStripAndTheme(roomId, userId, parseSpinFilters(spin.filters));
+        const { stripGameIds, theme, modeState } = await buildRound(roomId, userId, parseSpinFilters(spin.filters));
         const base = freshBase(Date.now());
         // Conditional on the row being unchanged since the votes were counted, so two final votes
         // landing together respin once, not twice.
@@ -345,8 +469,8 @@ export default async function roomSpinRoutes(app: FastifyInstance) {
             position0: base.position0,
             velocity0: base.velocity0,
             timestamp0: new Date(base.timestamp0),
-            settlesAt: new Date(settlesAtOf(base)),
-            settledPosition: settledPositionOf(base),
+            ...settleFields(modeState, base),
+            modeState: modeState ? (modeState as unknown as Prisma.InputJsonValue) : Prisma.DbNull,
             nudgeCount: 0,
             respinVoteUserIds: [],
           },
@@ -354,7 +478,7 @@ export default async function roomSpinRoutes(app: FastifyInstance) {
         if (respun.count > 0) {
           void logRoomActivity({ roomId, actorId: null, type: 'spin_result', message: () => 'The room voted to respin the wheel' });
         }
-        spin = await prisma.roomSpin.findUniqueOrThrow({ where: { roomId } });
+        spin = await syncPlay(await prisma.roomSpin.findUniqueOrThrow({ where: { roomId } }));
       }
 
       const dto = await toSpinDto(spin, userId);
@@ -386,9 +510,10 @@ export default async function roomSpinRoutes(app: FastifyInstance) {
       // button isn't. That means the credited user often isn't the caller, so this deliberately
       // doesn't return unlockedBadges for a toast (same reasoning as Promoted in rooms.ts) - it
       // still lands for real, just silently, and shows up next time that person checks /achievements.
-      const spin = await prisma.roomSpin.findUnique({ where: { roomId } });
-      if (spin && Date.now() >= spin.settlesAt.getTime() && spin.stripGameIds.length > 0) {
-        const winnerGameId = spin.stripGameIds[candidateIndexAt(spin.settledPosition, spin.stripGameIds.length)];
+      const found = await prisma.roomSpin.findUnique({ where: { roomId } });
+      const spin = found ? await syncPlay(found) : null;
+      const winnerGameId = spin ? winnerGameIdOf(spin) : null;
+      if (spin && winnerGameId) {
         // Absent if the winning game was removed mid-spin (see stripGameIds' own schema doc on
         // this exact edge case) - nothing to credit in that case, not an error.
         const winnerGame = winnerGameId

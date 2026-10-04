@@ -37,6 +37,7 @@ function makeGame(overrides: Partial<Game> = {}): Game {
     tags: [],
     igdbCollectionId: null,
     reviewScore: null,
+    downloadSizeMb: null,
     prerequisiteGameId: null,
     baseGameId: null,
     playtimeSinceCheckpointMinutes: null,
@@ -173,8 +174,8 @@ describe('resolveConcreteTheme', () => {
   });
 
   it('resolves "random" deterministically from an injected random()', () => {
-    expect(resolveConcreteTheme('random', () => 0)).toBe('slot');
-    expect(resolveConcreteTheme('random', () => 0.99)).toBe('roulette');
+    expect(resolveConcreteTheme('random', () => 0)).toBe('reel');
+    expect(resolveConcreteTheme('random', () => 0.99)).toBe('match_three');
   });
 });
 

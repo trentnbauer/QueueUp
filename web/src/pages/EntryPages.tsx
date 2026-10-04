@@ -19,21 +19,23 @@ import { useVersion } from '../hooks/useVersion';
 import { REVIEW_EMOJI, reviewAverage } from '../lib/gameView';
 import { Avatar, Btn, Cover, Wordmark, AppMark, inputPill } from '../ui/primitives';
 import { useIsMobile } from '../ui/useLayout';
+import { translate, useCyclingLanguage, useI18n } from '../i18n';
+import type { MessageKey } from '../i18n/en';
 import { st } from '../ui/st';
 
-const FEATURES: [string, string][] = [
-  ['🎮', 'Track your backlog across every platform you own'],
-  ['🗳️', "Vote with your squad on what's up next"],
-  ['🎡', 'Spin the Wheel when nobody can decide'],
-  ['💸', 'Watch prices and auto-sync Steam achievements'],
+const FEATURES: [string, MessageKey][] = [
+  ['🎮', 'login.feature.backlog'],
+  ['🗳️', 'login.feature.vote'],
+  ['🎡', 'login.feature.spin'],
+  ['💸', 'login.feature.prices'],
 ];
 
-const PROVIDER_STYLE: Record<string, { label: string; bg: string; fg: string; border: string }> = {
-  google: { label: 'Sign in with Google', bg: 'var(--text)', fg: 'var(--onText)', border: 'none' },
-  discord: { label: 'Sign in with Discord', bg: '#5865F2', fg: '#fff', border: 'none' },
-  steam: { label: 'Sign in with Steam', bg: '#1b2838', fg: '#fff', border: 'none' },
-  oidc: { label: 'Single sign-on', bg: 'transparent', fg: 'var(--text)', border: '1px solid var(--line)' },
-  dev: { label: 'Sign in (development)', bg: 'var(--text)', fg: 'var(--onText)', border: 'none' },
+const PROVIDER_STYLE: Record<string, { label: (t: ReturnType<typeof useI18n>['t']) => string; bg: string; fg: string; border: string }> = {
+  google: { label: (t) => t('login.signInWith', { provider: 'Google' }), bg: 'var(--text)', fg: 'var(--onText)', border: 'none' },
+  discord: { label: (t) => t('login.signInWith', { provider: 'Discord' }), bg: '#5865F2', fg: '#fff', border: 'none' },
+  steam: { label: (t) => t('login.signInWith', { provider: 'Steam' }), bg: '#1b2838', fg: '#fff', border: 'none' },
+  oidc: { label: (t) => t('login.sso'), bg: 'transparent', fg: 'var(--text)', border: '1px solid var(--line)' },
+  dev: { label: (t) => t('login.dev'), bg: 'var(--text)', fg: 'var(--onText)', border: 'none' },
 };
 
 /** Cloudflare's widget script, loaded once on first use. */
@@ -138,6 +140,9 @@ function TurnstileWidget({ siteKey, onToken }: { siteKey: string; onToken: (toke
 /** Signed-out landing page: what QueueUp is, then one button per configured sign-in method. */
 export function LoginPage({ providers, turnstileSiteKey = null }: { providers: string[] | null; turnstileSiteKey?: string | null }) {
   const { version } = useVersion();
+  const { t } = useI18n();
+  // The intro steps through every language QueueUp speaks (#776), so visitors see theirs.
+  const shown = useCyclingLanguage();
   const list = providers === null ? [] : providers.length > 0 ? providers : ['dev'];
   // Issue #665: with the captcha on, the sign-in buttons wait for a solved Turnstile token, which
   // rides along on the login URL for the server to verify.
@@ -161,25 +166,27 @@ export function LoginPage({ providers, turnstileSiteKey = null }: { providers: s
             <AppMark size={46} />
             <Wordmark size={46} />
           </div>
-          <span style={st('font:500 18px var(--font-ui);color:var(--text2)')}>Pick a game, together.</span>
+          <span key={`tag-${shown}`} lang={shown} style={st('font:500 18px var(--font-ui);color:var(--text2);animation:qu-fade .4s ease both')}>
+            {translate(shown, 'login.tagline')}
+          </span>
         </div>
-        <div style={st('display:flex;flex-direction:column;gap:12px')}>
-          {FEATURES.map(([e, t]) => (
-            <div key={t} style={st('display:flex;align-items:center;gap:12px;font:400 14.5px/1.4 var(--font-ui);color:var(--text2)')}>
+        <div key={`features-${shown}`} lang={shown} style={st('display:flex;flex-direction:column;gap:12px;animation:qu-fade .4s ease both')}>
+          {FEATURES.map(([e, key]) => (
+            <div key={key} style={st('display:flex;align-items:center;gap:12px;font:400 14.5px/1.4 var(--font-ui);color:var(--text2)')}>
               <span style={st('width:36px;height:36px;flex-shrink:0;border-radius:12px;background:var(--surf);display:flex;align-items:center;justify-content:center;font-size:17px')}>{e}</span>
-              {t}
+              {translate(shown, key)}
             </div>
           ))}
         </div>
         <div style={st('display:flex;flex-direction:column;gap:10px')}>
           {captchaFailed && !captcha && (
             <span role="alert" style={st('font:500 13.5px var(--font-ui);color:var(--danger)')}>
-              The security check didn't go through. Please try again.
+              {t('login.captchaFailed')}
             </span>
           )}
           {needsCaptcha && <TurnstileWidget siteKey={turnstileSiteKey!} onToken={setCaptcha} />}
           {list.map((p) => {
-            const s = PROVIDER_STYLE[p] ?? { label: `Sign in with ${p}`, bg: 'transparent', fg: 'var(--text)', border: '1px solid var(--line)' };
+            const s = PROVIDER_STYLE[p] ?? { label: () => t('login.signInWith', { provider: p }), bg: 'transparent', fg: 'var(--text)', border: '1px solid var(--line)' };
             return (
               <a
                 key={p}
@@ -190,20 +197,21 @@ export function LoginPage({ providers, turnstileSiteKey = null }: { providers: s
                   `height:52px;border-radius:999px;border:${s.border};background:${s.bg};color:${s.fg};font:700 15px var(--font-ui);display:flex;align-items:center;justify-content:center;text-decoration:none;opacity:${ready ? 1 : 0.7};cursor:${ready ? 'pointer' : 'progress'};transition:opacity 0.2s`,
                 )}
               >
-                {s.label}
+                {s.label(t)}
               </a>
             );
           })}
         </div>
       </div>
       <div style={st('flex-shrink:0;padding:16px 24px 24px;text-align:center;font:400 12px var(--font-ui);color:var(--faint)')}>
-        Self-hosted QueueUp{version ? ` · ${version}` : ''} ·{' '}
+        {t('login.selfHosted')}
+        {version ? ` · ${version}` : ''} ·{' '}
         <Link to="/privacy" style={st('color:var(--muted)')}>
-          Privacy
+          {t('login.privacy')}
         </Link>{' '}
         ·{' '}
         <a href="https://github.com/trentnbauer/QueueUp" target="_blank" rel="noopener noreferrer" style={st('color:var(--muted)')}>
-          Source
+          {t('login.source')}
         </a>
       </div>
     </div>

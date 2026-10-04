@@ -129,6 +129,7 @@ function buildGameDto(
     tags,
     igdbCollectionId: game.igdbCollectionId,
     reviewScore: game.reviewScore,
+    downloadSizeMb: game.downloadSizeMb,
     prerequisiteGameId: game.prerequisiteGameId,
     baseGameId: game.baseGameId,
     playtimeSinceCheckpointMinutes: playtime?.sinceCheckpointMinutes ?? null,

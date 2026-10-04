@@ -1,3 +1,4 @@
+import type { SpinPlay } from './spinModes.js';
 export type GameStatus = 'backlog' | 'playing' | 'done' | 'dropped' | 'wishlist' | 'replay' | 'play_next' | 'paused' | 'wont_play';
 
 export type RoomRole = 'room_master' | 'moderator' | 'member';
@@ -342,6 +343,8 @@ export interface Room {
   spinOwnershipMaxPrice: number;
   /** Which visual presentation Spin the Wheel uses - see SpinWheelTheme. */
   spinWheelTheme: SpinWheelTheme;
+  /** Filters the Spin dialog starts with in this room (#801). */
+  spinDefaults: SpinDefaults;
   /** When true, this room is listed in the public room directory and any signed-in user can
    * self-join it instantly (no invite code, no approval step). Defaults to false. */
   isPublic: boolean;
@@ -358,6 +361,9 @@ export interface Room {
   /** Only on GET /api/rooms: how many members the room has and how many games sit in its Queue. */
   memberCount?: number;
   queuedCount?: number;
+  /** Set when the caller is an administrator managing this room as its Room Master without being a
+   * member (#792): when that runs out, as an ISO timestamp. */
+  adminManagedUntil?: string;
 }
 
 /** A member's lightweight nomination for a room game, pending a Room Master/Moderator's approval
@@ -394,6 +400,11 @@ export interface RoomSpinSession {
   respinVotes: number;
   respinNeeded: number;
   youVotedRespin: boolean;
+  /** The round's state for every mode but the reel (see spinModes.ts); null for the reel, and
+   * while the waiting room is still open. */
+  play: SpinPlay | null;
+  /** Server time when this was sent, so clients can line their clock up with the round's timestamps. */
+  serverNow: string;
 }
 
 /** A room's spin session, but only the sliver a cross-room "someone just started a spin" popup
@@ -434,22 +445,78 @@ export interface PublicRoomSummary {
   memberCount: number;
 }
 
-/** Which visual presentation Spin the Wheel uses, room-settable. "random" resolves to one of the
- * other four at spin time (see resolveConcreteTheme in the web app) rather than being a renderable
- * theme itself - ConcreteSpinWheelTheme is what a caller actually renders. */
-export type SpinWheelTheme = 'slot' | 'crate' | 'card_flip' | 'roulette' | 'random';
+/** Spin filters a room's Spin dialog starts with (#801). Each is optional; unset means "any". */
+export interface SpinDefaults {
+  /** Longest time to beat, in hours. */
+  maxTtb?: number;
+  /** Lowest IGDB score, 0-100. */
+  minScore?: number;
+  /** Only games every member owns. */
+  everyoneOwns?: boolean;
+}
+
+/** How Spin the Wheel picks a game, room-settable. "reel" is the original horizontal reel; the
+ * others are the spin modes in spinModes.ts. "random" resolves to one of the others at spin time
+ * (see resolveConcreteTheme) rather than being a mode itself - ConcreteSpinWheelTheme is what a
+ * spin actually runs. */
+export type SpinWheelTheme =
+  | 'reel'
+  | 'card_vote'
+  | 'slot'
+  | 'knockout'
+  | 'plinko'
+  | 'plinko_stake'
+  | 'ban_draft'
+  | 'roulette'
+  | 'claw'
+  | 'match_three'
+  | 'random';
 
 export const SPIN_WHEEL_THEME_LABELS: Record<SpinWheelTheme, string> = {
-  slot: 'Slot Machine',
-  crate: 'Loot Crate',
-  card_flip: 'Card Flip',
-  roulette: 'Roulette Wheel',
+  reel: 'Reel',
+  card_vote: 'Three-card vote',
+  slot: 'Hold & respin slots',
+  knockout: 'Knockout',
+  plinko: 'Plinko drop',
+  plinko_stake: 'Chip-stake plinko',
+  ban_draft: 'Ban draft',
+  roulette: 'Prize wheel',
+  claw: 'Claw machine',
+  match_three: 'Match three',
   random: 'Random',
+};
+
+/** One line on how each mode picks, for the room settings picker. */
+export const SPIN_WHEEL_THEME_HINTS: Record<SpinWheelTheme, string> = {
+  reel: 'The classic: a reel of covers slows to a stop.',
+  card_vote: 'Three cards are dealt and the room votes.',
+  slot: 'Pairs hold while the odd reel respins.',
+  knockout: 'Games are knocked out one by one. Everyone gets a shield.',
+  plinko: 'A chip bounces down into a game.',
+  plinko_stake: 'Everyone stakes a chip to boost a game, then one drop decides.',
+  ban_draft: 'Take turns banning games until one is left.',
+  roulette: 'A prize wheel with a wedge for each game.',
+  claw: 'Take turns with the claw. Top-voted games grip better.',
+  match_three: 'Take turns flipping tiles. First game to three wins.',
+  random: 'A different one each spin.',
 };
 
 export type ConcreteSpinWheelTheme = Exclude<SpinWheelTheme, 'random'>;
 
-export const CONCRETE_SPIN_WHEEL_THEMES: ConcreteSpinWheelTheme[] = ['slot', 'crate', 'card_flip', 'roulette'];
+export const CONCRETE_SPIN_WHEEL_THEMES: ConcreteSpinWheelTheme[] = [
+  'reel',
+  'card_vote',
+  'slot',
+  'knockout',
+  'plinko',
+  'plinko_stake',
+  'ban_draft',
+  'roulette',
+  'claw',
+  'match_three',
+];
+
+export const SPIN_WHEEL_THEMES: SpinWheelTheme[] = [...CONCRETE_SPIN_WHEEL_THEMES, 'random'];
 
 export interface RoomMember {
   roomId: string;
@@ -601,6 +668,8 @@ export interface Game {
    * on games added before this was captured. Nudges Spin the Wheel's weighted pick toward
    * better-reviewed games - see spinCandidateWeight in gameGridLogic.ts. */
   reviewScore: number | null;
+  /** PC install size in MB from Steam's system requirements (#800); null when unknown. */
+  downloadSizeMb: number | null;
   /** User-set "play this after" pointer to another game in the same room (e.g. Borderlands 2 ->
    * Borderlands 1) - null when unset. Room games only; always null on the Personal Shelf. Spin the
    * Wheel excludes a backlog game from its candidate pool while its prerequisite isn't yet Done -
@@ -767,6 +836,7 @@ export interface UpdateRoomRequest {
   /** Set to null to clear/disable the webhook. */
   discordWebhookUrl?: string | null;
   spinOwnershipMaxPrice?: number;
+  spinDefaults?: SpinDefaults;
   spinWheelTheme?: SpinWheelTheme;
   isPublic?: boolean;
   requireGameApproval?: boolean;
@@ -1020,6 +1090,24 @@ export interface PriceHistoryResponse {
   lowest: number | null;
 }
 
+/** One playthrough in a play journal (#802): a game, where it was played, when, and time logged. */
+export interface JournalEntry {
+  id: string;
+  gameId: string;
+  title: string;
+  coverImageUrl: string | null;
+  status: GameStatus;
+  /** The room it was played in, or null for the Personal Shelf. */
+  roomId: string | null;
+  roomName: string | null;
+  startedAt: string;
+  finishedAt: string | null;
+  /** Minutes played in this playthrough (Steam playtime at start and finish), when known. */
+  minutesPlayed: number | null;
+  /** The viewer's all-time playtime for the game from Steam or Playnite, when known. */
+  totalMinutes: number | null;
+}
+
 export interface PlayLogEntry {
   id: string;
   startedAt: string;
@@ -1167,6 +1255,21 @@ export interface AdminRoomSummary {
   memberCount: number;
   gameCount: number;
   createdAt: string;
+  /** When the calling administrator's "Manage as Room Master" for this room runs out, if it's on. */
+  managingUntil: string | null;
+}
+
+/** A read-only look at one room for administrators (#792). */
+export interface AdminRoomDetail {
+  room: AdminRoomSummary & {
+    isPublic: boolean;
+    requireGameApproval: boolean;
+    invitePermission: RoomInvitePermission;
+    spinOwnershipMaxPrice: number;
+    spinWheelTheme: SpinWheelTheme;
+  };
+  members: { user: User; role: RoomRole; joinedAt: string }[];
+  games: { id: string; title: string; status: GameStatus; voteScore: number; coverImageUrl: string | null; addedByName: string }[];
 }
 
 /** A durable record of a destructive admin action - see AdminAuditLog in schema.prisma.
@@ -1203,7 +1306,8 @@ export type NotificationType =
   | 'feed_reaction'
   | 'friend_recommendation'
   | 'good_time_to_buy'
-  | 'account_change';
+  | 'account_change'
+  | 'platform_unowned';
 
 /** Notification types a person can choose to receive by email (direct ones, never room-scoped). */
 export const EMAIL_ALERT_TYPES = [
@@ -1300,6 +1404,8 @@ export interface Notification {
    * except playtime_mark_playing. Lets a client action button (e.g. "Mark Playing") target the
    * right game without parsing `message`. */
   gameId: string | null;
+  /** The console a platform_unowned notification asks about adding to Systems owned. */
+  platform: RoomPlatform | null;
 }
 
 /** Issue #509 - a room's full, paginated activity history, distinct from NotificationType above:
@@ -1318,7 +1424,8 @@ export type RoomActivityType =
   | 'spin_result'
   | 'member_promoted'
   | 'member_left'
-  | 'console_added';
+  | 'console_added'
+  | 'admin_manage';
 
 export interface RoomActivityEntry {
   id: string;

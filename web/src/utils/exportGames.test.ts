@@ -37,6 +37,7 @@ function makeGame(overrides: Partial<Game> = {}): Game {
     tags: [],
     igdbCollectionId: null,
     reviewScore: null,
+    downloadSizeMb: null,
     prerequisiteGameId: null,
     baseGameId: null,
     playtimeSinceCheckpointMinutes: null,

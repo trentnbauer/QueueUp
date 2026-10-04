@@ -4,10 +4,11 @@ import { gamesApi } from '../api/games';
 import { useScope } from '../context/ScopeContext';
 import { useUi } from '../context/UiContext';
 import { Dialog } from '../ui/Dialog';
-import { Btn, Kicker } from '../ui/primitives';
+import { Btn, ChipToggle, Kicker } from '../ui/primitives';
 import { SystemsPicker } from '../ui/SystemsPicker';
 import { st } from '../ui/st';
 import { exportGames } from '../utils/exportGames';
+import { BACKLOG_SORT_OPTIONS, toggleBacklogSort, useBacklogSort } from '../home/backlogSort';
 import { formatRelativeTime } from '../utils/relativeTime';
 
 export function ShelfSettingsDialog() {
@@ -22,6 +23,7 @@ export function ShelfSettingsDialog() {
     enabled: showAct,
   });
   const entries = activity.data?.pages.flatMap((p) => p.entries) ?? [];
+  const [backlogSort, setBacklogSort] = useBacklogSort();
 
   return (
     <Dialog onClose={() => ui.closeDialog('shelfSettings')} title="Shelf settings" gap={24}>
@@ -29,6 +31,23 @@ export function ShelfSettingsDialog() {
         <Kicker>SYSTEMS OWNED</Kicker>
         <span style={st('font:400 13px/1.45 var(--font-ui);color:var(--muted)')}>Add Game can limit its search to these systems with the "Owned systems only" button.</span>
         <SystemsPicker onSaved={() => ui.notify('Systems saved')} />
+      </div>
+      <div style={st('display:flex;flex-direction:column;gap:10px')}>
+        <Kicker>SORT BACKLOG BY</Kicker>
+        <span style={st('font:400 13px/1.45 var(--font-ui);color:var(--muted)')}>Pick one or more. The first you pick sorts the Backlog; the next breaks ties.</span>
+        <div style={st('display:flex;flex-wrap:wrap;gap:6px')}>
+          {BACKLOG_SORT_OPTIONS.map((o) => {
+            const rank = backlogSort.indexOf(o.key) + 1;
+            return (
+              <ChipToggle key={o.key} on={rank > 0} height={36} onClick={() => setBacklogSort(toggleBacklogSort(backlogSort, o.key))}>
+                {backlogSort.length > 1 && rank > 0 && (
+                  <span aria-label={`priority ${rank}`} style={st('margin-right:6px;font:700 11px var(--font-mono);opacity:0.7')}>{rank}</span>
+                )}
+                {o.label}
+              </ChipToggle>
+            );
+          })}
+        </div>
       </div>
       <div style={st('display:flex;flex-direction:column;gap:10px')}>
         <Kicker>EXPORT · {games.length} GAMES</Kicker>

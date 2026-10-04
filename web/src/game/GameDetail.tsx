@@ -16,6 +16,7 @@ import {
   fmtMoney,
   gameScore,
   hasLivePrice,
+  pctAboveLow,
   releaseDateLabel,
   shortDate,
 } from '../lib/gameView';
@@ -107,6 +108,8 @@ export function GameDetail({ game, onClose, changeStatus }: { game: Game; onClos
   const currency = game.price.currency;
   const showLow = live && game.price.historicalLow != null && Number(game.price.historicalLow) < Number(game.price.amount);
   const atLow = live && !own && game.price.historicalLow != null && Number(game.price.historicalLow) >= Number(game.price.amount);
+  // Null when either side is free/missing (issue #797) - the "All-time low" line then shows alone.
+  const abovePct = pctAboveLow(game.price.amount, game.price.historicalLow);
 
   const ttb = [
     game.timeToBeatRushedHours != null && `${game.timeToBeatRushedHours}h rushed`,
@@ -242,8 +245,11 @@ export function GameDetail({ game, onClose, changeStatus }: { game: Game; onClos
 
   const buyBg = own ? 'var(--mintSoft)' : live ? 'var(--text)' : 'var(--surf)';
   const buyFg = own ? 'var(--mint)' : live ? 'var(--onText)' : 'var(--muted)';
+  // Owners still see the going price (issue #797), so a game doesn't read as "free" just because it's owned.
   const buyLabel = own
-    ? '✓ You own this'
+    ? live
+      ? `✓ You own this · ${fmtMoney(game.price.amount, currency)} now`
+      : '✓ You own this'
     : live
       ? `🛒 ${fmtMoney(game.price.amount, currency)} on gg.deals`
       : game.manualPrice
@@ -307,6 +313,7 @@ export function GameDetail({ game, onClose, changeStatus }: { game: Game; onClos
             <div style={st('display:flex;flex-wrap:wrap;gap:6px 12px;font:400 12.5px var(--font-ui);color:var(--muted)')}>
               {live && game.price.lastRefreshedAt && <span>{refreshing ? 'Checking…' : `Updated ${formatRelativeTime(game.price.lastRefreshedAt)}`}</span>}
               {showLow && <span style={st('color:var(--accText);font-weight:600')}>All-time low: {fmtMoney(game.price.historicalLow, currency)}</span>}
+              {showLow && abovePct != null && abovePct > 0 && <span>Now {abovePct}% above its lowest</span>}
               {atLow && <span style={st('color:var(--mint);font-weight:600')}>At its all-time low right now</span>}
             </div>
             {live && <PriceHistoryChart gameId={game.id} currency={game.price.currency} />}

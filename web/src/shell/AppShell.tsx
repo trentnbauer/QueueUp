@@ -87,7 +87,8 @@ export function AppShell({ children }: { children: ReactNode }) {
     <div {...roomScope} style={{ ...st('position:relative;height:100vh;display:flex;background:var(--bg);color:var(--text);overflow:hidden'), ...roomScope.style }}>
       {showRail ? <Rail onExpand={() => setCollapsed(false)} /> : <Sidebar onCollapse={() => setCollapsed(true)} />}
       <main style={st('flex:1;min-width:0;overflow-y:auto')}>
-        <div style={st('max-width:960px;margin:0 auto;padding:30px 36px 48px;display:flex;flex-direction:column;gap:18px')}>{children}</div>
+        {/* 960px on laptops, then grows with the viewport (to 1600px) so ultrawides don't waste the middle (issue #796). */}
+        <div style={st('max-width:clamp(960px, 100vw - 1000px, 1600px);margin:0 auto;padding:30px 36px 48px;display:flex;flex-direction:column;gap:18px')}>{children}</div>
       </main>
       {(showDetail || showGlance) && (
         <>

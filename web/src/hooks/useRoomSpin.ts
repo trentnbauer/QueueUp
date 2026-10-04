@@ -1,5 +1,6 @@
+import { useMemo } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import type { RoomSpinSession } from '@queueup/shared';
+import type { RoomSpinSession, SpinPlayAction } from '@queueup/shared';
 import { roomSpinApi, type SpinFilters } from '../api/rooms';
 import { useAnnounceUnlock } from '../context/AchievementUnlockContext';
 
@@ -46,6 +47,17 @@ export function useRoomSpin(roomId: string | undefined) {
     if (roomId) queryClient.setQueryData(queryKey(roomId), data);
   };
 
+  // Server clock minus ours, from the latest response: spin modes timestamp everything on the
+  // server's clock, so timers and animations line up for everyone whatever their own clock says.
+  const serverNow = query.data?.spin?.serverNow;
+  const clockOffset = useMemo(() => (serverNow ? new Date(serverNow).getTime() - Date.now() : 0), [serverNow]);
+
+  const act = useMutation({
+    mutationFn: (action: SpinPlayAction) => roomSpinApi.action(roomId!, action),
+    onSuccess: setCache,
+    onError: () => roomId && queryClient.invalidateQueries({ queryKey: queryKey(roomId) }),
+  });
+
   const start = useMutation({
     mutationFn: (filters?: SpinFilters) => roomSpinApi.start(roomId!, filters),
     onSuccess: setCache,
@@ -82,6 +94,8 @@ export function useRoomSpin(roomId: string | undefined) {
     spin: query.data?.spin ?? null,
     startSpin: (filters?: SpinFilters) => start.mutateAsync(filters),
     voteRespin: () => respinVote.mutateAsync(),
+    act: (action: SpinPlayAction) => act.mutateAsync(action),
+    clockOffset,
     skipWaitSpin: () => skipWait.mutateAsync(),
     markReady: () => markReady.mutateAsync(),
     closeSpin: () => close.mutateAsync(),

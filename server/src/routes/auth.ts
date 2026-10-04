@@ -9,7 +9,7 @@ import { toUserDto } from '../util/dto.js';
 import { HttpError } from '../util/httpError.js';
 import { getTurnstileConfig, verifyTurnstileToken } from '../services/turnstile.js';
 import { extractSteamId64, resolveSteamId64 } from '../services/steamLibrary.js';
-import { setOwnedPlatforms, setProfileSlug, setProfileVisibility, setPublicProfileEnabled } from '../services/userSettings.js';
+import { answerUnownedPlatform, setOwnedPlatforms, setProfileSlug, setProfileVisibility, setPublicProfileEnabled, VALID_PLATFORMS } from '../services/userSettings.js';
 import { logAdminAction } from '../services/adminAuditLog.js';
 import { generateApiKeyToken, hashApiKeyToken } from '../services/apiKeys.js';
 import type { OAuthProfile } from '../services/authProviders/types.js';
@@ -22,6 +22,7 @@ import type {
   DataExportLinkedIdentity,
   DataExportRoomMembership,
   DataExportVote,
+  RoomPlatform,
   UpdateOwnedPlatformsRequest,
   UpdatePublicProfileRequest,
   UpdateProfileVisibilityRequest,
@@ -266,6 +267,16 @@ export default async function authRoutes(app: FastifyInstance) {
     const userId = await request.requireAuth();
     const ownedPlatforms = await setOwnedPlatforms(userId, request.body?.platforms);
     return reply.send({ ownedPlatforms });
+  });
+
+  // The Yes / No on a platform_unowned notification: a sync found games on a console the person had
+  // unticked. Yes ticks it again; No stops asking about it.
+  app.post<{ Params: { platform: string }; Body: { add?: unknown } }>('/api/me/owned-platforms/:platform/answer', async (request) => {
+    const userId = await request.requireAuth();
+    const platform = request.params.platform as RoomPlatform;
+    if (!VALID_PLATFORMS.has(platform)) throw new HttpError(400, 'Unknown console');
+    const ownedPlatforms = await answerUnownedPlatform(userId, platform, request.body?.add === true);
+    return { ownedPlatforms };
   });
 
   // Who can open your profile page: public, friends or private.
