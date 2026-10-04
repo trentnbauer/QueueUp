@@ -53,10 +53,28 @@ export async function resetSharedPlayniteAliases(logger: { info: (msg: string) =
   }
 }
 
+const PROFILE_VISIBILITY_KEY = 'migration.profileVisibilityFromPublicFlag';
+
+/** Profile visibility went from an on/off switch (publicProfileEnabled) to public / friends /
+ * private. The new column starts as public for everyone, so each person who had switched it off is
+ * moved to friends - the people who could still see their profile then. Runs once (recorded in
+ * app_settings), so a later change to the new setting is never overwritten. */
+export async function migrateProfileVisibility(logger: { info: (msg: string) => void; warn: (msg: string) => void }): Promise<void> {
+  try {
+    if (await prisma.appSetting.findUnique({ where: { key: PROFILE_VISIBILITY_KEY } })) return;
+    const { count } = await prisma.user.updateMany({ where: { publicProfileEnabled: false }, data: { profileVisibility: 'friends' } });
+    await prisma.appSetting.create({ data: { key: PROFILE_VISIBILITY_KEY, value: new Date().toISOString() } });
+    if (count > 0) logger.info(`Set ${count} profile(s) with the public switch off to friends-only`);
+  } catch (err) {
+    logger.warn(`Could not migrate profile visibility (non-fatal): ${err instanceof Error ? err.message : String(err)}`);
+  }
+}
+
 /** One-time data fixes that run at boot, after the schema is in place. Each is idempotent. */
 export async function runDataMigrations(logger: { info: (msg: string) => void; warn: (msg: string) => void }): Promise<void> {
   await migrateLegacyReviews(logger);
   await resetSharedPlayniteAliases(logger);
+  await migrateProfileVisibility(logger);
   try {
     const count = await encryptPlaintextConfig();
     if (count > 0) logger.info(`Encrypted ${count} integration key(s) stored in Administrator settings`);

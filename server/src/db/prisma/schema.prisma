@@ -7,6 +7,12 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
+enum ProfileVisibility {
+  public
+  friends
+  private
+}
+
 enum GameStatus {
   backlog
   playing
@@ -217,6 +223,11 @@ model User {
   /// opt-in; existing rows keep whatever they had). Turning it off makes GET /api/public/users/:id
   /// 404 again, and hidden games are never shown either way.
   publicProfileEnabled Boolean        @default(true) @map("public_profile_enabled")
+  /// Who can open this person's `/u/:id` profile page: anyone (public), only friends (friends), or
+  /// only themselves (private). Replaces publicProfileEnabled above, which is kept in sync (true
+  /// only when public) but no longer read; runDataMigrations copied each existing on/off choice
+  /// across once (on -> public, off -> friends, which is who could still see it then).
+  profileVisibility    ProfileVisibility @default(public) @map("profile_visibility")
   /// Optional vanity name for the public profile URL (`/u/<slug>`), instead of the user id. Unique,
   /// lowercase letters/digits/hyphens (see services/userSettings.ts for the rules).
   profileSlug          String?        @unique @map("profile_slug")

@@ -5,7 +5,7 @@ import { HttpError } from '../util/httpError.js';
 import { generateUniqueInviteCode } from '../services/roomAccess.js';
 import { createGameForUser } from '../services/gameIntake.js';
 import { ownershipPlatformsOverlap } from './publicProfile.js';
-import { areFriends } from '../services/friendships.js';
+import { canViewProfile } from '../services/friendships.js';
 
 /** "Ask to play together": someone who owns the same game as you asks to play it with you. It lands
  * in your notifications with a choice - add the game to a room you're both in, or start a new room
@@ -19,11 +19,10 @@ export default async function playTogetherRoutes(app: FastifyInstance) {
       const { userId: targetId, igdbId } = request.body ?? {};
       if (typeof targetId !== 'string' || !Number.isInteger(igdbId)) throw new HttpError(400, 'A user and a game are required');
       if (targetId === me) throw new HttpError(400, "You can't ask yourself");
-      // Only someone whose profile you can see (a friend, or a public profile) - the same people the
-      // profile page offers this for. Otherwise the reply would tell anyone with a user id whether
-      // that person owns a given game.
-      const target = await prisma.user.findUnique({ where: { id: targetId }, select: { publicProfileEnabled: true } });
-      if (!target || (!target.publicProfileEnabled && !(await areFriends(me, targetId)))) {
+      // Only someone whose profile you can see - the same people the profile page offers this for.
+      // Otherwise the reply would tell anyone with a user id whether that person owns a given game.
+      const target = await prisma.user.findUnique({ where: { id: targetId }, select: { id: true, profileVisibility: true } });
+      if (!target || !(await canViewProfile(me, target))) {
         throw new HttpError(404, 'User not found');
       }
 

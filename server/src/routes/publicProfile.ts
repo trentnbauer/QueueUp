@@ -4,7 +4,7 @@ import { prisma } from '../db/client.js';
 import { HttpError } from '../util/httpError.js';
 import { BADGE_DEFINITIONS, ROOM_PLATFORM_LABELS, sortPlatformLabel, sortPlatforms, type BadgeKey, type PublicProfileGame, type PublicUserProfile } from '@queueup/shared';
 import { toGameReviewDto } from '../services/gameSerializer.js';
-import { areFriends } from '../services/friendships.js';
+import { areFriends, canViewProfile } from '../services/friendships.js';
 
 /** Whether two people's ownership claims on the same title let them play it together: an empty
  * platform list means "platform unknown" and matches anything (same rule as room ownership in
@@ -37,7 +37,7 @@ export default async function publicProfileRoutes(app: FastifyInstance) {
     const key = request.params.id.toLowerCase();
     const user = await prisma.user.findFirst({
       where: { OR: [{ id: request.params.id }, { profileSlug: key }] },
-      select: { id: true, displayName: true, avatarColor: true, avatarUrl: true, publicProfileEnabled: true, ownedPlatforms: true, createdAt: true },
+      select: { id: true, displayName: true, avatarColor: true, avatarUrl: true, profileVisibility: true, ownedPlatforms: true, createdAt: true },
     });
     // Same response (404, no distinguishing detail) whether the id doesn't exist at all or exists
     // but hasn't opted in - a scan of ids must not be able to tell "no such user" from "exists but
@@ -48,7 +48,7 @@ export default async function publicProfileRoutes(app: FastifyInstance) {
     const viewerId = await request.currentUserId();
     const viewer: 'self' | 'friend' | 'public' =
       viewerId === user.id ? 'self' : viewerId && (await areFriends(viewerId, user.id)) ? 'friend' : 'public';
-    if (!user.publicProfileEnabled && viewer === 'public') throw new HttpError(404, 'Profile not found');
+    if (!(await canViewProfile(viewerId, user))) throw new HttpError(404, 'Profile not found');
 
     // Personal Shelf only (roomId: null) - same scope as the release-watch alerts (#510) and the
     // Franchise Finisher/DLC Completionist badges this reuses rarity data alongside; a room game

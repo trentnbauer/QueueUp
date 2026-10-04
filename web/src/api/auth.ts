@@ -1,6 +1,6 @@
 import { apiDelete, apiGet, apiPatch, apiPost, apiPut } from './client';
 import { getBasePath } from '../utils/basePath';
-import type { AccountEventPage, ActivityVisibilityResponse, RoomPlatform, User } from '@queueup/shared';
+import type { AccountEventPage, ActivityVisibilityResponse, ProfileVisibility, RoomPlatform, User } from '@queueup/shared';
 
 export const authApi = {
   me: () =>
@@ -8,9 +8,8 @@ export const authApi = {
       user: User | null;
       steamLinked: boolean;
       ownedPlatforms: RoomPlatform[];
-      /** Whether the /u/:id public profile page (issue #511) is currently reachable for this
-       * account - off by default, see User.publicProfileEnabled's schema doc. */
-      publicProfileEnabled: boolean;
+      /** Who can open this account's /u/:id profile page: anyone, friends, or only them. */
+      profileVisibility: ProfileVisibility;
       /** Vanity name for the public profile URL, if the user set one. */
       profileSlug: string | null;
       primaryProvider: string | null;
@@ -24,8 +23,8 @@ export const authApi = {
   providers: () => apiGet<{ providers: string[]; turnstileSiteKey: string | null }>('/api/auth/providers'),
   updateOwnedPlatforms: (platforms: RoomPlatform[]) =>
     apiPatch<{ ownedPlatforms: RoomPlatform[] }>('/api/me/owned-platforms', { platforms }),
-  updatePublicProfile: (enabled: boolean) =>
-    apiPatch<{ publicProfileEnabled: boolean }>('/api/me/public-profile', { enabled }),
+  setProfileVisibility: (visibility: ProfileVisibility) =>
+    apiPatch<{ profileVisibility: ProfileVisibility }>('/api/me/profile-visibility', { visibility }),
   accountEvents: (before?: string) => apiGet<AccountEventPage>(`/api/me/events${before ? `?before=${encodeURIComponent(before)}` : ''}`),
   activityVisibility: () => apiGet<ActivityVisibilityResponse>('/api/me/activity-visibility'),
   setActivityVisibility: (hidden: boolean) => apiPut<ActivityVisibilityResponse>('/api/me/activity-visibility', { hidden }),

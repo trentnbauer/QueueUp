@@ -32,3 +32,15 @@ export async function areFriends(userId: string, otherId: string): Promise<boole
   });
   return !!row;
 }
+
+/** Whether `viewerId` (null when signed out) may open the profile page of `owner`, per the owner's
+ * visibility setting: anyone for public, friends for friends, and only the owner for private. */
+export async function canViewProfile(
+  viewerId: string | null,
+  owner: { id: string; profileVisibility: 'public' | 'friends' | 'private' },
+): Promise<boolean> {
+  if (viewerId === owner.id) return true;
+  if (owner.profileVisibility === 'public') return true;
+  if (owner.profileVisibility === 'private' || !viewerId) return false;
+  return areFriends(viewerId, owner.id);
+}

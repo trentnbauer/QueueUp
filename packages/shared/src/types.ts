@@ -785,9 +785,18 @@ export interface UpdateOwnedPlatformsRequest {
   platforms: RoomPlatform[];
 }
 
-/** Toggles User.publicProfileEnabled (issue #511) - see that field's schema doc. */
+/** Toggles User.publicProfileEnabled (issue #511) - see that field's schema doc. Superseded by
+ * UpdateProfileVisibilityRequest; still accepted (true -> public, false -> friends). */
 export interface UpdatePublicProfileRequest {
   enabled: boolean;
+}
+
+/** Who can open someone's profile page: anyone, only their friends, or only themselves. */
+export type ProfileVisibility = 'public' | 'friends' | 'private';
+export const PROFILE_VISIBILITIES: readonly ProfileVisibility[] = ['public', 'friends', 'private'];
+
+export interface UpdateProfileVisibilityRequest {
+  visibility: ProfileVisibility;
 }
 
 export interface UpdateGameStatusRequest {
