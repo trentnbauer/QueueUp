@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { en } from './en';
 import { LANGUAGES, translate } from './index';
-import { piratize } from './pirate';
+import { keepPattern, piratize } from './pirate';
 
 describe('translate', () => {
   it('fills in placeholders', () => {
@@ -27,6 +27,13 @@ describe('piratize', () => {
     expect(piratize('Your friends are in this room')).toBe('Yer hearties be in this ship');
     expect(piratize('ROOMS · 3')).toBe('SHIPS · 3');
     expect(piratize('Sign in to see your Personal Shelf')).toBe('Come aboard to see yer Personal treasure chest');
+  });
+
+  it('never renames games or people', () => {
+    const keep = keepPattern(['Your Friends Are Here', 'Hades', 'Hades II', 'You']);
+    expect(piratize('Your room added "Your Friends Are Here" and Hades II', keep)).toBe('Yer ship added "Your Friends Are Here" and Hades II');
+    expect(keepPattern([])).toBeNull();
+    expect(keepPattern(['a.b (c)'])!.test('a.b (c)')).toBe(true);
   });
 
   it('leaves game titles like Hi-Fi Rush alone', () => {

@@ -97,8 +97,29 @@ function matchCase(original: string, replacement: string): string {
   return replacement;
 }
 
-/** Turns English into pirate. Deterministic, so re-renders don't flicker. */
-export function piratize(text: string): string {
+/** Turns English into pirate, except the parts matching `keep` (game titles and people's names -
+ * those are never renamed). Deterministic, so re-renders don't flicker. */
+export function piratize(text: string, keep?: RegExp | null): string {
+  if (!keep) return piratizeRun(text);
+  let out = '';
+  let last = 0;
+  for (const m of text.matchAll(keep)) {
+    out += piratizeRun(text.slice(last, m.index)) + m[0];
+    last = m.index + m[0].length;
+  }
+  return out + piratizeRun(text.slice(last));
+}
+
+/** A regex matching any of `names` (longest first, so "Hades II" wins over "Hades"), or null. */
+export function keepPattern(names: Iterable<string>): RegExp | null {
+  const list = [...new Set(names)].filter((n) => n.trim().length > 1).sort((a, b) => b.length - a.length);
+  if (!list.length) return null;
+  // Whole words only: a friend called "You" mustn't stop "Your" turning into "Yer".
+  return new RegExp(`(?<![\\p{L}\\p{N}])(?:${list.map((n) => n.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')).join('|')})(?![\\p{L}\\p{N}])`, 'gu');
+}
+
+function piratizeRun(text: string): string {
+  if (!text) return text;
   let out = text;
   for (const [re, to] of PHRASES) out = out.replace(re, (m) => matchCase(m, to));
   out = out.replace(/[A-Za-z]+(?:['’][a-z]+)?/g, (word) => {
