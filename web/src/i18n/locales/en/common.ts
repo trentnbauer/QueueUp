@@ -25,4 +25,5 @@ export const common = {
   "common.notNow": "Not now",
   "common.saving": "Saving…",
   "common.retry": "Retry",
+  "common.requestFailed": "Request failed: {status}",
 } as const;

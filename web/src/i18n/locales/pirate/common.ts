@@ -27,4 +27,5 @@ export const common: Record<keyof typeof en, string> = {
   "common.notNow": "Not this tide",
   "common.saving": "Stowin’…",
   "common.retry": "Try again",
+  "common.requestFailed": "A squall hit the request: {status}",
 };
