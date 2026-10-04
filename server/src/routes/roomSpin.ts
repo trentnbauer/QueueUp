@@ -199,6 +199,16 @@ export default async function roomSpinRoutes(app: FastifyInstance) {
       if (Date.now() < spin.timestamp0.getTime() && !spin.readyUserIds.includes(userId)) {
         spin = await prisma.roomSpin.update({ where: { roomId }, data: { readyUserIds: { push: userId } } });
         justMarkedReady = true;
+        // Everyone's here: end the waiting room now instead of sitting out the rest of the timer.
+        const memberCount = await prisma.roomMember.count({ where: { roomId } });
+        const now = Date.now();
+        if (new Set(spin.readyUserIds).size >= memberCount && now < spin.timestamp0.getTime()) {
+          const base: SpinBase = { position0: spin.position0, velocity0: spin.velocity0, timestamp0: now };
+          spin = await prisma.roomSpin.update({
+            where: { roomId },
+            data: { timestamp0: new Date(now), settlesAt: new Date(settlesAtOf(base)), settledPosition: settledPositionOf(base) },
+          });
+        }
       }
 
       const dto = await toSpinDto(spin, userId);
@@ -217,7 +227,9 @@ export default async function roomSpinRoutes(app: FastifyInstance) {
       await requireMembership(roomId, userId);
 
       const { stripGameIds, theme } = await buildStripAndTheme(roomId, userId, parseSpinFilters(request.body));
-      const base = freshBase(Date.now(), SPIN_WAITING_ROOM_MS);
+      // Nobody else to wait for when you're the room's only member - spin straight away.
+      const memberCount = await prisma.roomMember.count({ where: { roomId } });
+      const base = freshBase(Date.now(), memberCount > 1 ? SPIN_WAITING_ROOM_MS : 0);
       // A stale session left over from an earlier spin would otherwise block this create (one spin
       // per room) until something else happened to clean it up.
       const leftover = await prisma.roomSpin.findUnique({ where: { roomId } });

@@ -19,8 +19,7 @@ import type { SpinFilters } from '../api/rooms';
 import { useScope } from '../context/ScopeContext';
 import { useUi } from '../context/UiContext';
 import { useRoomSpin } from '../hooks/useRoomSpin';
-import { useSteamAutoMatch } from '../hooks/useSteamAutoMatch';
-import { SteamMatchSheet } from '../game/SteamMatchSheet';
+import { gamesApi } from '../api/games';
 import { fmtMoney, priceLabel } from '../lib/gameView';
 import { Dialog, CloseButton } from '../ui/Dialog';
 import { coverBg } from '../ui/primitives';
@@ -135,6 +134,26 @@ function Reel({ strip, position, tw, th, settled, idle }: { strip: Game[]; posit
   );
 }
 
+// Games this tab has already tried to price-match, so reopening the spin doesn't search again.
+const priceMatchTried = new Set<string>();
+const PRICE_MATCHES_PER_SPIN = 5;
+
+/** Quietly looks up a Steam match for a few unpriced games so a room's price limit can judge them
+ * next time. Applies only an unambiguous (single) result and never opens the manual picker - the
+ * person asked to spin, not to fix matches. Fire-and-forget: the spin doesn't wait on it. */
+function matchPricesInBackground(games: Game[], setSteamMatch: (gameId: string, steamAppId: number) => void): void {
+  const batch = games.filter((g) => !priceMatchTried.has(g.id)).slice(0, PRICE_MATCHES_PER_SPIN);
+  for (const g of batch) {
+    priceMatchTried.add(g.id);
+    gamesApi
+      .steamSearch(g.id, g.title)
+      .then(({ results }) => {
+        if (results.length === 1) setSteamMatch(g.id, results[0].steamAppId);
+      })
+      .catch(() => {});
+  }
+}
+
 /** "What are we playing?" - filters, then the reel. On the shelf it runs locally; in a room it runs
  * the room's shared session (everyone watching sees the same spin, the waiting room, and can nudge
  * it left/right) via the same physics the server uses. */
@@ -145,7 +164,6 @@ export function SpinDialog({ onClose }: { onClose: () => void }) {
   const { isShelf, games, room, members, ops } = scope;
   const roomId = isShelf ? undefined : scope.scopeId;
   const shared = useRoomSpin(roomId);
-  const steam = useSteamAutoMatch();
 
   const [maxPrice, setMaxPrice] = useState(0);
   const [maxTtb, setMaxTtb] = useState(0);
@@ -186,23 +204,15 @@ export function SpinDialog({ onClose }: { onClose: () => void }) {
   // Games whose price the room's limit can't judge yet (no Steam match): try a silent match first.
   const backlog = games.filter((g) => g.status === 'backlog' && !isUnreleased(g) && !hasUnmetPrerequisite(g, games));
   const undecided = gate !== undefined ? backlog.filter((g) => !isFullyOwned(g) && !(g.price.source === 'live' || g.ggDealsUrl !== null) && g.manualPrice === null) : [];
-  const [checked, setChecked] = useState<Set<string>>(new Set());
 
   async function go() {
     if (roomId) {
       setStarting(true);
+      // Price-matching games the room's limit can't judge yet used to run here first, one Steam
+      // search at a time, before the spin could start - and an ambiguous match stopped it for the
+      // manual picker. It now runs alongside instead, quietly, and helps the next spin.
+      matchPricesInBackground(undecided, ops.setSteamMatch);
       try {
-        for (const g of undecided) {
-          if (checked.has(g.id)) continue;
-          setChecked((prev) => new Set(prev).add(g.id));
-          let resolved: number | null | undefined;
-          // eslint-disable-next-line no-await-in-loop
-          await steam.attemptAutoMatch(g.id, g.title, (id) => {
-            resolved = id;
-            ops.setSteamMatch(g.id, id);
-          });
-          if (resolved === undefined) return; // the manual picker took over
-        }
         await (session ? shared.restartSpin(filters) : shared.startSpin(filters));
       } catch (err) {
         ui.showError(err instanceof Error ? err.message : 'Could not start a spin.');
@@ -266,7 +276,6 @@ export function SpinDialog({ onClose }: { onClose: () => void }) {
     .filter(Boolean)
     .join(' · ');
 
-  const pickerGame = steam.pickerGameId ? games.find((g) => g.id === steam.pickerGameId) : undefined;
   const countdown = waiting && run ? Math.max(1, Math.ceil((run.base.timestamp0 - now) / 1000)) : 0;
   const resPrice = winner ? priceLabel(winner).label : '';
 
@@ -375,18 +384,6 @@ export function SpinDialog({ onClose }: { onClose: () => void }) {
           </div>
         </div>
       </Dialog>
-      {pickerGame && (
-        <SteamMatchSheet
-          gameId={pickerGame.id}
-          gameTitle={pickerGame.title}
-          hasExistingMatch={pickerGame.price.source === 'live' || pickerGame.ggDealsUrl !== null}
-          onMatched={(id) => {
-            ops.setSteamMatch(pickerGame.id, id);
-            steam.closePicker();
-          }}
-          onClose={steam.closePicker}
-        />
-      )}
     </>
   );
 }
