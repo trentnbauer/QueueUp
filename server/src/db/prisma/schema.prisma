@@ -105,11 +105,21 @@ enum RoomInvitePermission {
 }
 
 enum SpinWheelTheme {
+  reel
+  card_vote
   slot
+  knockout
+  plinko
+  plinko_stake
+  ban_draft
+  roulette
+  claw
+  match_three
+  random
+  /// Retired themes (never drawn - they all showed the reel). Kept so older rows still load;
+  /// migrateSpinModes moves rooms off them.
   crate
   card_flip
-  roulette
-  random
 
   @@map("spin_wheel_theme")
 }
@@ -666,7 +676,7 @@ model Room {
   spinOwnershipMaxPrice Int            @default(15) @map("spin_ownership_max_price")
   /// Which visual presentation Spin the Wheel uses (issue #297) - defaults to the original
   /// slot-machine reel so existing rooms don't change.
-  spinWheelTheme        SpinWheelTheme @default(slot) @map("spin_wheel_theme")
+  spinWheelTheme        SpinWheelTheme @default(reel) @map("spin_wheel_theme")
   /// When true, this room is listed in the public room directory (GET /api/rooms/public) and any
   /// signed-in user can self-join it instantly via POST /api/rooms/:roomId/join-public, without an
   /// invite code. Defaults to false (invite-only) so existing rooms are unaffected. The invite-code
@@ -763,6 +773,9 @@ model RoomSpin {
   /// The filters the spin was started with (SpinFilters in services/spinFilters.ts), so a voted
   /// respin draws from the same pool.
   filters         Json?          @map("filters")
+  /// The round's state for every mode but the reel (StoredPlay in packages/shared spinModes.ts):
+  /// the weighted pool until the waiting room closes, then the dealt round. Null for the reel.
+  modeState       Json?          @map("mode_state")
   startedBy       String         @map("started_by")
   createdAt       DateTime       @default(now()) @map("created_at")
   updatedAt       DateTime       @updatedAt @map("updated_at")

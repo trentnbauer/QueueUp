@@ -70,11 +70,28 @@ export async function migrateProfileVisibility(logger: { info: (msg: string) => 
   }
 }
 
+const SPIN_MODES_KEY = 'migration_spin_modes_v1';
+
+/** Before spin modes existed, every room's spin theme (default "slot") still drew the reel. Moves
+ * every room to "reel" once, so nobody's spin changes until a Room Master picks a mode. Runs once
+ * (recorded in app_settings), so a mode chosen later is never overwritten. */
+export async function migrateSpinModes(logger: { info: (msg: string) => void; warn: (msg: string) => void }): Promise<void> {
+  try {
+    if (await prisma.appSetting.findUnique({ where: { key: SPIN_MODES_KEY } })) return;
+    const { count } = await prisma.room.updateMany({ where: { spinWheelTheme: { not: 'reel' } }, data: { spinWheelTheme: 'reel' } });
+    await prisma.appSetting.create({ data: { key: SPIN_MODES_KEY, value: new Date().toISOString() } });
+    if (count > 0) logger.info(`Set ${count} room(s) to the reel spin`);
+  } catch (err) {
+    logger.warn(`Could not migrate room spin themes (non-fatal): ${err instanceof Error ? err.message : String(err)}`);
+  }
+}
+
 /** One-time data fixes that run at boot, after the schema is in place. Each is idempotent. */
 export async function runDataMigrations(logger: { info: (msg: string) => void; warn: (msg: string) => void }): Promise<void> {
   await migrateLegacyReviews(logger);
   await resetSharedPlayniteAliases(logger);
   await migrateProfileVisibility(logger);
+  await migrateSpinModes(logger);
   try {
     const count = await encryptPlaintextConfig();
     if (count > 0) logger.info(`Encrypted ${count} integration key(s) stored in Administrator settings`);

@@ -23,13 +23,12 @@ import type {
   UpdateRoomRequest,
 } from '@queueup/shared';
 import { areFriends, friendIdsOf } from '../services/friendships.js';
-import { DISCORD_EVENT_KEYS, resolveDiscordEvents, ROOM_PLATFORM_LABELS } from '@queueup/shared';
+import { DISCORD_EVENT_KEYS, resolveDiscordEvents, ROOM_PLATFORM_LABELS, SPIN_WHEEL_THEMES } from '@queueup/shared';
 
 /** #rrggbb - the only colour format a room accent may take (it ends up in inline styles). */
 const HEX_COLOUR = /^#[0-9a-fA-F]{6}$/;
 const ROOM_PLATFORMS = Object.keys(ROOM_PLATFORM_LABELS) as RoomPlatform[];
 const ROOM_ROLES: RoomRole[] = ['room_master', 'moderator', 'member'];
-const SPIN_WHEEL_THEMES: SpinWheelTheme[] = ['slot', 'crate', 'card_flip', 'roulette', 'random'];
 
 function toRoomDto(
   room: {
@@ -41,7 +40,7 @@ function toRoomDto(
     createdAt: Date;
     discordWebhookUrl: string | null;
     spinOwnershipMaxPrice: number;
-    spinWheelTheme: SpinWheelTheme;
+    spinWheelTheme: string;
     isPublic: boolean;
     requireGameApproval: boolean;
     invitePermission: RoomInvitePermission;
@@ -65,7 +64,8 @@ function toRoomDto(
     // also change it) gets the real value; other members just don't see it at all.
     discordWebhookUrl: role === 'room_master' ? room.discordWebhookUrl : undefined,
     spinOwnershipMaxPrice: room.spinOwnershipMaxPrice,
-    spinWheelTheme: room.spinWheelTheme,
+    // The retired crate/card_flip values only ever showed the reel.
+    spinWheelTheme: SPIN_WHEEL_THEMES.includes(room.spinWheelTheme as SpinWheelTheme) ? (room.spinWheelTheme as SpinWheelTheme) : 'reel',
     isPublic: room.isPublic,
     requireGameApproval: room.requireGameApproval,
     invitePermission: room.invitePermission,

@@ -1,3 +1,4 @@
+import type { SpinPlay } from './spinModes.js';
 export type GameStatus = 'backlog' | 'playing' | 'done' | 'dropped' | 'wishlist' | 'replay' | 'play_next' | 'paused' | 'wont_play';
 
 export type RoomRole = 'room_master' | 'moderator' | 'member';
@@ -394,6 +395,11 @@ export interface RoomSpinSession {
   respinVotes: number;
   respinNeeded: number;
   youVotedRespin: boolean;
+  /** The round's state for every mode but the reel (see spinModes.ts); null for the reel, and
+   * while the waiting room is still open. */
+  play: SpinPlay | null;
+  /** Server time when this was sent, so clients can line their clock up with the round's timestamps. */
+  serverNow: string;
 }
 
 /** A room's spin session, but only the sliver a cross-room "someone just started a spin" popup
@@ -434,22 +440,68 @@ export interface PublicRoomSummary {
   memberCount: number;
 }
 
-/** Which visual presentation Spin the Wheel uses, room-settable. "random" resolves to one of the
- * other four at spin time (see resolveConcreteTheme in the web app) rather than being a renderable
- * theme itself - ConcreteSpinWheelTheme is what a caller actually renders. */
-export type SpinWheelTheme = 'slot' | 'crate' | 'card_flip' | 'roulette' | 'random';
+/** How Spin the Wheel picks a game, room-settable. "reel" is the original horizontal reel; the
+ * others are the spin modes in spinModes.ts. "random" resolves to one of the others at spin time
+ * (see resolveConcreteTheme) rather than being a mode itself - ConcreteSpinWheelTheme is what a
+ * spin actually runs. */
+export type SpinWheelTheme =
+  | 'reel'
+  | 'card_vote'
+  | 'slot'
+  | 'knockout'
+  | 'plinko'
+  | 'plinko_stake'
+  | 'ban_draft'
+  | 'roulette'
+  | 'claw'
+  | 'match_three'
+  | 'random';
 
 export const SPIN_WHEEL_THEME_LABELS: Record<SpinWheelTheme, string> = {
-  slot: 'Slot Machine',
-  crate: 'Loot Crate',
-  card_flip: 'Card Flip',
-  roulette: 'Roulette Wheel',
+  reel: 'Reel',
+  card_vote: 'Three-card vote',
+  slot: 'Hold & respin slots',
+  knockout: 'Knockout',
+  plinko: 'Plinko drop',
+  plinko_stake: 'Chip-stake plinko',
+  ban_draft: 'Ban draft',
+  roulette: 'Prize wheel',
+  claw: 'Claw machine',
+  match_three: 'Match three',
   random: 'Random',
+};
+
+/** One line on how each mode picks, for the room settings picker. */
+export const SPIN_WHEEL_THEME_HINTS: Record<SpinWheelTheme, string> = {
+  reel: 'The classic: a reel of covers slows to a stop.',
+  card_vote: 'Three cards are dealt and the room votes.',
+  slot: 'Pairs hold while the odd reel respins.',
+  knockout: 'Games are knocked out one by one. Everyone gets a shield.',
+  plinko: 'A chip bounces down into a game.',
+  plinko_stake: 'Everyone stakes a chip to boost a game, then one drop decides.',
+  ban_draft: 'Take turns banning games until one is left.',
+  roulette: 'A prize wheel with a wedge for each game.',
+  claw: 'Take turns with the claw. Top-voted games grip better.',
+  match_three: 'Take turns flipping tiles. First game to three wins.',
+  random: 'A different one each spin.',
 };
 
 export type ConcreteSpinWheelTheme = Exclude<SpinWheelTheme, 'random'>;
 
-export const CONCRETE_SPIN_WHEEL_THEMES: ConcreteSpinWheelTheme[] = ['slot', 'crate', 'card_flip', 'roulette'];
+export const CONCRETE_SPIN_WHEEL_THEMES: ConcreteSpinWheelTheme[] = [
+  'reel',
+  'card_vote',
+  'slot',
+  'knockout',
+  'plinko',
+  'plinko_stake',
+  'ban_draft',
+  'roulette',
+  'claw',
+  'match_three',
+];
+
+export const SPIN_WHEEL_THEMES: SpinWheelTheme[] = [...CONCRETE_SPIN_WHEEL_THEMES, 'random'];
 
 export interface RoomMember {
   roomId: string;
