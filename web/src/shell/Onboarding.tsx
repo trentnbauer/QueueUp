@@ -9,6 +9,7 @@ import {
 } from '../api/notificationPreferences';
 import { PRICE_REGION_LABELS, type EmailAlertType, type PriceRegion } from '@queueup/shared';
 import { useAuth } from '../context/AuthContext';
+import { useAnalyticsConsent } from '../hooks/useAnalyticsConsent';
 import { useCardDensity } from '../context/CardDensityContext';
 import { useCurrencyRegion } from '../context/CurrencyRegionContext';
 import { useSteamImportContext } from '../context/SteamImportContext';
@@ -22,7 +23,7 @@ import { SystemsPicker } from '../ui/SystemsPicker';
 import { st } from '../ui/st';
 
 const REGIONS = Object.keys(PRICE_REGION_LABELS) as PriceRegion[];
-type StepKind = 'name' | 'theme' | 'layout' | 'currency' | 'systems' | 'library' | 'email' | 'accent' | 'rooms';
+type StepKind = 'name' | 'theme' | 'layout' | 'currency' | 'systems' | 'library' | 'email' | 'analytics' | 'accent' | 'rooms';
 const STEP_TEXT: Record<StepKind, [string, string]> = {
   name: ['What should we call you?', 'This is the name friends and room members see. We filled in the one from your sign-in - change it if you like.'],
   theme: ['Light or dark?', 'Pick how QueueUp looks. Auto follows your device. You can change this anytime in your profile.'],
@@ -32,6 +33,7 @@ const STEP_TEXT: Record<StepKind, [string, string]> = {
   systems: ['Which systems do you own?', 'We use this to limit game search to what you can actually play. Skip it to see every platform.'],
   library: ['Bring in your library', 'Import what you already own so your shelf starts full.'],
   email: ['Get alerts by email?', 'Hear about price drops, friend activity and play requests without opening QueueUp. You can change this anytime in Settings.'],
+  analytics: ['Help improve QueueUp?', 'This server can use Google Analytics to see which parts of the app get used. Nothing is sent unless you turn it on, and you can change this anytime in Settings.'],
   rooms: ['Play with friends', 'Rooms are where your group votes on what to play next.'],
 };
 
@@ -122,6 +124,7 @@ export function Onboarding({ onDone }: { onDone: () => void }) {
   // The email step only appears when this server can send email.
   const prefs = useQuery({ queryKey: NOTIFICATION_PREFERENCES_QUERY_KEY, queryFn: notificationPreferencesApi.get });
   const alertEmail = useQuery({ queryKey: ALERT_EMAIL_QUERY_KEY, queryFn: alertEmailApi.get });
+  const analytics = useAnalyticsConsent();
   const kinds: StepKind[] = [
     'name',
     'theme',
@@ -130,11 +133,14 @@ export function Onboarding({ onDone }: { onDone: () => void }) {
     'systems',
     'library',
     ...(prefs.data?.emailAvailable ? (['email'] as const) : []),
+    // Only when the operator has set a Google Analytics measurement id.
+    ...(analytics.available ? (['analytics'] as const) : []),
     'accent',
     'rooms',
   ];
   const [step, setStep] = useState(0);
   const [wantEmail, setWantEmail] = useState(false);
+  const [shareStats, setShareStats] = useState(analytics.consent === 'granted');
   const [emailDraft, setEmailDraft] = useState<string | null>(null);
   const [emailTypes, setEmailTypes] = useState<Set<EmailAlertType>>(new Set(EMAIL_CHOICES.filter((c) => c.on).map((c) => c.type)));
   const [emailError, setEmailError] = useState<string | null>(null);
@@ -174,6 +180,8 @@ export function Onboarding({ onDone }: { onDone: () => void }) {
         setSavingName(false);
       }
     }
+    // Recorded either way on Next, so the answer is "no" unless they turned it on.
+    if (kind === 'analytics') analytics.setConsent(shareStats);
     if (kind === 'name') {
       const trimmed = name.trim().replace(/\s+/g, ' ');
       if (trimmed.length < 1 || trimmed.length > 40) {
@@ -365,6 +373,27 @@ export function Onboarding({ onDone }: { onDone: () => void }) {
               </button>
             </div>
           </>
+        )}
+
+        {kind === 'analytics' && (
+          <div style={st('flex-shrink:0;display:flex;flex-direction:column;gap:14px')}>
+            <div style={st('display:flex;align-items:center;gap:12px;padding:14px 16px;border-radius:16px;background:var(--surf)')}>
+              <span style={st('flex:1;font:600 15px var(--font-ui)')}>Share usage stats</span>
+              <Toggle on={shareStats} onChange={setShareStats} label="Share usage stats" />
+            </div>
+            <div style={st('display:flex;flex-direction:column;gap:8px;padding:14px 16px;border-radius:16px;border:1px solid var(--line);font:400 13.5px/1.45 var(--font-ui);color:var(--text2)')}>
+              <span style={st('font:600 12px var(--font-mono);letter-spacing:0.06em;color:var(--muted)')}>WHAT GOOGLE GETS</span>
+              <span>• The pages you open, with room, profile and invite ids removed</span>
+              <span>• Your browser, device type and rough location</span>
+              <span>• A cookie to count return visits</span>
+              <span style={st('color:var(--muted)')}>
+                Never your games, rooms, name or email.{' '}
+                <a href={`${getBasePath()}/privacy`} target="_blank" rel="noopener" style={st('color:var(--accText)')}>
+                  Privacy policy
+                </a>
+              </span>
+            </div>
+          </div>
         )}
 
         {kind === 'email' && (

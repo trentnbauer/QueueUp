@@ -21,6 +21,7 @@ import { useVersion } from '../hooks/useVersion';
 import { Dialog } from '../ui/Dialog';
 import { Avatar, Banner, Btn, Group, Kicker, Segmented, Toggle, inputField } from '../ui/primitives';
 import { SystemsPicker } from '../ui/SystemsPicker';
+import { useAnalyticsConsent } from '../hooks/useAnalyticsConsent';
 import { rerunOnboarding } from '../shell/Onboarding';
 import { st } from '../ui/st';
 import { ACCENT_LABELS, type Accent } from '../theme/applyThemeMode';
@@ -117,6 +118,34 @@ function ActivitySharingRow() {
         <span style={st('font:400 12.5px var(--font-ui);color:var(--muted)')}>Turn off to keep what you play and finish out of their feeds</span>
       </span>
       <Toggle on={data ? !data.hidden : true} disabled={!data || set.isPending} onChange={(on) => set.mutate(!on)} label="Share my activity with friends" />
+    </div>
+  );
+}
+
+/** Google Analytics opt-in for this browser. Only shown when the server has a measurement id set. */
+function AnalyticsConsentRow() {
+  const ui = useUi();
+  const { available, consent, setConsent } = useAnalyticsConsent();
+  if (!available) return null;
+  return (
+    <div style={st('display:flex;align-items:center;gap:12px;min-height:58px;padding:10px 14px 10px 16px;background:var(--surf)')}>
+      <span style={st('flex:1;display:flex;flex-direction:column;gap:1px')}>
+        <span style={st('font:600 15px var(--font-ui)')}>Share usage stats</span>
+        <span style={st('font:400 12.5px var(--font-ui);color:var(--muted)')}>
+          Google Analytics counts which pages are used, with ids and invite codes removed.{' '}
+          <a href={`${getBasePath()}/privacy`} target="_blank" rel="noopener" style={st('color:var(--accText)')}>
+            Privacy policy
+          </a>
+        </span>
+      </span>
+      <Toggle
+        on={consent === 'granted'}
+        onChange={(on) => {
+          setConsent(on);
+          ui.notify(on ? 'Thanks - usage stats are on' : 'Usage stats are off');
+        }}
+        label="Share usage stats"
+      />
     </div>
   );
 }
@@ -689,6 +718,7 @@ export function MeDialog() {
         <Section label="SHARING">
           <Group>
             <ActivitySharingRow />
+            <AnalyticsConsentRow />
             <div style={st('display:flex;flex-direction:column;gap:10px;padding:14px 14px 14px 16px;background:var(--surf)')}>
               <span style={st('display:flex;flex-direction:column;gap:1px')}>
                 <span style={st('font:600 15px var(--font-ui)')}>Who can see my profile</span>
