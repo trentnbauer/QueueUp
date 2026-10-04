@@ -56,8 +56,8 @@ export function toRowItem(g: Game, rank: number, ctx: { isShelf: boolean; tab: s
 /** Issue #799's platform filter: can this game be played on `platform`? True when its platform label
  * names that system or one it plays through backwards compatibility (PS5 also shows PS4 games), or
  * the viewer marked it owned on that system. */
-export function playsOn(g: Game, platform: RoomPlatform): boolean {
-  const playable = withBackwardsCompatible([platform]);
+export function playsOn(g: Game, platform: RoomPlatform, includeOlder = true): boolean {
+  const playable = includeOlder ? withBackwardsCompatible([platform]) : [platform];
   if (g.ownedPlatforms.some((p) => playable.includes(p))) return true;
   return g.platform.split(',').some((name) => {
     const family = platformFamilyOf(name.trim());
@@ -80,10 +80,10 @@ export interface HomeLists {
  *   instead of the main list. */
 export function buildHomeLists(
   allGames: Game[],
-  opts: { isShelf: boolean; tabs: TabDef[]; tab: string; query: string; platform?: RoomPlatform | null; backlogSort?: BacklogSortKey[] },
+  opts: { isShelf: boolean; tabs: TabDef[]; tab: string; query: string; platform?: RoomPlatform | null; includeOlder?: boolean; backlogSort?: BacklogSortKey[] },
 ): HomeLists {
   const { isShelf, tabs, tab, platform } = opts;
-  const games = platform ? allGames.filter((g) => playsOn(g, platform)) : allGames;
+  const games = platform ? allGames.filter((g) => playsOn(g, platform, opts.includeOlder ?? true)) : allGames;
   const q = opts.query.trim().toLowerCase();
   const comingTab = isShelf ? 'wishlist' : 'queue';
   const cur = tabs.find((t) => t.id === tab) ?? tabs[1] ?? tabs[0];

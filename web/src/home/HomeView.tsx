@@ -21,7 +21,7 @@ import { useIsMobile } from '../ui/useLayout';
 import { st } from '../ui/st';
 import { buildHomeLists, toRowItem } from './derive';
 import { useBacklogSort } from './backlogSort';
-import { PlatformMenu, usePlatformFilter, usePlatformOptions } from './PlatformMenu';
+import { PlatformMenu, useIncludeOlder, usePlatformFilter, usePlatformOptions } from './PlatformMenu';
 import { ComingStrip, CoverCard, DesktopRow, MobileRow, PlayNextRow } from './Rows';
 import { Footer } from '../shell/Footer';
 import { BulkBar, BulkStatusSheet } from './BulkBar';
@@ -92,16 +92,17 @@ export function HomeView() {
   const searching = query.trim().length > 0;
   // Header platform filter (#799) and the shelf's Backlog sort from Shelf settings (#798).
   const [platform, setPlatform] = usePlatformFilter(scope.scopeId);
-  const platformOptions = usePlatformOptions({ isShelf, roomId: room?.id ?? null, games });
+  const [includeOlder, setIncludeOlder] = useIncludeOlder(scope.scopeId);
+  const platformOptions = usePlatformOptions({ isShelf, roomId: room?.id ?? null });
   const [backlogSort] = useBacklogSort();
   const lists = useMemo(
-    () => buildHomeLists(games, { isShelf, tabs, tab, query, platform, backlogSort }),
-    [games, isShelf, tabs, tab, query, platform, backlogSort],
+    () => buildHomeLists(games, { isShelf, tabs, tab, query, platform, includeOlder, backlogSort }),
+    [games, isShelf, tabs, tab, query, platform, includeOlder, backlogSort],
   );
   const showRank = tab === 'queue' && !searching;
   const ctx = { isShelf, tab, searching, all: games };
   // Voting changes scores, which would re-sort the list under you - keep the order until the view changes.
-  const orderKey = `${scope.scopeId}|${tab}|${query}|${platform ?? ''}|${backlogSort.join(',')}`;
+  const orderKey = `${scope.scopeId}|${tab}|${query}|${platform ?? ''}|${includeOlder}|${backlogSort.join(',')}`;
   const orderedList = useStableOrder(lists.list, orderKey);
   const orderedPlayNext = useStableOrder(lists.playNext, `${orderKey}|next`);
   const items = importTab ? [] : orderedList.map((g, i) => toRowItem(g, i + 1, ctx));
@@ -119,7 +120,15 @@ export function HomeView() {
 
   // A room locked to one platform has nothing to filter - its platform stays plain text.
   const platformMenu = isShelf || !room?.platform ? (
-    <PlatformMenu value={platform} options={platformOptions} allLabel={isShelf ? 'Every platform' : 'Any platform'} onChange={setPlatform} />
+    <PlatformMenu
+      value={platform}
+      options={platformOptions}
+      allLabel={isShelf ? 'Every platform' : 'Any platform'}
+      onChange={setPlatform}
+      includeOlder={includeOlder}
+      onIncludeOlder={setIncludeOlder}
+      emptyHint={isShelf ? 'Add the consoles you own in Settings → Systems owned to filter by them.' : 'Nobody in this room has set their Systems owned yet.'}
+    />
   ) : (
     ROOM_PLATFORM_LABELS[room.platform].toUpperCase()
   );

@@ -89,6 +89,15 @@ describe('platform filter and shelf backlog sort', () => {
     expect(playsOn(ownedPc, 'pc')).toBe(true);
   });
 
+  it('playsOn can leave out older consoles: PS5 alone shows only PS5 games, PS4 only PS4', () => {
+    const ps4 = game({ platform: 'PlayStation 4', ownedPlatforms: [] });
+    const ps5 = game({ platform: 'PlayStation 5', ownedPlatforms: [] });
+    expect(playsOn(ps4, 'ps5', false)).toBe(false);
+    expect(playsOn(ps5, 'ps5', false)).toBe(true);
+    expect(playsOn(ps5, 'ps4')).toBe(false);
+    expect(playsOn(ps4, 'ps4')).toBe(true);
+  });
+
   it('filters every list to the picked platform', () => {
     const a = game({ title: 'On Switch', platform: 'Nintendo Switch', ownedPlatforms: [] });
     const b = game({ title: 'On PC', platform: 'PC (Microsoft Windows)', ownedPlatforms: [] });
