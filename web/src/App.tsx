@@ -20,6 +20,7 @@ import { ActivityPage } from './pages/FriendPages';
 import { AchievementsPage, InsightsPage, YearPage } from './pages/InsightPages';
 import { AppShell } from './shell/AppShell';
 import { Onboarding, onRerunOnboarding } from './shell/Onboarding';
+import { initAnalytics, trackPageView } from './utils/analytics';
 
 const ONBOARDED_KEY = 'sq-onboarded';
 // Invite links (`/join/:inviteCode`) need to survive a full-page OAuth sign-in/callback round trip,
@@ -108,6 +109,10 @@ export default function App() {
   }, [user]);
 
   useEffect(() => onRerunOnboarding(() => setShowOnboarding(true)), []);
+
+  // Google Analytics, when the operator has turned it on (see utils/analytics.ts).
+  useEffect(() => void initAnalytics(), []);
+  useEffect(() => trackPageView(location.pathname), [location.pathname]);
 
   // Capture an invite code from a shared `/join/:inviteCode` link before the sign-in gate can swallow it.
   useEffect(() => {

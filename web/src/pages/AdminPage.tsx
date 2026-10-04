@@ -19,6 +19,7 @@ function fields(s: AdminIntegrationStatus): { key: IntegrationConfigKey; label: 
     { key: 'SCANDEX_API_KEY', label: 'ScanDex API key (barcode scan)', source: s.scandexApiKeySource },
     { key: 'TURNSTILE_SITE_KEY', label: 'Turnstile site key (sign-in captcha)', source: s.turnstileSiteKeySource },
     { key: 'TURNSTILE_SECRET_KEY', label: 'Turnstile secret key (sign-in captcha)', source: s.turnstileSecretKeySource },
+    { key: 'GA_MEASUREMENT_ID', label: 'Google Analytics measurement ID (G-XXXXXXXXXX)', source: s.gaMeasurementIdSource },
   ];
 }
 

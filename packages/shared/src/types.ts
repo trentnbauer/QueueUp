@@ -1041,6 +1041,7 @@ export type IntegrationConfigKey =
   | 'SCANDEX_API_KEY'
   | 'TURNSTILE_SITE_KEY'
   | 'TURNSTILE_SECRET_KEY'
+  | 'GA_MEASUREMENT_ID'
   | 'CLOUDFLARE_TUNNEL_TOKEN'
   | 'SMTP_HOST'
   | 'SMTP_PORT'
@@ -1125,6 +1126,8 @@ export interface AdminIntegrationStatus {
   turnstileConfigured: boolean;
   turnstileSiteKeySource: ConfigSource;
   turnstileSecretKeySource: ConfigSource;
+  /** Google Analytics: off unless a measurement id is set. */
+  gaMeasurementIdSource: ConfigSource;
   /** Email alerts: on only when the host, port and from address are all set. */
   smtpConfigured: boolean;
   smtpSources: Record<'SMTP_HOST' | 'SMTP_PORT' | 'SMTP_USER' | 'SMTP_PASSWORD' | 'SMTP_FROM', ConfigSource>;

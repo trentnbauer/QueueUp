@@ -151,6 +151,9 @@ export const envSchema = z.object({
   // Cloudflare Turnstile (issue #665) - a captcha on the sign-in page. Both keys are needed to turn
   // it on; unset means no captcha. Same env-or-admin-Settings-fallback pattern as the keys above.
   TURNSTILE_SITE_KEY: optionalEnvVar(z.string().min(1)),
+  // Google Analytics 4 measurement id (G-XXXXXXXXXX). Unset means no analytics at all - nothing
+  // from Google is loaded. Can also be set from Administrator settings.
+  GA_MEASUREMENT_ID: optionalEnvVar(z.string().min(1)),
   TURNSTILE_SECRET_KEY: optionalEnvVar(z.string().min(1)),
 
   // SMTP email alerts - the server that sends notification emails. Host, port and from-address are

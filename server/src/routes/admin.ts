@@ -27,6 +27,7 @@ const CONFIG_KEY_LABELS: Record<ConfigKey, string> = {
   SCANDEX_API_KEY: 'ScanDex API key',
   TURNSTILE_SITE_KEY: 'Turnstile site key',
   TURNSTILE_SECRET_KEY: 'Turnstile secret key',
+  GA_MEASUREMENT_ID: 'Google Analytics measurement ID',
   CLOUDFLARE_TUNNEL_TOKEN: 'Cloudflare Tunnel token',
   SMTP_HOST: 'SMTP host',
   SMTP_PORT: 'SMTP port',
@@ -49,6 +50,8 @@ function envValueFor(key: ConfigKey): string | undefined {
       return env.TURNSTILE_SITE_KEY;
     case 'TURNSTILE_SECRET_KEY':
       return env.TURNSTILE_SECRET_KEY;
+    case 'GA_MEASUREMENT_ID':
+      return env.GA_MEASUREMENT_ID;
     case 'CLOUDFLARE_TUNNEL_TOKEN':
       return env.CLOUDFLARE_TUNNEL_TOKEN;
     case 'SMTP_HOST':
@@ -91,6 +94,7 @@ export default async function adminRoutes(app: FastifyInstance) {
       turnstileConfigured: turnstileSiteKeySource !== 'unset' && turnstileSecretKeySource !== 'unset',
       turnstileSiteKeySource,
       turnstileSecretKeySource,
+      gaMeasurementIdSource: src('GA_MEASUREMENT_ID'),
       smtpConfigured: src('SMTP_HOST') !== 'unset' && src('SMTP_PORT') !== 'unset' && src('SMTP_FROM') !== 'unset',
       smtpSources: {
         SMTP_HOST: src('SMTP_HOST'),
