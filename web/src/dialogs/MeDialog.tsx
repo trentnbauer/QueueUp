@@ -640,7 +640,7 @@ export function MeDialog() {
           <div style={st('display:flex;align-items:center;gap:12px;min-height:58px;padding:0 14px 0 16px;border-radius:16px;background:var(--surf)')}>
             <span style={st('flex:1;display:flex;flex-direction:column;gap:1px')}>
               <span style={st('font:600 15px var(--font-ui)')}>{t('settings.language')}</span>
-              {LANGUAGES.length === 1 && <span style={st('font:400 12.5px var(--font-ui);color:var(--muted)')}>{t('settings.language.sub')}</span>}
+              <span style={st('font:400 12.5px var(--font-ui);color:var(--muted)')}>{t('settings.language.sub')}</span>
             </span>
             <select
               value={language}

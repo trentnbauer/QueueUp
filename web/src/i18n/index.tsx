@@ -1,11 +1,17 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useState, type ReactNode } from 'react';
 import { en, type MessageKey } from './en';
+import { pirate } from './pirate';
+import { PirateMode } from './PirateMode';
 
-/** The languages QueueUp can show (#776). Add a language by adding it here and a catalog below. */
-export const LANGUAGES = [{ code: 'en', name: 'English', nativeName: 'English' }] as const;
+/** The languages QueueUp can show (#776). Add a language by adding it here and a catalog below.
+ * Pirate is the joke one: its catalog plus PirateMode, which rewrites the rest of the page. */
+export const LANGUAGES = [
+  { code: 'en', name: 'English', nativeName: 'English' },
+  { code: 'pirate', name: 'Pirate', nativeName: 'Pirate 🏴‍☠️' },
+] as const;
 export type Language = (typeof LANGUAGES)[number]['code'];
 
-const CATALOGS: Record<Language, Partial<Record<MessageKey, string>>> = { en };
+const CATALOGS: Record<Language, Partial<Record<MessageKey, string>>> = { en, pirate };
 const STORAGE_KEY = 'sq-language';
 
 const isLanguage = (v: string | null | undefined): v is Language => LANGUAGES.some((l) => l.code === v);
@@ -43,7 +49,8 @@ const I18nContext = createContext<I18nValue | null>(null);
 export function I18nProvider({ children }: { children: ReactNode }) {
   const [language, setLanguageState] = useState<Language>(initialLanguage);
   useEffect(() => {
-    document.documentElement.lang = language;
+    // Pirate is English underneath, as far as screen readers and spell checkers go.
+    document.documentElement.lang = language === 'pirate' ? 'en' : language;
   }, [language]);
   const setLanguage = useCallback((next: Language) => {
     setLanguageState(next);
@@ -54,7 +61,12 @@ export function I18nProvider({ children }: { children: ReactNode }) {
     }
   }, []);
   const value = useMemo<I18nValue>(() => ({ language, setLanguage, t: (key, vars) => translate(language, key, vars) }), [language, setLanguage]);
-  return <I18nContext.Provider value={value}>{children}</I18nContext.Provider>;
+  return (
+    <I18nContext.Provider value={value}>
+      {children}
+      <PirateMode on={language === 'pirate'} />
+    </I18nContext.Provider>
+  );
 }
 
 export function useI18n(): I18nValue {
