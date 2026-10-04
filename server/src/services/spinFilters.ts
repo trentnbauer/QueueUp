@@ -8,13 +8,16 @@ export interface SpinFilters {
   maxTtb?: number;
   /** Only games every current member owns. */
   everyoneOwns?: boolean;
+  /** Only games IGDB scores at least this high (0-100). Games with no IGDB score are left out. */
+  minScore?: number;
 }
 
 /** Reads the filters out of a start/restart request body, ignoring anything that isn't a positive number. */
 export function parseSpinFilters(body: unknown): SpinFilters {
   const b = (body ?? {}) as Record<string, unknown>;
   const num = (v: unknown) => (typeof v === 'number' && Number.isFinite(v) && v > 0 ? v : undefined);
-  return { maxPrice: num(b.maxPrice), maxTtb: num(b.maxTtb), everyoneOwns: b.everyoneOwns === true };
+  const minScore = num(b.minScore);
+  return { maxPrice: num(b.maxPrice), maxTtb: num(b.maxTtb), everyoneOwns: b.everyoneOwns === true, minScore: minScore && minScore <= 100 ? minScore : undefined };
 }
 
 export function applySpinFilters(candidates: Game[], f: SpinFilters): Game[] {
@@ -22,6 +25,7 @@ export function applySpinFilters(candidates: Game[], f: SpinFilters): Game[] {
     if (f.maxPrice && !(g.youOwn || (g.price.amount !== null && Number(g.price.amount) <= f.maxPrice))) return false;
     if (f.maxTtb && !(g.timeToBeatHours !== null && g.timeToBeatHours <= f.maxTtb)) return false;
     if (f.everyoneOwns && !(g.ownership && g.ownership.owned === g.ownership.total && g.ownership.total > 0)) return false;
+    if (f.minScore && !(g.reviewScore !== null && g.reviewScore >= f.minScore)) return false;
     return true;
   });
 }

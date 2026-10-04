@@ -78,8 +78,10 @@ export async function buildApp() {
         // fonts.gstatic.com serves the font files the stylesheet above points at.
         fontSrc: ["'self'", 'https://fonts.gstatic.com'],
         // Cloudflare Turnstile's widget script (the sign-in captcha, issue #665, when it's set up).
-        scriptSrc: ["'self'", 'https://challenges.cloudflare.com'],
-        connectSrc: ["'self'"],
+        // googletagmanager.com / google-analytics.com: Google Analytics, only loaded when the operator
+        // sets a measurement id (see /api/analytics-config).
+        scriptSrc: ["'self'", 'https://challenges.cloudflare.com', 'https://www.googletagmanager.com'],
+        connectSrc: ["'self'", 'https://*.google-analytics.com', 'https://*.analytics.google.com', 'https://*.googletagmanager.com'],
         // The "Watch trailer" player embeds YouTube (privacy-enhanced domain, no cookies until play);
         // Turnstile's challenge runs in a Cloudflare iframe.
         frameSrc: ["'self'", 'https://www.youtube-nocookie.com', 'https://challenges.cloudflare.com'],

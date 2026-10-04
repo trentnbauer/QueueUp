@@ -18,6 +18,8 @@
   --hero2: oklch(0.2 0.012 55);
   --accText: oklch(0.82 0.11 50);
   --mint: oklch(0.82 0.12 160);
+  /* IGDB score star on game cards. */
+  --star: oklch(0.83 0.15 85);
   --mintSoft: oklch(0.8 0.12 160 / 0.14);
   --pos: oklch(0.85 0.1 55);
   --danger: oklch(0.76 0.14 25);
@@ -71,6 +73,7 @@
   --hero2: oklch(0.96 0.012 70);
   --accText: oklch(0.5 0.14 45);
   --mint: oklch(0.47 0.1 160);
+  --star: oklch(0.55 0.13 75);
   --mintSoft: oklch(0.6 0.12 160 / 0.14);
   --pos: oklch(0.55 0.15 45);
   --danger: oklch(0.54 0.18 25);

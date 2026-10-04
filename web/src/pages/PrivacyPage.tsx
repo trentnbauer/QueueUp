@@ -64,7 +64,7 @@ export function PrivacyPage({ signedIn }: { signedIn: boolean }) {
                 as notifications to you.
               </>,
               <>
-                <b>Your profile settings:</b> the systems you own, whether your public profile is on, an optional profile link name,
+                <b>Your profile settings:</b> the systems you own, who can see your profile, an optional profile link name,
                 your currency choice, which alerts you want in the app and by email, and your friend code (and when it was issued: the
                 code and the link made from it are replaced every 3 hours).
               </>,
@@ -158,9 +158,9 @@ export function PrivacyPage({ signedIn }: { signedIn: boolean }) {
             items={[
               <>
                 <b>Other members and the public:</b> room members see your display name and avatar, and what you add, vote on and
-                review in shared rooms. Friends see your activity, and can react to it with an emoji, which tells you who reacted. If your public profile is on (it is by default), anyone with the link
+                review in shared rooms. Friends see your activity, and can react to it with an emoji, which tells you who reacted. If your profile is public (it is by default), anyone with the link
                 can see your name, avatar, systems, achievements, and the games on your shelf that aren't hidden, including whether you
-                finished one with a group (not which room). You can turn it off in
+                finished one with a group (not which room). You can limit it to friends or to just you in
                 Settings, and hide individual games. Your email address is not shown to other users or on your public profile.
               </>,
               <>
@@ -178,7 +178,7 @@ export function PrivacyPage({ signedIn }: { signedIn: boolean }) {
               'IGDB (via Twitch) for game details, Steam for library, wishlist and playtime data, and GG.deals for prices. These receive game titles and ids, and the Steam ID you link.',
               'Discord, only if a Room Master adds a webhook: room events are posted to that channel.',
               'The operator\'s email server, only if email alerts are set up and you opt in: it receives your email address and the text of your alerts.',
-              'Cloudflare Turnstile, if the operator turns on the sign-in security check; YouTube (privacy-enhanced mode) when you play a trailer; and Google Fonts for the typefaces.',
+              'Cloudflare Turnstile, if the operator turns on the sign-in security check; Google Analytics, if the operator turns it on, which records the pages you visit (with room, profile and invite ids removed from the address), your browser and device type, and an approximate location, using cookies; YouTube (privacy-enhanced mode) when you play a trailer; and Google Fonts for the typefaces.',
             ]}
           />
         </Section>
@@ -190,7 +190,7 @@ export function PrivacyPage({ signedIn }: { signedIn: boolean }) {
                 <b>Download my data</b> and <b>Delete my account</b> are both in Settings. Deleting your account removes your data from
                 this server.
               </>,
-              'You can revoke API keys, unlink sign-in methods, change or reset the email address for alerts, turn alerts on and off, remove your reactions, turn off your public profile and hide games at any time.',
+              'You can revoke API keys, unlink sign-in methods, change or reset the email address for alerts, turn alerts on and off, remove your reactions, limit who can see your profile and hide games at any time.',
               'To ask about anything else, contact the operator of this server.',
             ]}
           />

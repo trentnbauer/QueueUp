@@ -1,7 +1,7 @@
 import { Prisma } from '@prisma/client';
 import { prisma } from '../db/client.js';
 import { HttpError } from '../util/httpError.js';
-import { ROOM_PLATFORM_LABELS, type RoomPlatform } from '@queueup/shared';
+import { PROFILE_VISIBILITIES, ROOM_PLATFORM_LABELS, type ProfileVisibility, type RoomPlatform } from '@queueup/shared';
 import { logShelfActivity } from './roomActivity.js';
 import { logAccountEvent } from './accountEvents.js';
 
@@ -100,10 +100,27 @@ export async function setProfileSlug(userId: string, raw: unknown): Promise<stri
   }
 }
 
+/** Who can open the profile page (public / friends / private). publicProfileEnabled is kept in step
+ * for anything still reading the old column. */
+export async function setProfileVisibility(userId: string, raw: unknown): Promise<ProfileVisibility> {
+  if (typeof raw !== 'string' || !(PROFILE_VISIBILITIES as readonly string[]).includes(raw)) {
+    throw new HttpError(400, 'Visibility must be public, friends or private');
+  }
+  const visibility = raw as ProfileVisibility;
+  const updated = await prisma.user.update({
+    where: { id: userId },
+    data: { profileVisibility: visibility, publicProfileEnabled: visibility === 'public' },
+  });
+  return updated.profileVisibility;
+}
+
 /** Toggles the public profile opt-in (issue #511) - see User.publicProfileEnabled's schema doc for
  * what this actually gates. */
 export async function setPublicProfileEnabled(userId: string, enabled: unknown): Promise<boolean> {
   if (typeof enabled !== 'boolean') throw new HttpError(400, 'enabled must be a boolean');
-  const updated = await prisma.user.update({ where: { id: userId }, data: { publicProfileEnabled: enabled } });
+  const updated = await prisma.user.update({
+    where: { id: userId },
+    data: { publicProfileEnabled: enabled, profileVisibility: enabled ? 'public' : 'friends' },
+  });
   return updated.publicProfileEnabled;
 }

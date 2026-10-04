@@ -390,6 +390,10 @@ export interface RoomSpinSession {
    * instead of counting down blind. Meaningless once the spin has started moving (nothing clears
    * it then, but nothing reads it then either - see SPIN_WAITING_ROOM_MS in roomSpin.ts). */
   readyCount: number;
+  /** Votes to respin the settled result, how many it takes, and whether the viewer has voted. */
+  respinVotes: number;
+  respinNeeded: number;
+  youVotedRespin: boolean;
 }
 
 /** A room's spin session, but only the sliver a cross-room "someone just started a spin" popup
@@ -785,9 +789,18 @@ export interface UpdateOwnedPlatformsRequest {
   platforms: RoomPlatform[];
 }
 
-/** Toggles User.publicProfileEnabled (issue #511) - see that field's schema doc. */
+/** Toggles User.publicProfileEnabled (issue #511) - see that field's schema doc. Superseded by
+ * UpdateProfileVisibilityRequest; still accepted (true -> public, false -> friends). */
 export interface UpdatePublicProfileRequest {
   enabled: boolean;
+}
+
+/** Who can open someone's profile page: anyone, only their friends, or only themselves. */
+export type ProfileVisibility = 'public' | 'friends' | 'private';
+export const PROFILE_VISIBILITIES: readonly ProfileVisibility[] = ['public', 'friends', 'private'];
+
+export interface UpdateProfileVisibilityRequest {
+  visibility: ProfileVisibility;
 }
 
 export interface UpdateGameStatusRequest {
@@ -1032,6 +1045,7 @@ export type IntegrationConfigKey =
   | 'SCANDEX_API_KEY'
   | 'TURNSTILE_SITE_KEY'
   | 'TURNSTILE_SECRET_KEY'
+  | 'GA_MEASUREMENT_ID'
   | 'CLOUDFLARE_TUNNEL_TOKEN'
   | 'SMTP_HOST'
   | 'SMTP_PORT'
@@ -1116,6 +1130,8 @@ export interface AdminIntegrationStatus {
   turnstileConfigured: boolean;
   turnstileSiteKeySource: ConfigSource;
   turnstileSecretKeySource: ConfigSource;
+  /** Google Analytics: off unless a measurement id is set. */
+  gaMeasurementIdSource: ConfigSource;
   /** Email alerts: on only when the host, port and from address are all set. */
   smtpConfigured: boolean;
   smtpSources: Record<'SMTP_HOST' | 'SMTP_PORT' | 'SMTP_USER' | 'SMTP_PASSWORD' | 'SMTP_FROM', ConfigSource>;

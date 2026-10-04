@@ -9,7 +9,6 @@ import {
   settlesAtOf,
   settledPositionOf,
   candidateIndexAt,
-  applyNudge,
   type SpinBase,
 } from '@queueup/shared';
 import { prisma } from '../db/client.js';
@@ -33,7 +32,7 @@ const SPIN_STALE_MS = 15 * 60 * 1000;
 // already spinning, instead of whoever clicked "Pick a Game" seeing motion nobody else had a
 // chance to notice starting. Any member can skip the rest of it early (see /spin/skip-wait) -
 // "waiting for members" isn't gatekept to just the person who started it. Not applied to
-// "restart"/Spin again - everyone's already gathered by then.
+// a voted respin - everyone's already gathered by then.
 //
 // Issue #488: was 4s, which wasn't long enough for everyone in a room to actually notice the
 // notification and get to the spin before it was already moving - bumped to 30s, paired with the
@@ -47,11 +46,9 @@ function isStale(spin: { updatedAt: Date }): boolean {
 type RoomSpinRow = Awaited<ReturnType<typeof prisma.roomSpin.findUniqueOrThrow>>;
 
 /** Builds a fresh candidate strip (and, if the room's theme setting is "random," a fresh concrete
- * theme) from the room's *current* backlog - re-read from the DB on every call (start and
- * "restart"/Spin again both call this) rather than trusting anything the caller already had
- * loaded, so a fresh spin always draws from up-to-date votes/ownership/prices. A nudge does NOT
- * call this - it moves along the *existing* strip, it never rebuilds one (see RoomSpin's schema
- * doc). */
+ * theme) from the room's *current* backlog - re-read from the DB on every call (start and a
+ * voted respin both call this) rather than trusting anything the caller already had
+ * loaded, so a fresh spin always draws from up-to-date votes/ownership/prices. */
 async function buildStripAndTheme(
   roomId: string,
   userId: string,
@@ -109,16 +106,26 @@ async function toSpinDto(spin: RoomSpinRow, userId: string): Promise<RoomSpinSes
     // insurance against ever double-counting one member rather than something expected to matter
     // in practice.
     readyCount: new Set(spin.readyUserIds).size,
+    respinVotes: new Set(spin.respinVoteUserIds).size,
+    respinNeeded: respinVotesNeeded(spin),
+    youVotedRespin: spin.respinVoteUserIds.includes(userId),
   };
+}
+
+/** Votes it takes to respin: more than half of the spin's participants - everyone who joined its
+ * waiting room, plus anyone who has voted since. One person spinning alone respins on their own vote. */
+function respinVotesNeeded(spin: { readyUserIds: string[]; respinVoteUserIds: string[] }): number {
+  const participants = new Set([...spin.readyUserIds, ...spin.respinVoteUserIds]);
+  return Math.floor(Math.max(1, participants.size) / 2) + 1;
 }
 
 function freshBase(now: number, startDelayMs = 0): SpinBase {
   return { position0: 0, velocity0: SPIN_INITIAL_VELOCITY, timestamp0: now + startDelayMs };
 }
 
-/** The room's shared Spin the Wheel session (issue #356 follow-up: click the left/right side of
- * the spin to slow it down/speed it up and change where it lands - "shake to nudge," visible to
- * every member currently viewing the room, not just whoever clicked "Pick a Game"). See RoomSpin
+/** The room's shared Spin the Wheel session - one spin every member currently viewing the
+ * room watches together, not just whoever clicked "Pick a Game". Nobody can steer it once it's
+ * moving; an unpopular result is redone by a majority respin vote. See RoomSpin
  * in schema.prisma and spinPhysics.ts in packages/shared for why the strip/physics live here
  * rather than per-client. */
 export default async function roomSpinRoutes(app: FastifyInstance) {
@@ -199,6 +206,16 @@ export default async function roomSpinRoutes(app: FastifyInstance) {
       if (Date.now() < spin.timestamp0.getTime() && !spin.readyUserIds.includes(userId)) {
         spin = await prisma.roomSpin.update({ where: { roomId }, data: { readyUserIds: { push: userId } } });
         justMarkedReady = true;
+        // Everyone's here: end the waiting room now instead of sitting out the rest of the timer.
+        const memberCount = await prisma.roomMember.count({ where: { roomId } });
+        const now = Date.now();
+        if (new Set(spin.readyUserIds).size >= memberCount && now < spin.timestamp0.getTime()) {
+          const base: SpinBase = { position0: spin.position0, velocity0: spin.velocity0, timestamp0: now };
+          spin = await prisma.roomSpin.update({
+            where: { roomId },
+            data: { timestamp0: new Date(now), settlesAt: new Date(settlesAtOf(base)), settledPosition: settledPositionOf(base) },
+          });
+        }
       }
 
       const dto = await toSpinDto(spin, userId);
@@ -216,8 +233,11 @@ export default async function roomSpinRoutes(app: FastifyInstance) {
       const { roomId } = request.params;
       await requireMembership(roomId, userId);
 
-      const { stripGameIds, theme } = await buildStripAndTheme(roomId, userId, parseSpinFilters(request.body));
-      const base = freshBase(Date.now(), SPIN_WAITING_ROOM_MS);
+      const filters = parseSpinFilters(request.body);
+      const { stripGameIds, theme } = await buildStripAndTheme(roomId, userId, filters);
+      // Nobody else to wait for when you're the room's only member - spin straight away.
+      const memberCount = await prisma.roomMember.count({ where: { roomId } });
+      const base = freshBase(Date.now(), memberCount > 1 ? SPIN_WAITING_ROOM_MS : 0);
       // A stale session left over from an earlier spin would otherwise block this create (one spin
       // per room) until something else happened to clean it up.
       const leftover = await prisma.roomSpin.findUnique({ where: { roomId } });
@@ -237,6 +257,7 @@ export default async function roomSpinRoutes(app: FastifyInstance) {
             // Issue #488: whoever clicked "Pick a Game" obviously has it open - count them as
             // ready immediately rather than waiting for their own next poll to add them.
             readyUserIds: [userId],
+            filters: filters as Prisma.InputJsonValue,
           },
         });
         reply.status(201);
@@ -291,85 +312,54 @@ export default async function roomSpinRoutes(app: FastifyInstance) {
     },
   );
 
-  app.post<{ Params: { roomId: string }; Body: { direction: 'left' | 'right' } }>(
-    '/api/rooms/:roomId/spin/nudge',
-    // A real click-mashing session can rack up a lot of nudges quickly - well above the 30/min
-    // used for the occasional start/restart/close actions, but still bounded.
-    { config: { rateLimit: { max: 120, timeWindow: '1 minute' } } },
-    async (request) => {
-      const userId = await request.requireAuth();
-      const { roomId } = request.params;
-      const { direction } = request.body;
-      if (direction !== 'left' && direction !== 'right') throw new HttpError(400, 'direction must be "left" or "right"');
-      await requireMembership(roomId, userId);
-
-      const spin = await prisma.roomSpin.findUnique({ where: { roomId } });
-      if (!spin || isStale(spin)) throw new HttpError(404, 'No active spin to nudge');
-
-      const now = Date.now();
-      if (now >= spin.settlesAt.getTime()) throw new HttpError(409, 'This spin has already settled');
-
-      const currentBase: SpinBase = { position0: spin.position0, velocity0: spin.velocity0, timestamp0: spin.timestamp0.getTime() };
-      const nudged = applyNudge(currentBase, now, direction);
-      // Issue #487's spam-click guard rejected this one (arrived within SPIN_NUDGE_COOLDOWN_MS of
-      // the last accepted nudge) - applyNudge signals that by returning currentBase itself
-      // unchanged. Return the current state as-is rather than writing/broadcasting a no-op, so
-      // nudgeCount only ever bumps for a nudge that actually moved the spin.
-      if (nudged === currentBase) {
-        const dto = await toSpinDto(spin, userId);
-        if (!dto) throw new HttpError(404, 'No active spin to nudge');
-        return { spin: dto };
-      }
-      const updated = await prisma.roomSpin.update({
-        where: { roomId },
-        data: {
-          position0: nudged.position0,
-          velocity0: nudged.velocity0,
-          timestamp0: new Date(nudged.timestamp0),
-          settlesAt: new Date(settlesAtOf(nudged)),
-          settledPosition: settledPositionOf(nudged),
-          nudgeCount: { increment: 1 },
-        },
-      });
-      const dto = await toSpinDto(updated, userId);
-      if (!dto) throw new HttpError(404, 'No active spin to nudge');
-      return { spin: dto };
-    },
-  );
-
-  // "Spin again," post-settle - resets an *existing* row to a freshly-built strip and a fresh
-  // physics base, same as start but requires a row to already be there (a room with no spin at
-  // all should call start, not this).
+  // Vote to respin a settled result. In a room nobody steers the wheel or rerolls it alone (the old
+  // click-to-nudge and "Spin again" are gone): once a majority of the spin's participants
+  // (respinVotesNeeded) have voted, it respins from the same filters, straight away - everyone is
+  // already here, so there's no waiting room.
   app.post<{ Params: { roomId: string } }>(
-    '/api/rooms/:roomId/spin/restart',
+    '/api/rooms/:roomId/spin/respin-vote',
     { config: { rateLimit: { max: 30, timeWindow: '1 minute' } } },
     async (request) => {
       const userId = await request.requireAuth();
       const { roomId } = request.params;
       await requireMembership(roomId, userId);
 
-      const existing = await prisma.roomSpin.findUnique({ where: { roomId } });
-      if (!existing) throw new HttpError(404, 'No spin to restart - start one first');
+      let spin = await prisma.roomSpin.findUnique({ where: { roomId } });
+      if (!spin || isStale(spin)) throw new HttpError(404, 'No spin to respin');
+      if (Date.now() < spin.settlesAt.getTime()) throw new HttpError(409, 'Wait for the wheel to stop first');
 
-      const { stripGameIds, theme } = await buildStripAndTheme(roomId, userId, parseSpinFilters(request.body));
-      const base = freshBase(Date.now());
-      const spin = await prisma.roomSpin.update({
-        where: { roomId },
-        data: {
-          theme,
-          stripGameIds,
-          position0: base.position0,
-          velocity0: base.velocity0,
-          timestamp0: new Date(base.timestamp0),
-          settlesAt: new Date(settlesAtOf(base)),
-          settledPosition: settledPositionOf(base),
-          nudgeCount: 0,
-          // "Spin again" has no waiting room of its own (see SPIN_WAITING_ROOM_MS's doc) - cleared
-          // rather than left over from the previous spin's waiting window, which nothing here reads.
-          readyUserIds: [],
-        },
-      });
-      return { spin: await toSpinDto(spin, userId) };
+      if (!spin.respinVoteUserIds.includes(userId)) {
+        spin = await prisma.roomSpin.update({ where: { roomId }, data: { respinVoteUserIds: { push: userId } } });
+      }
+
+      if (new Set(spin.respinVoteUserIds).size >= respinVotesNeeded(spin)) {
+        const { stripGameIds, theme } = await buildStripAndTheme(roomId, userId, parseSpinFilters(spin.filters));
+        const base = freshBase(Date.now());
+        // Conditional on the row being unchanged since the votes were counted, so two final votes
+        // landing together respin once, not twice.
+        const respun = await prisma.roomSpin.updateMany({
+          where: { roomId, updatedAt: spin.updatedAt },
+          data: {
+            theme,
+            stripGameIds,
+            position0: base.position0,
+            velocity0: base.velocity0,
+            timestamp0: new Date(base.timestamp0),
+            settlesAt: new Date(settlesAtOf(base)),
+            settledPosition: settledPositionOf(base),
+            nudgeCount: 0,
+            respinVoteUserIds: [],
+          },
+        });
+        if (respun.count > 0) {
+          void logRoomActivity({ roomId, actorId: null, type: 'spin_result', message: () => 'The room voted to respin the wheel' });
+        }
+        spin = await prisma.roomSpin.findUniqueOrThrow({ where: { roomId } });
+      }
+
+      const dto = await toSpinDto(spin, userId);
+      if (!dto) throw new HttpError(404, 'No spin to respin');
+      return { spin: dto };
     },
   );
 

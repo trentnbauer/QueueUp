@@ -50,3 +50,18 @@ describe('applySpinFilters', () => {
     expect(applySpinFilters([everyone, some, unpriced], { everyoneOwns: true }).map((g) => g.id)).toEqual(['everyone']);
   });
 });
+
+describe('minScore filter', () => {
+  const games = [game({ id: 'great', reviewScore: 91 }), game({ id: 'ok', reviewScore: 72 }), game({ id: 'none', reviewScore: null })];
+
+  it('keeps games IGDB scores at least that high, and drops unscored ones', () => {
+    expect(applySpinFilters(games, { minScore: 80 }).map((g) => g.id)).toEqual(['great']);
+    expect(applySpinFilters(games, { minScore: 70 }).map((g) => g.id)).toEqual(['great', 'ok']);
+  });
+
+  it('reads a score from 1 to 100 out of the request, and ignores anything else', () => {
+    expect(parseSpinFilters({ minScore: 80 }).minScore).toBe(80);
+    expect(parseSpinFilters({ minScore: 150 }).minScore).toBeUndefined();
+    expect(parseSpinFilters({ minScore: '80' }).minScore).toBeUndefined();
+  });
+});

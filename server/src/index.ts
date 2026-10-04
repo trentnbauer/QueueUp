@@ -12,6 +12,7 @@ import { startAchievementProgressJob, startPlaytimeSnapshotJob } from './jobs/pl
 import { startPlayniteSyncReminderJob } from './jobs/playniteSyncReminderJob.js';
 import { startBackupJob } from './jobs/backupJob.js';
 import { startEmailAlertJob } from './jobs/emailAlertJob.js';
+import { startReviewScoreBackfillJob } from './jobs/reviewScoreBackfillJob.js';
 import { reloadTunnel, stopTunnel } from './services/cloudflareTunnel.js';
 
 const app = await buildApp();
@@ -55,6 +56,8 @@ const backupJob = startBackupJob();
 // Emails each person's unread alerts they've switched email on for - see jobs/emailAlertJob.ts. Does
 // nothing until SMTP is set up.
 const emailAlertJob = startEmailAlertJob();
+// Fills in IGDB review scores for games stored before the score was - see jobs/reviewScoreBackfillJob.ts.
+const reviewScoreBackfillJob = startReviewScoreBackfillJob();
 
 // Cloudflare Tunnel (#664) - starts cloudflared if a tunnel token is set; a no-op otherwise. Not
 // awaited past the token lookup, and a failure here never stops the server itself.
@@ -88,6 +91,7 @@ async function shutdown(signal: string) {
     playniteSyncReminderJob.stop();
     backupJob.stop();
     emailAlertJob.stop();
+    reviewScoreBackfillJob.stop();
     await stopTunnel();
     // Stops accepting new connections, waits for in-flight requests, runs plugins' onClose hooks.
     await app.close();

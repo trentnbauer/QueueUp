@@ -1,7 +1,7 @@
 import { useEffect, useState, type ReactNode } from 'react';
 import { useNavigate } from 'react-router';
 import { useInfiniteQuery, useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { PRICE_REGION_LABELS, ROOM_PLATFORM_LABELS, sortPlatforms, type PriceRegion } from '@queueup/shared';
+import { PRICE_REGION_LABELS, ROOM_PLATFORM_LABELS, sortPlatforms, type PriceRegion, type ProfileVisibility } from '@queueup/shared';
 import { apiKeysApi, API_KEYS_QUERY_KEY } from '../api/apiKeys';
 import { authApi } from '../api/auth';
 import { badgesApi } from '../api/badges';
@@ -31,6 +31,13 @@ const REGIONS = Object.keys(PRICE_REGION_LABELS) as PriceRegion[];
 const PROVIDER_LABELS: Record<string, string> = { oidc: 'Single sign-on', google: 'Google', discord: 'Discord', steam: 'Steam' };
 const ROW_BASE = 'display:flex;align-items:center;gap:12px;min-height:54px;padding:0 16px;border:none;background:var(--surf);color:var(--text);text-align:left;width:100%';
 const ISSUES_URL = 'https://github.com/trentnbauer/QueueUp/issues/new/choose';
+
+/** The line under "Who can see my profile", and the toast after changing it. */
+const PROFILE_VISIBILITY_TEXT: Record<ProfileVisibility, { sub: string; toast: string }> = {
+  public: { sub: 'Anyone with the link: achievements, Beaten, Playing', toast: 'Your profile is public' },
+  friends: { sub: 'Only your friends can open it', toast: 'Only friends can see your profile' },
+  private: { sub: 'Only you can open it', toast: 'Your profile is private' },
+};
 
 function NavRow({ label, sub, badge, onClick }: { label: string; sub?: string; badge?: number; onClick: () => void }) {
   return (
@@ -350,7 +357,7 @@ export function MeDialog() {
   const ui = useUi();
   const navigate = useNavigate();
   const confirm = useConfirm();
-  const { user, publicProfileEnabled, profileSlug, primaryProvider, linkedProviders, ownedPlatforms, refetch } = useAuth();
+  const { user, profileVisibility, profileSlug, primaryProvider, linkedProviders, ownedPlatforms, refetch } = useAuth();
   const [nameDraft, setNameDraft] = useState<string | null>(null);
   const { rooms, games } = useScope();
   const { version } = useVersion();
@@ -442,13 +449,13 @@ export function MeDialog() {
     }
   }
 
-  async function togglePublic(on: boolean) {
+  async function changeVisibility(visibility: ProfileVisibility) {
     try {
-      await authApi.updatePublicProfile(on);
+      await authApi.setProfileVisibility(visibility);
       await refetch();
-      ui.notify(on ? 'Public profile on' : 'Public profile off');
+      ui.notify(PROFILE_VISIBILITY_TEXT[visibility].toast);
     } catch (e) {
-      setError(e instanceof Error ? e.message : 'Could not update your public profile setting');
+      setError(e instanceof Error ? e.message : 'Could not change who can see your profile');
     }
   }
 
@@ -544,18 +551,16 @@ export function MeDialog() {
       >
         {error && <Banner onDismiss={() => setError(null)}>{error}</Banner>}
 
-        {publicProfileEnabled && (
-          <Group>
-            {/* The whole row opens the profile. */}
-            <button type="button" onClick={() => window.open(profileUrl, '_blank', 'noopener')} style={st(ROW_BASE)} className="hv-surf2">
-              <span style={st('flex:1;min-width:0;display:flex;flex-direction:column;gap:1px')}>
-                <span style={st('font:600 15px var(--font-ui)')}>Public profile</span>
-                <span style={st('font:500 12.5px var(--font-mono);color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis')}>{profileUrl.replace(/^https?:\/\//, '')}</span>
-              </span>
-              <span style={st('color:var(--muted);font-size:20px')}>›</span>
-            </button>
-          </Group>
-        )}
+        <Group>
+          {/* The whole row opens the profile. */}
+          <button type="button" onClick={() => window.open(profileUrl, '_blank', 'noopener')} style={st(ROW_BASE)} className="hv-surf2">
+            <span style={st('flex:1;min-width:0;display:flex;flex-direction:column;gap:1px')}>
+              <span style={st('font:600 15px var(--font-ui)')}>My profile</span>
+              <span style={st('font:500 12.5px var(--font-mono);color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis')}>{profileUrl.replace(/^https?:\/\//, '')}</span>
+            </span>
+            <span style={st('color:var(--muted);font-size:20px')}>›</span>
+          </button>
+        </Group>
 
         <Group>
           <NavRow label="Friends" sub={`${friends.friends.length} friend${friends.friends.length === 1 ? '' : 's'}${pendingFriends ? ` · ${pendingFriends} new request${pendingFriends > 1 ? 's' : ''}` : ''}`} badge={pendingFriends} onClick={open('friends')} />
@@ -684,14 +689,23 @@ export function MeDialog() {
         <Section label="SHARING">
           <Group>
             <ActivitySharingRow />
-            <div style={st('display:flex;align-items:center;gap:12px;min-height:58px;padding:0 14px 0 16px;background:var(--surf)')}>
-              <span style={st('flex:1;display:flex;flex-direction:column;gap:1px')}>
-                <span style={st('font:600 15px var(--font-ui)')}>Public profile</span>
-                <span style={st('font:400 12.5px var(--font-ui);color:var(--muted)')}>Read-only link: achievements, Beaten, Playing</span>
+            <div style={st('display:flex;flex-direction:column;gap:10px;padding:14px 14px 14px 16px;background:var(--surf)')}>
+              <span style={st('display:flex;flex-direction:column;gap:1px')}>
+                <span style={st('font:600 15px var(--font-ui)')}>Who can see my profile</span>
+                <span style={st('font:400 12.5px var(--font-ui);color:var(--muted)')}>{PROFILE_VISIBILITY_TEXT[profileVisibility].sub}</span>
               </span>
-              <Toggle on={publicProfileEnabled} onChange={togglePublic} label="Public profile" />
+              <Segmented
+                columns={3}
+                value={profileVisibility}
+                onChange={(v) => void changeVisibility(v)}
+                options={[
+                  { value: 'public', label: 'Public' },
+                  { value: 'friends', label: 'Friends' },
+                  { value: 'private', label: 'Private' },
+                ]}
+              />
             </div>
-            {publicProfileEnabled && (
+            {profileVisibility !== 'private' && (
               <>
                 <div style={st('display:flex;flex-direction:column;gap:8px;padding:12px 10px 12px 16px;background:var(--surf)')}>
                   <span style={st('display:flex;flex-direction:column;gap:1px')}>

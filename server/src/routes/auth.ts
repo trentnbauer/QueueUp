@@ -9,7 +9,7 @@ import { toUserDto } from '../util/dto.js';
 import { HttpError } from '../util/httpError.js';
 import { getTurnstileConfig, verifyTurnstileToken } from '../services/turnstile.js';
 import { extractSteamId64, resolveSteamId64 } from '../services/steamLibrary.js';
-import { setOwnedPlatforms, setProfileSlug, setPublicProfileEnabled } from '../services/userSettings.js';
+import { setOwnedPlatforms, setProfileSlug, setProfileVisibility, setPublicProfileEnabled } from '../services/userSettings.js';
 import { logAdminAction } from '../services/adminAuditLog.js';
 import { generateApiKeyToken, hashApiKeyToken } from '../services/apiKeys.js';
 import type { OAuthProfile } from '../services/authProviders/types.js';
@@ -24,6 +24,7 @@ import type {
   DataExportVote,
   UpdateOwnedPlatformsRequest,
   UpdatePublicProfileRequest,
+  UpdateProfileVisibilityRequest,
   VoteValue,
 } from '@queueup/shared';
 
@@ -250,6 +251,7 @@ export default async function authRoutes(app: FastifyInstance) {
       steamLinked: resolveSteamId64(user) !== null,
       ownedPlatforms: user.ownedPlatforms,
       publicProfileEnabled: user.publicProfileEnabled,
+      profileVisibility: user.profileVisibility,
       profileSlug: user.profileSlug,
       primaryProvider,
       linkedProviders,
@@ -266,7 +268,21 @@ export default async function authRoutes(app: FastifyInstance) {
     return reply.send({ ownedPlatforms });
   });
 
-  // Public profile opt-in (issue #511) - see User.publicProfileEnabled's schema doc and
+  // Who can open your profile page: public, friends or private.
+  app.patch<{ Body: UpdateProfileVisibilityRequest }>(
+    '/api/me/profile-visibility',
+    { config: { rateLimit: { max: 20, timeWindow: '1 minute' } } },
+    async (request, reply) => {
+      const userId = await request.requireAuth();
+      const profileVisibility = await setProfileVisibility(userId, request.body?.visibility);
+      const label = { public: 'public', friends: 'friends only', private: 'private' }[profileVisibility];
+      void logAccountEvent(userId, 'public_profile', `Profile visibility set to ${label}.`);
+      return reply.send({ profileVisibility });
+    },
+  );
+
+  // Public profile opt-in (issue #511) - superseded by /api/me/profile-visibility above, kept for
+  // clients still running the previous version. - see User.publicProfileEnabled's schema doc and
   // routes/publicProfile.ts (the unauthenticated GET this gates) for what turning it on exposes.
   // Same tier as the API-key routes below - a direct, occasional Profile Settings action.
   app.patch<{ Body: UpdatePublicProfileRequest }>(

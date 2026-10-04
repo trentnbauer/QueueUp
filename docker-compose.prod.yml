@@ -66,6 +66,8 @@ services:
       ## Sign-in captcha (Cloudflare Turnstile) - optional, set both to turn it on
       TURNSTILE_SITE_KEY: ${TURNSTILE_SITE_KEY}
       TURNSTILE_SECRET_KEY: ${TURNSTILE_SECRET_KEY}
+      ## Google Analytics - optional, your GA4 measurement ID (G-XXXXXXXXXX)
+      GA_MEASUREMENT_ID: ${GA_MEASUREMENT_ID}
       ## Email alerts (SMTP) - optional; host, port and from address turn it on
       SMTP_HOST: ${SMTP_HOST}
       SMTP_PORT: ${SMTP_PORT}

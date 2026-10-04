@@ -7,6 +7,12 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
+enum ProfileVisibility {
+  public
+  friends
+  private
+}
+
 enum GameStatus {
   backlog
   playing
@@ -217,6 +223,11 @@ model User {
   /// opt-in; existing rows keep whatever they had). Turning it off makes GET /api/public/users/:id
   /// 404 again, and hidden games are never shown either way.
   publicProfileEnabled Boolean        @default(true) @map("public_profile_enabled")
+  /// Who can open this person's `/u/:id` profile page: anyone (public), only friends (friends), or
+  /// only themselves (private). Replaces publicProfileEnabled above, which is kept in sync (true
+  /// only when public) but no longer read; runDataMigrations copied each existing on/off choice
+  /// across once (on -> public, off -> friends, which is who could still see it then).
+  profileVisibility    ProfileVisibility @default(public) @map("profile_visibility")
   /// Optional vanity name for the public profile URL (`/u/<slug>`), instead of the user id. Unique,
   /// lowercase letters/digits/hyphens (see services/userSettings.ts for the rules).
   profileSlug          String?        @unique @map("profile_slug")
@@ -705,7 +716,7 @@ model RoomSpin {
   roomId          String         @unique @map("room_id")
   theme           SpinWheelTheme
   /// The circular, weighted candidate strip a spin's physics (see spinPhysics.ts in
-  /// packages/shared) travels along - Game.id in strip order. Built once (start, or "Spin again")
+  /// packages/shared) travels along - Game.id in strip order. Built once (start, or a voted respin)
   /// and never rebuilt by a nudge; a nudge only moves position0/velocity0/timestamp0 further along
   /// this same strip. Plain string array, not a relation - Postgres/Prisma can't express a
   /// to-many FK from an array column. If a strip game is deleted mid-spin (rare - would require
@@ -746,6 +757,12 @@ model RoomSpin {
   /// waiting window of its own - see roomSpin.ts - so it's simply unused until the next fresh
   /// start). Plain string array for the same reason as stripGameIds above.
   readyUserIds    String[]       @default([]) @map("ready_user_ids")
+  /// Members who've voted to respin the settled result. A majority of the spin's participants
+  /// (see respinVotesNeeded in roomSpin.ts) respins it; cleared on every respin.
+  respinVoteUserIds String[]     @default([]) @map("respin_vote_user_ids")
+  /// The filters the spin was started with (SpinFilters in services/spinFilters.ts), so a voted
+  /// respin draws from the same pool.
+  filters         Json?          @map("filters")
   startedBy       String         @map("started_by")
   createdAt       DateTime       @default(now()) @map("created_at")
   updatedAt       DateTime       @updatedAt @map("updated_at")
