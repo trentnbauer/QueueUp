@@ -38,7 +38,13 @@ export function useRoomSpin(roomId: string | undefined) {
 
   const query = useQuery({
     queryKey: queryKey(roomId ?? ''),
-    queryFn: () => roomSpinApi.get(roomId!),
+    // Sends back the strip it already has, so a poll only carries the strip's games when they change.
+    queryFn: async () => {
+      const prev = queryClient.getQueryData<{ spin: RoomSpinSession | null }>(queryKey(roomId!))?.spin;
+      const res = await roomSpinApi.get(roomId!, prev && prev.strip.length ? prev.stripKey : undefined);
+      if (res.spin?.stripOmitted && prev) return { spin: { ...res.spin, strip: prev.strip } };
+      return res;
+    },
     enabled,
     refetchInterval: (q) => pollInterval(q.state.data?.spin),
   });

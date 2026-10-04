@@ -1,6 +1,6 @@
 import { prisma } from '../db/client.js';
 import { gameInclude, type GameWithRelations } from '../services/gameSerializer.js';
-import { getSteamPrices } from '../services/priceService.js';
+import { getSteamPrices, mapWithConcurrency } from '../services/priceService.js';
 import { runPriceAlertChecks } from '../services/priceAlerts.js';
 import { prunePriceHistory, recordPricePoints } from '../services/priceHistory.js';
 import { getRoomPlatforms } from '../services/roomAccess.js';
@@ -70,14 +70,14 @@ export async function checkAllActivePriceWatches(): Promise<void> {
     wishlistFiredByUser.set(game.addedBy, forUser);
   };
 
-  await Promise.all(
-    games.map((game) => {
-      if (!isPcGame(game) || game.steamAppid == null) return Promise.resolve();
-      const price = prices.get(game.steamAppid);
-      if (!price) return Promise.resolve();
-      return runPriceAlertChecks(game as GameWithRelations, price, onFired);
-    }),
-  );
+  // A few games at a time: each check can read the room, ownership and price history, and running
+  // every Steam game's at once used to exhaust the connection pool and stall live requests.
+  await mapWithConcurrency(games, 6, async (game) => {
+    if (!isPcGame(game) || game.steamAppid == null) return;
+    const price = prices.get(game.steamAppid);
+    if (!price) return;
+    await runPriceAlertChecks(game as GameWithRelations, price, onFired);
+  });
 
   await Promise.all(
     Array.from(wishlistFiredByUser.entries())

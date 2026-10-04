@@ -33,6 +33,13 @@ export default async function pendingLibraryImportRoutes(app: FastifyInstance) {
     },
   );
 
+  // Just the number waiting, for the Needs Review badge - polled app-wide, so it stays one COUNT
+  // instead of building the whole review list (with match suggestions) every 30 seconds.
+  app.get('/api/library/pending-imports/count', { config: { rateLimit: { max: 60, timeWindow: '1 minute' } } }, async (request) => {
+    const userId = await request.requireAuth();
+    return { count: await prisma.pendingLibraryImport.count({ where: { userId, dismissedAt: null } }) };
+  });
+
   /** Titles the user dismissed instead of matching (shown under the shelf's "+" filters). */
   app.get(
     '/api/library/pending-imports/dismissed',

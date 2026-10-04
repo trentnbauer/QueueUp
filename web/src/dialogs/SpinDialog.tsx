@@ -239,7 +239,9 @@ export function SpinDialog({ onClose }: { onClose: () => void }) {
   // Every mode but the reel: the server runs the round (see spinModes.ts in packages/shared).
   const isMode = !!session && session.theme !== 'reel';
   const play = isMode ? session.play : null;
-  const modeNow = useModeNow(isMode, shared.clockOffset);
+  // The clock only needs to tick until the result has shown (plus a beat for its last animation).
+  const revealed = !!play && play.revealAt !== null && Date.now() + shared.clockOffset >= play.revealAt + 1500;
+  const modeNow = useModeNow(isMode && !revealed, shared.clockOffset);
   const run: Run | null = session ? sessionRun(session) : local;
   const reelNow = useLiveNow(run?.settlesAtMs ?? 0);
   const now = isMode ? modeNow : reelNow;
@@ -274,8 +276,12 @@ export function SpinDialog({ onClose }: { onClose: () => void }) {
   };
 
   // Games whose price the room's limit can't judge yet (no Steam match): try a silent match first.
-  const backlog = games.filter((g) => g.status === 'backlog' && !isUnreleased(g) && !hasUnmetPrerequisite(g, games));
-  const undecided = gate !== undefined ? backlog.filter((g) => !isFullyOwned(g) && !(g.price.source === 'live' || g.ggDealsUrl !== null) && g.manualPrice === null) : [];
+  // Memoized: the dialog re-renders every animation frame while a spin runs.
+  const backlog = useMemo(() => games.filter((g) => g.status === 'backlog' && !isUnreleased(g) && !hasUnmetPrerequisite(g, games)), [games]);
+  const undecided = useMemo(
+    () => (gate !== undefined ? backlog.filter((g) => !isFullyOwned(g) && !(g.price.source === 'live' || g.ggDealsUrl !== null) && g.manualPrice === null) : []),
+    [backlog, gate],
+  );
 
   async function go() {
     if (roomId) {
@@ -387,8 +393,8 @@ export function SpinDialog({ onClose }: { onClose: () => void }) {
   const tw = mobile ? 84 : 104;
   const th = mobile ? 126 : 156;
 
-  const noPrice = gate === undefined ? 0 : backlog.filter((g) => !isFullyOwned(g) && g.price.amount === null && g.manualPrice === null).length;
-  const waitN = games.filter((g) => ['backlog', 'replay'].includes(g.status) && hasUnmetPrerequisite(g, games)).length;
+  const noPrice = useMemo(() => (gate === undefined ? 0 : backlog.filter((g) => !isFullyOwned(g) && g.price.amount === null && g.manualPrice === null).length), [backlog, gate]);
+  const waitN = useMemo(() => games.filter((g) => ['backlog', 'replay'].includes(g.status) && hasUnmetPrerequisite(g, games)).length, [games]);
   const gateNote = [
     gate !== undefined && gate > 0 ? `Room limit: everyone owns it, or ${fmtMoney(gate, backlog.find((g) => g.price.currency)?.price.currency ?? 'USD')} or less` : gate === 0 ? 'Room limit: only games everyone owns' : null,
     noPrice ? `${noPrice} skipped, no price yet` : null,

@@ -72,7 +72,9 @@ export const gameSuggestionsApi = {
 export const roomSpinApi = {
   /** Cross-room, cheap-payload counterpart to `get` below - see ActiveRoomSpin's doc comment. */
   activeSpins: () => apiGet<{ spins: ActiveRoomSpin[] }>('/api/rooms/active-spins'),
-  get: (roomId: string) => apiGet<{ spin: RoomSpinSession | null }>(`/api/rooms/${roomId}/spin`),
+  /** `stripKey`: the strip the caller already has - its games aren't sent again (see stripOmitted). */
+  get: (roomId: string, stripKey?: string) =>
+    apiGet<{ spin: RoomSpinSession | null }>(`/api/rooms/${roomId}/spin${stripKey ? `?strip=${encodeURIComponent(stripKey)}` : ''}`),
   start: (roomId: string, filters?: SpinFilters) => apiPost<{ spin: RoomSpinSession }>(`/api/rooms/${roomId}/spin/start`, filters ?? {}),
   /** Vote to respin a settled result; a majority of the spin's participants respins it. */
   respinVote: (roomId: string) => apiPost<{ spin: RoomSpinSession }>(`/api/rooms/${roomId}/spin/respin-vote`),

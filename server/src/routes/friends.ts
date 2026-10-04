@@ -225,6 +225,14 @@ async function buildFeed(
 }
 
 export default async function friendRoutes(app: FastifyInstance) {
+  // Just the number of friend requests waiting, for the app shell's bell dot - polled app-wide,
+  // so it's one COUNT instead of the full friends list with its activity feed.
+  app.get('/api/friends/incoming-count', async (request) => {
+    const userId = await request.requireAuth();
+    if (env.PRIVATE_INSTANCE) return { count: 0 };
+    return { count: await prisma.friendship.count({ where: { addresseeId: userId, status: 'pending' } }) };
+  });
+
   app.get('/api/friends', async (request) => {
     const userId = await request.requireAuth();
     const { code: myCode, expiresAt: myCodeExpiresAt } = await ensureFriendCode(userId);

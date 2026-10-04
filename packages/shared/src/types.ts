@@ -405,6 +405,10 @@ export interface RoomSpinSession {
   play: SpinPlay | null;
   /** Server time when this was sent, so clients can line their clock up with the round's timestamps. */
   serverNow: string;
+  /** Identifies `strip`'s games. A poll that sends back the key it already has gets an empty strip
+   * and `stripOmitted` instead of the same games again (they don't change during a spin). */
+  stripKey: string;
+  stripOmitted?: boolean;
 }
 
 /** A room's spin session, but only the sliver a cross-room "someone just started a spin" popup

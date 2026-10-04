@@ -1,3 +1,4 @@
+import { createHash } from 'node:crypto';
 import type { FastifyInstance } from 'fastify';
 import { Prisma } from '@prisma/client';
 import type { ActiveRoomSpin, ConcreteSpinWheelTheme, Game, RoomSpinSession, SpinPlayAction, StoredPlay } from '@queueup/shared';
@@ -182,12 +183,24 @@ async function hydrateStrip(stripGameIds: string[], userId: string): Promise<Gam
 // RoomSpin row is only ever written with resolveConcreteTheme's output - this narrows that back
 // to the concrete-only type RoomSpinSession promises callers. A row with no mode state is the reel,
 // whatever its theme says (rows from before spin modes said "slot" and drew the reel).
-async function toSpinDto(spin: RoomSpinRow, userId: string): Promise<RoomSpinSession | null> {
-  const strip = await hydrateStrip(spin.stripGameIds, userId);
-  if (!strip) return null;
+async function toSpinDto(spin: RoomSpinRow, userId: string, knownStripKey?: string): Promise<RoomSpinSession | null> {
+  const stripKey = stripKeyOf(spin);
+  let strip: Game[] = [];
+  const omit = knownStripKey === stripKey;
+  if (omit) {
+    // The caller already has these games; just make sure none has been deleted since.
+    const ids = [...new Set(spin.stripGameIds)];
+    if ((await prisma.game.count({ where: { id: { in: ids } } })) !== ids.length) return null;
+  } else {
+    const hydrated = await hydrateStrip(spin.stripGameIds, userId);
+    if (!hydrated) return null;
+    strip = hydrated;
+  }
   const stored = storedPlay(spin);
   return {
     id: spin.id,
+    stripKey,
+    ...(omit && { stripOmitted: true }),
     theme: stored ? (spin.theme as ConcreteSpinWheelTheme) : 'reel',
     play: stored && !isPending(stored) ? publicPlay(stored) : null,
     serverNow: new Date().toISOString(),
@@ -207,6 +220,11 @@ async function toSpinDto(spin: RoomSpinRow, userId: string): Promise<RoomSpinSes
     respinNeeded: respinVotesNeeded(spin),
     youVotedRespin: spin.respinVoteUserIds.includes(userId),
   };
+}
+
+/** A short fingerprint of the spin's strip: the same games in the same order give the same key. */
+function stripKeyOf(spin: RoomSpinRow): string {
+  return createHash('sha1').update(`${spin.id}:${spin.stripGameIds.join(',')}`).digest('base64url').slice(0, 16);
 }
 
 /** Votes it takes to respin: more than half of the spin's participants - everyone who joined its
@@ -259,7 +277,7 @@ export default async function roomSpinRoutes(app: FastifyInstance) {
   // Same tier as /api/rooms/active-spins above (issue #562) - polled at up to 700ms while a spin
   // is in-flight (useRoomSpin.ts's ACTIVE_POLL_MS), which a per-IP limit (see app.ts) can only
   // cover a couple of concurrent tabs behind one household IP at the global default before 429ing.
-  app.get<{ Params: { roomId: string } }>(
+  app.get<{ Params: { roomId: string }; Querystring: { strip?: string } }>(
     '/api/rooms/:roomId/spin',
     { config: { rateLimit: { max: 450, timeWindow: '1 minute' } } },
     async (request) => {
@@ -273,7 +291,7 @@ export default async function roomSpinRoutes(app: FastifyInstance) {
         return { spin: null };
       }
       spin = await syncPlay(spin);
-      const dto = await toSpinDto(spin, userId);
+      const dto = await toSpinDto(spin, userId, request.query.strip);
       if (!dto) {
         await prisma.roomSpin.deleteMany({ where: { id: spin.id } });
         return { spin: null };

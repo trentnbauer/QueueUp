@@ -501,6 +501,9 @@ model GameOwnership {
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@id([userId, igdbId])
+  // Ownership is looked up by game ("who owns this?") on every list and spin, which the primary
+  // key (user first) can't serve.
+  @@index([igdbId])
   @@map("game_ownership")
 }
 
@@ -1008,7 +1011,7 @@ model PlayLog {
 
   game Game @relation(fields: [gameId], references: [id], onDelete: Cascade)
 
-  @@index([gameId])
+  @@index([gameId, createdAt])
   @@map("play_log")
 }
 

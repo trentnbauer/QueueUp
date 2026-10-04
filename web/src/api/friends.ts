@@ -10,6 +10,7 @@ import type {
 
 export const friendsApi = {
   list: () => apiGet<FriendsResponse>('/api/friends'),
+  incomingCount: () => apiGet<{ count: number }>('/api/friends/incoming-count'),
   sendRequest: (body: SendFriendRequestRequest) =>
     apiPost<{ accepted: boolean; user: FriendUser }>('/api/friends/requests', body),
   accept: (requestId: string) => apiPost<{ ok: true }>(`/api/friends/requests/${requestId}/accept`),
