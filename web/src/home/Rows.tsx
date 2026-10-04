@@ -77,6 +77,18 @@ function AchievementChip({ g }: { g: Game }) {
   );
 }
 
+/** PC install size from Steam (#800), e.g. "60 GB", when known. */
+function SizeChip({ g }: { g: Game }) {
+  if (g.downloadSizeMb === null) return null;
+  const gb = g.downloadSizeMb / 1024;
+  const label = gb >= 10 ? `${Math.round(gb)} GB` : gb >= 1 ? `${gb.toFixed(1)} GB` : `${g.downloadSizeMb} MB`;
+  return (
+    <span title="PC install size, from Steam" aria-label={`Install size ${label}`} style={st(CHIP)}>
+      💾 {label}
+    </span>
+  );
+}
+
 /** IGDB's 0-100 critic/user score as a gold star out of 10 ("★ 8.7"), when IGDB has one. */
 function IgdbScoreChip({ g }: { g: Game }) {
   if (g.reviewScore === null) return null;
@@ -131,6 +143,7 @@ export function DesktopRow({ item, showRank, bulk, selected, active, onOpen, onV
           {item.chip && <span style={st(CHIP)}>{item.chip}</span>}
           <AchievementChip g={g} />
           <IgdbScoreChip g={g} />
+          <SizeChip g={g} />
           <span style={st('white-space:nowrap;overflow:hidden;text-overflow:ellipsis')}>{item.meta}</span>
         </span>
       </div>
@@ -185,6 +198,7 @@ export function MobileRow({ item, showRank, bulk, selected, onOpen, onVote }: Ro
             {item.chip && <span style={st(CHIP)}>{item.chip}</span>}
             <AchievementChip g={g} />
             <IgdbScoreChip g={g} />
+            <SizeChip g={g} />
             <span style={st('white-space:nowrap;overflow:hidden;text-overflow:ellipsis')}>
               {item.meta}
               {item.meta ? ' · ' : ''}
@@ -254,6 +268,7 @@ export function CoverCard({
           <span style={st(`flex:1;min-width:0;font:400 12px var(--font-ui);color:${item.priceOwned ? 'var(--mint)' : 'var(--text)'};white-space:nowrap;overflow:hidden;text-overflow:ellipsis`)}>{item.priceLabel}</span>
           <AchievementChip g={g} />
           <IgdbScoreChip g={g} />
+          <SizeChip g={g} />
         </span>
       </div>
       {onStart && (
@@ -298,6 +313,7 @@ export function PlayNextRow({
         <span style={st('display:flex;align-items:center;gap:6px;min-width:0;font:400 12.5px var(--font-ui);color:var(--muted)')}>
           {isNew && g.releaseDate && <span style={st(CHIP)}>{`New · out ${releaseShortDate(g.releaseDate)}`}</span>}
           <IgdbScoreChip g={g} />
+          <SizeChip g={g} />
           <span style={st('white-space:nowrap;overflow:hidden;text-overflow:ellipsis')}>
             {item.meta}
             {item.meta ? ' · ' : ''}

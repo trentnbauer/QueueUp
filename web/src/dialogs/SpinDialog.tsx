@@ -101,6 +101,8 @@ const PRICE_OPTS = [0, 10, 20, 40];
 const TTB_OPTS = [0, 10, 20, 40];
 /** Minimum IGDB score, on the same out-of-10 scale as the ★ on game cards. */
 const SCORE_OPTS = [0, 7, 8, 9];
+/** Largest install size, in GB (#800). */
+const SIZE_OPTS = [0, 10, 30, 60];
 const PILL = 'height:32px;padding:0 12px;border-radius:999px;border:none;font:600 12.5px var(--font-ui)';
 
 /** The horizontal reel: tiles laid out around the live `position` (strip slots), wrapping round the
@@ -205,6 +207,7 @@ export function SpinDialog({ onClose }: { onClose: () => void }) {
   const [maxTtb, setMaxTtb] = useState(defaults?.maxTtb ?? 0);
   const [minScore, setMinScore] = useState(defaults?.minScore ? defaults.minScore / 10 : 0);
   const [everyone, setEveryone] = useState(!!defaults?.everyoneOwns);
+  const [maxSize, setMaxSize] = useState(0);
   const [local, setLocal] = useState<Run | null>(null);
   const [nudge, setNudge] = useState<'left' | 'right' | null>(null);
   const [starting, setStarting] = useState(false);
@@ -220,10 +223,11 @@ export function SpinDialog({ onClose }: { onClose: () => void }) {
         if (maxPrice && !(g.youOwn || (g.price.amount !== null && Number(g.price.amount) <= maxPrice))) return false;
         if (maxTtb && !(g.timeToBeatHours !== null && g.timeToBeatHours <= maxTtb)) return false;
         if (minScore && !(g.reviewScore !== null && g.reviewScore >= minScore * 10)) return false;
+        if (maxSize && !(g.downloadSizeMb !== null && g.downloadSizeMb <= maxSize * 1024)) return false;
         if (everyone && !isFullyOwned(g)) return false;
         return true;
       }),
-    [base, maxPrice, maxTtb, minScore, everyone],
+    [base, maxPrice, maxTtb, minScore, everyone, maxSize],
   );
 
   const { user } = useAuth();
@@ -263,6 +267,7 @@ export function SpinDialog({ onClose }: { onClose: () => void }) {
     maxTtb: maxTtb || undefined,
     everyoneOwns: everyone || undefined,
     minScore: minScore ? minScore * 10 : undefined,
+    maxSizeMb: maxSize ? maxSize * 1024 : undefined,
   };
 
   // Games whose price the room's limit can't judge yet (no Steam match): try a silent match first.
@@ -428,6 +433,13 @@ export function SpinDialog({ onClose }: { onClose: () => void }) {
                 {SCORE_OPTS.map((n) => (
                   <button key={n} type="button" onClick={() => setMinScore(n)} style={st(`${PILL};background:${minScore === n ? 'var(--text)' : 'var(--chip)'};color:${minScore === n ? 'var(--onText)' : 'var(--muted)'}`)}>
                     {n ? `★ ${n}+` : 'Any score'}
+                  </button>
+                ))}
+              </div>
+              <div style={st('display:flex;flex-wrap:wrap;align-items:center;gap:6px;margin-bottom:8px')}>
+                {SIZE_OPTS.map((n) => (
+                  <button key={n} type="button" onClick={() => setMaxSize(n)} title={n ? 'PC install size from Steam; games with no size listed are left out' : undefined} style={st(`${PILL};background:${maxSize === n ? 'var(--text)' : 'var(--chip)'};color:${maxSize === n ? 'var(--onText)' : 'var(--muted)'}`)}>
+                    {n ? `Under ${n} GB` : 'Any size'}
                   </button>
                 ))}
               </div>

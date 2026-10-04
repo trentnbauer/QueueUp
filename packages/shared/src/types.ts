@@ -668,6 +668,8 @@ export interface Game {
    * on games added before this was captured. Nudges Spin the Wheel's weighted pick toward
    * better-reviewed games - see spinCandidateWeight in gameGridLogic.ts. */
   reviewScore: number | null;
+  /** PC install size in MB from Steam's system requirements (#800); null when unknown. */
+  downloadSizeMb: number | null;
   /** User-set "play this after" pointer to another game in the same room (e.g. Borderlands 2 ->
    * Borderlands 1) - null when unset. Room games only; always null on the Personal Shelf. Spin the
    * Wheel excludes a backlog game from its candidate pool while its prerequisite isn't yet Done -

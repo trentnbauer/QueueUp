@@ -864,6 +864,9 @@ model Game {
   /// Wheel's weighting treats it the same as a game nobody's voted on), or on games added before
   /// this field existed.
   reviewScore                  Int?       @map("review_score")
+  /// PC install size in MB from the Steam store page's system requirements (#800) - IGDB has no
+  /// size data. Filled in by jobs/downloadSizeBackfillJob.ts for Steam-matched games; null otherwise.
+  downloadSizeMb               Int?       @map("download_size_mb")
   ggDealsUrl                   String?    @map("gg_deals_url")
   steamAppid                   Int?       @map("steam_appid")
   coverImageUrl                String?    @map("cover_image_url")

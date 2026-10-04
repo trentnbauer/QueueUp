@@ -25,6 +25,8 @@ export interface SpinFilters {
   everyoneOwns?: boolean;
   /** Minimum IGDB score, 0-100. */
   minScore?: number;
+  /** Largest install size in MB (#800). */
+  maxSizeMb?: number;
 }
 
 export const roomsApi = {

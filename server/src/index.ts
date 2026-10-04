@@ -13,6 +13,7 @@ import { startPlayniteSyncReminderJob } from './jobs/playniteSyncReminderJob.js'
 import { startBackupJob } from './jobs/backupJob.js';
 import { startEmailAlertJob } from './jobs/emailAlertJob.js';
 import { startReviewScoreBackfillJob } from './jobs/reviewScoreBackfillJob.js';
+import { startDownloadSizeBackfillJob } from './jobs/downloadSizeBackfillJob.js';
 import { reloadTunnel, stopTunnel } from './services/cloudflareTunnel.js';
 
 const app = await buildApp();
@@ -58,6 +59,8 @@ const backupJob = startBackupJob();
 const emailAlertJob = startEmailAlertJob();
 // Fills in IGDB review scores for games stored before the score was - see jobs/reviewScoreBackfillJob.ts.
 const reviewScoreBackfillJob = startReviewScoreBackfillJob();
+// Fills in install sizes from Steam store pages (#800) - see jobs/downloadSizeBackfillJob.ts.
+const downloadSizeBackfillJob = startDownloadSizeBackfillJob();
 
 // Cloudflare Tunnel (#664) - starts cloudflared if a tunnel token is set; a no-op otherwise. Not
 // awaited past the token lookup, and a failure here never stops the server itself.
@@ -92,6 +95,7 @@ async function shutdown(signal: string) {
     backupJob.stop();
     emailAlertJob.stop();
     reviewScoreBackfillJob.stop();
+    downloadSizeBackfillJob.stop();
     await stopTunnel();
     // Stops accepting new connections, waits for in-flight requests, runs plugins' onClose hooks.
     await app.close();
