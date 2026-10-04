@@ -77,6 +77,17 @@ export function useActionableNotificationToasts() {
         });
         continue;
       }
+      // A friend recommended a game (#808) you don't have yet: find it in Add Game.
+      if (notification.type === 'friend_recommendation' && notification.gameId === null && !notification.read) {
+        const title = /"(.+)"/.exec(notification.message)?.[1];
+        showToast({
+          id: `notification-${notification.id}`,
+          message: notification.message,
+          actions: title ? [{ label: 'Find it', onClick: () => ui.openDialog('add', { query: title }) }] : [],
+          onDismiss: () => markRead.mutate(notification.id),
+        });
+        continue;
+      }
       if (notification.gameId === null) continue;
       const gameId = notification.gameId;
 
@@ -126,6 +137,14 @@ export function useActionableNotificationToasts() {
               },
             },
           ],
+          onDismiss: () => markRead.mutate(notification.id),
+        });
+      } else if (notification.type === 'friend_recommendation' && !notification.read) {
+        showToast({
+          id: `notification-${notification.id}`,
+          message: notification.message,
+          onOpen: openGame,
+          actions: [{ label: 'View', onClick: openGame }],
           onDismiss: () => markRead.mutate(notification.id),
         });
       } else if (notification.type === 'price_drop') {

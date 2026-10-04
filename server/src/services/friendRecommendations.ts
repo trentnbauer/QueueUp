@@ -61,3 +61,46 @@ export async function notifyFriendRecommendation(
     console.error('[notifications] failed to write friend recommendation notifications', err);
   }
 }
+
+/** #808: the reviewer picked these friends to tell about a game. Only real friends are told, once
+ * each while the last one is still unread. When the friend already has the game on their shelf the
+ * notification points at their copy; otherwise it carries just the title for them to look up.
+ * Returns how many were sent. */
+export async function recommendToFriends(
+  senderId: string,
+  game: { id: string; igdbId: number; title: string },
+  friendIds: string[],
+): Promise<number> {
+  const friends = new Set(await friendIdsOf(senderId));
+  const recipients = [...new Set(friendIds)].filter((id) => friends.has(id));
+  if (recipients.length === 0) return 0;
+  const [copies, sender, review] = await Promise.all([
+    prisma.game.findMany({ where: { roomId: null, igdbId: game.igdbId, addedBy: { in: recipients } }, select: { id: true, addedBy: true } }),
+    prisma.user.findUnique({ where: { id: senderId }, select: { displayName: true } }),
+    prisma.gameReview.findUnique({ where: { gameId_userId: { gameId: game.id, userId: senderId } } }),
+  ]);
+  const copyOf = new Map(copies.map((c) => [c.addedBy, c.id]));
+  const average = review ? reviewAverage(review) : null;
+  const name = sender?.displayName ?? 'A friend';
+  const base = `${name} recommends "${game.title}"${average !== null ? ` (${average.toFixed(1)}/5)` : ''}`;
+  const pending = await prisma.notification.findMany({
+    where: { type: 'friend_recommendation', actorId: senderId, recipientId: { in: recipients }, readAt: null, message: { startsWith: `${name} recommends "${game.title}"` } },
+    select: { recipientId: true },
+  });
+  const skip = new Set(pending.map((n) => n.recipientId));
+  const data = recipients
+    .filter((id) => !skip.has(id))
+    .map((recipientId) => {
+      const copy = copyOf.get(recipientId) ?? null;
+      return {
+        recipientId,
+        actorId: senderId,
+        roomName: 'Personal Shelf',
+        gameId: copy,
+        type: 'friend_recommendation' as const,
+        message: copy ? `${base} - it's on your list` : base,
+      };
+    });
+  if (data.length) await prisma.notification.createMany({ data });
+  return data.length;
+}

@@ -50,10 +50,16 @@ describe('rowChip status', () => {
 describe('statusOutlineFor', () => {
   it('gives finished and on-hold statuses an emoji and colour, and nothing for the rest', () => {
     expect(statusOutlineFor('done')?.emoji).toBe('✅');
-    expect(statusOutlineFor('dropped')?.emoji).toBe('👎');
+    expect(statusOutlineFor('dropped')?.emoji).toBe('🛑');
     expect(statusOutlineFor('wont_play')?.emoji).toBe('🚫');
     expect(statusOutlineFor('paused')?.emoji).toBe('⏸️');
     expect(statusOutlineFor('replay')?.emoji).toBe('🔄');
     for (const s of ['backlog', 'wishlist', 'playing', 'play_next'] as const) expect(statusOutlineFor(s)).toBeNull();
+  });
+
+  it('shows the review verdict over the status (#809)', () => {
+    expect(statusOutlineFor('dropped', true)).toMatchObject({ emoji: '👍', label: 'Recommended' });
+    expect(statusOutlineFor('done', false)).toMatchObject({ emoji: '👎', label: "Don't recommend" });
+    expect(statusOutlineFor('done', null)?.emoji).toBe('✅');
   });
 });

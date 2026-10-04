@@ -49,6 +49,7 @@ export function toGameReviewDto(
     story: number | null;
     sound: number | null;
     note: string | null;
+    recommend?: boolean | null;
     reviewedAt: Date;
   } | null | undefined,
 ): GameReview | null {
@@ -59,6 +60,7 @@ export function toGameReviewDto(
     story: review.story,
     sound: review.sound,
     note: review.note,
+    recommend: review.recommend ?? null,
     reviewedAt: review.reviewedAt.toISOString(),
   };
 }

@@ -1313,6 +1313,8 @@ model GameReview {
   story      Int?
   sound      Int?
   note       String?
+  /// Would they recommend it to someone else: true (thumbs up), false (thumbs down), null (didn't say).
+  recommend  Boolean?
   reviewedAt DateTime @default(now()) @map("reviewed_at")
 
   game Game @relation(fields: [gameId], references: [id], onDelete: Cascade)
