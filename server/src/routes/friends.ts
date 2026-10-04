@@ -225,6 +225,14 @@ async function buildFeed(
 }
 
 export default async function friendRoutes(app: FastifyInstance) {
+  // Just the number of friend requests waiting, for the app shell's bell dot - polled app-wide,
+  // so it's one COUNT instead of the full friends list with its activity feed.
+  app.get('/api/friends/incoming-count', async (request) => {
+    const userId = await request.requireAuth();
+    if (env.PRIVATE_INSTANCE) return { count: 0 };
+    return { count: await prisma.friendship.count({ where: { addresseeId: userId, status: 'pending' } }) };
+  });
+
   app.get('/api/friends', async (request) => {
     const userId = await request.requireAuth();
     const { code: myCode, expiresAt: myCodeExpiresAt } = await ensureFriendCode(userId);
@@ -294,6 +302,18 @@ export default async function friendRoutes(app: FastifyInstance) {
       outgoing: outgoingRows.map((r) => toRequest(r, r.addressee)),
     };
     return response;
+  });
+
+  // Whose friend link this is, so opening one asks "Add <name>?" instead of adding straight away.
+  app.get<{ Params: { code: string } }>('/api/friends/code/:code', { config: { rateLimit: { max: 30, timeWindow: '1 hour' } } }, async (request) => {
+    await request.requireAuth();
+    const code = String(request.params.code ?? '').toUpperCase().replace(/[^A-Z0-9]/g, '');
+    if (code.length !== 8) throw new HttpError(400, 'That friend code does not look right');
+    const owner = await prisma.user.findUnique({ where: { friendCode: `${code.slice(0, 4)}-${code.slice(4)}` }, select: { ...userSelect, friendCodeIssuedAt: true } });
+    if (!owner || !owner.friendCodeIssuedAt || Date.now() - owner.friendCodeIssuedAt.getTime() >= FRIEND_CODE_TTL_MS) {
+      throw new HttpError(404, 'That friend link is invalid or has expired');
+    }
+    return { user: { id: owner.id, displayName: owner.displayName, avatarColor: owner.avatarColor, avatarUrl: owner.avatarUrl } };
   });
 
   app.post<{ Body: SendFriendRequestRequest }>(

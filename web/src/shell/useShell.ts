@@ -3,7 +3,7 @@ import { useAuth } from '../context/AuthContext';
 import { useScope, SHELF_ID } from '../context/ScopeContext';
 import { useUi } from '../context/UiContext';
 import { useAttention } from '../hooks/useAttention';
-import { useFriends } from '../hooks/useFriends';
+import { useIncomingFriendRequestCount } from '../hooks/useFriends';
 import { useNotificationSummary } from '../hooks/useNotifications';
 import { usePendingImportsCount } from '../hooks/usePendingImports';
 import { initialsOf } from '../ui/primitives';
@@ -32,7 +32,7 @@ export function useShell() {
   const attention = useAttention();
   const pendingImports = usePendingImportsCount();
   const { totalUnread } = useNotificationSummary();
-  const friends = useFriends();
+  const incomingFriendRequests = useIncomingFriendRequestCount();
 
   const go = (path: string) => () => {
     ui.selectGame(null);
@@ -65,7 +65,7 @@ export function useShell() {
     user,
     shelfTile,
     roomTiles,
-    hasUnread: totalUnread > 0 || friends.incoming.length > 0,
+    hasUnread: totalUnread > 0 || incomingFriendRequests > 0,
     pendingImports,
     roomCount: scope.rooms.length,
     onActivity: location.pathname === '/activity',

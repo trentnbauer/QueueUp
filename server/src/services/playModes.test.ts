@@ -9,7 +9,11 @@ describe('playModesFrom', () => {
   it('spots co-op from the modes or from multiplayer flags', () => {
     expect(playModesFrom([{ name: 'Single player' }, { name: 'Co-operative' }], [])).toEqual({ singlePlayerOnly: false, coop: true });
     expect(playModesFrom([{ name: 'Single player' }, { name: 'Multiplayer' }], [{ onlinecoop: true }])).toEqual({ singlePlayerOnly: false, coop: true });
-    expect(playModesFrom([{ name: 'Split screen' }], [])).toEqual({ singlePlayerOnly: false, coop: true });
+    expect(playModesFrom([{ name: 'Single player' }, { name: 'Split screen' }], [{ offlinecoop: true }])).toEqual({ singlePlayerOnly: false, coop: true });
+  });
+
+  it('competitive split screen alone is not co-op', () => {
+    expect(playModesFrom([{ name: 'Single player' }, { name: 'Split screen' }], [{ splitscreen: true }])).toEqual({ singlePlayerOnly: false, coop: false });
   });
 
   it('a competitive-only multiplayer game is neither', () => {

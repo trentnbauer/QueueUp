@@ -40,10 +40,15 @@ function restoreOptions(request: FastifyRequest): RestoreOptions {
 const limit = { config: { rateLimit: { max: 20, timeWindow: '1 minute' } } };
 
 export default async function adminBackupRoutes(app: FastifyInstance) {
-  // Scoped to this plugin: accept gzip/octet-stream bodies as Buffers.
-  app.addContentTypeParser(['application/gzip', 'application/octet-stream'], { parseAs: 'buffer', bodyLimit: MAX_IMPORT_BYTES }, (_req, body, done) =>
-    done(null, body),
-  );
+  // Every route here is admin-only, and that's checked before the body is read: otherwise anyone
+  // could make the server buffer a large upload just to be told 401 afterwards.
+  app.addHook('onRequest', async (request) => {
+    await requireAdmin(await request.requireAuth());
+  });
+
+  // Scoped to this plugin: accept gzip/octet-stream bodies as Buffers. Only the import route
+  // raises the body limit (see its options); the rest keep the app default.
+  app.addContentTypeParser(['application/gzip', 'application/octet-stream'], { parseAs: 'buffer' }, (_req, body, done) => done(null, body));
 
   const actor = async (request: { requireAuth: () => Promise<string> }) => {
     const userId = await request.requireAuth();

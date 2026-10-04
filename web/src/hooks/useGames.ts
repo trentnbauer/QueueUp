@@ -87,6 +87,7 @@ export function useGames(roomId: string | null) {
       // or the detail modal (which stays mounted across a status click, never remounting to
       // refetch on its own) would keep showing whatever it fetched before the change.
       queryClient.invalidateQueries({ queryKey: ['games', game.id, 'play-log'] });
+      void queryClient.invalidateQueries({ queryKey: ['journal'] });
       announceUnlock(unlockedBadges);
     },
     onError: (err) => setActionError(errorMessage(err, 'Could not update that game\'s status.')),
@@ -142,6 +143,7 @@ export function useGames(roomId: string | null) {
       patchGame(game);
       // The review rides on the activity feed entry too.
       void queryClient.invalidateQueries({ queryKey: ['friends', 'activity'] });
+      void queryClient.invalidateQueries({ queryKey: ['journal'] });
     },
     onError: (err) => setActionError(errorMessage(err, 'Could not save that review.')),
   });

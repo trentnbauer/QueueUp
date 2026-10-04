@@ -97,6 +97,37 @@ export function useActionableNotificationToasts() {
           actions: [{ label: 'Mark Playing', onClick: () => markPlaying.mutateAsync(gameId) }],
           onDismiss: () => markRead.mutate(notification.id),
         });
+      } else if (notification.type === 'room_game_beaten') {
+        // Another member beat a room game: review it, and mark it Beaten on your own shelf (the
+        // review sheet does the shelf sync once it's saved or skipped, so the review goes with it).
+        showToast({
+          id: `notification-${notification.id}`,
+          message: notification.message,
+          onOpen: openGame,
+          actions: [
+            {
+              label: 'Review it',
+              onClick: () => {
+                openGame();
+                ui.openDialog('review', { gameId, syncShelf: true });
+              },
+            },
+            {
+              label: 'Mark Beaten',
+              onClick: async () => {
+                try {
+                  await gamesApi.syncShelfBeaten(gameId);
+                } catch (err) {
+                  ui.showError(err instanceof Error ? err.message : "Couldn't update your shelf. Try again.");
+                  throw err;
+                }
+                void queryClient.invalidateQueries({ queryKey: ['games'] });
+                ui.notify('Marked Beaten on your shelf');
+              },
+            },
+          ],
+          onDismiss: () => markRead.mutate(notification.id),
+        });
       } else if (notification.type === 'price_drop') {
         showToast({
           id: `notification-${notification.id}`,

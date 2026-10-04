@@ -428,6 +428,7 @@ export async function createGameForUser(
       gameId: created.id,
       type: 'game_added',
       message: (actorName) => `${actorName} added "${resolved.title}" to the room`,
+      payload: { gameId: game.id, title: game.title, coverImageUrl: game.coverImageUrl, status: game.status },
     });
   } else if (!roomId) {
     // Shelf activity feed (issue #580) - mirrors the room branch above, for the same "the game

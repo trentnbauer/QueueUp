@@ -174,6 +174,18 @@ export default async function roomRoutes(app: FastifyInstance) {
     return { room: toRoomDto(room, 'room_master', room.inviteCode), unlockedBadges };
   });
 
+  // Which room an invite link is for, so opening one asks "Join <room>?" instead of joining
+  // straight away.
+  app.get<{ Params: { code: string } }>('/api/rooms/invite/:code', { config: { rateLimit: { max: 30, timeWindow: '1 hour' } } }, async (request) => {
+    await request.requireAuth();
+    const room = await prisma.room.findUnique({
+      where: { inviteCode: String(request.params.code ?? '').trim() },
+      select: { name: true, accentColor: true, _count: { select: { members: true } } },
+    });
+    if (!room) throw new HttpError(404, 'This invite link is invalid or has expired');
+    return { room: { name: room.name, accentColor: room.accentColor, memberCount: room._count.members } };
+  });
+
   app.post<{ Body: JoinRoomRequest }>(
     '/api/rooms/join',
     // Invite codes are the sole access-control secret for private rooms - a tight limit here
@@ -357,7 +369,11 @@ export default async function roomRoutes(app: FastifyInstance) {
         ...(accentColor !== undefined && { accentColor }),
         ...(discordWebhookUrl !== undefined && { discordWebhookUrl }),
         ...(spinOwnershipMaxPrice !== undefined && { spinOwnershipMaxPrice }),
-        ...(spinDefaults !== undefined && { spinDefaults: toSpinDefaults(spinDefaults) as Prisma.InputJsonValue }),
+        // Merged over what's stored, so saving one default (0 / false clears it) can't drop another
+        // that was saved a moment earlier from a stale copy.
+        ...(spinDefaults !== undefined && {
+          spinDefaults: toSpinDefaults({ ...toSpinDefaults(before.spinDefaults), ...(spinDefaults as object) }) as Prisma.InputJsonValue,
+        }),
         ...(spinWheelTheme !== undefined && { spinWheelTheme }),
         ...(isPublic !== undefined && { isPublic }),
         ...(requireGameApproval !== undefined && { requireGameApproval }),

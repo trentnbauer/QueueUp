@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
 import { Link, useNavigate } from 'react-router';
 import { REVIEW_CATEGORIES, type PublicProfileBeatenGame, type PublicProfileGame, type PublicUserProfile } from '@queueup/shared';
+import { apiGet } from '../api/client';
 import { authApi } from '../api/auth';
 import { gamesApi } from '../api/games';
 import { playTogetherApi } from '../api/playTogether';
@@ -218,36 +219,60 @@ export function LoginPage({ providers, turnstileSiteKey = null }: { providers: s
   );
 }
 
-/** `/join/:code`: joins straight away; shows a spinner, or the error with a way back. */
+/** `/join/:code`: says which room the invite is for and joins only when you say so - a link alone
+ * mustn't be able to put you in someone's room. Shows the error with a way back if it's invalid. */
 export function JoinPage({ code }: { code: string }) {
   const navigate = useNavigate();
   const ui = useUi();
   const { joinRoom } = useRooms();
   const [error, setError] = useState<string | null>(null);
-  const attempted = useRef(false);
+  const [preview, setPreview] = useState<{ name: string; accentColor: string; memberCount: number } | null>(null);
+  const [joining, setJoining] = useState(false);
 
   useEffect(() => {
-    if (attempted.current) return;
-    attempted.current = true;
+    let dead = false;
+    apiGet<{ room: { name: string; accentColor: string; memberCount: number } }>(`/api/rooms/invite/${encodeURIComponent(code)}`)
+      .then(({ room }) => !dead && setPreview(room))
+      .catch(() => !dead && setError(`Couldn't join with ${code}`));
+    return () => {
+      dead = true;
+    };
+  }, [code]);
+
+  function join() {
+    setJoining(true);
     joinRoom
       .mutateAsync({ inviteCode: code })
       .then(({ room }) => {
         navigate(`/room/${room.id}`, { replace: true });
         ui.notify(`Joined ${room.name}`);
       })
-      .catch(() => setError(`Couldn't join with ${code}`));
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [code]);
+      .catch(() => setError(`Couldn't join with ${code}`))
+      .finally(() => setJoining(false));
+  }
 
   return (
     <div style={st('position:fixed;inset:0;z-index:20;background:var(--bg);color:var(--text);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:14px;padding:32px 24px;text-align:center')}>
       {!error ? (
-        <>
+        !preview ? (
           <span style={st('width:44px;height:44px;border-radius:50%;border:4px solid var(--chip);border-top-color:var(--acc);animation:qu-spin .9s linear infinite')} />
-          <span style={st('margin-top:8px;font:600 12px var(--font-mono);letter-spacing:0.08em;color:var(--muted)')}>JOINING ROOM</span>
-          <span style={st('font:700 30px/1.05 var(--font-display);letter-spacing:-0.02em')}>{code}</span>
-          <span style={st('font:400 14px/1.45 var(--font-ui);color:var(--muted)')}>Hang tight, adding you to the room…</span>
-        </>
+        ) : (
+          <>
+            <span style={st('font:600 12px var(--font-mono);letter-spacing:0.08em;color:var(--muted)')}>YOU'RE INVITED TO</span>
+            <span style={st(`font:700 30px/1.05 var(--font-display);letter-spacing:-0.02em;color:${preview.accentColor}`)}>{preview.name}</span>
+            <span style={st('font:400 14px/1.45 var(--font-ui);color:var(--muted)')}>
+              {preview.memberCount} member{preview.memberCount === 1 ? '' : 's'}. Members can see your systems and what you play in this room.
+            </span>
+            <div style={st('display:flex;gap:10px;margin-top:6px')}>
+              <Btn height={48} padX={22} fontSize={14.5} onClick={() => navigate('/', { replace: true })}>
+                Not now
+              </Btn>
+              <Btn kind="accent" height={48} padX={26} fontSize={14.5} disabled={joining} onClick={join}>
+                {joining ? 'Joining…' : 'Join room'}
+              </Btn>
+            </div>
+          </>
+        )
       ) : (
         <>
           <div role="alert" style={st('width:100%;max-width:360px;display:flex;align-items:flex-start;gap:10px;padding:14px;border-radius:16px;background:var(--errBg);border:1px solid var(--errLine);text-align:left')}>

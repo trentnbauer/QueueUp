@@ -4,12 +4,12 @@ import { useQueryClient } from '@tanstack/react-query';
 import { useAuth } from './context/AuthContext';
 import { authApi } from './api/auth';
 import { friendsApi } from './api/friends';
-import { useRooms } from './hooks/useRooms';
 import { useActionableNotificationToasts } from './hooks/useActionableNotificationToasts';
 import { useActiveRoomSpinToasts } from './hooks/useActiveRoomSpinToasts';
 import { usePlayniteSyncToasts } from './hooks/usePlayniteSyncToasts';
 import { ScopeProvider } from './context/ScopeContext';
 import { SteamImportProvider } from './context/SteamImportContext';
+import { useConfirm } from './context/ConfirmContext';
 import { useUi } from './context/UiContext';
 import { HomeView } from './home/HomeView';
 import { AdminPage } from './pages/AdminPage';
@@ -36,24 +36,37 @@ function JoinRoute() {
   return <JoinPage code={inviteCode} />;
 }
 
-/** `/add/:code` while signed in: using someone's friend link makes you friends straight away. */
+/** `/add/:code` while signed in: asks "Add <name> as a friend?" first - a friend can see your
+ * friends-only profile and activity and add you to rooms, so a link alone mustn't do it. */
 function AddFriendRoute() {
   const { code = '' } = useParams();
   const navigate = useNavigate();
   const ui = useUi();
+  const confirm = useConfirm();
   const queryClient = useQueryClient();
-  const attempted = useRef(false);
+  const asked = useRef(false);
   useEffect(() => {
-    if (attempted.current) return;
-    attempted.current = true;
-    friendsApi
-      .sendRequest({ code })
-      .then((res) => ui.notify(res.accepted ? `You and ${res.user.displayName} are friends` : `Request sent to ${res.user.displayName}`))
-      .catch((err) => ui.showError(err instanceof Error ? err.message : 'That friend link is invalid or has expired.'))
-      .finally(() => {
-        void queryClient.invalidateQueries({ queryKey: ['friends'] });
+    if (asked.current) return;
+    asked.current = true;
+    void (async () => {
+      try {
+        const { user } = await friendsApi.byCode(code);
+        const ok = await confirm({
+          title: `Add ${user.displayName} as a friend?`,
+          message: 'Friends can see your friends-only profile and activity, and can add you to their rooms.',
+          confirmLabel: 'Add friend',
+        });
+        if (ok) {
+          const res = await friendsApi.sendRequest({ code });
+          ui.notify(res.accepted ? `You and ${res.user.displayName} are friends` : `Request sent to ${res.user.displayName}`);
+          void queryClient.invalidateQueries({ queryKey: ['friends'] });
+        }
+      } catch (err) {
+        ui.showError(err instanceof Error ? err.message : 'That friend link is invalid or has expired.');
+      } finally {
         navigate('/', { replace: true });
-      });
+      }
+    })();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [code]);
   return null;
@@ -69,7 +82,6 @@ export default function App() {
   const location = useLocation();
   const navigate = useNavigate();
   const ui = useUi();
-  const { joinRoom } = useRooms();
   useActionableNotificationToasts();
   useActiveRoomSpinToasts();
   usePlayniteSyncToasts();
@@ -147,13 +159,8 @@ export default function App() {
 
     completingPendingJoin.current = true;
     sessionStorage.removeItem(PENDING_INVITE_KEY);
-    joinRoom
-      .mutateAsync({ inviteCode: pendingCode })
-      .then(({ room }) => {
-        navigate(`/room/${room.id}`, { replace: true });
-        ui.notify(`Joined ${room.name}`);
-      })
-      .catch((err) => ui.showError(err instanceof Error ? err.message : 'This invite link is invalid or has expired.'));
+    // Back to the invite page, which asks before joining (a link alone mustn't join you).
+    navigate(`/join/${encodeURIComponent(pendingCode)}`, { replace: true });
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [user, location.pathname]);
 

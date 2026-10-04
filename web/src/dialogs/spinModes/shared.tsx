@@ -13,8 +13,8 @@ export interface ModeProps<P extends SpinPlay = SpinPlay> {
   me: string;
   /** Server-aligned epoch ms, updated every frame. Compare against the play's timestamps. */
   now: number;
-  /** Sends a move. Errors are already shown to the user. */
-  act: (action: SpinPlayAction) => void;
+  /** Sends a move; resolves false if it failed (the error is already shown to the user). */
+  act: (action: SpinPlayAction) => Promise<boolean>;
   mobile: boolean;
   /** True once the result is showing (now >= play.revealAt). */
   settled: boolean;

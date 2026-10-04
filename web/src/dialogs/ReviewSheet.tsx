@@ -1,8 +1,10 @@
 import { useState } from 'react';
+import { useQueryClient } from '@tanstack/react-query';
 import type { Game } from '@queueup/shared';
 import { REVIEW_CATEGORIES } from '@queueup/shared';
 import { useScope } from '../context/ScopeContext';
 import { useUi } from '../context/UiContext';
+import { gamesApi } from '../api/games';
 import { REVIEW_EMOJI } from '../lib/gameView';
 import { Dialog } from '../ui/Dialog';
 import { coverBg } from '../ui/primitives';
@@ -124,17 +126,32 @@ export function ReviewEmbed({ game, onSaved }: { game: Game; onSaved: () => void
 /** The "how was it?" sheet: four 1-5 scores, a one-line note, and a shortcut to queue a Replay.
  * Opens after marking a game Beaten (skipping or closing then closes game detail too), or with
  * `edit` to write or change the review of a game that already has a status - prefilled with the
- * existing one. Saving closes the game detail too; cancelling an edit leaves it open. */
-export function ReviewSheet({ game, edit = false }: { game: Game; edit?: boolean }) {
+ * existing one. Saving closes the game detail too; cancelling an edit leaves it open. With
+ * `syncShelf` (another member beat this room game), saving or skipping also marks it Beaten on the
+ * viewer's Personal Shelf - after the save, so the review goes with it. */
+export function ReviewSheet({ game, edit = false, syncShelf = false }: { game: Game; edit?: boolean; syncShelf?: boolean }) {
   const ui = useUi();
+  const queryClient = useQueryClient();
 
-  /** Skipping or closing leaves the game card open when this was an edit; saving always closes both. */
-  function finish(closeCard = !edit) {
-    ui.closeDialog('review');
-    if (closeCard) ui.selectGame(null);
+  async function markShelfBeaten() {
+    try {
+      await gamesApi.syncShelfBeaten(game.id);
+      void queryClient.invalidateQueries({ queryKey: ['games'] });
+      ui.notify(`${game.title} marked Beaten on your shelf`);
+    } catch (err) {
+      ui.showError(err instanceof Error ? err.message : "Couldn't update your shelf. Try again.");
+    }
   }
 
-  const draft = useReviewDraft(game, edit, () => finish(true));
+  /** Skipping or closing leaves the game card open when this was an edit; saving always closes both.
+   * Saving or Skip (not the close button) is the go-ahead for `syncShelf`. */
+  function finish(closeCard = !edit, sync = false) {
+    ui.closeDialog('review');
+    if (closeCard) ui.selectGame(null);
+    if (syncShelf && sync) void markShelfBeaten();
+  }
+
+  const draft = useReviewDraft(game, edit, () => finish(true, true));
   const { existing, save } = draft;
 
   return (
@@ -145,8 +162,8 @@ export function ReviewSheet({ game, edit = false }: { game: Game; edit?: boolean
       padded={false}
       footer={
         <div style={st('flex-shrink:0;display:flex;gap:8px;padding:12px 20px 26px;border-top:1px solid var(--chip)')}>
-          <button type="button" onClick={() => finish()} style={st('height:48px;padding:0 20px;border-radius:999px;border:none;background:var(--chip);color:var(--text);font:600 14.5px var(--font-ui)')}>
-            {edit ? 'Cancel' : 'Skip'}
+          <button type="button" onClick={() => finish(!edit, true)} style={st('height:48px;padding:0 20px;border-radius:999px;border:none;background:var(--chip);color:var(--text);font:600 14.5px var(--font-ui)')}>
+            {edit ? 'Cancel' : syncShelf ? 'Skip review' : 'Skip'}
           </button>
           <button type="button" onClick={() => save(false)} style={st('flex:1;height:48px;border-radius:999px;border:none;background:var(--acc);color:var(--ink);font:700 14.5px var(--font-ui)')}>
             Save review
@@ -171,6 +188,7 @@ export function ReviewSheet({ game, edit = false }: { game: Game; edit?: boolean
             <span style={st('font:700 23px/1.1 var(--font-display);letter-spacing:-0.02em;text-wrap:balance')}>{game.title}</span>
             <span style={st('font:400 13px/1.4 var(--font-ui);color:var(--muted)')}>
               {existing ? 'Change your review - it updates in your friends\' activity.' : "How was it? Your review shows in your friends' activity."}
+              {syncShelf && ' Saving or skipping also marks it Beaten on your shelf.'}
             </span>
           </span>
         </div>

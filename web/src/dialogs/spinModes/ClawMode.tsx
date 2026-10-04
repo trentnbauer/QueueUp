@@ -125,7 +125,8 @@ export function ClawMode({ play, games, members, me, now, act, settled }: ModePr
   const dropNow = () => {
     if (!myTurn || play.turnStartedAt === null) return;
     setSentFor(tries.length);
-    act({ type: 'drop', x: clawXAt(play.turnStartedAt, now) });
+    // If the drop didn't go through, bring the button back so they can try again this turn.
+    void act({ type: 'drop', x: clawXAt(play.turnStartedAt, now) }).then((ok) => !ok && setSentFor(-1));
   };
 
   // "Slipped!" / "Missed" from the moment it lets go until the next turn starts sweeping.

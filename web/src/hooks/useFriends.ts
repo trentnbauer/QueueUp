@@ -9,6 +9,20 @@ function errorMessage(err: unknown, fallback: string): string {
   return err instanceof Error && err.message ? err.message : fallback;
 }
 
+/** How many friend requests are waiting - polled for the app shell's bell dot. Cheap, unlike
+ * useFriends' full list (whose poll only runs while friends are actually on screen). Under the
+ * friends key, so accepting or declining a request refreshes it too. */
+export function useIncomingFriendRequestCount(): number {
+  const { user } = useAuth();
+  const { data } = useQuery({
+    queryKey: [...FRIENDS_QUERY_KEY, 'incoming-count'],
+    queryFn: friendsApi.incomingCount,
+    enabled: !!user,
+    refetchInterval: 60_000,
+  });
+  return data?.count ?? 0;
+}
+
 /** Friends, incoming/outgoing requests and the viewer's own friend code. Polled lightly so a new
  * request lights the bell dot without a refresh. */
 export function useFriends() {

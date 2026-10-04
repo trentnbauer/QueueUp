@@ -10,6 +10,7 @@ import {
   SPIN_WHEEL_THEME_LABELS,
   resolveDiscordEvents,
   type DiscordEventKey,
+  type Room,
   type RoomPlatform,
   type RoomRole,
 } from '@queueup/shared';
@@ -22,6 +23,7 @@ import { useFriends } from '../hooks/useFriends';
 import { useRooms } from '../hooks/useRooms';
 import { computeRoomYearInReview } from '../components/roomYearInReview';
 import { Dialog } from '../ui/Dialog';
+import { NavRow } from './MeDialog';
 import { Avatar, Banner, Btn, ChipToggle, Cover, Group, Segmented, Toggle, initialsOf, inputField, inputPill } from '../ui/primitives';
 import { st } from '../ui/st';
 import { exportGames } from '../utils/exportGames';
@@ -274,6 +276,78 @@ function Switch({ title, sub, on, onChange }: { title: string; sub: string; on: 
 
 /** Everything about the room in focus: invite, suggestions, members, details, Discord, export,
  * year in review, activity, leave/delete. Most switches save straight away. */
+/** A room's Spin type and Spin defaults (#801), one row in Room settings that opens this. */
+function RoomSpinSettingsDialog({ room, patch, onClose }: { room: Room; patch: (body: Parameters<typeof roomsApi.update>[1], toast?: string) => void; onClose: () => void }) {
+  const spinMax = room.spinOwnershipMaxPrice;
+  const spinDefaults = room.spinDefaults ?? {};
+  return (
+    <Dialog onClose={onClose} title="Spin settings" gap={12}>
+      <div style={st('display:flex;flex-direction:column;gap:10px;padding:14px 16px;border-radius:14px;background:var(--surf)')}>
+        <span style={st('display:flex;flex-direction:column;gap:2px')}>
+          <span style={st('font:500 14.5px var(--font-ui)')}>Spin defaults</span>
+          <span style={st('font:400 12px/1.45 var(--font-ui);color:var(--muted)')}>The filters Spin starts with in this room. Anyone can change them for a single spin.</span>
+        </span>
+        <span style={st(DEFAULT_LABEL)}>PRICE · EVERYONE OWNS IT, OR UNDER</span>
+        <div style={st('display:flex;flex-wrap:wrap;gap:6px')}>
+          {[0, 10, 20, 40].map((v) => (
+            <ChipToggle key={v} on={spinMax === v} onClick={() => patch({ spinOwnershipMaxPrice: v }, v === 0 ? 'Spin picks games everyone owns' : `Spin picks games everyone owns, or $${v} or less`)}>
+              {v === 0 ? 'Owned only' : `$${v}`}
+            </ChipToggle>
+          ))}
+        </div>
+        <span style={st(DEFAULT_LABEL)}>LENGTH</span>
+        <div style={st('display:flex;flex-wrap:wrap;gap:6px')}>
+          {[0, 10, 20, 40].map((h) => (
+            <ChipToggle key={h} on={(spinDefaults.maxTtb ?? 0) === h} onClick={() => patch({ spinDefaults: { maxTtb: h } }, 'Spin defaults saved')}>
+              {h ? `Under ${h}h` : 'Any length'}
+            </ChipToggle>
+          ))}
+        </div>
+        <span style={st(DEFAULT_LABEL)}>REVIEW SCORE</span>
+        <div style={st('display:flex;flex-wrap:wrap;gap:6px')}>
+          {[0, 7, 8, 9].map((n) => (
+            <ChipToggle key={n} on={(spinDefaults.minScore ?? 0) === n * 10} onClick={() => patch({ spinDefaults: { minScore: n * 10 } }, 'Spin defaults saved')}>
+              {n ? `★ ${n}+` : 'Any score'}
+            </ChipToggle>
+          ))}
+        </div>
+        <div style={st('display:flex;flex-wrap:wrap;gap:6px')}>
+          <ChipToggle on={!!spinDefaults.everyoneOwns} onClick={() => patch({ spinDefaults: { everyoneOwns: !spinDefaults.everyoneOwns } }, 'Spin defaults saved')}>
+            Everyone owns it
+          </ChipToggle>
+        </div>
+      </div>
+      <div style={st('display:flex;flex-direction:column;gap:10px;padding:14px 16px;border-radius:14px;background:var(--surf)')}>
+        <span style={st('display:flex;flex-direction:column;gap:2px')}>
+          <span style={st('font:500 14.5px var(--font-ui)')}>Spin type</span>
+          <span style={st('font:400 12px/1.45 var(--font-ui);color:var(--muted)')}>{SPIN_WHEEL_THEME_HINTS[room.spinWheelTheme]}</span>
+        </span>
+        <div style={st('display:flex;flex-wrap:wrap;gap:6px')}>
+          {SPIN_WHEEL_THEMES.map((t) => (
+            <ChipToggle key={t} on={room.spinWheelTheme === t} onClick={() => patch({ spinWheelTheme: t }, `Spin type: ${SPIN_WHEEL_THEME_LABELS[t]}`)}>
+              {t === 'random' ? '🎲 Random' : SPIN_WHEEL_THEME_LABELS[t]}
+            </ChipToggle>
+          ))}
+        </div>
+      </div>
+    </Dialog>
+  );
+}
+
+/** "Prize wheel · Under 20h · ★ 8+" for the Spin settings row. */
+function spinSummary(room: Room): string {
+  const d = room.spinDefaults ?? {};
+  return [
+    SPIN_WHEEL_THEME_LABELS[room.spinWheelTheme],
+    room.spinOwnershipMaxPrice === 0 ? 'Owned only' : room.spinOwnershipMaxPrice ? `Owned or $${room.spinOwnershipMaxPrice}` : null,
+    d.maxTtb ? `Under ${d.maxTtb}h` : null,
+    d.minScore ? `★ ${d.minScore / 10}+` : null,
+    d.everyoneOwns ? 'Everyone owns it' : null,
+  ]
+    .filter(Boolean)
+    .join(' · ');
+}
+
 export function RoomSettingsDialog() {
   const scope = useScope();
   const ui = useUi();
@@ -288,6 +362,7 @@ export function RoomSettingsDialog() {
   const [name, setName] = useState(room?.name ?? '');
   const [hook, setHook] = useState(room?.discordWebhookUrl ?? '');
   const [hexDraft, setHexDraft] = useState<string | null>(null);
+  const [spinOpen, setSpinOpen] = useState(false);
   const [memberQ, setMemberQ] = useState('');
   const [showAll, setShowAll] = useState(false);
   const [showYear, setShowYear] = useState(false);
@@ -449,10 +524,9 @@ export function RoomSettingsDialog() {
   const hookValid = !hook.trim() || /^https:\/\/(discord\.com|discordapp\.com)\/api\/webhooks\//.test(hook.trim());
   const entries = activity.data?.pages.flatMap((p) => p.entries) ?? [];
   const topGenre = year.genreSpread[0]?.genre ?? '—';
-  const spinMax = room.spinOwnershipMaxPrice;
-  const spinDefaults = room.spinDefaults ?? {};
 
   return (
+    <>
     <Dialog
       onClose={close}
       height="tall"
@@ -617,54 +691,9 @@ export function RoomSettingsDialog() {
               </ChipToggle>
             </div>
           </div>
-          <div style={st('display:flex;flex-direction:column;gap:10px;padding:14px 16px;border-radius:14px;background:var(--surf)')}>
-            <span style={st('display:flex;flex-direction:column;gap:2px')}>
-              <span style={st('font:500 14.5px var(--font-ui)')}>Spin defaults</span>
-              <span style={st('font:400 12px/1.45 var(--font-ui);color:var(--muted)')}>The filters Spin starts with in this room. Anyone can change them for a single spin.</span>
-            </span>
-            <span style={st(DEFAULT_LABEL)}>PRICE · EVERYONE OWNS IT, OR UNDER</span>
-            <div style={st('display:flex;flex-wrap:wrap;gap:6px')}>
-              {[0, 10, 20, 40].map((v) => (
-                <ChipToggle key={v} on={spinMax === v} onClick={() => patch({ spinOwnershipMaxPrice: v }, v === 0 ? 'Spin picks games everyone owns' : `Spin picks games everyone owns, or $${v} or less`)}>
-                  {v === 0 ? 'Owned only' : `$${v}`}
-                </ChipToggle>
-              ))}
-            </div>
-            <span style={st(DEFAULT_LABEL)}>LENGTH</span>
-            <div style={st('display:flex;flex-wrap:wrap;gap:6px')}>
-              {[0, 10, 20, 40].map((h) => (
-                <ChipToggle key={h} on={(spinDefaults.maxTtb ?? 0) === h} onClick={() => patch({ spinDefaults: { ...spinDefaults, maxTtb: h || undefined } }, 'Spin defaults saved')}>
-                  {h ? `Under ${h}h` : 'Any length'}
-                </ChipToggle>
-              ))}
-            </div>
-            <span style={st(DEFAULT_LABEL)}>REVIEW SCORE</span>
-            <div style={st('display:flex;flex-wrap:wrap;gap:6px')}>
-              {[0, 7, 8, 9].map((n) => (
-                <ChipToggle key={n} on={(spinDefaults.minScore ?? 0) === n * 10} onClick={() => patch({ spinDefaults: { ...spinDefaults, minScore: n ? n * 10 : undefined } }, 'Spin defaults saved')}>
-                  {n ? `★ ${n}+` : 'Any score'}
-                </ChipToggle>
-              ))}
-            </div>
-            <div style={st('display:flex;flex-wrap:wrap;gap:6px')}>
-              <ChipToggle on={!!spinDefaults.everyoneOwns} onClick={() => patch({ spinDefaults: { ...spinDefaults, everyoneOwns: !spinDefaults.everyoneOwns || undefined } }, 'Spin defaults saved')}>
-                Everyone owns it
-              </ChipToggle>
-            </div>
-          </div>
-          <div style={st('display:flex;flex-direction:column;gap:10px;padding:14px 16px;border-radius:14px;background:var(--surf)')}>
-            <span style={st('display:flex;flex-direction:column;gap:2px')}>
-              <span style={st('font:500 14.5px var(--font-ui)')}>Spin type</span>
-              <span style={st('font:400 12px/1.45 var(--font-ui);color:var(--muted)')}>{SPIN_WHEEL_THEME_HINTS[room.spinWheelTheme]}</span>
-            </span>
-            <div style={st('display:flex;flex-wrap:wrap;gap:6px')}>
-              {SPIN_WHEEL_THEMES.map((t) => (
-                <ChipToggle key={t} on={room.spinWheelTheme === t} onClick={() => patch({ spinWheelTheme: t }, `Spin type: ${SPIN_WHEEL_THEME_LABELS[t]}`)}>
-                  {t === 'random' ? '🎲 Random' : SPIN_WHEEL_THEME_LABELS[t]}
-                </ChipToggle>
-              ))}
-            </div>
-          </div>
+          <Group>
+            <NavRow label="Spin settings" sub={spinSummary(room)} onClick={() => setSpinOpen(true)} />
+          </Group>
           <div style={st('display:flex;flex-direction:column;gap:10px;padding:14px 16px;border-radius:14px;background:var(--surf)')}>
             <span style={st('font:500 14.5px var(--font-ui)')}>Room colour</span>
             <div style={st('display:flex;gap:10px;flex-wrap:wrap')}>
@@ -832,5 +861,7 @@ export function RoomSettingsDialog() {
         )}
       </Group>
     </Dialog>
+    {spinOpen && <RoomSpinSettingsDialog room={room} patch={patch} onClose={() => setSpinOpen(false)} />}
+    </>
   );
 }

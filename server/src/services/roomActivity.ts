@@ -14,6 +14,7 @@ const ACTIVITY_DISCORD_EVENT: Partial<Record<RoomActivityType, DiscordEventKey>>
   member_joined: 'members',
   member_left: 'members',
   member_promoted: 'members',
+  game_reviewed: 'reviews',
 };
 
 /** Posts a message to a room's Discord webhook, if one is configured and the room has that event
@@ -55,6 +56,22 @@ interface LogRoomActivityInput {
    * have a resolved actor name (notifyRoom/notifyPriceDrop forwarding into here) just pass a
    * constant `() => message`; everyone else gets it resolved for free. */
   message: (actorName: string) => string;
+  /** The game this event is about, for the room's play journal. */
+  payload?: RoomGamePayload;
+}
+
+/** Detail on a room game event (added, status changed, spin result, reviewed) - what the room's
+ * play journal renders from. */
+export interface RoomGamePayload {
+  gameId: string;
+  title: string;
+  coverImageUrl: string | null;
+  /** The game's status after this event. */
+  status: string;
+  /** status_changed: the status it changed from. */
+  from?: string;
+  /** game_reviewed: the review's average score out of 5, when it has scores. */
+  score?: number | null;
 }
 
 /** Writes one RoomActivity row (issue #509) - see RoomActivity's schema doc for why this is a
@@ -66,7 +83,13 @@ export async function logRoomActivity(input: LogRoomActivityInput): Promise<void
     const actorName = await actorDisplayName(input.actorId);
     const message = input.message(actorName);
     await prisma.roomActivity.create({
-      data: { roomId: input.roomId, actorId: input.actorId, type: input.type, message },
+      data: {
+        roomId: input.roomId,
+        actorId: input.actorId,
+        type: input.type,
+        message,
+        ...(input.payload && { payload: input.payload as unknown as Prisma.InputJsonValue }),
+      },
     });
     void postRoomDiscord(input.roomId, message, ACTIVITY_DISCORD_EVENT[input.type]);
   } catch (err) {
@@ -102,6 +125,8 @@ export interface ShelfActivityPayload {
   coverImageUrl: string | null;
   /** The game's status after this event (for game_added, the status it was added with). */
   status: string;
+  /** status_changed: the status it changed from. */
+  from?: string;
   /** Set on a Beaten entry once its review is saved (see PUT /api/games/:id/review). */
   review?: unknown;
 }

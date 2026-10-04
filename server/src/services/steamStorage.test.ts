@@ -18,3 +18,12 @@ describe('parseStorageMb', () => {
     expect(parseStorageMb('Storage: 9000 TB')).toBeNull();
   });
 });
+
+describe('parseStorageMb on hostile input', () => {
+  it('stays fast on a long run of spaces with no size (no catastrophic backtracking)', () => {
+    const t = Date.now();
+    expect(parseStorageMb(`Storage:${'&nbsp;'.repeat(5000)}x`)).toBeNull();
+    expect(parseStorageMb(`storage${' :'.repeat(20000)}x`)).toBeNull();
+    expect(Date.now() - t).toBeLessThan(200);
+  });
+});

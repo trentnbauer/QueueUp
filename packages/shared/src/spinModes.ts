@@ -775,7 +775,9 @@ export function playGameIds(play: SpinPlay): string[] {
     case 'claw':
       return play.items.map((c) => c.gameId);
     case 'match_three':
-      return [...new Set(play.layout)];
+      // Sorted, not in layout order - first-appearance order would tell members which game is
+      // under the face-down tiles.
+      return [...new Set(play.layout)].sort();
   }
 }
 

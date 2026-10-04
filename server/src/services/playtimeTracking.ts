@@ -3,6 +3,7 @@ import { env } from '../config/env.js';
 import type { GameStatus } from '@queueup/shared';
 import { suggestsPlayingFromMinutes } from '@queueup/shared';
 import { getOwnedSteamGames, resolveSteamId64, type OwnedSteamGame } from './steamLibrary.js';
+import { mapWithConcurrency } from './priceService.js';
 
 /** A Steam app whose playtime went up since the last snapshot for this user - the raw signal
  * later pieces of issue #548 (the "mark as Playing" nudge, playthrough-duration tracking) will
@@ -92,19 +93,26 @@ export async function snapshotAllPlaytimes(): Promise<PlaytimeIncrease[]> {
     const previousByAppId = new Map(existing.map((row) => [row.steamAppId, row.playtimeMinutes]));
     increases.push(...computePlaytimeIncreases(user.id, owned, previousByAppId));
 
-    await Promise.all(
-      owned.map((game) =>
-        prisma.playtimeSnapshot.upsert({
-          where: { userId_steamAppId: { userId: user.id, steamAppId: game.appId } },
-          create: {
-            userId: user.id,
-            steamAppId: game.appId,
-            playtimeMinutes: game.playtimeForeverMinutes,
-            initialMinutes: game.playtimeForeverMinutes,
-          },
-          update: { playtimeMinutes: game.playtimeForeverMinutes },
-        }),
-      ),
+    // New games in one insert; then only the snapshots whose playtime actually moved, a few at a
+    // time - a big library used to fire one upsert per game all at once and starve the pool.
+    const fresh = owned.filter((game) => !previousByAppId.has(game.appId));
+    if (fresh.length) {
+      await prisma.playtimeSnapshot.createMany({
+        data: fresh.map((game) => ({
+          userId: user.id,
+          steamAppId: game.appId,
+          playtimeMinutes: game.playtimeForeverMinutes,
+          initialMinutes: game.playtimeForeverMinutes,
+        })),
+        skipDuplicates: true,
+      });
+    }
+    const changed = owned.filter((game) => previousByAppId.has(game.appId) && previousByAppId.get(game.appId) !== game.playtimeForeverMinutes);
+    await mapWithConcurrency(changed, 8, (game) =>
+      prisma.playtimeSnapshot.update({
+        where: { userId_steamAppId: { userId: user.id, steamAppId: game.appId } },
+        data: { playtimeMinutes: game.playtimeForeverMinutes },
+      }),
     );
   }
 

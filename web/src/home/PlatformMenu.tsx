@@ -73,7 +73,7 @@ export function usePlatformOptions(opts: { isShelf: boolean; roomId: string | nu
     queryKey: ['room-systems', opts.roomId],
     queryFn: () => apiGet<{ systems: RoomPlatform[] }>(`/api/rooms/${opts.roomId}/systems`),
     enabled: !opts.isShelf && !!opts.roomId,
-    staleTime: 5 * 60_000,
+    staleTime: 60_000,
   });
   const owned = opts.isShelf ? ownedPlatforms : (roomSystems.data?.systems ?? []);
   return useMemo(() => sortPlatforms(owned), [owned]);

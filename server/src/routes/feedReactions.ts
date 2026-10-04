@@ -13,9 +13,13 @@ async function resolveEntry(entryId: string): Promise<{ ownerId: string; title: 
   if (entryId.startsWith('badge:')) {
     const [, ownerId, badge] = entryId.split(':');
     if (!ownerId || !badge) return null;
-    // Feed ids carry the badge key with dashes (see buildFeed in friends.ts).
-    const def = BADGE_DEFINITIONS[badge.replace(/-/g, '_') as BadgeKey];
-    return { ownerId, title: def ? `the ${def.name} badge` : badge.replace(/-/g, ' ') };
+    // Feed ids carry the badge key with dashes (see buildFeed in friends.ts). Only a real badge the
+    // owner actually has - otherwise any text in the id would end up in their notification.
+    const key = badge.replace(/-/g, '_') as BadgeKey;
+    const def = BADGE_DEFINITIONS[key];
+    if (!def) return null;
+    const has = await prisma.userBadge.count({ where: { userId: ownerId, badgeKey: key } });
+    return has ? { ownerId, title: `the ${def.name} badge` } : null;
   }
   const row = await prisma.roomActivity.findUnique({ where: { id: entryId } });
   const payload = row?.payload as { gameId?: string; title?: string } | null;

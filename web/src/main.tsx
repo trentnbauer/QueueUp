@@ -23,7 +23,9 @@ applyAccent(getAccent());
 
 // Polling (notifications, shared spins, import progress) stops while the tab is hidden and picks
 // back up on return. This is TanStack Query's default; it's set here so no hook quietly opts out.
-const queryClient = new QueryClient({ defaultOptions: { queries: { refetchIntervalInBackground: false } } });
+// staleTime: switching back to the tab doesn't refetch everything that was fetched in the last 30s
+// (the games list alone can be thousands of rows); polled queries and mutations still refresh.
+const queryClient = new QueryClient({ defaultOptions: { queries: { refetchIntervalInBackground: false, staleTime: 30_000 } } });
 
 createRoot(document.getElementById('root')!).render(
   <StrictMode>

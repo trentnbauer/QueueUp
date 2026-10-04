@@ -118,7 +118,7 @@ export function GameDetail({ game, onClose, changeStatus }: { game: Game; onClos
   ].filter(Boolean) as string[];
 
   const coopWarn =
-    !isShelf && game.singlePlayerOnly === true
+    !isShelf && game.singlePlayerOnly === true && members.length > 1
       ? 'Single player only: there is no multiplayer or co-op, so only one of you can play it at a time.'
       : !isShelf && game.maxCoopPlayers != null && members.length > game.maxCoopPlayers
       ? `Only supports ${game.maxCoopPlayers}-player co-op. This room has ${members.length} members.`

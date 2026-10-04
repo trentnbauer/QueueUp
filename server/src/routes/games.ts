@@ -30,7 +30,7 @@ import {
   linkDlcToBaseGame,
   createGameForUser,
 } from '../services/gameIntake.js';
-import { notifyRoom } from '../services/notifications.js';
+import { notifyRoom, notifyRoomGameBeaten } from '../services/notifications.js';
 import {
   platformFamilies,
   findIgdbIdBySteamAppId,
@@ -1036,14 +1036,19 @@ export default async function gameRoutes(app: FastifyInstance) {
           actorId: userId,
           type: 'status_changed',
           message: (actorName) => `${actorName} marked "${updated.title}" as ${STATUS_LABELS[status]}`,
+          payload: { gameId: updated.id, title: updated.title, coverImageUrl: updated.coverImageUrl, status, from: game.status },
         });
+        if (enteringDone) {
+          const room = await prisma.room.findUnique({ where: { id: game.roomId }, select: { name: true } });
+          if (room) void notifyRoomGameBeaten({ roomId: game.roomId, roomName: room.name, actorId: userId, gameId: updated.id, title: updated.title });
+        }
       } else {
         void logShelfActivity({
           recipientId: userId,
           actorId: userId,
           type: 'status_changed',
           message: `Marked "${updated.title}" as ${STATUS_LABELS[status]}`,
-          payload: { gameId: updated.id, title: updated.title, coverImageUrl: updated.coverImageUrl, status },
+          payload: { gameId: updated.id, title: updated.title, coverImageUrl: updated.coverImageUrl, status, from: game.status },
           hidden: updated.hiddenFromOthers,
         });
       }
@@ -1129,6 +1134,8 @@ export default async function gameRoutes(app: FastifyInstance) {
     // removes it.
     const where = { gameId_userId: { gameId: game.id, userId } };
     let saved = null;
+    // A room's play journal logs a member's first review of a game, not every later edit.
+    const firstReview = hasAny && game.roomId !== null && !(await prisma.gameReview.findUnique({ where, select: { gameId: true } }));
     if (hasAny) {
       const data = { art, gameplay, story, sound, note: note || null, reviewedAt: new Date() };
       saved = await prisma.gameReview.upsert({ where, create: { gameId: game.id, userId, ...data }, update: data });
@@ -1175,12 +1182,21 @@ export default async function gameRoutes(app: FastifyInstance) {
       } else {
         const who = await prisma.user.findUnique({ where: { id: userId }, select: { displayName: true } });
         const scores = [art, gameplay, story, sound].filter((v): v is number => v !== null);
-        const avg = scores.length ? ` (${(scores.reduce((a, b) => a + b, 0) / scores.length).toFixed(1)}/5)` : '';
-        void postRoomDiscord(
-          game.roomId,
-          `${who?.displayName ?? 'Someone'} reviewed "${updated.title}"${avg}${note ? `: ${note}` : ''}`,
-          'reviews',
-        );
+        const score = scores.length ? scores.reduce((a, b) => a + b, 0) / scores.length : null;
+        const avg = score !== null ? ` (${score.toFixed(1)}/5)` : '';
+        const text = `${who?.displayName ?? 'Someone'} reviewed "${updated.title}"${avg}${note ? `: ${note}` : ''}`;
+        if (firstReview) {
+          // Also posts to Discord (game_reviewed maps to the "reviews" toggle).
+          void logRoomActivity({
+            roomId: game.roomId,
+            actorId: userId,
+            type: 'game_reviewed',
+            message: () => text,
+            payload: { gameId: updated.id, title: updated.title, coverImageUrl: updated.coverImageUrl, status: updated.status, score },
+          });
+        } else {
+          void postRoomDiscord(game.roomId, text, 'reviews');
+        }
       }
     }
 
@@ -1604,7 +1620,11 @@ export default async function gameRoutes(app: FastifyInstance) {
     async (request) => {
       const userId = await request.requireAuth();
       const game = await loadGameOr404(request.params.id);
-      await requireGameReadAccess(game, userId);
+      // Any member may match a game that has no Steam match yet (Spin's background price matching
+      // does this); changing or clearing an existing match moves its price, size and the room's
+      // price filter, so that's for whoever added it, the Room Master or a Moderator.
+      if (game.steamAppid === null) await requireGameReadAccess(game, userId);
+      else await requireGameSettingsAccess(game, userId);
 
       const { steamAppId } = request.body;
       if (steamAppId !== null && (!Number.isInteger(steamAppId) || steamAppId <= 0)) {

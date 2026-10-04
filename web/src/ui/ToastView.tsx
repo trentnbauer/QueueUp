@@ -5,6 +5,9 @@ import { st } from './st';
 
 const PILL =
   'display:flex;align-items:center;gap:12px;max-width:min(560px, calc(100vw - 32px));padding:12px 12px 12px 18px;border-radius:999px;background:var(--text);color:var(--onText);box-shadow:0 12px 32px oklch(0 0 0 / 0.35);font:600 14px var(--font-ui);animation:qu-pop .2s ease both';
+/** A persistent toast: a card, since it carries a message and a row of actions. */
+const CARD =
+  'display:flex;flex-direction:column;gap:12px;width:min(420px, calc(100vw - 32px));padding:12px 14px 14px 18px;border-radius:20px;background:var(--text);color:var(--onText);box-shadow:0 12px 32px oklch(0 0 0 / 0.35);font:600 14px/1.4 var(--font-ui);animation:qu-pop .2s ease both';
 const ACTION =
   'flex-shrink:0;height:32px;padding:0 14px;border-radius:999px;border:none;background:var(--acc);color:var(--ink);font:700 13px var(--font-ui)';
 
@@ -58,35 +61,42 @@ function StackItem({ toast, onDismiss }: { toast: Toast; onDismiss: (id: string)
     }
   }
 
+  // The message on top, with its actions on one line underneath.
   return (
-    <div role="status" style={st(`${PILL};pointer-events:auto;border-radius:22px`)}>
-      {toast.onOpen ? (
+    <div role="status" style={st(`${CARD};pointer-events:auto`)}>
+      <div style={st('display:flex;align-items:flex-start;gap:10px')}>
+        {toast.onOpen ? (
+          <button
+            type="button"
+            onClick={() => {
+              toast.onOpen?.();
+              dismiss();
+            }}
+            style={st('flex:1;min-width:0;padding:4px 0 0;border:none;background:none;color:inherit;font:inherit;text-align:left;cursor:pointer;text-wrap:pretty')}
+          >
+            {toast.message}
+          </button>
+        ) : (
+          <span style={st('flex:1;min-width:0;padding-top:4px;text-wrap:pretty')}>{toast.message}</span>
+        )}
         <button
           type="button"
-          onClick={() => {
-            toast.onOpen?.();
-            dismiss();
-          }}
-          style={st('flex:1;min-width:0;padding:0;border:none;background:none;color:inherit;font:inherit;text-align:left;cursor:pointer;text-wrap:pretty')}
+          onClick={dismiss}
+          aria-label="Dismiss"
+          style={st('flex-shrink:0;width:30px;height:30px;margin:-2px -4px 0 0;border-radius:50%;border:none;background:transparent;color:inherit;font-size:18px;line-height:1;opacity:0.6')}
         >
-          {toast.message}
+          ×
         </button>
-      ) : (
-        <span style={{ flex: 1, minWidth: 0, textWrap: 'pretty' }}>{toast.message}</span>
+      </div>
+      {toast.actions.length > 0 && (
+        <div style={st('display:flex;flex-wrap:nowrap;gap:8px')}>
+          {toast.actions.map((a) => (
+            <button key={a.label} type="button" disabled={pendingLabel !== null} style={st(`${ACTION};white-space:nowrap;${pendingLabel !== null ? 'opacity:0.6' : ''}`)} onClick={() => run(a)}>
+              {pendingLabel === a.label ? '…' : a.label}
+            </button>
+          ))}
+        </div>
       )}
-      {toast.actions.map((a) => (
-        <button key={a.label} type="button" disabled={pendingLabel !== null} style={st(`${ACTION};${pendingLabel !== null ? 'opacity:0.6' : ''}`)} onClick={() => run(a)}>
-          {pendingLabel === a.label ? '…' : a.label}
-        </button>
-      ))}
-      <button
-        type="button"
-        onClick={dismiss}
-        aria-label="Dismiss"
-        style={st('flex-shrink:0;width:30px;height:30px;border-radius:50%;border:none;background:transparent;color:inherit;font-size:18px;line-height:1;opacity:0.6')}
-      >
-        ×
-      </button>
     </div>
   );
 }

@@ -9,10 +9,13 @@ import { getRemovalInfo, type RemovalInfo } from './removalVote.js';
 import { getSyncSources } from './syncSources.js';
 import { toUserDto } from '../util/dto.js';
 
+// Only the fields toUserDto needs - every list and spin poll loads these for every game.
+const userDtoSelect = { id: true, displayName: true, avatarColor: true, avatarUrl: true, isAdmin: true } as const;
+
 const gameWithRelations = {
   include: {
-    adder: true,
-    votes: { include: { user: true } },
+    adder: { select: userDtoSelect },
+    votes: { include: { user: { select: userDtoSelect } } },
     // Every tag applied by anyone (in practice, only ever the adder - see requireGameTagAccess) -
     // filtered down to the current viewer's own tags in buildGameDto below, not here, since this
     // shared `include` isn't scoped to a particular viewer.
