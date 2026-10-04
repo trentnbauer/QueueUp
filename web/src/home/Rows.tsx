@@ -77,6 +77,16 @@ function AchievementChip({ g }: { g: Game }) {
   );
 }
 
+/** Flags a game IGDB lists as single player only - worth knowing before picking it for a group. */
+function SinglePlayerChip({ g }: { g: Game }) {
+  if (g.singlePlayerOnly !== true) return null;
+  return (
+    <span title="Single player only, per IGDB" aria-label="Single player only" style={st(CHIP)}>
+      👤 Single player
+    </span>
+  );
+}
+
 /** PC install size from Steam (#800), e.g. "60 GB", when known. */
 function SizeChip({ g }: { g: Game }) {
   if (g.downloadSizeMb === null) return null;
@@ -144,6 +154,7 @@ export function DesktopRow({ item, showRank, bulk, selected, active, onOpen, onV
           <AchievementChip g={g} />
           <IgdbScoreChip g={g} />
           <SizeChip g={g} />
+          <SinglePlayerChip g={g} />
           <span style={st('white-space:nowrap;overflow:hidden;text-overflow:ellipsis')}>{item.meta}</span>
         </span>
       </div>
@@ -199,6 +210,7 @@ export function MobileRow({ item, showRank, bulk, selected, onOpen, onVote }: Ro
             <AchievementChip g={g} />
             <IgdbScoreChip g={g} />
             <SizeChip g={g} />
+            <SinglePlayerChip g={g} />
             <span style={st('white-space:nowrap;overflow:hidden;text-overflow:ellipsis')}>
               {item.meta}
               {item.meta ? ' · ' : ''}
@@ -269,6 +281,7 @@ export function CoverCard({
           <AchievementChip g={g} />
           <IgdbScoreChip g={g} />
           <SizeChip g={g} />
+          <SinglePlayerChip g={g} />
         </span>
       </div>
       {onStart && (
@@ -314,6 +327,7 @@ export function PlayNextRow({
           {isNew && g.releaseDate && <span style={st(CHIP)}>{`New · out ${releaseShortDate(g.releaseDate)}`}</span>}
           <IgdbScoreChip g={g} />
           <SizeChip g={g} />
+          <SinglePlayerChip g={g} />
           <span style={st('white-space:nowrap;overflow:hidden;text-overflow:ellipsis')}>
             {item.meta}
             {item.meta ? ' · ' : ''}
