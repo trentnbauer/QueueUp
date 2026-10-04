@@ -56,7 +56,12 @@ export function useActionableNotificationToasts() {
       if (notification.type === 'platform_unowned' && notification.platform && !notification.read) {
         const platform = notification.platform;
         const answer = async (add: boolean) => {
-          await apiPost(`/api/me/owned-platforms/${platform}/answer`, { add });
+          try {
+            await apiPost(`/api/me/owned-platforms/${platform}/answer`, { add });
+          } catch (err) {
+            ui.showError(err instanceof Error ? err.message : "Couldn't save that. Try again.");
+            throw err;
+          }
           queryClient.invalidateQueries({ queryKey: ['notifications', 'feed'] });
           queryClient.invalidateQueries({ queryKey: ['notifications', 'summary'] });
           if (add) void refetch();

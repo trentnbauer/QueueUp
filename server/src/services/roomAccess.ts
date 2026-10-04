@@ -44,11 +44,18 @@ export async function isAdminManaging(userId: string, roomId: string): Promise<b
 
 /** Rooms an administrator is currently managing without being a member. */
 export async function adminManagedRoomIds(userId: string): Promise<string[]> {
-  const keys = await redis.keys(`${adminManageKey(userId, '')}*`);
-  if (keys.length === 0) return [];
+  // Only administrators can manage rooms, so everyone else skips Redis entirely.
   const user = await prisma.user.findUnique({ where: { id: userId }, select: { isAdmin: true } });
   if (!user?.isAdmin) return [];
-  return keys.map((k) => k.slice(adminManageKey(userId, '').length));
+  const prefix = adminManageKey(userId, '');
+  const ids: string[] = [];
+  let cursor = '0';
+  do {
+    const [next, keys] = await redis.scan(cursor, 'MATCH', `${prefix}*`, 'COUNT', 200);
+    cursor = next;
+    ids.push(...keys.map((k) => k.slice(prefix.length)));
+  } while (cursor !== '0');
+  return [...new Set(ids)];
 }
 
 /** The caller's membership of the room. An administrator managing the room (see isAdminManaging)

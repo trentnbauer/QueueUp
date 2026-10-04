@@ -16,16 +16,23 @@ const checkedKey = (appId: number) => `steam:storage-checked:${appId}`;
 /** Fills in the install size (#800) for Steam-matched games from their store page's PC
  * requirements. One lookup per Steam app; apps that list no size are skipped for a month. */
 export async function backfillDownloadSizes(): Promise<void> {
-  const rows = await prisma.game.findMany({
-    where: { downloadSizeMb: null, steamAppid: { not: null }, archivedAt: null },
-    select: { steamAppid: true },
-    distinct: ['steamAppid'],
-    take: BATCH_SIZE * 4,
-  });
+  // Paged by Steam app id, so apps already checked this month can't hide the ones after them.
   const ids: number[] = [];
-  for (const { steamAppid } of rows) {
-    if (ids.length >= BATCH_SIZE) break;
-    if (steamAppid !== null && !(await redis.exists(checkedKey(steamAppid)))) ids.push(steamAppid);
+  let after = 0;
+  for (let page = 0; page < 20 && ids.length < BATCH_SIZE; page++) {
+    const rows = await prisma.game.findMany({
+      where: { downloadSizeMb: null, steamAppid: { gt: after }, archivedAt: null },
+      select: { steamAppid: true },
+      distinct: ['steamAppid'],
+      orderBy: { steamAppid: 'asc' },
+      take: BATCH_SIZE * 4,
+    });
+    if (rows.length === 0) break;
+    for (const { steamAppid } of rows) {
+      if (steamAppid === null) continue;
+      after = steamAppid;
+      if (ids.length < BATCH_SIZE && !(await redis.exists(checkedKey(steamAppid)))) ids.push(steamAppid);
+    }
   }
   if (ids.length === 0) return;
 

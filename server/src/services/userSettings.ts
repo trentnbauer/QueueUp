@@ -46,6 +46,10 @@ export async function setOwnedPlatforms(userId: string, platforms: unknown): Pro
     where: { id: userId },
     data: { ownedPlatforms: deduped, dismissedPlatforms: dismissed, declinedPlatforms: declined },
   });
+  // Unticking (again) re-arms the "Add it back?" question for that console.
+  if (removed.length > 0) {
+    await prisma.notification.deleteMany({ where: { recipientId: userId, type: 'platform_unowned', platform: { in: removed } } });
+  }
   logConsolesAdded(userId, added);
   if (added.length > 0 || removed.length > 0) {
     const names = (list: RoomPlatform[]) => list.map((p) => ROOM_PLATFORM_LABELS[p]).join(', ');
@@ -69,7 +73,8 @@ export async function unionOwnedPlatforms(userId: string, platforms: RoomPlatfor
   const unticked = [...new Set(platforms)].filter((p) => user.dismissedPlatforms.includes(p) && !user.ownedPlatforms.includes(p));
   for (const platform of unticked) {
     if (user.declinedPlatforms.includes(platform)) continue;
-    const asked = await prisma.notification.count({ where: { recipientId: userId, type: 'platform_unowned', platform, readAt: null } });
+    // Asked once per untick: a question that was dismissed or read without an answer still counts.
+    const asked = await prisma.notification.count({ where: { recipientId: userId, type: 'platform_unowned', platform } });
     if (asked) continue;
     const name = ROOM_PLATFORM_LABELS[platform];
     await prisma.notification.create({

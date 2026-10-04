@@ -80,6 +80,8 @@ export const CLAW_FALL_MS = 450;
 export const CLAW_SLIP_MS = 800;
 export const CLAW_TURN_GAP_MS = 500;
 export const clawAnimMs = (success: boolean) => CLAW_DOWN_MS + CLAW_CLOSE_MS + (success ? CLAW_CARRY_MS + CLAW_FALL_MS : CLAW_SLIP_MS);
+/** How far back a claw drop may be matched to where the player saw the claw (their round trip). */
+export const CLAW_DROP_SLACK_MS = 800;
 /** Before the claw starts sweeping on a new turn. */
 export const CLAW_LEAD_MS = 400;
 
@@ -728,7 +730,17 @@ export function applyPlayAction(play: SpinPlay, userId: string, action: SpinPlay
       if (action.type !== 'drop') break;
       myTurn();
       if (play.turnStartedAt === null || now < play.turnStartedAt) throw new PlayActionError('The claw is still moving');
-      const x = Number.isFinite(action.x) ? Math.min(CLAW_RAIL_MAX, Math.max(CLAW_RAIL_MIN, action.x)) : clawXAt(play.turnStartedAt, now);
+      // The claw's position is the server's to know: trust the x the player saw only if the claw
+      // really was there within the last CLAW_DROP_SLACK_MS (their click's round trip); otherwise
+      // it drops wherever the claw is now.
+      const sent = Number.isFinite(action.x) ? action.x : NaN;
+      let x = clawXAt(play.turnStartedAt, now);
+      for (let back = 0; back <= CLAW_DROP_SLACK_MS; back += 20) {
+        if (Math.abs(clawXAt(play.turnStartedAt, now - back) - sent) <= 12) {
+          x = sent;
+          break;
+        }
+      }
       return claw(play, userId, x, now, false, rng);
     }
     case 'match_three': {
@@ -743,6 +755,28 @@ export function applyPlayAction(play: SpinPlay, userId: string, action: SpinPlay
       break;
   }
   throw new PlayActionError("That move doesn't fit this spin");
+}
+
+/** The games a dealt round can show or pick - what the session needs details for once the pool
+ * has been dealt from. */
+export function playGameIds(play: SpinPlay): string[] {
+  switch (play.mode) {
+    case 'card_vote':
+    case 'knockout':
+    case 'ban_draft':
+      return play.cards.map((c) => c.gameId);
+    case 'slot':
+      return play.symbols.map((c) => c.gameId);
+    case 'plinko':
+    case 'plinko_stake':
+      return play.bins.map((c) => c.gameId);
+    case 'roulette':
+      return play.wedges.map((c) => c.gameId);
+    case 'claw':
+      return play.items.map((c) => c.gameId);
+    case 'match_three':
+      return [...new Set(play.layout)];
+  }
 }
 
 /** What members get: everything except match three's face-down tiles. */

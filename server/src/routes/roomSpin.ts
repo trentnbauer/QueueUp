@@ -8,6 +8,7 @@ import {
   isPending,
   isPlayMode,
   pendingPlay,
+  playGameIds,
   playSettlesAt,
   publicPlay,
   PlayActionError,
@@ -28,7 +29,7 @@ import { gameInclude, serializeGames } from '../services/gameSerializer.js';
 import { unlockBadges } from '../services/badges.js';
 import { logRoomActivity } from '../services/roomActivity.js';
 import { applySpinFilters, parseSpinFilters, type SpinFilters } from '../services/spinFilters.js';
-import { SPIN_WHEEL_THEMES, type SpinWheelTheme } from '@queueup/shared';
+import { normalizeSpinTheme } from '@queueup/shared';
 
 // A spin nobody's touched in this long is treated as abandoned (someone started it, then closed
 // their laptop) rather than wedging the room forever - the next GET after this window just
@@ -72,9 +73,7 @@ async function buildRound(
   const games = await serializeGames(rows, userId);
   const candidates = applySpinFilters(spinCandidates(games, room.spinOwnershipMaxPrice), filters);
   if (candidates.length === 0) throw new HttpError(400, 'No backlog game is eligible for Spin the Wheel right now');
-  // Rooms still on a retired theme (crate, card_flip) only ever saw the reel.
-  const setting = (SPIN_WHEEL_THEMES as string[]).includes(room.spinWheelTheme) ? (room.spinWheelTheme as SpinWheelTheme) : 'reel';
-  const theme = resolveConcreteTheme(setting);
+  const theme = resolveConcreteTheme(normalizeSpinTheme(room.spinWheelTheme));
   if (isPlayMode(theme)) {
     const avoided = avoidedGenres(games);
     const pending = pendingPlay(theme, candidates.map((g) => ({ gameId: g.id, weight: spinCandidateWeight(g, avoided) })), Math.random);
@@ -100,16 +99,29 @@ function settleFields(modeState: StoredPlay | null, base: SpinBase): { settlesAt
  * advancePlay) and saves it. Only saves if nobody else saved first; if someone did, theirs is just
  * as valid, so it's re-read rather than overwritten. */
 async function syncPlay(spin: RoomSpinRow): Promise<RoomSpinRow> {
-  const stored = storedPlay(spin);
-  if (!stored) return spin;
-  const startAt = spin.timestamp0.getTime();
-  const next = advancePlay(stored, Date.now(), startAt, [...new Set(spin.readyUserIds)], Math.random);
-  if (next === stored) return spin;
-  await prisma.roomSpin.updateMany({
-    where: { id: spin.id, updatedAt: spin.updatedAt },
-    data: { modeState: next as unknown as Prisma.InputJsonValue, settlesAt: new Date(playSettlesAt(next, startAt)) },
-  });
-  return (await prisma.roomSpin.findUnique({ where: { id: spin.id } })) ?? spin;
+  for (let attempt = 0; attempt < 4; attempt++) {
+    const stored = storedPlay(spin);
+    if (!stored) return spin;
+    const startAt = spin.timestamp0.getTime();
+    const next = advancePlay(stored, Date.now(), startAt, [...new Set(spin.readyUserIds)], Math.random);
+    if (next === stored) return spin;
+    const saved = await prisma.roomSpin.updateMany({
+      where: { id: spin.id, updatedAt: spin.updatedAt },
+      data: {
+        modeState: next as unknown as Prisma.InputJsonValue,
+        settlesAt: new Date(playSettlesAt(next, startAt)),
+        // Once dealt, only the dealt games matter: a pool game that wasn't dealt can be removed
+        // without ending the round (see hydrateStrip).
+        ...(isPending(stored) && !isPending(next) && { stripGameIds: playGameIds(next) }),
+      },
+    });
+    const fresh = await prisma.roomSpin.findUnique({ where: { id: spin.id } });
+    if (!fresh) return spin;
+    // Someone else saved first: their row may not be caught up yet either, so go round again.
+    if (saved.count > 0) return fresh;
+    spin = fresh;
+  }
+  return spin;
 }
 
 /** The game a settled round landed on, or null while it's still running. */

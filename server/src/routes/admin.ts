@@ -16,8 +16,8 @@ import {
 } from '../services/configResolver.js';
 import { sendMail, smtpIsConfigured } from '../services/mailer.js';
 import { getTunnelStatus, reloadTunnel } from '../services/cloudflareTunnel.js';
-import type { ConfigSource, AdminIntegrationStatus, AdminRoomDetail, AdminRoomSummary, AdminUserSummary, AdminAuditLogEntry, SpinWheelTheme } from '@queueup/shared';
-import { SPIN_WHEEL_THEMES } from '@queueup/shared';
+import type { ConfigSource, AdminIntegrationStatus, AdminRoomDetail, AdminRoomSummary, AdminUserSummary, AdminAuditLogEntry } from '@queueup/shared';
+import { normalizeSpinTheme } from '@queueup/shared';
 import { redis } from '../services/redisClient.js';
 import { ADMIN_MANAGE_TTL_SECONDS, adminManageKey, adminManagedRoomIds } from '../services/roomAccess.js';
 import { logRoomActivity } from '../services/roomActivity.js';
@@ -378,7 +378,7 @@ export default async function adminRoutes(app: FastifyInstance) {
         requireGameApproval: r.requireGameApproval,
         invitePermission: r.invitePermission,
         spinOwnershipMaxPrice: r.spinOwnershipMaxPrice,
-        spinWheelTheme: (SPIN_WHEEL_THEMES as string[]).includes(r.spinWheelTheme) ? (r.spinWheelTheme as SpinWheelTheme) : 'reel',
+        spinWheelTheme: normalizeSpinTheme(r.spinWheelTheme),
       },
       members: r.members.map((m) => ({
         user: { id: m.user.id, displayName: m.user.displayName, avatarColor: m.user.avatarColor, avatarUrl: m.user.avatarUrl, isAdmin: m.user.isAdmin },

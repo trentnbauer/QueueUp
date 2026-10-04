@@ -29,6 +29,7 @@ async function journal(userId: string, where: { roomId?: string | { in: string[]
     coverImageUrl: l.game.coverImageUrl,
     status: l.game.status,
     roomId: l.game.roomId,
+    // For a shelf copy, PlayLog.roomName is the room it was beaten in (see the dialog's label).
     roomName: l.game.room?.name ?? l.roomName,
     startedAt: l.startedAt.toISOString(),
     finishedAt: l.finishedAt?.toISOString() ?? null,

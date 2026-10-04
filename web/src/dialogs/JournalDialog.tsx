@@ -75,7 +75,8 @@ export function JournalDialog({ roomId }: { roomId?: string }) {
                   {[
                     e.finishedAt ? `${day(e.startedAt)} – ${day(e.finishedAt)}` : `Started ${day(e.startedAt)}`,
                     e.finishedAt ? null : STATUS_LABEL[e.status],
-                    roomId ? null : (e.roomName ?? 'Personal shelf'),
+                    // A shelf entry with a room name was beaten in that room ("mark it Beaten on your shelf too").
+                    roomId ? null : e.roomId ? e.roomName : e.roomName ? `Shelf · beaten in ${e.roomName}` : 'Personal shelf',
                   ]
                     .filter(Boolean)
                     .join(' · ')}

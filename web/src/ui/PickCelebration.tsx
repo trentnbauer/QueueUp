@@ -88,7 +88,8 @@ export function Fireworks({ durationMs = SHOW_MS }: { durationMs?: number }) {
       for (let i = rockets.length - 1; i >= 0; i--) {
         const r = rockets[i];
         r.y += r.vy * dt;
-        r.vy *= 0.985;
+        // Damping per 60fps frame, scaled to this frame's length so high-refresh screens match.
+        r.vy *= Math.pow(0.985, dt * 60);
         ctx.fillStyle = `hsl(${r.hue} 100% 80%)`;
         ctx.fillRect(r.x - 1.5, r.y - 6, 3, 10);
         if (r.y <= r.targetY) {
@@ -103,8 +104,9 @@ export function Fireworks({ durationMs = SHOW_MS }: { durationMs?: number }) {
           sparks.splice(i, 1);
           continue;
         }
-        s.vx *= 0.97;
-        s.vy = s.vy * 0.97 + 140 * dt;
+        const drag = Math.pow(0.97, dt * 60);
+        s.vx *= drag;
+        s.vy = s.vy * drag + 140 * dt;
         s.x += s.vx * dt;
         s.y += s.vy * dt;
         const fade = 1 - s.life / s.max;

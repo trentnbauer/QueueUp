@@ -518,6 +518,12 @@ export const CONCRETE_SPIN_WHEEL_THEMES: ConcreteSpinWheelTheme[] = [
 
 export const SPIN_WHEEL_THEMES: SpinWheelTheme[] = [...CONCRETE_SPIN_WHEEL_THEMES, 'random'];
 
+/** A stored theme as a current one: the retired "crate" and "card_flip" (which only ever showed the
+ * reel) read as "reel". */
+export function normalizeSpinTheme(stored: string): SpinWheelTheme {
+  return (SPIN_WHEEL_THEMES as string[]).includes(stored) ? (stored as SpinWheelTheme) : 'reel';
+}
+
 export interface RoomMember {
   roomId: string;
   user: User;

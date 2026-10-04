@@ -11,7 +11,9 @@ export function parseStorageMb(requirements: string | null | undefined): number 
   const text = requirements.replace(/&nbsp;/g, ' ');
   const m = SIZE.exec(text);
   if (!m) return null;
-  const n = Number(m[1].replace(',', '.'));
+  // "1,500 MB" is fifteen hundred; "8,5 GB" is eight and a half.
+  const raw = m[1];
+  const n = Number(/^\d{1,3}(,\d{3})+(\.\d+)?$/.test(raw) ? raw.replace(/,/g, '') : raw.replace(',', '.'));
   if (!Number.isFinite(n) || n <= 0) return null;
   const unit = m[2].toLowerCase();
   const mb = unit === 'tb' ? n * 1024 * 1024 : unit === 'gb' ? n * 1024 : n;

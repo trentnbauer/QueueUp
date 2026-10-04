@@ -97,6 +97,9 @@ function modeKicker(play: SpinPlay, members: Parameters<typeof nameOf>[0], me: s
   return "TONIGHT'S PICK";
 }
 
+/** A result that sat this long before the session ended most likely expired rather than being picked. */
+const STALE_GUARD_MS = 12 * 60 * 1000;
+
 const PRICE_OPTS = [0, 10, 20, 40];
 const TTB_OPTS = [0, 10, 20, 40];
 /** Minimum IGDB score, on the same out-of-10 scale as the ★ on game cards. */
@@ -341,12 +344,14 @@ export function SpinDialog({ onClose }: { onClose: () => void }) {
   // Someone else in the room pressed "Let's play" on the result everyone was looking at: celebrate
   // it here too (#804) and close, rather than dropping back to an empty spin.
   const closedByMe = useRef(false);
-  const settledPick = useRef<Game | null>(null);
+  const settledPick = useRef<{ game: Game; since: number } | null>(null);
   useEffect(() => {
-    if (session && settled && winner) settledPick.current = winner;
+    if (session && settled && winner) settledPick.current = settledPick.current?.game.id === winner.id ? settledPick.current : { game: winner, since: Date.now() };
     else if (session) settledPick.current = null;
     else if (settledPick.current && !closedByMe.current) {
-      celebratePick(settledPick.current);
+      // A session also ends when it goes stale (15 minutes untouched, see roomSpin.ts) - that's
+      // nobody agreeing to anything, so only a prompt ending counts as "Let's play".
+      if (Date.now() - settledPick.current.since < STALE_GUARD_MS) celebratePick(settledPick.current.game);
       settledPick.current = null;
       onClose();
     }

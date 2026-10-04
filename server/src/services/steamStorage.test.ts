@@ -8,6 +8,7 @@ describe('parseStorageMb', () => {
     expect(parseStorageMb('<strong>Hard Disk Space:</strong> 1.5 GB')).toBe(1536);
     expect(parseStorageMb('Storage: 1 TB available space')).toBe(1048576);
     expect(parseStorageMb('<strong>Storage:</strong>&nbsp;8,5 GB available space')).toBe(8704);
+    expect(parseStorageMb('Hard Drive: 1,500 MB available space')).toBe(1500);
   });
 
   it('is null when there is no size or it makes no sense', () => {

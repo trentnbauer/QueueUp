@@ -3,6 +3,10 @@ import {
   advancePlay,
   applyPlayAction,
   clawItemCenter,
+  clawXAt,
+  CLAW_LEAD_MS,
+  CLAW_RAIL_MIN,
+  CLAW_SPEED,
   currentTurn,
   knockoutAlive,
   pendingPlay,
@@ -179,13 +183,26 @@ describe('spin modes', () => {
     play = { ...play, grips: play.grips.map(() => 0) };
     for (let i = 0; i < 3; i++) {
       const who = currentTurn(play)!;
-      const at = play.turnStartedAt! + 1000;
-      play = applyPlayAction(play, who, { type: 'drop', x: clawItemCenter(0) }, at, seeded(i)) as ClawPlay;
+      // When the sweeping claw is over item 0.
+      const at = play.turnStartedAt! + CLAW_LEAD_MS + ((clawItemCenter(0) - CLAW_RAIL_MIN) / CLAW_SPEED) * 1000;
+      play = applyPlayAction(play, who, { type: 'drop', x: clawXAt(play.turnStartedAt!, at) }, at, seeded(i)) as ClawPlay;
     }
     expect(play.tries.map((t) => t.userId)).toEqual([ME, YOU, ME]);
     expect(play.tries.every((t) => t.item === 0 && !t.success)).toBe(true);
     expect(play.pity).toBe(true);
     expect(play.winnerId).not.toBeNull();
+  });
+
+  it('claw: a drop where the claw never was is made where the claw is instead', () => {
+    const play = begin('claw') as ClawPlay;
+    const at = play.turnStartedAt! + CLAW_LEAD_MS + 50;
+    const honest = clawXAt(play.turnStartedAt!, at);
+    const after = applyPlayAction(play, ME, { type: 'drop', x: clawItemCenter(5) }, at, seeded(1)) as ClawPlay;
+    expect(after.tries[0].x).toBe(honest);
+    // ...but a slightly late click on where the claw just was is honoured.
+    const seen = clawXAt(play.turnStartedAt!, at - 200);
+    const late = applyPlayAction(play, ME, { type: 'drop', x: seen }, at, seeded(1)) as ClawPlay;
+    expect(late.tries[0].x).toBe(seen);
   });
 
   it('match three: face-down tiles are hidden, and three of a game wins', () => {
