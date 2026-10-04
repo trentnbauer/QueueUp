@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useKeepScreenAwake } from '../hooks/useKeepScreenAwake';
-import type { Game, RoomSpinSession } from '@queueup/shared';
+import type { Game, RoomSpinSession, SpinPlay, SpinPlayAction } from '@queueup/shared';
 import {
   applyNudge,
   buildSpinStrip,
@@ -13,9 +13,11 @@ import {
   settlesAtOf,
   spinCandidates,
   SPIN_INITIAL_VELOCITY,
+  SPIN_WHEEL_THEME_LABELS,
   type SpinBase,
 } from '@queueup/shared';
 import type { SpinFilters } from '../api/rooms';
+import { useAuth } from '../context/AuthContext';
 import { useScope } from '../context/ScopeContext';
 import { useUi } from '../context/UiContext';
 import { useRoomSpin } from '../hooks/useRoomSpin';
@@ -25,6 +27,8 @@ import { Dialog, CloseButton } from '../ui/Dialog';
 import { coverBg } from '../ui/primitives';
 import { useIsMobile } from '../ui/useLayout';
 import { st } from '../ui/st';
+import { MODE_EXPLAINER, ModeStage } from './spinModes';
+import { nameOf } from './spinModes/shared';
 
 const ACC = 'var(--acc)';
 
@@ -63,6 +67,32 @@ function useLiveNow(settlesAtMs: number): number {
     return () => cancelAnimationFrame(raf);
   }, [settlesAtMs]);
   return now;
+}
+
+/** Server-aligned time, every frame, while `on` (a spin mode is showing). */
+function useModeNow(on: boolean, offset: number): number {
+  const [now, setNow] = useState(() => Date.now() + offset);
+  useEffect(() => {
+    if (!on) return;
+    let raf = 0;
+    const tick = () => {
+      setNow(Date.now() + offset);
+      raf = requestAnimationFrame(tick);
+    };
+    raf = requestAnimationFrame(tick);
+    return () => cancelAnimationFrame(raf);
+  }, [on, offset]);
+  return now;
+}
+
+/** The result's kicker line for a spin mode. */
+function modeKicker(play: SpinPlay, members: Parameters<typeof nameOf>[0], me: string): string {
+  if (play.kicker) return play.kicker;
+  if (play.mode === 'match_three' && play.flips.length) {
+    const last = play.flips[play.flips.length - 1];
+    return `THREE OF A KIND · ${nameOf(members, last.userId, me).toUpperCase()} FLIPPED THE THIRD`;
+  }
+  return "TONIGHT'S PICK";
 }
 
 const PRICE_OPTS = [0, 10, 20, 40];
@@ -189,11 +219,19 @@ export function SpinDialog({ onClose }: { onClose: () => void }) {
     [base, maxPrice, maxTtb, minScore, everyone],
   );
 
+  const { user } = useAuth();
+  const me = user?.id ?? '';
   const session = shared.spin;
+  // Every mode but the reel: the server runs the round (see spinModes.ts in packages/shared).
+  const isMode = !!session && session.theme !== 'reel';
+  const play = isMode ? session.play : null;
+  const modeNow = useModeNow(isMode, shared.clockOffset);
   const run: Run | null = session ? sessionRun(session) : local;
-  const now = useLiveNow(run?.settlesAtMs ?? 0);
-  const settled = !!run && now >= run.settlesAtMs;
+  const reelNow = useLiveNow(run?.settlesAtMs ?? 0);
+  const now = isMode ? modeNow : reelNow;
+  const settled = isMode ? !!play && play.revealAt !== null && now >= play.revealAt : !!run && now >= run.settlesAtMs;
   const waiting = !!session && !!run && now < run.base.timestamp0;
+  const poolById = useMemo(() => new Map((session?.strip ?? []).map((g) => [g.id, g])), [session?.strip]);
 
   useEffect(() => {
     if (session) void shared.markReady().catch(() => {});
@@ -201,7 +239,17 @@ export function SpinDialog({ onClose }: { onClose: () => void }) {
   }, [session?.id]);
 
   const position = run ? (settled ? run.settledPosition : positionAt(run.base, now)) : 0;
-  const winner = run && settled && run.strip.length ? run.strip[candidateIndexAt(run.settledPosition, run.strip.length)] : null;
+  const winner = isMode
+    ? settled && play?.winnerId
+      ? (poolById.get(play.winnerId) ?? null)
+      : null
+    : run && settled && run.strip.length
+      ? run.strip[candidateIndexAt(run.settledPosition, run.strip.length)]
+      : null;
+
+  function act(action: SpinPlayAction) {
+    shared.act(action).catch((err) => ui.showError(err instanceof Error ? err.message : "Couldn't do that"));
+  }
 
   const filters: SpinFilters = {
     maxPrice: maxPrice || undefined,
@@ -266,7 +314,7 @@ export function SpinDialog({ onClose }: { onClose: () => void }) {
     }
   }
 
-  function play() {
+  function letsPlay() {
     if (winner) {
       ops.updateStatus(winner.id, 'playing');
       ui.notify(`${winner.title} is now Playing`);
@@ -278,6 +326,7 @@ export function SpinDialog({ onClose }: { onClose: () => void }) {
   const idle = !run;
   const spinning = !!run && !settled && !waiting;
   const nudgeable = spinning && !session;
+  const reelSpinning = spinning && !isMode;
   // Stop the screen dimming mid-spin; released as soon as the wheel settles.
   useKeepScreenAwake(spinning);
   const tw = mobile ? 84 : 104;
@@ -343,8 +392,10 @@ export function SpinDialog({ onClose }: { onClose: () => void }) {
             <div style={st('margin-bottom:8px;padding:9px 12px;border-radius:12px;background:var(--surf);font:500 12.5px/1.4 var(--font-ui);color:var(--text2);text-wrap:pretty')}>{gateNote}</div>
           )}
           <div style={st('display:flex;justify-content:space-between;gap:10px;margin-bottom:14px;font:500 12px var(--font-ui);color:var(--faint)')}>
-            <span style={{ textWrap: 'pretty' }}>Votes and review scores weight the pick</span>
-            <span style={st('flex-shrink:0;font-family:var(--font-mono)')}>{session ? `${session.strip.length} slots` : `${candidates.length} in the pool`}</span>
+            <span style={{ textWrap: 'pretty' }}>{isMode && session.theme !== 'reel' ? MODE_EXPLAINER[session.theme] : 'Votes and review scores weight the pick'}</span>
+            <span style={st('flex-shrink:0;font-family:var(--font-mono);text-transform:uppercase')}>
+              {isMode ? SPIN_WHEEL_THEME_LABELS[session.theme] : session ? `${session.strip.length} slots` : `${candidates.length} in the pool`}
+            </span>
           </div>
 
           {waiting && session ? (
@@ -357,6 +408,12 @@ export function SpinDialog({ onClose }: { onClose: () => void }) {
                 Start now
               </button>
             </div>
+          ) : isMode ? (
+            play ? (
+              <ModeStage play={play} games={poolById} members={members} me={me} now={now} act={act} mobile={mobile} settled={settled} />
+            ) : (
+              <div style={st('display:flex;align-items:center;justify-content:center;height:372px;border-radius:20px;background:var(--bg);font:500 13px var(--font-ui);color:var(--muted)')}>Dealing…</div>
+            )
           ) : (
             <div
               onClick={clickReel}
@@ -387,10 +444,10 @@ export function SpinDialog({ onClose }: { onClose: () => void }) {
                 {starting ? 'Checking prices…' : 'Spin'}
               </button>
             )}
-            {spinning && <span style={st('font:500 14px var(--font-ui);color:var(--muted)')}>{session ? 'Rolling…' : 'Rolling… click left to slow it, right to speed it up'}</span>}
+            {reelSpinning && <span style={st('font:500 14px var(--font-ui);color:var(--muted)')}>{session ? 'Rolling…' : 'Rolling… click left to slow it, right to speed it up'}</span>}
             {settled && winner && (
               <>
-                <span style={st('font:500 12px var(--font-mono);color:var(--accText)')}>TONIGHT'S PICK</span>
+                <span style={st('font:500 12px var(--font-mono);color:var(--accText)')}>{play ? modeKicker(play, members, me) : "TONIGHT'S PICK"}</span>
                 <span style={st('font:700 28px/1.05 var(--font-display);letter-spacing:-0.02em')}>{winner.title}</span>
                 <span style={st('font:400 13.5px var(--font-ui);color:var(--muted)')}>
                   {[winner.genre?.split(',')[0], winner.timeToBeatHours ? `~${winner.timeToBeatHours}h` : '', resPrice].filter(Boolean).join(' · ')}
@@ -411,7 +468,7 @@ export function SpinDialog({ onClose }: { onClose: () => void }) {
                       Spin again
                     </button>
                   )}
-                  <button type="button" onClick={play} style={st('height:42px;padding:0 18px;border-radius:999px;border:none;background:var(--text);color:var(--onText);font:700 13.5px var(--font-ui)')}>
+                  <button type="button" onClick={letsPlay} style={st('height:42px;padding:0 18px;border-radius:999px;border:none;background:var(--text);color:var(--onText);font:700 13.5px var(--font-ui)')}>
                     Let's play
                   </button>
                 </div>

@@ -5,6 +5,9 @@ import {
   DISCORD_EVENT_KEYS,
   DISCORD_EVENT_LABELS,
   ROOM_PLATFORM_LABELS,
+  SPIN_WHEEL_THEMES,
+  SPIN_WHEEL_THEME_HINTS,
+  SPIN_WHEEL_THEME_LABELS,
   resolveDiscordEvents,
   type DiscordEventKey,
   type RoomPlatform,
@@ -619,6 +622,19 @@ export function RoomSettingsDialog() {
               {[0, 10, 20, 40].map((v) => (
                 <ChipToggle key={v} on={spinMax === v} onClick={() => patch({ spinOwnershipMaxPrice: v }, v === 0 ? 'Spin picks games everyone owns' : `Spin picks games everyone owns, or $${v} or less`)}>
                   {v === 0 ? 'Owned only' : `$${v}`}
+                </ChipToggle>
+              ))}
+            </div>
+          </div>
+          <div style={st('display:flex;flex-direction:column;gap:10px;padding:14px 16px;border-radius:14px;background:var(--surf)')}>
+            <span style={st('display:flex;flex-direction:column;gap:2px')}>
+              <span style={st('font:500 14.5px var(--font-ui)')}>Spin type</span>
+              <span style={st('font:400 12px/1.45 var(--font-ui);color:var(--muted)')}>{SPIN_WHEEL_THEME_HINTS[room.spinWheelTheme]}</span>
+            </span>
+            <div style={st('display:flex;flex-wrap:wrap;gap:6px')}>
+              {SPIN_WHEEL_THEMES.map((t) => (
+                <ChipToggle key={t} on={room.spinWheelTheme === t} onClick={() => patch({ spinWheelTheme: t }, `Spin type: ${SPIN_WHEEL_THEME_LABELS[t]}`)}>
+                  {t === 'random' ? '🎲 Random' : SPIN_WHEEL_THEME_LABELS[t]}
                 </ChipToggle>
               ))}
             </div>

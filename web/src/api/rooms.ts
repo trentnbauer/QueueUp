@@ -13,6 +13,7 @@ import type {
   RoomMemberStats,
   RoomRole,
   RoomSpinSession,
+  SpinPlayAction,
   UpdateRoomRequest,
   User,
 } from '@queueup/shared';
@@ -73,6 +74,8 @@ export const roomSpinApi = {
   start: (roomId: string, filters?: SpinFilters) => apiPost<{ spin: RoomSpinSession }>(`/api/rooms/${roomId}/spin/start`, filters ?? {}),
   /** Vote to respin a settled result; a majority of the spin's participants respins it. */
   respinVote: (roomId: string) => apiPost<{ spin: RoomSpinSession }>(`/api/rooms/${roomId}/spin/respin-vote`),
+  /** A move in a spin mode (vote, stake, ban, shield, claw drop, tile flip). */
+  action: (roomId: string, action: SpinPlayAction) => apiPost<{ spin: RoomSpinSession }>(`/api/rooms/${roomId}/spin/action`, action),
   skipWait: (roomId: string) => apiPost<{ spin: RoomSpinSession }>(`/api/rooms/${roomId}/spin/skip-wait`),
   ready: (roomId: string) => apiPost<{ spin: RoomSpinSession; unlockedBadges: BadgeDefinition[] }>(`/api/rooms/${roomId}/spin/ready`),
   close: (roomId: string) => apiDelete(`/api/rooms/${roomId}/spin`),
