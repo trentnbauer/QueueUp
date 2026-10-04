@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { useKeepScreenAwake } from '../hooks/useKeepScreenAwake';
 import type { Game, RoomSpinSession, SpinPlay, SpinPlayAction } from '@queueup/shared';
 import {
@@ -18,6 +18,7 @@ import {
 } from '@queueup/shared';
 import type { SpinFilters } from '../api/rooms';
 import { useAuth } from '../context/AuthContext';
+import { useConfirm } from '../context/ConfirmContext';
 import { useScope } from '../context/ScopeContext';
 import { useUi } from '../context/UiContext';
 import { useRoomSpin } from '../hooks/useRoomSpin';
@@ -27,6 +28,7 @@ import { Dialog, CloseButton } from '../ui/Dialog';
 import { coverBg } from '../ui/primitives';
 import { useIsMobile } from '../ui/useLayout';
 import { st } from '../ui/st';
+import { celebratePick } from '../ui/PickCelebration';
 import { MODE_EXPLAINER, ModeStage } from './spinModes';
 import { nameOf } from './spinModes/shared';
 
@@ -206,6 +208,9 @@ export function SpinDialog({ onClose }: { onClose: () => void }) {
   const [local, setLocal] = useState<Run | null>(null);
   const [nudge, setNudge] = useState<'left' | 'right' | null>(null);
   const [starting, setStarting] = useState(false);
+  // Shelf picks marked Won't play this session, kept out of the next spin straight away (#803).
+  const [skipped, setSkipped] = useState<Set<string>>(new Set());
+  const confirm = useConfirm();
 
   const gate = !isShelf && room ? room.spinOwnershipMaxPrice : undefined;
   const base = useMemo(() => spinCandidates(games, gate), [games, gate]);
@@ -280,11 +285,12 @@ export function SpinDialog({ onClose }: { onClose: () => void }) {
       }
       return;
     }
-    if (!candidates.length) {
+    const pool = candidates.filter((g) => !skipped.has(g.id));
+    if (!pool.length) {
       ui.notify('Nothing in the pool. Loosen the filters.');
       return;
     }
-    setLocal(localRun(games, candidates));
+    setLocal(localRun(games, pool));
   }
 
   // Nudging is a Personal Shelf thing: in a room nobody steers the shared wheel on their own - the
@@ -320,9 +326,46 @@ export function SpinDialog({ onClose }: { onClose: () => void }) {
     if (winner) {
       ops.updateStatus(winner.id, 'playing');
       ui.notify(`${winner.title} is now Playing`);
+      celebratePick(winner);
     }
+    closedByMe.current = true;
     if (session) void shared.closeSpin().catch(() => {});
     onClose();
+  }
+
+  // Someone else in the room pressed "Let's play" on the result everyone was looking at: celebrate
+  // it here too (#804) and close, rather than dropping back to an empty spin.
+  const closedByMe = useRef(false);
+  const settledPick = useRef<Game | null>(null);
+  useEffect(() => {
+    if (session && settled && winner) settledPick.current = winner;
+    else if (session) settledPick.current = null;
+    else if (settledPick.current && !closedByMe.current) {
+      celebratePick(settledPick.current);
+      settledPick.current = null;
+      onClose();
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [session, settled, winner?.id]);
+
+  /** #803: drop the Personal Shelf's pick to Won't play and spin again without it. */
+  async function wontPlay() {
+    if (!winner) return;
+    const ok = await confirm({
+      title: `Won't play ${winner.title}?`,
+      message: "It moves to your Won't play list and won't come up in a spin again. Then the wheel spins again.",
+      confirmLabel: "Won't play",
+    });
+    if (!ok) return;
+    ops.updateStatus(winner.id, 'wont_play');
+    const rest = candidates.filter((g) => g.id !== winner.id && !skipped.has(g.id));
+    setSkipped((prev) => new Set(prev).add(winner.id));
+    if (!rest.length) {
+      setLocal(null);
+      ui.notify('Nothing left in the pool. Loosen the filters.');
+      return;
+    }
+    setLocal(localRun(games, rest));
   }
 
   const idle = !run;
@@ -468,9 +511,14 @@ export function SpinDialog({ onClose }: { onClose: () => void }) {
                       {session.youVotedRespin ? 'Voted to respin' : 'Vote to respin'} ({session.respinVotes}/{session.respinNeeded})
                     </button>
                   ) : (
-                    <button type="button" onClick={() => go()} style={st('height:42px;padding:0 18px;border-radius:999px;border:1px solid var(--line);background:transparent;color:var(--text);font:600 13.5px var(--font-ui)')}>
-                      Spin again
-                    </button>
+                    <>
+                      <button type="button" onClick={() => void wontPlay()} style={st('height:42px;padding:0 18px;border-radius:999px;border:1px solid var(--line);background:transparent;color:var(--muted);font:600 13.5px var(--font-ui)')}>
+                        Won't play
+                      </button>
+                      <button type="button" onClick={() => go()} style={st('height:42px;padding:0 18px;border-radius:999px;border:1px solid var(--line);background:transparent;color:var(--text);font:600 13.5px var(--font-ui)')}>
+                        Spin again
+                      </button>
+                    </>
                   )}
                   <button type="button" onClick={letsPlay} style={st('height:42px;padding:0 18px;border-radius:999px;border:none;background:var(--text);color:var(--onText);font:700 13.5px var(--font-ui)')}>
                     Let's play

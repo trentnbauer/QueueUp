@@ -18,6 +18,7 @@ import { SensitiveGamesPrompt } from '../dialogs/SensitiveGamesDialog';
 import { ShelfSettingsDialog } from '../dialogs/ShelfSettingsDialog';
 import { FriendsDialog, NotificationsDialog } from '../dialogs/SocialDialogs';
 import { SpinDialog } from '../dialogs/SpinDialog';
+import { PickCelebrationHost } from '../ui/PickCelebration';
 import { useChangelog } from '../hooks/useChangelog';
 import { usePlaytimeReview } from '../hooks/usePlaytimeReview';
 import { UiToast } from '../ui/ToastView';
@@ -123,6 +124,7 @@ export function Overlays() {
       {d.me && <MeDialog />}
       {d.friends && <FriendsDialog />}
       {d.spin && <SpinDialog onClose={() => ui.closeDialog('spin')} />}
+      <PickCelebrationHost />
       {d.ranked && <RankedDialog />}
       {d.deck && <DeckDialog />}
       {d.needsReview && <NeedsReviewDialog />}
