@@ -60,12 +60,13 @@ export function NavRow({ label, sub, badge, onClick }: { label: string; sub?: st
 }
 
 function ActionCard({ title, sub, cta, onClick, accent, disabled }: { title: string; sub: string; cta: string; onClick: () => void; accent?: boolean; disabled?: boolean }) {
+  // Always shown as a row of a Group (issue #852), so the Group supplies the rounded corners.
   return (
     <button
       type="button"
       onClick={onClick}
       disabled={disabled}
-      style={st('flex-shrink:0;display:flex;align-items:center;gap:12px;min-height:60px;padding:10px 12px 10px 16px;border-radius:18px;border:none;background:var(--surf);color:var(--text);text-align:left;width:100%')}
+      style={st('flex-shrink:0;display:flex;align-items:center;gap:12px;min-height:60px;padding:10px 12px 10px 16px;border:none;background:var(--surf);color:var(--text);text-align:left;width:100%')}
     >
       <span style={st('flex:1;min-width:0;display:flex;flex-direction:column;gap:2px')}>
         <span style={st('font:600 15px var(--font-ui)')}>{title}</span>
@@ -73,6 +74,17 @@ function ActionCard({ title, sub, cta, onClick, accent, disabled }: { title: str
       </span>
       <span style={st(`height:34px;padding:0 14px;border-radius:999px;background:${accent ? 'var(--text)' : 'var(--accSoft2)'};color:${accent ? 'var(--onText)' : 'var(--accText)'};font:600 12.5px var(--font-ui);display:flex;align-items:center`)}>{cta}</span>
     </button>
+  );
+}
+
+/** A row of a Group holding a label (and optional hint) above a control, e.g. a Segmented picker. */
+function ControlRow({ label, hint, children }: { label: string; hint?: string; children: ReactNode }) {
+  return (
+    <div style={st('display:flex;flex-direction:column;gap:8px;padding:12px 14px 12px 16px;background:var(--surf)')}>
+      <span style={st('font:600 15px var(--font-ui)')}>{label}</span>
+      {children}
+      {hint && <span style={st('font:400 12.5px var(--font-ui);color:var(--muted)')}>{hint}</span>}
+    </div>
   );
 }
 
@@ -631,117 +643,125 @@ export function MeDialog() {
           {user.isAdmin && <NavRow label={t('settings.me.admin')} sub={t('settings.me.admin.sub')} onClick={go('/admin')} />}
         </Group>
 
-        <ActionCard
-          title={t('settings.me.syncLibraries')}
-          sub={!sync.hasLinked ? t('settings.me.syncLibraries.linkSteam') : sync.busy ? t('settings.me.syncLibraries.busy') : t('settings.me.syncLibraries.sub', { sources: sync.linkedLabels.join(', ') })}
-          cta={!sync.hasLinked ? t('settings.me.link') : sync.busy ? '…' : t('settings.me.sync')}
-          accent={sync.hasLinked}
-          disabled={sync.busy}
-          onClick={syncLibraries}
-        />
-        <ActionCard
-          title={t('settings.me.syncAchievements')}
-          sub={t('settings.me.syncAchievements.sub')}
-          cta={t('settings.me.syncAchievements.check')}
-          disabled={sync.busy}
-          onClick={syncAchievements}
-        />
-        <ActionCard
-          title={t('settings.me.libraries')}
-          sub={librariesSummary || t('settings.me.libraries.none')}
-          cta={t('settings.me.libraries.manage')}
-          accent={!!librariesSummary}
-          onClick={open('import')}
-        />
+        <Section label={t('settings.me.section.libraries')}>
+          <Group>
+          <ActionCard
+            title={t('settings.me.syncLibraries')}
+            sub={!sync.hasLinked ? t('settings.me.syncLibraries.linkSteam') : sync.busy ? t('settings.me.syncLibraries.busy') : t('settings.me.syncLibraries.sub', { sources: sync.linkedLabels.join(', ') })}
+            cta={!sync.hasLinked ? t('settings.me.link') : sync.busy ? '…' : t('settings.me.sync')}
+            accent={sync.hasLinked}
+            disabled={sync.busy}
+            onClick={syncLibraries}
+          />
+          <ActionCard
+            title={t('settings.me.syncAchievements')}
+            sub={t('settings.me.syncAchievements.sub')}
+            cta={t('settings.me.syncAchievements.check')}
+            disabled={sync.busy}
+            onClick={syncAchievements}
+          />
+          <ActionCard
+            title={t('settings.me.libraries')}
+            sub={librariesSummary || t('settings.me.libraries.none')}
+            cta={t('settings.me.libraries.manage')}
+            accent={!!librariesSummary}
+            onClick={open('import')}
+          />
+          </Group>
+        </Section>
 
         <Section label={t('settings.me.appearance')}>
-          <div style={st('display:flex;align-items:center;gap:12px;min-height:58px;padding:0 14px 0 16px;border-radius:16px;background:var(--surf)')}>
-            <span style={st('flex:1;display:flex;flex-direction:column;gap:1px')}>
-              <span style={st('font:600 15px var(--font-ui)')}>{t('core.settings.language')}</span>
-              <span style={st('font:400 12.5px var(--font-ui);color:var(--muted)')}>{t('core.settings.language.sub')}</span>
-            </span>
-            <select
-              value={language}
-              aria-label={t('core.settings.language')}
-              onChange={(e) => setLanguage(e.target.value as Language)}
-              style={st('height:38px;padding:0 10px;border-radius:12px;background:var(--bg);border:1px solid var(--line);color:var(--text);font:500 14px var(--font-ui);outline:none')}
-            >
-              {LANGUAGES.map((l) => (
-                <option key={l.code} value={l.code} lang={l.code}>
-                  {l.nativeName}
-                </option>
-              ))}
-            </select>
-          </div>
-          <Segmented
-            columns={3}
-            value={preference}
-            onChange={setPreference}
-            options={[
-              { value: 'dark', label: t('settings.me.theme.dark') },
-              { value: 'light', label: t('settings.me.theme.light') },
-              { value: 'system', label: t('settings.me.theme.auto') },
-            ]}
-          />
-          <span style={st('font:500 13px var(--font-ui);color:var(--text2);margin-top:4px')}>{t('settings.me.accent')}</span>
-          <Segmented
-            columns={2}
-            value={accent}
-            onChange={setAccent}
-            options={(Object.keys(ACCENT_LABELS) as Accent[]).map((k) => ({ value: k, label: t(`settings.me.accent.${k}`) }))}
-          />
-          <span style={st('font:400 12.5px var(--font-ui);color:var(--muted)')}>
-            {accent === 'room' ? t('settings.me.accent.roomHint') : t('settings.me.accent.monoHint')}
-          </span>
-          <span style={st('font:500 13px var(--font-ui);color:var(--text2);margin-top:4px')}>{t('settings.me.layout')}</span>
-          <Segmented
-            columns={2}
-            value={viewMode}
-            onChange={setViewMode}
-            options={[
-              { value: 'list', label: t('settings.me.layout.list') },
-              { value: 'artwork', label: t('settings.me.layout.covers') },
-            ]}
-          />
-          {viewMode === 'artwork' && (
-            <>
-              <span style={st('font:500 13px var(--font-ui);color:var(--text2);margin-top:4px')}>{t('settings.me.density')}</span>
+          <Group>
+            <div style={st('display:flex;align-items:center;gap:12px;min-height:58px;padding:0 14px 0 16px;background:var(--surf)')}>
+              <span style={st('flex:1;display:flex;flex-direction:column;gap:1px')}>
+                <span style={st('font:600 15px var(--font-ui)')}>{t('core.settings.language')}</span>
+                <span style={st('font:400 12.5px var(--font-ui);color:var(--muted)')}>{t('core.settings.language.sub')}</span>
+              </span>
+              <select
+                value={language}
+                aria-label={t('core.settings.language')}
+                onChange={(e) => setLanguage(e.target.value as Language)}
+                style={st('height:38px;padding:0 10px;border-radius:12px;background:var(--bg);border:1px solid var(--line);color:var(--text);font:500 14px var(--font-ui);outline:none')}
+              >
+                {LANGUAGES.map((l) => (
+                  <option key={l.code} value={l.code} lang={l.code}>
+                    {l.nativeName}
+                  </option>
+                ))}
+              </select>
+            </div>
+            <ControlRow label={t('settings.me.section.theme')}>
               <Segmented
-                columns={2}
-                value={density === 'small' ? 'small' : 'medium'}
-                onChange={(v) => setDensity(v === 'small' ? 'small' : 'medium')}
+                columns={3}
+                value={preference}
+                onChange={setPreference}
                 options={[
-                  { value: 'medium', label: t('settings.me.density.two') },
-                  { value: 'small', label: t('settings.me.density.three') },
+                  { value: 'dark', label: t('settings.me.theme.dark') },
+                  { value: 'light', label: t('settings.me.theme.light') },
+                  { value: 'system', label: t('settings.me.theme.auto') },
                 ]}
               />
-            </>
-          )}
+            </ControlRow>
+            <ControlRow label={t('settings.me.accent')} hint={accent === 'room' ? t('settings.me.accent.roomHint') : t('settings.me.accent.monoHint')}>
+              <Segmented
+                columns={2}
+                value={accent}
+                onChange={setAccent}
+                options={(Object.keys(ACCENT_LABELS) as Accent[]).map((k) => ({ value: k, label: t(`settings.me.accent.${k}`) }))}
+              />
+            </ControlRow>
+            <ControlRow label={t('settings.me.layout')}>
+              <Segmented
+                columns={2}
+                value={viewMode}
+                onChange={setViewMode}
+                options={[
+                  { value: 'list', label: t('settings.me.layout.list') },
+                  { value: 'artwork', label: t('settings.me.layout.covers') },
+                ]}
+              />
+            </ControlRow>
+            {viewMode === 'artwork' && (
+              <ControlRow label={t('settings.me.density')}>
+                <Segmented
+                  columns={2}
+                  value={density === 'small' ? 'small' : 'medium'}
+                  onChange={(v) => setDensity(v === 'small' ? 'small' : 'medium')}
+                  options={[
+                    { value: 'medium', label: t('settings.me.density.two') },
+                    { value: 'small', label: t('settings.me.density.three') },
+                  ]}
+                />
+              </ControlRow>
+            )}
+          </Group>
         </Section>
 
-        <Section label={t('settings.me.currency')}>
-          <select
-            value={region ?? ''}
-            aria-label={t('settings.me.currency.aria')}
-            onChange={(e) => setRegion((e.target.value || undefined) as PriceRegion | undefined)}
-            style={st('height:48px;padding:0 14px;border-radius:14px;background:var(--surf);border:1px solid var(--chip);color:var(--text);font-size:15px;outline:none')}
-          >
-            <option value="">{t('settings.me.currency.default')}</option>
-            {REGIONS.map((r) => (
-              <option key={r} value={r}>
-                {priceRegionLabel(r)}
-              </option>
-            ))}
-          </select>
+        <Section label={t('settings.me.section.regional')}>
+          <Group>
+            <div style={st('display:flex;align-items:center;gap:12px;min-height:58px;padding:0 14px 0 16px;background:var(--surf)')}>
+              <span style={st('flex:1;font:600 15px var(--font-ui)')}>{t('settings.me.currency.label')}</span>
+              <select
+                value={region ?? ''}
+                aria-label={t('settings.me.currency.aria')}
+                onChange={(e) => setRegion((e.target.value || undefined) as PriceRegion | undefined)}
+                style={st('max-width:55%;height:38px;padding:0 10px;border-radius:12px;background:var(--bg);border:1px solid var(--line);color:var(--text);font:500 14px var(--font-ui);outline:none')}
+              >
+                <option value="">{t('settings.me.currency.default')}</option>
+                {REGIONS.map((r) => (
+                  <option key={r} value={r}>
+                    {priceRegionLabel(r)}
+                  </option>
+                ))}
+              </select>
+            </div>
+            <NavRow
+              label={t('settings.systems.title')}
+              sub={ownedPlatforms.length === 0 ? t('settings.systems.everyPlatform') : sortPlatforms(ownedPlatforms).map((p) => ROOM_PLATFORM_LABELS[p]).join(', ')}
+              onClick={() => setSystemsOpen(true)}
+            />
+          </Group>
         </Section>
-
-        <Group>
-          <NavRow
-            label={t('settings.systems.title')}
-            sub={ownedPlatforms.length === 0 ? t('settings.systems.everyPlatform') : sortPlatforms(ownedPlatforms).map((p) => ROOM_PLATFORM_LABELS[p]).join(', ')}
-            onClick={() => setSystemsOpen(true)}
-          />
-        </Group>
 
         {providers && providers.length > 0 && (
           <Section label={t('settings.me.signIn')}>
@@ -818,6 +838,11 @@ export function MeDialog() {
                 </div>
               </>
             )}
+          </Group>
+        </Section>
+
+        <Section label={t('settings.me.section.tools')}>
+          <Group>
             <NavRow label={t('settings.notifications.title')} onClick={() => setNotifOpen(true)} />
             <NavRow label={t('settings.apiKeys.title')} onClick={() => setKeysOpen(true)} />
             <NavRow label={t('settings.me.journal')} onClick={() => { close(); ui.openDialog('journal', {}); }} />
@@ -825,19 +850,21 @@ export function MeDialog() {
           </Group>
         </Section>
 
-        <Group>
-          <NavRow label={t('settings.me.whatsNew')} onClick={open('changelog')} />
-          <NavRow label={t('settings.me.reportIssue')} onClick={() => window.open(ISSUES_URL, '_blank', 'noopener')} />
-          <NavRow label={t('settings.me.download')} onClick={() => { window.location.href = `${getBasePath()}/api/me/export`; }} />
-          <NavRow
-            label={t('settings.me.rerunSetup')}
-            onClick={() => {
-              close();
-              rerunOnboarding();
-            }}
-          />
-          <NavRow label={t('settings.me.signOut')} onClick={signOut} />
-        </Group>
+        <Section label={t('settings.me.section.help')}>
+          <Group>
+            <NavRow label={t('settings.me.whatsNew')} onClick={open('changelog')} />
+            <NavRow label={t('settings.me.reportIssue')} onClick={() => window.open(ISSUES_URL, '_blank', 'noopener')} />
+            <NavRow label={t('settings.me.download')} onClick={() => { window.location.href = `${getBasePath()}/api/me/export`; }} />
+            <NavRow
+              label={t('settings.me.rerunSetup')}
+              onClick={() => {
+                close();
+                rerunOnboarding();
+              }}
+            />
+            <NavRow label={t('settings.me.signOut')} onClick={signOut} />
+          </Group>
+        </Section>
         <button type="button" onClick={deleteAccount} style={st('align-self:flex-start;height:40px;border:none;background:none;padding:0;color:var(--danger);font:600 14px var(--font-ui)')}>
           {t('settings.me.delete.confirm')}
         </button>
