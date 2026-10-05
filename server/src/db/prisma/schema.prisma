@@ -291,6 +291,7 @@ model User {
   apiKeys                       ApiKey[]
   pendingLibraryImports         PendingLibraryImport[]
   titleMatchSuggestions         TitleMatchSuggestion[]
+  aiSettings                    UserAiSettings?
   feedReactions                 FeedReaction[]
   notificationPreferences       NotificationPreference[]
   emailChangeRequest            EmailChangeRequest?
@@ -445,6 +446,23 @@ model TitleMatchSuggestion {
   @@id([source, normalizedTitle, igdbId, userId])
   @@index([source, normalizedTitle])
   @@map("title_match_suggestions")
+}
+
+/// One person's own AI provider settings (see services/ai/aiConfig.ts), used instead of the
+/// server-wide ones for their own AI calls. The API key is encrypted at rest (AES-256-GCM, key
+/// derived from SESSION_SECRET, see settingsCrypto.ts) and never sent back to the client. A backup
+/// restored onto a server with a different SESSION_SECRET leaves it unreadable until re-entered.
+model UserAiSettings {
+  userId          String   @id @map("user_id")
+  provider        String
+  model           String?
+  baseUrl         String?  @map("base_url")
+  apiKeyEncrypted String?  @map("api_key_encrypted")
+  updatedAt       DateTime @updatedAt @map("updated_at")
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("user_ai_settings")
 }
 
 /// An external-library title (e.g. from a Playnite import) that didn't resolve to an igdbId - no

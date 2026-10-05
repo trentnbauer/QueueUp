@@ -165,6 +165,30 @@ export const envSchema = z.object({
   SMTP_PASSWORD: optionalEnvVar(z.string().min(1)),
   SMTP_FROM: optionalEnvVar(z.string().min(1)),
 
+  // AI backend: the call layer other features will use to talk to a language model. Nothing in the
+  // app calls it yet. Server-wide settings, used for everyone who hasn't set their own (see
+  // services/ai/aiConfig.ts). Provider is one of anthropic, openai, gemini, ollama or
+  // openai_compatible (any server speaking the OpenAI chat API: LM Studio, vLLM, llama.cpp,
+  // OpenRouter, ...). Same env-or-admin-Settings-fallback pattern as the keys above; the key is
+  // stored encrypted when set from Administrator settings. Unset just means AI is off.
+  AI_PROVIDER: optionalEnvVar(z.string().min(1)),
+  AI_API_KEY: optionalEnvVar(z.string().min(1)),
+  // Only needed for ollama / openai_compatible, or to point a hosted provider at a proxy.
+  AI_BASE_URL: optionalEnvVar(z.string().min(1)),
+  AI_MODEL: optionalEnvVar(z.string().min(1)),
+  // Whether people can bring their own provider and key from their account settings. Defaults on.
+  AI_ALLOW_USER_SETTINGS: z
+    .string()
+    .optional()
+    .transform((v) => v !== 'false'),
+  // Whether a person's own settings may name a custom base URL (including ollama and
+  // openai_compatible, which need one). Off by default: the server makes that request, so a custom
+  // address lets a user point it at anything the server can reach. Turn on for a trusted instance.
+  AI_ALLOW_USER_BASE_URL: z
+    .string()
+    .optional()
+    .transform((v) => v === 'true'),
+
   // Cloudflare Tunnel (issue #664) - with a token set, the server runs cloudflared itself so the app
   // is reachable through Cloudflare without opening a port. Settable in Administrator settings too.
   // CLOUDFLARED_PATH only matters outside the Docker image, which ships the binary on PATH.

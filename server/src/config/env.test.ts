@@ -15,6 +15,8 @@ function baseEnv(overrides: Partial<Env> = {}): Env {
     CLOUDFLARED_PATH: 'cloudflared',
     PRIVATE_INSTANCE: false,
     PLAYTIME_TRACKING_ENABLED: false,
+    AI_ALLOW_USER_SETTINGS: true,
+    AI_ALLOW_USER_BASE_URL: false,
     BASE_PATH: '',
     OIDC_ISSUER_URL: undefined,
     OIDC_CLIENT_ID: undefined,

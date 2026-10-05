@@ -50,7 +50,7 @@ Some other things to note:
 4. Rename the env file to .env
 5. Run `docker-compose up` to start the stack
 
-Every setting is described in `.env.example`. The gg.deals, IGDB, ScanDex, Turnstile and Cloudflare Tunnel keys can also be entered later in **Profile → Administrator settings** instead of the env file (an env var always wins over a value saved there).
+Every setting is described in `.env.example`. The gg.deals, IGDB, ScanDex, Turnstile, AI and Cloudflare Tunnel keys can also be entered later in **Profile → Administrator settings** instead of the env file (an env var always wins over a value saved there).
 
 ## Backups
 
