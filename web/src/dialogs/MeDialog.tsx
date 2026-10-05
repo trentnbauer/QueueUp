@@ -333,10 +333,12 @@ function ApiKeysDialog({ onClose }: { onClose: () => void }) {
   const confirm = useConfirm();
   const t = useT();
   const [label, setLabel] = useState('');
+  const [expiry, setExpiry] = useState<'never' | '30' | '90' | '365'>('never');
+  const [readOnly, setReadOnly] = useState(false);
   const [fresh, setFresh] = useState<string | null>(null);
   const { data } = useQuery({ queryKey: API_KEYS_QUERY_KEY, queryFn: apiKeysApi.list });
   const create = useMutation({
-    mutationFn: apiKeysApi.create,
+    mutationFn: (name: string) => apiKeysApi.create(name, { expiresInDays: expiry === 'never' ? null : Number(expiry), readOnly }),
     onSuccess: (c) => {
       setFresh(c.key);
       setLabel('');
@@ -383,6 +385,23 @@ function ApiKeysDialog({ onClose }: { onClose: () => void }) {
           {create.isPending ? '…' : t('settings.apiKeys.generate')}
         </Btn>
       </div>
+      <div style={st('display:flex;align-items:center;gap:14px;flex-wrap:wrap')}>
+        <select
+          value={expiry}
+          onChange={(e) => setExpiry(e.target.value as typeof expiry)}
+          aria-label={t('settings.apiKeys.expiryAria')}
+          style={st('height:38px;padding:0 10px;border-radius:12px;background:var(--bg);border:1px solid var(--line);color:var(--text);font:500 13.5px var(--font-ui);outline:none')}
+        >
+          <option value="never">{t('settings.apiKeys.expiry.never')}</option>
+          <option value="30">{t('settings.apiKeys.expiry.days', { n: 30 })}</option>
+          <option value="90">{t('settings.apiKeys.expiry.days', { n: 90 })}</option>
+          <option value="365">{t('settings.apiKeys.expiry.year')}</option>
+        </select>
+        <span style={st('display:flex;align-items:center;gap:8px;font:500 13px var(--font-ui);color:var(--text2)')}>
+          {t('settings.apiKeys.readOnly')}
+          <Toggle on={readOnly} onChange={setReadOnly} label={t('settings.apiKeys.readOnlyAria')} />
+        </span>
+      </div>
       {active.length > 0 ? (
         <Group>
           {active.map((k) => (
@@ -391,7 +410,15 @@ function ApiKeysDialog({ onClose }: { onClose: () => void }) {
                 <span style={st('font:600 14.5px var(--font-ui)')}>{k.label}</span>
                 <span style={st('font:400 12px var(--font-ui);color:var(--muted)')}>
                   {t('settings.apiKeys.created', { when: formatRelativeTime(k.createdAt) })} · {k.lastUsedAt ? t('settings.apiKeys.lastUsed', { when: formatRelativeTime(k.lastUsedAt) }) : t('settings.apiKeys.neverUsed')}
+                  {k.readOnly && ` · ${t('settings.apiKeys.readOnlyTag')}`}
                 </span>
+                {k.expiresAt && (
+                  <span style={st(`font:500 12px var(--font-ui);color:${new Date(k.expiresAt).getTime() <= Date.now() ? 'var(--danger)' : 'var(--muted)'}`)}>
+                    {new Date(k.expiresAt).getTime() <= Date.now()
+                      ? t('settings.apiKeys.expired', { date: new Date(k.expiresAt).toLocaleDateString() })
+                      : t('settings.apiKeys.expires', { date: new Date(k.expiresAt).toLocaleDateString() })}
+                  </span>
+                )}
               </span>
               <Btn kind="ghost" height={34} padX={10} fontSize={12.5} disabled={revoke.isPending && revoke.variables === k.id} onClick={() => void confirmRevoke(k.id, k.label)}>
                 {t('settings.apiKeys.revoke')}

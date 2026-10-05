@@ -21,7 +21,7 @@ export const PLAYNITE_SYNC_STALE_MS = 48 * 60 * 60 * 1000;
  * recently active one, so they get at most one reminder, not one per key. */
 async function remindStaleSyncs(): Promise<void> {
   const keys = await prisma.apiKey.findMany({
-    where: { label: PLAYNITE_API_KEY_LABEL, revokedAt: null },
+    where: { label: PLAYNITE_API_KEY_LABEL, revokedAt: null, OR: [{ expiresAt: null }, { expiresAt: { gt: new Date() } }] },
     select: { userId: true, createdAt: true, lastUsedAt: true },
   });
   if (keys.length === 0) return;

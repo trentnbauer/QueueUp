@@ -1919,10 +1919,23 @@ export interface ApiKeySummary {
   createdAt: string;
   lastUsedAt: string | null;
   revokedAt: string | null;
+  /** When the key stops working; null = never. */
+  expiresAt: string | null;
+  /** True when the key can only read (GET) - writes through it are refused. */
+  readOnly: boolean;
 }
+
+/** Most API keys a person can have working at once (revoked and expired ones don't count). */
+export const MAX_ACTIVE_API_KEYS = 20;
+/** Longest an API key may be set to last, in days. */
+export const MAX_API_KEY_EXPIRY_DAYS = 365;
 
 export interface CreateApiKeyRequest {
   label: string;
+  /** Days until the key expires (1 to MAX_API_KEY_EXPIRY_DAYS); omit or null for no expiry. */
+  expiresInDays?: number | null;
+  /** Make the key read-only. Defaults to false. */
+  readOnly?: boolean;
 }
 
 /** Same fields as ApiKeySummary, plus the one and only time the raw key itself is ever sent to

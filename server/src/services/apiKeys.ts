@@ -26,17 +26,23 @@ export function hashApiKeyToken(token: string): string {
  * point into API-key auth, deliberately separate from request.requireAuth()'s cookie-session path
  * so a valid key can never be used to reach a cookie-authenticated app route (account settings,
  * admin, etc.) and a browser session can never be used to reach /api/v1. Fails closed: a missing
- * header, malformed value, unknown hash, or revoked key all become the same 401 (no distinction
- * that would help an attacker enumerate valid tokens). */
-export async function resolveApiKeyUserId(authorizationHeader: string | undefined): Promise<string> {
+ * header, malformed value, unknown hash, revoked or expired key all become the same 401 (no
+ * distinction that would help an attacker enumerate valid tokens). */
+export async function resolveApiKey(authorizationHeader: string | undefined): Promise<{ userId: string; readOnly: boolean }> {
   const token = authorizationHeader?.startsWith('Bearer ') ? authorizationHeader.slice('Bearer '.length).trim() : null;
   if (!token) throw new HttpError(401, 'Missing or malformed Authorization header - expected "Bearer <api key>"');
 
   const apiKey = await prisma.apiKey.findUnique({ where: { hash: hashApiKeyToken(token) } });
-  if (!apiKey || apiKey.revokedAt) throw new HttpError(401, 'Invalid or revoked API key');
+  if (!apiKey || apiKey.revokedAt || (apiKey.expiresAt && apiKey.expiresAt.getTime() <= Date.now())) {
+    throw new HttpError(401, 'Invalid, revoked or expired API key');
+  }
 
   // Best-effort - a hiccup writing lastUsedAt shouldn't fail the actual request it's timestamping.
   prisma.apiKey.update({ where: { id: apiKey.id }, data: { lastUsedAt: new Date() } }).catch(() => {});
 
-  return apiKey.userId;
+  return { userId: apiKey.userId, readOnly: apiKey.readOnly };
 }
+
+/** Whether a key is still working: not revoked and not past its expiry. */
+export const isApiKeyActive = (key: { revokedAt: Date | null; expiresAt: Date | null }, now = Date.now()): boolean =>
+  !key.revokedAt && (!key.expiresAt || key.expiresAt.getTime() > now);
