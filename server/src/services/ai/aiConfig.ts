@@ -17,6 +17,7 @@ import {
 } from './aiFallbacks.js';
 import { AiProviderError, callProvider, PROVIDER_DEFAULTS, type AiConfig, type AiRequest, type AiResponse } from './providers.js';
 import { chargeServerAiUse } from './aiQuota.js';
+import { assertPublicTarget } from './aiNetworkGuard.js';
 
 /** Works out which AI settings a call uses and makes the call. A person's own settings win, when the
  * server allows them; otherwise the server-wide ones (env, or Administrator settings as the
@@ -80,7 +81,8 @@ export async function getUserAiConfig(userId: string): Promise<AiConfig | null> 
   // A saved custom address only counts while the server still allows one.
   const usesCustomUrl = !!row.baseUrl || PROVIDER_DEFAULTS[row.provider].baseUrl === null || row.provider === 'ollama';
   if (usesCustomUrl && !env.AI_ALLOW_USER_BASE_URL) return null;
-  return buildConfig(row.provider, { model: row.model, baseUrl: row.baseUrl, apiKey: await readUserKey(userId, row.apiKeyEncrypted) });
+  const config = buildConfig(row.provider, { model: row.model, baseUrl: row.baseUrl, apiKey: await readUserKey(userId, row.apiKeyEncrypted) });
+  return config && usesCustomUrl ? { ...config, userSupplied: true } : config;
 }
 
 /** Backups saved in Administrator settings. Not an env var: they're only ever set from the settings screen. */
@@ -91,10 +93,17 @@ export async function readServerFallbacks(): Promise<StoredFallback[]> {
   return row?.value ? openFallbacks(row.value, (await getEnv()).SESSION_SECRET) : [];
 }
 
-const fallbackConfigs = (list: StoredFallback[], allowCustomUrl: boolean): AiConfig[] =>
+/** `userSupplied` marks a person's own backups: any that use a custom address (or a provider that
+ * needs one) are flagged so each request is checked against the server's network. The operator's own
+ * backups (Administrator settings) are trusted and left unflagged. */
+const fallbackConfigs = (list: StoredFallback[], allowCustomUrl: boolean, userSupplied = false): AiConfig[] =>
   list
     .filter((e) => allowCustomUrl || (!e.baseUrl && e.provider !== 'ollama' && e.provider !== 'openai_compatible'))
-    .map((e) => buildConfig(e.provider, e))
+    .map((e) => {
+      const config = buildConfig(e.provider, e);
+      const custom = !!e.baseUrl || e.provider === 'ollama' || e.provider === 'openai_compatible';
+      return config && userSupplied && custom ? { ...config, userSupplied: true } : config;
+    })
     .filter((c): c is AiConfig => c !== null);
 
 /** The server's first provider, then its backups in order. */
@@ -110,7 +119,7 @@ export async function getUserAiChain(userId: string): Promise<AiConfig[]> {
   if (!first) return [];
   const row = await prisma.userAiSettings.findUnique({ where: { userId }, select: { fallbacksEncrypted: true } });
   const backups = openFallbacks(row?.fallbacksEncrypted, env.SESSION_SECRET);
-  return [first, ...fallbackConfigs(backups, env.AI_ALLOW_USER_BASE_URL)];
+  return [first, ...fallbackConfigs(backups, env.AI_ALLOW_USER_BASE_URL, true)];
 }
 
 /** The settings of the member sponsoring this room's AI (see roomAi.ts), or null when there is no
@@ -176,8 +185,21 @@ export async function resolveAiChain(
 async function runChain(configs: AiConfig[], owner: string, req: AiRequest): Promise<AiResponse & { fallback: AiFallbackNotice | null }> {
   let firstFailure: { config: AiConfig; message: string } | null = null;
   const failures: string[] = [];
-  for (const config of configs) {
+  const allowPrivate = (await getEnv()).AI_ALLOW_PRIVATE_BASE_URL;
+  for (const base of configs) {
+    // A person-supplied address must not point inside the server's own network unless the operator
+    // allows it (a LAN or Docker-host Ollama). Resolved fresh for every request, so a name that is
+    // later re-pointed inward is caught. Where private addresses are allowed, the provider's error
+    // text is withheld instead, so a person can't read internal services through a failure message.
+    const config: AiConfig = base.userSupplied && allowPrivate ? { ...base, hideErrorBody: true } : base;
     try {
+      if (config.userSupplied && !allowPrivate) {
+        try {
+          await assertPublicTarget(config.baseUrl);
+        } catch (err) {
+          throw new AiProviderError(err instanceof Error ? err.message : 'That AI address is not allowed', null);
+        }
+      }
       const res = await callProvider(config, req);
       if (!firstFailure) {
         clearLastFallback(owner);

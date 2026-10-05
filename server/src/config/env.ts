@@ -220,6 +220,15 @@ export const envSchema = z.object({
     .string()
     .optional()
     .transform((v) => v === 'true'),
+  // With custom addresses allowed above, may a person's address point at a private, loopback or
+  // link-local address - this machine, the LAN, the Docker host, cloud metadata? Off by default: a
+  // custom address then has to resolve to a public address (checked before every request), which
+  // stops it being used to reach internal services. Turn on only if people legitimately run Ollama on
+  // the LAN or the Docker host; the provider's error text is then withheld from them as well.
+  AI_ALLOW_PRIVATE_BASE_URL: z
+    .string()
+    .optional()
+    .transform((v) => v === 'true'),
 
   // Cloudflare Tunnel (issue #664) - with a token set, the server runs cloudflared itself so the app
   // is reachable through Cloudflare without opening a port. Settable in Administrator settings too.
