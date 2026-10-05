@@ -11,10 +11,11 @@ export async function loadExportExtras(userId: string): Promise<{
   roomsUsingYourAiKey: string[];
   mergedGames: DataExportMergedGame[];
 }> {
-  const [xbox, psn, exophase, ai, rooms, merged] = await Promise.all([
+  const [xbox, psn, exophase, retro, ai, rooms, merged] = await Promise.all([
     prisma.userXboxConnection.findUnique({ where: { userId }, select: { gamertag: true, createdAt: true, lastSyncedAt: true } }),
     prisma.userPsnConnection.findUnique({ where: { userId }, select: { createdAt: true, lastSyncedAt: true, refreshExpiresAt: true } }),
     prisma.userExophaseConnection.findUnique({ where: { userId }, select: { playerId: true, createdAt: true, lastSyncedAt: true } }),
+    prisma.userRetroAchievementsConnection.findUnique({ where: { userId }, select: { username: true, createdAt: true, lastSyncedAt: true } }),
     prisma.userAiSettings.findUnique({ where: { userId }, select: { provider: true, model: true, baseUrl: true, apiKeyEncrypted: true } }),
     prisma.room.findMany({ where: { aiKeyOwnerId: userId }, select: { name: true }, orderBy: { name: 'asc' } }),
     prisma.gameMatchRedirect.findMany({ where: { userId }, select: { fromTitle: true, toTitle: true, createdAt: true }, orderBy: { createdAt: 'asc' } }),
@@ -32,6 +33,8 @@ export async function loadExportExtras(userId: string): Promise<{
     });
   }
   if (exophase) libraryLinks.push({ library: 'exophase', account: exophase.playerId, linkedAt: exophase.createdAt.toISOString(), lastSyncedAt: exophase.lastSyncedAt?.toISOString() ?? null, linkExpiresAt: null });
+
+  if (retro) libraryLinks.push({ library: 'retroachievements', account: retro.username, linkedAt: retro.createdAt.toISOString(), lastSyncedAt: retro.lastSyncedAt?.toISOString() ?? null, linkExpiresAt: null });
 
   return {
     libraryLinks,

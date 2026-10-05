@@ -4,6 +4,7 @@ const h = vi.hoisted(() => ({
   xbox: vi.fn(),
   psn: vi.fn(),
   exophase: vi.fn(),
+  retro: vi.fn(),
   ai: vi.fn(),
   rooms: vi.fn(),
   merged: vi.fn(),
@@ -13,6 +14,7 @@ vi.mock('../db/client.js', () => ({
     userXboxConnection: { findUnique: h.xbox },
     userPsnConnection: { findUnique: h.psn },
     userExophaseConnection: { findUnique: h.exophase },
+    userRetroAchievementsConnection: { findUnique: h.retro },
     userAiSettings: { findUnique: h.ai },
     room: { findMany: h.rooms },
     gameMatchRedirect: { findMany: h.merged },
@@ -28,6 +30,7 @@ beforeEach(() => {
   h.xbox.mockResolvedValue(null);
   h.psn.mockResolvedValue(null);
   h.exophase.mockResolvedValue(null);
+  h.retro.mockResolvedValue(null);
   h.ai.mockResolvedValue(null);
   h.rooms.mockResolvedValue([]);
   h.merged.mockResolvedValue([]);
@@ -49,6 +52,15 @@ describe('loadExportExtras', () => {
       { library: 'exophase', account: '555', linkedAt: '2026-10-05T00:00:00.000Z', lastSyncedAt: null, linkExpiresAt: null },
     ]);
     expect(JSON.stringify(out)).not.toContain('secret');
+  });
+
+  it('lists a linked RetroAchievements account by username, never its key', async () => {
+    h.retro.mockResolvedValue({ username: 'Player', createdAt: at, lastSyncedAt: null, apiKeyEncrypted: 'secret-ra-key' });
+    const out = await loadExportExtras('u1');
+    expect(out.libraryLinks).toEqual([{ library: 'retroachievements', account: 'Player', linkedAt: '2026-10-05T00:00:00.000Z', lastSyncedAt: null, linkExpiresAt: null }]);
+    expect(JSON.stringify(out)).not.toContain('secret');
+    // The key column is never even requested.
+    expect(h.retro.mock.calls[0][0].select.apiKeyEncrypted).toBeUndefined();
   });
 
   it('reports AI settings with only whether a key is saved, and never asks for the key itself', async () => {

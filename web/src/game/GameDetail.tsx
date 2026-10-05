@@ -97,6 +97,7 @@ const SYNC_SOURCE_LOGO: Record<SyncSource, LibraryKind> = {
   xbox: 'xbox',
   exophase: 'exophase',
   psn: 'playstation',
+  retroachievements: 'retroachievements',
 };
 
 const SYNC_SOURCE_KEY: Record<SyncSource, MessageKey> = {
@@ -106,6 +107,7 @@ const SYNC_SOURCE_KEY: Record<SyncSource, MessageKey> = {
   xbox: 'game.detail.syncSource.xbox',
   exophase: 'game.detail.syncSource.exophase',
   psn: 'game.detail.syncSource.psn',
+  retroachievements: 'game.detail.syncSource.retroachievements',
 };
 
 /** Everything about one game - the body of both the desktop right panel and the phone sheet. */

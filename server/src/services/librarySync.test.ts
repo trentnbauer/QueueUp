@@ -13,6 +13,7 @@ const h = vi.hoisted(() => ({
   recordPending: vi.fn(),
   deletePending: vi.fn(),
   notifyError: vi.fn(),
+  recordSuggestion: vi.fn(),
 }));
 
 vi.mock('../db/client.js', () => ({ prisma: { game: { findMany: h.findMany } } }));
@@ -30,6 +31,7 @@ vi.mock('./redisClient.js', () => ({
 }));
 vi.mock('./gameAccess.js', () => ({ invalidateExistingIgdbIds: h.invalidate }));
 vi.mock('./notifications.js', () => ({ notifyLibrarySyncError: h.notifyError }));
+vi.mock('./playniteCompletionSuggestions.js', () => ({ recordPlayniteCompletionSuggestion: h.recordSuggestion }));
 vi.mock('./badges.js', () => ({ unlockBadges: h.unlockBadges }));
 vi.mock('./syncSources.js', () => ({ recordSyncSources: h.recordSyncSources }));
 vi.mock('./userSettings.js', () => ({ unionOwnedPlatforms: h.unionOwnedPlatforms }));
@@ -52,6 +54,7 @@ beforeEach(() => {
   h.findMany.mockResolvedValue([]);
   h.unlockBadges.mockResolvedValue([]);
   h.applyRedirect.mockImplementation(async (_u: string, id: number) => id);
+  h.applyResolved.mockResolvedValue({ id: 'shelf-1', status: 'backlog' });
 });
 
 const finished = (userId: string) => vi.waitFor(async () => expect((await getLibrarySyncProgress('xbox', userId))?.done).toBe(true));
@@ -121,5 +124,24 @@ describe('a sync that breaks part-way', () => {
     await finished('u1');
     await vi.waitFor(() => expect(h.notifyError).toHaveBeenCalledWith('u1', 'Xbox', expect.stringContaining('went wrong')));
     await vi.waitFor(() => expect(h.store.has('library-sync-lock:xbox:u1')).toBe(false));
+  });
+});
+
+describe('a store that says a game is finished', () => {
+  it('suggests marking it Beaten, and only for the finished ones', async () => {
+    h.resolveTitle.mockImplementation(async (_s: string, title: string) => ({ Tetris: 1, Metroid: 2 })[title] ?? null);
+    h.applyResolved.mockImplementation(async (_u: string, igdbId: number) => ({ id: `shelf-${igdbId}`, status: 'backlog' }));
+    await startLibrarySync('u1', XBOX, [{ title: 'Tetris', platforms: ['gb'], isCompleted: true }, { title: 'Metroid', platforms: ['nes'] }], logger);
+    await finished('u1');
+    expect(h.recordSuggestion).toHaveBeenCalledTimes(1);
+    expect(h.recordSuggestion).toHaveBeenCalledWith('u1', 'shelf-1', 'backlog');
+  });
+
+  it('still counts the game as matched when the suggestion cannot be written', async () => {
+    h.resolveTitle.mockResolvedValue(1);
+    h.recordSuggestion.mockRejectedValue(new Error('db hiccup'));
+    await startLibrarySync('u1', XBOX, [{ title: 'Tetris', platforms: ['gb'], isCompleted: true }], logger);
+    await finished('u1');
+    expect(await getLibrarySyncProgress('xbox', 'u1')).toMatchObject({ matched: 1, errored: 0, done: true });
   });
 });

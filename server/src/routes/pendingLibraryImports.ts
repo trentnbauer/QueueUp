@@ -91,7 +91,7 @@ export default async function pendingLibraryImportRoutes(app: FastifyInstance) {
         await createGameForUser(userId, null, igdbId, { status: 'backlog', ownedPlatforms: pending.platforms });
       }
 
-      if (pending.source === 'playnite' || pending.source === 'xbox' || pending.source === 'exophase' || pending.source === 'psn') await recordSyncSources(userId, [igdbId], pending.source);
+      if (pending.source === 'playnite' || pending.source === 'xbox' || pending.source === 'exophase' || pending.source === 'psn' || pending.source === 'retroachievements') await recordSyncSources(userId, [igdbId], pending.source);
       await recordTitleMatchAlias(userAliasSource(pending.source, userId), pending.title, igdbId);
       await recordTitleMatchSuggestion(pending.source, pending.title, igdbId, userId);
       await deletePendingLibraryImport(userId, id);

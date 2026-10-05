@@ -11,6 +11,7 @@ import { recordSyncSources } from './syncSources.js';
 import { unionOwnedPlatforms } from './userSettings.js';
 import { applyResolvedIgdbEntry, type ResolvedShelfGame } from './libraryImportShelf.js';
 import { applyMatchRedirect } from './matchRedirects.js';
+import { recordPlayniteCompletionSuggestion } from './playniteCompletionSuggestions.js';
 import { deletePendingLibraryImportByTitle, recordPendingLibraryImport, resolveTitleToIgdbId } from './playniteImport.js';
 
 /** Runs a native library sync (Xbox now, PlayStation next) for one person: takes the entries a
@@ -107,7 +108,17 @@ async function runLibrarySync(
           unmatched++;
           return;
         }
-        await applyResolvedIgdbEntry(userId, igdbId, entry, existingByIgdbId);
+        const shelfGame = await applyResolvedIgdbEntry(userId, igdbId, entry, existingByIgdbId);
+        // A store that says the game is finished (RetroAchievements beaten/mastered) becomes a
+        // suggestion to mark it Beaten, never an automatic change. Best effort: it must not turn a
+        // matched game into an errored one.
+        if (entry.isCompleted) {
+          try {
+            await recordPlayniteCompletionSuggestion(userId, shelfGame.id, shelfGame.status);
+          } catch (feedErr) {
+            logger.warn({ err: feedErr, title: entry.title }, `${src.source} completion suggestion failed`);
+          }
+        }
         for (const platform of entry.platforms) {
           const key = PLATFORM_SYNC_BADGE_KEY[platform];
           if (key) touchedPlatformFamilies.add(key);

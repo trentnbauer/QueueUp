@@ -301,6 +301,7 @@ model User {
   xboxConnection                UserXboxConnection?
   exophaseConnection            UserExophaseConnection?
   psnConnection                 UserPsnConnection?
+  retroAchievementsConnection   UserRetroAchievementsConnection?
   feedReactions                 FeedReaction[]
   notificationPreferences       NotificationPreference[]
   emailChangeRequest            EmailChangeRequest?
@@ -455,6 +456,25 @@ model TitleMatchSuggestion {
   @@id([source, normalizedTitle, igdbId, userId])
   @@index([source, normalizedTitle])
   @@map("title_match_suggestions")
+}
+
+/// A person's linked RetroAchievements account for the RetroAchievements library sync (see
+/// services/retroachievements/). RetroAchievements has no login flow for other apps: the person
+/// gives their username and their personal web API key (from their RetroAchievements settings).
+/// The key is a credential, so it is encrypted at rest (AES-256-GCM, key derived from
+/// SESSION_SECRET, see settingsCrypto.ts) and never sent to the client; the username is not secret.
+/// A backup restored onto a server with a different SESSION_SECRET leaves the key unreadable until
+/// they enter it again.
+model UserRetroAchievementsConnection {
+  userId       String    @id @map("user_id")
+  username     String
+  apiKeyEncrypted String @map("api_key_encrypted")
+  createdAt    DateTime  @default(now()) @map("created_at")
+  lastSyncedAt DateTime? @map("last_synced_at")
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("user_retroachievements_connections")
 }
 
 /// A person's linked PlayStation account for the native PlayStation library sync (see

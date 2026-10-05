@@ -4,6 +4,7 @@ import type { LibrarySyncProgress } from '@queueup/shared';
 import { exophaseApi, EXOPHASE_STATUS_QUERY_KEY } from '../api/exophase';
 import { PENDING_IMPORTS_QUERY_KEY } from '../api/pendingImports';
 import { psnApi, PSN_STATUS_QUERY_KEY } from '../api/psn';
+import { retroAchievementsApi, RETROACHIEVEMENTS_STATUS_QUERY_KEY } from '../api/retroachievements';
 import { xboxApi, XBOX_STATUS_QUERY_KEY } from '../api/xbox';
 import { useAuth } from '../context/AuthContext';
 import { useSteamImportContext } from '../context/SteamImportContext';
@@ -50,6 +51,7 @@ export function useSyncSources() {
   const xbox = useQuery({ queryKey: XBOX_STATUS_QUERY_KEY, queryFn: xboxApi.status });
   const exophase = useQuery({ queryKey: EXOPHASE_STATUS_QUERY_KEY, queryFn: exophaseApi.status });
   const psn = useQuery({ queryKey: PSN_STATUS_QUERY_KEY, queryFn: psnApi.status });
+  const retro = useQuery({ queryKey: RETROACHIEVEMENTS_STATUS_QUERY_KEY, queryFn: retroAchievementsApi.status });
 
   const noAchievements = async () => undefined;
   const sources: SyncSource[] = [
@@ -63,6 +65,7 @@ export function useSyncSources() {
     },
     { id: 'psn', label: 'PlayStation', linked: !!psn.data?.connected, syncLibrary: () => runNativeSync(psnApi.sync, psnApi.progress), hasAchievements: false, syncAchievements: noAchievements },
     { id: 'xbox', label: 'Xbox', linked: !!xbox.data?.connected, syncLibrary: () => runNativeSync(xboxApi.sync, xboxApi.progress), hasAchievements: false, syncAchievements: noAchievements },
+    { id: 'retroachievements', label: 'RetroAchievements', linked: !!retro.data?.connected, syncLibrary: () => runNativeSync(retroAchievementsApi.sync, retroAchievementsApi.progress), hasAchievements: false, syncAchievements: noAchievements },
     { id: 'exophase', label: 'Exophase', linked: !!exophase.data?.connected, syncLibrary: () => runNativeSync(exophaseApi.sync, exophaseApi.progress), hasAchievements: false, syncAchievements: noAchievements },
   ];
   const linked = sources.filter((s) => s.linked);
@@ -95,6 +98,8 @@ export function useSyncSources() {
         void queryClient.invalidateQueries({ queryKey: XBOX_STATUS_QUERY_KEY });
         void queryClient.invalidateQueries({ queryKey: EXOPHASE_STATUS_QUERY_KEY });
         void queryClient.invalidateQueries({ queryKey: PSN_STATUS_QUERY_KEY });
+        void queryClient.invalidateQueries({ queryKey: RETROACHIEVEMENTS_STATUS_QUERY_KEY });
+        void queryClient.invalidateQueries({ queryKey: ['games', 'completion-suggestions'] });
         void queryClient.invalidateQueries({ queryKey: ['notifications'] });
       }
       return failed;

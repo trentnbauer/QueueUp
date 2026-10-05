@@ -11,6 +11,7 @@ export const game = {
   "game.detail.syncSource.xbox": "Xbox",
   "game.detail.syncSource.exophase": "Exophase",
   "game.detail.syncSource.psn": "PlayStation",
+  "game.detail.syncSource.retroachievements": "RetroAchievements",
   "game.detail.ttb.rushed": "{hours}h rushed",
   "game.detail.ttb.main": "{hours}h main",
   "game.detail.ttb.completionist": "{hours}h completionist",
