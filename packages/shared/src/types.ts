@@ -2351,6 +2351,9 @@ export interface PublicUserProfile {
   beatenGames: PublicProfileBeatenGame[];
   /** When the account was created (ISO). */
   memberSince: string;
+  /** The person's Year in Review story (issue #826), only when they chose to share it on their
+   * profile and have not hidden it. `edited` false means the AI's own wording (shown with an AI flag). */
+  yearStory: { text: string; edited: boolean } | null;
   /** The Personal Shelf's Wishlist (hidden games excluded), highest-voted first. */
   wishlist: PublicProfileGame[];
   /** Up to 10 of the Personal Shelf's Play Next list, topped up with its highest-voted backlog games. */
@@ -2620,6 +2623,55 @@ export interface AiClassifyPendingResponse {
 /** Body for POST /api/library/pending-imports/dismiss-many. */
 export interface DismissPendingLibraryImportsRequest {
   ids: string[];
+}
+
+/** The computed numbers and titles a Year in Review story is written from (issue #826). Only these
+ * go to the AI: never notes, reviews' text or journal entries. The server clamps every field. */
+export interface YearStoryFacts {
+  windowStart: string;
+  windowEnd: string;
+  finishedCount: number;
+  /** Total of the finished games' time to beat, null when unknown. */
+  estimatedHours: number | null;
+  finishedTitles: string[];
+  topGenres: { genre: string; count: number }[];
+  /** The longest games finished (personal story). */
+  longestGames: { title: string; hours: number }[];
+  /** Most-voted games. */
+  mostVoted: string[];
+  /** Rooms the person finished games in, with the titles (personal story). Names of people are never included. */
+  rooms: { name: string; games: string[] }[];
+  /** Rarest achievements earned (personal story). */
+  rarestAchievements: { game: string; name: string }[];
+  /** People in the room (room story). */
+  memberCount: number | null;
+}
+
+/** Body for POST /api/me/year-story/generate and /api/rooms/:id/year-story/generate. */
+export interface GenerateYearStoryRequest {
+  facts: YearStoryFacts;
+}
+
+/** A saved Year in Review story. The text may have been edited by the person; it is always shown with the AI flag unless edited. */
+export interface YearStoryDto {
+  text: string;
+  /** The person changed the AI's wording, so it is no longer shown as AI-written. */
+  edited: boolean;
+  hidden: boolean;
+  /** Personal story only: shown on the public profile. */
+  sharedOnProfile: boolean;
+  generatedAt: string;
+  updatedAt: string;
+  /** Room story: the person may edit, hide or delete it (the Room Master, a Moderator, or whoever generated it). */
+  canManage: boolean;
+}
+
+/** Body for PUT /api/me/year-story and /api/rooms/:id/year-story. */
+export interface UpdateYearStoryRequest {
+  text?: string;
+  hidden?: boolean;
+  /** Personal story only. */
+  sharedOnProfile?: boolean;
 }
 
 /** What a plain-language search was understood as (issue #823): the app's own filters plus a text
