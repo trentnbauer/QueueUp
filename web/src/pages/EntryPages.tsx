@@ -425,7 +425,7 @@ const BADGE_STRIP_LIMIT = 12;
 
 /** The person's unlocked achievements as a row of badges under their name, rarest first. Hover (or
  * long-press) a badge for what it is and how rare it is; the full list is the Achievements tile. */
-function BadgeStrip({ badges, onOpenAll }: { badges: BadgeSummary[]; onOpenAll: () => void }) {
+function BadgeStrip({ badges, onOpen, onOpenAll }: { badges: BadgeSummary[]; onOpen: (badge: BadgeSummary) => void; onOpenAll: () => void }) {
   const t = useT();
   const sorted = [...badges].sort((a, b) => a.rarityPercent - b.rarityPercent || (b.unlockedAt ?? '').localeCompare(a.unlockedAt ?? ''));
   const shown = sorted.slice(0, BADGE_STRIP_LIMIT);
@@ -438,7 +438,7 @@ function BadgeStrip({ badges, onOpenAll }: { badges: BadgeSummary[]; onOpenAll: 
           key={b.key}
           type="button"
           role="listitem"
-          onClick={onOpenAll}
+          onClick={() => onOpen(b)}
           title={`${b.description} (${b.rarityPercent}% ${t('pages.profile.ofPlayers')})`}
           style={st(chip)}
         >
@@ -455,6 +455,40 @@ function BadgeStrip({ badges, onOpenAll }: { badges: BadgeSummary[]; onOpenAll: 
   );
 }
 
+/** One achievement from a profile: what it is, how rare, and when this person unlocked it. */
+function BadgeDetailDialog({ badge, ownerName, onClose, onSeeAll }: { badge: BadgeSummary; ownerName: string; onClose: () => void; onSeeAll: () => void }) {
+  const t = useT();
+  const unlocked = badge.unlockedAt ? new Date(badge.unlockedAt).toLocaleDateString(undefined, { day: 'numeric', month: 'long', year: 'numeric' }) : null;
+  return (
+    <Dialog title={badge.name} onClose={onClose} width={440}>
+      <div style={st('display:flex;flex-direction:column;align-items:center;gap:14px;padding:6px 0 4px;text-align:center')}>
+        <span style={st('display:flex;align-items:center;justify-content:center;width:96px;height:96px;border-radius:50%;background:var(--surf);font-size:52px;line-height:1')}>{badge.emoji}</span>
+        <span style={st('font:400 15px/1.45 var(--font-ui);color:var(--text2);text-wrap:balance')}>{badge.description}</span>
+        <div style={st('width:100%;display:flex;flex-direction:column;gap:8px;padding:14px;border-radius:16px;background:var(--surf)')}>
+          <div style={st('display:flex;align-items:baseline;justify-content:space-between;gap:10px')}>
+            <span style={st('font:600 13px var(--font-ui);color:var(--muted)')}>{t('pages.profile.badge.rarity')}</span>
+            <span style={st('font:700 18px var(--font-display);color:var(--accText)')}>
+              {badge.rarityPercent}% <span style={st('font:400 12px var(--font-ui);color:var(--muted)')}>{t('pages.profile.ofPlayers')}</span>
+            </span>
+          </div>
+          <div style={st('height:8px;border-radius:999px;background:var(--chip);overflow:hidden')} aria-hidden>
+            <div style={st(`height:100%;width:${Math.max(2, Math.min(100, badge.rarityPercent))}%;border-radius:999px;background:var(--acc)`)} />
+          </div>
+          {unlocked && (
+            <div style={st('display:flex;justify-content:space-between;gap:10px;padding-top:4px;font:400 13px var(--font-ui)')}>
+              <span style={st('color:var(--muted)')}>{t('pages.profile.badge.unlocked', { name: ownerName })}</span>
+              <span style={st('font-weight:600')}>{unlocked}</span>
+            </div>
+          )}
+        </div>
+        <Btn kind="ghost" height={36} padX={16} onClick={onSeeAll}>
+          {t('pages.profile.badge.seeAll')}
+        </Btn>
+      </div>
+    </Dialog>
+  );
+}
+
 function ProfileFriendAction({ profile }: { profile: PublicUserProfile }) {
   const friends = useFriends();
   const ui = useUi();
@@ -467,6 +501,7 @@ export function PublicProfilePage({ userId, signedIn }: { userId: string; signed
   const [profile, setProfile] = useState<PublicUserProfile | null>(null);
   const [state, setState] = useState<'loading' | 'ok' | 'missing'>('loading');
   const [modal, setModal] = useState<'achievements' | 'library' | 'bothOwn' | null>(null);
+  const [openBadge, setOpenBadge] = useState<BadgeSummary | null>(null);
   const mobile = useIsMobile();
   const [openGame, setOpenGame] = useState<PublicProfileBeatenGame | null>(null);
   const [cardGame, setCardGame] = useState<PublicProfileGame | null>(null);
@@ -549,7 +584,7 @@ export function PublicProfilePage({ userId, signedIn }: { userId: string; signed
                 {tile(profile.badges.length, t('pages.profile.tile.achievements'), () => setModal('achievements'), '›')}
               </div>
             </div>
-            {profile.badges.length > 0 && <BadgeStrip badges={profile.badges} onOpenAll={() => setModal('achievements')} />}
+            {profile.badges.length > 0 && <BadgeStrip badges={profile.badges} onOpen={setOpenBadge} onOpenAll={() => setModal('achievements')} />}
             </>
           )}
         </div>
@@ -720,6 +755,17 @@ export function PublicProfilePage({ userId, signedIn }: { userId: string; signed
             </div>
           )}
         </Dialog>
+      )}
+      {openBadge && profile && (
+        <BadgeDetailDialog
+          badge={openBadge}
+          ownerName={profile.displayName}
+          onClose={() => setOpenBadge(null)}
+          onSeeAll={() => {
+            setOpenBadge(null);
+            setModal('achievements');
+          }}
+        />
       )}
       {modal === 'achievements' && profile && (
         <Dialog title={t('pages.profile.achievements')} onClose={() => setModal(null)} width={560}>
