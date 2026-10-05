@@ -51,6 +51,17 @@ export async function recordStatusTransition(
     return [];
   }
 
+  if ((previousStatus === 'playing' || previousStatus === 'paused') && (newStatus === 'backlog' || newStatus === 'play_next' || newStatus === 'wishlist')) {
+    // Put back in the queue: the playthrough was abandoned, not finished. Left open, the next
+    // Playing would reuse this entry (the "no open entry" check above), so a game re-started
+    // months later would carry the old start time - skewing time-to-beat and wrongly tripping
+    // Marathoner. Deleted rather than closed: a closed entry would count as a finished playthrough
+    // in the time-to-beat stats. Paused is exempt as a *target* (it keeps its entry on purpose);
+    // Dropped and Won't Play already close below.
+    await prisma.playLog.deleteMany({ where: { gameId, finishedAt: null } });
+    return [];
+  }
+
   if (newStatus === 'done' || newStatus === 'dropped' || newStatus === 'wont_play') {
     // Read the open entries before closing them (rather than relying on updateMany's count) so
     // the caller can see what got closed - same self-healing intent as before (every open entry
