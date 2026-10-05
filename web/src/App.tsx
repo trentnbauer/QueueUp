@@ -31,7 +31,6 @@ const AchievementsPage = lazy(() => import('./pages/InsightPages').then((m) => (
 const InsightsPage = lazy(() => import('./pages/InsightPages').then((m) => ({ default: m.InsightsPage })));
 const YearPage = lazy(() => import('./pages/InsightPages').then((m) => ({ default: m.YearPage })));
 
-const ONBOARDED_KEY = 'sq-onboarded';
 // Invite links (`/join/:inviteCode`) need to survive a full-page OAuth sign-in/callback round trip,
 // which drops the URL back at APP_BASE_URL with no way to carry a query param through the redirect.
 // Stashing the code in sessionStorage lets us pick it back up and finish the join automatically once
@@ -87,7 +86,7 @@ function FriendRedirect() {
 }
 
 export default function App() {
-  const { user, loading } = useAuth();
+  const { user, loading, onboardingPending, completeOnboarding } = useAuth();
   const location = useLocation();
   const navigate = useNavigate();
   const ui = useUi();
@@ -123,13 +122,10 @@ export default function App() {
       });
   }, [user]);
 
+  // Tracked on the account (not per browser), so signing in on a new device doesn't repeat it.
   useEffect(() => {
-    try {
-      if (user && !localStorage.getItem(ONBOARDED_KEY)) setShowOnboarding(true);
-    } catch {
-      /* storage unavailable: skip onboarding */
-    }
-  }, [user]);
+    if (user && onboardingPending) setShowOnboarding(true);
+  }, [user, onboardingPending]);
 
   useEffect(() => onRerunOnboarding(() => setShowOnboarding(true)), []);
 
@@ -176,11 +172,7 @@ export default function App() {
   }, [user, location.pathname]);
 
   function finishOnboarding() {
-    try {
-      localStorage.setItem(ONBOARDED_KEY, 'true');
-    } catch {
-      /* ignore */
-    }
+    completeOnboarding();
     setShowOnboarding(false);
   }
 

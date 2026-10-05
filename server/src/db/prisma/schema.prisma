@@ -257,6 +257,10 @@ model User {
   /// opt-in; existing rows keep whatever they had). Turning it off makes GET /api/public/users/:id
   /// 404 again, and hidden games are never shown either way.
   publicProfileEnabled Boolean        @default(true) @map("public_profile_enabled")
+  /// True from account creation until the person finishes (or skips) the welcome walkthrough, so it
+  /// shows once per account rather than once per browser. Defaults to false so accounts that
+  /// predate this column are not walked through it again.
+  onboardingPending    Boolean        @default(false) @map("onboarding_pending")
   /// Who can open this person's `/u/:id` profile page: anyone (public), only friends (friends), or
   /// only themselves (private). Replaces publicProfileEnabled above, which is kept in sync (true
   /// only when public) but no longer read; runDataMigrations copied each existing on/off choice
