@@ -206,6 +206,7 @@ export const pages: Record<keyof typeof en, string> = {
   "pages.admin.field.igdbId": "IGDB Client ID",
   "pages.admin.field.igdbSecret": "IGDB Client Secret",
   "pages.admin.field.scandex": "ScanDex API key (barcode scan)",
+  "pages.admin.field.xbox": "Xbox (Microsoft) app client ID (Xbox library sync)",
   "pages.admin.field.turnstileSite": "Turnstile site key (boardin’ captcha)",
   "pages.admin.field.turnstileSecret": "Turnstile secret key (boardin’ captcha)",
   "pages.admin.field.ga": "Google Analytics measurement ID (G-XXXXXXXXXX)",
