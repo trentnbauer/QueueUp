@@ -1851,6 +1851,40 @@ export interface DataExport {
   gamesAdded: DataExportGame[];
   votesCast: DataExportVote[];
   roomMemberships: DataExportRoomMembership[];
+  /** Libraries linked for sync (Xbox, PlayStation, Exophase). Never carries a login or token. */
+  libraryLinks: DataExportLibraryLink[];
+  /** The caller's own AI provider settings, or null. Never carries the API key, only whether one is saved. */
+  aiSettings: DataExportAiSettings | null;
+  /** Rooms currently using the caller's AI key (the caller is their AI sponsor). */
+  roomsUsingYourAiKey: string[];
+  /** Games the caller merged into another, which later imports follow. */
+  mergedGames: DataExportMergedGame[];
+}
+
+/** A linked library in the "Download my data" export. Logins and tokens are never included. */
+export interface DataExportLibraryLink {
+  library: 'xbox' | 'playstation' | 'exophase';
+  /** The gamertag (Xbox) or player id (Exophase) the link is for; null for PlayStation. */
+  account: string | null;
+  linkedAt: string;
+  lastSyncedAt: string | null;
+  /** When Sony stops accepting the saved PlayStation login; null for the others and when unknown. */
+  linkExpiresAt: string | null;
+}
+
+/** The caller's own AI settings in the export: the key itself is never included. */
+export interface DataExportAiSettings {
+  provider: string;
+  model: string | null;
+  baseUrl: string | null;
+  hasApiKey: boolean;
+}
+
+/** A game the caller merged into another, in the export. */
+export interface DataExportMergedGame {
+  fromTitle: string;
+  toTitle: string;
+  mergedAt: string;
 }
 
 /** A personal access token for the read/write API (issue #435) - see server's ApiKey model.

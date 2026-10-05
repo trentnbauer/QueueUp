@@ -70,6 +70,9 @@ export function PrivacyPage({ signedIn }: { signedIn: boolean }) {
               'pages.privacy.collect.library',
               'pages.privacy.collect.social',
               'pages.privacy.collect.imports',
+              'pages.privacy.collect.libraries',
+              'pages.privacy.collect.ai',
+              'pages.privacy.collect.merges',
               'pages.privacy.collect.session',
               'pages.privacy.collect.email',
               'pages.privacy.collect.logs',
@@ -82,7 +85,7 @@ export function PrivacyPage({ signedIn }: { signedIn: boolean }) {
           <p style={st(P)}>
             <b>{t('pages.privacy.encryption.protected')}</b>
           </p>
-          <List items={items('pages.privacy.encryption.credentials', 'pages.privacy.encryption.apiKeys', 'pages.privacy.encryption.cookie')} />
+          <List items={items('pages.privacy.encryption.credentials', 'pages.privacy.encryption.logins', 'pages.privacy.encryption.apiKeys', 'pages.privacy.encryption.cookie')} />
           <p style={st(P)}>
             <b>{t('pages.privacy.encryption.notProtected')}</b>
           </p>
@@ -90,6 +93,7 @@ export function PrivacyPage({ signedIn }: { signedIn: boolean }) {
             items={items(
               'pages.privacy.encryption.everythingElse',
               'pages.privacy.encryption.webhook',
+              'pages.privacy.encryption.exophase',
               'pages.privacy.encryption.sessions',
               'pages.privacy.encryption.alertEmails',
               'pages.privacy.encryption.transit',
@@ -98,7 +102,7 @@ export function PrivacyPage({ signedIn }: { signedIn: boolean }) {
         </Section>
 
         <Section title={t('pages.privacy.visibility.title')}>
-          <List items={items('pages.privacy.visibility.others', 'pages.privacy.visibility.operator')} />
+          <List items={items('pages.privacy.visibility.others', 'pages.privacy.visibility.ai', 'pages.privacy.visibility.operator')} />
         </Section>
 
         <Section title={t('pages.privacy.services.title')}>
@@ -107,6 +111,8 @@ export function PrivacyPage({ signedIn }: { signedIn: boolean }) {
             items={items(
               'pages.privacy.services.signIn',
               'pages.privacy.services.data',
+              'pages.privacy.services.libraries',
+              'pages.privacy.services.ai',
               'pages.privacy.services.discord',
               'pages.privacy.services.email',
               'pages.privacy.services.other',
