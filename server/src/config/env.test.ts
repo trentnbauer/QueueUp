@@ -128,8 +128,8 @@ describe('envSchema', () => {
     // `true` would make Fastify take the leftmost (client-written) X-Forwarded-For entry as the
     // client IP, letting anyone dodge per-IP rate limits by sending a fake one.
     it.each([
-      [undefined, 1],
-      ['true', 1],
+      [undefined, ['loopback', 'linklocal', 'uniquelocal']],
+      ['true', ['loopback', 'linklocal', 'uniquelocal']],
       ['false', false],
       ['2', 2],
       ['10.0.0.0/8', '10.0.0.0/8'],
@@ -137,7 +137,7 @@ describe('envSchema', () => {
       const result = envSchema.safeParse(baseProcessEnv(input === undefined ? {} : { TRUST_PROXY: input }));
       expect(result.success).toBe(true);
       if (!result.success) return;
-      expect(result.data.TRUST_PROXY).toBe(expected);
+      expect(result.data.TRUST_PROXY).toEqual(expected);
     });
   });
 

@@ -42,22 +42,26 @@ export const envSchema = z.object({
   // Controls Fastify's `trustProxy` option, which governs how `request.ip`/`request.protocol`
   // are derived from X-Forwarded-For/X-Forwarded-Proto. Most deployments run behind a reverse
   // proxy (Cloudflare Tunnel, NGINX Proxy Manager, ...) that terminates TLS and forwards plain
-  // HTTP to this container, so this defaults to "true" - trust the immediate hop unconditionally.
-  // Set to "false" if the app is reachable directly with no proxy in front of it (those headers
-  // would otherwise be spoofable by any client). Also accepts a hop count (number) or a specific
-  // proxy IP/CIDR (or comma-separated list), passed straight through to Fastify for tighter setups.
+  // HTTP to this container, so this defaults to "true" - trust a proxy on a private, loopback or
+  // link-local address (see the transform below). Set to "false" if the app is reachable directly
+  // with no proxy in front of it (those headers would otherwise be spoofable by any client). Also
+  // accepts a hop count (number) or a specific proxy IP/CIDR (or comma-separated list), passed
+  // straight through to Fastify, for a proxy on a public address or tighter setups.
   TRUST_PROXY: z
     .string()
     .optional()
     .default('true')
-    .transform((v): boolean | number | string => {
-      // "true" means the one proxy directly in front of this container, i.e. a hop count of 1 - not
-      // Fastify's own `true`, which trusts every hop and so takes the client IP from the leftmost
-      // X-Forwarded-For entry. A client writes that entry itself, so with `true` anyone could send a
-      // fresh fake IP per request and slip every per-IP rate limit (invite-code and friend-code
-      // guessing, sign-in). Behind two proxies (e.g. Cloudflare in front of NGINX Proxy Manager),
-      // set 2.
-      if (v === 'true') return 1;
+    .transform((v): boolean | number | string | string[] => {
+      // "true" trusts X-Forwarded-For only from a proxy on a private, loopback or link-local address
+      // - the built-in Cloudflare Tunnel, a proxy on the same machine, in the same Docker network or
+      // on the LAN - and takes the client IP as the first address in the chain that isn't one of
+      // those. Not Fastify's own `true` (trusts every hop, so the leftmost entry - written by the
+      // client - becomes the IP), and not a plain hop count either: with the port reachable from
+      // outside, a direct client's peer address is public and so never trusted, which means it can't
+      // pick its own IP by sending a fake header and slip the per-IP rate limits (invite-code and
+      // friend-code guessing, sign-in). A proxy on a public address (a remote VPS, say) needs an
+      // explicit hop count or its IP/CIDR instead; behind two private proxies it still works.
+      if (v === 'true') return ['loopback', 'linklocal', 'uniquelocal'];
       if (v === 'false') return false;
       const n = Number(v);
       return Number.isNaN(n) || v.trim() === '' ? v : n;

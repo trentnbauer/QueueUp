@@ -68,7 +68,7 @@ export async function buildApp() {
     logController: new LogController({ disableRequestLogging: !env.LOG_REQUESTS }),
     // A numeric TRUST_PROXY (hop count) is still valid at runtime, but newer Fastify typings
     // no longer list `number` in this overload, hence the cast.
-    trustProxy: env.TRUST_PROXY as boolean | string,
+    trustProxy: env.TRUST_PROXY as boolean | string | string[],
   });
 
   // new URL(...).origin, not the raw env.APP_BASE_URL string (issue #438 drive-by fix) - the
