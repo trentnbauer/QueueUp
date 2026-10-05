@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
 import { Link, useNavigate } from 'react-router';
-import { REVIEW_CATEGORIES, type PublicProfileBeatenGame, type PublicProfileGame, type PublicUserProfile } from '@queueup/shared';
+import { REVIEW_CATEGORIES, type BadgeSummary, type PublicProfileBeatenGame, type PublicProfileGame, type PublicUserProfile } from '@queueup/shared';
 import { apiGet } from '../api/client';
 import { authApi } from '../api/auth';
 import { gamesApi } from '../api/games';
@@ -420,6 +420,41 @@ function ProfileGameDialog({
 }
 
 /** Add-friend control in the profile header, for a signed-in viewer who isn't this person's friend yet. */
+/** Most badges shown along the top before the rest fold into a "+N more" chip. */
+const BADGE_STRIP_LIMIT = 12;
+
+/** The person's unlocked achievements as a row of badges under their name, rarest first. Hover (or
+ * long-press) a badge for what it is and how rare it is; the full list is the Achievements tile. */
+function BadgeStrip({ badges, onOpenAll }: { badges: BadgeSummary[]; onOpenAll: () => void }) {
+  const t = useT();
+  const sorted = [...badges].sort((a, b) => a.rarityPercent - b.rarityPercent || (b.unlockedAt ?? '').localeCompare(a.unlockedAt ?? ''));
+  const shown = sorted.slice(0, BADGE_STRIP_LIMIT);
+  const more = sorted.length - shown.length;
+  const chip = 'display:flex;align-items:center;gap:7px;height:34px;padding:0 13px 0 10px;border-radius:999px;border:none;background:var(--surf);color:var(--text);font:600 13px var(--font-ui);white-space:nowrap';
+  return (
+    <div role="list" aria-label={t('pages.profile.achievements')} style={st('display:flex;flex-wrap:wrap;gap:8px;padding:0 0 30px')}>
+      {shown.map((b) => (
+        <button
+          key={b.key}
+          type="button"
+          role="listitem"
+          onClick={onOpenAll}
+          title={`${b.description} (${b.rarityPercent}% ${t('pages.profile.ofPlayers')})`}
+          style={st(chip)}
+        >
+          <span style={st('font-size:18px;line-height:1')}>{b.emoji}</span>
+          {b.name}
+        </button>
+      ))}
+      {more > 0 && (
+        <button type="button" role="listitem" onClick={onOpenAll} style={st(`${chip};color:var(--accText);padding:0 14px`)}>
+          {t('pages.profile.moreBadges', { n: more })}
+        </button>
+      )}
+    </div>
+  );
+}
+
 function ProfileFriendAction({ profile }: { profile: PublicUserProfile }) {
   const friends = useFriends();
   const ui = useUi();
@@ -485,7 +520,8 @@ export function PublicProfilePage({ userId, signedIn }: { userId: string; signed
             </Link>
           </div>
           {state === 'ok' && profile && (
-            <div style={st('display:flex;flex-wrap:wrap;align-items:flex-end;gap:24px 40px;padding:30px 0 34px')}>
+            <>
+            <div style={st(`display:flex;flex-wrap:wrap;align-items:flex-end;gap:24px 40px;padding:30px 0 ${profile.badges.length > 0 ? 18 : 34}px`)}>
               <div style={st('flex:1 1 360px;display:flex;align-items:center;gap:22px;min-width:0')}>
                 <Avatar name={profile.displayName} color={profile.avatarColor} avatarUrl={profile.avatarUrl} size={104} fontSize={42} style={{ boxShadow: '0 0 0 5px var(--bg)' }} />
                 <span style={st('display:flex;flex-direction:column;gap:6px;min-width:0')}>
@@ -513,6 +549,8 @@ export function PublicProfilePage({ userId, signedIn }: { userId: string; signed
                 {tile(profile.badges.length, t('pages.profile.tile.achievements'), () => setModal('achievements'), '›')}
               </div>
             </div>
+            {profile.badges.length > 0 && <BadgeStrip badges={profile.badges} onOpenAll={() => setModal('achievements')} />}
+            </>
           )}
         </div>
       </div>

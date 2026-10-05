@@ -70,6 +70,7 @@ export const pages = {
   "pages.profile.achievements": "Achievements",
   "pages.profile.noAchievements": "No achievements unlocked yet.",
   "pages.profile.ofPlayers": "of players",
+  "pages.profile.moreBadges": "+{n} more",
   "pages.profile.bothOwnTitle": "You both own · {n}",
   "pages.profile.bothOwnHint": "You and {name} can play these together.",
   "pages.profile.libraryTitle": "Library · {n}",
