@@ -173,7 +173,7 @@ export const settings = {
   "settings.exophase.title": "Sync Exophase",
   "settings.exophase.step1Title": "Have your libraries on Exophase",
   "settings.exophase.step1Body": "Exophase gathers your PlayStation, Xbox, Steam, Epic, GOG and other libraries. Sign up and connect your accounts there, and make sure your profile is public.",
-  "settings.exophase.step1Link": "Open Exophase",
+  "settings.exophase.step1Link": "Add your libraries on Exophase",
   "settings.exophase.step2Title": "Find your profile",
   "settings.exophase.step2Body": "Open your profile on Exophase and copy its address from the browser bar, or just type your profile name.",
   "settings.exophase.step3Title": "Link it here",
