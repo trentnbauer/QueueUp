@@ -9,6 +9,7 @@ import { roomSpinApi } from '../api/rooms';
 import { AddGameDialog } from '../dialogs/AddGameDialog';
 import { DeckDialog } from '../dialogs/DeckDialog';
 import { CompletionsDialog, ImportDialog, NeedsReviewDialog, PlayniteDialog } from '../dialogs/ImportDialogs';
+import { DuplicatesDialog } from '../dialogs/DuplicatesDialog';
 import { XboxDialog } from '../dialogs/XboxDialog';
 import { ExophaseDialog } from '../dialogs/ExophaseDialog';
 import { PsnDialog } from '../dialogs/PsnDialog';
@@ -133,6 +134,7 @@ export function Overlays() {
       {d.ranked && <RankedDialog />}
       {d.deck && <DeckDialog />}
       {d.needsReview && <NeedsReviewDialog />}
+      {d.duplicates && <DuplicatesDialog />}
       {d.playtime && <PlaytimeDialog />}
       {d.completions && <CompletionsDialog />}
       {d.playnite && <PlayniteDialog />}

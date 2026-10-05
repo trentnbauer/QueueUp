@@ -306,6 +306,7 @@ model User {
   titleMatchSuggestions         TitleMatchSuggestion[]
   aiSettings                    UserAiSettings?
   gameMatchRedirects            GameMatchRedirect[]
+  duplicateDismissals           DuplicateDismissal[]
   xboxConnection                UserXboxConnection?
   exophaseConnection            UserExophaseConnection?
   psnConnection                 UserPsnConnection?
@@ -554,6 +555,21 @@ model UserAiSettings {
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@map("user_ai_settings")
+}
+
+/// "These two games are not duplicates" (issue #824): a suggestion from the AI duplicate scan that
+/// the person dismissed, so it does not come back. Keyed by the two igdbIds (smaller first) rather
+/// than card ids, so it still holds if a card is re-created. Per user.
+model DuplicateDismissal {
+  userId    String   @map("user_id")
+  igdbIdLow  Int     @map("igdb_id_low")
+  igdbIdHigh Int     @map("igdb_id_high")
+  createdAt DateTime @default(now()) @map("created_at")
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@id([userId, igdbIdLow, igdbIdHigh])
+  @@map("duplicate_dismissals")
 }
 
 /// "This person re-matched a card away from `fromIgdbId` onto `toIgdbId`" (issue #814) - e.g. a game

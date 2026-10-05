@@ -2622,6 +2622,41 @@ export interface DismissPendingLibraryImportsRequest {
   ids: string[];
 }
 
+/** One card in a suggested duplicate pair. */
+export interface DuplicateSuggestionGame {
+  id: string;
+  igdbId: number;
+  title: string;
+  platform: string;
+  releaseYear: number | null;
+  coverImageUrl: string | null;
+  status: GameStatus;
+}
+
+/** Two shelf cards the AI thinks are the same game (issue #824). Never merged automatically. */
+export interface DuplicateSuggestion {
+  a: DuplicateSuggestionGame;
+  b: DuplicateSuggestionGame;
+  /** 0 to 1. */
+  confidence: number;
+  /** One short sentence from the AI on why they look the same. */
+  reason: string;
+}
+
+/** Result of POST /api/games/duplicates/ai-scan. */
+export interface AiDuplicateScanResponse {
+  pairs: DuplicateSuggestion[];
+  /** How many candidate pairs the AI judged. */
+  checked: number;
+  fallback: AiFallbackNotice | null;
+}
+
+/** Body for POST /api/games/duplicates/dismiss: the two cards that are not duplicates. */
+export interface DismissDuplicateRequest {
+  gameIdA: string;
+  gameIdB: string;
+}
+
 /** A person's own AI settings. The API key is write-only: it is never sent back, only whether one is saved. */
 export interface UserAiSettings {
   provider: AiProvider;
