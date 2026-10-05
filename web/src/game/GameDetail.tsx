@@ -94,6 +94,7 @@ const SYNC_SOURCE_KEY: Record<SyncSource, MessageKey> = {
   playnite: 'game.detail.syncSource.playnite',
   xbox: 'game.detail.syncSource.xbox',
   exophase: 'game.detail.syncSource.exophase',
+  psn: 'game.detail.syncSource.psn',
 };
 
 /** Everything about one game - the body of both the desktop right panel and the phone sheet. */

@@ -70,6 +70,7 @@ export const add = {
   "add.import.linkSteam": "Link Steam",
   "add.import.playniteSub": "Pull in Epic, GOG, Xbox, PlayStation and Nintendo via the free Playnite desktop app",
   "add.import.exophaseSub": "Pull in PlayStation, Xbox, Steam, Epic and more from your public Exophase profile, no app needed",
+  "add.import.psnSub": "Link your PlayStation account and sync your purchased PS4 and PS5 games directly (best effort)",
   "add.import.xboxSub": "Link your Xbox account and sync your Xbox games directly (best effort)",
   "add.import.setUp": "Set up",
   "add.playniteSetup.connected": "Playnite connected",

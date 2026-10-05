@@ -3,6 +3,7 @@ import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { authApi } from '../api/auth';
 import { EXOPHASE_STATUS_QUERY_KEY, exophaseApi } from '../api/exophase';
 import { XBOX_STATUS_QUERY_KEY, xboxApi } from '../api/xbox';
+import { PSN_STATUS_QUERY_KEY, psnApi } from '../api/psn';
 import {
   ALERT_EMAIL_QUERY_KEY,
   NOTIFICATION_PREFERENCES_QUERY_KEY,
@@ -137,10 +138,10 @@ function HeroCard({ hue, initial, name, tag, blurb, chips, cta, linked, onClick 
 }
 
 /** A small "connect directly" tile (Steam, Xbox) on the library step. */
-function DirectTile({ label, background, linked, caption, disabled, onClick }: { label: string; background: string; linked: boolean; caption: string; disabled?: boolean; onClick: () => void }) {
+function DirectTile({ label, background, linked, caption, disabled, fontSize = 13, onClick }: { label: string; background: string; linked: boolean; caption: string; disabled?: boolean; fontSize?: number; onClick: () => void }) {
   return (
     <button type="button" disabled={disabled} onClick={onClick} style={st('width:84px;display:flex;flex-direction:column;align-items:center;gap:8px;padding:0;border:none;background:none;color:var(--text)')}>
-      <span style={st(`position:relative;width:64px;height:64px;border-radius:18px;background:${background};color:#fff;display:flex;align-items:center;justify-content:center;font:700 13px var(--font-ui)`)}>
+      <span style={st(`position:relative;width:64px;height:64px;border-radius:18px;background:${background};color:#fff;display:flex;align-items:center;justify-content:center;font:700 ${fontSize}px var(--font-ui)`)}>
         {label}
         {linked && (
           <span style={st('position:absolute;right:-4px;bottom:-4px;width:22px;height:22px;border-radius:50%;background:var(--mint);color:#fff;border:2px solid var(--bg);display:flex;align-items:center;justify-content:center;font:800 11px var(--font-ui)')}>✓</span>
@@ -170,6 +171,7 @@ export function Onboarding({ onDone }: { onDone: () => void }) {
   const alertEmail = useQuery({ queryKey: ALERT_EMAIL_QUERY_KEY, queryFn: alertEmailApi.get });
   const analytics = useAnalyticsConsent();
   const exophase = useQuery({ queryKey: EXOPHASE_STATUS_QUERY_KEY, queryFn: exophaseApi.status });
+  const psn = useQuery({ queryKey: PSN_STATUS_QUERY_KEY, queryFn: psnApi.status });
   // The Xbox tile only shows when the server has an Xbox app set up.
   const xbox = useQuery({ queryKey: XBOX_STATUS_QUERY_KEY, queryFn: xboxApi.status });
   const { language, setLanguage, t } = useI18n();
@@ -452,6 +454,14 @@ export function Onboarding({ onDone }: { onDone: () => void }) {
                 disabled={steam.busy || steam.syncingEverything}
                 caption={steam.busy || steam.syncingEverything ? t('shell.onboarding.library.importing') : steamLinked ? t('shell.onboarding.library.importNow') : t('shell.onboarding.library.linkSteam')}
                 onClick={() => (steamLinked ? void steam.runSyncEverything() : steam.startLink('library'))}
+              />
+              <DirectTile
+                label="PlayStation"
+                background="#003791"
+                fontSize={10.5}
+                linked={!!psn.data?.connected}
+                caption={psn.data?.connected ? t('shell.onboarding.library.managePsn') : t('shell.onboarding.library.linkPsn')}
+                onClick={() => ui.openDialog('psn')}
               />
               {xbox.data?.configured && (
                 <DirectTile
