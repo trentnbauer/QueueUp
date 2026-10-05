@@ -564,7 +564,7 @@ const UNSTARTED_STATUSES: GameStatus[] = ['wishlist', 'backlog'];
 
 /** Folds a duplicate card (sourceId) into the card for the same game that already exists
  * (targetId), then deletes the duplicate. Everything the duplicate collected moves across -
- * play logs, votes, removal votes, tags, reviews, Playnite playtime/completion rows, notifications,
+ * play logs, play journal entries, votes, removal votes, tags, reviews, Playnite playtime/completion rows, notifications,
  * and anything pointing at it as a prerequisite or base game. Where both cards have the same
  * per-person/per-tag row, the surviving card's is kept. The surviving card also takes over the
  * duplicate's status when it is still wishlist/backlog and the duplicate has moved on, and its
@@ -604,6 +604,14 @@ async function mergeIntoExisting(sourceId: string, targetId: string): Promise<vo
     // Rows with no per-person uniqueness just move.
     await tx.playLog.updateMany({ where: { gameId: sourceId }, data: { gameId: targetId } });
     await tx.notification.updateMany({ where: { gameId: sourceId }, data: { gameId: targetId } });
+
+    // The play journal and activity feeds are built from activity rows that name their game in the
+    // payload (issue #850). Point the duplicate's entries at the survivor, so its started/beaten/
+    // dropped history shows on the merged card instead of on a card that no longer exists.
+    await tx.$executeRaw`
+      UPDATE room_activity
+      SET payload = payload || ${JSON.stringify({ gameId: targetId, title: target.title, coverImageUrl: target.coverImageUrl })}::jsonb
+      WHERE payload->>'gameId' = ${sourceId}`;
 
     // Other cards pointing at the duplicate now point at the survivor (never at itself).
     await tx.game.updateMany({ where: { prerequisiteGameId: sourceId, id: { not: targetId } }, data: { prerequisiteGameId: targetId } });
