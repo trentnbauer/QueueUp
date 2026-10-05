@@ -225,6 +225,15 @@ export const envSchema = z.object({
   // custom address then has to resolve to a public address (checked before every request), which
   // stops it being used to reach internal services. Turn on only if people legitimately run Ollama on
   // the LAN or the Docker host; the provider's error text is then withheld from them as well.
+  // Escape hatch for the session cookie's Secure flag. In production with an https APP_BASE_URL
+  // the cookie is always Secure (a proxy that fails to report https then blocks sign-in rather than
+  // quietly issuing a cookie that could travel over plain HTTP). Set true only for a deliberate
+  // plain-HTTP setup behind a proxy whose APP_BASE_URL is https.
+  ALLOW_INSECURE_SESSION_COOKIE: z
+    .string()
+    .optional()
+    .transform((v) => v === 'true'),
+
   AI_ALLOW_PRIVATE_BASE_URL: z
     .string()
     .optional()
