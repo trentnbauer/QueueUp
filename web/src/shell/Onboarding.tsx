@@ -181,12 +181,13 @@ export function Onboarding({ onDone }: { onDone: () => void }) {
     'language',
     'name',
     'theme',
+    // Room colours belong with the look of the app, so they follow the theme (#867).
+    'accent',
     'layout',
     'currency',
     'systems',
     'library',
     ...(prefs.data?.emailAvailable ? (['email'] as const) : []),
-    'accent',
     'rooms',
     // Always the very last step (#795), and only when the operator has set a Google Analytics id.
     ...(analytics.available ? (['analytics'] as const) : []),
