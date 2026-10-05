@@ -1,4 +1,5 @@
 import { useAnalyticsConsentSync } from './hooks/useAnalyticsConsent';
+import { useExophaseSyncToasts } from './hooks/useExophaseSyncToasts';
 import { Navigate, Routes, Route, useLocation, useNavigate, useParams } from 'react-router';
 import { useEffect, useRef, useState } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
@@ -87,6 +88,7 @@ export default function App() {
   useActionableNotificationToasts();
   useActiveRoomSpinToasts();
   usePlayniteSyncToasts();
+  useExophaseSyncToasts();
   const [providers, setProviders] = useState<string[] | null>(null);
   const [turnstileSiteKey, setTurnstileSiteKey] = useState<string | null>(null);
   const [showOnboarding, setShowOnboarding] = useState(false);

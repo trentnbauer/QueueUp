@@ -201,6 +201,7 @@ export const settings = {
   "settings.exophase.syncHint": "Adds the games Exophase has found to your Personal Shelf and marks the systems you own. Titles that can’t be matched on their own wait in Needs matching. It is only as current as Exophase’s own sync with each store.",
   "settings.exophase.syncNow": "Sync now",
   "settings.exophase.syncing": "Syncing…",
+  "settings.exophase.syncStarted": "Exophase sync started - you can keep using QueueUp, we will tell you when it is done.",
   "settings.exophase.progress": "Looked at {done} of {total} games…",
   "settings.exophase.syncDone": "Synced: {matched} matched, {unmatched} need matching",
   "settings.exophase.disconnect": "Disconnect",
