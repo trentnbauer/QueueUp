@@ -5,11 +5,12 @@ vi.mock('../../db/client.js', () => ({ prisma: {} }));
 vi.mock('./aiConfig.js', () => ({ aiComplete: vi.fn() }));
 vi.mock('../igdbClient.js', () => ({ searchGames }));
 vi.mock('../userSettings.js', () => ({ getOwnedPlatforms: vi.fn() }));
+vi.mock('../roomAccess.js', () => ({ getRoomPlatform: vi.fn() }));
 vi.mock('../priceService.js', () => ({
   mapWithConcurrency: async <T, R>(items: T[], _limit: number, fn: (i: T) => Promise<R>) => Promise.all(items.map(fn)),
 }));
 
-import { buildRecommendPrompt, matchSuggestion, parseRecommendReply, resolveSuggestions } from './aiRecommend.js';
+import { buildRecommendPrompt, buildRoomProfile, matchSuggestion, parseRecommendReply, resolveSuggestions, type RoomTasteRow } from './aiRecommend.js';
 import type { GameSearchResult } from '@queueup/shared';
 
 const game = (igdbId: number, title: string): GameSearchResult => ({ igdbId, title, platform: 'PC', coverImageUrl: null, releaseYear: 2020 });
@@ -64,6 +65,40 @@ describe('resolveSuggestions', () => {
   it('skips a suggestion whose lookup fails', async () => {
     searchGames.mockRejectedValueOnce(new Error('igdb down'));
     expect(await resolveSuggestions([{ title: 'Hades', reason: '' }], new Set(), [])).toEqual([]);
+  });
+});
+
+const review = (recommend: boolean | null, score: number | null = null) => ({ art: score, gameplay: score, story: score, sound: score, themes: score, recommend });
+const row = (title: string, status: string, reviews: RoomTasteRow['reviews'] = [], votes: number[] = []): RoomTasteRow => ({ title, genre: null, status, reviews, votes });
+
+describe('buildRoomProfile', () => {
+  it('sorts games into loved, interested and disliked from statuses, reviews and votes', () => {
+    const p = buildRoomProfile(
+      [
+        row('Beaten Fave', 'done', [review(true), review(null, 4)]),
+        row('Beaten Meh', 'done', [review(false), review(false), review(true)]),
+        row('Dropped', 'dropped'),
+        row('Hyped', 'backlog', [], [5, 4, 4]),
+        row('Queued', 'backlog', [], [2, 3]),
+        row('Unreviewed Done', 'done'),
+      ],
+      4,
+    );
+    expect(p.loved.map((g) => g.title)).toEqual(['Beaten Fave', 'Hyped', 'Unreviewed Done']);
+    expect(p.disliked).toEqual(['Beaten Meh', 'Dropped']);
+    expect(p.interested).toEqual(['Queued']);
+    expect(p.groupSize).toBe(4);
+  });
+
+  it('does not count a voted-up game that a member gave a thumbs-down', () => {
+    expect(buildRoomProfile([row('Split', 'backlog', [review(false)], [5, 5])], 3).loved).toEqual([]);
+  });
+});
+
+describe('buildRecommendPrompt group hint', () => {
+  it('asks for group-friendly games only for a group', () => {
+    expect(buildRecommendPrompt({ loved: [], interested: [], disliked: [], groupSize: 4 })).toContain('group of 4');
+    expect(buildRecommendPrompt({ loved: [], interested: [], disliked: [], groupSize: 1 })).not.toContain('group of');
   });
 });
 

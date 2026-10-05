@@ -7,6 +7,7 @@ import { searchGames } from '../igdbClient.js';
 import { mapWithConcurrency } from '../priceService.js';
 import { titleCore } from '../duplicateCandidates.js';
 import { getOwnedPlatforms } from '../userSettings.js';
+import { getRoomPlatform } from '../roomAccess.js';
 import type { AiFallbackNotice, AiRecommendation, AiRecommendResponse, GameSearchResult } from '@queueup/shared';
 
 /** How many titles the AI is asked for. Some will not resolve to a real game or are already owned. */
@@ -19,6 +20,8 @@ export interface TasteProfile {
   loved: { title: string; genre: string | null }[];
   interested: string[];
   disliked: string[];
+  /** Rooms: how many people play together, so group-friendly games can be preferred. */
+  groupSize?: number;
 }
 
 export const RECOMMEND_SYSTEM = `You recommend video games to someone based on their taste.
@@ -30,7 +33,8 @@ Reply with ONLY a JSON array: [{"title": "<exact game title>", "reason": "<one s
 export function buildRecommendPrompt(p: TasteProfile): string {
   const loved = p.loved.map((g) => `${JSON.stringify(g.title)}${g.genre ? ` (${g.genre})` : ''}`).join(', ');
   const q = (list: string[]) => (list.length ? list.map((t) => JSON.stringify(t)).join(', ') : 'none');
-  return `Games they loved: ${loved || 'none yet'}\nAlready on their wishlist: ${q(p.interested)}\nGames they dropped or disliked: ${q(p.disliked)}`;
+  const group = p.groupSize && p.groupSize > 1 ? `\nThis is a group of ${p.groupSize} people who play together: prefer games that work well for a group (co-op, party or shared play) when it fits.` : '';
+  return `Games they loved: ${loved || 'none yet'}\nAlready on their wishlist: ${q(p.interested)}\nGames they dropped or disliked: ${q(p.disliked)}${group}`;
 }
 
 export interface Suggestion {
@@ -135,4 +139,64 @@ export async function aiRecommendForShelf(userId: string): Promise<AiRecommendRe
   };
   const platforms = await getOwnedPlatforms(userId);
   return recommendFromProfile(profile, new Set(rows.map((r) => r.igdbId)), platforms, { userId });
+}
+
+type RoomReview = { art: number | null; gameplay: number | null; story: number | null; sound: number | null; themes: number | null; recommend: boolean | null };
+
+export interface RoomTasteRow {
+  title: string;
+  genre: string | null;
+  status: string;
+  reviews: RoomReview[];
+  /** Each member's 1-5 "want to play" vote. */
+  votes: number[];
+}
+
+/** Turns a room's games, members' reviews and votes into a taste profile. Pure. A game is "loved"
+ * when it was finished or is being played and its reviews lean positive (thumbs-up, or a 3.5+
+ * average), or when the members voted it up (average 4+) with nobody against it. Games most members
+ * gave a thumbs-down, or that were dropped or marked Won't play, count as disliked. */
+export function buildRoomProfile(rows: RoomTasteRow[], groupSize: number): TasteProfile {
+  const positive = (r: RoomReview) => r.recommend === true || (r.recommend !== false && (reviewAverage(r) ?? 0) >= 3.5);
+  const negative = (r: RoomReview) => r.recommend === false;
+  const loved: TasteProfile['loved'] = [];
+  const disliked: string[] = [];
+  const interested: string[] = [];
+  for (const g of rows) {
+    const pos = g.reviews.filter(positive).length;
+    const neg = g.reviews.filter(negative).length;
+    const avgVote = g.votes.length ? g.votes.reduce((a, b) => a + b, 0) / g.votes.length : 0;
+    if (g.status === 'dropped' || g.status === 'wont_play' || (neg > pos && neg > 0)) disliked.push(g.title);
+    else if (['done', 'replay', 'playing'].includes(g.status) && (g.reviews.length === 0 || pos >= neg)) loved.push({ title: g.title, genre: g.genre });
+    else if (avgVote >= 4 && neg === 0) loved.push({ title: g.title, genre: g.genre });
+    else if (['backlog', 'play_next', 'paused'].includes(g.status)) interested.push(g.title);
+  }
+  return { loved: loved.slice(0, 25), interested: interested.slice(0, 15), disliked: disliked.slice(0, 10), groupSize };
+}
+
+/** AI recommendations for a room (issue #821): from the room's play list and its members' reviews
+ * and votes. The caller must already have checked the person may use this room. Whose AI key is
+ * used follows the usual order, including the room's sponsor. Never suggests a game already in the room. */
+export async function aiRecommendForRoom(userId: string, roomId: string): Promise<AiRecommendResponse> {
+  const [rows, memberCount, platform] = await Promise.all([
+    prisma.game.findMany({
+      where: { roomId, archivedAt: null },
+      select: {
+        igdbId: true,
+        title: true,
+        genre: true,
+        status: true,
+        votes: { select: { value: true } },
+        reviews: { select: { art: true, gameplay: true, story: true, sound: true, themes: true, recommend: true } },
+      },
+    }),
+    prisma.roomMember.count({ where: { roomId } }),
+    getRoomPlatform(roomId),
+  ]);
+  const profile = buildRoomProfile(
+    rows.map((r) => ({ title: r.title, genre: r.genre, status: r.status, reviews: r.reviews, votes: r.votes.map((v) => v.value) })),
+    memberCount,
+  );
+  if (profile.loved.length === 0) throw new HttpError(400, 'The room needs a few finished, played or well-voted games before the AI has something to go on.');
+  return recommendFromProfile(profile, new Set(rows.map((r) => r.igdbId)), platform ? [platform] : [], { userId, roomId });
 }

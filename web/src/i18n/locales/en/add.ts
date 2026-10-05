@@ -49,6 +49,7 @@ export const add = {
   "add.game.ai.again": "Ask again",
   "add.game.ai.working": "Asking AI...",
   "add.game.ai.hint": "AI looks at the games you loved and suggests others you might like.",
+  "add.game.ai.hintRoom": "AI looks at what this room has played, how members reviewed and voted, and suggests games for the group.",
   "add.game.ai.none": "AI found nothing new to suggest.",
   "add.game.ai.failed": "AI couldn't make suggestions.",
   "add.game.ai.badge": "Suggested by AI. Check it before you add it.",

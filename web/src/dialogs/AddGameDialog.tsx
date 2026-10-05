@@ -445,8 +445,8 @@ export function AddGameDialog() {
     };
   }, [roomId, coopOnly, allPlatforms]);
 
-  // "Ask AI" picks, on the Personal Shelf (issue #820).
-  const aiPicks = useAiPicks(roomId === null);
+  // "Ask AI" picks, for the Personal Shelf (issue #820) or the room (issue #821).
+  const aiPicks = useAiPicks(roomId);
 
   // Trending whenever there's no query.
   useEffect(() => {
@@ -680,7 +680,7 @@ export function AddGameDialog() {
                       {aiPicks.busy ? t('add.game.ai.working') : aiPicks.picks ? t('add.game.ai.again') : t('add.game.ai.ask')}
                     </Btn>
                   </span>
-                  {!aiPicks.picks && !aiPicks.error && <div style={st('padding:2px 10px 10px;color:var(--muted);font-size:13.5px')}>{t('add.game.ai.hint')}</div>}
+                  {!aiPicks.picks && !aiPicks.error && <div style={st('padding:2px 10px 10px;color:var(--muted);font-size:13.5px')}>{roomId === null ? t('add.game.ai.hint') : t('add.game.ai.hintRoom')}</div>}
                   {aiPicks.error && <div role="alert" style={st('margin:0 8px 8px;padding:10px 12px;border-radius:14px;background:var(--errBg);border:1px solid var(--errLine);font:500 13px/1.4 var(--font-ui)')}>{aiPicks.error}</div>}
                   {aiPicks.picks?.length === 0 && <div style={st('padding:2px 10px 10px;color:var(--muted);font-size:13.5px')}>{t('add.game.ai.none')}</div>}
                   {aiPicks.picks?.map((r) => (
