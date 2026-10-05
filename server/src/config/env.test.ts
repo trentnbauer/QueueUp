@@ -17,6 +17,7 @@ function baseEnv(overrides: Partial<Env> = {}): Env {
     PLAYTIME_TRACKING_ENABLED: false,
     AI_ALLOW_USER_SETTINGS: true,
     AI_ALLOW_USER_BASE_URL: false,
+    AI_SERVER_DAILY_LIMIT: 50,
     BASE_PATH: '',
     OIDC_ISSUER_URL: undefined,
     OIDC_CLIENT_ID: undefined,
@@ -137,6 +138,25 @@ describe('envSchema', () => {
       expect(result.success).toBe(true);
       if (!result.success) return;
       expect(result.data.TRUST_PROXY).toBe(expected);
+    });
+  });
+
+  describe('AI_SERVER_DAILY_LIMIT', () => {
+    // A blank or mistyped value must never turn into 0, which means "no limit".
+    it.each([
+      [undefined, 50],
+      ['', 50],
+      ['  ', 50],
+      ['abc', 50],
+      ['-3', 50],
+      ['2.5', 50],
+      ['0', 0],
+      ['25', 25],
+    ])('maps %j to %j', (input, expected) => {
+      const result = envSchema.safeParse(baseProcessEnv(input === undefined ? {} : { AI_SERVER_DAILY_LIMIT: input }));
+      expect(result.success).toBe(true);
+      if (!result.success) return;
+      expect(result.data.AI_SERVER_DAILY_LIMIT).toBe(expected);
     });
   });
 

@@ -199,6 +199,16 @@ export const envSchema = z.object({
     .string()
     .optional()
     .transform((v) => v !== 'false'),
+  // Most requests one person (not an administrator) can make a day on the server's own AI key, so one
+  // account can't run up the bill; people with their own provider in Settings aren't limited. 0 = no
+  // limit. Blank or invalid falls back to 50 (not 0): a typo must not silently remove the cap.
+  AI_SERVER_DAILY_LIMIT: z
+    .string()
+    .optional()
+    .transform((v) => {
+      const n = v?.trim() ? Number(v) : 50;
+      return Number.isInteger(n) && n >= 0 ? n : 50;
+    }),
   // Whether a person's own settings may name a custom base URL (including ollama and
   // openai_compatible, which need one). Off by default: the server makes that request, so a custom
   // address lets a user point it at anything the server can reach. Turn on for a trusted instance.
