@@ -65,8 +65,9 @@ export default async function aiSettingsRoutes(app: FastifyInstance) {
     async (request): Promise<RoomAiResponse> => {
       const userId = await request.requireAuth();
       const membership = await requireMembership(request.params.roomId, userId);
-      await applyMyAiToRoom(request.params.roomId, userId);
-      return describeRoomAi(request.params.roomId, userId, isElevated(membership.role));
+      const elevated = isElevated(membership.role);
+      await applyMyAiToRoom(request.params.roomId, userId, elevated);
+      return describeRoomAi(request.params.roomId, userId, elevated);
     },
   );
 

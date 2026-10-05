@@ -812,7 +812,7 @@ export function RoomSettingsDialog() {
       )}
 
       <Field label={t('room.settings.aiLabel')}>
-        <RoomAiSection roomId={roomId} onOpenProfile={close} />
+        <RoomAiSection roomId={roomId} canManage={canManage} onOpenProfile={close} />
       </Field>
 
       <Field label={t('room.settings.exportLabel')}>
