@@ -89,6 +89,8 @@ export function useGames(roomId: string | null) {
       // refetch on its own) would keep showing whatever it fetched before the change.
       queryClient.invalidateQueries({ queryKey: ['games', game.id, 'play-log'] });
       void queryClient.invalidateQueries({ queryKey: ['journal'] });
+      // Moving a room game out of Backlog/Wishlist changes the "needs your vote" count.
+      void queryClient.invalidateQueries({ queryKey: ['attention'] });
       announceUnlock(unlockedBadges);
     },
     onError: (err) => setActionError(errorMessage(err, t('shell.games.error.status'))),
@@ -183,6 +185,11 @@ export function useGames(roomId: string | null) {
       gamesApi.bulkUpdateStatus({ gameIds, status }, region),
     onSuccess: ({ games: updated, unlockedBadges }) => {
       patchGames(updated);
+      // Same server-side effects as a single status change (play journal entries opened/closed,
+      // the room "needs your vote" count), for every game touched.
+      void queryClient.invalidateQueries({ predicate: (q) => q.queryKey[0] === 'games' && q.queryKey[2] === 'play-log' });
+      void queryClient.invalidateQueries({ queryKey: ['journal'] });
+      void queryClient.invalidateQueries({ queryKey: ['attention'] });
       announceUnlock(unlockedBadges);
     },
     onError: (err) => setActionError(errorMessage(err, t('shell.games.error.bulkUpdate'))),
