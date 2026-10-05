@@ -1352,7 +1352,7 @@ export interface AdminRoomDetail {
  * the account/room/etc they refer to is gone. */
 export interface AdminEmailLogEntry {
   id: string;
-  /** alert_digest, confirm_email or smtp_test. */
+  /** alert_digest, confirm_email, address_changed or smtp_test. */
   kind: string;
   to: string;
   subject: string;

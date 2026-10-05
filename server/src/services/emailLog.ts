@@ -1,6 +1,6 @@
 import { prisma } from '../db/client.js';
 
-export type EmailKind = 'alert_digest' | 'confirm_email' | 'smtp_test';
+export type EmailKind = 'alert_digest' | 'confirm_email' | 'address_changed' | 'smtp_test';
 
 /** Rows older than this are deleted. */
 export const EMAIL_LOG_RETENTION_DAYS = 90;

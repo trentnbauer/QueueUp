@@ -6,7 +6,7 @@ import { st } from '../ui/st';
 import { formatRelativeTime } from '../utils/relativeTime';
 import { useT, type MessageKey } from '../i18n';
 
-const KINDS = ['alert_digest', 'confirm_email', 'smtp_test'];
+const KINDS = ['alert_digest', 'confirm_email', 'address_changed', 'smtp_test'];
 
 /** The emails the server tried to send, newest first (Administrator page): when, what kind, who it
  * went to, the subject, and whether it worked, with the mail server's reason when it did not. The
