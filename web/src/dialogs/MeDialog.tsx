@@ -20,6 +20,7 @@ import { usePendingImportsCount } from '../hooks/usePendingImports';
 import { useSyncSources } from '../hooks/useSyncSources';
 import { useVersion } from '../hooks/useVersion';
 import { Dialog } from '../ui/Dialog';
+import { useIsMobile } from '../ui/useLayout';
 import { Avatar, Banner, Btn, Group, Kicker, Segmented, Toggle, inputField } from '../ui/primitives';
 import { SystemsPicker } from '../ui/SystemsPicker';
 import { useAnalyticsConsent } from '../hooks/useAnalyticsConsent';
@@ -439,6 +440,7 @@ function AppearanceDialog({ onClose }: { onClose: () => void }) {
   const { region, setRegion } = useCurrencyRegion();
   const { preference, setPreference, accent, setAccent } = useThemeMode();
   const { viewMode, setViewMode } = useViewMode();
+  const mobileLayout = useIsMobile();
   const { density, setDensity } = useCardDensity();
   return (
     <Dialog onClose={onClose} title={t('settings.me.appearance.title')} gap={14}>
@@ -481,7 +483,7 @@ function AppearanceDialog({ onClose }: { onClose: () => void }) {
                 options={(Object.keys(ACCENT_LABELS) as Accent[]).map((k) => ({ value: k, label: t(`settings.me.accent.${k}`) }))}
               />
             </ControlRow>
-            <ControlRow label={t('settings.me.layout')}>
+            <ControlRow label={t('settings.me.layout')} hint={mobileLayout ? t('settings.me.layout.hintMobile') : t('settings.me.layout.hintDesktop')}>
               <Segmented
                 columns={2}
                 value={viewMode}
