@@ -64,7 +64,9 @@ export async function checkAllActivePriceWatches(): Promise<void> {
   // together" nudge worth batching, not an ever-growing running tally.
   const wishlistFiredByUser = new Map<string, Map<string, string>>();
   const onFired = (game: GameWithRelations) => {
-    if (game.status !== 'wishlist') return;
+    // Personal Shelf only: the digest is labelled Personal Shelf and goes to the adder alone, while a
+    // room game's own alert already went to the whole room.
+    if (game.status !== 'wishlist' || game.roomId !== null) return;
     const forUser = wishlistFiredByUser.get(game.addedBy) ?? new Map<string, string>();
     forUser.set(game.id, game.title);
     wishlistFiredByUser.set(game.addedBy, forUser);
