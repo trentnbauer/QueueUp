@@ -123,7 +123,9 @@ export async function buildApp() {
       const ms = reply.elapsedTime;
       if (reply.statusCode === 429 || ms >= SLOW_REQUEST_MS) {
         request.log.warn(
-          { method: request.method, url: request.url, statusCode: reply.statusCode, responseTime: Math.round(ms) },
+          // Sign-in callbacks carry OAuth/OpenID codes and state in the query string, and this log
+          // line ends up in the admin log export - keep only the path for /auth/*.
+          { method: request.method, url: request.url.startsWith('/auth/') ? request.url.split('?')[0] : request.url, statusCode: reply.statusCode, responseTime: Math.round(ms) },
           reply.statusCode === 429 ? 'rate limited' : 'slow request',
         );
       }
