@@ -7,6 +7,7 @@ import { useUi } from '../context/UiContext';
 import { Btn, Cover } from '../ui/primitives';
 import { st } from '../ui/st';
 import { PageShell, SectionTitle, StatTiles } from './PageShell';
+import { BacklogCoach } from './BacklogCoach';
 import { t as tr, useT } from '../i18n';
 
 const BAR = 'flex:1;height:12px;border-radius:999px;background:var(--surf);overflow:hidden';
@@ -79,6 +80,7 @@ export function InsightsPage() {
             <SectionTitle>{t('pages.insights.backlogAge')}</SectionTitle>
             {data.backlogCount === 0 ? <span style={st('font:400 14px var(--font-ui);color:var(--muted)')}>{t('pages.insights.empty')}</span> : <Bars rows={data.ageDistribution} />}
           </div>
+          <BacklogCoach />
         </>
       )}
     </PageShell>
