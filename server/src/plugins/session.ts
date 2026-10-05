@@ -49,6 +49,14 @@ declare module 'fastify' {
   }
 }
 
+/** `secure: true` whenever production is configured for https, so a proxy that doesn't forward
+ * X-Forwarded-Proto (or a TRUST_PROXY mistake) can't make the session cookie fail open (issue
+ * #923). Otherwise 'auto', i.e. follow the request's protocol (plain-HTTP local/dev setups). */
+export function sessionCookieSecure(opts: { nodeEnv?: string; appBaseUrl: string; allowInsecure: boolean }): boolean | 'auto' {
+  if (opts.allowInsecure || opts.nodeEnv !== 'production') return 'auto';
+  return opts.appBaseUrl.toLowerCase().startsWith('https:') ? true : 'auto';
+}
+
 export default fp(async function sessionPlugin(app: FastifyInstance) {
   await app.register(cookie);
   await app.register(fastifySession, {
@@ -62,13 +70,11 @@ export default fp(async function sessionPlugin(app: FastifyInstance) {
     cookie: {
       httpOnly: true,
       sameSite: 'lax',
-      // 'auto' checks request.protocol at the time each cookie is set, rather than hardcoding
-      // true for all of production. Behind a reverse proxy that terminates TLS (Cloudflare
-      // Tunnel, NGINX Proxy Manager, ...) this container only ever sees plain HTTP - Fastify's
-      // trustProxy option (see TRUST_PROXY) makes request.protocol reflect X-Forwarded-Proto
-      // from the proxy instead of the raw socket, so this correctly sends Secure once TLS is
-      // confirmed end-to-end, and falls back to a non-Secure cookie if it isn't.
-      secure: 'auto',
+      // true in production with an https APP_BASE_URL; otherwise 'auto', which checks
+      // request.protocol when each cookie is set. Behind a TLS-terminating proxy this container
+      // only sees plain HTTP - Fastify's trustProxy option (see TRUST_PROXY) makes
+      // request.protocol reflect X-Forwarded-Proto, so Secure is only sent once TLS is confirmed.
+      secure: sessionCookieSecure({ nodeEnv: process.env.NODE_ENV, appBaseUrl: env.APP_BASE_URL, allowInsecure: !!env.ALLOW_INSECURE_SESSION_COOKIE }),
       maxAge: SESSION_TTL_SECONDS * 1000,
     },
   });
