@@ -77,6 +77,15 @@ describe('connectRetroAchievements', () => {
   });
 });
 
+describe('connecting a profile with no games yet', () => {
+  it('still saves the key', async () => {
+    h.verifyAccount.mockResolvedValue(0);
+    h.findUnique.mockResolvedValue({ username: 'Player', lastSyncedAt: null });
+    await connectRetroAchievements('u1', 'Player', KEY);
+    expect(h.upsert).toHaveBeenCalledTimes(1);
+  });
+});
+
 describe('syncRetroAchievementsLibrary', () => {
   const row = () => ({ userId: 'u1', username: 'Player', apiKeyEncrypted: encryptSetting(KEY, SECRET) });
 
