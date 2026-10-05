@@ -616,7 +616,7 @@ export function AddGameDialog() {
                   </Btn>
                 )}
                 {roomId === null && (
-                  <Btn height={36} padX={14} fontSize={13} onClick={() => ui.openDialog('import')} style={{ color: 'var(--text2)' }}>
+                  <Btn height={36} padX={14} fontSize={13} onClick={() => ui.openDialog('import', { mode: 'sync' })} style={{ color: 'var(--text2)' }}>
                     {t('add.game.importLibrary')}
                   </Btn>
                 )}

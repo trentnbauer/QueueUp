@@ -72,6 +72,18 @@ export function useSyncSources() {
   ];
   const linked = sources.filter((s) => s.linked);
 
+  /** New games, new unmatched titles, new "last synced" times, and any error notifications. */
+  const refreshAfterSync = () => {
+    void queryClient.invalidateQueries({ queryKey: ['games'] });
+    void queryClient.invalidateQueries({ queryKey: PENDING_IMPORTS_QUERY_KEY });
+    void queryClient.invalidateQueries({ queryKey: XBOX_STATUS_QUERY_KEY });
+    void queryClient.invalidateQueries({ queryKey: EXOPHASE_STATUS_QUERY_KEY });
+    void queryClient.invalidateQueries({ queryKey: PSN_STATUS_QUERY_KEY });
+    void queryClient.invalidateQueries({ queryKey: RETROACHIEVEMENTS_STATUS_QUERY_KEY });
+    void queryClient.invalidateQueries({ queryKey: ['games', 'completion-suggestions'] });
+    void queryClient.invalidateQueries({ queryKey: ['notifications'] });
+  };
+
   return {
     /** Names of the connected sources, for button subtitles. */
     linkedLabels: linked.map((s) => s.label),
@@ -98,20 +110,28 @@ export function useSyncSources() {
         }
       } finally {
         setNativeBusy(false);
-        // New games, new unmatched titles, new "last synced" times, and any error notifications.
-        void queryClient.invalidateQueries({ queryKey: ['games'] });
-        void queryClient.invalidateQueries({ queryKey: PENDING_IMPORTS_QUERY_KEY });
-        void queryClient.invalidateQueries({ queryKey: XBOX_STATUS_QUERY_KEY });
-        void queryClient.invalidateQueries({ queryKey: EXOPHASE_STATUS_QUERY_KEY });
-        void queryClient.invalidateQueries({ queryKey: PSN_STATUS_QUERY_KEY });
-        void queryClient.invalidateQueries({ queryKey: RETROACHIEVEMENTS_STATUS_QUERY_KEY });
-        void queryClient.invalidateQueries({ queryKey: ['games', 'completion-suggestions'] });
-        void queryClient.invalidateQueries({ queryKey: ['notifications'] });
+        refreshAfterSync();
       }
       return { failed, skipped };
     },
     syncAchievements: async () => {
       for (const s of linked) await s.syncAchievements();
+    },
+    /** Syncs one connected source (issue #859), e.g. from the Libraries dialog opened in Add game. Returns
+     * 'limited' without calling the source when it is rate limiting QueueUp; a failure throws (the server
+     * also writes it to the person's notifications). */
+    syncOne: async (id: string): Promise<'synced' | 'limited'> => {
+      const source = linked.find((s) => s.id === id);
+      if (!source) throw new Error('That library is not linked');
+      if (limits.isLimited(id)) return 'limited';
+      setNativeBusy(true);
+      try {
+        await source.syncLibrary();
+      } finally {
+        setNativeBusy(false);
+        refreshAfterSync();
+      }
+      return 'synced';
     },
     /** With nothing linked yet, the libraries dialog is the way in. */
     openLibraries: () => ui.openDialog('import'),
