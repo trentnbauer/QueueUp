@@ -521,25 +521,6 @@ function LibrariesSystemsDialog({ onClose, librariesSummary, onOpenLibraries }: 
   );
 }
 
-/** Notifications and AI, together: what you hear about and which model answers. */
-function NotificationsAiDialog({ onClose }: { onClose: () => void }) {
-  const t = useT();
-  const [notifOpen, setNotifOpen] = useState(false);
-  const [aiOpen, setAiOpen] = useState(false);
-  return (
-    <>
-      <Dialog onClose={onClose} title={t('settings.me.notificationsAi.title')} gap={14}>
-        <Group>
-          <NavRow label={t('settings.notifications.title')} onClick={() => setNotifOpen(true)} />
-          <NavRow label={t('settings.ai.title')} sub={t('settings.ai.nav.sub')} onClick={() => setAiOpen(true)} />
-        </Group>
-      </Dialog>
-      {notifOpen && <NotificationsDialog onClose={() => setNotifOpen(false)} />}
-      {aiOpen && <AiSettingsDialog onClose={() => setAiOpen(false)} />}
-    </>
-  );
-}
-
 /** Profile: the public link, who can see it, and what you share. */
 function ProfileSettingsDialog({ onClose }: { onClose: () => void }) {
   const ui = useUi();
@@ -719,7 +700,8 @@ export function MeDialog() {
   const [profileOpen, setProfileOpen] = useState(false);
   const [librariesSystemsOpen, setLibrariesSystemsOpen] = useState(false);
   const [appearanceOpen, setAppearanceOpen] = useState(false);
-  const [notifAiOpen, setNotifAiOpen] = useState(false);
+  const [notifOpen, setNotifOpen] = useState(false);
+  const [aiOpen, setAiOpen] = useState(false);
   const [signInOpen, setSignInOpen] = useState(false);
 
   useEffect(() => {
@@ -908,12 +890,13 @@ export function MeDialog() {
           <NavRow label={t('settings.me.profileSettings.title')} sub={t('settings.me.profileSettings.sub')} onClick={() => setProfileOpen(true)} />
           <NavRow label={t('settings.me.librariesSystems.title')} sub={t('settings.me.librariesSystems.sub')} onClick={() => setLibrariesSystemsOpen(true)} />
           <NavRow label={t('settings.me.appearance.title')} sub={t('settings.me.appearance.sub')} onClick={() => setAppearanceOpen(true)} />
-          <NavRow label={t('settings.me.notificationsAi.title')} sub={t('settings.me.notificationsAi.sub')} onClick={() => setNotifAiOpen(true)} />
+          <NavRow label={t('settings.notifications.title')} sub={t('settings.me.notifications.sub')} onClick={() => setNotifOpen(true)} />
           {providers && providers.length > 0 && <NavRow label={t('settings.me.signIn.title')} sub={t('settings.me.signIn.sub')} onClick={() => setSignInOpen(true)} />}
         </Group>
 
         <Section label={t('settings.me.section.tools')}>
           <Group>
+            <NavRow label={t('settings.ai.title')} sub={t('settings.ai.nav.sub')} onClick={() => setAiOpen(true)} />
             <NavRow label={t('settings.apiKeys.title')} onClick={() => setKeysOpen(true)} />
             <NavRow label={t('settings.me.journal')} onClick={() => { close(); ui.openDialog('journal', {}); }} />
             <NavRow label={t('settings.history.title')} onClick={() => setHistoryOpen(true)} />
@@ -964,7 +947,8 @@ export function MeDialog() {
         <LibrariesSystemsDialog onClose={() => setLibrariesSystemsOpen(false)} librariesSummary={librariesSummary} onOpenLibraries={open('import')} />
       )}
       {appearanceOpen && <AppearanceDialog onClose={() => setAppearanceOpen(false)} />}
-      {notifAiOpen && <NotificationsAiDialog onClose={() => setNotifAiOpen(false)} />}
+      {notifOpen && <NotificationsDialog onClose={() => setNotifOpen(false)} />}
+      {aiOpen && <AiSettingsDialog onClose={() => setAiOpen(false)} />}
       {signInOpen && providers && <SignInMethodsDialog onClose={() => setSignInOpen(false)} providers={providers} />}
     </>
   );
