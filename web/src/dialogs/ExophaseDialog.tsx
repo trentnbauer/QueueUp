@@ -1,10 +1,10 @@
-import { useEffect, useState, type FormEvent } from 'react';
+import { useState, type FormEvent } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import type { LibrarySyncProgress } from '@queueup/shared';
 import { EXOPHASE_STATUS_QUERY_KEY, exophaseApi } from '../api/exophase';
-import { PENDING_IMPORTS_QUERY_KEY } from '../api/pendingImports';
 import { useConfirm } from '../context/ConfirmContext';
+import { useToast } from '../context/ToastContext';
 import { useUi } from '../context/UiContext';
+import { EXOPHASE_SYNC_WATCH_QUERY_KEY } from '../hooks/useExophaseSyncToasts';
 import { useLibraryLimits } from '../hooks/useLibraryLimits';
 import { Dialog } from '../ui/Dialog';
 import { Banner, Btn, inputPill } from '../ui/primitives';
@@ -12,7 +12,6 @@ import { st } from '../ui/st';
 import { formatRelativeTime } from '../utils/relativeTime';
 import { useT } from '../i18n';
 
-const PROGRESS_POLL_MS = 1500;
 const EXOPHASE_URL = 'https://www.exophase.com/account/#social';
 
 /** Exophase sync: link a public Exophase profile, then sync the libraries Exophase has gathered
@@ -22,12 +21,11 @@ export function ExophaseDialog() {
   const t = useT();
   const ui = useUi();
   const confirm = useConfirm();
+  const { showToast } = useToast();
   const limits = useLibraryLimits();
   const queryClient = useQueryClient();
   const [error, setError] = useState<string | null>(null);
   const [profile, setProfile] = useState('');
-  const [syncing, setSyncing] = useState(false);
-  const [progress, setProgress] = useState<LibrarySyncProgress | null>(null);
 
   const { data: status } = useQuery({ queryKey: EXOPHASE_STATUS_QUERY_KEY, queryFn: exophaseApi.status });
   const refreshStatus = () => queryClient.invalidateQueries({ queryKey: EXOPHASE_STATUS_QUERY_KEY });
@@ -44,36 +42,15 @@ export function ExophaseDialog() {
     onError: fail,
   });
 
-  // While a sync runs, show how far it has got, and refresh the library once it finishes.
-  useEffect(() => {
-    if (!syncing) return;
-    const timer = window.setInterval(async () => {
-      try {
-        const { progress: p } = await exophaseApi.progress();
-        if (!p) return;
-        setProgress(p);
-        if (p.done) {
-          window.clearInterval(timer);
-          setSyncing(false);
-          void refreshStatus();
-          queryClient.invalidateQueries({ queryKey: ['games'] });
-          queryClient.invalidateQueries({ queryKey: PENDING_IMPORTS_QUERY_KEY });
-          ui.notify(t('settings.exophase.syncDone', { matched: p.matched, unmatched: p.unmatched }));
-        }
-      } catch {
-        // A missed poll just means the next one shows the numbers.
-      }
-    }, PROGRESS_POLL_MS);
-    return () => window.clearInterval(timer);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [syncing]);
-
+  // The sync carries on in the background and is followed by useExophaseSyncToasts (issue #844), so
+  // the dialog closes straight away instead of holding the person up.
   const sync = useMutation({
     mutationFn: exophaseApi.sync,
     onSuccess: () => {
       setError(null);
-      setProgress(null);
-      setSyncing(true);
+      queryClient.setQueryData(EXOPHASE_SYNC_WATCH_QUERY_KEY, true);
+      showToast({ id: `exophase-sync-started-${Date.now()}`, message: t('settings.exophase.syncStarted'), actions: [] });
+      ui.closeDialog('exophase');
     },
     onError: fail,
   });
@@ -117,19 +94,12 @@ export function ExophaseDialog() {
             </span>
           </div>
           <span style={st('font:400 13px/1.45 var(--font-ui);color:var(--muted);text-wrap:pretty')}>{t('settings.exophase.syncHint')}</span>
-          {progress && (
-            <span style={st('font:500 13.5px var(--font-ui)')}>
-              {syncing
-                ? t('settings.exophase.progress', { done: progress.matched + progress.unmatched + progress.errored, total: progress.consideredCount })
-                : t('settings.exophase.syncDone', { matched: progress.matched, unmatched: progress.unmatched })}
-            </span>
-          )}
           {limits.isLimited('exophase') && (
             <span style={st('font:500 13px/1.45 var(--font-ui);color:var(--danger)')}>{t('add.import.rateLimited', { minutes: limits.minutesLeft('exophase') ?? 1 })}</span>
           )}
           <div style={st('display:flex;gap:8px;flex-wrap:wrap')}>
-            <Btn kind="accent" height={44} padX={18} disabled={syncing || sync.isPending || limits.isLimited('exophase')} onClick={() => sync.mutate()}>
-              {syncing || sync.isPending ? t('settings.exophase.syncing') : t('settings.exophase.syncNow')}
+            <Btn kind="accent" height={44} padX={18} disabled={sync.isPending || limits.isLimited('exophase')} onClick={() => sync.mutate()}>
+              {sync.isPending ? t('settings.exophase.syncing') : t('settings.exophase.syncNow')}
             </Btn>
             <Btn height={44} padX={18} disabled={disconnect.isPending} onClick={() => void confirmDisconnect()}>
               {t('settings.exophase.disconnect')}
