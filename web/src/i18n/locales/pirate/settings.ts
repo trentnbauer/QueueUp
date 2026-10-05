@@ -121,6 +121,8 @@ export const settings: Record<keyof typeof en, string> = {
   "settings.me.friends.requests.other": "{n} new requests",
   "settings.me.needsReview": "Needs a look",
   "settings.me.needsReview.sub": "Hauled-in games waitin’ fer a match",
+  "settings.me.tonight": "What should I play tonight?",
+  "settings.me.tonight.sub": "The AI parrot picks from yer backlog",
   "settings.me.duplicates": "Find duplicates",
   "settings.me.duplicates.sub": "The AI parrot looks fer cards that be the same game",
   "settings.duplicates.title": "Find duplicates",

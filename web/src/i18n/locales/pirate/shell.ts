@@ -20,6 +20,7 @@ export const shell: Record<keyof typeof en, string> = {
   "shell.glance.inPool.one": "{n} game in the pot.",
   "shell.glance.inPool.other": "{n} games in the pot.",
   "shell.glance.spin": "Spin",
+  "shell.glance.askAi": "Ask the AI parrot what to play",
   "shell.glance.nowPlaying": "NOW SAILIN’ · {n}",
   "shell.glance.topOfQueue": "TOP O’ THE QUEUE",
   "shell.glance.fullRanking": "Full rankin’ ›",

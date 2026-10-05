@@ -119,6 +119,8 @@ export const settings = {
   "settings.me.friends.requests.other": "{n} new requests",
   "settings.me.needsReview": "Needs review",
   "settings.me.needsReview.sub": "Imported games waiting for a match",
+  "settings.me.tonight": "What should I play tonight?",
+  "settings.me.tonight.sub": "AI picks from your backlog",
   "settings.me.duplicates": "Find duplicates",
   "settings.me.duplicates.sub": "AI looks for cards that are the same game",
   "settings.duplicates.title": "Find duplicates",
