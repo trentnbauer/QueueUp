@@ -12,6 +12,7 @@ import { useAuth } from '../context/AuthContext';
 import { useConfirm } from '../context/ConfirmContext';
 import { useScope } from '../context/ScopeContext';
 import { useSteamImportContext } from '../context/SteamImportContext';
+import { useSyncSources } from '../hooks/useSyncSources';
 import { useUi } from '../context/UiContext';
 import { useLibraryLimits } from '../hooks/useLibraryLimits';
 import { Dialog } from '../ui/Dialog';
@@ -55,6 +56,11 @@ export function ImportDialog() {
   const { steamLinked } = useAuth();
   const { busy, activeKind, progress, wishlistProgress, startLink, syncingEverything, completions, result, error } = useSteamImportContext();
   const running = busy || completions.busy || syncingEverything;
+  // Opened from Add game (issue #859): a linked library's button syncs it here, rather than opening its settings.
+  const syncMode = ui.dialogs.import?.mode === 'sync';
+  const sync = useSyncSources();
+  const [syncingId, setSyncingId] = useState<string | null>(null);
+  const syncBusy = sync.busy || syncingId !== null;
   const { data: psnStatus } = useQuery({ queryKey: PSN_STATUS_QUERY_KEY, queryFn: psnApi.status });
   const { data: raStatus } = useQuery({ queryKey: RETROACHIEVEMENTS_STATUS_QUERY_KEY, queryFn: retroAchievementsApi.status });
   const limits = useLibraryLimits();
@@ -66,6 +72,19 @@ export function ImportDialog() {
     .sort((a, b) => (b.lastUsedAt ?? b.createdAt).localeCompare(a.lastUsedAt ?? a.createdAt))[0];
   // The Xbox row only shows when the server has an Xbox app set up.
   const { data: xboxStatus } = useQuery({ queryKey: XBOX_STATUS_QUERY_KEY, queryFn: xboxApi.status });
+
+  async function syncRow(id: string, label: string) {
+    setSyncingId(id);
+    try {
+      const outcome = await sync.syncOne(id);
+      if (outcome === 'limited') ui.showError(t('add.import.rateLimited', { minutes: limits.minutesLeft(id) ?? 1 }));
+      else ui.notify(t('add.import.synced', { source: label }));
+    } catch (e) {
+      ui.showError(e instanceof Error ? e.message : t('add.import.syncFailed', { source: label }));
+    } finally {
+      setSyncingId(null);
+    }
+  }
 
   // Linked: the Steam dialog is where it is synced or disconnected (issue #861), like the other sources.
   // Every source dialog opens on top of Libraries rather than replacing it (issue #860), so closing one
@@ -98,10 +117,10 @@ export function ImportDialog() {
           kind="steam"
           title={t('add.import.steamTitle')}
           sub={steamLinked ? t('add.import.steamSub') : t('add.import.steamLinkSub')}
-          cta={running ? t('add.import.importing') : steamLinked ? t('settings.me.steam.manage') : t('add.import.linkSteam')}
-          disabled={running}
+          cta={running || syncingId === 'steam' ? t('add.import.importing') : steamLinked ? t(syncMode ? 'settings.me.sync' : 'settings.me.steam.manage') : t('add.import.linkSteam')}
+          disabled={running || syncingId !== null}
           accent
-          onClick={steamManage}
+          onClick={steamLinked && syncMode ? () => void syncRow('steam', 'Steam') : steamManage}
         />
         <ImportRow
           kind="playnite"
@@ -114,30 +133,34 @@ export function ImportDialog() {
           kind="exophase"
           title="Exophase"
           sub={limits.isLimited('exophase') ? t('add.import.rateLimited', { minutes: limits.minutesLeft('exophase') ?? 1 }) : t('add.import.exophaseSub')}
-          cta={exophaseStatus?.connected ? t('settings.me.exophase.manage') : t('settings.me.exophase.link')}
-          onClick={() => ui.openDialog('exophase')}
+          cta={syncingId === 'exophase' ? t('add.import.syncing') : exophaseStatus?.connected ? t(syncMode ? 'settings.me.sync' : 'settings.me.exophase.manage') : t('settings.me.exophase.link')}
+          disabled={syncMode && !!exophaseStatus?.connected && (syncBusy || limits.isLimited('exophase'))}
+          onClick={exophaseStatus?.connected && syncMode ? () => void syncRow('exophase', 'Exophase') : () => ui.openDialog('exophase')}
         />
         <ImportRow
           kind="playstation"
           title="PlayStation"
           sub={t('add.import.psnSub')}
-          cta={psnStatus?.connected ? t('settings.me.psn.manage') : t('settings.me.psn.link')}
-          onClick={() => ui.openDialog('psn')}
+          cta={syncingId === 'psn' ? t('add.import.syncing') : psnStatus?.connected ? t(syncMode ? 'settings.me.sync' : 'settings.me.psn.manage') : t('settings.me.psn.link')}
+          disabled={syncMode && !!psnStatus?.connected && syncBusy}
+          onClick={psnStatus?.connected && syncMode ? () => void syncRow('psn', 'PlayStation') : () => ui.openDialog('psn')}
         />
         <ImportRow
           kind="retroachievements"
           title="RetroAchievements"
           sub={limits.isLimited('retroachievements') ? t('add.import.rateLimited', { minutes: limits.minutesLeft('retroachievements') ?? 1 }) : t('add.import.retroAchievementsSub')}
-          cta={raStatus?.connected ? t('settings.me.exophase.manage') : t('settings.me.exophase.link')}
-          onClick={() => ui.openDialog('retroachievements')}
+          cta={syncingId === 'retroachievements' ? t('add.import.syncing') : raStatus?.connected ? t(syncMode ? 'settings.me.sync' : 'settings.me.exophase.manage') : t('settings.me.exophase.link')}
+          disabled={syncMode && !!raStatus?.connected && (syncBusy || limits.isLimited('retroachievements'))}
+          onClick={raStatus?.connected && syncMode ? () => void syncRow('retroachievements', 'RetroAchievements') : () => ui.openDialog('retroachievements')}
         />
         {xboxStatus?.configured && (
           <ImportRow
             kind="xbox"
             title="Xbox"
             sub={t('add.import.xboxSub')}
-            cta={xboxStatus.connected ? t('settings.me.xbox.manage') : t('settings.me.xbox.link')}
-            onClick={() => ui.openDialog('xbox')}
+            cta={syncingId === 'xbox' ? t('add.import.syncing') : xboxStatus.connected ? t(syncMode ? 'settings.me.sync' : 'settings.me.xbox.manage') : t('settings.me.xbox.link')}
+            disabled={syncMode && xboxStatus.connected && syncBusy}
+            onClick={xboxStatus.connected && syncMode ? () => void syncRow('xbox', 'Xbox') : () => ui.openDialog('xbox')}
           />
         )}
       </Group>
