@@ -175,6 +175,10 @@ enum NotificationType {
   /// unreachable, or the sync broke part-way. Direct (recipientId), never room-scoped, same shape as
   /// release_watch. See notifyLibrarySyncError in services/notifications.ts.
   library_sync_error
+  /// A new way to sync a library has arrived (Xbox, PlayStation, Exophase, RetroAchievements...), sent
+  /// once to everyone who already had an account when it did (see services/libraryAnnouncements.ts).
+  /// Direct (recipientId), never room-scoped, same shape as release_watch.
+  library_sync_available
 
   @@map("notification_type")
   /// A library sync found games on a console the person unticked from Systems owned: asks whether

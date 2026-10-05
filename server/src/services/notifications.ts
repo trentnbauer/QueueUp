@@ -17,14 +17,14 @@ interface NotifyRoomInput {
   /** The game this is about, so clicking the notification can open its card. */
   gameId?: string;
   // Excludes room_deleted/price_drop/release_watch/playtime_mark_playing/playnite_sync_reminder/
-  // wishlist_bundle_deal, library_sync_error (none of them ever reaches notifyRoom - see the notes on
+  // wishlist_bundle_deal, library_sync_error, library_sync_available (none of them ever reaches notifyRoom - see the notes on
   // notifyRoomMembersDirect, notifyPriceDrop, notifyReleaseWatch, notifyPlaytimeMarkPlaying,
   // notifyPlayniteSyncReminder, and notifyWishlistBundle below) so the RoomActivityType passthrough
   // a few lines down needs no cast: this narrowed type is compiler-checked to stay a subset of
   // RoomActivityType, not just documented as one.
   type: Exclude<
     NotificationType,
-    'room_deleted' | 'price_drop' | 'release_watch' | 'playtime_mark_playing' | 'playnite_sync_reminder' | 'wishlist_bundle_deal' | 'play_together_request' | 'feed_reaction' | 'friend_recommendation' | 'good_time_to_buy' | 'account_change' | 'library_sync_error' | 'platform_unowned' | 'room_game_beaten'
+    'room_deleted' | 'price_drop' | 'release_watch' | 'playtime_mark_playing' | 'playnite_sync_reminder' | 'wishlist_bundle_deal' | 'play_together_request' | 'feed_reaction' | 'friend_recommendation' | 'good_time_to_buy' | 'account_change' | 'library_sync_error' | 'library_sync_available' | 'platform_unowned' | 'room_game_beaten'
   >;
   message: (actorName: string) => string;
   /** The game event's structured detail, for the room's play journal. */
