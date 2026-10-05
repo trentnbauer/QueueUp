@@ -46,6 +46,7 @@ export const labels: Record<keyof typeof en, string> = {
   "labels.review.gameplay": "Swashbucklin’",
   "labels.review.story": "Tale",
   "labels.review.sound": "Shanties & sound",
+  "labels.review.themes": "Themes & ideas",
   "labels.reviewScore.1": "Bilge water",
   "labels.reviewScore.2": "Landlubber’s grog",
   "labels.reviewScore.3": "Seaworthy",

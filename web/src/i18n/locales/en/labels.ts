@@ -44,6 +44,7 @@ export const labels = {
   "labels.review.gameplay": "Gameplay",
   "labels.review.story": "Story",
   "labels.review.sound": "Sound & music",
+  "labels.review.themes": "Themes & ideas",
   "labels.reviewScore.1": "Poor",
   "labels.reviewScore.2": "Meh",
   "labels.reviewScore.3": "OK",

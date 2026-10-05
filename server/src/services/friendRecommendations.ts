@@ -18,7 +18,7 @@ const MAX_FRIENDS = 300;
 export async function notifyFriendRecommendation(
   reviewerId: string,
   game: { id: string; igdbId: number; title: string; hiddenFromOthers: boolean },
-  review: { art: number | null; gameplay: number | null; story: number | null; sound: number | null },
+  review: { art: number | null; gameplay: number | null; story: number | null; sound: number | null; themes?: number | null },
 ): Promise<void> {
   try {
     const average = reviewAverage(review);

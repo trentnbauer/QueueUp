@@ -1133,9 +1133,10 @@ export default async function gameRoutes(app: FastifyInstance) {
     const gameplay = score(body.gameplay);
     const story = score(body.story);
     const sound = score(body.sound);
+    const themes = score(body.themes);
     const note = typeof body.note === 'string' ? body.note.trim().slice(0, 280) : '';
     const recommend = typeof body.recommend === 'boolean' ? body.recommend : null;
-    const hasAny = art !== null || gameplay !== null || story !== null || sound !== null || note.length > 0 || recommend !== null;
+    const hasAny = art !== null || gameplay !== null || story !== null || sound !== null || themes !== null || note.length > 0 || recommend !== null;
 
     // The caller's own review only (GameReview is one per person per game) - in a room, every
     // member keeps their own instead of overwriting whoever saved last. Clearing everything
@@ -1145,7 +1146,7 @@ export default async function gameRoutes(app: FastifyInstance) {
     // A room's play journal logs a member's first review of a game, not every later edit.
     const firstReview = hasAny && game.roomId !== null && !(await prisma.gameReview.findUnique({ where, select: { gameId: true } }));
     if (hasAny) {
-      const data = { art, gameplay, story, sound, note: note || null, recommend, reviewedAt: new Date() };
+      const data = { art, gameplay, story, sound, themes, note: note || null, recommend, reviewedAt: new Date() };
       saved = await prisma.gameReview.upsert({ where, create: { gameId: game.id, userId, ...data }, update: data });
     } else {
       await prisma.gameReview.deleteMany({ where: { gameId: game.id, userId } });
@@ -1155,7 +1156,7 @@ export default async function gameRoutes(app: FastifyInstance) {
     if (hasAny) {
       const review = toGameReviewDto(saved);
       // A high score on a Personal Shelf game is worth telling friends who have it on their list.
-      if (game.roomId === null) void notifyFriendRecommendation(userId, game, { art, gameplay, story, sound });
+      if (game.roomId === null) void notifyFriendRecommendation(userId, game, { art, gameplay, story, sound, themes });
       if (game.roomId === null) {
         // Attach to the most recent Beaten entry for this game, falling back to a fresh one so a
         // review saved without a prior logged transition (e.g. a sync-applied Beaten) still shows.
@@ -1189,7 +1190,7 @@ export default async function gameRoutes(app: FastifyInstance) {
         }
       } else {
         const who = await prisma.user.findUnique({ where: { id: userId }, select: { displayName: true } });
-        const scores = [art, gameplay, story, sound].filter((v): v is number => v !== null);
+        const scores = [art, gameplay, story, sound, themes].filter((v): v is number => v !== null);
         const score = scores.length ? scores.reduce((a, b) => a + b, 0) / scores.length : null;
         const avg = score !== null ? ` (${score.toFixed(1)}/5)` : '';
         const text = `${who?.displayName ?? 'Someone'} reviewed "${updated.title}"${avg}${note ? `: ${note}` : ''}`;
@@ -1313,6 +1314,7 @@ export default async function gameRoutes(app: FastifyInstance) {
               gameplay: roomReview.gameplay,
               story: roomReview.story,
               sound: roomReview.sound,
+              themes: roomReview.themes,
               note: roomReview.note,
               recommend: roomReview.recommend,
               reviewedAt: roomReview.reviewedAt,
