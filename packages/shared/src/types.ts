@@ -1350,6 +1350,18 @@ export interface AdminRoomDetail {
 /** A durable record of a destructive admin action - see AdminAuditLog in schema.prisma.
  * actorLabel/targetLabel are snapshots taken at write time, so they stay meaningful even after
  * the account/room/etc they refer to is gone. */
+export interface AdminEmailLogEntry {
+  id: string;
+  /** alert_digest, confirm_email or smtp_test. */
+  kind: string;
+  to: string;
+  subject: string;
+  status: 'sent' | 'failed';
+  /** Why it failed (the mail server's reason), null when it was sent. */
+  error: string | null;
+  createdAt: string;
+}
+
 export interface AdminAuditLogEntry {
   id: string;
   actorLabel: string;

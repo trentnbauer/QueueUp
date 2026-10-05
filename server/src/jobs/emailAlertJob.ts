@@ -67,7 +67,7 @@ export async function sendEmailAlerts(): Promise<void> {
     ].join('\n');
 
     try {
-      await sendMail({ to: email, subject: waiting.length === 1 ? 'QueueUp: 1 new alert' : `QueueUp: ${waiting.length} new alerts`, text });
+      await sendMail({ to: email, subject: waiting.length === 1 ? 'QueueUp: 1 new alert' : `QueueUp: ${waiting.length} new alerts`, text, kind: 'alert_digest' });
       await prisma.notification.updateMany({ where: { id: { in: waiting.map((n) => n.id) } }, data: { emailedAt: new Date() } });
       sent += 1;
     } catch (err) {

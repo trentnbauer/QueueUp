@@ -1,6 +1,7 @@
 import nodemailer from 'nodemailer';
 import { env } from '../config/env.js';
 import { getConfigValue } from './configResolver.js';
+import { logEmail, type EmailKind } from './emailLog.js';
 
 export interface SmtpSettings {
   host: string;
@@ -33,6 +34,8 @@ export interface MailMessage {
   to: string;
   subject: string;
   text: string;
+  /** What this email is, for the Administrator page's email log. */
+  kind: EmailKind;
 }
 
 /** Sends one plain-text email through the configured SMTP server. Port 465 uses implicit TLS; any
@@ -52,6 +55,10 @@ export async function sendMail(message: MailMessage): Promise<void> {
   });
   try {
     await transport.sendMail({ from: smtp.from, to: message.to, subject: message.subject, text: message.text });
+    await logEmail({ kind: message.kind, to: message.to, subject: message.subject });
+  } catch (err) {
+    await logEmail({ kind: message.kind, to: message.to, subject: message.subject, error: err });
+    throw err;
   } finally {
     transport.close();
   }
