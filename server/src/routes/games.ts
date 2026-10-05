@@ -1160,8 +1160,11 @@ export default async function gameRoutes(app: FastifyInstance) {
       // A high score on a Personal Shelf game is worth telling friends who have it on their list.
       if (game.roomId === null) void notifyFriendRecommendation(userId, game, { art, gameplay, story, sound, themes });
       if (game.roomId === null) {
-        // Attach to the most recent Beaten entry for this game, falling back to a fresh one so a
-        // review saved without a prior logged transition (e.g. a sync-applied Beaten) still shows.
+        // Attach to the most recent entry for this game's finished status, falling back to a fresh
+        // one so a review saved without a prior logged transition (e.g. a sync-applied Beaten)
+        // still shows. Dropped and Replay open the review dialog too, so they must not be logged
+        // as Beaten.
+        const reviewedStatus: GameStatus = updated.status === 'dropped' || updated.status === 'replay' ? updated.status : 'done';
         const entries = await prisma.roomActivity.findMany({
           where: { recipientId: userId, type: 'status_changed' },
           orderBy: { createdAt: 'desc' },
@@ -1169,13 +1172,13 @@ export default async function gameRoutes(app: FastifyInstance) {
         });
         const target = entries.find((e) => {
           const pl = e.payload as { gameId?: string; status?: string } | null;
-          return pl?.gameId === game.id && pl?.status === 'done';
+          return pl?.gameId === game.id && pl?.status === reviewedStatus;
         });
         const payload = {
           gameId: updated.id,
           title: updated.title,
           coverImageUrl: updated.coverImageUrl,
-          status: 'done',
+          status: reviewedStatus,
           review,
         };
         if (target) {
@@ -1185,7 +1188,7 @@ export default async function gameRoutes(app: FastifyInstance) {
             recipientId: userId,
             actorId: userId,
             type: 'status_changed',
-            message: `Marked "${updated.title}" as Beaten`,
+            message: `Marked "${updated.title}" as ${STATUS_LABELS[reviewedStatus]}`,
             payload,
             hidden: updated.hiddenFromOthers,
           });
