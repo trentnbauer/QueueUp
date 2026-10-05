@@ -1,7 +1,7 @@
 import { useAnalyticsConsentSync } from './hooks/useAnalyticsConsent';
 import { useExophaseSyncToasts } from './hooks/useExophaseSyncToasts';
 import { Navigate, Routes, Route, useLocation, useNavigate, useParams } from 'react-router';
-import { useEffect, useRef, useState } from 'react';
+import { lazy, Suspense, useEffect, useRef, useState } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
 import { useAuth } from './context/AuthContext';
 import { authApi } from './api/auth';
@@ -15,16 +15,21 @@ import { AutoLibrarySync } from './hooks/useAutoLibrarySync';
 import { useConfirm } from './context/ConfirmContext';
 import { useUi } from './context/UiContext';
 import { HomeView } from './home/HomeView';
-import { AdminPage } from './pages/AdminPage';
 import { JoinPage, LoginPage, PublicProfilePage } from './pages/EntryPages';
-import { PrivacyPage } from './pages/PrivacyPage';
-import { ConfirmEmailPage } from './pages/ConfirmEmailPage';
-import { ActivityPage } from './pages/FriendPages';
-import { AchievementsPage, InsightsPage, YearPage } from './pages/InsightPages';
 import { AppShell } from './shell/AppShell';
 import { Onboarding, onRerunOnboarding } from './shell/Onboarding';
 import { initAnalytics, trackPageView } from './utils/analytics';
 import { t } from './i18n';
+
+// Rarely-visited pages load on demand so they stay out of the entry bundle; the first-paint path
+// (home, login, public profile, app shell) stays eager.
+const AdminPage = lazy(() => import('./pages/AdminPage').then((m) => ({ default: m.AdminPage })));
+const PrivacyPage = lazy(() => import('./pages/PrivacyPage').then((m) => ({ default: m.PrivacyPage })));
+const ConfirmEmailPage = lazy(() => import('./pages/ConfirmEmailPage').then((m) => ({ default: m.ConfirmEmailPage })));
+const ActivityPage = lazy(() => import('./pages/FriendPages').then((m) => ({ default: m.ActivityPage })));
+const AchievementsPage = lazy(() => import('./pages/InsightPages').then((m) => ({ default: m.AchievementsPage })));
+const InsightsPage = lazy(() => import('./pages/InsightPages').then((m) => ({ default: m.InsightsPage })));
+const YearPage = lazy(() => import('./pages/InsightPages').then((m) => ({ default: m.YearPage })));
 
 const ONBOARDED_KEY = 'sq-onboarded';
 // Invite links (`/join/:inviteCode`) need to survive a full-page OAuth sign-in/callback round trip,
@@ -184,8 +189,20 @@ export default function App() {
   // Reachable regardless of sign-in state: checked before the sign-in gate, outside the app shell.
   const publicMatch = location.pathname.match(/^\/u\/([^/]+)$/);
   const confirmMatch = location.pathname.match(/^\/confirm-email\/([^/]+)$/);
-  if (confirmMatch) return <ConfirmEmailPage token={decodeURIComponent(confirmMatch[1])} />;
-  if (location.pathname === '/privacy') return <PrivacyPage signedIn={!!user} />;
+  if (confirmMatch) {
+    return (
+      <Suspense fallback={null}>
+        <ConfirmEmailPage token={decodeURIComponent(confirmMatch[1])} />
+      </Suspense>
+    );
+  }
+  if (location.pathname === '/privacy') {
+    return (
+      <Suspense fallback={null}>
+        <PrivacyPage signedIn={!!user} />
+      </Suspense>
+    );
+  }
   if (publicMatch) return <PublicProfilePage userId={decodeURIComponent(publicMatch[1])} signedIn={!!user} />;
 
   if (!user) return <LoginPage providers={providers} turnstileSiteKey={turnstileSiteKey} />;
@@ -195,19 +212,21 @@ export default function App() {
       <AutoLibrarySync />
       <ScopeProvider>
         <AppShell>
-          <Routes>
-            <Route path="/" element={<HomeView />} />
-            <Route path="/room/:roomId" element={<HomeView />} />
-            <Route path="/activity" element={<ActivityPage />} />
-            <Route path="/friends/:userId" element={<FriendRedirect />} />
-            <Route path="/insights" element={<InsightsPage />} />
-            <Route path="/achievements" element={<AchievementsPage />} />
-            <Route path="/year" element={<YearPage />} />
-            <Route path="/admin" element={<AdminPage />} />
-            <Route path="/join/:inviteCode" element={<JoinRoute />} />
-            <Route path="/add/:code" element={<AddFriendRoute />} />
-            <Route path="*" element={<Navigate to="/" replace />} />
-          </Routes>
+          <Suspense fallback={null}>
+            <Routes>
+              <Route path="/" element={<HomeView />} />
+              <Route path="/room/:roomId" element={<HomeView />} />
+              <Route path="/activity" element={<ActivityPage />} />
+              <Route path="/friends/:userId" element={<FriendRedirect />} />
+              <Route path="/insights" element={<InsightsPage />} />
+              <Route path="/achievements" element={<AchievementsPage />} />
+              <Route path="/year" element={<YearPage />} />
+              <Route path="/admin" element={<AdminPage />} />
+              <Route path="/join/:inviteCode" element={<JoinRoute />} />
+              <Route path="/add/:code" element={<AddFriendRoute />} />
+              <Route path="*" element={<Navigate to="/" replace />} />
+            </Routes>
+          </Suspense>
         </AppShell>
         {showOnboarding && <Onboarding onDone={finishOnboarding} />}
       </ScopeProvider>
