@@ -240,7 +240,7 @@ export const pages = {
   "pages.admin.roleFailed": "Could not update that user's role",
   "pages.admin.testSent": "Test email sent to {email}",
   "pages.admin.testFailed": "Could not send the test email",
-  "pages.admin.source.env": "Set via .env (takes precedence)",
+  "pages.admin.source.env": "Set by Docker env or variable (takes precedence)",
   "pages.admin.source.db": "Set here (DB fallback)",
   "pages.admin.source.none": "Not configured",
   "pages.admin.configured": "configured",
