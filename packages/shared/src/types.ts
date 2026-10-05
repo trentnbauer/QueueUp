@@ -1199,7 +1199,8 @@ export type IntegrationConfigKey =
   | 'SMTP_PORT'
   | 'SMTP_USER'
   | 'SMTP_PASSWORD'
-  | 'SMTP_FROM';
+  | 'SMTP_FROM'
+  | 'XBOX_CLIENT_ID';
 
 /** Cloudflare Tunnel (issue #664) as the server sees it: `off` (no token), `starting` (cloudflared
  * running, no connection yet), `connected`, `error` (stopped, retrying with backoff) or

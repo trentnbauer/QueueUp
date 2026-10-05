@@ -20,6 +20,7 @@ function fields(s: AdminIntegrationStatus): { key: IntegrationConfigKey; label: 
     { key: 'IGDB_CLIENT_ID', label: tr('pages.admin.field.igdbId'), source: s.igdbClientIdSource },
     { key: 'IGDB_CLIENT_SECRET', label: tr('pages.admin.field.igdbSecret'), source: s.igdbClientSecretSource },
     { key: 'SCANDEX_API_KEY', label: tr('pages.admin.field.scandex'), source: s.scandexApiKeySource },
+    { key: 'XBOX_CLIENT_ID', label: tr('pages.admin.field.xbox'), source: s.xboxClientIdSource },
     { key: 'TURNSTILE_SITE_KEY', label: tr('pages.admin.field.turnstileSite'), source: s.turnstileSiteKeySource },
     { key: 'TURNSTILE_SECRET_KEY', label: tr('pages.admin.field.turnstileSecret'), source: s.turnstileSecretKeySource },
     { key: 'GA_MEASUREMENT_ID', label: tr('pages.admin.field.ga'), source: s.gaMeasurementIdSource },
