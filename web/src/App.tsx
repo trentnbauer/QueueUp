@@ -11,6 +11,7 @@ import { useActiveRoomSpinToasts } from './hooks/useActiveRoomSpinToasts';
 import { usePlayniteSyncToasts } from './hooks/usePlayniteSyncToasts';
 import { ScopeProvider } from './context/ScopeContext';
 import { SteamImportProvider } from './context/SteamImportContext';
+import { AutoLibrarySync } from './hooks/useAutoLibrarySync';
 import { useConfirm } from './context/ConfirmContext';
 import { useUi } from './context/UiContext';
 import { HomeView } from './home/HomeView';
@@ -191,6 +192,7 @@ export default function App() {
 
   return (
     <SteamImportProvider>
+      <AutoLibrarySync />
       <ScopeProvider>
         <AppShell>
           <Routes>
