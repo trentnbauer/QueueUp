@@ -2442,6 +2442,8 @@ export interface FriendSummary extends FriendUser {
   sharedRoomCount: number;
   /** The friend's most recent visible activity, if any. */
   lastEvent: { kind: FriendEventKind; title: string; at: string } | null;
+  /** True when the friend set their profile to Private: their counts and activity are hidden from everyone. */
+  profilePrivate: boolean;
 }
 
 export interface FriendRequestDto {

@@ -428,7 +428,7 @@ export function FriendsDialog() {
               <span style={st('flex:1;min-width:0;display:flex;flex-direction:column;gap:2px')}>
                 <span style={st('font:600 15px var(--font-ui)')}>{f.displayName}</span>
                 <span style={st('font:400 12.5px var(--font-ui);color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis')}>
-                  {t(f.sharedRoomCount === 1 ? 'social.friends.stats.one' : 'social.friends.stats.other', { beaten: f.beatenCount, n: f.sharedRoomCount })}
+                  {f.profilePrivate ? t('social.friends.private') : t(f.sharedRoomCount === 1 ? 'social.friends.stats.one' : 'social.friends.stats.other', { beaten: f.beatenCount, n: f.sharedRoomCount })}
                 </span>
               </span>
               <span style={st('color:var(--muted);font-size:20px')}>›</span>
