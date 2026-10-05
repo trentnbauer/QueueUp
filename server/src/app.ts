@@ -34,6 +34,7 @@ import aiSettingsRoutes from './routes/aiSettings.js';
 import xboxRoutes from './routes/xbox.js';
 import exophaseRoutes from './routes/exophase.js';
 import psnRoutes from './routes/psn.js';
+import analyticsConsentRoutes from './routes/analyticsConsent.js';
 import retroAchievementsRoutes from './routes/retroachievements.js';
 import activityVisibilityRoutes from './routes/activityVisibility.js';
 import accountEventRoutes from './routes/accountEvents.js';
@@ -179,6 +180,7 @@ export async function buildApp() {
       await instance.register(xboxRoutes);
       await instance.register(exophaseRoutes);
       await instance.register(psnRoutes);
+      await instance.register(analyticsConsentRoutes);
       await instance.register(retroAchievementsRoutes);
       await instance.register(activityVisibilityRoutes);
       await instance.register(accountEventRoutes);

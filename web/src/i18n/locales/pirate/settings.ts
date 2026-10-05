@@ -21,6 +21,9 @@ export const settings: Record<keyof typeof en, string> = {
   "settings.analytics.privacy": "Privacy code",
   "settings.analytics.on": "Thankee - usage tallies be on",
   "settings.analytics.off": "Usage tallies be off",
+  "settings.analytics.toast": "Share anonymous usage stats to help improve QueueUp? Ye can change this any time in Riggin’.",
+  "settings.analytics.toastAllow": "Allow",
+  "settings.analytics.toastDeny": "No thanks",
 
   // Alert email
   "settings.alertEmail.title": "Address fer yer messages in bottles",
