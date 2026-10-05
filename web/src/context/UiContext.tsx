@@ -20,6 +20,7 @@ export type DialogKey =
   | 'playnite'
   | 'xbox'
   | 'exophase'
+  | 'psn'
   | 'changelog'
   | 'dlc'
   | 'review'

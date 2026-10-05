@@ -120,6 +120,8 @@ export const shell: Record<keyof typeof en, string> = {
   "shell.onboarding.library.directNote": "We recommend Exophase or Playnite. The direct connections below also work, but they are best effort and can stop workin’ when a store changes somethin’.",
   "shell.onboarding.library.linkXbox": "Link Xbox",
   "shell.onboarding.library.manageXbox": "Manage",
+  "shell.onboarding.library.linkPsn": "Link PlayStation",
+  "shell.onboarding.library.managePsn": "Manage",
   "shell.onboarding.library.orConnect": "DIRECT SYNCS · BEST EFFORT",
   "shell.onboarding.library.importing": "Haulin’ in…",
   "shell.onboarding.library.importNow": "Haul in now",

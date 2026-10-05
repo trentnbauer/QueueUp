@@ -5,6 +5,7 @@ import { apiKeysApi, API_KEYS_QUERY_KEY } from '../api/apiKeys';
 import { gamesApi } from '../api/games';
 import { pendingImportsApi, PENDING_IMPORTS_QUERY_KEY } from '../api/pendingImports';
 import { XBOX_STATUS_QUERY_KEY, xboxApi } from '../api/xbox';
+import { PSN_STATUS_QUERY_KEY, psnApi } from '../api/psn';
 import { useAuth } from '../context/AuthContext';
 import { useConfirm } from '../context/ConfirmContext';
 import { useScope } from '../context/ScopeContext';
@@ -50,6 +51,7 @@ export function ImportDialog() {
   const { steamLinked } = useAuth();
   const { busy, activeKind, progress, wishlistProgress, startLink, runSyncEverything, syncingEverything, completions, result, error } = useSteamImportContext();
   const running = busy || completions.busy || syncingEverything;
+  const { data: psnStatus } = useQuery({ queryKey: PSN_STATUS_QUERY_KEY, queryFn: psnApi.status });
   // The Xbox row only shows when the server has an Xbox app set up.
   const { data: xboxStatus } = useQuery({ queryKey: XBOX_STATUS_QUERY_KEY, queryFn: xboxApi.status });
 
@@ -108,6 +110,15 @@ export function ImportDialog() {
           onClick={() => {
             ui.closeDialog('import');
             ui.openDialog('exophase');
+          }}
+        />
+        <ImportRow
+          title="PlayStation"
+          sub={t('add.import.psnSub')}
+          cta={psnStatus?.connected ? t('settings.me.psn.manage') : t('settings.me.psn.link')}
+          onClick={() => {
+            ui.closeDialog('import');
+            ui.openDialog('psn');
           }}
         />
         {xboxStatus?.configured && (

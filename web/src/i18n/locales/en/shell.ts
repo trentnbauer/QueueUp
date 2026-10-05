@@ -118,6 +118,8 @@ export const shell = {
   "shell.onboarding.library.directNote": "We recommend Exophase or Playnite. The direct connections below also work, but they are best effort and can stop working when a store changes something.",
   "shell.onboarding.library.linkXbox": "Link Xbox",
   "shell.onboarding.library.manageXbox": "Manage",
+  "shell.onboarding.library.linkPsn": "Link PlayStation",
+  "shell.onboarding.library.managePsn": "Manage",
   "shell.onboarding.library.orConnect": "DIRECT SYNCS · BEST EFFORT",
   "shell.onboarding.library.importing": "Importing…",
   "shell.onboarding.library.importNow": "Import now",

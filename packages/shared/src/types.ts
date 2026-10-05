@@ -746,7 +746,7 @@ export interface AccountEventPage {
 }
 
 /** Where a shelf game was synced from. */
-export type SyncSource = 'steam' | 'steam_wishlist' | 'playnite' | 'xbox' | 'exophase';
+export type SyncSource = 'steam' | 'steam_wishlist' | 'playnite' | 'xbox' | 'exophase' | 'psn';
 
 /** POST/DELETE /api/games/:id/remove-vote. `removed` is true when that vote tipped it over and the game is gone. */
 export interface RemoveVoteResponse {
@@ -2572,4 +2572,22 @@ export interface ExophaseStatusResponse {
  * numeric player id. */
 export interface ConnectExophaseRequest {
   profile: string;
+}
+
+// ---------------------------------------------------------------------------------------------
+// Native PlayStation library sync: link a PlayStation account with a one-off NPSSO code, then pull
+// the purchased PS4 and PS5 games without Playnite in between.
+// ---------------------------------------------------------------------------------------------
+
+export interface PsnStatusResponse {
+  connected: boolean;
+  lastSyncedAt: string | null;
+  /** When Sony stops accepting the saved login and the person has to link again. Null when unknown. */
+  linkExpiresAt: string | null;
+}
+
+/** `npsso` is the 64-character code from Sony's sign-in cookie page. It is traded for a long-lived
+ * login right away and never stored. */
+export interface ConnectPsnRequest {
+  npsso: string;
 }

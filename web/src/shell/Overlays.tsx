@@ -11,6 +11,7 @@ import { DeckDialog } from '../dialogs/DeckDialog';
 import { CompletionsDialog, ImportDialog, NeedsReviewDialog, PlayniteDialog } from '../dialogs/ImportDialogs';
 import { XboxDialog } from '../dialogs/XboxDialog';
 import { ExophaseDialog } from '../dialogs/ExophaseDialog';
+import { PsnDialog } from '../dialogs/PsnDialog';
 import { MeDialog } from '../dialogs/MeDialog';
 import { ChangelogDialog, DlcDialog, PlaytimeDialog } from '../dialogs/MiscDialogs';
 import { RankedDialog } from '../dialogs/RankedDialog';
@@ -135,6 +136,7 @@ export function Overlays() {
       {d.playnite && <PlayniteDialog />}
       {d.xbox && <XboxDialog />}
       {d.exophase && <ExophaseDialog />}
+      {d.psn && <PsnDialog />}
       {d.changelog && <ChangelogDialog />}
       {d.journal && <JournalDialog roomId={d.journal.roomId} />}
       {d.dlc && <DlcDialog />}
