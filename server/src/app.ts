@@ -18,6 +18,7 @@ import aiPriceAdviceRoutes from './routes/aiPriceAdvice.js';
 import aiBacklogCoachRoutes from './routes/aiBacklogCoach.js';
 import aiSearchRoutes from './routes/aiSearch.js';
 import yearStoryRoutes from './routes/yearStory.js';
+import roomRecapRoutes from './routes/roomRecap.js';
 import roomSpinRoutes from './routes/roomSpin.js';
 import roomSystemsRoutes from './routes/roomSystems.js';
 import journalRoutes from './routes/journal.js';
@@ -177,6 +178,7 @@ export async function buildApp() {
       await instance.register(aiBacklogCoachRoutes);
       await instance.register(aiSearchRoutes);
       await instance.register(yearStoryRoutes);
+      await instance.register(roomRecapRoutes);
       await instance.register(roomSpinRoutes);
       await instance.register(roomSystemsRoutes);
       await instance.register(journalRoutes);

@@ -2625,6 +2625,24 @@ export interface DismissPendingLibraryImportsRequest {
   ids: string[];
 }
 
+/** A room's AI weekly recap (issue #830): its settings and the latest recap. */
+export interface RoomWeeklyRecapResponse {
+  enabled: boolean;
+  /** Also post each recap to the room's Discord webhook. */
+  postToDiscord: boolean;
+  /** Whether the room has a Discord webhook to post to. */
+  hasDiscordWebhook: boolean;
+  /** The Room Master or a Moderator: may change the settings and write one now. */
+  canManage: boolean;
+  recap: { text: string; windowStart: string; createdAt: string } | null;
+}
+
+/** Body for PUT /api/rooms/:id/weekly-recap. */
+export interface UpdateRoomWeeklyRecapRequest {
+  enabled?: boolean;
+  postToDiscord?: boolean;
+}
+
 /** The computed numbers and titles a Year in Review story is written from (issue #826). Only these
  * go to the AI: never notes, reviews' text or journal entries. The server clamps every field. */
 export interface YearStoryFacts {
