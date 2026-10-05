@@ -256,10 +256,13 @@ export default async function friendRoutes(app: FastifyInstance) {
     const outgoingRows = env.PRIVATE_INSTANCE ? [] : rows.filter((r) => r.status === 'pending' && r.requesterId === userId);
     const shared = await sharedRoomCounts(userId, [...friendIds, ...incomingRows.map((r) => r.requesterId)]);
 
+    // Friends who hide their activity don't have their beaten count shown either.
+    const hiddenRows = await prisma.user.findMany({ where: { id: { in: friendIds }, activityHidden: true }, select: { id: true } });
+    const visibleFriendIds = friendIds.filter((id) => !hiddenRows.some((h) => h.id === id));
     const [beatenGroups, badgeGroups, feed] = await Promise.all([
       prisma.game.groupBy({
         by: ['addedBy'],
-        where: { roomId: null, addedBy: { in: friendIds }, status: { in: ['done', 'replay'] }, hiddenFromOthers: false },
+        where: { roomId: null, addedBy: { in: visibleFriendIds }, status: { in: ['done', 'replay'] }, hiddenFromOthers: false },
         _count: { _all: true },
       }),
       prisma.userBadge.groupBy({ by: ['userId'], where: { userId: { in: friendIds } }, _count: { _all: true } }),
@@ -456,17 +459,24 @@ export default async function friendRoutes(app: FastifyInstance) {
       },
     });
 
-    const user = await prisma.user.findUniqueOrThrow({ where: { id: otherId }, select: { ...userSelect, createdAt: true } });
+    const user = await prisma.user.findUniqueOrThrow({ where: { id: otherId }, select: { ...userSelect, createdAt: true, activityHidden: true } });
+    // Someone who hides their activity from friends shows no playing list or beaten count here
+    // either (the feed below already leaves them out).
+    const activityHidden = user.activityHidden;
     const [beatenCount, achievementCount, playingRows, activity, shared] = await Promise.all([
-      prisma.game.count({
-        where: { roomId: null, addedBy: otherId, status: { in: ['done', 'replay'] }, hiddenFromOthers: false },
-      }),
+      activityHidden
+        ? Promise.resolve(0)
+        : prisma.game.count({
+            where: { roomId: null, addedBy: otherId, status: { in: ['done', 'replay'] }, hiddenFromOthers: false },
+          }),
       prisma.userBadge.count({ where: { userId: otherId } }),
-      prisma.game.findMany({
-        where: { roomId: null, addedBy: otherId, status: 'playing', hiddenFromOthers: false },
-        select: { id: true, title: true, coverImageUrl: true, updatedAt: true },
-        orderBy: { updatedAt: 'desc' },
-      }),
+      activityHidden
+        ? Promise.resolve([])
+        : prisma.game.findMany({
+            where: { roomId: null, addedBy: otherId, status: 'playing', hiddenFromOthers: false },
+            select: { id: true, title: true, coverImageUrl: true, updatedAt: true },
+            orderBy: { updatedAt: 'desc' },
+          }),
       buildFeed(userId, [otherId], { take: 100 }),
       sharedRoomCounts(userId, [otherId]),
     ]);
