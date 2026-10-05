@@ -1671,10 +1671,14 @@ export default async function gameRoutes(app: FastifyInstance) {
 
       const platform = game.roomId ? await getRoomPlatform(game.roomId) : null;
       const offset = Math.max(0, Number.parseInt(request.query.offset ?? '0', 10) || 0);
-      const taken = new Set(await existingIgdbIds(game.roomId, game.addedBy));
-      taken.delete(game.igdbId);
-      // Add-ons are shown: the right match may well be a remaster or expansion.
-      return searchIntake(request.query.q?.trim() || game.title, platform ? [platform] : undefined, taken, offset, false);
+      // Games already on this room/shelf are kept in the results (flagged below): picking one merges
+      // this card into it, which is how a duplicate (e.g. a game and its remaster) is cleaned up.
+      const [page, existing] = await Promise.all([
+        searchIntake(request.query.q?.trim() || game.title, platform ? [platform] : undefined, undefined, offset, false),
+        existingIgdbIds(game.roomId, game.addedBy),
+      ]);
+      existing.delete(game.igdbId);
+      return { ...page, existingIgdbIds: page.results.filter((r) => existing.has(r.igdbId)).map((r) => r.igdbId) };
     },
   );
 
@@ -1687,11 +1691,11 @@ export default async function gameRoutes(app: FastifyInstance) {
       await requireGameSettingsAccess(game, userId);
 
       const platform = game.roomId ? await getRoomPlatform(game.roomId) : null;
-      await rematchGame(game, request.body.igdbId, platform ? [platform] : undefined);
+      const { gameId, mergedFromId } = await rematchGame(game, request.body.igdbId, platform ? [platform] : undefined);
       await invalidateExistingIgdbIds(game.roomId, game.addedBy);
 
-      const updated = await loadGameOr404(game.id);
-      return { game: await serializeGame(updated, userId) };
+      const updated = await loadGameOr404(gameId);
+      return { game: await serializeGame(updated, userId), mergedFromId };
     },
   );
 

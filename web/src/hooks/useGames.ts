@@ -234,7 +234,11 @@ export function useGames(roomId: string | null) {
   // "Incorrect match" (issue #814) - the endpoint returns the re-resolved game, so patching the cache is enough.
   const setIgdbMatch = useMutation({
     mutationFn: ({ gameId, igdbId }: { gameId: string; igdbId: number }) => gamesApi.setIgdbMatch(gameId, { igdbId }),
-    onSuccess: ({ game }) => patchGame(game),
+    // A merge deletes the card that was re-matched and returns the one it merged into.
+    onSuccess: ({ game, mergedFromId }) => {
+      if (mergedFromId) removeGameFromCache(mergedFromId);
+      patchGame(game);
+    },
     onError: (err) => setActionError(errorMessage(err, t('shell.games.error.rematch'))),
   });
 

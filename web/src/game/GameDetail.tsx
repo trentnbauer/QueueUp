@@ -771,8 +771,19 @@ export function GameDetail({ game, onClose, changeStatus }: { game: Game; onClos
           gameId={game.id}
           gameTitle={game.title}
           onClose={() => setRematching(false)}
-          onMatched={(igdbId) => {
-            ops.setIgdbMatch(game.id, igdbId);
+          onMatched={async (result, merges) => {
+            if (merges) {
+              const ok = await confirm({
+                title: t('game.igdbMatch.merge.title'),
+                message: t('game.igdbMatch.merge.message', { from: game.title, to: result.title }),
+                confirmLabel: t('game.igdbMatch.merge'),
+                danger: true,
+              });
+              if (!ok) return;
+              ui.selectGame(null);
+              ui.notify(t('game.igdbMatch.merge.done', { title: result.title }));
+            }
+            ops.setIgdbMatch(game.id, result.igdbId);
             setRematching(false);
           }}
         />
