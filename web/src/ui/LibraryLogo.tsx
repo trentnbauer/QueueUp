@@ -1,0 +1,66 @@
+/** Logos for the libraries QueueUp can sync from, so a library is recognised by its mark rather than
+ * only by its name. Drawn inline (no network request, nothing to load) in the current text colour.
+ *
+ * Sources and licences:
+ * - Steam, PlayStation and Xbox: Bootstrap Icons (https://icons.getbootstrap.com), MIT licence,
+ *   Copyright (c) 2019-2024 The Bootstrap Authors.
+ * - Playnite: the logo in the Playnite repository (https://github.com/JosefNemec/Playnite, media/),
+ *   MIT licence, Copyright (c) 2016-2024 Josef Nemec.
+ * - Exophase: its site icon (https://www.exophase.com/favicon.ico), bundled as
+ *   web/public/library-logos/exophase.png (converted from the 128px icon) rather than loaded from
+ *   exophase.com, so showing it never contacts their site.
+ * The names and marks belong to their owners and are shown only to identify each service. */
+import type { CSSProperties, ReactNode } from 'react';
+import { getBasePath } from '../utils/basePath';
+
+export type LibraryKind = 'steam' | 'playstation' | 'xbox' | 'playnite' | 'exophase';
+
+/** The brand colour each logo sits on, and the name used to describe it. */
+export const LIBRARY_BRAND: Record<LibraryKind, { name: string; background: string }> = {
+  steam: { name: 'Steam', background: '#1b2838' },
+  playstation: { name: 'PlayStation', background: '#003791' },
+  xbox: { name: 'Xbox', background: '#107c10' },
+  playnite: { name: 'Playnite', background: 'oklch(0.55 0.2 300)' },
+  exophase: { name: 'Exophase', background: '#2884af' },
+};
+
+const BOOTSTRAP_PATHS: Partial<Record<LibraryKind, string[]>> = {
+  steam: [
+    'M.329 10.333A8.01 8.01 0 0 0 7.99 16C12.414 16 16 12.418 16 8s-3.586-8-8.009-8A8.006 8.006 0 0 0 0 7.468l.003.006 4.304 1.769A2.2 2.2 0 0 1 5.62 8.88l1.96-2.844-.001-.04a3.046 3.046 0 0 1 3.042-3.043 3.046 3.046 0 0 1 3.042 3.043 3.047 3.047 0 0 1-3.111 3.044l-2.804 2a2.223 2.223 0 0 1-3.075 2.11 2.22 2.22 0 0 1-1.312-1.568L.33 10.333Z',
+    'M4.868 12.683a1.715 1.715 0 0 0 1.318-3.165 1.7 1.7 0 0 0-1.263-.02l1.023.424a1.261 1.261 0 1 1-.97 2.33l-.99-.41a1.7 1.7 0 0 0 .882.84Zm3.726-6.687a2.03 2.03 0 0 0 2.027 2.029 2.03 2.03 0 0 0 2.027-2.029 2.03 2.03 0 0 0-2.027-2.027 2.03 2.03 0 0 0-2.027 2.027m2.03-1.527a1.524 1.524 0 1 1-.002 3.048 1.524 1.524 0 0 1 .002-3.048',
+  ],
+  playstation: [
+    'M15.858 11.451c-.313.395-1.079.676-1.079.676l-5.696 2.046v-1.509l4.192-1.493c.476-.17.549-.412.162-.538-.386-.127-1.085-.09-1.56.08l-2.794.984v-1.566l.161-.054s.807-.286 1.942-.412c1.135-.125 2.525.017 3.616.43 1.23.39 1.368.962 1.056 1.356M9.625 8.883v-3.86c0-.453-.083-.87-.508-.988-.326-.105-.528.198-.528.65v9.664l-2.606-.827V2c1.108.206 2.722.692 3.59.985 2.207.757 2.955 1.7 2.955 3.825 0 2.071-1.278 2.856-2.903 2.072Zm-8.424 3.625C-.061 12.15-.271 11.41.304 10.984c.532-.394 1.436-.69 1.436-.69l3.737-1.33v1.515l-2.69.963c-.474.17-.547.411-.161.538.386.126 1.085.09 1.56-.08l1.29-.469v1.356l-.257.043a8.45 8.45 0 0 1-4.018-.323Z',
+  ],
+  xbox: [
+    'M7.202 15.967a8 8 0 0 1-3.552-1.26c-.898-.585-1.101-.826-1.101-1.306 0-.965 1.062-2.656 2.879-4.583C6.459 7.723 7.897 6.44 8.052 6.475c.302.068 2.718 2.423 3.622 3.531 1.43 1.753 2.088 3.189 1.754 3.829-.254.486-1.83 1.437-2.987 1.802-.954.301-2.207.429-3.239.33m-5.866-3.57C.589 11.253.212 10.127.03 8.497c-.06-.539-.038-.846.137-1.95.218-1.377 1.002-2.97 1.945-3.95.401-.417.437-.427.926-.263.595.2 1.23.638 2.213 1.528l.574.519-.313.385C4.056 6.553 2.52 9.086 1.94 10.653c-.315.852-.442 1.707-.306 2.063.091.24.007.15-.3-.319Zm13.101.195c.074-.36-.019-1.02-.238-1.687-.473-1.443-2.055-4.128-3.508-5.953l-.457-.575.494-.454c.646-.593 1.095-.948 1.58-1.25.381-.237.927-.448 1.161-.448.145 0 .654.528 1.065 1.104a8.4 8.4 0 0 1 1.343 3.102c.153.728.166 2.286.024 3.012a9.5 9.5 0 0 1-.6 1.893c-.179.393-.624 1.156-.82 1.404-.1.128-.1.127-.043-.148ZM7.335 1.952c-.67-.34-1.704-.705-2.276-.803a4 4 0 0 0-.759-.043c-.471.024-.45 0 .306-.358A7.8 7.8 0 0 1 6.47.128c.8-.169 2.306-.17 3.094-.005.85.18 1.853.552 2.418.9l.168.103-.385-.02c-.766-.038-1.88.27-3.078.853-.361.176-.676.316-.699.312a12 12 0 0 1-.654-.319Z',
+  ],
+};
+
+const PLAYNITE_PATH =
+  'M966.686,623.899c-9.773-81.666-29.323-161.25-54.514-239.447c-13.759-42.709-30.419-84.189-56.091-121.452c-31.701-46.014-74.789-72.958-130.812-78.579c-29.631-2.973-57.785,4.118-85.677,12.35c-61.172,18.056-123.359,25.124-186.493,14.903c-30.919-5.006-61.308-13.526-91.743-21.225c-76.445-19.338-145.323,4.995-191.165,69.261c-11.441,16.04-21.194,33.543-29.78,51.312c-25.091,51.925-40.443,107.249-54.53,162.924c-18.822,74.393-33.019,149.491-33.664,226.571c0,7.184-0.342,14.386,0.061,21.547c1.557,27.727,4.354,55.289,16.045,80.97c15.334,33.68,45.905,46.725,79.471,31.198c18.291-8.461,36.293-19.857,50.766-33.743c24.597-23.598,46.616-49.934,69.125-75.64c17.934-20.481,39.086-35.301,66.115-40.203c15.779-2.862,31.802-6.006,47.736-6.118c87.888-0.62,175.783-0.602,263.673-0.278c51.4,0.189,93.314,19.382,124.091,62.134c12.518,17.388,27.83,32.889,42.78,48.371c18.598,19.259,38.974,36.431,64.412,46.39c32.967,12.907,62.547,1.677,77.882-30.198c3.965-8.242,6.963-17.122,9.155-26.017C976.198,727.534,972.874,675.607,966.686,623.899z M315.471,527.643c-44.289,0.213-80.733-36.32-80.847-81.045c-0.115-45.048,35.472-81.194,80.197-81.458c44.521-0.263,80.718,35.897,80.884,80.801C395.871,490.671,359.773,527.429,315.471,527.643z M708.857,319.301c21.859,0.06,39.486,17.884,39.471,39.91c-0.015,22.133-17.489,39.677-39.523,39.682c-22.045,0.005-39.456-17.53-39.444-39.724C669.372,337.125,687.089,319.241,708.857,319.301z M622.269,486.36c-21.542,0.085-39.7-18.08-39.808-39.822c-0.108-21.888,17.617-39.622,39.62-39.641c22.066-0.018,39.759,17.552,39.718,39.442C661.758,468.205,643.909,486.275,622.269,486.36z M708.967,573.333c-21.823,0.096-39.537-17.668-39.611-39.721c-0.074-22.079,17.523-39.992,39.338-40.044c21.715-0.052,39.597,17.908,39.645,39.816C748.386,555.477,730.883,573.237,708.967,573.333z M795.752,486.362c-21.764,0.155-39.671-17.882-39.651-39.938c0.021-22.15,17.628-39.639,39.793-39.525c22.091,0.114,39.527,17.993,39.155,40.152C834.686,468.733,817.216,486.209,795.752,486.362z';
+
+/** Just the logo, in the current text colour. Decorative: the name is always shown beside it. */
+export function LibraryLogo({ kind, size = 20 }: { kind: LibraryKind; size?: number }): ReactNode {
+  if (kind === 'exophase') {
+    return <img aria-hidden="true" alt="" src={`${getBasePath()}/library-logos/exophase.png`} width={size} height={size} style={{ display: 'block', flexShrink: 0, borderRadius: Math.round(size * 0.22) }} />;
+  }
+  const playnite = kind === 'playnite';
+  return (
+    <svg aria-hidden="true" width={size} height={size} viewBox={playnite ? '0 0 1024 1024' : '0 0 16 16'} fill="currentColor" style={{ display: 'block', flexShrink: 0 }}>
+      {playnite ? <path d={PLAYNITE_PATH} /> : BOOTSTRAP_PATHS[kind]!.map((d) => <path key={d.slice(0, 24)} d={d} />)}
+    </svg>
+  );
+}
+
+/** The logo in white on its brand colour, as a rounded square. */
+export function LibraryBadge({ kind, size = 40, style }: { kind: LibraryKind; size?: number; style?: CSSProperties }) {
+  return (
+    <span
+      style={{ width: size, height: size, flexShrink: 0, borderRadius: Math.round(size * 0.28), background: LIBRARY_BRAND[kind].background, color: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center', overflow: 'hidden', ...style }}
+    >
+      {/* Exophase's icon is a full tile of its own, so it fills the badge instead of sitting inside it. */}
+      <LibraryLogo kind={kind} size={kind === 'exophase' ? size : Math.round(size * 0.58)} />
+    </span>
+  );
+}
