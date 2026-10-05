@@ -8,7 +8,7 @@ const notifyGoodTimeToBuy = vi.fn(async () => {});
 vi.mock('./notifications.js', () => ({ notifyPriceDrop, notifyGoodTimeToBuy }));
 vi.mock('./gameOwnership.js', () => ({ isOwnedBy: async () => false }));
 vi.mock('./badges.js', () => ({ unlockBadges: async () => [] }));
-vi.mock('./notificationPreferences.js', () => ({ isInAppEnabled: async () => true }));
+vi.mock('./notificationPreferences.js', () => ({ wantsAlert: async () => true }));
 vi.mock('./priceHistory.js', async (importOriginal) => ({
   ...(await importOriginal<typeof import('./priceHistory.js')>()),
   getPriceHistory: async () => [],

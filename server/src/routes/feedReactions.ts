@@ -3,6 +3,7 @@ import { BADGE_DEFINITIONS, FEED_REACTION_EMOJI, type BadgeKey, type SetFeedReac
 import { prisma } from '../db/client.js';
 import { HttpError } from '../util/httpError.js';
 import { areFriends } from '../services/friendships.js';
+import { wantsAlert } from '../services/notificationPreferences.js';
 
 const ALLOWED = new Set<string>(FEED_REACTION_EMOJI);
 
@@ -62,7 +63,7 @@ export default async function feedReactionRoutes(app: FastifyInstance) {
       });
 
       // Tell the owner the first time someone reacts; changing an emoji afterwards stays quiet.
-      if (!existing) {
+      if (!existing && (await wantsAlert(entry.ownerId, 'feed_reaction'))) {
         const reactor = await prisma.user.findUnique({ where: { id: me }, select: { displayName: true } });
         await prisma.notification
           .create({

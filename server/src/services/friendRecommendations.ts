@@ -1,6 +1,6 @@
 import { prisma } from '../db/client.js';
 import { friendIdsOf } from './friendships.js';
-import { isInAppEnabled } from './notificationPreferences.js';
+import { wantsAlert } from './notificationPreferences.js';
 import { reviewAverage } from './reviewAverage.js';
 
 /** A review at or above this average (of its scored categories, out of 5) counts as a recommendation. */
@@ -45,7 +45,7 @@ export async function notifyFriendRecommendation(
 
     for (const copy of copies) {
       if (alreadyTold.has(copy.addedBy)) continue;
-      if (!(await isInAppEnabled(copy.addedBy, 'friend_recommendation'))) continue;
+      if (!(await wantsAlert(copy.addedBy, 'friend_recommendation'))) continue;
       await prisma.notification.create({
         data: {
           recipientId: copy.addedBy,
