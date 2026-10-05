@@ -3,7 +3,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 vi.mock('../config/env.js', () => ({ env: { APP_BASE_URL: 'https://queueup.example.com' } }));
 const userFindUnique = vi.fn();
 vi.mock('../db/client.js', () => ({ prisma: { user: { findUnique: userFindUnique } } }));
-const sendMail = vi.fn(async () => {});
+const sendMail = vi.fn(async (_message: { to: string; subject: string; text: string; kind: string }) => {});
 const smtpIsConfigured = vi.fn(async () => true);
 vi.mock('./mailer.js', () => ({ sendMail, smtpIsConfigured }));
 
@@ -39,8 +39,8 @@ describe('warnPreviousAddresses', () => {
   it('emails the old address and the account email after the alert address changed', async () => {
     userFindUnique.mockResolvedValue({ email: 'me@x.com', alertEmail: 'attacker@evil.com' });
     await warnPreviousAddresses('u1', 'old@x.com');
-    expect(sendMail.mock.calls.map((c) => (c[0] as { to: string }).to)).toEqual(['old@x.com', 'me@x.com']);
-    const first = sendMail.mock.calls[0][0] as { subject: string; text: string; kind: string };
+    expect(sendMail.mock.calls.map((c) => c[0].to)).toEqual(['old@x.com', 'me@x.com']);
+    const first = sendMail.mock.calls[0][0];
     expect(first.kind).toBe('address_changed');
     expect(first.text).toContain('attacker@evil.com');
   });
@@ -49,7 +49,7 @@ describe('warnPreviousAddresses', () => {
     userFindUnique.mockResolvedValue({ email: 'me@x.com', alertEmail: null });
     await warnPreviousAddresses('u1', 'custom@x.com');
     expect(sendMail).toHaveBeenCalledTimes(1);
-    expect((sendMail.mock.calls[0][0] as { text: string }).text).toContain('back to your sign-in email');
+    expect(sendMail.mock.calls[0][0].text).toContain('back to your sign-in email');
   });
 
   it('sends nothing when the address did not really change, or email is not set up', async () => {
