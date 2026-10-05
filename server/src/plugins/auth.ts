@@ -178,9 +178,12 @@ export default fp(async function authPlugin(app: FastifyInstance) {
     // an unexpected exception (a Prisma error, a DB timeout, a null-deref) whose message can carry
     // internal detail - schema/column names, connection strings, file paths - so only the server
     // log gets the real message; the client gets a generic one.
+    // An HttpError is the exception: its message is always one a route wrote on purpose (e.g.
+    // "Could not reach Steam (503)", an AI provider's reason), so it is forwarded even at 5xx -
+    // masking it left people with nothing to act on.
     if (statusCode >= 500) {
       app.log.error(error);
-      reply.status(statusCode).send({ error: 'Internal server error' });
+      reply.status(statusCode).send({ error: error instanceof HttpError ? error.message : 'Internal server error' });
       return;
     }
     const code = (error as { code?: unknown }).code;
