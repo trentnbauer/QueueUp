@@ -5,6 +5,7 @@ import { aiComplete } from './aiConfig.js';
 import { extractJson } from './aiJson.js';
 import { chunk, stopReason } from './aiImportBatch.js';
 import { findCandidatePairs, igdbPairKey } from '../duplicateCandidates.js';
+import { notifyMergeSuggestions } from '../notifications.js';
 import type { AiDuplicateScanResponse, DuplicateSuggestion, DuplicateSuggestionGame } from '@queueup/shared';
 
 /** The AI must be at least this sure before a pair is shown. */
@@ -68,6 +69,18 @@ export function parseDuplicateReply(text: string, pairs: [DuplicateSuggestionGam
 
 const SELECT = { id: true, igdbId: true, title: true, platform: true, releaseYear: true, coverImageUrl: true, status: true, igdbCollectionId: true } as const;
 
+/** How many pairs on the person's shelf the cheap, no-AI pre-filter thinks might be the same game
+ * (not counting ones they said are different). Costs nothing, so the shelf can show a "possible
+ * duplicates" nudge without asking the AI; the AI scan is what actually judges them. */
+export async function countDuplicateCandidates(userId: string): Promise<number> {
+  const [games, dismissals] = await Promise.all([
+    prisma.game.findMany({ where: { roomId: null, addedBy: userId }, select: SELECT, orderBy: { title: 'asc' } }),
+    prisma.duplicateDismissal.findMany({ where: { userId } }),
+  ]);
+  const dismissed = new Set(dismissals.map((d) => igdbPairKey(d.igdbIdLow, d.igdbIdHigh)));
+  return findCandidatePairs(games, dismissed, MAX_SCAN_PAIRS).length;
+}
+
 /** Scans the person's own shelf for likely duplicates: a cheap title/collection pre-filter picks the
  * pairs worth judging (all of them, up to a safety ceiling), then the AI judges them in batches, a
  * few at a time, so one press covers the whole shelf. Changes nothing. If a batch fails (provider
@@ -102,7 +115,10 @@ export async function aiScanDuplicates(userId: string): Promise<AiDuplicateScanR
     }
   });
   if (stopped && checked === 0) throw new HttpError(424, stopped);
-  return { pairs: found.sort((x, y) => y.confidence - x.confidence), checked, fallback, stopped };
+  const sorted = found.sort((x, y) => y.confidence - x.confidence);
+  // Tell the person even if they closed the dialog while it ran (best effort; never fails the scan).
+  await notifyMergeSuggestions(userId, sorted.length);
+  return { pairs: sorted, checked, fallback, stopped };
 }
 
 /** "These are not duplicates": remembered by igdbId pair so the suggestion does not come back. */

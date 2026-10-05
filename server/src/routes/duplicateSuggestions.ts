@@ -1,7 +1,7 @@
 import type { FastifyInstance } from 'fastify';
 import { HttpError } from '../util/httpError.js';
-import { aiScanDuplicates, dismissDuplicatePair } from '../services/ai/aiDuplicates.js';
-import type { AiDuplicateScanResponse, DismissDuplicateRequest } from '@queueup/shared';
+import { aiScanDuplicates, countDuplicateCandidates, dismissDuplicatePair } from '../services/ai/aiDuplicates.js';
+import type { AiDuplicateScanResponse, DismissDuplicateRequest, DuplicateCandidateCountResponse } from '@queueup/shared';
 
 /** AI duplicate scan for the personal shelf (issue #824). The merge itself is the existing
  * POST /api/games/:id/merge; nothing here merges anything. */
@@ -13,6 +13,17 @@ export default async function duplicateSuggestionRoutes(app: FastifyInstance) {
     async (request): Promise<AiDuplicateScanResponse> => {
       const userId = await request.requireAuth();
       return aiScanDuplicates(userId);
+    },
+  );
+
+  /** How many pairs might be the same game, by title alone - no AI, so it's free to ask. Drives the
+   * "possible duplicates" nudge on the shelf. */
+  app.get(
+    '/api/games/duplicates/count',
+    { config: { rateLimit: { max: 20, timeWindow: '1 minute' } } },
+    async (request): Promise<DuplicateCandidateCountResponse> => {
+      const userId = await request.requireAuth();
+      return { count: await countDuplicateCandidates(userId) };
     },
   );
 

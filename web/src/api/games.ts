@@ -1,6 +1,7 @@
 import { apiGet, apiPost, apiPatch, apiPut, apiDelete } from './client';
 import type {
   AiDuplicateScanResponse,
+  DuplicateCandidateCountResponse,
   AiSearchRequest,
   AiSearchResponse,
   AiSearchRunRequest,
@@ -130,6 +131,7 @@ export const gamesApi = {
   upcomingDlc: () => apiGet<{ dlcs: UpcomingDlc[] }>('/api/games/upcoming-dlc'),
   ignoreUpcomingDlc: (igdbId: number) => apiPost<void>(`/api/games/upcoming-dlc/${igdbId}/ignore`),
   aiScanDuplicates: () => apiPost<AiDuplicateScanResponse>('/api/games/duplicates/ai-scan'),
+  duplicateCandidateCount: () => apiGet<DuplicateCandidateCountResponse>('/api/games/duplicates/count'),
   dismissDuplicate: (body: DismissDuplicateRequest) => apiPost<void>('/api/games/duplicates/dismiss', body),
   mergeGame: (id: string, body: MergeGameRequest) => apiPost<{ game: Game; mergedFromId: string }>(`/api/games/${id}/merge`, body),
   setIgdbMatch: (id: string, body: SetIgdbMatchRequest) => apiPatch<{ game: Game; mergedFromId: string | null }>(`/api/games/${id}/igdb-match`, body),
@@ -171,3 +173,5 @@ export const gamesApi = {
 };
 
 export const MERGED_GAMES_QUERY_KEY = ['games', 'merged'] as const;
+/** Pairs that look like the same game by title alone (no AI) - drives the shelf's duplicates nudge. */
+export const DUPLICATE_COUNT_QUERY_KEY = ['duplicate-candidates'] as const;

@@ -89,6 +89,23 @@ export function useActionableNotificationToasts() {
         });
         continue;
       }
+      // The AI duplicate finder finished with games ready to merge. If the Find duplicates dialog is
+      // open the person is already looking at the result, so just clear it; otherwise a toast with a
+      // Review button (also reachable from the bell).
+      if (notification.type === 'merge_suggestions' && !notification.read) {
+        if (ui.isOpen('duplicates')) {
+          markRead.mutate(notification.id);
+          continue;
+        }
+        showToast({
+          id: `notification-${notification.id}`,
+          message: notification.message,
+          onOpen: () => ui.openDialog('duplicates'),
+          actions: [{ label: t('shell.toasts.reviewMerges'), onClick: () => ui.openDialog('duplicates') }],
+          onDismiss: () => markRead.mutate(notification.id),
+        });
+        continue;
+      }
       if (notification.gameId === null) continue;
       const gameId = notification.gameId;
 

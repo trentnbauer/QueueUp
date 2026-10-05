@@ -25,7 +25,7 @@ interface NotifyRoomInput {
   // RoomActivityType, not just documented as one.
   type: Exclude<
     NotificationType,
-    'room_deleted' | 'price_drop' | 'release_watch' | 'playtime_mark_playing' | 'playnite_sync_reminder' | 'wishlist_bundle_deal' | 'play_together_request' | 'feed_reaction' | 'friend_recommendation' | 'good_time_to_buy' | 'account_change' | 'library_sync_error' | 'library_sync_available' | 'platform_unowned' | 'room_game_beaten'
+    'room_deleted' | 'price_drop' | 'release_watch' | 'playtime_mark_playing' | 'playnite_sync_reminder' | 'wishlist_bundle_deal' | 'play_together_request' | 'feed_reaction' | 'friend_recommendation' | 'good_time_to_buy' | 'account_change' | 'library_sync_error' | 'library_sync_available' | 'platform_unowned' | 'room_game_beaten' | 'merge_suggestions'
   >;
   message: (actorName: string) => string;
   /** The game event's structured detail, for the room's play journal. */
@@ -351,6 +351,32 @@ export async function notifyWishlistBundle(userId: string, titles: string[]): Pr
     });
   } catch (err) {
     console.error('[notifications] failed to write wishlist-bundle-deal notification', err);
+  }
+}
+
+/** The AI duplicate finder finished and found games that can be merged into their originals. Sent
+ * when a scan completes with at least one suggestion - including when the person closed the dialog
+ * while it ran - and opens the Find duplicates dialog from the toast or bell. Skipped while an
+ * earlier one is still unread, so repeated scans don't pile them up. Best effort: a failure here
+ * must never fail the scan. */
+export async function notifyMergeSuggestions(userId: string, count: number): Promise<void> {
+  if (count < 1) return;
+  try {
+    const existing = await prisma.notification.findFirst({
+      where: { recipientId: userId, type: 'merge_suggestions', readAt: null },
+      select: { id: true },
+    });
+    if (existing) return;
+    await prisma.notification.create({
+      data: {
+        recipientId: userId,
+        roomName: 'Personal Shelf',
+        type: 'merge_suggestions',
+        message: `The AI found ${count} ${count === 1 ? 'game' : 'games'} that can be merged. Open Find games to merge to review.`,
+      },
+    });
+  } catch (err) {
+    console.error('[notifications] failed to write merge-suggestions notification', err);
   }
 }
 

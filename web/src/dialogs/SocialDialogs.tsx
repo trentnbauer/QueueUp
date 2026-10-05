@@ -17,7 +17,7 @@ import { st } from '../ui/st';
 import { formatRelativeTime } from '../utils/relativeTime';
 import { rich, useT } from '../i18n';
 
-const SHELF_TYPES: Notification['type'][] = ['friend_recommendation', 'price_drop', 'good_time_to_buy', 'release_watch', 'playnite_sync_reminder', 'wishlist_bundle_deal'];
+const SHELF_TYPES: Notification['type'][] = ['merge_suggestions', 'friend_recommendation', 'price_drop', 'good_time_to_buy', 'release_watch', 'playnite_sync_reminder', 'wishlist_bundle_deal'];
 
 /** A "wants to play this together" request: add the game to a room you're both in, or start a new
  * room with the two of you. Stays until answered (mark-all-read skips it). */
@@ -126,6 +126,13 @@ export function NotificationsDialog() {
   }
 
   function open(n: Notification) {
+    // The AI finished and found games to merge: straight to the review.
+    if (n.type === 'merge_suggestions') {
+      if (notifications.length > 0) markAllRead();
+      ui.closeDialog('notifications');
+      ui.openDialog('duplicates');
+      return;
+    }
     // A failed library sync: straight to the Libraries dialog, where it can be fixed or tried again.
     if (n.type === 'library_sync_error' || n.type === 'library_sync_available') {
       if (notifications.length > 0) markAllRead();
