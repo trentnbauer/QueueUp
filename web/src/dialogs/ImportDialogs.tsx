@@ -13,6 +13,7 @@ import { useScope } from '../context/ScopeContext';
 import { useSteamImportContext } from '../context/SteamImportContext';
 import { useUi } from '../context/UiContext';
 import { Dialog } from '../ui/Dialog';
+import { LibraryBadge, type LibraryKind } from '../ui/LibraryLogo';
 import { Banner, Btn, Cover, Group, Kicker, inputPill } from '../ui/primitives';
 import { st } from '../ui/st';
 import { getBasePath } from '../utils/basePath';
@@ -25,9 +26,10 @@ const PLAYNITE_URL = 'https://playnite.link/';
 const EXTENSION_URL = `${getBasePath()}/api/playnite-extension`;
 const LINK_POLL_MS = 3000;
 
-function ImportRow({ title, sub, cta, onClick, disabled, accent }: { title: string; sub: string; cta: string; onClick: () => void; disabled?: boolean; accent?: boolean }) {
+function ImportRow({ kind, title, sub, cta, onClick, disabled, accent }: { kind: LibraryKind; title: string; sub: string; cta: string; onClick: () => void; disabled?: boolean; accent?: boolean }) {
   return (
     <div style={st('display:flex;align-items:center;gap:12px;min-height:64px;padding:10px 12px 10px 16px;background:var(--surf)')}>
+      <LibraryBadge kind={kind} size={40} />
       <div style={st('flex:1;min-width:0;display:flex;flex-direction:column;gap:2px')}>
         <span style={st('font:600 15px var(--font-ui)')}>{title}</span>
         <span style={st('font:400 12.5px var(--font-ui);color:var(--muted);text-wrap:pretty')}>{sub}</span>
@@ -94,6 +96,7 @@ export function ImportDialog() {
       {status && <div style={st('padding:12px 14px;border-radius:14px;background:var(--surf);font:500 13.5px var(--font-ui);text-wrap:pretty')}>{status}</div>}
       <Group>
         <ImportRow
+          kind="steam"
           title={t('add.import.steamTitle')}
           sub={steamLinked ? t('add.import.steamSub') : t('add.import.steamLinkSub')}
           cta={running ? t('add.import.importing') : steamLinked ? t('add.import.import') : t('add.import.linkSteam')}
@@ -102,6 +105,7 @@ export function ImportDialog() {
           onClick={steamImport}
         />
         <ImportRow
+          kind="playnite"
           title="Playnite"
           sub={playniteKey?.lastUsedAt ? t('settings.me.playnite.lastSynced', { when: formatRelativeTime(playniteKey.lastUsedAt) }) : t('add.import.playniteSub')}
           cta={playniteKey?.lastUsedAt ? t('settings.me.playnite.manage') : t('add.import.setUp')}
@@ -111,6 +115,7 @@ export function ImportDialog() {
           }}
         />
         <ImportRow
+          kind="exophase"
           title="Exophase"
           sub={t('add.import.exophaseSub')}
           cta={exophaseStatus?.connected ? t('settings.me.exophase.manage') : t('settings.me.exophase.link')}
@@ -120,6 +125,7 @@ export function ImportDialog() {
           }}
         />
         <ImportRow
+          kind="playstation"
           title="PlayStation"
           sub={t('add.import.psnSub')}
           cta={psnStatus?.connected ? t('settings.me.psn.manage') : t('settings.me.psn.link')}
@@ -130,6 +136,7 @@ export function ImportDialog() {
         />
         {xboxStatus?.configured && (
           <ImportRow
+            kind="xbox"
             title="Xbox"
             sub={t('add.import.xboxSub')}
             cta={xboxStatus.connected ? t('settings.me.xbox.manage') : t('settings.me.xbox.link')}

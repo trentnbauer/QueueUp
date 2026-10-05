@@ -1,3 +1,4 @@
+import { LibraryLogo, type LibraryKind } from '../ui/LibraryLogo';
 import { useMemo, useState, type ReactNode } from 'react';
 import { useNavigate } from 'react-router';
 import { suggestsBeatenByPlaytime, suggestsPlaying, type Game, type GameStatus, type SyncSource, type VoteValue } from '@queueup/shared';
@@ -87,6 +88,16 @@ function MemberAchievements({ counts }: { counts: { unlocked: number; total: num
     </span>
   );
 }
+
+/** Which logo goes beside each sync source's name. */
+const SYNC_SOURCE_LOGO: Record<SyncSource, LibraryKind> = {
+  steam: 'steam',
+  steam_wishlist: 'steam',
+  playnite: 'playnite',
+  xbox: 'xbox',
+  exophase: 'exophase',
+  psn: 'playstation',
+};
 
 const SYNC_SOURCE_KEY: Record<SyncSource, MessageKey> = {
   steam: 'game.detail.syncSource.steam',
@@ -717,7 +728,8 @@ export function GameDetail({ game, onClose, changeStatus }: { game: Game; onClos
           <div style={st('display:flex;flex-wrap:wrap;align-items:center;gap:6px;font:400 12.5px var(--font-ui);color:var(--muted)')}>
             {t('game.detail.syncedFrom')}
             {game.syncSources.map((s) => (
-              <span key={s} style={st('padding:3px 10px;border-radius:999px;background:var(--chip);color:var(--text);font:600 12px var(--font-ui)')}>
+              <span key={s} style={st('display:inline-flex;align-items:center;gap:6px;padding:3px 10px;border-radius:999px;background:var(--chip);color:var(--text);font:600 12px var(--font-ui)')}>
+                <LibraryLogo kind={SYNC_SOURCE_LOGO[s]} size={12} />
                 {t(SYNC_SOURCE_KEY[s])}
               </span>
             ))}

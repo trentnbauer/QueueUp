@@ -24,6 +24,7 @@ import { useViewMode } from '../context/ViewModeContext';
 import { resolveThemeMode, type Accent, type ThemePreference } from '../theme/applyThemeMode';
 import { getBasePath } from '../utils/basePath';
 import { Toggle, inputPill } from '../ui/primitives';
+import { LIBRARY_BRAND, LibraryLogo, type LibraryKind } from '../ui/LibraryLogo';
 import { SystemsPicker } from '../ui/SystemsPicker';
 import { st } from '../ui/st';
 
@@ -109,12 +110,12 @@ function ChoiceGrid({ columns, label, children }: { columns: number; label: stri
 const EXOPHASE_STORES = ['PlayStation', 'Xbox', 'Steam', 'Epic', 'GOG', 'Switch'];
 
 /** A large "recommended" option on the library step: an icon, what it is, the stores it covers and a button. */
-function HeroCard({ hue, initial, name, tag, blurb, chips, cta, linked, onClick }: { hue: number; initial: string; name: string; tag: string; blurb: string; chips: string[]; cta: string; linked?: boolean; onClick: () => void }) {
+function HeroCard({ hue, iconBackground, icon, name, tag, blurb, chips, cta, linked, onClick }: { hue: number; iconBackground?: string; icon: ReactNode; name: string; tag: string; blurb: string; chips: string[]; cta: string; linked?: boolean; onClick: () => void }) {
   return (
     <div style={st(`flex:1 1 280px;min-width:0;display:flex;flex-direction:column;gap:14px;padding:20px;border-radius:24px;background:linear-gradient(150deg, oklch(0.55 0.2 ${hue} / 0.28), var(--surf) 70%);border:1px solid oklch(0.55 0.2 ${hue} / 0.35)`)}>
       <div style={st('display:flex;align-items:center;gap:14px')}>
-        <span style={st(`position:relative;width:56px;height:56px;flex-shrink:0;border-radius:16px;background:oklch(0.55 0.2 ${hue});color:#fff;display:flex;align-items:center;justify-content:center;font:800 22px var(--font-display)`)}>
-          {initial}
+        <span style={st(`position:relative;width:56px;height:56px;flex-shrink:0;border-radius:16px;background:${iconBackground ?? `oklch(0.55 0.2 ${hue})`};color:#fff;display:flex;align-items:center;justify-content:center;overflow:hidden;font:800 22px var(--font-display)`)}>
+          {icon}
           {linked && (
             <span style={st('position:absolute;right:-4px;bottom:-4px;width:22px;height:22px;border-radius:50%;background:var(--mint);color:#fff;border:2px solid var(--bg);display:flex;align-items:center;justify-content:center;font:800 11px var(--font-ui)')}>✓</span>
           )}
@@ -138,11 +139,11 @@ function HeroCard({ hue, initial, name, tag, blurb, chips, cta, linked, onClick 
 }
 
 /** A small "connect directly" tile (Steam, Xbox) on the library step. */
-function DirectTile({ label, background, linked, caption, disabled, fontSize = 13, onClick }: { label: string; background: string; linked: boolean; caption: string; disabled?: boolean; fontSize?: number; onClick: () => void }) {
+function DirectTile({ kind, linked, caption, disabled, onClick }: { kind: LibraryKind; linked: boolean; caption: string; disabled?: boolean; onClick: () => void }) {
   return (
-    <button type="button" disabled={disabled} onClick={onClick} style={st('width:84px;display:flex;flex-direction:column;align-items:center;gap:8px;padding:0;border:none;background:none;color:var(--text)')}>
-      <span style={st(`position:relative;width:64px;height:64px;border-radius:18px;background:${background};color:#fff;display:flex;align-items:center;justify-content:center;font:700 ${fontSize}px var(--font-ui)`)}>
-        {label}
+    <button type="button" disabled={disabled} onClick={onClick} aria-label={`${LIBRARY_BRAND[kind].name}: ${caption}`} style={st('width:84px;display:flex;flex-direction:column;align-items:center;gap:8px;padding:0;border:none;background:none;color:var(--text)')}>
+      <span style={st(`position:relative;width:64px;height:64px;border-radius:18px;background:${LIBRARY_BRAND[kind].background};color:#fff;display:flex;align-items:center;justify-content:center`)}>
+        <LibraryLogo kind={kind} size={34} />
         {linked && (
           <span style={st('position:absolute;right:-4px;bottom:-4px;width:22px;height:22px;border-radius:50%;background:var(--mint);color:#fff;border:2px solid var(--bg);display:flex;align-items:center;justify-content:center;font:800 11px var(--font-ui)')}>✓</span>
         )}
@@ -422,7 +423,7 @@ export function Onboarding({ onDone }: { onDone: () => void }) {
             <div style={st('flex-shrink:0;display:flex;flex-wrap:wrap;gap:14px')}>
               <HeroCard
                 hue={300}
-                initial="P"
+                icon={<LibraryLogo kind="playnite" size={34} />}
                 name="Playnite"
                 tag={t('shell.onboarding.library.playniteTag')}
                 blurb={t('shell.onboarding.library.playniteBlurb')}
@@ -431,8 +432,9 @@ export function Onboarding({ onDone }: { onDone: () => void }) {
                 onClick={() => ui.openDialog('playnite')}
               />
               <HeroCard
-                hue={55}
-                initial="E"
+                hue={235}
+                iconBackground={LIBRARY_BRAND.exophase.background}
+                icon={<LibraryLogo kind="exophase" size={56} />}
                 name="Exophase"
                 tag={t('shell.onboarding.library.exophaseTag')}
                 blurb={t('shell.onboarding.library.exophaseBlurb')}
@@ -448,25 +450,21 @@ export function Onboarding({ onDone }: { onDone: () => void }) {
             </div>
             <div style={st('flex-shrink:0;display:flex;flex-wrap:wrap;gap:14px')}>
               <DirectTile
-                label="Steam"
-                background="#1b2838"
+                kind="steam"
                 linked={steamLinked}
                 disabled={steam.busy || steam.syncingEverything}
                 caption={steam.busy || steam.syncingEverything ? t('shell.onboarding.library.importing') : steamLinked ? t('shell.onboarding.library.importNow') : t('shell.onboarding.library.linkSteam')}
                 onClick={() => (steamLinked ? void steam.runSyncEverything() : steam.startLink('library'))}
               />
               <DirectTile
-                label="PlayStation"
-                background="#003791"
-                fontSize={10.5}
+                kind="playstation"
                 linked={!!psn.data?.connected}
                 caption={psn.data?.connected ? t('shell.onboarding.library.managePsn') : t('shell.onboarding.library.linkPsn')}
                 onClick={() => ui.openDialog('psn')}
               />
               {xbox.data?.configured && (
                 <DirectTile
-                  label="Xbox"
-                  background="#107c10"
+                  kind="xbox"
                   linked={xbox.data.connected}
                   caption={xbox.data.connected ? t('shell.onboarding.library.manageXbox') : t('shell.onboarding.library.linkXbox')}
                   onClick={() => ui.openDialog('xbox')}
