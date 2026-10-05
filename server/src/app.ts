@@ -14,6 +14,7 @@ import duplicateSuggestionRoutes from './routes/duplicateSuggestions.js';
 import upcomingDlcRoutes from './routes/upcomingDlc.js';
 import aiTonightRoutes from './routes/aiTonight.js';
 import aiRecommendRoutes from './routes/aiRecommend.js';
+import aiPriceAdviceRoutes from './routes/aiPriceAdvice.js';
 import roomSpinRoutes from './routes/roomSpin.js';
 import roomSystemsRoutes from './routes/roomSystems.js';
 import journalRoutes from './routes/journal.js';
@@ -169,6 +170,7 @@ export async function buildApp() {
       await instance.register(upcomingDlcRoutes);
       await instance.register(aiTonightRoutes);
       await instance.register(aiRecommendRoutes);
+      await instance.register(aiPriceAdviceRoutes);
       await instance.register(roomSpinRoutes);
       await instance.register(roomSystemsRoutes);
       await instance.register(journalRoutes);
