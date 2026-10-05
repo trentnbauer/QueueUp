@@ -71,8 +71,11 @@ describe('aiComplete with backups', () => {
     expect(getLastFallback('user:u1')).toBeNull();
   });
 
-  it('throws a 502 naming the count when every provider fails', async () => {
+  it('throws a 424 naming every provider and its reason when all fail', async () => {
     callProvider.mockRejectedValue(new AiProviderError('down', null));
-    await expect(aiComplete(REQ, { userId: 'u1' })).rejects.toMatchObject({ statusCode: 502, message: expect.stringContaining('All 2') });
+    await expect(aiComplete(REQ, { userId: 'u1' })).rejects.toMatchObject({
+      statusCode: 424,
+      message: expect.stringMatching(/All 2.*anthropic \(claude.*openai \(gpt-x\): down/),
+    });
   });
 });

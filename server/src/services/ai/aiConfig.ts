@@ -170,10 +170,11 @@ export async function resolveAiChain(
 
 /** Tries each provider in turn until one answers. When the first one failed and a backup answered,
  * that's remembered (and logged) as a warning for the settings screen; when the first one is back
- * to working, the warning clears. Throws a 502 saying why when every provider failed. */
+ * to working, the warning clears. Throws a 424 saying which provider failed and why when every
+ * provider failed. */
 async function runChain(configs: AiConfig[], owner: string, req: AiRequest): Promise<AiResponse & { fallback: AiFallbackNotice | null }> {
   let firstFailure: { config: AiConfig; message: string } | null = null;
-  let lastMessage = '';
+  const failures: string[] = [];
   for (const config of configs) {
     try {
       const res = await callProvider(config, req);
@@ -194,11 +195,14 @@ async function runChain(configs: AiConfig[], owner: string, req: AiRequest): Pro
       return { ...res, fallback };
     } catch (err) {
       if (!(err instanceof AiProviderError)) throw err;
-      lastMessage = err.message;
+      failures.push(`${config.provider} (${config.model}): ${err.message}`);
       firstFailure ??= { config, message: err.message };
     }
   }
-  throw new HttpError(502, configs.length > 1 ? `All ${configs.length} AI providers failed. The last said: ${lastMessage}` : lastMessage);
+  // 424, not 502: it is the AI provider that failed, not this server's own upstream, and a 5xx
+  // body is often replaced by a reverse proxy's error page, which hid the reason from the person
+  // pressing Test. Every provider is named with what it said (never including a key).
+  throw new HttpError(424, configs.length > 1 ? `All ${configs.length} AI providers failed. ${failures.join(' | ')}` : `The AI provider failed. ${failures[0]}`);
 }
 
 /** Makes an AI call with the right settings. This is the one entry point features should use; pass
