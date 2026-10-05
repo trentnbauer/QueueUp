@@ -15,6 +15,7 @@ export type DialogKey =
   | 'ranked'
   | 'deck'
   | 'needsReview'
+  | 'duplicates'
   | 'playtime'
   | 'completions'
   | 'playnite'

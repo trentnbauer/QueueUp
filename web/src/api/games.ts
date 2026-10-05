@@ -1,5 +1,7 @@
 import { apiGet, apiPost, apiPatch, apiPut, apiDelete } from './client';
 import type {
+  AiDuplicateScanResponse,
+  DismissDuplicateRequest,
   PriceHistoryResponse,
   RemoveVoteResponse,
   ResolveSensitiveGamesRequest,
@@ -109,6 +111,8 @@ export const gamesApi = {
   mergedList: () => apiGet<{ merged: MergedGame[] }>('/api/games/merged'),
   forgetMerged: (fromIgdbId: number) => apiDelete(`/api/games/merged/${fromIgdbId}`),
   igdbSearch: (id: string, q: string) => apiGet<{ results: GameSearchResult[]; existingIgdbIds: number[] }>(`/api/games/${id}/igdb-search?q=${encodeURIComponent(q)}`),
+  aiScanDuplicates: () => apiPost<AiDuplicateScanResponse>('/api/games/duplicates/ai-scan'),
+  dismissDuplicate: (body: DismissDuplicateRequest) => apiPost<void>('/api/games/duplicates/dismiss', body),
   mergeGame: (id: string, body: MergeGameRequest) => apiPost<{ game: Game; mergedFromId: string }>(`/api/games/${id}/merge`, body),
   setIgdbMatch: (id: string, body: SetIgdbMatchRequest) => apiPatch<{ game: Game; mergedFromId: string | null }>(`/api/games/${id}/igdb-match`, body),
   setTargetPrice: (id: string, body: SetTargetPriceRequest) =>
