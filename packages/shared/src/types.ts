@@ -2594,6 +2594,34 @@ export interface AiMatchPendingResponse {
   fallback: AiFallbackNotice | null;
 }
 
+/** What an imported title looks like to the AI. Only `soundtrack`, `tool`, `demo` and `bundle` are
+ * suggested for skipping; `edition` and `dlc` are flagged so matching can point them at the right game. */
+export type AiImportKind = 'game' | 'edition' | 'dlc' | 'soundtrack' | 'tool' | 'demo' | 'bundle';
+
+export const AI_SKIPPABLE_IMPORT_KINDS: readonly AiImportKind[] = ['soundtrack', 'tool', 'demo'];
+
+export interface AiImportClassification {
+  /** The PendingLibraryImport id. */
+  id: string;
+  kind: AiImportKind;
+  /** 0 to 1. */
+  confidence: number;
+  /** True when the AI is sure this is not a game and suggests skipping it. */
+  suggestSkip: boolean;
+}
+
+/** Result of POST /api/library/pending-imports/ai-classify. Only titles that are not plain games are listed. */
+export interface AiClassifyPendingResponse {
+  items: AiImportClassification[];
+  checked: number;
+  fallback: AiFallbackNotice | null;
+}
+
+/** Body for POST /api/library/pending-imports/dismiss-many. */
+export interface DismissPendingLibraryImportsRequest {
+  ids: string[];
+}
+
 /** A person's own AI settings. The API key is write-only: it is never sent back, only whether one is saved. */
 export interface UserAiSettings {
   provider: AiProvider;

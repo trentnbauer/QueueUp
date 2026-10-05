@@ -1,10 +1,10 @@
 import { useEffect, useRef, useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { encodeConnectionCode, PLAYNITE_API_KEY_LABEL, ROOM_PLATFORM_LABELS, type AiMatchSuggestion, type GameSearchResult, type PendingLibraryImportDto, type SteamCompletionCandidate } from '@queueup/shared';
+import { encodeConnectionCode, PLAYNITE_API_KEY_LABEL, ROOM_PLATFORM_LABELS, type AiImportClassification, type AiMatchSuggestion, type GameSearchResult, type PendingLibraryImportDto, type SteamCompletionCandidate } from '@queueup/shared';
 import { AI_SETTINGS_QUERY_KEY, aiApi } from '../api/ai';
 import { apiKeysApi, API_KEYS_QUERY_KEY } from '../api/apiKeys';
 import { gamesApi } from '../api/games';
-import { pendingImportsApi, PENDING_IMPORTS_QUERY_KEY } from '../api/pendingImports';
+import { pendingImportsApi, DISMISSED_IMPORTS_QUERY_KEY, PENDING_IMPORTS_QUERY_KEY } from '../api/pendingImports';
 import { XBOX_STATUS_QUERY_KEY, xboxApi } from '../api/xbox';
 import { PSN_STATUS_QUERY_KEY, psnApi } from '../api/psn';
 import { RETROACHIEVEMENTS_STATUS_QUERY_KEY, retroAchievementsApi } from '../api/retroachievements';
@@ -22,7 +22,7 @@ import { AiBadge, Banner, Btn, Cover, Group, Kicker, inputPill } from '../ui/pri
 import { st } from '../ui/st';
 import { getBasePath } from '../utils/basePath';
 import { formatRelativeTime } from '../utils/relativeTime';
-import { useT } from '../i18n';
+import { useT, type MessageKey } from '../i18n';
 
 const GAMES_QUERY_ROOT = ['games'];
 const PLAYNITE_URL = 'https://playnite.link/';
@@ -407,13 +407,17 @@ export function NeedsReviewDialog() {
   const [bundle, setBundle] = useState<Map<number, GameSearchResult> | null>(null);
   // What the AI picked for each waiting title (issue #819), keyed by pending id.
   const [aiPicks, setAiPicks] = useState<Map<string, AiMatchSuggestion>>(new Map());
+  // What the AI thinks each non-game title is (issue #828), keyed by pending id.
+  const [aiKinds, setAiKinds] = useState<Map<string, AiImportClassification>>(new Map());
   const ai = useQuery({ queryKey: AI_SETTINGS_QUERY_KEY, queryFn: aiApi.mine });
   const aiReady = !!ai.data && ai.data.effectiveSource !== 'none';
 
   // Skipped items go to the back of the line.
   const pending = data?.pending ?? [];
-  const ordered = [...pending.filter((p) => !skipped.includes(p.id)), ...pending.filter((p) => skipped.includes(p.id))];
+  // Titles the AI is sure are not games, still waiting, for the one-click "skip all of these".
+  const skippable = pending.filter((p) => aiKinds.get(p.id)?.suggestSkip);  const ordered = [...pending.filter((p) => !skipped.includes(p.id)), ...pending.filter((p) => skipped.includes(p.id))];
   const entry: PendingLibraryImportDto | undefined = ordered[0];
+  const entryKind = entry ? aiKinds.get(entry.id) : undefined;
   // The AI's pick for this title, when it named one of the candidates shown.
   const aiIndex = entry ? entry.candidates.findIndex((c) => c.igdbId === aiPicks.get(entry.id)?.igdbId) : -1;
   // The AI's pick, else the top candidate (a match other people made, else IGDB's best guess), is
@@ -448,6 +452,27 @@ export function NeedsReviewDialog() {
       ui.notify(t('add.review.ai.done', { auto: res.autoMatched, suggested: res.suggestions.length }));
     },
     onError: (err) => setError(err instanceof Error ? err.message : t('add.review.ai.failed')),
+  });
+  const aiClassify = useMutation({
+    mutationFn: () => pendingImportsApi.aiClassify(),
+    onSuccess: (res) => {
+      setError(null);
+      setAiKinds(new Map(res.items.map((i) => [i.id, i])));
+      void queryClient.invalidateQueries({ queryKey: AI_SETTINGS_QUERY_KEY });
+      const n = res.items.filter((i) => i.suggestSkip).length;
+      ui.notify(t(n === 0 ? 'add.review.cleanup.none' : 'add.review.cleanup.found', { n }));
+    },
+    onError: (err) => setError(err instanceof Error ? err.message : t('add.review.ai.failed')),
+  });
+  const skipAll = useMutation({
+    mutationFn: (ids: string[]) => pendingImportsApi.dismissMany(ids),
+    onSuccess: (res) => {
+      setPick(null);
+      queryClient.invalidateQueries({ queryKey: PENDING_IMPORTS_QUERY_KEY });
+      queryClient.invalidateQueries({ queryKey: DISMISSED_IMPORTS_QUERY_KEY });
+      ui.notify(t('add.review.cleanup.skipped', { n: res.dismissed }));
+    },
+    onError: (err) => setError(err instanceof Error ? err.message : t('add.review.dismissFailed')),
   });
   const dismiss = useMutation({
     mutationFn: (id: string) => pendingImportsApi.dismiss(id),
@@ -546,11 +571,23 @@ export function NeedsReviewDialog() {
           <>
             {error && <div style={{ padding: '0 20px 6px' }}><Banner onDismiss={() => setError(null)}>{error}</Banner></div>}
             {aiReady && !bundle && (
-              <div style={st('flex-shrink:0;display:flex;align-items:center;gap:10px;padding:0 20px 6px')}>
-                <Btn kind="soft" height={36} padX={14} fontSize={13} disabled={aiMatch.isPending} onClick={() => aiMatch.mutate()}>
+              <div style={st('flex-shrink:0;display:flex;flex-wrap:wrap;align-items:center;gap:8px;padding:0 20px 6px')}>
+                <Btn kind="soft" height={36} padX={14} fontSize={13} disabled={aiMatch.isPending || aiClassify.isPending} onClick={() => aiMatch.mutate()}>
                   {aiMatch.isPending ? t('add.review.ai.working') : t('add.review.ai.ask')}
                 </Btn>
+                <Btn kind="soft" height={36} padX={14} fontSize={13} disabled={aiMatch.isPending || aiClassify.isPending} onClick={() => aiClassify.mutate()}>
+                  {aiClassify.isPending ? t('add.review.ai.working') : t('add.review.cleanup.ask')}
+                </Btn>
                 <span style={st('font:400 12px var(--font-ui);color:var(--muted)')}>{t('add.review.ai.hint')}</span>
+              </div>
+            )}
+            {skippable.length > 0 && !bundle && (
+              <div style={st('flex-shrink:0;display:flex;align-items:center;gap:10px;margin:0 20px 6px;padding:10px 12px;border-radius:14px;background:var(--surf)')}>
+                <AiBadge title={t('add.review.ai.badge')} />
+                <span style={st('flex:1;min-width:0;font:500 13px/1.35 var(--font-ui)')}>{t('add.review.cleanup.banner', { n: skippable.length })}</span>
+                <Btn kind="soft" height={34} padX={12} fontSize={13} disabled={skipAll.isPending} onClick={() => skipAll.mutate(skippable.map((p) => p.id))}>
+                  {t('add.review.cleanup.skipAll', { n: skippable.length })}
+                </Btn>
               </div>
             )}
             <div style={st('flex-shrink:0;min-height:92px;padding:0 20px;display:flex;flex-direction:column;justify-content:center;gap:4px')}>
@@ -559,6 +596,12 @@ export function NeedsReviewDialog() {
               <span style={st('font:400 13px var(--font-ui);color:var(--muted)')}>
                 {t('add.review.platformsVia', { platforms, source: entry.source.charAt(0).toUpperCase() + entry.source.slice(1) })}
               </span>
+              {entryKind && (
+                <span style={st('display:flex;align-items:center;gap:6px;font:500 13px var(--font-ui);color:var(--text2)')}>
+                  <AiBadge title={t('add.review.ai.badge')} />
+                  {t(`add.review.cleanup.kind.${entryKind.kind}` as MessageKey)}
+                </span>
+              )}
             </div>
             <Kicker style={{ padding: '14px 20px 8px', flexShrink: 0 }}>{bundle ? t('add.bundle.which') : t('add.review.whichGame')}</Kicker>
             <div style={st('flex:1;min-height:0;overflow-y:auto;padding:0 16px 12px;display:flex;flex-direction:column;gap:8px')}>

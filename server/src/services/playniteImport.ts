@@ -219,6 +219,13 @@ export async function dismissPendingLibraryImport(userId: string, id: string): P
   await prisma.pendingLibraryImport.updateMany({ where: { id, userId }, data: { dismissedAt: new Date() } });
 }
 
+/** Dismisses several rows at once (the AI cleanup's "skip all of these"). Same soft dismiss and same
+ * userId scoping as dismissPendingLibraryImport; returns how many rows changed. */
+export async function dismissPendingLibraryImports(userId: string, ids: string[]): Promise<number> {
+  const res = await prisma.pendingLibraryImport.updateMany({ where: { userId, id: { in: ids }, dismissedAt: null }, data: { dismissedAt: new Date() } });
+  return res.count;
+}
+
 /** Puts a dismissed row back in the review queue (undoes dismissPendingLibraryImport). */
 export async function restorePendingLibraryImport(userId: string, id: string): Promise<void> {
   await prisma.pendingLibraryImport.updateMany({ where: { id, userId }, data: { dismissedAt: null } });
