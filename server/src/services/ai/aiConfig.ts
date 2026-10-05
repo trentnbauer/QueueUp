@@ -16,6 +16,7 @@ import {
   type StoredFallback,
 } from './aiFallbacks.js';
 import { AiProviderError, callProvider, PROVIDER_DEFAULTS, type AiConfig, type AiRequest, type AiResponse } from './providers.js';
+import { chargeServerAiUse } from './aiQuota.js';
 
 /** Works out which AI settings a call uses and makes the call. A person's own settings win, when the
  * server allows them; otherwise the server-wide ones (env, or Administrator settings as the
@@ -216,8 +217,16 @@ export async function aiComplete(
 ): Promise<AiResponse & { source: AiSettingsSource; fallback: AiFallbackNotice | null }> {
   const resolved = await resolveAiChain(opts.userId, opts.roomId);
   if (!resolved) throw new HttpError(400, 'AI is not set up. Add a provider in your account settings, or ask the server admin to set one.');
-  const res = await runChain(resolved.configs, resolved.owner, req);
-  return { ...res, source: resolved.source };
+  // Only the operator's own key is rationed; a person's or a sponsor's key costs the server nothing.
+  const charge = resolved.source === 'server' && opts.userId ? await chargeServerAiUse(opts.userId) : null;
+  try {
+    const res = await runChain(resolved.configs, resolved.owner, req);
+    return { ...res, source: resolved.source };
+  } catch (err) {
+    // The provider failing is not the person's doing - give the use back.
+    await charge?.refund();
+    throw err;
+  }
 }
 
 /** Same as aiComplete but for the server-wide settings only (the Administrator's "test" button). */
