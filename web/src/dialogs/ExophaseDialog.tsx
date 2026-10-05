@@ -12,7 +12,7 @@ import { formatRelativeTime } from '../utils/relativeTime';
 import { useT } from '../i18n';
 
 const PROGRESS_POLL_MS = 1500;
-const EXOPHASE_URL = 'https://www.exophase.com/';
+const EXOPHASE_URL = 'https://www.exophase.com/account/#social';
 
 /** Exophase sync: link a public Exophase profile, then sync the libraries Exophase has gathered
  * (PlayStation, Xbox, Steam, Epic, GOG and more) - no desktop app needed. Nothing secret is entered:

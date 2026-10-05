@@ -175,7 +175,7 @@ export const settings: Record<keyof typeof en, string> = {
   "settings.exophase.title": "Sync Exophase",
   "settings.exophase.step1Title": "Have yer libraries on Exophase",
   "settings.exophase.step1Body": "Exophase gathers yer PlayStation, Xbox, Steam, Epic, GOG and other libraries. Sign up and connect yer accounts there, and make sure yer profile is public.",
-  "settings.exophase.step1Link": "Open Exophase",
+  "settings.exophase.step1Link": "Add yer libraries on Exophase",
   "settings.exophase.step2Title": "Find yer profile",
   "settings.exophase.step2Body": "Open yer profile on Exophase and copy its address from the browser bar, or just type yer profile name.",
   "settings.exophase.step3Title": "Link it here",
