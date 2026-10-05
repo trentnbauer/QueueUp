@@ -142,7 +142,18 @@ function TurnstileWidget({ siteKey, onToken }: { siteKey: string; onToken: (toke
 }
 
 /** Signed-out landing page: what QueueUp is, then one button per configured sign-in method. */
-export function LoginPage({ providers, turnstileSiteKey = null }: { providers: string[] | null; turnstileSiteKey?: string | null }) {
+export function LoginPage({
+  providers,
+  turnstileSiteKey = null,
+  providersError = false,
+  onRetry,
+}: {
+  providers: string[] | null;
+  turnstileSiteKey?: string | null;
+  /** The sign-in options couldn't be loaded; shows a message with a retry instead of no buttons. */
+  providersError?: boolean;
+  onRetry?: () => void;
+}) {
   const { version } = useVersion();
   const { t } = useI18n();
   // The intro steps through every language QueueUp speaks (#776), so visitors see theirs.
@@ -187,6 +198,16 @@ export function LoginPage({ providers, turnstileSiteKey = null }: { providers: s
             <span role="alert" style={st('font:500 13.5px var(--font-ui);color:var(--danger)')}>
               {t('core.login.captchaFailed')}
             </span>
+          )}
+          {providersError && (
+            <div role="alert" style={st('display:flex;flex-direction:column;align-items:flex-start;gap:10px;padding:14px 16px;border-radius:16px;background:var(--surf)')}>
+              <span style={st('font:500 14px/1.4 var(--font-ui);color:var(--danger)')}>{t('core.login.providersError')}</span>
+              {onRetry && (
+                <Btn kind="soft" height={38} padX={16} onClick={onRetry}>
+                  {t('core.login.retry')}
+                </Btn>
+              )}
+            </div>
           )}
           {needsCaptcha && <TurnstileWidget siteKey={turnstileSiteKey!} onToken={setCaptcha} />}
           {list.map((p) => {

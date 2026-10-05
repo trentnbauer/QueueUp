@@ -11,6 +11,8 @@ export const core: Record<keyof typeof en, string> = {
   "core.login.sso": "The captain’s secret passage",
   "core.login.dev": "Come aboard (shipwright’s door)",
   "core.login.captchaFailed": "The lookout didn’t believe ye. Try again, matey.",
+  "core.login.providersError": "Could not load the sign-in options. Check yer connection and try again.",
+  "core.login.retry": "Try again",
   "core.login.selfHosted": "A QueueUp of yer very own",
   "core.login.privacy": "Pirate’s code",
   "core.login.source": "Treasure map",
