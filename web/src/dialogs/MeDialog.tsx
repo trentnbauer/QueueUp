@@ -60,18 +60,19 @@ export function NavRow({ label, sub, badge, onClick }: { label: string; sub?: st
   );
 }
 
-function ActionCard({ title, sub, cta, onClick, accent, disabled }: { title: string; sub: string; cta: string; onClick: () => void; accent?: boolean; disabled?: boolean }) {
-  // Always shown as a row of a Group (issue #852), so the Group supplies the rounded corners.
+/** One of the two side-by-side sync actions at the top of the dialog: title, a short hint, and the
+ * action pill underneath, so two fit on one row even at phone width. */
+function SyncTile({ title, sub, cta, onClick, accent, disabled }: { title: string; sub: string; cta: string; onClick: () => void; accent?: boolean; disabled?: boolean }) {
   return (
     <button
       type="button"
       onClick={onClick}
       disabled={disabled}
-      style={st('flex-shrink:0;display:flex;align-items:center;gap:12px;min-height:60px;padding:10px 12px 10px 16px;border:none;background:var(--surf);color:var(--text);text-align:left;width:100%')}
+      style={st('flex:1 1 0;min-width:0;display:flex;flex-direction:column;align-items:flex-start;justify-content:space-between;gap:10px;padding:12px 14px;border:none;border-radius:16px;background:var(--surf);color:var(--text);text-align:left')}
     >
-      <span style={st('flex:1;min-width:0;display:flex;flex-direction:column;gap:2px')}>
+      <span style={st('display:flex;flex-direction:column;gap:2px;min-width:0')}>
         <span style={st('font:600 15px var(--font-ui)')}>{title}</span>
-        <span style={st('font:400 12.5px var(--font-ui);color:var(--muted);text-wrap:pretty')}>{sub}</span>
+        <span style={st('font:400 12.5px var(--font-ui);color:var(--muted);text-wrap:pretty;display:-webkit-box;-webkit-line-clamp:3;-webkit-box-orient:vertical;overflow:hidden')}>{sub}</span>
       </span>
       <span style={st(`height:34px;padding:0 14px;border-radius:999px;background:${accent ? 'var(--text)' : 'var(--accSoft2)'};color:${accent ? 'var(--onText)' : 'var(--accText)'};font:600 12.5px var(--font-ui);display:flex;align-items:center`)}>{cta}</span>
     </button>
@@ -619,6 +620,24 @@ export function MeDialog() {
       >
         {error && <Banner onDismiss={() => setError(null)}>{error}</Banner>}
 
+        <div style={st('display:flex;gap:10px;align-items:stretch')}>
+          <SyncTile
+            title={t('settings.me.syncLibraries')}
+            sub={!sync.hasLinked ? t('settings.me.syncLibraries.linkSteam') : sync.busy ? t('settings.me.syncLibraries.busy') : t('settings.me.syncLibraries.sub', { sources: sync.linkedLabels.join(', ') })}
+            cta={!sync.hasLinked ? t('settings.me.link') : sync.busy ? '…' : t('settings.me.sync')}
+            accent={sync.hasLinked}
+            disabled={sync.busy}
+            onClick={syncLibraries}
+          />
+          <SyncTile
+            title={t('settings.me.syncAchievements')}
+            sub={t('settings.me.syncAchievements.sub')}
+            cta={t('settings.me.syncAchievements.check')}
+            disabled={sync.busy}
+            onClick={syncAchievements}
+          />
+        </div>
+
         <Group>
           {/* The whole row opens the profile. */}
           <button type="button" onClick={() => window.open(profileUrl, '_blank', 'noopener')} style={st(ROW_BASE)} className="hv-surf2">
@@ -644,35 +663,9 @@ export function MeDialog() {
           <NavRow label={t('settings.me.achievements')} sub={earned !== null ? t('settings.me.achievements.earned', { earned, total: total ?? 0 }) : t('settings.me.achievements.sub')} onClick={go('/achievements')} />
           <NavRow label={t('settings.me.insights')} sub={t('settings.me.insights.sub')} onClick={go('/insights')} />
           <NavRow label={t('settings.me.year')} sub={t('settings.me.year.sub')} onClick={go('/year')} />
+          <NavRow label={t('settings.me.libraries')} sub={librariesSummary || t('settings.me.libraries.none')} onClick={open('import')} />
           {user.isAdmin && <NavRow label={t('settings.me.admin')} sub={t('settings.me.admin.sub')} onClick={go('/admin')} />}
         </Group>
-
-        <Section label={t('settings.me.section.libraries')}>
-          <Group>
-          <ActionCard
-            title={t('settings.me.syncLibraries')}
-            sub={!sync.hasLinked ? t('settings.me.syncLibraries.linkSteam') : sync.busy ? t('settings.me.syncLibraries.busy') : t('settings.me.syncLibraries.sub', { sources: sync.linkedLabels.join(', ') })}
-            cta={!sync.hasLinked ? t('settings.me.link') : sync.busy ? '…' : t('settings.me.sync')}
-            accent={sync.hasLinked}
-            disabled={sync.busy}
-            onClick={syncLibraries}
-          />
-          <ActionCard
-            title={t('settings.me.syncAchievements')}
-            sub={t('settings.me.syncAchievements.sub')}
-            cta={t('settings.me.syncAchievements.check')}
-            disabled={sync.busy}
-            onClick={syncAchievements}
-          />
-          <ActionCard
-            title={t('settings.me.libraries')}
-            sub={librariesSummary || t('settings.me.libraries.none')}
-            cta={t('settings.me.libraries.manage')}
-            accent={!!librariesSummary}
-            onClick={open('import')}
-          />
-          </Group>
-        </Section>
 
         <Section label={t('settings.me.appearance')}>
           <Group>
