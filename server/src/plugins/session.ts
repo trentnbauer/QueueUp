@@ -55,6 +55,10 @@ export default fp(async function sessionPlugin(app: FastifyInstance) {
     secret: env.SESSION_SECRET,
     store: new RedisSessionStore(),
     cookieName: 'sq_session',
+    // Only persist sessions that were actually written to (login, OAuth state, link target). The
+    // default (true) wrote a 30-day Redis key for every cookie-less request - including the
+    // 15s /healthz probe - which an anonymous client could use to fill the shared Redis.
+    saveUninitialized: false,
     cookie: {
       httpOnly: true,
       sameSite: 'lax',
