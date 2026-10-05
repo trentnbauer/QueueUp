@@ -50,6 +50,9 @@ COPY --from=build /repo/node_modules/.prisma /repo/node_modules/.prisma
 
 FROM base AS runtime
 ENV NODE_ENV=production
+# su-exec: the entrypoint starts as root only long enough to fix the /backups volume's ownership,
+# then drops to the unprivileged `node` user (issue #920) for everything else, cloudflared included.
+RUN apk add --no-cache su-exec && mkdir -p /backups && chown node:node /backups
 # Baked in at build time (see .github/workflows/build-docker-image.yml) so the running app can
 # report exactly what it's running - surfaced via GET /api/version and shown in the web UI footer.
 # Defaults here only matter for a manual `docker build` with no --build-arg (e.g. local testing).
@@ -71,7 +74,10 @@ COPY --from=build /repo/web/dist server/web-dist
 # Go binary, so it runs fine on Alpine. Pinned; bump alongside other base-image updates.
 COPY --from=cloudflare/cloudflared:2026.9.3 /usr/local/bin/cloudflared /usr/local/bin/cloudflared
 COPY docker/server-entrypoint.sh /usr/local/bin/server-entrypoint.sh
-RUN chmod +x /usr/local/bin/server-entrypoint.sh
+# Only the Prisma CLI's own directories are writable by `node` (`prisma db push` at boot downloads/
+# checks engine files in there); the rest of the app and its dependencies stay root-owned.
+RUN chmod +x /usr/local/bin/server-entrypoint.sh \
+  && chown -R node:node /repo/node_modules/@prisma /repo/node_modules/prisma /repo/node_modules/.prisma
 
 WORKDIR /repo/server
 EXPOSE 3000
