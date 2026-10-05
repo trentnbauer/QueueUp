@@ -1037,3 +1037,85 @@ export async function findIgdbIdByExactTitle(title: string): Promise<number | nu
   await redis.set(cacheKey, igdbId === null ? 'null' : String(igdbId), 'EX', STEAM_APP_ID_LOOKUP_CACHE_TTL_SECONDS);
   return igdbId;
 }
+
+/** The IGDB genre names a plain-language search may filter by (issue #823). The AI may only pick
+ * from these, so a made-up genre can never reach a query. */
+export const IGDB_GENRE_NAMES = [
+  'Point-and-click', 'Fighting', 'Shooter', 'Music', 'Platform', 'Puzzle', 'Racing', 'Real Time Strategy (RTS)', 'Role-playing (RPG)', 'Simulator',
+  'Sport', 'Strategy', 'Turn-based strategy (TBS)', 'Tactical', "Hack and slash/Beat 'em up", 'Quiz/Trivia', 'Pinball', 'Adventure', 'Indie', 'Arcade',
+  'Visual Novel', 'Card & Board Game', 'MOBA',
+] as const;
+
+const DISCOVER_RAW_LIMIT = 50;
+const DISCOVER_RESULT_LIMIT = 20;
+const yearStartSeconds = (year: number) => Math.floor(Date.UTC(year, 0, 1) / 1000);
+
+/** What a plain-language search was understood as: the app's own filters plus an IGDB text query.
+ * Every value is one the app supports (see parseSearchFilters), never a game. */
+export interface DiscoverFilters {
+  query: string | null;
+  platforms: RoomPlatform[];
+  coop: boolean;
+  genres: string[];
+  maxHours: number | null;
+  releasedFrom: number | null;
+  releasedTo: number | null;
+}
+
+/** Pure: the Apicalypse body for a filtered browse. With a text query it uses IGDB's `search` (which
+ * cannot be sorted); without one it lists the best-rated games that match. Only validated values are
+ * ever placed in the query: genres from IGDB_GENRE_NAMES, whole numbers for years, platforms from the
+ * app's platform names, and the free text escaped. */
+export function buildDiscoverQuery(filters: DiscoverFilters, platforms: RoomPlatform[], limit = DISCOVER_RAW_LIMIT): string {
+  const where: string[] = [];
+  const active = filters.platforms.length > 0 ? filters.platforms : platforms;
+  if (active.length > 0) {
+    const names = withBackwardsCompatible(active).flatMap((p) => IGDB_PLATFORM_NAMES[p]).map((n) => `"${n}"`).join(',');
+    where.push(`platforms.name = (${names})`);
+  }
+  if (filters.coop) where.push('game_modes.name = ("Co-operative")');
+  const genres = filters.genres.filter((g) => (IGDB_GENRE_NAMES as readonly string[]).includes(g));
+  if (genres.length > 0) where.push(`genres.name = (${genres.map((g) => `"${escapeApicalypseString(g)}"`).join(',')})`);
+  if (filters.releasedFrom !== null && Number.isInteger(filters.releasedFrom)) where.push(`first_release_date >= ${yearStartSeconds(filters.releasedFrom)}`);
+  if (filters.releasedTo !== null && Number.isInteger(filters.releasedTo)) where.push(`first_release_date < ${yearStartSeconds(filters.releasedTo + 1)}`);
+  const text = filters.query?.trim();
+  if (!text) where.push('total_rating_count > 0');
+  const fields = 'fields name,cover.image_id,platforms.name,first_release_date,category,version_parent;';
+  const whereClause = where.length ? ` where ${where.join(' & ')};` : '';
+  return text
+    ? `search "${escapeApicalypseString(text)}"; ${fields}${whereClause} limit ${limit};`
+    : `${fields}${whereClause} sort total_rating_count desc; limit ${limit};`;
+}
+
+/** Of these games, the ids whose main-story time to beat is known and at most `maxHours`. One IGDB call. */
+async function idsWithinHours(ids: number[], maxHours: number): Promise<Set<number>> {
+  if (ids.length === 0) return new Set();
+  const rows = await igdbRequest<{ game_id: number; normally?: number }[]>('game_time_to_beats', `fields game_id,normally; where game_id = (${ids.join(',')}); limit ${ids.length};`);
+  return new Set(rows.filter((r) => typeof r.normally === 'number' && r.normally <= maxHours * 3600).map((r) => r.game_id));
+}
+
+/** A filtered browse for the plain-language search (issue #823): the same primary-edition, add-on and
+ * already-added rules as the normal search, then the time-to-beat limit (games with no known length
+ * are left out, since "short" cannot be claimed without data). */
+export async function discoverGames(filters: DiscoverFilters, scopePlatforms: RoomPlatform[], excludeIgdbIds?: Set<number>): Promise<GameSearchResult[]> {
+  const games = await igdbRequest<IgdbGame[]>('games', buildDiscoverQuery(filters, scopePlatforms));
+  const active = filters.platforms.length > 0 ? filters.platforms : scopePlatforms;
+  const playable = active.length > 0 ? withBackwardsCompatible(active) : null;
+  let kept = games
+    .filter((g) => g.name)
+    .filter(isPrimaryEdition)
+    .filter((g) => !isAddonEdition(g))
+    .filter((g) => !playable || platformFamilies(g.platforms).some((f) => playable.includes(f)))
+    .filter((g) => !excludeIgdbIds || !excludeIgdbIds.has(g.id));
+  if (filters.maxHours !== null && kept.length > 0) {
+    const within = await idsWithinHours(kept.map((g) => g.id), filters.maxHours);
+    kept = kept.filter((g) => within.has(g.id));
+  }
+  return kept.slice(0, DISCOVER_RESULT_LIMIT).map((g) => ({
+    igdbId: g.id,
+    title: g.name!,
+    platform: platformLabel(g.platforms),
+    coverImageUrl: coverUrl(g.cover),
+    releaseYear: releaseYear(g.first_release_date),
+  }));
+}

@@ -20,6 +20,8 @@ import { AiBadge, Btn, ChipToggle, Cover, Kicker, SearchField, inputPill } from 
 import { st } from '../ui/st';
 import { t as tNow, useT } from '../i18n';
 import { useAiPicks } from './useAiPicks';
+import { useAiSearch } from './useAiSearch';
+import { AiSearchChips } from './AiSearchChips';
 
 const BarcodeScanner = lazy(() => import('./BarcodeScanner').then((m) => ({ default: m.BarcodeScanner })));
 
@@ -447,6 +449,8 @@ export function AddGameDialog() {
 
   // "Ask AI" picks, for the Personal Shelf (issue #820) or the room (issue #821).
   const aiPicks = useAiPicks(roomId);
+  // Plain-language search (issue #823).
+  const aiSearch = useAiSearch(roomId, allPlatforms);
 
   // Trending whenever there's no query.
   useEffect(() => {
@@ -632,6 +636,11 @@ export function AddGameDialog() {
                 <ChipToggle on={hideAddons} onClick={() => setHideAddons((v) => !v)} height={36} fontSize={13}>
                   {t('add.game.hideAddons')}
                 </ChipToggle>
+                {aiSearch.ready && query.trim().split(/\s+/).length >= 3 && (
+                  <Btn kind="soft" height={36} padX={14} fontSize={13} disabled={aiSearch.busy || busy} onClick={() => void aiSearch.search(query)}>
+                    {aiSearch.busy ? t('add.game.aiSearch.working') : t('add.game.aiSearch.button')}
+                  </Btn>
+                )}
               </div>
             </div>
           )
@@ -660,6 +669,36 @@ export function AddGameDialog() {
           ) : (
             <>
               {error && <div role="alert" style={st('margin:0 8px 8px;padding:12px 14px;border-radius:14px;background:var(--errBg);border:1px solid var(--errLine);font:500 13.5px/1.4 var(--font-ui)')}>{error}</div>}
+              {aiSearch.error && <div role="alert" style={st('margin:0 8px 8px;padding:12px 14px;border-radius:14px;background:var(--errBg);border:1px solid var(--errLine);font:500 13.5px/1.4 var(--font-ui)')}>{aiSearch.error}</div>}
+              {aiSearch.state && (
+                <>
+                  <span style={st('display:flex;align-items:center;justify-content:space-between;gap:8px;padding:8px 8px 6px')}>
+                    <span style={st('display:flex;align-items:center;gap:8px')}>
+                      <Kicker size={11.5}>{t('add.game.aiSearch.heading')}</Kicker>
+                      <AiBadge title={t('add.game.aiSearch.badge')} />
+                    </span>
+                    <Btn kind="ghost" height={30} padX={10} fontSize={12.5} onClick={aiSearch.clear}>
+                      {t('add.game.aiSearch.back')}
+                    </Btn>
+                  </span>
+                  <AiSearchChips filters={aiSearch.state.filters} onChange={(f) => void aiSearch.edit(f)} disabled={aiSearch.busy} />
+                  {aiSearch.state.unsupported.length > 0 && (
+                    <div style={st('padding:0 10px 8px;color:var(--muted);font-size:12.5px')}>{t('add.game.aiSearch.unsupported', { what: aiSearch.state.unsupported.join(', ') })}</div>
+                  )}
+                  {aiSearch.state.results.length === 0 && <div style={st('padding:2px 10px 10px;color:var(--muted);font-size:13.5px')}>{t('add.game.aiSearch.none')}</div>}
+                  {aiSearch.state.results.map((r) => (
+                    <ResultRow
+                      key={`aisearch-${r.igdbId}`}
+                      r={r}
+                      added={addedIds.has(r.igdbId)}
+                      suggested={suggestedIds.has(r.igdbId)}
+                      adding={addingId === r.igdbId}
+                      busy={busy}
+                      onAdd={() => clickAdd(r)}
+                    />
+                  ))}
+                </>
+              )}
               {showingResults && collections.length > 0 && (
                 <div style={st('display:flex;flex-wrap:wrap;gap:6px;padding:0 8px 8px')}>
                   {collections.map((c) => (

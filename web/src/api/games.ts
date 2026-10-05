@@ -1,6 +1,9 @@
 import { apiGet, apiPost, apiPatch, apiPut, apiDelete } from './client';
 import type {
   AiDuplicateScanResponse,
+  AiSearchRequest,
+  AiSearchResponse,
+  AiSearchRunRequest,
   AiBacklogCoachResponse,
   AiPriceAdviceResponse,
   AiRecommendRequest,
@@ -118,6 +121,8 @@ export const gamesApi = {
   mergedList: () => apiGet<{ merged: MergedGame[] }>('/api/games/merged'),
   forgetMerged: (fromIgdbId: number) => apiDelete(`/api/games/merged/${fromIgdbId}`),
   igdbSearch: (id: string, q: string) => apiGet<{ results: GameSearchResult[]; existingIgdbIds: number[] }>(`/api/games/${id}/igdb-search?q=${encodeURIComponent(q)}`),
+  aiSearch: (body: AiSearchRequest) => apiPost<AiSearchResponse>('/api/games/ai-search', body),
+  aiSearchRun: (body: AiSearchRunRequest) => apiPost<{ results: GameSearchResult[] }>('/api/games/ai-search/run', body),
   aiBacklogCoach: () => apiPost<AiBacklogCoachResponse>('/api/games/ai-backlog-coach'),
   aiPriceAdvice: (id: string) => apiPost<AiPriceAdviceResponse>(`/api/games/${id}/ai-price-advice`),
   aiRecommend: (roomId: string | null) => apiPost<AiRecommendResponse>('/api/games/ai-recommend', (roomId ? { roomId } : {}) satisfies AiRecommendRequest),
