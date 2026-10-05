@@ -28,14 +28,14 @@ export function isUnreleased(game: Game, now: number = Date.now()): boolean {
 }
 
 /** True when `game` has a "play after" prerequisite (see Game.prerequisiteGameId) set, and that
- * prerequisite isn't marked Done yet - e.g. Borderlands 2 pointed at a not-yet-beaten Borderlands
+ * prerequisite isn't marked Done (or queued for Replay, which means it was already beaten) yet - e.g. Borderlands 2 pointed at a not-yet-beaten Borderlands
  * 1. A missing/removed prerequisite (no longer in `games`) doesn't block - there's nothing left to
  * wait on. */
 export function hasUnmetPrerequisite(game: Game, games: Game[]): boolean {
   if (!game.prerequisiteGameId) return false;
   const prerequisite = games.find((g) => g.id === game.prerequisiteGameId);
   if (!prerequisite) return false;
-  return prerequisite.status !== 'done';
+  return prerequisite.status !== 'done' && prerequisite.status !== 'replay';
 }
 
 /** Every backlog (or queued-for-replay) game, regardless of vote count - the full pool Spin the
