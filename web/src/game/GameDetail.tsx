@@ -170,7 +170,7 @@ export function GameDetail({ game, onClose, changeStatus }: { game: Game; onClos
 
   // Nudges (never automatic): 100% Steam achievements, or playtime near the time to beat.
   const mine = players.find((p) => p.user.id === user?.id);
-  const fullyAchieved = !!mine && mine.total > 0 && mine.unlocked === mine.total && game.status !== 'done' && game.status !== 'dropped';
+  const fullyAchieved = !!mine && mine.total > 0 && mine.unlocked === mine.total && game.status !== 'done' && game.status !== 'dropped' && game.status !== 'wont_play';
   const playedHours = game.currentPlaytimeMinutes ? Math.round(game.currentPlaytimeMinutes / 60) : 0;
   const nudgeBeaten = fullyAchieved || suggestsBeatenByPlaytime(game);
   const nudgePlaying = !nudgeBeaten && suggestsPlaying(game);
