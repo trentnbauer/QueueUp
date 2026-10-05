@@ -420,4 +420,9 @@ export const pages = {
   "pages.privacy.choices.data": "**Download my data** and **Delete my account** are both in Settings. The download includes the libraries you linked, your AI settings and the games you merged (never a login or key). Deleting your account removes all of it, including saved logins and keys, from this server.",
   "pages.privacy.choices.anytime": "You can revoke API keys, unlink sign-in methods, disconnect Xbox, PlayStation or Exophase, remove your AI key or take it off a room, stop a merged-game redirect, change or reset the email address for alerts, turn alerts on and off, remove your reactions, limit who can see your profile, turn usage stats on or off and hide games at any time.",
   "pages.privacy.choices.contact": "To ask about anything else, contact the operator of this server.",
+  "pages.admin.ai.kicker": "AI",
+  "pages.admin.ai.hint": "AI can help match and recommend games. Set a first provider and any backups: if the first fails, the next is tried, and a warning shows here.",
+  "pages.admin.ai.envLocked": "Set by Docker env or variable",
+  "pages.admin.ai.notSet": "No server AI provider is set.",
+  "pages.admin.ai.saved": "Server AI settings saved",
 } as const;

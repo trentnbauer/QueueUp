@@ -2,6 +2,7 @@ import { useEffect, useState, type ReactNode } from 'react';
 import { useNavigate } from 'react-router';
 import { useInfiniteQuery, useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { PLAYNITE_API_KEY_LABEL, PRICE_REGION_LABELS, ROOM_PLATFORM_LABELS, sortPlatforms, type PriceRegion, type ProfileVisibility } from '@queueup/shared';
+import { AiSettingsDialog } from './AiSettingsDialog';
 import { apiKeysApi, API_KEYS_QUERY_KEY } from '../api/apiKeys';
 import { authApi } from '../api/auth';
 import { badgesApi } from '../api/badges';
@@ -432,6 +433,7 @@ export function MeDialog() {
   const [unlinking, setUnlinking] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [keysOpen, setKeysOpen] = useState(false);
+  const [aiOpen, setAiOpen] = useState(false);
   const [historyOpen, setHistoryOpen] = useState(false);
   const [notifOpen, setNotifOpen] = useState(false);
   const [systemsOpen, setSystemsOpen] = useState(false);
@@ -844,6 +846,7 @@ export function MeDialog() {
         <Section label={t('settings.me.section.tools')}>
           <Group>
             <NavRow label={t('settings.notifications.title')} onClick={() => setNotifOpen(true)} />
+            <NavRow label={t('settings.ai.title')} sub={t('settings.ai.nav.sub')} onClick={() => setAiOpen(true)} />
             <NavRow label={t('settings.apiKeys.title')} onClick={() => setKeysOpen(true)} />
             <NavRow label={t('settings.me.journal')} onClick={() => { close(); ui.openDialog('journal', {}); }} />
             <NavRow label={t('settings.history.title')} onClick={() => setHistoryOpen(true)} />
@@ -881,6 +884,7 @@ export function MeDialog() {
         <span style={st('font:500 11.5px var(--font-mono);color:var(--faint)')}>QueueUp{version ? ` ${version}` : ''}</span>
       </Dialog>
       {keysOpen && <ApiKeysDialog onClose={() => setKeysOpen(false)} />}
+      {aiOpen && <AiSettingsDialog onClose={() => setAiOpen(false)} />}
       {historyOpen && <AccountHistoryDialog onClose={() => setHistoryOpen(false)} />}
       {notifOpen && <NotificationsDialog onClose={() => setNotifOpen(false)} />}
       {systemsOpen && <SystemsDialog onClose={() => setSystemsOpen(false)} />}

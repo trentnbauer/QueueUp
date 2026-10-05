@@ -65,7 +65,7 @@ describe('saveUserAiSettings', () => {
     const stored = upsert.mock.calls[0][0].create.apiKeyEncrypted as string;
     expect(stored).not.toContain('sk-secret');
     expect(decryptSetting(stored, SECRET)).toBe('sk-secret');
-    expect(out).toEqual({ provider: 'anthropic', model: null, baseUrl: null, hasApiKey: true });
+    expect(out).toEqual({ provider: 'anthropic', model: null, baseUrl: null, hasApiKey: true, fallbacks: [] });
     expect(JSON.stringify(out)).not.toContain('sk-secret');
   });
 

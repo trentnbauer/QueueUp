@@ -1,5 +1,7 @@
 import type { FastifyInstance } from 'fastify';
-import type { AiSettingsResponse, AiTestResponse, RoomAiResponse, SetUserAiSettingsRequest, UserAiSettings } from '@queueup/shared';
+import type { AdminAiResponse, AiSettingsResponse, AiTestResponse, RoomAiResponse, SetAdminAiRequest, SetUserAiSettingsRequest, UserAiSettings } from '@queueup/shared';
+import { logAdminAction } from '../services/adminAuditLog.js';
+import { describeAdminAi, saveAdminAi } from '../services/ai/adminAi.js';
 import { requireAdmin } from '../services/adminAccess.js';
 import { aiComplete, aiCompleteWithServer, clearUserAiSettings, describeAiSettings, saveUserAiSettings } from '../services/ai/aiConfig.js';
 import { applyMyAiToRoom, describeRoomAi, removeRoomAi } from '../services/ai/roomAi.js';
@@ -44,7 +46,7 @@ export default async function aiSettingsRoutes(app: FastifyInstance) {
   app.post('/api/me/ai/test', { config: { rateLimit: { max: 5, timeWindow: '1 minute' } } }, async (request): Promise<AiTestResponse> => {
     const userId = await request.requireAuth();
     const res = await aiComplete(TEST_REQUEST, { userId });
-    return { ok: true, source: res.source, provider: res.provider, model: res.model, reply: res.text.trim().slice(0, 200) };
+    return { ok: true, source: res.source, provider: res.provider, model: res.model, reply: res.text.trim().slice(0, 200), fallback: res.fallback };
   });
 
   // Applying your own AI settings to a room you're in (see services/ai/roomAi.ts). The key itself is
@@ -81,6 +83,26 @@ export default async function aiSettingsRoutes(app: FastifyInstance) {
     const actorId = await request.requireAuth();
     await requireAdmin(actorId);
     const res = await aiCompleteWithServer(TEST_REQUEST);
-    return { ok: true, source: 'server', provider: res.provider, model: res.model, reply: res.text.trim().slice(0, 200) };
+    return { ok: true, source: 'server', provider: res.provider, model: res.model, reply: res.text.trim().slice(0, 200), fallback: res.fallback };
   });
+
+  // The server-wide first provider and its backups. Keys are write-only here too.
+  app.get('/api/admin/ai', async (request): Promise<AdminAiResponse> => {
+    const actorId = await request.requireAuth();
+    await requireAdmin(actorId);
+    return describeAdminAi();
+  });
+
+  app.put<{ Body: SetAdminAiRequest }>(
+    '/api/admin/ai',
+    { config: { rateLimit: { max: 20, timeWindow: '1 minute' } } },
+    async (request): Promise<AdminAiResponse> => {
+      const actorId = await request.requireAuth();
+      const actor = await requireAdmin(actorId);
+      const res = await saveAdminAi(actorId, request.body ?? ({} as SetAdminAiRequest));
+      app.log.warn({ adminAction: 'ai.set', actorId }, `Admin ${actorId} changed the server AI settings`);
+      await logAdminAction({ actorId, actorLabel: actor.email, action: 'ai.set', targetLabel: 'AI providers' });
+      return res;
+    },
+  );
 }

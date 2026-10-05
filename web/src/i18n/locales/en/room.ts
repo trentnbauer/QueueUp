@@ -178,4 +178,5 @@ export const room = {
   "room.settings.nothingYet": "Nothing yet.",
   "room.settings.loadMore": "Load more",
   "room.settings.journal": "Play journal",
+  "room.settings.ai.openMine": "My AI settings",
 } as const;

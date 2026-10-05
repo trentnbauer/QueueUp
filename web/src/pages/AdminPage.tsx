@@ -9,6 +9,7 @@ import { useUi } from '../context/UiContext';
 import { Avatar, Banner, Btn, Group, Kicker } from '../ui/primitives';
 import { st } from '../ui/st';
 import { getBasePath } from '../utils/basePath';
+import { AdminAiSection } from './AdminAiSection';
 import { AdminBackups } from './AdminBackups';
 import { AdminRoomView } from './AdminRoomView';
 import { PageShell } from './PageShell';
@@ -264,6 +265,8 @@ export function AdminPage() {
           </Group>
         </div>
       )}
+
+      <AdminAiSection />
 
       {status && (
         <div style={st('display:flex;flex-direction:column;gap:10px')}>
