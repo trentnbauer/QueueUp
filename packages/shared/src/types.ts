@@ -2001,6 +2001,12 @@ export interface ResolvePendingLibraryImportRequest {
   igdbId: number;
 }
 
+/** Body for POST /api/library/pending-imports/:id/resolve-bundle (issue #857) - a pending title that
+ * turned out to be a bundle, matched to every game inside it. */
+export interface ResolvePendingLibraryImportBundleRequest {
+  igdbIds: number[];
+}
+
 /** QueueUp's own gamification system (issue #489) - stable, one-shot "first time you did X"
  * unlocks. Named "badge" throughout the code, not "achievement": PlayerAchievements/
  * AchievementCompletion above (and AchievementRow.tsx/useGameAchievements.ts on the client) already

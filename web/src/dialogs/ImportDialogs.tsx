@@ -258,7 +258,7 @@ export function PlayniteDialog() {
 }
 
 /** Find the right game for a pending import by searching (including games already owned). */
-function ManualMatchDialog({ entry, onClose, onResolved }: { entry: PendingLibraryImportDto; onClose: () => void; onResolved: () => void }) {
+function ManualMatchDialog({ entry, onClose, onResolved, onPick }: { entry: PendingLibraryImportDto; onClose: () => void; onResolved: () => void; onPick?: (result: GameSearchResult) => void }) {
   const t = useT();
   const [query, setQuery] = useState(entry.title);
   const [results, setResults] = useState<GameSearchResult[]>([]);
@@ -346,11 +346,12 @@ function ManualMatchDialog({ entry, onClose, onResolved }: { entry: PendingLibra
               </span>
               <span style={st('font:400 12px var(--font-ui);color:var(--muted)')}>{r.platform}</span>
             </span>
-            <button type="button" disabled={resolving !== null} onClick={() => pick(r.igdbId)} style={st('height:34px;padding:0 14px;border-radius:999px;border:none;background:var(--accSoft2);color:var(--accText);font:600 12.5px var(--font-ui)')}>
-              {resolving === r.igdbId ? t('add.manualMatch.matching') : t('add.manualMatch.thisOne')}
+            <button type="button" disabled={resolving !== null} onClick={() => (onPick ? onPick(r) : pick(r.igdbId))} style={st('height:34px;padding:0 14px;border-radius:999px;border:none;background:var(--accSoft2);color:var(--accText);font:600 12.5px var(--font-ui)')}>
+              {resolving === r.igdbId ? t('add.manualMatch.matching') : onPick ? t('add.bundle.addGame') : t('add.manualMatch.thisOne')}
             </button>
           </div>
         ))}
+        {!onPick && (
         <div style={st('margin:10px 8px 0;padding-top:14px;border-top:1px solid var(--chip);display:flex;flex-direction:column;gap:8px')}>
           <span style={st('font:400 12.5px var(--font-ui);color:var(--muted)')}>{t('add.manualMatch.byIdHint')}</span>
           <div style={st('display:flex;gap:8px')}>
@@ -360,6 +361,7 @@ function ManualMatchDialog({ entry, onClose, onResolved }: { entry: PendingLibra
             </Btn>
           </div>
         </div>
+        )}
       </div>
     </Dialog>
   );
@@ -376,6 +378,9 @@ export function NeedsReviewDialog() {
   const [pick, setPick] = useState<number | null>(null);
   const [manual, setManual] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  // Bundle mode (issue #857): the games this title is a bundle of, picked from the suggestions or by
+  // search. Null when the title is being matched to a single game as usual.
+  const [bundle, setBundle] = useState<Map<number, GameSearchResult> | null>(null);
 
   // Skipped items go to the back of the line.
   const pending = data?.pending ?? [];
@@ -385,6 +390,9 @@ export function NeedsReviewDialog() {
   // person taps another, so the usual case is a single tap on "Use this match".
   const selected = pick ?? (entry && entry.candidates.length > 0 ? 0 : null);
 
+  // A different title comes up next: it starts as a normal single match again.
+  useEffect(() => setBundle(null), [entry?.id]);
+
   const refresh = () => {
     queryClient.invalidateQueries({ queryKey: PENDING_IMPORTS_QUERY_KEY });
     queryClient.invalidateQueries({ queryKey: GAMES_QUERY_ROOT });
@@ -392,6 +400,11 @@ export function NeedsReviewDialog() {
 
   const resolve = useMutation({
     mutationFn: ({ id, igdbId }: { id: string; igdbId: number }) => pendingImportsApi.resolve(id, igdbId),
+    onSuccess: () => refresh(),
+    onError: (err) => setError(err instanceof Error ? err.message : t('add.review.matchFailed')),
+  });
+  const resolveBundle = useMutation({
+    mutationFn: ({ id, igdbIds }: { id: string; igdbIds: number[] }) => pendingImportsApi.resolveBundle(id, igdbIds),
     onSuccess: () => refresh(),
     onError: (err) => setError(err instanceof Error ? err.message : t('add.review.matchFailed')),
   });
@@ -410,6 +423,25 @@ export function NeedsReviewDialog() {
     await resolve.mutateAsync({ id: entry.id, igdbId: c.igdbId });
     setPick(null);
     ui.notify(t('add.review.matchedTitle', { title: c.title }));
+  }
+
+  function toggleBundleGame(game: GameSearchResult) {
+    setBundle((current) => {
+      if (!current) return current;
+      const next = new Map(current);
+      if (next.has(game.igdbId)) next.delete(game.igdbId);
+      else next.set(game.igdbId, game);
+      return next;
+    });
+  }
+
+  async function finishBundle() {
+    if (!entry || !bundle || bundle.size === 0) return;
+    setError(null);
+    const count = bundle.size;
+    await resolveBundle.mutateAsync({ id: entry.id, igdbIds: [...bundle.keys()] });
+    setBundle(null);
+    ui.notify(t(count === 1 ? 'add.bundle.done.one' : 'add.bundle.done.other', { n: count, title: entry.title }));
   }
 
   async function dismissEntry() {
@@ -438,7 +470,16 @@ export function NeedsReviewDialog() {
           </Kicker>
         }
         footer={
-          entry && (
+          entry && bundle ? (
+            <div style={st('flex-shrink:0;display:grid;grid-template-columns:1fr 1.6fr;gap:8px;padding:12px 16px 26px;border-top:1px solid var(--chip)')}>
+              <Btn kind="soft" height={50} style={{ background: 'var(--chip)', color: 'var(--text)' }} onClick={() => setBundle(null)} disabled={resolveBundle.isPending}>
+                {t('common.cancel')}
+              </Btn>
+              <Btn kind="accent" height={50} weight={700} fontSize={14} disabled={bundle.size === 0 || resolveBundle.isPending} onClick={finishBundle}>
+                {resolveBundle.isPending ? t('add.manualMatch.matching') : t('add.bundle.finish', { n: bundle.size })}
+              </Btn>
+            </div>
+          ) : entry && (
             <div style={st('flex-shrink:0;display:grid;grid-template-columns:1fr 1fr 1.4fr;gap:8px;padding:12px 16px 26px;border-top:1px solid var(--chip)')}>
               <Btn kind="soft" height={50} style={{ background: 'var(--chip)', color: 'var(--text)' }} onClick={dismissEntry} disabled={dismiss.isPending}>
                 {t('common.dismiss')}
@@ -470,15 +511,15 @@ export function NeedsReviewDialog() {
                 {t('add.review.platformsVia', { platforms, source: entry.source.charAt(0).toUpperCase() + entry.source.slice(1) })}
               </span>
             </div>
-            <Kicker style={{ padding: '14px 20px 8px', flexShrink: 0 }}>{t('add.review.whichGame')}</Kicker>
+            <Kicker style={{ padding: '14px 20px 8px', flexShrink: 0 }}>{bundle ? t('add.bundle.which') : t('add.review.whichGame')}</Kicker>
             <div style={st('flex:1;min-height:0;overflow-y:auto;padding:0 16px 12px;display:flex;flex-direction:column;gap:8px')}>
               {entry.candidates.map((c, i) => {
-                const on = selected === i;
+                const on = bundle ? bundle.has(c.igdbId) : selected === i;
                 return (
                   <button
                     key={c.igdbId}
                     type="button"
-                    onClick={() => setPick(i)}
+                    onClick={() => (bundle ? toggleBundleGame(c) : setPick(i))}
                     style={st(`flex-shrink:0;min-height:76px;display:flex;align-items:center;gap:12px;padding:8px 14px 8px 10px;border-radius:18px;border:2px solid ${on ? 'var(--acc)' : 'transparent'};background:${on ? 'var(--accSoft)' : 'var(--surf)'};color:var(--text);text-align:left`)}
                   >
                     <Cover title={c.title} url={c.coverImageUrl} width={40} radius={7} />
@@ -496,10 +537,36 @@ export function NeedsReviewDialog() {
                   </button>
                 );
               })}
+              {bundle &&
+                [...bundle.values()]
+                  .filter((g) => !entry.candidates.some((c) => c.igdbId === g.igdbId))
+                  .map((g) => (
+                    <button
+                      key={g.igdbId}
+                      type="button"
+                      onClick={() => toggleBundleGame(g)}
+                      style={st('flex-shrink:0;min-height:76px;display:flex;align-items:center;gap:12px;padding:8px 14px 8px 10px;border-radius:18px;border:2px solid var(--acc);background:var(--accSoft);color:var(--text);text-align:left')}
+                    >
+                      <Cover title={g.title} url={g.coverImageUrl} width={40} radius={7} />
+                      <span style={st('flex:1;min-width:0;display:flex;flex-direction:column;gap:2px')}>
+                        <span style={st('font:600 15px var(--font-ui);white-space:nowrap;overflow:hidden;text-overflow:ellipsis')}>
+                          {g.title}
+                          {g.releaseYear ? ` (${g.releaseYear})` : ''}
+                        </span>
+                        <span style={st('font:400 12.5px var(--font-ui);color:var(--muted)')}>{g.platform}</span>
+                      </span>
+                      <span style={st('width:24px;height:24px;flex-shrink:0;border-radius:50%;border:2px solid var(--acc);background:var(--acc)')} />
+                    </button>
+                  ))}
               {entry.candidates.length === 0 && <span style={st('font:400 13.5px var(--font-ui);color:var(--muted);padding:4px 4px 8px')}>{t('add.review.noCloseMatches')}</span>}
               <button type="button" onClick={() => setManual(true)} style={st('flex-shrink:0;height:52px;border-radius:18px;border:1.5px dashed var(--line);background:transparent;color:var(--text2);font:600 14px var(--font-ui)')}>
-                {t('add.review.searchManually')}
+                {bundle ? t('add.bundle.search') : t('add.review.searchManually')}
               </button>
+              {!bundle && (
+                <button type="button" onClick={() => setBundle(new Map())} style={st('flex-shrink:0;height:52px;border-radius:18px;border:1.5px dashed var(--line);background:transparent;color:var(--text2);font:600 14px var(--font-ui)')}>
+                  {t('add.bundle.start')}
+                </button>
+              )}
             </div>
           </>
         ) : (
@@ -521,6 +588,14 @@ export function NeedsReviewDialog() {
             refresh();
             ui.notify(t('add.review.matched'));
           }}
+          onPick={
+            bundle
+              ? (result) => {
+                  setBundle((current) => new Map(current ?? []).set(result.igdbId, result));
+                  setManual(false);
+                }
+              : undefined
+          }
         />
       )}
     </>
