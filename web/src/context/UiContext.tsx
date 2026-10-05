@@ -9,6 +9,7 @@ export type DialogKey =
   | 'roomSettings'
   | 'shelfSettings'
   | 'notifications'
+  | 'notificationSettings'
   | 'me'
   | 'friends'
   | 'spin'

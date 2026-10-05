@@ -1,7 +1,7 @@
 import { env } from '../config/env.js';
 import { prisma } from '../db/client.js';
 import { sendMail, smtpIsConfigured } from '../services/mailer.js';
-import { renderAlertDigest } from '../services/emailTemplates.js';
+import { notificationSettingsUrl, renderAlertDigest } from '../services/emailTemplates.js';
 import { scheduleJob, type JobHandle } from './scheduler.js';
 
 export const EMAIL_ALERT_INTERVAL_MS = 2 * 60 * 1000;
@@ -57,7 +57,7 @@ export async function sendEmailAlerts(): Promise<void> {
     const { subject, text, html } = renderAlertDigest({ messages: waiting.map((n) => n.message), appBaseUrl: env.APP_BASE_URL });
 
     try {
-      await sendMail({ to: email, subject, text, html, kind: 'alert_digest' });
+      await sendMail({ to: email, subject, text, html, kind: 'alert_digest', unsubscribeUrl: notificationSettingsUrl(env.APP_BASE_URL) });
       await prisma.notification.updateMany({ where: { id: { in: waiting.map((n) => n.id) } }, data: { emailedAt: new Date() } });
       sent += 1;
     } catch (err) {
