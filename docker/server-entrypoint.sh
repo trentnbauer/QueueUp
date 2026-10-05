@@ -1,6 +1,20 @@
 #!/bin/sh
 set -e
 
+# Run as the unprivileged `node` user (issue #920). The container starts as root only so it can fix
+# the ownership of the backups volume - a named volume created by an earlier (root-running) image
+# is root-owned, and the nightly backup / restore would otherwise start failing after the upgrade.
+# The app code stays root-owned and read-only to `node`. Setting `user:` in compose skips this
+# block (nothing to drop from); the backup directory must then already be writable by that user.
+if [ "$(id -u)" = "0" ]; then
+  # With BACKUP_DIR unset the app falls back to ./backups under the working directory.
+  backup_dir="${BACKUP_DIR:-/repo/server/backups}"
+  mkdir -p "$backup_dir" 2>/dev/null || true
+  chown -R node:node "$backup_dir" 2>/dev/null || echo "[entrypoint] Could not chown $backup_dir (bind mount?). Make it writable by uid $(id -u node) or backups will fail."
+  export HOME=/home/node
+  exec su-exec node "$0" "$@"
+fi
+
 # Syncs Postgres to match schema.prisma. Using `db push` rather than migrations for M1 —
 # no migration history yet, and this applies the schema directly without hand-written SQL.
 #
