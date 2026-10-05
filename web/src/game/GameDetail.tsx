@@ -25,6 +25,7 @@ import { ggDealsSearchUrl } from '../utils/formatPrice';
 import { formatRelativeTime } from '../utils/relativeTime';
 import { ReviewEmbed } from '../dialogs/ReviewSheet';
 import { PriceHistoryChart } from './PriceHistoryChart';
+import { PriceAdvisor } from './PriceAdvisor';
 import { SteamMatchSheet } from './SteamMatchSheet';
 import { IgdbMatchSheet } from './IgdbMatchSheet';
 import { DuplicateSheet } from './DuplicateSheet';
@@ -442,6 +443,16 @@ export function GameDetail({ game, onClose, changeStatus }: { game: Game; onClos
                   {t('game.detail.alert.add')}
                 </button>
               ))}
+
+            {live && game.status === 'wishlist' && (
+              <PriceAdvisor
+                game={game}
+                onSetTarget={(v) => {
+                  ops.setTargetPrice(game.id, String(v));
+                  ui.notify(t('game.detail.alert.saved', { price: fmtMoney(v, currency) }));
+                }}
+              />
+            )}
 
             <button
               type="button"
