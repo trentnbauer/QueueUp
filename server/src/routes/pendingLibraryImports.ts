@@ -5,13 +5,22 @@ import { HttpError } from '../util/httpError.js';
 import {
   listPendingLibraryImports,
   dismissPendingLibraryImport,
+  dismissPendingLibraryImports,
   restorePendingLibraryImport,
   getPlayniteImportProgress,
 } from '../services/playniteImport.js';
 import { addResolvedGame, isSyncSource, resolvePendingImport } from '../services/pendingImportResolve.js';
 import { aiMatchPendingImports } from '../services/ai/aiImportMatch.js';
+import { aiClassifyPendingImports } from '../services/ai/aiImportClassify.js';
 import { parseBundleIgdbIds } from '../services/bundleImport.js';
-import type { AiMatchPendingResponse, PlayniteImportProgress, ResolvePendingLibraryImportBundleRequest, ResolvePendingLibraryImportRequest } from '@queueup/shared';
+import type {
+  AiClassifyPendingResponse,
+  AiMatchPendingResponse,
+  DismissPendingLibraryImportsRequest,
+  PlayniteImportProgress,
+  ResolvePendingLibraryImportBundleRequest,
+  ResolvePendingLibraryImportRequest,
+} from '@queueup/shared';
 
 /** Cookie-authenticated routes backing the (not yet built, see QueueUp#452) Profile Settings review
  * UI for PendingLibraryImport rows - titles from an external-library import (see routes/apiV1.ts'
@@ -119,6 +128,32 @@ export default async function pendingLibraryImportRoutes(app: FastifyInstance) {
       await dismissPendingLibraryImport(userId, id);
 
       reply.status(204);
+    },
+  );
+
+  /** Asks the AI which waiting titles are not plain games (issue #828). Changes nothing: the dialog
+   * shows the suggestions and the person skips them with dismiss-many. Needs AI set up (400 if not). */
+  app.post(
+    '/api/library/pending-imports/ai-classify',
+    { config: { rateLimit: { max: 6, timeWindow: '1 minute' } } },
+    async (request): Promise<AiClassifyPendingResponse> => {
+      const userId = await request.requireAuth();
+      return aiClassifyPendingImports(userId);
+    },
+  );
+
+  /** Dismisses several pending rows at once ("skip all of these"). Soft dismiss, so every one can be
+   * restored from the Dismissed list. */
+  app.post<{ Body: DismissPendingLibraryImportsRequest }>(
+    '/api/library/pending-imports/dismiss-many',
+    { config: { rateLimit: { max: 10, timeWindow: '1 minute' } } },
+    async (request) => {
+      const userId = await request.requireAuth();
+      const ids = request.body?.ids;
+      if (!Array.isArray(ids) || ids.length === 0 || ids.length > 200 || !ids.every((i) => typeof i === 'string')) {
+        throw new HttpError(400, 'ids must be a list of 1 to 200 pending import ids');
+      }
+      return { dismissed: await dismissPendingLibraryImports(userId, ids) };
     },
   );
 
