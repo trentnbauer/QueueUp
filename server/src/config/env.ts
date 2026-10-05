@@ -171,6 +171,12 @@ export const envSchema = z.object({
   // openai_compatible (any server speaking the OpenAI chat API: LM Studio, vLLM, llama.cpp,
   // OpenRouter, ...). Same env-or-admin-Settings-fallback pattern as the keys above; the key is
   // stored encrypted when set from Administrator settings. Unset just means AI is off.
+  // Native Xbox library sync: the client id of a Microsoft (Azure) app registration, used for the
+  // device-code login that links a person's Xbox account. Register it as a public client for
+  // personal Microsoft accounts (steps in README). Same env-or-admin-Settings-fallback pattern as
+  // the keys above; unset just hides Xbox sync.
+  XBOX_CLIENT_ID: optionalEnvVar(z.string().min(1)),
+
   AI_PROVIDER: optionalEnvVar(z.string().min(1)),
   AI_API_KEY: optionalEnvVar(z.string().min(1)),
   // Only needed for ollama / openai_compatible, or to point a hosted provider at a proxy.

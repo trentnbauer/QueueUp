@@ -92,6 +92,7 @@ const SYNC_SOURCE_KEY: Record<SyncSource, MessageKey> = {
   steam: 'game.detail.syncSource.steam',
   steam_wishlist: 'game.detail.syncSource.steamWishlist',
   playnite: 'game.detail.syncSource.playnite',
+  xbox: 'game.detail.syncSource.xbox',
 };
 
 /** Everything about one game - the body of both the desktop right panel and the phone sheet. */

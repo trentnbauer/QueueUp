@@ -10,6 +10,7 @@ export const game: Record<keyof typeof en, string> = {
   "game.detail.syncSource.steam": "Steam hold",
   "game.detail.syncSource.steamWishlist": "Steam treasure map",
   "game.detail.syncSource.playnite": "Playnite",
+  "game.detail.syncSource.xbox": "Xbox",
   "game.detail.ttb.rushed": "{hours}h at full sail",
   "game.detail.ttb.main": "{hours}h main voyage",
   "game.detail.ttb.completionist": "{hours}h plunderin’ it all",

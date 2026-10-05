@@ -31,6 +31,7 @@ import feedReactionRoutes from './routes/feedReactions.js';
 import notificationPreferenceRoutes from './routes/notificationPreferences.js';
 import alertEmailRoutes from './routes/alertEmail.js';
 import aiSettingsRoutes from './routes/aiSettings.js';
+import xboxRoutes from './routes/xbox.js';
 import activityVisibilityRoutes from './routes/activityVisibility.js';
 import accountEventRoutes from './routes/accountEvents.js';
 import { env } from './config/env.js';
@@ -172,6 +173,7 @@ export async function buildApp() {
       await instance.register(notificationPreferenceRoutes);
       await instance.register(alertEmailRoutes);
       await instance.register(aiSettingsRoutes);
+      await instance.register(xboxRoutes);
       await instance.register(activityVisibilityRoutes);
       await instance.register(accountEventRoutes);
       await instance.register(feedReactionRoutes);

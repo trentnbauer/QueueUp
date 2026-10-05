@@ -74,6 +74,8 @@ services:
       SMTP_USER: ${SMTP_USER}
       SMTP_PASSWORD: ${SMTP_PASSWORD}
       SMTP_FROM: ${SMTP_FROM}
+      ## Xbox library sync - optional; the client ID of your Microsoft (Azure) app registration. See .env.example
+      XBOX_CLIENT_ID: ${XBOX_CLIENT_ID}
       ## AI backend - optional; a provider and model turn it on for everyone (people can also set their own).
       ## Provider: anthropic, openai, gemini, ollama or openai_compatible. The key is optional for local models.
       AI_PROVIDER: ${AI_PROVIDER}

@@ -9,6 +9,7 @@ import { roomSpinApi } from '../api/rooms';
 import { AddGameDialog } from '../dialogs/AddGameDialog';
 import { DeckDialog } from '../dialogs/DeckDialog';
 import { CompletionsDialog, ImportDialog, NeedsReviewDialog, PlayniteDialog } from '../dialogs/ImportDialogs';
+import { XboxDialog } from '../dialogs/XboxDialog';
 import { MeDialog } from '../dialogs/MeDialog';
 import { ChangelogDialog, DlcDialog, PlaytimeDialog } from '../dialogs/MiscDialogs';
 import { RankedDialog } from '../dialogs/RankedDialog';
@@ -131,6 +132,7 @@ export function Overlays() {
       {d.playtime && <PlaytimeDialog />}
       {d.completions && <CompletionsDialog />}
       {d.playnite && <PlayniteDialog />}
+      {d.xbox && <XboxDialog />}
       {d.changelog && <ChangelogDialog />}
       {d.journal && <JournalDialog roomId={d.journal.roomId} />}
       {d.dlc && <DlcDialog />}

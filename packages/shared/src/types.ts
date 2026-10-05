@@ -746,7 +746,7 @@ export interface AccountEventPage {
 }
 
 /** Where a shelf game was synced from. */
-export type SyncSource = 'steam' | 'steam_wishlist' | 'playnite';
+export type SyncSource = 'steam' | 'steam_wishlist' | 'playnite' | 'xbox';
 
 /** POST/DELETE /api/games/:id/remove-vote. `removed` is true when that vote tipped it over and the game is gone. */
 export interface RemoveVoteResponse {
@@ -1283,6 +1283,8 @@ export interface AdminIntegrationStatus {
   /** Email alerts: on only when the host, port and from address are all set. */
   smtpConfigured: boolean;
   smtpSources: Record<'SMTP_HOST' | 'SMTP_PORT' | 'SMTP_USER' | 'SMTP_PASSWORD' | 'SMTP_FROM', ConfigSource>;
+  /** Native Xbox library sync: on once a Microsoft app client id is set. */
+  xboxClientIdSource: ConfigSource;
   /** AI backend: on once a provider and model are set (the key is optional for local models). */
   aiConfigured: boolean;
   aiSources: Record<'AI_PROVIDER' | 'AI_API_KEY' | 'AI_BASE_URL' | 'AI_MODEL', ConfigSource>;
@@ -2523,3 +2525,34 @@ export interface AiTestResponse {
   /** The model's short reply to the test prompt. */
   reply: string;
 }
+
+// ---------------------------------------------------------------------------------------------
+// Native Xbox library sync: link a Microsoft account with the device-code login, then pull the
+// Xbox library without Playnite in between.
+// ---------------------------------------------------------------------------------------------
+
+export interface XboxStatusResponse {
+  /** The server has an Xbox app (client id) set up. Without one, nothing here can be linked. */
+  configured: boolean;
+  connected: boolean;
+  gamertag: string | null;
+  lastSyncedAt: string | null;
+}
+
+/** Started by POST /api/me/xbox/connect: show `userCode` and send the person to `verificationUri`. */
+export interface XboxConnectStartResponse {
+  userCode: string;
+  verificationUri: string;
+  /** Seconds until the code stops working. */
+  expiresIn: number;
+  /** Seconds to wait between polls. */
+  interval: number;
+}
+
+export type XboxConnectPollResponse =
+  | { status: 'pending' }
+  | { status: 'connected'; gamertag: string | null }
+  | { status: 'expired' | 'declined' };
+
+/** Progress of a native library sync (same shape for every store, same as the Playnite import). */
+export type LibrarySyncProgress = PlayniteImportProgress;

@@ -48,6 +48,7 @@ const CONFIG_KEY_LABELS: Record<ConfigKey, string> = {
   AI_API_KEY: 'AI API key',
   AI_BASE_URL: 'AI base URL',
   AI_MODEL: 'AI model',
+  XBOX_CLIENT_ID: 'Xbox (Microsoft) app client ID',
 };
 
 function envValueFor(key: ConfigKey): string | undefined {
@@ -86,6 +87,8 @@ function envValueFor(key: ConfigKey): string | undefined {
       return env.AI_BASE_URL;
     case 'AI_MODEL':
       return env.AI_MODEL;
+    case 'XBOX_CLIENT_ID':
+      return env.XBOX_CLIENT_ID;
   }
 }
 
@@ -125,6 +128,7 @@ export default async function adminRoutes(app: FastifyInstance) {
         SMTP_PASSWORD: src('SMTP_PASSWORD'),
         SMTP_FROM: src('SMTP_FROM'),
       },
+      xboxClientIdSource: src('XBOX_CLIENT_ID'),
       aiConfigured: src('AI_PROVIDER') !== 'unset' && src('AI_MODEL') !== 'unset',
       aiSources: {
         AI_PROVIDER: src('AI_PROVIDER'),

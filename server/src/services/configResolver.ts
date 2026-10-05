@@ -22,6 +22,7 @@ export const CONFIG_KEYS = [
   'AI_API_KEY',
   'AI_BASE_URL',
   'AI_MODEL',
+  'XBOX_CLIENT_ID',
 ] as const;
 export type ConfigKey = (typeof CONFIG_KEYS)[number];
 
