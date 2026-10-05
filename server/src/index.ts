@@ -8,6 +8,7 @@ import { startPriceAlertJob } from './jobs/priceAlertJob.js';
 import { startPriceRefreshJob } from './jobs/priceRefreshJob.js';
 import { startAnniversaryBadgeJob } from './jobs/anniversaryBadgeJob.js';
 import { startReleaseWatchJob } from './jobs/releaseWatchJob.js';
+import { startWeeklyRecapJob } from './jobs/weeklyRecapJob.js';
 import { startAchievementProgressJob, startPlaytimeSnapshotJob } from './jobs/playtimeSnapshotJob.js';
 import { startPlayniteSyncReminderJob } from './jobs/playniteSyncReminderJob.js';
 import { startBackupJob } from './jobs/backupJob.js';
@@ -43,6 +44,8 @@ const anniversaryBadgeJob = startAnniversaryBadgeJob();
 // Release/DLC watch alerts (#510) - see jobs/releaseWatchJob.ts. Same single-process reasoning as
 // the jobs above; a new sequel/DLC entry isn't tied to any user action either.
 const releaseWatchJob = startReleaseWatchJob();
+// AI weekly room recap (#830) - see jobs/weeklyRecapJob.ts. Only rooms that turned it on get one.
+const weeklyRecapJob = startWeeklyRecapJob();
 // Playtime tracking (#548) - dormant by default (see env.ts), ships in sections across several
 // PRs before any user-facing nudge exists yet to consume what it snapshots.
 const playtimeSnapshotJob = env.PLAYTIME_TRACKING_ENABLED ? startPlaytimeSnapshotJob() : null;
@@ -92,6 +95,7 @@ async function shutdown(signal: string) {
     priceRefreshJob.stop();
     anniversaryBadgeJob.stop();
     releaseWatchJob.stop();
+    weeklyRecapJob.stop();
     playtimeSnapshotJob?.stop();
     achievementProgressJob?.stop();
     playniteSyncReminderJob.stop();

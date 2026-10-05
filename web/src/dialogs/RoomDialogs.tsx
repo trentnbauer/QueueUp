@@ -19,6 +19,7 @@ import { useUi } from '../context/UiContext';
 import { useFriends } from '../hooks/useFriends';
 import { useRooms } from '../hooks/useRooms';
 import { computeRoomYearInReview } from '../components/roomYearInReview';
+import { RoomWeeklyRecap } from './RoomWeeklyRecap';
 import { YearStoryCard } from '../components/YearStoryCard';
 import { roomStoryFacts } from '../lib/yearStoryFacts';
 import { Dialog } from '../ui/Dialog';
@@ -800,6 +801,10 @@ export function RoomSettingsDialog() {
           <Btn height={40} fontSize={13} onClick={() => exportGames(games, 'csv', 'squad-room')}>{t('room.settings.exportCsv')}</Btn>
           <Btn height={40} fontSize={13} onClick={() => exportGames(games, 'json', 'squad-room')}>{t('room.settings.exportJson')}</Btn>
         </div>
+      </Field>
+
+      <Field label={t('room.settings.recap.label')}>
+        <RoomWeeklyRecap roomId={roomId} />
       </Field>
 
       <Field label={t('room.settings.yearLabel')}>

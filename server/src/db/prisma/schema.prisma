@@ -559,6 +559,21 @@ model UserAiSettings {
   @@map("user_ai_settings")
 }
 
+/// One AI-written "this week in the room" recap (issue #830), covering the seven days before
+/// `createdAt`. Only the latest few are kept per room.
+model RoomRecap {
+  id          String   @id @default(uuid())
+  roomId      String   @map("room_id")
+  text        String
+  windowStart DateTime @map("window_start")
+  createdAt   DateTime @default(now()) @map("created_at")
+
+  room Room @relation(fields: [roomId], references: [id], onDelete: Cascade)
+
+  @@index([roomId, createdAt])
+  @@map("room_recaps")
+}
+
 /// An AI-written recap of a gaming year (issue #826): one per person ("user:<id>") and one per room
 /// ("room:<id>"). Built from computed stats and titles only. The person can edit it (then `edited`),
 /// hide it, and share it on their public profile; a room's is shown to its members. `userId` is the
@@ -904,11 +919,16 @@ model Room {
   /// boolean (see RoomDiscordEvents in @queueup/shared); a missing key falls back to its default
   /// (DEFAULT_DISCORD_EVENTS). Null means "all defaults".
   discordEvents         Json?          @map("discord_events")
+  /// AI weekly recap (issue #830): when on, a short "this week in the room" summary is written once a
+  /// week from the activity feed. `weeklyRecapDiscord` also posts it to the Discord webhook.
+  weeklyRecapEnabled    Boolean        @default(false) @map("weekly_recap_enabled")
+  weeklyRecapDiscord    Boolean        @default(false) @map("weekly_recap_discord")
 
-  creator       User             @relation("RoomCreatedBy", fields: [createdBy], references: [id])
+  creator      User             @relation("RoomCreatedBy", fields: [createdBy], references: [id])
   aiKeyOwner    User?            @relation("RoomAiKeyOwner", fields: [aiKeyOwnerId], references: [id], onDelete: SetNull)
   members       RoomMember[]
   yearStory     YearStory?
+  weeklyRecaps  RoomRecap[]
   games         Game[]
   notifications Notification[]
   activity      RoomActivity[]
