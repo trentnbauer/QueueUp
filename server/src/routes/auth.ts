@@ -1,3 +1,4 @@
+import { loadExportExtras } from '../services/dataExportExtras.js';
 import { logAccountEvent } from '../services/accountEvents.js';
 import type { FastifyInstance } from 'fastify';
 import { Prisma } from '@prisma/client';
@@ -496,6 +497,7 @@ export default async function authRoutes(app: FastifyInstance) {
         gamesAdded,
         votesCast,
         roomMemberships,
+        ...(await loadExportExtras(userId)),
       };
 
       // Same download-trigger mechanism as GET /api/admin/logs/export: a plain same-origin
