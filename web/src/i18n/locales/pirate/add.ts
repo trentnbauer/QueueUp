@@ -71,6 +71,8 @@ export const add: Record<keyof typeof en, string> = {
   "add.import.importing": "Haulin’ in…",
   "add.import.linkSteam": "Link Steam",
   "add.import.playniteSub": "Haul in Epic, GOG, Xbox, PlayStation and Nintendo via the free Playnite desktop app",
+  "add.import.exophaseSub": "Pull in PlayStation, Xbox, Steam, Epic and more from yer public Exophase profile, no app needed",
+  "add.import.xboxSub": "Link yer Xbox account and sync yer Xbox games directly (best effort)",
   "add.import.setUp": "Rig it up",
   "add.playniteSetup.connected": "Playnite be lashed aboard",
   "add.playniteSetup.generateFailed": "Couldn’t forge a Playnite setup code",

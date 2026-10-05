@@ -1,4 +1,5 @@
 import { XBOX_STATUS_QUERY_KEY, xboxApi } from '../api/xbox';
+import { EXOPHASE_STATUS_QUERY_KEY, exophaseApi } from '../api/exophase';
 import { useEffect, useState, type ReactNode } from 'react';
 import { useNavigate } from 'react-router';
 import { useInfiniteQuery, useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
@@ -410,6 +411,7 @@ export function MeDialog() {
   const { viewMode, setViewMode } = useViewMode();
   const { density, setDensity } = useCardDensity();
   const sync = useSyncSources();
+  const { data: exophaseStatus } = useQuery({ queryKey: EXOPHASE_STATUS_QUERY_KEY, queryFn: exophaseApi.status });
   // The Xbox card only shows when the server has an Xbox app set up.
   const { data: xboxStatus } = useQuery({ queryKey: XBOX_STATUS_QUERY_KEY, queryFn: xboxApi.status });
   // The Playnite card reflects whether its connection code has been used (#793).
@@ -653,6 +655,19 @@ export function MeDialog() {
           cta={playniteKey?.lastUsedAt ? t('settings.me.playnite.manage') : playniteKey ? t('settings.me.playnite.finish') : t('settings.me.playnite.setUp')}
           accent={!!playniteKey?.lastUsedAt}
           onClick={open('playnite')}
+        />
+        <ActionCard
+          title={t('settings.me.exophase')}
+          sub={
+            exophaseStatus?.connected
+              ? exophaseStatus.lastSyncedAt
+                ? t('settings.exophase.lastSynced', { when: formatRelativeTime(exophaseStatus.lastSyncedAt) })
+                : t('settings.exophase.neverSynced')
+              : t('settings.me.exophase.sub')
+          }
+          cta={exophaseStatus?.connected ? t('settings.me.exophase.manage') : t('settings.me.exophase.link')}
+          accent={!!exophaseStatus?.connected}
+          onClick={open('exophase')}
         />
         {xboxStatus?.configured && (
           <ActionCard

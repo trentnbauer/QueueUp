@@ -1,6 +1,8 @@
 import { useState, type ReactNode } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { authApi } from '../api/auth';
+import { EXOPHASE_STATUS_QUERY_KEY, exophaseApi } from '../api/exophase';
+import { XBOX_STATUS_QUERY_KEY, xboxApi } from '../api/xbox';
 import {
   ALERT_EMAIL_QUERY_KEY,
   NOTIFICATION_PREFERENCES_QUERY_KEY,
@@ -103,6 +105,52 @@ function ChoiceGrid({ columns, label, children }: { columns: number; label: stri
   );
 }
 
+const EXOPHASE_STORES = ['PlayStation', 'Xbox', 'Steam', 'Epic', 'GOG', 'Switch'];
+
+/** A large "recommended" option on the library step: an icon, what it is, the stores it covers and a button. */
+function HeroCard({ hue, initial, name, tag, blurb, chips, cta, linked, onClick }: { hue: number; initial: string; name: string; tag: string; blurb: string; chips: string[]; cta: string; linked?: boolean; onClick: () => void }) {
+  return (
+    <div style={st(`flex:1 1 280px;min-width:0;display:flex;flex-direction:column;gap:14px;padding:20px;border-radius:24px;background:linear-gradient(150deg, oklch(0.55 0.2 ${hue} / 0.28), var(--surf) 70%);border:1px solid oklch(0.55 0.2 ${hue} / 0.35)`)}>
+      <div style={st('display:flex;align-items:center;gap:14px')}>
+        <span style={st(`position:relative;width:56px;height:56px;flex-shrink:0;border-radius:16px;background:oklch(0.55 0.2 ${hue});color:#fff;display:flex;align-items:center;justify-content:center;font:800 22px var(--font-display)`)}>
+          {initial}
+          {linked && (
+            <span style={st('position:absolute;right:-4px;bottom:-4px;width:22px;height:22px;border-radius:50%;background:var(--mint);color:#fff;border:2px solid var(--bg);display:flex;align-items:center;justify-content:center;font:800 11px var(--font-ui)')}>✓</span>
+          )}
+        </span>
+        <span style={st('flex:1;min-width:0;display:flex;flex-direction:column;gap:3px')}>
+          <span style={st('font:700 19px var(--font-display)')}>{name}</span>
+          <span style={st('font:500 12.5px var(--font-ui);color:var(--text2)')}>{tag}</span>
+        </span>
+      </div>
+      <span style={st('font:400 13.5px/1.45 var(--font-ui);color:var(--text2)')}>{blurb}</span>
+      <div style={st('display:flex;flex-wrap:wrap;gap:6px')}>
+        {chips.map((c) => (
+          <span key={c} style={st('height:26px;padding:0 10px;border-radius:999px;background:oklch(1 0 0 / 0.08);font:600 11.5px var(--font-ui);color:var(--text2);display:flex;align-items:center')}>{c}</span>
+        ))}
+      </div>
+      <button type="button" onClick={onClick} style={st('margin-top:auto;height:50px;border-radius:999px;border:none;background:var(--acc);color:var(--ink);font:700 14.5px var(--font-ui)')}>
+        {cta}
+      </button>
+    </div>
+  );
+}
+
+/** A small "connect directly" tile (Steam, Xbox) on the library step. */
+function DirectTile({ label, background, linked, caption, disabled, onClick }: { label: string; background: string; linked: boolean; caption: string; disabled?: boolean; onClick: () => void }) {
+  return (
+    <button type="button" disabled={disabled} onClick={onClick} style={st('width:84px;display:flex;flex-direction:column;align-items:center;gap:8px;padding:0;border:none;background:none;color:var(--text)')}>
+      <span style={st(`position:relative;width:64px;height:64px;border-radius:18px;background:${background};color:#fff;display:flex;align-items:center;justify-content:center;font:700 13px var(--font-ui)`)}>
+        {label}
+        {linked && (
+          <span style={st('position:absolute;right:-4px;bottom:-4px;width:22px;height:22px;border-radius:50%;background:var(--mint);color:#fff;border:2px solid var(--bg);display:flex;align-items:center;justify-content:center;font:800 11px var(--font-ui)')}>✓</span>
+        )}
+      </span>
+      <span style={st('font:600 12px/1.25 var(--font-ui);text-align:center')}>{caption}</span>
+    </button>
+  );
+}
+
 /** First-run flow: language, name, look, currency, systems, library import, email, room colours, rooms, then
  * the usage-stats question. Full screen; dialogs it opens (Playnite,
  * rooms) stack above it. */
@@ -121,6 +169,9 @@ export function Onboarding({ onDone }: { onDone: () => void }) {
   const prefs = useQuery({ queryKey: NOTIFICATION_PREFERENCES_QUERY_KEY, queryFn: notificationPreferencesApi.get });
   const alertEmail = useQuery({ queryKey: ALERT_EMAIL_QUERY_KEY, queryFn: alertEmailApi.get });
   const analytics = useAnalyticsConsent();
+  const exophase = useQuery({ queryKey: EXOPHASE_STATUS_QUERY_KEY, queryFn: exophaseApi.status });
+  // The Xbox tile only shows when the server has an Xbox app set up.
+  const xbox = useQuery({ queryKey: XBOX_STATUS_QUERY_KEY, queryFn: xboxApi.status });
   const { language, setLanguage, t } = useI18n();
   const kinds: StepKind[] = [
     // Language comes first (#776), so everything after it is in the language they picked.
@@ -366,40 +417,51 @@ export function Onboarding({ onDone }: { onDone: () => void }) {
 
         {kind === 'library' && (
           <>
-            <div style={st('flex-shrink:0;display:flex;flex-direction:column;gap:14px;padding:20px;border-radius:24px;background:linear-gradient(150deg, oklch(0.55 0.2 300 / 0.28), var(--surf) 70%);border:1px solid oklch(0.55 0.2 300 / 0.35)')}>
-              <div style={st('display:flex;align-items:center;gap:14px')}>
-                <span style={st('width:56px;height:56px;flex-shrink:0;border-radius:16px;background:oklch(0.55 0.2 300);color:#fff;display:flex;align-items:center;justify-content:center;font:800 22px var(--font-display)')}>P</span>
-                <span style={st('flex:1;min-width:0;display:flex;flex-direction:column;gap:3px')}>
-                  <span style={st('font:700 19px var(--font-display)')}>Playnite</span>
-                  <span style={st('font:500 12.5px var(--font-ui);color:var(--text2)')}>{t('shell.onboarding.library.playniteTag')}</span>
-                </span>
-              </div>
-              <span style={st('font:400 13.5px/1.45 var(--font-ui);color:var(--text2)')}>{t('shell.onboarding.library.playniteBlurb')}</span>
-              <div style={st('display:flex;flex-wrap:wrap;gap:6px')}>
-                {STORES.map((s) => (
-                  <span key={s} style={st('height:26px;padding:0 10px;border-radius:999px;background:oklch(1 0 0 / 0.08);font:600 11.5px var(--font-ui);color:var(--text2);display:flex;align-items:center')}>{s}</span>
-                ))}
-              </div>
-              <button type="button" onClick={() => ui.openDialog('playnite')} style={st('height:50px;border-radius:999px;border:none;background:var(--acc);color:var(--ink);font:700 14.5px var(--font-ui)')}>
-                {t('shell.onboarding.library.setUpPlaynite')}
-              </button>
-            </div>
-            <span style={st('flex-shrink:0;font:600 12px var(--font-mono);letter-spacing:0.06em;color:var(--muted);margin-top:6px')}>{t('shell.onboarding.library.orConnect')}</span>
             <div style={st('flex-shrink:0;display:flex;flex-wrap:wrap;gap:14px')}>
-              <button
-                type="button"
+              <HeroCard
+                hue={300}
+                initial="P"
+                name="Playnite"
+                tag={t('shell.onboarding.library.playniteTag')}
+                blurb={t('shell.onboarding.library.playniteBlurb')}
+                chips={STORES}
+                cta={t('shell.onboarding.library.setUpPlaynite')}
+                onClick={() => ui.openDialog('playnite')}
+              />
+              <HeroCard
+                hue={55}
+                initial="E"
+                name="Exophase"
+                tag={t('shell.onboarding.library.exophaseTag')}
+                blurb={t('shell.onboarding.library.exophaseBlurb')}
+                chips={EXOPHASE_STORES}
+                cta={exophase.data?.connected ? t('shell.onboarding.library.manageExophase') : t('shell.onboarding.library.setUpExophase')}
+                linked={!!exophase.data?.connected}
+                onClick={() => ui.openDialog('exophase')}
+              />
+            </div>
+            <div style={st('flex-shrink:0;display:flex;flex-direction:column;gap:6px;margin-top:6px')}>
+              <span style={st('font:600 12px var(--font-mono);letter-spacing:0.06em;color:var(--muted)')}>{t('shell.onboarding.library.orConnect')}</span>
+              <span style={st('font:400 13px/1.45 var(--font-ui);color:var(--text2);text-wrap:pretty')}>{t('shell.onboarding.library.directNote')}</span>
+            </div>
+            <div style={st('flex-shrink:0;display:flex;flex-wrap:wrap;gap:14px')}>
+              <DirectTile
+                label="Steam"
+                background="#1b2838"
+                linked={steamLinked}
                 disabled={steam.busy || steam.syncingEverything}
+                caption={steam.busy || steam.syncingEverything ? t('shell.onboarding.library.importing') : steamLinked ? t('shell.onboarding.library.importNow') : t('shell.onboarding.library.linkSteam')}
                 onClick={() => (steamLinked ? void steam.runSyncEverything() : steam.startLink('library'))}
-                style={st('width:84px;display:flex;flex-direction:column;align-items:center;gap:8px;padding:0;border:none;background:none;color:var(--text)')}
-              >
-                <span style={st('position:relative;width:64px;height:64px;border-radius:18px;background:#1b2838;color:#fff;display:flex;align-items:center;justify-content:center;font:700 13px var(--font-ui)')}>
-                  Steam
-                  {steamLinked && (
-                    <span style={st('position:absolute;right:-4px;bottom:-4px;width:22px;height:22px;border-radius:50%;background:var(--mint);color:#fff;border:2px solid var(--bg);display:flex;align-items:center;justify-content:center;font:800 11px var(--font-ui)')}>✓</span>
-                  )}
-                </span>
-                <span style={st('font:600 12px/1.25 var(--font-ui);text-align:center')}>{steam.busy || steam.syncingEverything ? t('shell.onboarding.library.importing') : steamLinked ? t('shell.onboarding.library.importNow') : t('shell.onboarding.library.linkSteam')}</span>
-              </button>
+              />
+              {xbox.data?.configured && (
+                <DirectTile
+                  label="Xbox"
+                  background="#107c10"
+                  linked={xbox.data.connected}
+                  caption={xbox.data.connected ? t('shell.onboarding.library.manageXbox') : t('shell.onboarding.library.linkXbox')}
+                  onClick={() => ui.openDialog('xbox')}
+                />
+              )}
             </div>
           </>
         )}

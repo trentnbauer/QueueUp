@@ -295,6 +295,7 @@ model User {
   aiSettings                    UserAiSettings?
   gameMatchRedirects            GameMatchRedirect[]
   xboxConnection                UserXboxConnection?
+  exophaseConnection            UserExophaseConnection?
   feedReactions                 FeedReaction[]
   notificationPreferences       NotificationPreference[]
   emailChangeRequest            EmailChangeRequest?
@@ -449,6 +450,21 @@ model TitleMatchSuggestion {
   @@id([source, normalizedTitle, igdbId, userId])
   @@index([source, normalizedTitle])
   @@map("title_match_suggestions")
+}
+
+/// A person's linked Exophase profile for the Exophase library sync (see services/exophase/).
+/// Exophase gathers a person's PlayStation, Xbox, Steam, Epic, GOG and other libraries; QueueUp reads
+/// their public profile by its player id, so there is no login and no secret to store. The id is
+/// not a credential (anyone can see it in the profile page's source).
+model UserExophaseConnection {
+  userId       String    @id @map("user_id")
+  playerId     String    @map("player_id")
+  createdAt    DateTime  @default(now()) @map("created_at")
+  lastSyncedAt DateTime? @map("last_synced_at")
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("user_exophase_connections")
 }
 
 /// A person's linked Xbox account for the native Xbox library sync (see services/xbox/). Created by

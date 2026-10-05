@@ -746,7 +746,7 @@ export interface AccountEventPage {
 }
 
 /** Where a shelf game was synced from. */
-export type SyncSource = 'steam' | 'steam_wishlist' | 'playnite' | 'xbox';
+export type SyncSource = 'steam' | 'steam_wishlist' | 'playnite' | 'xbox' | 'exophase';
 
 /** POST/DELETE /api/games/:id/remove-vote. `removed` is true when that vote tipped it over and the game is gone. */
 export interface RemoveVoteResponse {
@@ -2556,3 +2556,20 @@ export type XboxConnectPollResponse =
 
 /** Progress of a native library sync (same shape for every store, same as the Playnite import). */
 export type LibrarySyncProgress = PlayniteImportProgress;
+
+// ---------------------------------------------------------------------------------------------
+// Exophase library sync: read a person's public Exophase profile (their PlayStation, Xbox, Steam,
+// Epic, GOG and other libraries, gathered by Exophase) and sync it to the Personal Shelf.
+// ---------------------------------------------------------------------------------------------
+
+export interface ExophaseStatusResponse {
+  connected: boolean;
+  playerId: string | null;
+  lastSyncedAt: string | null;
+}
+
+/** `profile` is whatever the person has: their Exophase profile link, their profile name, or the
+ * numeric player id. */
+export interface ConnectExophaseRequest {
+  profile: string;
+}

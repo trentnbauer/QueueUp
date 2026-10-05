@@ -4,6 +4,7 @@ import { encodeConnectionCode, PLAYNITE_API_KEY_LABEL, ROOM_PLATFORM_LABELS, typ
 import { apiKeysApi, API_KEYS_QUERY_KEY } from '../api/apiKeys';
 import { gamesApi } from '../api/games';
 import { pendingImportsApi, PENDING_IMPORTS_QUERY_KEY } from '../api/pendingImports';
+import { XBOX_STATUS_QUERY_KEY, xboxApi } from '../api/xbox';
 import { useAuth } from '../context/AuthContext';
 import { useConfirm } from '../context/ConfirmContext';
 import { useScope } from '../context/ScopeContext';
@@ -49,6 +50,8 @@ export function ImportDialog() {
   const { steamLinked } = useAuth();
   const { busy, activeKind, progress, wishlistProgress, startLink, runSyncEverything, syncingEverything, completions, result, error } = useSteamImportContext();
   const running = busy || completions.busy || syncingEverything;
+  // The Xbox row only shows when the server has an Xbox app set up.
+  const { data: xboxStatus } = useQuery({ queryKey: XBOX_STATUS_QUERY_KEY, queryFn: xboxApi.status });
 
   async function steamImport() {
     if (!steamLinked) {
@@ -98,6 +101,26 @@ export function ImportDialog() {
             ui.openDialog('playnite');
           }}
         />
+        <ImportRow
+          title="Exophase"
+          sub={t('add.import.exophaseSub')}
+          cta={t('add.import.setUp')}
+          onClick={() => {
+            ui.closeDialog('import');
+            ui.openDialog('exophase');
+          }}
+        />
+        {xboxStatus?.configured && (
+          <ImportRow
+            title="Xbox"
+            sub={t('add.import.xboxSub')}
+            cta={xboxStatus.connected ? t('settings.me.xbox.manage') : t('settings.me.xbox.link')}
+            onClick={() => {
+              ui.closeDialog('import');
+              ui.openDialog('xbox');
+            }}
+          />
+        )}
       </Group>
     </Dialog>
   );

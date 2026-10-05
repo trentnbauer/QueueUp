@@ -1,7 +1,7 @@
 import type { SyncSource } from '@queueup/shared';
 import { prisma } from '../db/client.js';
 
-/** Notes that a game was seen by a sync (Steam library, Steam wishlist, Playnite, Xbox) for this person.
+/** Notes that a game was seen by a sync (Steam library, Steam wishlist, Playnite, Xbox, Exophase) for this person.
  * Keyed by igdbId like ownership, so it covers the shelf copy however the row was created. Best
  * effort: a failure here must never break the import that called it. */
 export async function recordSyncSources(userId: string, igdbIds: number[], source: SyncSource): Promise<void> {
@@ -14,7 +14,7 @@ export async function recordSyncSources(userId: string, igdbIds: number[], sourc
   }
 }
 
-const ORDER: SyncSource[] = ['steam', 'steam_wishlist', 'playnite', 'xbox'];
+const ORDER: SyncSource[] = ['steam', 'steam_wishlist', 'playnite', 'xbox', 'exophase'];
 
 /** The syncs that have seen each of the viewer's own Personal Shelf games. Other games get []. */
 export async function getSyncSources(
