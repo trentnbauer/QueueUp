@@ -1,4 +1,4 @@
-import { apiGet, apiPost, apiPatch, apiDelete } from './client';
+import { apiGet, apiPost, apiPatch, apiPut, apiDelete } from './client';
 import type {
   ActiveRoomSpin,
   BadgeDefinition,
@@ -10,6 +10,7 @@ import type {
   Room,
   RoomActivityPage,
   RoomMember,
+  RoomAiResponse,
   RoomMemberStats,
   RoomRole,
   RoomSpinSession,
@@ -47,6 +48,9 @@ export const roomsApi = {
   setRole: (roomId: string, userId: string, role: RoomRole) =>
     apiPatch<{ role: RoomRole }>(`/api/rooms/${roomId}/members/${userId}/role`, { role }),
   removeMember: (roomId: string, userId: string) => apiDelete(`/api/rooms/${roomId}/members/${userId}`),
+  ai: (roomId: string) => apiGet<RoomAiResponse>(`/api/rooms/${roomId}/ai`),
+  applyAi: (roomId: string) => apiPut<RoomAiResponse>(`/api/rooms/${roomId}/ai`, {}),
+  removeAi: (roomId: string) => apiDelete<RoomAiResponse>(`/api/rooms/${roomId}/ai`),
   activity: (roomId: string, before?: string) =>
     apiGet<RoomActivityPage>(`/api/rooms/${roomId}/activity${before ? `?before=${encodeURIComponent(before)}` : ''}`),
 };

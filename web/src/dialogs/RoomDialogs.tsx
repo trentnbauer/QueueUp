@@ -21,6 +21,7 @@ import { useRooms } from '../hooks/useRooms';
 import { computeRoomYearInReview } from '../components/roomYearInReview';
 import { Dialog } from '../ui/Dialog';
 import { NavRow } from './MeDialog';
+import { RoomAiSection } from './RoomAiSection';
 import { Avatar, Banner, Btn, ChipToggle, Cover, Group, Segmented, Toggle, initialsOf, inputField, inputPill } from '../ui/primitives';
 import { st } from '../ui/st';
 import { exportGames } from '../utils/exportGames';
@@ -787,6 +788,10 @@ export function RoomSettingsDialog() {
           </div>
         </Field>
       )}
+
+      <Field label={t('room.settings.aiLabel')}>
+        <RoomAiSection roomId={roomId} onOpenProfile={close} />
+      </Field>
 
       <Field label={t('room.settings.exportLabel')}>
         <div style={st('display:flex;gap:8px')}>

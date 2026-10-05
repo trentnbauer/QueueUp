@@ -83,22 +83,46 @@ export async function getUserAiConfig(userId: string): Promise<AiConfig | null> 
   return buildConfig(row.provider, { model: row.model, baseUrl: row.baseUrl, apiKey: await readUserKey(userId, row.apiKeyEncrypted) });
 }
 
-/** What a call for this person uses: their own settings, else the server's, else null. A call with
- * no person (a background job) only ever uses the server's. */
-export async function resolveAiConfig(userId?: string): Promise<{ config: AiConfig; source: Exclude<AiSettingsSource, 'none'> } | null> {
+/** The settings of the member sponsoring this room's AI (see roomAi.ts), or null when there is no
+ * sponsor, they've left the room, or their own settings are no longer usable. Only the sponsor's
+ * personal settings are read, by reference - nothing is copied onto the room. */
+export async function getRoomSponsorAiConfig(roomId: string): Promise<AiConfig | null> {
+  const room = await prisma.room.findUnique({ where: { id: roomId }, select: { aiKeyOwnerId: true } });
+  if (!room?.aiKeyOwnerId) return null;
+  // A sponsor who has left (or been removed) stops funding the room straight away.
+  const stillMember = await prisma.roomMember.findUnique({
+    where: { roomId_userId: { roomId, userId: room.aiKeyOwnerId } },
+    select: { userId: true },
+  });
+  if (!stillMember) return null;
+  return getUserAiConfig(room.aiKeyOwnerId);
+}
+
+/** What a call uses: the person's own settings, else (when the call is for a room) the room
+ * sponsor's, else the server's, else null. A call with no person and no room (a background job)
+ * only ever uses the server's. */
+export async function resolveAiConfig(
+  userId?: string,
+  roomId?: string,
+): Promise<{ config: AiConfig; source: Exclude<AiSettingsSource, 'none'> } | null> {
   if (userId) {
     const own = await getUserAiConfig(userId);
     if (own) return { config: own, source: 'user' };
+  }
+  if (roomId) {
+    const sponsored = await getRoomSponsorAiConfig(roomId);
+    if (sponsored) return { config: sponsored, source: 'room' };
   }
   const server = await getServerAiConfig();
   return server ? { config: server, source: 'server' } : null;
 }
 
-/** Makes an AI call with the right settings. This is the one entry point features should use.
- * Throws a 400 when no AI is set up, and a 502 when the provider fails (the message says why,
- * never including the key). */
-export async function aiComplete(req: AiRequest, opts: { userId?: string } = {}): Promise<AiResponse & { source: AiSettingsSource }> {
-  const resolved = await resolveAiConfig(opts.userId);
+/** Makes an AI call with the right settings. This is the one entry point features should use; pass
+ * `roomId` when the call is on behalf of a room so its sponsor's settings can apply. The caller is
+ * responsible for having checked the person may act in that room. Throws a 400 when no AI is set
+ * up, and a 502 when the provider fails (the message says why, never including the key). */
+export async function aiComplete(req: AiRequest, opts: { userId?: string; roomId?: string } = {}): Promise<AiResponse & { source: AiSettingsSource }> {
+  const resolved = await resolveAiConfig(opts.userId, opts.roomId);
   if (!resolved) throw new HttpError(400, 'AI is not set up. Add a provider in your account settings, or ask the server admin to set one.');
   try {
     const res = await callProvider(resolved.config, req);
@@ -191,4 +215,6 @@ export async function saveUserAiSettings(userId: string, input: SetUserAiSetting
 
 export async function clearUserAiSettings(userId: string): Promise<void> {
   await prisma.userAiSettings.deleteMany({ where: { userId } });
+  // Rooms this person was sponsoring have nothing left to point at.
+  await prisma.room.updateMany({ where: { aiKeyOwnerId: userId }, data: { aiKeyOwnerId: null } });
 }

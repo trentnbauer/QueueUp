@@ -2457,8 +2457,22 @@ export interface AcceptPlayTogetherResponse {
 export const AI_PROVIDERS = ['anthropic', 'openai', 'gemini', 'ollama', 'openai_compatible'] as const;
 export type AiProvider = (typeof AI_PROVIDERS)[number];
 
-/** Where the settings an AI call would use come from: the person's own, the server's, or neither. */
-export type AiSettingsSource = 'user' | 'server' | 'none';
+/** Where the settings an AI call would use come from: the person's own, the room's sponsor (a member
+ * who applied their own to the room), the server's, or none. */
+export type AiSettingsSource = 'user' | 'room' | 'server' | 'none';
+
+/** A room's AI sponsor: the member whose personal AI settings the room uses for people who have none
+ * of their own. Their key is never shown; what's billed to them is the room's AI use. */
+export interface RoomAiResponse {
+  sponsor: User | null;
+  youAreSponsor: boolean;
+  /** You have usable personal AI settings, nobody else is sponsoring, and this server allows it. */
+  canApply: boolean;
+  /** You are the sponsor, or the Room Master or a Moderator. */
+  canRemove: boolean;
+  /** Whether your own usable AI settings exist (applying needs them). */
+  hasOwnSettings: boolean;
+}
 
 /** A person's own AI settings. The API key is write-only: it is never sent back, only whether one is saved. */
 export interface UserAiSettings {

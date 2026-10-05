@@ -264,6 +264,7 @@ model User {
   friendCodeIssuedAt   DateTime?      @map("friend_code_issued_at")
 
   roomsCreated                  Room[]                         @relation("RoomCreatedBy")
+  roomsWithMyAiKey              Room[]                         @relation("RoomAiKeyOwner")
   memberships                   RoomMember[]
   gamesAdded                    Game[]
   votes                         Vote[]
@@ -701,6 +702,10 @@ model Room {
   inviteCode            String         @unique @map("invite_code")
   accentColor           String         @default("#8b5cf6") @map("accent_color")
   createdBy             String         @map("created_by")
+  /// The member whose personal AI settings this room's AI calls use when the person asking has none
+  /// of their own (see services/ai/roomAi.ts). Only a reference: the key stays in that member's own
+  /// settings and is never copied here. Cleared when they remove it, leave the room or are removed.
+  aiKeyOwnerId          String?        @map("ai_key_owner_id")
   createdAt             DateTime       @default(now()) @map("created_at")
   /// Posts the same events as the in-app room notification feed to this Discord channel webhook,
   /// if set (see notifications.ts). One-way egress only - QueueUp never reads anything back from it.
@@ -737,6 +742,7 @@ model Room {
   discordEvents         Json?          @map("discord_events")
 
   creator       User             @relation("RoomCreatedBy", fields: [createdBy], references: [id])
+  aiKeyOwner    User?            @relation("RoomAiKeyOwner", fields: [aiKeyOwnerId], references: [id], onDelete: SetNull)
   members       RoomMember[]
   games         Game[]
   notifications Notification[]

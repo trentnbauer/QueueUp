@@ -2,18 +2,27 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 const SECRET = 's'.repeat(32);
 
-const { findUnique, upsert, deleteMany, envState, getConfigValue } = vi.hoisted(() => ({
+const { findUnique, upsert, deleteMany, roomFindUnique, roomUpdateMany, memberFindUnique, envState, getConfigValue } = vi.hoisted(() => ({
   findUnique: vi.fn(),
+  roomFindUnique: vi.fn(),
+  roomUpdateMany: vi.fn(),
+  memberFindUnique: vi.fn(),
   upsert: vi.fn(),
   deleteMany: vi.fn(),
   envState: { AI_ALLOW_USER_SETTINGS: true, AI_ALLOW_USER_BASE_URL: false, SESSION_SECRET: 's'.repeat(32), AI_PROVIDER: undefined as string | undefined } as Record<string, unknown>,
   getConfigValue: vi.fn(),
 }));
-vi.mock('../../db/client.js', () => ({ prisma: { userAiSettings: { findUnique, upsert, deleteMany } } }));
+vi.mock('../../db/client.js', () => ({
+  prisma: {
+    userAiSettings: { findUnique, upsert, deleteMany },
+    room: { findUnique: roomFindUnique, updateMany: roomUpdateMany },
+    roomMember: { findUnique: memberFindUnique },
+  },
+}));
 vi.mock('../../config/env.js', () => ({ env: envState }));
 vi.mock('../configResolver.js', () => ({ getConfigValue }));
 
-import { buildConfig, getUserAiConfig, normalizeBaseUrl, resolveAiConfig, saveUserAiSettings } from './aiConfig.js';
+import { buildConfig, clearUserAiSettings, getUserAiConfig, normalizeBaseUrl, resolveAiConfig, saveUserAiSettings } from './aiConfig.js';
 import { decryptSetting, encryptSetting } from '../settingsCrypto.js';
 
 beforeEach(() => {
@@ -140,5 +149,59 @@ describe('resolveAiConfig', () => {
     findUnique.mockResolvedValue({ provider: 'anthropic', model: null, baseUrl: null, apiKeyEncrypted: encryptSetting('k', 'o'.repeat(32)) });
     expect(await getUserAiConfig('u1')).toBeNull();
     warn.mockRestore();
+  });
+});
+
+describe('resolveAiConfig with a room', () => {
+  const sponsorRow = { provider: 'anthropic', model: null, baseUrl: null, apiKeyEncrypted: encryptSetting('sponsor-key', SECRET) };
+
+  // findUnique is the personal-settings lookup: the caller has none, the sponsor ('sp') has one.
+  const callerHasNone = () => findUnique.mockImplementation(async ({ where }: { where: { userId: string } }) => (where.userId === 'sp' ? sponsorRow : null));
+
+  beforeEach(() => {
+    roomFindUnique.mockResolvedValue({ aiKeyOwnerId: 'sp' });
+    memberFindUnique.mockResolvedValue({ userId: 'sp' });
+    getConfigValue.mockImplementation(async (key: string) => ({ AI_PROVIDER: 'openai', AI_MODEL: 'gpt-x', AI_API_KEY: 'server-key' })[key]);
+    callerHasNone();
+  });
+
+  it("uses the room sponsor's settings for someone with none of their own", async () => {
+    const r = await resolveAiConfig('u1', 'room1');
+    expect(r?.source).toBe('room');
+    expect(r?.config.apiKey).toBe('sponsor-key');
+    expect(memberFindUnique).toHaveBeenCalledWith({ where: { roomId_userId: { roomId: 'room1', userId: 'sp' } }, select: { userId: true } });
+  });
+
+  it("still prefers the caller's own settings over the room's", async () => {
+    findUnique.mockImplementation(async ({ where }: { where: { userId: string } }) => ({ ...sponsorRow, apiKeyEncrypted: encryptSetting(`${where.userId}-key`, SECRET) }));
+    const r = await resolveAiConfig('u1', 'room1');
+    expect(r?.source).toBe('user');
+    expect(r?.config.apiKey).toBe('u1-key');
+  });
+
+  it('skips a sponsor who has left the room, falling back to the server', async () => {
+    memberFindUnique.mockResolvedValue(null);
+    expect((await resolveAiConfig('u1', 'room1'))?.source).toBe('server');
+  });
+
+  it('skips a room with no sponsor, and a sponsor whose own settings are gone', async () => {
+    roomFindUnique.mockResolvedValue({ aiKeyOwnerId: null });
+    expect((await resolveAiConfig('u1', 'room1'))?.source).toBe('server');
+    roomFindUnique.mockResolvedValue({ aiKeyOwnerId: 'sp' });
+    findUnique.mockResolvedValue(null);
+    expect((await resolveAiConfig('u1', 'room1'))?.source).toBe('server');
+  });
+
+  it('does not look at the room when none is given', async () => {
+    await resolveAiConfig('u1');
+    expect(roomFindUnique).not.toHaveBeenCalled();
+  });
+});
+
+describe('clearUserAiSettings', () => {
+  it('also stops the person sponsoring any room', async () => {
+    await clearUserAiSettings('u1');
+    expect(deleteMany).toHaveBeenCalledWith({ where: { userId: 'u1' } });
+    expect(roomUpdateMany).toHaveBeenCalledWith({ where: { aiKeyOwnerId: 'u1' }, data: { aiKeyOwnerId: null } });
   });
 });

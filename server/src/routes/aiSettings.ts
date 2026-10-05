@@ -1,7 +1,9 @@
 import type { FastifyInstance } from 'fastify';
-import type { AiSettingsResponse, AiTestResponse, SetUserAiSettingsRequest, UserAiSettings } from '@queueup/shared';
+import type { AiSettingsResponse, AiTestResponse, RoomAiResponse, SetUserAiSettingsRequest, UserAiSettings } from '@queueup/shared';
 import { requireAdmin } from '../services/adminAccess.js';
 import { aiComplete, aiCompleteWithServer, clearUserAiSettings, describeAiSettings, saveUserAiSettings } from '../services/ai/aiConfig.js';
+import { applyMyAiToRoom, describeRoomAi, removeRoomAi } from '../services/ai/roomAi.js';
+import { requireMembership } from '../services/roomAccess.js';
 import type { AiRequest } from '../services/ai/providers.js';
 
 /** A tiny prompt that proves the settings work end to end without spending real tokens. */
@@ -43,6 +45,35 @@ export default async function aiSettingsRoutes(app: FastifyInstance) {
     const userId = await request.requireAuth();
     const res = await aiComplete(TEST_REQUEST, { userId });
     return { ok: true, source: res.source, provider: res.provider, model: res.model, reply: res.text.trim().slice(0, 200) };
+  });
+
+  // Applying your own AI settings to a room you're in (see services/ai/roomAi.ts). The key itself is
+  // never involved: the room just records who is providing it.
+  const isElevated = (role: string) => role === 'room_master' || role === 'moderator';
+
+  app.get<{ Params: { roomId: string } }>('/api/rooms/:roomId/ai', async (request): Promise<RoomAiResponse> => {
+    const userId = await request.requireAuth();
+    const membership = await requireMembership(request.params.roomId, userId);
+    return describeRoomAi(request.params.roomId, userId, isElevated(membership.role));
+  });
+
+  app.put<{ Params: { roomId: string } }>(
+    '/api/rooms/:roomId/ai',
+    { config: { rateLimit: { max: 10, timeWindow: '1 hour' } } },
+    async (request): Promise<RoomAiResponse> => {
+      const userId = await request.requireAuth();
+      const membership = await requireMembership(request.params.roomId, userId);
+      await applyMyAiToRoom(request.params.roomId, userId);
+      return describeRoomAi(request.params.roomId, userId, isElevated(membership.role));
+    },
+  );
+
+  app.delete<{ Params: { roomId: string } }>('/api/rooms/:roomId/ai', async (request): Promise<RoomAiResponse> => {
+    const userId = await request.requireAuth();
+    const membership = await requireMembership(request.params.roomId, userId);
+    const elevated = isElevated(membership.role);
+    await removeRoomAi(request.params.roomId, userId, elevated);
+    return describeRoomAi(request.params.roomId, userId, elevated);
   });
 
   // The Administrator's check of the server-wide settings, regardless of any personal ones.
