@@ -726,7 +726,14 @@ export default async function roomRoutes(app: FastifyInstance) {
         }
       }
 
-      await prisma.roomMember.delete({ where: { roomId_userId: { roomId, userId: targetUserId } } });
+      // deleteMany, not delete: requireMembership also answers for an admin managing the room
+      // without a membership row, and a concurrent leave can remove the row first - delete would
+      // throw P2025 (500) in both cases. Nothing removed means nothing to log.
+      const removed = await prisma.roomMember.deleteMany({ where: { roomId, userId: targetUserId } });
+      if (removed.count === 0) {
+        reply.status(204);
+        return null;
+      }
       // Room activity feed (issue #509).
       const targetUser = await prisma.user.findUnique({ where: { id: targetUserId }, select: { displayName: true } });
       void logRoomActivity({
