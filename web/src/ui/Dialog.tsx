@@ -1,4 +1,4 @@
-import { createContext, useContext, useEffect, type CSSProperties, type ReactNode } from 'react';
+import { createContext, useContext, useEffect, useLayoutEffect, useRef, type CSSProperties, type ReactNode } from 'react';
 import { createPortal } from 'react-dom';
 import { closeOnBackdropMouseDown, useModalA11y } from '../hooks/useModalA11y';
 import { useIsMobile } from './useLayout';
@@ -7,6 +7,9 @@ import { t } from '../i18n';
 
 // Nested dialogs (e.g. the barcode scanner opened over Add game) stack above their parent.
 const DepthContext = createContext(0);
+
+// How many dialogs are open right now (across the whole app), so a new one can sit above them all.
+let openDialogCount = 0;
 
 // Several dialogs can be open at once (a game card and the review sheet it opens). Each one used to
 // save and restore body overflow on its own, so closing them in a different order than they opened
@@ -94,10 +97,24 @@ export function Dialog({
   const mobile = useIsMobile();
   const depth = useContext(DepthContext);
   const ref = useModalA11y<HTMLDivElement>(onClose);
-  const z = 60 + depth * 4;
+  // Which layer this dialog sits on: one above everything already open. Dialogs opened from another
+  // one are usually rendered *next to* it, not inside it, so DepthContext alone left both on the same
+  // layer - the one underneath then sat above the new backdrop, un-blurred and still tappable.
+  // Whichever is higher wins (nested in a parent's content, or simply opened after it).
+  const layerRef = useRef<number | null>(null);
+  if (layerRef.current === null) layerRef.current = openDialogCount;
+  const layer = Math.max(depth, layerRef.current);
+  const z = 60 + layer * 4;
 
   // Lock page scroll behind the dialog.
   useEffect(() => lockPageScroll(), []);
+  // Count this dialog as open (layout effect so a dialog opened in the same tick sees it).
+  useLayoutEffect(() => {
+    openDialogCount += 1;
+    return () => {
+      openDialogCount -= 1;
+    };
+  }, []);
 
   const shell: CSSProperties = mobile && !centered
     ? {
@@ -127,7 +144,15 @@ export function Dialog({
       <div
         role="presentation"
         onMouseDown={closeOnBackdropMouseDown(onClose)}
-        style={{ position: 'fixed', inset: 0, zIndex: z, background: 'oklch(0 0 0 / 0.5)', backdropFilter: 'blur(3px)', animation: 'qu-fade .18s ease both' }}
+        style={{
+          position: 'fixed',
+          inset: 0,
+          zIndex: z,
+          background: 'oklch(0 0 0 / 0.5)',
+          // A dialog on top of another blurs the one beneath harder, so it's clearly out of play.
+          backdropFilter: layer > 0 ? 'blur(8px)' : 'blur(3px)',
+          animation: 'qu-fade .18s ease both',
+        }}
       />
       <div
         ref={ref}
