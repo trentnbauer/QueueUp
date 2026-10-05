@@ -239,6 +239,58 @@ export function renderConfirmEmail(input: { email: string; confirmUrl: string; a
   };
 }
 
+// ---- 2b. Alert address changed (sent to the address it changed away from) ------------------
+
+/** Tells the old address that alerts now go somewhere else. `newAddress` is the address now in use,
+ * or null when the person went back to their sign-in email. Sent whatever the person's alert
+ * preferences are: it is a security notice, so someone who hijacked a session can't redirect alerts
+ * without the real owner hearing about it. */
+export function renderAddressChanged(input: { newAddress: string | null; appBaseUrl: string }): RenderedEmail {
+  const subject = 'Your QueueUp alert email was changed';
+  const what = input.newAddress ? `to ${input.newAddress}` : 'back to your sign-in email';
+  const text = [
+    `The email address QueueUp sends alerts to for your account was changed ${what}.`,
+    '',
+    'If that was you, nothing more to do.',
+    '',
+    `If it was not you, sign in at ${input.appBaseUrl} now and check Settings > Account history. Then review your sign-in methods and API keys, and set your alert email back.`,
+  ].join('\n');
+
+  const card = `${heroCell(
+    `${eyebrow('Security notice')}\n          ${h1('Your alert email was changed')}\n          <p class="qu-body" style="margin:10px 0 0; font-family:${FONT_UI}; font-size:15px; line-height:22px; color:#d6d1ca;">QueueUp alerts for your account now go ${input.newAddress ? `to <strong style="color:#f1eee9; font-weight:600;">${esc(input.newAddress)}</strong>` : 'back to your sign-in email'}.</p>`,
+    '22px 22px 0 0',
+    28,
+  )}
+
+        <tr><td class="qu-pad" style="padding:24px 32px 0;">
+          <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" bgcolor="#2a1f19" style="background:#2a1f19; border:1px solid #5a3a28; border-radius:14px; border-collapse:separate;"><tr>
+            <td class="qu-body" style="padding:14px 16px; font-family:${FONT_UI}; font-size:15px; line-height:22px; color:#f1eee9;"><strong style="font-weight:700; color:#f7ae86;">Not you?</strong> Sign in now and check Account history in Settings. Review your sign-in methods and API keys, and set your alert email back.</td>
+          </tr></table>
+        </td></tr>
+
+        <tr><td class="qu-pad" style="padding:24px 32px 0;">
+          ${button(input.appBaseUrl, 'Open QueueUp', 200)}
+        </td></tr>
+
+        <tr><td class="qu-pad" style="padding:24px 32px 32px;">
+          <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="border-top:1px solid #2e2a26;"><tr>
+            <td style="padding-top:18px; font-family:${FONT_UI}; font-size:14px; line-height:21px; color:#b4ada4;">If this was you, there is nothing more to do.</td>
+          </tr></table>
+        </td></tr>`;
+
+  return {
+    subject,
+    text,
+    html: layout({
+      title: subject,
+      preheader: 'The email address QueueUp sends alerts to for your account was changed. Not you? Sign in and check.',
+      appBaseUrl: input.appBaseUrl,
+      card,
+      footer: `    ${hostFooter(input.appBaseUrl).replace('%PAD%', '24px 32px 0')}`,
+    }),
+  };
+}
+
 // ---- 3. SMTP test -------------------------------------------------------------------------
 
 export function renderSmtpTest(input: { appBaseUrl: string }): RenderedEmail {

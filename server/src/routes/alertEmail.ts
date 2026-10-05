@@ -7,6 +7,7 @@ import { HttpError } from '../util/httpError.js';
 import { sendMail, smtpIsConfigured } from '../services/mailer.js';
 import { renderConfirmEmail } from '../services/emailTemplates.js';
 import { notifyAccountChange } from '../services/notifications.js';
+import { warnPreviousAddresses } from '../services/addressChangeNotice.js';
 
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 const CONFIRM_TTL_MS = 24 * 60 * 60 * 1000;
@@ -47,11 +48,13 @@ export default async function alertEmailRoutes(app: FastifyInstance) {
       const raw = request.body?.email;
       if (raw === null || raw === undefined || (typeof raw === 'string' && raw.trim() === '')) {
         // Back to using the account's own email.
+        const previous = await alertEmailFor(userId);
         await prisma.$transaction([
           prisma.user.update({ where: { id: userId }, data: { alertEmail: null } }),
           prisma.emailChangeRequest.deleteMany({ where: { userId } }),
         ]);
         await notifyAccountChange(userId, 'Your email address for alerts was reset to your sign-in email.');
+        await warnPreviousAddresses(userId, previous);
         return { status: 'saved' };
       }
       if (typeof raw !== 'string') throw new HttpError(400, 'Enter an email address');
@@ -59,6 +62,7 @@ export default async function alertEmailRoutes(app: FastifyInstance) {
       if (email.length > 254 || !EMAIL_RE.test(email)) throw new HttpError(400, 'That does not look like an email address');
 
       if (!(await smtpIsConfigured())) {
+        // No email can be sent here, so there is nothing to confirm with (and no old address to warn).
         await prisma.user.update({ where: { id: userId }, data: { alertEmail: email } });
         await notifyAccountChange(userId, `Your email address for alerts was changed to ${email}.`);
         return { status: 'saved' };
@@ -91,11 +95,15 @@ export default async function alertEmailRoutes(app: FastifyInstance) {
       if (typeof token !== 'string' || token.length < 20 || token.length > 200) throw new HttpError(400, 'This link is not valid');
       const row = await prisma.emailChangeRequest.findUnique({ where: { tokenHash: hashToken(token) } });
       if (!row || row.expiresAt < new Date()) throw new HttpError(400, 'This link is not valid or has expired');
+      const previous = await alertEmailFor(row.userId);
       await prisma.$transaction([
         prisma.user.update({ where: { id: row.userId }, data: { alertEmail: row.email } }),
         prisma.emailChangeRequest.delete({ where: { userId: row.userId } }),
       ]);
       await notifyAccountChange(row.userId, `Your email address for alerts was changed to ${row.email}.`);
+      // The old address (and the account email) hear about it too, so a hijacked session can't
+      // quietly send alerts elsewhere.
+      await warnPreviousAddresses(row.userId, previous);
       return { email: row.email };
     },
   );

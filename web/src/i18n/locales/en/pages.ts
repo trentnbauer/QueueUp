@@ -303,6 +303,7 @@ export const pages = {
   "pages.admin.emailLogFailed": "FAILED",
   "pages.admin.emailKind.alert_digest": "Alert digest",
   "pages.admin.emailKind.confirm_email": "Confirm alert address",
+  "pages.admin.emailKind.address_changed": "Alert address changed notice",
   "pages.admin.emailKind.smtp_test": "SMTP test",
   "pages.admin.smtpFirst": "Set the host, port and from address first.",
   "pages.admin.tunnelKicker": "CLOUDFLARE TUNNEL",
