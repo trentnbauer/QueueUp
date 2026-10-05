@@ -68,12 +68,13 @@ export function ImportDialog() {
   const { data: xboxStatus } = useQuery({ queryKey: XBOX_STATUS_QUERY_KEY, queryFn: xboxApi.status });
 
   // Linked: the Steam dialog is where it is synced or disconnected (issue #861), like the other sources.
+  // Every source dialog opens on top of Libraries rather than replacing it (issue #860), so closing one
+  // lands back here instead of leaving the settings flow altogether.
   function steamManage() {
     if (!steamLinked) {
       startLink('library');
       return;
     }
-    ui.closeDialog('import');
     ui.openDialog('steam');
   }
 
@@ -107,40 +108,28 @@ export function ImportDialog() {
           title="Playnite"
           sub={playniteKey?.lastUsedAt ? t('settings.me.playnite.lastSynced', { when: formatRelativeTime(playniteKey.lastUsedAt) }) : t('add.import.playniteSub')}
           cta={playniteKey?.lastUsedAt ? t('settings.me.playnite.manage') : t('add.import.setUp')}
-          onClick={() => {
-            ui.closeDialog('import');
-            ui.openDialog('playnite');
-          }}
+          onClick={() => ui.openDialog('playnite')}
         />
         <ImportRow
           kind="exophase"
           title="Exophase"
           sub={limits.isLimited('exophase') ? t('add.import.rateLimited', { minutes: limits.minutesLeft('exophase') ?? 1 }) : t('add.import.exophaseSub')}
           cta={exophaseStatus?.connected ? t('settings.me.exophase.manage') : t('settings.me.exophase.link')}
-          onClick={() => {
-            ui.closeDialog('import');
-            ui.openDialog('exophase');
-          }}
+          onClick={() => ui.openDialog('exophase')}
         />
         <ImportRow
           kind="playstation"
           title="PlayStation"
           sub={t('add.import.psnSub')}
           cta={psnStatus?.connected ? t('settings.me.psn.manage') : t('settings.me.psn.link')}
-          onClick={() => {
-            ui.closeDialog('import');
-            ui.openDialog('psn');
-          }}
+          onClick={() => ui.openDialog('psn')}
         />
         <ImportRow
           kind="retroachievements"
           title="RetroAchievements"
           sub={limits.isLimited('retroachievements') ? t('add.import.rateLimited', { minutes: limits.minutesLeft('retroachievements') ?? 1 }) : t('add.import.retroAchievementsSub')}
           cta={raStatus?.connected ? t('settings.me.exophase.manage') : t('settings.me.exophase.link')}
-          onClick={() => {
-            ui.closeDialog('import');
-            ui.openDialog('retroachievements');
-          }}
+          onClick={() => ui.openDialog('retroachievements')}
         />
         {xboxStatus?.configured && (
           <ImportRow
@@ -148,10 +137,7 @@ export function ImportDialog() {
             title="Xbox"
             sub={t('add.import.xboxSub')}
             cta={xboxStatus.connected ? t('settings.me.xbox.manage') : t('settings.me.xbox.link')}
-            onClick={() => {
-              ui.closeDialog('import');
-              ui.openDialog('xbox');
-            }}
+            onClick={() => ui.openDialog('xbox')}
           />
         )}
       </Group>
