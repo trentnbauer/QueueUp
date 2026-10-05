@@ -73,6 +73,7 @@ export default async function alertEmailRoutes(app: FastifyInstance) {
         await sendMail({
           to: email,
           subject: 'Confirm your email for QueueUp alerts',
+          kind: 'confirm_email',
           text: [
             'Someone (hopefully you) asked to send QueueUp alerts to this address.',
             '',

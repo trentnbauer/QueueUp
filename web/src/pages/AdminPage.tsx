@@ -11,6 +11,7 @@ import { st } from '../ui/st';
 import { getBasePath } from '../utils/basePath';
 import { AdminAiSection } from './AdminAiSection';
 import { AdminBackups } from './AdminBackups';
+import { AdminEmailLog } from './AdminEmailLog';
 import { AdminRoomView } from './AdminRoomView';
 import { PageShell } from './PageShell';
 import { rich, t as tr, useT, type MessageKey } from '../i18n';
@@ -283,6 +284,8 @@ export function AdminPage() {
           </div>
         </div>
       )}
+
+      <AdminEmailLog />
 
       {tunnel && (
         <div style={st('display:flex;flex-direction:column;gap:10px')}>

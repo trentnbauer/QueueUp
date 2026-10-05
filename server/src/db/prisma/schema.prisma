@@ -1455,6 +1455,23 @@ model RoomActivity {
 /// source of truth for "who did what, when." actorId is nullable with onDelete: SetNull rather
 /// than Cascade so a log entry outlives the admin account that made it - actorLabel/targetLabel
 /// are snapshots taken at write time so the entry stays meaningful even after that.
+/// One row per email the server tried to send (shown on the Administrator page). The body is never
+/// stored, only who it went to, the subject and whether it worked; `error` is the SMTP server's
+/// reason for a failure. Old rows are pruned (see services/emailLog.ts).
+model EmailLog {
+  id        String   @id @default(uuid())
+  /// What kind of email: alert_digest, confirm_email or smtp_test.
+  kind      String
+  toAddress String   @map("to_address")
+  subject   String
+  status    String
+  error     String?
+  createdAt DateTime @default(now()) @map("created_at")
+
+  @@index([createdAt])
+  @@map("email_log")
+}
+
 model AdminAuditLog {
   id          String   @id @default(uuid())
   actorId     String?  @map("actor_id")

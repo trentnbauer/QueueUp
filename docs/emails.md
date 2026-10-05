@@ -7,6 +7,9 @@ themed together (issue #866). There are **three** emails. All go through one fun
 Email only works when SMTP is set up (`SMTP_HOST`, `SMTP_PORT`, `SMTP_FROM`, or the same in
 Administrator settings). Without it, no email is sent and the alert-address change is saved directly.
 
+Every send, successful or not, is recorded in the **Email log** on the Administrator page (who it went
+to, subject, kind, sent or failed with the mail server's reason; never the body; removed after 90 days).
+
 ## Today's constraints (for the design)
 
 - **Plain text only.** `sendMail()` passes `text` to nodemailer and nothing else: there is no HTML

@@ -16,7 +16,7 @@ import {
 } from '../services/configResolver.js';
 import { sendMail, smtpIsConfigured } from '../services/mailer.js';
 import { getTunnelStatus, reloadTunnel } from '../services/cloudflareTunnel.js';
-import type { ConfigSource, AdminIntegrationStatus, AdminRoomDetail, AdminRoomSummary, AdminUserSummary, AdminAuditLogEntry } from '@queueup/shared';
+import type { ConfigSource, AdminIntegrationStatus, AdminRoomDetail, AdminRoomSummary, AdminUserSummary, AdminAuditLogEntry, AdminEmailLogEntry } from '@queueup/shared';
 import { normalizeSpinTheme } from '@queueup/shared';
 import { redis } from '../services/redisClient.js';
 import { ADMIN_MANAGE_TTL_SECONDS, adminManageKey, adminManagedRoomIds } from '../services/roomAccess.js';
@@ -222,6 +222,7 @@ export default async function adminRoutes(app: FastifyInstance) {
         await sendMail({
           to: actor.email,
           subject: 'QueueUp test email',
+          kind: 'smtp_test',
           text: 'If you can read this, QueueUp can send email alerts.',
         });
       } catch (err) {
@@ -489,6 +490,26 @@ export default async function adminRoutes(app: FastifyInstance) {
     });
     reply.status(204);
     return null;
+  });
+
+  // The emails the server tried to send, newest first: who it went to, the subject and whether it
+  // worked (never the body).
+  app.get<{ Querystring: { limit?: string } }>('/api/admin/email-log', async (request) => {
+    const userId = await request.requireAuth();
+    await requireAdmin(userId);
+
+    const limit = Math.min(Math.max(Number(request.query.limit) || 50, 1), 200);
+    const rows = await prisma.emailLog.findMany({ orderBy: { createdAt: 'desc' }, take: limit });
+    const entries: AdminEmailLogEntry[] = rows.map((r) => ({
+      id: r.id,
+      kind: r.kind,
+      to: r.toAddress,
+      subject: r.subject,
+      status: r.status === 'failed' ? 'failed' : 'sent',
+      error: r.error,
+      createdAt: r.createdAt.toISOString(),
+    }));
+    return { entries };
   });
 
   app.get<{ Querystring: { limit?: string } }>('/api/admin/audit-log', async (request) => {
