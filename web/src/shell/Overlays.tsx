@@ -10,6 +10,7 @@ import { AddGameDialog } from '../dialogs/AddGameDialog';
 import { DeckDialog } from '../dialogs/DeckDialog';
 import { CompletionsDialog, ImportDialog, NeedsReviewDialog, PlayniteDialog } from '../dialogs/ImportDialogs';
 import { DuplicatesDialog } from '../dialogs/DuplicatesDialog';
+import { NotificationsDialog as NotificationSettingsDialog } from '../dialogs/MeDialog';
 import { AiTonightDialog } from '../dialogs/AiTonightDialog';
 import { XboxDialog } from '../dialogs/XboxDialog';
 import { ExophaseDialog } from '../dialogs/ExophaseDialog';
@@ -136,6 +137,7 @@ export function Overlays() {
       {d.deck && <DeckDialog />}
       {d.needsReview && <NeedsReviewDialog />}
       {d.duplicates && <DuplicatesDialog />}
+      {d.notificationSettings && <NotificationSettingsDialog onClose={() => ui.closeDialog('notificationSettings')} />}
       {d.aiTonight && <AiTonightDialog />}
       {d.playtime && <PlaytimeDialog />}
       {d.completions && <CompletionsDialog />}

@@ -241,7 +241,7 @@ function AlertEmailRow() {
 }
 
 /** Which alerts you get: email (needs SMTP set up on the server) and, for the newer alert types, the bell. */
-function NotificationsDialog({ onClose }: { onClose: () => void }) {
+export function NotificationsDialog({ onClose }: { onClose: () => void }) {
   const queryClient = useQueryClient();
   const t = useT();
   const { data, isLoading } = useQuery({ queryKey: NOTIFICATION_PREFERENCES_QUERY_KEY, queryFn: notificationPreferencesApi.get });

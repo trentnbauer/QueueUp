@@ -58,8 +58,20 @@ const wordmark = (appBaseUrl: string) => `
       </a>
     </td></tr>`;
 
+/** Where the unsubscribe link in every email goes: straight to the person's notification settings
+ * in the app (see the `?settings=notifications` handling in App.tsx), where email alerts are
+ * switched off per type. If they are signed out it asks them to sign in first, then opens it. */
+export const notificationSettingsUrl = (appBaseUrl: string): string => `${appBaseUrl.replace(/\/+$/, '')}/?settings=notifications`;
+
+/** The plain-text part's unsubscribe line (the HTML footer carries the same link). */
+export const withUnsubscribeText = (text: string, appBaseUrl: string): string =>
+  `${text}\n\n--\nUnsubscribe or choose which alerts you get: ${notificationSettingsUrl(appBaseUrl)}`;
+
+// Every email gets the host line and an unsubscribe link (shown in the footer, not just where it is
+// a marketing-style digest): switching alerts off is one click from any message.
 const hostFooter = (appBaseUrl: string) =>
-  `<tr><td class="qu-pad" style="padding:%PAD%; font-family:${FONT_MONO}; font-size:11px; line-height:16px; letter-spacing:0.66px; text-transform:uppercase; color:#7d776f;">Sent by your QueueUp server &middot; ${esc(hostOf(appBaseUrl))}</td></tr>`;
+  `<tr><td class="qu-pad" style="padding:%PAD%; font-family:${FONT_MONO}; font-size:11px; line-height:16px; letter-spacing:0.66px; text-transform:uppercase; color:#7d776f;">Sent by your QueueUp server &middot; ${esc(hostOf(appBaseUrl))}</td></tr>
+    <tr><td class="qu-pad" style="padding:10px 32px 0; font-family:${FONT_UI}; font-size:12px; line-height:18px; color:#7d776f;">You get this because of the email settings on your QueueUp account. <a href="${esc(notificationSettingsUrl(appBaseUrl))}" style="color:#f4894f; text-decoration:underline;">Unsubscribe or choose which alerts you get</a>.</td></tr>`;
 
 const eyebrow = (label: string) =>
   `<div style="font-family:${FONT_MONO}; font-size:12px; line-height:16px; font-weight:600; letter-spacing:0.72px; text-transform:uppercase; color:#b4ada4;">${label}</div>`;
@@ -183,7 +195,7 @@ ${rows}${moreRow}
     </td></tr>
     ${hostFooter(input.appBaseUrl).replace('%PAD%', '14px 32px 0')}`;
 
-  return { subject, text, html: layout({ title: subject, preheader: shown[0] ?? '', appBaseUrl: input.appBaseUrl, card, footer }) };
+  return { subject, text: withUnsubscribeText(text, input.appBaseUrl), html: layout({ title: subject, preheader: shown[0] ?? '', appBaseUrl: input.appBaseUrl, card, footer }) };
 }
 
 // ---- 2. Confirm alert email address -------------------------------------------------------
@@ -228,7 +240,7 @@ export function renderConfirmEmail(input: { email: string; confirmUrl: string; a
 
   return {
     subject,
-    text,
+    text: withUnsubscribeText(text, input.appBaseUrl),
     html: layout({
       title: subject,
       preheader: 'Someone (hopefully you) asked to send QueueUp alerts to this address. Not you? Ignore this email.',
@@ -280,7 +292,7 @@ export function renderAddressChanged(input: { newAddress: string | null; appBase
 
   return {
     subject,
-    text,
+    text: withUnsubscribeText(text, input.appBaseUrl),
     html: layout({
       title: subject,
       preheader: 'The email address QueueUp sends alerts to for your account was changed. Not you? Sign in and check.',
@@ -307,7 +319,7 @@ export function renderSmtpTest(input: { appBaseUrl: string }): RenderedEmail {
   );
   return {
     subject,
-    text,
+    text: withUnsubscribeText(text, input.appBaseUrl),
     html: layout({
       title: subject,
       preheader: text,

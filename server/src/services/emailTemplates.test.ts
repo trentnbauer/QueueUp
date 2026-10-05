@@ -2,6 +2,8 @@ import { describe, expect, it } from 'vitest';
 import { DIGEST_MAX_LINES, renderAlertDigest, renderConfirmEmail, renderSmtpTest } from './emailTemplates.js';
 
 const base = 'https://queueup.example.com';
+// Every plain-text body now ends with the same unsubscribe line (see emailUnsubscribe.test.ts).
+const unsubscribeLines = ['', '--', `Unsubscribe or choose which alerts you get: ${base}/?settings=notifications`];
 
 describe('renderAlertDigest', () => {
   it('keeps the plain-text body exactly as it was before theming (one alert)', () => {
@@ -16,6 +18,7 @@ describe('renderAlertDigest', () => {
         `Open QueueUp: ${base}`,
         '',
         'You are getting this because you turned on email alerts. You can choose which alerts you get under Settings > Notifications.',
+        ...unsubscribeLines,
       ].join('\n'),
     );
   });
@@ -76,6 +79,7 @@ describe('renderConfirmEmail', () => {
         `Confirm it here: ${base}/confirm-email/abc_DEF-123`,
         '',
         'The link works for 24 hours. If this was not you, ignore this email and nothing changes.',
+        ...unsubscribeLines,
       ].join('\n'),
     );
   });
@@ -95,7 +99,7 @@ describe('renderSmtpTest', () => {
   const mail = renderSmtpTest({ appBaseUrl: base });
   it('keeps the original subject and text', () => {
     expect(mail.subject).toBe('QueueUp test email');
-    expect(mail.text).toBe('If you can read this, QueueUp can send email alerts.');
+    expect(mail.text).toBe(['If you can read this, QueueUp can send email alerts.', ...unsubscribeLines].join('\n'));
   });
   it('says SMTP is connected', () => {
     expect(mail.html).toContain('Email is working');

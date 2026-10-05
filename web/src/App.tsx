@@ -38,6 +38,9 @@ const YearPage = lazy(() => import('./pages/InsightPages').then((m) => ({ defaul
 const PENDING_INVITE_KEY = 'sq-pending-invite';
 // Same idea for friend links (`/add/:friendCode`).
 const PENDING_FRIEND_KEY = 'sq-pending-friend';
+// The Unsubscribe link in every email opens `/?settings=notifications`. Same sign-in round trip
+// problem, same answer: stash it, then open the notification settings once signed in.
+const PENDING_SETTINGS_KEY = 'sq-pending-settings';
 
 function JoinRoute() {
   const { inviteCode = '' } = useParams();
@@ -130,6 +133,34 @@ export default function App() {
       })
       .catch(() => setProvidersError(true));
   }, [user, providersAttempt]);
+
+  // The email Unsubscribe link: remember it (and tidy the address bar), then open the notification
+  // settings as soon as there is a signed-in user - straight away if there already is one, after
+  // sign-in otherwise.
+  useEffect(() => {
+    const params = new URLSearchParams(location.search);
+    if (params.get('settings') !== 'notifications') return;
+    try {
+      sessionStorage.setItem(PENDING_SETTINGS_KEY, 'notifications');
+    } catch {
+      /* storage unavailable: the link just lands on the app */
+    }
+    params.delete('settings');
+    navigate({ pathname: location.pathname, search: params.toString() }, { replace: true });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [location.search]);
+  useEffect(() => {
+    if (!user) return;
+    let pending: string | null = null;
+    try {
+      pending = sessionStorage.getItem(PENDING_SETTINGS_KEY);
+      if (pending) sessionStorage.removeItem(PENDING_SETTINGS_KEY);
+    } catch {
+      /* ignore */
+    }
+    if (pending === 'notifications') ui.openDialog('notificationSettings');
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [user, location.search]);
 
   // Tracked on the account (not per browser), so signing in on a new device doesn't repeat it.
   useEffect(() => {

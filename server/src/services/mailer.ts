@@ -38,6 +38,9 @@ export interface MailMessage {
   html?: string;
   /** What this email is, for the Administrator page's email log. */
   kind: EmailKind;
+  /** Sets the List-Unsubscribe header, so a mail app can show its own Unsubscribe button next to the
+   * link in the footer. For recurring alert mail; not for one-off confirmations and security notices. */
+  unsubscribeUrl?: string;
 }
 
 /** Sends one email (themed HTML plus a plain-text fallback) through the configured SMTP server. Port 465 uses implicit TLS; any
@@ -56,7 +59,14 @@ export async function sendMail(message: MailMessage): Promise<void> {
     socketTimeout: 30_000,
   });
   try {
-    await transport.sendMail({ from: smtp.from, to: message.to, subject: message.subject, text: message.text, html: message.html });
+    await transport.sendMail({
+      from: smtp.from,
+      to: message.to,
+      subject: message.subject,
+      text: message.text,
+      html: message.html,
+      ...(message.unsubscribeUrl && { list: { unsubscribe: { url: message.unsubscribeUrl, comment: 'Unsubscribe or choose which alerts you get' } } }),
+    });
     await logEmail({ kind: message.kind, to: message.to, subject: message.subject });
   } catch (err) {
     await logEmail({ kind: message.kind, to: message.to, subject: message.subject, error: err });
