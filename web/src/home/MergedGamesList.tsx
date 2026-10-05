@@ -20,14 +20,33 @@ export function MergedGamesList() {
   });
 
   const rows = data?.merged ?? [];
+  // Runs the AI duplicate finder (DuplicatesDialog) over the shelf and offers to merge what it
+  // finds; each merge then shows up in the list below.
+  const findDuplicates = (
+    <div style={st('display:flex;align-items:center;gap:12px;padding:10px 14px;border-radius:14px;background:var(--surf)')}>
+      <span style={st('flex:1;min-width:0;display:flex;flex-direction:column;gap:2px')}>
+        <span style={st('font:600 14.5px var(--font-ui)')}>{t('home.merged.find')}</span>
+        <span style={st('font:400 12.5px var(--font-ui);color:var(--muted)')}>{t('settings.me.duplicates.sub')}</span>
+      </span>
+      <Btn kind="soft" height={34} padX={14} fontSize={13} onClick={() => ui.openDialog('duplicates')}>
+        {t('home.merged.findBtn')}
+      </Btn>
+    </div>
+  );
   if (isLoading) return <div style={st('padding:36px 12px;text-align:center;font:500 14.5px var(--font-ui);color:var(--muted)')}>{t('common.loading')}</div>;
   if (rows.length === 0) {
-    return <div style={st('padding:36px 12px;text-align:center;font:500 14.5px var(--font-ui);color:var(--muted)')}>{t('home.merged.none')}</div>;
+    return (
+      <div style={st('display:flex;flex-direction:column;gap:6px')}>
+        {findDuplicates}
+        <div style={st('padding:36px 12px;text-align:center;font:500 14.5px var(--font-ui);color:var(--muted)')}>{t('home.merged.none')}</div>
+      </div>
+    );
   }
 
   return (
     <div style={st('display:flex;flex-direction:column;gap:6px')}>
-      <div style={st('padding:0 4px 6px;font:400 13px var(--font-ui);color:var(--muted)')}>{t('home.merged.intro')}</div>
+      {findDuplicates}
+      <div style={st('padding:8px 4px 6px;font:400 13px var(--font-ui);color:var(--muted)')}>{t('home.merged.intro')}</div>
       {rows.map((r) => (
         <div key={r.fromIgdbId} style={st('display:flex;align-items:center;gap:12px;padding:10px 14px;border-radius:14px;background:var(--surf)')}>
           <span

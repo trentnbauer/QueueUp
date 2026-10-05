@@ -182,6 +182,8 @@ export const home: Record<keyof typeof en, string> = {
   "home.imports.unknownPlatform": "Unknown vessel",
   "home.imports.restore": "Haul back",
   "home.merged.none": "Nothin’ merged.",
+  "home.merged.find": "Find duplicates with AI",
+  "home.merged.findBtn": "Scan",
   "home.merged.intro": "Games ye merged into another. Importin’ one of these again adds the game ye merged it into, not a duplicate.",
   "home.merged.forget": "Stop merging",
   "home.merged.failed": "Couldn’t update that.",
