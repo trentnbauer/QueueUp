@@ -10,6 +10,18 @@ vi.mock('./redisClient.js', () => ({
       store.set(key, { value, ttl });
       return 'OK';
     },
+    // Counters for ggDealsLimits.ts' hourly budget.
+    incrby: async (key: string, n: number) => {
+      const v = Number(store.get(key)?.value ?? 0) + n;
+      store.set(key, { value: String(v), ttl: 0 });
+      return v;
+    },
+    decrby: async (key: string, n: number) => {
+      const v = Number(store.get(key)?.value ?? 0) - n;
+      store.set(key, { value: String(v), ttl: 0 });
+      return v;
+    },
+    expire: async () => 1,
     pipeline: () => {
       const ops: (() => void)[] = [];
       const p = {
@@ -70,5 +82,49 @@ describe('getSteamPrices when gg.deals fails', () => {
     );
     const prices = await getSteamPrices([10]);
     expect(prices.get(10)?.source).toBe('unavailable');
+  });
+});
+
+describe('gg.deals rate limiting (#863)', () => {
+  const ok = (id: number) =>
+    new Response(JSON.stringify({ success: true, data: { [String(id)]: { title: 'Game', url: 'https://gg.deals/g', prices: { currentRetail: '10.00', currency: 'USD' } } } }), { status: 200 });
+
+  beforeEach(() => {
+    store.clear();
+    pipelineSets.length = 0;
+    vi.spyOn(console, 'error').mockImplementation(() => {});
+  });
+  afterEach(() => vi.restoreAllMocks());
+
+  it('stops asking gg.deals after a 429 and does not cache "unavailable" for the games it skipped', async () => {
+    const fetchSpy = vi.spyOn(globalThis, 'fetch').mockResolvedValue(new Response('{}', { status: 429, headers: { 'retry-after': '600' } }));
+    await getSteamPrices([10]);
+    expect(fetchSpy).toHaveBeenCalledTimes(1);
+
+    // While backing off: no request at all, and nothing is cached for the skipped game.
+    pipelineSets.length = 0;
+    const prices = await getSteamPrices([20]);
+    expect(fetchSpy).toHaveBeenCalledTimes(1);
+    expect(prices.get(20)?.source).toBe('unavailable');
+    expect(pipelineSets.map((s) => s.key).some((k) => k.includes(':20:'))).toBe(false);
+  });
+
+  it('does not call gg.deals for a manual refresh while backing off', async () => {
+    const fetchSpy = vi.spyOn(globalThis, 'fetch').mockResolvedValue(new Response('{}', { status: 429 }));
+    await getSteamPrices([10]);
+    fetchSpy.mockClear();
+    await expect(getSteamPrices([30], { forceRefresh: true })).resolves.toBeDefined();
+    expect(fetchSpy).not.toHaveBeenCalled();
+  });
+
+  it('looks a game up once even when several people ask for it (the cache is per game and region, not per person)', async () => {
+    const fetchSpy = vi.spyOn(globalThis, 'fetch').mockResolvedValue(ok(40));
+    const first = await getSteamPrices([40]);
+    expect(first.get(40)?.source).toBe('live');
+    fetchSpy.mockClear();
+    // A second person (any room, any library) asking for the same game and region is a cache hit.
+    const second = await getSteamPrices([40]);
+    expect(second.get(40)?.source).toBe('live');
+    expect(fetchSpy).not.toHaveBeenCalled();
   });
 });

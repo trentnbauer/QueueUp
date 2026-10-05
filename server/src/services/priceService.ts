@@ -3,6 +3,7 @@ import { env } from '../config/env.js';
 import { getConfigValue } from './configResolver.js';
 import { HttpError } from '../util/httpError.js';
 import { FORCED_REFRESH_COOLDOWN_MS, cooldownRemainingMs, formatCooldownMessage } from './refreshCooldown.js';
+import { formatWaitMessage, parseRetryAfterMs, startBackoff, waitBeforeLookup } from './ggDealsLimits.js';
 import type { GamePrice } from '@queueup/shared';
 
 const PRICE_CACHE_TTL_SECONDS = 60 * 60 * 6; // 6h — prices/sales move faster than metadata
@@ -10,6 +11,19 @@ const PRICE_CACHE_TTL_SECONDS = 60 * 60 * 6; // 6h — prices/sales move faster 
 // outage doesn't hide prices for the full 6h.
 const FAILED_PRICE_CACHE_TTL_SECONDS = 60 * 10;
 const failedEntries = new WeakSet<PriceEntry>();
+// Entries made while lookups are held back (a gg.deals 429 or our own hourly budget): no request was
+// made, so caching "unavailable" would hide a price that was never actually looked up. Not cached.
+const uncachedEntries = new WeakSet<PriceEntry>();
+
+function uncachedEntriesFor(steamAppIds: number[], fetchedAt: string): Map<number, PriceEntry> {
+  return new Map(
+    steamAppIds.map((id) => {
+      const entry = unavailableEntry(fetchedAt);
+      uncachedEntries.add(entry);
+      return [id, entry];
+    }),
+  );
+}
 
 function cacheTtlFor(entry: PriceEntry): number {
   return failedEntries.has(entry) ? FAILED_PRICE_CACHE_TTL_SECONDS : PRICE_CACHE_TTL_SECONDS;
@@ -35,7 +49,7 @@ const PRICE_CACHE_PREFIX = 'gg:price:v4:pc:';
 // Deliberately keyed by steamAppId ALONE - no roomId, no region. That means a manual refresh
 // of a given Steam game is shared by every room/shelf that happens to show it (issue #67's
 // "sync prices across rooms" falls out of this for free, same as the price cache itself already
-// being steamAppId-keyed), and the once-an-hour cooldown applies globally to that game rather
+// being steamAppId-keyed), and the once-every-2-hours cooldown applies globally to that game rather
 // than per-room.
 const LAST_FORCED_REFRESH_PREFIX = 'gg:price:v4:pc:lastforced:';
 
@@ -152,6 +166,14 @@ async function fetchLiveEntriesBatch(
     return new Map(steamAppIds.map((id) => [id, unavailableEntry(fetchedAt)]));
   }
 
+  // Held back while gg.deals has told us to stop (429) or this hour's budget is spent (issue #863):
+  // no request at all, and nothing cached, so the next lookup after the wait goes ahead normally.
+  const waitMs = await waitBeforeLookup(steamAppIds.length);
+  if (waitMs > 0) {
+    if (strict) throw new HttpError(429, formatWaitMessage(waitMs));
+    return uncachedEntriesFor(steamAppIds, fetchedAt);
+  }
+
   const url = new URL('https://api.gg.deals/v1/prices/by-steam-app-id/');
   url.searchParams.set('ids', steamAppIds.join(','));
   url.searchParams.set('key', apiKey);
@@ -177,6 +199,8 @@ async function fetchLiveEntriesBatch(
     console.error(
       `[priceService] gg.deals request failed (${response.status}) for ${steamAppIds.length} id(s), region ${region}: ${bodyText.slice(0, 300)}`,
     );
+    // A 429 means the quota is spent: stop asking until it's over (its Retry-After, else an hour).
+    if (response.status === 429) await startBackoff(parseRetryAfterMs(response.headers.get('retry-after')));
     // A manual refresh (strict) must tell the person what went wrong instead of quietly showing
     // "unavailable" (and caching that) - it throws, so the UI can toast it.
     if (strict) {
@@ -234,7 +258,7 @@ async function getEntry(
   }
 
   const entry = await fetchLiveEntry(steamAppId, region, opts.forceRefresh === true);
-  await redis.set(cacheKey, JSON.stringify(entry), 'EX', cacheTtlFor(entry));
+  if (!uncachedEntries.has(entry)) await redis.set(cacheKey, JSON.stringify(entry), 'EX', cacheTtlFor(entry));
   return entry;
 }
 
@@ -278,7 +302,7 @@ export async function getSteamPrices(
     misses.forEach((id) => {
       const entry = fetched.get(id)!;
       result.set(id, entry.price);
-      pipeline.set(`${PRICE_CACHE_PREFIX}${id}:${region}`, JSON.stringify(entry), 'EX', cacheTtlFor(entry));
+      if (!uncachedEntries.has(entry)) pipeline.set(`${PRICE_CACHE_PREFIX}${id}:${region}`, JSON.stringify(entry), 'EX', cacheTtlFor(entry));
     });
     await pipeline.exec();
   }

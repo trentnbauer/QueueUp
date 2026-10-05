@@ -10,7 +10,7 @@ describe('cooldownRemainingMs', () => {
   it('returns a smaller positive number as time passes within the window', () => {
     const now = 1_000_000;
     const lastForcedAt = now - 30 * 60 * 1000; // 30 minutes ago
-    expect(cooldownRemainingMs(lastForcedAt, now)).toBe(30 * 60 * 1000);
+    expect(cooldownRemainingMs(lastForcedAt, now)).toBe(FORCED_REFRESH_COOLDOWN_MS - 30 * 60 * 1000);
   });
 
   it('returns zero exactly at the cooldown boundary', () => {
