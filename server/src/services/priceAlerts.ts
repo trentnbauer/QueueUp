@@ -5,7 +5,7 @@ import { isOwnedBy } from './gameOwnership.js';
 import { unlockBadges } from './badges.js';
 import type { GameWithRelations } from './gameSerializer.js';
 import { goodTimeReason, getPriceHistory, isMeaningfulFurtherDrop, usualPrice } from './priceHistory.js';
-import { isInAppEnabled } from './notificationPreferences.js';
+import { wantsAlert } from './notificationPreferences.js';
 import { notifyGoodTimeToBuy } from './notifications.js';
 
 /** Called (by runPriceAlertChecks' callers - see priceAlertJob.ts) exactly when a check below
@@ -134,7 +134,7 @@ export async function checkGoodTimeToBuy(game: GameWithRelations, price: GamePri
     // Silent: another alert already told the person about this same price this run - the price is
     // still recorded above so this dip doesn't alert on its own next run either.
     if (opts.silent) return;
-    if (!(await isInAppEnabled(game.addedBy, 'good_time_to_buy'))) return;
+    if (!(await wantsAlert(game.addedBy, 'good_time_to_buy'))) return;
 
     const usual = usualPrice(history);
     const now = `${price.amount} ${price.currency}`;

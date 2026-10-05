@@ -69,6 +69,15 @@ describe('unreadNotificationWhere', () => {
     });
   });
 
+  it('leaves types the person switched off in their bell out of the direct branch only', () => {
+    const memberships = [{ roomId: 'room-1', notificationsReadAt: null, joinedAt: new Date('2026-01-01T00:00:00Z') }];
+    const where = unreadNotificationWhere(VIEWER, memberships, ['feed_reaction', 'good_time_to_buy']);
+    expect(where.OR).toEqual([
+      { roomId: 'room-1', recipientId: null, AND: [notCausedBy(VIEWER)], createdAt: { gt: new Date('2026-01-01T00:00:00Z') } },
+      { recipientId: VIEWER, AND: [notCausedBy(VIEWER)], readAt: null, type: { notIn: ['feed_reaction', 'good_time_to_buy'] } },
+    ]);
+  });
+
   it('still includes the recipient-scoped branch with zero room memberships', () => {
     expect(unreadNotificationWhere(VIEWER, [])).toEqual({
       OR: [{ recipientId: VIEWER, AND: [notCausedBy(VIEWER)], readAt: null }],

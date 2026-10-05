@@ -2,6 +2,7 @@ import type { NotificationType, Prisma } from '@prisma/client';
 import { logAccountEvent } from './accountEvents.js';
 import { prisma } from '../db/client.js';
 import { toUserDto } from '../util/dto.js';
+import { hiddenInAppTypes } from './notificationPreferences.js';
 import { logRoomActivity, logShelfActivity, type RoomGamePayload } from './roomActivity.js';
 import type { Notification } from '@queueup/shared';
 
@@ -403,6 +404,7 @@ export const notCausedBy = (userId: string): Prisma.NotificationWhereInput => ({
 export function unreadNotificationWhere(
   userId: string,
   memberships: { roomId: string; notificationsReadAt: Date | null; joinedAt: Date }[],
+  hiddenTypes: NotificationType[] = [],
 ): Prisma.NotificationWhereInput {
   return {
     OR: [
@@ -412,7 +414,9 @@ export function unreadNotificationWhere(
         AND: [notCausedBy(userId)],
         createdAt: { gt: m.notificationsReadAt ?? m.joinedAt },
       })),
-      { recipientId: userId, AND: [notCausedBy(userId)], readAt: null },
+      // Types the person switched off in their bell still have rows (email is built from them) but
+      // never show here or count towards the badge.
+      { recipientId: userId, AND: [notCausedBy(userId)], readAt: null, ...(hiddenTypes.length > 0 && { type: { notIn: hiddenTypes } }) },
     ],
   };
 }
@@ -428,8 +432,9 @@ export async function getNotificationFeed(userId: string, take = 50): Promise<No
   });
   const cutoffByRoomId = new Map(memberships.map((m) => [m.roomId, { notificationsReadAt: m.notificationsReadAt, joinedAt: m.joinedAt }]));
 
+  const hiddenTypes = (await hiddenInAppTypes(userId)) as NotificationType[];
   const rows = await prisma.notification.findMany({
-    where: unreadNotificationWhere(userId, memberships),
+    where: unreadNotificationWhere(userId, memberships, hiddenTypes),
     include: { actor: true },
     orderBy: { createdAt: 'desc' },
     take,
@@ -452,6 +457,7 @@ export async function getNotificationSummary(userId: string): Promise<{ totalUnr
     select: { roomId: true, notificationsReadAt: true, joinedAt: true },
   });
 
+  const hiddenTypes = (await hiddenInAppTypes(userId)) as NotificationType[];
   const [roomCounts, directUnread] = await Promise.all([
     Promise.all(
       memberships.map(async (m) => ({
@@ -462,7 +468,9 @@ export async function getNotificationSummary(userId: string): Promise<{ totalUnr
         }),
       })),
     ),
-    prisma.notification.count({ where: { recipientId: userId, AND: [notCausedBy(userId)], readAt: null } }),
+    prisma.notification.count({
+      where: { recipientId: userId, AND: [notCausedBy(userId)], readAt: null, ...(hiddenTypes.length > 0 && { type: { notIn: hiddenTypes } }) },
+    }),
   ]);
 
   const rooms = roomCounts.filter((r) => r.unreadCount > 0);
