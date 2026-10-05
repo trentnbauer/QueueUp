@@ -12,6 +12,7 @@ import { CompletionsDialog, ImportDialog, NeedsReviewDialog, PlayniteDialog } fr
 import { XboxDialog } from '../dialogs/XboxDialog';
 import { ExophaseDialog } from '../dialogs/ExophaseDialog';
 import { PsnDialog } from '../dialogs/PsnDialog';
+import { SteamDialog } from '../dialogs/SteamDialog';
 import { RetroAchievementsDialog } from '../dialogs/RetroAchievementsDialog';
 import { MeDialog } from '../dialogs/MeDialog';
 import { ChangelogDialog, DlcDialog, PlaytimeDialog } from '../dialogs/MiscDialogs';
@@ -138,6 +139,7 @@ export function Overlays() {
       {d.xbox && <XboxDialog />}
       {d.exophase && <ExophaseDialog />}
       {d.psn && <PsnDialog />}
+      {d.steam && <SteamDialog />}
       {d.retroachievements && <RetroAchievementsDialog />}
       {d.changelog && <ChangelogDialog />}
       {d.journal && <JournalDialog roomId={d.journal.roomId} />}
