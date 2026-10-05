@@ -4,6 +4,8 @@ import { authApi } from '../api/auth';
 import { EXOPHASE_STATUS_QUERY_KEY, exophaseApi } from '../api/exophase';
 import { XBOX_STATUS_QUERY_KEY, xboxApi } from '../api/xbox';
 import { PSN_STATUS_QUERY_KEY, psnApi } from '../api/psn';
+import { AI_SETTINGS_QUERY_KEY, aiApi } from '../api/ai';
+import { AiSettingsForm } from '../dialogs/AiSettingsDialog';
 import {
   ALERT_EMAIL_QUERY_KEY,
   NOTIFICATION_PREFERENCES_QUERY_KEY,
@@ -29,7 +31,7 @@ import { SystemsPicker } from '../ui/SystemsPicker';
 import { st } from '../ui/st';
 
 const REGIONS = Object.keys(PRICE_REGION_LABELS) as PriceRegion[];
-type StepKind = 'language' | 'name' | 'theme' | 'layout' | 'currency' | 'systems' | 'library' | 'email' | 'analytics' | 'accent' | 'rooms';
+type StepKind = 'language' | 'name' | 'theme' | 'layout' | 'currency' | 'systems' | 'library' | 'email' | 'analytics' | 'accent' | 'rooms' | 'ai';
 /** Each step's title and sub, as `shell.onboarding.<kind>.title` / `.sub` keys. */
 const stepText = (t: (key: MessageKey) => string, kind: Exclude<StepKind, 'language'>): [string, string] => [
   t(`shell.onboarding.${kind}.title` as MessageKey),
@@ -175,6 +177,8 @@ export function Onboarding({ onDone }: { onDone: () => void }) {
   const psn = useQuery({ queryKey: PSN_STATUS_QUERY_KEY, queryFn: psnApi.status });
   // The Xbox tile only shows when the server has an Xbox app set up.
   const xbox = useQuery({ queryKey: XBOX_STATUS_QUERY_KEY, queryFn: xboxApi.status });
+  // The AI step only appears when this server lets people add their own AI key.
+  const ai = useQuery({ queryKey: AI_SETTINGS_QUERY_KEY, queryFn: aiApi.mine });
   const { language, setLanguage, t } = useI18n();
   const kinds: StepKind[] = [
     // Language comes first (#776), so everything after it is in the language they picked.
@@ -189,8 +193,10 @@ export function Onboarding({ onDone }: { onDone: () => void }) {
     'library',
     ...(prefs.data?.emailAvailable ? (['email'] as const) : []),
     'rooms',
-    // Always the very last step (#795), and only when the operator has set a Google Analytics id.
+    // Only when the operator has set a Google Analytics id.
     ...(analytics.available ? (['analytics'] as const) : []),
+    // Optional, and always the very last step (#858), after analytics (#795).
+    ...(ai.data?.userSettingsAllowed ? (['ai'] as const) : []),
   ];
   const [step, setStep] = useState(0);
   const [wantEmail, setWantEmail] = useState(false);
@@ -538,6 +544,13 @@ export function Onboarding({ onDone }: { onDone: () => void }) {
                 </div>
               </>
             )}
+          </div>
+        )}
+
+        {kind === 'ai' && (
+          <div style={st('flex-shrink:0;display:flex;flex-direction:column;gap:14px')}>
+            <AiSettingsForm />
+            <span style={st('font:400 13px/1.45 var(--font-ui);color:var(--muted)')}>{t('shell.onboarding.ai.skip')}</span>
           </div>
         )}
 
