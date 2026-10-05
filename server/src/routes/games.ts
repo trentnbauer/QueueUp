@@ -1007,10 +1007,13 @@ export default async function gameRoutes(app: FastifyInstance) {
       enteringDone && closedEntries.some((entry) => entry.finishedAt.getTime() - entry.startedAt.getTime() >= MARATHONER_MS)
         ? ['first_marathoner']
         : [];
-    // Comeback - this game now has 2+ finished play-journal entries, meaning it was beaten,
-    // left Done at some point (the only way a second entry can ever open), and beaten again.
+    // Comeback ("Replayed a game and beat it again") - this game now has 2+ play-journal entries
+    // that ended in *beaten*. Entries closed by Dropped or Won't Play don't count (a game you
+    // dropped and later beat is not a replay), while ones from before the outcome was recorded
+    // (finishedAs null) still do, as they always have.
     const comebackKeys: BadgeKey[] =
-      enteringDone && (await prisma.playLog.count({ where: { gameId: game.id, finishedAt: { not: null } } })) >= 2
+      enteringDone &&
+      (await prisma.playLog.count({ where: { gameId: game.id, finishedAt: { not: null }, OR: [{ finishedAs: null }, { finishedAs: 'done' }] } })) >= 2
         ? ['first_comeback']
         : [];
     // Not For Me - mirror image of Marathoner: one of the entries this transition just closed was

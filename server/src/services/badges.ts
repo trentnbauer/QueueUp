@@ -151,14 +151,15 @@ const QUICK_DROP_MS = 24 * 60 * 60 * 1000;
 async function playLogDerivedBadgeKeys(userId: string): Promise<BadgeKey[]> {
   const entries = await prisma.playLog.findMany({
     where: { finishedAt: { not: null }, game: { roomId: null, addedBy: userId } },
-    select: { gameId: true, startedAt: true, finishedAt: true, game: { select: { status: true } } },
+    select: { gameId: true, startedAt: true, finishedAt: true, finishedAs: true, game: { select: { status: true } } },
   });
 
   const keys: BadgeKey[] = [];
   if (entries.some((e) => e.finishedAt!.getTime() - e.startedAt.getTime() >= MARATHONER_MS)) keys.push('first_marathoner');
 
   const finishedCountByGame = new Map<string, number>();
-  for (const e of entries) finishedCountByGame.set(e.gameId, (finishedCountByGame.get(e.gameId) ?? 0) + 1);
+  // Only playthroughs that ended in beaten count towards Comeback (not ones that ended in a drop).
+  for (const e of entries) if (e.finishedAs === null || e.finishedAs === 'done') finishedCountByGame.set(e.gameId, (finishedCountByGame.get(e.gameId) ?? 0) + 1);
   if ([...finishedCountByGame.values()].some((count) => count >= 2)) keys.push('first_comeback');
 
   // Same narrower signal as backfillQuickDropBadge - a closed PlayLog entry alone doesn't say
