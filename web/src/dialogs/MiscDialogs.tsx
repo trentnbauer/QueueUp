@@ -23,7 +23,8 @@ export function DlcDialog() {
   const [results, setResults] = useState<GameSearchResult[]>([]);
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState<string | null>(null);
-  const [adding, setAdding] = useState<number | null>(null);
+  // Every add in flight, so one Add never waits for another to finish (#868).
+  const [adding, setAdding] = useState<Set<number>>(new Set());
   const [added, setAdded] = useState<Record<number, 'added' | 'suggested'>>({});
   const [error, setError] = useState<string | null>(null);
 
@@ -44,7 +45,7 @@ export function DlcDialog() {
   if (!base) return null;
 
   async function add(r: GameSearchResult) {
-    setAdding(r.igdbId);
+    setAdding((a) => new Set(a).add(r.igdbId));
     setError(null);
     try {
       const res = await gamesApi.create({ igdbId: r.igdbId, roomId: base!.roomId });
@@ -54,7 +55,11 @@ export function DlcDialog() {
     } catch (e) {
       setError(e instanceof Error ? e.message : t('settings.dlc.addFailed'));
     } finally {
-      setAdding(null);
+      setAdding((a) => {
+        const next = new Set(a);
+        next.delete(r.igdbId);
+        return next;
+      });
     }
   }
 
@@ -85,11 +90,11 @@ export function DlcDialog() {
               </span>
               <button
                 type="button"
-                disabled={adding !== null || !!state}
+                disabled={adding.has(r.igdbId) || !!state}
                 onClick={() => add(r)}
                 style={st(`height:36px;padding:0 14px;border-radius:999px;border:none;background:${state ? 'var(--mintSoft)' : 'var(--accSoft2)'};color:${state ? 'var(--mint)' : 'var(--accText)'};font:600 13px var(--font-ui)`)}
               >
-                {adding === r.igdbId ? t('settings.dlc.adding') : state === 'suggested' ? t('settings.dlc.suggestedDone') : state ? t('settings.dlc.addedDone') : t('common.add')}
+                {adding.has(r.igdbId) ? t('settings.dlc.adding') : state === 'suggested' ? t('settings.dlc.suggestedDone') : state ? t('settings.dlc.addedDone') : t('common.add')}
               </button>
             </div>
           );
