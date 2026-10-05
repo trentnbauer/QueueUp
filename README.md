@@ -89,10 +89,6 @@ Optional, and an alternative to opening a port or running a reverse proxy. Queue
 
 Administrator settings shows whether the tunnel is connected, and the last error if it isn't. If you only reach QueueUp through the tunnel, you can remove the `ports:` mapping from the compose file.
 
-## Reverse proxy and the published port
-
-`docker-compose.prod.yml` publishes QueueUp on `127.0.0.1:3000` (this machine only), so the tunnel above or a proxy on the same machine works out of the box. Keeping the port closed to the network matters: anyone who could reach it directly could send their own `X-Forwarded-For` header, which `TRUST_PROXY` trusts, and dodge every per-IP rate limit (sign-in, invite and friend codes). If your proxy runs on another machine, or reaches the container through this host's LAN address, set `BIND_ADDRESS=0.0.0.0` in `.env` and firewall the port so only that proxy can connect.
-
 ## Steam playtime tracking
 
 Set `PLAYTIME_TRACKING_ENABLED=true` (needs `STEAM_API_KEY` above) to have QueueUp poll each Steam-linked member's playtime every few hours and nudge them to mark a game Playing or Beaten based on it, on the Personal Shelf. Off by default.

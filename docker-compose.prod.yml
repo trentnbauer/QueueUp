@@ -100,13 +100,8 @@ services:
     volumes:
       - backups:/backups
     # Not needed if you only reach QueueUp through the built-in Cloudflare Tunnel.
-    # Published on this machine only (127.0.0.1) by default: with the port open to the network,
-    # anyone could reach it directly and send their own X-Forwarded-For, which TRUST_PROXY trusts,
-    # slipping every per-IP rate limit. If your reverse proxy runs on another machine (or reaches
-    # this container through the host's LAN address), set BIND_ADDRESS=0.0.0.0 and firewall the
-    # port so only that proxy can connect.
     ports:
-      - "${BIND_ADDRESS:-127.0.0.1}:${PORT:-3000}:3000"
+      - "${PORT:-3000}:3000"
     healthcheck:
       # node:22-alpine has no curl/wget - Node's built-in fetch avoids adding a package just for this.
       test: ["CMD", "node", "-e", "fetch('http://localhost:3000/healthz').then(r => process.exit(r.ok ? 0 : 1)).catch(() => process.exit(1))"]
