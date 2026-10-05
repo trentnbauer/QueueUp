@@ -446,6 +446,8 @@ export const settings: Record<keyof typeof en, string> = {
   "settings.ai.provider": "Provider",
   "settings.ai.model": "Model",
   "settings.ai.modelPlaceholder": "Model name",
+  "settings.ai.recommended": "Recommended: {model}",
+  "settings.ai.useRecommended": "Use it",
   "settings.ai.baseUrl": "Base URL",
   "settings.ai.baseUrlPlaceholder": "Leave empty for the standard address",
   "settings.ai.apiKey": "API key",

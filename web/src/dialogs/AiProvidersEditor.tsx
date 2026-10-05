@@ -1,4 +1,4 @@
-import { AI_MAX_FALLBACKS, type AiFallbackEntry, type AiFallbackInput, type AiFallbackNotice, type AiProvider } from '@queueup/shared';
+import { AI_MAX_FALLBACKS, AI_RECOMMENDED_MODELS, type AiFallbackEntry, type AiFallbackInput, type AiFallbackNotice, type AiProvider } from '@queueup/shared';
 import { Banner, Btn, Group } from '../ui/primitives';
 import { st } from '../ui/st';
 import { useT, type MessageKey } from '../i18n';
@@ -98,7 +98,17 @@ export function AiProvidersEditor({
                   </option>
                 ))}
               </select>
-              <input value={d.model} disabled={lock.model} onChange={(e) => set(i, { model: e.target.value })} placeholder={t('settings.ai.modelPlaceholder')} aria-label={t('settings.ai.model')} maxLength={200} style={st(FIELD)} />
+              <input value={d.model} disabled={lock.model} onChange={(e) => set(i, { model: e.target.value })} placeholder={AI_RECOMMENDED_MODELS[d.provider] ?? t('settings.ai.modelPlaceholder')} aria-label={t('settings.ai.model')} maxLength={200} style={st(FIELD)} />
+              {AI_RECOMMENDED_MODELS[d.provider] && (
+                <div style={st('display:flex;align-items:center;gap:8px;flex-wrap:wrap;font:400 12px var(--font-ui);color:var(--muted)')}>
+                  <span>{t('settings.ai.recommended', { model: AI_RECOMMENDED_MODELS[d.provider] ?? '' })}</span>
+                  {!lock.model && d.model.trim() !== AI_RECOMMENDED_MODELS[d.provider] && (
+                    <Btn kind="ghost" height={26} padX={10} fontSize={12} onClick={() => set(i, { model: AI_RECOMMENDED_MODELS[d.provider] ?? '' })}>
+                      {t('settings.ai.useRecommended')}
+                    </Btn>
+                  )}
+                </div>
+              )}
               {showUrl && (
                 <input value={d.baseUrl} disabled={lock.baseUrl} onChange={(e) => set(i, { baseUrl: e.target.value })} placeholder={t('settings.ai.baseUrlPlaceholder')} aria-label={t('settings.ai.baseUrl')} inputMode="url" style={st(FIELD)} />
               )}

@@ -2537,6 +2537,18 @@ export interface AcceptPlayTogetherResponse {
 export const AI_PROVIDERS = ['anthropic', 'openai', 'gemini', 'ollama', 'openai_compatible'] as const;
 export type AiProvider = (typeof AI_PROVIDERS)[number];
 
+/** The model suggested for each brand in the AI settings: a balanced, general-purpose pick (not the
+ * priciest, not the smallest) from the vendor's own model list. Null where there is nothing to
+ * suggest - Ollama and OpenAI-compatible servers serve whatever model the person has loaded. Model
+ * names change often; update this one table when a vendor retires or renames one. */
+export const AI_RECOMMENDED_MODELS: Record<AiProvider, string | null> = {
+  anthropic: 'claude-sonnet-5-5',
+  openai: 'gpt-6.1-sol',
+  gemini: 'gemini-3.8-flash',
+  ollama: null,
+  openai_compatible: null,
+};
+
 /** Where the settings an AI call would use come from: the person's own, the room's sponsor (a member
  * who applied their own to the room), the server's, or none. */
 export type AiSettingsSource = 'user' | 'room' | 'server' | 'none';
