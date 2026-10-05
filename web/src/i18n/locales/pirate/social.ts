@@ -64,6 +64,7 @@ export const social: Record<keyof typeof en, string> = {
   "social.friends.pending": "WAITIN’ REQUESTS · {n}",
   "social.friends.wantsToBeFriends": "Wants to be yer matey",
   "social.friends.waiting": "Request sent · waitin’ fer a reply",
+  "social.friends.private": "Private profile",
   "social.friends.stats.one": "{beaten} conquered · {n} shared ship",
   "social.friends.stats.other": "{beaten} conquered · {n} shared ships",
   "social.friends.empty": "Nay mateys yet. Share yer code below.",

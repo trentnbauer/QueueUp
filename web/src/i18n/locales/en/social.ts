@@ -62,6 +62,7 @@ export const social = {
   "social.friends.pending": "PENDING REQUESTS · {n}",
   "social.friends.wantsToBeFriends": "Wants to be friends",
   "social.friends.waiting": "Request sent · waiting for a reply",
+  "social.friends.private": "Private profile",
   "social.friends.stats.one": "{beaten} beaten · {n} shared room",
   "social.friends.stats.other": "{beaten} beaten · {n} shared rooms",
   "social.friends.empty": "No friends yet. Share your code below.",

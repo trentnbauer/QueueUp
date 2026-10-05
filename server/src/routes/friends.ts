@@ -256,22 +256,28 @@ export default async function friendRoutes(app: FastifyInstance) {
     const outgoingRows = env.PRIVATE_INSTANCE ? [] : rows.filter((r) => r.status === 'pending' && r.requesterId === userId);
     const shared = await sharedRoomCounts(userId, [...friendIds, ...incomingRows.map((r) => r.requesterId)]);
 
-    // Friends who hide their activity don't have their beaten count shown either.
-    const hiddenRows = await prisma.user.findMany({ where: { id: { in: friendIds }, activityHidden: true }, select: { id: true } });
-    const visibleFriendIds = friendIds.filter((id) => !hiddenRows.some((h) => h.id === id));
+    // Friends who hide their activity, or whose profile is Private ("only me"), don't have their
+    // beaten count, achievements or last activity shown either.
+    const limitedRows = await prisma.user.findMany({
+      where: { id: { in: friendIds }, OR: [{ activityHidden: true }, { profileVisibility: 'private' }] },
+      select: { id: true, profileVisibility: true },
+    });
+    const limitedIds = new Set(limitedRows.map((r) => r.id));
+    const privateIds = new Set(limitedRows.filter((r) => r.profileVisibility === 'private').map((r) => r.id));
+    const visibleFriendIds = friendIds.filter((id) => !limitedIds.has(id));
     const [beatenGroups, badgeGroups, feed] = await Promise.all([
       prisma.game.groupBy({
         by: ['addedBy'],
         where: { roomId: null, addedBy: { in: visibleFriendIds }, status: { in: ['done', 'replay'] }, hiddenFromOthers: false },
         _count: { _all: true },
       }),
-      prisma.userBadge.groupBy({ by: ['userId'], where: { userId: { in: friendIds } }, _count: { _all: true } }),
+      prisma.userBadge.groupBy({ by: ['userId'], where: { userId: { in: friendIds.filter((id) => !privateIds.has(id)) } }, _count: { _all: true } }),
       friendIds.length ? buildFeed(userId, friendIds, { take: 200 }) : Promise.resolve([] as FriendActivityEntry[]),
     ]);
     const beatenBy = new Map(beatenGroups.map((g) => [g.addedBy, g._count._all]));
     const badgesBy = new Map(badgeGroups.map((g) => [g.userId, g._count._all]));
     const lastBy = new Map<string, FriendActivityEntry>();
-    for (const e of feed) if (!lastBy.has(e.user.id)) lastBy.set(e.user.id, e);
+    for (const e of feed) if (!lastBy.has(e.user.id) && !privateIds.has(e.user.id)) lastBy.set(e.user.id, e);
 
     const summarize = (other: { id: string; displayName: string; avatarColor: string; avatarUrl: string | null }, since: Date): FriendSummary => {
       const last = lastBy.get(other.id);
@@ -282,6 +288,7 @@ export default async function friendRoutes(app: FastifyInstance) {
         achievementCount: badgesBy.get(other.id) ?? 0,
         sharedRoomCount: shared.get(other.id) ?? 0,
         lastEvent: last ? { kind: last.kind, title: last.title, at: last.at } : null,
+        profilePrivate: privateIds.has(other.id),
       };
     };
     const friends: FriendSummary[] = env.PRIVATE_INSTANCE
@@ -459,7 +466,9 @@ export default async function friendRoutes(app: FastifyInstance) {
       },
     });
 
-    const user = await prisma.user.findUniqueOrThrow({ where: { id: otherId }, select: { ...userSelect, createdAt: true, activityHidden: true } });
+    const user = await prisma.user.findUniqueOrThrow({ where: { id: otherId }, select: { ...userSelect, createdAt: true, activityHidden: true, profileVisibility: true } });
+    // Private means only the person themselves, friends included - same as the public profile page.
+    if (user.profileVisibility === 'private') throw new HttpError(404, 'That profile is private');
     // Someone who hides their activity from friends shows no playing list or beaten count here
     // either (the feed below already leaves them out).
     const activityHidden = user.activityHidden;
