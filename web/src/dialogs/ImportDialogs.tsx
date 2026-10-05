@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { encodeConnectionCode, PLAYNITE_API_KEY_LABEL, ROOM_PLATFORM_LABELS, type GameSearchResult, type PendingLibraryImportDto, type SteamCompletionCandidate } from '@queueup/shared';
+import { encodeConnectionCode, PLAYNITE_API_KEY_LABEL, ROOM_PLATFORM_LABELS, type AiMatchSuggestion, type GameSearchResult, type PendingLibraryImportDto, type SteamCompletionCandidate } from '@queueup/shared';
+import { AI_SETTINGS_QUERY_KEY, aiApi } from '../api/ai';
 import { apiKeysApi, API_KEYS_QUERY_KEY } from '../api/apiKeys';
 import { gamesApi } from '../api/games';
 import { pendingImportsApi, PENDING_IMPORTS_QUERY_KEY } from '../api/pendingImports';
@@ -17,7 +18,7 @@ import { useUi } from '../context/UiContext';
 import { useLibraryLimits } from '../hooks/useLibraryLimits';
 import { Dialog } from '../ui/Dialog';
 import { LibraryBadge, type LibraryKind } from '../ui/LibraryLogo';
-import { Banner, Btn, Cover, Group, Kicker, inputPill } from '../ui/primitives';
+import { AiBadge, Banner, Btn, Cover, Group, Kicker, inputPill } from '../ui/primitives';
 import { st } from '../ui/st';
 import { getBasePath } from '../utils/basePath';
 import { formatRelativeTime } from '../utils/relativeTime';
@@ -404,14 +405,20 @@ export function NeedsReviewDialog() {
   // Bundle mode (issue #857): the games this title is a bundle of, picked from the suggestions or by
   // search. Null when the title is being matched to a single game as usual.
   const [bundle, setBundle] = useState<Map<number, GameSearchResult> | null>(null);
+  // What the AI picked for each waiting title (issue #819), keyed by pending id.
+  const [aiPicks, setAiPicks] = useState<Map<string, AiMatchSuggestion>>(new Map());
+  const ai = useQuery({ queryKey: AI_SETTINGS_QUERY_KEY, queryFn: aiApi.mine });
+  const aiReady = !!ai.data && ai.data.effectiveSource !== 'none';
 
   // Skipped items go to the back of the line.
   const pending = data?.pending ?? [];
   const ordered = [...pending.filter((p) => !skipped.includes(p.id)), ...pending.filter((p) => skipped.includes(p.id))];
   const entry: PendingLibraryImportDto | undefined = ordered[0];
-  // The top candidate (a match other people made, else IGDB's best guess) is selected until the
-  // person taps another, so the usual case is a single tap on "Use this match".
-  const selected = pick ?? (entry && entry.candidates.length > 0 ? 0 : null);
+  // The AI's pick for this title, when it named one of the candidates shown.
+  const aiIndex = entry ? entry.candidates.findIndex((c) => c.igdbId === aiPicks.get(entry.id)?.igdbId) : -1;
+  // The AI's pick, else the top candidate (a match other people made, else IGDB's best guess), is
+  // selected until the person taps another, so the usual case is a single tap on "Use this match".
+  const selected = pick ?? (aiIndex >= 0 ? aiIndex : entry && entry.candidates.length > 0 ? 0 : null);
 
   // A different title comes up next: it starts as a normal single match again.
   useEffect(() => setBundle(null), [entry?.id]);
@@ -430,6 +437,17 @@ export function NeedsReviewDialog() {
     mutationFn: ({ id, igdbIds }: { id: string; igdbIds: number[] }) => pendingImportsApi.resolveBundle(id, igdbIds),
     onSuccess: () => refresh(),
     onError: (err) => setError(err instanceof Error ? err.message : t('add.review.matchFailed')),
+  });
+  const aiMatch = useMutation({
+    mutationFn: () => pendingImportsApi.aiMatch(),
+    onSuccess: (res) => {
+      setError(null);
+      setAiPicks(new Map(res.suggestions.map((s) => [s.id, s])));
+      refresh();
+      void queryClient.invalidateQueries({ queryKey: AI_SETTINGS_QUERY_KEY });
+      ui.notify(t('add.review.ai.done', { auto: res.autoMatched, suggested: res.suggestions.length }));
+    },
+    onError: (err) => setError(err instanceof Error ? err.message : t('add.review.ai.failed')),
   });
   const dismiss = useMutation({
     mutationFn: (id: string) => pendingImportsApi.dismiss(id),
@@ -527,6 +545,14 @@ export function NeedsReviewDialog() {
         {entry ? (
           <>
             {error && <div style={{ padding: '0 20px 6px' }}><Banner onDismiss={() => setError(null)}>{error}</Banner></div>}
+            {aiReady && !bundle && (
+              <div style={st('flex-shrink:0;display:flex;align-items:center;gap:10px;padding:0 20px 6px')}>
+                <Btn kind="soft" height={36} padX={14} fontSize={13} disabled={aiMatch.isPending} onClick={() => aiMatch.mutate()}>
+                  {aiMatch.isPending ? t('add.review.ai.working') : t('add.review.ai.ask')}
+                </Btn>
+                <span style={st('font:400 12px var(--font-ui);color:var(--muted)')}>{t('add.review.ai.hint')}</span>
+              </div>
+            )}
             <div style={st('flex-shrink:0;min-height:92px;padding:0 20px;display:flex;flex-direction:column;justify-content:center;gap:4px')}>
               <span style={st('font:400 13px var(--font-ui);color:var(--muted)')}>{t('add.review.importedAs')}</span>
               <span style={st('font:700 26px/1.1 var(--font-display);letter-spacing:-0.02em;overflow:hidden;text-overflow:ellipsis')}>{t('add.review.quotedTitle', { title: entry.title })}</span>
@@ -547,9 +573,12 @@ export function NeedsReviewDialog() {
                   >
                     <Cover title={c.title} url={c.coverImageUrl} width={40} radius={7} />
                     <span style={st('flex:1;min-width:0;display:flex;flex-direction:column;gap:2px')}>
-                      <span style={st('font:600 15px var(--font-ui);white-space:nowrap;overflow:hidden;text-overflow:ellipsis')}>
-                        {c.title}
-                        {c.releaseYear ? ` (${c.releaseYear})` : ''}
+                      <span style={st('display:flex;align-items:center;gap:6px;min-width:0')}>
+                        <span style={st('font:600 15px var(--font-ui);white-space:nowrap;overflow:hidden;text-overflow:ellipsis')}>
+                          {c.title}
+                          {c.releaseYear ? ` (${c.releaseYear})` : ''}
+                        </span>
+                        {i === aiIndex && <AiBadge title={t('add.review.ai.badge')} />}
                       </span>
                       <span style={st('font:400 12.5px var(--font-ui);color:var(--muted)')}>
                         {c.platform}

@@ -1,5 +1,5 @@
 import { apiDelete, apiGet, apiPost } from './client';
-import type { PendingLibraryImportDto, ResolvePendingLibraryImportBundleRequest, ResolvePendingLibraryImportRequest } from '@queueup/shared';
+import type { AiMatchPendingResponse, PendingLibraryImportDto, ResolvePendingLibraryImportBundleRequest, ResolvePendingLibraryImportRequest } from '@queueup/shared';
 
 export const PENDING_IMPORTS_QUERY_KEY = ['pending-library-imports'] as const;
 
@@ -14,5 +14,6 @@ export const pendingImportsApi = {
     apiPost<void>(`/api/library/pending-imports/${id}/resolve`, { igdbId } satisfies ResolvePendingLibraryImportRequest),
   resolveBundle: (id: string, igdbIds: number[]) =>
     apiPost<void>(`/api/library/pending-imports/${id}/resolve-bundle`, { igdbIds } satisfies ResolvePendingLibraryImportBundleRequest),
+  aiMatch: () => apiPost<AiMatchPendingResponse>('/api/library/pending-imports/ai-match'),
   dismiss: (id: string) => apiDelete(`/api/library/pending-imports/${id}`),
 };
