@@ -26,6 +26,7 @@ import { buildHomeLists, toRowItem } from './derive';
 import { useBacklogSort } from './backlogSort';
 import { PlatformMenu, useIncludeOlder, usePlatformFilter, usePlatformOptions } from './PlatformMenu';
 import { ComingStrip, CoverCard, DesktopRow, MobileRow, PlayNextRow } from './Rows';
+import { ComingDlcStrip } from './ComingDlcStrip';
 import { Footer } from '../shell/Footer';
 import { BulkBar, BulkStatusSheet } from './BulkBar';
 import { useIncrementalList } from '../hooks/useIncrementalList';
@@ -465,6 +466,8 @@ export function HomeView() {
           }}
         />
       )}
+
+      {!otherTab && isShelf && !searching && tab === lists.comingTab && <ComingDlcStrip />}
 
       {!otherTab && scope.gamesLoading && items.length === 0 && (
         <div style={st('padding:36px 12px;text-align:center;font:500 14.5px var(--font-ui);color:var(--muted)')}>{t('common.loading')}</div>

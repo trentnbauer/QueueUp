@@ -307,6 +307,7 @@ model User {
   aiSettings                    UserAiSettings?
   gameMatchRedirects            GameMatchRedirect[]
   duplicateDismissals           DuplicateDismissal[]
+  ignoredDlcs                   IgnoredDlc[]
   xboxConnection                UserXboxConnection?
   exophaseConnection            UserExophaseConnection?
   psnConnection                 UserPsnConnection?
@@ -555,6 +556,19 @@ model UserAiSettings {
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@map("user_ai_settings")
+}
+
+/// A DLC the person chose to ignore in the Coming soon strip (issue #869), so it is not offered again.
+/// Keyed by the DLC's igdbId. Per user.
+model IgnoredDlc {
+  userId    String   @map("user_id")
+  igdbId    Int      @map("igdb_id")
+  createdAt DateTime @default(now()) @map("created_at")
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@id([userId, igdbId])
+  @@map("ignored_dlcs")
 }
 
 /// "These two games are not duplicates" (issue #824): a suggestion from the AI duplicate scan that

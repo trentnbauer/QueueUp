@@ -68,6 +68,13 @@ export const home = {
   "home.row.start": "Start",
   "home.coming.heading": "COMING SOON · {n}",
   "home.coming.releaseAlert": "Release alert",
+  "home.comingDlc.heading": "DLC COMING SOON · {n}",
+  "home.comingDlc.for": "DLC for {title}",
+  "home.comingDlc.addWishlist": "Add to wishlist",
+  "home.comingDlc.ignore": "Ignore",
+  "home.comingDlc.wishlisted": "Added \"{title}\" to your wishlist.",
+  "home.comingDlc.ignored": "Ignoring \"{title}\".",
+  "home.comingDlc.failed": "Couldn't update that DLC.",
 
   // Header
   "home.title.shelf": "Personal Shelf",

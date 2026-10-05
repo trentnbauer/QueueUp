@@ -70,6 +70,13 @@ export const home: Record<keyof typeof en, string> = {
   "home.row.start": "Sail",
   "home.coming.heading": "LAND HO SOON · {n}",
   "home.coming.releaseAlert": "Ring the ship’s bell",
+  "home.comingDlc.heading": "DLC COMIN’ SOON · {n}",
+  "home.comingDlc.for": "DLC fer {title}",
+  "home.comingDlc.addWishlist": "Add to treasure map",
+  "home.comingDlc.ignore": "Ignore",
+  "home.comingDlc.wishlisted": "Added \"{title}\" to yer treasure map.",
+  "home.comingDlc.ignored": "Ignorin’ \"{title}\".",
+  "home.comingDlc.failed": "Couldn’t update that DLC.",
 
   // Header
   "home.title.shelf": "Yer Treasure Chest",
