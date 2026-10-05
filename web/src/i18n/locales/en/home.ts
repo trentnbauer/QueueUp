@@ -180,6 +180,8 @@ export const home = {
   "home.imports.unknownPlatform": "Unknown platform",
   "home.imports.restore": "Restore",
   "home.merged.none": "No merged games.",
+  "home.merged.find": "Find duplicates with AI",
+  "home.merged.findBtn": "Scan",
   "home.merged.intro": "Games you merged into another. Importing one of these again adds the game you merged it into, not a duplicate.",
   "home.merged.forget": "Stop merging",
   "home.merged.failed": "Could not update that.",
