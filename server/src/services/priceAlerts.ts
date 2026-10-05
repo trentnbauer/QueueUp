@@ -14,6 +14,9 @@ import { notifyGoodTimeToBuy } from './notifications.js';
  * digest, #570's follow-up) without either alert check needing to know that batching exists. */
 type OnAlertFired = (game: GameWithRelations) => void;
 
+/** Statuses where "this is at its all-time low" is still a buying prompt. */
+const ATL_ALERT_STATUSES = new Set<string>(['wishlist', 'backlog', 'play_next']);
+
 /** Compares a freshly-computed live price against a game's target price and fires a one-shot
  * alert once it's been met. The target is atomically cleared as part of the same check (a
  * conditional update matched on its current value), so two concurrent page loads racing on the
@@ -67,6 +70,10 @@ export async function checkPriceDropAlert(game: GameWithRelations, price: GamePr
  * a price sitting at the same low doesn't re-notify on every subsequent page load. */
 export async function checkAllTimeLowAlert(game: GameWithRelations, price: GamePrice, onFired?: OnAlertFired): Promise<void> {
   if (price.source !== 'live' || !price.amount || price.historicalLow === null) return;
+  // "Hit an all-time low" answers "should I buy this?". For a game already played, being played or
+  // shelved for good (Done, Dropped, Won't Play, Replay, Playing, Paused) it's noise - and the
+  // ownership check below can't catch it, since changing status never records ownership.
+  if (!ATL_ALERT_STATUSES.has(game.status)) return;
   const amount = price.amount;
   if (Number(amount) > Number(price.historicalLow)) return;
   if (game.notifiedAtlPrice !== null && Number(amount) >= Number(game.notifiedAtlPrice)) return;

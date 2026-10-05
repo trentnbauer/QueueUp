@@ -55,6 +55,16 @@ describe('runPriceAlertChecks', () => {
     expect(notifyGoodTimeToBuy).toHaveBeenCalledTimes(1);
   });
 
+  it.each(['done', 'dropped', 'wont_play', 'replay', 'playing', 'paused'])('sends no all-time-low alert for a %s game', async (status) => {
+    await runPriceAlertChecks({ ...game, status } as typeof game, price('78.59', '78.59'));
+    expect(notifyPriceDrop).not.toHaveBeenCalled();
+  });
+
+  it.each(['backlog', 'play_next'])('still sends the all-time-low alert for a %s game', async (status) => {
+    await runPriceAlertChecks({ ...game, status } as typeof game, price('78.59', '78.59'));
+    expect(notifyPriceDrop).toHaveBeenCalledTimes(1);
+  });
+
   it('ignores a few cents of jitter under the price it last alerted at', async () => {
     await runPriceAlertChecks({ ...game, notifiedGoodTimePrice: '80.00' } as typeof game, price('79.80', '78.00'));
     expect(notifyGoodTimeToBuy).not.toHaveBeenCalled();
