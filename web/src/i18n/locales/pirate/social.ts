@@ -30,6 +30,7 @@ export const social: Record<keyof typeof en, string> = {
   "social.notifications.review": "Inspect",
   "social.notifications.dismissImport": "Dismiss haul status",
   "social.notifications.personalShelf": "Yer Treasure Chest",
+  "social.notifications.libraries": "Library sync",
   "social.notifications.announcement": "Hear ye",
   "social.notifications.empty": "Calm seas, ye’re all caught up. Games stowed, crew changes an’ ship news will wash up here.",
 

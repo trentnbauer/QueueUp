@@ -1372,6 +1372,7 @@ export type NotificationType =
   | 'friend_recommendation'
   | 'good_time_to_buy'
   | 'account_change'
+  | 'library_sync_error'
   | 'platform_unowned'
   | 'room_game_beaten';
 

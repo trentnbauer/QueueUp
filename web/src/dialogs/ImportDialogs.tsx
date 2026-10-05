@@ -6,6 +6,7 @@ import { gamesApi } from '../api/games';
 import { pendingImportsApi, PENDING_IMPORTS_QUERY_KEY } from '../api/pendingImports';
 import { XBOX_STATUS_QUERY_KEY, xboxApi } from '../api/xbox';
 import { PSN_STATUS_QUERY_KEY, psnApi } from '../api/psn';
+import { EXOPHASE_STATUS_QUERY_KEY, exophaseApi } from '../api/exophase';
 import { useAuth } from '../context/AuthContext';
 import { useConfirm } from '../context/ConfirmContext';
 import { useScope } from '../context/ScopeContext';
@@ -52,6 +53,12 @@ export function ImportDialog() {
   const { busy, activeKind, progress, wishlistProgress, startLink, runSyncEverything, syncingEverything, completions, result, error } = useSteamImportContext();
   const running = busy || completions.busy || syncingEverything;
   const { data: psnStatus } = useQuery({ queryKey: PSN_STATUS_QUERY_KEY, queryFn: psnApi.status });
+  const { data: exophaseStatus } = useQuery({ queryKey: EXOPHASE_STATUS_QUERY_KEY, queryFn: exophaseApi.status });
+  // Playnite pushes from the desktop; its connection code having been used says it is set up.
+  const { data: apiKeys } = useQuery({ queryKey: API_KEYS_QUERY_KEY, queryFn: apiKeysApi.list });
+  const playniteKey = apiKeys?.keys
+    .filter((k) => k.label === PLAYNITE_API_KEY_LABEL && !k.revokedAt)
+    .sort((a, b) => (b.lastUsedAt ?? b.createdAt).localeCompare(a.lastUsedAt ?? a.createdAt))[0];
   // The Xbox row only shows when the server has an Xbox app set up.
   const { data: xboxStatus } = useQuery({ queryKey: XBOX_STATUS_QUERY_KEY, queryFn: xboxApi.status });
 
@@ -96,8 +103,8 @@ export function ImportDialog() {
         />
         <ImportRow
           title="Playnite"
-          sub={t('add.import.playniteSub')}
-          cta={t('add.import.setUp')}
+          sub={playniteKey?.lastUsedAt ? t('settings.me.playnite.lastSynced', { when: formatRelativeTime(playniteKey.lastUsedAt) }) : t('add.import.playniteSub')}
+          cta={playniteKey?.lastUsedAt ? t('settings.me.playnite.manage') : t('add.import.setUp')}
           onClick={() => {
             ui.closeDialog('import');
             ui.openDialog('playnite');
@@ -106,7 +113,7 @@ export function ImportDialog() {
         <ImportRow
           title="Exophase"
           sub={t('add.import.exophaseSub')}
-          cta={t('add.import.setUp')}
+          cta={exophaseStatus?.connected ? t('settings.me.exophase.manage') : t('settings.me.exophase.link')}
           onClick={() => {
             ui.closeDialog('import');
             ui.openDialog('exophase');

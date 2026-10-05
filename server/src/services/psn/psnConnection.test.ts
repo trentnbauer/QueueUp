@@ -13,6 +13,7 @@ const h = vi.hoisted(() => ({
   exchangeNpsso: vi.fn(),
   refreshTokens: vi.fn(),
   fetchPurchasedLibrary: vi.fn(),
+  notifyLibrarySyncError: vi.fn(),
 }));
 
 vi.mock('../../db/client.js', () => ({
@@ -20,6 +21,7 @@ vi.mock('../../db/client.js', () => ({
 }));
 vi.mock('../../config/env.js', () => ({ env: { SESSION_SECRET: 's'.repeat(32) } }));
 vi.mock('../librarySync.js', () => ({ startLibrarySync: h.startLibrarySync }));
+vi.mock('../notifications.js', () => ({ notifyLibrarySyncError: h.notifyLibrarySyncError }));
 vi.mock('./psnLibrary.js', () => ({ fetchPurchasedLibrary: h.fetchPurchasedLibrary }));
 vi.mock('./psnAuth.js', async () => {
   const actual = await vi.importActual<typeof import('./psnAuth.js')>('./psnAuth.js');
@@ -95,6 +97,7 @@ describe('syncPsnLibrary', () => {
   it('needs a linked account first', async () => {
     h.findUnique.mockResolvedValue(null);
     await expect(syncPsnLibrary('u1', logger)).rejects.toThrow('Link your PlayStation account first');
+    expect(h.notifyLibrarySyncError).not.toHaveBeenCalled();
   });
 
   it('removes a link whose login lapsed and asks the person to link again', async () => {
@@ -103,6 +106,7 @@ describe('syncPsnLibrary', () => {
     await expect(syncPsnLibrary('u1', logger)).rejects.toMatchObject({ statusCode: 409 });
     expect(h.deleteMany).toHaveBeenCalledWith({ where: { userId: 'u1' } });
     expect(h.startLibrarySync).not.toHaveBeenCalled();
+    expect(h.notifyLibrarySyncError).toHaveBeenCalledWith('u1', 'PlayStation', 'Your PlayStation link has expired.');
   });
 
   it('removes a link it can no longer decrypt', async () => {
@@ -116,6 +120,7 @@ describe('syncPsnLibrary', () => {
     h.refreshTokens.mockRejectedValue(new PsnAuthError('PlayStation is having problems right now.'));
     await expect(syncPsnLibrary('u1', logger)).rejects.toMatchObject({ statusCode: 502 });
     expect(h.deleteMany).not.toHaveBeenCalled();
+    expect(h.notifyLibrarySyncError).toHaveBeenCalledWith('u1', 'PlayStation', 'PlayStation is having problems right now.');
   });
 });
 

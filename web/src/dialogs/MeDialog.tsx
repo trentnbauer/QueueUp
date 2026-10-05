@@ -1,6 +1,3 @@
-import { XBOX_STATUS_QUERY_KEY, xboxApi } from '../api/xbox';
-import { PSN_STATUS_QUERY_KEY, psnApi } from '../api/psn';
-import { EXOPHASE_STATUS_QUERY_KEY, exophaseApi } from '../api/exophase';
 import { useEffect, useState, type ReactNode } from 'react';
 import { useNavigate } from 'react-router';
 import { useInfiniteQuery, useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
@@ -412,15 +409,12 @@ export function MeDialog() {
   const { viewMode, setViewMode } = useViewMode();
   const { density, setDensity } = useCardDensity();
   const sync = useSyncSources();
-  const { data: exophaseStatus } = useQuery({ queryKey: EXOPHASE_STATUS_QUERY_KEY, queryFn: exophaseApi.status });
-  const { data: psnStatus } = useQuery({ queryKey: PSN_STATUS_QUERY_KEY, queryFn: psnApi.status });
-  // The Xbox card only shows when the server has an Xbox app set up.
-  const { data: xboxStatus } = useQuery({ queryKey: XBOX_STATUS_QUERY_KEY, queryFn: xboxApi.status });
-  // The Playnite card reflects whether its connection code has been used (#793).
+  // Playnite pushes from the desktop, so whether its connection code has been used says if it is set up (#793).
   const { data: apiKeys } = useQuery({ queryKey: API_KEYS_QUERY_KEY, queryFn: apiKeysApi.list });
   const playniteKey = apiKeys?.keys
     .filter((k) => k.label === PLAYNITE_API_KEY_LABEL && !k.revokedAt)
     .sort((a, b) => (b.lastUsedAt ?? b.createdAt).localeCompare(a.lastUsedAt ?? a.createdAt))[0];
+  const librariesSummary = [...sync.linkedLabels, playniteKey?.lastUsedAt ? 'Playnite' : null].filter(Boolean).join(', ');
   const { data: badges } = useQuery({ queryKey: ['me', 'badges'], queryFn: badgesApi.list });
   const [providers, setProviders] = useState<string[] | null>(null);
   const [unlinking, setUnlinking] = useState<string | null>(null);
@@ -455,7 +449,8 @@ export function MeDialog() {
   async function syncLibraries() {
     if (sync.busy) return;
     if (!sync.hasLinked) {
-      sync.linkFirst();
+      // Nothing to sync yet: the Libraries dialog is where one gets linked.
+      open('import')();
       return;
     }
     const ok = await confirm({
@@ -466,14 +461,16 @@ export function MeDialog() {
     if (!ok) return;
     close();
     ui.notify(t('settings.me.syncLibraries.syncing'));
-    await sync.syncLibraries();
-    ui.notify(t('settings.me.syncLibraries.done'));
+    const failed = await sync.syncLibraries();
+    // Each failure is also in the person's notifications, with the reason.
+    ui.notify(failed.length > 0 ? t('settings.me.syncLibraries.someFailed', { sources: failed.join(', ') }) : t('settings.me.syncLibraries.done'));
   }
 
   async function syncAchievements() {
     if (sync.busy) return;
-    if (!sync.hasLinked) {
-      sync.linkFirst();
+    if (!sync.hasAchievementSource) {
+      // Only Steam has achievements to check; without it linked, the Libraries dialog is the way in.
+      open('import')();
       return;
     }
     close();
@@ -646,59 +643,12 @@ export function MeDialog() {
           onClick={syncAchievements}
         />
         <ActionCard
-          title={t('settings.me.playnite')}
-          sub={
-            playniteKey?.lastUsedAt
-              ? t('settings.me.playnite.lastSynced', { when: formatRelativeTime(playniteKey.lastUsedAt) })
-              : playniteKey
-                ? t('settings.me.playnite.finishSub')
-                : t('settings.me.playnite.sub')
-          }
-          cta={playniteKey?.lastUsedAt ? t('settings.me.playnite.manage') : playniteKey ? t('settings.me.playnite.finish') : t('settings.me.playnite.setUp')}
-          accent={!!playniteKey?.lastUsedAt}
-          onClick={open('playnite')}
+          title={t('settings.me.libraries')}
+          sub={librariesSummary || t('settings.me.libraries.none')}
+          cta={t('settings.me.libraries.manage')}
+          accent={!!librariesSummary}
+          onClick={open('import')}
         />
-        <ActionCard
-          title={t('settings.me.exophase')}
-          sub={
-            exophaseStatus?.connected
-              ? exophaseStatus.lastSyncedAt
-                ? t('settings.exophase.lastSynced', { when: formatRelativeTime(exophaseStatus.lastSyncedAt) })
-                : t('settings.exophase.neverSynced')
-              : t('settings.me.exophase.sub')
-          }
-          cta={exophaseStatus?.connected ? t('settings.me.exophase.manage') : t('settings.me.exophase.link')}
-          accent={!!exophaseStatus?.connected}
-          onClick={open('exophase')}
-        />
-        <ActionCard
-          title={t('settings.me.psn')}
-          sub={
-            psnStatus?.connected
-              ? psnStatus.lastSyncedAt
-                ? t('settings.psn.lastSynced', { when: formatRelativeTime(psnStatus.lastSyncedAt) })
-                : t('settings.psn.neverSynced')
-              : t('settings.me.psn.sub')
-          }
-          cta={psnStatus?.connected ? t('settings.me.psn.manage') : t('settings.me.psn.link')}
-          accent={!!psnStatus?.connected}
-          onClick={open('psn')}
-        />
-        {xboxStatus?.configured && (
-          <ActionCard
-            title={t('settings.me.xbox')}
-            sub={
-              xboxStatus.connected
-                ? xboxStatus.lastSyncedAt
-                  ? t('settings.xbox.lastSynced', { when: formatRelativeTime(xboxStatus.lastSyncedAt) })
-                  : t('settings.xbox.neverSynced')
-                : t('settings.me.xbox.sub')
-            }
-            cta={xboxStatus.connected ? t('settings.me.xbox.manage') : t('settings.me.xbox.link')}
-            accent={xboxStatus.connected}
-            onClick={open('xbox')}
-          />
-        )}
 
         <Section label={t('settings.me.appearance')}>
           <div style={st('display:flex;align-items:center;gap:12px;min-height:58px;padding:0 14px 0 16px;border-radius:16px;background:var(--surf)')}>

@@ -62,7 +62,7 @@ export const add = {
   "add.import.wishlistProgress": "Wishlist: {wishlisted} wishlisted · checked {checked} of {total}",
   "add.import.checkingWishlist": "Checking your Steam wishlist…",
   "add.import.checkingAchievements": "Checking Steam for newly-completed achievements…",
-  "add.import.title": "Import your library",
+  "add.import.title": "Libraries",
   "add.import.steamTitle": "Steam Import",
   "add.import.steamSub": "Library + wishlist + achievement completions. Skips anything already here.",
   "add.import.steamLinkSub": "Link your Steam account to import",
