@@ -49,7 +49,7 @@ const EMAIL_CHOICES: { type: EmailAlertType; label: MessageKey; on: boolean }[] 
 ];
 
 // Sign-in providers that gave us no real email use one of these placeholder domains.
-const isPlaceholderEmail = (email: string) => ['steamcommunity.unknown', 'discord.unknown'].includes(email.toLowerCase().split('@')[1] ?? '');
+const isPlaceholderEmail = (email: string) => ['steamcommunity.unknown', 'discord.unknown', 'xbox.unknown'].includes(email.toLowerCase().split('@')[1] ?? '');
 const STORES = ['Steam', 'Epic', 'GOG', 'Xbox', 'PlayStation', 'Nintendo'];
 
 const RERUN_EVENT = 'queueup:rerun-onboarding';

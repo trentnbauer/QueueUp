@@ -36,6 +36,7 @@ const PROVIDER_STYLE: Record<string, { label: (t: ReturnType<typeof useI18n>['t'
   google: { label: (t) => t('core.login.signInWith', { provider: 'Google' }), bg: 'var(--text)', fg: 'var(--onText)', border: 'none' },
   discord: { label: (t) => t('core.login.signInWith', { provider: 'Discord' }), bg: '#5865F2', fg: '#fff', border: 'none' },
   steam: { label: (t) => t('core.login.signInWith', { provider: 'Steam' }), bg: '#1b2838', fg: '#fff', border: 'none' },
+  xbox: { label: (t) => t('core.login.signInWith', { provider: 'Xbox' }), bg: '#107c10', fg: '#fff', border: 'none' },
   oidc: { label: (t) => t('core.login.sso'), bg: 'transparent', fg: 'var(--text)', border: '1px solid var(--line)' },
   dev: { label: (t) => t('core.login.dev'), bg: 'var(--text)', fg: 'var(--onText)', border: 'none' },
 };
