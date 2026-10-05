@@ -2622,6 +2622,28 @@ export interface DismissPendingLibraryImportsRequest {
   ids: string[];
 }
 
+/** What the backlog coach suggests doing to a card (issue #827). Each is a status change the person accepts. */
+export type AiCoachAction = 'wont_play' | 'play_next';
+
+export interface AiCoachSuggestion {
+  gameId: string;
+  title: string;
+  coverImageUrl: string | null;
+  action: AiCoachAction;
+  /** One sentence from the AI, shown as plain text. */
+  reason: string;
+}
+
+/** Result of POST /api/games/ai-backlog-coach. Nothing is changed by the call itself. */
+export interface AiBacklogCoachResponse {
+  /** False when there is too little history or backlog to say anything; then nothing was asked of the AI. */
+  enoughData: boolean;
+  /** A few plain-language observations about the person's play history. */
+  patterns: string[];
+  suggestions: AiCoachSuggestion[];
+  fallback: AiFallbackNotice | null;
+}
+
 export type AiPriceVerdict = 'buy' | 'wait' | 'unclear';
 
 /** Buy-or-wait advice for one game (issue #829). The numbers come from QueueUp's price data; the AI
