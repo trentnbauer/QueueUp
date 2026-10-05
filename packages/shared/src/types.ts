@@ -2573,6 +2573,27 @@ export interface AiFallbackNotice {
   usedModel: string;
 }
 
+/** One game the AI picked for an unmatched import. `auto` is true when it was sure enough that the
+ * title was matched and added without asking (the row is then gone from the review list). */
+export interface AiMatchSuggestion {
+  /** The PendingLibraryImport id. */
+  id: string;
+  igdbId: number;
+  /** 0 to 1. */
+  confidence: number;
+  auto: boolean;
+}
+
+/** Result of POST /api/library/pending-imports/ai-match. */
+export interface AiMatchPendingResponse {
+  suggestions: AiMatchSuggestion[];
+  /** How many titles were matched without asking. */
+  autoMatched: number;
+  /** How many waiting titles the AI looked at. */
+  checked: number;
+  fallback: AiFallbackNotice | null;
+}
+
 /** A person's own AI settings. The API key is write-only: it is never sent back, only whether one is saved. */
 export interface UserAiSettings {
   provider: AiProvider;

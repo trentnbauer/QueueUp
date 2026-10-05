@@ -343,6 +343,18 @@ export function Cover({
 // Small building blocks used across screens
 // ---------------------------------------------------------------------------------------------
 
+/** A small "AI" flag for anything the AI suggested, so it is never mistaken for a certain result. */
+export function AiBadge({ title }: { title?: string }) {
+  return (
+    <span
+      title={title}
+      style={{ flexShrink: 0, font: '700 10px var(--font-mono)', letterSpacing: '0.06em', padding: '2px 6px', borderRadius: 999, background: 'var(--accSoft)', color: 'var(--accText)' }}
+    >
+      AI
+    </span>
+  );
+}
+
 /** Mono, uppercase section label ("ROOMS · 3"). */
 export function Kicker({ children, size = 12, spacing = '0.06em', color = 'var(--muted)', weight = 600, style }: {
   children: ReactNode;

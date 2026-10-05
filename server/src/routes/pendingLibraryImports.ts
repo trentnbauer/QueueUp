@@ -2,39 +2,16 @@ import type { FastifyInstance } from 'fastify';
 import { prisma } from '../db/client.js';
 import { recordSyncSources } from '../services/syncSources.js';
 import { HttpError } from '../util/httpError.js';
-import { createGameForUser } from '../services/gameIntake.js';
-import { unionOwnershipPlatforms } from '../services/gameOwnership.js';
 import {
   listPendingLibraryImports,
-  deletePendingLibraryImport,
   dismissPendingLibraryImport,
   restorePendingLibraryImport,
-  recordTitleMatchAlias,
-  recordTitleMatchSuggestion,
-  userAliasSource,
   getPlayniteImportProgress,
 } from '../services/playniteImport.js';
+import { addResolvedGame, isSyncSource, resolvePendingImport } from '../services/pendingImportResolve.js';
+import { aiMatchPendingImports } from '../services/ai/aiImportMatch.js';
 import { parseBundleIgdbIds } from '../services/bundleImport.js';
-import type { PlayniteImportProgress, ResolvePendingLibraryImportBundleRequest, ResolvePendingLibraryImportRequest, SyncSource } from '@queueup/shared';
-
-/** Puts one resolved game on the person's shelf as owned, or adds the platforms to the copy that is
- * already there (same wishlist guard as the bulk import loop - see the resolve route's comment). */
-async function addResolvedGame(userId: string, pending: { platforms: Parameters<typeof unionOwnershipPlatforms>[2] }, igdbId: number): Promise<void> {
-  const existing = await prisma.game.findFirst({ where: { roomId: null, addedBy: userId, igdbId } });
-  if (existing) {
-    if (existing.status !== 'wishlist') {
-      await unionOwnershipPlatforms(userId, igdbId, pending.platforms);
-    }
-  } else {
-    await createGameForUser(userId, null, igdbId, { status: 'backlog', ownedPlatforms: pending.platforms });
-  }
-}
-
-const SYNC_SOURCES: SyncSource[] = ['playnite', 'xbox', 'exophase', 'psn', 'retroachievements'];
-
-function isSyncSource(source: string): source is SyncSource {
-  return (SYNC_SOURCES as string[]).includes(source);
-}
+import type { AiMatchPendingResponse, PlayniteImportProgress, ResolvePendingLibraryImportBundleRequest, ResolvePendingLibraryImportRequest } from '@queueup/shared';
 
 /** Cookie-authenticated routes backing the (not yet built, see QueueUp#452) Profile Settings review
  * UI for PendingLibraryImport rows - titles from an external-library import (see routes/apiV1.ts'
@@ -102,14 +79,21 @@ export default async function pendingLibraryImportRoutes(app: FastifyInstance) {
       const pending = await prisma.pendingLibraryImport.findFirst({ where: { id, userId } });
       if (!pending) throw new HttpError(404, 'Pending import not found');
 
-      await addResolvedGame(userId, pending, igdbId);
-
-      if (isSyncSource(pending.source)) await recordSyncSources(userId, [igdbId], pending.source);
-      await recordTitleMatchAlias(userAliasSource(pending.source, userId), pending.title, igdbId);
-      await recordTitleMatchSuggestion(pending.source, pending.title, igdbId, userId);
-      await deletePendingLibraryImport(userId, id);
+      await resolvePendingImport(userId, pending, igdbId);
 
       reply.status(204);
+    },
+  );
+
+  /** Asks the AI to match the waiting titles (issue #819). Very confident picks are matched right
+   * away; the rest come back as suggestions the dialog flags with "AI". Needs AI set up (400 if not).
+   * Tight limit: each call is a paid request to the person's own provider. */
+  app.post(
+    '/api/library/pending-imports/ai-match',
+    { config: { rateLimit: { max: 6, timeWindow: '1 minute' } } },
+    async (request): Promise<AiMatchPendingResponse> => {
+      const userId = await request.requireAuth();
+      return aiMatchPendingImports(userId);
     },
   );
 
