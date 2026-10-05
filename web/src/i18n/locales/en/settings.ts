@@ -19,6 +19,9 @@ export const settings = {
   "settings.analytics.privacy": "Privacy policy",
   "settings.analytics.on": "Thanks - usage stats are on",
   "settings.analytics.off": "Usage stats are off",
+  "settings.analytics.toast": "Share anonymous usage stats to help improve QueueUp? You can change this any time in Settings.",
+  "settings.analytics.toastAllow": "Allow",
+  "settings.analytics.toastDeny": "No thanks",
 
   // Alert email
   "settings.alertEmail.title": "Email address for alerts",
