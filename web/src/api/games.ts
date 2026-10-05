@@ -1,6 +1,7 @@
 import { apiGet, apiPost, apiPatch, apiPut, apiDelete } from './client';
 import type {
   AiDuplicateScanResponse,
+  AiRecommendResponse,
   AiTonightRequest,
   AiTonightResponse,
   DismissDuplicateRequest,
@@ -114,6 +115,7 @@ export const gamesApi = {
   mergedList: () => apiGet<{ merged: MergedGame[] }>('/api/games/merged'),
   forgetMerged: (fromIgdbId: number) => apiDelete(`/api/games/merged/${fromIgdbId}`),
   igdbSearch: (id: string, q: string) => apiGet<{ results: GameSearchResult[]; existingIgdbIds: number[] }>(`/api/games/${id}/igdb-search?q=${encodeURIComponent(q)}`),
+  aiRecommend: () => apiPost<AiRecommendResponse>('/api/games/ai-recommend'),
   aiTonight: (body: AiTonightRequest) => apiPost<AiTonightResponse>('/api/games/ai-tonight', body),
   upcomingDlc: () => apiGet<{ dlcs: UpcomingDlc[] }>('/api/games/upcoming-dlc'),
   ignoreUpcomingDlc: (igdbId: number) => apiPost<void>(`/api/games/upcoming-dlc/${igdbId}/ignore`),

@@ -16,9 +16,10 @@ import { useAuth } from '../context/AuthContext';
 import { useScope } from '../context/ScopeContext';
 import { useUi } from '../context/UiContext';
 import { Dialog } from '../ui/Dialog';
-import { Btn, ChipToggle, Cover, Kicker, SearchField, inputPill } from '../ui/primitives';
+import { AiBadge, Btn, ChipToggle, Cover, Kicker, SearchField, inputPill } from '../ui/primitives';
 import { st } from '../ui/st';
 import { t as tNow, useT } from '../i18n';
+import { useAiPicks } from './useAiPicks';
 
 const BarcodeScanner = lazy(() => import('./BarcodeScanner').then((m) => ({ default: m.BarcodeScanner })));
 
@@ -444,6 +445,9 @@ export function AddGameDialog() {
     };
   }, [roomId, coopOnly, allPlatforms]);
 
+  // "Ask AI" picks, on the Personal Shelf (issue #820).
+  const aiPicks = useAiPicks(roomId === null);
+
   // Trending whenever there's no query.
   useEffect(() => {
     let dead = false;
@@ -664,6 +668,34 @@ export function AddGameDialog() {
                     </button>
                   ))}
                 </div>
+              )}
+              {!showingResults && aiPicks.ready && (
+                <>
+                  <span style={st('display:flex;align-items:center;justify-content:space-between;gap:8px;padding:8px 8px 6px')}>
+                    <span style={st('display:flex;align-items:center;gap:8px')}>
+                      <Kicker size={11.5}>{t('add.game.ai.heading')}</Kicker>
+                      {aiPicks.picks && <AiBadge title={t('add.game.ai.badge')} />}
+                    </span>
+                    <Btn kind="soft" height={30} padX={12} fontSize={12.5} disabled={aiPicks.busy} onClick={() => void aiPicks.ask()}>
+                      {aiPicks.busy ? t('add.game.ai.working') : aiPicks.picks ? t('add.game.ai.again') : t('add.game.ai.ask')}
+                    </Btn>
+                  </span>
+                  {!aiPicks.picks && !aiPicks.error && <div style={st('padding:2px 10px 10px;color:var(--muted);font-size:13.5px')}>{t('add.game.ai.hint')}</div>}
+                  {aiPicks.error && <div role="alert" style={st('margin:0 8px 8px;padding:10px 12px;border-radius:14px;background:var(--errBg);border:1px solid var(--errLine);font:500 13px/1.4 var(--font-ui)')}>{aiPicks.error}</div>}
+                  {aiPicks.picks?.length === 0 && <div style={st('padding:2px 10px 10px;color:var(--muted);font-size:13.5px')}>{t('add.game.ai.none')}</div>}
+                  {aiPicks.picks?.map((r) => (
+                    <ResultRow
+                      key={`ai-${r.igdbId}`}
+                      r={r}
+                      added={addedIds.has(r.igdbId)}
+                      suggested={suggestedIds.has(r.igdbId)}
+                      adding={addingId === r.igdbId}
+                      busy={busy}
+                      onAdd={() => clickAdd(r)}
+                      extra={r.reason ? <span style={st('font:500 12px/1.35 var(--font-ui);color:var(--accText)')}>{r.reason}</span> : undefined}
+                    />
+                  ))}
+                </>
               )}
               {!showingResults && (recs.length > 0 || coopOnly) && (
                 <>

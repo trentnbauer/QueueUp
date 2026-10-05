@@ -2622,6 +2622,19 @@ export interface DismissPendingLibraryImportsRequest {
   ids: string[];
 }
 
+/** A game the AI recommended (issues #820, #821). Always a real IGDB game that is not already on the
+ * shelf or in the room; the AI only names titles and each one is matched against IGDB. */
+export interface AiRecommendation extends GameSearchResult {
+  /** One short sentence from the AI, shown as plain text. */
+  reason: string;
+}
+
+/** Result of POST /api/games/ai-recommend. */
+export interface AiRecommendResponse {
+  recommendations: AiRecommendation[];
+  fallback: AiFallbackNotice | null;
+}
+
 /** A backlog game the AI picked for tonight (issue #825). Always a card on the person's own shelf. */
 export interface AiTonightPick {
   gameId: string;
