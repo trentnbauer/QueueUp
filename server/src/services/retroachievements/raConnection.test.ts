@@ -13,6 +13,8 @@ const h = vi.hoisted(() => ({
   verifyAccount: vi.fn(),
   fetchLibrary: vi.fn(),
   notifyLibrarySyncError: vi.fn(),
+  assertNotLimited: vi.fn(),
+  markLimited: vi.fn(),
 }));
 
 vi.mock('../../db/client.js', () => ({
@@ -20,6 +22,7 @@ vi.mock('../../db/client.js', () => ({
 }));
 vi.mock('../../config/env.js', () => ({ env: { SESSION_SECRET: 's'.repeat(32) } }));
 vi.mock('../librarySync.js', () => ({ startLibrarySync: h.startLibrarySync }));
+vi.mock('../librarySyncLimits.js', () => ({ assertNotLimited: h.assertNotLimited, markLimited: h.markLimited }));
 vi.mock('../notifications.js', () => ({ notifyLibrarySyncError: h.notifyLibrarySyncError }));
 vi.mock('./raClient.js', async () => {
   const actual = await vi.importActual<typeof import('./raClient.js')>('./raClient.js');
@@ -32,7 +35,10 @@ import { decryptSetting, encryptSetting } from '../settingsCrypto.js';
 
 const logger = {} as never;
 
-beforeEach(() => vi.clearAllMocks());
+beforeEach(() => {
+  vi.clearAllMocks();
+  h.assertNotLimited.mockResolvedValue(undefined);
+});
 
 describe('getRetroAchievementsStatus', () => {
   it('reports the link and never the key', async () => {
@@ -137,5 +143,25 @@ describe('disconnectRetroAchievements', () => {
   it('deletes the stored key', async () => {
     await disconnectRetroAchievements('u1');
     expect(h.deleteMany).toHaveBeenCalledWith({ where: { userId: 'u1' } });
+  });
+});
+
+describe('rate limiting (#864)', () => {
+  const row = () => ({ userId: 'u1', username: 'Player', apiKeyEncrypted: encryptSetting(KEY, SECRET) });
+
+  it('marks that person\'s key limited when RetroAchievements rate limits a sync', async () => {
+    h.findUnique.mockResolvedValue(row());
+    h.fetchLibrary.mockRejectedValue(new RetroAchievementsError('RetroAchievements is limiting requests right now.', false, true));
+    await expect(syncRetroAchievementsLibrary('u1', logger)).rejects.toMatchObject({ statusCode: 502 });
+    expect(h.markLimited).toHaveBeenCalledWith('retroachievements', 'u1');
+    expect(h.deleteMany).not.toHaveBeenCalled();
+  });
+
+  it('refuses to start a sync while limited, without calling RetroAchievements', async () => {
+    const { HttpError } = await import('../../util/httpError.js');
+    h.findUnique.mockResolvedValue(row());
+    h.assertNotLimited.mockRejectedValue(new HttpError(429, 'RetroAchievements is limiting requests right now.'));
+    await expect(syncRetroAchievementsLibrary('u1', logger)).rejects.toMatchObject({ statusCode: 429 });
+    expect(h.fetchLibrary).not.toHaveBeenCalled();
   });
 });

@@ -9,6 +9,7 @@ import { xboxApi, XBOX_STATUS_QUERY_KEY } from '../api/xbox';
 import { useAuth } from '../context/AuthContext';
 import { useSteamImportContext } from '../context/SteamImportContext';
 import { useUi } from '../context/UiContext';
+import { useLibraryLimits } from './useLibraryLimits';
 
 /** One connected library. To add another, add an entry below: both settings buttons ("Sync
  * libraries" and "Sync trophies and achievements") run every linked source in one click, so nothing
@@ -48,6 +49,7 @@ export function useSyncSources() {
   const queryClient = useQueryClient();
   const ui = useUi();
   const [nativeBusy, setNativeBusy] = useState(false);
+  const limits = useLibraryLimits();
   const xbox = useQuery({ queryKey: XBOX_STATUS_QUERY_KEY, queryFn: xboxApi.status });
   const exophase = useQuery({ queryKey: EXOPHASE_STATUS_QUERY_KEY, queryFn: exophaseApi.status });
   const psn = useQuery({ queryKey: PSN_STATUS_QUERY_KEY, queryFn: psnApi.status });
@@ -78,12 +80,16 @@ export function useSyncSources() {
     hasAchievementSource: linked.some((s) => s.hasAchievements),
     busy: steam.busy || steam.completions.busy || steam.syncingEverything || nativeBusy,
     /** Syncs every connected library, one after another. One failing doesn't stop the rest. Returns
-     * the names of the ones that failed (each also lands in the person's notifications). */
-    syncLibraries: async (): Promise<string[]> => {
+     * the names of the ones that failed (each also lands in the person's notifications) and the ones
+     * skipped because they are rate limiting QueueUp. */
+    syncLibraries: async (): Promise<{ failed: string[]; skipped: string[] }> => {
       const failed: string[] = [];
+      // A source that is rate limiting QueueUp is left alone rather than hit again (#864).
+      const skipped = linked.filter((s) => limits.isLimited(s.id)).map((s) => s.label);
       setNativeBusy(true);
       try {
         for (const s of linked) {
+          if (limits.isLimited(s.id)) continue;
           try {
             await s.syncLibrary();
           } catch {
@@ -102,7 +108,7 @@ export function useSyncSources() {
         void queryClient.invalidateQueries({ queryKey: ['games', 'completion-suggestions'] });
         void queryClient.invalidateQueries({ queryKey: ['notifications'] });
       }
-      return failed;
+      return { failed, skipped };
     },
     syncAchievements: async () => {
       for (const s of linked) await s.syncAchievements();

@@ -3,6 +3,7 @@ import type { RetroAchievementsStatusResponse } from '@queueup/shared';
 import { prisma } from '../../db/client.js';
 import { HttpError } from '../../util/httpError.js';
 import { startLibrarySync, type LibrarySyncSource } from '../librarySync.js';
+import { assertNotLimited, markLimited } from '../librarySyncLimits.js';
 import { notifyLibrarySyncError } from '../notifications.js';
 import { decryptSetting, encryptSetting } from '../settingsCrypto.js';
 import { fetchLibrary, RetroAchievementsError, verifyAccount } from './raClient.js';
@@ -67,6 +68,7 @@ export async function syncRetroAchievementsLibrary(userId: string, logger: Fasti
     throw new HttpError(409, 'Your saved RetroAchievements key can no longer be read. Link your RetroAchievements account again.');
   }
 
+  await assertNotLimited('retroachievements', 'RetroAchievements', userId);
   try {
     const entries = await fetchLibrary({ username: row.username, apiKey });
     const started = await startLibrarySync(userId, RETROACHIEVEMENTS_SOURCE, entries, logger);
@@ -76,6 +78,7 @@ export async function syncRetroAchievementsLibrary(userId: string, logger: Fasti
     if (err instanceof RetroAchievementsError) {
       // A rejected key can't work again: drop the link so the person is asked for it afresh.
       if (err.needsRelink) await prisma.userRetroAchievementsConnection.deleteMany({ where: { userId } });
+      if (err.rateLimited) await markLimited('retroachievements', userId);
       await notifyLibrarySyncError(userId, 'RetroAchievements', err.message);
     }
     return asHttpError(err);

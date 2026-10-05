@@ -3,6 +3,7 @@ import type { ExophaseStatusResponse } from '@queueup/shared';
 import { prisma } from '../../db/client.js';
 import { HttpError } from '../../util/httpError.js';
 import { startLibrarySync, type LibrarySyncSource } from '../librarySync.js';
+import { assertNotLimited, markLimited } from '../librarySyncLimits.js';
 import { notifyLibrarySyncError } from '../notifications.js';
 import { ExophaseError, fetchGamesPage, fetchLibrary, resolvePlayerId } from './exophaseClient.js';
 
@@ -37,6 +38,7 @@ export async function connectExophase(userId: string, profile: unknown): Promise
     }
   } catch (err) {
     // A profile that can't be read is something the person can fix; a blocked or broken site is not.
+    if (err instanceof ExophaseError && err.rateLimited) await markLimited('exophase', null);
     const fixable = err instanceof ExophaseError && !/blocking|problems|Could not reach/.test(err.message);
     return asHttpError(err, fixable ? 400 : 502);
   }
@@ -56,12 +58,14 @@ export async function disconnectExophase(userId: string): Promise<void> {
 export async function syncExophaseLibrary(userId: string, logger: FastifyBaseLogger): Promise<{ consideredCount: number }> {
   const row = await prisma.userExophaseConnection.findUnique({ where: { userId } });
   if (!row) throw new HttpError(400, 'Link your Exophase profile first.');
+  await assertNotLimited('exophase', 'Exophase', userId);
   try {
     const entries = await fetchLibrary(row.playerId);
     const started = await startLibrarySync(userId, EXOPHASE_SOURCE, entries, logger);
     await prisma.userExophaseConnection.update({ where: { userId }, data: { lastSyncedAt: new Date() } });
     return started;
   } catch (err) {
+    if (err instanceof ExophaseError && err.rateLimited) await markLimited('exophase', null);
     if (err instanceof ExophaseError) await notifyLibrarySyncError(userId, 'Exophase', err.message);
     return asHttpError(err);
   }

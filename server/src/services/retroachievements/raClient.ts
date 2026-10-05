@@ -19,6 +19,8 @@ export class RetroAchievementsError extends Error {
     message: string,
     /** Whether the person has to enter their key again (it was rejected), as opposed to a passing failure. */
     readonly needsRelink = false,
+    /** RetroAchievements is limiting this key: leave it alone for a while. */
+    readonly rateLimited = false,
   ) {
     super(message);
     this.name = 'RetroAchievementsError';
@@ -121,7 +123,7 @@ export async function fetchProgressPage(auth: RaAuth, offset: number, count: num
   if (res.status === 401 || res.status === 403) {
     throw new RetroAchievementsError('RetroAchievements did not accept that username and key. Check them, and use the Web API key from your RetroAchievements settings.', true);
   }
-  if (res.status === 429) throw new RetroAchievementsError('RetroAchievements is limiting requests right now. Try again later.');
+  if (res.status === 429) throw new RetroAchievementsError('RetroAchievements is limiting requests right now. Try again later.', false, true);
   if (res.status >= 500) throw new RetroAchievementsError('RetroAchievements is having problems right now. Try again later.');
   const body = (await res.json().catch(() => null)) as { Total?: number; Results?: RaGame[]; message?: string } | null;
   if (res.status === 404 || !body || !Array.isArray(body.Results)) {

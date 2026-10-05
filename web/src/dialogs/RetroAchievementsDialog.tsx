@@ -6,6 +6,7 @@ import { PENDING_IMPORTS_QUERY_KEY } from '../api/pendingImports';
 import { useConfirm } from '../context/ConfirmContext';
 import { useScope } from '../context/ScopeContext';
 import { useUi } from '../context/UiContext';
+import { useLibraryLimits } from '../hooks/useLibraryLimits';
 import { Dialog } from '../ui/Dialog';
 import { Banner, Btn, inputPill } from '../ui/primitives';
 import { st } from '../ui/st';
@@ -80,6 +81,7 @@ export function RetroAchievementsDialog() {
   const t = useT();
   const ui = useUi();
   const confirm = useConfirm();
+  const limits = useLibraryLimits();
   const queryClient = useQueryClient();
   const [error, setError] = useState<string | null>(null);
   const [username, setUsername] = useState('');
@@ -186,8 +188,11 @@ export function RetroAchievementsDialog() {
                 : t('settings.ra.syncDone', { matched: progress.matched, unmatched: progress.unmatched })}
             </span>
           )}
+          {limits.isLimited('retroachievements') && (
+            <span style={st('font:500 13px/1.45 var(--font-ui);color:var(--danger)')}>{t('add.import.rateLimited', { minutes: limits.minutesLeft('retroachievements') ?? 1 })}</span>
+          )}
           <div style={st('display:flex;gap:8px;flex-wrap:wrap')}>
-            <Btn kind="accent" height={44} padX={18} disabled={syncing || sync.isPending} onClick={() => sync.mutate()}>
+            <Btn kind="accent" height={44} padX={18} disabled={syncing || sync.isPending || limits.isLimited('retroachievements')} onClick={() => sync.mutate()}>
               {syncing || sync.isPending ? t('settings.ra.syncing') : t('settings.ra.syncNow')}
             </Btn>
             <Btn height={44} padX={18} disabled={disconnect.isPending} onClick={() => void confirmDisconnect()}>

@@ -13,6 +13,7 @@ import { useConfirm } from '../context/ConfirmContext';
 import { useScope } from '../context/ScopeContext';
 import { useSteamImportContext } from '../context/SteamImportContext';
 import { useUi } from '../context/UiContext';
+import { useLibraryLimits } from '../hooks/useLibraryLimits';
 import { Dialog } from '../ui/Dialog';
 import { LibraryBadge, type LibraryKind } from '../ui/LibraryLogo';
 import { Banner, Btn, Cover, Group, Kicker, inputPill } from '../ui/primitives';
@@ -57,6 +58,7 @@ export function ImportDialog() {
   const running = busy || completions.busy || syncingEverything;
   const { data: psnStatus } = useQuery({ queryKey: PSN_STATUS_QUERY_KEY, queryFn: psnApi.status });
   const { data: raStatus } = useQuery({ queryKey: RETROACHIEVEMENTS_STATUS_QUERY_KEY, queryFn: retroAchievementsApi.status });
+  const limits = useLibraryLimits();
   const { data: exophaseStatus } = useQuery({ queryKey: EXOPHASE_STATUS_QUERY_KEY, queryFn: exophaseApi.status });
   // Playnite pushes from the desktop; its connection code having been used says it is set up.
   const { data: apiKeys } = useQuery({ queryKey: API_KEYS_QUERY_KEY, queryFn: apiKeysApi.list });
@@ -119,7 +121,7 @@ export function ImportDialog() {
         <ImportRow
           kind="exophase"
           title="Exophase"
-          sub={t('add.import.exophaseSub')}
+          sub={limits.isLimited('exophase') ? t('add.import.rateLimited', { minutes: limits.minutesLeft('exophase') ?? 1 }) : t('add.import.exophaseSub')}
           cta={exophaseStatus?.connected ? t('settings.me.exophase.manage') : t('settings.me.exophase.link')}
           onClick={() => {
             ui.closeDialog('import');
@@ -139,7 +141,7 @@ export function ImportDialog() {
         <ImportRow
           kind="retroachievements"
           title="RetroAchievements"
-          sub={t('add.import.retroAchievementsSub')}
+          sub={limits.isLimited('retroachievements') ? t('add.import.rateLimited', { minutes: limits.minutesLeft('retroachievements') ?? 1 }) : t('add.import.retroAchievementsSub')}
           cta={raStatus?.connected ? t('settings.me.exophase.manage') : t('settings.me.exophase.link')}
           onClick={() => {
             ui.closeDialog('import');

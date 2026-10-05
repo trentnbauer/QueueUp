@@ -21,7 +21,11 @@ const HEADERS = {
 };
 
 export class ExophaseError extends Error {
-  constructor(message: string) {
+  constructor(
+    message: string,
+    /** Exophase is refusing requests from this server (blocked or rate limited): leave it alone for a while. */
+    readonly rateLimited = false,
+  ) {
     super(message);
     this.name = 'ExophaseError';
   }
@@ -85,7 +89,7 @@ async function getJson(url: string, fetchImpl: Fetch): Promise<{ status: number;
  * one, or the end of the list). */
 export async function fetchGamesPage(playerId: string, page: number, fetchImpl: Fetch = fetch): Promise<ExophaseGame[] | null> {
   const { status, body } = await getJson(`${API}/${encodeURIComponent(playerId)}/games?page=${page}&environment=&sort=1&showHidden=0`, fetchImpl);
-  if (status === 403 || status === 429) throw new ExophaseError('Exophase is blocking requests from this server right now. Try again later.');
+  if (status === 403 || status === 429) throw new ExophaseError('Exophase is blocking requests from this server right now. Try again later.', true);
   if (status >= 500) throw new ExophaseError('Exophase is having problems right now. Try again later.');
   const data = body as { success?: boolean; games?: ExophaseGame[] } | null;
   if (status !== 200 || !data?.success || !Array.isArray(data.games) || data.games.length === 0) return null;

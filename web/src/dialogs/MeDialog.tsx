@@ -461,9 +461,13 @@ export function MeDialog() {
     if (!ok) return;
     close();
     ui.notify(t('settings.me.syncLibraries.syncing'));
-    const failed = await sync.syncLibraries();
+    const { failed, skipped } = await sync.syncLibraries();
     // Each failure is also in the person's notifications, with the reason.
-    ui.notify(failed.length > 0 ? t('settings.me.syncLibraries.someFailed', { sources: failed.join(', ') }) : t('settings.me.syncLibraries.done'));
+    const parts = [
+      failed.length > 0 ? t('settings.me.syncLibraries.someFailed', { sources: failed.join(', ') }) : t('settings.me.syncLibraries.done'),
+      skipped.length > 0 ? t('settings.me.syncLibraries.skipped', { sources: skipped.join(', ') }) : '',
+    ];
+    ui.notify(parts.filter(Boolean).join(' '));
   }
 
   async function syncAchievements() {
