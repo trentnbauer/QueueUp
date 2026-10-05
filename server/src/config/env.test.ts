@@ -17,6 +17,7 @@ function baseEnv(overrides: Partial<Env> = {}): Env {
     PLAYTIME_TRACKING_ENABLED: false,
     AI_ALLOW_USER_SETTINGS: true,
     AI_ALLOW_USER_BASE_URL: false,
+    AI_ALLOW_PRIVATE_BASE_URL: false,
     AI_SERVER_DAILY_LIMIT: 50,
     BASE_PATH: '',
     OIDC_ISSUER_URL: undefined,

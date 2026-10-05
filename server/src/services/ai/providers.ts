@@ -34,6 +34,13 @@ export interface AiConfig {
   baseUrl: string;
   /** Null for providers that don't need one (a local model). */
   apiKey: string | null;
+  /** The address was entered by a person (their own settings, a room sponsor's, their backups), not
+   * set by the operator. Such an address is checked against the server's own network before every
+   * request (see aiNetworkGuard.ts), and where the operator allows private addresses the provider's
+   * error text is not shown back, since either would let a person probe what the server can reach. */
+  userSupplied?: boolean;
+  /** Set by the caller (not stored): leave the provider's error text out of failures. */
+  hideErrorBody?: boolean;
 }
 
 export const DEFAULT_MAX_TOKENS = 1024;
@@ -178,7 +185,10 @@ export async function callProvider(config: AiConfig, req: AiRequest, fetchImpl: 
     throw new AiProviderError(timedOut ? 'The AI provider took too long to answer' : 'Could not reach the AI provider', null);
   }
   if (!res.ok) {
-    const detail = errorMessageFrom(await res.text().catch(() => ''));
+    // Where a person-supplied address may point inside the network (the operator allowed private
+    // addresses), only the status comes back: the body of an error from whatever it points at would
+    // otherwise be a way to read internal services. A public address can show its own error text.
+    const detail = config.hideErrorBody ? '' : errorMessageFrom(await res.text().catch(() => ''));
     throw new AiProviderError(`The AI provider returned ${res.status}${detail ? `: ${detail}` : ''}`, res.status);
   }
   return parseResponse(config, await res.json().catch(() => null));
