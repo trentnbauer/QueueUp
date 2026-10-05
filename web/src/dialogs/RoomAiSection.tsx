@@ -1,3 +1,4 @@
+import { useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { roomsApi } from '../api/rooms';
 import { useConfirm } from '../context/ConfirmContext';
@@ -5,6 +6,7 @@ import { useUi } from '../context/UiContext';
 import { Avatar, Btn } from '../ui/primitives';
 import { st } from '../ui/st';
 import { useT } from '../i18n';
+import { AiSettingsDialog } from './AiSettingsDialog';
 
 /** Room settings: who, if anyone, has applied their own AI key to this room. Their key is never
  * shown - only that they're providing it. The sponsor, the Room Master and Moderators can remove it;
@@ -16,6 +18,7 @@ export function RoomAiSection({ roomId, onOpenProfile }: { roomId: string; onOpe
   const queryClient = useQueryClient();
   const key = ['room-ai', roomId];
   const { data } = useQuery({ queryKey: key, queryFn: () => roomsApi.ai(roomId) });
+  const [settingsOpen, setSettingsOpen] = useState(false);
 
   const onError = (e: unknown) => ui.showError(e instanceof Error ? e.message : t('room.settings.ai.error'));
   const apply = useMutation({
@@ -86,6 +89,17 @@ export function RoomAiSection({ roomId, onOpenProfile }: { roomId: string; onOpe
       )}
       {!sponsor && !data.hasOwnSettings && (
         <span style={st('font:400 12px/1.45 var(--font-ui);color:var(--muted)')}>{t('room.settings.ai.noOwn')}</span>
+      )}
+      <Btn kind="soft" height={38} padX={14} fontSize={13} style={{ alignSelf: 'flex-start' }} onClick={() => setSettingsOpen(true)}>
+        {t('room.settings.ai.openMine')}
+      </Btn>
+      {settingsOpen && (
+        <AiSettingsDialog
+          onClose={() => {
+            setSettingsOpen(false);
+            void queryClient.invalidateQueries({ queryKey: key });
+          }}
+        />
       )}
     </div>
   );

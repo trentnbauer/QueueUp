@@ -180,4 +180,5 @@ export const room: Record<keyof typeof en, string> = {
   "room.settings.nothingYet": "Nothin’ yet.",
   "room.settings.loadMore": "Haul in more",
   "room.settings.journal": "Ship’s log",
+  "room.settings.ai.openMine": "Me AI settin’s",
 };

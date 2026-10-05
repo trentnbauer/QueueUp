@@ -2539,12 +2539,48 @@ export interface RoomAiResponse {
   hasOwnSettings: boolean;
 }
 
+/** Most backups one list can hold behind its first provider. */
+export const AI_MAX_FALLBACKS = 4;
+
+/** One extra provider and key, tried in order when the one before it fails. Write-only key, like the rest. */
+export interface AiFallbackEntry {
+  /** Stable handle so a saved key is kept when the list is reordered or edited without retyping it. */
+  id: string;
+  provider: AiProvider;
+  model: string | null;
+  baseUrl: string | null;
+  hasApiKey: boolean;
+}
+
+/** What goes in when saving a backup. `apiKey` left out keeps the saved key of the same `id`; null or '' removes it. */
+export interface AiFallbackInput {
+  id?: string;
+  provider: AiProvider;
+  model?: string | null;
+  baseUrl?: string | null;
+  apiKey?: string | null;
+}
+
+/** The latest time a provider failed and a backup answered instead. Shown as a warning so the person
+ * knows the first key needs attention (expired, out of credit, rate limited...). */
+export interface AiFallbackNotice {
+  at: string;
+  failedProvider: AiProvider;
+  failedModel: string;
+  /** Why it failed. Never contains a key. */
+  error: string;
+  usedProvider: AiProvider;
+  usedModel: string;
+}
+
 /** A person's own AI settings. The API key is write-only: it is never sent back, only whether one is saved. */
 export interface UserAiSettings {
   provider: AiProvider;
   model: string | null;
   baseUrl: string | null;
   hasApiKey: boolean;
+  /** Backups tried in order when the provider above fails. */
+  fallbacks: AiFallbackEntry[];
 }
 
 export interface AiSettingsResponse {
@@ -2552,6 +2588,8 @@ export interface AiSettingsResponse {
   user: UserAiSettings | null;
   /** The server-wide settings, without the key. Null when the server has none. */
   server: { provider: AiProvider; model: string | null; baseUrl: string | null } | null;
+  /** The last time the person's own first provider failed and a backup took over, if it did. */
+  lastFallback: AiFallbackNotice | null;
   /** Which of the two an AI call would use right now. */
   effectiveSource: AiSettingsSource;
   /** Whether this server lets people set their own. */
@@ -2567,6 +2605,8 @@ export interface SetUserAiSettingsRequest {
   model?: string | null;
   baseUrl?: string | null;
   apiKey?: string | null;
+  /** Backups, in the order to try them. Left out keeps the saved list; [] clears it. */
+  fallbacks?: AiFallbackInput[];
 }
 
 export interface AiTestResponse {
@@ -2576,6 +2616,29 @@ export interface AiTestResponse {
   model: string;
   /** The model's short reply to the test prompt. */
   reply: string;
+  /** Set when the first provider failed and a backup answered this test. */
+  fallback: AiFallbackNotice | null;
+}
+
+/** Administrator settings: the server-wide first provider (each part may come from Docker env) and its backups. */
+export interface AdminAiResponse {
+  provider: AiProvider | null;
+  model: string | null;
+  baseUrl: string | null;
+  sources: Record<'AI_PROVIDER' | 'AI_API_KEY' | 'AI_BASE_URL' | 'AI_MODEL', ConfigSource>;
+  fallbacks: AiFallbackEntry[];
+  lastFallback: AiFallbackNotice | null;
+  providers: AiProvider[];
+}
+
+/** Saves the server-wide AI settings. A part set by Docker env is left alone. `apiKey` left out keeps the
+ * saved one. `fallbacks` left out keeps the saved list. */
+export interface SetAdminAiRequest {
+  provider: AiProvider;
+  model?: string | null;
+  baseUrl?: string | null;
+  apiKey?: string | null;
+  fallbacks?: AiFallbackInput[];
 }
 
 // ---------------------------------------------------------------------------------------------

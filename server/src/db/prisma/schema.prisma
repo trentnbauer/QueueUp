@@ -546,6 +546,9 @@ model UserAiSettings {
   model           String?
   baseUrl         String?  @map("base_url")
   apiKeyEncrypted String?  @map("api_key_encrypted")
+  /// Backup providers tried in order when the one above fails: one encrypted JSON list (keys included),
+  /// see services/ai/aiFallbacks.ts.
+  fallbacksEncrypted String? @map("fallbacks_encrypted")
   updatedAt       DateTime @updatedAt @map("updated_at")
 
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)

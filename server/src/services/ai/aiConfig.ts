@@ -1,8 +1,20 @@
-import { AI_PROVIDERS, type AiProvider, type AiSettingsResponse, type AiSettingsSource, type SetUserAiSettingsRequest, type UserAiSettings } from '@queueup/shared';
+import { AI_PROVIDERS, type AiFallbackNotice, type AiProvider, type AiSettingsResponse, type AiSettingsSource, type SetUserAiSettingsRequest, type UserAiSettings } from '@queueup/shared';
 import { prisma } from '../../db/client.js';
 import { HttpError } from '../../util/httpError.js';
 import { getConfigValue } from '../configResolver.js';
 import { decryptSetting, encryptSetting } from '../settingsCrypto.js';
+import {
+  clearLastFallback,
+  fallbackToPublic,
+  getLastFallback,
+  mergeFallbacks,
+  normalizeBaseUrl,
+  openFallbacks,
+  recordFallback,
+  sealFallbacks,
+  validateParts,
+  type StoredFallback,
+} from './aiFallbacks.js';
 import { AiProviderError, callProvider, PROVIDER_DEFAULTS, type AiConfig, type AiRequest, type AiResponse } from './providers.js';
 
 /** Works out which AI settings a call uses and makes the call. A person's own settings win, when the
@@ -16,20 +28,7 @@ async function getEnv() {
 
 const isProvider = (v: unknown): v is AiProvider => typeof v === 'string' && (AI_PROVIDERS as readonly string[]).includes(v);
 
-/** A base URL a server will call: http(s) only, no embedded credentials, no query or fragment, no
- * trailing slash. Throws a 400 with a message fit to show the person. */
-export function normalizeBaseUrl(raw: string): string {
-  let url: URL;
-  try {
-    url = new URL(raw.trim());
-  } catch {
-    throw new HttpError(400, 'The base URL is not a valid address');
-  }
-  if (url.protocol !== 'http:' && url.protocol !== 'https:') throw new HttpError(400, 'The base URL must start with http:// or https://');
-  if (url.username || url.password) throw new HttpError(400, 'Leave the username and password out of the base URL');
-  if (url.search || url.hash) throw new HttpError(400, 'Leave the query and fragment out of the base URL');
-  return url.toString().replace(/\/+$/, '');
-}
+export { normalizeBaseUrl };
 
 /** Fills a provider's defaults into whatever was set. Null when something required is still missing
  * (no model, or no address for a provider that has none by default, or no key where one is needed). */
@@ -83,10 +82,40 @@ export async function getUserAiConfig(userId: string): Promise<AiConfig | null> 
   return buildConfig(row.provider, { model: row.model, baseUrl: row.baseUrl, apiKey: await readUserKey(userId, row.apiKeyEncrypted) });
 }
 
+/** Backups saved in Administrator settings. Not an env var: they're only ever set from the settings screen. */
+export const SERVER_FALLBACKS_KEY = 'AI_FALLBACKS';
+
+export async function readServerFallbacks(): Promise<StoredFallback[]> {
+  const row = await prisma.appSetting.findUnique({ where: { key: SERVER_FALLBACKS_KEY } });
+  return row?.value ? openFallbacks(row.value, (await getEnv()).SESSION_SECRET) : [];
+}
+
+const fallbackConfigs = (list: StoredFallback[], allowCustomUrl: boolean): AiConfig[] =>
+  list
+    .filter((e) => allowCustomUrl || (!e.baseUrl && e.provider !== 'ollama' && e.provider !== 'openai_compatible'))
+    .map((e) => buildConfig(e.provider, e))
+    .filter((c): c is AiConfig => c !== null);
+
+/** The server's first provider, then its backups in order. */
+export async function getServerAiChain(): Promise<AiConfig[]> {
+  const [first, backups] = await Promise.all([getServerAiConfig(), readServerFallbacks()]);
+  return [...(first ? [first] : []), ...fallbackConfigs(backups, true)];
+}
+
+/** The person's first provider, then their backups in order (same rules as getUserAiConfig). */
+export async function getUserAiChain(userId: string): Promise<AiConfig[]> {
+  const env = await getEnv();
+  const first = await getUserAiConfig(userId);
+  if (!first) return [];
+  const row = await prisma.userAiSettings.findUnique({ where: { userId }, select: { fallbacksEncrypted: true } });
+  const backups = openFallbacks(row?.fallbacksEncrypted, env.SESSION_SECRET);
+  return [first, ...fallbackConfigs(backups, env.AI_ALLOW_USER_BASE_URL)];
+}
+
 /** The settings of the member sponsoring this room's AI (see roomAi.ts), or null when there is no
  * sponsor, they've left the room, or their own settings are no longer usable. Only the sponsor's
  * personal settings are read, by reference - nothing is copied onto the room. */
-export async function getRoomSponsorAiConfig(roomId: string): Promise<AiConfig | null> {
+async function getRoomSponsorId(roomId: string): Promise<string | null> {
   const room = await prisma.room.findUnique({ where: { id: roomId }, select: { aiKeyOwnerId: true } });
   if (!room?.aiKeyOwnerId) return null;
   // A sponsor who has left (or been removed) stops funding the room straight away.
@@ -94,8 +123,12 @@ export async function getRoomSponsorAiConfig(roomId: string): Promise<AiConfig |
     where: { roomId_userId: { roomId, userId: room.aiKeyOwnerId } },
     select: { userId: true },
   });
-  if (!stillMember) return null;
-  return getUserAiConfig(room.aiKeyOwnerId);
+  return stillMember ? room.aiKeyOwnerId : null;
+}
+
+export async function getRoomSponsorAiConfig(roomId: string): Promise<AiConfig | null> {
+  const sponsorId = await getRoomSponsorId(roomId);
+  return sponsorId ? getUserAiConfig(sponsorId) : null;
 }
 
 /** What a call uses: the person's own settings, else (when the call is for a room) the room
@@ -117,37 +150,86 @@ export async function resolveAiConfig(
   return server ? { config: server, source: 'server' } : null;
 }
 
+/** The providers a call would try, in order, with where they came from and whose warning slot they use. */
+export async function resolveAiChain(
+  userId?: string,
+  roomId?: string,
+): Promise<{ configs: AiConfig[]; source: Exclude<AiSettingsSource, 'none'>; owner: string } | null> {
+  if (userId) {
+    const own = await getUserAiChain(userId);
+    if (own.length) return { configs: own, source: 'user', owner: `user:${userId}` };
+  }
+  if (roomId) {
+    const sponsorId = await getRoomSponsorId(roomId);
+    const sponsored = sponsorId ? await getUserAiChain(sponsorId) : [];
+    if (sponsorId && sponsored.length) return { configs: sponsored, source: 'room', owner: `user:${sponsorId}` };
+  }
+  const server = await getServerAiChain();
+  return server.length ? { configs: server, source: 'server', owner: 'server' } : null;
+}
+
+/** Tries each provider in turn until one answers. When the first one failed and a backup answered,
+ * that's remembered (and logged) as a warning for the settings screen; when the first one is back
+ * to working, the warning clears. Throws a 502 saying why when every provider failed. */
+async function runChain(configs: AiConfig[], owner: string, req: AiRequest): Promise<AiResponse & { fallback: AiFallbackNotice | null }> {
+  let firstFailure: { config: AiConfig; message: string } | null = null;
+  let lastMessage = '';
+  for (const config of configs) {
+    try {
+      const res = await callProvider(config, req);
+      if (!firstFailure) {
+        clearLastFallback(owner);
+        return { ...res, fallback: null };
+      }
+      const fallback: AiFallbackNotice = {
+        at: new Date().toISOString(),
+        failedProvider: firstFailure.config.provider,
+        failedModel: firstFailure.config.model,
+        error: firstFailure.message,
+        usedProvider: config.provider,
+        usedModel: config.model,
+      };
+      recordFallback(owner, fallback);
+      console.warn(`AI provider ${fallback.failedProvider} (${fallback.failedModel}) failed for ${owner}: ${fallback.error}. Used ${fallback.usedProvider} (${fallback.usedModel}) instead.`);
+      return { ...res, fallback };
+    } catch (err) {
+      if (!(err instanceof AiProviderError)) throw err;
+      lastMessage = err.message;
+      firstFailure ??= { config, message: err.message };
+    }
+  }
+  throw new HttpError(502, configs.length > 1 ? `All ${configs.length} AI providers failed. The last said: ${lastMessage}` : lastMessage);
+}
+
 /** Makes an AI call with the right settings. This is the one entry point features should use; pass
  * `roomId` when the call is on behalf of a room so its sponsor's settings can apply. The caller is
  * responsible for having checked the person may act in that room. Throws a 400 when no AI is set
- * up, and a 502 when the provider fails (the message says why, never including the key). */
-export async function aiComplete(req: AiRequest, opts: { userId?: string; roomId?: string } = {}): Promise<AiResponse & { source: AiSettingsSource }> {
-  const resolved = await resolveAiConfig(opts.userId, opts.roomId);
+ * up, and a 502 when the provider fails (the message says why, never including the key). When the
+ * settings name backups, a failing provider falls through to the next one; `fallback` says so. */
+export async function aiComplete(
+  req: AiRequest,
+  opts: { userId?: string; roomId?: string } = {},
+): Promise<AiResponse & { source: AiSettingsSource; fallback: AiFallbackNotice | null }> {
+  const resolved = await resolveAiChain(opts.userId, opts.roomId);
   if (!resolved) throw new HttpError(400, 'AI is not set up. Add a provider in your account settings, or ask the server admin to set one.');
-  try {
-    const res = await callProvider(resolved.config, req);
-    return { ...res, source: resolved.source };
-  } catch (err) {
-    if (err instanceof AiProviderError) throw new HttpError(502, err.message);
-    throw err;
-  }
+  const res = await runChain(resolved.configs, resolved.owner, req);
+  return { ...res, source: resolved.source };
 }
 
 /** Same as aiComplete but for the server-wide settings only (the Administrator's "test" button). */
-export async function aiCompleteWithServer(req: AiRequest): Promise<AiResponse> {
-  const config = await getServerAiConfig();
-  if (!config) throw new HttpError(400, 'No server-wide AI provider is set up. Set a provider and model first.');
-  try {
-    return await callProvider(config, req);
-  } catch (err) {
-    if (err instanceof AiProviderError) throw new HttpError(502, err.message);
-    throw err;
-  }
+export async function aiCompleteWithServer(req: AiRequest): Promise<AiResponse & { fallback: AiFallbackNotice | null }> {
+  const configs = await getServerAiChain();
+  if (!configs.length) throw new HttpError(400, 'No server-wide AI provider is set up. Set a provider and model first.');
+  return runChain(configs, 'server', req);
 }
 
-function toUserSettings(row: { provider: string; model: string | null; baseUrl: string | null; apiKeyEncrypted: string | null }): UserAiSettings | null {
+function toUserSettings(
+  row: { provider: string; model: string | null; baseUrl: string | null; apiKeyEncrypted: string | null; fallbacksEncrypted?: string | null },
+  secret: string,
+): UserAiSettings | null {
   if (!isProvider(row.provider)) return null;
-  return { provider: row.provider, model: row.model, baseUrl: row.baseUrl, hasApiKey: !!row.apiKeyEncrypted };
+  const fallbacks = openFallbacks(row.fallbacksEncrypted, secret).map(fallbackToPublic);
+  return { provider: row.provider, model: row.model, baseUrl: row.baseUrl, hasApiKey: !!row.apiKeyEncrypted, fallbacks };
 }
 
 /** Everything the settings screen needs: the person's own settings, the server's (without a key),
@@ -160,8 +242,9 @@ export async function describeAiSettings(userId: string): Promise<AiSettingsResp
     resolveAiConfig(userId),
   ]);
   return {
-    user: row ? toUserSettings(row) : null,
+    user: row ? toUserSettings(row, env.SESSION_SECRET) : null,
     server: server ? { provider: server.provider, model: server.model, baseUrl: server.baseUrl } : null,
+    lastFallback: getLastFallback(`user:${userId}`),
     effectiveSource: resolved?.source ?? 'none',
     userSettingsAllowed: env.AI_ALLOW_USER_SETTINGS,
     userBaseUrlAllowed: env.AI_ALLOW_USER_BASE_URL,
@@ -175,20 +258,8 @@ export async function saveUserAiSettings(userId: string, input: SetUserAiSetting
   const env = await getEnv();
   if (!env.AI_ALLOW_USER_SETTINGS) throw new HttpError(403, 'This server does not allow personal AI settings');
   if (!isProvider(input?.provider)) throw new HttpError(400, `provider must be one of: ${AI_PROVIDERS.join(', ')}`);
-  const { provider } = input;
+  const { provider, model, baseUrl } = validateParts(input, env.AI_ALLOW_USER_BASE_URL);
   const defaults = PROVIDER_DEFAULTS[provider];
-
-  const model = typeof input.model === 'string' && input.model.trim() ? input.model.trim().slice(0, 200) : null;
-  if (!model && !defaults.model) throw new HttpError(400, 'A model name is required for this provider');
-
-  const rawUrl = typeof input.baseUrl === 'string' && input.baseUrl.trim() ? input.baseUrl : null;
-  const baseUrl = rawUrl ? normalizeBaseUrl(rawUrl) : null;
-  if (!baseUrl && !defaults.baseUrl) throw new HttpError(400, 'A base URL is required for this provider');
-  // The server makes this request, so a custom address is only for instances that opted in.
-  const needsCustomUrl = !!baseUrl || provider === 'ollama' || provider === 'openai_compatible';
-  if (needsCustomUrl && !env.AI_ALLOW_USER_BASE_URL) {
-    throw new HttpError(403, 'This server only lets you use the hosted providers (Anthropic, OpenAI, Gemini) at their standard address');
-  }
 
   const existing = await prisma.userAiSettings.findUnique({ where: { userId } });
   let apiKeyEncrypted: string | null;
@@ -205,16 +276,24 @@ export async function saveUserAiSettings(userId: string, input: SetUserAiSetting
   }
   if (defaults.needsKey && !apiKeyEncrypted) throw new HttpError(400, 'An API key is required for this provider');
 
+  // Backups left out stay as saved; a list (even an empty one) replaces them.
+  const fallbacksEncrypted =
+    input.fallbacks === undefined
+      ? (existing?.fallbacksEncrypted ?? null)
+      : sealFallbacks(mergeFallbacks(openFallbacks(existing?.fallbacksEncrypted, env.SESSION_SECRET), input.fallbacks, env.AI_ALLOW_USER_BASE_URL), env.SESSION_SECRET);
+
   const row = await prisma.userAiSettings.upsert({
     where: { userId },
-    create: { userId, provider, model, baseUrl, apiKeyEncrypted },
-    update: { provider, model, baseUrl, apiKeyEncrypted },
+    create: { userId, provider, model, baseUrl, apiKeyEncrypted, fallbacksEncrypted },
+    update: { provider, model, baseUrl, apiKeyEncrypted, fallbacksEncrypted },
   });
-  return toUserSettings(row)!;
+  clearLastFallback(`user:${userId}`);
+  return toUserSettings(row, env.SESSION_SECRET)!;
 }
 
 export async function clearUserAiSettings(userId: string): Promise<void> {
   await prisma.userAiSettings.deleteMany({ where: { userId } });
+  clearLastFallback(`user:${userId}`);
   // Rooms this person was sponsoring have nothing left to point at.
   await prisma.room.updateMany({ where: { aiKeyOwnerId: userId }, data: { aiKeyOwnerId: null } });
 }

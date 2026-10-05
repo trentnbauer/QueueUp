@@ -422,4 +422,9 @@ export const pages: Record<keyof typeof en, string> = {
   "pages.privacy.choices.data": "**Download me data** and **Sink me account** both be in Riggin’. The download includes the libraries ye linked, yer AI settings and the games ye merged (never a login or key). Deletin’ yer account removes all of it, includin’ saved logins and keys, from this server.",
   "pages.privacy.choices.anytime": "Ye can revoke API keys, unlink sign-in methods, disconnect Xbox, PlayStation or Exophase, remove yer AI key or take it off a ship, stop a merged-game redirect, change or reset the email address for alerts, turn alerts on and off, remove yer reactions, limit who can see yer captain’s log, turn usage stats on or off and hide games whenever ye please.",
   "pages.privacy.choices.contact": "To ask about anythin’ else, hail the operator o’ this server.",
+  "pages.admin.ai.kicker": "AI",
+  "pages.admin.ai.hint": "AI can help match and recommend games. Set a first provider and any backups: if the first fails, the next is tried, and a warning shows here.",
+  "pages.admin.ai.envLocked": "Set by Docker env or variable",
+  "pages.admin.ai.notSet": "No server AI provider is set.",
+  "pages.admin.ai.saved": "Server AI settings saved",
 };
