@@ -34,6 +34,7 @@ Some other things to note:
 - A free IGDB app via [Twitch developer console](https://dev.twitch.tv/console/apps) (Category: "Application Integration") — used for game search/identity
 - A free [Steam API key](https://steamcommunity.com/dev) for importing Steam games (required to match games with gg.deals)
 - Optional: A free [ScanDex API key](https://scandex.gamery.app/documentation/pricing/) - used for importing physical games via barcode scan
+- Optional: People can link their public [Exophase](https://www.exophase.com/) profile to sync PlayStation, Xbox, Steam, Epic, GOG and more with nothing to install (no server setup needed)
 - Optional: A Microsoft (Azure) app registration for the native **Xbox library sync** - people link their Xbox account with a short code and sync without Playnite (setup steps are in `.env.example`, under `XBOX_CLIENT_ID`)
 - Optional: Install the [QueueUp Playnite extension](https://github.com/trentnbauer/QueueUpPlayniteExtension) to push your entire Playnite library (including Xbox, PlayStation, and Nintendo games) into QueueUp - set up from Profile → Sync Playnite (or Add game → Import library) once your instance is running
 - A sign-in method (Google, Discord, Steam, or a generic OIDC provider like Authelia/Keycloak/Authentik)

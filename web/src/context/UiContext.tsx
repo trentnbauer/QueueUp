@@ -19,6 +19,7 @@ export type DialogKey =
   | 'completions'
   | 'playnite'
   | 'xbox'
+  | 'exophase'
   | 'changelog'
   | 'dlc'
   | 'review'
