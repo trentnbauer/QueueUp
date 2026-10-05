@@ -26,6 +26,7 @@ export const DEFAULT_BACKUP_RETENTION = 14;
 
 const gzip = promisify(zlib.gzip);
 const gunzip = promisify(zlib.gunzip);
+const MAX_UNCOMPRESSED_BYTES = 512 * 1024 * 1024;
 
 interface BackupFile {
   format: typeof FORMAT;
@@ -244,7 +245,9 @@ export async function runScheduledBackup(kind: 'nightly' | 'manual'): Promise<Ad
 export async function parseBackup(gz: Buffer): Promise<BackupFile> {
   let parsed: unknown;
   try {
-    parsed = JSON.parse((await gunzip(gz)).toString('utf8'));
+    // Capped: a small gzip can expand to many gigabytes (a gzip bomb), and V8 can't JSON.parse a
+    // string past ~512 MiB anyway, so anything larger isn't a backup this app wrote.
+    parsed = JSON.parse((await gunzip(gz, { maxOutputLength: MAX_UNCOMPRESSED_BYTES })).toString('utf8'));
   } catch {
     throw new HttpError(400, 'That file is not a valid QueueUp backup (could not read it).');
   }
