@@ -1,6 +1,7 @@
 import { prisma } from './client.js';
 import { PLAYNITE_SOURCE } from '../services/playniteImport.js';
 import { encryptPlaintextConfig } from '../services/configResolver.js';
+import { announceNewLibrarySources } from '../services/libraryAnnouncements.js';
 
 /** Reviews moved from columns on the Game row (one review per game, which the last room member to
  * save one overwrote) to the GameReview table (one per person per game). Copies any review still
@@ -92,6 +93,7 @@ export async function runDataMigrations(logger: { info: (msg: string) => void; w
   await resetSharedPlayniteAliases(logger);
   await migrateProfileVisibility(logger);
   await migrateSpinModes(logger);
+  await announceNewLibrarySources(logger);
   try {
     const count = await encryptPlaintextConfig();
     if (count > 0) logger.info(`Encrypted ${count} integration key(s) stored in Administrator settings`);

@@ -1373,6 +1373,7 @@ export type NotificationType =
   | 'good_time_to_buy'
   | 'account_change'
   | 'library_sync_error'
+  | 'library_sync_available'
   | 'platform_unowned'
   | 'room_game_beaten';
 
