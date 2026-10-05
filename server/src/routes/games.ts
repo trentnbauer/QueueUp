@@ -24,6 +24,7 @@ import {
   backfillSteamAppId,
   setManualSteamMatch,
   rematchGame,
+  mergeGameInto,
   defaultStatusForRelease,
   assertPlatformMatch,
   trendingIntake,
@@ -113,6 +114,7 @@ import type {
   SetManualPriceRequest,
   SetSteamMatchRequest,
   SetIgdbMatchRequest,
+  MergeGameRequest,
   SetTargetPriceRequest,
   ShelfActivityPage,
   ShelfActivityType,
@@ -1721,6 +1723,22 @@ export default async function gameRoutes(app: FastifyInstance) {
 
       const platform = game.roomId ? await getRoomPlatform(game.roomId) : null;
       const { gameId, mergedFromId } = await rematchGame(userId, game, request.body.igdbId, platform ? [platform] : undefined);
+      await invalidateExistingIgdbIds(game.roomId, game.addedBy);
+
+      const updated = await loadGameOr404(gameId);
+      return { game: await serializeGame(updated, userId), mergedFromId };
+    },
+  );
+
+  app.post<{ Params: { id: string }; Body: MergeGameRequest }>(
+    '/api/games/:id/merge',
+    { config: { rateLimit: { max: 20, timeWindow: '1 minute' } } },
+    async (request) => {
+      const userId = await request.requireAuth();
+      const game = await loadGameOr404(request.params.id);
+      await requireGameSettingsAccess(game, userId);
+
+      const { gameId, mergedFromId } = await mergeGameInto(userId, game, String(request.body?.targetGameId ?? ''));
       await invalidateExistingIgdbIds(game.roomId, game.addedBy);
 
       const updated = await loadGameOr404(gameId);

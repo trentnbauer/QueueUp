@@ -986,6 +986,11 @@ export interface SetIgdbMatchRequest {
   igdbId: number;
 }
 
+/** "Duplicate?" (issue #848): folds this card into another card already in the same list. */
+export interface MergeGameRequest {
+  targetGameId: string;
+}
+
 /** A game the person merged into another (issue #814) - listed on the Personal Shelf's Merged tab.
  * Later imports of `fromIgdbId` land on `toIgdbId` instead of re-creating the duplicate. */
 export interface MergedGame {
