@@ -114,13 +114,22 @@ export default function App() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
+  // A failed lookup (server restarting, network blip) is shown on the login page with a retry,
+  // rather than an unhandled rejection and a page with no buttons. Not an empty provider list: the
+  // login page reads that as "dev sign-in".
+  const [providersError, setProvidersError] = useState(false);
+  const [providersAttempt, setProvidersAttempt] = useState(0);
   useEffect(() => {
-    if (!user)
-      authApi.providers().then(({ providers, turnstileSiteKey }) => {
+    if (user) return;
+    setProvidersError(false);
+    authApi
+      .providers()
+      .then(({ providers, turnstileSiteKey }) => {
         setProviders(providers);
         setTurnstileSiteKey(turnstileSiteKey);
-      });
-  }, [user]);
+      })
+      .catch(() => setProvidersError(true));
+  }, [user, providersAttempt]);
 
   // Tracked on the account (not per browser), so signing in on a new device doesn't repeat it.
   useEffect(() => {
@@ -197,7 +206,7 @@ export default function App() {
   }
   if (publicMatch) return <PublicProfilePage userId={decodeURIComponent(publicMatch[1])} signedIn={!!user} />;
 
-  if (!user) return <LoginPage providers={providers} turnstileSiteKey={turnstileSiteKey} />;
+  if (!user) return <LoginPage providers={providers} turnstileSiteKey={turnstileSiteKey} providersError={providersError && providers === null} onRetry={() => setProvidersAttempt((n) => n + 1)} />;
 
   return (
     <SteamImportProvider>

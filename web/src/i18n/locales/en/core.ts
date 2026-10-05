@@ -9,6 +9,8 @@ export const core = {
   "core.login.sso": "Single sign-on",
   "core.login.dev": "Sign in (development)",
   "core.login.captchaFailed": "The security check didn't go through. Please try again.",
+  "core.login.providersError": "Could not load the sign-in options. Check your connection and try again.",
+  "core.login.retry": "Try again",
   "core.login.selfHosted": "Self-hosted QueueUp",
   "core.login.privacy": "Privacy",
   "core.login.source": "Source",
