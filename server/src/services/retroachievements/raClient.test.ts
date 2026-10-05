@@ -116,8 +116,8 @@ describe('verifyAccount', () => {
     expect(await verifyAccount(auth, asFetch(vi.fn(async () => reply([game('A', 'Game Boy')], 42))))).toBe(42);
   });
 
-  it('says so when the profile has no games yet', async () => {
-    await expect(verifyAccount(auth, asFetch(vi.fn(async () => reply([], 0))))).rejects.toThrow(/no games yet/);
+  it('accepts a profile with no games yet, so the key still saves', async () => {
+    expect(await verifyAccount(auth, asFetch(vi.fn(async () => reply([], 0))))).toBe(0);
   });
 });
 

@@ -134,10 +134,10 @@ export async function fetchProgressPage(auth: RaAuth, offset: number, count: num
   return { total: Number(body.Total) || body.Results.length, games: body.Results };
 }
 
-/** Checks the username and key work and the profile has games, returning how many games it lists. */
+/** Checks the username and key work, returning how many games the profile lists. A profile with no
+ * games yet is fine: the key still works, and a later sync picks games up once there are some. */
 export async function verifyAccount(auth: RaAuth, fetchImpl: Fetch = fetch): Promise<number> {
   const { total } = await fetchProgressPage(auth, 0, 1, fetchImpl);
-  if (total === 0) throw new RetroAchievementsError('That RetroAchievements profile has no games yet. Play something with achievements switched on, then try again.');
   return total;
 }
 
