@@ -1,6 +1,7 @@
 import { env } from '../config/env.js';
 import { prisma } from '../db/client.js';
 import { sendMail, smtpIsConfigured } from '../services/mailer.js';
+import { mailRecipient } from '../services/emailRecipient.js';
 import { notificationSettingsUrl, renderAlertDigest } from '../services/emailTemplates.js';
 import { scheduleJob, type JobHandle } from './scheduler.js';
 
@@ -22,13 +23,14 @@ export async function sendEmailAlerts(): Promise<void> {
 
   const prefs = await prisma.notificationPreference.findMany({
     where: { email: true },
-    select: { userId: true, type: true, updatedAt: true, emailEnabledAt: true, user: { select: { email: true, alertEmail: true } } },
+    select: { userId: true, type: true, updatedAt: true, emailEnabledAt: true, user: { select: { email: true, alertEmail: true, emailVerified: true } } },
   });
   if (prefs.length === 0) return;
 
   const byUser = new Map<string, { email: string; types: { type: (typeof prefs)[number]['type']; since: Date }[] }>();
   for (const p of prefs) {
-    const entry = byUser.get(p.userId) ?? { email: p.user.alertEmail ?? p.user.email, types: [] };
+    // No recipient (an unverified sign-in email and no confirmed alert address) means no email at all.
+    const entry = byUser.get(p.userId) ?? { email: mailRecipient(p.user) ?? '', types: [] };
     entry.types.push({ type: p.type, since: p.emailEnabledAt ?? p.updatedAt });
     byUser.set(p.userId, entry);
   }

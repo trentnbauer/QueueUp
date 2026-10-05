@@ -99,13 +99,13 @@ async function getOrCreateUser({ emailVerified, ...profile }: {
     // PATCH /api/me/display-name, and overwriting it on login reset edits (#682).
     const user = await prisma.user.update({
       where: { id: existing.id },
-      data: { email: profile.email, avatarUrl: profile.avatarUrl, isAdmin },
+      data: { email: profile.email, emailVerified, avatarUrl: profile.avatarUrl, isAdmin },
     });
     return { user, isNewUser: false };
   }
 
   try {
-    const user = await prisma.user.create({ data: { ...profile, avatarColor: randomAvatarColor(), isAdmin, onboardingPending: true } });
+    const user = await prisma.user.create({ data: { ...profile, emailVerified, avatarColor: randomAvatarColor(), isAdmin, onboardingPending: true } });
     return { user, isNewUser: true };
   } catch (err) {
     // Lost a race against a concurrent request for this same not-yet-existing account (issue
