@@ -1273,6 +1273,7 @@ model Vote {
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@id([gameId, userId])
+  @@index([userId])
   @@map("votes")
 }
 
