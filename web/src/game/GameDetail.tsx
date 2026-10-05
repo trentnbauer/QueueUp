@@ -27,6 +27,7 @@ import { ReviewEmbed } from '../dialogs/ReviewSheet';
 import { PriceHistoryChart } from './PriceHistoryChart';
 import { SteamMatchSheet } from './SteamMatchSheet';
 import { IgdbMatchSheet } from './IgdbMatchSheet';
+import { DuplicateSheet } from './DuplicateSheet';
 import { Avatar, coverBg, GOLD } from '../ui/primitives';
 import { Trailer } from './Trailer';
 import { st } from '../ui/st';
@@ -123,6 +124,7 @@ export function GameDetail({ game, onClose, changeStatus }: { game: Game; onClos
   const { players } = useGameAchievements(game.id);
   const steamMatch = useSteamAutoMatch();
   const [rematching, setRematching] = useState(false);
+  const [markingDuplicate, setMarkingDuplicate] = useState(false);
   const [editTarget, setEditTarget] = useState(false);
   const [targetDraft, setTargetDraft] = useState('');
   const [editManual, setEditManual] = useState(false);
@@ -739,13 +741,22 @@ export function GameDetail({ game, onClose, changeStatus }: { game: Game; onClos
         )}
 
         {canRemoveDirectly && (
-          <button
-            type="button"
-            onClick={() => setRematching(true)}
-            style={st('align-self:flex-start;border:none;background:none;padding:0;color:var(--muted);font:500 12.5px var(--font-ui);text-decoration:underline;text-underline-offset:3px')}
-          >
-            {t('game.igdbMatch.button')}
-          </button>
+          <div style={st('display:flex;gap:16px;align-self:flex-start')}>
+            <button
+              type="button"
+              onClick={() => setRematching(true)}
+              style={st('border:none;background:none;padding:0;color:var(--muted);font:500 12.5px var(--font-ui);text-decoration:underline;text-underline-offset:3px')}
+            >
+              {t('game.igdbMatch.button')}
+            </button>
+            <button
+              type="button"
+              onClick={() => setMarkingDuplicate(true)}
+              style={st('border:none;background:none;padding:0;color:var(--muted);font:500 12.5px var(--font-ui);text-decoration:underline;text-underline-offset:3px')}
+            >
+              {t('game.duplicate.button')}
+            </button>
+          </div>
         )}
 
         <div style={st('display:flex;justify-content:space-between;align-items:center;padding-top:14px;border-top:1px solid var(--chip)')}>
@@ -802,6 +813,27 @@ export function GameDetail({ game, onClose, changeStatus }: { game: Game; onClos
             }
             ops.setIgdbMatch(game.id, result.igdbId);
             setRematching(false);
+          }}
+        />
+      )}
+
+      {markingDuplicate && (
+        <DuplicateSheet
+          game={game}
+          games={scope.games}
+          onClose={() => setMarkingDuplicate(false)}
+          onPick={async (target) => {
+            const ok = await confirm({
+              title: t('game.igdbMatch.merge.title'),
+              message: t('game.igdbMatch.merge.message', { from: game.title, to: target.title }),
+              confirmLabel: t('game.igdbMatch.merge'),
+              danger: true,
+            });
+            if (!ok) return;
+            ui.selectGame(null);
+            ui.notify(t('game.igdbMatch.merge.done', { title: target.title }));
+            ops.mergeGame(game.id, target.id);
+            setMarkingDuplicate(false);
           }}
         />
       )}

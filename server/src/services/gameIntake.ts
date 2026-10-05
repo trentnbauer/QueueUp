@@ -540,6 +540,24 @@ export async function rematchGame(
   return { gameId: game.id, mergedFromId: null };
 }
 
+/** "Duplicate?" (issue #848): folds `game` into another card the person picked from the same list
+ * (their own shelf, or the same room). Same outcome as re-matching onto a game that is already
+ * there, but chosen by card rather than by IGDB search. Returns the surviving card's id. */
+export async function mergeGameInto(
+  userId: string,
+  game: { id: string; roomId: string | null; addedBy: string; igdbId: number; title: string; coverImageUrl: string | null },
+  targetGameId: string,
+): Promise<{ gameId: string; mergedFromId: string }> {
+  if (targetGameId === game.id) throw new HttpError(400, 'Pick a different game to merge into');
+  const target = await prisma.game.findFirst({
+    where: { ...duplicateScopeWhere(game.roomId, game.addedBy), id: targetGameId },
+  });
+  if (!target) throw new HttpError(404, 'That game is not in this list');
+  await mergeIntoExisting(game.id, target.id);
+  await recordMatchRedirect(userId, game, { igdbId: target.igdbId, title: target.title });
+  return { gameId: target.id, mergedFromId: game.id };
+}
+
 /** Statuses meaning "nothing has happened with this yet" - when merging two cards of one game, the
  * other card's status only wins over the surviving card's if the surviving one is still in one. */
 const UNSTARTED_STATUSES: GameStatus[] = ['wishlist', 'backlog'];
