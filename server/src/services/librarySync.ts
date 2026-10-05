@@ -9,6 +9,7 @@ import { redis } from './redisClient.js';
 import { recordSyncSources } from './syncSources.js';
 import { unionOwnedPlatforms } from './userSettings.js';
 import { applyResolvedIgdbEntry, type ResolvedShelfGame } from './libraryImportShelf.js';
+import { applyMatchRedirect } from './matchRedirects.js';
 import { deletePendingLibraryImportByTitle, recordPendingLibraryImport, resolveTitleToIgdbId } from './playniteImport.js';
 
 /** Runs a native library sync (Xbox now, PlayStation next) for one person: takes the entries a
@@ -94,7 +95,9 @@ async function runLibrarySync(
   try {
     await runWithConcurrency(entries, SYNC_CONCURRENCY, async (entry) => {
       try {
-        const igdbId = await resolveTitleToIgdbId(src.source, entry.title, userId);
+        const resolvedIgdbId = await resolveTitleToIgdbId(src.source, entry.title, userId);
+        // A game the person merged into another (issue #814) syncs as that one, not as a new duplicate.
+        const igdbId = resolvedIgdbId === null ? null : await applyMatchRedirect(userId, resolvedIgdbId);
         if (igdbId === null) {
           await recordPendingLibraryImport(userId, src.source, entry.title, entry.platforms);
           unmatched++;
