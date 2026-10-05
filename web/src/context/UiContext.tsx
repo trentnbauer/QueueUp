@@ -21,6 +21,7 @@ export type DialogKey =
   | 'xbox'
   | 'exophase'
   | 'psn'
+  | 'retroachievements'
   | 'changelog'
   | 'dlc'
   | 'review'

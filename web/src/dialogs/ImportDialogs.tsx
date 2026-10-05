@@ -6,6 +6,7 @@ import { gamesApi } from '../api/games';
 import { pendingImportsApi, PENDING_IMPORTS_QUERY_KEY } from '../api/pendingImports';
 import { XBOX_STATUS_QUERY_KEY, xboxApi } from '../api/xbox';
 import { PSN_STATUS_QUERY_KEY, psnApi } from '../api/psn';
+import { RETROACHIEVEMENTS_STATUS_QUERY_KEY, retroAchievementsApi } from '../api/retroachievements';
 import { EXOPHASE_STATUS_QUERY_KEY, exophaseApi } from '../api/exophase';
 import { useAuth } from '../context/AuthContext';
 import { useConfirm } from '../context/ConfirmContext';
@@ -55,6 +56,7 @@ export function ImportDialog() {
   const { busy, activeKind, progress, wishlistProgress, startLink, runSyncEverything, syncingEverything, completions, result, error } = useSteamImportContext();
   const running = busy || completions.busy || syncingEverything;
   const { data: psnStatus } = useQuery({ queryKey: PSN_STATUS_QUERY_KEY, queryFn: psnApi.status });
+  const { data: raStatus } = useQuery({ queryKey: RETROACHIEVEMENTS_STATUS_QUERY_KEY, queryFn: retroAchievementsApi.status });
   const { data: exophaseStatus } = useQuery({ queryKey: EXOPHASE_STATUS_QUERY_KEY, queryFn: exophaseApi.status });
   // Playnite pushes from the desktop; its connection code having been used says it is set up.
   const { data: apiKeys } = useQuery({ queryKey: API_KEYS_QUERY_KEY, queryFn: apiKeysApi.list });
@@ -132,6 +134,16 @@ export function ImportDialog() {
           onClick={() => {
             ui.closeDialog('import');
             ui.openDialog('psn');
+          }}
+        />
+        <ImportRow
+          kind="retroachievements"
+          title="RetroAchievements"
+          sub={t('add.import.retroAchievementsSub')}
+          cta={raStatus?.connected ? t('settings.me.exophase.manage') : t('settings.me.exophase.link')}
+          onClick={() => {
+            ui.closeDialog('import');
+            ui.openDialog('retroachievements');
           }}
         />
         {xboxStatus?.configured && (

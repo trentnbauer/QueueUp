@@ -746,7 +746,7 @@ export interface AccountEventPage {
 }
 
 /** Where a shelf game was synced from. */
-export type SyncSource = 'steam' | 'steam_wishlist' | 'playnite' | 'xbox' | 'exophase' | 'psn';
+export type SyncSource = 'steam' | 'steam_wishlist' | 'playnite' | 'xbox' | 'exophase' | 'psn' | 'retroachievements';
 
 /** POST/DELETE /api/games/:id/remove-vote. `removed` is true when that vote tipped it over and the game is gone. */
 export interface RemoveVoteResponse {
@@ -1863,8 +1863,8 @@ export interface DataExport {
 
 /** A linked library in the "Download my data" export. Logins and tokens are never included. */
 export interface DataExportLibraryLink {
-  library: 'xbox' | 'playstation' | 'exophase';
-  /** The gamertag (Xbox) or player id (Exophase) the link is for; null for PlayStation. */
+  library: 'xbox' | 'playstation' | 'exophase' | 'retroachievements';
+  /** The gamertag (Xbox), player id (Exophase) or username (RetroAchievements) the link is for; null for PlayStation. */
   account: string | null;
   linkedAt: string;
   lastSyncedAt: string | null;
@@ -2625,4 +2625,22 @@ export interface PsnStatusResponse {
  * login right away and never stored. */
 export interface ConnectPsnRequest {
   npsso: string;
+}
+
+// ---------------------------------------------------------------------------------------------
+// RetroAchievements sync: read a person's RetroAchievements profile (the retro games they have
+// played, and which they have beaten or mastered) with their personal web API key.
+// ---------------------------------------------------------------------------------------------
+
+export interface RetroAchievementsStatusResponse {
+  connected: boolean;
+  username: string | null;
+  lastSyncedAt: string | null;
+}
+
+/** `apiKey` is the personal web API key from the person's RetroAchievements settings. It is stored
+ * encrypted and never returned. */
+export interface ConnectRetroAchievementsRequest {
+  username: string;
+  apiKey: string;
 }
