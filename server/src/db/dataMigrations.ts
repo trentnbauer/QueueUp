@@ -87,9 +87,30 @@ export async function migrateSpinModes(logger: { info: (msg: string) => void; wa
   }
 }
 
+/** Email alerts only include notifications created after `emailEnabledAt`, which is set when email
+ * is switched on. Preferences saved before that column existed have it empty, and the email job
+ * falls back to `updatedAt` for them - but `updatedAt` moves on *any* edit (toggling the in-app flag),
+ * so such a row could still silently skip unread alerts. Fixes the cut-off at the last-edited time
+ * once, for every email-on row that has none. Idempotent: afterwards no email-on row is missing one
+ * (the preferences route sets it whenever email is switched on), so it is a cheap no-op on every
+ * later boot. */
+export async function backfillEmailEnabledAt(logger: { info: (msg: string) => void; warn: (msg: string) => void }): Promise<void> {
+  try {
+    const count = await prisma.$executeRaw`
+      UPDATE notification_preferences
+      SET email_enabled_at = updated_at
+      WHERE email = true AND email_enabled_at IS NULL
+    `;
+    if (count > 0) logger.info(`Fixed the email-alert cut-off for ${count} older preference(s)`);
+  } catch (err) {
+    logger.warn(`Could not backfill email alert cut-offs (non-fatal): ${err instanceof Error ? err.message : String(err)}`);
+  }
+}
+
 /** One-time data fixes that run at boot, after the schema is in place. Each is idempotent. */
 export async function runDataMigrations(logger: { info: (msg: string) => void; warn: (msg: string) => void }): Promise<void> {
   await migrateLegacyReviews(logger);
+  await backfillEmailEnabledAt(logger);
   await resetSharedPlayniteAliases(logger);
   await migrateProfileVisibility(logger);
   await migrateSpinModes(logger);
