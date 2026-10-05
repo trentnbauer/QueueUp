@@ -130,15 +130,23 @@ export default async function roomRoutes(app: FastifyInstance) {
     const managedIds = (await adminManagedRoomIds(userId)).filter((id) => !roomIds.includes(id));
     if (managedIds.length) {
       const managed = await prisma.room.findMany({ where: { id: { in: managedIds } }, include: { _count: { select: { members: true } } } });
-      for (const room of managed) {
-        const ttl = await redis.ttl(adminManageKey(userId, room.id));
+      const [managedQueued, ttls] = await Promise.all([
+        prisma.game.groupBy({
+          by: ['roomId'],
+          where: { roomId: { in: managed.map((r) => r.id) }, status: 'backlog', archivedAt: null },
+          _count: { _all: true },
+        }),
+        Promise.all(managed.map((room) => redis.ttl(adminManageKey(userId, room.id)))),
+      ]);
+      const managedQueuedByRoom = new Map(managedQueued.map((r) => [r.roomId as string, r._count._all]));
+      managed.forEach((room, i) => {
         rooms.push({
           ...toRoomDto(room, 'room_master', room.inviteCode),
           memberCount: room._count.members,
-          queuedCount: await prisma.game.count({ where: { roomId: room.id, status: 'backlog', archivedAt: null } }),
-          adminManagedUntil: new Date(Date.now() + Math.max(0, ttl) * 1000).toISOString(),
+          queuedCount: managedQueuedByRoom.get(room.id) ?? 0,
+          adminManagedUntil: new Date(Date.now() + Math.max(0, ttls[i]) * 1000).toISOString(),
         });
-      }
+      });
     }
     return { rooms };
   });
