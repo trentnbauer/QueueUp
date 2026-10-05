@@ -344,15 +344,21 @@ export function Cover({
 // ---------------------------------------------------------------------------------------------
 
 /** A small "AI" flag for anything the AI suggested, so it is never mistaken for a certain result. */
-export function AiBadge({ title }: { title?: string }) {
+export function AiBadge({ title, label = 'AI' }: { title?: string; label?: string }) {
   return (
     <span
       title={title}
-      style={{ flexShrink: 0, font: '700 10px var(--font-mono)', letterSpacing: '0.06em', padding: '2px 6px', borderRadius: 999, background: 'var(--accSoft)', color: 'var(--accText)' }}
+      style={{ flexShrink: 0, font: '700 10px var(--font-mono)', letterSpacing: '0.06em', padding: '2px 6px', borderRadius: 999, background: 'var(--accSoft)', color: 'var(--accText)', whiteSpace: 'nowrap' }}
     >
-      AI
+      {label}
     </span>
   );
+}
+
+/** Marks one thing the AI recommended (a game it suggested, a match it picked, a pair it thinks
+ * are duplicates), as opposed to AiBadge, which labels a whole AI-generated section. */
+export function AiPickedBadge({ title }: { title?: string }) {
+  return <AiBadge label={t('common.aiPicked')} title={title} />;
 }
 
 /** Mono, uppercase section label ("ROOMS · 3"). */

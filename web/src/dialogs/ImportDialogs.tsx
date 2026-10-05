@@ -18,7 +18,7 @@ import { useUi } from '../context/UiContext';
 import { useLibraryLimits } from '../hooks/useLibraryLimits';
 import { Dialog } from '../ui/Dialog';
 import { LibraryBadge, type LibraryKind } from '../ui/LibraryLogo';
-import { AiBadge, Banner, Btn, Cover, Group, Kicker, inputPill } from '../ui/primitives';
+import { AiBadge, AiPickedBadge, Banner, Btn, Cover, Group, Kicker, inputPill } from '../ui/primitives';
 import { st } from '../ui/st';
 import { getBasePath } from '../utils/basePath';
 import { formatRelativeTime } from '../utils/relativeTime';
@@ -442,27 +442,85 @@ export function NeedsReviewDialog() {
     onSuccess: () => refresh(),
     onError: (err) => setError(err instanceof Error ? err.message : t('add.review.matchFailed')),
   });
+  // One press runs the AI over everything waiting: the server does a chunk at a time and hands back
+  // where the next one starts, so this keeps asking until it runs out (no cap - with your own
+  // provider that is just the whole list; on the shared key the daily limit ends it, and what was
+  // done so far is kept). `progress` is "checked so far" out of "checked + still to do".
+  const [aiProgress, setAiProgress] = useState<{ done: number; total: number } | null>(null);
   const aiMatch = useMutation({
-    mutationFn: () => pendingImportsApi.aiMatch(),
-    onSuccess: (res) => {
+    mutationFn: async () => {
+      const picks = new Map<string, AiMatchSuggestion>();
+      let autoMatched = 0;
+      let checked = 0;
+      let after: string | null = null;
+      let stopped: string | null = null;
+      for (;;) {
+        let res;
+        try {
+          res = await pendingImportsApi.aiMatch(after);
+        } catch (err) {
+          // Nothing done yet: surface the error. Part way: keep what the earlier chunks found.
+          if (checked === 0 && picks.size === 0 && autoMatched === 0) throw err;
+          stopped = err instanceof Error ? err.message : t('add.review.ai.failed');
+          break;
+        }
+        for (const s of res.suggestions) picks.set(s.id, s);
+        autoMatched += res.autoMatched;
+        checked += res.checked;
+        setAiPicks(new Map(picks));
+        setAiProgress({ done: checked, total: checked + res.remaining });
+        if (res.stopped) stopped = res.stopped;
+        if (!res.next) break;
+        after = res.next;
+      }
+      return { picks, autoMatched, stopped };
+    },
+    onSuccess: ({ picks, autoMatched, stopped }) => {
       setError(null);
-      setAiPicks(new Map(res.suggestions.map((s) => [s.id, s])));
+      setAiPicks(picks);
       refresh();
       void queryClient.invalidateQueries({ queryKey: AI_SETTINGS_QUERY_KEY });
-      ui.notify(t('add.review.ai.done', { auto: res.autoMatched, suggested: res.suggestions.length }));
+      ui.notify(t('add.review.ai.done', { auto: autoMatched, suggested: picks.size }));
+      if (stopped) setError(t('add.review.ai.stopped', { reason: stopped }));
     },
     onError: (err) => setError(err instanceof Error ? err.message : t('add.review.ai.failed')),
+    onSettled: () => setAiProgress(null),
   });
   const aiClassify = useMutation({
-    mutationFn: () => pendingImportsApi.aiClassify(),
-    onSuccess: (res) => {
+    mutationFn: async () => {
+      const kinds = new Map<string, AiImportClassification>();
+      let checked = 0;
+      let after: string | null = null;
+      let stopped: string | null = null;
+      for (;;) {
+        let res;
+        try {
+          res = await pendingImportsApi.aiClassify(after);
+        } catch (err) {
+          if (checked === 0) throw err;
+          stopped = err instanceof Error ? err.message : t('add.review.ai.failed');
+          break;
+        }
+        for (const i of res.items) kinds.set(i.id, i);
+        checked += res.checked;
+        setAiKinds(new Map(kinds));
+        setAiProgress({ done: checked, total: checked + res.remaining });
+        if (res.stopped) stopped = res.stopped;
+        if (!res.next) break;
+        after = res.next;
+      }
+      return { kinds, stopped };
+    },
+    onSuccess: ({ kinds, stopped }) => {
       setError(null);
-      setAiKinds(new Map(res.items.map((i) => [i.id, i])));
+      setAiKinds(kinds);
       void queryClient.invalidateQueries({ queryKey: AI_SETTINGS_QUERY_KEY });
-      const n = res.items.filter((i) => i.suggestSkip).length;
+      const n = [...kinds.values()].filter((i) => i.suggestSkip).length;
       ui.notify(t(n === 0 ? 'add.review.cleanup.none' : 'add.review.cleanup.found', { n }));
+      if (stopped) setError(t('add.review.ai.stopped', { reason: stopped }));
     },
     onError: (err) => setError(err instanceof Error ? err.message : t('add.review.ai.failed')),
+    onSettled: () => setAiProgress(null),
   });
   const skipAll = useMutation({
     mutationFn: (ids: string[]) => pendingImportsApi.dismissMany(ids),
@@ -573,10 +631,10 @@ export function NeedsReviewDialog() {
             {aiReady && !bundle && (
               <div style={st('flex-shrink:0;display:flex;flex-wrap:wrap;align-items:center;gap:8px;padding:0 20px 6px')}>
                 <Btn kind="soft" height={36} padX={14} fontSize={13} disabled={aiMatch.isPending || aiClassify.isPending} onClick={() => aiMatch.mutate()}>
-                  {aiMatch.isPending ? t('add.review.ai.working') : t('add.review.ai.ask')}
+                  {aiMatch.isPending ? (aiProgress ? t('add.review.ai.progress', aiProgress) : t('add.review.ai.working')) : t('add.review.ai.ask')}
                 </Btn>
                 <Btn kind="soft" height={36} padX={14} fontSize={13} disabled={aiMatch.isPending || aiClassify.isPending} onClick={() => aiClassify.mutate()}>
-                  {aiClassify.isPending ? t('add.review.ai.working') : t('add.review.cleanup.ask')}
+                  {aiClassify.isPending ? (aiProgress ? t('add.review.ai.progress', aiProgress) : t('add.review.ai.working')) : t('add.review.cleanup.ask')}
                 </Btn>
                 <span style={st('font:400 12px var(--font-ui);color:var(--muted)')}>{t('add.review.ai.hint')}</span>
               </div>
@@ -621,7 +679,7 @@ export function NeedsReviewDialog() {
                           {c.title}
                           {c.releaseYear ? ` (${c.releaseYear})` : ''}
                         </span>
-                        {i === aiIndex && <AiBadge title={t('add.review.ai.badge')} />}
+                        {i === aiIndex && <AiPickedBadge title={t('add.review.ai.badge')} />}
                       </span>
                       <span style={st('font:400 12.5px var(--font-ui);color:var(--muted)')}>
                         {c.platform}

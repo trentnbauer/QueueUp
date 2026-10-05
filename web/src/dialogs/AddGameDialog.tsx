@@ -16,7 +16,7 @@ import { useAuth } from '../context/AuthContext';
 import { useScope } from '../context/ScopeContext';
 import { useUi } from '../context/UiContext';
 import { Dialog } from '../ui/Dialog';
-import { AiBadge, Btn, ChipToggle, Cover, Kicker, SearchField, inputPill } from '../ui/primitives';
+import { AiBadge, AiPickedBadge, Btn, ChipToggle, Cover, Kicker, SearchField, inputPill } from '../ui/primitives';
 import { st } from '../ui/st';
 import { t as tNow, useT } from '../i18n';
 import { useAiPicks } from './useAiPicks';
@@ -731,7 +731,12 @@ export function AddGameDialog() {
                       adding={addingId === r.igdbId}
                       busy={busy}
                       onAdd={() => clickAdd(r)}
-                      extra={r.reason ? <span style={st('font:500 12px/1.35 var(--font-ui);color:var(--accText)')}>{r.reason}</span> : undefined}
+                      extra={
+                        <span style={st('display:flex;flex-wrap:wrap;align-items:center;gap:6px')}>
+                          <AiPickedBadge title={t('add.game.ai.badge')} />
+                          {r.reason && <span style={st('font:500 12px/1.35 var(--font-ui);color:var(--accText)')}>{r.reason}</span>}
+                        </span>
+                      }
                     />
                   ))}
                 </>

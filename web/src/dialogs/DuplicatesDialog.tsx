@@ -6,7 +6,7 @@ import { gamesApi } from '../api/games';
 import { useConfirm } from '../context/ConfirmContext';
 import { useUi } from '../context/UiContext';
 import { Dialog } from '../ui/Dialog';
-import { AiBadge, Banner, Btn, Cover, Kicker } from '../ui/primitives';
+import { AiPickedBadge, Banner, Btn, Cover, Kicker } from '../ui/primitives';
 import { st } from '../ui/st';
 import { useT } from '../i18n';
 
@@ -88,7 +88,7 @@ export function DuplicatesDialog() {
       {pairs.map((p) => (
         <div key={pairKey(p)} style={st('display:flex;flex-direction:column;gap:10px;padding:12px;border-radius:18px;background:var(--surf)')}>
           <div style={st('display:flex;align-items:center;gap:8px')}>
-            <AiBadge title={t('settings.duplicates.badge')} />
+            <AiPickedBadge title={t('settings.duplicates.badge')} />
             <Kicker size={11}>{t('settings.duplicates.confidence', { n: Math.round(p.confidence * 100) })}</Kicker>
           </div>
           <div style={st('display:grid;grid-template-columns:1fr 1fr;gap:10px')}>

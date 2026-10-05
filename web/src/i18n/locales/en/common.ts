@@ -26,4 +26,5 @@ export const common = {
   "common.saving": "Saving…",
   "common.retry": "Retry",
   "common.requestFailed": "Request failed: {status}",
+  "common.aiPicked": "AI Picked",
 } as const;

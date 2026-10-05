@@ -1,4 +1,4 @@
-import type { FastifyInstance } from 'fastify';
+import type { FastifyInstance, FastifyRequest } from 'fastify';
 import { prisma } from '../db/client.js';
 import { recordSyncSources } from '../services/syncSources.js';
 import { HttpError } from '../util/httpError.js';
@@ -16,6 +16,7 @@ import { parseBundleIgdbIds } from '../services/bundleImport.js';
 import type {
   AiClassifyPendingResponse,
   AiMatchPendingResponse,
+  AiPendingChunkRequest,
   DismissPendingLibraryImportsRequest,
   PlayniteImportProgress,
   ResolvePendingLibraryImportBundleRequest,
@@ -27,6 +28,11 @@ import type {
  * Playnite import) that didn't resolve to an igdbId on their own. Deliberately cookie-session-only,
  * not under /api/v1: this is something a person reviews in the web app, not something the headless
  * Playnite extension itself needs to read back. */
+// One press of an AI button now works through the whole queue as a series of these requests (each
+// up to three AI calls), so the limit has to allow a long run; what bounds cost is the provider the
+// person chose, or the daily limit on the shared AI key.
+const AI_CHUNK_RATE_LIMIT = { max: 60, timeWindow: '1 minute' };
+
 export default async function pendingLibraryImportRoutes(app: FastifyInstance) {
   app.get(
     '/api/library/pending-imports',
@@ -99,10 +105,10 @@ export default async function pendingLibraryImportRoutes(app: FastifyInstance) {
    * Tight limit: each call is a paid request to the person's own provider. */
   app.post(
     '/api/library/pending-imports/ai-match',
-    { config: { rateLimit: { max: 6, timeWindow: '1 minute' } } },
-    async (request): Promise<AiMatchPendingResponse> => {
+    { config: { rateLimit: AI_CHUNK_RATE_LIMIT } },
+    async (request: FastifyRequest<{ Body: AiPendingChunkRequest }>): Promise<AiMatchPendingResponse> => {
       const userId = await request.requireAuth();
-      return aiMatchPendingImports(userId);
+      return aiMatchPendingImports(userId, request.body?.after);
     },
   );
 
@@ -135,10 +141,10 @@ export default async function pendingLibraryImportRoutes(app: FastifyInstance) {
    * shows the suggestions and the person skips them with dismiss-many. Needs AI set up (400 if not). */
   app.post(
     '/api/library/pending-imports/ai-classify',
-    { config: { rateLimit: { max: 6, timeWindow: '1 minute' } } },
-    async (request): Promise<AiClassifyPendingResponse> => {
+    { config: { rateLimit: AI_CHUNK_RATE_LIMIT } },
+    async (request: FastifyRequest<{ Body: AiPendingChunkRequest }>): Promise<AiClassifyPendingResponse> => {
       const userId = await request.requireAuth();
-      return aiClassifyPendingImports(userId);
+      return aiClassifyPendingImports(userId, request.body?.after);
     },
   );
 
