@@ -364,6 +364,11 @@ model ApiKey {
   createdAt  DateTime  @default(now()) @map("created_at")
   lastUsedAt DateTime? @map("last_used_at")
   revokedAt  DateTime? @map("revoked_at")
+  /// When the key stops working, or null for no expiry (the default, and what Playnite's setup code
+  /// uses). An expired key fails exactly like a revoked one.
+  expiresAt  DateTime? @map("expires_at")
+  /// A read-only key may only make GET requests to /api/v1; any write is refused with a 403.
+  readOnly   Boolean   @default(false) @map("read_only")
 
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 

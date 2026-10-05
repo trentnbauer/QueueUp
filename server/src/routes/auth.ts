@@ -12,7 +12,7 @@ import { getTurnstileConfig, verifyTurnstileToken } from '../services/turnstile.
 import { extractSteamId64, resolveSteamId64 } from '../services/steamLibrary.js';
 import { answerUnownedPlatform, setOwnedPlatforms, setProfileSlug, setProfileVisibility, setPublicProfileEnabled, VALID_PLATFORMS } from '../services/userSettings.js';
 import { logAdminAction } from '../services/adminAuditLog.js';
-import { generateApiKeyToken, hashApiKeyToken } from '../services/apiKeys.js';
+import { generateApiKeyToken, hashApiKeyToken, isApiKeyActive } from '../services/apiKeys.js';
 import type { OAuthProfile } from '../services/authProviders/types.js';
 import type {
   ApiKeySummary,
@@ -29,14 +29,25 @@ import type {
   UpdateProfileVisibilityRequest,
   VoteValue,
 } from '@queueup/shared';
+import { MAX_ACTIVE_API_KEYS, MAX_API_KEY_EXPIRY_DAYS } from '@queueup/shared';
 
-function toApiKeySummary(key: { id: string; label: string; createdAt: Date; lastUsedAt: Date | null; revokedAt: Date | null }): ApiKeySummary {
+function toApiKeySummary(key: {
+  id: string;
+  label: string;
+  createdAt: Date;
+  lastUsedAt: Date | null;
+  revokedAt: Date | null;
+  expiresAt: Date | null;
+  readOnly: boolean;
+}): ApiKeySummary {
   return {
     id: key.id,
     label: key.label,
     createdAt: key.createdAt.toISOString(),
     lastUsedAt: key.lastUsedAt?.toISOString() ?? null,
     revokedAt: key.revokedAt?.toISOString() ?? null,
+    expiresAt: key.expiresAt?.toISOString() ?? null,
+    readOnly: key.readOnly,
   };
 }
 
@@ -374,11 +385,29 @@ export default async function authRoutes(app: FastifyInstance) {
       const label = typeof rawLabel === 'string' ? rawLabel.trim().slice(0, 100) : '';
       if (!label) throw new HttpError(400, 'A label is required');
 
+      const { expiresInDays, readOnly } = request.body ?? {};
+      if (expiresInDays != null && (!Number.isInteger(expiresInDays) || expiresInDays < 1 || expiresInDays > MAX_API_KEY_EXPIRY_DAYS)) {
+        throw new HttpError(400, `Expiry must be a whole number of days from 1 to ${MAX_API_KEY_EXPIRY_DAYS}`);
+      }
+      if (readOnly !== undefined && typeof readOnly !== 'boolean') throw new HttpError(400, 'readOnly must be true or false');
+
+      // Only keys that still work count towards the cap, so revoking or letting one expire frees a slot.
+      const existing = await prisma.apiKey.findMany({ where: { userId }, select: { revokedAt: true, expiresAt: true } });
+      if (existing.filter((k) => isApiKeyActive(k)).length >= MAX_ACTIVE_API_KEYS) {
+        throw new HttpError(409, `You can have at most ${MAX_ACTIVE_API_KEYS} active API keys. Revoke one you no longer use first.`);
+      }
+
       const token = generateApiKeyToken();
       const created = await prisma.apiKey.create({
-        data: { userId, label, hash: hashApiKeyToken(token) },
+        data: {
+          userId,
+          label,
+          hash: hashApiKeyToken(token),
+          readOnly: readOnly === true,
+          expiresAt: expiresInDays != null ? new Date(Date.now() + expiresInDays * 24 * 60 * 60 * 1000) : null,
+        },
       });
-      await notifyAccountChange(userId, `A new API key was created: ${label}.`);
+      await notifyAccountChange(userId, `A new API key was created: ${label}${created.readOnly ? ' (read-only)' : ''}${created.expiresAt ? `, expires ${created.expiresAt.toISOString().slice(0, 10)}` : ''}.`);
       reply.status(201);
       const response: CreateApiKeyResponse = { ...toApiKeySummary(created), key: token };
       return reply.send(response);

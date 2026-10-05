@@ -2,7 +2,7 @@ import type { FastifyInstance, FastifyBaseLogger } from 'fastify';
 import { Prisma } from '@prisma/client';
 import { HttpError } from '../util/httpError.js';
 import { prisma } from '../db/client.js';
-import { resolveApiKeyUserId } from '../services/apiKeys.js';
+import { resolveApiKey } from '../services/apiKeys.js';
 import { requireMembership } from '../services/roomAccess.js';
 import { gameInclude, serializeGames } from '../services/gameSerializer.js';
 import { recordSyncSources } from '../services/syncSources.js';
@@ -274,7 +274,13 @@ export default async function apiV1Routes(app: FastifyInstance) {
   // here, not on the top-level `app`, is what keeps bearer auth from ever applying to any
   // cookie-authenticated route registered outside this plugin.
   app.addHook('preHandler', async (request) => {
-    request.apiKeyUserId = await resolveApiKeyUserId(request.headers.authorization);
+    const { userId, readOnly } = await resolveApiKey(request.headers.authorization);
+    // A read-only key can look but not change anything: every route here that writes is a POST,
+    // PUT, PATCH or DELETE, so refusing anything but GET/HEAD covers them all (including ones added later).
+    if (readOnly && request.method !== 'GET' && request.method !== 'HEAD') {
+      throw new HttpError(403, 'This API key is read-only');
+    }
+    request.apiKeyUserId = userId;
   });
 
   app.get('/library', apiV1RateLimit, async (request) => {
