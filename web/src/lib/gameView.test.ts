@@ -44,6 +44,7 @@ describe('reviewAverage', () => {
   it('averages only the scored categories', () => {
     expect(reviewAverage({ art: 5, gameplay: 3, story: null, sound: null })).toBe(4);
     expect(reviewAverage({ art: null, gameplay: null, story: null, sound: null })).toBeNull();
+    expect(reviewAverage({ art: 4, gameplay: 4, story: 4, sound: 4, themes: 5 })).toBe(4.2);
   });
 });
 

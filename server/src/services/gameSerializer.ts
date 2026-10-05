@@ -48,6 +48,7 @@ export function toGameReviewDto(
     gameplay: number | null;
     story: number | null;
     sound: number | null;
+    themes?: number | null;
     note: string | null;
     recommend?: boolean | null;
     reviewedAt: Date;
@@ -59,6 +60,7 @@ export function toGameReviewDto(
     gameplay: review.gameplay,
     story: review.story,
     sound: review.sound,
+    themes: review.themes ?? null,
     note: review.note,
     recommend: review.recommend ?? null,
     reviewedAt: review.reviewedAt.toISOString(),

@@ -273,7 +273,7 @@ export function coverUrlOf(g: Game): string | null {
 }
 
 /** Average of the scored review categories, or null when there are none. */
-export function reviewAverage(r: { art: number | null; gameplay: number | null; story: number | null; sound: number | null }): number | null {
-  const vals = [r.art, r.gameplay, r.story, r.sound].filter((v): v is number => v !== null);
+export function reviewAverage(r: { art: number | null; gameplay: number | null; story: number | null; sound: number | null; themes?: number | null }): number | null {
+  const vals = [r.art, r.gameplay, r.story, r.sound, r.themes ?? null].filter((v): v is number => v !== null);
   return vals.length ? vals.reduce((a, b) => a + b, 0) / vals.length : null;
 }

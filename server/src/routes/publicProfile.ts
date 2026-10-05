@@ -25,8 +25,8 @@ function journalTime(logs: { startedAt: Date; finishedAt: Date | null }[]): numb
 }
 
 /** Average of the review's scored categories; -1 when there's no review or no scores. */
-function reviewScore(r: { art: number | null; gameplay: number | null; story: number | null; sound: number | null } | undefined): number {
-  const vals = r ? [r.art, r.gameplay, r.story, r.sound].filter((v): v is number => v !== null) : [];
+function reviewScore(r: { art: number | null; gameplay: number | null; story: number | null; sound: number | null; themes?: number | null } | undefined): number {
+  const vals = r ? [r.art, r.gameplay, r.story, r.sound, r.themes ?? null].filter((v): v is number => v !== null) : [];
   return vals.length ? vals.reduce((x, y) => x + y, 0) / vals.length : -1;
 }
 

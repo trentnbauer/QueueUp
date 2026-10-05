@@ -1444,6 +1444,9 @@ model GameReview {
   gameplay   Int?
   story      Int?
   sound      Int?
+  /// Themes and ideas (issue #865): how interesting the game's themes, premise and ideas are. Null
+  /// when not scored, and on reviews written before it existed.
+  themes     Int?
   note       String?
   /// Would they recommend it to someone else: true (thumbs up), false (thumbs down), null (didn't say).
   recommend  Boolean?

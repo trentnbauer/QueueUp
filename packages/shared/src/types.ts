@@ -576,13 +576,15 @@ export interface Tag {
   createdAt: string;
 }
 
-/** An owner's review of a Beaten game - four independent 1-5 scores (any may be null) plus an
+/** An owner's review of a Beaten game - five independent 1-5 scores (any may be null) plus an
  * optional one-line note. */
 export interface GameReview {
   art: number | null;
   gameplay: number | null;
   story: number | null;
   sound: number | null;
+  /** Themes and ideas (issue #865): null when not scored, and on reviews from before it existed. */
+  themes: number | null;
   note: string | null;
   /** Would they recommend it: 👍 true, 👎 false, null when they didn't say. */
   recommend: boolean | null;
@@ -594,6 +596,7 @@ export const REVIEW_CATEGORIES = [
   { key: 'gameplay', label: 'Gameplay' },
   { key: 'story', label: 'Story' },
   { key: 'sound', label: 'Sound & music' },
+  { key: 'themes', label: 'Themes & ideas' },
 ] as const;
 
 export type ReviewCategoryKey = (typeof REVIEW_CATEGORIES)[number]['key'];
@@ -759,6 +762,7 @@ export interface SetGameReviewRequest {
   gameplay?: number | null;
   story?: number | null;
   sound?: number | null;
+  themes?: number | null;
   note?: string | null;
   recommend?: boolean | null;
 }

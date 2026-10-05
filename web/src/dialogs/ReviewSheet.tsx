@@ -14,7 +14,7 @@ import { st } from '../ui/st';
 import { t as tr, useT } from '../i18n';
 import { reviewCategoryLabel } from '../i18n/labels';
 
-type Scores = Record<'art' | 'gameplay' | 'story' | 'sound', number>;
+type Scores = Record<'art' | 'gameplay' | 'story' | 'sound' | 'themes', number>;
 
 /** The person's draft of a game's review (would they recommend it, four 1-5 scores and a one-line
  * note) and the save action, shared by the review sheet and the review embedded in the game card.
@@ -30,6 +30,7 @@ export function useReviewDraft(game: Game, edit: boolean, onSaved: (saved: { has
     gameplay: existing?.gameplay ?? 0,
     story: existing?.story ?? 0,
     sound: existing?.sound ?? 0,
+    themes: existing?.themes ?? 0,
   });
   const [note, setNote] = useState(existing?.note ?? '');
   const [recommend, setRecommend] = useState<boolean | null>(existing?.recommend ?? null);
@@ -45,6 +46,7 @@ export function useReviewDraft(game: Game, edit: boolean, onSaved: (saved: { has
           gameplay: scores.gameplay || null,
           story: scores.story || null,
           sound: scores.sound || null,
+          themes: scores.themes || null,
           note: note.trim() || null,
           recommend,
         });
