@@ -2632,6 +2632,12 @@ export interface AiMatchPendingResponse {
   /** How many waiting titles the AI looked at. */
   checked: number;
   fallback: AiFallbackNotice | null;
+  /** Where the next chunk starts (send it back as `after`), or null once every waiting title has been looked at. */
+  next: string | null;
+  /** How many waiting titles are still to be looked at after this chunk. */
+  remaining: number;
+  /** Why the run ended early (provider error, the daily limit on the shared AI), if it did; what was done is kept. */
+  stopped: string | null;
 }
 
 /** What an imported title looks like to the AI. Only `soundtrack`, `tool`, `demo` and `bundle` are
@@ -2655,9 +2661,18 @@ export interface AiClassifyPendingResponse {
   items: AiImportClassification[];
   checked: number;
   fallback: AiFallbackNotice | null;
+  next: string | null;
+  remaining: number;
+  stopped: string | null;
 }
 
 /** Body for POST /api/library/pending-imports/dismiss-many. */
+/** Body for POST /api/library/pending-imports/ai-match and ai-classify: carry on after the `next`
+ * the previous chunk returned (leave out to start from the newest). */
+export interface AiPendingChunkRequest {
+  after?: string | null;
+}
+
 export interface DismissPendingLibraryImportsRequest {
   ids: string[];
 }

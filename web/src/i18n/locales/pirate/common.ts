@@ -28,4 +28,5 @@ export const common: Record<keyof typeof en, string> = {
   "common.saving": "Stowin’…",
   "common.retry": "Try again",
   "common.requestFailed": "A squall hit the request: {status}",
+  "common.aiPicked": "AI Picked",
 };

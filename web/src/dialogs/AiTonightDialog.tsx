@@ -5,7 +5,7 @@ import { AI_SETTINGS_QUERY_KEY, aiApi } from '../api/ai';
 import { gamesApi } from '../api/games';
 import { useUi } from '../context/UiContext';
 import { Dialog } from '../ui/Dialog';
-import { AiBadge, Banner, Btn, Cover, inputPill } from '../ui/primitives';
+import { AiPickedBadge, Banner, Btn, Cover, inputPill } from '../ui/primitives';
 import { st } from '../ui/st';
 import { useT, type MessageKey } from '../i18n';
 
@@ -17,7 +17,7 @@ function PickCard({ pick, label, onStart, busy }: { pick: AiTonightPick; label: 
   return (
     <div style={st('display:flex;flex-direction:column;gap:10px;padding:12px;border-radius:18px;background:var(--surf)')}>
       <div style={st('display:flex;align-items:center;gap:8px')}>
-        <AiBadge title={t('home.tonight.badge')} />
+        <AiPickedBadge title={t('home.tonight.badge')} />
         <span style={st('font:600 12px var(--font-mono);letter-spacing:0.06em;color:var(--muted)')}>{label}</span>
       </div>
       <div style={st('display:flex;gap:12px;align-items:center;min-width:0')}>
