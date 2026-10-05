@@ -5,14 +5,15 @@ import { EXOPHASE_STATUS_QUERY_KEY, exophaseApi } from '../api/exophase';
 import { XBOX_STATUS_QUERY_KEY, xboxApi } from '../api/xbox';
 import { PSN_STATUS_QUERY_KEY, psnApi } from '../api/psn';
 import { AI_SETTINGS_QUERY_KEY, aiApi } from '../api/ai';
-import { AiSettingsForm } from '../dialogs/AiSettingsDialog';
+import { AiSettingsDialog } from '../dialogs/AiSettingsDialog';
+import { SystemsDialog } from '../dialogs/MeDialog';
 import {
   ALERT_EMAIL_QUERY_KEY,
   NOTIFICATION_PREFERENCES_QUERY_KEY,
   alertEmailApi,
   notificationPreferencesApi,
 } from '../api/notificationPreferences';
-import { PRICE_REGION_LABELS, type EmailAlertType, type PriceRegion } from '@queueup/shared';
+import { PRICE_REGION_LABELS, ROOM_PLATFORM_LABELS, sortPlatforms, type EmailAlertType, type PriceRegion, type ProfileVisibility } from '@queueup/shared';
 import { useAuth } from '../context/AuthContext';
 import { LANGUAGES, useI18n, type MessageKey } from '../i18n';
 import { priceRegionLabel } from '../i18n/labels';
@@ -27,11 +28,10 @@ import { resolveThemeMode, type Accent, type ThemePreference } from '../theme/ap
 import { getBasePath } from '../utils/basePath';
 import { Toggle, inputPill } from '../ui/primitives';
 import { LIBRARY_BRAND, LibraryLogo, type LibraryKind } from '../ui/LibraryLogo';
-import { SystemsPicker } from '../ui/SystemsPicker';
 import { st } from '../ui/st';
 
 const REGIONS = Object.keys(PRICE_REGION_LABELS) as PriceRegion[];
-type StepKind = 'language' | 'name' | 'theme' | 'layout' | 'currency' | 'systems' | 'library' | 'email' | 'analytics' | 'accent' | 'rooms' | 'ai';
+type StepKind = 'language' | 'name' | 'visibility' | 'theme' | 'layout' | 'currency' | 'library' | 'email' | 'accent' | 'rooms' | 'optional';
 /** Each step's title and sub, as `shell.onboarding.<kind>.title` / `.sub` keys. */
 const stepText = (t: (key: MessageKey) => string, kind: Exclude<StepKind, 'language'>): [string, string] => [
   t(`shell.onboarding.${kind}.title` as MessageKey),
@@ -160,7 +160,7 @@ function DirectTile({ kind, linked, caption, disabled, onClick }: { kind: Librar
  * rooms) stack above it. */
 export function Onboarding({ onDone }: { onDone: () => void }) {
   const ui = useUi();
-  const { user, steamLinked, refetch } = useAuth();
+  const { user, steamLinked, profileVisibility, ownedPlatforms, refetch } = useAuth();
   const { region, setRegion } = useCurrencyRegion();
   const { preference, setPreference, accent, setAccent } = useThemeMode();
   const { viewMode, setViewMode } = useViewMode();
@@ -177,30 +177,35 @@ export function Onboarding({ onDone }: { onDone: () => void }) {
   const psn = useQuery({ queryKey: PSN_STATUS_QUERY_KEY, queryFn: psnApi.status });
   // The Xbox tile only shows when the server has an Xbox app set up.
   const xbox = useQuery({ queryKey: XBOX_STATUS_QUERY_KEY, queryFn: xboxApi.status });
-  // The AI step only appears when this server lets people add their own AI key.
+  // The AI button in the optional step only appears when this server lets people add their own AI key.
   const ai = useQuery({ queryKey: AI_SETTINGS_QUERY_KEY, queryFn: aiApi.mine });
   const { language, setLanguage, t } = useI18n();
   const kinds: StepKind[] = [
     // Language comes first (#776), so everything after it is in the language they picked.
     'language',
     'name',
+    // Who can see their profile, with what each choice does; defaults to public.
+    'visibility',
     'theme',
     // Room colours belong with the look of the app, so they follow the theme (#867).
     'accent',
     'layout',
     'currency',
-    'systems',
     'library',
     ...(prefs.data?.emailAvailable ? (['email'] as const) : []),
     'rooms',
-    // Only when the operator has set a Google Analytics id.
-    ...(analytics.available ? (['analytics'] as const) : []),
-    // Optional, and always the very last step (#858), after analytics (#795).
-    ...(ai.data?.userSettingsAllowed ? (['ai'] as const) : []),
+    // Always the very last step: Systems owned, AI and (when the operator set a Google Analytics id)
+    // the usage-stats toggle. None of it is needed to get started.
+    'optional',
   ];
   const [step, setStep] = useState(0);
   const [wantEmail, setWantEmail] = useState(false);
-  const [shareStats, setShareStats] = useState(analytics.consent === 'granted');
+  // On unless they have already said no (the account's answer wins when there is one).
+  const [shareStats, setShareStats] = useState(analytics.consent !== 'denied');
+  const [visibility, setVisibility] = useState<ProfileVisibility>(profileVisibility ?? 'public');
+  const [visibilityError, setVisibilityError] = useState<string | null>(null);
+  const [systemsOpen, setSystemsOpen] = useState(false);
+  const [aiOpen, setAiOpen] = useState(false);
   const [emailDraft, setEmailDraft] = useState<string | null>(null);
   const [emailTypes, setEmailTypes] = useState<Set<EmailAlertType>>(new Set(EMAIL_CHOICES.filter((c) => c.on).map((c) => c.type)));
   const [emailError, setEmailError] = useState<string | null>(null);
@@ -240,8 +245,21 @@ export function Onboarding({ onDone }: { onDone: () => void }) {
         setSavingName(false);
       }
     }
-    // Recorded either way on Next, so the answer is "no" unless they turned it on.
-    if (kind === 'analytics') analytics.setConsent(shareStats);
+    // Recorded either way on Next, so a switched-off toggle is a recorded "no".
+    if (kind === 'optional' && analytics.available) analytics.setConsent(shareStats);
+    if (kind === 'visibility' && visibility !== profileVisibility) {
+      setSavingName(true);
+      try {
+        await authApi.setProfileVisibility(visibility);
+        await refetch();
+        setVisibilityError(null);
+      } catch (e) {
+        setVisibilityError(e instanceof Error ? e.message : t('settings.me.visibility.failed'));
+        return;
+      } finally {
+        setSavingName(false);
+      }
+    }
     if (kind === 'name') {
       const trimmed = name.trim().replace(/\s+/g, ' ');
       if (trimmed.length < 1 || trimmed.length > 40) {
@@ -423,7 +441,52 @@ export function Onboarding({ onDone }: { onDone: () => void }) {
           </select>
         )}
 
-        {kind === 'systems' && <SystemsPicker saveLabel={t('shell.onboarding.systems.save')} onSaved={() => ui.notify(t('shell.onboarding.systems.saved'))} />}
+        {kind === 'visibility' && (
+          <div style={st('flex-shrink:0;display:flex;flex-direction:column;gap:12px')}>
+            <div role="radiogroup" aria-label={t('settings.me.visibility')} style={st('display:flex;flex-direction:column;gap:10px')}>
+              {(
+                [
+                  ['public', t('settings.me.visibility.public'), t('shell.onboarding.visibility.public')],
+                  ['friends', t('settings.me.visibility.friends'), t('shell.onboarding.visibility.friends')],
+                  ['private', t('settings.me.visibility.private'), t('shell.onboarding.visibility.private')],
+                ] as const
+              ).map(([value, label, description]) => {
+                const on = visibility === value;
+                return (
+                  <button
+                    key={value}
+                    type="button"
+                    role="radio"
+                    aria-checked={on}
+                    onClick={() => {
+                      setVisibility(value);
+                      setVisibilityError(null);
+                    }}
+                    style={st(
+                      `display:flex;align-items:flex-start;gap:14px;padding:16px;border-radius:18px;border:none;background:var(--surf);color:var(--text);text-align:left;box-shadow:${on ? '0 0 0 2px var(--acc)' : '0 0 0 1px var(--line)'}`,
+                    )}
+                  >
+                    <span
+                      aria-hidden
+                      style={st(`margin-top:2px;width:20px;height:20px;flex-shrink:0;border-radius:50%;border:2px solid ${on ? 'var(--acc)' : 'var(--line)'};display:flex;align-items:center;justify-content:center`)}
+                    >
+                      {on && <span style={st('width:9px;height:9px;border-radius:50%;background:var(--acc)')} />}
+                    </span>
+                    <span style={st('min-width:0;display:flex;flex-direction:column;gap:4px')}>
+                      <span style={st('font:700 16px var(--font-ui)')}>
+                        {label}
+                        {value === 'public' && <span style={st('margin-left:8px;font:600 11px var(--font-mono);letter-spacing:0.06em;color:var(--accText)')}>{t('shell.onboarding.visibility.default')}</span>}
+                      </span>
+                      <span style={st('font:400 13.5px/1.45 var(--font-ui);color:var(--text2);text-wrap:pretty')}>{description}</span>
+                    </span>
+                  </button>
+                );
+              })}
+            </div>
+            {visibilityError && <span style={st('font:500 13px var(--font-ui);color:var(--danger)')}>{visibilityError}</span>}
+            <span style={st('font:400 13px/1.45 var(--font-ui);color:var(--muted)')}>{t('shell.onboarding.visibility.change')}</span>
+          </div>
+        )}
 
         {kind === 'library' && (
           <>
@@ -481,27 +544,6 @@ export function Onboarding({ onDone }: { onDone: () => void }) {
           </>
         )}
 
-        {kind === 'analytics' && (
-          <div style={st('flex-shrink:0;display:flex;flex-direction:column;gap:14px')}>
-            <div style={st('display:flex;align-items:center;gap:12px;padding:14px 16px;border-radius:16px;background:var(--surf)')}>
-              <span style={st('flex:1;font:600 15px var(--font-ui)')}>{t('shell.onboarding.analytics.share')}</span>
-              <Toggle on={shareStats} onChange={setShareStats} label={t('shell.onboarding.analytics.share')} />
-            </div>
-            <div style={st('display:flex;flex-direction:column;gap:8px;padding:14px 16px;border-radius:16px;border:1px solid var(--line);font:400 13.5px/1.45 var(--font-ui);color:var(--text2)')}>
-              <span style={st('font:600 12px var(--font-mono);letter-spacing:0.06em;color:var(--muted)')}>{t('shell.onboarding.analytics.whatGoogleGets')}</span>
-              <span>{t('shell.onboarding.analytics.pages')}</span>
-              <span>{t('shell.onboarding.analytics.device')}</span>
-              <span>{t('shell.onboarding.analytics.cookie')}</span>
-              <span style={st('color:var(--muted)')}>
-                {t('shell.onboarding.analytics.never')}{' '}
-                <a href={`${getBasePath()}/privacy`} target="_blank" rel="noopener" style={st('color:var(--accText)')}>
-                  {t('shell.onboarding.analytics.privacy')}
-                </a>
-              </span>
-            </div>
-          </div>
-        )}
-
         {kind === 'email' && (
           <div style={st('flex-shrink:0;display:flex;flex-direction:column;gap:14px')}>
             <div style={st('display:flex;align-items:center;gap:12px;padding:14px 16px;border-radius:16px;background:var(--surf)')}>
@@ -547,13 +589,6 @@ export function Onboarding({ onDone }: { onDone: () => void }) {
           </div>
         )}
 
-        {kind === 'ai' && (
-          <div style={st('flex-shrink:0;display:flex;flex-direction:column;gap:14px')}>
-            <AiSettingsForm />
-            <span style={st('font:400 13px/1.45 var(--font-ui);color:var(--muted)')}>{t('shell.onboarding.ai.skip')}</span>
-          </div>
-        )}
-
         {kind === 'rooms' && (
           <div style={st('flex-shrink:0;display:flex;flex-direction:column;gap:1px;border-radius:20px;overflow:hidden;background:var(--chip)')}>
             {(
@@ -579,7 +614,57 @@ export function Onboarding({ onDone }: { onDone: () => void }) {
             ))}
           </div>
         )}
+
+        {kind === 'optional' && (
+          <div style={st('flex-shrink:0;display:flex;flex-direction:column;gap:16px')}>
+            <div style={st('display:flex;flex-direction:column;gap:1px;border-radius:20px;overflow:hidden;background:var(--chip)')}>
+              <button
+                type="button"
+                onClick={() => setSystemsOpen(true)}
+                style={st('display:flex;align-items:center;gap:14px;min-height:68px;padding:12px 16px;border:none;background:var(--surf);color:var(--text);text-align:left')}
+              >
+                <span style={st('flex:1;min-width:0;display:flex;flex-direction:column;gap:2px')}>
+                  <span style={st('font:600 15px var(--font-ui)')}>{t('settings.systems.title')}</span>
+                  <span style={st('font:400 12.5px var(--font-ui);color:var(--muted)')}>
+                    {ownedPlatforms.length === 0 ? t('shell.onboarding.optional.systemsSub') : sortPlatforms(ownedPlatforms).map((p) => ROOM_PLATFORM_LABELS[p]).join(', ')}
+                  </span>
+                </span>
+                <span style={st('color:var(--muted);font-size:20px')}>›</span>
+              </button>
+              {ai.data?.userSettingsAllowed && (
+                <button
+                  type="button"
+                  onClick={() => setAiOpen(true)}
+                  style={st('display:flex;align-items:center;gap:14px;min-height:68px;padding:12px 16px;border:none;background:var(--surf);color:var(--text);text-align:left')}
+                >
+                  <span style={st('flex:1;min-width:0;display:flex;flex-direction:column;gap:2px')}>
+                    <span style={st('font:600 15px var(--font-ui)')}>{t('settings.ai.title')}</span>
+                    <span style={st('font:400 12.5px var(--font-ui);color:var(--muted)')}>{t('shell.onboarding.optional.aiSub')}</span>
+                  </span>
+                  <span style={st('color:var(--muted);font-size:20px')}>›</span>
+                </button>
+              )}
+            </div>
+            {analytics.available && (
+              <div style={st('display:flex;align-items:center;gap:12px;padding:14px 16px;border-radius:16px;background:var(--surf)')}>
+                <span style={st('flex:1;min-width:0;display:flex;flex-direction:column;gap:2px')}>
+                  <span style={st('font:600 15px var(--font-ui)')}>{t('shell.onboarding.analytics.share')}</span>
+                  <span style={st('font:400 12.5px/1.4 var(--font-ui);color:var(--muted)')}>
+                    {t('shell.onboarding.optional.analyticsSub')}{' '}
+                    <a href={`${getBasePath()}/privacy`} target="_blank" rel="noopener" style={st('color:var(--accText)')}>
+                      {t('shell.onboarding.analytics.privacy')}
+                    </a>
+                  </span>
+                </span>
+                <Toggle on={shareStats} onChange={setShareStats} label={t('shell.onboarding.analytics.share')} />
+              </div>
+            )}
+            <span style={st('font:400 13px/1.45 var(--font-ui);color:var(--muted)')}>{t('shell.onboarding.optional.later')}</span>
+          </div>
+        )}
       </div>
+      {systemsOpen && <SystemsDialog onClose={() => setSystemsOpen(false)} />}
+      {aiOpen && <AiSettingsDialog onClose={() => setAiOpen(false)} />}
       <div style={st('flex-shrink:0;padding:12px 22px 26px;width:100%;max-width:560px;margin:0 auto')}>
         <button
           type="button"
