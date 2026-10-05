@@ -24,6 +24,7 @@ import {
 import { getRoom, requireMembership } from './roomAccess.js';
 import { serializeGame } from './gameSerializer.js';
 import { setOwnershipPlatforms } from './gameOwnership.js';
+import { recordMatchRedirect } from './matchRedirects.js';
 import { VALID_PLATFORMS } from './userSettings.js';
 import { notifyRoom } from './notifications.js';
 import { logShelfActivity } from './roomActivity.js';
@@ -481,16 +482,29 @@ export async function backfillSteamAppId(gameId: string, igdbId: number): Promis
 /** "Incorrect match" (issue #814): points an existing game at a different IGDB entry, refreshing
  * everything captured from IGDB at intake (title, cover, release, play modes, review score, Steam
  * price match) while keeping what belongs to the card itself - status, votes, tags, play logs,
- * reviews. Refuses a target that's already in the same room/shelf, since two cards for one IGDB
- * game would break duplicate detection. Price-alert state is reset: it described the old game. */
+ * reviews. Price-alert state is reset: it described the old game.
+ *
+ * When the chosen game is already on the same room/shelf (the usual way a duplicate happens: the
+ * same game imported under two titles, e.g. a game and its remaster), the two cards are merged
+ * instead - see mergeIntoExisting. Either way the old igdbId is remembered as a redirect for
+ * `userId`'s later imports (see matchRedirects.ts). Returns the id of the card that survives. */
 export async function rematchGame(
-  game: { id: string; roomId: string | null; addedBy: string; igdbId: number },
+  userId: string,
+  game: { id: string; roomId: string | null; addedBy: string; igdbId: number; title: string; coverImageUrl: string | null },
   newIgdbId: number,
   platforms?: RoomPlatform[],
-): Promise<void> {
+): Promise<{ gameId: string; mergedFromId: string | null }> {
   if (!Number.isInteger(newIgdbId) || newIgdbId <= 0) throw new HttpError(400, 'A valid igdbId is required');
-  if (newIgdbId === game.igdbId) return;
-  await requireNotDuplicate(game.roomId, game.addedBy, newIgdbId);
+  if (newIgdbId === game.igdbId) return { gameId: game.id, mergedFromId: null };
+
+  const existing = await prisma.game.findFirst({
+    where: { ...duplicateScopeWhere(game.roomId, game.addedBy), igdbId: newIgdbId },
+  });
+  if (existing) {
+    await mergeIntoExisting(game.id, existing.id);
+    await recordMatchRedirect(userId, game, { igdbId: newIgdbId, title: existing.title });
+    return { gameId: existing.id, mergedFromId: game.id };
+  }
 
   const resolved = await resolveGameForCreation(newIgdbId, platforms);
   try {
@@ -522,6 +536,77 @@ export async function rematchGame(
   } catch (err) {
     rethrowAsDuplicateGame(err, game.roomId, resolved.title);
   }
+  await recordMatchRedirect(userId, game, { igdbId: newIgdbId, title: resolved.title });
+  return { gameId: game.id, mergedFromId: null };
+}
+
+/** Statuses meaning "nothing has happened with this yet" - when merging two cards of one game, the
+ * other card's status only wins over the surviving card's if the surviving one is still in one. */
+const UNSTARTED_STATUSES: GameStatus[] = ['wishlist', 'backlog'];
+
+/** Folds a duplicate card (sourceId) into the card for the same game that already exists
+ * (targetId), then deletes the duplicate. Everything the duplicate collected moves across -
+ * play logs, votes, removal votes, tags, reviews, Playnite playtime/completion rows, notifications,
+ * and anything pointing at it as a prerequisite or base game. Where both cards have the same
+ * per-person/per-tag row, the surviving card's is kept. The surviving card also takes over the
+ * duplicate's status when it is still wishlist/backlog and the duplicate has moved on, and its
+ * target price, manual price and replay date when it has none of its own. */
+async function mergeIntoExisting(sourceId: string, targetId: string): Promise<void> {
+  await prisma.$transaction(async (tx) => {
+    const [source, target] = await Promise.all([
+      tx.game.findUniqueOrThrow({ where: { id: sourceId } }),
+      tx.game.findUniqueOrThrow({ where: { id: targetId } }),
+    ]);
+
+    // Per-person rows: drop the duplicate's where the survivor already has one, move the rest.
+    const targetVoters = (await tx.vote.findMany({ where: { gameId: targetId }, select: { userId: true } })).map((r) => r.userId);
+    await tx.vote.deleteMany({ where: { gameId: sourceId, userId: { in: targetVoters } } });
+    await tx.vote.updateMany({ where: { gameId: sourceId }, data: { gameId: targetId } });
+
+    const targetRemovers = (await tx.removalVote.findMany({ where: { gameId: targetId }, select: { userId: true } })).map((r) => r.userId);
+    await tx.removalVote.deleteMany({ where: { gameId: sourceId, userId: { in: targetRemovers } } });
+    await tx.removalVote.updateMany({ where: { gameId: sourceId }, data: { gameId: targetId } });
+
+    const targetTags = (await tx.gameTag.findMany({ where: { gameId: targetId }, select: { tagId: true } })).map((r) => r.tagId);
+    await tx.gameTag.deleteMany({ where: { gameId: sourceId, tagId: { in: targetTags } } });
+    await tx.gameTag.updateMany({ where: { gameId: sourceId }, data: { gameId: targetId } });
+
+    const targetReviewers = (await tx.gameReview.findMany({ where: { gameId: targetId }, select: { userId: true } })).map((r) => r.userId);
+    await tx.gameReview.deleteMany({ where: { gameId: sourceId, userId: { in: targetReviewers } } });
+    await tx.gameReview.updateMany({ where: { gameId: sourceId }, data: { gameId: targetId } });
+
+    const targetSnapshotUsers = (await tx.playnitePlaytimeSnapshot.findMany({ where: { gameId: targetId }, select: { userId: true } })).map((r) => r.userId);
+    await tx.playnitePlaytimeSnapshot.deleteMany({ where: { gameId: sourceId, userId: { in: targetSnapshotUsers } } });
+    await tx.playnitePlaytimeSnapshot.updateMany({ where: { gameId: sourceId }, data: { gameId: targetId } });
+
+    const targetSuggestionUsers = (await tx.playniteCompletionSuggestion.findMany({ where: { gameId: targetId }, select: { userId: true } })).map((r) => r.userId);
+    await tx.playniteCompletionSuggestion.deleteMany({ where: { gameId: sourceId, userId: { in: targetSuggestionUsers } } });
+    await tx.playniteCompletionSuggestion.updateMany({ where: { gameId: sourceId }, data: { gameId: targetId } });
+
+    // Rows with no per-person uniqueness just move.
+    await tx.playLog.updateMany({ where: { gameId: sourceId }, data: { gameId: targetId } });
+    await tx.notification.updateMany({ where: { gameId: sourceId }, data: { gameId: targetId } });
+
+    // Other cards pointing at the duplicate now point at the survivor (never at itself).
+    await tx.game.updateMany({ where: { prerequisiteGameId: sourceId, id: { not: targetId } }, data: { prerequisiteGameId: targetId } });
+    await tx.game.updateMany({ where: { baseGameId: sourceId, id: { not: targetId } }, data: { baseGameId: targetId } });
+
+    const takeSourceStatus = UNSTARTED_STATUSES.includes(target.status) && !UNSTARTED_STATUSES.includes(source.status);
+    await tx.game.update({
+      where: { id: targetId },
+      data: {
+        ...(takeSourceStatus ? { status: source.status, replayedAt: source.replayedAt } : {}),
+        targetPrice: target.targetPrice ?? source.targetPrice,
+        manualPrice: target.manualPrice ?? source.manualPrice,
+        steamFullyCompleted: target.steamFullyCompleted || source.steamFullyCompleted,
+        // The survivor can't point at the duplicate, which is about to disappear.
+        ...(target.prerequisiteGameId === sourceId ? { prerequisiteGameId: null } : {}),
+        ...(target.baseGameId === sourceId ? { baseGameId: null } : {}),
+      },
+    });
+
+    await tx.game.delete({ where: { id: sourceId } });
+  });
 }
 
 /** Manually pins a game's Steam App ID (issue: manual gg.deals match) - for when neither the IGDB

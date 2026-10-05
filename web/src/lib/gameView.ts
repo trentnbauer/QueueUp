@@ -102,6 +102,12 @@ export const SHELF_IMPORT_TABS = [
       return t('home.tab.dismissed');
     },
   },
+  {
+    id: 'merged',
+    get label() {
+      return t('home.tab.merged');
+    },
+  },
 ] as const;
 
 // ---------------------------------------------------------------------------------------------

@@ -12,6 +12,7 @@ export const home = {
   "home.tab.wontPlay": "Won't play",
   "home.tab.matching": "Needs matching",
   "home.tab.dismissed": "Dismissed",
+  "home.tab.merged": "Merged",
 
   // Status card next steps (lib/gameView NEXT_ACTIONS)
   "home.next.moveToBacklog": "Move to Backlog",
@@ -152,6 +153,10 @@ export const home = {
   "home.imports.matchThem": "Match them",
   "home.imports.unknownPlatform": "Unknown platform",
   "home.imports.restore": "Restore",
+  "home.merged.none": "No merged games.",
+  "home.merged.intro": "Games you merged into another. Importing one of these again adds the game you merged it into, not a duplicate.",
+  "home.merged.forget": "Stop merging",
+  "home.merged.failed": "Could not update that.",
 
   // Play journal
   "home.journal.kind.added": "Added",

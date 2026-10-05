@@ -293,6 +293,7 @@ model User {
   pendingLibraryImports         PendingLibraryImport[]
   titleMatchSuggestions         TitleMatchSuggestion[]
   aiSettings                    UserAiSettings?
+  gameMatchRedirects            GameMatchRedirect[]
   feedReactions                 FeedReaction[]
   notificationPreferences       NotificationPreference[]
   emailChangeRequest            EmailChangeRequest?
@@ -464,6 +465,27 @@ model UserAiSettings {
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@map("user_ai_settings")
+}
+
+/// "This person re-matched a card away from `fromIgdbId` onto `toIgdbId`" (issue #814) - e.g. a game
+/// and its remaster that were both imported, where only the remaster is playable. Kept so a later
+/// Steam or Playnite import that resolves to the old igdbId lands on the game they picked instead
+/// of re-creating the duplicate. Per user: it is one person's say-so about their own library.
+model GameMatchRedirect {
+  userId             String   @map("user_id")
+  fromIgdbId         Int      @map("from_igdb_id")
+  /// Title and cover of the game that was merged away - kept so the shelf's Merged tab can list it
+  /// without another IGDB lookup, since no card for it exists any more.
+  fromTitle          String   @map("from_title")
+  fromCoverImageUrl  String?  @map("from_cover_image_url")
+  toIgdbId           Int      @map("to_igdb_id")
+  toTitle            String   @map("to_title")
+  createdAt          DateTime @default(now()) @map("created_at")
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@id([userId, fromIgdbId])
+  @@map("game_match_redirects")
 }
 
 /// An external-library title (e.g. from a Playnite import) that didn't resolve to an igdbId - no

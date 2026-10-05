@@ -15,12 +15,13 @@ export function IgdbMatchSheet({
 }: {
   gameId: string;
   gameTitle: string;
-  onMatched: (igdbId: number) => void;
+  onMatched: (result: GameSearchResult, merges: boolean) => void;
   onClose: () => void;
 }) {
   const t = useT();
   const [query, setQuery] = useState(gameTitle);
   const [results, setResults] = useState<GameSearchResult[] | null>(null);
+  const [existing, setExisting] = useState<Set<number>>(new Set());
   const [searching, setSearching] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const requestId = useRef(0);
@@ -30,8 +31,11 @@ export function IgdbMatchSheet({
     setSearching(true);
     setError(null);
     try {
-      const { results: found } = await gamesApi.igdbSearch(gameId, q);
-      if (id === requestId.current) setResults(found);
+      const { results: found, existingIgdbIds } = await gamesApi.igdbSearch(gameId, q);
+      if (id === requestId.current) {
+        setResults(found);
+        setExisting(new Set(existingIgdbIds));
+      }
     } catch {
       if (id === requestId.current) setError(t('game.igdbMatch.error'));
     } finally {
@@ -77,7 +81,7 @@ export function IgdbMatchSheet({
             <button
               key={r.igdbId}
               type="button"
-              onClick={() => onMatched(r.igdbId)}
+              onClick={() => onMatched(r, existing.has(r.igdbId))}
               style={st('display:flex;align-items:center;gap:12px;min-height:64px;padding:8px 14px;border:none;background:var(--surf);color:var(--text);text-align:left')}
             >
               <span
@@ -92,10 +96,10 @@ export function IgdbMatchSheet({
               <span style={st('flex:1;min-width:0;display:flex;flex-direction:column;gap:2px')}>
                 <span style={st('font:600 14.5px var(--font-ui)')}>{r.title}</span>
                 <span style={st('color:var(--muted);font:400 12.5px var(--font-ui)')}>
-                  {[r.releaseYear, r.platform].filter(Boolean).join(' · ')}
+                  {[r.releaseYear, r.platform, existing.has(r.igdbId) ? t('game.igdbMatch.existing') : null].filter(Boolean).join(' · ')}
                 </span>
               </span>
-              <span style={st('height:30px;padding:0 12px;border-radius:999px;background:var(--accSoft2);color:var(--accText);font:600 12.5px var(--font-ui);display:flex;align-items:center')}>{t('game.igdbMatch.pick')}</span>
+              <span style={st('height:30px;padding:0 12px;border-radius:999px;background:var(--accSoft2);color:var(--accText);font:600 12.5px var(--font-ui);display:flex;align-items:center')}>{existing.has(r.igdbId) ? t('game.igdbMatch.merge') : t('game.igdbMatch.pick')}</span>
             </button>
           ))}
         </div>
