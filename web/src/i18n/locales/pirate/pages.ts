@@ -72,6 +72,7 @@ export const pages: Record<keyof typeof en, string> = {
   "pages.profile.achievements": "Treasures",
   "pages.profile.noAchievements": "No treasures unlocked yet.",
   "pages.profile.ofPlayers": "o’ players",
+  "pages.profile.moreBadges": "+{n} more",
   "pages.profile.bothOwnTitle": "Ye both own · {n}",
   "pages.profile.bothOwnHint": "Ye and {name} can play these together.",
   "pages.profile.libraryTitle": "Hoard · {n}",
