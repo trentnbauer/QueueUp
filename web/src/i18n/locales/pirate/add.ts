@@ -51,6 +51,7 @@ export const add: Record<keyof typeof en, string> = {
   "add.game.ai.again": "Ask again",
   "add.game.ai.working": "Askin’ the parrot...",
   "add.game.ai.hint": "The parrot looks at the games ye loved and suggests others ye might like.",
+  "add.game.ai.hintRoom": "The parrot looks at what this ship has played, how the crew reviewed and voted, and suggests games fer the lot o’ ye.",
   "add.game.ai.none": "The parrot found nothin’ new to suggest.",
   "add.game.ai.failed": "The parrot couldn’t make suggestions.",
   "add.game.ai.badge": "Suggested by AI. Check it before ye add it.",

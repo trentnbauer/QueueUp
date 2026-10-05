@@ -2629,6 +2629,11 @@ export interface AiRecommendation extends GameSearchResult {
   reason: string;
 }
 
+/** Body for POST /api/games/ai-recommend. Without a roomId it is for the Personal Shelf. */
+export interface AiRecommendRequest {
+  roomId?: string | null;
+}
+
 /** Result of POST /api/games/ai-recommend. */
 export interface AiRecommendResponse {
   recommendations: AiRecommendation[];
