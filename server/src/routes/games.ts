@@ -1182,7 +1182,11 @@ export default async function gameRoutes(app: FastifyInstance) {
           review,
         };
         if (target) {
-          await prisma.roomActivity.update({ where: { id: target.id }, data: { payload: payload as unknown as Prisma.InputJsonValue } });
+          // Merged, not replaced: the entry's own `from` (the status before) is what the play
+          // journal uses to tell a real playthrough from an untracked finish, so dropping it made
+          // the entry vanish from the journal once a review was saved.
+          const merged = { ...(target.payload as Record<string, unknown>), ...payload };
+          await prisma.roomActivity.update({ where: { id: target.id }, data: { payload: merged as unknown as Prisma.InputJsonValue } });
         } else {
           void logShelfActivity({
             recipientId: userId,
