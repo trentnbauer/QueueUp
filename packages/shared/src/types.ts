@@ -982,6 +982,17 @@ export interface SetIgdbMatchRequest {
   igdbId: number;
 }
 
+/** A game the person merged into another (issue #814) - listed on the Personal Shelf's Merged tab.
+ * Later imports of `fromIgdbId` land on `toIgdbId` instead of re-creating the duplicate. */
+export interface MergedGame {
+  fromIgdbId: number;
+  fromTitle: string;
+  fromCoverImageUrl: string | null;
+  toIgdbId: number;
+  toTitle: string;
+  createdAt: string;
+}
+
 /** Relocates a game to a different room, or to the mover's Personal Shelf (roomId: null). */
 export interface MoveGameRequest {
   roomId: string | null;

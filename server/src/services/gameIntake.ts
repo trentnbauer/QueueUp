@@ -24,6 +24,7 @@ import {
 import { getRoom, requireMembership } from './roomAccess.js';
 import { serializeGame } from './gameSerializer.js';
 import { setOwnershipPlatforms } from './gameOwnership.js';
+import { recordMatchRedirect } from './matchRedirects.js';
 import { VALID_PLATFORMS } from './userSettings.js';
 import { notifyRoom } from './notifications.js';
 import { logShelfActivity } from './roomActivity.js';
@@ -485,9 +486,11 @@ export async function backfillSteamAppId(gameId: string, igdbId: number): Promis
  *
  * When the chosen game is already on the same room/shelf (the usual way a duplicate happens: the
  * same game imported under two titles, e.g. a game and its remaster), the two cards are merged
- * instead - see mergeIntoExisting. Returns the id of the card that survives. */
+ * instead - see mergeIntoExisting. Either way the old igdbId is remembered as a redirect for
+ * `userId`'s later imports (see matchRedirects.ts). Returns the id of the card that survives. */
 export async function rematchGame(
-  game: { id: string; roomId: string | null; addedBy: string; igdbId: number },
+  userId: string,
+  game: { id: string; roomId: string | null; addedBy: string; igdbId: number; title: string; coverImageUrl: string | null },
   newIgdbId: number,
   platforms?: RoomPlatform[],
 ): Promise<{ gameId: string; mergedFromId: string | null }> {
@@ -499,6 +502,7 @@ export async function rematchGame(
   });
   if (existing) {
     await mergeIntoExisting(game.id, existing.id);
+    await recordMatchRedirect(userId, game, { igdbId: newIgdbId, title: existing.title });
     return { gameId: existing.id, mergedFromId: game.id };
   }
 
@@ -532,6 +536,7 @@ export async function rematchGame(
   } catch (err) {
     rethrowAsDuplicateGame(err, game.roomId, resolved.title);
   }
+  await recordMatchRedirect(userId, game, { igdbId: newIgdbId, title: resolved.title });
   return { gameId: game.id, mergedFromId: null };
 }
 

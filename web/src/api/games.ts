@@ -31,6 +31,7 @@ import type {
   SetManualPriceRequest,
   SetSteamMatchRequest,
   SetIgdbMatchRequest,
+  MergedGame,
   SetTargetPriceRequest,
   ShelfActivityPage,
   SteamCompletionsSyncResult,
@@ -104,6 +105,8 @@ export const gamesApi = {
   steamSearch: (id: string, q?: string) =>
     apiGet<{ results: SteamStoreMatch[] }>(`/api/games/${id}/steam-search${q ? `?q=${encodeURIComponent(q)}` : ''}`),
   setSteamMatch: (id: string, body: SetSteamMatchRequest) => apiPatch<{ game: Game }>(`/api/games/${id}/steam-match`, body),
+  mergedList: () => apiGet<{ merged: MergedGame[] }>('/api/games/merged'),
+  forgetMerged: (fromIgdbId: number) => apiDelete(`/api/games/merged/${fromIgdbId}`),
   igdbSearch: (id: string, q: string) => apiGet<{ results: GameSearchResult[]; existingIgdbIds: number[] }>(`/api/games/${id}/igdb-search?q=${encodeURIComponent(q)}`),
   setIgdbMatch: (id: string, body: SetIgdbMatchRequest) => apiPatch<{ game: Game; mergedFromId: string | null }>(`/api/games/${id}/igdb-match`, body),
   setTargetPrice: (id: string, body: SetTargetPriceRequest) =>
@@ -142,3 +145,5 @@ export const gamesApi = {
   setReview: (id: string, body: SetGameReviewRequest) => apiPut<{ game: Game }>(`/api/games/${id}/review`, body),
   syncSteamCompletions: () => apiPost<SteamCompletionsSyncResult>('/api/games/sync-steam-completions'),
 };
+
+export const MERGED_GAMES_QUERY_KEY = ['games', 'merged'] as const;

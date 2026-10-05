@@ -14,6 +14,8 @@ import { JournalList } from './JournalList';
 import { UNDO_MS } from '../game/useChangeStatus';
 import { PendingImportsList } from './PendingImportsList';
 import { useQuery } from '@tanstack/react-query';
+import { MERGED_GAMES_QUERY_KEY, gamesApi } from '../api/games';
+import { MergedGamesList } from './MergedGamesList';
 import { DISMISSED_IMPORTS_QUERY_KEY, PENDING_IMPORTS_QUERY_KEY, pendingImportsApi } from '../api/pendingImports';
 import { ROOM_PLATFORM_LABELS } from '@queueup/shared';
 import { Avatar, Banner, Btn, SearchField } from '../ui/primitives';
@@ -76,7 +78,8 @@ export function HomeView() {
   const [moreOpen, setMoreOpen] = useState(false);
   const pendingList = useQuery({ queryKey: PENDING_IMPORTS_QUERY_KEY, queryFn: pendingImportsApi.list, enabled: isShelf });
   const dismissedList = useQuery({ queryKey: DISMISSED_IMPORTS_QUERY_KEY, queryFn: pendingImportsApi.listDismissed, enabled: isShelf && moreOpen });
-  const importTab = tab === 'matching' || tab === 'dismissed' ? tab : null;
+  const importTab = tab === 'matching' || tab === 'dismissed' || tab === 'merged' ? tab : null;
+  const mergedList = useQuery({ queryKey: MERGED_GAMES_QUERY_KEY, queryFn: gamesApi.mergedList, enabled: isShelf && moreOpen });
   const moreActive = SHELF_MORE_TABS.some((tb) => tb.id === tab) || importTab !== null;
   const [query, setQuery] = useState('');
   // The 📖 tab shows the play journal instead of a game list - the room's, or on the shelf your own
@@ -414,6 +417,7 @@ export function HomeView() {
             ...SHELF_MORE_TABS.map((tb) => ({ id: tb.id, label: tb.label, count: lists.counts[tb.id] ?? 0 })),
             { id: 'matching', label: SHELF_IMPORT_TABS[0].label, count: pendingList.data?.pending.length ?? 0 },
             { id: 'dismissed', label: SHELF_IMPORT_TABS[1].label, count: dismissedList.data?.pending.length ?? null },
+            { id: 'merged', label: SHELF_IMPORT_TABS[2].label, count: mergedList.data?.merged.length ?? null },
           ].map((tb) => {
             const on = tab === tb.id && !searching;
             return (
@@ -438,7 +442,8 @@ export function HomeView() {
         </div>
       )}
 
-      {importTab && <PendingImportsList kind={importTab} />}
+      {importTab === 'merged' && <MergedGamesList />}
+      {(importTab === 'matching' || importTab === 'dismissed') && <PendingImportsList kind={importTab} />}
       {journalTab && (
         <JournalList
           roomId={room?.id}

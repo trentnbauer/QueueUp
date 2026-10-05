@@ -41,6 +41,7 @@ import {
   isAddonCategory,
 } from '../services/igdbClient.js';
 import { getOwnedPlatforms } from '../services/userSettings.js';
+import { applyMatchRedirect, listMatchRedirects, deleteMatchRedirect } from '../services/matchRedirects.js';
 import {
   resolveSteamId64,
   getOwnedSteamGames,
@@ -297,7 +298,9 @@ async function runSteamLibraryImportLoop(
         // New Order, The Old Blood, and The New Colossus) - that game would otherwise be silently
         // skipped on every import run forever. Falls back to an exact-title IGDB search using
         // Steam's own name for the app before giving up on it.
-        const igdbId = (await findIgdbIdBySteamAppId(game.appId)) ?? (await findIgdbIdByExactTitle(game.name));
+        const foundIgdbId = (await findIgdbIdBySteamAppId(game.appId)) ?? (await findIgdbIdByExactTitle(game.name));
+        // A game the user re-matched onto another (issue #814) imports as that one, not as a new duplicate.
+        const igdbId = foundIgdbId === null ? null : await applyMatchRedirect(userId, foundIgdbId);
         if (igdbId === null) {
           skipped++;
           continue;
@@ -402,7 +405,8 @@ async function runSteamWishlistImportLoop(
   try {
     for (const appId of considered) {
       try {
-        const igdbId = await findIgdbIdBySteamAppId(appId);
+        const foundIgdbId = await findIgdbIdBySteamAppId(appId);
+        const igdbId = foundIgdbId === null ? null : await applyMatchRedirect(userId, foundIgdbId);
         if (igdbId === null || existingIgdbIdSet.has(igdbId)) {
           skipped++;
           continue;
@@ -1660,6 +1664,29 @@ export default async function gameRoutes(app: FastifyInstance) {
     },
   );
 
+  app.get('/api/games/merged', async (request) => {
+    const userId = await request.requireAuth();
+    const rows = await listMatchRedirects(userId);
+    return {
+      merged: rows.map((r) => ({
+        fromIgdbId: r.fromIgdbId,
+        fromTitle: r.fromTitle,
+        fromCoverImageUrl: r.fromCoverImageUrl,
+        toIgdbId: r.toIgdbId,
+        toTitle: r.toTitle,
+        createdAt: r.createdAt.toISOString(),
+      })),
+    };
+  });
+
+  app.delete<{ Params: { igdbId: string } }>('/api/games/merged/:igdbId', async (request) => {
+    const userId = await request.requireAuth();
+    const igdbId = Number.parseInt(request.params.igdbId, 10);
+    if (!Number.isInteger(igdbId)) throw new HttpError(400, 'A valid igdbId is required');
+    await deleteMatchRedirect(userId, igdbId);
+    return { ok: true };
+  });
+
   app.get<{ Params: { id: string }; Querystring: { q?: string; offset?: string } }>(
     '/api/games/:id/igdb-search',
     // Live IGDB search, same class of route (and limit) as /api/games/search.
@@ -1691,7 +1718,7 @@ export default async function gameRoutes(app: FastifyInstance) {
       await requireGameSettingsAccess(game, userId);
 
       const platform = game.roomId ? await getRoomPlatform(game.roomId) : null;
-      const { gameId, mergedFromId } = await rematchGame(game, request.body.igdbId, platform ? [platform] : undefined);
+      const { gameId, mergedFromId } = await rematchGame(userId, game, request.body.igdbId, platform ? [platform] : undefined);
       await invalidateExistingIgdbIds(game.roomId, game.addedBy);
 
       const updated = await loadGameOr404(gameId);

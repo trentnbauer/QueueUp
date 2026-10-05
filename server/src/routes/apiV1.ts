@@ -6,6 +6,7 @@ import { resolveApiKeyUserId } from '../services/apiKeys.js';
 import { requireMembership } from '../services/roomAccess.js';
 import { gameInclude, serializeGames } from '../services/gameSerializer.js';
 import { recordSyncSources } from '../services/syncSources.js';
+import { applyMatchRedirect } from '../services/matchRedirects.js';
 import { createGameForUser, resolveGameForCreation, defaultStatusForRelease, linkDlcToBaseGame } from '../services/gameIntake.js';
 import { isAddonCategory } from '../services/igdbClient.js';
 import { invalidateExistingIgdbIds } from '../services/gameAccess.js';
@@ -284,7 +285,9 @@ async function runPlayniteImportLoop(
   try {
     await runWithConcurrency(entries, PLAYNITE_IMPORT_CONCURRENCY, async (entry) => {
       try {
-        const igdbId = await resolveTitleToIgdbId(PLAYNITE_SOURCE, entry.title, userId);
+        const resolvedIgdbId = await resolveTitleToIgdbId(PLAYNITE_SOURCE, entry.title, userId);
+        // A game the user re-matched onto another (issue #814) imports as that one, not as a new duplicate.
+        const igdbId = resolvedIgdbId === null ? null : await applyMatchRedirect(userId, resolvedIgdbId);
         if (igdbId === null) {
           await recordPendingLibraryImport(userId, PLAYNITE_SOURCE, entry.title, entry.platforms);
           unmatched++;

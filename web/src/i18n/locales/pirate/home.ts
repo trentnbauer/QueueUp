@@ -14,6 +14,7 @@ export const home: Record<keyof typeof en, string> = {
   "home.tab.wontPlay": "Walked the plank",
   "home.tab.matching": "Needs matchin’",
   "home.tab.dismissed": "Cast off",
+  "home.tab.merged": "Merged",
 
   // Status card next steps (lib/gameView NEXT_ACTIONS)
   "home.next.moveToBacklog": "Stow in the Cargo hold",
@@ -154,6 +155,10 @@ export const home: Record<keyof typeof en, string> = {
   "home.imports.matchThem": "Match ’em",
   "home.imports.unknownPlatform": "Unknown vessel",
   "home.imports.restore": "Haul back",
+  "home.merged.none": "Nothin’ merged.",
+  "home.merged.intro": "Games ye merged into another. Importin’ one of these again adds the game ye merged it into, not a duplicate.",
+  "home.merged.forget": "Stop merging",
+  "home.merged.failed": "Couldn’t update that.",
 
   // Play journal
   "home.journal.kind.added": "Stowed",
