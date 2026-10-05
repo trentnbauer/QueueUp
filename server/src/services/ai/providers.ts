@@ -169,6 +169,9 @@ export async function callProvider(config: AiConfig, req: AiRequest, fetchImpl: 
       headers: built.headers,
       body: JSON.stringify(built.body),
       signal: AbortSignal.timeout(REQUEST_TIMEOUT_MS),
+      // Never follow a redirect: with a user-supplied base URL, a host could 307 this POST (and its
+      // key header) on to an address inside the network. A 3xx just reads as a failed request.
+      redirect: 'manual',
     });
   } catch (err) {
     const timedOut = err instanceof Error && (err.name === 'TimeoutError' || err.name === 'AbortError');
