@@ -2622,6 +2622,44 @@ export interface DismissPendingLibraryImportsRequest {
   ids: string[];
 }
 
+/** What a plain-language search was understood as (issue #823): the app's own filters plus a text
+ * query. Shown as chips the person can change or remove. Never contains a game. */
+export interface AiSearchFilters {
+  /** Keywords or a title for IGDB's text search, or null. */
+  query: string | null;
+  platforms: RoomPlatform[];
+  coop: boolean;
+  /** IGDB genre names. */
+  genres: string[];
+  /** Longest main-story length wanted, in hours. */
+  maxHours: number | null;
+  releasedFrom: number | null;
+  releasedTo: number | null;
+}
+
+/** Body for POST /api/games/ai-search: a sentence, for the shelf or (with roomId) a room. */
+export interface AiSearchRequest {
+  text: string;
+  roomId?: string | null;
+  /** Same switch as the normal search: false scopes to the person's owned systems. */
+  allPlatforms?: boolean;
+}
+
+/** Body for POST /api/games/ai-search/run: re-runs (edited) filters without asking the AI again. */
+export interface AiSearchRunRequest {
+  filters: AiSearchFilters;
+  roomId?: string | null;
+  allPlatforms?: boolean;
+}
+
+export interface AiSearchResponse {
+  filters: AiSearchFilters;
+  /** Parts of the sentence the app cannot filter by (for example a price), shown so nothing is silently dropped. */
+  unsupported: string[];
+  results: GameSearchResult[];
+  fallback: AiFallbackNotice | null;
+}
+
 /** What the backlog coach suggests doing to a card (issue #827). Each is a status change the person accepts. */
 export type AiCoachAction = 'wont_play' | 'play_next';
 
