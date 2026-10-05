@@ -1,3 +1,4 @@
+import { XBOX_STATUS_QUERY_KEY, xboxApi } from '../api/xbox';
 import { useEffect, useState, type ReactNode } from 'react';
 import { useNavigate } from 'react-router';
 import { useInfiniteQuery, useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
@@ -409,6 +410,8 @@ export function MeDialog() {
   const { viewMode, setViewMode } = useViewMode();
   const { density, setDensity } = useCardDensity();
   const sync = useSyncSources();
+  // The Xbox card only shows when the server has an Xbox app set up.
+  const { data: xboxStatus } = useQuery({ queryKey: XBOX_STATUS_QUERY_KEY, queryFn: xboxApi.status });
   // The Playnite card reflects whether its connection code has been used (#793).
   const { data: apiKeys } = useQuery({ queryKey: API_KEYS_QUERY_KEY, queryFn: apiKeysApi.list });
   const playniteKey = apiKeys?.keys
@@ -651,6 +654,21 @@ export function MeDialog() {
           accent={!!playniteKey?.lastUsedAt}
           onClick={open('playnite')}
         />
+        {xboxStatus?.configured && (
+          <ActionCard
+            title={t('settings.me.xbox')}
+            sub={
+              xboxStatus.connected
+                ? xboxStatus.lastSyncedAt
+                  ? t('settings.xbox.lastSynced', { when: formatRelativeTime(xboxStatus.lastSyncedAt) })
+                  : t('settings.xbox.neverSynced')
+                : t('settings.me.xbox.sub')
+            }
+            cta={xboxStatus.connected ? t('settings.me.xbox.manage') : t('settings.me.xbox.link')}
+            accent={xboxStatus.connected}
+            onClick={open('xbox')}
+          />
+        )}
 
         <Section label={t('settings.me.appearance')}>
           <div style={st('display:flex;align-items:center;gap:12px;min-height:58px;padding:0 14px 0 16px;border-radius:16px;background:var(--surf)')}>

@@ -8,6 +8,7 @@ export const game = {
   "game.detail.syncSource.steam": "Steam library",
   "game.detail.syncSource.steamWishlist": "Steam wishlist",
   "game.detail.syncSource.playnite": "Playnite",
+  "game.detail.syncSource.xbox": "Xbox",
   "game.detail.ttb.rushed": "{hours}h rushed",
   "game.detail.ttb.main": "{hours}h main",
   "game.detail.ttb.completionist": "{hours}h completionist",

@@ -294,6 +294,7 @@ model User {
   titleMatchSuggestions         TitleMatchSuggestion[]
   aiSettings                    UserAiSettings?
   gameMatchRedirects            GameMatchRedirect[]
+  xboxConnection                UserXboxConnection?
   feedReactions                 FeedReaction[]
   notificationPreferences       NotificationPreference[]
   emailChangeRequest            EmailChangeRequest?
@@ -448,6 +449,23 @@ model TitleMatchSuggestion {
   @@id([source, normalizedTitle, igdbId, userId])
   @@index([source, normalizedTitle])
   @@map("title_match_suggestions")
+}
+
+/// A person's linked Xbox account for the native Xbox library sync (see services/xbox/). Created by
+/// the Microsoft device-code login; only the refresh token is kept, encrypted at rest (AES-256-GCM,
+/// key derived from SESSION_SECRET, see settingsCrypto.ts) and never sent to the client. A backup
+/// restored onto a server with a different SESSION_SECRET leaves it unreadable until they link again.
+model UserXboxConnection {
+  userId                String    @id @map("user_id")
+  xuid                  String
+  gamertag              String?
+  refreshTokenEncrypted String    @map("refresh_token_encrypted")
+  createdAt             DateTime  @default(now()) @map("created_at")
+  lastSyncedAt          DateTime? @map("last_synced_at")
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("user_xbox_connections")
 }
 
 /// One person's own AI provider settings (see services/ai/aiConfig.ts), used instead of the
