@@ -372,6 +372,7 @@ export function RoomSettingsDialog() {
   const [hook, setHook] = useState(room?.discordWebhookUrl ?? '');
   const [hexDraft, setHexDraft] = useState<string | null>(null);
   const [spinOpen, setSpinOpen] = useState(false);
+  const [masterLeaveOpen, setMasterLeaveOpen] = useState(false);
   const [memberQ, setMemberQ] = useState('');
   const [showAll, setShowAll] = useState(false);
   const [showYear, setShowYear] = useState(false);
@@ -502,6 +503,24 @@ export function RoomSettingsDialog() {
       ui.notify(t('room.settings.left', { room: room!.name }));
     } catch (e) {
       setError(e instanceof Error ? e.message : t('room.settings.leaveError'));
+    }
+  }
+
+  // A Room Master can't just leave (the room would have no owner): they pick who takes over, then
+  // step down to Moderator (the transfer) and leave, or delete the room instead.
+  async function handOverAndLeave(userId: string, displayName: string) {
+    if (!user) return;
+    try {
+      await roomsApi.setRole(roomId, userId, 'room_master');
+      await roomsApi.removeMember(roomId, user.id);
+      queryClient.invalidateQueries({ queryKey: ['rooms'] });
+      setMasterLeaveOpen(false);
+      close();
+      navigate('/');
+      ui.notify(t('room.settings.leftHandOver', { room: room!.name, name: displayName }));
+    } catch (e) {
+      setError(e instanceof Error ? e.message : t('room.settings.leaveError'));
+      refreshRoom();
     }
   }
 
@@ -874,6 +893,11 @@ export function RoomSettingsDialog() {
             {t('room.settings.leaveRoom')}
           </button>
         )}
+        {isMaster && members.some((m) => m.user.id === user?.id) && (
+          <button type="button" onClick={() => setMasterLeaveOpen(true)} style={st('min-height:52px;padding:0 16px;border:none;background:var(--surf);color:var(--danger);text-align:left;font:600 14.5px var(--font-ui)')}>
+            {t('room.settings.leaveRoom')}
+          </button>
+        )}
         {isMaster && (
           <button type="button" onClick={del} style={st('min-height:52px;padding:0 16px;border:none;background:var(--surf);color:var(--danger);text-align:left;font:600 14.5px var(--font-ui)')}>
             {t('room.settings.deleteRoom')}
@@ -881,6 +905,40 @@ export function RoomSettingsDialog() {
         )}
       </Group>
     </Dialog>
+    {masterLeaveOpen && (
+      <Dialog onClose={() => setMasterLeaveOpen(false)} title={t('room.settings.masterLeaveTitle')} gap={14}>
+        <p style={st('margin:0;font:400 13.5px/1.5 var(--font-ui);color:var(--muted)')}>
+          {members.length > 1 ? t('room.settings.masterLeaveMessage', { room: room.name }) : t('room.settings.masterLeaveAlone', { room: room.name })}
+        </p>
+        {members.length > 1 && (
+          <Group>
+            {members.filter((m) => m.user.id !== user?.id).map((m) => (
+              <button
+                key={m.user.id}
+                type="button"
+                onClick={() => handOverAndLeave(m.user.id, m.user.displayName)}
+                style={st('display:flex;align-items:center;gap:12px;min-height:52px;padding:8px 16px;border:none;background:var(--surf);color:var(--text);text-align:left;font:600 14.5px var(--font-ui)')}
+              >
+                <Avatar name={m.user.displayName} color={m.user.avatarColor} avatarUrl={m.user.avatarUrl} size={28} fontSize={12} />
+                <span style={st('flex:1;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis')}>{t('room.settings.masterLeavePick', { name: m.user.displayName })}</span>
+              </button>
+            ))}
+          </Group>
+        )}
+        <Group>
+          <button
+            type="button"
+            onClick={() => {
+              setMasterLeaveOpen(false);
+              void del();
+            }}
+            style={st('min-height:52px;padding:0 16px;border:none;background:var(--surf);color:var(--danger);text-align:left;font:600 14.5px var(--font-ui)')}
+          >
+            {t('room.settings.deleteRoom')}
+          </button>
+        </Group>
+      </Dialog>
+    )}
     {spinOpen && <RoomSpinSettingsDialog room={room} patch={patch} onClose={() => setSpinOpen(false)} />}
     </>
   );
