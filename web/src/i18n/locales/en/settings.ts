@@ -162,8 +162,6 @@ export const settings = {
   "settings.me.section.tools": "TOOLS",
   "settings.me.profileSettings.title": "Profile",
   "settings.me.profileSettings.sub": "Link, who can see it, what you share",
-  "settings.me.librariesSystems.title": "Libraries & systems",
-  "settings.me.librariesSystems.sub": "Linked libraries and the systems you own",
   "settings.me.appearance.title": "Appearance",
   "settings.me.appearance.sub": "Language, theme, layout, currency",
   "settings.me.notifications.sub": "Which alerts you get, and by email",

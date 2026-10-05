@@ -164,8 +164,6 @@ export const settings: Record<keyof typeof en, string> = {
   "settings.me.section.tools": "TOOLS",
   "settings.me.profileSettings.title": "Profile",
   "settings.me.profileSettings.sub": "Yer link, who can spy it, what ye share",
-  "settings.me.librariesSystems.title": "Libraries & systems",
-  "settings.me.librariesSystems.sub": "Linked libraries and the systems ye own",
   "settings.me.appearance.title": "Appearance",
   "settings.me.appearance.sub": "Tongue, theme, layout, currency",
   "settings.me.notifications.sub": "Which alerts ye get, and by email",

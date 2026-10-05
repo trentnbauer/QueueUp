@@ -499,28 +499,6 @@ function AppearanceDialog({ onClose }: { onClose: () => void }) {
   );
 }
 
-/** Libraries and the systems you own, together: what fills the shelf and what it is scoped to. */
-function LibrariesSystemsDialog({ onClose, librariesSummary, onOpenLibraries }: { onClose: () => void; librariesSummary: string; onOpenLibraries: () => void }) {
-  const t = useT();
-  const { ownedPlatforms } = useAuth();
-  const [systemsOpen, setSystemsOpen] = useState(false);
-  return (
-    <>
-      <Dialog onClose={onClose} title={t('settings.me.librariesSystems.title')} gap={14}>
-        <Group>
-          <NavRow label={t('settings.me.libraries')} sub={librariesSummary || t('settings.me.libraries.none')} onClick={onOpenLibraries} />
-          <NavRow
-            label={t('settings.systems.title')}
-            sub={ownedPlatforms.length === 0 ? t('settings.systems.everyPlatform') : sortPlatforms(ownedPlatforms).map((p) => ROOM_PLATFORM_LABELS[p]).join(', ')}
-            onClick={() => setSystemsOpen(true)}
-          />
-        </Group>
-      </Dialog>
-      {systemsOpen && <SystemsDialog onClose={() => setSystemsOpen(false)} />}
-    </>
-  );
-}
-
 /** Profile: the public link, who can see it, and what you share. */
 function ProfileSettingsDialog({ onClose }: { onClose: () => void }) {
   const ui = useUi();
@@ -679,7 +657,7 @@ export function MeDialog() {
   const { t } = useI18n();
   const navigate = useNavigate();
   const confirm = useConfirm();
-  const { user, profileSlug, refetch } = useAuth();
+  const { user, profileSlug, ownedPlatforms, refetch } = useAuth();
   const [nameDraft, setNameDraft] = useState<string | null>(null);
   const { rooms, games } = useScope();
   const { version } = useVersion();
@@ -698,7 +676,7 @@ export function MeDialog() {
   const [keysOpen, setKeysOpen] = useState(false);
   const [historyOpen, setHistoryOpen] = useState(false);
   const [profileOpen, setProfileOpen] = useState(false);
-  const [librariesSystemsOpen, setLibrariesSystemsOpen] = useState(false);
+  const [systemsOpen, setSystemsOpen] = useState(false);
   const [appearanceOpen, setAppearanceOpen] = useState(false);
   const [notifOpen, setNotifOpen] = useState(false);
   const [aiOpen, setAiOpen] = useState(false);
@@ -888,7 +866,12 @@ export function MeDialog() {
 
         <Group>
           <NavRow label={t('settings.me.profileSettings.title')} sub={t('settings.me.profileSettings.sub')} onClick={() => setProfileOpen(true)} />
-          <NavRow label={t('settings.me.librariesSystems.title')} sub={t('settings.me.librariesSystems.sub')} onClick={() => setLibrariesSystemsOpen(true)} />
+          <NavRow label={t('settings.me.libraries')} sub={librariesSummary || t('settings.me.libraries.none')} onClick={open('import')} />
+          <NavRow
+            label={t('settings.systems.title')}
+            sub={ownedPlatforms.length === 0 ? t('settings.systems.everyPlatform') : sortPlatforms(ownedPlatforms).map((p) => ROOM_PLATFORM_LABELS[p]).join(', ')}
+            onClick={() => setSystemsOpen(true)}
+          />
           <NavRow label={t('settings.me.appearance.title')} sub={t('settings.me.appearance.sub')} onClick={() => setAppearanceOpen(true)} />
           <NavRow label={t('settings.notifications.title')} sub={t('settings.me.notifications.sub')} onClick={() => setNotifOpen(true)} />
           {providers && providers.length > 0 && <NavRow label={t('settings.me.signIn.title')} sub={t('settings.me.signIn.sub')} onClick={() => setSignInOpen(true)} />}
@@ -943,9 +926,7 @@ export function MeDialog() {
       {keysOpen && <ApiKeysDialog onClose={() => setKeysOpen(false)} />}
       {historyOpen && <AccountHistoryDialog onClose={() => setHistoryOpen(false)} />}
       {profileOpen && <ProfileSettingsDialog onClose={() => setProfileOpen(false)} />}
-      {librariesSystemsOpen && (
-        <LibrariesSystemsDialog onClose={() => setLibrariesSystemsOpen(false)} librariesSummary={librariesSummary} onOpenLibraries={open('import')} />
-      )}
+      {systemsOpen && <SystemsDialog onClose={() => setSystemsOpen(false)} />}
       {appearanceOpen && <AppearanceDialog onClose={() => setAppearanceOpen(false)} />}
       {notifOpen && <NotificationsDialog onClose={() => setNotifOpen(false)} />}
       {aiOpen && <AiSettingsDialog onClose={() => setAiOpen(false)} />}
