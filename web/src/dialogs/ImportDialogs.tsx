@@ -52,9 +52,8 @@ function ImportRow({ kind, title, sub, cta, onClick, disabled, accent }: { kind:
 export function ImportDialog() {
   const t = useT();
   const ui = useUi();
-  const confirm = useConfirm();
   const { steamLinked } = useAuth();
-  const { busy, activeKind, progress, wishlistProgress, startLink, runSyncEverything, syncingEverything, completions, result, error } = useSteamImportContext();
+  const { busy, activeKind, progress, wishlistProgress, startLink, syncingEverything, completions, result, error } = useSteamImportContext();
   const running = busy || completions.busy || syncingEverything;
   const { data: psnStatus } = useQuery({ queryKey: PSN_STATUS_QUERY_KEY, queryFn: psnApi.status });
   const { data: raStatus } = useQuery({ queryKey: RETROACHIEVEMENTS_STATUS_QUERY_KEY, queryFn: retroAchievementsApi.status });
@@ -68,19 +67,14 @@ export function ImportDialog() {
   // The Xbox row only shows when the server has an Xbox app set up.
   const { data: xboxStatus } = useQuery({ queryKey: XBOX_STATUS_QUERY_KEY, queryFn: xboxApi.status });
 
-  async function steamImport() {
+  // Linked: the Steam dialog is where it is synced or disconnected (issue #861), like the other sources.
+  function steamManage() {
     if (!steamLinked) {
       startLink('library');
       return;
     }
-    const ok = await confirm({
-      title: t('add.import.steamConfirmTitle'),
-      message: t('add.import.steamConfirmMessage'),
-      confirmLabel: t('add.import.import'),
-    });
-    if (!ok) return;
-    await runSyncEverything();
-    ui.notify(t('add.import.steamDone'));
+    ui.closeDialog('import');
+    ui.openDialog('steam');
   }
 
   const status = busy && activeKind === 'library'
@@ -103,10 +97,10 @@ export function ImportDialog() {
           kind="steam"
           title={t('add.import.steamTitle')}
           sub={steamLinked ? t('add.import.steamSub') : t('add.import.steamLinkSub')}
-          cta={running ? t('add.import.importing') : steamLinked ? t('add.import.import') : t('add.import.linkSteam')}
+          cta={running ? t('add.import.importing') : steamLinked ? t('settings.me.steam.manage') : t('add.import.linkSteam')}
           disabled={running}
           accent
-          onClick={steamImport}
+          onClick={steamManage}
         />
         <ImportRow
           kind="playnite"

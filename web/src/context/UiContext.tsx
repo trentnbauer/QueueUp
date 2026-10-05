@@ -18,6 +18,7 @@ export type DialogKey =
   | 'playtime'
   | 'completions'
   | 'playnite'
+  | 'steam'
   | 'xbox'
   | 'exophase'
   | 'psn'
