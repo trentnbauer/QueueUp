@@ -548,11 +548,55 @@ export async function getGameTrailer(igdbId: number): Promise<{ youtubeId: strin
 const DLC_CACHE_PREFIX = 'igdb:dlcs:v1:';
 const DLC_CACHE_TTL_SECONDS = 60 * 60 * 24; // 24h - a game's DLC lineup essentially never changes
 
+/** The raw, cached DLC/expansion entries for a base game, shared by getGameDlcs and
+ * getUpcomingGameDlcs. IGDB models these as two separate relations off the base game (`dlcs` and
+ * `expansions`) - merged here since QueueUp treats both the same way (see ADDON_CATEGORIES), and
+ * deduped by igdb id since IGDB occasionally lists the same entry under both. */
+async function loadDlcEntries(igdbId: number): Promise<IgdbGame[]> {
+  if (!Number.isInteger(igdbId) || igdbId <= 0) {
+    throw new HttpError(400, 'Invalid IGDB game id');
+  }
+
+  const cacheKey = DLC_CACHE_PREFIX + igdbId;
+  const cached = await redis.get(cacheKey);
+  if (cached) return JSON.parse(cached) as IgdbGame[];
+
+  const [game] = await igdbRequest<IgdbGameWithAddons[]>(
+    'games',
+    `fields dlcs.name,dlcs.cover.image_id,dlcs.platforms.name,dlcs.first_release_date,expansions.name,expansions.cover.image_id,expansions.platforms.name,expansions.first_release_date; where id = ${igdbId};`,
+  );
+  const byId = new Map<number, IgdbGame>();
+  for (const g of [...(game?.dlcs ?? []), ...(game?.expansions ?? [])]) {
+    if (g.name) byId.set(g.id, g);
+  }
+  const entries = Array.from(byId.values());
+  await redis.set(cacheKey, JSON.stringify(entries), 'EX', DLC_CACHE_TTL_SECONDS);
+  return entries;
+}
+
+/** A base game's DLC and expansions that have a release date in the half-open window (from, to],
+ * with the full date (getGameDlcs only keeps the year). Reads the same 24h cache. Issue #869. */
+export async function getUpcomingGameDlcs(
+  igdbId: number,
+  from: Date,
+  to: Date,
+): Promise<(GameSearchResult & { releaseDate: string })[]> {
+  const entries = await loadDlcEntries(igdbId);
+  return entries
+    .filter((g) => g.first_release_date !== undefined && g.first_release_date * 1000 > from.getTime() && g.first_release_date * 1000 <= to.getTime())
+    .sort((a, b) => a.first_release_date! - b.first_release_date!)
+    .map((g) => ({
+      igdbId: g.id,
+      title: g.name!,
+      platform: platformLabel(g.platforms),
+      coverImageUrl: coverUrl(g.cover),
+      releaseYear: releaseYear(g.first_release_date),
+      releaseDate: new Date(g.first_release_date! * 1000).toISOString(),
+    }));
+}
+
 /** All DLC/expansion entries IGDB has on file for a given base game (issue #338 - backs the game
- * modal's "View DLC" browse-and-add list). IGDB models these as two separate relations off the
- * base game (`dlcs` and `expansions`) rather than one combined list - merged here since QueueUp
- * treats both the same way (see ADDON_CATEGORIES). Deduped by igdb id, since IGDB occasionally
- * lists the same entry under both relations. Cached same as getGameDetail (a title's DLC lineup
+ * modal's "View DLC" browse-and-add list). Cached same as getGameDetail (a title's DLC lineup
  * essentially never changes once released) - excludeIgdbIds/platforms filtering happens after the
  * cache read, not baked into the cached value, so the same cached list serves every room/shelf's
  * differently-scoped request. */
@@ -561,27 +605,7 @@ export async function getGameDlcs(
   platforms?: RoomPlatform[],
   excludeIgdbIds?: Set<number>,
 ): Promise<GameSearchResult[]> {
-  if (!Number.isInteger(igdbId) || igdbId <= 0) {
-    throw new HttpError(400, 'Invalid IGDB game id');
-  }
-
-  const cacheKey = DLC_CACHE_PREFIX + igdbId;
-  const cached = await redis.get(cacheKey);
-  let entries: IgdbGame[];
-  if (cached) {
-    entries = JSON.parse(cached) as IgdbGame[];
-  } else {
-    const [game] = await igdbRequest<IgdbGameWithAddons[]>(
-      'games',
-      `fields dlcs.name,dlcs.cover.image_id,dlcs.platforms.name,dlcs.first_release_date,expansions.name,expansions.cover.image_id,expansions.platforms.name,expansions.first_release_date; where id = ${igdbId};`,
-    );
-    const byId = new Map<number, IgdbGame>();
-    for (const g of [...(game?.dlcs ?? []), ...(game?.expansions ?? [])]) {
-      if (g.name) byId.set(g.id, g);
-    }
-    entries = Array.from(byId.values());
-    await redis.set(cacheKey, JSON.stringify(entries), 'EX', DLC_CACHE_TTL_SECONDS);
-  }
+  const entries = await loadDlcEntries(igdbId);
 
   const activePlatforms = platforms && platforms.length > 0 ? withBackwardsCompatible(platforms) : undefined;
   return entries

@@ -2622,6 +2622,20 @@ export interface DismissPendingLibraryImportsRequest {
   ids: string[];
 }
 
+/** A DLC or expansion for a game on the shelf that releases soon (issue #869), shown in the Coming
+ * soon strip with "Add to wishlist" and "Ignore". */
+export interface UpcomingDlc {
+  igdbId: number;
+  title: string;
+  platform: string;
+  coverImageUrl: string | null;
+  /** ISO date. */
+  releaseDate: string;
+  /** The shelf card of the game this DLC belongs to. */
+  baseGameId: string;
+  baseGameTitle: string;
+}
+
 /** One card in a suggested duplicate pair. */
 export interface DuplicateSuggestionGame {
   id: string;

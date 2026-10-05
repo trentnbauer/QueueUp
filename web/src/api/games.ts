@@ -2,6 +2,7 @@ import { apiGet, apiPost, apiPatch, apiPut, apiDelete } from './client';
 import type {
   AiDuplicateScanResponse,
   DismissDuplicateRequest,
+  UpcomingDlc,
   PriceHistoryResponse,
   RemoveVoteResponse,
   ResolveSensitiveGamesRequest,
@@ -111,6 +112,8 @@ export const gamesApi = {
   mergedList: () => apiGet<{ merged: MergedGame[] }>('/api/games/merged'),
   forgetMerged: (fromIgdbId: number) => apiDelete(`/api/games/merged/${fromIgdbId}`),
   igdbSearch: (id: string, q: string) => apiGet<{ results: GameSearchResult[]; existingIgdbIds: number[] }>(`/api/games/${id}/igdb-search?q=${encodeURIComponent(q)}`),
+  upcomingDlc: () => apiGet<{ dlcs: UpcomingDlc[] }>('/api/games/upcoming-dlc'),
+  ignoreUpcomingDlc: (igdbId: number) => apiPost<void>(`/api/games/upcoming-dlc/${igdbId}/ignore`),
   aiScanDuplicates: () => apiPost<AiDuplicateScanResponse>('/api/games/duplicates/ai-scan'),
   dismissDuplicate: (body: DismissDuplicateRequest) => apiPost<void>('/api/games/duplicates/dismiss', body),
   mergeGame: (id: string, body: MergeGameRequest) => apiPost<{ game: Game; mergedFromId: string }>(`/api/games/${id}/merge`, body),

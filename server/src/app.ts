@@ -11,6 +11,7 @@ import roomRoutes from './routes/rooms.js';
 import gameRoutes from './routes/games.js';
 import gameSuggestionRoutes from './routes/gameSuggestions.js';
 import duplicateSuggestionRoutes from './routes/duplicateSuggestions.js';
+import upcomingDlcRoutes from './routes/upcomingDlc.js';
 import roomSpinRoutes from './routes/roomSpin.js';
 import roomSystemsRoutes from './routes/roomSystems.js';
 import journalRoutes from './routes/journal.js';
@@ -163,6 +164,7 @@ export async function buildApp() {
       await instance.register(gameRoutes);
       await instance.register(gameSuggestionRoutes);
       await instance.register(duplicateSuggestionRoutes);
+      await instance.register(upcomingDlcRoutes);
       await instance.register(roomSpinRoutes);
       await instance.register(roomSystemsRoutes);
       await instance.register(journalRoutes);
