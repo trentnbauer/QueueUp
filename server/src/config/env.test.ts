@@ -31,6 +31,10 @@ function baseEnv(overrides: Partial<Env> = {}): Env {
     DISCORD_REDIRECT_URI: undefined,
     STEAM_API_KEY: undefined,
     STEAM_REDIRECT_URI: undefined,
+    XBOX_CLIENT_ID: undefined,
+    XBOX_SIGN_IN: false,
+    XBOX_CLIENT_SECRET: undefined,
+    XBOX_REDIRECT_URI: undefined,
     GGDEALS_API_KEY: undefined,
     GGDEALS_DEFAULT_REGION: 'us',
     IGDB_CLIENT_ID: undefined,
@@ -47,6 +51,7 @@ describe('deriveRedirectUris', () => {
     expect(result.GOOGLE_REDIRECT_URI).toBe('https://queueup.example.com/auth/google/callback');
     expect(result.DISCORD_REDIRECT_URI).toBe('https://queueup.example.com/auth/discord/callback');
     expect(result.STEAM_REDIRECT_URI).toBe('https://queueup.example.com/auth/steam/callback');
+    expect(result.XBOX_REDIRECT_URI).toBe('https://queueup.example.com/auth/xbox/callback');
   });
 
   it('strips a trailing slash from APP_BASE_URL before appending the callback path', () => {

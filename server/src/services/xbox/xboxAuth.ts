@@ -10,7 +10,7 @@
  *   4. XSTS          xsts.auth.xboxlive.com     ->  the token Xbox services accept, plus their xuid and gamertag
  * The refresh token is what is kept; later syncs go refresh token -> 3 -> 4 without asking again. */
 
-const MS_BASE = 'https://login.microsoftonline.com/consumers/oauth2/v2.0';
+export const MS_BASE = 'https://login.microsoftonline.com/consumers/oauth2/v2.0';
 const SCOPE = 'XboxLive.signin offline_access';
 const REQUEST_TIMEOUT_MS = 20_000;
 

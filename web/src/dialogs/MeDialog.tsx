@@ -32,7 +32,7 @@ import { getBasePath } from '../utils/basePath';
 import { formatRelativeTime } from '../utils/relativeTime';
 
 const REGIONS = Object.keys(PRICE_REGION_LABELS) as PriceRegion[];
-const PROVIDER_LABELS: Record<string, string> = { google: 'Google', discord: 'Discord', steam: 'Steam' };
+const PROVIDER_LABELS: Record<string, string> = { google: 'Google', discord: 'Discord', steam: 'Steam', xbox: 'Xbox' };
 /** A sign-in provider's name: brands as they are, single sign-on translated. */
 const providerLabel = (p: string) => (p === 'oidc' ? tr('settings.me.provider.oidc') : (PROVIDER_LABELS[p] ?? p));
 const ROW_BASE = 'display:flex;align-items:center;gap:12px;min-height:54px;padding:0 16px;border:none;background:var(--surf);color:var(--text);text-align:left;width:100%';

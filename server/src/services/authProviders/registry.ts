@@ -2,6 +2,7 @@ import { env } from '../../config/env.js';
 import { createOidcProvider } from './oidcProvider.js';
 import { createDiscordProvider } from './discordProvider.js';
 import { createSteamProvider } from './steamProvider.js';
+import { createXboxProvider } from './xboxProvider.js';
 import type { AuthProvider } from './types.js';
 
 export async function buildAuthProviders(): Promise<Map<string, AuthProvider>> {
@@ -46,6 +47,13 @@ export async function buildAuthProviders(): Promise<Map<string, AuthProvider>> {
 
   if (env.STEAM_API_KEY && env.STEAM_REDIRECT_URI) {
     providers.set('steam', createSteamProvider({ apiKey: env.STEAM_API_KEY, redirectUri: env.STEAM_REDIRECT_URI }));
+  }
+
+  if (env.XBOX_SIGN_IN && env.XBOX_CLIENT_ID && env.XBOX_REDIRECT_URI) {
+    providers.set(
+      'xbox',
+      createXboxProvider({ clientId: env.XBOX_CLIENT_ID, clientSecret: env.XBOX_CLIENT_SECRET, redirectUri: env.XBOX_REDIRECT_URI }),
+    );
   }
 
   return providers;

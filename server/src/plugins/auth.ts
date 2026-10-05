@@ -27,12 +27,12 @@ declare module 'fastify' {
   }
 }
 
-// Steam and Discord (when a user denies the email scope) have no real email, so those providers
-// synthesize a placeholder under one of these domains (see steamProvider.ts, discordProvider.ts).
+// Steam, Xbox and Discord (when a user denies the email scope) have no real email, so those providers
+// synthesize a placeholder under one of these domains (see steamProvider.ts, xboxProvider.ts, discordProvider.ts).
 // Such an address must never be treated as a verified identity for admin-matching purposes - it's
 // not exploitable today (it can't collide with a real admin's email), but this guards against that
 // changing if ADMIN_EMAILS matching is ever extended (e.g. wildcard/domain rules).
-const SYNTHETIC_EMAIL_DOMAINS = ['steamcommunity.unknown', 'discord.unknown'];
+const SYNTHETIC_EMAIL_DOMAINS = ['steamcommunity.unknown', 'discord.unknown', 'xbox.unknown'];
 
 function isSyntheticEmail(email: string): boolean {
   const domain = email.toLowerCase().split('@')[1];

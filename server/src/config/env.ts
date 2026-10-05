@@ -176,6 +176,18 @@ export const envSchema = z.object({
   // personal Microsoft accounts (steps in README). Same env-or-admin-Settings-fallback pattern as
   // the keys above; unset just hides Xbox sync.
   XBOX_CLIENT_ID: optionalEnvVar(z.string().min(1)),
+  // Sign in with Xbox (issue #845). Off unless "true": it uses the same Microsoft app as the sync, but
+  // as a normal redirect login, so that app needs the redirect URI below added first (see README /
+  // .env.example). Read from the environment only, since the sign-in buttons are built at startup.
+  XBOX_SIGN_IN: z
+    .string()
+    .optional()
+    .transform((v) => v === 'true'),
+  // Only for an app registered as a "Web" platform, which Microsoft gives a client secret. Leave
+  // unset for a public client (PKCE alone is enough).
+  XBOX_CLIENT_SECRET: optionalEnvVar(),
+  // Defaults to `${APP_BASE_URL}/auth/xbox/callback` - see OIDC_REDIRECT_URI above.
+  XBOX_REDIRECT_URI: optionalEnvVar(),
 
   AI_PROVIDER: optionalEnvVar(z.string().min(1)),
   AI_API_KEY: optionalEnvVar(z.string().min(1)),
@@ -222,6 +234,7 @@ export function deriveRedirectUris(data: Env): Env {
     GOOGLE_REDIRECT_URI: data.GOOGLE_REDIRECT_URI ?? `${base}/auth/google/callback`,
     DISCORD_REDIRECT_URI: data.DISCORD_REDIRECT_URI ?? `${base}/auth/discord/callback`,
     STEAM_REDIRECT_URI: data.STEAM_REDIRECT_URI ?? `${base}/auth/steam/callback`,
+    XBOX_REDIRECT_URI: data.XBOX_REDIRECT_URI ?? `${base}/auth/xbox/callback`,
   };
 }
 
@@ -267,10 +280,11 @@ function loadEnv(): Env {
     const googleReady = !!(data.GOOGLE_CLIENT_ID && data.GOOGLE_CLIENT_SECRET && data.GOOGLE_REDIRECT_URI);
     const discordReady = !!(data.DISCORD_CLIENT_ID && data.DISCORD_CLIENT_SECRET && data.DISCORD_REDIRECT_URI);
     const steamReady = !!(data.STEAM_API_KEY && data.STEAM_REDIRECT_URI);
+    const xboxReady = !!(data.XBOX_SIGN_IN && data.XBOX_CLIENT_ID && data.XBOX_REDIRECT_URI);
 
-    if (!oidcReady && !googleReady && !discordReady && !steamReady) {
+    if (!oidcReady && !googleReady && !discordReady && !steamReady && !xboxReady) {
       console.error(
-        'No sign-in method is fully configured (generic OIDC, Google, Discord, and Steam are all incomplete). ' +
+        'No sign-in method is fully configured (generic OIDC, Google, Discord, Steam, and Xbox are all incomplete). ' +
           'Set DEV_FAKE_AUTH=true for local dev without one, or finish configuring at least one provider.',
       );
       process.exit(1);

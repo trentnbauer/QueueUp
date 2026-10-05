@@ -28,6 +28,9 @@ describe('computeIsAdmin', () => {
     expect(computeIsAdmin('123456789@discord.unknown', { devFakeAuth: false, adminEmails: '123456789@discord.unknown' })).toBe(
       false,
     );
+    expect(computeIsAdmin('2535400000000001@xbox.unknown', { devFakeAuth: false, adminEmails: '2535400000000001@xbox.unknown', emailVerified: true })).toBe(
+      false,
+    );
   });
 });
 
