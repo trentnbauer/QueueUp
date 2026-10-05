@@ -14,7 +14,27 @@ import {
   userAliasSource,
   getPlayniteImportProgress,
 } from '../services/playniteImport.js';
-import type { PlayniteImportProgress, ResolvePendingLibraryImportRequest } from '@queueup/shared';
+import { parseBundleIgdbIds } from '../services/bundleImport.js';
+import type { PlayniteImportProgress, ResolvePendingLibraryImportBundleRequest, ResolvePendingLibraryImportRequest, SyncSource } from '@queueup/shared';
+
+/** Puts one resolved game on the person's shelf as owned, or adds the platforms to the copy that is
+ * already there (same wishlist guard as the bulk import loop - see the resolve route's comment). */
+async function addResolvedGame(userId: string, pending: { platforms: Parameters<typeof unionOwnershipPlatforms>[2] }, igdbId: number): Promise<void> {
+  const existing = await prisma.game.findFirst({ where: { roomId: null, addedBy: userId, igdbId } });
+  if (existing) {
+    if (existing.status !== 'wishlist') {
+      await unionOwnershipPlatforms(userId, igdbId, pending.platforms);
+    }
+  } else {
+    await createGameForUser(userId, null, igdbId, { status: 'backlog', ownedPlatforms: pending.platforms });
+  }
+}
+
+const SYNC_SOURCES: SyncSource[] = ['playnite', 'xbox', 'exophase', 'psn', 'retroachievements'];
+
+function isSyncSource(source: string): source is SyncSource {
+  return (SYNC_SOURCES as string[]).includes(source);
+}
 
 /** Cookie-authenticated routes backing the (not yet built, see QueueUp#452) Profile Settings review
  * UI for PendingLibraryImport rows - titles from an external-library import (see routes/apiV1.ts'
@@ -82,19 +102,37 @@ export default async function pendingLibraryImportRoutes(app: FastifyInstance) {
       const pending = await prisma.pendingLibraryImport.findFirst({ where: { id, userId } });
       if (!pending) throw new HttpError(404, 'Pending import not found');
 
-      const existing = await prisma.game.findFirst({ where: { roomId: null, addedBy: userId, igdbId } });
-      if (existing) {
-        if (existing.status !== 'wishlist') {
-          await unionOwnershipPlatforms(userId, igdbId, pending.platforms);
-        }
-      } else {
-        await createGameForUser(userId, null, igdbId, { status: 'backlog', ownedPlatforms: pending.platforms });
-      }
+      await addResolvedGame(userId, pending, igdbId);
 
-      if (pending.source === 'playnite' || pending.source === 'xbox' || pending.source === 'exophase' || pending.source === 'psn' || pending.source === 'retroachievements') await recordSyncSources(userId, [igdbId], pending.source);
+      if (isSyncSource(pending.source)) await recordSyncSources(userId, [igdbId], pending.source);
       await recordTitleMatchAlias(userAliasSource(pending.source, userId), pending.title, igdbId);
       await recordTitleMatchSuggestion(pending.source, pending.title, igdbId, userId);
       await deletePendingLibraryImport(userId, id);
+
+      reply.status(204);
+    },
+  );
+
+  /** Resolves a pending row that is really a bundle (issue #857): every game inside it is added the
+   * same way a single resolve adds one. The row is then dismissed rather than deleted, so a later
+   * sync that still reports the bundle's title doesn't queue it up again for review. No title alias
+   * is recorded, since a title matching several games isn't one igdbId to remember. Safe to retry
+   * after a failure part way: games already added are only given the platforms. */
+  app.post<{ Params: { id: string }; Body: ResolvePendingLibraryImportBundleRequest }>(
+    '/api/library/pending-imports/:id/resolve-bundle',
+    { config: { rateLimit: { max: 10, timeWindow: '1 minute' } } },
+    async (request, reply) => {
+      const userId = await request.requireAuth();
+      const { id } = request.params;
+      const igdbIds = parseBundleIgdbIds(request.body?.igdbIds);
+
+      const pending = await prisma.pendingLibraryImport.findFirst({ where: { id, userId } });
+      if (!pending) throw new HttpError(404, 'Pending import not found');
+
+      for (const igdbId of igdbIds) await addResolvedGame(userId, pending, igdbId);
+
+      if (isSyncSource(pending.source)) await recordSyncSources(userId, igdbIds, pending.source);
+      await dismissPendingLibraryImport(userId, id);
 
       reply.status(204);
     },
