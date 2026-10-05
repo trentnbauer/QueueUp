@@ -8,6 +8,8 @@ import { Btn, Cover } from '../ui/primitives';
 import { st } from '../ui/st';
 import { PageShell, SectionTitle, StatTiles } from './PageShell';
 import { BacklogCoach } from './BacklogCoach';
+import { YearStoryCard } from '../components/YearStoryCard';
+import { personalStoryFacts } from '../lib/yearStoryFacts';
 import { t as tr, useT } from '../i18n';
 
 const BAR = 'flex:1;height:12px;border-radius:999px;background:var(--surf);overflow:hidden';
@@ -178,6 +180,7 @@ export function YearPage() {
               </div>
             ))}
           </div>
+          <YearStoryCard roomId={null} facts={personalStoryFacts(data)} />
           {data.genreSpread.length > 0 && (
             <div style={st('display:flex;flex-direction:column;gap:10px')}>
               <SectionTitle>{t('pages.year.genreSpread')}</SectionTitle>

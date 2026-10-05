@@ -142,6 +142,11 @@ export default async function publicProfileRoutes(app: FastifyInstance) {
       prisma.game.count({ where: beatenWhere }),
       prisma.game.count({ where: { ...finishedWhere, OR: [{ steamFullyCompleted: true }, { igdbId: { in: completedIgdbIds } }] } }),
     ]);
+    // Only a story the person chose to share and has not hidden (issue #826).
+    const sharedStory = await prisma.yearStory.findFirst({
+      where: { scopeKey: `user:${user.id}`, sharedOnProfile: true, hidden: false },
+      select: { text: true, edited: true },
+    });
     const profile: PublicUserProfile = {
       displayName: user.displayName,
       avatarColor: user.avatarColor,
@@ -196,6 +201,7 @@ export default async function publicProfileRoutes(app: FastifyInstance) {
           fullyCompleted: isFullyCompleted(g),
         })),
       memberSince: user.createdAt.toISOString(),
+      yearStory: sharedStory,
       wishlist,
       upNext,
       library,

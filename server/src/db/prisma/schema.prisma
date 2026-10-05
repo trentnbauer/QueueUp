@@ -308,6 +308,7 @@ model User {
   gameMatchRedirects            GameMatchRedirect[]
   duplicateDismissals           DuplicateDismissal[]
   ignoredDlcs                   IgnoredDlc[]
+  yearStories                   YearStory[]
   xboxConnection                UserXboxConnection?
   exophaseConnection            UserExophaseConnection?
   psnConnection                 UserPsnConnection?
@@ -556,6 +557,28 @@ model UserAiSettings {
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@map("user_ai_settings")
+}
+
+/// An AI-written recap of a gaming year (issue #826): one per person ("user:<id>") and one per room
+/// ("room:<id>"). Built from computed stats and titles only. The person can edit it (then `edited`),
+/// hide it, and share it on their public profile; a room's is shown to its members. `userId` is the
+/// owner (personal) or who generated it (room).
+model YearStory {
+  scopeKey        String   @id @map("scope_key")
+  userId          String?  @map("user_id")
+  roomId          String?  @unique @map("room_id")
+  text            String
+  edited          Boolean  @default(false)
+  hidden          Boolean  @default(false)
+  sharedOnProfile Boolean  @default(false) @map("shared_on_profile")
+  generatedAt     DateTime @default(now()) @map("generated_at")
+  updatedAt       DateTime @updatedAt @map("updated_at")
+
+  user User? @relation(fields: [userId], references: [id], onDelete: Cascade)
+  room Room? @relation(fields: [roomId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@map("year_stories")
 }
 
 /// A DLC the person chose to ignore in the Coming soon strip (issue #869), so it is not offered again.
@@ -885,6 +908,7 @@ model Room {
   creator       User             @relation("RoomCreatedBy", fields: [createdBy], references: [id])
   aiKeyOwner    User?            @relation("RoomAiKeyOwner", fields: [aiKeyOwnerId], references: [id], onDelete: SetNull)
   members       RoomMember[]
+  yearStory     YearStory?
   games         Game[]
   notifications Notification[]
   activity      RoomActivity[]

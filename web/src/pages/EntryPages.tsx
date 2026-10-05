@@ -18,7 +18,7 @@ import { applyFeedFilter, FeedGroups, FilterChips, type FeedFilter } from './fee
 import { useRooms } from '../hooks/useRooms';
 import { useVersion } from '../hooks/useVersion';
 import { REVIEW_EMOJI, reviewAverage } from '../lib/gameView';
-import { Avatar, Btn, Cover, Wordmark, AppMark, inputPill } from '../ui/primitives';
+import { AiBadge, Avatar, Btn, Cover, Wordmark, AppMark, inputPill } from '../ui/primitives';
 import { useIsMobile } from '../ui/useLayout';
 import { rich, t as tr, translate, useCyclingLanguage, useI18n, useT } from '../i18n';
 import { reviewCategoryLabel } from '../i18n/labels';
@@ -573,6 +573,16 @@ export function PublicProfilePage({ userId, signedIn }: { userId: string; signed
                   </div>
                 ))}
               </div>
+            </div>
+          )}
+
+          {profile.yearStory && (
+            <div style={st('display:flex;flex-direction:column;gap:8px;padding:16px;border-radius:20px;background:linear-gradient(140deg, var(--hero1), var(--surf))')}>
+              <span style={st('display:flex;align-items:center;gap:8px')}>
+                <span style={st('font:700 16px var(--font-display)')}>{t('pages.story.profileTitle')}</span>
+                {!profile.yearStory.edited && <AiBadge title={t('pages.story.badge')} />}
+              </span>
+              <p style={st('margin:0;font:400 14.5px/1.6 var(--font-ui);white-space:pre-wrap')}>{profile.yearStory.text}</p>
             </div>
           )}
 

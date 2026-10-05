@@ -19,6 +19,8 @@ import { useUi } from '../context/UiContext';
 import { useFriends } from '../hooks/useFriends';
 import { useRooms } from '../hooks/useRooms';
 import { computeRoomYearInReview } from '../components/roomYearInReview';
+import { YearStoryCard } from '../components/YearStoryCard';
+import { roomStoryFacts } from '../lib/yearStoryFacts';
 import { Dialog } from '../ui/Dialog';
 import { NavRow } from './MeDialog';
 import { RoomAiSection } from './RoomAiSection';
@@ -806,18 +808,21 @@ export function RoomSettingsDialog() {
             {t('room.settings.showYear')}
           </Btn>
         ) : (
-          <div style={st('display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px')}>
-            {[
-              [String(year.completedGames.length), t(year.completedGames.length === 1 ? 'room.settings.gamesFinished.one' : 'room.settings.gamesFinished.other')],
-              [topGenre, t('room.settings.topGenre')],
-              [year.topVoted ? year.topVoted.title : '—', t('room.settings.mostVoted')],
-            ].map(([v, l]) => (
-              <div key={l} style={st('display:flex;flex-direction:column;gap:3px;padding:12px;border-radius:16px;background:var(--surf);min-width:0')}>
-                <span style={st('font:700 17px/1.15 var(--font-display);overflow:hidden;text-overflow:ellipsis')}>{v}</span>
-                <span style={st('font:400 11.5px var(--font-ui);color:var(--muted)')}>{l}</span>
-              </div>
-            ))}
-          </div>
+          <>
+            <div style={st('display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px')}>
+              {[
+                [String(year.completedGames.length), t(year.completedGames.length === 1 ? 'room.settings.gamesFinished.one' : 'room.settings.gamesFinished.other')],
+                [topGenre, t('room.settings.topGenre')],
+                [year.topVoted ? year.topVoted.title : '—', t('room.settings.mostVoted')],
+              ].map(([v, l]) => (
+                <div key={l} style={st('display:flex;flex-direction:column;gap:3px;padding:12px;border-radius:16px;background:var(--surf);min-width:0')}>
+                  <span style={st('font:700 17px/1.15 var(--font-display);overflow:hidden;text-overflow:ellipsis')}>{v}</span>
+                  <span style={st('font:400 11.5px var(--font-ui);color:var(--muted)')}>{l}</span>
+                </div>
+              ))}
+            </div>
+            <YearStoryCard roomId={roomId} facts={roomStoryFacts(year, members.length)} />
+          </>
         )}
       </Field>
 
