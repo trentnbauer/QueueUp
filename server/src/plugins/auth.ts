@@ -105,7 +105,7 @@ async function getOrCreateUser({ emailVerified, ...profile }: {
   }
 
   try {
-    const user = await prisma.user.create({ data: { ...profile, avatarColor: randomAvatarColor(), isAdmin } });
+    const user = await prisma.user.create({ data: { ...profile, avatarColor: randomAvatarColor(), isAdmin, onboardingPending: true } });
     return { user, isNewUser: true };
   } catch (err) {
     // Lost a race against a concurrent request for this same not-yet-existing account (issue

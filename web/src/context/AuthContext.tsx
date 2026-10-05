@@ -27,6 +27,10 @@ interface AuthContextValue {
    * only ever sends true once per account), but this lets the frontend clear it immediately
    * without a round trip. */
   consumeIsNewAccount: () => void;
+  /** True until this account has finished or skipped the welcome walkthrough on any device. */
+  onboardingPending: boolean;
+  /** Records the walkthrough as done on the account, so a new browser or device doesn't repeat it. */
+  completeOnboarding: () => void;
   loading: boolean;
   refetch: () => Promise<void>;
 }
@@ -42,10 +46,18 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [primaryProvider, setPrimaryProvider] = useState<string | null>(null);
   const [linkedProviders, setLinkedProviders] = useState<string[]>([]);
   const [isNewAccount, setIsNewAccount] = useState(false);
+  const [onboardingPending, setOnboardingPending] = useState(false);
   const [loading, setLoading] = useState(true);
 
+  const completeOnboarding = () => {
+    setOnboardingPending(false);
+    // Best effort: if this fails the walkthrough simply shows once more on the next load.
+    void authApi.completeOnboarding().catch(() => {});
+  };
+
   const refetch = async () => {
-    const { user, steamLinked, ownedPlatforms, profileVisibility, profileSlug, primaryProvider, linkedProviders, isNewAccount } = await authApi.me();
+    const { user, steamLinked, ownedPlatforms, profileVisibility, profileSlug, primaryProvider, linkedProviders, isNewAccount, onboardingPending } = await authApi.me();
+    setOnboardingPending(!!onboardingPending);
     setUser(user);
     setSteamLinked(steamLinked);
     setOwnedPlatforms(ownedPlatforms ?? []);
@@ -72,6 +84,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         linkedProviders,
         isNewAccount,
         consumeIsNewAccount: () => setIsNewAccount(false),
+        onboardingPending,
+        completeOnboarding,
         loading,
         refetch,
       }}

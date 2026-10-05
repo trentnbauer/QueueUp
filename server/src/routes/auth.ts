@@ -258,7 +258,16 @@ export default async function authRoutes(app: FastifyInstance) {
       primaryProvider,
       linkedProviders,
       isNewAccount,
+      onboardingPending: user.onboardingPending,
     });
+  });
+
+  // The welcome walkthrough was finished or skipped; stored on the account so it isn't repeated
+  // on every new browser or device.
+  app.post('/api/me/onboarding-complete', async (request) => {
+    const userId = await request.requireAuth();
+    await prisma.user.update({ where: { id: userId }, data: { onboardingPending: false } });
+    return { ok: true };
   });
 
   // A per-user preference, not tied to any room - scopes the Personal Shelf's add-game flow the

@@ -18,7 +18,10 @@ export const authApi = {
        * #359) - the server clears its session flag on read, so a page refresh or later session
        * never sees it true again. Drives auto-opening the Import Library modal for a new account. */
       isNewAccount: boolean;
+      /** True until the welcome walkthrough is finished or skipped once on any device. */
+      onboardingPending: boolean;
     }>('/api/me'),
+  completeOnboarding: () => apiPost<{ ok: true }>('/api/me/onboarding-complete'),
   /** Sign-in methods, plus the Turnstile site key when the sign-in captcha is on (issue #665). */
   providers: () => apiGet<{ providers: string[]; turnstileSiteKey: string | null }>('/api/auth/providers'),
   updateOwnedPlatforms: (platforms: RoomPlatform[]) =>
