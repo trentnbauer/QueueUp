@@ -801,13 +801,19 @@ export function GameDetail({ game, onClose, changeStatus }: { game: Game; onClos
           onClose={() => setRematching(false)}
           onMatched={async (result, merges) => {
             if (merges) {
+              // The sheet goes first: the confirmation would open behind it (issue #856). Declining
+              // brings it back for another pick.
+              setRematching(false);
               const ok = await confirm({
                 title: t('game.igdbMatch.merge.title'),
                 message: t('game.igdbMatch.merge.message', { from: game.title, to: result.title }),
                 confirmLabel: t('game.igdbMatch.merge'),
                 danger: true,
               });
-              if (!ok) return;
+              if (!ok) {
+                setRematching(true);
+                return;
+              }
               ui.selectGame(null);
               ui.notify(t('game.igdbMatch.merge.done', { title: result.title }));
             }
@@ -823,17 +829,20 @@ export function GameDetail({ game, onClose, changeStatus }: { game: Game; onClos
           games={scope.games}
           onClose={() => setMarkingDuplicate(false)}
           onPick={async (target) => {
+            setMarkingDuplicate(false);
             const ok = await confirm({
               title: t('game.igdbMatch.merge.title'),
               message: t('game.igdbMatch.merge.message', { from: game.title, to: target.title }),
               confirmLabel: t('game.igdbMatch.merge'),
               danger: true,
             });
-            if (!ok) return;
+            if (!ok) {
+              setMarkingDuplicate(true);
+              return;
+            }
             ui.selectGame(null);
             ui.notify(t('game.igdbMatch.merge.done', { title: target.title }));
             ops.mergeGame(game.id, target.id);
-            setMarkingDuplicate(false);
           }}
         />
       )}
