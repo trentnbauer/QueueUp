@@ -28,6 +28,7 @@ export const social = {
   "social.notifications.review": "Review",
   "social.notifications.dismissImport": "Dismiss import status",
   "social.notifications.personalShelf": "Personal Shelf",
+  "social.notifications.libraries": "Library sync",
   "social.notifications.announcement": "Announcement",
   "social.notifications.empty": "You're all caught up. Game adds, member changes and room updates will show up here.",
 

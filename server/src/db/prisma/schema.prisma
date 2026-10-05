@@ -171,6 +171,10 @@ enum NotificationType {
   /// display name or alert email changed, an API key created or revoked. Direct, no actor. Lets
   /// someone spot a change they didn't make.
   account_change
+  /// A native library sync (Xbox, Exophase, PlayStation) failed - the login lapsed, the store was
+  /// unreachable, or the sync broke part-way. Direct (recipientId), never room-scoped, same shape as
+  /// release_watch. See notifyLibrarySyncError in services/notifications.ts.
+  library_sync_error
 
   @@map("notification_type")
   /// A library sync found games on a console the person unticked from Systems owned: asks whether

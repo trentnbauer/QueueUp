@@ -6,6 +6,7 @@ import { getConfigValue } from '../configResolver.js';
 import { redis } from '../redisClient.js';
 import { decryptSetting, encryptSetting } from '../settingsCrypto.js';
 import { startLibrarySync, type LibrarySyncSource } from '../librarySync.js';
+import { notifyLibrarySyncError } from '../notifications.js';
 import { getXboxSession, pollDeviceCode, sessionFromRefreshToken, startDeviceCode, XboxAuthError } from './xboxAuth.js';
 import { fetchXboxLibrary } from './xboxLibrary.js';
 
@@ -122,6 +123,7 @@ export async function syncXboxLibrary(userId: string, logger: FastifyBaseLogger)
     return started;
   } catch (err) {
     if (err instanceof XboxAuthError && err.needsRelink) await prisma.userXboxConnection.deleteMany({ where: { userId } });
+    if (err instanceof XboxAuthError) await notifyLibrarySyncError(userId, 'Xbox', err.message);
     return asHttpError(err);
   }
 }

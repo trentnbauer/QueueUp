@@ -18,6 +18,7 @@ const h = vi.hoisted(() => ({
   getXboxSession: vi.fn(),
   sessionFromRefreshToken: vi.fn(),
   fetchXboxLibrary: vi.fn(),
+  notifyLibrarySyncError: vi.fn(),
 }));
 
 vi.mock('../../db/client.js', () => ({
@@ -27,6 +28,7 @@ vi.mock('../redisClient.js', () => ({ redis: { set: h.redisSet, get: h.redisGet,
 vi.mock('../../config/env.js', () => ({ env: { SESSION_SECRET: 's'.repeat(32), XBOX_CLIENT_ID: undefined } }));
 vi.mock('../configResolver.js', () => ({ getConfigValue: h.getConfigValue }));
 vi.mock('../librarySync.js', () => ({ startLibrarySync: h.startLibrarySync }));
+vi.mock('../notifications.js', () => ({ notifyLibrarySyncError: h.notifyLibrarySyncError }));
 vi.mock('./xboxLibrary.js', () => ({ fetchXboxLibrary: h.fetchXboxLibrary }));
 vi.mock('./xboxAuth.js', async () => {
   const actual = await vi.importActual<typeof import('./xboxAuth.js')>('./xboxAuth.js');
@@ -131,6 +133,7 @@ describe('syncXboxLibrary', () => {
   it('needs a linked account first', async () => {
     h.findUnique.mockResolvedValue(null);
     await expect(syncXboxLibrary('u1', logger)).rejects.toThrow('Link your Xbox account first');
+    expect(h.notifyLibrarySyncError).not.toHaveBeenCalled();
   });
 
   it('removes a link whose login lapsed and asks the person to link again', async () => {
@@ -139,6 +142,7 @@ describe('syncXboxLibrary', () => {
     await expect(syncXboxLibrary('u1', logger)).rejects.toMatchObject({ statusCode: 409 });
     expect(h.deleteMany).toHaveBeenCalledWith({ where: { userId: 'u1' } });
     expect(h.startLibrarySync).not.toHaveBeenCalled();
+    expect(h.notifyLibrarySyncError).toHaveBeenCalledWith('u1', 'Xbox', 'Your Xbox link has expired.');
   });
 
   it('removes a link it can no longer decrypt', async () => {
@@ -152,6 +156,7 @@ describe('syncXboxLibrary', () => {
     h.sessionFromRefreshToken.mockRejectedValue(new XboxAuthError('Could not reach Microsoft.'));
     await expect(syncXboxLibrary('u1', logger)).rejects.toMatchObject({ statusCode: 502 });
     expect(h.deleteMany).not.toHaveBeenCalled();
+    expect(h.notifyLibrarySyncError).toHaveBeenCalledWith('u1', 'Xbox', 'Could not reach Microsoft.');
   });
 });
 

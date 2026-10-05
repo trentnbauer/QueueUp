@@ -126,6 +126,13 @@ export function NotificationsDialog() {
   }
 
   function open(n: Notification) {
+    // A failed library sync: straight to the Libraries dialog, where it can be fixed or tried again.
+    if (n.type === 'library_sync_error') {
+      if (notifications.length > 0) markAllRead();
+      ui.closeDialog('notifications');
+      ui.openDialog('import');
+      return;
+    }
     const to = n.roomId ? `/room/${n.roomId}` : SHELF_TYPES.includes(n.type) ? '/' : null;
     if (!to) return;
     if (notifications.length > 0) markAllRead();
@@ -221,8 +228,8 @@ export function NotificationsDialog() {
       {isLoading && <div style={st('padding:24px 12px;color:var(--muted);font:400 14px var(--font-ui)')}>{t('common.loading')}</div>}
       {notifications.map((n) => {
         if (n.type === 'play_together_request') return <PlayTogetherRequest key={n.id} n={n} onDone={() => ui.closeDialog('notifications')} />;
-        const where = n.roomId ? n.roomName : SHELF_TYPES.includes(n.type) ? t('social.notifications.personalShelf') : t('social.notifications.announcement');
-        const clickable = !!n.roomId || SHELF_TYPES.includes(n.type);
+        const where = n.roomId ? n.roomName : n.type === 'library_sync_error' ? t('social.notifications.libraries') : SHELF_TYPES.includes(n.type) ? t('social.notifications.personalShelf') : t('social.notifications.announcement');
+        const clickable = !!n.roomId || n.type === 'library_sync_error' || SHELF_TYPES.includes(n.type);
         return (
           <button
             key={n.id}

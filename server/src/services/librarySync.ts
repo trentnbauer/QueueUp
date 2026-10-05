@@ -6,6 +6,7 @@ import { runWithConcurrency } from '../util/concurrency.js';
 import { invalidateExistingIgdbIds } from './gameAccess.js';
 import { unlockBadges } from './badges.js';
 import { redis } from './redisClient.js';
+import { notifyLibrarySyncError } from './notifications.js';
 import { recordSyncSources } from './syncSources.js';
 import { unionOwnedPlatforms } from './userSettings.js';
 import { applyResolvedIgdbEntry, type ResolvedShelfGame } from './libraryImportShelf.js';
@@ -68,7 +69,10 @@ export async function startLibrarySync(
     await setLibrarySyncProgress(src.source, userId, { startedAt, consideredCount: entries.length, matched: 0, unmatched: 0, errored: 0, done: false });
 
     void runLibrarySync(userId, src, entries, existingByIgdbId, startedAt, logger)
-      .catch((err) => logger.error({ err }, `${src.source} library sync failed`))
+      .catch(async (err) => {
+        logger.error({ err }, `${src.source} library sync failed`);
+        await notifyLibrarySyncError(userId, src.label.replace(/^Your /, '').replace(/ sync$/, ''), 'something went wrong part-way through. Try again.');
+      })
       .finally(() => redis.del(lockKey(src.source, userId)).catch(() => undefined));
     return { consideredCount: entries.length };
   } catch (err) {

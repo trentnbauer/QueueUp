@@ -9,10 +9,12 @@ const h = vi.hoisted(() => ({
   resolvePlayerId: vi.fn(),
   fetchGamesPage: vi.fn(),
   fetchLibrary: vi.fn(),
+  notifyLibrarySyncError: vi.fn(),
 }));
 
 vi.mock('../../db/client.js', () => ({ prisma: { userExophaseConnection: { findUnique: h.findUnique, upsert: h.upsert, update: h.update, deleteMany: h.deleteMany } } }));
 vi.mock('../librarySync.js', () => ({ startLibrarySync: h.startLibrarySync }));
+vi.mock('../notifications.js', () => ({ notifyLibrarySyncError: h.notifyLibrarySyncError }));
 vi.mock('./exophaseClient.js', async () => {
   const actual = await vi.importActual<typeof import('./exophaseClient.js')>('./exophaseClient.js');
   return { ...actual, resolvePlayerId: h.resolvePlayerId, fetchGamesPage: h.fetchGamesPage, fetchLibrary: h.fetchLibrary };
@@ -81,12 +83,14 @@ describe('syncExophaseLibrary', () => {
   it('needs a linked profile first', async () => {
     h.findUnique.mockResolvedValue(null);
     await expect(syncExophaseLibrary('u1', logger)).rejects.toThrow('Link your Exophase profile first');
+    expect(h.notifyLibrarySyncError).not.toHaveBeenCalled();
   });
 
   it('reports an Exophase failure without starting a sync', async () => {
     h.fetchLibrary.mockRejectedValue(new ExophaseError('Exophase is having problems right now.'));
     await expect(syncExophaseLibrary('u1', logger)).rejects.toMatchObject({ statusCode: 502 });
     expect(h.startLibrarySync).not.toHaveBeenCalled();
+    expect(h.notifyLibrarySyncError).toHaveBeenCalledWith('u1', 'Exophase', 'Exophase is having problems right now.');
   });
 });
 

@@ -12,6 +12,7 @@ const h = vi.hoisted(() => ({
   resolveTitle: vi.fn(),
   recordPending: vi.fn(),
   deletePending: vi.fn(),
+  notifyError: vi.fn(),
 }));
 
 vi.mock('../db/client.js', () => ({ prisma: { game: { findMany: h.findMany } } }));
@@ -28,6 +29,7 @@ vi.mock('./redisClient.js', () => ({
   },
 }));
 vi.mock('./gameAccess.js', () => ({ invalidateExistingIgdbIds: h.invalidate }));
+vi.mock('./notifications.js', () => ({ notifyLibrarySyncError: h.notifyError }));
 vi.mock('./badges.js', () => ({ unlockBadges: h.unlockBadges }));
 vi.mock('./syncSources.js', () => ({ recordSyncSources: h.recordSyncSources }));
 vi.mock('./userSettings.js', () => ({ unionOwnedPlatforms: h.unionOwnedPlatforms }));
@@ -106,5 +108,18 @@ describe('startLibrarySync', () => {
     h.resolveTitle.mockResolvedValue(null);
     await startLibrarySync('u1', XBOX, [], logger);
     await expect(startLibrarySync('u2', XBOX, [], logger)).resolves.toBeDefined();
+  });
+});
+
+describe('a sync that breaks part-way', () => {
+  it('tells the person, naming the store, and still finishes and frees the lock', async () => {
+    h.resolveTitle.mockResolvedValue(null);
+    h.invalidate.mockRejectedValue(new Error('redis down'));
+    h.applyResolved.mockResolvedValue(undefined);
+    h.resolveTitle.mockResolvedValue(10); // a match, so the post-run bookkeeping (which fails) runs
+    await startLibrarySync('u1', XBOX, [{ title: 'Halo', platforms: ['xbox_one'] }], logger);
+    await finished('u1');
+    await vi.waitFor(() => expect(h.notifyError).toHaveBeenCalledWith('u1', 'Xbox', expect.stringContaining('went wrong')));
+    await vi.waitFor(() => expect(h.store.has('library-sync-lock:xbox:u1')).toBe(false));
   });
 });

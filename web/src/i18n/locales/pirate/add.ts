@@ -64,7 +64,7 @@ export const add: Record<keyof typeof en, string> = {
   "add.import.wishlistProgress": "Treasure map: {wishlisted} marked · checked {checked} of {total}",
   "add.import.checkingWishlist": "Searchin’ yer Steam treasure map…",
   "add.import.checkingAchievements": "Searchin’ Steam fer freshly-won treasures…",
-  "add.import.title": "Haul in yer library",
+  "add.import.title": "Libraries",
   "add.import.steamTitle": "Steam Haul",
   "add.import.steamSub": "Library + treasure map + treasure conquests. Skips anythin’ already aboard.",
   "add.import.steamLinkSub": "Link yer Steam account to haul in",

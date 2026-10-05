@@ -3,6 +3,7 @@ import type { PsnStatusResponse } from '@queueup/shared';
 import { prisma } from '../../db/client.js';
 import { HttpError } from '../../util/httpError.js';
 import { startLibrarySync, type LibrarySyncSource } from '../librarySync.js';
+import { notifyLibrarySyncError } from '../notifications.js';
 import { decryptSetting, encryptSetting } from '../settingsCrypto.js';
 import { exchangeNpsso, isValidNpsso, PsnAuthError, refreshTokens } from './psnAuth.js';
 import { fetchPurchasedLibrary } from './psnLibrary.js';
@@ -85,6 +86,7 @@ export async function syncPsnLibrary(userId: string, logger: FastifyBaseLogger):
     return started;
   } catch (err) {
     if (err instanceof PsnAuthError && err.needsRelink) await prisma.userPsnConnection.deleteMany({ where: { userId } });
+    if (err instanceof PsnAuthError) await notifyLibrarySyncError(userId, 'PlayStation', err.message);
     return asHttpError(err);
   }
 }

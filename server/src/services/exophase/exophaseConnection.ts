@@ -3,6 +3,7 @@ import type { ExophaseStatusResponse } from '@queueup/shared';
 import { prisma } from '../../db/client.js';
 import { HttpError } from '../../util/httpError.js';
 import { startLibrarySync, type LibrarySyncSource } from '../librarySync.js';
+import { notifyLibrarySyncError } from '../notifications.js';
 import { ExophaseError, fetchGamesPage, fetchLibrary, resolvePlayerId } from './exophaseClient.js';
 
 /** The person-facing side of the Exophase sync: link a public Exophase profile, then sync it. There
@@ -61,6 +62,7 @@ export async function syncExophaseLibrary(userId: string, logger: FastifyBaseLog
     await prisma.userExophaseConnection.update({ where: { userId }, data: { lastSyncedAt: new Date() } });
     return started;
   } catch (err) {
+    if (err instanceof ExophaseError) await notifyLibrarySyncError(userId, 'Exophase', err.message);
     return asHttpError(err);
   }
 }
