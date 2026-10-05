@@ -71,6 +71,14 @@ export function ShelfSettingsDialog() {
           onClick={() => setSystemsOpen(true)}
         />
         <NavRow label={t('settings.shelf.spinType')} sub={spinThemeLabel(spinTheme)} onClick={() => setSpinOpen(true)} />
+        <NavRow
+          label={t('settings.shelf.merge')}
+          sub={t('settings.shelf.merge.sub')}
+          onClick={() => {
+            ui.closeDialog('shelfSettings');
+            ui.openDialog('duplicates');
+          }}
+        />
       </Group>
       <div style={st('display:flex;flex-direction:column;gap:10px')}>
         <Kicker>{t('settings.shelf.sortBy')}</Kicker>
