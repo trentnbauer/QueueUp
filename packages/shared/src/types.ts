@@ -2899,6 +2899,8 @@ export interface DuplicateSuggestionGame {
 export interface DuplicateSuggestion {
   a: DuplicateSuggestionGame;
   b: DuplicateSuggestionGame;
+  /** Which card to keep when merging: the base game or the earlier release (never a remaster folded into its original). */
+  keep: 'a' | 'b';
   /** 0 to 1. */
   confidence: number;
   /** One short sentence from the AI on why they look the same. */
@@ -2911,6 +2913,8 @@ export interface AiDuplicateScanResponse {
   /** How many candidate pairs the AI judged. */
   checked: number;
   fallback: AiFallbackNotice | null;
+  /** Why the scan ended early (provider error, the daily limit on the shared AI), if it did; what was found is kept. */
+  stopped: string | null;
 }
 
 /** Body for POST /api/games/duplicates/dismiss: the two cards that are not duplicates. */
