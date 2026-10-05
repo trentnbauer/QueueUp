@@ -49,11 +49,11 @@ export default async function notificationPreferenceRoutes(app: FastifyInstance)
       const startingEmail = email === true && !existing?.email;
       await prisma.notificationPreference.upsert({
         where: { userId_type: { userId, type: alertType } },
-        create: { userId, type: alertType, email: email ?? false, inApp: inApp ?? true },
+        create: { userId, type: alertType, email: email ?? false, inApp: inApp ?? true, ...(email === true && { emailEnabledAt: new Date() }) },
         update: {
           ...(email !== undefined && { email }),
           ...(inApp !== undefined && { inApp }),
-          ...(startingEmail && { updatedAt: new Date() }),
+          ...(startingEmail && { emailEnabledAt: new Date() }),
         },
       });
       const what = type.replace(/_/g, ' ');
