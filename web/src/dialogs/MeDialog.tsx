@@ -902,7 +902,6 @@ export function MeDialog() {
           <NavRow label={t('settings.me.achievements')} sub={earned !== null ? t('settings.me.achievements.earned', { earned, total: total ?? 0 }) : t('settings.me.achievements.sub')} onClick={go('/achievements')} />
           <NavRow label={t('settings.me.insights')} sub={t('settings.me.insights.sub')} onClick={go('/insights')} />
           <NavRow label={t('settings.me.year')} sub={t('settings.me.year.sub')} onClick={go('/year')} />
-          {user.isAdmin && <NavRow label={t('settings.me.admin')} sub={t('settings.me.admin.sub')} onClick={go('/admin')} />}
         </Group>
 
         <Group>
@@ -936,6 +935,13 @@ export function MeDialog() {
             <NavRow label={t('settings.me.signOut')} onClick={signOut} />
           </Group>
         </Section>
+
+        {/* Rarely needed, so it sits at the bottom rather than with the everyday rows above. */}
+        {user.isAdmin && (
+          <Group>
+            <NavRow label={t('settings.me.admin')} sub={t('settings.me.admin.sub')} onClick={go('/admin')} />
+          </Group>
+        )}
         <button type="button" onClick={deleteAccount} style={st('align-self:flex-start;height:40px;border:none;background:none;padding:0;color:var(--danger);font:600 14px var(--font-ui)')}>
           {t('settings.me.delete.confirm')}
         </button>
