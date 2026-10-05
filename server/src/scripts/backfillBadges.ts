@@ -248,12 +248,13 @@ async function backfillQuickDropBadge(touched: Set<string>): Promise<number> {
 async function backfillComebackBadge(touched: Set<string>): Promise<number> {
   const entries = await prisma.playLog.findMany({
     where: { finishedAt: { not: null }, game: { roomId: null } },
-    select: { gameId: true, game: { select: { addedBy: true } } },
+    select: { gameId: true, finishedAs: true, game: { select: { addedBy: true } } },
   });
   const finishedCountByGame = new Map<string, number>();
   const ownerByGame = new Map<string, string>();
   for (const entry of entries) {
-    finishedCountByGame.set(entry.gameId, (finishedCountByGame.get(entry.gameId) ?? 0) + 1);
+    // Only playthroughs that ended in beaten count (not ones that ended in a drop).
+    if (!entry.finishedAs || entry.finishedAs === 'done') finishedCountByGame.set(entry.gameId, (finishedCountByGame.get(entry.gameId) ?? 0) + 1);
     ownerByGame.set(entry.gameId, entry.game.addedBy);
   }
   const qualifying = new Set<string>();

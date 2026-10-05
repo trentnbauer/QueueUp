@@ -72,7 +72,7 @@ export async function recordStatusTransition(
       precomputedPlaytimeMinutes !== undefined ? precomputedPlaytimeMinutes : await currentPlaytimeMinutesForGame(gameId);
     const openEntries = await prisma.playLog.findMany({ where: { gameId, finishedAt: null } });
     if (openEntries.length > 0) {
-      await prisma.playLog.updateMany({ where: { gameId, finishedAt: null }, data: { finishedAt: now, finishPlaytimeMinutes } });
+      await prisma.playLog.updateMany({ where: { gameId, finishedAt: null }, data: { finishedAt: now, finishPlaytimeMinutes, finishedAs: newStatus } });
       return openEntries.map((entry) => ({ id: entry.id, startedAt: entry.startedAt, finishedAt: now }));
     }
     // Won't Play is "decided against it," not a playthrough - unlike Done/Dropped below, jumping
@@ -87,7 +87,7 @@ export async function recordStatusTransition(
     // and finishPlaytimeMinutes end up equal here (both read "now") - correctly reporting 0 hours
     // played for a playthrough QueueUp never actually saw happen, rather than guessing.
     const created = await prisma.playLog.create({
-      data: { gameId, startedAt: now, finishedAt: now, startPlaytimeMinutes: finishPlaytimeMinutes, finishPlaytimeMinutes },
+      data: { gameId, startedAt: now, finishedAt: now, startPlaytimeMinutes: finishPlaytimeMinutes, finishPlaytimeMinutes, finishedAs: newStatus },
     });
     return [{ id: created.id, startedAt: created.startedAt, finishedAt: now }];
   }

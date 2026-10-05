@@ -1245,6 +1245,11 @@ model PlayLog {
   /// "mark it Beaten on your shelf too?" prompt): the room's name at the time, kept as text so it
   /// survives the room being renamed or deleted. Null for a game beaten on the shelf itself.
   roomName              String?   @map("room_name")
+  /// How the entry ended: 'done', 'dropped' or 'wont_play' (the status the game moved to when it was
+  /// closed). Lets Comeback count only earlier *beaten* playthroughs, not ones that ended in a drop.
+  /// Null for entries closed before this field existed, which are treated as beaten (as they always
+  /// were) when counting.
+  finishedAs            String?   @map("finished_as")
 
   game Game @relation(fields: [gameId], references: [id], onDelete: Cascade)
 
