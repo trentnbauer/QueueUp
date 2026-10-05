@@ -2,6 +2,7 @@ import { describe, expect, it, vi } from 'vitest';
 
 vi.mock('../../db/client.js', () => ({ prisma: {} }));
 vi.mock('./aiConfig.js', () => ({ aiComplete: vi.fn() }));
+vi.mock('../notifications.js', () => ({ notifyMergeSuggestions: vi.fn() }));
 
 import { buildDuplicatePrompt, parseDuplicateReply } from './aiDuplicates.js';
 import type { DuplicateSuggestionGame } from '@queueup/shared';

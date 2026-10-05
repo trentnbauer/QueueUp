@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import type { AiDuplicateScanResponse, DuplicateSuggestion, DuplicateSuggestionGame } from '@queueup/shared';
 import { AI_SETTINGS_QUERY_KEY, aiApi } from '../api/ai';
-import { gamesApi } from '../api/games';
+import { DUPLICATE_COUNT_QUERY_KEY, gamesApi } from '../api/games';
 import { useConfirm } from '../context/ConfirmContext';
 import { useUi } from '../context/UiContext';
 import { Dialog } from '../ui/Dialog';
@@ -58,6 +58,8 @@ export function DuplicatesDialog() {
       setTally({ merged: 0, kept: 0, skipped: 0 });
       setScan(res);
       setReviewing(res.pairs.length > 0);
+      // The server also notified (so it works if this dialog was closed meanwhile); pick that up now.
+      void queryClient.invalidateQueries({ queryKey: ['notifications'] });
       void queryClient.invalidateQueries({ queryKey: AI_SETTINGS_QUERY_KEY });
     },
     onError: (err) => setError(err instanceof Error ? err.message : t('settings.duplicates.failed')),
@@ -86,6 +88,7 @@ export function DuplicatesDialog() {
     setGone((g) => [...g, pairKey(p)]);
     setTally((n) => ({ ...n, merged: n.merged + 1 }));
     void queryClient.invalidateQueries({ queryKey: GAMES_QUERY_ROOT });
+    void queryClient.invalidateQueries({ queryKey: DUPLICATE_COUNT_QUERY_KEY });
     ui.notify(t('settings.duplicates.merged', { remove: remove.title, keep: keep.title }));
   }
 
@@ -105,6 +108,7 @@ export function DuplicatesDialog() {
     setError(null);
     await dismiss.mutateAsync(p);
     setGone((g) => [...g, pairKey(p)]);
+    void queryClient.invalidateQueries({ queryKey: DUPLICATE_COUNT_QUERY_KEY });
     setTally((n) => ({ ...n, kept: n.kept + 1 }));
   }
 

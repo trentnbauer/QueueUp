@@ -6,8 +6,10 @@ const dismissalFindMany = vi.fn(async () => []);
 vi.mock('../../db/client.js', () => ({ prisma: { game: { findMany: gameFindMany }, duplicateDismissal: { findMany: dismissalFindMany } } }));
 const aiComplete = vi.fn();
 vi.mock('./aiConfig.js', () => ({ aiComplete }));
+const notifyMergeSuggestions = vi.fn(async () => {});
+vi.mock('../notifications.js', () => ({ notifyMergeSuggestions }));
 
-const { AI_DUPLICATE_BATCH, aiScanDuplicates, chooseKeep, parseDuplicateReply } = await import('./aiDuplicates.js');
+const { AI_DUPLICATE_BATCH, aiScanDuplicates, chooseKeep, countDuplicateCandidates, parseDuplicateReply } = await import('./aiDuplicates.js');
 
 const g = (id: string, title: string, releaseYear: number | null): DuplicateSuggestionGame => ({
   id,
@@ -48,6 +50,7 @@ describe('aiScanDuplicates', () => {
   beforeEach(() => {
     gameFindMany.mockReset();
     aiComplete.mockReset();
+    notifyMergeSuggestions.mockClear();
   });
 
   // 50 games that each have a "Complete Edition" twin: 50 candidate pairs, more than one batch.
@@ -71,6 +74,35 @@ describe('aiScanDuplicates', () => {
     expect(res.pairs).toHaveLength(50);
     expect(res.pairs.every((p) => p.keep === 'a')).toBe(true);
     expect(res.stopped).toBeNull();
+    // Told when the scan finishes with suggestions, even if the dialog was closed meanwhile.
+    expect(notifyMergeSuggestions).toHaveBeenCalledWith('u1', 50);
+  });
+
+  it('still tells the person about what it found when a later batch fails', async () => {
+    gameFindMany.mockResolvedValue(shelf());
+    let calls = 0;
+    aiComplete.mockImplementation(async (req: { messages: { content: string }[] }) => {
+      calls += 1;
+      if (calls > 1) throw new Error('limit');
+      const n = (req.messages[0].content.match(/^Pair \d+:/gm) ?? []).length;
+      return { text: JSON.stringify(Array.from({ length: n }, (_, i) => ({ pair: i + 1, same: true, confidence: 0.9, keep: 'A', reason: 'x' }))), fallback: null };
+    });
+    await aiScanDuplicates('u1');
+    expect(notifyMergeSuggestions).toHaveBeenCalledWith('u1', AI_DUPLICATE_BATCH);
+  });
+
+  it('counts the cheap no-AI candidates without calling the AI', async () => {
+    gameFindMany.mockResolvedValue(shelf());
+    expect(await countDuplicateCandidates('u1')).toBe(50);
+    expect(aiComplete).not.toHaveBeenCalled();
+  });
+
+  it('does not nudge or ask the AI when nothing looks alike', async () => {
+    gameFindMany.mockResolvedValue([g('1', 'Alpha', 2000), g('2', 'Beta', 2001)].map((x, i) => ({ ...x, igdbId: i + 1, igdbCollectionId: null })));
+    const res = await aiScanDuplicates('u1');
+    expect(res.pairs).toEqual([]);
+    expect(aiComplete).not.toHaveBeenCalled();
+    expect(notifyMergeSuggestions).not.toHaveBeenCalled();
   });
 
   it('keeps what it found and says why it stopped when a later batch fails', async () => {

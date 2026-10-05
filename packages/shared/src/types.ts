@@ -1397,7 +1397,8 @@ export type NotificationType =
   | 'library_sync_error'
   | 'library_sync_available'
   | 'platform_unowned'
-  | 'room_game_beaten';
+  | 'room_game_beaten'
+  | 'merge_suggestions';
 
 /** Notification types a person can choose to receive by email (direct ones, never room-scoped). */
 export const EMAIL_ALERT_TYPES = [
@@ -2915,6 +2916,11 @@ export interface AiDuplicateScanResponse {
   fallback: AiFallbackNotice | null;
   /** Why the scan ended early (provider error, the daily limit on the shared AI), if it did; what was found is kept. */
   stopped: string | null;
+}
+
+/** Result of GET /api/games/duplicates/count: pairs that look like the same game by title alone. */
+export interface DuplicateCandidateCountResponse {
+  count: number;
 }
 
 /** Body for POST /api/games/duplicates/dismiss: the two cards that are not duplicates. */

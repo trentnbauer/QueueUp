@@ -14,7 +14,8 @@ import { JournalList } from './JournalList';
 import { UNDO_MS } from '../game/useChangeStatus';
 import { PendingImportsList } from './PendingImportsList';
 import { useQuery } from '@tanstack/react-query';
-import { MERGED_GAMES_QUERY_KEY, gamesApi } from '../api/games';
+import { DUPLICATE_COUNT_QUERY_KEY, MERGED_GAMES_QUERY_KEY, gamesApi } from '../api/games';
+import { AI_SETTINGS_QUERY_KEY, aiApi } from '../api/ai';
 import { MergedGamesList } from './MergedGamesList';
 import { DISMISSED_IMPORTS_QUERY_KEY, PENDING_IMPORTS_QUERY_KEY, pendingImportsApi } from '../api/pendingImports';
 import { ROOM_PLATFORM_LABELS } from '@queueup/shared';
@@ -50,6 +51,12 @@ export function HomeView() {
   const pendingImports = usePendingImportsCount();
   const { version } = useVersion();
   const { isShelf, room, members, games, ops } = scope;
+  // "Possible duplicates" nudge: counted from titles alone (free, no AI), and only offered once AI is
+  // set up, since the AI is what judges them and merges them into the original.
+  const aiSettings = useQuery({ queryKey: AI_SETTINGS_QUERY_KEY, queryFn: aiApi.mine, enabled: isShelf });
+  const aiReady = !!aiSettings.data && aiSettings.data.effectiveSource !== 'none';
+  const duplicateCount = useQuery({ queryKey: DUPLICATE_COUNT_QUERY_KEY, queryFn: gamesApi.duplicateCandidateCount, enabled: isShelf && aiReady, staleTime: 10 * 60_000 });
+  const possibleDuplicates = duplicateCount.data?.count ?? 0;
   const navigate = useNavigate();
 
   // Room header row (members, Invite, vote/approve nudges): if it spills onto a second line, first
@@ -205,7 +212,8 @@ export function HomeView() {
     ui.notify(t('home.notify.nowPlaying', { title: game.title }));
   };
 
-  const nudges = (showNudge || (toApprove > 0 && !searching)) ? (
+  const showMergeNudge = isShelf && !searching && possibleDuplicates > 0;
+  const nudges = (showNudge || showMergeNudge || (toApprove > 0 && !searching)) ? (
         <div style={st('display:flex;flex-wrap:wrap;gap:8px')}>
           {showNudge && (
             <button
@@ -223,6 +231,19 @@ export function HomeView() {
               <span style={st('height:28px;padding:0 11px;border-radius:999px;background:var(--acc);color:var(--ink);display:flex;align-items:center;font-size:12px')}>
                 {nudgeAction}
               </span>
+            </button>
+          )}
+          {showMergeNudge && (
+            <button
+              type="button"
+              onClick={() => ui.openDialog('duplicates')}
+              aria-label={t('home.nudge.aria', { label: t(possibleDuplicates === 1 ? 'home.nudge.merge.one' : 'home.nudge.merge.other', { n: possibleDuplicates }), action: t('home.nudge.mergeBtn') })}
+              title={t('home.nudge.merge.title')}
+              className="nudge"
+              style={st('align-self:flex-start;display:flex;align-items:center;gap:10px;height:42px;padding:0 8px 0 14px;border-radius:999px;border:1px dashed var(--line);background:transparent;color:var(--text);font:600 13.5px var(--font-ui)')}
+            >
+              <span className="nudge-text">{t(possibleDuplicates === 1 ? 'home.nudge.merge.one' : 'home.nudge.merge.other', { n: possibleDuplicates })}</span>
+              <span style={st('height:28px;padding:0 11px;border-radius:999px;background:var(--chip);color:var(--accText);display:flex;align-items:center;font-size:12px')}>{t('home.nudge.mergeBtn')}</span>
             </button>
           )}
           {toApprove > 0 && !searching && (

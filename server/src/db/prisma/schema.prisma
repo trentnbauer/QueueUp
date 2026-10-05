@@ -188,6 +188,10 @@ enum NotificationType {
   /// their own shelf too. Direct (recipientId), but also carries roomId and gameId so the toast can
   /// open the game in its room - room-scoped unread queries skip rows with a recipientId.
   room_game_beaten
+  /// The AI duplicate finder finished and found games on the shelf that can be merged into their
+  /// originals. Direct (recipientId), no actor; the toast and bell entry open the Find duplicates
+  /// dialog. See notifyMergeSuggestions in services/notifications.ts.
+  merge_suggestions
 }
 
 /// See RoomActivity's doc comment. A superset of NotificationType's room-scoped values (everything

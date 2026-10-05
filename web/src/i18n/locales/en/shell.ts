@@ -201,6 +201,7 @@ export const shell = {
   "shell.toasts.saveFailed": "Couldn't save that. Try again.",
   "shell.toasts.yesAddIt": "Yes, add it",
   "shell.toasts.findIt": "Find it",
+  "shell.toasts.reviewMerges": "Review",
   "shell.toasts.markPlaying": "Mark Playing",
   "shell.toasts.reviewIt": "Review it",
   "shell.toasts.markBeaten": "Mark Beaten",
