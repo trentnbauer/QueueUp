@@ -22,26 +22,44 @@ function withTimeout<T>(promise: Promise<T>, ms: number): Promise<T> {
 /** Used by Docker/orchestration to know if the app is actually serving traffic, not just that the
  * process exists. Checks both dependencies directly rather than trusting connection-pool state,
  * since a pool can look "connected" while the underlying service is actually unreachable. */
+interface HealthResult {
+  healthy: boolean;
+  checks: Record<string, 'ok' | 'error'>;
+}
+
+async function runChecks(): Promise<HealthResult> {
+  const checks: Record<string, 'ok' | 'error'> = {};
+  let healthy = true;
+
+  try {
+    await withTimeout(prisma.$queryRaw`SELECT 1`, CHECK_TIMEOUT_MS);
+    checks.database = 'ok';
+  } catch {
+    checks.database = 'error';
+    healthy = false;
+  }
+
+  try {
+    await withTimeout(redis.ping(), CHECK_TIMEOUT_MS);
+    checks.redis = 'ok';
+  } catch {
+    checks.redis = 'error';
+    healthy = false;
+  }
+
+  return { healthy, checks };
+}
+
+// The endpoint is unauthenticated and exempt from rate limiting (Docker polls it), so every hit
+// used to cost a database query and a Redis ping. Concurrent and rapid callers now share one
+// result for a few seconds - far below the 15s probe interval, so a real outage still shows up.
+const RESULT_TTL_MS = 3000;
+let cached: { at: number; result: Promise<HealthResult> } | null = null;
+
 export default async function healthRoutes(app: FastifyInstance) {
   app.get('/healthz', { config: { rateLimit: false } }, async (_request, reply) => {
-    const checks: Record<string, 'ok' | 'error'> = {};
-    let healthy = true;
-
-    try {
-      await withTimeout(prisma.$queryRaw`SELECT 1`, CHECK_TIMEOUT_MS);
-      checks.database = 'ok';
-    } catch {
-      checks.database = 'error';
-      healthy = false;
-    }
-
-    try {
-      await withTimeout(redis.ping(), CHECK_TIMEOUT_MS);
-      checks.redis = 'ok';
-    } catch {
-      checks.redis = 'error';
-      healthy = false;
-    }
+    if (!cached || Date.now() - cached.at > RESULT_TTL_MS) cached = { at: Date.now(), result: runChecks() };
+    const { healthy, checks } = await cached.result;
 
     reply.status(healthy ? 200 : 503);
     return { status: healthy ? 'ok' : 'error', checks };
