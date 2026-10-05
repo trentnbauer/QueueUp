@@ -444,6 +444,10 @@ model NotificationPreference {
   email     Boolean          @default(false)
   inApp     Boolean          @default(true) @map("in_app")
   updatedAt DateTime         @default(now()) @updatedAt @map("updated_at")
+  /// When email was last switched on - the cut-off for which alerts get emailed. Separate from
+  /// updatedAt, which Prisma bumps on any edit (e.g. the in-app toggle). Null on rows from before
+  /// this column existed; the email job falls back to updatedAt for those.
+  emailEnabledAt DateTime?      @map("email_enabled_at")
 
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
