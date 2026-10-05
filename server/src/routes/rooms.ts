@@ -29,6 +29,8 @@ import { parseSpinFilters } from '../services/spinFilters.js';
 
 /** #rrggbb - the only colour format a room accent may take (it ends up in inline styles). */
 const HEX_COLOUR = /^#[0-9a-fA-F]{6}$/;
+/** The name is copied into every member's notifications and activity, and into Discord posts. */
+const MAX_ROOM_NAME_LENGTH = 100;
 const ROOM_PLATFORMS = Object.keys(ROOM_PLATFORM_LABELS) as RoomPlatform[];
 const ROOM_ROLES: RoomRole[] = ['room_master', 'moderator', 'member'];
 
@@ -159,6 +161,7 @@ export default async function roomRoutes(app: FastifyInstance) {
     }
     if (accentColor && !HEX_COLOUR.test(accentColor)) throw new HttpError(400, 'Room colour must be a hex colour like #8b5cf6');
     if (!name?.trim()) throw new HttpError(400, 'Room name is required');
+    if (name.trim().length > MAX_ROOM_NAME_LENGTH) throw new HttpError(400, `Room name can be at most ${MAX_ROOM_NAME_LENGTH} characters`);
     // Issue #473: platform is optional - omitting it (or passing null) leaves the room unrestricted
     // ("any platform"), rather than forcing every room to lock to one console/PC up front.
     if (platform != null && !ROOM_PLATFORMS.includes(platform)) throw new HttpError(400, 'A valid platform is required');
@@ -340,6 +343,7 @@ export default async function roomRoutes(app: FastifyInstance) {
     if (name !== undefined && (typeof name !== 'string' || !name.trim())) throw new HttpError(400, 'Room name cannot be empty');
     if (accentColor !== undefined && typeof accentColor !== 'string') throw new HttpError(400, 'Room colour must be a hex colour like #8b5cf6');
     if (name !== undefined && !name.trim()) throw new HttpError(400, 'Room name cannot be empty');
+    if (name !== undefined && name.trim().length > MAX_ROOM_NAME_LENGTH) throw new HttpError(400, `Room name can be at most ${MAX_ROOM_NAME_LENGTH} characters`);
     if (accentColor !== undefined && !HEX_COLOUR.test(accentColor)) throw new HttpError(400, 'Room colour must be a hex colour like #8b5cf6');
     // Issue #473: platform may be explicitly set to null to clear the room's restriction ("any
     // platform") - only a non-null, provided value needs to be a real RoomPlatform.
