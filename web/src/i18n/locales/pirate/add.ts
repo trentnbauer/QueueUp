@@ -74,6 +74,7 @@ export const add: Record<keyof typeof en, string> = {
   "add.import.exophaseSub": "A cloud service that QueueUp downloads yer libraries from (PlayStation, Xbox, Steam, Epic and more). Nothin’ to install.",
   "add.import.psnSub": "Link yer PlayStation account and sync yer purchased PS4 and PS5 games directly (best effort)",
   "add.import.retroAchievementsSub": "Sync the retro games on yer RetroAchievements profile, and approve the ones ye’ve beaten (best effort)",
+  "add.import.rateLimited": "Rate limited right now. Try again in about {minutes} min.",
   "add.import.xboxSub": "Link yer Xbox account and sync yer Xbox games directly (best effort)",
   "add.import.setUp": "Rig it up",
   "add.playniteSetup.connected": "Playnite be lashed aboard",

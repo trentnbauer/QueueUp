@@ -10,10 +10,13 @@ const h = vi.hoisted(() => ({
   fetchGamesPage: vi.fn(),
   fetchLibrary: vi.fn(),
   notifyLibrarySyncError: vi.fn(),
+  assertNotLimited: vi.fn(),
+  markLimited: vi.fn(),
 }));
 
 vi.mock('../../db/client.js', () => ({ prisma: { userExophaseConnection: { findUnique: h.findUnique, upsert: h.upsert, update: h.update, deleteMany: h.deleteMany } } }));
 vi.mock('../librarySync.js', () => ({ startLibrarySync: h.startLibrarySync }));
+vi.mock('../librarySyncLimits.js', () => ({ assertNotLimited: h.assertNotLimited, markLimited: h.markLimited }));
 vi.mock('../notifications.js', () => ({ notifyLibrarySyncError: h.notifyLibrarySyncError }));
 vi.mock('./exophaseClient.js', async () => {
   const actual = await vi.importActual<typeof import('./exophaseClient.js')>('./exophaseClient.js');
@@ -27,6 +30,7 @@ const logger = {} as never;
 
 beforeEach(() => {
   vi.clearAllMocks();
+  h.assertNotLimited.mockResolvedValue(undefined);
   h.findUnique.mockResolvedValue({ playerId: '555', lastSyncedAt: new Date('2026-10-05T00:00:00Z') });
 });
 
@@ -98,5 +102,28 @@ describe('disconnectExophase', () => {
   it('removes the link', async () => {
     await disconnectExophase('u1');
     expect(h.deleteMany).toHaveBeenCalledWith({ where: { userId: 'u1' } });
+  });
+});
+
+describe('rate limiting (#864)', () => {
+  it('marks Exophase limited for everyone when it blocks a sync, and still reports it', async () => {
+    h.fetchLibrary.mockRejectedValue(new ExophaseError('Exophase is blocking requests from this server right now.', true));
+    await expect(syncExophaseLibrary('u1', logger)).rejects.toMatchObject({ statusCode: 502 });
+    expect(h.markLimited).toHaveBeenCalledWith('exophase', null);
+    expect(h.notifyLibrarySyncError).toHaveBeenCalled();
+  });
+
+  it('does not mark it limited for an ordinary failure', async () => {
+    h.fetchLibrary.mockRejectedValue(new ExophaseError('Exophase is having problems right now.'));
+    await expect(syncExophaseLibrary('u1', logger)).rejects.toMatchObject({ statusCode: 502 });
+    expect(h.markLimited).not.toHaveBeenCalled();
+  });
+
+  it('refuses to start a sync while Exophase is limited, without calling it', async () => {
+    const { HttpError } = await import('../../util/httpError.js');
+    h.assertNotLimited.mockRejectedValue(new HttpError(429, 'Exophase is limiting requests right now. Try again in about 5 minutes.'));
+    await expect(syncExophaseLibrary('u1', logger)).rejects.toMatchObject({ statusCode: 429 });
+    expect(h.fetchLibrary).not.toHaveBeenCalled();
+    expect(h.notifyLibrarySyncError).not.toHaveBeenCalled();
   });
 });

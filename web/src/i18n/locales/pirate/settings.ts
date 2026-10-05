@@ -84,6 +84,7 @@ export const settings: Record<keyof typeof en, string> = {
   "settings.me.syncLibraries.syncing": "Syncin’ libraries…",
   "settings.me.syncLibraries.done": "Library sync done",
   "settings.me.syncLibraries.someFailed": "Some libraries had problems: {sources}. See yer notifications.",
+  "settings.me.syncLibraries.skipped": "Skipped (rate limited): {sources}.",
   "settings.me.syncAchievements.checking": "Checkin’ trophies and treasures…",
   "settings.me.unlink.title": "Cut loose {provider}?",
   "settings.me.unlink.steamMessage": "Library sync, playtime nudges and completion checks stop till ye link Steam again.",

@@ -72,6 +72,7 @@ export const add = {
   "add.import.exophaseSub": "A cloud service that QueueUp downloads your libraries from (PlayStation, Xbox, Steam, Epic and more). Nothing to install.",
   "add.import.psnSub": "Link your PlayStation account and sync your purchased PS4 and PS5 games directly (best effort)",
   "add.import.retroAchievementsSub": "Sync the retro games on your RetroAchievements profile, and approve the ones you’ve beaten (best effort)",
+  "add.import.rateLimited": "Rate limited right now. Try again in about {minutes} min.",
   "add.import.xboxSub": "Link your Xbox account and sync your Xbox games directly (best effort)",
   "add.import.setUp": "Set up",
   "add.playniteSetup.connected": "Playnite connected",

@@ -82,6 +82,7 @@ export const settings = {
   "settings.me.syncLibraries.syncing": "Syncing libraries…",
   "settings.me.syncLibraries.done": "Library sync done",
   "settings.me.syncLibraries.someFailed": "Some libraries had problems: {sources}. See your notifications.",
+  "settings.me.syncLibraries.skipped": "Skipped (rate limited): {sources}.",
   "settings.me.syncAchievements.checking": "Checking trophies and achievements…",
   "settings.me.unlink.title": "Unlink {provider}?",
   "settings.me.unlink.steamMessage": "Library sync, playtime nudges and completion checks stop until you link Steam again.",
