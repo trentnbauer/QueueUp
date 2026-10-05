@@ -5,6 +5,7 @@ import { env } from '../config/env.js';
 import { prisma } from '../db/client.js';
 import { HttpError } from '../util/httpError.js';
 import { sendMail, smtpIsConfigured } from '../services/mailer.js';
+import { renderConfirmEmail } from '../services/emailTemplates.js';
 import { notifyAccountChange } from '../services/notifications.js';
 
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
@@ -70,18 +71,8 @@ export default async function alertEmailRoutes(app: FastifyInstance) {
         update: { email, tokenHash: hashToken(token), expiresAt: new Date(Date.now() + CONFIRM_TTL_MS), createdAt: new Date() },
       });
       try {
-        await sendMail({
-          to: email,
-          subject: 'Confirm your email for QueueUp alerts',
-          kind: 'confirm_email',
-          text: [
-            'Someone (hopefully you) asked to send QueueUp alerts to this address.',
-            '',
-            `Confirm it here: ${env.APP_BASE_URL}/confirm-email/${token}`,
-            '',
-            'The link works for 24 hours. If this was not you, ignore this email and nothing changes.',
-          ].join('\n'),
-        });
+        const mail = renderConfirmEmail({ email, confirmUrl: `${env.APP_BASE_URL}/confirm-email/${token}`, appBaseUrl: env.APP_BASE_URL });
+        await sendMail({ to: email, subject: mail.subject, text: mail.text, html: mail.html, kind: 'confirm_email' });
       } catch {
         await prisma.emailChangeRequest.deleteMany({ where: { userId } });
         throw new HttpError(502, 'Could not send the confirmation email. Check the address and try again.');
