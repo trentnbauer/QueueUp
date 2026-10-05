@@ -57,7 +57,7 @@ describe('aiComplete with backups', () => {
   });
 
   it('falls back to the next provider and records a warning', async () => {
-    callProvider.mockRejectedValueOnce(new AiProviderError('Anthropic said: out of credit')).mockResolvedValueOnce(ok('OK'));
+    callProvider.mockRejectedValueOnce(new AiProviderError('Anthropic said: out of credit', 402)).mockResolvedValueOnce(ok('OK'));
     const res = await aiComplete(REQ, { userId: 'u1' });
     expect(res.text).toBe('OK');
     expect(res.fallback).toMatchObject({ failedProvider: 'anthropic', usedProvider: 'openai', error: 'Anthropic said: out of credit' });
@@ -72,7 +72,7 @@ describe('aiComplete with backups', () => {
   });
 
   it('throws a 502 naming the count when every provider fails', async () => {
-    callProvider.mockRejectedValue(new AiProviderError('down'));
+    callProvider.mockRejectedValue(new AiProviderError('down', null));
     await expect(aiComplete(REQ, { userId: 'u1' })).rejects.toMatchObject({ statusCode: 502, message: expect.stringContaining('All 2') });
   });
 });
