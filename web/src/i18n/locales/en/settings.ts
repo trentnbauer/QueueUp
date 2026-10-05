@@ -345,6 +345,8 @@ export const settings = {
   "settings.me.accent.roomHint": "A room's colour tints its background, buttons and logo. Settings and dialogs stay neutral.",
   "settings.me.accent.monoHint": "Neutral buttons and highlights, whatever room you are in.",
   "settings.me.layout": "Shelf & room layout",
+  "settings.me.layout.hintMobile": "Saved for the phone layout. The desktop layout keeps its own choice.",
+  "settings.me.layout.hintDesktop": "Saved for the desktop layout. The phone layout keeps its own choice.",
   "settings.me.layout.list": "List",
   "settings.me.layout.covers": "Covers",
   "settings.me.density": "Covers per row",

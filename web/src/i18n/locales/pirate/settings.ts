@@ -347,6 +347,8 @@ export const settings: Record<keyof typeof en, string> = {
   "settings.me.accent.roomHint": "A ship’s colour tints its background, buttons and logo. Riggin’ and dialogs stay plain.",
   "settings.me.accent.monoHint": "Plain buttons and highlights, whatever ship ye be on.",
   "settings.me.layout": "Shelf & ship layout",
+  "settings.me.layout.hintMobile": "Saved fer the pocket-spyglass layout. The big-screen layout keeps its own choice.",
+  "settings.me.layout.hintDesktop": "Saved fer the big-screen layout. The pocket-spyglass layout keeps its own choice.",
   "settings.me.layout.list": "List",
   "settings.me.layout.covers": "Covers",
   "settings.me.density": "Covers per row",
