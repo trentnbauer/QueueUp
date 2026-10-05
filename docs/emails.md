@@ -12,9 +12,9 @@ to, subject, kind, sent or failed with the mail server's reason; never the body;
 
 ## Today's constraints (for the design)
 
-- **Plain text only.** `sendMail()` passes `text` to nodemailer and nothing else: there is no HTML
-  body, no logo, no attachments. A themed version needs an `html` field added to `MailMessage` (keep
-  the text version as the fallback part).
+- **Themed HTML plus plain text.** The HTML versions live in `server/src/services/emailTemplates.ts`
+  (one render function per email); `sendMail()` sends them with the original plain text as the
+  fallback part. Everything member-written is HTML-escaped there.
 - One sender (`SMTP_FROM`, for example `QueueUp <alerts@example.com>`); no reply-to.
 - Links are built from `APP_BASE_URL`, shown below as `{APP_BASE_URL}`.
 - The app's own wording is English only; emails are not translated.

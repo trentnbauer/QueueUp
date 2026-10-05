@@ -15,6 +15,7 @@ import {
   type ConfigKey,
 } from '../services/configResolver.js';
 import { sendMail, smtpIsConfigured } from '../services/mailer.js';
+import { renderSmtpTest } from '../services/emailTemplates.js';
 import { getTunnelStatus, reloadTunnel } from '../services/cloudflareTunnel.js';
 import type { ConfigSource, AdminIntegrationStatus, AdminRoomDetail, AdminRoomSummary, AdminUserSummary, AdminAuditLogEntry, AdminEmailLogEntry } from '@queueup/shared';
 import { normalizeSpinTheme } from '@queueup/shared';
@@ -219,12 +220,8 @@ export default async function adminRoutes(app: FastifyInstance) {
       const actor = await requireAdmin(actorId);
       if (!(await smtpIsConfigured())) throw new HttpError(400, 'Set the SMTP host, port and from address first');
       try {
-        await sendMail({
-          to: actor.email,
-          subject: 'QueueUp test email',
-          kind: 'smtp_test',
-          text: 'If you can read this, QueueUp can send email alerts.',
-        });
+        const mail = renderSmtpTest({ appBaseUrl: env.APP_BASE_URL });
+        await sendMail({ to: actor.email, subject: mail.subject, text: mail.text, html: mail.html, kind: 'smtp_test' });
       } catch (err) {
         throw new HttpError(502, `Could not send the test email: ${err instanceof Error ? err.message : 'unknown error'}`);
       }

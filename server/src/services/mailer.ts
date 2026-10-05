@@ -34,11 +34,13 @@ export interface MailMessage {
   to: string;
   subject: string;
   text: string;
+  /** The themed HTML version (see emailTemplates.ts). `text` is still sent as the fallback part. */
+  html?: string;
   /** What this email is, for the Administrator page's email log. */
   kind: EmailKind;
 }
 
-/** Sends one plain-text email through the configured SMTP server. Port 465 uses implicit TLS; any
+/** Sends one email (themed HTML plus a plain-text fallback) through the configured SMTP server. Port 465 uses implicit TLS; any
  * other port starts plain and upgrades with STARTTLS when the server offers it. Throws when SMTP
  * isn't configured or the server refuses the message. */
 export async function sendMail(message: MailMessage): Promise<void> {
@@ -54,7 +56,7 @@ export async function sendMail(message: MailMessage): Promise<void> {
     socketTimeout: 30_000,
   });
   try {
-    await transport.sendMail({ from: smtp.from, to: message.to, subject: message.subject, text: message.text });
+    await transport.sendMail({ from: smtp.from, to: message.to, subject: message.subject, text: message.text, html: message.html });
     await logEmail({ kind: message.kind, to: message.to, subject: message.subject });
   } catch (err) {
     await logEmail({ kind: message.kind, to: message.to, subject: message.subject, error: err });

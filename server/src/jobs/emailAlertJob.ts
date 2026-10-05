@@ -1,6 +1,7 @@
 import { env } from '../config/env.js';
 import { prisma } from '../db/client.js';
 import { sendMail, smtpIsConfigured } from '../services/mailer.js';
+import { renderAlertDigest } from '../services/emailTemplates.js';
 import { scheduleJob, type JobHandle } from './scheduler.js';
 
 export const EMAIL_ALERT_INTERVAL_MS = 2 * 60 * 1000;
@@ -9,7 +10,6 @@ export const EMAIL_ALERT_INTERVAL_MS = 2 * 60 * 1000;
 const MAX_AGE_MS = 24 * 60 * 60 * 1000;
 /** Gives someone a moment to see an alert in the app before it's emailed as well. */
 const MIN_AGE_MS = 60 * 1000;
-const MAX_LINES = 20;
 /** At most this many emails per run, so a burst can't flood the SMTP server. */
 const MAX_EMAILS_PER_RUN = 50;
 
@@ -54,20 +54,10 @@ export async function sendEmailAlerts(): Promise<void> {
     });
     if (waiting.length === 0) continue;
 
-    const lines = waiting.slice(0, MAX_LINES).map((n) => `- ${n.message}`);
-    if (waiting.length > MAX_LINES) lines.push(`…and ${waiting.length - MAX_LINES} more`);
-    const text = [
-      waiting.length === 1 ? 'You have a new alert on QueueUp:' : `You have ${waiting.length} new alerts on QueueUp:`,
-      '',
-      ...lines,
-      '',
-      `Open QueueUp: ${env.APP_BASE_URL}`,
-      '',
-      'You are getting this because you turned on email alerts. You can choose which alerts you get under Settings > Notifications.',
-    ].join('\n');
+    const { subject, text, html } = renderAlertDigest({ messages: waiting.map((n) => n.message), appBaseUrl: env.APP_BASE_URL });
 
     try {
-      await sendMail({ to: email, subject: waiting.length === 1 ? 'QueueUp: 1 new alert' : `QueueUp: ${waiting.length} new alerts`, text, kind: 'alert_digest' });
+      await sendMail({ to: email, subject, text, html, kind: 'alert_digest' });
       await prisma.notification.updateMany({ where: { id: { in: waiting.map((n) => n.id) } }, data: { emailedAt: new Date() } });
       sent += 1;
     } catch (err) {
