@@ -406,22 +406,304 @@ function ApiKeysDialog({ onClose }: { onClose: () => void }) {
   );
 }
 
+/** Appearance: language, theme, accent, layout, card density and price currency. */
+function AppearanceDialog({ onClose }: { onClose: () => void }) {
+  const { language, setLanguage, t } = useI18n();
+  const { region, setRegion } = useCurrencyRegion();
+  const { preference, setPreference, accent, setAccent } = useThemeMode();
+  const { viewMode, setViewMode } = useViewMode();
+  const { density, setDensity } = useCardDensity();
+  return (
+    <Dialog onClose={onClose} title={t('settings.me.appearance.title')} gap={14}>
+      <Group>
+            <div style={st('display:flex;align-items:center;gap:12px;min-height:58px;padding:0 14px 0 16px;background:var(--surf)')}>
+              <span style={st('flex:1;display:flex;flex-direction:column;gap:1px')}>
+                <span style={st('font:600 15px var(--font-ui)')}>{t('core.settings.language')}</span>
+                <span style={st('font:400 12.5px var(--font-ui);color:var(--muted)')}>{t('core.settings.language.sub')}</span>
+              </span>
+              <select
+                value={language}
+                aria-label={t('core.settings.language')}
+                onChange={(e) => setLanguage(e.target.value as Language)}
+                style={st('height:38px;padding:0 10px;border-radius:12px;background:var(--bg);border:1px solid var(--line);color:var(--text);font:500 14px var(--font-ui);outline:none')}
+              >
+                {LANGUAGES.map((l) => (
+                  <option key={l.code} value={l.code} lang={l.code}>
+                    {l.nativeName}
+                  </option>
+                ))}
+              </select>
+            </div>
+            <ControlRow label={t('settings.me.section.theme')}>
+              <Segmented
+                columns={3}
+                value={preference}
+                onChange={setPreference}
+                options={[
+                  { value: 'dark', label: t('settings.me.theme.dark') },
+                  { value: 'light', label: t('settings.me.theme.light') },
+                  { value: 'system', label: t('settings.me.theme.auto') },
+                ]}
+              />
+            </ControlRow>
+            <ControlRow label={t('settings.me.accent')} hint={accent === 'room' ? t('settings.me.accent.roomHint') : t('settings.me.accent.monoHint')}>
+              <Segmented
+                columns={2}
+                value={accent}
+                onChange={setAccent}
+                options={(Object.keys(ACCENT_LABELS) as Accent[]).map((k) => ({ value: k, label: t(`settings.me.accent.${k}`) }))}
+              />
+            </ControlRow>
+            <ControlRow label={t('settings.me.layout')}>
+              <Segmented
+                columns={2}
+                value={viewMode}
+                onChange={setViewMode}
+                options={[
+                  { value: 'list', label: t('settings.me.layout.list') },
+                  { value: 'artwork', label: t('settings.me.layout.covers') },
+                ]}
+              />
+            </ControlRow>
+            {viewMode === 'artwork' && (
+              <ControlRow label={t('settings.me.density')}>
+                <Segmented
+                  columns={2}
+                  value={density === 'small' ? 'small' : 'medium'}
+                  onChange={(v) => setDensity(v === 'small' ? 'small' : 'medium')}
+                  options={[
+                    { value: 'medium', label: t('settings.me.density.two') },
+                    { value: 'small', label: t('settings.me.density.three') },
+                  ]}
+                />
+              </ControlRow>
+            )}
+            <div style={st('display:flex;align-items:center;gap:12px;min-height:58px;padding:0 14px 0 16px;background:var(--surf)')}>
+              <span style={st('flex:1;font:600 15px var(--font-ui)')}>{t('settings.me.currency.label')}</span>
+              <select
+                value={region ?? ''}
+                aria-label={t('settings.me.currency.aria')}
+                onChange={(e) => setRegion((e.target.value || undefined) as PriceRegion | undefined)}
+                style={st('max-width:55%;height:38px;padding:0 10px;border-radius:12px;background:var(--bg);border:1px solid var(--line);color:var(--text);font:500 14px var(--font-ui);outline:none')}
+              >
+                <option value="">{t('settings.me.currency.default')}</option>
+                {REGIONS.map((r) => (
+                  <option key={r} value={r}>
+                    {priceRegionLabel(r)}
+                  </option>
+                ))}
+              </select>
+            </div>
+      </Group>
+    </Dialog>
+  );
+}
+
+/** Libraries and the systems you own, together: what fills the shelf and what it is scoped to. */
+function LibrariesSystemsDialog({ onClose, librariesSummary, onOpenLibraries }: { onClose: () => void; librariesSummary: string; onOpenLibraries: () => void }) {
+  const t = useT();
+  const { ownedPlatforms } = useAuth();
+  const [systemsOpen, setSystemsOpen] = useState(false);
+  return (
+    <>
+      <Dialog onClose={onClose} title={t('settings.me.librariesSystems.title')} gap={14}>
+        <Group>
+          <NavRow label={t('settings.me.libraries')} sub={librariesSummary || t('settings.me.libraries.none')} onClick={onOpenLibraries} />
+          <NavRow
+            label={t('settings.systems.title')}
+            sub={ownedPlatforms.length === 0 ? t('settings.systems.everyPlatform') : sortPlatforms(ownedPlatforms).map((p) => ROOM_PLATFORM_LABELS[p]).join(', ')}
+            onClick={() => setSystemsOpen(true)}
+          />
+        </Group>
+      </Dialog>
+      {systemsOpen && <SystemsDialog onClose={() => setSystemsOpen(false)} />}
+    </>
+  );
+}
+
+/** Notifications and AI, together: what you hear about and which model answers. */
+function NotificationsAiDialog({ onClose }: { onClose: () => void }) {
+  const t = useT();
+  const [notifOpen, setNotifOpen] = useState(false);
+  const [aiOpen, setAiOpen] = useState(false);
+  return (
+    <>
+      <Dialog onClose={onClose} title={t('settings.me.notificationsAi.title')} gap={14}>
+        <Group>
+          <NavRow label={t('settings.notifications.title')} onClick={() => setNotifOpen(true)} />
+          <NavRow label={t('settings.ai.title')} sub={t('settings.ai.nav.sub')} onClick={() => setAiOpen(true)} />
+        </Group>
+      </Dialog>
+      {notifOpen && <NotificationsDialog onClose={() => setNotifOpen(false)} />}
+      {aiOpen && <AiSettingsDialog onClose={() => setAiOpen(false)} />}
+    </>
+  );
+}
+
+/** Profile: the public link, who can see it, and what you share. */
+function ProfileSettingsDialog({ onClose }: { onClose: () => void }) {
+  const ui = useUi();
+  const t = useT();
+  const { user, profileVisibility, profileSlug, refetch } = useAuth();
+  const [error, setError] = useState<string | null>(null);
+  const [slugDraft, setSlugDraft] = useState<string | null>(null);
+  const profileUrl = `${window.location.origin}${getBasePath()}/u/${profileSlug ?? user?.id ?? ''}`;
+
+  async function changeVisibility(visibility: ProfileVisibility) {
+    try {
+      await authApi.setProfileVisibility(visibility);
+      await refetch();
+      ui.notify(t(PROFILE_VISIBILITY_TEXT[visibility].toast));
+    } catch (e) {
+      setError(e instanceof Error ? e.message : t('settings.me.visibility.failed'));
+    }
+  }
+
+  async function saveSlug() {
+    if (slugDraft === null) return;
+    try {
+      await authApi.setProfileSlug(slugDraft.trim() === '' ? null : slugDraft);
+      await refetch();
+      setSlugDraft(null);
+      ui.notify(slugDraft.trim() === '' ? t('settings.me.slug.reset') : t('settings.me.slug.saved'));
+    } catch (e) {
+      setError(e instanceof Error ? e.message : t('settings.me.slug.failed'));
+    }
+  }
+
+  return (
+    <Dialog onClose={onClose} title={t('settings.me.profileSettings.title')} gap={14}>
+      {error && <Banner onDismiss={() => setError(null)}>{error}</Banner>}
+      <Group>
+        <button type="button" onClick={() => window.open(profileUrl, '_blank', 'noopener')} style={st(ROW_BASE)} className="hv-surf2">
+          <span style={st('flex:1;min-width:0;display:flex;flex-direction:column;gap:1px')}>
+            <span style={st('font:600 15px var(--font-ui)')}>{t('settings.me.profile')}</span>
+            <span style={st('font:500 12.5px var(--font-mono);color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis')}>{profileUrl.replace(/^https?:\/\//, '')}</span>
+          </span>
+          <span style={st('color:var(--muted);font-size:20px')}>›</span>
+        </button>
+            <ActivitySharingRow />
+            <AnalyticsConsentRow />
+            <div style={st('display:flex;flex-direction:column;gap:10px;padding:14px 14px 14px 16px;background:var(--surf)')}>
+              <span style={st('display:flex;flex-direction:column;gap:1px')}>
+                <span style={st('font:600 15px var(--font-ui)')}>{t('settings.me.visibility')}</span>
+                <span style={st('font:400 12.5px var(--font-ui);color:var(--muted)')}>{t(PROFILE_VISIBILITY_TEXT[profileVisibility].sub)}</span>
+              </span>
+              <Segmented
+                columns={3}
+                value={profileVisibility}
+                onChange={(v) => void changeVisibility(v)}
+                options={[
+                  { value: 'public', label: t('settings.me.visibility.public') },
+                  { value: 'friends', label: t('settings.me.visibility.friends') },
+                  { value: 'private', label: t('settings.me.visibility.private') },
+                ]}
+              />
+            </div>
+            {profileVisibility !== 'private' && (
+              <>
+                <div style={st('display:flex;flex-direction:column;gap:8px;padding:12px 10px 12px 16px;background:var(--surf)')}>
+                  <span style={st('display:flex;flex-direction:column;gap:1px')}>
+                    <span style={st('font:600 15px var(--font-ui)')}>{t('settings.me.slug')}</span>
+                    <span style={st('font:400 12.5px var(--font-ui);color:var(--muted)')}>{t('settings.me.slug.sub')}</span>
+                  </span>
+                  <div style={st('display:flex;align-items:center;gap:8px')}>
+                    <span style={st('font:500 12.5px var(--font-mono);color:var(--muted)')}>/u/</span>
+                    <input
+                      value={slugDraft ?? profileSlug ?? ''}
+                      onChange={(e) => setSlugDraft(e.target.value)}
+                      placeholder={t('settings.me.slug.placeholder')}
+                      aria-label={t('settings.me.slug.aria')}
+                      autoCapitalize="none"
+                      autoCorrect="off"
+                      spellCheck={false}
+                      style={st(inputField, { flex: 1, minWidth: 0, height: 38, fontFamily: 'var(--font-mono)', fontSize: 13.5 })}
+                    />
+                    {slugDraft !== null && slugDraft !== (profileSlug ?? '') && (
+                      <Btn kind="text" height={38} padX={14} fontSize={12.5} weight={700} onClick={saveSlug}>
+                        {t('common.save')}
+                      </Btn>
+                    )}
+                  </div>
+                </div>
+              </>
+            )}
+      </Group>
+    </Dialog>
+  );
+}
+
+/** Sign-in methods: which providers this account can use, and linking or unlinking them. */
+function SignInMethodsDialog({ onClose, providers }: { onClose: () => void; providers: string[] }) {
+  const ui = useUi();
+  const confirm = useConfirm();
+  const t = useT();
+  const { primaryProvider, linkedProviders, refetch } = useAuth();
+  const [unlinking, setUnlinking] = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(null);
+
+  async function unlink(provider: string) {
+    const label = providerLabel(provider);
+    const ok = await confirm({
+      title: t('settings.me.unlink.title', { provider: label }),
+      message: provider === 'steam' ? t('settings.me.unlink.steamMessage') : t('settings.me.unlink.message', { provider: label }),
+      confirmLabel: t('settings.me.unlink'),
+      danger: true,
+    });
+    if (!ok) return;
+    setUnlinking(provider);
+    try {
+      await authApi.unlink(provider);
+      await refetch();
+      ui.notify(t('settings.me.unlink.done', { provider: label }));
+    } catch (e) {
+      setError(e instanceof Error ? e.message : t('settings.me.unlink.failed', { provider: label }));
+    } finally {
+      setUnlinking(null);
+    }
+  }
+
+  return (
+    <Dialog onClose={onClose} title={t('settings.me.signIn.title')} gap={14}>
+      {error && <Banner onDismiss={() => setError(null)}>{error}</Banner>}
+      <Group>
+              {providers.map((p) => {
+                const linked = linkedProviders.includes(p);
+                const primary = p === primaryProvider;
+                return (
+                  <div key={p} style={st('display:flex;align-items:center;gap:12px;min-height:54px;padding:0 10px 0 16px;background:var(--surf)')}>
+                    <span style={st('flex:1;font:600 15px var(--font-ui)')}>{providerLabel(p)}</span>
+                    {primary ? (
+                      <span style={st('font:500 12.5px var(--font-ui);color:var(--muted);padding-right:6px')}>{t('settings.me.signIn.primary')}</span>
+                    ) : linked ? (
+                      <Btn kind="soft" height={34} padX={14} fontSize={12.5} style={{ background: 'var(--chip)', color: 'var(--muted)' }} disabled={unlinking === p} onClick={() => unlink(p)}>
+                        {t('settings.me.unlink')}
+                      </Btn>
+                    ) : (
+                      <a href={authApi.linkUrl(p)} style={st('height:34px;padding:0 14px;border-radius:999px;background:var(--accSoft2);color:var(--accText);font:600 12.5px var(--font-ui);display:flex;align-items:center;text-decoration:none')}>
+                        {t('settings.me.link')}
+                      </a>
+                    )}
+                  </div>
+                );
+              })}
+      </Group>
+    </Dialog>
+  );
+}
+
 /** Profile & settings: pages, syncs, appearance, currency, systems, sign-in methods, sharing, account. */
 export function MeDialog() {
   const ui = useUi();
-  const { language, setLanguage, t } = useI18n();
+  const { t } = useI18n();
   const navigate = useNavigate();
   const confirm = useConfirm();
-  const { user, profileVisibility, profileSlug, primaryProvider, linkedProviders, ownedPlatforms, refetch } = useAuth();
+  const { user, profileSlug, refetch } = useAuth();
   const [nameDraft, setNameDraft] = useState<string | null>(null);
   const { rooms, games } = useScope();
   const { version } = useVersion();
   const friends = useFriends();
   const pending = usePendingImportsCount();
-  const { region, setRegion } = useCurrencyRegion();
-  const { preference, setPreference, accent, setAccent } = useThemeMode();
-  const { viewMode, setViewMode } = useViewMode();
-  const { density, setDensity } = useCardDensity();
   const sync = useSyncSources();
   // Playnite pushes from the desktop, so whether its connection code has been used says if it is set up (#793).
   const { data: apiKeys } = useQuery({ queryKey: API_KEYS_QUERY_KEY, queryFn: apiKeysApi.list });
@@ -431,14 +713,14 @@ export function MeDialog() {
   const librariesSummary = [...sync.linkedLabels, playniteKey?.lastUsedAt ? 'Playnite' : null].filter(Boolean).join(', ');
   const { data: badges } = useQuery({ queryKey: ['me', 'badges'], queryFn: badgesApi.list });
   const [providers, setProviders] = useState<string[] | null>(null);
-  const [unlinking, setUnlinking] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [keysOpen, setKeysOpen] = useState(false);
-  const [aiOpen, setAiOpen] = useState(false);
   const [historyOpen, setHistoryOpen] = useState(false);
-  const [notifOpen, setNotifOpen] = useState(false);
-  const [systemsOpen, setSystemsOpen] = useState(false);
-  const [slugDraft, setSlugDraft] = useState<string | null>(null);
+  const [profileOpen, setProfileOpen] = useState(false);
+  const [librariesSystemsOpen, setLibrariesSystemsOpen] = useState(false);
+  const [appearanceOpen, setAppearanceOpen] = useState(false);
+  const [notifAiOpen, setNotifAiOpen] = useState(false);
+  const [signInOpen, setSignInOpen] = useState(false);
 
   useEffect(() => {
     authApi.providers().then(({ providers }) => setProviders(providers)).catch(() => setProviders([]));
@@ -497,37 +779,6 @@ export function MeDialog() {
     await sync.syncAchievements();
   }
 
-  async function unlink(provider: string) {
-    const label = providerLabel(provider);
-    const ok = await confirm({
-      title: t('settings.me.unlink.title', { provider: label }),
-      message: provider === 'steam' ? t('settings.me.unlink.steamMessage') : t('settings.me.unlink.message', { provider: label }),
-      confirmLabel: t('settings.me.unlink'),
-      danger: true,
-    });
-    if (!ok) return;
-    setUnlinking(provider);
-    try {
-      await authApi.unlink(provider);
-      await refetch();
-      ui.notify(t('settings.me.unlink.done', { provider: label }));
-    } catch (e) {
-      setError(e instanceof Error ? e.message : t('settings.me.unlink.failed', { provider: label }));
-    } finally {
-      setUnlinking(null);
-    }
-  }
-
-  async function changeVisibility(visibility: ProfileVisibility) {
-    try {
-      await authApi.setProfileVisibility(visibility);
-      await refetch();
-      ui.notify(t(PROFILE_VISIBILITY_TEXT[visibility].toast));
-    } catch (e) {
-      setError(e instanceof Error ? e.message : t('settings.me.visibility.failed'));
-    }
-  }
-
   async function saveName() {
     if (nameDraft === null) return;
     try {
@@ -537,18 +788,6 @@ export function MeDialog() {
       ui.notify(t('settings.me.name.updated'));
     } catch (e) {
       ui.showError(e instanceof Error ? e.message : t('settings.me.name.failed'));
-    }
-  }
-
-  async function saveSlug() {
-    if (slugDraft === null) return;
-    try {
-      await authApi.setProfileSlug(slugDraft.trim() === '' ? null : slugDraft);
-      await refetch();
-      setSlugDraft(null);
-      ui.notify(slugDraft.trim() === '' ? t('settings.me.slug.reset') : t('settings.me.slug.saved'));
-    } catch (e) {
-      setError(e instanceof Error ? e.message : t('settings.me.slug.failed'));
     }
   }
 
@@ -663,185 +902,19 @@ export function MeDialog() {
           <NavRow label={t('settings.me.achievements')} sub={earned !== null ? t('settings.me.achievements.earned', { earned, total: total ?? 0 }) : t('settings.me.achievements.sub')} onClick={go('/achievements')} />
           <NavRow label={t('settings.me.insights')} sub={t('settings.me.insights.sub')} onClick={go('/insights')} />
           <NavRow label={t('settings.me.year')} sub={t('settings.me.year.sub')} onClick={go('/year')} />
-          <NavRow label={t('settings.me.libraries')} sub={librariesSummary || t('settings.me.libraries.none')} onClick={open('import')} />
           {user.isAdmin && <NavRow label={t('settings.me.admin')} sub={t('settings.me.admin.sub')} onClick={go('/admin')} />}
         </Group>
 
-        <Section label={t('settings.me.appearance')}>
-          <Group>
-            <div style={st('display:flex;align-items:center;gap:12px;min-height:58px;padding:0 14px 0 16px;background:var(--surf)')}>
-              <span style={st('flex:1;display:flex;flex-direction:column;gap:1px')}>
-                <span style={st('font:600 15px var(--font-ui)')}>{t('core.settings.language')}</span>
-                <span style={st('font:400 12.5px var(--font-ui);color:var(--muted)')}>{t('core.settings.language.sub')}</span>
-              </span>
-              <select
-                value={language}
-                aria-label={t('core.settings.language')}
-                onChange={(e) => setLanguage(e.target.value as Language)}
-                style={st('height:38px;padding:0 10px;border-radius:12px;background:var(--bg);border:1px solid var(--line);color:var(--text);font:500 14px var(--font-ui);outline:none')}
-              >
-                {LANGUAGES.map((l) => (
-                  <option key={l.code} value={l.code} lang={l.code}>
-                    {l.nativeName}
-                  </option>
-                ))}
-              </select>
-            </div>
-            <ControlRow label={t('settings.me.section.theme')}>
-              <Segmented
-                columns={3}
-                value={preference}
-                onChange={setPreference}
-                options={[
-                  { value: 'dark', label: t('settings.me.theme.dark') },
-                  { value: 'light', label: t('settings.me.theme.light') },
-                  { value: 'system', label: t('settings.me.theme.auto') },
-                ]}
-              />
-            </ControlRow>
-            <ControlRow label={t('settings.me.accent')} hint={accent === 'room' ? t('settings.me.accent.roomHint') : t('settings.me.accent.monoHint')}>
-              <Segmented
-                columns={2}
-                value={accent}
-                onChange={setAccent}
-                options={(Object.keys(ACCENT_LABELS) as Accent[]).map((k) => ({ value: k, label: t(`settings.me.accent.${k}`) }))}
-              />
-            </ControlRow>
-            <ControlRow label={t('settings.me.layout')}>
-              <Segmented
-                columns={2}
-                value={viewMode}
-                onChange={setViewMode}
-                options={[
-                  { value: 'list', label: t('settings.me.layout.list') },
-                  { value: 'artwork', label: t('settings.me.layout.covers') },
-                ]}
-              />
-            </ControlRow>
-            {viewMode === 'artwork' && (
-              <ControlRow label={t('settings.me.density')}>
-                <Segmented
-                  columns={2}
-                  value={density === 'small' ? 'small' : 'medium'}
-                  onChange={(v) => setDensity(v === 'small' ? 'small' : 'medium')}
-                  options={[
-                    { value: 'medium', label: t('settings.me.density.two') },
-                    { value: 'small', label: t('settings.me.density.three') },
-                  ]}
-                />
-              </ControlRow>
-            )}
-          </Group>
-        </Section>
-
-        <Section label={t('settings.me.section.regional')}>
-          <Group>
-            <div style={st('display:flex;align-items:center;gap:12px;min-height:58px;padding:0 14px 0 16px;background:var(--surf)')}>
-              <span style={st('flex:1;font:600 15px var(--font-ui)')}>{t('settings.me.currency.label')}</span>
-              <select
-                value={region ?? ''}
-                aria-label={t('settings.me.currency.aria')}
-                onChange={(e) => setRegion((e.target.value || undefined) as PriceRegion | undefined)}
-                style={st('max-width:55%;height:38px;padding:0 10px;border-radius:12px;background:var(--bg);border:1px solid var(--line);color:var(--text);font:500 14px var(--font-ui);outline:none')}
-              >
-                <option value="">{t('settings.me.currency.default')}</option>
-                {REGIONS.map((r) => (
-                  <option key={r} value={r}>
-                    {priceRegionLabel(r)}
-                  </option>
-                ))}
-              </select>
-            </div>
-            <NavRow
-              label={t('settings.systems.title')}
-              sub={ownedPlatforms.length === 0 ? t('settings.systems.everyPlatform') : sortPlatforms(ownedPlatforms).map((p) => ROOM_PLATFORM_LABELS[p]).join(', ')}
-              onClick={() => setSystemsOpen(true)}
-            />
-          </Group>
-        </Section>
-
-        {providers && providers.length > 0 && (
-          <Section label={t('settings.me.signIn')}>
-            <Group>
-              {providers.map((p) => {
-                const linked = linkedProviders.includes(p);
-                const primary = p === primaryProvider;
-                return (
-                  <div key={p} style={st('display:flex;align-items:center;gap:12px;min-height:54px;padding:0 10px 0 16px;background:var(--surf)')}>
-                    <span style={st('flex:1;font:600 15px var(--font-ui)')}>{providerLabel(p)}</span>
-                    {primary ? (
-                      <span style={st('font:500 12.5px var(--font-ui);color:var(--muted);padding-right:6px')}>{t('settings.me.signIn.primary')}</span>
-                    ) : linked ? (
-                      <Btn kind="soft" height={34} padX={14} fontSize={12.5} style={{ background: 'var(--chip)', color: 'var(--muted)' }} disabled={unlinking === p} onClick={() => unlink(p)}>
-                        {t('settings.me.unlink')}
-                      </Btn>
-                    ) : (
-                      <a href={authApi.linkUrl(p)} style={st('height:34px;padding:0 14px;border-radius:999px;background:var(--accSoft2);color:var(--accText);font:600 12.5px var(--font-ui);display:flex;align-items:center;text-decoration:none')}>
-                        {t('settings.me.link')}
-                      </a>
-                    )}
-                  </div>
-                );
-              })}
-            </Group>
-          </Section>
-        )}
-
-        <Section label={t('settings.me.sharing')}>
-          <Group>
-            <ActivitySharingRow />
-            <AnalyticsConsentRow />
-            <div style={st('display:flex;flex-direction:column;gap:10px;padding:14px 14px 14px 16px;background:var(--surf)')}>
-              <span style={st('display:flex;flex-direction:column;gap:1px')}>
-                <span style={st('font:600 15px var(--font-ui)')}>{t('settings.me.visibility')}</span>
-                <span style={st('font:400 12.5px var(--font-ui);color:var(--muted)')}>{t(PROFILE_VISIBILITY_TEXT[profileVisibility].sub)}</span>
-              </span>
-              <Segmented
-                columns={3}
-                value={profileVisibility}
-                onChange={(v) => void changeVisibility(v)}
-                options={[
-                  { value: 'public', label: t('settings.me.visibility.public') },
-                  { value: 'friends', label: t('settings.me.visibility.friends') },
-                  { value: 'private', label: t('settings.me.visibility.private') },
-                ]}
-              />
-            </div>
-            {profileVisibility !== 'private' && (
-              <>
-                <div style={st('display:flex;flex-direction:column;gap:8px;padding:12px 10px 12px 16px;background:var(--surf)')}>
-                  <span style={st('display:flex;flex-direction:column;gap:1px')}>
-                    <span style={st('font:600 15px var(--font-ui)')}>{t('settings.me.slug')}</span>
-                    <span style={st('font:400 12.5px var(--font-ui);color:var(--muted)')}>{t('settings.me.slug.sub')}</span>
-                  </span>
-                  <div style={st('display:flex;align-items:center;gap:8px')}>
-                    <span style={st('font:500 12.5px var(--font-mono);color:var(--muted)')}>/u/</span>
-                    <input
-                      value={slugDraft ?? profileSlug ?? ''}
-                      onChange={(e) => setSlugDraft(e.target.value)}
-                      placeholder={t('settings.me.slug.placeholder')}
-                      aria-label={t('settings.me.slug.aria')}
-                      autoCapitalize="none"
-                      autoCorrect="off"
-                      spellCheck={false}
-                      style={st(inputField, { flex: 1, minWidth: 0, height: 38, fontFamily: 'var(--font-mono)', fontSize: 13.5 })}
-                    />
-                    {slugDraft !== null && slugDraft !== (profileSlug ?? '') && (
-                      <Btn kind="text" height={38} padX={14} fontSize={12.5} weight={700} onClick={saveSlug}>
-                        {t('common.save')}
-                      </Btn>
-                    )}
-                  </div>
-                </div>
-              </>
-            )}
-          </Group>
-        </Section>
+        <Group>
+          <NavRow label={t('settings.me.profileSettings.title')} sub={t('settings.me.profileSettings.sub')} onClick={() => setProfileOpen(true)} />
+          <NavRow label={t('settings.me.librariesSystems.title')} sub={t('settings.me.librariesSystems.sub')} onClick={() => setLibrariesSystemsOpen(true)} />
+          <NavRow label={t('settings.me.appearance.title')} sub={t('settings.me.appearance.sub')} onClick={() => setAppearanceOpen(true)} />
+          <NavRow label={t('settings.me.notificationsAi.title')} sub={t('settings.me.notificationsAi.sub')} onClick={() => setNotifAiOpen(true)} />
+          {providers && providers.length > 0 && <NavRow label={t('settings.me.signIn.title')} sub={t('settings.me.signIn.sub')} onClick={() => setSignInOpen(true)} />}
+        </Group>
 
         <Section label={t('settings.me.section.tools')}>
           <Group>
-            <NavRow label={t('settings.notifications.title')} onClick={() => setNotifOpen(true)} />
-            <NavRow label={t('settings.ai.title')} sub={t('settings.ai.nav.sub')} onClick={() => setAiOpen(true)} />
             <NavRow label={t('settings.apiKeys.title')} onClick={() => setKeysOpen(true)} />
             <NavRow label={t('settings.me.journal')} onClick={() => { close(); ui.openDialog('journal', {}); }} />
             <NavRow label={t('settings.history.title')} onClick={() => setHistoryOpen(true)} />
@@ -879,10 +952,14 @@ export function MeDialog() {
         <span style={st('font:500 11.5px var(--font-mono);color:var(--faint)')}>QueueUp{version ? ` ${version}` : ''}</span>
       </Dialog>
       {keysOpen && <ApiKeysDialog onClose={() => setKeysOpen(false)} />}
-      {aiOpen && <AiSettingsDialog onClose={() => setAiOpen(false)} />}
       {historyOpen && <AccountHistoryDialog onClose={() => setHistoryOpen(false)} />}
-      {notifOpen && <NotificationsDialog onClose={() => setNotifOpen(false)} />}
-      {systemsOpen && <SystemsDialog onClose={() => setSystemsOpen(false)} />}
+      {profileOpen && <ProfileSettingsDialog onClose={() => setProfileOpen(false)} />}
+      {librariesSystemsOpen && (
+        <LibrariesSystemsDialog onClose={() => setLibrariesSystemsOpen(false)} librariesSummary={librariesSummary} onOpenLibraries={open('import')} />
+      )}
+      {appearanceOpen && <AppearanceDialog onClose={() => setAppearanceOpen(false)} />}
+      {notifAiOpen && <NotificationsAiDialog onClose={() => setNotifAiOpen(false)} />}
+      {signInOpen && providers && <SignInMethodsDialog onClose={() => setSignInOpen(false)} providers={providers} />}
     </>
   );
 }
