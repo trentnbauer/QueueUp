@@ -242,7 +242,7 @@ export const pages: Record<keyof typeof en, string> = {
   "pages.admin.roleFailed": "Couldn’t change that sailor’s rank",
   "pages.admin.testSent": "Test bottle sent to {email}",
   "pages.admin.testFailed": "Couldn’t send the test email",
-  "pages.admin.source.env": "Set in .env (it wins)",
+  "pages.admin.source.env": "Set by Docker env or variable (it wins)",
   "pages.admin.source.db": "Set here (DB fallback)",
   "pages.admin.source.none": "Not rigged",
   "pages.admin.configured": "rigged",
