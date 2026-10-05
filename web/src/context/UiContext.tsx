@@ -16,6 +16,7 @@ export type DialogKey =
   | 'deck'
   | 'needsReview'
   | 'duplicates'
+  | 'aiTonight'
   | 'playtime'
   | 'completions'
   | 'playnite'

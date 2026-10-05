@@ -39,6 +39,15 @@ export function GlancePanel() {
         >
           {t('shell.glance.spin')}
         </button>
+        {isShelf && (
+          <button
+            type="button"
+            onClick={() => ui.openDialog('aiTonight')}
+            style={st('align-self:flex-start;height:36px;padding:0 16px;border-radius:999px;border:1px solid var(--line);background:transparent;color:var(--text);font:600 13px var(--font-ui)')}
+          >
+            {t('shell.glance.askAi')}
+          </button>
+        )}
       </div>
       {now.length > 0 && (
         <div style={st('display:flex;flex-direction:column;gap:8px')}>

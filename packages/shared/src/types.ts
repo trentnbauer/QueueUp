@@ -2622,6 +2622,29 @@ export interface DismissPendingLibraryImportsRequest {
   ids: string[];
 }
 
+/** A backlog game the AI picked for tonight (issue #825). Always a card on the person's own shelf. */
+export interface AiTonightPick {
+  gameId: string;
+  title: string;
+  coverImageUrl: string | null;
+  platform: string;
+  timeToBeatHours: number | null;
+  /** One or two sentences from the AI, shown as plain text. */
+  reason: string;
+}
+
+/** Body for POST /api/games/ai-tonight. `excludeIds` are cards already offered, for "show another". */
+export interface AiTonightRequest {
+  request: string;
+  excludeIds?: string[];
+}
+
+export interface AiTonightResponse {
+  pick: AiTonightPick;
+  alternate: AiTonightPick | null;
+  fallback: AiFallbackNotice | null;
+}
+
 /** A DLC or expansion for a game on the shelf that releases soon (issue #869), shown in the Coming
  * soon strip with "Add to wishlist" and "Ignore". */
 export interface UpcomingDlc {

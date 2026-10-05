@@ -18,6 +18,7 @@ export const shell = {
   "shell.glance.inPool.one": "{n} game in the pool.",
   "shell.glance.inPool.other": "{n} games in the pool.",
   "shell.glance.spin": "Spin",
+  "shell.glance.askAi": "Ask AI what to play",
   "shell.glance.nowPlaying": "NOW PLAYING · {n}",
   "shell.glance.topOfQueue": "TOP OF THE QUEUE",
   "shell.glance.fullRanking": "Full ranking ›",
