@@ -231,6 +231,13 @@ export function useGames(roomId: string | null) {
     onError: (err) => setActionError(errorMessage(err, t('shell.games.error.priceMatch'))),
   });
 
+  // "Incorrect match" (issue #814) - the endpoint returns the re-resolved game, so patching the cache is enough.
+  const setIgdbMatch = useMutation({
+    mutationFn: ({ gameId, igdbId }: { gameId: string; igdbId: number }) => gamesApi.setIgdbMatch(gameId, { igdbId }),
+    onSuccess: ({ game }) => patchGame(game),
+    onError: (err) => setActionError(errorMessage(err, t('shell.games.error.rematch'))),
+  });
+
   // Applies/removes a tag on one game (issue #247) - same patch-the-cache shape as
   // setTargetPrice/setOwnership above, since the endpoint returns the fully-updated game DTO
   // (including its now-current tags list) rather than requiring a separate tags fetch.
@@ -302,6 +309,7 @@ export function useGames(roomId: string | null) {
       setPrerequisite.mutate({ gameId, prerequisiteGameId }),
     setSteamMatch: (gameId: string, steamAppId: number | null) => setSteamMatch.mutate({ gameId, steamAppId }),
     isSettingSteamMatch: setSteamMatch.isPending,
+    setIgdbMatch: (gameId: string, igdbId: number) => setIgdbMatch.mutate({ gameId, igdbId }),
     // Callers (TagPicker) only need to know when it's done/failed, not the updated game itself -
     // the cache is already patched via onSuccess above - so this resolves to void rather than
     // leaking the mutation's raw return value into every prop type down the component tree.

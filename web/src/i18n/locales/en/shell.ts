@@ -177,6 +177,7 @@ export const shell = {
   "shell.games.error.ownership": "Could not update ownership.",
   "shell.games.error.save": "Could not save that.",
   "shell.games.error.priceMatch": "Could not save that price match.",
+  "shell.games.error.rematch": "Could not re-match that game.",
   "shell.games.error.addTag": "Could not add that tag.",
   "shell.games.error.removeTag": "Could not remove that tag.",
   "shell.games.error.move": "Could not move that game.",
