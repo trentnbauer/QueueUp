@@ -1,0 +1,119 @@
+import { describe, expect, it, vi } from 'vitest';
+import { AiProviderError, buildRequest, callProvider, errorMessageFrom, parseResponse, type AiConfig } from './providers.js';
+
+const req = { system: 'Be brief.', messages: [{ role: 'user' as const, content: 'Hi' }, { role: 'assistant' as const, content: 'Hello' }, { role: 'user' as const, content: 'Again' }], maxTokens: 50, temperature: 0.2 };
+
+const anthropic: AiConfig = { provider: 'anthropic', model: 'claude-sonnet-5-5', baseUrl: 'https://api.anthropic.com', apiKey: 'sk-ant' };
+const openai: AiConfig = { provider: 'openai', model: 'gpt-x', baseUrl: 'https://api.openai.com/v1', apiKey: 'sk-oa' };
+const gemini: AiConfig = { provider: 'gemini', model: 'gemini-x', baseUrl: 'https://generativelanguage.googleapis.com/v1beta', apiKey: 'g-key' };
+const ollama: AiConfig = { provider: 'ollama', model: 'llama3', baseUrl: 'http://localhost:11434/v1', apiKey: null };
+
+describe('buildRequest', () => {
+  it('builds an Anthropic messages call with the key in a header', () => {
+    const r = buildRequest(anthropic, req);
+    expect(r.url).toBe('https://api.anthropic.com/v1/messages');
+    expect(r.headers['x-api-key']).toBe('sk-ant');
+    expect(r.headers['anthropic-version']).toBe('2023-06-01');
+    expect(r.body).toEqual({ model: 'claude-sonnet-5-5', max_tokens: 50, system: 'Be brief.', temperature: 0.2, messages: req.messages });
+  });
+
+  it('builds an OpenAI chat call with the system prompt first and max_completion_tokens', () => {
+    const r = buildRequest(openai, req) as { url: string; headers: Record<string, string>; body: Record<string, unknown> };
+    expect(r.url).toBe('https://api.openai.com/v1/chat/completions');
+    expect(r.headers.authorization).toBe('Bearer sk-oa');
+    expect(r.body.max_completion_tokens).toBe(50);
+    expect(r.body.max_tokens).toBeUndefined();
+    expect((r.body.messages as { role: string }[])[0]).toEqual({ role: 'system', content: 'Be brief.' });
+  });
+
+  it('uses max_tokens and no auth header for a local model without a key', () => {
+    const r = buildRequest(ollama, req) as { headers: Record<string, string>; body: Record<string, unknown> };
+    expect(r.headers.authorization).toBeUndefined();
+    expect(r.body.max_tokens).toBe(50);
+    expect(r.body.max_completion_tokens).toBeUndefined();
+  });
+
+  it('builds a Gemini call with the key in a header and assistant turns as "model"', () => {
+    const r = buildRequest(gemini, req) as { url: string; headers: Record<string, string>; body: any };
+    expect(r.url).toBe('https://generativelanguage.googleapis.com/v1beta/models/gemini-x:generateContent');
+    expect(r.url).not.toContain('g-key');
+    expect(r.headers['x-goog-api-key']).toBe('g-key');
+    expect(r.body.systemInstruction).toEqual({ parts: [{ text: 'Be brief.' }] });
+    expect(r.body.contents.map((c: { role: string }) => c.role)).toEqual(['user', 'model', 'user']);
+    expect(r.body.generationConfig).toEqual({ maxOutputTokens: 50, temperature: 0.2 });
+  });
+
+  it('defaults the reply length and leaves out unset options', () => {
+    const r = buildRequest(anthropic, { messages: [{ role: 'user', content: 'x' }] });
+    expect(r.body).toEqual({ model: 'claude-sonnet-5-5', max_tokens: 1024, messages: [{ role: 'user', content: 'x' }] });
+  });
+});
+
+describe('parseResponse', () => {
+  it('joins Anthropic text blocks and reads usage', () => {
+    const res = parseResponse(anthropic, { content: [{ type: 'text', text: 'Hel' }, { type: 'tool_use' }, { type: 'text', text: 'lo' }], usage: { input_tokens: 3, output_tokens: 2 } });
+    expect(res).toEqual({ text: 'Hello', provider: 'anthropic', model: 'claude-sonnet-5-5', usage: { inputTokens: 3, outputTokens: 2 } });
+  });
+
+  it('reads an OpenAI-style reply', () => {
+    const res = parseResponse(ollama, { choices: [{ message: { content: 'OK' } }], usage: { prompt_tokens: 4, completion_tokens: 1 } });
+    expect(res.text).toBe('OK');
+    expect(res.usage).toEqual({ inputTokens: 4, outputTokens: 1 });
+  });
+
+  it('reads a Gemini reply', () => {
+    const res = parseResponse(gemini, { candidates: [{ content: { parts: [{ text: 'A' }, { text: 'B' }] } }], usageMetadata: { promptTokenCount: 5, candidatesTokenCount: 2 } });
+    expect(res.text).toBe('AB');
+    expect(res.usage).toEqual({ inputTokens: 5, outputTokens: 2 });
+  });
+
+  it('treats an empty or blocked answer as an error', () => {
+    expect(() => parseResponse(gemini, { candidates: [{ finishReason: 'SAFETY' }] })).toThrow(AiProviderError);
+    expect(() => parseResponse(openai, { choices: [{ message: { content: null } }] })).toThrow('empty reply');
+    expect(() => parseResponse(openai, null)).toThrow(AiProviderError);
+  });
+});
+
+describe('errorMessageFrom', () => {
+  it('finds the message in each provider\'s error shape', () => {
+    expect(errorMessageFrom(JSON.stringify({ error: { message: 'bad key' } }))).toBe('bad key');
+    expect(errorMessageFrom(JSON.stringify({ message: 'nope' }))).toBe('nope');
+    expect(errorMessageFrom(JSON.stringify({ error: 'plain' }))).toBe('plain');
+  });
+
+  it('falls back to the start of a non-JSON body', () => {
+    expect(errorMessageFrom('<html>' + 'x'.repeat(1000))).toHaveLength(300);
+  });
+});
+
+describe('callProvider', () => {
+  it('posts the built request and returns the parsed reply', async () => {
+    const fetchImpl = vi.fn(async () => new Response(JSON.stringify({ choices: [{ message: { content: 'hi' } }] }), { status: 200 }));
+    const res = await callProvider(openai, req, fetchImpl as unknown as typeof fetch);
+    expect(res.text).toBe('hi');
+    const [url, init] = fetchImpl.mock.calls[0] as unknown as [string, RequestInit];
+    expect(url).toBe('https://api.openai.com/v1/chat/completions');
+    expect(init.method).toBe('POST');
+  });
+
+  it('reports an upstream error without including the key', async () => {
+    const fetchImpl = vi.fn(async () => new Response(JSON.stringify({ error: { message: 'Invalid API key' } }), { status: 401 }));
+    const err = await callProvider(openai, req, fetchImpl as unknown as typeof fetch).catch((e) => e);
+    expect(err).toBeInstanceOf(AiProviderError);
+    expect(err.upstreamStatus).toBe(401);
+    expect(err.message).toContain('401');
+    expect(err.message).toContain('Invalid API key');
+    expect(err.message).not.toContain('sk-oa');
+  });
+
+  it('turns a network failure and a timeout into friendly errors', async () => {
+    const down = vi.fn(async () => {
+      throw new TypeError('fetch failed');
+    });
+    await expect(callProvider(ollama, req, down as unknown as typeof fetch)).rejects.toThrow('Could not reach');
+    const slow = vi.fn(async () => {
+      throw Object.assign(new Error('t'), { name: 'TimeoutError' });
+    });
+    await expect(callProvider(ollama, req, slow as unknown as typeof fetch)).rejects.toThrow('took too long');
+  });
+});

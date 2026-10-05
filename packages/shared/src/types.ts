@@ -1272,6 +1272,9 @@ export interface AdminIntegrationStatus {
   /** Email alerts: on only when the host, port and from address are all set. */
   smtpConfigured: boolean;
   smtpSources: Record<'SMTP_HOST' | 'SMTP_PORT' | 'SMTP_USER' | 'SMTP_PASSWORD' | 'SMTP_FROM', ConfigSource>;
+  /** AI backend: on once a provider and model are set (the key is optional for local models). */
+  aiConfigured: boolean;
+  aiSources: Record<'AI_PROVIDER' | 'AI_API_KEY' | 'AI_BASE_URL' | 'AI_MODEL', ConfigSource>;
   devFakeAuth: boolean;
   activeAuthProviders: string[];
 }
@@ -2444,4 +2447,54 @@ export interface AcceptPlayTogetherResponse {
   roomId: string;
   roomName: string;
   created: boolean;
+}
+
+// ---------------------------------------------------------------------------------------------
+// AI backend - the call layer other features will use to talk to a language model. Server-wide
+// settings come from env / Administrator settings; a person can set their own on top.
+// ---------------------------------------------------------------------------------------------
+
+export const AI_PROVIDERS = ['anthropic', 'openai', 'gemini', 'ollama', 'openai_compatible'] as const;
+export type AiProvider = (typeof AI_PROVIDERS)[number];
+
+/** Where the settings an AI call would use come from: the person's own, the server's, or neither. */
+export type AiSettingsSource = 'user' | 'server' | 'none';
+
+/** A person's own AI settings. The API key is write-only: it is never sent back, only whether one is saved. */
+export interface UserAiSettings {
+  provider: AiProvider;
+  model: string | null;
+  baseUrl: string | null;
+  hasApiKey: boolean;
+}
+
+export interface AiSettingsResponse {
+  /** The person's own settings, or null when they haven't set any. */
+  user: UserAiSettings | null;
+  /** The server-wide settings, without the key. Null when the server has none. */
+  server: { provider: AiProvider; model: string | null; baseUrl: string | null } | null;
+  /** Which of the two an AI call would use right now. */
+  effectiveSource: AiSettingsSource;
+  /** Whether this server lets people set their own. */
+  userSettingsAllowed: boolean;
+  /** Whether a person's own settings may use a custom base URL (needed for ollama / openai_compatible). */
+  userBaseUrlAllowed: boolean;
+  providers: AiProvider[];
+}
+
+/** Sets the person's own AI settings. `apiKey` left out keeps the saved key; null or '' removes it. */
+export interface SetUserAiSettingsRequest {
+  provider: AiProvider;
+  model?: string | null;
+  baseUrl?: string | null;
+  apiKey?: string | null;
+}
+
+export interface AiTestResponse {
+  ok: boolean;
+  source: AiSettingsSource;
+  provider: AiProvider;
+  model: string;
+  /** The model's short reply to the test prompt. */
+  reply: string;
 }

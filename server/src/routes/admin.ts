@@ -44,6 +44,10 @@ const CONFIG_KEY_LABELS: Record<ConfigKey, string> = {
   SMTP_USER: 'SMTP user',
   SMTP_PASSWORD: 'SMTP password',
   SMTP_FROM: 'SMTP from address',
+  AI_PROVIDER: 'AI provider',
+  AI_API_KEY: 'AI API key',
+  AI_BASE_URL: 'AI base URL',
+  AI_MODEL: 'AI model',
 };
 
 function envValueFor(key: ConfigKey): string | undefined {
@@ -74,6 +78,14 @@ function envValueFor(key: ConfigKey): string | undefined {
       return env.SMTP_PASSWORD;
     case 'SMTP_FROM':
       return env.SMTP_FROM;
+    case 'AI_PROVIDER':
+      return env.AI_PROVIDER;
+    case 'AI_API_KEY':
+      return env.AI_API_KEY;
+    case 'AI_BASE_URL':
+      return env.AI_BASE_URL;
+    case 'AI_MODEL':
+      return env.AI_MODEL;
   }
 }
 
@@ -112,6 +124,13 @@ export default async function adminRoutes(app: FastifyInstance) {
         SMTP_USER: src('SMTP_USER'),
         SMTP_PASSWORD: src('SMTP_PASSWORD'),
         SMTP_FROM: src('SMTP_FROM'),
+      },
+      aiConfigured: src('AI_PROVIDER') !== 'unset' && src('AI_MODEL') !== 'unset',
+      aiSources: {
+        AI_PROVIDER: src('AI_PROVIDER'),
+        AI_API_KEY: src('AI_API_KEY'),
+        AI_BASE_URL: src('AI_BASE_URL'),
+        AI_MODEL: src('AI_MODEL'),
       },
       devFakeAuth: env.DEV_FAKE_AUTH,
       activeAuthProviders: Array.from(app.authProviders.keys()),

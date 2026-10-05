@@ -18,6 +18,10 @@ export const CONFIG_KEYS = [
   'SMTP_USER',
   'SMTP_PASSWORD',
   'SMTP_FROM',
+  'AI_PROVIDER',
+  'AI_API_KEY',
+  'AI_BASE_URL',
+  'AI_MODEL',
 ] as const;
 export type ConfigKey = (typeof CONFIG_KEYS)[number];
 

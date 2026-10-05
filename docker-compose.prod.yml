@@ -74,6 +74,14 @@ services:
       SMTP_USER: ${SMTP_USER}
       SMTP_PASSWORD: ${SMTP_PASSWORD}
       SMTP_FROM: ${SMTP_FROM}
+      ## AI backend - optional; a provider and model turn it on for everyone (people can also set their own).
+      ## Provider: anthropic, openai, gemini, ollama or openai_compatible. The key is optional for local models.
+      AI_PROVIDER: ${AI_PROVIDER}
+      AI_MODEL: ${AI_MODEL}
+      AI_API_KEY: ${AI_API_KEY}
+      AI_BASE_URL: ${AI_BASE_URL}                              # Only for ollama / openai_compatible, or a proxy
+      AI_ALLOW_USER_SETTINGS: ${AI_ALLOW_USER_SETTINGS:-true}  # Let people bring their own provider and key
+      AI_ALLOW_USER_BASE_URL: ${AI_ALLOW_USER_BASE_URL:-false} # Let their settings name a custom address (trusted instances only)
       ## Cloudflare Tunnel - optional; with a token set, QueueUp runs cloudflared itself (no open port needed)
       CLOUDFLARE_TUNNEL_TOKEN: ${CLOUDFLARE_TUNNEL_TOKEN}
       # Backend Config
