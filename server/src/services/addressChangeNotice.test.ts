@@ -29,6 +29,17 @@ describe('noticeRecipients', () => {
   });
 });
 
+describe('noticeRecipients with an unverified account email', () => {
+  it('leaves the account email out, including when it was the address alerts went to', () => {
+    expect(noticeRecipients('old@x.com', 'stranger@x.com', 'new@y.com', false)).toEqual(['old@x.com']);
+    expect(noticeRecipients('stranger@x.com', 'stranger@x.com', 'new@y.com', false)).toEqual([]);
+  });
+
+  it('still includes a verified account email', () => {
+    expect(noticeRecipients('old@x.com', 'me@x.com', 'new@y.com', true)).toEqual(['old@x.com', 'me@x.com']);
+  });
+});
+
 describe('warnPreviousAddresses', () => {
   beforeEach(() => {
     userFindUnique.mockReset();

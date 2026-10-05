@@ -235,6 +235,11 @@ model User {
   /// Steam sign-in users don't need this populated; their Steam ID lives in oidcSub instead.
   steamId64            String?        @unique @map("steam_id64")
   email                String
+  /// Whether the sign-in provider vouched that `email` is this person's (refreshed on every sign-in,
+  /// like `email`). An unverified address is never emailed - anyone can type one into a Discord or
+  /// single sign-on profile - until the person confirms an alert address from a link (alertEmail).
+  /// Defaults to true for accounts from before this existed; their next sign-in sets the real value.
+  emailVerified        Boolean        @default(true) @map("email_verified")
   /// Where alert emails go when it isn't the account email. Set (and confirmed) by the person in
   /// Settings; the account email above comes from the sign-in provider and is refreshed on every
   /// sign-in, so it can't be edited by hand. Null = use `email`.

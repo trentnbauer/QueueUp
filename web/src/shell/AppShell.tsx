@@ -11,6 +11,7 @@ import { hexToOklchHue } from '../theme/roomTheme';
 import { GlancePanel } from './GlancePanel';
 import { MobileTopBar } from './MobileTopBar';
 import { Overlays } from './Overlays';
+import { VerifyEmailBanner } from './VerifyEmailBanner';
 import { Rail, Sidebar } from './Sidebar';
 
 const COLLAPSED_KEY = 'qu-sidebar-collapsed';
@@ -63,6 +64,7 @@ export function AppShell({ children }: { children: ReactNode }) {
   if (mobile) {
     return (
       <div {...roomScope} style={{ ...st('min-height:100vh;background:var(--bg);color:var(--text)'), ...roomScope.style }}>
+        <VerifyEmailBanner />
         <div style={st('display:flex;flex-direction:column;gap:18px;padding:16px 16px 110px')}>
           <MobileTopBar />
           {children}
@@ -84,7 +86,9 @@ export function AppShell({ children }: { children: ReactNode }) {
   const showGlance = onHome && !showDetail && glanceFits;
 
   return (
-    <div {...roomScope} style={{ ...st('position:relative;height:100vh;display:flex;background:var(--bg);color:var(--text);overflow:hidden'), ...roomScope.style }}>
+    <div {...roomScope} style={{ ...st('position:relative;height:100vh;display:flex;flex-direction:column;background:var(--bg);color:var(--text);overflow:hidden'), ...roomScope.style }}>
+      <VerifyEmailBanner />
+      <div style={st('position:relative;flex:1;min-height:0;display:flex;overflow:hidden')}>
       {showRail ? <Rail onExpand={() => setCollapsed(false)} /> : <Sidebar onCollapse={() => setCollapsed(true)} />}
       <main style={st('flex:1;min-width:0;overflow-y:auto')}>
         {/* 960px on laptops, then grows with the viewport (to 1600px) so ultrawides don't waste the middle (issue #796). */}
@@ -116,6 +120,7 @@ export function AppShell({ children }: { children: ReactNode }) {
           </aside>
         </>
       )}
+      </div>
       <Overlays />
     </div>
   );

@@ -8,6 +8,7 @@ import { sendMail, smtpIsConfigured } from '../services/mailer.js';
 import { renderConfirmEmail } from '../services/emailTemplates.js';
 import { notifyAccountChange } from '../services/notifications.js';
 import { warnPreviousAddresses } from '../services/addressChangeNotice.js';
+import { mailRecipient } from '../services/emailRecipient.js';
 
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 const CONFIRM_TTL_MS = 24 * 60 * 60 * 1000;
@@ -28,15 +29,20 @@ export async function alertEmailFor(userId: string): Promise<string> {
 export default async function alertEmailRoutes(app: FastifyInstance) {
   app.get('/api/me/alert-email', async (request): Promise<AlertEmailResponse> => {
     const userId = await request.requireAuth();
-    const [user, pending] = await Promise.all([
-      prisma.user.findUniqueOrThrow({ where: { id: userId }, select: { email: true, alertEmail: true } }),
+    const [user, pending, canSend] = await Promise.all([
+      prisma.user.findUniqueOrThrow({ where: { id: userId }, select: { email: true, alertEmail: true, emailVerified: true } }),
       prisma.emailChangeRequest.findUnique({ where: { userId } }),
+      smtpIsConfigured(),
     ]);
     return {
       accountEmail: user.email,
       alertEmail: user.alertEmail,
       effectiveEmail: user.alertEmail ?? user.email,
       pending: pending && pending.expiresAt > new Date() ? pending.email : null,
+      // Whether QueueUp may email this person at all (see mailRecipient): drives the "verify your
+      // email" banner. Only meaningful when the server can send email.
+      verified: mailRecipient(user) !== null,
+      canSend,
     };
   });
 

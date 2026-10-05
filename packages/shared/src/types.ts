@@ -1456,6 +1456,10 @@ export interface AlertEmailResponse {
   alertEmail: string | null;
   effectiveEmail: string;
   pending: string | null;
+  /** Whether QueueUp may email this person: a confirmed alert address, or a sign-in email the provider verified. */
+  verified: boolean;
+  /** Whether this server can send email at all (so there is something to verify). */
+  canSend: boolean;
 }
 
 /** Body for PUT /api/me/alert-email. An empty or null email goes back to the account email. */
