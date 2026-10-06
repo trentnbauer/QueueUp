@@ -14,6 +14,24 @@ const ago = (days: number) => new Date(Date.now() - days * DAY).toISOString();
 const ahead = (days: number) => new Date(Date.now() + days * DAY).toISOString();
 const ids = (list: Game[]) => list.map((g) => g.title);
 
+describe('install size filter (#1046)', () => {
+  const opts = { isShelf: false, tabs: ROOM_TABS, tab: 'queue', query: '' };
+  const sized = [
+    game({ title: 'Small', downloadSizeMb: 8 * 1024 }),
+    game({ title: 'Big', downloadSizeMb: 90 * 1024 }),
+    game({ title: 'Unknown', downloadSizeMb: null }),
+  ];
+
+  it('hides games over the limit but keeps ones with no known size', () => {
+    expect(ids(buildHomeLists(sized, { ...opts, maxInstallGb: 10 }).list).sort()).toEqual(['Small', 'Unknown']);
+  });
+
+  it('lists everything with no limit', () => {
+    expect(buildHomeLists(sized, opts).list).toHaveLength(3);
+    expect(buildHomeLists(sized, { ...opts, maxInstallGb: 0 }).list).toHaveLength(3);
+  });
+});
+
 describe('buildHomeLists', () => {
   it('puts games released in the last 60 days first (newest first), then the rest by score', () => {
     const old = game({ title: 'Old hit', votes: [vote(5), vote(5)] });

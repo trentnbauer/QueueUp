@@ -1,3 +1,4 @@
+import { fitsInstallSize } from './installSize';
 import { platformFamilyOf, withBackwardsCompatible, type Game, type RoomPlatform } from '@queueup/shared';
 import { backlogComparator, type BacklogSortKey } from './backlogSort';
 import {
@@ -81,10 +82,12 @@ export interface HomeLists {
  *   instead of the main list. */
 export function buildHomeLists(
   allGames: Game[],
-  opts: { isShelf: boolean; tabs: TabDef[]; tab: string; query: string; platform?: RoomPlatform | null; includeOlder?: boolean; backlogSort?: BacklogSortKey[] },
+  opts: { isShelf: boolean; tabs: TabDef[]; tab: string; query: string; platform?: RoomPlatform | null; includeOlder?: boolean; backlogSort?: BacklogSortKey[]; maxInstallGb?: number },
 ): HomeLists {
   const { isShelf, tabs, tab, platform } = opts;
-  const games = platform ? allGames.filter((g) => playsOn(g, platform, opts.includeOlder ?? true)) : allGames;
+  const onPlatform = platform ? allGames.filter((g) => playsOn(g, platform, opts.includeOlder ?? true)) : allGames;
+  // "Fits on my disk" (#1046): games with no known size stay.
+  const games = opts.maxInstallGb ? onPlatform.filter((g) => fitsInstallSize(g, opts.maxInstallGb ?? 0)) : onPlatform;
   const q = opts.query.trim().toLowerCase();
   const comingTab = isShelf ? 'wishlist' : 'queue';
   const cur = tabs.find((t) => t.id === tab) ?? tabs[1] ?? tabs[0];

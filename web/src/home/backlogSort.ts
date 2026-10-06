@@ -5,7 +5,7 @@ import { t, type MessageKey } from '../i18n';
 
 /** Issue #798: how the Personal Shelf's Backlog is ordered. Several keys can be picked; the order
  * they were picked in is their priority (first key sorts, the next breaks its ties, and so on). */
-export type BacklogSortKey = 'want' | 'review' | 'release';
+export type BacklogSortKey = 'want' | 'review' | 'release' | 'size';
 
 const sortOption = (key: BacklogSortKey, labelKey: MessageKey) => ({
   key,
@@ -19,6 +19,7 @@ export const BACKLOG_SORT_OPTIONS: { key: BacklogSortKey; label: string }[] = [
   sortOption('want', 'home.sort.want'),
   sortOption('review', 'home.sort.review'),
   sortOption('release', 'home.sort.release'),
+  sortOption('size', 'home.sort.size'),
 ];
 
 export const DEFAULT_BACKLOG_SORT: BacklogSortKey[] = ['want'];
@@ -51,6 +52,9 @@ function compareBy(key: BacklogSortKey, a: Game, b: Game, now: number): number {
       return nullsLast(a.reviewScore, b.reviewScore, (x, y) => y - x) ?? 0;
     case 'release':
       return nullsLast(releaseKey(a), releaseKey(b), (x, y) => y.localeCompare(x)) ?? 0;
+    case 'size':
+      // Smallest install first (#1046); no known size last.
+      return nullsLast(a.downloadSizeMb, b.downloadSizeMb, (x, y) => x - y) ?? 0;
   }
 }
 

@@ -13,6 +13,13 @@ const vote = (value: number) => ({ value }) as Game['votes'][number];
 const ago = (days: number) => new Date(NOW - days * DAY).toISOString();
 const titles = (list: Game[]) => list.map((g) => g.title);
 
+describe('backlogComparator size (#1046)', () => {
+  it('puts the smallest install first and games with no size last', () => {
+    const list = [game({ title: 'Big', downloadSizeMb: 90000 }), game({ title: 'None', downloadSizeMb: null }), game({ title: 'Small', downloadSizeMb: 2000 })];
+    expect(titles(list.sort(backlogComparator(['size'], NOW)))).toEqual(['Small', 'Big', 'None']);
+  });
+});
+
 describe('backlogComparator', () => {
   it('"want to play" keeps the original order: fresh releases first (newest first), then votes, then title', () => {
     const a = game({ title: 'B liked', votes: [vote(5)] });

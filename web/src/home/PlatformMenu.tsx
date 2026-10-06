@@ -5,6 +5,7 @@ import { apiGet } from '../api/client';
 import { useAuth } from '../context/AuthContext';
 import { st } from '../ui/st';
 import { t as tr, useT } from '../i18n';
+import { INSTALL_SIZE_PRESETS_GB } from './installSize';
 
 const isPlatform = (v: string | null): v is RoomPlatform => !!v && v in ROOM_PLATFORM_LABELS;
 const storageKey = (scopeId: string) => `sq-platform-filter:${scopeId}`;
@@ -81,7 +82,7 @@ export function usePlatformOptions(opts: { isShelf: boolean; roomId: string | nu
 }
 
 /** Plain-text dropdown trigger (no pill) for the header kicker, with a small menu of systems. */
-export function PlatformMenu({ value, options, allLabel, onChange, includeOlder, onIncludeOlder, emptyHint }: {
+export function PlatformMenu({ value, options, allLabel, onChange, includeOlder, onIncludeOlder, emptyHint, maxInstallGb, onMaxInstallGb, lockedLabel }: {
   value: RoomPlatform | null;
   options: RoomPlatform[];
   /** "Every platform" (shelf) / "Any platform" (room). */
@@ -92,6 +93,11 @@ export function PlatformMenu({ value, options, allLabel, onChange, includeOlder,
   onIncludeOlder: (on: boolean) => void;
   /** Shown when there are no owned consoles to pick from. */
   emptyHint: string;
+  /** "Fits on my disk" (#1046): the install size limit in GB, 0 for none. */
+  maxInstallGb: number;
+  onMaxInstallGb: (gb: number) => void;
+  /** A room locked to one platform: its name is shown in place of the platform choices. */
+  lockedLabel?: string;
 }) {
   const t = useT();
   const [open, setOpen] = useState(false);
@@ -150,6 +156,28 @@ export function PlatformMenu({ value, options, allLabel, onChange, includeOlder,
     close(true);
   };
 
+  const sizeItem = (gb: number, label: string) => {
+    const on = maxInstallGb === gb;
+    return (
+      <button
+        key={`size-${gb}`}
+        type="button"
+        role="menuitemradio"
+        aria-checked={on}
+        onClick={() => {
+          onMaxInstallGb(gb);
+          close(true);
+        }}
+        style={st(
+          `display:flex;align-items:center;justify-content:space-between;gap:16px;min-height:38px;padding:0 12px;border:none;border-radius:10px;background:${on ? 'var(--chip)' : 'transparent'};color:var(--text);font:${on ? 600 : 500} 14px var(--font-ui);letter-spacing:0;text-transform:none;text-align:left;white-space:nowrap`,
+        )}
+      >
+        {label}
+        {on && <span aria-hidden="true" style={st('color:var(--accText);font-size:13px')}>✓</span>}
+      </button>
+    );
+  };
+
   const item = (p: RoomPlatform | null, label: string) => {
     const on = value === p;
     return (
@@ -188,8 +216,9 @@ export function PlatformMenu({ value, options, allLabel, onChange, includeOlder,
           `display:inline-flex;align-items:center;gap:4px;border:none;background:none;padding:0;color:${value ? 'var(--text)' : 'inherit'};font:inherit;letter-spacing:inherit;text-transform:uppercase;cursor:pointer`,
         )}
       >
-        {value ? ROOM_PLATFORM_LABELS[value] : allLabel}
-        {value && includeOlder && olderLabel(value) ? ` + ${olderLabel(value)}` : ''}
+        {lockedLabel ?? (value ? ROOM_PLATFORM_LABELS[value] : allLabel)}
+        {!lockedLabel && value && includeOlder && olderLabel(value) ? ` + ${olderLabel(value)}` : ''}
+        {maxInstallGb > 0 ? ` · ${t('home.size.suffix', { gb: maxInstallGb })}` : ''}
         <span aria-hidden="true" style={st('font-size:10px;line-height:1')}>▾</span>
       </button>
       {open && (
@@ -202,10 +231,10 @@ export function PlatformMenu({ value, options, allLabel, onChange, includeOlder,
             'position:absolute;left:-6px;top:calc(100% + 8px);z-index:41;min-width:200px;max-height:min(60vh,420px);overflow-y:auto;display:flex;flex-direction:column;padding:6px;border-radius:16px;border:1px solid var(--line);background:var(--surf);box-shadow:0 12px 32px rgba(0,0,0,0.28)',
           )}
         >
-          {item(null, allLabel)}
-          {list.map((p) => item(p, ROOM_PLATFORM_LABELS[p]))}
-          {list.length === 0 && <span style={st('padding:8px 12px;font:400 12.5px/1.4 var(--font-ui);color:var(--muted);letter-spacing:0;text-transform:none;white-space:normal')}>{emptyHint}</span>}
-          {value && olderLabel(value) && (
+          {!lockedLabel && item(null, allLabel)}
+          {!lockedLabel && list.map((p) => item(p, ROOM_PLATFORM_LABELS[p]))}
+          {!lockedLabel && list.length === 0 && <span style={st('padding:8px 12px;font:400 12.5px/1.4 var(--font-ui);color:var(--muted);letter-spacing:0;text-transform:none;white-space:normal')}>{emptyHint}</span>}
+          {!lockedLabel && value && olderLabel(value) && (
             <button
               type="button"
               role="menuitemcheckbox"
@@ -221,6 +250,11 @@ export function PlatformMenu({ value, options, allLabel, onChange, includeOlder,
               {t('home.platform.includeOlder', { older: olderLabel(value) ?? '' })}
             </button>
           )}
+          <span style={st('margin-top:6px;padding:8px 12px 2px;border-top:1px solid var(--line);font:600 11px var(--font-mono);letter-spacing:0.06em;color:var(--muted);text-transform:uppercase')}>{t('home.size.heading')}</span>
+          {sizeItem(0, t('home.size.any'))}
+          {INSTALL_SIZE_PRESETS_GB.map((gb) => sizeItem(gb, t('home.size.upTo', { gb })))}
+          {maxInstallGb > 0 && !(INSTALL_SIZE_PRESETS_GB as readonly number[]).includes(maxInstallGb) && sizeItem(maxInstallGb, t('home.size.upTo', { gb: maxInstallGb }))}
+          <span style={st('padding:2px 12px 6px;font:400 12px/1.4 var(--font-ui);color:var(--muted);letter-spacing:0;text-transform:none;white-space:normal')}>{t('home.size.hint')}</span>
         </div>
       )}
     </span>

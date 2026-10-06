@@ -26,6 +26,7 @@ import { useIsMobile } from '../ui/useLayout';
 import { st } from '../ui/st';
 import { buildHomeLists, toRowItem } from './derive';
 import { useBacklogSort } from './backlogSort';
+import { useMaxInstallGb } from './installSize';
 import { PlatformMenu, useIncludeOlder, usePlatformFilter, usePlatformOptions } from './PlatformMenu';
 import { ComingStrip, CoverCard, DesktopRow, MobileRow, PlayNextRow } from './Rows';
 import { ComingDlcStrip } from './ComingDlcStrip';
@@ -117,14 +118,15 @@ export function HomeView() {
   const [includeOlder, setIncludeOlder] = useIncludeOlder(scope.scopeId);
   const platformOptions = usePlatformOptions({ isShelf, roomId: room?.id ?? null });
   const [backlogSort] = useBacklogSort();
+  const [maxInstallGb, setMaxInstallGb] = useMaxInstallGb();
   const lists = useMemo(
-    () => buildHomeLists(games, { isShelf, tabs, tab, query, platform, includeOlder, backlogSort }),
-    [games, isShelf, tabs, tab, query, platform, includeOlder, backlogSort],
+    () => buildHomeLists(games, { isShelf, tabs, tab, query, platform, includeOlder, backlogSort, maxInstallGb }),
+    [games, isShelf, tabs, tab, query, platform, includeOlder, backlogSort, maxInstallGb],
   );
   const showRank = tab === 'queue' && !searching;
   const ctx = { isShelf, tab, searching, all: games };
   // Voting changes scores, which would re-sort the list under you - keep the order until the view changes.
-  const orderKey = `${scope.scopeId}|${tab}|${query}|${platform ?? ''}|${includeOlder}|${backlogSort.join(',')}`;
+  const orderKey = `${scope.scopeId}|${tab}|${query}|${platform ?? ''}|${includeOlder}|${backlogSort.join(',')}|${maxInstallGb}`;
   const orderedList = useStableOrder(lists.list, orderKey);
   const orderedPlayNext = useStableOrder(lists.playNext, `${orderKey}|next`);
   const items = otherTab ? [] : orderedList.map((g, i) => toRowItem(g, i + 1, ctx));
@@ -141,7 +143,7 @@ export function HomeView() {
   };
 
   // A room locked to one platform has nothing to filter - its platform stays plain text.
-  const platformMenu = isShelf || !room?.platform ? (
+  const platformMenu = (
     <PlatformMenu
       value={platform}
       options={platformOptions}
@@ -149,10 +151,11 @@ export function HomeView() {
       onChange={setPlatform}
       includeOlder={includeOlder}
       onIncludeOlder={setIncludeOlder}
+      maxInstallGb={maxInstallGb}
+      onMaxInstallGb={setMaxInstallGb}
       emptyHint={isShelf ? t('home.platform.emptyShelf') : t('home.platform.emptyRoom')}
+      lockedLabel={!isShelf && room?.platform ? ROOM_PLATFORM_LABELS[room.platform] : undefined}
     />
-  ) : (
-    ROOM_PLATFORM_LABELS[room.platform].toUpperCase()
   );
   const meta = isShelf ? (
     <>{rich(t('home.meta.justYou'), { platform: platformMenu })}</>
