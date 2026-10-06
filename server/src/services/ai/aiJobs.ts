@@ -1,5 +1,6 @@
 import { randomUUID } from 'node:crypto';
 import type { AiActivityEntry } from '@queueup/shared';
+import { HttpError } from '../../util/httpError.js';
 
 /** Every AI request goes through here: it is counted as running (or, when the server limits how many
  * run at once, as waiting its turn) so the app can show a person what the AI is doing for them, and
@@ -31,9 +32,16 @@ async function maxConcurrent(): Promise<number> {
   }
 }
 
+/** Most AI requests one person may have running or waiting at once. With the server limiting how many run
+ * at once, nobody can fill the whole line by firing off requests faster than they finish. */
+export const MAX_JOBS_PER_USER = 6;
+
 /** Runs `work` once a slot is free (at once, when there is no limit). `userId` is who it is for (none
  * for a background job); `label` says what kind of request it is, for the activity list. */
 export async function runAiJob<T>(userId: string | undefined, label: string, work: () => Promise<T>): Promise<T> {
+  if (userId && [...jobs.values()].filter((j) => j.userId === userId).length >= MAX_JOBS_PER_USER) {
+    throw new HttpError(429, 'You already have several AI requests in progress. Wait for one to finish, then try again.');
+  }
   // Registered before anything is awaited, so requests keep the order they were made in.
   const job: Job = { id: randomUUID(), userId, label, state: 'queued', seq: nextSeq++ };
   jobs.set(job.id, job);

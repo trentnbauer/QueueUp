@@ -3,7 +3,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 const { envState } = vi.hoisted(() => ({ envState: { AI_MAX_CONCURRENT_REQUESTS: 0 } as Record<string, unknown> }));
 vi.mock('../../config/env.js', () => ({ env: envState }));
 
-import { aiActivityFor, runAiJob } from './aiJobs.js';
+import { MAX_JOBS_PER_USER, aiActivityFor, runAiJob } from './aiJobs.js';
 
 function deferred<T = string>() {
   let resolve!: (v: T) => void;
@@ -101,5 +101,22 @@ describe('runAiJob with a limit of one', () => {
     first.reject(new Error('boom'));
     expect(await p1).toBe('failed');
     expect(await p2).toBe('ran');
+  });
+});
+
+describe('per-person limit', () => {
+  it('refuses a person\'s next request once they have too many in progress, without affecting anyone else', async () => {
+    envState.AI_MAX_CONCURRENT_REQUESTS = 1;
+    const held = Array.from({ length: MAX_JOBS_PER_USER }, () => deferred());
+    const running = held.map((d) => runAiJob('greedy', 'search', () => d.promise));
+    await tick();
+    await expect(runAiJob('greedy', 'search', async () => 'x')).rejects.toMatchObject({ statusCode: 429 });
+    // Someone else can still queue, and nothing leaked from the refused request.
+    const other = runAiJob('polite', 'search', async () => 'ok');
+    held.forEach((d) => d.resolve('done'));
+    await Promise.all(running);
+    expect(await other).toBe('ok');
+    expect(aiActivityFor('greedy')).toEqual([]);
+    expect(await runAiJob('greedy', 'search', async () => 'again')).toBe('again');
   });
 });
