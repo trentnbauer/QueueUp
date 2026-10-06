@@ -47,7 +47,7 @@ jobs:
       - uses: actions/setup-node@v4
         if: github.event_name != 'pull_request' || steps.filter.outputs.relevant == 'true'
         with:
-          node-version: 22
+          node-version: 24
 
       - name: Install dependencies
         if: github.event_name != 'pull_request' || steps.filter.outputs.relevant == 'true'
