@@ -2063,6 +2063,12 @@ export interface ResolvePendingLibraryImportRequest {
   igdbId: number;
 }
 
+/** Answer to POST /api/library/pending-imports/:id/resolve: a token for POST /api/games/undo-change,
+ * good for a few minutes, that puts the title back in Needs matching. */
+export interface ResolvePendingLibraryImportResponse {
+  undoToken: string;
+}
+
 /** Body for POST /api/library/pending-imports/:id/resolve-bundle (issue #857) - a pending title that
  * turned out to be a bundle, matched to every game inside it. */
 export interface ResolvePendingLibraryImportBundleRequest {
