@@ -64,6 +64,7 @@ import type { OwnedSteamGame } from '../services/steamLibrary.js';
 import { toggleOwnershipForPlatform, setOwnershipPlatforms, markOwned, promoteOwnedWishlistGames } from '../services/gameOwnership.js';
 import { recordStatusTransition } from '../services/playLog.js';
 import { recommendationsFor } from '../services/recommendations.js';
+import { hideRecommendation } from '../services/hiddenRecommendations.js';
 import { notifyFriendRecommendation, recommendToFriends } from '../services/friendRecommendations.js';
 import { getPriceHistory, usualPrice } from '../services/priceHistory.js';
 import { getRemovalInfo } from '../services/removalVote.js';
@@ -545,6 +546,20 @@ export default async function gameRoutes(app: FastifyInstance) {
       const platforms = await searchPlatformsFor(roomId, userId, request.query.allPlatforms === 'true');
       const results = await recommendationsFor({ roomId: roomId ?? null, userId }, { platforms, coopOnly: request.query.coop === 'true' });
       return { results };
+    },
+  );
+
+  // "Hide" on a recommendation in Add Game (issue #990): it is not offered to this person again,
+  // by the IGDB list or the AI.
+  app.post<{ Body: { igdbId?: unknown } }>(
+    '/api/games/recommendations/hide',
+    { config: { rateLimit: { max: 60, timeWindow: '1 minute' } } },
+    async (request, reply) => {
+      const userId = await request.requireAuth();
+      const igdbId = request.body?.igdbId;
+      if (typeof igdbId !== 'number' || !Number.isInteger(igdbId) || igdbId <= 0) throw new HttpError(400, 'A valid igdbId is required');
+      await hideRecommendation(userId, igdbId);
+      reply.status(204);
     },
   );
 

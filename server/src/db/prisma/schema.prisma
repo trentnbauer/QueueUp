@@ -320,6 +320,7 @@ model User {
   aiSettings                    UserAiSettings?
   gameMatchRedirects            GameMatchRedirect[]
   duplicateDismissals           DuplicateDismissal[]
+  hiddenRecommendations         HiddenRecommendation[]
   ignoredDlcs                   IgnoredDlc[]
   yearStories                   YearStory[]
   xboxConnection                UserXboxConnection?
@@ -644,6 +645,19 @@ model DuplicateDismissal {
 
   @@id([userId, igdbIdLow, igdbIdHigh])
   @@map("duplicate_dismissals")
+}
+
+/// A game the person hid from Add Game's recommendations (and told the AI not to suggest again).
+/// Per user, by igdbId, so it holds whichever shelf or room the suggestion would have appeared in.
+model HiddenRecommendation {
+  userId    String   @map("user_id")
+  igdbId    Int      @map("igdb_id")
+  createdAt DateTime @default(now()) @map("created_at")
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@id([userId, igdbId])
+  @@map("hidden_recommendations")
 }
 
 /// "This person re-matched a card away from `fromIgdbId` onto `toIgdbId`" (issue #814) - e.g. a game
