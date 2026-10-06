@@ -195,7 +195,6 @@ export const add: Record<keyof typeof en, string> = {
   "add.completions.markN": "Mark Conquered ({n})",
   "add.completions.noneFound.one": "Checked {n} not-yet-Conquered treasure chest game with a linked Steam app. Nothin’ be 100%’d that ain’t already marked Conquered.",
   "add.completions.noneFound.other": "Checked {n} not-yet-Conquered treasure chest games with a linked Steam app. Nothin’ be 100%’d that ain’t already marked Conquered.",
-  "add.completions.allReviewed": "That be everythin’ inspected.",
   "add.completions.intro.one": "Steam says ye’ve 100%’d {n} game that ain’t marked Conquered yet (checked {checked}). Pick which to update. Nothin’ changes till ye apply.",
   "add.completions.intro.other": "Steam says ye’ve 100%’d {n} games that ain’t marked Conquered yet (checked {checked}). Pick which to update. Nothing changes till ye apply.",
   "add.completions.completedWhen": "100%’d {when}",

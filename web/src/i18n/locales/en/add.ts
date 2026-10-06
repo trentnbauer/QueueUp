@@ -193,7 +193,6 @@ export const add = {
   "add.completions.markN": "Mark Beaten ({n})",
   "add.completions.noneFound.one": "Checked {n} not-yet-Beaten shelf game with a linked Steam app. Nothing is 100%'d that isn't already marked Beaten.",
   "add.completions.noneFound.other": "Checked {n} not-yet-Beaten shelf games with a linked Steam app. Nothing is 100%'d that isn't already marked Beaten.",
-  "add.completions.allReviewed": "That's everything reviewed.",
   "add.completions.intro.one": "Steam says you've 100%'d {n} game that isn't marked Beaten yet (checked {checked}). Pick which to update. Nothing changes until you apply.",
   "add.completions.intro.other": "Steam says you've 100%'d {n} games that aren't marked Beaten yet (checked {checked}). Pick which to update. Nothing changes until you apply.",
   "add.completions.completedWhen": "100%'d {when}",
