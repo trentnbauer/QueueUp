@@ -322,6 +322,7 @@ model User {
   duplicateDismissals           DuplicateDismissal[]
   hiddenRecommendations         HiddenRecommendation[]
   duplicateMergeVotes           DuplicateMergeVote[]
+  computerSpecs                 UserComputerSpecs?
   ignoredDlcs                   IgnoredDlc[]
   yearStories                   YearStory[]
   xboxConnection                UserXboxConnection?
@@ -661,6 +662,27 @@ model HiddenRecommendation {
 
   @@id([userId, igdbId])
   @@map("hidden_recommendations")
+}
+
+/// The computer a person plays on, typed in by them (Settings → My computer). Private: never shown to
+/// other people, included in "Download my data", removed with the account. Every field is optional.
+model UserComputerSpecs {
+  userId     String   @id @map("user_id")
+  cpu        String?
+  gpu        String?
+  ramGb      Int?     @map("ram_gb")
+  vramGb     Int?     @map("vram_gb")
+  os         String?
+  /// 'ssd' | 'hdd' | 'nvme'
+  storage    String?
+  freeGb     Int?     @map("free_gb")
+  display    String?
+  notes      String?
+  updatedAt  DateTime @updatedAt @map("updated_at")
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("user_computer_specs")
 }
 
 /// One person merged two cards of their own Personal Shelf into one (issue: share merge data). Shared

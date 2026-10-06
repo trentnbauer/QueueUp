@@ -1,7 +1,7 @@
 import { useEffect, useState, type ReactNode } from 'react';
 import { useNavigate } from 'react-router';
 import { useInfiniteQuery, useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { PLAYNITE_API_KEY_LABEL, PRICE_REGION_LABELS, ROOM_PLATFORM_LABELS, sortPlatforms, type PriceRegion, type ProfileVisibility } from '@queueup/shared';
+import { PLAYNITE_API_KEY_LABEL, PRICE_REGION_LABELS, ROOM_PLATFORM_LABELS, sortPlatforms, type ComputerSpecs, type PriceRegion, type ProfileVisibility } from '@queueup/shared';
 import { AiSettingsDialog } from './AiSettingsDialog';
 import { apiKeysApi, API_KEYS_QUERY_KEY } from '../api/apiKeys';
 import { authApi } from '../api/auth';
@@ -110,6 +110,118 @@ export function SystemsDialog({ onClose }: { onClose: () => void }) {
           onClose();
         }}
       />
+    </Dialog>
+  );
+}
+
+type SpecKey = Extract<keyof ComputerSpecs, string>;
+
+/** The computer a person plays on, typed in by them. Private: only they can see it. */
+export function ComputerSpecsDialog({ onClose }: { onClose: () => void }) {
+  const t = useT();
+  const ui = useUi();
+  const queryClient = useQueryClient();
+  const { data } = useQuery({ queryKey: ['computer-specs'], queryFn: authApi.computerSpecs });
+  const [form, setForm] = useState<Record<SpecKey, string> | null>(null);
+  const [error, setError] = useState<string | null>(null);
+
+  // Start from what is saved, once.
+  useEffect(() => {
+    if (!data || form) return;
+    setForm({
+      cpu: data.cpu ?? '',
+      gpu: data.gpu ?? '',
+      ramGb: data.ramGb?.toString() ?? '',
+      vramGb: data.vramGb?.toString() ?? '',
+      os: data.os ?? '',
+      storage: data.storage ?? '',
+      freeGb: data.freeGb?.toString() ?? '',
+      display: data.display ?? '',
+      notes: data.notes ?? '',
+    });
+  }, [data, form]);
+
+  const save = useMutation({
+    mutationFn: (f: Record<SpecKey, string>) => {
+      const num = (v: string) => (v.trim() === '' ? null : Number(v));
+      const body: ComputerSpecs = {
+        cpu: f.cpu.trim() || null,
+        gpu: f.gpu.trim() || null,
+        ramGb: num(f.ramGb),
+        vramGb: num(f.vramGb),
+        os: f.os.trim() || null,
+        storage: (f.storage || null) as ComputerSpecs['storage'],
+        freeGb: num(f.freeGb),
+        display: f.display.trim() || null,
+        notes: f.notes.trim() || null,
+      };
+      return authApi.setComputerSpecs(body);
+    },
+    onSuccess: (saved) => {
+      queryClient.setQueryData(['computer-specs'], saved);
+      ui.notify(t('settings.specs.saved'));
+      onClose();
+    },
+    onError: (e) => setError(e instanceof Error ? e.message : t('settings.specs.failed')),
+  });
+
+  if (!form) return <Dialog onClose={onClose} title={t('settings.specs.title')} gap={14}>{null}</Dialog>;
+  const set = (k: SpecKey, v: string) => setForm((f) => (f ? { ...f, [k]: v } : f));
+  const field = (k: SpecKey, label: string, opts: { placeholder?: string; number?: boolean; max?: number } = {}) => (
+    <label key={k} style={st('display:flex;flex-direction:column;gap:6px')}>
+      <span style={st('font:600 12px var(--font-mono);letter-spacing:0.06em;color:var(--muted)')}>{label}</span>
+      <input
+        value={form[k]}
+        inputMode={opts.number ? 'numeric' : undefined}
+        maxLength={opts.max ?? 120}
+        onChange={(e) => set(k, opts.number ? e.target.value.replace(/\D/g, '') : e.target.value)}
+        placeholder={opts.placeholder}
+        style={st(inputField, { height: 44, borderRadius: 12, background: 'var(--surf)', border: '1px solid var(--chip)' })}
+      />
+    </label>
+  );
+  return (
+    <Dialog onClose={onClose} title={t('settings.specs.title')} gap={14}>
+      <span style={st('font:400 13px/1.45 var(--font-ui);color:var(--muted);text-wrap:pretty')}>{t('settings.specs.hint')}</span>
+      {error && <Banner onDismiss={() => setError(null)}>{error}</Banner>}
+      {field('cpu', t('settings.specs.cpu'), { placeholder: 'Ryzen 5 5600X' })}
+      {field('gpu', t('settings.specs.gpu'), { placeholder: 'GeForce RTX 3060' })}
+      <div style={st('display:grid;grid-template-columns:1fr 1fr;gap:10px')}>
+        {field('ramGb', t('settings.specs.ram'), { number: true, max: 4, placeholder: '16' })}
+        {field('vramGb', t('settings.specs.vram'), { number: true, max: 4, placeholder: '12' })}
+      </div>
+      {field('os', t('settings.specs.os'), { placeholder: 'Windows 11' })}
+      <div style={st('display:grid;grid-template-columns:1fr 1fr;gap:10px')}>
+        <label style={st('display:flex;flex-direction:column;gap:6px')}>
+          <span style={st('font:600 12px var(--font-mono);letter-spacing:0.06em;color:var(--muted)')}>{t('settings.specs.storage')}</span>
+          <select value={form.storage} onChange={(e) => set('storage', e.target.value)} style={st(inputField, { height: 44, borderRadius: 12, background: 'var(--surf)', border: '1px solid var(--chip)' })}>
+            <option value="">{t('settings.specs.storageNone')}</option>
+            <option value="nvme">NVMe SSD</option>
+            <option value="ssd">SSD</option>
+            <option value="hdd">HDD</option>
+          </select>
+        </label>
+        {field('freeGb', t('settings.specs.free'), { number: true, max: 7, placeholder: '250' })}
+      </div>
+      {field('display', t('settings.specs.display'), { placeholder: '2560x1440 @ 144Hz' })}
+      <label style={st('display:flex;flex-direction:column;gap:6px')}>
+        <span style={st('font:600 12px var(--font-mono);letter-spacing:0.06em;color:var(--muted)')}>{t('settings.specs.notes')}</span>
+        <textarea
+          value={form.notes}
+          maxLength={500}
+          rows={3}
+          onChange={(e) => set('notes', e.target.value)}
+          style={st(inputField, { height: 'auto', padding: '10px 14px', borderRadius: 12, background: 'var(--surf)', border: '1px solid var(--chip)', resize: 'vertical' })}
+        />
+      </label>
+      <div style={st('display:flex;gap:8px')}>
+        <Btn height={42} padX={20} disabled={save.isPending} onClick={() => save.mutate(form)}>
+          {t('common.save')}
+        </Btn>
+        <Btn kind="ghost" height={42} padX={14} disabled={save.isPending} onClick={() => save.mutate({ cpu: '', gpu: '', ramGb: '', vramGb: '', os: '', storage: '', freeGb: '', display: '', notes: '' })}>
+          {t('settings.specs.clear')}
+        </Btn>
+      </div>
     </Dialog>
   );
 }
@@ -718,6 +830,8 @@ export function MeDialog() {
   const [historyOpen, setHistoryOpen] = useState(false);
   const [profileOpen, setProfileOpen] = useState(false);
   const [systemsOpen, setSystemsOpen] = useState(false);
+  const [specsOpen, setSpecsOpen] = useState(false);
+  const specsQuery = useQuery({ queryKey: ['computer-specs'], queryFn: authApi.computerSpecs });
   const [appearanceOpen, setAppearanceOpen] = useState(false);
   const [notifOpen, setNotifOpen] = useState(false);
   const [aiOpen, setAiOpen] = useState(false);
@@ -900,6 +1014,11 @@ export function MeDialog() {
             sub={ownedPlatforms.length === 0 ? t('settings.systems.everyPlatform') : sortPlatforms(ownedPlatforms).map((p) => ROOM_PLATFORM_LABELS[p]).join(', ')}
             onClick={() => setSystemsOpen(true)}
           />
+          <NavRow
+            label={t('settings.specs.title')}
+            sub={[specsQuery.data?.gpu, specsQuery.data?.cpu, specsQuery.data?.ramGb ? `${specsQuery.data.ramGb} GB` : null].filter(Boolean).join(' · ') || t('settings.specs.sub')}
+            onClick={() => setSpecsOpen(true)}
+          />
           <NavRow label={t('settings.me.appearance.title')} sub={t('settings.me.appearance.sub')} onClick={() => setAppearanceOpen(true)} />
           <NavRow label={t('settings.notifications.title')} sub={t('settings.me.notifications.sub')} onClick={() => setNotifOpen(true)} />
           {providers && providers.length > 0 && <NavRow label={t('settings.me.signIn.title')} sub={t('settings.me.signIn.sub')} onClick={() => setSignInOpen(true)} />}
@@ -955,6 +1074,7 @@ export function MeDialog() {
       {historyOpen && <AccountHistoryDialog onClose={() => setHistoryOpen(false)} />}
       {profileOpen && <ProfileSettingsDialog onClose={() => setProfileOpen(false)} />}
       {systemsOpen && <SystemsDialog onClose={() => setSystemsOpen(false)} />}
+      {specsOpen && <ComputerSpecsDialog onClose={() => setSpecsOpen(false)} />}
       {appearanceOpen && <AppearanceDialog onClose={() => setAppearanceOpen(false)} />}
       {notifOpen && <NotificationsDialog onClose={() => setNotifOpen(false)} />}
       {aiOpen && <AiSettingsDialog onClose={() => setAiOpen(false)} />}

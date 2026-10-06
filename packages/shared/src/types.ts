@@ -1861,6 +1861,28 @@ export interface DataExportLinkedIdentity {
  * scheduled/automatic, generated fresh on each request from the same tables Year in Review reads
  * (see `/api/me/year-in-review`). Deliberately excludes anything not owned by the caller (e.g.
  * other members' votes on a shared room game) and any credential/token material. */
+/** The computer a person plays on, as they typed it. Every field may be empty; all of it is private. */
+export interface ComputerSpecs {
+  cpu: string | null;
+  gpu: string | null;
+  ramGb: number | null;
+  vramGb: number | null;
+  os: string | null;
+  storage: 'ssd' | 'hdd' | 'nvme' | null;
+  /** Free disk space, in GB. */
+  freeGb: number | null;
+  /** Screen resolution and refresh rate, e.g. "2560x1440 @ 144Hz". */
+  display: string | null;
+  notes: string | null;
+}
+
+export const COMPUTER_SPEC_STORAGE = ['ssd', 'hdd', 'nvme'] as const;
+/** Longest a free-text spec field may be. */
+export const COMPUTER_SPEC_TEXT_MAX = 120;
+export const COMPUTER_SPEC_NOTES_MAX = 500;
+
+export const EMPTY_COMPUTER_SPECS: ComputerSpecs = { cpu: null, gpu: null, ramGb: null, vramGb: null, os: null, storage: null, freeGb: null, display: null, notes: null };
+
 export interface DataExport {
   exportedAt: string;
   account: {
@@ -1887,6 +1909,8 @@ export interface DataExport {
   roomsUsingYourAiKey: string[];
   /** Games the caller merged into another, which later imports follow. */
   mergedGames: DataExportMergedGame[];
+  /** The computer specs the caller typed in, or null. */
+  computerSpecs: ComputerSpecs | null;
 }
 
 /** A linked library in the "Download my data" export. Logins and tokens are never included. */
