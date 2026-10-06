@@ -37,7 +37,7 @@ jobs:
       new_version_bare: ${{ steps.changelog.outputs.new_version_bare }}
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
         with:
           # Full history + tags, needed to diff against the previous build's
           # marker tag.
@@ -184,7 +184,7 @@ jobs:
     runs-on: ${{ matrix.runner }}
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
         with:
           # Full history and tags: the changelog script works out which release each PR shipped in.
           fetch-depth: 0
@@ -262,7 +262,7 @@ jobs:
       pull-requests: read
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
 
       - name: Download digests
         uses: actions/download-artifact@v4

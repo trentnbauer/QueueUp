@@ -55,7 +55,7 @@ jobs:
     runs-on: ${{ matrix.runner }}
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
         with:
           # Full history and tags: the changelog script works out which release each PR shipped in.
           fetch-depth: 0
