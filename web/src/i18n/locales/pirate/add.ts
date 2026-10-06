@@ -121,7 +121,7 @@ export const add: Record<keyof typeof en, string> = {
   "add.playniteSetup.step2Body": "Download the .pext file and drag it into Playnite to install it. A QueueUp menu appears under Extensions.",
   "add.playniteSetup.step2Link": "Download the .pext",
   "add.playniteSetup.step3Title": "Lash up to QueueUp",
-  "add.playniteSetup.step3Body": "Forge a code below, then in Playnite choose Extensions → QueueUp → Connect to QueueUp and paste it in.",
+  "add.playniteSetup.step3Body": "Forge a code below, then in Playnite choose Extensions → QueueUp → Connect to QueueUp and paste it in. The extension also fills in yer PC specs (processor, graphics card, memory, Windows version) under My computer, only where ye have not already entered them; ye can turn that off from the same menu.",
   "add.playniteSetup.title": "Haul in from Playnite",
   "add.playniteSetup.linked": "Lashed aboard, arr!",
   "add.playniteSetup.linkedBody": "Run Extensions → QueueUp → Push library to QueueUp in Playnite whenever yer library changes. Download metadata fer yer whole library first (Library → Download Metadata) so QueueUp has full details fer each game.",

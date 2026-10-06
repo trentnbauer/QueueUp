@@ -12,7 +12,9 @@ import { createGameForUser, resolveGameForCreation, defaultStatusForRelease, lin
 import { isAddonCategory } from '../services/igdbClient.js';
 import { invalidateExistingIgdbIds } from '../services/gameAccess.js';
 import { promoteOwnedWishlistGames, setOwnershipPlatforms, unionOwnershipPlatforms } from '../services/gameOwnership.js';
-import { unlockBadgeQuietly, unlockBadges } from '../services/badges.js';
+import { unlockBadgeQuietly, unlockBadges, unlockFeatureBadges } from '../services/badges.js';
+import { logAccountEvent } from '../services/accountEvents.js';
+import { parseComputerSpecs, prefillSpecs, specsFromRow } from '../services/computerSpecs.js';
 import { unionOwnedPlatforms, VALID_PLATFORMS } from '../services/userSettings.js';
 import { runWithConcurrency } from '../util/concurrency.js';
 import {
@@ -374,6 +376,27 @@ export default async function apiV1Routes(app: FastifyInstance) {
       }
     },
   );
+
+  // The computer's specs, as typed in under Profile & settings → My computer.
+  app.get('/computer-specs', apiV1RateLimit, async (request) => {
+    return { specs: specsFromRow(await prisma.userComputerSpecs.findUnique({ where: { userId: request.apiKeyUserId } })) };
+  });
+
+  // A tool on the person's PC (the Playnite extension) reports what it can read: cpu, gpu, ramGb, os...
+  // Only blank fields are filled; anything the person already entered is left alone. A read-only key is
+  // refused by this plugin's hook, as for every write.
+  app.put<{ Body: unknown }>('/computer-specs', apiV1RateLimit, async (request) => {
+    const userId = request.apiKeyUserId;
+    const incoming = parseComputerSpecs(request.body);
+    const existing = specsFromRow(await prisma.userComputerSpecs.findUnique({ where: { userId } }));
+    const { specs, filled } = prefillSpecs(existing, incoming);
+    if (filled.length > 0) {
+      await prisma.userComputerSpecs.upsert({ where: { userId }, create: { userId, ...specs }, update: specs });
+      void unlockFeatureBadges(userId);
+      void logAccountEvent(userId, 'computer_specs', `Computer specs filled in from an API key: ${filled.join(', ')}.`);
+    }
+    return { specs, filled };
+  });
 
   app.get('/library/import-playnite/progress', playniteImportProgressRateLimit, async (request) => {
     const userId = request.apiKeyUserId;
