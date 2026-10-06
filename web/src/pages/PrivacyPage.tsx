@@ -73,6 +73,7 @@ export function PrivacyPage({ signedIn }: { signedIn: boolean }) {
               'pages.privacy.collect.libraries',
               'pages.privacy.collect.ai',
               'pages.privacy.collect.merges',
+              'pages.privacy.collect.aiShared',
               'pages.privacy.collect.session',
               'pages.privacy.collect.email',
               'pages.privacy.collect.logs',
@@ -102,7 +103,7 @@ export function PrivacyPage({ signedIn }: { signedIn: boolean }) {
         </Section>
 
         <Section title={t('pages.privacy.visibility.title')}>
-          <List items={items('pages.privacy.visibility.others', 'pages.privacy.visibility.ai', 'pages.privacy.visibility.operator')} />
+          <List items={items('pages.privacy.visibility.others', 'pages.privacy.visibility.ai', 'pages.privacy.visibility.merges', 'pages.privacy.visibility.operator')} />
         </Section>
 
         <Section title={t('pages.privacy.services.title')}>
