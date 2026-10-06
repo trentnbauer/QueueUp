@@ -68,6 +68,8 @@ export class AiProviderError extends Error {
     message: string,
     /** The upstream HTTP status, or null when the request never got a reply (timeout, DNS, refused). */
     readonly upstreamStatus: number | null,
+    /** From a Retry-After header (whole seconds), when the provider sent one. */
+    readonly retryAfterSeconds: number | null = null,
   ) {
     super(message);
     this.name = 'AiProviderError';
@@ -206,7 +208,8 @@ export async function callProvider(config: AiConfig, req: AiRequest, fetchImpl: 
       return callProvider(config, { ...req, temperature: undefined }, fetchImpl);
     }
     const detail = config.hideErrorBody ? '' : errorMessageFrom(rawBody);
-    throw new AiProviderError(`The AI provider returned ${res.status}${detail ? `: ${detail}` : ''}`, res.status);
+    const retryAfter = Number(res.headers.get('retry-after'));
+    throw new AiProviderError(`The AI provider returned ${res.status}${detail ? `: ${detail}` : ''}`, res.status, Number.isFinite(retryAfter) && retryAfter > 0 ? Math.round(retryAfter) : null);
   }
   return parseResponse(config, await res.json().catch(() => null));
 }
