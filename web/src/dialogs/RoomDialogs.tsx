@@ -575,15 +575,13 @@ export function RoomSettingsDialog() {
 
       {canInvite && (
       <Field label={t('room.settings.inviteLabel')}>
-        <div style={st('display:flex;flex-direction:column;gap:8px;padding:10px 10px 10px 16px;border-radius:16px;background:var(--surf)')}>
-          <div style={st('display:flex;align-items:center;gap:10px')}>
-            <span style={st('flex:1;min-width:0;font:600 17px var(--font-mono);letter-spacing:0.04em;white-space:nowrap;overflow:hidden;text-overflow:ellipsis')}>{invite ?? '—'}</span>
-            <Btn kind="text" height={36} padX={14} fontSize={13} weight={700} disabled={!inviteUrl} onClick={copyInvite}>
-              {t('room.settings.copyLink')}
-            </Btn>
-          </div>
-          <Btn kind="soft" height={38} padX={14} fontSize={13} style={{ alignSelf: 'flex-start' }} onClick={() => setAddFriendsOpen(true)}>
+        <div style={st('display:flex;align-items:center;gap:8px;padding:10px 10px 10px 16px;border-radius:16px;background:var(--surf)')}>
+          <span style={st('flex:1;min-width:0;font:600 17px var(--font-mono);letter-spacing:0.04em;white-space:nowrap;overflow:hidden;text-overflow:ellipsis')}>{invite ?? '—'}</span>
+          <Btn kind="soft" height={36} padX={12} fontSize={13} weight={700} onClick={() => setAddFriendsOpen(true)}>
             {t('room.settings.addFriendsButton')}
+          </Btn>
+          <Btn kind="text" height={36} padX={10} fontSize={13} weight={700} disabled={!inviteUrl} onClick={copyInvite}>
+            {t('room.settings.copyLink')}
           </Btn>
         </div>
         {canManage && (
