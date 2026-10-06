@@ -31,6 +31,7 @@ vi.mock('../db/client.js', () => ({
   },
 }));
 vi.mock('./matchRedirects.js', () => ({ recordMatchRedirect: async () => undefined }));
+vi.mock('./mergeUndo.js', () => ({ captureMergeUndo: async () => ({}), captureRematchUndo: async () => ({}), saveUndo: async () => 'undo-token' }));
 
 import { mergeGameInto } from './gameIntake.js';
 
@@ -40,7 +41,7 @@ describe('merging a duplicate card (issue #850)', () => {
   it('points the duplicate\'s play journal entries at the surviving card', async () => {
     const source = { id: 'src', roomId: null, addedBy: 'u1', igdbId: 1, title: 'Witcher 3', coverImageUrl: null };
     const result = await mergeGameInto('u1', source, 'tgt');
-    expect(result).toEqual({ gameId: 'tgt', mergedFromId: 'src' });
+    expect(result).toEqual({ gameId: 'tgt', mergedFromId: 'src', undoToken: 'undo-token' });
 
     expect(executeRaw).toHaveBeenCalledTimes(1);
     const [strings, ...values] = executeRaw.mock.calls[0] as unknown as [TemplateStringsArray, ...unknown[]];

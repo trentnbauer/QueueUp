@@ -180,4 +180,5 @@ export const game = {
   "game.recommend.sendTo": "Recommend to {n}",
   "game.recommend.pick": "Pick friends",
   "game.recommend.hint": "Tick who should play {title}. They get a notification with your review score.",
+  "game.igdbMatch.rematched": "Now matched to {title}",
 } as const;

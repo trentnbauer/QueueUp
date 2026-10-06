@@ -140,8 +140,10 @@ export const gamesApi = {
   duplicateCandidates: () => apiGet<DuplicateCandidatesResponse>('/api/games/duplicates'),
   duplicateCandidateCount: () => apiGet<DuplicateCandidateCountResponse>('/api/games/duplicates/count'),
   dismissDuplicate: (body: DismissDuplicateRequest) => apiPost<void>('/api/games/duplicates/dismiss', body),
-  mergeGame: (id: string, body: MergeGameRequest) => apiPost<{ game: Game; mergedFromId: string }>(`/api/games/${id}/merge`, body),
-  setIgdbMatch: (id: string, body: SetIgdbMatchRequest) => apiPatch<{ game: Game; mergedFromId: string | null }>(`/api/games/${id}/igdb-match`, body),
+  mergeGame: (id: string, body: MergeGameRequest) => apiPost<{ game: Game; mergedFromId: string; undoToken?: string }>(`/api/games/${id}/merge`, body),
+  /** Undoes a merge or re-match within a few minutes of it, using the token that came back with it. */
+  undoChange: (token: string) => apiPost<{ game: Game }>('/api/games/undo-change', { token }),
+  setIgdbMatch: (id: string, body: SetIgdbMatchRequest) => apiPatch<{ game: Game; mergedFromId: string | null; undoToken?: string }>(`/api/games/${id}/igdb-match`, body),
   setTargetPrice: (id: string, body: SetTargetPriceRequest) =>
     apiPatch<{ game: Game }>(`/api/games/${id}/target-price`, body),
   setManualPrice: (id: string, body: SetManualPriceRequest) =>

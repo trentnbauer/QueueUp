@@ -837,7 +837,6 @@ export function GameDetail({ game, onClose, changeStatus }: { game: Game; onClos
                 return;
               }
               ui.selectGame(null);
-              ui.notify(t('game.igdbMatch.merge.done', { title: result.title }));
             }
             ops.setIgdbMatch(game.id, result.igdbId);
             setRematching(false);
@@ -863,7 +862,6 @@ export function GameDetail({ game, onClose, changeStatus }: { game: Game; onClos
               return;
             }
             ui.selectGame(null);
-            ui.notify(t('game.igdbMatch.merge.done', { title: target.title }));
             ops.mergeGame(game.id, target.id);
           }}
         />

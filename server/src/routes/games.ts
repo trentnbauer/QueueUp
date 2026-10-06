@@ -72,6 +72,7 @@ import { recordSyncSources } from '../services/syncSources.js';
 import { getCurrentPlaytimeMinutesForGames } from '../services/playtimeTracking.js';
 import { summarizeTimeToBeat, summarizeActiveHoursToBeat, pickMostNeglectedGame, backlogAgeRanges } from '../services/backlogInsights.js';
 import { unlockActivityBadges, unlockBadges, unlockFeatureBadges } from '../services/badges.js';
+import { applyUndo, dropUndo, takeUndo } from '../services/mergeUndo.js';
 import {
   logRoomActivity,
   logShelfActivity,
@@ -1763,12 +1764,12 @@ export default async function gameRoutes(app: FastifyInstance) {
       await requireGameSettingsAccess(game, userId);
 
       const platform = game.roomId ? await getRoomPlatform(game.roomId) : null;
-      const { gameId, mergedFromId } = await rematchGame(userId, game, request.body.igdbId, platform ? [platform] : undefined);
+      const { gameId, mergedFromId, undoToken } = await rematchGame(userId, game, request.body.igdbId, platform ? [platform] : undefined);
       await invalidateExistingIgdbIds(game.roomId, game.addedBy);
 
       const updated = await loadGameOr404(gameId);
       const unlockedBadges = game.roomId === null ? await unlockActivityBadges(userId) : [];
-      return { game: await serializeGame(updated, userId), mergedFromId, unlockedBadges };
+      return { game: await serializeGame(updated, userId), mergedFromId, unlockedBadges, undoToken };
     },
   );
 
@@ -1780,13 +1781,30 @@ export default async function gameRoutes(app: FastifyInstance) {
       const game = await loadGameOr404(request.params.id);
       await requireGameSettingsAccess(game, userId);
 
-      const { gameId, mergedFromId } = await mergeGameInto(userId, game, String(request.body?.targetGameId ?? ''));
+      const { gameId, mergedFromId, undoToken } = await mergeGameInto(userId, game, String(request.body?.targetGameId ?? ''));
       await invalidateExistingIgdbIds(game.roomId, game.addedBy);
 
       const updated = await loadGameOr404(gameId);
-      return { game: await serializeGame(updated, userId), mergedFromId };
+      return { game: await serializeGame(updated, userId), mergedFromId, undoToken };
     },
   );
+
+  // Undo a merge or a re-match, within a few minutes of it (see services/mergeUndo.ts). The token is only
+  // ever given to the person who made the change.
+  app.post<{ Body: { token?: unknown } }>('/api/games/undo-change', { config: { rateLimit: { max: 20, timeWindow: '1 minute' } } }, async (request) => {
+    const userId = await request.requireAuth();
+    const token = String(request.body?.token ?? '');
+    const undo = await takeUndo(userId, token);
+    // Whoever may change that list's games may undo a change to it.
+    const anchorId = undo.kind === 'merge' ? undo.targetId : undo.gameId;
+    const anchor = await loadGameOr404(anchorId);
+    await requireGameSettingsAccess(anchor, userId);
+    const gameId = await applyUndo(undo);
+    await dropUndo(token);
+    await invalidateExistingIgdbIds(undo.roomId, undo.ownerId);
+    const restored = await loadGameOr404(gameId);
+    return { game: await serializeGame(restored, userId) };
+  });
 
   app.patch<{ Params: { id: string }; Body: SetTargetPriceRequest }>(
     '/api/games/:id/target-price',
