@@ -7,19 +7,31 @@ const m = vi.hoisted(() => ({
   keyFind: vi.fn(),
   mergeFind: vi.fn(),
   badgeCreate: vi.fn(),
+  gameFirst: vi.fn(),
+  userFind: vi.fn(),
+  aiFind: vi.fn(),
+  usedKeyFind: vi.fn(),
+  roomFirst: vi.fn(),
+  prefFirst: vi.fn(),
+  specsFind: vi.fn(),
 }));
 vi.mock('../db/client.js', () => ({
   prisma: {
-    game: { count: m.gameCount },
+    game: { count: m.gameCount, findFirst: m.gameFirst },
+    user: { findUnique: m.userFind },
+    userAiSettings: { findUnique: m.aiFind },
+    room: { findFirst: m.roomFirst },
+    notificationPreference: { findFirst: m.prefFirst },
+    userComputerSpecs: { findUnique: m.specsFind },
     gameReview: { findFirst: m.reviewFind },
     friendship: { findFirst: m.friendFind },
-    apiKey: { findFirst: m.keyFind },
+    apiKey: { findFirst: (args: { where: { lastUsedAt?: unknown } }) => (args.where.lastUsedAt ? m.usedKeyFind() : m.keyFind()) },
     duplicateMergeVote: { findFirst: m.mergeFind },
     userBadge: { create: m.badgeCreate, count: vi.fn().mockResolvedValue(0) },
   },
 }));
 
-import { activityBadgeKeys, unlockActivityBadges } from './badges.js';
+import { activityBadgeKeys, featureBadgeKeys, unlockActivityBadges } from './badges.js';
 
 /** shelf size, then Beaten count (the two game counts, in the order they are asked). */
 function counts(shelf: number, beaten: number) {
@@ -31,6 +43,8 @@ beforeEach(() => {
   counts(0, 0);
   for (const f of [m.reviewFind, m.friendFind, m.keyFind, m.mergeFind]) f.mockResolvedValue(null);
   m.badgeCreate.mockResolvedValue({});
+  for (const f of [m.gameFirst, m.aiFind, m.usedKeyFind, m.roomFirst, m.prefFirst, m.specsFind]) f.mockResolvedValue(null);
+  m.userFind.mockResolvedValue({ profileSlug: null });
 });
 
 describe('activityBadgeKeys', () => {
@@ -84,5 +98,43 @@ describe('unlockActivityBadges', () => {
     m.gameCount.mockRejectedValue(new Error('db down'));
     vi.spyOn(console, 'error').mockImplementation(() => {});
     expect(await unlockActivityBadges('u1')).toEqual([]);
+  });
+});
+
+describe('featureBadgeKeys', () => {
+  it('earns nothing for someone who has not used the advanced features', async () => {
+    expect(await featureBadgeKeys('u1')).toEqual([]);
+  });
+
+  it('earns each badge from what is on file', async () => {
+    m.gameFirst.mockResolvedValue({ id: 'g' });
+    m.userFind.mockResolvedValue({ profileSlug: 'trent' });
+    m.aiFind.mockResolvedValue({ fallbacksEncrypted: 'sealed' });
+    m.usedKeyFind.mockResolvedValue({ id: 'k' });
+    m.roomFirst.mockResolvedValue({ id: 'r' });
+    m.prefFirst.mockResolvedValue({ type: 'price_drop' });
+    m.specsFind.mockResolvedValue({ userId: 'u1' });
+    expect(await featureBadgeKeys('u1')).toEqual([
+      'first_hidden_game',
+      'first_price_alert',
+      'first_profile_link',
+      'first_own_ai',
+      'first_ai_backup',
+      'first_api_key_used',
+      'first_discord_webhook',
+      'first_email_alert',
+      'first_computer_specs',
+    ]);
+  });
+
+  it('gives Bring Your Own AI without Safety Net when there is no backup', async () => {
+    m.aiFind.mockResolvedValue({ fallbacksEncrypted: null });
+    expect(await featureBadgeKeys('u1')).toEqual(['first_own_ai']);
+  });
+
+  it('only counts a key that has actually been used, and a Discord webhook on a room the person runs', async () => {
+    await featureBadgeKeys('u1');
+    expect(m.usedKeyFind).toHaveBeenCalled();
+    expect(m.roomFirst.mock.calls[0][0].where).toMatchObject({ members: { some: { userId: 'u1', role: 'room_master' } } });
   });
 });

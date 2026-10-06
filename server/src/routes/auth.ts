@@ -31,7 +31,7 @@ import type {
   VoteValue,
 } from '@queueup/shared';
 import { MAX_ACTIVE_API_KEYS, MAX_API_KEY_EXPIRY_DAYS } from '@queueup/shared';
-import { unlockActivityBadges } from '../services/badges.js';
+import { unlockActivityBadges, unlockBadgeQuietly, unlockFeatureBadges } from '../services/badges.js';
 
 function toApiKeySummary(key: {
   id: string;
@@ -337,6 +337,7 @@ export default async function authRoutes(app: FastifyInstance) {
     async (request, reply) => {
       const userId = await request.requireAuth();
       const profileSlug = await setProfileSlug(userId, request.body?.slug);
+      if (profileSlug) void unlockFeatureBadges(userId);
       void logAccountEvent(userId, 'profile_link', profileSlug ? `Custom profile link set to /u/${profileSlug}.` : 'Custom profile link removed.');
       return reply.send({ profileSlug });
     },
@@ -547,6 +548,7 @@ export default async function authRoutes(app: FastifyInstance) {
       // response with Content-Disposition, fetched via a plain <a href download> on the frontend
       // rather than a fetch+blob dance.
       reply.header('Content-Type', 'application/json; charset=utf-8');
+      unlockBadgeQuietly(userId, 'first_export');
       reply.header('Content-Disposition', `attachment; filename="queueup-data-export-${Date.now()}.json"`);
       return result;
     },

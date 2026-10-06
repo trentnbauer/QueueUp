@@ -19,6 +19,7 @@ import { AiProviderError, callProvider, PROVIDER_DEFAULTS, type AiConfig, type A
 import { chargeServerAiUse, type AiCharge } from './aiQuota.js';
 import { assertPublicTarget } from './aiNetworkGuard.js';
 import { runAiJob } from './aiJobs.js';
+import { unlockBadgeQuietly } from '../badges.js';
 
 /** Works out which AI settings a call uses and makes the call. A person's own settings win, when the
  * server allows them; otherwise the server-wide ones (env, or Administrator settings as the
@@ -284,6 +285,7 @@ export async function aiComplete(
   const charge = resolved.source === 'server' && opts.userId ? await chargeServerAiUse(opts.userId) : null;
   try {
     const res = await runAiJob(opts.userId, opts.label ?? 'ai', () => runChain(resolved.configs, resolved.owner, req, resolved.source === 'server' ? undefined : opts.userId));
+    if (opts.userId) unlockBadgeQuietly(opts.userId, 'first_ai_used');
     return { ...res, source: resolved.source };
   } catch (err) {
     // The provider failing is not the person's doing - give the use back.

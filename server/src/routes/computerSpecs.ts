@@ -1,6 +1,7 @@
 import type { FastifyInstance } from 'fastify';
 import type { ComputerSpecs } from '@queueup/shared';
 import { prisma } from '../db/client.js';
+import { unlockFeatureBadges } from '../services/badges.js';
 import { logAccountEvent } from '../services/accountEvents.js';
 import { isEmptySpecs, parseComputerSpecs, specsFromRow } from '../services/computerSpecs.js';
 
@@ -20,6 +21,7 @@ export default async function computerSpecsRoutes(app: FastifyInstance) {
     } else {
       await prisma.userComputerSpecs.upsert({ where: { userId }, create: { userId, ...specs }, update: specs });
     }
+    if (!isEmptySpecs(specs)) void unlockFeatureBadges(userId);
     void logAccountEvent(userId, 'computer_specs', isEmptySpecs(specs) ? 'Computer specs cleared.' : 'Computer specs updated.');
     return specs;
   });
