@@ -54,6 +54,8 @@ export const room: Record<keyof typeof en, string> = {
   "room.spin.defaults": "Spin defaults",
   "room.spin.defaultsHint": "The filters Spin starts with on this ship. Anyone can change ’em for a single spin.",
   "room.spin.priceLabel": "BOUNTY · THE WHOLE CREW OWNS IT, OR UNDER",
+  "room.spin.noLimit": "No price limit",
+  "room.spin.toastNoLimit": "Spin picks from any game, whatever the price",
   "room.spin.toastOwnedOnly": "Spin picks games the whole crew owns",
   "room.spin.toastOwnedOrPrice": "Spin picks games the whole crew owns, or ${price} or less",
   "room.spin.ownedOnly": "Owned only",

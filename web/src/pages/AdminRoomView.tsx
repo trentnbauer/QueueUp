@@ -22,7 +22,7 @@ export function AdminRoomView({ roomId }: { roomId: string }) {
     [t('pages.adminRoom.visibility'), room.isPublic ? t('pages.adminRoom.public') : t('pages.adminRoom.inviteOnly')],
     [t('pages.adminRoom.invites'), room.invitePermission === 'members' ? t('pages.adminRoom.anyMember') : t('pages.adminRoom.modsAndAbove')],
     [t('pages.adminRoom.newGames'), room.requireGameApproval ? t('pages.adminRoom.needApproval') : t('pages.adminRoom.addedDirectly')],
-    [t('pages.adminRoom.spinPriceLimit'), room.spinOwnershipMaxPrice ? `$${room.spinOwnershipMaxPrice}` : t('pages.adminRoom.ownedOnly')],
+    [t('pages.adminRoom.spinPriceLimit'), room.spinOwnershipMaxPrice < 0 ? t('room.spin.noLimit') : room.spinOwnershipMaxPrice ? `$${room.spinOwnershipMaxPrice}` : t('pages.adminRoom.ownedOnly')],
     [t('pages.adminRoom.spinType'), spinThemeLabel(room.spinWheelTheme)],
   ];
   return (

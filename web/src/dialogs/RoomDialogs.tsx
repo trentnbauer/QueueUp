@@ -298,10 +298,10 @@ function RoomSpinSettingsDialog({ room, patch, onClose }: { room: Room; patch: (
         </span>
         <span style={st(DEFAULT_LABEL)}>{t('room.spin.priceLabel')}</span>
         <div style={st('display:flex;flex-wrap:wrap;gap:6px')}>
-          {[0, 10, 20, 40].map((v) => (
+          {[0, 7, 15, 30, 60, -1].map((v) => (
             // Pressing the chosen price again drops it, back to owned-only (the baseline).
-            <ChipToggle key={v} on={spinMax === v} onClick={() => { const next = spinMax === v ? 0 : v; patch({ spinOwnershipMaxPrice: next }, next === 0 ? t('room.spin.toastOwnedOnly') : t('room.spin.toastOwnedOrPrice', { price: next })); }}>
-              {v === 0 ? t('room.spin.ownedOnly') : `$${v}`}
+            <ChipToggle key={v} on={spinMax === v} onClick={() => { const next = spinMax === v ? 0 : v; patch({ spinOwnershipMaxPrice: next }, next === 0 ? t('room.spin.toastOwnedOnly') : next < 0 ? t('room.spin.toastNoLimit') : t('room.spin.toastOwnedOrPrice', { price: next })); }}>
+              {v === 0 ? t('room.spin.ownedOnly') : v < 0 ? t('room.spin.noLimit') : `$${v}`}
             </ChipToggle>
           ))}
         </div>
@@ -321,11 +321,15 @@ function RoomSpinSettingsDialog({ room, patch, onClose }: { room: Room; patch: (
             </ChipToggle>
           ))}
         </div>
-        <div style={st('display:flex;flex-wrap:wrap;gap:6px')}>
-          <ChipToggle on={!!spinDefaults.everyoneOwns} onClick={() => patch({ spinDefaults: { everyoneOwns: !spinDefaults.everyoneOwns } }, t('room.spin.saved'))}>
-            {t('room.spin.everyoneOwns')}
-          </ChipToggle>
-        </div>
+        {/* "Everyone owns it" duplicated the Owned only price choice, so it is no longer offered; a room that
+            already has it switched on keeps a chip to turn it off. */}
+        {spinDefaults.everyoneOwns && (
+          <div style={st('display:flex;flex-wrap:wrap;gap:6px')}>
+            <ChipToggle on onClick={() => patch({ spinDefaults: { everyoneOwns: false } }, t('room.spin.saved'))}>
+              {t('room.spin.everyoneOwns')}
+            </ChipToggle>
+          </div>
+        )}
       </div>
       <div style={st('display:flex;flex-direction:column;gap:10px;padding:14px 16px;border-radius:14px;background:var(--surf)')}>
         <span style={st('display:flex;flex-direction:column;gap:2px')}>
@@ -349,7 +353,7 @@ function spinSummary(room: Room): string {
   const d = room.spinDefaults ?? {};
   return [
     spinThemeLabel(room.spinWheelTheme),
-    room.spinOwnershipMaxPrice === 0 ? tr('room.spin.ownedOnly') : room.spinOwnershipMaxPrice ? tr('room.spin.ownedOrPrice', { price: room.spinOwnershipMaxPrice }) : null,
+    room.spinOwnershipMaxPrice === 0 ? tr('room.spin.ownedOnly') : room.spinOwnershipMaxPrice < 0 ? tr('room.spin.noLimit') : room.spinOwnershipMaxPrice ? tr('room.spin.ownedOrPrice', { price: room.spinOwnershipMaxPrice }) : null,
     d.maxTtb ? tr('room.spin.under', { h: d.maxTtb }) : null,
     d.minScore ? `★ ${d.minScore / 10}+` : null,
     d.everyoneOwns ? tr('room.spin.everyoneOwns') : null,
