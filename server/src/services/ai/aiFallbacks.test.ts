@@ -19,6 +19,7 @@ import { AiProviderError } from './providers.js';
 import { aiComplete, aiCompleteEntry, getEntryParts, resolveAiChain } from './aiConfig.js';
 import { getLastFallback, mergeFallbacks, openFallbacks, sealFallbacks } from './aiFallbacks.js';
 import { encryptSetting } from '../settingsCrypto.js';
+import { resetCooldowns } from './aiCooldown.js';
 
 const REQ = { messages: [{ role: 'user' as const, content: 'hi' }] };
 const ok = (text: string) => ({ text, provider: 'x', model: 'm' });
@@ -52,6 +53,7 @@ describe('mergeFallbacks', () => {
 describe('aiComplete with backups', () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    resetCooldowns();
     const fallbacksEncrypted = sealFallbacks(mergeFallbacks([], [{ provider: 'openai', model: 'gpt-x', apiKey: 'sk-2' }], false), SECRET);
     findUnique.mockResolvedValue({ provider: 'anthropic', model: null, baseUrl: null, apiKeyEncrypted: encryptSetting('sk-1', SECRET), fallbacksEncrypted });
   });
@@ -83,6 +85,7 @@ describe('aiComplete with backups', () => {
 describe('aiCompleteEntry', () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    resetCooldowns();
     const fallbacksEncrypted = sealFallbacks(mergeFallbacks([], [{ provider: 'openai', model: 'gpt-x', apiKey: 'sk-2' }], false), SECRET);
     findUnique.mockResolvedValue({ provider: 'anthropic', model: null, baseUrl: null, apiKeyEncrypted: encryptSetting('sk-1', SECRET), fallbacksEncrypted });
   });
@@ -105,6 +108,62 @@ describe('aiCompleteEntry', () => {
   it('says so when the entry is not saved', async () => {
     await expect(aiCompleteEntry({ userId: 'u1' }, 5, REQ)).rejects.toMatchObject({ statusCode: 404 });
     await expect(aiCompleteEntry({ userId: 'u1' }, -1, REQ)).rejects.toMatchObject({ statusCode: 404 });
+  });
+});
+
+describe('skipping a failing provider for a while (#1043)', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    resetCooldowns();
+    const fallbacksEncrypted = sealFallbacks(mergeFallbacks([], [{ provider: 'openai', model: 'gpt-x', apiKey: 'sk-2' }], false), SECRET);
+    findUnique.mockResolvedValue({ provider: 'anthropic', model: null, baseUrl: null, apiKeyEncrypted: encryptSetting('sk-1', SECRET), fallbacksEncrypted });
+  });
+
+  it('does not try a provider again that just failed for lack of credit, but still shows the warning', async () => {
+    callProvider.mockRejectedValueOnce(new AiProviderError('out of credit', 402)).mockResolvedValue(ok('OK'));
+    await aiComplete(REQ, { userId: 'u1' });
+    expect(callProvider).toHaveBeenCalledTimes(2);
+    callProvider.mockClear();
+    const res = await aiComplete(REQ, { userId: 'u1' });
+    expect(callProvider).toHaveBeenCalledTimes(1);
+    expect(callProvider.mock.calls[0][0]).toMatchObject({ provider: 'openai' });
+    expect(res.fallback).toMatchObject({ failedProvider: 'anthropic', usedProvider: 'openai', error: 'out of credit' });
+    expect(getLastFallback('user:u1')).not.toBeNull();
+  });
+
+  it('keeps trying a provider that only timed out or hit a short rate limit', async () => {
+    callProvider.mockRejectedValueOnce(new AiProviderError('took too long', null)).mockResolvedValue(ok('OK'));
+    await aiComplete(REQ, { userId: 'u1' });
+    callProvider.mockClear();
+    callProvider.mockRejectedValueOnce(new AiProviderError('slow down', 429, 5)).mockResolvedValue(ok('OK'));
+    await aiComplete(REQ, { userId: 'u1' });
+    expect(callProvider.mock.calls[0][0]).toMatchObject({ provider: 'anthropic' });
+    callProvider.mockClear();
+    await aiComplete(REQ, { userId: 'u1' });
+    expect(callProvider.mock.calls[0][0]).toMatchObject({ provider: 'anthropic' });
+  });
+
+  it('tries everything when every provider is cooling, rather than failing without a call', async () => {
+    callProvider.mockRejectedValue(new AiProviderError('bad key', 401));
+    await expect(aiComplete(REQ, { userId: 'u1' })).rejects.toMatchObject({ statusCode: 424 });
+    callProvider.mockReset();
+    callProvider.mockResolvedValue(ok('OK'));
+    const res = await aiComplete(REQ, { userId: 'u1' });
+    expect(res.text).toBe('OK');
+    expect(callProvider.mock.calls[0][0]).toMatchObject({ provider: 'anthropic' });
+  });
+
+  it('the Test button always tries the entry, and a pass lifts the skip', async () => {
+    callProvider.mockRejectedValueOnce(new AiProviderError('out of credit', 402)).mockResolvedValue(ok('OK'));
+    await aiComplete(REQ, { userId: 'u1' });
+    callProvider.mockClear();
+    const tested = await aiCompleteEntry({ userId: 'u1' }, 0, REQ);
+    expect(tested.text).toBe('OK');
+    expect(callProvider.mock.calls[0][0]).toMatchObject({ provider: 'anthropic' });
+    callProvider.mockClear();
+    const res = await aiComplete(REQ, { userId: 'u1' });
+    expect(res.fallback).toBeNull();
+    expect(callProvider.mock.calls[0][0]).toMatchObject({ provider: 'anthropic' });
   });
 });
 

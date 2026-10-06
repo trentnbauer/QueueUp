@@ -19,6 +19,7 @@ import { AiProviderError, callProvider, PROVIDER_DEFAULTS, type AiConfig, type A
 import { chargeServerAiUse, type AiCharge } from './aiQuota.js';
 import { assertPublicTarget } from './aiNetworkGuard.js';
 import { runAiJob } from './aiJobs.js';
+import { coolDownSeconds, coolingReason, cooldownKey, endCooldown, startCooldown } from './aiCooldown.js';
 import { unlockBadgeQuietly } from '../badges.js';
 
 /** Works out which AI settings a call uses and makes the call. A person's own settings win, when the
@@ -209,7 +210,20 @@ async function runChain(
   let firstFailure: { config: AiConfig; message: string } | null = null;
   const failures: string[] = [];
   const allowPrivate = (await getEnv()).AI_ALLOW_PRIVATE_BASE_URL;
-  for (const base of configs) {
+  // A provider that recently failed in a way that will not fix itself (no credit, a bad key) is skipped for a
+  // few minutes (#1043) - unless every provider is in that state, or there is only one (the Test button), in
+  // which case it is tried anyway.
+  const keys = configs.map((c) => cooldownKey(c));
+  const reasons = keys.map((k) => coolingReason(k));
+  const skipCooling = reasons.some((r) => r === null);
+  for (const [i, base] of configs.entries()) {
+    const cooled = skipCooling ? reasons[i] : null;
+    if (cooled) {
+      const minutes = Math.max(1, Math.ceil(cooled.secondsLeft / 60));
+      failures.push(`${base.provider} (${base.model}): skipped for about ${minutes} more minute${minutes === 1 ? '' : 's'} after: ${cooled.message}`);
+      firstFailure ??= { config: base, message: cooled.message };
+      continue;
+    }
     // A person-supplied address must not point inside the server's own network unless the operator
     // allows it (a LAN or Docker-host Ollama). Resolved fresh for every request, so a name that is
     // later re-pointed inward is caught. Where private addresses are allowed, the provider's error
@@ -243,6 +257,7 @@ async function runChain(
         await charge?.refund();
         throw err;
       }
+      endCooldown(keys[i]);
       if (!firstFailure) {
         clearLastFallback(owner);
         return { ...res, fallback: null };
@@ -260,6 +275,8 @@ async function runChain(
       return { ...res, fallback };
     } catch (err) {
       if (!(err instanceof AiProviderError)) throw err;
+      const wait = coolDownSeconds(err);
+      if (wait !== null) startCooldown(keys[i], wait, err.message);
       failures.push(`${config.provider} (${config.model}): ${err.message}`);
       firstFailure ??= { config, message: err.message };
     }
