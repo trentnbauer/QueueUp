@@ -211,7 +211,6 @@ export const shell: Record<keyof typeof en, string> = {
   "shell.tags.error.delete": "Couldn’t scuttle that tag.",
   "shell.toasts.saveFailed": "Couldn’t stow that. Try again, matey.",
   "shell.toasts.yesAddIt": "Aye, stow it",
-  "shell.toasts.findIt": "Hunt it down",
   "shell.toasts.reviewMerges": "Review",
   "shell.toasts.markPlaying": "Mark Sailin’",
   "shell.toasts.reviewIt": "Review it",
