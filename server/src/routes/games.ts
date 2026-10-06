@@ -71,7 +71,7 @@ import { getRemovalInfo } from '../services/removalVote.js';
 import { recordSyncSources } from '../services/syncSources.js';
 import { getCurrentPlaytimeMinutesForGames } from '../services/playtimeTracking.js';
 import { summarizeTimeToBeat, summarizeActiveHoursToBeat, pickMostNeglectedGame, backlogAgeRanges } from '../services/backlogInsights.js';
-import { unlockBadges } from '../services/badges.js';
+import { unlockActivityBadges, unlockBadges } from '../services/badges.js';
 import {
   logRoomActivity,
   logShelfActivity,
@@ -810,7 +810,7 @@ export default async function gameRoutes(app: FastifyInstance) {
     // Only the 'game' branch is a real, immediately-live game - a room's approval-required
     // 'suggestion' branch hasn't actually been added to anything yet, so nothing to unlock there.
     const unlockedBadges =
-      'game' in response ? await unlockBadges(userId, response.game.status === 'wishlist' ? ['first_wishlist'] : []) : [];
+      'game' in response ? [...(await unlockBadges(userId, response.game.status === 'wishlist' ? ['first_wishlist'] : [])), ...(roomId ? [] : await unlockActivityBadges(userId))] : [];
     return { ...response, unlockedBadges };
   });
 
@@ -1066,6 +1066,7 @@ export default async function gameRoutes(app: FastifyInstance) {
       ...comebackKeys,
       ...quickDropKeys,
     ]);
+    if (game.roomId === null && game.status !== status) unlockedBadges.push(...(await unlockActivityBadges(userId)));
 
     // Activity feed (issue #509 for rooms, #580 for the Personal Shelf) - only on an actual
     // transition, matching enteringDone/enteringDropped's own "not a no-op re-save" gating above.
@@ -1187,6 +1188,7 @@ export default async function gameRoutes(app: FastifyInstance) {
     const updated = await loadGameOr404(game.id);
 
     if (hasAny) {
+      void unlockActivityBadges(userId);
       const review = toGameReviewDto(saved);
       // A high score on a Personal Shelf game is worth telling friends who have it on their list.
       if (game.roomId === null) void notifyFriendRecommendation(userId, game, { art, gameplay, story, sound, themes });
@@ -1419,7 +1421,7 @@ export default async function gameRoutes(app: FastifyInstance) {
       const updated = await prisma.game.findMany({ where, include: gameInclude });
       // roomId is always null here (Personal Shelf only) - first_room_beat never applies. Only
       // attempted once per request (not once per game) since these are all one-shot unlocks.
-      const unlockedBadges = anyTransitioned ? await unlockBadges(userId, statusBadgeKeys(status, null)) : [];
+      const unlockedBadges = anyTransitioned ? [...(await unlockBadges(userId, statusBadgeKeys(status, null))), ...(await unlockActivityBadges(userId))] : [];
       return { games: await serializeGames(updated, userId, parseRegion(request.query.region)), unlockedBadges };
     },
   );
@@ -1764,7 +1766,8 @@ export default async function gameRoutes(app: FastifyInstance) {
       await invalidateExistingIgdbIds(game.roomId, game.addedBy);
 
       const updated = await loadGameOr404(gameId);
-      return { game: await serializeGame(updated, userId), mergedFromId };
+      const unlockedBadges = game.roomId === null ? await unlockActivityBadges(userId) : [];
+      return { game: await serializeGame(updated, userId), mergedFromId, unlockedBadges };
     },
   );
 

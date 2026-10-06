@@ -30,6 +30,7 @@ import type {
   VoteValue,
 } from '@queueup/shared';
 import { MAX_ACTIVE_API_KEYS, MAX_API_KEY_EXPIRY_DAYS } from '@queueup/shared';
+import { unlockActivityBadges } from '../services/badges.js';
 
 function toApiKeySummary(key: {
   id: string;
@@ -408,6 +409,7 @@ export default async function authRoutes(app: FastifyInstance) {
         },
       });
       await notifyAccountChange(userId, `A new API key was created: ${label}${created.readOnly ? ' (read-only)' : ''}${created.expiresAt ? `, expires ${created.expiresAt.toISOString().slice(0, 10)}` : ''}.`);
+      void unlockActivityBadges(userId);
       reply.status(201);
       const response: CreateApiKeyResponse = { ...toApiKeySummary(created), key: token };
       return reply.send(response);

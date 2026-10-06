@@ -67,6 +67,43 @@ export async function maybeUnlockFullCollection(userId: string): Promise<BadgeDe
   return unlockBadge(userId, 'first_full_collection');
 }
 
+/** Shelf size and Beaten count thresholds, highest last. */
+const SHELF_SIZE_BADGES: [number, BadgeKey][] = [[25, 'shelf_25'], [100, 'shelf_100'], [500, 'shelf_500']];
+const BEATEN_COUNT_BADGES: [number, BadgeKey][] = [[10, 'beaten_10'], [50, 'beaten_50'], [100, 'beaten_100']];
+
+/** The badges this person has earned from a count or from having done something once: shelf size,
+ * Beaten count, a review, a friend, an API key, a merge. One cheap set of counts, so any route that
+ * could have just moved one of them can call `unlockActivityBadges` and let this decide. */
+export async function activityBadgeKeys(userId: string): Promise<BadgeKey[]> {
+  const [shelf, beaten, review, friend, apiKey, merge] = await Promise.all([
+    prisma.game.count({ where: { roomId: null, addedBy: userId, archivedAt: null } }),
+    prisma.game.count({ where: { roomId: null, addedBy: userId, status: 'done' } }),
+    prisma.gameReview.findFirst({ where: { userId }, select: { gameId: true } }),
+    prisma.friendship.findFirst({ where: { status: 'accepted', OR: [{ requesterId: userId }, { addresseeId: userId }] }, select: { id: true } }),
+    prisma.apiKey.findFirst({ where: { userId }, select: { id: true } }),
+    prisma.duplicateMergeVote.findFirst({ where: { userId }, select: { igdbIdLow: true } }),
+  ]);
+  const keys: BadgeKey[] = [];
+  for (const [n, key] of SHELF_SIZE_BADGES) if (shelf >= n) keys.push(key);
+  for (const [n, key] of BEATEN_COUNT_BADGES) if (beaten >= n) keys.push(key);
+  if (review) keys.push('first_review');
+  if (friend) keys.push('first_friend');
+  if (apiKey) keys.push('first_api_key');
+  if (merge) keys.push('first_merge');
+  return keys;
+}
+
+/** Unlocks whatever `activityBadgeKeys` says is earned and not yet unlocked. Never throws: a badge
+ * must not break the action that triggered it. Returns the newly unlocked ones for a toast. */
+export async function unlockActivityBadges(userId: string): Promise<BadgeDefinition[]> {
+  try {
+    return await unlockBadges(userId, await activityBadgeKeys(userId));
+  } catch (err) {
+    console.error('[badges] activity badge check failed', { userId, err });
+    return [];
+  }
+}
+
 // --- refreshBadges: the per-user, on-demand counterpart to scripts/backfillBadges.ts below. Each
 // helper mirrors one of that script's backfill* functions, scoped to a single userId instead of
 // swept across every user - see that script's own doc comment for the "unambiguous from data on
@@ -212,6 +249,7 @@ export async function refreshBadges(userId: string): Promise<BadgeDefinition[]> 
     bargainHunterBadgeKeys(userId),
     playLogDerivedBadgeKeys(userId),
     platformSyncBadgeKeys(userId),
+    activityBadgeKeys(userId),
   ]);
   const keys = [...new Set(keyLists.flat())];
   return unlockBadges(userId, keys);
