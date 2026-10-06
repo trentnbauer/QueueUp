@@ -528,4 +528,6 @@ export const settings: Record<keyof typeof en, string> = {
   "settings.me.duplicates.scanning": "AI is checking your shelf…",
   "settings.duplicates.communityBadge": "Merged by {n} other people",
   "settings.duplicates.reused": "{n} pairs were settled from what other people already merged or an earlier AI check, so the AI wasn't asked about them again.",
+  "settings.duplicates.noTitleMatches": "Nothing on your shelf has a title that looks like another game, so there was nothing for the AI to check.",
+  "settings.duplicates.noneAskedAi": "The AI was not asked: all {n} pairs that look alike were already answered by other people's merges or earlier AI checks, and none are duplicates. Press \"Scan again\" to ask the AI afresh.",
 };

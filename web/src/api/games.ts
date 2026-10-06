@@ -135,7 +135,8 @@ export const gamesApi = {
   aiTonight: (body: AiTonightRequest) => apiPost<AiTonightResponse>('/api/games/ai-tonight', body),
   upcomingDlc: () => apiGet<{ dlcs: UpcomingDlc[] }>('/api/games/upcoming-dlc'),
   ignoreUpcomingDlc: (igdbId: number) => apiPost<void>(`/api/games/upcoming-dlc/${igdbId}/ignore`),
-  aiScanDuplicates: () => apiPost<AiDuplicateScanResponse>('/api/games/duplicates/ai-scan'),
+  /** `fresh` asks the AI afresh instead of reusing its earlier answers ("Scan again"). */
+  aiScanDuplicates: (fresh = false) => apiPost<AiDuplicateScanResponse>('/api/games/duplicates/ai-scan', fresh ? { fresh: true } : {}),
   duplicateCandidates: () => apiGet<DuplicateCandidatesResponse>('/api/games/duplicates'),
   duplicateCandidateCount: () => apiGet<DuplicateCandidateCountResponse>('/api/games/duplicates/count'),
   dismissDuplicate: (body: DismissDuplicateRequest) => apiPost<void>('/api/games/duplicates/dismiss', body),

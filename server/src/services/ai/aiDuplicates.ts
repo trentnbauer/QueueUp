@@ -112,14 +112,14 @@ export async function listDuplicateCandidates(userId: string): Promise<Duplicate
  * time, so one press covers the whole shelf. What the AI decides is remembered for the next person.
  * Changes nothing. If a batch fails (provider error, the daily limit on the shared AI) what was found
  * is kept and `stopped` says why; if nothing could be answered at all it throws. */
-export async function aiScanDuplicates(userId: string): Promise<AiDuplicateScanResponse> {
+export async function aiScanDuplicates(userId: string, opts: { fresh?: boolean } = {}): Promise<AiDuplicateScanResponse> {
   const [games, dismissals] = await Promise.all([
     prisma.game.findMany({ where: { roomId: null, addedBy: userId }, select: SELECT, orderBy: { title: 'asc' } }),
     prisma.duplicateDismissal.findMany({ where: { userId } }),
   ]);
   const dismissed = new Set(dismissals.map((d) => igdbPairKey(d.igdbIdLow, d.igdbIdHigh)));
   const candidates = findCandidatePairs(games, dismissed, MAX_SCAN_PAIRS);
-  if (!candidates.length) return { pairs: [], checked: 0, reused: 0, fallback: null, stopped: null };
+  if (!candidates.length) return { pairs: [], candidates: 0, checked: 0, reused: 0, fallback: null, stopped: null };
 
   const strip = ({ igdbCollectionId: _c, ...g }: (typeof games)[number]): DuplicateSuggestionGame => g;
   const knowledge = await loadDuplicateKnowledge(userId, games.map((g) => g.igdbId));
@@ -137,7 +137,8 @@ export async function aiScanDuplicates(userId: string): Promise<AiDuplicateScanR
       found.push({ a, b, keep: merge.keepIgdbId === a.igdbId ? 'a' : 'b', confidence: Math.min(0.99, 0.85 + 0.03 * merge.users), reason: '', source: 'community', mergedBy: merge.users });
       continue;
     }
-    const verdict = knowledge.verdicts.get(key);
+    // `fresh` ("Scan again") ignores earlier AI answers and asks the AI afresh; what other people merged still counts.
+    const verdict = opts.fresh ? undefined : knowledge.verdicts.get(key);
     if (verdict) {
       reused += 1;
       if (verdict.same && (verdict.confidence ?? 1) >= AI_DUPLICATE_MIN_CONFIDENCE) {
@@ -166,14 +167,10 @@ export async function aiScanDuplicates(userId: string): Promise<AiDuplicateScanR
       fallback ??= res.fallback;
       const same = parseDuplicateReply(res.text, batch);
       found.push(...same);
-      // Remember the answer for everyone. A pair the AI left out only counts as "not the same" when
-      // the reply was a complete list - one that ran into its output limit may just be missing the rest.
-      const complete = Array.isArray(extractJson(res.text)) && (res.usage?.outputTokens ?? 0) < 2048 * 0.97;
-      const sameById = new Map(same.map((s) => [`${s.a.id}:${s.b.id}`, s]));
-      for (const [a, b] of batch) {
-        const s = sameById.get(`${a.id}:${b.id}`);
-        if (s) verdictsToSave.push({ igdbIdA: a.igdbId, igdbIdB: b.igdbId, same: true, keepIgdbId: s.keep === 'a' ? a.igdbId : b.igdbId, confidence: s.confidence, reason: s.reason });
-        else if (complete) verdictsToSave.push({ igdbIdA: a.igdbId, igdbIdB: b.igdbId, same: false });
+      // Remember each "same game" answer for everyone. A pair the AI left out is not recorded as "different":
+      // an answer that omits a pair says nothing reliable about it.
+      for (const s of same) {
+        verdictsToSave.push({ igdbIdA: s.a.igdbId, igdbIdB: s.b.igdbId, same: true, keepIgdbId: s.keep === 'a' ? s.a.igdbId : s.b.igdbId, confidence: s.confidence, reason: s.reason });
       }
     } catch (err) {
       stopped ??= stopReason(err);
@@ -184,7 +181,7 @@ export async function aiScanDuplicates(userId: string): Promise<AiDuplicateScanR
   const sorted = found.sort((x, y) => y.confidence - x.confidence);
   // Tell the person even if they closed the dialog while it ran (best effort; never fails the scan).
   await notifyMergeSuggestions(userId, sorted.length);
-  return { pairs: sorted, checked, reused, fallback, stopped };
+  return { pairs: sorted, candidates: candidates.length, checked, reused, fallback, stopped };
 }
 
 /** "These are not duplicates": remembered by igdbId pair so the suggestion does not come back. */

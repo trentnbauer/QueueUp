@@ -150,12 +150,37 @@ describe('aiScanDuplicates', () => {
     expect(res.pairs[0]).toMatchObject({ source: 'ai', keep: 'a', reason: 'edition' });
   });
 
-  it('remembers what the AI decided, including pairs it left out of a complete answer', async () => {
+  it('remembers the "same game" answers for everyone, but never records a pair the AI left out as "different"', async () => {
     gameFindMany.mockResolvedValue(twoPairs());
     aiComplete.mockResolvedValue({ text: '[{"pair":1,"confidence":0.9,"keep":"A","reason":"edition"}]', fallback: null, usage: { outputTokens: 40 } });
     await aiScanDuplicates('u1');
     const saved = saveVerdicts.mock.calls[0][0] as { igdbIdA: number; igdbIdB: number; same: boolean }[];
-    expect(saved.map((v) => [v.igdbIdA, v.igdbIdB, v.same])).toEqual([[1, 2, true], [3, 4, false]]);
+    expect(saved.map((v) => [v.igdbIdA, v.igdbIdB, v.same])).toEqual([[1, 2, true]]);
+  });
+
+  it('records nothing for an empty answer, so a model that says "[]" to everything cannot hide pairs from the next scan', async () => {
+    gameFindMany.mockResolvedValue(twoPairs());
+    aiComplete.mockResolvedValue({ text: '[]', fallback: null, usage: { outputTokens: 2 } });
+    const res = await aiScanDuplicates('u1');
+    expect(res).toMatchObject({ pairs: [], candidates: 2, checked: 2, reused: 0 });
+    expect(saveVerdicts.mock.calls[0][0]).toEqual([]);
+  });
+
+  it('"Scan again" (fresh) asks the AI even about pairs it has judged before, but still uses what other people merged', async () => {
+    gameFindMany.mockResolvedValue(twoPairs());
+    loadDuplicateKnowledge.mockResolvedValue({
+      merges: new Map([['3:4', { users: 2, keepIgdbId: 3 }]]),
+      notDuplicates: new Set(),
+      verdicts: new Map([['1:2', { same: true, keepIgdbId: 1, confidence: 0.9, reason: 'edition' }]]),
+    });
+    aiComplete.mockResolvedValue({ text: '[]', fallback: null, usage: { outputTokens: 2 } });
+    const res = await aiScanDuplicates('u1', { fresh: true });
+    expect(aiComplete).toHaveBeenCalledTimes(1);
+    expect(aiComplete.mock.calls[0][0].messages[0].content).toContain('Alpha');
+    expect(aiComplete.mock.calls[0][0].messages[0].content).not.toContain('Beta');
+    expect(res).toMatchObject({ candidates: 2, checked: 1, reused: 1 });
+    expect(res.pairs).toHaveLength(1);
+    expect(res.pairs[0].source).toBe('community');
   });
 
   it('does not treat pairs missing from a cut-off answer as "not the same"', async () => {

@@ -2926,7 +2926,9 @@ export interface DuplicateSuggestion {
 /** Result of POST /api/games/duplicates/ai-scan. */
 export interface AiDuplicateScanResponse {
   pairs: DuplicateSuggestion[];
-  /** How many candidate pairs the AI judged. */
+  /** How many pairs on the shelf look alike by title and were looked at. 0 means nothing on the shelf matched by name. */
+  candidates: number;
+  /** How many of those the AI judged this time. */
   checked: number;
   /** Pairs answered from what other people already merged, said are different, or the AI already
    * judged for someone else, so the AI was not asked about them. */

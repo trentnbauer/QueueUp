@@ -8,7 +8,7 @@ import { igdbPairKey } from './duplicateCandidates.js';
  *  - merges: two cards of the same pair that enough *other* people merged (it is their own shelf,
  *    but the pair is public knowledge: "Witcher 3" and its Complete Edition),
  *  - "not duplicates": a pair enough other people said are different, and nobody merged,
- *  - AI verdicts: a pair the AI already judged (for anyone), good for a while. */
+ *  - AI verdicts: a pair the AI already judged to be the same game (for anyone), good for a while. */
 
 /** How many other people must have merged a pair before it is suggested to someone without asking the AI. */
 export const COMMUNITY_MIN_USERS = 2;
@@ -84,7 +84,10 @@ export async function loadDuplicateKnowledge(userId: string, igdbIds: number[], 
   const notDuplicates = new Set([...dismissCounts].filter(([key, n]) => n >= COMMUNITY_MIN_DISMISSALS && !merged.has(key)).map(([key]) => key));
 
   const verdicts = new Map<string, CachedVerdict>();
-  for (const v of verdictRows) verdicts.set(igdbPairKey(v.igdbIdLow, v.igdbIdHigh), { same: v.same, keepIgdbId: v.keepIgdbId, confidence: v.confidence, reason: v.reason });
+  // Only a "same game" answer is trusted. A model leaving a pair out of its answer is not evidence that it
+  // is different (a weak or unlucky answer would hide real duplicates for everyone), so "not the same" is
+  // never reused, and rows saved that way by an earlier version are ignored.
+  for (const v of verdictRows.filter((r) => r.same)) verdicts.set(igdbPairKey(v.igdbIdLow, v.igdbIdHigh), { same: v.same, keepIgdbId: v.keepIgdbId, confidence: v.confidence, reason: v.reason });
   return { merges, notDuplicates, verdicts };
 }
 
