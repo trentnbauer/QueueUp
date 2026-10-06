@@ -6,6 +6,9 @@ import {
   settlesAtOf,
   applyNudge,
   candidateIndexAt,
+  displayPositionAt,
+  snappedSettledPosition,
+  tickPosition,
   SPIN_FRICTION,
   SPIN_INITIAL_VELOCITY,
   SPIN_NUDGE_DELTA,
@@ -263,5 +266,79 @@ describe('two observers checking at different times agree on the outcome', () =>
     const observedAtB = settledPositionOf(base);
     expect(observedAtA).toBe(observedAtB);
     expect(settlesAtOf(base)).toBe(settlesAtOf(base));
+  });
+});
+
+// ---- the drawn reel: ticks from card to card and lands exactly on the winner ----
+const displayBase = (over: Partial<SpinBase> = {}): SpinBase => ({ position0: 0, velocity0: SPIN_INITIAL_VELOCITY, timestamp0: 1_000_000, ...over });
+
+describe('tickPosition', () => {
+  it('holds each card for the first half of its slot and moves over the second', () => {
+    expect(tickPosition(3)).toBe(3);
+    expect(tickPosition(3.25)).toBe(3);
+    expect(tickPosition(3.5)).toBe(3);
+    expect(tickPosition(3.75)).toBeCloseTo(3.5, 5);
+    expect(tickPosition(3.9999)).toBeCloseTo(4, 3);
+    expect(tickPosition(-2.75)).toBe(-3);
+    expect(tickPosition(-2.25)).toBeCloseTo(-2.5, 5);
+  });
+
+  it('never goes backwards as the position moves forwards', () => {
+    let prev = -Infinity;
+    for (let p = -3; p <= 3; p += 0.01) {
+      const v = tickPosition(p);
+      expect(v).toBeGreaterThanOrEqual(prev - 1e-12);
+      prev = v;
+    }
+  });
+});
+
+describe('displayPositionAt', () => {
+  it('starts where the spin started', () => {
+    expect(displayPositionAt(displayBase({ position0: 4 }), 1_000_000)).toBe(4);
+  });
+
+  it('comes to rest exactly on a whole slot, the same one the winner is read from', () => {
+    for (const [position0, velocity0] of [[0, 24], [3.4, 24], [10.7, 17.3], [0, -12.6], [5.5, 30]] as const) {
+      const b = displayBase({ position0, velocity0 });
+      const end = displayPositionAt(b, settlesAtOf(b) + 60_000);
+      expect(Number.isInteger(end)).toBe(true);
+      expect(end).toBe(snappedSettledPosition(b));
+      // The slot under the marker is the slot the server names as the winner.
+      expect(candidateIndexAt(end, 50)).toBe(candidateIndexAt(settledPositionOf(b), 50));
+    }
+  });
+
+  it('is within a few pixels of the winning slot when the spin is declared settled (it then snaps the last bit)', () => {
+    for (const velocity0 of [24, 19.37, 8.8, -9.1]) {
+      const b = displayBase({ position0: 1.3, velocity0 });
+      expect(Math.abs(displayPositionAt(b, settlesAtOf(b)) - snappedSettledPosition(b))).toBeLessThan(0.06);
+    }
+  });
+
+  it('only ever moves in the direction of the spin', () => {
+    for (const velocity0 of [24, -24, 12.3]) {
+      const b = displayBase({ position0: 2.2, velocity0 });
+      let prev = displayPositionAt(b, b.timestamp0);
+      for (let ms = 0; ms <= settlesAtOf(b) - b.timestamp0 + 2000; ms += 25) {
+        const p = displayPositionAt(b, b.timestamp0 + ms);
+        expect((p - prev) * Math.sign(velocity0)).toBeGreaterThanOrEqual(-1e-9);
+        prev = p;
+      }
+    }
+  });
+
+  it('lands on a whole slot after nudges too', () => {
+    let b = displayBase({ position0: 0 });
+    b = applyNudge(b, b.timestamp0 + 1500, 'left');
+    b = applyNudge(b, b.timestamp0 + 700, 'right');
+    const end = displayPositionAt(b, settlesAtOf(b) + 10_000);
+    expect(Number.isInteger(end)).toBe(true);
+    expect(end).toBe(snappedSettledPosition(b));
+  });
+
+  it('copes with a spin that has almost no distance left', () => {
+    const b = displayBase({ position0: 7.2, velocity0: 0 });
+    expect(displayPositionAt(b, b.timestamp0 + 5000)).toBe(7);
   });
 });
