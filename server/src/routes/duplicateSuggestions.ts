@@ -1,7 +1,7 @@
 import type { FastifyInstance } from 'fastify';
 import { HttpError } from '../util/httpError.js';
-import { aiScanDuplicates, countDuplicateCandidates, dismissDuplicatePair } from '../services/ai/aiDuplicates.js';
-import type { AiDuplicateScanResponse, DismissDuplicateRequest, DuplicateCandidateCountResponse } from '@queueup/shared';
+import { aiScanDuplicates, countDuplicateCandidates, dismissDuplicatePair, listDuplicateCandidates } from '../services/ai/aiDuplicates.js';
+import type { AiDuplicateScanResponse, DismissDuplicateRequest, DuplicateCandidateCountResponse, DuplicateCandidatesResponse } from '@queueup/shared';
 
 /** AI duplicate scan for the personal shelf (issue #824). The merge itself is the existing
  * POST /api/games/:id/merge; nothing here merges anything. */
@@ -24,6 +24,16 @@ export default async function duplicateSuggestionRoutes(app: FastifyInstance) {
     async (request): Promise<DuplicateCandidateCountResponse> => {
       const userId = await request.requireAuth();
       return { count: await countDuplicateCandidates(userId) };
+    },
+  );
+
+  /** The pairs behind that count, for the duplicates dialog to list. Also free. */
+  app.get(
+    '/api/games/duplicates',
+    { config: { rateLimit: { max: 20, timeWindow: '1 minute' } } },
+    async (request): Promise<DuplicateCandidatesResponse> => {
+      const userId = await request.requireAuth();
+      return listDuplicateCandidates(userId);
     },
   );
 

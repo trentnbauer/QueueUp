@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import type { AiDuplicateScanResponse, DuplicateSuggestion, DuplicateSuggestionGame } from '@queueup/shared';
 import { AI_SETTINGS_QUERY_KEY, aiApi } from '../api/ai';
-import { DUPLICATE_COUNT_QUERY_KEY, gamesApi } from '../api/games';
+import { DUPLICATE_COUNT_QUERY_KEY, DUPLICATE_LIST_QUERY_KEY, gamesApi } from '../api/games';
 import { useConfirm } from '../context/ConfirmContext';
 import { useUi } from '../context/UiContext';
 import { Dialog } from '../ui/Dialog';
@@ -11,6 +11,10 @@ import { st } from '../ui/st';
 import { useT } from '../i18n';
 
 const GAMES_QUERY_ROOT = ['games'];
+
+/** A pair to show: one the AI judged, or a title-match candidate nobody has judged yet. */
+type Row = DuplicateSuggestion & { ai: boolean };
+const SHOWN_AT_FIRST = 40;
 
 const pairKey = (p: DuplicateSuggestion) => `${p.a.id}:${p.b.id}`;
 
@@ -46,6 +50,10 @@ export function DuplicatesDialog() {
   const [reviewing, setReviewing] = useState(false);
   const [tally, setTally] = useState({ merged: 0, kept: 0, skipped: 0 });
   const [error, setError] = useState<string | null>(null);
+  const [showAll, setShowAll] = useState(false);
+  // The pairs behind the shelf's "possible duplicates" count (title matches, no AI): listed here
+  // straight away, so the dialog is useful before - or without - an AI scan.
+  const candidates = useQuery({ queryKey: DUPLICATE_LIST_QUERY_KEY, queryFn: gamesApi.duplicateCandidates });
 
   const run = useMutation({
     mutationFn: () => gamesApi.aiScanDuplicates(),
@@ -89,6 +97,7 @@ export function DuplicatesDialog() {
     setTally((n) => ({ ...n, merged: n.merged + 1 }));
     void queryClient.invalidateQueries({ queryKey: GAMES_QUERY_ROOT });
     void queryClient.invalidateQueries({ queryKey: DUPLICATE_COUNT_QUERY_KEY });
+    void queryClient.invalidateQueries({ queryKey: DUPLICATE_LIST_QUERY_KEY });
     ui.notify(t('settings.duplicates.merged', { remove: remove.title, keep: keep.title }));
   }
 
@@ -109,12 +118,18 @@ export function DuplicatesDialog() {
     await dismiss.mutateAsync(p);
     setGone((g) => [...g, pairKey(p)]);
     void queryClient.invalidateQueries({ queryKey: DUPLICATE_COUNT_QUERY_KEY });
+    void queryClient.invalidateQueries({ queryKey: DUPLICATE_LIST_QUERY_KEY });
     setTally((n) => ({ ...n, kept: n.kept + 1 }));
   }
 
-  const pairs = (scan?.pairs ?? []).filter((p) => !gone.includes(pairKey(p)));
+  const scanPairs = (scan?.pairs ?? []).filter((p) => !gone.includes(pairKey(p)));
+  // After a scan the list is what the AI judged to be the same game; before one, the title matches.
+  const pairs: Row[] = scan
+    ? scanPairs.map((p) => ({ ...p, ai: true }))
+    : (candidates.data?.pairs ?? []).map((p) => ({ ...p, confidence: 0, reason: '', ai: false })).filter((p) => !gone.includes(pairKey(p)));
+  const visiblePairs = showAll ? pairs : pairs.slice(0, SHOWN_AT_FIRST);
   // What the popup still has to ask about: everything not merged, dismissed or put off.
-  const queue = pairs.filter((p) => !skipped.includes(pairKey(p)));
+  const queue = scanPairs.filter((p) => !skipped.includes(pairKey(p)));
   const busy = run.isPending || merge.isPending || dismiss.isPending;
   const total = scan?.pairs.length ?? 0;
 
@@ -132,8 +147,6 @@ export function DuplicatesDialog() {
   return (
     <>
       <Dialog onClose={() => ui.closeDialog('duplicates')} title={t('settings.duplicates.title')} gap={14}>
-        <span style={st('font:400 13.5px/1.45 var(--font-ui);color:var(--muted);text-wrap:pretty')}>{t('settings.duplicates.intro')}</span>
-        {error && <Banner onDismiss={() => setError(null)}>{error}</Banner>}
         {ai.data && !aiReady ? (
           <span style={st('font:500 13.5px/1.45 var(--font-ui);color:var(--text2)')}>{t('settings.duplicates.needsAi')}</span>
         ) : (
@@ -141,20 +154,25 @@ export function DuplicatesDialog() {
             <Btn height={40} padX={18} disabled={busy || !aiReady} onClick={() => run.mutate()}>
               {run.isPending ? t('settings.duplicates.scanning') : scan ? t('settings.duplicates.scanAgain') : t('settings.duplicates.scan')}
             </Btn>
-            {pairs.length > 0 && !reviewing && (
+            {scan && scanPairs.length > 0 && !reviewing && (
               <Btn kind="soft" height={40} padX={18} disabled={busy} onClick={() => { setSkipped([]); setReviewing(true); }}>
-                {t('settings.duplicates.reviewButton', { n: pairs.length })}
+                {t('settings.duplicates.reviewButton', { n: scanPairs.length })}
               </Btn>
             )}
           </div>
         )}
+        <span style={st('font:400 13.5px/1.45 var(--font-ui);color:var(--muted);text-wrap:pretty')}>{scan ? t('settings.duplicates.intro') : t('settings.duplicates.candidatesIntro')}</span>
+        {error && <Banner onDismiss={() => setError(null)}>{error}</Banner>}
+        {!scan && candidates.data && pairs.length === 0 && <span style={st('font:500 14px/1.45 var(--font-ui)')}>{t('settings.duplicates.noCandidates')}</span>}
         {scan && pairs.length === 0 && <span style={st('font:500 14px/1.45 var(--font-ui)')}>{scan.pairs.length === 0 ? t('settings.duplicates.none', { n: scan.checked }) : t('settings.duplicates.allDone')}</span>}
-        {pairs.map((p) => (
+        {visiblePairs.map((p) => (
           <div key={pairKey(p)} style={st('display:flex;flex-direction:column;gap:10px;padding:12px;border-radius:18px;background:var(--surf)')}>
-            <div style={st('display:flex;align-items:center;gap:8px')}>
-              <AiPickedBadge title={t('settings.duplicates.badge')} />
-              <Kicker size={11}>{t('settings.duplicates.confidence', { n: Math.round(p.confidence * 100) })}</Kicker>
-            </div>
+            {p.ai && (
+              <div style={st('display:flex;align-items:center;gap:8px')}>
+                <AiPickedBadge title={t('settings.duplicates.badge')} />
+                <Kicker size={11}>{t('settings.duplicates.confidence', { n: Math.round(p.confidence * 100) })}</Kicker>
+              </div>
+            )}
             <div style={st('display:grid;grid-template-columns:1fr 1fr;gap:10px')}>
               {[p.a, p.b].map((g) => {
                 const original = keepOf(p).id === g.id;
@@ -181,6 +199,11 @@ export function DuplicatesDialog() {
             </Btn>
           </div>
         ))}
+        {!showAll && pairs.length > SHOWN_AT_FIRST && (
+          <Btn kind="soft" height={38} padX={16} fontSize={13} onClick={() => setShowAll(true)}>
+            {t('settings.duplicates.showMore', { n: pairs.length - SHOWN_AT_FIRST })}
+          </Btn>
+        )}
       </Dialog>
 
       {current && (
