@@ -132,11 +132,11 @@ export function useSteamImport(steamLinked: boolean, onImported: () => void) {
           setWishlistProgress(null);
           const wishlistMessage =
             latest.imported === 0
-              ? t('add.steamImport.wishlistNone', { checked: latest.consideredCount, total: latest.totalWishlisted })
+              ? t(latest.consideredCount === 0 ? 'add.steamImport.wishlistUpToDate' : 'add.steamImport.wishlistNone', { onShelf: latest.totalWishlisted - latest.consideredCount, skipped: latest.skipped, total: latest.totalWishlisted })
               : t(latest.imported === 1 ? 'add.steamImport.wishlistAdded.one' : 'add.steamImport.wishlistAdded.other', {
                   n: latest.imported,
                   skipped: latest.skipped,
-                  checked: latest.consideredCount,
+                  onShelf: latest.totalWishlisted - latest.consideredCount,
                   total: latest.totalWishlisted,
                 });
           setResult((prev) => (opts.keepResult && prev ? `${prev}\n${wishlistMessage}` : wishlistMessage));
@@ -203,11 +203,11 @@ export function useSteamImport(steamLinked: boolean, onImported: () => void) {
           setProgress(null);
           setResult(
             latest.imported === 0
-              ? t('add.steamImport.libraryNone', { checked: latest.consideredCount, total: latest.totalOwned })
+              ? t(latest.consideredCount === 0 ? 'add.steamImport.libraryUpToDate' : 'add.steamImport.libraryNone', { onShelf: latest.totalOwned - latest.consideredCount, skipped: latest.skipped, total: latest.totalOwned })
               : t(latest.imported === 1 ? 'add.steamImport.libraryAdded.one' : 'add.steamImport.libraryAdded.other', {
                   n: latest.imported,
                   skipped: latest.skipped,
-                  checked: latest.consideredCount,
+                  onShelf: latest.totalOwned - latest.consideredCount,
                   total: latest.totalOwned,
                 }),
           );
