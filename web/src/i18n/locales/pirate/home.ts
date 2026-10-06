@@ -54,6 +54,7 @@ export const home: Record<keyof typeof en, string> = {
   "home.sort.want": "Itchin’ to play",
   "home.sort.review": "IGDB review score",
   "home.sort.release": "Day it makes port",
+  "home.sort.size": "Lightest load first",
 
   // Rows
   "home.row.yourVote": "Yer vote",
@@ -64,6 +65,8 @@ export const home: Record<keyof typeof en, string> = {
   "home.row.singlePlayer": "👤 Lone sailor",
   "home.row.sizeTitle": "PC cargo weight, from Steam",
   "home.row.sizeAria": "Cargo weight {size}",
+  "home.row.sizeUnknown": "💾 weight unknown",
+  "home.row.sizeUnknownTitle": "Steam lists no install size for this game, so the install size filter keeps it",
   "home.row.igdbTitle": "{score}/100 on IGDB",
   "home.row.igdbAria": "IGDB score {score} out o’ 100",
   "home.row.yourReview": "Yer review",
@@ -144,6 +147,11 @@ export const home: Record<keyof typeof en, string> = {
   "home.platform.filterAria": "Vessel filter: {label}",
   "home.platform.menuAria": "Filter by vessel",
   "home.platform.includeOlder": "Include {older} games",
+  "home.size.heading": "Install size",
+  "home.size.any": "Any size",
+  "home.size.upTo": "Up to {gb} GB",
+  "home.size.hint": "Games with no size listed stay in the list.",
+  "home.size.suffix": "up to {gb} GB",
 
   // Lists
   "home.empty.search": "No games be matchin’ \"{query}\".",

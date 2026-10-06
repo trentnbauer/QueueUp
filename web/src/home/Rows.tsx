@@ -1,3 +1,4 @@
+import { useMaxInstallGb } from './installSize';
 import type { MouseEvent, ReactNode } from 'react';
 import type { Game, VoteValue } from '@queueup/shared';
 import { VOTES, VOTE_VALUES, isNewRelease, releaseLabel, reviewAverage, releaseShortDate } from '../lib/gameView';
@@ -118,7 +119,15 @@ function SinglePlayerChip({ g }: { g: Game }) {
 /** PC install size from Steam (#800), e.g. "60 GB", when known. */
 function SizeChip({ g }: { g: Game }) {
   const t = useT();
-  if (g.downloadSizeMb === null) return null;
+  const [maxGb] = useMaxInstallGb();
+  if (g.downloadSizeMb === null) {
+    // With an install size limit on, say why a game with no size is still listed.
+    return maxGb ? (
+      <span title={t('home.row.sizeUnknownTitle')} style={st(CHIP)}>
+        {t('home.row.sizeUnknown')}
+      </span>
+    ) : null;
+  }
   const gb = g.downloadSizeMb / 1024;
   const label = gb >= 10 ? `${Math.round(gb)} GB` : gb >= 1 ? `${gb.toFixed(1)} GB` : `${g.downloadSizeMb} MB`;
   return (

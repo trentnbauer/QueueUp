@@ -52,6 +52,7 @@ export const home = {
   "home.sort.want": "Want to play",
   "home.sort.review": "IGDB review score",
   "home.sort.release": "Release date",
+  "home.sort.size": "Smallest install first",
 
   // Rows
   "home.row.yourVote": "Your vote",
@@ -62,6 +63,8 @@ export const home = {
   "home.row.singlePlayer": "👤 Single player",
   "home.row.sizeTitle": "PC install size, from Steam",
   "home.row.sizeAria": "Install size {size}",
+  "home.row.sizeUnknown": "💾 size unknown",
+  "home.row.sizeUnknownTitle": "Steam lists no install size for this game, so the install size filter keeps it",
   "home.row.igdbTitle": "{score}/100 on IGDB",
   "home.row.igdbAria": "IGDB score {score} out of 100",
   "home.row.yourReview": "Your review",
@@ -142,6 +145,11 @@ export const home = {
   "home.platform.filterAria": "Platform filter: {label}",
   "home.platform.menuAria": "Filter by platform",
   "home.platform.includeOlder": "Include {older} games",
+  "home.size.heading": "Install size",
+  "home.size.any": "Any size",
+  "home.size.upTo": "Up to {gb} GB",
+  "home.size.hint": "Games with no size listed stay in the list.",
+  "home.size.suffix": "up to {gb} GB",
 
   // Lists
   "home.empty.search": "No games match \"{query}\".",
