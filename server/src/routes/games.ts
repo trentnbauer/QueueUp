@@ -672,6 +672,19 @@ export default async function gameRoutes(app: FastifyInstance) {
     },
   );
 
+  // The same, for a game that is not on anyone's list yet: AI picks show their trailer before they
+  // are added (issue #988). Cached server-side by igdbId like the one above.
+  app.get<{ Params: { igdbId: string } }>(
+    '/api/games/igdb/:igdbId/trailer',
+    { config: { rateLimit: { max: 60, timeWindow: '1 minute' } } },
+    async (request) => {
+      await request.requireAuth();
+      const igdbId = Number(request.params.igdbId);
+      if (!Number.isInteger(igdbId) || igdbId <= 0) throw new HttpError(400, 'A valid igdbId is required');
+      return { trailer: await getGameTrailer(igdbId) };
+    },
+  );
+
   // Same tightened default as /api/games/search and /api/games/collections/:id above - these are
   // both authenticated list reads with no per-route override previously, relying only on the
   // global 200/min default.

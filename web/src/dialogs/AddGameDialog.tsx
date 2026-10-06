@@ -6,7 +6,9 @@ import {
   type CollectionGamesResult,
   type CollectionSearchResult,
   type GameSearchResult,
+  type AiRecommendation,
   type RecommendedGame,
+  type VoteValue,
   type RoomPlatform,
 } from '@queueup/shared';
 import { authApi } from '../api/auth';
@@ -16,10 +18,11 @@ import { useAuth } from '../context/AuthContext';
 import { useScope } from '../context/ScopeContext';
 import { useUi } from '../context/UiContext';
 import { Dialog } from '../ui/Dialog';
-import { AiBadge, AiPickedBadge, Btn, ChipToggle, Cover, Kicker, SearchField, inputPill } from '../ui/primitives';
+import { AiBadge, Btn, ChipToggle, Cover, Kicker, SearchField, inputPill } from '../ui/primitives';
 import { st } from '../ui/st';
 import { t as tNow, useT } from '../i18n';
 import { useAiPicks } from './useAiPicks';
+import { AiPicksDeck } from './AiPicksDeck';
 import { useAiSearch } from './useAiSearch';
 import { AiSearchChips } from './AiSearchChips';
 
@@ -463,8 +466,22 @@ export function AddGameDialog() {
     void gamesApi.hideRecommendation(r.igdbId).catch(() => ui.showError(t('add.game.hideFailed')));
   }
 
-  // "Ask AI" picks, for the Personal Shelf (issue #820) or the room (issue #821).
+  // "Ask AI" picks, for the Personal Shelf (issue #820) or the room (issue #821), shown one at a time
+  // in a deck like the vote deck (issue #988).
   const aiPicks = useAiPicks(roomId);
+  const [deckOpen, setDeckOpen] = useState(false);
+  function openAiDeck() {
+    setDeckOpen(true);
+    void aiPicks.ask();
+  }
+  /** A pick added from the deck: on the shelf it goes to the wishlist (it is a suggestion, not
+   * something already owned); with a score, that is the person's "want to play" vote. */
+  function addPick(r: AiRecommendation, vote: VoteValue | null) {
+    return add(r, roomId === null ? { status: 'wishlist' } : undefined, vote ? (id) => scope.ops.vote(id, vote) : undefined);
+  }
+  function hidePick(r: AiRecommendation) {
+    void gamesApi.hideRecommendation(r.igdbId).catch(() => ui.showError(t('add.game.hideFailed')));
+  }
   // Plain-language search (issue #823).
   const aiSearch = useAiSearch(roomId, allPlatforms);
 
@@ -551,7 +568,7 @@ export function AddGameDialog() {
     return () => obs.disconnect();
   }, [hasMore, searching, loadingMore, nextOffset, query, roomId, hideAddons, allPlatforms]);
 
-  async function add(result: GameSearchResult, extra?: { status?: 'backlog' | 'wishlist'; ownedPlatforms?: RoomPlatform[] }): Promise<boolean> {
+  async function add(result: GameSearchResult, extra?: { status?: 'backlog' | 'wishlist'; ownedPlatforms?: RoomPlatform[] }, afterCreate?: (gameId: string) => void): Promise<boolean> {
     setAddingId(result.igdbId);
     setError(null);
     try {
@@ -559,6 +576,7 @@ export function AddGameDialog() {
       onAdded();
       announceUnlock(res.unlockedBadges);
       setAddedIds((prev) => new Set(prev).add(result.igdbId));
+      if ('game' in res) afterCreate?.(res.game.id);
       if ('suggestion' in res) {
         setSuggestedIds((prev) => new Set(prev).add(result.igdbId));
         ui.notify(tNow('add.game.suggested', { title: result.title }));
@@ -729,32 +747,13 @@ export function AddGameDialog() {
                   <span style={st('display:flex;align-items:center;justify-content:space-between;gap:8px;padding:8px 8px 6px')}>
                     <span style={st('display:flex;align-items:center;gap:8px')}>
                       <Kicker size={11.5}>{t('add.game.ai.heading')}</Kicker>
-                      {aiPicks.picks && <AiBadge title={t('add.game.ai.badge')} />}
+                      <AiBadge title={t('add.game.ai.badge')} />
                     </span>
-                    <Btn kind="soft" height={30} padX={12} fontSize={12.5} disabled={aiPicks.busy} onClick={() => void aiPicks.ask()}>
-                      {aiPicks.busy ? t('add.game.ai.working') : aiPicks.picks ? t('add.game.ai.again') : t('add.game.ai.ask')}
+                    <Btn kind="soft" height={30} padX={12} fontSize={12.5} disabled={aiPicks.busy} onClick={openAiDeck}>
+                      {t('add.game.ai.ask')}
                     </Btn>
                   </span>
-                  {!aiPicks.picks && !aiPicks.error && <div style={st('padding:2px 10px 10px;color:var(--muted);font-size:13.5px')}>{roomId === null ? t('add.game.ai.hint') : t('add.game.ai.hintRoom')}</div>}
-                  {aiPicks.error && <div role="alert" style={st('margin:0 8px 8px;padding:10px 12px;border-radius:14px;background:var(--errBg);border:1px solid var(--errLine);font:500 13px/1.4 var(--font-ui)')}>{aiPicks.error}</div>}
-                  {aiPicks.picks?.length === 0 && <div style={st('padding:2px 10px 10px;color:var(--muted);font-size:13.5px')}>{t('add.game.ai.none')}</div>}
-                  {aiPicks.picks?.map((r) => (
-                    <ResultRow
-                      key={`ai-${r.igdbId}`}
-                      r={r}
-                      added={addedIds.has(r.igdbId)}
-                      suggested={suggestedIds.has(r.igdbId)}
-                      adding={addingId === r.igdbId}
-                      busy={busy}
-                      onAdd={() => clickAdd(r)}
-                      extra={
-                        <span style={st('display:flex;flex-wrap:wrap;align-items:center;gap:6px')}>
-                          <AiPickedBadge title={t('add.game.ai.badge')} />
-                          {r.reason && <span style={st('font:500 12px/1.35 var(--font-ui);color:var(--accText)')}>{r.reason}</span>}
-                        </span>
-                      }
-                    />
-                  ))}
+                  <div style={st('padding:2px 10px 10px;color:var(--muted);font-size:13.5px')}>{roomId === null ? t('add.game.ai.hint') : t('add.game.ai.hintRoom')}</div>
                 </>
               )}
               {!showingResults && (recs.length > 0 || coopOnly) && (
@@ -820,6 +819,17 @@ export function AddGameDialog() {
         <Suspense fallback={null}>
           <BarcodeScanner onPick={scanPicked} onClose={() => setScanning(false)} />
         </Suspense>
+      )}
+      {deckOpen && (
+        <AiPicksDeck
+          picks={aiPicks.picks}
+          busy={aiPicks.busy}
+          error={aiPicks.error}
+          onAskAgain={() => void aiPicks.ask()}
+          onAdd={addPick}
+          onHide={hidePick}
+          onClose={() => setDeckOpen(false)}
+        />
       )}
     </>
   );

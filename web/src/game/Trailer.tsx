@@ -38,6 +38,23 @@ export function useTrailer(gameId: string, auto = false) {
   return { state, load, reset: () => setState({ kind: 'idle' }) };
 }
 
+/** The trailer for a game that is not on a list yet (looked up by IGDB id), fetched straight away. */
+export function useIgdbTrailer(igdbId: number): State {
+  const [state, setState] = useState<State>({ kind: 'loading' });
+  useEffect(() => {
+    setState({ kind: 'loading' });
+    let cancelled = false;
+    gamesApi
+      .igdbTrailer(igdbId)
+      .then(({ trailer }) => !cancelled && setState(trailer ? { kind: 'ready', youtubeId: trailer.youtubeId } : { kind: 'none' }))
+      .catch(() => !cancelled && setState({ kind: 'error' }));
+    return () => {
+      cancelled = true;
+    };
+  }, [igdbId]);
+  return state;
+}
+
 /** A 16:9 YouTube (no-cookie) player that fills its container. Keeps the screen awake while it's open. */
 export function TrailerPlayer({ youtubeId, radius = 16 }: { youtubeId: string; radius?: number }) {
   const t = useT();
