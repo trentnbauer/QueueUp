@@ -80,6 +80,12 @@ export function AiSettingsForm({ onSaved }: { onSaved?: () => void }) {
       {error && <Banner onDismiss={() => setError(null)}>{error}</Banner>}
       <AiFallbackWarning notice={data.lastFallback} />
       <AiProvidersEditor drafts={drafts} onChange={setDrafts} providers={data.providers} allowBaseUrl={data.userBaseUrlAllowed} />
+      {data.server && (
+        <div style={st('display:flex;flex-direction:column;gap:2px;padding:12px 14px;border-radius:16px;background:var(--surf)')}>
+          <span style={st('font:600 14.5px var(--font-ui)')}>{t('settings.ai.serverEntry')}</span>
+          <span style={st('font:400 12px var(--font-ui);color:var(--muted)')}>{t('settings.ai.serverEntryHint')}</span>
+        </div>
+      )}
       <div style={st('display:flex;flex-wrap:wrap;gap:8px;align-items:center')}>
         <Btn height={40} padX={18} disabled={busy} onClick={() => save.mutate()}>
           {t('settings.ai.save')}

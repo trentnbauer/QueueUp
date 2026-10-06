@@ -16,7 +16,7 @@ import {
   type StoredFallback,
 } from './aiFallbacks.js';
 import { AiProviderError, callProvider, PROVIDER_DEFAULTS, type AiConfig, type AiRequest, type AiResponse } from './providers.js';
-import { chargeServerAiUse } from './aiQuota.js';
+import { chargeServerAiUse, type AiCharge } from './aiQuota.js';
 import { assertPublicTarget } from './aiNetworkGuard.js';
 
 /** Works out which AI settings a call uses and makes the call. A person's own settings win, when the
@@ -165,16 +165,19 @@ export async function resolveAiChain(
   userId?: string,
   roomId?: string,
 ): Promise<{ configs: AiConfig[]; source: Exclude<AiSettingsSource, 'none'>; owner: string } | null> {
+  // The server's own AI always sits at the very end, as the last resort when everything the person
+  // (or the room's sponsor) set up has failed.
+  const server = await getServerAiChain();
+  const lastResort = server.map((c) => ({ ...c, viaServer: true }));
   if (userId) {
     const own = await getUserAiChain(userId);
-    if (own.length) return { configs: own, source: 'user', owner: `user:${userId}` };
+    if (own.length) return { configs: [...own, ...lastResort], source: 'user', owner: `user:${userId}` };
   }
   if (roomId) {
     const sponsorId = await getRoomSponsorId(roomId);
     const sponsored = sponsorId ? await getUserAiChain(sponsorId) : [];
-    if (sponsorId && sponsored.length) return { configs: sponsored, source: 'room', owner: `user:${sponsorId}` };
+    if (sponsorId && sponsored.length) return { configs: [...sponsored, ...lastResort], source: 'room', owner: `user:${sponsorId}` };
   }
-  const server = await getServerAiChain();
   return server.length ? { configs: server, source: 'server', owner: 'server' } : null;
 }
 
@@ -182,7 +185,13 @@ export async function resolveAiChain(
  * that's remembered (and logged) as a warning for the settings screen; when the first one is back
  * to working, the warning clears. Throws a 424 saying which provider failed and why when every
  * provider failed. */
-async function runChain(configs: AiConfig[], owner: string, req: AiRequest): Promise<AiResponse & { fallback: AiFallbackNotice | null }> {
+async function runChain(
+  configs: AiConfig[],
+  owner: string,
+  req: AiRequest,
+  /** Who to count a use of the server's AI against, when it is reached as a last resort. */
+  chargeUserId?: string,
+): Promise<AiResponse & { fallback: AiFallbackNotice | null }> {
   let firstFailure: { config: AiConfig; message: string } | null = null;
   const failures: string[] = [];
   const allowPrivate = (await getEnv()).AI_ALLOW_PRIVATE_BASE_URL;
@@ -200,7 +209,26 @@ async function runChain(configs: AiConfig[], owner: string, req: AiRequest): Pro
           throw new AiProviderError(err instanceof Error ? err.message : 'That AI address is not allowed', null);
         }
       }
-      const res = await callProvider(config, req);
+      // Reaching the server's AI as a last resort costs the operator, so it counts against the
+      // person's daily allowance like any other use of it (and is given back if it fails too).
+      let charge: AiCharge | null = null;
+      if (config.viaServer && chargeUserId) {
+        try {
+          charge = await chargeServerAiUse(chargeUserId);
+        } catch (err) {
+          if (!(err instanceof HttpError)) throw err;
+          failures.push(`Server AI: ${err.message}`);
+          firstFailure ??= { config, message: err.message };
+          continue;
+        }
+      }
+      let res: AiResponse;
+      try {
+        res = await callProvider(config, req);
+      } catch (err) {
+        await charge?.refund();
+        throw err;
+      }
       if (!firstFailure) {
         clearLastFallback(owner);
         return { ...res, fallback: null };
@@ -242,7 +270,7 @@ export async function aiComplete(
   // Only the operator's own key is rationed; a person's or a sponsor's key costs the server nothing.
   const charge = resolved.source === 'server' && opts.userId ? await chargeServerAiUse(opts.userId) : null;
   try {
-    const res = await runChain(resolved.configs, resolved.owner, req);
+    const res = await runChain(resolved.configs, resolved.owner, req, resolved.source === 'server' ? undefined : opts.userId);
     return { ...res, source: resolved.source };
   } catch (err) {
     // The provider failing is not the person's doing - give the use back.
