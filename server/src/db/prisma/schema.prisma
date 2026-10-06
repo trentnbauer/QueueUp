@@ -321,6 +321,7 @@ model User {
   gameMatchRedirects            GameMatchRedirect[]
   duplicateDismissals           DuplicateDismissal[]
   hiddenRecommendations         HiddenRecommendation[]
+  duplicateMergeVotes           DuplicateMergeVote[]
   ignoredDlcs                   IgnoredDlc[]
   yearStories                   YearStory[]
   xboxConnection                UserXboxConnection?
@@ -660,6 +661,40 @@ model HiddenRecommendation {
 
   @@id([userId, igdbId])
   @@map("hidden_recommendations")
+}
+
+/// One person merged two cards of their own Personal Shelf into one (issue: share merge data). Shared
+/// only as counts of distinct people per pair of IGDB games (services/duplicateKnowledge.ts): when
+/// enough other people merged a pair, it is suggested to someone else without asking the AI. Cascades
+/// away with the person.
+model DuplicateMergeVote {
+  userId     String   @map("user_id")
+  igdbIdLow  Int      @map("igdb_id_low")
+  igdbIdHigh Int      @map("igdb_id_high")
+  /// The igdbId of the card that was kept (the base game / earlier release).
+  keepIgdbId Int      @map("keep_igdb_id")
+  createdAt  DateTime @default(now()) @map("created_at")
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@id([userId, igdbIdLow, igdbIdHigh])
+  @@index([igdbIdLow, igdbIdHigh])
+  @@map("duplicate_merge_votes")
+}
+
+/// What the AI decided about a pair of IGDB games the last time it judged them, for anyone, so the same
+/// pair is not judged again for the next person. Only the pair and the verdict, no person.
+model DuplicateVerdict {
+  igdbIdLow  Int      @map("igdb_id_low")
+  igdbIdHigh Int      @map("igdb_id_high")
+  same       Boolean
+  keepIgdbId Int?     @map("keep_igdb_id")
+  confidence Float?
+  reason     String?
+  judgedAt   DateTime @default(now()) @map("judged_at")
+
+  @@id([igdbIdLow, igdbIdHigh])
+  @@map("duplicate_verdicts")
 }
 
 /// "This person re-matched a card away from `fromIgdbId` onto `toIgdbId`" (issue #814) - e.g. a game

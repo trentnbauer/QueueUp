@@ -5,6 +5,7 @@ import { aiComplete } from './aiConfig.js';
 import { extractJson } from './aiJson.js';
 import { chunk, stopReason } from './aiImportBatch.js';
 import { findCandidatePairs, igdbPairKey } from '../duplicateCandidates.js';
+import { loadDuplicateKnowledge, saveVerdicts } from '../duplicateKnowledge.js';
 import { notifyMergeSuggestions } from '../notifications.js';
 import type { AiDuplicateScanResponse, DuplicateCandidatesResponse, DuplicateSuggestion, DuplicateSuggestionGame } from '@queueup/shared';
 
@@ -92,20 +93,25 @@ export async function listDuplicateCandidates(userId: string): Promise<Duplicate
   ]);
   const dismissed = new Set(dismissals.map((d) => igdbPairKey(d.igdbIdLow, d.igdbIdHigh)));
   const strip = ({ igdbCollectionId: _c, ...g }: (typeof games)[number]): DuplicateSuggestionGame => g;
-  return {
-    pairs: findCandidatePairs(games, dismissed, MAX_SCAN_PAIRS).map(([x, y]) => {
-      const a = strip(x);
-      const b = strip(y);
-      return { a, b, keep: chooseKeep(a, b) };
-    }),
-  };
+  const candidates = findCandidatePairs(games, dismissed, MAX_SCAN_PAIRS);
+  const knowledge = candidates.length ? await loadDuplicateKnowledge(userId, games.map((g) => g.igdbId)) : null;
+  const pairs = candidates.map(([x, y]) => {
+    const a = strip(x);
+    const b = strip(y);
+    const merge = knowledge?.merges.get(igdbPairKey(a.igdbId, b.igdbId));
+    return { a, b, keep: merge ? (merge.keepIgdbId === a.igdbId ? ('a' as const) : ('b' as const)) : chooseKeep(a, b), communityMergedBy: merge?.users ?? 0 };
+  });
+  // What other people merged comes first: those are the likeliest real duplicates.
+  return { pairs: [...pairs.filter((p) => p.communityMergedBy > 0), ...pairs.filter((p) => p.communityMergedBy === 0)] };
 }
 
 /** Scans the person's own shelf for likely duplicates: a cheap title/collection pre-filter picks the
- * pairs worth judging (all of them, up to a safety ceiling), then the AI judges them in batches, a
- * few at a time, so one press covers the whole shelf. Changes nothing. If a batch fails (provider
- * error, the daily limit on the shared AI) what was found is kept and `stopped` says why; if
- * nothing could be checked at all it throws. */
+ * pairs worth judging (all of them, up to a safety ceiling). Pairs the server already knows about from
+ * other people (merged by enough of them, or said not to be duplicates) or from an earlier AI verdict
+ * are answered without asking the AI (`reused`); only the rest go to the AI, in batches, a few at a
+ * time, so one press covers the whole shelf. What the AI decides is remembered for the next person.
+ * Changes nothing. If a batch fails (provider error, the daily limit on the shared AI) what was found
+ * is kept and `stopped` says why; if nothing could be answered at all it throws. */
 export async function aiScanDuplicates(userId: string): Promise<AiDuplicateScanResponse> {
   const [games, dismissals] = await Promise.all([
     prisma.game.findMany({ where: { roomId: null, addedBy: userId }, select: SELECT, orderBy: { title: 'asc' } }),
@@ -113,32 +119,72 @@ export async function aiScanDuplicates(userId: string): Promise<AiDuplicateScanR
   ]);
   const dismissed = new Set(dismissals.map((d) => igdbPairKey(d.igdbIdLow, d.igdbIdHigh)));
   const candidates = findCandidatePairs(games, dismissed, MAX_SCAN_PAIRS);
-  if (!candidates.length) return { pairs: [], checked: 0, fallback: null, stopped: null };
+  if (!candidates.length) return { pairs: [], checked: 0, reused: 0, fallback: null, stopped: null };
 
   const strip = ({ igdbCollectionId: _c, ...g }: (typeof games)[number]): DuplicateSuggestionGame => g;
-  const pairs = candidates.map(([a, b]) => [strip(a), strip(b)] as [DuplicateSuggestionGame, DuplicateSuggestionGame]);
+  const knowledge = await loadDuplicateKnowledge(userId, games.map((g) => g.igdbId));
 
   const found: DuplicateSuggestion[] = [];
+  const toAsk: [DuplicateSuggestionGame, DuplicateSuggestionGame][] = [];
+  let reused = 0;
+  for (const [ca, cb] of candidates) {
+    const a = strip(ca);
+    const b = strip(cb);
+    const key = igdbPairKey(a.igdbId, b.igdbId);
+    const merge = knowledge.merges.get(key);
+    if (merge) {
+      reused += 1;
+      found.push({ a, b, keep: merge.keepIgdbId === a.igdbId ? 'a' : 'b', confidence: Math.min(0.99, 0.85 + 0.03 * merge.users), reason: '', source: 'community', mergedBy: merge.users });
+      continue;
+    }
+    const verdict = knowledge.verdicts.get(key);
+    if (verdict) {
+      reused += 1;
+      if (verdict.same && (verdict.confidence ?? 1) >= AI_DUPLICATE_MIN_CONFIDENCE) {
+        const keep = verdict.keepIgdbId === a.igdbId ? 'a' : verdict.keepIgdbId === b.igdbId ? 'b' : chooseKeep(a, b);
+        found.push({ a, b, keep, confidence: verdict.confidence ?? 0.8, reason: verdict.reason ?? '', source: 'ai' });
+      }
+      continue;
+    }
+    if (knowledge.notDuplicates.has(key)) {
+      reused += 1;
+      continue;
+    }
+    toAsk.push([a, b]);
+  }
+
   let checked = 0;
   let fallback: AiDuplicateScanResponse['fallback'] = null;
   let stopped: string | null = null;
-  await runWithConcurrency(chunk(pairs, AI_DUPLICATE_BATCH), AI_DUPLICATE_PARALLEL, async (batch) => {
+  const verdictsToSave: Parameters<typeof saveVerdicts>[0] = [];
+  await runWithConcurrency(chunk(toAsk, AI_DUPLICATE_BATCH), AI_DUPLICATE_PARALLEL, async (batch) => {
     // Once one batch has failed (e.g. the daily limit) there's no point sending more.
     if (stopped) return;
     try {
       const res = await aiComplete({ system: DUPLICATE_SYSTEM, messages: [{ role: 'user', content: buildDuplicatePrompt(batch) }], maxTokens: 2048, temperature: 0 }, { userId, label: 'duplicates' });
       checked += batch.length;
       fallback ??= res.fallback;
-      found.push(...parseDuplicateReply(res.text, batch));
+      const same = parseDuplicateReply(res.text, batch);
+      found.push(...same);
+      // Remember the answer for everyone. A pair the AI left out only counts as "not the same" when
+      // the reply was a complete list - one that ran into its output limit may just be missing the rest.
+      const complete = Array.isArray(extractJson(res.text)) && (res.usage?.outputTokens ?? 0) < 2048 * 0.97;
+      const sameById = new Map(same.map((s) => [`${s.a.id}:${s.b.id}`, s]));
+      for (const [a, b] of batch) {
+        const s = sameById.get(`${a.id}:${b.id}`);
+        if (s) verdictsToSave.push({ igdbIdA: a.igdbId, igdbIdB: b.igdbId, same: true, keepIgdbId: s.keep === 'a' ? a.igdbId : b.igdbId, confidence: s.confidence, reason: s.reason });
+        else if (complete) verdictsToSave.push({ igdbIdA: a.igdbId, igdbIdB: b.igdbId, same: false });
+      }
     } catch (err) {
       stopped ??= stopReason(err);
     }
   });
-  if (stopped && checked === 0) throw new HttpError(424, stopped);
+  if (stopped && checked === 0 && reused === 0) throw new HttpError(424, stopped);
+  await saveVerdicts(verdictsToSave);
   const sorted = found.sort((x, y) => y.confidence - x.confidence);
   // Tell the person even if they closed the dialog while it ran (best effort; never fails the scan).
   await notifyMergeSuggestions(userId, sorted.length);
-  return { pairs: sorted, checked, fallback, stopped };
+  return { pairs: sorted, checked, reused, fallback, stopped };
 }
 
 /** "These are not duplicates": remembered by igdbId pair so the suggestion does not come back. */
