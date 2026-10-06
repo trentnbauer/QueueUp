@@ -16,7 +16,7 @@ vi.mock('../configResolver.js', () => ({ getConfigValue: vi.fn().mockResolvedVal
 vi.mock('./providers.js', async (orig) => ({ ...(await orig<typeof import('./providers.js')>()), callProvider }));
 
 import { AiProviderError } from './providers.js';
-import { aiComplete, aiCompleteEntry, resolveAiChain } from './aiConfig.js';
+import { aiComplete, aiCompleteEntry, getEntryParts, resolveAiChain } from './aiConfig.js';
 import { getLastFallback, mergeFallbacks, openFallbacks, sealFallbacks } from './aiFallbacks.js';
 import { encryptSetting } from '../settingsCrypto.js';
 
@@ -150,5 +150,31 @@ describe('switching providers off', () => {
     callProvider.mockResolvedValue(ok('OK'));
     await aiCompleteEntry({ userId: 'u1' }, 0, REQ);
     expect(callProvider.mock.calls[0][0]).toMatchObject({ provider: 'anthropic' });
+  });
+});
+
+describe('entries with no model chosen yet', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    appFindUnique.mockResolvedValue(null);
+    const fallbacksEncrypted = sealFallbacks(mergeFallbacks([], [{ provider: 'openai', model: null, apiKey: 'sk-2' }], false), SECRET);
+    findUnique.mockResolvedValue({ provider: 'anthropic', model: null, baseUrl: null, apiKeyEncrypted: encryptSetting('sk-1', SECRET), fallbacksEncrypted, disabled: false });
+  });
+
+  it('reads the saved parts of any entry by position, usable or not', async () => {
+    expect(await getEntryParts({ userId: 'u1' }, 0)).toMatchObject({ provider: 'anthropic', apiKey: 'sk-1', userSupplied: false });
+    expect(await getEntryParts({ userId: 'u1' }, 1)).toMatchObject({ provider: 'openai', model: null, apiKey: 'sk-2' });
+    expect(await getEntryParts({ userId: 'u1' }, 2)).toBeNull();
+    expect(await getEntryParts({ userId: 'u1' }, -1)).toBeNull();
+  });
+
+  it('tells the person to choose a model when testing one, instead of calling it unsaved', async () => {
+    await expect(aiCompleteEntry({ userId: 'u1' }, 1, REQ)).rejects.toMatchObject({ statusCode: 400, message: expect.stringContaining('Choose a model') });
+    expect(callProvider).not.toHaveBeenCalled();
+  });
+
+  it('leaves the unfinished entry out of real calls', async () => {
+    const chain = await resolveAiChain('u1');
+    expect(chain?.configs.map((c) => c.provider)).toEqual(['anthropic']);
   });
 });

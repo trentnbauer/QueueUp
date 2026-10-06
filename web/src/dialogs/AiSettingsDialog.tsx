@@ -96,7 +96,7 @@ export function AiSettingsForm({ onSaved }: { onSaved?: () => void }) {
       <span style={st('font:500 13px/1.45 var(--font-ui);color:var(--text2)')}>{t(`settings.ai.source.${data.effectiveSource}` as MessageKey)}</span>
       {error && <Banner onDismiss={() => setError(null)}>{error}</Banner>}
       <AiFallbackWarning notice={data.lastFallback} />
-      <AiProvidersEditor drafts={drafts} onChange={setDrafts} providers={data.providers} allowBaseUrl={data.userBaseUrlAllowed} onTest={(i) => void testEntry(i)} testing={testingEntry} results={entryResults} onBenchmark={aiApi.benchmark} />
+      <AiProvidersEditor drafts={drafts} onChange={setDrafts} providers={data.providers} allowBaseUrl={data.userBaseUrlAllowed} onTest={(i) => void testEntry(i)} testing={testingEntry} results={entryResults} onBenchmark={aiApi.benchmark} onListModels={aiApi.models} />
       {data.server && (
         <div style={st('display:flex;flex-direction:column;gap:2px;padding:12px 14px;border-radius:16px;background:var(--surf)')}>
           <span style={st('font:600 14.5px var(--font-ui)')}>{t('settings.ai.serverEntry')}</span>

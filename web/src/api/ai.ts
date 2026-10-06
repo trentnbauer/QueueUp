@@ -1,5 +1,5 @@
 import { apiDelete, apiGet, apiPost, apiPut } from './client';
-import type { AdminAiResponse, AiBenchmarkResult, AiBenchmarkStep, AiSettingsResponse, AiTestResponse, SetAdminAiRequest, SetUserAiSettingsRequest, UserAiSettings } from '@queueup/shared';
+import type { AdminAiResponse, AiBenchmarkResult, AiBenchmarkStep, AiModelsRequest, AiModelsResponse, AiSettingsResponse, AiTestResponse, SetAdminAiRequest, SetUserAiSettingsRequest, UserAiSettings } from '@queueup/shared';
 
 export const AI_SETTINGS_QUERY_KEY = ['ai-settings'] as const;
 export const ADMIN_AI_QUERY_KEY = ['admin-ai'] as const;
@@ -13,6 +13,9 @@ export const aiApi = {
   /** One timed step of the benchmark for the saved provider at `index`. */
   benchmark: (index: number, step: AiBenchmarkStep) => apiPost<AiBenchmarkResult>('/api/me/ai/benchmark', { index, step }),
   benchmarkAdmin: (index: number, step: AiBenchmarkStep) => apiPost<AiBenchmarkResult>('/api/admin/ai/benchmark', { index, step }),
+  /** The models the provider offers, for the model dropdown. */
+  models: (body: AiModelsRequest) => apiPost<AiModelsResponse>('/api/me/ai/models', body),
+  modelsAdmin: (body: AiModelsRequest) => apiPost<AiModelsResponse>('/api/admin/ai/models', body),
   admin: () => apiGet<AdminAiResponse>('/api/admin/ai'),
   saveAdmin: (body: SetAdminAiRequest) => apiPut<AdminAiResponse>('/api/admin/ai', body),
   testAdmin: (index?: number) => apiPost<AiTestResponse>('/api/admin/ai/test', index === undefined ? undefined : { index }),

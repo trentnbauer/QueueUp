@@ -87,6 +87,7 @@ export function AdminAiSection() {
         testing={testingEntry}
         results={entryResults}
         onBenchmark={aiApi.benchmarkAdmin}
+        onListModels={aiApi.modelsAdmin}
         locked={{ provider: envSet('AI_PROVIDER'), model: envSet('AI_MODEL'), baseUrl: envSet('AI_BASE_URL'), apiKey: envSet('AI_API_KEY') }}
       />
       <div style={st('display:flex;flex-wrap:wrap;gap:8px;align-items:center')}>

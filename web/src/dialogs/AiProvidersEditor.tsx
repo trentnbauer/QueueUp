@@ -1,5 +1,5 @@
-import { useState } from 'react';
-import { AI_BENCHMARK_STEPS, AI_MAX_FALLBACKS, AI_RECOMMENDED_MODELS, summariseBenchmark, type AiBenchmarkResult, type AiBenchmarkStep, type AiFallbackEntry, type AiFallbackInput, type AiFallbackNotice, type AiProvider } from '@queueup/shared';
+import { useEffect, useState } from 'react';
+import { AI_BENCHMARK_STEPS, AI_MAX_FALLBACKS, AI_RECOMMENDED_MODELS, summariseBenchmark, type AiBenchmarkResult, type AiBenchmarkStep, type AiModelsRequest, type AiModelsResponse, type AiFallbackEntry, type AiFallbackInput, type AiFallbackNotice, type AiProvider } from '@queueup/shared';
 import { Banner, Btn, Group } from '../ui/primitives';
 import { st } from '../ui/st';
 import { useT, type MessageKey } from '../i18n';
@@ -105,6 +105,7 @@ export function AiProvidersEditor({
   testing,
   results,
   onBenchmark,
+  onListModels,
 }: {
   drafts: AiDraft[];
   onChange: (next: AiDraft[]) => void;
@@ -119,8 +120,23 @@ export function AiProvidersEditor({
   results?: Record<number, AiEntryTest>;
   /** Runs one timed benchmark step against the saved entry at this position. Left out, there is no Benchmark button. */
   onBenchmark?: (index: number, step: AiBenchmarkStep) => Promise<AiBenchmarkResult>;
+  /** Asks the provider which models it offers (from what is on screen). Left out, there is no Load models button. */
+  onListModels?: (body: AiModelsRequest) => Promise<AiModelsResponse>;
 }) {
   const t = useT();
+  // Models fetched from the provider, per entry, with any problem fetching them.
+  const [modelLists, setModelLists] = useState<Record<string, { loading: boolean; models: string[] | null; error: string | null }>>({});
+  async function loadModels(d: AiDraft, i: number, k: string) {
+    if (!onListModels) return;
+    setModelLists((prev) => ({ ...prev, [k]: { loading: true, models: prev[k]?.models ?? null, error: null } }));
+    try {
+      // The server reads this entry's saved address and key, so only saved entries can list models.
+      const { models } = await onListModels({ index: i });
+      setModelLists((prev) => ({ ...prev, [k]: { loading: false, models, error: models.length === 0 ? t('settings.ai.models.none') : null } }));
+    } catch (e) {
+      setModelLists((prev) => ({ ...prev, [k]: { loading: false, models: null, error: e instanceof Error ? e.message : t('settings.ai.models.failed') } }));
+    }
+  }
   const [bench, setBench] = useState<Record<number, BenchState>>({});
   const benchRunning = Object.values(bench).some((b) => b.running !== null);
   async function runBenchmark(i: number) {
@@ -142,6 +158,15 @@ export function AiProvidersEditor({
   // Entries the person has opened. A new, unsaved one is always open.
   const [open, setOpen] = useState<Set<string>>(new Set());
   const keyOf = (d: AiDraft, i: number) => d.id ?? `pos-${i}`;
+  // A saved entry with no model chosen yet fetches its model list straight away, so the dropdown is already there.
+  useEffect(() => {
+    if (!onListModels) return;
+    drafts.forEach((d, i) => {
+      const k = keyOf(d, i);
+      if (d.saved && !d.model.trim() && !modelLists[k]) void loadModels(d, i, k);
+    });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [drafts.length, onListModels]);
   const toggle = (k: string) =>
     setOpen((prev) => {
       const next = new Set(prev);
@@ -163,7 +188,7 @@ export function AiProvidersEditor({
           const lock = i === 0 ? (locked ?? {}) : {};
           const showUrl = allowBaseUrl || d.provider === 'ollama' || d.provider === 'openai_compatible' || !!d.baseUrl;
           const k = keyOf(d, i);
-          const expanded = !d.saved || open.has(k);
+          const expanded = !d.saved || !d.model.trim() || open.has(k);
           const result = results?.[i];
           const summary = [providerLabel(t, d.provider), d.model.trim() || AI_RECOMMENDED_MODELS[d.provider], d.disabled ? t('settings.ai.disabledTag') : null].filter(Boolean).join(' · ');
           return (
@@ -231,7 +256,30 @@ export function AiProvidersEditor({
                   </option>
                 ))}
               </select>}
-              {expanded && <input value={d.model} disabled={lock.model} onChange={(e) => set(i, { model: e.target.value })} placeholder={AI_RECOMMENDED_MODELS[d.provider] ?? t('settings.ai.modelPlaceholder')} aria-label={t('settings.ai.model')} maxLength={200} style={st(FIELD)} />}
+              {expanded && (
+                <div style={st('display:flex;gap:8px;align-items:center')}>
+                  {modelLists[k]?.models && modelLists[k].models!.length > 0 ? (
+                    <select value={d.model} disabled={lock.model} onChange={(e) => set(i, { model: e.target.value })} aria-label={t('settings.ai.model')} style={st(`${FIELD};flex:1`)}>
+                      {/* A model that is set but not in the list (or nothing chosen yet) stays selectable. */}
+                      {(!d.model || !modelLists[k].models!.includes(d.model)) && <option value={d.model}>{d.model || t('settings.ai.models.choose')}</option>}
+                      {modelLists[k].models!.map((m) => (
+                        <option key={m} value={m}>
+                          {m}
+                        </option>
+                      ))}
+                    </select>
+                  ) : (
+                    <input value={d.model} disabled={lock.model} onChange={(e) => set(i, { model: e.target.value })} placeholder={AI_RECOMMENDED_MODELS[d.provider] ?? t('settings.ai.modelPlaceholder')} aria-label={t('settings.ai.model')} maxLength={200} style={st(`${FIELD};flex:1`)} />
+                  )}
+                  {onListModels && !lock.model && d.saved && (
+                    <Btn kind="soft" height={40} padX={12} fontSize={12.5} disabled={modelLists[k]?.loading} onClick={() => void loadModels(d, i, k)}>
+                      {modelLists[k]?.loading ? t('settings.ai.models.loading') : modelLists[k]?.models ? t('settings.ai.models.refresh') : t('settings.ai.models.load')}
+                    </Btn>
+                  )}
+                </div>
+              )}
+              {expanded && onListModels && !lock.model && !d.saved && <span style={st('font:400 12px var(--font-ui);color:var(--muted)')}>{t('settings.ai.models.saveFirst')}</span>}
+              {expanded && modelLists[k]?.error && <span style={st('font:500 12.5px/1.4 var(--font-ui);color:var(--danger);overflow-wrap:anywhere')}>{modelLists[k].error}</span>}
               {expanded && AI_RECOMMENDED_MODELS[d.provider] && (
                 <div style={st('display:flex;align-items:center;gap:8px;flex-wrap:wrap;font:400 12px var(--font-ui);color:var(--muted)')}>
                   <span>{t('settings.ai.recommended', { model: AI_RECOMMENDED_MODELS[d.provider] ?? '' })}</span>

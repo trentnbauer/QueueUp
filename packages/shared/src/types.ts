@@ -2984,6 +2984,16 @@ export interface SetUserAiSettingsRequest {
   fallbacks?: AiFallbackInput[];
 }
 
+/** Body for POST /api/me/ai/models and /api/admin/ai/models: which saved entry to list models for, by its
+ * position in the settings list (0 is the first, then the backups). The address and key are the saved ones. */
+export interface AiModelsRequest {
+  index: number;
+}
+
+export interface AiModelsResponse {
+  models: string[];
+}
+
 export interface AiTestResponse {
   ok: boolean;
   source: AiSettingsSource;
