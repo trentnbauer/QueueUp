@@ -480,7 +480,6 @@ export const settings = {
   "settings.ai.removeEntry": "Remove",
   "settings.ai.addBackup": "Add a backup provider",
   "settings.ai.maxBackups": "That's the most backups allowed.",
-  "settings.ai.save": "Save AI settings",
   "settings.ai.saved": "AI settings saved",
   "settings.ai.test": "Test",
   "settings.ai.benchmark": "Benchmark",
