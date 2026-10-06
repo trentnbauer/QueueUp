@@ -124,7 +124,6 @@ export const room: Record<keyof typeof en, string> = {
   "room.settings.showFewer": "Show fewer",
   "room.settings.showAll": "Show all {n}",
   "room.settings.noMatch": "Nay crewmates match.",
-  "room.settings.addFriendsLabel": "STOW HEARTIES",
   "room.settings.membersHint": "Only yer mateys an’ this ship’s crew be listed. Anyone else boards with the invite link.",
   "room.settings.detailsLabel": "DETAILS",
   "room.settings.renamed": "Ship renamed",
@@ -199,4 +198,8 @@ export const room: Record<keyof typeof en, string> = {
   "room.settings.loadMore": "Haul in more",
   "room.settings.journal": "Ship’s log",
   "room.settings.ai.openMine": "Me AI settin’s",
+  "room.settings.addFriendsButton": "Add friends",
+  "room.settings.addFriendsTitle": "Add friends",
+  "room.settings.addFriendsIntro": "Add any of your friends straight to {room}. Anyone else joins with the invite link.",
+  "room.settings.addFriendsNone": "No friends to add: they are all in this room already, or you have no friends yet.",
 };

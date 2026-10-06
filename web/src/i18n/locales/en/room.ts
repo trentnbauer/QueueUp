@@ -122,7 +122,6 @@ export const room = {
   "room.settings.showFewer": "Show fewer",
   "room.settings.showAll": "Show all {n}",
   "room.settings.noMatch": "No members match.",
-  "room.settings.addFriendsLabel": "ADD FRIENDS",
   "room.settings.membersHint": "Only your friends and this room's members are listed. Anyone else joins with the invite link.",
   "room.settings.detailsLabel": "DETAILS",
   "room.settings.renamed": "Room renamed",
@@ -197,4 +196,8 @@ export const room = {
   "room.settings.loadMore": "Load more",
   "room.settings.journal": "Play journal",
   "room.settings.ai.openMine": "My AI settings",
+  "room.settings.addFriendsButton": "Add friends",
+  "room.settings.addFriendsTitle": "Add friends",
+  "room.settings.addFriendsIntro": "Add any of your friends straight to {room}. Anyone else joins with the invite link.",
+  "room.settings.addFriendsNone": "No friends to add: they are all in this room already, or you have no friends yet.",
 } as const;
