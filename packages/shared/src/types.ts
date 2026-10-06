@@ -2078,6 +2078,16 @@ export type BadgeKey =
   | 'first_marathoner'
   | 'first_comeback'
   | 'first_anniversary'
+  | 'shelf_25'
+  | 'shelf_100'
+  | 'shelf_500'
+  | 'beaten_10'
+  | 'beaten_50'
+  | 'beaten_100'
+  | 'first_review'
+  | 'first_friend'
+  | 'first_api_key'
+  | 'first_merge'
   | 'first_full_collection';
 
 export interface BadgeDefinition {
@@ -2272,6 +2282,66 @@ export const BADGE_DEFINITIONS: Record<BadgeKey, BadgeDefinition> = {
     name: 'Year One',
     description: "Been part of QueueUp for a year.",
     emoji: '🎂',
+  },
+  shelf_25: {
+    key: 'shelf_25',
+    name: 'Collector',
+    description: 'Have 25 games on your Personal Shelf.',
+    emoji: '📚',
+  },
+  shelf_100: {
+    key: 'shelf_100',
+    name: 'Hoarder',
+    description: 'Have 100 games on your Personal Shelf.',
+    emoji: '🗄️',
+  },
+  shelf_500: {
+    key: 'shelf_500',
+    name: 'Archivist',
+    description: 'Have 500 games on your Personal Shelf.',
+    emoji: '🏛️',
+  },
+  beaten_10: {
+    key: 'beaten_10',
+    name: 'Double Digits',
+    description: 'Beaten 10 games on your Personal Shelf.',
+    emoji: '🔟',
+  },
+  beaten_50: {
+    key: 'beaten_50',
+    name: 'Veteran',
+    description: 'Beaten 50 games on your Personal Shelf.',
+    emoji: '🎖️',
+  },
+  beaten_100: {
+    key: 'beaten_100',
+    name: 'Centurion',
+    description: 'Beaten 100 games on your Personal Shelf.',
+    emoji: '💯',
+  },
+  first_review: {
+    key: 'first_review',
+    name: 'Critic',
+    description: 'Wrote a review of a game.',
+    emoji: '✍️',
+  },
+  first_friend: {
+    key: 'first_friend',
+    name: 'Better Together',
+    description: 'Became friends with someone on QueueUp.',
+    emoji: '🤝',
+  },
+  first_api_key: {
+    key: 'first_api_key',
+    name: 'Tinkerer',
+    description: 'Created an API key.',
+    emoji: '🔧',
+  },
+  first_merge: {
+    key: 'first_merge',
+    name: 'Tidy Shelf',
+    description: 'Merged two cards of the same game into one.',
+    emoji: '🧹',
   },
   // Deliberately last, and deliberately excluded from its own completion check (see
   // unlockBadges in services/badges.ts) - otherwise it could never reach 100% itself.

@@ -20,6 +20,7 @@ import { HttpError } from '../util/httpError.js';
 import { decodeActivityCursor, encodeActivityCursor } from '../services/roomActivity.js';
 import { areFriends, friendIdsOf } from '../services/friendships.js';
 import { env } from '../config/env.js';
+import { unlockActivityBadges } from '../services/badges.js';
 
 const FEED_PAGE_SIZE = 30;
 
@@ -41,6 +42,11 @@ function generateFriendCode(): string {
  * meantime isn't resurrected (or thrown on). Returns whether this call accepted it. */
 async function acceptPending(id: string): Promise<boolean> {
   const { count } = await prisma.friendship.updateMany({ where: { id, status: 'pending' }, data: { status: 'accepted', respondedAt: new Date() } });
+  if (count > 0) {
+    // Both people get the Better Together badge (best effort, never blocks the accept).
+    const f = await prisma.friendship.findUnique({ where: { id }, select: { requesterId: true, addresseeId: true } });
+    if (f) void Promise.all([unlockActivityBadges(f.requesterId), unlockActivityBadges(f.addresseeId)]);
+  }
   return count > 0;
 }
 
