@@ -249,8 +249,17 @@ export function NotificationsDialog({ onClose }: { onClose: () => void }) {
     onSuccess: () => queryClient.invalidateQueries({ queryKey: NOTIFICATION_PREFERENCES_QUERY_KEY }),
     onError: (err) => setError(err instanceof Error ? err.message : t('settings.notifications.saveFailed')),
   });
-  // Only these can be hidden from the bell; the older types always show there.
-  const canHideInApp = new Set(['feed_reaction', 'friend_recommendation', 'good_time_to_buy']);
+  const confirm = useConfirm();
+  const unsubscribeAll = useMutation({
+    mutationFn: notificationPreferencesApi.unsubscribeAll,
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: NOTIFICATION_PREFERENCES_QUERY_KEY }),
+    onError: (err) => setError(err instanceof Error ? err.message : t('settings.notifications.saveFailed')),
+  });
+  async function confirmUnsubscribeAll() {
+    const ok = await confirm({ title: t('settings.notifications.unsubAllTitle'), message: t('settings.notifications.unsubAllMessage'), confirmLabel: t('settings.notifications.unsubAll'), danger: true });
+    if (ok) unsubscribeAll.mutate();
+  }
+  const anyOn = !!data?.preferences.some((p) => p.email || p.inApp);
   return (
     <Dialog onClose={onClose} title={t('settings.notifications.title')} gap={14}>
       {error && <Banner onDismiss={() => setError(null)}>{error}</Banner>}
@@ -278,7 +287,7 @@ export function NotificationsDialog({ onClose }: { onClose: () => void }) {
                   onChange={(v) => set.mutate({ type: p.type, email: v })}
                 />
               </span>
-              {canHideInApp.has(p.type) && (
+              {(
                 <span style={st('display:flex;align-items:center;gap:8px;font:500 13px var(--font-ui);color:var(--text2)')}>
                   {t('settings.notifications.inApp')}
                   <Toggle on={p.inApp} disabled={set.isPending} label={t('settings.notifications.showInApp', { label: emailAlertLabel(p.type) })} onChange={(v) => set.mutate({ type: p.type, inApp: v })} />
@@ -288,6 +297,11 @@ export function NotificationsDialog({ onClose }: { onClose: () => void }) {
           </div>
         ))}
       </Group>
+      {data && (
+        <Btn kind="ghost" height={40} padX={14} style={{ alignSelf: 'flex-start', color: 'var(--danger)' }} disabled={!anyOn || unsubscribeAll.isPending} onClick={() => void confirmUnsubscribeAll()}>
+          {t('settings.notifications.unsubAll')}
+        </Btn>
+      )}
     </Dialog>
   );
 }

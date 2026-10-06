@@ -66,4 +66,20 @@ export default async function notificationPreferenceRoutes(app: FastifyInstance)
       return { ok: true };
     },
   );
+
+  // "Unsubscribe from everything": every alert type off, by email and in the app.
+  app.post('/api/me/notification-preferences/unsubscribe-all', { config: { rateLimit: { max: 10, timeWindow: '1 minute' } } }, async (request) => {
+    const userId = await request.requireAuth();
+    await prisma.$transaction(
+      EMAIL_ALERT_TYPES.map((type) =>
+        prisma.notificationPreference.upsert({
+          where: { userId_type: { userId, type } },
+          create: { userId, type, email: false, inApp: false },
+          update: { email: false, inApp: false },
+        }),
+      ),
+    );
+    void logAccountEvent(userId, 'notification_email', 'Unsubscribed from all alerts, by email and in the app.');
+    return { ok: true };
+  });
 }

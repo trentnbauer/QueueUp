@@ -533,4 +533,7 @@ export const settings = {
   "settings.ai.testNeedsSave": "Save your changes first, then test.",
   "settings.ai.removeEntryTitle": "Remove this provider?",
   "settings.ai.removeEntryMessage": "It is deleted now, along with its saved key.",
+  "settings.notifications.unsubAll": "Unsubscribe from all",
+  "settings.notifications.unsubAllTitle": "Unsubscribe from all alerts?",
+  "settings.notifications.unsubAllMessage": "Every alert type is switched off, by email and in the app. You can switch them back on one at a time.",
 } as const;

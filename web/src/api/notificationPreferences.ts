@@ -6,6 +6,7 @@ export const NOTIFICATION_PREFERENCES_QUERY_KEY = ['notification-preferences'] a
 export const notificationPreferencesApi = {
   get: () => apiGet<NotificationPreferencesResponse>('/api/me/notification-preferences'),
   set: (body: SetNotificationPreferenceRequest) => apiPut<{ ok: true }>('/api/me/notification-preferences', body),
+  unsubscribeAll: () => apiPost<{ ok: true }>('/api/me/notification-preferences/unsubscribe-all'),
 };
 
 export const ALERT_EMAIL_QUERY_KEY = ['alert-email'] as const;
