@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from 'vitest';
-import { AiProviderError, buildRequest, callProvider, errorMessageFrom, parseResponse, type AiConfig } from './providers.js';
+import { AiProviderError, buildRequest, callProvider, errorMessageFrom, listModels, parseResponse, type AiConfig } from './providers.js';
 
 const req = { system: 'Be brief.', messages: [{ role: 'user' as const, content: 'Hi' }, { role: 'assistant' as const, content: 'Hello' }, { role: 'user' as const, content: 'Again' }], maxTokens: 50, temperature: 0.2 };
 
@@ -136,5 +136,47 @@ describe('callProvider', () => {
       throw Object.assign(new Error('t'), { name: 'TimeoutError' });
     });
     await expect(callProvider(ollama, req, slow as unknown as typeof fetch)).rejects.toThrow('took too long');
+  });
+});
+
+describe('listModels', () => {
+  const gemini: AiConfig = { provider: 'gemini', model: '', baseUrl: 'https://generativelanguage.googleapis.com/v1beta', apiKey: 'g-key' };
+  const json = (body: unknown, status = 200) => new Response(JSON.stringify(body), { status });
+
+  it('asks Anthropic for /v1/models with its key headers, and returns the names sorted', async () => {
+    const fetchImpl = vi.fn(async () => json({ data: [{ id: 'claude-sonnet-5-5' }, { id: 'claude-haiku-4-5-20251001' }] }));
+    expect(await listModels(anthropic, fetchImpl as unknown as typeof fetch)).toEqual(['claude-haiku-4-5-20251001', 'claude-sonnet-5-5']);
+    const [url, init] = fetchImpl.mock.calls[0] as unknown as [string, RequestInit];
+    expect(url).toBe('https://api.anthropic.com/v1/models?limit=1000');
+    expect((init.headers as Record<string, string>)['x-api-key']).toBe('sk-ant');
+    expect(init.redirect).toBe('manual');
+  });
+
+  it('asks OpenAI-style servers (Ollama too) for /models, sending a key only when there is one', async () => {
+    const fetchImpl = vi.fn(async () => json({ data: [{ id: 'llama3.2:3b' }, { id: 'llama3.2:3b' }, { id: 'qwen2.5:3b' }] }));
+    expect(await listModels(ollama, fetchImpl as unknown as typeof fetch)).toEqual(['llama3.2:3b', 'qwen2.5:3b']);
+    const [url, init] = fetchImpl.mock.calls[0] as unknown as [string, RequestInit];
+    expect(url).toBe(`${ollama.baseUrl}/models`);
+    expect((init.headers as Record<string, string>).authorization).toBeUndefined();
+    await listModels(openai, fetchImpl as unknown as typeof fetch);
+    expect(((fetchImpl.mock.calls[1] as unknown as [string, RequestInit])[1].headers as Record<string, string>).authorization).toBe('Bearer sk-oa');
+  });
+
+  it('keeps only Gemini models that can write text, without the "models/" prefix', async () => {
+    const fetchImpl = vi.fn(async () =>
+      json({ models: [{ name: 'models/gemini-2.5-flash', supportedGenerationMethods: ['generateContent'] }, { name: 'models/text-embedding-004', supportedGenerationMethods: ['embedContent'] }] }),
+    );
+    expect(await listModels(gemini, fetchImpl as unknown as typeof fetch)).toEqual(['gemini-2.5-flash']);
+    expect(((fetchImpl.mock.calls[0] as unknown as [string, RequestInit])[1].headers as Record<string, string>)['x-goog-api-key']).toBe('g-key');
+  });
+
+  it('reports failures like a normal request, hiding the body when asked', async () => {
+    const bad = vi.fn(async () => json({ error: { message: 'Invalid API key' } }, 401));
+    await expect(listModels(openai, bad as unknown as typeof fetch)).rejects.toThrow('401: Invalid API key');
+    await expect(listModels({ ...openai, hideErrorBody: true }, bad as unknown as typeof fetch)).rejects.toThrow(/^The AI provider returned 401$/);
+    const down = vi.fn(async () => {
+      throw new TypeError('fetch failed');
+    });
+    await expect(listModels(ollama, down as unknown as typeof fetch)).rejects.toThrow('Could not reach');
   });
 });

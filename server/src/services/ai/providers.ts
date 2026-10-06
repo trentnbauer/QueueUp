@@ -210,3 +210,47 @@ export async function callProvider(config: AiConfig, req: AiRequest, fetchImpl: 
   }
   return parseResponse(config, await res.json().catch(() => null));
 }
+
+const MODELS_TIMEOUT_MS = 15_000;
+const MAX_MODELS = 500;
+
+/** The model names a provider offers, for the settings dropdown. Every provider has a "list models"
+ * call (Ollama and OpenAI-style servers answer `/models`, Anthropic `/v1/models`, Gemini `/models`).
+ * Same safety rules as a normal request: no redirects, and no error text shown back when
+ * `hideErrorBody` is set. Gemini lists only models that can generate text. */
+export async function listModels(config: AiConfig, fetchImpl: typeof fetch = fetch): Promise<string[]> {
+  let url: string;
+  let headers: Record<string, string>;
+  if (config.provider === 'anthropic') {
+    url = `${config.baseUrl}/v1/models?limit=1000`;
+    headers = { 'x-api-key': config.apiKey ?? '', 'anthropic-version': '2023-06-01' };
+  } else if (config.provider === 'gemini') {
+    url = `${config.baseUrl}/models?pageSize=1000`;
+    headers = { 'x-goog-api-key': config.apiKey ?? '' };
+  } else {
+    url = `${config.baseUrl}/models`;
+    headers = config.apiKey ? { authorization: `Bearer ${config.apiKey}` } : {};
+  }
+  let res: Response;
+  try {
+    res = await fetchImpl(url, { method: 'GET', headers, signal: AbortSignal.timeout(MODELS_TIMEOUT_MS), redirect: 'manual' });
+  } catch (err) {
+    const timedOut = err instanceof Error && (err.name === 'TimeoutError' || err.name === 'AbortError');
+    throw new AiProviderError(timedOut ? 'The AI provider took too long to answer' : 'Could not reach the AI provider', null);
+  }
+  if (!res.ok) {
+    const detail = config.hideErrorBody ? '' : errorMessageFrom(await res.text().catch(() => ''));
+    throw new AiProviderError(`The AI provider returned ${res.status}${detail ? `: ${detail}` : ''}`, res.status);
+  }
+  const d = (await res.json().catch(() => null)) as Record<string, any> | null;
+  const names: string[] = [];
+  if (config.provider === 'gemini') {
+    for (const m of Array.isArray(d?.models) ? d.models : []) {
+      const methods: unknown = m?.supportedGenerationMethods;
+      if (typeof m?.name === 'string' && (!Array.isArray(methods) || methods.includes('generateContent'))) names.push(m.name.replace(/^models\//, ''));
+    }
+  } else {
+    for (const m of Array.isArray(d?.data) ? d.data : []) if (typeof m?.id === 'string') names.push(m.id);
+  }
+  return [...new Set(names.map((n) => n.trim()).filter(Boolean))].sort((a, b) => a.localeCompare(b)).slice(0, MAX_MODELS);
+}

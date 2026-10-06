@@ -1,11 +1,12 @@
 import type { FastifyInstance } from 'fastify';
-import type { AdminAiResponse, AiBenchmarkResult, AiSettingsResponse, AiTestResponse, RoomAiResponse, SetAdminAiRequest, SetUserAiSettingsRequest, UserAiSettings } from '@queueup/shared';
+import type { AdminAiResponse, AiBenchmarkResult, AiModelsRequest, AiModelsResponse, AiSettingsResponse, AiTestResponse, RoomAiResponse, SetAdminAiRequest, SetUserAiSettingsRequest, UserAiSettings } from '@queueup/shared';
 import { HttpError } from '../util/httpError.js';
 import { logAdminAction } from '../services/adminAuditLog.js';
 import { describeAdminAi, saveAdminAi } from '../services/ai/adminAi.js';
 import { requireAdmin } from '../services/adminAccess.js';
 import { aiComplete, aiCompleteEntry, aiCompleteWithServer, clearUserAiSettings, describeAiSettings, saveUserAiSettings } from '../services/ai/aiConfig.js';
 import { isBenchmarkStep, runBenchmarkStep } from '../services/ai/aiBenchmark.js';
+import { listModelsFor } from '../services/ai/aiModels.js';
 import { applyMyAiToRoom, describeRoomAi, removeRoomAi } from '../services/ai/roomAi.js';
 import { requireMembership } from '../services/roomAccess.js';
 import type { AiRequest } from '../services/ai/providers.js';
@@ -55,6 +56,13 @@ export default async function aiSettingsRoutes(app: FastifyInstance) {
     }
     const res = await aiComplete(TEST_REQUEST, { userId });
     return { ok: true, source: res.source, provider: res.provider, model: res.model, reply: res.text.trim().slice(0, 200), fallback: res.fallback };
+  });
+
+  // The models a provider offers, for the dropdown next to the model field. A live request to
+  // whatever address is given, so a tight limit (and the same address rules as a real AI call).
+  app.post<{ Body: AiModelsRequest }>('/api/me/ai/models', { config: { rateLimit: { max: 20, timeWindow: '1 minute' } } }, async (request): Promise<AiModelsResponse> => {
+    const userId = await request.requireAuth();
+    return listModelsFor({ userId }, request.body);
   });
 
   // Benchmark one saved provider, one timed step per call (see services/ai/aiBenchmark.ts). Billable
@@ -111,6 +119,12 @@ export default async function aiSettingsRoutes(app: FastifyInstance) {
     }
     const res = await aiCompleteWithServer(TEST_REQUEST);
     return { ok: true, source: 'server', provider: res.provider, model: res.model, reply: res.text.trim().slice(0, 200), fallback: res.fallback };
+  });
+
+  app.post<{ Body: AiModelsRequest }>('/api/admin/ai/models', { config: { rateLimit: { max: 20, timeWindow: '1 minute' } } }, async (request): Promise<AiModelsResponse> => {
+    const actorId = await request.requireAuth();
+    await requireAdmin(actorId);
+    return listModelsFor('server', request.body);
   });
 
   app.post<{ Body: { index?: unknown; step?: unknown } | undefined }>(

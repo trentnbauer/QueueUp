@@ -2984,6 +2984,19 @@ export interface SetUserAiSettingsRequest {
   fallbacks?: AiFallbackInput[];
 }
 
+/** Body for POST /api/me/ai/models and /api/admin/ai/models: what is on screen for one entry. `index`
+ * (its position in the saved list) lets a key that was saved earlier be reused when none is typed. */
+export interface AiModelsRequest {
+  provider: AiProvider;
+  baseUrl?: string | null;
+  apiKey?: string | null;
+  index?: number;
+}
+
+export interface AiModelsResponse {
+  models: string[];
+}
+
 export interface AiTestResponse {
   ok: boolean;
   source: AiSettingsSource;
