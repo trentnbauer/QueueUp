@@ -374,6 +374,7 @@ export function RoomSettingsDialog() {
   const [hexDraft, setHexDraft] = useState<string | null>(null);
   const [spinOpen, setSpinOpen] = useState(false);
   const [masterLeaveOpen, setMasterLeaveOpen] = useState(false);
+  const [addFriendsOpen, setAddFriendsOpen] = useState(false);
   const [memberQ, setMemberQ] = useState('');
   const [showAll, setShowAll] = useState(false);
   const [showYear, setShowYear] = useState(false);
@@ -574,10 +575,15 @@ export function RoomSettingsDialog() {
 
       {canInvite && (
       <Field label={t('room.settings.inviteLabel')}>
-        <div style={st('display:flex;align-items:center;gap:10px;padding:10px 10px 10px 16px;border-radius:16px;background:var(--surf)')}>
-          <span style={st('flex:1;min-width:0;font:600 17px var(--font-mono);letter-spacing:0.04em;white-space:nowrap;overflow:hidden;text-overflow:ellipsis')}>{invite ?? '—'}</span>
-          <Btn kind="text" height={36} padX={14} fontSize={13} weight={700} disabled={!inviteUrl} onClick={copyInvite}>
-            {t('room.settings.copyLink')}
+        <div style={st('display:flex;flex-direction:column;gap:8px;padding:10px 10px 10px 16px;border-radius:16px;background:var(--surf)')}>
+          <div style={st('display:flex;align-items:center;gap:10px')}>
+            <span style={st('flex:1;min-width:0;font:600 17px var(--font-mono);letter-spacing:0.04em;white-space:nowrap;overflow:hidden;text-overflow:ellipsis')}>{invite ?? '—'}</span>
+            <Btn kind="text" height={36} padX={14} fontSize={13} weight={700} disabled={!inviteUrl} onClick={copyInvite}>
+              {t('room.settings.copyLink')}
+            </Btn>
+          </div>
+          <Btn kind="soft" height={38} padX={14} fontSize={13} style={{ alignSelf: 'flex-start' }} onClick={() => setAddFriendsOpen(true)}>
+            {t('room.settings.addFriendsButton')}
           </Btn>
         </div>
         {canManage && (
@@ -654,22 +660,6 @@ export function RoomSettingsDialog() {
           </button>
         )}
         {q && filtered.length === 0 && <span style={st('font:400 13.5px var(--font-ui);color:var(--muted)')}>{t('room.settings.noMatch')}</span>}
-        {canInvite && (candidates.data?.users.length ?? 0) > 0 && (
-          <>
-            <span style={{ ...st(LABEL), marginTop: 8 }}>{t('room.settings.addFriendsLabel')}</span>
-            <Group>
-              {candidates.data!.users.map((c) => (
-                <div key={c.id} style={st('display:flex;align-items:center;gap:12px;min-height:56px;padding:8px 10px 8px 14px;background:var(--surf)')}>
-                  <Avatar name={c.displayName} color={c.avatarColor} avatarUrl={c.avatarUrl} size={32} fontSize={13} profileUserId={c.id} onOpenProfile={close} />
-                  <span style={st('flex:1;min-width:0;font:600 14.5px var(--font-ui)')}>{c.displayName}</span>
-                  <Btn kind="soft" height={34} padX={14} fontSize={12.5} onClick={() => addMember(c.id, c.displayName)}>
-                    {t('common.add')}
-                  </Btn>
-                </div>
-              ))}
-            </Group>
-          </>
-        )}
         <span style={st('font:400 12.5px/1.45 var(--font-ui);color:var(--faint)')}>{t('room.settings.membersHint')}</span>
       </Field>
 
@@ -906,6 +896,28 @@ export function RoomSettingsDialog() {
         )}
       </Group>
     </Dialog>
+    {addFriendsOpen && (
+      <Dialog onClose={() => setAddFriendsOpen(false)} title={t('room.settings.addFriendsTitle')} gap={12}>
+        <span style={st('font:400 13.5px/1.45 var(--font-ui);color:var(--muted);text-wrap:pretty')}>{t('room.settings.addFriendsIntro', { room: room.name })}</span>
+        {candidates.isLoading && <span style={st('font:400 14px var(--font-ui);color:var(--muted)')}>{t('common.loading')}</span>}
+        {!candidates.isLoading && (candidates.data?.users.length ?? 0) === 0 && (
+          <span style={st('font:500 14px/1.45 var(--font-ui)')}>{t('room.settings.addFriendsNone')}</span>
+        )}
+        {(candidates.data?.users.length ?? 0) > 0 && (
+          <Group>
+            {candidates.data!.users.map((c) => (
+              <div key={c.id} style={st('display:flex;align-items:center;gap:12px;min-height:56px;padding:8px 10px 8px 14px;background:var(--surf)')}>
+                <Avatar name={c.displayName} color={c.avatarColor} avatarUrl={c.avatarUrl} size={32} fontSize={13} />
+                <span style={st('flex:1;min-width:0;font:600 14.5px var(--font-ui);overflow:hidden;text-overflow:ellipsis;white-space:nowrap')}>{c.displayName}</span>
+                <Btn kind="soft" height={34} padX={14} fontSize={12.5} onClick={() => addMember(c.id, c.displayName)}>
+                  {t('common.add')}
+                </Btn>
+              </div>
+            ))}
+          </Group>
+        )}
+      </Dialog>
+    )}
     {masterLeaveOpen && (
       <Dialog onClose={() => setMasterLeaveOpen(false)} title={t('room.settings.masterLeaveTitle')} gap={14}>
         <p style={st('margin:0;font:400 13.5px/1.5 var(--font-ui);color:var(--muted)')}>
