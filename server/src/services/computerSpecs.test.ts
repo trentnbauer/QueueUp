@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { isEmptySpecs, parseComputerSpecs, specsFromRow } from './computerSpecs.js';
+import { isEmptySpecs, parseComputerSpecs, prefillSpecs, specsFromRow } from './computerSpecs.js';
 
 describe('parseComputerSpecs', () => {
   it('keeps what was typed, trimmed, and turns blanks into empty', () => {
@@ -30,5 +30,23 @@ describe('specsFromRow', () => {
     const row = { cpu: 'a', gpu: null, ramGb: 8, vramGb: null, os: null, storage: 'tape', freeGb: null, display: null, notes: null };
     expect(specsFromRow(row).storage).toBeNull();
     expect(specsFromRow({ ...row, storage: 'hdd' }).storage).toBe('hdd');
+  });
+});
+
+describe('prefillSpecs', () => {
+  const blank = specsFromRow(null);
+
+  it('fills blanks and leaves everything the person entered alone', () => {
+    const existing = { ...blank, cpu: 'Ryzen 5 5600X', ramGb: 32 };
+    const incoming = { ...blank, cpu: 'Some Other CPU', gpu: 'GeForce RTX 3060', ramGb: 16, os: 'Windows 11' };
+    const { specs, filled } = prefillSpecs(existing, incoming);
+    expect(specs).toMatchObject({ cpu: 'Ryzen 5 5600X', ramGb: 32, gpu: 'GeForce RTX 3060', os: 'Windows 11' });
+    expect(filled).toEqual(['gpu', 'os']);
+  });
+
+  it('changes nothing when there is nothing new to fill', () => {
+    const existing = { ...blank, gpu: 'x' };
+    expect(prefillSpecs(existing, { ...blank, gpu: 'y' })).toEqual({ specs: existing, filled: [] });
+    expect(prefillSpecs(existing, blank).filled).toEqual([]);
   });
 });

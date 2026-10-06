@@ -43,3 +43,19 @@ export function specsFromRow(row: (Omit<ComputerSpecs, 'storage'> & { storage: s
   const { cpu, gpu, ramGb, vramGb, os, storage, freeGb, display, notes } = row;
   return { cpu, gpu, ramGb, vramGb, os, storage: (COMPUTER_SPEC_STORAGE as readonly string[]).includes(storage ?? '') ? (storage as ComputerSpecs['storage']) : null, freeGb, display, notes };
 }
+
+/** Fills only the blanks: every field the person already has stays as it is, and a field they have not
+ * filled in takes the incoming value. Returns the merged specs and which fields were filled. Used when a
+ * tool on the person's PC (the Playnite extension) reports specs, so it can never overwrite what they
+ * typed in themselves. */
+export function prefillSpecs(existing: ComputerSpecs, incoming: ComputerSpecs): { specs: ComputerSpecs; filled: (keyof ComputerSpecs)[] } {
+  const specs: ComputerSpecs = { ...existing };
+  const filled: (keyof ComputerSpecs)[] = [];
+  for (const key of Object.keys(EMPTY_COMPUTER_SPECS) as (keyof ComputerSpecs)[]) {
+    if (existing[key] === null && incoming[key] !== null) {
+      (specs as unknown as Record<string, unknown>)[key] = incoming[key];
+      filled.push(key);
+    }
+  }
+  return { specs, filled };
+}
