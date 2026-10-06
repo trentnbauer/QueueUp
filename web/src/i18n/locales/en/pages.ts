@@ -477,4 +477,6 @@ export const pages = {
   "pages.admin.ai.notSet": "No server AI provider is set.",
   "pages.admin.ai.saved": "Server AI settings saved",
   "pages.admin.show": "Show",
+  "pages.join.title": "Join a room",
+  "pages.publicProfile.title": "Profile",
 } as const;

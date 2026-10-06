@@ -20,4 +20,5 @@ export const core: Record<keyof typeof en, string> = {
   "core.onboarding.language.sub": "QueueUp will talk like this everywhere. Change it any time in Settings, if ye must.",
   "core.settings.language": "Language",
   "core.settings.language.sub": "More tongues be on the horizon.",
+  "core.login.title": "Sign in",
 };

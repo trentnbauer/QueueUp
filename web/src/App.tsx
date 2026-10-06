@@ -20,6 +20,8 @@ import { AppShell } from './shell/AppShell';
 import { Onboarding, onRerunOnboarding } from './shell/Onboarding';
 import { initAnalytics, trackPageView } from './utils/analytics';
 import { t } from './i18n';
+import { useDocumentTitle } from './utils/pageTitle';
+import { useScope } from './context/ScopeContext';
 
 // Rarely-visited pages load on demand so they stay out of the entry bundle; the first-paint path
 // (home, login, public profile, app shell) stays eager.
@@ -41,6 +43,28 @@ const PENDING_FRIEND_KEY = 'sq-pending-friend';
 // The Unsubscribe link in every email opens `/?settings=notifications`. Same sign-in round trip
 // problem, same answer: stash it, then open the notification settings once signed in.
 const PENDING_SETTINGS_KEY = 'sq-pending-settings';
+
+/** Puts the page name in the browser tab: "QueueUp - Personal Shelf". Renders nothing. */
+function PageTitle({ page }: { page: string | null }) {
+  useDocumentTitle(page);
+  return null;
+}
+
+/** The tab title for each signed-in page: the shelf, or the room's name, or the page's own name. */
+function RouteTitle() {
+  const { pathname } = useLocation();
+  const scope = useScope();
+  let page: string | null = null;
+  if (pathname === '/') page = t('home.title.shelf');
+  else if (pathname.startsWith('/room/')) page = scope.room?.name ?? null;
+  else if (pathname === '/activity') page = t('pages.activity.title');
+  else if (pathname === '/insights') page = t('pages.insights.title');
+  else if (pathname === '/achievements') page = t('pages.achievements.title');
+  else if (pathname === '/year') page = t('pages.year.title');
+  else if (pathname === '/admin') page = t('pages.admin.title');
+  else if (pathname.startsWith('/join/')) page = t('pages.join.title');
+  return <PageTitle page={page} />;
+}
 
 function JoinRoute() {
   const { inviteCode = '' } = useParams();
@@ -224,6 +248,7 @@ export default function App() {
   if (confirmMatch) {
     return (
       <Suspense fallback={null}>
+        <PageTitle page={t('pages.confirmEmail.title')} />
         <ConfirmEmailPage token={decodeURIComponent(confirmMatch[1])} />
       </Suspense>
     );
@@ -231,18 +256,34 @@ export default function App() {
   if (location.pathname === '/privacy') {
     return (
       <Suspense fallback={null}>
+        <PageTitle page={t('pages.privacy.title')} />
         <PrivacyPage signedIn={!!user} />
       </Suspense>
     );
   }
-  if (publicMatch) return <PublicProfilePage userId={decodeURIComponent(publicMatch[1])} signedIn={!!user} />;
+  if (publicMatch) {
+    return (
+      <>
+        <PageTitle page={t('pages.publicProfile.title')} />
+        <PublicProfilePage userId={decodeURIComponent(publicMatch[1])} signedIn={!!user} />
+      </>
+    );
+  }
 
-  if (!user) return <LoginPage providers={providers} turnstileSiteKey={turnstileSiteKey} providersError={providersError && providers === null} onRetry={() => setProvidersAttempt((n) => n + 1)} />;
+  if (!user) {
+    return (
+      <>
+        <PageTitle page={t('core.login.title')} />
+        <LoginPage providers={providers} turnstileSiteKey={turnstileSiteKey} providersError={providersError && providers === null} onRetry={() => setProvidersAttempt((n) => n + 1)} />
+      </>
+    );
+  }
 
   return (
     <SteamImportProvider>
       <AutoLibrarySync />
       <ScopeProvider>
+        <RouteTitle />
         <AppShell>
           <Suspense fallback={null}>
             <Routes>

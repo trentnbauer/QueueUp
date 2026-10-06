@@ -125,6 +125,8 @@ export function trackPageView(pathname: string): void {
   const path = analyticsPath(pathname);
   const location = `${window.location.origin}${getBasePath()}${path}`;
   // Set for every later event too, so nothing Google collects carries the raw URL.
-  window.gtag('set', { page_location: location, page_path: path, page_referrer: '' });
-  window.gtag('event', 'page_view', { page_location: location, page_path: path, page_title: document.title });
+  // The tab title now names the page (and a room), so Google gets a fixed one: the privacy page promises
+  // that the title it sees is always just "QueueUp".
+  window.gtag('set', { page_location: location, page_path: path, page_referrer: '', page_title: 'QueueUp' });
+  window.gtag('event', 'page_view', { page_location: location, page_path: path, page_title: 'QueueUp' });
 }

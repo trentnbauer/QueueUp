@@ -18,4 +18,5 @@ export const core = {
   "core.onboarding.language.sub": "QueueUp will use this everywhere. You can change it anytime in Settings.",
   "core.settings.language": "Language",
   "core.settings.language.sub": "More languages are on the way.",
+  "core.login.title": "Sign in",
 } as const;
