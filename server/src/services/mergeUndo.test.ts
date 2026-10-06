@@ -1,4 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { randomUUID } from 'node:crypto';
 
 const r = vi.hoisted(() => ({ get: vi.fn(), set: vi.fn(), del: vi.fn() }));
 vi.mock('../db/client.js', () => ({ prisma: {} }));
@@ -7,7 +8,7 @@ vi.mock('./redisClient.js', () => ({ redis: r }));
 import { UNDO_TTL_SECONDS, dropUndo, saveUndo, takeUndo, type RematchUndo } from './mergeUndo.js';
 
 const undo: RematchUndo = { kind: 'rematch', userId: 'u1', roomId: null, ownerId: 'u1', gameId: 'g1', before: { id: 'g1' }, redirects: null };
-const TOKEN = '123e4567-e89b-12d3-a456-426614174000';
+const TOKEN = randomUUID();
 
 beforeEach(() => vi.clearAllMocks());
 
