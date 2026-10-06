@@ -5,7 +5,7 @@ import { ADMIN_AI_QUERY_KEY, aiApi } from '../api/ai';
 import { useConfirm } from '../context/ConfirmContext';
 import { useUi } from '../context/UiContext';
 import { AiFallbackWarning, AiProvidersEditor, draftFromEntry, emptyAiDraft, listAfterSave, listSwapped, listWithout, reconcileDrafts, type AiDraft, type AiEntryTest, type SavedEntry } from '../dialogs/AiProvidersEditor';
-import { Banner, Kicker } from '../ui/primitives';
+import { Banner, Collapsible } from '../ui/primitives';
 import { st } from '../ui/st';
 import { useT, type MessageKey } from '../i18n';
 
@@ -123,8 +123,7 @@ export function AdminAiSection() {
   const envSet = (k: keyof typeof data.sources) => data.sources[k] === 'env';
 
   return (
-    <div style={st('display:flex;flex-direction:column;gap:10px')}>
-      <Kicker>{t('pages.admin.ai.kicker')}</Kicker>
+    <Collapsible title={t('pages.admin.ai.kicker')}>
       <span style={st('font:400 13px/1.5 var(--font-ui);color:var(--muted)')}>{t('pages.admin.ai.hint')}</span>
       {error && <Banner onDismiss={() => setError(null)}>{error}</Banner>}
       <AiFallbackWarning notice={data.lastFallback} />
@@ -145,6 +144,6 @@ export function AdminAiSection() {
         locked={{ provider: envSet('AI_PROVIDER'), model: envSet('AI_MODEL'), baseUrl: envSet('AI_BASE_URL'), apiKey: envSet('AI_API_KEY') }}
       />
       {!data.provider && <span style={st('font:400 12.5px var(--font-ui);color:var(--muted)')}>{t('pages.admin.ai.notSet')}</span>}
-    </div>
+    </Collapsible>
   );
 }

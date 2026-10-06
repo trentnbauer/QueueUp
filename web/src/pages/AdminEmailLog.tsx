@@ -1,7 +1,7 @@
 import type { ReactNode } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { adminApi } from '../api/admin';
-import { Btn, Kicker } from '../ui/primitives';
+import { Btn, Collapsible } from '../ui/primitives';
 import { st } from '../ui/st';
 import { formatRelativeTime } from '../utils/relativeTime';
 import { useT, type MessageKey } from '../i18n';
@@ -17,13 +17,14 @@ export function AdminEmailLog(): ReactNode {
   const entries = log.data?.entries ?? [];
 
   return (
-    <div style={st('display:flex;flex-direction:column;gap:10px')}>
-      <div style={st('display:flex;align-items:center;justify-content:space-between;gap:8px')}>
-        <Kicker>{t('pages.admin.emailLog')}</Kicker>
+    <Collapsible
+      title={t('pages.admin.emailLog')}
+      actions={
         <Btn kind="ghost" height={30} padX={10} fontSize={12.5} disabled={log.isFetching} onClick={() => void log.refetch()}>
           {t('pages.admin.emailLogRefresh')}
         </Btn>
-      </div>
+      }
+    >
       <span style={st('font:400 13px/1.5 var(--font-ui);color:var(--muted)')}>{t('pages.admin.emailLogHint')}</span>
       {log.isError && <span style={st('font:400 13px var(--font-ui);color:var(--danger)')}>{t('pages.common.loadFailed')}</span>}
       {log.data && entries.length === 0 && <span style={st('font:400 13.5px var(--font-ui);color:var(--muted)')}>{t('pages.admin.emailLogEmpty')}</span>}
@@ -50,6 +51,6 @@ export function AdminEmailLog(): ReactNode {
           ))}
         </div>
       )}
-    </div>
+    </Collapsible>
   );
 }
