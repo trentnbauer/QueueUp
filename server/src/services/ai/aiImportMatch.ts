@@ -85,7 +85,7 @@ export async function aiMatchPendingImports(userId: string, after?: string | nul
 
   const settled = await Promise.allSettled(
     batches.map(async (batch) => {
-      const res = await aiComplete({ system: SYSTEM, messages: [{ role: 'user', content: buildMatchPrompt(batch) }], maxTokens: 2048, temperature: 0 }, { userId });
+      const res = await aiComplete({ system: SYSTEM, messages: [{ role: 'user', content: buildMatchPrompt(batch) }], maxTokens: 2048, temperature: 0 }, { userId, label: 'importMatch' });
       return { batch, res, suggestions: parseMatchReply(res.text, batch) };
     }),
   );

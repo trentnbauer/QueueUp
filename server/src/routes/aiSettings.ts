@@ -1,11 +1,12 @@
 import type { FastifyInstance } from 'fastify';
-import type { AdminAiResponse, AiBenchmarkResult, AiModelsRequest, AiModelsResponse, AiSettingsResponse, AiTestResponse, RoomAiResponse, SetAdminAiRequest, SetUserAiSettingsRequest, UserAiSettings } from '@queueup/shared';
+import type { AdminAiResponse, AiActivityResponse, AiBenchmarkResult, AiModelsRequest, AiModelsResponse, AiSettingsResponse, AiTestResponse, RoomAiResponse, SetAdminAiRequest, SetUserAiSettingsRequest, UserAiSettings } from '@queueup/shared';
 import { HttpError } from '../util/httpError.js';
 import { logAdminAction } from '../services/adminAuditLog.js';
 import { describeAdminAi, saveAdminAi } from '../services/ai/adminAi.js';
 import { requireAdmin } from '../services/adminAccess.js';
 import { aiComplete, aiCompleteEntry, aiCompleteWithServer, clearUserAiSettings, describeAiSettings, saveUserAiSettings } from '../services/ai/aiConfig.js';
 import { isBenchmarkStep, runBenchmarkStep } from '../services/ai/aiBenchmark.js';
+import { aiActivityFor } from '../services/ai/aiJobs.js';
 import { listModelsFor } from '../services/ai/aiModels.js';
 import { applyMyAiToRoom, describeRoomAi, removeRoomAi } from '../services/ai/roomAi.js';
 import { requireMembership } from '../services/roomAccess.js';
@@ -56,6 +57,12 @@ export default async function aiSettingsRoutes(app: FastifyInstance) {
     }
     const res = await aiComplete(TEST_REQUEST, { userId });
     return { ok: true, source: res.source, provider: res.provider, model: res.model, reply: res.text.trim().slice(0, 200), fallback: res.fallback };
+  });
+
+  // What the AI is doing for this person right now (running or waiting its turn), for the notifications.
+  app.get('/api/me/ai/activity', async (request): Promise<AiActivityResponse> => {
+    const userId = await request.requireAuth();
+    return { activity: aiActivityFor(userId) };
   });
 
   // The models a provider offers, for the dropdown next to the model field. A live request to

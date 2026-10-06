@@ -5,7 +5,7 @@ import { AI_SETTINGS_QUERY_KEY, aiApi } from '../api/ai';
 import { roomsApi } from '../api/rooms';
 import { yearStoryApi, yearStoryKey } from '../api/yearStory';
 import { useConfirm } from '../context/ConfirmContext';
-import { AiBadge, Banner, Btn, Toggle } from '../ui/primitives';
+import { AiBadge, Banner, Btn, Spinner, Toggle } from '../ui/primitives';
 import { st } from '../ui/st';
 import { useT } from '../i18n';
 
@@ -115,7 +115,7 @@ export function YearStoryCard({ roomId, facts }: { roomId: string | null; facts:
         <div style={st('display:flex;flex-wrap:wrap;gap:8px')}>
           {canWrite && (
             <Btn height={36} padX={16} disabled={busy} onClick={() => generate.mutate()}>
-              {generate.isPending ? t('pages.story.writing') : s ? t('pages.story.regenerate') : t('pages.story.write')}
+              {generate.isPending ? <span style={st('display:inline-flex;align-items:center;gap:8px')}><Spinner />{t('pages.story.writing')}</span> : s ? t('pages.story.regenerate') : t('pages.story.write')}
             </Btn>
           )}
           {s?.canManage && (

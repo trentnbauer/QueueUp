@@ -4,6 +4,7 @@ import type { Game, GameStatus, VoteValue } from '@queueup/shared';
 import { useScope } from '../context/ScopeContext';
 import { useUi } from '../context/UiContext';
 import { useViewMode } from '../context/ViewModeContext';
+import { useAiActivity } from '../hooks/useAiActivity';
 import { useCardDensity } from '../context/CardDensityContext';
 import { useConfirm } from '../context/ConfirmContext';
 import { useAttention } from '../hooks/useAttention';
@@ -19,7 +20,7 @@ import { AI_SETTINGS_QUERY_KEY, aiApi } from '../api/ai';
 import { MergedGamesList } from './MergedGamesList';
 import { DISMISSED_IMPORTS_QUERY_KEY, PENDING_IMPORTS_QUERY_KEY, pendingImportsApi } from '../api/pendingImports';
 import { ROOM_PLATFORM_LABELS } from '@queueup/shared';
-import { Avatar, Banner, Btn, SearchField } from '../ui/primitives';
+import { Avatar, Banner, Btn, SearchField, Spinner } from '../ui/primitives';
 import { useStableOrder } from './useStableOrder';
 import { useIsMobile } from '../ui/useLayout';
 import { st } from '../ui/st';
@@ -57,6 +58,7 @@ export function HomeView() {
   const aiReady = !!aiSettings.data && aiSettings.data.effectiveSource !== 'none';
   const duplicateCount = useQuery({ queryKey: DUPLICATE_COUNT_QUERY_KEY, queryFn: gamesApi.duplicateCandidateCount, enabled: isShelf && aiReady, staleTime: 10 * 60_000 });
   const possibleDuplicates = duplicateCount.data?.count ?? 0;
+  const scanningDuplicates = useAiActivity('duplicates');
   const navigate = useNavigate();
 
   // Room header row (members, Invite, vote/approve nudges): if it spills onto a second line, first
@@ -242,7 +244,8 @@ export function HomeView() {
               className="nudge"
               style={st('align-self:flex-start;display:flex;align-items:center;gap:10px;height:42px;padding:0 8px 0 14px;border-radius:999px;border:1px dashed var(--line);background:transparent;color:var(--text);font:600 13.5px var(--font-ui)')}
             >
-              <span className="nudge-text">{t(possibleDuplicates === 1 ? 'home.nudge.merge.one' : 'home.nudge.merge.other', { n: possibleDuplicates })}</span>
+              {scanningDuplicates && <Spinner />}
+              <span className="nudge-text">{scanningDuplicates ? t('home.nudge.merge.scanning') : t(possibleDuplicates === 1 ? 'home.nudge.merge.one' : 'home.nudge.merge.other', { n: possibleDuplicates })}</span>
               <span style={st('height:28px;padding:0 11px;border-radius:999px;background:var(--chip);color:var(--accText);display:flex;align-items:center;font-size:12px')}>{t('home.nudge.mergeBtn')}</span>
             </button>
           )}

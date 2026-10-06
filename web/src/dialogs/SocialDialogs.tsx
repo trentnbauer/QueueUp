@@ -8,14 +8,15 @@ import { notificationsApi } from '../api/notifications';
 import { useConfirm } from '../context/ConfirmContext';
 import { useSteamImportContext } from '../context/SteamImportContext';
 import { useUi } from '../context/UiContext';
+import { useAiJobs } from '../hooks/useAiActivity';
 import { useFriends } from '../hooks/useFriends';
 import { useMarkAllNotificationsRead, useNotificationFeed } from '../hooks/useNotifications';
 import { usePendingImportsCount } from '../hooks/usePendingImports';
 import { Dialog } from '../ui/Dialog';
-import { Avatar, Banner, Btn, Group, inputPill } from '../ui/primitives';
+import { Avatar, Banner, Btn, Group, Spinner, inputPill } from '../ui/primitives';
 import { st } from '../ui/st';
 import { formatRelativeTime } from '../utils/relativeTime';
-import { rich, useT } from '../i18n';
+import { rich, useT, type MessageKey } from '../i18n';
 
 const SHELF_TYPES: Notification['type'][] = ['merge_suggestions', 'friend_recommendation', 'price_drop', 'good_time_to_buy', 'release_watch', 'playnite_sync_reminder', 'wishlist_bundle_deal'];
 
@@ -93,6 +94,9 @@ function PlayTogetherRequest({ n, onDone }: { n: Notification; onDone: () => voi
 
 /** Bell: friend requests, import status, anything waiting for a match, then the unread feed.
  * Closing marks the feed read (so it's empty next time), same as before. */
+/** The kinds of AI request that have their own wording in the activity list; anything else reads "an AI request". */
+const AI_JOB_LABELS = new Set(['duplicates', 'importMatch', 'importClassify', 'picks', 'search', 'tonight', 'price', 'story', 'coach', 'recap', 'test', 'ai']);
+
 export function NotificationsDialog() {
   const ui = useUi();
   const navigate = useNavigate();
@@ -104,6 +108,8 @@ export function NotificationsDialog() {
   const { notifications, isLoading } = useNotificationFeed(true);
   const markAllRead = useMarkAllNotificationsRead();
   const [error, setError] = useState<string | null>(null);
+  // What the AI is doing for this person right now, and anything waiting its turn.
+  const aiJobs = useAiJobs(true);
 
   const close = () => {
     if (notifications.length > 0) markAllRead();
@@ -164,7 +170,7 @@ export function NotificationsDialog() {
     }
   }
 
-  const hasAnything = friends.incoming.length > 0 || pending > 0 || notifications.length > 0 || !!importStatus;
+  const hasAnything = friends.incoming.length > 0 || pending > 0 || notifications.length > 0 || !!importStatus || aiJobs.length > 0;
 
   return (
     <Dialog
@@ -221,6 +227,23 @@ export function NotificationsDialog() {
           <span style={st('height:32px;padding:0 12px;border-radius:999px;background:var(--text);color:var(--onText);font:700 12.5px var(--font-ui);display:flex;align-items:center')}>{t('social.notifications.review')}</span>
         </button>
       )}
+      {aiJobs.map((job) => {
+        const what = t((`social.notifications.ai.job.${AI_JOB_LABELS.has(job.label) ? job.label : 'ai'}`) as MessageKey);
+        return (
+          <div key={job.label} role="status" style={st('margin:0 0 8px;display:flex;align-items:center;gap:10px;padding:12px 14px;border-radius:14px;background:var(--surf);font:500 13.5px/1.4 var(--font-ui)')}>
+            <Spinner />
+            <span style={st('flex:1;min-width:0;display:flex;flex-direction:column;gap:2px')}>
+              {job.running > 0 && <span>{job.running > 1 ? t('social.notifications.ai.runningMany', { what, n: job.running }) : t('social.notifications.ai.running', { what })}</span>}
+              {job.queued > 0 && (
+                <span style={st('color:var(--text2)')}>
+                  {job.queued > 1 ? t('social.notifications.ai.queuedMany', { what, n: job.queued }) : t('social.notifications.ai.queued', { what })}
+                  {job.nextPosition ? ` ${t('social.notifications.ai.position', { n: job.nextPosition })}` : ''}
+                </span>
+              )}
+            </span>
+          </div>
+        );
+      })}
       {importStatus && (
         <div style={st('margin:0 0 8px;display:flex;align-items:center;gap:10px;padding:12px 14px;border-radius:14px;background:var(--surf);font:500 13.5px var(--font-ui)')}>
           {steam.busy && <span style={st('flex-shrink:0;width:14px;height:14px;border-radius:50%;border:2px solid var(--line);border-top-color:var(--acc);animation:qu-spin .9s linear infinite')} />}

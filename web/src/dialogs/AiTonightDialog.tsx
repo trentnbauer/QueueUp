@@ -5,7 +5,7 @@ import { AI_SETTINGS_QUERY_KEY, aiApi } from '../api/ai';
 import { gamesApi } from '../api/games';
 import { useUi } from '../context/UiContext';
 import { Dialog } from '../ui/Dialog';
-import { AiPickedBadge, Banner, Btn, Cover, inputPill } from '../ui/primitives';
+import { AiPickedBadge, Banner, Btn, Cover, Spinner, inputPill } from '../ui/primitives';
 import { st } from '../ui/st';
 import { useT, type MessageKey } from '../i18n';
 
@@ -104,7 +104,7 @@ export function AiTonightDialog() {
           </div>
           <div style={st('display:flex;gap:8px;flex-wrap:wrap')}>
             <Btn height={40} padX={18} disabled={busy || !wish.trim() || !aiReady} onClick={() => ask.mutate([])}>
-              {ask.isPending ? t('home.tonight.thinking') : result ? t('home.tonight.pickAgain') : t('home.tonight.pick')}
+              {ask.isPending ? <span style={st('display:inline-flex;align-items:center;gap:8px')}><Spinner />{t('home.tonight.thinking')}</span> : result ? t('home.tonight.pickAgain') : t('home.tonight.pick')}
             </Btn>
           </div>
         </>

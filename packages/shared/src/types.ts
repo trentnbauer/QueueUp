@@ -2994,6 +2994,21 @@ export interface AiModelsResponse {
   models: string[];
 }
 
+/** What the AI is doing for the signed-in person right now, for one kind of request (`label`: duplicates,
+ * importMatch, importClassify, picks, search, tonight, price, story, coach, test or ai). */
+export interface AiActivityEntry {
+  label: string;
+  running: number;
+  /** Waiting for a free slot because the server limits how many AI requests run at once. */
+  queued: number;
+  /** Where the first waiting request is in the line (1 = next), across everyone. Null when none is waiting. */
+  nextPosition: number | null;
+}
+
+export interface AiActivityResponse {
+  activity: AiActivityEntry[];
+}
+
 export interface AiTestResponse {
   ok: boolean;
   source: AiSettingsSource;

@@ -1,7 +1,8 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { MERGED_GAMES_QUERY_KEY, gamesApi } from '../api/games';
 import { useUi } from '../context/UiContext';
-import { Btn } from '../ui/primitives';
+import { useAiActivity } from '../hooks/useAiActivity';
+import { Btn, Spinner } from '../ui/primitives';
 import { st } from '../ui/st';
 import { useT } from '../i18n';
 
@@ -11,6 +12,7 @@ import { useT } from '../i18n';
 export function MergedGamesList() {
   const ui = useUi();
   const t = useT();
+  const scanning = useAiActivity('duplicates');
   const queryClient = useQueryClient();
   const { data, isLoading } = useQuery({ queryKey: MERGED_GAMES_QUERY_KEY, queryFn: gamesApi.mergedList });
   const forget = useMutation({
@@ -29,7 +31,14 @@ export function MergedGamesList() {
         <span style={st('font:400 12.5px var(--font-ui);color:var(--muted)')}>{t('settings.me.duplicates.sub')}</span>
       </span>
       <Btn kind="soft" height={34} padX={14} fontSize={13} onClick={() => ui.openDialog('duplicates')}>
-        {t('home.merged.findBtn')}
+        {scanning ? (
+          <span style={st('display:inline-flex;align-items:center;gap:8px')}>
+            <Spinner />
+            {t('settings.duplicates.scanning')}
+          </span>
+        ) : (
+          t('home.merged.findBtn')
+        )}
       </Btn>
     </div>
   );

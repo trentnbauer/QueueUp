@@ -126,7 +126,7 @@ export async function aiScanDuplicates(userId: string): Promise<AiDuplicateScanR
     // Once one batch has failed (e.g. the daily limit) there's no point sending more.
     if (stopped) return;
     try {
-      const res = await aiComplete({ system: DUPLICATE_SYSTEM, messages: [{ role: 'user', content: buildDuplicatePrompt(batch) }], maxTokens: 2048, temperature: 0 }, { userId });
+      const res = await aiComplete({ system: DUPLICATE_SYSTEM, messages: [{ role: 'user', content: buildDuplicatePrompt(batch) }], maxTokens: 2048, temperature: 0 }, { userId, label: 'duplicates' });
       checked += batch.length;
       fallback ??= res.fallback;
       found.push(...parseDuplicateReply(res.text, batch));

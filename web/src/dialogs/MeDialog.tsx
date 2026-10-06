@@ -22,6 +22,7 @@ import { useVersion } from '../hooks/useVersion';
 import { Dialog } from '../ui/Dialog';
 import { useIsMobile } from '../ui/useLayout';
 import { Avatar, Banner, Btn, Group, Kicker, Segmented, Toggle, inputField } from '../ui/primitives';
+import { useAiActivity } from '../hooks/useAiActivity';
 import { SystemsPicker } from '../ui/SystemsPicker';
 import { useAnalyticsConsent } from '../hooks/useAnalyticsConsent';
 import { LANGUAGES, rich, t as tr, useI18n, useT, type Language, type MessageKey } from '../i18n';
@@ -689,6 +690,7 @@ export function MeDialog() {
   const friends = useFriends();
   const pending = usePendingImportsCount();
   const sync = useSyncSources();
+  const scanningDuplicates = useAiActivity('duplicates');
   // Playnite pushes from the desktop, so whether its connection code has been used says if it is set up (#793).
   const { data: apiKeys } = useQuery({ queryKey: API_KEYS_QUERY_KEY, queryFn: apiKeysApi.list });
   const playniteKey = apiKeys?.keys
@@ -870,7 +872,7 @@ export function MeDialog() {
             badge={pendingFriends} onClick={open('friends')} />
           {pending > 0 && <NavRow label={t('settings.me.needsReview')} sub={t('settings.me.needsReview.sub')} badge={pending} onClick={open('needsReview')} />}
           <NavRow label={t('settings.me.tonight')} sub={t('settings.me.tonight.sub')} onClick={open('aiTonight')} />
-          <NavRow label={t('settings.me.duplicates')} sub={t('settings.me.duplicates.sub')} onClick={open('duplicates')} />
+          <NavRow label={t('settings.me.duplicates')} sub={scanningDuplicates ? t('settings.me.duplicates.scanning') : t('settings.me.duplicates.sub')} onClick={open('duplicates')} />
           <NavRow label={t('settings.me.achievements')} sub={earned !== null ? t('settings.me.achievements.earned', { earned, total: total ?? 0 }) : t('settings.me.achievements.sub')} onClick={go('/achievements')} />
           <NavRow label={t('settings.me.insights')} sub={t('settings.me.insights.sub')} onClick={go('/insights')} />
           <NavRow label={t('settings.me.year')} sub={t('settings.me.year.sub')} onClick={go('/year')} />

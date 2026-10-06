@@ -523,4 +523,7 @@ export const settings: Record<keyof typeof en, string> = {
   "settings.ai.providerName.gemini": "Google Gemini",
   "settings.ai.providerName.ollama": "Ollama",
   "settings.ai.providerName.openai_compatible": "OpenAI-compatible",
+  "settings.duplicates.scanningPairs": "The AI is checking {n} possible pairs. This can take a minute or two. You can close this and carry on; you will get a notification when it is done.",
+  "settings.duplicates.scanningNoPairs": "The AI is checking your shelf for duplicates. This can take a minute or two. You can close this and carry on; you will get a notification when it is done.",
+  "settings.me.duplicates.scanning": "AI is checking your shelf…",
 };

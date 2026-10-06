@@ -355,6 +355,27 @@ export function AiBadge({ title, label = 'AI' }: { title?: string; label?: strin
   );
 }
 
+/** A small spinning ring: something is loading or the AI is working. */
+export function Spinner({ size = 14, style }: { size?: number; style?: CSSProperties }) {
+  return (
+    <span
+      role="status"
+      aria-hidden="true"
+      style={{
+        display: 'inline-block',
+        flexShrink: 0,
+        width: size,
+        height: size,
+        borderRadius: '50%',
+        border: `${Math.max(2, Math.round(size / 7))}px solid var(--line)`,
+        borderTopColor: 'var(--acc)',
+        animation: 'qu-spin .9s linear infinite',
+        ...style,
+      }}
+    />
+  );
+}
+
 /** Marks one thing the AI recommended (a game it suggested, a match it picked, a pair it thinks
  * are duplicates), as opposed to AiBadge, which labels a whole AI-generated section. */
 export function AiPickedBadge({ title }: { title?: string }) {

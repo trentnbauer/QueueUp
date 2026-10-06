@@ -103,7 +103,7 @@ export async function generateStoryText(
   kind: 'personal' | 'room',
 ): Promise<{ text: string; fallback: AiFallbackNotice | null }> {
   if (!hasStoryMaterial(facts)) throw new HttpError(400, 'There is not enough to write about yet. Finish or vote on a few games first.');
-  const res = await aiComplete({ system: SYSTEM(kind), messages: [{ role: 'user', content: buildStoryPrompt(facts, kind) }], maxTokens: 700, temperature: 0.8 }, { userId, roomId });
+  const res = await aiComplete({ system: SYSTEM(kind), messages: [{ role: 'user', content: buildStoryPrompt(facts, kind) }], maxTokens: 700, temperature: 0.8 }, { userId, roomId, label: 'story' });
   const text = cleanStoryText(res.text);
   if (!text) throw new HttpError(502, 'The AI did not write a recap. Try again.');
   return { text, fallback: res.fallback };

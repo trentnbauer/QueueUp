@@ -103,7 +103,7 @@ export async function recommendFromProfile(
   platforms: Parameters<typeof searchGames>[1],
   who: { userId?: string; roomId?: string },
 ): Promise<{ recommendations: AiRecommendation[]; fallback: AiFallbackNotice | null }> {
-  const res = await aiComplete({ system: RECOMMEND_SYSTEM, messages: [{ role: 'user', content: buildRecommendPrompt(profile) }], maxTokens: 1200, temperature: 0.7 }, who);
+  const res = await aiComplete({ system: RECOMMEND_SYSTEM, messages: [{ role: 'user', content: buildRecommendPrompt(profile) }], maxTokens: 1200, temperature: 0.7 }, { ...who, label: 'picks' });
   const suggestions = parseRecommendReply(res.text);
   return { recommendations: await resolveSuggestions(suggestions, excludeIgdbIds, platforms), fallback: res.fallback };
 }

@@ -100,7 +100,7 @@ export async function aiPriceAdvice(
   const base = { currency, current, usual: facts.usual, lowestRecorded: facts.lowestRecorded, historicalLow };
   if (!hasEnoughHistory(facts)) return { advice: { enoughHistory: false, ...base, verdict: null, summary: null, suggestedTarget: null }, fallback: null };
 
-  const res = await aiComplete({ system: SYSTEM, messages: [{ role: 'user', content: buildPricePrompt(facts) }], maxTokens: 400, temperature: 0.2 }, { userId, roomId });
+  const res = await aiComplete({ system: SYSTEM, messages: [{ role: 'user', content: buildPricePrompt(facts) }], maxTokens: 400, temperature: 0.2 }, { userId, roomId, label: 'price' });
   const parsed = parsePriceReply(res.text, facts);
   if (!parsed) return { advice: { enoughHistory: true, ...base, verdict: 'unclear', summary: null, suggestedTarget: null }, fallback: res.fallback };
   return { advice: { enoughHistory: true, ...base, ...parsed }, fallback: res.fallback };

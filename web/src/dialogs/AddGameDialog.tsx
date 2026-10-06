@@ -18,7 +18,7 @@ import { useAuth } from '../context/AuthContext';
 import { useScope } from '../context/ScopeContext';
 import { useUi } from '../context/UiContext';
 import { Dialog } from '../ui/Dialog';
-import { AiBadge, Btn, ChipToggle, Cover, Kicker, SearchField, inputPill } from '../ui/primitives';
+import { AiBadge, Btn, ChipToggle, Cover, Kicker, SearchField, Spinner, inputPill } from '../ui/primitives';
 import { st } from '../ui/st';
 import { t as tNow, useT } from '../i18n';
 import { useAiPicks } from './useAiPicks';
@@ -672,7 +672,7 @@ export function AddGameDialog() {
                 </ChipToggle>
                 {aiSearch.ready && query.trim().split(/\s+/).length >= 3 && (
                   <Btn kind="soft" height={36} padX={14} fontSize={13} disabled={aiSearch.busy || busy} onClick={() => void aiSearch.search(query)}>
-                    {aiSearch.busy ? t('add.game.aiSearch.working') : t('add.game.aiSearch.button')}
+                    {aiSearch.busy ? <span style={st('display:inline-flex;align-items:center;gap:8px')}><Spinner />{t('add.game.aiSearch.working')}</span> : t('add.game.aiSearch.button')}
                   </Btn>
                 )}
               </div>
