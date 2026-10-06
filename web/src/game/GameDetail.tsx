@@ -34,6 +34,7 @@ import { Trailer } from './Trailer';
 import { st } from '../ui/st';
 import { useT, type MessageKey } from '../i18n';
 import { statusLabel } from '../i18n/labels';
+import { SystemRequirements } from './SystemRequirements';
 
 const H = 'font:600 15px var(--font-display)';
 const FIELD = 'flex:1;min-width:0;height:42px;padding:0 14px;border-radius:999px;background:var(--surf);border:1px solid var(--line);color:var(--text);font-size:15px;outline:none';
@@ -629,6 +630,8 @@ export function GameDetail({ game, onClose, changeStatus }: { game: Game; onClos
             </select>
           </Section>
         )}
+
+        <SystemRequirements gameId={game.id} />
 
         {!game.baseGameId && (
           <Section
