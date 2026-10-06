@@ -12,7 +12,9 @@ const CARD =
 const ACTION =
   'flex-shrink:0;height:32px;padding:0 14px;border-radius:999px;border:none;background:var(--acc);color:var(--ink);font:700 13px var(--font-ui)';
 
-/** The design's bottom-centre toast: a transient message from useUi().notify. */
+/** A transient message from useUi().notify. It sits at the top of the screen, not the bottom: dialogs and
+ * the match/merge screens keep their buttons at the bottom, which a bottom toast covered. A toast with no
+ * button lets taps through to whatever is under it. */
 export function UiToast() {
   const { toast, dismissToast } = useUi();
   // The live region stays mounted and only its content changes: a region that appears together with
@@ -22,9 +24,9 @@ export function UiToast() {
       role={toast?.error ? 'alert' : 'status'}
       aria-live={toast?.error ? 'assertive' : 'polite'}
       aria-atomic="true"
-      style={st('position:fixed;left:0;right:0;bottom:24px;z-index:300;display:flex;justify-content:center;pointer-events:none;padding:0 16px')}
+      style={st('position:fixed;left:0;right:0;top:calc(env(safe-area-inset-top, 0px) + 12px);z-index:300;display:flex;justify-content:center;pointer-events:none;padding:0 16px')}
     >
-      {toast && <div key={toast.key} style={st(`${PILL};pointer-events:auto`)}>
+      {toast && <div key={toast.key} style={st(`${PILL};pointer-events:${toast.action ? 'auto' : 'none'}`)}>
         <span style={{ minWidth: 0, textWrap: 'pretty' }}>{toast.message}</span>
         {toast.action && (
           <button
