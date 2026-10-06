@@ -17,6 +17,7 @@ vi.mock('../../db/client.js', () => ({
     userAiSettings: { findUnique, upsert, deleteMany },
     room: { findUnique: roomFindUnique, updateMany: roomUpdateMany },
     roomMember: { findUnique: memberFindUnique },
+    appSetting: { findUnique: vi.fn().mockResolvedValue(null) },
   },
 }));
 vi.mock('../../config/env.js', () => ({ env: envState }));
@@ -65,7 +66,7 @@ describe('saveUserAiSettings', () => {
     const stored = upsert.mock.calls[0][0].create.apiKeyEncrypted as string;
     expect(stored).not.toContain('sk-secret');
     expect(decryptSetting(stored, SECRET)).toBe('sk-secret');
-    expect(out).toEqual({ provider: 'anthropic', model: null, baseUrl: null, hasApiKey: true, fallbacks: [] });
+    expect(out).toEqual({ provider: 'anthropic', model: null, baseUrl: null, hasApiKey: true, disabled: false, fallbacks: [] });
     expect(JSON.stringify(out)).not.toContain('sk-secret');
   });
 

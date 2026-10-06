@@ -16,7 +16,7 @@ vi.mock('../configResolver.js', () => ({ getConfigValue: vi.fn().mockResolvedVal
 vi.mock('./providers.js', async (orig) => ({ ...(await orig<typeof import('./providers.js')>()), callProvider }));
 
 import { AiProviderError } from './providers.js';
-import { aiComplete, aiCompleteEntry } from './aiConfig.js';
+import { aiComplete, aiCompleteEntry, resolveAiChain } from './aiConfig.js';
 import { getLastFallback, mergeFallbacks, openFallbacks, sealFallbacks } from './aiFallbacks.js';
 import { encryptSetting } from '../settingsCrypto.js';
 
@@ -105,5 +105,50 @@ describe('aiCompleteEntry', () => {
   it('says so when the entry is not saved', async () => {
     await expect(aiCompleteEntry({ userId: 'u1' }, 5, REQ)).rejects.toMatchObject({ statusCode: 404 });
     await expect(aiCompleteEntry({ userId: 'u1' }, -1, REQ)).rejects.toMatchObject({ statusCode: 404 });
+  });
+});
+
+describe('switching providers off', () => {
+  const backups = (extra: object = {}) =>
+    sealFallbacks(mergeFallbacks([], [{ provider: 'openai', model: 'gpt-x', apiKey: 'sk-2', ...extra }], false), SECRET);
+  const row = (over: object) => ({ provider: 'anthropic', model: null, baseUrl: null, apiKeyEncrypted: encryptSetting('sk-1', SECRET), fallbacksEncrypted: backups(), disabled: false, ...over });
+
+  beforeEach(() => {
+    vi.clearAllMocks();
+    appFindUnique.mockResolvedValue(null);
+  });
+
+  it('keeps the flag on a backup through saving, and keeps it when a client leaves it out', () => {
+    const [off] = mergeFallbacks([], [{ provider: 'openai', model: 'gpt-x', apiKey: 'k', disabled: true }], false);
+    expect(off.disabled).toBe(true);
+    expect(mergeFallbacks([off], [{ id: off.id, provider: 'openai', model: 'gpt-x' }], false)[0].disabled).toBe(true);
+    expect(mergeFallbacks([off], [{ id: off.id, provider: 'openai', model: 'gpt-x', disabled: false }], false)[0].disabled).toBeUndefined();
+  });
+
+  it('skips a switched-off first provider and uses the backups', async () => {
+    findUnique.mockResolvedValue(row({ disabled: true }));
+    const chain = await resolveAiChain('u1');
+    expect(chain?.configs.map((c) => c.provider)).toEqual(['openai']);
+    callProvider.mockResolvedValue(ok('OK'));
+    await aiComplete(REQ, { userId: 'u1' });
+    expect(callProvider.mock.calls[0][0]).toMatchObject({ provider: 'openai' });
+  });
+
+  it('skips a switched-off backup', async () => {
+    findUnique.mockResolvedValue(row({ fallbacksEncrypted: backups({ disabled: true }) }));
+    const chain = await resolveAiChain('u1');
+    expect(chain?.configs.map((c) => c.provider)).toEqual(['anthropic']);
+  });
+
+  it('lets a person with everything switched off fall through to the server', async () => {
+    findUnique.mockResolvedValue(row({ disabled: true, fallbacksEncrypted: backups({ disabled: true }) }));
+    expect(await resolveAiChain('u1')).toBeNull();
+  });
+
+  it('still tests a switched-off entry by its position in the list', async () => {
+    findUnique.mockResolvedValue(row({ disabled: true }));
+    callProvider.mockResolvedValue(ok('OK'));
+    await aiCompleteEntry({ userId: 'u1' }, 0, REQ);
+    expect(callProvider.mock.calls[0][0]).toMatchObject({ provider: 'anthropic' });
   });
 });

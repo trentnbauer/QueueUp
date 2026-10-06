@@ -575,6 +575,8 @@ model UserAiSettings {
   /// Backup providers tried in order when the one above fails: one encrypted JSON list (keys included),
   /// see services/ai/aiFallbacks.ts.
   fallbacksEncrypted String? @map("fallbacks_encrypted")
+  /// The first provider is switched off (kept saved, just not used). Backups carry their own flag in the JSON list.
+  disabled        Boolean  @default(false)
   updatedAt       DateTime @updatedAt @map("updated_at")
 
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)

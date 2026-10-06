@@ -19,7 +19,7 @@ export function AdminAiSection() {
 
   const load = (d: NonNullable<typeof data>) =>
     setDrafts([
-      d.provider ? { ...draftFromEntry({ provider: d.provider, model: d.model, baseUrl: d.baseUrl, hasApiKey: d.sources.AI_API_KEY !== 'unset' }) } : emptyAiDraft(),
+      d.provider ? { ...draftFromEntry({ provider: d.provider, model: d.model, baseUrl: d.baseUrl, hasApiKey: d.sources.AI_API_KEY !== 'unset', disabled: d.disabled }) } : emptyAiDraft(),
       ...d.fallbacks.map(draftFromEntry),
     ]);
   useEffect(() => {
