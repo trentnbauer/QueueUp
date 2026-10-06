@@ -222,4 +222,5 @@ export const home: Record<keyof typeof en, string> = {
   "home.duration.minutes": "{m}m",
   "home.duration.hours": "{h}h",
   "home.duration.hoursMinutes": "{h}h {m}m",
+  "home.nudge.merge.scanning": "AI is checking…",
 };

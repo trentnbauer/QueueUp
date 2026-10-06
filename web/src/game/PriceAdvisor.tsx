@@ -4,7 +4,7 @@ import type { AiPriceAdvice, Game } from '@queueup/shared';
 import { AI_SETTINGS_QUERY_KEY, aiApi } from '../api/ai';
 import { gamesApi } from '../api/games';
 import { fmtMoney } from '../lib/gameView';
-import { AiBadge, Btn } from '../ui/primitives';
+import { AiBadge, Btn, Spinner } from '../ui/primitives';
 import { st } from '../ui/st';
 import { useT, type MessageKey } from '../i18n';
 
@@ -34,7 +34,7 @@ export function PriceAdvisor({ game, onSetTarget }: { game: Game; onSetTarget: (
   return (
     <div style={st('display:flex;flex-direction:column;gap:8px')}>
       <Btn kind="soft" height={36} padX={14} fontSize={13} disabled={ask.isPending} onClick={() => ask.mutate()} style={{ alignSelf: 'flex-start' }}>
-        {ask.isPending ? t('game.detail.advisor.thinking') : advice ? t('game.detail.advisor.again') : t('game.detail.advisor.ask')}
+        {ask.isPending ? <span style={st('display:inline-flex;align-items:center;gap:8px')}><Spinner />{t('game.detail.advisor.thinking')}</span> : advice ? t('game.detail.advisor.again') : t('game.detail.advisor.ask')}
       </Btn>
       {error && <span style={st('font:500 13px var(--font-ui);color:var(--danger)')}>{error}</span>}
       {advice && !advice.enoughHistory && <span style={st('font:400 13px/1.45 var(--font-ui);color:var(--muted)')}>{t('game.detail.advisor.notEnough')}</span>}

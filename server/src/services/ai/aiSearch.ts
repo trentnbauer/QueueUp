@@ -63,7 +63,7 @@ export function hasAnyFilter(f: DiscoverFilters): boolean {
 /** Turns a sentence into the app's own filters. Never returns games: the caller runs the filters. */
 export async function aiParseSearch(userId: string, roomId: string | undefined, text: string): Promise<{ filters: DiscoverFilters; unsupported: string[]; fallback: AiFallbackNotice | null }> {
   const wish = text.trim().slice(0, MAX_TEXT_LENGTH);
-  const res = await aiComplete({ system: SYSTEM, messages: [{ role: 'user', content: `Today is ${new Date().toISOString().slice(0, 10)}.\nSearch: ${JSON.stringify(wish)}` }], maxTokens: 400, temperature: 0 }, { userId, roomId });
+  const res = await aiComplete({ system: SYSTEM, messages: [{ role: 'user', content: `Today is ${new Date().toISOString().slice(0, 10)}.\nSearch: ${JSON.stringify(wish)}` }], maxTokens: 400, temperature: 0 }, { userId, roomId, label: 'search' });
   const parsed = parseSearchReply(res.text);
   // An unusable reply falls back to a plain keyword search, so the person still gets results.
   return { filters: parsed?.filters ?? { ...EMPTY_FILTERS, query: sanitizeFilters({ query: wish }).query }, unsupported: parsed?.unsupported ?? [], fallback: res.fallback };

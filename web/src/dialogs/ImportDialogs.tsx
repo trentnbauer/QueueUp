@@ -18,7 +18,7 @@ import { useUi } from '../context/UiContext';
 import { useLibraryLimits } from '../hooks/useLibraryLimits';
 import { Dialog } from '../ui/Dialog';
 import { LibraryBadge, type LibraryKind } from '../ui/LibraryLogo';
-import { AiBadge, AiPickedBadge, Banner, Btn, Cover, Group, Kicker, inputPill } from '../ui/primitives';
+import { AiBadge, AiPickedBadge, Banner, Btn, Cover, Group, Kicker, Spinner, inputPill } from '../ui/primitives';
 import { st } from '../ui/st';
 import { getBasePath } from '../utils/basePath';
 import { formatRelativeTime } from '../utils/relativeTime';
@@ -631,10 +631,10 @@ export function NeedsReviewDialog() {
             {aiReady && !bundle && (
               <div style={st('flex-shrink:0;display:flex;flex-wrap:wrap;align-items:center;gap:8px;padding:0 20px 6px')}>
                 <Btn kind="soft" height={36} padX={14} fontSize={13} disabled={aiMatch.isPending || aiClassify.isPending} onClick={() => aiMatch.mutate()}>
-                  {aiMatch.isPending ? (aiProgress ? t('add.review.ai.progress', aiProgress) : t('add.review.ai.working')) : t('add.review.ai.ask')}
+                  {aiMatch.isPending ? <span style={st('display:inline-flex;align-items:center;gap:8px')}><Spinner />{aiProgress ? t('add.review.ai.progress', aiProgress) : t('add.review.ai.working')}</span> : t('add.review.ai.ask')}
                 </Btn>
                 <Btn kind="soft" height={36} padX={14} fontSize={13} disabled={aiMatch.isPending || aiClassify.isPending} onClick={() => aiClassify.mutate()}>
-                  {aiClassify.isPending ? (aiProgress ? t('add.review.ai.progress', aiProgress) : t('add.review.ai.working')) : t('add.review.cleanup.ask')}
+                  {aiClassify.isPending ? <span style={st('display:inline-flex;align-items:center;gap:8px')}><Spinner />{aiProgress ? t('add.review.ai.progress', aiProgress) : t('add.review.ai.working')}</span> : t('add.review.cleanup.ask')}
                 </Btn>
                 <span style={st('font:400 12px var(--font-ui);color:var(--muted)')}>{t('add.review.ai.hint')}</span>
               </div>

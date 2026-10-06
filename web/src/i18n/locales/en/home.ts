@@ -220,4 +220,5 @@ export const home = {
   "home.duration.minutes": "{m}m",
   "home.duration.hours": "{h}h",
   "home.duration.hoursMinutes": "{h}h {m}m",
+  "home.nudge.merge.scanning": "AI is checking…",
 } as const;

@@ -187,7 +187,7 @@ export async function aiBacklogCoach(userId: string): Promise<AiBacklogCoachResp
   const history = summary.counts.finished + summary.counts.dropped + summary.counts.wontPlay;
   if (history < 3 || candidates.length < 3) return { enoughData: false, patterns: [], suggestions: [], fallback: null };
 
-  const res = await aiComplete({ system: SYSTEM, messages: [{ role: 'user', content: buildCoachPrompt(summary, candidates) }], maxTokens: 1200, temperature: 0.4 }, { userId });
+  const res = await aiComplete({ system: SYSTEM, messages: [{ role: 'user', content: buildCoachPrompt(summary, candidates) }], maxTokens: 1200, temperature: 0.4 }, { userId, label: 'coach' });
   const parsed = parseCoachReply(res.text, candidates);
   return { enoughData: true, patterns: parsed?.patterns ?? [], suggestions: parsed?.suggestions ?? [], fallback: res.fallback };
 }

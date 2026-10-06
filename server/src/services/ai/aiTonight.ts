@@ -103,7 +103,7 @@ export async function aiPickTonight(userId: string, request: string, excludeIds:
     .map((g) => g.title)
     .slice(0, 30);
 
-  const res = await aiComplete({ system: SYSTEM, messages: [{ role: 'user', content: buildTonightPrompt(wish, candidates, enjoyed) }], maxTokens: 600, temperature: 0.4 }, { userId });
+  const res = await aiComplete({ system: SYSTEM, messages: [{ role: 'user', content: buildTonightPrompt(wish, candidates, enjoyed) }], maxTokens: 600, temperature: 0.4 }, { userId, label: 'tonight' });
   const parsed = parseTonightReply(res.text, candidates);
   if (!parsed) throw new HttpError(502, 'The AI did not return a usable pick. Try again.');
   return { ...parsed, fallback: res.fallback };

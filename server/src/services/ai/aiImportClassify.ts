@@ -74,7 +74,7 @@ export async function aiClassifyPendingImports(userId: string, after?: string | 
   const rows: ClassifyRow[] = pending.map((p) => ({ id: p.id, title: p.title, source: p.source, platforms: p.platforms }));
   const settled = await Promise.allSettled(
     chunk(rows, AI_CLASSIFY_BATCH).map(async (batch) => {
-      const res = await aiComplete({ system: SYSTEM, messages: [{ role: 'user', content: buildClassifyPrompt(batch) }], maxTokens: 2048, temperature: 0 }, { userId });
+      const res = await aiComplete({ system: SYSTEM, messages: [{ role: 'user', content: buildClassifyPrompt(batch) }], maxTokens: 2048, temperature: 0 }, { userId, label: 'importClassify' });
       return { batch, res, items: parseClassifyReply(res.text, batch) };
     }),
   );

@@ -18,6 +18,7 @@ import {
 import { AiProviderError, callProvider, PROVIDER_DEFAULTS, type AiConfig, type AiRequest, type AiResponse } from './providers.js';
 import { chargeServerAiUse, type AiCharge } from './aiQuota.js';
 import { assertPublicTarget } from './aiNetworkGuard.js';
+import { runAiJob } from './aiJobs.js';
 
 /** Works out which AI settings a call uses and makes the call. A person's own settings win, when the
  * server allows them; otherwise the server-wide ones (env, or Administrator settings as the
@@ -275,14 +276,14 @@ async function runChain(
  * settings name backups, a failing provider falls through to the next one; `fallback` says so. */
 export async function aiComplete(
   req: AiRequest,
-  opts: { userId?: string; roomId?: string } = {},
+  opts: { userId?: string; roomId?: string; /** What kind of request this is, for the activity list shown to the person. */ label?: string } = {},
 ): Promise<AiResponse & { source: AiSettingsSource; fallback: AiFallbackNotice | null }> {
   const resolved = await resolveAiChain(opts.userId, opts.roomId);
   if (!resolved) throw new HttpError(400, 'AI is not set up. Add a provider in your account settings, or ask the server admin to set one.');
   // Only the operator's own key is rationed; a person's or a sponsor's key costs the server nothing.
   const charge = resolved.source === 'server' && opts.userId ? await chargeServerAiUse(opts.userId) : null;
   try {
-    const res = await runChain(resolved.configs, resolved.owner, req, resolved.source === 'server' ? undefined : opts.userId);
+    const res = await runAiJob(opts.userId, opts.label ?? 'ai', () => runChain(resolved.configs, resolved.owner, req, resolved.source === 'server' ? undefined : opts.userId));
     return { ...res, source: resolved.source };
   } catch (err) {
     // The provider failing is not the person's doing - give the use back.
@@ -353,7 +354,7 @@ export async function aiCompleteEntry(
   if (scope !== 'server' && parts.userSupplied && !env.AI_ALLOW_USER_BASE_URL) throw new HttpError(403, 'This server does not allow a custom AI address in personal settings');
   const config: AiConfig = parts.userSupplied ? { ...built, userSupplied: true } : built;
   // A throwaway owner, so a test never touches the "first provider failed" notice a real call leaves.
-  return runChain([config], 'entry-test', req);
+  return runAiJob(scope === 'server' ? undefined : scope.userId, 'test', () => runChain([config], 'entry-test', req));
 }
 
 /** Same as aiComplete but for the server-wide settings only (the Administrator's "test" button). */

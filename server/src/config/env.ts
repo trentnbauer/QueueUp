@@ -213,6 +213,17 @@ export const envSchema = z.object({
       const n = v?.trim() ? Number(v) : 50;
       return Number.isInteger(n) && n >= 0 ? n : 50;
     }),
+  // Most AI requests the server runs at once; more wait their turn (and show as queued in the
+  // notifications). 0 = no limit. Set 1 for a single local model (Ollama on one GPU), which handles
+  // requests one after another anyway - waiting here keeps a queued request from using up its 60 s
+  // timeout in Ollama's own line.
+  AI_MAX_CONCURRENT_REQUESTS: z
+    .string()
+    .optional()
+    .transform((v) => {
+      const n = v?.trim() ? Number(v) : 0;
+      return Number.isInteger(n) && n >= 0 ? n : 0;
+    }),
   // Whether a person's own settings may name a custom base URL (including ollama and
   // openai_compatible, which need one). Off by default: the server makes that request, so a custom
   // address lets a user point it at anything the server can reach. Turn on for a trusted instance.

@@ -6,7 +6,8 @@ import { DUPLICATE_COUNT_QUERY_KEY, DUPLICATE_LIST_QUERY_KEY, gamesApi } from '.
 import { useConfirm } from '../context/ConfirmContext';
 import { useUi } from '../context/UiContext';
 import { Dialog } from '../ui/Dialog';
-import { AiPickedBadge, Banner, Btn, Cover, Kicker } from '../ui/primitives';
+import { trackAiActivity } from '../hooks/useAiActivity';
+import { AiPickedBadge, Banner, Btn, Cover, Kicker, Spinner } from '../ui/primitives';
 import { st } from '../ui/st';
 import { useT } from '../i18n';
 
@@ -56,7 +57,8 @@ export function DuplicatesDialog() {
   const candidates = useQuery({ queryKey: DUPLICATE_LIST_QUERY_KEY, queryFn: gamesApi.duplicateCandidates });
 
   const run = useMutation({
-    mutationFn: () => gamesApi.aiScanDuplicates(),
+    // Tracked app-wide, so the shelf nudge and Settings row show the scan while this dialog is closed too.
+    mutationFn: () => trackAiActivity('duplicates', () => gamesApi.aiScanDuplicates()),
     onSuccess: (res) => {
       // A run that ended early (provider error, the daily limit on the shared AI) keeps what it found.
       setError(res.stopped ? t('add.review.ai.stopped', { reason: res.stopped }) : null);
@@ -152,7 +154,16 @@ export function DuplicatesDialog() {
         ) : (
           <div style={st('display:flex;align-items:center;gap:10px;flex-wrap:wrap')}>
             <Btn height={40} padX={18} disabled={busy || !aiReady} onClick={() => run.mutate()}>
-              {run.isPending ? t('settings.duplicates.scanning') : scan ? t('settings.duplicates.scanAgain') : t('settings.duplicates.scan')}
+              {run.isPending ? (
+                <span style={st('display:inline-flex;align-items:center;gap:8px')}>
+                  <Spinner />
+                  {t('settings.duplicates.scanning')}
+                </span>
+              ) : scan ? (
+                t('settings.duplicates.scanAgain')
+              ) : (
+                t('settings.duplicates.scan')
+              )}
             </Btn>
             {scan && scanPairs.length > 0 && !reviewing && (
               <Btn kind="soft" height={40} padX={18} disabled={busy} onClick={() => { setSkipped([]); setReviewing(true); }}>
@@ -163,10 +174,18 @@ export function DuplicatesDialog() {
         )}
         <span style={st('font:400 13.5px/1.45 var(--font-ui);color:var(--muted);text-wrap:pretty')}>{scan ? t('settings.duplicates.intro') : t('settings.duplicates.candidatesIntro')}</span>
         {error && <Banner onDismiss={() => setError(null)}>{error}</Banner>}
-        {!scan && candidates.data && pairs.length === 0 && <span style={st('font:500 14px/1.45 var(--font-ui)')}>{t('settings.duplicates.noCandidates')}</span>}
-        {scan && pairs.length === 0 && <span style={st('font:500 14px/1.45 var(--font-ui)')}>{scan.pairs.length === 0 ? t('settings.duplicates.none', { n: scan.checked }) : t('settings.duplicates.allDone')}</span>}
+        {run.isPending && (
+          <div role="status" style={st('display:flex;align-items:center;gap:12px;padding:12px 14px;border-radius:14px;background:var(--surf)')}>
+            <Spinner size={20} />
+            <span style={st('flex:1;min-width:0;font:500 13.5px/1.45 var(--font-ui);text-wrap:pretty')}>
+              {candidates.data && candidates.data.pairs.length > 0 ? t('settings.duplicates.scanningPairs', { n: candidates.data.pairs.length }) : t('settings.duplicates.scanningNoPairs')}
+            </span>
+          </div>
+        )}
+        {!run.isPending && !scan && candidates.data && pairs.length === 0 && <span style={st('font:500 14px/1.45 var(--font-ui)')}>{t('settings.duplicates.noCandidates')}</span>}
+        {!run.isPending && scan && pairs.length === 0 && <span style={st('font:500 14px/1.45 var(--font-ui)')}>{scan.pairs.length === 0 ? t('settings.duplicates.none', { n: scan.checked }) : t('settings.duplicates.allDone')}</span>}
         {visiblePairs.map((p) => (
-          <div key={pairKey(p)} style={st('display:flex;flex-direction:column;gap:10px;padding:12px;border-radius:18px;background:var(--surf)')}>
+          <div key={pairKey(p)} style={st(`display:flex;flex-direction:column;gap:10px;padding:12px;border-radius:18px;background:var(--surf);${run.isPending ? 'opacity:.55' : ''}`)}>
             {p.ai && (
               <div style={st('display:flex;align-items:center;gap:8px')}>
                 <AiPickedBadge title={t('settings.duplicates.badge')} />
