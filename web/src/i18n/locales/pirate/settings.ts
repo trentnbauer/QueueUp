@@ -462,6 +462,8 @@ export const settings: Record<keyof typeof en, string> = {
   "settings.ai.source.room": "A room you're in provides the AI for you.",
   "settings.ai.source.server": "The server's AI is used. Add your own below to use it instead.",
   "settings.ai.source.none": "AI isn't set up yet, here or on the server.",
+  "settings.ai.serverEntry": "Server AI",
+  "settings.ai.serverEntryHint": "Always last. Used if none of yer providers answer, and counts toward yer daily shared-AI limit.",
   "settings.ai.first": "First choice",
   "settings.ai.backup": "Backup {n}",
   "settings.ai.backupHint": "Used only if the one before it fails.",

@@ -39,6 +39,9 @@ export interface AiConfig {
    * request (see aiNetworkGuard.ts), and where the operator allows private addresses the provider's
    * error text is not shown back, since either would let a person probe what the server can reach. */
   userSupplied?: boolean;
+  /** This entry is the server's own AI tacked on after a person's (or room sponsor's) providers as
+   * the last resort. Using it counts against that person's daily allowance on the shared AI. */
+  viaServer?: boolean;
   /** Set by the caller (not stored): leave the provider's error text out of failures. */
   hideErrorBody?: boolean;
 }
