@@ -15,7 +15,8 @@ const POLL_INTERVAL_MS = 30_000;
  * infrastructure) for notification types that carry an action - `playtime_mark_playing` (its own
  * Mark Playing action) and `price_drop` (issue #563 - a View action, jumping to the room/Personal
  * Shelf the game's in, same navigation NotificationFlyout.tsx's own room-scoped Link already
- * offers). Mounted once at the app root (see App.tsx) so a toast can appear regardless of which
+ * offers). What friends do (a game they rate highly, and so on) is deliberately not toasted: it
+ * stays in the notifications list for when the person looks. Mounted once at the app root (see App.tsx) so a toast can appear regardless of which
  * view is on screen, not just when the notification flyout happens to be open. Shares the same
  * `['notifications', 'feed']` query key as the flyout's own useNotificationFeed - this hook's
  * always-on 30s poll keeps that cache warm for both, rather than the two independently fetching
@@ -74,17 +75,6 @@ export function useActionableNotificationToasts() {
             { label: t('shell.toasts.yesAddIt'), onClick: () => answer(true) },
             { label: t('common.no'), onClick: () => answer(false) },
           ],
-          onDismiss: () => markRead.mutate(notification.id),
-        });
-        continue;
-      }
-      // A friend recommended a game (#808) you don't have yet: find it in Add Game.
-      if (notification.type === 'friend_recommendation' && notification.gameId === null && !notification.read) {
-        const title = /"(.+)"/.exec(notification.message)?.[1];
-        showToast({
-          id: `notification-${notification.id}`,
-          message: notification.message,
-          actions: title ? [{ label: t('shell.toasts.findIt'), onClick: () => ui.openDialog('add', { query: title }) }] : [],
           onDismiss: () => markRead.mutate(notification.id),
         });
         continue;
@@ -155,14 +145,6 @@ export function useActionableNotificationToasts() {
               },
             },
           ],
-          onDismiss: () => markRead.mutate(notification.id),
-        });
-      } else if (notification.type === 'friend_recommendation' && !notification.read) {
-        showToast({
-          id: `notification-${notification.id}`,
-          message: notification.message,
-          onOpen: openGame,
-          actions: [{ label: t('common.view'), onClick: openGame }],
           onDismiss: () => markRead.mutate(notification.id),
         });
       } else if (notification.type === 'price_drop') {
