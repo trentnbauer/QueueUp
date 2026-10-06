@@ -100,6 +100,7 @@ const KIND_LABEL: Record<AdminBackupInfo['kind'], MessageKey> = {
   manual: 'pages.backups.kind.manual',
   'pre-restore': 'pages.backups.kind.preRestore',
   'pre-schema-push': 'pages.backups.kind.preSchemaPush',
+  'risky-upgrade': 'pages.backups.kind.riskyUpgrade',
 };
 
 /** Administrator menu > Backups: nightly backup settings (on by default, editable cron), the stored

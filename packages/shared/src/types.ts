@@ -1233,7 +1233,7 @@ export interface AdminBackupInfo {
   name: string;
   sizeBytes: number;
   createdAt: string;
-  kind: 'nightly' | 'manual' | 'pre-restore' | 'pre-schema-push';
+  kind: 'nightly' | 'manual' | 'pre-restore' | 'pre-schema-push' | 'risky-upgrade';
 }
 
 export interface AdminBackupSettings {

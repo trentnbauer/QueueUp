@@ -15,6 +15,11 @@ if [ "$(id -u)" = "0" ]; then
   exec su-exec node "$0" "$@"
 fi
 
+# A risky upgrade (a major version, which this project uses for breaking changes) gets its own backup
+# before anything else touches the database, named "RISKY UPGRADE - vX to vY". It never stops the
+# container: if it cannot be written the reason is logged and the start carries on.
+node dist/scripts/preUpgradeBackup.js || echo "[upgrade-backup] Could not run the pre-upgrade backup check; carrying on."
+
 # Syncs Postgres to match schema.prisma. Using `db push` rather than migrations for M1 —
 # no migration history yet, and this applies the schema directly without hand-written SQL.
 #
