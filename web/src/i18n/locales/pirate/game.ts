@@ -106,6 +106,7 @@ export const game: Record<keyof typeof en, string> = {
   "game.detail.hide.label": "Stash from others",
   "game.detail.hide.hint": "Hearties won’t see it in yer goings-on, and it’s left off yer public captain’s log",
   "game.detail.syncedFrom": "Hauled in from",
+  "game.detail.ownedOn": "Owned on",
   "game.detail.addedByYou": "Stowed by ye",
   "game.detail.addedBy": "Stowed by {name}",
   "game.priceChart.aria": "Bounty history, from {from} to {to}",

@@ -104,6 +104,7 @@ export const game = {
   "game.detail.hide.label": "Hide from others",
   "game.detail.hide.hint": "Friends won't see it in your activity, and it's left off your public profile",
   "game.detail.syncedFrom": "Synced from",
+  "game.detail.ownedOn": "Owned on",
   "game.detail.addedByYou": "Added by you",
   "game.detail.addedBy": "Added by {name}",
   "game.priceChart.aria": "Price history, from {from} to {to}",

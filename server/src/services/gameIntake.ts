@@ -562,6 +562,18 @@ export async function mergeGameInto(
  * other card's status only wins over the surviving card's if the surviving one is still in one. */
 const UNSTARTED_STATUSES: GameStatus[] = ['wishlist', 'backlog'];
 
+/** The platforms a merged card is owned on: both cards' lists together. `undefined` means that
+ * card had no ownership claim at all; an empty list means "owned, platform unknown", which already
+ * counts as owned everywhere, so a survivor in that state is left as it is. Returns null when
+ * there is nothing to change. */
+export function mergedOwnershipPlatforms(source: RoomPlatform[] | undefined, target: RoomPlatform[] | undefined): RoomPlatform[] | null {
+  if (!source) return null;
+  if (!target) return [...source];
+  if (target.length === 0) return null;
+  const union = [...new Set([...target, ...source])];
+  return union.length === target.length ? null : union;
+}
+
 /** Folds a duplicate card (sourceId) into the card for the same game that already exists
  * (targetId), then deletes the duplicate. Everything the duplicate collected moves across -
  * play logs, play journal entries, votes, removal votes, tags, reviews, Playnite playtime/completion rows, notifications,
@@ -600,6 +612,28 @@ async function mergeIntoExisting(sourceId: string, targetId: string): Promise<vo
     const targetSuggestionUsers = (await tx.playniteCompletionSuggestion.findMany({ where: { gameId: targetId }, select: { userId: true } })).map((r) => r.userId);
     await tx.playniteCompletionSuggestion.deleteMany({ where: { gameId: sourceId, userId: { in: targetSuggestionUsers } } });
     await tx.playniteCompletionSuggestion.updateMany({ where: { gameId: sourceId }, data: { gameId: targetId } });
+
+    // Where a Personal Shelf copy came from and where it is owned follow the person's igdbId, not the
+    // card, so the survivor would lose "synced from Steam" / "owned on PS5" for whatever only the
+    // merged card's game recorded. Carry both across (never removing what the survivor has).
+    if (source.roomId === null && source.igdbId !== target.igdbId) {
+      const sourceSyncs = await tx.gameSyncSource.findMany({ where: { userId: source.addedBy, igdbId: source.igdbId }, select: { source: true } });
+      if (sourceSyncs.length > 0) {
+        await tx.gameSyncSource.createMany({ data: sourceSyncs.map((s) => ({ userId: source.addedBy, igdbId: target.igdbId, source: s.source })), skipDuplicates: true });
+      }
+      const [sourceOwn, targetOwn] = await Promise.all([
+        tx.gameOwnership.findUnique({ where: { userId_igdbId: { userId: source.addedBy, igdbId: source.igdbId } } }),
+        tx.gameOwnership.findUnique({ where: { userId_igdbId: { userId: source.addedBy, igdbId: target.igdbId } } }),
+      ]);
+      const merged = mergedOwnershipPlatforms(sourceOwn?.platforms, targetOwn?.platforms);
+      if (merged && sourceOwn) {
+        await tx.gameOwnership.upsert({
+          where: { userId_igdbId: { userId: source.addedBy, igdbId: target.igdbId } },
+          create: { userId: source.addedBy, igdbId: target.igdbId, platforms: merged },
+          update: { platforms: merged },
+        });
+      }
+    }
 
     // Rows with no per-person uniqueness just move.
     await tx.playLog.updateMany({ where: { gameId: sourceId }, data: { gameId: targetId } });

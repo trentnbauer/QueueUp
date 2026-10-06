@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { assertPlatformMatch, defaultStatusForRelease } from './gameIntake.js';
+import { assertPlatformMatch, defaultStatusForRelease, mergedOwnershipPlatforms } from './gameIntake.js';
 import type { IgdbGameDetail } from './igdbClient.js';
 
 function detail(platformFamilies: IgdbGameDetail['platformFamilies']): IgdbGameDetail {
@@ -71,5 +71,28 @@ describe('defaultStatusForRelease (issue #370)', () => {
 
   it('defaults a game with no known release date to backlog', () => {
     expect(defaultStatusForRelease(null)).toBe('backlog');
+  });
+});
+
+describe('mergedOwnershipPlatforms', () => {
+  it('does nothing when the merged card had no ownership claim', () => {
+    expect(mergedOwnershipPlatforms(undefined, ['pc'])).toBeNull();
+    expect(mergedOwnershipPlatforms(undefined, undefined)).toBeNull();
+  });
+
+  it('gives the survivor the merged card\'s platforms when it has no claim of its own', () => {
+    expect(mergedOwnershipPlatforms(['ps5'], undefined)).toEqual(['ps5']);
+  });
+
+  it('unions both cards\' platforms, keeping the survivor\'s', () => {
+    expect(mergedOwnershipPlatforms(['ps5'], ['pc'])).toEqual(['pc', 'ps5']);
+  });
+
+  it('reports no change when the survivor already covers everything', () => {
+    expect(mergedOwnershipPlatforms(['pc'], ['pc', 'ps5'])).toBeNull();
+  });
+
+  it('leaves an unknown-platform ("owned everywhere") survivor alone', () => {
+    expect(mergedOwnershipPlatforms(['ps5'], [])).toBeNull();
   });
 });
