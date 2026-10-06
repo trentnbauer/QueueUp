@@ -298,7 +298,8 @@ function RoomSpinSettingsDialog({ room, patch, onClose }: { room: Room; patch: (
         <span style={st(DEFAULT_LABEL)}>{t('room.spin.priceLabel')}</span>
         <div style={st('display:flex;flex-wrap:wrap;gap:6px')}>
           {[0, 10, 20, 40].map((v) => (
-            <ChipToggle key={v} on={spinMax === v} onClick={() => patch({ spinOwnershipMaxPrice: v }, v === 0 ? t('room.spin.toastOwnedOnly') : t('room.spin.toastOwnedOrPrice', { price: v }))}>
+            // Pressing the chosen price again drops it, back to owned-only (the baseline).
+            <ChipToggle key={v} on={spinMax === v} onClick={() => { const next = spinMax === v ? 0 : v; patch({ spinOwnershipMaxPrice: next }, next === 0 ? t('room.spin.toastOwnedOnly') : t('room.spin.toastOwnedOrPrice', { price: next })); }}>
               {v === 0 ? t('room.spin.ownedOnly') : `$${v}`}
             </ChipToggle>
           ))}
@@ -306,7 +307,7 @@ function RoomSpinSettingsDialog({ room, patch, onClose }: { room: Room; patch: (
         <span style={st(DEFAULT_LABEL)}>{t('room.spin.lengthLabel')}</span>
         <div style={st('display:flex;flex-wrap:wrap;gap:6px')}>
           {[0, 10, 20, 40].map((h) => (
-            <ChipToggle key={h} on={(spinDefaults.maxTtb ?? 0) === h} onClick={() => patch({ spinDefaults: { maxTtb: h } }, t('room.spin.saved'))}>
+            <ChipToggle key={h} on={(spinDefaults.maxTtb ?? 0) === h} onClick={() => patch({ spinDefaults: { maxTtb: (spinDefaults.maxTtb ?? 0) === h ? 0 : h } }, t('room.spin.saved'))}>
               {h ? t('room.spin.under', { h }) : t('room.spin.anyLength')}
             </ChipToggle>
           ))}
@@ -314,7 +315,7 @@ function RoomSpinSettingsDialog({ room, patch, onClose }: { room: Room; patch: (
         <span style={st(DEFAULT_LABEL)}>{t('room.spin.scoreLabel')}</span>
         <div style={st('display:flex;flex-wrap:wrap;gap:6px')}>
           {[0, 7, 8, 9].map((n) => (
-            <ChipToggle key={n} on={(spinDefaults.minScore ?? 0) === n * 10} onClick={() => patch({ spinDefaults: { minScore: n * 10 } }, t('room.spin.saved'))}>
+            <ChipToggle key={n} on={(spinDefaults.minScore ?? 0) === n * 10} onClick={() => patch({ spinDefaults: { minScore: (spinDefaults.minScore ?? 0) === n * 10 ? 0 : n * 10 } }, t('room.spin.saved'))}>
               {n ? `★ ${n}+` : t('room.spin.anyScore')}
             </ChipToggle>
           ))}
