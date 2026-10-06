@@ -1,0 +1,38 @@
+name: Docker boot test
+
+# Builds the production image and boots it against throwaway Postgres and Redis (docker/boot-check.sh).
+# Type-checks and unit tests have passed on dependency bumps that still broke the image (a lock file the
+# image's npm could not install, a plugin that failed at startup), so this catches that before merging.
+# Only runs when something that can change the image changes.
+on:
+  pull_request:
+    paths:
+      - "docker/**"
+      - "packages/**"
+      - "server/**"
+      - "web/**"
+      - "package.json"
+      - "package-lock.json"
+      - ".github/workflows/docker-boot-test.yml"
+  push:
+    branches: [main]
+    paths:
+      - "docker/**"
+      - "package-lock.json"
+
+permissions:
+  contents: read
+
+jobs:
+  boot:
+    name: docker-boot
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Build the image
+        run: docker build -f docker/Dockerfile.server -t queueup-check .
+
+      - name: Boot it and check it
+        run: sh docker/boot-check.sh queueup-check
