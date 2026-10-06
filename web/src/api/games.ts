@@ -82,6 +82,7 @@ function browseQuery(roomId: string | null | undefined, hideAddons: boolean, all
 export const gamesApi = {
   shelf: (region?: PriceRegion, q?: string) =>
     apiGet<{ games: Game[]; truncated: boolean; totalCount: number }>(`/api/games${libraryQuery(region, q)}`),
+  roomVersion: (roomId: string) => apiGet<{ version: string }>(`/api/rooms/${roomId}/games-version`),
   room: (roomId: string, region?: PriceRegion, q?: string) =>
     apiGet<{ games: Game[]; truncated: boolean; totalCount: number }>(`/api/rooms/${roomId}/games${libraryQuery(region, q)}`),
   search: (q: string, roomId?: string | null, offset = 0, hideAddons = true, includeOwned = false, allPlatforms = false) =>

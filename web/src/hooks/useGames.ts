@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useQuery, useMutation, useQueryClient, type Query } from '@tanstack/react-query';
 import { gamesApi } from '../api/games';
 import { tagsApi } from '../api/tags';
@@ -27,8 +27,16 @@ export function isSameGamesList(query: Query, roomId: string | null): boolean {
   return roomId === null ? key[1] === 'shelf' || key[1] === 'shelf-search' : key[1] === 'room' && key[2] === roomId;
 }
 
-/** How often an open room re-reads its games so other members' changes appear. */
-export const ROOM_POLL_MS = 15_000;
+/** How often an open room asks whether its games changed (#1042); the list itself is only read when the
+ * answer moved. Backs off while nothing is happening: every 15 s at first, then 30 s, then a minute. */
+export function roomPollDelay(unchangedChecks: number): number {
+  if (unchangedChecks < 8) return 15_000;
+  if (unchangedChecks < 20) return 30_000;
+  return 60_000;
+}
+
+/** A slow full re-read as a safety net, for anything the cheap version does not cover. */
+export const ROOM_FULL_REFRESH_MS = 5 * 60_000;
 
 /** Handles listing + status/vote/remove mutations for either the personal shelf (roomId null) or a room. */
 export function useGames(roomId: string | null) {
@@ -48,11 +56,39 @@ export function useGames(roomId: string | null) {
   const query = useQuery({
     queryKey,
     queryFn: () => (roomId ? gamesApi.room(roomId, region) : gamesApi.shelf(region)),
-    // A room is shared: other members' votes, statuses and additions show up on their own while the
-    // room is open (polling, only while the tab is visible - see the client's refetchIntervalInBackground).
-    // The shelf is only ever changed by its owner, so it does not poll.
-    refetchInterval: roomId ? ROOM_POLL_MS : false,
+    // A room is shared: other members' votes, statuses and additions show up on their own while the room is
+    // open. That is a cheap "changed since" check below, with only a slow full re-read here as a safety net
+    // (both only while the tab is visible - see the client's refetchIntervalInBackground). The shelf is only
+    // ever changed by its owner, so it does not poll.
+    refetchInterval: roomId ? ROOM_FULL_REFRESH_MS : false,
   });
+
+  // Asks the server for the room's short version (#1042) and re-reads the list only when it moved.
+  const unchangedChecks = useRef(0);
+  const lastVersion = useRef<string | null>(null);
+  useEffect(() => {
+    unchangedChecks.current = 0;
+    lastVersion.current = null;
+  }, [roomId]);
+  const version = useQuery({
+    queryKey: ['room-games-version', roomId],
+    queryFn: async () => (await gamesApi.roomVersion(roomId as string)).version,
+    enabled: !!roomId,
+    refetchInterval: () => roomPollDelay(unchangedChecks.current),
+    // Every answer is checked, even an identical one (that is what the back-off counts).
+    structuralSharing: false,
+  });
+  useEffect(() => {
+    if (!roomId || version.data === undefined) return;
+    if (lastVersion.current !== null && lastVersion.current !== version.data) {
+      unchangedChecks.current = 0;
+      void queryClient.invalidateQueries({ queryKey });
+    } else if (lastVersion.current !== null) {
+      unchangedChecks.current += 1;
+    }
+    lastVersion.current = version.data;
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [version.dataUpdatedAt]);
 
   const invalidate = () => queryClient.invalidateQueries({ queryKey });
 
