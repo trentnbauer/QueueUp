@@ -230,4 +230,6 @@ export const shell = {
   "shell.onboarding.shelfColour.title": "Your shelf colour",
   "shell.onboarding.shelfColour.sub": "Your Personal Shelf gets a colour of its own. Pick one now, and change it any time in Shelf settings.",
   "shell.onboarding.shelfColour.preview": "Personal Shelf",
+  "shell.undo.done": "Undone",
+  "shell.undo.failed": "Could not undo that",
 } as const;

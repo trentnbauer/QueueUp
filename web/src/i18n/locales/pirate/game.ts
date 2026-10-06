@@ -182,4 +182,5 @@ export const game: Record<keyof typeof en, string> = {
   "game.recommend.sendTo": "Recommend to {n}",
   "game.recommend.pick": "Pick hearties",
   "game.recommend.hint": "Tick who should sail {title}. They get a message in a bottle with yer review score.",
+  "game.igdbMatch.rematched": "Now matched to {title}",
 };

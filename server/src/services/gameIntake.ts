@@ -30,6 +30,7 @@ import { notifyRoom } from './notifications.js';
 import { logShelfActivity } from './roomActivity.js';
 import { toUserDto } from '../util/dto.js';
 import { Prisma } from '@prisma/client';
+import { captureMergeUndo, captureRematchUndo, saveUndo } from './mergeUndo.js';
 import {
   ROOM_PLATFORM_LABELS,
   withBackwardsCompatible,
@@ -493,7 +494,7 @@ export async function rematchGame(
   game: { id: string; roomId: string | null; addedBy: string; igdbId: number; title: string; coverImageUrl: string | null },
   newIgdbId: number,
   platforms?: RoomPlatform[],
-): Promise<{ gameId: string; mergedFromId: string | null }> {
+): Promise<{ gameId: string; mergedFromId: string | null; undoToken?: string }> {
   if (!Number.isInteger(newIgdbId) || newIgdbId <= 0) throw new HttpError(400, 'A valid igdbId is required');
   if (newIgdbId === game.igdbId) return { gameId: game.id, mergedFromId: null };
 
@@ -501,12 +502,14 @@ export async function rematchGame(
     where: { ...duplicateScopeWhere(game.roomId, game.addedBy), igdbId: newIgdbId },
   });
   if (existing) {
+    const undo = await captureMergeUndo(userId, game.id, existing.id);
     await mergeIntoExisting(game.id, existing.id);
     await recordMatchRedirect(userId, game, { igdbId: newIgdbId, title: existing.title });
-    return { gameId: existing.id, mergedFromId: game.id };
+    return { gameId: existing.id, mergedFromId: game.id, undoToken: await saveUndo(undo) };
   }
 
   const resolved = await resolveGameForCreation(newIgdbId, platforms);
+  const rematchUndo = await captureRematchUndo(userId, game.id, newIgdbId);
   try {
     await prisma.game.update({
       where: { id: game.id },
@@ -537,7 +540,7 @@ export async function rematchGame(
     rethrowAsDuplicateGame(err, game.roomId, resolved.title);
   }
   await recordMatchRedirect(userId, game, { igdbId: newIgdbId, title: resolved.title });
-  return { gameId: game.id, mergedFromId: null };
+  return { gameId: game.id, mergedFromId: null, undoToken: await saveUndo(rematchUndo) };
 }
 
 /** "Duplicate?" (issue #848): folds `game` into another card the person picked from the same list
@@ -547,15 +550,16 @@ export async function mergeGameInto(
   userId: string,
   game: { id: string; roomId: string | null; addedBy: string; igdbId: number; title: string; coverImageUrl: string | null },
   targetGameId: string,
-): Promise<{ gameId: string; mergedFromId: string }> {
+): Promise<{ gameId: string; mergedFromId: string; undoToken: string }> {
   if (targetGameId === game.id) throw new HttpError(400, 'Pick a different game to merge into');
   const target = await prisma.game.findFirst({
     where: { ...duplicateScopeWhere(game.roomId, game.addedBy), id: targetGameId },
   });
   if (!target) throw new HttpError(404, 'That game is not in this list');
+  const undo = await captureMergeUndo(userId, game.id, target.id);
   await mergeIntoExisting(game.id, target.id);
   await recordMatchRedirect(userId, game, { igdbId: target.igdbId, title: target.title });
-  return { gameId: target.id, mergedFromId: game.id };
+  return { gameId: target.id, mergedFromId: game.id, undoToken: await saveUndo(undo) };
 }
 
 /** Statuses meaning "nothing has happened with this yet" - when merging two cards of one game, the

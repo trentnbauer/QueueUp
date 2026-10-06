@@ -7,6 +7,7 @@ import { useConfirm } from '../context/ConfirmContext';
 import { useUi } from '../context/UiContext';
 import { Dialog } from '../ui/Dialog';
 import { trackAiActivity } from '../hooks/useAiActivity';
+import { useUndoChange } from '../hooks/useUndoChange';
 import { AiPickedBadge, Banner, Btn, Cover, Kicker, Spinner } from '../ui/primitives';
 import { st } from '../ui/st';
 import { useT } from '../i18n';
@@ -41,6 +42,7 @@ export function DuplicatesDialog() {
   const t = useT();
   const ui = useUi();
   const confirm = useConfirm();
+  const undoable = useUndoChange();
   const queryClient = useQueryClient();
   const ai = useQuery({ queryKey: AI_SETTINGS_QUERY_KEY, queryFn: aiApi.mine });
   const aiReady = !!ai.data && ai.data.effectiveSource !== 'none';
@@ -94,13 +96,13 @@ export function DuplicatesDialog() {
   async function mergeNow(p: DuplicateSuggestion, keep: DuplicateSuggestionGame) {
     const remove = keep.id === p.a.id ? p.b : p.a;
     setError(null);
-    await merge.mutateAsync({ remove, keep });
+    const merged = await merge.mutateAsync({ remove, keep });
     setGone((g) => [...g, pairKey(p)]);
     setTally((n) => ({ ...n, merged: n.merged + 1 }));
     void queryClient.invalidateQueries({ queryKey: GAMES_QUERY_ROOT });
     void queryClient.invalidateQueries({ queryKey: DUPLICATE_COUNT_QUERY_KEY });
     void queryClient.invalidateQueries({ queryKey: DUPLICATE_LIST_QUERY_KEY });
-    ui.notify(t('settings.duplicates.merged', { remove: remove.title, keep: keep.title }));
+    undoable(t('settings.duplicates.merged', { remove: remove.title, keep: keep.title }), merged.undoToken);
   }
 
   /** From the list below the popup: the same merge, with its own confirmation. */
