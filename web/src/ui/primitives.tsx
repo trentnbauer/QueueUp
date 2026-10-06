@@ -365,20 +365,27 @@ export function IgdbScore({ score }: { score: number | null | undefined }) {
   );
 }
 
-/** A section that stays folded to its heading until opened with a Show / Hide button, for long admin lists.
- * `actions` sit beside the button while it is open. */
+/** A section that stays folded to its heading until the whole heading row is clicked, like the rows in
+ * Settings (label on the left, a chevron on the right that turns down when open). For long admin lists.
+ * `actions` sit at the right of the row while it is open, outside the clickable part. */
 export function Collapsible({ title, actions, defaultOpen = false, children }: { title: ReactNode; actions?: ReactNode; defaultOpen?: boolean; children: ReactNode }) {
   const [open, setOpen] = useState(defaultOpen);
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8 }}>
-        <Kicker>{title}</Kicker>
-        <span style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-          {open && actions}
-          <Btn kind="soft" height={32} padX={14} fontSize={12.5} ariaLabel={`${open ? t('pages.admin.hide') : t('pages.admin.show')}: ${typeof title === 'string' ? title : ''}`} onClick={() => setOpen((o) => !o)}>
-            {open ? t('pages.admin.hide') : t('pages.admin.show')}
-          </Btn>
-        </span>
+      <div style={{ display: 'flex', alignItems: 'center', background: 'var(--surf)', borderRadius: 18, overflow: 'hidden' }}>
+        <button
+          type="button"
+          className="hv-surf2"
+          aria-expanded={open}
+          onClick={() => setOpen((o) => !o)}
+          style={st('flex:1;min-width:0;display:flex;align-items:center;gap:12px;min-height:54px;padding:0 16px;border:none;background:var(--surf);color:var(--text);text-align:left;font:600 15px var(--font-ui)')}
+        >
+          <span style={{ flex: 1, minWidth: 0 }}>{title}</span>
+          <span aria-hidden="true" style={{ color: 'var(--muted)', fontSize: 20, transform: open ? 'rotate(90deg)' : 'none', transition: 'transform 0.15s' }}>
+            ›
+          </span>
+        </button>
+        {open && actions && <span style={{ display: 'flex', alignItems: 'center', gap: 6, paddingRight: 10 }}>{actions}</span>}
       </div>
       {open && children}
     </div>
