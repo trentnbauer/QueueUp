@@ -107,6 +107,8 @@ export const gamesApi = {
   priceHistory: (id: string, currency?: string | null) =>
     apiGet<PriceHistoryResponse>(`/api/games/${id}/price-history${currency ? `?currency=${encodeURIComponent(currency)}` : ''}`),
   trailer: (id: string) => apiGet<GameTrailerResponse>(`/api/games/${id}/trailer`),
+  /** The trailer for a game that is not on a list yet (AI picks). */
+  igdbTrailer: (igdbId: number) => apiGet<GameTrailerResponse>(`/api/games/igdb/${igdbId}/trailer`),
   dlc: (id: string) => apiGet<{ results: GameSearchResult[] }>(`/api/games/${id}/dlc`),
   create: (body: CreateGameRequest) => apiPost<CreateGameResponse>('/api/games', body),
   updateStatus: (id: string, body: UpdateGameStatusRequest) =>
