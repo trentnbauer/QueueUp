@@ -1,12 +1,48 @@
-# To get started with Dependabot version updates, you'll need to specify which
-# package ecosystems to update and where the package manifests are located.
-# Please see the documentation for all configuration options:
+# Weekly update checks. See
 # https://docs.github.com/code-security/dependabot/dependabot-version-updates/configuration-options-for-the-dependabot.yml-file
-
+#
+# Minor and patch updates come as one grouped PR per ecosystem so there is not a PR per package. Major
+# versions are left as their own PRs: they need a real `docker build` and the boot check (see the
+# docker-boot workflow) before merging, not only the unit tests.
+#
+# Not covered: the postgres and redis images pinned in the compose files, and the ollama image, because
+# Dependabot only reads Dockerfiles; check those by hand.
 version: 2
 updates:
-  - package-ecosystem: "" # See documentation for possible values
-    directory: "/" # Location of package manifests
+  # One lock file for the root, server, web and shared workspaces.
+  - package-ecosystem: "npm"
+    directory: "/"
     schedule:
       interval: "weekly"
+    open-pull-requests-limit: 5
+    groups:
+      npm-minor-and-patch:
+        update-types: ["minor", "patch"]
+    ignore:
+      # Stays on the Node major the container runs (node:24); a newer @types/node would describe APIs the
+      # runtime does not have.
+      - dependency-name: "@types/node"
+        update-types: ["version-update:semver-major"]
+      # Prisma 7 is a migration, not a bump (see issue #1040).
+      - dependency-name: "prisma"
+        update-types: ["version-update:semver-major"]
+      - dependency-name: "@prisma/client"
+        update-types: ["version-update:semver-major"]
 
+  - package-ecosystem: "github-actions"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+    groups:
+      actions-minor-and-patch:
+        update-types: ["minor", "patch"]
+
+  # The node:24-alpine base image in docker/Dockerfile.server.
+  - package-ecosystem: "docker"
+    directory: "/docker"
+    schedule:
+      interval: "weekly"
+    ignore:
+      # Node is moved deliberately, to an LTS major.
+      - dependency-name: "node"
+        update-types: ["version-update:semver-major"]
