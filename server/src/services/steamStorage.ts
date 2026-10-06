@@ -33,7 +33,9 @@ interface AppDetails {
 export async function fetchSteamStorageMb(appId: number): Promise<number | null> {
   const url = new URL('https://store.steampowered.com/api/appdetails');
   url.searchParams.set('appids', String(appId));
-  url.searchParams.set('filters', 'pc_requirements');
+  // `pc_requirements` on its own now comes back as an empty list for every game, so "basic" rides along:
+  // that returns the requirements too, at about half the size of the unfiltered answer.
+  url.searchParams.set('filters', 'basic,pc_requirements');
   const response = await fetch(url, { signal: AbortSignal.timeout(10_000) });
   if (!response.ok) throw new Error(`Steam appdetails ${response.status}`);
   const body = (await response.json()) as AppDetails;
