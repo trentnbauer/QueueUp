@@ -464,15 +464,6 @@ export function HomeView() {
               </button>
             );
           })}
-          <button
-            type="button"
-            onClick={() => ui.openDialog('duplicates')}
-            style={st('display:flex;align-items:center;gap:6px;height:34px;padding:0 14px;border-radius:999px;border:1px solid var(--line);background:transparent;color:var(--text2);font:600 13px var(--font-ui)')}
-          >
-            {scanningDuplicates && <Spinner size={12} />}
-            {t('home.moreFilters.findDuplicates')}
-            {possibleDuplicates > 0 && <span style={st('font:500 11px var(--font-mono);opacity:0.6')}>{possibleDuplicates}</span>}
-          </button>
         </div>
       )}
 

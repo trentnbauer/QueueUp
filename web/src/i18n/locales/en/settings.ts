@@ -376,7 +376,7 @@ export const settings = {
   // Shelf settings
   "settings.shelf.title": "Shelf settings",
   "settings.shelf.spinType": "Spin type",
-  "settings.shelf.merge": "Find games to merge",
+  "settings.shelf.merge": "Find duplicates",
   "settings.shelf.merge.sub": "AI finds the same game twice and merges extras into the original",
   "settings.shelf.spinType.toast": "Spin type: {theme}",
   "settings.shelf.spinType.random": "🎲 Random",
