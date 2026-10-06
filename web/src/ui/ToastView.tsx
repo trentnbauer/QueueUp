@@ -104,14 +104,16 @@ function StackItem({ toast, onDismiss }: { toast: Toast; onDismiss: (id: string)
   );
 }
 
-/** Persistent, actionable toasts (spin started, Playnite synced, ...). They stay until dismissed or acted on. */
+/** Persistent, actionable toasts (spin started, Playnite synced, ...). They stay until dismissed or acted on.
+ * Like the short toast they sit at the top (just under it), never over the bottom buttons of a sheet; with
+ * several they scroll instead of growing past the screen. */
 export function ToastStack({ toasts, onDismiss }: { toasts: Toast[]; onDismiss: (id: string) => void }) {
   if (toasts.length === 0) return null;
   return (
     <div
       role="region"
       aria-label={t('shell.nav.notifications')}
-      style={st('position:fixed;left:0;right:0;bottom:96px;z-index:290;display:flex;flex-direction:column;align-items:center;gap:8px;pointer-events:none;padding:0 16px')}
+      style={st('position:fixed;left:0;right:0;top:calc(env(safe-area-inset-top, 0px) + 72px);max-height:calc(100dvh - env(safe-area-inset-top, 0px) - 96px);overflow-y:auto;z-index:290;display:flex;flex-direction:column;align-items:center;gap:8px;pointer-events:none;padding:0 16px')}
     >
       {toasts.map((toast) => (
         <StackItem key={toast.id} toast={toast} onDismiss={onDismiss} />
