@@ -1,6 +1,7 @@
 import { useState, type ReactNode } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { authApi } from '../api/auth';
+import { ColourPicker } from '../ui/ColourPicker';
 import { EXOPHASE_STATUS_QUERY_KEY, exophaseApi } from '../api/exophase';
 import { XBOX_STATUS_QUERY_KEY, xboxApi } from '../api/xbox';
 import { PSN_STATUS_QUERY_KEY, psnApi } from '../api/psn';
@@ -13,7 +14,7 @@ import {
   alertEmailApi,
   notificationPreferencesApi,
 } from '../api/notificationPreferences';
-import { PRICE_REGION_LABELS, ROOM_PLATFORM_LABELS, sortPlatforms, type EmailAlertType, type PriceRegion, type ProfileVisibility } from '@queueup/shared';
+import { ACCENT_COLOURS, PRICE_REGION_LABELS, ROOM_PLATFORM_LABELS, sortPlatforms, type EmailAlertType, type PriceRegion, type ProfileVisibility } from '@queueup/shared';
 import { useAuth } from '../context/AuthContext';
 import { LANGUAGES, useI18n, type MessageKey } from '../i18n';
 import { priceRegionLabel } from '../i18n/labels';
@@ -31,7 +32,7 @@ import { LIBRARY_BRAND, LibraryLogo, type LibraryKind } from '../ui/LibraryLogo'
 import { st } from '../ui/st';
 
 const REGIONS = Object.keys(PRICE_REGION_LABELS) as PriceRegion[];
-type StepKind = 'language' | 'name' | 'visibility' | 'theme' | 'layout' | 'currency' | 'library' | 'email' | 'accent' | 'rooms' | 'optional';
+type StepKind = 'language' | 'name' | 'visibility' | 'theme' | 'layout' | 'currency' | 'library' | 'email' | 'accent' | 'shelfColour' | 'rooms' | 'optional';
 /** Each step's title and sub, as `shell.onboarding.<kind>.title` / `.sub` keys. */
 const stepText = (t: (key: MessageKey) => string, kind: Exclude<StepKind, 'language'>): [string, string] => [
   t(`shell.onboarding.${kind}.title` as MessageKey),
@@ -160,7 +161,7 @@ function DirectTile({ kind, linked, caption, disabled, onClick }: { kind: Librar
  * rooms) stack above it. */
 export function Onboarding({ onDone }: { onDone: () => void }) {
   const ui = useUi();
-  const { user, steamLinked, profileVisibility, ownedPlatforms, refetch } = useAuth();
+  const { user, steamLinked, profileVisibility, ownedPlatforms, shelfColor, refetch } = useAuth();
   const { region, setRegion } = useCurrencyRegion();
   const { preference, setPreference, accent, setAccent } = useThemeMode();
   const { viewMode, setViewMode } = useViewMode();
@@ -189,6 +190,8 @@ export function Onboarding({ onDone }: { onDone: () => void }) {
     'theme',
     // Room colours belong with the look of the app, so they follow the theme (#867).
     'accent',
+    // Only when they did not pick neutral: a neutral look has no colour to choose.
+    ...(accent === 'mono' ? [] : (['shelfColour'] as const)),
     'layout',
     'currency',
     'library',
@@ -199,6 +202,8 @@ export function Onboarding({ onDone }: { onDone: () => void }) {
     'optional',
   ];
   const [step, setStep] = useState(0);
+  // The Personal Shelf colour, saved when they press Next on its step.
+  const [shelfColourDraft, setShelfColourDraft] = useState<string | null>(shelfColor ?? ACCENT_COLOURS[2]);
   const [wantEmail, setWantEmail] = useState(false);
   // On unless they have already said no (the account's answer wins when there is one).
   const [shareStats, setShareStats] = useState(analytics.consent !== 'denied');
@@ -255,6 +260,18 @@ export function Onboarding({ onDone }: { onDone: () => void }) {
         setVisibilityError(null);
       } catch (e) {
         setVisibilityError(e instanceof Error ? e.message : t('settings.me.visibility.failed'));
+        return;
+      } finally {
+        setSavingName(false);
+      }
+    }
+    if (kind === 'shelfColour' && shelfColourDraft !== shelfColor) {
+      setSavingName(true);
+      try {
+        await authApi.setShelfColor(shelfColourDraft);
+        await refetch();
+      } catch (e) {
+        ui.showError(e instanceof Error ? e.message : t('settings.shelfColour.failed'));
         return;
       } finally {
         setSavingName(false);
@@ -423,6 +440,15 @@ export function Onboarding({ onDone }: { onDone: () => void }) {
               </ChoiceCard>
             ))}
           </ChoiceGrid>
+        )}
+
+        {kind === 'shelfColour' && (
+          <div style={st('flex-shrink:0;display:flex;flex-direction:column;gap:14px')}>
+            <div style={st(`height:84px;border-radius:18px;background:${shelfColourDraft ?? 'var(--surf)'};display:flex;align-items:center;justify-content:center;font:700 20px var(--font-display);color:#fff`)}>
+              {t('shell.onboarding.shelfColour.preview')}
+            </div>
+            <ColourPicker value={shelfColourDraft} onChange={setShelfColourDraft} label={t('shell.onboarding.shelfColour.title')} />
+          </div>
         )}
 
         {kind === 'currency' && (

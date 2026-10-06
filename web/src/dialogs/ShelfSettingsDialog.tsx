@@ -2,7 +2,9 @@ import { useState } from 'react';
 import { useInfiniteQuery } from '@tanstack/react-query';
 import { ROOM_PLATFORM_LABELS, SPIN_WHEEL_THEMES, sortPlatforms } from '@queueup/shared';
 import { gamesApi } from '../api/games';
+import { authApi } from '../api/auth';
 import { useAuth } from '../context/AuthContext';
+import { ColourPicker } from '../ui/ColourPicker';
 import { useScope } from '../context/ScopeContext';
 import { useUi } from '../context/UiContext';
 import { Dialog } from '../ui/Dialog';
@@ -56,7 +58,16 @@ export function ShelfSettingsDialog() {
   });
   const entries = activity.data?.pages.flatMap((p) => p.entries) ?? [];
   const [backlogSort, setBacklogSort] = useBacklogSort();
-  const { ownedPlatforms } = useAuth();
+  const { ownedPlatforms, shelfColor, refetch } = useAuth();
+  const saveColour = async (colour: string | null) => {
+    try {
+      await authApi.setShelfColor(colour);
+      await refetch();
+      ui.notify(t('settings.shelfColour.saved'));
+    } catch (e) {
+      ui.showError(e instanceof Error ? e.message : t('settings.shelfColour.failed'));
+    }
+  };
   const [spinTheme] = useShelfSpinTheme();
   const [systemsOpen, setSystemsOpen] = useState(false);
   const [spinOpen, setSpinOpen] = useState(false);
@@ -80,6 +91,11 @@ export function ShelfSettingsDialog() {
           }}
         />
       </Group>
+      <div style={st('display:flex;flex-direction:column;gap:10px')}>
+        <Kicker>{t('settings.shelfColour.title')}</Kicker>
+        <span style={st('font:400 13px/1.45 var(--font-ui);color:var(--muted)')}>{t('settings.shelfColour.hint')}</span>
+        <ColourPicker value={shelfColor} onChange={(c) => void saveColour(c)} allowClear label={t('settings.shelfColour.title')} />
+      </div>
       <div style={st('display:flex;flex-direction:column;gap:10px')}>
         <Kicker>{t('settings.shelf.sortBy')}</Kicker>
         <span style={st('font:400 13px/1.45 var(--font-ui);color:var(--muted)')}>{t('settings.shelf.sortHint')}</span>

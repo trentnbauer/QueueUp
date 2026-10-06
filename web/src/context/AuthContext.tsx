@@ -13,6 +13,8 @@ interface AuthContextValue {
   profileVisibility: ProfileVisibility;
   /** Vanity name for the public profile URL (/u/<slug>), or null to use the user id. */
   profileSlug: string | null;
+  /** The colour that tints the Personal Shelf (#rrggbb), or null for the default look. */
+  shelfColor: string | null;
   /** The provider this account originally signed up with - always linked, and the only one the
    * "Linked accounts" UI won't offer to unlink. */
   primaryProvider: string | null;
@@ -43,6 +45,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [ownedPlatforms, setOwnedPlatforms] = useState<RoomPlatform[]>([]);
   const [profileVisibility, setProfileVisibility] = useState<ProfileVisibility>('public');
   const [profileSlug, setProfileSlug] = useState<string | null>(null);
+  const [shelfColor, setShelfColor] = useState<string | null>(null);
   const [primaryProvider, setPrimaryProvider] = useState<string | null>(null);
   const [linkedProviders, setLinkedProviders] = useState<string[]>([]);
   const [isNewAccount, setIsNewAccount] = useState(false);
@@ -56,13 +59,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   };
 
   const refetch = async () => {
-    const { user, steamLinked, ownedPlatforms, profileVisibility, profileSlug, primaryProvider, linkedProviders, isNewAccount, onboardingPending } = await authApi.me();
+    const { user, steamLinked, ownedPlatforms, profileVisibility, profileSlug, shelfColor, primaryProvider, linkedProviders, isNewAccount, onboardingPending } = await authApi.me();
     setOnboardingPending(!!onboardingPending);
     setUser(user);
     setSteamLinked(steamLinked);
     setOwnedPlatforms(ownedPlatforms ?? []);
     setProfileVisibility(profileVisibility ?? 'public');
     setProfileSlug(profileSlug ?? null);
+    setShelfColor(shelfColor ?? null);
     setPrimaryProvider(primaryProvider);
     setLinkedProviders(linkedProviders ?? []);
     if (isNewAccount) setIsNewAccount(true);
@@ -80,6 +84,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         ownedPlatforms,
         profileVisibility,
         profileSlug,
+        shelfColor,
         primaryProvider,
         linkedProviders,
         isNewAccount,

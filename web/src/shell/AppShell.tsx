@@ -1,5 +1,6 @@
 import { useEffect, useState, type ReactNode } from 'react';
 import { useLocation } from 'react-router';
+import { useAuth } from '../context/AuthContext';
 import { useScope } from '../context/ScopeContext';
 import { useUi } from '../context/UiContext';
 import { GameDetail } from '../game/GameDetail';
@@ -46,7 +47,9 @@ export function AppShell({ children }: { children: ReactNode }) {
   }, [collapsed]);
 
   // The room's colour tints this shell (background, buttons, logo) - dialogs render outside it.
-  const roomColour = scope.room?.accentColor ?? null;
+  // The Personal Shelf is tinted by the colour the person chose for it (if any), a room by its own.
+  const { shelfColor } = useAuth();
+  const roomColour = scope.room?.accentColor ?? (scope.isShelf ? shelfColor : null);
   const roomHue = roomColour ? hexToOklchHue(roomColour) : null;
   const roomScope = roomHue === null ? {} : { 'data-room': '1', style: { '--rh': String(roomHue) } as React.CSSProperties };
 
