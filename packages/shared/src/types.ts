@@ -2929,6 +2929,11 @@ export interface DuplicateCandidateCountResponse {
   count: number;
 }
 
+/** Result of GET /api/games/duplicates: the pairs behind the count, by title alone (no AI). */
+export interface DuplicateCandidatesResponse {
+  pairs: { a: DuplicateSuggestionGame; b: DuplicateSuggestionGame; keep: 'a' | 'b' }[];
+}
+
 /** Body for POST /api/games/duplicates/dismiss: the two cards that are not duplicates. */
 export interface DismissDuplicateRequest {
   gameIdA: string;

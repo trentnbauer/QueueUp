@@ -6,7 +6,7 @@ import { extractJson } from './aiJson.js';
 import { chunk, stopReason } from './aiImportBatch.js';
 import { findCandidatePairs, igdbPairKey } from '../duplicateCandidates.js';
 import { notifyMergeSuggestions } from '../notifications.js';
-import type { AiDuplicateScanResponse, DuplicateSuggestion, DuplicateSuggestionGame } from '@queueup/shared';
+import type { AiDuplicateScanResponse, DuplicateCandidatesResponse, DuplicateSuggestion, DuplicateSuggestionGame } from '@queueup/shared';
 
 /** The AI must be at least this sure before a pair is shown. */
 export const AI_DUPLICATE_MIN_CONFIDENCE = 0.7;
@@ -79,6 +79,25 @@ export async function countDuplicateCandidates(userId: string): Promise<number> 
   ]);
   const dismissed = new Set(dismissals.map((d) => igdbPairKey(d.igdbIdLow, d.igdbIdHigh)));
   return findCandidatePairs(games, dismissed, MAX_SCAN_PAIRS).length;
+}
+
+/** The pairs the count above is made of, each with the card to keep by the same release-year/title
+ * rule the AI scan uses. No AI involved - the person reviews them by hand, or runs the AI scan to
+ * have them judged. */
+export async function listDuplicateCandidates(userId: string): Promise<DuplicateCandidatesResponse> {
+  const [games, dismissals] = await Promise.all([
+    prisma.game.findMany({ where: { roomId: null, addedBy: userId }, select: SELECT, orderBy: { title: 'asc' } }),
+    prisma.duplicateDismissal.findMany({ where: { userId } }),
+  ]);
+  const dismissed = new Set(dismissals.map((d) => igdbPairKey(d.igdbIdLow, d.igdbIdHigh)));
+  const strip = ({ igdbCollectionId: _c, ...g }: (typeof games)[number]): DuplicateSuggestionGame => g;
+  return {
+    pairs: findCandidatePairs(games, dismissed, MAX_SCAN_PAIRS).map(([x, y]) => {
+      const a = strip(x);
+      const b = strip(y);
+      return { a, b, keep: chooseKeep(a, b) };
+    }),
+  };
 }
 
 /** Scans the person's own shelf for likely duplicates: a cheap title/collection pre-filter picks the
