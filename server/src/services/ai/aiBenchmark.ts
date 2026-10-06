@@ -76,7 +76,8 @@ function requestFor(step: AiBenchmarkStep): AiRequest {
 export async function runBenchmarkStep(scope: { userId: string } | 'server', index: number, step: AiBenchmarkStep): Promise<AiBenchmarkResult> {
   const started = Date.now();
   try {
-    const res = await aiCompleteEntry(scope, index, requestFor(step));
+    const req = requestFor(step);
+    const res = await aiCompleteEntry(scope, index, req);
     const ms = Math.max(1, Date.now() - started);
     const outputTokens = res.usage?.outputTokens ?? Math.max(1, Math.round(res.text.length / 4));
     return {
@@ -85,7 +86,8 @@ export async function runBenchmarkStep(scope: { userId: string } | 'server', ind
       ms,
       outputTokens,
       tokensPerSecond: Math.round((outputTokens / (ms / 1000)) * 10) / 10,
-      validJson: step === 'load' ? null : Array.isArray(extractJson(res.text)),
+      // An answer that ran into the output limit was cut off, so it is not the complete list the app needs.
+      validJson: step === 'load' ? null : Array.isArray(extractJson(res.text)) && outputTokens < (req.maxTokens ?? Infinity) * 0.97,
       timedOut: false,
       error: null,
     };

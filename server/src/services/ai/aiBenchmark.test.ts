@@ -53,6 +53,10 @@ describe('runBenchmarkStep', () => {
     expect(bad.validJson).toBe(false);
     expect(bad.outputTokens).toBeGreaterThan(0);
 
+    // Ran into the 2048-token output limit: cut off, so not the complete list the app needs.
+    aiCompleteEntry.mockResolvedValue(reply('[{"pair":1,"confidence":0.9}]', 2048));
+    expect((await runBenchmarkStep('server', 0, 'batch')).validJson).toBe(false);
+
     aiCompleteEntry.mockResolvedValue(reply('OK'));
     expect((await runBenchmarkStep('server', 0, 'load')).validJson).toBeNull();
   });
