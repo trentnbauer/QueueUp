@@ -13,7 +13,8 @@ import {
   isPlayMode,
   isUnreleased,
   pendingPlay,
-  positionAt,
+  displayPositionAt,
+  snappedSettledPosition,
   publicPlay,
   resolveConcreteTheme,
   settledPositionOf,
@@ -322,7 +323,8 @@ export function SpinDialog({ onClose }: { onClose: () => void }) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [session?.id]);
 
-  const position = run ? (settled ? run.settledPosition : positionAt(run.base, now)) : 0;
+  // The reel ticks from card to card and comes to rest exactly on the winner, centred under the marker.
+  const position = run ? (settled ? snappedSettledPosition(run.base) : displayPositionAt(run.base, now)) : 0;
   const winner = isMode
     ? settled && play?.winnerId
       ? (poolById.get(play.winnerId) ?? null)

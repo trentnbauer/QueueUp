@@ -124,3 +124,34 @@ export function applyNudge(base: SpinBase, atMs: number, direction: 'left' | 'ri
 export function candidateIndexAt(position: number, stripLength: number): number {
   return ((Math.round(position) % stripLength) + stripLength) % stripLength;
 }
+
+/** The whole slot the reel comes to rest on: the strip position `settledPositionOf` heads for, rounded
+ * to the nearest slot. This is the winner (see candidateIndexAt) and exactly where the reel is drawn
+ * once it has stopped, so the winning card sits dead centre under the marker. */
+export function snappedSettledPosition(base: SpinBase): number {
+  return Math.round(settledPositionOf(base));
+}
+
+/** Maps a position onto a reel that "ticks": each card holds still for the first half of its slot and
+ * moves to the next in the second half. At full speed it looks like a smooth blur; as the reel slows
+ * it visibly clicks over one card at a time. Whole numbers map to themselves. */
+export function tickPosition(position: number): number {
+  const whole = Math.floor(position);
+  const e = Math.min(1, Math.max(0, (position - whole - 0.5) * 2));
+  return whole + e * e * (3 - 2 * e);
+}
+
+/** Where the reel is *drawn* at `atMs`. The physics (`positionAt`) decays towards a resting position
+ * that is almost never a whole slot, but the winner is the nearest whole slot, so drawing the raw
+ * position would stop the marker between two cards. This stretches the path by at most half a slot,
+ * in proportion to how far the spin has got, so it arrives exactly on `snappedSettledPosition`, then
+ * ticks it from card to card. */
+export function displayPositionAt(base: SpinBase, atMs: number): number {
+  const target = snappedSettledPosition(base);
+  const span = settledPositionOf(base) - base.position0;
+  if (Math.abs(span) < 1e-9) return target;
+  const progress = (positionAt(base, atMs) - base.position0) / span;
+  const shown = tickPosition(base.position0 + (target - base.position0) * progress);
+  // Floating-point dust at the very end: it has arrived.
+  return Math.abs(shown - target) < 1e-6 ? target : shown;
+}
