@@ -2,6 +2,7 @@ import { useState, type CSSProperties, type ReactNode } from 'react';
 import type { GameStatus } from '@queueup/shared';
 import { useNavigate } from 'react-router';
 import { st } from './st';
+import { Dialog } from './Dialog';
 import { t } from '../i18n';
 
 // ---------------------------------------------------------------------------------------------
@@ -365,30 +366,35 @@ export function IgdbScore({ score }: { score: number | null | undefined }) {
   );
 }
 
-/** A section that stays folded to its heading until the whole heading row is clicked, like the rows in
- * Settings (label on the left, a chevron on the right that turns down when open). For long admin lists.
- * `actions` sit at the right of the row while it is open, outside the clickable part. */
-export function Collapsible({ title, actions, defaultOpen = false, children }: { title: ReactNode; actions?: ReactNode; defaultOpen?: boolean; children: ReactNode }) {
-  const [open, setOpen] = useState(defaultOpen);
+/** A section of Administrator settings: a row like the ones in Settings (label on the left, a chevron on
+ * the right) that opens its contents in a pop-out dialog, rather than unfolding in the page. `actions`
+ * sit above the contents inside the pop-out. */
+export function Collapsible({ title, actions, children }: { title: string; actions?: ReactNode; children: ReactNode }) {
+  const [open, setOpen] = useState(false);
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+    <>
       <div style={{ display: 'flex', alignItems: 'center', background: 'var(--surf)', borderRadius: 18, overflow: 'hidden' }}>
         <button
           type="button"
           className="hv-surf2"
+          aria-haspopup="dialog"
           aria-expanded={open}
-          onClick={() => setOpen((o) => !o)}
+          onClick={() => setOpen(true)}
           style={st('flex:1;min-width:0;display:flex;align-items:center;gap:12px;min-height:54px;padding:0 16px;border:none;background:var(--surf);color:var(--text);text-align:left;font:600 15px var(--font-ui)')}
         >
           <span style={{ flex: 1, minWidth: 0 }}>{title}</span>
-          <span aria-hidden="true" style={{ color: 'var(--muted)', fontSize: 20, transform: open ? 'rotate(90deg)' : 'none', transition: 'transform 0.15s' }}>
+          <span aria-hidden="true" style={{ color: 'var(--muted)', fontSize: 20 }}>
             ›
           </span>
         </button>
-        {open && actions && <span style={{ display: 'flex', alignItems: 'center', gap: 6, paddingRight: 10 }}>{actions}</span>}
       </div>
-      {open && children}
-    </div>
+      {open && (
+        <Dialog onClose={() => setOpen(false)} title={title} gap={14}>
+          {actions && <div style={{ display: 'flex', justifyContent: 'flex-end' }}>{actions}</div>}
+          {children}
+        </Dialog>
+      )}
+    </>
   );
 }
 
