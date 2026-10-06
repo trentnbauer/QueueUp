@@ -601,6 +601,21 @@ export const REVIEW_CATEGORIES = [
 
 export type ReviewCategoryKey = (typeof REVIEW_CATEGORIES)[number]['key'];
 
+/** One block of Steam's PC requirements (minimum or recommended), as labelled lines. */
+export interface SteamRequirementSet {
+  lines: { label: string; value: string }[];
+  /** The block as plain text, for pages that are not laid out as labelled lines. */
+  text: string;
+  /** The Memory line as GB, when it could be read, so it can be compared with the person's own. */
+  memoryGb: number | null;
+}
+
+/** Steam's PC system requirements for a game (#1045). */
+export interface GameRequirements {
+  minimum: SteamRequirementSet | null;
+  recommended: SteamRequirementSet | null;
+}
+
 export interface Game {
   id: string;
   roomId: string | null;

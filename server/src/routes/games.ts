@@ -72,6 +72,7 @@ import { recordSyncSources } from '../services/syncSources.js';
 import { getCurrentPlaytimeMinutesForGames } from '../services/playtimeTracking.js';
 import { summarizeTimeToBeat, summarizeActiveHoursToBeat, pickMostNeglectedGame, backlogAgeRanges } from '../services/backlogInsights.js';
 import { unlockActivityBadges, unlockBadges, unlockFeatureBadges } from '../services/badges.js';
+import { getSteamRequirements } from '../services/steamRequirements.js';
 import { applyUndo, dropUndo, takeUndo } from '../services/mergeUndo.js';
 import {
   logRoomActivity,
@@ -1684,6 +1685,25 @@ export default async function gameRoutes(app: FastifyInstance) {
 
       const query = request.query.q?.trim() || game.title;
       return { results: await searchSteamStore(query) };
+    },
+  );
+
+  // Steam's minimum and recommended PC requirements for the game's page (#1045). Cached; null when the game has
+  // no Steam match or Steam lists none.
+  app.get<{ Params: { id: string } }>(
+    '/api/games/:id/requirements',
+    // A live request to Steam's public store the first time, then served from the cache.
+    { config: { rateLimit: { max: 30, timeWindow: '1 minute' } } },
+    async (request) => {
+      const userId = await request.requireAuth();
+      const game = await loadGameOr404(request.params.id);
+      await requireGameReadAccess(game, userId);
+      if (game.steamAppid === null) return { requirements: null };
+      try {
+        return { requirements: await getSteamRequirements(game.steamAppid) };
+      } catch {
+        throw new HttpError(502, 'Steam did not answer. Try again in a moment.');
+      }
     },
   );
 

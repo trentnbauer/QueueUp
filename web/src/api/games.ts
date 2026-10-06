@@ -1,5 +1,5 @@
 import { apiGet, apiPost, apiPatch, apiPut, apiDelete } from './client';
-import type {
+import type { GameRequirements,
   AiDuplicateScanResponse,
   DuplicateCandidateCountResponse,
   DuplicateCandidatesResponse,
@@ -106,6 +106,7 @@ export const gamesApi = {
    * that's already on this game's own room/shelf. */
   priceHistory: (id: string, currency?: string | null) =>
     apiGet<PriceHistoryResponse>(`/api/games/${id}/price-history${currency ? `?currency=${encodeURIComponent(currency)}` : ''}`),
+  requirements: (id: string) => apiGet<{ requirements: GameRequirements | null }>(`/api/games/${id}/requirements`),
   trailer: (id: string) => apiGet<GameTrailerResponse>(`/api/games/${id}/trailer`),
   /** The trailer for a game that is not on a list yet (AI picks). */
   igdbTrailer: (igdbId: number) => apiGet<GameTrailerResponse>(`/api/games/igdb/${igdbId}/trailer`),

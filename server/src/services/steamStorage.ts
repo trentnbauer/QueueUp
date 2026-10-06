@@ -28,9 +28,9 @@ interface AppDetails {
   [appId: string]: { success: boolean; data?: { pc_requirements?: { minimum?: string; recommended?: string } | [] } };
 }
 
-/** The PC install size Steam lists for `appId`, in MB. Null when Steam doesn't say; throws when
- * Steam couldn't be reached (so the caller tries again later rather than remembering "none"). */
-export async function fetchSteamStorageMb(appId: number): Promise<number | null> {
+/** Steam's raw PC requirements (HTML) for `appId`, or null when it lists none. Throws when Steam couldn't be
+ * reached (so the caller tries again later rather than remembering "none"). */
+export async function fetchSteamPcRequirements(appId: number): Promise<{ minimum?: string; recommended?: string } | null> {
   const url = new URL('https://store.steampowered.com/api/appdetails');
   url.searchParams.set('appids', String(appId));
   // `pc_requirements` on its own now comes back as an empty list for every game, so "basic" rides along:
@@ -41,6 +41,14 @@ export async function fetchSteamStorageMb(appId: number): Promise<number | null>
   const body = (await response.json()) as AppDetails;
   const req = body[String(appId)]?.data?.pc_requirements;
   if (!req || Array.isArray(req)) return null;
+  return req;
+}
+
+/** The PC install size Steam lists for `appId`, in MB. Null when Steam doesn't say; throws when
+ * Steam couldn't be reached (so the caller tries again later rather than remembering "none"). */
+export async function fetchSteamStorageMb(appId: number): Promise<number | null> {
+  const req = await fetchSteamPcRequirements(appId);
+  if (!req) return null;
   // Minimum and recommended normally agree on storage; take the larger if they don't.
   const sizes = [parseStorageMb(req.minimum), parseStorageMb(req.recommended)].filter((n): n is number => n !== null);
   return sizes.length ? Math.max(...sizes) : null;
