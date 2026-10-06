@@ -1796,12 +1796,16 @@ export default async function gameRoutes(app: FastifyInstance) {
     const token = String(request.body?.token ?? '');
     const undo = await takeUndo(userId, token);
     // Whoever may change that list's games may undo a change to it.
-    const anchorId = undo.kind === 'merge' ? undo.targetId : undo.gameId;
-    const anchor = await loadGameOr404(anchorId);
-    await requireGameSettingsAccess(anchor, userId);
+    // (Putting an imported title back in Needs matching only ever touches the person's own shelf.)
+    if (undo.kind !== 'resolve') {
+      const anchorId = undo.kind === 'merge' ? undo.targetId : undo.gameId;
+      const anchor = await loadGameOr404(anchorId);
+      await requireGameSettingsAccess(anchor, userId);
+    }
     const gameId = await applyUndo(undo);
     await dropUndo(token);
     await invalidateExistingIgdbIds(undo.roomId, undo.ownerId);
+    if (undo.kind === 'resolve') return { game: null };
     const restored = await loadGameOr404(gameId);
     return { game: await serializeGame(restored, userId) };
   });

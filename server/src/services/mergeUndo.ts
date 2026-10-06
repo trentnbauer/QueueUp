@@ -2,6 +2,8 @@ import { randomUUID } from 'node:crypto';
 import { prisma } from '../db/client.js';
 import { redis } from './redisClient.js';
 import { HttpError } from '../util/httpError.js';
+import { normalizeGameTitleForComparison } from './igdbClient.js';
+import { userAliasSource } from './playniteImport.js';
 
 /** Undo for a merge ("Duplicate?", the duplicate finder, or re-matching onto a game that is already
  * there) and for a plain re-match. Taken just before the change, kept for a few minutes in Redis under a
@@ -76,7 +78,25 @@ export interface RematchUndo {
   redirects: RedirectSnapshot | null;
 }
 
-export type GameChangeUndo = MergeUndo | RematchUndo;
+/** Picking a game for an imported title under Needs matching: what the pick added, so it can be taken
+ * back and the title put back in the queue. */
+export interface ResolveUndo {
+  kind: 'resolve';
+  userId: string;
+  roomId: null;
+  ownerId: string;
+  /** The waiting title as it was. */
+  pending: Row;
+  igdbId: number;
+  /** True when the pick created the card (so undo removes it); false when it was already on the shelf. */
+  gameExisted: boolean;
+  ownership: { existed: boolean; platforms: string[] };
+  syncSources: string[];
+  alias: { source: string; normalizedTitle: string; igdbId: number | null };
+  suggestionExisted: boolean;
+}
+
+export type GameChangeUndo = MergeUndo | RematchUndo | ResolveUndo;
 
 /** The redirect rows a change to `fromIgdbId` → `toIgdbId` can touch, as they are now. */
 export async function captureRedirects(userId: string, fromIgdbId: number, toIgdbId: number): Promise<RedirectSnapshot> {
@@ -164,6 +184,33 @@ export async function captureRematchUndo(userId: string, gameId: string, newIgdb
   };
 }
 
+/** What picking `igdbId` for a waiting title is about to change. Call just before resolving it. */
+export async function captureResolveUndo(userId: string, pending: { id: string; source: string; title: string }, igdbId: number): Promise<ResolveUndo> {
+  const row = await prisma.pendingLibraryImport.findUniqueOrThrow({ where: { id: pending.id } });
+  const aliasSource = userAliasSource(pending.source, userId);
+  const normalizedTitle = normalizeGameTitleForComparison(pending.title);
+  const [game, own, syncs, alias, suggestion] = await Promise.all([
+    prisma.game.findFirst({ where: { roomId: null, addedBy: userId, igdbId }, select: { id: true } }),
+    prisma.gameOwnership.findUnique({ where: { userId_igdbId: { userId, igdbId } } }),
+    prisma.gameSyncSource.findMany({ where: { userId, igdbId }, select: { source: true } }),
+    prisma.titleMatchAlias.findUnique({ where: { source_normalizedTitle: { source: aliasSource, normalizedTitle } } }),
+    prisma.titleMatchSuggestion.findUnique({ where: { source_normalizedTitle_igdbId_userId: { source: pending.source, normalizedTitle, igdbId, userId } } }),
+  ]);
+  return {
+    kind: 'resolve',
+    userId,
+    roomId: null,
+    ownerId: userId,
+    pending: row as unknown as Row,
+    igdbId,
+    gameExisted: !!game,
+    ownership: { existed: !!own, platforms: (own?.platforms as string[] | undefined) ?? [] },
+    syncSources: syncs.map((s) => s.source as string),
+    alias: { source: aliasSource, normalizedTitle, igdbId: alias?.igdbId ?? null },
+    suggestionExisted: !!suggestion,
+  };
+}
+
 /** Keeps a snapshot for a few minutes and returns the token that applies it. */
 export async function saveUndo(undo: GameChangeUndo): Promise<string> {
   const token = randomUUID();
@@ -201,6 +248,29 @@ export async function applyUndo(undo: GameChangeUndo): Promise<string> {
       await restoreRedirects(tx as unknown as Db, undo.redirects);
     });
     return undo.gameId;
+  }
+
+  if (undo.kind === 'resolve') {
+    const { ownerId: userId, igdbId } = undo;
+    await prisma.$transaction(async (tx) => {
+      if (!undo.gameExisted) await tx.game.deleteMany({ where: { roomId: null, addedBy: userId, igdbId } });
+      if (undo.ownership.existed) {
+        await tx.gameOwnership.updateMany({ where: { userId, igdbId }, data: { platforms: undo.ownership.platforms as never } });
+      } else {
+        await tx.gameOwnership.deleteMany({ where: { userId, igdbId } });
+      }
+      await tx.gameSyncSource.deleteMany({ where: { userId, igdbId, source: { notIn: undo.syncSources as never } } });
+      const { source, normalizedTitle, igdbId: oldAlias } = undo.alias;
+      if (oldAlias === null) await tx.titleMatchAlias.deleteMany({ where: { source, normalizedTitle } });
+      else await tx.titleMatchAlias.update({ where: { source_normalizedTitle: { source, normalizedTitle } }, data: { igdbId: oldAlias } });
+      if (!undo.suggestionExisted) {
+        await tx.titleMatchSuggestion.deleteMany({ where: { source: String(undo.pending.source), normalizedTitle, igdbId, userId } });
+      }
+      // Back in the queue, as it was (a copy a newer sync made in the meantime is replaced).
+      await tx.pendingLibraryImport.deleteMany({ where: { userId, source: String(undo.pending.source), title: String(undo.pending.title) } });
+      await tx.pendingLibraryImport.create({ data: undo.pending as never });
+    });
+    return '';
   }
 
   const sourceId = String(undo.source.id);

@@ -10,6 +10,7 @@ import {
   getPlayniteImportProgress,
 } from '../services/playniteImport.js';
 import { addResolvedGame, isSyncSource, resolvePendingImport } from '../services/pendingImportResolve.js';
+import { captureResolveUndo, saveUndo } from '../services/mergeUndo.js';
 import { aiMatchPendingImports } from '../services/ai/aiImportMatch.js';
 import { aiClassifyPendingImports } from '../services/ai/aiImportClassify.js';
 import { parseBundleIgdbIds } from '../services/bundleImport.js';
@@ -85,7 +86,7 @@ export default async function pendingLibraryImportRoutes(app: FastifyInstance) {
   app.post<{ Params: { id: string }; Body: ResolvePendingLibraryImportRequest }>(
     '/api/library/pending-imports/:id/resolve',
     { config: { rateLimit: { max: 20, timeWindow: '1 minute' } } },
-    async (request, reply) => {
+    async (request) => {
       const userId = await request.requireAuth();
       const { id } = request.params;
       const { igdbId } = request.body;
@@ -94,9 +95,9 @@ export default async function pendingLibraryImportRoutes(app: FastifyInstance) {
       const pending = await prisma.pendingLibraryImport.findFirst({ where: { id, userId } });
       if (!pending) throw new HttpError(404, 'Pending import not found');
 
+      const undo = await captureResolveUndo(userId, pending, igdbId);
       await resolvePendingImport(userId, pending, igdbId);
-
-      reply.status(204);
+      return { undoToken: await saveUndo(undo) };
     },
   );
 

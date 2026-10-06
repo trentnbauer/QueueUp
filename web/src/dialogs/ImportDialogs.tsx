@@ -15,6 +15,7 @@ import { useScope } from '../context/ScopeContext';
 import { useSteamImportContext } from '../context/SteamImportContext';
 import { useSyncSources } from '../hooks/useSyncSources';
 import { useUi } from '../context/UiContext';
+import { useUndoChange } from '../hooks/useUndoChange';
 import { useLibraryLimits } from '../hooks/useLibraryLimits';
 import { Dialog } from '../ui/Dialog';
 import { LibraryBadge, type LibraryKind } from '../ui/LibraryLogo';
@@ -395,6 +396,7 @@ function ManualMatchDialog({ entry, onClose, onResolved, onPick }: { entry: Pend
 export function NeedsReviewDialog() {
   const t = useT();
   const ui = useUi();
+  const undoable = useUndoChange();
   const confirm = useConfirm();
   const queryClient = useQueryClient();
   const { data } = useQuery({ queryKey: PENDING_IMPORTS_QUERY_KEY, queryFn: pendingImportsApi.list });
@@ -544,9 +546,9 @@ export function NeedsReviewDialog() {
     if (!entry || selected === null) return;
     const c = entry.candidates[selected];
     setError(null);
-    await resolve.mutateAsync({ id: entry.id, igdbId: c.igdbId });
+    const res = await resolve.mutateAsync({ id: entry.id, igdbId: c.igdbId });
     setPick(null);
-    ui.notify(t('add.review.matchedTitle', { title: c.title }));
+    undoable(t('add.review.matchedTitle', { title: c.title }), res?.undoToken);
   }
 
   function toggleBundleGame(game: GameSearchResult) {

@@ -1,5 +1,6 @@
 import { useQueryClient } from '@tanstack/react-query';
 import { DUPLICATE_COUNT_QUERY_KEY, DUPLICATE_LIST_QUERY_KEY, MERGED_GAMES_QUERY_KEY, gamesApi } from '../api/games';
+import { PENDING_IMPORTS_QUERY_KEY } from '../api/pendingImports';
 import { useUi } from '../context/UiContext';
 import { UNDO_MS } from '../game/useChangeStatus';
 import { t } from '../i18n';
@@ -24,6 +25,7 @@ export function useUndoChange() {
             .undoChange(token)
             .then(() => {
               void queryClient.invalidateQueries({ queryKey: ['games'] });
+              void queryClient.invalidateQueries({ queryKey: PENDING_IMPORTS_QUERY_KEY });
               void queryClient.invalidateQueries({ queryKey: DUPLICATE_COUNT_QUERY_KEY });
               void queryClient.invalidateQueries({ queryKey: DUPLICATE_LIST_QUERY_KEY });
               void queryClient.invalidateQueries({ queryKey: MERGED_GAMES_QUERY_KEY });
