@@ -55,6 +55,7 @@ services:
   ollama:
     image: ollama/ollama:latest
     restart: unless-stopped
+    cpu_shares: 256 ##Allows Ollama to use as much CPU as it wants as long as there is availablity. Will not slow down other containers or apps
     volumes:
       - ollama:/root/.ollama
     healthcheck:
