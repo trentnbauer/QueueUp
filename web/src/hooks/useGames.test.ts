@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import type { Query } from '@tanstack/react-query';
-import { isSameGamesList } from './useGames';
+import { isSameGamesList, roomPollDelay } from './useGames';
 
 function fakeQuery(queryKey: unknown[]): Query {
   return { queryKey } as unknown as Query;
@@ -38,5 +38,16 @@ describe('isSameGamesList', () => {
   it('does not match an unrelated query', () => {
     expect(isSameGamesList(fakeQuery(['games', 'currently-playing']), null)).toBe(false);
     expect(isSameGamesList(fakeQuery(['me', 'currently-playing']), null)).toBe(false);
+  });
+});
+
+describe('roomPollDelay (#1042)', () => {
+  it('asks every 15 seconds at first, then backs off while nothing changes', () => {
+    expect(roomPollDelay(0)).toBe(15_000);
+    expect(roomPollDelay(7)).toBe(15_000);
+    expect(roomPollDelay(8)).toBe(30_000);
+    expect(roomPollDelay(19)).toBe(30_000);
+    expect(roomPollDelay(20)).toBe(60_000);
+    expect(roomPollDelay(500)).toBe(60_000);
   });
 });

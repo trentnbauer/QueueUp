@@ -73,6 +73,7 @@ import { getCurrentPlaytimeMinutesForGames } from '../services/playtimeTracking.
 import { summarizeTimeToBeat, summarizeActiveHoursToBeat, pickMostNeglectedGame, backlogAgeRanges } from '../services/backlogInsights.js';
 import { unlockActivityBadges, unlockBadges, unlockFeatureBadges } from '../services/badges.js';
 import { getSteamRequirements } from '../services/steamRequirements.js';
+import { roomGamesVersion } from '../services/roomGamesVersion.js';
 import { applyUndo, dropUndo, takeUndo } from '../services/mergeUndo.js';
 import {
   logRoomActivity,
@@ -764,6 +765,14 @@ export default async function gameRoutes(app: FastifyInstance) {
       prisma.game.count({ where: baseWhere }),
     ]);
     return { games: await serializeGames(games, userId, parseRegion(request.query.region)), truncated, totalCount };
+  });
+
+  // A short answer to "has this room's games list changed?", so an open room only re-reads the whole list when
+  // it has (#1042). See services/roomGamesVersion.ts.
+  app.get<{ Params: { roomId: string } }>('/api/rooms/:roomId/games-version', { config: { rateLimit: { max: 60, timeWindow: '1 minute' } } }, async (request) => {
+    const userId = await request.requireAuth();
+    await requireMembership(request.params.roomId, userId);
+    return { version: await roomGamesVersion(request.params.roomId) };
   });
 
   app.get<{ Params: { roomId: string }; Querystring: { region?: string; q?: string } }>(
