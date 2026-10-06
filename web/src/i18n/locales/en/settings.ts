@@ -558,4 +558,6 @@ export const settings = {
   "settings.shelfColour.default": "Default",
   "settings.shelfColour.saved": "Shelf colour saved",
   "settings.shelfColour.failed": "Could not save the shelf colour",
+  "settings.specs.loadFailed": "Could not load your computer specs. Check your connection and try again.",
+  "settings.ai.loadFailed": "Could not load the AI settings. Check your connection and try again.",
 } as const;

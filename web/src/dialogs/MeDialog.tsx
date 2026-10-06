@@ -121,7 +121,7 @@ export function ComputerSpecsDialog({ onClose }: { onClose: () => void }) {
   const t = useT();
   const ui = useUi();
   const queryClient = useQueryClient();
-  const { data } = useQuery({ queryKey: ['computer-specs'], queryFn: authApi.computerSpecs });
+  const { data, isError, isFetching, refetch } = useQuery({ queryKey: ['computer-specs'], queryFn: authApi.computerSpecs });
   const [form, setForm] = useState<Record<SpecKey, string> | null>(null);
   const [error, setError] = useState<string | null>(null);
 
@@ -165,7 +165,23 @@ export function ComputerSpecsDialog({ onClose }: { onClose: () => void }) {
     onError: (e) => setError(e instanceof Error ? e.message : t('settings.specs.failed')),
   });
 
-  if (!form) return <Dialog onClose={onClose} title={t('settings.specs.title')} gap={14}>{null}</Dialog>;
+  if (!form) {
+    // Not loaded yet, or the request failed: say so, rather than showing an empty sheet.
+    return (
+      <Dialog onClose={onClose} title={t('settings.specs.title')} gap={14}>
+        {isError ? (
+          <>
+            <Banner>{t('settings.specs.loadFailed')}</Banner>
+            <Btn kind="soft" height={40} padX={16} style={{ alignSelf: 'flex-start' }} disabled={isFetching} onClick={() => void refetch()}>
+              {t('common.retry')}
+            </Btn>
+          </>
+        ) : (
+          <span style={st('font:400 14px var(--font-ui);color:var(--muted)')}>{t('common.loading')}</span>
+        )}
+      </Dialog>
+    );
+  }
   const set = (k: SpecKey, v: string) => setForm((f) => (f ? { ...f, [k]: v } : f));
   const field = (k: SpecKey, label: string, opts: { placeholder?: string; number?: boolean; max?: number } = {}) => (
     <label key={k} style={st('display:flex;flex-direction:column;gap:6px')}>
