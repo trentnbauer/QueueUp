@@ -1,7 +1,7 @@
 import { LibraryLogo, type LibraryKind } from '../ui/LibraryLogo';
 import { useMemo, useState, type ReactNode } from 'react';
 import { useNavigate } from 'react-router';
-import { suggestsBeatenByPlaytime, suggestsPlaying, type Game, type GameStatus, type SyncSource, type VoteValue } from '@queueup/shared';
+import { ROOM_PLATFORM_LABELS, sortPlatforms, suggestsBeatenByPlaytime, suggestsPlaying, type Game, type GameStatus, type SyncSource, type VoteValue } from '@queueup/shared';
 import { useAuth } from '../context/AuthContext';
 import { useConfirm } from '../context/ConfirmContext';
 import { useScope } from '../context/ScopeContext';
@@ -737,6 +737,17 @@ export function GameDetail({ game, onClose, changeStatus }: { game: Game; onClos
               <span style={st('font:400 12.5px var(--font-ui);color:var(--muted)')}>{t('game.detail.hide.hint')}</span>
             </span>
           </button>
+        )}
+
+        {isShelf && game.ownedPlatforms.length > 0 && (
+          <div style={st('display:flex;flex-wrap:wrap;align-items:center;gap:6px;font:400 12.5px var(--font-ui);color:var(--muted)')}>
+            {t('game.detail.ownedOn')}
+            {sortPlatforms(game.ownedPlatforms).map((pl) => (
+              <span key={pl} style={st('display:inline-flex;align-items:center;padding:3px 10px;border-radius:999px;background:var(--chip);color:var(--text);font:600 12px var(--font-ui)')}>
+                {ROOM_PLATFORM_LABELS[pl]}
+              </span>
+            ))}
+          </div>
         )}
 
         {isShelf && game.syncSources.length > 0 && (
