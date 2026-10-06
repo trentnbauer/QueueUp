@@ -139,6 +139,23 @@ export async function getWishlistAppIds(steamId64: string, apiKey: string): Prom
   return (body.response?.items ?? []).map((item) => item.appid);
 }
 
+/** The store name of a Steam app, for a wishlist entry that has no match yet (the wishlist API only returns
+ * ids). Null when Steam has none (a removed store page) or could not be reached. */
+export async function fetchSteamAppName(appId: number): Promise<string | null> {
+  try {
+    const url = new URL('https://store.steampowered.com/api/appdetails');
+    url.searchParams.set('appids', String(appId));
+    url.searchParams.set('filters', 'basic');
+    const response = await fetch(url, { signal: AbortSignal.timeout(10_000) });
+    if (!response.ok) return null;
+    const body = (await response.json()) as Record<string, { success?: boolean; data?: { name?: unknown } } | undefined>;
+    const name = body[String(appId)]?.data?.name;
+    return typeof name === 'string' && name.trim() ? name.trim().slice(0, 300) : null;
+  } catch {
+    return null;
+  }
+}
+
 interface SteamAchievementEntry {
   achieved: 0 | 1;
 }

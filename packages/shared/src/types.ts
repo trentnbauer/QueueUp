@@ -1112,6 +1112,9 @@ export interface SteamImportProgress {
   consideredCount: number;
   imported: number;
   skipped: number;
+  /** How many of the skipped games were sent to Needs matching to be matched by hand (they had no
+   * automatic match). Left out on progress written before this existed. */
+  needsMatching?: number;
   done: boolean;
   /** Only ever populated on the final `done: true` payload (issue #489) - the import runs entirely
    * in the background, so there's no synchronous response to attach these to; the client checks
@@ -1126,6 +1129,8 @@ export interface SteamWishlistImportProgress {
   consideredCount: number;
   imported: number;
   skipped: number;
+  /** Same as SteamImportProgress.needsMatching. */
+  needsMatching?: number;
   done: boolean;
   /** Same as SteamImportProgress.unlockedBadges - only set on the final `done: true` payload. */
   unlockedBadges?: BadgeDefinition[];
