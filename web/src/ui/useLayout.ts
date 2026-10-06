@@ -32,3 +32,29 @@ export function useMediaQuery(query: string): boolean {
 export function useIsMobile(): boolean {
   return useMediaQuery(`(max-width: ${MOBILE_MAX}px)`);
 }
+
+/** How many pixels of the layout viewport the on-screen keyboard covers (0 when it is closed, or the
+ * browser already resizes the page for it). Lets a bottom sheet sit above the keyboard instead of
+ * behind it - iOS Safari and older Android browsers cover the page rather than resize it. */
+export function useKeyboardInset(): number {
+  return useSyncExternalStore(
+    (cb) => {
+      const vv = window.visualViewport;
+      if (!vv) return () => {};
+      vv.addEventListener('resize', cb);
+      vv.addEventListener('scroll', cb);
+      return () => {
+        vv.removeEventListener('resize', cb);
+        vv.removeEventListener('scroll', cb);
+      };
+    },
+    () => {
+      const vv = window.visualViewport;
+      if (!vv) return 0;
+      const covered = Math.round(window.innerHeight - (vv.height + vv.offsetTop));
+      // Small differences are browser chrome sliding in and out, not a keyboard.
+      return covered > 80 ? covered : 0;
+    },
+    () => 0,
+  );
+}

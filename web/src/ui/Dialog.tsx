@@ -1,7 +1,7 @@
 import { createContext, useContext, useEffect, useLayoutEffect, useRef, type CSSProperties, type ReactNode } from 'react';
 import { createPortal } from 'react-dom';
 import { closeOnBackdropMouseDown, useModalA11y } from '../hooks/useModalA11y';
-import { useIsMobile } from './useLayout';
+import { useIsMobile, useKeyboardInset } from './useLayout';
 import { st } from './st';
 import { t } from '../i18n';
 
@@ -95,6 +95,7 @@ export function Dialog({
   centered,
 }: DialogProps) {
   const mobile = useIsMobile();
+  const keyboardInset = useKeyboardInset();
   const depth = useContext(DepthContext);
   const ref = useModalA11y<HTMLDivElement>(onClose);
   // Which layer this dialog sits on: one above everything already open. Dialogs opened from another
@@ -121,8 +122,9 @@ export function Dialog({
         position: 'fixed',
         left: 0,
         right: 0,
-        bottom: 0,
-        ...(height === 'tall' ? { top: 44 } : { maxHeight: 'calc(100% - 44px)' }),
+        // Sits above the on-screen keyboard rather than behind it, so a search field stays visible.
+        bottom: keyboardInset,
+        ...(height === 'tall' ? { top: 44 } : { maxHeight: `calc(100% - 44px - ${keyboardInset}px)` }),
         borderRadius: '28px 28px 0 0',
         borderBottom: 'none',
         boxShadow: '0 -12px 40px oklch(0 0 0 / 0.35)',
