@@ -31,6 +31,9 @@
     },
     "fast-json-stringify": {
       "fast-uri": "^4.1.1"
+    },
+    "@prisma/config": {
+      "deepmerge-ts": "^8.0.2"
     }
   },
   "allowScripts": {
