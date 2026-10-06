@@ -47,7 +47,8 @@ export function SteamImportProvider({ children }: { children: ReactNode }) {
 
   async function runSyncLibraryAndWishlist(): Promise<void> {
     await steamImport.runImport();
-    await steamImport.runWishlistImport();
+    // Keep the library's result on screen: the wishlist's message is added under it, not over it.
+    await steamImport.runWishlistImport({ keepResult: true });
   }
 
   async function runSyncEverything(): Promise<void> {

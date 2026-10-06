@@ -247,7 +247,7 @@ export function NotificationsDialog() {
       {importStatus && (
         <div style={st('margin:0 0 8px;display:flex;align-items:center;gap:10px;padding:12px 14px;border-radius:14px;background:var(--surf);font:500 13.5px var(--font-ui)')}>
           {steam.busy && <span style={st('flex-shrink:0;width:14px;height:14px;border-radius:50%;border:2px solid var(--line);border-top-color:var(--acc);animation:qu-spin .9s linear infinite')} />}
-          <span style={{ flex: 1, minWidth: 0 }}>{importStatus}</span>
+          <span style={{ flex: 1, minWidth: 0, whiteSpace: 'pre-line' }}>{importStatus}</span>
           {!steam.busy && (
             <button type="button" onClick={steam.dismissResult} aria-label={t('social.notifications.dismissImport')} style={st('width:28px;height:28px;border:none;background:none;color:var(--muted);font-size:17px;line-height:1')}>
               ×
