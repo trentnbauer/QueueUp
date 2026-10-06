@@ -221,4 +221,6 @@ export const home = {
   "home.duration.hours": "{h}h",
   "home.duration.hoursMinutes": "{h}h {m}m",
   "home.nudge.merge.scanning": "AI is checking…",
+  "home.row.coopTitle": "Up to {n} players in co-op",
+  "home.row.coopMax": "{n} max",
 } as const;

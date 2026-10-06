@@ -75,6 +75,8 @@ export function ScopeProvider({ children }: { children: ReactNode }) {
     queryKey: ['room-members', roomId],
     queryFn: () => roomsApi.members(roomId!),
     enabled: !!roomId,
+    // Members joining or leaving change which co-op games fit, so keep the list fresh while the room is open.
+    refetchInterval: roomId ? 30_000 : false,
   });
 
   const myRole: RoomRole = roomId ? (room?.myRole ?? 'member') : 'room_master';

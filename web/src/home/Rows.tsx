@@ -5,6 +5,7 @@ import { ABOVE, Cover, coverBg, GOLD, GOLD_RING, OpenOverlay, StatusBadge, statu
 import { st } from '../ui/st';
 import type { RowItem } from './derive';
 import { useT } from '../i18n';
+import { useScope } from '../context/ScopeContext';
 
 const stop = (e: MouseEvent) => e.stopPropagation();
 
@@ -76,6 +77,29 @@ function AchievementChip({ g }: { g: Game }) {
       style={st(CHIP, full ? { background: GOLD, color: 'oklch(0.28 0.06 70)' } : undefined)}
     >
       🏆 {a.unlocked}/{a.total}
+    </span>
+  );
+}
+
+/** How many players a co-op game supports ("👥 4"). In a room, it turns into a warning ("⚠ 2 max") once
+ * the room has more members than that, and follows members joining and leaving as the room updates. */
+function CoopChip({ g }: { g: Game }) {
+  const t = useT();
+  const { members, isShelf } = useScope();
+  const max = g.maxCoopPlayers;
+  if (max === null || max === undefined) return null;
+  const tooMany = !isShelf && !!g.roomId && members.length > max;
+  if (tooMany) {
+    const msg = t('game.detail.coop.tooMany', { max, count: members.length });
+    return (
+      <span title={msg} aria-label={msg} style={st(CHIP, { background: 'var(--errBg)', color: 'var(--danger)' })}>
+        ⚠ {t('home.row.coopMax', { n: max })}
+      </span>
+    );
+  }
+  return (
+    <span title={t('home.row.coopTitle', { n: max })} aria-label={t('home.row.coopTitle', { n: max })} style={st(CHIP)}>
+      👥 {max}
     </span>
   );
 }
@@ -161,6 +185,7 @@ export function DesktopRow({ item, showRank, bulk, selected, active, onOpen, onV
           <AchievementChip g={g} />
           <IgdbScoreChip g={g} />
           <SizeChip g={g} />
+          <CoopChip g={g} />
           <SinglePlayerChip g={g} />
           <span style={st('white-space:nowrap;overflow:hidden;text-overflow:ellipsis')}>{item.meta}</span>
         </span>
@@ -219,7 +244,8 @@ export function MobileRow({ item, showRank, bulk, selected, onOpen, onVote }: Ro
             <AchievementChip g={g} />
             <IgdbScoreChip g={g} />
             <SizeChip g={g} />
-            <SinglePlayerChip g={g} />
+            <CoopChip g={g} />
+          <SinglePlayerChip g={g} />
             <span style={st('white-space:nowrap;overflow:hidden;text-overflow:ellipsis')}>
               {item.meta}
               {item.meta ? ' · ' : ''}
@@ -291,6 +317,7 @@ export function CoverCard({
           <AchievementChip g={g} />
           <IgdbScoreChip g={g} />
           <SizeChip g={g} />
+          <CoopChip g={g} />
           <SinglePlayerChip g={g} />
         </span>
       </div>
@@ -338,6 +365,7 @@ export function PlayNextRow({
           {isNew && g.releaseDate && <span style={st(CHIP)}>{t('home.chip.new', { date: releaseShortDate(g.releaseDate) })}</span>}
           <IgdbScoreChip g={g} />
           <SizeChip g={g} />
+          <CoopChip g={g} />
           <SinglePlayerChip g={g} />
           <span style={st('white-space:nowrap;overflow:hidden;text-overflow:ellipsis')}>
             {item.meta}
