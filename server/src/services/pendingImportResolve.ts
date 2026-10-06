@@ -5,7 +5,7 @@ import { unionOwnershipPlatforms } from './gameOwnership.js';
 import { deletePendingLibraryImport, recordTitleMatchAlias, recordTitleMatchSuggestion, userAliasSource } from './playniteImport.js';
 import type { SyncSource } from '@queueup/shared';
 
-const SYNC_SOURCES: SyncSource[] = ['playnite', 'xbox', 'exophase', 'psn', 'retroachievements'];
+const SYNC_SOURCES: SyncSource[] = ['steam', 'steam_wishlist', 'playnite', 'xbox', 'exophase', 'psn', 'retroachievements'];
 
 export function isSyncSource(source: string): source is SyncSource {
   return (SYNC_SOURCES as string[]).includes(source);
@@ -15,8 +15,13 @@ type PendingPlatforms = Parameters<typeof unionOwnershipPlatforms>[2];
 
 /** Puts one resolved game on the person's shelf as owned, or adds the platforms to the copy that is
  * already there (same wishlist guard as the bulk import loop - see the resolve route's comment). */
-export async function addResolvedGame(userId: string, pending: { platforms: PendingPlatforms }, igdbId: number): Promise<void> {
+export async function addResolvedGame(userId: string, pending: { platforms: PendingPlatforms; source?: string }, igdbId: number): Promise<void> {
   const existing = await prisma.game.findFirst({ where: { roomId: null, addedBy: userId, igdbId } });
+  // A title from the Steam wishlist is wanted, not owned: it goes on the Wishlist with no ownership.
+  if (pending.source === 'steam_wishlist') {
+    if (!existing) await createGameForUser(userId, null, igdbId, { status: 'wishlist' });
+    return;
+  }
   if (existing) {
     if (existing.status !== 'wishlist') {
       await unionOwnershipPlatforms(userId, igdbId, pending.platforms);

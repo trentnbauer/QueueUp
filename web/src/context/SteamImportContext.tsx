@@ -1,4 +1,6 @@
 import { createContext, useContext, useRef, useState, type ReactNode } from 'react';
+import { useQueryClient } from '@tanstack/react-query';
+import { PENDING_IMPORTS_QUERY_KEY } from '../api/pendingImports';
 import { useAuth } from './AuthContext';
 import { useGames } from '../hooks/useGames';
 import { useSteamImport } from '../hooks/useSteamImport';
@@ -21,7 +23,12 @@ import { useSteamCompletionsSync } from '../hooks/useSteamCompletionsSync';
 export function SteamImportProvider({ children }: { children: ReactNode }) {
   const { steamLinked } = useAuth();
   const { invalidate } = useGames(null);
-  const steamImport = useSteamImport(steamLinked, invalidate);
+  const queryClient = useQueryClient();
+  // Games the import could not match go to Needs matching, so that list refreshes too.
+  const steamImport = useSteamImport(steamLinked, () => {
+    invalidate();
+    void queryClient.invalidateQueries({ queryKey: PENDING_IMPORTS_QUERY_KEY });
+  });
   const completions = useSteamCompletionsSync();
   // Guards against the auto-login effect and a manual "Sync Everything" click overlapping -
   // runImport/runWishlistImport already no-op while already polling, but completions.scan() has

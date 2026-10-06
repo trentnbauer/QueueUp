@@ -4,6 +4,7 @@ import { gamesApi } from '../api/games';
 import { useAnnounceUnlock } from '../context/AchievementUnlockContext';
 import { getBasePath } from '../utils/basePath';
 import { t } from '../i18n';
+import { steamImportMessage } from './steamImportMessage';
 
 const PROGRESS_POLL_INTERVAL_MS = 1000;
 // The server writes progress before its "started" response, so a missing record afterwards means
@@ -130,17 +131,9 @@ export function useSteamImport(steamLinked: boolean, onImported: () => void) {
           if (pollIntervalRef.current) clearInterval(pollIntervalRef.current);
           pollIntervalRef.current = null;
           setWishlistProgress(null);
-          const wishlistMessage =
-            latest.imported === 0
-              ? t(latest.consideredCount === 0 ? 'add.steamImport.wishlistUpToDate' : 'add.steamImport.wishlistNone', { onShelf: latest.totalWishlisted - latest.consideredCount, skipped: latest.skipped, total: latest.totalWishlisted })
-              : t(latest.imported === 1 ? 'add.steamImport.wishlistAdded.one' : 'add.steamImport.wishlistAdded.other', {
-                  n: latest.imported,
-                  skipped: latest.skipped,
-                  onShelf: latest.totalWishlisted - latest.consideredCount,
-                  total: latest.totalWishlisted,
-                });
+          const wishlistMessage = steamImportMessage('wishlist', { imported: latest.imported, skipped: latest.skipped, needsMatching: latest.needsMatching });
           setResult((prev) => (opts.keepResult && prev ? `${prev}\n${wishlistMessage}` : wishlistMessage));
-          if (latest.imported > 0) onImported();
+          if (latest.imported > 0 || (latest.needsMatching ?? 0) > 0) onImported();
           if (latest.unlockedBadges) announceUnlock(latest.unlockedBadges);
           setBusy(false);
           resolve();
@@ -201,17 +194,8 @@ export function useSteamImport(steamLinked: boolean, onImported: () => void) {
           if (pollIntervalRef.current) clearInterval(pollIntervalRef.current);
           pollIntervalRef.current = null;
           setProgress(null);
-          setResult(
-            latest.imported === 0
-              ? t(latest.consideredCount === 0 ? 'add.steamImport.libraryUpToDate' : 'add.steamImport.libraryNone', { onShelf: latest.totalOwned - latest.consideredCount, skipped: latest.skipped, total: latest.totalOwned })
-              : t(latest.imported === 1 ? 'add.steamImport.libraryAdded.one' : 'add.steamImport.libraryAdded.other', {
-                  n: latest.imported,
-                  skipped: latest.skipped,
-                  onShelf: latest.totalOwned - latest.consideredCount,
-                  total: latest.totalOwned,
-                }),
-          );
-          if (latest.imported > 0) onImported();
+          setResult(steamImportMessage('library', { imported: latest.imported, skipped: latest.skipped, needsMatching: latest.needsMatching }));
+          if (latest.imported > 0 || (latest.needsMatching ?? 0) > 0) onImported();
           if (latest.unlockedBadges) announceUnlock(latest.unlockedBadges);
           setBusy(false);
           resolve();

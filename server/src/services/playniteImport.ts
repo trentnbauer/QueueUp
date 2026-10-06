@@ -163,9 +163,18 @@ export async function resolveTitleToIgdbId(source: string, title: string, userId
  * instead of deleting it precisely so this check has something to find; without it, a dismissed
  * row simply wouldn't exist anymore, this function would treat that title as brand new on the very
  * next sync, and the upsert's `create:` branch would resurrect exactly what the user dismissed. */
-export async function recordPendingLibraryImport(userId: string, source: string, title: string, platforms: RoomPlatform[]): Promise<void> {
+export async function recordPendingLibraryImport(
+  userId: string,
+  source: string,
+  title: string,
+  platforms: RoomPlatform[],
+  /** `refresh: false` leaves a title that is already waiting as it is, instead of searching IGDB for it again
+   * (a sync that re-finds the same unmatched titles every time would otherwise search for each of them every time). */
+  opts: { refresh?: boolean } = {},
+): Promise<boolean> {
   const existing = await prisma.pendingLibraryImport.findUnique({ where: { userId_source_title: { userId, source, title } } });
-  if (existing?.dismissedAt) return;
+  if (existing?.dismissedAt) return false;
+  if (existing && opts.refresh === false) return true;
 
   const page = await searchGames(title);
   const candidates = page.results.slice(0, 5);
@@ -174,6 +183,7 @@ export async function recordPendingLibraryImport(userId: string, source: string,
     create: { userId, source, title, platforms, candidates: candidates as unknown as Prisma.InputJsonValue },
     update: { platforms, candidates: candidates as unknown as Prisma.InputJsonValue },
   });
+  return true;
 }
 
 /** Excludes dismissed rows (see dismissPendingLibraryImport) - this backs both the review list

@@ -36,7 +36,6 @@ import { notifyRoom, notifyRoomGameBeaten } from '../services/notifications.js';
 import {
   platformFamilies,
   findIgdbIdBySteamAppId,
-  findIgdbIdByExactTitle,
   getGameDetail,
   getGameTrailer,
   isAddonCategory,
@@ -59,7 +58,9 @@ import {
   acquireSteamWishlistImportLock,
   releaseSteamWishlistImportLock,
   searchSteamStore,
+  fetchSteamAppName,
 } from '../services/steamLibrary.js';
+import { recordPendingLibraryImport, resolveTitleToIgdbId } from '../services/playniteImport.js';
 import type { OwnedSteamGame } from '../services/steamLibrary.js';
 import { toggleOwnershipForPlatform, setOwnershipPlatforms, markOwned, promoteOwnedWishlistGames } from '../services/gameOwnership.js';
 import { recordStatusTransition } from '../services/playLog.js';
@@ -143,6 +144,8 @@ import type { RoomPlatform } from '@queueup/shared';
 // IGDB_PLATFORM_NAMES.pc[0] is the canonical "PC (Microsoft Windows)" label already used
 // elsewhere for platform-filter matching (see ownedPlatformLabels in Header.tsx).
 const STEAM_IMPORT_PLATFORM_LABEL = IGDB_PLATFORM_NAMES.pc[0];
+// What a Steam title waiting in Needs matching is owned on.
+const STEAM_IMPORT_PLATFORM: RoomPlatform = 'pc';
 
 // Mirrors web/src/components/gameGridLogic.ts's GAME_STATUS_LABEL - kept as a separate copy since
 // that file lives in the web package, not something the server can import from.
@@ -296,6 +299,7 @@ async function runSteamLibraryImportLoop(
 ): Promise<void> {
   let imported = 0;
   let skipped = 0;
+  let needsMatching = 0;
   try {
     for (const game of considered) {
       try {
@@ -304,10 +308,14 @@ async function runSteamLibraryImportLoop(
         // New Order, The Old Blood, and The New Colossus) - that game would otherwise be silently
         // skipped on every import run forever. Falls back to an exact-title IGDB search using
         // Steam's own name for the app before giving up on it.
-        const foundIgdbId = (await findIgdbIdBySteamAppId(game.appId)) ?? (await findIgdbIdByExactTitle(game.name));
+        // resolveTitleToIgdbId also knows the matches this person made by hand in Needs matching, so a game they
+        // already matched is not asked about again.
+        const foundIgdbId = (await findIgdbIdBySteamAppId(game.appId)) ?? (await resolveTitleToIgdbId('steam', game.name, userId));
         // A game the user re-matched onto another (issue #814) imports as that one, not as a new duplicate.
         const igdbId = foundIgdbId === null ? null : await applyMatchRedirect(userId, foundIgdbId);
         if (igdbId === null) {
+          // No automatic match: ask the person to match it (Needs matching) instead of dropping it.
+          if (await recordPendingLibraryImport(userId, 'steam', game.name, [STEAM_IMPORT_PLATFORM], { refresh: false })) needsMatching++;
           skipped++;
           continue;
         }
@@ -371,7 +379,7 @@ async function runSteamLibraryImportLoop(
         // One game failing to resolve (IGDB hiccup, no match, etc.) shouldn't abort the batch.
         skipped++;
       } finally {
-        await setSteamImportProgress(userId, { totalOwned, consideredCount, imported, skipped, done: false });
+        await setSteamImportProgress(userId, { totalOwned, consideredCount, imported, skipped, needsMatching, done: false });
       }
     }
     if (imported > 0) await invalidateExistingIgdbIds(null, userId);
@@ -388,7 +396,7 @@ async function runSteamLibraryImportLoop(
     // attempted) - that's "you synced your library from Steam," independent of whether this
     // particular run happened to find anything new.
     const unlockedBadges = await unlockBadges(userId, ['first_library_sync']).catch(() => []);
-    await setSteamImportProgress(userId, { totalOwned, consideredCount, imported, skipped, done: true, unlockedBadges });
+    await setSteamImportProgress(userId, { totalOwned, consideredCount, imported, skipped, needsMatching, done: true, unlockedBadges });
   }
 }
 
@@ -408,11 +416,22 @@ async function runSteamWishlistImportLoop(
 ): Promise<void> {
   let imported = 0;
   let skipped = 0;
+  let needsMatching = 0;
   try {
     for (const appId of considered) {
       try {
-        const foundIgdbId = await findIgdbIdBySteamAppId(appId);
+        let foundIgdbId = await findIgdbIdBySteamAppId(appId);
+        // No link from IGDB: the wishlist only gives ids, so look up Steam's name for the app, try that (and any match
+        // the person made by hand before), and failing that ask them to match it.
+        let steamName: string | null = null;
+        if (foundIgdbId === null) {
+          steamName = await fetchSteamAppName(appId);
+          if (steamName) foundIgdbId = await resolveTitleToIgdbId('steam_wishlist', steamName, userId);
+        }
         const igdbId = foundIgdbId === null ? null : await applyMatchRedirect(userId, foundIgdbId);
+        if (igdbId === null && steamName) {
+          if (await recordPendingLibraryImport(userId, 'steam_wishlist', steamName, [STEAM_IMPORT_PLATFORM], { refresh: false })) needsMatching++;
+        }
         if (igdbId === null || existingIgdbIdSet.has(igdbId)) {
           skipped++;
           continue;
@@ -467,7 +486,7 @@ async function runSteamWishlistImportLoop(
         // One game failing to resolve (IGDB hiccup, no match, etc.) shouldn't abort the batch.
         skipped++;
       } finally {
-        await setSteamWishlistImportProgress(userId, { totalWishlisted, consideredCount, imported, skipped, done: false });
+        await setSteamWishlistImportProgress(userId, { totalWishlisted, consideredCount, imported, skipped, needsMatching, done: false });
       }
     }
     if (imported > 0) await invalidateExistingIgdbIds(null, userId);
@@ -479,7 +498,7 @@ async function runSteamWishlistImportLoop(
     // permanently unreachable once someone's wishlist is already fully synced (issue #489).
     const badgeKeys: BadgeKey[] = imported > 0 ? ['first_wishlist', 'first_library_sync'] : ['first_library_sync'];
     const unlockedBadges = await unlockBadges(userId, badgeKeys).catch(() => []);
-    await setSteamWishlistImportProgress(userId, { totalWishlisted, consideredCount, imported, skipped, done: true, unlockedBadges });
+    await setSteamWishlistImportProgress(userId, { totalWishlisted, consideredCount, imported, skipped, needsMatching, done: true, unlockedBadges });
   }
 }
 
