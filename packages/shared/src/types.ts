@@ -2971,6 +2971,8 @@ export interface AiTonightPick {
 export interface AiTonightRequest {
   request: string;
   excludeIds?: string[];
+  /** Pick from this room's queue for the whole group, instead of from your own shelf. */
+  roomId?: string;
 }
 
 export interface AiTonightResponse {

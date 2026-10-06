@@ -202,4 +202,6 @@ export const room: Record<keyof typeof en, string> = {
   "room.settings.addFriendsTitle": "Add friends",
   "room.settings.addFriendsIntro": "Add any of your friends straight to {room}. Anyone else joins with the invite link.",
   "room.settings.addFriendsNone": "No friends to add: they are all in this room already, or you have no friends yet.",
+  "room.settings.ai.tonight": "What should we play tonight?",
+  "room.settings.ai.mine": "My AI settings",
 };

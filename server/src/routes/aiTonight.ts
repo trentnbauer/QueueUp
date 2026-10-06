@@ -12,12 +12,13 @@ export default async function aiTonightRoutes(app: FastifyInstance) {
     { config: { rateLimit: { max: 10, timeWindow: '1 minute' } } },
     async (request): Promise<AiTonightResponse> => {
       const userId = await request.requireAuth();
-      const { request: wish, excludeIds } = request.body ?? {};
+      const { request: wish, excludeIds, roomId } = request.body ?? {};
       if (typeof wish !== 'string') throw new HttpError(400, 'request is required');
       if (excludeIds !== undefined && (!Array.isArray(excludeIds) || excludeIds.length > 200 || !excludeIds.every((i) => typeof i === 'string'))) {
         throw new HttpError(400, 'excludeIds must be a list of game ids');
       }
-      return aiPickTonight(userId, wish, excludeIds ?? []);
+      if (roomId !== undefined && typeof roomId !== 'string') throw new HttpError(400, 'roomId must be text');
+      return aiPickTonight(userId, wish, excludeIds ?? [], roomId ?? null);
     },
   );
 }
