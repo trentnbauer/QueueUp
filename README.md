@@ -56,6 +56,10 @@ Some other things to note:
 
 Every setting is described in `.env.example`. The gg.deals, IGDB, ScanDex, Turnstile, Xbox, AI and Cloudflare Tunnel keys can also be entered later in **Profile → Administrator settings** instead of the env file (an env var always wins over a value saved there).
 
+### With a locally hosted AI
+
+[`docker-compose.local-ai.yml`](docker-compose.local-ai.yml) is the same stack plus an [Ollama](https://ollama.com) server running a small model (`llama3.2:3b` by default), already set up as the server-wide AI so every user gets the AI features without their own key. Use it instead of the Prod file with the same `.env` (`docker compose -f docker-compose.local-ai.yml up -d`). The first start downloads the model (about 2 GB), and it needs roughly 4 GB of free RAM; set `OLLAMA_MODEL` in `.env` to use a different one. The file explains the rest, including how to give Ollama an NVIDIA GPU.
+
 ## Backups
 
 QueueUp takes a database backup **every night at 03:00 (server time) by default**, keeps the latest 14, and writes them to the `backups` volume (`BACKUP_DIR`, `/backups` in the compose file). Administrators manage it from **Profile → Administrator settings → Backups**: switch it off, change the schedule (a cron expression such as `0 3 * * *`), change how many to keep, back up now, download, delete, **restore**, or **import** a backup file from another server. Restoring replaces the entire database and takes a safety backup of the current data first. Set `TZ` on the container to change the time zone the schedule uses. Restores need the Postgres user to be a superuser (the one the bundled compose file creates is). For disaster recovery, copy the `backups` volume (or download files from the admin page) somewhere off the host.
