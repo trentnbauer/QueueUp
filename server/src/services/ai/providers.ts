@@ -167,7 +167,15 @@ export function errorMessageFrom(body: string): string {
   return body.slice(0, ERROR_BODY_LIMIT);
 }
 
+/** Models that have told us they don't accept a `temperature` (newer Claude and OpenAI reasoning
+ * models reject it with a 400), so later calls skip it instead of failing once first. */
+const noTemperature = new Set<string>();
+const modelKey = (config: AiConfig) => `${config.provider}|${config.baseUrl}|${config.model}`;
+
 export async function callProvider(config: AiConfig, req: AiRequest, fetchImpl: typeof fetch = fetch): Promise<AiResponse> {
+  if (req.temperature !== undefined && noTemperature.has(modelKey(config))) {
+    return callProvider(config, { ...req, temperature: undefined }, fetchImpl);
+  }
   const built = buildRequest(config, req);
   let res: Response;
   try {
@@ -188,7 +196,13 @@ export async function callProvider(config: AiConfig, req: AiRequest, fetchImpl: 
     // Where a person-supplied address may point inside the network (the operator allowed private
     // addresses), only the status comes back: the body of an error from whatever it points at would
     // otherwise be a way to read internal services. A public address can show its own error text.
-    const detail = config.hideErrorBody ? '' : errorMessageFrom(await res.text().catch(() => ''));
+    const rawBody = await res.text().catch(() => '');
+    // The model refuses the sampling setting: remember that and run the request again without it.
+    if (res.status === 400 && req.temperature !== undefined && /temperature/i.test(errorMessageFrom(rawBody))) {
+      noTemperature.add(modelKey(config));
+      return callProvider(config, { ...req, temperature: undefined }, fetchImpl);
+    }
+    const detail = config.hideErrorBody ? '' : errorMessageFrom(rawBody);
     throw new AiProviderError(`The AI provider returned ${res.status}${detail ? `: ${detail}` : ''}`, res.status);
   }
   return parseResponse(config, await res.json().catch(() => null));

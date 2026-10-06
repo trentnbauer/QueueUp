@@ -106,6 +106,27 @@ describe('callProvider', () => {
     expect(err.message).not.toContain('sk-oa');
   });
 
+  it('retries without temperature when the model rejects it, and remembers that', async () => {
+    const strict: AiConfig = { ...anthropic, model: 'claude-strict-temp-test' };
+    const ok = JSON.stringify({ content: [{ type: 'text', text: 'hi' }] });
+    const fetchImpl = vi.fn(async (_url: string, init?: RequestInit) =>
+      JSON.parse(String(init?.body)).temperature !== undefined
+        ? new Response(JSON.stringify({ error: { message: '`temperature` is deprecated for this model.' } }), { status: 400 })
+        : new Response(ok, { status: 200 }),
+    );
+    expect((await callProvider(strict, req, fetchImpl as unknown as typeof fetch)).text).toBe('hi');
+    expect(fetchImpl).toHaveBeenCalledTimes(2);
+    // Second call goes straight out without it.
+    await callProvider(strict, req, fetchImpl as unknown as typeof fetch);
+    expect(fetchImpl).toHaveBeenCalledTimes(3);
+  });
+
+  it('does not retry other 400s', async () => {
+    const fetchImpl = vi.fn(async () => new Response(JSON.stringify({ error: { message: 'max_tokens too large' } }), { status: 400 }));
+    await expect(callProvider({ ...openai, model: 'gpt-other' }, req, fetchImpl as unknown as typeof fetch)).rejects.toThrow('400');
+    expect(fetchImpl).toHaveBeenCalledTimes(1);
+  });
+
   it('turns a network failure and a timeout into friendly errors', async () => {
     const down = vi.fn(async () => {
       throw new TypeError('fetch failed');
