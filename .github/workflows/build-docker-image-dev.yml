@@ -150,7 +150,7 @@ jobs:
 
       - name: Extract metadata for Docker
         id: meta
-        uses: docker/metadata-action@v5
+        uses: docker/metadata-action@v6
         with:
           images: ${{ env.REGISTRY }}/${{ needs.setup.outputs.image_name }}
           # Rolling `dev` tag always points at the latest main, plus a per-commit `dev-<shortsha>`
