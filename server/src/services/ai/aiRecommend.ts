@@ -8,6 +8,7 @@ import { mapWithConcurrency } from '../priceService.js';
 import { titleCore } from '../duplicateCandidates.js';
 import { getOwnedPlatforms } from '../userSettings.js';
 import { getRoomPlatform } from '../roomAccess.js';
+import { getHiddenIgdbIds } from '../hiddenRecommendations.js';
 import type { AiFallbackNotice, AiRecommendation, AiRecommendResponse, GameSearchResult } from '@queueup/shared';
 
 /** How many titles the AI is asked for. Some will not resolve to a real game or are already owned. */
@@ -138,7 +139,7 @@ export async function aiRecommendForShelf(userId: string): Promise<AiRecommendRe
     disliked: rows.filter((r) => ['dropped', 'wont_play'].includes(r.status) || r.reviews[0]?.recommend === false).slice(0, 10).map((r) => r.title),
   };
   const platforms = await getOwnedPlatforms(userId);
-  return recommendFromProfile(profile, new Set(rows.map((r) => r.igdbId)), platforms, { userId });
+  return recommendFromProfile(profile, new Set([...rows.map((r) => r.igdbId), ...(await getHiddenIgdbIds(userId))]), platforms, { userId });
 }
 
 type RoomReview = { art: number | null; gameplay: number | null; story: number | null; sound: number | null; themes: number | null; recommend: boolean | null };
@@ -198,5 +199,5 @@ export async function aiRecommendForRoom(userId: string, roomId: string): Promis
     memberCount,
   );
   if (profile.loved.length === 0) throw new HttpError(400, 'The room needs a few finished, played or well-voted games before the AI has something to go on.');
-  return recommendFromProfile(profile, new Set(rows.map((r) => r.igdbId)), platform ? [platform] : [], { userId, roomId });
+  return recommendFromProfile(profile, new Set([...rows.map((r) => r.igdbId), ...(await getHiddenIgdbIds(userId))]), platform ? [platform] : [], { userId, roomId });
 }

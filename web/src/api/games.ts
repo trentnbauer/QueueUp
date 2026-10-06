@@ -98,6 +98,8 @@ export const gamesApi = {
     apiGet<{ results: RecommendedGame[] }>(
       `/api/games/recommendations?${new URLSearchParams({ ...(roomId && { roomId }), ...(coop && { coop: 'true' }), ...(allPlatforms && { allPlatforms: 'true' }) })}`,
     ),
+  /** Stops a game being recommended to this person again (IGDB list and AI picks). */
+  hideRecommendation: (igdbId: number) => apiPost<void>('/api/games/recommendations/hide', { igdbId }),
   trending: (roomId?: string | null, hideAddons = true, allPlatforms = false) =>
     apiGet<{ results: GameSearchResult[] }>(`/api/games/trending${browseQuery(roomId, hideAddons, allPlatforms)}`),
   /** Every DLC/expansion IGDB has on file for this game (issue #338), already excluding anything

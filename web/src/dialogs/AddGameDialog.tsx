@@ -59,6 +59,7 @@ function ResultRow({
   adding,
   busy,
   onAdd,
+  onHide,
   extra,
 }: {
   r: GameSearchResult;
@@ -67,6 +68,8 @@ function ResultRow({
   adding: boolean;
   busy: boolean;
   onAdd: () => void;
+  /** Recommendations only: stop this game being recommended again. */
+  onHide?: () => void;
   /** An extra line under the platform, e.g. why it's recommended. */
   extra?: ReactNode;
 }) {
@@ -82,9 +85,16 @@ function ResultRow({
         <span style={st('font:400 12.5px var(--font-ui);color:var(--muted)')}>{r.platform}</span>
         {extra}
       </div>
-      <button type="button" onClick={onAdd} disabled={busy || added} style={st(ADD_BTN, added ? { background: 'var(--mintSoft)', color: 'var(--mint)' } : undefined)}>
-        {adding ? t('add.game.adding') : added ? (suggested ? t('add.game.suggestedCheck') : t('add.game.addedCheck')) : t('common.add')}
-      </button>
+      <div style={st('display:flex;flex-direction:column;align-items:stretch;gap:6px;flex-shrink:0')}>
+        <button type="button" onClick={onAdd} disabled={busy || added} style={st(ADD_BTN, added ? { background: 'var(--mintSoft)', color: 'var(--mint)' } : undefined)}>
+          {adding ? t('add.game.adding') : added ? (suggested ? t('add.game.suggestedCheck') : t('add.game.addedCheck')) : t('common.add')}
+        </button>
+        {onHide && !added && (
+          <button type="button" onClick={onHide} disabled={busy} title={t('add.game.hideHint')} style={st('height:28px;padding:0 12px;border-radius:999px;border:none;background:transparent;color:var(--muted);font:500 12px var(--font-ui)')}>
+            {t('add.game.hide')}
+          </button>
+        )}
+      </div>
     </div>
   );
 }
@@ -447,6 +457,12 @@ export function AddGameDialog() {
     };
   }, [roomId, coopOnly, allPlatforms]);
 
+  // Hide a recommendation: it goes now, and the server remembers so it is not offered again.
+  function hideRec(r: RecommendedGame) {
+    setRecs((prev) => prev.filter((x) => x.igdbId !== r.igdbId));
+    void gamesApi.hideRecommendation(r.igdbId).catch(() => ui.showError(t('add.game.hideFailed')));
+  }
+
   // "Ask AI" picks, for the Personal Shelf (issue #820) or the room (issue #821).
   const aiPicks = useAiPicks(roomId);
   // Plain-language search (issue #823).
@@ -761,6 +777,7 @@ export function AddGameDialog() {
                       adding={addingId === r.igdbId}
                       busy={busy}
                       onAdd={() => clickAdd(r)}
+                      onHide={() => hideRec(r)}
                       extra={
                         <span style={st('display:flex;flex-wrap:wrap;align-items:center;gap:6px;font:500 12px var(--font-ui);color:var(--accText)')}>
                           {r.reason}

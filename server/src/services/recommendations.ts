@@ -2,6 +2,7 @@ import { withBackwardsCompatible, type GameStatus, type RecommendedGame, type Ro
 import { prisma } from '../db/client.js';
 import { getSimilarGames, type SimilarGameCandidate } from './igdbClient.js';
 import { redis } from './redisClient.js';
+import { getHiddenIgdbIds } from './hiddenRecommendations.js';
 
 const SEED_LIMIT = 12;
 const RESULT_LIMIT = 24;
@@ -89,7 +90,8 @@ export async function recommendationsFor(
     await redis.set(key, JSON.stringify(candidates), 'EX', CACHE_TTL_SECONDS);
   }
   // Re-check against the current games: something recommended may have been added since caching.
-  const have = new Set(rows.map((r) => r.igdbId));
+  // Also leaves out anything this person hid.
+  const have = new Set([...rows.map((r) => r.igdbId), ...(await getHiddenIgdbIds(scope.userId))]);
   return rankCandidates(
     candidates.filter((c) => !have.has(c.igdbId)),
     { ...opts, titles: new Map(seeds.map((s) => [s.igdbId, s.title])) },
