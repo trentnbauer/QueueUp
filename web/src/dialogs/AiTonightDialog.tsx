@@ -7,6 +7,7 @@ import { useUi } from '../context/UiContext';
 import { Dialog } from '../ui/Dialog';
 import { AiPickedBadge, Banner, Btn, Cover, Spinner, inputPill } from '../ui/primitives';
 import { st } from '../ui/st';
+import { useScope } from '../context/ScopeContext';
 import { useT, type MessageKey } from '../i18n';
 
 const GAMES_QUERY_ROOT = ['games'];
@@ -44,6 +45,8 @@ function PickCard({ pick, label, onStart, busy }: { pick: AiTonightPick; label: 
 export function AiTonightDialog() {
   const t = useT();
   const ui = useUi();
+  const { room } = useScope();
+  const scopeRoomId = room?.id ?? null;
   const queryClient = useQueryClient();
   const ai = useQuery({ queryKey: AI_SETTINGS_QUERY_KEY, queryFn: aiApi.mine });
   const aiReady = !!ai.data && ai.data.effectiveSource !== 'none';
@@ -53,7 +56,7 @@ export function AiTonightDialog() {
   const [error, setError] = useState<string | null>(null);
 
   const ask = useMutation({
-    mutationFn: (excludeIds: string[]) => gamesApi.aiTonight({ request: wish, excludeIds }),
+    mutationFn: (excludeIds: string[]) => gamesApi.aiTonight({ request: wish, excludeIds, ...(scopeRoomId ? { roomId: scopeRoomId } : {}) }),
     onSuccess: (res) => {
       setError(null);
       setResult(res);

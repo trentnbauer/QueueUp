@@ -39,7 +39,7 @@ export function GlancePanel() {
         >
           {t('shell.glance.spin')}
         </button>
-        {isShelf && (
+        {(
           <button
             type="button"
             onClick={() => ui.openDialog('aiTonight')}

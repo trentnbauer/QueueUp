@@ -1,9 +1,11 @@
 import { describe, expect, it, vi } from 'vitest';
 
-vi.mock('../../db/client.js', () => ({ prisma: {} }));
-vi.mock('./aiConfig.js', () => ({ aiComplete: vi.fn() }));
+const m = vi.hoisted(() => ({ gameFindMany: vi.fn(), aiComplete: vi.fn(), requireMembership: vi.fn() }));
+vi.mock('../../db/client.js', () => ({ prisma: { game: { findMany: m.gameFindMany } } }));
+vi.mock('./aiConfig.js', () => ({ aiComplete: m.aiComplete }));
+vi.mock('../roomAccess.js', () => ({ requireMembership: m.requireMembership }));
 
-import { buildTonightPrompt, parseTonightReply, type TonightCandidate } from './aiTonight.js';
+import { aiPickTonight, buildTonightPrompt, parseTonightReply, type TonightCandidate } from './aiTonight.js';
 
 const cand = (n: number, title: string, hours: number | null = 10): TonightCandidate => ({
   ref: `c${n}`,
@@ -48,5 +50,30 @@ describe('buildTonightPrompt', () => {
     expect(p).toContain('c3: "Celeste" | Puzzle | unknown length');
     expect(p).toContain('"chill, \\"about an hour\\""');
     expect(p).toContain('"Hollow Knight"');
+  });
+});
+
+describe('aiPickTonight for a room', () => {
+  const game = (id: string, title: string, votes: number[]) => ({ id, title, genre: null, platform: 'PC', coverImageUrl: null, timeToBeatHours: 5, votes: votes.map((value) => ({ value })) });
+
+  it('checks the person is in the room, reads the room queue, adds up everyone\'s votes and bills the room\'s AI', async () => {
+    m.requireMembership.mockResolvedValue({});
+    m.gameFindMany.mockResolvedValueOnce([game('a', 'Low', [1, 1]), game('b', 'High', [5, 4, 3])]).mockResolvedValueOnce([]);
+    m.aiComplete.mockResolvedValue({ text: '{"pick":{"ref":"c1","reason":"Everyone wants it."},"alternate":null}', fallback: null });
+    const out = await aiPickTonight('u1', 'something co-op', [], 'room1');
+    expect(m.requireMembership).toHaveBeenCalledWith('room1', 'u1');
+    expect(m.gameFindMany.mock.calls[0][0].where).toMatchObject({ roomId: 'room1' });
+    expect(m.gameFindMany.mock.calls[0][0].where).not.toHaveProperty('addedBy');
+    // The group's best (12 total) is offered first, so it is "c1".
+    expect(out.pick.title).toBe('High');
+    expect(m.aiComplete.mock.calls[0][0].messages[0].content).toContain('group want 12');
+    expect(m.aiComplete.mock.calls[0][1]).toMatchObject({ userId: 'u1', roomId: 'room1', label: 'tonight' });
+  });
+
+  it('refuses a non-member before reading anything', async () => {
+    m.gameFindMany.mockReset();
+    m.requireMembership.mockRejectedValue(new Error('not a member'));
+    await expect(aiPickTonight('u1', 'x', [], 'room1')).rejects.toThrow('not a member');
+    expect(m.gameFindMany).not.toHaveBeenCalled();
   });
 });

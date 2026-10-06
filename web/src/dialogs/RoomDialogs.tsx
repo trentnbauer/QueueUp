@@ -22,6 +22,7 @@ import { computeRoomYearInReview } from '../components/roomYearInReview';
 import { RoomWeeklyRecap } from './RoomWeeklyRecap';
 import { YearStoryCard } from '../components/YearStoryCard';
 import { roomStoryFacts } from '../lib/yearStoryFacts';
+import { AiSettingsDialog } from './AiSettingsDialog';
 import { Dialog } from '../ui/Dialog';
 import { NavRow } from './MeDialog';
 import { RoomAiSection } from './RoomAiSection';
@@ -375,6 +376,7 @@ export function RoomSettingsDialog() {
   const [spinOpen, setSpinOpen] = useState(false);
   const [masterLeaveOpen, setMasterLeaveOpen] = useState(false);
   const [addFriendsOpen, setAddFriendsOpen] = useState(false);
+  const [aiSettingsOpen, setAiSettingsOpen] = useState(false);
   const [memberQ, setMemberQ] = useState('');
   const [showAll, setShowAll] = useState(false);
   const [showYear, setShowYear] = useState(false);
@@ -802,6 +804,14 @@ export function RoomSettingsDialog() {
 
       <Field label={t('room.settings.aiLabel')}>
         <RoomAiSection roomId={roomId} canManage={canManage} onOpenProfile={close} />
+        <div style={st('display:flex;flex-wrap:wrap;gap:8px')}>
+          <Btn kind="soft" height={38} padX={14} fontSize={13} onClick={() => { close(); ui.openDialog('aiTonight'); }}>
+            {t('room.settings.ai.tonight')}
+          </Btn>
+          <Btn kind="soft" height={38} padX={14} fontSize={13} onClick={() => setAiSettingsOpen(true)}>
+            {t('room.settings.ai.mine')}
+          </Btn>
+        </div>
       </Field>
 
       <Field label={t('room.settings.exportLabel')}>
@@ -916,6 +926,7 @@ export function RoomSettingsDialog() {
         )}
       </Dialog>
     )}
+    {aiSettingsOpen && <AiSettingsDialog onClose={() => setAiSettingsOpen(false)} />}
     {masterLeaveOpen && (
       <Dialog onClose={() => setMasterLeaveOpen(false)} title={t('room.settings.masterLeaveTitle')} gap={14}>
         <p style={st('margin:0;font:400 13.5px/1.5 var(--font-ui);color:var(--muted)')}>

@@ -3,6 +3,7 @@ import { HttpError } from '../../util/httpError.js';
 import { aiComplete } from './aiConfig.js';
 import { extractJson } from './aiJson.js';
 import { reviewAverage } from '../reviewAverage.js';
+import { requireMembership } from '../roomAccess.js';
 import type { AiTonightPick, AiTonightResponse, GameStatus } from '@queueup/shared';
 
 /** Cards offered to the model. A bigger backlog is trimmed (best "want to play" first). */
@@ -19,7 +20,7 @@ export interface TonightCandidate {
   platform: string;
   coverImageUrl: string | null;
   timeToBeatHours: number | null;
-  /** The person's own 1-5 "want to play" vote, 0 when none. */
+  /** The person's own 1-5 "want to play" vote, 0 when none. In a room: the group's votes added up. */
   want: number;
 }
 
@@ -32,11 +33,11 @@ Reply with ONLY JSON: {"pick": {"ref": "<ref>", "reason": "<one or two friendly 
 
 const hours = (h: number | null) => (h === null ? 'unknown length' : `${Math.round(h * 10) / 10}h`);
 
-export function buildTonightPrompt(request: string, candidates: TonightCandidate[], enjoyed: string[]): string {
+export function buildTonightPrompt(request: string, candidates: TonightCandidate[], enjoyed: string[], group = false): string {
   const list = candidates
-    .map((c) => `${c.ref}: ${JSON.stringify(c.title)} | ${c.genre ?? 'no genre'} | ${hours(c.timeToBeatHours)} | want ${c.want || 'not rated'}`)
+    .map((c) => `${c.ref}: ${JSON.stringify(c.title)} | ${c.genre ?? 'no genre'} | ${hours(c.timeToBeatHours)} | ${group ? 'group want' : 'want'} ${c.want || 'not rated'}`)
     .join('\n');
-  return `What they are after: ${JSON.stringify(request)}\n\nBacklog:\n${list}\n\nGames they finished and enjoyed: ${enjoyed.length ? enjoyed.map((t) => JSON.stringify(t)).join(', ') : 'none yet'}`;
+  return `${group ? 'This is for a group playing together: the want score is everyone\'s votes added up, so favour games the group wants and that suit playing together.\n' : ''}What they are after: ${JSON.stringify(request)}\n\nBacklog:\n${list}\n\nGames they finished and enjoyed: ${enjoyed.length ? enjoyed.map((t) => JSON.stringify(t)).join(', ') : 'none yet'}`;
 }
 
 /** Validates the reply: both picks must be refs from the list, and the alternate must differ from the pick. */
@@ -68,25 +69,29 @@ const BACKLOG_STATUSES: GameStatus[] = ['backlog', 'play_next', 'paused'];
 
 /** Picks from the person's own shelf backlog. `excludeIds` are cards already offered this time, so
  * "show me another" never repeats. Changes nothing; marking it Playing is the person's choice. */
-export async function aiPickTonight(userId: string, request: string, excludeIds: string[] = []): Promise<AiTonightResponse> {
+export async function aiPickTonight(userId: string, request: string, excludeIds: string[] = [], roomId: string | null = null): Promise<AiTonightResponse> {
   const wish = request.trim().slice(0, MAX_REQUEST_LENGTH);
   if (!wish) throw new HttpError(400, 'Say what you are after, for example "something chill, about an hour".');
+  // A room's queue, for the whole group: only members may ask, and every member's votes count.
+  if (roomId) await requireMembership(roomId, userId);
 
   const [backlog, finished] = await Promise.all([
     prisma.game.findMany({
-      where: { roomId: null, addedBy: userId, status: { in: BACKLOG_STATUSES }, archivedAt: null, id: { notIn: excludeIds } },
-      select: { id: true, title: true, genre: true, platform: true, coverImageUrl: true, timeToBeatHours: true, votes: { where: { userId }, select: { value: true } } },
+      where: roomId
+        ? { roomId, status: { in: BACKLOG_STATUSES }, archivedAt: null, id: { notIn: excludeIds } }
+        : { roomId: null, addedBy: userId, status: { in: BACKLOG_STATUSES }, archivedAt: null, id: { notIn: excludeIds } },
+      select: { id: true, title: true, genre: true, platform: true, coverImageUrl: true, timeToBeatHours: true, votes: roomId ? { select: { value: true } } : { where: { userId }, select: { value: true } } },
     }),
     prisma.game.findMany({
-      where: { roomId: null, addedBy: userId, status: { in: ['done', 'replay'] } },
+      where: roomId ? { roomId, status: { in: ['done', 'replay'] } } : { roomId: null, addedBy: userId, status: { in: ['done', 'replay'] } },
       select: { title: true, reviews: { where: { userId }, select: { art: true, gameplay: true, story: true, sound: true, themes: true, recommend: true } } },
       take: 80,
     }),
   ]);
-  if (!backlog.length) throw new HttpError(400, excludeIds.length ? 'No more games in your backlog to suggest.' : 'Your backlog is empty. Add some games first.');
+  if (!backlog.length) throw new HttpError(400, excludeIds.length ? 'No more games to suggest.' : roomId ? "This room's queue is empty. Add some games first." : 'Your backlog is empty. Add some games first.');
 
   const candidates: TonightCandidate[] = backlog
-    .map((g) => ({ g, want: g.votes[0]?.value ?? 0 }))
+    .map((g) => ({ g, want: roomId ? g.votes.reduce((sum, v) => sum + v.value, 0) : (g.votes[0]?.value ?? 0) }))
     .sort((a, b) => b.want - a.want)
     .slice(0, TONIGHT_MAX_CANDIDATES)
     .map(({ g, want }, i) => ({ ref: `c${i + 1}`, id: g.id, title: g.title, genre: g.genre, platform: g.platform, coverImageUrl: g.coverImageUrl, timeToBeatHours: g.timeToBeatHours, want }));
@@ -103,7 +108,7 @@ export async function aiPickTonight(userId: string, request: string, excludeIds:
     .map((g) => g.title)
     .slice(0, 30);
 
-  const res = await aiComplete({ system: SYSTEM, messages: [{ role: 'user', content: buildTonightPrompt(wish, candidates, enjoyed) }], maxTokens: 600, temperature: 0.4 }, { userId, label: 'tonight' });
+  const res = await aiComplete({ system: SYSTEM, messages: [{ role: 'user', content: buildTonightPrompt(wish, candidates, enjoyed, !!roomId) }], maxTokens: 600, temperature: 0.4 }, { userId, ...(roomId ? { roomId } : {}), label: 'tonight' });
   const parsed = parseTonightReply(res.text, candidates);
   if (!parsed) throw new HttpError(502, 'The AI did not return a usable pick. Try again.');
   return { ...parsed, fallback: res.fallback };
