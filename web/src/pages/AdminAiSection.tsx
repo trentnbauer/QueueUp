@@ -5,7 +5,7 @@ import { ADMIN_AI_QUERY_KEY, aiApi } from '../api/ai';
 import { useConfirm } from '../context/ConfirmContext';
 import { useUi } from '../context/UiContext';
 import { AiFallbackWarning, AiProvidersEditor, draftFromEntry, emptyAiDraft, listAfterSave, listSwapped, listWithout, reconcileDrafts, type AiDraft, type AiEntryTest, type SavedEntry } from '../dialogs/AiProvidersEditor';
-import { Banner, Collapsible } from '../ui/primitives';
+import { Banner, Btn, Collapsible } from '../ui/primitives';
 import { st } from '../ui/st';
 import { useT, type MessageKey } from '../i18n';
 
@@ -15,7 +15,7 @@ export function AdminAiSection() {
   const t = useT();
   const ui = useUi();
   const queryClient = useQueryClient();
-  const { data } = useQuery({ queryKey: ADMIN_AI_QUERY_KEY, queryFn: aiApi.admin });
+  const { data, isError, refetch } = useQuery({ queryKey: ADMIN_AI_QUERY_KEY, queryFn: aiApi.admin });
   const confirm = useConfirm();
   const [drafts, setDrafts] = useState<AiDraft[] | null>(null);
   // What the server has saved, kept up to date from each save's own answer (a refetch can lag behind).
@@ -119,7 +119,20 @@ export function AdminAiSection() {
     }
   }
 
-  if (!data || !drafts) return null;
+  if (!data || !drafts) {
+    return (
+      <div style={st('display:flex;flex-direction:column;gap:10px;align-items:flex-start')}>
+        {isError ? (
+          <>
+            <Banner>{t('settings.ai.loadFailed')}</Banner>
+            <Btn kind="soft" height={40} padX={16} onClick={() => void refetch()}>
+              {t('common.retry')}
+            </Btn>
+          </>
+        ) : null}
+      </div>
+    );
+  }
   const envSet = (k: keyof typeof data.sources) => data.sources[k] === 'env';
 
   return (

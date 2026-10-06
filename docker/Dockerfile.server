@@ -1,5 +1,5 @@
 # syntax=docker/dockerfile:1
-FROM node:22-alpine AS base
+FROM node:24-alpine AS base
 # Prisma's query engine needs OpenSSL on Alpine.
 RUN apk add --no-cache openssl
 WORKDIR /repo
@@ -83,7 +83,7 @@ WORKDIR /repo/server
 EXPOSE 3000
 # Baked into the image itself (not just docker-compose.prod.yml's healthcheck: override) so the
 # container reports its own health under any orchestrator, not only when run via that specific
-# compose file - node:22-alpine has no curl/wget, so this uses Node's built-in fetch instead of
+# compose file - node:24-alpine has no curl/wget, so this uses Node's built-in fetch instead of
 # adding a package just for this. Kept in sync with docker-compose.prod.yml's healthcheck, which
 # tunes the interval/retries/start-period for that stack but checks the same endpoint.
 HEALTHCHECK --interval=15s --timeout=5s --start-period=20s --retries=5 \

@@ -17,7 +17,7 @@ export function AiSettingsForm({ onSaved }: { onSaved?: () => void }) {
   const ui = useUi();
   const confirm = useConfirm();
   const queryClient = useQueryClient();
-  const { data } = useQuery({ queryKey: AI_SETTINGS_QUERY_KEY, queryFn: aiApi.mine });
+  const { data, isError, refetch } = useQuery({ queryKey: AI_SETTINGS_QUERY_KEY, queryFn: aiApi.mine });
   const [drafts, setDrafts] = useState<AiDraft[] | null>(null);
   // What the server has saved, kept up to date from each save's own answer (a refetch can lag behind).
   const [saved, setSaved] = useState<SavedEntry[]>([]);
@@ -133,7 +133,22 @@ export function AiSettingsForm({ onSaved }: { onSaved?: () => void }) {
     if (ok) clear.mutate();
   }
 
-  if (!data || !drafts) return null;
+  if (!data || !drafts) {
+    return (
+      <div style={st('display:flex;flex-direction:column;gap:10px;align-items:flex-start')}>
+        {isError ? (
+          <>
+            <Banner>{t('settings.ai.loadFailed')}</Banner>
+            <Btn kind="soft" height={40} padX={16} onClick={() => void refetch()}>
+              {t('common.retry')}
+            </Btn>
+          </>
+        ) : (
+          <span style={st('font:400 14px var(--font-ui);color:var(--muted)')}>{t('common.loading')}</span>
+        )}
+      </div>
+    );
+  }
   if (!data.userSettingsAllowed) return <span style={st('font:400 13.5px var(--font-ui);color:var(--muted)')}>{t('settings.ai.notAllowed')}</span>;
 
   const busy = clear.isPending || testingEntry !== null || savingEntry !== null;
