@@ -355,6 +355,16 @@ export function AiBadge({ title, label = 'AI' }: { title?: string; label?: strin
   );
 }
 
+/** IGDB's 0-100 score as a gold star out of 10 ("★ 8.7 IGDB"), or nothing when IGDB has none. */
+export function IgdbScore({ score }: { score: number | null | undefined }) {
+  if (score === null || score === undefined) return null;
+  return (
+    <span title={t('home.row.igdbTitle', { score })} aria-label={t('home.row.igdbAria', { score })} style={{ font: '600 14px var(--font-ui)', color: 'var(--star)', whiteSpace: 'nowrap' }}>
+      ★ {(score / 10).toFixed(1)} <span style={{ font: '500 12px var(--font-mono)', color: 'var(--muted)', letterSpacing: '0.04em' }}>IGDB</span>
+    </span>
+  );
+}
+
 /** A small spinning ring: something is loading or the AI is working. */
 export function Spinner({ size = 14, style }: { size?: number; style?: CSSProperties }) {
   return (

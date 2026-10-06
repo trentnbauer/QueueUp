@@ -723,6 +723,21 @@ export async function getPlayModes(igdbIds: number[]): Promise<Map<number, PlayM
   return new Map(games.map((g) => [g.id, playModesFrom(g.game_modes, g.multiplayer_modes)]));
 }
 
+/** What a suggestion card shows beyond the search result: IGDB's 0-100 review score (see
+ * reviewScoreFrom) and its genres, e.g. "Shooter, Adventure". Either is null when IGDB has none. */
+export interface PickDetails {
+  reviewScore: number | null;
+  genre: string | null;
+}
+
+/** Score and genres for up to 500 games in one request. A game IGDB doesn't return is left out. */
+export async function getPickDetails(igdbIds: number[]): Promise<Map<number, PickDetails>> {
+  const ids = [...new Set(igdbIds)].filter((id) => Number.isInteger(id) && id > 0).slice(0, 500);
+  if (ids.length === 0) return new Map();
+  const games = await igdbRequest<IgdbGame[]>('games', `fields total_rating,aggregated_rating,rating,genres.name; where id = (${ids.join(',')}); limit 500;`);
+  return new Map(games.map((g) => [g.id, { reviewScore: reviewScoreFrom(g), genre: genreLabel(g.genres) }]));
+}
+
 /** A game suggested because it's like something already in the shelf/room. */
 export interface SimilarGameCandidate extends GameSearchResult {
   /** How many of the seed games list it as similar - the strongest signal. */

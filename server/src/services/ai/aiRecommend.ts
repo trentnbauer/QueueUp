@@ -3,7 +3,7 @@ import { HttpError } from '../../util/httpError.js';
 import { aiComplete } from './aiConfig.js';
 import { extractJson } from './aiJson.js';
 import { reviewAverage } from '../reviewAverage.js';
-import { searchGames } from '../igdbClient.js';
+import { getPickDetails, searchGames } from '../igdbClient.js';
 import { mapWithConcurrency } from '../priceService.js';
 import { titleCore } from '../duplicateCandidates.js';
 import { getOwnedPlatforms } from '../userSettings.js';
@@ -81,7 +81,7 @@ export async function resolveSuggestions(
     try {
       const page = await searchGames(s.title, platforms);
       const hit = matchSuggestion(s, page.results);
-      return hit ? { ...hit, reason: s.reason } : null;
+      return hit ? { ...hit, reason: s.reason, reviewScore: null, genre: null } : null;
     } catch {
       return null;
     }
@@ -93,7 +93,19 @@ export async function resolveSuggestions(
     seen.add(r.igdbId);
     out.push(r);
   }
-  return out.slice(0, AI_RECOMMEND_MAX);
+  const picks = out.slice(0, AI_RECOMMEND_MAX);
+  // IGDB's score and genres for each, in one request. Best effort: a pick without them is still a pick.
+  try {
+    const details = await getPickDetails(picks.map((p) => p.igdbId));
+    for (const p of picks) {
+      const d = details.get(p.igdbId);
+      p.reviewScore = d?.reviewScore ?? null;
+      p.genre = d?.genre ?? null;
+    }
+  } catch {
+    // leave them out
+  }
+  return picks;
 }
 
 /** Asks the AI for recommendations from a taste profile and turns them into real IGDB games. */
