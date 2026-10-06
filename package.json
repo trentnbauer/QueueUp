@@ -18,8 +18,8 @@
     "changelog:generate": "bash .github/scripts/generate-changelog.sh"
   },
   "devDependencies": {
-    "concurrently": "^9.1.0",
-    "typescript": "^5.7.2",
+    "concurrently": "^9.2.4",
+    "typescript": "^5.9.3",
     "vitest": "^5.0.3"
   },
   "engines": {
