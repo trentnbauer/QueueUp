@@ -4,6 +4,7 @@ import { gamesApi } from '../api/games';
 import { tagsApi } from '../api/tags';
 import { useCurrencyRegion } from '../context/CurrencyRegionContext';
 import { useAnnounceUnlock } from '../context/AchievementUnlockContext';
+import { useUndoChange } from './useUndoChange';
 import { t } from '../i18n';
 import type { Game, GameStatus, SetGameReviewRequest, ShelfSyncSuggestion, VoteValue } from '@queueup/shared';
 
@@ -35,6 +36,7 @@ export function useGames(roomId: string | null) {
   const queryKey = roomId ? ['games', 'room', roomId, region] : ['games', 'shelf', region];
   const queryClient = useQueryClient();
   const announceUnlock = useAnnounceUnlock();
+  const undoable = useUndoChange();
   const [actionError, setActionError] = useState<string | null>(null);
   // Populated only when marking a *room* game Beaten surfaces a shelfSync suggestion (see
   // ShelfSyncSuggestion) - the room game's own id rides along so the confirm action knows which
@@ -249,9 +251,10 @@ export function useGames(roomId: string | null) {
   const setIgdbMatch = useMutation({
     mutationFn: ({ gameId, igdbId }: { gameId: string; igdbId: number }) => gamesApi.setIgdbMatch(gameId, { igdbId }),
     // A merge deletes the card that was re-matched and returns the one it merged into.
-    onSuccess: ({ game, mergedFromId }) => {
+    onSuccess: ({ game, mergedFromId, undoToken }) => {
       if (mergedFromId) removeGameFromCache(mergedFromId);
       patchGame(game);
+      undoable(mergedFromId ? t('game.igdbMatch.merge.done', { title: game.title }) : t('game.igdbMatch.rematched', { title: game.title }), undoToken);
     },
     onError: (err) => setActionError(errorMessage(err, t('shell.games.error.rematch'))),
   });
@@ -259,9 +262,10 @@ export function useGames(roomId: string | null) {
   // "Duplicate?" (issue #848): the merged-away card goes, the survivor comes back.
   const mergeGame = useMutation({
     mutationFn: ({ gameId, targetGameId }: { gameId: string; targetGameId: string }) => gamesApi.mergeGame(gameId, { targetGameId }),
-    onSuccess: ({ game, mergedFromId }) => {
+    onSuccess: ({ game, mergedFromId, undoToken }) => {
       removeGameFromCache(mergedFromId);
       patchGame(game);
+      undoable(t('game.igdbMatch.merge.done', { title: game.title }), undoToken);
     },
     onError: (err) => setActionError(errorMessage(err, t('shell.games.error.rematch'))),
   });
