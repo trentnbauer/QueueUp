@@ -1,9 +1,11 @@
 import type { FastifyInstance } from 'fastify';
-import type { AdminAiResponse, AiSettingsResponse, AiTestResponse, RoomAiResponse, SetAdminAiRequest, SetUserAiSettingsRequest, UserAiSettings } from '@queueup/shared';
+import type { AdminAiResponse, AiBenchmarkResult, AiSettingsResponse, AiTestResponse, RoomAiResponse, SetAdminAiRequest, SetUserAiSettingsRequest, UserAiSettings } from '@queueup/shared';
+import { HttpError } from '../util/httpError.js';
 import { logAdminAction } from '../services/adminAuditLog.js';
 import { describeAdminAi, saveAdminAi } from '../services/ai/adminAi.js';
 import { requireAdmin } from '../services/adminAccess.js';
 import { aiComplete, aiCompleteEntry, aiCompleteWithServer, clearUserAiSettings, describeAiSettings, saveUserAiSettings } from '../services/ai/aiConfig.js';
+import { isBenchmarkStep, runBenchmarkStep } from '../services/ai/aiBenchmark.js';
 import { applyMyAiToRoom, describeRoomAi, removeRoomAi } from '../services/ai/roomAi.js';
 import { requireMembership } from '../services/roomAccess.js';
 import type { AiRequest } from '../services/ai/providers.js';
@@ -55,6 +57,19 @@ export default async function aiSettingsRoutes(app: FastifyInstance) {
     return { ok: true, source: res.source, provider: res.provider, model: res.model, reply: res.text.trim().slice(0, 200), fallback: res.fallback };
   });
 
+  // Benchmark one saved provider, one timed step per call (see services/ai/aiBenchmark.ts). Billable
+  // like the test, and slow ones can take up to the AI request timeout, so a tight limit.
+  app.post<{ Body: { index?: unknown; step?: unknown } | undefined }>(
+    '/api/me/ai/benchmark',
+    { config: { rateLimit: { max: 12, timeWindow: '1 minute' } } },
+    async (request): Promise<AiBenchmarkResult> => {
+      const userId = await request.requireAuth();
+      const { index, step } = request.body ?? {};
+      if (typeof index !== 'number' || !isBenchmarkStep(step)) throw new HttpError(400, 'index and a valid step are required');
+      return runBenchmarkStep({ userId }, index, step);
+    },
+  );
+
   // Applying your own AI settings to a room you're in (see services/ai/roomAi.ts). The key itself is
   // never involved: the room just records who is providing it.
   const isElevated = (role: string) => role === 'room_master' || role === 'moderator';
@@ -97,6 +112,18 @@ export default async function aiSettingsRoutes(app: FastifyInstance) {
     const res = await aiCompleteWithServer(TEST_REQUEST);
     return { ok: true, source: 'server', provider: res.provider, model: res.model, reply: res.text.trim().slice(0, 200), fallback: res.fallback };
   });
+
+  app.post<{ Body: { index?: unknown; step?: unknown } | undefined }>(
+    '/api/admin/ai/benchmark',
+    { config: { rateLimit: { max: 12, timeWindow: '1 minute' } } },
+    async (request): Promise<AiBenchmarkResult> => {
+      const actorId = await request.requireAuth();
+      await requireAdmin(actorId);
+      const { index, step } = request.body ?? {};
+      if (typeof index !== 'number' || !isBenchmarkStep(step)) throw new HttpError(400, 'index and a valid step are required');
+      return runBenchmarkStep('server', index, step);
+    },
+  );
 
   // The server-wide first provider and its backups. Keys are write-only here too.
   app.get('/api/admin/ai', async (request): Promise<AdminAiResponse> => {
