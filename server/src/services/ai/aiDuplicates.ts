@@ -18,7 +18,7 @@ const AI_DUPLICATE_PARALLEL = 3;
  * pathological); the pre-filter's own default of 40 used to cut a big shelf off after the first few. */
 const MAX_SCAN_PAIRS = 600;
 
-const SYSTEM = `You judge whether two cards in a person's game library are the same game, so the extra card can be merged into the original.
+export const DUPLICATE_SYSTEM = `You judge whether two cards in a person's game library are the same game, so the extra card can be merged into the original.
 They ARE the same game when one is only another edition or release of the other: a "Game of the Year", Complete, Definitive, Deluxe, Ultimate, Gold, Anniversary or Director's Cut edition, a plain re-release, or a renamed version.
 They are NOT the same game when one is a remaster, remake or reimagining (a separate release the person may want both of), a sequel, prequel, spin-off, expansion or DLC, or a different game that merely shares words.
 When unsure, say they are not the same.
@@ -125,7 +125,7 @@ export async function aiScanDuplicates(userId: string): Promise<AiDuplicateScanR
     // Once one batch has failed (e.g. the daily limit) there's no point sending more.
     if (stopped) return;
     try {
-      const res = await aiComplete({ system: SYSTEM, messages: [{ role: 'user', content: buildDuplicatePrompt(batch) }], maxTokens: 2048, temperature: 0 }, { userId });
+      const res = await aiComplete({ system: DUPLICATE_SYSTEM, messages: [{ role: 'user', content: buildDuplicatePrompt(batch) }], maxTokens: 2048, temperature: 0 }, { userId });
       checked += batch.length;
       fallback ??= res.fallback;
       found.push(...parseDuplicateReply(res.text, batch));

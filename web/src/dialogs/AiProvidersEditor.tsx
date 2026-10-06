@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { AI_MAX_FALLBACKS, AI_RECOMMENDED_MODELS, type AiFallbackEntry, type AiFallbackInput, type AiFallbackNotice, type AiProvider } from '@queueup/shared';
+import { AI_BENCHMARK_STEPS, AI_MAX_FALLBACKS, AI_RECOMMENDED_MODELS, summariseBenchmark, type AiBenchmarkResult, type AiBenchmarkStep, type AiFallbackEntry, type AiFallbackInput, type AiFallbackNotice, type AiProvider } from '@queueup/shared';
 import { Banner, Btn, Group } from '../ui/primitives';
 import { st } from '../ui/st';
 import { useT, type MessageKey } from '../i18n';
@@ -47,6 +47,47 @@ const FIELD = 'height:40px;padding:0 12px;border-radius:12px;background:var(--bg
 /** A provider's name in the picker. */
 const providerLabel = (t: ReturnType<typeof useT>, p: AiProvider) => t(`settings.ai.providerName.${p}` as MessageKey);
 
+/** A running or finished benchmark of one entry: the steps so far, and which one is under way. */
+interface BenchState {
+  running: AiBenchmarkStep | null;
+  results: AiBenchmarkResult[];
+}
+
+function BenchmarkPanel({ state }: { state: BenchState }) {
+  const t = useT();
+  const done = state.running === null;
+  const summary = done ? summariseBenchmark(state.results) : null;
+  const failure = state.results.find((r) => !r.ok);
+  const detail =
+    summary &&
+    t(`settings.ai.benchmark.verdict.${summary.verdict}` as MessageKey, {
+      seconds: summary.batchSeconds ?? '',
+      minutes: summary.bigScanMinutes ?? '',
+      error: failure?.error ?? t('settings.ai.benchmark.notJson'),
+    });
+  const color = summary ? (summary.verdict === 'good' ? 'var(--mint)' : summary.verdict === 'ok' ? 'var(--text)' : 'var(--danger)') : 'var(--muted)';
+  return (
+    <div style={st('display:flex;flex-direction:column;gap:6px;padding:10px 12px;border-radius:12px;background:var(--bg);border:1px solid var(--line)')}>
+      {AI_BENCHMARK_STEPS.map((step) => {
+        const r = state.results.find((x) => x.step === step);
+        const active = state.running === step;
+        return (
+          <div key={step} style={st('display:flex;align-items:center;gap:8px;font:400 12.5px var(--font-ui);color:var(--text2)')}>
+            <span style={st('flex:1;min-width:0')}>{t(`settings.ai.benchmark.step.${step}` as MessageKey)}</span>
+            {active && <span role="status" aria-label={t('settings.ai.benchmarking')} style={st('width:14px;height:14px;border-radius:50%;border:2px solid var(--line);border-top-color:var(--acc);animation:qu-spin .9s linear infinite')} />}
+            {r && (
+              <span style={st(`font:600 12.5px var(--font-mono);color:${r.ok ? 'var(--text)' : 'var(--danger)'}`)}>
+                {r.ok ? `${(r.ms / 1000).toFixed(1)}s${r.tokensPerSecond !== null ? ` · ${r.tokensPerSecond} tok/s` : ''}` : r.timedOut ? t('settings.ai.benchmark.timedOut') : '⚠'}
+              </span>
+            )}
+          </div>
+        );
+      })}
+      {summary && <span style={st(`font:600 13px/1.4 var(--font-ui);color:${color};text-wrap:pretty;overflow-wrap:anywhere`)}>{detail}</span>}
+    </div>
+  );
+}
+
 /** The outcome of testing one entry. */
 export type AiEntryTest = { ok: true } | { ok: false; message: string };
 
@@ -63,6 +104,7 @@ export function AiProvidersEditor({
   onTest,
   testing,
   results,
+  onBenchmark,
 }: {
   drafts: AiDraft[];
   onChange: (next: AiDraft[]) => void;
@@ -75,8 +117,28 @@ export function AiProvidersEditor({
   testing?: number | null;
   /** Last test result per position. */
   results?: Record<number, AiEntryTest>;
+  /** Runs one timed benchmark step against the saved entry at this position. Left out, there is no Benchmark button. */
+  onBenchmark?: (index: number, step: AiBenchmarkStep) => Promise<AiBenchmarkResult>;
 }) {
   const t = useT();
+  const [bench, setBench] = useState<Record<number, BenchState>>({});
+  const benchRunning = Object.values(bench).some((b) => b.running !== null);
+  async function runBenchmark(i: number) {
+    if (!onBenchmark) return;
+    const results: AiBenchmarkResult[] = [];
+    for (const step of AI_BENCHMARK_STEPS) {
+      setBench((prev) => ({ ...prev, [i]: { running: step, results: [...results] } }));
+      let r: AiBenchmarkResult;
+      try {
+        r = await onBenchmark(i, step);
+      } catch (e) {
+        r = { step, ok: false, ms: 0, outputTokens: null, tokensPerSecond: null, validJson: null, timedOut: false, error: e instanceof Error ? e.message : t('settings.ai.testFailed') };
+      }
+      results.push(r);
+      if (!r.ok) break;
+    }
+    setBench((prev) => ({ ...prev, [i]: { running: null, results: [...results] } }));
+  }
   // Entries the person has opened. A new, unsaved one is always open.
   const [open, setOpen] = useState<Set<string>>(new Set());
   const keyOf = (d: AiDraft, i: number) => d.id ?? `pos-${i}`;
@@ -106,13 +168,13 @@ export function AiProvidersEditor({
           const summary = [providerLabel(t, d.provider), d.model.trim() || AI_RECOMMENDED_MODELS[d.provider], d.disabled ? t('settings.ai.disabledTag') : null].filter(Boolean).join(' · ');
           return (
             <div key={d.id ?? `new-${i}`} style={st(`display:flex;flex-direction:column;gap:8px;padding:12px 14px;background:var(--surf);${d.disabled ? 'opacity:.7' : ''}`)}>
-              <div style={st('display:flex;align-items:center;gap:6px')}>
+              <div style={st('display:flex;flex-wrap:wrap;align-items:center;gap:6px')}>
                 <button
                   type="button"
                   onClick={() => d.saved && toggle(k)}
                   aria-expanded={expanded}
                   disabled={!d.saved}
-                  style={st('flex:1;min-width:0;display:flex;align-items:center;gap:8px;border:none;background:none;padding:0;color:var(--text);text-align:left')}
+                  style={st('flex:1 1 140px;min-width:0;display:flex;align-items:center;gap:8px;border:none;background:none;padding:0;color:var(--text);text-align:left')}
                 >
                   {d.saved && <span aria-hidden="true" style={st('font:600 12px var(--font-ui);color:var(--muted);width:10px')}>{expanded ? '▾' : '▸'}</span>}
                   <span style={st('flex:1;min-width:0;display:flex;flex-direction:column;gap:1px')}>
@@ -140,6 +202,11 @@ export function AiProvidersEditor({
                     {testing === i ? t('settings.ai.testing') : t('settings.ai.test')}
                   </Btn>
                 )}
+                {onBenchmark && d.saved && (
+                  <Btn kind="soft" height={32} padX={12} fontSize={12.5} disabled={benchRunning || (testing !== null && testing !== undefined)} onClick={() => void runBenchmark(i)}>
+                    {bench[i]?.running ? t('settings.ai.benchmarking') : t('settings.ai.benchmark')}
+                  </Btn>
+                )}
                 {expanded && i > 1 && <Btn kind="ghost" height={32} padX={8} fontSize={12.5} aria-label={t('settings.ai.moveUp')} onClick={() => move(i, -1)}>↑</Btn>}
                 {expanded && i > 0 && i < drafts.length - 1 && <Btn kind="ghost" height={32} padX={8} fontSize={12.5} aria-label={t('settings.ai.moveDown')} onClick={() => move(i, 1)}>↓</Btn>}
                 {expanded && i > 0 && (
@@ -149,6 +216,7 @@ export function AiProvidersEditor({
                 )}
               </div>
               {result && !result.ok && <span style={st('font:500 12.5px/1.4 var(--font-ui);color:var(--danger);overflow-wrap:anywhere')}>{result.message}</span>}
+              {bench[i] && <BenchmarkPanel state={bench[i]} />}
               {expanded && lock.provider && <span style={st('font:400 12px var(--font-ui);color:var(--muted)')}>{t('pages.admin.ai.envLocked')}</span>}
               {expanded && <select
                 value={d.provider}
