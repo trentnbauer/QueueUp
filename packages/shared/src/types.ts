@@ -2845,6 +2845,10 @@ export interface AiPriceAdviceResponse {
 export interface AiRecommendation extends GameSearchResult {
   /** One short sentence from the AI, shown as plain text. */
   reason: string;
+  /** IGDB's 0-100 review score, when IGDB has one. */
+  reviewScore: number | null;
+  /** IGDB's genres, e.g. "Shooter, Adventure"; null when IGDB lists none. */
+  genre: string | null;
 }
 
 /** Body for POST /api/games/ai-recommend. Without a roomId it is for the Personal Shelf. */

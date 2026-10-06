@@ -4,7 +4,7 @@ import type { AiRecommendation, VoteValue } from '@queueup/shared';
 import { useModalA11y } from '../hooks/useModalA11y';
 import { VOTES, VOTE_VALUES } from '../lib/gameView';
 import { TrailerPlayer, useIgdbTrailer } from '../game/Trailer';
-import { AiPickedBadge, Btn, Cover } from '../ui/primitives';
+import { AiPickedBadge, Btn, Cover, IgdbScore } from '../ui/primitives';
 import { st } from '../ui/st';
 import { useT } from '../i18n';
 
@@ -99,6 +99,8 @@ export function AiPicksDeck({
           <div style={st('display:flex;flex-direction:column;align-items:center;gap:6px;text-align:center;max-width:420px')}>
             <span style={st('font:700 28px/1.05 var(--font-display);letter-spacing:-0.02em;text-wrap:balance')}>{current.title}</span>
             <span style={st('font:400 14px var(--font-ui);color:var(--muted)')}>{[current.releaseYear, current.platform].filter(Boolean).join(' · ')}</span>
+            <IgdbScore score={current.reviewScore} />
+            {current.genre && <span style={st('font:500 13px var(--font-ui);color:var(--text2)')}>{current.genre}</span>}
             {current.reason && <span style={st('font:500 13.5px/1.4 var(--font-ui);color:var(--accText);text-wrap:pretty')}>{current.reason}</span>}
           </div>
           <span style={st('font:600 12px var(--font-ui);color:var(--muted)')}>{t('add.game.ai.deck.score')}</span>

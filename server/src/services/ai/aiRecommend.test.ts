@@ -1,9 +1,10 @@
-import { describe, expect, it, vi } from 'vitest';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 const searchGames = vi.hoisted(() => vi.fn());
 vi.mock('../../db/client.js', () => ({ prisma: {} }));
 vi.mock('./aiConfig.js', () => ({ aiComplete: vi.fn() }));
-vi.mock('../igdbClient.js', () => ({ searchGames }));
+const getPickDetails = vi.hoisted(() => vi.fn());
+vi.mock('../igdbClient.js', () => ({ searchGames, getPickDetails }));
 vi.mock('../userSettings.js', () => ({ getOwnedPlatforms: vi.fn() }));
 vi.mock('../roomAccess.js', () => ({ getRoomPlatform: vi.fn() }));
 vi.mock('../priceService.js', () => ({
@@ -42,6 +43,27 @@ describe('matchSuggestion', () => {
 });
 
 describe('resolveSuggestions', () => {
+  beforeEach(() => {
+    getPickDetails.mockReset();
+    getPickDetails.mockResolvedValue(new Map());
+  });
+
+  it('adds IGDB\'s score and genres to each pick', async () => {
+    searchGames.mockImplementation(async (q: string) => ({ results: q === 'Hades' ? [game(1, 'Hades')] : q === 'Celeste' ? [game(3, 'Celeste')] : [] }));
+    getPickDetails.mockResolvedValue(new Map([[1, { reviewScore: 91, genre: 'Roguelike, Action' }]]));
+    const out = await resolveSuggestions([{ title: 'Hades', reason: 'a' }, { title: 'Celeste', reason: 'b' }], new Set(), []);
+    expect(getPickDetails).toHaveBeenCalledWith([1, 3]);
+    expect(out.map((r) => [r.igdbId, r.reviewScore, r.genre])).toEqual([[1, 91, 'Roguelike, Action'], [3, null, null]]);
+  });
+
+  it('still returns the picks when the score lookup fails', async () => {
+    searchGames.mockResolvedValue({ results: [game(1, 'Hades')] });
+    getPickDetails.mockRejectedValue(new Error('igdb down'));
+    const out = await resolveSuggestions([{ title: 'Hades', reason: 'a' }], new Set(), []);
+    expect(out).toHaveLength(1);
+    expect(out[0]).toMatchObject({ igdbId: 1, reviewScore: null, genre: null });
+  });
+
   it('keeps only real, new, unique games, with the AI reason', async () => {
     searchGames.mockImplementation(async (q: string) => ({
       results: q === 'Hades' ? [game(1, 'Hades')] : q === 'Owned One' ? [game(9, 'Owned One')] : q === 'Celeste' ? [game(3, 'Celeste')] : [],
