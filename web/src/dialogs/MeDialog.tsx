@@ -132,12 +132,7 @@ export function ComputerSpecsDialog({ onClose }: { onClose: () => void }) {
       cpu: data.cpu ?? '',
       gpu: data.gpu ?? '',
       ramGb: data.ramGb?.toString() ?? '',
-      vramGb: data.vramGb?.toString() ?? '',
-      os: data.os ?? '',
-      storage: data.storage ?? '',
-      freeGb: data.freeGb?.toString() ?? '',
       display: data.display ?? '',
-      notes: data.notes ?? '',
     });
   }, [data, form]);
 
@@ -148,12 +143,7 @@ export function ComputerSpecsDialog({ onClose }: { onClose: () => void }) {
         cpu: f.cpu.trim() || null,
         gpu: f.gpu.trim() || null,
         ramGb: num(f.ramGb),
-        vramGb: num(f.vramGb),
-        os: f.os.trim() || null,
-        storage: (f.storage || null) as ComputerSpecs['storage'],
-        freeGb: num(f.freeGb),
         display: f.display.trim() || null,
-        notes: f.notes.trim() || null,
       };
       return authApi.setComputerSpecs(body);
     },
@@ -202,39 +192,13 @@ export function ComputerSpecsDialog({ onClose }: { onClose: () => void }) {
       {error && <Banner onDismiss={() => setError(null)}>{error}</Banner>}
       {field('cpu', t('settings.specs.cpu'), { placeholder: 'Ryzen 5 5600X' })}
       {field('gpu', t('settings.specs.gpu'), { placeholder: 'GeForce RTX 3060' })}
-      <div style={st('display:grid;grid-template-columns:1fr 1fr;gap:10px')}>
-        {field('ramGb', t('settings.specs.ram'), { number: true, max: 4, placeholder: '16' })}
-        {field('vramGb', t('settings.specs.vram'), { number: true, max: 4, placeholder: '12' })}
-      </div>
-      {field('os', t('settings.specs.os'), { placeholder: 'Windows 11' })}
-      <div style={st('display:grid;grid-template-columns:1fr 1fr;gap:10px')}>
-        <label style={st('display:flex;flex-direction:column;gap:6px')}>
-          <span style={st('font:600 12px var(--font-mono);letter-spacing:0.06em;color:var(--muted)')}>{t('settings.specs.storage')}</span>
-          <select value={form.storage} onChange={(e) => set('storage', e.target.value)} style={st(inputField, { height: 44, borderRadius: 12, background: 'var(--surf)', border: '1px solid var(--chip)' })}>
-            <option value="">{t('settings.specs.storageNone')}</option>
-            <option value="nvme">NVMe SSD</option>
-            <option value="ssd">SSD</option>
-            <option value="hdd">HDD</option>
-          </select>
-        </label>
-        {field('freeGb', t('settings.specs.free'), { number: true, max: 7, placeholder: '250' })}
-      </div>
+      {field('ramGb', t('settings.specs.ram'), { number: true, max: 4, placeholder: '16' })}
       {field('display', t('settings.specs.display'), { placeholder: '2560x1440 @ 144Hz' })}
-      <label style={st('display:flex;flex-direction:column;gap:6px')}>
-        <span style={st('font:600 12px var(--font-mono);letter-spacing:0.06em;color:var(--muted)')}>{t('settings.specs.notes')}</span>
-        <textarea
-          value={form.notes}
-          maxLength={500}
-          rows={3}
-          onChange={(e) => set('notes', e.target.value)}
-          style={st(inputField, { height: 'auto', padding: '10px 14px', borderRadius: 12, background: 'var(--surf)', border: '1px solid var(--chip)', resize: 'vertical' })}
-        />
-      </label>
       <div style={st('display:flex;gap:8px')}>
         <Btn height={42} padX={20} disabled={save.isPending} onClick={() => save.mutate(form)}>
           {t('common.save')}
         </Btn>
-        <Btn kind="ghost" height={42} padX={14} disabled={save.isPending} onClick={() => save.mutate({ cpu: '', gpu: '', ramGb: '', vramGb: '', os: '', storage: '', freeGb: '', display: '', notes: '' })}>
+        <Btn kind="ghost" height={42} padX={14} disabled={save.isPending} onClick={() => save.mutate({ cpu: '', gpu: '', ramGb: '', display: '' })}>
           {t('settings.specs.clear')}
         </Btn>
       </div>
