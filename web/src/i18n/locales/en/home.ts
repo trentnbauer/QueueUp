@@ -221,4 +221,5 @@ export const home = {
   "home.duration.hours": "{h}h",
   "home.duration.hoursMinutes": "{h}h {m}m",
   "home.nudge.merge.scanning": "AI is checking…",
+  "home.moreFilters.findDuplicates": "Find duplicates",
 } as const;
