@@ -45,7 +45,7 @@ export function validateParts(
   const defaults = PROVIDER_DEFAULTS[provider];
 
   const model = typeof input.model === 'string' && input.model.trim() ? input.model.trim().slice(0, 200) : null;
-  if (!model && !defaults.model) throw new HttpError(400, 'A model name is required for this provider');
+  // A model can be left blank for now (then picked from the provider's own list); until then the entry just isn't used.
 
   const rawUrl = typeof input.baseUrl === 'string' && input.baseUrl.trim() ? input.baseUrl : null;
   const baseUrl = rawUrl ? normalizeBaseUrl(rawUrl) : null;

@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { AI_BENCHMARK_STEPS, AI_MAX_FALLBACKS, AI_RECOMMENDED_MODELS, summariseBenchmark, type AiBenchmarkResult, type AiBenchmarkStep, type AiModelsRequest, type AiModelsResponse, type AiFallbackEntry, type AiFallbackInput, type AiFallbackNotice, type AiProvider } from '@queueup/shared';
 import { Banner, Btn, Group } from '../ui/primitives';
 import { st } from '../ui/st';
@@ -130,7 +130,8 @@ export function AiProvidersEditor({
     if (!onListModels) return;
     setModelLists((prev) => ({ ...prev, [k]: { loading: true, models: prev[k]?.models ?? null, error: null } }));
     try {
-      const { models } = await onListModels({ provider: d.provider, baseUrl: d.baseUrl.trim() || null, apiKey: d.apiKey.trim() || null, index: d.saved ? i : undefined });
+      // The server reads this entry's saved address and key, so only saved entries can list models.
+      const { models } = await onListModels({ index: i });
       setModelLists((prev) => ({ ...prev, [k]: { loading: false, models, error: models.length === 0 ? t('settings.ai.models.none') : null } }));
     } catch (e) {
       setModelLists((prev) => ({ ...prev, [k]: { loading: false, models: null, error: e instanceof Error ? e.message : t('settings.ai.models.failed') } }));
@@ -157,6 +158,15 @@ export function AiProvidersEditor({
   // Entries the person has opened. A new, unsaved one is always open.
   const [open, setOpen] = useState<Set<string>>(new Set());
   const keyOf = (d: AiDraft, i: number) => d.id ?? `pos-${i}`;
+  // A saved entry with no model chosen yet fetches its model list straight away, so the dropdown is already there.
+  useEffect(() => {
+    if (!onListModels) return;
+    drafts.forEach((d, i) => {
+      const k = keyOf(d, i);
+      if (d.saved && !d.model.trim() && !modelLists[k]) void loadModels(d, i, k);
+    });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [drafts.length, onListModels]);
   const toggle = (k: string) =>
     setOpen((prev) => {
       const next = new Set(prev);
@@ -178,7 +188,7 @@ export function AiProvidersEditor({
           const lock = i === 0 ? (locked ?? {}) : {};
           const showUrl = allowBaseUrl || d.provider === 'ollama' || d.provider === 'openai_compatible' || !!d.baseUrl;
           const k = keyOf(d, i);
-          const expanded = !d.saved || open.has(k);
+          const expanded = !d.saved || !d.model.trim() || open.has(k);
           const result = results?.[i];
           const summary = [providerLabel(t, d.provider), d.model.trim() || AI_RECOMMENDED_MODELS[d.provider], d.disabled ? t('settings.ai.disabledTag') : null].filter(Boolean).join(' · ');
           return (
@@ -261,13 +271,14 @@ export function AiProvidersEditor({
                   ) : (
                     <input value={d.model} disabled={lock.model} onChange={(e) => set(i, { model: e.target.value })} placeholder={AI_RECOMMENDED_MODELS[d.provider] ?? t('settings.ai.modelPlaceholder')} aria-label={t('settings.ai.model')} maxLength={200} style={st(`${FIELD};flex:1`)} />
                   )}
-                  {onListModels && !lock.model && (
+                  {onListModels && !lock.model && d.saved && (
                     <Btn kind="soft" height={40} padX={12} fontSize={12.5} disabled={modelLists[k]?.loading} onClick={() => void loadModels(d, i, k)}>
                       {modelLists[k]?.loading ? t('settings.ai.models.loading') : modelLists[k]?.models ? t('settings.ai.models.refresh') : t('settings.ai.models.load')}
                     </Btn>
                   )}
                 </div>
               )}
+              {expanded && onListModels && !lock.model && !d.saved && <span style={st('font:400 12px var(--font-ui);color:var(--muted)')}>{t('settings.ai.models.saveFirst')}</span>}
               {expanded && modelLists[k]?.error && <span style={st('font:500 12.5px/1.4 var(--font-ui);color:var(--danger);overflow-wrap:anywhere')}>{modelLists[k].error}</span>}
               {expanded && AI_RECOMMENDED_MODELS[d.provider] && (
                 <div style={st('display:flex;align-items:center;gap:8px;flex-wrap:wrap;font:400 12px var(--font-ui);color:var(--muted)')}>

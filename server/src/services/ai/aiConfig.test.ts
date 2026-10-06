@@ -89,8 +89,10 @@ describe('saveUserAiSettings', () => {
     expect(upsert.mock.calls.at(-1)![0].create.apiKeyEncrypted).toBeNull();
   });
 
-  it('requires a model where there is no default', async () => {
-    await expect(saveUserAiSettings('u1', { provider: 'openai', apiKey: 'k' })).rejects.toThrow('model');
+  it('saves an entry with no model yet (to be chosen from the provider\'s list), but does not use it', async () => {
+    const saved = await saveUserAiSettings('u1', { provider: 'openai', apiKey: 'k' });
+    expect(saved).toMatchObject({ provider: 'openai', model: null });
+    expect(buildConfig('openai', { model: null, apiKey: 'k' })).toBeNull();
   });
 
   it('refuses a custom address unless the server allows it', async () => {

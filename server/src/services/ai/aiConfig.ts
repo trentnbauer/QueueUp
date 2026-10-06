@@ -291,6 +291,45 @@ export async function aiComplete(
   }
 }
 
+/** What is saved for one entry of the settings list (0 is the first, then the backups), even when it
+ * can't be used yet because no model has been chosen. Read from storage, never from a request. */
+export interface EntryParts {
+  provider: AiProvider;
+  model: string | null;
+  baseUrl: string | null;
+  apiKey: string | null;
+  /** The address was entered by a person (their own settings), so it is subject to the address rules. */
+  userSupplied: boolean;
+}
+
+export async function getEntryParts(scope: { userId: string } | 'server', index: number): Promise<EntryParts | null> {
+  if (!Number.isInteger(index) || index < 0) return null;
+  const env = await getEnv();
+  if (scope === 'server') {
+    if (index === 0) {
+      const provider = await getConfigValue('AI_PROVIDER', env.AI_PROVIDER);
+      if (!isProvider(provider)) return null;
+      const [model, baseUrl, apiKey] = await Promise.all([
+        getConfigValue('AI_MODEL', env.AI_MODEL),
+        getConfigValue('AI_BASE_URL', env.AI_BASE_URL),
+        getConfigValue('AI_API_KEY', env.AI_API_KEY),
+      ]);
+      return { provider, model: model ?? null, baseUrl: baseUrl ?? null, apiKey: apiKey ?? null, userSupplied: false };
+    }
+    const e = (await readServerFallbacks())[index - 1];
+    return e ? { provider: e.provider, model: e.model, baseUrl: e.baseUrl, apiKey: e.apiKey, userSupplied: false } : null;
+  }
+  if (!env.AI_ALLOW_USER_SETTINGS) return null;
+  const row = await prisma.userAiSettings.findUnique({ where: { userId: scope.userId } });
+  if (!row || !isProvider(row.provider)) return null;
+  const custom = (provider: AiProvider, baseUrl: string | null) => !!baseUrl || PROVIDER_DEFAULTS[provider].baseUrl === null || provider === 'ollama';
+  if (index === 0) {
+    return { provider: row.provider, model: row.model, baseUrl: row.baseUrl, apiKey: await readUserKey(scope.userId, row.apiKeyEncrypted), userSupplied: custom(row.provider, row.baseUrl) };
+  }
+  const e = openFallbacks(row.fallbacksEncrypted, env.SESSION_SECRET)[index - 1];
+  return e ? { provider: e.provider, model: e.model, baseUrl: e.baseUrl, apiKey: e.apiKey, userSupplied: custom(e.provider, e.baseUrl) } : null;
+}
+
 /** Tests one saved provider on its own (its position in the settings list: 0 is the first, then the
  * backups), with no falling through to the others, so a broken entry shows up as broken even when a
  * later one would have covered for it. Uses the saved settings, not unsaved edits. */
@@ -299,11 +338,20 @@ export async function aiCompleteEntry(
   index: number,
   req: AiRequest,
 ): Promise<AiResponse & { fallback: AiFallbackNotice | null }> {
-  // Disabled entries count here too, so the position matches the settings list (and a switched-off
-  // entry can still be tried before turning it on).
-  const configs = scope === 'server' ? await getServerAiChain({ includeDisabled: true }) : await getUserAiChain(scope.userId, { includeDisabled: true });
-  const config = Number.isInteger(index) && index >= 0 ? configs[index] : undefined;
-  if (!config) throw new HttpError(404, 'That provider is not saved yet. Save your changes, then test it.');
+  // Read by position from what is saved (a switched-off or half-finished entry counts too), so the
+  // position always matches the settings list.
+  const parts = await getEntryParts(scope, index);
+  if (!parts) throw new HttpError(404, 'That provider is not saved yet. Save your changes, then test it.');
+  const built = buildConfig(parts.provider, parts);
+  if (!built) {
+    throw new HttpError(
+      400,
+      !(parts.model || PROVIDER_DEFAULTS[parts.provider].model) ? 'Choose a model for this provider first (use Load models), then save.' : 'This provider is missing its address or API key. Fill it in and save.',
+    );
+  }
+  const env = await getEnv();
+  if (scope !== 'server' && parts.userSupplied && !env.AI_ALLOW_USER_BASE_URL) throw new HttpError(403, 'This server does not allow a custom AI address in personal settings');
+  const config: AiConfig = parts.userSupplied ? { ...built, userSupplied: true } : built;
   // A throwaway owner, so a test never touches the "first provider failed" notice a real call leaves.
   return runChain([config], 'entry-test', req);
 }

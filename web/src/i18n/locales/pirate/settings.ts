@@ -497,6 +497,7 @@ export const settings: Record<keyof typeof en, string> = {
   "settings.ai.benchmark.verdict.slow": "Barely keeps up. The biggest request took {seconds}s, close to the 60s limit, so large jobs may time out. A smaller model or a GPU would help.",
   "settings.ai.benchmark.verdict.tooSlow": "Too slow. A request timed out or ran past the 60s limit, so big jobs will fail. Use a smaller model, or a faster machine or GPU.",
   "settings.ai.benchmark.verdict.failed": "The benchmark failed: {error}",
+  "settings.ai.models.saveFirst": "Save this provider first, then you can load its models.",
   "settings.ai.models.load": "Load models",
   "settings.ai.models.refresh": "Refresh",
   "settings.ai.models.loading": "Loading…",
