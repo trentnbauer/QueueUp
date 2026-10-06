@@ -278,6 +278,9 @@ model User {
   /// Optional vanity name for the public profile URL (`/u/<slug>`), instead of the user id. Unique,
   /// lowercase letters/digits/hyphens (see services/userSettings.ts for the rules).
   profileSlug          String?        @unique @map("profile_slug")
+  /// The colour that tints this person's Personal Shelf (a #rrggbb hex), like a room's accent colour.
+  /// Null keeps the default look.
+  shelfColor           String?        @map("shelf_color")
   /// Short shareable code other users paste to send a friend request. Generated lazily the first
   /// time it's needed (GET /api/friends), so pre-existing users need no backfill.
   friendCode           String?        @unique @map("friend_code")

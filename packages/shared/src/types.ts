@@ -1883,6 +1883,12 @@ export const COMPUTER_SPEC_NOTES_MAX = 500;
 
 export const EMPTY_COMPUTER_SPECS: ComputerSpecs = { cpu: null, gpu: null, ramGb: null, vramGb: null, os: null, storage: null, freeGb: null, display: null, notes: null };
 
+/** The colours offered for a room or a Personal Shelf, in the order shown. */
+export const ACCENT_COLOURS = ['#c0693c', '#2e8a63', '#5a73c4', '#b05a9c', '#3b86a3', '#6c9136'] as const;
+
+/** A colour as the app stores it: `#` and six hex digits. */
+export const isHexColour = (v: unknown): v is string => typeof v === 'string' && /^#[0-9a-fA-F]{6}$/.test(v);
+
 export interface DataExport {
   exportedAt: string;
   account: {
@@ -1890,6 +1896,8 @@ export interface DataExport {
     email: string;
     displayName: string;
     createdAt: string;
+    /** The colour set for the Personal Shelf, or null. */
+    shelfColor?: string | null;
     /** Systems ticked as "owned" on the Personal Shelf - see User.ownedPlatforms. */
     ownedPlatforms: RoomPlatform[];
   };

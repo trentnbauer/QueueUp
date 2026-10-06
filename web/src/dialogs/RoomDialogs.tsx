@@ -2,6 +2,7 @@ import { useMemo, useState, type ReactNode } from 'react';
 import { useNavigate } from 'react-router';
 import { useInfiniteQuery, useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import {
+  ACCENT_COLOURS,
   DISCORD_EVENT_KEYS,
   ROOM_PLATFORM_LABELS,
   SPIN_WHEEL_THEMES,
@@ -40,7 +41,7 @@ const PLATFORMS = Object.keys(ROOM_PLATFORM_LABELS) as RoomPlatform[];
 /** Small mono heading for each row of Spin defaults. */
 const DEFAULT_LABEL = 'font:600 11px var(--font-mono);letter-spacing:0.06em;color:var(--faint);margin-top:2px';
 
-const ROOM_COLORS = ['#c0693c', '#2e8a63', '#5a73c4', '#b05a9c', '#3b86a3', '#6c9136'];
+const ROOM_COLORS: string[] = [...ACCENT_COLOURS];
 const LABEL = 'font:600 12px var(--font-mono);letter-spacing:0.06em;color:var(--muted)';
 const ROW = 'display:flex;align-items:center;gap:12px;min-height:64px;padding:10px 16px;background:var(--surf);color:var(--text);text-align:left;border:none;width:100%';
 

@@ -554,4 +554,10 @@ export const settings: Record<keyof typeof en, string> = {
   "settings.specs.clear": "Clear all",
   "settings.specs.saved": "Computer specs saved",
   "settings.specs.failed": "Could not save your computer specs",
+  "settings.shelfColour.title": "Shelf colour",
+  "settings.shelfColour.hint": "The colour that tints your Personal Shelf, the way a room has its own colour. Only you see it.",
+  "settings.shelfColour.custom": "Pick any colour",
+  "settings.shelfColour.default": "Default",
+  "settings.shelfColour.saved": "Shelf colour saved",
+  "settings.shelfColour.failed": "Could not save the shelf colour",
 };

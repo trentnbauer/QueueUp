@@ -1,7 +1,7 @@
 import { Prisma } from '@prisma/client';
 import { prisma } from '../db/client.js';
 import { HttpError } from '../util/httpError.js';
-import { PROFILE_VISIBILITIES, ROOM_PLATFORM_LABELS, type ProfileVisibility, type RoomPlatform } from '@queueup/shared';
+import { PROFILE_VISIBILITIES, ROOM_PLATFORM_LABELS, isHexColour, type ProfileVisibility, type RoomPlatform } from '@queueup/shared';
 import { logShelfActivity } from './roomActivity.js';
 import { logAccountEvent } from './accountEvents.js';
 
@@ -142,6 +142,14 @@ export async function setProfileVisibility(userId: string, raw: unknown): Promis
     data: { profileVisibility: visibility, publicProfileEnabled: visibility === 'public' },
   });
   return updated.profileVisibility;
+}
+
+/** Sets (or, with null, clears) the colour that tints the person's Personal Shelf. */
+export async function setShelfColor(userId: string, raw: unknown): Promise<string | null> {
+  if (raw !== null && !isHexColour(raw)) throw new HttpError(400, 'Colour must be a hex value like #5a73c4');
+  const shelfColor = raw === null ? null : raw.toLowerCase();
+  await prisma.user.update({ where: { id: userId }, data: { shelfColor } });
+  return shelfColor;
 }
 
 /** Toggles the public profile opt-in (issue #511) - see User.publicProfileEnabled's schema doc for

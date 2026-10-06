@@ -229,4 +229,7 @@ export const shell: Record<keyof typeof en, string> = {
   "shell.time.inWeeks": "In {n}w",
   "shell.time.inMonths": "In {n}mo",
   "shell.time.inYears": "In {n}y",
+  "shell.onboarding.shelfColour.title": "Your shelf colour",
+  "shell.onboarding.shelfColour.sub": "Your Personal Shelf gets a colour of its own. Pick one now, and change it any time in Shelf settings.",
+  "shell.onboarding.shelfColour.preview": "Personal Shelf",
 };

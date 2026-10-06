@@ -11,7 +11,7 @@ import { toUserDto } from '../util/dto.js';
 import { HttpError } from '../util/httpError.js';
 import { getTurnstileConfig, verifyTurnstileToken } from '../services/turnstile.js';
 import { extractSteamId64, resolveSteamId64 } from '../services/steamLibrary.js';
-import { answerUnownedPlatform, setOwnedPlatforms, setProfileSlug, setProfileVisibility, setPublicProfileEnabled, VALID_PLATFORMS } from '../services/userSettings.js';
+import { answerUnownedPlatform, setOwnedPlatforms, setProfileSlug, setShelfColor, setProfileVisibility, setPublicProfileEnabled, VALID_PLATFORMS } from '../services/userSettings.js';
 import { logAdminAction } from '../services/adminAuditLog.js';
 import { generateApiKeyToken, hashApiKeyToken, isApiKeyActive } from '../services/apiKeys.js';
 import type { OAuthProfile } from '../services/authProviders/types.js';
@@ -268,11 +268,20 @@ export default async function authRoutes(app: FastifyInstance) {
       publicProfileEnabled: user.publicProfileEnabled,
       profileVisibility: user.profileVisibility,
       profileSlug: user.profileSlug,
+      shelfColor: user.shelfColor,
       primaryProvider,
       linkedProviders,
       isNewAccount,
       onboardingPending: user.onboardingPending,
     });
+  });
+
+  // The colour that tints the person's Personal Shelf, like a room's accent colour. null clears it.
+  app.patch<{ Body: { colour?: unknown } }>('/api/me/shelf-colour', { config: { rateLimit: { max: 30, timeWindow: '1 minute' } } }, async (request, reply) => {
+    const userId = await request.requireAuth();
+    const shelfColor = await setShelfColor(userId, request.body?.colour === undefined ? undefined : request.body.colour);
+    void logAccountEvent(userId, 'shelf_colour', shelfColor ? `Personal Shelf colour set to ${shelfColor}.` : 'Personal Shelf colour cleared.');
+    return reply.send({ shelfColor });
   });
 
   // The welcome walkthrough was finished or skipped; stored on the account so it isn't repeated
@@ -535,6 +544,7 @@ export default async function authRoutes(app: FastifyInstance) {
           displayName: user.displayName,
           createdAt: user.createdAt.toISOString(),
           ownedPlatforms: user.ownedPlatforms,
+          shelfColor: user.shelfColor,
         },
         linkedIdentities,
         gamesAdded,
