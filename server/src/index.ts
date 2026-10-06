@@ -11,6 +11,7 @@ import { startReleaseWatchJob } from './jobs/releaseWatchJob.js';
 import { startWeeklyRecapJob } from './jobs/weeklyRecapJob.js';
 import { startAchievementProgressJob, startPlaytimeSnapshotJob } from './jobs/playtimeSnapshotJob.js';
 import { startPlayniteSyncReminderJob } from './jobs/playniteSyncReminderJob.js';
+import { recordRunningVersion } from './services/upgradeBackup.js';
 import { startBackupJob } from './jobs/backupJob.js';
 import { startEmailAlertJob } from './jobs/emailAlertJob.js';
 import { startReviewScoreBackfillJob } from './jobs/reviewScoreBackfillJob.js';
@@ -22,6 +23,9 @@ const app = await buildApp();
 
 await ensureDbConstraints(app.log);
 await runDataMigrations(app.log);
+
+// Remembered so the next start can tell whether it is an upgrade (see services/upgradeBackup.ts).
+await recordRunningVersion().catch((err) => app.log.warn({ err }, 'Could not record the running version'));
 
 app
   .listen({ port: env.PORT, host: '0.0.0.0' })

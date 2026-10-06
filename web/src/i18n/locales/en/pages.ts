@@ -372,6 +372,7 @@ export const pages = {
   "pages.backups.kind.manual": "Manual",
   "pages.backups.kind.preRestore": "Before a restore",
   "pages.backups.kind.preSchemaPush": "Before a schema change",
+  "pages.backups.kind.riskyUpgrade": "Before a risky upgrade",
   "pages.backups.saveFailed": "Could not save the backup settings",
   "pages.backups.backupFailed": "Backup failed",
   "pages.backups.created": "Backup created",

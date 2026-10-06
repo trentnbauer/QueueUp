@@ -374,6 +374,7 @@ export const pages: Record<keyof typeof en, string> = {
   "pages.backups.kind.manual": "By hand",
   "pages.backups.kind.preRestore": "Afore a restore",
   "pages.backups.kind.preSchemaPush": "Afore a schema change",
+  "pages.backups.kind.riskyUpgrade": "Afore a risky upgrade",
   "pages.backups.saveFailed": "Couldn’t stow the backup settin’s",
   "pages.backups.backupFailed": "Backup ran aground",
   "pages.backups.created": "Backup stowed",

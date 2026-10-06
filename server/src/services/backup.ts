@@ -19,7 +19,8 @@ import { isValidCron, nextCronRun, parseCron } from '../util/cron.js';
 
 const FORMAT = 'queueup-backup';
 const FORMAT_VERSION = 1;
-const FILE_RE = /^queueup-(\d{8}T\d{6}Z)(-[a-z-]+)?\.json\.gz$/;
+// Also the one-off safety copy taken before a risky upgrade, named for the two versions (services/upgradeBackup.ts).
+const FILE_RE = /^(?:queueup-\d{8}T\d{6}Z(?:-[a-z-]+)?|RISKY UPGRADE - v\d+\.\d+\.\d+ to v\d+\.\d+\.\d+)\.json\.gz$/;
 
 export const DEFAULT_BACKUP_CRON = '0 3 * * *';
 export const DEFAULT_BACKUP_RETENTION = 14;
@@ -156,7 +157,7 @@ export async function listBackups(): Promise<AdminBackupInfo[]> {
       name,
       sizeBytes: stat.size,
       createdAt: stat.mtime.toISOString(),
-      kind: name.includes('-pre-restore') ? 'pre-restore' : name.includes('-pre-schema-push') ? 'pre-schema-push' : name.includes('-manual') ? 'manual' : 'nightly',
+      kind: name.startsWith('RISKY UPGRADE') ? 'risky-upgrade' : name.includes('-pre-restore') ? 'pre-restore' : name.includes('-pre-schema-push') ? 'pre-schema-push' : name.includes('-manual') ? 'manual' : 'nightly',
     });
   }
   return out.sort((a, b) => b.createdAt.localeCompare(a.createdAt));
@@ -181,7 +182,7 @@ export async function deleteBackup(name: string): Promise<void> {
  * real backups out. */
 export async function rotateBackups(keep: number): Promise<void> {
   const all = await listBackups();
-  const isSafety = (b: { kind: string }) => b.kind === 'pre-restore' || b.kind === 'pre-schema-push';
+  const isSafety = (b: { kind: string }) => b.kind === 'pre-restore' || b.kind === 'pre-schema-push' || b.kind === 'risky-upgrade';
   const regular = all.filter((b) => !isSafety(b));
   const safety = all.filter(isSafety);
   for (const old of [...regular.slice(keep), ...safety.slice(5)]) await deleteBackup(old.name);
@@ -189,9 +190,10 @@ export async function rotateBackups(keep: number): Promise<void> {
 
 // ---- create ---------------------------------------------------------------------------------------
 
-export type BackupKind = 'nightly' | 'manual' | 'pre-restore' | 'pre-schema-push';
+export type BackupKind = 'nightly' | 'manual' | 'pre-restore' | 'pre-schema-push' | 'risky-upgrade';
 
-export async function createBackup(kind: BackupKind): Promise<AdminBackupInfo> {
+/** `fileName` replaces the usual timestamped name (it must still be a valid backup name). */
+export async function createBackup(kind: BackupKind, fileName?: string): Promise<AdminBackupInfo> {
   // One transaction at REPEATABLE READ so every table is read from the same snapshot.
   const tables = await prisma.$transaction(
     async (tx) => {
@@ -218,7 +220,8 @@ export async function createBackup(kind: BackupKind): Promise<AdminBackupInfo> {
 
   const dir = backupDir();
   await fs.mkdir(dir, { recursive: true });
-  const name = `queueup-${stamp()}${kind === 'nightly' ? '' : `-${kind}`}.json.gz`;
+  const name = fileName ?? `queueup-${stamp()}${kind === 'nightly' ? '' : `-${kind}`}.json.gz`;
+  if (!isBackupName(name)) throw new HttpError(400, 'Not a QueueUp backup file name');
   const tmp = path.join(dir, `.tmp-${name}`);
   // Written to a dotfile first and renamed on success, so a partial write is never listed as a backup.
   await fs.writeFile(tmp, gz);
