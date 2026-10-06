@@ -63,6 +63,15 @@ describe('loadDuplicateKnowledge', () => {
     expect(COMMUNITY_MIN_DISMISSALS).toBe(2);
   });
 
+  it('ignores any saved "not the same" verdict, since a model leaving a pair out proves nothing', async () => {
+    verdictFindMany.mockResolvedValue([
+      { igdbIdLow: 1, igdbIdHigh: 2, same: false, keepIgdbId: null, confidence: null, reason: null },
+      { igdbIdLow: 3, igdbIdHigh: 4, same: true, keepIgdbId: 3, confidence: 0.9, reason: 'edition' },
+    ]);
+    const k = await loadDuplicateKnowledge('u1', [1, 2, 3, 4]);
+    expect([...k.verdicts.keys()]).toEqual(['3:4']);
+  });
+
   it('returns the AI\'s cached verdicts, only recent ones', async () => {
     const now = Date.parse('2026-10-06T12:00:00Z');
     verdictFindMany.mockResolvedValue([{ igdbIdLow: 1, igdbIdHigh: 2, same: true, keepIgdbId: 1, confidence: 0.9, reason: 'edition' }]);

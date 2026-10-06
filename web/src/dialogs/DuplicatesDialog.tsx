@@ -58,7 +58,7 @@ export function DuplicatesDialog() {
 
   const run = useMutation({
     // Tracked app-wide, so the shelf nudge and Settings row show the scan while this dialog is closed too.
-    mutationFn: () => trackAiActivity('duplicates', () => gamesApi.aiScanDuplicates()),
+    mutationFn: (fresh: boolean) => trackAiActivity('duplicates', () => gamesApi.aiScanDuplicates(fresh)),
     onSuccess: (res) => {
       // A run that ended early (provider error, the daily limit on the shared AI) keeps what it found.
       setError(res.stopped ? t('add.review.ai.stopped', { reason: res.stopped }) : null);
@@ -153,7 +153,7 @@ export function DuplicatesDialog() {
           <span style={st('font:500 13.5px/1.45 var(--font-ui);color:var(--text2)')}>{t('settings.duplicates.needsAi')}</span>
         ) : (
           <div style={st('display:flex;align-items:center;gap:10px;flex-wrap:wrap')}>
-            <Btn height={40} padX={18} disabled={busy || !aiReady} onClick={() => run.mutate()}>
+            <Btn height={40} padX={18} disabled={busy || !aiReady} onClick={() => run.mutate(!!scan)}>
               {run.isPending ? (
                 <span style={st('display:inline-flex;align-items:center;gap:8px')}>
                   <Spinner />
@@ -186,7 +186,17 @@ export function DuplicatesDialog() {
         {scan && scan.reused > 0 && !run.isPending && (
           <span style={st('font:400 12.5px/1.45 var(--font-ui);color:var(--muted);text-wrap:pretty')}>{t('settings.duplicates.reused', { n: scan.reused })}</span>
         )}
-        {!run.isPending && scan && pairs.length === 0 && <span style={st('font:500 14px/1.45 var(--font-ui)')}>{scan.pairs.length === 0 ? t('settings.duplicates.none', { n: scan.checked }) : t('settings.duplicates.allDone')}</span>}
+        {!run.isPending && scan && pairs.length === 0 && (
+          <span style={st('font:500 14px/1.45 var(--font-ui)')}>
+            {scan.pairs.length > 0
+              ? t('settings.duplicates.allDone')
+              : scan.candidates === 0
+                ? t('settings.duplicates.noTitleMatches')
+                : scan.checked === 0
+                  ? t('settings.duplicates.noneAskedAi', { n: scan.reused })
+                  : t('settings.duplicates.none', { n: scan.checked })}
+          </span>
+        )}
         {visiblePairs.map((p) => (
           <div key={pairKey(p)} style={st(`display:flex;flex-direction:column;gap:10px;padding:12px;border-radius:18px;background:var(--surf);${run.isPending ? 'opacity:.55' : ''}`)}>
             {p.community > 0 && (

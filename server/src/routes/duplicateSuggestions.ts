@@ -7,12 +7,13 @@ import type { AiDuplicateScanResponse, DismissDuplicateRequest, DuplicateCandida
  * POST /api/games/:id/merge; nothing here merges anything. */
 export default async function duplicateSuggestionRoutes(app: FastifyInstance) {
   /** Looks for cards on the person's shelf that are probably the same game. Needs AI set up (400 if not). */
-  app.post(
+  app.post<{ Body: { fresh?: boolean } | undefined }>(
     '/api/games/duplicates/ai-scan',
     { config: { rateLimit: { max: 6, timeWindow: '1 minute' } } },
     async (request): Promise<AiDuplicateScanResponse> => {
       const userId = await request.requireAuth();
-      return aiScanDuplicates(userId);
+      // `fresh`: "Scan again", asking the AI afresh instead of reusing its earlier answers.
+      return aiScanDuplicates(userId, { fresh: request.body?.fresh === true });
     },
   );
 
