@@ -8,8 +8,9 @@ export const aiApi = {
   mine: () => apiGet<AiSettingsResponse>('/api/me/ai'),
   save: (body: SetUserAiSettingsRequest) => apiPut<{ user: UserAiSettings }>('/api/me/ai', body),
   clear: () => apiDelete('/api/me/ai'),
-  test: () => apiPost<AiTestResponse>('/api/me/ai/test'),
+  /** `index` tests just that saved provider (0 is the first, then the backups). */
+  test: (index?: number) => apiPost<AiTestResponse>('/api/me/ai/test', index === undefined ? undefined : { index }),
   admin: () => apiGet<AdminAiResponse>('/api/admin/ai'),
   saveAdmin: (body: SetAdminAiRequest) => apiPut<AdminAiResponse>('/api/admin/ai', body),
-  testAdmin: () => apiPost<AiTestResponse>('/api/admin/ai/test'),
+  testAdmin: (index?: number) => apiPost<AiTestResponse>('/api/admin/ai/test', index === undefined ? undefined : { index }),
 };

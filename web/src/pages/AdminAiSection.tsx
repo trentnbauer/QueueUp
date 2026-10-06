@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { ADMIN_AI_QUERY_KEY, aiApi } from '../api/ai';
 import { useUi } from '../context/UiContext';
-import { AiFallbackWarning, AiProvidersEditor, draftFromEntry, draftToInput, emptyAiDraft, type AiDraft } from '../dialogs/AiProvidersEditor';
+import { AiFallbackWarning, AiProvidersEditor, draftFromEntry, draftToInput, emptyAiDraft, type AiDraft, type AiEntryTest } from '../dialogs/AiProvidersEditor';
 import { Banner, Btn, Kicker } from '../ui/primitives';
 import { st } from '../ui/st';
 import { useT, type MessageKey } from '../i18n';
@@ -26,6 +26,22 @@ export function AdminAiSection() {
     if (data && !drafts) load(data);
   }, [data, drafts]);
 
+  // Per-entry tests: each saved provider can be tried on its own, and keeps its last result.
+  const [entryResults, setEntryResults] = useState<Record<number, AiEntryTest>>({});
+  const [testingEntry, setTestingEntry] = useState<number | null>(null);
+  async function testEntry(i: number) {
+    setTestingEntry(i);
+    try {
+      const r = await aiApi.testAdmin(i);
+      setEntryResults((prev) => ({ ...prev, [i]: { ok: true } }));
+      ui.notify(t('settings.ai.testOk', { provider: t(`settings.ai.providerName.${r.provider}` as MessageKey), model: r.model }));
+    } catch (e) {
+      setEntryResults((prev) => ({ ...prev, [i]: { ok: false, message: e instanceof Error ? e.message : t('settings.ai.testFailed') } }));
+    } finally {
+      setTestingEntry(null);
+    }
+  }
+
   const refresh = () => queryClient.invalidateQueries({ queryKey: ADMIN_AI_QUERY_KEY });
   const save = useMutation({
     mutationFn: () => {
@@ -36,13 +52,14 @@ export function AdminAiSection() {
     onSuccess: (next) => {
       setError(null);
       load(next);
+      setEntryResults({});
       queryClient.setQueryData(ADMIN_AI_QUERY_KEY, next);
       ui.notify(t('pages.admin.ai.saved'));
     },
     onError: (e) => setError(e instanceof Error ? e.message : t('settings.ai.error')),
   });
   const test = useMutation({
-    mutationFn: aiApi.testAdmin,
+    mutationFn: () => aiApi.testAdmin(),
     onSuccess: (r) => {
       setError(null);
       ui.notify(t('settings.ai.testOk', { provider: t(`settings.ai.providerName.${r.provider}` as MessageKey), model: r.model }));
@@ -53,7 +70,7 @@ export function AdminAiSection() {
 
   if (!data || !drafts) return null;
   const envSet = (k: keyof typeof data.sources) => data.sources[k] === 'env';
-  const busy = save.isPending || test.isPending;
+  const busy = save.isPending || test.isPending || testingEntry !== null;
 
   return (
     <div style={st('display:flex;flex-direction:column;gap:10px')}>
@@ -66,6 +83,9 @@ export function AdminAiSection() {
         onChange={setDrafts}
         providers={data.providers}
         allowBaseUrl
+        onTest={(i) => void testEntry(i)}
+        testing={testingEntry}
+        results={entryResults}
         locked={{ provider: envSet('AI_PROVIDER'), model: envSet('AI_MODEL'), baseUrl: envSet('AI_BASE_URL'), apiKey: envSet('AI_API_KEY') }}
       />
       <div style={st('display:flex;flex-wrap:wrap;gap:8px;align-items:center')}>

@@ -279,6 +279,21 @@ export async function aiComplete(
   }
 }
 
+/** Tests one saved provider on its own (its position in the settings list: 0 is the first, then the
+ * backups), with no falling through to the others, so a broken entry shows up as broken even when a
+ * later one would have covered for it. Uses the saved settings, not unsaved edits. */
+export async function aiCompleteEntry(
+  scope: { userId: string } | 'server',
+  index: number,
+  req: AiRequest,
+): Promise<AiResponse & { fallback: AiFallbackNotice | null }> {
+  const configs = scope === 'server' ? await getServerAiChain() : await getUserAiChain(scope.userId);
+  const config = Number.isInteger(index) && index >= 0 ? configs[index] : undefined;
+  if (!config) throw new HttpError(404, 'That provider is not saved yet. Save your changes, then test it.');
+  // A throwaway owner, so a test never touches the "first provider failed" notice a real call leaves.
+  return runChain([config], 'entry-test', req);
+}
+
 /** Same as aiComplete but for the server-wide settings only (the Administrator's "test" button). */
 export async function aiCompleteWithServer(req: AiRequest): Promise<AiResponse & { fallback: AiFallbackNotice | null }> {
   const configs = await getServerAiChain();

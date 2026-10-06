@@ -16,7 +16,7 @@ vi.mock('../configResolver.js', () => ({ getConfigValue: vi.fn().mockResolvedVal
 vi.mock('./providers.js', async (orig) => ({ ...(await orig<typeof import('./providers.js')>()), callProvider }));
 
 import { AiProviderError } from './providers.js';
-import { aiComplete } from './aiConfig.js';
+import { aiComplete, aiCompleteEntry } from './aiConfig.js';
 import { getLastFallback, mergeFallbacks, openFallbacks, sealFallbacks } from './aiFallbacks.js';
 import { encryptSetting } from '../settingsCrypto.js';
 
@@ -77,5 +77,33 @@ describe('aiComplete with backups', () => {
       statusCode: 424,
       message: expect.stringMatching(/All 2.*anthropic \(claude.*openai \(gpt-x\): down/),
     });
+  });
+});
+
+describe('aiCompleteEntry', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    const fallbacksEncrypted = sealFallbacks(mergeFallbacks([], [{ provider: 'openai', model: 'gpt-x', apiKey: 'sk-2' }], false), SECRET);
+    findUnique.mockResolvedValue({ provider: 'anthropic', model: null, baseUrl: null, apiKeyEncrypted: encryptSetting('sk-1', SECRET), fallbacksEncrypted });
+  });
+
+  it('tries only the chosen entry, so a broken one is not covered for by the next', async () => {
+    callProvider.mockRejectedValue(new AiProviderError('bad key', 401));
+    await expect(aiCompleteEntry({ userId: 'u1' }, 0, REQ)).rejects.toMatchObject({ statusCode: 424, message: expect.stringContaining('bad key') });
+    expect(callProvider).toHaveBeenCalledTimes(1);
+    expect(callProvider.mock.calls[0][0]).toMatchObject({ provider: 'anthropic' });
+  });
+
+  it('can test a backup on its own and leaves the first-provider warning alone', async () => {
+    callProvider.mockResolvedValue(ok('OK'));
+    const res = await aiCompleteEntry({ userId: 'u1' }, 1, REQ);
+    expect(res.text).toBe('OK');
+    expect(callProvider.mock.calls[0][0]).toMatchObject({ provider: 'openai' });
+    expect(getLastFallback('user:u1')).toBeNull();
+  });
+
+  it('says so when the entry is not saved', async () => {
+    await expect(aiCompleteEntry({ userId: 'u1' }, 5, REQ)).rejects.toMatchObject({ statusCode: 404 });
+    await expect(aiCompleteEntry({ userId: 'u1' }, -1, REQ)).rejects.toMatchObject({ statusCode: 404 });
   });
 });
