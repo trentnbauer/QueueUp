@@ -58,7 +58,7 @@ Every setting is described in `.env.example`. The gg.deals, IGDB, ScanDex, Turns
 
 ### With a locally hosted AI
 
-[`docker-compose.local-ai.yml`](docker-compose.local-ai.yml) is the same stack plus an [Ollama](https://ollama.com) server running a small model (`llama3.2:3b` by default), already set up as the server-wide AI so every user gets the AI features without their own key. Use it instead of the Prod file with the same `.env` (`docker compose -f docker-compose.local-ai.yml up -d`). The first start downloads the model (about 2 GB), and it needs roughly 4 GB of free RAM; set `OLLAMA_MODEL` in `.env` to use a different one. The file explains the rest, including how to give Ollama an NVIDIA GPU.
+[`docker-compose.local-ai.yml`](docker-compose.local-ai.yml) is the same stack plus an [Ollama](https://ollama.com) server running a small model (`llama3.2:3b` by default), already set up as the server-wide AI so every user gets the AI features without their own key. Use it instead of the Prod file with the same `.env` (`docker compose -f docker-compose.local-ai.yml up -d`). The first start downloads the model (about 2 GB), and it needs roughly 4 GB of free RAM; set `OLLAMA_MODEL` in `.env` to use a different one (or several, separated by commas), and `OLLAMA_PRUNE=true` to delete any other downloaded models to free disk space. The file explains the rest, including how to give Ollama an NVIDIA GPU.
 
 ## Backups
 
