@@ -190,6 +190,12 @@ export function AiProvidersEditor({
           const k = keyOf(d, i);
           const expanded = !d.saved || !d.model.trim() || open.has(k);
           const result = results?.[i];
+          // Passed or failed, from the Test button or a finished Benchmark: any failure shows the warning,
+          // otherwise any pass shows the green tick.
+          const benchSummary = bench[i] && bench[i].running === null ? summariseBenchmark(bench[i].results) : null;
+          const benchFailed = !!benchSummary && (benchSummary.verdict === 'failed' || benchSummary.verdict === 'tooSlow');
+          const bad = (!!result && !result.ok) || benchFailed;
+          const good = !bad && ((!!result && result.ok) || (!!benchSummary && !benchFailed));
           const summary = [providerLabel(t, d.provider), d.model.trim() || AI_RECOMMENDED_MODELS[d.provider], d.disabled ? t('settings.ai.disabledTag') : null].filter(Boolean).join(' · ');
           return (
             <div key={d.id ?? `new-${i}`} style={st(`display:flex;flex-direction:column;gap:8px;padding:12px 14px;background:var(--surf);${d.disabled ? 'opacity:.7' : ''}`)}>
@@ -207,13 +213,13 @@ export function AiProvidersEditor({
                     {(!expanded || i !== 1) && d.saved && <span style={st('font:400 12px var(--font-ui);color:var(--muted);overflow:hidden;text-overflow:ellipsis;white-space:nowrap')}>{summary}</span>}
                     {i === 1 && expanded && <span style={st('font:400 12px var(--font-ui);color:var(--muted)')}>{t('settings.ai.backupHint')}</span>}
                   </span>
-                  {result && !result.ok && (
-                    <span role="img" aria-label={t('settings.ai.entryFailed')} title={result.message} style={st('font-size:16px;color:var(--danger)')}>
+                  {bad && (
+                    <span role="img" aria-label={t('settings.ai.entryFailed')} title={result && !result.ok ? result.message : undefined} style={st('font-size:16px;color:var(--danger)')}>
                       ⚠
                     </span>
                   )}
-                  {result?.ok && (
-                    <span role="img" aria-label={t('settings.ai.entryWorks')} style={st('font-size:14px;color:var(--mint)')}>
+                  {good && (
+                    <span role="img" aria-label={t('settings.ai.entryWorks')} title={t('settings.ai.entryWorks')} style={st('width:20px;height:20px;flex-shrink:0;border-radius:50%;background:var(--mint);color:#fff;display:inline-flex;align-items:center;justify-content:center;font:800 13px var(--font-ui)')}>
                       ✓
                     </span>
                   )}
@@ -223,7 +229,7 @@ export function AiProvidersEditor({
                   {t('settings.ai.enabled')}
                 </label>
                 {onTest && d.saved && (
-                  <Btn kind="soft" height={32} padX={12} fontSize={12.5} disabled={testing !== null && testing !== undefined} onClick={() => onTest(i)}>
+                  <Btn kind="soft" height={32} padX={12} fontSize={12.5} disabled={testing !== null && testing !== undefined || benchRunning} onClick={() => { setBench((prev) => { const next = { ...prev }; delete next[i]; return next; }); onTest(i); }}>
                     {testing === i ? t('settings.ai.testing') : t('settings.ai.test')}
                   </Btn>
                 )}
