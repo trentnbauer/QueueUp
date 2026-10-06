@@ -1,4 +1,4 @@
-import { COMPUTER_SPEC_NOTES_MAX, COMPUTER_SPEC_STORAGE, COMPUTER_SPEC_TEXT_MAX, EMPTY_COMPUTER_SPECS, type ComputerSpecs } from '@queueup/shared';
+import { COMPUTER_SPEC_TEXT_MAX, EMPTY_COMPUTER_SPECS, type ComputerSpecs } from '@queueup/shared';
 import { HttpError } from '../util/httpError.js';
 
 function text(v: unknown, name: string, max: number): string | null {
@@ -20,28 +20,21 @@ function whole(v: unknown, name: string, max: number): number | null {
 export function parseComputerSpecs(input: unknown): ComputerSpecs {
   if (!input || typeof input !== 'object') throw new HttpError(400, 'Send the specs as an object');
   const b = input as Record<string, unknown>;
-  const storage = b.storage === undefined || b.storage === null || b.storage === '' ? null : b.storage;
-  if (storage !== null && !(COMPUTER_SPEC_STORAGE as readonly unknown[]).includes(storage)) throw new HttpError(400, 'storage must be ssd, hdd or nvme');
   return {
     cpu: text(b.cpu, 'cpu', COMPUTER_SPEC_TEXT_MAX),
     gpu: text(b.gpu, 'gpu', COMPUTER_SPEC_TEXT_MAX),
     ramGb: whole(b.ramGb, 'ramGb', 4096),
-    vramGb: whole(b.vramGb, 'vramGb', 1024),
-    os: text(b.os, 'os', COMPUTER_SPEC_TEXT_MAX),
-    storage: storage as ComputerSpecs['storage'],
-    freeGb: whole(b.freeGb, 'freeGb', 1_000_000),
     display: text(b.display, 'display', COMPUTER_SPEC_TEXT_MAX),
-    notes: text(b.notes, 'notes', COMPUTER_SPEC_NOTES_MAX),
   };
 }
 
 export const isEmptySpecs = (s: ComputerSpecs) => (Object.keys(EMPTY_COMPUTER_SPECS) as (keyof ComputerSpecs)[]).every((k) => s[k] === null);
 
 /** A stored row as the specs shape (or the empty one when there is none). */
-export function specsFromRow(row: (Omit<ComputerSpecs, 'storage'> & { storage: string | null }) | null): ComputerSpecs {
+export function specsFromRow(row: ComputerSpecs | null): ComputerSpecs {
   if (!row) return { ...EMPTY_COMPUTER_SPECS };
-  const { cpu, gpu, ramGb, vramGb, os, storage, freeGb, display, notes } = row;
-  return { cpu, gpu, ramGb, vramGb, os, storage: (COMPUTER_SPEC_STORAGE as readonly string[]).includes(storage ?? '') ? (storage as ComputerSpecs['storage']) : null, freeGb, display, notes };
+  const { cpu, gpu, ramGb, display } = row;
+  return { cpu, gpu, ramGb, display };
 }
 
 /** Fills only the blanks: every field the person already has stays as it is, and a field they have not

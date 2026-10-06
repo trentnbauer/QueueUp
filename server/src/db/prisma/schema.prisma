@@ -669,6 +669,8 @@ model HiddenRecommendation {
 
 /// The computer a person plays on, typed in by them (Settings → My computer). Private: never shown to
 /// other people, included in "Download my data", removed with the account. Every field is optional.
+/// Only cpu, gpu, ramGb and display are used now. vramGb, os, storage, freeGb and notes are no longer read
+/// or written; the columns stay so `db push` never has to drop data on an existing install.
 model UserComputerSpecs {
   userId     String   @id @map("user_id")
   cpu        String?

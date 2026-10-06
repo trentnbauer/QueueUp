@@ -1866,22 +1866,14 @@ export interface ComputerSpecs {
   cpu: string | null;
   gpu: string | null;
   ramGb: number | null;
-  vramGb: number | null;
-  os: string | null;
-  storage: 'ssd' | 'hdd' | 'nvme' | null;
-  /** Free disk space, in GB. */
-  freeGb: number | null;
-  /** Screen resolution and refresh rate, e.g. "2560x1440 @ 144Hz". */
+  /** Monitor resolution and refresh rate, e.g. "2560x1440 @ 144Hz". */
   display: string | null;
-  notes: string | null;
 }
 
-export const COMPUTER_SPEC_STORAGE = ['ssd', 'hdd', 'nvme'] as const;
 /** Longest a free-text spec field may be. */
 export const COMPUTER_SPEC_TEXT_MAX = 120;
-export const COMPUTER_SPEC_NOTES_MAX = 500;
 
-export const EMPTY_COMPUTER_SPECS: ComputerSpecs = { cpu: null, gpu: null, ramGb: null, vramGb: null, os: null, storage: null, freeGb: null, display: null, notes: null };
+export const EMPTY_COMPUTER_SPECS: ComputerSpecs = { cpu: null, gpu: null, ramGb: null, display: null };
 
 /** The colours offered for a room or a Personal Shelf, in the order shown. */
 export const ACCENT_COLOURS = ['#c0693c', '#2e8a63', '#5a73c4', '#b05a9c', '#3b86a3', '#6c9136'] as const;
