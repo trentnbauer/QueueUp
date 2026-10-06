@@ -77,11 +77,14 @@ export function useSteamImport(steamLinked: boolean, onImported: () => void) {
   // POST resolves) - issue #359's "sync everything" chain (see SteamImportContext) needs to await
   // one import before starting the next, and a bare `await gamesApi.importSteam*()` would resolve
   // near-instantly, long before the background job (and this polling loop) finish.
-  async function runWishlistImport(): Promise<void> {
+  /** `keepResult`: this runs right after the library import as part of one sync, so the library's result is
+   * kept and the wishlist's is added after it, instead of replacing it (the library message used to
+   * vanish the moment the wishlist started). */
+  async function runWishlistImport(opts: { keepResult?: boolean } = {}): Promise<void> {
     if (pollIntervalRef.current) return;
     setBusy(true);
     setActiveKind('wishlist');
-    setResult(null);
+    if (!opts.keepResult) setResult(null);
     setError(null);
     setWishlistProgress(null);
 
@@ -127,7 +130,7 @@ export function useSteamImport(steamLinked: boolean, onImported: () => void) {
           if (pollIntervalRef.current) clearInterval(pollIntervalRef.current);
           pollIntervalRef.current = null;
           setWishlistProgress(null);
-          setResult(
+          const wishlistMessage =
             latest.imported === 0
               ? t('add.steamImport.wishlistNone', { checked: latest.consideredCount, total: latest.totalWishlisted })
               : t(latest.imported === 1 ? 'add.steamImport.wishlistAdded.one' : 'add.steamImport.wishlistAdded.other', {
@@ -135,8 +138,8 @@ export function useSteamImport(steamLinked: boolean, onImported: () => void) {
                   skipped: latest.skipped,
                   checked: latest.consideredCount,
                   total: latest.totalWishlisted,
-                }),
-          );
+                });
+          setResult((prev) => (opts.keepResult && prev ? `${prev}\n${wishlistMessage}` : wishlistMessage));
           if (latest.imported > 0) onImported();
           if (latest.unlockedBadges) announceUnlock(latest.unlockedBadges);
           setBusy(false);
