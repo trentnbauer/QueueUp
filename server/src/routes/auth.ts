@@ -1,4 +1,5 @@
 import { loadExportExtras } from '../services/dataExportExtras.js';
+import { specsFromRow } from '../services/computerSpecs.js';
 import { logAccountEvent } from '../services/accountEvents.js';
 import type { FastifyInstance } from 'fastify';
 import { Prisma } from '@prisma/client';
@@ -446,6 +447,7 @@ export default async function authRoutes(app: FastifyInstance) {
     async (request, reply) => {
       const userId = await request.requireAuth();
 
+      const specsRow = await prisma.userComputerSpecs.findUnique({ where: { userId } });
       const [user, games, votes, memberships] = await Promise.all([
         prisma.user.findUniqueOrThrow({ where: { id: userId }, include: { linkedIdentities: true } }),
         // Personal Shelf (roomId null) and room games, combined - same addedBy scoping Year in
@@ -538,6 +540,7 @@ export default async function authRoutes(app: FastifyInstance) {
         votesCast,
         roomMemberships,
         ...(await loadExportExtras(userId)),
+        computerSpecs: specsRow ? specsFromRow(specsRow) : null,
       };
 
       // Same download-trigger mechanism as GET /api/admin/logs/export: a plain same-origin

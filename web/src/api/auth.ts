@@ -1,6 +1,6 @@
 import { apiDelete, apiGet, apiPatch, apiPost, apiPut } from './client';
 import { getBasePath } from '../utils/basePath';
-import type { AccountEventPage, ActivityVisibilityResponse, ProfileVisibility, RoomPlatform, User } from '@queueup/shared';
+import type { AccountEventPage, ActivityVisibilityResponse, ComputerSpecs, ProfileVisibility, RoomPlatform, User } from '@queueup/shared';
 
 export const authApi = {
   me: () =>
@@ -29,6 +29,8 @@ export const authApi = {
   setProfileVisibility: (visibility: ProfileVisibility) =>
     apiPatch<{ profileVisibility: ProfileVisibility }>('/api/me/profile-visibility', { visibility }),
   accountEvents: (before?: string) => apiGet<AccountEventPage>(`/api/me/events${before ? `?before=${encodeURIComponent(before)}` : ''}`),
+  computerSpecs: () => apiGet<ComputerSpecs>('/api/me/computer-specs'),
+  setComputerSpecs: (body: ComputerSpecs) => apiPut<ComputerSpecs>('/api/me/computer-specs', body),
   activityVisibility: () => apiGet<ActivityVisibilityResponse>('/api/me/activity-visibility'),
   setActivityVisibility: (hidden: boolean) => apiPut<ActivityVisibilityResponse>('/api/me/activity-visibility', { hidden }),
   setDisplayName: (displayName: string) => apiPatch<{ displayName: string }>('/api/me/display-name', { displayName }),
