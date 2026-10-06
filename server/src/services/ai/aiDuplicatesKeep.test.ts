@@ -7,6 +7,9 @@ vi.mock('../../db/client.js', () => ({ prisma: { game: { findMany: gameFindMany 
 const aiComplete = vi.fn();
 vi.mock('./aiConfig.js', () => ({ aiComplete }));
 const notifyMergeSuggestions = vi.fn(async () => {});
+const loadDuplicateKnowledge = vi.fn(async (): Promise<any> => ({ merges: new Map(), notDuplicates: new Set(), verdicts: new Map() }));
+const saveVerdicts = vi.fn(async (_rows: unknown[]) => {});
+vi.mock('../duplicateKnowledge.js', () => ({ loadDuplicateKnowledge, saveVerdicts }));
 vi.mock('../notifications.js', () => ({ notifyMergeSuggestions }));
 
 const { AI_DUPLICATE_BATCH, aiScanDuplicates, chooseKeep, countDuplicateCandidates, parseDuplicateReply } = await import('./aiDuplicates.js');
@@ -51,6 +54,9 @@ describe('aiScanDuplicates', () => {
     gameFindMany.mockReset();
     aiComplete.mockReset();
     notifyMergeSuggestions.mockClear();
+    saveVerdicts.mockClear();
+    loadDuplicateKnowledge.mockReset();
+    loadDuplicateKnowledge.mockResolvedValue({ merges: new Map(), notDuplicates: new Set(), verdicts: new Map() });
   });
 
   // 50 games that each have a "Complete Edition" twin: 50 candidate pairs, more than one batch.
@@ -89,6 +95,85 @@ describe('aiScanDuplicates', () => {
     });
     await aiScanDuplicates('u1');
     expect(notifyMergeSuggestions).toHaveBeenCalledWith('u1', AI_DUPLICATE_BATCH);
+  });
+
+  // Two twin pairs: igdb ids 1/2 and 3/4.
+  const twoPairs = () => [
+    { ...g('a1', 'Alpha', 2010), igdbId: 1, igdbCollectionId: null },
+    { ...g('b1', 'Alpha Complete Edition', 2014), igdbId: 2, igdbCollectionId: null },
+    { ...g('a2', 'Beta', 2011), igdbId: 3, igdbCollectionId: null },
+    { ...g('b2', 'Beta Complete Edition', 2015), igdbId: 4, igdbCollectionId: null },
+  ];
+
+  it('suggests a pair other people merged without asking the AI about it, and only asks about the rest', async () => {
+    gameFindMany.mockResolvedValue(twoPairs());
+    loadDuplicateKnowledge.mockResolvedValue({ merges: new Map([['1:2', { users: 3, keepIgdbId: 2 }]]), notDuplicates: new Set(), verdicts: new Map() });
+    aiComplete.mockResolvedValue({ text: '[]', fallback: null, usage: { outputTokens: 2 } });
+    const res = await aiScanDuplicates('u1');
+    expect(aiComplete).toHaveBeenCalledTimes(1);
+    expect(aiComplete.mock.calls[0][0].messages[0].content).toContain('Beta');
+    expect(aiComplete.mock.calls[0][0].messages[0].content).not.toContain('Alpha');
+    expect(res.reused).toBe(1);
+    expect(res.checked).toBe(1);
+    expect(res.pairs).toHaveLength(1);
+    expect(res.pairs[0]).toMatchObject({ source: 'community', mergedBy: 3, keep: 'b' });
+  });
+
+  it('needs no AI request at all when everything is already known, and works without AI set up', async () => {
+    gameFindMany.mockResolvedValue(twoPairs());
+    loadDuplicateKnowledge.mockResolvedValue({
+      merges: new Map([['1:2', { users: 2, keepIgdbId: 1 }]]),
+      notDuplicates: new Set(['3:4']),
+      verdicts: new Map(),
+    });
+    aiComplete.mockRejectedValue(new Error('AI is not set up'));
+    const res = await aiScanDuplicates('u1');
+    expect(aiComplete).not.toHaveBeenCalled();
+    expect(res).toMatchObject({ checked: 0, reused: 2, stopped: null });
+    expect(res.pairs).toHaveLength(1);
+  });
+
+  it('reuses an earlier AI verdict for the same pair, whichever way it went', async () => {
+    gameFindMany.mockResolvedValue(twoPairs());
+    loadDuplicateKnowledge.mockResolvedValue({
+      merges: new Map(),
+      notDuplicates: new Set(),
+      verdicts: new Map([
+        ['1:2', { same: true, keepIgdbId: 1, confidence: 0.9, reason: 'edition' }],
+        ['3:4', { same: false, keepIgdbId: null, confidence: null, reason: null }],
+      ]),
+    });
+    const res = await aiScanDuplicates('u1');
+    expect(aiComplete).not.toHaveBeenCalled();
+    expect(res.reused).toBe(2);
+    expect(res.pairs).toHaveLength(1);
+    expect(res.pairs[0]).toMatchObject({ source: 'ai', keep: 'a', reason: 'edition' });
+  });
+
+  it('remembers what the AI decided, including pairs it left out of a complete answer', async () => {
+    gameFindMany.mockResolvedValue(twoPairs());
+    aiComplete.mockResolvedValue({ text: '[{"pair":1,"confidence":0.9,"keep":"A","reason":"edition"}]', fallback: null, usage: { outputTokens: 40 } });
+    await aiScanDuplicates('u1');
+    const saved = saveVerdicts.mock.calls[0][0] as { igdbIdA: number; igdbIdB: number; same: boolean }[];
+    expect(saved.map((v) => [v.igdbIdA, v.igdbIdB, v.same])).toEqual([[1, 2, true], [3, 4, false]]);
+  });
+
+  it('does not treat pairs missing from a cut-off answer as "not the same"', async () => {
+    gameFindMany.mockResolvedValue(twoPairs());
+    // Ran into the 2048-token output limit: the list may simply be unfinished.
+    aiComplete.mockResolvedValue({ text: '[{"pair":1,"confidence":0.9,"keep":"A","reason":"edition"},{"pair":2,"conf', fallback: null, usage: { outputTokens: 2048 } });
+    await aiScanDuplicates('u1');
+    const saved = saveVerdicts.mock.calls[0][0] as { igdbIdA: number; same: boolean }[];
+    expect(saved.map((v) => [v.igdbIdA, v.same])).toEqual([[1, true]]);
+  });
+
+  it('keeps the shared answers when the AI then fails, instead of throwing', async () => {
+    gameFindMany.mockResolvedValue(twoPairs());
+    loadDuplicateKnowledge.mockResolvedValue({ merges: new Map([['1:2', { users: 2, keepIgdbId: 1 }]]), notDuplicates: new Set(), verdicts: new Map() });
+    aiComplete.mockRejectedValue(new Error('limit'));
+    const res = await aiScanDuplicates('u1');
+    expect(res.pairs).toHaveLength(1);
+    expect(res.stopped).not.toBeNull();
   });
 
   it('counts the cheap no-AI candidates without calling the AI', async () => {
