@@ -11,7 +11,9 @@ const BATCH_SIZE = 100;
 const MAX_CONCURRENCY = 2;
 /** A game whose store page lists no size is left alone for this long before it's asked about again. */
 const CHECKED_TTL_SECONDS = 30 * 24 * 60 * 60;
-const checkedKey = (appId: number) => `steam:storage-checked:${appId}`;
+// v2: while Steam's requirements-only answer came back empty for every game, each app was marked "no size" for a
+// month. A new key drops those marks, so they are all asked about again now that the lookup works.
+const checkedKey = (appId: number) => `steam:storage-checked:v2:${appId}`;
 
 /** Fills in the install size (#800) for Steam-matched games from their store page's PC
  * requirements. One lookup per Steam app; apps that list no size are skipped for a month. */
