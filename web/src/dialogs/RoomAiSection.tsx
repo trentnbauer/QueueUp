@@ -10,8 +10,9 @@ import { AiSettingsDialog } from './AiSettingsDialog';
 
 /** Room settings: who, if anyone, has applied their own AI key to this room. Their key is never
  * shown - only that they're providing it. The sponsor, the Room Master and Moderators can remove it;
- * a member who has set up their own AI provider can apply it while nobody else has. */
-export function RoomAiSection({ roomId, onOpenProfile }: { roomId: string; onOpenProfile?: () => void }) {
+ * a Room Master or Moderator who has set up their own AI provider can apply it while nobody else has
+ * (the provider sees the room's prompts, so plain members can't). */
+export function RoomAiSection({ roomId, canManage, onOpenProfile }: { roomId: string; canManage: boolean; onOpenProfile?: () => void }) {
   const t = useT();
   const ui = useUi();
   const confirm = useConfirm();
@@ -87,7 +88,7 @@ export function RoomAiSection({ roomId, onOpenProfile }: { roomId: string; onOpe
           <span style={st('font:400 12px/1.45 var(--font-ui);color:var(--muted)')}>{t('room.settings.ai.applyHint')}</span>
         </div>
       )}
-      {!sponsor && !data.hasOwnSettings && (
+      {!sponsor && canManage && !data.hasOwnSettings && (
         <span style={st('font:400 12px/1.45 var(--font-ui);color:var(--muted)')}>{t('room.settings.ai.noOwn')}</span>
       )}
       <Btn kind="soft" height={38} padX={14} fontSize={13} style={{ alignSelf: 'flex-start' }} onClick={() => setSettingsOpen(true)}>

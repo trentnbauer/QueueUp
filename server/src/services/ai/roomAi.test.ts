@@ -29,9 +29,14 @@ beforeEach(() => {
 });
 
 describe('describeRoomAi', () => {
-  it('lets someone with their own settings apply when nobody is sponsoring', async () => {
+  it('lets a Room Master or Moderator with their own settings apply when nobody is sponsoring', async () => {
     setRoom(null, ['u1']);
-    expect(await describeRoomAi('r', 'u1', false)).toEqual({ sponsor: null, youAreSponsor: false, canApply: true, canRemove: false, hasOwnSettings: true });
+    expect(await describeRoomAi('r', 'u1', true)).toEqual({ sponsor: null, youAreSponsor: false, canApply: true, canRemove: false, hasOwnSettings: true });
+  });
+
+  it('does not offer a plain member the chance to apply', async () => {
+    setRoom(null, ['u1']);
+    expect(await describeRoomAi('r', 'u1', false)).toMatchObject({ canApply: false, hasOwnSettings: true });
   });
 
   it('shows the sponsor, and who may remove them', async () => {
@@ -53,44 +58,50 @@ describe('describeRoomAi', () => {
   it('cannot apply without usable personal settings', async () => {
     setRoom(null, ['u1']);
     getUserAiConfig.mockResolvedValue(null);
-    expect(await describeRoomAi('r', 'u1', false)).toMatchObject({ canApply: false, hasOwnSettings: false });
+    expect(await describeRoomAi('r', 'u1', true)).toMatchObject({ canApply: false, hasOwnSettings: false });
   });
 });
 
 describe('applyMyAiToRoom', () => {
+  it('refuses a plain member, so they cannot capture the room\'s prompts', async () => {
+    setRoom(null, ['u1']);
+    await expect(applyMyAiToRoom('r', 'u1', false)).rejects.toThrow('Room Master or a Moderator');
+    expect(roomUpdateMany).not.toHaveBeenCalled();
+  });
+
   it('records the member as sponsor, only while nobody holds it', async () => {
     setRoom(null, ['u1']);
-    await applyMyAiToRoom('r', 'u1');
+    await applyMyAiToRoom('r', 'u1', true);
     expect(roomUpdateMany).toHaveBeenCalledWith({ where: { id: 'r', aiKeyOwnerId: null }, data: { aiKeyOwnerId: 'u1' } });
   });
 
   it('is a no-op for the current sponsor', async () => {
     setRoom(sponsor, ['sp']);
-    await applyMyAiToRoom('r', 'sp');
+    await applyMyAiToRoom('r', 'sp', true);
     expect(roomUpdateMany).not.toHaveBeenCalled();
   });
 
   it('refuses a non-member, even one who has settings', async () => {
     setRoom(null, []);
-    await expect(applyMyAiToRoom('r', 'u1')).rejects.toThrow('member of this room');
+    await expect(applyMyAiToRoom('r', 'u1', true)).rejects.toThrow('member of this room');
   });
 
   it('needs the person\'s own usable settings first', async () => {
     setRoom(null, ['u1']);
     getUserAiConfig.mockResolvedValue(null);
-    await expect(applyMyAiToRoom('r', 'u1')).rejects.toThrow('account settings');
+    await expect(applyMyAiToRoom('r', 'u1', true)).rejects.toThrow('account settings');
   });
 
   it('refuses while someone else sponsors, naming them', async () => {
     setRoom(sponsor, ['sp', 'u1']);
-    await expect(applyMyAiToRoom('r', 'u1')).rejects.toThrow('Sam already provides');
+    await expect(applyMyAiToRoom('r', 'u1', true)).rejects.toThrow('Sam already provides');
     expect(roomUpdateMany).not.toHaveBeenCalled();
   });
 
   it('loses a race for the slot cleanly', async () => {
     setRoom(null, ['u1']);
     roomUpdateMany.mockResolvedValue({ count: 0 });
-    await expect(applyMyAiToRoom('r', 'u1')).rejects.toThrow('Someone else just applied');
+    await expect(applyMyAiToRoom('r', 'u1', true)).rejects.toThrow('Someone else just applied');
   });
 });
 

@@ -7,8 +7,9 @@ import { getUserAiConfig } from './aiConfig.js';
 /** A member can apply their own AI provider and key to a room they're in, so people in that room who
  * haven't set up AI themselves can use it. The room only points at the member (Room.aiKeyOwnerId);
  * the key stays in their personal settings, encrypted, and is never copied or shown. One sponsor per
- * room at a time. The room's AI use is billed to the sponsor, so only they (or the Room Master or a
- * Moderator) can take it off. Resolution order lives in aiConfig.ts: a person's own settings still
+ * room at a time, and only the Room Master or a Moderator can become it (the sponsor's provider sees
+ * the room's prompts). The room's AI use is billed to the sponsor, so only they (or the Room Master
+ * or a Moderator) can take it off. Resolution order lives in aiConfig.ts: a person's own settings still
  * come first, then the room's sponsor, then the server's. */
 
 const sponsorSelect = { id: true, displayName: true, avatarColor: true, avatarUrl: true, isAdmin: true } as const;
@@ -39,7 +40,7 @@ export async function describeRoomAi(roomId: string, userId: string, elevated: b
   return {
     sponsor: sponsor ? toUserDto(sponsor) : null,
     youAreSponsor,
-    canApply: own !== null && sponsor === null,
+    canApply: elevated && own !== null && sponsor === null,
     canRemove: sponsor !== null && (youAreSponsor || elevated),
     hasOwnSettings: own !== null,
   };
@@ -47,7 +48,10 @@ export async function describeRoomAi(roomId: string, userId: string, elevated: b
 
 /** Makes this member the room's sponsor. They must really be a member (an administrator only
  * managing the room doesn't count), have usable personal settings, and nobody else may be sponsoring. */
-export async function applyMyAiToRoom(roomId: string, userId: string): Promise<void> {
+export async function applyMyAiToRoom(roomId: string, userId: string, elevated: boolean): Promise<void> {
+  // Whoever sponsors the room's AI receives the prompts, which carry other members' library and
+  // activity facts - so only the Room Master or a Moderator may choose to be that person (#943).
+  if (!elevated) throw new HttpError(403, 'Only the Room Master or a Moderator can apply their AI settings to a room');
   const member = await prisma.roomMember.findUnique({ where: { roomId_userId: { roomId, userId } }, select: { userId: true } });
   if (!member) throw new HttpError(403, 'You have to be a member of this room to apply your AI settings to it');
   if ((await getUserAiConfig(userId)) === null) {
