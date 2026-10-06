@@ -528,4 +528,10 @@ export const settings = {
   "settings.duplicates.reused": "{n} pairs were settled from what other people already merged or an earlier AI check, so the AI wasn't asked about them again.",
   "settings.duplicates.noTitleMatches": "Nothing on your shelf has a title that looks like another game, so there was nothing for the AI to check.",
   "settings.duplicates.noneAskedAi": "The AI was not asked: all {n} pairs that look alike were already answered by other people's merges or earlier AI checks, and none are duplicates. Press \"Scan again\" to ask the AI afresh.",
+  "settings.ai.saveEntry": "Save",
+  "settings.ai.savingEntry": "Saving…",
+  "settings.ai.saveFirstAbove": "Save the providers above this one first.",
+  "settings.ai.testNeedsSave": "Save your changes first, then test.",
+  "settings.ai.removeEntryTitle": "Remove this provider?",
+  "settings.ai.removeEntryMessage": "It is deleted now, along with its saved key.",
 } as const;
