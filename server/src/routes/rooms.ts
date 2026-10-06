@@ -357,8 +357,8 @@ export default async function roomRoutes(app: FastifyInstance) {
     if (spinWheelTheme !== undefined && !SPIN_WHEEL_THEMES.includes(spinWheelTheme)) {
       throw new HttpError(400, 'A valid Spin the Wheel theme is required');
     }
-    if (spinOwnershipMaxPrice !== undefined && (!Number.isInteger(spinOwnershipMaxPrice) || spinOwnershipMaxPrice < 0)) {
-      throw new HttpError(400, 'Spin ownership price threshold must be a whole dollar amount, 0 or more');
+    if (spinOwnershipMaxPrice !== undefined && (!Number.isInteger(spinOwnershipMaxPrice) || spinOwnershipMaxPrice < -1)) {
+      throw new HttpError(400, 'Spin ownership price threshold must be a whole dollar amount, 0 or more, or -1 for no limit');
     }
     // Restricted to Discord's own webhook host (not an arbitrary URL) - this app POSTs to
     // whatever's stored here, so accepting any URL would make this an open SSRF vector for

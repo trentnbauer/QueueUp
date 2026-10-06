@@ -52,6 +52,8 @@ export const room = {
   "room.spin.defaults": "Spin defaults",
   "room.spin.defaultsHint": "The filters Spin starts with in this room. Anyone can change them for a single spin.",
   "room.spin.priceLabel": "PRICE · EVERYONE OWNS IT, OR UNDER",
+  "room.spin.noLimit": "No price limit",
+  "room.spin.toastNoLimit": "Spin picks from any game, whatever the price",
   "room.spin.toastOwnedOnly": "Spin picks games everyone owns",
   "room.spin.toastOwnedOrPrice": "Spin picks games everyone owns, or ${price} or less",
   "room.spin.ownedOnly": "Owned only",

@@ -135,7 +135,7 @@ function modeKicker(play: SpinPlay, members: Parameters<typeof nameOf>[0], me: s
 /** A result that sat this long before the session ended most likely expired rather than being picked. */
 const STALE_GUARD_MS = 12 * 60 * 1000;
 
-const PRICE_OPTS = [0, 10, 20, 40];
+const PRICE_OPTS = [0, 7, 15, 30, 60];
 const TTB_OPTS = [0, 10, 20, 40];
 /** Minimum IGDB score, on the same out-of-10 scale as the ★ on game cards. */
 const SCORE_OPTS = [0, 7, 8, 9];
@@ -263,7 +263,8 @@ export function SpinDialog({ onClose }: { onClose: () => void }) {
   const [skipped, setSkipped] = useState<Set<string>>(new Set());
   const confirm = useConfirm();
 
-  const gate = !isShelf && room ? room.spinOwnershipMaxPrice : undefined;
+  // -1 is the room's "no price limit": no gate at all, same as the shelf.
+  const gate = !isShelf && room && room.spinOwnershipMaxPrice >= 0 ? room.spinOwnershipMaxPrice : undefined;
   const base = useMemo(() => spinCandidates(games, gate), [games, gate]);
   const candidates = useMemo(
     () =>

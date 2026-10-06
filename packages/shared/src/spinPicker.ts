@@ -87,7 +87,8 @@ export function underPriceCap(game: Game, maxPrice: number | undefined): boolean
  * can never compute a different pool from the same room state. */
 export function spinCandidates(games: Game[], spinOwnershipMaxPrice: number | undefined): Game[] {
   const backlog = backlogGames(games);
-  if (spinOwnershipMaxPrice === undefined) return backlog;
+  // undefined, or -1 ("no price limit"), leaves the whole backlog in.
+  if (spinOwnershipMaxPrice === undefined || spinOwnershipMaxPrice < 0) return backlog;
   return backlog.filter((g) => isFullyOwned(g) || underPriceCap(g, spinOwnershipMaxPrice));
 }
 
