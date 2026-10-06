@@ -26,6 +26,14 @@ describe('parseDuplicateReply', () => {
     ]);
   });
 
+  it('takes a pair listed without a "same" field as the same game (the prompt only lists those), and keeps a cut-off reply\'s complete entries', () => {
+    const complete = parseDuplicateReply('[{"pair":1,"confidence":0.9,"keep":"A","reason":"re-release"},{"pair":3,"confidence":0.8,"reason":"edition"}]', pairs);
+    expect(complete.map((p) => p.a.id).sort()).toEqual(['1', '5']);
+    const cut = parseDuplicateReply('[{"pair":1,"confidence":0.9,"reason":"re-release"},{"pair":3,"confidence":0.8,"rea', pairs);
+    expect(cut.map((p) => p.a.id)).toEqual(['1']);
+    expect(parseDuplicateReply('[]', pairs)).toEqual([]);
+  });
+
   it('drops weak, unknown, duplicate and malformed verdicts', () => {
     const reply = '[{"pair":1,"same":true,"confidence":0.3},{"pair":9,"same":true,"confidence":1},{"pair":0,"same":true,"confidence":1},{"pair":2,"same":"yes","confidence":1},{"pair":3,"same":true,"confidence":0.9},{"pair":3,"same":true,"confidence":0.9}]';
     expect(parseDuplicateReply(reply, pairs)).toHaveLength(1);
