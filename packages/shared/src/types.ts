@@ -2916,6 +2916,11 @@ export interface DuplicateSuggestion {
   confidence: number;
   /** One short sentence from the AI on why they look the same. */
   reason: string;
+  /** Where it came from: the AI (the default), or other people having merged the same pair, which
+   * needed no AI request at all. */
+  source?: 'ai' | 'community';
+  /** For `community`: how many other people merged this pair. */
+  mergedBy?: number;
 }
 
 /** Result of POST /api/games/duplicates/ai-scan. */
@@ -2923,6 +2928,9 @@ export interface AiDuplicateScanResponse {
   pairs: DuplicateSuggestion[];
   /** How many candidate pairs the AI judged. */
   checked: number;
+  /** Pairs answered from what other people already merged, said are different, or the AI already
+   * judged for someone else, so the AI was not asked about them. */
+  reused: number;
   fallback: AiFallbackNotice | null;
   /** Why the scan ended early (provider error, the daily limit on the shared AI), if it did; what was found is kept. */
   stopped: string | null;
@@ -2935,7 +2943,7 @@ export interface DuplicateCandidateCountResponse {
 
 /** Result of GET /api/games/duplicates: the pairs behind the count, by title alone (no AI). */
 export interface DuplicateCandidatesResponse {
-  pairs: { a: DuplicateSuggestionGame; b: DuplicateSuggestionGame; keep: 'a' | 'b' }[];
+  pairs: { a: DuplicateSuggestionGame; b: DuplicateSuggestionGame; keep: 'a' | 'b'; /** How many other people merged this pair (0 when none, or too few to count). */ communityMergedBy: number }[];
 }
 
 /** Body for POST /api/games/duplicates/dismiss: the two cards that are not duplicates. */

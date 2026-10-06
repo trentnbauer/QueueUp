@@ -613,6 +613,17 @@ async function mergeIntoExisting(sourceId: string, targetId: string): Promise<vo
     await tx.playniteCompletionSuggestion.deleteMany({ where: { gameId: sourceId, userId: { in: targetSuggestionUsers } } });
     await tx.playniteCompletionSuggestion.updateMany({ where: { gameId: sourceId }, data: { gameId: targetId } });
 
+    // A merge on someone's own shelf is shared (as a count of people per pair) so others can be
+    // suggested the same merge without asking the AI (see duplicateKnowledge.ts).
+    if (source.roomId === null && source.igdbId !== target.igdbId) {
+      const [igdbIdLow, igdbIdHigh] = source.igdbId < target.igdbId ? [source.igdbId, target.igdbId] : [target.igdbId, source.igdbId];
+      await tx.duplicateMergeVote.upsert({
+        where: { userId_igdbIdLow_igdbIdHigh: { userId: source.addedBy, igdbIdLow, igdbIdHigh } },
+        create: { userId: source.addedBy, igdbIdLow, igdbIdHigh, keepIgdbId: target.igdbId },
+        update: { keepIgdbId: target.igdbId },
+      });
+    }
+
     // Where a Personal Shelf copy came from and where it is owned follow the person's igdbId, not the
     // card, so the survivor would lose "synced from Steam" / "owned on PS5" for whatever only the
     // merged card's game recorded. Carry both across (never removing what the survivor has).

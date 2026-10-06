@@ -14,7 +14,7 @@ import { useT } from '../i18n';
 const GAMES_QUERY_ROOT = ['games'];
 
 /** A pair to show: one the AI judged, or a title-match candidate nobody has judged yet. */
-type Row = DuplicateSuggestion & { ai: boolean };
+type Row = DuplicateSuggestion & { ai: boolean; /** How many other people merged this pair (0 when none). */ community: number };
 const SHOWN_AT_FIRST = 40;
 
 const pairKey = (p: DuplicateSuggestion) => `${p.a.id}:${p.b.id}`;
@@ -127,8 +127,8 @@ export function DuplicatesDialog() {
   const scanPairs = (scan?.pairs ?? []).filter((p) => !gone.includes(pairKey(p)));
   // After a scan the list is what the AI judged to be the same game; before one, the title matches.
   const pairs: Row[] = scan
-    ? scanPairs.map((p) => ({ ...p, ai: true }))
-    : (candidates.data?.pairs ?? []).map((p) => ({ ...p, confidence: 0, reason: '', ai: false })).filter((p) => !gone.includes(pairKey(p)));
+    ? scanPairs.map((p) => ({ ...p, ai: p.source !== 'community', community: p.mergedBy ?? 0 }))
+    : (candidates.data?.pairs ?? []).map(({ communityMergedBy, ...p }) => ({ ...p, confidence: 0, reason: '', ai: false, community: communityMergedBy })).filter((p) => !gone.includes(pairKey(p)));
   const visiblePairs = showAll ? pairs : pairs.slice(0, SHOWN_AT_FIRST);
   // What the popup still has to ask about: everything not merged, dismissed or put off.
   const queue = scanPairs.filter((p) => !skipped.includes(pairKey(p)));
@@ -183,10 +183,18 @@ export function DuplicatesDialog() {
           </div>
         )}
         {!run.isPending && !scan && candidates.data && pairs.length === 0 && <span style={st('font:500 14px/1.45 var(--font-ui)')}>{t('settings.duplicates.noCandidates')}</span>}
+        {scan && scan.reused > 0 && !run.isPending && (
+          <span style={st('font:400 12.5px/1.45 var(--font-ui);color:var(--muted);text-wrap:pretty')}>{t('settings.duplicates.reused', { n: scan.reused })}</span>
+        )}
         {!run.isPending && scan && pairs.length === 0 && <span style={st('font:500 14px/1.45 var(--font-ui)')}>{scan.pairs.length === 0 ? t('settings.duplicates.none', { n: scan.checked }) : t('settings.duplicates.allDone')}</span>}
         {visiblePairs.map((p) => (
           <div key={pairKey(p)} style={st(`display:flex;flex-direction:column;gap:10px;padding:12px;border-radius:18px;background:var(--surf);${run.isPending ? 'opacity:.55' : ''}`)}>
-            {p.ai && (
+            {p.community > 0 && (
+              <div style={st('display:flex;align-items:center;gap:8px')}>
+                <Kicker size={11}>{t('settings.duplicates.communityBadge', { n: p.community })}</Kicker>
+              </div>
+            )}
+            {p.community === 0 && p.ai && (
               <div style={st('display:flex;align-items:center;gap:8px')}>
                 <AiPickedBadge title={t('settings.duplicates.badge')} />
                 <Kicker size={11}>{t('settings.duplicates.confidence', { n: Math.round(p.confidence * 100) })}</Kicker>
@@ -228,9 +236,9 @@ export function DuplicatesDialog() {
       {current && (
         <Dialog onClose={() => setReviewing(false)} title={t('settings.duplicates.reviewTitle')} gap={14} width={480}>
           <div style={st('display:flex;align-items:center;gap:8px;flex-wrap:wrap')}>
-            <AiPickedBadge title={t('settings.duplicates.badge')} />
+            {current.source === 'community' ? <Kicker size={11}>{t('settings.duplicates.communityBadge', { n: current.mergedBy ?? 0 })}</Kicker> : <AiPickedBadge title={t('settings.duplicates.badge')} />}
             <Kicker size={11}>{t('settings.duplicates.reviewProgress', { i: Math.min(total, total - queue.length + 1), n: total })}</Kicker>
-            <Kicker size={11}>{t('settings.duplicates.confidence', { n: Math.round(current.confidence * 100) })}</Kicker>
+            {current.source !== 'community' && <Kicker size={11}>{t('settings.duplicates.confidence', { n: Math.round(current.confidence * 100) })}</Kicker>}
           </div>
           <span style={st('font:700 19px/1.25 var(--font-display);letter-spacing:-0.01em;overflow-wrap:anywhere')}>
             {t('settings.duplicates.reviewQuestion', { remove: removeOf(current).title, keep: keepOf(current).title })}

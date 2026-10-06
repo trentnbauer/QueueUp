@@ -526,4 +526,6 @@ export const settings: Record<keyof typeof en, string> = {
   "settings.duplicates.scanningPairs": "The AI is checking {n} possible pairs. This can take a minute or two. You can close this and carry on; you will get a notification when it is done.",
   "settings.duplicates.scanningNoPairs": "The AI is checking your shelf for duplicates. This can take a minute or two. You can close this and carry on; you will get a notification when it is done.",
   "settings.me.duplicates.scanning": "AI is checking your shelf…",
+  "settings.duplicates.communityBadge": "Merged by {n} other people",
+  "settings.duplicates.reused": "{n} pairs were settled from what other people already merged or an earlier AI check, so the AI wasn't asked about them again.",
 };
