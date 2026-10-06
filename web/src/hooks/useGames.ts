@@ -26,6 +26,9 @@ export function isSameGamesList(query: Query, roomId: string | null): boolean {
   return roomId === null ? key[1] === 'shelf' || key[1] === 'shelf-search' : key[1] === 'room' && key[2] === roomId;
 }
 
+/** How often an open room re-reads its games so other members' changes appear. */
+export const ROOM_POLL_MS = 15_000;
+
 /** Handles listing + status/vote/remove mutations for either the personal shelf (roomId null) or a room. */
 export function useGames(roomId: string | null) {
   const { region } = useCurrencyRegion();
@@ -43,6 +46,10 @@ export function useGames(roomId: string | null) {
   const query = useQuery({
     queryKey,
     queryFn: () => (roomId ? gamesApi.room(roomId, region) : gamesApi.shelf(region)),
+    // A room is shared: other members' votes, statuses and additions show up on their own while the
+    // room is open (polling, only while the tab is visible - see the client's refetchIntervalInBackground).
+    // The shelf is only ever changed by its owner, so it does not poll.
+    refetchInterval: roomId ? ROOM_POLL_MS : false,
   });
 
   const invalidate = () => queryClient.invalidateQueries({ queryKey });
