@@ -493,11 +493,14 @@ export function HomeView() {
 
       {!otherTab && isShelf && !searching && tab === lists.comingTab && <ComingDlcStrip />}
 
-      {!otherTab && scope.gamesLoading && items.length === 0 && (
-        <div style={st('padding:36px 12px;text-align:center;font:500 14.5px var(--font-ui);color:var(--muted)')}>{t('common.loading')}</div>
+      {!otherTab && (scope.gamesLoading || scope.roomsLoading) && items.length === 0 && (
+        <div role="status" aria-label={t('common.loading')} style={st('padding:56px 12px;display:flex;flex-direction:column;align-items:center;gap:14px;font:500 14.5px var(--font-ui);color:var(--muted)')}>
+          <Spinner size={32} />
+          {t('common.loading')}
+        </div>
       )}
 
-      {!otherTab && !scope.gamesLoading && items.length === 0 && (
+      {!otherTab && !scope.gamesLoading && !scope.roomsLoading && items.length === 0 && (
         <div style={st('padding:36px 12px;text-align:center;display:flex;flex-direction:column;align-items:center;gap:12px')}>
           <span style={st('font:500 14.5px var(--font-ui);color:var(--muted);text-wrap:pretty')}>{emptyMsg}</span>
           {emptyAdd && (
