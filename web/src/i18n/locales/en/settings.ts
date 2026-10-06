@@ -483,6 +483,8 @@ export const settings = {
   "settings.ai.save": "Save AI settings",
   "settings.ai.saved": "AI settings saved",
   "settings.ai.test": "Test",
+  "settings.ai.entryFailed": "Test failed",
+  "settings.ai.entryWorks": "Working",
   "settings.ai.testing": "Testing…",
   "settings.ai.testOk": "Working. {provider} ({model}) answered.",
   "settings.ai.testFailed": "The test failed",

@@ -3,7 +3,7 @@ import type { AdminAiResponse, AiSettingsResponse, AiTestResponse, RoomAiRespons
 import { logAdminAction } from '../services/adminAuditLog.js';
 import { describeAdminAi, saveAdminAi } from '../services/ai/adminAi.js';
 import { requireAdmin } from '../services/adminAccess.js';
-import { aiComplete, aiCompleteWithServer, clearUserAiSettings, describeAiSettings, saveUserAiSettings } from '../services/ai/aiConfig.js';
+import { aiComplete, aiCompleteEntry, aiCompleteWithServer, clearUserAiSettings, describeAiSettings, saveUserAiSettings } from '../services/ai/aiConfig.js';
 import { applyMyAiToRoom, describeRoomAi, removeRoomAi } from '../services/ai/roomAi.js';
 import { requireMembership } from '../services/roomAccess.js';
 import type { AiRequest } from '../services/ai/providers.js';
@@ -43,8 +43,14 @@ export default async function aiSettingsRoutes(app: FastifyInstance) {
   });
 
   // Each call is a live, billable request to the provider.
-  app.post('/api/me/ai/test', { config: { rateLimit: { max: 5, timeWindow: '1 minute' } } }, async (request): Promise<AiTestResponse> => {
+  // With `index`, only that saved provider is tried (no falling through to the others).
+  app.post<{ Body: { index?: number } | undefined }>('/api/me/ai/test', { config: { rateLimit: { max: 20, timeWindow: '1 minute' } } }, async (request): Promise<AiTestResponse> => {
     const userId = await request.requireAuth();
+    const index = request.body?.index;
+    if (index !== undefined) {
+      const one = await aiCompleteEntry({ userId }, index, TEST_REQUEST);
+      return { ok: true, source: 'user', provider: one.provider, model: one.model, reply: one.text.trim().slice(0, 200), fallback: null };
+    }
     const res = await aiComplete(TEST_REQUEST, { userId });
     return { ok: true, source: res.source, provider: res.provider, model: res.model, reply: res.text.trim().slice(0, 200), fallback: res.fallback };
   });
@@ -80,9 +86,14 @@ export default async function aiSettingsRoutes(app: FastifyInstance) {
   });
 
   // The Administrator's check of the server-wide settings, regardless of any personal ones.
-  app.post('/api/admin/ai/test', { config: { rateLimit: { max: 5, timeWindow: '1 minute' } } }, async (request): Promise<AiTestResponse> => {
+  app.post<{ Body: { index?: number } | undefined }>('/api/admin/ai/test', { config: { rateLimit: { max: 20, timeWindow: '1 minute' } } }, async (request): Promise<AiTestResponse> => {
     const actorId = await request.requireAuth();
     await requireAdmin(actorId);
+    const index = request.body?.index;
+    if (index !== undefined) {
+      const one = await aiCompleteEntry('server', index, TEST_REQUEST);
+      return { ok: true, source: 'server', provider: one.provider, model: one.model, reply: one.text.trim().slice(0, 200), fallback: null };
+    }
     const res = await aiCompleteWithServer(TEST_REQUEST);
     return { ok: true, source: 'server', provider: res.provider, model: res.model, reply: res.text.trim().slice(0, 200), fallback: res.fallback };
   });

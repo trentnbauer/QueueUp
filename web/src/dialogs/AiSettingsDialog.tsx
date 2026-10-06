@@ -7,7 +7,7 @@ import { Banner, Btn } from '../ui/primitives';
 import { Dialog } from '../ui/Dialog';
 import { st } from '../ui/st';
 import { useT, type MessageKey } from '../i18n';
-import { AiFallbackWarning, AiProvidersEditor, draftFromEntry, draftToInput, emptyAiDraft, type AiDraft } from './AiProvidersEditor';
+import { AiFallbackWarning, AiProvidersEditor, draftFromEntry, draftToInput, emptyAiDraft, type AiDraft, type AiEntryTest } from './AiProvidersEditor';
 
 /** Personal AI settings: a first provider and key, plus backups tried in order when it fails. The
  * same content is reused as a step in onboarding via `AiSettingsForm`. */
@@ -26,6 +26,22 @@ export function AiSettingsForm({ onSaved }: { onSaved?: () => void }) {
     setDrafts(data.user ? [draftFromEntry(data.user), ...data.user.fallbacks.map(draftFromEntry)] : [emptyAiDraft()]);
   }, [data, drafts]);
 
+  // Per-entry tests: each saved provider can be tried on its own, and keeps its last result.
+  const [entryResults, setEntryResults] = useState<Record<number, AiEntryTest>>({});
+  const [testingEntry, setTestingEntry] = useState<number | null>(null);
+  async function testEntry(i: number) {
+    setTestingEntry(i);
+    try {
+      const r = await aiApi.test(i);
+      setEntryResults((prev) => ({ ...prev, [i]: { ok: true } }));
+      ui.notify(t('settings.ai.testOk', { provider: t(`settings.ai.providerName.${r.provider}` as MessageKey), model: r.model }));
+    } catch (e) {
+      setEntryResults((prev) => ({ ...prev, [i]: { ok: false, message: e instanceof Error ? e.message : t('settings.ai.testFailed') } }));
+    } finally {
+      setTestingEntry(null);
+    }
+  }
+
   const fail = (e: unknown, fallback: string) => setError(e instanceof Error ? e.message : fallback);
   const refresh = () => queryClient.invalidateQueries({ queryKey: AI_SETTINGS_QUERY_KEY });
 
@@ -38,6 +54,7 @@ export function AiSettingsForm({ onSaved }: { onSaved?: () => void }) {
     onSuccess: ({ user }) => {
       setError(null);
       setDrafts([draftFromEntry(user), ...user.fallbacks.map(draftFromEntry)]);
+      setEntryResults({});
       ui.notify(t('settings.ai.saved'));
       void refresh();
       onSaved?.();
@@ -45,7 +62,7 @@ export function AiSettingsForm({ onSaved }: { onSaved?: () => void }) {
     onError: (e) => fail(e, t('settings.ai.error')),
   });
   const test = useMutation({
-    mutationFn: aiApi.test,
+    mutationFn: () => aiApi.test(),
     onSuccess: (r) => {
       setError(null);
       ui.notify(t('settings.ai.testOk', { provider: t(`settings.ai.providerName.${r.provider}` as MessageKey), model: r.model }));
@@ -71,7 +88,7 @@ export function AiSettingsForm({ onSaved }: { onSaved?: () => void }) {
   if (!data || !drafts) return null;
   if (!data.userSettingsAllowed) return <span style={st('font:400 13.5px var(--font-ui);color:var(--muted)')}>{t('settings.ai.notAllowed')}</span>;
 
-  const busy = save.isPending || test.isPending || clear.isPending;
+  const busy = save.isPending || test.isPending || clear.isPending || testingEntry !== null;
 
   return (
     <div style={st('display:flex;flex-direction:column;gap:14px')}>
@@ -79,7 +96,7 @@ export function AiSettingsForm({ onSaved }: { onSaved?: () => void }) {
       <span style={st('font:500 13px/1.45 var(--font-ui);color:var(--text2)')}>{t(`settings.ai.source.${data.effectiveSource}` as MessageKey)}</span>
       {error && <Banner onDismiss={() => setError(null)}>{error}</Banner>}
       <AiFallbackWarning notice={data.lastFallback} />
-      <AiProvidersEditor drafts={drafts} onChange={setDrafts} providers={data.providers} allowBaseUrl={data.userBaseUrlAllowed} />
+      <AiProvidersEditor drafts={drafts} onChange={setDrafts} providers={data.providers} allowBaseUrl={data.userBaseUrlAllowed} onTest={(i) => void testEntry(i)} testing={testingEntry} results={entryResults} />
       {data.server && (
         <div style={st('display:flex;flex-direction:column;gap:2px;padding:12px 14px;border-radius:16px;background:var(--surf)')}>
           <span style={st('font:600 14.5px var(--font-ui)')}>{t('settings.ai.serverEntry')}</span>
