@@ -134,8 +134,18 @@ export async function unlockFeatureBadges(userId: string): Promise<BadgeDefiniti
 /** Unlocks one badge in the background, for a moment that leaves no trace to count (an AI answer
  * received, data downloaded). Never throws and never makes the caller wait. */
 export function unlockBadgeQuietly(userId: string, key: BadgeKey): void {
-  void unlockBadges(userId, [key]).catch(() => {});
+  // Called on every API request and every AI answer, so once a badge is known to be held it is not
+  // tried again until the server restarts (each try would otherwise be a failing database insert).
+  const marker = `${userId}:${key}`;
+  if (quietlyHeld.has(marker)) return;
+  void unlockBadges(userId, [key])
+    .then(() => {
+      if (quietlyHeld.size > 10_000) quietlyHeld.clear();
+      quietlyHeld.add(marker);
+    })
+    .catch(() => {});
 }
+const quietlyHeld = new Set<string>();
 
 /** Unlocks whatever `activityBadgeKeys` says is earned and not yet unlocked. Never throws: a badge
  * must not break the action that triggered it. Returns the newly unlocked ones for a toast. */
