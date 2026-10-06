@@ -6,7 +6,7 @@ import { adminApi } from '../api/admin';
 import { useAuth } from '../context/AuthContext';
 import { useConfirm } from '../context/ConfirmContext';
 import { useUi } from '../context/UiContext';
-import { Avatar, Banner, Btn, Group, Kicker } from '../ui/primitives';
+import { Avatar, Banner, Btn, Collapsible, Group } from '../ui/primitives';
 import { st } from '../ui/st';
 import { getBasePath } from '../utils/basePath';
 import { AdminAiSection } from './AdminAiSection';
@@ -259,19 +259,17 @@ export function AdminPage() {
       )}
 
       {status && (
-        <div style={st('display:flex;flex-direction:column;gap:10px')}>
-          <Kicker>{t('pages.admin.integrationKeys')}</Kicker>
+        <Collapsible title={t('pages.admin.integrationKeys')}>
           <Group>
             {fields(status).map(keyRow)}
           </Group>
-        </div>
+        </Collapsible>
       )}
 
       <AdminAiSection />
 
       {status && (
-        <div style={st('display:flex;flex-direction:column;gap:10px')}>
-          <Kicker>{t('pages.admin.emailAlerts')}</Kicker>
+        <Collapsible title={t('pages.admin.emailAlerts')}>
           <span style={st('font:400 13px/1.5 var(--font-ui);color:var(--muted)')}>
             {t('pages.admin.emailHint')}
           </span>
@@ -282,14 +280,13 @@ export function AdminPage() {
             </Btn>
             {!status.smtpConfigured && <span style={st('font:400 12.5px var(--font-ui);color:var(--muted)')}>{t('pages.admin.smtpFirst')}</span>}
           </div>
-        </div>
+        </Collapsible>
       )}
 
       <AdminEmailLog />
 
       {tunnel && (
-        <div style={st('display:flex;flex-direction:column;gap:10px')}>
-          <Kicker>{t('pages.admin.tunnelKicker')}</Kicker>
+        <Collapsible title={t('pages.admin.tunnelKicker')}>
           <span style={st('font:400 13px/1.5 var(--font-ui);color:var(--muted)')}>
             {rich(t('pages.admin.tunnelHint'), { url: <code>http://localhost:{TUNNEL_PORT_HINT}</code> })}
           </span>
@@ -309,11 +306,10 @@ export function AdminPage() {
             </div>
             {keyRow({ key: 'CLOUDFLARE_TUNNEL_TOKEN', label: t('pages.admin.field.tunnelToken'), source: tunnel.source })}
           </Group>
-        </div>
+        </Collapsible>
       )}
 
-      <div style={st('display:flex;flex-direction:column;gap:10px')}>
-        <Kicker>{t('pages.admin.rooms', { n: rooms.data?.rooms.length ?? 0 })}</Kicker>
+      <Collapsible title={t('pages.admin.rooms', { n: rooms.data?.rooms.length ?? 0 })}>
         <Group>
           {rooms.data?.rooms.map((r) => (
             <Fragment key={r.id}>
@@ -357,10 +353,9 @@ export function AdminPage() {
           ))}
           {rooms.data?.rooms.length === 0 && <div style={st('padding:16px;background:var(--surf);color:var(--muted);font-size:14px')}>{t('pages.admin.noRooms')}</div>}
         </Group>
-      </div>
+      </Collapsible>
 
-      <div style={st('display:flex;flex-direction:column;gap:10px')}>
-        <Kicker>{t('pages.admin.users', { n: users.data?.users.length ?? 0 })}</Kicker>
+      <Collapsible title={t('pages.admin.users', { n: users.data?.users.length ?? 0 })}>
         <Group>
           {users.data?.users.map((u) => {
             const me = u.id === user.id;
@@ -390,7 +385,7 @@ export function AdminPage() {
             );
           })}
         </Group>
-      </div>
+      </Collapsible>
 
       <AdminBackups />
 

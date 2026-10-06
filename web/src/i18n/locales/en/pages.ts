@@ -476,4 +476,5 @@ export const pages = {
   "pages.admin.ai.envLocked": "Set by Docker env or variable",
   "pages.admin.ai.notSet": "No server AI provider is set.",
   "pages.admin.ai.saved": "Server AI settings saved",
+  "pages.admin.show": "Show",
 } as const;

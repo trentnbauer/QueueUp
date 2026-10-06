@@ -1,4 +1,4 @@
-import type { CSSProperties, ReactNode } from 'react';
+import { useState, type CSSProperties, type ReactNode } from 'react';
 import type { GameStatus } from '@queueup/shared';
 import { useNavigate } from 'react-router';
 import { st } from './st';
@@ -362,6 +362,26 @@ export function IgdbScore({ score }: { score: number | null | undefined }) {
     <span title={t('home.row.igdbTitle', { score })} aria-label={t('home.row.igdbAria', { score })} style={{ font: '600 14px var(--font-ui)', color: 'var(--star)', whiteSpace: 'nowrap' }}>
       ★ {(score / 10).toFixed(1)} <span style={{ font: '500 12px var(--font-mono)', color: 'var(--muted)', letterSpacing: '0.04em' }}>IGDB</span>
     </span>
+  );
+}
+
+/** A section that stays folded to its heading until opened with a Show / Hide button, for long admin lists.
+ * `actions` sit beside the button while it is open. */
+export function Collapsible({ title, actions, defaultOpen = false, children }: { title: ReactNode; actions?: ReactNode; defaultOpen?: boolean; children: ReactNode }) {
+  const [open, setOpen] = useState(defaultOpen);
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8 }}>
+        <Kicker>{title}</Kicker>
+        <span style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+          {open && actions}
+          <Btn kind="soft" height={32} padX={14} fontSize={12.5} ariaLabel={`${open ? t('pages.admin.hide') : t('pages.admin.show')}: ${typeof title === 'string' ? title : ''}`} onClick={() => setOpen((o) => !o)}>
+            {open ? t('pages.admin.hide') : t('pages.admin.show')}
+          </Btn>
+        </span>
+      </div>
+      {open && children}
+    </div>
   );
 }
 

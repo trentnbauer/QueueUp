@@ -5,7 +5,7 @@ import { adminApi, RestoreError, type RestoreOptions } from '../api/admin';
 import { useConfirm } from '../context/ConfirmContext';
 import { useUi } from '../context/UiContext';
 import { Dialog } from '../ui/Dialog';
-import { Btn, Group, Kicker, Toggle, inputField } from '../ui/primitives';
+import { Btn, Collapsible, Group, Toggle, inputField } from '../ui/primitives';
 import { st } from '../ui/st';
 import { getBasePath } from '../utils/basePath';
 import { rich, t as tr, useT, type MessageKey } from '../i18n';
@@ -214,8 +214,7 @@ export function AdminBackups() {
   const input = 'height:40px;padding:0 12px;border-radius:12px;border:1px solid var(--line);background:var(--surf2);color:var(--text);font:500 14px var(--font-mono);outline:none';
 
   return (
-    <div style={st('display:flex;flex-direction:column;gap:10px')}>
-      <Kicker>{t('pages.backups.kicker')}</Kicker>
+    <Collapsible title={t('pages.backups.kicker')}>
       <Group>
         <div style={st('display:flex;align-items:center;gap:12px;padding:12px 14px;background:var(--surf)')}>
           <span style={st('flex:1;min-width:0;display:flex;flex-direction:column;gap:2px')}>
@@ -323,6 +322,6 @@ export function AdminBackups() {
         ))}
       </Group>
       {keyPrompt && <SessionKeyDialog message={keyPrompt.message} call={keyPrompt.call} onDone={keyPrompt.done} onCancel={() => setKeyPrompt(null)} />}
-    </div>
+    </Collapsible>
   );
 }
