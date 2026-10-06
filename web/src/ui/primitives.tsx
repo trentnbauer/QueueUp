@@ -420,14 +420,16 @@ interface BtnProps {
   children: ReactNode;
   ariaLabel?: string;
   hover?: boolean;
+  title?: string;
 }
 
 /** Pill button in the design's five flavours. */
-export function Btn({ kind = 'outline', height = 40, padX = 18, fontSize = 13.5, weight = 600, onClick, disabled, type = 'button', style, children, ariaLabel, hover }: BtnProps) {
+export function Btn({ kind = 'outline', height = 40, padX = 18, fontSize = 13.5, weight = 600, onClick, disabled, type = 'button', style, children, ariaLabel, hover, title }: BtnProps) {
   return (
     <button
       type={type}
       aria-label={ariaLabel}
+      title={title}
       disabled={disabled}
       onClick={onClick}
       className={hover && kind === 'outline' ? 'hv-surf' : undefined}

@@ -16,20 +16,63 @@ export interface AiDraft {
   disabled: boolean;
   /** Already saved on the server, so it can be tested and starts folded away. */
   saved: boolean;
+  /** The editable fields as last saved (see `isDraftDirty`). */
+  base: string;
 }
 
-export const emptyAiDraft = (provider: AiProvider = 'anthropic'): AiDraft => ({ provider, model: '', baseUrl: '', apiKey: '', hasApiKey: false, disabled: false, saved: false });
+const snapshot = (d: Pick<AiDraft, 'provider' | 'model' | 'baseUrl' | 'disabled'>) => JSON.stringify([d.provider, d.model.trim(), d.baseUrl.trim(), d.disabled]);
 
-export const draftFromEntry = (e: { id?: string; provider: AiProvider; model: string | null; baseUrl: string | null; hasApiKey: boolean; disabled?: boolean }): AiDraft => ({
-  id: e.id,
-  provider: e.provider,
-  model: e.model ?? '',
-  baseUrl: e.baseUrl ?? '',
-  apiKey: '',
-  hasApiKey: e.hasApiKey,
-  disabled: !!e.disabled,
-  saved: true,
-});
+export const emptyAiDraft = (provider: AiProvider = 'anthropic'): AiDraft => ({ provider, model: '', baseUrl: '', apiKey: '', hasApiKey: false, disabled: false, saved: false, base: '' });
+
+/** Whether this entry has changes that are not saved yet: it is new, or its provider, model, address or
+ * on/off switch changed, or a new key was typed. */
+export const isDraftDirty = (d: AiDraft) => !d.saved || !!d.apiKey.trim() || snapshot(d) !== d.base;
+
+export const draftFromEntry = (e: { id?: string; provider: AiProvider; model: string | null; baseUrl: string | null; hasApiKey: boolean; disabled?: boolean }): AiDraft => {
+  const d = { id: e.id, provider: e.provider, model: e.model ?? '', baseUrl: e.baseUrl ?? '', apiKey: '', hasApiKey: e.hasApiKey, disabled: !!e.disabled, saved: true };
+  return { ...d, base: snapshot(d) };
+};
+
+/** One entry as the server has it saved. */
+export interface SavedEntry {
+  id?: string;
+  provider: AiProvider;
+  model: string | null;
+  baseUrl: string | null;
+  hasApiKey: boolean;
+  disabled: boolean;
+}
+
+/** An entry sent back as it is saved, with no key (so the saved key is kept). */
+const keepInput = (e: SavedEntry): AiFallbackInput => ({ id: e.id, provider: e.provider, model: e.model, baseUrl: e.baseUrl, disabled: e.disabled });
+
+/** The list to save when only entry `i` changed: its draft, with every other entry as it is saved (so
+ * unsaved edits to the others are not saved by accident). A new entry is added at the end. */
+export function listAfterSave(saved: SavedEntry[], drafts: AiDraft[], i: number): AiFallbackInput[] {
+  const out = saved.map((e, j) => (j === i ? draftToInput(drafts[i]) : keepInput(e)));
+  if (i >= saved.length) out.push(draftToInput(drafts[i]));
+  return out;
+}
+
+export const listWithout = (saved: SavedEntry[], i: number): AiFallbackInput[] => saved.filter((_, j) => j !== i).map(keepInput);
+
+export function listSwapped(saved: SavedEntry[], i: number, by: -1 | 1): AiFallbackInput[] {
+  const next = saved.map(keepInput);
+  [next[i], next[i + by]] = [next[i + by], next[i]];
+  return next;
+}
+
+/** The drafts after a save: what the server now has, except that an entry with unsaved edits keeps them
+ * (matched by id, the first entry by position) and entries that are still new stay at the end.
+ * `skipIndex` is the entry that was just saved, which takes the server's version. */
+export function reconcileDrafts(prior: AiDraft[], server: AiDraft[], skipIndex?: number): AiDraft[] {
+  const merged = server.map((d, j) => {
+    if (j === skipIndex) return d;
+    const p = d.id !== undefined ? prior.find((x) => x.id === d.id) : j === 0 ? prior[0] : undefined;
+    return p && p.saved && isDraftDirty(p) ? p : d;
+  });
+  return [...merged, ...prior.filter((d, j) => !d.saved && j !== skipIndex)];
+}
 
 export const draftToInput = (d: AiDraft): AiFallbackInput => ({
   id: d.id,
@@ -106,6 +149,10 @@ export function AiProvidersEditor({
   results,
   onBenchmark,
   onListModels,
+  onSaveEntry,
+  savingEntry,
+  onMoveEntry,
+  onRemoveEntry,
 }: {
   drafts: AiDraft[];
   onChange: (next: AiDraft[]) => void;
@@ -122,6 +169,14 @@ export function AiProvidersEditor({
   onBenchmark?: (index: number, step: AiBenchmarkStep) => Promise<AiBenchmarkResult>;
   /** Asks the provider which models it offers (from what is on screen). Left out, there is no Load models button. */
   onListModels?: (body: AiModelsRequest) => Promise<AiModelsResponse>;
+  /** Saves just the entry at this position. Left out, there are no per-entry Save buttons. */
+  onSaveEntry?: (index: number) => void;
+  /** Position of the entry being saved right now. */
+  savingEntry?: number | null;
+  /** Move an entry (saved entries are saved straight away). Left out, entries just move on screen. */
+  onMoveEntry?: (index: number, by: -1 | 1) => void;
+  /** Remove an entry (a saved one is deleted straight away). Left out, it just leaves the screen. */
+  onRemoveEntry?: (index: number) => void;
 }) {
   const t = useT();
   // Models fetched from the provider, per entry, with any problem fetching them.
@@ -176,6 +231,7 @@ export function AiProvidersEditor({
     });
   const set = (i: number, patch: Partial<AiDraft>) => onChange(drafts.map((d, j) => (j === i ? { ...d, ...patch } : d)));
   const move = (i: number, by: -1 | 1) => {
+    if (onMoveEntry) return onMoveEntry(i, by);
     const next = [...drafts];
     [next[i], next[i + by]] = [next[i + by], next[i]];
     onChange(next);
@@ -190,6 +246,10 @@ export function AiProvidersEditor({
           const k = keyOf(d, i);
           const expanded = !d.saved || !d.model.trim() || open.has(k);
           const result = results?.[i];
+          const dirty = isDraftDirty(d);
+          const savedCount = drafts.filter((x) => x.saved).length;
+          const canSave = i <= savedCount;
+          const saving = savingEntry === i;
           const summary = [providerLabel(t, d.provider), d.model.trim() || AI_RECOMMENDED_MODELS[d.provider], d.disabled ? t('settings.ai.disabledTag') : null].filter(Boolean).join(' · ');
           return (
             <div key={d.id ?? `new-${i}`} style={st(`display:flex;flex-direction:column;gap:8px;padding:12px 14px;background:var(--surf);${d.disabled ? 'opacity:.7' : ''}`)}>
@@ -222,20 +282,25 @@ export function AiProvidersEditor({
                   <input type="checkbox" checked={!d.disabled} onChange={(e) => set(i, { disabled: !e.target.checked })} aria-label={t('settings.ai.enabledFor', { name: i === 0 ? t('settings.ai.first') : t('settings.ai.backup', { n: i }) })} style={st('width:18px;height:18px;accent-color:var(--acc)')} />
                   {t('settings.ai.enabled')}
                 </label>
+                {onSaveEntry && dirty && (
+                  <Btn height={32} padX={14} fontSize={12.5} disabled={!canSave || (savingEntry !== null && savingEntry !== undefined)} title={canSave ? undefined : t('settings.ai.saveFirstAbove')} onClick={() => onSaveEntry(i)}>
+                    {saving ? t('settings.ai.savingEntry') : t('settings.ai.saveEntry')}
+                  </Btn>
+                )}
                 {onTest && d.saved && (
-                  <Btn kind="soft" height={32} padX={12} fontSize={12.5} disabled={testing !== null && testing !== undefined} onClick={() => onTest(i)}>
+                  <Btn kind="soft" height={32} padX={12} fontSize={12.5} disabled={dirty || (testing !== null && testing !== undefined) || benchRunning} title={dirty ? t('settings.ai.testNeedsSave') : undefined} onClick={() => { setBench((prev) => { const next = { ...prev }; delete next[i]; return next; }); onTest(i); }}>
                     {testing === i ? t('settings.ai.testing') : t('settings.ai.test')}
                   </Btn>
                 )}
                 {onBenchmark && d.saved && (
-                  <Btn kind="soft" height={32} padX={12} fontSize={12.5} disabled={benchRunning || (testing !== null && testing !== undefined)} onClick={() => void runBenchmark(i)}>
+                  <Btn kind="soft" height={32} padX={12} fontSize={12.5} disabled={dirty || benchRunning || (testing !== null && testing !== undefined)} title={dirty ? t('settings.ai.testNeedsSave') : undefined} onClick={() => void runBenchmark(i)}>
                     {bench[i]?.running ? t('settings.ai.benchmarking') : t('settings.ai.benchmark')}
                   </Btn>
                 )}
                 {expanded && i > 1 && <Btn kind="ghost" height={32} padX={8} fontSize={12.5} aria-label={t('settings.ai.moveUp')} onClick={() => move(i, -1)}>↑</Btn>}
                 {expanded && i > 0 && i < drafts.length - 1 && <Btn kind="ghost" height={32} padX={8} fontSize={12.5} aria-label={t('settings.ai.moveDown')} onClick={() => move(i, 1)}>↓</Btn>}
                 {expanded && i > 0 && (
-                  <Btn kind="ghost" height={32} padX={10} fontSize={12.5} style={{ color: 'var(--danger)' }} onClick={() => onChange(drafts.filter((_, j) => j !== i))}>
+                  <Btn kind="ghost" height={32} padX={10} fontSize={12.5} style={{ color: 'var(--danger)' }} onClick={() => (onRemoveEntry ? onRemoveEntry(i) : onChange(drafts.filter((_, j) => j !== i)))}>
                     {t('settings.ai.removeEntry')}
                   </Btn>
                 )}
