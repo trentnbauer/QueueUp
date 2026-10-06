@@ -94,8 +94,15 @@ export function Overlays() {
   useEffect(() => {
     if (completions.result && !hadCompletions.current) {
       hadCompletions.current = true;
-      ui.closeDialog('import');
-      ui.openDialog('completions');
+      if (completions.result.candidates.length === 0) {
+        // Nothing to review: say so in a toast instead of opening an empty dialog.
+        const n = completions.result.consideredCount;
+        ui.notify(t(n === 1 ? 'add.completions.noneFound.one' : 'add.completions.noneFound.other', { n }));
+        completions.reset();
+      } else {
+        ui.closeDialog('import');
+        ui.openDialog('completions');
+      }
     }
     if (!completions.result) hadCompletions.current = false;
     // eslint-disable-next-line react-hooks/exhaustive-deps

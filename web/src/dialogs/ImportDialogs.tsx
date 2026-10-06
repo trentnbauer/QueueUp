@@ -788,6 +788,11 @@ export function CompletionsDialog() {
   }
 
   const n = candidates.length;
+  // Everything reviewed (applied or dismissed): nothing left to show, so close rather than sit empty.
+  useEffect(() => {
+    if (n === 0) close();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [n]);
   return (
     <Dialog
       onClose={close}
@@ -807,13 +812,7 @@ export function CompletionsDialog() {
       }
       gap={12}
     >
-      {n === 0 ? (
-        <div style={st('padding:20px 4px 12px;font:500 14px/1.5 var(--font-ui);color:var(--muted);text-wrap:pretty')}>
-          {result && result.candidates.length === 0
-            ? t(result.consideredCount === 1 ? 'add.completions.noneFound.one' : 'add.completions.noneFound.other', { n: result.consideredCount })
-            : t('add.completions.allReviewed')}
-        </div>
-      ) : (
+      {n === 0 ? null : (
         <>
           <span style={st('font:400 13.5px/1.5 var(--font-ui);color:var(--text2);text-wrap:pretty')}>
             {t(n === 1 ? 'add.completions.intro.one' : 'add.completions.intro.other', { n, checked: result?.consideredCount ?? '' })}
