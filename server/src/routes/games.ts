@@ -71,7 +71,7 @@ import { getRemovalInfo } from '../services/removalVote.js';
 import { recordSyncSources } from '../services/syncSources.js';
 import { getCurrentPlaytimeMinutesForGames } from '../services/playtimeTracking.js';
 import { summarizeTimeToBeat, summarizeActiveHoursToBeat, pickMostNeglectedGame, backlogAgeRanges } from '../services/backlogInsights.js';
-import { unlockActivityBadges, unlockBadges } from '../services/badges.js';
+import { unlockActivityBadges, unlockBadges, unlockFeatureBadges } from '../services/badges.js';
 import {
   logRoomActivity,
   logShelfActivity,
@@ -1121,6 +1121,7 @@ export default async function gameRoutes(app: FastifyInstance) {
     const hidden = request.body?.hidden;
     if (typeof hidden !== 'boolean') throw new HttpError(400, 'hidden must be true or false');
     await prisma.game.update({ where: { id: game.id }, data: { hiddenFromOthers: hidden } });
+    if (hidden) void unlockFeatureBadges(userId);
     return { game: await serializeGame(await loadGameOr404(game.id), userId) };
   });
 
@@ -1808,6 +1809,7 @@ export default async function gameRoutes(app: FastifyInstance) {
       }
 
       await prisma.game.update({ where: { id: game.id }, data: { targetPrice: normalized } });
+      if (normalized !== null) void unlockFeatureBadges(userId);
       const updated = await loadGameOr404(game.id);
       return { game: await serializeGame(updated, userId) };
     },

@@ -4,6 +4,7 @@ import { HttpError } from '../util/httpError.js';
 import { logAdminAction } from '../services/adminAuditLog.js';
 import { describeAdminAi, saveAdminAi } from '../services/ai/adminAi.js';
 import { requireAdmin } from '../services/adminAccess.js';
+import { unlockFeatureBadges } from '../services/badges.js';
 import { aiComplete, aiCompleteEntry, aiCompleteWithServer, clearUserAiSettings, describeAiSettings, saveUserAiSettings } from '../services/ai/aiConfig.js';
 import { isBenchmarkStep, runBenchmarkStep } from '../services/ai/aiBenchmark.js';
 import { aiActivityFor } from '../services/ai/aiJobs.js';
@@ -35,7 +36,9 @@ export default async function aiSettingsRoutes(app: FastifyInstance) {
     { config: { rateLimit: { max: 10, timeWindow: '1 hour' } } },
     async (request): Promise<{ user: UserAiSettings }> => {
       const userId = await request.requireAuth();
-      return { user: await saveUserAiSettings(userId, request.body) };
+      const saved = await saveUserAiSettings(userId, request.body);
+      void unlockFeatureBadges(userId);
+      return { user: saved };
     },
   );
 

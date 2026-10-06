@@ -93,6 +93,50 @@ export async function activityBadgeKeys(userId: string): Promise<BadgeKey[]> {
   return keys;
 }
 
+/** The badges for using QueueUp's more advanced features, worked out from what is on file: a hidden
+ * game, a price alert, a custom profile link, your own AI (and a backup), an API key that has been
+ * used, a Discord webhook, an email alert, computer specs. The two that leave nothing behind to
+ * look at (getting an AI answer, downloading your data) are unlocked where they happen instead. */
+export async function featureBadgeKeys(userId: string): Promise<BadgeKey[]> {
+  const [hidden, alert, user, ai, usedKey, webhook, emailAlert, specs] = await Promise.all([
+    prisma.game.findFirst({ where: { roomId: null, addedBy: userId, hiddenFromOthers: true }, select: { id: true } }),
+    prisma.game.findFirst({ where: { addedBy: userId, targetPrice: { not: null } }, select: { id: true } }),
+    prisma.user.findUnique({ where: { id: userId }, select: { profileSlug: true } }),
+    prisma.userAiSettings.findUnique({ where: { userId }, select: { fallbacksEncrypted: true } }),
+    prisma.apiKey.findFirst({ where: { userId, lastUsedAt: { not: null } }, select: { id: true } }),
+    prisma.room.findFirst({ where: { discordWebhookUrl: { not: null }, members: { some: { userId, role: 'room_master' } } }, select: { id: true } }),
+    prisma.notificationPreference.findFirst({ where: { userId, email: true }, select: { type: true } }),
+    prisma.userComputerSpecs.findUnique({ where: { userId }, select: { userId: true } }),
+  ]);
+  const keys: BadgeKey[] = [];
+  if (hidden) keys.push('first_hidden_game');
+  if (alert) keys.push('first_price_alert');
+  if (user?.profileSlug) keys.push('first_profile_link');
+  if (ai) keys.push('first_own_ai');
+  if (ai?.fallbacksEncrypted) keys.push('first_ai_backup');
+  if (usedKey) keys.push('first_api_key_used');
+  if (webhook) keys.push('first_discord_webhook');
+  if (emailAlert) keys.push('first_email_alert');
+  if (specs) keys.push('first_computer_specs');
+  return keys;
+}
+
+/** Unlocks the advanced-feature badges earned so far. Never throws. Returns the new ones. */
+export async function unlockFeatureBadges(userId: string): Promise<BadgeDefinition[]> {
+  try {
+    return await unlockBadges(userId, await featureBadgeKeys(userId));
+  } catch (err) {
+    console.error('[badges] feature badge check failed', { userId, err });
+    return [];
+  }
+}
+
+/** Unlocks one badge in the background, for a moment that leaves no trace to count (an AI answer
+ * received, data downloaded). Never throws and never makes the caller wait. */
+export function unlockBadgeQuietly(userId: string, key: BadgeKey): void {
+  void unlockBadges(userId, [key]).catch(() => {});
+}
+
 /** Unlocks whatever `activityBadgeKeys` says is earned and not yet unlocked. Never throws: a badge
  * must not break the action that triggered it. Returns the newly unlocked ones for a toast. */
 export async function unlockActivityBadges(userId: string): Promise<BadgeDefinition[]> {
@@ -250,6 +294,7 @@ export async function refreshBadges(userId: string): Promise<BadgeDefinition[]> 
     playLogDerivedBadgeKeys(userId),
     platformSyncBadgeKeys(userId),
     activityBadgeKeys(userId),
+    featureBadgeKeys(userId),
   ]);
   const keys = [...new Set(keyLists.flat())];
   return unlockBadges(userId, keys);

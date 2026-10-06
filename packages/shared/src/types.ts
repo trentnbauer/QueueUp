@@ -2112,6 +2112,17 @@ export type BadgeKey =
   | 'first_friend'
   | 'first_api_key'
   | 'first_merge'
+  | 'first_hidden_game'
+  | 'first_price_alert'
+  | 'first_profile_link'
+  | 'first_own_ai'
+  | 'first_ai_backup'
+  | 'first_ai_used'
+  | 'first_api_key_used'
+  | 'first_discord_webhook'
+  | 'first_export'
+  | 'first_email_alert'
+  | 'first_computer_specs'
   | 'first_full_collection';
 
 export interface BadgeDefinition {
@@ -2366,6 +2377,72 @@ export const BADGE_DEFINITIONS: Record<BadgeKey, BadgeDefinition> = {
     name: 'Tidy Shelf',
     description: 'Merged two cards of the same game into one.',
     emoji: '🧹',
+  },
+  first_hidden_game: {
+    key: 'first_hidden_game',
+    name: 'Low Profile',
+    description: 'Hid a game from friends and your public profile.',
+    emoji: '🕶️',
+  },
+  first_price_alert: {
+    key: 'first_price_alert',
+    name: 'Price Watcher',
+    description: 'Set a price alert on a game.',
+    emoji: '🔔',
+  },
+  first_profile_link: {
+    key: 'first_profile_link',
+    name: 'Own Brand',
+    description: 'Chose a custom profile link.',
+    emoji: '🪪',
+  },
+  first_own_ai: {
+    key: 'first_own_ai',
+    name: 'Bring Your Own AI',
+    description: 'Set up your own AI provider.',
+    emoji: '🤖',
+  },
+  first_ai_backup: {
+    key: 'first_ai_backup',
+    name: 'Safety Net',
+    description: 'Added a backup AI provider.',
+    emoji: '🛟',
+  },
+  first_ai_used: {
+    key: 'first_ai_used',
+    name: 'AI Assisted',
+    description: 'Got an answer from the AI.',
+    emoji: '✨',
+  },
+  first_api_key_used: {
+    key: 'first_api_key_used',
+    name: 'Plugged In',
+    description: 'Used an API key to talk to QueueUp.',
+    emoji: '🔌',
+  },
+  first_discord_webhook: {
+    key: 'first_discord_webhook',
+    name: 'Webhook Wired',
+    description: 'Connected a room to Discord.',
+    emoji: '📣',
+  },
+  first_export: {
+    key: 'first_export',
+    name: 'Data Owner',
+    description: 'Downloaded your data.',
+    emoji: '📦',
+  },
+  first_email_alert: {
+    key: 'first_email_alert',
+    name: 'Stay Informed',
+    description: 'Switched on an email alert.',
+    emoji: '📬',
+  },
+  first_computer_specs: {
+    key: 'first_computer_specs',
+    name: "Spec'd Out",
+    description: 'Told QueueUp what you play on.',
+    emoji: '🖥️',
   },
   // Deliberately last, and deliberately excluded from its own completion check (see
   // unlockBadges in services/badges.ts) - otherwise it could never reach 100% itself.

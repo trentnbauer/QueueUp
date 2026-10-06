@@ -9,6 +9,7 @@ import {
   type SetNotificationPreferenceRequest,
 } from '@queueup/shared';
 import { prisma } from '../db/client.js';
+import { unlockFeatureBadges } from '../services/badges.js';
 import { HttpError } from '../util/httpError.js';
 import { smtpIsConfigured } from '../services/mailer.js';
 
@@ -56,6 +57,7 @@ export default async function notificationPreferenceRoutes(app: FastifyInstance)
           ...(startingEmail && { emailEnabledAt: new Date() }),
         },
       });
+      if (email === true) void unlockFeatureBadges(userId);
       const what = type.replace(/_/g, ' ');
       if (email !== undefined && email !== (existing?.email ?? false)) {
         void logAccountEvent(userId, 'notification_email', `Email alerts for ${what} turned ${email ? 'on' : 'off'}.`);

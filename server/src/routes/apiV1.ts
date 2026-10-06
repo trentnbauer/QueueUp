@@ -12,7 +12,7 @@ import { createGameForUser, resolveGameForCreation, defaultStatusForRelease, lin
 import { isAddonCategory } from '../services/igdbClient.js';
 import { invalidateExistingIgdbIds } from '../services/gameAccess.js';
 import { promoteOwnedWishlistGames, setOwnershipPlatforms, unionOwnershipPlatforms } from '../services/gameOwnership.js';
-import { unlockBadges } from '../services/badges.js';
+import { unlockBadgeQuietly, unlockBadges } from '../services/badges.js';
 import { unionOwnedPlatforms, VALID_PLATFORMS } from '../services/userSettings.js';
 import { runWithConcurrency } from '../util/concurrency.js';
 import {
@@ -281,6 +281,7 @@ export default async function apiV1Routes(app: FastifyInstance) {
       throw new HttpError(403, 'This API key is read-only');
     }
     request.apiKeyUserId = userId;
+    unlockBadgeQuietly(userId, 'first_api_key_used');
   });
 
   app.get('/library', apiV1RateLimit, async (request) => {

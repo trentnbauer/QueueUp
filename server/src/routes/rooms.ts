@@ -7,7 +7,7 @@ import { requireElevated, requireCanInvite, requireMembership, generateUniqueInv
 import { redis } from '../services/redisClient.js';
 import { logAdminAction } from '../services/adminAuditLog.js';
 import { notifyRoom, notifyRoomMembersDirect } from '../services/notifications.js';
-import { unlockBadges } from '../services/badges.js';
+import { unlockBadges, unlockFeatureBadges } from '../services/badges.js';
 import { logRoomActivity, getRoomActivityPage, encodeActivityCursor, decodeActivityCursor } from '../services/roomActivity.js';
 import type {
   CreateRoomRequest,
@@ -395,6 +395,8 @@ export default async function roomRoutes(app: FastifyInstance) {
         }),
       },
     });
+
+    if (discordWebhookUrl) void unlockFeatureBadges(userId);
 
     if (name !== undefined && room.name !== before.name) {
       await notifyRoom({
