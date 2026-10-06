@@ -72,17 +72,10 @@ export async function getServerAiConfig(): Promise<AiConfig | null> {
   return buildConfig(provider, { model, baseUrl, apiKey });
 }
 
-/** The person's own settings, or null when they have none, can't use them, or they're unusable. */
+/** The provider a person's own call would try first, or null when they have none, can't use them,
+ * everything is switched off, or the settings are unusable. */
 export async function getUserAiConfig(userId: string): Promise<AiConfig | null> {
-  const env = await getEnv();
-  if (!env.AI_ALLOW_USER_SETTINGS) return null;
-  const row = await prisma.userAiSettings.findUnique({ where: { userId } });
-  if (!row || !isProvider(row.provider)) return null;
-  // A saved custom address only counts while the server still allows one.
-  const usesCustomUrl = !!row.baseUrl || PROVIDER_DEFAULTS[row.provider].baseUrl === null || row.provider === 'ollama';
-  if (usesCustomUrl && !env.AI_ALLOW_USER_BASE_URL) return null;
-  const config = buildConfig(row.provider, { model: row.model, baseUrl: row.baseUrl, apiKey: await readUserKey(userId, row.apiKeyEncrypted) });
-  return config && usesCustomUrl ? { ...config, userSupplied: true } : config;
+  return (await getUserAiChain(userId))[0] ?? null;
 }
 
 /** Backups saved in Administrator settings. Not an env var: they're only ever set from the settings screen. */
@@ -96,8 +89,9 @@ export async function readServerFallbacks(): Promise<StoredFallback[]> {
 /** `userSupplied` marks a person's own backups: any that use a custom address (or a provider that
  * needs one) are flagged so each request is checked against the server's network. The operator's own
  * backups (Administrator settings) are trusted and left unflagged. */
-const fallbackConfigs = (list: StoredFallback[], allowCustomUrl: boolean, userSupplied = false): AiConfig[] =>
+const fallbackConfigs = (list: StoredFallback[], allowCustomUrl: boolean, userSupplied = false, includeDisabled = false): AiConfig[] =>
   list
+    .filter((e) => includeDisabled || !e.disabled)
     .filter((e) => allowCustomUrl || (!e.baseUrl && e.provider !== 'ollama' && e.provider !== 'openai_compatible'))
     .map((e) => {
       const config = buildConfig(e.provider, e);
@@ -106,20 +100,38 @@ const fallbackConfigs = (list: StoredFallback[], allowCustomUrl: boolean, userSu
     })
     .filter((c): c is AiConfig => c !== null);
 
-/** The server's first provider, then its backups in order. */
-export async function getServerAiChain(): Promise<AiConfig[]> {
-  const [first, backups] = await Promise.all([getServerAiConfig(), readServerFallbacks()]);
-  return [...(first ? [first] : []), ...fallbackConfigs(backups, true)];
+/** Whether the server's first provider is switched off (kept saved, not used). Not an env var: the
+ * switch is only ever set from the settings screen, so it works even when the provider itself is set by Docker. */
+export const SERVER_PRIMARY_DISABLED_KEY = 'AI_PRIMARY_DISABLED';
+
+export async function isServerPrimaryDisabled(): Promise<boolean> {
+  const row = await prisma.appSetting.findUnique({ where: { key: SERVER_PRIMARY_DISABLED_KEY } });
+  return row?.value === 'true';
 }
 
-/** The person's first provider, then their backups in order (same rules as getUserAiConfig). */
-export async function getUserAiChain(userId: string): Promise<AiConfig[]> {
+/** The server's first provider, then its backups in order, leaving out anything switched off (unless
+ * `includeDisabled`, which keeps positions matching the settings list). */
+export async function getServerAiChain(opts: { includeDisabled?: boolean } = {}): Promise<AiConfig[]> {
+  const [first, backups, off] = await Promise.all([getServerAiConfig(), readServerFallbacks(), isServerPrimaryDisabled()]);
+  return [...(first && (opts.includeDisabled || !off) ? [first] : []), ...fallbackConfigs(backups, true, false, !!opts.includeDisabled)];
+}
+
+/** The person's first provider, then their backups in order, leaving out anything switched off
+ * (unless `includeDisabled`). Empty when they have nothing usable, can't use their own settings, or
+ * their first provider is unusable. */
+export async function getUserAiChain(userId: string, opts: { includeDisabled?: boolean } = {}): Promise<AiConfig[]> {
   const env = await getEnv();
-  const first = await getUserAiConfig(userId);
-  if (!first) return [];
-  const row = await prisma.userAiSettings.findUnique({ where: { userId }, select: { fallbacksEncrypted: true } });
-  const backups = openFallbacks(row?.fallbacksEncrypted, env.SESSION_SECRET);
-  return [first, ...fallbackConfigs(backups, env.AI_ALLOW_USER_BASE_URL, true)];
+  if (!env.AI_ALLOW_USER_SETTINGS) return [];
+  const row = await prisma.userAiSettings.findUnique({ where: { userId } });
+  if (!row || !isProvider(row.provider)) return [];
+  // A saved custom address only counts while the server still allows one.
+  const usesCustomUrl = !!row.baseUrl || PROVIDER_DEFAULTS[row.provider].baseUrl === null || row.provider === 'ollama';
+  if (usesCustomUrl && !env.AI_ALLOW_USER_BASE_URL) return [];
+  const built = buildConfig(row.provider, { model: row.model, baseUrl: row.baseUrl, apiKey: await readUserKey(userId, row.apiKeyEncrypted) });
+  if (!built) return [];
+  const first = usesCustomUrl ? { ...built, userSupplied: true } : built;
+  const backups = openFallbacks(row.fallbacksEncrypted, env.SESSION_SECRET);
+  return [...(opts.includeDisabled || !row.disabled ? [first] : []), ...fallbackConfigs(backups, env.AI_ALLOW_USER_BASE_URL, true, !!opts.includeDisabled)];
 }
 
 /** The settings of the member sponsoring this room's AI (see roomAi.ts), or null when there is no
@@ -156,7 +168,7 @@ export async function resolveAiConfig(
     const sponsored = await getRoomSponsorAiConfig(roomId);
     if (sponsored) return { config: sponsored, source: 'room' };
   }
-  const server = await getServerAiConfig();
+  const server = (await getServerAiChain())[0];
   return server ? { config: server, source: 'server' } : null;
 }
 
@@ -287,7 +299,9 @@ export async function aiCompleteEntry(
   index: number,
   req: AiRequest,
 ): Promise<AiResponse & { fallback: AiFallbackNotice | null }> {
-  const configs = scope === 'server' ? await getServerAiChain() : await getUserAiChain(scope.userId);
+  // Disabled entries count here too, so the position matches the settings list (and a switched-off
+  // entry can still be tried before turning it on).
+  const configs = scope === 'server' ? await getServerAiChain({ includeDisabled: true }) : await getUserAiChain(scope.userId, { includeDisabled: true });
   const config = Number.isInteger(index) && index >= 0 ? configs[index] : undefined;
   if (!config) throw new HttpError(404, 'That provider is not saved yet. Save your changes, then test it.');
   // A throwaway owner, so a test never touches the "first provider failed" notice a real call leaves.
@@ -302,23 +316,24 @@ export async function aiCompleteWithServer(req: AiRequest): Promise<AiResponse &
 }
 
 function toUserSettings(
-  row: { provider: string; model: string | null; baseUrl: string | null; apiKeyEncrypted: string | null; fallbacksEncrypted?: string | null },
+  row: { provider: string; model: string | null; baseUrl: string | null; apiKeyEncrypted: string | null; fallbacksEncrypted?: string | null; disabled?: boolean },
   secret: string,
 ): UserAiSettings | null {
   if (!isProvider(row.provider)) return null;
   const fallbacks = openFallbacks(row.fallbacksEncrypted, secret).map(fallbackToPublic);
-  return { provider: row.provider, model: row.model, baseUrl: row.baseUrl, hasApiKey: !!row.apiKeyEncrypted, fallbacks };
+  return { provider: row.provider, model: row.model, baseUrl: row.baseUrl, hasApiKey: !!row.apiKeyEncrypted, disabled: !!row.disabled, fallbacks };
 }
 
 /** Everything the settings screen needs: the person's own settings, the server's (without a key),
  * and which of them a call would use. */
 export async function describeAiSettings(userId: string): Promise<AiSettingsResponse> {
   const env = await getEnv();
-  const [row, server, resolved] = await Promise.all([
+  const [row, serverChain, resolved] = await Promise.all([
     prisma.userAiSettings.findUnique({ where: { userId } }),
-    getServerAiConfig(),
+    getServerAiChain(),
     resolveAiConfig(userId),
   ]);
+  const server = serverChain[0];
   return {
     user: row ? toUserSettings(row, env.SESSION_SECRET) : null,
     server: server ? { provider: server.provider, model: server.model, baseUrl: server.baseUrl } : null,
@@ -362,8 +377,8 @@ export async function saveUserAiSettings(userId: string, input: SetUserAiSetting
 
   const row = await prisma.userAiSettings.upsert({
     where: { userId },
-    create: { userId, provider, model, baseUrl, apiKeyEncrypted, fallbacksEncrypted },
-    update: { provider, model, baseUrl, apiKeyEncrypted, fallbacksEncrypted },
+    create: { userId, provider, model, baseUrl, apiKeyEncrypted, fallbacksEncrypted, disabled: input.disabled === true },
+    update: { provider, model, baseUrl, apiKeyEncrypted, fallbacksEncrypted, ...(input.disabled !== undefined ? { disabled: input.disabled === true } : {}) },
   });
   clearLastFallback(`user:${userId}`);
   return toUserSettings(row, env.SESSION_SECRET)!;

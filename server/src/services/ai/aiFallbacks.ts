@@ -13,6 +13,8 @@ export interface StoredFallback {
   model: string | null;
   baseUrl: string | null;
   apiKey: string | null;
+  /** Switched off: kept in the list but skipped when making a call. Absent means on. */
+  disabled?: boolean;
 }
 
 const isProvider = (v: unknown): v is AiProvider => typeof v === 'string' && (AI_PROVIDERS as readonly string[]).includes(v);
@@ -76,6 +78,7 @@ export function parseFallbacks(json: string | null | undefined): StoredFallback[
       model: typeof e.model === 'string' && e.model ? e.model : null,
       baseUrl: typeof e.baseUrl === 'string' && e.baseUrl ? e.baseUrl : null,
       apiKey: typeof e.apiKey === 'string' && e.apiKey ? e.apiKey : null,
+      ...(e.disabled === true ? { disabled: true } : {}),
     });
   }
   return out.slice(0, AI_MAX_FALLBACKS);
@@ -112,12 +115,13 @@ export function mergeFallbacks(existing: StoredFallback[], input: unknown, allow
     // A repeated or unknown id gets a fresh one, so ids stay unique within the list.
     const id = prior && !seen.has(prior.id) ? prior.id : randomUUID();
     seen.add(id);
-    return { id, ...parts, apiKey };
+    const disabled = raw.disabled === undefined ? !!prior?.disabled : raw.disabled === true;
+    return { id, ...parts, apiKey, ...(disabled ? { disabled: true } : {}) };
   });
 }
 
 export function fallbackToPublic(e: StoredFallback): AiFallbackEntry {
-  return { id: e.id, provider: e.provider, model: e.model, baseUrl: e.baseUrl, hasApiKey: !!e.apiKey };
+  return { id: e.id, provider: e.provider, model: e.model, baseUrl: e.baseUrl, hasApiKey: !!e.apiKey, disabled: !!e.disabled };
 }
 
 // The latest takeover per owner ('server', or `user:<id>`), so the settings screens can warn about

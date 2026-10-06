@@ -12,19 +12,22 @@ export interface AiDraft {
   baseUrl: string;
   apiKey: string;
   hasApiKey: boolean;
+  /** Switched off: kept saved, but not used. */
+  disabled: boolean;
   /** Already saved on the server, so it can be tested and starts folded away. */
   saved: boolean;
 }
 
-export const emptyAiDraft = (provider: AiProvider = 'anthropic'): AiDraft => ({ provider, model: '', baseUrl: '', apiKey: '', hasApiKey: false, saved: false });
+export const emptyAiDraft = (provider: AiProvider = 'anthropic'): AiDraft => ({ provider, model: '', baseUrl: '', apiKey: '', hasApiKey: false, disabled: false, saved: false });
 
-export const draftFromEntry = (e: { id?: string; provider: AiProvider; model: string | null; baseUrl: string | null; hasApiKey: boolean }): AiDraft => ({
+export const draftFromEntry = (e: { id?: string; provider: AiProvider; model: string | null; baseUrl: string | null; hasApiKey: boolean; disabled?: boolean }): AiDraft => ({
   id: e.id,
   provider: e.provider,
   model: e.model ?? '',
   baseUrl: e.baseUrl ?? '',
   apiKey: '',
   hasApiKey: e.hasApiKey,
+  disabled: !!e.disabled,
   saved: true,
 });
 
@@ -34,6 +37,7 @@ export const draftToInput = (d: AiDraft): AiFallbackInput => ({
   model: d.model.trim() || null,
   baseUrl: d.baseUrl.trim() || null,
   apiKey: d.apiKey.trim() || undefined,
+  disabled: d.disabled,
 });
 
 export const fallbacksFromEntries = (list: AiFallbackEntry[]): AiDraft[] => list.map(draftFromEntry);
@@ -99,9 +103,9 @@ export function AiProvidersEditor({
           const k = keyOf(d, i);
           const expanded = !d.saved || open.has(k);
           const result = results?.[i];
-          const summary = [providerLabel(t, d.provider), d.model.trim() || AI_RECOMMENDED_MODELS[d.provider]].filter(Boolean).join(' · ');
+          const summary = [providerLabel(t, d.provider), d.model.trim() || AI_RECOMMENDED_MODELS[d.provider], d.disabled ? t('settings.ai.disabledTag') : null].filter(Boolean).join(' · ');
           return (
-            <div key={d.id ?? `new-${i}`} style={st('display:flex;flex-direction:column;gap:8px;padding:12px 14px;background:var(--surf)')}>
+            <div key={d.id ?? `new-${i}`} style={st(`display:flex;flex-direction:column;gap:8px;padding:12px 14px;background:var(--surf);${d.disabled ? 'opacity:.7' : ''}`)}>
               <div style={st('display:flex;align-items:center;gap:6px')}>
                 <button
                   type="button"
@@ -127,6 +131,10 @@ export function AiProvidersEditor({
                     </span>
                   )}
                 </button>
+                <label style={st('display:flex;align-items:center;gap:6px;flex-shrink:0;font:500 12.5px var(--font-ui);color:var(--text2)')}>
+                  <input type="checkbox" checked={!d.disabled} onChange={(e) => set(i, { disabled: !e.target.checked })} aria-label={t('settings.ai.enabledFor', { name: i === 0 ? t('settings.ai.first') : t('settings.ai.backup', { n: i }) })} style={st('width:18px;height:18px;accent-color:var(--acc)')} />
+                  {t('settings.ai.enabled')}
+                </label>
                 {onTest && d.saved && (
                   <Btn kind="soft" height={32} padX={12} fontSize={12.5} disabled={testing !== null && testing !== undefined} onClick={() => onTest(i)}>
                     {testing === i ? t('settings.ai.testing') : t('settings.ai.test')}

@@ -3,7 +3,7 @@ import { prisma } from '../../db/client.js';
 import { HttpError } from '../../util/httpError.js';
 import { clearConfigValue, getConfigSource, getConfigValue, setConfigValue, type ConfigKey } from '../configResolver.js';
 import { clearLastFallback, fallbackToPublic, getLastFallback, mergeFallbacks, sealFallbacks, validateParts } from './aiFallbacks.js';
-import { readServerFallbacks, SERVER_FALLBACKS_KEY } from './aiConfig.js';
+import { isServerPrimaryDisabled, readServerFallbacks, SERVER_FALLBACKS_KEY, SERVER_PRIMARY_DISABLED_KEY } from './aiConfig.js';
 import { PROVIDER_DEFAULTS } from './providers.js';
 
 /** The Administrator's AI screen: the server-wide first provider (any part of which may be pinned by
@@ -16,10 +16,11 @@ export async function describeAdminAi(): Promise<AdminAiResponse> {
   const env = await getEnv();
   const envFor = { AI_PROVIDER: env.AI_PROVIDER, AI_API_KEY: env.AI_API_KEY, AI_BASE_URL: env.AI_BASE_URL, AI_MODEL: env.AI_MODEL } as const;
   const keys = Object.keys(envFor) as (keyof typeof envFor)[];
-  const [sources, values, fallbacks] = await Promise.all([
+  const [sources, values, fallbacks, disabled] = await Promise.all([
     Promise.all(keys.map((k) => getConfigSource(k, envFor[k]))),
     Promise.all(keys.map((k) => getConfigValue(k, envFor[k]))),
     readServerFallbacks(),
+    isServerPrimaryDisabled(),
   ]);
   const src = Object.fromEntries(keys.map((k, i) => [k, sources[i]])) as AdminAiResponse['sources'];
   const val = Object.fromEntries(keys.map((k, i) => [k, values[i]]));
@@ -29,6 +30,7 @@ export async function describeAdminAi(): Promise<AdminAiResponse> {
     model: val.AI_MODEL ?? null,
     baseUrl: val.AI_BASE_URL ?? null,
     sources: src,
+    disabled,
     fallbacks: fallbacks.map(fallbackToPublic),
     lastFallback: getLastFallback('server'),
     providers: [...AI_PROVIDERS],
@@ -60,6 +62,17 @@ export async function saveAdminAi(actorId: string, input: SetAdminAiRequest): Pr
     if (fromEnv) continue;
     if (value) await setConfigValue(key, value, actorId);
     else await clearConfigValue(key);
+  }
+  if (input.disabled !== undefined) {
+    if (input.disabled === true) {
+      await prisma.appSetting.upsert({
+        where: { key: SERVER_PRIMARY_DISABLED_KEY },
+        create: { key: SERVER_PRIMARY_DISABLED_KEY, value: 'true', updatedBy: actorId },
+        update: { value: 'true', updatedBy: actorId },
+      });
+    } else {
+      await prisma.appSetting.deleteMany({ where: { key: SERVER_PRIMARY_DISABLED_KEY } });
+    }
   }
   if (fallbacks) {
     const sealed = sealFallbacks(fallbacks, env.SESSION_SECRET);

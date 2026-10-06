@@ -2597,6 +2597,8 @@ export interface AiFallbackEntry {
   model: string | null;
   baseUrl: string | null;
   hasApiKey: boolean;
+  /** Switched off: kept saved but not used. */
+  disabled: boolean;
 }
 
 /** What goes in when saving a backup. `apiKey` left out keeps the saved key of the same `id`; null or '' removes it. */
@@ -2606,6 +2608,8 @@ export interface AiFallbackInput {
   model?: string | null;
   baseUrl?: string | null;
   apiKey?: string | null;
+  /** Left out keeps the saved setting (on for a new entry). */
+  disabled?: boolean;
 }
 
 /** The latest time a provider failed and a backup answered instead. Shown as a warning so the person
@@ -2946,6 +2950,8 @@ export interface UserAiSettings {
   model: string | null;
   baseUrl: string | null;
   hasApiKey: boolean;
+  /** The first provider is switched off: kept saved but not used. */
+  disabled: boolean;
   /** Backups tried in order when the provider above fails. */
   fallbacks: AiFallbackEntry[];
 }
@@ -2972,6 +2978,8 @@ export interface SetUserAiSettingsRequest {
   model?: string | null;
   baseUrl?: string | null;
   apiKey?: string | null;
+  /** Switch the first provider off or on. Left out keeps it as it is. */
+  disabled?: boolean;
   /** Backups, in the order to try them. Left out keeps the saved list; [] clears it. */
   fallbacks?: AiFallbackInput[];
 }
@@ -2993,6 +3001,8 @@ export interface AdminAiResponse {
   model: string | null;
   baseUrl: string | null;
   sources: Record<'AI_PROVIDER' | 'AI_API_KEY' | 'AI_BASE_URL' | 'AI_MODEL', ConfigSource>;
+  /** The first provider is switched off: kept saved but not used. */
+  disabled: boolean;
   fallbacks: AiFallbackEntry[];
   lastFallback: AiFallbackNotice | null;
   providers: AiProvider[];
@@ -3005,6 +3015,8 @@ export interface SetAdminAiRequest {
   model?: string | null;
   baseUrl?: string | null;
   apiKey?: string | null;
+  /** Switch the first provider off or on. Left out keeps it as it is. */
+  disabled?: boolean;
   fallbacks?: AiFallbackInput[];
 }
 
