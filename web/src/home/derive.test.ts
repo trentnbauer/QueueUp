@@ -14,6 +14,26 @@ const ago = (days: number) => new Date(Date.now() - days * DAY).toISOString();
 const ahead = (days: number) => new Date(Date.now() + days * DAY).toISOString();
 const ids = (list: Game[]) => list.map((g) => g.title);
 
+describe('Adult games tab', () => {
+  const tabs = [...SHELF_TABS, ...SHELF_MORE_TABS];
+  const opts = { isShelf: true, tabs, tab: 'adult', query: '' };
+  const lib = [
+    game({ title: 'Adult backlog', status: 'backlog', sensitiveContent: true }),
+    game({ title: 'Adult beaten', status: 'done', sensitiveContent: true, hiddenFromOthers: true }),
+    game({ title: 'Normal', status: 'backlog', sensitiveContent: false }),
+  ];
+
+  it('lists every game flagged as adult, whatever its status and whether or not it is hidden', () => {
+    expect(ids(buildHomeLists(lib, opts).list).sort()).toEqual(['Adult backlog', 'Adult beaten']);
+  });
+
+  it('counts them for the tab, and leaves the normal tabs alone', () => {
+    const lists = buildHomeLists(lib, opts);
+    expect(lists.counts.adult).toBe(2);
+    expect(ids(buildHomeLists(lib, { ...opts, tab: 'queue' }).list).sort()).toEqual(['Adult backlog', 'Normal']);
+  });
+});
+
 describe('install size filter (#1046)', () => {
   const opts = { isShelf: false, tabs: ROOM_TABS, tab: 'queue', query: '' };
   const sized = [

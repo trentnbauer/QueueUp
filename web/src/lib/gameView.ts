@@ -56,7 +56,12 @@ export interface TabDef {
   id: string;
   label: string;
   statuses: GameStatus[];
+  /** A tab that is not a set of statuses (the Adult games tab): which games it lists, whatever their status. */
+  match?: (g: Game) => boolean;
 }
+
+/** Whether a game belongs on a tab. */
+export const inTab = (tab: TabDef, g: Game): boolean => (tab.match ? tab.match(g) : tab.statuses.includes(g.status));
 
 /** A tab whose label is looked up (in the current language) each time it's read. */
 const tabDef = (id: string, key: MessageKey, statuses: GameStatus[]): TabDef => ({
@@ -88,6 +93,8 @@ export const SHELF_MORE_TABS: TabDef[] = [
   tabDef('paused', 'home.tab.paused', ['paused']),
   tabDef('dropped', 'home.tab.dropped', ['dropped']),
   tabDef('wont_play', 'home.tab.wontPlay', ['wont_play']),
+  // Every game flagged as adult (IGDB, Steam, the AI check), in any status and hidden or not, so they can be reviewed in one place.
+  { ...tabDef('adult', 'home.tab.adult', []), match: (g: Game) => g.sensitiveContent === true },
 ];
 export const SHELF_IMPORT_TABS = [
   {

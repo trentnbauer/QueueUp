@@ -3,9 +3,10 @@ import type { AutoHideAdultResponse } from '@queueup/shared';
 import { prisma } from '../db/client.js';
 import { HttpError } from '../util/httpError.js';
 import { autoHideWaitingAdultGames } from '../services/adultHiding.js';
+import { scanLibraryForAdultGames } from '../services/adultSyncCheck.js';
 
 /** The "automatically hide adult games" setting. Turning it on also hides the adult games already waiting for an
- * answer; turning it off leaves everything as it is (games already hidden stay hidden until changed on the game). */
+ * answer and scans the whole library for more; turning it off leaves everything as it is (games already hidden stay hidden until changed on the game). */
 export default async function autoHideAdultRoutes(app: FastifyInstance) {
   app.get('/api/me/auto-hide-adult', async (request): Promise<AutoHideAdultResponse> => {
     const userId = await request.requireAuth();
@@ -18,7 +19,19 @@ export default async function autoHideAdultRoutes(app: FastifyInstance) {
     const enabled = request.body?.enabled;
     if (typeof enabled !== 'boolean') throw new HttpError(400, 'enabled must be true or false');
     await prisma.user.update({ where: { id: userId }, data: { autoHideAdult: enabled } });
-    if (enabled) await autoHideWaitingAdultGames(userId);
+    if (enabled) {
+      await autoHideWaitingAdultGames(userId);
+      // And go through the whole library for adult games nothing has flagged yet.
+      await scanLibraryForAdultGames(userId);
+    }
     return { enabled };
+  });
+
+  // Goes through the whole library looking for adult games, in the background. With automatic hiding on they are
+  // hidden; otherwise one notification recommends reviewing them. 409 while a scan is already running.
+  app.post('/api/me/adult-scan', { config: { rateLimit: { max: 5, timeWindow: '1 hour' } } }, async (request, reply) => {
+    const userId = await request.requireAuth();
+    if (!(await scanLibraryForAdultGames(userId))) throw new HttpError(409, 'A scan of your library is already running.');
+    return reply.status(202).send({ started: true });
   });
 }

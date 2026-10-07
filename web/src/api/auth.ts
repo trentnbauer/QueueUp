@@ -33,6 +33,7 @@ export const authApi = {
   accountEvents: (before?: string) => apiGet<AccountEventPage>(`/api/me/events${before ? `?before=${encodeURIComponent(before)}` : ''}`),
   computerSpecs: () => apiGet<ComputerSpecs>('/api/me/computer-specs'),
   setComputerSpecs: (body: ComputerSpecs) => apiPut<ComputerSpecs>('/api/me/computer-specs', body),
+  adultScan: () => apiPost<{ started: boolean }>('/api/me/adult-scan', {}),
   autoHideAdult: () => apiGet<AutoHideAdultResponse>('/api/me/auto-hide-adult'),
   setAutoHideAdult: (enabled: boolean) => apiPut<AutoHideAdultResponse>('/api/me/auto-hide-adult', { enabled }),
   activityVisibility: () => apiGet<ActivityVisibilityResponse>('/api/me/activity-visibility'),
