@@ -80,6 +80,11 @@ export function ShelfSettingsDialog() {
     },
     onError: (err) => ui.showError(err instanceof Error ? err.message : t('settings.error.change')),
   });
+  const scan = useMutation({
+    mutationFn: authApi.adultScan,
+    onSuccess: () => ui.notify(autoHide.data?.enabled ? t('settings.shelf.adultScan.startedHide') : t('settings.shelf.adultScan.started')),
+    onError: (err) => ui.showError(err instanceof Error ? err.message : t('settings.shelf.adultScan.failed')),
+  });
   const [spinTheme] = useShelfSpinTheme();
   const [systemsOpen, setSystemsOpen] = useState(false);
   const [spinOpen, setSpinOpen] = useState(false);
@@ -99,6 +104,15 @@ export function ShelfSettingsDialog() {
             <span style={st('font:400 12.5px var(--font-ui);color:var(--muted)')}>{t('settings.shelf.autoHideAdult.sub')}</span>
           </span>
           <Toggle on={autoHide.data?.enabled ?? false} disabled={!autoHide.data || setAutoHide.isPending} onChange={(on) => setAutoHide.mutate(on)} label={t('settings.shelf.autoHideAdult.title')} />
+        </div>
+        <div style={st('display:flex;align-items:center;gap:12px;min-height:58px;padding:0 14px 0 16px;background:var(--surf)')}>
+          <span style={st('flex:1;display:flex;flex-direction:column;gap:1px')}>
+            <span style={st('font:600 15px var(--font-ui)')}>{t('settings.shelf.adultScan.title')}</span>
+            <span style={st('font:400 12.5px var(--font-ui);color:var(--muted)')}>{t('settings.shelf.adultScan.sub')}</span>
+          </span>
+          <Btn height={36} fontSize={13} disabled={scan.isPending} onClick={() => scan.mutate()}>
+            {t('settings.shelf.adultScan.button')}
+          </Btn>
         </div>
         <NavRow label={t('settings.shelf.spinType')} sub={spinThemeLabel(spinTheme)} onClick={() => setSpinOpen(true)} />
         <NavRow

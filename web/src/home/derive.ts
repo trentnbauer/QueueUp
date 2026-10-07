@@ -3,6 +3,7 @@ import { platformFamilyOf, withBackwardsCompatible, type Game, type RoomPlatform
 import { backlogComparator, type BacklogSortKey } from './backlogSort';
 import {
   byScore,
+  inTab,
   gameScore,
   isNewRelease,
   isComingSoon,
@@ -94,15 +95,15 @@ export function buildHomeLists(
   const now = Date.now();
 
   const counts: Record<string, number> = {};
-  for (const t of tabs) counts[t.id] = games.filter((g) => t.statuses.includes(g.status)).length;
+  for (const t of tabs) counts[t.id] = games.filter((g) => inTab(t, g)).length;
 
-  const tabStatuses = tab === 'playing' ? ['playing'] : cur.statuses;
+  const inCurrentTab = (g: Game) => (tab === 'playing' ? g.status === 'playing' : inTab(cur, g));
   const comingStatus = isShelf ? 'wishlist' : 'backlog';
   const isComing = (g: Game) => g.status === comingStatus && isComingSoon(g, now);
 
   let list = (q
     ? games.filter((g) => g.title.toLowerCase().includes(q))
-    : games.filter((g) => tabStatuses.includes(g.status) && !(tab === comingTab && isComing(g)))
+    : games.filter((g) => inCurrentTab(g) && !(tab === comingTab && isComing(g)))
   ).sort(byScore);
 
   if ((tab === 'replay' || tab === 'beaten') && !q) {

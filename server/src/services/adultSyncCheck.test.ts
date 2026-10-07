@@ -1,12 +1,13 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
-const m = vi.hoisted(() => ({ findMany: vi.fn(), update: vi.fn(), count: vi.fn(), steam: vi.fn(), notify: vi.fn(), autoHide: vi.fn() }));
+const m = vi.hoisted(() => ({ findMany: vi.fn(), update: vi.fn(), count: vi.fn(), steam: vi.fn(), notify: vi.fn(), autoHide: vi.fn(), redisSet: vi.fn(), redisDel: vi.fn() }));
+vi.mock('./redisClient.js', () => ({ redis: { set: m.redisSet, del: m.redisDel } }));
 vi.mock('../db/client.js', () => ({ prisma: { game: { findMany: m.findMany, update: m.update, count: m.count } } }));
 vi.mock('./adultSources.js', () => ({ adultOnlyFromSources: m.steam }));
 vi.mock('./notifications.js', () => ({ notifySensitiveGames: m.notify }));
 vi.mock('./adultHiding.js', () => ({ autoHideWaitingAdultGames: m.autoHide }));
 
-import { flagAdultGamesAfterSync } from './adultSyncCheck.js';
+import { flagAdultGamesAfterSync, scanLibraryForAdultGames } from './adultSyncCheck.js';
 
 beforeEach(() => {
   vi.clearAllMocks();
@@ -46,5 +47,41 @@ describe('flagAdultGamesAfterSync', () => {
   it('never throws into a sync', async () => {
     m.findMany.mockRejectedValue(new Error('db down'));
     await expect(flagAdultGamesAfterSync('u1', [1])).resolves.toBeUndefined();
+  });
+});
+
+describe('scanLibraryForAdultGames', () => {
+  const row = (id: string, igdbId: number) => ({ id, igdbId, steamAppid: null });
+
+  beforeEach(() => {
+    m.redisSet.mockResolvedValue('OK');
+    m.redisDel.mockResolvedValue(1);
+  });
+
+  it('goes through the whole library page by page, then hides or notifies once, and releases its lock', async () => {
+    m.findMany.mockResolvedValueOnce([row('a', 1), row('b', 2)]).mockResolvedValueOnce([row('c', 3)]).mockResolvedValueOnce([]);
+    m.steam.mockImplementation(async (g: { igdbId: number }) => g.igdbId === 2);
+    m.count.mockResolvedValue(1);
+    expect(await scanLibraryForAdultGames('u1')).toBe(true);
+    await vi.waitFor(() => expect(m.notify).toHaveBeenCalledWith('u1', 1));
+    expect(m.findMany).toHaveBeenCalledTimes(3);
+    // the second page starts after the first page's last id, so a game left unanswered is not asked for again and again
+    expect(m.findMany.mock.calls[1][0].where.id).toEqual({ gt: 'b' });
+    expect(m.update).toHaveBeenCalledWith({ where: { id: 'b' }, data: { sensitiveContent: true } });
+    expect(m.update).toHaveBeenCalledWith({ where: { id: 'a' }, data: { sensitiveAiChecked: true } });
+    expect(m.autoHide).toHaveBeenCalledWith('u1');
+    await vi.waitFor(() => expect(m.redisDel).toHaveBeenCalled());
+  });
+
+  it('does not start a second scan while one is running', async () => {
+    m.redisSet.mockResolvedValue(null);
+    expect(await scanLibraryForAdultGames('u1')).toBe(false);
+    expect(m.findMany).not.toHaveBeenCalled();
+  });
+
+  it('releases its lock even when the scan fails', async () => {
+    m.findMany.mockRejectedValue(new Error('db down'));
+    expect(await scanLibraryForAdultGames('u1')).toBe(true);
+    await vi.waitFor(() => expect(m.redisDel).toHaveBeenCalled());
   });
 });
