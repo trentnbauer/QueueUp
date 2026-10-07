@@ -19,6 +19,7 @@ import { useUndoChange } from '../hooks/useUndoChange';
 import { useLibraryLimits } from '../hooks/useLibraryLimits';
 import { Dialog } from '../ui/Dialog';
 import { LibraryBadge, type LibraryKind } from '../ui/LibraryLogo';
+import { AutoHideAdultRow } from './AutoHideAdultRow';
 import { AiBadge, AiPickedBadge, Banner, Btn, Cover, Group, Kicker, Spinner, inputPill } from '../ui/primitives';
 import { st } from '../ui/st';
 import { getBasePath } from '../utils/basePath';
@@ -165,6 +166,9 @@ export function ImportDialog() {
             onClick={xboxStatus.connected && syncMode ? () => void syncRow('xbox', 'Xbox') : () => ui.openDialog('xbox')}
           />
         )}
+      </Group>
+      <Group>
+        <AutoHideAdultRow />
       </Group>
     </Dialog>
   );
