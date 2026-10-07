@@ -120,7 +120,7 @@ export async function getSeriesGames(collectionId: number): Promise<CollectionGa
 
 /** The entries of a series that came out in an earlier year than the game and are not already on the list. Games
  * with no release year, and same-year ones, are left out: the order there is a guess. Pure. */
-export function earlierMissing(series: CollectionGamesResult, game: { igdbId: number; releaseYear: number | null }, onList: ReadonlySet<number>): GameSeriesResponse['series'] {
+export function earlierMissing(series: CollectionGamesResult, game: { igdbId: number; releaseYear: number | null }, onList: ReadonlySet<number>): NonNullable<GameSeriesResponse['series']> {
   if (game.releaseYear === null) return { name: series.name, earlierTotal: 0, earlierMissing: [], truncated: series.truncated };
   const earlier = series.games.filter((g) => g.igdbId !== game.igdbId && g.releaseYear !== null && g.releaseYear < game.releaseYear!);
   return { name: series.name, earlierTotal: earlier.length, earlierMissing: earlier.filter((g) => !onList.has(g.igdbId)), truncated: series.truncated };
