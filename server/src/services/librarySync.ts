@@ -13,6 +13,7 @@ import { applyResolvedIgdbEntry, type ResolvedShelfGame } from './libraryImportS
 import { applyMatchRedirect } from './matchRedirects.js';
 import { recordPlayniteCompletionSuggestion } from './playniteCompletionSuggestions.js';
 import { flagAdultGamesAfterSync } from './adultSyncCheck.js';
+import { fillPlayAfterForNewIgdbIds } from './seriesPrefill.js';
 import { deletePendingLibraryImportByTitle, recordPendingLibraryImport, resolveTitleToIgdbId } from './playniteImport.js';
 
 /** Runs a native library sync (Xbox now, PlayStation next) for one person: takes the entries a
@@ -98,6 +99,7 @@ async function runLibrarySync(
   const touchedPlatformFamilies = new Set<BadgeKey>();
   const seenPlatforms = new Set<RoomPlatform>();
   const matchedIgdbIds: number[] = [];
+  const onShelfBefore = new Set(existingByIgdbId.keys());
   try {
     await runWithConcurrency(entries, SYNC_CONCURRENCY, async (entry) => {
       try {
@@ -144,6 +146,7 @@ async function runLibrarySync(
     if (seenPlatforms.size > 0) await unionOwnedPlatforms(userId, [...seenPlatforms], src.label);
     // Adult games the sync brought in: one notification (or hidden automatically) - see adultSyncCheck.ts.
     void flagAdultGamesAfterSync(userId, matchedIgdbIds);
+    void fillPlayAfterForNewIgdbIds(userId, matchedIgdbIds.filter((id) => !onShelfBefore.has(id)));
   } finally {
     const unlockedBadges = touchedPlatformFamilies.size > 0 ? await unlockBadges(userId, [...touchedPlatformFamilies]).catch(() => []) : [];
     await setLibrarySyncProgress(src.source, userId, { startedAt, consideredCount, matched, unmatched, errored, done: true, unlockedBadges });

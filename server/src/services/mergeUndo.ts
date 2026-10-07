@@ -316,6 +316,7 @@ export async function applyUndo(undo: GameChangeUndo): Promise<string> {
         manualPrice: before.manualPrice as never,
         steamFullyCompleted: before.steamFullyCompleted as never,
         prerequisiteGameId: before.prerequisiteGameId as never,
+        prerequisiteSource: before.prerequisiteSource as never,
         baseGameId: before.baseGameId as never,
       },
     });

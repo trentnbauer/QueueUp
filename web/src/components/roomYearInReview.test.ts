@@ -53,6 +53,7 @@ function makeGame(overrides: Partial<Game> = {}): Game {
     downloadSizeMb: null,
     singlePlayerOnly: null,
     prerequisiteGameId: null,
+    prerequisiteAuto: false,
     baseGameId: null,
     playtimeSinceCheckpointMinutes: null,
     currentPlaytimeMinutes: null,
