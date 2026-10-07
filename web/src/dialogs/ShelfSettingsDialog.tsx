@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { useInfiniteQuery, useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { useInfiniteQuery } from '@tanstack/react-query';
 import { ROOM_PLATFORM_LABELS, SPIN_WHEEL_THEMES, sortPlatforms } from '@queueup/shared';
 import { gamesApi } from '../api/games';
 import { authApi } from '../api/auth';
@@ -8,7 +8,7 @@ import { ColourPicker } from '../ui/ColourPicker';
 import { useScope } from '../context/ScopeContext';
 import { useUi } from '../context/UiContext';
 import { Dialog } from '../ui/Dialog';
-import { Btn, ChipToggle, Group, Kicker, Toggle } from '../ui/primitives';
+import { Btn, ChipToggle, Group, Kicker } from '../ui/primitives';
 import { st } from '../ui/st';
 import { exportGames } from '../utils/exportGames';
 import { BACKLOG_SORT_OPTIONS, toggleBacklogSort, useBacklogSort } from '../home/backlogSort';
@@ -68,23 +68,6 @@ export function ShelfSettingsDialog() {
       ui.showError(e instanceof Error ? e.message : t('settings.shelfColour.failed'));
     }
   };
-  const queryClient = useQueryClient();
-  const autoHide = useQuery({ queryKey: ['auto-hide-adult'], queryFn: authApi.autoHideAdult });
-  const setAutoHide = useMutation({
-    mutationFn: authApi.setAutoHideAdult,
-    onSuccess: (res) => {
-      queryClient.setQueryData(['auto-hide-adult'], res);
-      // Turning it on hides the adult games already waiting.
-      void queryClient.invalidateQueries({ queryKey: ['games'] });
-      ui.notify(res.enabled ? t('settings.shelf.autoHideAdult.on') : t('settings.shelf.autoHideAdult.off'));
-    },
-    onError: (err) => ui.showError(err instanceof Error ? err.message : t('settings.error.change')),
-  });
-  const scan = useMutation({
-    mutationFn: authApi.adultScan,
-    onSuccess: () => ui.notify(autoHide.data?.enabled ? t('settings.shelf.adultScan.startedHide') : t('settings.shelf.adultScan.started')),
-    onError: (err) => ui.showError(err instanceof Error ? err.message : t('settings.shelf.adultScan.failed')),
-  });
   const [spinTheme] = useShelfSpinTheme();
   const [systemsOpen, setSystemsOpen] = useState(false);
   const [spinOpen, setSpinOpen] = useState(false);
@@ -98,22 +81,6 @@ export function ShelfSettingsDialog() {
           sub={ownedPlatforms.length === 0 ? t('settings.systems.everyPlatform') : sortPlatforms(ownedPlatforms).map((p) => ROOM_PLATFORM_LABELS[p]).join(', ')}
           onClick={() => setSystemsOpen(true)}
         />
-        <div style={st('display:flex;align-items:center;gap:12px;min-height:58px;padding:0 14px 0 16px;background:var(--surf)')}>
-          <span style={st('flex:1;display:flex;flex-direction:column;gap:1px')}>
-            <span style={st('font:600 15px var(--font-ui)')}>{t('settings.shelf.autoHideAdult.title')}</span>
-            <span style={st('font:400 12.5px var(--font-ui);color:var(--muted)')}>{t('settings.shelf.autoHideAdult.sub')}</span>
-          </span>
-          <Toggle on={autoHide.data?.enabled ?? false} disabled={!autoHide.data || setAutoHide.isPending} onChange={(on) => setAutoHide.mutate(on)} label={t('settings.shelf.autoHideAdult.title')} />
-        </div>
-        <div style={st('display:flex;align-items:center;gap:12px;min-height:58px;padding:0 14px 0 16px;background:var(--surf)')}>
-          <span style={st('flex:1;display:flex;flex-direction:column;gap:1px')}>
-            <span style={st('font:600 15px var(--font-ui)')}>{t('settings.shelf.adultScan.title')}</span>
-            <span style={st('font:400 12.5px var(--font-ui);color:var(--muted)')}>{t('settings.shelf.adultScan.sub')}</span>
-          </span>
-          <Btn height={36} fontSize={13} disabled={scan.isPending} onClick={() => scan.mutate()}>
-            {t('settings.shelf.adultScan.button')}
-          </Btn>
-        </div>
         <NavRow label={t('settings.shelf.spinType')} sub={spinThemeLabel(spinTheme)} onClick={() => setSpinOpen(true)} />
         <NavRow
           label={t('settings.shelf.merge')}
