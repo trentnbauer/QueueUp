@@ -252,8 +252,9 @@ model User {
   /// their friend profile feed). They still see their own. See routes/activityVisibility.ts.
   activityHidden       Boolean        @default(false) @map("activity_hidden")
   /// Hide Personal Shelf games flagged as adult (IGDB tags, Steam, the AI check) from the public profile and friends
-  /// automatically, instead of asking (services/adultHiding.ts).
-  autoHideAdult        Boolean        @default(false) @map("auto_hide_adult")
+  /// automatically, instead of asking (services/adultHiding.ts). On for new accounts (shown, and changeable, in the
+  /// onboarding library step); accounts that existed before this default keep their own value (false).
+  autoHideAdult        Boolean        @default(true) @map("auto_hide_adult")
   displayName          String         @map("display_name")
   avatarColor          String         @default("#8f8aa8") @map("avatar_color")
   avatarUrl            String?        @map("avatar_url")
