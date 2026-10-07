@@ -18,6 +18,7 @@ import { parseComputerSpecs, prefillSpecs, specsFromRow } from '../services/comp
 import { unionOwnedPlatforms, VALID_PLATFORMS } from '../services/userSettings.js';
 import { runWithConcurrency } from '../util/concurrency.js';
 import { flagAdultGamesAfterSync } from '../services/adultSyncCheck.js';
+import { fillPlayAfterForNewIgdbIds } from '../services/seriesPrefill.js';
 import {
   PLAYNITE_SOURCE,
   acquirePlayniteImportLock,
@@ -201,6 +202,7 @@ async function runPlayniteImportLoop(
   // same batching reasoning as touchedPlatformFamilies above.
   const seenPlatforms = new Set<RoomPlatform>();
   const matchedIgdbIds: number[] = [];
+  const onShelfBefore = new Set(existingByIgdbId.keys());
   try {
     await runWithConcurrency(entries, PLAYNITE_IMPORT_CONCURRENCY, async (entry) => {
       try {
@@ -263,6 +265,8 @@ async function runPlayniteImportLoop(
     await recordSyncSources(userId, matchedIgdbIds, 'playnite');
     // Steam's adult-content descriptor, and one notification if games are waiting to be hidden.
     void flagAdultGamesAfterSync(userId, matchedIgdbIds);
+    // "Play after" from the series, only for games this sync added (not ones already on the shelf).
+    void fillPlayAfterForNewIgdbIds(userId, matchedIgdbIds.filter((id) => !onShelfBefore.has(id)));
     if (seenPlatforms.size > 0) await unionOwnedPlatforms(userId, [...seenPlatforms], 'Your Playnite sync');
   } finally {
     // Issue #583: routes/pendingLibraryImports.ts now exposes this same progress row to a

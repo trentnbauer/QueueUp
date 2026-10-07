@@ -139,6 +139,7 @@ function buildGameDto(
     downloadSizeMb: game.downloadSizeMb,
     singlePlayerOnly: game.singlePlayerOnly,
     prerequisiteGameId: game.prerequisiteGameId,
+    prerequisiteAuto: game.prerequisiteSource === 'auto',
     baseGameId: game.baseGameId,
     playtimeSinceCheckpointMinutes: playtime?.sinceCheckpointMinutes ?? null,
     currentPlaytimeMinutes: playtime?.currentMinutes ?? null,

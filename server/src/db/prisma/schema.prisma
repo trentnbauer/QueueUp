@@ -1254,6 +1254,9 @@ model Game {
   /// than blocking the delete: removing the prerequisite game should un-stick its successor, not
   /// prevent the removal.
   prerequisiteGameId           String?    @map("prerequisite_game_id")
+  /// Where prerequisiteGameId came from: 'auto' (filled from the game's IGDB series, services/seriesPrefill.ts) or 'manual'
+  /// (the person set or cleared it). Null = never touched, so the series may fill it. Manual is never overwritten.
+  prerequisiteSource           String?    @map("prerequisite_source")
   /// Set at intake time (issue #338) when IGDB identifies this game as DLC/an expansion with a
   /// known parent - points at that base game's row in the *same* room/shelf scope, auto-creating
   /// it first if it wasn't already added (see linkDlcToBaseGame in gameIntake.ts). Unlike

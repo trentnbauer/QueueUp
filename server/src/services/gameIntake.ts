@@ -1,3 +1,4 @@
+import { fillPlayAfterFromSeries } from './seriesPrefill.js';
 import {
   searchGames,
   searchCollections,
@@ -419,6 +420,8 @@ export async function createGameForUser(
   if (ownedPlatforms && ownedPlatforms.length > 0) {
     await setOwnershipPlatforms(userId, igdbId, ownedPlatforms);
   }
+  // "Play after" from the game's series, when an earlier unfinished entry is on the same list (services/seriesPrefill.ts).
+  await fillPlayAfterFromSeries({ roomId: roomId ?? null, ownerId: userId }, [created.id]);
   const game = await loadGameOr404(created.id);
   await invalidateExistingIgdbIds(roomId ?? null, userId);
 

@@ -707,6 +707,8 @@ export interface Game {
    * Wheel excludes a backlog game from its candidate pool while its prerequisite isn't yet Done -
    * see hasUnmetPrerequisite in gameGridLogic.ts. */
   prerequisiteGameId: string | null;
+  /** The "Play after" was filled in automatically from the game's IGDB series (the person can change or clear it). */
+  prerequisiteAuto: boolean;
   /** Set when IGDB identifies this game as DLC/an expansion with a known parent (issue #338) -
    * points at the base game's row in the same room/shelf, auto-added if it wasn't already there.
    * Null for a main game, or a DLC/expansion IGDB has no parent link on file for. Unlike
@@ -840,6 +842,17 @@ export interface CollectionSearchResult {
 /** A collection's games, already filtered/deduped the same way normal search results are (room
  * platform, or the user's owned systems; games already added are excluded) and sorted oldest
  * release first, so "add the whole series" naturally lands in play order. */
+/** GET /api/games/:id/series: the earlier entries of the game's IGDB series, and which of them are not on the list. */
+export interface GameSeriesResponse {
+  series: {
+    name: string;
+    /** Earlier entries (by release year) in total, and the ones not on this list yet. */
+    earlierTotal: number;
+    earlierMissing: GameSearchResult[];
+    truncated: boolean;
+  } | null;
+}
+
 export interface CollectionGamesResult {
   name: string;
   games: GameSearchResult[];

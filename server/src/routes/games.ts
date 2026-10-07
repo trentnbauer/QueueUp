@@ -73,6 +73,7 @@ import { recordSyncSources } from '../services/syncSources.js';
 import { getCurrentPlaytimeMinutesForGames } from '../services/playtimeTracking.js';
 import { summarizeTimeToBeat, summarizeActiveHoursToBeat, pickMostNeglectedGame, backlogAgeRanges } from '../services/backlogInsights.js';
 import { unlockActivityBadges, unlockBadges, unlockFeatureBadges } from '../services/badges.js';
+import { earlierMissing, fillPlayAfterForNewIgdbIds, getSeriesGames } from '../services/seriesPrefill.js';
 import { getSteamRequirements } from '../services/steamRequirements.js';
 import { autoHideWaitingAdultGames } from '../services/adultHiding.js';
 import { flagAdultGamesAfterSync } from '../services/adultSyncCheck.js';
@@ -119,6 +120,7 @@ import type {
   PriceRegion,
   SetGameOwnershipRequest,
   SetGamePrerequisiteRequest,
+  GameSeriesResponse,
   SetManualPriceRequest,
   SetSteamMatchRequest,
   SetIgdbMatchRequest,
@@ -303,6 +305,7 @@ async function runSteamLibraryImportLoop(
   let imported = 0;
   let skipped = 0;
   let needsMatching = 0;
+  const createdIgdbIds: number[] = [];
   try {
     for (const game of considered) {
       try {
@@ -377,6 +380,7 @@ async function runSteamLibraryImportLoop(
         existingIgdbIdSet.add(igdbId);
         ownedIgdbIds.push(igdbId);
         await recordSyncSources(userId, [igdbId], 'steam');
+        createdIgdbIds.push(igdbId);
         imported++;
       } catch {
         // One game failing to resolve (IGDB hiccup, no match, etc.) shouldn't abort the batch.
@@ -392,6 +396,8 @@ async function runSteamLibraryImportLoop(
     await markOwned(userId, ownedIgdbIds);
     // Steam's adult-content descriptor, and one notification if games are waiting to be hidden.
     void flagAdultGamesAfterSync(userId, ownedIgdbIds);
+    // "Play after" from the series for the games this sync added.
+    void fillPlayAfterForNewIgdbIds(userId, createdIgdbIds);
   } finally {
     // Unconditional, not gated on imported > 0 (issue #489) - once a library is fully synced,
     // every later re-sync considers zero games (see the route's `considered` filter above) and
@@ -498,6 +504,7 @@ async function runSteamWishlistImportLoop(
     }
     if (imported > 0) await invalidateExistingIgdbIds(null, userId);
     void flagAdultGamesAfterSync(userId, importedIgdbIds);
+    void fillPlayAfterForNewIgdbIds(userId, importedIgdbIds);
   } finally {
     // first_wishlist genuinely requires having added a row (every row this loop creates is
     // status: 'wishlist', see above) - stays gated on imported > 0. first_library_sync doesn't:
@@ -1733,6 +1740,26 @@ export default async function gameRoutes(app: FastifyInstance) {
     },
   );
 
+  // The earlier entries of this game's IGDB series (from a cache shared by everyone) and which of them are not on its
+  // list yet (#1082). `series` is null for a game with no series on IGDB.
+  app.get<{ Params: { id: string } }>(
+    '/api/games/:id/series',
+    { config: { rateLimit: { max: 30, timeWindow: '1 minute' } } },
+    async (request): Promise<GameSeriesResponse> => {
+      const userId = await request.requireAuth();
+      const game = await loadGameOr404(request.params.id);
+      await requireGameReadAccess(game, userId);
+      if (game.igdbCollectionId === null) return { series: null };
+      let series;
+      try {
+        series = await getSeriesGames(game.igdbCollectionId);
+      } catch {
+        throw new HttpError(502, 'IGDB did not answer. Try again in a moment.');
+      }
+      return { series: earlierMissing(series, game, await existingIgdbIds(game.roomId, userId)) };
+    },
+  );
+
   // Steam's minimum and recommended PC requirements for the game's page (#1045). Cached; null when the game has
   // no Steam match or Steam lists none.
   app.get<{ Params: { id: string } }>(
@@ -2008,7 +2035,8 @@ export default async function gameRoutes(app: FastifyInstance) {
         }
       }
 
-      await prisma.game.update({ where: { id: game.id }, data: { prerequisiteGameId } });
+      // Set or cleared by hand: from now on this is the person's choice, and the series never touches it again.
+      await prisma.game.update({ where: { id: game.id }, data: { prerequisiteGameId, prerequisiteSource: 'manual' } });
       const updated = await loadGameOr404(game.id);
       return { game: await serializeGame(updated, userId) };
     },
