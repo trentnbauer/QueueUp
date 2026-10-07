@@ -182,6 +182,8 @@ export const add: Record<keyof typeof en, string> = {
   "add.review.matchedByOthers.other": " · Matched by {n} other hearties",
   "add.review.noCloseMatches": "No close matches on the horizon.",
   "add.review.searchManually": "None o’ these, seek by hand",
+  "add.review.notAGame": "This is not a game",
+  "add.review.notAGameDone": "{title} set aside as not a game",
   "add.bundle.start": "This be a bundle",
   "add.bundle.which": "Which games be in this bundle?",
   "add.bundle.search": "Search fer a game to add",
