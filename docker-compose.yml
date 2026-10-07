@@ -23,7 +23,7 @@ services:
       retries: 10
 
   redis:
-    image: redis:8-alpine
+    image: redis:${QueueUpVer:-latest}
     restart: unless-stopped
     command: ["redis-server", "--appendonly", "yes"]
     volumes:

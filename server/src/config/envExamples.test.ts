@@ -16,8 +16,8 @@ describe('example env files', () => {
   });
 
   it('the minimal and recommended files only use real settings', () => {
-    // POSTGRES_* and IMAGE_TAG are read by docker-compose.prod.yml rather than the server.
-    const known = new Set([...Object.keys(envSchema.shape), 'POSTGRES_USER', 'POSTGRES_PASSWORD', 'POSTGRES_DB', 'IMAGE_TAG']);
+    // POSTGRES_* and QueueUpVer are read by docker-compose.prod.yml rather than the server.
+    const known = new Set([...Object.keys(envSchema.shape), 'POSTGRES_USER', 'POSTGRES_PASSWORD', 'POSTGRES_DB', 'QueueUpVer']);
     for (const name of ['.env.minimal.example', '.env.recommended.example']) {
       const unknown = [...keysIn(read(name))].filter((key) => !known.has(key));
       expect(unknown, name).toEqual([]);
