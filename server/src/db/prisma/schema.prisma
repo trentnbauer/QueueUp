@@ -192,6 +192,10 @@ enum NotificationType {
   /// originals. Direct (recipientId), no actor; the toast and bell entry open the Find duplicates
   /// dialog. See notifyMergeSuggestions in services/notifications.ts.
   merge_suggestions
+  /// Games a Steam or Playnite sync brought in (or earlier ones) that look adult are waiting for the "hide from your
+  /// public library?" answer. Direct (recipientId), no actor; the toast and bell entry open that prompt. See
+  /// notifySensitiveGames in services/notifications.ts and services/adultSyncCheck.ts.
+  sensitive_games
 }
 
 /// See RoomActivity's doc comment. A superset of NotificationType's room-scoped values (everything
@@ -247,6 +251,9 @@ model User {
   /// When true, this person's activity is left out of their friends' activity feeds (and out of
   /// their friend profile feed). They still see their own. See routes/activityVisibility.ts.
   activityHidden       Boolean        @default(false) @map("activity_hidden")
+  /// Hide Personal Shelf games flagged as adult (IGDB tags, Steam, the AI check) from the public profile and friends
+  /// automatically, instead of asking (services/adultHiding.ts).
+  autoHideAdult        Boolean        @default(false) @map("auto_hide_adult")
   displayName          String         @map("display_name")
   avatarColor          String         @default("#8f8aa8") @map("avatar_color")
   avatarUrl            String?        @map("avatar_url")

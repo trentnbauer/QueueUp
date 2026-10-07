@@ -2,6 +2,7 @@ import { prisma } from '../../db/client.js';
 import { aiComplete, resolveAiChain } from './aiConfig.js';
 import { extractJson } from './aiJson.js';
 import { getSteamAdultOnly } from '../steamContent.js';
+import { autoHideWaitingAdultGames } from '../adultHiding.js';
 
 /** When someone adds a game to their Personal Shelf, look for signs it is an erotic game that IGDB did not tag:
  * first Steam (the store page's "Adult Only Sexual Content" descriptor - free, needs no AI), then, if the person
@@ -43,12 +44,16 @@ export async function checkGameSensitive(userId: string, gameId: string): Promis
     select: { id: true, title: true, genre: true, releaseYear: true, steamAppid: true, sensitiveContent: true, sensitiveAiChecked: true, sensitivePrompted: true },
   });
   if (!game) return { checked: false, flagged: false };
-  if (game.sensitiveContent) return { checked: false, flagged: true };
+  if (game.sensitiveContent) {
+    await autoHideWaitingAdultGames(userId);
+    return { checked: false, flagged: true };
+  }
   if (game.sensitiveAiChecked || game.sensitivePrompted) return { checked: false, flagged: false };
 
   // Steam first: a store page marked Adult Only Sexual Content is a clear yes, with no AI involved.
   if (game.steamAppid !== null && (await getSteamAdultOnly(game.steamAppid)) === true) {
     await prisma.game.update({ where: { id: game.id }, data: { sensitiveContent: true } });
+    await autoHideWaitingAdultGames(userId);
     return { checked: true, flagged: true };
   }
 
@@ -67,5 +72,6 @@ export async function checkGameSensitive(userId: string, gameId: string): Promis
     return { checked: false, flagged: false };
   }
   await prisma.game.update({ where: { id: game.id }, data: { sensitiveAiChecked: true, ...(flagged ? { sensitiveContent: true } : {}) } });
+  if (flagged) await autoHideWaitingAdultGames(userId);
   return { checked: true, flagged };
 }

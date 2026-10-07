@@ -25,7 +25,7 @@ interface NotifyRoomInput {
   // RoomActivityType, not just documented as one.
   type: Exclude<
     NotificationType,
-    'room_deleted' | 'price_drop' | 'release_watch' | 'playtime_mark_playing' | 'playnite_sync_reminder' | 'wishlist_bundle_deal' | 'play_together_request' | 'feed_reaction' | 'friend_recommendation' | 'good_time_to_buy' | 'account_change' | 'library_sync_error' | 'library_sync_available' | 'platform_unowned' | 'room_game_beaten' | 'merge_suggestions'
+    'room_deleted' | 'price_drop' | 'release_watch' | 'playtime_mark_playing' | 'playnite_sync_reminder' | 'wishlist_bundle_deal' | 'play_together_request' | 'feed_reaction' | 'friend_recommendation' | 'good_time_to_buy' | 'account_change' | 'library_sync_error' | 'library_sync_available' | 'platform_unowned' | 'room_game_beaten' | 'merge_suggestions' | 'sensitive_games'
   >;
   message: (actorName: string) => string;
   /** The game event's structured detail, for the room's play journal. */
@@ -377,6 +377,30 @@ export async function notifyMergeSuggestions(userId: string, count: number): Pro
     });
   } catch (err) {
     console.error('[notifications] failed to write merge-suggestions notification', err);
+  }
+}
+
+/** Games that look adult are waiting for the person's "hide from your public library?" answer (after a Steam or
+ * Playnite sync). One notification, skipped while an earlier one is still unread, that opens the prompt. Best
+ * effort: a failure here must never fail a sync. */
+export async function notifySensitiveGames(userId: string, count: number): Promise<void> {
+  if (count < 1) return;
+  try {
+    const existing = await prisma.notification.findFirst({
+      where: { recipientId: userId, type: 'sensitive_games', readAt: null },
+      select: { id: true },
+    });
+    if (existing) return;
+    await prisma.notification.create({
+      data: {
+        recipientId: userId,
+        roomName: 'Personal Shelf',
+        type: 'sensitive_games',
+        message: `${count === 1 ? '1 game looks' : `${count} games look`} like adult content. Review whether to hide ${count === 1 ? 'it' : 'them'} from your public library.`,
+      },
+    });
+  } catch (err) {
+    console.error('[notifications] failed to write sensitive-games notification', err);
   }
 }
 

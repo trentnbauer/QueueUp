@@ -47,6 +47,7 @@ import libraryLimitsRoutes from './routes/libraryLimits.js';
 import analyticsConsentRoutes from './routes/analyticsConsent.js';
 import retroAchievementsRoutes from './routes/retroachievements.js';
 import activityVisibilityRoutes from './routes/activityVisibility.js';
+import autoHideAdultRoutes from './routes/autoHideAdult.js';
 import computerSpecsRoutes from './routes/computerSpecs.js';
 import accountEventRoutes from './routes/accountEvents.js';
 import { env } from './config/env.js';
@@ -206,6 +207,7 @@ export async function buildApp() {
       await instance.register(analyticsConsentRoutes);
       await instance.register(retroAchievementsRoutes);
       await instance.register(activityVisibilityRoutes);
+      await instance.register(autoHideAdultRoutes);
       await instance.register(computerSpecsRoutes);
       await instance.register(accountEventRoutes);
       await instance.register(feedReactionRoutes);

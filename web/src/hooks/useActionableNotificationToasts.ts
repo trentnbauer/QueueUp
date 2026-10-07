@@ -96,6 +96,21 @@ export function useActionableNotificationToasts() {
         });
         continue;
       }
+      // A sync found games that look adult: one toast that opens the "hide from your public library?" prompt.
+      if (notification.type === 'sensitive_games' && !notification.read) {
+        if (ui.isOpen('sensitiveGames')) {
+          markRead.mutate(notification.id);
+          continue;
+        }
+        showToast({
+          id: `notification-${notification.id}`,
+          message: notification.message,
+          onOpen: () => ui.openDialog('sensitiveGames'),
+          actions: [{ label: t('shell.toasts.reviewHidden'), onClick: () => ui.openDialog('sensitiveGames') }],
+          onDismiss: () => markRead.mutate(notification.id),
+        });
+        continue;
+      }
       if (notification.gameId === null) continue;
       const gameId = notification.gameId;
 

@@ -16,6 +16,7 @@ export type DialogKey =
   | 'ranked'
   | 'deck'
   | 'needsReview'
+  | 'sensitiveGames'
   | 'duplicates'
   | 'aiTonight'
   | 'playtime'
