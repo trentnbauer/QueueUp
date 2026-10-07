@@ -584,6 +584,15 @@ export function NeedsReviewDialog() {
     ui.notify(t('add.review.dismissed', { title: entry.title }));
   }
 
+  /** A soundtrack, tool, demo or the like: set aside for good without the Dismiss confirmation. It is kept (like any
+   * dismissed title), so a later sync does not ask about it again, and it can be restored from the dismissed list. */
+  async function markNotAGame() {
+    if (!entry) return;
+    await dismiss.mutateAsync(entry.id);
+    setPick(null);
+    ui.notify(t('add.review.notAGameDone', { title: entry.title }));
+  }
+
   return (
     <>
       <Dialog
@@ -720,6 +729,11 @@ export function NeedsReviewDialog() {
               {!bundle && (
                 <button type="button" onClick={() => setBundle(new Map())} style={st('flex-shrink:0;height:52px;border-radius:18px;border:1.5px dashed var(--line);background:transparent;color:var(--text2);font:600 14px var(--font-ui)')}>
                   {t('add.bundle.start')}
+                </button>
+              )}
+              {!bundle && (
+                <button type="button" onClick={markNotAGame} disabled={dismiss.isPending} style={st('flex-shrink:0;height:52px;border-radius:18px;border:1.5px dashed var(--line);background:transparent;color:var(--text2);font:600 14px var(--font-ui)')}>
+                  {t('add.review.notAGame')}
                 </button>
               )}
             </div>

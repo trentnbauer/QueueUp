@@ -181,6 +181,8 @@ export const add = {
   "add.review.noCloseMatches": "No close matches found.",
   "add.review.searchManually": "None of these, search manually",
   "add.bundle.start": "This is a bundle",
+  "add.review.notAGame": "This is not a game",
+  "add.review.notAGameDone": "{title} set aside as not a game",
   "add.bundle.which": "Which games are in this bundle?",
   "add.bundle.search": "Search for a game to add",
   "add.bundle.addGame": "Add to bundle",
