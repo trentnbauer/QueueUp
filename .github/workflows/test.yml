@@ -59,7 +59,7 @@ jobs:
         # generated client exists, same as the Dockerfile's own
         # `prisma generate` step before its build.
         if: github.event_name != 'pull_request' || steps.filter.outputs.relevant == 'true'
-        run: npx prisma generate --schema server/src/db/prisma/schema.prisma
+        run: npm exec -w server -- prisma generate
 
       - name: Build shared package
         # server/web import types (and, transitively, runtime code) from

@@ -16,7 +16,7 @@ COPY tsconfig.base.json ./
 COPY packages/shared packages/shared
 COPY server server
 COPY web web
-RUN npx prisma generate --schema server/src/db/prisma/schema.prisma
+RUN cd server && npx prisma generate
 RUN npm run build -w packages/shared \
   && npm run build -w server \
   && npm run build -w web
@@ -46,7 +46,7 @@ RUN npm ci --omit=dev --ignore-scripts --workspace=server --workspace=packages/s
 # runtime stage's COPY of them below always has a valid source regardless of whether npm actually
 # needed to nest anything this particular time.
 RUN mkdir -p server/node_modules packages/shared/node_modules
-COPY --from=build /repo/node_modules/.prisma /repo/node_modules/.prisma
+COPY --from=build /repo/server/node_modules/.prisma /repo/server/node_modules/.prisma
 
 FROM base AS runtime
 ENV NODE_ENV=production
@@ -67,6 +67,7 @@ COPY --from=build /repo/packages/shared/package.json packages/shared/package.jso
 COPY --from=build /repo/packages/shared/dist packages/shared/dist
 COPY --from=build /repo/server/package.json server/package.json
 COPY --from=build /repo/server/dist server/dist
+COPY --from=build /repo/server/prisma.config.ts server/prisma.config.ts
 COPY --from=build /repo/server/src/db/prisma server/src/db/prisma
 COPY --from=build /repo/web/dist server/web-dist
 # Cloudflare Tunnel (issue #664): the server runs cloudflared itself when a tunnel token is set (see
@@ -77,7 +78,7 @@ COPY docker/server-entrypoint.sh /usr/local/bin/server-entrypoint.sh
 # Only the Prisma CLI's own directories are writable by `node` (`prisma db push` at boot downloads/
 # checks engine files in there); the rest of the app and its dependencies stay root-owned.
 RUN chmod +x /usr/local/bin/server-entrypoint.sh \
-  && chown -R node:node /repo/node_modules/@prisma /repo/node_modules/prisma /repo/node_modules/.prisma
+  && chown -R node:node /repo/node_modules/@prisma /repo/server/node_modules/@prisma /repo/server/node_modules/prisma /repo/server/node_modules/.prisma
 
 WORKDIR /repo/server
 EXPOSE 3000
