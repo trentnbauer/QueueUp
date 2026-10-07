@@ -21,6 +21,7 @@ import { useSyncSources } from '../hooks/useSyncSources';
 import { useVersion } from '../hooks/useVersion';
 import { Dialog } from '../ui/Dialog';
 import { useIsMobile } from '../ui/useLayout';
+import { AutoHideAdultRow } from './AutoHideAdultRow';
 import { Avatar, Banner, Btn, Group, Kicker, Segmented, Toggle, inputField } from '../ui/primitives';
 import { useAiActivity } from '../hooks/useAiActivity';
 import { SystemsPicker } from '../ui/SystemsPicker';
@@ -674,6 +675,7 @@ function ProfileSettingsDialog({ onClose }: { onClose: () => void }) {
           <span style={st('color:var(--muted);font-size:20px')}>›</span>
         </button>
             <ActivitySharingRow />
+            <AutoHideAdultRow />
             <AnalyticsConsentRow />
             <div style={st('display:flex;flex-direction:column;gap:10px;padding:14px 14px 14px 16px;background:var(--surf)')}>
               <span style={st('display:flex;flex-direction:column;gap:1px')}>
