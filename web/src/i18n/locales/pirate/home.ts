@@ -11,6 +11,7 @@ export const home: Record<keyof typeof en, string> = {
   "home.tab.backlog": "Cargo hold",
   "home.tab.replay": "Sail Again",
   "home.tab.paused": "Anchored",
+  "home.search.visited": "Already opened in this search",
   "home.tab.adult": "Adult games",
   "home.tab.wontPlay": "Walked the plank",
   "home.tab.matching": "Needs matchin’",

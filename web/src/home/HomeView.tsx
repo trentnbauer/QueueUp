@@ -39,6 +39,9 @@ const MAX_SHOWN_HINT = 5000;
 
 const SHELF_ALL_TABS = [...SHELF_TABS, ...SHELF_MORE_TABS];
 
+/** A card already dealt with in this search: greyed and faded, but still tappable and readable. */
+const dimStyle = (on: boolean) => (on ? 'opacity:0.45;filter:grayscale(1);transition:opacity .2s,filter .2s' : 'transition:opacity .2s,filter .2s');
+
 /** The Personal Shelf / room home: header, nudges, tabs + search, lists. One component for both
  * layouts - the row/header geometry branches on `mobile`. */
 export function HomeView() {
@@ -137,9 +140,20 @@ export function HomeView() {
   const toApprove = scope.canManage && !isShelf ? scope.suggestions.length : 0;
 
   const onVote = (g: Game, v: VoteValue) => (g.myVote === v ? ops.unvote(g.id) : ops.vote(g.id, v));
+  // While searching, a card that has been opened (to mark it Beaten, vote, ...) goes grey, so going down a long list of
+  // results shows where you left off. Forgotten as soon as the search is cleared or the shelf/room changes.
+  const [visited, setVisited] = useState<ReadonlySet<string>>(new Set());
+  useEffect(() => {
+    if (!searching) setVisited((prev) => (prev.size ? new Set() : prev));
+  }, [searching]);
+  useEffect(() => setVisited(new Set()), [scope.scopeId]);
+  const dimmed = (id: string) => searching && visited.has(id);
   const open = (g: Game) => {
     if (bulk) setBulkSel((prev) => (prev.includes(g.id) ? prev.filter((id) => id !== g.id) : [...prev, g.id]));
-    else ui.selectGame(g.id);
+    else {
+      if (searching) setVisited((prev) => (prev.has(g.id) ? prev : new Set(prev).add(g.id)));
+      ui.selectGame(g.id);
+    }
   };
 
   // A room locked to one platform has nothing to filter - its platform stays plain text.
@@ -517,32 +531,34 @@ export function HomeView() {
       {viewMode === 'list' ? (
         <div style={st(mobile ? 'display:flex;flex-direction:column;gap:2px;margin:0 -10px' : 'display:flex;flex-direction:column;margin:0 -12px')}>
           {visibleItems.map((it) => (
-            <Row
-              key={it.game.id}
-              item={it}
-              showRank={showRank}
-              bulk={bulk}
-              selected={bulkSel.includes(it.game.id)}
-              active={ui.selectedGameId === it.game.id}
-              onOpen={() => open(it.game)}
-              onVote={(v) => onVote(it.game, v)}
-            />
+            <div key={it.game.id} style={st(dimStyle(dimmed(it.game.id)))} title={dimmed(it.game.id) ? t('home.search.visited') : undefined}>
+              <Row
+                item={it}
+                showRank={showRank}
+                bulk={bulk}
+                selected={bulkSel.includes(it.game.id)}
+                active={ui.selectedGameId === it.game.id}
+                onOpen={() => open(it.game)}
+                onVote={(v) => onVote(it.game, v)}
+              />
+            </div>
           ))}
         </div>
       ) : (
         <div style={st(coverGridStyle)}>
           {visibleItems.map((it) => (
-            <CoverCard
-              key={it.game.id}
-              item={it}
-              showRank={showRank}
-              bulk={bulk}
-              selected={bulkSel.includes(it.game.id)}
-              active={ui.selectedGameId === it.game.id}
-              big={!mobile || density !== 'small'}
-              onOpen={() => open(it.game)}
-              onVote={(v) => onVote(it.game, v)}
-            />
+            <div key={it.game.id} style={st(`min-width:0;${dimStyle(dimmed(it.game.id))}`)} title={dimmed(it.game.id) ? t('home.search.visited') : undefined}>
+              <CoverCard
+                item={it}
+                showRank={showRank}
+                bulk={bulk}
+                selected={bulkSel.includes(it.game.id)}
+                active={ui.selectedGameId === it.game.id}
+                big={!mobile || density !== 'small'}
+                onOpen={() => open(it.game)}
+                onVote={(v) => onVote(it.game, v)}
+              />
+            </div>
           ))}
         </div>
       )}

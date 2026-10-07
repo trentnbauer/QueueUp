@@ -9,6 +9,7 @@ export const home = {
   "home.tab.backlog": "Backlog",
   "home.tab.replay": "Replay",
   "home.tab.paused": "Paused",
+  "home.search.visited": "Already opened in this search",
   "home.tab.adult": "Adult games",
   "home.tab.wontPlay": "Won't play",
   "home.tab.matching": "Needs matching",
