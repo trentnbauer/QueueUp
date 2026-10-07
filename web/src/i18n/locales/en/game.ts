@@ -153,6 +153,8 @@ export const game = {
   "game.trailer.finding": "Finding trailer…",
   "game.trailer.none": "No trailer found",
   "game.trailer.error": "Couldn't load the trailer. Tap to retry",
+  "game.trailer.fullscreen": "Full screen (landscape)",
+  "game.trailer.exitFullscreen": "Exit full screen",
   "game.trailer.watch": "▶ Watch trailer",
   "game.trailer.dialogTitle": "{title} · trailer",
   "game.trailer.dialogTitleBare": "Trailer",
