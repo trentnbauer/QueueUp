@@ -17,7 +17,7 @@ services:
       retries: 10
 
   redis:
-    image: redis:8-alpine
+    image: redis:${QueueUpVer:-latest}
     restart: unless-stopped
     command: ["redis-server", "--appendonly", "yes"]
     volumes:
@@ -29,7 +29,7 @@ services:
       retries: 10
 
   app:
-    image: ghcr.io/trentnbauer/queueup:${IMAGE_TAG:-latest}
+    image: ghcr.io/trentnbauer/queueup:${QueueUpVer:-latest}
     restart: unless-stopped
     depends_on:
       postgres:
