@@ -1,3 +1,4 @@
+import { useSensitiveCheck } from '../hooks/useSensitiveCheck';
 import { lazy, Suspense, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import {
   ROOM_PLATFORM_LABELS,
@@ -404,6 +405,7 @@ export function AddGameDialog() {
   const scope = useScope();
   const ui = useUi();
   const announceUnlock = useAnnounceUnlock();
+  const checkSensitive = useSensitiveCheck();
   const roomId = scope.isShelf ? null : scope.scopeId;
 
   const close = () => ui.closeDialog('add');
@@ -577,6 +579,8 @@ export function AddGameDialog() {
       announceUnlock(res.unlockedBadges);
       setAddedIds((prev) => new Set(prev).add(result.igdbId));
       if ('game' in res) afterCreate?.(res.game.id);
+      // A game added to the Personal Shelf: have the person's own AI check whether it is an erotic one (see useSensitiveCheck).
+      if ('game' in res && !roomId) checkSensitive(res.game.id);
       if ('suggestion' in res) {
         setSuggestedIds((prev) => new Set(prev).add(result.igdbId));
         ui.notify(tNow('add.game.suggested', { title: result.title }));

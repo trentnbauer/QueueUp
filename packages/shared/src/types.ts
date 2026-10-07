@@ -2602,6 +2602,12 @@ export interface SensitiveGamesResponse {
   games: { id: string; title: string; coverImageUrl: string | null }[];
 }
 
+/** POST /api/games/:id/sensitive-check - whether the owner's own AI was asked, and whether the game is now flagged. */
+export interface SensitiveCheckResponse {
+  checked: boolean;
+  flagged: boolean;
+}
+
 export interface ResolveSensitiveGamesRequest {
   /** Ids to hide from the public profile and friends. */
   hideIds: string[];
