@@ -1,12 +1,14 @@
 import { prisma } from '../../db/client.js';
 import { aiComplete, resolveAiChain } from './aiConfig.js';
 import { extractJson } from './aiJson.js';
+import { getSteamAdultOnly } from '../steamContent.js';
 
-/** When someone adds a game to their Personal Shelf, ask their own AI whether it is an erotic game (explicit
- * sexual content, adult-only titles) that IGDB did not tag as such. A yes sets the same flag IGDB's tags set, so
- * the existing "hide this from your public library?" prompt picks it up; nothing is hidden by the AI. It is only
- * ever asked once per game, and only with the person's OWN AI provider: it is a background nicety, so it never
- * spends the shared server AI's daily allowance. */
+/** When someone adds a game to their Personal Shelf, look for signs it is an erotic game that IGDB did not tag:
+ * first Steam (the store page's "Adult Only Sexual Content" descriptor - free, needs no AI), then, if the person
+ * has an AI of their own, ask it. A yes sets the same flag IGDB's tags set, so the existing "hide this from your
+ * public library?" prompt picks it up; nothing is hidden automatically. Each game is checked once, and the AI
+ * step only uses the person's OWN provider: it is a background nicety, so it never spends the shared server AI's
+ * daily allowance. */
 
 /** The AI must be at least this sure before the prompt is raised: a false alarm is worse than a miss. */
 export const SENSITIVE_MIN_CONFIDENCE = 0.8;
@@ -38,11 +40,17 @@ export interface SensitiveCheckResult {
 export async function checkGameSensitive(userId: string, gameId: string): Promise<SensitiveCheckResult> {
   const game = await prisma.game.findFirst({
     where: { id: gameId, roomId: null, addedBy: userId },
-    select: { id: true, title: true, genre: true, releaseYear: true, sensitiveContent: true, sensitiveAiChecked: true, sensitivePrompted: true },
+    select: { id: true, title: true, genre: true, releaseYear: true, steamAppid: true, sensitiveContent: true, sensitiveAiChecked: true, sensitivePrompted: true },
   });
   if (!game) return { checked: false, flagged: false };
   if (game.sensitiveContent) return { checked: false, flagged: true };
   if (game.sensitiveAiChecked || game.sensitivePrompted) return { checked: false, flagged: false };
+
+  // Steam first: a store page marked Adult Only Sexual Content is a clear yes, with no AI involved.
+  if (game.steamAppid !== null && (await getSteamAdultOnly(game.steamAppid)) === true) {
+    await prisma.game.update({ where: { id: game.id }, data: { sensitiveContent: true } });
+    return { checked: true, flagged: true };
+  }
 
   const chain = await resolveAiChain(userId);
   if (!chain || chain.source !== 'user') return { checked: false, flagged: false };
