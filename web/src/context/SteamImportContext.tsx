@@ -2,6 +2,9 @@ import { createContext, useContext, useRef, useState, type ReactNode } from 'rea
 import { useQueryClient } from '@tanstack/react-query';
 import { PENDING_IMPORTS_QUERY_KEY } from '../api/pendingImports';
 import { useAuth } from './AuthContext';
+import { useToast } from './ToastContext';
+import { useUi } from './UiContext';
+import { t } from '../i18n';
 import { useGames } from '../hooks/useGames';
 import { useSteamImport } from '../hooks/useSteamImport';
 import { useSteamCompletionsSync } from '../hooks/useSteamCompletionsSync';
@@ -25,10 +28,23 @@ export function SteamImportProvider({ children }: { children: ReactNode }) {
   const { invalidate } = useGames(null);
   const queryClient = useQueryClient();
   // Games the import could not match go to Needs matching, so that list refreshes too.
-  const steamImport = useSteamImport(steamLinked, () => {
-    invalidate();
-    void queryClient.invalidateQueries({ queryKey: PENDING_IMPORTS_QUERY_KEY });
-  });
+  const ui = useUi();
+  const { showToast } = useToast();
+  const steamImport = useSteamImport(
+    steamLinked,
+    () => {
+      invalidate();
+      void queryClient.invalidateQueries({ queryKey: PENDING_IMPORTS_QUERY_KEY });
+    },
+    // One toast however many games need matching (a fixed id: while it is up, a second is not stacked), and it
+    // goes straight to the match screen.
+    () =>
+      showToast({
+        id: 'steam-needs-matching',
+        message: t('add.steamImport.toMatchToast'),
+        actions: [{ label: t('add.steamImport.matchGames'), onClick: () => ui.openDialog('needsReview') }],
+      }),
+  );
   const completions = useSteamCompletionsSync();
   // Guards against the auto-login effect and a manual "Sync Everything" click overlapping -
   // runImport/runWishlistImport already no-op while already polling, but completions.scan() has

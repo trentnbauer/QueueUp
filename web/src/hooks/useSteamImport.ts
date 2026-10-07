@@ -29,11 +29,13 @@ const PENDING_IMPORT_KEY = 'queueup-pending-steam-import';
  * both write to the same shelf - but `activeKind` lets each caller show its own result/error rather
  * than, say, the wishlist tile displaying "Added 3 games" text that was actually about the library
  * import. */
-export function useSteamImport(steamLinked: boolean, onImported: () => void) {
+export function useSteamImport(steamLinked: boolean, onImported: () => void, onNeedsMatching?: () => void) {
   const announceUnlock = useAnnounceUnlock();
   const [busy, setBusy] = useState(false);
   const [activeKind, setActiveKind] = useState<ImportKind | null>(null);
   const [result, setResult] = useState<string | null>(null);
+  // The result has games waiting in Needs matching (so its row can open that screen).
+  const [resultNeedsMatching, setResultNeedsMatching] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [progress, setProgress] = useState<SteamImportProgress | null>(null);
   const [wishlistProgress, setWishlistProgress] = useState<SteamWishlistImportProgress | null>(null);
@@ -85,7 +87,10 @@ export function useSteamImport(steamLinked: boolean, onImported: () => void) {
     if (pollIntervalRef.current) return;
     setBusy(true);
     setActiveKind('wishlist');
-    if (!opts.keepResult) setResult(null);
+    if (!opts.keepResult) {
+      setResult(null);
+      setResultNeedsMatching(false);
+    }
     setError(null);
     setWishlistProgress(null);
 
@@ -134,6 +139,10 @@ export function useSteamImport(steamLinked: boolean, onImported: () => void) {
           const wishlistMessage = steamImportMessage('wishlist', { imported: latest.imported, skipped: latest.skipped, needsMatching: latest.needsMatching });
           setResult((prev) => (opts.keepResult && prev ? `${prev}\n${wishlistMessage}` : wishlistMessage));
           if (latest.imported > 0 || (latest.needsMatching ?? 0) > 0) onImported();
+          if ((latest.needsMatching ?? 0) > 0) {
+            setResultNeedsMatching(true);
+            onNeedsMatching?.();
+          }
           if (latest.unlockedBadges) announceUnlock(latest.unlockedBadges);
           setBusy(false);
           resolve();
@@ -149,6 +158,7 @@ export function useSteamImport(steamLinked: boolean, onImported: () => void) {
     setBusy(true);
     setActiveKind('library');
     setResult(null);
+    setResultNeedsMatching(false);
     setError(null);
     setProgress(null);
 
@@ -213,8 +223,9 @@ export function useSteamImport(steamLinked: boolean, onImported: () => void) {
   // showing it forever.
   function dismissResult() {
     setResult(null);
+    setResultNeedsMatching(false);
     setError(null);
   }
 
-  return { busy, activeKind, result, error, progress, wishlistProgress, startLink, runImport, runWishlistImport, dismissResult };
+  return { busy, activeKind, result, resultNeedsMatching, error, progress, wishlistProgress, startLink, runImport, runWishlistImport, dismissResult };
 }

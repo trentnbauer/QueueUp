@@ -12,16 +12,12 @@ describe('steamImportMessage', () => {
     expect(steamImportMessage('wishlist', { imported: 1, skipped: 0 })).toBe('Steam sync successful - new games added to your wishlist.');
   });
 
-  it('points at Needs matching when games have no automatic match', () => {
-    expect(steamImportMessage('library', { imported: 0, skipped: 80, needsMatching: 80 })).toBe(
-      'Steam sync successful - new games to match. Open Needs matching to match them.',
-    );
+  it('says there are new games to match when some have no automatic match', () => {
+    expect(steamImportMessage('library', { imported: 0, skipped: 80, needsMatching: 80 })).toBe('Steam sync successful - new games to match.');
   });
 
   it('says both when some were added and some need matching', () => {
-    expect(steamImportMessage('library', { imported: 2, skipped: 5, needsMatching: 5 })).toBe(
-      'Steam sync successful - new games added to your library. Open Needs matching to match them.',
-    );
+    expect(steamImportMessage('library', { imported: 2, skipped: 5, needsMatching: 5 })).toBe('Steam sync successful - new games added to your library. Some games need matching.');
   });
 
   it('mentions games that failed for another reason, apart from the ones to match', () => {

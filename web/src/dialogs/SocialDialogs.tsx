@@ -1,5 +1,5 @@
 import { getBasePath } from '../utils/basePath';
-import { useState } from 'react';
+import { Fragment, useState } from 'react';
 import { useNavigate } from 'react-router';
 import { useQueryClient } from '@tanstack/react-query';
 import type { Notification } from '@queueup/shared';
@@ -12,13 +12,14 @@ import { useAiJobs } from '../hooks/useAiActivity';
 import { useFriends } from '../hooks/useFriends';
 import { useMarkAllNotificationsRead, useNotificationFeed } from '../hooks/useNotifications';
 import { usePendingImportsCount } from '../hooks/usePendingImports';
+import { NotificationActions, hasActions } from './NotificationActions';
 import { Dialog } from '../ui/Dialog';
 import { Avatar, Banner, Btn, Group, Spinner, inputPill } from '../ui/primitives';
 import { st } from '../ui/st';
 import { formatRelativeTime } from '../utils/relativeTime';
 import { rich, useT, type MessageKey } from '../i18n';
 
-const SHELF_TYPES: Notification['type'][] = ['merge_suggestions', 'friend_recommendation', 'price_drop', 'good_time_to_buy', 'release_watch', 'playnite_sync_reminder', 'wishlist_bundle_deal'];
+const SHELF_TYPES: Notification['type'][] = ['merge_suggestions', 'friend_recommendation', 'price_drop', 'good_time_to_buy', 'release_watch', 'playnite_sync_reminder', 'wishlist_bundle_deal', 'playtime_mark_playing'];
 
 /** A "wants to play this together" request: add the game to a room you're both in, or start a new
  * room with the two of you. Stays until answered (mark-all-read skips it). */
@@ -248,6 +249,18 @@ export function NotificationsDialog() {
         <div style={st('margin:0 0 8px;display:flex;align-items:center;gap:10px;padding:12px 14px;border-radius:14px;background:var(--surf);font:500 13.5px var(--font-ui)')}>
           {steam.busy && <span style={st('flex-shrink:0;width:14px;height:14px;border-radius:50%;border:2px solid var(--line);border-top-color:var(--acc);animation:qu-spin .9s linear infinite')} />}
           <span style={{ flex: 1, minWidth: 0, whiteSpace: 'pre-line' }}>{importStatus}</span>
+          {!steam.busy && steam.resultNeedsMatching && (
+            <button
+              type="button"
+              onClick={() => {
+                ui.closeDialog('notifications');
+                ui.openDialog('needsReview');
+              }}
+              style={st('flex-shrink:0;height:32px;padding:0 14px;border-radius:999px;border:none;background:var(--acc);color:var(--ink);font:700 13px var(--font-ui)')}
+            >
+              {t('add.steamImport.matchGames')}
+            </button>
+          )}
           {!steam.busy && (
             <button type="button" onClick={steam.dismissResult} aria-label={t('social.notifications.dismissImport')} style={st('width:28px;height:28px;border:none;background:none;color:var(--muted);font-size:17px;line-height:1')}>
               ×
@@ -261,8 +274,8 @@ export function NotificationsDialog() {
         const where = n.roomId ? n.roomName : n.type === 'library_sync_error' || n.type === 'library_sync_available' ? t('social.notifications.libraries') : SHELF_TYPES.includes(n.type) ? t('social.notifications.personalShelf') : t('social.notifications.announcement');
         const clickable = !!n.roomId || n.type === 'library_sync_error' || n.type === 'library_sync_available' || SHELF_TYPES.includes(n.type);
         return (
+          <Fragment key={n.id}>
           <button
-            key={n.id}
             type="button"
             onClick={() => open(n)}
             disabled={!clickable}
@@ -276,6 +289,8 @@ export function NotificationsDialog() {
               <span style={st('font:400 12px var(--font-ui);color:var(--faint)')}>{formatRelativeTime(n.createdAt)}</span>
             </span>
           </button>
+          {hasActions(n) && !n.read && <NotificationActions n={n} onDone={() => ui.closeDialog('notifications')} />}
+          </Fragment>
         );
       })}
       {!isLoading && !hasAnything && (
