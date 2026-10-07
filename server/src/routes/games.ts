@@ -74,6 +74,8 @@ import { getCurrentPlaytimeMinutesForGames } from '../services/playtimeTracking.
 import { summarizeTimeToBeat, summarizeActiveHoursToBeat, pickMostNeglectedGame, backlogAgeRanges } from '../services/backlogInsights.js';
 import { unlockActivityBadges, unlockBadges, unlockFeatureBadges } from '../services/badges.js';
 import { getSteamRequirements } from '../services/steamRequirements.js';
+import { autoHideWaitingAdultGames } from '../services/adultHiding.js';
+import { flagAdultGamesAfterSync } from '../services/adultSyncCheck.js';
 import { checkGameSensitive } from '../services/ai/aiSensitiveCheck.js';
 import { roomGamesVersion } from '../services/roomGamesVersion.js';
 import { applyUndo, dropUndo, takeUndo } from '../services/mergeUndo.js';
@@ -388,6 +390,8 @@ async function runSteamLibraryImportLoop(
     // been bought since it was wishlisted.
     await promoteOwnedWishlistGames(userId, ownedIgdbIds);
     await markOwned(userId, ownedIgdbIds);
+    // Steam's adult-content descriptor, and one notification if games are waiting to be hidden.
+    void flagAdultGamesAfterSync(userId, ownedIgdbIds);
   } finally {
     // Unconditional, not gated on imported > 0 (issue #489) - once a library is fully synced,
     // every later re-sync considers zero games (see the route's `considered` filter above) and
@@ -418,6 +422,7 @@ async function runSteamWishlistImportLoop(
   let imported = 0;
   let skipped = 0;
   let needsMatching = 0;
+  const importedIgdbIds: number[] = [];
   try {
     for (const appId of considered) {
       try {
@@ -482,6 +487,7 @@ async function runSteamWishlistImportLoop(
         }
         await recordSyncSources(userId, [igdbId], 'steam_wishlist');
         existingIgdbIdSet.add(igdbId);
+        importedIgdbIds.push(igdbId);
         imported++;
       } catch {
         // One game failing to resolve (IGDB hiccup, no match, etc.) shouldn't abort the batch.
@@ -491,6 +497,7 @@ async function runSteamWishlistImportLoop(
       }
     }
     if (imported > 0) await invalidateExistingIgdbIds(null, userId);
+    void flagAdultGamesAfterSync(userId, importedIgdbIds);
   } finally {
     // first_wishlist genuinely requires having added a row (every row this loop creates is
     // status: 'wishlist', see above) - stays gated on imported > 0. first_library_sync doesn't:
@@ -1159,6 +1166,8 @@ export default async function gameRoutes(app: FastifyInstance) {
   // Adult-tagged shelf games awaiting the "hide from your public library?" answer (issue #627).
   app.get('/api/me/sensitive-games', async (request) => {
     const userId = await request.requireAuth();
+    // With "automatically hide adult games" on, anything waiting is hidden now rather than asked about.
+    await autoHideWaitingAdultGames(userId);
     const rows = await prisma.game.findMany({
       where: { roomId: null, addedBy: userId, sensitiveContent: true, sensitivePrompted: false, hiddenFromOthers: false, archivedAt: null },
       select: { id: true, title: true, coverImageUrl: true },

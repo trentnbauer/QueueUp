@@ -1418,7 +1418,8 @@ export type NotificationType =
   | 'library_sync_available'
   | 'platform_unowned'
   | 'room_game_beaten'
-  | 'merge_suggestions';
+  | 'merge_suggestions'
+  | 'sensitive_games';
 
 /** Notification types a person can choose to receive by email (direct ones, never room-scoped). */
 export const EMAIL_ALERT_TYPES = [
@@ -1458,6 +1459,11 @@ export interface NotificationPreferenceDto {
   label: string;
   email: boolean;
   inApp: boolean;
+}
+
+/** GET/PUT /api/me/auto-hide-adult: whether games flagged as adult are hidden from the public profile and friends automatically. */
+export interface AutoHideAdultResponse {
+  enabled: boolean;
 }
 
 /** GET/PUT /api/me/activity-visibility: whether the person's activity is hidden from friends' feeds. */

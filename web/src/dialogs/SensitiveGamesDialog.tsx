@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { gamesApi } from '../api/games';
 import { useUi } from '../context/UiContext';
@@ -10,7 +10,7 @@ import { useT } from '../i18n';
 /** After games tagged as adult by IGDB land on the Personal Shelf (an import or a manual add), ask
  * whether to hide them from the public profile and friends' activity. Ticked by default; whatever
  * the answer, those games are not asked about again. */
-export function SensitiveGamesPrompt({ active }: { active: boolean }) {
+export function SensitiveGamesPrompt({ active, forced = false }: { active: boolean; /** Opened from a notification: shown even if it was closed earlier. */ forced?: boolean }) {
   const t = useT();
   const ui = useUi();
   const queryClient = useQueryClient();
@@ -19,7 +19,7 @@ export function SensitiveGamesPrompt({ active }: { active: boolean }) {
     // Under the ['games'] root so any import/add that invalidates games refetches this too.
     queryKey: ['games', 'sensitive'],
     queryFn: gamesApi.sensitiveGames,
-    enabled: active,
+    enabled: active || forced,
   });
   const [unticked, setUnticked] = useState<string[]>([]);
 
@@ -30,7 +30,16 @@ export function SensitiveGamesPrompt({ active }: { active: boolean }) {
   });
 
   const games = data?.games ?? [];
-  if (!active || skipped || games.length === 0) return null;
+  const close = () => {
+    setSkipped(true);
+    if (forced) ui.closeDialog('sensitiveGames');
+  };
+  // Opened from a notification that has since been answered (or hidden automatically): nothing to show.
+  useEffect(() => {
+    if (forced && data && games.length === 0) ui.closeDialog('sensitiveGames');
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [forced, data]);
+  if (!(forced || (active && !skipped)) || games.length === 0) return null;
 
   const ids = games.map((g) => g.id);
   const hideIds = ids.filter((id) => !unticked.includes(id));
@@ -40,14 +49,14 @@ export function SensitiveGamesPrompt({ active }: { active: boolean }) {
     <Dialog
       title={t('add.sensitive.title')}
       width={560}
-      onClose={() => setSkipped(true)}
+      onClose={close}
       footer={
         <div style={st('display:flex;gap:10px;justify-content:flex-end;padding:14px 20px')}>
           <Btn
             height={42}
             onClick={() => {
               resolve.mutate({ hideIds: [], keepIds: ids });
-              setSkipped(true);
+              close();
             }}
           >
             {t('add.sensitive.keepAll')}
@@ -58,7 +67,7 @@ export function SensitiveGamesPrompt({ active }: { active: boolean }) {
             onClick={() => {
               resolve.mutate({ hideIds, keepIds });
               ui.notify(hideIds.length > 0 ? t(hideIds.length === 1 ? 'add.sensitive.hidden.one' : 'add.sensitive.hidden.other', { n: hideIds.length }) : t('add.sensitive.leftVisible'));
-              setSkipped(true);
+              close();
             }}
           >
             {hideIds.length > 0 ? t('add.sensitive.hideN', { n: hideIds.length }) : t('common.done')}

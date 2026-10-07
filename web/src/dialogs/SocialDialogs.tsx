@@ -19,7 +19,7 @@ import { st } from '../ui/st';
 import { formatRelativeTime } from '../utils/relativeTime';
 import { rich, useT, type MessageKey } from '../i18n';
 
-const SHELF_TYPES: Notification['type'][] = ['merge_suggestions', 'friend_recommendation', 'price_drop', 'good_time_to_buy', 'release_watch', 'playnite_sync_reminder', 'wishlist_bundle_deal', 'playtime_mark_playing'];
+const SHELF_TYPES: Notification['type'][] = ['merge_suggestions', 'friend_recommendation', 'price_drop', 'good_time_to_buy', 'release_watch', 'playnite_sync_reminder', 'wishlist_bundle_deal', 'playtime_mark_playing', 'sensitive_games'];
 
 /** A "wants to play this together" request: add the game to a room you're both in, or start a new
  * room with the two of you. Stays until answered (mark-all-read skips it). */
@@ -138,6 +138,13 @@ export function NotificationsDialog() {
       if (notifications.length > 0) markAllRead();
       ui.closeDialog('notifications');
       ui.openDialog('duplicates');
+      return;
+    }
+    // A sync found games that look adult: straight to the "hide from your public library?" prompt.
+    if (n.type === 'sensitive_games') {
+      if (notifications.length > 0) markAllRead();
+      ui.closeDialog('notifications');
+      ui.openDialog('sensitiveGames');
       return;
     }
     // A failed library sync: straight to the Libraries dialog, where it can be fixed or tried again.

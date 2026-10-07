@@ -2,6 +2,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 const m = vi.hoisted(() => ({ findFirst: vi.fn(), update: vi.fn(), resolveAiChain: vi.fn(), aiComplete: vi.fn(), steamAdultOnly: vi.fn() }));
 vi.mock('../steamContent.js', () => ({ getSteamAdultOnly: m.steamAdultOnly }));
+vi.mock('../adultHiding.js', () => ({ autoHideWaitingAdultGames: vi.fn() }));
 vi.mock('../../db/client.js', () => ({ prisma: { game: { findFirst: m.findFirst, update: m.update } } }));
 vi.mock('./aiConfig.js', () => ({ resolveAiChain: m.resolveAiChain, aiComplete: m.aiComplete }));
 

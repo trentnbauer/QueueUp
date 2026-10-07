@@ -17,6 +17,7 @@ import { logAccountEvent } from '../services/accountEvents.js';
 import { parseComputerSpecs, prefillSpecs, specsFromRow } from '../services/computerSpecs.js';
 import { unionOwnedPlatforms, VALID_PLATFORMS } from '../services/userSettings.js';
 import { runWithConcurrency } from '../util/concurrency.js';
+import { flagAdultGamesAfterSync } from '../services/adultSyncCheck.js';
 import {
   PLAYNITE_SOURCE,
   acquirePlayniteImportLock,
@@ -260,6 +261,8 @@ async function runPlayniteImportLoop(
     });
     if (matched > 0) await invalidateExistingIgdbIds(null, userId);
     await recordSyncSources(userId, matchedIgdbIds, 'playnite');
+    // Steam's adult-content descriptor, and one notification if games are waiting to be hidden.
+    void flagAdultGamesAfterSync(userId, matchedIgdbIds);
     if (seenPlatforms.size > 0) await unionOwnedPlatforms(userId, [...seenPlatforms], 'Your Playnite sync');
   } finally {
     // Issue #583: routes/pendingLibraryImports.ts now exposes this same progress row to a
