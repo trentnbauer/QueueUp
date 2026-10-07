@@ -1,14 +1,14 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 const m = vi.hoisted(() => ({ findFirst: vi.fn(), update: vi.fn(), resolveAiChain: vi.fn(), aiComplete: vi.fn(), steamAdultOnly: vi.fn() }));
-vi.mock('../steamContent.js', () => ({ getSteamAdultOnly: m.steamAdultOnly }));
+vi.mock('../adultSources.js', () => ({ adultOnlyFromSources: m.steamAdultOnly }));
 vi.mock('../adultHiding.js', () => ({ autoHideWaitingAdultGames: vi.fn() }));
 vi.mock('../../db/client.js', () => ({ prisma: { game: { findFirst: m.findFirst, update: m.update } } }));
 vi.mock('./aiConfig.js', () => ({ resolveAiChain: m.resolveAiChain, aiComplete: m.aiComplete }));
 
 import { buildSensitivePrompt, checkGameSensitive, parseSensitiveReply } from './aiSensitiveCheck.js';
 
-const game = (over: object = {}) => ({ id: 'g1', title: 'Some Game', genre: 'Visual novel', releaseYear: 2020, steamAppid: null, sensitiveContent: false, sensitiveAiChecked: false, sensitivePrompted: false, ...over });
+const game = (over: object = {}) => ({ id: 'g1', title: 'Some Game', genre: 'Visual novel', releaseYear: 2020, igdbId: 5, steamAppid: null, sensitiveContent: false, sensitiveAiChecked: false, sensitivePrompted: false, ...over });
 
 beforeEach(() => {
   vi.clearAllMocks();
@@ -34,8 +34,8 @@ describe('buildSensitivePrompt', () => {
   });
 });
 
-describe('checkGameSensitive with Steam', () => {
-  it('flags a game whose Steam page is Adult Only Sexual Content, without asking the AI', async () => {
+describe('checkGameSensitive with the Steam and IGDB sources', () => {
+  it('flags a game a source says is adult-only, without asking the AI', async () => {
     m.findFirst.mockResolvedValue(game({ steamAppid: 339800 }));
     m.steamAdultOnly.mockResolvedValue(true);
     expect(await checkGameSensitive('u1', 'g1')).toEqual({ checked: true, flagged: true });
@@ -43,14 +43,14 @@ describe('checkGameSensitive with Steam', () => {
     expect(m.aiComplete).not.toHaveBeenCalled();
   });
 
-  it('flags from Steam even when the person has no AI of their own', async () => {
+  it('flags from the sources even when the person has no AI of their own', async () => {
     m.findFirst.mockResolvedValue(game({ steamAppid: 339800 }));
     m.steamAdultOnly.mockResolvedValue(true);
     m.resolveAiChain.mockResolvedValue(null);
     expect((await checkGameSensitive('u1', 'g1')).flagged).toBe(true);
   });
 
-  it('falls through to the AI when Steam says no or cannot be reached', async () => {
+  it('falls through to the AI when the sources say no or cannot be reached', async () => {
     m.findFirst.mockResolvedValue(game({ steamAppid: 1145360 }));
     m.aiComplete.mockResolvedValue({ text: '{"erotic": false, "confidence": 0.99}' });
     m.steamAdultOnly.mockResolvedValue(false);
@@ -60,10 +60,12 @@ describe('checkGameSensitive with Steam', () => {
     expect(m.aiComplete).toHaveBeenCalledTimes(2);
   });
 
-  it('does not ask Steam for a game with no Steam id', async () => {
+  it('asks the sources with the game\'s Steam id and IGDB id', async () => {
+    m.findFirst.mockResolvedValue(game({ steamAppid: 339800 }));
+    m.steamAdultOnly.mockResolvedValue(false);
     m.aiComplete.mockResolvedValue({ text: '{"erotic": false, "confidence": 0.99}' });
     await checkGameSensitive('u1', 'g1');
-    expect(m.steamAdultOnly).not.toHaveBeenCalled();
+    expect(m.steamAdultOnly).toHaveBeenCalledWith(expect.objectContaining({ steamAppid: 339800, igdbId: 5 }));
   });
 });
 

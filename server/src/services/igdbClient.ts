@@ -925,6 +925,55 @@ export async function getGameDetail(igdbId: number): Promise<IgdbGameDetail> {
   return detail;
 }
 
+/** One age rating row as IGDB returns it. IGDB moved ratings to `organization` + `rating_category` (the category's
+ * `rating` is a label like "AO") and deprecated the numeric `category` (1 = ESRB) and `rating` (12 = Adults Only);
+ * either shape may come back, so both are read. */
+export interface IgdbAgeRating {
+  organization?: { name?: string } | number | null;
+  rating_category?: { rating?: string } | number | null;
+  category?: number | null;
+  rating?: number | null;
+}
+
+/** True when any rating is ESRB "Adults Only" - the one rating that means an adult-only title (PEGI 18 and ESRB
+ * Mature also cover plenty of mainstream games, so they are not used). */
+export function hasEsrbAdultsOnly(ratings: IgdbAgeRating[] | null | undefined): boolean {
+  if (!Array.isArray(ratings)) return false;
+  return ratings.some((r) => {
+    if (!r || typeof r !== 'object') return false;
+    const org = typeof r.organization === 'object' && r.organization ? r.organization.name : undefined;
+    const label = typeof r.rating_category === 'object' && r.rating_category ? r.rating_category.rating : undefined;
+    if (typeof org === 'string' && typeof label === 'string') return org.trim().toUpperCase() === 'ESRB' && label.trim().toUpperCase() === 'AO';
+    return r.category === 1 && r.rating === 12; // the older numeric fields
+  });
+}
+
+const ADULTS_ONLY_CACHE_PREFIX = 'igdb:esrb-ao:v1:';
+
+/** Whether IGDB lists an ESRB Adults Only rating for this game. Cached for 30 days. Null when IGDB could not be
+ * asked or did not understand the question, so the caller can carry on and try again later. */
+export async function getIgdbAdultsOnly(igdbId: number): Promise<boolean | null> {
+  if (!Number.isInteger(igdbId) || igdbId <= 0) return null;
+  try {
+    const cached = await redis.get(ADULTS_ONLY_CACHE_PREFIX + igdbId);
+    if (cached === '1') return true;
+    if (cached === '0') return false;
+  } catch {
+    /* an unreadable cache is just asked again */
+  }
+  try {
+    const rows = await igdbRequest<Array<{ age_ratings?: IgdbAgeRating[] }>>(
+      'games',
+      `fields age_ratings.organization.name, age_ratings.rating_category.rating, age_ratings.category, age_ratings.rating; where id = ${igdbId};`,
+    );
+    const adult = hasEsrbAdultsOnly(rows[0]?.age_ratings);
+    await redis.set(ADULTS_ONLY_CACHE_PREFIX + igdbId, adult ? '1' : '0', 'EX', 30 * 24 * 60 * 60).catch(() => undefined);
+    return adult;
+  } catch {
+    return null;
+  }
+}
+
 const STEAM_APP_ID_LOOKUP_CACHE_PREFIX = 'igdb:steam-appid-to-igdbid:v1:';
 const STEAM_APP_ID_LOOKUP_CACHE_TTL_SECONDS = 60 * 60 * 24; // 24h — this mapping essentially never changes
 const EXACT_TITLE_LOOKUP_CACHE_PREFIX = 'igdb:exact-title:v1:';

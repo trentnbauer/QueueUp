@@ -2,7 +2,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 const m = vi.hoisted(() => ({ findMany: vi.fn(), update: vi.fn(), count: vi.fn(), steam: vi.fn(), notify: vi.fn(), autoHide: vi.fn() }));
 vi.mock('../db/client.js', () => ({ prisma: { game: { findMany: m.findMany, update: m.update, count: m.count } } }));
-vi.mock('./steamContent.js', () => ({ getSteamAdultOnly: m.steam }));
+vi.mock('./adultSources.js', () => ({ adultOnlyFromSources: m.steam }));
 vi.mock('./notifications.js', () => ({ notifySensitiveGames: m.notify }));
 vi.mock('./adultHiding.js', () => ({ autoHideWaitingAdultGames: m.autoHide }));
 
@@ -15,13 +15,13 @@ beforeEach(() => {
 });
 
 describe('flagAdultGamesAfterSync', () => {
-  it('flags a synced game Steam marks adult, marks a clean one checked, and leaves one Steam did not answer for', async () => {
+  it('flags a synced game a source marks adult, marks a clean one checked, and leaves one a source did not answer for', async () => {
     m.findMany.mockResolvedValue([
-      { id: 'adult', steamAppid: 1 },
-      { id: 'clean', steamAppid: 2 },
-      { id: 'unknown', steamAppid: 3 },
+      { id: 'adult', igdbId: 10, steamAppid: 1 },
+      { id: 'clean', igdbId: 20, steamAppid: null }, // a console game: IGDB's rating is what is asked
+      { id: 'unknown', igdbId: 30, steamAppid: 3 },
     ]);
-    m.steam.mockImplementation(async (id: number) => (id === 1 ? true : id === 2 ? false : null));
+    m.steam.mockImplementation(async (g: { igdbId: number }) => (g.igdbId === 10 ? true : g.igdbId === 20 ? false : null));
     await flagAdultGamesAfterSync('u1', [10, 20, 30]);
     expect(m.update).toHaveBeenCalledWith({ where: { id: 'adult' }, data: { sensitiveContent: true } });
     expect(m.update).toHaveBeenCalledWith({ where: { id: 'clean' }, data: { sensitiveAiChecked: true } });

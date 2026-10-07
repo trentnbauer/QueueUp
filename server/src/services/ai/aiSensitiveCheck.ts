@@ -1,11 +1,11 @@
 import { prisma } from '../../db/client.js';
 import { aiComplete, resolveAiChain } from './aiConfig.js';
 import { extractJson } from './aiJson.js';
-import { getSteamAdultOnly } from '../steamContent.js';
+import { adultOnlyFromSources } from '../adultSources.js';
 import { autoHideWaitingAdultGames } from '../adultHiding.js';
 
 /** When someone adds a game to their Personal Shelf, look for signs it is an erotic game that IGDB did not tag:
- * first Steam (the store page's "Adult Only Sexual Content" descriptor - free, needs no AI), then, if the person
+ * first Steam's "Adult Only Sexual Content" descriptor and IGDB's ESRB "Adults Only" rating (free, no AI), then, if the person
  * has an AI of their own, ask it. A yes sets the same flag IGDB's tags set, so the existing "hide this from your
  * public library?" prompt picks it up; nothing is hidden automatically. Each game is checked once, and the AI
  * step only uses the person's OWN provider: it is a background nicety, so it never spends the shared server AI's
@@ -41,7 +41,7 @@ export interface SensitiveCheckResult {
 export async function checkGameSensitive(userId: string, gameId: string): Promise<SensitiveCheckResult> {
   const game = await prisma.game.findFirst({
     where: { id: gameId, roomId: null, addedBy: userId },
-    select: { id: true, title: true, genre: true, releaseYear: true, steamAppid: true, sensitiveContent: true, sensitiveAiChecked: true, sensitivePrompted: true },
+    select: { id: true, igdbId: true, title: true, genre: true, releaseYear: true, steamAppid: true, sensitiveContent: true, sensitiveAiChecked: true, sensitivePrompted: true },
   });
   if (!game) return { checked: false, flagged: false };
   if (game.sensitiveContent) {
@@ -50,8 +50,8 @@ export async function checkGameSensitive(userId: string, gameId: string): Promis
   }
   if (game.sensitiveAiChecked || game.sensitivePrompted) return { checked: false, flagged: false };
 
-  // Steam first: a store page marked Adult Only Sexual Content is a clear yes, with no AI involved.
-  if (game.steamAppid !== null && (await getSteamAdultOnly(game.steamAppid)) === true) {
+  // Steam's Adult Only descriptor and IGDB's ESRB Adults Only rating first: a clear yes, with no AI involved.
+  if ((await adultOnlyFromSources(game)) === true) {
     await prisma.game.update({ where: { id: game.id }, data: { sensitiveContent: true } });
     await autoHideWaitingAdultGames(userId);
     return { checked: true, flagged: true };
