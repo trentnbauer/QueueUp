@@ -39,13 +39,13 @@ node dist/scripts/preUpgradeBackup.js || echo "[upgrade-backup] Could not run th
 # with --accept-data-loss. If the backup can't be written, the script exits non-zero and (set -e)
 # the container stops without touching the schema.
 if [ "$ALLOW_DESTRUCTIVE_SCHEMA_PUSH" = "true" ]; then
-  if ! npx prisma db push --schema src/db/prisma/schema.prisma --skip-generate; then
+  if ! npx prisma db push --schema src/db/prisma/schema.prisma; then
     echo "[schema-push] Schema change needs --accept-data-loss; backing up the database first."
     node dist/scripts/preSchemaPushBackup.js
-    npx prisma db push --schema src/db/prisma/schema.prisma --skip-generate --accept-data-loss
+    npx prisma db push --schema src/db/prisma/schema.prisma --accept-data-loss
   fi
 else
-  npx prisma db push --schema src/db/prisma/schema.prisma --skip-generate
+  npx prisma db push --schema src/db/prisma/schema.prisma
 fi
 
 exec node dist/bootstrap.js
