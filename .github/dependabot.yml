@@ -5,8 +5,8 @@
 # versions are left as their own PRs: they need a real `docker build` and the boot check (see the
 # docker-boot workflow) before merging, not only the unit tests.
 #
-# Not covered: the postgres and redis images pinned in the compose files, and the ollama image, because
-# Dependabot only reads Dockerfiles; check those by hand.
+# The postgres and redis images pinned in the compose files are covered by the docker-compose entry. The
+# ollama image is unpinned (`:latest`), so there is nothing for Dependabot to bump.
 version: 2
 updates:
   # One lock file for the root, server, web and shared workspaces.
@@ -46,3 +46,11 @@ updates:
       # Node is moved deliberately, to an LTS major.
       - dependency-name: "node"
         update-types: ["version-update:semver-major"]
+
+  # postgres:<major>-alpine and redis:<major>-alpine in the compose files. These tags only move on a new
+  # major, so every PR here is a major bump. Do not merge a postgres one as-is: existing data directories
+  # are not compatible across majors and need a dump/restore (or pg_upgrade) first.
+  - package-ecosystem: "docker-compose"
+    directory: "/"
+    schedule:
+      interval: "weekly"
