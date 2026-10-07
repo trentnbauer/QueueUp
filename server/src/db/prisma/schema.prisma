@@ -1212,6 +1212,8 @@ model Game {
   /// "hide these from your public library?" prompt; sensitivePrompted records that the owner has answered.
   sensitiveContent             Boolean    @default(false) @map("sensitive_content")
   sensitivePrompted            Boolean    @default(false) @map("sensitive_prompted")
+  /// The owner's AI has been asked once whether this is an erotic game IGDB did not tag (services/ai/aiSensitiveCheck.ts).
+  sensitiveAiChecked           Boolean    @default(false) @map("sensitive_ai_checked")
   createdAt                    DateTime   @default(now()) @map("created_at")
   updatedAt                    DateTime   @updatedAt @map("updated_at")
   /// Set by the admin bulk-archive action (Done games untouched for 90+ days) - archived games are

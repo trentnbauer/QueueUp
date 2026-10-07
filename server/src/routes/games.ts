@@ -74,6 +74,7 @@ import { getCurrentPlaytimeMinutesForGames } from '../services/playtimeTracking.
 import { summarizeTimeToBeat, summarizeActiveHoursToBeat, pickMostNeglectedGame, backlogAgeRanges } from '../services/backlogInsights.js';
 import { unlockActivityBadges, unlockBadges, unlockFeatureBadges } from '../services/badges.js';
 import { getSteamRequirements } from '../services/steamRequirements.js';
+import { checkGameSensitive } from '../services/ai/aiSensitiveCheck.js';
 import { roomGamesVersion } from '../services/roomGamesVersion.js';
 import { applyUndo, dropUndo, takeUndo } from '../services/mergeUndo.js';
 import {
@@ -1165,6 +1166,13 @@ export default async function gameRoutes(app: FastifyInstance) {
       take: 200,
     });
     return { games: rows };
+  });
+
+  // Asks the person's own AI whether a game they just added is an erotic one IGDB did not tag; a yes makes it show
+  // up in the prompt above. Quick no-op when they have no AI of their own or it was already checked.
+  app.post<{ Params: { id: string } }>('/api/games/:id/sensitive-check', { config: { rateLimit: { max: 30, timeWindow: '1 minute' } } }, async (request) => {
+    const userId = await request.requireAuth();
+    return checkGameSensitive(userId, request.params.id);
   });
 
   app.post<{ Body: { hideIds?: string[]; keepIds?: string[] } }>('/api/me/sensitive-games/resolve', async (request, reply) => {
