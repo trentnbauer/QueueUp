@@ -1,5 +1,5 @@
 import { useState, type ReactNode } from 'react';
-import { useQuery, useQueryClient } from '@tanstack/react-query';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { authApi } from '../api/auth';
 import { ColourPicker } from '../ui/ColourPicker';
 import { EXOPHASE_STATUS_QUERY_KEY, exophaseApi } from '../api/exophase';
@@ -180,6 +180,14 @@ export function Onboarding({ onDone }: { onDone: () => void }) {
   const xbox = useQuery({ queryKey: XBOX_STATUS_QUERY_KEY, queryFn: xboxApi.status });
   // The AI button in the optional step only appears when this server lets people add their own AI key.
   const ai = useQuery({ queryKey: AI_SETTINGS_QUERY_KEY, queryFn: aiApi.mine });
+  // "Hide adult games automatically": on by default for a new account, shown on the library step so it is in place
+  // before anything is imported (same setting and query as Shelf settings).
+  const autoHide = useQuery({ queryKey: ['auto-hide-adult'], queryFn: authApi.autoHideAdult });
+  const setAutoHide = useMutation({
+    mutationFn: authApi.setAutoHideAdult,
+    onSuccess: (res) => queryClient.setQueryData(['auto-hide-adult'], res),
+    onError: (err) => ui.showError(err instanceof Error ? err.message : t('shell.onboarding.library.hideAdultFailed')),
+  });
   const { language, setLanguage, t } = useI18n();
   const kinds: StepKind[] = [
     // Language comes first (#776), so everything after it is in the language they picked.
@@ -516,6 +524,13 @@ export function Onboarding({ onDone }: { onDone: () => void }) {
 
         {kind === 'library' && (
           <>
+            <div style={st('flex-shrink:0;display:flex;align-items:center;gap:12px;padding:14px 16px;border-radius:16px;background:var(--surf)')}>
+              <span style={st('flex:1;min-width:0;display:flex;flex-direction:column;gap:2px')}>
+                <span style={st('font:600 15px var(--font-ui)')}>{t('shell.onboarding.library.hideAdult')}</span>
+                <span style={st('font:400 12.5px/1.4 var(--font-ui);color:var(--muted)')}>{t('shell.onboarding.library.hideAdultSub')}</span>
+              </span>
+              <Toggle on={autoHide.data?.enabled ?? true} disabled={!autoHide.data || setAutoHide.isPending} onChange={(on) => setAutoHide.mutate(on)} label={t('shell.onboarding.library.hideAdult')} />
+            </div>
             <div style={st('flex-shrink:0;display:flex;flex-wrap:wrap;gap:14px')}>
               <HeroCard
                 hue={300}
