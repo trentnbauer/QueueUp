@@ -16,7 +16,7 @@ export function steamImportMessage(kind: 'library' | 'wishlist', c: SteamImportC
   if (c.imported > 0) parts.push(t(`add.steamImport.${kind}Added`));
   else if (needsMatching > 0) parts.push(t('add.steamImport.toMatch'));
   else parts.push(t(`add.steamImport.${kind}None`));
-  if (needsMatching > 0) parts.push(t('add.steamImport.openMatching'));
+  if (needsMatching > 0 && c.imported > 0) parts.push(t('add.steamImport.someToMatch'));
   if (couldNot) parts.push(t('add.steamImport.couldNot'));
   return parts.join(' ');
 }
