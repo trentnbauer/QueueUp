@@ -1978,16 +1978,20 @@ export default async function gameRoutes(app: FastifyInstance) {
       if (prerequisiteGameId !== null && typeof prerequisiteGameId !== 'string') {
         throw new HttpError(400, 'prerequisiteGameId must be a game id or null');
       }
+      // On the Personal Shelf it is the owner's own list, so only they may set it.
+      if (!game.roomId && game.addedBy !== userId) {
+        throw new HttpError(403, 'Only the owner can set "Play after" on a shelf game');
+      }
       if (prerequisiteGameId !== null) {
-        if (!game.roomId) {
-          throw new HttpError(400, '"Play after" is only available for games in a room');
-        }
         if (prerequisiteGameId === game.id) {
           throw new HttpError(400, 'A game cannot be set to play after itself');
         }
         const prerequisite = await loadGameOr404(prerequisiteGameId);
         if (prerequisite.roomId !== game.roomId) {
-          throw new HttpError(400, 'The prerequisite must be another game in the same room');
+          throw new HttpError(400, game.roomId ? 'The prerequisite must be another game in the same room' : 'The prerequisite must be another game on your Personal Shelf');
+        }
+        if (!game.roomId && prerequisite.addedBy !== game.addedBy) {
+          throw new HttpError(400, 'The prerequisite must be another game on your Personal Shelf');
         }
 
         // Walk the prerequisite chain from the candidate to make sure it doesn't loop

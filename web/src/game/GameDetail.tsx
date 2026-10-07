@@ -35,6 +35,7 @@ import { st } from '../ui/st';
 import { useT, type MessageKey } from '../i18n';
 import { statusLabel } from '../i18n/labels';
 import { SystemRequirements } from './SystemRequirements';
+import { GamePicker } from './GamePicker';
 
 const H = 'font:600 15px var(--font-display)';
 const FIELD = 'flex:1;min-width:0;height:42px;padding:0 14px;border-radius:999px;background:var(--surf);border:1px solid var(--line);color:var(--text);font-size:15px;outline:none';
@@ -198,6 +199,8 @@ export function GameDetail({ game, onClose, changeStatus }: { game: Game; onClos
     return scope.games.filter((g) => g.id !== game.id && !wouldCycle(g.id)).sort((a, b) => a.title.localeCompare(b.title));
   }, [scope.games, game.id]);
   const prereqId = game.prerequisiteGameId ?? defaultPrerequisite(game, scope.games)?.id ?? '';
+  // A long library cannot be a plain dropdown: the picker searches it (see GamePicker).
+  const pickerOptions = useMemo(() => others.map((o) => ({ id: o.id, title: o.title, sub: o.releaseYear ? String(o.releaseYear) : undefined })), [others]);
 
   const canTag = game.addedBy.id === user?.id;
 
@@ -613,23 +616,16 @@ export function GameDetail({ game, onClose, changeStatus }: { game: Game; onClos
           </Section>
         )}
 
-        {!isShelf && (
-          <Section title={t('game.detail.playAfter')}>
-            <select
-              value={prereqId}
-              onChange={(e) => ops.setPrerequisite(game.id, e.target.value || null)}
-              aria-label={t('game.detail.playAfter')}
-              style={st('height:46px;padding:0 14px;border-radius:14px;background:var(--surf);border:1px solid var(--chip);color:var(--text);font-size:15px;outline:none')}
-            >
-              <option value="">{t('game.detail.none')}</option>
-              {others.map((o) => (
-                <option key={o.id} value={o.id}>
-                  {o.title}
-                </option>
-              ))}
-            </select>
-          </Section>
-        )}
+        <Section title={t('game.detail.playAfter')}>
+          <GamePicker
+            value={prereqId}
+            options={pickerOptions}
+            onChange={(id) => ops.setPrerequisite(game.id, id)}
+            noneLabel={t('game.detail.none')}
+            label={t('game.detail.playAfter')}
+            suggestedId={game.prerequisiteGameId ? null : (defaultPrerequisite(game, scope.games)?.id ?? null)}
+          />
+        </Section>
 
         <SystemRequirements gameId={game.id} />
 
