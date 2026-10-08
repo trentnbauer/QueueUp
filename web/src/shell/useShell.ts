@@ -25,7 +25,7 @@ export interface TileModel {
 /** The shelf + room tiles shared by the desktop sidebar/rail and the phone's top bar, plus the
  * bell/profile state that sits beside them. */
 export function useShell() {
-  const { user } = useAuth();
+  const { user, shelfColor } = useAuth();
   const scope = useScope();
   const ui = useUi();
   const t = useT();
@@ -45,7 +45,8 @@ export function useShell() {
     id: SHELF_ID,
     name: t('shell.glance.personalShelf'),
     short: initialsOf(user?.displayName ?? 'T').slice(0, 1),
-    color: user?.avatarColor ?? '#E8734A',
+    // The colour picked in Shelf settings, like a room's own colour; the avatar colour until one is picked.
+    color: shelfColor ?? user?.avatarColor ?? '#E8734A',
     sub: t('shell.tile.shelfSub'),
     active: scope.isShelf,
     dot: pendingImports > 0,
