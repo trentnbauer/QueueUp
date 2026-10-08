@@ -129,7 +129,7 @@ export function DuplicatesDialog() {
   const scanPairs = (scan?.pairs ?? []).filter((p) => !gone.includes(pairKey(p)));
   // After a scan the list is what the AI judged to be the same game; before one, the title matches.
   const pairs: Row[] = scan
-    ? scanPairs.map((p) => ({ ...p, ai: p.source !== 'community', community: p.mergedBy ?? 0 }))
+    ? scanPairs.map((p) => ({ ...p, ai: p.source !== 'community' && p.source !== 'igdb', community: p.mergedBy ?? 0 }))
     : (candidates.data?.pairs ?? []).map(({ communityMergedBy, ...p }) => ({ ...p, confidence: 0, reason: '', ai: false, community: communityMergedBy })).filter((p) => !gone.includes(pairKey(p)));
   const visiblePairs = showAll ? pairs : pairs.slice(0, SHOWN_AT_FIRST);
   // What the popup still has to ask about: everything not merged, dismissed or put off.
@@ -180,7 +180,7 @@ export function DuplicatesDialog() {
           <div role="status" style={st('display:flex;align-items:center;gap:12px;padding:12px 14px;border-radius:14px;background:var(--surf)')}>
             <Spinner size={20} />
             <span style={st('flex:1;min-width:0;font:500 13.5px/1.45 var(--font-ui);text-wrap:pretty')}>
-              {candidates.data && candidates.data.pairs.length > 0 ? t('settings.duplicates.scanningPairs', { n: candidates.data.pairs.length }) : t('settings.duplicates.scanningNoPairs')}
+              {t('settings.duplicates.scanningNoPairs')}
             </span>
           </div>
         )}
@@ -192,21 +192,26 @@ export function DuplicatesDialog() {
           <span style={st('font:500 14px/1.45 var(--font-ui)')}>
             {scan.pairs.length > 0
               ? t('settings.duplicates.allDone')
-              : scan.candidates === 0
-                ? t('settings.duplicates.noTitleMatches')
-                : scan.checked === 0
-                  ? t('settings.duplicates.noneAskedAi', { n: scan.reused })
-                  : t('settings.duplicates.none', { n: scan.checked })}
+              : scan.checked > 0
+                ? t('settings.duplicates.none', { n: scan.checked })
+                : scan.candidates === 0
+                  ? t('settings.duplicates.noTitleMatches')
+                  : t('settings.duplicates.noneAskedAi', { n: scan.reused })}
           </span>
         )}
         {visiblePairs.map((p) => (
           <div key={pairKey(p)} style={st(`display:flex;flex-direction:column;gap:10px;padding:12px;border-radius:18px;background:var(--surf);${run.isPending ? 'opacity:.55' : ''}`)}>
+            {p.a.igdbId === p.b.igdbId && (
+              <div style={st('display:flex;align-items:center;gap:8px')}>
+                <Kicker size={11}>{t('settings.duplicates.igdbBadge')}</Kicker>
+              </div>
+            )}
             {p.community > 0 && (
               <div style={st('display:flex;align-items:center;gap:8px')}>
                 <Kicker size={11}>{t('settings.duplicates.communityBadge', { n: p.community })}</Kicker>
               </div>
             )}
-            {p.community === 0 && p.ai && (
+            {p.community === 0 && p.ai && p.a.igdbId !== p.b.igdbId && (
               <div style={st('display:flex;align-items:center;gap:8px')}>
                 <AiPickedBadge title={t('settings.duplicates.badge')} />
                 <Kicker size={11}>{t('settings.duplicates.confidence', { n: Math.round(p.confidence * 100) })}</Kicker>
@@ -248,7 +253,13 @@ export function DuplicatesDialog() {
       {current && (
         <Dialog onClose={() => setReviewing(false)} title={t('settings.duplicates.reviewTitle')} gap={14} width={480}>
           <div style={st('display:flex;align-items:center;gap:8px;flex-wrap:wrap')}>
-            {current.source === 'community' ? <Kicker size={11}>{t('settings.duplicates.communityBadge', { n: current.mergedBy ?? 0 })}</Kicker> : <AiPickedBadge title={t('settings.duplicates.badge')} />}
+            {current.source === 'igdb' ? (
+              <Kicker size={11}>{t('settings.duplicates.igdbBadge')}</Kicker>
+            ) : current.source === 'community' ? (
+              <Kicker size={11}>{t('settings.duplicates.communityBadge', { n: current.mergedBy ?? 0 })}</Kicker>
+            ) : (
+              <AiPickedBadge title={t('settings.duplicates.badge')} />
+            )}
             <Kicker size={11}>{t('settings.duplicates.reviewProgress', { i: Math.min(total, total - queue.length + 1), n: total })}</Kicker>
             {current.source !== 'community' && <Kicker size={11}>{t('settings.duplicates.confidence', { n: Math.round(current.confidence * 100) })}</Kicker>}
           </div>

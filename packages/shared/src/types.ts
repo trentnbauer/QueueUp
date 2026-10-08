@@ -3188,9 +3188,9 @@ export interface DuplicateSuggestion {
   confidence: number;
   /** One short sentence from the AI on why they look the same. */
   reason: string;
-  /** Where it came from: the AI (the default), or other people having merged the same pair, which
-   * needed no AI request at all. */
-  source?: 'ai' | 'community';
+  /** Where it came from: the AI (the default), other people having merged the same pair, or IGDB
+   * listing both cards as the same game (`igdb`) - the last two need no AI request at all. */
+  source?: 'ai' | 'community' | 'igdb';
   /** For `community`: how many other people merged this pair. */
   mergedBy?: number;
 }
@@ -3198,12 +3198,11 @@ export interface DuplicateSuggestion {
 /** Result of POST /api/games/duplicates/ai-scan. */
 export interface AiDuplicateScanResponse {
   pairs: DuplicateSuggestion[];
-  /** How many pairs on the shelf look alike by title and were looked at. 0 means nothing on the shelf matched by name. */
+  /** How many pairs on the shelf look alike by title (the ones earlier answers are looked up for). */
   candidates: number;
-  /** How many of those the AI judged this time. */
+  /** How many shelf games the AI looked through this time (the whole shelf, unless it stopped early). */
   checked: number;
-  /** Pairs answered from what other people already merged, said are different, or the AI already
-   * judged for someone else, so the AI was not asked about them. */
+  /** Pairs suggested from what other people already merged or an earlier AI answer. */
   reused: number;
   fallback: AiFallbackNotice | null;
   /** Why the scan ended early (provider error, the daily limit on the shared AI), if it did; what was found is kept. */
