@@ -538,6 +538,8 @@ export const settings = {
   "settings.duplicates.scanningNoPairs": "The AI is looking through your whole shelf for duplicates. This can take a minute or two. You can close this and carry on; you will get a notification when it is done.",
   "settings.me.duplicates.scanning": "AI is checking your shelf…",
   "settings.duplicates.communityBadge": "Merged by {n} other people",
+  "settings.duplicates.remaining": "{n} games are still to check because the scan stopped early. Run Find duplicates again later, for example once your daily AI limit resets, and it carries on from here.",
+  "settings.duplicates.alreadyChecked": "{n} games were checked by an earlier scan and skipped. Press \"Scan again\" to check them all afresh.",
   "settings.duplicates.igdbBadge": "Same game on IGDB",
   "settings.duplicates.reused": "{n} pairs were settled from what other people already merged or an earlier AI check, so the AI wasn't asked about them again.",
   "settings.duplicates.noTitleMatches": "You need at least two games on your shelf to look for duplicates.",

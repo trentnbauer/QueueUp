@@ -3,7 +3,8 @@ import type { DuplicateSuggestionGame } from '@queueup/shared';
 
 const gameFindMany = vi.fn();
 const dismissalFindMany = vi.fn(async () => []);
-vi.mock('../../db/client.js', () => ({ prisma: { game: { findMany: gameFindMany }, duplicateDismissal: { findMany: dismissalFindMany } } }));
+const gameUpdateMany = vi.fn(async (_args: unknown) => ({ count: 0 }));
+vi.mock('../../db/client.js', () => ({ prisma: { game: { findMany: gameFindMany, updateMany: gameUpdateMany }, duplicateDismissal: { findMany: dismissalFindMany } } }));
 const aiComplete = vi.fn();
 vi.mock('./aiConfig.js', () => ({ aiComplete }));
 const notifyMergeSuggestions = vi.fn(async () => {});
@@ -52,6 +53,7 @@ describe('parseDuplicateReply keep', () => {
 describe('aiScanDuplicates (whole shelf)', () => {
   beforeEach(() => {
     gameFindMany.mockReset();
+    gameUpdateMany.mockClear();
     aiComplete.mockReset();
     notifyMergeSuggestions.mockClear();
     saveVerdicts.mockClear();
@@ -104,6 +106,51 @@ describe('aiScanDuplicates (whole shelf)', () => {
     // Dismissing the pair hides it next time.
     dismissalFindMany.mockResolvedValueOnce([{ igdbIdLow: 7, igdbIdHigh: 7 }] as never);
     expect((await aiScanDuplicates('u1')).pairs).toEqual([]);
+  });
+
+  it('carries on where an earlier scan stopped: chunks already checked are skipped, and their duplicates come back from saved answers', async () => {
+    const checkedBefore = new Date('2026-10-01T00:00:00Z');
+    // 300 games: two chunks. The first chunk was checked before; the second was not.
+    const shelf = Array.from({ length: 300 }, (_, i) => ({ ...card(`g${i}`, i + 1, `Title ${String(i).padStart(3, '0')}`), duplicateCheckedAt: i < AI_LIBRARY_CHUNK ? checkedBefore : null }));
+    gameFindMany.mockResolvedValue(shelf);
+    loadDuplicateKnowledge.mockResolvedValue({ merges: new Map(), notDuplicates: new Set(), verdicts: new Map([['1:2', { same: true, keepIgdbId: 1, confidence: 0.9, reason: 'saved' }]]) });
+    aiComplete.mockResolvedValue({ text: '[]', fallback: null });
+    const res = await aiScanDuplicates('u1');
+    const chunks = libraryChunks(shelf);
+    expect(aiComplete).toHaveBeenCalledTimes(chunks.length - 1);
+    expect(res.alreadyChecked).toBeGreaterThan(0);
+    expect(res.remaining).toBe(0);
+    expect(res.pairs).toMatchObject([{ reason: 'saved' }]);
+    // The cards it did check are recorded.
+    expect(gameUpdateMany).toHaveBeenCalledTimes(chunks.length - 1);
+    // "Scan again" checks every chunk.
+    aiComplete.mockClear();
+    await aiScanDuplicates('u1', { fresh: true });
+    expect(aiComplete).toHaveBeenCalledTimes(chunks.length);
+  });
+
+  it('says how many games are left when the daily limit stops it', async () => {
+    const shelf = Array.from({ length: 300 }, (_, i) => card(`g${i}`, i + 1, `Title ${String(i).padStart(3, '0')}`));
+    gameFindMany.mockResolvedValue(shelf);
+    let calls = 0;
+    aiComplete.mockImplementation(async () => {
+      calls += 1;
+      if (calls > 1) throw new Error("You've used today's limit");
+      return { text: '[]', fallback: null };
+    });
+    const res = await aiScanDuplicates('u1');
+    expect(res.checked).toBe(AI_LIBRARY_CHUNK);
+    expect(res.remaining).toBe(300 - AI_LIBRARY_CHUNK);
+    expect(res.alreadyChecked).toBe(0);
+    expect(res.stopped).toBe("You've used today's limit");
+  });
+
+  it('suggests a pair other people merged even when the titles look nothing alike', async () => {
+    gameFindMany.mockResolvedValue([card('a', 1, 'Halo: The Master Chief Collection', 2014), card('b', 2, 'Halo MCC', 2019)]);
+    loadDuplicateKnowledge.mockResolvedValue({ merges: new Map([['1:2', { users: 2, keepIgdbId: 1 }]]), notDuplicates: new Set(), verdicts: new Map() });
+    aiComplete.mockResolvedValue({ text: '[]', fallback: null });
+    const res = await aiScanDuplicates('u1');
+    expect(res.pairs).toMatchObject([{ source: 'community', mergedBy: 2, keep: 'a' }]);
   });
 
   it('suggests what other people merged straight away and still asks the AI about the rest', async () => {

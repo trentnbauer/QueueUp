@@ -1207,6 +1207,9 @@ model Game {
   /// the Wheel's isUnreleased check. Null on games added before this field existed; that check
   /// falls back to the year-only heuristic for those rather than requiring a backfill.
   releaseDate                  DateTime?  @map("release_date")
+  /// When Find duplicates last had the AI look at this card (#duplicates resume): a later scan skips
+  /// cards checked already, so a scan cut short by the daily AI limit carries on where it stopped.
+  duplicateCheckedAt           DateTime?  @map("duplicate_checked_at")
   /// IGDB's franchise/series id for this game, if it belongs to one (issue #283) - captured at
   /// intake same as releaseYear/maxCoopPlayers above. Not surfaced anywhere yet; laying the
   /// groundwork for a future "recommend playing the prior entry first" Spin the Wheel feature

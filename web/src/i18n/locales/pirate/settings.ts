@@ -540,6 +540,8 @@ export const settings: Record<keyof typeof en, string> = {
   "settings.duplicates.scanningNoPairs": "The AI parrot be lookin’ through yer whole shelf fer duplicates. This can take a minute or two. Ye can close this an’ carry on; ye’ll get word when it be done.",
   "settings.me.duplicates.scanning": "AI is checking your shelf…",
   "settings.duplicates.communityBadge": "Merged by {n} other people",
+  "settings.duplicates.remaining": "{n} games still be waitin’ because the scan stopped early. Run Find duplicates again later, say once yer daily AI ration resets, an’ it carries on from here.",
+  "settings.duplicates.alreadyChecked": "{n} games were checked by an earlier scan an’ skipped. Press \"Scan again\" to check ’em all afresh.",
   "settings.duplicates.igdbBadge": "Same game on IGDB",
   "settings.duplicates.reused": "{n} pairs were settled from what other people already merged or an earlier AI check, so the AI wasn't asked about them again.",
   "settings.duplicates.noTitleMatches": "Ye need at least two games on yer shelf to hunt fer duplicates.",

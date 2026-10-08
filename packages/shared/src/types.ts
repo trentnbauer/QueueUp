@@ -3179,6 +3179,10 @@ export interface AiDuplicateScanResponse {
   checked: number;
   /** Pairs suggested from what other people already merged or an earlier AI answer. */
   reused: number;
+  /** Games skipped because an earlier scan already checked them (not on "Scan again"). */
+  alreadyChecked: number;
+  /** Games still to check because the scan stopped early (e.g. the daily AI limit) - the next scan picks them up. */
+  remaining: number;
   fallback: AiFallbackNotice | null;
   /** Why the scan ended early (provider error, the daily limit on the shared AI), if it did; what was found is kept. */
   stopped: string | null;

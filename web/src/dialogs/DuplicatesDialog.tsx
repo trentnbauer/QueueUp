@@ -185,6 +185,12 @@ export function DuplicatesDialog() {
           </div>
         )}
         {!run.isPending && !scan && candidates.data && pairs.length === 0 && <span style={st('font:500 14px/1.45 var(--font-ui)')}>{t('settings.duplicates.noCandidates')}</span>}
+        {scan && !run.isPending && scan.remaining > 0 && (
+          <span style={st('font:500 13px/1.45 var(--font-ui);text-wrap:pretty')}>{t('settings.duplicates.remaining', { n: scan.remaining })}</span>
+        )}
+        {scan && !run.isPending && scan.alreadyChecked > 0 && (
+          <span style={st('font:400 12.5px/1.45 var(--font-ui);color:var(--muted);text-wrap:pretty')}>{t('settings.duplicates.alreadyChecked', { n: scan.alreadyChecked })}</span>
+        )}
         {scan && scan.reused > 0 && !run.isPending && (
           <span style={st('font:400 12.5px/1.45 var(--font-ui);color:var(--muted);text-wrap:pretty')}>{t('settings.duplicates.reused', { n: scan.reused })}</span>
         )}
@@ -192,8 +198,8 @@ export function DuplicatesDialog() {
           <span style={st('font:500 14px/1.45 var(--font-ui)')}>
             {scan.pairs.length > 0
               ? t('settings.duplicates.allDone')
-              : scan.checked > 0
-                ? t('settings.duplicates.none', { n: scan.checked })
+              : scan.checked > 0 || scan.alreadyChecked > 0
+                ? t('settings.duplicates.none', { n: scan.checked + scan.alreadyChecked })
                 : scan.candidates === 0
                   ? t('settings.duplicates.noTitleMatches')
                   : t('settings.duplicates.noneAskedAi', { n: scan.reused })}

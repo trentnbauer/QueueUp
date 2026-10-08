@@ -150,7 +150,7 @@ export function parseDuplicateReply(text: string, pairs: [DuplicateSuggestionGam
   return out.sort((x, y) => y.confidence - x.confidence);
 }
 
-const SELECT = { id: true, igdbId: true, title: true, platform: true, releaseYear: true, releaseDate: true, coverImageUrl: true, status: true, igdbCollectionId: true } as const;
+const SELECT = { id: true, igdbId: true, title: true, platform: true, releaseYear: true, releaseDate: true, duplicateCheckedAt: true, coverImageUrl: true, status: true, igdbCollectionId: true } as const;
 
 /** How many pairs on the person's shelf the cheap, no-AI pre-filter thinks might be the same game
  * (not counting ones they said are different). Costs nothing, so the shelf can show a "possible
@@ -161,7 +161,7 @@ export async function countDuplicateCandidates(userId: string): Promise<number> 
     prisma.duplicateDismissal.findMany({ where: { userId } }),
   ]);
   const dismissed = new Set(dismissals.map((d) => igdbPairKey(d.igdbIdLow, d.igdbIdHigh)));
-  const sameIgdb = sameIgdbPairs(games.map(({ igdbCollectionId: _c, releaseDate: _d, ...g }) => g)).filter((p) => !dismissed.has(igdbPairKey(p.a.igdbId, p.b.igdbId)));
+  const sameIgdb = sameIgdbPairs(games.map(({ igdbCollectionId: _c, releaseDate: _d, duplicateCheckedAt: _k, ...g }) => g)).filter((p) => !dismissed.has(igdbPairKey(p.a.igdbId, p.b.igdbId)));
   return sameIgdb.length + findCandidatePairs(games, dismissed, MAX_SCAN_PAIRS).length;
 }
 
@@ -174,7 +174,7 @@ export async function listDuplicateCandidates(userId: string): Promise<Duplicate
     prisma.duplicateDismissal.findMany({ where: { userId } }),
   ]);
   const dismissed = new Set(dismissals.map((d) => igdbPairKey(d.igdbIdLow, d.igdbIdHigh)));
-  const strip = ({ igdbCollectionId: _c, releaseDate: _d, ...g }: (typeof games)[number]): DuplicateSuggestionGame => g;
+  const strip = ({ igdbCollectionId: _c, releaseDate: _d, duplicateCheckedAt: _k, ...g }: (typeof games)[number]): DuplicateSuggestionGame => g;
   const candidates = findCandidatePairs(games, dismissed, MAX_SCAN_PAIRS);
   const knowledge = candidates.length ? await loadDuplicateKnowledge(userId, games.map((g) => g.igdbId)) : null;
   // Cards IGDB lists as the same game come first: certain duplicates.
@@ -208,10 +208,10 @@ export async function aiScanDuplicates(userId: string, opts: { fresh?: boolean }
   ]);
   if (games.length < 2) {
     appLog().info({ duplicateScan: { userId, games: games.length } }, `Find duplicate games for ${userId}: fewer than two shelf games, so the AI was not asked`);
-    return { pairs: [], candidates: 0, checked: 0, reused: 0, fallback: null, stopped: null };
+    return { pairs: [], candidates: 0, checked: 0, reused: 0, alreadyChecked: 0, remaining: 0, fallback: null, stopped: null };
   }
   const dismissed = new Set(dismissals.map((d) => igdbPairKey(d.igdbIdLow, d.igdbIdHigh)));
-  const strip = ({ igdbCollectionId: _c, releaseDate: _d, ...g }: (typeof games)[number]): DuplicateSuggestionGame => g;
+  const strip = ({ igdbCollectionId: _c, releaseDate: _d, duplicateCheckedAt: _k, ...g }: (typeof games)[number]): DuplicateSuggestionGame => g;
   const knowledge = await loadDuplicateKnowledge(userId, games.map((g) => g.igdbId));
   const cards = games.map(strip);
 
@@ -219,34 +219,52 @@ export async function aiScanDuplicates(userId: string, opts: { fresh?: boolean }
   const sameIgdb = sameIgdbPairs(cards).filter((p) => !dismissed.has(igdbPairKey(p.a.igdbId, p.b.igdbId)));
   const found = new Map<string, DuplicateSuggestion>();
   let reused = 0;
-  // Pairs whose titles look alike that something is already known about.
-  const candidates = findCandidatePairs(games, dismissed, MAX_SCAN_PAIRS);
-  for (const [ca, cb] of candidates) {
-    const a = strip(ca);
-    const b = strip(cb);
-    const key = igdbPairKey(a.igdbId, b.igdbId);
-    const merge = knowledge.merges.get(key);
-    if (merge) {
-      reused += 1;
-      found.set(key, { a, b, keep: merge.keepIgdbId === a.igdbId ? 'a' : 'b', confidence: Math.min(0.99, 0.85 + 0.03 * merge.users), reason: '', source: 'community', mergedBy: merge.users });
-      continue;
-    }
-    const verdict = opts.fresh ? undefined : knowledge.verdicts.get(key);
-    if (verdict?.same && (verdict.confidence ?? 1) >= AI_DUPLICATE_MIN_CONFIDENCE) {
+  // Then what is already known, for any two cards on the shelf whatever their titles: pairs enough other
+  // people merged, and (unless scanning afresh) earlier AI answers.
+  const byIgdb = new Map<number, DuplicateSuggestionGame>();
+  for (const c of cards) if (!byIgdb.has(c.igdbId)) byIgdb.set(c.igdbId, c);
+  const known = (key: string): [DuplicateSuggestionGame, DuplicateSuggestionGame] | null => {
+    const [low, high] = key.split(':').map(Number);
+    const a = byIgdb.get(low);
+    const b = byIgdb.get(high);
+    return a && b && low !== high && !dismissed.has(key) ? [a, b] : null;
+  };
+  for (const [key, merge] of knowledge.merges) {
+    const pair = known(key);
+    if (!pair) continue;
+    const [a, b] = pair;
+    reused += 1;
+    found.set(key, { a, b, keep: merge.keepIgdbId === a.igdbId ? 'a' : 'b', confidence: Math.min(0.99, 0.85 + 0.03 * merge.users), reason: '', source: 'community', mergedBy: merge.users });
+  }
+  if (!opts.fresh) {
+    for (const [key, verdict] of knowledge.verdicts) {
+      const pair = known(key);
+      if (!pair || found.has(key) || knowledge.notDuplicates.has(key) || !verdict.same || (verdict.confidence ?? 1) < AI_DUPLICATE_MIN_CONFIDENCE) continue;
+      const [a, b] = pair;
       reused += 1;
       const keep = verdict.keepIgdbId === a.igdbId ? 'a' : verdict.keepIgdbId === b.igdbId ? 'b' : chooseKeep(a, b);
       found.set(key, { a, b, keep, confidence: verdict.confidence ?? 0.8, reason: verdict.reason ?? '', source: 'ai' });
     }
   }
+  const candidates = findCandidatePairs(games, dismissed, MAX_SCAN_PAIRS);
+
+  // Then the AI: the shelf (one card per IGDB game - its other cards are already paired above) in
+  // title-sorted chunks. A chunk whose cards were all checked by an earlier scan is skipped (its
+  // duplicates come back above from the saved answers), so a scan that ran into the daily AI limit
+  // carries on next time; "Scan again" (fresh) checks everything.
+  const releaseDates = new Map(games.map((g) => [g.id, g.releaseDate]));
+  const checkedAt = new Map(games.map((g) => [g.id, g.duplicateCheckedAt]));
+  const idsByIgdb = new Map<number, string[]>();
+  for (const g of games) idsByIgdb.set(g.igdbId, [...(idsByIgdb.get(g.igdbId) ?? []), g.id]);
+  const seenIgdb = new Set<number>();
+  const allChunks = libraryChunks(cards.filter((c) => !seenIgdb.has(c.igdbId) && seenIgdb.add(c.igdbId)));
+  const chunks = opts.fresh ? allChunks : allChunks.filter((chunkCards) => chunkCards.some((c) => !checkedAt.get(c.id)));
+  const alreadyCheckedIds = new Set(allChunks.filter((c) => !chunks.includes(c)).flat().map((c) => c.id));
 
   const checkedIds = new Set<string>();
   let fallback: AiDuplicateScanResponse['fallback'] = null;
   let stopped: string | null = null;
   const verdictsToSave: Parameters<typeof saveVerdicts>[0] = [];
-  // Then the AI, for everything else: one card per IGDB game (its other cards are already paired above).
-  const releaseDates = new Map(games.map((g) => [g.id, g.releaseDate]));
-  const seenIgdb = new Set<number>();
-  const chunks = libraryChunks(cards.filter((c) => !seenIgdb.has(c.igdbId) && seenIgdb.add(c.igdbId)));
   await runWithConcurrency(chunks, AI_DUPLICATE_PARALLEL, async (chunkCards) => {
     // Once one chunk has failed (e.g. the daily limit) there's no point sending more.
     if (stopped) return;
@@ -262,21 +280,26 @@ export async function aiScanDuplicates(userId: string, opts: { fresh?: boolean }
         // Remember each "same game" answer for everyone. A pair the AI left out is not recorded as "different".
         verdictsToSave.push({ igdbIdA: s.a.igdbId, igdbIdB: s.b.igdbId, same: true, keepIgdbId: s.keep === 'a' ? s.a.igdbId : s.b.igdbId, confidence: s.confidence, reason: s.reason });
       }
+      // Every card of these IGDB games now counts as checked, so the next scan can skip them.
+      const ids = chunkCards.flatMap((c) => idsByIgdb.get(c.igdbId) ?? [c.id]);
+      await prisma.game.updateMany({ where: { id: { in: ids } }, data: { duplicateCheckedAt: new Date() } });
     } catch (err) {
       stopped ??= stopReason(err);
     }
   });
   const checked = checkedIds.size;
+  const alreadyChecked = [...alreadyCheckedIds].filter((id) => !checkedIds.has(id)).length;
+  const remaining = new Set(chunks.flat().map((c) => c.id).filter((id) => !checkedIds.has(id))).size;
   const pairsOut = [...sameIgdb, ...[...found.values()].sort((x, y) => y.confidence - x.confidence)];
   appLog().info(
-    { duplicateScan: { userId, games: games.length, sameIgdb: sameIgdb.length, chunks: chunks.length, checked, similarPairs: candidates.length, reused, found: found.size, stopped } },
-    `Find duplicate games for ${userId}: ${sameIgdb.length} duplicate(s) by IGDB id; sent ${checked} of ${games.length} shelf games to the AI in ${chunks.length} request(s); ${reused} pair(s) already known; ${found.size} more duplicate(s) found${stopped ? `; stopped: ${stopped}` : ''}`,
+    { duplicateScan: { userId, games: games.length, sameIgdb: sameIgdb.length, chunks: chunks.length, skippedChunks: allChunks.length - chunks.length, checked, alreadyChecked, remaining, reused, found: found.size, stopped } },
+    `Find duplicate games for ${userId}: ${sameIgdb.length} duplicate(s) by IGDB id; ${reused} pair(s) already known; sent ${checked} games to the AI in ${chunks.length} request(s), skipped ${alreadyChecked} checked before; ${found.size} more duplicate(s) found${stopped ? `; stopped with ${remaining} game(s) left: ${stopped}` : ''}`,
   );
   if (stopped && checked === 0 && reused === 0 && sameIgdb.length === 0) throw new HttpError(424, stopped);
   await saveVerdicts(verdictsToSave);
   // Tell the person even if they closed the dialog while it ran (best effort; never fails the scan).
   await notifyMergeSuggestions(userId, pairsOut.length);
-  return { pairs: pairsOut, candidates: candidates.length, checked, reused, fallback, stopped };
+  return { pairs: pairsOut, candidates: candidates.length, checked, reused, alreadyChecked, remaining, fallback, stopped };
 }
 
 /** "These are not duplicates": remembered by igdbId pair so the suggestion does not come back. */
