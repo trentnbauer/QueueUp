@@ -1,7 +1,7 @@
 import type { FastifyInstance, FastifyRequest } from 'fastify';
 import type { AdminBackupsResponse, RestoreBackupResponse, UpdateBackupSettingsRequest } from '@queueup/shared';
 import { HttpError } from '../util/httpError.js';
-import { requireAdmin } from '../services/adminAccess.js';
+import { requireAdmin, requireSuperAdmin } from '../services/adminAccess.js';
 import { logAdminAction } from '../services/adminAuditLog.js';
 import { prisma } from '../db/client.js';
 import {
@@ -50,9 +50,11 @@ export default async function adminBackupRoutes(app: FastifyInstance) {
   // raises the body limit (see its options); the rest keep the app default.
   app.addContentTypeParser(['application/gzip', 'application/octet-stream'], { parseAs: 'buffer' }, (_req, body, done) => done(null, body));
 
-  const actor = async (request: { requireAuth: () => Promise<string> }) => {
+  // Listing backups and taking one are for any administrator; everything that hands over, changes or
+  // replaces the data is for a Super administrator (#1102).
+  const actor = async (request: { requireAuth: () => Promise<string> }, opts: { superAdmin?: boolean } = {}) => {
     const userId = await request.requireAuth();
-    await requireAdmin(userId);
+    await (opts.superAdmin ? requireSuperAdmin(userId) : requireAdmin(userId));
     const user = await prisma.user.findUnique({ where: { id: userId }, select: { displayName: true } });
     return { userId, label: user?.displayName ?? userId };
   };
@@ -63,7 +65,7 @@ export default async function adminBackupRoutes(app: FastifyInstance) {
   });
 
   app.patch<{ Body: UpdateBackupSettingsRequest }>('/api/admin/backups/settings', limit, async (request) => {
-    const { userId, label } = await actor(request);
+    const { userId, label } = await actor(request, { superAdmin: true });
     const body = request.body ?? {};
     const settings = await updateBackupSettings(
       {
@@ -85,7 +87,7 @@ export default async function adminBackupRoutes(app: FastifyInstance) {
   });
 
   app.get<{ Params: { name: string } }>('/api/admin/backups/:name/download', limit, async (request, reply) => {
-    const { userId, label } = await actor(request);
+    const { userId, label } = await actor(request, { superAdmin: true });
     const data = await readBackupFile(request.params.name);
     await logAdminAction({ actorId: userId, actorLabel: label, action: 'backup.download', targetLabel: request.params.name });
     reply.header('Content-Type', 'application/gzip');
@@ -94,14 +96,14 @@ export default async function adminBackupRoutes(app: FastifyInstance) {
   });
 
   app.delete<{ Params: { name: string } }>('/api/admin/backups/:name', limit, async (request, reply) => {
-    const { userId, label } = await actor(request);
+    const { userId, label } = await actor(request, { superAdmin: true });
     await deleteBackup(request.params.name);
     await logAdminAction({ actorId: userId, actorLabel: label, action: 'backup.delete', targetLabel: request.params.name });
     return reply.status(204).send();
   });
 
   app.post<{ Params: { name: string } }>('/api/admin/backups/:name/restore', limit, async (request): Promise<RestoreBackupResponse> => {
-    const { userId, label } = await actor(request);
+    const { userId, label } = await actor(request, { superAdmin: true });
     if (!isBackupName(request.params.name)) throw new HttpError(400, 'Not a QueueUp backup file name');
     const result = await restoreBackup(await readBackupFile(request.params.name), restoreOptions(request));
     await logAdminAction({
@@ -114,8 +116,12 @@ export default async function adminBackupRoutes(app: FastifyInstance) {
     return result;
   });
 
-  app.post('/api/admin/backups/import', { ...limit, bodyLimit: MAX_IMPORT_BYTES }, async (request): Promise<RestoreBackupResponse> => {
-    const { userId, label } = await actor(request);
+  app.post(
+    '/api/admin/backups/import',
+    // Checked before the (large) body is read, like the plugin-wide admin check above.
+    { ...limit, bodyLimit: MAX_IMPORT_BYTES, onRequest: async (request) => void (await requireSuperAdmin(await request.requireAuth())) },
+    async (request): Promise<RestoreBackupResponse> => {
+    const { userId, label } = await actor(request, { superAdmin: true });
     if (!Buffer.isBuffer(request.body)) throw new HttpError(400, 'Send the backup file as the request body (application/gzip).');
     const result = await restoreBackup(request.body, restoreOptions(request));
     await logAdminAction({
@@ -125,5 +131,6 @@ export default async function adminBackupRoutes(app: FastifyInstance) {
       metadata: { bytes: request.body.length, rows: result.rows, skippedEncrypted: result.skippedEncrypted, safetyBackup: result.safetyBackup },
     });
     return result;
-  });
+  },
+  );
 }

@@ -1,5 +1,6 @@
 import { describe, it, expect } from 'vitest';
-import { computeIsAdmin, primaryProviderOf } from './auth.js';
+import { blockedWhileViewingAs, computeIsAdmin, primaryProviderOf } from './auth.js';
+import { viewAsRefusal } from '../services/adminAccess.js';
 
 describe('computeIsAdmin', () => {
   it('grants admin to everyone when DEV_FAKE_AUTH is on', () => {
@@ -40,5 +41,24 @@ describe('primaryProviderOf', () => {
     expect(primaryProviderOf('google:abc')).toBe('google');
     expect(primaryProviderOf('steam:76561198000000000')).toBe('steam');
     expect(primaryProviderOf('oidc:some-sub')).toBe('oidc');
+  });
+});
+
+describe('view as user (#1102)', () => {
+  it('lets reads through and refuses every change, except the routes that opt in', () => {
+    for (const m of ['GET', 'HEAD', 'OPTIONS', 'get']) expect(blockedWhileViewingAs(m, undefined)).toBe(false);
+    for (const m of ['POST', 'PUT', 'PATCH', 'DELETE']) expect(blockedWhileViewingAs(m, undefined)).toBe(true);
+    expect(blockedWhileViewingAs('DELETE', true)).toBe(false);
+    expect(blockedWhileViewingAs('POST', false)).toBe(true);
+  });
+
+  it('keeps Super administrators out of reach of plain Administrators', () => {
+    const admin = { id: 'a', isSuperAdmin: false };
+    const owner = { id: 'o', isSuperAdmin: true };
+    const person = { id: 'p', isSuperAdmin: false };
+    expect(viewAsRefusal(admin, person)).toBeNull();
+    expect(viewAsRefusal(admin, owner)).toMatch(/Super administrator/);
+    expect(viewAsRefusal(owner, { id: 'o2', isSuperAdmin: true })).toBeNull();
+    expect(viewAsRefusal(admin, admin)).toBe('That is you');
   });
 });

@@ -127,7 +127,7 @@ export default async function aiSettingsRoutes(app: FastifyInstance) {
       const one = await aiCompleteEntry('server', index, TEST_REQUEST);
       return { ok: true, source: 'server', provider: one.provider, model: one.model, reply: one.text.trim().slice(0, 200), fallback: null };
     }
-    const res = await aiCompleteWithServer(TEST_REQUEST);
+    const res = await aiCompleteWithServer(TEST_REQUEST, actorId);
     return { ok: true, source: 'server', provider: res.provider, model: res.model, reply: res.text.trim().slice(0, 200), fallback: res.fallback };
   });
 

@@ -32,6 +32,7 @@ import type {
 } from '@queueup/shared';
 import { MAX_ACTIVE_API_KEYS, MAX_API_KEY_EXPIRY_DAYS } from '@queueup/shared';
 import { unlockActivityBadges, unlockBadgeQuietly, unlockFeatureBadges } from '../services/badges.js';
+import { purgeDeletedRoomsCreatedBy } from '../services/roomDeletion.js';
 
 function toApiKeySummary(key: {
   id: string;
@@ -234,7 +235,7 @@ export default async function authRoutes(app: FastifyInstance) {
 
   // POST, not GET: a GET sign-out can be fired by any page that embeds an <img> or link to it.
   // The session cookie is SameSite=Lax, so a cross-site POST never carries it.
-  app.post('/auth/logout', async (request, reply) => {
+  app.post('/auth/logout', { config: { allowWhileViewingAs: true } }, async (request, reply) => {
     await request.session.destroy();
     return reply.status(204).send();
   });
@@ -258,11 +259,16 @@ export default async function authRoutes(app: FastifyInstance) {
     // One-shot: set by the auth callback right after account creation (issue #359), cleared here
     // so only the very next /api/me call after signup ever sees it true - every later call in the
     // same or a future session sees the normal false, even without the session regenerating again.
-    const isNewAccount = request.session.isNewAccount === true;
+    // While an administrator views as someone (#1102), the session's one-shot flags are theirs.
+    const view = request.viewingAs();
+    const isNewAccount = !view && request.session.isNewAccount === true;
     if (isNewAccount) delete request.session.isNewAccount;
+    const viewer = view ? await prisma.user.findUnique({ where: { id: request.realUserId() ?? '' } }) : null;
 
     return reply.send({
       user: toUserDto(user),
+      isSuperAdmin: user.isSuperAdmin,
+      viewingAs: view && viewer ? { until: new Date(view.until).toISOString(), viewer: toUserDto(viewer) } : null,
       steamLinked: resolveSteamId64(user) !== null,
       ownedPlatforms: user.ownedPlatforms,
       publicProfileEnabled: user.publicProfileEnabled,
@@ -272,7 +278,8 @@ export default async function authRoutes(app: FastifyInstance) {
       primaryProvider,
       linkedProviders,
       isNewAccount,
-      onboardingPending: user.onboardingPending,
+      // Nothing can be changed while viewing as someone, so their walkthrough stays closed.
+      onboardingPending: view ? false : user.onboardingPending,
     });
   });
 
@@ -578,7 +585,7 @@ export default async function authRoutes(app: FastifyInstance) {
       // (DELETE /api/admin/users/:id). Deleting or transferring ownership of those rooms first is
       // a deliberate, visible action the account owner takes via Room Settings, rather than this
       // silently destroying (or silently reassigning) rooms shared with other people.
-      const createdRoomCount = await prisma.room.count({ where: { createdBy: userId } });
+      const createdRoomCount = await prisma.room.count({ where: { createdBy: userId, deletedAt: null } });
       if (createdRoomCount > 0) {
         throw new HttpError(
           400,
@@ -602,6 +609,8 @@ export default async function authRoutes(app: FastifyInstance) {
       // Everything else (linked identities, game ownership claims, room memberships, games added,
       // votes cast, direct notifications) cascades via the schema's onDelete: Cascade - see
       // schema.prisma's User model relations.
+      // Rooms they created and already deleted (#1103) go with the account (see roomDeletion.ts).
+      await purgeDeletedRoomsCreatedBy(userId);
       await prisma.user.delete({ where: { id: userId } });
 
       app.log.warn(

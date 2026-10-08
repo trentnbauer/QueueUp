@@ -6,6 +6,10 @@ export const authApi = {
   me: () =>
     apiGet<{
       user: User | null;
+      /** Can also do the destructive administrator things (#1102). */
+      isSuperAdmin?: boolean;
+      /** Set while an administrator is viewing the app as this user (#1102): until when, and who is looking. */
+      viewingAs?: { until: string; viewer: User } | null;
       steamLinked: boolean;
       ownedPlatforms: RoomPlatform[];
       /** Who can open this account's /u/:id profile page: anyone, friends, or only them. */

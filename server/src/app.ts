@@ -53,6 +53,7 @@ import accountEventRoutes from './routes/accountEvents.js';
 import { env } from './config/env.js';
 import { redis } from './services/redisClient.js';
 import { logCaptureStream } from './services/logBuffer.js';
+import { setAppLogger } from './services/appLogger.js';
 import { isCrossOriginWrite } from './util/crossOrigin.js';
 
 /** Requests slower than this are logged even with per-request logging off (see LOG_REQUESTS). */
@@ -72,6 +73,7 @@ export async function buildApp() {
     // no longer list `number` in this overload, hence the cast.
     trustProxy: env.TRUST_PROXY as boolean | string | string[],
   });
+  setAppLogger(app.log);
 
   // new URL(...).origin, not the raw env.APP_BASE_URL string (issue #438 drive-by fix) - the
   // browser's Origin request header is always scheme+host+port, never a path, so once

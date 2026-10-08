@@ -840,7 +840,9 @@ export function MeDialog() {
   const total = badges ? badges.badges.length : null;
   const profileUrl = `${window.location.origin}${getBasePath()}/u/${profileSlug ?? user.id}`;
 
-  async function syncLibraries() {
+  // One button for both: new games and wishlist items from every linked library, then trophies and
+  // achievements (when a linked source has them) - the same order the automatic sync uses.
+  async function syncAll() {
     if (sync.busy) return;
     if (!sync.hasLinked) {
       // Nothing to sync yet: the Libraries dialog is where one gets linked.
@@ -848,13 +850,13 @@ export function MeDialog() {
       return;
     }
     const ok = await confirm({
-      title: t('settings.me.syncLibraries.confirmTitle'),
-      message: t('settings.me.syncLibraries.confirmMessage', { sources: sync.linkedLabels.join(', ') }),
+      title: t('settings.me.syncAll.confirmTitle'),
+      message: t(sync.hasAchievementSource ? 'settings.me.syncAll.confirmMessage' : 'settings.me.syncLibraries.confirmMessage', { sources: sync.linkedLabels.join(', ') }),
       confirmLabel: t('settings.me.sync'),
     });
     if (!ok) return;
     close();
-    ui.notify(t('settings.me.syncLibraries.syncing'));
+    ui.notify(t('settings.me.syncAll.syncing'));
     const { failed, skipped } = await sync.syncLibraries();
     // Each failure is also in the person's notifications, with the reason.
     const parts = [
@@ -862,18 +864,10 @@ export function MeDialog() {
       skipped.length > 0 ? t('settings.me.syncLibraries.skipped', { sources: skipped.join(', ') }) : '',
     ];
     ui.notify(parts.filter(Boolean).join(' '));
-  }
-
-  async function syncAchievements() {
-    if (sync.busy) return;
-    if (!sync.hasAchievementSource) {
-      // Only Steam has achievements to check; without it linked, the Libraries dialog is the way in.
-      open('import')();
-      return;
+    if (sync.hasAchievementSource) {
+      ui.notify(t('settings.me.syncAchievements.checking'));
+      await sync.syncAchievements();
     }
-    close();
-    ui.notify(t('settings.me.syncAchievements.checking'));
-    await sync.syncAchievements();
   }
 
   async function saveName() {
@@ -957,8 +951,7 @@ export function MeDialog() {
         {error && <Banner onDismiss={() => setError(null)}>{error}</Banner>}
 
         <div style={st('display:flex;gap:10px;align-items:stretch')}>
-          <SyncButton label={t('settings.me.syncLibraries')} accent={sync.hasLinked} disabled={sync.busy} onClick={syncLibraries} />
-          <SyncButton label={t('settings.me.syncAchievements')} disabled={sync.busy} onClick={syncAchievements} />
+          <SyncButton label={t('settings.me.syncAll')} accent={sync.hasLinked} disabled={sync.busy} onClick={syncAll} />
         </div>
 
         <Group>

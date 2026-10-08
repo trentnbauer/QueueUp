@@ -13,6 +13,7 @@ import { GlancePanel } from './GlancePanel';
 import { MobileTopBar } from './MobileTopBar';
 import { Overlays } from './Overlays';
 import { VerifyEmailBanner } from './VerifyEmailBanner';
+import { ViewingAsBanner } from './ViewingAsBanner';
 import { Rail, Sidebar } from './Sidebar';
 
 const COLLAPSED_KEY = 'qu-sidebar-collapsed';
@@ -67,7 +68,9 @@ export function AppShell({ children }: { children: ReactNode }) {
   if (mobile) {
     return (
       <div {...roomScope} style={{ ...st('min-height:100vh;background:var(--bg);color:var(--text)'), ...roomScope.style }}>
-        <VerifyEmailBanner />
+        <ViewingAsBanner />
+        <ViewingAsBanner />
+      <VerifyEmailBanner />
         <div style={st('display:flex;flex-direction:column;gap:18px;padding:16px 16px 110px')}>
           <MobileTopBar />
           {children}

@@ -18,6 +18,7 @@ import {
 import { AiProviderError, callProvider, PROVIDER_DEFAULTS, type AiConfig, type AiRequest, type AiResponse } from './providers.js';
 import { chargeServerAiUse, type AiCharge } from './aiQuota.js';
 import { recordServerAiUsage } from './aiServerUsage.js';
+import { logAiCall, whoseAi } from './aiCallLog.js';
 import { assertPublicTarget } from './aiNetworkGuard.js';
 import { runAiJob } from './aiJobs.js';
 import { coolDownSeconds, coolingReason, cooldownKey, endCooldown, startCooldown } from './aiCooldown.js';
@@ -210,7 +211,7 @@ async function runChain(
   /** Who to add the server AI's answered calls to, for the monthly use in Administrator settings.
    * `wholeChain` says every entry is the server's own AI (not just a last resort). */
   usage?: { userId: string; wholeChain: boolean },
-): Promise<AiResponse & { fallback: AiFallbackNotice | null }> {
+): Promise<AiResponse & { fallback: AiFallbackNotice | null; viaServer: boolean }> {
   let firstFailure: { config: AiConfig; message: string } | null = null;
   const failures: string[] = [];
   const allowPrivate = (await getEnv()).AI_ALLOW_PRIVATE_BASE_URL;
@@ -265,7 +266,7 @@ async function runChain(
       if (usage && (usage.wholeChain || config.viaServer)) await recordServerAiUsage(usage.userId, res.usage);
       if (!firstFailure) {
         clearLastFallback(owner);
-        return { ...res, fallback: null };
+        return { ...res, fallback: null, viaServer: !!config.viaServer };
       }
       const fallback: AiFallbackNotice = {
         at: new Date().toISOString(),
@@ -277,7 +278,7 @@ async function runChain(
       };
       recordFallback(owner, fallback);
       console.warn(`AI provider ${fallback.failedProvider} (${fallback.failedModel}) failed for ${owner}: ${fallback.error}. Used ${fallback.usedProvider} (${fallback.usedModel}) instead.`);
-      return { ...res, fallback };
+      return { ...res, fallback, viaServer: !!config.viaServer };
     } catch (err) {
       if (!(err instanceof AiProviderError)) throw err;
       const wait = coolDownSeconds(err);
@@ -301,24 +302,36 @@ export async function aiComplete(
   req: AiRequest,
   opts: { userId?: string; roomId?: string; /** What kind of request this is, for the activity list shown to the person. */ label?: string } = {},
 ): Promise<AiResponse & { source: AiSettingsSource; fallback: AiFallbackNotice | null }> {
-  const resolved = await resolveAiChain(opts.userId, opts.roomId);
-  if (!resolved) throw new HttpError(400, 'AI is not set up. Add a provider in your account settings, or ask the server admin to set one.');
-  // Only the operator's own key is rationed; a person's or a sponsor's key costs the server nothing.
-  const charge = resolved.source === 'server' && opts.userId ? await chargeServerAiUse(opts.userId) : null;
+  const started = Date.now();
+  const log = { userId: opts.userId, roomId: opts.roomId, label: opts.label };
+  let resolved: Awaited<ReturnType<typeof resolveAiChain>> = null;
   try {
-    const res = await runAiJob(opts.userId, opts.label ?? 'ai', () => runChain(
-        resolved.configs,
-        resolved.owner,
-        req,
-        resolved.source === 'server' ? undefined : opts.userId,
-        opts.userId ? { userId: opts.userId, wholeChain: resolved.source === 'server' } : undefined,
-      ),
-    );
+    resolved = await resolveAiChain(opts.userId, opts.roomId);
+    if (!resolved) throw new HttpError(400, 'AI is not set up. Add a provider in your account settings, or ask the server admin to set one.');
+    const chain = resolved;
+    // Only the operator's own key is rationed; a person's or a sponsor's key costs the server nothing.
+    const charge = chain.source === 'server' && opts.userId ? await chargeServerAiUse(opts.userId) : null;
+    let res: Awaited<ReturnType<typeof runChain>>;
+    try {
+      res = await runAiJob(opts.userId, opts.label ?? 'ai', () =>
+        runChain(
+          chain.configs,
+          chain.owner,
+          req,
+          chain.source === 'server' ? undefined : opts.userId,
+          opts.userId ? { userId: opts.userId, wholeChain: chain.source === 'server' } : undefined,
+        ),
+      );
+    } catch (err) {
+      // The provider failing is not the person's doing - give the use back.
+      await charge?.refund();
+      throw err;
+    }
     if (opts.userId) unlockBadgeQuietly(opts.userId, 'first_ai_used');
-    return { ...res, source: resolved.source };
+    void logAiCall({ ...log, ai: whoseAi(chain.source, res.viaServer), ok: true, ms: Date.now() - started, provider: res.provider, model: res.model, fellBack: !!res.fallback });
+    return { ...res, source: chain.source };
   } catch (err) {
-    // The provider failing is not the person's doing - give the use back.
-    await charge?.refund();
+    void logAiCall({ ...log, ai: whoseAi(resolved?.source ?? null, false), ok: false, ms: Date.now() - started, error: err instanceof Error ? err.message : String(err) });
     throw err;
   }
 }
@@ -385,14 +398,31 @@ export async function aiCompleteEntry(
   if (scope !== 'server' && parts.userSupplied && !env.AI_ALLOW_USER_BASE_URL) throw new HttpError(403, 'This server does not allow a custom AI address in personal settings');
   const config: AiConfig = parts.userSupplied ? { ...built, userSupplied: true } : built;
   // A throwaway owner, so a test never touches the "first provider failed" notice a real call leaves.
-  return runAiJob(scope === 'server' ? undefined : scope.userId, 'test', () => runChain([config], 'entry-test', req));
+  const started = Date.now();
+  const log = { userId: scope === 'server' ? undefined : scope.userId, label: 'test', ai: scope === 'server' ? ('server' as const) : ('personal' as const), provider: config.provider, model: config.model };
+  try {
+    const res = await runAiJob(log.userId, 'test', () => runChain([config], 'entry-test', req));
+    void logAiCall({ ...log, ok: true, ms: Date.now() - started });
+    return res;
+  } catch (err) {
+    void logAiCall({ ...log, ok: false, ms: Date.now() - started, error: err instanceof Error ? err.message : String(err) });
+    throw err;
+  }
 }
 
 /** Same as aiComplete but for the server-wide settings only (the Administrator's "test" button). */
-export async function aiCompleteWithServer(req: AiRequest): Promise<AiResponse & { fallback: AiFallbackNotice | null }> {
+export async function aiCompleteWithServer(req: AiRequest, userId?: string): Promise<AiResponse & { fallback: AiFallbackNotice | null }> {
   const configs = await getServerAiChain();
-  if (!configs.length) throw new HttpError(400, 'No server-wide AI provider is set up. Set a provider and model first.');
-  return runChain(configs, 'server', req);
+  const started = Date.now();
+  try {
+    if (!configs.length) throw new HttpError(400, 'No server-wide AI provider is set up. Set a provider and model first.');
+    const res = await runChain(configs, 'server', req);
+    void logAiCall({ userId, label: 'test', ai: 'server', ok: true, ms: Date.now() - started, provider: res.provider, model: res.model, fellBack: !!res.fallback });
+    return res;
+  } catch (err) {
+    void logAiCall({ userId, label: 'test', ai: 'server', ok: false, ms: Date.now() - started, error: err instanceof Error ? err.message : String(err) });
+    throw err;
+  }
 }
 
 function toUserSettings(

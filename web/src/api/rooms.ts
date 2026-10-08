@@ -1,5 +1,6 @@
 import { apiGet, apiPost, apiPatch, apiPut, apiDelete } from './client';
 import type {
+  DeletedRoomSummary,
   ActiveRoomSpin,
   BadgeDefinition,
   CreateRoomRequest,
@@ -36,6 +37,8 @@ export const roomsApi = {
   create: (body: CreateRoomRequest) => apiPost<{ room: Room; unlockedBadges: BadgeDefinition[] }>('/api/rooms', body),
   join: (body: JoinRoomRequest) => apiPost<{ room: Room; unlockedBadges: BadgeDefinition[] }>('/api/rooms/join', body),
   publicRooms: () => apiGet<{ rooms: PublicRoomSummary[] }>('/api/rooms/public'),
+  deleted: () => apiGet<{ rooms: DeletedRoomSummary[] }>('/api/rooms/deleted'),
+  restore: (roomId: string) => apiPost<{ room: Room }>(`/api/rooms/${roomId}/restore`, {}),
   joinPublic: (roomId: string) =>
     apiPost<{ room: Room; unlockedBadges: BadgeDefinition[] }>(`/api/rooms/${roomId}/join-public`, {}),
   get: (roomId: string) => apiGet<{ room: Room }>(`/api/rooms/${roomId}`),

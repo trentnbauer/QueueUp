@@ -2,12 +2,13 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 const roomMemberFind = vi.fn();
 const roomFind = vi.fn();
+const roomFindUnique = vi.fn();
 const userFind = vi.fn();
 vi.mock('../db/client.js', () => ({
   prisma: {
     user: { findUnique: (...a: unknown[]) => userFind(...a) },
     roomMember: { findUnique: (...a: unknown[]) => roomMemberFind(...a) },
-    room: { findUniqueOrThrow: (...a: unknown[]) => roomFind(...a) },
+    room: { findUniqueOrThrow: (...a: unknown[]) => roomFind(...a), findUnique: (...a: unknown[]) => roomFindUnique(...a) },
   },
 }));
 
@@ -54,6 +55,8 @@ describe('requireMembership for an administrator managing the room (#792)', () =
   beforeEach(() => {
     roomMemberFind.mockReset();
     managing.mockReset();
+    roomFindUnique.mockReset();
+    roomFindUnique.mockResolvedValue({ deletedAt: null });
   });
 
   it('acts as Room Master while "Manage as Room Master" is on and they are still an administrator', async () => {
@@ -68,6 +71,14 @@ describe('requireMembership for an administrator managing the room (#792)', () =
     managing.mockResolvedValue(1);
     userFind.mockResolvedValue({ isAdmin: false });
     await expect(requireMembership('r', 'admin')).rejects.toMatchObject({ statusCode: 403 });
+  });
+
+  it('treats a deleted room as gone (#1103)', async () => {
+    roomMemberFind.mockResolvedValue(null);
+    managing.mockResolvedValue(1);
+    userFind.mockResolvedValue({ isAdmin: true });
+    roomFindUnique.mockResolvedValue({ deletedAt: new Date() });
+    await expect(requireMembership('r', 'admin')).rejects.toMatchObject({ statusCode: 404 });
   });
 
   it('refuses when it is off', async () => {

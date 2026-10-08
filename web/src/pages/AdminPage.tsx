@@ -1,7 +1,7 @@
 import { Fragment, useState } from 'react';
 import { useNavigate } from 'react-router';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
-import { ROOM_PLATFORM_LABELS, type AdminIntegrationStatus, type ConfigSource, type IntegrationConfigKey, type TunnelState } from '@queueup/shared';
+import { ROOM_PLATFORM_LABELS, type AdminIntegrationStatus, type DeletedRoomSummary, type ConfigSource, type IntegrationConfigKey, type TunnelState } from '@queueup/shared';
 import { adminApi } from '../api/admin';
 import { useAuth } from '../context/AuthContext';
 import { useConfirm } from '../context/ConfirmContext';
@@ -13,6 +13,7 @@ import { AdminAiSection } from './AdminAiSection';
 import { AdminBackups } from './AdminBackups';
 import { AdminEmailLog } from './AdminEmailLog';
 import { AdminRoomView } from './AdminRoomView';
+import { DeletedRoomsList } from '../dialogs/DeletedRooms';
 import { PageShell } from './PageShell';
 import { rich, t as tr, useT, type MessageKey } from '../i18n';
 
@@ -58,7 +59,7 @@ const PILL = 'height:30px;padding:0 12px;border-radius:999px;background:var(--su
 
 /** Administrator settings: integration keys, rooms and users on this server. */
 export function AdminPage() {
-  const { user } = useAuth();
+  const { user, isSuperAdmin } = useAuth();
   const t = useT();
   const qc = useQueryClient();
   const confirm = useConfirm();
@@ -80,6 +81,8 @@ export function AdminPage() {
   });
   const users = useQuery({ queryKey: ['admin', 'users'], queryFn: adminApi.users, enabled });
   const rooms = useQuery({ queryKey: ['admin', 'rooms'], queryFn: adminApi.rooms, enabled });
+  const deletedRooms = useQuery({ queryKey: ['admin', 'deleted-rooms'], queryFn: adminApi.deletedRooms, enabled });
+  const [roomBusy, setRoomBusy] = useState<string | null>(null);
 
   if (!user) return null;
   if (!user.isAdmin) {
@@ -163,9 +166,39 @@ export function AdminPage() {
     try {
       await adminApi.deleteRoom(id);
       qc.invalidateQueries({ queryKey: ['admin', 'rooms'] });
+      qc.invalidateQueries({ queryKey: ['admin', 'deleted-rooms'] });
       qc.invalidateQueries({ queryKey: ['rooms'] });
     } catch (e) {
       fail(e, t('pages.admin.deleteRoomFailed'));
+    }
+  }
+
+  async function restoreRoom(r: DeletedRoomSummary) {
+    setRoomBusy(r.id);
+    try {
+      await adminApi.restoreRoom(r.id);
+      qc.invalidateQueries({ queryKey: ['admin', 'rooms'] });
+      qc.invalidateQueries({ queryKey: ['admin', 'deleted-rooms'] });
+      qc.invalidateQueries({ queryKey: ['rooms'] });
+      ui.notify(t('room.deleted.restored', { name: r.name }));
+    } catch (e) {
+      fail(e, t('room.deleted.restoreError'));
+    } finally {
+      setRoomBusy(null);
+    }
+  }
+
+  async function purgeRoom(r: DeletedRoomSummary) {
+    const ok = await confirm({ title: t('pages.admin.purgeTitle', { name: r.name }), message: t('pages.admin.purgeMessage'), confirmLabel: t('room.deleted.purge'), danger: true });
+    if (!ok) return;
+    setRoomBusy(r.id);
+    try {
+      await adminApi.purgeRoom(r.id);
+      qc.invalidateQueries({ queryKey: ['admin', 'deleted-rooms'] });
+    } catch (e) {
+      fail(e, t('pages.admin.purgeFailed'));
+    } finally {
+      setRoomBusy(null);
     }
   }
 
@@ -186,12 +219,22 @@ export function AdminPage() {
     }
   }
 
-  async function setAdmin(id: string, isAdmin: boolean) {
+  async function setRole(id: string, role: 'user' | 'admin' | 'super_admin') {
     try {
-      await adminApi.setUserAdmin(id, isAdmin);
+      await adminApi.setUserRole(id, role);
       qc.invalidateQueries({ queryKey: ['admin', 'users'] });
     } catch (e) {
       fail(e, t('pages.admin.roleFailed'));
+    }
+  }
+
+  // #1102: see the app as this person, read-only, until they Exit from the banner.
+  async function viewAs(id: string) {
+    try {
+      await adminApi.viewAs(id);
+      window.location.assign(`${getBasePath()}/`);
+    } catch (e) {
+      fail(e, t('pages.admin.viewAsFailed'));
     }
   }
 
@@ -272,9 +315,13 @@ export function AdminPage() {
 
       {status && (
         <Collapsible title={t('pages.admin.integrationKeys')}>
-          <Group>
-            {fields(status).map(keyRow)}
-          </Group>
+          {/* Changing keys is for Super administrators (#1102): the rows stay readable, the controls off. */}
+          {!isSuperAdmin && <span style={st('font:400 12.5px/1.45 var(--font-ui);color:var(--muted)')}>{t('pages.admin.superOnlyKeys')}</span>}
+          <fieldset disabled={!isSuperAdmin} style={st('border:none;margin:0;padding:0;min-width:0')}>
+            <Group>
+              {fields(status).map(keyRow)}
+            </Group>
+          </fieldset>
         </Collapsible>
       )}
 
@@ -356,15 +403,18 @@ export function AdminPage() {
                   {t('pages.admin.manage')}
                 </Btn>
               )}
-              <Btn kind="ghost" height={32} padX={12} fontSize={12.5} style={{ color: 'var(--danger)' }} onClick={() => deleteRoom(r.id, r.name)}>
-                {t('common.delete')}
-              </Btn>
+              {isSuperAdmin && (
+                <Btn kind="ghost" height={32} padX={12} fontSize={12.5} style={{ color: 'var(--danger)' }} onClick={() => deleteRoom(r.id, r.name)}>
+                  {t('common.delete')}
+                </Btn>
+              )}
             </div>
             {openRoom === r.id && <AdminRoomView roomId={r.id} />}
             </Fragment>
           ))}
           {rooms.data?.rooms.length === 0 && <div style={st('padding:16px;background:var(--surf);color:var(--muted);font-size:14px')}>{t('pages.admin.noRooms')}</div>}
         </Group>
+        <DeletedRoomsList rooms={deletedRooms.data?.rooms ?? []} busy={roomBusy} onRestore={(r) => void restoreRoom(r)} onPurge={isSuperAdmin ? (r) => void purgeRoom(r) : undefined} />
       </Collapsible>
 
       <Collapsible title={t('pages.admin.users', { n: users.data?.users.length ?? 0 })}>
@@ -397,17 +447,24 @@ export function AdminPage() {
                     <option value="on">{t('pages.admin.aiAccessOn')}</option>
                   </select>
                 )}
+                {!me && (isSuperAdmin || !u.isSuperAdmin) && (
+                  <Btn kind="ghost" height={32} padX={10} fontSize={12.5} onClick={() => void viewAs(u.id)} title={t('pages.admin.viewAsHint')}>
+                    {t('pages.admin.viewAs')}
+                  </Btn>
+                )}
                 <select
-                  value={u.isAdmin ? 'admin' : 'user'}
-                  disabled={me}
+                  value={u.isSuperAdmin ? 'super_admin' : u.isAdmin ? 'admin' : 'user'}
+                  disabled={me || !isSuperAdmin}
                   aria-label={t('pages.admin.roleFor', { name: u.displayName })}
-                  onChange={(e) => setAdmin(u.id, e.target.value === 'admin')}
-                  style={st(`height:34px;padding:0 8px;border-radius:10px;background:var(--surf2);border:none;color:var(--text);font-size:13px;outline:none;opacity:${me ? 0.5 : 1}`)}
+                  title={isSuperAdmin ? undefined : t('pages.admin.superOnly')}
+                  onChange={(e) => setRole(u.id, e.target.value as 'user' | 'admin' | 'super_admin')}
+                  style={st(`height:34px;padding:0 8px;border-radius:10px;background:var(--surf2);border:none;color:var(--text);font-size:13px;outline:none;opacity:${me || !isSuperAdmin ? 0.5 : 1}`)}
                 >
                   <option value="user">{t('pages.admin.roleUser')}</option>
                   <option value="admin">{t('pages.admin.roleAdmin')}</option>
+                  <option value="super_admin">{t('pages.admin.roleSuperAdmin')}</option>
                 </select>
-                {!me && (
+                {!me && isSuperAdmin && (
                   <button type="button" onClick={() => deleteUser(u.id, u.displayName)} aria-label={t('pages.admin.deleteUser')} style={st('width:32px;height:32px;border-radius:50%;border:none;background:transparent;color:var(--danger);font-size:17px;line-height:1')}>
                     ×
                   </button>
