@@ -79,12 +79,16 @@ export const ROOM_TABS: TabDef[] = [
   tabDef('dropped', 'home.tab.dropped', ['dropped', 'wont_play']),
 ];
 
-export const SHELF_TABS: TabDef[] = [
+/** The shelf's primary tabs. Play next games sit under Playing, or under Backlog when Shelf settings
+ * says so. */
+export const shelfTabs = (playNextIn: 'playing' | 'backlog' = 'playing'): TabDef[] => [
   tabDef('wishlist', 'home.tab.wishlist', ['wishlist']),
-  tabDef('queue', 'home.tab.backlog', ['backlog']),
-  tabDef('playing', 'home.tab.playing', ['playing', 'play_next', 'paused']),
+  tabDef('queue', 'home.tab.backlog', playNextIn === 'backlog' ? ['backlog', 'play_next'] : ['backlog']),
+  tabDef('playing', 'home.tab.playing', playNextIn === 'backlog' ? ['playing', 'paused'] : ['playing', 'play_next', 'paused']),
   tabDef('replay', 'home.tab.replay', ['replay']),
 ];
+
+export const SHELF_TABS: TabDef[] = shelfTabs();
 
 /** Shelf filters tucked behind the "+" button: game lists by status, plus two lists of synced titles
  * that never became games (they have no status, see HomeView's PendingImportsList). */

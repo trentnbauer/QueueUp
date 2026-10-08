@@ -393,6 +393,8 @@ export const settings = {
   "settings.shelf.sortBy": "SORT BACKLOG BY",
   "settings.shelf.sortHint": "Pick one or more. The first you pick sorts the Backlog; the next breaks ties.",
   "settings.shelf.priority": "priority {n}",
+  "settings.shelf.playNextIn": "SHOW PLAY NEXT IN",
+  "settings.shelf.playNextInHint": "Games marked Play next can sit under Playing, after what you are playing, or at the top of your Backlog.",
   "settings.shelf.export": "EXPORT · {n} GAMES",
   "settings.shelf.exportCsv": "Export CSV",
   "settings.shelf.exportJson": "Export JSON",

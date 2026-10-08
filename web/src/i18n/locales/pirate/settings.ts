@@ -395,6 +395,8 @@ export const settings: Record<keyof typeof en, string> = {
   "settings.shelf.sortBy": "SORT CARGO HOLD BY",
   "settings.shelf.sortHint": "Pick one or more. The first ye pick sorts the Cargo Hold; the next breaks ties.",
   "settings.shelf.priority": "priority {n}",
+  "settings.shelf.playNextIn": "STOW NEXT VOYAGE IN",
+  "settings.shelf.playNextInHint": "Games marked Next Voyage can sit under Sailin’, after what ye be sailin’, or atop yer Cargo hold.",
   "settings.shelf.export": "EXPORT · {n} GAMES",
   "settings.shelf.exportCsv": "Export CSV",
   "settings.shelf.exportJson": "Export JSON",
