@@ -96,7 +96,7 @@ function PlayTogetherRequest({ n, onDone }: { n: Notification; onDone: () => voi
 /** Bell: friend requests, import status, anything waiting for a match, then the unread feed.
  * Closing marks the feed read (so it's empty next time), same as before. */
 /** The kinds of AI request that have their own wording in the activity list; anything else reads "an AI request". */
-const AI_JOB_LABELS = new Set(['duplicates', 'importMatch', 'importClassify', 'picks', 'search', 'tonight', 'price', 'story', 'coach', 'recap', 'test', 'ai']);
+const AI_JOB_LABELS = new Set(['duplicates', 'importMatch', 'importClassify', 'picks', 'search', 'tonight', 'story', 'coach', 'recap', 'test', 'ai']);
 
 export function NotificationsDialog() {
   const ui = useUi();

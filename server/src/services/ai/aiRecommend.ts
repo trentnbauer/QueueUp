@@ -144,10 +144,12 @@ export async function aiRecommendForShelf(userId: string): Promise<AiRecommendRe
     return rev.recommend === true || avg === null || avg >= 3.5;
   };
   const loved = rows.filter(isLoved).slice(0, 25).map((r) => ({ title: r.title, genre: r.genre }));
-  if (loved.length === 0) throw new HttpError(400, 'Finish or play a few games first, so the AI has something to go on.');
+  const interested = rows.filter((r) => ['wishlist', 'play_next', 'backlog'].includes(r.status)).slice(0, 15).map((r) => r.title);
+  // Games they want to play are enough to go on, before anything is finished.
+  if (loved.length === 0 && interested.length === 0) throw new HttpError(400, 'Add a few games you have played or want to play first, so the AI has something to go on.');
   const profile: TasteProfile = {
     loved,
-    interested: rows.filter((r) => r.status === 'wishlist').slice(0, 15).map((r) => r.title),
+    interested,
     disliked: rows.filter((r) => ['dropped', 'wont_play'].includes(r.status) || r.reviews[0]?.recommend === false).slice(0, 10).map((r) => r.title),
   };
   const platforms = await getOwnedPlatforms(userId);
@@ -210,6 +212,6 @@ export async function aiRecommendForRoom(userId: string, roomId: string): Promis
     rows.map((r) => ({ title: r.title, genre: r.genre, status: r.status, reviews: r.reviews, votes: r.votes.map((v) => v.value) })),
     memberCount,
   );
-  if (profile.loved.length === 0) throw new HttpError(400, 'The room needs a few finished, played or well-voted games before the AI has something to go on.');
+  if (profile.loved.length === 0 && profile.interested.length === 0) throw new HttpError(400, 'The room needs a few games in its queue or played before the AI has something to go on.');
   return recommendFromProfile(profile, new Set([...rows.map((r) => r.igdbId), ...(await getHiddenIgdbIds(userId))]), platform ? [platform] : [], { userId, roomId });
 }

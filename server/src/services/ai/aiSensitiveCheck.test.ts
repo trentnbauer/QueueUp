@@ -1,9 +1,9 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
-const m = vi.hoisted(() => ({ findFirst: vi.fn(), update: vi.fn(), resolveAiChain: vi.fn(), aiComplete: vi.fn(), steamAdultOnly: vi.fn() }));
+const m = vi.hoisted(() => ({ findFirst: vi.fn(), findMany: vi.fn(async () => [] as { sensitiveContent: boolean }[]), update: vi.fn(), resolveAiChain: vi.fn(), aiComplete: vi.fn(), steamAdultOnly: vi.fn() }));
 vi.mock('../adultSources.js', () => ({ adultOnlyFromSources: m.steamAdultOnly }));
 vi.mock('../adultHiding.js', () => ({ autoHideWaitingAdultGames: vi.fn() }));
-vi.mock('../../db/client.js', () => ({ prisma: { game: { findFirst: m.findFirst, update: m.update } } }));
+vi.mock('../../db/client.js', () => ({ prisma: { game: { findFirst: m.findFirst, findMany: m.findMany, update: m.update } } }));
 vi.mock('./aiConfig.js', () => ({ resolveAiChain: m.resolveAiChain, aiComplete: m.aiComplete }));
 
 import { buildSensitivePrompt, checkGameSensitive, parseSensitiveReply } from './aiSensitiveCheck.js';
@@ -92,11 +92,24 @@ describe('checkGameSensitive', () => {
     expect(m.aiComplete).not.toHaveBeenCalled();
   });
 
-  it('never uses the shared server AI: only the person\'s own provider', async () => {
+  it('uses the server AI when the person has none of their own, and skips the check with no AI at all', async () => {
     m.resolveAiChain.mockResolvedValue({ configs: [], source: 'server', owner: 'server' });
-    expect(await checkGameSensitive('u1', 'g1')).toEqual({ checked: false, flagged: false });
+    m.aiComplete.mockResolvedValue({ text: '{"erotic":false,"confidence":0.9}' });
+    expect(await checkGameSensitive('u1', 'g1')).toEqual({ checked: true, flagged: false });
+    expect(m.aiComplete).toHaveBeenCalledTimes(1);
+    m.aiComplete.mockClear();
     m.resolveAiChain.mockResolvedValue(null);
     expect(await checkGameSensitive('u1', 'g1')).toEqual({ checked: false, flagged: false });
+    expect(m.aiComplete).not.toHaveBeenCalled();
+  });
+
+  it('follows other people\'s copies of the same game before asking the AI', async () => {
+    m.findMany.mockResolvedValueOnce([{ sensitiveContent: true }]);
+    expect(await checkGameSensitive('u1', 'g1')).toEqual({ checked: true, flagged: true });
+    expect(m.update).toHaveBeenLastCalledWith(expect.objectContaining({ data: { sensitiveContent: true, sensitiveAiChecked: true } }));
+    m.findMany.mockResolvedValueOnce([{ sensitiveContent: false }]);
+    expect(await checkGameSensitive('u1', 'g1')).toEqual({ checked: true, flagged: false });
+    expect(m.update).toHaveBeenLastCalledWith(expect.objectContaining({ data: { sensitiveAiChecked: true } }));
     expect(m.aiComplete).not.toHaveBeenCalled();
   });
 

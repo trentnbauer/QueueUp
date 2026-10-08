@@ -184,8 +184,9 @@ export async function aiBacklogCoach(userId: string): Promise<AiBacklogCoachResp
   const rows: CoachGameRow[] = games.map((g) => ({ ...g, want: g.votes[0]?.value ?? 0 }));
   const summary = summarizeBacklog(rows);
   const candidates = pickCoachCandidates(rows);
-  const history = summary.counts.finished + summary.counts.dropped + summary.counts.wontPlay;
-  if (history < 3 || candidates.length < 3) return { enoughData: false, patterns: [], suggestions: [], fallback: null };
+  // A short history still gets advice on what to play or drop - the prompt only has the numbers there
+  // are - but there must be a couple of backlog games to talk about.
+  if (candidates.length < 2) return { enoughData: false, patterns: [], suggestions: [], fallback: null };
 
   const res = await aiComplete({ system: SYSTEM, messages: [{ role: 'user', content: buildCoachPrompt(summary, candidates) }], maxTokens: 1200, temperature: 0.4 }, { userId, label: 'coach' });
   const parsed = parseCoachReply(res.text, candidates);

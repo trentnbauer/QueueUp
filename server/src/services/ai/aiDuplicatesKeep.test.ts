@@ -3,7 +3,8 @@ import type { DuplicateSuggestionGame } from '@queueup/shared';
 
 const gameFindMany = vi.fn();
 const dismissalFindMany = vi.fn(async () => []);
-vi.mock('../../db/client.js', () => ({ prisma: { game: { findMany: gameFindMany }, duplicateDismissal: { findMany: dismissalFindMany } } }));
+const gameUpdateMany = vi.fn(async (_args: unknown) => ({ count: 0 }));
+vi.mock('../../db/client.js', () => ({ prisma: { game: { findMany: gameFindMany, updateMany: gameUpdateMany }, duplicateDismissal: { findMany: dismissalFindMany } } }));
 const aiComplete = vi.fn();
 vi.mock('./aiConfig.js', () => ({ aiComplete }));
 const notifyMergeSuggestions = vi.fn(async () => {});
@@ -12,7 +13,7 @@ const saveVerdicts = vi.fn(async (_rows: unknown[]) => {});
 vi.mock('../duplicateKnowledge.js', () => ({ loadDuplicateKnowledge, saveVerdicts }));
 vi.mock('../notifications.js', () => ({ notifyMergeSuggestions }));
 
-const { AI_DUPLICATE_BATCH, aiScanDuplicates, chooseKeep, countDuplicateCandidates, parseDuplicateReply } = await import('./aiDuplicates.js');
+const { AI_LIBRARY_CHUNK, AI_LIBRARY_OVERLAP, aiScanDuplicates, buildLibraryPrompt, chooseKeep, countDuplicateCandidates, libraryChunks, parseDuplicateReply, parseLibraryReply, sameIgdbPairs } = await import('./aiDuplicates.js');
 
 const g = (id: string, title: string, releaseYear: number | null): DuplicateSuggestionGame => ({
   id,
@@ -49,9 +50,10 @@ describe('parseDuplicateReply keep', () => {
   });
 });
 
-describe('aiScanDuplicates', () => {
+describe('aiScanDuplicates (whole shelf)', () => {
   beforeEach(() => {
     gameFindMany.mockReset();
+    gameUpdateMany.mockClear();
     aiComplete.mockReset();
     notifyMergeSuggestions.mockClear();
     saveVerdicts.mockClear();
@@ -59,179 +61,211 @@ describe('aiScanDuplicates', () => {
     loadDuplicateKnowledge.mockResolvedValue({ merges: new Map(), notDuplicates: new Set(), verdicts: new Map() });
   });
 
-  // 50 games that each have a "Complete Edition" twin: 50 candidate pairs, more than one batch.
-  const shelf = () =>
-    Array.from({ length: 50 }, (_, i) => [
-      { ...g(`a${i + 100}`, `Game ${i}`, 2010), igdbId: i * 2 + 1, igdbCollectionId: null },
-      { ...g(`b${i + 100}`, `Game ${i} Complete Edition`, 2014), igdbId: i * 2 + 2, igdbCollectionId: null },
-    ]).flat();
-  const answerAll = (confidence: number) =>
+  const card = (id: string, igdbId: number, title: string, releaseYear: number | null = null) => ({ ...g(id, title, releaseYear), igdbId, igdbCollectionId: null });
+  /** The numbers the prompt gave each title, so a fake reply can point at cards by name. */
+  const numbersIn = (prompt: string) => new Map(prompt.split('\n').map((line) => { const m = line.match(/^(\d+)\. "(.*)"/); return [m?.[2] ?? '', Number(m?.[1])]; }));
+  const replyPairs = (pairs: [string, string][], confidence = 0.9) =>
     aiComplete.mockImplementation(async (req: { messages: { content: string }[] }) => {
-      const n = (req.messages[0].content.match(/^Pair \d+:/gm) ?? []).length;
-      return { text: JSON.stringify(Array.from({ length: n }, (_, i) => ({ pair: i + 1, same: true, confidence, keep: 'A', reason: 'edition' }))), fallback: null };
+      const nums = numbersIn(req.messages[0].content);
+      const items = pairs.filter(([x, y]) => nums.has(x) && nums.has(y)).map(([x, y]) => ({ a: nums.get(x), b: nums.get(y), confidence, keep: 'a', reason: 'same game' }));
+      return { text: JSON.stringify(items), fallback: null };
     });
 
-  it('judges every candidate pair in batches and merges the results', async () => {
-    gameFindMany.mockResolvedValue(shelf());
-    answerAll(0.9);
-    const res = await aiScanDuplicates('u1');
-    expect(aiComplete).toHaveBeenCalledTimes(Math.ceil(50 / AI_DUPLICATE_BATCH));
-    expect(res.checked).toBe(50);
-    expect(res.pairs).toHaveLength(50);
-    expect(res.pairs.every((p) => p.keep === 'a')).toBe(true);
-    expect(res.stopped).toBeNull();
-    // Told when the scan finishes with suggestions, even if the dialog was closed meanwhile.
-    expect(notifyMergeSuggestions).toHaveBeenCalledWith('u1', 50);
-  });
-
-  it('still tells the person about what it found when a later batch fails', async () => {
-    gameFindMany.mockResolvedValue(shelf());
-    let calls = 0;
-    aiComplete.mockImplementation(async (req: { messages: { content: string }[] }) => {
-      calls += 1;
-      if (calls > 1) throw new Error('limit');
-      const n = (req.messages[0].content.match(/^Pair \d+:/gm) ?? []).length;
-      return { text: JSON.stringify(Array.from({ length: n }, (_, i) => ({ pair: i + 1, same: true, confidence: 0.9, keep: 'A', reason: 'x' }))), fallback: null };
-    });
-    await aiScanDuplicates('u1');
-    expect(notifyMergeSuggestions).toHaveBeenCalledWith('u1', AI_DUPLICATE_BATCH);
-  });
-
-  // Two twin pairs: igdb ids 1/2 and 3/4.
-  const twoPairs = () => [
-    { ...g('a1', 'Alpha', 2010), igdbId: 1, igdbCollectionId: null },
-    { ...g('b1', 'Alpha Complete Edition', 2014), igdbId: 2, igdbCollectionId: null },
-    { ...g('a2', 'Beta', 2011), igdbId: 3, igdbCollectionId: null },
-    { ...g('b2', 'Beta Complete Edition', 2015), igdbId: 4, igdbCollectionId: null },
-  ];
-
-  it('suggests a pair other people merged without asking the AI about it, and only asks about the rest', async () => {
-    gameFindMany.mockResolvedValue(twoPairs());
-    loadDuplicateKnowledge.mockResolvedValue({ merges: new Map([['1:2', { users: 3, keepIgdbId: 2 }]]), notDuplicates: new Set(), verdicts: new Map() });
-    aiComplete.mockResolvedValue({ text: '[]', fallback: null, usage: { outputTokens: 2 } });
+  it('sends every shelf game, and finds duplicates whose titles look nothing alike', async () => {
+    gameFindMany.mockResolvedValue([card('1', 1, 'Halo: The Master Chief Collection', 2014), card('2', 2, 'Halo MCC', 2019), card('3', 3, 'Portal')]);
+    replyPairs([['Halo: The Master Chief Collection', 'Halo MCC']]);
     const res = await aiScanDuplicates('u1');
     expect(aiComplete).toHaveBeenCalledTimes(1);
-    expect(aiComplete.mock.calls[0][0].messages[0].content).toContain('Beta');
-    expect(aiComplete.mock.calls[0][0].messages[0].content).not.toContain('Alpha');
+    const prompt = aiComplete.mock.calls[0][0].messages[0].content as string;
+    for (const t of ['Halo MCC', 'Halo: The Master Chief Collection', 'Portal']) expect(prompt).toContain(t);
+    expect(res).toMatchObject({ checked: 3, candidates: 0, reused: 0, stopped: null });
+    expect(res.pairs).toHaveLength(1);
+    expect(res.pairs[0]).toMatchObject({ source: 'ai', keep: 'a' });
+    expect(res.pairs[0].a.title).toBe('Halo: The Master Chief Collection');
+    expect(notifyMergeSuggestions).toHaveBeenCalledWith('u1', 1);
+  });
+
+  it('splits a big shelf into overlapping chunks so every game is checked', async () => {
+    const shelf = Array.from({ length: 400 }, (_, i) => card(`g${i}`, i + 1, `Title ${String(i).padStart(3, '0')}`));
+    gameFindMany.mockResolvedValue(shelf);
+    aiComplete.mockResolvedValue({ text: '[]', fallback: null });
+    const res = await aiScanDuplicates('u1');
+    expect(aiComplete).toHaveBeenCalledTimes(libraryChunks(shelf).length);
+    expect(res.checked).toBe(400);
+  });
+
+  it('pairs cards IGDB says are the same game first, without the AI, and sends only one of them to the AI', async () => {
+    gameFindMany.mockResolvedValue([card('x1', 7, 'Skyrim', 2011), card('x2', 7, 'The Elder Scrolls V: Skyrim', 2011), card('y', 8, 'Portal')]);
+    aiComplete.mockResolvedValue({ text: '[]', fallback: null });
+    const res = await aiScanDuplicates('u1');
+    expect(res.pairs).toHaveLength(1);
+    expect(res.pairs[0]).toMatchObject({ source: 'igdb', confidence: 1 });
+    const prompt = aiComplete.mock.calls[0][0].messages[0].content as string;
+    expect(prompt.split('\n')).toHaveLength(2);
+    expect(saveVerdicts.mock.calls[0][0]).toEqual([]);
+    // Dismissing the pair hides it next time.
+    dismissalFindMany.mockResolvedValueOnce([{ igdbIdLow: 7, igdbIdHigh: 7 }] as never);
+    expect((await aiScanDuplicates('u1')).pairs).toEqual([]);
+  });
+
+  it('carries on where an earlier scan stopped: chunks already checked are skipped, and their duplicates come back from saved answers', async () => {
+    const checkedBefore = new Date('2026-10-01T00:00:00Z');
+    // 300 games: two chunks. The first chunk was checked before; the second was not.
+    const shelf = Array.from({ length: 300 }, (_, i) => ({ ...card(`g${i}`, i + 1, `Title ${String(i).padStart(3, '0')}`), duplicateCheckedAt: i < AI_LIBRARY_CHUNK ? checkedBefore : null }));
+    gameFindMany.mockResolvedValue(shelf);
+    loadDuplicateKnowledge.mockResolvedValue({ merges: new Map(), notDuplicates: new Set(), verdicts: new Map([['1:2', { same: true, keepIgdbId: 1, confidence: 0.9, reason: 'saved' }]]) });
+    aiComplete.mockResolvedValue({ text: '[]', fallback: null });
+    const res = await aiScanDuplicates('u1');
+    const chunks = libraryChunks(shelf);
+    expect(aiComplete).toHaveBeenCalledTimes(chunks.length - 1);
+    expect(res.alreadyChecked).toBeGreaterThan(0);
+    expect(res.remaining).toBe(0);
+    expect(res.pairs).toMatchObject([{ reason: 'saved' }]);
+    // The cards it did check are recorded.
+    expect(gameUpdateMany).toHaveBeenCalledTimes(chunks.length - 1);
+    // "Scan again" checks every chunk.
+    aiComplete.mockClear();
+    await aiScanDuplicates('u1', { fresh: true });
+    expect(aiComplete).toHaveBeenCalledTimes(chunks.length);
+  });
+
+  it('says how many games are left when the daily limit stops it', async () => {
+    const shelf = Array.from({ length: 300 }, (_, i) => card(`g${i}`, i + 1, `Title ${String(i).padStart(3, '0')}`));
+    gameFindMany.mockResolvedValue(shelf);
+    let calls = 0;
+    aiComplete.mockImplementation(async () => {
+      calls += 1;
+      if (calls > 1) throw new Error("You've used today's limit");
+      return { text: '[]', fallback: null };
+    });
+    const res = await aiScanDuplicates('u1');
+    expect(res.checked).toBe(AI_LIBRARY_CHUNK);
+    expect(res.remaining).toBe(300 - AI_LIBRARY_CHUNK);
+    expect(res.alreadyChecked).toBe(0);
+    expect(res.stopped).toBe("You've used today's limit");
+  });
+
+  it('suggests a pair other people merged even when the titles look nothing alike', async () => {
+    gameFindMany.mockResolvedValue([card('a', 1, 'Halo: The Master Chief Collection', 2014), card('b', 2, 'Halo MCC', 2019)]);
+    loadDuplicateKnowledge.mockResolvedValue({ merges: new Map([['1:2', { users: 2, keepIgdbId: 1 }]]), notDuplicates: new Set(), verdicts: new Map() });
+    aiComplete.mockResolvedValue({ text: '[]', fallback: null });
+    const res = await aiScanDuplicates('u1');
+    expect(res.pairs).toMatchObject([{ source: 'community', mergedBy: 2, keep: 'a' }]);
+  });
+
+  it('suggests what other people merged straight away and still asks the AI about the rest', async () => {
+    gameFindMany.mockResolvedValue([card('a1', 1, 'Alpha', 2010), card('b1', 2, 'Alpha Complete Edition', 2014), card('c', 3, 'Gamma')]);
+    loadDuplicateKnowledge.mockResolvedValue({ merges: new Map([['1:2', { users: 3, keepIgdbId: 2 }]]), notDuplicates: new Set(), verdicts: new Map() });
+    replyPairs([['Alpha', 'Alpha Complete Edition']]);
+    const res = await aiScanDuplicates('u1');
     expect(res.reused).toBe(1);
-    expect(res.checked).toBe(1);
     expect(res.pairs).toHaveLength(1);
     expect(res.pairs[0]).toMatchObject({ source: 'community', mergedBy: 3, keep: 'b' });
   });
 
-  it('needs no AI request at all when everything is already known, and works without AI set up', async () => {
-    gameFindMany.mockResolvedValue(twoPairs());
-    loadDuplicateKnowledge.mockResolvedValue({
-      merges: new Map([['1:2', { users: 2, keepIgdbId: 1 }]]),
-      notDuplicates: new Set(['3:4']),
-      verdicts: new Map(),
-    });
-    aiComplete.mockRejectedValue(new Error('AI is not set up'));
+  it('never suggests a pair the person dismissed or people agreed is different', async () => {
+    gameFindMany.mockResolvedValue([card('a', 1, 'Alpha'), card('b', 2, 'Alpha Remastered'), card('c', 3, 'Beta'), card('d', 4, 'Beta Gold')]);
+    dismissalFindMany.mockResolvedValueOnce([{ igdbIdLow: 1, igdbIdHigh: 2 }] as never);
+    loadDuplicateKnowledge.mockResolvedValue({ merges: new Map(), notDuplicates: new Set(['3:4']), verdicts: new Map() });
+    replyPairs([['Alpha', 'Alpha Remastered'], ['Beta', 'Beta Gold']]);
     const res = await aiScanDuplicates('u1');
-    expect(aiComplete).not.toHaveBeenCalled();
-    expect(res).toMatchObject({ checked: 0, reused: 2, stopped: null });
-    expect(res.pairs).toHaveLength(1);
-  });
-
-  it('reuses an earlier AI verdict for the same pair, whichever way it went', async () => {
-    gameFindMany.mockResolvedValue(twoPairs());
-    loadDuplicateKnowledge.mockResolvedValue({
-      merges: new Map(),
-      notDuplicates: new Set(),
-      verdicts: new Map([
-        ['1:2', { same: true, keepIgdbId: 1, confidence: 0.9, reason: 'edition' }],
-        ['3:4', { same: false, keepIgdbId: null, confidence: null, reason: null }],
-      ]),
-    });
-    const res = await aiScanDuplicates('u1');
-    expect(aiComplete).not.toHaveBeenCalled();
-    expect(res.reused).toBe(2);
-    expect(res.pairs).toHaveLength(1);
-    expect(res.pairs[0]).toMatchObject({ source: 'ai', keep: 'a', reason: 'edition' });
-  });
-
-  it('remembers the "same game" answers for everyone, but never records a pair the AI left out as "different"', async () => {
-    gameFindMany.mockResolvedValue(twoPairs());
-    aiComplete.mockResolvedValue({ text: '[{"pair":1,"confidence":0.9,"keep":"A","reason":"edition"}]', fallback: null, usage: { outputTokens: 40 } });
-    await aiScanDuplicates('u1');
-    const saved = saveVerdicts.mock.calls[0][0] as { igdbIdA: number; igdbIdB: number; same: boolean }[];
-    expect(saved.map((v) => [v.igdbIdA, v.igdbIdB, v.same])).toEqual([[1, 2, true]]);
-  });
-
-  it('records nothing for an empty answer, so a model that says "[]" to everything cannot hide pairs from the next scan', async () => {
-    gameFindMany.mockResolvedValue(twoPairs());
-    aiComplete.mockResolvedValue({ text: '[]', fallback: null, usage: { outputTokens: 2 } });
-    const res = await aiScanDuplicates('u1');
-    expect(res).toMatchObject({ pairs: [], candidates: 2, checked: 2, reused: 0 });
+    expect(res.pairs).toEqual([]);
     expect(saveVerdicts.mock.calls[0][0]).toEqual([]);
   });
 
-  it('"Scan again" (fresh) asks the AI even about pairs it has judged before, but still uses what other people merged', async () => {
-    gameFindMany.mockResolvedValue(twoPairs());
-    loadDuplicateKnowledge.mockResolvedValue({
-      merges: new Map([['3:4', { users: 2, keepIgdbId: 3 }]]),
-      notDuplicates: new Set(),
-      verdicts: new Map([['1:2', { same: true, keepIgdbId: 1, confidence: 0.9, reason: 'edition' }]]),
-    });
-    aiComplete.mockResolvedValue({ text: '[]', fallback: null, usage: { outputTokens: 2 } });
-    const res = await aiScanDuplicates('u1', { fresh: true });
-    expect(aiComplete).toHaveBeenCalledTimes(1);
-    expect(aiComplete.mock.calls[0][0].messages[0].content).toContain('Alpha');
-    expect(aiComplete.mock.calls[0][0].messages[0].content).not.toContain('Beta');
-    expect(res).toMatchObject({ candidates: 2, checked: 1, reused: 1 });
-    expect(res.pairs).toHaveLength(1);
-    expect(res.pairs[0].source).toBe('community');
+  it('reuses an earlier "same game" answer unless asked to scan again', async () => {
+    gameFindMany.mockResolvedValue([card('a', 1, 'Alpha', 2010), card('b', 2, 'Alpha Complete Edition', 2014)]);
+    loadDuplicateKnowledge.mockResolvedValue({ merges: new Map(), notDuplicates: new Set(), verdicts: new Map([['1:2', { same: true, keepIgdbId: 1, confidence: 0.9, reason: 'edition' }]]) });
+    aiComplete.mockResolvedValue({ text: '[]', fallback: null });
+    expect(await aiScanDuplicates('u1')).toMatchObject({ reused: 1, pairs: [{ source: 'ai', reason: 'edition' }] });
+    expect((await aiScanDuplicates('u1', { fresh: true })).pairs).toEqual([]);
   });
 
-  it('does not treat pairs missing from a cut-off answer as "not the same"', async () => {
-    gameFindMany.mockResolvedValue(twoPairs());
-    // Ran into the 2048-token output limit: the list may simply be unfinished.
-    aiComplete.mockResolvedValue({ text: '[{"pair":1,"confidence":0.9,"keep":"A","reason":"edition"},{"pair":2,"conf', fallback: null, usage: { outputTokens: 2048 } });
+  it('remembers the AI\'s "same game" answers for everyone', async () => {
+    gameFindMany.mockResolvedValue([card('a', 1, 'Alpha', 2010), card('b', 2, 'Alpha GOTY', 2012)]);
+    replyPairs([['Alpha', 'Alpha GOTY']]);
     await aiScanDuplicates('u1');
-    const saved = saveVerdicts.mock.calls[0][0] as { igdbIdA: number; same: boolean }[];
-    expect(saved.map((v) => [v.igdbIdA, v.same])).toEqual([[1, true]]);
+    const saved = saveVerdicts.mock.calls[0][0] as { igdbIdA: number; igdbIdB: number; same: boolean; keepIgdbId: number }[];
+    expect(saved.map((v) => [v.igdbIdA, v.igdbIdB, v.same, v.keepIgdbId])).toEqual([[1, 2, true, 1]]);
   });
 
-  it('keeps the shared answers when the AI then fails, instead of throwing', async () => {
-    gameFindMany.mockResolvedValue(twoPairs());
+  it('does not ask the AI with fewer than two games', async () => {
+    gameFindMany.mockResolvedValue([card('a', 1, 'Alpha')]);
+    const res = await aiScanDuplicates('u1');
+    expect(aiComplete).not.toHaveBeenCalled();
+    expect(res).toMatchObject({ pairs: [], checked: 0 });
+    expect(notifyMergeSuggestions).not.toHaveBeenCalled();
+  });
+
+  it('keeps what it found and says why it stopped when a later chunk fails', async () => {
+    const shelf = Array.from({ length: 300 }, (_, i) => card(`g${i}`, i + 1, `Title ${String(i).padStart(3, '0')}`));
+    gameFindMany.mockResolvedValue(shelf);
+    let calls = 0;
+    aiComplete.mockImplementation(async () => {
+      calls += 1;
+      if (calls > 1) throw new Error("You've used today's limit");
+      return { text: '[{"a":1,"b":2,"confidence":0.9,"keep":"a","reason":"x"}]', fallback: null };
+    });
+    const res = await aiScanDuplicates('u1');
+    expect(res.pairs).toHaveLength(1);
+    expect(res.checked).toBe(AI_LIBRARY_CHUNK);
+    expect(res.stopped).toBe("You've used today's limit");
+  });
+
+  it('keeps answers already known when the AI fails, and throws when nothing could be answered', async () => {
+    gameFindMany.mockResolvedValue([card('a', 1, 'Alpha', 2010), card('b', 2, 'Alpha Complete Edition', 2014)]);
+    aiComplete.mockRejectedValue(new Error('The AI provider failed.'));
+    await expect(aiScanDuplicates('u1')).rejects.toMatchObject({ statusCode: 424 });
     loadDuplicateKnowledge.mockResolvedValue({ merges: new Map([['1:2', { users: 2, keepIgdbId: 1 }]]), notDuplicates: new Set(), verdicts: new Map() });
-    aiComplete.mockRejectedValue(new Error('limit'));
     const res = await aiScanDuplicates('u1');
     expect(res.pairs).toHaveLength(1);
     expect(res.stopped).not.toBeNull();
   });
 
   it('counts the cheap no-AI candidates without calling the AI', async () => {
-    gameFindMany.mockResolvedValue(shelf());
-    expect(await countDuplicateCandidates('u1')).toBe(50);
+    gameFindMany.mockResolvedValue([card('a', 1, 'Alpha'), card('b', 2, 'Alpha Complete Edition'), card('c', 3, 'Beta')]);
+    expect(await countDuplicateCandidates('u1')).toBe(1);
     expect(aiComplete).not.toHaveBeenCalled();
   });
+});
 
-  it('does not nudge or ask the AI when nothing looks alike', async () => {
-    gameFindMany.mockResolvedValue([g('1', 'Alpha', 2000), g('2', 'Beta', 2001)].map((x, i) => ({ ...x, igdbId: i + 1, igdbCollectionId: null })));
-    const res = await aiScanDuplicates('u1');
-    expect(res.pairs).toEqual([]);
-    expect(aiComplete).not.toHaveBeenCalled();
-    expect(notifyMergeSuggestions).not.toHaveBeenCalled();
+describe('libraryChunks', () => {
+  it('sorts by title core and overlaps neighbouring chunks', () => {
+    const games = Array.from({ length: 300 }, (_, i) => ({ title: `T${String(299 - i).padStart(3, '0')}` }));
+    const chunks = libraryChunks(games);
+    expect(chunks[0][0].title).toBe('T000');
+    expect(chunks.every((c) => c.length <= AI_LIBRARY_CHUNK)).toBe(true);
+    // Last cards of one chunk open the next.
+    expect(chunks[1].slice(0, AI_LIBRARY_OVERLAP)).toEqual(chunks[0].slice(-AI_LIBRARY_OVERLAP));
+    expect(new Set(chunks.flat().map((x) => x.title)).size).toBe(300);
+    expect(libraryChunks([{ title: 'b' }, { title: 'The A' }])).toEqual([[{ title: 'The A' }, { title: 'b' }]]);
+    expect(libraryChunks([])).toEqual([]);
+  });
+});
+
+describe('parseLibraryReply', () => {
+  const cards = [g('1', 'Alpha', 2010), g('2', 'Alpha GOTY', 2012), g('3', 'Beta', null)];
+  it('keeps sure pairs of two different known cards, each once, best first', () => {
+    const out = parseLibraryReply(
+      '[{"a":1,"b":2,"confidence":0.8,"keep":"b","reason":" edition "},{"a":2,"b":1,"confidence":0.9},{"a":1,"b":1,"confidence":1},{"a":1,"b":9,"confidence":1},{"a":3,"b":2,"confidence":0.95,"keep":"a"},{"a":1,"b":3,"confidence":0.3}]',
+      cards,
+    );
+    expect(out.map((p) => [p.a.id, p.b.id])).toEqual([['3', '2'], ['1', '2']]);
+    // Known, different release years decide which to keep.
+    expect(out[1]).toMatchObject({ keep: 'a', reason: 'edition' });
+    expect(parseLibraryReply('nope', cards)).toEqual([]);
+  });
+});
+
+describe('sameIgdbPairs and buildLibraryPrompt', () => {
+  it('pairs every extra card of one IGDB game with the one to keep', () => {
+    const cards = [{ ...g('1', 'Game Deluxe', 2016), igdbId: 5 }, { ...g('2', 'Game', 2015), igdbId: 5 }, { ...g('3', 'Game GOTY', null), igdbId: 5 }, { ...g('4', 'Other', 2015), igdbId: 6 }];
+    expect(sameIgdbPairs(cards).map((p) => [p.a.id, p.b.id, p.keep])).toEqual([['2', '1', 'a'], ['2', '3', 'a']]);
   });
 
-  it('keeps what it found and says why it stopped when a later batch fails', async () => {
-    gameFindMany.mockResolvedValue(shelf());
-    let calls = 0;
-    aiComplete.mockImplementation(async (req: { messages: { content: string }[] }) => {
-      calls += 1;
-      if (calls > 1) throw new Error("You've used today's limit");
-      const n = (req.messages[0].content.match(/^Pair \d+:/gm) ?? []).length;
-      return { text: JSON.stringify(Array.from({ length: n }, (_, i) => ({ pair: i + 1, same: true, confidence: 0.9, keep: 'A', reason: 'x' }))), fallback: null };
-    });
-    const res = await aiScanDuplicates('u1');
-    expect(res.pairs).toHaveLength(AI_DUPLICATE_BATCH);
-    expect(res.stopped).toBe("You've used today's limit");
-  });
-
-  it('throws when nothing could be checked at all', async () => {
-    gameFindMany.mockResolvedValue(shelf());
-    aiComplete.mockRejectedValue(new Error('The AI provider failed.'));
-    await expect(aiScanDuplicates('u1')).rejects.toMatchObject({ statusCode: 424 });
+  it('gives each card its title, full release date (or year) and platform', () => {
+    const cards = [g('1', 'Alpha', 2010), g('2', 'Beta', null), g('3', 'Gamma', 2012)];
+    const prompt = buildLibraryPrompt(cards, new Map([['1', new Date('2010-03-04T00:00:00Z')]]));
+    expect(prompt.split('\n')).toEqual(['1. "Alpha", released 2010-03-04, PC', '2. "Beta", release date unknown, PC', '3. "Gamma", released 2012, PC']);
   });
 });

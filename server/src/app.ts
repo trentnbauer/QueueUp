@@ -14,7 +14,6 @@ import duplicateSuggestionRoutes from './routes/duplicateSuggestions.js';
 import upcomingDlcRoutes from './routes/upcomingDlc.js';
 import aiTonightRoutes from './routes/aiTonight.js';
 import aiRecommendRoutes from './routes/aiRecommend.js';
-import aiPriceAdviceRoutes from './routes/aiPriceAdvice.js';
 import aiBacklogCoachRoutes from './routes/aiBacklogCoach.js';
 import aiSearchRoutes from './routes/aiSearch.js';
 import yearStoryRoutes from './routes/yearStory.js';
@@ -180,7 +179,6 @@ export async function buildApp() {
       await instance.register(upcomingDlcRoutes);
       await instance.register(aiTonightRoutes);
       await instance.register(aiRecommendRoutes);
-      await instance.register(aiPriceAdviceRoutes);
       await instance.register(aiBacklogCoachRoutes);
       await instance.register(aiSearchRoutes);
       await instance.register(yearStoryRoutes);

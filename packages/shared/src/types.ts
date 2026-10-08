@@ -3081,31 +3081,6 @@ export interface AiBacklogCoachResponse {
   fallback: AiFallbackNotice | null;
 }
 
-export type AiPriceVerdict = 'buy' | 'wait' | 'unclear';
-
-/** Buy-or-wait advice for one game (issue #829). The numbers come from QueueUp's price data; the AI
- * only explains them. It is a suggestion, not a prediction of future sales. */
-export interface AiPriceAdvice {
-  /** False when there is too little recorded price history to judge; then there is no verdict. */
-  enoughHistory: boolean;
-  currency: string;
-  current: number;
-  usual: number | null;
-  lowestRecorded: number | null;
-  historicalLow: number | null;
-  verdict: AiPriceVerdict | null;
-  /** One or two plain sentences from the AI. */
-  summary: string | null;
-  /** A price to alert at, only ever under the current price and only for "wait". */
-  suggestedTarget: number | null;
-}
-
-/** Result of POST /api/games/:id/ai-price-advice. */
-export interface AiPriceAdviceResponse {
-  advice: AiPriceAdvice;
-  fallback: AiFallbackNotice | null;
-}
-
 /** A game the AI recommended (issues #820, #821). Always a real IGDB game that is not already on the
  * shelf or in the room; the AI only names titles and each one is matched against IGDB. */
 export interface AiRecommendation extends GameSearchResult {
@@ -3188,9 +3163,9 @@ export interface DuplicateSuggestion {
   confidence: number;
   /** One short sentence from the AI on why they look the same. */
   reason: string;
-  /** Where it came from: the AI (the default), or other people having merged the same pair, which
-   * needed no AI request at all. */
-  source?: 'ai' | 'community';
+  /** Where it came from: the AI (the default), other people having merged the same pair, or IGDB
+   * listing both cards as the same game (`igdb`) - the last two need no AI request at all. */
+  source?: 'ai' | 'community' | 'igdb';
   /** For `community`: how many other people merged this pair. */
   mergedBy?: number;
 }
@@ -3198,13 +3173,16 @@ export interface DuplicateSuggestion {
 /** Result of POST /api/games/duplicates/ai-scan. */
 export interface AiDuplicateScanResponse {
   pairs: DuplicateSuggestion[];
-  /** How many pairs on the shelf look alike by title and were looked at. 0 means nothing on the shelf matched by name. */
+  /** How many pairs on the shelf look alike by title (the ones earlier answers are looked up for). */
   candidates: number;
-  /** How many of those the AI judged this time. */
+  /** How many shelf games the AI looked through this time (the whole shelf, unless it stopped early). */
   checked: number;
-  /** Pairs answered from what other people already merged, said are different, or the AI already
-   * judged for someone else, so the AI was not asked about them. */
+  /** Pairs suggested from what other people already merged or an earlier AI answer. */
   reused: number;
+  /** Games skipped because an earlier scan already checked them (not on "Scan again"). */
+  alreadyChecked: number;
+  /** Games still to check because the scan stopped early (e.g. the daily AI limit) - the next scan picks them up. */
+  remaining: number;
   fallback: AiFallbackNotice | null;
   /** Why the scan ended early (provider error, the daily limit on the shared AI), if it did; what was found is kept. */
   stopped: string | null;
