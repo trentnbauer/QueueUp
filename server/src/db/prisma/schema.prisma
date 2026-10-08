@@ -130,6 +130,7 @@ enum NotificationType {
   room_platform_changed
   room_owner_changed
   room_deleted
+  room_restored
   price_drop
   /// A member suggested a game for a room with requireGameApproval on (issue #362) - notifies the
   /// room so a Room Master/Moderator knows to go approve or decline it.
@@ -1057,6 +1058,15 @@ model Room {
   /// week from the activity feed. `weeklyRecapDiscord` also posts it to the Discord webhook.
   weeklyRecapEnabled    Boolean        @default(false) @map("weekly_recap_enabled")
   weeklyRecapDiscord    Boolean        @default(false) @map("weekly_recap_discord")
+  /// Set when the room is deleted (#1103). A deleted room keeps its games and history for
+  /// ROOM_RETENTION_DAYS so it can be restored, then a daily job removes it for good (see
+  /// services/roomDeletion.ts). Its members are moved into deletedMembers rather than kept as
+  /// RoomMember rows, so every query that reaches rooms through membership skips it on its own.
+  deletedAt             DateTime?      @map("deleted_at")
+  deletedById           String?        @map("deleted_by_id")
+  /// The members at the time of deletion - [{ userId, role, joinedAt, notificationsReadAt }] - put
+  /// back on restore.
+  deletedMembers        Json?          @map("deleted_members")
 
   creator      User             @relation("RoomCreatedBy", fields: [createdBy], references: [id])
   aiKeyOwner    User?            @relation("RoomAiKeyOwner", fields: [aiKeyOwnerId], references: [id], onDelete: SetNull)
@@ -1069,6 +1079,7 @@ model Room {
   suggestions   GameSuggestion[]
   spin          RoomSpin?
 
+  @@index([deletedAt])
   @@map("rooms")
 }
 

@@ -1,6 +1,6 @@
 import { apiGet, apiPost, apiPatch, apiDelete } from './client';
 import { getBasePath } from '../utils/basePath';
-import type { AdminBackupInfo, AdminBackupsResponse, AdminBackupSettings, RestoreBackupResponse, RestoreSessionKeyCode, UpdateBackupSettingsRequest, AdminIntegrationStatus, AdminRoomDetail, AdminRoomSummary, AdminUserSummary, AdminEmailLogEntry, IntegrationConfigKey, TunnelStatus } from '@queueup/shared';
+import type { AdminBackupInfo, AdminBackupsResponse, AdminBackupSettings, RestoreBackupResponse, RestoreSessionKeyCode, UpdateBackupSettingsRequest, AdminIntegrationStatus, AdminRoomDetail, AdminRoomSummary, AdminUserSummary, AdminEmailLogEntry, DeletedRoomSummary, IntegrationConfigKey, TunnelStatus } from '@queueup/shared';
 
 /** Options for a restore or import whose backup holds encrypted keys made with another session key. */
 export interface RestoreOptions {
@@ -52,6 +52,9 @@ export const adminApi = {
   deleteUser: (id: string) => apiDelete(`/api/admin/users/${id}`),
   rooms: () => apiGet<{ rooms: AdminRoomSummary[] }>('/api/admin/rooms'),
   deleteRoom: (id: string) => apiDelete(`/api/admin/rooms/${id}`),
+  deletedRooms: () => apiGet<{ rooms: DeletedRoomSummary[] }>('/api/admin/rooms/deleted'),
+  restoreRoom: (id: string) => apiPost<{ ok: true }>(`/api/admin/rooms/${id}/restore`, {}),
+  purgeRoom: (id: string) => apiDelete(`/api/admin/rooms/${id}/permanent`),
   /** A read-only look at a room (#792). */
   room: (id: string) => apiGet<AdminRoomDetail>(`/api/admin/rooms/${id}`),
   /** "Manage as Room Master" for an hour (#792). */

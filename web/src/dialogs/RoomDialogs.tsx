@@ -28,6 +28,7 @@ import { Dialog } from '../ui/Dialog';
 import { NavRow } from './MeDialog';
 import { usePlayNextTab } from '../home/playNextTab';
 import { RoomAiSection } from './RoomAiSection';
+import { DeletedRoomsList } from './DeletedRooms';
 import { Avatar, Banner, Btn, ChipToggle, Cover, Group, Segmented, Toggle, initialsOf, inputField, inputPill } from '../ui/primitives';
 import { st } from '../ui/st';
 import { exportGames } from '../utils/exportGames';
@@ -82,6 +83,26 @@ export function AddRoomDialog() {
   const [busy, setBusy] = useState<string | null>(null);
 
   const publicRooms = useQuery({ queryKey: ['public-rooms'], queryFn: () => roomsApi.publicRooms(), enabled: step === 'browse' });
+  const queryClient = useQueryClient();
+  // #1103: rooms this person deleted (or was Room Master of) in the last 30 days, to restore.
+  const deletedRooms = useQuery({ queryKey: ['deleted-rooms'], queryFn: () => roomsApi.deleted(), enabled: step === 'options' });
+
+  async function restore(id: string) {
+    setBusy(id);
+    setError(null);
+    try {
+      const { room } = await roomsApi.restore(id);
+      await queryClient.invalidateQueries({ queryKey: ['rooms'] });
+      queryClient.invalidateQueries({ queryKey: ['deleted-rooms'] });
+      close();
+      navigate(`/room/${room.id}`);
+      ui.notify(t('room.deleted.restored', { name: room.name }));
+    } catch (err) {
+      setError(err instanceof Error ? err.message : t('room.deleted.restoreError'));
+    } finally {
+      setBusy(null);
+    }
+  }
   const mine = new Set(rooms.map((r) => r.id));
   const browse = (publicRooms.data?.rooms ?? []).filter((r) => !mine.has(r.id));
 
@@ -158,6 +179,7 @@ export function AddRoomDialog() {
           ))}
         </Group>
       )}
+      {step === 'options' && <DeletedRoomsList rooms={deletedRooms.data?.rooms ?? []} busy={busy} onRestore={(r) => void restore(r.id)} />}
       {step === 'create' && (
         <>
           <Field label={t('room.add.nameLabel')}>
@@ -548,6 +570,7 @@ export function RoomSettingsDialog() {
     try {
       await roomsApi.delete(roomId);
       queryClient.invalidateQueries({ queryKey: ['rooms'] });
+      queryClient.invalidateQueries({ queryKey: ['deleted-rooms'] });
       close();
       navigate('/');
       ui.notify(t('room.settings.deleted'));

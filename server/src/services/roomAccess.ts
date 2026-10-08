@@ -17,7 +17,8 @@ export async function getRoomPlatform(roomId: string): Promise<RoomPlatform | nu
 export async function getRoomPlatforms(roomIds: string[]): Promise<Map<string, RoomPlatform | null>> {
   const uniqueIds = [...new Set(roomIds)];
   if (uniqueIds.length === 0) return new Map();
-  const rooms = await prisma.room.findMany({ where: { id: { in: uniqueIds } }, select: { id: true, platform: true } });
+  // Deleted rooms (#1103) are left out, so callers that skip a missing room skip their games too.
+  const rooms = await prisma.room.findMany({ where: { id: { in: uniqueIds }, deletedAt: null }, select: { id: true, platform: true } });
   return new Map(rooms.map((r) => [r.id, r.platform]));
 }
 
@@ -66,7 +67,10 @@ export async function requireMembership(roomId: string, userId: string): Promise
     where: { roomId_userId: { roomId, userId } },
   });
   if (membership) return membership;
+  // A deleted room has no members left (#1103), so this only matters for an administrator managing it.
   if (await isAdminManaging(userId, roomId)) {
+    const room = await prisma.room.findUnique({ where: { id: roomId }, select: { deletedAt: true } });
+    if (!room || room.deletedAt) throw new HttpError(404, 'Room not found');
     return { roomId, userId, role: 'room_master', joinedAt: new Date(), notificationsReadAt: null, adminManaged: true };
   }
   throw new HttpError(403, 'You are not a member of this room');

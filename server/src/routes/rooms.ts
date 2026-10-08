@@ -11,6 +11,7 @@ import { unlockBadges, unlockFeatureBadges } from '../services/badges.js';
 import { logRoomActivity, getRoomActivityPage, encodeActivityCursor, decodeActivityCursor } from '../services/roomActivity.js';
 import type {
   CreateRoomRequest,
+  DeletedRoomSummary,
   JoinRoomRequest,
   PublicRoomSummary,
   Room,
@@ -26,6 +27,7 @@ import type {
 import { areFriends, friendIdsOf } from '../services/friendships.js';
 import { DISCORD_EVENT_KEYS, normalizeSpinTheme, resolveDiscordEvents, ROOM_PLATFORM_LABELS, SPIN_WHEEL_THEMES, type SpinDefaults } from '@queueup/shared';
 import { parseSpinFilters } from '../services/spinFilters.js';
+import { recentlyDeletedRooms, restoreRoom, ROOM_RETENTION_DAYS, softDeleteRoom, toDeletedRoomSummary, wasRoomMaster } from '../services/roomDeletion.js';
 
 /** #rrggbb - the only colour format a room accent may take (it ends up in inline styles). */
 const HEX_COLOUR = /^#[0-9a-fA-F]{6}$/;
@@ -136,7 +138,7 @@ export default async function roomRoutes(app: FastifyInstance) {
     // #792: rooms an administrator is managing without being a member, listed after their own.
     const managedIds = (await adminManagedRoomIds(userId)).filter((id) => !roomIds.includes(id));
     if (managedIds.length) {
-      const managed = await prisma.room.findMany({ where: { id: { in: managedIds } }, include: { _count: { select: { members: true } } } });
+      const managed = await prisma.room.findMany({ where: { id: { in: managedIds }, deletedAt: null }, include: { _count: { select: { members: true } } } });
       const [managedQueued, ttls] = await Promise.all([
         prisma.game.groupBy({
           by: ['roomId'],
@@ -196,9 +198,9 @@ export default async function roomRoutes(app: FastifyInstance) {
     await request.requireAuth();
     const room = await prisma.room.findUnique({
       where: { inviteCode: String(request.params.code ?? '').trim() },
-      select: { name: true, accentColor: true, _count: { select: { members: true } } },
+      select: { name: true, accentColor: true, deletedAt: true, _count: { select: { members: true } } },
     });
-    if (!room) throw new HttpError(404, 'This invite link is invalid or has expired');
+    if (!room || room.deletedAt) throw new HttpError(404, 'This invite link is invalid or has expired');
     return { room: { name: room.name, accentColor: room.accentColor, memberCount: room._count.members } };
   });
 
@@ -213,7 +215,7 @@ export default async function roomRoutes(app: FastifyInstance) {
       if (typeof inviteCode !== 'string' || !inviteCode.trim()) throw new HttpError(400, 'Invite code is required');
 
       const room = await prisma.room.findUnique({ where: { inviteCode: inviteCode.trim() } });
-      if (!room) throw new HttpError(404, 'Invalid invite code');
+      if (!room || room.deletedAt) throw new HttpError(404, 'Invalid invite code');
 
       // A plain create (rather than a check-then-upsert) makes "did this request actually create
       // the membership" atomic: the unique constraint on (roomId, userId) is the single source of
@@ -256,6 +258,7 @@ export default async function roomRoutes(app: FastifyInstance) {
     const rooms = await prisma.room.findMany({
       where: {
         isPublic: true,
+        deletedAt: null,
         members: { none: { userId } },
       },
       include: { _count: { select: { members: true } } },
@@ -282,7 +285,7 @@ export default async function roomRoutes(app: FastifyInstance) {
       const { roomId } = request.params;
 
       const room = await prisma.room.findUnique({ where: { id: roomId } });
-      if (!room) throw new HttpError(404, 'Room not found');
+      if (!room || room.deletedAt) throw new HttpError(404, 'Room not found');
       if (!room.isPublic) throw new HttpError(403, 'This room is invite-only');
 
       // Same idempotent create-with-P2002-fallback pattern as POST /api/rooms/join - the unique
@@ -434,8 +437,8 @@ export default async function roomRoutes(app: FastifyInstance) {
 
   app.delete<{ Params: { roomId: string } }>(
     '/api/rooms/:roomId',
-    // Destructive and cascades to every member/game in the room - same tier of limit as
-    // /api/rooms/join above, for the same reason: this should never legitimately happen at volume.
+    // Rare and wide-reaching - same tier of limit as /api/rooms/join above, for the same reason:
+    // this should never legitimately happen at volume.
     { config: { rateLimit: { max: 10, timeWindow: '1 minute' } } },
     async (request, reply) => {
       const actorId = await request.requireAuth();
@@ -445,48 +448,65 @@ export default async function roomRoutes(app: FastifyInstance) {
         throw new HttpError(403, 'Only the Room Master can delete this room');
       }
 
-      const [actor, target, members] = await Promise.all([
-        prisma.user.findUniqueOrThrow({ where: { id: actorId } }),
-        prisma.room.findUnique({
-          where: { id: roomId },
-          include: { _count: { select: { members: true, games: true } } },
-        }),
-        prisma.roomMember.findMany({ where: { roomId }, select: { userId: true } }),
-      ]);
+      const actor = await prisma.user.findUniqueOrThrow({ where: { id: actorId } });
+      // #1103: kept for ROOM_RETENTION_DAYS and restorable, rather than gone at once.
+      const deleted = await softDeleteRoom(roomId, actorId);
+      if (!deleted) throw new HttpError(404, 'Room not found');
 
-      await prisma.room.delete({ where: { id: roomId } });
-
-      if (target) {
-        await notifyRoomMembersDirect({
-          roomName: target.name,
-          actorId,
-          recipientIds: members.map((m) => m.userId),
-          type: 'room_deleted',
-          message: (actorName) => `${actorName} deleted the room "${target.name}"`,
-        });
-      }
+      await notifyRoomMembersDirect({
+        roomName: deleted.name,
+        actorId,
+        recipientIds: deleted.memberIds,
+        type: 'room_deleted',
+        message: (actorName) => `${actorName} deleted the room "${deleted.name}". It can be restored for ${ROOM_RETENTION_DAYS} days.`,
+      });
 
       app.log.warn(
-        {
-          action: 'room.delete',
-          actorId,
-          targetId: roomId,
-          targetName: target?.name,
-          memberCount: target?._count.members,
-          gameCount: target?._count.games,
-        },
-        `Room Master ${actorId} deleted room ${roomId} (${target?.name ?? 'unknown'}), cascading ${target?._count.members ?? 0} member(s) and ${target?._count.games ?? 0} game(s)`,
+        { action: 'room.delete', actorId, targetId: roomId, targetName: deleted.name, memberCount: deleted.memberCount, gameCount: deleted.gameCount },
+        `Room Master ${actorId} deleted room ${roomId} (${deleted.name}); restorable for ${ROOM_RETENTION_DAYS} days`,
       );
       await logAdminAction({
         actorId,
         actorLabel: actor.email,
         action: 'room.delete',
-        targetLabel: target?.name ?? roomId,
-        metadata: { memberCount: target?._count.members, gameCount: target?._count.games },
+        targetLabel: deleted.name,
+        metadata: { targetId: roomId, memberCount: deleted.memberCount, gameCount: deleted.gameCount },
       });
 
       reply.status(204);
       return null;
+    },
+  );
+
+  // #1103: rooms this person deleted, or was Room Master of when they were deleted, that can still be restored.
+  app.get('/api/rooms/deleted', async (request): Promise<{ rooms: DeletedRoomSummary[] }> => {
+    const userId = await request.requireAuth();
+    const rooms = (await recentlyDeletedRooms()).filter((r) => r.deletedById === userId || wasRoomMaster(r.deletedMembers, userId));
+    return { rooms: rooms.map(toDeletedRoomSummary) };
+  });
+
+  app.post<{ Params: { roomId: string } }>(
+    '/api/rooms/:roomId/restore',
+    { config: { rateLimit: { max: 10, timeWindow: '1 minute' } } },
+    async (request) => {
+      const actorId = await request.requireAuth();
+      const { roomId } = request.params;
+      const target = await prisma.room.findUnique({ where: { id: roomId }, select: { deletedAt: true, deletedById: true, deletedMembers: true } });
+      if (!target?.deletedAt || !(target.deletedById === actorId || wasRoomMaster(target.deletedMembers, actorId))) {
+        throw new HttpError(404, 'There is no deleted room of yours to restore');
+      }
+      const actor = await prisma.user.findUniqueOrThrow({ where: { id: actorId } });
+      const { room, memberIds } = await restoreRoom(roomId);
+      await notifyRoomMembersDirect({
+        roomName: room.name,
+        actorId,
+        recipientIds: memberIds,
+        type: 'room_restored',
+        message: (actorName) => `${actorName} restored the room "${room.name}"`,
+      });
+      await logAdminAction({ actorId, actorLabel: actor.email, action: 'room.restore', targetLabel: room.name, metadata: { targetId: roomId } });
+      const membership = await prisma.roomMember.findUnique({ where: { roomId_userId: { roomId, userId: actorId } } });
+      return { room: toRoomDto(room, membership?.role ?? 'member', room.inviteCode) };
     },
   );
 

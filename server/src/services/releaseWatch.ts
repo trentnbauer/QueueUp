@@ -100,7 +100,8 @@ function groupIgdbIdsByUser(rows: { userId: string; igdbId: number }[]): Map<str
  * game notifies its owner; a room game notifies every member. */
 export async function checkGameReleaseAlerts(): Promise<void> {
   const due = await prisma.game.findMany({
-    where: { releaseAlert: true, releaseDate: { lte: new Date() }, archivedAt: null },
+    // A deleted room's alerts wait (#1103) - they would reach nobody now, and fire if it is restored.
+    where: { releaseAlert: true, releaseDate: { lte: new Date() }, archivedAt: null, OR: [{ roomId: null }, { room: { deletedAt: null } }] },
     select: { id: true, title: true, roomId: true, addedBy: true, room: { select: { name: true } } },
   });
   for (const game of due) {

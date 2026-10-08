@@ -42,7 +42,7 @@ export async function generateRoomRecap(roomId: string, now: Date = new Date()):
  * A room with no AI available, or with too little going on, is skipped quietly and tried again at
  * the next run; any other failure is logged and does not stop the other rooms. */
 export async function runWeeklyRecaps(now: Date = new Date()): Promise<{ created: number; skipped: number }> {
-  const rooms = await prisma.room.findMany({ where: { weeklyRecapEnabled: true }, select: { id: true } });
+  const rooms = await prisma.room.findMany({ where: { weeklyRecapEnabled: true, deletedAt: null }, select: { id: true } });
   let created = 0;
   let skipped = 0;
   for (const { id } of rooms) {

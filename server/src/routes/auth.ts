@@ -32,6 +32,7 @@ import type {
 } from '@queueup/shared';
 import { MAX_ACTIVE_API_KEYS, MAX_API_KEY_EXPIRY_DAYS } from '@queueup/shared';
 import { unlockActivityBadges, unlockBadgeQuietly, unlockFeatureBadges } from '../services/badges.js';
+import { purgeDeletedRoomsCreatedBy } from '../services/roomDeletion.js';
 
 function toApiKeySummary(key: {
   id: string;
@@ -578,7 +579,7 @@ export default async function authRoutes(app: FastifyInstance) {
       // (DELETE /api/admin/users/:id). Deleting or transferring ownership of those rooms first is
       // a deliberate, visible action the account owner takes via Room Settings, rather than this
       // silently destroying (or silently reassigning) rooms shared with other people.
-      const createdRoomCount = await prisma.room.count({ where: { createdBy: userId } });
+      const createdRoomCount = await prisma.room.count({ where: { createdBy: userId, deletedAt: null } });
       if (createdRoomCount > 0) {
         throw new HttpError(
           400,
@@ -602,6 +603,8 @@ export default async function authRoutes(app: FastifyInstance) {
       // Everything else (linked identities, game ownership claims, room memberships, games added,
       // votes cast, direct notifications) cascades via the schema's onDelete: Cascade - see
       // schema.prisma's User model relations.
+      // Rooms they created and already deleted (#1103) go with the account (see roomDeletion.ts).
+      await purgeDeletedRoomsCreatedBy(userId);
       await prisma.user.delete({ where: { id: userId } });
 
       app.log.warn(

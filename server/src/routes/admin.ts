@@ -17,12 +17,14 @@ import {
 import { sendMail, smtpIsConfigured } from '../services/mailer.js';
 import { renderSmtpTest } from '../services/emailTemplates.js';
 import { getTunnelStatus, reloadTunnel } from '../services/cloudflareTunnel.js';
-import type { ConfigSource, AdminIntegrationStatus, AdminRoomDetail, AdminRoomSummary, AdminUserSummary, AdminAuditLogEntry, AdminEmailLogEntry } from '@queueup/shared';
+import type { ConfigSource, AdminIntegrationStatus, AdminRoomDetail, AdminRoomSummary, AdminUserSummary, DeletedRoomSummary, AdminAuditLogEntry, AdminEmailLogEntry } from '@queueup/shared';
 import { normalizeSpinTheme } from '@queueup/shared';
 import { redis } from '../services/redisClient.js';
 import { ADMIN_MANAGE_TTL_SECONDS, adminManageKey, adminManagedRoomIds } from '../services/roomAccess.js';
 import { logRoomActivity } from '../services/roomActivity.js';
 import { serverAiUsageFor, summarizeServerAiUsage } from '../services/ai/aiServerUsage.js';
+import { purgeDeletedRoomsCreatedBy, recentlyDeletedRooms, restoreRoom, ROOM_RETENTION_DAYS, softDeleteRoom, toDeletedRoomSummary } from '../services/roomDeletion.js';
+import { notifyRoomMembersDirect } from '../services/notifications.js';
 
 /** When the administrator's "Manage as Room Master" for the room runs out, or null if it's off. */
 async function managingUntil(userId: string, roomId: string): Promise<string | null> {
@@ -357,7 +359,7 @@ export default async function adminRoutes(app: FastifyInstance) {
       throw new HttpError(400, 'You cannot delete your own account');
     }
 
-    const createdRoomCount = await prisma.room.count({ where: { createdBy: targetId } });
+    const createdRoomCount = await prisma.room.count({ where: { createdBy: targetId, deletedAt: null } });
     if (createdRoomCount > 0) {
       throw new HttpError(
         400,
@@ -370,6 +372,9 @@ export default async function adminRoutes(app: FastifyInstance) {
       throw new HttpError(404, 'User not found');
     }
     try {
+      // Rooms they created and already deleted (#1103) go with the account: Room.createdBy can't
+      // point at a missing user.
+      await purgeDeletedRoomsCreatedBy(targetId);
       await prisma.user.delete({ where: { id: targetId } });
     } catch (err) {
       // Still possible even after the findUnique check above (another admin's delete, or a
@@ -400,6 +405,7 @@ export default async function adminRoutes(app: FastifyInstance) {
     await requireAdmin(userId);
 
     const rooms = await prisma.room.findMany({
+      where: { deletedAt: null },
       include: { creator: true, _count: { select: { members: true, games: true } } },
       orderBy: { createdAt: 'asc' },
     });
@@ -473,8 +479,8 @@ export default async function adminRoutes(app: FastifyInstance) {
   app.post<{ Params: { id: string } }>('/api/admin/rooms/:id/manage', sensitiveAdminActionRateLimit, async (request) => {
     const actorId = await request.requireAuth();
     const actor = await requireAdmin(actorId);
-    const room = await prisma.room.findUnique({ where: { id: request.params.id }, select: { id: true, name: true } });
-    if (!room) throw new HttpError(404, 'Room not found');
+    const room = await prisma.room.findUnique({ where: { id: request.params.id }, select: { id: true, name: true, deletedAt: true } });
+    if (!room || room.deletedAt) throw new HttpError(404, 'Room not found');
     await redis.set(adminManageKey(actorId, room.id), '1', 'EX', ADMIN_MANAGE_TTL_SECONDS);
     app.log.warn({ adminAction: 'room.manage', actorId, targetId: room.id }, `Admin ${actorId} is managing room ${room.id} (${room.name})`);
     await logAdminAction({ actorId, actorLabel: actor.email, action: 'room.manage', targetLabel: room.name, metadata: { targetId: room.id } });
@@ -495,45 +501,61 @@ export default async function adminRoutes(app: FastifyInstance) {
     return null;
   });
 
+  // #1103: deleting a room keeps it restorable for ROOM_RETENTION_DAYS.
   app.delete<{ Params: { id: string } }>('/api/admin/rooms/:id', async (request, reply) => {
     const actorId = await request.requireAuth();
     const actor = await requireAdmin(actorId);
     const { id: targetId } = request.params;
 
-    const target = await prisma.room.findUnique({
-      where: { id: targetId },
-      include: { _count: { select: { members: true, games: true } } },
-    });
-    if (!target) {
-      throw new HttpError(404, 'Room not found');
-    }
-    try {
-      await prisma.room.delete({ where: { id: targetId } });
-    } catch (err) {
-      // Same TOCTOU gap as the user-delete route above.
-      if (err instanceof Prisma.PrismaClientKnownRequestError && err.code === 'P2025') {
-        throw new HttpError(404, 'Room not found');
-      }
-      throw err;
-    }
+    const deleted = await softDeleteRoom(targetId, actorId);
+    if (!deleted) throw new HttpError(404, 'Room not found');
     app.log.warn(
-      {
-        adminAction: 'room.delete',
-        actorId,
-        targetId,
-        targetName: target.name,
-        memberCount: target._count.members,
-        gameCount: target._count.games,
-      },
-      `Admin ${actorId} deleted room ${targetId} (${target.name}), cascading ${target._count.members} member(s) and ${target._count.games} game(s)`,
+      { adminAction: 'room.delete', actorId, targetId, targetName: deleted.name, memberCount: deleted.memberCount, gameCount: deleted.gameCount },
+      `Admin ${actorId} deleted room ${targetId} (${deleted.name}); restorable for ${ROOM_RETENTION_DAYS} days`,
     );
     await logAdminAction({
       actorId,
       actorLabel: actor.email,
       action: 'room.delete',
-      targetLabel: target.name,
-      metadata: { targetId, memberCount: target._count.members, gameCount: target._count.games },
+      targetLabel: deleted.name,
+      metadata: { targetId, memberCount: deleted.memberCount, gameCount: deleted.gameCount },
     });
+    reply.status(204);
+    return null;
+  });
+
+  // #1103: every deleted room still inside its recovery window.
+  app.get('/api/admin/rooms/deleted', async (request): Promise<{ rooms: DeletedRoomSummary[] }> => {
+    const userId = await request.requireAuth();
+    await requireAdmin(userId);
+    return { rooms: (await recentlyDeletedRooms()).map(toDeletedRoomSummary) };
+  });
+
+  app.post<{ Params: { id: string } }>('/api/admin/rooms/:id/restore', sensitiveAdminActionRateLimit, async (request) => {
+    const actorId = await request.requireAuth();
+    const actor = await requireAdmin(actorId);
+    const { room, memberIds } = await restoreRoom(request.params.id);
+    await notifyRoomMembersDirect({
+      roomName: room.name,
+      actorId,
+      recipientIds: memberIds,
+      type: 'room_restored',
+      message: () => `A server administrator restored the room "${room.name}"`,
+    });
+    app.log.warn({ adminAction: 'room.restore', actorId, targetId: room.id }, `Admin ${actorId} restored room ${room.id} (${room.name})`);
+    await logAdminAction({ actorId, actorLabel: actor.email, action: 'room.restore', targetLabel: room.name, metadata: { targetId: room.id } });
+    return { ok: true };
+  });
+
+  // Removes an already-deleted room for good, without waiting for its recovery window to end.
+  app.delete<{ Params: { id: string } }>('/api/admin/rooms/:id/permanent', sensitiveAdminActionRateLimit, async (request, reply) => {
+    const actorId = await request.requireAuth();
+    const actor = await requireAdmin(actorId);
+    const target = await prisma.room.findUnique({ where: { id: request.params.id }, select: { id: true, name: true, deletedAt: true } });
+    if (!target?.deletedAt) throw new HttpError(404, 'Only a deleted room can be removed for good');
+    await prisma.room.deleteMany({ where: { id: target.id, deletedAt: { not: null } } });
+    app.log.warn({ adminAction: 'room.purge', actorId, targetId: target.id }, `Admin ${actorId} permanently removed deleted room ${target.id} (${target.name})`);
+    await logAdminAction({ actorId, actorLabel: actor.email, action: 'room.purge', targetLabel: target.name, metadata: { targetId: target.id } });
     reply.status(204);
     return null;
   });

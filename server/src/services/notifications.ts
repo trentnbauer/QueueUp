@@ -25,7 +25,7 @@ interface NotifyRoomInput {
   // RoomActivityType, not just documented as one.
   type: Exclude<
     NotificationType,
-    'room_deleted' | 'price_drop' | 'release_watch' | 'playtime_mark_playing' | 'playnite_sync_reminder' | 'wishlist_bundle_deal' | 'play_together_request' | 'feed_reaction' | 'friend_recommendation' | 'good_time_to_buy' | 'account_change' | 'library_sync_error' | 'library_sync_available' | 'platform_unowned' | 'room_game_beaten' | 'merge_suggestions' | 'sensitive_games'
+    'room_deleted' | 'room_restored' | 'price_drop' | 'release_watch' | 'playtime_mark_playing' | 'playnite_sync_reminder' | 'wishlist_bundle_deal' | 'play_together_request' | 'feed_reaction' | 'friend_recommendation' | 'good_time_to_buy' | 'account_change' | 'library_sync_error' | 'library_sync_available' | 'platform_unowned' | 'room_game_beaten' | 'merge_suggestions' | 'sensitive_games'
   >;
   message: (actorName: string) => string;
   /** The game event's structured detail, for the room's play journal. */

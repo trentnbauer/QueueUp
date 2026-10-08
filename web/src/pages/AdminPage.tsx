@@ -1,7 +1,7 @@
 import { Fragment, useState } from 'react';
 import { useNavigate } from 'react-router';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
-import { ROOM_PLATFORM_LABELS, type AdminIntegrationStatus, type ConfigSource, type IntegrationConfigKey, type TunnelState } from '@queueup/shared';
+import { ROOM_PLATFORM_LABELS, type AdminIntegrationStatus, type DeletedRoomSummary, type ConfigSource, type IntegrationConfigKey, type TunnelState } from '@queueup/shared';
 import { adminApi } from '../api/admin';
 import { useAuth } from '../context/AuthContext';
 import { useConfirm } from '../context/ConfirmContext';
@@ -13,6 +13,7 @@ import { AdminAiSection } from './AdminAiSection';
 import { AdminBackups } from './AdminBackups';
 import { AdminEmailLog } from './AdminEmailLog';
 import { AdminRoomView } from './AdminRoomView';
+import { DeletedRoomsList } from '../dialogs/DeletedRooms';
 import { PageShell } from './PageShell';
 import { rich, t as tr, useT, type MessageKey } from '../i18n';
 
@@ -80,6 +81,8 @@ export function AdminPage() {
   });
   const users = useQuery({ queryKey: ['admin', 'users'], queryFn: adminApi.users, enabled });
   const rooms = useQuery({ queryKey: ['admin', 'rooms'], queryFn: adminApi.rooms, enabled });
+  const deletedRooms = useQuery({ queryKey: ['admin', 'deleted-rooms'], queryFn: adminApi.deletedRooms, enabled });
+  const [roomBusy, setRoomBusy] = useState<string | null>(null);
 
   if (!user) return null;
   if (!user.isAdmin) {
@@ -163,9 +166,39 @@ export function AdminPage() {
     try {
       await adminApi.deleteRoom(id);
       qc.invalidateQueries({ queryKey: ['admin', 'rooms'] });
+      qc.invalidateQueries({ queryKey: ['admin', 'deleted-rooms'] });
       qc.invalidateQueries({ queryKey: ['rooms'] });
     } catch (e) {
       fail(e, t('pages.admin.deleteRoomFailed'));
+    }
+  }
+
+  async function restoreRoom(r: DeletedRoomSummary) {
+    setRoomBusy(r.id);
+    try {
+      await adminApi.restoreRoom(r.id);
+      qc.invalidateQueries({ queryKey: ['admin', 'rooms'] });
+      qc.invalidateQueries({ queryKey: ['admin', 'deleted-rooms'] });
+      qc.invalidateQueries({ queryKey: ['rooms'] });
+      ui.notify(t('room.deleted.restored', { name: r.name }));
+    } catch (e) {
+      fail(e, t('room.deleted.restoreError'));
+    } finally {
+      setRoomBusy(null);
+    }
+  }
+
+  async function purgeRoom(r: DeletedRoomSummary) {
+    const ok = await confirm({ title: t('pages.admin.purgeTitle', { name: r.name }), message: t('pages.admin.purgeMessage'), confirmLabel: t('room.deleted.purge'), danger: true });
+    if (!ok) return;
+    setRoomBusy(r.id);
+    try {
+      await adminApi.purgeRoom(r.id);
+      qc.invalidateQueries({ queryKey: ['admin', 'deleted-rooms'] });
+    } catch (e) {
+      fail(e, t('pages.admin.purgeFailed'));
+    } finally {
+      setRoomBusy(null);
     }
   }
 
@@ -365,6 +398,7 @@ export function AdminPage() {
           ))}
           {rooms.data?.rooms.length === 0 && <div style={st('padding:16px;background:var(--surf);color:var(--muted);font-size:14px')}>{t('pages.admin.noRooms')}</div>}
         </Group>
+        <DeletedRoomsList rooms={deletedRooms.data?.rooms ?? []} busy={roomBusy} onRestore={(r) => void restoreRoom(r)} onPurge={(r) => void purgeRoom(r)} />
       </Collapsible>
 
       <Collapsible title={t('pages.admin.users', { n: users.data?.users.length ?? 0 })}>

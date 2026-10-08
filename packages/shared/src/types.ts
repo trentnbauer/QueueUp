@@ -1370,6 +1370,19 @@ export interface AiServerUsageSummary {
   avgRequestsPerMonth: number | null;
 }
 
+/** A deleted room that can still be restored (#1103). */
+export interface DeletedRoomSummary {
+  id: string;
+  name: string;
+  accentColor: string;
+  platform: RoomPlatform | null;
+  memberCount: number;
+  gameCount: number;
+  deletedAt: string;
+  /** When it will be removed for good. */
+  purgeAt: string;
+}
+
 export interface AdminRoomSummary {
   id: string;
   name: string;
@@ -1433,6 +1446,7 @@ export type NotificationType =
   | 'room_platform_changed'
   | 'room_owner_changed'
   | 'room_deleted'
+  | 'room_restored'
   | 'price_drop'
   | 'game_suggested'
   | 'release_watch'
