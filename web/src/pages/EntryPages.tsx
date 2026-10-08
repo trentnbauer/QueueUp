@@ -585,6 +585,15 @@ export function PublicProfilePage({ userId, signedIn }: { userId: string; signed
                   <span style={st('font:400 14.5px var(--font-ui);color:var(--muted)')}>
                     {t('pages.profile.since', { date: new Date(profile.memberSince).toLocaleDateString(undefined, { month: 'long', year: 'numeric' }) })}
                   </span>
+                  {profile.gamertags.length > 0 && (
+                    <span style={st('display:flex;flex-wrap:wrap;gap:6px 12px;margin-top:6px;font:500 13px var(--font-ui)')}>
+                      {profile.gamertags.map((g) => (
+                        <a key={g.platform} href={g.url} target="_blank" rel="noopener noreferrer" style={st('color:var(--text2);text-decoration:underline;text-underline-offset:3px')}>
+                          {t(`pages.profile.gamertag.${g.platform}`)}: {g.name}
+                        </a>
+                      ))}
+                    </span>
+                  )}
                   {profile.systems.length > 0 && (
                     <span style={st('display:flex;flex-wrap:wrap;gap:6px;margin-top:6px')}>
                       {profile.systems.map((s) => (
