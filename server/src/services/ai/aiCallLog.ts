@@ -9,7 +9,6 @@ const PURPOSES: Record<string, string> = {
   importClassify: 'Sort imported titles (game or not)',
   picks: 'Recommendations',
   tonight: "Tonight's pick",
-  price: 'Price advice',
   recap: 'Weekly room recap',
   story: 'Year story',
   search: 'AI search',

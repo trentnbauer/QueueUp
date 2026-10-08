@@ -92,9 +92,12 @@ describe('checkGameSensitive', () => {
     expect(m.aiComplete).not.toHaveBeenCalled();
   });
 
-  it('never uses the shared server AI: only the person\'s own provider', async () => {
+  it('uses the server AI when the person has none of their own, and skips the check with no AI at all', async () => {
     m.resolveAiChain.mockResolvedValue({ configs: [], source: 'server', owner: 'server' });
-    expect(await checkGameSensitive('u1', 'g1')).toEqual({ checked: false, flagged: false });
+    m.aiComplete.mockResolvedValue({ text: '{"erotic":false,"confidence":0.9}' });
+    expect(await checkGameSensitive('u1', 'g1')).toEqual({ checked: true, flagged: false });
+    expect(m.aiComplete).toHaveBeenCalledTimes(1);
+    m.aiComplete.mockClear();
     m.resolveAiChain.mockResolvedValue(null);
     expect(await checkGameSensitive('u1', 'g1')).toEqual({ checked: false, flagged: false });
     expect(m.aiComplete).not.toHaveBeenCalled();

@@ -78,7 +78,6 @@ export const social = {
   "social.notifications.ai.job.picks": "AI game picks",
   "social.notifications.ai.job.search": "your AI search",
   "social.notifications.ai.job.tonight": "tonight's pick",
-  "social.notifications.ai.job.price": "price advice",
   "social.notifications.ai.job.story": "a year story",
   "social.notifications.ai.job.coach": "backlog coaching",
   "social.notifications.ai.job.recap": "a room recap",

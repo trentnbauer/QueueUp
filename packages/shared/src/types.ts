@@ -3081,31 +3081,6 @@ export interface AiBacklogCoachResponse {
   fallback: AiFallbackNotice | null;
 }
 
-export type AiPriceVerdict = 'buy' | 'wait' | 'unclear';
-
-/** Buy-or-wait advice for one game (issue #829). The numbers come from QueueUp's price data; the AI
- * only explains them. It is a suggestion, not a prediction of future sales. */
-export interface AiPriceAdvice {
-  /** False when there is too little recorded price history to judge; then there is no verdict. */
-  enoughHistory: boolean;
-  currency: string;
-  current: number;
-  usual: number | null;
-  lowestRecorded: number | null;
-  historicalLow: number | null;
-  verdict: AiPriceVerdict | null;
-  /** One or two plain sentences from the AI. */
-  summary: string | null;
-  /** A price to alert at, only ever under the current price and only for "wait". */
-  suggestedTarget: number | null;
-}
-
-/** Result of POST /api/games/:id/ai-price-advice. */
-export interface AiPriceAdviceResponse {
-  advice: AiPriceAdvice;
-  fallback: AiFallbackNotice | null;
-}
-
 /** A game the AI recommended (issues #820, #821). Always a real IGDB game that is not already on the
  * shelf or in the room; the AI only names titles and each one is matched against IGDB. */
 export interface AiRecommendation extends GameSearchResult {

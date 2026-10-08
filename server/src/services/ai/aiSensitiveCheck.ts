@@ -5,11 +5,11 @@ import { adultOnlyFromSources } from '../adultSources.js';
 import { autoHideWaitingAdultGames } from '../adultHiding.js';
 
 /** When someone adds a game to their Personal Shelf, look for signs it is an erotic game that IGDB did not tag:
- * first Steam's "Adult Only Sexual Content" descriptor and IGDB's ESRB "Adults Only" rating (free, no AI), then, if the person
- * has an AI of their own, ask it. A yes sets the same flag IGDB's tags set, so the existing "hide this from your
- * public library?" prompt picks it up; nothing is hidden automatically. Each game is checked once, and the AI
- * step only uses the person's OWN provider: it is a background nicety, so it never spends the shared server AI's
- * daily allowance. */
+ * first Steam's "Adult Only Sexual Content" descriptor and IGDB's ESRB "Adults Only" rating (free, no AI), then
+ * the AI - the person's own, a room sponsor's never applies here, else the server's (which counts against their
+ * daily allowance on it). A yes sets the same flag IGDB's tags set, so the existing "hide this from your public
+ * library?" prompt picks it up; nothing is hidden automatically. Each game is checked once; when no AI is
+ * available or it fails (for example the daily allowance is used up) the game is simply left unchecked. */
 
 /** The AI must be at least this sure before the prompt is raised: a false alarm is worse than a miss. */
 export const SENSITIVE_MIN_CONFIDENCE = 0.8;
@@ -57,8 +57,7 @@ export async function checkGameSensitive(userId: string, gameId: string): Promis
     return { checked: true, flagged: true };
   }
 
-  const chain = await resolveAiChain(userId);
-  if (!chain || chain.source !== 'user') return { checked: false, flagged: false };
+  if (!(await resolveAiChain(userId))) return { checked: false, flagged: false };
 
   let flagged: boolean;
   try {
