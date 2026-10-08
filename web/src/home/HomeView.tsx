@@ -10,7 +10,7 @@ import { useConfirm } from '../context/ConfirmContext';
 import { useAttention } from '../hooks/useAttention';
 import { usePendingImportsCount } from '../hooks/usePendingImports';
 import { useVersion } from '../hooks/useVersion';
-import { SHELF_TABS, SHELF_MORE_TABS, SHELF_IMPORT_TABS, ROOM_TABS } from '../lib/gameView';
+import { shelfTabs, SHELF_MORE_TABS, SHELF_IMPORT_TABS, roomTabs } from '../lib/gameView';
 import { JournalList } from './JournalList';
 import { UNDO_MS } from '../game/useChangeStatus';
 import { PendingImportsList } from './PendingImportsList';
@@ -26,6 +26,7 @@ import { useIsMobile } from '../ui/useLayout';
 import { st } from '../ui/st';
 import { buildHomeLists, toRowItem } from './derive';
 import { useBacklogSort } from './backlogSort';
+import { usePlayNextTab } from './playNextTab';
 import { useMaxInstallGb } from './installSize';
 import { PlatformMenu, useIncludeOlder, usePlatformFilter, usePlatformOptions } from './PlatformMenu';
 import { ComingStrip, CoverCard, DesktopRow, MobileRow, PlayNextRow } from './Rows';
@@ -37,7 +38,6 @@ import { rich, useT } from '../i18n';
 
 const MAX_SHOWN_HINT = 5000;
 
-const SHELF_ALL_TABS = [...SHELF_TABS, ...SHELF_MORE_TABS];
 
 /** A card already dealt with in this search: greyed and faded, but still tappable and readable. */
 const dimStyle = (on: boolean) => (on ? 'opacity:0.45;filter:grayscale(1);transition:opacity .2s,filter .2s' : 'transition:opacity .2s,filter .2s');
@@ -86,8 +86,9 @@ export function HomeView() {
 
   // The shelf's primary tabs, plus the filters tucked behind the "+" button (Dropped, Won't play and
   // the two lists of synced titles that never became games).
-  const tabs = isShelf ? SHELF_ALL_TABS : ROOM_TABS;
-  const primaryTabs = isShelf ? SHELF_TABS : ROOM_TABS;
+  const [playNextIn] = usePlayNextTab(isShelf ? null : (room?.id ?? null));
+  const primaryTabs = useMemo(() => (isShelf ? shelfTabs(playNextIn) : roomTabs(playNextIn)), [isShelf, playNextIn]);
+  const tabs = useMemo(() => (isShelf ? [...primaryTabs, ...SHELF_MORE_TABS] : primaryTabs), [isShelf, primaryTabs]);
   const [tab, setTab] = useState('queue');
   const [moreOpen, setMoreOpen] = useState(false);
   const pendingList = useQuery({ queryKey: PENDING_IMPORTS_QUERY_KEY, queryFn: pendingImportsApi.list, enabled: isShelf });
@@ -123,13 +124,13 @@ export function HomeView() {
   const [backlogSort] = useBacklogSort();
   const [maxInstallGb, setMaxInstallGb] = useMaxInstallGb();
   const lists = useMemo(
-    () => buildHomeLists(games, { isShelf, tabs, tab, query, platform, includeOlder, backlogSort, maxInstallGb }),
-    [games, isShelf, tabs, tab, query, platform, includeOlder, backlogSort, maxInstallGb],
+    () => buildHomeLists(games, { isShelf, tabs, tab, query, platform, includeOlder, backlogSort, maxInstallGb, playNextIn }),
+    [games, isShelf, tabs, tab, query, platform, includeOlder, backlogSort, maxInstallGb, playNextIn],
   );
   const showRank = tab === 'queue' && !searching;
   const ctx = { isShelf, tab, searching, all: games };
   // Voting changes scores, which would re-sort the list under you - keep the order until the view changes.
-  const orderKey = `${scope.scopeId}|${tab}|${query}|${platform ?? ''}|${includeOlder}|${backlogSort.join(',')}|${maxInstallGb}`;
+  const orderKey = `${scope.scopeId}|${tab}|${query}|${platform ?? ''}|${includeOlder}|${backlogSort.join(',')}|${maxInstallGb}|${playNextIn}`;
   const orderedList = useStableOrder(lists.list, orderKey);
   const orderedPlayNext = useStableOrder(lists.playNext, `${orderKey}|next`);
   const items = otherTab ? [] : orderedList.map((g, i) => toRowItem(g, i + 1, ctx));

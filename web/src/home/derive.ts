@@ -83,7 +83,7 @@ export interface HomeLists {
  *   instead of the main list. */
 export function buildHomeLists(
   allGames: Game[],
-  opts: { isShelf: boolean; tabs: TabDef[]; tab: string; query: string; platform?: RoomPlatform | null; includeOlder?: boolean; backlogSort?: BacklogSortKey[]; maxInstallGb?: number },
+  opts: { isShelf: boolean; tabs: TabDef[]; tab: string; query: string; platform?: RoomPlatform | null; includeOlder?: boolean; backlogSort?: BacklogSortKey[]; maxInstallGb?: number; playNextIn?: 'playing' | 'backlog' },
 ): HomeLists {
   const { isShelf, tabs, tab, platform } = opts;
   const onPlatform = platform ? allGames.filter((g) => playsOn(g, platform, opts.includeOlder ?? true)) : allGames;
@@ -116,6 +116,8 @@ export function buildHomeLists(
     });
   }
 
+  // With Play next set to show in the Backlog / Queue (Shelf or Room settings), those games are pinned to its top.
+  const pin = (g: Game) => (tab === 'queue' && opts.playNextIn === 'backlog' && g.status === 'play_next' ? 0 : 1);
   const newFirst = (a: Game, b: Game) => {
     const na = isNewRelease(a, now);
     const nb = isNewRelease(b, now);
@@ -125,9 +127,11 @@ export function buildHomeLists(
   };
   if (!q && isShelf && tab === 'queue') {
     // The shelf's Backlog follows the sort picked in Shelf settings (issue #798; default "Want to play").
-    list = [...list].sort(backlogComparator(opts.backlogSort ?? [], now));
+    const bySort = backlogComparator(opts.backlogSort ?? [], now);
+    list = [...list].sort((a, b) => pin(a) - pin(b) || bySort(a, b));
   } else if (!q && (tab === 'queue' || tab === 'playing')) {
     list = [...list].sort((a, b) => {
+      if (pin(a) !== pin(b)) return pin(a) - pin(b);
       const na = isNewRelease(a, now);
       const nb = isNewRelease(b, now);
       if (na !== nb) return na ? -1 : 1;
@@ -137,7 +141,7 @@ export function buildHomeLists(
   }
 
   const coming = q || tab !== comingTab ? [] : games.filter(isComing).sort((a, b) => (a.releaseDate ?? '').localeCompare(b.releaseDate ?? ''));
-  const playNext = tab === 'playing' && !q ? games.filter((g) => g.status === 'play_next' || g.status === 'paused').sort(newFirst) : [];
+  const playNext = tab === 'playing' && !q ? games.filter((g) => (g.status === 'play_next' && opts.playNextIn !== 'backlog') || g.status === 'paused').sort(newFirst) : [];
 
   return { list, coming, playNext, counts, comingTab };
 }
