@@ -1,7 +1,7 @@
 import type { FastifyInstance } from 'fastify';
 import { HttpError } from '../util/httpError.js';
-import { aiScanDuplicates, countDuplicateCandidates, dismissDuplicatePair, listDuplicateCandidates } from '../services/ai/aiDuplicates.js';
-import type { AiDuplicateScanResponse, DismissDuplicateRequest, DuplicateCandidateCountResponse, DuplicateCandidatesResponse } from '@queueup/shared';
+import { aiScanDuplicates, countDuplicateCandidates, dismissDuplicatePair, listDuplicateCandidates, markDuplicateBundle } from '../services/ai/aiDuplicates.js';
+import type { AiDuplicateScanResponse, DismissDuplicateRequest, MarkBundleRequest, DuplicateCandidateCountResponse, DuplicateCandidatesResponse } from '@queueup/shared';
 
 /** AI duplicate scan for the personal shelf (issue #824). The merge itself is the existing
  * POST /api/games/:id/merge; nothing here merges anything. */
@@ -47,6 +47,19 @@ export default async function duplicateSuggestionRoutes(app: FastifyInstance) {
       const { gameIdA, gameIdB } = request.body ?? {};
       if (typeof gameIdA !== 'string' || typeof gameIdB !== 'string') throw new HttpError(400, 'gameIdA and gameIdB are required');
       await dismissDuplicatePair(userId, gameIdA, gameIdB);
+      reply.status(204);
+    },
+  );
+
+  /** "This is a bundle": the card is hidden from the shelf and leaves every duplicate pair it was in. */
+  app.post<{ Body: MarkBundleRequest }>(
+    '/api/games/duplicates/bundle',
+    { config: { rateLimit: { max: 30, timeWindow: '1 minute' } } },
+    async (request, reply) => {
+      const userId = await request.requireAuth();
+      const { gameId } = request.body ?? {};
+      if (typeof gameId !== 'string') throw new HttpError(400, 'gameId is required');
+      await markDuplicateBundle(userId, gameId);
       reply.status(204);
     },
   );

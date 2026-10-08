@@ -142,6 +142,7 @@ export const gamesApi = {
   duplicateCandidates: () => apiGet<DuplicateCandidatesResponse>('/api/games/duplicates'),
   duplicateCandidateCount: () => apiGet<DuplicateCandidateCountResponse>('/api/games/duplicates/count'),
   dismissDuplicate: (body: DismissDuplicateRequest) => apiPost<void>('/api/games/duplicates/dismiss', body),
+  markBundle: (gameId: string) => apiPost<void>('/api/games/duplicates/bundle', { gameId }),
   mergeGame: (id: string, body: MergeGameRequest) => apiPost<{ game: Game; mergedFromId: string; undoToken?: string }>(`/api/games/${id}/merge`, body),
   /** Undoes a merge or re-match within a few minutes of it, using the token that came back with it. */
   undoChange: (token: string) => apiPost<{ game: Game }>('/api/games/undo-change', { token }),

@@ -50,6 +50,8 @@ export function DuplicatesDialog() {
   const [gone, setGone] = useState<string[]>([]);
   const [skipped, setSkipped] = useState<string[]>([]);
   const [flipped, setFlipped] = useState<string[]>([]);
+  // Cards marked as bundles this session: every pair they are in drops out at once.
+  const [bundled, setBundled] = useState<string[]>([]);
   const [reviewing, setReviewing] = useState(false);
   const [tally, setTally] = useState({ merged: 0, kept: 0, skipped: 0 });
   const [error, setError] = useState<string | null>(null);
@@ -79,6 +81,10 @@ export function DuplicatesDialog() {
   const merge = useMutation({
     mutationFn: ({ remove, keep }: { remove: DuplicateSuggestionGame; keep: DuplicateSuggestionGame }) => gamesApi.mergeGame(remove.id, { targetGameId: keep.id }),
     onError: (err) => setError(err instanceof Error ? err.message : t('settings.duplicates.mergeFailed')),
+  });
+  const bundle = useMutation({
+    mutationFn: (g: DuplicateSuggestionGame) => gamesApi.markBundle(g.id),
+    onError: (err) => setError(err instanceof Error ? err.message : t('settings.duplicates.bundleFailed')),
   });
   const dismiss = useMutation({
     mutationFn: (p: DuplicateSuggestion) => gamesApi.dismissDuplicate({ gameIdA: p.a.id, gameIdB: p.b.id }),
@@ -117,6 +123,17 @@ export function DuplicatesDialog() {
     if (ok) await mergeNow(p, keep);
   }
 
+  /** The card is a bundle of several games: hide it from the shelf and drop every pair it is in. */
+  async function markBundle(g: DuplicateSuggestionGame) {
+    setError(null);
+    await bundle.mutateAsync(g);
+    setBundled((b) => [...b, g.id]);
+    void queryClient.invalidateQueries({ queryKey: GAMES_QUERY_ROOT });
+    void queryClient.invalidateQueries({ queryKey: DUPLICATE_COUNT_QUERY_KEY });
+    void queryClient.invalidateQueries({ queryKey: DUPLICATE_LIST_QUERY_KEY });
+    ui.notify(t('settings.duplicates.bundled', { title: g.title }));
+  }
+
   async function notDuplicates(p: DuplicateSuggestion) {
     setError(null);
     await dismiss.mutateAsync(p);
@@ -126,15 +143,16 @@ export function DuplicatesDialog() {
     setTally((n) => ({ ...n, kept: n.kept + 1 }));
   }
 
-  const scanPairs = (scan?.pairs ?? []).filter((p) => !gone.includes(pairKey(p)));
+  const hasBundle = (p: DuplicateSuggestion) => bundled.includes(p.a.id) || bundled.includes(p.b.id);
+  const scanPairs = (scan?.pairs ?? []).filter((p) => !gone.includes(pairKey(p)) && !hasBundle(p));
   // After a scan the list is what the AI judged to be the same game; before one, the title matches.
   const pairs: Row[] = scan
     ? scanPairs.map((p) => ({ ...p, ai: p.source !== 'community' && p.source !== 'igdb', community: p.mergedBy ?? 0 }))
-    : (candidates.data?.pairs ?? []).map(({ communityMergedBy, ...p }) => ({ ...p, confidence: 0, reason: '', ai: false, community: communityMergedBy })).filter((p) => !gone.includes(pairKey(p)));
+    : (candidates.data?.pairs ?? []).map(({ communityMergedBy, ...p }) => ({ ...p, confidence: 0, reason: '', ai: false, community: communityMergedBy })).filter((p) => !gone.includes(pairKey(p)) && !hasBundle(p));
   const visiblePairs = showAll ? pairs : pairs.slice(0, SHOWN_AT_FIRST);
   // What the popup still has to ask about: everything not merged, dismissed or put off.
   const queue = scanPairs.filter((p) => !skipped.includes(pairKey(p)));
-  const busy = run.isPending || merge.isPending || dismiss.isPending;
+  const busy = run.isPending || merge.isPending || dismiss.isPending || bundle.isPending;
   const total = scan?.pairs.length ?? 0;
 
   // When the last question has been answered, close the popup and say how it went.
@@ -239,6 +257,9 @@ export function DuplicatesDialog() {
                     <Btn kind={original ? 'accent' : 'soft'} height={36} padX={10} fontSize={12.5} disabled={busy} onClick={() => void mergePair(p, g)}>
                       {t('settings.duplicates.keepThis')}
                     </Btn>
+                    <Btn kind="ghost" height={30} padX={8} fontSize={12} disabled={busy} title={t('settings.duplicates.markBundleHint')} onClick={() => void markBundle(g)}>
+                      {t('settings.duplicates.markBundle')}
+                    </Btn>
                   </div>
                 );
               })}
@@ -275,6 +296,13 @@ export function DuplicatesDialog() {
           <div style={st('display:flex;flex-direction:column;gap:12px;padding:12px;border-radius:16px;background:var(--surf)')}>
             <GameLine g={removeOf(current)} label={t('settings.duplicates.willBeRemoved')} />
             <GameLine g={keepOf(current)} label={t('settings.duplicates.original')} />
+            <div style={st('display:flex;gap:14px;flex-wrap:wrap')}>
+              {[removeOf(current), keepOf(current)].map((g) => (
+                <Btn key={g.id} kind="ghost" height={30} padX={8} fontSize={12} disabled={busy} title={t('settings.duplicates.markBundleHint')} onClick={() => void markBundle(g)}>
+                  {t('settings.duplicates.markBundle')}: {g.title}
+                </Btn>
+              ))}
+            </div>
           </div>
           {current.reason && <span style={st('font:400 13.5px/1.45 var(--font-ui);color:var(--text2)')}>{current.reason}</span>}
           <span style={st('font:400 12.5px/1.45 var(--font-ui);color:var(--muted)')}>{t('settings.duplicates.reviewConsequence', { keep: keepOf(current).title })}</span>

@@ -157,7 +157,7 @@ const SELECT = { id: true, igdbId: true, title: true, platform: true, releaseYea
  * duplicates" nudge without asking the AI; the AI scan is what actually judges them. */
 export async function countDuplicateCandidates(userId: string): Promise<number> {
   const [games, dismissals] = await Promise.all([
-    prisma.game.findMany({ where: { roomId: null, addedBy: userId }, select: SELECT, orderBy: { title: 'asc' } }),
+    prisma.game.findMany({ where: { roomId: null, addedBy: userId, archivedAt: null, baseGameId: null }, select: SELECT, orderBy: { title: 'asc' } }),
     prisma.duplicateDismissal.findMany({ where: { userId } }),
   ]);
   const dismissed = new Set(dismissals.map((d) => igdbPairKey(d.igdbIdLow, d.igdbIdHigh)));
@@ -170,7 +170,7 @@ export async function countDuplicateCandidates(userId: string): Promise<number> 
  * have them judged. */
 export async function listDuplicateCandidates(userId: string): Promise<DuplicateCandidatesResponse> {
   const [games, dismissals] = await Promise.all([
-    prisma.game.findMany({ where: { roomId: null, addedBy: userId }, select: SELECT, orderBy: { title: 'asc' } }),
+    prisma.game.findMany({ where: { roomId: null, addedBy: userId, archivedAt: null, baseGameId: null }, select: SELECT, orderBy: { title: 'asc' } }),
     prisma.duplicateDismissal.findMany({ where: { userId } }),
   ]);
   const dismissed = new Set(dismissals.map((d) => igdbPairKey(d.igdbIdLow, d.igdbIdHigh)));
@@ -203,7 +203,7 @@ export async function listDuplicateCandidates(userId: string): Promise<Duplicate
  * if nothing could be answered at all it throws. */
 export async function aiScanDuplicates(userId: string, opts: { fresh?: boolean } = {}): Promise<AiDuplicateScanResponse> {
   const [games, dismissals] = await Promise.all([
-    prisma.game.findMany({ where: { roomId: null, addedBy: userId }, select: SELECT, orderBy: { title: 'asc' } }),
+    prisma.game.findMany({ where: { roomId: null, addedBy: userId, archivedAt: null, baseGameId: null }, select: SELECT, orderBy: { title: 'asc' } }),
     prisma.duplicateDismissal.findMany({ where: { userId } }),
   ]);
   if (games.length < 2) {
@@ -312,4 +312,12 @@ export async function dismissDuplicatePair(userId: string, gameIdA: string, game
     create: { userId, igdbIdLow: low, igdbIdHigh: high },
     update: {},
   });
+}
+
+/** "This card is a bundle": it packs several games the shelf also lists on their own, so it is
+ * hidden from the shelf (archived, not deleted) and stops turning up as a duplicate of any of them.
+ * A bundle can match many cards, so one call clears every pair it was in. */
+export async function markDuplicateBundle(userId: string, gameId: string): Promise<void> {
+  const { count } = await prisma.game.updateMany({ where: { id: gameId, roomId: null, addedBy: userId, archivedAt: null }, data: { archivedAt: new Date() } });
+  if (count === 0) throw new HttpError(404, 'That game is not on your shelf');
 }
