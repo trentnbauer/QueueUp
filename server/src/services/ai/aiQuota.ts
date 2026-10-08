@@ -25,10 +25,17 @@ const COUNTER_TTL_SECONDS = 26 * 60 * 60;
 export async function chargeServerAiUse(userId: string): Promise<AiCharge> {
   const { env } = await import('../../config/env.js');
   const limit = env.AI_SERVER_DAILY_LIMIT;
-  if (limit === 0) return NO_CHARGE;
+  const entitledOnly = env.AI_SERVER_ACCESS === 'entitled';
+  if (limit === 0 && !entitledOnly) return NO_CHARGE;
 
-  const user = await prisma.user.findUnique({ where: { id: userId }, select: { isAdmin: true } });
+  const user = await prisma.user.findUnique({ where: { id: userId }, select: { isAdmin: true, aiEntitled: true } });
   if (user?.isAdmin) return NO_CHARGE;
+  // AI_SERVER_ACCESS=entitled: the server's key is for administrators and people an administrator
+  // has switched on. Checked before the daily allowance so a refused call never counts as a use.
+  if (entitledOnly && !user?.aiEntitled) {
+    throw new HttpError(403, 'The shared AI is only available to approved accounts on this server. Add your own provider in your account settings, or ask an administrator for access.');
+  }
+  if (limit === 0) return NO_CHARGE;
 
   const { redis } = await import('../redisClient.js');
   const key = `ai:server-use:${userId}:${new Date().toISOString().slice(0, 10)}`;

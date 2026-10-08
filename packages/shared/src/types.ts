@@ -1354,6 +1354,8 @@ export interface AdminUserSummary {
   avatarColor: string;
   avatarUrl: string | null;
   isAdmin: boolean;
+  /** Allowed to use the server's own AI key when the server is set to AI_SERVER_ACCESS=entitled. */
+  aiEntitled: boolean;
   createdAt: string;
 }
 

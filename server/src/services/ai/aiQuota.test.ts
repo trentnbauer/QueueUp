@@ -1,10 +1,14 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 const limit = { value: 3 };
+const access = { value: 'everyone' };
 vi.mock('../../config/env.js', () => ({
   env: {
     get AI_SERVER_DAILY_LIMIT() {
       return limit.value;
+    },
+    get AI_SERVER_ACCESS() {
+      return access.value;
     },
   },
 }));
@@ -20,8 +24,9 @@ const { chargeServerAiUse } = await import('./aiQuota.js');
 describe('chargeServerAiUse', () => {
   beforeEach(() => {
     limit.value = 3;
+    access.value = 'everyone';
     for (const m of [findUnique, incr, expire, decr]) m.mockClear();
-    findUnique.mockResolvedValue({ isAdmin: false });
+    findUnique.mockResolvedValue({ isAdmin: false, aiEntitled: false });
     incr.mockResolvedValue(1);
   });
 
@@ -37,6 +42,40 @@ describe('chargeServerAiUse', () => {
     incr.mockResolvedValue(4);
     await expect(chargeServerAiUse('u1')).rejects.toMatchObject({ statusCode: 429 });
     expect(decr).toHaveBeenCalledTimes(1);
+  });
+
+  describe('when only entitled accounts may use the server AI', () => {
+    beforeEach(() => {
+      access.value = 'entitled';
+    });
+
+    it('refuses an account that has not been switched on, without counting it', async () => {
+      await expect(chargeServerAiUse('u1')).rejects.toMatchObject({ statusCode: 403 });
+      expect(incr).not.toHaveBeenCalled();
+    });
+
+    it('refuses an unentitled account even when the daily limit is 0', async () => {
+      limit.value = 0;
+      await expect(chargeServerAiUse('u1')).rejects.toMatchObject({ statusCode: 403 });
+    });
+
+    it('lets an entitled account through, still counting against the daily limit', async () => {
+      findUnique.mockResolvedValue({ isAdmin: false, aiEntitled: true });
+      await chargeServerAiUse('u1');
+      expect(incr).toHaveBeenCalledTimes(1);
+    });
+
+    it('lets an entitled account through uncounted when the limit is 0', async () => {
+      limit.value = 0;
+      findUnique.mockResolvedValue({ isAdmin: false, aiEntitled: true });
+      await chargeServerAiUse('u1');
+      expect(incr).not.toHaveBeenCalled();
+    });
+
+    it('lets administrators through', async () => {
+      findUnique.mockResolvedValue({ isAdmin: true, aiEntitled: false });
+      await chargeServerAiUse('admin');
+    });
   });
 
   it('gives a use back when asked (the provider failed)', async () => {
