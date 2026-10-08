@@ -241,6 +241,7 @@ export default async function adminRoutes(app: FastifyInstance) {
       avatarColor: u.avatarColor,
       avatarUrl: u.avatarUrl,
       isAdmin: u.isAdmin,
+      aiEntitled: u.aiEntitled,
       createdAt: u.createdAt.toISOString(),
     }));
     return { users: summaries };
@@ -293,6 +294,44 @@ export default async function adminRoutes(app: FastifyInstance) {
         avatarColor: updated.avatarColor,
         avatarUrl: updated.avatarUrl,
         isAdmin: updated.isAdmin,
+        aiEntitled: updated.aiEntitled,
+        createdAt: updated.createdAt.toISOString(),
+      };
+      return { user: summary };
+    },
+  );
+
+  // Who may use the server's own AI key when AI_SERVER_ACCESS=entitled (see aiQuota.ts).
+  app.patch<{ Params: { id: string }; Body: { aiEntitled: boolean } }>(
+    '/api/admin/users/:id/ai-access',
+    sensitiveAdminActionRateLimit,
+    async (request) => {
+      const actorId = await request.requireAuth();
+      const actor = await requireAdmin(actorId);
+      const { id: targetId } = request.params;
+      const { aiEntitled } = request.body ?? {};
+
+      if (typeof aiEntitled !== 'boolean') {
+        throw new HttpError(400, 'aiEntitled must be a boolean');
+      }
+      const target = await prisma.user.findUnique({ where: { id: targetId } });
+      if (!target) {
+        throw new HttpError(404, 'User not found');
+      }
+
+      const updated = await prisma.user.update({ where: { id: targetId }, data: { aiEntitled } });
+      const action = aiEntitled ? 'user.ai_entitle' : 'user.ai_revoke';
+      app.log.warn({ adminAction: action, actorId, targetId, targetEmail: target.email }, `Admin ${actorId} ${aiEntitled ? 'granted' : 'removed'} server AI access for user ${targetId} (${target.email})`);
+      await logAdminAction({ actorId, actorLabel: actor.email, action, targetLabel: target.email, metadata: { targetId } });
+
+      const summary: AdminUserSummary = {
+        id: updated.id,
+        displayName: updated.displayName,
+        email: updated.email,
+        avatarColor: updated.avatarColor,
+        avatarUrl: updated.avatarUrl,
+        isAdmin: updated.isAdmin,
+        aiEntitled: updated.aiEntitled,
         createdAt: updated.createdAt.toISOString(),
       };
       return { user: summary };

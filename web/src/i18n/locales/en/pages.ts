@@ -329,6 +329,11 @@ export const pages = {
   "pages.admin.roleFor": "Role for {name}",
   "pages.admin.roleUser": "User",
   "pages.admin.roleAdmin": "Admin",
+  "pages.admin.aiAccessFailed": "Could not update that user's AI access",
+  "pages.admin.aiAccessFor": "Server AI access for {name}",
+  "pages.admin.aiAccessHint": "Only applies when the server is set to AI_SERVER_ACCESS=entitled. Administrators always have access.",
+  "pages.admin.aiAccessOff": "No server AI",
+  "pages.admin.aiAccessOn": "Server AI",
   "pages.admin.deleteUser": "Delete user",
   "pages.admin.downloadLogs": "Download troubleshooting logs",
 

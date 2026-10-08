@@ -47,6 +47,8 @@ export const adminApi = {
   users: () => apiGet<{ users: AdminUserSummary[] }>('/api/admin/users'),
   setUserAdmin: (id: string, isAdmin: boolean) =>
     apiPatch<{ user: AdminUserSummary }>(`/api/admin/users/${id}/admin`, { isAdmin }),
+  setUserAiAccess: (id: string, aiEntitled: boolean) =>
+    apiPatch<{ user: AdminUserSummary }>(`/api/admin/users/${id}/ai-access`, { aiEntitled }),
   deleteUser: (id: string) => apiDelete(`/api/admin/users/${id}`),
   rooms: () => apiGet<{ rooms: AdminRoomSummary[] }>('/api/admin/rooms'),
   deleteRoom: (id: string) => apiDelete(`/api/admin/rooms/${id}`),

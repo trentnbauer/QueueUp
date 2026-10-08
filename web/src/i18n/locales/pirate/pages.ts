@@ -331,6 +331,11 @@ export const pages: Record<keyof typeof en, string> = {
   "pages.admin.roleFor": "Rank for {name}",
   "pages.admin.roleUser": "Sailor",
   "pages.admin.roleAdmin": "Admiral",
+  "pages.admin.aiAccessFailed": "Couldn’t change that sailor’s access to the ship’s AI",
+  "pages.admin.aiAccessFor": "Ship’s AI access for {name}",
+  "pages.admin.aiAccessHint": "Only applies when the server be set to AI_SERVER_ACCESS=entitled. Admirals always have access.",
+  "pages.admin.aiAccessOff": "No ship’s AI",
+  "pages.admin.aiAccessOn": "Ship’s AI",
   "pages.admin.deleteUser": "Remove sailor",
   "pages.admin.downloadLogs": "Download the ship’s troubleshootin’ logs",
 

@@ -258,6 +258,9 @@ model User {
   avatarColor          String         @default("#8f8aa8") @map("avatar_color")
   avatarUrl            String?        @map("avatar_url")
   isAdmin              Boolean        @default(false) @map("is_admin")
+  /// Whether an administrator has granted this person use of the server's own AI key. Only checked
+  /// when AI_SERVER_ACCESS=entitled (see aiQuota.ts); people using their own provider never need it.
+  aiEntitled           Boolean        @default(false) @map("ai_entitled")
   createdAt            DateTime       @default(now()) @map("created_at")
   /// Systems the user has ticked as "owned" on their Personal Shelf - scopes the add-game
   /// search/create flow there the same way a Room's platform scopes it for a room. Empty means

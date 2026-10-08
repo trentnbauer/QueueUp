@@ -192,6 +192,15 @@ export function AdminPage() {
     }
   }
 
+  async function setAiAccess(id: string, aiEntitled: boolean) {
+    try {
+      await adminApi.setUserAiAccess(id, aiEntitled);
+      qc.invalidateQueries({ queryKey: ['admin', 'users'] });
+    } catch (e) {
+      fail(e, t('pages.admin.aiAccessFailed'));
+    }
+  }
+
   async function sendTest() {
     setBusyKey('smtp-test');
     try {
@@ -366,6 +375,18 @@ export function AdminPage() {
                   <span style={st('font:600 14.5px var(--font-ui)')}>{u.displayName}</span>
                   <span style={st('font:400 12px var(--font-ui);color:var(--muted);overflow:hidden;text-overflow:ellipsis')}>{u.email}</span>
                 </span>
+                {!u.isAdmin && (
+                  <select
+                    value={u.aiEntitled ? 'on' : 'off'}
+                    aria-label={t('pages.admin.aiAccessFor', { name: u.displayName })}
+                    title={t('pages.admin.aiAccessHint')}
+                    onChange={(e) => setAiAccess(u.id, e.target.value === 'on')}
+                    style={st('height:34px;padding:0 8px;border-radius:10px;background:var(--surf2);border:none;color:var(--text);font-size:13px;outline:none')}
+                  >
+                    <option value="off">{t('pages.admin.aiAccessOff')}</option>
+                    <option value="on">{t('pages.admin.aiAccessOn')}</option>
+                  </select>
+                )}
                 <select
                   value={u.isAdmin ? 'admin' : 'user'}
                   disabled={me}

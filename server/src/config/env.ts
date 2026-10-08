@@ -213,6 +213,15 @@ export const envSchema = z.object({
       const n = v?.trim() ? Number(v) : 50;
       return Number.isInteger(n) && n >= 0 ? n : 50;
     }),
+  // Who may use the server's own AI key. "everyone" (default) lets any signed-in person, within
+  // AI_SERVER_DAILY_LIMIT. "entitled" limits it to administrators and people an administrator has
+  // switched on in Administrator settings > Users. Anything other than "everyone" counts as
+  // "entitled": a typo must not silently open up a paid-for key. People using their own provider
+  // (or a room sponsor's) are never affected.
+  AI_SERVER_ACCESS: z
+    .string()
+    .optional()
+    .transform((v) => (!v?.trim() || v.trim().toLowerCase() === 'everyone' ? ('everyone' as const) : ('entitled' as const))),
   // Most AI requests the server runs at once; more wait their turn (and show as queued in the
   // notifications). 0 = no limit. Set 1 for a single local model (Ollama on one GPU), which handles
   // requests one after another anyway - waiting here keeps a queued request from using up its 60 s
