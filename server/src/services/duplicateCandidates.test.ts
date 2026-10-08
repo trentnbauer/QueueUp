@@ -8,6 +8,8 @@ describe('titleCore', () => {
     expect(titleCore('The Witcher 3: Wild Hunt - Complete Edition')).toBe('witcher 3 wild hunt');
     expect(titleCore('Hades™ (Early Access)')).toBe('hades');
     expect(titleCore('Skyrim Special Edition')).toBe('skyrim');
+    expect(titleCore("Tom Clancy's Rainbow Six® Siege")).toBe('tom clancys rainbow six siege');
+    expect(titleCore('Grand Theft Auto V')).toBe('grand theft auto 5');
   });
 });
 
@@ -23,7 +25,20 @@ describe('findCandidatePairs', () => {
     const title = [g('1', 1, 'Witcher 3', 7), g('2', 2, 'Witcher 3 Wild Hunt', 7)];
     expect(findCandidatePairs(title, new Set())).toHaveLength(1);
     expect(findCandidatePairs([g('1', 1, 'Witcher 3', 7), g('2', 2, 'Witcher 3 Wild Hunt', 8)], new Set())).toHaveLength(0);
-    expect(findCandidatePairs([g('1', 1, 'Witcher 3'), g('2', 2, 'Witcher 3 Wild Hunt')], new Set())).toHaveLength(0);
+  });
+
+  it('pairs a title with the same title plus a subtitle when IGDB gives no collection, but not a numbered sequel', () => {
+    expect(findCandidatePairs([g('1', 1, 'Witcher 3'), g('2', 2, 'Witcher 3 Wild Hunt')], new Set())).toHaveLength(1);
+    expect(findCandidatePairs([g('1', 1, 'Halo'), g('2', 2, 'Halo: Combat Evolved', 5)], new Set())).toHaveLength(1);
+    expect(findCandidatePairs([g('1', 1, 'Portal'), g('2', 2, 'Portal 2')], new Set())).toHaveLength(0);
+    expect(findCandidatePairs([g('1', 1, 'Doom'), g('2', 2, 'Doom Eternal', 3), g('3', 3, 'Doom', 4)], new Set()).map(([a, b]) => [a.id, b.id])).toEqual([['1', '2'], ['1', '3']]);
+  });
+
+  it('pairs titles that differ only in apostrophes, "&" or roman numerals', () => {
+    expect(findCandidatePairs([g('1', 1, "Assassin's Creed"), g('2', 2, 'Assassins Creed')], new Set())).toHaveLength(1);
+    expect(findCandidatePairs([g('1', 1, 'Ratchet & Clank'), g('2', 2, 'Ratchet and Clank')], new Set())).toHaveLength(1);
+    expect(findCandidatePairs([g('1', 1, 'Final Fantasy VII'), g('2', 2, 'Final Fantasy 7')], new Set())).toHaveLength(1);
+    expect(findCandidatePairs([g('1', 1, 'Final Fantasy VII'), g('2', 2, 'Final Fantasy VIII')], new Set())).toHaveLength(0);
   });
 
   it('skips dismissed pairs and cards that share an igdbId', () => {

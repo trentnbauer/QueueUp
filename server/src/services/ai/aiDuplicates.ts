@@ -2,6 +2,7 @@ import { prisma } from '../../db/client.js';
 import { HttpError } from '../../util/httpError.js';
 import { runWithConcurrency } from '../../util/concurrency.js';
 import { aiComplete } from './aiConfig.js';
+import { appLog } from '../appLogger.js';
 import { extractJson } from './aiJson.js';
 import { chunk, stopReason } from './aiImportBatch.js';
 import { findCandidatePairs, igdbPairKey } from '../duplicateCandidates.js';
@@ -119,7 +120,10 @@ export async function aiScanDuplicates(userId: string, opts: { fresh?: boolean }
   ]);
   const dismissed = new Set(dismissals.map((d) => igdbPairKey(d.igdbIdLow, d.igdbIdHigh)));
   const candidates = findCandidatePairs(games, dismissed, MAX_SCAN_PAIRS);
-  if (!candidates.length) return { pairs: [], candidates: 0, checked: 0, reused: 0, fallback: null, stopped: null };
+  if (!candidates.length) {
+    appLog().info({ duplicateScan: { userId, games: games.length, candidates: 0 } }, `Find duplicate games for ${userId}: none of ${games.length} shelf games have a similar title, so the AI was not asked`);
+    return { pairs: [], candidates: 0, checked: 0, reused: 0, fallback: null, stopped: null };
+  }
 
   const strip = ({ igdbCollectionId: _c, ...g }: (typeof games)[number]): DuplicateSuggestionGame => g;
   const knowledge = await loadDuplicateKnowledge(userId, games.map((g) => g.igdbId));
@@ -176,6 +180,10 @@ export async function aiScanDuplicates(userId: string, opts: { fresh?: boolean }
       stopped ??= stopReason(err);
     }
   });
+  appLog().info(
+    { duplicateScan: { userId, games: games.length, candidates: candidates.length, reused, asked: toAsk.length, checked, found: found.length, stopped } },
+    `Find duplicate games for ${userId}: ${candidates.length} similar pair(s) among ${games.length} games; ${reused} answered from earlier results, ${toAsk.length} sent to the AI (${checked} answered), ${found.length} duplicate(s) found${stopped ? `; stopped: ${stopped}` : ''}`,
+  );
   if (stopped && checked === 0 && reused === 0) throw new HttpError(424, stopped);
   await saveVerdicts(verdictsToSave);
   const sorted = found.sort((x, y) => y.confidence - x.confidence);
