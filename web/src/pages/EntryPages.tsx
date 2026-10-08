@@ -24,6 +24,7 @@ import { rich, t as tr, translate, useCyclingLanguage, useI18n, useT } from '../
 import { reviewCategoryLabel } from '../i18n/labels';
 import type { MessageKey } from '../i18n';
 import { st } from '../ui/st';
+import { LibraryBadge } from '../ui/LibraryLogo';
 
 const FEATURES: [string, MessageKey][] = [
   ['🎮', 'core.login.feature.backlog'],
@@ -586,10 +587,18 @@ export function PublicProfilePage({ userId, signedIn }: { userId: string; signed
                     {t('pages.profile.since', { date: new Date(profile.memberSince).toLocaleDateString(undefined, { month: 'long', year: 'numeric' }) })}
                   </span>
                   {profile.gamertags.length > 0 && (
-                    <span style={st('display:flex;flex-wrap:wrap;gap:6px 12px;margin-top:6px;font:500 13px var(--font-ui)')}>
+                    <span style={st('display:flex;flex-wrap:wrap;gap:8px;margin-top:8px')}>
                       {profile.gamertags.map((g) => (
-                        <a key={g.platform} href={g.url} target="_blank" rel="noopener noreferrer" style={st('color:var(--text2);text-decoration:underline;text-underline-offset:3px')}>
-                          {t(`pages.profile.gamertag.${g.platform}`)}: {g.name}
+                        <a
+                          key={g.platform}
+                          href={g.url}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          title={`${t(`pages.profile.gamertag.${g.platform}`)}: ${g.name}`}
+                          aria-label={`${t(`pages.profile.gamertag.${g.platform}`)}: ${g.name}`}
+                          style={st('display:flex;text-decoration:none')}
+                        >
+                          <LibraryBadge kind={g.platform} size={32} />
                         </a>
                       ))}
                     </span>
