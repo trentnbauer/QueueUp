@@ -21,6 +21,7 @@ function baseEnv(overrides: Partial<Env> = {}): Env {
     ALLOW_INSECURE_SESSION_COOKIE: false,
     AI_MAX_CONCURRENT_REQUESTS: 0,
     AI_SERVER_DAILY_LIMIT: 50,
+    AI_SERVER_ACCESS: 'everyone',
     BASE_PATH: '',
     OIDC_ISSUER_URL: undefined,
     OIDC_CLIENT_ID: undefined,
