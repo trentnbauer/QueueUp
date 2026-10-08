@@ -1357,6 +1357,17 @@ export interface AdminUserSummary {
   /** Allowed to use the server's own AI key when the server is set to AI_SERVER_ACCESS=entitled. */
   aiEntitled: boolean;
   createdAt: string;
+  /** Their use of the server's own AI (not their own or a room sponsor's providers). */
+  serverAi: AiServerUsageSummary;
+}
+
+/** One person's use of the server's own AI: this calendar month (UTC) so far, and the average over
+ * the finished months since they first used it (null until one has finished). */
+export interface AiServerUsageSummary {
+  tokensThisMonth: number;
+  requestsThisMonth: number;
+  avgTokensPerMonth: number | null;
+  avgRequestsPerMonth: number | null;
 }
 
 export interface AdminRoomSummary {

@@ -75,6 +75,7 @@ export function PrivacyPage({ signedIn }: { signedIn: boolean }) {
               'pages.privacy.collect.ai',
               'pages.privacy.collect.merges',
               'pages.privacy.collect.aiShared',
+              'pages.privacy.collect.aiUsage',
               'pages.privacy.collect.session',
               'pages.privacy.collect.email',
               'pages.privacy.collect.logs',

@@ -331,6 +331,7 @@ model User {
   pendingLibraryImports         PendingLibraryImport[]
   titleMatchSuggestions         TitleMatchSuggestion[]
   aiSettings                    UserAiSettings?
+  serverAiUsage                 ServerAiUsage[]
   gameMatchRedirects            GameMatchRedirect[]
   duplicateDismissals           DuplicateDismissal[]
   hiddenRecommendations         HiddenRecommendation[]
@@ -575,6 +576,26 @@ model UserXboxConnection {
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@map("user_xbox_connections")
+}
+
+/// How much of the server's own AI one person used in one calendar month (UTC), for the users list in
+/// Administrator settings. One row per person per month, added to after every call that the
+/// server's AI answers on their behalf (see services/ai/aiServerUsage.ts) - including as the last
+/// resort behind their own providers. Tokens are what the provider reported; a provider that reports
+/// none still counts the request.
+model ServerAiUsage {
+  userId       String   @map("user_id")
+  /// "YYYY-MM", UTC.
+  month        String
+  requests     Int      @default(0)
+  inputTokens  Int      @default(0) @map("input_tokens")
+  outputTokens Int      @default(0) @map("output_tokens")
+  updatedAt    DateTime @updatedAt @map("updated_at")
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@id([userId, month])
+  @@map("server_ai_usage")
 }
 
 /// One person's own AI provider settings (see services/ai/aiConfig.ts), used instead of the

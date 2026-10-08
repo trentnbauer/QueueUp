@@ -22,6 +22,7 @@ import { normalizeSpinTheme } from '@queueup/shared';
 import { redis } from '../services/redisClient.js';
 import { ADMIN_MANAGE_TTL_SECONDS, adminManageKey, adminManagedRoomIds } from '../services/roomAccess.js';
 import { logRoomActivity } from '../services/roomActivity.js';
+import { serverAiUsageFor, summarizeServerAiUsage } from '../services/ai/aiServerUsage.js';
 
 /** When the administrator's "Manage as Room Master" for the room runs out, or null if it's off. */
 async function managingUntil(userId: string, roomId: string): Promise<string | null> {
@@ -233,7 +234,13 @@ export default async function adminRoutes(app: FastifyInstance) {
     const userId = await request.requireAuth();
     await requireAdmin(userId);
 
-    const users = await prisma.user.findMany({ orderBy: { createdAt: 'asc' } });
+    const [users, usage] = await Promise.all([
+      prisma.user.findMany({ orderBy: { createdAt: 'asc' } }),
+      prisma.serverAiUsage.findMany({ select: { userId: true, month: true, requests: true, inputTokens: true, outputTokens: true } }),
+    ]);
+    const usageByUser = new Map<string, typeof usage>();
+    for (const r of usage) usageByUser.set(r.userId, [...(usageByUser.get(r.userId) ?? []), r]);
+    const now = new Date();
     const summaries: AdminUserSummary[] = users.map((u) => ({
       id: u.id,
       displayName: u.displayName,
@@ -243,6 +250,7 @@ export default async function adminRoutes(app: FastifyInstance) {
       isAdmin: u.isAdmin,
       aiEntitled: u.aiEntitled,
       createdAt: u.createdAt.toISOString(),
+      serverAi: summarizeServerAiUsage(usageByUser.get(u.id) ?? [], now),
     }));
     return { users: summaries };
   });
@@ -296,6 +304,7 @@ export default async function adminRoutes(app: FastifyInstance) {
         isAdmin: updated.isAdmin,
         aiEntitled: updated.aiEntitled,
         createdAt: updated.createdAt.toISOString(),
+        serverAi: await serverAiUsageFor(updated.id),
       };
       return { user: summary };
     },
@@ -333,6 +342,7 @@ export default async function adminRoutes(app: FastifyInstance) {
         isAdmin: updated.isAdmin,
         aiEntitled: updated.aiEntitled,
         createdAt: updated.createdAt.toISOString(),
+        serverAi: await serverAiUsageFor(updated.id),
       };
       return { user: summary };
     },
