@@ -106,6 +106,7 @@ export const home = {
   "home.meta.room.one": "{n} member · {queued} queued",
   "home.meta.room.other": "{n} members · {queued} queued",
   "home.header.ranked": "Ranked",
+  "home.header.joinDiscord": "Join Discord",
   "home.header.addGame": "+ Add game",
   "home.header.spin": "Spin",
   "home.header.shelfSettings": "Shelf settings",
