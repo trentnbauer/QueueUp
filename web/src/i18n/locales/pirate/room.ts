@@ -173,6 +173,8 @@ export const room: Record<keyof typeof en, string> = {
   "room.settings.ai.removeMessageSelf": "The ship stops usin’ yer AI key. Crew will use their own AI setup, or the server’s if there is one.",
   "room.settings.ai.error": "Couldn’t update the ship’s AI key.",
   "room.settings.exportLabel": "EXPORT",
+  "room.settings.playNextIn": "STOW NEXT VOYAGE IN",
+  "room.settings.playNextInHint": "Just fer ye, in this crew. Games marked Next Voyage can sit under Sailin’, after what the crew be sailin’, or atop the Queue.",
   "room.settings.exportCsv": "Export CSV",
   "room.settings.exportJson": "Export JSON",
   "room.settings.yearLabel": "YEAR AT SEA",

@@ -171,6 +171,8 @@ export const room = {
   "room.settings.ai.removeMessageSelf": "The room stops using your AI key. Members will use their own AI setup, or the server’s if there is one.",
   "room.settings.ai.error": "Could not update the room’s AI key.",
   "room.settings.exportLabel": "EXPORT",
+  "room.settings.playNextIn": "SHOW PLAY NEXT IN",
+  "room.settings.playNextInHint": "Just for you, in this room. Games marked Play next can sit under Playing, after what the room is playing, or at the top of the Queue.",
   "room.settings.exportCsv": "Export CSV",
   "room.settings.exportJson": "Export JSON",
   "room.settings.yearLabel": "YEAR IN REVIEW",

@@ -10,7 +10,7 @@ import { useConfirm } from '../context/ConfirmContext';
 import { useAttention } from '../hooks/useAttention';
 import { usePendingImportsCount } from '../hooks/usePendingImports';
 import { useVersion } from '../hooks/useVersion';
-import { shelfTabs, SHELF_MORE_TABS, SHELF_IMPORT_TABS, ROOM_TABS } from '../lib/gameView';
+import { shelfTabs, SHELF_MORE_TABS, SHELF_IMPORT_TABS, roomTabs } from '../lib/gameView';
 import { JournalList } from './JournalList';
 import { UNDO_MS } from '../game/useChangeStatus';
 import { PendingImportsList } from './PendingImportsList';
@@ -86,11 +86,9 @@ export function HomeView() {
 
   // The shelf's primary tabs, plus the filters tucked behind the "+" button (Dropped, Won't play and
   // the two lists of synced titles that never became games).
-  const [playNextIn] = usePlayNextTab();
-  const shelfPrimary = useMemo(() => shelfTabs(playNextIn), [playNextIn]);
-  const shelfAll = useMemo(() => [...shelfPrimary, ...SHELF_MORE_TABS], [shelfPrimary]);
-  const tabs = isShelf ? shelfAll : ROOM_TABS;
-  const primaryTabs = isShelf ? shelfPrimary : ROOM_TABS;
+  const [playNextIn] = usePlayNextTab(isShelf ? null : (room?.id ?? null));
+  const primaryTabs = useMemo(() => (isShelf ? shelfTabs(playNextIn) : roomTabs(playNextIn)), [isShelf, playNextIn]);
+  const tabs = useMemo(() => (isShelf ? [...primaryTabs, ...SHELF_MORE_TABS] : primaryTabs), [isShelf, primaryTabs]);
   const [tab, setTab] = useState('queue');
   const [moreOpen, setMoreOpen] = useState(false);
   const pendingList = useQuery({ queryKey: PENDING_IMPORTS_QUERY_KEY, queryFn: pendingImportsApi.list, enabled: isShelf });
@@ -126,7 +124,7 @@ export function HomeView() {
   const [backlogSort] = useBacklogSort();
   const [maxInstallGb, setMaxInstallGb] = useMaxInstallGb();
   const lists = useMemo(
-    () => buildHomeLists(games, { isShelf, tabs, tab, query, platform, includeOlder, backlogSort, maxInstallGb, playNextIn: isShelf ? playNextIn : 'playing' }),
+    () => buildHomeLists(games, { isShelf, tabs, tab, query, platform, includeOlder, backlogSort, maxInstallGb, playNextIn }),
     [games, isShelf, tabs, tab, query, platform, includeOlder, backlogSort, maxInstallGb, playNextIn],
   );
   const showRank = tab === 'queue' && !searching;

@@ -26,6 +26,7 @@ import { roomStoryFacts } from '../lib/yearStoryFacts';
 import { AiSettingsDialog } from './AiSettingsDialog';
 import { Dialog } from '../ui/Dialog';
 import { NavRow } from './MeDialog';
+import { usePlayNextTab } from '../home/playNextTab';
 import { RoomAiSection } from './RoomAiSection';
 import { Avatar, Banner, Btn, ChipToggle, Cover, Group, Segmented, Toggle, initialsOf, inputField, inputPill } from '../ui/primitives';
 import { st } from '../ui/st';
@@ -390,6 +391,7 @@ export function RoomSettingsDialog() {
   const [inviteCode, setInviteCode] = useState<string | null>(null);
 
   const roomId = room?.id ?? '';
+  const [playNextIn, setPlayNextIn] = usePlayNextTab(roomId || null);
   const isMaster = room?.myRole === 'room_master';
 
   const candidates = useQuery({ queryKey: ['room-invite-candidates', roomId], queryFn: () => roomsApi.inviteCandidates(roomId), enabled: !!room && canInvite });
@@ -816,6 +818,14 @@ export function RoomSettingsDialog() {
           <Btn kind="soft" height={38} padX={14} fontSize={13} onClick={() => setAiSettingsOpen(true)}>
             {t('room.settings.ai.mine')}
           </Btn>
+        </div>
+      </Field>
+
+      <Field label={t('room.settings.playNextIn')}>
+        <span style={st('font:400 13px/1.45 var(--font-ui);color:var(--muted)')}>{t('room.settings.playNextInHint')}</span>
+        <div style={st('display:flex;flex-wrap:wrap;gap:6px')}>
+          <ChipToggle on={playNextIn === 'playing'} height={36} onClick={() => setPlayNextIn('playing')}>{t('home.tab.playing')}</ChipToggle>
+          <ChipToggle on={playNextIn === 'backlog'} height={36} onClick={() => setPlayNextIn('backlog')}>{t('home.tab.queue')}</ChipToggle>
         </div>
       </Field>
 

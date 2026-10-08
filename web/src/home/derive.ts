@@ -116,6 +116,8 @@ export function buildHomeLists(
     });
   }
 
+  // With Play next set to show in the Backlog / Queue (Shelf or Room settings), those games are pinned to its top.
+  const pin = (g: Game) => (tab === 'queue' && opts.playNextIn === 'backlog' && g.status === 'play_next' ? 0 : 1);
   const newFirst = (a: Game, b: Game) => {
     const na = isNewRelease(a, now);
     const nb = isNewRelease(b, now);
@@ -126,11 +128,10 @@ export function buildHomeLists(
   if (!q && isShelf && tab === 'queue') {
     // The shelf's Backlog follows the sort picked in Shelf settings (issue #798; default "Want to play").
     const bySort = backlogComparator(opts.backlogSort ?? [], now);
-    // With Play next set to show in the Backlog (Shelf settings), those games are pinned to its top.
-    const pin = (g: Game) => (opts.playNextIn === 'backlog' && g.status === 'play_next' ? 0 : 1);
     list = [...list].sort((a, b) => pin(a) - pin(b) || bySort(a, b));
   } else if (!q && (tab === 'queue' || tab === 'playing')) {
     list = [...list].sort((a, b) => {
+      if (pin(a) !== pin(b)) return pin(a) - pin(b);
       const na = isNewRelease(a, now);
       const nb = isNewRelease(b, now);
       if (na !== nb) return na ? -1 : 1;

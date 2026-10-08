@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import type { Game } from '@queueup/shared';
-import { ROOM_TABS, SHELF_MORE_TABS, SHELF_TABS, shelfTabs } from '../lib/gameView';
+import { ROOM_TABS, roomTabs, SHELF_MORE_TABS, SHELF_TABS, shelfTabs } from '../lib/gameView';
 import { buildHomeLists, playsOn } from './derive';
 
 const DAY = 864e5;
@@ -110,6 +110,16 @@ describe('buildHomeLists', () => {
     expect(queue.counts.queue).toBe(2);
     expect(queue.counts.playing).toBe(1);
     expect(ids(buildHomeLists([backlog, next, paused], { ...opts, tab: 'playing' }).playNext)).toEqual(['On hold']);
+  });
+
+  it('in a room with Play next set to Queue, those games are pinned to the top of the Queue and leave Playing', () => {
+    const next = game({ title: 'Zed, up next', status: 'play_next' });
+    const top = game({ title: 'Alpha', status: 'backlog' });
+    const opts = { isShelf: false, tabs: roomTabs('backlog'), query: '', playNextIn: 'backlog' as const };
+    const queue = buildHomeLists([top, next], { ...opts, tab: 'queue' });
+    expect(ids(queue.list)).toEqual(['Zed, up next', 'Alpha']);
+    expect(queue.counts.playing).toBe(0);
+    expect(buildHomeLists([top, next], { ...opts, tab: 'playing' }).playNext).toEqual([]);
   });
 
   it('Paused games get their own filter under the plus menu and also show in the Play Next section', () => {

@@ -72,12 +72,15 @@ const tabDef = (id: string, key: MessageKey, statuses: GameStatus[]): TabDef => 
   statuses,
 });
 
-export const ROOM_TABS: TabDef[] = [
-  tabDef('queue', 'home.tab.queue', ['backlog']),
-  tabDef('playing', 'home.tab.playing', ['playing', 'play_next', 'paused']),
+/** A room's tabs. Play next games sit under Playing, or under Queue when Room settings says so. */
+export const roomTabs = (playNextIn: 'playing' | 'backlog' = 'playing'): TabDef[] => [
+  tabDef('queue', 'home.tab.queue', playNextIn === 'backlog' ? ['backlog', 'play_next'] : ['backlog']),
+  tabDef('playing', 'home.tab.playing', playNextIn === 'backlog' ? ['playing', 'paused'] : ['playing', 'play_next', 'paused']),
   tabDef('beaten', 'home.tab.beaten', ['done', 'replay']),
   tabDef('dropped', 'home.tab.dropped', ['dropped', 'wont_play']),
 ];
+
+export const ROOM_TABS: TabDef[] = roomTabs();
 
 /** The shelf's primary tabs. Play next games sit under Playing, or under Backlog when Shelf settings
  * says so. */
