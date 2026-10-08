@@ -17,6 +17,7 @@ import {
 } from './aiFallbacks.js';
 import { AiProviderError, callProvider, PROVIDER_DEFAULTS, type AiConfig, type AiRequest, type AiResponse } from './providers.js';
 import { chargeServerAiUse, type AiCharge } from './aiQuota.js';
+import { recordServerAiUsage } from './aiServerUsage.js';
 import { assertPublicTarget } from './aiNetworkGuard.js';
 import { runAiJob } from './aiJobs.js';
 import { coolDownSeconds, coolingReason, cooldownKey, endCooldown, startCooldown } from './aiCooldown.js';
@@ -206,6 +207,9 @@ async function runChain(
   req: AiRequest,
   /** Who to count a use of the server's AI against, when it is reached as a last resort. */
   chargeUserId?: string,
+  /** Who to add the server AI's answered calls to, for the monthly use in Administrator settings.
+   * `wholeChain` says every entry is the server's own AI (not just a last resort). */
+  usage?: { userId: string; wholeChain: boolean },
 ): Promise<AiResponse & { fallback: AiFallbackNotice | null }> {
   let firstFailure: { config: AiConfig; message: string } | null = null;
   const failures: string[] = [];
@@ -258,6 +262,7 @@ async function runChain(
         throw err;
       }
       endCooldown(keys[i]);
+      if (usage && (usage.wholeChain || config.viaServer)) await recordServerAiUsage(usage.userId, res.usage);
       if (!firstFailure) {
         clearLastFallback(owner);
         return { ...res, fallback: null };
@@ -301,7 +306,14 @@ export async function aiComplete(
   // Only the operator's own key is rationed; a person's or a sponsor's key costs the server nothing.
   const charge = resolved.source === 'server' && opts.userId ? await chargeServerAiUse(opts.userId) : null;
   try {
-    const res = await runAiJob(opts.userId, opts.label ?? 'ai', () => runChain(resolved.configs, resolved.owner, req, resolved.source === 'server' ? undefined : opts.userId));
+    const res = await runAiJob(opts.userId, opts.label ?? 'ai', () => runChain(
+        resolved.configs,
+        resolved.owner,
+        req,
+        resolved.source === 'server' ? undefined : opts.userId,
+        opts.userId ? { userId: opts.userId, wholeChain: resolved.source === 'server' } : undefined,
+      ),
+    );
     if (opts.userId) unlockBadgeQuietly(opts.userId, 'first_ai_used');
     return { ...res, source: resolved.source };
   } catch (err) {

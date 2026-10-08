@@ -40,6 +40,9 @@ function smtpFields(s: AdminIntegrationStatus): { key: IntegrationConfigKey; lab
 }
 
 /** The container's own port (PORT), which the tunnel's public hostname should point at. */
+/** A token count in short form (12.3K, 1.2M) in the reader's locale. */
+const compact = (n: number) => new Intl.NumberFormat(undefined, { notation: 'compact', maximumFractionDigits: 1 }).format(n);
+
 const TUNNEL_PORT_HINT = 3000;
 
 /** Colour per tunnel state; the label is `pages.admin.tunnel.<state>`. */
@@ -374,6 +377,13 @@ export function AdminPage() {
                 <span style={st('flex:1;min-width:0;display:flex;flex-direction:column;gap:1px')}>
                   <span style={st('font:600 14.5px var(--font-ui)')}>{u.displayName}</span>
                   <span style={st('font:400 12px var(--font-ui);color:var(--muted);overflow:hidden;text-overflow:ellipsis')}>{u.email}</span>
+                  {(u.serverAi.requestsThisMonth > 0 || u.serverAi.avgTokensPerMonth !== null) && (
+                    <span title={t('pages.admin.serverAiHint')} style={st('font:400 12px var(--font-ui);color:var(--faint)')}>
+                      {u.serverAi.avgTokensPerMonth === null
+                        ? t('pages.admin.serverAiNoAvg', { tokens: compact(u.serverAi.tokensThisMonth), requests: u.serverAi.requestsThisMonth })
+                        : t('pages.admin.serverAi', { tokens: compact(u.serverAi.tokensThisMonth), requests: u.serverAi.requestsThisMonth, avg: compact(u.serverAi.avgTokensPerMonth) })}
+                    </span>
+                  )}
                 </span>
                 {!u.isAdmin && (
                   <select
