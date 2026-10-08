@@ -6,7 +6,8 @@ import { autoHideWaitingAdultGames } from '../adultHiding.js';
 
 /** When someone adds a game to their Personal Shelf, look for signs it is an erotic game that IGDB did not tag:
  * first Steam's "Adult Only Sexual Content" descriptor and IGDB's ESRB "Adults Only" rating (free, no AI), then
- * the AI - the person's own, a room sponsor's never applies here, else the server's (which counts against their
+ * what other people's copies of the same IGDB game already say (flagged there: flagged here; checked clean there:
+ * no AI needed), then the AI - the person's own, a room sponsor's never applies here, else the server's (which counts against their
  * daily allowance on it). A yes sets the same flag IGDB's tags set, so the existing "hide this from your public
  * library?" prompt picks it up; nothing is hidden automatically. Each game is checked once; when no AI is
  * available or it fails (for example the daily allowance is used up) the game is simply left unchecked. */
@@ -55,6 +56,23 @@ export async function checkGameSensitive(userId: string, gameId: string): Promis
     await prisma.game.update({ where: { id: game.id }, data: { sensitiveContent: true } });
     await autoHideWaitingAdultGames(userId);
     return { checked: true, flagged: true };
+  }
+
+  // Then what other people's copies of the same game already say: flagged as adult there (by IGDB,
+  // Steam or an AI check) flags it here too; checked and found clean there needs no AI request here.
+  const others = await prisma.game.findMany({
+    where: { igdbId: game.igdbId, addedBy: { not: userId }, OR: [{ sensitiveContent: true }, { sensitiveAiChecked: true }] },
+    select: { sensitiveContent: true },
+    take: 20,
+  });
+  if (others.some((o) => o.sensitiveContent)) {
+    await prisma.game.update({ where: { id: game.id }, data: { sensitiveContent: true, sensitiveAiChecked: true } });
+    await autoHideWaitingAdultGames(userId);
+    return { checked: true, flagged: true };
+  }
+  if (others.length > 0) {
+    await prisma.game.update({ where: { id: game.id }, data: { sensitiveAiChecked: true } });
+    return { checked: true, flagged: false };
   }
 
   if (!(await resolveAiChain(userId))) return { checked: false, flagged: false };
