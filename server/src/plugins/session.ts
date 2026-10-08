@@ -46,6 +46,9 @@ declare module 'fastify' {
     // clears this so the frontend's "auto-open Import Library for a new account" only ever fires
     // on that account's very first /api/me call, not every subsequent one in the same session.
     isNewAccount?: boolean;
+    // "View as user" (#1102): while set and unexpired, an administrator's requests act as this
+    // person, read-only (see plugins/auth.ts). Kept server-side with the rest of the session.
+    viewAs?: { userId: string; until: number };
   }
 }
 

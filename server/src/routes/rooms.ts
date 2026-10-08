@@ -6,6 +6,7 @@ import { HttpError } from '../util/httpError.js';
 import { requireElevated, requireCanInvite, requireMembership, generateUniqueInviteCode, getRoom, adminManagedRoomIds, adminManageKey } from '../services/roomAccess.js';
 import { redis } from '../services/redisClient.js';
 import { logAdminAction } from '../services/adminAuditLog.js';
+import { requireSuperAdmin } from '../services/adminAccess.js';
 import { notifyRoom, notifyRoomMembersDirect } from '../services/notifications.js';
 import { unlockBadges, unlockFeatureBadges } from '../services/badges.js';
 import { logRoomActivity, getRoomActivityPage, encodeActivityCursor, decodeActivityCursor } from '../services/roomActivity.js';
@@ -447,6 +448,8 @@ export default async function roomRoutes(app: FastifyInstance) {
       if (membership.role !== 'room_master') {
         throw new HttpError(403, 'Only the Room Master can delete this room');
       }
+      // Managing a room as an Administrator doesn't stretch to deleting it (#1102).
+      if (membership.adminManaged) await requireSuperAdmin(actorId);
 
       const actor = await prisma.user.findUniqueOrThrow({ where: { id: actorId } });
       // #1103: kept for ROOM_RETENTION_DAYS and restorable, rather than gone at once.
@@ -665,6 +668,7 @@ export default async function roomRoutes(app: FastifyInstance) {
         : actorId;
 
       if (role === 'room_master') {
+        if (actor.adminManaged) await requireSuperAdmin(actorId);
         if (!fromUserId || fromUserId === targetUserId) throw new HttpError(400, 'They are already the Room Master');
         const [targetUser, room] = await Promise.all([
           prisma.user.findUniqueOrThrow({ where: { id: targetUserId }, select: { displayName: true } }),

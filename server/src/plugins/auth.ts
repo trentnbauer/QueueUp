@@ -24,7 +24,25 @@ declare module 'fastify' {
   interface FastifyRequest {
     currentUserId: () => Promise<string | null>;
     requireAuth: () => Promise<string>;
+    /** The signed-in person themselves, even while they are viewing the app as someone else. */
+    realUserId: () => string | null;
+    /** Who an administrator is viewing the app as (#1102), or null. */
+    viewingAs: () => { userId: string; until: number } | null;
   }
+  interface FastifyContextConfig {
+    /** Lets a write through while an administrator is viewing as someone (Exit, sign out). */
+    allowWhileViewingAs?: boolean;
+  }
+}
+
+/** How long "View as user" lasts before the administrator is back to themselves. */
+export const VIEW_AS_TTL_MS = 60 * 60 * 1000;
+const READ_METHODS = new Set(['GET', 'HEAD', 'OPTIONS']);
+
+/** Whether a request is refused while viewing as someone: everything but reads and the routes that
+ * opt in (Exit, sign out). */
+export function blockedWhileViewingAs(method: string, allowWhileViewingAs: boolean | undefined): boolean {
+  return !READ_METHODS.has(method.toUpperCase()) && !allowWhileViewingAs;
 }
 
 // Steam, Xbox and Discord (when a user denies the email scope) have no real email, so those providers
@@ -92,6 +110,8 @@ async function getOrCreateUser({ emailVerified, ...profile }: {
   // by definition, and would otherwise lose admin status the next time they signed in.
   const existing = await findUserByOidcSub(profile.oidcSub);
   const isAdmin = emailIsAdmin || (existing?.isAdmin ?? false);
+  // ADMIN_EMAILS names the server's owners, so they are Super administrators (#1102).
+  const isSuperAdmin = emailIsAdmin || (existing?.isSuperAdmin ?? false);
 
   if (existing) {
     // Refresh email/avatar from whichever provider was just used to sign in (this can be a linked,
@@ -99,13 +119,13 @@ async function getOrCreateUser({ emailVerified, ...profile }: {
     // PATCH /api/me/display-name, and overwriting it on login reset edits (#682).
     const user = await prisma.user.update({
       where: { id: existing.id },
-      data: { email: profile.email, emailVerified, avatarUrl: profile.avatarUrl, isAdmin },
+      data: { email: profile.email, emailVerified, avatarUrl: profile.avatarUrl, isAdmin, isSuperAdmin },
     });
     return { user, isNewUser: false };
   }
 
   try {
-    const user = await prisma.user.create({ data: { ...profile, emailVerified, avatarColor: randomAvatarColor(), isAdmin, onboardingPending: true } });
+    const user = await prisma.user.create({ data: { ...profile, emailVerified, avatarColor: randomAvatarColor(), isAdmin, isSuperAdmin, onboardingPending: true } });
     return { user, isNewUser: true };
   } catch (err) {
     // Lost a race against a concurrent request for this same not-yet-existing account (issue
@@ -148,12 +168,36 @@ export default fp(async function authPlugin(app: FastifyInstance) {
 
   app.decorate('authProviders', authProviders);
 
+  app.decorateRequest('realUserId', function (this: FastifyRequest) {
+    return this.session?.userId ?? null;
+  });
+
+  app.decorateRequest('viewingAs', function (this: FastifyRequest) {
+    const v = this.session?.viewAs;
+    return v && v.until > Date.now() && this.session.userId ? v : null;
+  });
+
   app.decorateRequest('currentUserId', async function (this: FastifyRequest) {
     if (env.DEV_FAKE_AUTH) {
       const { user: devUser } = await getOrCreateUser(DEV_USER);
       return devUser.id;
     }
-    return this.session.userId ?? null;
+    const realId = this.session.userId ?? null;
+    if (realId && this.session.viewAs) {
+      // Re-checked on every request, so an expired view or a demoted administrator is back to
+      // themselves straight away.
+      const view = this.viewingAs();
+      if (view && (await prisma.user.findUnique({ where: { id: realId }, select: { isAdmin: true } }))?.isAdmin) return view.userId;
+      delete this.session.viewAs;
+    }
+    return realId;
+  });
+
+  // "View as user" is read-only (#1102): nothing is changed in the viewed person's name. The few
+  // routes that must still work (Exit, sign out) opt in with allowWhileViewingAs.
+  app.addHook('preHandler', async (request) => {
+    if (!request.viewingAs() || !blockedWhileViewingAs(request.method, request.routeOptions.config?.allowWhileViewingAs)) return;
+    throw new HttpError(403, "You are viewing the app as someone else, so nothing can be changed. Exit to go back to your own account.");
   });
 
   app.decorateRequest('requireAuth', async function (this: FastifyRequest) {

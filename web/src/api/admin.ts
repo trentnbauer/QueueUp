@@ -45,13 +45,15 @@ export const adminApi = {
   overview: () => apiGet<{ status: AdminIntegrationStatus; tunnel: TunnelStatus }>('/api/admin/overview'),
   emailLog: () => apiGet<{ entries: AdminEmailLogEntry[] }>('/api/admin/email-log'),
   users: () => apiGet<{ users: AdminUserSummary[] }>('/api/admin/users'),
-  setUserAdmin: (id: string, isAdmin: boolean) =>
-    apiPatch<{ user: AdminUserSummary }>(`/api/admin/users/${id}/admin`, { isAdmin }),
+  setUserRole: (id: string, role: 'user' | 'admin' | 'super_admin') =>
+    apiPatch<{ user: AdminUserSummary }>(`/api/admin/users/${id}/admin`, { role }),
   setUserAiAccess: (id: string, aiEntitled: boolean) =>
     apiPatch<{ user: AdminUserSummary }>(`/api/admin/users/${id}/ai-access`, { aiEntitled }),
   deleteUser: (id: string) => apiDelete(`/api/admin/users/${id}`),
   rooms: () => apiGet<{ rooms: AdminRoomSummary[] }>('/api/admin/rooms'),
   deleteRoom: (id: string) => apiDelete(`/api/admin/rooms/${id}`),
+  viewAs: (userId: string) => apiPost<{ until: string }>(`/api/admin/view-as/${userId}`, {}),
+  stopViewingAs: () => apiDelete('/api/admin/view-as'),
   deletedRooms: () => apiGet<{ rooms: DeletedRoomSummary[] }>('/api/admin/rooms/deleted'),
   restoreRoom: (id: string) => apiPost<{ ok: true }>(`/api/admin/rooms/${id}/restore`, {}),
   purgeRoom: (id: string) => apiDelete(`/api/admin/rooms/${id}/permanent`),

@@ -259,6 +259,10 @@ model User {
   avatarColor          String         @default("#8f8aa8") @map("avatar_color")
   avatarUrl            String?        @map("avatar_url")
   isAdmin              Boolean        @default(false) @map("is_admin")
+  /// A Super administrator (#1102): an administrator who can also do the destructive things - delete
+  /// people and rooms, change who is an administrator, restore or delete backups, change integration
+  /// keys. Always also isAdmin. Everyone who was an administrator before the split became one.
+  isSuperAdmin         Boolean        @default(false) @map("is_super_admin")
   /// Whether an administrator has granted this person use of the server's own AI key. Only checked
   /// when AI_SERVER_ACCESS=entitled (see aiQuota.ts); people using their own provider never need it.
   aiEntitled           Boolean        @default(false) @map("ai_entitled")

@@ -71,6 +71,22 @@ export async function migrateProfileVisibility(logger: { info: (msg: string) => 
   }
 }
 
+const SUPER_ADMINS_KEY = 'migration.superAdmins_v1';
+
+/** Administrators split into Administrators and Super administrators (#1102). Everyone who was an
+ * administrator before then becomes a Super administrator, so nobody loses anything they could do.
+ * Runs once (recorded in app_settings), so a later demotion is never undone. */
+export async function migrateSuperAdmins(logger: { info: (msg: string) => void; warn: (msg: string) => void }): Promise<void> {
+  try {
+    if (await prisma.appSetting.findUnique({ where: { key: SUPER_ADMINS_KEY } })) return;
+    const { count } = await prisma.user.updateMany({ where: { isAdmin: true, isSuperAdmin: false }, data: { isSuperAdmin: true } });
+    await prisma.appSetting.create({ data: { key: SUPER_ADMINS_KEY, value: new Date().toISOString() } });
+    if (count > 0) logger.info(`Made ${count} existing administrator(s) Super administrators`);
+  } catch (err) {
+    logger.warn(`Could not migrate administrators to Super administrators (non-fatal): ${err instanceof Error ? err.message : String(err)}`);
+  }
+}
+
 const SPIN_MODES_KEY = 'migration_spin_modes_v1';
 
 /** Before spin modes existed, every room's spin theme (default "slot") still drew the reel. Moves
@@ -114,6 +130,7 @@ export async function runDataMigrations(logger: { info: (msg: string) => void; w
   await resetSharedPlayniteAliases(logger);
   await migrateProfileVisibility(logger);
   await migrateSpinModes(logger);
+  await migrateSuperAdmins(logger);
   await announceNewLibrarySources(logger);
   try {
     const count = await encryptPlaintextConfig();

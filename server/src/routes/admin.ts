@@ -3,7 +3,8 @@ import { Prisma } from '@prisma/client';
 import { prisma } from '../db/client.js';
 import { env } from '../config/env.js';
 import { HttpError } from '../util/httpError.js';
-import { requireAdmin } from '../services/adminAccess.js';
+import { requireAdmin, requireSuperAdmin, viewAsRefusal } from '../services/adminAccess.js';
+import { VIEW_AS_TTL_MS } from '../plugins/auth.js';
 import { logAdminAction } from '../services/adminAuditLog.js';
 import { getRecentLogLines } from '../services/logBuffer.js';
 import {
@@ -96,6 +97,28 @@ function envValueFor(key: ConfigKey): string | undefined {
   }
 }
 
+type AdminRole = 'user' | 'admin' | 'super_admin';
+const ADMIN_ROLE_RANK: Record<AdminRole, number> = { user: 0, admin: 1, super_admin: 2 };
+const adminRoleOf = (u: { isAdmin: boolean; isSuperAdmin: boolean }): AdminRole => (u.isSuperAdmin ? 'super_admin' : u.isAdmin ? 'admin' : 'user');
+
+function toAdminUserSummary(
+  u: { id: string; displayName: string; email: string; avatarColor: string; avatarUrl: string | null; isAdmin: boolean; isSuperAdmin: boolean; aiEntitled: boolean; createdAt: Date },
+  serverAi: AdminUserSummary['serverAi'],
+): AdminUserSummary {
+  return {
+    id: u.id,
+    displayName: u.displayName,
+    email: u.email,
+    avatarColor: u.avatarColor,
+    avatarUrl: u.avatarUrl,
+    isAdmin: u.isAdmin,
+    isSuperAdmin: u.isSuperAdmin,
+    aiEntitled: u.aiEntitled,
+    createdAt: u.createdAt.toISOString(),
+    serverAi,
+  };
+}
+
 export default async function adminRoutes(app: FastifyInstance) {
   app.get('/api/admin/overview', async (request) => {
     const userId = await request.requireAuth();
@@ -155,7 +178,9 @@ export default async function adminRoutes(app: FastifyInstance) {
     integrationsWriteRateLimit,
     async (request) => {
       const actorId = await request.requireAuth();
-      const actor = await requireAdmin(actorId);
+      // Integration keys can point the whole server somewhere else (a tunnel token, an SMTP host), so
+      // they are for Super administrators (#1102).
+      const actor = await requireSuperAdmin(actorId);
       const { key, value } = request.body ?? {};
 
       if (typeof key !== 'string' || !isConfigKey(key)) {
@@ -190,7 +215,7 @@ export default async function adminRoutes(app: FastifyInstance) {
     integrationsWriteRateLimit,
     async (request, reply) => {
       const actorId = await request.requireAuth();
-      const actor = await requireAdmin(actorId);
+      const actor = await requireSuperAdmin(actorId);
       const { key } = request.params;
 
       if (!isConfigKey(key)) {
@@ -243,17 +268,7 @@ export default async function adminRoutes(app: FastifyInstance) {
     const usageByUser = new Map<string, typeof usage>();
     for (const r of usage) usageByUser.set(r.userId, [...(usageByUser.get(r.userId) ?? []), r]);
     const now = new Date();
-    const summaries: AdminUserSummary[] = users.map((u) => ({
-      id: u.id,
-      displayName: u.displayName,
-      email: u.email,
-      avatarColor: u.avatarColor,
-      avatarUrl: u.avatarUrl,
-      isAdmin: u.isAdmin,
-      aiEntitled: u.aiEntitled,
-      createdAt: u.createdAt.toISOString(),
-      serverAi: summarizeServerAiUsage(usageByUser.get(u.id) ?? [], now),
-    }));
+    const summaries: AdminUserSummary[] = users.map((u) => toAdminUserSummary(u, summarizeServerAiUsage(usageByUser.get(u.id) ?? [], now)));
     return { users: summaries };
   });
 
@@ -263,17 +278,19 @@ export default async function adminRoutes(app: FastifyInstance) {
   // compromised admin session/token.
   const sensitiveAdminActionRateLimit = { config: { rateLimit: { max: 20, timeWindow: '1 minute' } } };
 
-  app.patch<{ Params: { id: string }; Body: { isAdmin: boolean } }>(
+  // #1102: user, Administrator or Super administrator. Only a Super administrator changes roles, never
+  // their own, and the last Super administrator can't be demoted.
+  app.patch<{ Params: { id: string }; Body: { role: AdminRole } }>(
     '/api/admin/users/:id/admin',
     sensitiveAdminActionRateLimit,
     async (request) => {
       const actorId = await request.requireAuth();
-      const actor = await requireAdmin(actorId);
+      const actor = await requireSuperAdmin(actorId);
       const { id: targetId } = request.params;
-      const { isAdmin } = request.body ?? {};
+      const { role } = request.body ?? {};
 
-      if (typeof isAdmin !== 'boolean') {
-        throw new HttpError(400, 'isAdmin must be a boolean');
+      if (role !== 'user' && role !== 'admin' && role !== 'super_admin') {
+        throw new HttpError(400, 'role must be user, admin or super_admin');
       }
       if (targetId === actorId) {
         throw new HttpError(400, 'You cannot change your own administrator status');
@@ -283,32 +300,17 @@ export default async function adminRoutes(app: FastifyInstance) {
       if (!target) {
         throw new HttpError(404, 'User not found');
       }
+      if (target.isSuperAdmin && role !== 'super_admin' && (await prisma.user.count({ where: { isSuperAdmin: true } })) <= 1) {
+        throw new HttpError(400, 'The server needs at least one Super administrator');
+      }
 
-      const updated = await prisma.user.update({ where: { id: targetId }, data: { isAdmin } });
-      app.log.warn(
-        { adminAction: isAdmin ? 'user.promote' : 'user.demote', actorId, targetId, targetEmail: target.email },
-        `Admin ${actorId} ${isAdmin ? 'promoted' : 'demoted'} user ${targetId} (${target.email})`,
-      );
-      await logAdminAction({
-        actorId,
-        actorLabel: actor.email,
-        action: isAdmin ? 'user.promote' : 'user.demote',
-        targetLabel: target.email,
-        metadata: { targetId },
-      });
+      const before = adminRoleOf(target);
+      const updated = await prisma.user.update({ where: { id: targetId }, data: { isAdmin: role !== 'user', isSuperAdmin: role === 'super_admin' } });
+      const action = ADMIN_ROLE_RANK[role] > ADMIN_ROLE_RANK[before] ? 'user.promote' : 'user.demote';
+      app.log.warn({ adminAction: action, actorId, targetId, targetEmail: target.email, role }, `Admin ${actorId} changed ${targetId} (${target.email}) from ${before} to ${role}`);
+      await logAdminAction({ actorId, actorLabel: actor.email, action, targetLabel: target.email, metadata: { targetId, from: before, to: role } });
 
-      const summary: AdminUserSummary = {
-        id: updated.id,
-        displayName: updated.displayName,
-        email: updated.email,
-        avatarColor: updated.avatarColor,
-        avatarUrl: updated.avatarUrl,
-        isAdmin: updated.isAdmin,
-        aiEntitled: updated.aiEntitled,
-        createdAt: updated.createdAt.toISOString(),
-        serverAi: await serverAiUsageFor(updated.id),
-      };
-      return { user: summary };
+      return { user: toAdminUserSummary(updated, await serverAiUsageFor(updated.id)) };
     },
   );
 
@@ -335,24 +337,13 @@ export default async function adminRoutes(app: FastifyInstance) {
       app.log.warn({ adminAction: action, actorId, targetId, targetEmail: target.email }, `Admin ${actorId} ${aiEntitled ? 'granted' : 'removed'} server AI access for user ${targetId} (${target.email})`);
       await logAdminAction({ actorId, actorLabel: actor.email, action, targetLabel: target.email, metadata: { targetId } });
 
-      const summary: AdminUserSummary = {
-        id: updated.id,
-        displayName: updated.displayName,
-        email: updated.email,
-        avatarColor: updated.avatarColor,
-        avatarUrl: updated.avatarUrl,
-        isAdmin: updated.isAdmin,
-        aiEntitled: updated.aiEntitled,
-        createdAt: updated.createdAt.toISOString(),
-        serverAi: await serverAiUsageFor(updated.id),
-      };
-      return { user: summary };
+      return { user: toAdminUserSummary(updated, await serverAiUsageFor(updated.id)) };
     },
   );
 
   app.delete<{ Params: { id: string } }>('/api/admin/users/:id', async (request, reply) => {
     const actorId = await request.requireAuth();
-    const actor = await requireAdmin(actorId);
+    const actor = await requireSuperAdmin(actorId);
     const { id: targetId } = request.params;
 
     if (targetId === actorId) {
@@ -504,7 +495,7 @@ export default async function adminRoutes(app: FastifyInstance) {
   // #1103: deleting a room keeps it restorable for ROOM_RETENTION_DAYS.
   app.delete<{ Params: { id: string } }>('/api/admin/rooms/:id', async (request, reply) => {
     const actorId = await request.requireAuth();
-    const actor = await requireAdmin(actorId);
+    const actor = await requireSuperAdmin(actorId);
     const { id: targetId } = request.params;
 
     const deleted = await softDeleteRoom(targetId, actorId);
@@ -550,7 +541,7 @@ export default async function adminRoutes(app: FastifyInstance) {
   // Removes an already-deleted room for good, without waiting for its recovery window to end.
   app.delete<{ Params: { id: string } }>('/api/admin/rooms/:id/permanent', sensitiveAdminActionRateLimit, async (request, reply) => {
     const actorId = await request.requireAuth();
-    const actor = await requireAdmin(actorId);
+    const actor = await requireSuperAdmin(actorId);
     const target = await prisma.room.findUnique({ where: { id: request.params.id }, select: { id: true, name: true, deletedAt: true } });
     if (!target?.deletedAt) throw new HttpError(404, 'Only a deleted room can be removed for good');
     await prisma.room.deleteMany({ where: { id: target.id, deletedAt: { not: null } } });
@@ -562,6 +553,39 @@ export default async function adminRoutes(app: FastifyInstance) {
 
   // The emails the server tried to send, newest first: who it went to, the subject and whether it
   // worked (never the body).
+  // #1102: "View as user" - for the next hour this session sees the app as that person, read-only
+  // (see plugins/auth.ts). Plain Administrators can't view Super administrators.
+  app.post<{ Params: { id: string } }>('/api/admin/view-as/:id', sensitiveAdminActionRateLimit, async (request) => {
+    const actorId = await request.requireAuth();
+    const actor = await requireAdmin(actorId);
+    const { id: targetId } = request.params;
+    const target = await prisma.user.findUnique({ where: { id: targetId } });
+    if (!target) throw new HttpError(404, 'User not found');
+    const refusal = viewAsRefusal(actor, target);
+    if (refusal) throw new HttpError(403, refusal);
+    const until = Date.now() + VIEW_AS_TTL_MS;
+    request.session.viewAs = { userId: target.id, until };
+    app.log.warn({ adminAction: 'user.viewAs', actorId, targetId }, `Admin ${actorId} is viewing the app as ${targetId} (${target.email})`);
+    await logAdminAction({ actorId, actorLabel: actor.email, action: 'user.viewAs', targetLabel: target.email, metadata: { targetId } });
+    return { until: new Date(until).toISOString() };
+  });
+
+  app.delete('/api/admin/view-as', { config: { allowWhileViewingAs: true } }, async (request, reply) => {
+    const realId = request.realUserId();
+    if (!realId) throw new HttpError(401, 'Not signed in');
+    const view = request.session.viewAs;
+    delete request.session.viewAs;
+    if (view) {
+      const [actor, target] = await Promise.all([
+        prisma.user.findUnique({ where: { id: realId }, select: { email: true } }),
+        prisma.user.findUnique({ where: { id: view.userId }, select: { email: true } }),
+      ]);
+      await logAdminAction({ actorId: realId, actorLabel: actor?.email ?? realId, action: 'user.viewAsEnd', targetLabel: target?.email ?? view.userId, metadata: { targetId: view.userId } });
+    }
+    reply.status(204);
+    return null;
+  });
+
   app.get<{ Querystring: { limit?: string } }>('/api/admin/email-log', async (request) => {
     const userId = await request.requireAuth();
     await requireAdmin(userId);

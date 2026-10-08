@@ -2,6 +2,7 @@ import { Fragment, useEffect, useRef, useState } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import type { AdminBackupInfo, RestoreBackupResponse } from '@queueup/shared';
 import { adminApi, RestoreError, type RestoreOptions } from '../api/admin';
+import { useAuth } from '../context/AuthContext';
 import { useConfirm } from '../context/ConfirmContext';
 import { useUi } from '../context/UiContext';
 import { Dialog } from '../ui/Dialog';
@@ -106,6 +107,8 @@ const KIND_LABEL: Record<AdminBackupInfo['kind'], MessageKey> = {
 /** Administrator menu > Backups: nightly backup settings (on by default, editable cron), the stored
  * backups, back up now, download, delete, restore, and import from a file. */
 export function AdminBackups() {
+  // Taking and listing backups is for any administrator; the rest is for Super administrators (#1102).
+  const { isSuperAdmin } = useAuth();
   const qc = useQueryClient();
   const t = useT();
   const ui = useUi();
@@ -228,9 +231,10 @@ export function AdminBackups() {
                 : t('pages.backups.off')}
             </span>
           </span>
-          {settings && <Toggle on={settings.enabled} label={t('pages.backups.scheduled')} onChange={(v) => saveSettings({ enabled: v }, v ? t('pages.backups.scheduledOn') : t('pages.backups.scheduledOff'))} />}
+          {settings && isSuperAdmin && <Toggle on={settings.enabled} label={t('pages.backups.scheduled')} onChange={(v) => saveSettings({ enabled: v }, v ? t('pages.backups.scheduledOn') : t('pages.backups.scheduledOff'))} />}
         </div>
 
+        {isSuperAdmin && (
         <div style={st('display:flex;flex-direction:column;gap:8px;padding:12px 14px;background:var(--surf)')}>
           <span style={st('font:600 14.5px var(--font-ui)')}>{t('pages.backups.schedule')}</span>
           <span style={st('font:400 12.5px/1.4 var(--font-ui);color:var(--muted)')}>
@@ -268,6 +272,7 @@ export function AdminBackups() {
             )}
           </div>
         </div>
+        )}
 
         <div style={st('display:flex;align-items:center;gap:10px;flex-wrap:wrap;padding:12px 14px;background:var(--surf)')}>
           <span style={st('flex:1 1 220px;min-width:0;display:flex;flex-direction:column;gap:2px')}>
@@ -285,9 +290,11 @@ export function AdminBackups() {
           <Btn kind="accent" height={40} padX={16} fontSize={13} disabled={busy === 'now'} onClick={backUpNow}>
             {busy === 'now' ? t('pages.backups.backingUp') : t('pages.backups.backUpNow')}
           </Btn>
-          <Btn height={40} padX={16} fontSize={13} disabled={busy === 'import'} onClick={() => fileRef.current?.click()}>
-            {busy === 'import' ? t('pages.backups.importing') : t('pages.backups.importFromFile')}
-          </Btn>
+          {isSuperAdmin && (
+            <Btn height={40} padX={16} fontSize={13} disabled={busy === 'import'} onClick={() => fileRef.current?.click()}>
+              {busy === 'import' ? t('pages.backups.importing') : t('pages.backups.importFromFile')}
+            </Btn>
+          )}
           <input
             ref={fileRef}
             type="file"
@@ -310,6 +317,8 @@ export function AdminBackups() {
                 {t(KIND_LABEL[b.kind])} · {fmtSize(b.sizeBytes)} · {b.name}
               </span>
             </span>
+            {isSuperAdmin && (
+            <>
             <a href={`${getBasePath()}/api/admin/backups/${encodeURIComponent(b.name)}/download`} download style={st('height:32px;padding:0 12px;border-radius:999px;border:1px solid var(--line);color:var(--text);font:600 12.5px var(--font-ui);display:flex;align-items:center;text-decoration:none')}>
               {t('pages.backups.download')}
             </a>
@@ -319,6 +328,8 @@ export function AdminBackups() {
             <button type="button" onClick={() => remove(b)} aria-label={t('pages.backups.deleteAria', { name: b.name })} style={st('width:32px;height:32px;border-radius:50%;border:none;background:transparent;color:var(--danger);font-size:17px;line-height:1')}>
               ×
             </button>
+            </>
+            )}
           </div>
         ))}
       </Group>
