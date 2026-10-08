@@ -2,8 +2,9 @@ import type { FastifyInstance } from 'fastify';
 import type { GameStatus } from '@prisma/client';
 import { prisma } from '../db/client.js';
 import { HttpError } from '../util/httpError.js';
-import { BADGE_DEFINITIONS, ROOM_PLATFORM_LABELS, sortPlatformLabel, sortPlatforms, type BadgeKey, type PublicProfileGame, type PublicUserProfile } from '@queueup/shared';
+import { BADGE_DEFINITIONS, ROOM_PLATFORM_LABELS, sortPlatformLabel, sortPlatforms, type BadgeKey, type PublicProfileGame, type PublicProfileGamertag, type PublicUserProfile } from '@queueup/shared';
 import { toGameReviewDto } from '../services/gameSerializer.js';
+import { resolveSteamId64 } from '../services/steamLibrary.js';
 import { areFriends, canViewProfile } from '../services/friendships.js';
 
 /** Whether two people's ownership claims on the same title let them play it together: an empty
@@ -37,7 +38,7 @@ export default async function publicProfileRoutes(app: FastifyInstance) {
     const key = request.params.id.toLowerCase();
     const user = await prisma.user.findFirst({
       where: { OR: [{ id: request.params.id }, { profileSlug: key }] },
-      select: { id: true, displayName: true, avatarColor: true, avatarUrl: true, profileVisibility: true, ownedPlatforms: true, createdAt: true },
+      select: { id: true, oidcSub: true, steamId64: true, xboxConnection: { select: { gamertag: true } }, retroAchievementsConnection: { select: { username: true } }, displayName: true, avatarColor: true, avatarUrl: true, profileVisibility: true, ownedPlatforms: true, createdAt: true },
     });
     // Same response (404, no distinguishing detail) whether the id doesn't exist at all or exists
     // but hasn't opted in - a scan of ids must not be able to tell "no such user" from "exists but
@@ -147,6 +148,13 @@ export default async function publicProfileRoutes(app: FastifyInstance) {
       where: { scopeKey: `user:${user.id}`, sharedOnProfile: true, hidden: false },
       select: { text: true, edited: true },
     });
+    const gamertags: PublicProfileGamertag[] = [];
+    const steamId64 = resolveSteamId64(user);
+    if (steamId64) gamertags.push({ platform: 'steam', name: steamId64, url: `https://steamcommunity.com/profiles/${encodeURIComponent(steamId64)}` });
+    const xboxTag = user.xboxConnection?.gamertag;
+    if (xboxTag) gamertags.push({ platform: 'xbox', name: xboxTag, url: `https://www.xbox.com/play/user/${encodeURIComponent(xboxTag)}` });
+    const raName = user.retroAchievementsConnection?.username;
+    if (raName) gamertags.push({ platform: 'retroachievements', name: raName, url: `https://retroachievements.org/user/${encodeURIComponent(raName)}` });
     const profile: PublicUserProfile = {
       displayName: user.displayName,
       avatarColor: user.avatarColor,
@@ -177,6 +185,7 @@ export default async function publicProfileRoutes(app: FastifyInstance) {
         ...(bothOwnIgdb.has(g.igdbId) && { bothOwn: true }),
         ...(viewerHasGame(g.igdbId) && { viewerHas: true }),
       })),
+      gamertags,
       systems: sortPlatforms(user.ownedPlatforms).map((p) => ROOM_PLATFORM_LABELS[p]),
       // 100% games first, then reviewed games, then the rest, each group newest-first (the query's
       // own order).

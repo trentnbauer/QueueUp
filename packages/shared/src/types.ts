@@ -2582,6 +2582,15 @@ export interface PublicProfileGame {
  * haven't done yet." Personal Shelf only, same scope as the release-watch alerts (#510) and the
  * Franchise Finisher/DLC Completionist badges this reuses data alongside - a room game isn't
  * "theirs" to show off the same way. */
+/** One linked gaming account shown on a public profile. `url` is the account's public profile page. */
+export interface PublicProfileGamertag {
+  platform: 'steam' | 'xbox' | 'retroachievements';
+  /** The name to show (the Xbox gamertag, the RetroAchievements username; Steam has no stored name,
+   * so it shows the 64-bit id). */
+  name: string;
+  url: string;
+}
+
 export interface PublicUserProfile {
   displayName: string;
   avatarColor: string;
@@ -2593,6 +2602,8 @@ export interface PublicUserProfile {
   currentlyPlaying: PublicProfileGame[];
   /** Systems the user owns (User.ownedPlatforms), as display labels. */
   systems: string[];
+  /** Linked Steam / Xbox / RetroAchievements accounts, each with a link to its public profile. */
+  gamertags: PublicProfileGamertag[];
   /** Beaten/Replay games not marked hidden, reviewed ones first. */
   beatenGames: PublicProfileBeatenGame[];
   /** When the account was created (ISO). */
