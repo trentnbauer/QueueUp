@@ -378,6 +378,7 @@ export function RoomSettingsDialog() {
 
   const [name, setName] = useState(room?.name ?? '');
   const [hook, setHook] = useState(room?.discordWebhookUrl ?? '');
+  const [discordInvite, setDiscordInvite] = useState(room?.discordInviteUrl ?? '');
   const [hexDraft, setHexDraft] = useState<string | null>(null);
   const [spinOpen, setSpinOpen] = useState(false);
   const [masterLeaveOpen, setMasterLeaveOpen] = useState(false);
@@ -560,6 +561,7 @@ export function RoomSettingsDialog() {
   const shown = q || showAll ? filtered : filtered.slice(0, MEMBER_PREVIEW);
   const events = resolveDiscordEvents(room.discordEvents);
   const hasHook = !!room.discordWebhookUrl;
+  const discordInviteValid = !discordInvite.trim() || /^https:\/\/(discord\.gg|(www\.)?discord(app)?\.com\/invite)\/[\w-]+\/?$/.test(discordInvite.trim());
   const hookValid = !hook.trim() || /^https:\/\/(discord\.com|discordapp\.com)\/api\/webhooks\//.test(hook.trim());
   const entries = activity.data?.pages.flatMap((p) => p.entries) ?? [];
   const topGenre = year.genreSpread[0]?.genre ?? '—';
@@ -780,6 +782,17 @@ export function RoomSettingsDialog() {
               )}
             </div>
             {!hookValid && <span style={st('font:400 12px var(--font-ui);color:var(--danger)')}>{t('room.settings.webhookInvalid')}</span>}
+            <span style={st('font:500 14.5px var(--font-ui);padding-top:6px')}>{t('room.settings.discordInvite')}</span>
+            <span style={st('font:400 12px/1.45 var(--font-ui);color:var(--muted)')}>{t('room.settings.discordInviteHint')}</span>
+            <div style={st('display:flex;gap:8px')}>
+              <input value={discordInvite} onChange={(e) => setDiscordInvite(e.target.value)} placeholder="https://discord.gg/…" aria-label={t('room.settings.discordInviteAria')} style={st(inputField, { flex: 1, minWidth: 0, height: 42, borderRadius: 12, fontSize: 13.5 })} />
+              {discordInvite.trim() !== (room.discordInviteUrl ?? '') && (
+                <Btn kind="text" height={42} padX={14} fontSize={13} weight={700} disabled={!discordInviteValid} onClick={() => patch({ discordInviteUrl: discordInvite.trim() || null }, discordInvite.trim() ? t('room.settings.inviteLinkSaved') : t('room.settings.inviteLinkRemoved'))}>
+                  {t('common.save')}
+                </Btn>
+              )}
+            </div>
+            {!discordInviteValid && <span style={st('font:400 12px var(--font-ui);color:var(--danger)')}>{t('room.settings.discordInviteInvalid')}</span>}
             <div style={st(`display:flex;flex-direction:column;gap:8px;padding-top:6px;opacity:${hasHook ? 1 : 0.5}`)}>
               <span style={st(LABEL)}>{t('room.settings.postWhen')}</span>
               <div style={st('display:flex;flex-wrap:wrap;gap:6px')}>

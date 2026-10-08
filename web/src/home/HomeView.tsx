@@ -305,6 +305,13 @@ export function HomeView() {
               </Btn>
             </>
           )}
+          {room?.discordInviteUrl && !isShelf && (
+            <a href={room.discordInviteUrl} target="_blank" rel="noopener noreferrer" style={{ textDecoration: 'none' }}>
+              <Btn hover height={mobile ? 40 : 42} fontSize={14}>
+                {t('home.header.joinDiscord')}
+              </Btn>
+            </a>
+          )}
           <Btn
             kind="accent"
             height={mobile ? 40 : 42}

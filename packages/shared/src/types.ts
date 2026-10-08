@@ -338,6 +338,8 @@ export interface Room {
   inviteCode?: string;
   /** Posts room activity to this Discord channel webhook, if set. Room Master only to view/edit. */
   discordWebhookUrl?: string | null;
+  /** A Discord server invite link; visible to every member, who then see a Join Discord button. */
+  discordInviteUrl?: string | null;
   /** Spin the Wheel draws from games every current member owns, plus games with a live price at
    * or under this many dollars. 0 reproduces the old "fully owned only" behavior. */
   spinOwnershipMaxPrice: number;
@@ -899,6 +901,8 @@ export interface UpdateRoomRequest {
   accentColor?: string;
   /** Set to null to clear/disable the webhook. */
   discordWebhookUrl?: string | null;
+  /** Set to null to remove the invite link. */
+  discordInviteUrl?: string | null;
   spinOwnershipMaxPrice?: number;
   spinDefaults?: SpinDefaults;
   spinWheelTheme?: SpinWheelTheme;

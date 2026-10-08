@@ -108,6 +108,7 @@ export const home: Record<keyof typeof en, string> = {
   "home.meta.room.one": "{n} crewmate · {queued} queued",
   "home.meta.room.other": "{n} crewmates · {queued} queued",
   "home.header.ranked": "Ranked",
+  "home.header.joinDiscord": "Join Discord",
   "home.header.addGame": "+ Stow game",
   "home.header.spin": "Spin",
   "home.header.shelfSettings": "Chest riggin’",

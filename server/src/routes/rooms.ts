@@ -44,6 +44,8 @@ function toSpinDefaults(raw: unknown): SpinDefaults {
   };
 }
 
+const DISCORD_INVITE_URL = /^https:\/\/(discord\.gg|(www\.)?discord(app)?\.com\/invite)\/[\w-]+\/?$/;
+
 function toRoomDto(
   room: {
     id: string;
@@ -53,6 +55,7 @@ function toRoomDto(
     createdBy: string;
     createdAt: Date;
     discordWebhookUrl: string | null;
+    discordInviteUrl: string | null;
     spinOwnershipMaxPrice: number;
     spinWheelTheme: string;
     spinDefaults: unknown;
@@ -78,6 +81,8 @@ function toRoomDto(
     // whoever has it can post to that channel as the webhook, so only the Room Master (who can
     // also change it) gets the real value; other members just don't see it at all.
     discordWebhookUrl: role === 'room_master' ? room.discordWebhookUrl : undefined,
+    // An invite link is meant to be shared, so every member gets it (for the Join Discord button).
+    discordInviteUrl: room.discordInviteUrl,
     spinOwnershipMaxPrice: room.spinOwnershipMaxPrice,
     spinWheelTheme: normalizeSpinTheme(room.spinWheelTheme),
     spinDefaults: toSpinDefaults(room.spinDefaults),
@@ -335,7 +340,7 @@ export default async function roomRoutes(app: FastifyInstance) {
       throw new HttpError(403, 'Only the Room Master can change room settings');
     }
 
-    const { name, platform, accentColor, discordWebhookUrl, spinOwnershipMaxPrice, spinWheelTheme, spinDefaults, isPublic, requireGameApproval, invitePermission, discordEvents } =
+    const { name, platform, accentColor, discordWebhookUrl, discordInviteUrl, spinOwnershipMaxPrice, spinWheelTheme, spinDefaults, isPublic, requireGameApproval, invitePermission, discordEvents } =
       request.body ?? {};
     if (invitePermission !== undefined && invitePermission !== 'members' && invitePermission !== 'moderators') {
       throw new HttpError(400, 'Invite permission must be members or moderators');
@@ -372,6 +377,12 @@ export default async function roomRoutes(app: FastifyInstance) {
       throw new HttpError(400, 'That doesn\'t look like a Discord webhook URL');
     }
 
+    // Only a real invite link - the web app renders this as a link out, so it must be https on one
+    // of Discord's own invite hosts (not an arbitrary or javascript: URL).
+    if (discordInviteUrl !== undefined && discordInviteUrl !== null && !DISCORD_INVITE_URL.test(discordInviteUrl)) {
+      throw new HttpError(400, 'That doesn\'t look like a Discord invite link');
+    }
+
     const before = await prisma.room.findUniqueOrThrow({ where: { id: roomId } });
     const room = await prisma.room.update({
       where: { id: roomId },
@@ -380,6 +391,7 @@ export default async function roomRoutes(app: FastifyInstance) {
         ...(platform !== undefined && { platform }),
         ...(accentColor !== undefined && { accentColor }),
         ...(discordWebhookUrl !== undefined && { discordWebhookUrl }),
+        ...(discordInviteUrl !== undefined && { discordInviteUrl }),
         ...(spinOwnershipMaxPrice !== undefined && { spinOwnershipMaxPrice }),
         // Merged over what's stored, so saving one default (0 / false clears it) can't drop another
         // that was saved a moment earlier from a stale copy.

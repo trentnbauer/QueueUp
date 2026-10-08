@@ -996,6 +996,9 @@ model Room {
   /// Posts the same events as the in-app room notification feed to this Discord channel webhook,
   /// if set (see notifications.ts). One-way egress only - QueueUp never reads anything back from it.
   discordWebhookUrl     String?        @map("discord_webhook_url")
+  /// A Discord server invite link the Room Master can add so every member sees a "Join Discord"
+  /// button. Not a secret (it is meant to be shared), unlike the webhook above.
+  discordInviteUrl      String?        @map("discord_invite_url")
   /// Room Settings dollar threshold (issue #339, replacing the old spinOnlyFullyOwned toggle):
   /// the game-picker's candidate pool is games every current member owns, OR games with a live
   /// price at or under this many dollars (see gameOwnership.ts / SpinPickerButton) - so a room can
