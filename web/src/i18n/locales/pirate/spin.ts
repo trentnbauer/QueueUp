@@ -6,6 +6,7 @@ export const spin: Record<keyof typeof en, string> = {
   "spin.dialog.title": "What be we sailin’ tonight?",
   "spin.filter.underPrice": "Under {price}",
   "spin.filter.anyPrice": "Any bounty",
+  "spin.filter.alreadyOwned": "Already owned",
   "spin.filter.everyoneOwns": "Whole crew owns it",
   "spin.filter.underHours": "Under {n}h",
   "spin.filter.anyLength": "Any voyage",

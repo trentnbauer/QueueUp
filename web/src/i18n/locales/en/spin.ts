@@ -4,6 +4,7 @@ export const spin = {
   "spin.dialog.title": "What are we playing?",
   "spin.filter.underPrice": "Under {price}",
   "spin.filter.anyPrice": "Any price",
+  "spin.filter.alreadyOwned": "Already owned",
   "spin.filter.everyoneOwns": "Everyone owns it",
   "spin.filter.underHours": "Under {n}h",
   "spin.filter.anyLength": "Any length",
