@@ -248,6 +248,8 @@ export function SpinDialog({ onClose }: { onClose: () => void }) {
   const [minScore, setMinScore] = useState(defaults?.minScore ? defaults.minScore / 10 : 0);
   const [everyone, setEveryone] = useState(!!defaults?.everyoneOwns);
   const [maxSize, setMaxSize] = useState(0);
+  // Shelf only: just games the person already owns.
+  const [ownedOnly, setOwnedOnly] = useState(false);
   const [local, setLocal] = useState<Run | null>(null);
   // A Personal Shelf spin mode, run right here with the same engine the server runs for rooms.
   const [shelfTheme] = useShelfSpinTheme();
@@ -274,9 +276,10 @@ export function SpinDialog({ onClose }: { onClose: () => void }) {
         if (minScore && !(g.reviewScore !== null && g.reviewScore >= minScore * 10)) return false;
         if (maxSize && !(g.downloadSizeMb !== null && g.downloadSizeMb <= maxSize * 1024)) return false;
         if (everyone && !isFullyOwned(g)) return false;
+        if (ownedOnly && !g.youOwn) return false;
         return true;
       }),
-    [base, maxPrice, maxTtb, minScore, everyone, maxSize],
+    [base, maxPrice, maxTtb, minScore, everyone, maxSize, ownedOnly],
   );
 
   const { user } = useAuth();
@@ -539,6 +542,11 @@ export function SpinDialog({ onClose }: { onClose: () => void }) {
                     {p ? t('spin.filter.underPrice', { price: fmtMoney(p, 'USD').replace(/\.00$/, '') }) : t('spin.filter.anyPrice')}
                   </button>
                 ))}
+                {isShelf && (
+                  <button type="button" onClick={() => setOwnedOnly((v) => !v)} style={st(`${PILL};background:${ownedOnly ? 'var(--text)' : 'var(--chip)'};color:${ownedOnly ? 'var(--onText)' : 'var(--muted)'}`)}>
+                    {t('spin.filter.alreadyOwned')}
+                  </button>
+                )}
                 {!isShelf && (
                   <button type="button" onClick={() => setEveryone((v) => !v)} style={st(`${PILL};background:${everyone ? 'var(--text)' : 'var(--chip)'};color:${everyone ? 'var(--onText)' : 'var(--muted)'}`)}>
                     {t('spin.filter.everyoneOwns')}
