@@ -3199,6 +3199,10 @@ export interface DuplicateCandidatesResponse {
 }
 
 /** Body for POST /api/games/duplicates/dismiss: the two cards that are not duplicates. */
+export interface MarkBundleRequest {
+  gameId: string;
+}
+
 export interface DismissDuplicateRequest {
   gameIdA: string;
   gameIdB: string;
