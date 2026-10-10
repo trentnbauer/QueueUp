@@ -1,7 +1,9 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
-const { gameFindMany, dismissalFindMany } = vi.hoisted(() => ({ gameFindMany: vi.fn(), dismissalFindMany: vi.fn() }));
-vi.mock('../../db/client.js', () => ({ prisma: { game: { findMany: gameFindMany }, duplicateDismissal: { findMany: dismissalFindMany } } }));
+const { gameFindMany, gameUpdateMany, dismissalFindMany, getGameAddonIgdbIds } = vi.hoisted(() => ({ gameFindMany: vi.fn(), gameUpdateMany: vi.fn(), dismissalFindMany: vi.fn(), getGameAddonIgdbIds: vi.fn() }));
+vi.mock('../../db/client.js', () => ({ prisma: { game: { findMany: gameFindMany, updateMany: gameUpdateMany }, duplicateDismissal: { findMany: dismissalFindMany } } }));
+// IGDB's DLC list for a game, by igdbId (see dropDlcPairs).
+vi.mock('../igdbClient.js', () => ({ getGameAddonIgdbIds }));
 vi.mock('./aiConfig.js', () => ({ aiComplete: vi.fn() }));
 vi.mock('../notifications.js', () => ({ notifyMergeSuggestions: vi.fn() }));
 const { loadDuplicateKnowledge } = vi.hoisted(() => ({ loadDuplicateKnowledge: vi.fn() }));
@@ -23,6 +25,8 @@ const game = (id: string, igdbId: number, title: string, releaseYear: number | n
 beforeEach(() => {
   vi.clearAllMocks();
   dismissalFindMany.mockResolvedValue([]);
+  gameUpdateMany.mockResolvedValue({ count: 1 });
+  getGameAddonIgdbIds.mockResolvedValue(new Set());
   loadDuplicateKnowledge.mockResolvedValue({ merges: new Map(), notDuplicates: new Set(), verdicts: new Map() });
 });
 
@@ -57,5 +61,22 @@ describe('listDuplicateCandidates', () => {
     gameFindMany.mockResolvedValue([game('a', 1, 'Witcher 3', 2015), game('b', 2, 'Witcher 3 Complete Edition', 2016)]);
     dismissalFindMany.mockResolvedValue([{ igdbIdLow: 1, igdbIdHigh: 2 }]);
     expect((await listDuplicateCandidates('u1')).pairs).toEqual([]);
+  });
+
+  it('leaves out a game and its DLC, and links the DLC card to its base game', async () => {
+    // The titles alone make these a pair; IGDB lists 2 among game 1's DLC and expansions.
+    gameFindMany.mockResolvedValue([game('base', 1, 'Cyberpunk 2077', 2020), game('dlc', 2, 'Cyberpunk 2077: Phantom Liberty', 2023), game('c', 3, 'Witcher 3', 2015), game('d', 4, 'Witcher 3 Complete Edition', 2016)]);
+    getGameAddonIgdbIds.mockImplementation(async (igdbId: number) => new Set(igdbId === 1 ? [2] : []));
+    const { pairs } = await listDuplicateCandidates('u1');
+    expect(pairs.map((p) => [p.a.id, p.b.id].sort())).toEqual([['c', 'd']]);
+    expect(await countDuplicateCandidates('u1')).toBe(1);
+    expect(gameUpdateMany).toHaveBeenCalledWith({ where: { id: 'dlc', roomId: null, addedBy: 'u1', baseGameId: null }, data: { baseGameId: 'base' } });
+  });
+
+  it('still lists the pair when IGDB cannot be reached', async () => {
+    gameFindMany.mockResolvedValue([game('base', 1, 'Cyberpunk 2077', 2020), game('dlc', 2, 'Cyberpunk 2077: Phantom Liberty', 2023)]);
+    getGameAddonIgdbIds.mockRejectedValue(new Error('IGDB request failed (503)'));
+    expect((await listDuplicateCandidates('u1')).pairs).toHaveLength(1);
+    expect(gameUpdateMany).not.toHaveBeenCalled();
   });
 });

@@ -574,6 +574,14 @@ async function loadDlcEntries(igdbId: number): Promise<IgdbGame[]> {
   return entries;
 }
 
+/** The igdbIds of every DLC/expansion IGDB lists under a base game - the same list the "View DLC"
+ * menu is built from, before any platform filtering. Answers "is this card that game's DLC?"
+ * from the base game's side, which does not depend on the DLC entry's own `category`/`parent_game`
+ * being filled in (they are not always). Reads the same 24h cache. */
+export async function getGameAddonIgdbIds(igdbId: number): Promise<Set<number>> {
+  return new Set((await loadDlcEntries(igdbId)).map((g) => g.id));
+}
+
 /** A base game's DLC and expansions that have a release date in the half-open window (from, to],
  * with the full date (getGameDlcs only keeps the year). Reads the same 24h cache. Issue #869. */
 export async function getUpcomingGameDlcs(
