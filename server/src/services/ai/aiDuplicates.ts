@@ -7,6 +7,7 @@ import { extractJson } from './aiJson.js';
 import { chunk, stopReason } from './aiImportBatch.js';
 import { findCandidatePairs, igdbPairKey, titleCore } from '../duplicateCandidates.js';
 import { loadDuplicateKnowledge, saveVerdicts } from '../duplicateKnowledge.js';
+import { dropDlcPairs } from '../dlcLinks.js';
 import { notifyMergeSuggestions } from '../notifications.js';
 import type { AiDuplicateScanResponse, DuplicateCandidatesResponse, DuplicateSuggestion, DuplicateSuggestionGame } from '@queueup/shared';
 
@@ -153,8 +154,8 @@ export function parseDuplicateReply(text: string, pairs: [DuplicateSuggestionGam
 const SELECT = { id: true, igdbId: true, title: true, platform: true, releaseYear: true, releaseDate: true, duplicateCheckedAt: true, coverImageUrl: true, status: true, igdbCollectionId: true } as const;
 
 /** How many pairs on the person's shelf the cheap, no-AI pre-filter thinks might be the same game
- * (not counting ones they said are different). Costs nothing, so the shelf can show a "possible
- * duplicates" nudge without asking the AI; the AI scan is what actually judges them. */
+ * (not counting ones they said are different, or a game and its DLC). No AI, so the shelf can show
+ * a "possible duplicates" nudge without asking it; the AI scan is what actually judges them. */
 export async function countDuplicateCandidates(userId: string): Promise<number> {
   const [games, dismissals] = await Promise.all([
     prisma.game.findMany({ where: { roomId: null, addedBy: userId, archivedAt: null, baseGameId: null }, select: SELECT, orderBy: { title: 'asc' } }),
@@ -162,7 +163,9 @@ export async function countDuplicateCandidates(userId: string): Promise<number> 
   ]);
   const dismissed = new Set(dismissals.map((d) => igdbPairKey(d.igdbIdLow, d.igdbIdHigh)));
   const sameIgdb = sameIgdbPairs(games.map(({ igdbCollectionId: _c, releaseDate: _d, duplicateCheckedAt: _k, ...g }) => g)).filter((p) => !dismissed.has(igdbPairKey(p.a.igdbId, p.b.igdbId)));
-  return sameIgdb.length + findCandidatePairs(games, dismissed, MAX_SCAN_PAIRS).length;
+  // A base game and its DLC are not duplicates, whatever their titles (see dropDlcPairs).
+  const candidates = await dropDlcPairs(userId, findCandidatePairs(games, dismissed, MAX_SCAN_PAIRS), (pair) => pair);
+  return sameIgdb.length + candidates.pairs.length;
 }
 
 /** The pairs the count above is made of, each with the card to keep by the same release-year/title
@@ -175,7 +178,7 @@ export async function listDuplicateCandidates(userId: string): Promise<Duplicate
   ]);
   const dismissed = new Set(dismissals.map((d) => igdbPairKey(d.igdbIdLow, d.igdbIdHigh)));
   const strip = ({ igdbCollectionId: _c, releaseDate: _d, duplicateCheckedAt: _k, ...g }: (typeof games)[number]): DuplicateSuggestionGame => g;
-  const candidates = findCandidatePairs(games, dismissed, MAX_SCAN_PAIRS);
+  const { pairs: candidates } = await dropDlcPairs(userId, findCandidatePairs(games, dismissed, MAX_SCAN_PAIRS), (pair) => pair);
   const knowledge = candidates.length ? await loadDuplicateKnowledge(userId, games.map((g) => g.igdbId)) : null;
   // Cards IGDB lists as the same game come first: certain duplicates.
   const sameIgdb = sameIgdbPairs(games.map(strip))
@@ -202,15 +205,20 @@ export async function listDuplicateCandidates(userId: string): Promise<Duplicate
  * (provider error, the daily limit on the shared AI) what was found is kept and `stopped` says why;
  * if nothing could be answered at all it throws. */
 export async function aiScanDuplicates(userId: string, opts: { fresh?: boolean } = {}): Promise<AiDuplicateScanResponse> {
-  const [games, dismissals] = await Promise.all([
+  const [shelf, dismissals] = await Promise.all([
     prisma.game.findMany({ where: { roomId: null, addedBy: userId, archivedAt: null, baseGameId: null }, select: SELECT, orderBy: { title: 'asc' } }),
     prisma.duplicateDismissal.findMany({ where: { userId } }),
   ]);
+  const dismissed = new Set(dismissals.map((d) => igdbPairKey(d.igdbIdLow, d.igdbIdHigh)));
+  // A base game and its DLC are not duplicates: cards whose titles look alike are checked against
+  // IGDB's DLC lists first, and a card that turns out to be DLC takes no part in the scan.
+  const dlcCheck = await dropDlcPairs(userId, findCandidatePairs(shelf, dismissed, MAX_SCAN_PAIRS), (pair) => pair);
+  const games = shelf.filter((g) => !dlcCheck.dlcCardIds.has(g.id));
+  const candidates = dlcCheck.pairs;
   if (games.length < 2) {
     appLog().info({ duplicateScan: { userId, games: games.length } }, `Find duplicate games for ${userId}: fewer than two shelf games, so the AI was not asked`);
     return { pairs: [], candidates: 0, checked: 0, reused: 0, alreadyChecked: 0, remaining: 0, fallback: null, stopped: null };
   }
-  const dismissed = new Set(dismissals.map((d) => igdbPairKey(d.igdbIdLow, d.igdbIdHigh)));
   const strip = ({ igdbCollectionId: _c, releaseDate: _d, duplicateCheckedAt: _k, ...g }: (typeof games)[number]): DuplicateSuggestionGame => g;
   const knowledge = await loadDuplicateKnowledge(userId, games.map((g) => g.igdbId));
   const cards = games.map(strip);
@@ -246,7 +254,6 @@ export async function aiScanDuplicates(userId: string, opts: { fresh?: boolean }
       found.set(key, { a, b, keep, confidence: verdict.confidence ?? 0.8, reason: verdict.reason ?? '', source: 'ai' });
     }
   }
-  const candidates = findCandidatePairs(games, dismissed, MAX_SCAN_PAIRS);
 
   // Then the AI: the shelf (one card per IGDB game - its other cards are already paired above) in
   // title-sorted chunks. A chunk whose cards were all checked by an earlier scan is skipped (its
@@ -287,16 +294,20 @@ export async function aiScanDuplicates(userId: string, opts: { fresh?: boolean }
       stopped ??= stopReason(err);
     }
   });
+  // What the AI, other people's merges or an earlier answer paired up can still be a game and its
+  // DLC under titles that don't look alike; those are dropped too, and not remembered as the same game.
+  const foundPairs = (await dropDlcPairs(userId, [...found.values()], (s) => [s.a, s.b])).pairs;
+  const foundKeys = new Set(foundPairs.map((s) => igdbPairKey(s.a.igdbId, s.b.igdbId)));
   const checked = checkedIds.size;
   const alreadyChecked = [...alreadyCheckedIds].filter((id) => !checkedIds.has(id)).length;
   const remaining = new Set(chunks.flat().map((c) => c.id).filter((id) => !checkedIds.has(id))).size;
-  const pairsOut = [...sameIgdb, ...[...found.values()].sort((x, y) => y.confidence - x.confidence)];
+  const pairsOut = [...sameIgdb, ...foundPairs.sort((x, y) => y.confidence - x.confidence)];
   appLog().info(
-    { duplicateScan: { userId, games: games.length, sameIgdb: sameIgdb.length, chunks: chunks.length, skippedChunks: allChunks.length - chunks.length, checked, alreadyChecked, remaining, reused, found: found.size, stopped } },
-    `Find duplicate games for ${userId}: ${sameIgdb.length} duplicate(s) by IGDB id; ${reused} pair(s) already known; sent ${checked} games to the AI in ${chunks.length} request(s), skipped ${alreadyChecked} checked before; ${found.size} more duplicate(s) found${stopped ? `; stopped with ${remaining} game(s) left: ${stopped}` : ''}`,
+    { duplicateScan: { userId, games: games.length, sameIgdb: sameIgdb.length, chunks: chunks.length, skippedChunks: allChunks.length - chunks.length, checked, alreadyChecked, remaining, reused, found: foundPairs.length, stopped } },
+    `Find duplicate games for ${userId}: ${sameIgdb.length} duplicate(s) by IGDB id; ${reused} pair(s) already known; sent ${checked} games to the AI in ${chunks.length} request(s), skipped ${alreadyChecked} checked before; ${foundPairs.length} more duplicate(s) found${stopped ? `; stopped with ${remaining} game(s) left: ${stopped}` : ''}`,
   );
   if (stopped && checked === 0 && reused === 0 && sameIgdb.length === 0) throw new HttpError(424, stopped);
-  await saveVerdicts(verdictsToSave);
+  await saveVerdicts(verdictsToSave.filter((v) => foundKeys.has(igdbPairKey(v.igdbIdA, v.igdbIdB))));
   // Tell the person even if they closed the dialog while it ran (best effort; never fails the scan).
   await notifyMergeSuggestions(userId, pairsOut.length);
   return { pairs: pairsOut, candidates: candidates.length, checked, reused, alreadyChecked, remaining, fallback, stopped };

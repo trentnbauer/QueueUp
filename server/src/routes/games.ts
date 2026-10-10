@@ -849,8 +849,8 @@ export default async function gameRoutes(app: FastifyInstance) {
 
   app.post<{ Body: CreateGameRequest }>('/api/games', async (request, reply) => {
     const userId = await request.requireAuth();
-    const { igdbId, roomId, status, ownedPlatforms } = request.body;
-    const response = await createGameForUser(userId, roomId ?? null, igdbId, { status, ownedPlatforms });
+    const { igdbId, roomId, status, ownedPlatforms, baseGameId } = request.body;
+    const response = await createGameForUser(userId, roomId ?? null, igdbId, { status, ownedPlatforms, baseGameId: typeof baseGameId === 'string' ? baseGameId : undefined });
     reply.status(201);
     // Only the 'game' branch is a real, immediately-live game - a room's approval-required
     // 'suggestion' branch hasn't actually been added to anything yet, so nothing to unlock there.

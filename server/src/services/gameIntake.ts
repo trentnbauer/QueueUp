@@ -1,4 +1,5 @@
 import { fillPlayAfterFromSeries } from './seriesPrefill.js';
+import { linkDlcToBaseCard } from './dlcLinks.js';
 import {
   searchGames,
   searchCollections,
@@ -284,9 +285,9 @@ export async function createGameForUser(
   userId: string,
   roomId: string | null,
   igdbId: number,
-  options: { status?: GameStatus; ownedPlatforms?: RoomPlatform[] } = {},
+  options: { status?: GameStatus; ownedPlatforms?: RoomPlatform[]; baseGameId?: string } = {},
 ): Promise<CreateGameResult> {
-  const { status, ownedPlatforms } = options;
+  const { status, ownedPlatforms, baseGameId } = options;
   if (!Number.isInteger(igdbId)) throw new HttpError(400, 'A valid igdbId is required');
   if (status !== undefined && status !== 'backlog' && status !== 'wishlist') {
     throw new HttpError(400, 'status must be "backlog" or "wishlist"');
@@ -409,9 +410,12 @@ export async function createGameForUser(
   } catch (err) {
     rethrowAsDuplicateGame(err, roomId ?? null, resolved.title);
   }
-  // Issue #338: this is DLC/an expansion IGDB has a parent link on file for - ensure that base
-  // game is present in the same room/shelf (creating it if needed) and link this row back to it.
-  if (resolved.parentGameIgdbId && isAddonCategory(resolved.category)) {
+  // Added from a card's DLC menu: that card is the base game, so link to it directly. Otherwise
+  // (and if that could not be confirmed) issue #338: this is DLC/an expansion IGDB has a parent
+  // link on file for - ensure that base game is present in the same room/shelf (creating it if
+  // needed) and link this row back to it.
+  const linkedFromMenu = baseGameId ? await linkDlcToBaseCard(created.id, igdbId, baseGameId, roomId ?? null, userId) : false;
+  if (!linkedFromMenu && resolved.parentGameIgdbId && isAddonCategory(resolved.category)) {
     await linkDlcToBaseGame(created.id, resolved.parentGameIgdbId, roomId ?? null, userId, platforms);
   }
   // Personal Shelf's Add Game modal (owned/platforms picker) - marks ownership at intake time

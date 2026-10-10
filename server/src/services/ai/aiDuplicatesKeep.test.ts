@@ -12,6 +12,9 @@ const loadDuplicateKnowledge = vi.fn(async (): Promise<any> => ({ merges: new Ma
 const saveVerdicts = vi.fn(async (_rows: unknown[]) => {});
 vi.mock('../duplicateKnowledge.js', () => ({ loadDuplicateKnowledge, saveVerdicts }));
 vi.mock('../notifications.js', () => ({ notifyMergeSuggestions }));
+// IGDB's DLC list for a game, by igdbId (see dropDlcPairs): none, unless a test says otherwise.
+const getGameAddonIgdbIds = vi.fn(async (_igdbId: number): Promise<Set<number>> => new Set());
+vi.mock('../igdbClient.js', () => ({ getGameAddonIgdbIds }));
 
 const { AI_LIBRARY_CHUNK, AI_LIBRARY_OVERLAP, aiScanDuplicates, buildLibraryPrompt, chooseKeep, countDuplicateCandidates, libraryChunks, parseDuplicateReply, parseLibraryReply, sameIgdbPairs } = await import('./aiDuplicates.js');
 
@@ -59,6 +62,9 @@ describe('aiScanDuplicates (whole shelf)', () => {
     saveVerdicts.mockClear();
     loadDuplicateKnowledge.mockReset();
     loadDuplicateKnowledge.mockResolvedValue({ merges: new Map(), notDuplicates: new Set(), verdicts: new Map() });
+    getGameAddonIgdbIds.mockReset();
+    getGameAddonIgdbIds.mockResolvedValue(new Set());
+    gameUpdateMany.mockClear();
   });
 
   const card = (id: string, igdbId: number, title: string, releaseYear: number | null = null) => ({ ...g(id, title, releaseYear), igdbId, igdbCollectionId: null });
@@ -220,6 +226,30 @@ describe('aiScanDuplicates (whole shelf)', () => {
     const res = await aiScanDuplicates('u1');
     expect(res.pairs).toHaveLength(1);
     expect(res.stopped).not.toBeNull();
+  });
+
+  it('keeps a DLC card whose title looks like its base game out of the scan, and links it', async () => {
+    gameFindMany.mockResolvedValue([card('base', 1, 'Cyberpunk 2077', 2020), card('dlc', 2, 'Cyberpunk 2077: Phantom Liberty', 2023), card('p', 3, 'Portal')]);
+    getGameAddonIgdbIds.mockImplementation(async (igdbId) => new Set(igdbId === 1 ? [2] : []));
+    // An AI that would call them the same game if it were asked.
+    replyPairs([['Cyberpunk 2077', 'Cyberpunk 2077: Phantom Liberty']]);
+    const res = await aiScanDuplicates('u1');
+    const prompt = aiComplete.mock.calls[0][0].messages[0].content as string;
+    expect(prompt).not.toContain('Phantom Liberty');
+    expect(res).toMatchObject({ pairs: [], candidates: 0, checked: 2 });
+    expect(gameUpdateMany).toHaveBeenCalledWith({ where: { id: 'dlc', roomId: null, addedBy: 'u1', baseGameId: null }, data: { baseGameId: 'base' } });
+  });
+
+  it('drops a game and its DLC that the AI or an earlier answer paired up, and does not remember them as the same game', async () => {
+    // Titles that don't look alike, so only the AI's answer and the saved one pair them.
+    gameFindMany.mockResolvedValue([card('w', 1, 'The Witcher 3: Wild Hunt', 2015), card('bw', 2, 'Blood and Wine', 2016), card('s', 3, 'Skyrim', 2011), card('dg', 4, 'Dawnguard', 2012)]);
+    getGameAddonIgdbIds.mockImplementation(async (igdbId) => new Set(igdbId === 1 ? [2] : igdbId === 3 ? [4] : []));
+    loadDuplicateKnowledge.mockResolvedValue({ merges: new Map(), notDuplicates: new Set(), verdicts: new Map([['3:4', { same: true, keepIgdbId: 3, confidence: 0.9, reason: 'saved' }]]) });
+    replyPairs([['The Witcher 3: Wild Hunt', 'Blood and Wine']]);
+    const res = await aiScanDuplicates('u1');
+    expect(res.pairs).toEqual([]);
+    expect(saveVerdicts.mock.calls[0][0]).toEqual([]);
+    expect(notifyMergeSuggestions).toHaveBeenCalledWith('u1', 0);
   });
 
   it('counts the cheap no-AI candidates without calling the AI', async () => {

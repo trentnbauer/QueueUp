@@ -48,7 +48,8 @@ export function DlcDialog() {
     setAdding((a) => new Set(a).add(r.igdbId));
     setError(null);
     try {
-      const res = await gamesApi.create({ igdbId: r.igdbId, roomId: base!.roomId });
+      // baseGameId: this menu is the base game's own DLC list, so the server links the new card to it.
+      const res = await gamesApi.create({ igdbId: r.igdbId, roomId: base!.roomId, baseGameId: base!.id });
       setAdded((a) => ({ ...a, [r.igdbId]: 'suggestion' in res ? 'suggested' : 'added' }));
       if (!('suggestion' in res)) await queryClient.invalidateQueries({ queryKey: ['games'] });
       ui.notify('suggestion' in res ? t('settings.dlc.suggested', { title: r.title }) : t('settings.dlc.added', { title: r.title }));

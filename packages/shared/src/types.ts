@@ -874,6 +874,9 @@ export interface CreateGameRequest {
    * meaningful alongside `status: 'backlog'` (owned); ignored otherwise, and rejected outright for
    * a room add (see the route) since room ownership is scoped to the room's own platform instead. */
   ownedPlatforms?: RoomPlatform[];
+  /** The card whose DLC menu this add came from. The new card is linked to it as its DLC when IGDB
+   * lists the game under that card's DLC and expansions; otherwise it is ignored. */
+  baseGameId?: string;
 }
 
 /** POST /api/games normally adds the game directly. In a room with requireGameApproval on, a
