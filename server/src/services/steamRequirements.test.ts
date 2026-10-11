@@ -42,6 +42,13 @@ describe('parseRequirementSet', () => {
   });
 });
 
+describe('tag stripping', () => {
+  it('does not let nested tags reassemble into a tag', () => {
+    const set = parseRequirementSet('<ul><li><strong>Memory:</strong> <<b>script>8 GB RAM</li></ul>');
+    expect(JSON.stringify(set)).not.toMatch(/<script>/);
+  });
+});
+
 describe('parseRequirements', () => {
   it('has minimum and recommended, either of which may be missing, and is null when both are', () => {
     expect(parseRequirements({ minimum: MIN })?.recommended).toBeNull();

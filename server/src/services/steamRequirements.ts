@@ -8,12 +8,20 @@ import { fetchSteamPcRequirements } from './steamStorage.js';
 
 const ENTITIES: Record<string, string> = { '&nbsp;': ' ', '&amp;': '&', '&lt;': '<', '&gt;': '>', '&quot;': '"', '&#39;': "'", '&apos;': "'", '&reg;': '®', '&trade;': '™' };
 
+/** Removes tags until none are left, so nested input like "<<b>script>" cannot reassemble one. */
+function stripTags(html: string): string {
+  let prev: string;
+  let out = html;
+  do {
+    prev = out;
+    out = out.replace(/<[^>]*>/g, '');
+  } while (out !== prev);
+  return out;
+}
+
 /** Plain text from a requirements HTML block: one line per list item / line break. */
 function toLines(html: string): string[] {
-  return html
-    .slice(0, 20_000)
-    .replace(/<br\s*\/?>|<\/li>|<\/p>|<\/ul>/gi, '\n')
-    .replace(/<[^>]*>/g, '')
+  return stripTags(html.slice(0, 20_000).replace(/<br\s*\/?>|<\/li>|<\/p>|<\/ul>/gi, '\n'))
     .replace(/&(?:nbsp|amp|lt|gt|quot|apos|reg|trade|#39);/g, (m) => ENTITIES[m] ?? m)
     .split('\n')
     .map((l) => l.replace(/\s+/g, ' ').trim())
