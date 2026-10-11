@@ -1,5 +1,6 @@
 import { prisma } from '../db/client.js';
 import { env } from '../config/env.js';
+import { isBlockedEitherWay } from './blocks.js';
 
 /** Ids of everyone `userId` counts as a friend. Normally that's accepted friendships (either
  * direction). On a PRIVATE_INSTANCE it's every other user on the server - nothing is written, so
@@ -40,6 +41,7 @@ export async function canViewProfile(
   owner: { id: string; profileVisibility: 'public' | 'friends' | 'private' },
 ): Promise<boolean> {
   if (viewerId === owner.id) return true;
+  if (viewerId && (await isBlockedEitherWay(viewerId, owner.id))) return false;
   if (owner.profileVisibility === 'public') return true;
   if (owner.profileVisibility === 'private' || !viewerId) return false;
   return areFriends(viewerId, owner.id);

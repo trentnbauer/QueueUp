@@ -13,6 +13,7 @@ import { useFriends } from '../hooks/useFriends';
 import { useMarkAllNotificationsRead, useNotificationFeed } from '../hooks/useNotifications';
 import { usePendingImportsCount } from '../hooks/usePendingImports';
 import { NotificationActions, hasActions } from './NotificationActions';
+import { BlockedPeople } from './BlockedPeople';
 import { Dialog } from '../ui/Dialog';
 import { Avatar, Banner, Btn, Group, Spinner, inputPill } from '../ui/primitives';
 import { st } from '../ui/st';
@@ -492,6 +493,7 @@ export function FriendsDialog() {
           ))}
         </Group>
         {!friends.isLoading && friends.friends.length === 0 && <div style={st('padding:20px 4px;color:var(--muted);font-size:14.5px')}>{t('social.friends.empty')}</div>}
+        <BlockedPeople />
       </div>
     </Dialog>
   );

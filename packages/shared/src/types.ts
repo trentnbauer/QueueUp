@@ -1430,6 +1430,33 @@ export interface AdminEmailLogEntry {
   createdAt: string;
 }
 
+/** Someone the signed-in user has blocked (GET /api/blocks). */
+export interface BlockedUser {
+  userId: string;
+  displayName: string;
+  avatarColor: string;
+  avatarUrl: string | null;
+  createdAt: string;
+}
+
+/** POST /api/reports - `reason` is the reporter's own words, 1-1000 characters. */
+export interface ReportUserRequest {
+  userId: string;
+  reason: string;
+  /** Also block them, in the same step. */
+  alsoBlock?: boolean;
+}
+
+/** A report about a person as administrators see it (GET /api/admin/reports). */
+export interface AdminUserReport {
+  id: string;
+  reporter: { id: string; displayName: string };
+  reported: { id: string; displayName: string };
+  reason: string;
+  createdAt: string;
+  resolvedAt: string | null;
+}
+
 export interface AdminAuditLogEntry {
   id: string;
   actorLabel: string;

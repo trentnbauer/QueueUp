@@ -12,6 +12,7 @@ import { getBasePath } from '../utils/basePath';
 import { AdminAiSection } from './AdminAiSection';
 import { AdminBackups } from './AdminBackups';
 import { AdminEmailLog } from './AdminEmailLog';
+import { AdminReports } from './AdminReports';
 import { AdminRoomView } from './AdminRoomView';
 import { DeletedRoomsList } from '../dialogs/DeletedRooms';
 import { PageShell } from './PageShell';
@@ -342,6 +343,7 @@ export function AdminPage() {
         </Collapsible>
       )}
 
+      <AdminReports />
       <AdminEmailLog />
 
       {tunnel && (

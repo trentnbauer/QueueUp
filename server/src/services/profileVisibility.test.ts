@@ -1,7 +1,8 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 
 const findFirst = vi.fn();
-vi.mock('../db/client.js', () => ({ prisma: { friendship: { findFirst }, user: { count: vi.fn() } } }));
+const blockFindFirst = vi.fn();
+vi.mock('../db/client.js', () => ({ prisma: { friendship: { findFirst }, userBlock: { findFirst: blockFindFirst }, user: { count: vi.fn() } } }));
 vi.mock('../config/env.js', () => ({ env: { PRIVATE_INSTANCE: false } }));
 
 const { canViewProfile } = await import('./friendships.js');
@@ -9,7 +10,10 @@ const { canViewProfile } = await import('./friendships.js');
 const owner = (profileVisibility: 'public' | 'friends' | 'private') => ({ id: 'owner', profileVisibility });
 
 describe('canViewProfile', () => {
-  beforeEach(() => findFirst.mockReset());
+  beforeEach(() => {
+    findFirst.mockReset();
+    blockFindFirst.mockReset().mockResolvedValue(null);
+  });
 
   it('always lets the owner see their own profile', async () => {
     expect(await canViewProfile('owner', owner('private'))).toBe(true);
@@ -32,5 +36,10 @@ describe('canViewProfile', () => {
     findFirst.mockResolvedValue({ id: 'f1' });
     expect(await canViewProfile('friend', owner('private'))).toBe(false);
     expect(await canViewProfile(null, owner('private'))).toBe(false);
+  });
+
+  it('hides even a public profile when either person has blocked the other', async () => {
+    blockFindFirst.mockResolvedValueOnce({ blockerId: 'owner' });
+    expect(await canViewProfile('stranger', owner('public'))).toBe(false);
   });
 });
