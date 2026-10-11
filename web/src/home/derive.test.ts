@@ -109,7 +109,9 @@ describe('buildHomeLists', () => {
     expect(ids(queue.list)).toEqual(['Queued next', 'Someday']);
     expect(queue.counts.queue).toBe(2);
     expect(queue.counts.playing).toBe(1);
-    expect(ids(buildHomeLists([backlog, next, paused], { ...opts, tab: 'playing' }).playNext)).toEqual(['On hold']);
+    const playing = buildHomeLists([backlog, next, paused], { ...opts, tab: 'playing' });
+    expect(ids(playing.list)).toEqual(['On hold']);
+    expect(playing.playNext).toEqual([]);
   });
 
   it('in a room with Play next set to Queue, those games are pinned to the top of the Queue and leave Playing', () => {
@@ -122,14 +124,17 @@ describe('buildHomeLists', () => {
     expect(buildHomeLists([top, next], { ...opts, tab: 'playing' }).playNext).toEqual([]);
   });
 
-  it('Paused games get their own filter under the plus menu and also show in the Play Next section', () => {
+  it('Paused games get their own filter under the plus menu and also sit at the bottom of the Playing list', () => {
     const paused = game({ title: 'On hold', status: 'paused' });
+    const active = game({ title: 'Active', status: 'playing' });
     const other = game({ title: 'Other', status: 'backlog' });
     const tabs = [...SHELF_TABS, ...SHELF_MORE_TABS];
     const filter = buildHomeLists([paused, other], { isShelf: true, tabs, tab: 'paused', query: '' });
     expect(ids(filter.list)).toEqual(['On hold']);
     expect(filter.counts.paused).toBe(1);
-    expect(ids(buildHomeLists([paused, other], { isShelf: true, tabs, tab: 'playing', query: '' }).playNext)).toEqual(['On hold']);
+    const playing = buildHomeLists([paused, active, other], { isShelf: true, tabs, tab: 'playing', query: '' });
+    expect(ids(playing.list)).toEqual(['Active', 'On hold']);
+    expect(playing.playNext).toEqual([]);
   });
 
   it('counts per tab', () => {

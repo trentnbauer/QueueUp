@@ -140,8 +140,11 @@ export function buildHomeLists(
     });
   }
 
+  // Paused games sit at the bottom of the Playing list rather than in the Play next section (#1110).
+  if (!q && tab === 'playing') list = [...list, ...games.filter((g) => g.status === 'paused').sort(byScore)];
+
   const coming = q || tab !== comingTab ? [] : games.filter(isComing).sort((a, b) => (a.releaseDate ?? '').localeCompare(b.releaseDate ?? ''));
-  const playNext = tab === 'playing' && !q ? games.filter((g) => (g.status === 'play_next' && opts.playNextIn !== 'backlog') || g.status === 'paused').sort(newFirst) : [];
+  const playNext = tab === 'playing' && !q ? games.filter((g) => g.status === 'play_next' && opts.playNextIn !== 'backlog').sort(newFirst) : [];
 
   return { list, coming, playNext, counts, comingTab };
 }
