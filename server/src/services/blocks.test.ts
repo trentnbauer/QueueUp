@@ -2,8 +2,8 @@ import { describe, expect, it, vi } from 'vitest';
 
 const { findFirst, upsert, deleteMany, transaction } = vi.hoisted(() => ({
   findFirst: vi.fn(),
-  upsert: vi.fn((args: unknown) => ({ upsert: args })),
-  deleteMany: vi.fn((args: unknown) => ({ deleteMany: args })),
+  upsert: vi.fn((args: { create: unknown }) => ({ upsert: args })),
+  deleteMany: vi.fn((args: { where: { OR: unknown } }) => ({ deleteMany: args })),
   transaction: vi.fn(async () => []),
 }));
 vi.mock('../db/client.js', () => ({
