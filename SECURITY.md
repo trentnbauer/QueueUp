@@ -45,9 +45,8 @@ updates regularly is the best way to stay current on security fixes.
 ## Scope notes
 
 - Code scanning (CodeQL, via GitHub's default setup) runs on every push/PR.
-  Dependency review (`.github/workflows/dependency-review.yml`) is currently disabled
-  while other repo changes land — see that workflow file for status — and will
-  re-run automatically once re-enabled.
+  Dependency review (`.github/workflows/dependency-review.yml`) also runs on every
+  PR to `main` and flags newly introduced known-vulnerable dependencies.
 - Report issues in QueueUp's own code and configuration. Vulnerabilities in
   upstream dependencies (Fastify, Prisma, React, etc.) should be reported to those
   projects directly, though flagging them here is still welcome if they materially
