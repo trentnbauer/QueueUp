@@ -19,6 +19,7 @@ import { prisma } from '../db/client.js';
 import { HttpError } from '../util/httpError.js';
 import { decodeActivityCursor, encodeActivityCursor } from '../services/roomActivity.js';
 import { areFriends, friendIdsOf } from '../services/friendships.js';
+import { isBlockedEitherWay } from '../services/blocks.js';
 import { env } from '../config/env.js';
 import { unlockActivityBadges } from '../services/badges.js';
 
@@ -361,6 +362,8 @@ export default async function friendRoutes(app: FastifyInstance) {
         viaCode = true;
       }
       if (target.id === userId) throw new HttpError(400, "That's your own friend code");
+      // Same answer whichever way the block goes, so a blocked person can't tell they were blocked.
+      if (await isBlockedEitherWay(userId, target.id)) throw new HttpError(404, 'User not found');
 
       const existing = await prisma.friendship.findFirst({
         where: {

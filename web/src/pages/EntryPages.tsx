@@ -12,6 +12,7 @@ import { useConfirm } from '../context/ConfirmContext';
 import { useUi } from '../context/UiContext';
 import { useFriendProfile, useFriends } from '../hooks/useFriends';
 import { FriendStatus } from '../dialogs/RoomDialogs';
+import { ProfileModeration } from '../components/ProfileModeration';
 import { Dialog } from '../ui/Dialog';
 import { UiToast } from '../ui/ToastView';
 import { applyFeedFilter, FeedGroups, FilterChips, type FeedFilter } from './feed';
@@ -572,6 +573,7 @@ export function PublicProfilePage({ userId, signedIn }: { userId: string; signed
               <Wordmark size={23} />
             </Link>
             {signedIn && state === 'ok' && profile?.viewer === 'public' && <ProfileFriendAction profile={profile} />}
+            {signedIn && state === 'ok' && profile && profile.viewer !== 'self' && <ProfileModeration userId={profile.userId} name={profile.displayName} />}
             <Link to="/" style={st('height:40px;padding:0 18px;border-radius:999px;border:1px solid var(--line);color:var(--text);font:600 13.5px var(--font-ui);display:flex;align-items:center;text-decoration:none')}>
               {signedIn ? t('pages.profile.openQueueUp') : t('pages.common.signIn')}
             </Link>

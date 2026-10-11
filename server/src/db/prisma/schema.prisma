@@ -316,6 +316,10 @@ model User {
   accountEvents                 AccountEvent[]
   gameReviews                   GameReview[]
   auditLogEntries               AdminAuditLog[]
+  blocksMade                    UserBlock[]                    @relation("BlockBlocker")
+  blocksReceived                UserBlock[]                    @relation("BlockBlocked")
+  reportsMade                   UserReport[]                   @relation("ReportReporter")
+  reportsAbout                  UserReport[]                   @relation("ReportReported")
   notificationsReceived         Notification[]                 @relation("NotificationRecipient")
   notificationsActed            Notification[]                 @relation("NotificationActor")
   roomActivity                  RoomActivity[]                 @relation("RoomActivityActor")
@@ -1633,6 +1637,39 @@ model EmailLog {
 
   @@index([createdAt])
   @@map("email_log")
+}
+
+/// One person blocking another: they no longer see each other's profile, and neither can send the
+/// other a friend request. Any friendship between them is removed when the block is made.
+model UserBlock {
+  blockerId String   @map("blocker_id")
+  blockedId String   @map("blocked_id")
+  createdAt DateTime @default(now()) @map("created_at")
+
+  blocker User @relation("BlockBlocker", fields: [blockerId], references: [id], onDelete: Cascade)
+  blocked User @relation("BlockBlocked", fields: [blockedId], references: [id], onDelete: Cascade)
+
+  @@id([blockerId, blockedId])
+  @@index([blockedId])
+  @@map("user_blocks")
+}
+
+/// A report about a person, with the reporter's own words on why. Administrators read these and
+/// mark them resolved; `reason` is only ever shown to administrators.
+model UserReport {
+  id             String    @id @default(uuid())
+  reporterId     String    @map("reporter_id")
+  reportedUserId String    @map("reported_user_id")
+  reason         String
+  createdAt      DateTime  @default(now()) @map("created_at")
+  resolvedAt     DateTime? @map("resolved_at")
+  resolvedBy     String?   @map("resolved_by")
+
+  reporter User @relation("ReportReporter", fields: [reporterId], references: [id], onDelete: Cascade)
+  reported User @relation("ReportReported", fields: [reportedUserId], references: [id], onDelete: Cascade)
+
+  @@index([resolvedAt, createdAt])
+  @@map("user_reports")
 }
 
 model AdminAuditLog {
