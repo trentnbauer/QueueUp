@@ -1,4 +1,4 @@
-import { createHash } from 'node:crypto';
+import { createHmac, randomBytes } from 'node:crypto';
 import type { AiConfig, AiProviderError } from './providers.js';
 
 /** Skipping a provider that will not work for a while (#1043). A provider that is out of credit or has a
@@ -39,10 +39,13 @@ interface Entry {
 
 const cooling = new Map<string, Entry>();
 
-/** What identifies a provider entry: changing any part (including the key) makes it a new one. Hashed so
- * the key never sits in a map key. */
+/** Per-process secret for `cooldownKey`. The map never leaves memory, so its keys need not survive a restart. */
+const KEY_SECRET = randomBytes(32);
+
+/** What identifies a provider entry: changing any part (including the key) makes it a new one. Keyed-hashed
+ * (not a password hash: it only has to tell entries apart) so the key never sits in a map key. */
 export function cooldownKey(c: Pick<AiConfig, 'provider' | 'model' | 'baseUrl' | 'apiKey'>): string {
-  return createHash('sha256').update([c.provider, c.model, c.baseUrl, c.apiKey ?? ''].join('\0')).digest('hex').slice(0, 24);
+  return createHmac('sha256', KEY_SECRET).update([c.provider, c.model, c.baseUrl, c.apiKey ?? ''].join('\0')).digest('hex').slice(0, 24);
 }
 
 /** The reason a provider is being skipped, or null when it is free to try. */
