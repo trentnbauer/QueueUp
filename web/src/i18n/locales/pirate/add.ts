@@ -151,6 +151,8 @@ export const add: Record<keyof typeof en, string> = {
   "add.review.dismissMessage": "It won’t be stowed in yer treasure chest. It washes back up if yer library syncs it again.",
   "add.review.dismissed": "Tossed {title} overboard",
   "add.review.kickerLeft": "NEEDS INSPECTIN’ · {n} LEFT",
+  "add.review.back": "‹ Back",
+  "add.review.backAria": "Sail back to the last title",
   "add.review.kicker": "NEEDS INSPECTIN’",
   "add.review.useMatch": "Use this match",
   "add.review.ai.ask": "Ask the AI parrot to match",

@@ -425,6 +425,10 @@ export function NeedsReviewDialog() {
   const queryClient = useQueryClient();
   const { data } = useQuery({ queryKey: PENDING_IMPORTS_QUERY_KEY, queryFn: pendingImportsApi.list });
   const [skipped, setSkipped] = useState<string[]>([]);
+  // Titles already passed (skipped, matched or dismissed), newest last, for "Back"; and the one Back
+  // brought to the front of the line, if any.
+  const [history, setHistory] = useState<string[]>([]);
+  const [front, setFront] = useState<string | null>(null);
   const [pick, setPick] = useState<number | null>(null);
   const [manual, setManual] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -441,8 +445,27 @@ export function NeedsReviewDialog() {
   // Skipped items go to the back of the line.
   const pending = data?.pending ?? [];
   // Titles the AI is sure are not games, still waiting, for the one-click "skip all of these".
-  const skippable = pending.filter((p) => aiKinds.get(p.id)?.suggestSkip);  const ordered = [...pending.filter((p) => !skipped.includes(p.id)), ...pending.filter((p) => skipped.includes(p.id))];
+  const skippable = pending.filter((p) => aiKinds.get(p.id)?.suggestSkip);  const queue = [...pending.filter((p) => !skipped.includes(p.id)), ...pending.filter((p) => skipped.includes(p.id))];
+  const frontEntry = front ? queue.find((p) => p.id === front) : undefined;
+  const ordered = frontEntry ? [frontEntry, ...queue.filter((p) => p.id !== front)] : queue;
   const entry: PendingLibraryImportDto | undefined = ordered[0];
+  // Back returns to the last title passed that is still waiting (a match is undone from its toast).
+  const backTo = [...history].reverse().find((id) => id !== entry?.id && pending.some((p) => p.id === id));
+
+  /** Done with this title for now: remember it for Back and let the next one come up. */
+  function moveOn(id: string) {
+    setHistory((h) => [...h.filter((x) => x !== id), id]);
+    setFront(null);
+    setPick(null);
+  }
+
+  function goBack() {
+    if (!backTo) return;
+    setHistory((h) => h.slice(0, h.lastIndexOf(backTo)));
+    setSkipped((s) => s.filter((x) => x !== backTo));
+    setFront(backTo);
+    setPick(null);
+  }
   const entryKind = entry ? aiKinds.get(entry.id) : undefined;
   // The AI's pick for this title, when it named one of the candidates shown.
   const aiIndex = entry ? entry.candidates.findIndex((c) => c.igdbId === aiPicks.get(entry.id)?.igdbId) : -1;
@@ -571,7 +594,7 @@ export function NeedsReviewDialog() {
     const c = entry.candidates[selected];
     setError(null);
     const res = await resolve.mutateAsync({ id: entry.id, igdbId: c.igdbId });
-    setPick(null);
+    moveOn(entry.id);
     undoable(t('add.review.matchedTitle', { title: c.title }), res?.undoToken);
   }
 
@@ -604,7 +627,7 @@ export function NeedsReviewDialog() {
     });
     if (!ok) return;
     await dismiss.mutateAsync(entry.id);
-    setPick(null);
+    moveOn(entry.id);
     ui.notify(t('add.review.dismissed', { title: entry.title }));
   }
 
@@ -613,7 +636,7 @@ export function NeedsReviewDialog() {
   async function markNotAGame() {
     if (!entry) return;
     await dismiss.mutateAsync(entry.id);
-    setPick(null);
+    moveOn(entry.id);
     ui.notify(t('add.review.notAGameDone', { title: entry.title }));
   }
 
@@ -624,9 +647,16 @@ export function NeedsReviewDialog() {
         height="tall"
         padded={false}
         header={
-          <Kicker size={12} style={{ flex: 1 }}>
-            {entry ? t('add.review.kickerLeft', { n: pending.length }) : t('add.review.kicker')}
-          </Kicker>
+          <>
+            {backTo && !bundle && (
+              <Btn hover height={32} padX={12} fontSize={13} onClick={goBack} ariaLabel={t('add.review.backAria')}>
+                {t('add.review.back')}
+              </Btn>
+            )}
+            <Kicker size={12} style={{ flex: 1 }}>
+              {entry ? t('add.review.kickerLeft', { n: pending.length }) : t('add.review.kicker')}
+            </Kicker>
+          </>
         }
         footer={
           entry && bundle ? (
@@ -648,7 +678,7 @@ export function NeedsReviewDialog() {
                 style={{ background: 'var(--chip)', border: 'none' }}
                 onClick={() => {
                   setSkipped((s) => [...s.filter((x) => x !== entry.id), entry.id]);
-                  setPick(null);
+                  moveOn(entry.id);
                 }}
               >
                 {t('common.skip')}
