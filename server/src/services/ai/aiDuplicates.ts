@@ -9,6 +9,7 @@ import { findCandidatePairs, igdbPairKey, titleCore } from '../duplicateCandidat
 import { loadDuplicateKnowledge, saveVerdicts } from '../duplicateKnowledge.js';
 import { dropDlcPairs } from '../dlcLinks.js';
 import { notifyMergeSuggestions } from '../notifications.js';
+import { getGameCompanies } from '../igdbClient.js';
 import type { AiDuplicateScanResponse, DuplicateCandidatesResponse, DuplicateSuggestion, DuplicateSuggestionGame } from '@queueup/shared';
 
 /** The AI must be at least this sure before a pair is shown. */
@@ -151,7 +152,22 @@ export function parseDuplicateReply(text: string, pairs: [DuplicateSuggestionGam
   return out.sort((x, y) => y.confidence - x.confidence);
 }
 
-const SELECT = { id: true, igdbId: true, title: true, platform: true, releaseYear: true, releaseDate: true, duplicateCheckedAt: true, coverImageUrl: true, status: true, igdbCollectionId: true } as const;
+const SELECT = { id: true, igdbId: true, title: true, platform: true, releaseYear: true, releaseDate: true, duplicateCheckedAt: true, coverImageUrl: true, status: true, genre: true, igdbCollectionId: true } as const;
+
+/** Adds each card's developer and publisher from IGDB, so the person can tell two games apart at a
+ * glance. One request for every pair; if IGDB can't be reached the pairs go out without them. */
+export async function withCompanies<T extends { a: DuplicateSuggestionGame; b: DuplicateSuggestionGame }>(pairs: T[]): Promise<T[]> {
+  if (pairs.length === 0) return pairs;
+  let companies: Awaited<ReturnType<typeof getGameCompanies>>;
+  try {
+    companies = await getGameCompanies(pairs.flatMap((p) => [p.a.igdbId, p.b.igdbId]));
+  } catch (err) {
+    appLog().warn({ err }, 'Could not look up developers and publishers for duplicate suggestions');
+    return pairs;
+  }
+  const add = (g: DuplicateSuggestionGame): DuplicateSuggestionGame => ({ ...g, developer: companies.get(g.igdbId)?.developer ?? null, publisher: companies.get(g.igdbId)?.publisher ?? null });
+  return pairs.map((p) => ({ ...p, a: add(p.a), b: add(p.b) }));
+}
 
 /** How many pairs on the person's shelf the cheap, no-AI pre-filter thinks might be the same game
  * (not counting ones they said are different, or a game and its DLC). No AI, so the shelf can show
@@ -191,7 +207,7 @@ export async function listDuplicateCandidates(userId: string): Promise<Duplicate
     return { a, b, keep: merge ? (merge.keepIgdbId === a.igdbId ? ('a' as const) : ('b' as const)) : chooseKeep(a, b), communityMergedBy: merge?.users ?? 0 };
   });
   // What other people merged comes first: those are the likeliest real duplicates.
-  return { pairs: [...sameIgdb, ...pairs.filter((p) => p.communityMergedBy > 0), ...pairs.filter((p) => p.communityMergedBy === 0)] };
+  return { pairs: await withCompanies([...sameIgdb, ...pairs.filter((p) => p.communityMergedBy > 0), ...pairs.filter((p) => p.communityMergedBy === 0)]) };
 }
 
 /** Scans the person's own shelf for duplicates. First, cards IGDB lists as the same game (same
@@ -310,7 +326,7 @@ export async function aiScanDuplicates(userId: string, opts: { fresh?: boolean }
   await saveVerdicts(verdictsToSave.filter((v) => foundKeys.has(igdbPairKey(v.igdbIdA, v.igdbIdB))));
   // Tell the person even if they closed the dialog while it ran (best effort; never fails the scan).
   await notifyMergeSuggestions(userId, pairsOut.length);
-  return { pairs: pairsOut, candidates: candidates.length, checked, reused, alreadyChecked, remaining, fallback, stopped };
+  return { pairs: await withCompanies(pairsOut), candidates: candidates.length, checked, reused, alreadyChecked, remaining, fallback, stopped };
 }
 
 /** "These are not duplicates": remembered by igdbId pair so the suggestion does not come back. */

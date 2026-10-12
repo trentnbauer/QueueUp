@@ -113,6 +113,8 @@ export interface IgdbGame {
    * "how broadly recognized is this" popularity proxy (see getTrendingGames). Present on most
    * games with any review coverage, 0/absent otherwise. */
   total_rating_count?: number;
+  /** Who made and published it: one entry per company, flagged developer and/or publisher. */
+  involved_companies?: { company?: { name?: string }; developer?: boolean; publisher?: boolean }[];
 }
 
 // IGDB's documented `category` enum (api-docs.igdb.com/#game-enums) - only the two values relevant
@@ -774,6 +776,28 @@ export async function getPickDetails(igdbIds: number[]): Promise<Map<number, Pic
   if (ids.length === 0) return new Map();
   const games = await igdbRequest<IgdbGame[]>('games', `fields total_rating,aggregated_rating,rating,genres.name; where id = (${ids.join(',')}); limit 500;`);
   return new Map(games.map((g) => [g.id, { reviewScore: reviewScoreFrom(g), genre: genreLabel(g.genres) }]));
+}
+
+/** Who made a game and who published it, as comma-separated company names; null when IGDB lists none. */
+export interface GameCompanies {
+  developer: string | null;
+  publisher: string | null;
+}
+
+export function companiesFrom(game: Pick<IgdbGame, 'involved_companies'>): GameCompanies {
+  const names = (role: 'developer' | 'publisher') => {
+    const list = [...new Set((game.involved_companies ?? []).filter((c) => c[role]).map((c) => c.company?.name).filter((n): n is string => !!n))];
+    return list.length > 0 ? list.join(', ') : null;
+  };
+  return { developer: names('developer'), publisher: names('publisher') };
+}
+
+/** Developer and publisher for up to 500 games in one request. A game IGDB doesn't return is left out. */
+export async function getGameCompanies(igdbIds: number[]): Promise<Map<number, GameCompanies>> {
+  const ids = [...new Set(igdbIds)].filter((id) => Number.isInteger(id) && id > 0).slice(0, 500);
+  if (ids.length === 0) return new Map();
+  const games = await igdbRequest<IgdbGame[]>('games', `fields involved_companies.company.name,involved_companies.developer,involved_companies.publisher; where id = (${ids.join(',')}); limit 500;`);
+  return new Map(games.map((g) => [g.id, companiesFrom(g)]));
 }
 
 /** A game suggested because it's like something already in the shelf/room. */
