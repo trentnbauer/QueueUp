@@ -19,6 +19,7 @@ import { ROOM_PLATFORM_LABELS } from '@queueup/shared';
 import { Avatar, Banner, Btn, SearchField, Spinner } from '../ui/primitives';
 import { useStableOrder } from './useStableOrder';
 import { useIsMobile, useMediaQuery } from '../ui/useLayout';
+import { useAiActivity } from '../hooks/useAiActivity';
 import { st } from '../ui/st';
 import { buildHomeLists, toRowItem } from './derive';
 import { useBacklogSort } from './backlogSort';
@@ -57,6 +58,7 @@ export function HomeView() {
   const confirm = useConfirm();
   const attention = useAttention();
   const cleanup = useLibraryCleanupCount();
+  const scanningDuplicates = useAiActivity('duplicates');
   const { version } = useVersion();
   const { isShelf, room, members, games, ops } = scope;
   const navigate = useNavigate();
@@ -221,13 +223,15 @@ export function HomeView() {
   }
 
 
-  // The shelf's one nudge counts everything waiting in Settings › Libraries (titles to match and
-  // possible duplicates); a room's is the games waiting for your vote.
-  const showNudge = !searching && (isShelf ? cleanup.total > 0 : toVote > 0);
+  // The shelf's nudges open what needs doing in one click: synced titles to match, and possible
+  // duplicates for the AI to check. A room's is the games waiting for your vote.
+  const showNudge = !searching && (isShelf ? cleanup.pending > 0 : toVote > 0);
   const nudgeLabel = isShelf
-    ? t(cleanup.total === 1 ? 'home.nudge.tidy.one' : 'home.nudge.tidy.other', { n: cleanup.total })
+    ? t(cleanup.pending === 1 ? 'home.nudge.match.one' : 'home.nudge.match.other', { n: cleanup.pending })
     : t('home.nudge.toVote', { n: toVote });
-  const nudgeAction = isShelf ? t('home.nudge.review') : t('home.nudge.voteNow');
+  const nudgeAction = isShelf ? t('home.nudge.matchBtn') : t('home.nudge.voteNow');
+  const showMergeNudge = isShelf && !searching && cleanup.duplicates > 0;
+  const duplicatesLabel = t(cleanup.duplicates === 1 ? 'home.nudge.merge.one' : 'home.nudge.merge.other', { n: cleanup.duplicates });
 
   const Row = mobile ? MobileRow : DesktopRow;
   const coverGridStyle = mobile
@@ -238,12 +242,12 @@ export function HomeView() {
     ui.notify(t('home.notify.nowPlaying', { title: game.title }));
   };
 
-  const nudges = (showNudge || (toApprove > 0 && !searching)) ? (
+  const nudges = (showNudge || showMergeNudge || (toApprove > 0 && !searching)) ? (
         <div style={st('display:flex;flex-wrap:wrap;gap:8px')}>
           {showNudge && (
             <button
               type="button"
-              onClick={() => (isShelf ? navigate('/settings/libraries') : ui.openDialog('deck'))}
+              onClick={() => ui.openDialog(isShelf ? 'needsReview' : 'deck')}
               aria-label={t('home.nudge.aria', { label: nudgeLabel, action: nudgeAction })}
               title={nudgeLabel}
               className="nudge"
@@ -256,6 +260,20 @@ export function HomeView() {
               <span style={st('height:28px;padding:0 11px;border-radius:999px;background:var(--acc);color:var(--ink);display:flex;align-items:center;font-size:12px')}>
                 {nudgeAction}
               </span>
+            </button>
+          )}
+          {showMergeNudge && (
+            <button
+              type="button"
+              onClick={() => ui.openDialog('duplicates')}
+              aria-label={t('home.nudge.aria', { label: duplicatesLabel, action: t('home.nudge.mergeBtn') })}
+              title={t('home.nudge.merge.title')}
+              className="nudge"
+              style={st('align-self:flex-start;display:flex;align-items:center;gap:10px;height:42px;padding:0 8px 0 14px;border-radius:999px;border:1px dashed var(--line);background:transparent;color:var(--text);font:600 13.5px var(--font-ui)')}
+            >
+              {scanningDuplicates && <Spinner />}
+              <span className="nudge-text">{scanningDuplicates ? t('home.nudge.merge.scanning') : duplicatesLabel}</span>
+              <span style={st('height:28px;padding:0 11px;border-radius:999px;background:var(--chip);color:var(--accText);display:flex;align-items:center;font-size:12px')}>{t('home.nudge.mergeBtn')}</span>
             </button>
           )}
           {toApprove > 0 && !searching && (
