@@ -27,7 +27,8 @@ import { useUi } from '../context/UiContext';
 import { useViewMode } from '../context/ViewModeContext';
 import { resolveThemeMode, type Accent, type ThemePreference } from '../theme/applyThemeMode';
 import { getBasePath } from '../utils/basePath';
-import { Toggle, inputPill } from '../ui/primitives';
+import { Avatar, Toggle, inputPill } from '../ui/primitives';
+import { MatchPictureColour } from '../components/MatchPictureColour';
 import { LIBRARY_BRAND, LibraryLogo, type LibraryKind } from '../ui/LibraryLogo';
 import { st } from '../ui/st';
 
@@ -226,6 +227,8 @@ export function Onboarding({ onDone }: { onDone: () => void }) {
   const [name, setName] = useState(user?.displayName ?? '');
   const [nameError, setNameError] = useState<string | null>(null);
   const [savingName, setSavingName] = useState(false);
+  // A colour taken from the person's picture on the name step; saved as their shelf (and avatar) colour.
+  const [pictureColour, setPictureColour] = useState<string | null>(null);
   const kind = kinds[Math.min(step, kinds.length - 1)];
   const last = step >= kinds.length - 1;
   const [title, sub] = kind === 'language' ? [t('core.onboarding.language.title'), t('core.onboarding.language.sub')] : stepText(t, kind);
@@ -304,6 +307,14 @@ export function Onboarding({ onDone }: { onDone: () => void }) {
         }
       }
       setNameError(null);
+      if (pictureColour && pictureColour !== shelfColor) {
+        try {
+          await authApi.setShelfColor(pictureColour);
+          await refetch();
+        } catch {
+          // The colour can still be picked on the shelf colour step or in Settings.
+        }
+      }
     }
     if (last) onDone();
     else setStep(step + 1);
@@ -381,6 +392,18 @@ export function Onboarding({ onDone }: { onDone: () => void }) {
               style={st(inputPill, { height: 52, flexShrink: 0, border: '1px solid var(--line)', fontSize: 16 })}
             />
             {nameError && <span style={st('flex-shrink:0;font:500 13px var(--font-ui);color:var(--danger)')}>{nameError}</span>}
+            {user && (
+              <div style={st('display:flex;align-items:center;gap:14px;flex-shrink:0;padding-top:4px')}>
+                <Avatar name={name || user.displayName} color={pictureColour ?? shelfColor ?? user.avatarColor} avatarUrl={user.avatarUrl} size={64} fontSize={26} />
+                <MatchPictureColour
+                  url={user.avatarUrl}
+                  onColour={(c) => {
+                    setPictureColour(c);
+                    setShelfColourDraft(c);
+                  }}
+                />
+              </div>
+            )}
           </>
         )}
 

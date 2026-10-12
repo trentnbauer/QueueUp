@@ -7,6 +7,7 @@ import { useUi } from '../context/UiContext';
 import { Dialog } from '../ui/Dialog';
 import { ColourPicker } from '../ui/ColourPicker';
 import { Avatar, Banner } from '../ui/primitives';
+import { MatchPictureColour } from '../components/MatchPictureColour';
 import { st } from '../ui/st';
 import { useT, type MessageKey } from '../i18n';
 
@@ -85,6 +86,7 @@ export function AvatarPicker({ onClose }: { onClose: () => void }): ReactNode {
         <span style={st('font:700 12px var(--font-mono);letter-spacing:0.06em;color:var(--muted)')}>{t('settings.avatar.colour')}</span>
         <span style={st('font:400 13px/1.45 var(--font-ui);color:var(--muted)')}>{t('settings.avatar.colourHint')}</span>
         <ColourPicker value={shelfColor} onChange={(c) => void saveColour(c)} label={t('settings.shelfColour.title')} />
+        <MatchPictureColour url={user.avatarUrl} onColour={(c) => void saveColour(c)} />
       </div>
     </Dialog>
   );
