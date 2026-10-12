@@ -88,41 +88,20 @@ export const shelfTabs = (playNextIn: 'playing' | 'backlog' = 'playing'): TabDef
   tabDef('wishlist', 'home.tab.wishlist', ['wishlist']),
   tabDef('queue', 'home.tab.backlog', playNextIn === 'backlog' ? ['backlog', 'play_next'] : ['backlog']),
   tabDef('playing', 'home.tab.playing', playNextIn === 'backlog' ? ['playing', 'paused'] : ['playing', 'play_next', 'paused']),
-  tabDef('replay', 'home.tab.replay', ['replay']),
+  tabDef('beaten', 'home.tab.beaten', ['done']),
 ];
 
 export const SHELF_TABS: TabDef[] = shelfTabs();
 
-/** Shelf filters tucked behind the "+" button: game lists by status, plus two lists of synced titles
- * that never became games (they have no status, see HomeView's PendingImportsList). */
+/** Shelf filters tucked behind the "More" button. */
 export const SHELF_MORE_TABS: TabDef[] = [
-  tabDef('beaten', 'home.tab.beaten', ['done']),
+  tabDef('replay', 'home.tab.replay', ['replay']),
   tabDef('paused', 'home.tab.paused', ['paused']),
   tabDef('dropped', 'home.tab.dropped', ['dropped']),
   tabDef('wont_play', 'home.tab.wontPlay', ['wont_play']),
   // Every game flagged as adult (IGDB, Steam, the AI check), in any status and hidden or not, so they can be reviewed in one place.
   { ...tabDef('adult', 'home.tab.adult', []), match: (g: Game) => g.sensitiveContent === true },
 ];
-export const SHELF_IMPORT_TABS = [
-  {
-    id: 'matching',
-    get label() {
-      return t('home.tab.matching');
-    },
-  },
-  {
-    id: 'dismissed',
-    get label() {
-      return t('home.tab.dismissed');
-    },
-  },
-  {
-    id: 'merged',
-    get label() {
-      return t('home.tab.merged');
-    },
-  },
-] as const;
 
 // ---------------------------------------------------------------------------------------------
 // Derived per-game values

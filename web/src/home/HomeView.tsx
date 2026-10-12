@@ -1,24 +1,20 @@
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
-import { useNavigate } from 'react-router';
+import { useNavigate, useParams } from 'react-router';
 import type { Game, GameStatus, VoteValue } from '@queueup/shared';
 import { useScope } from '../context/ScopeContext';
 import { useUi } from '../context/UiContext';
 import { useViewMode } from '../context/ViewModeContext';
-import { useAiActivity } from '../hooks/useAiActivity';
 import { useCardDensity } from '../context/CardDensityContext';
 import { useConfirm } from '../context/ConfirmContext';
 import { useAttention } from '../hooks/useAttention';
-import { usePendingImportsCount } from '../hooks/usePendingImports';
+import { useLibraryCleanupCount } from '../hooks/usePendingImports';
 import { useVersion } from '../hooks/useVersion';
-import { shelfTabs, SHELF_MORE_TABS, SHELF_IMPORT_TABS, roomTabs } from '../lib/gameView';
+import { shelfTabs, SHELF_MORE_TABS, roomTabs } from '../lib/gameView';
 import { JournalList } from './JournalList';
 import { UNDO_MS } from '../game/useChangeStatus';
-import { PendingImportsList } from './PendingImportsList';
-import { useQuery } from '@tanstack/react-query';
-import { DUPLICATE_COUNT_QUERY_KEY, MERGED_GAMES_QUERY_KEY, gamesApi } from '../api/games';
-import { AI_SETTINGS_QUERY_KEY, aiApi } from '../api/ai';
-import { MergedGamesList } from './MergedGamesList';
-import { DISMISSED_IMPORTS_QUERY_KEY, PENDING_IMPORTS_QUERY_KEY, pendingImportsApi } from '../api/pendingImports';
+import { RoomPeople } from './RoomPeople';
+import { RoomRecap } from './RoomRecap';
+import { ShelfHistory } from './ShelfHistory';
 import { ROOM_PLATFORM_LABELS } from '@queueup/shared';
 import { Avatar, Banner, Btn, SearchField, Spinner } from '../ui/primitives';
 import { useStableOrder } from './useStableOrder';
@@ -38,6 +34,11 @@ import { rich, useT } from '../i18n';
 
 const MAX_SHOWN_HINT = 5000;
 
+/** The sections above a shelf's or room's lists. Games is the default, at `/` or `/room/:id`; the
+ * others have their own address (`/shelf/journal`, `/room/:id/people`) so they can be linked to. */
+export type HomeSection = 'games' | 'journal' | 'people' | 'recap' | 'history';
+const SHELF_SECTIONS: HomeSection[] = ['games', 'journal', 'history'];
+const ROOM_SECTIONS: HomeSection[] = ['games', 'journal', 'people', 'recap'];
 
 /** A card already dealt with in this search: greyed and faded, but still tappable and readable. */
 const dimStyle = (on: boolean) => (on ? 'opacity:0.45;filter:grayscale(1);transition:opacity .2s,filter .2s' : 'transition:opacity .2s,filter .2s');
@@ -53,17 +54,18 @@ export function HomeView() {
   const { density } = useCardDensity();
   const confirm = useConfirm();
   const attention = useAttention();
-  const pendingImports = usePendingImportsCount();
+  const cleanup = useLibraryCleanupCount();
   const { version } = useVersion();
   const { isShelf, room, members, games, ops } = scope;
-  // "Possible duplicates" nudge: counted from titles alone (free, no AI), and only offered once AI is
-  // set up, since the AI is what judges them and merges them into the original.
-  const aiSettings = useQuery({ queryKey: AI_SETTINGS_QUERY_KEY, queryFn: aiApi.mine, enabled: isShelf });
-  const aiReady = !!aiSettings.data && aiSettings.data.effectiveSource !== 'none';
-  const duplicateCount = useQuery({ queryKey: DUPLICATE_COUNT_QUERY_KEY, queryFn: gamesApi.duplicateCandidateCount, enabled: isShelf && aiReady, staleTime: 10 * 60_000 });
-  const possibleDuplicates = duplicateCount.data?.count ?? 0;
-  const scanningDuplicates = useAiActivity('duplicates');
   const navigate = useNavigate();
+  const sections = isShelf ? SHELF_SECTIONS : ROOM_SECTIONS;
+  const { section: sectionParam } = useParams();
+  const section: HomeSection = sections.includes(sectionParam as HomeSection) ? (sectionParam as HomeSection) : 'games';
+  const sectionPath = (s: HomeSection) => (isShelf ? (s === 'games' ? '/' : `/shelf/${s}`) : `/room/${room?.id ?? ''}${s === 'games' ? '' : `/${s}`}`);
+  const goSection = (s: HomeSection) => {
+    ui.selectGame(null);
+    navigate(sectionPath(s));
+  };
 
   // Room header row (members, Invite, vote/approve nudges): if it spills onto a second line, first
   // try collapsing the nudges to just their buttons (data-compact="1" hides .nudge-text, see
@@ -84,23 +86,16 @@ export function HomeView() {
     return () => ro.disconnect();
   });
 
-  // The shelf's primary tabs, plus the filters tucked behind the "+" button (Dropped, Won't play and
-  // the two lists of synced titles that never became games).
+  // The shelf's primary tabs, plus the filters tucked behind the "More" button.
   const [playNextIn] = usePlayNextTab(isShelf ? null : (room?.id ?? null));
   const primaryTabs = useMemo(() => (isShelf ? shelfTabs(playNextIn) : roomTabs(playNextIn)), [isShelf, playNextIn]);
   const tabs = useMemo(() => (isShelf ? [...primaryTabs, ...SHELF_MORE_TABS] : primaryTabs), [isShelf, primaryTabs]);
   const [tab, setTab] = useState('queue');
   const [moreOpen, setMoreOpen] = useState(false);
-  const pendingList = useQuery({ queryKey: PENDING_IMPORTS_QUERY_KEY, queryFn: pendingImportsApi.list, enabled: isShelf });
-  const dismissedList = useQuery({ queryKey: DISMISSED_IMPORTS_QUERY_KEY, queryFn: pendingImportsApi.listDismissed, enabled: isShelf && moreOpen });
-  const importTab = tab === 'matching' || tab === 'dismissed' || tab === 'merged' ? tab : null;
-  const mergedList = useQuery({ queryKey: MERGED_GAMES_QUERY_KEY, queryFn: gamesApi.mergedList, enabled: isShelf && moreOpen });
-  const moreActive = SHELF_MORE_TABS.some((tb) => tb.id === tab) || importTab !== null;
+  const moreActive = isShelf && SHELF_MORE_TABS.some((tb) => tb.id === tab);
   const [query, setQuery] = useState('');
-  // The 📖 tab shows the play journal instead of a game list - the room's, or on the shelf your own
-  // across the shelf and your rooms (a search still searches games).
-  const journalTab = tab === 'journal' && query.trim().length === 0;
-  const otherTab = importTab !== null || journalTab;
+  // Journal, People, Recap and History show something other than the game lists.
+  const otherTab = section !== 'games';
   const [bulk, setBulk] = useState(false);
   const [bulkSel, setBulkSel] = useState<string[]>([]);
   const [bulkStatusOpen, setBulkStatusOpen] = useState(false);
@@ -113,6 +108,12 @@ export function HomeView() {
     setBulk(false);
     setBulkSel([]);
   }, [scope.scopeId]);
+  // Selecting games only makes sense on the Games section.
+  useEffect(() => {
+    if (section === 'games') return;
+    setBulk(false);
+    setBulkSel([]);
+  }, [section]);
 
   const searching = query.trim().length > 0;
   // Header platform filter (#799) and the shelf's Backlog sort from Shelf settings (#798).
@@ -217,11 +218,14 @@ export function HomeView() {
     ui.notify(t(n === 1 ? 'home.bulk.removed.one' : 'home.bulk.removed.other', { n }));
   }
 
-  const showNudge = !searching && (isShelf ? pendingImports > 0 : toVote > 0);
+
+  // The shelf's one nudge counts everything waiting in Settings › Libraries (titles to match and
+  // possible duplicates); a room's is the games waiting for your vote.
+  const showNudge = !searching && (isShelf ? cleanup.total > 0 : toVote > 0);
   const nudgeLabel = isShelf
-    ? t(pendingImports === 1 ? 'home.nudge.match.one' : 'home.nudge.match.other', { n: pendingImports })
+    ? t(cleanup.total === 1 ? 'home.nudge.tidy.one' : 'home.nudge.tidy.other', { n: cleanup.total })
     : t('home.nudge.toVote', { n: toVote });
-  const nudgeAction = isShelf ? t('home.nudge.matchBtn') : t('home.nudge.voteNow');
+  const nudgeAction = isShelf ? t('home.nudge.review') : t('home.nudge.voteNow');
 
   const Row = mobile ? MobileRow : DesktopRow;
   const coverGridStyle = mobile
@@ -232,13 +236,12 @@ export function HomeView() {
     ui.notify(t('home.notify.nowPlaying', { title: game.title }));
   };
 
-  const showMergeNudge = isShelf && !searching && possibleDuplicates > 0;
-  const nudges = (showNudge || showMergeNudge || (toApprove > 0 && !searching)) ? (
+  const nudges = (showNudge || (toApprove > 0 && !searching)) ? (
         <div style={st('display:flex;flex-wrap:wrap;gap:8px')}>
           {showNudge && (
             <button
               type="button"
-              onClick={() => (isShelf ? ui.openDialog('needsReview') : ui.openDialog('deck'))}
+              onClick={() => (isShelf ? navigate('/settings/libraries') : ui.openDialog('deck'))}
               aria-label={t('home.nudge.aria', { label: nudgeLabel, action: nudgeAction })}
               title={nudgeLabel}
               className="nudge"
@@ -253,24 +256,10 @@ export function HomeView() {
               </span>
             </button>
           )}
-          {showMergeNudge && (
-            <button
-              type="button"
-              onClick={() => ui.openDialog('duplicates')}
-              aria-label={t('home.nudge.aria', { label: t(possibleDuplicates === 1 ? 'home.nudge.merge.one' : 'home.nudge.merge.other', { n: possibleDuplicates }), action: t('home.nudge.mergeBtn') })}
-              title={t('home.nudge.merge.title')}
-              className="nudge"
-              style={st('align-self:flex-start;display:flex;align-items:center;gap:10px;height:42px;padding:0 8px 0 14px;border-radius:999px;border:1px dashed var(--line);background:transparent;color:var(--text);font:600 13.5px var(--font-ui)')}
-            >
-              {scanningDuplicates && <Spinner />}
-              <span className="nudge-text">{scanningDuplicates ? t('home.nudge.merge.scanning') : t(possibleDuplicates === 1 ? 'home.nudge.merge.one' : 'home.nudge.merge.other', { n: possibleDuplicates })}</span>
-              <span style={st('height:28px;padding:0 11px;border-radius:999px;background:var(--chip);color:var(--accText);display:flex;align-items:center;font-size:12px')}>{t('home.nudge.mergeBtn')}</span>
-            </button>
-          )}
           {toApprove > 0 && !searching && (
             <button
               type="button"
-              onClick={() => ui.openDialog('roomSettings')}
+              onClick={() => goSection('people')}
               aria-label={t('home.nudge.toApproveAria', { n: toApprove })}
               title={t('home.nudge.toApprove', { n: toApprove })}
               className="nudge"
@@ -364,7 +353,7 @@ export function HomeView() {
               ))}
             </div>
             {(scope.canManage || room?.invitePermission === 'members') && (
-              <Btn height={32} padX={14} fontSize={13} weight={500} onClick={() => ui.openDialog('roomSettings')} style={{ color: 'var(--muted)' }}>
+              <Btn height={32} padX={14} fontSize={13} weight={500} onClick={() => goSection('people')} style={{ color: 'var(--muted)' }}>
                 {t('home.header.invite')}
               </Btn>
             )}
@@ -373,6 +362,49 @@ export function HomeView() {
         )}
       </header>
 
+      <div role="tablist" aria-label={t('home.section.aria')} style={st('display:flex;gap:26px;border-bottom:1px solid var(--chip);overflow-x:auto')}>
+        {sections.map((s) => {
+          const on = section === s;
+          const badge = s === 'people' ? toApprove : 0;
+          return (
+            <button
+              key={s}
+              type="button"
+              role="tab"
+              aria-selected={on}
+              onClick={() => goSection(s)}
+              style={st(
+                `flex-shrink:0;display:flex;align-items:center;gap:7px;height:42px;padding:0;margin-bottom:-1px;border:none;border-bottom:2px solid ${on ? 'var(--acc)' : 'transparent'};background:none;font:600 14.5px var(--font-ui);color:${on ? 'var(--text)' : 'var(--muted)'}`,
+              )}
+            >
+              {t(`home.section.${s}`)}
+              {badge > 0 && (
+                <span style={st('min-width:18px;height:18px;padding:0 5px;border-radius:999px;background:var(--acc);color:var(--ink);font:700 10.5px var(--font-ui);display:flex;align-items:center;justify-content:center')}>{badge}</span>
+              )}
+            </button>
+          );
+        })}
+      </div>
+
+      {section === 'journal' && (
+        <>
+          <span style={st('max-width:640px;font:400 13.5px/1.5 var(--font-ui);color:var(--muted);text-wrap:pretty')}>{isShelf ? t('home.journal.introShelf') : t('home.journal.introRoom')}</span>
+          <JournalList
+            roomId={room?.id}
+            onOpen={(e) => {
+              // A shelf journal entry can be from a room: go there before opening it.
+              if (e.roomId !== (room?.id ?? null)) navigate(e.roomId ? `/room/${e.roomId}` : '/');
+              ui.selectGame(e.gameId);
+            }}
+          />
+        </>
+      )}
+      {section === 'people' && <RoomPeople />}
+      {section === 'recap' && <RoomRecap />}
+      {section === 'history' && <ShelfHistory />}
+
+      {section === 'games' && (
+      <>
       {scope.truncated && (
         <Banner kind="warn">
           {t('home.truncated', { n: MAX_SHOWN_HINT })}
@@ -407,35 +439,18 @@ export function HomeView() {
               </button>
             );
           })}
-          <button
-            type="button"
-            role="tab"
-            aria-selected={journalTab}
-            aria-label={t('home.journalTab')}
-            title={t('home.journalTab')}
-            onClick={() => {
-              setTab('journal');
-              setQuery('');
-            }}
-            style={st(
-              // Pinned to the end so it stays in view when the tabs scroll on a phone.
-              `position:sticky;right:${isShelf ? 32 : 0}px;z-index:1;flex:0 0 auto;display:flex;align-items:center;justify-content:center;width:40px;height:36px;border-radius:999px;border:none;background:${journalTab ? 'var(--text)' : 'var(--surf)'};box-shadow:-8px 0 8px var(--surf);font:400 17px/1 var(--font-ui)`,
-            )}
-          >
-            <span aria-hidden>📖</span>
-          </button>
           {isShelf && (
             <button
               type="button"
-              aria-label={t('home.moreFilters')}
               aria-expanded={moreOpen || moreActive}
-              title={t('home.moreFilters')}
               onClick={() => setMoreOpen((o) => !o)}
               style={st(
-                `position:sticky;right:0;flex:0 0 auto;display:flex;align-items:center;justify-content:center;width:36px;height:36px;border-radius:999px;border:none;background:${moreActive ? 'var(--text)' : 'var(--surf)'};box-shadow:6px 0 0 var(--surf);color:${moreActive ? 'var(--onText)' : 'var(--muted)'};font:500 20px/1 var(--font-ui);transform:${moreOpen || moreActive ? 'rotate(45deg)' : 'none'};transition:transform 0.15s`,
+                // Pinned to the end so it stays in view when the tabs scroll on a phone.
+                `position:sticky;right:0;flex:0 0 auto;display:flex;align-items:center;gap:5px;height:36px;padding:0 14px;border-radius:999px;border:none;background:${moreOpen || moreActive ? 'var(--text)' : 'var(--surf)'};box-shadow:-8px 0 8px var(--surf);color:${moreOpen || moreActive ? 'var(--onText)' : 'var(--muted)'};font:600 13.5px var(--font-ui)`,
               )}
             >
-              +
+              {t('home.more')}
+              <span aria-hidden style={st('font-size:10px')}>▾</span>
             </button>
           )}
         </div>
@@ -463,12 +478,7 @@ export function HomeView() {
 
       {isShelf && (moreOpen || moreActive) && (
         <div role="tablist" aria-label={t('home.moreFilters')} style={st('display:flex;flex-wrap:wrap;gap:6px')}>
-          {[
-            ...SHELF_MORE_TABS.map((tb) => ({ id: tb.id, label: tb.label, count: lists.counts[tb.id] ?? 0 })),
-            { id: 'matching', label: SHELF_IMPORT_TABS[0].label, count: pendingList.data?.pending.length ?? 0 },
-            { id: 'dismissed', label: SHELF_IMPORT_TABS[1].label, count: dismissedList.data?.pending.length ?? null },
-            { id: 'merged', label: SHELF_IMPORT_TABS[2].label, count: mergedList.data?.merged.length ?? null },
-          ].map((tb) => {
+          {SHELF_MORE_TABS.map((tb) => ({ id: tb.id, label: tb.label, count: lists.counts[tb.id] ?? 0 })).map((tb) => {
             const on = tab === tb.id && !searching;
             return (
               <button
@@ -485,25 +495,13 @@ export function HomeView() {
                 )}
               >
                 {tb.label}
-                {tb.count !== null && <span style={st('font:500 11px var(--font-mono);opacity:0.6')}>{tb.count}</span>}
+                <span style={st('font:500 11px var(--font-mono);opacity:0.6')}>{tb.count}</span>
               </button>
             );
           })}
         </div>
       )}
 
-      {importTab === 'merged' && <MergedGamesList />}
-      {(importTab === 'matching' || importTab === 'dismissed') && <PendingImportsList kind={importTab} />}
-      {journalTab && (
-        <JournalList
-          roomId={room?.id}
-          onOpen={(e) => {
-            // A shelf journal entry can be from a room: go there before opening it.
-            if (e.roomId !== (room?.id ?? null)) navigate(e.roomId ? `/room/${e.roomId}` : '/');
-            ui.selectGame(e.gameId);
-          }}
-        />
-      )}
 
       {!otherTab && lists.coming.length > 0 && (
         <ComingStrip
@@ -605,6 +603,9 @@ export function HomeView() {
             </div>
           )}
         </div>
+      )}
+
+      </>
       )}
 
       <Footer version={version} />

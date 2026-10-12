@@ -66,7 +66,7 @@ export function useActiveRoomSpinToasts() {
     previousSpinIds.current = currentIds;
 
     for (const spin of spins) {
-      if (pathname === `/room/${spin.roomId}`) continue;
+      if (pathname === `/room/${spin.roomId}` || pathname.startsWith(`/room/${spin.roomId}/`)) continue;
       if (dismissedSpinIds.current.has(spin.spinId)) continue;
       showToast({
         id: toastId(spin.spinId),

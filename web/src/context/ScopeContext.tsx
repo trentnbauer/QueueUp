@@ -37,7 +37,7 @@ export interface ScopeValue {
 
 const ScopeContext = createContext<ScopeValue | null>(null);
 
-/** Route -> scope: `/room/:id` is that room, everything else (shelf, activity, pages...) keeps
+/** Route -> scope: `/room/:id` (and its sections) is that room, `/` and `/shelf/…` the shelf, everything else (shelf, activity, pages...) keeps
  * whatever shelf/room was last in focus so the list stays put behind overlays and pages. */
 function roomIdFromPath(pathname: string): string | null {
   const m = pathname.match(/^\/room\/([^/]+)/);
@@ -50,7 +50,7 @@ export function ScopeProvider({ children }: { children: ReactNode }) {
   const { rooms, isLoading: roomsLoading } = useRooms();
 
   const routeRoomId = roomIdFromPath(location.pathname);
-  const isHome = location.pathname === '/';
+  const isHome = location.pathname === '/' || location.pathname.startsWith('/shelf/');
   const [lastScope, setLastScope] = useState<string>(SHELF_ID);
   const seenRoute = useRef<string | null>(null);
   useEffect(() => {

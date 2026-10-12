@@ -202,16 +202,12 @@ export const room = {
   "room.settings.recap.writing": "Writing...",
   "room.settings.recap.privacy": "Only the activity feed is used. Activity people have hidden, and games hidden from others, are left out.",
   "room.settings.recap.failed": "Couldn't update the weekly recap.",
-  "room.settings.showYear": "Show this room's year",
   "room.settings.gamesFinished.one": "game finished",
   "room.settings.gamesFinished.other": "games finished",
   "room.settings.topGenre": "top genre",
   "room.settings.mostVoted": "most-voted game",
   "room.settings.activityLabel": "ACTIVITY",
-  "room.settings.showActivity": "Show room activity",
   "room.settings.nothingYet": "Nothing yet.",
-  "room.settings.loadMore": "Load more",
-  "room.settings.journal": "Play journal",
   "room.settings.ai.openMine": "My AI settings",
   "room.settings.addFriendsButton": "Add friends",
   "room.settings.addFriendsTitle": "Add friends",
@@ -219,4 +215,8 @@ export const room = {
   "room.settings.addFriendsNone": "No friends to add: they are all in this room already, or you have no friends yet.",
   "room.settings.ai.tonight": "What should we play tonight?",
   "room.settings.ai.mine": "My AI settings",
+
+  // Room settings pointing at the People tab
+  "room.settings.peopleMoved": "Members, invites and games to approve are on the room's {tab} tab.",
+  "room.settings.open": "Open ›",
 } as const;

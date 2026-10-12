@@ -88,7 +88,7 @@ describe('buildHomeLists', () => {
     const a = game({ title: 'Recent', status: 'replay', replayedAt: ago(2) });
     const b = game({ title: 'Oldest', status: 'replay', replayedAt: ago(40) });
     const c = game({ title: 'Undated', status: 'replay' });
-    const lists = buildHomeLists([a, b, c], { isShelf: true, tabs: SHELF_TABS, tab: 'replay', query: '' });
+    const lists = buildHomeLists([a, b, c], { isShelf: true, tabs: [...SHELF_TABS, ...SHELF_MORE_TABS], tab: 'replay', query: '' });
     expect(ids(lists.list)).toEqual(['Oldest', 'Recent', 'Undated']);
   });
 
@@ -124,7 +124,7 @@ describe('buildHomeLists', () => {
     expect(buildHomeLists([top, next], { ...opts, tab: 'playing' }).playNext).toEqual([]);
   });
 
-  it('Paused games get their own filter under the plus menu and also sit at the bottom of the Playing list', () => {
+  it('Paused games get their own filter under the More menu and also sit at the bottom of the Playing list', () => {
     const paused = game({ title: 'On hold', status: 'paused' });
     const active = game({ title: 'Active', status: 'playing' });
     const other = game({ title: 'Other', status: 'backlog' });

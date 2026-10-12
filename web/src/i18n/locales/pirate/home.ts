@@ -14,9 +14,6 @@ export const home: Record<keyof typeof en, string> = {
   "home.search.visited": "Already opened in this search",
   "home.tab.adult": "Adult games",
   "home.tab.wontPlay": "Walked the plank",
-  "home.tab.matching": "Needs matchin’",
-  "home.tab.dismissed": "Cast off",
-  "home.tab.merged": "Merged",
 
   // Status card next steps (lib/gameView NEXT_ACTIONS)
   "home.next.moveToBacklog": "Stow in the Cargo hold",
@@ -119,22 +116,14 @@ export const home: Record<keyof typeof en, string> = {
   "home.truncated": "Showin’ the {n} games stowed most recently. Older ones be hidden below decks. Mark some Conquered or toss ones ye no longer care to track.",
 
   // Nudges
-  "home.nudge.match.one": "{n} synced game needs a match",
-  "home.nudge.match.other": "{n} synced games need a match",
   "home.nudge.toVote": "{n} to vote on",
   "home.nudge.aria": "{label} - {action}",
-  "home.nudge.matchBtn": "Match",
   "home.nudge.voteNow": "Vote now",
-  "home.nudge.merge.one": "1 possible duplicate",
-  "home.nudge.merge.other": "{n} possible duplicates",
-  "home.nudge.merge.title": "Games that look like the same game. AI checks them and merges extras into the original.",
-  "home.nudge.mergeBtn": "Review",
   "home.nudge.toApprove": "{n} awaitin’ the Captain",
   "home.nudge.toApproveAria": "{n} awaitin’ the Captain - Inspect",
   "home.nudge.review": "Inspect",
 
   // Tabs bar and search
-  "home.journalTab": "Ship’s log",
   "home.moreFilters": "More spyglasses",
   "home.search.shelf": "Seek in yer chest",
   "home.search.room": "Seek on this ship",
@@ -233,7 +222,19 @@ export const home: Record<keyof typeof en, string> = {
   "home.duration.minutes": "{m}m",
   "home.duration.hours": "{h}h",
   "home.duration.hoursMinutes": "{h}h {m}m",
-  "home.nudge.merge.scanning": "AI is checking…",
   "home.row.coopTitle": "Up to {n} players in co-op",
   "home.row.coopMax": "{n} max",
+
+  // Section tabs above the lists
+  "home.section.aria": "Decks",
+  "home.section.games": "Games",
+  "home.section.journal": "Ship’s log",
+  "home.section.people": "Crew",
+  "home.section.recap": "Recap",
+  "home.section.history": "History",
+  "home.journal.introShelf": "Everythin’ ye finished, tossed or picked back up, across yer shelf and yer rooms.",
+  "home.journal.introRoom": "What this crew has finished and tossed, with everyone’s reviews.",
+  "home.more": "More",
+  "home.nudge.tidy.one": "{n} bit o’ plunder to tidy up",
+  "home.nudge.tidy.other": "{n} bits o’ plunder to tidy up",
 };

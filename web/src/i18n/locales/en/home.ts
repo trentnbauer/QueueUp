@@ -12,9 +12,6 @@ export const home = {
   "home.search.visited": "Already opened in this search",
   "home.tab.adult": "Adult games",
   "home.tab.wontPlay": "Won't play",
-  "home.tab.matching": "Needs matching",
-  "home.tab.dismissed": "Dismissed",
-  "home.tab.merged": "Merged",
 
   // Status card next steps (lib/gameView NEXT_ACTIONS)
   "home.next.moveToBacklog": "Move to Backlog",
@@ -117,22 +114,14 @@ export const home = {
   "home.truncated": "Showing the {n} most recently added games. Older ones are hidden. Mark some Beaten or remove ones you no longer want to track.",
 
   // Nudges
-  "home.nudge.match.one": "{n} synced game needs a match",
-  "home.nudge.match.other": "{n} synced games need a match",
   "home.nudge.toVote": "{n} to vote on",
   "home.nudge.aria": "{label} - {action}",
-  "home.nudge.matchBtn": "Match",
   "home.nudge.voteNow": "Vote now",
-  "home.nudge.merge.one": "1 possible duplicate",
-  "home.nudge.merge.other": "{n} possible duplicates",
-  "home.nudge.merge.title": "Games that look like the same game. AI checks them and merges extras into the original.",
-  "home.nudge.mergeBtn": "Review",
   "home.nudge.toApprove": "{n} to approve",
   "home.nudge.toApproveAria": "{n} to approve - Review",
   "home.nudge.review": "Review",
 
   // Tabs bar and search
-  "home.journalTab": "Play journal",
   "home.moreFilters": "More filters",
   "home.search.shelf": "Search your shelf",
   "home.search.room": "Search this room",
@@ -231,7 +220,19 @@ export const home = {
   "home.duration.minutes": "{m}m",
   "home.duration.hours": "{h}h",
   "home.duration.hoursMinutes": "{h}h {m}m",
-  "home.nudge.merge.scanning": "AI is checking…",
   "home.row.coopTitle": "Up to {n} players in co-op",
   "home.row.coopMax": "{n} max",
+
+  // Section tabs above the lists
+  "home.section.aria": "Sections",
+  "home.section.games": "Games",
+  "home.section.journal": "Journal",
+  "home.section.people": "People",
+  "home.section.recap": "Recap",
+  "home.section.history": "History",
+  "home.journal.introShelf": "Everything you finished, dropped or picked back up, across your shelf and your rooms.",
+  "home.journal.introRoom": "What this room has finished and dropped, with everyone's reviews.",
+  "home.more": "More",
+  "home.nudge.tidy.one": "{n} library item to tidy up",
+  "home.nudge.tidy.other": "{n} library items to tidy up",
 } as const;

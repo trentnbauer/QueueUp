@@ -1,8 +1,6 @@
 import { useNavigate } from 'react-router';
 import { useState } from 'react';
-import { useInfiniteQuery } from '@tanstack/react-query';
 import { ROOM_PLATFORM_LABELS, SPIN_WHEEL_THEMES, sortPlatforms } from '@queueup/shared';
-import { gamesApi } from '../api/games';
 import { authApi } from '../api/auth';
 import { useAuth } from '../context/AuthContext';
 import { ColourPicker } from '../ui/ColourPicker';
@@ -14,7 +12,6 @@ import { st } from '../ui/st';
 import { exportGames } from '../utils/exportGames';
 import { BACKLOG_SORT_OPTIONS, toggleBacklogSort, useBacklogSort } from '../home/backlogSort';
 import { usePlayNextTab } from '../home/playNextTab';
-import { formatRelativeTime } from '../utils/relativeTime';
 import { useShelfSpinTheme } from '../home/shelfSpinTheme';
 import { NavRow, SystemsDialog } from './SettingsParts';
 import { rich, useT } from '../i18n';
@@ -51,15 +48,6 @@ export function ShelfSettingsDialog() {
   const navigate = useNavigate();
   const t = useT();
   const { games } = useScope();
-  const [showAct, setShowAct] = useState(false);
-  const activity = useInfiniteQuery({
-    queryKey: ['shelf-activity'],
-    queryFn: ({ pageParam }: { pageParam: string | undefined }) => gamesApi.activity(pageParam),
-    initialPageParam: undefined as string | undefined,
-    getNextPageParam: (last) => last.nextBefore ?? undefined,
-    enabled: showAct,
-  });
-  const entries = activity.data?.pages.flatMap((p) => p.entries) ?? [];
   const [backlogSort, setBacklogSort] = useBacklogSort();
   const [playNextIn, setPlayNextIn] = usePlayNextTab();
   const { ownedPlatforms, shelfColor, refetch } = useAuth();
@@ -131,30 +119,6 @@ export function ShelfSettingsDialog() {
           <Btn height={40} fontSize={13} onClick={() => exportGames(games, 'csv', 'personal-shelf')}>{t('settings.shelf.exportCsv')}</Btn>
           <Btn height={40} fontSize={13} onClick={() => exportGames(games, 'json', 'personal-shelf')}>{t('settings.shelf.exportJson')}</Btn>
         </div>
-      </div>
-      <div style={st('display:flex;flex-direction:column;gap:10px')}>
-        <Kicker>{t('settings.shelf.activity')}</Kicker>
-        {!showAct ? (
-          <Btn height={40} fontSize={13} style={{ alignSelf: 'flex-start' }} onClick={() => setShowAct(true)}>
-            {t('settings.shelf.showActivity')}
-          </Btn>
-        ) : (
-          <>
-            {activity.isLoading && <span style={st('font:400 13.5px var(--font-ui);color:var(--muted)')}>{t('common.loading')}</span>}
-            {!activity.isLoading && entries.length === 0 && <span style={st('font:400 13.5px var(--font-ui);color:var(--muted)')}>{t('settings.shelf.activityEmpty')}</span>}
-            {entries.map((a) => (
-              <div key={a.id} style={st('display:flex;justify-content:space-between;gap:12px;padding:9px 0;border-bottom:1px solid var(--chip);font:400 13.5px var(--font-ui)')}>
-                <span>{a.message}</span>
-                <span style={st('flex-shrink:0;color:var(--faint);font-size:12px')}>{formatRelativeTime(a.createdAt)}</span>
-              </div>
-            ))}
-            {activity.hasNextPage && (
-              <Btn height={36} fontSize={13} style={{ alignSelf: 'flex-start' }} disabled={activity.isFetchingNextPage} onClick={() => activity.fetchNextPage()}>
-                {activity.isFetchingNextPage ? t('common.loading') : t('settings.loadMore')}
-              </Btn>
-            )}
-          </>
-        )}
       </div>
       <button
         type="button"

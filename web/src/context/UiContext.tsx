@@ -26,8 +26,7 @@ export type DialogKey =
   | 'retroachievements'
   | 'changelog'
   | 'dlc'
-  | 'review'
-  | 'journal';
+  | 'review';
 
 export type AddRoomStep = 'options' | 'create' | 'join' | 'browse';
 
@@ -42,8 +41,6 @@ interface DialogPayloads {
    * "someone beat this in the room" - saving or skipping then marks it Beaten on the viewer's shelf
    * too, review included. */
   review: { gameId: string; edit?: boolean; syncShelf?: boolean };
-  /** Play journal (#802): one room's, or (no roomId) everything the viewer has played. */
-  journal: { roomId?: string };
 }
 
 type OpenState = { [K in DialogKey]?: K extends keyof DialogPayloads ? DialogPayloads[K] : true };
