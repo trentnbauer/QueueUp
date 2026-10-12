@@ -501,32 +501,28 @@ export async function getNotificationFeed(userId: string, take = 50): Promise<No
 }
 
 /** Unread counts for the sidebar: a dot per oversized-in-notifications room icon, plus a total for
- * the QU button badge. Computed per-membership rather than a single grouped query, since each
- * room's unread cutoff differs by member (their own notificationsReadAt/joinedAt). */
+ * the QU button badge. Each room's unread cutoff differs by member (their own notificationsReadAt,
+ * else joinedAt), which Prisma can't compare against, so the room counts are one grouped query
+ * joined to the caller's memberships rather than a count per room - this is polled by every
+ * signed-in tab. Keep its predicate in step with unreadNotificationWhere's room branch. */
 export async function getNotificationSummary(userId: string): Promise<{ totalUnread: number; rooms: { roomId: string; unreadCount: number }[] }> {
-  const memberships = await prisma.roomMember.findMany({
-    where: { userId },
-    select: { roomId: true, notificationsReadAt: true, joinedAt: true },
-  });
-
   const hiddenTypes = (await hiddenInAppTypes(userId)) as NotificationType[];
-  const [roomCounts, directUnread] = await Promise.all([
-    Promise.all(
-      memberships.map(async (m) => ({
-        roomId: m.roomId,
-        // A member's own actions never count toward their own unread badge (see notifyRoom).
-        unreadCount: await prisma.notification.count({
-          where: { roomId: m.roomId, recipientId: null, AND: [notCausedBy(userId)], createdAt: { gt: m.notificationsReadAt ?? m.joinedAt } },
-        }),
-      })),
-    ),
+  const [rooms, directUnread] = await Promise.all([
+    // A member's own actions never count toward their own unread badge (see notifyRoom).
+    prisma.$queryRaw<{ roomId: string; unreadCount: number }[]>`
+      SELECT n.room_id AS "roomId", count(*)::int AS "unreadCount"
+      FROM notifications n
+      JOIN room_members m ON m.room_id = n.room_id AND m.user_id = ${userId}
+      WHERE n.recipient_id IS NULL
+        AND (n.actor_id IS NULL OR n.actor_id <> ${userId})
+        AND n.created_at > COALESCE(m.notifications_read_at, m.joined_at)
+      GROUP BY n.room_id`,
     prisma.notification.count({
       where: { recipientId: userId, AND: [notCausedBy(userId)], readAt: null, ...(hiddenTypes.length > 0 && { type: { notIn: hiddenTypes } }) },
     }),
   ]);
 
-  const rooms = roomCounts.filter((r) => r.unreadCount > 0);
-  const totalUnread = directUnread + roomCounts.reduce((sum, r) => sum + r.unreadCount, 0);
+  const totalUnread = directUnread + rooms.reduce((sum, r) => sum + r.unreadCount, 0);
   return { totalUnread, rooms };
 }
 
