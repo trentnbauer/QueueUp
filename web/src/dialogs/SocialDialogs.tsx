@@ -19,6 +19,8 @@ import { st } from '../ui/st';
 import { formatRelativeTime } from '../utils/relativeTime';
 import { rich, useT, type MessageKey } from '../i18n';
 
+/** Notifications only administrators get; each opens the Administrator page. */
+const ADMIN_TYPES: Notification['type'][] = ['admin_report', 'admin_unban_request', 'admin_backup_failed'];
 const SHELF_TYPES: Notification['type'][] = ['merge_suggestions', 'friend_recommendation', 'price_drop', 'good_time_to_buy', 'release_watch', 'playnite_sync_reminder', 'wishlist_bundle_deal', 'playtime_mark_playing', 'sensitive_games'];
 
 /** A "wants to play this together" request: add the game to a room you're both in, or start a new
@@ -148,7 +150,7 @@ export function NotificationsDialog() {
       return;
     }
     // Something for administrators (a report, an unban request, a failed backup): the Administrator page.
-    if (n.type === 'admin_report' || n.type === 'admin_unban_request' || n.type === 'admin_backup_failed') {
+    if (ADMIN_TYPES.includes(n.type)) {
       if (notifications.length > 0) markAllRead();
       ui.closeDialog('notifications');
       navigate('/admin');
@@ -285,8 +287,16 @@ export function NotificationsDialog() {
       {isLoading && <div style={st('padding:24px 12px;color:var(--muted);font:400 14px var(--font-ui)')}>{t('common.loading')}</div>}
       {notifications.map((n) => {
         if (n.type === 'play_together_request') return <PlayTogetherRequest key={n.id} n={n} onDone={() => ui.closeDialog('notifications')} />;
-        const where = n.roomId ? n.roomName : n.type === 'library_sync_error' || n.type === 'library_sync_available' ? t('social.notifications.libraries') : SHELF_TYPES.includes(n.type) ? t('social.notifications.personalShelf') : t('social.notifications.announcement');
-        const clickable = !!n.roomId || n.type === 'library_sync_error' || n.type === 'library_sync_available' || SHELF_TYPES.includes(n.type);
+        const where = n.roomId
+          ? n.roomName
+          : ADMIN_TYPES.includes(n.type)
+            ? t('social.notifications.administration')
+            : n.type === 'library_sync_error' || n.type === 'library_sync_available'
+              ? t('social.notifications.libraries')
+              : SHELF_TYPES.includes(n.type)
+                ? t('social.notifications.personalShelf')
+                : t('social.notifications.announcement');
+        const clickable = !!n.roomId || ADMIN_TYPES.includes(n.type) || n.type === 'library_sync_error' || n.type === 'library_sync_available' || SHELF_TYPES.includes(n.type);
         return (
           <Fragment key={n.id}>
           <button

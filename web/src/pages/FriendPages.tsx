@@ -27,7 +27,8 @@ export function FriendsPage() {
   const friends = useFriends();
   const [params, setParams] = useSearchParams();
   const raw = params.get('tab');
-  const tab: FriendsTab = isFriendsTab(raw) ? raw : 'activity';
+  // On a private instance everyone is already a friend, so there are no codes or requests to show.
+  const tab: FriendsTab = isFriendsTab(raw) && !(friends.privateInstance && raw === 'requests') ? raw : 'activity';
 
   return (
     <PageShell
@@ -35,7 +36,7 @@ export function FriendsPage() {
       hint={t('pages.friends.hint')}
       back={false}
       action={
-        friends.myCode ? (
+        friends.myCode && !friends.privateInstance ? (
           <Btn
             height={42}
             onClick={async () => {
@@ -49,14 +50,14 @@ export function FriendsPage() {
       }
     >
       <Segmented
-        columns={3}
+        columns={friends.privateInstance ? 2 : 3}
         style={{ maxWidth: 520 }}
         value={tab}
         onChange={(v) => setParams(v === 'activity' ? {} : { tab: v }, { replace: true })}
         options={[
           { value: 'activity', label: t('pages.friends.tab.activity') },
           { value: 'friends', label: t('pages.friends.tab.friends') },
-          { value: 'requests', label: t('pages.friends.tab.requests'), badge: friends.incoming.length },
+          ...(friends.privateInstance ? [] : [{ value: 'requests' as const, label: t('pages.friends.tab.requests'), badge: friends.incoming.length }]),
         ]}
       />
       {tab === 'activity' && <ActivityFeed />}

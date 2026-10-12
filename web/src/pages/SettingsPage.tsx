@@ -3,8 +3,10 @@ import { Navigate, useNavigate, useParams } from 'react-router';
 import { useQuery } from '@tanstack/react-query';
 import { ROOM_PLATFORM_LABELS, sortPlatforms } from '@queueup/shared';
 import { authApi } from '../api/auth';
+import { gamesApi } from '../api/games';
 import { useAuth } from '../context/AuthContext';
 import { useConfirm } from '../context/ConfirmContext';
+import { useCurrencyRegion } from '../context/CurrencyRegionContext';
 import { useScope } from '../context/ScopeContext';
 import { useUi } from '../context/UiContext';
 import { AiSettingsDialog } from '../dialogs/AiSettingsDialog';
@@ -175,7 +177,12 @@ function AccountSection() {
   const ui = useUi();
   const confirm = useConfirm();
   const { user, refetch } = useAuth();
-  const { rooms, games } = useScope();
+  const { rooms } = useScope();
+  // "N beaten" is about your own shelf, whichever room was last open behind this page. Same query
+  // (and cache) as the shelf's own list.
+  const { region } = useCurrencyRegion();
+  const shelf = useQuery({ queryKey: ['games', 'shelf', region], queryFn: () => gamesApi.shelf(region) });
+  const games = shelf.data?.games ?? [];
   const [nameDraft, setNameDraft] = useState<string | null>(null);
   const [avatarOpen, setAvatarOpen] = useState(false);
   const [providers, setProviders] = useState<string[] | null>(null);
