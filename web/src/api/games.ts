@@ -1,5 +1,5 @@
 import { apiGet, apiPost, apiPatch, apiPut, apiDelete } from './client';
-import type { GameSeriesResponse, GameRequirements,
+import type { BundleSuggestion, SplitBundleRequest, GameSeriesResponse, GameRequirements,
   AiDuplicateScanResponse,
   DuplicateCandidateCountResponse,
   DuplicateCandidatesResponse,
@@ -142,6 +142,10 @@ export const gamesApi = {
   duplicateCandidates: () => apiGet<DuplicateCandidatesResponse>('/api/games/duplicates'),
   duplicateCandidateCount: () => apiGet<DuplicateCandidateCountResponse>('/api/games/duplicates/count'),
   dismissDuplicate: (body: DismissDuplicateRequest) => apiPost<void>('/api/games/duplicates/dismiss', body),
+  /** The games a bundle card probably holds (issue #857). */
+  bundleSuggestions: (id: string) => apiGet<{ suggestions: BundleSuggestion[] }>(`/api/games/${id}/bundle-suggestions`),
+  /** Replaces a bundle card with the games inside it. */
+  splitBundle: (id: string, igdbIds: number[]) => apiPost<void>(`/api/games/${id}/split-bundle`, { igdbIds } satisfies SplitBundleRequest),
   markBundle: (gameId: string) => apiPost<void>('/api/games/duplicates/bundle', { gameId }),
   mergeGame: (id: string, body: MergeGameRequest) => apiPost<{ game: Game; mergedFromId: string; undoToken?: string }>(`/api/games/${id}/merge`, body),
   /** Undoes a merge or re-match within a few minutes of it, using the token that came back with it. */

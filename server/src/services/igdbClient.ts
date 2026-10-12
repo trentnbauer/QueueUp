@@ -574,6 +574,36 @@ async function loadDlcEntries(igdbId: number): Promise<IgdbGame[]> {
   return entries;
 }
 
+const BUNDLE_CACHE_PREFIX = 'igdb:bundle:';
+
+/** The games IGDB lists as part of a bundle (every game whose `bundles` includes it), oldest release
+ * first, as search results. Cached for a day like a game's DLC list. Empty when IGDB has no contents
+ * recorded for it, which is common. Issue #857. */
+export async function getBundleContents(bundleIgdbId: number): Promise<GameSearchResult[]> {
+  if (!Number.isInteger(bundleIgdbId) || bundleIgdbId <= 0) throw new HttpError(400, 'Invalid IGDB game id');
+  const cacheKey = BUNDLE_CACHE_PREFIX + bundleIgdbId;
+  const cached = await redis.get(cacheKey);
+  let games: IgdbGame[];
+  if (cached) games = JSON.parse(cached) as IgdbGame[];
+  else {
+    games = await igdbRequest<IgdbGame[]>(
+      'games',
+      `fields name,cover.image_id,platforms.name,first_release_date; where bundles = (${bundleIgdbId}); limit 50;`,
+    );
+    await redis.set(cacheKey, JSON.stringify(games), 'EX', DLC_CACHE_TTL_SECONDS);
+  }
+  return games
+    .filter((g) => g.name && g.id !== bundleIgdbId)
+    .sort((a, b) => (a.first_release_date ?? Infinity) - (b.first_release_date ?? Infinity))
+    .map((g) => ({
+      igdbId: g.id,
+      title: g.name!,
+      platform: platformLabel(g.platforms),
+      coverImageUrl: coverUrl(g.cover),
+      releaseYear: releaseYear(g.first_release_date),
+    }));
+}
+
 /** The igdbIds of every DLC/expansion IGDB lists under a base game - the same list the "View DLC"
  * menu is built from, before any platform filtering. Answers "is this card that game's DLC?"
  * from the base game's side, which does not depend on the DLC entry's own `category`/`parent_game`

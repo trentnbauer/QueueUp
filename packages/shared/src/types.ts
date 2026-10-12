@@ -3270,6 +3270,18 @@ export interface MarkBundleRequest {
   gameId: string;
 }
 
+/** A game a bundle probably contains (GET /api/games/:id/bundle-suggestions, issue #857). */
+export interface BundleSuggestion extends GameSearchResult {
+  /** Where the guess came from: IGDB's own list of what is in the bundle, or the bundle's title
+   * ("A + B") looked up by name. */
+  source: 'igdb' | 'title';
+}
+
+/** Body for POST /api/games/:id/split-bundle: the games this card is a bundle of. */
+export interface SplitBundleRequest {
+  igdbIds: number[];
+}
+
 export interface DismissDuplicateRequest {
   gameIdA: string;
   gameIdB: string;
