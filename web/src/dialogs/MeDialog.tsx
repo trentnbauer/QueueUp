@@ -1,3 +1,4 @@
+import { AvatarPicker } from './AvatarPicker';
 import { useEffect, useState, type ReactNode } from 'react';
 import { useNavigate } from 'react-router';
 import { useInfiniteQuery, useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
@@ -812,6 +813,7 @@ export function MeDialog() {
   const [historyOpen, setHistoryOpen] = useState(false);
   const [profileOpen, setProfileOpen] = useState(false);
   const [systemsOpen, setSystemsOpen] = useState(false);
+  const [avatarOpen, setAvatarOpen] = useState(false);
   const [specsOpen, setSpecsOpen] = useState(false);
   const specsQuery = useQuery({ queryKey: ['computer-specs'], queryFn: authApi.computerSpecs });
   const [appearanceOpen, setAppearanceOpen] = useState(false);
@@ -913,6 +915,7 @@ export function MeDialog() {
 
   return (
     <>
+      {avatarOpen && <AvatarPicker onClose={() => setAvatarOpen(false)} />}
       <Dialog
         onClose={close}
         height="tall"
@@ -994,6 +997,7 @@ export function MeDialog() {
             sub={[specsQuery.data?.gpu, specsQuery.data?.cpu, specsQuery.data?.ramGb ? `${specsQuery.data.ramGb} GB` : null].filter(Boolean).join(' · ') || t('settings.specs.sub')}
             onClick={() => setSpecsOpen(true)}
           />
+          <NavRow label={t('settings.avatar.title')} sub={t('settings.avatar.sub')} onClick={() => setAvatarOpen(true)} />
           <NavRow label={t('settings.me.appearance.title')} sub={t('settings.me.appearance.sub')} onClick={() => setAppearanceOpen(true)} />
           <NavRow label={t('settings.notifications.title')} sub={t('settings.me.notifications.sub')} onClick={() => setNotifOpen(true)} />
           {providers && providers.length > 0 && <NavRow label={t('settings.me.signIn.title')} sub={t('settings.me.signIn.sub')} onClick={() => setSignInOpen(true)} />}

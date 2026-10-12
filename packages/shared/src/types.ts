@@ -1472,6 +1472,20 @@ export interface LegalConfig {
   privacy: string | null;
 }
 
+/** Where a person's profile picture comes from: whatever their latest sign-in gave (auto), their Steam,
+ * Discord or Gravatar picture, or just their colour and first letter. */
+export const AVATAR_CHOICES = ['auto', 'steam', 'discord', 'gravatar', 'letter'] as const;
+export type AvatarChoice = (typeof AVATAR_CHOICES)[number];
+
+/** GET /api/me/avatar: the current choice and which pictures are available to pick. */
+export interface AvatarSettings {
+  choice: AvatarChoice;
+  /** An administrator removed their picture: only the colour and letter can be used. */
+  blocked: boolean;
+  /** The picture each choice would show (null: not available, e.g. Steam not linked). */
+  options: { steam: string | null; discord: string | null; gravatar: string | null };
+}
+
 /** What a banned person sees on /api/me. */
 export interface BannedInfo {
   reason: string | null;

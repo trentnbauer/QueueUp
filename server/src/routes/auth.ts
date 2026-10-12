@@ -1,4 +1,5 @@
 import { isDisplayNameBlocked } from '../services/displayNames.js';
+import { recordLinkedAvatar } from '../services/avatars.js';
 import { loadExportExtras } from '../services/dataExportExtras.js';
 import { specsFromRow } from '../services/computerSpecs.js';
 import { logAccountEvent } from '../services/accountEvents.js';
@@ -85,6 +86,7 @@ async function linkAccount(targetUserId: string, provider: string, profile: OAut
       }
       throw err;
     }
+    void recordLinkedAvatar(targetUserId, 'steam', profile.avatarUrl);
     await notifyAccountChange(targetUserId, 'Steam was linked as a sign-in method for your account.');
     return `${env.APP_BASE_URL}/?accountLinked=steam`;
   }
@@ -112,6 +114,7 @@ async function linkAccount(targetUserId: string, provider: string, profile: OAut
     }
     throw err;
   }
+  void recordLinkedAvatar(targetUserId, provider, profile.avatarUrl);
   await notifyAccountChange(targetUserId, `${provider} was linked as a sign-in method for your account.`);
   return `${env.APP_BASE_URL}/?accountLinked=${provider}`;
 }

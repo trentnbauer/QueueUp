@@ -138,7 +138,7 @@ export default async function moderationRoutes(app: FastifyInstance) {
     const actor = await requireAdmin(actorId);
     const report = await loadReportForAction(request.params.id);
     if (report.reported.isAdmin) throw new HttpError(400, 'Remove their administrator role first');
-    await prisma.user.update({ where: { id: report.reported.id }, data: { avatarUrl: null } });
+    await prisma.user.update({ where: { id: report.reported.id }, data: { avatarUrl: null, avatarBlocked: true } });
     await resolveAfterAction(report, actorId);
     await logAdminAction({ actorId, actorLabel: actor.email, action: 'user.reset_avatar', targetLabel: report.reported.displayName, metadata: { userId: report.reported.id, reportId: report.id } });
     await notifyAccountChange(report.reported.id, 'An administrator removed your profile picture because it broke the rules.');

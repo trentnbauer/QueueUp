@@ -1,6 +1,6 @@
 import { apiDelete, apiGet, apiPatch, apiPost, apiPut } from './client';
 import { getBasePath } from '../utils/basePath';
-import type { AutoHideAdultResponse, BannedInfo, AccountEventPage, ActivityVisibilityResponse, ComputerSpecs, ProfileVisibility, RoomPlatform, User } from '@queueup/shared';
+import type { AvatarChoice, AvatarSettings, AutoHideAdultResponse, BannedInfo, AccountEventPage, ActivityVisibilityResponse, ComputerSpecs, ProfileVisibility, RoomPlatform, User } from '@queueup/shared';
 
 export const authApi = {
   me: () =>
@@ -47,6 +47,8 @@ export const authApi = {
   activityVisibility: () => apiGet<ActivityVisibilityResponse>('/api/me/activity-visibility'),
   setActivityVisibility: (hidden: boolean) => apiPut<ActivityVisibilityResponse>('/api/me/activity-visibility', { hidden }),
   setDisplayName: (displayName: string) => apiPatch<{ displayName: string }>('/api/me/display-name', { displayName }),
+  avatarSettings: () => apiGet<AvatarSettings>('/api/me/avatar'),
+  setAvatarChoice: (choice: AvatarChoice) => apiPut<{ choice: AvatarChoice; avatarUrl: string | null }>('/api/me/avatar', { choice }),
   setShelfColor: (colour: string | null) => apiPatch<{ shelfColor: string | null }>('/api/me/shelf-colour', { colour }),
   setProfileSlug: (slug: string | null) => apiPatch<{ profileSlug: string | null }>('/api/me/profile-slug', { slug }),
   loginUrl: (provider: string, captcha?: string | null) =>
