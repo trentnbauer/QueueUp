@@ -2,7 +2,7 @@ import { assertTextAllowed } from '../services/displayNames.js';
 import type { FastifyInstance } from 'fastify';
 import { Prisma } from '@prisma/client';
 import { prisma } from '../db/client.js';
-import { toUserDto } from '../util/dto.js';
+import { toUserDto, userDtoSelect } from '../util/dto.js';
 import { HttpError } from '../util/httpError.js';
 import { requireElevated, requireCanInvite, requireMembership, generateUniqueInviteCode, getRoom, adminManagedRoomIds, adminManageKey } from '../services/roomAccess.js';
 import { redis } from '../services/redisClient.js';
@@ -530,7 +530,7 @@ export default async function roomRoutes(app: FastifyInstance) {
 
     const members = await prisma.roomMember.findMany({
       where: { roomId },
-      include: { user: true },
+      include: { user: { select: userDtoSelect } },
       orderBy: { joinedAt: 'asc' },
     });
 

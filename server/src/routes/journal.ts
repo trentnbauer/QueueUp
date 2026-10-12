@@ -3,7 +3,7 @@ import type { Prisma } from '@prisma/client';
 import type { GameStatus, JournalEntry, JournalEventKind } from '@queueup/shared';
 import { prisma } from '../db/client.js';
 import { requireMembership } from '../services/roomAccess.js';
-import { toUserDto } from '../util/dto.js';
+import { toUserDto, userDtoSelect } from '../util/dto.js';
 
 const LIMIT = 300;
 /** The play journal is status changes only (adds, votes, spins and reviews stay in the activity log). */
@@ -77,7 +77,7 @@ async function journal(userId: string, where: Prisma.RoomActivityWhereInput): Pr
     orderBy: [{ createdAt: 'desc' }, { id: 'desc' }],
     // Read further back than is shown, so a finish can see the Playing that came before it.
     take: LIMIT * 2,
-    include: { actor: true, room: { select: { name: true } } },
+    include: { actor: { select: userDtoSelect }, room: { select: { name: true } } },
   });
   const all = rows.map((row) => ({ row, detail: detailOf(row.type, row.message, row.payload) })).filter((i) => i.detail.title);
 

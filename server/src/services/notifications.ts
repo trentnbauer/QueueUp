@@ -1,7 +1,7 @@
 import type { NotificationType, Prisma } from '@prisma/client';
 import { logAccountEvent } from './accountEvents.js';
 import { prisma } from '../db/client.js';
-import { toUserDto } from '../util/dto.js';
+import { toUserDto, userDtoSelect } from '../util/dto.js';
 import { hiddenInAppTypes } from './notificationPreferences.js';
 import { logRoomActivity, logShelfActivity, type RoomGamePayload } from './roomActivity.js';
 import type { Notification } from '@queueup/shared';
@@ -404,7 +404,9 @@ export async function notifySensitiveGames(userId: string, count: number): Promi
   }
 }
 
-type NotificationWithActor = Prisma.NotificationGetPayload<{ include: { actor: true } }>;
+// The feed is polled by every signed-in tab, so the actor is loaded as just the fields it is shown with.
+const notificationWithActor = { include: { actor: { select: userDtoSelect } } } satisfies Prisma.NotificationDefaultArgs;
+type NotificationWithActor = Prisma.NotificationGetPayload<typeof notificationWithActor>;
 
 interface ReadCutoff {
   notificationsReadAt: Date | null;
@@ -485,7 +487,7 @@ export async function getNotificationFeed(userId: string, take = 50): Promise<No
   const hiddenTypes = (await hiddenInAppTypes(userId)) as NotificationType[];
   const rows = await prisma.notification.findMany({
     where: unreadNotificationWhere(userId, memberships, hiddenTypes),
-    include: { actor: true },
+    ...notificationWithActor,
     orderBy: { createdAt: 'desc' },
     take,
   });

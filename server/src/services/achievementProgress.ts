@@ -1,6 +1,6 @@
 import type { User } from '@queueup/shared';
 import { prisma } from '../db/client.js';
-import { toUserDto } from '../util/dto.js';
+import { toUserDto, userDtoSelect } from '../util/dto.js';
 import { getAchievementCounts, resolveSteamId64, type SteamAchievementCounts } from './steamLibrary.js';
 
 /** Stored Steam achievement counts per (user, game), for the "10/20" on game cards - see the
@@ -125,7 +125,7 @@ export async function getRoomMemberAchievementMap(
   if (roomGames.length === 0) return new Map();
   const members = await prisma.roomMember.findMany({
     where: { roomId: { in: [...new Set(roomGames.map((g) => g.roomId!))] }, userId: { not: viewerId } },
-    include: { user: true },
+    include: { user: { select: userDtoSelect } },
   });
   if (members.length === 0) return new Map();
   const rows = await prisma.achievementProgress.findMany({
