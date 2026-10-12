@@ -5,6 +5,7 @@ import { HttpError } from '../util/httpError.js';
 import { requireAdmin } from '../services/adminAccess.js';
 import { logAdminAction } from '../services/adminAuditLog.js';
 import { blockUser } from '../services/blocks.js';
+import { env } from '../config/env.js';
 import { forgetBan } from '../services/banCache.js';
 import { clearBannedIdentities, recordBannedIdentities } from '../services/banIdentities.js';
 import { notifyAdmins } from '../services/adminNotifications.js';
@@ -44,6 +45,7 @@ export default async function moderationRoutes(app: FastifyInstance) {
 
   app.post<{ Body: { userId: string } }>('/api/blocks', { config: { rateLimit: { max: 30, timeWindow: '1 hour' } } }, async (request) => {
     const me = await request.requireAuth();
+    if (env.PRIVATE_INSTANCE) throw new HttpError(409, 'Blocking is turned off on this server');
     const target = await requireTarget(request.body?.userId, me);
     await blockUser(me, target.id);
     return { ok: true };

@@ -4,6 +4,7 @@ import { useQueryClient } from '@tanstack/react-query';
 import { moderationApi } from '../api/moderation';
 import { useConfirm } from '../context/ConfirmContext';
 import { useUi } from '../context/UiContext';
+import { useFriends } from '../hooks/useFriends';
 import { Btn } from '../ui/primitives';
 import { useT } from '../i18n';
 import { ReportDialog } from './ReportDialog';
@@ -18,6 +19,8 @@ export function ProfileModeration({ userId, name }: { userId: string; name: stri
   const navigate = useNavigate();
   const queryClient = useQueryClient();
   const [reporting, setReporting] = useState(false);
+  // No blocking on a private instance, where everyone is a friend; reporting still works.
+  const canBlock = !useFriends().privateInstance;
 
   function afterBlock() {
     void queryClient.invalidateQueries({ queryKey: ['friends'] });
@@ -42,11 +45,13 @@ export function ProfileModeration({ userId, name }: { userId: string; name: stri
       <Btn kind="ghost" height={40} padX={14} fontSize={13.5} onClick={() => setReporting(true)}>
         {t('social.report.action')}
       </Btn>
-      <Btn kind="ghost" height={40} padX={14} fontSize={13.5} onClick={() => void block()}>
-        {t('social.block.action')}
-      </Btn>
+      {canBlock && (
+        <Btn kind="ghost" height={40} padX={14} fontSize={13.5} onClick={() => void block()}>
+          {t('social.block.action')}
+        </Btn>
+      )}
       {reporting && (
-        <ReportDialog target={{ kind: 'person', userId }} title={t('social.report.title', { name })} canBlock onClose={() => setReporting(false)} onSent={(alsoBlock) => alsoBlock && afterBlock()} />
+        <ReportDialog target={{ kind: 'person', userId }} title={t('social.report.title', { name })} canBlock={canBlock} onClose={() => setReporting(false)} onSent={(alsoBlock) => alsoBlock && afterBlock()} />
       )}
     </>
   );
