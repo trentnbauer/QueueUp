@@ -32,22 +32,23 @@ export function GlancePanel() {
           {isShelf ? t('shell.glance.spinHintShelf') : t('shell.glance.spinHintRoom')}{' '}
           {t(pool.length === 1 ? 'shell.glance.inPool.one' : 'shell.glance.inPool.other', { n: pool.length })}
         </span>
-        <button
-          type="button"
-          onClick={() => ui.openDialog('spin')}
-          style={st('align-self:flex-start;height:42px;padding:0 22px;border-radius:999px;border:none;background:var(--acc);color:var(--ink);font:800 14px var(--font-display);box-shadow:0 6px 20px var(--accA30)')}
-        >
-          {t('shell.glance.spin')}
-        </button>
-        {(
+        {/* Ask AI sits beside Spin; it's the app's way into "what should we play tonight". */}
+        <div style={st('display:flex;flex-wrap:wrap;gap:8px')}>
+          <button
+            type="button"
+            onClick={() => ui.openDialog('spin')}
+            style={st('height:42px;padding:0 22px;border-radius:999px;border:none;background:var(--acc);color:var(--ink);font:800 14px var(--font-display);box-shadow:0 6px 20px var(--accA30)')}
+          >
+            {t('shell.glance.spin')}
+          </button>
           <button
             type="button"
             onClick={() => ui.openDialog('aiTonight')}
-            style={st('align-self:flex-start;height:36px;padding:0 16px;border-radius:999px;border:1px solid var(--line);background:transparent;color:var(--text);font:600 13px var(--font-ui)')}
+            style={st('height:42px;padding:0 16px;border-radius:999px;border:1px solid var(--line);background:transparent;color:var(--text);font:600 13px var(--font-ui)')}
           >
             {t('shell.glance.askAi')}
           </button>
-        )}
+        </div>
       </div>
       {now.length > 0 && (
         <div style={st('display:flex;flex-direction:column;gap:8px')}>
