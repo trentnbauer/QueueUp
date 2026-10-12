@@ -21,4 +21,5 @@ export const core: Record<keyof typeof en, string> = {
   "core.settings.language": "Language",
   "core.settings.language.sub": "More tongues be on the horizon.",
   "core.login.title": "Sign in",
+  "core.login.terms": "Terms",
 };

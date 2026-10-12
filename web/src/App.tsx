@@ -27,6 +27,7 @@ import { useScope } from './context/ScopeContext';
 // Rarely-visited pages load on demand so they stay out of the entry bundle; the first-paint path
 // (home, login, public profile, app shell) stays eager.
 const AdminPage = lazy(() => import('./pages/AdminPage').then((m) => ({ default: m.AdminPage })));
+const TermsPage = lazy(() => import('./pages/TermsPage').then((m) => ({ default: m.TermsPage })));
 const PrivacyPage = lazy(() => import('./pages/PrivacyPage').then((m) => ({ default: m.PrivacyPage })));
 const ConfirmEmailPage = lazy(() => import('./pages/ConfirmEmailPage').then((m) => ({ default: m.ConfirmEmailPage })));
 const ActivityPage = lazy(() => import('./pages/FriendPages').then((m) => ({ default: m.ActivityPage })));
@@ -251,6 +252,14 @@ export default function App() {
       <Suspense fallback={null}>
         <PageTitle page={t('pages.confirmEmail.title')} />
         <ConfirmEmailPage token={decodeURIComponent(confirmMatch[1])} />
+      </Suspense>
+    );
+  }
+  if (location.pathname === '/terms') {
+    return (
+      <Suspense fallback={null}>
+        <PageTitle page={t('pages.terms.title')} />
+        <TermsPage signedIn={!!user} />
       </Suspense>
     );
   }

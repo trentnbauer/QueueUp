@@ -19,4 +19,5 @@ export const core = {
   "core.settings.language": "Language",
   "core.settings.language.sub": "More languages are on the way.",
   "core.login.title": "Sign in",
+  "core.login.terms": "Terms",
 } as const;

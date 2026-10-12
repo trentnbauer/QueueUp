@@ -44,6 +44,9 @@ services:
       SESSION_SECRET: ${SESSION_SECRET}
       TRUST_PROXY: ${TRUST_PROXY:-true}
       PRIVATE_INSTANCE: ${PRIVATE_INSTANCE:-false}          # Optional - true makes every user everyone's friend
+      LEGAL_CONTACT: ${LEGAL_CONTACT:-}                        # Optional - contact shown on the terms and privacy pages
+      TERMS_FILE: ${TERMS_FILE:-}                              # Optional - path to a Markdown file replacing the default terms
+      PRIVACY_FILE: ${PRIVACY_FILE:-}                          # Optional - path to a Markdown file replacing the default privacy text
       LOG_LEVEL: ${LOG_LEVEL:-info}                            # Optional - fatal/error/warn/info/debug/trace/silent
       LOG_REQUESTS: ${LOG_REQUESTS:-false}                     # Optional - true logs every HTTP request (debugging)
       ## User Authentication Methods

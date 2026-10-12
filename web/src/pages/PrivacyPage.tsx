@@ -3,6 +3,7 @@ import { Link } from 'react-router';
 import { Wordmark } from '../ui/primitives';
 import { st } from '../ui/st';
 import { useT, type MessageKey } from '../i18n';
+import { ContactLink, LegalShell, Markdown, useLegal } from './legal';
 
 const H2 = 'font:700 22px var(--font-display);letter-spacing:-0.02em;margin:0';
 const P = 'font:400 14.5px/1.6 var(--font-ui);color:var(--text2);margin:0;text-wrap:pretty';
@@ -45,6 +46,14 @@ function md(text: string, nodes: Record<string, ReactNode> = {}): ReactNode {
 export function PrivacyPage({ signedIn }: { signedIn: boolean }) {
   const t = useT();
   const items = (...keys: MessageKey[]) => keys.map((k) => md(t(k)));
+  const legal = useLegal();
+  if (legal.privacy) {
+    return (
+      <LegalShell signedIn={signedIn} title={t('pages.privacy.title')}>
+        <Markdown source={legal.privacy} />
+      </LegalShell>
+    );
+  }
   return (
     <div style={st('min-height:100vh;background:var(--bg);color:var(--text)')}>
       <div style={st('max-width:760px;margin:0 auto;padding:0 clamp(16px,4vw,40px) 64px;display:flex;flex-direction:column;gap:32px')}>
@@ -140,7 +149,18 @@ export function PrivacyPage({ signedIn }: { signedIn: boolean }) {
         </Section>
 
         <Section title={t('pages.privacy.choices.title')}>
-          <List items={items('pages.privacy.choices.data', 'pages.privacy.choices.anytime', 'pages.privacy.choices.contact')} />
+          <List
+            items={[
+              ...items('pages.privacy.choices.data', 'pages.privacy.choices.anytime'),
+              legal.contact ? (
+                <>
+                  {t('pages.privacy.contactAt')} <ContactLink contact={legal.contact} />
+                </>
+              ) : (
+                md(t('pages.privacy.choices.contact'))
+              ),
+            ]}
+          />
         </Section>
       </div>
     </div>

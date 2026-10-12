@@ -1459,6 +1459,13 @@ export interface AdminUserReport {
   reportedBanned: boolean;
 }
 
+/** GET /api/legal - the operator's contact and any replacement terms / privacy text (Markdown). */
+export interface LegalConfig {
+  contact: string | null;
+  terms: string | null;
+  privacy: string | null;
+}
+
 /** What a banned person sees on /api/me. */
 export interface BannedInfo {
   reason: string | null;

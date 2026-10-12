@@ -265,6 +265,13 @@ export const envSchema = z.object({
   CLOUDFLARE_TUNNEL_TOKEN: optionalEnvVar(z.string().min(1)),
   CLOUDFLARED_PATH: z.string().optional().default('cloudflared'),
 
+  // Terms of use and privacy pages (#1097). The pages ship with a default template; these let the
+  // operator add a contact address and replace either text with their own Markdown file (for example
+  // one mounted into the container).
+  LEGAL_CONTACT: optionalEnvVar(),
+  TERMS_FILE: optionalEnvVar(),
+  PRIVACY_FILE: optionalEnvVar(),
+
   // Comma-separated emails granted administrator access on login.
   ADMIN_EMAILS: z.string().optional().default(''),
 });
