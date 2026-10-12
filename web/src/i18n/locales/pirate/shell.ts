@@ -26,7 +26,7 @@ export const shell: Record<keyof typeof en, string> = {
   "shell.glance.fullRanking": "Full rankin’ ›",
   "shell.glance.selectHint": "Pick a game to spy its details here.",
   "shell.mobile.createOrJoin": "Launch or board a ship",
-  "shell.mobile.menu": "Hearties, tally, messages in bottles and riggin’",
+  "shell.mobile.menu": "Yer colours, hearties, tally, messages in bottles and riggin’",
   "shell.mobile.closeMenu": "Close menu",
   "shell.nav.notifications": "Messages in bottles",
   "shell.shelfSync.title": "Mark it Conquered in yer hoard too?",
@@ -242,5 +242,6 @@ export const shell: Record<keyof typeof en, string> = {
   "shell.sidebar.stats": "Yer tally",
   "shell.sidebar.statsSub": "Spyglass and medals",
   "shell.sidebar.accountSettings": "Account & riggin’",
+  "shell.nav.myProfile": "Me own colours",
   "shell.nav.settings": "Ship’s riggin’",
 };

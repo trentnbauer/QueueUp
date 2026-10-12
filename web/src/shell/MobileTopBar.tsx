@@ -1,16 +1,22 @@
 import { useEffect, useState, type ReactNode } from 'react';
+import { useLocation, useNavigate } from 'react-router';
+import { useAuth } from '../context/AuthContext';
 import { useUi } from '../context/UiContext';
-import { Avatar, BellIcon, PulseIcon, StatsIcon } from '../ui/primitives';
+import { Avatar, BellIcon, GearIcon, PulseIcon, StatsIcon } from '../ui/primitives';
 import { st } from '../ui/st';
 import { useShell } from './useShell';
 import { useT } from '../i18n';
 
-/** Phone top bar: a scrolling row of shelf/room tiles, then one button that opens Friends, Your stats, Notifications and Settings. */
+/** Phone top bar: a scrolling row of shelf/room tiles, then one button that opens My profile, Friends, Your stats, Notifications and Settings. */
 export function MobileTopBar() {
   const shell = useShell();
   const ui = useUi();
   const t = useT();
   const { user } = shell;
+  const { profileSlug } = useAuth();
+  const navigate = useNavigate();
+  const { pathname } = useLocation();
+  const myProfilePath = user ? `/u/${profileSlug ?? user.id}` : null;
   const tiles = [shell.shelfTile, ...shell.roomTiles];
   // Friends, stats, notifications and settings share one button that opens a small menu, which leaves
   // the top bar's width to the rooms.
@@ -86,6 +92,11 @@ export function MobileTopBar() {
               role="menu"
               style={st('position:absolute;right:0;top:48px;z-index:41;min-width:210px;display:flex;flex-direction:column;padding:6px;border-radius:18px;border:1px solid var(--line);background:var(--surf);box-shadow:0 12px 32px rgba(0,0,0,0.28)')}
             >
+              {myProfilePath && (
+                <MenuItem label={t('shell.nav.myProfile')} active={pathname === myProfilePath} onClick={pick(() => navigate(myProfilePath))}>
+                  <Avatar name={user?.displayName ?? '?'} color={user?.avatarColor ?? '#E8734A'} avatarUrl={user?.avatarUrl} size={20} fontSize={9} />
+                </MenuItem>
+              )}
               <MenuItem label={t('shell.sidebar.friends')} active={shell.onFriends} dot={shell.incomingFriendRequests > 0} onClick={pick(shell.goFriends)}>
                 <PulseIcon />
               </MenuItem>
@@ -96,7 +107,7 @@ export function MobileTopBar() {
                 <BellIcon />
               </MenuItem>
               <MenuItem label={t('shell.nav.settings')} active={shell.onSettings} onClick={pick(shell.goSettings)}>
-                <Avatar name={user?.displayName ?? '?'} color={user?.avatarColor ?? '#E8734A'} avatarUrl={user?.avatarUrl} size={20} fontSize={9} />
+                <GearIcon />
               </MenuItem>
             </div>
           </>

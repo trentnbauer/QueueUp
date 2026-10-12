@@ -24,7 +24,7 @@ export const shell = {
   "shell.glance.fullRanking": "Full ranking ›",
   "shell.glance.selectHint": "Select a game to see its details here.",
   "shell.mobile.createOrJoin": "Create or join a room",
-  "shell.mobile.menu": "Friends, stats, notifications and settings",
+  "shell.mobile.menu": "Your profile, friends, stats, notifications and settings",
   "shell.mobile.closeMenu": "Close menu",
   "shell.nav.notifications": "Notifications",
   "shell.shelfSync.title": "Mark it Beaten in your library too?",
@@ -240,5 +240,6 @@ export const shell = {
   "shell.sidebar.stats": "Your stats",
   "shell.sidebar.statsSub": "Insights and achievements",
   "shell.sidebar.accountSettings": "Account & settings",
+  "shell.nav.myProfile": "My profile",
   "shell.nav.settings": "Settings",
 } as const;
