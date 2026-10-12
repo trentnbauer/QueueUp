@@ -13,7 +13,7 @@ beforeEach(() => {
 describe('setShelfColor', () => {
   it('stores a valid hex colour lowercased, and returns it', async () => {
     expect(await setShelfColor('u1', '#5A73C4')).toBe('#5a73c4');
-    expect(update).toHaveBeenCalledWith({ where: { id: 'u1' }, data: { shelfColor: '#5a73c4' } });
+    expect(update).toHaveBeenCalledWith({ where: { id: 'u1' }, data: { shelfColor: '#5a73c4', avatarColor: '#5a73c4' } });
   });
 
   it('clears the colour with null', async () => {
