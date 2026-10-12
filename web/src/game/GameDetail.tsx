@@ -28,6 +28,7 @@ import { PriceHistoryChart } from './PriceHistoryChart';
 import { SteamMatchSheet } from './SteamMatchSheet';
 import { IgdbMatchSheet } from './IgdbMatchSheet';
 import { DuplicateSheet } from './DuplicateSheet';
+import { BundleSheet } from './BundleSheet';
 import { Avatar, coverBg, GOLD } from '../ui/primitives';
 import { Trailer } from './Trailer';
 import { st } from '../ui/st';
@@ -128,6 +129,7 @@ export function GameDetail({ game, onClose, changeStatus }: { game: Game; onClos
   const steamMatch = useSteamAutoMatch();
   const [rematching, setRematching] = useState(false);
   const [markingDuplicate, setMarkingDuplicate] = useState(false);
+  const [markingBundle, setMarkingBundle] = useState(false);
   const [editTarget, setEditTarget] = useState(false);
   const [targetDraft, setTargetDraft] = useState('');
   const [editManual, setEditManual] = useState(false);
@@ -770,6 +772,15 @@ export function GameDetail({ game, onClose, changeStatus }: { game: Game; onClos
             >
               {t('game.duplicate.button')}
             </button>
+            {isShelf && (
+              <button
+                type="button"
+                onClick={() => setMarkingBundle(true)}
+                style={st('border:none;background:none;padding:0;color:var(--muted);font:500 12.5px var(--font-ui);text-decoration:underline;text-underline-offset:3px')}
+              >
+                {t('game.bundle.button')}
+              </button>
+            )}
           </div>
         )}
 
@@ -835,6 +846,8 @@ export function GameDetail({ game, onClose, changeStatus }: { game: Game; onClos
           }}
         />
       )}
+
+      {markingBundle && <BundleSheet game={game} onClose={() => setMarkingBundle(false)} />}
 
       {markingDuplicate && (
         <DuplicateSheet
