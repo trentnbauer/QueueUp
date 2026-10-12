@@ -25,7 +25,6 @@ import { ShelfSettingsDialog } from '../dialogs/ShelfSettingsDialog';
 import { NotificationsDialog } from '../dialogs/SocialDialogs';
 import { SpinDialog } from '../dialogs/SpinDialog';
 import { PickCelebrationHost } from '../ui/PickCelebration';
-import { JournalDialog } from '../dialogs/JournalDialog';
 import { useChangelog } from '../hooks/useChangelog';
 import { usePlaytimeReview } from '../hooks/usePlaytimeReview';
 import { UiToast } from '../ui/ToastView';
@@ -150,7 +149,6 @@ export function Overlays() {
       {d.steam && <SteamDialog />}
       {d.retroachievements && <RetroAchievementsDialog />}
       {d.changelog && <ChangelogDialog />}
-      {d.journal && <JournalDialog roomId={d.journal.roomId} />}
       {d.dlc && <DlcDialog />}
       {d.review && reviewGame && <ReviewSheet game={reviewGame} edit={!!d.review.edit} syncShelf={!!d.review.syncShelf} />}
       <SensitiveGamesPrompt active={isShelf && !busy} forced={!!d.sensitiveGames} />

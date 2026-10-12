@@ -374,17 +374,11 @@ export const settings: Record<keyof typeof en, string> = {
   "settings.shelf.export": "EXPORT · {n} GAMES",
   "settings.shelf.exportCsv": "Export CSV",
   "settings.shelf.exportJson": "Export JSON",
-  "settings.shelf.activity": "GOINGS-ON",
-  "settings.shelf.showActivity": "Show chest goings-on",
   "settings.shelf.activityEmpty": "Naught’s happened in yer treasure chest yet.",
   "settings.shelf.profileHint": "Coin, layout, ways to come aboard and yer account live in {link}.",
   "settings.shelf.profileLink": "yer captain’s log",
 
   // Play journal
-  "settings.journal.title": "Ship’s log",
-  "settings.journal.roomTitle": "This ship’s log",
-  "settings.journal.intro": "Every status change ye made, by day, in yer treasure chest and on yer ships. Time played comes from Steam or Playnite where QueueUp has it.",
-  "settings.journal.roomIntro": "Every status change to this ship’s games, by day, and who made it. Time played comes from Steam or Playnite where QueueUp has it.",
 
   // DLC
   "settings.dlc.loadFailed": "Couldn’t hoist the DLC fer this game.",

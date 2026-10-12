@@ -58,7 +58,7 @@ function RouteTitle() {
   const { pathname } = useLocation();
   const scope = useScope();
   let page: string | null = null;
-  if (pathname === '/') page = t('home.title.shelf');
+  if (pathname === '/' || pathname.startsWith('/shelf/')) page = t('home.title.shelf');
   else if (pathname.startsWith('/room/')) page = scope.room?.name ?? null;
   else if (pathname === '/friends') page = t('pages.friends.title');
   else if (pathname === '/stats') page = t('pages.stats.title');
@@ -304,7 +304,9 @@ export default function App() {
           <Suspense fallback={null}>
             <Routes>
               <Route path="/" element={<HomeView />} />
+              <Route path="/shelf/:section" element={<HomeView />} />
               <Route path="/room/:roomId" element={<HomeView />} />
+              <Route path="/room/:roomId/:section" element={<HomeView />} />
               <Route path="/friends" element={<FriendsPage />} />
               <Route path="/friends/:userId" element={<FriendRedirect />} />
               <Route path="/stats" element={<StatsPage />} />

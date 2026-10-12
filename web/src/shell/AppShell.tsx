@@ -63,7 +63,7 @@ export function AppShell({ children }: { children: ReactNode }) {
 
   // Pages (Activity, profile...) don't show the shelf's glance/detail panel.
   const { pathname } = useLocation();
-  const onHome = pathname === '/' || pathname.startsWith('/room/');
+  const onHome = pathname === '/' || pathname.startsWith('/shelf/') || pathname.startsWith('/room/');
 
   if (mobile) {
     return (

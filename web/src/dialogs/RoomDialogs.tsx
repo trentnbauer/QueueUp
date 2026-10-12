@@ -1,7 +1,7 @@
 import { ReportDialog } from '../components/ReportDialog';
-import { useMemo, useState, type ReactNode } from 'react';
+import { useState, type ReactNode } from 'react';
 import { useNavigate } from 'react-router';
-import { useInfiniteQuery, useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import {
   ACCENT_COLOURS,
   DISCORD_EVENT_KEYS,
@@ -13,29 +13,23 @@ import {
   type RoomPlatform,
   type RoomRole,
 } from '@queueup/shared';
-import { gameSuggestionsApi, roomsApi } from '../api/rooms';
+import { roomsApi } from '../api/rooms';
 import { useAuth } from '../context/AuthContext';
 import { useConfirm } from '../context/ConfirmContext';
 import { useScope } from '../context/ScopeContext';
 import { useUi } from '../context/UiContext';
 import { useFriends } from '../hooks/useFriends';
 import { useRooms } from '../hooks/useRooms';
-import { computeRoomYearInReview } from '../components/roomYearInReview';
-import { RoomWeeklyRecap } from './RoomWeeklyRecap';
-import { YearStoryCard } from '../components/YearStoryCard';
-import { roomStoryFacts } from '../lib/yearStoryFacts';
 import { AiSettingsDialog } from './AiSettingsDialog';
 import { Dialog } from '../ui/Dialog';
 import { NavRow } from './SettingsParts';
 import { usePlayNextTab } from '../home/playNextTab';
 import { RoomAiSection } from './RoomAiSection';
 import { DeletedRoomsList } from './DeletedRooms';
-import { Avatar, Banner, Btn, ChipToggle, Cover, Group, Segmented, Toggle, initialsOf, inputField, inputPill } from '../ui/primitives';
+import { Avatar, Banner, Btn, ChipToggle, Group, Segmented, Toggle, initialsOf, inputField } from '../ui/primitives';
 import { st } from '../ui/st';
 import { exportGames } from '../utils/exportGames';
-import { getBasePath } from '../utils/basePath';
-import { formatRelativeTime } from '../utils/relativeTime';
-import { t as tr, useT, type MessageKey } from '../i18n';
+import { rich, t as tr, useT, type MessageKey } from '../i18n';
 import { discordEventLabel, liveMap, spinThemeHint, spinThemeLabel } from '../i18n/labels';
 
 const PLATFORMS = Object.keys(ROOM_PLATFORM_LABELS) as RoomPlatform[];
@@ -292,8 +286,7 @@ export function FriendStatus({ userId, name, friends, notify, onError }: { userI
 
 const ROLE_KEY: Record<RoomRole, MessageKey> = { room_master: 'room.role.roomMaster', moderator: 'room.role.moderator', member: 'room.role.member' };
 /** Translated role names, looked up in the current language when read. */
-const ROLE_LABEL = liveMap<RoomRole>((r) => tr(ROLE_KEY[r]));
-const MEMBER_PREVIEW = 6;
+export const ROLE_LABEL = liveMap<RoomRole>((r) => tr(ROLE_KEY[r]));
 
 function Switch({ title, sub, on, onChange }: { title: string; sub: string; on: boolean; onChange: (v: boolean) => void }) {
   return (
@@ -395,9 +388,7 @@ export function RoomSettingsDialog() {
   const confirm = useConfirm();
   const navigate = useNavigate();
   const queryClient = useQueryClient();
-  const { room, members, games, canManage, suggestions } = scope;
-  const canInvite = canManage || room?.invitePermission === 'members';
-  const friends = useFriends();
+  const { room, members, games, canManage } = scope;
 
   const [name, setName] = useState(room?.name ?? '');
   const [hook, setHook] = useState(room?.discordWebhookUrl ?? '');
@@ -405,49 +396,17 @@ export function RoomSettingsDialog() {
   const [hexDraft, setHexDraft] = useState<string | null>(null);
   const [spinOpen, setSpinOpen] = useState(false);
   const [masterLeaveOpen, setMasterLeaveOpen] = useState(false);
-  const [addFriendsOpen, setAddFriendsOpen] = useState(false);
   const [aiSettingsOpen, setAiSettingsOpen] = useState(false);
-  const [memberQ, setMemberQ] = useState('');
-  const [showAll, setShowAll] = useState(false);
-  const [showYear, setShowYear] = useState(false);
-  const [showAct, setShowAct] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [inviteCode, setInviteCode] = useState<string | null>(null);
 
   const roomId = room?.id ?? '';
   const [playNextIn, setPlayNextIn] = usePlayNextTab(roomId || null);
   const isMaster = room?.myRole === 'room_master';
   const [reportingRoom, setReportingRoom] = useState(false);
 
-  const candidates = useQuery({ queryKey: ['room-invite-candidates', roomId], queryFn: () => roomsApi.inviteCandidates(roomId), enabled: !!room && canInvite });
-  const activity = useInfiniteQuery({
-    queryKey: ['room-activity', roomId],
-    queryFn: ({ pageParam }: { pageParam: string | undefined }) => roomsApi.activity(roomId, pageParam),
-    initialPageParam: undefined as string | undefined,
-    getNextPageParam: (last) => last.nextBefore ?? undefined,
-    enabled: showAct && !!room,
-  });
-  const year = useMemo(() => computeRoomYearInReview(games), [games]);
-
-  const approve = useMutation({
-    mutationFn: (id: string) => gameSuggestionsApi.approve(roomId, id),
-    onSuccess: () => refreshSuggestions(),
-    onError: (e) => setError(e instanceof Error ? e.message : t('room.settings.approveError')),
-  });
-  const decline = useMutation({
-    mutationFn: (id: string) => gameSuggestionsApi.decline(roomId, id),
-    onSuccess: () => refreshSuggestions(),
-    onError: (e) => setError(e instanceof Error ? e.message : t('room.settings.declineError')),
-  });
-
   if (!room) return null;
   const close = () => ui.closeDialog('roomSettings');
 
-  function refreshSuggestions() {
-    queryClient.invalidateQueries({ queryKey: ['room-suggestions', roomId] });
-    queryClient.invalidateQueries({ queryKey: ['games', 'room', roomId] });
-    queryClient.invalidateQueries({ queryKey: ['attention'] });
-  }
   const refreshRoom = () => {
     queryClient.invalidateQueries({ queryKey: ['rooms'] });
     queryClient.invalidateQueries({ queryKey: ['room-members', roomId] });
@@ -462,69 +421,6 @@ export function RoomSettingsDialog() {
       if (toast) ui.notify(toast);
     } catch (e) {
       setError(e instanceof Error ? e.message : t('room.settings.saveError'));
-    }
-  }
-
-  const invite = inviteCode ?? room.inviteCode ?? null;
-  const inviteUrl = invite ? `${window.location.origin}${getBasePath()}/join/${invite}` : null;
-
-  async function copyInvite() {
-    if (!inviteUrl) return;
-    await navigator.clipboard.writeText(inviteUrl);
-    ui.notify(t('room.settings.inviteCopied'));
-  }
-
-  async function regen() {
-    const ok = await confirm({ title: t('room.settings.regenTitle'), message: t('room.settings.regenMessage'), confirmLabel: t('room.settings.regenConfirm') });
-    if (!ok) return;
-    try {
-      const { inviteCode: next } = await roomsApi.regenerateInvite(roomId);
-      setInviteCode(next);
-      refreshRoom();
-      ui.notify(t('room.settings.regenDone'));
-    } catch (e) {
-      setError(e instanceof Error ? e.message : t('room.settings.regenError'));
-    }
-  }
-
-  async function setRole(userId: string, displayName: string, role: RoomRole) {
-    if (role === 'room_master') {
-      const ok = await confirm({
-        title: t('room.settings.transferTitle'),
-        message: t('room.settings.transferMessage', { name: displayName }),
-        confirmLabel: t('room.settings.transferConfirm'),
-        danger: true,
-      });
-      if (!ok) return;
-    }
-    try {
-      await roomsApi.setRole(roomId, userId, role);
-      refreshRoom();
-      ui.notify(role === 'room_master' ? t('room.settings.newMaster', { name: displayName }) : t('room.settings.roleChanged', { name: displayName, role: ROLE_LABEL[role] }));
-    } catch (e) {
-      setError(e instanceof Error ? e.message : t('room.settings.roleError'));
-    }
-  }
-
-  async function removeMember(userId: string, displayName: string) {
-    const ok = await confirm({ title: t('room.settings.removeTitle'), message: t('room.settings.removeMessage', { name: displayName, room: room!.name }), confirmLabel: t('common.remove'), danger: true });
-    if (!ok) return;
-    try {
-      await roomsApi.removeMember(roomId, userId);
-      refreshRoom();
-      ui.notify(t('room.settings.removed', { name: displayName }));
-    } catch (e) {
-      setError(e instanceof Error ? e.message : t('room.settings.removeError'));
-    }
-  }
-
-  async function addMember(userId: string, displayName: string) {
-    try {
-      await roomsApi.addMember(roomId, userId);
-      refreshRoom();
-      ui.notify(t('room.settings.added', { name: displayName }));
-    } catch (e) {
-      setError(e instanceof Error ? e.message : t('room.settings.addError'));
     }
   }
 
@@ -581,15 +477,10 @@ export function RoomSettingsDialog() {
     }
   }
 
-  const q = memberQ.trim().toLowerCase();
-  const filtered = members.filter((m) => !q || m.user.displayName.toLowerCase().includes(q));
-  const shown = q || showAll ? filtered : filtered.slice(0, MEMBER_PREVIEW);
   const events = resolveDiscordEvents(room.discordEvents);
   const hasHook = !!room.discordWebhookUrl;
   const discordInviteValid = !discordInvite.trim() || /^https:\/\/(discord\.gg|(www\.)?discord(app)?\.com\/invite)\/[\w-]+\/?$/.test(discordInvite.trim());
   const hookValid = !hook.trim() || /^https:\/\/(discord\.com|discordapp\.com)\/api\/webhooks\//.test(hook.trim());
-  const entries = activity.data?.pages.flatMap((p) => p.entries) ?? [];
-  const topGenre = year.genreSpread[0]?.genre ?? '—';
 
   return (
     <>
@@ -609,93 +500,22 @@ export function RoomSettingsDialog() {
     >
       {error && <Banner onDismiss={() => setError(null)}>{error}</Banner>}
 
-      {canInvite && (
-      <Field label={t('room.settings.inviteLabel')}>
-        <div style={st('display:flex;align-items:center;gap:8px;padding:10px 10px 10px 16px;border-radius:16px;background:var(--surf)')}>
-          <span style={st('flex:1;min-width:0;font:600 17px var(--font-mono);letter-spacing:0.04em;white-space:nowrap;overflow:hidden;text-overflow:ellipsis')}>{invite ?? '—'}</span>
-          <Btn kind="soft" height={36} padX={12} fontSize={13} weight={700} onClick={() => setAddFriendsOpen(true)}>
-            {t('room.settings.addFriendsButton')}
-          </Btn>
-          <Btn kind="text" height={36} padX={10} fontSize={13} weight={700} disabled={!inviteUrl} onClick={copyInvite}>
-            {t('room.settings.copyLink')}
-          </Btn>
-        </div>
-        {canManage && (
-          <button type="button" onClick={regen} style={st('align-self:flex-start;border:none;background:none;padding:0;color:var(--muted);font:500 12.5px var(--font-ui);text-decoration:underline;text-underline-offset:3px')}>
-            {t('room.settings.regen')}
-          </button>
-        )}
-      </Field>
-      )}
-
-      {canManage && suggestions.length > 0 && (
-        <Field label={t('room.settings.suggestedLabel', { n: suggestions.length })}>
-          <Group>
-            {suggestions.map((s) => (
-              <div key={s.id} style={st('display:flex;align-items:center;gap:10px;min-height:60px;padding:8px 10px 8px 12px;background:var(--surf)')}>
-                <Cover title={s.title} url={s.coverImageUrl} width={32} radius={6} />
-                <div style={st('flex:1;min-width:0;display:flex;flex-direction:column;gap:1px')}>
-                  <span style={st('font:600 14.5px var(--font-ui);white-space:nowrap;overflow:hidden;text-overflow:ellipsis')}>{s.title}</span>
-                  <span style={st('font:400 12px var(--font-ui);color:var(--muted)')}>{t('room.settings.suggestedBy', { name: s.suggestedBy.displayName })}</span>
-                </div>
-                <Btn kind="ghost" height={34} padX={10} fontSize={12.5} onClick={async () => {
-                  const ok = await confirm({ title: t('room.settings.declineSuggestionTitle', { title: s.title }), message: t('room.settings.declineSuggestionMessage'), confirmLabel: t('room.settings.decline'), danger: true });
-                  if (ok) decline.mutate(s.id);
-                }}>
-                  {t('room.settings.decline')}
-                </Btn>
-                <Btn kind="text" height={34} padX={12} fontSize={12.5} weight={700} disabled={approve.isPending} onClick={() => approve.mutate(s.id, { onSuccess: () => ui.notify(t('room.settings.added', { name: s.title })) })}>
-                  {t('room.settings.approve')}
-                </Btn>
-              </div>
-            ))}
-          </Group>
-        </Field>
-      )}
-
-      <Field label={t('room.settings.membersLabel', { n: members.length })}>
-        {members.length > MEMBER_PREVIEW && (
-          <input value={memberQ} onChange={(e) => setMemberQ(e.target.value)} placeholder={t('room.settings.findMember')} aria-label={t('room.settings.findMember')} style={st(inputPill, { height: 42, fontSize: 14.5 })} />
-        )}
-        <Group>
-          {shown.map((m) => {
-            const editable = canManage && m.user.id !== user?.id && m.role !== 'room_master' && (isMaster || m.role === 'member');
-            return (
-              <div key={m.user.id} style={st('display:flex;align-items:center;gap:12px;min-height:58px;padding:8px 10px 8px 14px;background:var(--surf)')}>
-                <Avatar name={m.user.displayName} color={m.user.avatarColor} avatarUrl={m.user.avatarUrl} size={32} fontSize={13} profileUserId={m.user.id === user?.id ? undefined : m.user.id} onOpenProfile={close} />
-                <span style={st('flex:1;min-width:0;font:600 14.5px var(--font-ui);white-space:nowrap;overflow:hidden;text-overflow:ellipsis')}>{m.user.displayName}</span>
-                {m.user.id !== user?.id && !friends.privateInstance && <FriendStatus userId={m.user.id} name={m.user.displayName} friends={friends} notify={ui.notify} onError={setError} />}
-                {editable ? (
-                  <>
-                    <select
-                      value={m.role}
-                      aria-label={t('room.settings.roleFor', { name: m.user.displayName })}
-                      onChange={(e) => setRole(m.user.id, m.user.displayName, e.target.value as RoomRole)}
-                      style={st('height:34px;padding:0 8px;border-radius:10px;background:var(--surf2);border:none;color:var(--text);font-size:13px;outline:none')}
-                    >
-                      <option value="moderator">{ROLE_LABEL.moderator}</option>
-                      <option value="member">{ROLE_LABEL.member}</option>
-                      {isMaster && <option value="room_master">{t('room.settings.makeMaster')}</option>}
-                    </select>
-                    <button type="button" onClick={() => removeMember(m.user.id, m.user.displayName)} aria-label={t('room.settings.removeMemberAria')} style={st('width:34px;height:34px;border-radius:50%;border:none;background:transparent;color:var(--muted);font-size:17px;line-height:1')}>
-                      ×
-                    </button>
-                  </>
-                ) : (
-                  <span style={st('font:500 12.5px var(--font-ui);color:var(--muted)')}>{ROLE_LABEL[m.role]}</span>
-                )}
-              </div>
-            );
-          })}
-        </Group>
-        {!q && filtered.length > MEMBER_PREVIEW && (
-          <button type="button" onClick={() => setShowAll(!showAll)} style={st('align-self:flex-start;border:none;background:none;padding:0;color:var(--muted);font:500 13px var(--font-ui);text-decoration:underline;text-underline-offset:3px')}>
-            {showAll ? t('room.settings.showFewer') : t('room.settings.showAll', { n: filtered.length })}
-          </button>
-        )}
-        {q && filtered.length === 0 && <span style={st('font:400 13.5px var(--font-ui);color:var(--muted)')}>{t('room.settings.noMatch')}</span>}
-        <span style={st('font:400 12.5px/1.45 var(--font-ui);color:var(--faint)')}>{t('room.settings.membersHint')}</span>
-      </Field>
+      {/* Members, the invite code and games waiting for approval live on the room's People tab. */}
+      <div style={st('display:flex;align-items:center;gap:12px;padding:12px 14px;border:1px dashed var(--line);border-radius:16px')}>
+        <span style={st('flex:1;min-width:0;font:400 13.5px/1.45 var(--font-ui);color:var(--text2)')}>
+          {rich(t('room.settings.peopleMoved'), { tab: <b style={st('color:var(--text)')}>{t('home.section.people')}</b> })}
+        </span>
+        <button
+          type="button"
+          onClick={() => {
+            close();
+            navigate(`/room/${roomId}/people`);
+          }}
+          style={st('flex-shrink:0;border:none;background:none;padding:0;color:var(--accText);font:600 13.5px var(--font-ui)')}
+        >
+          {t('room.settings.open')}
+        </button>
+      </div>
 
       {isMaster && (
         <Field label={t('room.settings.detailsLabel')}>
@@ -874,71 +694,6 @@ export function RoomSettingsDialog() {
         </div>
       </Field>
 
-      <Field label={t('room.settings.recap.label')}>
-        <RoomWeeklyRecap roomId={roomId} />
-      </Field>
-
-      <Field label={t('room.settings.yearLabel')}>
-        {!showYear ? (
-          <Btn height={40} fontSize={13} style={{ alignSelf: 'flex-start' }} onClick={() => setShowYear(true)}>
-            {t('room.settings.showYear')}
-          </Btn>
-        ) : (
-          <>
-            <div style={st('display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px')}>
-              {[
-                [String(year.completedGames.length), t(year.completedGames.length === 1 ? 'room.settings.gamesFinished.one' : 'room.settings.gamesFinished.other')],
-                [topGenre, t('room.settings.topGenre')],
-                [year.topVoted ? year.topVoted.title : '—', t('room.settings.mostVoted')],
-              ].map(([v, l]) => (
-                <div key={l} style={st('display:flex;flex-direction:column;gap:3px;padding:12px;border-radius:16px;background:var(--surf);min-width:0')}>
-                  <span style={st('font:700 17px/1.15 var(--font-display);overflow:hidden;text-overflow:ellipsis')}>{v}</span>
-                  <span style={st('font:400 11.5px var(--font-ui);color:var(--muted)')}>{l}</span>
-                </div>
-              ))}
-            </div>
-            <YearStoryCard roomId={roomId} facts={roomStoryFacts(year, members.length)} />
-          </>
-        )}
-      </Field>
-
-      <Field label={t('room.settings.activityLabel')}>
-        {!showAct ? (
-          <Btn height={40} fontSize={13} style={{ alignSelf: 'flex-start' }} onClick={() => setShowAct(true)}>
-            {t('room.settings.showActivity')}
-          </Btn>
-        ) : (
-          <>
-            {activity.isLoading && <span style={st('font:400 13.5px var(--font-ui);color:var(--muted)')}>{t('common.loading')}</span>}
-            {entries.map((a) => (
-              <div key={a.id} style={st('display:flex;justify-content:space-between;gap:12px;padding:9px 0;border-bottom:1px solid var(--chip);font:400 13.5px var(--font-ui)')}>
-                <span>{a.message}</span>
-                <span style={st('flex-shrink:0;color:var(--faint);font-size:12px')}>{formatRelativeTime(a.createdAt)}</span>
-              </div>
-            ))}
-            {!activity.isLoading && entries.length === 0 && <span style={st('font:400 13.5px var(--font-ui);color:var(--muted)')}>{t('room.settings.nothingYet')}</span>}
-            {activity.hasNextPage && (
-              <Btn height={36} fontSize={13} style={{ alignSelf: 'flex-start' }} disabled={activity.isFetchingNextPage} onClick={() => activity.fetchNextPage()}>
-                {activity.isFetchingNextPage ? t('common.loading') : t('room.settings.loadMore')}
-              </Btn>
-            )}
-          </>
-        )}
-      </Field>
-
-      <Group>
-        <button
-          type="button"
-          onClick={() => {
-            ui.closeDialog('roomSettings');
-            ui.openDialog('journal', { roomId });
-          }}
-          style={st('min-height:52px;padding:0 16px;border:none;background:var(--surf);color:var(--text);text-align:left;font:600 14.5px var(--font-ui)')}
-        >
-          {t('room.settings.journal')}
-        </button>
-      </Group>
-
       <Group>
         {!isMaster && (
           <button type="button" onClick={() => setReportingRoom(true)} style={st('min-height:52px;padding:0 16px;border:none;background:var(--surf);color:var(--text);text-align:left;font:600 14.5px var(--font-ui)')}>
@@ -962,28 +717,6 @@ export function RoomSettingsDialog() {
         )}
       </Group>
     </Dialog>
-    {addFriendsOpen && (
-      <Dialog onClose={() => setAddFriendsOpen(false)} title={t('room.settings.addFriendsTitle')} gap={12}>
-        <span style={st('font:400 13.5px/1.45 var(--font-ui);color:var(--muted);text-wrap:pretty')}>{t('room.settings.addFriendsIntro', { room: room.name })}</span>
-        {candidates.isLoading && <span style={st('font:400 14px var(--font-ui);color:var(--muted)')}>{t('common.loading')}</span>}
-        {!candidates.isLoading && (candidates.data?.users.length ?? 0) === 0 && (
-          <span style={st('font:500 14px/1.45 var(--font-ui)')}>{t('room.settings.addFriendsNone')}</span>
-        )}
-        {(candidates.data?.users.length ?? 0) > 0 && (
-          <Group>
-            {candidates.data!.users.map((c) => (
-              <div key={c.id} style={st('display:flex;align-items:center;gap:12px;min-height:56px;padding:8px 10px 8px 14px;background:var(--surf)')}>
-                <Avatar name={c.displayName} color={c.avatarColor} avatarUrl={c.avatarUrl} size={32} fontSize={13} />
-                <span style={st('flex:1;min-width:0;font:600 14.5px var(--font-ui);overflow:hidden;text-overflow:ellipsis;white-space:nowrap')}>{c.displayName}</span>
-                <Btn kind="soft" height={34} padX={14} fontSize={12.5} onClick={() => addMember(c.id, c.displayName)}>
-                  {t('common.add')}
-                </Btn>
-              </div>
-            ))}
-          </Group>
-        )}
-      </Dialog>
-    )}
     {aiSettingsOpen && <AiSettingsDialog onClose={() => setAiSettingsOpen(false)} />}
     {reportingRoom && room && <ReportDialog target={{ kind: 'room', roomId }} title={t('social.report.roomTitle', { name: room.name })} onClose={() => setReportingRoom(false)} />}
     {masterLeaveOpen && (

@@ -372,17 +372,11 @@ export const settings = {
   "settings.shelf.export": "EXPORT · {n} GAMES",
   "settings.shelf.exportCsv": "Export CSV",
   "settings.shelf.exportJson": "Export JSON",
-  "settings.shelf.activity": "ACTIVITY",
-  "settings.shelf.showActivity": "Show shelf activity",
   "settings.shelf.activityEmpty": "Nothing's happened on your shelf yet.",
   "settings.shelf.profileHint": "Currency, layout, sign-in methods and your account live in {link}.",
   "settings.shelf.profileLink": "your profile",
 
   // Play journal
-  "settings.journal.title": "Play journal",
-  "settings.journal.roomTitle": "Room play journal",
-  "settings.journal.intro": "Every status change you made, by day, on your shelf and in your rooms. Time played comes from Steam or Playnite where QueueUp has it.",
-  "settings.journal.roomIntro": "Every status change to this room’s games, by day, and who made it. Time played comes from Steam or Playnite where QueueUp has it.",
 
   // DLC
   "settings.dlc.loadFailed": "Could not load DLC for this game.",

@@ -204,16 +204,12 @@ export const room: Record<keyof typeof en, string> = {
   "room.settings.recap.writing": "Writin’...",
   "room.settings.recap.privacy": "Only the activity feed be used. Activity folk have hidden, and games hidden from others, be left out.",
   "room.settings.recap.failed": "Couldn’t update the weekly recap.",
-  "room.settings.showYear": "Show this ship’s year",
   "room.settings.gamesFinished.one": "game conquered",
   "room.settings.gamesFinished.other": "games conquered",
   "room.settings.topGenre": "top genre",
   "room.settings.mostVoted": "most-voted game",
   "room.settings.activityLabel": "GOINGS-ON",
-  "room.settings.showActivity": "Show ship goings-on",
   "room.settings.nothingYet": "Nothin’ yet.",
-  "room.settings.loadMore": "Haul in more",
-  "room.settings.journal": "Ship’s log",
   "room.settings.ai.openMine": "Me AI settin’s",
   "room.settings.addFriendsButton": "Add friends",
   "room.settings.addFriendsTitle": "Add friends",
@@ -221,4 +217,8 @@ export const room: Record<keyof typeof en, string> = {
   "room.settings.addFriendsNone": "No friends to add: they are all in this room already, or you have no friends yet.",
   "room.settings.ai.tonight": "What should we play tonight?",
   "room.settings.ai.mine": "My AI settings",
+
+  // Room settings pointing at the People tab
+  "room.settings.peopleMoved": "Crew, invites and games to approve be on the room’s {tab} tab.",
+  "room.settings.open": "Open ›",
 };
