@@ -1,5 +1,6 @@
 import { prisma } from '../db/client.js';
 import { HttpError } from '../util/httpError.js';
+import { assertTextAllowed } from './displayNames.js';
 import type { UpdateYearStoryRequest, YearStoryDto } from '@queueup/shared';
 
 export const MAX_EDITED_STORY_LENGTH = 2000;
@@ -42,6 +43,9 @@ export async function updateStory(scopeKey: string, body: UpdateYearStoryRequest
     if (!text) throw new HttpError(400, 'The recap cannot be empty. Hide or delete it instead.');
     if (text.length > MAX_EDITED_STORY_LENGTH) throw new HttpError(400, `The recap can be at most ${MAX_EDITED_STORY_LENGTH} characters.`);
     if (text !== existing.text) {
+      // Edited text is the person's own words, shown to the room or on their public profile, so it
+      // goes through the same banned-words check as names, room names and review notes.
+      await assertTextAllowed(text, 'That recap');
       data.text = text;
       data.edited = true;
     }
