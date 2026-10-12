@@ -196,6 +196,12 @@ enum NotificationType {
   /// public library?" answer. Direct (recipientId), no actor; the toast and bell entry open that prompt. See
   /// notifySensitiveGames in services/notifications.ts and services/adultSyncCheck.ts.
   sensitive_games
+  /// Administrator-only, direct to every administrator: a user report was filed (see services/adminNotifications.ts).
+  admin_report
+  /// Administrator-only: a banned person asked to be unbanned.
+  admin_unban_request
+  /// Administrator-only: the scheduled database backup failed.
+  admin_backup_failed
 }
 
 /// See RoomActivity's doc comment. A superset of NotificationType's room-scoped values (everything
@@ -233,6 +239,9 @@ enum RoomActivityType {
 
 model User {
   id                   String         @id @default(uuid())
+  /// Set while an administrator has banned this account: it can sign in, but only to see why and ask for an unban.
+  bannedAt             DateTime?      @map("banned_at")
+  banReason            String?        @map("ban_reason")
   oidcSub              String         @unique @map("oidc_sub")
   /// Set when this user links a Steam account without signing in with it directly (oidcSub is
   /// already taken by their primary sign-in provider) - see the Steam-link flow in auth.ts.
@@ -316,6 +325,7 @@ model User {
   accountEvents                 AccountEvent[]
   gameReviews                   GameReview[]
   auditLogEntries               AdminAuditLog[]
+  unbanRequests                 UnbanRequest[]
   blocksMade                    UserBlock[]                    @relation("BlockBlocker")
   blocksReceived                UserBlock[]                    @relation("BlockBlocked")
   reportsMade                   UserReport[]                   @relation("ReportReporter")
@@ -1641,6 +1651,23 @@ model EmailLog {
 
 /// One person blocking another: they no longer see each other's profile, and neither can send the
 /// other a friend request. Any friendship between them is removed when the block is made.
+/// A banned person's request to be unbanned. One open request at a time; an administrator
+/// resolves it by unbanning them or by declining.
+model UnbanRequest {
+  id         String    @id @default(uuid())
+  userId     String    @map("user_id")
+  message    String
+  createdAt  DateTime  @default(now()) @map("created_at")
+  resolvedAt DateTime? @map("resolved_at")
+  resolvedBy String?   @map("resolved_by")
+  declined   Boolean   @default(false)
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([resolvedAt, createdAt])
+  @@map("unban_requests")
+}
+
 model UserBlock {
   blockerId String   @map("blocker_id")
   blockedId String   @map("blocked_id")

@@ -1,9 +1,11 @@
 import { createContext, useContext, useEffect, useState, type ReactNode } from 'react';
-import type { ProfileVisibility, RoomPlatform, User } from '@queueup/shared';
+import type { BannedInfo, ProfileVisibility, RoomPlatform, User } from '@queueup/shared';
 import { authApi } from '../api/auth';
 
 interface AuthContextValue {
   user: User | null;
+  /** Set when this account is banned (see BannedPage). */
+  banned: BannedInfo | null;
   /** A Super administrator (#1102): an administrator who can also do the destructive things. */
   isSuperAdmin: boolean;
   /** Set while an administrator is viewing the app as `user` (#1102), read-only. */
@@ -45,6 +47,7 @@ const AuthContext = createContext<AuthContextValue | undefined>(undefined);
 
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
+  const [banned, setBanned] = useState<BannedInfo | null>(null);
   const [isSuperAdmin, setIsSuperAdmin] = useState(false);
   const [viewingAs, setViewingAs] = useState<AuthContextValue['viewingAs']>(null);
   const [steamLinked, setSteamLinked] = useState(false);
@@ -65,9 +68,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   };
 
   const refetch = async () => {
-    const { user, isSuperAdmin, viewingAs, steamLinked, ownedPlatforms, profileVisibility, profileSlug, shelfColor, primaryProvider, linkedProviders, isNewAccount, onboardingPending } = await authApi.me();
+    const { user, banned, isSuperAdmin, viewingAs, steamLinked, ownedPlatforms, profileVisibility, profileSlug, shelfColor, primaryProvider, linkedProviders, isNewAccount, onboardingPending } = await authApi.me();
     setOnboardingPending(!!onboardingPending);
     setUser(user);
+    setBanned(banned ?? null);
     setIsSuperAdmin(!!isSuperAdmin);
     setViewingAs(viewingAs ?? null);
     setSteamLinked(steamLinked);
@@ -88,6 +92,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     <AuthContext.Provider
       value={{
         user,
+        banned,
         isSuperAdmin,
         viewingAs,
         steamLinked,

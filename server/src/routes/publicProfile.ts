@@ -38,12 +38,12 @@ export default async function publicProfileRoutes(app: FastifyInstance) {
     const key = request.params.id.toLowerCase();
     const user = await prisma.user.findFirst({
       where: { OR: [{ id: request.params.id }, { profileSlug: key }] },
-      select: { id: true, oidcSub: true, steamId64: true, xboxConnection: { select: { gamertag: true } }, retroAchievementsConnection: { select: { username: true } }, displayName: true, avatarColor: true, avatarUrl: true, profileVisibility: true, ownedPlatforms: true, createdAt: true },
+      select: { id: true, bannedAt: true, oidcSub: true, steamId64: true, xboxConnection: { select: { gamertag: true } }, retroAchievementsConnection: { select: { username: true } }, displayName: true, avatarColor: true, avatarUrl: true, profileVisibility: true, ownedPlatforms: true, createdAt: true },
     });
     // Same response (404, no distinguishing detail) whether the id doesn't exist at all or exists
     // but hasn't opted in - a scan of ids must not be able to tell "no such user" from "exists but
     // private" apart from the outside.
-    if (!user) throw new HttpError(404, 'Profile not found');
+    if (!user || user.bannedAt) throw new HttpError(404, 'Profile not found');
     // Signed-in viewers get more than the anonymous page: the owner and their friends see the
     // profile even when it isn't public (issue #624 - one profile page for /u/ and /friends/).
     const viewerId = await request.currentUserId();

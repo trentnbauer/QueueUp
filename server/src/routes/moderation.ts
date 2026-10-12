@@ -1,10 +1,12 @@
 import type { FastifyInstance } from 'fastify';
-import type { AdminUserReport, BlockedUser, ReportUserRequest } from '@queueup/shared';
+import type { AdminBan, AdminUnbanRequest, AdminUserReport, BlockedUser, ReportUserRequest } from '@queueup/shared';
 import { prisma } from '../db/client.js';
 import { HttpError } from '../util/httpError.js';
 import { requireAdmin } from '../services/adminAccess.js';
 import { logAdminAction } from '../services/adminAuditLog.js';
 import { blockUser } from '../services/blocks.js';
+import { forgetBan } from '../services/banCache.js';
+import { notifyAdmins } from '../services/adminNotifications.js';
 
 const MAX_REASON_LENGTH = 1000;
 
@@ -57,6 +59,8 @@ export default async function moderationRoutes(app: FastifyInstance) {
     if (!reason) throw new HttpError(400, 'Tell us why you are reporting them');
     if (reason.length > MAX_REASON_LENGTH) throw new HttpError(400, `Keep the reason under ${MAX_REASON_LENGTH} characters`);
     await prisma.userReport.create({ data: { reporterId: me, reportedUserId: target.id, reason } });
+    const reporter = await prisma.user.findUnique({ where: { id: me }, select: { displayName: true } });
+    void notifyAdmins('admin_report', `${reporter?.displayName ?? 'Someone'} reported ${target.displayName}. Open Reports on the Administrator page to read why.`);
     if (request.body.alsoBlock) await blockUser(me, target.id);
     return { ok: true };
   });
@@ -69,13 +73,14 @@ export default async function moderationRoutes(app: FastifyInstance) {
       where: { resolvedAt: resolved ? { not: null } : null },
       orderBy: { createdAt: 'desc' },
       take: 200,
-      include: { reporter: { select: { id: true, displayName: true } }, reported: { select: { id: true, displayName: true } } },
+      include: { reporter: { select: { id: true, displayName: true } }, reported: { select: { id: true, displayName: true, bannedAt: true } } },
     });
     return {
       reports: rows.map((r) => ({
         id: r.id,
         reporter: r.reporter,
-        reported: r.reported,
+        reported: { id: r.reported.id, displayName: r.reported.displayName },
+        reportedBanned: !!r.reported.bannedAt,
         reason: r.reason,
         createdAt: r.createdAt.toISOString(),
         resolvedAt: r.resolvedAt?.toISOString() ?? null,
@@ -94,4 +99,83 @@ export default async function moderationRoutes(app: FastifyInstance) {
     }
     return { ok: true };
   });
+
+  const MAX_BAN_REASON = 500;
+
+  app.post<{ Params: { id: string }; Body: { reason?: string } }>('/api/admin/users/:id/ban', { config: { rateLimit: { max: 20, timeWindow: '1 minute' } } }, async (request) => {
+    const actorId = await request.requireAuth();
+    const actor = await requireAdmin(actorId);
+    const target = await prisma.user.findUnique({ where: { id: request.params.id }, select: { id: true, displayName: true, isAdmin: true, bannedAt: true } });
+    if (!target) throw new HttpError(404, 'User not found');
+    if (target.id === actorId) throw new HttpError(400, "You can't ban yourself");
+    if (target.isAdmin) throw new HttpError(400, 'Remove their administrator role before banning them');
+    const reason = typeof request.body?.reason === 'string' ? request.body.reason.trim() : '';
+    if (reason.length > MAX_BAN_REASON) throw new HttpError(400, `Keep the reason under ${MAX_BAN_REASON} characters`);
+    if (!target.bannedAt) {
+      await prisma.user.update({ where: { id: target.id }, data: { bannedAt: new Date(), banReason: reason || null } });
+      forgetBan(target.id);
+      await logAdminAction({ actorId, actorLabel: actor.email, action: 'user.ban', targetLabel: target.displayName, metadata: { userId: target.id, reason: reason || null } });
+    }
+    return { ok: true };
+  });
+
+  app.post<{ Params: { id: string } }>('/api/admin/users/:id/unban', { config: { rateLimit: { max: 20, timeWindow: '1 minute' } } }, async (request) => {
+    const actorId = await request.requireAuth();
+    const actor = await requireAdmin(actorId);
+    const target = await prisma.user.findUnique({ where: { id: request.params.id }, select: { id: true, displayName: true, bannedAt: true } });
+    if (!target) throw new HttpError(404, 'User not found');
+    if (target.bannedAt) {
+      await prisma.$transaction([
+        prisma.user.update({ where: { id: target.id }, data: { bannedAt: null, banReason: null } }),
+        prisma.unbanRequest.updateMany({ where: { userId: target.id, resolvedAt: null }, data: { resolvedAt: new Date(), resolvedBy: actorId } }),
+      ]);
+      forgetBan(target.id);
+      await logAdminAction({ actorId, actorLabel: actor.email, action: 'user.unban', targetLabel: target.displayName, metadata: { userId: target.id } });
+    }
+    return { ok: true };
+  });
+
+  app.get('/api/admin/bans', async (request): Promise<{ bans: AdminBan[]; unbanRequests: AdminUnbanRequest[] }> => {
+    const userId = await request.requireAuth();
+    await requireAdmin(userId);
+    const [users, requests] = await Promise.all([
+      prisma.user.findMany({ where: { bannedAt: { not: null } }, orderBy: { bannedAt: 'desc' }, select: { id: true, displayName: true, banReason: true, bannedAt: true } }),
+      prisma.unbanRequest.findMany({ where: { resolvedAt: null }, orderBy: { createdAt: 'asc' }, include: { user: { select: { displayName: true } } } }),
+    ]);
+    return {
+      bans: users.map((u) => ({ userId: u.id, displayName: u.displayName, reason: u.banReason, bannedAt: u.bannedAt!.toISOString() })),
+      unbanRequests: requests.map((r) => ({ id: r.id, userId: r.userId, displayName: r.user.displayName, message: r.message, createdAt: r.createdAt.toISOString() })),
+    };
+  });
+
+  // Declining leaves them banned; they can ask again.
+  app.post<{ Params: { id: string } }>('/api/admin/unban-requests/:id/decline', async (request) => {
+    const actorId = await request.requireAuth();
+    const actor = await requireAdmin(actorId);
+    const req = await prisma.unbanRequest.findUnique({ where: { id: request.params.id }, include: { user: { select: { displayName: true } } } });
+    if (!req) throw new HttpError(404, 'Request not found');
+    if (!req.resolvedAt) {
+      await prisma.unbanRequest.update({ where: { id: req.id }, data: { resolvedAt: new Date(), resolvedBy: actorId, declined: true } });
+      await logAdminAction({ actorId, actorLabel: actor.email, action: 'user.unban_declined', targetLabel: req.user.displayName, metadata: { requestId: req.id } });
+    }
+    return { ok: true };
+  });
+
+  // A banned person's one way to speak up. Allowed while banned; one open request at a time.
+  app.post<{ Body: { message?: string } }>(
+    '/api/me/unban-request',
+    { config: { allowWhileBanned: true, rateLimit: { max: 5, timeWindow: '1 hour' } } },
+    async (request) => {
+      const me = await request.requireAuth();
+      const user = await prisma.user.findUnique({ where: { id: me }, select: { displayName: true, bannedAt: true } });
+      if (!user?.bannedAt) throw new HttpError(400, 'Your account is not banned');
+      const message = typeof request.body?.message === 'string' ? request.body.message.trim() : '';
+      if (!message) throw new HttpError(400, 'Tell us why you should be unbanned');
+      if (message.length > MAX_REASON_LENGTH) throw new HttpError(400, `Keep the message under ${MAX_REASON_LENGTH} characters`);
+      if ((await prisma.unbanRequest.count({ where: { userId: me, resolvedAt: null } })) > 0) throw new HttpError(409, 'You have already asked. An administrator will look at it.');
+      await prisma.unbanRequest.create({ data: { userId: me, message } });
+      void notifyAdmins('admin_unban_request', `${user.displayName} asked to be unbanned. Open Reports on the Administrator page to answer.`);
+      return { ok: true };
+    },
+  );
 }

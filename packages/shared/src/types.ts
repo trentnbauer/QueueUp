@@ -1455,6 +1455,33 @@ export interface AdminUserReport {
   reason: string;
   createdAt: string;
   resolvedAt: string | null;
+  /** Whether the reported person is banned right now. */
+  reportedBanned: boolean;
+}
+
+/** What a banned person sees on /api/me. */
+export interface BannedInfo {
+  reason: string | null;
+  since: string;
+  /** They already asked to be unbanned and no one has answered yet. */
+  unbanRequested: boolean;
+}
+
+/** A banned account, for administrators. */
+export interface AdminBan {
+  userId: string;
+  displayName: string;
+  reason: string | null;
+  bannedAt: string;
+}
+
+/** A banned person's open request to be unbanned, for administrators. */
+export interface AdminUnbanRequest {
+  id: string;
+  userId: string;
+  displayName: string;
+  message: string;
+  createdAt: string;
 }
 
 export interface AdminAuditLogEntry {
@@ -1495,7 +1522,10 @@ export type NotificationType =
   | 'platform_unowned'
   | 'room_game_beaten'
   | 'merge_suggestions'
-  | 'sensitive_games';
+  | 'sensitive_games'
+  | 'admin_report'
+  | 'admin_unban_request'
+  | 'admin_backup_failed';
 
 /** Notification types a person can choose to receive by email (direct ones, never room-scoped). */
 export const EMAIL_ALERT_TYPES = [

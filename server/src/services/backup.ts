@@ -3,6 +3,7 @@ import path from 'node:path';
 import { promisify } from 'node:util';
 import zlib from 'node:zlib';
 import type { AdminBackupInfo, AdminBackupSettings } from '@queueup/shared';
+import { notifyAdmins } from './adminNotifications.js';
 import { prisma } from '../db/client.js';
 import { env } from '../config/env.js';
 import { HttpError } from '../util/httpError.js';
@@ -239,6 +240,7 @@ export async function runScheduledBackup(kind: 'nightly' | 'manual'): Promise<Ad
     return info;
   } catch (err) {
     await recordLastRun({ at: new Date().toISOString(), ok: false, message: err instanceof Error ? err.message : 'Backup failed' }).catch(() => undefined);
+    if (kind === 'nightly') await notifyAdmins('admin_backup_failed', `The nightly database backup failed: ${err instanceof Error ? err.message : 'unknown error'}`);
     throw err;
   }
 }
