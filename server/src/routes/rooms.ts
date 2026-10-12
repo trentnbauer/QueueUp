@@ -27,6 +27,7 @@ import type {
   UpdateRoomRequest,
 } from '@queueup/shared';
 import { areFriends, friendIdsOf } from '../services/friendships.js';
+import { blockedIdsOf, isBlockedEitherWay } from '../services/blocks.js';
 import { DISCORD_EVENT_KEYS, normalizeSpinTheme, resolveDiscordEvents, ROOM_PLATFORM_LABELS, SPIN_WHEEL_THEMES, type SpinDefaults } from '@queueup/shared';
 import { parseSpinFilters } from '../services/spinFilters.js';
 import { recentlyDeletedRooms, restoreRoom, ROOM_RETENTION_DAYS, softDeleteRoom, toDeletedRoomSummary, wasRoomMaster } from '../services/roomDeletion.js';
@@ -258,11 +259,14 @@ export default async function roomRoutes(app: FastifyInstance) {
   // data since the caller isn't a member yet.
   app.get('/api/rooms/public', async (request) => {
     const userId = await request.requireAuth();
+    // A blocked person's rooms (either direction) stay out of the directory.
+    const blockedIds = await blockedIdsOf(userId);
     const rooms = await prisma.room.findMany({
       where: {
         isPublic: true,
         deletedAt: null,
         members: { none: { userId } },
+        ...(blockedIds.length > 0 && { NOT: { members: { some: { userId: { in: blockedIds }, role: 'room_master' as const } } } }),
       },
       include: { _count: { select: { members: true } } },
       orderBy: { createdAt: 'desc' },
@@ -588,8 +592,9 @@ export default async function roomRoutes(app: FastifyInstance) {
       // this room's members are listed - anyone else joins with the invite link"). This also stops
       // the endpoint doubling as a dump of every user on the server.
       const friendIds = await friendIdsOf(userId);
+      const blockedIds = await blockedIdsOf(userId);
       const candidates = await prisma.user.findMany({
-        where: { id: { in: friendIds, notIn: existingMemberIds } },
+        where: { id: { in: friendIds, notIn: [...existingMemberIds, ...blockedIds] } },
         orderBy: { displayName: 'asc' },
       });
       return { users: candidates.map(toUserDto) };
@@ -622,7 +627,7 @@ export default async function roomRoutes(app: FastifyInstance) {
 
       // Only the caller's friends can be added directly - the same set invite-candidates offers.
       // Anyone else joins with the invite link, so nobody can be put into a room by a stranger.
-      if (typeof targetUserId !== 'string' || !(await areFriends(actorId, targetUserId))) {
+      if (typeof targetUserId !== 'string' || !(await areFriends(actorId, targetUserId)) || (await isBlockedEitherWay(actorId, targetUserId))) {
         throw new HttpError(404, 'User not found');
       }
       const targetUser = await prisma.user.findUnique({ where: { id: targetUserId } });

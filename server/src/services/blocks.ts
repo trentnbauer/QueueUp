@@ -20,3 +20,13 @@ export async function blockUser(blockerId: string, blockedId: string): Promise<v
     }),
   ]);
 }
+
+/** Everyone who has blocked `userId` or been blocked by them. Used to leave those people out of
+ * invite candidate lists and public room browsing. */
+export async function blockedIdsOf(userId: string): Promise<string[]> {
+  const rows = await prisma.userBlock.findMany({
+    where: { OR: [{ blockerId: userId }, { blockedId: userId }] },
+    select: { blockerId: true, blockedId: true },
+  });
+  return [...new Set(rows.map((r) => (r.blockerId === userId ? r.blockedId : r.blockerId)))];
+}

@@ -6,6 +6,7 @@ import { generateUniqueInviteCode } from '../services/roomAccess.js';
 import { createGameForUser } from '../services/gameIntake.js';
 import { ownershipPlatformsOverlap } from './publicProfile.js';
 import { canViewProfile } from '../services/friendships.js';
+import { isBlockedEitherWay } from '../services/blocks.js';
 
 /** "Ask to play together": someone who owns the same game as you asks to play it with you. It lands
  * in your notifications with a choice - add the game to a room you're both in, or start a new room
@@ -22,7 +23,7 @@ export default async function playTogetherRoutes(app: FastifyInstance) {
       // Only someone whose profile you can see - the same people the profile page offers this for.
       // Otherwise the reply would tell anyone with a user id whether that person owns a given game.
       const target = await prisma.user.findUnique({ where: { id: targetId }, select: { id: true, profileVisibility: true } });
-      if (!target || !(await canViewProfile(me, target))) {
+      if (!target || (await isBlockedEitherWay(me, targetId)) || !(await canViewProfile(me, target))) {
         throw new HttpError(404, 'User not found');
       }
 
