@@ -1,3 +1,4 @@
+import { matchesBannedIdentity } from '../services/banIdentities.js';
 import { isDisplayNameBlocked } from '../services/displayNames.js';
 import { recordLinkedAvatar } from '../services/avatars.js';
 import { loadExportExtras } from '../services/dataExportExtras.js';
@@ -63,6 +64,10 @@ function toApiKeySummary(key: {
  * success/failure as a query param since this runs at the tail of a full-page redirect flow with
  * no other channel back to the UI. */
 async function linkAccount(targetUserId: string, provider: string, profile: OAuthProfile): Promise<string> {
+  // An account that belongs to someone banned cannot be linked to another QueueUp account.
+  if (await matchesBannedIdentity({ oidcSub: profile.oidcSub, email: profile.email, emailVerified: false })) {
+    return `${env.APP_BASE_URL}/?accountLinkError=${encodeURIComponent('That account cannot be linked.')}`;
+  }
   if (provider === 'steam') {
     const steamId64 = extractSteamId64(profile.oidcSub);
     if (!steamId64) {
@@ -274,7 +279,7 @@ export default async function authRoutes(app: FastifyInstance) {
     return reply.send({
       user: toUserDto(user),
       mustChangeName: user.mustChangeName,
-      banned: user.bannedAt ? { reason: user.banReason, since: user.bannedAt.toISOString(), unbanRequested } : null,
+      banned: user.bannedAt ? { reasonCode: user.banReasonCode, reason: user.banReason, since: user.bannedAt.toISOString(), unbanRequested } : null,
       isSuperAdmin: user.isSuperAdmin,
       viewingAs: view && viewer ? { until: new Date(view.until).toISOString(), viewer: toUserDto(viewer) } : null,
       steamLinked: resolveSteamId64(user) !== null,

@@ -1506,8 +1506,13 @@ export interface AvatarSettings {
   options: { steam: string | null; discord: string | null; gravatar: string | null };
 }
 
+/** Ready-made reasons for a ban. The banned person sees the reason and any note the administrator added. */
+export const BAN_REASONS = ['offensive_name_or_picture', 'impersonation', 'spam', 'ban_evasion', 'other'] as const;
+export type BanReasonCode = (typeof BAN_REASONS)[number];
+
 /** What a banned person sees on /api/me. */
 export interface BannedInfo {
+  reasonCode: BanReasonCode | null;
   reason: string | null;
   since: string;
   /** They already asked to be unbanned and no one has answered yet. */
@@ -1518,6 +1523,7 @@ export interface BannedInfo {
 export interface AdminBan {
   userId: string;
   displayName: string;
+  reasonCode: BanReasonCode | null;
   reason: string | null;
   bannedAt: string;
 }

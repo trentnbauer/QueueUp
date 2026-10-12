@@ -1,5 +1,5 @@
 import { apiDelete, apiGet, apiPost } from './client';
-import type { AdminBlockedText, AdminBan, AdminUnbanRequest, AdminUserReport, BlockedUser, ReportUserRequest } from '@queueup/shared';
+import type { BanReasonCode, AdminBlockedText, AdminBan, AdminUnbanRequest, AdminUserReport, BlockedUser, ReportUserRequest } from '@queueup/shared';
 
 export const moderationApi = {
   blocks: () => apiGet<{ blocks: BlockedUser[] }>('/api/blocks'),
@@ -8,7 +8,7 @@ export const moderationApi = {
   report: (body: ReportUserRequest) => apiPost<{ ok: true }>('/api/reports', body),
   adminReports: () => apiGet<{ reports: AdminUserReport[] }>('/api/admin/reports'),
   adminBans: () => apiGet<{ bans: AdminBan[]; unbanRequests: AdminUnbanRequest[] }>('/api/admin/bans'),
-  ban: (userId: string, reason: string) => apiPost<{ ok: true }>(`/api/admin/users/${userId}/ban`, { reason }),
+  ban: (userId: string, code: BanReasonCode, reason: string) => apiPost<{ ok: true }>(`/api/admin/users/${userId}/ban`, { code, reason }),
   unban: (userId: string) => apiPost<{ ok: true }>(`/api/admin/users/${userId}/unban`, {}),
   declineUnban: (requestId: string) => apiPost<{ ok: true }>(`/api/admin/unban-requests/${requestId}/decline`, {}),
   /** A banned person asking to be unbanned. */
