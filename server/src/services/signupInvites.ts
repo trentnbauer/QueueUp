@@ -1,4 +1,4 @@
-import { randomBytes } from 'node:crypto';
+import { randomInt } from 'node:crypto';
 import { Prisma } from '@prisma/client';
 import { prisma } from '../db/client.js';
 import { HttpError } from '../util/httpError.js';
@@ -20,9 +20,10 @@ const MAX_CODE_LENGTH = 64;
 const SITE_CODE_ALPHABET = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
 
 export function generateSiteInviteCode(): string {
-  const bytes = randomBytes(12);
+  // randomInt draws each character uniformly, whatever the alphabet's length (a byte modulo the
+  // length would favour some characters unless the length divides 256).
   let code = '';
-  for (const b of bytes) code += SITE_CODE_ALPHABET[b % SITE_CODE_ALPHABET.length];
+  for (let i = 0; i < 12; i++) code += SITE_CODE_ALPHABET[randomInt(SITE_CODE_ALPHABET.length)];
   return code;
 }
 

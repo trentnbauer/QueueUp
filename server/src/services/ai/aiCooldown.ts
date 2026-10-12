@@ -1,4 +1,4 @@
-import { createHmac, randomBytes } from 'node:crypto';
+import { randomBytes, scryptSync } from 'node:crypto';
 import type { AiConfig, AiProviderError } from './providers.js';
 
 /** Skipping a provider that will not work for a while (#1043). A provider that is out of credit or has a
@@ -42,10 +42,14 @@ const cooling = new Map<string, Entry>();
 /** Per-process secret for `cooldownKey`. The map never leaves memory, so its keys need not survive a restart. */
 const KEY_SECRET = randomBytes(32);
 
-/** What identifies a provider entry: changing any part (including the key) makes it a new one. Keyed-hashed
- * (not a password hash: it only has to tell entries apart) so the key never sits in a map key. */
+/** scrypt work factor: small, as this runs once per AI request and only has to tell entries apart, but a
+ * real key-derivation function so the API key in the input is never put through a fast hash. */
+const SCRYPT_COST = { N: 1024, r: 8, p: 1 };
+
+/** What identifies a provider entry: changing any part (including the key) makes it a new one. Derived
+ * with a per-process salt so the key never sits in a map key. */
 export function cooldownKey(c: Pick<AiConfig, 'provider' | 'model' | 'baseUrl' | 'apiKey'>): string {
-  return createHmac('sha256', KEY_SECRET).update([c.provider, c.model, c.baseUrl, c.apiKey ?? ''].join('\0')).digest('hex').slice(0, 24);
+  return scryptSync([c.provider, c.model, c.baseUrl, c.apiKey ?? ''].join('\0'), KEY_SECRET, 12, SCRYPT_COST).toString('hex');
 }
 
 /** The reason a provider is being skipped, or null when it is free to try. */
