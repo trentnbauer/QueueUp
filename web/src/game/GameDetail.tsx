@@ -95,7 +95,7 @@ function MemberAchievements({ counts }: { counts: { unlocked: number; total: num
 }
 
 /** Which logo goes beside each sync source's name. */
-const SYNC_SOURCE_LOGO: Record<SyncSource, LibraryKind> = {
+const SYNC_SOURCE_LOGO: Record<SyncSource, LibraryKind | null> = {
   steam: 'steam',
   steam_wishlist: 'steam',
   playnite: 'playnite',
@@ -103,6 +103,7 @@ const SYNC_SOURCE_LOGO: Record<SyncSource, LibraryKind> = {
   exophase: 'exophase',
   psn: 'playstation',
   retroachievements: 'retroachievements',
+  file: null,
 };
 
 const SYNC_SOURCE_KEY: Record<SyncSource, MessageKey> = {
@@ -113,6 +114,7 @@ const SYNC_SOURCE_KEY: Record<SyncSource, MessageKey> = {
   exophase: 'game.detail.syncSource.exophase',
   psn: 'game.detail.syncSource.psn',
   retroachievements: 'game.detail.syncSource.retroachievements',
+  file: 'game.detail.syncSource.file',
 };
 
 /** Everything about one game - the body of both the desktop right panel and the phone sheet. */
@@ -749,7 +751,7 @@ export function GameDetail({ game, onClose, changeStatus }: { game: Game; onClos
             {t('game.detail.syncedFrom')}
             {game.syncSources.map((s) => (
               <span key={s} style={st('display:inline-flex;align-items:center;gap:6px;padding:3px 10px;border-radius:999px;background:var(--chip);color:var(--text);font:600 12px var(--font-ui)')}>
-                <LibraryLogo kind={SYNC_SOURCE_LOGO[s]} size={12} />
+                {SYNC_SOURCE_LOGO[s] && <LibraryLogo kind={SYNC_SOURCE_LOGO[s]} size={12} />}
                 {t(SYNC_SOURCE_KEY[s])}
               </span>
             ))}

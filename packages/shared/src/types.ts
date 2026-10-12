@@ -768,7 +768,7 @@ export interface AccountEventPage {
 }
 
 /** Where a shelf game was synced from. */
-export type SyncSource = 'steam' | 'steam_wishlist' | 'playnite' | 'xbox' | 'exophase' | 'psn' | 'retroachievements';
+export type SyncSource = 'steam' | 'steam_wishlist' | 'playnite' | 'xbox' | 'exophase' | 'psn' | 'retroachievements' | 'file';
 
 /** POST/DELETE /api/games/:id/remove-vote. `removed` is true when that vote tipped it over and the game is gone. */
 export interface RemoveVoteResponse {
@@ -3516,4 +3516,33 @@ export interface RetroAchievementsStatusResponse {
 export interface ConnectRetroAchievementsRequest {
   username: string;
   apiKey: string;
+}
+
+/** File import (issue #1047): a CSV or JSON export from a store, tracker or spreadsheet. */
+export type LibraryFileFormat = 'csv' | 'json' | 'google_play';
+
+/** Which columns of the file hold what. Columns are named as in LibraryFilePreview.columns. */
+export interface LibraryFileMapping {
+  titleColumn: string;
+  /** A column naming the platform(s); null/omitted means every row uses defaultPlatform. */
+  platformColumn?: string | null;
+  /** Used when there is no platform column, or a row's platform is blank or not recognised. */
+  defaultPlatform: RoomPlatform;
+}
+
+/** Body of POST /api/me/import/file/preview and /api/me/import/file. */
+export interface LibraryFileImportRequest {
+  /** The file's text content. */
+  text: string;
+  /** Required for the import; ignored by the preview. */
+  mapping?: LibraryFileMapping;
+}
+
+export interface LibraryFilePreview {
+  format: LibraryFileFormat;
+  columns: string[];
+  sampleRows: Record<string, string>[];
+  rowCount: number;
+  /** A mapping guessed from the column names, for the picker to start from. */
+  suggested: LibraryFileMapping;
 }
