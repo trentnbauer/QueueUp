@@ -3264,6 +3264,11 @@ export interface DuplicateSuggestionGame {
   releaseYear: number | null;
   coverImageUrl: string | null;
   status: GameStatus;
+  /** IGDB's genres, e.g. "Shooter, Adventure"; null when unknown. */
+  genre?: string | null;
+  /** IGDB's developer(s) and publisher(s), comma-separated; null when unknown or IGDB couldn't be reached. */
+  developer?: string | null;
+  publisher?: string | null;
 }
 
 /** Two shelf cards the AI thinks are the same game (issue #824). Never merged automatically. */

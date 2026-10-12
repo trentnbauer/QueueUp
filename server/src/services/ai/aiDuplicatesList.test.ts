@@ -1,9 +1,9 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
-const { gameFindMany, gameUpdateMany, dismissalFindMany, getGameAddonIgdbIds } = vi.hoisted(() => ({ gameFindMany: vi.fn(), gameUpdateMany: vi.fn(), dismissalFindMany: vi.fn(), getGameAddonIgdbIds: vi.fn() }));
+const { gameFindMany, gameUpdateMany, dismissalFindMany, getGameAddonIgdbIds, getGameCompanies } = vi.hoisted(() => ({ gameFindMany: vi.fn(), gameUpdateMany: vi.fn(), dismissalFindMany: vi.fn(), getGameAddonIgdbIds: vi.fn(), getGameCompanies: vi.fn() }));
 vi.mock('../../db/client.js', () => ({ prisma: { game: { findMany: gameFindMany, updateMany: gameUpdateMany }, duplicateDismissal: { findMany: dismissalFindMany } } }));
 // IGDB's DLC list for a game, by igdbId (see dropDlcPairs).
-vi.mock('../igdbClient.js', () => ({ getGameAddonIgdbIds }));
+vi.mock('../igdbClient.js', () => ({ getGameAddonIgdbIds, getGameCompanies }));
 vi.mock('./aiConfig.js', () => ({ aiComplete: vi.fn() }));
 vi.mock('../notifications.js', () => ({ notifyMergeSuggestions: vi.fn() }));
 const { loadDuplicateKnowledge } = vi.hoisted(() => ({ loadDuplicateKnowledge: vi.fn() }));
@@ -27,10 +27,22 @@ beforeEach(() => {
   dismissalFindMany.mockResolvedValue([]);
   gameUpdateMany.mockResolvedValue({ count: 1 });
   getGameAddonIgdbIds.mockResolvedValue(new Set());
+  getGameCompanies.mockResolvedValue(new Map());
   loadDuplicateKnowledge.mockResolvedValue({ merges: new Map(), notDuplicates: new Set(), verdicts: new Map() });
 });
 
 describe('listDuplicateCandidates', () => {
+  it("adds each card's developer and publisher from IGDB, and lists the pairs without them if IGDB fails", async () => {
+    gameFindMany.mockResolvedValue([game('a', 1, 'Witcher 3', 2015), game('b', 2, 'Witcher 3 Complete Edition', 2016)]);
+    getGameCompanies.mockResolvedValue(new Map([[1, { developer: 'CD Projekt Red', publisher: 'CD Projekt' }]]));
+    const [p] = (await listDuplicateCandidates('u1')).pairs;
+    const byId = Object.fromEntries([p.a, p.b].map((g) => [g.id, g]));
+    expect(byId.a).toMatchObject({ developer: 'CD Projekt Red', publisher: 'CD Projekt' });
+    expect(byId.b).toMatchObject({ developer: null, publisher: null });
+    getGameCompanies.mockRejectedValue(new Error('IGDB down'));
+    expect((await listDuplicateCandidates('u1')).pairs).toHaveLength(1);
+  });
+
   it('lists the same pairs the count reports, keeping the earlier release, without the collection id', async () => {
     gameFindMany.mockResolvedValue([game('a', 1, 'Witcher 3', 2015), game('b', 2, 'Witcher 3 Complete Edition', 2016), game('c', 3, 'Celeste', 2018)]);
     const list = await listDuplicateCandidates('u1');

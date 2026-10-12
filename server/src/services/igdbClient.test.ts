@@ -15,6 +15,7 @@ import {
   timeToBeatRushedHoursFrom,
   timeToBeatCompletionistHoursFrom,
   reviewScoreFrom,
+  companiesFrom,
   type IgdbPlatform,
   type IgdbGame,
   type IgdbTimeToBeat,
@@ -363,5 +364,24 @@ describe('isSensitiveContent', () => {
   it('leaves everything else alone', () => {
     expect(isSensitiveContent({})).toBe(false);
     expect(isSensitiveContent({ themes: [{ name: 'Horror' }], keywords: [{ name: 'adult swim' }, { name: undefined }] })).toBe(false);
+  });
+});
+
+describe('companiesFrom', () => {
+  it('splits involved companies into developers and publishers, without repeats', () => {
+    expect(
+      companiesFrom({
+        involved_companies: [
+          { company: { name: 'FromSoftware' }, developer: true, publisher: false },
+          { company: { name: 'Bandai Namco' }, developer: false, publisher: true },
+          { company: { name: 'FromSoftware' }, developer: true, publisher: true },
+          { company: {}, developer: true },
+        ],
+      }),
+    ).toEqual({ developer: 'FromSoftware', publisher: 'Bandai Namco, FromSoftware' });
+  });
+
+  it('is null for both when IGDB lists no companies', () => {
+    expect(companiesFrom({})).toEqual({ developer: null, publisher: null });
   });
 });
