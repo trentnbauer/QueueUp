@@ -242,6 +242,8 @@ model User {
   /// Set while an administrator has banned this account: it can sign in, but only to see why and ask for an unban.
   bannedAt             DateTime?      @map("banned_at")
   banReason            String?        @map("ban_reason")
+  /// An administrator made them give up an offensive display name: they must pick a new one before using the app.
+  mustChangeName       Boolean        @default(false) @map("must_change_name")
   oidcSub              String         @unique @map("oidc_sub")
   /// Set when this user links a Steam account without signing in with it directly (oidcSub is
   /// already taken by their primary sign-in provider) - see the Steam-link flow in auth.ts.
@@ -1668,6 +1670,16 @@ model UnbanRequest {
   @@map("unban_requests")
 }
 
+/// A display name administrators have blacklisted (see services/displayNames.ts); nobody can take it.
+model BlockedDisplayName {
+  normalized String   @id
+  example    String
+  createdBy  String?  @map("created_by")
+  createdAt  DateTime @default(now()) @map("created_at")
+
+  @@map("blocked_display_names")
+}
+
 model UserBlock {
   blockerId String   @map("blocker_id")
   blockedId String   @map("blocked_id")
@@ -1688,6 +1700,8 @@ model UserReport {
   reporterId     String    @map("reporter_id")
   reportedUserId String    @map("reported_user_id")
   reason         String
+  /// Ticked reasons (see REPORT_REASONS in the shared types); `reason` is the free text.
+  reasons        String[]  @default([])
   createdAt      DateTime  @default(now()) @map("created_at")
   resolvedAt     DateTime? @map("resolved_at")
   resolvedBy     String?   @map("resolved_by")

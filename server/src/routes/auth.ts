@@ -1,3 +1,4 @@
+import { isDisplayNameBlocked } from '../services/displayNames.js';
 import { loadExportExtras } from '../services/dataExportExtras.js';
 import { specsFromRow } from '../services/computerSpecs.js';
 import { logAccountEvent } from '../services/accountEvents.js';
@@ -269,6 +270,7 @@ export default async function authRoutes(app: FastifyInstance) {
 
     return reply.send({
       user: toUserDto(user),
+      mustChangeName: user.mustChangeName,
       banned: user.bannedAt ? { reason: user.banReason, since: user.bannedAt.toISOString(), unbanRequested } : null,
       isSuperAdmin: user.isSuperAdmin,
       viewingAs: view && viewer ? { until: new Date(view.until).toISOString(), viewer: toUserDto(viewer) } : null,
@@ -373,8 +375,9 @@ export default async function authRoutes(app: FastifyInstance) {
       if (displayName.length < 1 || displayName.length > 40) {
         throw new HttpError(400, 'Display name must be 1-40 characters.');
       }
+      if (await isDisplayNameBlocked(displayName)) throw new HttpError(400, 'That display name is not allowed. Choose another.');
       const before = await prisma.user.findUniqueOrThrow({ where: { id: userId }, select: { displayName: true, createdAt: true } });
-      await prisma.user.update({ where: { id: userId }, data: { displayName } });
+      await prisma.user.update({ where: { id: userId }, data: { displayName, mustChangeName: false } });
       // Setting the name during first-run onboarding isn't news; only tell people about later changes.
       if (displayName !== before.displayName && Date.now() - before.createdAt.getTime() > 60 * 60 * 1000) {
         await notifyAccountChange(userId, `Your display name was changed to ${displayName}.`);

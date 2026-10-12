@@ -13,5 +13,7 @@ export const moderationApi = {
   declineUnban: (requestId: string) => apiPost<{ ok: true }>(`/api/admin/unban-requests/${requestId}/decline`, {}),
   /** A banned person asking to be unbanned. */
   requestUnban: (message: string) => apiPost<{ ok: true }>('/api/me/unban-request', { message }),
+  forceNameChange: (reportId: string) => apiPost<{ ok: true }>(`/api/admin/reports/${reportId}/force-name-change`, {}),
+  resetAvatar: (reportId: string) => apiPost<{ ok: true }>(`/api/admin/reports/${reportId}/reset-avatar`, {}),
   resolveReport: (id: string) => apiPost<{ ok: true }>(`/api/admin/reports/${id}/resolve`, {}),
 };

@@ -3,6 +3,7 @@ import fp from 'fastify-plugin';
 import { Prisma } from '@prisma/client';
 import { env } from '../config/env.js';
 import { prisma } from '../db/client.js';
+import { isDisplayNameBlocked, placeholderDisplayName } from '../services/displayNames.js';
 import { BannedError, isBanned } from '../services/banCache.js';
 import { HttpError } from '../util/httpError.js';
 import { buildAuthProviders } from '../services/authProviders/registry.js';
@@ -128,7 +129,9 @@ async function getOrCreateUser({ emailVerified, ...profile }: {
   }
 
   try {
-    const user = await prisma.user.create({ data: { ...profile, emailVerified, avatarColor: randomAvatarColor(), isAdmin, isSuperAdmin, onboardingPending: true } });
+    // A provider name that is on the blacklist is replaced, and the person picks their own.
+    const blockedName = await isDisplayNameBlocked(profile.displayName);
+    const user = await prisma.user.create({ data: { ...profile, ...(blockedName && { displayName: placeholderDisplayName(), mustChangeName: true }), emailVerified, avatarColor: randomAvatarColor(), isAdmin, isSuperAdmin, onboardingPending: true } });
     return { user, isNewUser: true };
   } catch (err) {
     // Lost a race against a concurrent request for this same not-yet-existing account (issue

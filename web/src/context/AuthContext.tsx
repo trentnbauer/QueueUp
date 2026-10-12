@@ -6,6 +6,8 @@ interface AuthContextValue {
   user: User | null;
   /** Set when this account is banned (see BannedPage). */
   banned: BannedInfo | null;
+  /** Must choose a new display name before using the app (see MustChangeNameDialog). */
+  mustChangeName: boolean;
   /** A Super administrator (#1102): an administrator who can also do the destructive things. */
   isSuperAdmin: boolean;
   /** Set while an administrator is viewing the app as `user` (#1102), read-only. */
@@ -48,6 +50,7 @@ const AuthContext = createContext<AuthContextValue | undefined>(undefined);
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [banned, setBanned] = useState<BannedInfo | null>(null);
+  const [mustChangeName, setMustChangeName] = useState(false);
   const [isSuperAdmin, setIsSuperAdmin] = useState(false);
   const [viewingAs, setViewingAs] = useState<AuthContextValue['viewingAs']>(null);
   const [steamLinked, setSteamLinked] = useState(false);
@@ -68,10 +71,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   };
 
   const refetch = async () => {
-    const { user, banned, isSuperAdmin, viewingAs, steamLinked, ownedPlatforms, profileVisibility, profileSlug, shelfColor, primaryProvider, linkedProviders, isNewAccount, onboardingPending } = await authApi.me();
+    const { user, banned, mustChangeName, isSuperAdmin, viewingAs, steamLinked, ownedPlatforms, profileVisibility, profileSlug, shelfColor, primaryProvider, linkedProviders, isNewAccount, onboardingPending } = await authApi.me();
     setOnboardingPending(!!onboardingPending);
     setUser(user);
     setBanned(banned ?? null);
+    setMustChangeName(!!mustChangeName);
     setIsSuperAdmin(!!isSuperAdmin);
     setViewingAs(viewingAs ?? null);
     setSteamLinked(steamLinked);
@@ -93,6 +97,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       value={{
         user,
         banned,
+        mustChangeName,
         isSuperAdmin,
         viewingAs,
         steamLinked,

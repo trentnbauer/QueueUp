@@ -8,6 +8,8 @@ export const authApi = {
       user: User | null;
       /** Set when an administrator has banned this account: the app shows only the ban notice. */
       banned?: BannedInfo | null;
+      /** An administrator made them give up their display name: they must choose a new one. */
+      mustChangeName?: boolean;
       /** Can also do the destructive administrator things (#1102). */
       isSuperAdmin?: boolean;
       /** Set while an administrator is viewing the app as this user (#1102): until when, and who is looking. */
