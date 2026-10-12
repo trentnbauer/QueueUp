@@ -406,7 +406,8 @@ export function HomeView() {
           />
         </>
       )}
-      {section === 'people' && <RoomPeople />}
+      {/* Keyed so a draft search, an open dialog or a fresh invite code don't carry over to another room. */}
+      {section === 'people' && <RoomPeople key={room?.id} />}
       {section === 'recap' && <RoomRecap />}
       {section === 'history' && <ShelfHistory />}
 
