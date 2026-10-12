@@ -96,6 +96,8 @@ services:
       DEV_FAKE_AUTH: ${DEV_FAKE_AUTH:-false}                   # Testing - enables automatic login with admin account for everyone accesing QueueUp
       ADMIN_EMAILS: ${ADMIN_EMAILS}                            # QueueUp Administrators
       SIGNUP_MODE: ${SIGNUP_MODE:-open}                        # open | invite (new accounts need an invite)
+      REQUIRE_TERMS_ACCEPTANCE: ${REQUIRE_TERMS_ACCEPTANCE:-false}  # true = people must accept the terms
+      TERMS_VERSION: ${TERMS_VERSION:-}                        # bump to re-ask everyone (default: hash of TERMS_FILE)
       ALLOW_DESTRUCTIVE_SCHEMA_PUSH: ${ALLOW_DESTRUCTIVE_SCHEMA_PUSH:-false}  # Leave false; set true only for the one boot after a deliberate destructive schema change
       DATABASE_URL: postgresql://${POSTGRES_USER:-squadqueue}:${POSTGRES_PASSWORD:-changeme}@postgres:5432/${POSTGRES_DB:-squadqueue}
       REDIS_URL: redis://redis:6379

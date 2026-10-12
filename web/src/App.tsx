@@ -18,6 +18,7 @@ import { HomeView } from './home/HomeView';
 import { JoinPage, LoginPage, PublicProfilePage } from './pages/EntryPages';
 import { BannedPage } from './pages/BannedPage';
 import { MustChangeNamePage } from './pages/MustChangeNamePage';
+import { TermsAcceptPage } from './pages/TermsAcceptPage';
 import { AppShell } from './shell/AppShell';
 import { Onboarding, onRerunOnboarding } from './shell/Onboarding';
 import { initAnalytics, trackPageView } from './utils/analytics';
@@ -116,7 +117,7 @@ function FriendRedirect() {
 }
 
 export default function App() {
-  const { user, banned, mustChangeName, loading, onboardingPending, completeOnboarding } = useAuth();
+  const { user, banned, mustChangeName, termsRequired, loading, onboardingPending, completeOnboarding } = useAuth();
   const location = useLocation();
   const navigate = useNavigate();
   const ui = useUi();
@@ -293,6 +294,7 @@ export default function App() {
   }
 
   if (banned) return <BannedPage />;
+  if (termsRequired) return <TermsAcceptPage version={termsRequired.version} />;
   if (mustChangeName) return <MustChangeNamePage />;
 
   return (
