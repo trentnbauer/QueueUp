@@ -1,23 +1,26 @@
 name: Game data / pricing issue
-description: Wrong or missing pricing, metadata, or search results from gg.deals or IGDB.
+description: Wrong or missing prices, game details, or search results.
 labels: ["game-data"]
 body:
   - type: input
     id: game
     attributes:
       label: Game title
-      description: The game affected, and the gg.deals link if you added it that way.
+      description: The game affected, plus its IGDB or gg.deals link if you have one.
     validations:
       required: true
 
   - type: dropdown
     id: source
     attributes:
-      label: Which source is wrong?
+      label: What's wrong?
       options:
-        - gg.deals pricing
-        - IGDB metadata (title, platform, artwork)
-        - Both
+        - Price or deal (gg.deals)
+        - Price alert didn't fire, or fired wrongly
+        - Game details (title, cover, platforms, release date, co-op info) from IGDB
+        - Time to beat
+        - Search didn't find the game, or found the wrong one
+        - Duplicate entries for the same game
         - Not sure
     validations:
       required: true
@@ -25,15 +28,15 @@ body:
   - type: textarea
     id: expected-vs-actual
     attributes:
-      label: What's wrong?
-      description: What did QueueUp show, and what should it show instead?
+      label: Details
+      description: What did QueueUp show, and what should it show instead? Mention your region or currency for price issues.
     validations:
       required: true
 
   - type: checkboxes
     id: cache-checked
     attributes:
-      label: Have you tried forcing a metadata refresh, if that option exists in the UI?
+      label: For a price issue, have you tried Refresh price in the game's details?
       options:
-        - label: Yes, and the stale/wrong data persisted
+        - label: Yes, and the wrong price stayed
         - label: No / not applicable

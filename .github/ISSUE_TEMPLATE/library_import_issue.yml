@@ -1,0 +1,59 @@
+name: Library import / sync issue
+description: A library import or sync (Steam, Xbox, PlayStation, ...) failed, missed games, or matched the wrong ones.
+labels: ["bug"]
+body:
+  - type: dropdown
+    id: source
+    attributes:
+      label: Which source?
+      description: Connected sources are under Settings → Libraries.
+      options:
+        - Steam library
+        - Steam wishlist
+        - Xbox
+        - PlayStation
+        - Exophase
+        - RetroAchievements
+        - Playnite (extension)
+        - itch.io
+        - Library file import
+        - Other / not sure
+    validations:
+      required: true
+
+  - type: dropdown
+    id: problem
+    attributes:
+      label: What went wrong?
+      options:
+        - Couldn't connect the account
+        - The import or sync failed with an error
+        - Some games are missing
+        - A game was matched to the wrong title
+        - Duplicates or bundles on my shelf
+        - Playtime, completion or achievements are wrong
+        - The sync stopped running on its own
+        - Something else
+    validations:
+      required: true
+
+  - type: textarea
+    id: details
+    attributes:
+      label: Details
+      description: What happened, and which games are affected (name them as the source shows them). Include any error message you saw.
+    validations:
+      required: true
+
+  - type: input
+    id: version
+    attributes:
+      label: QueueUp version
+      description: Shown at the bottom of Settings → Help & about.
+    validations:
+      required: false
+
+  - type: markdown
+    attributes:
+      value: |
+        **Never paste API keys, tokens, cookies or passwords into this issue.** Profile names or IDs are fine if you're happy for them to be public. Note that GOG, Epic and Apple libraries can't be imported (no safe official API).

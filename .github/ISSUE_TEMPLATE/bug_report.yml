@@ -2,6 +2,11 @@ name: Bug report
 description: Something in QueueUp is broken or not working as expected.
 labels: ["bug"]
 body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for reporting! If this is a **security vulnerability** (someone could see or change data they shouldn't, sign in as someone else, read keys, and so on), please don't file it here. Use [private vulnerability reporting](https://github.com/trentnbauer/QueueUp/security/advisories/new) instead, as described in [SECURITY.md](https://github.com/trentnbauer/QueueUp/blob/main/SECURITY.md).
+
   - type: textarea
     id: what-happened
     attributes:
@@ -21,6 +26,7 @@ body:
     id: repro
     attributes:
       label: Steps to reproduce
+      description: Include the page address if it helps (for example `/room/…/people` or `/settings/libraries`).
       placeholder: |
         1. Go to '...'
         2. Click on '...'
@@ -34,42 +40,72 @@ body:
       label: Area
       description: Which part of the app is affected?
       options:
-        - Personal Shelf
-        - Communal Rooms
-        - Sidebar / room navigation
-        - Room Settings
-        - Profile Settings
-        - Game intake (search / Add Game / gg.deals link paste)
-        - Game status (Backlog / Playing / Done)
-        - Pricing / metadata refresh
-        - Price drop alerts
-        - Voting (emoji scale)
-        - Spin the Wheel
-        - Steam library import
-        - Notifications
-        - Auth / sign-in
-        - Dark / light mode
-        - Accessibility
-        - UI / layout / responsiveness
-        - Performance
-        - Docker / deployment
-        - Other
+        - "Personal Shelf: Games tab"
+        - "Personal Shelf: Journal or History tab"
+        - "Rooms: Games tab"
+        - "Rooms: Journal, People or Recap tab"
+        - "Room settings, invites and roles"
+        - "Sidebar and navigation"
+        - "Adding games (search, Add Game, gg.deals link, Ask AI)"
+        - "Game status and play order (Play next, Playing, Paused, Done, ...)"
+        - "Voting"
+        - "Spin (picking a game)"
+        - "Prices, deals and price alerts"
+        - "Library imports and syncs"
+        - "Friends page (activity, friends, requests)"
+        - "Your stats page (insights, achievements, year in games)"
+        - "Public profiles and badges"
+        - "Settings: Account and sign-in"
+        - "Settings: Profile and privacy"
+        - "Settings: Preferences (theme, language, layout)"
+        - "Settings: Notifications and email alerts"
+        - "Settings: AI"
+        - "Settings: Data and developer (export, API)"
+        - "Blocking, reporting and moderation"
+        - "Administrator page"
+        - "Accessibility"
+        - "Phone or tablet layout"
+        - "Performance"
+        - "Self-hosting (Docker, configuration, backups)"
+        - "Other / not sure"
     validations:
       required: true
 
-  - type: textarea
-    id: logs
+  - type: input
+    id: version
     attributes:
-      label: Relevant logs or screenshots
-      description: Server logs, browser console errors, or screenshots. Redact any API keys or tokens.
-      render: shell
+      label: QueueUp version
+      description: Shown at the bottom of Settings → Help & about. If you self-host, the image tag or commit also works.
+      placeholder: e.g. 1.4.2
+    validations:
+      required: false
+
+  - type: dropdown
+    id: device
+    attributes:
+      label: Device
+      options:
+        - Desktop or laptop
+        - Phone
+        - Tablet
+        - Installed app (PWA)
+        - Not device-specific (server, background job)
     validations:
       required: false
 
   - type: input
     id: env
     attributes:
-      label: Environment
-      placeholder: e.g. self-hosted via docker compose, commit abc1234, Chrome on Windows
+      label: Browser and environment
+      placeholder: e.g. Chrome on Windows, Safari on iOS 18, self-hosted via docker compose
+    validations:
+      required: false
+
+  - type: textarea
+    id: logs
+    attributes:
+      label: Relevant logs or screenshots
+      description: Server logs, browser console errors, or screenshots. Redact API keys, tokens, email addresses and anything else private.
+      render: shell
     validations:
       required: false

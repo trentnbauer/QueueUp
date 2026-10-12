@@ -6,7 +6,7 @@ body:
     id: problem
     attributes:
       label: What problem does this solve?
-      description: What's missing or frustrating about the current backlog/voting flow?
+      description: What's missing or frustrating today, for you or for your group?
     validations:
       required: true
 
@@ -23,27 +23,49 @@ body:
     attributes:
       label: Area
       options:
-        - Personal Shelf
-        - Communal Rooms
-        - Sidebar / room navigation
-        - Room Settings
-        - Profile Settings
-        - Game intake (search / Add Game / gg.deals link paste)
-        - Game status (Backlog / Playing / Done)
-        - Pricing / metadata refresh
-        - Price drop alerts
-        - Voting (emoji scale)
-        - Spin the Wheel
-        - Steam library import
-        - Notifications
-        - Room roles / permissions (Room Master)
-        - Attribution / badges
-        - Accessibility
-        - UI / theming
-        - Performance / efficiency
-        - Other
+        - "Personal Shelf: Games tab"
+        - "Personal Shelf: Journal or History tab"
+        - "Rooms: Games tab"
+        - "Rooms: Journal, People or Recap tab"
+        - "Room settings, invites and roles"
+        - "Sidebar and navigation"
+        - "Adding games (search, Add Game, gg.deals link, Ask AI)"
+        - "Game status and play order (Play next, Playing, Paused, Done, ...)"
+        - "Voting"
+        - "Spin (picking a game)"
+        - "Prices, deals and price alerts"
+        - "Library imports and syncs"
+        - "Friends page (activity, friends, requests)"
+        - "Your stats page (insights, achievements, year in games)"
+        - "Public profiles and badges"
+        - "Settings: Account and sign-in"
+        - "Settings: Profile and privacy"
+        - "Settings: Preferences (theme, language, layout)"
+        - "Settings: Notifications and email alerts"
+        - "Settings: AI"
+        - "Settings: Data and developer (export, API)"
+        - "Blocking, reporting and moderation"
+        - "Administrator page"
+        - "Accessibility"
+        - "Phone or tablet layout"
+        - "Performance"
+        - "Self-hosting (Docker, configuration, backups)"
+        - "Other / not sure"
     validations:
       required: true
+
+  - type: dropdown
+    id: who
+    attributes:
+      label: Who is it for?
+      options:
+        - Everyone using QueueUp
+        - People playing together in a room
+        - Room owners
+        - Administrators of an instance
+        - People who self-host
+    validations:
+      required: false
 
   - type: textarea
     id: alternatives
@@ -51,3 +73,8 @@ body:
       label: Alternatives considered
     validations:
       required: false
+
+  - type: markdown
+    attributes:
+      value: |
+        A few things QueueUp deliberately doesn't do, so requests for them may be closed: messaging or chat between people (conversation happens off QueueUp), uploading profile pictures, and GOG, Epic or Apple library imports (no safe official API).
