@@ -69,9 +69,9 @@ export function AppShell({ children }: { children: ReactNode }) {
     return (
       <div {...roomScope} style={{ ...st('min-height:100vh;background:var(--bg);color:var(--text)'), ...roomScope.style }}>
         <ViewingAsBanner />
-        <ViewingAsBanner />
-      <VerifyEmailBanner />
-        <div style={st('display:flex;flex-direction:column;gap:18px;padding:16px 16px 110px')}>
+        <VerifyEmailBanner />
+        {/* Narrow phones get slightly smaller side gutters so content keeps its room. */}
+        <div style={st('display:flex;flex-direction:column;gap:18px;min-width:0;padding:16px clamp(12px, 4vw, 16px) 110px')}>
           <MobileTopBar />
           {children}
         </div>

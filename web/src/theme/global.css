@@ -165,6 +165,13 @@ body {
   color: var(--text);
   font-family: var(--font-ui);
   -webkit-font-smoothing: antialiased;
+  /* Stop mobile browsers inflating text on their own (Android's font boosting), which can push
+   * rows wider than the screen; the person's own text-size setting still applies. */
+  -webkit-text-size-adjust: 100%;
+  text-size-adjust: 100%;
+  /* Nothing should ever make the page scroll sideways on a phone. `clip` (not `hidden`) keeps
+   * position: sticky working. */
+  overflow-x: clip;
 }
 
 *,
