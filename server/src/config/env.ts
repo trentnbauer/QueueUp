@@ -274,6 +274,11 @@ export const envSchema = z.object({
 
   // Comma-separated emails granted administrator access on login.
   ADMIN_EMAILS: z.string().optional().default(''),
+
+  // Who may create a new account (#1096). "open" (default): anyone who can sign in. "invite": only
+  // someone with a room invite code or an administrator-made site invite; existing accounts and
+  // ADMIN_EMAILS sign in as normal.
+  SIGNUP_MODE: z.enum(['open', 'invite']).optional().default('open'),
 });
 
 export type Env = z.infer<typeof envSchema>;

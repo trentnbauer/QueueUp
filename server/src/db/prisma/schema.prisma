@@ -1829,3 +1829,20 @@ model GameReview {
   @@index([userId])
   @@map("game_reviews")
 }
+
+/// An administrator-made invite that lets someone create an account when SIGNUP_MODE=invite (#1096).
+model SiteInvite {
+  id        String    @id @default(uuid())
+  code      String    @unique
+  /// A note for the administrator ("for Sam"); never shown to the person using the invite.
+  label     String    @default("")
+  /// How many accounts it can create; null means unlimited until it expires or is revoked.
+  maxUses   Int?      @map("max_uses")
+  uses      Int       @default(0)
+  expiresAt DateTime? @map("expires_at")
+  revokedAt DateTime? @map("revoked_at")
+  createdBy String?   @map("created_by")
+  createdAt DateTime  @default(now()) @map("created_at")
+
+  @@map("site_invites")
+}

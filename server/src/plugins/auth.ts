@@ -12,6 +12,7 @@ import { HttpError } from '../util/httpError.js';
 import { buildAuthProviders } from '../services/authProviders/registry.js';
 import type { AuthProvider } from '../services/authProviders/types.js';
 import { extractSteamId64 } from '../services/steamLibrary.js';
+import { consumeInvite, resolveInvite, SignupInviteRequiredError, type ResolvedInvite } from '../services/signupInvites.js';
 
 const DEV_USER = {
   oidcSub: 'dev-user',
@@ -110,7 +111,7 @@ async function getOrCreateUser({ emailVerified, ...profile }: {
   emailVerified: boolean;
   displayName: string;
   avatarUrl: string | null;
-}) {
+}, opts: { invite?: string | null } = {}) {
   const emailIsAdmin = computeIsAdmin(profile.email, { devFakeAuth: env.DEV_FAKE_AUTH, adminEmails: env.ADMIN_EMAILS, emailVerified });
   // ADMIN_EMAILS grants admin on every login, but must never revoke it - an admin promoted through
   // the Settings panel (see admin.ts's PATCH /api/admin/users/:id/admin) has no email in that list
@@ -135,6 +136,15 @@ async function getOrCreateUser({ emailVerified, ...profile }: {
     return { user, isNewUser: false };
   }
 
+  // SIGNUP_MODE=invite (#1096): a new account needs a valid invite, checked here (not just on the
+  // sign-in page) so the provider round trip cannot be used to skip it. ADMIN_EMAILS owners can always
+  // get in, or a fresh server could never be set up.
+  let invite: ResolvedInvite | null = null;
+  if (env.SIGNUP_MODE === 'invite' && !env.DEV_FAKE_AUTH && !emailIsAdmin) {
+    invite = await resolveInvite(opts.invite);
+    if (!invite || !(await consumeInvite(invite))) throw new SignupInviteRequiredError();
+  }
+
   try {
     // A provider name that is on the blacklist is replaced, and the person picks their own.
     const blockedName = await isDisplayNameBlocked(profile.displayName);
@@ -144,7 +154,7 @@ async function getOrCreateUser({ emailVerified, ...profile }: {
       await recordBannedIdentities(user.id);
       void notifyAdmins('admin_report', `${user.displayName} signed up with the identity of a banned account and was banned automatically. Open Reports on the Administrator page to review.`);
     }
-    return { user, isNewUser: true };
+    return { user, isNewUser: true, invite };
   } catch (err) {
     // Lost a race against a concurrent request for this same not-yet-existing account (issue
     // #447) - e.g. two tabs completing the same OAuth login around the same instant, or (under
@@ -156,7 +166,7 @@ async function getOrCreateUser({ emailVerified, ...profile }: {
     // race is the one whose isNewAccount flag should fire.
     if (err instanceof Prisma.PrismaClientKnownRequestError && err.code === 'P2002') {
       const user = await prisma.user.findUniqueOrThrow({ where: { oidcSub: profile.oidcSub } });
-      return { user, isNewUser: false };
+      return { user, isNewUser: false, invite: null };
     }
     throw err;
   }

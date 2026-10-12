@@ -22,4 +22,10 @@ export const core: Record<keyof typeof en, string> = {
   "core.settings.language.sub": "More tongues be on the horizon.",
   "core.login.title": "Sign in",
   "core.login.terms": "Terms",
+  "core.login.inviteNeeded": "This ship be invite-only, matey. Paste a code below, or open an invite link, then sign in again.",
+  "core.login.inviteInvalid": "That invite code be no good. Check it and try again.",
+  "core.login.inviteLabel": "Invite code",
+  "core.login.inviteHint": "New aboard? This ship needs an invite to sign ye on.",
+  "core.login.inviteCheck": "Use this invite",
+  "core.login.inviteAccepted": "Invite accepted. Sign in to join the crew.",
 };
