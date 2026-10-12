@@ -1440,12 +1440,17 @@ export interface BlockedUser {
 }
 
 /** Ready-made reasons for reporting someone; a report needs at least one, or a written reason. */
-export const REPORT_REASONS = ['offensive_name', 'offensive_avatar', 'harassment', 'spam', 'inappropriate_content', 'other'] as const;
+export const REPORT_REASONS = ['offensive_name', 'offensive_avatar', 'offensive_profile_link', 'offensive_room_name', 'offensive_review_note', 'harassment', 'spam', 'inappropriate_content', 'other'] as const;
 export type ReportReason = (typeof REPORT_REASONS)[number];
 
 /** POST /api/reports - ticked `reasons`, and/or the reporter's own words in `reason` (up to 1000 characters). */
 export interface ReportUserRequest {
-  userId: string;
+  /** Who is reported. Left out when reporting a room: its owner is then the one reported. */
+  userId?: string;
+  /** Report a room (its name, mostly) instead of a person. */
+  roomId?: string;
+  /** Report the review note this person wrote for this game. */
+  reviewGameId?: string;
   reasons?: ReportReason[];
   reason?: string;
   /** Also block them, in the same step. */
@@ -1463,6 +1468,21 @@ export interface AdminUserReport {
   resolvedAt: string | null;
   /** Whether the reported person is banned right now. */
   reportedBanned: boolean;
+  /** The reported person's profile link now, if they have one. */
+  profileSlug: string | null;
+  /** Set when the report is about a room: its id and current name (null once deleted). */
+  roomId: string | null;
+  roomName: string | null;
+  /** Set when the report is about a review note: the game and the note as it stands now. */
+  reviewGameId: string | null;
+  reviewNote: string | null;
+}
+
+/** GET /api/admin/blocked-text: names that nobody may use, and words that may not appear in a name,
+ * profile link, room name or review note. */
+export interface AdminBlockedText {
+  names: { normalized: string; example: string }[];
+  words: { normalized: string; example: string }[];
 }
 
 /** GET /api/legal - the operator's contact and any replacement terms / privacy text (Markdown). */

@@ -1,3 +1,4 @@
+import { assertTextAllowed } from '../services/displayNames.js';
 import type { FastifyInstance } from 'fastify';
 import { Prisma } from '@prisma/client';
 import { prisma } from '../db/client.js';
@@ -170,6 +171,7 @@ export default async function roomRoutes(app: FastifyInstance) {
     if (accentColor && !HEX_COLOUR.test(accentColor)) throw new HttpError(400, 'Room colour must be a hex colour like #8b5cf6');
     if (!name?.trim()) throw new HttpError(400, 'Room name is required');
     if (name.trim().length > MAX_ROOM_NAME_LENGTH) throw new HttpError(400, `Room name can be at most ${MAX_ROOM_NAME_LENGTH} characters`);
+    await assertTextAllowed(name, 'That room name');
     // Issue #473: platform is optional - omitting it (or passing null) leaves the room unrestricted
     // ("any platform"), rather than forcing every room to lock to one console/PC up front.
     if (platform != null && !ROOM_PLATFORMS.includes(platform)) throw new HttpError(400, 'A valid platform is required');
@@ -353,6 +355,7 @@ export default async function roomRoutes(app: FastifyInstance) {
     if (accentColor !== undefined && typeof accentColor !== 'string') throw new HttpError(400, 'Room colour must be a hex colour like #8b5cf6');
     if (name !== undefined && !name.trim()) throw new HttpError(400, 'Room name cannot be empty');
     if (name !== undefined && name.trim().length > MAX_ROOM_NAME_LENGTH) throw new HttpError(400, `Room name can be at most ${MAX_ROOM_NAME_LENGTH} characters`);
+    if (name !== undefined) await assertTextAllowed(name, 'That room name');
     if (accentColor !== undefined && !HEX_COLOUR.test(accentColor)) throw new HttpError(400, 'Room colour must be a hex colour like #8b5cf6');
     // Issue #473: platform may be explicitly set to null to clear the room's restriction ("any
     // platform") - only a non-null, provided value needs to be a real RoomPlatform.

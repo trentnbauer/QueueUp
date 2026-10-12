@@ -1,5 +1,5 @@
 import { apiDelete, apiGet, apiPost } from './client';
-import type { AdminBan, AdminUnbanRequest, AdminUserReport, BlockedUser, ReportUserRequest } from '@queueup/shared';
+import type { AdminBlockedText, AdminBan, AdminUnbanRequest, AdminUserReport, BlockedUser, ReportUserRequest } from '@queueup/shared';
 
 export const moderationApi = {
   blocks: () => apiGet<{ blocks: BlockedUser[] }>('/api/blocks'),
@@ -15,5 +15,12 @@ export const moderationApi = {
   requestUnban: (message: string) => apiPost<{ ok: true }>('/api/me/unban-request', { message }),
   forceNameChange: (reportId: string) => apiPost<{ ok: true }>(`/api/admin/reports/${reportId}/force-name-change`, {}),
   resetAvatar: (reportId: string) => apiPost<{ ok: true }>(`/api/admin/reports/${reportId}/reset-avatar`, {}),
+  removeProfileLink: (reportId: string) => apiPost<{ ok: true }>(`/api/admin/reports/${reportId}/remove-profile-link`, {}),
+  resetRoomName: (reportId: string) => apiPost<{ ok: true }>(`/api/admin/reports/${reportId}/reset-room-name`, {}),
+  clearReviewNote: (reportId: string) => apiPost<{ ok: true }>(`/api/admin/reports/${reportId}/clear-review-note`, {}),
+  blockedText: () => apiGet<AdminBlockedText>('/api/admin/blocked-text'),
+  addBannedWord: (word: string) => apiPost<{ ok: true }>('/api/admin/banned-words', { word }),
+  removeBannedWord: (normalized: string) => apiDelete(`/api/admin/banned-words/${encodeURIComponent(normalized)}`),
+  removeBlockedName: (normalized: string) => apiDelete(`/api/admin/blocked-names/${encodeURIComponent(normalized)}`),
   resolveReport: (id: string) => apiPost<{ ok: true }>(`/api/admin/reports/${id}/resolve`, {}),
 };

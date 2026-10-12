@@ -1,5 +1,5 @@
 import type { FastifyInstance } from 'fastify';
-import { REPORT_REASONS, type AdminBan, type AdminUnbanRequest, type AdminUserReport, type BlockedUser, type ReportReason, type ReportUserRequest } from '@queueup/shared';
+import { REPORT_REASONS, type AdminBlockedText, type AdminBan, type AdminUnbanRequest, type AdminUserReport, type BlockedUser, type ReportReason, type ReportUserRequest } from '@queueup/shared';
 import { prisma } from '../db/client.js';
 import { HttpError } from '../util/httpError.js';
 import { requireAdmin } from '../services/adminAccess.js';
@@ -7,7 +7,7 @@ import { logAdminAction } from '../services/adminAuditLog.js';
 import { blockUser } from '../services/blocks.js';
 import { forgetBan } from '../services/banCache.js';
 import { notifyAdmins } from '../services/adminNotifications.js';
-import { blockDisplayName, placeholderDisplayName } from '../services/displayNames.js';
+import { addBannedWord, blockDisplayName, MIN_BANNED_WORD_LENGTH, normalizeDisplayName, placeholderDisplayName } from '../services/displayNames.js';
 import { notifyAccountChange } from '../services/notifications.js';
 
 const MAX_REASON_LENGTH = 1000;
@@ -56,14 +56,29 @@ export default async function moderationRoutes(app: FastifyInstance) {
 
   app.post<{ Body: ReportUserRequest }>('/api/reports', { config: { rateLimit: { max: 10, timeWindow: '1 hour' } } }, async (request) => {
     const me = await request.requireAuth();
-    const target = await requireTarget(request.body?.userId, me);
+    const roomId = typeof request.body?.roomId === 'string' ? request.body.roomId : null;
+    const reviewGameId = typeof request.body?.reviewGameId === 'string' ? request.body.reviewGameId : null;
+    let reportedId = request.body?.userId;
+    if (roomId) {
+      // A room is reported through its owner. Only people who can see the room (members, or anyone for a public room).
+      const room = await prisma.room.findFirst({
+        where: { id: roomId, deletedAt: null, OR: [{ isPublic: true }, { members: { some: { userId: me } } }] },
+        select: { createdBy: true },
+      });
+      if (!room) throw new HttpError(404, 'Room not found');
+      reportedId = room.createdBy;
+    }
+    const target = await requireTarget(reportedId, me);
+    if (reviewGameId && !(await prisma.gameReview.findUnique({ where: { gameId_userId: { gameId: reviewGameId, userId: target.id } }, select: { gameId: true } }))) {
+      throw new HttpError(404, 'Review not found');
+    }
     const reason = typeof request.body?.reason === 'string' ? request.body.reason.trim() : '';
     const rawReasons = request.body?.reasons ?? [];
     if (!Array.isArray(rawReasons) || !rawReasons.every((r) => (REPORT_REASONS as readonly string[]).includes(r))) throw new HttpError(400, 'Unknown report reason');
     const reasons = [...new Set(rawReasons)] as ReportReason[];
     if (!reason && reasons.length === 0) throw new HttpError(400, 'Pick a reason or tell us why you are reporting them');
     if (reason.length > MAX_REASON_LENGTH) throw new HttpError(400, `Keep the reason under ${MAX_REASON_LENGTH} characters`);
-    await prisma.userReport.create({ data: { reporterId: me, reportedUserId: target.id, reason, reasons } });
+    await prisma.userReport.create({ data: { reporterId: me, reportedUserId: target.id, reason, reasons, roomId, reviewGameId } });
     const reporter = await prisma.user.findUnique({ where: { id: me }, select: { displayName: true } });
     void notifyAdmins('admin_report', `${reporter?.displayName ?? 'Someone'} reported ${target.displayName}. Open Reports on the Administrator page to read why.`);
     if (request.body.alsoBlock) await blockUser(me, target.id);
@@ -78,11 +93,22 @@ export default async function moderationRoutes(app: FastifyInstance) {
       where: { resolvedAt: resolved ? { not: null } : null },
       orderBy: { createdAt: 'desc' },
       take: 200,
-      include: { reporter: { select: { id: true, displayName: true } }, reported: { select: { id: true, displayName: true, bannedAt: true } } },
+      include: { reporter: { select: { id: true, displayName: true } }, reported: { select: { id: true, displayName: true, bannedAt: true, profileSlug: true } } },
     });
+    const roomIds = [...new Set(rows.map((r) => r.roomId).filter((x): x is string => !!x))];
+    const rooms = roomIds.length > 0 ? await prisma.room.findMany({ where: { id: { in: roomIds }, deletedAt: null }, select: { id: true, name: true } }) : [];
+    const roomName = new Map(rooms.map((r) => [r.id, r.name]));
+    const reviewKeys = rows.filter((r) => r.reviewGameId).map((r) => ({ gameId: r.reviewGameId!, userId: r.reportedUserId }));
+    const reviews = reviewKeys.length > 0 ? await prisma.gameReview.findMany({ where: { OR: reviewKeys }, select: { gameId: true, userId: true, note: true } }) : [];
+    const reviewNote = new Map(reviews.map((v) => [`${v.gameId}:${v.userId}`, v.note]));
     return {
       reports: rows.map((r) => ({
         id: r.id,
+        profileSlug: r.reported.profileSlug,
+        roomId: r.roomId,
+        roomName: r.roomId ? (roomName.get(r.roomId) ?? null) : null,
+        reviewGameId: r.reviewGameId,
+        reviewNote: r.reviewGameId ? (reviewNote.get(`${r.reviewGameId}:${r.reportedUserId}`) ?? null) : null,
         reporter: r.reporter,
         reported: { id: r.reported.id, displayName: r.reported.displayName },
         reportedBanned: !!r.reported.bannedAt,
@@ -142,6 +168,89 @@ export default async function moderationRoutes(app: FastifyInstance) {
     await resolveAfterAction(report, actorId);
     await logAdminAction({ actorId, actorLabel: actor.email, action: 'user.reset_avatar', targetLabel: report.reported.displayName, metadata: { userId: report.reported.id, reportId: report.id } });
     await notifyAccountChange(report.reported.id, 'An administrator removed your profile picture because it broke the rules.');
+    return { ok: true };
+  });
+
+
+  // The profile link is offensive: remove it and blacklist it. Resolves the report.
+  app.post<{ Params: { id: string } }>('/api/admin/reports/:id/remove-profile-link', { config: { rateLimit: { max: 20, timeWindow: '1 minute' } } }, async (request) => {
+    const actorId = await request.requireAuth();
+    const actor = await requireAdmin(actorId);
+    const report = await loadReportForAction(request.params.id);
+    if (report.reported.isAdmin) throw new HttpError(400, 'Remove their administrator role first');
+    const user = await prisma.user.findUniqueOrThrow({ where: { id: report.reported.id }, select: { profileSlug: true } });
+    if (user.profileSlug) await blockDisplayName(user.profileSlug, actorId);
+    await prisma.user.update({ where: { id: report.reported.id }, data: { profileSlug: null } });
+    await resolveAfterAction(report, actorId);
+    await logAdminAction({ actorId, actorLabel: actor.email, action: 'user.remove_profile_link', targetLabel: report.reported.displayName, metadata: { userId: report.reported.id, slug: user.profileSlug, reportId: report.id } });
+    await notifyAccountChange(report.reported.id, 'An administrator removed your custom profile link because it broke the rules.');
+    return { ok: true };
+  });
+
+  // The room name is offensive: rename it to a neutral one and blacklist the old name. Resolves the report.
+  app.post<{ Params: { id: string } }>('/api/admin/reports/:id/reset-room-name', { config: { rateLimit: { max: 20, timeWindow: '1 minute' } } }, async (request) => {
+    const actorId = await request.requireAuth();
+    const actor = await requireAdmin(actorId);
+    const report = await loadReportForAction(request.params.id);
+    if (!report.roomId) throw new HttpError(400, 'This report is not about a room');
+    const room = await prisma.room.findFirst({ where: { id: report.roomId, deletedAt: null }, select: { id: true, name: true, createdBy: true } });
+    if (!room) throw new HttpError(404, 'Room not found');
+    await blockDisplayName(room.name, actorId);
+    await prisma.room.update({ where: { id: room.id }, data: { name: placeholderDisplayName().replace('Player', 'Room') } });
+    await resolveAfterAction(report, actorId);
+    await logAdminAction({ actorId, actorLabel: actor.email, action: 'room.reset_name', targetLabel: room.name, metadata: { roomId: room.id, reportId: report.id } });
+    await notifyAccountChange(room.createdBy, `An administrator renamed your room "${room.name}" because its name broke the rules.`);
+    return { ok: true };
+  });
+
+  // The review note is offensive: clear it (the scores stay). Resolves the report.
+  app.post<{ Params: { id: string } }>('/api/admin/reports/:id/clear-review-note', { config: { rateLimit: { max: 20, timeWindow: '1 minute' } } }, async (request) => {
+    const actorId = await request.requireAuth();
+    const actor = await requireAdmin(actorId);
+    const report = await loadReportForAction(request.params.id);
+    if (!report.reviewGameId) throw new HttpError(400, 'This report is not about a review');
+    await prisma.gameReview.updateMany({ where: { gameId: report.reviewGameId, userId: report.reported.id }, data: { note: null } });
+    await resolveAfterAction(report, actorId);
+    await logAdminAction({ actorId, actorLabel: actor.email, action: 'review.clear_note', targetLabel: report.reported.displayName, metadata: { gameId: report.reviewGameId, reportId: report.id } });
+    await notifyAccountChange(report.reported.id, 'An administrator removed the note on one of your reviews because it broke the rules.');
+    return { ok: true };
+  });
+
+  // The blacklist: whole names nobody may use, and banned words (see services/displayNames.ts).
+  app.get('/api/admin/blocked-text', async (request): Promise<AdminBlockedText> => {
+    const userId = await request.requireAuth();
+    await requireAdmin(userId);
+    const [names, words] = await Promise.all([
+      prisma.blockedDisplayName.findMany({ orderBy: { createdAt: 'desc' }, select: { normalized: true, example: true }, take: 500 }),
+      prisma.bannedWord.findMany({ orderBy: { createdAt: 'desc' }, select: { normalized: true, example: true }, take: 500 }),
+    ]);
+    return { names, words };
+  });
+
+  app.post<{ Body: { word?: string } }>('/api/admin/banned-words', { config: { rateLimit: { max: 30, timeWindow: '1 minute' } } }, async (request) => {
+    const actorId = await request.requireAuth();
+    const actor = await requireAdmin(actorId);
+    const word = typeof request.body?.word === 'string' ? request.body.word.trim() : '';
+    if (!(await addBannedWord(word, actorId))) throw new HttpError(400, `A banned word needs at least ${MIN_BANNED_WORD_LENGTH} letters or numbers`);
+    await logAdminAction({ actorId, actorLabel: actor.email, action: 'banned_word.add', targetLabel: word.slice(0, 80) });
+    return { ok: true };
+  });
+
+  app.delete<{ Params: { normalized: string } }>('/api/admin/banned-words/:normalized', async (request) => {
+    const actorId = await request.requireAuth();
+    const actor = await requireAdmin(actorId);
+    const normalized = normalizeDisplayName(request.params.normalized);
+    await prisma.bannedWord.deleteMany({ where: { normalized } });
+    await logAdminAction({ actorId, actorLabel: actor.email, action: 'banned_word.remove', targetLabel: normalized });
+    return { ok: true };
+  });
+
+  app.delete<{ Params: { normalized: string } }>('/api/admin/blocked-names/:normalized', async (request) => {
+    const actorId = await request.requireAuth();
+    const actor = await requireAdmin(actorId);
+    const normalized = normalizeDisplayName(request.params.normalized);
+    await prisma.blockedDisplayName.deleteMany({ where: { normalized } });
+    await logAdminAction({ actorId, actorLabel: actor.email, action: 'blocked_name.remove', targetLabel: normalized });
     return { ok: true };
   });
 

@@ -13,6 +13,7 @@ import { useUi } from '../context/UiContext';
 import { useFriendProfile, useFriends } from '../hooks/useFriends';
 import { FriendStatus } from '../dialogs/RoomDialogs';
 import { ProfileModeration } from '../components/ProfileModeration';
+import { ReportDialog } from '../components/ReportDialog';
 import { Dialog } from '../ui/Dialog';
 import { UiToast } from '../ui/ToastView';
 import { applyFeedFilter, FeedGroups, FilterChips, type FeedFilter } from './feed';
@@ -531,6 +532,7 @@ export function PublicProfilePage({ userId, signedIn }: { userId: string; signed
   const [openBadge, setOpenBadge] = useState<BadgeSummary | null>(null);
   const mobile = useIsMobile();
   const [openGame, setOpenGame] = useState<PublicProfileBeatenGame | null>(null);
+  const [reportingNote, setReportingNote] = useState(false);
   const [cardGame, setCardGame] = useState<PublicProfileGame | null>(null);
   const [addedIds, setAddedIds] = useState<Set<number>>(new Set());
   const beatenRef = useRef<HTMLDivElement>(null);
@@ -797,9 +799,25 @@ export function PublicProfilePage({ userId, signedIn }: { userId: string; signed
             <div style={st('padding:14px 16px;border-radius:14px;background:var(--surf);display:flex;flex-direction:column;gap:6px')}>
               <span style={st('font:600 12px var(--font-ui);color:var(--muted)')}>{t('pages.profile.says', { name: profile.displayName.toUpperCase() })}</span>
               <span style={st('font:italic 400 14px/1.5 var(--font-ui);color:var(--text2);text-wrap:pretty')}>“{openGame.review.note}”</span>
+              {signedIn && profile.viewer !== 'self' && (
+                <button
+                  type="button"
+                  onClick={() => setReportingNote(true)}
+                  style={st('align-self:flex-start;border:none;background:none;padding:0;color:var(--muted);font:500 12px var(--font-ui);text-decoration:underline;text-underline-offset:3px')}
+                >
+                  {t('social.report.note')}
+                </button>
+              )}
             </div>
           )}
         </Dialog>
+      )}
+      {reportingNote && openGame && profile && (
+        <ReportDialog
+          target={{ kind: 'review', userId: profile.userId, reviewGameId: openGame.id }}
+          title={t('social.report.noteTitle', { name: profile.displayName })}
+          onClose={() => setReportingNote(false)}
+        />
       )}
       {openBadge && profile && (
         <BadgeDetailDialog

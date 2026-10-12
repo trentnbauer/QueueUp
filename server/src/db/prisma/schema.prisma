@@ -1687,6 +1687,17 @@ model BlockedDisplayName {
   @@map("blocked_display_names")
 }
 
+/// A word administrators have banned from names, profile links, room names and review notes: any text
+/// containing it (ignoring case, spacing and punctuation) is refused. See services/displayNames.ts.
+model BannedWord {
+  normalized String   @id
+  example    String
+  createdBy  String?  @map("created_by")
+  createdAt  DateTime @default(now()) @map("created_at")
+
+  @@map("banned_words")
+}
+
 model UserBlock {
   blockerId String   @map("blocker_id")
   blockedId String   @map("blocked_id")
@@ -1709,6 +1720,9 @@ model UserReport {
   reason         String
   /// Ticked reasons (see REPORT_REASONS in the shared types); `reason` is the free text.
   reasons        String[]  @default([])
+  /// Set when the report is about a room (its name), or about one review note (the game; the author is reportedUserId).
+  roomId         String?   @map("room_id")
+  reviewGameId   String?   @map("review_game_id")
   createdAt      DateTime  @default(now()) @map("created_at")
   resolvedAt     DateTime? @map("resolved_at")
   resolvedBy     String?   @map("resolved_by")

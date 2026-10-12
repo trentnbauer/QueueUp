@@ -1,3 +1,4 @@
+import { assertTextAllowed } from './displayNames.js';
 import { Prisma } from '@prisma/client';
 import { prisma } from '../db/client.js';
 import { HttpError } from '../util/httpError.js';
@@ -119,6 +120,7 @@ export function normalizeProfileSlug(raw: unknown): string | null {
 /** Sets (or clears) the vanity profile name. */
 export async function setProfileSlug(userId: string, raw: unknown): Promise<string | null> {
   const slug = normalizeProfileSlug(raw);
+  if (slug) await assertTextAllowed(slug, 'That profile name');
   try {
     const updated = await prisma.user.update({ where: { id: userId }, data: { profileSlug: slug } });
     return updated.profileSlug;

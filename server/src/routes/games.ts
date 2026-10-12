@@ -1,3 +1,4 @@
+import { assertTextAllowed } from '../services/displayNames.js';
 import type { FastifyInstance } from 'fastify';
 import { Prisma } from '@prisma/client';
 import { prisma } from '../db/client.js';
@@ -1225,6 +1226,7 @@ export default async function gameRoutes(app: FastifyInstance) {
     const themes = score(body.themes);
     const note = typeof body.note === 'string' ? body.note.trim().slice(0, 280) : '';
     const recommend = typeof body.recommend === 'boolean' ? body.recommend : null;
+    if (note) await assertTextAllowed(note, 'That note');
     const hasAny = art !== null || gameplay !== null || story !== null || sound !== null || themes !== null || note.length > 0 || recommend !== null;
 
     // The caller's own review only (GameReview is one per person per game) - in a room, every
