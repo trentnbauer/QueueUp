@@ -32,10 +32,10 @@ export function AutoHideAdultRow() {
   const t = useT();
   const { enabled, loaded, pending, set } = useAutoHideAdult();
   return (
-    <div style={st('display:flex;align-items:center;gap:12px;min-height:58px;padding:0 14px 0 16px;background:var(--surf)')}>
-      <span style={st('flex:1;display:flex;flex-direction:column;gap:1px')}>
+    <div style={st('display:flex;align-items:center;gap:12px;min-height:58px;padding:12px 14px 12px 16px;background:var(--surf)')}>
+      <span style={st('flex:1;min-width:0;display:flex;flex-direction:column;gap:3px')}>
         <span style={st('font:600 15px var(--font-ui)')}>{t('settings.shelf.autoHideAdult.title')}</span>
-        <span style={st('font:400 12.5px var(--font-ui);color:var(--muted)')}>{t('settings.shelf.autoHideAdult.sub')}</span>
+        <span style={st('font:400 12.5px/1.45 var(--font-ui);color:var(--muted)')}>{t('settings.shelf.autoHideAdult.sub')}</span>
       </span>
       <Toggle on={enabled ?? false} disabled={!loaded || pending} onChange={set} label={t('settings.shelf.autoHideAdult.title')} />
     </div>
@@ -55,10 +55,10 @@ export function AdultScanRow() {
     onError: (err) => ui.showError(err instanceof Error ? err.message : t('settings.shelf.adultScan.failed')),
   });
   return (
-    <div style={st('display:flex;align-items:center;gap:12px;min-height:58px;padding:0 14px 0 16px;background:var(--surf)')}>
-      <span style={st('flex:1;display:flex;flex-direction:column;gap:1px')}>
+    <div style={st('display:flex;align-items:center;gap:12px;min-height:58px;padding:12px 14px 12px 16px;background:var(--surf)')}>
+      <span style={st('flex:1;min-width:0;display:flex;flex-direction:column;gap:3px')}>
         <span style={st('font:600 15px var(--font-ui)')}>{t('settings.shelf.adultScan.title')}</span>
-        <span style={st('font:400 12.5px var(--font-ui);color:var(--muted)')}>{t('settings.shelf.adultScan.sub')}</span>
+        <span style={st('font:400 12.5px/1.45 var(--font-ui);color:var(--muted)')}>{t('settings.shelf.adultScan.sub')}</span>
       </span>
       <Btn height={36} fontSize={13} disabled={scan.isPending} onClick={() => scan.mutate()}>
         {t('settings.shelf.adultScan.button')}

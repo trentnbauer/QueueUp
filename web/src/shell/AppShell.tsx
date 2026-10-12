@@ -47,7 +47,7 @@ export function AppShell({ children }: { children: ReactNode }) {
     }
   }, [collapsed]);
 
-  // The room's colour tints this shell (background, buttons, logo) - dialogs render outside it.
+  // The room's colour tints this shell (buttons, highlights, logo; not the background) - dialogs render outside it.
   // The Personal Shelf is tinted by the colour the person chose for it (if any), a room by its own.
   const { shelfColor } = useAuth();
   const roomColour = scope.room?.accentColor ?? (scope.isShelf ? shelfColor : null);

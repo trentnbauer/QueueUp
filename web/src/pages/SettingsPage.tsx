@@ -9,7 +9,7 @@ import { useConfirm } from '../context/ConfirmContext';
 import { useCurrencyRegion } from '../context/CurrencyRegionContext';
 import { useScope } from '../context/ScopeContext';
 import { useUi } from '../context/UiContext';
-import { AiSettingsDialog } from '../dialogs/AiSettingsDialog';
+import { AiSettingsForm } from '../dialogs/AiSettingsDialog';
 import { AvatarPicker } from '../dialogs/AvatarPicker';
 import { LibrarySources } from '../dialogs/ImportDialogs';
 import {
@@ -57,7 +57,6 @@ const SECTION_LABELS: Record<SettingsSection, MessageKey> = {
 };
 
 const ISSUES_URL = 'https://github.com/trentnbauer/QueueUp/issues/new/choose';
-const INTRO = 'font:400 13.5px/1.5 var(--font-ui);color:var(--muted);text-wrap:pretty';
 
 /** Settings (`/settings/:section`): everything about the account, libraries and how QueueUp looks,
  * one section at a time beside a sub-nav. On phones the sub-nav is the page at `/settings`, and a
@@ -391,18 +390,9 @@ function PreferencesSection() {
   );
 }
 
+/** Your AI providers, edited right here: the first one plus backups tried in order. */
 function AiSection() {
-  const t = useT();
-  const [open, setOpen] = useState(false);
-  return (
-    <>
-      <span style={st(INTRO)}>{t('settings.page.ai.intro')}</span>
-      <Group>
-        <NavRow label={t('settings.ai.title')} sub={t('settings.ai.nav.sub')} onClick={() => setOpen(true)} />
-      </Group>
-      {open && <AiSettingsDialog onClose={() => setOpen(false)} />}
-    </>
-  );
+  return <AiSettingsForm />;
 }
 
 function DataSection() {

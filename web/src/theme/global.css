@@ -82,8 +82,9 @@
 }
 
 /* ---- Room tint -------------------------------------------------------------------------------
- * Inside a room, the shelf shell (background, buttons, highlights, the queueup logo) picks up that
- * room's colour: --rh is the hue of the room's accent colour. Scoped to the shell element carrying
+ * Inside a room, the shelf shell (buttons, highlights, the queueup logo) picks up that room's colour;
+ * the page background stays neutral, so the app reads black and white with colour only on controls.
+ * --rh is the hue of the room's accent colour. Scoped to the shell element carrying
  * `data-room` (see AppShell), so dialogs, sheets and settings - which render in portals outside it -
  * keep the default colours. Same lightness/chroma ladders as the defaults; only the hue moves. The
  * Monochrome accent (data-accent on <html>) switches it off. */
@@ -105,16 +106,12 @@
   --accA45: oklch(0.74 0.15 var(--rh) / 0.45);
   --accA70: oklch(0.74 0.15 var(--rh) / 0.7);
   --accA80: oklch(0.74 0.15 var(--rh) / 0.8);
-  --bg: oklch(0.165 0.016 var(--rh));
-  --bg2: oklch(0.135 0.015 var(--rh));
   --hero1: oklch(0.26 0.06 var(--rh));
   --hero2: oklch(0.2 0.018 var(--rh));
 }
 :root[data-theme='light']:not([data-accent='mono']) [data-room] {
   --accText: oklch(0.48 0.14 var(--rh));
   --pos: oklch(0.52 0.15 var(--rh));
-  --bg: oklch(0.975 0.01 var(--rh));
-  --bg2: oklch(0.945 0.014 var(--rh));
   --hero1: oklch(0.9 0.07 var(--rh));
   --hero2: oklch(0.96 0.016 var(--rh));
 }
