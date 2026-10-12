@@ -619,9 +619,16 @@ export function PublicProfilePage({ userId, signedIn }: { userId: string; signed
     </button>
   );
 
+  // The page fades from the person's own colour (their shelf colour, which their avatar uses too)
+  // to black, then the plain background.
+  const tint = profile && /^#[0-9a-f]{6}$/i.test(profile.avatarColor) ? profile.avatarColor : null;
+  const pageBackground = tint
+    ? `linear-gradient(180deg, color-mix(in srgb, ${tint} 50%, black) 0, color-mix(in srgb, ${tint} 16%, black) 280px, var(--bg) 640px) var(--bg)`
+    : 'var(--bg)';
+
   return (
-    <div style={st('min-height:100vh;background:var(--bg);color:var(--text)')}>
-      <div style={st('border-bottom:1px solid var(--chip);background:linear-gradient(170deg, var(--hero1), var(--bg) 85%)')}>
+    <div style={{ ...st('min-height:100vh;color:var(--text)'), background: pageBackground }}>
+      <div style={st(`border-bottom:1px solid var(--chip);background:${tint ? 'transparent' : 'linear-gradient(170deg, var(--hero1), var(--bg) 85%)'}`)}>
         <div style={st('max-width:1120px;margin:0 auto;padding:0 clamp(16px,4vw,40px)')}>
           <div style={st('display:flex;align-items:center;gap:10px;height:68px')}>
             <Link to="/" style={st('flex:1;display:flex;text-decoration:none')}>
