@@ -5,7 +5,7 @@ import { unionOwnershipPlatforms } from './gameOwnership.js';
 import { deletePendingLibraryImport, recordTitleMatchAlias, recordTitleMatchSuggestion, userAliasSource } from './playniteImport.js';
 import type { SyncSource } from '@queueup/shared';
 
-const SYNC_SOURCES: SyncSource[] = ['steam', 'steam_wishlist', 'playnite', 'xbox', 'exophase', 'psn', 'retroachievements', 'file'];
+const SYNC_SOURCES: SyncSource[] = ['steam', 'steam_wishlist', 'playnite', 'xbox', 'exophase', 'psn', 'retroachievements', 'file', 'itch'];
 
 export function isSyncSource(source: string): source is SyncSource {
   return (SYNC_SOURCES as string[]).includes(source);

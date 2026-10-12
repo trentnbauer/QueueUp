@@ -104,6 +104,7 @@ const SYNC_SOURCE_LOGO: Record<SyncSource, LibraryKind | null> = {
   psn: 'playstation',
   retroachievements: 'retroachievements',
   file: null,
+  itch: null,
 };
 
 const SYNC_SOURCE_KEY: Record<SyncSource, MessageKey> = {
@@ -115,6 +116,7 @@ const SYNC_SOURCE_KEY: Record<SyncSource, MessageKey> = {
   psn: 'game.detail.syncSource.psn',
   retroachievements: 'game.detail.syncSource.retroachievements',
   file: 'game.detail.syncSource.file',
+  itch: 'game.detail.syncSource.itch',
 };
 
 /** Everything about one game - the body of both the desktop right panel and the phone sheet. */
