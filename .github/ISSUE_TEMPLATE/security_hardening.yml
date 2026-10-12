@@ -1,0 +1,44 @@
+name: Security hardening
+description: A non-sensitive security improvement (a missing rate limit, a stricter header, safer defaults). Not for exploitable vulnerabilities.
+labels: ["security"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        **Found something someone could exploit today?** Don't file it here, because issues are public. Use [private vulnerability reporting](https://github.com/trentnbauer/QueueUp/security/advisories/new) instead (see [SECURITY.md](https://github.com/trentnbauer/QueueUp/blob/main/SECURITY.md)).
+
+        This form is for hardening that's safe to discuss in the open.
+
+  - type: textarea
+    id: suggestion
+    attributes:
+      label: What should be hardened?
+      description: What's weaker than it should be, and what would you change?
+    validations:
+      required: true
+
+  - type: dropdown
+    id: area
+    attributes:
+      label: Area
+      options:
+        - Sign-in, sessions and accounts
+        - Rate limiting and abuse
+        - Stored secrets (AI keys, library tokens, encryption)
+        - Third-party integrations (IGDB, gg.deals, imports, AI providers)
+        - User-entered text and moderation
+        - Privacy and data handling
+        - HTTP headers, CSP and cookies
+        - Docker image and deployment defaults
+        - Dependencies
+        - Other
+    validations:
+      required: true
+
+  - type: textarea
+    id: references
+    attributes:
+      label: References
+      description: Links to guidance (OWASP, vendor docs) or the files involved, if you know them.
+    validations:
+      required: false
