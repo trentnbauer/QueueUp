@@ -1,11 +1,12 @@
 import type { FastifyInstance } from 'fastify';
-import { REPORT_REASONS, type AdminBlockedText, type AdminBan, type AdminUnbanRequest, type AdminUserReport, type BlockedUser, type ReportReason, type ReportUserRequest } from '@queueup/shared';
+import { BAN_REASONS, REPORT_REASONS, type BanReasonCode, type AdminBlockedText, type AdminBan, type AdminUnbanRequest, type AdminUserReport, type BlockedUser, type ReportReason, type ReportUserRequest } from '@queueup/shared';
 import { prisma } from '../db/client.js';
 import { HttpError } from '../util/httpError.js';
 import { requireAdmin } from '../services/adminAccess.js';
 import { logAdminAction } from '../services/adminAuditLog.js';
 import { blockUser } from '../services/blocks.js';
 import { forgetBan } from '../services/banCache.js';
+import { clearBannedIdentities, recordBannedIdentities } from '../services/banIdentities.js';
 import { notifyAdmins } from '../services/adminNotifications.js';
 import { addBannedWord, blockDisplayName, MIN_BANNED_WORD_LENGTH, normalizeDisplayName, placeholderDisplayName } from '../services/displayNames.js';
 import { notifyAccountChange } from '../services/notifications.js';
@@ -256,7 +257,7 @@ export default async function moderationRoutes(app: FastifyInstance) {
 
   const MAX_BAN_REASON = 500;
 
-  app.post<{ Params: { id: string }; Body: { reason?: string } }>('/api/admin/users/:id/ban', { config: { rateLimit: { max: 20, timeWindow: '1 minute' } } }, async (request) => {
+  app.post<{ Params: { id: string }; Body: { reason?: string; code?: string } }>('/api/admin/users/:id/ban', { config: { rateLimit: { max: 20, timeWindow: '1 minute' } } }, async (request) => {
     const actorId = await request.requireAuth();
     const actor = await requireAdmin(actorId);
     const target = await prisma.user.findUnique({ where: { id: request.params.id }, select: { id: true, displayName: true, isAdmin: true, bannedAt: true } });
@@ -265,10 +266,13 @@ export default async function moderationRoutes(app: FastifyInstance) {
     if (target.isAdmin) throw new HttpError(400, 'Remove their administrator role before banning them');
     const reason = typeof request.body?.reason === 'string' ? request.body.reason.trim() : '';
     if (reason.length > MAX_BAN_REASON) throw new HttpError(400, `Keep the reason under ${MAX_BAN_REASON} characters`);
+    const code = request.body?.code ?? 'other';
+    if (!(BAN_REASONS as readonly string[]).includes(code)) throw new HttpError(400, 'Unknown ban reason');
     if (!target.bannedAt) {
-      await prisma.user.update({ where: { id: target.id }, data: { bannedAt: new Date(), banReason: reason || null } });
+      await prisma.user.update({ where: { id: target.id }, data: { bannedAt: new Date(), banReason: reason || null, banReasonCode: code } });
+      await recordBannedIdentities(target.id);
       forgetBan(target.id);
-      await logAdminAction({ actorId, actorLabel: actor.email, action: 'user.ban', targetLabel: target.displayName, metadata: { userId: target.id, reason: reason || null } });
+      await logAdminAction({ actorId, actorLabel: actor.email, action: 'user.ban', targetLabel: target.displayName, metadata: { userId: target.id, code, reason: reason || null } });
     }
     return { ok: true };
   });
@@ -280,9 +284,10 @@ export default async function moderationRoutes(app: FastifyInstance) {
     if (!target) throw new HttpError(404, 'User not found');
     if (target.bannedAt) {
       await prisma.$transaction([
-        prisma.user.update({ where: { id: target.id }, data: { bannedAt: null, banReason: null } }),
+        prisma.user.update({ where: { id: target.id }, data: { bannedAt: null, banReason: null, banReasonCode: null } }),
         prisma.unbanRequest.updateMany({ where: { userId: target.id, resolvedAt: null }, data: { resolvedAt: new Date(), resolvedBy: actorId } }),
       ]);
+      await clearBannedIdentities(target.id);
       forgetBan(target.id);
       await logAdminAction({ actorId, actorLabel: actor.email, action: 'user.unban', targetLabel: target.displayName, metadata: { userId: target.id } });
     }
@@ -293,11 +298,11 @@ export default async function moderationRoutes(app: FastifyInstance) {
     const userId = await request.requireAuth();
     await requireAdmin(userId);
     const [users, requests] = await Promise.all([
-      prisma.user.findMany({ where: { bannedAt: { not: null } }, orderBy: { bannedAt: 'desc' }, select: { id: true, displayName: true, banReason: true, bannedAt: true } }),
+      prisma.user.findMany({ where: { bannedAt: { not: null } }, orderBy: { bannedAt: 'desc' }, select: { id: true, displayName: true, banReason: true, banReasonCode: true, bannedAt: true } }),
       prisma.unbanRequest.findMany({ where: { resolvedAt: null }, orderBy: { createdAt: 'asc' }, include: { user: { select: { displayName: true } } } }),
     ]);
     return {
-      bans: users.map((u) => ({ userId: u.id, displayName: u.displayName, reason: u.banReason, bannedAt: u.bannedAt!.toISOString() })),
+      bans: users.map((u) => ({ userId: u.id, displayName: u.displayName, reasonCode: u.banReasonCode as BanReasonCode | null, reason: u.banReason, bannedAt: u.bannedAt!.toISOString() })),
       unbanRequests: requests.map((r) => ({ id: r.id, userId: r.userId, displayName: r.user.displayName, message: r.message, createdAt: r.createdAt.toISOString() })),
     };
   });

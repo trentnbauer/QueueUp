@@ -242,6 +242,7 @@ model User {
   /// Set while an administrator has banned this account: it can sign in, but only to see why and ask for an unban.
   bannedAt             DateTime?      @map("banned_at")
   banReason            String?        @map("ban_reason")
+  banReasonCode        String?        @map("ban_reason_code")
   /// An administrator made them give up an offensive display name: they must pick a new one before using the app.
   mustChangeName       Boolean        @default(false) @map("must_change_name")
   /// Which picture to show (see AVATAR_CHOICES). avatarUrl is that picture's URL, kept in step so every
@@ -1696,6 +1697,19 @@ model BannedWord {
   createdAt  DateTime @default(now()) @map("created_at")
 
   @@map("banned_words")
+}
+
+/// A sign-in identity (a provider id, or a provider-verified email) of someone who is banned. A new account
+/// made with one starts banned, so a ban cannot be dodged by signing up again. Removed on unban.
+model BannedIdentity {
+  kind         String
+  value        String
+  bannedUserId String   @map("banned_user_id")
+  createdAt    DateTime @default(now()) @map("created_at")
+
+  @@id([kind, value])
+  @@index([bannedUserId])
+  @@map("banned_identities")
 }
 
 model UserBlock {

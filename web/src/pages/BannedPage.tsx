@@ -4,7 +4,7 @@ import { moderationApi } from '../api/moderation';
 import { useAuth } from '../context/AuthContext';
 import { Btn, Wordmark } from '../ui/primitives';
 import { st } from '../ui/st';
-import { useT } from '../i18n';
+import { useT, type MessageKey } from '../i18n';
 
 const MAX_MESSAGE = 1000;
 
@@ -42,6 +42,7 @@ export function BannedPage(): ReactNode {
         <Wordmark size={23} />
         <span style={st('font:700 28px/1.1 var(--font-display);letter-spacing:-0.03em')}>{t('social.ban.title')}</span>
         <span style={st('font:400 15px/1.5 var(--font-ui);color:var(--muted)')}>{t('social.ban.body')}</span>
+        {banned?.reasonCode && <span style={st('font:600 14.5px/1.5 var(--font-ui)')}>{t(`social.ban.code.${banned.reasonCode}` as MessageKey)}</span>}
         {banned?.reason && <span style={st('font:600 14.5px/1.5 var(--font-ui);overflow-wrap:anywhere')}>{t('social.ban.reason', { reason: banned.reason })}</span>}
         {requested ? (
           <span style={st('font:400 14.5px/1.5 var(--font-ui)')}>{t('social.ban.requested')}</span>

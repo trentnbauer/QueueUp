@@ -1,4 +1,5 @@
 import { useState, type ReactNode } from 'react';
+import { BAN_REASONS, type BanReasonCode } from '@queueup/shared';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { moderationApi } from '../api/moderation';
 import { useConfirm } from '../context/ConfirmContext';
@@ -25,6 +26,7 @@ export function AdminReports(): ReactNode {
   const bans = useQuery({ queryKey: ['admin', 'bans'], queryFn: moderationApi.adminBans });
   const [banning, setBanning] = useState<{ id: string; name: string } | null>(null);
   const [banReason, setBanReason] = useState('');
+  const [banCode, setBanCode] = useState<BanReasonCode>('other');
 
   const refresh = () => {
     void queryClient.invalidateQueries({ queryKey: ['admin', 'reports'] });
@@ -42,11 +44,12 @@ export function AdminReports(): ReactNode {
     onError,
   });
   const ban = useMutation({
-    mutationFn: (b: { id: string; name: string; reason: string }) => moderationApi.ban(b.id, b.reason),
+    mutationFn: (b: { id: string; name: string; code: BanReasonCode; reason: string }) => moderationApi.ban(b.id, b.code, b.reason),
     onSuccess: (_r, b) => {
       refresh();
       setBanning(null);
       setBanReason('');
+      setBanCode('other');
       ui.notify(t('social.ban.admin.done', { name: b.name }));
     },
     onError,
@@ -188,6 +191,7 @@ export function AdminReports(): ReactNode {
                     {t('social.ban.admin.unban')}
                   </Btn>
                 </div>
+                {b.reasonCode && <span style={st('font:600 12.5px var(--font-ui)')}>{t(`social.ban.code.${b.reasonCode}` as MessageKey)}</span>}
                 {b.reason && <span style={st('font:400 13px/1.5 var(--font-ui);color:var(--muted);overflow-wrap:anywhere')}>{b.reason}</span>}
               </div>
             ))}
@@ -200,6 +204,20 @@ export function AdminReports(): ReactNode {
       {banning && (
         <Dialog title={t('social.ban.admin.title', { name: banning.name })} onClose={() => setBanning(null)} width={440}>
           <span style={st('font:400 13.5px/1.5 var(--font-ui);color:var(--muted)')}>{t('social.ban.admin.message')}</span>
+          <div style={st('display:flex;flex-wrap:wrap;gap:6px')} role="radiogroup" aria-label={t('social.ban.admin.reasonLabel')}>
+            {BAN_REASONS.map((c) => (
+              <button
+                key={c}
+                type="button"
+                role="radio"
+                aria-checked={banCode === c}
+                onClick={() => setBanCode(c)}
+                style={st(`padding:6px 12px;border-radius:999px;border:1px solid ${banCode === c ? 'var(--text)' : 'var(--line)'};background:${banCode === c ? 'var(--chip)' : 'var(--surf)'};color:var(--text);font:600 12.5px var(--font-ui)`)}
+              >
+                {t(`social.ban.code.${c}` as MessageKey)}
+              </button>
+            ))}
+          </div>
           <textarea
             value={banReason}
             onChange={(e) => setBanReason(e.target.value)}
@@ -210,7 +228,7 @@ export function AdminReports(): ReactNode {
             style={st('width:100%;box-sizing:border-box;resize:vertical;padding:12px;border-radius:14px;border:1px solid var(--line);background:var(--surf);color:var(--text);font:400 14.5px/1.55 var(--font-ui)')}
           />
           <div style={st('display:flex;gap:8px')}>
-            <Btn kind="danger" height={40} padX={18} disabled={ban.isPending} onClick={() => ban.mutate({ ...banning, reason: banReason })}>
+            <Btn kind="danger" height={40} padX={18} disabled={ban.isPending} onClick={() => ban.mutate({ ...banning, code: banCode, reason: banReason })}>
               {t('social.ban.admin.confirm')}
             </Btn>
             <Btn kind="ghost" height={40} padX={14} disabled={ban.isPending} onClick={() => setBanning(null)}>

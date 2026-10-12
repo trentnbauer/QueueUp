@@ -3,6 +3,8 @@ import fp from 'fastify-plugin';
 import { Prisma } from '@prisma/client';
 import { env } from '../config/env.js';
 import { prisma } from '../db/client.js';
+import { notifyAdmins } from '../services/adminNotifications.js';
+import { matchesBannedIdentity, recordBannedIdentities } from '../services/banIdentities.js';
 import { avatarSourceKey, effectiveAvatarUrl, readSources } from '../services/avatars.js';
 import { isDisplayNameBlocked, placeholderDisplayName } from '../services/displayNames.js';
 import { BannedError, isBanned } from '../services/banCache.js';
@@ -136,7 +138,12 @@ async function getOrCreateUser({ emailVerified, ...profile }: {
   try {
     // A provider name that is on the blacklist is replaced, and the person picks their own.
     const blockedName = await isDisplayNameBlocked(profile.displayName);
-    const user = await prisma.user.create({ data: { ...profile, ...(blockedName && { displayName: placeholderDisplayName(), mustChangeName: true }), emailVerified, avatarSources: profile.avatarUrl ? { [avatarSourceKey(profile.oidcSub)]: profile.avatarUrl } : {}, avatarColor: randomAvatarColor(), isAdmin, isSuperAdmin, onboardingPending: true } });
+    const evading = await matchesBannedIdentity({ oidcSub: profile.oidcSub, email: profile.email, emailVerified });
+    const user = await prisma.user.create({ data: { ...profile, ...(blockedName && { displayName: placeholderDisplayName(), mustChangeName: true }), emailVerified, avatarSources: profile.avatarUrl ? { [avatarSourceKey(profile.oidcSub)]: profile.avatarUrl } : {}, avatarColor: randomAvatarColor(), isAdmin, isSuperAdmin, onboardingPending: true, ...(evading && !isAdmin && { bannedAt: new Date(), banReasonCode: 'ban_evasion', banReason: 'This sign-in belongs to an account that was banned.' }) } });
+    if (user.bannedAt) {
+      await recordBannedIdentities(user.id);
+      void notifyAdmins('admin_report', `${user.displayName} signed up with the identity of a banned account and was banned automatically. Open Reports on the Administrator page to review.`);
+    }
     return { user, isNewUser: true };
   } catch (err) {
     // Lost a race against a concurrent request for this same not-yet-existing account (issue
