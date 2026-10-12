@@ -33,7 +33,7 @@ export const authApi = {
     }>('/api/me'),
   completeOnboarding: () => apiPost<{ ok: true }>('/api/me/onboarding-complete'),
   /** Sign-in methods, plus the Turnstile site key when the sign-in captcha is on (issue #665). */
-  providers: () => apiGet<{ providers: string[]; turnstileSiteKey: string | null }>('/api/auth/providers'),
+  providers: () => apiGet<{ providers: string[]; turnstileSiteKey: string | null; signupMode?: 'open' | 'invite' }>('/api/auth/providers'),
   updateOwnedPlatforms: (platforms: RoomPlatform[]) =>
     apiPatch<{ ownedPlatforms: RoomPlatform[] }>('/api/me/owned-platforms', { platforms }),
   setProfileVisibility: (visibility: ProfileVisibility) =>
@@ -51,8 +51,14 @@ export const authApi = {
   setAvatarChoice: (choice: AvatarChoice) => apiPut<{ choice: AvatarChoice; avatarUrl: string | null }>('/api/me/avatar', { choice }),
   setShelfColor: (colour: string | null) => apiPatch<{ shelfColor: string | null }>('/api/me/shelf-colour', { colour }),
   setProfileSlug: (slug: string | null) => apiPatch<{ profileSlug: string | null }>('/api/me/profile-slug', { slug }),
-  loginUrl: (provider: string, captcha?: string | null) =>
-    `${getBasePath()}/auth/${provider}/login${captcha ? `?captcha=${encodeURIComponent(captcha)}` : ''}`,
+  /** `invite` is carried through the provider round trip for invite-only servers (#1096). */
+  loginUrl: (provider: string, captcha?: string | null, invite?: string | null) => {
+    const params = new URLSearchParams();
+    if (captcha) params.set('captcha', captcha);
+    if (invite) params.set('invite', invite);
+    const qs = params.toString();
+    return `${getBasePath()}/auth/${provider}/login${qs ? `?${qs}` : ''}`;
+  },
   linkUrl: (provider: string) => `${getBasePath()}/auth/${provider}/link`,
   unlink: (provider: string) => apiDelete(`/auth/${provider}/unlink`),
   logout: () => apiPost<void>('/auth/logout'),

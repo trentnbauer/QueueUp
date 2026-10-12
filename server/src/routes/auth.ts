@@ -10,6 +10,8 @@ import { env } from '../config/env.js';
 import { notifyAccountChange } from '../services/notifications.js';
 import { prisma } from '../db/client.js';
 import { getOrCreateUser, primaryProviderOf } from '../plugins/auth.js';
+import siteInviteRoutes from './siteInvites.js';
+import { joinRoomForInvite, resolveInvite, SignupInviteRequiredError } from '../services/signupInvites.js';
 import { toUserDto } from '../util/dto.js';
 import { HttpError } from '../util/httpError.js';
 import { getTurnstileConfig, verifyTurnstileToken } from '../services/turnstile.js';
@@ -143,18 +145,27 @@ async function unlinkAccount(userId: string, provider: string): Promise<void> {
 }
 
 export default async function authRoutes(app: FastifyInstance) {
+  await app.register(siteInviteRoutes);
+
   app.get('/api/auth/providers', async () => {
-    if (env.DEV_FAKE_AUTH) return { providers: [], turnstileSiteKey: null };
+    if (env.DEV_FAKE_AUTH) return { providers: [], turnstileSiteKey: null, signupMode: 'open' as const };
     // The sign-in page renders the Turnstile widget (issue #665) when this is set.
     const turnstile = await getTurnstileConfig();
-    return { providers: Array.from(app.authProviders.keys()), turnstileSiteKey: turnstile?.siteKey ?? null };
+    return { providers: Array.from(app.authProviders.keys()), turnstileSiteKey: turnstile?.siteKey ?? null, signupMode: env.SIGNUP_MODE };
+  });
+
+  // Whether a pasted invite would let a new account be created, so the sign-in page can say so before
+  // sending the person off to a provider. Answers only yes or no (nothing about why not), and is
+  // tightly rate-limited so codes cannot be guessed here.
+  app.post<{ Body: { code?: unknown } }>('/api/auth/invite/check', { config: { rateLimit: { max: 10, timeWindow: '1 minute' } } }, async (request) => {
+    return { valid: (await resolveInvite(request.body?.code)) !== null };
   });
 
   // Login/callback get a tighter limit than the global default - these are the endpoints an
   // attacker would actually hammer to brute-force or abuse a sign-in flow.
   const authRateLimit = { config: { rateLimit: { max: 20, timeWindow: '1 minute' } } };
 
-  app.get<{ Params: { provider: string }; Querystring: { captcha?: string } }>('/auth/:provider/login', authRateLimit, async (request, reply) => {
+  app.get<{ Params: { provider: string }; Querystring: { captcha?: string; invite?: string } }>('/auth/:provider/login', authRateLimit, async (request, reply) => {
     if (env.DEV_FAKE_AUTH) {
       return reply.redirect(env.APP_BASE_URL);
     }
@@ -174,6 +185,11 @@ export default async function authRoutes(app: FastifyInstance) {
     // A link attempt abandoned earlier in this session would otherwise turn this plain sign-in's
     // callback into "attach this account to whoever started the link".
     delete request.session.linkTargetUserId;
+    // An invite for SIGNUP_MODE=invite rides in the session through the provider and back; it is
+    // only checked when an account is actually created.
+    const invite = typeof request.query.invite === 'string' ? request.query.invite.trim().slice(0, 64) : '';
+    if (invite) request.session.signupInvite = invite;
+    else delete request.session.signupInvite;
     const authUrl = await provider.buildAuthUrl(request);
     return reply.redirect(authUrl);
   });
@@ -227,7 +243,21 @@ export default async function authRoutes(app: FastifyInstance) {
       return reply.redirect(await linkAccount(linkTargetUserId, request.params.provider, profile));
     }
 
-    const { user, isNewUser } = await getOrCreateUser(profile);
+    let created;
+    try {
+      created = await getOrCreateUser(profile, { invite: request.session.signupInvite });
+    } catch (err) {
+      if (err instanceof SignupInviteRequiredError) {
+        // Back to the sign-in page, which explains and offers a field for an invite code.
+        delete request.session.authCodeVerifier;
+        delete request.session.authState;
+        delete request.session.signupInvite;
+        return reply.redirect(`${env.APP_BASE_URL}${env.APP_BASE_URL.includes('?') ? '&' : '?'}signin=invite`);
+      }
+      throw err;
+    }
+    const { user, isNewUser, invite } = created;
+    if (isNewUser && invite) await joinRoomForInvite(user.id, invite);
 
     // Regenerate the session ID on successful login (issues a fresh cookie) so a pre-auth session
     // ID can never carry over into an authenticated one.

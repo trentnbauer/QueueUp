@@ -5,6 +5,7 @@ import { REVIEW_CATEGORIES, type BadgeSummary, type PublicProfileBeatenGame, typ
 import { apiGet } from '../api/client';
 import { authApi } from '../api/auth';
 import { gamesApi } from '../api/games';
+import { siteInvitesApi } from '../api/siteInvites';
 import { playTogetherApi } from '../api/playTogether';
 import { publicProfileApi } from '../api/publicProfile';
 import { useAuth } from '../context/AuthContext';
@@ -148,11 +149,14 @@ function TurnstileWidget({ siteKey, onToken }: { siteKey: string; onToken: (toke
 export function LoginPage({
   providers,
   turnstileSiteKey = null,
+  inviteOnly = false,
   providersError = false,
   onRetry,
 }: {
   providers: string[] | null;
   turnstileSiteKey?: string | null;
+  /** SIGNUP_MODE=invite: a new account needs an invite, so the page asks for one (#1096). */
+  inviteOnly?: boolean;
   /** The sign-in options couldn't be loaded; shows a message with a retry instead of no buttons. */
   providersError?: boolean;
   onRetry?: () => void;
@@ -176,6 +180,27 @@ export function LoginPage({
     window.history.replaceState(window.history.state, '', `${window.location.pathname}${qs ? `?${qs}` : ''}`);
     return true;
   });
+  // Invite-only servers (#1096): the code comes from an invite link (?invite= for site invites, or the
+  // /join/ link stashed by App for a room invite) or is pasted here, and rides along on the login URL.
+  // The server sends someone without a valid one back with ?signin=invite.
+  const [invite, setInvite] = useState(() => {
+    const fromQuery = new URLSearchParams(window.location.search).get('invite');
+    try {
+      return (fromQuery ?? sessionStorage.getItem('sq-pending-invite') ?? '').trim();
+    } catch {
+      return (fromQuery ?? '').trim();
+    }
+  });
+  const [inviteRefused] = useState(() => new URLSearchParams(window.location.search).get('signin') === 'invite');
+  const [inviteState, setInviteState] = useState<'idle' | 'checking' | 'ok' | 'bad'>('idle');
+  async function checkInvite() {
+    setInviteState('checking');
+    try {
+      setInviteState((await siteInvitesApi.check(invite)).valid ? 'ok' : 'bad');
+    } catch {
+      setInviteState('bad');
+    }
+  }
   return (
     <div style={st('min-height:100vh;background:var(--bg);color:var(--text);display:flex;flex-direction:column;overflow-y:auto')}>
       <div style={st('flex:1;display:flex;flex-direction:column;justify-content:center;gap:28px;padding:40px 24px 24px;max-width:440px;width:100%;margin:0 auto')}>
@@ -202,6 +227,30 @@ export function LoginPage({
               {t('core.login.captchaFailed')}
             </span>
           )}
+          {inviteOnly && (
+            <div style={st('display:flex;flex-direction:column;gap:8px;padding:14px 16px;border-radius:16px;background:var(--surf)')}>
+              <span role={inviteRefused && inviteState === 'idle' ? 'alert' : undefined} style={st(`font:500 13.5px/1.4 var(--font-ui);color:${inviteRefused && inviteState === 'idle' ? 'var(--danger)' : 'var(--text2)'}`)}>
+                {inviteRefused && inviteState === 'idle' ? t('core.login.inviteNeeded') : inviteState === 'ok' ? t('core.login.inviteAccepted') : inviteState === 'bad' ? t('core.login.inviteInvalid') : t('core.login.inviteHint')}
+              </span>
+              <div style={st('display:flex;gap:8px')}>
+                <input
+                  value={invite}
+                  maxLength={64}
+                  onChange={(e) => {
+                    setInvite(e.target.value);
+                    setInviteState('idle');
+                  }}
+                  placeholder={t('core.login.inviteLabel')}
+                  aria-label={t('core.login.inviteLabel')}
+                  autoComplete="off"
+                  style={st(`${inputPill};flex:1;min-width:0`)}
+                />
+                <Btn kind="soft" height={44} padX={16} disabled={!invite.trim() || inviteState === 'checking'} onClick={() => void checkInvite()}>
+                  {t('core.login.inviteCheck')}
+                </Btn>
+              </div>
+            </div>
+          )}
           {providersError && (
             <div role="alert" style={st('display:flex;flex-direction:column;align-items:flex-start;gap:10px;padding:14px 16px;border-radius:16px;background:var(--surf)')}>
               <span style={st('font:500 14px/1.4 var(--font-ui);color:var(--danger)')}>{t('core.login.providersError')}</span>
@@ -218,7 +267,7 @@ export function LoginPage({
             return (
               <a
                 key={p}
-                href={ready ? authApi.loginUrl(p, captcha) : undefined}
+                href={ready ? authApi.loginUrl(p, captcha, inviteOnly ? invite.trim() : null) : undefined}
                 aria-disabled={!ready}
                 onClick={(e) => !ready && e.preventDefault()}
                 style={st(

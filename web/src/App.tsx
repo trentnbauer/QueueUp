@@ -126,6 +126,7 @@ export default function App() {
   useExophaseSyncToasts();
   const [providers, setProviders] = useState<string[] | null>(null);
   const [turnstileSiteKey, setTurnstileSiteKey] = useState<string | null>(null);
+  const [inviteOnly, setInviteOnly] = useState(false);
   const [showOnboarding, setShowOnboarding] = useState(false);
   useAnalyticsConsentSync(showOnboarding);
   const completingPendingJoin = useRef(false);
@@ -154,8 +155,9 @@ export default function App() {
     setProvidersError(false);
     authApi
       .providers()
-      .then(({ providers, turnstileSiteKey }) => {
+      .then(({ providers, turnstileSiteKey, signupMode }) => {
         setProviders(providers);
+        setInviteOnly(signupMode === 'invite');
         setTurnstileSiteKey(turnstileSiteKey);
       })
       .catch(() => setProvidersError(true));
@@ -285,7 +287,7 @@ export default function App() {
     return (
       <>
         <PageTitle page={t('core.login.title')} />
-        <LoginPage providers={providers} turnstileSiteKey={turnstileSiteKey} providersError={providersError && providers === null} onRetry={() => setProvidersAttempt((n) => n + 1)} />
+        <LoginPage providers={providers} turnstileSiteKey={turnstileSiteKey} inviteOnly={inviteOnly} providersError={providersError && providers === null} onRetry={() => setProvidersAttempt((n) => n + 1)} />
       </>
     );
   }

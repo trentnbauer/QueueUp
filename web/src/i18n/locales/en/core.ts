@@ -20,4 +20,10 @@ export const core = {
   "core.settings.language.sub": "More languages are on the way.",
   "core.login.title": "Sign in",
   "core.login.terms": "Terms",
+  "core.login.inviteNeeded": "This server is invite-only. Paste an invite code below, or open an invite link, then sign in again.",
+  "core.login.inviteInvalid": "That invite code is not valid. Check it and try again.",
+  "core.login.inviteLabel": "Invite code",
+  "core.login.inviteHint": "New here? This server needs an invite to create an account.",
+  "core.login.inviteCheck": "Use this invite",
+  "core.login.inviteAccepted": "Invite accepted. Sign in to create your account.",
 } as const;
