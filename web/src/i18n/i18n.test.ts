@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { en } from './locales/en';
 import { pirate } from './locales/pirate';
 import { isValidElement } from 'react';
-import { LANGUAGES, rich, translate, type MessageKey } from './index';
+import { LANGUAGES, loadLanguage, rich, translate, type MessageKey } from './index';
 
 const placeholders = (s: string) => [...s.matchAll(/\{(\w+)\}/g)].map((m) => m[1]).sort();
 
@@ -15,8 +15,11 @@ describe('translate', () => {
     expect(translate('en', 'core.login.signInWith', {})).toBe('Sign in with {provider}');
   });
 
-  it('has English and Pirate', () => {
+  it('has English and Pirate', async () => {
     expect(LANGUAGES.map((l) => l.code)).toEqual(['en', 'pirate']);
+    // Pirate is its own chunk: English stands in until it has loaded.
+    expect(translate('pirate', 'core.login.signInWith', { provider: 'Discord' })).toBe('Sign in with Discord');
+    await loadLanguage('pirate');
     expect(translate('pirate', 'core.login.signInWith', { provider: 'Discord' })).toBe('Come aboard with Discord');
   });
 });
