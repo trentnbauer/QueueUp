@@ -20,7 +20,6 @@ import { useScope } from '../context/ScopeContext';
 import { useUi } from '../context/UiContext';
 import { useFriends } from '../hooks/useFriends';
 import { useRooms } from '../hooks/useRooms';
-import { AiSettingsDialog } from './AiSettingsDialog';
 import { Dialog } from '../ui/Dialog';
 import { NavRow } from './SettingsParts';
 import { usePlayNextTab } from '../home/playNextTab';
@@ -300,8 +299,6 @@ function Switch({ title, sub, on, onChange }: { title: string; sub: string; on: 
   );
 }
 
-/** Everything about the room in focus: invite, suggestions, members, details, Discord, export,
- * year in review, activity, leave/delete. Most switches save straight away. */
 /** A room's Spin type and Spin defaults (#801), one row in Room settings that opens this. */
 function RoomSpinSettingsDialog({ room, patch, onClose }: { room: Room; patch: (body: Parameters<typeof roomsApi.update>[1], toast?: string) => void; onClose: () => void }) {
   const spinMax = room.spinOwnershipMaxPrice;
@@ -366,6 +363,87 @@ function RoomSpinSettingsDialog({ room, patch, onClose }: { room: Room; patch: (
   );
 }
 
+/** The room's Discord hook-up: the webhook, the server invite link and which events get posted. */
+function RoomDiscordDialog({ room, patch, onClose }: { room: Room; patch: (body: Parameters<typeof roomsApi.update>[1], toast?: string) => void; onClose: () => void }) {
+  const t = useT();
+  const [hook, setHook] = useState(room.discordWebhookUrl ?? '');
+  const [discordInvite, setDiscordInvite] = useState(room.discordInviteUrl ?? '');
+  const events = resolveDiscordEvents(room.discordEvents);
+  const hasHook = !!room.discordWebhookUrl;
+  const discordInviteValid = !discordInvite.trim() || /^https:\/\/(discord\.gg|(www\.)?discord(app)?\.com\/invite)\/[\w-]+\/?$/.test(discordInvite.trim());
+  const hookValid = !hook.trim() || /^https:\/\/(discord\.com|discordapp\.com)\/api\/webhooks\//.test(hook.trim());
+  return (
+    <Dialog onClose={onClose} title={t('room.settings.discordRow')} gap={12}>
+      <div style={st('display:flex;flex-direction:column;gap:8px;padding:14px 16px;border-radius:14px;background:var(--surf)')}>
+            <span style={st('font:500 14.5px var(--font-ui)')}>{t('room.settings.discord')}</span>
+            <span style={st('font:400 12px/1.45 var(--font-ui);color:var(--muted)')}>{t('room.settings.discordHint')}</span>
+            <div style={st('display:flex;gap:8px')}>
+              <input value={hook} onChange={(e) => setHook(e.target.value)} placeholder="https://discord.com/api/webhooks/…" aria-label={t('room.settings.discordAria')} style={st(inputField, { flex: 1, minWidth: 0, height: 42, borderRadius: 12, fontSize: 13.5 })} />
+              {hook.trim() !== (room.discordWebhookUrl ?? '') && (
+                <Btn kind="text" height={42} padX={14} fontSize={13} weight={700} disabled={!hookValid} onClick={() => patch({ discordWebhookUrl: hook.trim() || null }, hook.trim() ? t('room.settings.webhookSaved') : t('room.settings.webhookRemoved'))}>
+                  {t('common.save')}
+                </Btn>
+              )}
+            </div>
+            {!hookValid && <span style={st('font:400 12px var(--font-ui);color:var(--danger)')}>{t('room.settings.webhookInvalid')}</span>}
+            <span style={st('font:500 14.5px var(--font-ui);padding-top:6px')}>{t('room.settings.discordInvite')}</span>
+            <span style={st('font:400 12px/1.45 var(--font-ui);color:var(--muted)')}>{t('room.settings.discordInviteHint')}</span>
+            <div style={st('display:flex;gap:8px')}>
+              <input value={discordInvite} onChange={(e) => setDiscordInvite(e.target.value)} placeholder="https://discord.gg/…" aria-label={t('room.settings.discordInviteAria')} style={st(inputField, { flex: 1, minWidth: 0, height: 42, borderRadius: 12, fontSize: 13.5 })} />
+              {discordInvite.trim() !== (room.discordInviteUrl ?? '') && (
+                <Btn kind="text" height={42} padX={14} fontSize={13} weight={700} disabled={!discordInviteValid} onClick={() => patch({ discordInviteUrl: discordInvite.trim() || null }, discordInvite.trim() ? t('room.settings.inviteLinkSaved') : t('room.settings.inviteLinkRemoved'))}>
+                  {t('common.save')}
+                </Btn>
+              )}
+            </div>
+            {!discordInviteValid && <span style={st('font:400 12px var(--font-ui);color:var(--danger)')}>{t('room.settings.discordInviteInvalid')}</span>}
+            <div style={st(`display:flex;flex-direction:column;gap:8px;padding-top:6px;opacity:${hasHook ? 1 : 0.5}`)}>
+              <span style={st(LABEL)}>{t('room.settings.postWhen')}</span>
+              <div style={st('display:flex;flex-wrap:wrap;gap:6px')}>
+                {DISCORD_EVENT_KEYS.map((k: DiscordEventKey) => {
+                  const on = events[k];
+                  return (
+                    <button
+                      key={k}
+                      type="button"
+                      role="checkbox"
+                      aria-checked={on}
+                      disabled={!hasHook}
+                      onClick={() => patch({ discordEvents: { [k]: !on } })}
+                      style={st(`display:flex;align-items:center;gap:6px;height:34px;padding:0 12px 0 8px;border-radius:999px;border:1px solid ${on ? 'var(--acc)' : 'var(--line)'};background:${on ? 'var(--accSoft)' : 'transparent'};color:${on ? 'var(--accText)' : 'var(--muted)'};font:600 12.5px var(--font-ui)`)}
+                    >
+                      <span style={st(`width:18px;height:18px;border-radius:50%;background:${on ? 'var(--acc)' : 'var(--chip)'};color:var(--ink);display:flex;align-items:center;justify-content:center;font:800 10px var(--font-ui)`)}>{on ? '✓' : ''}</span>
+                      {discordEventLabel(k)}
+                    </button>
+                  );
+                })}
+              </div>
+              <span style={st('font:400 12px var(--font-ui);color:var(--faint)')}>
+                {hasHook ? t('room.settings.discordOnHint') : t('room.settings.discordOffHint')}
+              </span>
+            </div>
+          </div>
+    </Dialog>
+  );
+}
+
+/** "Connected · 3 events" for the Discord row. */
+function discordSummary(room: Room): string {
+  if (!room.discordWebhookUrl) return room.discordInviteUrl ? tr('room.settings.discordInviteOnly') : tr('room.settings.discordOff');
+  const n = DISCORD_EVENT_KEYS.filter((k) => resolveDiscordEvents(room.discordEvents)[k]).length;
+  return tr(n === 1 ? 'room.settings.discordOn.one' : 'room.settings.discordOn.other', { n });
+}
+
+/** Who provides the room's AI (its section has the way into your own AI settings too). */
+function RoomAiDialog({ roomId, canManage, onClose, onOpenProfile }: { roomId: string; canManage: boolean; onClose: () => void; onOpenProfile: () => void }) {
+  const t = useT();
+  return (
+    <Dialog onClose={onClose} title={t('room.settings.aiRow')} gap={12}>
+      <RoomAiSection roomId={roomId} canManage={canManage} onOpenProfile={onOpenProfile} />
+    </Dialog>
+  );
+}
+
 /** "Prize wheel · Under 20h · ★ 8+" for the Spin settings row. */
 function spinSummary(room: Room): string {
   const d = room.spinDefaults ?? {};
@@ -391,12 +469,11 @@ export function RoomSettingsDialog() {
   const { room, members, games, canManage } = scope;
 
   const [name, setName] = useState(room?.name ?? '');
-  const [hook, setHook] = useState(room?.discordWebhookUrl ?? '');
-  const [discordInvite, setDiscordInvite] = useState(room?.discordInviteUrl ?? '');
   const [hexDraft, setHexDraft] = useState<string | null>(null);
   const [spinOpen, setSpinOpen] = useState(false);
   const [masterLeaveOpen, setMasterLeaveOpen] = useState(false);
-  const [aiSettingsOpen, setAiSettingsOpen] = useState(false);
+  const [discordOpen, setDiscordOpen] = useState(false);
+  const [roomAiOpen, setRoomAiOpen] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   const roomId = room?.id ?? '';
@@ -477,11 +554,6 @@ export function RoomSettingsDialog() {
     }
   }
 
-  const events = resolveDiscordEvents(room.discordEvents);
-  const hasHook = !!room.discordWebhookUrl;
-  const discordInviteValid = !discordInvite.trim() || /^https:\/\/(discord\.gg|(www\.)?discord(app)?\.com\/invite)\/[\w-]+\/?$/.test(discordInvite.trim());
-  const hookValid = !hook.trim() || /^https:\/\/(discord\.com|discordapp\.com)\/api\/webhooks\//.test(hook.trim());
-
   return (
     <>
     <Dialog
@@ -543,30 +615,6 @@ export function RoomSettingsDialog() {
               ))}
             </select>
           </div>
-          <Switch title={t('room.settings.publicTitle')} sub={t('room.settings.publicSub')} on={room.isPublic} onChange={(v) => patch({ isPublic: v }, v ? t('room.settings.nowPublic') : t('room.settings.nowInviteOnly'))} />
-          <Switch
-            title={t('room.settings.anyoneAdds')}
-            sub={room.requireGameApproval ? t('room.settings.approvalOnSub') : t('room.settings.approvalOffSub')}
-            on={!room.requireGameApproval}
-            onChange={(v) => patch({ requireGameApproval: !v }, v ? t('room.settings.anyoneAdds') : t('room.settings.needApproval'))}
-          />
-          <div style={st('display:flex;flex-direction:column;gap:10px;padding:14px 16px;border-radius:14px;background:var(--surf)')}>
-            <span style={st('display:flex;flex-direction:column;gap:2px')}>
-              <span style={st('font:500 14.5px var(--font-ui)')}>{t('room.settings.whoInvites')}</span>
-              <span style={st('font:400 12px/1.45 var(--font-ui);color:var(--muted)')}>{t('room.settings.whoInvitesHint')}</span>
-            </span>
-            <div style={st('display:flex;flex-wrap:wrap;gap:6px')}>
-              <ChipToggle on={room.invitePermission === 'members'} onClick={() => patch({ invitePermission: 'members' }, t('room.settings.anyMemberInvites'))}>
-                {t('room.settings.anyMember')}
-              </ChipToggle>
-              <ChipToggle on={room.invitePermission === 'moderators'} onClick={() => patch({ invitePermission: 'moderators' }, t('room.settings.modsInvite'))}>
-                {t('room.settings.modsAndAbove')}
-              </ChipToggle>
-            </div>
-          </div>
-          <Group>
-            <NavRow label={t('room.spin.title')} sub={spinSummary(room)} onClick={() => setSpinOpen(true)} />
-          </Group>
           <div style={st('display:flex;flex-direction:column;gap:10px;padding:14px 16px;border-radius:14px;background:var(--surf)')}>
             <span style={st('font:500 14.5px var(--font-ui)')}>{t('room.settings.colour')}</span>
             <div style={st('display:flex;gap:10px;flex-wrap:wrap')}>
@@ -615,71 +663,42 @@ export function RoomSettingsDialog() {
               )}
             </div>
           </div>
-          <div style={st('display:flex;flex-direction:column;gap:8px;padding:14px 16px;border-radius:14px;background:var(--surf)')}>
-            <span style={st('font:500 14.5px var(--font-ui)')}>{t('room.settings.discord')}</span>
-            <span style={st('font:400 12px/1.45 var(--font-ui);color:var(--muted)')}>{t('room.settings.discordHint')}</span>
-            <div style={st('display:flex;gap:8px')}>
-              <input value={hook} onChange={(e) => setHook(e.target.value)} placeholder="https://discord.com/api/webhooks/…" aria-label={t('room.settings.discordAria')} style={st(inputField, { flex: 1, minWidth: 0, height: 42, borderRadius: 12, fontSize: 13.5 })} />
-              {hook.trim() !== (room.discordWebhookUrl ?? '') && (
-                <Btn kind="text" height={42} padX={14} fontSize={13} weight={700} disabled={!hookValid} onClick={() => patch({ discordWebhookUrl: hook.trim() || null }, hook.trim() ? t('room.settings.webhookSaved') : t('room.settings.webhookRemoved'))}>
-                  {t('common.save')}
-                </Btn>
-              )}
-            </div>
-            {!hookValid && <span style={st('font:400 12px var(--font-ui);color:var(--danger)')}>{t('room.settings.webhookInvalid')}</span>}
-            <span style={st('font:500 14.5px var(--font-ui);padding-top:6px')}>{t('room.settings.discordInvite')}</span>
-            <span style={st('font:400 12px/1.45 var(--font-ui);color:var(--muted)')}>{t('room.settings.discordInviteHint')}</span>
-            <div style={st('display:flex;gap:8px')}>
-              <input value={discordInvite} onChange={(e) => setDiscordInvite(e.target.value)} placeholder="https://discord.gg/…" aria-label={t('room.settings.discordInviteAria')} style={st(inputField, { flex: 1, minWidth: 0, height: 42, borderRadius: 12, fontSize: 13.5 })} />
-              {discordInvite.trim() !== (room.discordInviteUrl ?? '') && (
-                <Btn kind="text" height={42} padX={14} fontSize={13} weight={700} disabled={!discordInviteValid} onClick={() => patch({ discordInviteUrl: discordInvite.trim() || null }, discordInvite.trim() ? t('room.settings.inviteLinkSaved') : t('room.settings.inviteLinkRemoved'))}>
-                  {t('common.save')}
-                </Btn>
-              )}
-            </div>
-            {!discordInviteValid && <span style={st('font:400 12px var(--font-ui);color:var(--danger)')}>{t('room.settings.discordInviteInvalid')}</span>}
-            <div style={st(`display:flex;flex-direction:column;gap:8px;padding-top:6px;opacity:${hasHook ? 1 : 0.5}`)}>
-              <span style={st(LABEL)}>{t('room.settings.postWhen')}</span>
-              <div style={st('display:flex;flex-wrap:wrap;gap:6px')}>
-                {DISCORD_EVENT_KEYS.map((k: DiscordEventKey) => {
-                  const on = events[k];
-                  return (
-                    <button
-                      key={k}
-                      type="button"
-                      role="checkbox"
-                      aria-checked={on}
-                      disabled={!hasHook}
-                      onClick={() => patch({ discordEvents: { [k]: !on } })}
-                      style={st(`display:flex;align-items:center;gap:6px;height:34px;padding:0 12px 0 8px;border-radius:999px;border:1px solid ${on ? 'var(--acc)' : 'var(--line)'};background:${on ? 'var(--accSoft)' : 'transparent'};color:${on ? 'var(--accText)' : 'var(--muted)'};font:600 12.5px var(--font-ui)`)}
-                    >
-                      <span style={st(`width:18px;height:18px;border-radius:50%;background:${on ? 'var(--acc)' : 'var(--chip)'};color:var(--ink);display:flex;align-items:center;justify-content:center;font:800 10px var(--font-ui)`)}>{on ? '✓' : ''}</span>
-                      {discordEventLabel(k)}
-                    </button>
-                  );
-                })}
-              </div>
-              <span style={st('font:400 12px var(--font-ui);color:var(--faint)')}>
-                {hasHook ? t('room.settings.discordOnHint') : t('room.settings.discordOffHint')}
-              </span>
+        </Field>
+      )}
+
+      {isMaster && (
+        <Field label={t('room.settings.accessLabel')}>
+          <Switch title={t('room.settings.publicTitle')} sub={t('room.settings.publicSub')} on={room.isPublic} onChange={(v) => patch({ isPublic: v }, v ? t('room.settings.nowPublic') : t('room.settings.nowInviteOnly'))} />
+          <Switch
+            title={t('room.settings.anyoneAdds')}
+            sub={room.requireGameApproval ? t('room.settings.approvalOnSub') : t('room.settings.approvalOffSub')}
+            on={!room.requireGameApproval}
+            onChange={(v) => patch({ requireGameApproval: !v }, v ? t('room.settings.anyoneAdds') : t('room.settings.needApproval'))}
+          />
+          <div style={st('display:flex;flex-direction:column;gap:10px;padding:14px 16px;border-radius:14px;background:var(--surf)')}>
+            <span style={st('display:flex;flex-direction:column;gap:2px')}>
+              <span style={st('font:500 14.5px var(--font-ui)')}>{t('room.settings.whoInvites')}</span>
+              <span style={st('font:400 12px/1.45 var(--font-ui);color:var(--muted)')}>{t('room.settings.whoInvitesHint')}</span>
+            </span>
+            <div style={st('display:flex;flex-wrap:wrap;gap:6px')}>
+              <ChipToggle on={room.invitePermission === 'members'} onClick={() => patch({ invitePermission: 'members' }, t('room.settings.anyMemberInvites'))}>
+                {t('room.settings.anyMember')}
+              </ChipToggle>
+              <ChipToggle on={room.invitePermission === 'moderators'} onClick={() => patch({ invitePermission: 'moderators' }, t('room.settings.modsInvite'))}>
+                {t('room.settings.modsAndAbove')}
+              </ChipToggle>
             </div>
           </div>
         </Field>
       )}
 
-      <Field label={t('room.settings.aiLabel')}>
-        <RoomAiSection roomId={roomId} canManage={canManage} onOpenProfile={close} />
-        <div style={st('display:flex;flex-wrap:wrap;gap:8px')}>
-          <Btn kind="soft" height={38} padX={14} fontSize={13} onClick={() => { close(); ui.openDialog('aiTonight'); }}>
-            {t('room.settings.ai.tonight')}
-          </Btn>
-          <Btn kind="soft" height={38} padX={14} fontSize={13} onClick={() => setAiSettingsOpen(true)}>
-            {t('room.settings.ai.mine')}
-          </Btn>
-        </div>
-      </Field>
-
-      <Field label={t('room.settings.playNextIn')}>
+      <Field label={t('room.settings.playLabel')}>
+        <Group>
+          {isMaster && <NavRow label={t('room.spin.title')} sub={spinSummary(room)} onClick={() => setSpinOpen(true)} />}
+          {isMaster && <NavRow label={t('room.settings.discordRow')} sub={discordSummary(room)} onClick={() => setDiscordOpen(true)} />}
+          <NavRow label={t('room.settings.aiRow')} sub={t('room.settings.aiRowSub')} onClick={() => setRoomAiOpen(true)} />
+        </Group>
+        <span style={st('font:500 14.5px var(--font-ui);padding-top:4px')}>{t('room.settings.playNextInTitle')}</span>
         <span style={st('font:400 13px/1.45 var(--font-ui);color:var(--muted)')}>{t('room.settings.playNextInHint')}</span>
         <div style={st('display:flex;flex-wrap:wrap;gap:6px')}>
           <ChipToggle on={playNextIn === 'playing'} height={36} onClick={() => setPlayNextIn('playing')}>{t('home.tab.playing')}</ChipToggle>
@@ -694,30 +713,29 @@ export function RoomSettingsDialog() {
         </div>
       </Field>
 
-      <Group>
+      <div style={st('display:flex;align-items:center;flex-wrap:wrap;gap:18px;padding-top:16px;border-top:1px solid var(--line)')}>
         {!isMaster && (
-          <button type="button" onClick={() => setReportingRoom(true)} style={st('min-height:52px;padding:0 16px;border:none;background:var(--surf);color:var(--text);text-align:left;font:600 14.5px var(--font-ui)')}>
+          <button type="button" onClick={() => setReportingRoom(true)} style={st('border:none;background:none;padding:0;font:600 13.5px var(--font-ui);color:var(--muted)')}>
             {t('social.report.room')}
           </button>
         )}
         {!isMaster && (
-          <button type="button" onClick={leave} style={st('min-height:52px;padding:0 16px;border:none;background:var(--surf);color:var(--danger);text-align:left;font:600 14.5px var(--font-ui)')}>
+          <button type="button" onClick={leave} style={st('border:none;background:none;padding:0;font:600 13.5px var(--font-ui);color:var(--danger)')}>
             {t('room.settings.leaveRoom')}
           </button>
         )}
         {isMaster && members.some((m) => m.user.id === user?.id) && (
-          <button type="button" onClick={() => setMasterLeaveOpen(true)} style={st('min-height:52px;padding:0 16px;border:none;background:var(--surf);color:var(--danger);text-align:left;font:600 14.5px var(--font-ui)')}>
+          <button type="button" onClick={() => setMasterLeaveOpen(true)} style={st('border:none;background:none;padding:0;font:600 13.5px var(--font-ui);color:var(--danger)')}>
             {t('room.settings.leaveRoom')}
           </button>
         )}
         {isMaster && (
-          <button type="button" onClick={del} style={st('min-height:52px;padding:0 16px;border:none;background:var(--surf);color:var(--danger);text-align:left;font:600 14.5px var(--font-ui)')}>
+          <button type="button" onClick={del} style={st('border:none;background:none;padding:0;font:600 13.5px var(--font-ui);color:var(--danger)')}>
             {t('room.settings.deleteRoom')}
           </button>
         )}
-      </Group>
+      </div>
     </Dialog>
-    {aiSettingsOpen && <AiSettingsDialog onClose={() => setAiSettingsOpen(false)} />}
     {reportingRoom && room && <ReportDialog target={{ kind: 'room', roomId }} title={t('social.report.roomTitle', { name: room.name })} onClose={() => setReportingRoom(false)} />}
     {masterLeaveOpen && (
       <Dialog onClose={() => setMasterLeaveOpen(false)} title={t('room.settings.masterLeaveTitle')} gap={14}>
@@ -754,6 +772,18 @@ export function RoomSettingsDialog() {
       </Dialog>
     )}
     {spinOpen && <RoomSpinSettingsDialog room={room} patch={patch} onClose={() => setSpinOpen(false)} />}
+    {discordOpen && <RoomDiscordDialog room={room} patch={patch} onClose={() => setDiscordOpen(false)} />}
+    {roomAiOpen && (
+      <RoomAiDialog
+        roomId={roomId}
+        canManage={canManage}
+        onClose={() => setRoomAiOpen(false)}
+        onOpenProfile={() => {
+          setRoomAiOpen(false);
+          close();
+        }}
+      />
+    )}
     </>
   );
 }

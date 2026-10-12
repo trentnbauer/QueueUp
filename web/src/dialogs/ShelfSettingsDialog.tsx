@@ -1,6 +1,5 @@
-import { useNavigate } from 'react-router';
 import { useState } from 'react';
-import { ROOM_PLATFORM_LABELS, SPIN_WHEEL_THEMES, sortPlatforms } from '@queueup/shared';
+import { SPIN_WHEEL_THEMES } from '@queueup/shared';
 import { authApi } from '../api/auth';
 import { useAuth } from '../context/AuthContext';
 import { ColourPicker } from '../ui/ColourPicker';
@@ -13,8 +12,8 @@ import { exportGames } from '../utils/exportGames';
 import { BACKLOG_SORT_OPTIONS, toggleBacklogSort, useBacklogSort } from '../home/backlogSort';
 import { usePlayNextTab } from '../home/playNextTab';
 import { useShelfSpinTheme } from '../home/shelfSpinTheme';
-import { NavRow, SystemsDialog } from './SettingsParts';
-import { rich, useT } from '../i18n';
+import { NavRow } from './SettingsParts';
+import { useT } from '../i18n';
 import { spinThemeHint, spinThemeLabel } from '../i18n/labels';
 
 /** The shelf's Spin type: the reel or one of the spin modes, or a random one each time. */
@@ -45,12 +44,11 @@ function ShelfSpinTypeDialog({ onClose }: { onClose: () => void }) {
 
 export function ShelfSettingsDialog() {
   const ui = useUi();
-  const navigate = useNavigate();
   const t = useT();
   const { games } = useScope();
   const [backlogSort, setBacklogSort] = useBacklogSort();
   const [playNextIn, setPlayNextIn] = usePlayNextTab();
-  const { ownedPlatforms, shelfColor, refetch } = useAuth();
+  const { shelfColor, refetch } = useAuth();
   const saveColour = async (colour: string | null) => {
     try {
       await authApi.setShelfColor(colour);
@@ -61,28 +59,11 @@ export function ShelfSettingsDialog() {
     }
   };
   const [spinTheme] = useShelfSpinTheme();
-  const [systemsOpen, setSystemsOpen] = useState(false);
   const [spinOpen, setSpinOpen] = useState(false);
 
   return (
     <>
     <Dialog onClose={() => ui.closeDialog('shelfSettings')} title={t('settings.shelf.title')} gap={24}>
-      <Group>
-        <NavRow
-          label={t('settings.systems.title')}
-          sub={ownedPlatforms.length === 0 ? t('settings.systems.everyPlatform') : sortPlatforms(ownedPlatforms).map((p) => ROOM_PLATFORM_LABELS[p]).join(', ')}
-          onClick={() => setSystemsOpen(true)}
-        />
-        <NavRow label={t('settings.shelf.spinType')} sub={spinThemeLabel(spinTheme)} onClick={() => setSpinOpen(true)} />
-        <NavRow
-          label={t('settings.shelf.merge')}
-          sub={t('settings.shelf.merge.sub')}
-          onClick={() => {
-            ui.closeDialog('shelfSettings');
-            ui.openDialog('duplicates');
-          }}
-        />
-      </Group>
       <div style={st('display:flex;flex-direction:column;gap:10px')}>
         <Kicker>{t('settings.shelfColour.title')}</Kicker>
         <span style={st('font:400 13px/1.45 var(--font-ui);color:var(--muted)')}>{t('settings.shelfColour.hint')}</span>
@@ -113,6 +94,9 @@ export function ShelfSettingsDialog() {
           <ChipToggle on={playNextIn === 'backlog'} height={36} onClick={() => setPlayNextIn('backlog')}>{t('home.tab.backlog')}</ChipToggle>
         </div>
       </div>
+      <Group>
+        <NavRow label={t('settings.shelf.spinType')} sub={spinThemeLabel(spinTheme)} onClick={() => setSpinOpen(true)} />
+      </Group>
       <div style={st('display:flex;flex-direction:column;gap:10px')}>
         <Kicker>{t('settings.shelf.export', { n: games.length })}</Kicker>
         <div style={st('display:flex;gap:8px')}>
@@ -120,20 +104,7 @@ export function ShelfSettingsDialog() {
           <Btn height={40} fontSize={13} onClick={() => exportGames(games, 'json', 'personal-shelf')}>{t('settings.shelf.exportJson')}</Btn>
         </div>
       </div>
-      <button
-        type="button"
-        onClick={() => {
-          ui.closeDialog('shelfSettings');
-          navigate('/settings/preferences');
-        }}
-        style={st('align-self:flex-start;border:none;background:none;padding:0;color:var(--muted);font:400 13px/1.5 var(--font-ui);text-align:left')}
-      >
-        {rich(t('settings.shelf.profileHint'), {
-          link: <span style={st('color:var(--accText);text-decoration:underline;text-underline-offset:3px')}>{t('settings.shelf.profileLink')}</span>,
-        })}
-      </button>
     </Dialog>
-    {systemsOpen && <SystemsDialog onClose={() => setSystemsOpen(false)} />}
     {spinOpen && <ShelfSpinTypeDialog onClose={() => setSpinOpen(false)} />}
     </>
   );

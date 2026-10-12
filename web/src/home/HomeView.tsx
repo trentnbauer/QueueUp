@@ -18,7 +18,7 @@ import { ShelfHistory } from './ShelfHistory';
 import { ROOM_PLATFORM_LABELS } from '@queueup/shared';
 import { Avatar, Banner, Btn, SearchField, Spinner } from '../ui/primitives';
 import { useStableOrder } from './useStableOrder';
-import { useIsMobile } from '../ui/useLayout';
+import { useIsMobile, useMediaQuery } from '../ui/useLayout';
 import { st } from '../ui/st';
 import { buildHomeLists, toRowItem } from './derive';
 import { useBacklogSort } from './backlogSort';
@@ -50,6 +50,8 @@ export function HomeView() {
   const scope = useScope();
   const ui = useUi();
   const mobile = useIsMobile();
+  // Below this width there's no glance panel, so its "Ask AI" button joins the header instead.
+  const glanceFits = useMediaQuery('(min-width: 1280px)');
   const { viewMode } = useViewMode();
   const { density } = useCardDensity();
   const confirm = useConfirm();
@@ -300,6 +302,11 @@ export function HomeView() {
                 {t('home.header.joinDiscord')}
               </Btn>
             </a>
+          )}
+          {!glanceFits && (
+            <Btn hover height={mobile ? 40 : 42} padX={mobile ? 14 : 18} fontSize={14} onClick={() => ui.openDialog('aiTonight')} ariaLabel={t('shell.glance.askAi')}>
+              {t('home.header.askAi')}
+            </Btn>
           )}
           <Btn
             kind="accent"

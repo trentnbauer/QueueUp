@@ -350,8 +350,6 @@ export const settings = {
   // Shelf settings
   "settings.shelf.title": "Shelf settings",
   "settings.shelf.spinType": "Spin type",
-  "settings.shelf.merge": "Find duplicates",
-  "settings.shelf.merge.sub": "AI finds the same game twice and merges extras into the original",
   "settings.shelf.spinType.toast": "Spin type: {theme}",
   "settings.shelf.spinType.random": "🎲 Random",
   "settings.shelf.adultScan.title": "Scan my library for adult games",
@@ -373,8 +371,6 @@ export const settings = {
   "settings.shelf.exportCsv": "Export CSV",
   "settings.shelf.exportJson": "Export JSON",
   "settings.shelf.activityEmpty": "Nothing's happened on your shelf yet.",
-  "settings.shelf.profileHint": "Currency, layout, sign-in methods and your account live in {link}.",
-  "settings.shelf.profileLink": "your profile",
 
   // Play journal
 
