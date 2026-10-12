@@ -209,7 +209,7 @@ function FriendsList() {
         )}
         {!friends.isLoading && friends.friends.length === 0 && <div style={st(EMPTY)}>{t('social.friends.empty')}</div>}
       </div>
-      <BlockedPeople />
+      {!friends.privateInstance && <BlockedPeople />}
     </>
   );
 }

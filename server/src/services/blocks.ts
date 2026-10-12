@@ -1,8 +1,11 @@
 import { prisma } from '../db/client.js';
+import { env } from '../config/env.js';
 
-/** Whether either of the two people has blocked the other. Blocking hides each from the other. */
+/** Whether either of the two people has blocked the other. Blocking hides each from the other.
+ * There is no blocking on a PRIVATE_INSTANCE (everyone there is a friend), so blocks made before
+ * the setting was switched on are kept but ignored, and come back if it's switched off. */
 export async function isBlockedEitherWay(a: string, b: string): Promise<boolean> {
-  if (a === b) return false;
+  if (a === b || env.PRIVATE_INSTANCE) return false;
   const row = await prisma.userBlock.findFirst({
     where: { OR: [{ blockerId: a, blockedId: b }, { blockerId: b, blockedId: a }] },
     select: { blockerId: true },
@@ -13,6 +16,7 @@ export async function isBlockedEitherWay(a: string, b: string): Promise<boolean>
 /** Blocks `blockerId` makes `blockedId` invisible to them, and drops any friendship or pending
  * request between the two. Blocking someone twice is fine. */
 export async function blockUser(blockerId: string, blockedId: string): Promise<void> {
+  if (env.PRIVATE_INSTANCE) return;
   await prisma.$transaction([
     prisma.userBlock.upsert({ where: { blockerId_blockedId: { blockerId, blockedId } }, create: { blockerId, blockedId }, update: {} }),
     prisma.friendship.deleteMany({
@@ -24,6 +28,7 @@ export async function blockUser(blockerId: string, blockedId: string): Promise<v
 /** Everyone who has blocked `userId` or been blocked by them. Used to leave those people out of
  * invite candidate lists and public room browsing. */
 export async function blockedIdsOf(userId: string): Promise<string[]> {
+  if (env.PRIVATE_INSTANCE) return [];
   const rows = await prisma.userBlock.findMany({
     where: { OR: [{ blockerId: userId }, { blockedId: userId }] },
     select: { blockerId: true, blockedId: true },
