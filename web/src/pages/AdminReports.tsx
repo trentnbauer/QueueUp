@@ -61,6 +61,12 @@ export function AdminReports(): ReactNode {
     const ok = await confirm({ title: t('social.report.admin.avatarTitle', { name }), message: t('social.report.admin.avatarMessage'), confirmLabel: t('social.report.admin.avatar'), danger: true });
     if (ok) resetAvatar.mutate(reportId);
   }
+  const removeLink = useMutation({ mutationFn: moderationApi.removeProfileLink, onSuccess: () => { refresh(); ui.notify(t('social.report.admin.linkDone')); }, onError });
+  const resetRoom = useMutation({ mutationFn: moderationApi.resetRoomName, onSuccess: () => { refresh(); ui.notify(t('social.report.admin.roomDone')); }, onError });
+  const clearNote = useMutation({ mutationFn: moderationApi.clearReviewNote, onSuccess: () => { refresh(); ui.notify(t('social.report.admin.noteDone')); }, onError });
+  async function askThen(title: string, message: string, confirmLabel: string, run: () => void) {
+    if (await confirm({ title, message, confirmLabel, danger: true })) run();
+  }
   const decline = useMutation({ mutationFn: moderationApi.declineUnban, onSuccess: refresh, onError });
 
   const rows = reports.data?.reports ?? [];
@@ -117,11 +123,29 @@ export function AdminReports(): ReactNode {
                   ))}
                 </div>
               )}
+              {r.roomName && <span style={st('font:400 13px var(--font-ui);color:var(--muted)')}>{t('social.report.admin.aboutRoom', { name: r.roomName })}</span>}
+              {r.reasons.includes('offensive_profile_link') && r.profileSlug && <span style={st('font:400 13px var(--font-ui);color:var(--muted)')}>{t('social.report.admin.aboutLink', { slug: r.profileSlug })}</span>}
+              {r.reviewNote && <span style={st('font:italic 400 13px/1.45 var(--font-ui);color:var(--muted);overflow-wrap:anywhere')}>“{r.reviewNote}”</span>}
               {r.reason && <span style={st('font:400 13.5px/1.5 var(--font-ui);white-space:pre-wrap;overflow-wrap:anywhere')}>{r.reason}</span>}
               <div style={st('display:flex;flex-wrap:wrap;align-items:center;gap:8px')}>
                 {r.reasons.includes('offensive_name') && (
                   <Btn kind="soft" height={32} padX={12} fontSize={12.5} disabled={forceName.isPending} onClick={() => void askForceName(r.id, r.reported.displayName)}>
                     {t('social.report.admin.name')}
+                  </Btn>
+                )}
+                {r.reasons.includes('offensive_profile_link') && r.profileSlug && (
+                  <Btn kind="soft" height={32} padX={12} fontSize={12.5} disabled={removeLink.isPending} onClick={() => void askThen(t('social.report.admin.linkTitle', { slug: r.profileSlug! }), t('social.report.admin.linkMessage'), t('social.report.admin.link'), () => removeLink.mutate(r.id))}>
+                    {t('social.report.admin.link')}
+                  </Btn>
+                )}
+                {r.reasons.includes('offensive_room_name') && r.roomId && r.roomName && (
+                  <Btn kind="soft" height={32} padX={12} fontSize={12.5} disabled={resetRoom.isPending} onClick={() => void askThen(t('social.report.admin.roomTitle', { name: r.roomName! }), t('social.report.admin.roomMessage'), t('social.report.admin.room'), () => resetRoom.mutate(r.id))}>
+                    {t('social.report.admin.room')}
+                  </Btn>
+                )}
+                {r.reasons.includes('offensive_review_note') && r.reviewNote && (
+                  <Btn kind="soft" height={32} padX={12} fontSize={12.5} disabled={clearNote.isPending} onClick={() => void askThen(t('social.report.admin.noteTitle', { name: r.reported.displayName }), t('social.report.admin.noteMessage'), t('social.report.admin.note'), () => clearNote.mutate(r.id))}>
+                    {t('social.report.admin.note')}
                   </Btn>
                 )}
                 {r.reasons.includes('offensive_avatar') && (
@@ -171,6 +195,8 @@ export function AdminReports(): ReactNode {
         </>
       )}
 
+      <BlockedText />
+
       {banning && (
         <Dialog title={t('social.ban.admin.title', { name: banning.name })} onClose={() => setBanning(null)} width={440}>
           <span style={st('font:400 13.5px/1.5 var(--font-ui);color:var(--muted)')}>{t('social.ban.admin.message')}</span>
@@ -194,5 +220,58 @@ export function AdminReports(): ReactNode {
         </Dialog>
       )}
     </Collapsible>
+  );
+}
+
+/** The blacklist (Administrator page): whole names nobody may use (added when a name, profile link or room
+ * name is removed from a report), and banned words that no name, profile link, room name or review note
+ * may contain. Words are matched ignoring case, spacing and punctuation, so keep them specific. */
+function BlockedText(): ReactNode {
+  const t = useT();
+  const ui = useUi();
+  const queryClient = useQueryClient();
+  const data = useQuery({ queryKey: ['admin', 'blocked-text'], queryFn: moderationApi.blockedText });
+  const [word, setWord] = useState('');
+  const refresh = () => void queryClient.invalidateQueries({ queryKey: ['admin', 'blocked-text'] });
+  const onError = (e: unknown) => ui.notify(e instanceof Error ? e.message : t('social.ban.admin.failed'));
+  const add = useMutation({ mutationFn: moderationApi.addBannedWord, onSuccess: () => { setWord(''); refresh(); }, onError });
+  const removeWord = useMutation({ mutationFn: moderationApi.removeBannedWord, onSuccess: refresh, onError });
+  const removeName = useMutation({ mutationFn: moderationApi.removeBlockedName, onSuccess: refresh, onError });
+  const words = data.data?.words ?? [];
+  const names = data.data?.names ?? [];
+  const chip = (key: string, label: string, onRemove: () => void) => (
+    <span key={key} style={st('display:inline-flex;align-items:center;gap:6px;padding:4px 6px 4px 10px;border-radius:999px;background:var(--chip);font:600 12.5px var(--font-ui)')}>
+      {label}
+      <button type="button" aria-label={t('social.blocked.admin.remove', { name: label })} onClick={onRemove} style={st('border:none;background:none;padding:0 4px;color:var(--muted);font:600 14px var(--font-ui)')}>
+        ×
+      </button>
+    </span>
+  );
+  return (
+    <>
+      <span style={st(HEADING)}>{t('social.blocked.admin.words')}</span>
+      <span style={st('font:400 13px/1.5 var(--font-ui);color:var(--muted)')}>{t('social.blocked.admin.hint')}</span>
+      <div style={st('display:flex;gap:8px')}>
+        <input
+          value={word}
+          onChange={(e) => setWord(e.target.value)}
+          maxLength={40}
+          placeholder={t('social.blocked.admin.placeholder')}
+          aria-label={t('social.blocked.admin.placeholder')}
+          onKeyDown={(e) => e.key === 'Enter' && word.trim() && add.mutate(word)}
+          style={st('flex:1;min-width:0;height:36px;padding:0 12px;border-radius:999px;border:1px solid var(--line);background:var(--surf);color:var(--text);font:400 14px var(--font-ui)')}
+        />
+        <Btn kind="ghost" height={36} padX={14} fontSize={13} disabled={!word.trim() || add.isPending} onClick={() => add.mutate(word)}>
+          {t('social.blocked.admin.add')}
+        </Btn>
+      </div>
+      {words.length > 0 && <div style={st('display:flex;flex-wrap:wrap;gap:6px')}>{words.map((w) => chip(w.normalized, w.example, () => removeWord.mutate(w.normalized)))}</div>}
+      {names.length > 0 && (
+        <>
+          <span style={st(HEADING)}>{t('social.blocked.admin.names')}</span>
+          <div style={st('display:flex;flex-wrap:wrap;gap:6px')}>{names.map((n) => chip(n.normalized, n.example, () => removeName.mutate(n.normalized)))}</div>
+        </>
+      )}
+    </>
   );
 }

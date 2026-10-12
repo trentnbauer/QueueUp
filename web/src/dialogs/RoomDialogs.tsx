@@ -1,3 +1,4 @@
+import { ReportDialog } from '../components/ReportDialog';
 import { useMemo, useState, type ReactNode } from 'react';
 import { useNavigate } from 'react-router';
 import { useInfiniteQuery, useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
@@ -416,6 +417,7 @@ export function RoomSettingsDialog() {
   const roomId = room?.id ?? '';
   const [playNextIn, setPlayNextIn] = usePlayNextTab(roomId || null);
   const isMaster = room?.myRole === 'room_master';
+  const [reportingRoom, setReportingRoom] = useState(false);
 
   const candidates = useQuery({ queryKey: ['room-invite-candidates', roomId], queryFn: () => roomsApi.inviteCandidates(roomId), enabled: !!room && canInvite });
   const activity = useInfiniteQuery({
@@ -939,6 +941,11 @@ export function RoomSettingsDialog() {
 
       <Group>
         {!isMaster && (
+          <button type="button" onClick={() => setReportingRoom(true)} style={st('min-height:52px;padding:0 16px;border:none;background:var(--surf);color:var(--text);text-align:left;font:600 14.5px var(--font-ui)')}>
+            {t('social.report.room')}
+          </button>
+        )}
+        {!isMaster && (
           <button type="button" onClick={leave} style={st('min-height:52px;padding:0 16px;border:none;background:var(--surf);color:var(--danger);text-align:left;font:600 14.5px var(--font-ui)')}>
             {t('room.settings.leaveRoom')}
           </button>
@@ -978,6 +985,7 @@ export function RoomSettingsDialog() {
       </Dialog>
     )}
     {aiSettingsOpen && <AiSettingsDialog onClose={() => setAiSettingsOpen(false)} />}
+    {reportingRoom && room && <ReportDialog target={{ kind: 'room', roomId }} title={t('social.report.roomTitle', { name: room.name })} onClose={() => setReportingRoom(false)} />}
     {masterLeaveOpen && (
       <Dialog onClose={() => setMasterLeaveOpen(false)} title={t('room.settings.masterLeaveTitle')} gap={14}>
         <p style={st('margin:0;font:400 13.5px/1.5 var(--font-ui);color:var(--muted)')}>
