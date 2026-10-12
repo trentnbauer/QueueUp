@@ -5,7 +5,7 @@ QueueUp is written by Claude.
 
 A self-hosted game backlog and voting system for a friend group — a private "Personal Shelf" plus shared "Communal Rooms," real pricing from gg.deals, and a 5-emoji voting scale.
 
-QueueUp has a phone layout and a three-column desktop layout. Your "Personal Shelf" is listed first, then your rooms (public or shared), then the add-room button. The rooms are where you queue your games with your friends. Friends have their own activity feed, and a finished game can carry a short review that shows up there and on your public profile.
+QueueUp has a phone layout and a three-column desktop layout. The sidebar lists your "Personal Shelf" first, then your rooms (public or shared), then the add-room button, with Friends, Your stats, Notifications and Settings below. The rooms are where you queue your games with your friends; each room has Games, Journal, People and Recap tabs, and the shelf has Games, Journal and History. Friends have their own activity feed, and a finished game can carry a short review that shows up there and on your public profile.
 
 <img width="900" alt="A room on desktop: sidebar, queue and the at-a-glance panel" src="docs/screenshots/desktop-room.png" />
 
@@ -23,10 +23,11 @@ Some other things to note:
 - Marking a game as owned syncs between rooms
 - Discord webhooks for alerts, with a switch per kind of event (games added, suggestions, votes, spins, status changes, reviews, members, member activity)
 - Games can be hidden from friends and your public profile
-- `PRIVATE_INSTANCE=true` makes everyone on the server a friend of everyone else (for a server shared by one group); see `.env.example`
+- `PRIVATE_INSTANCE=true` makes everyone on the server a friend of everyone else (for a server shared by one group). Friend codes, requests, Remove friend and blocking are turned off there (reporting still works); see `.env.example`
 - `SIGNUP_MODE=invite` makes new accounts invite-only (a room invite code or an admin-made site invite); existing accounts are unaffected
 - Terms of use (`/terms`) and privacy (`/privacy`) pages ship with a default template. It is a starting point, not legal advice: read it and adjust it for your server. Set `LEGAL_CONTACT`, and `TERMS_FILE` / `PRIVACY_FILE` (Markdown) to replace the text; `REQUIRE_TERMS_ACCEPTANCE=true` makes people accept the terms first
-- Moderation: people can block and report each other; administrators work through reports (ban and unban with reasons, force a name change, reset a picture, profile link, room name or review note, banned-words list) on the Administrator page
+- Moderation: people can block and report each other (blocking is off on a private instance); administrators work through reports (ban and unban with reasons, force a name change, reset a picture, profile link, room name or review note, banned-words and blocked-names lists) on the Administrator page
+- Administrators come in two tiers: Administrators, and Super administrators who can also delete people and rooms, change roles, and manage integration keys and backups. `ADMIN_EMAILS` makes someone a Super administrator
 
 # Running your own instance of QueueUp
 ## Prerequisites:
@@ -40,8 +41,9 @@ Some other things to note:
 - Optional: People can link their [RetroAchievements](https://retroachievements.org/) username and web API key to sync the retro games on their profile and approve the ones they've beaten (no server setup needed)
 - Optional: People can also link PlayStation directly (a one-off NPSSO code from Sony's sign-in cookie, no server setup needed) to sync their purchased PS4 and PS5 games, on a best-effort basis
 - Optional: A Microsoft (Azure) app registration for the native **Xbox library sync** - people link their Xbox account with a short code and sync without Playnite (setup steps are in `.env.example`, under `XBOX_CLIENT_ID`). The same app can also power **Sign in with Xbox** once you add a redirect URI and set `XBOX_SIGN_IN=true`
-- Optional: Install the [QueueUp Playnite extension](https://github.com/trentnbauer/QueueUpPlayniteExtension) to push your entire Playnite library (including Xbox, PlayStation, and Nintendo games) into QueueUp - set up from Profile → Sync Playnite (or Add game → Import library) once your instance is running
-- A sign-in method (Google, Discord, Steam, or a generic OIDC provider like Authelia/Keycloak/Authentik)
+- Optional: Install the [QueueUp Playnite extension](https://github.com/trentnbauer/QueueUpPlayniteExtension) to push your entire Playnite library (including Xbox, PlayStation, and Nintendo games) into QueueUp - set up from **Settings → Libraries** (or Add game → Import) once your instance is running
+- Optional: People can import the games they own on [itch.io](https://itch.io) with a one-time API key that isn't stored, or a CSV/JSON list (a spreadsheet, a Backloggd or Grouvee export, or a Google Play Takeout file) (no server setup needed)
+- A sign-in method (Google, Discord, Steam, Xbox, or a generic OIDC provider like Authelia/Keycloak/Authentik)
 - Optional: A free [Cloudflare Turnstile](https://dash.cloudflare.com/?to=/:account/turnstile) widget - adds a captcha to the sign-in page
 - Optional: A free [Cloudflare Tunnel](https://one.dash.cloudflare.com/) - reach QueueUp from the internet without opening a port (QueueUp runs the tunnel itself)
 
@@ -56,7 +58,7 @@ Some other things to note:
 4. Rename the env file to .env
 5. Run `docker-compose up` to start the stack
 
-Every setting is described in `.env.example`. The gg.deals, IGDB, ScanDex, Turnstile, Xbox, AI and Cloudflare Tunnel keys can also be entered later in **Profile → Administrator settings** instead of the env file (an env var always wins over a value saved there).
+Every setting is described in `.env.example`. The gg.deals, IGDB, ScanDex, Turnstile, Xbox, AI and Cloudflare Tunnel keys can also be entered later on the Administrator page (**Settings → Administrator**) instead of the env file (an env var always wins over a value saved there).
 
 ### With a locally hosted AI
 
@@ -64,15 +66,16 @@ Every setting is described in `.env.example`. The gg.deals, IGDB, ScanDex, Turns
 
 ## Backups
 
-QueueUp takes a database backup **every night at 03:00 (server time) by default**, keeps the latest 14, and writes them to the `backups` volume (`BACKUP_DIR`, `/backups` in the compose file). Administrators manage it from **Profile → Administrator settings → Backups**: switch it off, change the schedule (a cron expression such as `0 3 * * *`), change how many to keep, back up now, download, delete, **restore**, or **import** a backup file from another server. Restoring replaces the entire database and takes a safety backup of the current data first. Set `TZ` on the container to change the time zone the schedule uses. Restores need the Postgres user to be a superuser (the one the bundled compose file creates is). For disaster recovery, copy the `backups` volume (or download files from the admin page) somewhere off the host.
+QueueUp takes a database backup **every night at 03:00 (server time) by default**, keeps the latest 14, and writes them to the `backups` volume (`BACKUP_DIR`, `/backups` in the compose file). Administrators manage it from **Administrator settings → Backups**: switch it off, change the schedule (a cron expression such as `0 3 * * *`), change how many to keep, back up now, download, delete, **restore**, or **import** a backup file from another server. Everything but backing up now needs a Super administrator. Restoring replaces the entire database and takes a safety backup of the current data first. Set `TZ` on the container to change the time zone the schedule uses. Restores need the Postgres user to be a superuser (the one the bundled compose file creates is). For disaster recovery, copy the `backups` volume (or download files from the admin page) somewhere off the host.
 
-Integration keys entered in **Administrator settings** (gg.deals, IGDB, Scandex, Turnstile, the tunnel token) are stored encrypted with a key derived from `SESSION_SECRET`, so a backup file doesn't expose them. Keys set as environment variables never go in the database at all. When you restore or import a backup made with a different `SESSION_SECRET`, QueueUp asks for that server's session key so the keys come across; without it, everything else restores and those keys need entering again.
+Integration keys entered in **Administrator settings** (gg.deals, IGDB, ScanDex, Turnstile, the AI key, the SMTP password, the tunnel token) are stored encrypted with a key derived from `SESSION_SECRET`, so a backup file doesn't expose them. The same goes for people's own library logins and AI keys, and each room's Discord webhook URL. Keys set as environment variables never go in the database at all. When you restore or import a backup made with a different `SESSION_SECRET`, QueueUp asks for that server's session key so the keys come across; without it, everything else restores and those keys need entering again.
 
 ## Authentication
 
 - **Google**: create an OAuth client at [console.cloud.google.com](https://console.cloud.google.com/) (APIs & Services → Credentials), fill in `GOOGLE_CLIENT_ID`/`GOOGLE_CLIENT_SECRET`.
 - **Discord**: create an application at [discord.com/developers/applications](https://discord.com/developers/applications) → OAuth2, fill in `DISCORD_CLIENT_ID`/`DISCORD_CLIENT_SECRET`.
 - **Steam**: grab a free Web API key at [steamcommunity.com/dev/apikey](https://steamcommunity.com/dev/apikey), fill in `STEAM_API_KEY`. Steam uses a different, older login protocol (OpenID 2.0, not OAuth2) and doesn't need a client id/secret — just the key. Steam accounts have no email address, so users who sign in with Steam get a placeholder one under the hood.
+- **Xbox**: reuses the Microsoft app from the Xbox library sync. Add the redirect URI `<APP_BASE_URL>/auth/xbox/callback` to it and set `XBOX_SIGN_IN=true` (steps in `.env.example`). Xbox gives no email address.
 - **Generic OIDC**: any standards-compliant provider (Authelia, Keycloak, Authentik, ...) — fill in `OIDC_ISSUER_URL`/`OIDC_CLIENT_ID`/`OIDC_CLIENT_SECRET`.
 
 Each method's `*_REDIRECT_URI` must exactly match what you register with that provider. In the production setup (`docker-compose.prod.yml`), you can leave `*_REDIRECT_URI` unset entirely - it defaults to `${APP_BASE_URL}/auth/<provider>/callback`, since that one server container serves both the API and the frontend. You still need to register that exact URL with the provider; only set `*_REDIRECT_URI` explicitly if your deployment doesn't serve the API from `APP_BASE_URL`'s own origin (local dev's split `:5173`/`:3000` ports being the main example).
@@ -83,7 +86,7 @@ Optional. Create a widget at [Cloudflare → Turnstile](https://dash.cloudflare.
 
 ## Google Analytics
 
-Optional. Create a GA4 property at [Google Analytics](https://analytics.google.com), then set its measurement ID as the `GA_MEASUREMENT_ID` environment variable (it's already listed in `docker-compose.prod.yml`, so add `GA_MEASUREMENT_ID=G-XXXXXXXXXX` to your `.env`), or enter it in Administrator settings → Integrations. With an ID set, each user is asked during setup whether to share usage stats, and can change their answer in Settings → Sharing. Google's script isn't loaded for anyone who hasn't said yes. Page views are sent with room, profile and invite ids stripped out of the address. Leave it blank and the question never appears.
+Optional. Create a GA4 property at [Google Analytics](https://analytics.google.com), then set its measurement ID as the `GA_MEASUREMENT_ID` environment variable (it's already listed in `docker-compose.prod.yml`, so add `GA_MEASUREMENT_ID=G-XXXXXXXXXX` to your `.env`), or enter it in Administrator settings → Integrations. With an ID set, each user is asked during setup whether to share usage stats, and can change their answer in Settings → Profile & privacy. Google's script isn't loaded for anyone who hasn't said yes. Page views are sent with room, profile and invite ids stripped out of the address. Leave it blank and the question never appears.
 
 ## Cloudflare Tunnel
 

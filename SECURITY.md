@@ -1,8 +1,9 @@
 # Security Policy
 
-QueueUp is a self-hosted app meant to run on your own infrastructure, typically
-exposed only to a private friend group rather than the public internet. Even so,
-please report security issues responsibly so they can be fixed before wider disclosure.
+QueueUp is a self-hosted app meant to run on your own infrastructure, usually for a
+private friend group, though an instance can also be opened up (invite-only sign-up,
+blocking, reporting and bans exist for that case). Either way, please report security
+issues responsibly so they can be fixed before wider disclosure.
 
 ## Reporting a vulnerability
 
@@ -46,7 +47,14 @@ updates regularly is the best way to stay current on security fixes.
 
 - Code scanning (CodeQL, via GitHub's default setup) runs on every push/PR.
   Dependency review (`.github/workflows/dependency-review.yml`) also runs on every
-  PR to `main` and flags newly introduced known-vulnerable dependencies.
+  PR to `main` and flags newly introduced known-vulnerable dependencies, and
+  GitGuardian checks every PR for committed secrets.
+- Stored credentials (integration keys entered by an administrator, people's library
+  logins and AI keys, and room Discord webhook URLs) are encrypted at rest with
+  AES-256-GCM using a key derived from `SESSION_SECRET`; API keys are stored only as a
+  hash. The in-app privacy page (`/privacy`) lists exactly what is and isn't encrypted.
+- For anything that is a hardening idea rather than an exploitable issue, the
+  **Security hardening** issue form is fine to use publicly.
 - Report issues in QueueUp's own code and configuration. Vulnerabilities in
   upstream dependencies (Fastify, Prisma, React, etc.) should be reported to those
   projects directly, though flagging them here is still welcome if they materially

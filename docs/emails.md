@@ -1,7 +1,7 @@
 # Emails QueueUp sends
 
 Every email the server can send, with what triggers it and its exact current text, so they can be
-themed together (issue #866). There are **three** emails. All go through one function,
+themed together (issue #866). There are **four** emails. All go through one function,
 `sendMail()` in `server/src/services/mailer.ts`, and nothing else in the app sends email.
 
 Email only works when SMTP is set up (`SMTP_HOST`, `SMTP_PORT`, `SMTP_FROM`, or the same in
@@ -16,6 +16,9 @@ to, subject, kind, sent or failed with the mail server's reason; never the body;
   (one render function per email); `sendMail()` sends them with the original plain text as the
   fallback part. Everything member-written is HTML-escaped there.
 - One sender (`SMTP_FROM`, for example `QueueUp <alerts@example.com>`); no reply-to.
+- Every email ends with an unsubscribe line (`withUnsubscribeText()` in the plain text, the footer in
+  the HTML) that opens Settings > Notifications. The alert digest also sets a `List-Unsubscribe`
+  header pointing at the same page, so mail apps can show their own Unsubscribe button.
 - Links are built from `APP_BASE_URL`, shown below as `{APP_BASE_URL}`.
 - The app's own wording is English only; emails are not translated.
 - Text is built from member-written content (game titles, display names), so an HTML version must
@@ -94,7 +97,30 @@ address, so keep the "if this was not you" line prominent.
 
 ---
 
-## 3. SMTP test email
+## 3. Alert email was changed (security notice)
+
+|  |  |
+|---|---|
+| Code | `server/src/services/addressChangeNotice.ts` (`warnPreviousAddresses`) |
+| Sent to | The address alerts used to go to, and the account's own sign-in email (each once, never the new address, and never an unverified or placeholder address) |
+| Trigger | A person's alert address changes (after they confirm a new one, or go back to their sign-in email). Sent whatever their alert preferences are, since it is a security notice. Only when SMTP is set up |
+| Subject | `Your QueueUp alert email was changed` |
+
+```
+The email address QueueUp sends alerts to for your account was changed to {new address}.
+
+If that was you, nothing more to do.
+
+If it was not you, sign in at {APP_BASE_URL} now and check Settings > Account history. Then review your sign-in methods and API keys, and set your alert email back.
+```
+
+When alerts go back to the sign-in email, the first line ends `was changed back to your sign-in email.`
+instead. Without this notice, someone who took over a session could point alerts at their own mailbox
+and the owner would never hear about it.
+
+---
+
+## 4. SMTP test email
 
 |  |  |
 |---|---|
