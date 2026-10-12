@@ -279,6 +279,15 @@ export const envSchema = z.object({
   // someone with a room invite code or an administrator-made site invite; existing accounts and
   // ADMIN_EMAILS sign in as normal.
   SIGNUP_MODE: z.enum(['open', 'invite']).optional().default('open'),
+
+  // Make everyone accept the terms (/terms) on first sign-in, and again whenever they change (#1097).
+  // Off by default. The accepted version is TERMS_VERSION when set, otherwise a hash of the terms text
+  // in effect (TERMS_FILE, or the built-in default).
+  REQUIRE_TERMS_ACCEPTANCE: z
+    .string()
+    .optional()
+    .transform((v) => v === 'true'),
+  TERMS_VERSION: optionalEnvVar(),
 });
 
 export type Env = z.infer<typeof envSchema>;

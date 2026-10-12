@@ -545,4 +545,12 @@ export const pages = {
   "pages.admin.invites.usedOf": "{used} of {max} used",
   "pages.admin.invites.used": "{used} used",
   "pages.admin.invites.expires": "Expires {when}",
+  "pages.termsAccept.title": "Before you continue",
+  "pages.termsAccept.body": "This server asks everyone to accept its terms of use. Please read them, then confirm below. You will be asked again if the terms change.",
+  "pages.termsAccept.readTerms": "Terms of use",
+  "pages.termsAccept.readPrivacy": "Privacy notice",
+  "pages.termsAccept.agree": "I have read and accept the terms of use.",
+  "pages.termsAccept.accept": "Accept and continue",
+  "pages.termsAccept.signOut": "Sign out",
+  "pages.termsAccept.failed": "Could not save your answer. Try again.",
 } as const;

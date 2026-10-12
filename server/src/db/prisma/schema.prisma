@@ -245,6 +245,9 @@ model User {
   banReasonCode        String?        @map("ban_reason_code")
   /// An administrator made them give up an offensive display name: they must pick a new one before using the app.
   mustChangeName       Boolean        @default(false) @map("must_change_name")
+  /// The terms version this person accepted (REQUIRE_TERMS_ACCEPTANCE, #1097), and when.
+  termsAcceptedVersion String?        @map("terms_accepted_version")
+  termsAcceptedAt      DateTime?      @map("terms_accepted_at")
   /// Which picture to show (see AVATAR_CHOICES). avatarUrl is that picture's URL, kept in step so every
   /// place that shows an avatar keeps reading one column.
   avatarChoice         String         @default("auto") @map("avatar_choice")

@@ -10,6 +10,7 @@ import { env } from '../config/env.js';
 import { notifyAccountChange } from '../services/notifications.js';
 import { prisma } from '../db/client.js';
 import { getOrCreateUser, primaryProviderOf } from '../plugins/auth.js';
+import { currentTermsVersion, termsAcceptanceRequired } from '../services/termsAcceptance.js';
 import siteInviteRoutes from './siteInvites.js';
 import { joinRoomForInvite, resolveInvite, SignupInviteRequiredError } from '../services/signupInvites.js';
 import { toUserDto } from '../util/dto.js';
@@ -304,11 +305,16 @@ export default async function authRoutes(app: FastifyInstance) {
     if (isNewAccount) delete request.session.isNewAccount;
     const viewer = view ? await prisma.user.findUnique({ where: { id: request.realUserId() ?? '' } }) : null;
 
+    const termsVersion = await currentTermsVersion();
     const unbanRequested = user.bannedAt ? (await prisma.unbanRequest.count({ where: { userId: user.id, resolvedAt: null } })) > 0 : false;
 
     return reply.send({
       user: toUserDto(user),
       mustChangeName: user.mustChangeName,
+      // Set while the operator requires the terms to be accepted and this person has not accepted the
+      // current version (#1097); the app shows only the accept screen until they do. Not asked of an
+      // administrator who is viewing as someone.
+      termsRequired: !view && termsAcceptanceRequired(user.termsAcceptedVersion, termsVersion) ? { version: termsVersion } : null,
       banned: user.bannedAt ? { reasonCode: user.banReasonCode, reason: user.banReason, since: user.bannedAt.toISOString(), unbanRequested } : null,
       isSuperAdmin: user.isSuperAdmin,
       viewingAs: view && viewer ? { until: new Date(view.until).toISOString(), viewer: toUserDto(viewer) } : null,
@@ -332,6 +338,16 @@ export default async function authRoutes(app: FastifyInstance) {
     const shelfColor = await setShelfColor(userId, request.body?.colour === undefined ? undefined : request.body.colour);
     void logAccountEvent(userId, 'shelf_colour', shelfColor ? `Personal Shelf colour set to ${shelfColor}.` : 'Personal Shelf colour cleared.');
     return reply.send({ shelfColor });
+  });
+
+  // Records that the person accepted the terms (#1097). The version in the body must be the current one,
+  // so someone can only accept what they were shown.
+  app.post<{ Body: { version?: unknown } }>('/api/me/accept-terms', { config: { rateLimit: { max: 20, timeWindow: '1 minute' } } }, async (request) => {
+    const userId = await request.requireAuth();
+    const version = await currentTermsVersion();
+    if (request.body?.version !== version) throw new HttpError(409, 'The terms changed. Reload the page to read the latest version.');
+    await prisma.user.update({ where: { id: userId }, data: { termsAcceptedVersion: version, termsAcceptedAt: new Date() } });
+    return { ok: true };
   });
 
   // The welcome walkthrough was finished or skipped; stored on the account so it isn't repeated

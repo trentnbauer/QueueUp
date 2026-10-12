@@ -46,6 +46,7 @@ function baseEnv(overrides: Partial<Env> = {}): Env {
     IGDB_CLIENT_SECRET: undefined,
     ADMIN_EMAILS: '',
     SIGNUP_MODE: 'open',
+    REQUIRE_TERMS_ACCEPTANCE: false,
     ...overrides,
   };
 }

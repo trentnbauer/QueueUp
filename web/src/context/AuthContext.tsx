@@ -8,6 +8,8 @@ interface AuthContextValue {
   banned: BannedInfo | null;
   /** Must choose a new display name before using the app (see MustChangeNameDialog). */
   mustChangeName: boolean;
+  /** The terms version this person has to accept before using the app, or null (#1097). */
+  termsRequired: { version: string } | null;
   /** A Super administrator (#1102): an administrator who can also do the destructive things. */
   isSuperAdmin: boolean;
   /** Set while an administrator is viewing the app as `user` (#1102), read-only. */
@@ -51,6 +53,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [banned, setBanned] = useState<BannedInfo | null>(null);
   const [mustChangeName, setMustChangeName] = useState(false);
+  const [termsRequired, setTermsRequired] = useState<{ version: string } | null>(null);
   const [isSuperAdmin, setIsSuperAdmin] = useState(false);
   const [viewingAs, setViewingAs] = useState<AuthContextValue['viewingAs']>(null);
   const [steamLinked, setSteamLinked] = useState(false);
@@ -71,11 +74,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   };
 
   const refetch = async () => {
-    const { user, banned, mustChangeName, isSuperAdmin, viewingAs, steamLinked, ownedPlatforms, profileVisibility, profileSlug, shelfColor, primaryProvider, linkedProviders, isNewAccount, onboardingPending } = await authApi.me();
+    const { user, banned, mustChangeName, termsRequired, isSuperAdmin, viewingAs, steamLinked, ownedPlatforms, profileVisibility, profileSlug, shelfColor, primaryProvider, linkedProviders, isNewAccount, onboardingPending } = await authApi.me();
     setOnboardingPending(!!onboardingPending);
     setUser(user);
     setBanned(banned ?? null);
     setMustChangeName(!!mustChangeName);
+    setTermsRequired(termsRequired ?? null);
     setIsSuperAdmin(!!isSuperAdmin);
     setViewingAs(viewingAs ?? null);
     setSteamLinked(steamLinked);
@@ -98,6 +102,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         user,
         banned,
         mustChangeName,
+        termsRequired,
         isSuperAdmin,
         viewingAs,
         steamLinked,

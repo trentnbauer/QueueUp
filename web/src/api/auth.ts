@@ -10,6 +10,8 @@ export const authApi = {
       banned?: BannedInfo | null;
       /** An administrator made them give up their display name: they must choose a new one. */
       mustChangeName?: boolean;
+      /** Set while the operator requires the terms to be accepted and the current version has not been (#1097). */
+      termsRequired?: { version: string } | null;
       /** Can also do the destructive administrator things (#1102). */
       isSuperAdmin?: boolean;
       /** Set while an administrator is viewing the app as this user (#1102): until when, and who is looking. */
@@ -31,6 +33,7 @@ export const authApi = {
       /** True until the welcome walkthrough is finished or skipped once on any device. */
       onboardingPending: boolean;
     }>('/api/me'),
+  acceptTerms: (version: string) => apiPost<{ ok: true }>('/api/me/accept-terms', { version }),
   completeOnboarding: () => apiPost<{ ok: true }>('/api/me/onboarding-complete'),
   /** Sign-in methods, plus the Turnstile site key when the sign-in captcha is on (issue #665). */
   providers: () => apiGet<{ providers: string[]; turnstileSiteKey: string | null; signupMode?: 'open' | 'invite' }>('/api/auth/providers'),
