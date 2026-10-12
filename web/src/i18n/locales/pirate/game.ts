@@ -14,6 +14,7 @@ export const game: Record<keyof typeof en, string> = {
   "game.detail.syncSource.exophase": "Exophase",
   "game.detail.syncSource.psn": "PlayStation",
   "game.detail.syncSource.retroachievements": "RetroAchievements",
+  "game.detail.syncSource.file": "Scroll import",
   "game.detail.ttb.rushed": "{hours}h at full sail",
   "game.detail.ttb.main": "{hours}h main voyage",
   "game.detail.ttb.completionist": "{hours}h plunderin’ it all",

@@ -45,6 +45,7 @@ import alertEmailRoutes from './routes/alertEmail.js';
 import aiSettingsRoutes from './routes/aiSettings.js';
 import xboxRoutes from './routes/xbox.js';
 import exophaseRoutes from './routes/exophase.js';
+import libraryFileImportRoutes from './routes/libraryFileImport.js';
 import psnRoutes from './routes/psn.js';
 import libraryLimitsRoutes from './routes/libraryLimits.js';
 import analyticsConsentRoutes from './routes/analyticsConsent.js';
@@ -210,6 +211,7 @@ export async function buildApp() {
       await instance.register(aiSettingsRoutes);
       await instance.register(xboxRoutes);
       await instance.register(exophaseRoutes);
+      await instance.register(libraryFileImportRoutes);
       await instance.register(psnRoutes);
       await instance.register(libraryLimitsRoutes);
       await instance.register(analyticsConsentRoutes);

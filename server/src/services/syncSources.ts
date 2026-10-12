@@ -14,7 +14,7 @@ export async function recordSyncSources(userId: string, igdbIds: number[], sourc
   }
 }
 
-const ORDER: SyncSource[] = ['steam', 'steam_wishlist', 'playnite', 'xbox', 'exophase', 'psn', 'retroachievements'];
+const ORDER: SyncSource[] = ['steam', 'steam_wishlist', 'playnite', 'xbox', 'exophase', 'psn', 'retroachievements', 'file'];
 
 /** The syncs that have seen each of the viewer's own Personal Shelf games. Other games get []. */
 export async function getSyncSources(
