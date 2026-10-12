@@ -13,9 +13,8 @@ import { useFriends } from '../hooks/useFriends';
 import { useMarkAllNotificationsRead, useNotificationFeed } from '../hooks/useNotifications';
 import { usePendingImportsCount } from '../hooks/usePendingImports';
 import { NotificationActions, hasActions } from './NotificationActions';
-import { BlockedPeople } from './BlockedPeople';
 import { Dialog } from '../ui/Dialog';
-import { Avatar, Banner, Btn, Group, Spinner, inputPill } from '../ui/primitives';
+import { Avatar, Banner, Btn, Spinner } from '../ui/primitives';
 import { st } from '../ui/st';
 import { formatRelativeTime } from '../utils/relativeTime';
 import { rich, useT, type MessageKey } from '../i18n';
@@ -155,11 +154,11 @@ export function NotificationsDialog() {
       navigate('/admin');
       return;
     }
-    // A failed library sync: straight to the Libraries dialog, where it can be fixed or tried again.
+    // A failed library sync: straight to Settings › Libraries, where it can be fixed or tried again.
     if (n.type === 'library_sync_error' || n.type === 'library_sync_available') {
       if (notifications.length > 0) markAllRead();
       ui.closeDialog('notifications');
-      ui.openDialog('import');
+      navigate('/settings/libraries');
       return;
     }
     const to = n.roomId ? `/room/${n.roomId}` : SHELF_TYPES.includes(n.type) ? '/' : null;
@@ -318,190 +317,4 @@ export function NotificationsDialog() {
 /** The shareable link for a friend code: whoever opens it (once signed in) becomes the owner's friend. */
 export function friendLink(code: string): string {
   return `${window.location.origin}${getBasePath()}/add/${code}`;
-}
-
-/** Friends list + add by code. Tapping a friend opens their profile page. */
-export function FriendsDialog() {
-  const ui = useUi();
-  const navigate = useNavigate();
-  const t = useT();
-  const queryClient = useQueryClient();
-  const friends = useFriends();
-  const confirm = useConfirm();
-  const [code, setCode] = useState('');
-  const [error, setError] = useState<string | null>(null);
-  const [sending, setSending] = useState(false);
-
-  async function removeFriend(id: string, name: string) {
-    const ok = await confirm({
-      title: t('social.friends.removeTitle', { name }),
-      message: t('social.friends.removeMessage'),
-      confirmLabel: t('social.friends.removeFriend'),
-      danger: true,
-    });
-    if (!ok) return;
-    try {
-      await friends.unfriend(id);
-      ui.notify(t('social.friends.removed', { name }));
-    } catch (e) {
-      setError(friends.errorMessage(e, t('social.friends.removeError')));
-    }
-  }
-
-  async function dropRequest(id: string, name: string, cancel: boolean) {
-    const ok = await confirm(
-      cancel
-        ? { title: t('social.requests.cancelTitle', { name }), message: t('social.requests.cancelMessage'), confirmLabel: t('social.requests.cancelConfirm'), danger: true }
-        : { title: t('social.requests.declineTitle', { name }), message: t('social.requests.declineMessage'), confirmLabel: t('social.requests.decline'), danger: true },
-    );
-    if (ok) await resolve(() => friends.removeRequest(id), cancel ? t('social.requests.cancelled') : t('social.requests.declined'));
-  }
-
-  async function resolve(fn: () => Promise<unknown>, done: string) {
-    try {
-      await fn();
-      ui.notify(done);
-    } catch (e) {
-      setError(friends.errorMessage(e, t('social.error.generic')));
-    }
-  }
-
-  async function send() {
-    // Accepts a pasted friend link as well as a bare code.
-    const c = (code.trim().match(/\/add\/([^/?#\s]+)/)?.[1] ?? code.trim());
-    if (!c) return;
-    setSending(true);
-    setError(null);
-    try {
-      const res = await friends.sendRequest(c);
-      setCode('');
-      ui.notify(res.accepted ? t('social.friends.nowFriends', { name: res.user.displayName }) : t('social.friends.sent', { name: res.user.displayName }));
-      queryClient.invalidateQueries({ queryKey: ['friends'] });
-    } catch (e) {
-      setError(friends.errorMessage(e, t('social.friends.sendError')));
-    } finally {
-      setSending(false);
-    }
-  }
-
-  return (
-    <Dialog
-      onClose={() => ui.closeDialog('friends')}
-      height="tall"
-      padded={false}
-      header={
-        <span style={st('flex:1;font:700 22px var(--font-display);letter-spacing:-0.02em')}>
-          {t('social.friends.title')} <span style={st('font:500 14px var(--font-mono);color:var(--muted)')}>{friends.friends.length}</span>
-        </span>
-      }
-      footer={
-        friends.privateInstance ? undefined : (
-        <div style={st('flex-shrink:0;display:flex;flex-direction:column;gap:8px;padding:12px 20px 26px;border-top:1px solid var(--chip)')}>
-          {error && <span style={st('font:500 13px var(--font-ui);color:var(--danger)')}>{error}</span>}
-          <div style={st('display:flex;gap:8px')}>
-            <input
-              value={code}
-              onChange={(e) => setCode(e.target.value)}
-              onKeyDown={(e) => e.key === 'Enter' && send()}
-              placeholder={t('social.friends.codePlaceholder')}
-              aria-label={t('social.friends.codeAria')}
-              style={st(inputPill, { flex: 1, minWidth: 0, border: '1px solid var(--line)' })}
-            />
-            <Btn kind="accent" height={44} padX={16} weight={700} disabled={!code.trim() || sending} onClick={send}>
-              {t('social.friends.send')}
-            </Btn>
-          </div>
-          {friends.myCode && (
-            <button
-              type="button"
-              onClick={async () => {
-                await navigator.clipboard.writeText(friendLink(friends.myCode));
-                ui.notify(t('social.friends.linkCopied'));
-              }}
-              style={st('align-self:flex-start;border:none;background:none;padding:2px 0;color:var(--muted);font:500 12.5px var(--font-ui);text-align:left')}
-            >
-              {rich(t('social.friends.shareLink'), { tap: <span style={st('color:var(--text)')}>{t('social.friends.tapToCopy')}</span> })}
-              <br />
-              {rich(t('social.friends.shareHint'), { code: <span style={st('font-family:var(--font-mono);color:var(--text)')}>{friends.myCode}</span> })}
-            </button>
-          )}
-        </div>
-        )
-      }
-    >
-      <div style={st('flex:1;min-height:0;overflow-y:auto;padding:0 20px 12px;display:flex;flex-direction:column;gap:14px')}>
-        {(friends.incoming.length > 0 || friends.outgoing.length > 0) && (
-          <div style={st('display:flex;flex-direction:column;gap:8px')}>
-            <span style={st('padding:4px 4px 0;font:600 11.5px var(--font-mono);letter-spacing:0.06em;color:var(--muted)')}>
-              {t('social.friends.pending', { n: friends.incoming.length + friends.outgoing.length })}
-            </span>
-            {friends.incoming.map((r) => (
-              <div key={r.id} style={st('display:flex;align-items:center;gap:10px;padding:10px 12px;border-radius:16px;background:var(--surf)')}>
-                <Avatar name={r.user.displayName} color={r.user.avatarColor} avatarUrl={r.user.avatarUrl} size={36} fontSize={14} profileUserId={r.user.id} onOpenProfile={() => ui.closeDialog('friends')} />
-                <span style={st('flex:1;min-width:0;display:flex;flex-direction:column;gap:2px')}>
-                  <span style={st('font:600 14px var(--font-ui)')}>{r.user.displayName}</span>
-                  <span style={st('font:400 12.5px var(--font-ui);color:var(--muted)')}>{t('social.friends.wantsToBeFriends')}</span>
-                </span>
-                <Btn kind="ghost" height={34} padX={8} fontSize={12.5} onClick={() => void dropRequest(r.id, r.user.displayName, false)}>
-                  {t('social.requests.decline')}
-                </Btn>
-                <Btn kind="text" height={34} padX={14} fontSize={12.5} weight={700} onClick={() => resolve(() => friends.accept(r.id), t('social.friends.nowFriends', { name: r.user.displayName }))}>
-                  {t('social.requests.accept')}
-                </Btn>
-              </div>
-            ))}
-            {friends.outgoing.map((r) => (
-              <div key={r.id} style={st('display:flex;align-items:center;gap:10px;padding:10px 12px;border-radius:16px;background:var(--surf)')}>
-                <Avatar name={r.user.displayName} color={r.user.avatarColor} avatarUrl={r.user.avatarUrl} size={36} fontSize={14} profileUserId={r.user.id} onOpenProfile={() => ui.closeDialog('friends')} />
-                <span style={st('flex:1;min-width:0;display:flex;flex-direction:column;gap:2px')}>
-                  <span style={st('font:600 14px var(--font-ui)')}>{r.user.displayName}</span>
-                  <span style={st('font:400 12.5px var(--font-ui);color:var(--muted)')}>{t('social.friends.waiting')}</span>
-                </span>
-                <Btn kind="ghost" height={34} padX={10} fontSize={12.5} onClick={() => void dropRequest(r.id, r.user.displayName, true)}>
-                  {t('common.cancel')}
-                </Btn>
-              </div>
-            ))}
-          </div>
-        )}
-        <Group>
-          {friends.friends.map((f) => (
-            <div key={f.id} style={st('display:flex;align-items:stretch;background:var(--surf)')}>
-            <button
-              type="button"
-              className="hv-surf2"
-              onClick={() => {
-                ui.closeDialog('friends');
-                ui.selectGame(null);
-                navigate(`/friends/${f.id}`);
-              }}
-              style={st('display:flex;align-items:center;gap:12px;min-height:64px;padding:10px 8px 10px 14px;border:none;background:var(--surf);color:var(--text);text-align:left;flex:1;min-width:0')}
-            >
-              <Avatar name={f.displayName} color={f.avatarColor} avatarUrl={f.avatarUrl} size={40} fontSize={15} />
-              <span style={st('flex:1;min-width:0;display:flex;flex-direction:column;gap:2px')}>
-                <span style={st('font:600 15px var(--font-ui)')}>{f.displayName}</span>
-                <span style={st('font:400 12.5px var(--font-ui);color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis')}>
-                  {f.profilePrivate ? t('social.friends.private') : t(f.sharedRoomCount === 1 ? 'social.friends.stats.one' : 'social.friends.stats.other', { beaten: f.beatenCount, n: f.sharedRoomCount })}
-                </span>
-              </span>
-              <span style={st('color:var(--muted);font-size:20px')}>›</span>
-            </button>
-            <button
-              type="button"
-              className="hv-surf2"
-              aria-label={t('social.friends.removeAria', { name: f.displayName })}
-              title={t('social.friends.removeFriend')}
-              onClick={() => void removeFriend(f.id, f.displayName)}
-              style={st('flex-shrink:0;width:48px;border:none;background:var(--surf);color:var(--danger);font:600 20px var(--font-ui)')}
-            >
-              ×
-            </button>
-            </div>
-          ))}
-        </Group>
-        {!friends.isLoading && friends.friends.length === 0 && <div style={st('padding:20px 4px;color:var(--muted);font-size:14.5px')}>{t('social.friends.empty')}</div>}
-        <BlockedPeople />
-      </div>
-    </Dialog>
-  );
 }

@@ -1,16 +1,47 @@
 import { useState } from 'react';
+import { useSearchParams } from 'react-router';
 import { useQuery } from '@tanstack/react-query';
 import { gamesApi } from '../api/games';
 import { badgesApi } from '../api/badges';
 import { useAnnounceUnlock } from '../context/AchievementUnlockContext';
 import { useUi } from '../context/UiContext';
-import { Btn, Cover } from '../ui/primitives';
+import { Btn, Cover, Segmented } from '../ui/primitives';
 import { st } from '../ui/st';
 import { PageShell, SectionTitle, StatTiles } from './PageShell';
 import { BacklogCoach } from './BacklogCoach';
 import { YearStoryCard } from '../components/YearStoryCard';
 import { personalStoryFacts } from '../lib/yearStoryFacts';
 import { t as tr, useT } from '../i18n';
+
+export type StatsTab = 'insights' | 'achievements' | 'year';
+const STATS_TABS: StatsTab[] = ['insights', 'achievements', 'year'];
+const isStatsTab = (v: string | null): v is StatsTab => STATS_TABS.includes(v as StatsTab);
+
+/** Your stats (`/stats?tab=…`): backlog insights, achievements and the year in games, one segment each. */
+export function StatsPage() {
+  const t = useT();
+  const [params, setParams] = useSearchParams();
+  const raw = params.get('tab');
+  const tab: StatsTab = isStatsTab(raw) ? raw : 'insights';
+  return (
+    <PageShell title={t('pages.stats.title')} hint={t('pages.stats.hint')} back={false}>
+      <Segmented
+        columns={3}
+        style={{ maxWidth: 520 }}
+        value={tab}
+        onChange={(v) => setParams(v === 'insights' ? {} : { tab: v }, { replace: true })}
+        options={[
+          { value: 'insights', label: t('pages.stats.tab.insights') },
+          { value: 'achievements', label: t('pages.stats.tab.achievements') },
+          { value: 'year', label: t('pages.stats.tab.year') },
+        ]}
+      />
+      {tab === 'insights' && <InsightsBody />}
+      {tab === 'achievements' && <AchievementsBody />}
+      {tab === 'year' && <YearBody />}
+    </PageShell>
+  );
+}
 
 const BAR = 'flex:1;height:12px;border-radius:999px;background:var(--surf);overflow:hidden';
 
@@ -31,16 +62,14 @@ function Bars({ rows, labelWidth = 84 }: { rows: { label: string; count: number 
   );
 }
 
-export function InsightsPage() {
+/** Time to beat, the most neglected game, backlog age and the backlog coach. */
+function InsightsBody() {
   const ui = useUi();
   const t = useT();
   const { data, isLoading, isError } = useQuery({ queryKey: ['me', 'backlog-insights'], queryFn: gamesApi.backlogInsights });
 
   return (
-    <PageShell
-      title={t('pages.insights.title')}
-      hint={t('pages.insights.hint')}
-    >
+    <>
       {isLoading && <span style={st('color:var(--muted)')}>{t('common.loading')}</span>}
       {isError && <span style={st('color:var(--muted)')}>{t('pages.common.loadFailed')}</span>}
       {data && (
@@ -85,11 +114,12 @@ export function InsightsPage() {
           <BacklogCoach />
         </>
       )}
-    </PageShell>
+    </>
   );
 }
 
-export function AchievementsPage() {
+/** The badge catalogue, earned or not. */
+function AchievementsBody() {
   const announce = useAnnounceUnlock();
   const t = useT();
   const { data, isLoading, isError, refetch } = useQuery({ queryKey: ['me', 'badges'], queryFn: badgesApi.list });
@@ -114,7 +144,7 @@ export function AchievementsPage() {
   const earned = badges.filter((b) => b.unlockedAt).length;
 
   return (
-    <PageShell title={t('pages.achievements.title')} hint={t('pages.achievements.hint')}>
+    <>
       {isLoading && <span style={st('color:var(--muted)')}>{t('common.loading')}</span>}
       {isError && <span style={st('color:var(--muted)')}>{t('pages.common.loadFailed')}</span>}
       {err && <span style={st('color:var(--danger);font-size:14px')}>{err}</span>}
@@ -149,16 +179,17 @@ export function AchievementsPage() {
           </div>
         </>
       )}
-    </PageShell>
+    </>
   );
 }
 
-export function YearPage() {
+/** The last twelve months: totals, the story card, genres, hours, rooms, rare achievements and votes. */
+function YearBody() {
   const t = useT();
   const { data, isLoading, isError } = useQuery({ queryKey: ['me', 'year-in-review'], queryFn: gamesApi.yearInReview });
 
   return (
-    <PageShell title={t('pages.year.title')} hint={t('pages.year.hint')}>
+    <>
       {isLoading && <span style={st('color:var(--muted)')}>{t('common.loading')}</span>}
       {isError && <span style={st('color:var(--muted)')}>{t('pages.year.loadFailed')}</span>}
       {data && (
@@ -210,7 +241,7 @@ export function YearPage() {
           {data.topVoted.length > 0 && <List title={t('pages.year.topVoted')} accent rows={data.topVoted.map((g) => [g.title, t('pages.year.points', { n: g.voteScore })])} />}
         </>
       )}
-    </PageShell>
+    </>
   );
 }
 

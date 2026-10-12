@@ -26,7 +26,7 @@ import { YearStoryCard } from '../components/YearStoryCard';
 import { roomStoryFacts } from '../lib/yearStoryFacts';
 import { AiSettingsDialog } from './AiSettingsDialog';
 import { Dialog } from '../ui/Dialog';
-import { NavRow } from './MeDialog';
+import { NavRow } from './SettingsParts';
 import { usePlayNextTab } from '../home/playNextTab';
 import { RoomAiSection } from './RoomAiSection';
 import { DeletedRoomsList } from './DeletedRooms';

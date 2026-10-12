@@ -7,8 +7,9 @@ import { Footer } from '../shell/Footer';
 import { useVersion } from '../hooks/useVersion';
 import { useT } from '../i18n';
 
-/** Page chrome for everything that isn't the shelf/room home: back button, title, hint. */
-export function PageShell({ title, hint, backLabel, to, children }: { title: string; hint?: string; backLabel?: string; to?: string; children: ReactNode }) {
+/** Page chrome for everything that isn't the shelf/room home: back button, title, hint. A top-level
+ * page (Friends, Your stats, Settings) passes `back={false}`, and can put a button beside the title. */
+export function PageShell({ title, hint, backLabel, to, back = true, action, children }: { title: string; hint?: string; backLabel?: string; to?: string; back?: boolean; action?: ReactNode; children: ReactNode }) {
   const navigate = useNavigate();
   const ui = useUi();
   const mobile = useIsMobile();
@@ -17,6 +18,7 @@ export function PageShell({ title, hint, backLabel, to, children }: { title: str
 
   return (
     <>
+      {back && (
       <div style={st('display:flex;align-items:center;gap:10px')}>
         <button
           type="button"
@@ -32,8 +34,12 @@ export function PageShell({ title, hint, backLabel, to, children }: { title: str
         </button>
         <span style={st('font:600 14px var(--font-ui);color:var(--muted)')}>{backLabel ?? t('common.back')}</span>
       </div>
+      )}
       <div style={st('display:flex;flex-direction:column;gap:8px')}>
-        <h1 style={st(`margin:0;font:700 ${mobile ? 34 : 44}px/1.05 var(--font-display);letter-spacing:-0.03em;text-wrap:balance`)}>{title}</h1>
+        <div style={st('display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap')}>
+          <h1 style={st(`margin:0;font:700 ${mobile ? 34 : 44}px/1.05 var(--font-display);letter-spacing:-0.03em;text-wrap:balance`)}>{title}</h1>
+          {action}
+        </div>
         {hint && <span style={st('font:400 14px/1.5 var(--font-ui);color:var(--muted);text-wrap:pretty;max-width:640px')}>{hint}</span>}
       </div>
       <div style={st('display:flex;flex-direction:column;gap:22px')}>{children}</div>

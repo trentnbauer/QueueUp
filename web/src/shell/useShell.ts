@@ -71,10 +71,14 @@ export function useShell() {
     hasUnread: totalUnread > 0 || incomingFriendRequests > 0,
     pendingImports,
     roomCount: scope.rooms.length,
-    onActivity: location.pathname === '/activity',
-    goActivity: () => {
-      ui.selectGame(null);
-      navigate('/activity');
-    },
+    incomingFriendRequests,
+    onFriends: location.pathname === '/friends',
+    onStats: location.pathname === '/stats',
+    onSettings: location.pathname === '/settings' || location.pathname.startsWith('/settings/'),
+    /** On a page of its own (Friends, Your stats, Settings) rather than the shelf or a room, so no tile is lit. */
+    onPage: ['/friends', '/stats', '/settings'].some((p) => location.pathname === p || location.pathname.startsWith(`${p}/`)),
+    goFriends: go('/friends'),
+    goStats: go('/stats'),
+    goSettings: go('/settings'),
   };
 }

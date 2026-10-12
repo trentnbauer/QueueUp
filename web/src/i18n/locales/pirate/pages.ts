@@ -146,17 +146,11 @@ export const pages: Record<keyof typeof en, string> = {
   "pages.feed.tag.ach": "Treasure",
 
   // Activity page
-  "pages.activity.title": "Goings-on",
-  "pages.activity.hint": "What yer hearties have been sailin’, conquerin’ and plunderin’.",
-  "pages.activity.back": "Chest",
   "pages.activity.noFriends": "Stow a matey to see what they be playin’.",
   "pages.activity.empty": "Nothin’ here yet.",
   "pages.activity.loadMore": "Haul in more",
-  "pages.activity.manageFriends": "Manage hearties",
 
   // Backlog insights
-  "pages.insights.title": "Cargo hold insights",
-  "pages.insights.hint": "How long games take ye from Sailin’ to Conquered, what’s sat untouched longest, and how old yer cargo hold be, across yer treasure chest and every ship.",
   "pages.insights.days": "{n}d",
   "pages.insights.hours": "{n}h",
   "pages.insights.avgDays": "avg. days from Sailin’ to Conquered",
@@ -187,8 +181,6 @@ export const pages: Record<keyof typeof en, string> = {
   "pages.coach.markedPlayNext": "Moved \"{title}\" to Play next.",
 
   // Achievements page
-  "pages.achievements.title": "Treasures",
-  "pages.achievements.hint": "Milestones across yer treasure chest and every ship ye sail. Rarity be out of every QueueUp player.",
   "pages.achievements.refreshFailed": "Couldn’t count the treasures right now.",
   "pages.achievements.earnedCount": "{earned} OF {total} PLUNDERED",
   "pages.achievements.checking": "Checkin’…",
@@ -197,7 +189,6 @@ export const pages: Record<keyof typeof en, string> = {
   "pages.achievements.rarity": "{n}% o’ players",
 
   // Year in games
-  "pages.year.title": "Year on the seas",
   "pages.story.title": "Yer year, as a tale",
   "pages.story.roomTitle": "The ship’s year, as a tale",
   "pages.story.profileTitle": "My year on the seas",
@@ -218,7 +209,6 @@ export const pages: Record<keyof typeof en, string> = {
   "pages.story.deleteMessage": "The text be removed. Ye can write a new one any time.",
   "pages.story.failed": "The parrot couldn’t write a recap.",
   "pages.story.saveFailed": "Couldn’t save that change.",
-  "pages.year.hint": "Yer last 12 months: what ye finished, where the hours went and what the crew voted up.",
   "pages.year.loadFailed": "Couldn’t haul up yer year on the seas.",
   "pages.year.finished.one": "game finished",
   "pages.year.finished.other": "games finished",
@@ -555,4 +545,21 @@ export const pages: Record<keyof typeof en, string> = {
   "pages.termsAccept.accept": "Accept and continue",
   "pages.termsAccept.signOut": "Walk the plank (sign out)",
   "pages.termsAccept.failed": "Could not save your answer. Try again.",
+
+  // Friends (/friends)
+  "pages.friends.title": "Hearties",
+  "pages.friends.hint": "What yer hearties be playin’ and finishin’, the crew ye’ve signed on, and any scallywag askin’ to join.",
+  "pages.friends.copyLink": "Copy me hearty link",
+  "pages.friends.tab.activity": "Goings-on",
+  "pages.friends.tab.friends": "Hearties",
+  "pages.friends.tab.requests": "Requests",
+  "pages.friends.count": "HEARTIES · {n}",
+  "pages.friends.sent": "SENT · {n}",
+  "pages.friends.noRequests": "No scallywags askin’ to join right now.",
+  // Your stats (/stats)
+  "pages.stats.title": "Yer tally",
+  "pages.stats.hint": "How yer hoard be movin’, the medals ye’ve earned and yer last twelve moons, all in one chest.",
+  "pages.stats.tab.insights": "Spyglass",
+  "pages.stats.tab.achievements": "Medals",
+  "pages.stats.tab.year": "Year at sea",
 };

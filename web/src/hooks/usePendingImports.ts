@@ -1,6 +1,8 @@
 import { useQuery } from '@tanstack/react-query';
 import { useAuth } from '../context/AuthContext';
 import { pendingImportsApi, PENDING_IMPORTS_QUERY_KEY } from '../api/pendingImports';
+import { AI_SETTINGS_QUERY_KEY, aiApi } from '../api/ai';
+import { DUPLICATE_COUNT_QUERY_KEY, gamesApi } from '../api/games';
 
 // Same cadence as useNotificationSummary's poll - light enough to keep the sidebar badge
 // reasonably fresh without a websocket/SSE layer for what's still a small, low-traffic app.
@@ -21,4 +23,17 @@ export function usePendingImportsCount(): number {
     refetchInterval: POLL_INTERVAL_MS,
   });
   return data?.count ?? 0;
+}
+
+/** "Library items to tidy up": synced titles waiting for a match plus possible duplicate cards. The
+ * duplicates only count once AI is set up, since the AI is what judges and merges them. Backs the
+ * Settings › Libraries badge. */
+export function useLibraryCleanupCount(): { pending: number; duplicates: number; total: number } {
+  const { user } = useAuth();
+  const pending = usePendingImportsCount();
+  const aiSettings = useQuery({ queryKey: AI_SETTINGS_QUERY_KEY, queryFn: aiApi.mine, enabled: !!user });
+  const aiReady = !!aiSettings.data && aiSettings.data.effectiveSource !== 'none';
+  const { data } = useQuery({ queryKey: DUPLICATE_COUNT_QUERY_KEY, queryFn: gamesApi.duplicateCandidateCount, enabled: !!user && aiReady, staleTime: 10 * 60_000 });
+  const duplicates = aiReady ? (data?.count ?? 0) : 0;
+  return { pending, duplicates, total: pending + duplicates };
 }

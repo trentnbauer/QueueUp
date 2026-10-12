@@ -10,21 +10,19 @@ import { AddGameDialog } from '../dialogs/AddGameDialog';
 import { DeckDialog } from '../dialogs/DeckDialog';
 import { CompletionsDialog, ImportDialog, NeedsReviewDialog, PlayniteDialog } from '../dialogs/ImportDialogs';
 import { DuplicatesDialog } from '../dialogs/DuplicatesDialog';
-import { NotificationsDialog as NotificationSettingsDialog } from '../dialogs/MeDialog';
 import { AiTonightDialog } from '../dialogs/AiTonightDialog';
 import { XboxDialog } from '../dialogs/XboxDialog';
 import { ExophaseDialog } from '../dialogs/ExophaseDialog';
 import { PsnDialog } from '../dialogs/PsnDialog';
 import { SteamDialog } from '../dialogs/SteamDialog';
 import { RetroAchievementsDialog } from '../dialogs/RetroAchievementsDialog';
-import { MeDialog } from '../dialogs/MeDialog';
 import { ChangelogDialog, DlcDialog, PlaytimeDialog } from '../dialogs/MiscDialogs';
 import { RankedDialog } from '../dialogs/RankedDialog';
 import { ReviewSheet } from '../dialogs/ReviewSheet';
 import { AddRoomDialog, RoomSettingsDialog } from '../dialogs/RoomDialogs';
 import { SensitiveGamesPrompt } from '../dialogs/SensitiveGamesDialog';
 import { ShelfSettingsDialog } from '../dialogs/ShelfSettingsDialog';
-import { FriendsDialog, NotificationsDialog } from '../dialogs/SocialDialogs';
+import { NotificationsDialog } from '../dialogs/SocialDialogs';
 import { SpinDialog } from '../dialogs/SpinDialog';
 import { PickCelebrationHost } from '../ui/PickCelebration';
 import { JournalDialog } from '../dialogs/JournalDialog';
@@ -136,15 +134,12 @@ export function Overlays() {
       {d.roomSettings && !isShelf && <RoomSettingsDialog />}
       {d.shelfSettings && <ShelfSettingsDialog />}
       {d.notifications && <NotificationsDialog />}
-      {d.me && <MeDialog />}
-      {d.friends && <FriendsDialog />}
       {d.spin && <SpinDialog onClose={() => ui.closeDialog('spin')} />}
       <PickCelebrationHost />
       {d.ranked && <RankedDialog />}
       {d.deck && <DeckDialog />}
       {d.needsReview && <NeedsReviewDialog />}
       {d.duplicates && <DuplicatesDialog />}
-      {d.notificationSettings && <NotificationSettingsDialog onClose={() => ui.closeDialog('notificationSettings')} />}
       {d.aiTonight && <AiTonightDialog />}
       {d.playtime && <PlaytimeDialog />}
       {d.completions && <CompletionsDialog />}

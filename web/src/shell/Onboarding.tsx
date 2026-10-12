@@ -7,7 +7,7 @@ import { XBOX_STATUS_QUERY_KEY, xboxApi } from '../api/xbox';
 import { PSN_STATUS_QUERY_KEY, psnApi } from '../api/psn';
 import { AI_SETTINGS_QUERY_KEY, aiApi } from '../api/ai';
 import { AiSettingsDialog } from '../dialogs/AiSettingsDialog';
-import { SystemsDialog } from '../dialogs/MeDialog';
+import { SystemsDialog } from '../dialogs/SettingsParts';
 import {
   ALERT_EMAIL_QUERY_KEY,
   NOTIFICATION_PREFERENCES_QUERY_KEY,

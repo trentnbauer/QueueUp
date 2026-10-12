@@ -61,6 +61,17 @@ export function PulseIcon({ size = 18 }: { size?: number }) {
   );
 }
 
+/** Three bars: Your stats. */
+export function StatsIcon({ size = 18 }: { size?: number }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeLinecap="round" style={{ strokeWidth: 1.8 }} aria-hidden="true">
+      <path d="M6 20V11" />
+      <path d="M12 20V5" />
+      <path d="M18 20v-6" />
+    </svg>
+  );
+}
+
 export function CollapseIcon({ size = 16 }: { size?: number }) {
   return (
     <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" style={{ strokeWidth: 2 }} aria-hidden="true">

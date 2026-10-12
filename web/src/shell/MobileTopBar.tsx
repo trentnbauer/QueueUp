@@ -1,18 +1,18 @@
 import { useEffect, useState, type ReactNode } from 'react';
 import { useUi } from '../context/UiContext';
-import { Avatar, BellIcon, PulseIcon } from '../ui/primitives';
+import { Avatar, BellIcon, PulseIcon, StatsIcon } from '../ui/primitives';
 import { st } from '../ui/st';
 import { useShell } from './useShell';
 import { useT } from '../i18n';
 
-/** Phone top bar: a scrolling row of shelf/room tiles, then one button that opens Activity, Notifications and profile. */
+/** Phone top bar: a scrolling row of shelf/room tiles, then one button that opens Friends, Your stats, Notifications and Settings. */
 export function MobileTopBar() {
   const shell = useShell();
   const ui = useUi();
   const t = useT();
   const { user } = shell;
   const tiles = [shell.shelfTile, ...shell.roomTiles];
-  // Activity, notifications and settings share one button that opens a small menu, which leaves
+  // Friends, stats, notifications and settings share one button that opens a small menu, which leaves
   // the top bar's width to the rooms.
   const [menuOpen, setMenuOpen] = useState(false);
   useEffect(() => {
@@ -32,7 +32,7 @@ export function MobileTopBar() {
         style={st('flex:1;min-width:0;display:flex;gap:10px;overflow-x:auto;margin:-6px 0 -6px -16px;padding:6px 6px 6px 16px')}
       >
         {tiles.map((tile) => {
-          const a = tile.active && !shell.onActivity;
+          const a = tile.active && !shell.onPage;
           return (
             <button
               key={tile.id}
@@ -66,7 +66,7 @@ export function MobileTopBar() {
           aria-label={t('shell.mobile.menu')}
           aria-haspopup="menu"
           aria-expanded={menuOpen}
-          style={st(`position:relative;width:40px;height:40px;border-radius:50%;border:2px solid ${menuOpen || shell.onActivity ? 'var(--text)' : 'var(--line)'};padding:0;background:transparent`)}
+          style={st(`position:relative;width:40px;height:40px;border-radius:50%;border:2px solid ${menuOpen || shell.onPage ? 'var(--text)' : 'var(--line)'};padding:0;background:transparent`)}
         >
           <Avatar name={user?.displayName ?? '?'} color={user?.avatarColor ?? '#E8734A'} avatarUrl={user?.avatarUrl} size={36} fontSize={14} />
           {shell.hasUnread && (
@@ -86,13 +86,16 @@ export function MobileTopBar() {
               role="menu"
               style={st('position:absolute;right:0;top:48px;z-index:41;min-width:210px;display:flex;flex-direction:column;padding:6px;border-radius:18px;border:1px solid var(--line);background:var(--surf);box-shadow:0 12px 32px rgba(0,0,0,0.28)')}
             >
-              <MenuItem label={t('shell.nav.friendActivity')} active={shell.onActivity} onClick={pick(shell.goActivity)}>
+              <MenuItem label={t('shell.sidebar.friends')} active={shell.onFriends} dot={shell.incomingFriendRequests > 0} onClick={pick(shell.goFriends)}>
                 <PulseIcon />
+              </MenuItem>
+              <MenuItem label={t('shell.sidebar.stats')} active={shell.onStats} onClick={pick(shell.goStats)}>
+                <StatsIcon />
               </MenuItem>
               <MenuItem label={t('shell.nav.notifications')} dot={shell.hasUnread} onClick={pick(() => ui.openDialog('notifications'))}>
                 <BellIcon />
               </MenuItem>
-              <MenuItem label={t('shell.nav.profileSettings')} onClick={pick(() => ui.openDialog('me'))}>
+              <MenuItem label={t('shell.nav.settings')} active={shell.onSettings} onClick={pick(shell.goSettings)}>
                 <Avatar name={user?.displayName ?? '?'} color={user?.avatarColor ?? '#E8734A'} avatarUrl={user?.avatarUrl} size={20} fontSize={9} />
               </MenuItem>
             </div>

@@ -1,35 +1,24 @@
-import { AvatarPicker } from './AvatarPicker';
 import { useEffect, useState, type ReactNode } from 'react';
-import { useNavigate } from 'react-router';
 import { useInfiniteQuery, useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { PLAYNITE_API_KEY_LABEL, PRICE_REGION_LABELS, ROOM_PLATFORM_LABELS, sortPlatforms, type ComputerSpecs, type PriceRegion, type ProfileVisibility } from '@queueup/shared';
-import { AiSettingsDialog } from './AiSettingsDialog';
+import { PRICE_REGION_LABELS, type ComputerSpecs, type PriceRegion, type ProfileVisibility } from '@queueup/shared';
 import { apiKeysApi, API_KEYS_QUERY_KEY } from '../api/apiKeys';
 import { authApi } from '../api/auth';
-import { badgesApi } from '../api/badges';
 import { ALERT_EMAIL_QUERY_KEY, NOTIFICATION_PREFERENCES_QUERY_KEY, alertEmailApi, notificationPreferencesApi } from '../api/notificationPreferences';
 import { useAuth } from '../context/AuthContext';
 import { useCardDensity } from '../context/CardDensityContext';
 import { useConfirm } from '../context/ConfirmContext';
 import { useCurrencyRegion } from '../context/CurrencyRegionContext';
-import { useScope } from '../context/ScopeContext';
 import { useThemeMode } from '../context/ThemeModeContext';
 import { useUi } from '../context/UiContext';
 import { useViewMode } from '../context/ViewModeContext';
-import { useFriends } from '../hooks/useFriends';
-import { usePendingImportsCount } from '../hooks/usePendingImports';
-import { useSyncSources } from '../hooks/useSyncSources';
-import { useVersion } from '../hooks/useVersion';
 import { Dialog } from '../ui/Dialog';
 import { useIsMobile } from '../ui/useLayout';
 import { AutoHideAdultRow } from './AutoHideAdultRow';
-import { Avatar, Banner, Btn, Group, Kicker, Segmented, Toggle, inputField } from '../ui/primitives';
-import { useAiActivity } from '../hooks/useAiActivity';
+import { Banner, Btn, Group, Kicker, Segmented, Toggle, inputField } from '../ui/primitives';
 import { SystemsPicker } from '../ui/SystemsPicker';
 import { useAnalyticsConsent } from '../hooks/useAnalyticsConsent';
 import { LANGUAGES, rich, t as tr, useI18n, useT, type Language, type MessageKey } from '../i18n';
 import { emailAlertLabel, priceRegionLabel } from '../i18n/labels';
-import { rerunOnboarding } from '../shell/Onboarding';
 import { st } from '../ui/st';
 import { ACCENT_LABELS, type Accent } from '../theme/applyThemeMode';
 import { getBasePath } from '../utils/basePath';
@@ -40,7 +29,6 @@ const PROVIDER_LABELS: Record<string, string> = { google: 'Google', discord: 'Di
 /** A sign-in provider's name: brands as they are, single sign-on translated. */
 const providerLabel = (p: string) => (p === 'oidc' ? tr('settings.me.provider.oidc') : (PROVIDER_LABELS[p] ?? p));
 const ROW_BASE = 'display:flex;align-items:center;gap:12px;min-height:54px;padding:0 16px;border:none;background:var(--surf);color:var(--text);text-align:left;width:100%';
-const ISSUES_URL = 'https://github.com/trentnbauer/QueueUp/issues/new/choose';
 
 /** The line under "Who can see my profile", and the toast after changing it. */
 const PROFILE_VISIBILITY_TEXT: Record<ProfileVisibility, { sub: MessageKey; toast: MessageKey }> = {
@@ -64,9 +52,8 @@ export function NavRow({ label, sub, badge, onClick }: { label: string; sub?: st
   );
 }
 
-/** One of the two side-by-side sync buttons at the top of the dialog: a single labelled button, so
- * two fit on one row even at phone width. */
-function SyncButton({ label, onClick, accent, disabled }: { label: string; onClick: () => void; accent?: boolean; disabled?: boolean }) {
+/** The wide "Sync library and achievements" button at the top of Settings › Libraries. */
+export function SyncButton({ label, onClick, accent, disabled }: { label: string; onClick: () => void; accent?: boolean; disabled?: boolean }) {
   return (
     <button
       type="button"
@@ -80,7 +67,7 @@ function SyncButton({ label, onClick, accent, disabled }: { label: string; onCli
 }
 
 /** A row of a Group holding a label (and optional hint) above a control, e.g. a Segmented picker. */
-function ControlRow({ label, hint, children }: { label: string; hint?: string; children: ReactNode }) {
+export function ControlRow({ label, hint, children }: { label: string; hint?: string; children: ReactNode }) {
   return (
     <div style={st('display:flex;flex-direction:column;gap:8px;padding:12px 14px 12px 16px;background:var(--surf)')}>
       <span style={st('font:600 15px var(--font-ui)')}>{label}</span>
@@ -90,7 +77,7 @@ function ControlRow({ label, hint, children }: { label: string; hint?: string; c
   );
 }
 
-function Section({ label, children }: { label: string; children: ReactNode }) {
+export function Section({ label, children }: { label: string; children: ReactNode }) {
   return (
     <div style={st('display:flex;flex-direction:column;gap:10px')}>
       <Kicker>{label}</Kicker>
@@ -332,8 +319,9 @@ function AlertEmailRow() {
   );
 }
 
-/** Which alerts you get: email (needs SMTP set up on the server) and, for the newer alert types, the bell. */
-export function NotificationsDialog({ onClose }: { onClose: () => void }) {
+/** Which alerts you get: email (needs SMTP set up on the server) and, for the newer alert types, the bell.
+ * Settings › Notifications. */
+export function NotificationSettings() {
   const queryClient = useQueryClient();
   const t = useT();
   const { data, isLoading } = useQuery({ queryKey: NOTIFICATION_PREFERENCES_QUERY_KEY, queryFn: notificationPreferencesApi.get });
@@ -355,7 +343,7 @@ export function NotificationsDialog({ onClose }: { onClose: () => void }) {
   }
   const anyOn = !!data?.preferences.some((p) => p.email || p.inApp);
   return (
-    <Dialog onClose={onClose} title={t('settings.notifications.title')} gap={14}>
+    <div style={st('display:flex;flex-direction:column;gap:14px')}>
       {error && <Banner onDismiss={() => setError(null)}>{error}</Banner>}
       <AlertEmailRow />
       {data && !data.emailAvailable && (
@@ -396,12 +384,12 @@ export function NotificationsDialog({ onClose }: { onClose: () => void }) {
           {t('settings.notifications.unsubAll')}
         </Btn>
       )}
-    </Dialog>
+    </div>
   );
 }
 
 /** Account history: a log of changes to this account and its settings. */
-function AccountHistoryDialog({ onClose }: { onClose: () => void }) {
+export function AccountHistoryDialog({ onClose }: { onClose: () => void }) {
   const t = useT();
   const history = useInfiniteQuery({
     queryKey: ['account-events'],
@@ -433,7 +421,7 @@ function AccountHistoryDialog({ onClose }: { onClose: () => void }) {
   );
 }
 
-function ApiKeysDialog({ onClose }: { onClose: () => void }) {
+export function ApiKeysDialog({ onClose }: { onClose: () => void }) {
   const queryClient = useQueryClient();
   const ui = useUi();
   const confirm = useConfirm();
@@ -539,16 +527,14 @@ function ApiKeysDialog({ onClose }: { onClose: () => void }) {
   );
 }
 
-/** Appearance: language, theme, accent, layout, card density and price currency. */
-function AppearanceDialog({ onClose }: { onClose: () => void }) {
+/** Appearance: language, theme, accent, layout and card density. Settings › Preferences. */
+export function AppearanceSettings() {
   const { language, setLanguage, t } = useI18n();
-  const { region, setRegion } = useCurrencyRegion();
   const { preference, setPreference, accent, setAccent } = useThemeMode();
   const { viewMode, setViewMode } = useViewMode();
   const mobileLayout = useIsMobile();
   const { density, setDensity } = useCardDensity();
   return (
-    <Dialog onClose={onClose} title={t('settings.me.appearance.title')} gap={14}>
       <Group>
             <div style={st('display:flex;align-items:center;gap:12px;min-height:58px;padding:0 14px 0 16px;background:var(--surf)')}>
               <span style={st('flex:1;display:flex;flex-direction:column;gap:1px')}>
@@ -612,6 +598,15 @@ function AppearanceDialog({ onClose }: { onClose: () => void }) {
                 />
               </ControlRow>
             )}
+      </Group>
+  );
+}
+
+/** Which currency prices show in. A row of Settings › Preferences › Region and systems. */
+export function CurrencyRow() {
+  const t = useT();
+  const { region, setRegion } = useCurrencyRegion();
+  return (
             <div style={st('display:flex;align-items:center;gap:12px;min-height:58px;padding:0 14px 0 16px;background:var(--surf)')}>
               <span style={st('flex:1;font:600 15px var(--font-ui)')}>{t('settings.me.currency.label')}</span>
               <select
@@ -628,13 +623,11 @@ function AppearanceDialog({ onClose }: { onClose: () => void }) {
                 ))}
               </select>
             </div>
-      </Group>
-    </Dialog>
   );
 }
 
-/** Profile: the public link, who can see it, and what you share. */
-function ProfileSettingsDialog({ onClose }: { onClose: () => void }) {
+/** Profile: the public link, who can see it, and what you share. Settings › Profile & privacy. */
+export function ProfileSettings() {
   const ui = useUi();
   const t = useT();
   const { user, profileVisibility, profileSlug, refetch } = useAuth();
@@ -665,7 +658,7 @@ function ProfileSettingsDialog({ onClose }: { onClose: () => void }) {
   }
 
   return (
-    <Dialog onClose={onClose} title={t('settings.me.profileSettings.title')} gap={14}>
+    <>
       {error && <Banner onDismiss={() => setError(null)}>{error}</Banner>}
       <Group>
         <button type="button" onClick={() => window.open(profileUrl, '_blank', 'noopener')} style={st(ROW_BASE)} className="hv-surf2">
@@ -723,12 +716,12 @@ function ProfileSettingsDialog({ onClose }: { onClose: () => void }) {
               </>
             )}
       </Group>
-    </Dialog>
+    </>
   );
 }
 
-/** Sign-in methods: which providers this account can use, and linking or unlinking them. */
-function SignInMethodsDialog({ onClose, providers }: { onClose: () => void; providers: string[] }) {
+/** Sign-in methods: which providers this account can use, and linking or unlinking them. Settings › Account. */
+export function SignInMethods({ providers }: { providers: string[] }) {
   const ui = useUi();
   const confirm = useConfirm();
   const t = useT();
@@ -758,7 +751,7 @@ function SignInMethodsDialog({ onClose, providers }: { onClose: () => void; prov
   }
 
   return (
-    <Dialog onClose={onClose} title={t('settings.me.signIn.title')} gap={14}>
+    <>
       {error && <Banner onDismiss={() => setError(null)}>{error}</Banner>}
       <Group>
               {providers.map((p) => {
@@ -782,282 +775,6 @@ function SignInMethodsDialog({ onClose, providers }: { onClose: () => void; prov
                 );
               })}
       </Group>
-    </Dialog>
-  );
-}
-
-/** Profile & settings: pages, syncs, appearance, currency, systems, sign-in methods, sharing, account. */
-export function MeDialog() {
-  const ui = useUi();
-  const { t } = useI18n();
-  const navigate = useNavigate();
-  const confirm = useConfirm();
-  const { user, profileSlug, ownedPlatforms, refetch } = useAuth();
-  const [nameDraft, setNameDraft] = useState<string | null>(null);
-  const { rooms, games } = useScope();
-  const { version } = useVersion();
-  const friends = useFriends();
-  const pending = usePendingImportsCount();
-  const sync = useSyncSources();
-  const scanningDuplicates = useAiActivity('duplicates');
-  // Playnite pushes from the desktop, so whether its connection code has been used says if it is set up (#793).
-  const { data: apiKeys } = useQuery({ queryKey: API_KEYS_QUERY_KEY, queryFn: apiKeysApi.list });
-  const playniteKey = apiKeys?.keys
-    .filter((k) => k.label === PLAYNITE_API_KEY_LABEL && !k.revokedAt)
-    .sort((a, b) => (b.lastUsedAt ?? b.createdAt).localeCompare(a.lastUsedAt ?? a.createdAt))[0];
-  const librariesSummary = [...sync.linkedLabels, playniteKey?.lastUsedAt ? 'Playnite' : null].filter(Boolean).join(', ');
-  const { data: badges } = useQuery({ queryKey: ['me', 'badges'], queryFn: badgesApi.list });
-  const [providers, setProviders] = useState<string[] | null>(null);
-  const [error, setError] = useState<string | null>(null);
-  const [keysOpen, setKeysOpen] = useState(false);
-  const [historyOpen, setHistoryOpen] = useState(false);
-  const [profileOpen, setProfileOpen] = useState(false);
-  const [systemsOpen, setSystemsOpen] = useState(false);
-  const [avatarOpen, setAvatarOpen] = useState(false);
-  const [specsOpen, setSpecsOpen] = useState(false);
-  const specsQuery = useQuery({ queryKey: ['computer-specs'], queryFn: authApi.computerSpecs });
-  const [appearanceOpen, setAppearanceOpen] = useState(false);
-  const [notifOpen, setNotifOpen] = useState(false);
-  const [aiOpen, setAiOpen] = useState(false);
-  const [signInOpen, setSignInOpen] = useState(false);
-
-  useEffect(() => {
-    authApi.providers().then(({ providers }) => setProviders(providers)).catch(() => setProviders([]));
-  }, []);
-
-  if (!user) return null;
-  const close = () => ui.closeDialog('me');
-  const go = (path: string) => () => {
-    close();
-    ui.selectGame(null);
-    navigate(path);
-  };
-  const open = (key: Parameters<typeof ui.openDialog>[0]) => () => {
-    close();
-    ui.openDialog(key as never);
-  };
-
-  const beaten = games.filter((g) => g.status === 'done' || g.status === 'replay').length;
-  const earned = badges ? badges.badges.filter((b) => b.unlockedAt).length : null;
-  const total = badges ? badges.badges.length : null;
-  const profileUrl = `${window.location.origin}${getBasePath()}/u/${profileSlug ?? user.id}`;
-
-  // One button for both: new games and wishlist items from every linked library, then trophies and
-  // achievements (when a linked source has them) - the same order the automatic sync uses.
-  async function syncAll() {
-    if (sync.busy) return;
-    if (!sync.hasLinked) {
-      // Nothing to sync yet: the Libraries dialog is where one gets linked.
-      open('import')();
-      return;
-    }
-    const ok = await confirm({
-      title: t('settings.me.syncAll.confirmTitle'),
-      message: t(sync.hasAchievementSource ? 'settings.me.syncAll.confirmMessage' : 'settings.me.syncLibraries.confirmMessage', { sources: sync.linkedLabels.join(', ') }),
-      confirmLabel: t('settings.me.sync'),
-    });
-    if (!ok) return;
-    close();
-    ui.notify(t('settings.me.syncAll.syncing'));
-    const { failed, skipped } = await sync.syncLibraries();
-    // Each failure is also in the person's notifications, with the reason.
-    const parts = [
-      failed.length > 0 ? t('settings.me.syncLibraries.someFailed', { sources: failed.join(', ') }) : t('settings.me.syncLibraries.done'),
-      skipped.length > 0 ? t('settings.me.syncLibraries.skipped', { sources: skipped.join(', ') }) : '',
-    ];
-    ui.notify(parts.filter(Boolean).join(' '));
-    if (sync.hasAchievementSource) {
-      ui.notify(t('settings.me.syncAchievements.checking'));
-      await sync.syncAchievements();
-    }
-  }
-
-  async function saveName() {
-    if (nameDraft === null) return;
-    try {
-      await authApi.setDisplayName(nameDraft);
-      await refetch();
-      setNameDraft(null);
-      ui.notify(t('settings.me.name.updated'));
-    } catch (e) {
-      ui.showError(e instanceof Error ? e.message : t('settings.me.name.failed'));
-    }
-  }
-
-  async function signOut() {
-    const ok = await confirm({ title: t('settings.me.signOut.title'), message: t('settings.me.signOut.message'), confirmLabel: t('settings.me.signOut') });
-    if (!ok) return;
-    try {
-      await authApi.logout();
-    } finally {
-      window.location.href = `${getBasePath()}/`;
-    }
-  }
-
-  async function deleteAccount() {
-    const ok = await confirm({
-      title: t('settings.me.delete.title'),
-      message: t('settings.me.delete.message'),
-      confirmLabel: t('settings.me.delete.confirm'),
-      danger: true,
-      typedConfirmation: 'DELETE',
-    });
-    if (!ok) return;
-    try {
-      await authApi.deleteAccount();
-      window.location.href = `${getBasePath()}/`;
-    } catch (e) {
-      setError(e instanceof Error ? e.message : t('settings.me.delete.failed'));
-    }
-  }
-
-  const pendingFriends = friends.incoming.length;
-
-  return (
-    <>
-      {avatarOpen && <AvatarPicker onClose={() => setAvatarOpen(false)} />}
-      <Dialog
-        onClose={close}
-        height="tall"
-        gap={24}
-        header={
-          <>
-            <Avatar name={user.displayName} color={user.avatarColor} avatarUrl={user.avatarUrl} size={52} fontSize={20} />
-            <div style={st('flex:1;min-width:0;display:flex;flex-direction:column;gap:2px')}>
-              {nameDraft === null ? (
-                <span style={st('display:flex;align-items:center;gap:8px;min-width:0')}>
-                  <span style={st('font:700 22px var(--font-display);letter-spacing:-0.02em;white-space:nowrap;overflow:hidden;text-overflow:ellipsis')}>{user.displayName}</span>
-                  <button type="button" aria-label={t('settings.me.name.change')} title={t('settings.me.name.change')} onClick={() => setNameDraft(user.displayName)} style={st('flex:none;width:28px;height:28px;border:none;border-radius:999px;background:var(--chip);color:var(--text2);font-size:14px;line-height:1')}>
-                    ✎
-                  </button>
-                </span>
-              ) : (
-                <form
-                  onSubmit={(e) => {
-                    e.preventDefault();
-                    void saveName();
-                  }}
-                  style={st('display:flex;align-items:center;gap:6px')}
-                >
-                  <input autoFocus value={nameDraft} maxLength={40} onChange={(e) => setNameDraft(e.target.value)} aria-label={t('settings.me.name.aria')} style={st('flex:1;min-width:0;height:34px;padding:0 10px;border-radius:10px;border:1px solid var(--line);background:var(--surf);color:var(--text);font:600 16px var(--font-ui)')} />
-                  <Btn kind="accent" height={34} padX={12} fontSize={13} onClick={() => void saveName()}>{t('common.save')}</Btn>
-                  <Btn height={34} padX={12} fontSize={13} onClick={() => setNameDraft(null)}>{t('common.cancel')}</Btn>
-                </form>
-              )}
-              <span style={st('font:400 13px var(--font-ui);color:var(--muted)')}>
-                {t(rooms.length === 1 ? 'settings.me.header.rooms.one' : 'settings.me.header.rooms.other', { n: rooms.length, beaten })}
-              </span>
-            </div>
-          </>
-        }
-      >
-        {error && <Banner onDismiss={() => setError(null)}>{error}</Banner>}
-
-        <div style={st('display:flex;gap:10px;align-items:stretch')}>
-          <SyncButton label={t('settings.me.syncAll')} accent={sync.hasLinked} disabled={sync.busy} onClick={syncAll} />
-        </div>
-
-        <Group>
-          {/* The whole row opens the profile. */}
-          <button type="button" onClick={() => window.open(profileUrl, '_blank', 'noopener')} style={st(ROW_BASE)} className="hv-surf2">
-            <span style={st('flex:1;min-width:0;display:flex;flex-direction:column;gap:1px')}>
-              <span style={st('font:600 15px var(--font-ui)')}>{t('settings.me.profile')}</span>
-              <span style={st('font:500 12.5px var(--font-mono);color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis')}>{profileUrl.replace(/^https?:\/\//, '')}</span>
-            </span>
-            <span style={st('color:var(--muted);font-size:20px')}>›</span>
-          </button>
-        </Group>
-
-        <Group>
-          <NavRow
-            label={t('settings.me.friends')}
-            sub={[
-              t(friends.friends.length === 1 ? 'settings.me.friends.count.one' : 'settings.me.friends.count.other', { n: friends.friends.length }),
-              pendingFriends ? t(pendingFriends === 1 ? 'settings.me.friends.requests.one' : 'settings.me.friends.requests.other', { n: pendingFriends }) : '',
-            ].filter(Boolean).join(' · ')}
-            badge={pendingFriends} onClick={open('friends')} />
-          {pending > 0 && <NavRow label={t('settings.me.needsReview')} sub={t('settings.me.needsReview.sub')} badge={pending} onClick={open('needsReview')} />}
-          <NavRow label={t('settings.me.tonight')} sub={t('settings.me.tonight.sub')} onClick={open('aiTonight')} />
-          <NavRow label={t('settings.me.duplicates')} sub={scanningDuplicates ? t('settings.me.duplicates.scanning') : t('settings.me.duplicates.sub')} onClick={open('duplicates')} />
-          <NavRow label={t('settings.me.achievements')} sub={earned !== null ? t('settings.me.achievements.earned', { earned, total: total ?? 0 }) : t('settings.me.achievements.sub')} onClick={go('/achievements')} />
-          <NavRow label={t('settings.me.insights')} sub={t('settings.me.insights.sub')} onClick={go('/insights')} />
-          <NavRow label={t('settings.me.year')} sub={t('settings.me.year.sub')} onClick={go('/year')} />
-        </Group>
-
-        <Group>
-          <NavRow label={t('settings.me.profileSettings.title')} sub={t('settings.me.profileSettings.sub')} onClick={() => setProfileOpen(true)} />
-          <NavRow label={t('settings.me.libraries')} sub={librariesSummary || t('settings.me.libraries.none')} onClick={open('import')} />
-          <NavRow
-            label={t('settings.systems.title')}
-            sub={ownedPlatforms.length === 0 ? t('settings.systems.everyPlatform') : sortPlatforms(ownedPlatforms).map((p) => ROOM_PLATFORM_LABELS[p]).join(', ')}
-            onClick={() => setSystemsOpen(true)}
-          />
-          <NavRow
-            label={t('settings.specs.title')}
-            sub={[specsQuery.data?.gpu, specsQuery.data?.cpu, specsQuery.data?.ramGb ? `${specsQuery.data.ramGb} GB` : null].filter(Boolean).join(' · ') || t('settings.specs.sub')}
-            onClick={() => setSpecsOpen(true)}
-          />
-          <NavRow label={t('settings.avatar.title')} sub={t('settings.avatar.sub')} onClick={() => setAvatarOpen(true)} />
-          <NavRow label={t('settings.me.appearance.title')} sub={t('settings.me.appearance.sub')} onClick={() => setAppearanceOpen(true)} />
-          <NavRow label={t('settings.notifications.title')} sub={t('settings.me.notifications.sub')} onClick={() => setNotifOpen(true)} />
-          {providers && providers.length > 0 && <NavRow label={t('settings.me.signIn.title')} sub={t('settings.me.signIn.sub')} onClick={() => setSignInOpen(true)} />}
-        </Group>
-
-        <Section label={t('settings.me.section.tools')}>
-          <Group>
-            <NavRow label={t('settings.ai.title')} sub={t('settings.ai.nav.sub')} onClick={() => setAiOpen(true)} />
-            <NavRow label={t('settings.apiKeys.title')} onClick={() => setKeysOpen(true)} />
-            <NavRow label={t('settings.me.journal')} onClick={() => { close(); ui.openDialog('journal', {}); }} />
-            <NavRow label={t('settings.history.title')} onClick={() => setHistoryOpen(true)} />
-          </Group>
-        </Section>
-
-        <Section label={t('settings.me.section.help')}>
-          <Group>
-            <NavRow label={t('settings.me.whatsNew')} onClick={open('changelog')} />
-            <NavRow label={t('settings.me.reportIssue')} onClick={() => window.open(ISSUES_URL, '_blank', 'noopener')} />
-            <NavRow label={t('settings.me.download')} onClick={() => { window.location.href = `${getBasePath()}/api/me/export`; }} />
-            <NavRow
-              label={t('settings.me.rerunSetup')}
-              onClick={() => {
-                close();
-                rerunOnboarding();
-              }}
-            />
-            <NavRow label={t('settings.me.signOut')} onClick={signOut} />
-          </Group>
-        </Section>
-
-        {/* Rarely needed, so it sits at the bottom rather than with the everyday rows above. */}
-        {user.isAdmin && (
-          <Group>
-            <NavRow label={t('settings.me.admin')} sub={t('settings.me.admin.sub')} onClick={go('/admin')} />
-          </Group>
-        )}
-        <button type="button" onClick={deleteAccount} style={st('align-self:flex-start;height:40px;border:none;background:none;padding:0;color:var(--danger);font:600 14px var(--font-ui)')}>
-          {t('settings.me.delete.confirm')}
-        </button>
-        <button
-          type="button"
-          onClick={() => {
-            ui.closeDialog('me');
-            navigate('/privacy');
-          }}
-          style={st('align-self:flex-start;border:none;background:none;padding:0;color:var(--muted);font:500 13px var(--font-ui);text-decoration:underline;text-underline-offset:3px')}
-        >
-          {t('settings.me.privacy')}
-        </button>
-        <span style={st('font:500 11.5px var(--font-mono);color:var(--faint)')}>QueueUp{version ? ` ${version}` : ''}</span>
-      </Dialog>
-      {keysOpen && <ApiKeysDialog onClose={() => setKeysOpen(false)} />}
-      {historyOpen && <AccountHistoryDialog onClose={() => setHistoryOpen(false)} />}
-      {profileOpen && <ProfileSettingsDialog onClose={() => setProfileOpen(false)} />}
-      {systemsOpen && <SystemsDialog onClose={() => setSystemsOpen(false)} />}
-      {specsOpen && <ComputerSpecsDialog onClose={() => setSpecsOpen(false)} />}
-      {appearanceOpen && <AppearanceDialog onClose={() => setAppearanceOpen(false)} />}
-      {notifOpen && <NotificationsDialog onClose={() => setNotifOpen(false)} />}
-      {aiOpen && <AiSettingsDialog onClose={() => setAiOpen(false)} />}
-      {signInOpen && providers && <SignInMethodsDialog onClose={() => setSignInOpen(false)} providers={providers} />}
     </>
   );
 }

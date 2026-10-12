@@ -8,7 +8,6 @@ import { retroAchievementsApi, RETROACHIEVEMENTS_STATUS_QUERY_KEY } from '../api
 import { xboxApi, XBOX_STATUS_QUERY_KEY } from '../api/xbox';
 import { useAuth } from '../context/AuthContext';
 import { useSteamImportContext } from '../context/SteamImportContext';
-import { useUi } from '../context/UiContext';
 import { useLibraryLimits } from './useLibraryLimits';
 
 /** One connected library. To add another, add an entry below: both settings buttons ("Sync
@@ -47,7 +46,6 @@ export function useSyncSources() {
   const { steamLinked } = useAuth();
   const steam = useSteamImportContext();
   const queryClient = useQueryClient();
-  const ui = useUi();
   const [nativeBusy, setNativeBusy] = useState(false);
   const limits = useLibraryLimits();
   const xbox = useQuery({ queryKey: XBOX_STATUS_QUERY_KEY, queryFn: xboxApi.status });
@@ -133,7 +131,5 @@ export function useSyncSources() {
       }
       return 'synced';
     },
-    /** With nothing linked yet, the libraries dialog is the way in. */
-    openLibraries: () => ui.openDialog('import'),
   };
 }
