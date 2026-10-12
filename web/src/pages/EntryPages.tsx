@@ -237,6 +237,10 @@ export function LoginPage({
           {t('core.login.privacy')}
         </Link>{' '}
         ·{' '}
+        <Link to="/terms" style={st('color:var(--muted)')}>
+          {t('core.login.terms')}
+        </Link>{' '}
+        ·{' '}
         <a href="https://github.com/trentnbauer/QueueUp" target="_blank" rel="noopener noreferrer" style={st('color:var(--muted)')}>
           {t('core.login.source')}
         </a>
