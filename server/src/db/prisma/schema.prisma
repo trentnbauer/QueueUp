@@ -1205,6 +1205,9 @@ model RoomMember {
   /// that's ever asked of it - a receipt per (notification, member) would track the same fact at
   /// far higher cost.
   notificationsReadAt DateTime? @map("notifications_read_at")
+  /// This member's own position for the room in their sidebar/top bar (PUT /api/rooms/order). Null
+  /// until they first reorder (or for a room joined since), which sorts after every placed room, by joinedAt.
+  sortOrder           Int?      @map("sort_order")
 
   room Room @relation(fields: [roomId], references: [id], onDelete: Cascade)
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)

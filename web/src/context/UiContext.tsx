@@ -6,6 +6,7 @@ export type DialogKey =
   | 'add'
   | 'import'
   | 'addRoom'
+  | 'reorderRooms'
   | 'roomSettings'
   | 'shelfSettings'
   | 'notifications'

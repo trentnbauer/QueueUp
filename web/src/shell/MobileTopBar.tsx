@@ -97,6 +97,11 @@ export function MobileTopBar() {
                   <Avatar name={user?.displayName ?? '?'} color={user?.avatarColor ?? '#E8734A'} avatarUrl={user?.avatarUrl} size={20} fontSize={9} />
                 </MenuItem>
               )}
+              {shell.roomCount > 1 && (
+                <MenuItem label={t('shell.sidebar.reorderRooms')} onClick={pick(() => ui.openDialog('reorderRooms'))}>
+                  <span aria-hidden>⇅</span>
+                </MenuItem>
+              )}
               <MenuItem label={t('shell.sidebar.friends')} active={shell.onFriends} dot={shell.incomingFriendRequests > 0} onClick={pick(shell.goFriends)}>
                 <PulseIcon />
               </MenuItem>

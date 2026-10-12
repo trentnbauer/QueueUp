@@ -119,7 +119,7 @@ export default async function roomRoutes(app: FastifyInstance) {
     const memberships = await prisma.roomMember.findMany({
       where: { userId },
       include: { room: true },
-      orderBy: { joinedAt: 'asc' },
+      orderBy: [{ sortOrder: { sort: 'asc', nulls: 'last' } }, { joinedAt: 'asc' }],
     });
     // Sidebar subtitle ("4 members · 9 queued") - two cheap grouped counts across every room the
     // caller is in, rather than a per-room query from the client.
@@ -164,6 +164,21 @@ export default async function roomRoutes(app: FastifyInstance) {
       });
     }
     return { rooms };
+  });
+
+  // Saves the caller's own sidebar order (it never affects what other members see): every room id
+  // they're a member of, first to last. Ids they aren't a member of are ignored.
+  app.put<{ Body: { roomIds?: unknown } }>('/api/rooms/order', async (request, reply) => {
+    const userId = await request.requireAuth();
+    const { roomIds } = request.body ?? {};
+    if (!Array.isArray(roomIds) || roomIds.length > 500 || roomIds.some((id) => typeof id !== 'string')) {
+      throw new HttpError(400, 'roomIds must be a list of room ids');
+    }
+    const ids = [...new Set(roomIds as string[])];
+    await prisma.$transaction(
+      ids.map((roomId, i) => prisma.roomMember.updateMany({ where: { userId, roomId }, data: { sortOrder: i } })),
+    );
+    reply.status(204);
   });
 
   app.post<{ Body: CreateRoomRequest }>('/api/rooms', async (request, reply) => {

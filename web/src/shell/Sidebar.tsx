@@ -107,14 +107,27 @@ export function Sidebar({ onCollapse }: { onCollapse: () => void }) {
 
         <div style={st('display:flex;align-items:center;justify-content:space-between;padding:18px 10px 6px')}>
           <span style={st('font:600 11.5px var(--font-mono);letter-spacing:0.08em;color:var(--muted)')}>{t('shell.sidebar.rooms', { n: shell.roomCount })}</span>
-          <button
-            type="button"
-            onClick={() => ui.openDialog('addRoom', { step: 'options' })}
-            aria-label={t('shell.mobile.createOrJoin')}
-            style={st("width:28px;height:28px;border-radius:9px;border:1px dashed var(--line);background:transparent;color:var(--muted);font:500 16px/1 var(--font-ui);padding:0")}
-          >
-            +
-          </button>
+          <span style={st('display:flex;align-items:center;gap:6px')}>
+            {shell.roomCount > 1 && (
+              <button
+                type="button"
+                onClick={() => ui.openDialog('reorderRooms')}
+                aria-label={t('shell.sidebar.reorderRooms')}
+                title={t('shell.sidebar.reorderRooms')}
+                style={st("width:28px;height:28px;border-radius:9px;border:1px dashed var(--line);background:transparent;color:var(--muted);font:500 15px/1 var(--font-ui);padding:0")}
+              >
+                ⇅
+              </button>
+            )}
+            <button
+              type="button"
+              onClick={() => ui.openDialog('addRoom', { step: 'options' })}
+              aria-label={t('shell.mobile.createOrJoin')}
+              style={st("width:28px;height:28px;border-radius:9px;border:1px dashed var(--line);background:transparent;color:var(--muted);font:500 16px/1 var(--font-ui);padding:0")}
+            >
+              +
+            </button>
+          </span>
         </div>
         {shell.roomTiles.map((tile) => (
           <Row key={tile.id} tile={tile} active={tile.active && !shell.onPage} onClick={tile.go} />
