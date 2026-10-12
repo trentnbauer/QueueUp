@@ -149,6 +149,8 @@ export const add = {
   "add.review.dismissMessage": "It won't be added to your shelf. It comes back if your library syncs it again.",
   "add.review.dismissed": "Dismissed {title}",
   "add.review.kickerLeft": "NEEDS REVIEW · {n} LEFT",
+  "add.review.back": "‹ Back",
+  "add.review.backAria": "Go back to the previous title",
   "add.review.kicker": "NEEDS REVIEW",
   "add.review.useMatch": "Use this match",
   "add.review.ai.ask": "Ask AI to match",
