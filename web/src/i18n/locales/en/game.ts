@@ -13,6 +13,7 @@ export const game = {
   "game.detail.syncSource.psn": "PlayStation",
   "game.detail.syncSource.retroachievements": "RetroAchievements",
   "game.detail.syncSource.file": "File import",
+  "game.detail.syncSource.itch": "itch.io",
   "game.detail.ttb.rushed": "{hours}h rushed",
   "game.detail.ttb.main": "{hours}h main",
   "game.detail.ttb.completionist": "{hours}h completionist",

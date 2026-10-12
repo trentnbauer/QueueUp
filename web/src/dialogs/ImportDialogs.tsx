@@ -19,6 +19,7 @@ import { useUndoChange } from '../hooks/useUndoChange';
 import { useLibraryLimits } from '../hooks/useLibraryLimits';
 import { Dialog } from '../ui/Dialog';
 import { FileImportDialog } from './FileImportDialog';
+import { ItchImportDialog } from './ItchImportDialog';
 import { LibraryBadge, type LibraryKind } from '../ui/LibraryLogo';
 import { AdultScanRow, AutoHideAdultRow } from './AutoHideAdultRow';
 import { AiBadge, AiPickedBadge, Banner, Btn, Cover, Group, Kicker, Spinner, inputPill } from '../ui/primitives';
@@ -33,10 +34,10 @@ const PLAYNITE_URL = 'https://playnite.link/';
 const EXTENSION_URL = `${getBasePath()}/api/playnite-extension`;
 const LINK_POLL_MS = 3000;
 
-function ImportRow({ kind, title, sub, cta, onClick, disabled, accent }: { kind?: LibraryKind; title: string; sub: string; cta: string; onClick: () => void; disabled?: boolean; accent?: boolean }) {
+function ImportRow({ kind, badge = 'CSV', title, sub, cta, onClick, disabled, accent }: { kind?: LibraryKind; badge?: string; title: string; sub: string; cta: string; onClick: () => void; disabled?: boolean; accent?: boolean }) {
   return (
     <div style={st('display:flex;align-items:center;gap:12px;min-height:64px;padding:10px 12px 10px 16px;background:var(--surf)')}>
-      {kind ? <LibraryBadge kind={kind} size={40} /> : <span aria-hidden="true" style={st('width:40px;height:40px;flex-shrink:0;border-radius:10px;background:var(--chip);display:flex;align-items:center;justify-content:center;font:700 11px var(--font-ui)')}>CSV</span>}
+      {kind ? <LibraryBadge kind={kind} size={40} /> : <span aria-hidden="true" style={st('width:40px;height:40px;flex-shrink:0;border-radius:10px;background:var(--chip);display:flex;align-items:center;justify-content:center;font:700 11px var(--font-ui)')}>{badge}</span>}
       <div style={st('flex:1;min-width:0;display:flex;flex-direction:column;gap:2px')}>
         <span style={st('font:600 15px var(--font-ui)')}>{title}</span>
         <span style={st('font:400 12.5px var(--font-ui);color:var(--muted);text-wrap:pretty')}>{sub}</span>
@@ -65,6 +66,7 @@ export function ImportDialog() {
   const sync = useSyncSources();
   const [syncingId, setSyncingId] = useState<string | null>(null);
   const [fileOpen, setFileOpen] = useState(false);
+  const [itchOpen, setItchOpen] = useState(false);
   const syncBusy = sync.busy || syncingId !== null;
   const { data: psnStatus } = useQuery({ queryKey: PSN_STATUS_QUERY_KEY, queryFn: psnApi.status });
   const { data: raStatus } = useQuery({ queryKey: RETROACHIEVEMENTS_STATUS_QUERY_KEY, queryFn: retroAchievementsApi.status });
@@ -168,6 +170,7 @@ export function ImportDialog() {
             onClick={xboxStatus.connected && syncMode ? () => void syncRow('xbox', 'Xbox') : () => ui.openDialog('xbox')}
           />
         )}
+        <ImportRow badge="itch" title={t('add.import.itchTitle')} sub={t('add.import.itchSub')} cta={t('add.import.itchCta')} onClick={() => setItchOpen(true)} />
         <ImportRow title={t('add.import.fileTitle')} sub={t('add.import.fileSub')} cta={t('add.import.fileCta')} onClick={() => setFileOpen(true)} />
       </Group>
       <Group>
@@ -175,6 +178,7 @@ export function ImportDialog() {
         <AdultScanRow />
       </Group>
       {fileOpen && <FileImportDialog onClose={() => setFileOpen(false)} />}
+      {itchOpen && <ItchImportDialog onClose={() => setItchOpen(false)} />}
     </Dialog>
   );
 }

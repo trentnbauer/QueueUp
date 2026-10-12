@@ -768,7 +768,7 @@ export interface AccountEventPage {
 }
 
 /** Where a shelf game was synced from. */
-export type SyncSource = 'steam' | 'steam_wishlist' | 'playnite' | 'xbox' | 'exophase' | 'psn' | 'retroachievements' | 'file';
+export type SyncSource = 'steam' | 'steam_wishlist' | 'playnite' | 'xbox' | 'exophase' | 'psn' | 'retroachievements' | 'file' | 'itch';
 
 /** POST/DELETE /api/games/:id/remove-vote. `removed` is true when that vote tipped it over and the game is gone. */
 export interface RemoveVoteResponse {
@@ -3536,6 +3536,11 @@ export interface LibraryFileImportRequest {
   text: string;
   /** Required for the import; ignored by the preview. */
   mapping?: LibraryFileMapping;
+}
+
+/** Body of POST /api/me/import/itch. The key is used for that request only and never stored. */
+export interface ItchImportRequest {
+  apiKey: string;
 }
 
 export interface LibraryFilePreview {
