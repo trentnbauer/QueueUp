@@ -4,6 +4,7 @@ const executeRaw = vi.fn();
 vi.mock('./client.js', () => ({ prisma: { $executeRaw: executeRaw } }));
 vi.mock('../services/playniteImport.js', () => ({ PLAYNITE_SOURCE: 'playnite' }));
 vi.mock('../services/configResolver.js', () => ({ encryptPlaintextConfig: vi.fn(async () => 0) }));
+vi.mock('../services/roomWebhook.js', () => ({ encryptPlaintextWebhooks: vi.fn(async () => 0) }));
 vi.mock('../services/libraryAnnouncements.js', () => ({ announceNewLibrarySources: vi.fn(async () => {}) }));
 
 const { backfillEmailEnabledAt } = await import('./dataMigrations.js');

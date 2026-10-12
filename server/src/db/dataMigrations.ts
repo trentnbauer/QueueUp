@@ -1,6 +1,7 @@
 import { prisma } from './client.js';
 import { PLAYNITE_SOURCE } from '../services/playniteImport.js';
 import { encryptPlaintextConfig } from '../services/configResolver.js';
+import { encryptPlaintextWebhooks } from '../services/roomWebhook.js';
 import { announceNewLibrarySources } from '../services/libraryAnnouncements.js';
 
 /** Reviews moved from columns on the Game row (one review per game, which the last room member to
@@ -137,5 +138,11 @@ export async function runDataMigrations(logger: { info: (msg: string) => void; w
     if (count > 0) logger.info(`Encrypted ${count} integration key(s) stored in Administrator settings`);
   } catch (err) {
     logger.warn(`Could not encrypt stored integration keys (non-fatal): ${err instanceof Error ? err.message : String(err)}`);
+  }
+  try {
+    const count = await encryptPlaintextWebhooks();
+    if (count > 0) logger.info(`Encrypted ${count} room Discord webhook URL(s)`);
+  } catch (err) {
+    logger.warn(`Could not encrypt stored Discord webhook URLs (non-fatal): ${err instanceof Error ? err.message : String(err)}`);
   }
 }

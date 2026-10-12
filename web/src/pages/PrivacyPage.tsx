@@ -97,14 +97,13 @@ export function PrivacyPage({ signedIn }: { signedIn: boolean }) {
           <p style={st(P)}>
             <b>{t('pages.privacy.encryption.protected')}</b>
           </p>
-          <List items={items('pages.privacy.encryption.credentials', 'pages.privacy.encryption.logins', 'pages.privacy.encryption.apiKeys', 'pages.privacy.encryption.cookie')} />
+          <List items={items('pages.privacy.encryption.credentials', 'pages.privacy.encryption.logins', 'pages.privacy.encryption.webhook', 'pages.privacy.encryption.apiKeys', 'pages.privacy.encryption.cookie')} />
           <p style={st(P)}>
             <b>{t('pages.privacy.encryption.notProtected')}</b>
           </p>
           <List
             items={items(
               'pages.privacy.encryption.everythingElse',
-              'pages.privacy.encryption.webhook',
               'pages.privacy.encryption.exophase',
               'pages.privacy.encryption.sessions',
               'pages.privacy.encryption.alertEmails',

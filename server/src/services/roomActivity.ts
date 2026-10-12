@@ -1,6 +1,7 @@
 import type { Prisma, RoomActivityType } from '@prisma/client';
 import { resolveDiscordEvents, type DiscordEventKey } from '@queueup/shared';
 import { prisma } from '../db/client.js';
+import { loadWebhookUrl } from './roomWebhook.js';
 
 /** Which Discord event toggle governs each activity type - a type missing from this map (room
  * renamed, platform changed, price drop, ...) has no toggle and always posts, the same as before
@@ -29,8 +30,11 @@ export async function postRoomDiscord(roomId: string, content: string, event: Di
     });
     if (!room?.discordWebhookUrl) return;
     if (event && !resolveDiscordEvents(room.discordEvents)[event]) return;
+    // Stored encrypted (see roomWebhook.ts); null when it was saved under another SESSION_SECRET.
+    const webhookUrl = await loadWebhookUrl(room.discordWebhookUrl);
+    if (!webhookUrl) return;
 
-    await fetch(room.discordWebhookUrl, {
+    await fetch(webhookUrl, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       // Content carries text any member writes (display names, review notes, game titles), so
