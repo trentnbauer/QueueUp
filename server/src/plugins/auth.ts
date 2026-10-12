@@ -3,6 +3,7 @@ import fp from 'fastify-plugin';
 import { Prisma } from '@prisma/client';
 import { env } from '../config/env.js';
 import { prisma } from '../db/client.js';
+import { avatarSourceKey, effectiveAvatarUrl, readSources } from '../services/avatars.js';
 import { isDisplayNameBlocked, placeholderDisplayName } from '../services/displayNames.js';
 import { BannedError, isBanned } from '../services/banCache.js';
 import { HttpError } from '../util/httpError.js';
@@ -121,9 +122,13 @@ async function getOrCreateUser({ emailVerified, ...profile }: {
     // Refresh email/avatar from whichever provider was just used to sign in (this can be a linked,
     // non-primary provider). displayName is deliberately NOT refreshed: it's user-editable via
     // PATCH /api/me/display-name, and overwriting it on login reset edits (#682).
+    const sources = readSources(existing.avatarSources);
+    if (profile.avatarUrl) sources[avatarSourceKey(profile.oidcSub)] = profile.avatarUrl;
+    const avatarUrl = effectiveAvatarUrl({ ...existing, email: profile.email, emailVerified }, sources, profile.avatarUrl);
     const user = await prisma.user.update({
       where: { id: existing.id },
-      data: { email: profile.email, emailVerified, avatarUrl: profile.avatarUrl, isAdmin, isSuperAdmin },
+      // The person's chosen colour (their Personal Shelf colour) is also their avatar colour.
+      data: { email: profile.email, emailVerified, avatarUrl, avatarSources: sources, ...(existing.shelfColor && { avatarColor: existing.shelfColor }), isAdmin, isSuperAdmin },
     });
     return { user, isNewUser: false };
   }
@@ -131,7 +136,7 @@ async function getOrCreateUser({ emailVerified, ...profile }: {
   try {
     // A provider name that is on the blacklist is replaced, and the person picks their own.
     const blockedName = await isDisplayNameBlocked(profile.displayName);
-    const user = await prisma.user.create({ data: { ...profile, ...(blockedName && { displayName: placeholderDisplayName(), mustChangeName: true }), emailVerified, avatarColor: randomAvatarColor(), isAdmin, isSuperAdmin, onboardingPending: true } });
+    const user = await prisma.user.create({ data: { ...profile, ...(blockedName && { displayName: placeholderDisplayName(), mustChangeName: true }), emailVerified, avatarSources: profile.avatarUrl ? { [avatarSourceKey(profile.oidcSub)]: profile.avatarUrl } : {}, avatarColor: randomAvatarColor(), isAdmin, isSuperAdmin, onboardingPending: true } });
     return { user, isNewUser: true };
   } catch (err) {
     // Lost a race against a concurrent request for this same not-yet-existing account (issue

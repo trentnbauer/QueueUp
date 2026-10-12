@@ -244,6 +244,13 @@ model User {
   banReason            String?        @map("ban_reason")
   /// An administrator made them give up an offensive display name: they must pick a new one before using the app.
   mustChangeName       Boolean        @default(false) @map("must_change_name")
+  /// Which picture to show (see AVATAR_CHOICES). avatarUrl is that picture's URL, kept in step so every
+  /// place that shows an avatar keeps reading one column.
+  avatarChoice         String         @default("auto") @map("avatar_choice")
+  /// The Steam / Discord / sign-in provider pictures seen at sign-in or when linking, as JSON.
+  avatarSources        Json           @default("{}") @map("avatar_sources")
+  /// An administrator removed the picture: it is never shown again, and a sign-in does not bring it back.
+  avatarBlocked        Boolean        @default(false) @map("avatar_blocked")
   oidcSub              String         @unique @map("oidc_sub")
   /// Set when this user links a Steam account without signing in with it directly (oidcSub is
   /// already taken by their primary sign-in provider) - see the Steam-link flow in auth.ts.

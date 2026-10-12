@@ -148,7 +148,8 @@ export async function setProfileVisibility(userId: string, raw: unknown): Promis
 export async function setShelfColor(userId: string, raw: unknown): Promise<string | null> {
   if (raw !== null && !isHexColour(raw)) throw new HttpError(400, 'Colour must be a hex value like #5a73c4');
   const shelfColor = raw === null ? null : raw.toLowerCase();
-  await prisma.user.update({ where: { id: userId }, data: { shelfColor } });
+  // The Personal Shelf colour is also the colour behind the person's avatar letter.
+  await prisma.user.update({ where: { id: userId }, data: { shelfColor, ...(shelfColor && { avatarColor: shelfColor }) } });
   return shelfColor;
 }
 
