@@ -45,7 +45,7 @@ describe('parseRequirementSet', () => {
 describe('tag stripping', () => {
   it('does not let nested tags reassemble into a tag', () => {
     const set = parseRequirementSet('<ul><li><strong>Memory:</strong> <<b>script>8 GB RAM</li></ul>');
-    expect(JSON.stringify(set)).not.toMatch(/<script>/);
+    expect(JSON.stringify(set)).not.toContain('<script');
   });
 });
 
