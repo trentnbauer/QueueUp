@@ -991,7 +991,7 @@ function FriendExtras({ profile }: { profile: PublicUserProfile }) {
     if (!ok) return;
     await friends.unfriend(profile.userId);
     ui.notify(t('pages.profile.removed', { name: profile.displayName }));
-    navigate('/activity');
+    navigate('/friends');
   }
 
   return (

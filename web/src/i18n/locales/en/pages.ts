@@ -144,17 +144,11 @@ export const pages = {
   "pages.feed.tag.ach": "Achievement",
 
   // Activity page
-  "pages.activity.title": "Activity",
-  "pages.activity.hint": "What your friends have been playing, beating and unlocking.",
-  "pages.activity.back": "Shelf",
   "pages.activity.noFriends": "Add a friend to see what they are playing.",
   "pages.activity.empty": "Nothing here yet.",
   "pages.activity.loadMore": "Load more",
-  "pages.activity.manageFriends": "Manage friends",
 
   // Backlog insights
-  "pages.insights.title": "Backlog insights",
-  "pages.insights.hint": "How long games take you from Playing to Beaten, what has sat untouched longest, and how old your backlog is, across your shelf and every room.",
   "pages.insights.days": "{n}d",
   "pages.insights.hours": "{n}h",
   "pages.insights.avgDays": "avg. days from Playing to Beaten",
@@ -185,8 +179,6 @@ export const pages = {
   "pages.coach.markedPlayNext": "Moved \"{title}\" to Play next.",
 
   // Achievements page
-  "pages.achievements.title": "Achievements",
-  "pages.achievements.hint": "Milestones across your shelf and every room you're in. Rarity is out of every QueueUp player.",
   "pages.achievements.refreshFailed": "Could not refresh achievements right now.",
   "pages.achievements.earnedCount": "{earned} OF {total} EARNED",
   "pages.achievements.checking": "Checking…",
@@ -195,7 +187,6 @@ export const pages = {
   "pages.achievements.rarity": "{n}% of players",
 
   // Year in games
-  "pages.year.title": "Year in games",
   "pages.story.title": "Your year, as a story",
   "pages.story.roomTitle": "The room's year, as a story",
   "pages.story.profileTitle": "My year in games",
@@ -216,7 +207,6 @@ export const pages = {
   "pages.story.deleteMessage": "The text is removed. You can write a new one any time.",
   "pages.story.failed": "AI couldn't write a recap.",
   "pages.story.saveFailed": "Couldn't save that change.",
-  "pages.year.hint": "Your last 12 months: what you finished, where the hours went and what the squad voted up.",
   "pages.year.loadFailed": "Could not load your year in games.",
   "pages.year.finished.one": "game finished",
   "pages.year.finished.other": "games finished",
@@ -553,4 +543,21 @@ export const pages = {
   "pages.termsAccept.accept": "Accept and continue",
   "pages.termsAccept.signOut": "Sign out",
   "pages.termsAccept.failed": "Could not save your answer. Try again.",
+
+  // Friends (/friends)
+  "pages.friends.title": "Friends",
+  "pages.friends.hint": "What your friends are playing and finishing, the people you've added, and anyone asking to be added.",
+  "pages.friends.copyLink": "Copy my friend link",
+  "pages.friends.tab.activity": "Activity",
+  "pages.friends.tab.friends": "Friends",
+  "pages.friends.tab.requests": "Requests",
+  "pages.friends.count": "FRIENDS · {n}",
+  "pages.friends.sent": "SENT · {n}",
+  "pages.friends.noRequests": "No friend requests right now.",
+  // Your stats (/stats)
+  "pages.stats.title": "Your stats",
+  "pages.stats.hint": "How your backlog is moving, the badges you've earned and your last twelve months, all in one place.",
+  "pages.stats.tab.insights": "Insights",
+  "pages.stats.tab.achievements": "Achievements",
+  "pages.stats.tab.year": "Year in games",
 } as const;

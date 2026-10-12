@@ -54,15 +54,26 @@ function ImportRow({ kind, badge = 'CSV', title, sub, cta, onClick, disabled, ac
   );
 }
 
-/** "Import your library": Steam (library + wishlist + completions) and Playnite. */
+/** "Import your library" from Add game (issue #859): a linked library's button syncs it right here. */
 export function ImportDialog() {
+  const t = useT();
+  const ui = useUi();
+  return (
+    <Dialog onClose={() => ui.closeDialog('import')} title={t('add.import.title')} gap={16}>
+      <LibrarySources syncMode={ui.dialogs.import?.mode === 'sync'} />
+    </Dialog>
+  );
+}
+
+/** Every library source (Steam, Playnite, Exophase, PlayStation, RetroAchievements, Xbox, itch, a
+ * file) with its Link / Manage button. Settings › Libraries, and the Add game import dialog, where
+ * `syncMode` makes a linked source's button sync it instead of opening its settings. */
+export function LibrarySources({ syncMode = false }: { syncMode?: boolean }) {
   const t = useT();
   const ui = useUi();
   const { steamLinked } = useAuth();
   const { busy, activeKind, progress, wishlistProgress, startLink, syncingEverything, completions, result, error } = useSteamImportContext();
   const running = busy || completions.busy || syncingEverything;
-  // Opened from Add game (issue #859): a linked library's button syncs it here, rather than opening its settings.
-  const syncMode = ui.dialogs.import?.mode === 'sync';
   const sync = useSyncSources();
   const [syncingId, setSyncingId] = useState<string | null>(null);
   const [fileOpen, setFileOpen] = useState(false);
@@ -117,7 +128,7 @@ export function ImportDialog() {
         : (error ?? completions.error ?? result);
 
   return (
-    <Dialog onClose={() => ui.closeDialog('import')} title={t('add.import.title')} gap={16}>
+    <>
       {status && <div style={st('padding:12px 14px;border-radius:14px;background:var(--surf);font:500 13.5px var(--font-ui);text-wrap:pretty')}>{status}</div>}
       <Group>
         <ImportRow
@@ -179,7 +190,7 @@ export function ImportDialog() {
       </Group>
       {fileOpen && <FileImportDialog onClose={() => setFileOpen(false)} />}
       {itchOpen && <ItchImportDialog onClose={() => setItchOpen(false)} />}
-    </Dialog>
+    </>
   );
 }
 

@@ -42,7 +42,6 @@ export const social = {
   "social.requests.cancelConfirm": "Cancel request",
   "social.requests.cancelled": "Request cancelled",
 
-  "social.friends.title": "Friends",
   "social.friends.nowFriends": "You and {name} are friends",
   "social.friends.removeTitle": "Remove {name}?",
   "social.friends.removeMessage": "They won't see your activity and you won't see theirs. You can add each other again with a friend code.",
@@ -56,10 +55,7 @@ export const social = {
   "social.friends.codeAria": "Friend code",
   "social.friends.send": "Send",
   "social.friends.linkCopied": "Friend link copied",
-  "social.friends.shareLink": "Share your friend link · {tap}",
-  "social.friends.tapToCopy": "tap to copy",
   "social.friends.shareHint": "Anyone who opens it becomes your friend. It changes every 3 hours (code {code}).",
-  "social.friends.pending": "PENDING REQUESTS · {n}",
   "social.friends.wantsToBeFriends": "Wants to be friends",
   "social.friends.waiting": "Request sent · waiting for a reply",
   "social.friends.private": "Private profile",

@@ -44,7 +44,6 @@ export const social: Record<keyof typeof en, string> = {
   "social.requests.cancelConfirm": "Take back request",
   "social.requests.cancelled": "Request taken back",
 
-  "social.friends.title": "Mateys",
   "social.friends.nowFriends": "Ye an’ {name} be mateys now",
   "social.friends.removeTitle": "Cut ties with {name}?",
   "social.friends.removeMessage": "They won’t see yer goings-on an’ ye won’t see theirs. Ye can be mateys again with a matey code.",
@@ -58,10 +57,7 @@ export const social: Record<keyof typeof en, string> = {
   "social.friends.codeAria": "Matey code",
   "social.friends.send": "Send",
   "social.friends.linkCopied": "Matey link copied",
-  "social.friends.shareLink": "Share yer matey link · {tap}",
-  "social.friends.tapToCopy": "tap to copy",
   "social.friends.shareHint": "Anyone who opens it becomes yer matey. It changes every 3 hours (code {code}).",
-  "social.friends.pending": "WAITIN’ REQUESTS · {n}",
   "social.friends.wantsToBeFriends": "Wants to be yer matey",
   "social.friends.waiting": "Request sent · waitin’ fer a reply",
   "social.friends.private": "Private profile",

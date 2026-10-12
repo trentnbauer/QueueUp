@@ -9,9 +9,6 @@ export type DialogKey =
   | 'roomSettings'
   | 'shelfSettings'
   | 'notifications'
-  | 'notificationSettings'
-  | 'me'
-  | 'friends'
   | 'spin'
   | 'ranked'
   | 'deck'
@@ -38,7 +35,7 @@ interface DialogPayloads {
   addRoom: { step: AddRoomStep };
   add: { query?: string };
   /** `sync`: opened from Add game (issue #859) - a linked library's button syncs it right there instead of
-   * opening its settings. Without it (from Settings) the button is Manage. */
+   * opening its settings. Without it the button is Manage. */
   import: { mode?: 'sync' };
   /** `edit`: opened to write or change the review of an already-Beaten game, rather than straight
    * after marking it Beaten - closing it then leaves the game detail open. `syncShelf`: opened from

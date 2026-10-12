@@ -32,10 +32,9 @@ const AdminPage = lazy(() => import('./pages/AdminPage').then((m) => ({ default:
 const TermsPage = lazy(() => import('./pages/TermsPage').then((m) => ({ default: m.TermsPage })));
 const PrivacyPage = lazy(() => import('./pages/PrivacyPage').then((m) => ({ default: m.PrivacyPage })));
 const ConfirmEmailPage = lazy(() => import('./pages/ConfirmEmailPage').then((m) => ({ default: m.ConfirmEmailPage })));
-const ActivityPage = lazy(() => import('./pages/FriendPages').then((m) => ({ default: m.ActivityPage })));
-const AchievementsPage = lazy(() => import('./pages/InsightPages').then((m) => ({ default: m.AchievementsPage })));
-const InsightsPage = lazy(() => import('./pages/InsightPages').then((m) => ({ default: m.InsightsPage })));
-const YearPage = lazy(() => import('./pages/InsightPages').then((m) => ({ default: m.YearPage })));
+const FriendsPage = lazy(() => import('./pages/FriendPages').then((m) => ({ default: m.FriendsPage })));
+const StatsPage = lazy(() => import('./pages/InsightPages').then((m) => ({ default: m.StatsPage })));
+const SettingsPage = lazy(() => import('./pages/SettingsPage').then((m) => ({ default: m.SettingsPage })));
 
 // Invite links (`/join/:inviteCode`) need to survive a full-page OAuth sign-in/callback round trip,
 // which drops the URL back at APP_BASE_URL with no way to carry a query param through the redirect.
@@ -45,7 +44,7 @@ const PENDING_INVITE_KEY = 'sq-pending-invite';
 // Same idea for friend links (`/add/:friendCode`).
 const PENDING_FRIEND_KEY = 'sq-pending-friend';
 // The Unsubscribe link in every email opens `/?settings=notifications`. Same sign-in round trip
-// problem, same answer: stash it, then open the notification settings once signed in.
+// problem, same answer: stash it, then go to Settings › Notifications once signed in.
 const PENDING_SETTINGS_KEY = 'sq-pending-settings';
 
 /** Puts the page name in the browser tab: "QueueUp - Personal Shelf". Renders nothing. */
@@ -61,10 +60,9 @@ function RouteTitle() {
   let page: string | null = null;
   if (pathname === '/') page = t('home.title.shelf');
   else if (pathname.startsWith('/room/')) page = scope.room?.name ?? null;
-  else if (pathname === '/activity') page = t('pages.activity.title');
-  else if (pathname === '/insights') page = t('pages.insights.title');
-  else if (pathname === '/achievements') page = t('pages.achievements.title');
-  else if (pathname === '/year') page = t('pages.year.title');
+  else if (pathname === '/friends') page = t('pages.friends.title');
+  else if (pathname === '/stats') page = t('pages.stats.title');
+  else if (pathname === '/settings' || pathname.startsWith('/settings/')) page = t('settings.page.title');
   else if (pathname === '/admin') page = t('pages.admin.title');
   else if (pathname.startsWith('/join/')) page = t('pages.join.title');
   return <PageTitle page={page} />;
@@ -164,8 +162,8 @@ export default function App() {
       .catch(() => setProvidersError(true));
   }, [user, providersAttempt]);
 
-  // The email Unsubscribe link: remember it (and tidy the address bar), then open the notification
-  // settings as soon as there is a signed-in user - straight away if there already is one, after
+  // The email Unsubscribe link: remember it (and tidy the address bar), then go to Settings ›
+  // Notifications as soon as there is a signed-in user - straight away if there already is one, after
   // sign-in otherwise.
   useEffect(() => {
     const params = new URLSearchParams(location.search);
@@ -188,7 +186,7 @@ export default function App() {
     } catch {
       /* ignore */
     }
-    if (pending === 'notifications') ui.openDialog('notificationSettings');
+    if (pending === 'notifications') navigate('/settings/notifications');
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [user, location.search]);
 
@@ -307,11 +305,16 @@ export default function App() {
             <Routes>
               <Route path="/" element={<HomeView />} />
               <Route path="/room/:roomId" element={<HomeView />} />
-              <Route path="/activity" element={<ActivityPage />} />
+              <Route path="/friends" element={<FriendsPage />} />
               <Route path="/friends/:userId" element={<FriendRedirect />} />
-              <Route path="/insights" element={<InsightsPage />} />
-              <Route path="/achievements" element={<AchievementsPage />} />
-              <Route path="/year" element={<YearPage />} />
+              <Route path="/stats" element={<StatsPage />} />
+              <Route path="/settings" element={<SettingsPage />} />
+              <Route path="/settings/:section" element={<SettingsPage />} />
+              {/* Old addresses of pages that moved (bookmarks, links in old emails). */}
+              <Route path="/activity" element={<Navigate to="/friends" replace />} />
+              <Route path="/insights" element={<Navigate to="/stats" replace />} />
+              <Route path="/achievements" element={<Navigate to="/stats?tab=achievements" replace />} />
+              <Route path="/year" element={<Navigate to="/stats?tab=year" replace />} />
               <Route path="/admin" element={<AdminPage />} />
               <Route path="/join/:inviteCode" element={<JoinRoute />} />
               <Route path="/add/:code" element={<AddFriendRoute />} />

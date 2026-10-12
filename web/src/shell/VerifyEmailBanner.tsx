@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { useNavigate } from 'react-router';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { ALERT_EMAIL_QUERY_KEY, NOTIFICATION_PREFERENCES_QUERY_KEY, alertEmailApi, notificationPreferencesApi } from '../api/notificationPreferences';
 import { useUi } from '../context/UiContext';
@@ -18,6 +19,7 @@ const DISMISSED_KEY = 'sq-verify-email-dismissed';
 export function VerifyEmailBanner() {
   const t = useT();
   const ui = useUi();
+  const navigate = useNavigate();
   const queryClient = useQueryClient();
   const { data } = useQuery({ queryKey: ALERT_EMAIL_QUERY_KEY, queryFn: alertEmailApi.get });
   // Only for people who actually want email alerts: with none switched on there is nothing to verify.
@@ -44,7 +46,7 @@ export function VerifyEmailBanner() {
 
   // A made-up address (a sign-in provider that gave no email) can't be sent to.
   const accountEmailIsReal = !/\.unknown$/i.test(data.accountEmail.split('@')[1] ?? '');
-  const openSettings = () => ui.openDialog('notificationSettings');
+  const openSettings = () => navigate('/settings/notifications');
   const dismiss = () => {
     setDismissed(true);
     try {

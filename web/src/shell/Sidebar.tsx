@@ -1,6 +1,6 @@
 import type { ReactNode } from 'react';
 import { useUi } from '../context/UiContext';
-import { Avatar, BellIcon, CollapseIcon, PulseIcon, Wordmark } from '../ui/primitives';
+import { Avatar, BellIcon, CollapseIcon, PulseIcon, StatsIcon, Wordmark } from '../ui/primitives';
 import { st } from '../ui/st';
 import { useShell, type TileModel } from './useShell';
 import { useT } from '../i18n';
@@ -41,6 +41,30 @@ function Row({ tile, active, onClick, children }: { tile: TileModel; active: boo
   );
 }
 
+/** A sidebar row for a page of its own (Friends, Your stats): an outline icon tile instead of a colour. */
+function PageRow({ icon, title, sub, active, badge, onClick }: { icon: ReactNode; title: string; sub: string; active: boolean; badge?: number; onClick: () => void }) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className="hv-surf"
+      aria-current={active ? 'page' : undefined}
+      style={st(
+        `display:flex;align-items:center;gap:12px;width:100%;min-height:52px;padding:8px 10px;border-radius:14px;border:none;background:${active ? 'var(--surf)' : 'transparent'};color:var(--text);text-align:left`,
+      )}
+    >
+      <span style={st('width:36px;height:36px;flex-shrink:0;border-radius:11px;border:1px solid var(--line);display:flex;align-items:center;justify-content:center')}>{icon}</span>
+      <span style={st('flex:1;min-width:0;display:flex;flex-direction:column;gap:1px')}>
+        <span style={st(`font:${active ? 700 : 600} 14.5px var(--font-ui);white-space:nowrap;overflow:hidden;text-overflow:ellipsis`)}>{title}</span>
+        <span style={st('font:400 12px var(--font-ui);color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis')}>{sub}</span>
+      </span>
+      {!!badge && (
+        <span style={st('min-width:22px;height:22px;padding:0 7px;flex-shrink:0;border-radius:999px;background:var(--acc);color:var(--ink);font:700 11.5px var(--font-ui);display:flex;align-items:center;justify-content:center')}>{badge}</span>
+      )}
+    </button>
+  );
+}
+
 /** The 264px labelled sidebar. */
 export function Sidebar({ onCollapse }: { onCollapse: () => void }) {
   const shell = useShell();
@@ -69,24 +93,17 @@ export function Sidebar({ onCollapse }: { onCollapse: () => void }) {
       </div>
 
       <div style={st('flex:1;min-height:0;overflow-y:auto;padding:4px 12px 16px;display:flex;flex-direction:column;gap:2px')}>
-        <Row tile={shell.shelfTile} active={shell.shelfTile.active && !shell.onActivity} onClick={shell.shelfTile.go} />
+        <Row tile={shell.shelfTile} active={shell.shelfTile.active && !shell.onPage} onClick={shell.shelfTile.go} />
 
-        <button
-          type="button"
-          onClick={shell.goActivity}
-          className="hv-surf"
-          style={st(
-            `display:flex;align-items:center;gap:12px;width:100%;min-height:52px;padding:8px 10px;border-radius:14px;border:none;background:${shell.onActivity ? 'var(--surf)' : 'transparent'};color:var(--text);text-align:left`,
-          )}
-        >
-          <span style={st('width:36px;height:36px;flex-shrink:0;border-radius:11px;border:1px solid var(--line);display:flex;align-items:center;justify-content:center')}>
-            <PulseIcon />
-          </span>
-          <span style={st('flex:1;min-width:0;display:flex;flex-direction:column;gap:1px')}>
-            <span style={st('font:600 14.5px var(--font-ui)')}>{t('shell.sidebar.activity')}</span>
-            <span style={st('font:400 12px var(--font-ui);color:var(--muted)')}>{t('shell.sidebar.activitySub')}</span>
-          </span>
-        </button>
+        <PageRow
+          icon={<PulseIcon />}
+          title={t('shell.sidebar.friends')}
+          sub={t('shell.sidebar.friendsSub')}
+          active={shell.onFriends}
+          badge={shell.incomingFriendRequests}
+          onClick={shell.goFriends}
+        />
+        <PageRow icon={<StatsIcon />} title={t('shell.sidebar.stats')} sub={t('shell.sidebar.statsSub')} active={shell.onStats} onClick={shell.goStats} />
 
         <div style={st('display:flex;align-items:center;justify-content:space-between;padding:18px 10px 6px')}>
           <span style={st('font:600 11.5px var(--font-mono);letter-spacing:0.08em;color:var(--muted)')}>{t('shell.sidebar.rooms', { n: shell.roomCount })}</span>
@@ -100,21 +117,22 @@ export function Sidebar({ onCollapse }: { onCollapse: () => void }) {
           </button>
         </div>
         {shell.roomTiles.map((tile) => (
-          <Row key={tile.id} tile={tile} active={tile.active && !shell.onActivity} onClick={tile.go} />
+          <Row key={tile.id} tile={tile} active={tile.active && !shell.onPage} onClick={tile.go} />
         ))}
       </div>
 
       <div style={st('flex-shrink:0;display:flex;align-items:center;gap:8px;padding:12px;border-top:1px solid var(--chip)')}>
         <button
           type="button"
-          onClick={() => ui.openDialog('me')}
+          onClick={shell.goSettings}
           className="hv-surf"
-          style={st('flex:1;min-width:0;display:flex;align-items:center;gap:10px;padding:6px 8px;border-radius:14px;border:none;background:transparent;color:var(--text);text-align:left')}
+          aria-current={shell.onSettings ? 'page' : undefined}
+          style={st(`flex:1;min-width:0;display:flex;align-items:center;gap:10px;padding:6px 8px;border-radius:14px;border:none;background:${shell.onSettings ? 'var(--surf)' : 'transparent'};color:var(--text);text-align:left`)}
         >
           <Avatar name={user?.displayName ?? '?'} color={user?.avatarColor ?? '#E8734A'} avatarUrl={user?.avatarUrl} size={36} fontSize={14} />
           <span style={st('flex:1;min-width:0;display:flex;flex-direction:column;gap:1px')}>
             <span style={st('font:600 14px var(--font-ui);white-space:nowrap;overflow:hidden;text-overflow:ellipsis')}>{user?.displayName}</span>
-            <span style={st('font:400 12px var(--font-ui);color:var(--muted)')}>{t('shell.sidebar.profileSettings')}</span>
+            <span style={st('font:400 12px var(--font-ui);color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis')}>{t('shell.sidebar.accountSettings')}</span>
           </span>
         </button>
         <BellButton size={40} ring="var(--bg2)" />
@@ -141,6 +159,25 @@ function BellButton({ size, ring }: { size: number; ring: string }) {
       {shell.hasUnread && (
         <span style={st(`position:absolute;right:1px;top:1px;width:10px;height:10px;border-radius:50%;${DOT};border:2px solid ${ring}`)} />
       )}
+    </button>
+  );
+}
+
+/** A round outline button on the rail for a page of its own, filled while on it. */
+function RailButton({ label, active, dot, onClick, children }: { label: string; active: boolean; dot?: boolean; onClick: () => void; children: ReactNode }) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      aria-label={label}
+      title={label}
+      aria-current={active ? 'page' : undefined}
+      style={st(
+        `position:relative;flex-shrink:0;width:42px;height:42px;border-radius:50%;border:1px solid ${active ? 'var(--text)' : 'var(--line)'};background:${active ? 'var(--text)' : 'transparent'};color:${active ? 'var(--onText)' : 'var(--text)'};display:flex;align-items:center;justify-content:center;padding:0`,
+      )}
+    >
+      {children}
+      {dot && <span style={st(`position:absolute;right:1px;top:1px;width:10px;height:10px;border-radius:50%;${DOT};border:2px solid var(--bg2)`)} />}
     </button>
   );
 }
@@ -174,7 +211,7 @@ export function Rail({ onExpand }: { onExpand: () => void }) {
         style={st('flex:1;min-height:0;width:100%;overflow-y:auto;overflow-x:hidden;display:flex;flex-direction:column;align-items:center;gap:12px;padding:6px 0')}
       >
         {tiles.map((tile) => {
-          const a = tile.active && !shell.onActivity;
+          const a = tile.active && !shell.onPage;
           return (
             <button
               key={tile.id}
@@ -201,24 +238,20 @@ export function Rail({ onExpand }: { onExpand: () => void }) {
           +
         </button>
       </div>
-      <button
-        type="button"
-        onClick={shell.goActivity}
-        aria-label={t('shell.nav.friendActivity')}
-        title={t('shell.sidebar.activity')}
-        style={st(
-          `flex-shrink:0;width:42px;height:42px;border-radius:50%;border:1px solid ${shell.onActivity ? 'var(--text)' : 'var(--line)'};background:${shell.onActivity ? 'var(--text)' : 'transparent'};color:${shell.onActivity ? 'var(--onText)' : 'var(--text)'};display:flex;align-items:center;justify-content:center;padding:0`,
-        )}
-      >
+      <RailButton label={t('shell.sidebar.friends')} active={shell.onFriends} dot={shell.incomingFriendRequests > 0} onClick={shell.goFriends}>
         <PulseIcon />
-      </button>
+      </RailButton>
+      <RailButton label={t('shell.sidebar.stats')} active={shell.onStats} onClick={shell.goStats}>
+        <StatsIcon />
+      </RailButton>
       <BellButton size={42} ring="var(--bg2)" />
       <button
         type="button"
-        onClick={() => ui.openDialog('me')}
-        aria-label={t('shell.nav.profileSettings')}
-        title={t('shell.sidebar.profile')}
-        style={st('flex-shrink:0;width:42px;height:42px;border-radius:50%;border:2px solid var(--line);padding:0;background:transparent;overflow:hidden')}
+        onClick={shell.goSettings}
+        aria-label={t('shell.nav.settings')}
+        title={t('shell.nav.settings')}
+        aria-current={shell.onSettings ? 'page' : undefined}
+        style={st(`flex-shrink:0;width:42px;height:42px;border-radius:50%;border:2px solid ${shell.onSettings ? 'var(--text)' : 'var(--line)'};padding:0;background:transparent;overflow:hidden`)}
       >
         <Avatar name={user?.displayName ?? '?'} color={user?.avatarColor ?? '#E8734A'} avatarUrl={user?.avatarUrl} size={38} fontSize={14} />
       </button>

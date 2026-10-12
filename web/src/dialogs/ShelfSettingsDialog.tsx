@@ -1,3 +1,4 @@
+import { useNavigate } from 'react-router';
 import { useState } from 'react';
 import { useInfiniteQuery } from '@tanstack/react-query';
 import { ROOM_PLATFORM_LABELS, SPIN_WHEEL_THEMES, sortPlatforms } from '@queueup/shared';
@@ -15,7 +16,7 @@ import { BACKLOG_SORT_OPTIONS, toggleBacklogSort, useBacklogSort } from '../home
 import { usePlayNextTab } from '../home/playNextTab';
 import { formatRelativeTime } from '../utils/relativeTime';
 import { useShelfSpinTheme } from '../home/shelfSpinTheme';
-import { NavRow, SystemsDialog } from './MeDialog';
+import { NavRow, SystemsDialog } from './SettingsParts';
 import { rich, useT } from '../i18n';
 import { spinThemeHint, spinThemeLabel } from '../i18n/labels';
 
@@ -47,6 +48,7 @@ function ShelfSpinTypeDialog({ onClose }: { onClose: () => void }) {
 
 export function ShelfSettingsDialog() {
   const ui = useUi();
+  const navigate = useNavigate();
   const t = useT();
   const { games } = useScope();
   const [showAct, setShowAct] = useState(false);
@@ -158,7 +160,7 @@ export function ShelfSettingsDialog() {
         type="button"
         onClick={() => {
           ui.closeDialog('shelfSettings');
-          ui.openDialog('me');
+          navigate('/settings/preferences');
         }}
         style={st('align-self:flex-start;border:none;background:none;padding:0;color:var(--muted);font:400 13px/1.5 var(--font-ui);text-align:left')}
       >
