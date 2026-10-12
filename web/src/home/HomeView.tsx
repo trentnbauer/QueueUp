@@ -299,54 +299,68 @@ export function HomeView() {
         <div style={st('display:flex;flex-wrap:wrap;align-items:center;gap:10px')}>
           <h1
             style={st(
-              `flex:1 1 ${mobile ? 0 : 280}px;min-width:0;margin:0;${mobile ? 'min-height:calc(2 * 1.05em);display:flex;align-items:center;' : ''}font:700 ${mobile ? 34 : 44}px/${mobile ? 1.05 : 1.02} var(--font-display);letter-spacing:-0.03${mobile ? '' : '5'}em;text-wrap:balance`,
+              `flex:1 1 ${mobile ? 150 : 280}px;min-width:0;margin:0;${mobile ? 'min-height:calc(2 * 1.05em);display:flex;align-items:center;' : ''}font:700 ${mobile ? 34 : 44}px/${mobile ? 1.05 : 1.02} var(--font-display);letter-spacing:-0.03${mobile ? '' : '5'}em;text-wrap:balance`,
             )}
           >
             {title}
           </h1>
-          {!mobile && (
-            <>
-              <Btn hover height={42} fontSize={14} onClick={() => ui.openDialog('ranked')}>
-                {t('home.header.ranked')}
-              </Btn>
-              <Btn hover height={42} fontSize={14} onClick={() => ui.openDialog('add', {})}>
-                {t('home.header.addGame')}
-              </Btn>
-            </>
-          )}
-          {room?.discordInviteUrl && !isShelf && (
-            <a href={room.discordInviteUrl} target="_blank" rel="noopener noreferrer" style={{ textDecoration: 'none' }}>
-              <Btn hover height={mobile ? 40 : 42} fontSize={14}>
-                {t('home.header.joinDiscord')}
-              </Btn>
-            </a>
-          )}
-          {!glanceFits && (
-            <Btn hover height={mobile ? 40 : 42} padX={mobile ? 14 : 18} fontSize={14} onClick={() => ui.openDialog('aiTonight')} ariaLabel={t('shell.glance.askAi')}>
-              {t('home.header.askAi')}
-            </Btn>
-          )}
-          <Btn
-            kind="accent"
-            height={mobile ? 40 : 42}
-            padX={mobile ? 18 : 22}
-            fontSize={14}
-            weight={800}
-            onClick={() => ui.openDialog('spin')}
-            style={{ fontFamily: 'var(--font-display)', boxShadow: '0 6px 20px var(--accA30)' }}
-          >
-            {t('home.header.spin')}
-          </Btn>
-          <button
-            type="button"
-            onClick={() => ui.openDialog(isShelf ? 'shelfSettings' : 'roomSettings')}
-            aria-label={isShelf ? t('home.header.shelfSettings') : t('home.header.roomSettings')}
-            style={st(
-              `flex-shrink:0;width:${mobile ? 40 : 42}px;height:${mobile ? 40 : 42}px;border-radius:50%;border:1px solid var(--line);background:transparent;color:var(--text);font:700 16px var(--font-ui);letter-spacing:1px;padding:0 0 6px`,
+          {/* The buttons stay together: on a narrow phone they drop below the title as one row. */}
+          <div style={st('display:flex;align-items:center;gap:10px;flex-shrink:0')}>
+            {!mobile && (
+              <>
+                <Btn hover height={42} fontSize={14} onClick={() => ui.openDialog('ranked')}>
+                  {t('home.header.ranked')}
+                </Btn>
+                <Btn hover height={42} fontSize={14} onClick={() => ui.openDialog('add', {})}>
+                  {t('home.header.addGame')}
+                </Btn>
+              </>
             )}
-          >
-            …
-          </button>
+            {room?.discordInviteUrl && !isShelf && (
+              <a href={room.discordInviteUrl} target="_blank" rel="noopener noreferrer" style={{ textDecoration: 'none' }}>
+                <Btn hover height={mobile ? 40 : 42} fontSize={14}>
+                  {t('home.header.joinDiscord')}
+                </Btn>
+              </a>
+            )}
+            {!glanceFits && (
+              // A phone gets a round "AI" button the size of the settings one, so the title keeps its room.
+              <Btn
+                hover
+                height={mobile ? 40 : 42}
+                padX={mobile ? 0 : 18}
+                fontSize={mobile ? 13 : 14}
+                weight={mobile ? 700 : 600}
+                onClick={() => ui.openDialog('aiTonight')}
+                ariaLabel={t('shell.glance.askAi')}
+                title={t('shell.glance.askAi')}
+                style={mobile ? { width: 40 } : undefined}
+              >
+                {mobile ? t('home.header.askAiShort') : t('home.header.askAi')}
+              </Btn>
+            )}
+            <Btn
+              kind="accent"
+              height={mobile ? 40 : 42}
+              padX={mobile ? 18 : 22}
+              fontSize={14}
+              weight={800}
+              onClick={() => ui.openDialog('spin')}
+              style={{ fontFamily: 'var(--font-display)', boxShadow: '0 6px 20px var(--accA30)' }}
+            >
+              {t('home.header.spin')}
+            </Btn>
+            <button
+              type="button"
+              onClick={() => ui.openDialog(isShelf ? 'shelfSettings' : 'roomSettings')}
+              aria-label={isShelf ? t('home.header.shelfSettings') : t('home.header.roomSettings')}
+              style={st(
+                `flex-shrink:0;width:${mobile ? 40 : 42}px;height:${mobile ? 40 : 42}px;border-radius:50%;border:1px solid var(--line);background:transparent;color:var(--text);font:700 16px var(--font-ui);letter-spacing:1px;padding:0 0 6px`,
+              )}
+            >
+              …
+            </button>
+          </div>
         </div>
         {isShelf ? (
           <div style={st('display:flex;align-items:center;height:32px;margin-top:2px;min-width:0')}>

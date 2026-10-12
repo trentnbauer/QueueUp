@@ -28,7 +28,7 @@ export function VoteSegment({
   const wrap =
     variant === 'cover'
       ? 'position:absolute;z-index:2;left:6px;right:6px;bottom:6px;display:flex;gap:1px;padding:3px;border-radius:999px;background:oklch(0.15 0.01 55 / 0.62);backdrop-filter:blur(10px)'
-      : `${ABOVE}display:flex;${variant === 'mobile' ? 'align-self:flex-start;' : 'flex-shrink:0;'}gap:1px;padding:3px;border-radius:999px;background:var(--surf)`;
+      : `${ABOVE}display:flex;${variant === 'mobile' ? 'align-self:flex-start;min-width:0;max-width:100%;' : 'flex-shrink:0;'}gap:1px;padding:3px;border-radius:999px;background:var(--surf)`;
   return (
     <div style={st(wrap)} onClick={stop} role="group" aria-label={t('home.row.yourVote')}>
       {VOTE_VALUES.map((v) => {
@@ -38,7 +38,10 @@ export function VoteSegment({
             ? 'flex:1;min-width:0;height:30px;font-size:14px'
             : compact
               ? 'width:32px;height:28px;font-size:14px'
-              : 'width:34px;height:30px;font-size:15px';
+              : variant === 'mobile'
+                ? // On a narrow phone the five buttons give up a little width rather than push the row off screen.
+                  'flex:0 1 34px;min-width:26px;height:30px;font-size:15px'
+                : 'width:34px;height:30px;font-size:15px';
         return (
           <button
             key={v}

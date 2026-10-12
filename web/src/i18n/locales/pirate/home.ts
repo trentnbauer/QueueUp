@@ -109,6 +109,7 @@ export const home: Record<keyof typeof en, string> = {
   "home.header.addGame": "+ Stow game",
   "home.header.spin": "Spin",
   "home.header.askAi": "Ask the parrot",
+  "home.header.askAiShort": "AI",
   "home.header.shelfSettings": "Chest riggin’",
   "home.header.roomSettings": "Ship riggin’",
   "home.header.shelfSub": "Every game ye own or covet, kept in step with yer plundered libraries",

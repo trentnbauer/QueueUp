@@ -107,6 +107,7 @@ export const home = {
   "home.header.addGame": "+ Add game",
   "home.header.spin": "Spin",
   "home.header.askAi": "Ask AI",
+  "home.header.askAiShort": "AI",
   "home.header.shelfSettings": "Shelf settings",
   "home.header.roomSettings": "Room settings",
   "home.header.shelfSub": "Every game you own or want, kept in sync with your imported libraries",
