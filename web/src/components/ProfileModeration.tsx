@@ -1,13 +1,14 @@
 import { useState, type ReactNode } from 'react';
 import { useNavigate } from 'react-router';
 import { useQueryClient } from '@tanstack/react-query';
+import { REPORT_REASONS, type ReportReason } from '@queueup/shared';
 import { moderationApi } from '../api/moderation';
 import { useConfirm } from '../context/ConfirmContext';
 import { useUi } from '../context/UiContext';
 import { Dialog } from '../ui/Dialog';
 import { Btn } from '../ui/primitives';
 import { st } from '../ui/st';
-import { useT } from '../i18n';
+import { useT, type MessageKey } from '../i18n';
 
 const MAX_REASON = 1000;
 
@@ -22,6 +23,7 @@ export function ProfileModeration({ userId, name }: { userId: string; name: stri
   const queryClient = useQueryClient();
   const [reporting, setReporting] = useState(false);
   const [reason, setReason] = useState('');
+  const [reasons, setReasons] = useState<ReportReason[]>([]);
   const [alsoBlock, setAlsoBlock] = useState(false);
   const [busy, setBusy] = useState(false);
 
@@ -46,7 +48,7 @@ export function ProfileModeration({ userId, name }: { userId: string; name: stri
   async function sendReport() {
     setBusy(true);
     try {
-      await moderationApi.report({ userId, reason: reason.trim(), alsoBlock });
+      await moderationApi.report({ userId, reasons, reason: reason.trim(), alsoBlock });
       ui.notify(t('social.report.sent'));
       setReporting(false);
       if (alsoBlock) afterBlock();
@@ -68,6 +70,14 @@ export function ProfileModeration({ userId, name }: { userId: string; name: stri
       {reporting && (
         <Dialog title={t('social.report.title', { name })} onClose={() => setReporting(false)} width={440}>
           <span style={st('font:400 13.5px/1.5 var(--font-ui);color:var(--muted)')}>{t('social.report.hint')}</span>
+          <div style={st('display:flex;flex-direction:column;gap:6px')}>
+            {REPORT_REASONS.map((r) => (
+              <label key={r} style={st('display:flex;align-items:center;gap:8px;font:400 14px var(--font-ui)')}>
+                <input type="checkbox" checked={reasons.includes(r)} onChange={() => setReasons((cur) => (cur.includes(r) ? cur.filter((x) => x !== r) : [...cur, r]))} />
+                {t(`social.report.reason.${r}` as MessageKey)}
+              </label>
+            ))}
+          </div>
           <textarea
             value={reason}
             onChange={(e) => setReason(e.target.value)}
@@ -82,7 +92,7 @@ export function ProfileModeration({ userId, name }: { userId: string; name: stri
             {t('social.report.alsoBlock')}
           </label>
           <div style={st('display:flex;gap:8px')}>
-            <Btn height={40} padX={18} disabled={busy || !reason.trim()} onClick={() => void sendReport()}>
+            <Btn height={40} padX={18} disabled={busy || (!reason.trim() && reasons.length === 0)} onClick={() => void sendReport()}>
               {t('social.report.submit')}
             </Btn>
             <Btn kind="ghost" height={40} padX={14} disabled={busy} onClick={() => setReporting(false)}>

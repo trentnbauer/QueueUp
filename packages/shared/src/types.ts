@@ -1439,10 +1439,15 @@ export interface BlockedUser {
   createdAt: string;
 }
 
-/** POST /api/reports - `reason` is the reporter's own words, 1-1000 characters. */
+/** Ready-made reasons for reporting someone; a report needs at least one, or a written reason. */
+export const REPORT_REASONS = ['offensive_name', 'offensive_avatar', 'harassment', 'spam', 'inappropriate_content', 'other'] as const;
+export type ReportReason = (typeof REPORT_REASONS)[number];
+
+/** POST /api/reports - ticked `reasons`, and/or the reporter's own words in `reason` (up to 1000 characters). */
 export interface ReportUserRequest {
   userId: string;
-  reason: string;
+  reasons?: ReportReason[];
+  reason?: string;
   /** Also block them, in the same step. */
   alsoBlock?: boolean;
 }
@@ -1452,6 +1457,7 @@ export interface AdminUserReport {
   id: string;
   reporter: { id: string; displayName: string };
   reported: { id: string; displayName: string };
+  reasons: ReportReason[];
   reason: string;
   createdAt: string;
   resolvedAt: string | null;

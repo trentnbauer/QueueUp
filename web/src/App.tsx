@@ -17,6 +17,7 @@ import { useUi } from './context/UiContext';
 import { HomeView } from './home/HomeView';
 import { JoinPage, LoginPage, PublicProfilePage } from './pages/EntryPages';
 import { BannedPage } from './pages/BannedPage';
+import { MustChangeNamePage } from './pages/MustChangeNamePage';
 import { AppShell } from './shell/AppShell';
 import { Onboarding, onRerunOnboarding } from './shell/Onboarding';
 import { initAnalytics, trackPageView } from './utils/analytics';
@@ -115,7 +116,7 @@ function FriendRedirect() {
 }
 
 export default function App() {
-  const { user, banned, loading, onboardingPending, completeOnboarding } = useAuth();
+  const { user, banned, mustChangeName, loading, onboardingPending, completeOnboarding } = useAuth();
   const location = useLocation();
   const navigate = useNavigate();
   const ui = useUi();
@@ -290,6 +291,7 @@ export default function App() {
   }
 
   if (banned) return <BannedPage />;
+  if (mustChangeName) return <MustChangeNamePage />;
 
   return (
     <SteamImportProvider>

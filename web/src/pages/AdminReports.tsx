@@ -1,12 +1,13 @@
 import { useState, type ReactNode } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { moderationApi } from '../api/moderation';
+import { useConfirm } from '../context/ConfirmContext';
 import { useUi } from '../context/UiContext';
 import { Dialog } from '../ui/Dialog';
 import { Btn, Collapsible } from '../ui/primitives';
 import { st } from '../ui/st';
 import { formatRelativeTime } from '../utils/relativeTime';
-import { useT } from '../i18n';
+import { useT, type MessageKey } from '../i18n';
 
 const ROW = 'display:flex;flex-direction:column;gap:6px;padding:12px 14px;background:var(--surf)';
 const LIST = 'display:flex;flex-direction:column;gap:1px;border-radius:16px;overflow:hidden;background:var(--chip)';
@@ -18,6 +19,7 @@ const HEADING = 'font:700 12px var(--font-mono);letter-spacing:0.06em;color:var(
 export function AdminReports(): ReactNode {
   const t = useT();
   const ui = useUi();
+  const confirm = useConfirm();
   const queryClient = useQueryClient();
   const reports = useQuery({ queryKey: ['admin', 'reports'], queryFn: moderationApi.adminReports });
   const bans = useQuery({ queryKey: ['admin', 'bans'], queryFn: moderationApi.adminBans });
@@ -49,6 +51,16 @@ export function AdminReports(): ReactNode {
     },
     onError,
   });
+  const forceName = useMutation({ mutationFn: moderationApi.forceNameChange, onSuccess: () => { refresh(); ui.notify(t('social.report.admin.nameDone')); }, onError });
+  const resetAvatar = useMutation({ mutationFn: moderationApi.resetAvatar, onSuccess: () => { refresh(); ui.notify(t('social.report.admin.avatarDone')); }, onError });
+  async function askForceName(reportId: string, name: string) {
+    const ok = await confirm({ title: t('social.report.admin.nameTitle', { name }), message: t('social.report.admin.nameMessage'), confirmLabel: t('social.report.admin.name'), danger: true });
+    if (ok) forceName.mutate(reportId);
+  }
+  async function askResetAvatar(reportId: string, name: string) {
+    const ok = await confirm({ title: t('social.report.admin.avatarTitle', { name }), message: t('social.report.admin.avatarMessage'), confirmLabel: t('social.report.admin.avatar'), danger: true });
+    if (ok) resetAvatar.mutate(reportId);
+  }
   const decline = useMutation({ mutationFn: moderationApi.declineUnban, onSuccess: refresh, onError });
 
   const rows = reports.data?.reports ?? [];
@@ -98,8 +110,25 @@ export function AdminReports(): ReactNode {
                   {formatRelativeTime(r.createdAt)}
                 </span>
               </div>
-              <span style={st('font:400 13.5px/1.5 var(--font-ui);white-space:pre-wrap;overflow-wrap:anywhere')}>{r.reason}</span>
-              <div style={st('display:flex;align-items:center;gap:8px')}>
+              {r.reasons.length > 0 && (
+                <div style={st('display:flex;flex-wrap:wrap;gap:6px')}>
+                  {r.reasons.map((x) => (
+                    <span key={x} style={st('font:600 11.5px var(--font-ui);padding:3px 9px;border-radius:999px;background:var(--chip)')}>{t(`social.report.reason.${x}` as MessageKey)}</span>
+                  ))}
+                </div>
+              )}
+              {r.reason && <span style={st('font:400 13.5px/1.5 var(--font-ui);white-space:pre-wrap;overflow-wrap:anywhere')}>{r.reason}</span>}
+              <div style={st('display:flex;flex-wrap:wrap;align-items:center;gap:8px')}>
+                {r.reasons.includes('offensive_name') && (
+                  <Btn kind="soft" height={32} padX={12} fontSize={12.5} disabled={forceName.isPending} onClick={() => void askForceName(r.id, r.reported.displayName)}>
+                    {t('social.report.admin.name')}
+                  </Btn>
+                )}
+                {r.reasons.includes('offensive_avatar') && (
+                  <Btn kind="soft" height={32} padX={12} fontSize={12.5} disabled={resetAvatar.isPending} onClick={() => void askResetAvatar(r.id, r.reported.displayName)}>
+                    {t('social.report.admin.avatar')}
+                  </Btn>
+                )}
                 <Btn kind="ghost" height={32} padX={12} fontSize={12.5} disabled={resolve.isPending} onClick={() => resolve.mutate(r.id)}>
                   {t('social.reports.resolve')}
                 </Btn>

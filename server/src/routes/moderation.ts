@@ -1,5 +1,5 @@
 import type { FastifyInstance } from 'fastify';
-import type { AdminBan, AdminUnbanRequest, AdminUserReport, BlockedUser, ReportUserRequest } from '@queueup/shared';
+import { REPORT_REASONS, type AdminBan, type AdminUnbanRequest, type AdminUserReport, type BlockedUser, type ReportReason, type ReportUserRequest } from '@queueup/shared';
 import { prisma } from '../db/client.js';
 import { HttpError } from '../util/httpError.js';
 import { requireAdmin } from '../services/adminAccess.js';
@@ -7,6 +7,8 @@ import { logAdminAction } from '../services/adminAuditLog.js';
 import { blockUser } from '../services/blocks.js';
 import { forgetBan } from '../services/banCache.js';
 import { notifyAdmins } from '../services/adminNotifications.js';
+import { blockDisplayName, placeholderDisplayName } from '../services/displayNames.js';
+import { notifyAccountChange } from '../services/notifications.js';
 
 const MAX_REASON_LENGTH = 1000;
 
@@ -56,9 +58,12 @@ export default async function moderationRoutes(app: FastifyInstance) {
     const me = await request.requireAuth();
     const target = await requireTarget(request.body?.userId, me);
     const reason = typeof request.body?.reason === 'string' ? request.body.reason.trim() : '';
-    if (!reason) throw new HttpError(400, 'Tell us why you are reporting them');
+    const rawReasons = request.body?.reasons ?? [];
+    if (!Array.isArray(rawReasons) || !rawReasons.every((r) => (REPORT_REASONS as readonly string[]).includes(r))) throw new HttpError(400, 'Unknown report reason');
+    const reasons = [...new Set(rawReasons)] as ReportReason[];
+    if (!reason && reasons.length === 0) throw new HttpError(400, 'Pick a reason or tell us why you are reporting them');
     if (reason.length > MAX_REASON_LENGTH) throw new HttpError(400, `Keep the reason under ${MAX_REASON_LENGTH} characters`);
-    await prisma.userReport.create({ data: { reporterId: me, reportedUserId: target.id, reason } });
+    await prisma.userReport.create({ data: { reporterId: me, reportedUserId: target.id, reason, reasons } });
     const reporter = await prisma.user.findUnique({ where: { id: me }, select: { displayName: true } });
     void notifyAdmins('admin_report', `${reporter?.displayName ?? 'Someone'} reported ${target.displayName}. Open Reports on the Administrator page to read why.`);
     if (request.body.alsoBlock) await blockUser(me, target.id);
@@ -81,6 +86,7 @@ export default async function moderationRoutes(app: FastifyInstance) {
         reporter: r.reporter,
         reported: { id: r.reported.id, displayName: r.reported.displayName },
         reportedBanned: !!r.reported.bannedAt,
+        reasons: r.reasons as ReportReason[],
         reason: r.reason,
         createdAt: r.createdAt.toISOString(),
         resolvedAt: r.resolvedAt?.toISOString() ?? null,
@@ -97,6 +103,45 @@ export default async function moderationRoutes(app: FastifyInstance) {
       await prisma.userReport.update({ where: { id: report.id }, data: { resolvedAt: new Date(), resolvedBy: actorId } });
       await logAdminAction({ actorId, actorLabel: actor.email, action: 'report.resolve', targetLabel: report.reported.displayName, metadata: { reportId: report.id } });
     }
+    return { ok: true };
+  });
+
+
+  /** Loads a report and who it is about, for an action an administrator takes on it. */
+  async function loadReportForAction(id: string) {
+    const report = await prisma.userReport.findUnique({ where: { id }, include: { reported: { select: { id: true, displayName: true, isAdmin: true } } } });
+    if (!report) throw new HttpError(404, 'Report not found');
+    return report;
+  }
+  const resolveAfterAction = (report: { id: string; resolvedAt: Date | null }, adminId: string) =>
+    report.resolvedAt ? Promise.resolve() : prisma.userReport.update({ where: { id: report.id }, data: { resolvedAt: new Date(), resolvedBy: adminId } });
+
+  // The name is offensive: blacklist it, give the person a neutral stand-in, and make them pick a new
+  // one before they can use the app. Resolves the report.
+  app.post<{ Params: { id: string } }>('/api/admin/reports/:id/force-name-change', { config: { rateLimit: { max: 20, timeWindow: '1 minute' } } }, async (request) => {
+    const actorId = await request.requireAuth();
+    const actor = await requireAdmin(actorId);
+    const report = await loadReportForAction(request.params.id);
+    if (report.reported.isAdmin) throw new HttpError(400, 'Remove their administrator role first');
+    const oldName = report.reported.displayName;
+    await blockDisplayName(oldName, actorId);
+    await prisma.user.update({ where: { id: report.reported.id }, data: { displayName: placeholderDisplayName(), mustChangeName: true } });
+    await resolveAfterAction(report, actorId);
+    await logAdminAction({ actorId, actorLabel: actor.email, action: 'user.force_name_change', targetLabel: oldName, metadata: { userId: report.reported.id, reportId: report.id } });
+    await notifyAccountChange(report.reported.id, 'An administrator removed your display name because it broke the rules. Choose a new one.');
+    return { ok: true };
+  });
+
+  // The avatar is offensive: clear it. Resolves the report.
+  app.post<{ Params: { id: string } }>('/api/admin/reports/:id/reset-avatar', { config: { rateLimit: { max: 20, timeWindow: '1 minute' } } }, async (request) => {
+    const actorId = await request.requireAuth();
+    const actor = await requireAdmin(actorId);
+    const report = await loadReportForAction(request.params.id);
+    if (report.reported.isAdmin) throw new HttpError(400, 'Remove their administrator role first');
+    await prisma.user.update({ where: { id: report.reported.id }, data: { avatarUrl: null } });
+    await resolveAfterAction(report, actorId);
+    await logAdminAction({ actorId, actorLabel: actor.email, action: 'user.reset_avatar', targetLabel: report.reported.displayName, metadata: { userId: report.reported.id, reportId: report.id } });
+    await notifyAccountChange(report.reported.id, 'An administrator removed your profile picture because it broke the rules.');
     return { ok: true };
   });
 
