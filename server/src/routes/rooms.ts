@@ -1,4 +1,6 @@
 import { assertTextAllowed } from '../services/displayNames.js';
+import { env } from '../config/env.js';
+import { encryptWebhookUrl, readWebhookUrl } from '../services/roomWebhook.js';
 import type { FastifyInstance } from 'fastify';
 import { Prisma } from '@prisma/client';
 import { prisma } from '../db/client.js';
@@ -84,8 +86,9 @@ function toRoomDto(
     inviteCode: role !== 'member' || room.invitePermission === 'members' ? inviteCode : '',
     // The webhook URL embeds Discord's own auth token (discord.com/api/webhooks/<id>/<token>) -
     // whoever has it can post to that channel as the webhook, so only the Room Master (who can
-    // also change it) gets the real value; other members just don't see it at all.
-    discordWebhookUrl: role === 'room_master' ? room.discordWebhookUrl : undefined,
+    // also change it) gets the real value; other members just don't see it at all. Stored
+    // encrypted (see roomWebhook.ts).
+    discordWebhookUrl: role === 'room_master' ? readWebhookUrl(room.discordWebhookUrl, env.SESSION_SECRET) : undefined,
     // An invite link is meant to be shared, so every member gets it (for the Join Discord button).
     discordInviteUrl: room.discordInviteUrl,
     spinOwnershipMaxPrice: room.spinOwnershipMaxPrice,
@@ -404,7 +407,7 @@ export default async function roomRoutes(app: FastifyInstance) {
         ...(name !== undefined && { name: name.trim() }),
         ...(platform !== undefined && { platform }),
         ...(accentColor !== undefined && { accentColor }),
-        ...(discordWebhookUrl !== undefined && { discordWebhookUrl }),
+        ...(discordWebhookUrl !== undefined && { discordWebhookUrl: discordWebhookUrl && encryptWebhookUrl(discordWebhookUrl, env.SESSION_SECRET) }),
         ...(discordInviteUrl !== undefined && { discordInviteUrl }),
         ...(spinOwnershipMaxPrice !== undefined && { spinOwnershipMaxPrice }),
         // Merged over what's stored, so saving one default (0 / false clears it) can't drop another

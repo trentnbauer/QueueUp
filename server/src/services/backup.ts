@@ -8,6 +8,7 @@ import { prisma } from '../db/client.js';
 import { env } from '../config/env.js';
 import { HttpError } from '../util/httpError.js';
 import { encryptPlaintextConfig } from './configResolver.js';
+import { encryptPlaintextWebhooks } from './roomWebhook.js';
 import { decryptSetting, encryptSetting, isEncrypted } from './settingsCrypto.js';
 import { isValidCron, nextCronRun, parseCron } from '../util/cron.js';
 
@@ -383,7 +384,8 @@ export async function restoreBackup(gz: Buffer, opts: RestoreOptions = {}): Prom
     }
     throw new HttpError(500, `Restore failed and was rolled back; nothing was changed. ${msg}`.slice(0, 400));
   }
-  // A backup from before settings encryption carries plain-text keys; encrypt them straight away.
+  // A backup from before settings (or webhook) encryption carries plain text; encrypt it straight away.
   await encryptPlaintextConfig().catch(() => undefined);
+  await encryptPlaintextWebhooks().catch(() => undefined);
   return { tables: Object.keys(backup.tables).length - skippedTables.length, rows, skippedEncrypted, skippedTables, safetyBackup: safety.name };
 }
