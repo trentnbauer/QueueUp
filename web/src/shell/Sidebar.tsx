@@ -4,18 +4,21 @@ import { Avatar, BellIcon, CollapseIcon, PulseIcon, StatsIcon, Wordmark } from '
 import { st } from '../ui/st';
 import { useShell, type TileModel } from './useShell';
 import { useT } from '../i18n';
+import { useLiftReorder } from './useLiftReorder';
 
 const DOT = 'background:var(--dot)';
 
-function Row({ tile, active, onClick, children }: { tile: TileModel; active: boolean; onClick: () => void; children?: ReactNode }) {
+function Row({ tile, active, onClick, lift, children }: { tile: TileModel; active: boolean; onClick: () => void; lift?: ReturnType<ReturnType<typeof useLiftReorder>['bind']>; children?: ReactNode }) {
   return (
     <button
       type="button"
-      onClick={onClick}
+      {...lift}
+      onClick={lift?.onClick ?? onClick}
       className="hv-surf"
       aria-current={active ? 'page' : undefined}
       style={st(
         `display:flex;align-items:center;gap:12px;width:100%;min-height:52px;padding:8px 10px;border-radius:14px;border:none;background:${active ? 'var(--surf)' : 'transparent'};color:var(--text);text-align:left`,
+        lift?.style,
       )}
     >
       <span
@@ -71,6 +74,7 @@ export function Sidebar({ onCollapse }: { onCollapse: () => void }) {
   const ui = useUi();
   const t = useT();
   const { user } = shell;
+  const lift = useLiftReorder(shell.roomTiles, 'y');
 
   return (
     <aside
@@ -129,8 +133,8 @@ export function Sidebar({ onCollapse }: { onCollapse: () => void }) {
             </button>
           </span>
         </div>
-        {shell.roomTiles.map((tile) => (
-          <Row key={tile.id} tile={tile} active={tile.active && !shell.onPage} onClick={tile.go} />
+        {lift.ordered.map((tile) => (
+          <Row key={tile.id} tile={tile} active={tile.active && !shell.onPage} onClick={tile.go} lift={lift.bind(tile, tile.go)} />
         ))}
       </div>
 
@@ -201,7 +205,8 @@ export function Rail({ onExpand }: { onExpand: () => void }) {
   const ui = useUi();
   const t = useT();
   const { user } = shell;
-  const tiles = [shell.shelfTile, ...shell.roomTiles];
+  const lift = useLiftReorder(shell.roomTiles, 'y');
+  const tiles = [shell.shelfTile, ...lift.ordered];
 
   return (
     <aside
@@ -225,15 +230,18 @@ export function Rail({ onExpand }: { onExpand: () => void }) {
       >
         {tiles.map((tile) => {
           const a = tile.active && !shell.onPage;
+          const b = tile === shell.shelfTile ? undefined : lift.bind(tile, tile.go);
           return (
             <button
               key={tile.id}
               type="button"
-              onClick={tile.go}
+              {...b}
+              onClick={b?.onClick ?? tile.go}
               aria-label={tile.name}
               title={tile.name}
               style={st(
                 `position:relative;flex-shrink:0;width:46px;height:46px;border:none;border-radius:${a ? '15px' : '50%'};background:${tile.color};color:#fff;font:600 12px var(--font-mono);box-shadow:${a ? '0 0 0 2px var(--bg2), 0 0 0 4px var(--text)' : 'none'}`,
+                b?.style,
               )}
             >
               {tile.short}

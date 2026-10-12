@@ -38,7 +38,7 @@ export const shell: Record<keyof typeof en, string> = {
   "shell.sidebar.collapse": "Furl the sidebar",
   "shell.sidebar.expand": "Unfurl the sidebar",
   "shell.sidebar.reorderRooms": "Rearrange ships",
-  "shell.reorderRooms.hint": "Only ye see this order.",
+  "shell.reorderRooms.hint": "Only ye see this order. Ye can also press and hold a ship in the sidebar or top bar, then drag it.",
   "shell.reorderRooms.moveUp": "Move {name} up",
   "shell.reorderRooms.moveDown": "Move {name} down",
   "shell.reorderRooms.saveFailed": "Couldn’t save the ship order",

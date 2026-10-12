@@ -37,7 +37,7 @@ export const shell = {
   "shell.sidebar.expand": "Expand sidebar",
   "shell.sidebar.rooms": "ROOMS · {n}",
   "shell.sidebar.reorderRooms": "Reorder rooms",
-  "shell.reorderRooms.hint": "Only you see this order.",
+  "shell.reorderRooms.hint": "Only you see this order. You can also press and hold a room in the sidebar or top bar, then drag it.",
   "shell.reorderRooms.moveUp": "Move {name} up",
   "shell.reorderRooms.moveDown": "Move {name} down",
   "shell.reorderRooms.saveFailed": "Couldn’t save the room order",

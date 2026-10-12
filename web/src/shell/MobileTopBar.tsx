@@ -4,6 +4,7 @@ import { useAuth } from '../context/AuthContext';
 import { useUi } from '../context/UiContext';
 import { Avatar, BellIcon, GearIcon, PulseIcon, StatsIcon } from '../ui/primitives';
 import { st } from '../ui/st';
+import { useLiftReorder } from './useLiftReorder';
 import { useShell } from './useShell';
 import { useT } from '../i18n';
 
@@ -17,7 +18,8 @@ export function MobileTopBar() {
   const navigate = useNavigate();
   const { pathname } = useLocation();
   const myProfilePath = user ? `/u/${profileSlug ?? user.id}` : null;
-  const tiles = [shell.shelfTile, ...shell.roomTiles];
+  const lift = useLiftReorder(shell.roomTiles, 'x');
+  const tiles = [shell.shelfTile, ...lift.ordered];
   // Friends, stats, notifications and settings share one button that opens a small menu, which leaves
   // the top bar's width to the rooms.
   const [menuOpen, setMenuOpen] = useState(false);
@@ -39,14 +41,17 @@ export function MobileTopBar() {
       >
         {tiles.map((tile) => {
           const a = tile.active && !shell.onPage;
+          const b = tile === shell.shelfTile ? undefined : lift.bind(tile, tile.go);
           return (
             <button
               key={tile.id}
               type="button"
-              onClick={tile.go}
+              {...b}
+              onClick={b?.onClick ?? tile.go}
               aria-label={tile.name}
               style={st(
                 `position:relative;flex-shrink:0;width:44px;height:44px;border:none;border-radius:${a ? '15px' : '50%'};background:${tile.color};color:#fff;font:600 12px var(--font-mono);box-shadow:${a ? '0 0 0 2px var(--bg), 0 0 0 4px var(--text)' : 'none'}`,
+                b?.style,
               )}
             >
               {tile.short}
