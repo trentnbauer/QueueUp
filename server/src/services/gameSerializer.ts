@@ -7,10 +7,7 @@ import { getPlaytimeSinceCheckpoint, type GamePlaytimeInfo } from './playtimeTra
 import { getAchievementProgressMap, getRoomMemberAchievementMap, type AchievementCount, type MemberAchievementCount } from './achievementProgress.js';
 import { getRemovalInfo, type RemovalInfo } from './removalVote.js';
 import { getSyncSources } from './syncSources.js';
-import { toUserDto } from '../util/dto.js';
-
-// Only the fields toUserDto needs - every list and spin poll loads these for every game.
-const userDtoSelect = { id: true, displayName: true, avatarColor: true, avatarUrl: true, isAdmin: true } as const;
+import { toUserDto, userDtoSelect } from '../util/dto.js';
 
 const gameWithRelations = {
   include: {

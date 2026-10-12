@@ -30,7 +30,7 @@ import { recordMatchRedirect } from './matchRedirects.js';
 import { VALID_PLATFORMS } from './userSettings.js';
 import { notifyRoom } from './notifications.js';
 import { logShelfActivity } from './roomActivity.js';
-import { toUserDto } from '../util/dto.js';
+import { toUserDto, userDtoSelect } from '../util/dto.js';
 import { Prisma } from '@prisma/client';
 import { captureMergeUndo, captureRematchUndo, saveUndo } from './mergeUndo.js';
 import {
@@ -345,7 +345,7 @@ export async function createGameForUser(
         releaseYear: detail.releaseYear,
         suggestedBy: userId,
       },
-      include: { suggester: true },
+      include: { suggester: { select: userDtoSelect } },
     });
     await invalidateExistingIgdbIds(roomId, userId);
     await notifyRoom({

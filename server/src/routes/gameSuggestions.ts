@@ -1,7 +1,7 @@
 import type { FastifyInstance } from 'fastify';
 import { prisma } from '../db/client.js';
 import { HttpError } from '../util/httpError.js';
-import { toUserDto } from '../util/dto.js';
+import { toUserDto, userDtoSelect } from '../util/dto.js';
 import { requireElevated, getRoom } from '../services/roomAccess.js';
 import { loadGameOr404, requireNotDuplicate, rethrowAsDuplicateGame, invalidateExistingIgdbIds, deleteSuggestionIfExists } from '../services/gameAccess.js';
 import { resolveGameForCreation, defaultStatusForRelease, linkDlcToBaseGame } from '../services/gameIntake.js';
@@ -51,7 +51,7 @@ export default async function gameSuggestionRoutes(app: FastifyInstance) {
 
       const suggestions = await prisma.gameSuggestion.findMany({
         where: { roomId },
-        include: { suggester: true },
+        include: { suggester: { select: userDtoSelect } },
         orderBy: { createdAt: 'asc' },
       });
       return { suggestions: suggestions.map(toSuggestionDto) };
