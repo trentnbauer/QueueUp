@@ -1008,9 +1008,12 @@ function FriendExtras({ profile }: { profile: PublicUserProfile }) {
       <FilterChips value={filter} onChange={setFilter} />
       <FeedGroups entries={entries} me={user?.id} compact />
       {data && entries.length === 0 && <div style={st('padding:12px 0;color:var(--muted);font-size:14px')}>{t('pages.profile.nothingInCategory')}</div>}
-      <button type="button" onClick={remove} style={st('align-self:flex-start;height:40px;border:none;background:none;padding:0;color:var(--danger);font:600 14px var(--font-ui)')}>
-        {t('pages.profile.removeFriend')}
-      </button>
+      {/* On a private instance everyone is always a friend, so there's nothing to remove. */}
+      {!friends.privateInstance && (
+        <button type="button" onClick={remove} style={st('align-self:flex-start;height:40px;border:none;background:none;padding:0;color:var(--danger);font:600 14px var(--font-ui)')}>
+          {t('pages.profile.removeFriend')}
+        </button>
+      )}
     </div>
   );
 }

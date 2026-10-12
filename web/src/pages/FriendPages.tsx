@@ -190,16 +190,19 @@ function FriendsList() {
                   </span>
                   <span style={st('color:var(--muted);font-size:20px')}>›</span>
                 </button>
-                <button
-                  type="button"
-                  className="hv-surf2"
-                  aria-label={t('social.friends.removeAria', { name: f.displayName })}
-                  title={t('social.friends.removeFriend')}
-                  onClick={() => void removeFriend(f.id, f.displayName)}
-                  style={st('flex-shrink:0;width:48px;border:none;background:var(--surf);color:var(--danger);font:600 20px var(--font-ui)')}
-                >
-                  ×
-                </button>
+                {/* On a private instance everyone is always a friend, so there's nothing to remove. */}
+                {!friends.privateInstance && (
+                  <button
+                    type="button"
+                    className="hv-surf2"
+                    aria-label={t('social.friends.removeAria', { name: f.displayName })}
+                    title={t('social.friends.removeFriend')}
+                    onClick={() => void removeFriend(f.id, f.displayName)}
+                    style={st('flex-shrink:0;width:48px;border:none;background:var(--surf);color:var(--danger);font:600 20px var(--font-ui)')}
+                  >
+                    ×
+                  </button>
+                )}
               </div>
             ))}
           </Group>
