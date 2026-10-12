@@ -235,7 +235,7 @@ export default async function authRoutes(app: FastifyInstance) {
 
   // POST, not GET: a GET sign-out can be fired by any page that embeds an <img> or link to it.
   // The session cookie is SameSite=Lax, so a cross-site POST never carries it.
-  app.post('/auth/logout', { config: { allowWhileViewingAs: true } }, async (request, reply) => {
+  app.post('/auth/logout', { config: { allowWhileViewingAs: true, allowWhileBanned: true } }, async (request, reply) => {
     await request.session.destroy();
     return reply.status(204).send();
   });
@@ -265,8 +265,11 @@ export default async function authRoutes(app: FastifyInstance) {
     if (isNewAccount) delete request.session.isNewAccount;
     const viewer = view ? await prisma.user.findUnique({ where: { id: request.realUserId() ?? '' } }) : null;
 
+    const unbanRequested = user.bannedAt ? (await prisma.unbanRequest.count({ where: { userId: user.id, resolvedAt: null } })) > 0 : false;
+
     return reply.send({
       user: toUserDto(user),
+      banned: user.bannedAt ? { reason: user.banReason, since: user.bannedAt.toISOString(), unbanRequested } : null,
       isSuperAdmin: user.isSuperAdmin,
       viewingAs: view && viewer ? { until: new Date(view.until).toISOString(), viewer: toUserDto(viewer) } : null,
       steamLinked: resolveSteamId64(user) !== null,

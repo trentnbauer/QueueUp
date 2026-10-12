@@ -1,5 +1,6 @@
 import { randomBytes, createHash } from 'node:crypto';
 import { prisma } from '../db/client.js';
+import { isBanned } from './banCache.js';
 import { HttpError } from '../util/httpError.js';
 
 // A `qk_` prefix (QueueUp Key) makes a leaked token recognizable at a glance (in a log line, a
@@ -36,6 +37,8 @@ export async function resolveApiKey(authorizationHeader: string | undefined): Pr
   if (!apiKey || apiKey.revokedAt || (apiKey.expiresAt && apiKey.expiresAt.getTime() <= Date.now())) {
     throw new HttpError(401, 'Invalid, revoked or expired API key');
   }
+
+  if (await isBanned(apiKey.userId)) throw new HttpError(401, 'Invalid, revoked or expired API key');
 
   // Best-effort - a hiccup writing lastUsedAt shouldn't fail the actual request it's timestamping.
   prisma.apiKey.update({ where: { id: apiKey.id }, data: { lastUsedAt: new Date() } }).catch(() => {});

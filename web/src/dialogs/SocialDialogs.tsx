@@ -148,6 +148,13 @@ export function NotificationsDialog() {
       ui.openDialog('sensitiveGames');
       return;
     }
+    // Something for administrators (a report, an unban request, a failed backup): the Administrator page.
+    if (n.type === 'admin_report' || n.type === 'admin_unban_request' || n.type === 'admin_backup_failed') {
+      if (notifications.length > 0) markAllRead();
+      ui.closeDialog('notifications');
+      navigate('/admin');
+      return;
+    }
     // A failed library sync: straight to the Libraries dialog, where it can be fixed or tried again.
     if (n.type === 'library_sync_error' || n.type === 'library_sync_available') {
       if (notifications.length > 0) markAllRead();

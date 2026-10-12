@@ -1,11 +1,13 @@
 import { apiDelete, apiGet, apiPatch, apiPost, apiPut } from './client';
 import { getBasePath } from '../utils/basePath';
-import type { AutoHideAdultResponse, AccountEventPage, ActivityVisibilityResponse, ComputerSpecs, ProfileVisibility, RoomPlatform, User } from '@queueup/shared';
+import type { AutoHideAdultResponse, BannedInfo, AccountEventPage, ActivityVisibilityResponse, ComputerSpecs, ProfileVisibility, RoomPlatform, User } from '@queueup/shared';
 
 export const authApi = {
   me: () =>
     apiGet<{
       user: User | null;
+      /** Set when an administrator has banned this account: the app shows only the ban notice. */
+      banned?: BannedInfo | null;
       /** Can also do the destructive administrator things (#1102). */
       isSuperAdmin?: boolean;
       /** Set while an administrator is viewing the app as this user (#1102): until when, and who is looking. */

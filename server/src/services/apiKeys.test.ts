@@ -3,6 +3,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 const findUnique = vi.fn();
 const update = vi.fn(async () => ({}));
 vi.mock('../db/client.js', () => ({ prisma: { apiKey: { findUnique, update } } }));
+vi.mock('./banCache.js', () => ({ isBanned: async () => false }));
 
 const { generateApiKeyToken, hashApiKeyToken, isApiKeyActive, resolveApiKey } = await import('./apiKeys.js');
 

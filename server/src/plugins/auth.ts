@@ -3,6 +3,7 @@ import fp from 'fastify-plugin';
 import { Prisma } from '@prisma/client';
 import { env } from '../config/env.js';
 import { prisma } from '../db/client.js';
+import { BannedError, isBanned } from '../services/banCache.js';
 import { HttpError } from '../util/httpError.js';
 import { buildAuthProviders } from '../services/authProviders/registry.js';
 import type { AuthProvider } from '../services/authProviders/types.js';
@@ -32,6 +33,8 @@ declare module 'fastify' {
   interface FastifyContextConfig {
     /** Lets a write through while an administrator is viewing as someone (Exit, sign out). */
     allowWhileViewingAs?: boolean;
+    /** Lets a banned account use this route (the unban request, sign out). */
+    allowWhileBanned?: boolean;
   }
 }
 
@@ -205,6 +208,7 @@ export default fp(async function authPlugin(app: FastifyInstance) {
     if (!userId) {
       throw new HttpError(401, 'Not signed in');
     }
+    if (!this.routeOptions.config?.allowWhileBanned && (await isBanned(userId))) throw new BannedError();
     return userId;
   });
 
