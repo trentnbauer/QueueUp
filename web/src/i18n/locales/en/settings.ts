@@ -589,4 +589,7 @@ export const settings = {
   "settings.avatar.colourHint": "Behind your letter, and the same colour as your Personal Shelf.",
   "settings.avatar.blocked": "An administrator removed your picture, so only your colour and letter can be used.",
   "settings.avatar.failed": "Could not change the picture",
+  "settings.avatar.match": "Match my picture",
+  "settings.avatar.matching": "Reading your picture…",
+  "settings.avatar.matchFailed": "Could not find a colour in this picture. Pick one below.",
 } as const;

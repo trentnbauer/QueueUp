@@ -591,4 +591,7 @@ export const settings: Record<keyof typeof en, string> = {
   "settings.avatar.colourHint": "Behind yer letter, and the same colour as yer Personal Shelf.",
   "settings.avatar.blocked": "An admiral removed yer picture, so only yer colour and letter can be used.",
   "settings.avatar.failed": "Could not change the picture",
+  "settings.avatar.match": "Match my picture",
+  "settings.avatar.matching": "Reading yer picture…",
+  "settings.avatar.matchFailed": "Could not find a colour in this picture. Pick one below.",
 };
