@@ -24,6 +24,9 @@ Some other things to note:
 - Discord webhooks for alerts, with a switch per kind of event (games added, suggestions, votes, spins, status changes, reviews, members, member activity)
 - Games can be hidden from friends and your public profile
 - `PRIVATE_INSTANCE=true` makes everyone on the server a friend of everyone else (for a server shared by one group); see `.env.example`
+- `SIGNUP_MODE=invite` makes new accounts invite-only (a room invite code or an admin-made site invite); existing accounts are unaffected
+- Terms of use (`/terms`) and privacy (`/privacy`) pages ship with a default template. It is a starting point, not legal advice: read it and adjust it for your server. Set `LEGAL_CONTACT`, and `TERMS_FILE` / `PRIVACY_FILE` (Markdown) to replace the text; `REQUIRE_TERMS_ACCEPTANCE=true` makes people accept the terms first
+- Moderation: people can block and report each other; administrators work through reports (ban and unban with reasons, force a name change, reset a picture, profile link, room name or review note, banned-words list) on the Administrator page
 
 # Running your own instance of QueueUp
 ## Prerequisites:

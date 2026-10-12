@@ -220,6 +220,8 @@ export default async function roomRoutes(app: FastifyInstance) {
 
       const room = await prisma.room.findUnique({ where: { inviteCode: inviteCode.trim() } });
       if (!room || room.deletedAt) throw new HttpError(404, 'Invalid invite code');
+      // Same answer as a bad code, so a blocked person cannot tell why. Covers the owner blocking them or them blocking the owner.
+      if (await isBlockedEitherWay(userId, room.createdBy)) throw new HttpError(404, 'Invalid invite code');
 
       // A plain create (rather than a check-then-upsert) makes "did this request actually create
       // the membership" atomic: the unique constraint on (roomId, userId) is the single source of
@@ -294,6 +296,7 @@ export default async function roomRoutes(app: FastifyInstance) {
       const room = await prisma.room.findUnique({ where: { id: roomId } });
       if (!room || room.deletedAt) throw new HttpError(404, 'Room not found');
       if (!room.isPublic) throw new HttpError(403, 'This room is invite-only');
+      if (await isBlockedEitherWay(userId, room.createdBy)) throw new HttpError(404, 'Room not found');
 
       // Same idempotent create-with-P2002-fallback pattern as POST /api/rooms/join - the unique
       // constraint on (roomId, userId) is the single source of truth for "did this request
