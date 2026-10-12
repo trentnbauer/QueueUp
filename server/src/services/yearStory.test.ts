@@ -1,6 +1,10 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
-const prisma = vi.hoisted(() => ({ yearStory: { findUnique: vi.fn(), update: vi.fn(), upsert: vi.fn() } }));
+const prisma = vi.hoisted(() => ({
+  yearStory: { findUnique: vi.fn(), update: vi.fn(), upsert: vi.fn() },
+  blockedDisplayName: { count: vi.fn() },
+  bannedWord: { findMany: vi.fn() },
+}));
 vi.mock('../db/client.js', () => ({ prisma }));
 
 import { roomScope, saveGeneratedStory, toStoryDto, updateStory, userScope } from './yearStory.js';
@@ -11,6 +15,8 @@ beforeEach(() => {
   vi.resetAllMocks();
   prisma.yearStory.findUnique.mockResolvedValue(row);
   prisma.yearStory.update.mockImplementation(async ({ data }: { data: object }) => ({ ...row, ...data }));
+  prisma.blockedDisplayName.count.mockResolvedValue(0);
+  prisma.bannedWord.findMany.mockResolvedValue([]);
 });
 
 describe('updateStory', () => {
@@ -19,6 +25,12 @@ describe('updateStory', () => {
     expect(prisma.yearStory.update).toHaveBeenLastCalledWith({ where: { scopeKey: 'user:1' }, data: { text: 'New text.', edited: true } });
     await updateStory('user:1', { text: 'Old text.' }, true);
     expect(prisma.yearStory.update).toHaveBeenLastCalledWith({ where: { scopeKey: 'user:1' }, data: {} });
+  });
+
+  it('refuses edited text with a banned word in it', async () => {
+    prisma.bannedWord.findMany.mockResolvedValue([{ normalized: 'badword' }]);
+    await expect(updateStory('user:1', { text: 'A year of B-A-D word games.' }, true)).rejects.toThrow(/That recap is not allowed/);
+    expect(prisma.yearStory.update).not.toHaveBeenCalled();
   });
 
   it('hides and shares', async () => {
