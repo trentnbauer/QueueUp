@@ -59,7 +59,7 @@ export class DodgeGame extends RoundGame<Dodger> {
     this.spawnIn = 1;
   }
 
-  input(userId: string, dx: number): void {
+  input(userId: string, dx: number, _dy?: number): void {
     const p = this.players.get(userId);
     if (p) p.dir = clampDirection(dx);
   }
