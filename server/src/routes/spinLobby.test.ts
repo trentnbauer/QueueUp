@@ -28,12 +28,16 @@ import { spinLobbyHub } from '../services/spinLobbyInstance.js';
 async function build() {
   const app = Fastify();
   await app.register(websocket, { options: { maxPayload: 1024 } });
+  // Stands in for the real sign-in plugin: the user id comes from a test header.
   app.decorateRequest('requireAuth', async function (this: { headers: Record<string, string | undefined> }) {
     const user = this.headers['x-test-user'];
     if (!user) throw new HttpError(401, 'Not signed in');
     return user;
+  } as never);
+  app.setErrorHandler((err: unknown, _req, reply) => {
+    const e = err as { statusCode?: number; message?: string };
+    return reply.status(e.statusCode ?? 500).send({ error: e.message });
   });
-  app.setErrorHandler((err, _req, reply) => reply.status((err as HttpError).statusCode ?? 500).send({ error: err.message }));
   await app.register(spinLobbyRoutes);
   await app.ready();
   return app;
