@@ -68,37 +68,12 @@ export function useReviewDraft(game: Game, edit: boolean, onSaved: (saved: { has
   return { existing, scores, setScores, note, setNote, recommend, setRecommend, save };
 }
 
-/** Would you recommend it (#809), the four score rows and the note box. */
+/** The score rows, would you recommend it (#809, under the scores) and the note box. */
 export function ReviewFields({ draft }: { draft: ReturnType<typeof useReviewDraft> }) {
   const t = useT();
   const { scores, setScores, note, setNote, recommend, setRecommend } = draft;
   return (
     <>
-      <div style={st('display:flex;align-items:center;gap:10px')}>
-        <span style={st('flex:1;min-width:0;font:600 14px var(--font-ui)')}>{t('game.review.recommendQuestion')}</span>
-        <div style={st('display:flex;gap:6px')} role="group" aria-label={t('game.review.recommendQuestion')}>
-          {([
-            [true, '👍', t('common.yes'), 'var(--mint)'],
-            [false, '👎', t('common.no'), 'var(--danger)'],
-          ] as const).map(([value, emoji, label, color]) => {
-            const on = recommend === value;
-            return (
-              <button
-                key={String(value)}
-                type="button"
-                aria-pressed={on}
-                onClick={() => setRecommend(on ? null : value)}
-                style={st(
-                  `display:flex;align-items:center;gap:6px;height:38px;padding:0 14px;border-radius:999px;border:1.5px solid ${on ? color : 'var(--chip)'};background:${on ? `color-mix(in oklab, ${color} 22%, transparent)` : 'var(--surf)'};color:var(--text);font:600 13.5px var(--font-ui)`,
-                )}
-              >
-                <span aria-hidden style={st('font-size:16px;line-height:1')}>{emoji}</span>
-                {label}
-              </button>
-            );
-          })}
-        </div>
-      </div>
       <div style={st('display:flex;flex-direction:column;gap:10px')}>
         {REVIEW_CATEGORIES.map((c) => (
           <div key={c.key} style={st('display:flex;align-items:center;gap:10px')}>
@@ -124,6 +99,31 @@ export function ReviewFields({ draft }: { draft: ReturnType<typeof useReviewDraf
         ))}
       </div>
 
+      <div style={st('display:flex;align-items:center;gap:10px')}>
+        <span style={st('flex:1;min-width:0;font:600 14px var(--font-ui)')}>{t('game.review.recommendQuestion')}</span>
+        <div style={st('display:flex;gap:6px')} role="group" aria-label={t('game.review.recommendQuestion')}>
+          {([
+            [true, '👍', t('common.yes'), 'var(--mint)'],
+            [false, '👎', t('common.no'), 'var(--danger)'],
+          ] as const).map(([value, emoji, label, color]) => {
+            const on = recommend === value;
+            return (
+              <button
+                key={String(value)}
+                type="button"
+                aria-pressed={on}
+                onClick={() => setRecommend(on ? null : value)}
+                style={st(
+                  `display:flex;align-items:center;gap:6px;height:38px;padding:0 14px;border-radius:999px;border:1.5px solid ${on ? color : 'var(--chip)'};background:${on ? `color-mix(in oklab, ${color} 22%, transparent)` : 'var(--surf)'};color:var(--text);font:600 13.5px var(--font-ui)`,
+                )}
+              >
+                <span aria-hidden style={st('font-size:16px;line-height:1')}>{emoji}</span>
+                {label}
+              </button>
+            );
+          })}
+        </div>
+      </div>
       <input
         value={note}
         onChange={(e) => setNote(e.target.value)}
