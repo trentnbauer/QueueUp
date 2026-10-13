@@ -1,3 +1,4 @@
+import { promoteReleasedPreorders } from '../services/gameOwnership.js';
 import { checkGameReleaseAlerts, checkReleaseWatches } from '../services/releaseWatch.js';
 import { scheduleJob, type JobHandle } from './scheduler.js';
 
@@ -20,6 +21,8 @@ export function startReleaseWatchJob(): JobHandle {
     run: async () => {
       await checkReleaseWatches();
       await checkGameReleaseAlerts();
+      // Preordered games that have come out join the backlog.
+      await promoteReleasedPreorders();
     },
   });
 }

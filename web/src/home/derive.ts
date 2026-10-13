@@ -98,8 +98,7 @@ export function buildHomeLists(
   for (const t of tabs) counts[t.id] = games.filter((g) => inTab(t, g)).length;
 
   const inCurrentTab = (g: Game) => (tab === 'playing' ? g.status === 'playing' : inTab(cur, g));
-  const comingStatus = isShelf ? 'wishlist' : 'backlog';
-  const isComing = (g: Game) => g.status === comingStatus && isComingSoon(g, now);
+  const isComing = (g: Game) => (isShelf ? g.status === 'wishlist' || g.status === 'preordered' : g.status === 'backlog') && isComingSoon(g, now);
 
   let list = (q
     ? games.filter((g) => g.title.toLowerCase().includes(q))

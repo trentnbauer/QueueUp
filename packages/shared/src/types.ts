@@ -1,5 +1,5 @@
 import type { SpinPlay } from './spinModes.js';
-export type GameStatus = 'backlog' | 'playing' | 'done' | 'dropped' | 'wishlist' | 'replay' | 'play_next' | 'paused' | 'wont_play';
+export type GameStatus = 'backlog' | 'playing' | 'done' | 'dropped' | 'wishlist' | 'replay' | 'play_next' | 'paused' | 'wont_play' | 'preordered';
 
 export type RoomRole = 'room_master' | 'moderator' | 'member';
 

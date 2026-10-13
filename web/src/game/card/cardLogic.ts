@@ -59,7 +59,7 @@ export function verdictParts(votes: { value: VoteValue }[]): { value: VoteValue;
 
 /** The numbered path a game follows. Rooms have no Wishlist (ownership is per member there); the shelf starts at it. */
 export function mainPath(isShelf: boolean): GameStatus[] {
-  return isShelf ? ['wishlist', 'backlog', 'play_next', 'playing', 'done'] : ['backlog', 'play_next', 'playing', 'done'];
+  return isShelf ? ['wishlist', 'preordered', 'backlog', 'play_next', 'playing', 'done'] : ['backlog', 'play_next', 'playing', 'done'];
 }
 
 /** The statuses off the path: Paused, Replay, Dropped and Won't Play, on the shelf and in rooms alike. */
@@ -111,7 +111,7 @@ export function alertPresets(current: number, lowest: number | null): { key: 'lo
 export function dlcPillTone(status: GameStatus | null): 'mint' | 'accent' | 'neutral' | 'none' {
   if (status === null) return 'none';
   if (status === 'done' || status === 'replay') return 'mint';
-  if (status === 'wishlist' || status === 'play_next' || status === 'playing') return 'accent';
+  if (status === 'wishlist' || status === 'preordered' || status === 'play_next' || status === 'playing') return 'accent';
   return 'neutral';
 }
 

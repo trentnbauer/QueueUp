@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { assertPlatformMatch, defaultStatusForRelease, mergedOwnershipPlatforms } from './gameIntake.js';
+import { assertPlatformMatch, defaultOwnedStatusForRelease, defaultStatusForRelease, mergedOwnershipPlatforms } from './gameIntake.js';
 import type { IgdbGameDetail } from './igdbClient.js';
 
 function detail(platformFamilies: IgdbGameDetail['platformFamilies']): IgdbGameDetail {
@@ -71,6 +71,17 @@ describe('defaultStatusForRelease (issue #370)', () => {
 
   it('defaults a game with no known release date to backlog', () => {
     expect(defaultStatusForRelease(null)).toBe('backlog');
+  });
+});
+
+describe('defaultOwnedStatusForRelease', () => {
+  it('makes an owned but unreleased game preordered', () => {
+    expect(defaultOwnedStatusForRelease(new Date(Date.now() + 365 * 24 * 60 * 60 * 1000))).toBe('preordered');
+  });
+
+  it('makes an owned, released or undated game backlog', () => {
+    expect(defaultOwnedStatusForRelease(new Date(Date.now() - 24 * 60 * 60 * 1000))).toBe('backlog');
+    expect(defaultOwnedStatusForRelease(null)).toBe('backlog');
   });
 });
 

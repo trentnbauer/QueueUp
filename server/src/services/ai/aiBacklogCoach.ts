@@ -178,7 +178,7 @@ export function parseCoachReply(text: string, candidates: CoachCandidate[]): { p
  * prune or play next. Changes nothing; every suggestion is an action the person accepts or ignores. */
 export async function aiBacklogCoach(userId: string): Promise<AiBacklogCoachResponse> {
   const games = await prisma.game.findMany({
-    where: { roomId: null, addedBy: userId, archivedAt: null, status: { not: 'wishlist' } },
+    where: { roomId: null, addedBy: userId, archivedAt: null, status: { notIn: ['wishlist', 'preordered'] } },
     select: { id: true, title: true, genre: true, status: true, coverImageUrl: true, timeToBeatHours: true, createdAt: true, votes: { where: { userId }, select: { value: true } } },
   });
   const rows: CoachGameRow[] = games.map((g) => ({ ...g, want: g.votes[0]?.value ?? 0 }));

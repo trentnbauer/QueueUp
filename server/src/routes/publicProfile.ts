@@ -73,7 +73,7 @@ export default async function publicProfileRoutes(app: FastifyInstance) {
 
     const [shelfRows, ownedRows] = await Promise.all([
       prisma.game.findMany({
-        where: { roomId: null, addedBy: user.id, hiddenFromOthers: false, archivedAt: null, status: { in: ['play_next', 'paused', 'backlog', 'replay', 'wishlist', 'playing', 'done', 'dropped'] } },
+        where: { roomId: null, addedBy: user.id, hiddenFromOthers: false, archivedAt: null, status: { in: ['play_next', 'paused', 'backlog', 'replay', 'wishlist', 'preordered', 'playing', 'done', 'dropped'] } },
         select: { id: true, title: true, coverImageUrl: true, platform: true, status: true, igdbId: true, updatedAt: true, votes: { select: { value: true } } },
       }),
       prisma.gameOwnership.findMany({ where: { userId: user.id }, select: { igdbId: true, platforms: true } }),
