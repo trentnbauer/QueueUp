@@ -57,11 +57,6 @@ export const home = {
   "home.row.yourVote": "Your vote",
   "home.row.open": "Open {title}",
   "home.row.achievements": "{unlocked} of {total} achievements",
-  "home.row.singlePlayerTitle": "Single player only, per IGDB",
-  "home.row.singlePlayerAria": "Single player only",
-  "home.row.singlePlayer": "👤 Single player",
-  "home.row.sizeTitle": "PC install size, from Steam",
-  "home.row.sizeAria": "Install size {size}",
   "home.row.sizeUnknown": "💾 size unknown",
   "home.row.sizeUnknownTitle": "Steam lists no install size for this game, so the install size filter keeps it",
   "home.row.igdbTitle": "{score}/100 on IGDB",
@@ -222,8 +217,6 @@ export const home = {
   "home.duration.minutes": "{m}m",
   "home.duration.hours": "{h}h",
   "home.duration.hoursMinutes": "{h}h {m}m",
-  "home.row.coopTitle": "Up to {n} players in co-op",
-  "home.row.coopMax": "{n} max",
 
   // Section tabs above the lists
   "home.section.aria": "Sections",

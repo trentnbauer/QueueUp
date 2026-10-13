@@ -7,7 +7,9 @@ export const card: Record<keyof typeof en, string> = {
   "card.nowPlaying.sessions.other": "Sailing · {n} voyages in",
   "card.nowPlaying.more": "+{n} more sailing",
 
-  "card.hero.solo": "Lone sailor",
+  "card.hero.solo": "1 hearty",
+  "card.hero.sizeTitle": "PC install size, from Steam",
+  "card.hero.via": "via {sources}",
   "card.hero.upTo": "up to {max} hearties",
   "card.hero.sessions": "~{n} voyages to finish ({hours}h)",
 

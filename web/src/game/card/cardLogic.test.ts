@@ -3,6 +3,7 @@ import {
   alertPresets,
   coopWarning,
   dlcPillTone,
+  formatInstallSize,
   lowestAboveZero,
   mainPath,
   offPath,
@@ -31,6 +32,16 @@ describe('starScore', () => {
     expect(starScore(87)).toBe('8.7');
     expect(starScore(100)).toBe('10.0');
     expect(starScore(null)).toBeNull();
+  });
+});
+
+describe('formatInstallSize', () => {
+  it('reads in GB from 1 GB up and in MB below, nothing when unknown', () => {
+    expect(formatInstallSize(61440)).toBe('60 GB');
+    expect(formatInstallSize(4608)).toBe('4.5 GB');
+    expect(formatInstallSize(800)).toBe('800 MB');
+    expect(formatInstallSize(null)).toBeNull();
+    expect(formatInstallSize(0)).toBeNull();
   });
 });
 

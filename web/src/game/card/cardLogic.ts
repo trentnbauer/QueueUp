@@ -9,6 +9,13 @@ export function priceModeOf(g: Pick<Game, 'price' | 'manualPrice'>): PriceMode {
   return 'none';
 }
 
+/** "60 GB", "4.5 GB" or "800 MB" for an install size in MB; null when unknown. */
+export function formatInstallSize(mb: number | null): string | null {
+  if (mb === null || !Number.isFinite(mb) || mb <= 0) return null;
+  const gb = mb / 1024;
+  return gb >= 10 ? `${Math.round(gb)} GB` : gb >= 1 ? `${gb.toFixed(1)} GB` : `${mb} MB`;
+}
+
 /** The ★ in the meta line: IGDB's 0-100 score as 0-10 to one decimal; null when there isn't one. */
 export function starScore(reviewScore: number | null): string | null {
   if (reviewScore === null || !Number.isFinite(reviewScore)) return null;
