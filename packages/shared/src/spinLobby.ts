@@ -38,6 +38,28 @@ export type LobbyRoundPhase =
   /** The round has a winner (or a draw); a new one starts soon. */
   | 'over';
 
+/** How one finished run went, for the lobby's win chart. `id` is whoever got furthest (the winner, or
+ * the lone player in a solo run); `winnerId` is set only when someone won. */
+export interface RunResult {
+  id: string;
+  winnerId: string | null;
+  meters: number;
+}
+
+/** What every round-based game adds to its snapshot, so the lobby can show the run number, the last
+ * few results and the best run since people started playing. */
+export interface RoundSummary {
+  /** Which run this is (1 for the first since the lobby opened). */
+  run: number;
+  /** The last 10 finished runs, oldest first. */
+  history: RunResult[];
+  /** The furthest run so far, or null before one has finished. */
+  best: RunResult | null;
+}
+
+/** How many finished runs the snapshot keeps. */
+export const LOBBY_HISTORY_LENGTH = 10;
+
 // ---- Runner (the offline dinosaur game, everyone on one course) ------------------------------------
 
 /** The track is one screen wide (1.0); a runner stands at this fraction of it. */
@@ -49,6 +71,9 @@ export type RunnerObstacleKind = 'cactus' | 'bird';
 export interface RunnerObstacle {
   x: number;
   kind: RunnerObstacleKind;
+  /** Which obstacle this is (counts up from 1 each run): stays the same as it scrolls, so it can be
+   * drawn the same way every frame. */
+  n: number;
 }
 
 export interface RunnerPlayer {
@@ -64,7 +89,7 @@ export interface RunnerPlayer {
   meters: number;
 }
 
-export interface RunnerSnapshot {
+export interface RunnerSnapshot extends RoundSummary {
   id: 'runner';
   phase: LobbyRoundPhase;
   /** Metres run so far by the course (the furthest runner's distance). */
@@ -93,12 +118,16 @@ export const FLAPPY_BIRD_RADIUS = 0.03;
 export interface FlappyPipe {
   x: number;
   gap: number;
+  /** Which pipe this is (counts up from 1 each run); stays the same as it scrolls. */
+  n: number;
 }
 
 export interface FlappyPlayer {
   id: string;
   /** Height of the bird, 0 (floor) to 1 (ceiling). */
   y: number;
+  /** Vertical speed in screens per second (up is positive), for tilting the wing. */
+  vy: number;
   /** Still flying. False once they hit something, or if they arrived mid-run. */
   alive: boolean;
   /** Runs won since this person joined the lobby. */
@@ -107,7 +136,7 @@ export interface FlappyPlayer {
   meters: number;
 }
 
-export interface FlappySnapshot {
+export interface FlappySnapshot extends RoundSummary {
   id: 'flappy';
   phase: LobbyRoundPhase;
   meters: number;
@@ -133,12 +162,16 @@ export interface DodgeBlock {
   x: number;
   y: number;
   w: number;
+  /** Which block this is (counts up from 1 each run); stays the same as it falls. */
+  n: number;
 }
 
 export interface DodgePlayer {
   id: string;
   /** Where they stand across the width (0..1). */
   x: number;
+  /** The direction they are moving: -1, 0 or 1 (for a motion trail). */
+  dir: number;
   /** Still standing. False once a block hits them, or if they arrived mid-run. */
   alive: boolean;
   /** Runs won since this person joined the lobby. */
@@ -147,7 +180,7 @@ export interface DodgePlayer {
   meters: number;
 }
 
-export interface DodgeSnapshot {
+export interface DodgeSnapshot extends RoundSummary {
   id: 'dodge';
   phase: LobbyRoundPhase;
   meters: number;

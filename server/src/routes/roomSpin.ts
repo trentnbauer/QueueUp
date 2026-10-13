@@ -254,6 +254,7 @@ async function toSpinDto(spin: RoomSpinRow, userId: string, knownStripKey?: stri
     // insurance against ever double-counting one member rather than something expected to matter
     // in practice.
     readyCount: new Set(spin.readyUserIds).size,
+    readyUserIds: [...new Set(spin.readyUserIds)],
     respinVotes: new Set(spin.respinVoteUserIds).size,
     respinNeeded: respinVotesNeeded(spin),
     youVotedRespin: spin.respinVoteUserIds.includes(userId),

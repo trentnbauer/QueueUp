@@ -144,3 +144,19 @@ describe('DodgeGame with several players', () => {
     expect(me(g, 'c').alive).toBe(true);
   });
 });
+
+describe('DodgeGame summary data', () => {
+  it('numbers blocks and reports which way each player is moving', () => {
+    const g = started(['a']);
+    run(g, 2000);
+    const blocks = g.snapshot().blocks;
+    expect(blocks.length).toBeGreaterThan(0);
+    expect(new Set(blocks.map((b) => b.n)).size).toBe(blocks.length);
+    g.input('a', 1, 0);
+    g.tick(STEP);
+    expect(me(g, 'a').dir).toBe(1);
+    g.input('a', 0, 0);
+    g.tick(STEP);
+    expect(me(g, 'a').dir).toBe(0);
+  });
+});

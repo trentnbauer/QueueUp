@@ -33,6 +33,7 @@ export class DodgeGame extends RoundGame<Dodger> {
   readonly id = 'dodge' as const;
   private speed = FALL_START;
   private blocks: DodgeBlock[] = [];
+  private spawned = 0;
   private spawnIn = 0;
   private safe = 0.5;
 
@@ -49,12 +50,14 @@ export class DodgeGame extends RoundGame<Dodger> {
     this.speed = FALL_START;
     this.blocks = [];
     this.safe = 0.5;
+    this.spawned = 0;
   }
 
   protected beginCourse(): void {
     this.speed = FALL_START;
     this.blocks = [];
     this.safe = 0.5;
+    this.spawned = 0;
     // A moment before the first block, so there is time to get ready.
     this.spawnIn = 1;
   }
@@ -77,10 +80,12 @@ export class DodgeGame extends RoundGame<Dodger> {
       speed: r3(this.speed),
       timerMs: Math.max(0, Math.round(this.timerMs)),
       winnerId: this.winnerId,
-      blocks: this.blocks.map((b) => ({ x: r3(b.x), y: r3(b.y), w: r3(b.w) })),
+      ...this.summary(),
+      blocks: this.blocks.map((b) => ({ x: r3(b.x), y: r3(b.y), w: r3(b.w), n: b.n })),
       players: [...this.players.values()].map((p) => ({
         id: p.id,
         x: r3(p.x),
+        dir: p.dir,
         alive: p.alive,
         wins: p.wins,
         meters: p.alive && this.phase === 'playing' ? this.meters : p.outAtMeters,
@@ -123,7 +128,7 @@ export class DodgeGame extends RoundGame<Dodger> {
       const w = BLOCK_MIN_W + this.rng() * BLOCK_EXTRA_W;
       const x = w / 2 + this.rng() * (1 - w);
       if (Math.abs(x - this.safe) < SAFE_HALF_WIDTH + w / 2) continue;
-      this.blocks.push({ x, y: -DODGE_BLOCK_HEIGHT, w });
+      this.blocks.push({ x, y: -DODGE_BLOCK_HEIGHT, w, n: ++this.spawned });
       return;
     }
   }

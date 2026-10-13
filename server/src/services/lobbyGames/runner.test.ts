@@ -169,3 +169,51 @@ describe('RunnerGame with several runners', () => {
     expect(g.snapshot().phase).toBe('countdown');
   });
 });
+
+describe('RunnerGame run summary and obstacle ids', () => {
+  it('counts runs, keeps the last results and the best run', () => {
+    const g = new RunnerGame(seeded(0.3));
+    g.join('a');
+    expect(g.snapshot().run).toBe(1);
+    expect(g.snapshot().history).toEqual([]);
+    expect(g.snapshot().best).toBeNull();
+
+    run(g, 3200); // countdown over
+    run(g, 3500); // never jumps: a solo run ends
+    const first = g.snapshot();
+    expect(first.phase).toBe('over');
+    expect(first.history).toHaveLength(1);
+    expect(first.history[0]).toMatchObject({ id: 'a', winnerId: null });
+    expect(first.history[0].meters).toBeGreaterThan(0);
+    expect(first.best).toEqual(first.history[0]);
+
+    run(g, 4200); // result shown, next run counts down
+    expect(g.snapshot().run).toBe(2);
+  });
+
+  it('records who won and keeps only the last 10 runs', () => {
+    const g = new RunnerGame(seeded(0.3));
+    g.join('a');
+    g.join('b');
+    for (let i = 0; i < 12; i++) {
+      run(g, 3200);
+      playBot(g, 'a', 8000); // b stands still and is knocked out
+      run(g, 4200);
+    }
+    const snap = g.snapshot();
+    expect(snap.history).toHaveLength(10);
+    expect(snap.history.every((r) => r.winnerId === 'a' && r.id === 'a')).toBe(true);
+    expect(snap.run).toBeGreaterThan(10);
+  });
+
+  it('numbers obstacles so they keep their number as they scroll', () => {
+    const g = started(['a'], 0.4);
+    const first = g.snapshot().obstacles[0];
+    expect(first.n).toBe(1);
+    run(g, 500);
+    const same = g.snapshot().obstacles.find((o) => o.n === 1);
+    expect(same).toBeDefined();
+    expect(same!.x).toBeLessThan(first.x);
+    expect(new Set(g.snapshot().obstacles.map((o) => o.n)).size).toBe(g.snapshot().obstacles.length);
+  });
+});

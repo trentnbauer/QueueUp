@@ -30,6 +30,7 @@ export class FlappyGame extends RoundGame<Bird> {
   readonly id = 'flappy' as const;
   private speed = SPEED_START;
   private pipes: FlappyPipe[] = [];
+  private spawned = 0;
   private nextSpawnX = 0;
   private lastGap = 0.5;
 
@@ -46,12 +47,14 @@ export class FlappyGame extends RoundGame<Bird> {
     this.speed = SPEED_START;
     this.pipes = [];
     this.lastGap = 0.5;
+    this.spawned = 0;
   }
 
   protected beginCourse(): void {
     this.speed = SPEED_START;
     this.pipes = [];
     this.lastGap = 0.5;
+    this.spawned = 0;
     // The first pipe is a little way in, so there is time to see it coming.
     this.nextSpawnX = 1.1;
     this.spawnPipes();
@@ -76,10 +79,12 @@ export class FlappyGame extends RoundGame<Bird> {
       speed: r3(this.speed),
       timerMs: Math.max(0, Math.round(this.timerMs)),
       winnerId: this.winnerId,
-      pipes: this.pipes.map((p) => ({ x: r3(p.x - this.distance), gap: r3(p.gap) })).filter((p) => p.x > -VISIBLE_BEHIND && p.x < SPAWN_AHEAD),
+      ...this.summary(),
+      pipes: this.pipes.map((p) => ({ x: r3(p.x - this.distance), gap: r3(p.gap), n: p.n })).filter((p) => p.x > -VISIBLE_BEHIND && p.x < SPAWN_AHEAD),
       players: [...this.players.values()].map((b) => ({
         id: b.id,
         y: r3(b.y),
+        vy: r3(b.vy),
         alive: b.alive,
         wins: b.wins,
         meters: b.alive && this.phase === 'playing' ? this.meters : b.outAtMeters,
@@ -118,7 +123,7 @@ export class FlappyGame extends RoundGame<Bird> {
       const lo = Math.max(GAP_CENTRE_MIN, this.lastGap - GAP_MAX_STEP);
       const hi = Math.min(GAP_CENTRE_MAX, this.lastGap + GAP_MAX_STEP);
       const gap = lo + this.rng() * (hi - lo);
-      this.pipes.push({ x: this.nextSpawnX, gap });
+      this.pipes.push({ x: this.nextSpawnX, gap, n: ++this.spawned });
       this.lastGap = gap;
       this.nextSpawnX += this.speed * (GAP_MIN_S + this.rng() * GAP_EXTRA_S);
     }

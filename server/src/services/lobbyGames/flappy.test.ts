@@ -127,3 +127,16 @@ describe('FlappyGame with several birds', () => {
     expect(g.snapshot().winnerId).toBe('a');
   });
 });
+
+describe('FlappyGame summary data', () => {
+  it("numbers pipes, reports each bird's vertical speed, and counts runs", () => {
+    const g = started(['a']);
+    expect(g.snapshot().pipes[0].n).toBe(1);
+    expect(g.snapshot().run).toBe(1);
+    g.action('a', 'flap');
+    g.tick(STEP);
+    expect(me(g, 'a').vy).toBeGreaterThan(0);
+    run(g, 800);
+    expect(me(g, 'a').vy).toBeLessThan(0);
+  });
+});
