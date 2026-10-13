@@ -27,6 +27,7 @@ import type { BundleSuggestion, SplitBundleRequest, GameSeriesResponse, GameRequ
   CollectionGamesResult,
   CollectionSearchResult,
   CreateGameRequest,
+  GameRemasterResponse,
   GameTrailerResponse,
   CreateGameResponse,
   CrossRoomBeaten,
@@ -145,6 +146,7 @@ export const gamesApi = {
   aiScanDuplicates: (fresh = false) => apiPost<AiDuplicateScanResponse>('/api/games/duplicates/ai-scan', fresh ? { fresh: true } : {}),
   duplicateCandidates: () => apiGet<DuplicateCandidatesResponse>('/api/games/duplicates'),
   duplicateCandidateCount: () => apiGet<DuplicateCandidateCountResponse>('/api/games/duplicates/count'),
+  remasterOf: (id: string) => apiGet<GameRemasterResponse>(`/api/games/${id}/remaster`),
   dismissDuplicate: (body: DismissDuplicateRequest) => apiPost<void>('/api/games/duplicates/dismiss', body),
   /** The games a bundle card probably holds (issue #857). */
   bundleSuggestions: (id: string) => apiGet<{ suggestions: BundleSuggestion[] }>(`/api/games/${id}/bundle-suggestions`),

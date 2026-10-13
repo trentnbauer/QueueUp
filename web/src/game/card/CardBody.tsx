@@ -1,5 +1,7 @@
 import type { ReactNode } from 'react';
 import type { Game, GameStatus } from '@queueup/shared';
+import { useQuery } from '@tanstack/react-query';
+import { gamesApi } from '../../api/games';
 import { useScope } from '../../context/ScopeContext';
 import { useUi } from '../../context/UiContext';
 import { fmtMoney } from '../../lib/gameView';
@@ -57,6 +59,8 @@ function MetaLine({ game }: { game: Game }) {
   const { isShelf, games } = useScope();
   const ui = useUi();
   const bundle = game.bundleGameId ? games.find((g) => g.id === game.bundleGameId) : undefined;
+  // A remaster or remake of another game on the shelf (issue #1173) links to the original.
+  const remaster = useQuery({ queryKey: ['games', game.id, 'remaster'], queryFn: () => gamesApi.remasterOf(game.id), enabled: isShelf && !game.roomId, staleTime: 5 * 60_000 }).data?.remaster ?? null;
   const players = playersKind(game);
   const star = starScore(game.reviewScore);
   const parts: ReactNode[] = [];
@@ -70,6 +74,14 @@ function MetaLine({ game }: { game: Game }) {
   const ach = game.myAchievements;
   if (ach && ach.total > 0) parts.push(<span key="ach" title={t('home.row.achievements', { unlocked: ach.unlocked, total: ach.total })} style={ach.unlocked >= ach.total ? { color: 'var(--star)' } : undefined}>🏆 {ach.unlocked}/{ach.total}</span>);
   if (isShelf && game.syncSources.length > 0) parts.push(<span key="sync">{t('card.hero.via', { sources: game.syncSources.map((s) => t(SYNC_SOURCE_KEY[s])).join(' · ') })}</span>);
+  if (remaster?.original) {
+    const original = remaster.original;
+    parts.push(
+      <button key="remaster" type="button" onClick={() => ui.selectGame(original.id)} style={st('border:none;background:none;padding:0;color:inherit;font:inherit;text-decoration:underline;text-underline-offset:3px;cursor:pointer')}>
+        {t(remaster.kind === 'remake' ? 'card.hero.remakeOf' : 'card.hero.remasterOf', { title: original.title })}
+      </button>,
+    );
+  }
   // A game that came out of a bundle links back to it (issue #1172): the bundle opens to its list of games.
   if (bundle) {
     parts.push(

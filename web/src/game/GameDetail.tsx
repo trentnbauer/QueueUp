@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { useQueryClient } from '@tanstack/react-query';
 import type { Game, GameSearchResult, GameStatus } from '@queueup/shared';
 import { useAuth } from '../context/AuthContext';
 import { useScope } from '../context/ScopeContext';
@@ -31,6 +32,7 @@ export function GameDetail({ game, onClose, changeStatus }: { game: Game; onClos
   const { ops, games } = scope;
   const desktop = !useIsMobile();
   const steamMatch = useSteamAutoMatch();
+  const queryClient = useQueryClient();
   // The card is a dialog, outside the shell that carries the room tint, so it carries it itself: the room's colour in a room,
   // the colour picked in Shelf settings on the shelf (#1167).
   const { shelfColor } = useAuth();
@@ -175,6 +177,7 @@ export function GameDetail({ game, onClose, changeStatus }: { game: Game; onClos
             setSavingRemaster(true);
             try {
               await gamesApi.dismissDuplicate({ gameIdA: game.id, gameIdB: remasterOf.id, kind });
+              void queryClient.invalidateQueries({ queryKey: ['games', game.id, 'remaster'] });
               ui.notify(t(kind === 'remaster' ? 'game.remaster.saved.remaster' : 'game.remaster.saved.remake', { title: game.title, original: remasterOf.title }));
               setRemasterOf(null);
               setMarkingRemaster(false);
