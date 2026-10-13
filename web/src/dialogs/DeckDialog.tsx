@@ -34,6 +34,22 @@ export function DeckDialog() {
   const { games, ops, room, isShelf } = useScope();
   const queryClient = useQueryClient();
   const [skipped, setSkipped] = useState<string[]>([]);
+  // What was done, newest last, so Back can take the last vote or skip undone. `pinned` is the game Back just brought back, shown first.
+  const [history, setHistory] = useState<{ id: string; kind: 'vote' | 'skip' }[]>([]);
+  const [pinned, setPinned] = useState<string | null>(null);
+  const goBack = () => {
+    const last = history[history.length - 1];
+    if (!last) return;
+    setHistory((h) => h.slice(0, -1));
+    setPinned(last.id);
+    if (last.kind === 'skip') setSkipped((s) => s.filter((x) => x !== last.id));
+    else ops.unvote(last.id);
+  };
+  const vote = (id: string, v: (typeof VOTE_VALUES)[number]) => {
+    setHistory((h) => [...h, { id, kind: 'vote' }]);
+    setPinned(null);
+    ops.vote(id, v);
+  };
   const close = () => {
     queryClient.invalidateQueries({ queryKey: ATTENTION_QUERY_KEY });
     ui.closeDialog('deck');
@@ -42,6 +58,8 @@ export function DeckDialog() {
 
   const todo = games.filter((g) => OPEN_STATUSES.includes(g.status) && !g.myVote);
   const queue = [...todo.filter((g) => !skipped.includes(g.id)), ...todo.filter((g) => skipped.includes(g.id))];
+  const at = pinned ? queue.findIndex((x) => x.id === pinned) : -1;
+  if (at > 0) queue.unshift(...queue.splice(at, 1));
   const g = queue[0];
   const total = todo.length;
 
@@ -57,6 +75,11 @@ export function DeckDialog() {
       <button type="button" onClick={close} style={st('position:absolute;top:16px;right:16px;height:38px;padding:0 16px;border-radius:999px;border:none;background:var(--chip);color:var(--text);font:600 13.5px var(--font-ui)')}>
         {t('common.done')}
       </button>
+      {history.length > 0 && (
+        <button type="button" onClick={goBack} style={st('position:absolute;top:16px;left:16px;height:38px;padding:0 16px;border-radius:999px;border:none;background:var(--chip);color:var(--text);font:600 13.5px var(--font-ui)')}>
+          {t('settings.deck.previous')}
+        </button>
+      )}
       {g ? (
         <>
           <span style={st('font:500 12px var(--font-mono);color:var(--muted)')}>
@@ -74,7 +97,7 @@ export function DeckDialog() {
               <button
                 key={v}
                 type="button"
-                onClick={() => ops.vote(g.id, v)}
+                onClick={() => vote(g.id, v)}
                 style={st('display:flex;flex-direction:column;align-items:center;gap:6px;width:62px;padding:12px 0 10px;border-radius:18px;border:none;background:var(--surf);color:var(--text2)')}
               >
                 <span style={st('font-size:28px;line-height:1')}>{VOTES[v].e}</span>
@@ -84,7 +107,11 @@ export function DeckDialog() {
           </div>
           <button
             type="button"
-            onClick={() => setSkipped((s) => [...s.filter((x) => x !== g.id), g.id])}
+            onClick={() => {
+              setSkipped((s) => [...s.filter((x) => x !== g.id), g.id]);
+              setHistory((h) => [...h, { id: g.id, kind: 'skip' }]);
+              setPinned(null);
+            }}
             style={st('height:40px;border:none;background:none;color:var(--muted);font:500 13.5px var(--font-ui);text-decoration:underline;text-underline-offset:3px')}
           >
             {t('settings.deck.skip')}

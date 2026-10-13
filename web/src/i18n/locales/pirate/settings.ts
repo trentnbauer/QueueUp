@@ -429,6 +429,7 @@ export const settings: Record<keyof typeof en, string> = {
   "settings.deck.title": "Vote now",
   "settings.deck.toVote": "{n} TO VOTE ON",
   "settings.deck.skip": "Skip fer now",
+  "settings.deck.previous": "‹ Back",
   "settings.deck.caughtUp": "Ye be all caught up.",
   "settings.deck.allVoted": "Every game on {room} has yer vote.",
   "settings.deck.allVotedHere": "Every game aboard has yer vote.",
