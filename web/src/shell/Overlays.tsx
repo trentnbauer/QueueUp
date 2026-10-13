@@ -28,6 +28,7 @@ import { NotificationsDialog } from '../dialogs/SocialDialogs';
 import { SpinDialog } from '../dialogs/SpinDialog';
 import { PickCelebrationHost } from '../ui/PickCelebration';
 import { useChangelog } from '../hooks/useChangelog';
+import { clearAppCache } from '../utils/clearAppCache';
 import { usePlaytimeReview } from '../hooks/usePlaytimeReview';
 import { UiToast } from '../ui/ToastView';
 import { t } from '../i18n';
@@ -117,6 +118,8 @@ export function Overlays() {
     if (busy) return;
     if (!promptedChangelog.current && changelog.newEntries.length > 0) {
       promptedChangelog.current = true;
+      // An update just landed: drop whatever the browser cached of the old build. No reload, and saved data stays.
+      void clearAppCache();
       ui.openDialog('changelog');
     } else if (!promptedPlaytime.current && isShelf && playtime.entries.length > 0) {
       promptedPlaytime.current = true;
