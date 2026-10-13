@@ -9,6 +9,7 @@ import {
   withBackwardsCompatible,
   type CollectionGamesResult,
   type CollectionSearchResult,
+  type DlcKind,
   type GameSearchResult,
   type RoomPlatform,
 } from '@queueup/shared';
@@ -94,6 +95,8 @@ export interface IgdbGame {
   keywords?: { name?: string }[];
   first_release_date?: number;
   category?: number;
+  /** Set by loadDlcEntries on entries that came from the base game's `expansions` list (not `dlcs`). */
+  fromExpansions?: boolean;
   version_parent?: number;
   /** IGDB's id for this game's base/parent game, present on DLC/expansion entries that have one on
    * file (issue #338) - absent on a main game, and sometimes absent even on a real DLC entry when
@@ -547,7 +550,7 @@ export async function getGameTrailer(igdbId: number): Promise<{ youtubeId: strin
   return result;
 }
 
-const DLC_CACHE_PREFIX = 'igdb:dlcs:v1:';
+const DLC_CACHE_PREFIX = 'igdb:dlcs:v2:'; // v2: entries carry category and the relation they came from
 const DLC_CACHE_TTL_SECONDS = 60 * 60 * 24; // 24h - a game's DLC lineup essentially never changes
 
 /** The raw, cached DLC/expansion entries for a base game, shared by getGameDlcs and
@@ -565,12 +568,11 @@ async function loadDlcEntries(igdbId: number): Promise<IgdbGame[]> {
 
   const [game] = await igdbRequest<IgdbGameWithAddons[]>(
     'games',
-    `fields dlcs.name,dlcs.cover.image_id,dlcs.platforms.name,dlcs.first_release_date,expansions.name,expansions.cover.image_id,expansions.platforms.name,expansions.first_release_date; where id = ${igdbId};`,
+    `fields dlcs.name,dlcs.category,dlcs.cover.image_id,dlcs.platforms.name,dlcs.first_release_date,expansions.name,expansions.category,expansions.cover.image_id,expansions.platforms.name,expansions.first_release_date; where id = ${igdbId};`,
   );
   const byId = new Map<number, IgdbGame>();
-  for (const g of [...(game?.dlcs ?? []), ...(game?.expansions ?? [])]) {
-    if (g.name) byId.set(g.id, g);
-  }
+  for (const g of game?.dlcs ?? []) if (g.name) byId.set(g.id, g);
+  for (const g of game?.expansions ?? []) if (g.name) byId.set(g.id, { ...g, fromExpansions: true });
   const entries = Array.from(byId.values());
   await redis.set(cacheKey, JSON.stringify(entries), 'EX', DLC_CACHE_TTL_SECONDS);
   return entries;
@@ -635,6 +637,14 @@ export async function getUpcomingGameDlcs(
     }));
 }
 
+/** DLC, Expansion, Standalone or Pack, from IGDB's category (and which of the base game's lists it came from). */
+function dlcKindOf(g: IgdbGame): DlcKind {
+  if (g.category === IGDB_CATEGORY_STANDALONE_EXPANSION) return 'standalone';
+  if (g.category === IGDB_CATEGORY_PACK) return 'pack';
+  if (g.category === IGDB_CATEGORY_EXPANSION || g.fromExpansions) return 'expansion';
+  return 'dlc';
+}
+
 /** All DLC/expansion entries IGDB has on file for a given base game (issue #338 - backs the game
  * modal's "View DLC" browse-and-add list). Cached same as getGameDetail (a title's DLC lineup
  * essentially never changes once released) - excludeIgdbIds/platforms filtering happens after the
@@ -672,6 +682,7 @@ export async function getGameDlcs(
       platform: platformLabel(g.platforms),
       coverImageUrl: coverUrl(g.cover),
       releaseYear: releaseYear(g.first_release_date),
+      dlcKind: dlcKindOf(g),
     }));
 }
 

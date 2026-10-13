@@ -18,7 +18,8 @@ import { ShelfHistory } from './ShelfHistory';
 import { ROOM_PLATFORM_LABELS } from '@queueup/shared';
 import { Avatar, Banner, Btn, SearchField, Spinner } from '../ui/primitives';
 import { useStableOrder } from './useStableOrder';
-import { useIsMobile, useMediaQuery } from '../ui/useLayout';
+import { useIsMobile } from '../ui/useLayout';
+import { NowPlayingStrip } from './NowPlayingStrip';
 import { useAiActivity } from '../hooks/useAiActivity';
 import { st } from '../ui/st';
 import { buildHomeLists, toRowItem } from './derive';
@@ -51,8 +52,6 @@ export function HomeView() {
   const scope = useScope();
   const ui = useUi();
   const mobile = useIsMobile();
-  // Below this width there's no glance panel, so its "Ask AI" button joins the header instead.
-  const glanceFits = useMediaQuery('(min-width: 1280px)');
   const { viewMode } = useViewMode();
   const { density } = useCardDensity();
   const confirm = useConfirm();
@@ -323,22 +322,20 @@ export function HomeView() {
                 </Btn>
               </a>
             )}
-            {!glanceFits && (
-              // A phone gets a round "AI" button the size of the settings one, so the title keeps its room.
-              <Btn
-                hover
-                height={mobile ? 40 : 42}
-                padX={mobile ? 0 : 18}
-                fontSize={mobile ? 13 : 14}
-                weight={mobile ? 700 : 600}
-                onClick={() => ui.openDialog('aiTonight')}
-                ariaLabel={t('shell.glance.askAi')}
-                title={t('shell.glance.askAi')}
-                style={mobile ? { width: 40 } : undefined}
-              >
-                {mobile ? t('home.header.askAiShort') : t('home.header.askAi')}
-              </Btn>
-            )}
+            {/* Ask AI sits beside Spin everywhere. A phone gets a round "AI" button the size of the settings one, so the title keeps its room. */}
+            <Btn
+              hover
+              height={mobile ? 40 : 42}
+              padX={mobile ? 0 : 18}
+              fontSize={mobile ? 13 : 14}
+              weight={mobile ? 700 : 600}
+              onClick={() => ui.openDialog('aiTonight')}
+              ariaLabel={t('shell.glance.askAi')}
+              title={t('shell.glance.askAi')}
+              style={mobile ? { width: 40 } : undefined}
+            >
+              {mobile ? t('home.header.askAiShort') : t('home.header.askAi')}
+            </Btn>
             <Btn
               kind="accent"
               height={mobile ? 40 : 42}
@@ -542,6 +539,8 @@ export function HomeView() {
         </div>
       )}
 
+
+      {!mobile && !otherTab && <NowPlayingStrip />}
 
       {!otherTab && lists.coming.length > 0 && (
         <ComingStrip

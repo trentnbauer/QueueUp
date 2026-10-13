@@ -650,7 +650,8 @@ export default async function gameRoutes(app: FastifyInstance) {
   // for this game, filtered/deduped the same way search results are (already-added entries
   // excluded, scoped to this game's own room/shelf platform). Shown regardless of whether this
   // particular game turns out to have any (an empty list just means IGDB has none on file).
-  app.get<{ Params: { id: string } }>(
+  // `?all=1` keeps the entries already on this room/shelf (the game card's DLC list shows each one's own status).
+  app.get<{ Params: { id: string }; Querystring: { all?: string } }>(
     '/api/games/:id/dlc',
     { config: { rateLimit: { max: 30, timeWindow: '1 minute' } } },
     async (request) => {
@@ -662,7 +663,7 @@ export default async function gameRoutes(app: FastifyInstance) {
       // no room at all.
       const roomPlatform = game.roomId ? await getRoomPlatform(game.roomId) : null;
       const platforms = roomPlatform ? [roomPlatform] : await getOwnedPlatforms(userId);
-      const excludeIgdbIds = await existingIgdbIds(game.roomId, userId);
+      const excludeIgdbIds = request.query.all === '1' ? undefined : await existingIgdbIds(game.roomId, userId);
       const results = await dlcIntake(game.igdbId, platforms, excludeIgdbIds);
       return { results };
     },

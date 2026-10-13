@@ -1,9 +1,4 @@
-import { useQuery } from '@tanstack/react-query';
 import type { PriceHistoryPoint } from '@queueup/shared';
-import { gamesApi } from '../api/games';
-import { fmtMoney } from '../lib/gameView';
-import { st } from '../ui/st';
-import { useT } from '../i18n';
 
 const W = 300;
 const H = 64;
@@ -26,31 +21,4 @@ export function priceChartPath(points: Pick<PriceHistoryPoint, 'at' | 'amount'>[
     d += ` H${x(times[i]).toFixed(1)} V${y(amounts[i]).toFixed(1)}`;
   }
   return d;
-}
-
-/** Small price history chart on the game card (wishlisted and owned games alike): what it has cost
- * over time, with the lowest and usual price. Hidden until there are at least two recorded prices. */
-export function PriceHistoryChart({ gameId, currency }: { gameId: string; currency: string | null }) {
-  const t = useT();
-  const { data } = useQuery({
-    queryKey: ['price-history', gameId, currency],
-    queryFn: () => gamesApi.priceHistory(gameId, currency),
-    staleTime: 10 * 60 * 1000,
-  });
-  if (!data || data.points.length < 2 || !data.currency) return null;
-  const path = priceChartPath(data.points);
-  const last = data.points[data.points.length - 1];
-  const first = data.points[0];
-  return (
-    <div style={st('display:flex;flex-direction:column;gap:6px')}>
-      <svg viewBox={`0 0 ${W} ${H}`} width="100%" height={H} role="img" aria-label={t('game.priceChart.aria', { from: fmtMoney(first.amount, data.currency), to: fmtMoney(last.amount, data.currency) })} preserveAspectRatio="none">
-        <path d={path} fill="none" stroke="var(--acc)" strokeWidth="2" vectorEffect="non-scaling-stroke" strokeLinejoin="round" />
-      </svg>
-      <div style={st('display:flex;flex-wrap:wrap;gap:4px 12px;font:400 12px var(--font-ui);color:var(--muted)')}>
-        <span>{t('game.priceChart.since', { date: new Date(first.at).toLocaleDateString(undefined, { month: 'short', year: 'numeric' }) })}</span>
-        {data.lowest !== null && <span>{t('game.priceChart.lowest', { price: fmtMoney(data.lowest, data.currency) })}</span>}
-        {data.usual !== null && <span>{t('game.priceChart.usual', { price: fmtMoney(data.usual, data.currency) })}</span>}
-      </div>
-    </div>
-  );
 }

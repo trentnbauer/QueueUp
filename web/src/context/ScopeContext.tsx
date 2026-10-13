@@ -35,7 +35,7 @@ export interface ScopeValue {
   refetchSuggestions: () => void;
 }
 
-const ScopeContext = createContext<ScopeValue | null>(null);
+export const ScopeContext = createContext<ScopeValue | null>(null);
 
 /** Route -> scope: `/room/:id` (and its sections) is that room, `/` and `/shelf/…` the shelf, everything else (shelf, activity, pages...) keeps
  * whatever shelf/room was last in focus so the list stays put behind overlays and pages. */

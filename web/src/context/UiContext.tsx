@@ -26,7 +26,6 @@ export type DialogKey =
   | 'psn'
   | 'retroachievements'
   | 'changelog'
-  | 'dlc'
   | 'review';
 
 export type AddRoomStep = 'options' | 'create' | 'join' | 'browse';
