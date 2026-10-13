@@ -1,9 +1,10 @@
 import { useEffect, useMemo, useRef, type ReactNode } from 'react';
 import type { RoomMember } from '@queueup/shared';
 import { useSpinLobby } from '../hooks/useSpinLobby';
+import { viewFor } from '../lobbyGames';
 import { Dialog } from '../ui/Dialog';
 import { st } from '../ui/st';
-import { useT } from '../i18n';
+import { t as tNow, useT } from '../i18n';
 
 /** Reads the held direction from the keyboard: arrow keys or WASD. */
 function directionFromKeys(keys: Set<string>): { dx: number; dy: number } {
@@ -19,17 +20,23 @@ const PAD: { label: string; dx: number; dy: number; area: string }[] = [
   { label: '▼', dx: 0, dy: 1, area: '3 / 2' },
 ];
 
-/** The room's live mini game: a shared arena everyone in the lobby walks around in, plus the vote to
- * leave for the spin when one is waiting. Phase one of the lobby - nothing here changes a spin. */
+const MOVE_KEYS = ['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight', 'w', 'a', 's', 'd'];
+
+/** The room's live mini game: the server-run game everyone in the lobby plays, plus the vote to leave
+ * for the spin when one is waiting. The game itself is drawn by the matching view in `lobbyGames/`. */
 export function LobbyPanel({ roomId, members, me, onStarted, offlineFallback }: { roomId: string; members: RoomMember[]; me: string; onStarted?: () => void; offlineFallback?: ReactNode }) {
   const t = useT();
-  const { snapshot, status, sendInput, vote } = useSpinLobby(roomId, true, onStarted);
+  const { snapshot, status, sendInput, sendAction, vote } = useSpinLobby(roomId, true, onStarted);
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const latest = useRef(snapshot);
   latest.current = snapshot;
   const byId = useMemo(() => new Map(members.map((m) => [m.user.id, m.user])), [members]);
   const byIdRef = useRef(byId);
   byIdRef.current = byId;
+
+  const view = snapshot ? viewFor(snapshot.game) : null;
+  const viewRef = useRef(view);
+  viewRef.current = view;
 
   // Movement input: keyboard and the on-screen pad share one held direction, sent only when it changes.
   const keys = useRef(new Set<string>());
@@ -45,14 +52,24 @@ export function LobbyPanel({ roomId, members, me, onStarted, offlineFallback }: 
   };
   const sendHeldRef = useRef(sendHeld);
   sendHeldRef.current = sendHeld;
+  const sendActionRef = useRef(sendAction);
+  sendActionRef.current = sendAction;
 
   useEffect(() => {
     const normal = (e: KeyboardEvent) => (e.key.length === 1 ? e.key.toLowerCase() : e.key);
-    const typing = (e: KeyboardEvent) => e.target instanceof HTMLElement && (e.target.isContentEditable || ['INPUT', 'TEXTAREA', 'SELECT'].includes(e.target.tagName));
+    const typing = (e: KeyboardEvent) => e.target instanceof HTMLElement && (e.target.isContentEditable || ['INPUT', 'TEXTAREA', 'SELECT', 'BUTTON'].includes(e.target.tagName));
     const down = (e: KeyboardEvent) => {
-      if (typing(e) || !['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight', 'w', 'a', 's', 'd'].includes(normal(e))) return;
+      if (typing(e)) return;
+      const key = normal(e);
+      const action = viewRef.current?.actions.find((a) => a.key === key);
+      if (action) {
+        e.preventDefault();
+        if (!e.repeat) sendActionRef.current(action.name);
+        return;
+      }
+      if (!MOVE_KEYS.includes(key)) return;
       e.preventDefault();
-      keys.current.add(normal(e));
+      keys.current.add(key);
       sendHeldRef.current();
     };
     const up = (e: KeyboardEvent) => {
@@ -73,8 +90,8 @@ export function LobbyPanel({ roomId, members, me, onStarted, offlineFallback }: 
     };
   }, []);
 
-  // Drawing: the server sends about 15 snapshots a second; each dot eases toward its latest spot so
-  // movement looks smooth at the screen's own frame rate.
+  // Drawing: the server sends about 15 snapshots a second; the game's view eases things toward their
+  // latest spot so movement looks smooth at the screen's own frame rate.
   useEffect(() => {
     const canvas = canvasRef.current;
     if (!canvas) return;
@@ -84,6 +101,8 @@ export function LobbyPanel({ roomId, members, me, onStarted, offlineFallback }: 
     let frame = 0;
     const draw = () => {
       frame = requestAnimationFrame(draw);
+      const snap = latest.current;
+      const gameView = viewRef.current;
       const size = canvas.clientWidth;
       const dpr = window.devicePixelRatio || 1;
       if (canvas.width !== Math.round(size * dpr)) {
@@ -91,57 +110,45 @@ export function LobbyPanel({ roomId, members, me, onStarted, offlineFallback }: 
         canvas.height = Math.round(size * dpr);
       }
       ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
-      const style = getComputedStyle(canvas);
       ctx.clearRect(0, 0, size, size);
-      ctx.fillStyle = style.getPropertyValue('--bg').trim() || '#161210';
-      ctx.fillRect(0, 0, size, size);
-      ctx.strokeStyle = style.getPropertyValue('--chip').trim() || '#333';
-      ctx.lineWidth = 1;
-      for (let i = 1; i < 6; i++) {
-        ctx.beginPath();
-        ctx.moveTo((size * i) / 6, 0);
-        ctx.lineTo((size * i) / 6, size);
-        ctx.moveTo(0, (size * i) / 6);
-        ctx.lineTo(size, (size * i) / 6);
-        ctx.stroke();
+      const style = getComputedStyle(canvas);
+      if (!snap || !gameView) {
+        ctx.fillStyle = style.getPropertyValue('--bg').trim() || '#161210';
+        ctx.fillRect(0, 0, size, size);
+        return;
       }
-      const snap = latest.current;
-      const radius = Math.max(12, size * 0.045);
-      const inset = radius + 2;
-      const live = new Set<string>();
-      for (const p of snap?.players ?? []) {
-        live.add(p.id);
-        const cur = shown.get(p.id) ?? { x: p.x, y: p.y };
-        cur.x += (p.x - cur.x) * 0.35;
-        cur.y += (p.y - cur.y) * 0.35;
-        shown.set(p.id, cur);
-        const user = byIdRef.current.get(p.id);
-        const px = inset + cur.x * (size - inset * 2);
-        const py = inset + cur.y * (size - inset * 2);
-        ctx.beginPath();
-        ctx.arc(px, py, radius, 0, Math.PI * 2);
-        ctx.fillStyle = user?.avatarColor ?? '#8b5cf6';
-        ctx.fill();
-        if (p.id === me) {
-          ctx.lineWidth = 3;
-          ctx.strokeStyle = style.getPropertyValue('--text').trim() || '#fff';
-          ctx.stroke();
-        }
-        ctx.fillStyle = '#fff';
-        ctx.font = `700 ${Math.round(radius)}px system-ui, sans-serif`;
-        ctx.textAlign = 'center';
-        ctx.textBaseline = 'middle';
-        ctx.fillText((user?.displayName ?? '?').slice(0, 1).toUpperCase(), px, py + 1);
-      }
-      for (const id of [...shown.keys()]) if (!live.has(id)) shown.delete(id);
+      const seen = new Set<string>();
+      gameView.draw({
+        ctx,
+        size,
+        snapshot: snap.game,
+        me,
+        users: byIdRef.current,
+        ease: (key, x, y) => {
+          seen.add(key);
+          const cur = shown.get(key) ?? { x, y };
+          cur.x += (x - cur.x) * 0.35;
+          cur.y += (y - cur.y) * 0.35;
+          shown.set(key, cur);
+          return cur;
+        },
+        color: (name, fallback) => style.getPropertyValue(name).trim() || fallback,
+        t: tNow,
+      });
+      for (const key of [...shown.keys()]) if (!seen.has(key)) shown.delete(key);
     };
     frame = requestAnimationFrame(draw);
     return () => cancelAnimationFrame(frame);
   }, [me]);
 
-  const here = snapshot?.players.length ?? 0;
+  const here = snapshot?.game.players.length ?? 0;
   const voted = !!snapshot?.voters.includes(me);
   const statusText = status === 'open' ? t(here === 1 ? 'spin.lobby.here.one' : 'spin.lobby.here.other', { n: here }) : status === 'connecting' ? t('spin.lobby.connecting') : t('spin.lobby.offline');
+  const standings = snapshot && view ? view.standings(snapshot.game) : [];
+  const release = () => {
+    pad.current = { dx: 0, dy: 0 };
+    sendHeld();
+  };
 
   return (
     <div style={st('display:flex;flex-direction:column;gap:10px')}>
@@ -150,32 +157,48 @@ export function LobbyPanel({ roomId, members, me, onStarted, offlineFallback }: 
         <span style={st('font:500 12px var(--font-ui);color:var(--muted)')}>{statusText}</span>
       </div>
       <canvas ref={canvasRef} role="img" aria-label={t('spin.lobby.title')} style={st('width:100%;max-width:340px;aspect-ratio:1;align-self:center;border-radius:16px;touch-action:none;display:block')} />
-      <div style={st('display:grid;grid-template-columns:repeat(3,52px);grid-template-rows:repeat(3,44px);gap:4px;align-self:center')}>
-        {PAD.map((b) => (
+      {standings.length > 0 && (
+        <div style={st('display:flex;flex-wrap:wrap;gap:6px;justify-content:center')}>
+          {standings.map((s) => (
+            <span key={s.id} style={st(`display:flex;align-items:center;gap:5px;height:24px;padding:0 9px;border-radius:999px;background:var(--surf2);font:600 11.5px var(--font-ui);opacity:${s.active ? 1 : 0.5}`)}>
+              <span style={st(`width:9px;height:9px;border-radius:50%;background:${byId.get(s.id)?.avatarColor ?? '#8b5cf6'}`)} />
+              {byId.get(s.id)?.displayName ?? '?'} · {s.score}
+            </span>
+          ))}
+        </div>
+      )}
+      <div style={st('display:flex;align-items:center;justify-content:center;gap:18px')}>
+        <div style={st('display:grid;grid-template-columns:repeat(3,52px);grid-template-rows:repeat(3,44px);gap:4px')}>
+          {PAD.map((b) => (
+            <button
+              key={b.label}
+              type="button"
+              aria-label={b.label}
+              onPointerDown={(e) => {
+                e.currentTarget.setPointerCapture(e.pointerId);
+                pad.current = { dx: b.dx, dy: b.dy };
+                sendHeld();
+              }}
+              onPointerUp={release}
+              onPointerCancel={release}
+              style={st(`grid-area:${b.area};border:none;border-radius:12px;background:var(--surf2);color:var(--text);font:700 16px var(--font-ui);touch-action:none;user-select:none`)}
+            >
+              {b.label}
+            </button>
+          ))}
+        </div>
+        {view?.actions.map((a) => (
           <button
-            key={b.label}
+            key={a.name}
             type="button"
-            aria-label={b.label}
-            onPointerDown={(e) => {
-              e.currentTarget.setPointerCapture(e.pointerId);
-              pad.current = { dx: b.dx, dy: b.dy };
-              sendHeld();
-            }}
-            onPointerUp={() => {
-              pad.current = { dx: 0, dy: 0 };
-              sendHeld();
-            }}
-            onPointerCancel={() => {
-              pad.current = { dx: 0, dy: 0 };
-              sendHeld();
-            }}
-            style={st(`grid-area:${b.area};border:none;border-radius:12px;background:var(--surf2);color:var(--text);font:700 16px var(--font-ui);touch-action:none;user-select:none`)}
+            onPointerDown={() => sendAction(a.name)}
+            style={st('width:92px;height:92px;border:none;border-radius:50%;background:var(--acc);color:var(--onAcc, #fff);font:800 15px var(--font-ui);touch-action:none;user-select:none')}
           >
-            {b.label}
+            {t(a.labelKey)}
           </button>
         ))}
       </div>
-      <span style={st('font:500 12px var(--font-ui);color:var(--faint);text-align:center')}>{t('spin.lobby.hint')}</span>
+      {view && <span style={st('font:500 12px var(--font-ui);color:var(--faint);text-align:center')}>{t(view.hintKey)}</span>}
       {snapshot?.spinWaiting ? (
         <>
           <button

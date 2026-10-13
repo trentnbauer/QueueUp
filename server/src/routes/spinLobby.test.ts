@@ -55,11 +55,11 @@ describe('GET /api/rooms/:roomId/lobby', () => {
     apps.push(app);
     const ws = await app.injectWS('/api/rooms/room-1/lobby', { headers: { origin: ORIGIN, 'x-test-user': 'alice' } });
     // The welcome snapshot is sent during the upgrade, before the test can listen; the next tick sends another.
-    const next = new Promise<{ t: string; players: { id: string }[] }>((resolve) => ws.once('message', (d: Buffer) => resolve(JSON.parse(d.toString()))));
+    const next = new Promise<{ t: string; game: { players: { id: string }[] } }>((resolve) => ws.once('message', (d: Buffer) => resolve(JSON.parse(d.toString()))));
     await spinLobbyHub.tickRoom('room-1');
     const first = await next;
     expect(first.t).toBe('state');
-    expect(first.players.map((p) => p.id)).toEqual(['alice']);
+    expect(first.game.players.map((p) => p.id)).toEqual(['alice']);
     expect(spinLobbyHub.isPresent('room-1', 'alice')).toBe(true);
     ws.terminate();
     await vi.waitFor(() => expect(spinLobbyHub.hasMembers('room-1')).toBe(false));
