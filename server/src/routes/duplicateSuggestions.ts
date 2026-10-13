@@ -38,15 +38,16 @@ export default async function duplicateSuggestionRoutes(app: FastifyInstance) {
     },
   );
 
-  /** "These are not duplicates": the pair is not suggested again. */
+  /** "These are not duplicates" (or one is a remaster / remake of the other, issue #1173): the pair is not suggested again. */
   app.post<{ Body: DismissDuplicateRequest }>(
     '/api/games/duplicates/dismiss',
     { config: { rateLimit: { max: 30, timeWindow: '1 minute' } } },
     async (request, reply) => {
       const userId = await request.requireAuth();
-      const { gameIdA, gameIdB } = request.body ?? {};
+      const { gameIdA, gameIdB, kind } = request.body ?? {};
       if (typeof gameIdA !== 'string' || typeof gameIdB !== 'string') throw new HttpError(400, 'gameIdA and gameIdB are required');
-      await dismissDuplicatePair(userId, gameIdA, gameIdB);
+      if (kind !== undefined && kind !== 'remaster' && kind !== 'remake') throw new HttpError(400, 'kind must be remaster or remake');
+      await dismissDuplicatePair(userId, gameIdA, gameIdB, kind);
       reply.status(204);
     },
   );

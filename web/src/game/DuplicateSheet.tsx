@@ -11,11 +11,14 @@ export function DuplicateSheet({
   games,
   onPick,
   onClose,
+  mode = 'merge',
 }: {
   game: Game;
   games: Game[];
   onPick: (target: Game) => void;
   onClose: () => void;
+  /** `remaster`: pick the original this card is a remaster or remake of, instead of one to merge into. */
+  mode?: 'merge' | 'remaster';
 }) {
   const t = useT();
   const [query, setQuery] = useState('');
@@ -28,8 +31,8 @@ export function DuplicateSheet({
   }, [games, game.id, query]);
 
   return (
-    <Dialog onClose={onClose} title={t('game.duplicate.title')} gap={12}>
-      <div style={st('color:var(--muted);font:400 13.5px/1.4 var(--font-ui)')}>{t('game.duplicate.hint', { title: game.title })}</div>
+    <Dialog onClose={onClose} title={t(mode === 'remaster' ? 'game.remaster.title' : 'game.duplicate.title')} gap={12}>
+      <div style={st('color:var(--muted);font:400 13.5px/1.4 var(--font-ui)')}>{t(mode === 'remaster' ? 'game.remaster.hint' : 'game.duplicate.hint', { title: game.title })}</div>
       <input
         value={query}
         onChange={(e) => setQuery(e.target.value)}
@@ -61,7 +64,7 @@ export function DuplicateSheet({
                 <span style={st('font:600 14.5px var(--font-ui)')}>{g.title}</span>
                 <span style={st('color:var(--muted);font:400 12.5px var(--font-ui)')}>{[g.releaseYear, g.platform].filter(Boolean).join(' · ')}</span>
               </span>
-              <span style={st('height:30px;padding:0 12px;border-radius:999px;background:var(--accSoft2);color:var(--accText);font:600 12.5px var(--font-ui);display:flex;align-items:center')}>{t('game.igdbMatch.merge')}</span>
+              <span style={st('height:30px;padding:0 12px;border-radius:999px;background:var(--accSoft2);color:var(--accText);font:600 12.5px var(--font-ui);display:flex;align-items:center')}>{t(mode === 'remaster' ? 'game.remaster.pick' : 'game.igdbMatch.merge')}</span>
             </button>
           ))}
         </div>
