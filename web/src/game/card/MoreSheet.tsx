@@ -1,5 +1,4 @@
 import type { Game } from '@queueup/shared';
-import { ROOM_PLATFORM_LABELS, sortPlatforms } from '@queueup/shared';
 import { useScope } from '../../context/ScopeContext';
 import { useUi } from '../../context/UiContext';
 import { useGamePlayLog } from '../../hooks/useGamePlayLog';
@@ -93,7 +92,6 @@ export function MoreSheet({
                 ui.notify(v ? t('game.detail.hide.nowHidden', { title: game.title }) : t('game.detail.hide.visible', { title: game.title }));
               }}
             />
-            {game.ownedPlatforms.length > 0 && <Row compact icon="🎮" label={t('card.more.ownedOn')} value={sortPlatforms(game.ownedPlatforms).map((p) => ROOM_PLATFORM_LABELS[p]).join(' · ')} chevron={false} onClick={() => undefined} />}
             {game.syncSources.length > 0 && <Row compact icon="🔄" label={t('card.more.syncedFrom')} value={game.syncSources.map((s) => t(SYNC_SOURCE_KEY[s])).join(' · ')} chevron={false} onClick={() => undefined} />}
           </>,
         )}

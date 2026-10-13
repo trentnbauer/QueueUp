@@ -56,7 +56,7 @@ export const card: Record<keyof typeof en, string> = {
   "card.hero.sizeTitle": "PC install size, from Steam",
   "card.hero.remasterOf": "✨ Remaster of {title}",
   "card.hero.remakeOf": "✨ Remake of {title}",
-  "card.hero.via": "via {sources}",
+  "card.hero.ownedOn": "owned on {platforms}",
   "card.hero.upTo": "up to {max} hearties",
   "card.hero.sessions": "~{n} voyages to finish ({hours}h)",
 
@@ -183,7 +183,6 @@ export const card: Record<keyof typeof en, string> = {
   "card.more.hideSub": "Hearties won't see it on yer shelf",
   "card.more.hidden": "Hidden",
   "card.more.visible": "Visible",
-  "card.more.ownedOn": "Owned on",
   "card.more.syncedFrom": "Synced from",
   "card.more.price": "PRICE",
   "card.more.alert": "Price alert",
