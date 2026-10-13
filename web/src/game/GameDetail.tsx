@@ -14,7 +14,8 @@ import { BundleSheet } from './BundleSheet';
 import { DuplicateSheet } from './DuplicateSheet';
 import { IgdbMatchSheet } from './IgdbMatchSheet';
 import { MergeConfirmDialog } from './MergeConfirmDialog';
-import { RemasterKindDialog } from './RemasterKindDialog';
+import { RemasterDialog } from './RemasterDialog';
+import { resultToMergeGame, toMergeGame, useMergeCompanies } from './mergeGame';
 import { SteamMatchSheet } from './SteamMatchSheet';
 import { CardBody } from './card/CardBody';
 import { DlcCard } from './card/DlcCard';
@@ -58,6 +59,8 @@ export function GameDetail({ game, onClose, changeStatus }: { game: Game; onClos
 
   const base = game.baseGameId ? (games.find((g) => g.id === game.baseGameId) ?? null) : null;
   const live = !!game.price.amount;
+  // Who made the two games being merged or linked, to tell same-named games apart.
+  const companies = useMergeCompanies(merge ? [game.igdbId, merge.kind === 'duplicate' ? merge.target.igdbId : merge.result.igdbId] : remasterOf ? [game.igdbId, remasterOf.igdbId] : []);
 
   // Won't Play takes a game out of sight, so the card closes with it.
   const change = (g: Game, status: GameStatus) => {
@@ -168,17 +171,18 @@ export function GameDetail({ game, onClose, changeStatus }: { game: Game; onClos
       )}
 
       {remasterOf && (
-        <RemasterKindDialog
-          title={game.title}
-          original={remasterOf.title}
+        <RemasterDialog
+          newer={{ id: game.id, game: toMergeGame(game, companies) }}
+          original={{ id: remasterOf.id, game: toMergeGame(remasterOf, companies) }}
           busy={savingRemaster}
           onClose={() => setRemasterOf(null)}
-          onPick={async (kind) => {
+          onSave={async (kind, newerId, originalId) => {
             setSavingRemaster(true);
             try {
-              await gamesApi.dismissDuplicate({ gameIdA: game.id, gameIdB: remasterOf.id, kind });
+              await gamesApi.dismissDuplicate({ gameIdA: newerId, gameIdB: originalId, kind });
               void queryClient.invalidateQueries({ queryKey: ['games', game.id, 'remaster'] });
-              ui.notify(t(kind === 'remaster' ? 'game.remaster.saved.remaster' : 'game.remaster.saved.remake', { title: game.title, original: remasterOf.title }));
+              const [newerTitle, originalTitle] = newerId === game.id ? [game.title, remasterOf.title] : [remasterOf.title, game.title];
+              ui.notify(t(kind === 'remaster' ? 'game.remaster.saved.remaster' : 'game.remaster.saved.remake', { title: newerTitle, original: originalTitle }));
               setRemasterOf(null);
               setMarkingRemaster(false);
             } catch (err) {
@@ -206,13 +210,14 @@ export function GameDetail({ game, onClose, changeStatus }: { game: Game; onClos
 
       {merge && (
         <MergeConfirmDialog
-          first={{ id: game.id, title: game.title, coverImageUrl: game.coverImageUrl }}
+          first={{ id: game.id, game: toMergeGame(game, companies) }}
           second={
             merge.kind === 'duplicate'
-              ? { id: merge.target.id, title: merge.target.title, coverImageUrl: merge.target.coverImageUrl }
-              : { id: String(merge.result.igdbId), title: merge.result.title, coverImageUrl: merge.result.coverImageUrl }
+              ? { id: merge.target.id, game: toMergeGame(merge.target, companies) }
+              : { id: String(merge.result.igdbId), game: resultToMergeGame(merge.result, companies) }
           }
           allowSwap={merge.kind === 'duplicate'}
+          rematch={merge.kind === 'rematch'}
           onCancel={() => {
             if (merge.kind === 'duplicate') setMarkingDuplicate(true);
             else setRematching(true);

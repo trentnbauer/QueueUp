@@ -1,8 +1,8 @@
 import type { FastifyInstance } from 'fastify';
-import type { GameRelatedResponse, RelatedGame } from '@queueup/shared';
+import type { GameRelatedResponse, MergeDetailsResponse, RelatedGame } from '@queueup/shared';
 import { prisma } from '../db/client.js';
 import { loadGameOr404, requireGameReadAccess } from '../services/gameAccess.js';
-import { getGameEditions } from '../services/igdbClient.js';
+import { getGameCompanies, getGameEditions } from '../services/igdbClient.js';
 import { remasterOf } from '../services/ai/aiDuplicates.js';
 
 const pick = { id: true, title: true, coverImageUrl: true, status: true } as const;
@@ -10,6 +10,23 @@ const pick = { id: true, title: true, coverImageUrl: true, status: true } as con
 /** Everything tied to one game, for the card's "Related games" sheet (the card's More menu): the bundle it came out of or holds, the base
  * game or add-ons it has, what it is a remaster or remake of (or what remade it), games merged into it and its other editions. */
 export default async function relatedRoutes(app: FastifyInstance) {
+  /** Developer and publisher for up to 20 IGDB ids, for the merge and remaster screens. A failure just leaves them unknown. */
+  app.get<{ Querystring: { igdbIds?: string } }>(
+    '/api/games/merge-details',
+    { config: { rateLimit: { max: 60, timeWindow: '1 minute' } } },
+    async (request): Promise<MergeDetailsResponse> => {
+      await request.requireAuth();
+      const ids = [...new Set((request.query.igdbIds ?? '').split(',').map(Number).filter((n) => Number.isInteger(n) && n > 0))].slice(0, 20);
+      if (ids.length === 0) return { details: {} };
+      try {
+        const companies = await getGameCompanies(ids);
+        return { details: Object.fromEntries(ids.map((id) => [id, { developer: companies.get(id)?.developer ?? null, publisher: companies.get(id)?.publisher ?? null }])) };
+      } catch {
+        return { details: {} };
+      }
+    },
+  );
+
   app.get<{ Params: { id: string } }>(
     '/api/games/:id/related',
     { config: { rateLimit: { max: 30, timeWindow: '1 minute' } } },
