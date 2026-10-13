@@ -184,7 +184,7 @@ export function LobbyPanel({ roomId, members, me, onStarted, offlineFallback }: 
         <span>{t('spin.lobby.title')}</span>
         <span style={st('font:500 12px var(--font-ui);color:var(--muted)')}>{statusText}</span>
       </div>
-      <canvas ref={canvasRef} role="img" aria-label={t('spin.lobby.title')} style={st('width:100%;max-width:340px;aspect-ratio:1;align-self:center;border-radius:16px;touch-action:none;display:block')} />
+      <canvas ref={canvasRef} role="img" aria-label={t('spin.lobby.title')} onPointerDown={() => view?.tapAction && sendAction(view.tapAction)} style={st('width:100%;max-width:340px;aspect-ratio:1;align-self:center;border-radius:16px;touch-action:none;display:block')} />
       {standings.length > 0 && (
         <div style={st('display:flex;flex-wrap:wrap;gap:6px;justify-content:center')}>
           {standings.map((s) => (

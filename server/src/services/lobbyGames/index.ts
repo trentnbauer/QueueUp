@@ -1,4 +1,5 @@
 import { LOBBY_GAME_IDS, type LobbyGameId } from '@queueup/shared';
+import { FlappyGame } from './flappy.js';
 import { RunnerGame } from './runner.js';
 import type { LobbyGame } from './types.js';
 
@@ -9,6 +10,8 @@ export function createLobbyGame(id: LobbyGameId): LobbyGame {
   switch (id) {
     case 'runner':
       return new RunnerGame();
+    case 'flappy':
+      return new FlappyGame();
   }
 }
 

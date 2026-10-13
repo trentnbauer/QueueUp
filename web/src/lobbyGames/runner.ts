@@ -135,6 +135,7 @@ export const runnerView: LobbyGameView<RunnerSnapshot> = {
   pad: 'none',
   holds: [{ labelKey: 'spin.lobby.runner.duck', dx: 0, dy: 1, keys: ['ArrowDown', 's'] }],
   actions: [{ name: 'jump', labelKey: 'spin.lobby.runner.jump', keys: [' ', 'ArrowUp', 'w'] }],
+  tapAction: 'jump',
   hintKey: 'spin.lobby.runner.hint',
   draw,
   standings: (snapshot) => snapshot.players.map((p) => ({ id: p.id, score: p.wins, active: p.alive })).sort((a, b) => b.score - a.score),

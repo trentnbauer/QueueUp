@@ -11,8 +11,8 @@
 export const LOBBY_TICK_HZ = 15;
 
 /** The games the lobby can run. */
-export type LobbyGameId = 'runner';
-export const LOBBY_GAME_IDS: readonly LobbyGameId[] = ['runner'];
+export type LobbyGameId = 'runner' | 'flappy';
+export const LOBBY_GAME_IDS: readonly LobbyGameId[] = ['runner', 'flappy'];
 
 /** What a client sends. Anything else is ignored. */
 export type LobbyClientMessage =
@@ -79,8 +79,50 @@ export interface RunnerSnapshot {
   winnerId: string | null;
 }
 
+// ---- Flappy (flap through the gaps, everyone on one course) ----------------------------------------
+
+/** Where a bird sits across the screen. */
+export const FLAPPY_X = 0.22;
+/** How tall the gap in each pipe is, as a fraction of the screen height. */
+export const FLAPPY_GAP = 0.3;
+export const FLAPPY_PIPE_WIDTH = 0.08;
+export const FLAPPY_BIRD_RADIUS = 0.03;
+
+/** A pipe on screen: `x` is how far ahead of the screen's left edge it is, `gap` the height (0 = floor,
+ * 1 = ceiling) of the middle of the opening. */
+export interface FlappyPipe {
+  x: number;
+  gap: number;
+}
+
+export interface FlappyPlayer {
+  id: string;
+  /** Height of the bird, 0 (floor) to 1 (ceiling). */
+  y: number;
+  /** Still flying. False once they hit something, or if they arrived mid-run. */
+  alive: boolean;
+  /** Runs won since this person joined the lobby. */
+  wins: number;
+  /** How far they got, in metres: live while flying, final once out. */
+  meters: number;
+}
+
+export interface FlappySnapshot {
+  id: 'flappy';
+  phase: LobbyRoundPhase;
+  meters: number;
+  /** Course speed in screens per second. */
+  speed: number;
+  pipes: FlappyPipe[];
+  players: FlappyPlayer[];
+  /** Milliseconds left in `countdown` or `over`; 0 otherwise. */
+  timerMs: number;
+  /** Who won the run that just ended (`over` only); null when nobody did (a solo run, or a draw). */
+  winnerId: string | null;
+}
+
 /** The snapshot of whichever game is running. */
-export type LobbyGameSnapshot = RunnerSnapshot;
+export type LobbyGameSnapshot = RunnerSnapshot | FlappySnapshot;
 
 export interface LobbySnapshot {
   t: 'state';
