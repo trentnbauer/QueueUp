@@ -1983,6 +1983,10 @@ export default async function gameRoutes(app: FastifyInstance) {
 
       const { owned } = request.body;
       const unlockedBadges = await toggleOwnershipForPlatform(userId, game.igdbId, room.platform, owned);
+      // Saying "I own this" here contradicts a Wishlist copy on the Personal Shelf (a first-person
+      // "I don't have this yet" - which getOwnershipInfo now also honors in rooms), so that copy
+      // has been bought: move it to Backlog, same as a library sync does. Not-yet-released ones stay.
+      if (owned) await promoteOwnedWishlistGames(userId, [game.igdbId]);
 
       const updated = await loadGameOr404(game.id);
       return { game: await serializeGame(updated, userId), unlockedBadges };
