@@ -1,12 +1,12 @@
 name: Build and Publish Docker Image
 
 on:
-  # Daily build — only actually builds/pushes if check-for-changes finds
-  # commits since the last successful build (see the check-for-changes job
-  # below), so this caps Docker image builds at once per 24h no matter how
-  # many changes land on main in between. Midnight UTC.
+  # Every 6 hours — only actually builds/pushes if check-for-changes finds
+  # commits since the last successful build that touch something baked into
+  # the image (see the check-for-changes job below), so this caps Docker image
+  # builds at four per day, and an idle or docs-only stretch builds nothing.
   schedule:
-    - cron: '0 0 * * *'
+    - cron: '0 */6 * * *'
   workflow_dispatch: {}
 
 concurrency:
@@ -67,7 +67,19 @@ jobs:
             HAS_MARKER=false
           fi
 
-          COUNT=$(git rev-list --count "$RANGE" 2>/dev/null || echo 0)
+          # Only commits touching a file the image is built from count - a docs-only, README-only,
+          # CI-only, etc. change would produce an image identical to the last one. Mirrors what
+          # docker/Dockerfile.server COPYs (plus the changelog generator run before the build);
+          # keep in sync if the Dockerfile's inputs change. The marker only moves on a real build,
+          # so skipped commits stay in range and are included once an image-relevant commit lands.
+          IMAGE_PATHS=(
+            package.json package-lock.json tsconfig.base.json
+            packages server web
+            docker/Dockerfile.server docker/server-entrypoint.sh
+            .github/scripts/generate-changelog.sh
+          )
+
+          COUNT=$(git rev-list --count "$RANGE" -- "${IMAGE_PATHS[@]}" 2>/dev/null || echo 0)
 
           if [ "$HAS_MARKER" = true ] && [ "$COUNT" -eq 0 ] && [ "${{ github.event_name }}" != "workflow_dispatch" ]; then
             HAS_CHANGES=false
@@ -76,7 +88,7 @@ jobs:
           fi
 
           # Dev-facing form for the step summary, with hashes for traceability.
-          MULTI=$(git log "$RANGE" --pretty=format:'- %s (%h)' | head -n 30)
+          MULTI=$(git log "$RANGE" --pretty=format:'- %s (%h)' -- "${IMAGE_PATHS[@]}" | head -n 30)
           if [ -z "$MULTI" ]; then
             MULTI="No commits since the last image build."
           fi
@@ -86,7 +98,7 @@ jobs:
           # PR-title changelog without a second GitHub API round trip. OCI annotation values (unlike
           # a Docker LABEL) can safely hold literal newlines, so this is an actual bullet list, not
           # a semicolon-joined wall of text.
-          BULLETS=$(git log "$RANGE" --pretty=format:'- %s' | head -n 30)
+          BULLETS=$(git log "$RANGE" --pretty=format:'- %s' -- "${IMAGE_PATHS[@]}" | head -n 30)
           if [ -z "$BULLETS" ]; then
             BULLETS="- No commits since the last image build."
           fi
@@ -103,7 +115,7 @@ jobs:
           # alongside it.
           BREAKING=""
           BUMP="patch"
-          for commit_hash in $(git rev-list "$RANGE" 2>/dev/null); do
+          for commit_hash in $(git rev-list "$RANGE" -- "${IMAGE_PATHS[@]}" 2>/dev/null); do
             SUBJECT=$(git log -1 --format='%s' "$commit_hash")
             if git log -1 --format='%B' "$commit_hash" | grep -qiE '^BREAKING CHANGE:' || echo "$SUBJECT" | grep -qE '^[a-z]+(\([^)]*\))?!:'; then
               BREAKING="${BREAKING}- $SUBJECT"$'\n'
