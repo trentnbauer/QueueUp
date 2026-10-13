@@ -109,6 +109,32 @@ export function initialsOf(name: string): string {
   return (Array.from(words[0])[0] + Array.from(words[1])[0]).toUpperCase();
 }
 
+/** The longest short name a room tile can show. */
+export const ROOM_SHORT_NAME_MAX = 4;
+
+/** What a room's tile shows: the short name its Room Master set, else up to four letters made from the name. Several words give the
+ * first letter of each ("Friday Night Co-op" reads FNC); a single word gives its consonants ("Trent" reads TRNT), falling back to
+ * its first letters when it has none. */
+export function roomInitials(name: string, shortName?: string | null): string {
+  const custom = shortName?.trim();
+  if (custom) return Array.from(custom).slice(0, ROOM_SHORT_NAME_MAX).join('').toUpperCase();
+  const words = name
+    .replace(/['\u2019]/g, '')
+    .split(/[^\p{L}\p{N}]+/u)
+    .filter(Boolean);
+  if (!words.length) return '?';
+  if (words.length > 1) {
+    return words
+      .slice(0, ROOM_SHORT_NAME_MAX)
+      .map((w) => Array.from(w)[0])
+      .join('')
+      .toUpperCase();
+  }
+  const letters = Array.from(words[0]);
+  const consonants = letters.filter((c) => !/[aeiouAEIOU\u00C0-\u00C5\u00C8-\u00CF\u00D2-\u00D6\u00D9-\u00DC\u00E0-\u00E5\u00E8-\u00EF\u00F2-\u00F6\u00F9-\u00FC]/.test(c));
+  return (consonants.length ? consonants : letters).slice(0, ROOM_SHORT_NAME_MAX).join('').toUpperCase();
+}
+
 interface AvatarProps {
   name: string;
   color: string;

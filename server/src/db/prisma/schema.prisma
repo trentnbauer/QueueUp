@@ -1042,6 +1042,8 @@ model Room {
   /// against.
   platform              RoomPlatform?
   inviteCode            String         @unique @map("invite_code")
+  /// Issue #1168: up to four characters the Room Master picked for the room's tile; null uses letters made from the name.
+  shortName             String?        @map("short_name")
   accentColor           String         @default("#8b5cf6") @map("accent_color")
   createdBy             String         @map("created_by")
   /// The member whose personal AI settings this room's AI calls use when the person asking has none

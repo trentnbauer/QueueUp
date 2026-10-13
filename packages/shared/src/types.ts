@@ -331,6 +331,8 @@ export interface Room {
    * platform data instead of this one field. */
   platform: RoomPlatform | null;
   accentColor: string;
+  /** Up to four characters for the room's tile, set by the Room Master; null means letters made from the name. */
+  shortName: string | null;
   createdBy: string;
   createdAt: string;
   myRole: RoomRole;
@@ -905,6 +907,8 @@ export type RoomInvitePermission = 'members' | 'moderators';
 
 export interface UpdateRoomRequest {
   name?: string;
+  /** Up to four characters for the room's tile; null or empty goes back to letters made from the name. */
+  shortName?: string | null;
   /** Pass null to clear the room's platform restriction (issue #473); omit to leave it unchanged. */
   platform?: RoomPlatform | null;
   accentColor?: string;
