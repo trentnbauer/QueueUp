@@ -59,7 +59,7 @@ export const card = {
   "card.hero.sizeTitle": "PC install size, from Steam",
   "card.hero.remasterOf": "✨ Remaster of {title}",
   "card.hero.remakeOf": "✨ Remake of {title}",
-  "card.hero.via": "via {sources}",
+  "card.hero.ownedOn": "owned on {platforms}",
   "card.hero.upTo": "up to {max} players",
   "card.hero.sessions": "~{n} sessions to finish ({hours}h)",
 
@@ -198,7 +198,6 @@ export const card = {
   "card.more.hideSub": "Friends won't see it on your shelf",
   "card.more.hidden": "Hidden",
   "card.more.visible": "Visible",
-  "card.more.ownedOn": "Owned on",
   "card.more.syncedFrom": "Synced from",
   "card.more.price": "PRICE",
   "card.more.alert": "Price alert",

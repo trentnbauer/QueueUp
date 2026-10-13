@@ -1,5 +1,5 @@
 import type { ReactNode } from 'react';
-import type { Game, GameStatus } from '@queueup/shared';
+import { ROOM_PLATFORM_LABELS, sortPlatforms, type Game, type GameStatus } from '@queueup/shared';
 import { useQuery } from '@tanstack/react-query';
 import { gamesApi } from '../../api/games';
 import { useScope } from '../../context/ScopeContext';
@@ -9,7 +9,6 @@ import { st } from '../../ui/st';
 import { useIsMobile } from '../../ui/useLayout';
 import { useT } from '../../i18n';
 import { coopWarning, formatInstallSize, playersKind, priceModeOf, sessionsToFinish, starScore } from './cardLogic';
-import { SYNC_SOURCE_KEY } from './syncSources';
 import { cardStatusLabel } from './statusLabel';
 import { Footer } from './Footer';
 import { Hero } from './Hero';
@@ -53,7 +52,7 @@ function CoopWarning({ game }: { game: Game }) {
   );
 }
 
-/** "Co-op shooter · 2020 · up to 4 players · ★ 8.7 · 60 GB · 🏆 10/20 · via Steam": whichever parts are known. */
+/** "Co-op shooter · 2020 · up to 4 players · ★ 8.7 · 60 GB · 🏆 10/20 · owned on PC": whichever parts are known. */
 function MetaLine({ game }: { game: Game }) {
   const t = useT();
   const { isShelf, games } = useScope();
@@ -73,7 +72,7 @@ function MetaLine({ game }: { game: Game }) {
   if (size) parts.push(<span key="size" title={t('card.hero.sizeTitle')}>💾 {size}</span>);
   const ach = game.myAchievements;
   if (ach && ach.total > 0) parts.push(<span key="ach" title={t('home.row.achievements', { unlocked: ach.unlocked, total: ach.total })} style={ach.unlocked >= ach.total ? { color: 'var(--star)' } : undefined}>🏆 {ach.unlocked}/{ach.total}</span>);
-  if (isShelf && game.syncSources.length > 0) parts.push(<span key="sync">{t('card.hero.via', { sources: game.syncSources.map((s) => t(SYNC_SOURCE_KEY[s])).join(' · ') })}</span>);
+  if (isShelf && game.ownedPlatforms.length > 0) parts.push(<span key="owned">{t('card.hero.ownedOn', { platforms: sortPlatforms(game.ownedPlatforms).map((p) => ROOM_PLATFORM_LABELS[p]).join(' · ') })}</span>);
   if (remaster?.original) {
     const original = remaster.original;
     parts.push(
