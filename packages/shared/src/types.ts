@@ -3352,6 +3352,33 @@ export interface SplitBundleRequest {
   igdbIds: number[];
 }
 
+/** A game on the same list, as listed in a card's Related games. */
+export interface RelatedGame {
+  id: string;
+  title: string;
+  coverImageUrl: string | null;
+  status: GameStatus;
+}
+
+/** GET /api/games/:id/related: everything tied to one game. */
+export interface GameRelatedResponse {
+  /** The bundle this game came out of. */
+  bundle: RelatedGame | null;
+  /** The games that came out of this game, when it is a bundle. */
+  bundled: RelatedGame[];
+  /** The base game, when this is an add-on. */
+  base: RelatedGame | null;
+  dlc: RelatedGame[];
+  /** What this game is a remaster or remake of. */
+  remaster: { kind: 'remaster' | 'remake'; original: { id: string; title: string } | null } | null;
+  /** Games on the list that are remasters or remakes of this one. */
+  remadeAs: { kind: 'remaster' | 'remake'; game: RelatedGame }[];
+  /** Games merged into this one (shelf). */
+  merged: { igdbId: number; title: string; coverImageUrl: string | null }[];
+  /** Other editions IGDB lists; `gameId` is set for the ones already on this list. */
+  editions: { igdbId: number; title: string; coverImageUrl: string | null; releaseYear: number | null; gameId: string | null }[];
+}
+
 /** GET /api/games/:id/remaster: what this game is a remaster or remake of, when the person said so. */
 export interface GameRemasterResponse {
   remaster: { kind: 'remaster' | 'remake'; original: { id: string; title: string } | null } | null;

@@ -524,6 +524,38 @@ interface IgdbGameWithAddons extends IgdbGame {
   expansions?: IgdbGame[];
 }
 
+const EDITIONS_CACHE_PREFIX = 'igdb:editions:v1:';
+const EDITION_FIELDS = 'name,cover.image_id,platforms.name,first_release_date';
+
+interface IgdbGameWithVersions extends IgdbGame {
+  versions?: IgdbGame[];
+}
+
+/** The other editions IGDB lists for a game (Deluxe, Game of the Year...): its own `versions`, or, for an edition, the standard game
+ * and its sibling editions. Not including the game itself. Cached a day, like a game's DLC. */
+export async function getGameEditions(igdbId: number): Promise<GameSearchResult[]> {
+  if (!Number.isInteger(igdbId) || igdbId <= 0) throw new HttpError(400, 'Invalid IGDB game id');
+  const cacheKey = EDITIONS_CACHE_PREFIX + igdbId;
+  const cached = await redis.get(cacheKey);
+  if (cached) return JSON.parse(cached) as GameSearchResult[];
+
+  const versionFields = EDITION_FIELDS.split(',').map((f) => `versions.${f}`).join(',');
+  const [game] = await igdbRequest<IgdbGameWithVersions[]>('games', `fields version_parent,${versionFields}; where id = ${igdbId};`);
+  let entries: IgdbGame[] = game?.versions ?? [];
+  if (game?.version_parent) {
+    const [parent] = await igdbRequest<IgdbGameWithVersions[]>('games', `fields ${EDITION_FIELDS},${versionFields}; where id = ${game.version_parent};`);
+    entries = parent ? [parent, ...(parent.versions ?? [])] : [];
+  }
+  const byId = new Map<number, GameSearchResult>();
+  for (const g of entries) {
+    if (!g.name || g.id === igdbId) continue;
+    byId.set(g.id, { igdbId: g.id, title: g.name, platform: platformLabel(g.platforms), coverImageUrl: coverUrl(g.cover), releaseYear: releaseYear(g.first_release_date) });
+  }
+  const result = [...byId.values()];
+  await redis.set(cacheKey, JSON.stringify(result), 'EX', DLC_CACHE_TTL_SECONDS);
+  return result;
+}
+
 const TRAILER_CACHE_PREFIX = 'igdb:trailer:v1:';
 const TRAILER_CACHE_TTL_SECONDS = 60 * 60 * 24 * 7; // a trailer rarely changes; a week is plenty
 

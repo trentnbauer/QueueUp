@@ -38,6 +38,7 @@ import moderationRoutes from './routes/moderation.js';
 import legalRoutes from './routes/legal.js';
 import avatarRoutes from './routes/avatar.js';
 import bundleRoutes from './routes/bundles.js';
+import relatedRoutes from './routes/related.js';
 import playTogetherRoutes from './routes/playTogether.js';
 import feedReactionRoutes from './routes/feedReactions.js';
 import notificationPreferenceRoutes from './routes/notificationPreferences.js';
@@ -206,6 +207,7 @@ export async function buildApp() {
       await instance.register(legalRoutes);
       await instance.register(avatarRoutes);
       await instance.register(bundleRoutes);
+      await instance.register(relatedRoutes);
       await instance.register(playTogetherRoutes);
       await instance.register(notificationPreferenceRoutes);
       await instance.register(alertEmailRoutes);
