@@ -20,6 +20,7 @@ import { Avatar, Banner, Btn, SearchField, Spinner } from '../ui/primitives';
 import { useStableOrder } from './useStableOrder';
 import { useIsMobile } from '../ui/useLayout';
 import { MergedGamesList } from './MergedGamesList';
+import { RoomsPlayingList, useRoomsPlaying } from './RoomsPlayingList';
 import { NowPlayingStrip } from './NowPlayingStrip';
 import { useQuery } from '@tanstack/react-query';
 import { MERGED_GAMES_QUERY_KEY, gamesApi } from '../api/games';
@@ -136,7 +137,9 @@ export function HomeView() {
   );
   // The Merged tab lists merges, not games.
   const mergedTab = isShelf && tab === 'merged' && !searching;
-  const hideGames = otherTab || mergedTab;
+  const roomsTab = isShelf && tab === 'rooms' && !searching;
+  const hideGames = otherTab || mergedTab || roomsTab;
+  const roomsPlayingCount = useRoomsPlaying().data?.reduce((n, g) => n + g.games.length, 0) ?? 0;
   const mergedCount = useQuery({ queryKey: MERGED_GAMES_QUERY_KEY, queryFn: gamesApi.mergedList, enabled: isShelf }).data?.merged.length ?? 0;
   const showRank = tab === 'queue' && !searching;
   const ctx = { isShelf, tab, searching, all: games };
@@ -522,7 +525,7 @@ export function HomeView() {
 
       {isShelf && (moreOpen || moreActive) && (
         <div role="tablist" aria-label={t('home.moreFilters')} style={st('display:flex;flex-wrap:wrap;gap:6px')}>
-          {SHELF_MORE_TABS.map((tb) => ({ id: tb.id, label: tb.label, count: tb.id === 'merged' ? mergedCount : (lists.counts[tb.id] ?? 0) })).map((tb) => {
+          {SHELF_MORE_TABS.map((tb) => ({ id: tb.id, label: tb.label, count: tb.id === 'merged' ? mergedCount : tb.id === 'rooms' ? roomsPlayingCount : (lists.counts[tb.id] ?? 0) })).map((tb) => {
             const on = tab === tb.id && !searching;
             return (
               <button
@@ -548,6 +551,7 @@ export function HomeView() {
 
 
       {mergedTab && !otherTab && <MergedGamesList />}
+      {roomsTab && !otherTab && <RoomsPlayingList />}
 
       {!mobile && !hideGames && <NowPlayingStrip />}
 

@@ -103,6 +103,8 @@ export const SHELF_MORE_TABS: TabDef[] = [
   { ...tabDef('adult', 'home.tab.adult', []), match: (g: Game) => g.sensitiveContent === true },
   // Games merged into another: they have no card any more, so this tab lists the merges rather than games (see MergedGamesList).
   { ...tabDef('merged', 'home.tab.merged', []), match: () => false },
+  // Games being played in your rooms: listed from the rooms themselves (see RoomsPlayingList), not from the shelf.
+  { ...tabDef('rooms', 'home.tab.inRooms', []), match: () => false },
 ];
 
 // ---------------------------------------------------------------------------------------------
