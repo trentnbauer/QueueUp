@@ -184,6 +184,7 @@ export const game: Record<keyof typeof en, string> = {
   "game.trailer.none": "No trailer found",
   "game.trailer.error": "Squall loadin’ the trailer. Tap to try again",
   "game.trailer.fullscreen": "Full screen (landscape)",
+  "game.trailer.openOnYoutube": "Not playin’? Open on YouTube",
   "game.trailer.exitFullscreen": "Exit full screen",
   "game.trailer.watch": "▶ Watch trailer",
   "game.trailer.dialogTitle": "{title} · trailer",

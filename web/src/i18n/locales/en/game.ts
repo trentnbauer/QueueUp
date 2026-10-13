@@ -182,6 +182,7 @@ export const game = {
   "game.trailer.none": "No trailer found",
   "game.trailer.error": "Couldn't load the trailer. Tap to retry",
   "game.trailer.fullscreen": "Full screen (landscape)",
+  "game.trailer.openOnYoutube": "Not playing? Open on YouTube",
   "game.trailer.exitFullscreen": "Exit full screen",
   "game.trailer.watch": "▶ Watch trailer",
   "game.trailer.dialogTitle": "{title} · trailer",
