@@ -16,7 +16,7 @@ import { ExophaseDialog } from '../dialogs/ExophaseDialog';
 import { PsnDialog } from '../dialogs/PsnDialog';
 import { SteamDialog } from '../dialogs/SteamDialog';
 import { RetroAchievementsDialog } from '../dialogs/RetroAchievementsDialog';
-import { ChangelogDialog, DlcDialog, PlaytimeDialog } from '../dialogs/MiscDialogs';
+import { ChangelogDialog, PlaytimeDialog } from '../dialogs/MiscDialogs';
 import { RankedDialog } from '../dialogs/RankedDialog';
 import { ReviewSheet } from '../dialogs/ReviewSheet';
 import { AddRoomDialog, RoomSettingsDialog } from '../dialogs/RoomDialogs';
@@ -149,7 +149,6 @@ export function Overlays() {
       {d.steam && <SteamDialog />}
       {d.retroachievements && <RetroAchievementsDialog />}
       {d.changelog && <ChangelogDialog />}
-      {d.dlc && <DlcDialog />}
       {d.review && reviewGame && <ReviewSheet game={reviewGame} edit={!!d.review.edit} syncShelf={!!d.review.syncShelf} />}
       <SensitiveGamesPrompt active={isShelf && !busy} forced={!!d.sensitiveGames} />
       <UiToast />

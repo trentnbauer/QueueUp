@@ -623,6 +623,8 @@ export interface GameRequirements {
 export interface Game {
   id: string;
   roomId: string | null;
+  /** IGDB's id for the game: how a game on a list is matched to an IGDB entry (an add-on on a base game's DLC list). */
+  igdbId: number;
   addedBy: User;
   title: string;
   platform: string;
@@ -719,6 +721,8 @@ export interface Game {
    * prerequisiteGameId, this isn't user-editable - it's set once at intake, not an organizational
    * pointer someone picks from a dropdown. */
   baseGameId: string | null;
+  /** A landscape hero image for the game card (Steam's library_hero by app id), or null when the game has no Steam app id. The file can still be missing on Steam's side, so the card falls back to the cover when it fails to load. */
+  heroImageUrl: string | null;
   /** Minutes of Steam playtime logged since this game's last tracked checkpoint (its last PlayLog
    * entry's start/finish playtime, or the playtime it had at its very first snapshot if it's never
    * had one) - issue #548's raw signal for "did someone actually play this." Null whenever there's
@@ -802,12 +806,17 @@ export interface SetGameHiddenRequest {
 }
 
 /** A lightweight title-search match, shown in the add-game search dropdown. */
+/** What kind of add-on an IGDB DLC entry is. */
+export type DlcKind = 'dlc' | 'expansion' | 'standalone' | 'pack';
+
 export interface GameSearchResult {
   igdbId: number;
   title: string;
   platform: string;
   coverImageUrl: string | null;
   releaseYear: number | null;
+  /** Only on a game's DLC list (GET /api/games/:id/dlc): DLC, Expansion, Standalone or Pack. */
+  dlcKind?: DlcKind;
 }
 
 /** A game QueueUp suggests from IGDB's "similar games" for what's already on the shelf or in the

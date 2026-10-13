@@ -9,7 +9,6 @@ import { Dialog } from '../ui/Dialog';
 import { useIsMobile, useMediaQuery } from '../ui/useLayout';
 import { st } from '../ui/st';
 import { hexToOklchHue } from '../theme/roomTheme';
-import { GlancePanel } from './GlancePanel';
 import { MobileTopBar } from './MobileTopBar';
 import { Overlays } from './Overlays';
 import { VerifyEmailBanner } from './VerifyEmailBanner';
@@ -27,8 +26,8 @@ function loadCollapsed(): boolean {
 }
 
 /** The signed-in frame. Phones: top bar of room tiles over a scrolling page, game detail as a
- * bottom sheet. Desktop: sidebar (or the 80px rail) | main column | 400px right panel (the glance
- * panel, or the selected game's detail). */
+ * bottom sheet. Desktop: sidebar (or the 80px rail) | main column, with the selected game's card as a centred
+ * modal over it. */
 export function AppShell({ children }: { children: ReactNode }) {
   const mobile = useIsMobile();
   const ui = useUi();
@@ -36,8 +35,6 @@ export function AppShell({ children }: { children: ReactNode }) {
   const changeStatus = useChangeStatus();
   const [collapsed, setCollapsed] = useState(loadCollapsed);
   const narrow = useMediaQuery('(max-width: 999px)');
-  const glanceFits = useMediaQuery('(min-width: 1280px)');
-  const docks = useMediaQuery('(min-width: 1180px)');
 
   useEffect(() => {
     try {
@@ -88,8 +85,6 @@ export function AppShell({ children }: { children: ReactNode }) {
   }
 
   const showRail = narrow || collapsed;
-  const showDetail = !!selected && onHome;
-  const showGlance = onHome && !showDetail && glanceFits;
 
   return (
     <div {...roomScope} style={{ ...st('position:relative;height:100vh;display:flex;flex-direction:column;background:var(--bg);color:var(--text);overflow:hidden'), ...roomScope.style }}>
@@ -98,35 +93,17 @@ export function AppShell({ children }: { children: ReactNode }) {
       {showRail ? <Rail onExpand={() => setCollapsed(false)} /> : <Sidebar onCollapse={() => setCollapsed(true)} />}
       <main style={st('flex:1;min-width:0;overflow-y:auto')}>
         {/* 960px on laptops, then grows with the viewport (to 1600px) so ultrawides don't waste the middle (issue #796). */}
-        <div style={st('max-width:clamp(960px, 100vw - 1000px, 1600px);margin:0 auto;padding:30px 36px 48px;display:flex;flex-direction:column;gap:18px')}>{children}</div>
+        <div style={st('max-width:clamp(960px, 100vw - 600px, 1600px);margin:0 auto;padding:30px 36px 48px;display:flex;flex-direction:column;gap:18px')}>{children}</div>
       </main>
-      {(showDetail || showGlance) && (
-        <>
-          {showDetail && !docks && (
-            <div
-              role="presentation"
-              onClick={() => ui.selectGame(null)}
-              style={st('position:absolute;inset:0;z-index:39;background:oklch(0 0 0 / 0.4)')}
-            />
-          )}
-          <aside
-            style={st(
-              `width:400px;flex-shrink:0;height:100%;background:var(--bg2);border-left:1px solid var(--chip);${
-                docks ? 'position:relative' : 'position:absolute;right:0;top:0;bottom:0;z-index:40;box-shadow:-24px 0 60px oklch(0 0 0 / 0.45)'
-              }`,
-            )}
-          >
-            {showDetail && selected ? (
-              <div style={{ position: 'relative', height: '100%' }}>
-                <GameDetail key={selected.id} game={selected} onClose={() => ui.selectGame(null)} changeStatus={changeStatus} />
-              </div>
-            ) : (
-              <GlancePanel />
-            )}
-          </aside>
-        </>
-      )}
       </div>
+      {/* The selected game's card: a centred 880x620 modal over the page, not a panel beside it. */}
+      {selected && onHome && (
+        <Dialog onClose={() => ui.selectGame(null)} bare padded={false} width={880} ariaLabel={selected.title}>
+          <div style={{ position: 'relative', height: 'min(620px, calc(100vh - 64px))' }}>
+            <GameDetail key={selected.id} game={selected} onClose={() => ui.selectGame(null)} changeStatus={changeStatus} />
+          </div>
+        </Dialog>
+      )}
       <Overlays />
     </div>
   );
