@@ -14,7 +14,7 @@ type Pick = GameSearchResult & { source?: BundleSuggestion['source'] };
 /** "Bundle?" (issue #857): this card is several games sold together. Shows the games it probably holds
  * (what IGDB lists for it, plus the names in its title), all ticked, lets the person untick, search
  * for others and add them, then replaces the card with those games. */
-export function BundleSheet({ game, onClose }: { game: Game; onClose: () => void }) {
+export function BundleSheet({ game, onClose, onLinked }: { game: Game; onClose: () => void; /** Runs once the games are linked to the bundle. */ onLinked?: () => void }) {
   const t = useT();
   const ui = useUi();
   const queryClient = useQueryClient();
@@ -47,6 +47,7 @@ export function BundleSheet({ game, onClose }: { game: Game; onClose: () => void
     mutationFn: () => gamesApi.splitBundle(game.id, [...picked.keys()]),
     onSuccess: ({ linked }) => {
       void queryClient.invalidateQueries({ queryKey: ['games'] });
+      onLinked?.();
       ui.notify(t(picked.size === 1 ? 'game.bundle.done.one' : 'game.bundle.done.other', { n: picked.size, title: game.title }));
       if (game.status === 'done' && linked.length > 0) {
         setAfterBeaten(linked);

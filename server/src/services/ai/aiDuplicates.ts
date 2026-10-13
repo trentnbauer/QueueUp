@@ -193,7 +193,7 @@ export async function listDuplicateCandidates(userId: string): Promise<Duplicate
     prisma.duplicateDismissal.findMany({ where: { userId } }),
   ]);
   const dismissed = new Set(dismissals.map((d) => igdbPairKey(d.igdbIdLow, d.igdbIdHigh)));
-  const strip = ({ igdbCollectionId: _c, releaseDate: _d, duplicateCheckedAt: _k, ...g }: (typeof games)[number]): DuplicateSuggestionGame => g;
+  const strip = ({ igdbCollectionId: _c, releaseDate, duplicateCheckedAt: _k, ...g }: (typeof games)[number]): DuplicateSuggestionGame => ({ ...g, releaseDate: releaseDate ? releaseDate.toISOString().slice(0, 10) : null });
   const { pairs: candidates } = await dropDlcPairs(userId, findCandidatePairs(games, dismissed, MAX_SCAN_PAIRS), (pair) => pair);
   const knowledge = candidates.length ? await loadDuplicateKnowledge(userId, games.map((g) => g.igdbId)) : null;
   // Cards IGDB lists as the same game come first: certain duplicates.
@@ -235,7 +235,7 @@ export async function aiScanDuplicates(userId: string, opts: { fresh?: boolean }
     appLog().info({ duplicateScan: { userId, games: games.length } }, `Find duplicate games for ${userId}: fewer than two shelf games, so the AI was not asked`);
     return { pairs: [], candidates: 0, checked: 0, reused: 0, alreadyChecked: 0, remaining: 0, fallback: null, stopped: null };
   }
-  const strip = ({ igdbCollectionId: _c, releaseDate: _d, duplicateCheckedAt: _k, ...g }: (typeof games)[number]): DuplicateSuggestionGame => g;
+  const strip = ({ igdbCollectionId: _c, releaseDate, duplicateCheckedAt: _k, ...g }: (typeof games)[number]): DuplicateSuggestionGame => ({ ...g, releaseDate: releaseDate ? releaseDate.toISOString().slice(0, 10) : null });
   const knowledge = await loadDuplicateKnowledge(userId, games.map((g) => g.igdbId));
   const cards = games.map(strip);
 

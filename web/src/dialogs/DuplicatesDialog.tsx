@@ -1,15 +1,17 @@
 import { useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import type { AiDuplicateScanResponse, DuplicateSuggestion, DuplicateSuggestionGame } from '@queueup/shared';
+import type { AiDuplicateScanResponse, DuplicateSuggestion, DuplicateSuggestionGame, Game } from '@queueup/shared';
 import { AI_SETTINGS_QUERY_KEY, aiApi } from '../api/ai';
 import { DUPLICATE_COUNT_QUERY_KEY, DUPLICATE_LIST_QUERY_KEY, gamesApi } from '../api/games';
 import { useUi } from '../context/UiContext';
 import { Dialog } from '../ui/Dialog';
-import { MergeDirection } from '../ui/MergeDirection';
-import { RemasterKindDialog } from '../game/RemasterKindDialog';
+import { MergeStage } from '../ui/MergeStage';
+import { BundleSheet } from '../game/BundleSheet';
+import { RemasterDialog } from '../game/RemasterDialog';
+import { suggestionToMergeGame } from '../game/mergeGame';
 import { trackAiActivity } from '../hooks/useAiActivity';
 import { useUndoChange } from '../hooks/useUndoChange';
-import { AiPickedBadge, Banner, Btn, Cover, Kicker, Spinner } from '../ui/primitives';
+import { AiPickedBadge, Banner, Btn, Kicker, Spinner } from '../ui/primitives';
 import { st } from '../ui/st';
 import { useT } from '../i18n';
 
@@ -19,48 +21,6 @@ const GAMES_QUERY_ROOT = ['games'];
 type Row = DuplicateSuggestion & { ai: boolean; /** How many other people merged this pair (0 when none). */ community: number };
 
 const pairKey = (p: DuplicateSuggestion) => `${p.a.id}:${p.b.id}`;
-
-/** One card of the pair: tap it to keep it. Shows what tells two games apart - year, platform,
- * genre, developer and publisher. */
-function GameCard({ g, keeping, disabled, onKeep, onBundle }: { g: DuplicateSuggestionGame; keeping: boolean; disabled: boolean; onKeep: () => void; onBundle: () => void }) {
-  const t = useT();
-  const details: [string, string | null | undefined][] = [
-    [t('settings.duplicates.genre'), g.genre],
-    [t('settings.duplicates.developer'), g.developer],
-    [t('settings.duplicates.publisher'), g.publisher],
-  ];
-  return (
-    <div style={st('display:flex;flex-direction:column;gap:4px')}>
-      <button
-        type="button"
-        aria-pressed={keeping}
-        disabled={disabled}
-        onClick={onKeep}
-        style={st(`display:flex;flex-direction:column;gap:10px;padding:12px 14px;border-radius:18px;border:2px solid ${keeping ? 'var(--acc)' : 'transparent'};background:${keeping ? 'var(--accSoft)' : 'var(--surf)'};color:var(--text);text-align:left`)}
-      >
-        <Kicker size={10.5}>{keeping ? t('settings.duplicates.keeping') : t('settings.duplicates.willBeRemoved')}</Kicker>
-        <span style={st('display:flex;gap:12px;align-items:center;min-width:0')}>
-          <Cover title={g.title} url={g.coverImageUrl} width={52} radius={8} />
-          <span style={st('flex:1;min-width:0;display:flex;flex-direction:column;gap:3px')}>
-            <span style={st('font:600 15px/1.3 var(--font-ui);overflow-wrap:anywhere')}>{g.title}</span>
-            <span style={st('font:400 12.5px var(--font-ui);color:var(--muted)')}>{[g.releaseYear, g.platform].filter(Boolean).join(' · ')}</span>
-          </span>
-        </span>
-        <span style={st('display:grid;grid-template-columns:auto 1fr;gap:4px 12px;font:400 13px/1.35 var(--font-ui)')}>
-          {details.map(([label, value]) => (
-            <span key={label} style={st('display:contents')}>
-              <span style={st('color:var(--muted)')}>{label}</span>
-              <span style={st(`min-width:0;overflow-wrap:anywhere;${value ? '' : 'color:var(--muted)'}`)}>{value || t('settings.duplicates.unknown')}</span>
-            </span>
-          ))}
-        </span>
-      </button>
-      <Btn kind="ghost" height={30} padX={8} fontSize={12} disabled={disabled} title={t('settings.duplicates.markBundleHint')} style={{ alignSelf: 'flex-start' }} onClick={onBundle}>
-        {t('settings.duplicates.markBundle')}
-      </Btn>
-    </div>
-  );
-}
 
 /** Duplicate finder (issue #824): the shelf's likely duplicates, one pair per screen like the match
  * dialog - title matches straight away, or what the AI scan judged to be the same game. Nothing is
@@ -110,10 +70,6 @@ export function DuplicatesDialog() {
     mutationFn: ({ remove, keep }: { remove: DuplicateSuggestionGame; keep: DuplicateSuggestionGame }) => gamesApi.mergeGame(remove.id, { targetGameId: keep.id }),
     onError: (err) => setError(err instanceof Error ? err.message : t('settings.duplicates.mergeFailed')),
   });
-  const bundle = useMutation({
-    mutationFn: (g: DuplicateSuggestionGame) => gamesApi.markBundle(g.id),
-    onError: (err) => setError(err instanceof Error ? err.message : t('settings.duplicates.bundleFailed')),
-  });
   const dismiss = useMutation({
     mutationFn: (p: DuplicateSuggestion) => gamesApi.dismissDuplicate({ gameIdA: p.a.id, gameIdB: p.b.id }),
     onError: (err) => setError(err instanceof Error ? err.message : t('settings.duplicates.failed')),
@@ -133,8 +89,11 @@ export function DuplicatesDialog() {
   const currentKey = current ? pairKey(current) : null;
   const backTo = [...history].reverse().find((k) => k !== currentKey && pairs.some((p) => pairKey(p) === k));
   const [kindFor, setKindFor] = useState<string | null>(null);
+  // "One of these is a bundle": which one, then the bundle flow for it.
+  const [bundleChoice, setBundleChoice] = useState<string | null>(null);
+  const [bundleGame, setBundleGame] = useState<Game | null>(null);
   const [savingKind, setSavingKind] = useState(false);
-  const busy = run.isPending || merge.isPending || dismiss.isPending || bundle.isPending;
+  const busy = run.isPending || merge.isPending || dismiss.isPending;
 
   /** The card to keep for a pair: the suggested one (the base game / earlier release), unless the
    * person tapped the other. */
@@ -176,28 +135,30 @@ export function DuplicatesDialog() {
     undoable(t('settings.duplicates.merged', { remove: remove.title, keep: keepCard.title }), merged.undoToken);
   }
 
-  /** The card is a bundle of several games: hide it from the shelf and drop every pair it is in. */
-  async function markBundle(p: DuplicateSuggestion, g: DuplicateSuggestionGame) {
+  /** One of the two is a bundle: open the bundle flow for it (it stays on the list and links the games inside), and drop the pair once linked. */
+  async function openBundle(g: DuplicateSuggestion['a']) {
     setError(null);
-    await bundle.mutateAsync(g);
-    setBundled((b) => [...b, g.id]);
-    moveOn(pairKey(p));
-    void queryClient.invalidateQueries({ queryKey: GAMES_QUERY_ROOT });
-    invalidate();
-    ui.notify(t('settings.duplicates.bundled', { title: g.title }));
+    setBundleChoice(null);
+    try {
+      const { game } = await gamesApi.get(g.id);
+      setBundleGame(game);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : t('settings.duplicates.bundleFailed'));
+    }
   }
 
   /** One of the two is a remaster or remake of the other: both stay, and the pair is not suggested again (issue #1173). The one that
    * would have been removed is taken to be the later release. */
-  async function markRemaster(p: DuplicateSuggestion, kind: 'remaster' | 'remake') {
+  async function markRemaster(p: DuplicateSuggestion, kind: 'remaster' | 'remake', newerId: string, originalId: string) {
     setError(null);
     setSavingKind(true);
     try {
-      await gamesApi.dismissDuplicate({ gameIdA: removeOf(p).id, gameIdB: keepOf(p).id, kind });
+      await gamesApi.dismissDuplicate({ gameIdA: newerId, gameIdB: originalId, kind });
       setGone((g) => [...g, pairKey(p)]);
       moveOn(pairKey(p));
       invalidate();
-      ui.notify(t(kind === 'remaster' ? 'game.remaster.saved.remaster' : 'game.remaster.saved.remake', { title: removeOf(p).title, original: keepOf(p).title }));
+      const [newerTitle, originalTitle] = newerId === p.a.id ? [p.a.title, p.b.title] : [p.b.title, p.a.title];
+      ui.notify(t(kind === 'remaster' ? 'game.remaster.saved.remaster' : 'game.remaster.saved.remake', { title: newerTitle, original: originalTitle }));
       setKindFor(null);
     } catch (err) {
       setError(err instanceof Error ? err.message : t('game.remaster.failed'));
@@ -315,19 +276,20 @@ export function DuplicatesDialog() {
                     <Kicker size={11}>{t('settings.duplicates.titleMatch')}</Kicker>
                   )}
                 </div>
-                <span style={st('font:700 22px/1.2 var(--font-display);letter-spacing:-0.02em;overflow-wrap:anywhere')}>
-                  {t('settings.duplicates.reviewQuestion', { remove: removeOf(current).title, keep: keepOf(current).title })}
-                </span>
+                <span style={st('font:700 22px/1.2 var(--font-display);letter-spacing:-0.02em;overflow-wrap:anywhere')}>{t('settings.duplicates.sameGame')}</span>
                 {current.reason && <span style={st('font:400 13.5px/1.45 var(--font-ui);color:var(--text2)')}>{current.reason}</span>}
-                <MergeDirection remove={removeOf(current)} keep={keepOf(current)} onSwap={() => keep(current, removeOf(current))} disabled={busy} />
-                <Kicker size={11}>{t('settings.duplicates.tapToKeep')}</Kicker>
-                {[current.a, current.b].map((g) => (
-                  <GameCard key={g.id} g={g} keeping={keepOf(current).id === g.id} disabled={busy} onKeep={() => keep(current, g)} onBundle={() => void markBundle(current, g)} />
-                ))}
-                <span style={st('font:400 12.5px/1.45 var(--font-ui);color:var(--muted)')}>{t('settings.duplicates.reviewConsequence', { keep: keepOf(current).title })}</span>
-                <Btn kind="ghost" height={34} padX={10} fontSize={12.5} disabled={busy} style={{ alignSelf: 'flex-start' }} onClick={() => setKindFor(currentKey)}>
-                  ✨ {t('settings.duplicates.remaster')}
-                </Btn>
+                <MergeStage remove={suggestionToMergeGame(removeOf(current))} keep={suggestionToMergeGame(keepOf(current))} onSwap={() => keep(current, removeOf(current))} disabled={busy} />
+                <Kicker size={11}>{t('settings.duplicates.notStraight')}</Kicker>
+                <div style={st('display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px')}>
+                  <button type="button" disabled={busy} onClick={() => setKindFor(currentKey)} className="hv-surf2" style={st('display:flex;flex-direction:column;gap:3px;padding:12px 14px;border-radius:16px;border:none;background:var(--surf);color:var(--text);text-align:left')}>
+                    <span style={st('font:700 14px var(--font-ui)')}>✨ {t('settings.duplicates.remasterTile')}</span>
+                    <span style={st('font:400 12px/1.4 var(--font-ui);color:var(--muted)')}>{t('settings.duplicates.remasterTileSub')}</span>
+                  </button>
+                  <button type="button" disabled={busy} onClick={() => setBundleChoice(currentKey)} className="hv-surf2" style={st('display:flex;flex-direction:column;gap:3px;padding:12px 14px;border-radius:16px;border:none;background:var(--surf);color:var(--text);text-align:left')}>
+                    <span style={st('font:700 14px var(--font-ui)')}>📦 {t('settings.duplicates.bundleTile')}</span>
+                    <span style={st('font:400 12px/1.4 var(--font-ui);color:var(--muted)')}>{t('settings.duplicates.bundleTileSub')}</span>
+                  </button>
+                </div>
               </>
             ) : (
               emptyMessage && <span style={st('font:500 14px/1.45 var(--font-ui)')}>{emptyMessage}</span>
@@ -336,7 +298,49 @@ export function DuplicatesDialog() {
         )}
       </div>
       {kindFor && current && currentKey === kindFor && (
-        <RemasterKindDialog title={removeOf(current).title} original={keepOf(current).title} busy={savingKind} onPick={(kind) => void markRemaster(current, kind)} onClose={() => setKindFor(null)} />
+        <RemasterDialog
+          newer={{ id: removeOf(current).id, game: suggestionToMergeGame(removeOf(current)) }}
+          original={{ id: keepOf(current).id, game: suggestionToMergeGame(keepOf(current)) }}
+          busy={savingKind}
+          onSave={(kind, newerId, originalId) => void markRemaster(current, kind, newerId, originalId)}
+          onClose={() => setKindFor(null)}
+        />
+      )}
+      {bundleChoice && current && currentKey === bundleChoice && (
+        <Dialog onClose={() => setBundleChoice(null)} title={t('settings.duplicates.whichBundle')} gap={12}>
+          <div style={st('color:var(--muted);font:400 13.5px/1.4 var(--font-ui)')}>{t('settings.duplicates.whichBundleHint')}</div>
+          {[current.a, current.b].map((g) => (
+            <button
+              key={g.id}
+              type="button"
+              onClick={() => void openBundle(g)}
+              className="hv-surf2"
+              style={st('display:flex;align-items:center;gap:12px;padding:10px 14px;border-radius:16px;border:none;background:var(--surf);color:var(--text);text-align:left')}
+            >
+              <span style={{ width: 36, height: 54, flexShrink: 0, borderRadius: 6, background: g.coverImageUrl ? `url("${g.coverImageUrl}") center/cover no-repeat` : 'var(--surf2)' }} />
+              <span style={st('flex:1;min-width:0;display:flex;flex-direction:column;gap:2px')}>
+                <span style={st('font:600 14.5px var(--font-ui);overflow-wrap:anywhere')}>{g.title}</span>
+                <span style={st('color:var(--muted);font:400 12.5px var(--font-ui)')}>{[g.releaseYear, g.platform].filter(Boolean).join(' · ')}</span>
+                <span style={st('color:var(--faint);font:400 12px var(--font-ui)')}>{[g.developer, g.publisher].filter(Boolean).join(' · ')}</span>
+              </span>
+              <span aria-hidden style={st('color:var(--faint);font-size:18px')}>›</span>
+            </button>
+          ))}
+        </Dialog>
+      )}
+      {bundleGame && (
+        <BundleSheet
+          game={bundleGame}
+          onLinked={() => {
+            if (current) {
+              setBundled((b) => [...b, bundleGame.id]);
+              moveOn(pairKey(current));
+            }
+            void queryClient.invalidateQueries({ queryKey: GAMES_QUERY_ROOT });
+            invalidate();
+          }}
+          onClose={() => setBundleGame(null)}
+        />
       )}
     </Dialog>
   );

@@ -3281,6 +3281,8 @@ export interface DuplicateSuggestionGame {
   title: string;
   platform: string;
   releaseYear: number | null;
+  /** The full release date (YYYY-MM-DD) when IGDB has one. */
+  releaseDate?: string | null;
   coverImageUrl: string | null;
   status: GameStatus;
   /** IGDB's genres, e.g. "Shooter, Adventure"; null when unknown. */
@@ -3350,6 +3352,11 @@ export interface BundleSuggestion extends GameSearchResult {
 /** Body for POST /api/games/:id/split-bundle: the games this card is a bundle of. */
 export interface SplitBundleRequest {
   igdbIds: number[];
+}
+
+/** GET /api/games/merge-details: developer and publisher per IGDB id, to tell two games with the same name apart. */
+export interface MergeDetailsResponse {
+  details: Record<number, { developer: string | null; publisher: string | null }>;
 }
 
 /** A game on the same list, as listed in a card's Related games. */
