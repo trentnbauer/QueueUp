@@ -17,6 +17,7 @@ import { roomsApi } from '../api/rooms';
 import { useAuth } from '../context/AuthContext';
 import { useConfirm } from '../context/ConfirmContext';
 import { useScope } from '../context/ScopeContext';
+import { RoomLobbyDialog } from './LobbyPanel';
 import { useUi } from '../context/UiContext';
 import { useFriends } from '../hooks/useFriends';
 import { useRooms } from '../hooks/useRooms';
@@ -472,6 +473,7 @@ export function RoomSettingsDialog() {
   const [shortName, setShortName] = useState(room?.shortName ?? '');
   const [hexDraft, setHexDraft] = useState<string | null>(null);
   const [spinOpen, setSpinOpen] = useState(false);
+  const [lobbyOpen, setLobbyOpen] = useState(false);
   const [masterLeaveOpen, setMasterLeaveOpen] = useState(false);
   const [discordOpen, setDiscordOpen] = useState(false);
   const [roomAiOpen, setRoomAiOpen] = useState(false);
@@ -714,6 +716,7 @@ export function RoomSettingsDialog() {
         <Group>
           {isMaster && <NavRow label={t('room.spin.title')} sub={spinSummary(room)} onClick={() => setSpinOpen(true)} />}
           {isMaster && <NavRow label={t('room.settings.discordRow')} sub={discordSummary(room)} onClick={() => setDiscordOpen(true)} />}
+          <NavRow label={t('room.settings.lobbyRow')} sub={t('room.settings.lobbyRowSub')} onClick={() => setLobbyOpen(true)} />
           <NavRow label={t('room.settings.aiRow')} sub={t('room.settings.aiRowSub')} onClick={() => setRoomAiOpen(true)} />
         </Group>
         {isMaster && (
@@ -805,6 +808,7 @@ export function RoomSettingsDialog() {
         </Group>
       </Dialog>
     )}
+    {lobbyOpen && user && <RoomLobbyDialog roomId={roomId} members={members} me={user.id} onClose={() => setLobbyOpen(false)} />}
     {spinOpen && <RoomSpinSettingsDialog room={room} patch={patch} onClose={() => setSpinOpen(false)} />}
     {discordOpen && <RoomDiscordDialog room={room} patch={patch} onClose={() => setDiscordOpen(false)} />}
     {roomAiOpen && (
