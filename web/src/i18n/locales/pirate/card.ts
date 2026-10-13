@@ -2,6 +2,13 @@ import type { card as en } from '../en/card';
 
 /** Pirate for the "card" strings. Every English key must be here, with the same {placeholders}. */
 export const card: Record<keyof typeof en, string> = {
+  "card.bundle.which": "WHICH GAME?",
+  "card.bundle.hint.one": "This bundle has {n} game. Pick it to open its card.",
+  "card.bundle.hint.other": "This bundle has {n} games. Pick one to open its card.",
+  "card.bundle.manage": "Open the bundle's own card",
+  "card.bundle.chip.one": "📦 {n} game",
+  "card.bundle.chip.other": "📦 {n} games",
+
   "card.nowPlaying.playing": "Sailing",
   "card.nowPlaying.sessions.one": "Sailing · {n} voyage in",
   "card.nowPlaying.sessions.other": "Sailing · {n} voyages in",

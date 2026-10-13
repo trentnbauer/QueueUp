@@ -5,6 +5,7 @@ import { gamesApi } from '../api/games';
 import { useAuth } from '../context/AuthContext';
 import { useScope } from '../context/ScopeContext';
 import { useUi } from '../context/UiContext';
+import { BundleChooser } from '../game/BundleChooser';
 import { GameDetail } from '../game/GameDetail';
 import { useChangeStatus } from '../game/useChangeStatus';
 import { Dialog } from '../ui/Dialog';
@@ -72,6 +73,14 @@ export function AppShell({ children }: { children: ReactNode }) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [missing, fetched.isError, fetched.data, fetchedHere]);
 
+  // A bundle opens to "which game?" (issue #1169); its own card is one tap further.
+  const [manageBundleId, setManageBundleId] = useState<string | null>(null);
+  const bundled = selected ? scope.games.filter((g) => g.bundleGameId === selected.id) : [];
+  const chooser =
+    selected && bundled.length > 0 && manageBundleId !== selected.id ? (
+      <BundleChooser bundle={selected} games={bundled} onPick={(g) => ui.selectGame(g.id)} onManage={() => setManageBundleId(selected.id)} onClose={() => ui.selectGame(null)} />
+    ) : null;
+
   // Pages (Activity, profile...) don't show the shelf's glance/detail panel.
   const { pathname } = useLocation();
   const onHome = pathname === '/' || pathname.startsWith('/shelf/') || pathname.startsWith('/room/');
@@ -87,11 +96,13 @@ export function AppShell({ children }: { children: ReactNode }) {
           {children}
         </div>
         {selected && onHome && (
-          <Dialog onClose={() => ui.selectGame(null)} bare padded={false} height="tall" ariaLabel={selected.title}>
-            <div style={{ position: 'relative', flex: 1, minHeight: 0 }}>
-              <GameDetail key={selected.id} game={selected} onClose={() => ui.selectGame(null)} changeStatus={changeStatus} />
-            </div>
-          </Dialog>
+          chooser ?? (
+            <Dialog onClose={() => ui.selectGame(null)} bare padded={false} height="tall" ariaLabel={selected.title}>
+              <div style={{ position: 'relative', flex: 1, minHeight: 0 }}>
+                <GameDetail key={selected.id} game={selected} onClose={() => ui.selectGame(null)} changeStatus={changeStatus} />
+              </div>
+            </Dialog>
+          )
         )}
         <Overlays />
       </div>
@@ -112,11 +123,13 @@ export function AppShell({ children }: { children: ReactNode }) {
       </div>
       {/* The selected game's card: a centred 880x620 modal over the page, not a panel beside it. */}
       {selected && onHome && (
-        <Dialog onClose={() => ui.selectGame(null)} bare padded={false} width={880} ariaLabel={selected.title}>
-          <div style={{ position: 'relative', height: 'min(620px, calc(100vh - 64px))' }}>
-            <GameDetail key={selected.id} game={selected} onClose={() => ui.selectGame(null)} changeStatus={changeStatus} />
-          </div>
-        </Dialog>
+        chooser ?? (
+          <Dialog onClose={() => ui.selectGame(null)} bare padded={false} width={880} ariaLabel={selected.title}>
+            <div style={{ position: 'relative', height: 'min(620px, calc(100vh - 64px))' }}>
+              <GameDetail key={selected.id} game={selected} onClose={() => ui.selectGame(null)} changeStatus={changeStatus} />
+            </div>
+          </Dialog>
+        )
       )}
       <Overlays />
     </div>

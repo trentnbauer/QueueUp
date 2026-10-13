@@ -723,6 +723,8 @@ export interface Game {
    * prerequisiteGameId, this isn't user-editable - it's set once at intake, not an organizational
    * pointer someone picks from a dropdown. */
   baseGameId: string | null;
+  /** Set on a game that came out of a bundle: the bundle's own game, which stays on the list (issue #1169). */
+  bundleGameId: string | null;
   /** A landscape hero image for the game card (Steam's library_hero by app id), or null when the game has no Steam app id. The file can still be missing on Steam's side, so the card falls back to the cover when it fails to load. */
   heroImageUrl: string | null;
   /** Minutes of Steam playtime logged since this game's last tracked checkpoint (its last PlayLog
