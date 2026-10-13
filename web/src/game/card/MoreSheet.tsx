@@ -11,7 +11,7 @@ import { priceModeOf } from './cardLogic';
 import { Kicker, Row, RowGroup } from './ui';
 import type { ReactNode } from 'react';
 
-export type MoreTarget = 'price' | 'alert' | 'journal' | 'tags' | 'achievements' | 'series' | 'fix';
+export type MoreTarget = 'price' | 'alert' | 'journal' | 'tags' | 'achievements' | 'series' | 'fix' | 'related';
 
 /** More: everything else the old card carried, grouped. Review and tags are yours; fix-it tools are for whoever added the game or runs the room. */
 export function MoreSheet({
@@ -124,6 +124,11 @@ export function MoreSheet({
             <Row compact icon="📦" label={t('game.bundle.button')} onClick={onBundle} />
           </>,
         )}
+
+      {group(
+        t('card.more.related'),
+        <Row compact icon="🔗" label={t('card.related.row')} sub={t('card.related.rowSub')} onClick={() => onOpen('related')} />,
+      )}
     </div>
   );
 }

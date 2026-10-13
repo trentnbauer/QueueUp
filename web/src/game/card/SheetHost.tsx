@@ -6,6 +6,7 @@ import { DlcSheet, PlayAfterSheet, type DlcTarget } from './ListSheets';
 import { FixMatchSheet, MoreSheet, type MoreTarget } from './MoreSheet';
 import { PriceAlertSheet, PriceHistorySheet } from './PriceSheets';
 import { Sheet, type SheetKind } from './Sheet';
+import { RelatedSheet } from './RelatedSheet';
 import { StatusPicker } from './StatusPicker';
 import { useCanRemoveDirectly } from './Footer';
 
@@ -23,6 +24,7 @@ const TITLE: Record<SheetKind, MessageKey> = {
   achievements: 'card.more.achievements',
   series: 'card.more.series',
   fix: 'card.more.fixMatch',
+  related: 'card.related.row',
 };
 
 export interface SheetHostProps {
@@ -87,6 +89,9 @@ export function SheetHost({ game, kind, desktop, setKind, onPickStatus, onOpenRe
       break;
     case 'fix':
       body = <FixMatchSheet game={game} onRematch={() => onRematch?.()} onSteam={() => onSteamMatch?.()} />;
+      break;
+    case 'related':
+      body = <RelatedSheet game={game} />;
       break;
     case 'more':
       body = (
