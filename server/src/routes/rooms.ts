@@ -413,17 +413,19 @@ export default async function roomRoutes(app: FastifyInstance) {
     // whatever's stored here, so accepting any URL would make this an open SSRF vector for
     // whoever can set it (the Room Master, but still - internal network probing shouldn't be
     // reachable through a "paste your webhook URL" field).
+    // typeof first: RegExp.test() coerces its argument to a string, so a one-element array holding
+    // a valid URL would pass the pattern and then fail in the encryption step with a 500.
     if (
       discordWebhookUrl !== undefined &&
       discordWebhookUrl !== null &&
-      !/^https:\/\/discord(app)?\.com\/api\/webhooks\/\d+\/[\w-]+$/.test(discordWebhookUrl)
+      (typeof discordWebhookUrl !== 'string' || !/^https:\/\/discord(app)?\.com\/api\/webhooks\/\d+\/[\w-]+$/.test(discordWebhookUrl))
     ) {
       throw new HttpError(400, 'That doesn\'t look like a Discord webhook URL');
     }
 
     // Only a real invite link - the web app renders this as a link out, so it must be https on one
     // of Discord's own invite hosts (not an arbitrary or javascript: URL).
-    if (discordInviteUrl !== undefined && discordInviteUrl !== null && !DISCORD_INVITE_URL.test(discordInviteUrl)) {
+    if (discordInviteUrl !== undefined && discordInviteUrl !== null && (typeof discordInviteUrl !== 'string' || !DISCORD_INVITE_URL.test(discordInviteUrl))) {
       throw new HttpError(400, 'That doesn\'t look like a Discord invite link');
     }
 
