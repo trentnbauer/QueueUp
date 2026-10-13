@@ -68,6 +68,7 @@ function toRoomDto(
     spinDefaults: unknown;
     isPublic: boolean;
     requireGameApproval: boolean;
+    typicalSessionHours: number | null;
     invitePermission: RoomInvitePermission;
     discordEvents: unknown;
   },
@@ -96,6 +97,7 @@ function toRoomDto(
     spinDefaults: toSpinDefaults(room.spinDefaults),
     isPublic: room.isPublic,
     requireGameApproval: room.requireGameApproval,
+    typicalSessionHours: room.typicalSessionHours,
     invitePermission: room.invitePermission,
     discordEvents: role === 'room_master' ? resolveDiscordEvents(room.discordEvents) : undefined,
   };
@@ -356,7 +358,7 @@ export default async function roomRoutes(app: FastifyInstance) {
       throw new HttpError(403, 'Only the Room Master can change room settings');
     }
 
-    const { name, platform, accentColor, discordWebhookUrl, discordInviteUrl, spinOwnershipMaxPrice, spinWheelTheme, spinDefaults, isPublic, requireGameApproval, invitePermission, discordEvents } =
+    const { name, platform, accentColor, discordWebhookUrl, discordInviteUrl, spinOwnershipMaxPrice, spinWheelTheme, spinDefaults, isPublic, requireGameApproval, typicalSessionHours, invitePermission, discordEvents } =
       request.body ?? {};
     if (invitePermission !== undefined && invitePermission !== 'members' && invitePermission !== 'moderators') {
       throw new HttpError(400, 'Invite permission must be members or moderators');
@@ -373,6 +375,9 @@ export default async function roomRoutes(app: FastifyInstance) {
       throw new HttpError(400, 'A valid platform is required');
     }
     if (isPublic !== undefined && typeof isPublic !== 'boolean') throw new HttpError(400, 'isPublic must be true or false');
+    if (typicalSessionHours !== undefined && typicalSessionHours !== null && !(Number.isInteger(typicalSessionHours) && typicalSessionHours >= 1 && typicalSessionHours <= 5)) {
+      throw new HttpError(400, 'Typical session must be 1 to 5 hours, or null');
+    }
     if (requireGameApproval !== undefined && typeof requireGameApproval !== 'boolean') {
       throw new HttpError(400, 'requireGameApproval must be true or false');
     }
@@ -418,6 +423,7 @@ export default async function roomRoutes(app: FastifyInstance) {
         ...(spinWheelTheme !== undefined && { spinWheelTheme }),
         ...(isPublic !== undefined && { isPublic }),
         ...(requireGameApproval !== undefined && { requireGameApproval }),
+        ...(typicalSessionHours !== undefined && { typicalSessionHours }),
         ...(invitePermission !== undefined && { invitePermission }),
         ...(discordEvents !== undefined && {
           discordEvents: { ...resolveDiscordEvents(before.discordEvents), ...pickDiscordEvents(discordEvents) },
