@@ -197,7 +197,12 @@ export async function getOwnershipInfo(games: GameWithRelations[], currentUserId
   // counts as owned everywhere; otherwise it only counts for a room whose own platform it lists.
   // `platform === null` is a platform-less room (issue #473) - same "degrades to owns any
   // platform" treatment as isOwnedBy above, since there's no single platform here to gate on.
+  //
+  // A member whose own Personal Shelf has this title on the Wishlist has said "I don't have this
+  // yet" (issue #419, same first-person claim the shelf branch below honors), so a leftover or
+  // cross-context GameOwnership row doesn't count them as an owner here either.
   function ownsOnPlatform(igdbId: number, userId: string, platform: RoomPlatform | null): boolean {
+    if (wishlistersByIgdbId.get(igdbId)?.has(userId)) return false;
     const platforms = ownershipByIgdbId.get(igdbId)?.get(userId);
     if (platforms === undefined) return false;
     return platform === null || platforms.length === 0 || platforms.includes(platform);
