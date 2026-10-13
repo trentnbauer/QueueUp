@@ -19,7 +19,10 @@ import { ROOM_PLATFORM_LABELS } from '@queueup/shared';
 import { Avatar, Banner, Btn, SearchField, Spinner } from '../ui/primitives';
 import { useStableOrder } from './useStableOrder';
 import { useIsMobile } from '../ui/useLayout';
+import { MergedGamesList } from './MergedGamesList';
 import { NowPlayingStrip } from './NowPlayingStrip';
+import { useQuery } from '@tanstack/react-query';
+import { MERGED_GAMES_QUERY_KEY, gamesApi } from '../api/games';
 import { useAiActivity } from '../hooks/useAiActivity';
 import { st } from '../ui/st';
 import { buildHomeLists, toRowItem } from './derive';
@@ -131,14 +134,18 @@ export function HomeView() {
     () => buildHomeLists(games, { isShelf, tabs, tab, query, platform, includeOlder, backlogSort, maxInstallGb, playNextIn }),
     [games, isShelf, tabs, tab, query, platform, includeOlder, backlogSort, maxInstallGb, playNextIn],
   );
+  // The Merged tab lists merges, not games.
+  const mergedTab = isShelf && tab === 'merged' && !searching;
+  const hideGames = otherTab || mergedTab;
+  const mergedCount = useQuery({ queryKey: MERGED_GAMES_QUERY_KEY, queryFn: gamesApi.mergedList, enabled: isShelf }).data?.merged.length ?? 0;
   const showRank = tab === 'queue' && !searching;
   const ctx = { isShelf, tab, searching, all: games };
   // Voting changes scores, which would re-sort the list under you - keep the order until the view changes.
   const orderKey = `${scope.scopeId}|${tab}|${query}|${platform ?? ''}|${includeOlder}|${backlogSort.join(',')}|${maxInstallGb}|${playNextIn}`;
   const orderedList = useStableOrder(lists.list, orderKey);
   const orderedPlayNext = useStableOrder(lists.playNext, `${orderKey}|next`);
-  const items = otherTab ? [] : orderedList.map((g, i) => toRowItem(g, i + 1, ctx));
-  const playNextItems = otherTab ? [] : orderedPlayNext.map((g, i) => toRowItem(g, i + 1, ctx));
+  const items = hideGames ? [] : orderedList.map((g, i) => toRowItem(g, i + 1, ctx));
+  const playNextItems = hideGames ? [] : orderedPlayNext.map((g, i) => toRowItem(g, i + 1, ctx));
   const { visible: visibleItems, hasMore, sentinelRef } = useIncrementalList(items, `${orderKey}|${viewMode}`);
 
   const toVote = room ? attention.toVote(room.id) : 0;
@@ -515,7 +522,7 @@ export function HomeView() {
 
       {isShelf && (moreOpen || moreActive) && (
         <div role="tablist" aria-label={t('home.moreFilters')} style={st('display:flex;flex-wrap:wrap;gap:6px')}>
-          {SHELF_MORE_TABS.map((tb) => ({ id: tb.id, label: tb.label, count: lists.counts[tb.id] ?? 0 })).map((tb) => {
+          {SHELF_MORE_TABS.map((tb) => ({ id: tb.id, label: tb.label, count: tb.id === 'merged' ? mergedCount : (lists.counts[tb.id] ?? 0) })).map((tb) => {
             const on = tab === tb.id && !searching;
             return (
               <button
@@ -540,9 +547,11 @@ export function HomeView() {
       )}
 
 
-      {!mobile && !otherTab && <NowPlayingStrip />}
+      {mergedTab && !otherTab && <MergedGamesList />}
 
-      {!otherTab && lists.coming.length > 0 && (
+      {!mobile && !hideGames && <NowPlayingStrip />}
+
+      {!hideGames && lists.coming.length > 0 && (
         <ComingStrip
           games={lists.coming}
           onOpen={(g) => ui.selectGame(g.id)}
@@ -553,16 +562,16 @@ export function HomeView() {
         />
       )}
 
-      {!otherTab && isShelf && !searching && tab === lists.comingTab && <ComingDlcStrip />}
+      {!hideGames && isShelf && !searching && tab === lists.comingTab && <ComingDlcStrip />}
 
-      {!otherTab && (scope.gamesLoading || scope.roomsLoading) && items.length === 0 && (
+      {!hideGames && (scope.gamesLoading || scope.roomsLoading) && items.length === 0 && (
         <div role="status" aria-label={t('common.loading')} style={st('padding:56px 12px;display:flex;flex-direction:column;align-items:center;gap:14px;font:500 14.5px var(--font-ui);color:var(--muted)')}>
           <Spinner size={32} />
           {t('common.loading')}
         </div>
       )}
 
-      {!otherTab && !scope.gamesLoading && !scope.roomsLoading && items.length === 0 && (
+      {!hideGames && !scope.gamesLoading && !scope.roomsLoading && items.length === 0 && (
         <div style={st('padding:36px 12px;text-align:center;display:flex;flex-direction:column;align-items:center;gap:12px')}>
           <span style={st('font:500 14.5px var(--font-ui);color:var(--muted);text-wrap:pretty')}>{emptyMsg}</span>
           {emptyAdd && (
