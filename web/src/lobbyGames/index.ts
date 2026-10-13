@@ -1,7 +1,6 @@
 import type { LobbyGameId, LobbyGameSnapshot, User } from '@queueup/shared';
 import type { MessageKey } from '../i18n';
 import { runnerView } from './runner';
-import { totemView } from './totem';
 
 /** What a renderer is given each frame. */
 export interface LobbyDrawArgs<S extends LobbyGameSnapshot = LobbyGameSnapshot> {
@@ -45,7 +44,6 @@ export interface LobbyGameView<S extends LobbyGameSnapshot = LobbyGameSnapshot> 
 }
 
 export const LOBBY_GAME_VIEWS: { [K in LobbyGameId]: LobbyGameView<Extract<LobbyGameSnapshot, { id: K }>> } = {
-  totem: totemView,
   runner: runnerView,
 };
 

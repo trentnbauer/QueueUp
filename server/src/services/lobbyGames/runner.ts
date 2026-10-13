@@ -1,4 +1,4 @@
-import { RUNNER_X, clampDirection, type RunnerObstacle, type RunnerObstacleKind, type RunnerSnapshot, type TotemPhase } from '@queueup/shared';
+import { RUNNER_X, clampDirection, type RunnerObstacle, type RunnerObstacleKind, type RunnerSnapshot, type LobbyRoundPhase } from '@queueup/shared';
 import type { LobbyGame } from './types.js';
 
 // Distances are in screens (the track is 1.0 wide), heights in lane heights (a lane is 1.0 tall),
@@ -60,7 +60,7 @@ function mulberry32(seed: number): () => number {
 export class RunnerGame implements LobbyGame {
   readonly id = 'runner' as const;
   private readonly runners = new Map<string, Runner>();
-  private phase: TotemPhase = 'lobby';
+  private phase: LobbyRoundPhase = 'lobby';
   private timerMs = 0;
   private roundMs = 0;
   private distance = 0;
