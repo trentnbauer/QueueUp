@@ -81,7 +81,8 @@ describe('aiScanDuplicates (whole shelf)', () => {
     gameFindMany.mockResolvedValue([card('1', 1, 'Halo: The Master Chief Collection', 2014), card('2', 2, 'Halo MCC', 2019), card('3', 3, 'Portal')]);
     replyPairs([['Halo: The Master Chief Collection', 'Halo MCC']]);
     const res = await aiScanDuplicates('u1');
-    expect(aiComplete).toHaveBeenCalledTimes(1);
+    // One request for the shelf, one for the "Collection" card's closer look.
+    expect(aiComplete).toHaveBeenCalledTimes(2);
     const prompt = aiComplete.mock.calls[0][0].messages[0].content as string;
     for (const t of ['Halo MCC', 'Halo: The Master Chief Collection', 'Portal']) expect(prompt).toContain(t);
     expect(res).toMatchObject({ checked: 3, candidates: 0, reused: 0, stopped: null });
