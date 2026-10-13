@@ -5,6 +5,7 @@ import type { LobbyDrawArgs, LobbyGameView } from './index';
 const STAND_HEIGHT = 0.45;
 const DUCK_HEIGHT = 0.25;
 const CACTUS = { width: 0.1, height: 0.35 };
+const LOG = { width: 0.3, height: 0.35 };
 const BIRD = { width: 0.06, from: 0.3, to: 0.7 };
 const RUNNER_WIDTH = 0.04;
 
@@ -66,6 +67,22 @@ function draw({ ctx, size, snapshot, me, users, ease, color, t }: LobbyDrawArgs<
       ctx.fillRect(cx - w / 2, ground - h, w, h);
       ctx.fillRect(cx - w * 0.9, ground - h * 0.7, w * 0.35, h * 0.28);
       ctx.fillRect(cx + w * 0.55, ground - h * 0.8, w * 0.35, h * 0.28);
+    } else if (o.kind === 'log') {
+      // A wide, low log: a held jump to clear it.
+      const w = LOG.width * size;
+      const h = LOG.height * unit;
+      ctx.fillStyle = 'oklch(0.5 0.08 55)';
+      ctx.fillRect(cx - w / 2, ground - h, w, h);
+      ctx.fillStyle = 'oklch(0.62 0.09 60)';
+      ctx.fillRect(cx - w / 2, ground - h, w, h * 0.22);
+      ctx.strokeStyle = 'oklch(0.38 0.06 55)';
+      ctx.lineWidth = 2;
+      for (let k = 1; k < 4; k++) {
+        ctx.beginPath();
+        ctx.moveTo(cx - w / 2 + (w * k) / 4, ground - h);
+        ctx.lineTo(cx - w / 2 + (w * k) / 4, ground);
+        ctx.stroke();
+      }
     } else {
       const w = BIRD.width * size;
       const y0 = ground - BIRD.to * unit;
@@ -131,11 +148,15 @@ function draw({ ctx, size, snapshot, me, users, ease, color, t }: LobbyDrawArgs<
 }
 
 export const runnerView: LobbyGameView<RunnerSnapshot> = {
-  // Just two buttons: Jump (Space or Up) and a hold-to-Duck (Down).
+  // Two held buttons: Jump (Space or Up; hold it to jump higher and further) and Duck (Down). Tapping
+  // the arena is a Jump too.
   pad: 'none',
-  holds: [{ labelKey: 'spin.lobby.runner.duck', dx: 0, dy: 1, keys: ['ArrowDown', 's'] }],
-  actions: [{ name: 'jump', labelKey: 'spin.lobby.runner.jump', keys: [' ', 'ArrowUp', 'w'] }],
-  tapAction: 'jump',
+  holds: [
+    { labelKey: 'spin.lobby.runner.duck', dx: 0, dy: 1, keys: ['ArrowDown', 's'] },
+    { labelKey: 'spin.lobby.runner.jump', dx: 0, dy: -1, keys: [' ', 'ArrowUp', 'w'], primary: true },
+  ],
+  actions: [],
+  tapHold: [0, -1],
   hintKey: 'spin.lobby.runner.hint',
   draw,
   standings: (snapshot) => snapshot.players.map((p) => ({ id: p.id, score: p.wins, active: p.alive })).sort((a, b) => b.score - a.score),

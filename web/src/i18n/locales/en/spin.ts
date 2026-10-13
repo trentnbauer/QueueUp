@@ -34,7 +34,7 @@ export const spin = {
   "spin.lobby.runner.meters": "{n} m",
   "spin.lobby.runner.jump": "Jump",
   "spin.lobby.runner.duck": "Duck",
-  "spin.lobby.runner.hint": "Jump the cacti with Space or Up, and hold Down to duck under the birds. Last runner standing wins. Nothing here changes the spin.",
+  "spin.lobby.runner.hint": "Tap Jump for a hop; hold it to jump higher and further, which you need for wide logs. Hold Down to duck under the birds. Last runner standing wins. Nothing here changes the spin.",
   "spin.lobby.flappy.countdown": "Run starts in {n}",
   "spin.lobby.flappy.winner": "{name} wins the run!",
   "spin.lobby.flappy.draw": "Nobody made it",

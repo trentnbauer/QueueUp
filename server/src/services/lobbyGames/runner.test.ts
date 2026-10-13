@@ -17,16 +17,39 @@ function started(ids: string[], seed = 0.3) {
   return g;
 }
 
-/** A player who reads the course: jumps cacti and ducks birds as they arrive. */
+const HALF = { cactus: 0.05, bird: 0.03, log: 0.15 } as const;
+const RUNNER_HALF = 0.02;
+
+/** The first obstacle whose far edge the runner has not yet cleared. */
+function nextObstacle(g: RunnerGame) {
+  return g
+    .snapshot()
+    .obstacles.filter((o) => o.x + HALF[o.kind] + RUNNER_HALF > RUNNER_X)
+    .sort((x, y) => x.x - y.x)[0];
+}
+
+/** One tick of a player who reads the course: taps over cacti, holds the jump across logs, and ducks
+ * under birds. Returns what the player did, for tests that want to change it. */
+function botStep(g: RunnerGame, id: string, logMode: 'hold' | 'tap' = 'hold') {
+  const speed = g.snapshot().speed;
+  const next = nextObstacle(g);
+  const ahead = next ? next.x - RUNNER_X : Infinity;
+  let hold = false;
+  let duck = false;
+  if (next?.kind === 'cactus' && ahead < speed * 0.37) g.action(id, 'jump');
+  // A held jump needs about 0.12s to get above a log, so it starts a little before the log arrives.
+  const logSoon = next?.kind === 'log' && ahead - HALF.log - RUNNER_HALF < speed * 0.22;
+  if (logSoon && logMode === 'hold') hold = true;
+  if (logSoon && logMode === 'tap') g.action(id, 'jump');
+  if (next?.kind === 'bird' && ahead < speed * 0.5 && ahead > -0.05) duck = true;
+  g.input(id, 0, duck ? 1 : hold ? -1 : 0);
+  g.tick(STEP);
+  return { next, ahead, hold, duck };
+}
+
+/** A player who reads the course. */
 function playBot(g: RunnerGame, id: string, ms: number) {
-  for (let t = 0; t < ms && me(g, id).alive && g.snapshot().phase === 'playing'; t += STEP) {
-    const snap = g.snapshot();
-    const next = snap.obstacles.filter((o) => o.x > RUNNER_X - 0.07).sort((a, b) => a.x - b.x)[0];
-    const ahead = next ? next.x - RUNNER_X : Infinity;
-    if (next?.kind === 'cactus' && ahead < snap.speed * 0.37) g.action(id, 'jump');
-    g.input(id, 0, next?.kind === 'bird' && ahead < snap.speed * 0.5 && ahead > -0.05 ? 1 : 0);
-    g.tick(STEP);
-  }
+  for (let t = 0; t < ms && me(g, id).alive && g.snapshot().phase === 'playing'; t += STEP) botStep(g, id);
 }
 
 describe('RunnerGame rounds', () => {
@@ -215,5 +238,115 @@ describe('RunnerGame run summary and obstacle ids', () => {
     expect(same).toBeDefined();
     expect(same!.x).toBeLessThan(first.x);
     expect(new Set(g.snapshot().obstacles.map((o) => o.n)).size).toBe(g.snapshot().obstacles.length);
+  });
+});
+
+describe('RunnerGame hold to jump higher', () => {
+  /** Jumps `id` (tap or hold), then records how high it goes and for how many ticks it stays off the ground. */
+  function flight(how: 'tap' | 'hold' | 'hold-then-release') {
+    const g = started(['a']);
+    if (how === 'tap') g.action('a', 'jump');
+    else g.input('a', 0, -1);
+    let peak = 0;
+    let airborne = 0;
+    for (let i = 0; i < 40; i++) {
+      g.tick(STEP);
+      if (how === 'hold-then-release' && i === 1) g.input('a', 0, 0);
+      peak = Math.max(peak, me(g, 'a').h);
+      if (me(g, 'a').h > 0) airborne++;
+    }
+    return { peak, airborne };
+  }
+
+  it('goes higher and stays up longer when the button is held than for a tap', () => {
+    const tap = flight('tap');
+    const hold = flight('hold');
+    expect(tap.peak).toBeGreaterThan(0.5);
+    expect(hold.peak).toBeGreaterThan(tap.peak * 1.5);
+    expect(hold.airborne).toBeGreaterThan(tap.airborne * 1.4);
+  });
+
+  it('is cut short by letting go early', () => {
+    const tap = flight('tap');
+    const early = flight('hold-then-release');
+    const hold = flight('hold');
+    expect(early.peak).toBeLessThan(hold.peak);
+    expect(early.peak).toBeGreaterThanOrEqual(tap.peak);
+  });
+
+  it('does not bounce again while the button stays held after landing', () => {
+    const g = started(['a']);
+    g.input('a', 0, -1);
+    run(g, 1300); // up, down and landed (before the first cactus arrives), still holding
+    expect(me(g, 'a').h).toBe(0);
+    g.input('a', 0, -1); // still held: no new jump
+    g.tick(STEP);
+    expect(me(g, 'a').h).toBe(0);
+    g.input('a', 0, 0);
+    g.input('a', 0, -1); // let go and press again: a new jump
+    g.tick(STEP);
+    expect(me(g, 'a').h).toBeGreaterThan(0);
+  });
+
+  it('gives no extra height for pressing the button part-way up a tap jump', () => {
+    const g = started(['a']);
+    g.action('a', 'jump');
+    g.tick(STEP);
+    g.input('a', 0, -1); // pressed in mid-air
+    let peak = 0;
+    for (let i = 0; i < 20; i++) {
+      g.tick(STEP);
+      peak = Math.max(peak, me(g, 'a').h);
+    }
+    expect(peak).toBeLessThan(flightPeakOfTap());
+  });
+
+  function flightPeakOfTap() {
+    const g = started(['a']);
+    g.action('a', 'jump');
+    let peak = 0;
+    for (let i = 0; i < 20; i++) {
+      g.tick(STEP);
+      peak = Math.max(peak, me(g, 'a').h);
+    }
+    return peak + 0.01;
+  }
+});
+
+describe('RunnerGame logs', () => {
+  it('only shows logs and birds after a while into a run', () => {
+    const seen = { log: 0, bird: 0 };
+    for (const seed of [0.1, 0.3, 0.55, 0.8]) {
+      const g = started(['a'], seed);
+      for (let t = 0; t < 4500 && me(g, 'a').alive; t += STEP) {
+        botStep(g, 'a');
+        for (const o of g.snapshot().obstacles) if (o.kind !== 'cactus') seen[o.kind]++;
+      }
+    }
+    expect(seen).toEqual({ log: 0, bird: 0 });
+  });
+
+  it('makes logs wide enough that a tap jump cannot clear them, but a held one can', () => {
+    let tested = 0;
+    for (const seed of [0.1, 0.3, 0.55, 0.8, 0.95]) {
+      // The same course twice: a runner who holds for logs, and one who only taps.
+      const play = (logMode: 'hold' | 'tap') => {
+        const g = started(['a'], seed);
+        let sawLog = false;
+        for (let t = 0; t < 60_000 && me(g, 'a').alive && g.snapshot().phase === 'playing'; t += STEP) {
+          const { next } = botStep(g, 'a', logMode);
+          if (next?.kind === 'log') sawLog = true;
+          if (sawLog && next?.kind !== 'log') break; // the first log has been dealt with
+        }
+        return { sawLog, alive: me(g, 'a').alive };
+      };
+      const held = play('hold');
+      const tapped = play('tap');
+      if (!held.sawLog || !tapped.sawLog) continue;
+      tested++;
+      expect(held.alive, `seed ${seed}: held`).toBe(true);
+      expect(tapped.alive, `seed ${seed}: tapped`).toBe(false);
+    }
+    expect(tested).toBeGreaterThan(2);
   });
 });
