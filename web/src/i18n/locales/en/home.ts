@@ -12,6 +12,9 @@ export const home = {
   "home.search.visited": "Already opened in this search",
   "home.tab.adult": "Adult games",
   "home.tab.merged": "Merged",
+  "home.tab.inRooms": "In rooms",
+  "home.inRooms.none": "Nothing is being played in your rooms right now.",
+  "home.inRooms.failed": "Couldn't load what your rooms are playing.",
   "home.tab.wontPlay": "Won't play",
 
   // Status card next steps (lib/gameView NEXT_ACTIONS)

@@ -14,6 +14,9 @@ export const home: Record<keyof typeof en, string> = {
   "home.search.visited": "Already opened in this search",
   "home.tab.adult": "Adult games",
   "home.tab.merged": "Merged",
+  "home.tab.inRooms": "On other ships",
+  "home.inRooms.none": "Nothing is being sailed on your ships right now.",
+  "home.inRooms.failed": "Couldn't load what your ships are playing.",
   "home.tab.wontPlay": "Walked the plank",
 
   // Status card next steps (lib/gameView NEXT_ACTIONS)
