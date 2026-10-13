@@ -120,6 +120,7 @@ export const pages = {
   "pages.feed.addReaction": "Add a reaction",
   "pages.feed.react": "React {emoji}",
   "pages.feed.open": "Open {title}",
+  "pages.feed.recommends": "Recommends it",
   "pages.feed.onlyYou": "{tag} · only you",
   "pages.feed.row.added": "{who} added {title}",
   "pages.feed.row.wishlist": "{who} wishlisted {title}",
