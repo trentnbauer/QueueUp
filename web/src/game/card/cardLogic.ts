@@ -59,15 +59,15 @@ export function verdictParts(votes: { value: VoteValue }[]): { value: VoteValue;
 
 /** The numbered path a game follows. Rooms have no Wishlist (ownership is per member there); the shelf starts at it. */
 export function mainPath(isShelf: boolean): GameStatus[] {
-  return isShelf ? ['wishlist', 'preordered', 'backlog', 'play_next', 'playing', 'done'] : ['backlog', 'play_next', 'playing', 'done'];
+  return isShelf ? ['wishlist', 'backlog', 'play_next', 'playing', 'done'] : ['backlog', 'play_next', 'playing', 'done'];
 }
 
-/** The statuses off the path: Paused, Replay, Dropped and Won't Play, on the shelf and in rooms alike. */
-export function offPath(): GameStatus[] {
-  return ['paused', 'replay', 'dropped', 'wont_play'];
+/** The statuses off the path: Paused, Replay, Dropped and Won't Play, on the shelf and in rooms alike (plus Preordered on the shelf). */
+export function offPath(isShelf = false): GameStatus[] {
+  return isShelf ? ['preordered', 'paused', 'replay', 'dropped', 'wont_play'] : ['paused', 'replay', 'dropped', 'wont_play'];
 }
 
-export const OFF_PATH_EMOJI: Partial<Record<GameStatus, string>> = { paused: '⏸️', replay: '🔄', dropped: '🛑', wont_play: '🚫' };
+export const OFF_PATH_EMOJI: Partial<Record<GameStatus, string>> = { preordered: '📦', paused: '⏸️', replay: '🔄', dropped: '🛑', wont_play: '🚫' };
 
 /** Which statuses end a playthrough and open the review sheet. */
 export const FINISHED_STATUSES: GameStatus[] = ['done', 'dropped', 'replay'];

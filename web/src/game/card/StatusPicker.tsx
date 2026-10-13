@@ -68,7 +68,7 @@ export function StatusPicker({ game, onPick }: { game: Game; onPick: (status: Ga
 
       <Kicker>{t('card.status.offPath')}</Kicker>
       <div style={st('display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:6px')}>
-        {offPath().map((k) => {
+        {offPath(isShelf).map((k) => {
           const on = game.status === k;
           return (
             <button
