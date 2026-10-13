@@ -712,6 +712,8 @@ model DuplicateDismissal {
   /// Why the pair is not a duplicate: just "not_duplicate", or the person said one is a remaster or remake of the other (issue #1173).
   /// Keyed by the IGDB ids, so it still holds after a library resync re-adds either game.
   kind      String   @default("not_duplicate")
+  /// For a remaster or remake: the IGDB id of the one that is the remaster / remake (the other is the original).
+  remasterIgdbId Int?    @map("remaster_igdb_id")
   createdAt DateTime @default(now()) @map("created_at")
 
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)

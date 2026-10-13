@@ -3352,6 +3352,11 @@ export interface SplitBundleRequest {
   igdbIds: number[];
 }
 
+/** GET /api/games/:id/remaster: what this game is a remaster or remake of, when the person said so. */
+export interface GameRemasterResponse {
+  remaster: { kind: 'remaster' | 'remake'; original: { id: string; title: string } | null } | null;
+}
+
 export interface DismissDuplicateRequest {
   gameIdA: string;
   gameIdB: string;

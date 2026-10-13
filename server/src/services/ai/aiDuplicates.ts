@@ -331,14 +331,16 @@ export async function aiScanDuplicates(userId: string, opts: { fresh?: boolean }
 
 /** "These are not duplicates": remembered by igdbId pair so the suggestion does not come back. */
 export async function dismissDuplicatePair(userId: string, gameIdA: string, gameIdB: string, kind: 'not_duplicate' | 'remaster' | 'remake' = 'not_duplicate'): Promise<void> {
-  const games = await prisma.game.findMany({ where: { id: { in: [gameIdA, gameIdB] }, roomId: null, addedBy: userId }, select: { igdbId: true } });
+  const games = await prisma.game.findMany({ where: { id: { in: [gameIdA, gameIdB] }, roomId: null, addedBy: userId }, select: { id: true, igdbId: true } });
   if (games.length !== 2 || gameIdA === gameIdB) throw new HttpError(404, 'Those games are not on your shelf');
   const [low, high] = games.map((g) => g.igdbId).sort((x, y) => x - y);
+  // For a remaster or remake, game A is the remaster / remake and B is the original.
+  const remasterIgdbId = kind === 'not_duplicate' ? null : (games.find((g) => g.id === gameIdA)?.igdbId ?? null);
   await prisma.duplicateDismissal.upsert({
     where: { userId_igdbIdLow_igdbIdHigh: { userId, igdbIdLow: low, igdbIdHigh: high } },
-    create: { userId, igdbIdLow: low, igdbIdHigh: high, kind },
+    create: { userId, igdbIdLow: low, igdbIdHigh: high, kind, remasterIgdbId },
     // A plain "not duplicates" never overwrites that it is a remaster or remake.
-    update: kind === 'not_duplicate' ? {} : { kind },
+    update: kind === 'not_duplicate' ? {} : { kind, remasterIgdbId },
   });
 }
 
@@ -348,4 +350,16 @@ export async function dismissDuplicatePair(userId: string, gameIdA: string, game
 export async function markDuplicateBundle(userId: string, gameId: string): Promise<void> {
   const { count } = await prisma.game.updateMany({ where: { id: gameId, roomId: null, addedBy: userId, archivedAt: null }, data: { archivedAt: new Date() } });
   if (count === 0) throw new HttpError(404, 'That game is not on your shelf');
+}
+
+/** What this shelf game is a remaster or remake of, if the person said so (issue #1173): the kind, and the original if it is on their shelf. */
+export async function remasterOf(userId: string, game: { igdbId: number }): Promise<{ kind: 'remaster' | 'remake'; original: { id: string; title: string } | null } | null> {
+  const row = await prisma.duplicateDismissal.findFirst({
+    where: { userId, kind: { in: ['remaster', 'remake'] }, remasterIgdbId: game.igdbId, OR: [{ igdbIdLow: game.igdbId }, { igdbIdHigh: game.igdbId }] },
+    select: { kind: true, igdbIdLow: true, igdbIdHigh: true },
+  });
+  if (!row) return null;
+  const originalIgdbId = row.igdbIdLow === game.igdbId ? row.igdbIdHigh : row.igdbIdLow;
+  const original = await prisma.game.findFirst({ where: { roomId: null, addedBy: userId, igdbId: originalIgdbId, archivedAt: null }, select: { id: true, title: true } });
+  return { kind: row.kind as 'remaster' | 'remake', original };
 }

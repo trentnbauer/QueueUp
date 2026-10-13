@@ -24,6 +24,8 @@ export const card: Record<keyof typeof en, string> = {
 
   "card.hero.solo": "1 hearty",
   "card.hero.sizeTitle": "PC install size, from Steam",
+  "card.hero.remasterOf": "✨ Remaster of {title}",
+  "card.hero.remakeOf": "✨ Remake of {title}",
   "card.hero.via": "via {sources}",
   "card.hero.upTo": "up to {max} hearties",
   "card.hero.sessions": "~{n} voyages to finish ({hours}h)",

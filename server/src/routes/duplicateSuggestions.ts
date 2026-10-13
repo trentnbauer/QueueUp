@@ -1,6 +1,7 @@
 import type { FastifyInstance } from 'fastify';
 import { HttpError } from '../util/httpError.js';
-import { aiScanDuplicates, countDuplicateCandidates, dismissDuplicatePair, listDuplicateCandidates, markDuplicateBundle } from '../services/ai/aiDuplicates.js';
+import { prisma } from '../db/client.js';
+import { aiScanDuplicates, countDuplicateCandidates, dismissDuplicatePair, listDuplicateCandidates, markDuplicateBundle, remasterOf } from '../services/ai/aiDuplicates.js';
 import type { AiDuplicateScanResponse, DismissDuplicateRequest, MarkBundleRequest, DuplicateCandidateCountResponse, DuplicateCandidatesResponse } from '@queueup/shared';
 
 /** AI duplicate scan for the personal shelf (issue #824). The merge itself is the existing
@@ -62,6 +63,17 @@ export default async function duplicateSuggestionRoutes(app: FastifyInstance) {
       if (typeof gameId !== 'string') throw new HttpError(400, 'gameId is required');
       await markDuplicateBundle(userId, gameId);
       reply.status(204);
+    },
+  );
+
+  /** Is this shelf game a remaster or remake of another (issue #1173)? The card says so in its subtext. */
+  app.get<{ Params: { id: string } }>(
+    '/api/games/:id/remaster',
+    { config: { rateLimit: { max: 60, timeWindow: '1 minute' } } },
+    async (request) => {
+      const userId = await request.requireAuth();
+      const game = await prisma.game.findFirst({ where: { id: request.params.id, roomId: null, addedBy: userId }, select: { igdbId: true } });
+      return { remaster: game ? await remasterOf(userId, game) : null };
     },
   );
 }

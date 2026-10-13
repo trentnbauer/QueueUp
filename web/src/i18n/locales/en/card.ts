@@ -26,6 +26,8 @@ export const card = {
   // Hero
   "card.hero.solo": "1 player",
   "card.hero.sizeTitle": "PC install size, from Steam",
+  "card.hero.remasterOf": "✨ Remaster of {title}",
+  "card.hero.remakeOf": "✨ Remake of {title}",
   "card.hero.via": "via {sources}",
   "card.hero.upTo": "up to {max} players",
   "card.hero.sessions": "~{n} sessions to finish ({hours}h)",
