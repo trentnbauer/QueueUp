@@ -1,4 +1,5 @@
 import { LOBBY_GAME_IDS, type LobbyGameId } from '@queueup/shared';
+import { DodgeGame } from './dodge.js';
 import { FlappyGame } from './flappy.js';
 import { RunnerGame } from './runner.js';
 import type { LobbyGame } from './types.js';
@@ -12,6 +13,8 @@ export function createLobbyGame(id: LobbyGameId): LobbyGame {
       return new RunnerGame();
     case 'flappy':
       return new FlappyGame();
+    case 'dodge':
+      return new DodgeGame();
   }
 }
 

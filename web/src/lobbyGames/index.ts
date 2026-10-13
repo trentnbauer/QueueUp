@@ -1,5 +1,6 @@
 import type { LobbyGameId, LobbyGameSnapshot, User } from '@queueup/shared';
 import type { MessageKey } from '../i18n';
+import { dodgeView } from './dodge';
 import { flappyView } from './flappy';
 import { runnerView } from './runner';
 
@@ -49,6 +50,7 @@ export interface LobbyGameView<S extends LobbyGameSnapshot = LobbyGameSnapshot> 
 export const LOBBY_GAME_VIEWS: { [K in LobbyGameId]: LobbyGameView<Extract<LobbyGameSnapshot, { id: K }>> } = {
   runner: runnerView,
   flappy: flappyView,
+  dodge: dodgeView,
 };
 
 /** The view for whichever game a snapshot belongs to. */
