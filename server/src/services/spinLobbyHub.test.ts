@@ -94,6 +94,16 @@ describe('SpinLobbyHub', () => {
     expect(a.sent.some((m) => m.t === 'started')).toBe(true);
   });
 
+  it('refuses a sixth connection from one person', () => {
+    const hub = makeHub();
+    const sockets = Array.from({ length: 6 }, () => fakeSocket());
+    sockets.forEach((s) => hub.connect('r1', 'a', s.socket));
+    expect(sockets[5].socket.close).toHaveBeenCalled();
+    expect(sockets[4].socket.close).not.toHaveBeenCalled();
+    hub.disconnect('r1', sockets[5].socket); // never joined: harmless
+    expect(hub.isPresent('r1', 'a')).toBe(true);
+  });
+
   it('forgets a room when its last socket closes, and ignores junk and floods', async () => {
     const hub = makeHub();
     const a = fakeSocket();

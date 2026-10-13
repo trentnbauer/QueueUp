@@ -111,7 +111,7 @@ export async function buildApp() {
         // googletagmanager.com / google-analytics.com: Google Analytics, only loaded when the operator
         // sets a measurement id (see /api/analytics-config).
         scriptSrc: ["'self'", 'https://challenges.cloudflare.com', 'https://www.googletagmanager.com'],
-        connectSrc: ["'self'", 'https://*.google-analytics.com', 'https://*.analytics.google.com', 'https://*.googletagmanager.com'],
+        connectSrc: ["'self'", new URL(env.APP_BASE_URL).origin.replace(/^http/, 'ws'), 'https://*.google-analytics.com', 'https://*.analytics.google.com', 'https://*.googletagmanager.com'],
         // The "Watch trailer" player embeds YouTube (privacy-enhanced domain, no cookies until play);
         // Turnstile's challenge runs in a Cloudflare iframe.
         frameSrc: ["'self'", 'https://www.youtube-nocookie.com', 'https://challenges.cloudflare.com'],

@@ -29,6 +29,8 @@ interface RoomState {
 // A person's client sends a message when the direction they hold changes or they vote: well under
 // this. Anything faster is dropped rather than processed.
 const MAX_MESSAGES_PER_SECOND = 40;
+// Open lobby connections one person may hold in a room (tabs and devices).
+const MAX_CONNECTIONS_PER_USER = 5;
 // How often the lobby asks whether a spin is waiting (and keeps its waiting room open).
 const SPIN_CHECK_EVERY_TICKS = LOBBY_TICK_HZ * 2;
 
@@ -58,6 +60,11 @@ export class SpinLobbyHub {
 
   connect(roomId: string, userId: string, socket: LobbySocket): void {
     let room = this.rooms.get(roomId);
+    // A few tabs is normal; more is a runaway client or abuse.
+    if (room && [...room.sockets.values()].filter((id) => id === userId).length >= MAX_CONNECTIONS_PER_USER) {
+      socket.close(1013, 'Too many connections');
+      return;
+    }
     if (!room) {
       room = { lobby: new SpinLobby(), sockets: new Map(), timer: null, lastTickAt: this.now(), ticks: 0, spinWaiting: false, checking: false };
       this.rooms.set(roomId, room);
