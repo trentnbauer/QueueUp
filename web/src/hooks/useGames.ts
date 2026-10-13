@@ -108,7 +108,11 @@ export function useGames(roomId: string | null) {
       (old) => (old ? { ...old, games: old.games.map((g) => byId.get(g.id) ?? g) } : old),
     );
   }
-  const patchGame = (updated: Game) => patchGames([updated]);
+  const patchGame = (updated: Game) => {
+    patchGames([updated]);
+    // A card opened by id (see AppShell) because its game isn't in the loaded list.
+    queryClient.setQueryData(['games', 'one', updated.id], (old: { game: Game } | undefined) => (old ? { game: updated } : old));
+  };
 
   function removeGameFromCache(gameId: string) {
     removeGamesFromCache([gameId]);

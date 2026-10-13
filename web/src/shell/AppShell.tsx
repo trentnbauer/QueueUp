@@ -1,5 +1,7 @@
 import { useEffect, useState, type ReactNode } from 'react';
+import { useQuery } from '@tanstack/react-query';
 import { useLocation } from 'react-router';
+import { gamesApi } from '../api/games';
 import { useAuth } from '../context/AuthContext';
 import { useScope } from '../context/ScopeContext';
 import { useUi } from '../context/UiContext';
@@ -51,12 +53,24 @@ export function AppShell({ children }: { children: ReactNode }) {
   const roomHue = roomColour ? hexToOklchHue(roomColour) : null;
   const roomScope = roomHue === null ? {} : { 'data-room': '1', style: { '--rh': String(roomHue) } as React.CSSProperties };
 
-  const selected = ui.selectedGameId ? scope.games.find((g) => g.id === ui.selectedGameId) : undefined;
+  const inList = ui.selectedGameId ? scope.games.find((g) => g.id === ui.selectedGameId) : undefined;
+  // A game that isn't in the loaded list (a notification that points at it, a very long list) is fetched by id, so its card still opens.
+  const missing = !!ui.selectedGameId && !scope.gamesLoading && !inList;
+  const fetched = useQuery({
+    queryKey: ['games', 'one', ui.selectedGameId],
+    queryFn: () => gamesApi.get(ui.selectedGameId!),
+    enabled: missing,
+    retry: false,
+    staleTime: 0,
+  });
+  // Only in the list or place it came from: a game from another room would show against the wrong room.
+  const fetchedHere = fetched.data?.game && fetched.data.game.roomId === (scope.room?.id ?? null) ? fetched.data.game : undefined;
+  const selected = inList ?? (missing ? fetchedHere : undefined);
   // A selection that no longer exists (removed, or the scope changed) just closes.
   useEffect(() => {
-    if (ui.selectedGameId && !scope.gamesLoading && !selected) ui.selectGame(null);
+    if (missing && (fetched.isError || (fetched.data && !fetchedHere))) ui.selectGame(null);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [ui.selectedGameId, scope.gamesLoading, selected]);
+  }, [missing, fetched.isError, fetched.data, fetchedHere]);
 
   // Pages (Activity, profile...) don't show the shelf's glance/detail panel.
   const { pathname } = useLocation();
