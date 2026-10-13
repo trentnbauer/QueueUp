@@ -66,6 +66,13 @@ export default async function bundleRoutes(app: FastifyInstance) {
       if (ownership && owned.length === 0) await markOwned(userId, igdbIds);
       // The bundle stays on the list, and its games point back at it (a game already inside another bundle stays there).
       await prisma.game.updateMany({ where: { ...scopeWhere, igdbId: { in: igdbIds }, bundleGameId: null, id: { not: game.id } }, data: { bundleGameId: game.id } });
+      // The want-to-play ranking carries over: everyone's vote on the bundle becomes their vote on each game inside it, unless
+      // they have already voted on that game.
+      const votes = await prisma.vote.findMany({ where: { gameId: game.id }, select: { userId: true, value: true } });
+      if (votes.length > 0) {
+        const inside = await prisma.game.findMany({ where: { bundleGameId: game.id }, select: { id: true } });
+        await prisma.vote.createMany({ data: inside.flatMap((g) => votes.map((v) => ({ gameId: g.id, userId: v.userId, value: v.value }))), skipDuplicates: true });
+      }
       // Which games are now inside the bundle (the client offers to review them when the bundle was Beaten).
       const linked = await prisma.game.findMany({ where: { bundleGameId: game.id }, select: { id: true, igdbId: true } });
       return { linked };
