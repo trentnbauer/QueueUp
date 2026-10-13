@@ -55,9 +55,9 @@ export function mainPath(isShelf: boolean): GameStatus[] {
   return isShelf ? ['wishlist', 'backlog', 'play_next', 'playing', 'done'] : ['backlog', 'play_next', 'playing', 'done'];
 }
 
-/** The statuses off the path. Won't Play only exists in rooms. */
-export function offPath(isShelf: boolean): GameStatus[] {
-  return isShelf ? ['paused', 'replay', 'dropped'] : ['paused', 'replay', 'dropped', 'wont_play'];
+/** The statuses off the path: Paused, Replay, Dropped and Won't Play, on the shelf and in rooms alike. */
+export function offPath(): GameStatus[] {
+  return ['paused', 'replay', 'dropped', 'wont_play'];
 }
 
 export const OFF_PATH_EMOJI: Partial<Record<GameStatus, string>> = { paused: '⏸️', replay: '🔄', dropped: '🛑', wont_play: '🚫' };
