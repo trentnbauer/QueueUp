@@ -65,7 +65,8 @@ export const LOBBY_HISTORY_LENGTH = 10;
 /** The track is one screen wide (1.0); a runner stands at this fraction of it. */
 export const RUNNER_X = 0.18;
 
-export type RunnerObstacleKind = 'cactus' | 'bird';
+/** A cactus is jumped, a bird is ducked, and a log is wide: it takes a held jump to clear. */
+export type RunnerObstacleKind = 'cactus' | 'bird' | 'log';
 
 /** An obstacle on screen. `x` is how far ahead of the start of the screen it is (0..1 is visible). */
 export interface RunnerObstacle {

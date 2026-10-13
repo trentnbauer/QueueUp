@@ -184,7 +184,17 @@ export function LobbyPanel({ roomId, members, me, onStarted, offlineFallback }: 
         <span>{t('spin.lobby.title')}</span>
         <span style={st('font:500 12px var(--font-ui);color:var(--muted)')}>{statusText}</span>
       </div>
-      <canvas ref={canvasRef} role="img" aria-label={t('spin.lobby.title')} onPointerDown={() => view?.tapAction && sendAction(view.tapAction)} style={st('width:100%;max-width:340px;aspect-ratio:1;align-self:center;border-radius:16px;touch-action:none;display:block')} />
+      <canvas ref={canvasRef} role="img" aria-label={t('spin.lobby.title')} onPointerDown={(e) => {
+          if (view?.tapAction) sendAction(view.tapAction);
+          else if (view?.tapHold) {
+            e.currentTarget.setPointerCapture(e.pointerId);
+            pad.current = { dx: view.tapHold[0], dy: view.tapHold[1] };
+            sendHeld();
+          }
+        }}
+        onPointerUp={view?.tapHold ? release : undefined}
+        onPointerCancel={view?.tapHold ? release : undefined}
+        style={st('width:100%;max-width:340px;aspect-ratio:1;align-self:center;border-radius:16px;touch-action:none;display:block')} />
       {standings.length > 0 && (
         <div style={st('display:flex;flex-wrap:wrap;gap:6px;justify-content:center')}>
           {standings.map((s) => (
@@ -212,13 +222,23 @@ export function LobbyPanel({ roomId, members, me, onStarted, offlineFallback }: 
                 {b.label}
               </button>
             ))}
-          {view?.holds?.map((h) => (
+          {view?.holds?.filter((h) => !h.primary).map((h) => (
             <button key={h.labelKey} type="button" {...holdProps(h.dx, h.dy)} style={st(`width:92px;height:76px;${BIG_BUTTON}`)}>
               {t(h.labelKey)}
             </button>
           ))}
         </div>
         <div style={st('display:flex;align-items:center;gap:10px')}>
+          {view?.holds?.filter((h) => h.primary).map((h) => (
+            <button
+              key={h.labelKey}
+              type="button"
+              {...holdProps(h.dx, h.dy)}
+              style={st('width:92px;height:92px;border:none;border-radius:50%;background:var(--acc);color:var(--onAcc, #fff);font:800 15px var(--font-ui);touch-action:none;user-select:none')}
+            >
+              {t(h.labelKey)}
+            </button>
+          ))}
           {view?.actions.map((a) => (
             <button
               key={a.name}

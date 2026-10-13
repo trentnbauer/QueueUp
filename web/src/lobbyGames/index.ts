@@ -35,12 +35,14 @@ export interface LobbyGameView<S extends LobbyGameSnapshot = LobbyGameSnapshot> 
    * `full` is the 4-way pad, `leftRight` just two buttons, `none` shows no pad (a game that only uses
    * its buttons below). */
   pad: 'full' | 'leftRight' | 'none';
-  /** Buttons held down to hold a direction, such as Duck. `keys` are the keyboard keys that do the same. */
-  holds?: { labelKey: MessageKey; dx: number; dy: number; keys: string[] }[];
+  /** Buttons held down to hold a direction, such as Duck. A `primary` one is the big round action button.  `keys` are the keyboard keys that do the same. */
+  holds?: { labelKey: MessageKey; dx: number; dy: number; keys: string[]; primary?: boolean }[];
   /** Tap buttons that send a one-off move. `keys` are the keyboard keys that do the same. */
   actions: { name: string; labelKey: MessageKey; keys: string[] }[];
   /** For single-button games: tapping the arena itself does this action too, so a thumb can tap anywhere. */
   tapAction?: string;
+  /** Like `tapAction`, but the arena works as a held button: pressing it holds this direction until let go. */
+  tapHold?: [number, number];
   /** One line telling people what to do. */
   hintKey: MessageKey;
   draw(args: LobbyDrawArgs<S>): void;
