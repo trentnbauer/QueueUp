@@ -71,7 +71,7 @@ export async function requireMembership(roomId: string, userId: string): Promise
   if (await isAdminManaging(userId, roomId)) {
     const room = await prisma.room.findUnique({ where: { id: roomId }, select: { deletedAt: true } });
     if (!room || room.deletedAt) throw new HttpError(404, 'Room not found');
-    return { roomId, userId, role: 'room_master', joinedAt: new Date(), notificationsReadAt: null, adminManaged: true };
+    return { roomId, userId, role: 'room_master', joinedAt: new Date(), notificationsReadAt: null, sortOrder: null, adminManaged: true };
   }
   throw new HttpError(403, 'You are not a member of this room');
 }

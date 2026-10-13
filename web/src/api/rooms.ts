@@ -34,6 +34,8 @@ export interface SpinFilters {
 export const roomsApi = {
   regenerateInvite: (roomId: string) => apiPost<{ inviteCode: string }>(`/api/rooms/${roomId}/invite/regenerate`),
   list: () => apiGet<{ rooms: Room[] }>('/api/rooms'),
+  /** Saves the caller's own room order (sidebar / top bar), first to last. */
+  reorder: (roomIds: string[]) => apiPut<void>('/api/rooms/order', { roomIds }),
   create: (body: CreateRoomRequest) => apiPost<{ room: Room; unlockedBadges: BadgeDefinition[] }>('/api/rooms', body),
   join: (body: JoinRoomRequest) => apiPost<{ room: Room; unlockedBadges: BadgeDefinition[] }>('/api/rooms/join', body),
   publicRooms: () => apiGet<{ rooms: PublicRoomSummary[] }>('/api/rooms/public'),

@@ -46,11 +46,32 @@ export function useRooms() {
     },
   });
 
+  // Optimistic: the list is re-ordered in the cache straight away so the dialog and sidebar move
+  // together, and put back if the save fails. Rooms not in `roomIds` (e.g. admin-managed ones) stay last.
+  const reorderRooms = useMutation({
+    mutationFn: (roomIds: string[]) => roomsApi.reorder(roomIds),
+    onMutate: async (roomIds) => {
+      await queryClient.cancelQueries({ queryKey: ROOMS_QUERY_KEY });
+      const previous = queryClient.getQueryData<{ rooms: Room[] }>(ROOMS_QUERY_KEY);
+      queryClient.setQueryData<{ rooms: Room[] }>(ROOMS_QUERY_KEY, (old) => {
+        if (!old) return old;
+        const byId = new Map(old.rooms.map((r) => [r.id, r]));
+        const ordered = roomIds.flatMap((id) => byId.get(id) ?? []);
+        return { rooms: [...ordered, ...old.rooms.filter((r) => !roomIds.includes(r.id))] };
+      });
+      return { previous };
+    },
+    onError: (_err, _ids, ctx) => {
+      if (ctx?.previous) queryClient.setQueryData(ROOMS_QUERY_KEY, ctx.previous);
+    },
+  });
+
   return {
     rooms: query.data?.rooms ?? [],
     isLoading: query.isLoading,
     createRoom,
     joinRoom,
     joinPublicRoom,
+    reorderRooms,
   };
 }

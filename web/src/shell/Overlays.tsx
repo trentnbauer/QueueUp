@@ -20,6 +20,7 @@ import { ChangelogDialog, DlcDialog, PlaytimeDialog } from '../dialogs/MiscDialo
 import { RankedDialog } from '../dialogs/RankedDialog';
 import { ReviewSheet } from '../dialogs/ReviewSheet';
 import { AddRoomDialog, RoomSettingsDialog } from '../dialogs/RoomDialogs';
+import { ReorderRoomsDialog } from '../dialogs/ReorderRoomsDialog';
 import { SensitiveGamesPrompt } from '../dialogs/SensitiveGamesDialog';
 import { ShelfSettingsDialog } from '../dialogs/ShelfSettingsDialog';
 import { NotificationsDialog } from '../dialogs/SocialDialogs';
@@ -130,6 +131,7 @@ export function Overlays() {
       {d.add && <AddGameDialog />}
       {d.import && <ImportDialog />}
       {d.addRoom && <AddRoomDialog />}
+      {d.reorderRooms && <ReorderRoomsDialog />}
       {d.roomSettings && !isShelf && <RoomSettingsDialog />}
       {d.shelfSettings && <ShelfSettingsDialog />}
       {d.notifications && <NotificationsDialog />}
