@@ -1,6 +1,5 @@
 import { LOBBY_GAME_IDS, type LobbyGameId } from '@queueup/shared';
 import { RunnerGame } from './runner.js';
-import { TotemGame } from './totem.js';
 import type { LobbyGame } from './types.js';
 
 export type { LobbyGame } from './types.js';
@@ -8,8 +7,6 @@ export type { LobbyGame } from './types.js';
 /** Starts a fresh game of the given kind. Add new games here. */
 export function createLobbyGame(id: LobbyGameId): LobbyGame {
   switch (id) {
-    case 'totem':
-      return new TotemGame();
     case 'runner':
       return new RunnerGame();
   }

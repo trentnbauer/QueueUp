@@ -1,9 +1,9 @@
 import { describe, expect, it, vi } from 'vitest';
 import { SpinLobby } from './spinLobby.js';
 
-const snapshot = () => ({ id: 'totem' as const, phase: 'lobby' as const, radius: 0.4, players: [], timerMs: 0, winnerId: null });
+const snapshot = () => ({ id: 'runner' as const, phase: 'lobby' as const, meters: 0, speed: 0.5, obstacles: [], players: [], timerMs: 0, winnerId: null });
 const fakeGame = () => ({
-  id: 'totem' as const,
+  id: 'runner' as const,
   join: vi.fn(),
   leave: vi.fn(),
   input: vi.fn(),
@@ -103,6 +103,6 @@ describe('SpinLobby and its game', () => {
     const lobby = new SpinLobby(game);
     lobby.tick(66);
     expect(game.tick).toHaveBeenCalledWith(66);
-    expect(lobby.snapshot(true)).toMatchObject({ t: 'state', tick: 1, spinWaiting: true, game: { id: 'totem' } });
+    expect(lobby.snapshot(true)).toMatchObject({ t: 'state', tick: 1, spinWaiting: true, game: { id: 'runner' } });
   });
 });

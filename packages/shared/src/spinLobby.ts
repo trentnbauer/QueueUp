@@ -11,8 +11,8 @@
 export const LOBBY_TICK_HZ = 15;
 
 /** The games the lobby can run. */
-export type LobbyGameId = 'totem' | 'runner';
-export const LOBBY_GAME_IDS: readonly LobbyGameId[] = ['totem', 'runner'];
+export type LobbyGameId = 'runner';
+export const LOBBY_GAME_IDS: readonly LobbyGameId[] = ['runner'];
 
 /** What a client sends. Anything else is ignored. */
 export type LobbyClientMessage =
@@ -26,44 +26,17 @@ export type LobbyClientMessage =
 /** Longest action name the server accepts. */
 export const LOBBY_ACTION_NAME_MAX = 16;
 
-// ---- Totem push-off ------------------------------------------------------------------------------
+// ---- Rounds --------------------------------------------------------------------------------------
 
-export type TotemPhase =
-  /** Fewer than two players: walk around freely, nobody can fall. */
+/** Where a round-based lobby game is: waiting for players, counting down, running, or showing the result. */
+export type LobbyRoundPhase =
+  /** Nobody is playing yet. */
   | 'lobby'
-  /** Everyone is placed on the totem; the round starts when it runs out. */
+  /** Everyone is placed at the start; the round starts when it runs out. */
   | 'countdown'
   | 'playing'
   /** The round has a winner (or a draw); a new one starts soon. */
   | 'over';
-
-export interface TotemPlayer {
-  id: string;
-  x: number;
-  y: number;
-  /** On the totem and in the round. False once knocked off, or if they arrived mid-round. */
-  alive: boolean;
-  /** Rounds won since this person joined the lobby. */
-  wins: number;
-  /** Milliseconds since this player last punched, capped (for the swing animation). */
-  punchAgo: number;
-  /** Milliseconds until they can punch again; 0 when ready. */
-  cooldown: number;
-}
-
-export interface TotemSnapshot {
-  id: 'totem';
-  phase: TotemPhase;
-  /** Radius of the totem in arena units, centred at (0.5, 0.5). Shrinks during a round. */
-  radius: number;
-  players: TotemPlayer[];
-  /** Milliseconds left in `countdown` or `over`; 0 otherwise. */
-  timerMs: number;
-  /** Who won the round that just ended (`over` only); null for a draw. */
-  winnerId: string | null;
-}
-
-export const TOTEM_CENTER = 0.5;
 
 // ---- Runner (the offline dinosaur game, everyone on one course) ------------------------------------
 
@@ -93,7 +66,7 @@ export interface RunnerPlayer {
 
 export interface RunnerSnapshot {
   id: 'runner';
-  phase: TotemPhase;
+  phase: LobbyRoundPhase;
   /** Metres run so far by the course (the furthest runner's distance). */
   meters: number;
   /** Track speed in screens per second. */
@@ -107,7 +80,7 @@ export interface RunnerSnapshot {
 }
 
 /** The snapshot of whichever game is running. */
-export type LobbyGameSnapshot = TotemSnapshot | RunnerSnapshot;
+export type LobbyGameSnapshot = RunnerSnapshot;
 
 export interface LobbySnapshot {
   t: 'state';
