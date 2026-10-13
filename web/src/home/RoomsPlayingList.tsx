@@ -26,7 +26,8 @@ export function useRoomsPlaying() {
 }
 
 /** The shelf's "In rooms" tab: tap a game to go to its room and open its card. */
-export function RoomsPlayingList() {
+/** `embedded` is the same list under the Playing tab: it says nothing while loading or when empty, and gets a heading. */
+export function RoomsPlayingList({ embedded = false }: { embedded?: boolean } = {}) {
   const t = useT();
   const ui = useUi();
   const navigate = useNavigate();
@@ -38,13 +39,15 @@ export function RoomsPlayingList() {
     ui.selectGame(game.id);
   }
 
+  if (embedded && (isLoading || isError || !data || data.length === 0)) return null;
   if (isLoading) return <div style={st('padding:36px 12px;text-align:center;font:500 14.5px var(--font-ui);color:var(--muted)')}>{t('common.loading')}</div>;
   if (isError) return <div style={st('padding:36px 12px;text-align:center;font:500 14.5px var(--font-ui);color:var(--muted)')}>{t('home.inRooms.failed')}</div>;
   const groups = data ?? [];
   if (groups.length === 0) return <div style={st('padding:36px 12px;text-align:center;font:500 14.5px var(--font-ui);color:var(--muted)')}>{t('home.inRooms.none')}</div>;
 
   return (
-    <div style={st('display:flex;flex-direction:column;gap:16px')}>
+    <div style={st(embedded ? 'display:flex;flex-direction:column;gap:16px;margin-top:6px;padding-top:14px;border-top:1px solid var(--chip)' : 'display:flex;flex-direction:column;gap:16px')}>
+      {embedded && <span style={st('font:600 12px var(--font-mono);letter-spacing:0.06em;color:var(--muted)')}>{t('home.inRooms.heading')}</span>}
       {groups.map((group) => (
         <div key={group.roomId} style={st('display:flex;flex-direction:column;gap:6px')}>
           <span style={st('font:600 11.5px var(--font-mono);letter-spacing:0.08em;color:var(--muted);padding:0 4px;text-transform:uppercase')}>{group.roomName}</span>

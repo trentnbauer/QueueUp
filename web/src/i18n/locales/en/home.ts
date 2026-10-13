@@ -15,6 +15,7 @@ export const home = {
   "home.tab.inRooms": "In rooms",
   "home.inRooms.none": "Nothing is being played in your rooms right now.",
   "home.inRooms.failed": "Couldn't load what your rooms are playing.",
+  "home.inRooms.heading": "IN YOUR ROOMS",
   "home.tab.wontPlay": "Won't play",
 
   // Status card next steps (lib/gameView NEXT_ACTIONS)
