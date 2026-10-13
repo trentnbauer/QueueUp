@@ -103,7 +103,7 @@ export const home: Record<keyof typeof en, string> = {
   "home.header.joinDiscord": "Join Discord",
   "home.header.addGame": "+ Stow game",
   "home.header.spin": "Spin",
-  "home.header.askAi": "Ask the parrot",
+  "home.header.askAi": "The parrot",
   "home.header.askAiShort": "AI",
   "home.header.shelfSettings": "Chest riggin’",
   "home.header.roomSettings": "Ship riggin’",

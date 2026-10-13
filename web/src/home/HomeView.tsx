@@ -329,7 +329,7 @@ export function HomeView() {
               padX={mobile ? 0 : 18}
               fontSize={mobile ? 13 : 14}
               weight={mobile ? 700 : 600}
-              onClick={() => ui.openDialog('aiTonight')}
+              onClick={() => ui.openDialog('aiMenu')}
               ariaLabel={t('shell.glance.askAi')}
               title={t('shell.glance.askAi')}
               style={mobile ? { width: 40 } : undefined}

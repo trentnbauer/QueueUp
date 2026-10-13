@@ -101,7 +101,7 @@ export const home = {
   "home.header.joinDiscord": "Join Discord",
   "home.header.addGame": "+ Add game",
   "home.header.spin": "Spin",
-  "home.header.askAi": "Ask AI",
+  "home.header.askAi": "AI",
   "home.header.askAiShort": "AI",
   "home.header.shelfSettings": "Shelf settings",
   "home.header.roomSettings": "Room settings",
