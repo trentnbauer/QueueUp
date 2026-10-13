@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { Navigate, useNavigate, useParams } from 'react-router';
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { ROOM_PLATFORM_LABELS, sortPlatforms } from '@queueup/shared';
 import { authApi } from '../api/auth';
 import { gamesApi } from '../api/games';
@@ -39,6 +39,7 @@ import { useIsMobile } from '../ui/useLayout';
 import { st } from '../ui/st';
 import { useT, type MessageKey } from '../i18n';
 import { getBasePath } from '../utils/basePath';
+import { clearAppCache } from '../utils/clearAppCache';
 import { PageShell } from './PageShell';
 
 export const SETTINGS_SECTIONS = ['account', 'privacy', 'libraries', 'preferences', 'notifications', 'ai', 'data', 'help'] as const;
@@ -397,8 +398,20 @@ function AiSection() {
 
 function DataSection() {
   const t = useT();
+  const confirm = useConfirm();
+  const queryClient = useQueryClient();
   const [keysOpen, setKeysOpen] = useState(false);
   const [historyOpen, setHistoryOpen] = useState(false);
+
+  /** Forgets everything this device has stored for the app, then reloads so the latest version loads fresh. Nothing on your account changes. */
+  async function wipeCache() {
+    const ok = await confirm({ title: t('settings.page.data.clearCache.title'), message: t('settings.page.data.clearCache.message'), confirmLabel: t('settings.page.data.clearCache.confirm') });
+    if (!ok) return;
+    queryClient.clear();
+    await clearAppCache();
+    window.location.reload();
+  }
+
   return (
     <>
       <Group>
@@ -411,6 +424,7 @@ function DataSection() {
           }}
         />
         <NavRow label={t('settings.history.title')} sub={t('settings.page.data.history.sub')} onClick={() => setHistoryOpen(true)} />
+        <NavRow label={t('settings.page.data.clearCache')} sub={t('settings.page.data.clearCache.sub')} onClick={() => void wipeCache()} />
       </Group>
       {keysOpen && <ApiKeysDialog onClose={() => setKeysOpen(false)} />}
       {historyOpen && <AccountHistoryDialog onClose={() => setHistoryOpen(false)} />}

@@ -573,6 +573,11 @@ export const settings: Record<keyof typeof en, string> = {
   "settings.page.libraries.merged.sub": "Cards merged into another game",
   "settings.page.data.apiKeys.sub": "Fer scripts and the Playnite extension",
   "settings.page.data.download.sub": "Everythin’ on yer account in one chest",
+  "settings.page.data.clearCache": "Clear app cache",
+  "settings.page.data.clearCache.sub": "Wipe what this device has stored and load the latest version",
+  "settings.page.data.clearCache.title": "Clear the app cache?",
+  "settings.page.data.clearCache.message": "This forgets everything this device has stored for QueueUp and reloads the app, so you get the latest version. You stay signed in, and nothing on your account changes.",
+  "settings.page.data.clearCache.confirm": "Clear and reload",
   "settings.page.data.history.sub": "Changes to yer account and riggin’",
   "settings.page.help.terms": "Ship’s articles",
 };
