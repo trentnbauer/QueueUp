@@ -76,6 +76,7 @@ export function SettingsPage() {
     if (raw === undefined) {
       return (
         <PageShell title={t('settings.page.title')} hint={t('settings.page.hint')} back={false}>
+          <SyncAll />
           <SettingsNav onPick={(s) => navigate(`/settings/${s}`)} />
         </PageShell>
       );
@@ -153,7 +154,12 @@ function SettingsNav({ active, onPick }: { active?: SettingsSection; onPick: (s:
 function SectionBody({ section }: { section: SettingsSection }) {
   switch (section) {
     case 'account':
-      return <AccountSection />;
+      return (
+        <>
+          <SyncAll />
+          <AccountSection />
+        </>
+      );
     case 'privacy':
       return <ProfileSettings />;
     case 'libraries':
@@ -292,18 +298,15 @@ function AccountSection() {
   );
 }
 
-/** Sync everything, every source, and the cleanup lists (needs matching, duplicates, dismissed, merged). */
-function LibrariesSection() {
+/** "Sync library and achievements": new games and wishlist items from every linked library, then trophies and achievements (when a
+ * linked source has them), the same order the automatic sync uses. Nothing at all when no library is linked. Shown on the settings home
+ * page and on Libraries. */
+function SyncAll() {
   const t = useT();
   const ui = useUi();
   const confirm = useConfirm();
   const sync = useSyncSources();
-  const cleanup = useLibraryCleanupCount();
-  const scanningDuplicates = useAiActivity('duplicates');
-  const [list, setList] = useState<'dismissed' | 'merged' | null>(null);
 
-  // One button for both: new games and wishlist items from every linked library, then trophies and
-  // achievements (when a linked source has them) - the same order the automatic sync uses.
   async function syncAll() {
     if (sync.busy || !sync.hasLinked) return;
     const ok = await confirm({
@@ -326,13 +329,26 @@ function LibrariesSection() {
     }
   }
 
+  if (!sync.hasLinked) return null;
+  return (
+    <div style={st('display:flex')}>
+      <SyncButton label={t('settings.me.syncAll')} accent disabled={sync.busy} onClick={() => void syncAll()} />
+    </div>
+  );
+}
+
+/** Sync everything, every source, and the cleanup lists (needs matching, duplicates, dismissed, merged). */
+function LibrariesSection() {
+  const t = useT();
+  const ui = useUi();
+  const confirm = useConfirm();
+  const cleanup = useLibraryCleanupCount();
+  const scanningDuplicates = useAiActivity('duplicates');
+  const [list, setList] = useState<'dismissed' | 'merged' | null>(null);
+
   return (
     <>
-      {sync.hasLinked && (
-        <div style={st('display:flex')}>
-          <SyncButton label={t('settings.me.syncAll')} accent disabled={sync.busy} onClick={() => void syncAll()} />
-        </div>
-      )}
+      <SyncAll />
       <Section label={t('settings.page.libraries.sources')}>
         <LibrarySources />
       </Section>
