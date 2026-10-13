@@ -47,11 +47,22 @@ export function AppShell({ children }: { children: ReactNode }) {
     }
   }, [collapsed]);
 
-  // The room's colour tints this shell (buttons, highlights, logo; not the background) - dialogs render outside it.
+  // The room's colour tints this shell (buttons, highlights, logo; not the background).
   // The Personal Shelf is tinted by the colour the person chose for it (if any), a room by its own.
   const { shelfColor } = useAuth();
   const roomColour = scope.room?.accentColor ?? (scope.isShelf ? shelfColor : null);
   const roomHue = roomColour ? hexToOklchHue(roomColour) : null;
+  // Dialogs, sheets and the spin screen render in portals outside the shell, so the same tint is put on <body> too:
+  // everything on screen then uses the room's colour, not the default orange.
+  useEffect(() => {
+    if (roomHue === null) return;
+    document.body.setAttribute('data-room', '1');
+    document.body.style.setProperty('--rh', String(roomHue));
+    return () => {
+      document.body.removeAttribute('data-room');
+      document.body.style.removeProperty('--rh');
+    };
+  }, [roomHue]);
   const roomScope = roomHue === null ? {} : { 'data-room': '1', style: { '--rh': String(roomHue) } as React.CSSProperties };
 
   const inList = ui.selectedGameId ? scope.games.find((g) => g.id === ui.selectedGameId) : undefined;
