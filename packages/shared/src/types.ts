@@ -3355,6 +3355,8 @@ export interface SplitBundleRequest {
 export interface DismissDuplicateRequest {
   gameIdA: string;
   gameIdB: string;
+  /** Say one is a remaster or a remake of the other: still kept apart from duplicates for good (issue #1173). */
+  kind?: 'remaster' | 'remake';
 }
 
 /** A person's own AI settings. The API key is write-only: it is never sent back, only whether one is saved. */

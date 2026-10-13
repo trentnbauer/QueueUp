@@ -3,6 +3,7 @@ import type { Game, GameSearchResult, GameStatus } from '@queueup/shared';
 import { useAuth } from '../context/AuthContext';
 import { useScope } from '../context/ScopeContext';
 import { useUi } from '../context/UiContext';
+import { gamesApi } from '../api/games';
 import { useSteamAutoMatch } from '../hooks/useSteamAutoMatch';
 import { hexToOklchHue } from '../theme/roomTheme';
 import { useIsMobile } from '../ui/useLayout';
@@ -12,6 +13,7 @@ import { BundleSheet } from './BundleSheet';
 import { DuplicateSheet } from './DuplicateSheet';
 import { IgdbMatchSheet } from './IgdbMatchSheet';
 import { MergeConfirmDialog } from './MergeConfirmDialog';
+import { RemasterKindDialog } from './RemasterKindDialog';
 import { SteamMatchSheet } from './SteamMatchSheet';
 import { CardBody } from './card/CardBody';
 import { DlcCard } from './card/DlcCard';
@@ -41,6 +43,10 @@ export function GameDetail({ game, onClose, changeStatus }: { game: Game; onClos
   const [rematching, setRematching] = useState(false);
   const [markingDuplicate, setMarkingDuplicate] = useState(false);
   const [markingBundle, setMarkingBundle] = useState(false);
+  // A remaster or remake of another game: first the original is picked, then which kind (issue #1173).
+  const [markingRemaster, setMarkingRemaster] = useState(false);
+  const [remasterOf, setRemasterOf] = useState<Game | null>(null);
+  const [savingRemaster, setSavingRemaster] = useState(false);
   // A merge waiting to be confirmed: a duplicate picked from the list, or a re-match onto a game that is already there.
   const [merge, setMerge] = useState<{ kind: 'duplicate'; target: Game } | { kind: 'rematch'; result: GameSearchResult } | null>(null);
 
@@ -111,6 +117,10 @@ export function GameDetail({ game, onClose, changeStatus }: { game: Game; onClos
           setSheet(null);
           setMarkingBundle(true);
         }}
+        onRemaster={() => {
+          setSheet(null);
+          setMarkingRemaster(true);
+        }}
       />
 
       {dlc &&
@@ -141,6 +151,38 @@ export function GameDetail({ game, onClose, changeStatus }: { game: Game; onClos
             setRematching(false);
             if (merges) setMerge({ kind: 'rematch', result });
             else ops.setIgdbMatch(game.id, result.igdbId);
+          }}
+        />
+      )}
+
+      {markingRemaster && !remasterOf && (
+        <DuplicateSheet
+          mode="remaster"
+          game={game}
+          games={games}
+          onClose={() => setMarkingRemaster(false)}
+          onPick={(target) => setRemasterOf(target)}
+        />
+      )}
+
+      {remasterOf && (
+        <RemasterKindDialog
+          title={game.title}
+          original={remasterOf.title}
+          busy={savingRemaster}
+          onClose={() => setRemasterOf(null)}
+          onPick={async (kind) => {
+            setSavingRemaster(true);
+            try {
+              await gamesApi.dismissDuplicate({ gameIdA: game.id, gameIdB: remasterOf.id, kind });
+              ui.notify(t(kind === 'remaster' ? 'game.remaster.saved.remaster' : 'game.remaster.saved.remake', { title: game.title, original: remasterOf.title }));
+              setRemasterOf(null);
+              setMarkingRemaster(false);
+            } catch (err) {
+              ui.showError(err instanceof Error ? err.message : t('game.remaster.failed'));
+            } finally {
+              setSavingRemaster(false);
+            }
           }}
         />
       )}

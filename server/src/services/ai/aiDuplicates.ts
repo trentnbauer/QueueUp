@@ -330,14 +330,15 @@ export async function aiScanDuplicates(userId: string, opts: { fresh?: boolean }
 }
 
 /** "These are not duplicates": remembered by igdbId pair so the suggestion does not come back. */
-export async function dismissDuplicatePair(userId: string, gameIdA: string, gameIdB: string): Promise<void> {
+export async function dismissDuplicatePair(userId: string, gameIdA: string, gameIdB: string, kind: 'not_duplicate' | 'remaster' | 'remake' = 'not_duplicate'): Promise<void> {
   const games = await prisma.game.findMany({ where: { id: { in: [gameIdA, gameIdB] }, roomId: null, addedBy: userId }, select: { igdbId: true } });
   if (games.length !== 2 || gameIdA === gameIdB) throw new HttpError(404, 'Those games are not on your shelf');
   const [low, high] = games.map((g) => g.igdbId).sort((x, y) => x - y);
   await prisma.duplicateDismissal.upsert({
     where: { userId_igdbIdLow_igdbIdHigh: { userId, igdbIdLow: low, igdbIdHigh: high } },
-    create: { userId, igdbIdLow: low, igdbIdHigh: high },
-    update: {},
+    create: { userId, igdbIdLow: low, igdbIdHigh: high, kind },
+    // A plain "not duplicates" never overwrites that it is a remaster or remake.
+    update: kind === 'not_duplicate' ? {} : { kind },
   });
 }
 

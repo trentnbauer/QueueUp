@@ -709,6 +709,9 @@ model DuplicateDismissal {
   userId    String   @map("user_id")
   igdbIdLow  Int     @map("igdb_id_low")
   igdbIdHigh Int     @map("igdb_id_high")
+  /// Why the pair is not a duplicate: just "not_duplicate", or the person said one is a remaster or remake of the other (issue #1173).
+  /// Keyed by the IGDB ids, so it still holds after a library resync re-adds either game.
+  kind      String   @default("not_duplicate")
   createdAt DateTime @default(now()) @map("created_at")
 
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)

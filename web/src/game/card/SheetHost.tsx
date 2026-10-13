@@ -39,10 +39,11 @@ export interface SheetHostProps {
   onSteamMatch?: () => void;
   onDuplicate?: () => void;
   onBundle?: () => void;
+  onRemaster?: () => void;
 }
 
 /** Renders whichever sheet is open over a card. */
-export function SheetHost({ game, kind, desktop, setKind, onPickStatus, onOpenReview, onOpenDlc, onRematch, onSteamMatch, onDuplicate, onBundle }: SheetHostProps) {
+export function SheetHost({ game, kind, desktop, setKind, onPickStatus, onOpenReview, onOpenDlc, onRematch, onSteamMatch, onDuplicate, onBundle, onRemaster }: SheetHostProps) {
   const t = useT();
   const { user } = useAuth();
   const canFix = useCanRemoveDirectly(game);
@@ -100,6 +101,7 @@ export function SheetHost({ game, kind, desktop, setKind, onPickStatus, onOpenRe
           onOpen={(target: MoreTarget) => setKind(target)}
           onDuplicate={() => onDuplicate?.()}
           onBundle={() => onBundle?.()}
+          onRemaster={() => onRemaster?.()}
         />
       );
       break;

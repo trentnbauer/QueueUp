@@ -22,6 +22,7 @@ export function MoreSheet({
   onOpen,
   onDuplicate,
   onBundle,
+  onRemaster,
 }: {
   game: Game;
   canTag: boolean;
@@ -30,6 +31,7 @@ export function MoreSheet({
   onOpen: (target: MoreTarget) => void;
   onDuplicate: () => void;
   onBundle: () => void;
+  onRemaster: () => void;
 }) {
   const t = useT();
   const ui = useUi();
@@ -118,6 +120,7 @@ export function MoreSheet({
           <>
             <Row compact icon="🧩" label={t('card.more.fixMatch')} sub={t('card.more.fixMatchSub')} value="IGDB · Steam" onClick={() => onOpen('fix')} />
             <Row compact icon="⧉" label={t('game.duplicate.button')} onClick={onDuplicate} />
+            {isShelf && <Row compact icon="✨" label={t('game.remaster.button')} onClick={onRemaster} />}
             <Row compact icon="📦" label={t('game.bundle.button')} onClick={onBundle} />
           </>,
         )}
