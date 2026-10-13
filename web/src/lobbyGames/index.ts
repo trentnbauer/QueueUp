@@ -1,5 +1,6 @@
 import type { LobbyGameId, LobbyGameSnapshot, User } from '@queueup/shared';
 import type { MessageKey } from '../i18n';
+import { flappyView } from './flappy';
 import { runnerView } from './runner';
 
 /** What a renderer is given each frame. */
@@ -37,6 +38,8 @@ export interface LobbyGameView<S extends LobbyGameSnapshot = LobbyGameSnapshot> 
   holds?: { labelKey: MessageKey; dx: number; dy: number; keys: string[] }[];
   /** Tap buttons that send a one-off move. `keys` are the keyboard keys that do the same. */
   actions: { name: string; labelKey: MessageKey; keys: string[] }[];
+  /** For single-button games: tapping the arena itself does this action too, so a thumb can tap anywhere. */
+  tapAction?: string;
   /** One line telling people what to do. */
   hintKey: MessageKey;
   draw(args: LobbyDrawArgs<S>): void;
@@ -45,6 +48,7 @@ export interface LobbyGameView<S extends LobbyGameSnapshot = LobbyGameSnapshot> 
 
 export const LOBBY_GAME_VIEWS: { [K in LobbyGameId]: LobbyGameView<Extract<LobbyGameSnapshot, { id: K }>> } = {
   runner: runnerView,
+  flappy: flappyView,
 };
 
 /** The view for whichever game a snapshot belongs to. */
