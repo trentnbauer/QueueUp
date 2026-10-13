@@ -16,12 +16,15 @@ export interface RemasterSide {
 export function RemasterDialog({
   newer,
   original,
+  initialKind = null,
   busy,
   onSave,
   onClose,
 }: {
   newer: RemasterSide;
   original: RemasterSide;
+  /** The kind the AI suggested, already picked (it can still be changed). */
+  initialKind?: 'remaster' | 'remake' | null;
   busy: boolean;
   /** The id of the remaster / remake, then of the original. */
   onSave: (kind: 'remaster' | 'remake', newerId: string, originalId: string) => void;
@@ -29,7 +32,7 @@ export function RemasterDialog({
 }) {
   const t = useT();
   const [swapped, setSwapped] = useState(false);
-  const [kind, setKind] = useState<'remaster' | 'remake' | null>(null);
+  const [kind, setKind] = useState<'remaster' | 'remake' | null>(initialKind);
   const orig = swapped ? newer : original;
   const nw = swapped ? original : newer;
 

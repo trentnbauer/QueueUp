@@ -3307,6 +3307,10 @@ export interface DuplicateSuggestion {
   source?: 'ai' | 'community' | 'igdb';
   /** For `community`: how many other people merged this pair. */
   mergedBy?: number;
+  /** Set when the AI thinks this is not a duplicate but a remaster, a remake, or a collection / bundle that contains the other card (issue: a
+   * closer look at titles marked collection, bundle, remaster and so on). `a` is the remaster, remake or bundle and `b` the game it is about;
+   * the person links them instead of merging. */
+  relation?: 'remaster' | 'remake' | 'bundle';
 }
 
 /** Result of POST /api/games/duplicates/ai-scan. */
