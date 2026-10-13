@@ -11,8 +11,8 @@
 export const LOBBY_TICK_HZ = 15;
 
 /** The games the lobby can run. */
-export type LobbyGameId = 'runner' | 'flappy';
-export const LOBBY_GAME_IDS: readonly LobbyGameId[] = ['runner', 'flappy'];
+export type LobbyGameId = 'runner' | 'flappy' | 'dodge';
+export const LOBBY_GAME_IDS: readonly LobbyGameId[] = ['runner', 'flappy', 'dodge'];
 
 /** What a client sends. Anything else is ignored. */
 export type LobbyClientMessage =
@@ -121,8 +121,48 @@ export interface FlappySnapshot {
   winnerId: string | null;
 }
 
+// ---- Dodge (blocks fall, slide left and right to stay clear) ---------------------------------------
+
+/** Where the players stand, as a fraction of the height from the top. */
+export const DODGE_PLAYER_Y = 0.92;
+export const DODGE_PLAYER_WIDTH = 0.06;
+export const DODGE_BLOCK_HEIGHT = 0.06;
+
+/** A falling block: `x` is its middle across the width (0..1), `y` its middle down from the top. */
+export interface DodgeBlock {
+  x: number;
+  y: number;
+  w: number;
+}
+
+export interface DodgePlayer {
+  id: string;
+  /** Where they stand across the width (0..1). */
+  x: number;
+  /** Still standing. False once a block hits them, or if they arrived mid-run. */
+  alive: boolean;
+  /** Runs won since this person joined the lobby. */
+  wins: number;
+  /** How long they lasted, in metres of falling: live while standing, final once out. */
+  meters: number;
+}
+
+export interface DodgeSnapshot {
+  id: 'dodge';
+  phase: LobbyRoundPhase;
+  meters: number;
+  /** How fast blocks fall, in screens per second. */
+  speed: number;
+  blocks: DodgeBlock[];
+  players: DodgePlayer[];
+  /** Milliseconds left in `countdown` or `over`; 0 otherwise. */
+  timerMs: number;
+  /** Who won the run that just ended (`over` only); null when nobody did (a solo run, or a draw). */
+  winnerId: string | null;
+}
+
 /** The snapshot of whichever game is running. */
-export type LobbyGameSnapshot = RunnerSnapshot | FlappySnapshot;
+export type LobbyGameSnapshot = RunnerSnapshot | FlappySnapshot | DodgeSnapshot;
 
 export interface LobbySnapshot {
   t: 'state';
