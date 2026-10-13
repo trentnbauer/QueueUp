@@ -122,6 +122,7 @@ export const pages: Record<keyof typeof en, string> = {
   "pages.feed.addReaction": "Hoist a reaction",
   "pages.feed.react": "React {emoji}",
   "pages.feed.open": "Open {title}",
+  "pages.feed.recommends": "Recommends it, arr",
   "pages.feed.onlyYou": "{tag} · only ye",
   "pages.feed.row.added": "{who} stowed {title}",
   "pages.feed.row.wishlist": "{who} marked {title} on the treasure map",

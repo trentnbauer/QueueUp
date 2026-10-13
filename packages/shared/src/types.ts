@@ -788,11 +788,6 @@ export interface SetGameReviewRequest {
   recommend?: boolean | null;
 }
 
-/** POST /api/games/:id/recommend - tell these friends about a game you reviewed. */
-export interface RecommendToFriendsRequest {
-  friendIds: string[];
-}
-
 export interface SetReleaseAlertRequest {
   enabled: boolean;
 }

@@ -1,15 +1,13 @@
 import { useState } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
-import type { FriendUser, Game } from '@queueup/shared';
+import type { Game } from '@queueup/shared';
 import { REVIEW_CATEGORIES } from '@queueup/shared';
 import { useScope } from '../context/ScopeContext';
 import { useUi } from '../context/UiContext';
 import { gamesApi } from '../api/games';
-import { apiPost } from '../api/client';
-import { useFriends } from '../hooks/useFriends';
 import { REVIEW_EMOJI } from '../lib/gameView';
 import { Dialog } from '../ui/Dialog';
-import { Avatar, coverBg } from '../ui/primitives';
+import { coverBg } from '../ui/primitives';
 import { st } from '../ui/st';
 import { t as tr, useT } from '../i18n';
 import { reviewCategoryLabel } from '../i18n/labels';
@@ -186,22 +184,10 @@ export function ReviewSheet({ game, edit = false, syncShelf = false }: { game: G
     if (syncShelf && sync) void markShelfBeaten();
   }
 
-  // #808: after saving a review that doesn't advise against the game, offer to tell friends about it.
-  const { friends } = useFriends();
-  const [pickFriends, setPickFriends] = useState(false);
-  const canRecommend = !(game.roomId === null && game.hiddenFromOthers);
-  const draft = useReviewDraft(game, edit, (saved) => {
-    if (saved.hasAny && saved.recommend !== false && canRecommend && friends.length > 0) {
-      setPickFriends(true);
-      return true;
-    }
+  const draft = useReviewDraft(game, edit, () => {
     finish(true, true);
   });
   const { existing, save } = draft;
-
-  if (pickFriends) {
-    return <RecommendToFriends game={game} friends={friends} onDone={() => finish(true, true)} />;
-  }
 
   return (
     <Dialog
@@ -257,83 +243,6 @@ export function ReviewSheet({ game, edit = false, syncShelf = false }: { game: G
             <span style={st('height:34px;padding:0 14px;border-radius:999px;background:var(--accSoft2);color:var(--accText);font:700 12.5px var(--font-ui);display:flex;align-items:center')}>{t('game.review.replayIt')}</span>
           </button>
         )}
-      </div>
-    </Dialog>
-  );
-}
-
-/** #808: tick the friends to tell about a game you just reviewed. They get a notification (pointing
- * at their own copy when they have it). */
-function RecommendToFriends({ game, friends, onDone }: { game: Game; friends: FriendUser[]; onDone: () => void }) {
-  const t = useT();
-  const ui = useUi();
-  const [picked, setPicked] = useState<Set<string>>(new Set());
-  const [sending, setSending] = useState(false);
-  const toggle = (id: string) =>
-    setPicked((prev) => {
-      const next = new Set(prev);
-      if (next.has(id)) next.delete(id);
-      else next.add(id);
-      return next;
-    });
-
-  async function send() {
-    setSending(true);
-    try {
-      const { sent } = await apiPost<{ sent: number }>(`/api/games/${game.id}/recommend`, { friendIds: [...picked] });
-      ui.notify(sent ? tr(sent === 1 ? 'game.recommend.sent.one' : 'game.recommend.sent.other', { n: sent }) : tr('game.recommend.already'));
-      onDone();
-    } catch (err) {
-      ui.showError(err instanceof Error ? err.message : tr('game.recommend.error'));
-      setSending(false);
-    }
-  }
-
-  return (
-    <Dialog
-      onClose={onDone}
-      title={t('game.recommend.title')}
-      gap={12}
-      footer={
-        <div style={st('flex-shrink:0;display:flex;gap:8px;padding:12px 20px 26px;border-top:1px solid var(--chip)')}>
-          <button type="button" onClick={onDone} style={st('height:48px;padding:0 20px;border-radius:999px;border:none;background:var(--chip);color:var(--text);font:600 14.5px var(--font-ui)')}>
-            {t('common.notNow')}
-          </button>
-          <button
-            type="button"
-            disabled={picked.size === 0 || sending}
-            onClick={() => void send()}
-            style={st(`flex:1;height:48px;border-radius:999px;border:none;background:var(--acc);color:var(--ink);font:700 14.5px var(--font-ui);opacity:${picked.size === 0 || sending ? 0.5 : 1}`)}
-          >
-            {sending ? t('game.recommend.sending') : picked.size ? t('game.recommend.sendTo', { n: picked.size }) : t('game.recommend.pick')}
-          </button>
-        </div>
-      }
-    >
-      <span style={st('font:400 13.5px/1.45 var(--font-ui);color:var(--muted)')}>{t('game.recommend.hint', { title: game.title })}</span>
-      <div style={st('display:flex;flex-direction:column;gap:4px')}>
-        {friends.map((f) => {
-          const on = picked.has(f.id);
-          return (
-            <button
-              key={f.id}
-              type="button"
-              role="checkbox"
-              aria-checked={on}
-              onClick={() => toggle(f.id)}
-              style={st('display:flex;align-items:center;gap:12px;min-height:52px;padding:6px 12px;border:none;border-radius:14px;background:var(--surf);color:var(--text);text-align:left')}
-            >
-              <Avatar name={f.displayName} color={f.avatarColor} avatarUrl={f.avatarUrl} size={34} />
-              <span style={st('flex:1;min-width:0;font:600 14.5px var(--font-ui);overflow:hidden;text-overflow:ellipsis;white-space:nowrap')}>{f.displayName}</span>
-              <span
-                aria-hidden
-                style={st(`width:24px;height:24px;border-radius:7px;display:flex;align-items:center;justify-content:center;border:1.5px solid ${on ? 'var(--acc)' : 'var(--line)'};background:${on ? 'var(--acc)' : 'transparent'};color:var(--ink);font:800 13px var(--font-ui)`)}
-              >
-                {on ? '✓' : ''}
-              </span>
-            </button>
-          );
-        })}
       </div>
     </Dialog>
   );

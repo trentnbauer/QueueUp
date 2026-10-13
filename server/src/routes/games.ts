@@ -67,7 +67,7 @@ import { toggleOwnershipForPlatform, setOwnershipPlatforms, markOwned, promoteOw
 import { recordStatusTransition } from '../services/playLog.js';
 import { recommendationsFor } from '../services/recommendations.js';
 import { hideRecommendation } from '../services/hiddenRecommendations.js';
-import { notifyFriendRecommendation, recommendToFriends } from '../services/friendRecommendations.js';
+import { notifyFriendRecommendation } from '../services/friendRecommendations.js';
 import { getPriceHistory, usualPrice } from '../services/priceHistory.js';
 import { getRemovalInfo } from '../services/removalVote.js';
 import { recordSyncSources } from '../services/syncSources.js';
@@ -94,7 +94,6 @@ import { findDetectedSteamCompletions } from '../services/steamCompletionDetecti
 import { recordAchievementProgress } from '../services/achievementProgress.js';
 import { toUserDto } from '../util/dto.js';
 import { env } from '../config/env.js';
-import type { RecommendToFriendsRequest } from '@queueup/shared';
 import type {
   BacklogInsights,
   SetGameHiddenRequest,
@@ -1292,7 +1291,8 @@ export default async function gameRoutes(app: FastifyInstance) {
         const scores = [art, gameplay, story, sound, themes].filter((v): v is number => v !== null);
         const score = scores.length ? scores.reduce((a, b) => a + b, 0) / scores.length : null;
         const avg = score !== null ? ` (${score.toFixed(1)}/5)` : '';
-        const text = `${who?.displayName ?? 'Someone'} reviewed "${updated.title}"${avg}${note ? `: ${note}` : ''}`;
+        const recommended = recommend === true ? ' 👍 Recommends it.' : '';
+        const text = `${who?.displayName ?? 'Someone'} reviewed "${updated.title}"${avg}${note ? `: ${note}` : ''}${recommended}`;
         if (firstReview) {
           // Also posts to Discord (game_reviewed maps to the "reviews" toggle).
           void logRoomActivity({
@@ -1310,24 +1310,6 @@ export default async function gameRoutes(app: FastifyInstance) {
 
     return { game: await serializeGame(updated, userId) };
   });
-
-  // #808: after reviewing a game, tell the friends you pick about it.
-  app.post<{ Params: { id: string }; Body: RecommendToFriendsRequest }>(
-    '/api/games/:id/recommend',
-    { config: { rateLimit: { max: 20, timeWindow: '1 minute' } } },
-    async (request) => {
-      const userId = await request.requireAuth();
-      const game = await loadGameOr404(request.params.id);
-      await requireGameReadAccess(game, userId);
-      const ids = request.body?.friendIds;
-      if (!Array.isArray(ids) || ids.length === 0 || ids.length > 100 || !ids.every((id) => typeof id === 'string')) {
-        throw new HttpError(400, 'Pick between 1 and 100 friends');
-      }
-      if (game.roomId === null && game.hiddenFromOthers) throw new HttpError(400, "This game is hidden from others, so it can't be recommended");
-      const sent = await recommendToFriends(userId, game, ids);
-      return { sent };
-    },
-  );
 
   app.post<{ Params: { id: string } }>(
     '/api/games/:id/sync-shelf-beaten',

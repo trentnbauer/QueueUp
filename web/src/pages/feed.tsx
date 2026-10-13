@@ -74,9 +74,16 @@ export function groupByDay(entries: FriendActivityEntry[]): { label: string; ite
 
 function ReviewBlock({ review }: { review: NonNullable<FriendActivityEntry['review']> }) {
   const scored = REVIEW_CATEGORIES.filter((c) => review[c.key]);
-  if (!scored.length && !review.note) return null;
+  const recommends = review.recommend === true;
+  if (!scored.length && !review.note && !recommends) return null;
   return (
     <div style={st('margin-top:6px;display:flex;flex-direction:column;gap:6px;padding:10px 12px;border-radius:14px;background:var(--surf)')}>
+      {recommends && (
+        <span style={st('align-self:flex-start;display:flex;align-items:center;gap:6px;height:24px;padding:0 10px;border-radius:999px;background:var(--mintSoft);color:var(--mint);font:600 12px var(--font-ui)')}>
+          <span style={st('font-size:14px;line-height:1')}>👍</span>
+          {tr('pages.feed.recommends')}
+        </span>
+      )}
       {scored.length > 0 && (
         <div style={st('display:flex;flex-wrap:wrap;gap:4px 12px')}>
           {scored.map((c) => (
