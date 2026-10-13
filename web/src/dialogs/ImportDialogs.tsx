@@ -370,7 +370,7 @@ function ManualMatchDialog({ entry, onClose, onResolved, onPick }: { entry: Pend
       header={
         <span style={st('flex:1;min-width:0;display:flex;flex-direction:column')}>
           <span style={st('font:700 21px var(--font-display)')}>{t('add.manualMatch.title')}</span>
-          <span style={st('font:400 12.5px var(--font-ui);color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis')}>
+          <span style={st('font:400 12.5px var(--font-ui);color:var(--muted);overflow-wrap:anywhere')}>
             {t('add.manualMatch.subtitle', { title: entry.title })}
           </span>
         </span>
@@ -389,7 +389,7 @@ function ManualMatchDialog({ entry, onClose, onResolved, onPick }: { entry: Pend
           <div key={r.igdbId} style={st('min-height:64px;display:flex;align-items:center;gap:12px;padding:6px 8px;border-radius:14px')}>
             <Cover title={r.title} url={r.coverImageUrl} width={36} radius={7} />
             <span style={st('flex:1;min-width:0;display:flex;flex-direction:column;gap:2px')}>
-              <span style={st('font:600 14.5px var(--font-ui);white-space:nowrap;overflow:hidden;text-overflow:ellipsis')}>
+              <span style={st('font:600 14.5px var(--font-ui);overflow-wrap:anywhere')}>
                 {r.title}
                 {r.releaseYear ? ` (${r.releaseYear})` : ''}
               </span>
@@ -740,7 +740,7 @@ export function NeedsReviewDialog() {
                     <Cover title={c.title} url={c.coverImageUrl} width={40} radius={7} />
                     <span style={st('flex:1;min-width:0;display:flex;flex-direction:column;gap:2px')}>
                       <span style={st('display:flex;align-items:center;gap:6px;min-width:0')}>
-                        <span style={st('font:600 15px var(--font-ui);white-space:nowrap;overflow:hidden;text-overflow:ellipsis')}>
+                        <span style={st('font:600 15px var(--font-ui);overflow-wrap:anywhere')}>
                           {c.title}
                           {c.releaseYear ? ` (${c.releaseYear})` : ''}
                         </span>
@@ -767,7 +767,7 @@ export function NeedsReviewDialog() {
                     >
                       <Cover title={g.title} url={g.coverImageUrl} width={40} radius={7} />
                       <span style={st('flex:1;min-width:0;display:flex;flex-direction:column;gap:2px')}>
-                        <span style={st('font:600 15px var(--font-ui);white-space:nowrap;overflow:hidden;text-overflow:ellipsis')}>
+                        <span style={st('font:600 15px var(--font-ui);overflow-wrap:anywhere')}>
                           {g.title}
                           {g.releaseYear ? ` (${g.releaseYear})` : ''}
                         </span>
