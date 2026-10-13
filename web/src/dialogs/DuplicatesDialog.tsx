@@ -6,6 +6,7 @@ import { DUPLICATE_COUNT_QUERY_KEY, DUPLICATE_LIST_QUERY_KEY, gamesApi } from '.
 import { useUi } from '../context/UiContext';
 import { Dialog } from '../ui/Dialog';
 import { MergeStage } from '../ui/MergeStage';
+import { RemasterStage } from '../ui/RemasterStage';
 import { BundleSheet } from '../game/BundleSheet';
 import { RemasterDialog } from '../game/RemasterDialog';
 import { suggestionToMergeGame } from '../game/mergeGame';
@@ -13,7 +14,7 @@ import { trackAiActivity } from '../hooks/useAiActivity';
 import { useUndoChange } from '../hooks/useUndoChange';
 import { AiPickedBadge, Banner, Btn, Kicker, Spinner } from '../ui/primitives';
 import { st } from '../ui/st';
-import { useT } from '../i18n';
+import { useT, type MessageKey } from '../i18n';
 
 const GAMES_QUERY_ROOT = ['games'];
 
@@ -89,6 +90,8 @@ export function DuplicatesDialog() {
   const currentKey = current ? pairKey(current) : null;
   const backTo = [...history].reverse().find((k) => k !== currentKey && pairs.some((p) => pairKey(p) === k));
   const [kindFor, setKindFor] = useState<string | null>(null);
+  // Pairs the AI called a remaster, remake or collection that the person says are the same game after all.
+  const [asMerge, setAsMerge] = useState<string[]>([]);
   // "One of these is a bundle": which one, then the bundle flow for it.
   const [bundleChoice, setBundleChoice] = useState<string | null>(null);
   const [bundleGame, setBundleGame] = useState<Game | null>(null);
@@ -97,6 +100,8 @@ export function DuplicatesDialog() {
 
   /** The card to keep for a pair: the suggested one (the base game / earlier release), unless the
    * person tapped the other. */
+  /** What the AI thinks this pair is besides a duplicate, unless the person said it is the same game. */
+  const relationOf = (p: DuplicateSuggestion | undefined) => (p?.relation && !asMerge.includes(pairKey(p)) ? p.relation : null);
   const keepOf = (p: DuplicateSuggestion): DuplicateSuggestionGame => ((p.keep === 'a') !== flipped.includes(pairKey(p)) ? p.a : p.b);
   const removeOf = (p: DuplicateSuggestion): DuplicateSuggestionGame => (keepOf(p).id === p.a.id ? p.b : p.a);
 
@@ -220,9 +225,15 @@ export function DuplicatesDialog() {
             <Btn height={50} style={{ background: 'var(--chip)', border: 'none' }} disabled={busy} onClick={() => skip(current)}>
               {t('common.skip')}
             </Btn>
-            <Btn kind="accent" height={50} weight={700} fontSize={14} disabled={busy} onClick={() => void mergeNow(current)}>
-              {merge.isPending ? t('settings.duplicates.merging') : t('settings.duplicates.merge')}
-            </Btn>
+            {relationOf(current) ? (
+              <Btn kind="accent" height={50} weight={700} fontSize={14} disabled={busy} onClick={() => (relationOf(current) === 'bundle' ? void openBundle(current.a) : setKindFor(currentKey))}>
+                {t(`settings.duplicates.link.${relationOf(current)}` as MessageKey)}
+              </Btn>
+            ) : (
+              <Btn kind="accent" height={50} weight={700} fontSize={14} disabled={busy} onClick={() => void mergeNow(current)}>
+                {merge.isPending ? t('settings.duplicates.merging') : t('settings.duplicates.merge')}
+              </Btn>
+            )}
           </div>
         )
       }
@@ -276,9 +287,23 @@ export function DuplicatesDialog() {
                     <Kicker size={11}>{t('settings.duplicates.titleMatch')}</Kicker>
                   )}
                 </div>
-                <span style={st('font:700 22px/1.2 var(--font-display);letter-spacing:-0.02em;overflow-wrap:anywhere')}>{t('settings.duplicates.sameGame')}</span>
+                <span style={st('font:700 22px/1.2 var(--font-display);letter-spacing:-0.02em;overflow-wrap:anywhere')}>{relationOf(current) ? t(`settings.duplicates.looksLike.${relationOf(current)}` as MessageKey) : t('settings.duplicates.sameGame')}</span>
                 {current.reason && <span style={st('font:400 13.5px/1.45 var(--font-ui);color:var(--text2)')}>{current.reason}</span>}
-                <MergeStage remove={suggestionToMergeGame(removeOf(current))} keep={suggestionToMergeGame(keepOf(current))} onSwap={() => keep(current, removeOf(current))} disabled={busy} />
+                {relationOf(current) ? (
+                  <>
+                    <RemasterStage
+                      original={suggestionToMergeGame(current.b)}
+                      newer={suggestionToMergeGame(current.a)}
+                      kind={relationOf(current) === 'bundle' ? null : (relationOf(current) as 'remaster' | 'remake')}
+                      labels={relationOf(current) === 'bundle' ? { original: t('settings.duplicates.bundleInside'), newer: t('settings.duplicates.bundleLabel'), rel: t('settings.duplicates.bundleRel') } : undefined}
+                    />
+                    <Btn kind="ghost" height={34} padX={10} fontSize={12.5} disabled={busy} style={{ alignSelf: 'flex-start' }} onClick={() => setAsMerge((m) => [...m, currentKey as string])}>
+                      {t('settings.duplicates.sameAfterAll')}
+                    </Btn>
+                  </>
+                ) : (
+                  <MergeStage remove={suggestionToMergeGame(removeOf(current))} keep={suggestionToMergeGame(keepOf(current))} onSwap={() => keep(current, removeOf(current))} disabled={busy} />
+                )}
                 <Kicker size={11}>{t('settings.duplicates.notStraight')}</Kicker>
                 <div style={st('display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px')}>
                   <button type="button" disabled={busy} onClick={() => setKindFor(currentKey)} className="hv-surf2" style={st('display:flex;flex-direction:column;gap:3px;padding:12px 14px;border-radius:16px;border:none;background:var(--surf);color:var(--text);text-align:left')}>
@@ -299,8 +324,9 @@ export function DuplicatesDialog() {
       </div>
       {kindFor && current && currentKey === kindFor && (
         <RemasterDialog
-          newer={{ id: removeOf(current).id, game: suggestionToMergeGame(removeOf(current)) }}
-          original={{ id: keepOf(current).id, game: suggestionToMergeGame(keepOf(current)) }}
+          newer={{ id: (current.relation ? current.a : removeOf(current)).id, game: suggestionToMergeGame(current.relation ? current.a : removeOf(current)) }}
+          original={{ id: (current.relation ? current.b : keepOf(current)).id, game: suggestionToMergeGame(current.relation ? current.b : keepOf(current)) }}
+          initialKind={relationOf(current) === 'remaster' || relationOf(current) === 'remake' ? (relationOf(current) as 'remaster' | 'remake') : null}
           busy={savingKind}
           onSave={(kind, newerId, originalId) => void markRemaster(current, kind, newerId, originalId)}
           onClose={() => setKindFor(null)}

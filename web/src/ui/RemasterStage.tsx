@@ -9,17 +9,21 @@ export function RemasterStage({
   newer,
   kind,
   onSwap,
+  labels,
 }: {
   original: MergeGame;
   newer: MergeGame;
   kind: 'remaster' | 'remake' | null;
-  onSwap: () => void;
+  /** Omit when the two can't change places (a collection and the game inside it). */
+  onSwap?: () => void;
+  /** Captions for a link that isn't a remaster or remake: the label over each card, and the line between them. */
+  labels?: { original: string; newer: string; rel: string };
 }) {
   const t = useT();
   const [stageRef, width] = useStageWidth<HTMLDivElement>();
   const m = stageMetrics(width);
-  const kindLabel = kind ? t(kind === 'remake' ? 'game.remaster.kind.remake' : 'game.remaster.kind.remaster').toUpperCase() : t('game.remaster.newer');
-  const rel = kind ? t(kind === 'remake' ? 'game.remaster.remakeOf' : 'game.remaster.remasterOf') : t('game.remaster.newerOf');
+  const kindLabel = labels ? labels.newer : kind ? t(kind === 'remake' ? 'game.remaster.kind.remake' : 'game.remaster.kind.remaster').toUpperCase() : t('game.remaster.newer');
+  const rel = labels ? labels.rel : kind ? t(kind === 'remake' ? 'game.remaster.remakeOf' : 'game.remaster.remasterOf') : t('game.remaster.newerOf');
   const coverMid = Math.round(m.pad + 21 + (m.coverW * 1.5) / 2);
   const baseShadow = '0 10px 24px oklch(0 0 0 / 0.35)';
 
@@ -44,7 +48,7 @@ export function RemasterStage({
         <StageCard
           game={original}
           other={newer}
-          label={t('game.remaster.original')}
+          label={labels ? labels.original : t('game.remaster.original')}
           labelColour="var(--text2)"
           compact={m.compact}
           coverW={m.coverW}
@@ -82,6 +86,7 @@ export function RemasterStage({
         ← {rel}
       </span>
 
+      {onSwap && (
       <div style={st('display:flex;justify-content:center;gap:8px;min-width:0')}>
         <button
           type="button"
@@ -99,6 +104,7 @@ export function RemasterStage({
           )}
         </button>
       </div>
+      )}
     </div>
   );
 }

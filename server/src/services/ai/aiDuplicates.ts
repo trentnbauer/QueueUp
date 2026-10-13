@@ -10,6 +10,7 @@ import { loadDuplicateKnowledge, saveVerdicts } from '../duplicateKnowledge.js';
 import { dropDlcPairs } from '../dlcLinks.js';
 import { notifyMergeSuggestions } from '../notifications.js';
 import { getGameCompanies } from '../igdbClient.js';
+import { SPECIAL_BATCH, SPECIAL_MAX, SPECIAL_SYSTEM, buildSpecialPrompt, isSpecialTitle, parseSpecialReply, relatedCards, type SpecialBatchItem } from './specialTitles.js';
 import type { AiDuplicateScanResponse, DuplicateCandidatesResponse, DuplicateSuggestion, DuplicateSuggestionGame } from '@queueup/shared';
 
 /** The AI must be at least this sure before a pair is shown. */
@@ -310,6 +311,40 @@ export async function aiScanDuplicates(userId: string, opts: { fresh?: boolean }
       stopped ??= stopReason(err);
     }
   });
+  // A closer look at every card whose title says collection, bundle, remaster, remake or an edition: each is compared with the cards on the
+  // whole shelf that share its words (not only the ones sorting beside it), and the AI says whether it is the same game, a remaster or
+  // remake of it, or a collection that contains it. These are looked at on every scan, however recently the shelf was checked.
+  if (!stopped) {
+    const unique = cards.filter((c, i) => cards.findIndex((x) => x.igdbId === c.igdbId) === i);
+    const items: SpecialBatchItem[] = unique
+      .filter((c) => isSpecialTitle(c.title))
+      .slice(0, SPECIAL_MAX)
+      .map((card) => ({ card, others: relatedCards(card, unique) }))
+      .filter((item) => item.others.length > 0);
+    await runWithConcurrency(chunk(items, SPECIAL_BATCH), AI_DUPLICATE_PARALLEL, async (batch) => {
+      if (stopped) return;
+      try {
+        const res = await aiComplete({ system: SPECIAL_SYSTEM, messages: [{ role: 'user', content: buildSpecialPrompt(batch) }], maxTokens: 2048, temperature: 0 }, { userId, label: 'duplicates' });
+        fallback ??= res.fallback;
+        for (const s of parseSpecialReply(res.text, batch)) {
+          const key = igdbPairKey(s.a.igdbId, s.b.igdbId);
+          if (s.a.igdbId === s.b.igdbId || dismissed.has(key) || knowledge.notDuplicates.has(key)) continue;
+          const existing = found.get(key);
+          // A pair already found as a duplicate stays one, unless this closer look says it is a remaster, remake or collection.
+          if (existing && !s.relation) continue;
+          found.set(key, s);
+          // A closer look that says "remaster / remake / collection" takes back an earlier "same game" answer for the pair.
+          if (s.relation) {
+            const at = verdictsToSave.findIndex((v) => igdbPairKey(v.igdbIdA, v.igdbIdB) === key);
+            if (at >= 0) verdictsToSave.splice(at, 1);
+          }
+          if (!s.relation) verdictsToSave.push({ igdbIdA: s.a.igdbId, igdbIdB: s.b.igdbId, same: true, keepIgdbId: s.keep === 'a' ? s.a.igdbId : s.b.igdbId, confidence: s.confidence, reason: s.reason });
+        }
+      } catch (err) {
+        stopped ??= stopReason(err);
+      }
+    });
+  }
   // What the AI, other people's merges or an earlier answer paired up can still be a game and its
   // DLC under titles that don't look alike; those are dropped too, and not remembered as the same game.
   const foundPairs = (await dropDlcPairs(userId, [...found.values()], (s) => [s.a, s.b])).pairs;
