@@ -195,6 +195,8 @@ export const room = {
   "room.settings.discordOn.other": "Webhook on · {n} events posted",
   "room.settings.aiRow": "Room AI",
   "room.settings.aiRowSub": "Whose AI key this room uses",
+  "room.settings.lobbyRow": "Mini games",
+  "room.settings.lobbyRowSub": "Play together live, no spin needed",
   "room.settings.sessionTitle": "Typical session",
   "room.settings.sessionHint": "How long a usual play session is for this room. Used to estimate how many sessions a game takes to finish.",
   "room.settings.sessionHours": "{hours}h",

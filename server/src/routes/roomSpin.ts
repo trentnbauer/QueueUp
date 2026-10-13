@@ -31,6 +31,7 @@ import { unlockBadges } from '../services/badges.js';
 import { logRoomActivity } from '../services/roomActivity.js';
 import { applySpinFilters, parseSpinFilters, type SpinFilters } from '../services/spinFilters.js';
 import { normalizeSpinTheme } from '@queueup/shared';
+import { spinLobbyHub } from '../services/spinLobbyInstance.js';
 
 // A spin nobody's touched in this long is treated as abandoned (someone started it, then closed
 // their laptop) rather than wedging the room forever - the next GET after this window just
@@ -94,6 +95,43 @@ function storedPlay(spin: RoomSpinRow): StoredPlay | null {
 function settleFields(modeState: StoredPlay | null, base: SpinBase): { settlesAt: Date; settledPosition: number } {
   if (modeState) return { settlesAt: new Date(playSettlesAt(modeState, base.timestamp0)), settledPosition: 0 };
   return { settlesAt: new Date(settlesAtOf(base)), settledPosition: settledPositionOf(base) };
+}
+
+/** Whether a room has a spin sitting in its waiting room (created, not yet moving). */
+export async function isSpinWaiting(roomId: string): Promise<boolean> {
+  const spin = await prisma.roomSpin.findUnique({ where: { roomId }, select: { timestamp0: true, updatedAt: true } });
+  return !!spin && !isStale(spin) && Date.now() < spin.timestamp0.getTime();
+}
+
+/** Keeps a waiting room open while the room lobby has members in it: pushes the start time out to a
+ * fresh waiting-room window once less than half of it is left. Returns whether the spin is still
+ * waiting. Only moves the start if nobody else has (so it cannot undo a spin that just started). */
+export async function extendWaitingRoom(roomId: string): Promise<boolean> {
+  const spin = await prisma.roomSpin.findUnique({ where: { roomId } });
+  if (!spin || isStale(spin)) return false;
+  const now = Date.now();
+  if (now >= spin.timestamp0.getTime()) return false;
+  if (spin.timestamp0.getTime() - now > SPIN_WAITING_ROOM_MS / 2) return true;
+  const start = now + SPIN_WAITING_ROOM_MS;
+  const base: SpinBase = { position0: spin.position0, velocity0: spin.velocity0, timestamp0: start };
+  await prisma.roomSpin.updateMany({
+    where: { roomId, timestamp0: spin.timestamp0 },
+    data: { timestamp0: new Date(start), ...settleFields(storedPlay(spin), base) },
+  });
+  return true;
+}
+
+/** Ends a spin's waiting room right now so it starts moving. A no-op when it already has. */
+export async function startSpinNow(roomId: string): Promise<void> {
+  const spin = await prisma.roomSpin.findUnique({ where: { roomId } });
+  if (!spin || isStale(spin)) return;
+  const now = Date.now();
+  if (now >= spin.timestamp0.getTime()) return;
+  const base: SpinBase = { position0: spin.position0, velocity0: spin.velocity0, timestamp0: now };
+  await prisma.roomSpin.updateMany({
+    where: { roomId, timestamp0: spin.timestamp0 },
+    data: { timestamp0: new Date(now), ...settleFields(storedPlay(spin), base) },
+  });
 }
 
 /** Brings a mode's round up to now (deals once the waiting room closes, runs out timers - see
@@ -414,6 +452,15 @@ export default async function roomSpinRoutes(app: FastifyInstance) {
 
       const now = Date.now();
       if (now >= spin.timestamp0.getTime()) {
+        const dto = await toSpinDto(spin, userId);
+        if (!dto) throw new HttpError(404, 'No active spin');
+        return { spin: dto };
+      }
+
+      // While members are in the room's mini game, "start now" is a vote: the spin starts once more
+      // than half of the members in the mini game have voted (see services/spinLobbyHub.ts).
+      if (spinLobbyHub.hasMembers(roomId)) {
+        if (!spinLobbyHub.castVote(roomId, userId, true)) throw new HttpError(409, 'Join the mini game to vote to start the spin');
         const dto = await toSpinDto(spin, userId);
         if (!dto) throw new HttpError(404, 'No active spin');
         return { spin: dto };

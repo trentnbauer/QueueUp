@@ -19,6 +19,8 @@ import aiSearchRoutes from './routes/aiSearch.js';
 import yearStoryRoutes from './routes/yearStory.js';
 import roomRecapRoutes from './routes/roomRecap.js';
 import roomSpinRoutes from './routes/roomSpin.js';
+import spinLobbyRoutes from './routes/spinLobby.js';
+import websocket from '@fastify/websocket';
 import roomSystemsRoutes from './routes/roomSystems.js';
 import journalRoutes from './routes/journal.js';
 import tagRoutes from './routes/tags.js';
@@ -109,7 +111,7 @@ export async function buildApp() {
         // googletagmanager.com / google-analytics.com: Google Analytics, only loaded when the operator
         // sets a measurement id (see /api/analytics-config).
         scriptSrc: ["'self'", 'https://challenges.cloudflare.com', 'https://www.googletagmanager.com'],
-        connectSrc: ["'self'", 'https://*.google-analytics.com', 'https://*.analytics.google.com', 'https://*.googletagmanager.com'],
+        connectSrc: ["'self'", new URL(env.APP_BASE_URL).origin.replace(/^http/, 'ws'), 'https://*.google-analytics.com', 'https://*.analytics.google.com', 'https://*.googletagmanager.com'],
         // The "Watch trailer" player embeds YouTube (privacy-enhanced domain, no cookies until play);
         // Turnstile's challenge runs in a Cloudflare iframe.
         frameSrc: ["'self'", 'https://www.youtube-nocookie.com', 'https://challenges.cloudflare.com'],
@@ -160,6 +162,8 @@ export async function buildApp() {
     }
   });
 
+  // WebSockets for the room lobby (routes/spinLobby.ts). Messages are tiny JSON, so a small cap.
+  await app.register(websocket, { options: { maxPayload: 1024 } });
   await app.register(sessionPlugin);
   await app.register(authPlugin);
 
@@ -191,6 +195,7 @@ export async function buildApp() {
       await instance.register(yearStoryRoutes);
       await instance.register(roomRecapRoutes);
       await instance.register(roomSpinRoutes);
+      await instance.register(spinLobbyRoutes);
       await instance.register(roomSystemsRoutes);
       await instance.register(journalRoutes);
       await instance.register(tagRoutes);

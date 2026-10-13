@@ -6,3 +6,4 @@ export * from './backlogHeuristics.js';
 export * from './playtimeSignals.js';
 export * from './spinModes.js';
 export * from './aiBenchmark.js';
+export * from './spinLobby.js';

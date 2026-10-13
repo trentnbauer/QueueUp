@@ -197,6 +197,8 @@ export const room: Record<keyof typeof en, string> = {
   "room.settings.discordOn.other": "Webhook on · {n} events shouted",
   "room.settings.aiRow": "Crew’s AI parrot",
   "room.settings.aiRowSub": "Whose AI key this crew be usin’",
+  "room.settings.lobbyRow": "Deck games",
+  "room.settings.lobbyRowSub": "Play with the crew, no spin needed",
   "room.settings.sessionTitle": "Usual voyage",
   "room.settings.sessionHint": "How long a usual play session be for this ship. Used to reckon how many sessions a game takes to finish.",
   "room.settings.sessionHours": "{hours}h",
