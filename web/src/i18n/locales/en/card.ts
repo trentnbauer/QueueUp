@@ -9,7 +9,6 @@ export const card = {
   "card.merge.swapKeep": "Keep {title} instead",
   "card.merge.swapKeepAria": "Keep {title} instead",
   "card.merge.swapShort": "Swap which is kept",
-  "card.merge.replay": "Replay",
   "card.merge.stageAria": "Merge preview",
   "card.merge.srLine": "{remove} merges into {keep}. {remove} is removed; {keep} is kept.",
   "card.merge.includes": "Includes {title}",

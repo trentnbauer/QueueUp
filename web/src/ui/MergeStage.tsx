@@ -19,11 +19,6 @@ export interface MergeGame {
   playtimeHours?: number | null;
 }
 
-/** True when the person has asked their system for less motion. */
-export function prefersReducedMotion(): boolean {
-  return typeof matchMedia !== 'undefined' && matchMedia('(prefers-reduced-motion: reduce)').matches;
-}
-
 /** Below this width the stage uses the compact layout (small covers, one-column details). */
 const COMPACT_BELOW = 412;
 
@@ -40,30 +35,6 @@ export function useStageWidth<T extends HTMLElement>(): [(el: T | null) => void,
   }, []);
   useEffect(() => () => observer.current?.disconnect(), []);
   return [ref, width];
-}
-
-/** Runs a timeline of phases from the first to the last, and again whenever `restartKey` changes or `replay` is called. With reduced
- * motion it goes straight to the final phase. */
-export function usePhases<P extends string>(phases: { phase: P; at: number }[], restartKey: string): { phase: P; replay: () => void; reduced: boolean } {
-  const first = phases[0].phase;
-  const last = phases[phases.length - 1].phase;
-  const reduced = prefersReducedMotion();
-  const [phase, setPhase] = useState<P>(reduced ? last : first);
-  const [runs, setRuns] = useState(0);
-  const timeline = useRef(phases);
-  timeline.current = phases;
-
-  useEffect(() => {
-    if (reduced) {
-      setPhase(last);
-      return;
-    }
-    setPhase(first);
-    const timers = timeline.current.slice(1).map((p) => setTimeout(() => setPhase(p.phase), p.at));
-    return () => timers.forEach(clearTimeout);
-  }, [restartKey, runs, reduced, first, last]);
-
-  return { phase, replay: () => setRuns((n) => n + 1), reduced };
 }
 
 const DATE_WIDE = { day: 'numeric', month: 'short', year: 'numeric', timeZone: 'UTC' } as const;
@@ -241,22 +212,6 @@ export function MergeStage({
   const t = useT();
   const [stageRef, width] = useStageWidth<HTMLDivElement>();
   const m = stageMetrics(width);
-  const { phase, replay, reduced } = usePhases<'reset' | 'apart' | 'merging' | 'merged'>(
-    [
-      { phase: 'reset', at: 0 },
-      { phase: 'apart', at: 40 },
-      { phase: 'merging', at: 1300 },
-      { phase: 'merged', at: 1850 },
-    ],
-    `${remove.title}|${keep.title}`,
-  );
-  const apart = phase === 'apart' || phase === 'reset';
-  const merged = phase === 'merged';
-  const transition = phase === 'reset' ? 'none' : 'transform .7s cubic-bezier(.6,0,.3,1), opacity .5s ease';
-  const half = m.gap / 2;
-
-  const removedTransform = apart ? 'translateX(0) scale(1)' : `translateX(calc(50% + ${half}px)) scale(0.5)`;
-  const keptTransform = apart ? 'translateX(0) scale(1)' : `translateX(calc(-50% - ${half}px)) scale(${merged ? 1 : 1.06})`;
   const baseShadow = '0 10px 24px oklch(0 0 0 / 0.35)';
   const sr = t('card.merge.srLine', { remove: remove.title, keep: keep.title });
   const text = consequence ?? (m.compact ? t('card.merge.consequenceShort', { keep: keep.title }) : t('card.merge.consequence', { remove: remove.title, keep: keep.title }));
@@ -271,7 +226,7 @@ export function MergeStage({
       >
         <span
           aria-hidden="true"
-          style={st(`position:absolute;left:50%;top:${Math.round(m.pad + 21 + (m.coverW * 1.5) / 2 - 16)}px;transform:translateX(-50%);font:700 26px var(--font-ui);color:var(--muted);opacity:${phase === 'apart' ? 1 : 0};transition:opacity .35s ease;pointer-events:none`)}
+          style={st(`position:absolute;left:50%;top:${Math.round(m.pad + 21 + (m.coverW * 1.5) / 2 - 16)}px;transform:translateX(-50%);font:700 26px var(--font-ui);color:var(--muted);pointer-events:none`)}
         >
           →
         </span>
@@ -284,10 +239,10 @@ export function MergeStage({
           coverW={m.coverW}
           colW={m.colW}
           titleSize={m.titleSize}
-          transform={removedTransform}
-          opacity={phase === 'reset' || !apart ? 0 : 1}
+          transform="none"
+          opacity={1}
           zIndex={1}
-          transition={transition}
+          transition="none"
           coverShadow={baseShadow}
           coverFilter="grayscale(0.6) brightness(0.8)"
         />
@@ -300,22 +255,11 @@ export function MergeStage({
           coverW={m.coverW}
           colW={m.colW}
           titleSize={m.titleSize}
-          transform={keptTransform}
-          opacity={phase === 'reset' ? 0 : 1}
+          transform="none"
+          opacity={1}
           zIndex={2}
-          transition={transition}
-          coverShadow={merged ? `0 0 0 3px var(--mint), 0 0 28px var(--mintSoft), ${baseShadow}` : `0 0 0 3px var(--mint), ${baseShadow}`}
-          badge={
-            <span
-              role="img"
-              aria-label={t('card.merge.includes', { title: remove.title })}
-              style={st(
-                `position:absolute;top:-8px;right:-10px;height:24px;padding:0 8px;border-radius:999px;background:var(--mint);color:var(--sheet);font:700 12px var(--font-ui);display:flex;align-items:center;opacity:${merged ? 1 : 0};transform:scale(${merged ? 1 : 0.4});transition:opacity .3s ease, transform .4s cubic-bezier(.3,1.6,.5,1)`,
-              )}
-            >
-              +1
-            </span>
-          }
+          transition="none"
+          coverShadow={`0 0 0 3px var(--mint), ${baseShadow}`}
         />
         <span style={st('position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap')}>{sr}</span>
       </div>
@@ -336,11 +280,6 @@ export function MergeStage({
                 {rich(t('card.merge.swapKeep'), { title: <span key="t" style={st(`min-width:0;max-width:${Math.max(80, Math.round(m.inner - 170))}px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis`)}>{remove.title}</span> })}
               </span>
             )}
-          </button>
-        )}
-        {!reduced && (
-          <button type="button" onClick={replay} style={st('flex-shrink:0;height:34px;padding:0 12px;border-radius:999px;border:none;background:none;color:var(--muted);font:600 12.5px var(--font-ui)')}>
-            ↻ {t('card.merge.replay')}
           </button>
         )}
       </div>
