@@ -13,6 +13,7 @@ export const home: Record<keyof typeof en, string> = {
   "home.tab.paused": "Anchored",
   "home.search.visited": "Already opened in this search",
   "home.tab.adult": "Adult games",
+  "home.tab.merged": "Merged",
   "home.tab.wontPlay": "Walked the plank",
 
   // Status card next steps (lib/gameView NEXT_ACTIONS)

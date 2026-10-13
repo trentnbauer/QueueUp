@@ -101,6 +101,8 @@ export const SHELF_MORE_TABS: TabDef[] = [
   tabDef('wont_play', 'home.tab.wontPlay', ['wont_play']),
   // Every game flagged as adult (IGDB, Steam, the AI check), in any status and hidden or not, so they can be reviewed in one place.
   { ...tabDef('adult', 'home.tab.adult', []), match: (g: Game) => g.sensitiveContent === true },
+  // Games merged into another: they have no card any more, so this tab lists the merges rather than games (see MergedGamesList).
+  { ...tabDef('merged', 'home.tab.merged', []), match: () => false },
 ];
 
 // ---------------------------------------------------------------------------------------------

@@ -11,6 +11,7 @@ export const home = {
   "home.tab.paused": "Paused",
   "home.search.visited": "Already opened in this search",
   "home.tab.adult": "Adult games",
+  "home.tab.merged": "Merged",
   "home.tab.wontPlay": "Won't play",
 
   // Status card next steps (lib/gameView NEXT_ACTIONS)
