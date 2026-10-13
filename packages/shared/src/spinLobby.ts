@@ -1,32 +1,77 @@
-// The live room lobby: a small shared arena members can play in while they wait for a spin (or
-// just for fun, without one). One WebSocket per member per room; the server owns the simulation and
-// sends a snapshot every tick, the client only sends what the person is pressing. Results are
-// cosmetic - nothing here touches a spin's outcome.
+// The live room lobby: a small server-run game members can play while they wait for a spin (or just
+// for fun, without one). One WebSocket per member per room; the server owns the simulation and sends
+// a snapshot every tick, the client only sends what the person is pressing. Results are cosmetic -
+// nothing here touches a spin's outcome.
+//
+// A game is a module on the server (services/lobbyGames/) plus a drawing function in the browser
+// (web/src/lobbyGames/). To add one: give it an id here, a snapshot type, a server module and a
+// renderer.
 
-/** The arena is a unit square; positions are 0..1 on both axes. */
-export const LOBBY_ARENA_SIZE = 1;
 /** Server ticks per second (and snapshots per second). */
 export const LOBBY_TICK_HZ = 15;
-/** Distance a player covers per second, in arena units. */
-export const LOBBY_PLAYER_SPEED = 0.4;
+
+/** The games the lobby can run. */
+export type LobbyGameId = 'totem';
+export const LOBBY_GAME_IDS: readonly LobbyGameId[] = ['totem'];
 
 /** What a client sends. Anything else is ignored. */
 export type LobbyClientMessage =
   /** The direction the person is holding, each -1, 0 or 1. Sent only when it changes. */
   | { t: 'input'; dx: number; dy: number }
+  /** A one-off move the current game understands, such as `punch`. */
+  | { t: 'action'; name: string }
   /** Vote (or take the vote back) to leave the lobby and go to the spin. */
   | { t: 'vote'; on: boolean };
 
-export interface LobbyPlayer {
+/** Longest action name the server accepts. */
+export const LOBBY_ACTION_NAME_MAX = 16;
+
+// ---- Totem push-off ------------------------------------------------------------------------------
+
+export type TotemPhase =
+  /** Fewer than two players: walk around freely, nobody can fall. */
+  | 'lobby'
+  /** Everyone is placed on the totem; the round starts when it runs out. */
+  | 'countdown'
+  | 'playing'
+  /** The round has a winner (or a draw); a new one starts soon. */
+  | 'over';
+
+export interface TotemPlayer {
   id: string;
   x: number;
   y: number;
+  /** On the totem and in the round. False once knocked off, or if they arrived mid-round. */
+  alive: boolean;
+  /** Rounds won since this person joined the lobby. */
+  wins: number;
+  /** Milliseconds since this player last punched, capped (for the swing animation). */
+  punchAgo: number;
+  /** Milliseconds until they can punch again; 0 when ready. */
+  cooldown: number;
 }
+
+export interface TotemSnapshot {
+  id: 'totem';
+  phase: TotemPhase;
+  /** Radius of the totem in arena units, centred at (0.5, 0.5). Shrinks during a round. */
+  radius: number;
+  players: TotemPlayer[];
+  /** Milliseconds left in `countdown` or `over`; 0 otherwise. */
+  timerMs: number;
+  /** Who won the round that just ended (`over` only); null for a draw. */
+  winnerId: string | null;
+}
+
+export const TOTEM_CENTER = 0.5;
+
+/** The snapshot of whichever game is running. */
+export type LobbyGameSnapshot = TotemSnapshot;
 
 export interface LobbySnapshot {
   t: 'state';
   tick: number;
-  players: LobbyPlayer[];
+  game: LobbyGameSnapshot;
   /** Members in the lobby who have voted to spin. */
   voters: string[];
   /** Votes it takes: more than half of the members currently in the lobby. */

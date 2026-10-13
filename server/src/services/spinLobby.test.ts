@@ -1,10 +1,25 @@
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import { SpinLobby } from './spinLobby.js';
+
+const snapshot = () => ({ id: 'totem' as const, phase: 'lobby' as const, radius: 0.4, players: [], timerMs: 0, winnerId: null });
+const fakeGame = () => ({
+  id: 'totem' as const,
+  join: vi.fn(),
+  leave: vi.fn(),
+  input: vi.fn(),
+  action: vi.fn(),
+  tick: vi.fn(),
+  snapshot: vi.fn(snapshot),
+});
+const lobbyOf = (...ids: string[]) => {
+  const lobby = new SpinLobby(fakeGame());
+  ids.forEach((id) => lobby.join(id));
+  return lobby;
+};
 
 describe('SpinLobby votes', () => {
   it('needs more than half of the members in the lobby', () => {
-    const lobby = new SpinLobby();
-    ['a', 'b', 'c'].forEach((u) => lobby.join(u));
+    const lobby = lobbyOf('a', 'b', 'c');
     expect(lobby.needed).toBe(2);
     lobby.vote('a', true);
     expect(lobby.votePassed).toBe(false);
@@ -13,13 +28,11 @@ describe('SpinLobby votes', () => {
   });
 
   it('lets one person spin alone, and needs 3 of 4', () => {
-    const solo = new SpinLobby();
-    solo.join('a');
+    const solo = lobbyOf('a');
     solo.vote('a', true);
     expect(solo.votePassed).toBe(true);
 
-    const four = new SpinLobby();
-    ['a', 'b', 'c', 'd'].forEach((u) => four.join(u));
+    const four = lobbyOf('a', 'b', 'c', 'd');
     expect(four.needed).toBe(3);
     four.vote('a', true);
     four.vote('b', true);
@@ -27,8 +40,7 @@ describe('SpinLobby votes', () => {
   });
 
   it('only counts members who are in the lobby, and drops a vote when its owner leaves', () => {
-    const lobby = new SpinLobby();
-    ['a', 'b', 'c'].forEach((u) => lobby.join(u));
+    const lobby = lobbyOf('a', 'b', 'c');
     lobby.vote('a', true);
     lobby.vote('x', true); // never joined
     expect(lobby.snapshot(true).voters).toEqual(['a']);
@@ -38,17 +50,14 @@ describe('SpinLobby votes', () => {
   });
 
   it('takes a vote back', () => {
-    const lobby = new SpinLobby();
-    ['a', 'b'].forEach((u) => lobby.join(u));
+    const lobby = lobbyOf('a', 'b');
     lobby.vote('a', true);
     lobby.vote('a', false);
     expect(lobby.snapshot(true).voters).toEqual([]);
   });
 
   it('counts a person with two tabs once, and keeps them until the last tab closes', () => {
-    const lobby = new SpinLobby();
-    lobby.join('a');
-    lobby.join('a');
+    const lobby = lobbyOf('a', 'a');
     expect(lobby.size).toBe(1);
     lobby.vote('a', true);
     lobby.leave('a');
@@ -60,36 +69,40 @@ describe('SpinLobby votes', () => {
   });
 });
 
-describe('SpinLobby movement', () => {
-  it('moves a player in the held direction, stays in the arena and ignores bad input', () => {
-    const lobby = new SpinLobby();
+describe('SpinLobby and its game', () => {
+  it('tells the game about a person once, however many tabs they have open', () => {
+    const game = fakeGame();
+    const lobby = new SpinLobby(game);
     lobby.join('a');
-    const start = lobby.snapshot(false).players[0];
-    lobby.setInput('a', 1, 0);
-    lobby.tick(100);
-    const moved = lobby.snapshot(false).players[0];
-    expect(moved.x).toBeGreaterThan(start.x);
-    expect(moved.y).toBe(start.y);
-
-    lobby.setInput('a', 99, 'nope');
-    lobby.tick(100);
-    expect(lobby.snapshot(false).players[0]).toEqual(moved); // both clamp to 0: no movement
-
-    lobby.setInput('a', -1, 0);
-    for (let i = 0; i < 100; i++) lobby.tick(250);
-    expect(lobby.snapshot(false).players[0].x).toBe(0);
+    lobby.join('a');
+    expect(game.join).toHaveBeenCalledTimes(1);
+    lobby.leave('a');
+    expect(game.leave).not.toHaveBeenCalled();
+    lobby.leave('a');
+    expect(game.leave).toHaveBeenCalledWith('a');
   });
 
-  it('does not move diagonals faster than straight lines', () => {
-    const lobby = new SpinLobby();
+  it('passes clamped input and valid actions from people in the lobby, and nobody else', () => {
+    const game = fakeGame();
+    const lobby = new SpinLobby(game);
     lobby.join('a');
-    lobby.join('b');
-    lobby.setInput('a', 1, 0);
-    lobby.setInput('b', 1, 1);
-    const before = lobby.snapshot(false).players;
-    lobby.tick(200);
-    const after = lobby.snapshot(false).players;
-    const dist = (i: number) => Math.hypot(after[i].x - before[i].x, after[i].y - before[i].y);
-    expect(dist(1)).toBeCloseTo(dist(0), 2);
+    lobby.setInput('a', 99, -1);
+    expect(game.input).toHaveBeenCalledWith('a', 0, -1);
+    lobby.setInput('stranger', 1, 0);
+    lobby.action('a', 'punch');
+    lobby.action('a', 42);
+    lobby.action('a', 'x'.repeat(100));
+    lobby.action('stranger', 'punch');
+    expect(game.input).toHaveBeenCalledTimes(1);
+    expect(game.action).toHaveBeenCalledTimes(1);
+    expect(game.action).toHaveBeenCalledWith('a', 'punch');
+  });
+
+  it('ticks the game and includes its snapshot', () => {
+    const game = fakeGame();
+    const lobby = new SpinLobby(game);
+    lobby.tick(66);
+    expect(game.tick).toHaveBeenCalledWith(66);
+    expect(lobby.snapshot(true)).toMatchObject({ t: 'state', tick: 1, spinWaiting: true, game: { id: 'totem' } });
   });
 });
