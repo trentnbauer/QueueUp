@@ -7,6 +7,7 @@ import { suggestBundleGames } from '../services/bundleSuggestions.js';
 import { createGameForUser } from '../services/gameIntake.js';
 import { markOwned, unionOwnershipPlatforms } from '../services/gameOwnership.js';
 import { requireMembership } from '../services/roomAccess.js';
+import { fillPlayAfterFromSeries } from '../services/seriesPrefill.js';
 
 /** A bundle card the person can act on, or an error: on their own shelf, or in a room they are in where they added it or run the
  * room (issue #1170). */
@@ -75,6 +76,8 @@ export default async function bundleRoutes(app: FastifyInstance) {
       }
       // Which games are now inside the bundle (the client offers to review them when the bundle was Beaten).
       const linked = await prisma.game.findMany({ where: { bundleGameId: game.id }, select: { id: true, igdbId: true } });
+      // "Play after" from the series for the games now inside (existing ones too: they may only now have a neighbour).
+      await fillPlayAfterFromSeries({ roomId: game.roomId, ownerId: game.addedBy }, linked.map((l) => l.id));
       return { linked };
     },
   );

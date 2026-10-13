@@ -11,6 +11,7 @@ import type { CollectionGamesResult, GameSeriesResponse, GameStatus } from '@que
  *  - only when the earlier game is not finished or set aside, and the later one is not either;
  *  - only when the two released at least MIN_GAP_DAYS apart (same-year or near-duplicate releases are the ambiguous ones);
  *  - never DLC/add-ons (they have a base game, not a predecessor);
+ *  - never a bundle card (a collection has no place in the order; the games inside it do, and are linked in as they are added);
  *  - never over a choice the person made: any "Play after" they set or cleared by hand is theirs for good
  *    (`prerequisiteSource` = 'manual'), and only an untouched empty one is ever filled, as 'auto', so the page can say
  *    where it came from and let them change or clear it. */
@@ -26,6 +27,8 @@ export interface PrefillGame {
   prerequisiteGameId: string | null;
   prerequisiteSource: string | null;
   baseGameId: string | null;
+  /** A card that other games are linked into as their bundle. */
+  isBundle?: boolean;
 }
 
 /** Which games should get which "Play after", looking only at pairs where one of the two is in `touched` (the games
@@ -33,7 +36,7 @@ export interface PrefillGame {
 export function planPrefill(games: PrefillGame[], touched: ReadonlySet<string>): { gameId: string; prerequisiteId: string }[] {
   const bySeries = new Map<number, PrefillGame[]>();
   for (const g of games) {
-    if (g.igdbCollectionId === null || g.releaseTs === null || g.baseGameId !== null) continue;
+    if (g.igdbCollectionId === null || g.releaseTs === null || g.baseGameId !== null || g.isBundle) continue;
     const list = bySeries.get(g.igdbCollectionId) ?? [];
     list.push(g);
     bySeries.set(g.igdbCollectionId, list);
@@ -70,6 +73,9 @@ export async function fillPlayAfterFromSeries(scope: { roomId: string | null; ow
       where: { ...where, igdbCollectionId: { in: seriesIds }, archivedAt: null },
       select: { id: true, igdbCollectionId: true, releaseDate: true, releaseYear: true, status: true, prerequisiteGameId: true, prerequisiteSource: true, baseGameId: true },
     });
+    const bundles = new Set(
+      (await prisma.game.findMany({ where: { ...where, bundleGameId: { not: null }, archivedAt: null }, select: { bundleGameId: true } })).map((r) => r.bundleGameId),
+    );
     const games: PrefillGame[] = rows.map((r) => ({
       id: r.id,
       igdbCollectionId: r.igdbCollectionId,
@@ -78,6 +84,7 @@ export async function fillPlayAfterFromSeries(scope: { roomId: string | null; ow
       prerequisiteGameId: r.prerequisiteGameId,
       prerequisiteSource: r.prerequisiteSource,
       baseGameId: r.baseGameId,
+      isBundle: bundles.has(r.id),
     }));
     for (const step of planPrefill(games, new Set(addedGameIds))) {
       // The guard in the where makes it race-safe: only still-empty, still-untouched ones are filled.

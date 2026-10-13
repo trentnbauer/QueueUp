@@ -16,6 +16,14 @@ const game = (over: Partial<PrefillGame> & { yearsAfter?: number } = {}): Prefil
 };
 
 describe('planPrefill', () => {
+  it('leaves a bundle card out of the order, and chains the games inside it', () => {
+    const one = game({ id: 'one', yearsAfter: 0 });
+    const bundle = game({ id: 'bundle', yearsAfter: 5, isBundle: true });
+    const two = game({ id: 'two', yearsAfter: 2 });
+    const all = new Set(['one', 'two', 'bundle']);
+    expect(planPrefill([one, bundle, two], all)).toEqual([{ gameId: 'two', prerequisiteId: 'one' }]);
+  });
+
   it('points a sequel at the closest earlier game of its series', () => {
     const one = game({ id: 'one', yearsAfter: 0 });
     const two = game({ id: 'two', yearsAfter: 2 });
