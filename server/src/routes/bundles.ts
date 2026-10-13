@@ -40,7 +40,7 @@ export default async function bundleRoutes(app: FastifyInstance) {
   app.post<{ Params: { id: string }; Body: SplitBundleRequest }>(
     '/api/games/:id/split-bundle',
     { config: { rateLimit: { max: 10, timeWindow: '1 minute' } } },
-    async (request, reply) => {
+    async (request) => {
       const userId = await request.requireAuth();
       const game = await loadBundleGame(userId, request.params.id);
       const igdbIds = parseBundleIgdbIds(request.body?.igdbIds).filter((i) => i !== game.igdbId);
@@ -66,7 +66,9 @@ export default async function bundleRoutes(app: FastifyInstance) {
       if (ownership && owned.length === 0) await markOwned(userId, igdbIds);
       // The bundle stays on the list, and its games point back at it (a game already inside another bundle stays there).
       await prisma.game.updateMany({ where: { ...scopeWhere, igdbId: { in: igdbIds }, bundleGameId: null, id: { not: game.id } }, data: { bundleGameId: game.id } });
-      reply.status(204);
+      // Which games are now inside the bundle (the client offers to review them when the bundle was Beaten).
+      const linked = await prisma.game.findMany({ where: { bundleGameId: game.id }, select: { id: true, igdbId: true } });
+      return { linked };
     },
   );
 }

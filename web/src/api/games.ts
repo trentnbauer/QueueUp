@@ -48,6 +48,7 @@ import type { BundleSuggestion, SplitBundleRequest, GameSeriesResponse, GameRequ
   MergeGameRequest,
   MergedGame,
   SetTargetPriceRequest,
+  SplitBundleResponse,
   ShelfActivityPage,
   SteamCompletionsSyncResult,
   SteamImportProgress,
@@ -148,7 +149,7 @@ export const gamesApi = {
   /** The games a bundle card probably holds (issue #857). */
   bundleSuggestions: (id: string) => apiGet<{ suggestions: BundleSuggestion[] }>(`/api/games/${id}/bundle-suggestions`),
   /** Replaces a bundle card with the games inside it. */
-  splitBundle: (id: string, igdbIds: number[]) => apiPost<void>(`/api/games/${id}/split-bundle`, { igdbIds } satisfies SplitBundleRequest),
+  splitBundle: (id: string, igdbIds: number[]) => apiPost<SplitBundleResponse>(`/api/games/${id}/split-bundle`, { igdbIds } satisfies SplitBundleRequest),
   markBundle: (gameId: string) => apiPost<void>('/api/games/duplicates/bundle', { gameId }),
   mergeGame: (id: string, body: MergeGameRequest) => apiPost<{ game: Game; mergedFromId: string; undoToken?: string }>(`/api/games/${id}/merge`, body),
   /** Undoes a merge or re-match within a few minutes of it, using the token that came back with it. */
