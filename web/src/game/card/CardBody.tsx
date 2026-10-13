@@ -1,6 +1,7 @@
 import type { ReactNode } from 'react';
 import type { Game, GameStatus } from '@queueup/shared';
 import { useScope } from '../../context/ScopeContext';
+import { useUi } from '../../context/UiContext';
 import { fmtMoney } from '../../lib/gameView';
 import { st } from '../../ui/st';
 import { useIsMobile } from '../../ui/useLayout';
@@ -53,7 +54,9 @@ function CoopWarning({ game }: { game: Game }) {
 /** "Co-op shooter · 2020 · up to 4 players · ★ 8.7 · 60 GB · 🏆 10/20 · via Steam": whichever parts are known. */
 function MetaLine({ game }: { game: Game }) {
   const t = useT();
-  const { isShelf } = useScope();
+  const { isShelf, games } = useScope();
+  const ui = useUi();
+  const bundle = game.bundleGameId ? games.find((g) => g.id === game.bundleGameId) : undefined;
   const players = playersKind(game);
   const star = starScore(game.reviewScore);
   const parts: ReactNode[] = [];
@@ -67,6 +70,14 @@ function MetaLine({ game }: { game: Game }) {
   const ach = game.myAchievements;
   if (ach && ach.total > 0) parts.push(<span key="ach" title={t('home.row.achievements', { unlocked: ach.unlocked, total: ach.total })} style={ach.unlocked >= ach.total ? { color: 'var(--star)' } : undefined}>🏆 {ach.unlocked}/{ach.total}</span>);
   if (isShelf && game.syncSources.length > 0) parts.push(<span key="sync">{t('card.hero.via', { sources: game.syncSources.map((s) => t(SYNC_SOURCE_KEY[s])).join(' · ') })}</span>);
+  // A game that came out of a bundle links back to it (issue #1172): the bundle opens to its list of games.
+  if (bundle) {
+    parts.push(
+      <button key="bundle" type="button" onClick={() => ui.selectGame(bundle.id)} style={st('border:none;background:none;padding:0;color:inherit;font:inherit;text-decoration:underline;text-underline-offset:3px;cursor:pointer')}>
+        {t('card.bundle.from', { title: bundle.title })}
+      </button>,
+    );
+  }
   return (
     <>
       {parts.map((p, i) => (
