@@ -12,6 +12,7 @@ import {
   prereqGame,
   priceLabel,
   rowChip,
+  showsNewChip,
   voteCount,
   type TabDef,
 } from '../lib/gameView';
@@ -22,6 +23,8 @@ export interface RowItem {
   game: Game;
   rank: number;
   chip: string;
+  /** The row shows the "New" chip: its cover gets the gold ring and sparkle. */
+  isNew: boolean;
   meta: string;
   priceLabel: string;
   priceOwned: boolean;
@@ -43,6 +46,7 @@ export function toRowItem(g: Game, rank: number, ctx: { isShelf: boolean; tab: s
     game: g,
     rank,
     chip: rowChip(g, { tab: ctx.tab, searching: ctx.searching, prereqTitle: pq ? pq.title : null }),
+    isNew: showsNewChip(g, { tab: ctx.tab, searching: ctx.searching, prereqTitle: pq ? pq.title : null }),
     meta: metaLine(g),
     priceLabel: pl.label,
     priceOwned: pl.owned,

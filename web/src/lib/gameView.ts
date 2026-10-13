@@ -235,18 +235,27 @@ export function ownLabel(g: Game, isShelf: boolean): string {
   return t('home.ownCount', { owned: g.ownership.owned, total: g.ownership.total });
 }
 
+/** Whether a row shows the "New" chip (and so gets the gold ring and sparkle on its cover): a release from the last
+ * 60 days on the Queue or Playing tab, when no "Play after" or target-price chip takes its place. */
+export function showsNewChip(
+  g: Game,
+  ctx: { tab: string; searching: boolean; prereqTitle: string | null; now?: number },
+): boolean {
+  if (ctx.prereqTitle || (g.targetPrice && g.status === 'wishlist')) return false;
+  return !ctx.searching && (ctx.tab === 'queue' || ctx.tab === 'playing') && isNewRelease(g, ctx.now ?? Date.now()) && !!g.releaseDate;
+}
+
 /** The chip shown beside a row's title (New / Replay since / After / Target...). */
 export function rowChip(
   g: Game,
   ctx: { tab: string; searching: boolean; prereqTitle: string | null; now?: number },
 ): string {
-  const now = ctx.now ?? Date.now();
   if (ctx.prereqTitle) return t('home.chip.after', { title: ctx.prereqTitle });
   if (g.targetPrice && g.status === 'wishlist') {
     const atTarget = g.price.amount && Number(g.price.amount) <= Number(g.targetPrice);
     return t(atTarget ? 'home.chip.atTarget' : 'home.chip.target', { price: fmtMoney(g.targetPrice, g.price.currency) });
   }
-  if (!ctx.searching && (ctx.tab === 'queue' || ctx.tab === 'playing') && isNewRelease(g, now) && g.releaseDate) {
+  if (showsNewChip(g, ctx) && g.releaseDate) {
     return t('home.chip.new', { date: releaseShortDate(g.releaseDate) });
   }
   if (!ctx.searching && (ctx.tab === 'replay' || ctx.tab === 'beaten') && g.status === 'replay' && g.replayedAt) {

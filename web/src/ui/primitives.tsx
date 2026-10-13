@@ -242,6 +242,31 @@ export const GOLD = 'oklch(0.83 0.15 85)';
 /** Ring + glow drawn around a 100%-completed game's cover. */
 export const GOLD_RING = `0 0 0 2px ${GOLD}, 0 0 14px oklch(0.83 0.15 85 / 0.55)`;
 
+/** Ring + glow for a recent release's cover: a thicker, two-tone gold than the 100%-completed ring, so the two don't read the same. */
+export const NEW_RELEASE_RING = `0 0 0 2px ${GOLD}, 0 0 0 4px oklch(0.55 0.11 80 / 0.6), 0 0 16px oklch(0.83 0.15 85 / 0.65)`;
+
+/** The ✦ pinned to the top-right corner of a recent release's cover. */
+export function NewSparkle({ size }: { size: number }) {
+  return (
+    <span
+      aria-hidden="true"
+      style={{
+        position: 'absolute',
+        top: -Math.round(size * 0.4),
+        right: -Math.round(size * 0.4),
+        fontSize: size,
+        lineHeight: 1,
+        color: 'oklch(0.96 0.08 95)',
+        textShadow: `0 0 6px ${GOLD}, 0 0 12px ${GOLD}`,
+        pointerEvents: 'none',
+        zIndex: 1,
+      }}
+    >
+      ✦
+    </span>
+  );
+}
+
 /** The 🏆 badge pinned to the bottom-right corner of a 100%-completed game's cover. `size` is the
  * badge's diameter in px. */
 export function TrophyBadge({ size = 20, style }: { size?: number; style?: CSSProperties }) {
@@ -341,6 +366,7 @@ export function Cover({
   width,
   radius = 9,
   completed = false,
+  isNew = false,
   status,
   recommend,
   statusRing: showStatusRing = true,
@@ -353,6 +379,8 @@ export function Cover({
   width?: number | string;
   radius?: number;
   completed?: boolean;
+  /** A recent release (the "New" chip is showing): gold ring and a sparkle. The 100% trophy ring wins when both apply. */
+  isNew?: boolean;
   status?: GameStatus;
   /** The viewer's (or profile owner's) review verdict, which outranks `status` (#809). */
   recommend?: boolean | null;
@@ -365,7 +393,7 @@ export function Cover({
 }) {
   const badgeSize = typeof width === 'number' ? Math.max(16, Math.min(28, Math.round(width * 0.42))) : 26;
   const outline = !completed && status ? statusOutlineFor(status, recommend) : null;
-  const ring = completed ? GOLD_RING : outline && showStatusRing ? statusRing(outline) : null;
+  const ring = completed ? GOLD_RING : isNew ? NEW_RELEASE_RING : outline && showStatusRing ? statusRing(outline) : null;
   return (
     <span
       style={{
@@ -382,6 +410,7 @@ export function Cover({
     >
       {children}
       {completed && <TrophyBadge size={badgeSize} />}
+      {isNew && !completed && <NewSparkle size={Math.max(14, Math.round(badgeSize * 0.8))} />}
       {outline && <StatusBadge outline={outline} size={Math.round(badgeSize * badgeScale)} />}
     </span>
   );

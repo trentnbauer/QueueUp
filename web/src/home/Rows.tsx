@@ -65,6 +65,7 @@ export function VoteSegment({
   );
 }
 
+const NEW_CHIP = 'flex-shrink:0;height:19px;padding:0 7px;border-radius:999px;background:linear-gradient(110deg,oklch(0.62 0.12 80),oklch(0.85 0.16 88),oklch(0.62 0.12 80));color:oklch(0.28 0.06 70);font:700 10.5px var(--font-ui);display:flex;align-items:center;box-shadow:0 0 8px oklch(0.83 0.15 85 / 0.4)';
 const CHIP = 'flex-shrink:0;height:19px;padding:0 7px;border-radius:999px;background:var(--surf2);color:var(--text2);font:600 10.5px var(--font-ui);display:flex;align-items:center';
 
 /** With an install size limit on, says why a game Steam lists no size for is still shown. The size itself is in the game's card. */
@@ -150,11 +151,11 @@ export function DesktopRow({ item, showRank, bulk, selected, active, onOpen, onV
         <span style={st('width:24px;flex-shrink:0;font:700 18px var(--font-display);color:var(--rank);text-align:center')}>{item.rank}</span>
       )}
       {bulk && <SelectMark on={selected} />}
-      <Cover title={g.title} url={g.coverImageUrl} width={44} radius={9} completed={isFullyCompleted(g)} status={g.status} recommend={g.review?.recommend} statusRing={false} badgeScale={2} />
+      <Cover title={g.title} url={g.coverImageUrl} width={44} radius={9} completed={isFullyCompleted(g)} isNew={item.isNew} status={g.status} recommend={g.review?.recommend} statusRing={false} badgeScale={2} />
       <div style={st('flex:1;min-width:0;display:flex;flex-direction:column;gap:4px')}>
         <span style={st('font:600 15.5px var(--font-ui);white-space:nowrap;overflow:hidden;text-overflow:ellipsis')}>{g.title}</span>
         <span style={st('display:flex;align-items:center;gap:6px;min-width:0;font:400 12.5px var(--font-ui);color:var(--muted)')}>
-          {item.chip && <span style={st(CHIP)}>{item.chip}</span>}
+          {item.chip && <span style={st(item.isNew ? NEW_CHIP : CHIP)}>{item.chip}</span>}
           <BundleChip g={g} />
           <IgdbScoreChip g={g} />
           <SizeUnknownChip g={g} />
@@ -206,12 +207,12 @@ export function MobileRow({ item, showRank, bulk, selected, onOpen, onVote }: Ro
       <OpenOverlay label={t('home.row.open', { title: g.title })} onOpen={onOpen} />
       {showRank && <span style={st('width:20px;flex-shrink:0;font:700 17px var(--font-display);color:var(--rank);text-align:center')}>{item.rank}</span>}
       {bulk && <SelectMark on={selected} />}
-      <Cover title={g.title} url={g.coverImageUrl} width={46} radius={10} completed={isFullyCompleted(g)} status={g.status} recommend={g.review?.recommend} statusRing={false} badgeScale={2} />
+      <Cover title={g.title} url={g.coverImageUrl} width={46} radius={10} completed={isFullyCompleted(g)} isNew={item.isNew} status={g.status} recommend={g.review?.recommend} statusRing={false} badgeScale={2} />
       <div style={st('flex:1;min-width:0;display:flex;flex-direction:column;gap:6px')}>
         <div style={st('display:flex;flex-direction:column;gap:2px;min-width:0')}>
           <span style={st('font:600 15.5px var(--font-ui);white-space:nowrap;overflow:hidden;text-overflow:ellipsis')}>{g.title}</span>
           <span style={st('display:flex;align-items:center;gap:6px;min-width:0;font:400 12.5px var(--font-ui);color:var(--muted)')}>
-            {item.chip && <span style={st(CHIP)}>{item.chip}</span>}
+            {item.chip && <span style={st(item.isNew ? NEW_CHIP : CHIP)}>{item.chip}</span>}
             <BundleChip g={g} />
           <IgdbScoreChip g={g} />
             <SizeUnknownChip g={g} />
@@ -325,11 +326,11 @@ export function PlayNextRow({
       style={st('position:relative;display:flex;align-items:center;gap:12px;padding:10px;border-radius:18px;cursor:pointer')}
     >
       <OpenOverlay label={t('home.row.open', { title: g.title })} onOpen={onOpen} />
-      <Cover title={g.title} url={g.coverImageUrl} width={40} radius={9} status={g.status} recommend={g.review?.recommend} statusRing={false} badgeScale={2} />
+      <Cover title={g.title} url={g.coverImageUrl} width={40} radius={9} isNew={isNew && !!g.releaseDate} status={g.status} recommend={g.review?.recommend} statusRing={false} badgeScale={2} />
       <div style={st('flex:1;min-width:0;display:flex;flex-direction:column;gap:2px')}>
         <span style={st('font:600 15px var(--font-ui);white-space:nowrap;overflow:hidden;text-overflow:ellipsis')}>{g.title}</span>
         <span style={st('display:flex;align-items:center;gap:6px;min-width:0;font:400 12.5px var(--font-ui);color:var(--muted)')}>
-          {isNew && g.releaseDate && <span style={st(CHIP)}>{t('home.chip.new', { date: releaseShortDate(g.releaseDate) })}</span>}
+          {isNew && g.releaseDate && <span style={st(NEW_CHIP)}>{t('home.chip.new', { date: releaseShortDate(g.releaseDate) })}</span>}
           <BundleChip g={g} />
           <IgdbScoreChip g={g} />
           <SizeUnknownChip g={g} />
