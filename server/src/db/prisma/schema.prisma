@@ -1078,6 +1078,9 @@ model Room {
   /// Moderators always add directly regardless of this flag, since they're the ones who'd otherwise
   /// be approving their own suggestion.
   requireGameApproval   Boolean        @default(false) @map("require_game_approval")
+  /// Issue #1160: how long a typical play session is for this room, in hours (1-5). Null is "n/a" and
+  /// the default, so existing rooms show nothing until the Room Master sets it.
+  typicalSessionHours   Int?           @map("typical_session_hours")
   /// Who can invite people (see RoomInvitePermission). Defaults to members, which keeps the invite
   /// link visible to everyone as it always was.
   invitePermission      RoomInvitePermission @default(members) @map("invite_permission")

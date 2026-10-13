@@ -698,6 +698,22 @@ export function RoomSettingsDialog() {
           {isMaster && <NavRow label={t('room.settings.discordRow')} sub={discordSummary(room)} onClick={() => setDiscordOpen(true)} />}
           <NavRow label={t('room.settings.aiRow')} sub={t('room.settings.aiRowSub')} onClick={() => setRoomAiOpen(true)} />
         </Group>
+        {isMaster && (
+          <>
+            <span style={st('font:500 14.5px var(--font-ui);padding-top:4px')}>{t('room.settings.sessionTitle')}</span>
+            <span style={st('font:400 13px/1.45 var(--font-ui);color:var(--muted)')}>{t('room.settings.sessionHint')}</span>
+            <div style={st('display:flex;flex-wrap:wrap;gap:6px')}>
+              {[1, 2, 3, 4, 5].map((h) => (
+                <ChipToggle key={h} on={room.typicalSessionHours === h} height={36} onClick={() => patch({ typicalSessionHours: h }, t('room.settings.sessionSet', { hours: h }))}>
+                  {t('room.settings.sessionHours', { hours: h })}
+                </ChipToggle>
+              ))}
+              <ChipToggle on={room.typicalSessionHours == null} height={36} onClick={() => patch({ typicalSessionHours: null }, t('room.settings.sessionCleared'))}>
+                {t('room.settings.sessionNa')}
+              </ChipToggle>
+            </div>
+          </>
+        )}
         <span style={st('font:500 14.5px var(--font-ui);padding-top:4px')}>{t('room.settings.playNextInTitle')}</span>
         <span style={st('font:400 13px/1.45 var(--font-ui);color:var(--muted)')}>{t('room.settings.playNextInHint')}</span>
         <div style={st('display:flex;flex-wrap:wrap;gap:6px')}>

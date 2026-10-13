@@ -354,6 +354,8 @@ export interface Room {
    * approve or decline (issue #362), instead of adding directly. Room Masters/Moderators always
    * add directly regardless of this flag. Defaults to false. */
   requireGameApproval: boolean;
+  /** A typical play session in this room, in hours (1-5); null is "n/a" (issue #1160). */
+  typicalSessionHours: number | null;
   /** Who can invite people to the room: any member, or only Moderators and the Room Master. Only
    * those allowed get the invite code in `inviteCode` (and may add friends directly). */
   invitePermission: RoomInvitePermission;
@@ -911,6 +913,8 @@ export interface UpdateRoomRequest {
   spinWheelTheme?: SpinWheelTheme;
   isPublic?: boolean;
   requireGameApproval?: boolean;
+  /** 1-5 hours, or null for n/a. */
+  typicalSessionHours?: number | null;
   invitePermission?: RoomInvitePermission;
   /** Any subset of event toggles; omitted keys are left unchanged. */
   discordEvents?: Partial<RoomDiscordEvents>;
