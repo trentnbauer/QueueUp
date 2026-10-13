@@ -141,6 +141,7 @@ export const settings: Record<keyof typeof en, string> = {
   "settings.duplicates.reviewQuestion": "Merge \"{remove}\" into \"{keep}\"?",
   "settings.duplicates.willBeRemoved": "Will be merged away",
   "settings.duplicates.reviewConsequence": "Its votes, tags, reviews, play history and journal entries move to \"{keep}\". This can’t be undone.",
+  "settings.duplicates.remaster": "This is a remaster or remake",
   "settings.duplicates.markBundle": "Mark as bundle",
   "settings.duplicates.markBundleHint": "Hides the bundle from yer shelf. A bundle can hold several games listed here.",
   "settings.duplicates.bundled": "Hid \"{title}\" as a bundle.",

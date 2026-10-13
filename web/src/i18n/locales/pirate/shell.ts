@@ -12,7 +12,7 @@ export const shell: Record<keyof typeof en, string> = {
   "shell.footer.builtWith": "Built with Claude, arr",
   "shell.footer.source": "Source",
   "shell.footer.reportIssue": "Report a leak in the hull",
-  "shell.glance.askAi": "Ask the AI parrot what to play",
+  "shell.glance.askAi": "The AI parrot: recommend a game, tidy yer library and more",
   "shell.glance.personalShelf": "Personal Treasure Chest",
   "shell.mobile.createOrJoin": "Launch or board a ship",
   "shell.mobile.menu": "Yer colours, hearties, tally, messages in bottles and riggin’",

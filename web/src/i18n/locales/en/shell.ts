@@ -10,7 +10,7 @@ export const shell = {
   "shell.footer.builtWith": "Built with Claude",
   "shell.footer.source": "Source",
   "shell.footer.reportIssue": "Report an issue",
-  "shell.glance.askAi": "Ask AI what to play",
+  "shell.glance.askAi": "AI: recommend a game, tidy your library and more",
   "shell.glance.personalShelf": "Personal Shelf",
   "shell.mobile.createOrJoin": "Create or join a room",
   "shell.mobile.menu": "Your profile, friends, stats, notifications and settings",

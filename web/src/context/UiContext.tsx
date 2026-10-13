@@ -16,6 +16,7 @@ export type DialogKey =
   | 'needsReview'
   | 'sensitiveGames'
   | 'duplicates'
+  | 'aiMenu'
   | 'aiTonight'
   | 'playtime'
   | 'completions'

@@ -6,6 +6,7 @@ import { DUPLICATE_COUNT_QUERY_KEY, DUPLICATE_LIST_QUERY_KEY, gamesApi } from '.
 import { useUi } from '../context/UiContext';
 import { Dialog } from '../ui/Dialog';
 import { MergeDirection } from '../ui/MergeDirection';
+import { RemasterKindDialog } from '../game/RemasterKindDialog';
 import { trackAiActivity } from '../hooks/useAiActivity';
 import { useUndoChange } from '../hooks/useUndoChange';
 import { AiPickedBadge, Banner, Btn, Cover, Kicker, Spinner } from '../ui/primitives';
@@ -131,6 +132,8 @@ export function DuplicatesDialog() {
   const current: Row | undefined = frontPair ?? queue[0];
   const currentKey = current ? pairKey(current) : null;
   const backTo = [...history].reverse().find((k) => k !== currentKey && pairs.some((p) => pairKey(p) === k));
+  const [kindFor, setKindFor] = useState<string | null>(null);
+  const [savingKind, setSavingKind] = useState(false);
   const busy = run.isPending || merge.isPending || dismiss.isPending || bundle.isPending;
 
   /** The card to keep for a pair: the suggested one (the base game / earlier release), unless the
@@ -182,6 +185,25 @@ export function DuplicatesDialog() {
     void queryClient.invalidateQueries({ queryKey: GAMES_QUERY_ROOT });
     invalidate();
     ui.notify(t('settings.duplicates.bundled', { title: g.title }));
+  }
+
+  /** One of the two is a remaster or remake of the other: both stay, and the pair is not suggested again (issue #1173). The one that
+   * would have been removed is taken to be the later release. */
+  async function markRemaster(p: DuplicateSuggestion, kind: 'remaster' | 'remake') {
+    setError(null);
+    setSavingKind(true);
+    try {
+      await gamesApi.dismissDuplicate({ gameIdA: removeOf(p).id, gameIdB: keepOf(p).id, kind });
+      setGone((g) => [...g, pairKey(p)]);
+      moveOn(pairKey(p));
+      invalidate();
+      ui.notify(t(kind === 'remaster' ? 'game.remaster.saved.remaster' : 'game.remaster.saved.remake', { title: removeOf(p).title, original: keepOf(p).title }));
+      setKindFor(null);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : t('game.remaster.failed'));
+    } finally {
+      setSavingKind(false);
+    }
   }
 
   async function notDuplicates(p: DuplicateSuggestion) {
@@ -303,6 +325,9 @@ export function DuplicatesDialog() {
                   <GameCard key={g.id} g={g} keeping={keepOf(current).id === g.id} disabled={busy} onKeep={() => keep(current, g)} onBundle={() => void markBundle(current, g)} />
                 ))}
                 <span style={st('font:400 12.5px/1.45 var(--font-ui);color:var(--muted)')}>{t('settings.duplicates.reviewConsequence', { keep: keepOf(current).title })}</span>
+                <Btn kind="ghost" height={34} padX={10} fontSize={12.5} disabled={busy} style={{ alignSelf: 'flex-start' }} onClick={() => setKindFor(currentKey)}>
+                  ✨ {t('settings.duplicates.remaster')}
+                </Btn>
               </>
             ) : (
               emptyMessage && <span style={st('font:500 14px/1.45 var(--font-ui)')}>{emptyMessage}</span>
@@ -310,6 +335,9 @@ export function DuplicatesDialog() {
           </>
         )}
       </div>
+      {kindFor && current && currentKey === kindFor && (
+        <RemasterKindDialog title={removeOf(current).title} original={keepOf(current).title} busy={savingKind} onPick={(kind) => void markRemaster(current, kind)} onClose={() => setKindFor(null)} />
+      )}
     </Dialog>
   );
 }
