@@ -21,6 +21,7 @@ import { useStableOrder } from './useStableOrder';
 import { useIsMobile } from '../ui/useLayout';
 import { MergedGamesList } from './MergedGamesList';
 import { RoomsPlayingList, useRoomsPlaying } from './RoomsPlayingList';
+import { useRoomsInPlaying } from './roomsInPlaying';
 import { NowPlayingStrip } from './NowPlayingStrip';
 import { useQuery } from '@tanstack/react-query';
 import { MERGED_GAMES_QUERY_KEY, gamesApi } from '../api/games';
@@ -138,6 +139,7 @@ export function HomeView() {
   // The Merged tab lists merges, not games.
   const mergedTab = isShelf && tab === 'merged' && !searching;
   const roomsTab = isShelf && tab === 'rooms' && !searching;
+  const [roomsInPlaying] = useRoomsInPlaying();
   const hideGames = otherTab || mergedTab || roomsTab;
   const roomsPlayingCount = useRoomsPlaying().data?.reduce((n, g) => n + g.games.length, 0) ?? 0;
   const mergedCount = useQuery({ queryKey: MERGED_GAMES_QUERY_KEY, queryFn: gamesApi.mergedList, enabled: isShelf }).data?.merged.length ?? 0;
@@ -656,6 +658,8 @@ export function HomeView() {
           )}
         </div>
       )}
+
+      {isShelf && roomsInPlaying && tab === 'playing' && !searching && !hideGames && <RoomsPlayingList embedded />}
 
       </>
       )}
