@@ -112,6 +112,8 @@ export const gamesApi = {
   trailer: (id: string) => apiGet<GameTrailerResponse>(`/api/games/${id}/trailer`),
   /** The trailer for a game that is not on a list yet (AI picks). */
   igdbTrailer: (igdbId: number) => apiGet<GameTrailerResponse>(`/api/games/igdb/${igdbId}/trailer`),
+  /** One game by id, for opening its card when it isn't in the loaded list. */
+  get: (id: string) => apiGet<{ game: Game }>(`/api/games/${id}`),
   /** A game's IGDB add-ons; `all` keeps the ones already added (the card's DLC list shows their status). */
   dlc: (id: string, all = false) => apiGet<{ results: GameSearchResult[] }>(`/api/games/${id}/dlc${all ? '?all=1' : ''}`),
   create: (body: CreateGameRequest) => apiPost<CreateGameResponse>('/api/games', body),

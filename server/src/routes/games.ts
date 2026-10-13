@@ -697,6 +697,18 @@ export default async function gameRoutes(app: FastifyInstance) {
     },
   );
 
+  // One game, for opening its card when it isn't in the loaded list (a notification that points at it, a very long list).
+  app.get<{ Params: { id: string }; Querystring: { region?: string } }>(
+    '/api/games/:id',
+    { config: { rateLimit: { max: 60, timeWindow: '1 minute' } } },
+    async (request) => {
+      const userId = await request.requireAuth();
+      const game = await loadGameOr404(request.params.id);
+      await requireGameReadAccess(game, userId);
+      return { game: await serializeGame(game, userId, parseRegion(request.query.region)) };
+    },
+  );
+
   // A game's trailer (YouTube id from IGDB) for the vote deck / game detail "Watch trailer" button.
   // Looked up on demand and cached, so nothing is fetched until someone actually asks for it.
   app.get<{ Params: { id: string } }>(
