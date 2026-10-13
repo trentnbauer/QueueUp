@@ -427,6 +427,7 @@ export const settings = {
   "settings.deck.title": "Vote now",
   "settings.deck.toVote": "{n} TO VOTE ON",
   "settings.deck.skip": "Skip for now",
+  "settings.deck.previous": "‹ Back",
   "settings.deck.caughtUp": "You're all caught up.",
   "settings.deck.allVoted": "Every game in {room} has your vote.",
   "settings.deck.allVotedHere": "Every game in here has your vote.",
