@@ -2,6 +2,13 @@ import type { card as en } from '../en/card';
 
 /** Pirate for the "card" strings. Every English key must be here, with the same {placeholders}. */
 export const card: Record<keyof typeof en, string> = {
+  "card.merge.title": "Merge these games?",
+  "card.merge.removed": "REMOVED",
+  "card.merge.kept": "KEPT",
+  "card.merge.swap": "Swap",
+  "card.merge.confirm": "Merge",
+  "card.merge.consequence": "{remove} is removed. Its play history, votes, tags and reviews move to {keep}.",
+
   "card.bundle.which": "WHICH GAME?",
   "card.bundle.hint.one": "This bundle has {n} game. Pick it to open its card.",
   "card.bundle.hint.other": "This bundle has {n} games. Pick one to open its card.",

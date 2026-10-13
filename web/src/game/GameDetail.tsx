@@ -1,7 +1,6 @@
 import { useState } from 'react';
-import type { Game, GameStatus } from '@queueup/shared';
+import type { Game, GameSearchResult, GameStatus } from '@queueup/shared';
 import { useAuth } from '../context/AuthContext';
-import { useConfirm } from '../context/ConfirmContext';
 import { useScope } from '../context/ScopeContext';
 import { useUi } from '../context/UiContext';
 import { useSteamAutoMatch } from '../hooks/useSteamAutoMatch';
@@ -12,6 +11,7 @@ import { useT } from '../i18n';
 import { BundleSheet } from './BundleSheet';
 import { DuplicateSheet } from './DuplicateSheet';
 import { IgdbMatchSheet } from './IgdbMatchSheet';
+import { MergeConfirmDialog } from './MergeConfirmDialog';
 import { SteamMatchSheet } from './SteamMatchSheet';
 import { CardBody } from './card/CardBody';
 import { DlcCard } from './card/DlcCard';
@@ -25,7 +25,6 @@ import { useSheetEscape } from './card/useSheetEscape';
 export function GameDetail({ game, onClose, changeStatus }: { game: Game; onClose: () => void; changeStatus: (game: Game, status: GameStatus) => void }) {
   const t = useT();
   const ui = useUi();
-  const confirm = useConfirm();
   const scope = useScope();
   const { ops, games } = scope;
   const desktop = !useIsMobile();
@@ -42,6 +41,8 @@ export function GameDetail({ game, onClose, changeStatus }: { game: Game; onClos
   const [rematching, setRematching] = useState(false);
   const [markingDuplicate, setMarkingDuplicate] = useState(false);
   const [markingBundle, setMarkingBundle] = useState(false);
+  // A merge waiting to be confirmed: a duplicate picked from the list, or a re-match onto a game that is already there.
+  const [merge, setMerge] = useState<{ kind: 'duplicate'; target: Game } | { kind: 'rematch'; result: GameSearchResult } | null>(null);
 
   // Escape closes the top layer first: a sheet, then a stacked add-on card, then the card itself.
   useSheetEscape(sheet !== null, () => setSheet(null));
@@ -134,25 +135,12 @@ export function GameDetail({ game, onClose, changeStatus }: { game: Game; onClos
           gameId={game.id}
           gameTitle={game.title}
           onClose={() => setRematching(false)}
-          onMatched={async (result, merges) => {
-            if (merges) {
-              // The sheet goes first: the confirmation would open behind it (issue #856). Declining
-              // brings it back for another pick.
-              setRematching(false);
-              const ok = await confirm({
-                title: t('game.igdbMatch.merge.title'),
-                message: t('game.igdbMatch.merge.message', { from: game.title, to: result.title }),
-                confirmLabel: t('game.igdbMatch.merge'),
-                danger: true,
-              });
-              if (!ok) {
-                setRematching(true);
-                return;
-              }
-              ui.selectGame(null);
-            }
-            ops.setIgdbMatch(game.id, result.igdbId);
+          onMatched={(result, merges) => {
+            // Re-matching onto a game that is already on the list merges them: say which goes and which stays first.
+            // The sheet closes first, so the confirmation isn't behind it (issue #856); Cancel brings it back.
             setRematching(false);
+            if (merges) setMerge({ kind: 'rematch', result });
+            else ops.setIgdbMatch(game.id, result.igdbId);
           }}
         />
       )}
@@ -164,20 +152,32 @@ export function GameDetail({ game, onClose, changeStatus }: { game: Game; onClos
           game={game}
           games={games}
           onClose={() => setMarkingDuplicate(false)}
-          onPick={async (target) => {
+          onPick={(target) => {
             setMarkingDuplicate(false);
-            const ok = await confirm({
-              title: t('game.igdbMatch.merge.title'),
-              message: t('game.igdbMatch.merge.message', { from: game.title, to: target.title }),
-              confirmLabel: t('game.igdbMatch.merge'),
-              danger: true,
-            });
-            if (!ok) {
-              setMarkingDuplicate(true);
-              return;
-            }
+            setMerge({ kind: 'duplicate', target });
+          }}
+        />
+      )}
+
+      {merge && (
+        <MergeConfirmDialog
+          first={{ id: game.id, title: game.title, coverImageUrl: game.coverImageUrl }}
+          second={
+            merge.kind === 'duplicate'
+              ? { id: merge.target.id, title: merge.target.title, coverImageUrl: merge.target.coverImageUrl }
+              : { id: String(merge.result.igdbId), title: merge.result.title, coverImageUrl: merge.result.coverImageUrl }
+          }
+          allowSwap={merge.kind === 'duplicate'}
+          onCancel={() => {
+            if (merge.kind === 'duplicate') setMarkingDuplicate(true);
+            else setRematching(true);
+            setMerge(null);
+          }}
+          onConfirm={(removeId, keepId) => {
+            setMerge(null);
             ui.selectGame(null);
-            ops.mergeGame(game.id, target.id);
+            if (merge.kind === 'duplicate') ops.mergeGame(removeId, keepId);
+            else ops.setIgdbMatch(game.id, merge.result.igdbId);
           }}
         />
       )}
