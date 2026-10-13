@@ -12,4 +12,5 @@ export const SYNC_SOURCE_KEY: Record<SyncSource, MessageKey> = {
   retroachievements: 'game.detail.syncSource.retroachievements',
   file: 'game.detail.syncSource.file',
   itch: 'game.detail.syncSource.itch',
+  manual: 'game.detail.syncSource.manual',
 };

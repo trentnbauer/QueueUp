@@ -866,6 +866,9 @@ export default async function gameRoutes(app: FastifyInstance) {
     const { igdbId, roomId, status, ownedPlatforms, baseGameId } = request.body;
     const response = await createGameForUser(userId, roomId ?? null, igdbId, { status, ownedPlatforms, baseGameId: typeof baseGameId === 'string' ? baseGameId : undefined });
     reply.status(201);
+    // Added by hand from the Add Game menu (as opposed to a library sync): record that, so the
+    // shelf card's "via ..." line says where the game came from instead of showing nothing.
+    if ('game' in response && !roomId) await recordSyncSources(userId, [response.game.igdbId], 'manual');
     // Only the 'game' branch is a real, immediately-live game - a room's approval-required
     // 'suggestion' branch hasn't actually been added to anything yet, so nothing to unlock there.
     const unlockedBadges =
