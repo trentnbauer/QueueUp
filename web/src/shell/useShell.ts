@@ -6,7 +6,7 @@ import { useAttention } from '../hooks/useAttention';
 import { useIncomingFriendRequestCount } from '../hooks/useFriends';
 import { useNotificationSummary } from '../hooks/useNotifications';
 import { usePendingImportsCount } from '../hooks/usePendingImports';
-import { initialsOf } from '../ui/primitives';
+import { initialsOf, roomInitials } from '../ui/primitives';
 import { useT } from '../i18n';
 
 export interface TileModel {
@@ -56,7 +56,7 @@ export function useShell() {
   const roomTiles: TileModel[] = scope.rooms.map((r) => ({
     id: r.id,
     name: r.name,
-    short: initialsOf(r.name),
+    short: roomInitials(r.name, r.shortName),
     color: r.accentColor,
     sub: t(r.memberCount === 1 ? 'shell.tile.roomSub.one' : 'shell.tile.roomSub.other', { n: r.memberCount ?? 0, queued: r.queuedCount ?? 0 }),
     active: scope.scopeId === r.id,

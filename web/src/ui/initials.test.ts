@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { initialsOf } from './primitives';
+import { initialsOf, roomInitials } from './primitives';
 
 describe('initialsOf', () => {
   it('uses the first letter of the first two words', () => {
@@ -27,5 +27,30 @@ describe('initialsOf', () => {
   it('falls back to ? when there are no letters or digits', () => {
     expect(initialsOf('')).toBe('?');
     expect(initialsOf(' & !! ')).toBe('?');
+  });
+});
+
+describe('roomInitials', () => {
+  it('uses a short name the Room Master set, capped at four', () => {
+    expect(roomInitials('Friday Night', 'fn')).toBe('FN');
+    expect(roomInitials('Friday Night', 'abcdef')).toBe('ABCD');
+    expect(roomInitials('Friday Night', '  ')).toBe('FN');
+  });
+
+  it('takes the first letter of each word, up to four', () => {
+    expect(roomInitials('PS5 Night')).toBe('PN');
+    expect(roomInitials('Friday Night Co-op')).toBe('FNCO');
+    expect(roomInitials("Trent's Big Gaming Room Of Doom")).toBe('TBGR');
+  });
+
+  it('takes the consonants of a single word', () => {
+    expect(roomInitials('Trent')).toBe('TRNT');
+    expect(roomInitials('Friday')).toBe('FRDY');
+    expect(roomInitials('Squad')).toBe('SQD');
+  });
+
+  it('falls back to the letters when a single word has no consonants, and to ? with nothing', () => {
+    expect(roomInitials('AI')).toBe('AI');
+    expect(roomInitials('')).toBe('?');
   });
 });

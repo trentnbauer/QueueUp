@@ -38,6 +38,7 @@ import { recentlyDeletedRooms, restoreRoom, ROOM_RETENTION_DAYS, softDeleteRoom,
 const HEX_COLOUR = /^#[0-9a-fA-F]{6}$/;
 /** The name is copied into every member's notifications and activity, and into Discord posts. */
 const MAX_ROOM_NAME_LENGTH = 100;
+const MAX_ROOM_SHORT_NAME_LENGTH = 4;
 const ROOM_PLATFORMS = Object.keys(ROOM_PLATFORM_LABELS) as RoomPlatform[];
 const ROOM_ROLES: RoomRole[] = ['room_master', 'moderator', 'member'];
 
@@ -59,6 +60,7 @@ function toRoomDto(
     name: string;
     platform: RoomPlatform | null;
     accentColor: string;
+    shortName: string | null;
     createdBy: string;
     createdAt: Date;
     discordWebhookUrl: string | null;
@@ -80,6 +82,7 @@ function toRoomDto(
     name: room.name,
     platform: room.platform,
     accentColor: room.accentColor,
+    shortName: room.shortName,
     createdBy: room.createdBy,
     createdAt: room.createdAt.toISOString(),
     myRole: role,
@@ -373,7 +376,7 @@ export default async function roomRoutes(app: FastifyInstance) {
       throw new HttpError(403, 'Only the Room Master can change room settings');
     }
 
-    const { name, platform, accentColor, discordWebhookUrl, discordInviteUrl, spinOwnershipMaxPrice, spinWheelTheme, spinDefaults, isPublic, requireGameApproval, typicalSessionHours, invitePermission, discordEvents } =
+    const { name, shortName, platform, accentColor, discordWebhookUrl, discordInviteUrl, spinOwnershipMaxPrice, spinWheelTheme, spinDefaults, isPublic, requireGameApproval, typicalSessionHours, invitePermission, discordEvents } =
       request.body ?? {};
     if (invitePermission !== undefined && invitePermission !== 'members' && invitePermission !== 'moderators') {
       throw new HttpError(400, 'Invite permission must be members or moderators');
@@ -383,6 +386,10 @@ export default async function roomRoutes(app: FastifyInstance) {
     if (name !== undefined && !name.trim()) throw new HttpError(400, 'Room name cannot be empty');
     if (name !== undefined && name.trim().length > MAX_ROOM_NAME_LENGTH) throw new HttpError(400, `Room name can be at most ${MAX_ROOM_NAME_LENGTH} characters`);
     if (name !== undefined) await assertTextAllowed(name, 'That room name');
+    if (shortName !== undefined && shortName !== null && typeof shortName !== 'string') throw new HttpError(400, 'Short name must be text');
+    const shortNameValue = typeof shortName === 'string' ? shortName.trim() : shortName;
+    if (shortNameValue && Array.from(shortNameValue).length > MAX_ROOM_SHORT_NAME_LENGTH) throw new HttpError(400, `Short name can be at most ${MAX_ROOM_SHORT_NAME_LENGTH} characters`);
+    if (shortNameValue) await assertTextAllowed(shortNameValue, 'That short name');
     if (accentColor !== undefined && !HEX_COLOUR.test(accentColor)) throw new HttpError(400, 'Room colour must be a hex colour like #8b5cf6');
     // Issue #473: platform may be explicitly set to null to clear the room's restriction ("any
     // platform") - only a non-null, provided value needs to be a real RoomPlatform.
@@ -425,6 +432,7 @@ export default async function roomRoutes(app: FastifyInstance) {
       where: { id: roomId },
       data: {
         ...(name !== undefined && { name: name.trim() }),
+        ...(shortName !== undefined && { shortName: shortNameValue || null }),
         ...(platform !== undefined && { platform }),
         ...(accentColor !== undefined && { accentColor }),
         ...(discordWebhookUrl !== undefined && { discordWebhookUrl: discordWebhookUrl && encryptWebhookUrl(discordWebhookUrl, env.SESSION_SECRET) }),

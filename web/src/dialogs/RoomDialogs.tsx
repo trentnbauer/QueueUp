@@ -25,7 +25,7 @@ import { NavRow } from './SettingsParts';
 import { usePlayNextTab } from '../home/playNextTab';
 import { RoomAiSection } from './RoomAiSection';
 import { DeletedRoomsList } from './DeletedRooms';
-import { Avatar, Banner, Btn, ChipToggle, Group, Segmented, Toggle, initialsOf, inputField } from '../ui/primitives';
+import { Avatar, Banner, Btn, ChipToggle, Group, ROOM_SHORT_NAME_MAX, Segmented, Toggle, inputField, roomInitials } from '../ui/primitives';
 import { st } from '../ui/st';
 import { exportGames } from '../utils/exportGames';
 import { rich, t as tr, useT, type MessageKey } from '../i18n';
@@ -219,7 +219,7 @@ export function AddRoomDialog() {
           {publicRooms.isLoading && <div style={st('padding:16px;background:var(--surf);color:var(--muted);font-size:14px')}>{t('room.add.loadingPublic')}</div>}
           {browse.map((r) => (
             <div key={r.id} style={st('display:flex;align-items:center;gap:12px;min-height:64px;padding:10px 12px 10px 14px;background:var(--surf)')}>
-              <span style={st(`width:36px;height:36px;flex-shrink:0;border-radius:12px;background:${r.accentColor};color:#fff;display:flex;align-items:center;justify-content:center;font:600 11px var(--font-mono)`)}>{initialsOf(r.name)}</span>
+              <span style={st(`width:36px;height:36px;flex-shrink:0;border-radius:12px;background:${r.accentColor};color:#fff;display:flex;align-items:center;justify-content:center;font:600 11px var(--font-mono)`)}>{roomInitials(r.name)}</span>
               <div style={st('flex:1;min-width:0;display:flex;flex-direction:column;gap:2px')}>
                 <span style={st('font:600 15px var(--font-ui)')}>{r.name}</span>
                 <span style={st('font:400 12.5px var(--font-ui);color:var(--muted)')}>
@@ -469,6 +469,7 @@ export function RoomSettingsDialog() {
   const { room, members, games, canManage } = scope;
 
   const [name, setName] = useState(room?.name ?? '');
+  const [shortName, setShortName] = useState(room?.shortName ?? '');
   const [hexDraft, setHexDraft] = useState<string | null>(null);
   const [spinOpen, setSpinOpen] = useState(false);
   const [masterLeaveOpen, setMasterLeaveOpen] = useState(false);
@@ -562,7 +563,7 @@ export function RoomSettingsDialog() {
       gap={24}
       header={
         <>
-          <span style={st(`width:40px;height:40px;flex-shrink:0;border-radius:14px;background:${room.accentColor};color:#fff;display:flex;align-items:center;justify-content:center;font:600 12px var(--font-mono)`)}>{initialsOf(room.name)}</span>
+          <span style={st(`width:40px;height:40px;flex-shrink:0;border-radius:14px;background:${room.accentColor};color:#fff;display:flex;align-items:center;justify-content:center;font:600 12px var(--font-mono)`)}>{roomInitials(room.name, room.shortName)}</span>
           <div style={st('flex:1;min-width:0;display:flex;flex-direction:column')}>
             <span style={st('font:700 20px var(--font-display);letter-spacing:-0.02em')}>{t('room.settings.title')}</span>
             <span style={st('font:400 12.5px var(--font-ui);color:var(--muted)')}>{t('room.settings.yourRole', { role: ROLE_LABEL[room.myRole] })}</span>
@@ -598,6 +599,23 @@ export function RoomSettingsDialog() {
                 {t('common.save')}
               </Btn>
             )}
+          </div>
+          <div style={st('display:flex;flex-direction:column;gap:6px')}>
+            <div style={st('display:flex;gap:8px;align-items:center')}>
+              <input
+                value={shortName}
+                onChange={(e) => setShortName(Array.from(e.target.value).slice(0, ROOM_SHORT_NAME_MAX).join(''))}
+                placeholder={roomInitials(room.name)}
+                aria-label={t('room.settings.shortName')}
+                style={st(inputField, { width: 110, height: 46, borderRadius: 14, background: 'var(--surf)', border: '1px solid var(--chip)', fontFamily: 'var(--font-mono)', textTransform: 'uppercase' })}
+              />
+              <span style={st('flex:1;min-width:0;font:400 12.5px/1.4 var(--font-ui);color:var(--muted)')}>{t('room.settings.shortNameHint')}</span>
+              {shortName.trim() !== (room.shortName ?? '') && (
+                <Btn kind="text" height={46} padX={16} weight={700} onClick={() => patch({ shortName: shortName.trim() || null }, t('room.settings.shortNameSaved'))}>
+                  {t('common.save')}
+                </Btn>
+              )}
+            </div>
           </div>
           <div style={st('display:flex;align-items:center;justify-content:space-between;min-height:48px;padding:0 16px;border-radius:14px;background:var(--surf)')}>
             <span style={st('font:500 14.5px var(--font-ui)')}>{t('room.settings.platform')}</span>
