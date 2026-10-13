@@ -1,0 +1,72 @@
+name: Mini game idea
+description: Propose a simple live game for the room lobby (the one members play while they wait for a spin).
+labels: ["enhancement"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        The room lobby is a live, server-run game that 2–12 members play together on desktop and phone. Games are **cosmetic only** - they never change which game a spin picks - and should be **very simple**: one screen, one or two buttons, a round that lasts under a minute and starts again by itself.
+
+  - type: input
+    id: name
+    attributes:
+      label: Game name
+      placeholder: "Totem push-off"
+    validations:
+      required: true
+
+  - type: textarea
+    id: how
+    attributes:
+      label: How it plays
+      description: What the screen looks like and what players are trying to do, in a few sentences.
+    validations:
+      required: true
+
+  - type: input
+    id: players
+    attributes:
+      label: Players
+      description: Fewest and most players it works with (the lobby supports 1–12; a game may sit idle until enough have joined).
+      placeholder: "2–12"
+    validations:
+      required: true
+
+  - type: textarea
+    id: controls
+    attributes:
+      label: Controls
+      description: What each player can do. It has to work with a keyboard (arrows/WASD and one or two keys) and with touch (the on-screen pad and one or two buttons).
+    validations:
+      required: true
+
+  - type: textarea
+    id: rules
+    attributes:
+      label: Round and win condition
+      description: How long a round lasts, how it ends, who wins, and what happens between rounds.
+    validations:
+      required: true
+
+  - type: textarea
+    id: state
+    attributes:
+      label: What the server tracks
+      description: The state that must live on the server (positions, timers, scores) and the inputs players send. Games run on the server (an init / input / action / tick / snapshot module) and the browser only draws what it is sent.
+    validations:
+      required: false
+
+  - type: textarea
+    id: extra
+    attributes:
+      label: Anything else
+      description: Art, sound, accessibility (colour-blind friendly, reduced motion), or a game it is similar to.
+    validations:
+      required: false
+
+  - type: checkboxes
+    id: pr
+    attributes:
+      label: Contributing
+      options:
+        - label: I would like to build this myself and open a pull request.
