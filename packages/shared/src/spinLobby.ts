@@ -11,8 +11,8 @@
 export const LOBBY_TICK_HZ = 15;
 
 /** The games the lobby can run. */
-export type LobbyGameId = 'totem';
-export const LOBBY_GAME_IDS: readonly LobbyGameId[] = ['totem'];
+export type LobbyGameId = 'totem' | 'runner';
+export const LOBBY_GAME_IDS: readonly LobbyGameId[] = ['totem', 'runner'];
 
 /** What a client sends. Anything else is ignored. */
 export type LobbyClientMessage =
@@ -65,8 +65,49 @@ export interface TotemSnapshot {
 
 export const TOTEM_CENTER = 0.5;
 
+// ---- Runner (the offline dinosaur game, everyone on one course) ------------------------------------
+
+/** The track is one screen wide (1.0); a runner stands at this fraction of it. */
+export const RUNNER_X = 0.18;
+
+export type RunnerObstacleKind = 'cactus' | 'bird';
+
+/** An obstacle on screen. `x` is how far ahead of the start of the screen it is (0..1 is visible). */
+export interface RunnerObstacle {
+  x: number;
+  kind: RunnerObstacleKind;
+}
+
+export interface RunnerPlayer {
+  id: string;
+  /** Height of the runner's feet above the ground, in lane heights (0 = on the ground). */
+  h: number;
+  ducking: boolean;
+  /** Still running. False once they hit something, or if they arrived mid-run. */
+  alive: boolean;
+  /** Runs won since this person joined the lobby. */
+  wins: number;
+  /** How far they got, in metres: live while running, final once out. */
+  meters: number;
+}
+
+export interface RunnerSnapshot {
+  id: 'runner';
+  phase: TotemPhase;
+  /** Metres run so far by the course (the furthest runner's distance). */
+  meters: number;
+  /** Track speed in screens per second. */
+  speed: number;
+  obstacles: RunnerObstacle[];
+  players: RunnerPlayer[];
+  /** Milliseconds left in `countdown` or `over`; 0 otherwise. */
+  timerMs: number;
+  /** Who won the run that just ended (`over` only); null when nobody did (a solo run, or a draw). */
+  winnerId: string | null;
+}
+
 /** The snapshot of whichever game is running. */
-export type LobbyGameSnapshot = TotemSnapshot;
+export type LobbyGameSnapshot = TotemSnapshot | RunnerSnapshot;
 
 export interface LobbySnapshot {
   t: 'state';

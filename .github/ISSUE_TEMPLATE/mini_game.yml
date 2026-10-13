@@ -36,7 +36,8 @@ body:
     id: controls
     attributes:
       label: Controls
-      description: What each player can do. It has to work with a keyboard (arrows/WASD and one or two keys) and with touch (the on-screen pad and one or two buttons).
+      description: |
+        What each player can do. Keep it phone-sized: at most one movement axis (left/right, or up/down) plus one action button, e.g. "left, right and a punch" or "a jump button and a hold-to-duck". Games that need a full 4-way pad plus several buttons are too much for two thumbs. Keyboard: arrows or A/D plus Space.
     validations:
       required: true
 

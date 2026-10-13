@@ -1,5 +1,6 @@
 import type { LobbyGameId, LobbyGameSnapshot, User } from '@queueup/shared';
 import type { MessageKey } from '../i18n';
+import { runnerView } from './runner';
 import { totemView } from './totem';
 
 /** What a renderer is given each frame. */
@@ -29,8 +30,14 @@ export interface LobbyStanding {
 /** How the browser plays one lobby game: the buttons it adds to the pad, how a frame is drawn and the
  * scoreboard. The server module of the same id (server/src/services/lobbyGames/) holds the rules. */
 export interface LobbyGameView<S extends LobbyGameSnapshot = LobbyGameSnapshot> {
-  /** Extra buttons beside the pad. `key` is the keyboard key that does the same. */
-  actions: { name: string; labelKey: MessageKey; key: string }[];
+  /** Controls stay small enough for a phone: at most one movement axis (or none) plus one action button.
+   * `full` is the 4-way pad, `leftRight` just two buttons, `none` shows no pad (a game that only uses
+   * its buttons below). */
+  pad: 'full' | 'leftRight' | 'none';
+  /** Buttons held down to hold a direction, such as Duck. `keys` are the keyboard keys that do the same. */
+  holds?: { labelKey: MessageKey; dx: number; dy: number; keys: string[] }[];
+  /** Tap buttons that send a one-off move. `keys` are the keyboard keys that do the same. */
+  actions: { name: string; labelKey: MessageKey; keys: string[] }[];
   /** One line telling people what to do. */
   hintKey: MessageKey;
   draw(args: LobbyDrawArgs<S>): void;
@@ -39,6 +46,7 @@ export interface LobbyGameView<S extends LobbyGameSnapshot = LobbyGameSnapshot> 
 
 export const LOBBY_GAME_VIEWS: { [K in LobbyGameId]: LobbyGameView<Extract<LobbyGameSnapshot, { id: K }>> } = {
   totem: totemView,
+  runner: runnerView,
 };
 
 /** The view for whichever game a snapshot belongs to. */

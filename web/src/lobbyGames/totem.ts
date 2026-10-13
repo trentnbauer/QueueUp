@@ -80,7 +80,8 @@ function draw({ ctx, size, snapshot, me, users, ease, color, t }: LobbyDrawArgs<
 }
 
 export const totemView: LobbyGameView<TotemSnapshot> = {
-  actions: [{ name: 'punch', labelKey: 'spin.lobby.totem.punch', key: ' ' }],
+  pad: 'full',
+  actions: [{ name: 'punch', labelKey: 'spin.lobby.totem.punch', keys: [' '] }],
   hintKey: 'spin.lobby.totem.hint',
   draw,
   standings: (snapshot) => snapshot.players.map((p) => ({ id: p.id, score: p.wins, active: p.alive })).sort((a, b) => b.score - a.score),

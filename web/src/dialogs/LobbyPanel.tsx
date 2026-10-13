@@ -1,17 +1,25 @@
 import { useEffect, useMemo, useRef, type ReactNode } from 'react';
 import type { RoomMember } from '@queueup/shared';
 import { useSpinLobby } from '../hooks/useSpinLobby';
-import { viewFor } from '../lobbyGames';
+import { viewFor, type LobbyGameView } from '../lobbyGames';
 import { Dialog } from '../ui/Dialog';
 import { st } from '../ui/st';
 import { t as tNow, useT } from '../i18n';
 
-/** Reads the held direction from the keyboard: arrow keys or WASD. */
-function directionFromKeys(keys: Set<string>): { dx: number; dy: number } {
-  const dx = (keys.has('ArrowRight') || keys.has('d') ? 1 : 0) - (keys.has('ArrowLeft') || keys.has('a') ? 1 : 0);
-  const dy = (keys.has('ArrowDown') || keys.has('s') ? 1 : 0) - (keys.has('ArrowUp') || keys.has('w') ? 1 : 0);
-  return { dx, dy };
+type Vec = [number, number];
+
+const LEFT_RIGHT_KEYS: Record<string, Vec> = { ArrowLeft: [-1, 0], a: [-1, 0], ArrowRight: [1, 0], d: [1, 0] };
+const FULL_KEYS: Record<string, Vec> = { ...LEFT_RIGHT_KEYS, ArrowUp: [0, -1], w: [0, -1], ArrowDown: [0, 1], s: [0, 1] };
+
+/** Which keyboard keys move you in a game, from the controls it declares. */
+function movementKeys(view: LobbyGameView | null): Record<string, Vec> {
+  if (!view) return {};
+  const keys: Record<string, Vec> = view.pad === 'full' ? { ...FULL_KEYS } : view.pad === 'leftRight' ? { ...LEFT_RIGHT_KEYS } : {};
+  for (const h of view.holds ?? []) for (const k of h.keys) keys[k] = [h.dx, h.dy];
+  return keys;
 }
+
+const clampAxis = (n: number): number => Math.max(-1, Math.min(1, n));
 
 const PAD: { label: string; dx: number; dy: number; area: string }[] = [
   { label: '▲', dx: 0, dy: -1, area: '1 / 2' },
@@ -19,8 +27,12 @@ const PAD: { label: string; dx: number; dy: number; area: string }[] = [
   { label: '▶', dx: 1, dy: 0, area: '2 / 3' },
   { label: '▼', dx: 0, dy: 1, area: '3 / 2' },
 ];
+const LEFT_RIGHT_PAD = [
+  { label: '◀', dx: -1, dy: 0 },
+  { label: '▶', dx: 1, dy: 0 },
+];
 
-const MOVE_KEYS = ['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight', 'w', 'a', 's', 'd'];
+const BIG_BUTTON = 'border:none;border-radius:18px;background:var(--surf2);color:var(--text);font:700 15px var(--font-ui);touch-action:none;user-select:none';
 
 /** The room's live mini game: the server-run game everyone in the lobby plays, plus the vote to leave
  * for the spin when one is waiting. The game itself is drawn by the matching view in `lobbyGames/`. */
@@ -43,9 +55,15 @@ export function LobbyPanel({ roomId, members, me, onStarted, offlineFallback }: 
   const pad = useRef({ dx: 0, dy: 0 });
   const sent = useRef({ dx: 0, dy: 0 });
   const sendHeld = () => {
-    const k = directionFromKeys(keys.current);
-    const dx = k.dx || pad.current.dx;
-    const dy = k.dy || pad.current.dy;
+    let kx = 0;
+    let ky = 0;
+    const map = movementKeys(viewRef.current);
+    for (const key of keys.current) {
+      kx += map[key]?.[0] ?? 0;
+      ky += map[key]?.[1] ?? 0;
+    }
+    const dx = clampAxis(kx) || pad.current.dx;
+    const dy = clampAxis(ky) || pad.current.dy;
     if (dx === sent.current.dx && dy === sent.current.dy) return;
     sent.current = { dx, dy };
     sendInput(dx, dy);
@@ -61,13 +79,13 @@ export function LobbyPanel({ roomId, members, me, onStarted, offlineFallback }: 
     const down = (e: KeyboardEvent) => {
       if (typing(e)) return;
       const key = normal(e);
-      const action = viewRef.current?.actions.find((a) => a.key === key);
+      const action = viewRef.current?.actions.find((a) => a.keys.includes(key));
       if (action) {
         e.preventDefault();
         if (!e.repeat) sendActionRef.current(action.name);
         return;
       }
-      if (!MOVE_KEYS.includes(key)) return;
+      if (!movementKeys(viewRef.current)[key]) return;
       e.preventDefault();
       keys.current.add(key);
       sendHeldRef.current();
@@ -149,6 +167,16 @@ export function LobbyPanel({ roomId, members, me, onStarted, offlineFallback }: 
     pad.current = { dx: 0, dy: 0 };
     sendHeld();
   };
+  /** Pointer handlers for a button that holds a direction for as long as it is pressed. */
+  const holdProps = (dx: number, dy: number) => ({
+    onPointerDown: (e: React.PointerEvent<HTMLButtonElement>) => {
+      e.currentTarget.setPointerCapture(e.pointerId);
+      pad.current = { dx, dy };
+      sendHeld();
+    },
+    onPointerUp: release,
+    onPointerCancel: release,
+  });
 
   return (
     <div style={st('display:flex;flex-direction:column;gap:10px')}>
@@ -167,36 +195,41 @@ export function LobbyPanel({ roomId, members, me, onStarted, offlineFallback }: 
           ))}
         </div>
       )}
-      <div style={st('display:flex;align-items:center;justify-content:center;gap:18px')}>
-        <div style={st('display:grid;grid-template-columns:repeat(3,52px);grid-template-rows:repeat(3,44px);gap:4px')}>
-          {PAD.map((b) => (
-            <button
-              key={b.label}
-              type="button"
-              aria-label={b.label}
-              onPointerDown={(e) => {
-                e.currentTarget.setPointerCapture(e.pointerId);
-                pad.current = { dx: b.dx, dy: b.dy };
-                sendHeld();
-              }}
-              onPointerUp={release}
-              onPointerCancel={release}
-              style={st(`grid-area:${b.area};border:none;border-radius:12px;background:var(--surf2);color:var(--text);font:700 16px var(--font-ui);touch-action:none;user-select:none`)}
-            >
-              {b.label}
+      <div style={st('display:flex;align-items:center;justify-content:space-between;gap:12px;padding:0 6px')}>
+        <div style={st('display:flex;align-items:center;gap:8px;min-height:92px')}>
+          {view?.pad === 'full' && (
+            <div style={st('display:grid;grid-template-columns:repeat(3,52px);grid-template-rows:repeat(3,44px);gap:4px')}>
+              {PAD.map((b) => (
+                <button key={b.label} type="button" aria-label={b.label} {...holdProps(b.dx, b.dy)} style={st(`grid-area:${b.area};${BIG_BUTTON};border-radius:12px;font-size:16px`)}>
+                  {b.label}
+                </button>
+              ))}
+            </div>
+          )}
+          {view?.pad === 'leftRight' &&
+            LEFT_RIGHT_PAD.map((b) => (
+              <button key={b.label} type="button" aria-label={b.label} {...holdProps(b.dx, b.dy)} style={st(`width:76px;height:76px;${BIG_BUTTON};font-size:24px`)}>
+                {b.label}
+              </button>
+            ))}
+          {view?.holds?.map((h) => (
+            <button key={h.labelKey} type="button" {...holdProps(h.dx, h.dy)} style={st(`width:92px;height:76px;${BIG_BUTTON}`)}>
+              {t(h.labelKey)}
             </button>
           ))}
         </div>
-        {view?.actions.map((a) => (
-          <button
-            key={a.name}
-            type="button"
-            onPointerDown={() => sendAction(a.name)}
-            style={st('width:92px;height:92px;border:none;border-radius:50%;background:var(--acc);color:var(--onAcc, #fff);font:800 15px var(--font-ui);touch-action:none;user-select:none')}
-          >
-            {t(a.labelKey)}
-          </button>
-        ))}
+        <div style={st('display:flex;align-items:center;gap:10px')}>
+          {view?.actions.map((a) => (
+            <button
+              key={a.name}
+              type="button"
+              onPointerDown={() => sendAction(a.name)}
+              style={st('width:92px;height:92px;border:none;border-radius:50%;background:var(--acc);color:var(--onAcc, #fff);font:800 15px var(--font-ui);touch-action:none;user-select:none')}
+            >
+              {t(a.labelKey)}
+            </button>
+          ))}
+        </div>
       </div>
       {view && <span style={st('font:500 12px var(--font-ui);color:var(--faint);text-align:center')}>{t(view.hintKey)}</span>}
       {snapshot?.spinWaiting ? (
