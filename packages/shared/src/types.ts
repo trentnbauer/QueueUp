@@ -796,6 +796,11 @@ export interface SetGameReviewRequest {
   recommend?: boolean | null;
 }
 
+/** POST /api/games/:id/split-bundle: the games now linked to the bundle. */
+export interface SplitBundleResponse {
+  linked: { id: string; igdbId: number }[];
+}
+
 export interface SetReleaseAlertRequest {
   enabled: boolean;
 }
