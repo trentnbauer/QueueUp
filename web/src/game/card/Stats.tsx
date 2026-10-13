@@ -36,7 +36,10 @@ function Cell({ children, desktop, onClick, href }: { children: ReactNode; deskt
  * History sheet for a manual price or none. */
 export function StatsStrip({ game, desktop, onOpenPrice }: { game: Game; desktop: boolean; onOpenPrice: () => void }) {
   const t = useT();
-  const { ops, isShelf } = useScope();
+  const { ops, isShelf, room } = useScope();
+  // A room with no platform restriction has no single platform to claim ownership on (the server refuses the
+  // toggle), so there the cell only shows the count.
+  const canToggleOwnership = !!room?.platform;
   const tally = voteTally(game);
   const mode = priceModeOf(game);
   const owned = game.youOwn;
@@ -62,7 +65,7 @@ export function StatsStrip({ game, desktop, onOpenPrice }: { game: Game; desktop
           <span style={st(SUB(desktop))}>{t('card.stats.played')}</span>
         </Cell>
       ) : (
-        <Cell desktop={desktop} onClick={() => ops.setOwnership(game.id, !owned)}>
+        <Cell desktop={desktop} onClick={canToggleOwnership ? () => ops.setOwnership(game.id, !owned) : undefined}>
           <span style={st(BIG(desktop))}>{game.ownership ? `${game.ownership.owned}/${game.ownership.total}` : owned ? '1' : '0'}</span>
           <span style={st(SUB(desktop, owned ? 'var(--mint)' : 'var(--accText)').replace('500', '600'))}>
             {owned ? t('card.stats.ownIncl') : t('card.stats.ownMine')}
