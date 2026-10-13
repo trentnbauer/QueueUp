@@ -118,7 +118,7 @@ export function MoreSheet({
           <>
             <Row compact icon="🧩" label={t('card.more.fixMatch')} sub={t('card.more.fixMatchSub')} value="IGDB · Steam" onClick={() => onOpen('fix')} />
             <Row compact icon="⧉" label={t('game.duplicate.button')} onClick={onDuplicate} />
-            {isShelf && <Row compact icon="📦" label={t('game.bundle.button')} onClick={onBundle} />}
+            <Row compact icon="📦" label={t('game.bundle.button')} onClick={onBundle} />
           </>,
         )}
     </div>

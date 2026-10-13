@@ -103,7 +103,7 @@ export function BundleSheet({ game, onClose }: { game: Game; onClose: () => void
         </div>
       }
     >
-      <div style={st('color:var(--muted);font:400 13.5px/1.4 var(--font-ui)')}>{t('game.bundle.hint', { title: game.title })}</div>
+      <div style={st('color:var(--muted);font:400 13.5px/1.4 var(--font-ui)')}>{t(game.roomId ? 'game.bundle.hintRoom' : 'game.bundle.hint', { title: game.title })}</div>
       {error && <Banner>{error}</Banner>}
       {suggestions.isLoading && <div style={st('color:var(--muted);font-size:14px')}>{t('game.bundle.looking')}</div>}
       {suggestions.data && suggestions.data.suggestions.length === 0 && chosen.length === 0 && <div style={st('color:var(--muted);font-size:14px')}>{t('game.bundle.noSuggestions')}</div>}
