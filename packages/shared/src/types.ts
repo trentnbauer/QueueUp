@@ -402,6 +402,8 @@ export interface RoomSpinSession {
    * instead of counting down blind. Meaningless once the spin has started moving (nothing clears
    * it then, but nothing reads it then either - see SPIN_WAITING_ROOM_MS in roomSpin.ts). */
   readyCount: number;
+  /** Which members those are (the same people, by user id), so the waiting room can show who is here. */
+  readyUserIds: string[];
   /** Votes to respin the settled result, how many it takes, and whether the viewer has voted. */
   respinVotes: number;
   respinNeeded: number;

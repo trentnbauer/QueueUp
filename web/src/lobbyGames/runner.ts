@@ -4,7 +4,7 @@ import type { LobbyDrawArgs, LobbyGameView } from './index';
 // Mirrors the server's sizes (server/src/services/lobbyGames/runner.ts) so what is drawn is what is hit.
 const STAND_HEIGHT = 0.45;
 const DUCK_HEIGHT = 0.25;
-const CACTUS = { width: 0.04, height: 0.35 };
+const CACTUS = { width: 0.1, height: 0.35 };
 const BIRD = { width: 0.06, from: 0.3, to: 0.7 };
 const RUNNER_WIDTH = 0.04;
 

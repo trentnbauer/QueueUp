@@ -10,7 +10,7 @@ const STAND_HEIGHT = 0.45;
 const DUCK_HEIGHT = 0.25;
 // Cactus: low, must be jumped. Bird: flies mid-height, must be ducked under (a jump runs into it).
 const OBSTACLES: Record<RunnerObstacleKind, { width: number; from: number; to: number }> = {
-  cactus: { width: 0.04, from: 0, to: 0.35 },
+  cactus: { width: 0.1, from: 0, to: 0.35 },
   bird: { width: 0.06, from: 0.3, to: 0.7 },
 };
 const SPEED_START = 0.5;
@@ -38,7 +38,8 @@ interface Runner extends RoundPlayer {
 export class RunnerGame extends RoundGame<Runner> {
   readonly id = 'runner' as const;
   private speed = SPEED_START;
-  private obstacles: { x: number; kind: RunnerObstacleKind }[] = [];
+  private obstacles: { x: number; kind: RunnerObstacleKind; n: number }[] = [];
+  private spawned = 0;
   private nextSpawnX = 0;
 
   protected createPlayer(id: string, alive: boolean): Runner {
@@ -54,6 +55,7 @@ export class RunnerGame extends RoundGame<Runner> {
   protected resetCourse(): void {
     this.speed = SPEED_START;
     this.obstacles = [];
+    this.spawned = 0;
   }
 
   protected beginCourse(): void {
@@ -61,6 +63,7 @@ export class RunnerGame extends RoundGame<Runner> {
     // The first obstacle is a little way in, so there is time to see it coming.
     this.nextSpawnX = 1.1;
     this.obstacles = [];
+    this.spawned = 0;
     this.spawnObstacles();
   }
 
@@ -87,8 +90,9 @@ export class RunnerGame extends RoundGame<Runner> {
       speed: r3(this.speed),
       timerMs: Math.max(0, Math.round(this.timerMs)),
       winnerId: this.winnerId,
+      ...this.summary(),
       obstacles: this.obstacles
-        .map((o): RunnerObstacle => ({ x: r3(o.x - this.distance), kind: o.kind }))
+        .map((o): RunnerObstacle => ({ x: r3(o.x - this.distance), kind: o.kind, n: o.n }))
         .filter((o) => o.x > -VISIBLE_BEHIND && o.x < SPAWN_AHEAD),
       players: [...this.players.values()].map((r) => ({
         id: r.id,
@@ -150,7 +154,7 @@ export class RunnerGame extends RoundGame<Runner> {
     while (this.nextSpawnX < this.distance + SPAWN_AHEAD) {
       const bird = this.roundMs >= BIRDS_AFTER_MS && this.rng() < BIRD_CHANCE;
       const kind: RunnerObstacleKind = bird ? 'bird' : 'cactus';
-      this.obstacles.push({ x: this.nextSpawnX, kind });
+      this.obstacles.push({ x: this.nextSpawnX, kind, n: ++this.spawned });
       this.nextSpawnX += this.speed * (GAP_MIN_S + this.rng() * GAP_EXTRA_S);
     }
   }

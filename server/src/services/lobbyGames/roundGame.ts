@@ -1,4 +1,4 @@
-import type { LobbyGameId, LobbyGameSnapshot, LobbyRoundPhase } from '@queueup/shared';
+import { LOBBY_HISTORY_LENGTH, type LobbyGameId, type LobbyGameSnapshot, type LobbyRoundPhase, type RoundSummary, type RunResult } from '@queueup/shared';
 import type { LobbyGame } from './types.js';
 
 const COUNTDOWN_MS = 3000;
@@ -49,6 +49,10 @@ export abstract class RoundGame<P extends RoundPlayer> implements LobbyGame {
   protected winnerId: string | null = null;
   protected rng: () => number;
   private startedWith = 0;
+  /** Which run this is, the last few results and the best so far (see RoundSummary). */
+  private run = 0;
+  private history: RunResult[] = [];
+  private best: RunResult | null = null;
 
   constructor(protected readonly seedSource: () => number = Math.random) {
     this.rng = mulberry32(Math.floor(this.seedSource() * 4294967296));
@@ -67,6 +71,11 @@ export abstract class RoundGame<P extends RoundPlayer> implements LobbyGame {
   abstract input(userId: string, dx: number, dy: number): void;
   abstract action(userId: string, name: string): void;
   abstract snapshot(): LobbyGameSnapshot;
+
+  /** The run number, recent results and best run, for the game's snapshot. */
+  protected summary(): RoundSummary {
+    return { run: this.run, history: this.history.map((r) => ({ ...r })), best: this.best ? { ...this.best } : null };
+  }
 
   /** Metres run so far. */
   protected get meters(): number {
@@ -140,10 +149,23 @@ export abstract class RoundGame<P extends RoundPlayer> implements LobbyGame {
       winner.wins++;
       winner.outAtMeters = this.meters;
     }
+    this.recordResult();
+  }
+
+  /** Adds the run that just ended to the history: who got furthest, and how far. */
+  private recordResult(): void {
+    let furthest: P | null = null;
+    for (const p of this.players.values()) if (!furthest || p.outAtMeters > furthest.outAtMeters) furthest = p;
+    const result: RunResult = { id: furthest?.id ?? '', winnerId: this.winnerId, meters: furthest?.outAtMeters ?? 0 };
+    if (!furthest) return;
+    this.history.push(result);
+    if (this.history.length > LOBBY_HISTORY_LENGTH) this.history.shift();
+    if (!this.best || result.meters > this.best.meters) this.best = { ...result };
   }
 
   private startCountdown(): void {
     this.phase = 'countdown';
+    this.run++;
     this.timerMs = COUNTDOWN_MS;
     this.winnerId = null;
     this.distance = 0;
