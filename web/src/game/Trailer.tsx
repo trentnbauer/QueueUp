@@ -138,14 +138,27 @@ export function TrailerPlayer({ youtubeId, radius = 16 }: { youtubeId: string; r
           </button>
         )}
       </div>
-      {canFullscreen && !fullscreen && (
-        <button
-          type="button"
-          onClick={() => void toggleFullscreen()}
-          style={st('align-self:flex-start;height:40px;padding:0 16px;border-radius:999px;border:1px solid var(--line);background:transparent;color:var(--text);font:600 13.5px var(--font-ui)')}
-        >
-          {t('game.trailer.fullscreen')}
-        </button>
+      {!fullscreen && (
+        <div style={st('display:flex;flex-wrap:wrap;align-items:center;gap:10px')}>
+          {canFullscreen && (
+            <button
+              type="button"
+              onClick={() => void toggleFullscreen()}
+              style={st('height:40px;padding:0 16px;border-radius:999px;border:1px solid var(--line);background:transparent;color:var(--text);font:600 13.5px var(--font-ui)')}
+            >
+              {t('game.trailer.fullscreen')}
+            </button>
+          )}
+          {/* YouTube won't play age-restricted videos in an embed, and nothing here can change that: this opens it on YouTube. */}
+          <a
+            href={`https://www.youtube.com/watch?v=${encodeURIComponent(youtubeId)}`}
+            target="_blank"
+            rel="noopener noreferrer"
+            style={st('display:inline-flex;align-items:center;height:40px;padding:0 4px;color:var(--muted);font:500 13px var(--font-ui);text-decoration:underline')}
+          >
+            {t('game.trailer.openOnYoutube')}
+          </a>
+        </div>
       )}
     </div>
   );
