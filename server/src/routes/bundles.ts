@@ -6,7 +6,6 @@ import { parseBundleIgdbIds } from '../services/bundleImport.js';
 import { suggestBundleGames } from '../services/bundleSuggestions.js';
 import { createGameForUser } from '../services/gameIntake.js';
 import { markOwned, unionOwnershipPlatforms } from '../services/gameOwnership.js';
-import { markDuplicateBundle } from '../services/ai/aiDuplicates.js';
 
 /** A bundle card on the Personal Shelf, or a 404. Only the shelf: a room's games are the room's. */
 async function loadShelfGame(userId: string, id: string) {
@@ -15,7 +14,7 @@ async function loadShelfGame(userId: string, id: string) {
   return game;
 }
 
-/** "This game is a bundle" (issue #857): suggests the games inside it, then splits the card into them. */
+/** "This game is a bundle" (issues #857, #1169): suggests the games inside it, adds them, and links them to the bundle, which stays on the list. */
 export default async function bundleRoutes(app: FastifyInstance) {
   app.get<{ Params: { id: string } }>(
     '/api/games/:id/bundle-suggestions',
@@ -28,7 +27,7 @@ export default async function bundleRoutes(app: FastifyInstance) {
   );
 
   /** Adds every chosen game to the shelf the way the bundle was (wishlisted stays wishlisted; owned
-   * platforms carry over), then hides the bundle card. Games already on the shelf only gain the
+   * platforms carry over), then links them to the bundle card, which stays. Games already on the shelf only gain the
    * platforms. Safe to retry after a failure part way. */
   app.post<{ Params: { id: string }; Body: SplitBundleRequest }>(
     '/api/games/:id/split-bundle',
@@ -53,7 +52,8 @@ export default async function bundleRoutes(app: FastifyInstance) {
       }
       // Owned on a platform nobody recorded: the games inside are owned too.
       if (ownership && owned.length === 0) await markOwned(userId, igdbIds);
-      await markDuplicateBundle(userId, game.id);
+      // The bundle stays on the shelf, and its games point back at it (a game already inside another bundle stays there).
+      await prisma.game.updateMany({ where: { roomId: null, addedBy: userId, igdbId: { in: igdbIds }, bundleGameId: null, id: { not: game.id } }, data: { bundleGameId: game.id } });
       reply.status(204);
     },
   );

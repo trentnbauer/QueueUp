@@ -1,5 +1,13 @@
 /** The game card (the phone sheet and the desktop modal) and its menus. English source strings; keys start with "card.". Placeholders look like {name}. */
 export const card = {
+  // Bundles
+  "card.bundle.which": "WHICH GAME?",
+  "card.bundle.hint.one": "This bundle has {n} game. Pick it to open its card.",
+  "card.bundle.hint.other": "This bundle has {n} games. Pick one to open its card.",
+  "card.bundle.manage": "Open the bundle's own card",
+  "card.bundle.chip.one": "📦 {n} game",
+  "card.bundle.chip.other": "📦 {n} games",
+
   // Now playing strip
   "card.nowPlaying.playing": "Playing",
   "card.nowPlaying.sessions.one": "Playing · {n} session in",

@@ -174,7 +174,7 @@ export async function withCompanies<T extends { a: DuplicateSuggestionGame; b: D
  * a "possible duplicates" nudge without asking it; the AI scan is what actually judges them. */
 export async function countDuplicateCandidates(userId: string): Promise<number> {
   const [games, dismissals] = await Promise.all([
-    prisma.game.findMany({ where: { roomId: null, addedBy: userId, archivedAt: null, baseGameId: null }, select: SELECT, orderBy: { title: 'asc' } }),
+    prisma.game.findMany({ where: { roomId: null, addedBy: userId, archivedAt: null, baseGameId: null, bundleGameId: null, bundledGames: { none: {} } }, select: SELECT, orderBy: { title: 'asc' } }),
     prisma.duplicateDismissal.findMany({ where: { userId } }),
   ]);
   const dismissed = new Set(dismissals.map((d) => igdbPairKey(d.igdbIdLow, d.igdbIdHigh)));
@@ -189,7 +189,7 @@ export async function countDuplicateCandidates(userId: string): Promise<number> 
  * have them judged. */
 export async function listDuplicateCandidates(userId: string): Promise<DuplicateCandidatesResponse> {
   const [games, dismissals] = await Promise.all([
-    prisma.game.findMany({ where: { roomId: null, addedBy: userId, archivedAt: null, baseGameId: null }, select: SELECT, orderBy: { title: 'asc' } }),
+    prisma.game.findMany({ where: { roomId: null, addedBy: userId, archivedAt: null, baseGameId: null, bundleGameId: null, bundledGames: { none: {} } }, select: SELECT, orderBy: { title: 'asc' } }),
     prisma.duplicateDismissal.findMany({ where: { userId } }),
   ]);
   const dismissed = new Set(dismissals.map((d) => igdbPairKey(d.igdbIdLow, d.igdbIdHigh)));
@@ -222,7 +222,7 @@ export async function listDuplicateCandidates(userId: string): Promise<Duplicate
  * if nothing could be answered at all it throws. */
 export async function aiScanDuplicates(userId: string, opts: { fresh?: boolean } = {}): Promise<AiDuplicateScanResponse> {
   const [shelf, dismissals] = await Promise.all([
-    prisma.game.findMany({ where: { roomId: null, addedBy: userId, archivedAt: null, baseGameId: null }, select: SELECT, orderBy: { title: 'asc' } }),
+    prisma.game.findMany({ where: { roomId: null, addedBy: userId, archivedAt: null, baseGameId: null, bundleGameId: null, bundledGames: { none: {} } }, select: SELECT, orderBy: { title: 'asc' } }),
     prisma.duplicateDismissal.findMany({ where: { userId } }),
   ]);
   const dismissed = new Set(dismissals.map((d) => igdbPairKey(d.igdbIdLow, d.igdbIdHigh)));

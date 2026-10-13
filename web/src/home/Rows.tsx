@@ -79,6 +79,28 @@ function SizeUnknownChip({ g }: { g: Game }) {
   );
 }
 
+const bundleCounts = new WeakMap<Game[], Map<string, number>>();
+
+/** How many games came out of each bundle in this list, worked out once per list. */
+function bundleCountOf(games: Game[], id: string): number {
+  let counts = bundleCounts.get(games);
+  if (!counts) {
+    counts = new Map();
+    for (const g of games) if (g.bundleGameId) counts.set(g.bundleGameId, (counts.get(g.bundleGameId) ?? 0) + 1);
+    bundleCounts.set(games, counts);
+  }
+  return counts.get(id) ?? 0;
+}
+
+/** "📦 3 games" on a bundle that has had its games linked to it. */
+function BundleChip({ g }: { g: Game }) {
+  const t = useT();
+  const { games } = useScope();
+  const n = bundleCountOf(games, g.id);
+  if (n === 0) return null;
+  return <span style={st(CHIP)}>{t(n === 1 ? 'card.bundle.chip.one' : 'card.bundle.chip.other', { n })}</span>;
+}
+
 /** IGDB's 0-100 critic/user score as a gold star out of 10 ("★ 8.7"), when IGDB has one. */
 function IgdbScoreChip({ g }: { g: Game }) {
   const t = useT();
@@ -133,6 +155,7 @@ export function DesktopRow({ item, showRank, bulk, selected, active, onOpen, onV
         <span style={st('font:600 15.5px var(--font-ui);white-space:nowrap;overflow:hidden;text-overflow:ellipsis')}>{g.title}</span>
         <span style={st('display:flex;align-items:center;gap:6px;min-width:0;font:400 12.5px var(--font-ui);color:var(--muted)')}>
           {item.chip && <span style={st(CHIP)}>{item.chip}</span>}
+          <BundleChip g={g} />
           <IgdbScoreChip g={g} />
           <SizeUnknownChip g={g} />
           <span style={st('white-space:nowrap;overflow:hidden;text-overflow:ellipsis')}>{item.meta}</span>
@@ -189,7 +212,8 @@ export function MobileRow({ item, showRank, bulk, selected, onOpen, onVote }: Ro
           <span style={st('font:600 15.5px var(--font-ui);white-space:nowrap;overflow:hidden;text-overflow:ellipsis')}>{g.title}</span>
           <span style={st('display:flex;align-items:center;gap:6px;min-width:0;font:400 12.5px var(--font-ui);color:var(--muted)')}>
             {item.chip && <span style={st(CHIP)}>{item.chip}</span>}
-            <IgdbScoreChip g={g} />
+            <BundleChip g={g} />
+          <IgdbScoreChip g={g} />
             <SizeUnknownChip g={g} />
             <span style={st('white-space:nowrap;overflow:hidden;text-overflow:ellipsis')}>
               {item.meta}
@@ -259,6 +283,7 @@ export function CoverCard({
         <span style={st('font:600 14px var(--font-ui);white-space:nowrap;overflow:hidden;text-overflow:ellipsis')}>{g.title}</span>
         <span style={st('display:flex;align-items:center;gap:6px;min-width:0')}>
           <span style={st(`flex:1;min-width:0;font:400 12px var(--font-ui);color:${item.priceOwned ? 'var(--mint)' : 'var(--text)'};white-space:nowrap;overflow:hidden;text-overflow:ellipsis`)}>{item.priceLabel}</span>
+          <BundleChip g={g} />
           <IgdbScoreChip g={g} />
           <SizeUnknownChip g={g} />
         </span>
@@ -305,6 +330,7 @@ export function PlayNextRow({
         <span style={st('font:600 15px var(--font-ui);white-space:nowrap;overflow:hidden;text-overflow:ellipsis')}>{g.title}</span>
         <span style={st('display:flex;align-items:center;gap:6px;min-width:0;font:400 12.5px var(--font-ui);color:var(--muted)')}>
           {isNew && g.releaseDate && <span style={st(CHIP)}>{t('home.chip.new', { date: releaseShortDate(g.releaseDate) })}</span>}
+          <BundleChip g={g} />
           <IgdbScoreChip g={g} />
           <SizeUnknownChip g={g} />
           <span style={st('white-space:nowrap;overflow:hidden;text-overflow:ellipsis')}>

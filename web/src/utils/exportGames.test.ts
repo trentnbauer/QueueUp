@@ -43,6 +43,7 @@ function makeGame(overrides: Partial<Game> = {}): Game {
     prerequisiteAuto: false,
     igdbId: 1,
     baseGameId: null,
+    bundleGameId: null,
     heroImageUrl: null,
     playtimeSinceCheckpointMinutes: null,
     currentPlaytimeMinutes: null,

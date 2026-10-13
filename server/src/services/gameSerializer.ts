@@ -139,6 +139,7 @@ function buildGameDto(
     prerequisiteAuto: game.prerequisiteSource === 'auto',
     igdbId: game.igdbId,
     baseGameId: game.baseGameId,
+    bundleGameId: game.bundleGameId,
     heroImageUrl: game.steamAppid ? `https://cdn.cloudflare.steamstatic.com/steam/apps/${game.steamAppid}/library_hero.jpg` : null,
     playtimeSinceCheckpointMinutes: playtime?.sinceCheckpointMinutes ?? null,
     currentPlaytimeMinutes: playtime?.currentMinutes ?? null,

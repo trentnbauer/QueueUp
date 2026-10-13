@@ -672,6 +672,7 @@ async function mergeIntoExisting(sourceId: string, targetId: string): Promise<vo
     // Other cards pointing at the duplicate now point at the survivor (never at itself).
     await tx.game.updateMany({ where: { prerequisiteGameId: sourceId, id: { not: targetId } }, data: { prerequisiteGameId: targetId } });
     await tx.game.updateMany({ where: { baseGameId: sourceId, id: { not: targetId } }, data: { baseGameId: targetId } });
+    await tx.game.updateMany({ where: { bundleGameId: sourceId, id: { not: targetId } }, data: { bundleGameId: targetId } });
 
     const takeSourceStatus = UNSTARTED_STATUSES.includes(target.status) && !UNSTARTED_STATUSES.includes(source.status);
     await tx.game.update({
@@ -684,6 +685,7 @@ async function mergeIntoExisting(sourceId: string, targetId: string): Promise<vo
         // The survivor can't point at the duplicate, which is about to disappear.
         ...(target.prerequisiteGameId === sourceId ? { prerequisiteGameId: null } : {}),
         ...(target.baseGameId === sourceId ? { baseGameId: null } : {}),
+        ...(target.bundleGameId === sourceId ? { bundleGameId: null } : {}),
       },
     });
 

@@ -1344,6 +1344,9 @@ model Game {
   /// someone repoint or clear it. SetNull on delete, same reasoning as prerequisiteGameId - removing
   /// the base game shouldn't block removing (or orphan) its DLC.
   baseGameId                   String?    @map("base_game_id")
+  /// Issue #1169: set on a game that came out of a bundle - points at the bundle's own row, which stays on the list so the
+  /// bundle can open to a "which game?" chooser. SetNull on delete: removing the bundle just leaves the games standing alone.
+  bundleGameId                 String?    @map("bundle_game_id")
   /// When this game entered the Replay status (QueueUp v2 UI) - drives the "Replay since {date}"
   /// chip and the Replay tab's oldest-first ordering. Set on the transition into Replay, cleared on
   /// the transition out; null for a game that isn't currently a Replay (or pre-dates this field).
@@ -1374,6 +1377,8 @@ model Game {
   successorGames                Game[]                         @relation("GamePrerequisite")
   baseGame                      Game?                          @relation("GameBaseGame", fields: [baseGameId], references: [id], onDelete: SetNull)
   dlc                           Game[]                         @relation("GameBaseGame")
+  bundleGame                    Game?                          @relation("GameBundle", fields: [bundleGameId], references: [id], onDelete: SetNull)
+  bundledGames                  Game[]                         @relation("GameBundle")
   playLogs                      PlayLog[]
   reviews                       GameReview[]
   notifications                 Notification[]
@@ -1386,6 +1391,7 @@ model Game {
   @@index([addedBy, igdbId])
   @@index([prerequisiteGameId])
   @@index([baseGameId])
+  @@index([bundleGameId])
   @@map("games")
 }
 
