@@ -7,7 +7,9 @@ export const card = {
   "card.nowPlaying.more": "+{n} more playing",
 
   // Hero
-  "card.hero.solo": "Single-player",
+  "card.hero.solo": "1 player",
+  "card.hero.sizeTitle": "PC install size, from Steam",
+  "card.hero.via": "via {sources}",
   "card.hero.upTo": "up to {max} players",
   "card.hero.sessions": "~{n} sessions to finish ({hours}h)",
 

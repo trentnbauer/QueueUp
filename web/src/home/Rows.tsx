@@ -67,75 +67,14 @@ export function VoteSegment({
 
 const CHIP = 'flex-shrink:0;height:19px;padding:0 7px;border-radius:999px;background:var(--surf2);color:var(--text2);font:600 10.5px var(--font-ui);display:flex;align-items:center';
 
-/** The viewer's Steam achievement count ("🏆 10/20"), gold once it's 100%. Personal Shelf only:
- * in a room, everyone's counts show in the game's detail, next to each member's vote. */
-function AchievementChip({ g }: { g: Game }) {
-  const t = useT();
-  const a = g.myAchievements;
-  if (!a || g.roomId) return null;
-  const full = a.unlocked >= a.total;
-  return (
-    <span
-      title={t('home.row.achievements', { unlocked: a.unlocked, total: a.total })}
-      aria-label={t('home.row.achievements', { unlocked: a.unlocked, total: a.total })}
-      style={st(CHIP, full ? { background: GOLD, color: 'oklch(0.28 0.06 70)' } : undefined)}
-    >
-      🏆 {a.unlocked}/{a.total}
-    </span>
-  );
-}
-
-/** How many players a co-op game supports ("👥 4"). In a room, it turns into a warning ("⚠ 2 max") once
- * the room has more members than that, and follows members joining and leaving as the room updates. */
-function CoopChip({ g }: { g: Game }) {
-  const t = useT();
-  const { members, isShelf } = useScope();
-  const max = g.maxCoopPlayers;
-  if (max === null || max === undefined) return null;
-  const tooMany = !isShelf && !!g.roomId && members.length > max;
-  if (tooMany) {
-    const msg = t('game.detail.coop.tooMany', { max, count: members.length });
-    return (
-      <span title={msg} aria-label={msg} style={st(CHIP, { background: 'var(--errBg)', color: 'var(--danger)' })}>
-        ⚠ {t('home.row.coopMax', { n: max })}
-      </span>
-    );
-  }
-  return (
-    <span title={t('home.row.coopTitle', { n: max })} aria-label={t('home.row.coopTitle', { n: max })} style={st(CHIP)}>
-      👥 {max}
-    </span>
-  );
-}
-
-/** Flags a game IGDB lists as single player only - worth knowing before picking it for a group. */
-function SinglePlayerChip({ g }: { g: Game }) {
-  const t = useT();
-  if (g.singlePlayerOnly !== true) return null;
-  return (
-    <span title={t('home.row.singlePlayerTitle')} aria-label={t('home.row.singlePlayerAria')} style={st(CHIP)}>
-      {t('home.row.singlePlayer')}
-    </span>
-  );
-}
-
-/** PC install size from Steam (#800), e.g. "60 GB", when known. */
-function SizeChip({ g }: { g: Game }) {
+/** With an install size limit on, says why a game Steam lists no size for is still shown. The size itself is in the game's card. */
+function SizeUnknownChip({ g }: { g: Game }) {
   const t = useT();
   const [maxGb] = useMaxInstallGb();
-  if (g.downloadSizeMb === null) {
-    // With an install size limit on, say why a game with no size is still listed.
-    return maxGb ? (
-      <span title={t('home.row.sizeUnknownTitle')} style={st(CHIP)}>
-        {t('home.row.sizeUnknown')}
-      </span>
-    ) : null;
-  }
-  const gb = g.downloadSizeMb / 1024;
-  const label = gb >= 10 ? `${Math.round(gb)} GB` : gb >= 1 ? `${gb.toFixed(1)} GB` : `${g.downloadSizeMb} MB`;
+  if (g.downloadSizeMb !== null || !maxGb) return null;
   return (
-    <span title={t('home.row.sizeTitle')} aria-label={t('home.row.sizeAria', { size: label })} style={st(CHIP)}>
-      💾 {label}
+    <span title={t('home.row.sizeUnknownTitle')} style={st(CHIP)}>
+      {t('home.row.sizeUnknown')}
     </span>
   );
 }
@@ -194,11 +133,8 @@ export function DesktopRow({ item, showRank, bulk, selected, active, onOpen, onV
         <span style={st('font:600 15.5px var(--font-ui);white-space:nowrap;overflow:hidden;text-overflow:ellipsis')}>{g.title}</span>
         <span style={st('display:flex;align-items:center;gap:6px;min-width:0;font:400 12.5px var(--font-ui);color:var(--muted)')}>
           {item.chip && <span style={st(CHIP)}>{item.chip}</span>}
-          <AchievementChip g={g} />
           <IgdbScoreChip g={g} />
-          <SizeChip g={g} />
-          <CoopChip g={g} />
-          <SinglePlayerChip g={g} />
+          <SizeUnknownChip g={g} />
           <span style={st('white-space:nowrap;overflow:hidden;text-overflow:ellipsis')}>{item.meta}</span>
         </span>
       </div>
@@ -253,11 +189,8 @@ export function MobileRow({ item, showRank, bulk, selected, onOpen, onVote }: Ro
           <span style={st('font:600 15.5px var(--font-ui);white-space:nowrap;overflow:hidden;text-overflow:ellipsis')}>{g.title}</span>
           <span style={st('display:flex;align-items:center;gap:6px;min-width:0;font:400 12.5px var(--font-ui);color:var(--muted)')}>
             {item.chip && <span style={st(CHIP)}>{item.chip}</span>}
-            <AchievementChip g={g} />
             <IgdbScoreChip g={g} />
-            <SizeChip g={g} />
-            <CoopChip g={g} />
-          <SinglePlayerChip g={g} />
+            <SizeUnknownChip g={g} />
             <span style={st('white-space:nowrap;overflow:hidden;text-overflow:ellipsis')}>
               {item.meta}
               {item.meta ? ' · ' : ''}
@@ -326,11 +259,8 @@ export function CoverCard({
         <span style={st('font:600 14px var(--font-ui);white-space:nowrap;overflow:hidden;text-overflow:ellipsis')}>{g.title}</span>
         <span style={st('display:flex;align-items:center;gap:6px;min-width:0')}>
           <span style={st(`flex:1;min-width:0;font:400 12px var(--font-ui);color:${item.priceOwned ? 'var(--mint)' : 'var(--text)'};white-space:nowrap;overflow:hidden;text-overflow:ellipsis`)}>{item.priceLabel}</span>
-          <AchievementChip g={g} />
           <IgdbScoreChip g={g} />
-          <SizeChip g={g} />
-          <CoopChip g={g} />
-          <SinglePlayerChip g={g} />
+          <SizeUnknownChip g={g} />
         </span>
       </div>
       {onStart && (
@@ -376,9 +306,7 @@ export function PlayNextRow({
         <span style={st('display:flex;align-items:center;gap:6px;min-width:0;font:400 12.5px var(--font-ui);color:var(--muted)')}>
           {isNew && g.releaseDate && <span style={st(CHIP)}>{t('home.chip.new', { date: releaseShortDate(g.releaseDate) })}</span>}
           <IgdbScoreChip g={g} />
-          <SizeChip g={g} />
-          <CoopChip g={g} />
-          <SinglePlayerChip g={g} />
+          <SizeUnknownChip g={g} />
           <span style={st('white-space:nowrap;overflow:hidden;text-overflow:ellipsis')}>
             {item.meta}
             {item.meta ? ' · ' : ''}

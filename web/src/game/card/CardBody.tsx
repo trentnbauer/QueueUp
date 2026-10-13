@@ -5,7 +5,8 @@ import { fmtMoney } from '../../lib/gameView';
 import { st } from '../../ui/st';
 import { useIsMobile } from '../../ui/useLayout';
 import { useT } from '../../i18n';
-import { coopWarning, playersKind, priceModeOf, sessionsToFinish, starScore } from './cardLogic';
+import { coopWarning, formatInstallSize, playersKind, priceModeOf, sessionsToFinish, starScore } from './cardLogic';
+import { SYNC_SOURCE_KEY } from './syncSources';
 import { cardStatusLabel } from './statusLabel';
 import { Footer } from './Footer';
 import { Hero } from './Hero';
@@ -49,9 +50,10 @@ function CoopWarning({ game }: { game: Game }) {
   );
 }
 
-/** "Co-op shooter · 2020 · up to 4 players · ★ 8.7": whichever parts are known. */
+/** "Co-op shooter · 2020 · up to 4 players · ★ 8.7 · 60 GB · 🏆 10/20 · via Steam": whichever parts are known. */
 function MetaLine({ game }: { game: Game }) {
   const t = useT();
+  const { isShelf } = useScope();
   const players = playersKind(game);
   const star = starScore(game.reviewScore);
   const parts: ReactNode[] = [];
@@ -60,6 +62,11 @@ function MetaLine({ game }: { game: Game }) {
   if (game.releaseYear) parts.push(String(game.releaseYear));
   if (players) parts.push(players.kind === 'solo' ? t('card.hero.solo') : t('card.hero.upTo', { max: players.max }));
   if (star) parts.push(<span key="star" style={{ color: 'var(--star)' }}>★ {star}</span>);
+  const size = formatInstallSize(game.downloadSizeMb);
+  if (size) parts.push(<span key="size" title={t('card.hero.sizeTitle')}>💾 {size}</span>);
+  const ach = game.myAchievements;
+  if (ach && ach.total > 0) parts.push(<span key="ach" title={t('home.row.achievements', { unlocked: ach.unlocked, total: ach.total })} style={ach.unlocked >= ach.total ? { color: 'var(--star)' } : undefined}>🏆 {ach.unlocked}/{ach.total}</span>);
+  if (isShelf && game.syncSources.length > 0) parts.push(<span key="sync">{t('card.hero.via', { sources: game.syncSources.map((s) => t(SYNC_SOURCE_KEY[s])).join(' · ') })}</span>);
   return (
     <>
       {parts.map((p, i) => (

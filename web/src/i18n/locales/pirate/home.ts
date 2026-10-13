@@ -59,11 +59,6 @@ export const home: Record<keyof typeof en, string> = {
   "home.row.yourVote": "Yer vote",
   "home.row.open": "Open {title}",
   "home.row.achievements": "{unlocked} o’ {total} treasures",
-  "home.row.singlePlayerTitle": "A lone sailor’s game, says IGDB",
-  "home.row.singlePlayerAria": "Lone sailor only",
-  "home.row.singlePlayer": "👤 Lone sailor",
-  "home.row.sizeTitle": "PC cargo weight, from Steam",
-  "home.row.sizeAria": "Cargo weight {size}",
   "home.row.sizeUnknown": "💾 weight unknown",
   "home.row.sizeUnknownTitle": "Steam lists no install size for this game, so the install size filter keeps it",
   "home.row.igdbTitle": "{score}/100 on IGDB",
@@ -224,8 +219,6 @@ export const home: Record<keyof typeof en, string> = {
   "home.duration.minutes": "{m}m",
   "home.duration.hours": "{h}h",
   "home.duration.hoursMinutes": "{h}h {m}m",
-  "home.row.coopTitle": "Up to {n} players in co-op",
-  "home.row.coopMax": "{n} max",
 
   // Section tabs above the lists
   "home.section.aria": "Decks",
