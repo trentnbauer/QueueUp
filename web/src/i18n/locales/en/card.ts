@@ -1,5 +1,13 @@
 /** The game card (the phone sheet and the desktop modal) and its menus. English source strings; keys start with "card.". Placeholders look like {name}. */
 export const card = {
+  // Merging two games
+  "card.merge.title": "Merge these games?",
+  "card.merge.removed": "REMOVED",
+  "card.merge.kept": "KEPT",
+  "card.merge.swap": "Swap",
+  "card.merge.confirm": "Merge",
+  "card.merge.consequence": "{remove} is removed. Its play history, votes, tags and reviews move to {keep}.",
+
   // Bundles
   "card.bundle.which": "WHICH GAME?",
   "card.bundle.hint.one": "This bundle has {n} game. Pick it to open its card.",

@@ -5,6 +5,7 @@ import { AI_SETTINGS_QUERY_KEY, aiApi } from '../api/ai';
 import { DUPLICATE_COUNT_QUERY_KEY, DUPLICATE_LIST_QUERY_KEY, gamesApi } from '../api/games';
 import { useUi } from '../context/UiContext';
 import { Dialog } from '../ui/Dialog';
+import { MergeDirection } from '../ui/MergeDirection';
 import { trackAiActivity } from '../hooks/useAiActivity';
 import { useUndoChange } from '../hooks/useUndoChange';
 import { AiPickedBadge, Banner, Btn, Cover, Kicker, Spinner } from '../ui/primitives';
@@ -296,6 +297,7 @@ export function DuplicatesDialog() {
                   {t('settings.duplicates.reviewQuestion', { remove: removeOf(current).title, keep: keepOf(current).title })}
                 </span>
                 {current.reason && <span style={st('font:400 13.5px/1.45 var(--font-ui);color:var(--text2)')}>{current.reason}</span>}
+                <MergeDirection remove={removeOf(current)} keep={keepOf(current)} onSwap={() => keep(current, removeOf(current))} disabled={busy} />
                 <Kicker size={11}>{t('settings.duplicates.tapToKeep')}</Kicker>
                 {[current.a, current.b].map((g) => (
                   <GameCard key={g.id} g={g} keeping={keepOf(current).id === g.id} disabled={busy} onKeep={() => keep(current, g)} onBundle={() => void markBundle(current, g)} />
