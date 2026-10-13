@@ -1,9 +1,11 @@
 import { useState } from 'react';
 import type { Game, GameStatus } from '@queueup/shared';
+import { useAuth } from '../context/AuthContext';
 import { useConfirm } from '../context/ConfirmContext';
 import { useScope } from '../context/ScopeContext';
 import { useUi } from '../context/UiContext';
 import { useSteamAutoMatch } from '../hooks/useSteamAutoMatch';
+import { hexToOklchHue } from '../theme/roomTheme';
 import { useIsMobile } from '../ui/useLayout';
 import { st } from '../ui/st';
 import { useT } from '../i18n';
@@ -28,6 +30,12 @@ export function GameDetail({ game, onClose, changeStatus }: { game: Game; onClos
   const { ops, games } = scope;
   const desktop = !useIsMobile();
   const steamMatch = useSteamAutoMatch();
+  // The card is a dialog, outside the shell that carries the room tint, so it carries it itself: the room's colour in a room,
+  // the colour picked in Shelf settings on the shelf (#1167).
+  const { shelfColor } = useAuth();
+  const tint = scope.room?.accentColor ?? (scope.isShelf ? shelfColor : null);
+  const hue = tint ? hexToOklchHue(tint) : null;
+  const tintProps = hue === null ? {} : { 'data-room': '1' };
 
   const [sheet, setSheet] = useState<SheetKind | null>(null);
   const [dlc, setDlc] = useState<DlcTarget | null>(null);
@@ -51,10 +59,12 @@ export function GameDetail({ game, onClose, changeStatus }: { game: Game; onClos
 
   return (
     <div
+      {...tintProps}
       style={st(
         desktop
           ? 'position:absolute;inset:0;background:var(--sheet);display:grid;grid-template-columns:340px minmax(0,1fr);overflow:hidden'
           : 'position:absolute;inset:0;background:var(--sheet);display:flex;flex-direction:column;overflow:hidden',
+        hue === null ? undefined : ({ '--rh': String(hue) } as React.CSSProperties),
       )}
     >
       <CardBody
