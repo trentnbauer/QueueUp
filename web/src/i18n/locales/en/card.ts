@@ -9,6 +9,7 @@ export const card = {
   "card.merge.consequence": "{remove} is removed. Its play history, votes, tags and reviews move to {keep}.",
 
   // Bundles
+  "card.bundle.from": "📦 From {title}",
   "card.bundle.which": "WHICH GAME?",
   "card.bundle.hint.one": "This bundle has {n} game. Pick it to open its card.",
   "card.bundle.hint.other": "This bundle has {n} games. Pick one to open its card.",
