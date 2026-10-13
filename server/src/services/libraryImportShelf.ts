@@ -1,7 +1,7 @@
 import { Prisma } from '@prisma/client';
 import type { GameStatus, LibraryImportEntry } from '@queueup/shared';
 import { prisma } from '../db/client.js';
-import { resolveGameForCreation, defaultStatusForRelease, linkDlcToBaseGame } from './gameIntake.js';
+import { resolveGameForCreation, defaultOwnedStatusForRelease, linkDlcToBaseGame } from './gameIntake.js';
 import { isAddonCategory } from './igdbClient.js';
 import { promoteOwnedWishlistGames, setOwnershipPlatforms, unionOwnershipPlatforms } from './gameOwnership.js';
 
@@ -66,7 +66,7 @@ export async function applyResolvedIgdbEntry(
         igdbCollectionId: resolved.igdbCollectionId,
         reviewScore: resolved.reviewScore,
         sensitiveContent: resolved.sensitiveContent,
-        status: defaultStatusForRelease(resolved.releaseDate),
+        status: defaultOwnedStatusForRelease(resolved.releaseDate),
       },
     });
   } catch (err) {

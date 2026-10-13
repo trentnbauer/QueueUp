@@ -35,6 +35,7 @@ export const GAME_STATUS_LABEL: Record<GameStatus, string> = liveMap(statusLabel
 
 export const GAME_STATUS_LIST: GameStatus[] = [
   'wishlist',
+  'preordered',
   'backlog',
   'play_next',
   'paused',
@@ -195,7 +196,7 @@ export function groupDlcAfterBaseGame(games: Game[]): Game[] {
  * releaseYear alone can't tell "next week" from "in 11 months" within the same year. */
 export function upcomingReleases(games: Game[], now: number = Date.now()): Game[] {
   return games
-    .filter((g) => (g.status === 'wishlist' || g.status === 'backlog') && g.releaseDate !== null && new Date(g.releaseDate).getTime() > now)
+    .filter((g) => (g.status === 'wishlist' || g.status === 'preordered' || g.status === 'backlog') && g.releaseDate !== null && new Date(g.releaseDate).getTime() > now)
     .sort((a, b) => new Date(a.releaseDate as string).getTime() - new Date(b.releaseDate as string).getTime());
 }
 
@@ -239,7 +240,7 @@ export function defaultPrerequisite(game: Game, roomGames: Game[]): Game | null 
 export function statusBucket(game: Game): number {
   if (game.status === 'playing' || game.status === 'play_next' || game.status === 'paused') return 0;
   if (game.status === 'backlog' || game.status === 'replay') return 1;
-  if (game.status === 'wishlist') return 2;
+  if (game.status === 'wishlist' || game.status === 'preordered') return 2;
   if (game.status === 'done') return 3;
   return 4; // dropped, wont_play
 }

@@ -88,6 +88,8 @@ describe('status path', () => {
     expect(mainPath(false)).toEqual(['backlog', 'play_next', 'playing', 'done']);
     expect(mainPath(true)[0]).toBe('wishlist');
     expect(offPath()).toEqual(['paused', 'replay', 'dropped', 'wont_play']);
+    expect(offPath(true)).toEqual(['preordered', 'paused', 'replay', 'dropped', 'wont_play']);
+    expect(statusBadge('preordered', true)).toBe('📦');
   });
 
   it('numbers the step on the path and uses the emoji off it', () => {

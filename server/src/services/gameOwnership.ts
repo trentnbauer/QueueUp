@@ -88,18 +88,25 @@ export async function markOwned(userId: string, igdbIds: number[]): Promise<Badg
 
 /** A library sync (Steam, Playnite) found these titles in the user's own library, so any of them
  * still sitting on their Personal Shelf Wishlist has been bought since: move those to Backlog.
- * A wishlist game that isn't out yet stays put (a pre-purchase), same rule as
- * defaultStatusForRelease in gameIntake.ts. Returns how many games moved. */
+ * A wishlist game that isn't out yet becomes Preordered instead (a pre-purchase - see
+ * GameStatus.preordered). Returns how many games moved. */
 export async function promoteOwnedWishlistGames(userId: string, igdbIds: number[]): Promise<number> {
   if (igdbIds.length === 0) return 0;
+  const where = { roomId: null, addedBy: userId, igdbId: { in: [...new Set(igdbIds)] }, status: 'wishlist' as const };
+  const released = await prisma.game.updateMany({
+    where: { ...where, OR: [{ releaseDate: null }, { releaseDate: { lte: new Date() } }] },
+    data: { status: 'backlog' },
+  });
+  // Whatever is still on the wishlist at this point has a future release date.
+  const upcoming = await prisma.game.updateMany({ where, data: { status: 'preordered' } });
+  return released.count + upcoming.count;
+}
+
+/** Preordered games (Personal Shelf) whose release date has passed are out now: move them to the
+ * Backlog. Run daily by jobs/releaseWatchJob.ts. Returns how many moved. */
+export async function promoteReleasedPreorders(now: Date = new Date()): Promise<number> {
   const { count } = await prisma.game.updateMany({
-    where: {
-      roomId: null,
-      addedBy: userId,
-      igdbId: { in: [...new Set(igdbIds)] },
-      status: 'wishlist',
-      OR: [{ releaseDate: null }, { releaseDate: { lte: new Date() } }],
-    },
+    where: { roomId: null, status: 'preordered', releaseDate: { lte: now } },
     data: { status: 'backlog' },
   });
   return count;

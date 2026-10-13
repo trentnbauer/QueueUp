@@ -27,7 +27,7 @@ export const REVIEW_EMOJI = new Proxy({} as Record<number, { e: string; l: strin
 });
 
 /** Every status, in the order the status pickers list them. */
-export const STATUS_ORDER: GameStatus[] = ['wishlist', 'backlog', 'play_next', 'paused', 'playing', 'done', 'replay', 'dropped', 'wont_play'];
+export const STATUS_ORDER: GameStatus[] = ['wishlist', 'preordered', 'backlog', 'play_next', 'paused', 'playing', 'done', 'replay', 'dropped', 'wont_play'];
 
 /** Each status's (translated) label. */
 export const STATUS_LABEL: Record<GameStatus, string> = liveMap(statusLabel);
@@ -45,6 +45,7 @@ const NEXT_ACTION_KEYS: Record<GameStatus, [GameStatus, MessageKey][]> = {
   replay: [['done', 'home.next.beatenAgain'], ['dropped', 'home.next.dropReplay']],
   dropped: [['playing', 'home.next.pickBackUp'], ['backlog', 'home.next.backToBacklog']],
   wont_play: [['backlog', 'home.next.backToBacklog']],
+  preordered: [['backlog', 'home.next.moveToBacklog'], ['playing', 'home.next.startPlaying']],
 };
 
 /** What the status card offers as the next step from each status (labels translated when read). */
@@ -85,7 +86,7 @@ export const ROOM_TABS: TabDef[] = roomTabs();
 /** The shelf's primary tabs. Play next games sit under Playing, or under Backlog when Shelf settings
  * says so. */
 export const shelfTabs = (playNextIn: 'playing' | 'backlog' = 'playing'): TabDef[] => [
-  tabDef('wishlist', 'home.tab.wishlist', ['wishlist']),
+  tabDef('wishlist', 'home.tab.wishlist', ['wishlist', 'preordered']),
   tabDef('queue', 'home.tab.backlog', playNextIn === 'backlog' ? ['backlog', 'play_next'] : ['backlog']),
   tabDef('playing', 'home.tab.playing', playNextIn === 'backlog' ? ['playing', 'paused'] : ['playing', 'play_next', 'paused']),
   tabDef('beaten', 'home.tab.beaten', ['done']),
@@ -253,7 +254,7 @@ export function rowChip(
   }
   // Search results span every status, so say which one each game is in.
   if (ctx.searching) return STATUS_LABEL[g.status];
-  if (['wishlist', 'play_next', 'paused', 'replay', 'wont_play'].includes(g.status)) return STATUS_LABEL[g.status];
+  if (['wishlist', 'preordered', 'play_next', 'paused', 'replay', 'wont_play'].includes(g.status)) return STATUS_LABEL[g.status];
   return '';
 }
 

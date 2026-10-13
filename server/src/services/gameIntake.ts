@@ -131,6 +131,13 @@ export function defaultStatusForRelease(releaseDate: Date | null): GameStatus {
   return releaseDate !== null && releaseDate.getTime() > Date.now() ? 'wishlist' : 'backlog';
 }
 
+/** Same release-date guess for a game the person already has a copy of (a library sync, or the Add
+ * Game modal's "I own this"): one that isn't out yet is a pre-order, not a wishlist entry, so it
+ * counts as owned straight away and moves to the backlog once it releases. */
+export function defaultOwnedStatusForRelease(releaseDate: Date | null): GameStatus {
+  return releaseDate !== null && releaseDate.getTime() > Date.now() ? 'preordered' : 'backlog';
+}
+
 /** Fully resolves a game once the user confirms adding it.
  * `platformLabelOverride` replaces IGDB's full "everywhere this title has ever released" platform
  * string with a specific one - used by the Steam library import (see games.ts), where owning a
@@ -404,7 +411,11 @@ export async function createGameForUser(
         sensitiveContent: resolved.sensitiveContent,
         // Explicit status (Personal Shelf's Add Game modal, or an API push) wins outright;
         // otherwise issue #370's release-date guess (an unreleased game defaults into the wishlist).
-        status: status ?? defaultStatusForRelease(resolved.releaseDate),
+        // The Add Game modal's "I own this" on a title that isn't out yet is a pre-order.
+        status:
+          status === 'backlog' && !roomId && ownedPlatforms && ownedPlatforms.length > 0
+            ? defaultOwnedStatusForRelease(resolved.releaseDate)
+            : (status ?? defaultStatusForRelease(resolved.releaseDate)),
       },
     });
   } catch (err) {

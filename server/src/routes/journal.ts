@@ -24,6 +24,7 @@ const STATUS_BY_LABEL: Record<string, GameStatus> = {
   Wishlist: 'wishlist',
   Replay: 'replay',
   "Won't Play": 'wont_play',
+  Preordered: 'preordered',
 };
 
 const KIND_BY_STATUS: Partial<Record<GameStatus, JournalEventKind>> = {

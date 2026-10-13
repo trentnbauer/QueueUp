@@ -26,7 +26,7 @@ import {
   setManualSteamMatch,
   rematchGame,
   mergeGameInto,
-  defaultStatusForRelease,
+  defaultOwnedStatusForRelease,
   assertPlatformMatch,
   trendingIntake,
   dlcIntake,
@@ -164,6 +164,7 @@ const STATUS_LABELS: Record<GameStatus, string> = {
   wishlist: 'Wishlist',
   replay: 'Replay',
   wont_play: "Won't Play",
+  preordered: 'Preordered',
 };
 // Derived from STATUS_LABELS (a Record<GameStatus, string>, so the compiler already forces it to
 // stay exhaustive) rather than a second hand-written list - a plain array here isn't type-checked
@@ -354,7 +355,7 @@ async function runSteamLibraryImportLoop(
             sensitiveContent: resolved.sensitiveContent,
             // Issue #370: a pre-purchased/pre-loaded but not-yet-released Steam game defaults into
             // the wishlist instead of the backlog, same as the manual add path.
-            status: defaultStatusForRelease(resolved.releaseDate),
+            status: defaultOwnedStatusForRelease(resolved.releaseDate),
           },
         });
         // Issue #338: a Steam library commonly includes DLC entries alongside their base game -

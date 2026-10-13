@@ -42,6 +42,11 @@ enum GameStatus {
   /// strip, and a profile's Up next) rather than back in the backlog, so it stays in sight. Left out
   /// of Spin the Wheel and playtime "mark Playing" nudges, like playing itself.
   paused
+  /// Bought ahead of release (Personal Shelf only) - owned, so it counts as ownership everywhere
+  /// `wishlist` doesn't, but there's nothing to play yet, so it's kept out of Spin the Wheel and
+  /// the playtime nudges like `wishlist`. Moves to `backlog` on its own once its release date
+  /// passes (see jobs/releaseWatchJob.ts).
+  preordered
 
   @@map("game_status")
 }
