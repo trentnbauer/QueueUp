@@ -73,11 +73,10 @@ describe('verdictParts', () => {
 });
 
 describe('status path', () => {
-  it('has no Wishlist in rooms and no Won\'t Play on the shelf', () => {
+  it('has no Wishlist in rooms, and Won\'t Play off the path everywhere', () => {
     expect(mainPath(false)).toEqual(['backlog', 'play_next', 'playing', 'done']);
     expect(mainPath(true)[0]).toBe('wishlist');
-    expect(offPath(false)).toContain('wont_play');
-    expect(offPath(true)).not.toContain('wont_play');
+    expect(offPath()).toEqual(['paused', 'replay', 'dropped', 'wont_play']);
   });
 
   it('numbers the step on the path and uses the emoji off it', () => {
