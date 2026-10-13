@@ -191,6 +191,7 @@ export const game = {
   "game.bundle.button": "Bundle?",
   "game.bundle.title": "Split a bundle",
   "game.bundle.hint": "If {title} is several games sold together, pick the games it holds. They are added to your shelf and linked to this card, which stays on your list and opens to a list of them.",
+  "game.bundle.hintRoom": "If {title} is several games sold together, pick the games it holds. They are added to this room and linked to this card, which stays on your list and opens to a list of them.",
   "game.bundle.looking": "Looking for the games inside…",
   "game.bundle.noSuggestions": "No games found for it. Search for them below.",
   "game.bundle.fromIgdb": "Listed in this bundle on IGDB",
