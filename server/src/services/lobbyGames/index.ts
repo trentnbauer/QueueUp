@@ -1,4 +1,5 @@
 import { LOBBY_GAME_IDS, type LobbyGameId } from '@queueup/shared';
+import { RunnerGame } from './runner.js';
 import { TotemGame } from './totem.js';
 import type { LobbyGame } from './types.js';
 
@@ -9,10 +10,12 @@ export function createLobbyGame(id: LobbyGameId): LobbyGame {
   switch (id) {
     case 'totem':
       return new TotemGame();
+    case 'runner':
+      return new RunnerGame();
   }
 }
 
-/** Which game a new lobby opens with. There is one game so far; with more, this picks at random. */
+/** Which game a new lobby opens with, picked at random. */
 export function pickLobbyGame(random: () => number = Math.random): LobbyGameId {
   return LOBBY_GAME_IDS[Math.floor(random() * LOBBY_GAME_IDS.length)];
 }
