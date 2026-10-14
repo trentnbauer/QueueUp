@@ -72,6 +72,7 @@ export function useSpinLobby(roomId: string | undefined, enabled: boolean, onSta
     status,
     sendInput: useCallback((dx: number, dy: number) => send({ t: 'input', dx, dy }), [send]),
     sendAction: useCallback((name: string) => send({ t: 'action', name }), [send]),
+    sendTap: useCallback((target: number) => send({ t: 'tap', target }), [send]),
     vote: useCallback((on: boolean) => send({ t: 'vote', on }), [send]),
   };
 }

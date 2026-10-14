@@ -25,6 +25,10 @@ export class LocalLobby {
     this.game.action(this.me, name);
   }
 
+  tap(target: number): void {
+    this.game.tap?.(this.me, target);
+  }
+
   /** The same snapshot a room's lobby sends, with no votes and no spin to vote on. */
   snapshot(): LobbySnapshot {
     return { t: 'state', tick: this.ticks, game: this.game.snapshot(), voters: [], needed: 1, spinWaiting: false };

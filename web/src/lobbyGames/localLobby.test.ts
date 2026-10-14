@@ -42,6 +42,14 @@ describe('LocalLobby', () => {
     expect(action).toHaveBeenCalledWith('me', 'jump');
   });
 
+  it('passes your taps on to the game', () => {
+    const game = createLobbyGame('runner');
+    const tap = vi.spyOn(game, 'tap');
+    const lobby = new LocalLobby('runner', 'me', game);
+    lobby.tap(4);
+    expect(tap).toHaveBeenCalledWith('me', 4);
+  });
+
   it('can run every game there is', () => {
     for (const id of LOBBY_GAME_IDS) {
       const lobby = new LocalLobby(id, 'me');

@@ -23,6 +23,18 @@ function reducedMotion(on: boolean) {
   vi.stubGlobal('window', { matchMedia });
 }
 
+describe('LobbyFx tap highlight', () => {
+  it('remembers the last tap target and when it was pressed', () => {
+    reducedMotion(false);
+    const fx = new LobbyFx();
+    expect(fx.pressed).toBeNull();
+    fx.press(4, 1000);
+    expect(fx.pressed).toEqual({ target: 4, at: 1000 });
+    fx.press(7, 1200);
+    expect(fx.pressed).toEqual({ target: 7, at: 1200 });
+  });
+});
+
 describe('LobbyFx knock-outs', () => {
   it('bursts, shakes and flashes when you are knocked out, and only shakes (less) for others', () => {
     reducedMotion(false);

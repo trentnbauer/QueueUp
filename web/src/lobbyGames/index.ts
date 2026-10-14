@@ -1,6 +1,7 @@
 import type { LobbyGameId, LobbyGameSnapshot, User } from '@queueup/shared';
 import type { MessageKey } from '../i18n';
 import type { LobbyFx } from './kit/fx';
+import type { TapTargets } from './taps';
 import { coinsView } from './coins';
 import { dodgeView } from './dodge';
 import { flappyView } from './flappy';
@@ -49,6 +50,11 @@ export interface LobbyGameView<S extends LobbyGameSnapshot = LobbyGameSnapshot> 
   tapAction?: string;
   /** Like `tapAction`, but the arena works as a held button: pressing it holds this direction until let go. */
   tapHold?: [number, number];
+  /** For games where the play space is the controller: targets on the arena itself that a tap (or a key)
+   * hits, with no buttons or pad underneath. A game uses this instead of `pad`, `holds` and `actions`, not
+   * alongside them. The game draws its own targets where they are declared; the kit lights the one that
+   * was just tapped. See taps.ts. */
+  taps?: TapTargets;
   /** The game's name, shown in the lobby panel. */
   nameKey: MessageKey;
   /** A short tagline for the game card. */

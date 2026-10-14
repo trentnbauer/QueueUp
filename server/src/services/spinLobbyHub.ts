@@ -118,6 +118,7 @@ export class SpinLobbyHub {
     const m = msg as Record<string, unknown>;
     if (m.t === 'input') room.lobby.setInput(userId, m.dx, m.dy);
     else if (m.t === 'action') room.lobby.action(userId, m.name);
+    else if (m.t === 'tap') room.lobby.tap(userId, m.target);
     else if (m.t === 'vote' && typeof m.on === 'boolean') room.lobby.vote(userId, m.on);
   }
 

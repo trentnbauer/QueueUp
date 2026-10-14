@@ -1,4 +1,4 @@
-import { LOBBY_ACTION_NAME_MAX, createLobbyGame, lobbyVotesNeeded, pickLobbyGame, type LobbyGame, type LobbySnapshot } from '@queueup/shared';
+import { LOBBY_ACTION_NAME_MAX, LOBBY_TAP_TARGETS_MAX, createLobbyGame, lobbyVotesNeeded, pickLobbyGame, type LobbyGame, type LobbySnapshot } from '@queueup/shared';
 
 /** One room's live lobby: who is in it, who has voted to spin, and the mini game they are playing.
  * Pure state and rules - no sockets or timers (see spinLobbyHub.ts), so it is easy to test. A member
@@ -47,6 +47,12 @@ export class SpinLobby {
   action(userId: string, name: unknown): void {
     if (!this.connections.has(userId) || typeof name !== 'string' || name.length > LOBBY_ACTION_NAME_MAX) return;
     this.game.action(userId, name);
+  }
+
+  /** A tap on one of the game's arena targets. Anything but a whole number in range is dropped. */
+  tap(userId: string, target: unknown): void {
+    if (!this.connections.has(userId) || typeof target !== 'number' || !Number.isInteger(target) || target < 0 || target >= LOBBY_TAP_TARGETS_MAX) return;
+    this.game.tap?.(userId, target);
   }
 
   vote(userId: string, on: boolean): void {
