@@ -20,11 +20,18 @@ export type LobbyClientMessage =
   | { t: 'input'; dx: number; dy: number }
   /** A one-off move the current game understands, such as `punch`. */
   | { t: 'action'; name: string }
+  /** The person tapped one of the game's tap targets on the arena (see `LOBBY_TAP_TARGETS_MAX`). `target`
+   * is the target's index, never a position, so a client cannot claim a tap no target would give. */
+  | { t: 'tap'; target: number }
   /** Vote (or take the vote back) to leave the lobby and go to the spin. */
   | { t: 'vote'; on: boolean };
 
 /** Longest action name the server accepts. */
 export const LOBBY_ACTION_NAME_MAX = 16;
+
+/** The most tap targets a game can have on the arena; the server drops a tap with a higher index. A game
+ * checks the index against its own count too. */
+export const LOBBY_TAP_TARGETS_MAX = 64;
 
 // ---- Rounds --------------------------------------------------------------------------------------
 

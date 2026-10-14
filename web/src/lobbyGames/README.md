@@ -22,6 +22,8 @@ A game has two halves that never share code, only the snapshot type in `packages
 
 Phone-sized: **at most one movement axis (left/right, or up/down) plus one action button**, or one button alone. Declare them in the view: `pad` (`full`, `leftRight`, `none`), `holds` (buttons held down, one may be `primary`), `actions` (tap buttons), and `tapAction` / `tapHold` if tapping the arena should work too. Every control needs a keyboard key (arrows or A/D plus Space).
 
+**Or the play space is the controller:** a game can declare `taps` instead (see `taps.ts`): a grid (`{ cols, rows }`, numbered left to right then top to bottom) or a list of rectangles, as fractions of the arena, plus a keyboard key per target (`keys`, by target number; a 3x3 grid uses the numpad layout `7 8 9 / 4 5 6 / 1 2 3`). Then there is **no pad and nothing under the arena**: the arena is the controller, a game uses `taps` or the buttons above, never both. The game draws its own targets where they are declared and passes the same `taps` to `renderScene` (the `SceneGame.taps` field), which lights the target that was just tapped. A tap reaches the game as `tap(userId, target)` on its rules class (override `RoundGame.tap`); the server only ever passes a whole number from 0 to `LOBBY_TAP_TARGETS_MAX - 1`, and the game must ignore an index it has no target for. A tap names a target, never a position, so a client cannot invent one.
+
 ## Graphics standard
 
 Every game uses the kit in `kit/` so the lobby looks like one product. The point is that a new game's art is just its *world*; everything around it is already done.

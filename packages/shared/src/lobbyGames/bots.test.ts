@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import { BotFiller, botColor, botNumber, isBotId, withBots } from './bots.js';
 import { createLobbyGame } from './index.js';
 import { RedLightGame, redLightBrain } from './redlight.js';
@@ -98,6 +98,15 @@ describe('BotFiller', () => {
     expect((bot() as { x: number }).x).toBeGreaterThan(0.02);
     for (let t = 0; t < 60_000 && g.snapshot().phase === 'playing'; t += STEP) g.tick(STEP);
     expect(g.snapshot().history).toHaveLength(1);
+  });
+
+  it('passes taps from people through to the game', () => {
+    const inner = new RedLightGame(seeded(0.3));
+    const tap = vi.spyOn(inner, 'tap');
+    const g = new BotFiller(inner, 2, (id) => redLightBrain(id, seeded(0.5)));
+    g.join('a');
+    g.tap('a', 3);
+    expect(tap).toHaveBeenCalledWith('a', 3);
   });
 
   it('numbers new bots from where the last left off, so a colour is not reused at once', () => {

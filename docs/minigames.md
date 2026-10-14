@@ -39,6 +39,8 @@ While a spin is waiting for members, the mini game has a **Vote to spin** bar.
 
 Every game uses at most **one direction axis plus one button**, so it works on a phone. Keys work on a keyboard; the buttons below the arena work by touch (hold them down where it says hold).
 
+A game can instead make **the play space the controller**: there are no buttons under the arena, and you tap the thing you mean (a hole, a square on a board, a coloured panel) right on the screen. The tapped spot lights up for a moment. On a keyboard, each tappable spot has a key (for a 3x3 grid, the number keys 1-9 laid out like a numpad). A game uses one or the other, never both.
+
 | Game | Keyboard | Touch |
 | --- | --- | --- |
 | Runner | **Space**, **↑** or **W** to jump (hold for a longer jump). Hold **↓** or **S** to duck. | Hold **Jump** (or press and hold the arena). Hold **Duck**. |

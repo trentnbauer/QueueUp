@@ -49,6 +49,12 @@ export class LobbyFx {
   flash = 0;
   /** How far the background has scrolled, in screens. */
   scroll = 0;
+  /** The tap target last pressed and when (`performance.now()`), so it can be lit for a moment. */
+  pressed: { target: number; at: number } | null = null;
+
+  press(target: number, now: number): void {
+    this.pressed = { target, at: now };
+  }
   private particles: Particle[] = [];
   private prev: LobbyGameSnapshot | null = null;
   private lastNow = 0;

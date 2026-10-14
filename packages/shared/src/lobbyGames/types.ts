@@ -17,6 +17,10 @@ export interface LobbyGame {
   input(userId: string, dx: number, dy: number): void;
   /** A one-off move by name, such as `punch`. Unknown names are ignored. */
   action(userId: string, name: string): void;
+  /** The person tapped target number `target` on the arena, for games whose play space is the controller
+   * (see `taps` in the web view). The lobby only passes a whole number from 0 to LOBBY_TAP_TARGETS_MAX;
+   * the game ignores an index it has no target for. Games without tap targets leave this out. */
+  tap?(userId: string, target: number): void;
   /** Moves the game forward by `dtMs` milliseconds. */
   tick(dtMs: number): void;
   snapshot(): LobbyGameSnapshot;

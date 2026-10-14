@@ -68,6 +68,8 @@ export function Controls({
   onAction: (name: string) => void;
 }) {
   const t = useT();
+  // A game whose play space is the controller has nothing underneath the arena.
+  if (view.taps) return null;
   const buttons: ButtonSpec[] = [];
 
   if (view.pad === 'leftRight') {

@@ -9,6 +9,7 @@ const fakeGame = () => ({
   leave: vi.fn(),
   input: vi.fn(),
   action: vi.fn(),
+  tap: vi.fn(),
   tick: vi.fn(),
   snapshot: vi.fn(snapshot),
 });
@@ -97,6 +98,28 @@ describe('SpinLobby and its game', () => {
     expect(game.input).toHaveBeenCalledTimes(1);
     expect(game.action).toHaveBeenCalledTimes(1);
     expect(game.action).toHaveBeenCalledWith('a', 'punch');
+  });
+
+  it('passes a tap on a target from people in the lobby, but only a whole number in range', () => {
+    const game = fakeGame();
+    const lobby = new SpinLobby(game);
+    lobby.join('a');
+    lobby.tap('a', 0);
+    lobby.tap('a', 8);
+    lobby.tap('a', 63);
+    expect(game.tap).toHaveBeenCalledTimes(3);
+    expect(game.tap).toHaveBeenCalledWith('a', 8);
+    // Not a target index: dropped.
+    for (const bad of [-1, 64, 1.5, Number.NaN, Infinity, '3', null, undefined, {}, [1]]) lobby.tap('a', bad);
+    lobby.tap('stranger', 1);
+    expect(game.tap).toHaveBeenCalledTimes(3);
+  });
+
+  it('ignores a tap when the game has no tap targets', () => {
+    const game = { ...fakeGame(), tap: undefined };
+    const lobby = new SpinLobby(game);
+    lobby.join('a');
+    expect(() => lobby.tap('a', 2)).not.toThrow();
   });
 
   it('ticks the game and includes its snapshot', () => {

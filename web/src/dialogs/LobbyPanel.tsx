@@ -4,6 +4,7 @@ import { useLocalLobby } from '../hooks/useLocalLobby';
 import { useSpinLobby } from '../hooks/useSpinLobby';
 import { viewFor, type LobbyGameView } from '../lobbyGames';
 import { LobbyFx } from '../lobbyGames/kit';
+import { tapTargetAt, tapTargetForKey } from '../lobbyGames/taps';
 import { Controls } from './lobby/Controls';
 import { LiveAnnouncer } from './lobby/LiveAnnouncer';
 import { LobbyHeader } from './lobby/LobbyHeader';
@@ -57,7 +58,7 @@ export function LobbyPanel({
   // Either the room's live lobby over a WebSocket, or the same game run locally for practice.
   const live = useSpinLobby(practiceGame ? undefined : roomId, !practiceGame, onStarted);
   const local = useLocalLobby(practiceGame, me);
-  const { snapshot, status, sendInput, sendAction, vote } = practiceGame ? local : live;
+  const { snapshot, status, sendInput, sendAction, sendTap, vote } = practiceGame ? local : live;
   const canvasRef = useRef<HTMLCanvasElement>(null);
   // Effects (knock-out bursts, confetti, shake) and their memory between frames, for as long as the panel is open.
   const fxRef = useRef<LobbyFx | null>(null);
@@ -94,6 +95,15 @@ export function LobbyPanel({
   sendHeldRef.current = sendHeld;
   const sendActionRef = useRef(sendAction);
   sendActionRef.current = sendAction;
+  const sendTapRef = useRef(sendTap);
+  sendTapRef.current = sendTap;
+  /** Taps target number `target`: lights it for a moment and tells the game. */
+  const tapTarget = (target: number) => {
+    fxRef.current?.press(target, performance.now());
+    sendTapRef.current(target);
+  };
+  const tapTargetRef = useRef(tapTarget);
+  tapTargetRef.current = tapTarget;
 
   useEffect(() => {
     const normal = (e: KeyboardEvent) => (e.key.length === 1 ? e.key.toLowerCase() : e.key);
@@ -101,6 +111,13 @@ export function LobbyPanel({
     const down = (e: KeyboardEvent) => {
       if (typing(e)) return;
       const key = normal(e);
+      const taps = viewRef.current?.taps;
+      const target = taps ? tapTargetForKey(taps, key) : null;
+      if (target !== null) {
+        e.preventDefault();
+        if (!e.repeat) tapTargetRef.current(target);
+        return;
+      }
       const action = viewRef.current?.actions.find((a) => a.keys.includes(key));
       if (action) {
         e.preventDefault();
@@ -208,7 +225,12 @@ export function LobbyPanel({
       role="img"
       aria-label={view ? t(view.nameKey) : t('spin.lobby.title')}
       onPointerDown={(e) => {
-        if (view?.tapAction) sendAction(view.tapAction);
+        if (view?.taps) {
+          // Where on the arena, as fractions of its size, so it works at any width.
+          const box = e.currentTarget.getBoundingClientRect();
+          const target = tapTargetAt(view.taps, (e.clientX - box.left) / box.width, (e.clientY - box.top) / box.height);
+          if (target !== null) tapTarget(target);
+        } else if (view?.tapAction) sendAction(view.tapAction);
         else if (view?.tapHold) {
           e.currentTarget.setPointerCapture(e.pointerId);
           pad.current = { dx: view.tapHold[0], dy: view.tapHold[1] };

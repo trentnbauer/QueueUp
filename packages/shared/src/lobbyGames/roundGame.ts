@@ -71,6 +71,8 @@ export abstract class RoundGame<P extends RoundPlayer> implements LobbyGame {
   protected abstract advance(dt: number): void;
   abstract input(userId: string, dx: number, dy: number): void;
   abstract action(userId: string, name: string): void;
+  /** Tap targets are optional: a game that has them overrides this. */
+  tap(_userId: string, _target: number): void {}
   abstract snapshot(): LobbyGameSnapshot;
 
   /** The run number, recent results and best run, for the game's snapshot. */

@@ -3,6 +3,7 @@ import type { LobbyDrawArgs } from '../index';
 import { avatar } from './draw';
 import type { LobbyFx } from './fx';
 import { drawHud } from './hud';
+import { tapRect, type TapTargets } from '../taps';
 import { STAGE, stageTheme, type StageTheme } from './theme';
 
 /** Everything a game needs to draw its world for one frame, with the arena's look already set up. */
@@ -38,6 +39,8 @@ export interface Scene<S extends LobbyGameSnapshot = LobbyGameSnapshot> {
 export interface SceneGame<S extends LobbyGameSnapshot> {
   /** Which way the background dots drift: sideways as a course scrolls past, or down as things fall. */
   scroll: 'x' | 'y';
+  /** The game's tap targets (the same ones its view declares), so the kit can light the one just pressed. */
+  taps?: TapTargets;
   /** Draws the ground, obstacles and players, on top of the background and under the effects. */
   drawWorld(sc: Scene<S>): void;
   /** Where player number `index` is, as fractions of the arena's size. */
@@ -95,6 +98,7 @@ export function renderScene<S extends LobbyGameSnapshot>(args: LobbyDrawArgs<S>,
   }
   drawBackdrop(sc, game.scroll);
   game.drawWorld(sc);
+  if (game.taps) drawPressed(sc, game.taps);
   fx.draw(ctx, S, theme);
   drawHud(sc);
   ctx.restore();
@@ -108,6 +112,24 @@ export function renderScene<S extends LobbyGameSnapshot>(args: LobbyDrawArgs<S>,
   vignette.addColorStop(1, 'oklch(0 0 0 / 0.35)');
   ctx.fillStyle = vignette;
   ctx.fillRect(0, 0, S, S);
+}
+
+/** How long a tapped target stays lit, in milliseconds. */
+const PRESS_MS = 180;
+
+/** A brief glow on the tap target that was just pressed, so a tap always feels answered. */
+function drawPressed(sc: Scene, taps: TapTargets): void {
+  const press = sc.fx.pressed;
+  if (!press) return;
+  const k = 1 - (sc.now - press.at) / PRESS_MS;
+  const r = tapRect(taps, press.target);
+  if (k <= 0 || !r) return;
+  const { ctx, S } = sc;
+  ctx.save();
+  ctx.globalAlpha = 0.35 * k;
+  ctx.fillStyle = sc.theme.acc;
+  ctx.fillRect(r.x * S, r.y * S, r.w * S, r.h * S);
+  ctx.restore();
 }
 
 /** The sky, an accent glow and a faint dot grid that drifts with the course. */

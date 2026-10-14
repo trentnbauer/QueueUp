@@ -74,6 +74,10 @@ export class BotFiller implements LobbyGame {
     this.inner.action(userId, name);
   }
 
+  tap(userId: string, target: number): void {
+    this.inner.tap?.(userId, target);
+  }
+
   tick(dtMs: number): void {
     this.balance();
     if (this.bots.size > 0) {
