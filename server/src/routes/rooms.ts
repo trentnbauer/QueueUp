@@ -8,6 +8,7 @@ import { toUserDto, userDtoSelect } from '../util/dto.js';
 import { HttpError } from '../util/httpError.js';
 import { requireElevated, requireCanInvite, requireMembership, generateUniqueInviteCode, getRoom, adminManagedRoomIds, adminManageKey } from '../services/roomAccess.js';
 import { redis } from '../services/redisClient.js';
+import { spinLobbyHub } from '../services/spinLobbyInstance.js';
 import { logAdminAction } from '../services/adminAuditLog.js';
 import { requireSuperAdmin } from '../services/adminAccess.js';
 import { notifyRoom, notifyRoomMembersDirect } from '../services/notifications.js';
@@ -817,6 +818,8 @@ export default async function roomRoutes(app: FastifyInstance) {
         reply.status(204);
         return null;
       }
+      // Membership is only checked when the mini game connection opens, so end the removed person's now.
+      spinLobbyHub.kick(roomId, targetUserId);
       // Room activity feed (issue #509).
       const targetUser = await prisma.user.findUnique({ where: { id: targetUserId }, select: { displayName: true } });
       void logRoomActivity({
