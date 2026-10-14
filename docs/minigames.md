@@ -158,6 +158,17 @@ One board for everyone, with everyone's ships hidden on it. Last fleet afloat wi
 - **It needs two players:** on your own, a bot joins (see Bots above) and plays against you: it hides ships on the same board, shoots at squares (going after the ones beside its hits, and never at its own ships), and you shoot at its.
 - **Controls:** the board is the controller, so tap or click. There is no keyboard control for this game yet.
 
+## Randomness and secrets
+
+Anything a game decides at random and players are not meant to know is a secret, and a secret must not be guessable.
+
+- **Seeds come from a cryptographic source, never `Math.random`.** Every game builds its course from a seed. `Math.random` in Node can be worked out from a few of its outputs, and the seeds of the client-run games (Runner, Flappy, Dodge, Jump rope) are sent to every player. Someone collecting those could predict a later round: where Battleships ships are, when Red light, green light turns red, which coins fall next. The same goes for the pick of the next game and the bots' choices.
+- **A seed that is sent to players is public.** Never use it, or anything worked out from it, for something hidden. A game with hidden state keeps its own seed on the server and never puts it in a snapshot.
+- **Hidden things stay on the server.** Ship positions, light timings and upcoming items are never in a snapshot (except to their owner, for ships), and must not be derivable from one.
+- **Tests inject the random source** (`seedSource`), so they stay repeatable. Do not make the default `Math.random` to save a line.
+
+(Tracked in [#1278](https://github.com/trentnbauer/QueueUp/issues/1278): the games still use `Math.random` today.)
+
 ## Keeping the motion consistent
 
 Scrolling games (Runner, Flappy, Dodge, Catch the coins, Obstacle race) all follow one rule so the world never slides at two speeds:
