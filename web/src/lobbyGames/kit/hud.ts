@@ -3,7 +3,7 @@ import { FONT, STAGE } from './theme';
 import { roundRect } from './draw';
 import type { Scene } from './scene';
 
-/** How long the server shows a run's result (server/src/services/lobbyGames/roundGame.ts), so the
+/** How long the server shows a run's result (packages/shared/src/lobbyGames/roundGame.ts), so the
  * result card can animate in from its start. */
 const RESULT_MS = 4000;
 

@@ -2,7 +2,7 @@ import { RUNNER_X, type RunnerSnapshot } from '@queueup/shared';
 import type { LobbyGameView } from './index';
 import { FONT, STAGE, courseOffset, coverTile, drawFloor, groundShadow, hueOf, renderScene, roundRect, type Scene, type SceneGame } from './kit';
 
-// Mirrors the server's sizes (server/src/services/lobbyGames/runner.ts), so what is drawn is what is hit.
+// Mirrors the server's sizes (packages/shared/src/lobbyGames/runner.ts), so what is drawn is what is hit.
 const STAND_HEIGHT = 0.45;
 const DUCK_HEIGHT = 0.25;
 const CACTUS = { width: 0.1, height: 0.35 };

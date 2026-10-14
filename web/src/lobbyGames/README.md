@@ -15,8 +15,11 @@ A game has two halves that never share code, only the snapshot type in `packages
 1. **Shared:** add the id to `LobbyGameId` / `LOBBY_GAME_IDS` and a `<Game>Snapshot` type (extend `RoundSummary`) in `packages/shared/src/spinLobby.ts`, and add it to `LobbyGameSnapshot`.
 2. **Rules:** a class extending `RoundGame` (`roundGame.ts`) in `packages/shared/src/lobbyGames/`. It only supplies players, a seeded course and its physics; waiting, the countdown, runs, results, wins and the run history come from the base. Register it in `packages/shared/src/lobbyGames/index.ts`.
 3. **Web:** a `LobbyGameView` in `web/src/lobbyGames/<game>.ts` whose `draw` is one call to `renderScene(args, scene)`, and a line in `LOBBY_GAME_VIEWS` (`index.ts`).
-4. **Strings:** the game's name, hint and button labels in `web/src/i18n/locales/{en,pirate}/spin.ts` as `spin.lobby.<game>.*`. The countdown, result and "you're out" text are shared (`spin.lobby.hud.*`); do not add per-game copies.
-5. **Tests:** see "Before a PR".
+4. **Strings:** the game's name, tagline, hint and button labels in `web/src/i18n/locales/{en,pirate}/spin.ts` as `spin.lobby.<game>.*`. The countdown, result and "you're out" text are shared (`spin.lobby.hud.*`); do not add per-game copies. A game whose score is not metres (coins, swings, points) picks its words in `SCORE_WORDS` (`kit/hud.ts`).
+5. **Docs:** a section for the game in `docs/minigames.md` (goal, what knocks you out, speeds and timings with the numbers from the rules class), a row in its controls table, and the game's name in the lists there it belongs in (client-sim games, scrolling games).
+6. **Tests:** see "Before a PR".
+
+Nothing on the server changes: it runs every game through `createLobbyGame`, and the practice picker and the lobby's random pick read `LOBBY_GAME_IDS`.
 
 ## Things only one person may see
 

@@ -6,6 +6,7 @@ import { battleshipsView } from './battleships';
 import { coinsView } from './coins';
 import { dodgeView } from './dodge';
 import { flappyView } from './flappy';
+import { raceView } from './race';
 import { redLightView } from './redlight';
 import { ropeView } from './rope';
 import { runnerView } from './runner';
@@ -37,7 +38,7 @@ export interface LobbyStanding {
 }
 
 /** How the browser plays one lobby game: the buttons it adds to the pad, how a frame is drawn and the
- * scoreboard. The server module of the same id (server/src/services/lobbyGames/) holds the rules. */
+ * scoreboard. The rules class of the same id (packages/shared/src/lobbyGames/) holds the rules. */
 export interface LobbyGameView<S extends LobbyGameSnapshot = LobbyGameSnapshot> {
   /** Controls stay small enough for a phone: at most one movement axis (or none) plus one action button.
    * `full` is the 4-way pad, `leftRight` just two buttons, `none` shows no pad (a game that only uses
@@ -74,6 +75,7 @@ export const LOBBY_GAME_VIEWS: { [K in LobbyGameId]: LobbyGameView<Extract<Lobby
   redlight: redLightView,
   coins: coinsView,
   battleships: battleshipsView,
+  race: raceView,
 };
 
 /** The view for whichever game a snapshot belongs to. */
