@@ -1,12 +1,11 @@
 import { describe, expect, it } from 'vitest';
-import { BATTLESHIPS_SIZE, BATTLESHIPS_TARGET_BASE, SQUARE_HIT, SQUARE_MISS, SQUARE_SUNK, SQUARE_UNKNOWN, type BattleshipsSnapshot } from '../spinLobby.js';
-import { BattleshipsGame, battleshipsBrain, fleetFor, fleetSquares, placeFleet } from './battleships.js';
+import { BATTLESHIPS_SIZE, SQUARE_HIT, SQUARE_MISS, SQUARE_SUNK, SQUARE_UNKNOWN, type BattleshipsSnapshot } from '../spinLobby.js';
+import { BattleshipsGame, battleshipsBrain, fleetFor, fleetSquares, placeFleets } from './battleships.js';
 import { BotFiller, withBots } from './bots.js';
 import { mulberry32 } from './roundGame.js';
 
 const SIZE = BATTLESHIPS_SIZE;
 const CELLS = SIZE * SIZE;
-const BASE = BATTLESHIPS_TARGET_BASE;
 const STEP = 33;
 const seeded = (seed: number) => () => seed;
 const run = (g: { tick(ms: number): void }, ms: number) => {
@@ -21,14 +20,14 @@ function started(ids: string[], seed = 0.3) {
   return g;
 }
 
-/** Each player's hidden fleet, which nobody else can see (a test peeks). */
-interface PeekBoard {
+/** Where each player's hidden ships are, which nobody else can see (a test peeks). */
+interface PeekPlayer {
   ships: { cells: number[]; hits: number }[];
-  cells: number[];
 }
-const peek = (g: BattleshipsGame, id: string) => (g as unknown as { boards: Map<string, PeekBoard> }).boards.get(id)!;
-const shipSquares = (g: BattleshipsGame, id: string) => peek(g, id).ships.flatMap((s) => s.cells);
-const water = (g: BattleshipsGame, id: string) => Array.from({ length: CELLS }, (_, i) => i).filter((i) => !shipSquares(g, id).includes(i));
+const players = (g: BattleshipsGame) => (g as unknown as { players: Map<string, PeekPlayer> }).players;
+const shipSquares = (g: BattleshipsGame, id: string) => players(g).get(id)!.ships.flatMap((s) => s.cells);
+const allShips = (g: BattleshipsGame) => [...players(g).keys()].flatMap((id) => shipSquares(g, id));
+const water = (g: BattleshipsGame) => Array.from({ length: CELLS }, (_, i) => i).filter((i) => !allShips(g).includes(i));
 
 /** A shot, then long enough to be ready for the next. */
 function fire(g: BattleshipsGame, id: string, square: number) {
@@ -37,23 +36,28 @@ function fire(g: BattleshipsGame, id: string, square: number) {
 }
 
 describe('fleetSquares', () => {
-  it('is about 30% of the board for one or two players, and about 10% for twelve, falling as players join', () => {
-    expect(fleetSquares(1) / CELLS).toBeGreaterThan(0.27);
-    expect(fleetSquares(1) / CELLS).toBeLessThan(0.32);
-    expect(fleetSquares(12) / CELLS).toBeGreaterThan(0.08);
-    expect(fleetSquares(12) / CELLS).toBeLessThan(0.12);
+  it('shares about 30% of the board out between the players, so each has fewer ships as more play', () => {
     for (let n = 1; n < 12; n++) expect(fleetSquares(n + 1), `${n} to ${n + 1} players`).toBeLessThanOrEqual(fleetSquares(n));
-    expect(fleetSquares(1)).toBeGreaterThan(fleetSquares(12) * 2.5);
+    expect(fleetSquares(1)).toBeGreaterThan(fleetSquares(12) * 5);
+    expect(fleetSquares(2)).toBeGreaterThanOrEqual(8);
+    expect(fleetSquares(12)).toBe(2);
   });
 
-  it('is the same for anything above twelve, and at least one player', () => {
-    expect(fleetSquares(40)).toBe(fleetSquares(12));
+  it('keeps the free space free: all the ships together never cover more than 40% of the board', () => {
+    for (let n = 1; n <= 12; n++) expect((n * fleetSquares(n)) / CELLS, `${n} players`).toBeLessThanOrEqual(0.4);
+    // And about 30% for the sizes where it divides evenly enough.
+    expect((2 * fleetSquares(2)) / CELLS).toBeGreaterThan(0.27);
+    expect((4 * fleetSquares(4)) / CELLS).toBeLessThan(0.34);
+  });
+
+  it('is at least two squares each, and the same for one player or none', () => {
+    for (let n = 0; n <= 40; n++) expect(fleetSquares(n)).toBeGreaterThanOrEqual(2);
     expect(fleetSquares(0)).toBe(fleetSquares(1));
   });
 });
 
 describe('fleetFor', () => {
-  it('only has ships 1 to 4 squares long, longest first, that add up to the squares for the players', () => {
+  it('only has ships 1 to 4 squares long, longest first, that add up to each player\'s squares', () => {
     for (let n = 0; n <= 14; n++) {
       for (let seed = 1; seed <= 30; seed++) {
         const fleet = fleetFor(n, mulberry32(seed));
@@ -61,7 +65,6 @@ describe('fleetFor', () => {
         for (const len of fleet) {
           expect(len).toBeGreaterThanOrEqual(1);
           expect(len).toBeLessThanOrEqual(4);
-          expect(Number.isInteger(len)).toBe(true);
         }
         expect([...fleet].sort((a, b) => b - a)).toEqual(fleet);
       }
@@ -70,8 +73,8 @@ describe('fleetFor', () => {
 
   it('picks different ships for the same number of squares: one 4 and a 1, or 2, 2 and 1', () => {
     const shapes = new Set<string>();
-    for (let seed = 1; seed <= 200; seed++) shapes.add(fleetFor(2, mulberry32(seed)).join(','));
-    expect(shapes.size).toBeGreaterThan(20);
+    for (let seed = 1; seed <= 200; seed++) shapes.add(fleetFor(2, mulberry32(seed)).join(","));
+    expect(shapes.size).toBeGreaterThan(12);
     const lengths = new Set([...shapes].flatMap((s) => s.split(',').map(Number)));
     expect([...lengths].sort()).toEqual([1, 2, 3, 4]);
   });
@@ -83,16 +86,19 @@ describe('fleetFor', () => {
   });
 });
 
-describe('placeFleet', () => {
-  it('puts every ship on the board in a straight line, with no two overlapping or touching', () => {
+describe('placeFleets', () => {
+  /** Everyone's fleets for this many players. */
+  const fleets = (n: number, seed: number) => Array.from({ length: n }, (_, i) => fleetFor(n, mulberry32(seed * 131 + i)));
+
+  it('puts every ship on the one board in a straight line, with no two overlapping, whoever they belong to', () => {
     for (let n = 1; n <= 12; n++) {
-      for (let seed = 1; seed <= 40; seed++) {
-        const fleet = fleetFor(n, mulberry32(seed * 31 + n));
-        const placed = placeFleet(mulberry32(seed * 7919 + n), fleet);
-        expect(placed.map((s) => s.length), `${n} players, seed ${seed}`).toEqual(fleet);
-        const all = placed.flat();
+      for (let seed = 1; seed <= 30; seed++) {
+        const want = fleets(n, seed);
+        const placed = placeFleets(mulberry32(seed * 7919 + n), want);
+        expect(placed.map((p) => p.map((s) => s.length)), `${n} players, seed ${seed}`).toEqual(want);
+        const all = placed.flat(2);
         expect(new Set(all).size).toBe(all.length);
-        for (const cells of placed) {
+        for (const cells of placed.flat()) {
           const xs = cells.map((c) => c % SIZE);
           const ys = cells.map((c) => Math.floor(c / SIZE));
           for (const c of cells) {
@@ -104,8 +110,16 @@ describe('placeFleet', () => {
           const step = new Set(ys).size === 1 ? 1 : SIZE;
           sorted.forEach((c, i) => i > 0 && expect(c - sorted[i - 1]).toBe(step));
         }
-        placed.forEach((a, i) =>
-          placed.slice(i + 1).forEach((b) => {
+      }
+    }
+  });
+
+  it('keeps ships from touching, corners included, when there is room (up to six players)', () => {
+    for (let n = 1; n <= 6; n++) {
+      for (let seed = 1; seed <= 30; seed++) {
+        const ships = placeFleets(mulberry32(seed * 31 + n), fleets(n, seed)).flat();
+        ships.forEach((a, i) =>
+          ships.slice(i + 1).forEach((b) => {
             for (const c of a)
               for (const d of b) {
                 const near = Math.abs((c % SIZE) - (d % SIZE)) <= 1 && Math.abs(Math.floor(c / SIZE) - Math.floor(d / SIZE)) <= 1;
@@ -118,25 +132,25 @@ describe('placeFleet', () => {
   });
 
   it('is the same every time for the same seed, and different for another', () => {
-    const fleet = fleetFor(2, mulberry32(1));
-    expect(placeFleet(mulberry32(5), fleet)).toEqual(placeFleet(mulberry32(5), fleet));
-    expect(placeFleet(mulberry32(5), fleet)).not.toEqual(placeFleet(mulberry32(6), fleet));
+    const want = fleets(3, 1);
+    expect(placeFleets(mulberry32(5), want)).toEqual(placeFleets(mulberry32(5), want));
+    expect(placeFleets(mulberry32(5), want)).not.toEqual(placeFleets(mulberry32(6), want));
   });
 });
 
 describe('BattleshipsGame fleets', () => {
-  it('wants two players, and gives each their own fleet, sized for the people who started', () => {
+  it('wants two players, and puts everyone\'s ships on the one board, each with their share', () => {
     expect(new BattleshipsGame().minPlayers).toBe(2);
     const two = started(['a', 'b']);
     for (const id of ['a', 'b']) expect(shipSquares(two, id)).toHaveLength(fleetSquares(2));
+    expect(new Set(allShips(two)).size).toBe(2 * fleetSquares(2));
     const twelve = started(Array.from({ length: 12 }, (_, i) => `p${i}`));
     for (const id of ['p0', 'p11']) expect(shipSquares(twelve, id)).toHaveLength(fleetSquares(12));
+    expect(new Set(allShips(twelve)).size).toBe(12 * fleetSquares(12));
+    // Fewer ships each as more play, and free space left: well under half the board is ship.
     expect(shipSquares(twelve, 'p0').length).toBeLessThan(shipSquares(two, 'a').length);
-  });
-
-  it('hides a different fleet for each player', () => {
-    const g = started(['a', 'b']);
-    expect(shipSquares(g, 'a')).not.toEqual(shipSquares(g, 'b'));
+    expect(allShips(twelve).length / CELLS).toBeLessThan(0.4);
+    expect(allShips(two).length / CELLS).toBeLessThan(0.4);
   });
 
   it('hides a different fleet each round', () => {
@@ -149,131 +163,106 @@ describe('BattleshipsGame fleets', () => {
     const g = started(['a', 'b']);
     const snapA = g.snapshot('a');
     const snapB = g.snapshot('b');
-    expect(snapA.mine?.ships.flat().sort((x, y) => x - y)).toEqual([...shipSquares(g, 'a')].sort((x, y) => x - y));
-    expect(snapB.mine?.ships.flat().sort((x, y) => x - y)).toEqual([...shipSquares(g, 'b')].sort((x, y) => x - y));
-    // A spectator sees no ships at all, and neither does anyone's view of the board they are shooting at.
+    expect(snapA.mine?.flat().sort((x, y) => x - y)).toEqual([...shipSquares(g, 'a')].sort((x, y) => x - y));
+    expect(snapB.mine?.flat().sort((x, y) => x - y)).toEqual([...shipSquares(g, 'b')].sort((x, y) => x - y));
+    // A spectator sees no ships at all.
     expect(g.snapshot().mine).toBeNull();
     expect(g.snapshot('stranger').mine).toBeNull();
-    for (const snap of [snapA, snapB]) {
-      expect(Object.keys(snap.targetBoard ?? {}).sort()).toEqual(['by', 'cells', 'fleet']);
-      expect(snap.targetBoard?.cells.every((c) => c === SQUARE_UNKNOWN)).toBe(true);
-    }
-    // a's snapshot carries nothing that says where b's ships are.
-    const json = JSON.stringify(snapA);
-    expect(json.match(/"ships"/g)?.length).toBe(1);
+    // Everything else in a's snapshot is the same as in b's, and says nothing about where b's ships are.
+    const strip = (s: BattleshipsSnapshot) => ({ ...s, mine: null });
+    expect(strip(snapA)).toEqual(strip(snapB));
+    expect(snapA.cells.every((c) => c === SQUARE_UNKNOWN)).toBe(true);
+    expect(snapA.owner.every((o) => o === -1)).toBe(true);
+    expect(JSON.stringify(strip(snapA))).not.toContain('"mine":[');
   });
 
-  it('shows everyone how many squares of each fleet are afloat', () => {
+  it('shows everyone how many squares of each fleet are afloat, and the ships by length', () => {
     const g = started(['a', 'b']);
-    expect(g.snapshot('a').players.map((p) => p.afloat)).toEqual([fleetSquares(2), fleetSquares(2)]);
+    const snap = g.snapshot('a');
+    expect(snap.players.map((p) => p.afloat)).toEqual([fleetSquares(2), fleetSquares(2)]);
+    expect(snap.players[1].fleet.reduce((n, s) => n + s.len, 0)).toBe(fleetSquares(2));
+    expect(snap.players[1].fleet.every((s) => !s.sunk)).toBe(true);
   });
 });
 
 describe('BattleshipsGame shooting', () => {
-  it('starts everyone shooting at the next person along', () => {
-    const g = started(['a', 'b', 'c']);
-    expect(g.snapshot('a').target).toBe('b');
-    expect(g.snapshot('b').target).toBe('c');
-    expect(g.snapshot('c').target).toBe('a');
-  });
-
-  it('scores a hit on the target, and shows it on that board only', () => {
-    const g = started(['a', 'b', 'c']);
-    const hit = shipSquares(g, 'b')[0];
+  it('scores a hit on someone else\'s ship, and shows it on the board without saying whose it is', () => {
+    const g = started(['a', 'b']);
+    const hit = shipSquares(g, 'b').find((c) => players(g).get('b')!.ships.find((s) => s.cells.includes(c))!.cells.length > 1) ?? shipSquares(g, 'b')[0];
     g.tap('a', hit);
     const snap = g.snapshot('a');
-    expect(snap.targetBoard?.cells[hit]).toBe(SQUARE_HIT);
-    expect(snap.targetBoard?.by[hit]).toBe(0);
-    expect(me(g, 'a')).toMatchObject({ meters: 1, shots: 1, hits: 1 });
-    // b sees it on their own board; c, shooting at a, sees nothing there.
-    expect(g.snapshot('b').mine?.cells[hit]).toBe(SQUARE_HIT);
-    expect(g.snapshot('c').targetBoard?.cells.every((c) => c === SQUARE_UNKNOWN)).toBe(true);
+    // A single-square ship is sunk by its one hit; otherwise it is a hit on a ship still afloat.
+    expect([SQUARE_HIT, SQUARE_SUNK]).toContain(snap.cells[hit]);
+    expect(snap.by[hit]).toBe(0);
+    expect(me(g, 'a')).toMatchObject({ shots: 1, hits: 1 });
+    expect(me(g, 'a').meters).toBeGreaterThanOrEqual(1);
+    if (snap.cells[hit] === SQUARE_HIT) expect(snap.owner[hit]).toBe(-1);
+    expect(snap.players[1].afloat).toBe(fleetSquares(2) - 1);
+    // b sees it on their own ship.
+    expect(g.snapshot('b').cells[hit]).toBe(snap.cells[hit]);
   });
 
   it('shows a miss as a miss, and counts the shot', () => {
     const g = started(['a', 'b']);
-    const miss = water(g, 'b')[0];
+    const miss = water(g)[0];
     g.tap('a', miss);
-    expect(g.snapshot('a').targetBoard?.cells[miss]).toBe(SQUARE_MISS);
+    expect(g.snapshot('a').cells[miss]).toBe(SQUARE_MISS);
+    expect(g.snapshot('b').cells[miss]).toBe(SQUARE_MISS);
     expect(me(g, 'a')).toMatchObject({ meters: 0, shots: 1, hits: 0 });
   });
 
-  it('gives a bonus to the shot that sinks a ship, and shows the whole ship sunk', () => {
+  it('gives a bonus to the shot that sinks a ship, and shows the whole ship sunk and whose it was', () => {
     const g = started(['a', 'b']);
-    const ship = peek(g, 'b').ships[peek(g, 'b').ships.length - 1].cells;
+    const ships = players(g).get('b')!.ships;
+    const ship = ships[ships.length - 1].cells; // the shortest
     for (const c of ship) fire(g, 'a', c);
+    const snap = g.snapshot('a');
     expect(me(g, 'a').meters).toBe(ship.length + 1);
-    for (const c of ship) expect(g.snapshot('a').targetBoard?.cells[c]).toBe(SQUARE_SUNK);
-    expect(g.snapshot('a').targetBoard?.fleet.filter((s) => s.sunk)).toHaveLength(1);
-    expect(g.snapshot('a').players.find((p) => p.id === 'b')?.afloat).toBe(fleetSquares(2) - ship.length);
+    for (const c of ship) {
+      expect(snap.cells[c]).toBe(SQUARE_SUNK);
+      expect(snap.owner[c]).toBe(1);
+    }
+    expect(snap.players[1].fleet.filter((s) => s.sunk)).toHaveLength(1);
+    expect(snap.players[1].afloat).toBe(fleetSquares(2) - ship.length);
   });
 
-  it('never lets a player shoot at their own board', () => {
+  it('never lets a player shoot at their own ships, and does not charge them for trying', () => {
     const g = started(['a', 'b']);
-    // Even by asking for themselves: the only choices are the others.
-    g.tap('a', BASE + 5);
-    expect(g.snapshot('a').target).toBe('b');
-    g.tap('a', water(g, 'b')[0]);
-    expect(g.snapshot('a').mine?.cells.every((c) => c === SQUARE_UNKNOWN)).toBe(true);
-  });
-
-  it('lets a player pick whose board to shoot at, and shoots there', () => {
-    const g = started(['a', 'b', 'c']);
-    // a's other players are b (0) and c (1).
-    g.tap('a', BASE + 1);
-    expect(g.snapshot('a').target).toBe('c');
-    const hit = shipSquares(g, 'c')[0];
-    g.tap('a', hit);
-    expect(g.snapshot('a').targetBoard?.cells[hit]).toBe(SQUARE_HIT);
-    expect(g.snapshot('c').mine?.cells[hit]).toBe(SQUARE_HIT);
-    expect(g.snapshot('b').mine?.cells.every((c) => c === SQUARE_UNKNOWN)).toBe(true);
-    g.tap('a', BASE + 0);
-    expect(g.snapshot('a').target).toBe('b');
-  });
-
-  it('ignores a pick that is not another player, or from someone not in the round', () => {
-    const g = started(['a', 'b', 'c']);
-    g.tap('a', BASE + 2);
-    g.tap('a', BASE + 99);
-    expect(g.snapshot('a').target).toBe('b');
-    g.join('late');
-    g.tap('late', BASE);
-    g.tap('late', water(g, 'a')[0]);
-    expect(me(g, 'late').shots).toBe(0);
-    expect(g.snapshot('late').mine).toBeNull();
-    expect(g.snapshot('late').players.find((p) => p.id === 'late')?.inRound).toBe(false);
+    const own = shipSquares(g, 'a')[0];
+    g.tap('a', own);
+    expect(g.snapshot('a').cells[own]).toBe(SQUARE_UNKNOWN);
+    expect(me(g, 'a').shots).toBe(0);
+    g.tap('a', water(g)[0]);
+    expect(me(g, 'a').shots).toBe(1);
   });
 
   it('lets one person shoot only once in a moment', () => {
     const g = started(['a', 'b']);
-    const [first, second] = water(g, 'b');
+    const [first, second] = water(g);
     g.tap('a', first);
     g.tap('a', second);
-    expect(g.snapshot('a').targetBoard?.cells[second]).toBe(SQUARE_UNKNOWN);
+    expect(g.snapshot('a').cells[second]).toBe(SQUARE_UNKNOWN);
     expect(me(g, 'a').cooldownMs).toBeGreaterThan(500);
     run(g, 900);
     g.tap('a', second);
-    expect(g.snapshot('a').targetBoard?.cells[second]).toBe(SQUARE_MISS);
+    expect(g.snapshot('a').cells[second]).toBe(SQUARE_MISS);
     // Someone else is not held up by it.
-    g.tap('b', water(g, 'a')[0]);
+    g.tap('b', water(g)[2]);
     expect(me(g, 'b').shots).toBe(1);
   });
 
-  it('ignores a shot at a square already shot, without using up the wait', () => {
+  it('ignores a shot at a square already shot, without using up the wait, and the first shot at a square counts', () => {
     const g = started(['a', 'b', 'c']);
-    g.tap('c', BASE + 1); // c shoots at b as well
-    const square = water(g, 'b')[0];
+    const square = water(g)[0];
     g.tap('a', square);
-    run(g, 900);
-    g.tap('c', square);
-    expect(me(g, 'c').shots).toBe(0);
-    g.tap('a', square);
-    expect(me(g, 'a').shots).toBe(1);
-    g.tap('c', water(g, 'b')[1]);
-    expect(me(g, 'c').shots).toBe(1);
+    g.tap('b', square);
+    expect(me(g, 'b').shots).toBe(0);
+    expect(g.snapshot('b').by[square]).toBe(0);
+    g.tap('b', water(g)[1]);
+    expect(me(g, 'b').shots).toBe(1);
   });
 
-  it('ignores taps that are not on the board, from nobody, or before the run', () => {
+  it('ignores taps that are not on the board, from nobody, from someone watching, or before the run', () => {
     const g = new BattleshipsGame(seeded(0.3));
     g.join('a');
     g.join('b');
@@ -283,15 +272,18 @@ describe('BattleshipsGame shooting', () => {
     for (const bad of [-1, CELLS, 1.5, Number.NaN, Infinity]) g.tap('a', bad);
     g.tap('nobody', 0);
     expect(me(g, 'a').shots).toBe(0);
+    g.join('late'); // arrives during the run: watches
+    g.tap('late', water(g)[0]);
+    expect(me(g, 'late').shots).toBe(0);
+    expect(g.snapshot('late').mine).toBeNull();
+    expect(g.snapshot('late').players.find((p) => p.id === 'late')?.inRound).toBe(false);
   });
 
   it('never gives away a ship that has not been shot at', () => {
     const g = started(['a', 'b']);
-    const hit = shipSquares(g, 'b')[0];
-    g.tap('a', hit);
-    const cells = g.snapshot('a').targetBoard?.cells ?? [];
+    g.tap('a', shipSquares(g, 'b')[0]);
+    const cells = g.snapshot('a').cells;
     expect(cells.filter((c) => c !== SQUARE_UNKNOWN)).toHaveLength(1);
-    expect(cells[hit]).toBe(SQUARE_HIT);
   });
 });
 
@@ -308,35 +300,24 @@ describe('BattleshipsGame rounds', () => {
     expect(snap.history[0].meters).toBe(me(g, 'a').meters);
   });
 
-  it('carries on with the rest when one is knocked out, and moves anyone shooting at them to someone else', () => {
+  it('carries on with the rest when one is knocked out, and they can no longer shoot', () => {
     const g = started(['a', 'b', 'c']);
-    // a sinks b. c was shooting at a, b at c: b is out, and a moves on to c.
     for (const c of shipSquares(g, 'b')) fire(g, 'a', c);
     expect(g.snapshot('a').phase).toBe('playing');
     expect(g.snapshot('a').players.find((p) => p.id === 'b')?.alive).toBe(false);
-    expect(g.snapshot('a').target).toBe('c');
-    // Someone out can not shoot.
-    g.tap('b', water(g, 'c')[0]);
+    g.tap('b', water(g)[0]);
     expect(me(g, 'b').shots).toBe(0);
     for (const c of shipSquares(g, 'c')) fire(g, 'a', c);
     expect(g.snapshot('a').phase).toBe('over');
     expect(g.snapshot('a').winnerId).toBe('a');
   });
 
-  it('cannot pick someone who is out', () => {
+  it('shows someone who is out where their ships were, now all sunk', () => {
     const g = started(['a', 'b', 'c']);
     for (const c of shipSquares(g, 'b')) fire(g, 'a', c);
-    g.tap('c', BASE + 0); // c's others are a (0) and b (1): b is out
-    g.tap('c', BASE + 1);
-    expect(g.snapshot('c').target).toBe('a');
-  });
-
-  it('shows someone who is out their own board, with how it ended up', () => {
-    const g = started(['a', 'b', 'c']);
-    for (const c of shipSquares(g, 'b')) fire(g, 'a', c);
-    const mine = g.snapshot('b').mine;
-    expect(mine?.ships.length).toBeGreaterThan(0);
-    expect(mine?.fleet.every((s) => s.sunk)).toBe(true);
+    const snap = g.snapshot('b');
+    expect(snap.mine?.flat().sort((x, y) => x - y)).toEqual([...shipSquares(g, 'b')].sort((x, y) => x - y));
+    expect(snap.players.find((p) => p.id === 'b')?.fleet.every((s) => s.sunk)).toBe(true);
   });
 
   it('ends at the time limit with the most squares afloat winning', () => {
@@ -355,7 +336,7 @@ describe('BattleshipsGame rounds', () => {
     expect(me(g, 'a').wins + me(g, 'b').wins).toBe(0);
   });
 
-  it('plays the next round with new fleets and scores back at zero', () => {
+  it('plays the next round with new ships and scores back at zero', () => {
     // A new seed each round, as the real game has (a fixed one would make every round the same).
     let k = 0;
     const g = new BattleshipsGame(() => (k += 0.137) % 1);
@@ -368,7 +349,7 @@ describe('BattleshipsGame rounds', () => {
     run(g, 3200);
     expect(g.snapshot('a').run).toBe(2);
     expect(shipSquares(g, 'a').join(',')).not.toBe(before);
-    expect(g.snapshot('a').targetBoard?.cells.every((c) => c === SQUARE_UNKNOWN)).toBe(true);
+    expect(g.snapshot('a').cells.every((c) => c === SQUARE_UNKNOWN)).toBe(true);
     expect(me(g, 'a').meters).toBe(0);
     expect(me(g, 'a').wins).toBe(1);
     expect(me(g, 'b').alive).toBe(true);
@@ -376,11 +357,11 @@ describe('BattleshipsGame rounds', () => {
 });
 
 describe('a bot at Battleships', () => {
-  /** A bot's view of a round with the target board as given. */
-  const viewWith = (cells: number[]) => {
+  /** A bot's view of a round with the board as given. */
+  const viewWith = (cells: number[], mine?: number[][]) => {
     const g = started(['me', 'bot:1']);
     const snap = g.snapshot('bot:1');
-    return { ...snap, targetBoard: { ...snap.targetBoard!, cells } };
+    return { ...snap, cells, mine: mine ?? snap.mine };
   };
 
   it('does nothing when the round is not on, or it is not in it', () => {
@@ -408,48 +389,32 @@ describe('a bot at Battleships', () => {
     const next = [hit - 1, hit + 1, hit - SIZE, hit + SIZE];
     let beside = 0;
     for (let seed = 1; seed <= 60; seed++) {
-      const taps = battleshipsBrain('bot:1', mulberry32(seed))(viewWith(cells), 10_000).taps ?? [];
+      const taps = battleshipsBrain('bot:1', mulberry32(seed))(viewWith(cells, []), 10_000).taps ?? [];
       if (taps.length === 1 && next.includes(taps[0])) beside++;
     }
     expect(beside).toBeGreaterThan(40);
   });
 
-  it('never shoots a square that has been shot, and finds the last one left', () => {
+  it('never shoots a square that has been shot, or one of its own ships, and finds the last one left', () => {
     const cells = new Array(CELLS).fill(SQUARE_MISS);
     cells[17] = SQUARE_UNKNOWN;
+    cells[18] = SQUARE_UNKNOWN; // its own ship is here
     for (let seed = 1; seed <= 40; seed++) {
-      const taps = battleshipsBrain('bot:1', mulberry32(seed))(viewWith(cells), 10_000).taps ?? [];
-      // Mostly the last square; with only two players there is nobody else to turn on.
+      const taps = battleshipsBrain('bot:1', mulberry32(seed))(viewWith(cells, [[18]]), 10_000).taps ?? [];
       expect(taps).toEqual([17]);
     }
     const none = new Array(CELLS).fill(SQUARE_MISS);
-    expect(battleshipsBrain('bot:1', seeded(0.5))(viewWith(none), 10_000)).toEqual({});
+    expect(battleshipsBrain('bot:1', seeded(0.5))(viewWith(none, []), 10_000)).toEqual({});
   });
 
   it('ignores a sunk ship, and looks for the next', () => {
     const cells = new Array(CELLS).fill(SQUARE_UNKNOWN);
     for (const c of [10, 11, 12]) cells[c] = SQUARE_SUNK;
     for (let seed = 1; seed <= 30; seed++) {
-      const taps = battleshipsBrain('bot:1', mulberry32(seed))(viewWith(cells), 10_000).taps ?? [];
+      const taps = battleshipsBrain('bot:1', mulberry32(seed))(viewWith(cells, []), 10_000).taps ?? [];
       expect(taps).toHaveLength(1);
       expect([10, 11, 12]).not.toContain(taps[0]);
     }
-  });
-
-  it('sometimes turns on another player, when there is one', () => {
-    const g = started(['me', 'bot:1', 'other']);
-    const snap = g.snapshot('bot:1');
-    let switches = 0;
-    for (let seed = 1; seed <= 200; seed++) {
-      const taps = battleshipsBrain('bot:1', mulberry32(seed))(snap, 10_000).taps ?? [];
-      if (taps.length === 1 && taps[0] >= BASE) {
-        switches++;
-        // Not at the one it is already shooting at (other), and not at itself.
-        expect(taps[0] - BASE).toBe(0);
-      }
-    }
-    expect(switches).toBeGreaterThan(5);
-    expect(switches).toBeLessThan(60);
   });
 });
 
@@ -457,35 +422,24 @@ describe('Battleships in a lobby with one person', () => {
   /** What the person sees (the lobby's game is the generic type, so say which game it is). */
   const view = (g: { snapshot(viewer?: string): unknown }) => g.snapshot('me') as BattleshipsSnapshot;
 
-  it('adds a bot to make two, which shoots at the person and gets shot at', () => {
+  it('adds a bot to make two, which hides its ships on the same board, and shoots', () => {
     const g = withBots(new BattleshipsGame(seeded(0.3)), mulberry32(7));
     expect(g).toBeInstanceOf(BotFiller);
     g.join('me');
     expect(view(g).players.map((p) => p.id)).toEqual(['me', 'bot:1']);
     run(g, 3200);
-    expect(view(g).mine?.ships.length).toBeGreaterThan(0);
-    expect(view(g).target).toBe('bot:1');
-    // The bot plays from its own view: it fires at the person's board.
+    expect(view(g).mine?.flat()).toHaveLength(fleetSquares(2));
     run(g, 20_000);
-    const bot = view(g).players.find((p) => p.id === 'bot:1');
-    expect(bot?.shots).toBeGreaterThan(5);
-    expect(view(g).mine?.cells.some((c) => c !== SQUARE_UNKNOWN)).toBe(true);
+    expect(view(g).players.find((p) => p.id === 'bot:1')?.shots).toBeGreaterThan(5);
+    expect(view(g).cells.some((c) => c !== SQUARE_UNKNOWN)).toBe(true);
   });
 
   it('plays a round to its end, with the bot sinking a person who does nothing', () => {
     const g = withBots(new BattleshipsGame(seeded(0.3)), mulberry32(7));
     g.join('me');
     for (let t = 0; t < 200_000 && view(g).history.length === 0; t += STEP) g.tick(STEP);
-    const snap = view(g);
-    expect(snap.history).toHaveLength(1);
+    expect(view(g).history).toHaveLength(1);
     // Someone who never fired cannot have won.
-    expect(snap.history[0].winnerId === 'me').toBe(false);
-  });
-
-  it('sizes the fleets for two, with the bot counted', () => {
-    const g = withBots(new BattleshipsGame(seeded(0.3)), mulberry32(7));
-    g.join('me');
-    run(g, 3200);
-    expect(view(g).mine?.ships.flat()).toHaveLength(fleetSquares(2));
+    expect(view(g).history[0].winnerId === 'me').toBe(false);
   });
 });

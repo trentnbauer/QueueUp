@@ -338,17 +338,12 @@ export interface CoinsSnapshot extends RoundSummary {
   winnerId: string | null;
 }
 
-// ---- Battleships (everyone has their own hidden fleet, and fires at one another's boards) -----------
+// ---- Battleships (one shared board; everyone hides their own ships on it and fires at the rest) -----
 
-/** Each board is this many squares each way (8 x 8 = 64). */
+/** The board is this many squares each way (8 x 8 = 64, so squares are tap targets 0 to 63). */
 export const BATTLESHIPS_SIZE = 8;
 
-/** The tap targets: 0 to 63 are the squares of the board you are shooting at; from this up, target number
- * BATTLESHIPS_TARGET_BASE + k picks who you shoot at, the k-th of the other players in the round (in the
- * order they appear in `players`). */
-export const BATTLESHIPS_TARGET_BASE = 64;
-
-/** What a square on a board shows. A square nobody has shot shows nothing: no ship is given away. */
+/** What a square shows. A square nobody has shot shows nothing: no ship is given away. */
 export const SQUARE_UNKNOWN = 0;
 export const SQUARE_MISS = 1;
 export const SQUARE_HIT = 2;
@@ -372,15 +367,7 @@ export interface BattleshipsPlayer {
   cooldownMs: number;
   /** How many squares of their ships are still afloat (everyone can see this). */
   afloat: number;
-}
-
-/** What is known about one player's board: the squares that have been shot at, and their ships by length. */
-export interface BattleshipsBoard {
-  /** Each square, row by row: SQUARE_UNKNOWN, SQUARE_MISS, SQUARE_HIT or SQUARE_SUNK. */
-  cells: number[];
-  /** Who shot each square: the index into `players`, or -1 for a square nobody has shot. */
-  by: number[];
-  /** The fleet's ships, by length, and whether each is sunk. Where they are is never sent (except to their owner). */
+  /** Their ships by length, and whether each is sunk (everyone can see this); where they are is not shown. */
   fleet: { len: number; sunk: boolean }[];
 }
 
@@ -396,13 +383,14 @@ export interface BattleshipsSnapshot extends RoundSummary {
   /** Milliseconds left in the round while `playing`. */
   roundLeftMs: number;
   players: BattleshipsPlayer[];
-  /** Who this person is shooting at (a player id), or null if there is nobody to shoot at. */
-  target: string | null;
-  /** The target's board as shot so far, or null with no target. */
-  targetBoard: BattleshipsBoard | null;
-  /** This person's own board: the squares shot at, and where their own ships are (`ships`, the squares of
-   * each). Null for someone who is not in the round. */
-  mine: (BattleshipsBoard & { ships: number[][] }) | null;
+  /** Each square of the one board, row by row: SQUARE_UNKNOWN, SQUARE_MISS, SQUARE_HIT or SQUARE_SUNK. */
+  cells: number[];
+  /** Who shot each square: the index into `players`, or -1 for a square nobody has shot. */
+  by: number[];
+  /** Whose ship each sunk square was: the index into `players`, or -1 (a square not part of a sunk ship). */
+  owner: number[];
+  /** This person's own ships, the squares of each, or null for someone who is not in the round. Only they are sent it. */
+  mine: number[][] | null;
   /** Milliseconds left in `countdown` or `over`; 0 otherwise. */
   timerMs: number;
   /** Who won the round that just ended (`over` only); null when nobody did. */
