@@ -1,6 +1,7 @@
 import { LOBBY_GAME_IDS, type LobbyGameId } from '../spinLobby.js';
 import { DodgeGame } from './dodge.js';
 import { FlappyGame } from './flappy.js';
+import { RedLightGame } from './redlight.js';
 import { RunnerGame } from './runner.js';
 import type { LobbyGame } from './types.js';
 
@@ -15,6 +16,8 @@ export function createLobbyGame(id: LobbyGameId): LobbyGame {
       return new FlappyGame();
     case 'dodge':
       return new DodgeGame();
+    case 'redlight':
+      return new RedLightGame();
   }
 }
 

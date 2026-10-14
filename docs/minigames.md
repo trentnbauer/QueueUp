@@ -43,6 +43,7 @@ Every game uses at most **one direction axis plus one button**, so it works on a
 | Runner | **Space**, **↑** or **W** to jump (hold for a longer jump). Hold **↓** or **S** to duck. | Hold **Jump** (or press and hold the arena). Hold **Duck**. |
 | Flappy | **Space**, **↑** or **W** to flap. | **Flap**, or tap anywhere on the arena. |
 | Dodge | **←** / **→** or **A** / **D**. | The **◀** and **▶** buttons. |
+| Red light, green light | Hold **Space**, **→** or **D** to run. | Hold **Run** (or press and hold the arena). |
 
 ## Runner
 
@@ -76,6 +77,18 @@ Blocks fall; slide left and right to stay clear.
 - **Blocks** (game covers of different widths) fall faster and faster: from 0.35 of a screen per second up to 0.9 after about 46 seconds. A new block appears every 0.75 seconds at the start, speeding up to every 0.28 seconds after about 47 seconds.
 - A **safe lane** drifts slowly from side to side, and no block is ever made over it, so there is always a way through for someone who keeps up with it.
 - A block that hits you knocks you out.
+
+## Red light, green light
+
+A race to the finish line, with a traffic light in charge.
+
+- **Goal:** be the first across the line. Everyone has their own lane on the same track.
+- **Hold the run button** to run while the light is green. Let go to stand still.
+- **The light** turns amber and flashes for about half a second before it goes red. Moving once it is red (after a quarter of a second to let a slow connection catch up) knocks you out. Green and red spells are random but the same for everyone.
+- **Winning:** the first runner to cross the line wins. This game ends the moment someone finishes, so unlike the others it is not only last one in. If nobody has finished after 45 seconds, whoever is furthest along wins; a tie for the lead is a draw.
+- **Alone,** a run ends when you cross the line or are caught.
+- **Distance** shown is how far the leader has run, out of 20 m.
+- It takes about 10 seconds of holding the button to cross the track, so a run is roughly 20 seconds.
 
 ## Adding a game
 
