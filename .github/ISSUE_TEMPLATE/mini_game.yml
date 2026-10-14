@@ -50,6 +50,15 @@ body:
       required: true
 
   - type: textarea
+    id: art
+    attributes:
+      label: Look
+      description: |
+        What the obstacles and players look like. Games use the shared graphics kit (see web/src/lobbyGames/README.md), so the arena, heads-up display, countdown, result card and knock-out effects come for free. Describe just the world: the ground, the obstacles (they are drawn as game covers by default) and anything special.
+    validations:
+      required: false
+
+  - type: textarea
     id: state
     attributes:
       label: What the server tracks

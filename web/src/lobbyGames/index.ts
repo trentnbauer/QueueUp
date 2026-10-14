@@ -1,5 +1,6 @@
 import type { LobbyGameId, LobbyGameSnapshot, User } from '@queueup/shared';
 import type { MessageKey } from '../i18n';
+import type { LobbyFx } from './kit/fx';
 import { dodgeView } from './dodge';
 import { flappyView } from './flappy';
 import { runnerView } from './runner';
@@ -19,6 +20,8 @@ export interface LobbyDrawArgs<S extends LobbyGameSnapshot = LobbyGameSnapshot> 
   /** Reads a CSS variable from the canvas' theme (with a fallback). */
   color: (name: string, fallback: string) => string;
   t: (key: MessageKey, params?: Record<string, string | number>) => string;
+  /** Effects and the memory between frames; one lives as long as the lobby panel does. */
+  fx: LobbyFx;
 }
 
 export interface LobbyStanding {
@@ -43,6 +46,8 @@ export interface LobbyGameView<S extends LobbyGameSnapshot = LobbyGameSnapshot> 
   tapAction?: string;
   /** Like `tapAction`, but the arena works as a held button: pressing it holds this direction until let go. */
   tapHold?: [number, number];
+  /** The game's name, shown in the lobby panel. */
+  nameKey: MessageKey;
   /** One line telling people what to do. */
   hintKey: MessageKey;
   draw(args: LobbyDrawArgs<S>): void;
