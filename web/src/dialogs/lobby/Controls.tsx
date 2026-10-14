@@ -51,10 +51,12 @@ function ControlButton({ spec, phone }: { spec: ButtonSpec; phone: boolean }) {
       }}
       // Holding a button must not start a text selection, the iOS callout or the long-press menu.
       onContextMenu={(e) => e.preventDefault()}
+      onDragStart={(e) => e.preventDefault()}
       style={st(`${base};${look}`, NO_SELECT)}
     >
-      <span>{spec.label}</span>
-      {spec.keycap && !phone && <span style={st(keycap)}>{spec.keycap}</span>}
+      {/* The label is not a target of its own: Chrome on Android starts a text selection from a long press on text. */}
+      <span style={st('pointer-events:none;user-select:none', NO_SELECT)}>{spec.label}</span>
+      {spec.keycap && !phone && <span style={st(keycap, { pointerEvents: 'none', userSelect: 'none', ...NO_SELECT })}>{spec.keycap}</span>}
     </button>
   );
 }
