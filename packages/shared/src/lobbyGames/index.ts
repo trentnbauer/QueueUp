@@ -1,4 +1,5 @@
 import { LOBBY_GAME_IDS, type LobbyGameId } from '../spinLobby.js';
+import { BattleshipsGame } from './battleships.js';
 import { withBots } from './bots.js';
 import { CoinsGame } from './coins.js';
 import { DodgeGame } from './dodge.js';
@@ -11,7 +12,7 @@ import type { LobbyGame } from './types.js';
 
 export type { BotBrain, BotCommand, LobbyGame } from './types.js';
 export { LobbyRecord } from './roundGame.js';
-export { CoinsGame, DodgeGame, FlappyGame, RedLightGame, RopeGame, RunnerGame };
+export { BattleshipsGame, CoinsGame, DodgeGame, FlappyGame, RedLightGame, RopeGame, RunnerGame };
 export { BotFiller, botColor, botNumber, isBotId, withBots } from './bots.js';
 
 /** Starts a fresh game of the given kind, with bots added by the lobby when it needs more players than
@@ -34,6 +35,8 @@ function build(id: LobbyGameId, record?: LobbyRecord): LobbyGame {
       return new RedLightGame(undefined, record);
     case 'coins':
       return new CoinsGame(undefined, record);
+    case 'battleships':
+      return new BattleshipsGame(undefined, record);
   }
 }
 

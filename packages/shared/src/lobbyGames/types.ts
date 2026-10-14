@@ -52,6 +52,8 @@ export interface BotCommand {
   dx?: number;
   dy?: number;
   actions?: string[];
+  /** Arena tap targets to tap (for a game whose play space is the controller). */
+  taps?: number[];
 }
 
 /** One bot's brain: looks at the game as a player would (the snapshot) and decides what to press. Made
