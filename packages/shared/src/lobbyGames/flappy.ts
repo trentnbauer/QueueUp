@@ -1,4 +1,4 @@
-import { FLAPPY_BIRD_RADIUS, FLAPPY_GAP, FLAPPY_PIPE_WIDTH, FLAPPY_X, type FlappyPipe, type FlappySnapshot } from '@queueup/shared';
+import { FLAPPY_BIRD_RADIUS, FLAPPY_GAP, FLAPPY_PIPE_WIDTH, FLAPPY_X, type FlappyPipe, type FlappySnapshot } from '../spinLobby.js';
 import { RoundGame, type RoundPlayer } from './roundGame.js';
 
 // Distances are in screens (the course is 1.0 wide), heights 0 (floor) to 1 (ceiling).

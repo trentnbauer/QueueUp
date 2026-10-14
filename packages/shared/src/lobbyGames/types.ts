@@ -1,4 +1,4 @@
-import type { LobbyGameId, LobbyGameSnapshot } from '@queueup/shared';
+import type { LobbyGameId, LobbyGameSnapshot } from '../spinLobby.js';
 
 /** A mini game the room lobby can run. Pure rules and state - no sockets, timers or database - so a
  * game is easy to test and to add: give it an id (packages/shared/src/spinLobby.ts), a snapshot type,

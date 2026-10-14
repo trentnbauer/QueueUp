@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { RUNNER_X } from '@queueup/shared';
+import { RUNNER_X } from '../spinLobby.js';
 import { RunnerGame } from './runner.js';
 
 const STEP = 66;

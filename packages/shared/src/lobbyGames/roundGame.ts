@@ -1,4 +1,4 @@
-import { LOBBY_HISTORY_LENGTH, type LobbyGameId, type LobbyGameSnapshot, type LobbyRoundPhase, type RoundSummary, type RunResult } from '@queueup/shared';
+import { LOBBY_HISTORY_LENGTH, type LobbyGameId, type LobbyGameSnapshot, type LobbyRoundPhase, type RoundSummary, type RunResult } from '../spinLobby.js';
 import type { LobbyGame } from './types.js';
 
 const COUNTDOWN_MS = 3000;

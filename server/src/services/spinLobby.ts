@@ -1,5 +1,4 @@
-import { LOBBY_ACTION_NAME_MAX, lobbyVotesNeeded, type LobbySnapshot } from '@queueup/shared';
-import { createLobbyGame, pickLobbyGame, type LobbyGame } from './lobbyGames/index.js';
+import { LOBBY_ACTION_NAME_MAX, createLobbyGame, lobbyVotesNeeded, pickLobbyGame, type LobbyGame, type LobbySnapshot } from '@queueup/shared';
 
 /** One room's live lobby: who is in it, who has voted to spin, and the mini game they are playing.
  * Pure state and rules - no sockets or timers (see spinLobbyHub.ts), so it is easy to test. A member

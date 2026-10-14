@@ -1,4 +1,4 @@
-import { LOBBY_GAME_IDS, type LobbyGameId } from '@queueup/shared';
+import { LOBBY_GAME_IDS, type LobbyGameId } from '../spinLobby.js';
 import { DodgeGame } from './dodge.js';
 import { FlappyGame } from './flappy.js';
 import { RunnerGame } from './runner.js';
