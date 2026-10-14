@@ -1,4 +1,5 @@
 import { describe, expect, it, vi } from 'vitest';
+import { createLobbyGame } from '@queueup/shared';
 import { SpinLobby } from './spinLobby.js';
 
 const snapshot = () => ({ id: 'runner' as const, phase: 'lobby' as const, run: 1, history: [], best: null, meters: 0, speed: 0.5, obstacles: [], players: [], timerMs: 0, winnerId: null });
@@ -104,5 +105,23 @@ describe('SpinLobby and its game', () => {
     lobby.tick(66);
     expect(game.tick).toHaveBeenCalledWith(66);
     expect(lobby.snapshot(true)).toMatchObject({ t: 'state', tick: 1, spinWaiting: true, game: { id: 'runner' } });
+  });
+});
+
+describe('SpinLobby with bots', () => {
+  it('fills a game that needs two players with a bot that is not a member and cannot vote', () => {
+    const lobby = new SpinLobby(createLobbyGame('redlight'));
+    lobby.join('a');
+    const game = lobby.snapshot(true).game;
+    expect(game.players.map((p) => p.id)).toEqual(['a', 'bot:1']);
+    expect(lobby.present).toEqual(['a']);
+    expect(lobby.size).toBe(1);
+    expect(lobby.needed).toBe(1);
+    lobby.vote('bot:1', true);
+    expect(lobby.votePassed).toBe(false);
+    lobby.vote('a', true);
+    expect(lobby.votePassed).toBe(true);
+    lobby.leave('a');
+    expect(lobby.snapshot(true).game.players).toEqual([]);
   });
 });

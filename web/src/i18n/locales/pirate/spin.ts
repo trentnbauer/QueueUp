@@ -51,6 +51,7 @@ export const spin: Record<keyof typeof en, string> = {
   "spin.lobby.hud.youreOut": "Ye be out · next run soon",
   "spin.lobby.hud.outTag": "OUT",
   "spin.lobby.hud.youOutTag": "YE BE OUT",
+  "spin.lobby.hud.botName": "Bot {n}",
   "spin.lobby.hud.you": "YE",
   "spin.lobby.runner.name": "Runner",
   "spin.lobby.flappy.name": "Flappy",

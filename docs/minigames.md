@@ -22,6 +22,7 @@ Mini games are **cosmetic**: nothing in them changes which game a spin picks.
 - **Everyone sees the same course.** The obstacles are the same for every player in a run, and every course can be cleared.
 - **Distance** is shown in metres (one screen is 20 m).
 - **Scoreboard.** The panel shows **wins this lobby** for everyone, the **last 10 runs** (the winner's colour and initial; a dash for a run nobody won), and the **best run** so far.
+- **Bots.** Some games need more than one player (Red light, green light needs 2). If fewer people are in the lobby, **bots** ("Bot 1", in a muted colour with a **B**) join to make up the numbers. They are not members: they never vote, never count as being in the mini game and never show up in the room. They are only added or removed between runs, never during one, and they leave once enough real people have joined. When the last person leaves, the bots go too. Practice mode on the Personal Shelf uses the same bots.
 - **Playing together.** Any number of members can join. You can have the mini game open on up to 5 devices or tabs at once; you still count as one player.
 
 ## Voting to spin
@@ -92,7 +93,7 @@ A rope swings round and everyone jumps it together.
 
 ## Red light, green light
 
-A race to the finish line, with a traffic light in charge.
+A race to the finish line, with a traffic light in charge. Needs at least 2 players, so on your own you race a bot.
 
 - **Goal:** be the first across the line. Everyone has their own lane on the same track.
 - **Hold the run button** to run while the light is green. Let go to stand still.

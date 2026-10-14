@@ -1,4 +1,4 @@
-import type { LobbyGameSnapshot, User } from '@queueup/shared';
+import { botColor, botNumber, isBotId, type LobbyGameSnapshot, type User } from '@queueup/shared';
 import type { LobbyDrawArgs } from '../index';
 import { avatar } from './draw';
 import type { LobbyFx } from './fx';
@@ -52,6 +52,8 @@ export function renderScene<S extends LobbyGameSnapshot>(args: LobbyDrawArgs<S>,
   const now = performance.now();
   const theme = stageTheme(color);
   const info = (id: string) => {
+    // Bots are not members, so they are not in `users`: they get a plain name and a muted colour.
+    if (isBotId(id)) return { color: botColor(id), initial: 'B', name: t('spin.lobby.hud.botName', { n: botNumber(id) }) };
     const user = users.get(id);
     const name = user?.displayName ?? '?';
     return { color: user?.avatarColor ?? '#8b5cf6', initial: name.slice(0, 1).toUpperCase() || '?', name };

@@ -49,6 +49,7 @@ export const spin = {
   "spin.lobby.hud.youreOut": "You're out · next run soon",
   "spin.lobby.hud.outTag": "OUT",
   "spin.lobby.hud.youOutTag": "YOU'RE OUT",
+  "spin.lobby.hud.botName": "Bot {n}",
   "spin.lobby.hud.you": "YOU",
   "spin.lobby.runner.name": "Runner",
   "spin.lobby.flappy.name": "Flappy",

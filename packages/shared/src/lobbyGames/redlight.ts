@@ -1,5 +1,6 @@
 import type { RedLightSnapshot, RedLightState } from '../spinLobby.js';
 import { RoundGame, type RoundPlayer } from './roundGame.js';
+import type { BotBrain } from './types.js';
 
 /** How fast a runner moves while holding the button, in track lengths per second (about 10s to cross). */
 const RUN_SPEED = 0.1;
@@ -27,6 +28,8 @@ interface Runner extends RoundPlayer {
  * line wins. See RoundGame for how runs start and end. */
 export class RedLightGame extends RoundGame<Runner> {
   readonly id = 'redlight' as const;
+  /** A race needs someone to race. */
+  readonly minPlayers = 2;
   private light: RedLightState = 'green';
   private lightLeft = FIRST_GREEN_S;
   /** Seconds since the light went red. */
@@ -149,4 +152,45 @@ export class RedLightGame extends RoundGame<Runner> {
     for (const p of this.players.values()) if (p.x > best) best = p.x;
     return best;
   }
+}
+
+/** How a bot plays: starts a moment after the light turns green, now and then stops for a breather, and
+ * usually stops when the light flashes. Sometimes it stops late (just inside the grace time), and once in
+ * a while it gets it wrong and runs through the red, so it can be caught. */
+export function redLightBrain(id: string, rng: () => number): BotBrain {
+  let seen: RedLightState = 'green';
+  let mode: 'run' | 'stop' | 'late' | 'oops' = 'run';
+  let startIn = 0.2 + rng() * 0.3;
+  let pause = 0;
+  let lateLeft = 0;
+  return (snap, dtMs) => {
+    if (snap.id !== 'redlight' || snap.phase !== 'playing') return { dx: 0 };
+    if (!snap.players.find((p) => p.id === id)?.alive) return { dx: 0 };
+    const dt = dtMs / 1000;
+    if (snap.light !== seen) {
+      seen = snap.light;
+      if (seen === 'green') {
+        startIn = 0.1 + rng() * 0.3;
+        mode = 'run';
+      } else if (seen === 'warn') {
+        const roll = rng();
+        mode = roll < 0.75 ? 'stop' : roll < 0.94 ? 'late' : 'oops';
+      } else {
+        lateLeft = 0.1;
+      }
+    }
+    if (startIn > 0) {
+      startIn -= dt;
+      return { dx: 0 };
+    }
+    if (seen === 'warn') return { dx: mode === 'stop' ? 0 : 1 };
+    if (seen === 'red') {
+      if (mode === 'oops') return { dx: 1 };
+      lateLeft -= dt;
+      return { dx: mode === 'late' && lateLeft > 0 ? 1 : 0 };
+    }
+    if (pause > 0) pause -= dt;
+    else if (rng() < dt * 0.15) pause = 0.4 + rng() * 0.8;
+    return { dx: pause > 0 ? 0 : 1 };
+  };
 }
