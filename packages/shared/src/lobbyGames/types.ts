@@ -13,6 +13,9 @@ export interface LobbyGame {
   /** A member arrived (the lobby calls this once per person, not once per tab). */
   join(userId: string): void;
   leave(userId: string): void;
+  /** Set by the lobby that owns the game: called when a run's result has been shown and the next run is
+   * about to start. Return true if the lobby has moved everyone to another game. */
+  onRunOver?: () => boolean;
   /** The direction the person is holding, each -1, 0 or 1. */
   input(userId: string, dx: number, dy: number): void;
   /** A one-off move by name, such as `punch`. Unknown names are ignored. */

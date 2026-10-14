@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { LOBBY_TICK_HZ, type LobbyGameId, type LobbySnapshot } from '@queueup/shared';
+import { LOBBY_TICK_HZ, LobbyRecord, type LobbyGameId, type LobbySnapshot } from '@queueup/shared';
 import { LocalLobby } from '../lobbyGames/localLobby';
 
 /** A mini game run right here in the browser, just for you, driven by a timer and fed straight from your
@@ -9,10 +9,13 @@ import { LocalLobby } from '../lobbyGames/localLobby';
 export function useLocalLobby(gameId: LobbyGameId | undefined, me: string) {
   const [snapshot, setSnapshot] = useState<LobbySnapshot | null>(null);
   const lobbyRef = useRef<LocalLobby | null>(null);
+  // The run number, last results and wins stay when the person picks a different game to practise; they
+  // only go when practising ends and this hook goes with it.
+  const recordRef = useRef<LobbyRecord>(new LobbyRecord());
 
   useEffect(() => {
     if (!gameId || !me) return;
-    const lobby = new LocalLobby(gameId, me);
+    const lobby = new LocalLobby(gameId, me, recordRef.current);
     lobbyRef.current = lobby;
     let last = performance.now();
     setSnapshot(lobby.snapshot());

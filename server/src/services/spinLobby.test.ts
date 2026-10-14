@@ -148,3 +148,63 @@ describe('SpinLobby with bots', () => {
     expect(lobby.snapshot(true).game.players).toEqual([]);
   });
 });
+
+describe('SpinLobby rotating games', () => {
+  /** Ticks the lobby (every 66 ms, as the hub does) until the game on offer is a different one. */
+  function untilGameChanges(lobby: SpinLobby, from: string) {
+    for (let t = 0; t < 300_000; t += 66) {
+      lobby.tick(66);
+      if (lobby.snapshot(false).game.id !== from) return true;
+    }
+    return false;
+  }
+
+  it('moves everyone to a different game after a run, keeping the run number and the results', () => {
+    const lobby = new SpinLobby();
+    lobby.join('a');
+    const firstGame = lobby.snapshot(false).game;
+    expect(untilGameChanges(lobby, firstGame.id)).toBe(true);
+    const next = lobby.snapshot(false).game;
+    expect(next.id).not.toBe(firstGame.id);
+    expect(next.players.map((p) => p.id)).toContain('a');
+    // The first game's run is in the record, and the new game's first run is the second.
+    expect(next.history).toHaveLength(1);
+    expect(next.history[0].game).toBe(firstGame.id);
+    expect(next.run).toBe(2);
+  });
+
+  it('keeps going from game to game without losing anyone', () => {
+    const lobby = new SpinLobby();
+    lobby.join('a');
+    lobby.join('b');
+    const seen = new Set<string>();
+    let game = lobby.snapshot(false).game.id;
+    seen.add(game);
+    for (let i = 0; i < 4; i++) {
+      expect(untilGameChanges(lobby, game)).toBe(true);
+      game = lobby.snapshot(false).game.id;
+      seen.add(game);
+      expect(lobby.snapshot(false).game.players.map((p) => p.id)).toEqual(expect.arrayContaining(['a', 'b']));
+    }
+    expect(seen.size).toBeGreaterThan(1);
+    expect(lobby.snapshot(false).game.history.length).toBeGreaterThanOrEqual(4);
+  });
+
+  it('puts someone who joins between games into the current one', () => {
+    const lobby = new SpinLobby();
+    lobby.join('a');
+    const first = lobby.snapshot(false).game.id;
+    untilGameChanges(lobby, first);
+    lobby.join('b');
+    expect(lobby.snapshot(false).game.players.map((p) => p.id)).toEqual(expect.arrayContaining(['a', 'b']));
+  });
+
+  it('only plays the game it is given, when given one', () => {
+    const game = fakeGame();
+    const lobby = new SpinLobby(game);
+    lobby.join('a');
+    for (let t = 0; t < 10_000; t += 66) lobby.tick(66);
+    expect(lobby.snapshot(false).game.id).toBe('runner');
+    expect((game as { onRunOver?: unknown }).onRunOver).toBeUndefined();
+  });
+});

@@ -7,6 +7,34 @@ const OVER_MS = 4000;
 const MAX_STEP_S = 1 / 60;
 const METERS_PER_SCREEN = 20;
 
+/** What a lobby remembers across runs, however many different games it has played: the run number, the
+ * last results, each game's best run, and each person's wins. It belongs to the lobby, not to a game,
+ * so changing game (a room's lobby picks a new one after every run; a person practising picks one)
+ * keeps the scoreboard. */
+export class LobbyRecord {
+  /** The number of the run that is on (or was last on). */
+  run = 0;
+  /** The last LOBBY_HISTORY_LENGTH finished runs, oldest first, from every game played. */
+  readonly history: RunResult[] = [];
+  /** The furthest run so far, per game: metres, coins and swings cannot be compared with each other. */
+  readonly best = new Map<LobbyGameId, RunResult>();
+  /** Runs won, per person, since they joined the lobby. */
+  readonly wins = new Map<string, number>();
+
+  /** Someone left the lobby for good: their wins go with them. */
+  forget(userId: string): void {
+    this.wins.delete(userId);
+  }
+
+  /** Adds a finished run, and makes it the game's best if it went furthest. */
+  add(result: RunResult): void {
+    this.history.push(result);
+    if (this.history.length > LOBBY_HISTORY_LENGTH) this.history.shift();
+    const best = this.best.get(result.game);
+    if (!best || result.meters > best.meters) this.best.set(result.game, { ...result });
+  }
+}
+
 /** What every player in a round-based game has. */
 export interface RoundPlayer {
   id: string;
@@ -50,12 +78,16 @@ export abstract class RoundGame<P extends RoundPlayer> implements LobbyGame {
   protected rng: () => number;
   /** How many players started the current run (a solo run has no winner). */
   protected startedWith = 0;
-  /** Which run this is, the last few results and the best so far (see RoundSummary). */
-  private run = 0;
-  private history: RunResult[] = [];
-  private best: RunResult | null = null;
+  /** Set by the lobby that owns the game: called when the result screen is over and the next run would
+   * start. Return true if the lobby has moved everyone to another game (this one is then finished),
+   * false to carry on with another run of this game. */
+  onRunOver: (() => boolean) | undefined;
 
-  constructor(protected readonly seedSource: () => number = Math.random) {
+  constructor(
+    protected readonly seedSource: () => number = Math.random,
+    /** The run number, results and wins, shared with whichever games the lobby plays. */
+    protected readonly record: LobbyRecord = new LobbyRecord(),
+  ) {
     this.rng = mulberry32(Math.floor(this.seedSource() * 4294967296));
   }
 
@@ -77,7 +109,8 @@ export abstract class RoundGame<P extends RoundPlayer> implements LobbyGame {
 
   /** The run number, recent results and best run, for the game's snapshot. */
   protected summary(): RoundSummary {
-    return { run: this.run, history: this.history.map((r) => ({ ...r })), best: this.best ? { ...this.best } : null };
+    const best = this.record.best.get(this.id);
+    return { run: this.record.run, history: this.record.history.map((r) => ({ ...r })), best: best ? { ...best } : null };
   }
 
   /** Metres run so far. */
@@ -94,7 +127,9 @@ export abstract class RoundGame<P extends RoundPlayer> implements LobbyGame {
   join(userId: string): void {
     if (this.players.has(userId)) return;
     // Someone who arrives mid-run watches it, and runs from the next one.
-    this.players.set(userId, this.createPlayer(userId, this.phase !== 'playing' && this.phase !== 'over'));
+    const p = this.createPlayer(userId, this.phase !== 'playing' && this.phase !== 'over');
+    p.wins = this.record.wins.get(userId) ?? 0;
+    this.players.set(userId, p);
     if (this.phase === 'lobby') this.startCountdown();
   }
 
@@ -132,8 +167,12 @@ export abstract class RoundGame<P extends RoundPlayer> implements LobbyGame {
       case 'over':
         this.timerMs -= dt * 1000;
         if (this.timerMs <= 0) {
-          if (this.players.size > 0) this.startCountdown();
-          else this.phase = 'lobby';
+          if (this.players.size === 0) this.phase = 'lobby';
+          else if (this.onRunOver?.()) {
+            // The lobby has taken everyone to another game; this one is done and does nothing more.
+            this.players.clear();
+            this.phase = 'lobby';
+          } else this.startCountdown();
         }
         break;
     }
@@ -157,6 +196,7 @@ export abstract class RoundGame<P extends RoundPlayer> implements LobbyGame {
     this.winnerId = winner?.id ?? null;
     if (winner) {
       winner.wins++;
+      this.record.wins.set(winner.id, winner.wins);
       winner.outAtMeters = this.meters;
     }
     this.recordResult();
@@ -166,16 +206,14 @@ export abstract class RoundGame<P extends RoundPlayer> implements LobbyGame {
   private recordResult(): void {
     let furthest: P | null = null;
     for (const p of this.players.values()) if (!furthest || p.outAtMeters > furthest.outAtMeters) furthest = p;
-    const result: RunResult = { id: furthest?.id ?? '', winnerId: this.winnerId, meters: furthest?.outAtMeters ?? 0 };
+    const result: RunResult = { id: furthest?.id ?? '', winnerId: this.winnerId, meters: furthest?.outAtMeters ?? 0, game: this.id };
     if (!furthest) return;
-    this.history.push(result);
-    if (this.history.length > LOBBY_HISTORY_LENGTH) this.history.shift();
-    if (!this.best || result.meters > this.best.meters) this.best = { ...result };
+    this.record.add(result);
   }
 
   private startCountdown(): void {
     this.phase = 'countdown';
-    this.run++;
+    this.record.run++;
     this.timerMs = COUNTDOWN_MS;
     this.winnerId = null;
     this.distance = 0;

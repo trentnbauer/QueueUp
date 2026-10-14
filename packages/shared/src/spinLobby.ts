@@ -51,6 +51,8 @@ export interface RunResult {
   id: string;
   winnerId: string | null;
   meters: number;
+  /** Which game the run was, since the lobby can change game between runs. */
+  game: LobbyGameId;
 }
 
 /** What every round-based game adds to its snapshot, so the lobby can show the run number, the last
@@ -60,7 +62,7 @@ export interface RoundSummary {
   run: number;
   /** The last 10 finished runs, oldest first. */
   history: RunResult[];
-  /** The furthest run so far, or null before one has finished. */
+  /** The furthest run so far in this game, or null before one has finished. */
   best: RunResult | null;
 }
 

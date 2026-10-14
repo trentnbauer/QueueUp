@@ -1,15 +1,42 @@
-import { LOBBY_ACTION_NAME_MAX, LOBBY_TAP_TARGETS_MAX, createLobbyGame, lobbyVotesNeeded, pickLobbyGame, type LobbyGame, type LobbySnapshot } from '@queueup/shared';
+import { LOBBY_ACTION_NAME_MAX, LOBBY_TAP_TARGETS_MAX, LobbyRecord, createLobbyGame, lobbyVotesNeeded, pickLobbyGame, type LobbyGame, type LobbyGameId, type LobbySnapshot } from '@queueup/shared';
 
 /** One room's live lobby: who is in it, who has voted to spin, and the mini game they are playing.
  * Pure state and rules - no sockets or timers (see spinLobbyHub.ts), so it is easy to test. A member
  * with several tabs open counts once: `join`/`leave` are reference-counted per person, and the game
- * only hears about the person arriving and leaving. */
+ * only hears about the person arriving and leaving.
+ *
+ * Left to itself, the lobby plays a random game and, each time a run's result has been shown, moves
+ * everyone to a different random one. The run number, the last results and each person's wins belong to
+ * the lobby (a `LobbyRecord`), so they carry across the change. Given a game (as the tests do), it plays
+ * only that. */
 export class SpinLobby {
   private readonly connections = new Map<string, number>();
   private readonly votes = new Set<string>();
   private tickCount = 0;
+  private readonly record = new LobbyRecord();
+  private game: LobbyGame;
+  private readonly rotates: boolean;
 
-  constructor(private readonly game: LobbyGame = createLobbyGame(pickLobbyGame())) {}
+  constructor(game?: LobbyGame) {
+    this.rotates = game === undefined;
+    this.game = game ?? this.start(pickLobbyGame());
+  }
+
+  /** A new game of this kind, which hands over to the next one when its run is over. */
+  private start(id: LobbyGameId): LobbyGame {
+    const game = createLobbyGame(id, this.record);
+    if (this.rotates) game.onRunOver = () => this.rotate(game);
+    return game;
+  }
+
+  /** Moves everyone from `from` to a different random game. False if `from` is not the current game. */
+  private rotate(from: LobbyGame): boolean {
+    if (from !== this.game || !this.rotates) return false;
+    const next = this.start(pickLobbyGame(Math.random, from.id));
+    this.game = next;
+    for (const userId of this.connections.keys()) next.join(userId);
+    return true;
+  }
 
   /** Members currently in the lobby. */
   get present(): string[] {
@@ -37,6 +64,7 @@ export class SpinLobby {
     this.connections.delete(userId);
     this.votes.delete(userId);
     this.game.leave(userId);
+    this.record.forget(userId);
   }
 
   setInput(userId: string, dx: unknown, dy: unknown): void {

@@ -1,4 +1,4 @@
-import { clampDirection, createLobbyGame, type LobbyGame, type LobbyGameId, type LobbySnapshot } from '@queueup/shared';
+import { LobbyRecord, clampDirection, createLobbyGame, type LobbyGame, type LobbyGameId, type LobbySnapshot } from '@queueup/shared';
 
 /** One mini game running in the browser for a single player, for practice: the same game code the server
  * runs in a room, advanced by whoever owns the timer (see `useLocalLobby`). No vote, no other players. */
@@ -6,7 +6,9 @@ export class LocalLobby {
   private readonly game: LobbyGame;
   private ticks = 0;
 
-  constructor(gameId: LobbyGameId, private readonly me: string, game: LobbyGame = createLobbyGame(gameId)) {
+  /** `record` is the run number, results and wins, which the caller keeps from one game to the next, so
+   * changing game while practising does not wipe the scoreboard. */
+  constructor(gameId: LobbyGameId, private readonly me: string, record: LobbyRecord = new LobbyRecord(), game: LobbyGame = createLobbyGame(gameId, record)) {
     this.game = game;
     this.game.join(me);
   }

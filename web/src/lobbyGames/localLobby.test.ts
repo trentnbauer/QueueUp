@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from 'vitest';
-import { LOBBY_GAME_IDS, createLobbyGame } from '@queueup/shared';
+import { LOBBY_GAME_IDS, LobbyRecord, createLobbyGame } from '@queueup/shared';
 import { LocalLobby } from './localLobby';
 
 describe('LocalLobby', () => {
@@ -35,7 +35,7 @@ describe('LocalLobby', () => {
     const game = createLobbyGame('runner');
     const input = vi.spyOn(game, 'input');
     const action = vi.spyOn(game, 'action');
-    const lobby = new LocalLobby('runner', 'me', game);
+    const lobby = new LocalLobby('runner', 'me', undefined, game);
     lobby.input(99, -1);
     lobby.action('jump');
     expect(input).toHaveBeenCalledWith('me', 0, -1);
@@ -45,7 +45,7 @@ describe('LocalLobby', () => {
   it('passes your taps on to the game', () => {
     const game = createLobbyGame('runner');
     const tap = vi.spyOn(game, 'tap');
-    const lobby = new LocalLobby('runner', 'me', game);
+    const lobby = new LocalLobby('runner', 'me', undefined, game);
     lobby.tap(4);
     expect(tap).toHaveBeenCalledWith('me', 4);
   });
@@ -56,5 +56,28 @@ describe('LocalLobby', () => {
       lobby.tick(66);
       expect(lobby.snapshot().game.id).toBe(id);
     }
+  });
+});
+
+describe('LocalLobby record', () => {
+  it('keeps the run number and results when practising moves to another game', () => {
+    const record = new LobbyRecord();
+    const first = new LocalLobby('runner', 'me', record);
+    for (let t = 0; t < 3300; t += 66) first.tick(66);
+    // Standing still, the first obstacle ends the run.
+    for (let t = 0; t < 30_000 && first.snapshot().game.phase === 'playing'; t += 66) first.tick(66);
+    expect(first.snapshot().game.history).toHaveLength(1);
+
+    const second = new LocalLobby('dodge', 'me', record);
+    const snap = second.snapshot().game;
+    expect(snap.history).toHaveLength(1);
+    expect(snap.history[0].game).toBe('runner');
+    expect(snap.run).toBe(2);
+  });
+
+  it('starts fresh when no record is given', () => {
+    const lobby = new LocalLobby('dodge', 'me');
+    expect(lobby.snapshot().game.history).toEqual([]);
+    expect(lobby.snapshot().game.run).toBe(1);
   });
 });
