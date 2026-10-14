@@ -26,9 +26,10 @@ interface RoomState {
   checking: boolean;
 }
 
-// A person's client sends a message when the direction they hold changes or they vote: well under
-// this. Anything faster is dropped rather than processed.
-const MAX_MESSAGES_PER_SECOND = 40;
+// A client sends a message when the direction they hold changes or they vote, and (in a game that runs
+// each player on their own device) about 20 reports a second plus a few pings: well under this. Anything
+// faster is dropped rather than processed.
+const MAX_MESSAGES_PER_SECOND = 80;
 // Open lobby connections one person may hold in a room (tabs and devices).
 const MAX_CONNECTIONS_PER_USER = 5;
 // How often the lobby asks whether a spin is waiting (and keeps its waiting room open).
@@ -78,7 +79,7 @@ export class SpinLobbyHub {
     room.sockets.set(socket, userId);
     // Look straight away rather than waiting for the next check, so a vote button shows at once.
     void this.refreshSpin(roomId);
-    this.send(socket, room.lobby.snapshot(room.spinWaiting));
+    this.send(socket, room.lobby.snapshot(room.spinWaiting, this.now()));
   }
 
   disconnect(roomId: string, socket: LobbySocket): void {
@@ -119,6 +120,8 @@ export class SpinLobbyHub {
     if (m.t === 'input') room.lobby.setInput(userId, m.dx, m.dy);
     else if (m.t === 'action') room.lobby.action(userId, m.name);
     else if (m.t === 'tap') room.lobby.tap(userId, m.target);
+    else if (m.t === 'report') room.lobby.report(userId, m.run, m.alive, m.f);
+    else if (m.t === 'ping' && typeof m.c === 'number' && Number.isFinite(m.c)) this.send(socket, { t: 'pong', c: m.c, s: now });
     else if (m.t === 'vote' && typeof m.on === 'boolean') room.lobby.vote(userId, m.on);
   }
 
@@ -150,7 +153,7 @@ export class SpinLobbyHub {
     }
 
     if (room.ticks % SPIN_CHECK_EVERY_TICKS === 0) void this.refreshSpin(roomId);
-    this.broadcast(room, room.lobby.snapshot(room.spinWaiting));
+    this.broadcast(room, room.lobby.snapshot(room.spinWaiting, this.now()));
   }
 
   /** Asks whether a spin is waiting, holds its waiting room open if so, and tells the lobby when it
@@ -165,7 +168,7 @@ export class SpinLobbyHub {
       if (this.rooms.get(roomId) !== room) return;
       room.spinWaiting = waiting;
       if (was && !waiting) this.broadcast(room, { t: 'started' });
-      else if (!was && waiting) this.broadcast(room, room.lobby.snapshot(true));
+      else if (!was && waiting) this.broadcast(room, room.lobby.snapshot(true, this.now()));
     } catch {
       // A hiccup reading the spin should not take the lobby down; the next check tries again.
     } finally {

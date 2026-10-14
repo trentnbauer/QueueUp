@@ -56,7 +56,7 @@ export function LobbyPanel({
   const t = useT();
   const phone = useIsMobile();
   // Either the room's live lobby over a WebSocket, or the same game run locally for practice.
-  const live = useSpinLobby(practiceGame ? undefined : roomId, !practiceGame, onStarted);
+  const live = useSpinLobby(practiceGame ? undefined : roomId, !practiceGame, me, onStarted);
   const local = useLocalLobby(practiceGame, me);
   const { snapshot, status, sendInput, sendAction, sendTap, vote } = practiceGame ? local : live;
   const canvasRef = useRef<HTMLCanvasElement>(null);
@@ -65,6 +65,9 @@ export function LobbyPanel({
   if (!fxRef.current) fxRef.current = new LobbyFx();
   const latest = useRef(snapshot);
   latest.current = snapshot;
+  // In a room, a game that runs on the client has a fresher picture than the last server snapshot.
+  const frameRef = useRef(practiceGame ? undefined : live.frame);
+  frameRef.current = practiceGame ? undefined : live.frame;
   const byId = useMemo(() => new Map(members.map((m) => [m.user.id, m.user])), [members]);
   const byIdRef = useRef(byId);
   byIdRef.current = byId;
@@ -158,7 +161,7 @@ export function LobbyPanel({
     let frame = 0;
     const draw = () => {
       frame = requestAnimationFrame(draw);
-      const snap = latest.current;
+      const snap = frameRef.current?.(performance.now()) ?? latest.current;
       const gameView = viewRef.current;
       const size = canvas.clientWidth;
       const dpr = window.devicePixelRatio || 1;

@@ -55,6 +55,24 @@ export class RunnerGame extends RoundGame<Runner> {
   /** Where the next obstacle's near edge may be: the far edge of the last one plus a gap. */
   private nextEdgeX = 0;
 
+  /** Each player's own device works out their jump and duck (see RoundGame.clientSim). */
+  get clientSim(): boolean {
+    return true;
+  }
+
+  protected readReport(r: Runner, f: Record<string, number>): void {
+    r.h = Math.max(0, RoundGame.num(f.h, r.h));
+    r.vy = RoundGame.num(f.vy, r.vy);
+    r.wantDuck = f.duck === 1;
+    r.holding = false;
+    r.boost = false;
+  }
+
+  protected writeReport(r: Runner): Record<string, number> {
+    const r3 = (n: number) => Math.round(n * 1000) / 1000;
+    return { h: r3(r.h), vy: r3(r.vy), duck: r.wantDuck ? 1 : 0 };
+  }
+
   protected createPlayer(id: string, alive: boolean): Runner {
     return { id, h: 0, vy: 0, wantDuck: false, holding: false, boost: false, alive, wins: 0, outAtMeters: 0 };
   }
@@ -150,7 +168,7 @@ export class RunnerGame extends RoundGame<Runner> {
     this.spawnObstacles();
 
     for (const r of this.players.values()) {
-      if (!r.alive) continue;
+      if (!r.alive || !this.simulated(r)) continue;
       if (r.h > 0 || r.vy > 0) {
         r.vy -= (r.boost && r.vy > 0 ? GRAVITY_HELD : GRAVITY) * dt;
         r.h += r.vy * dt;

@@ -34,6 +34,21 @@ export class FlappyGame extends RoundGame<Bird> {
   private nextSpawnX = 0;
   private lastGap = 0.5;
 
+  /** Each player's own device works out their flight (see RoundGame.clientSim). */
+  get clientSim(): boolean {
+    return true;
+  }
+
+  protected readReport(b: Bird, f: Record<string, number>): void {
+    b.y = Math.min(1, Math.max(0, RoundGame.num(f.y, b.y)));
+    b.vy = RoundGame.num(f.vy, b.vy);
+  }
+
+  protected writeReport(b: Bird): Record<string, number> {
+    const r3 = (n: number) => Math.round(n * 1000) / 1000;
+    return { y: r3(b.y), vy: r3(b.vy) };
+  }
+
   protected createPlayer(id: string, alive: boolean): Bird {
     return { id, y: 0.5, vy: 0, alive, wins: 0, outAtMeters: 0 };
   }
@@ -98,7 +113,7 @@ export class FlappyGame extends RoundGame<Bird> {
     this.spawnPipes();
 
     for (const b of this.players.values()) {
-      if (!b.alive) continue;
+      if (!b.alive || !this.simulated(b)) continue;
       b.vy -= GRAVITY * dt;
       b.y += b.vy * dt;
       if (b.y - FLAPPY_BIRD_RADIUS <= 0 || b.y + FLAPPY_BIRD_RADIUS >= 1 || this.hitsPipe(b)) {

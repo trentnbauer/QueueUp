@@ -82,6 +82,18 @@ export class BotFiller implements LobbyGame {
     this.inner.action(userId, name);
   }
 
+  get clientSim(): boolean {
+    return this.inner.clientSim ?? false;
+  }
+
+  simStart(): ReturnType<NonNullable<LobbyGame['simStart']>> {
+    return this.inner.simStart?.() ?? null;
+  }
+
+  report(userId: string, run: number, alive: boolean, f: Record<string, number>): void {
+    this.inner.report?.(userId, run, alive, f);
+  }
+
   tap(userId: string, target: number): void {
     this.inner.tap?.(userId, target);
   }

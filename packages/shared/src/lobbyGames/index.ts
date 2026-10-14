@@ -11,6 +11,7 @@ import type { LobbyGame } from './types.js';
 
 export type { BotBrain, BotCommand, LobbyGame } from './types.js';
 export { LobbyRecord } from './roundGame.js';
+export { CoinsGame, DodgeGame, FlappyGame, RedLightGame, RopeGame, RunnerGame };
 export { BotFiller, botColor, botNumber, isBotId, withBots } from './bots.js';
 
 /** Starts a fresh game of the given kind, with bots added by the lobby when it needs more players than

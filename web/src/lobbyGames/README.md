@@ -18,6 +18,18 @@ A game has two halves that never share code, only the snapshot type in `packages
 4. **Strings:** the game's name, hint and button labels in `web/src/i18n/locales/{en,pirate}/spin.ts` as `spin.lobby.<game>.*`. The countdown, result and "you're out" text are shared (`spin.lobby.hud.*`); do not add per-game copies.
 5. **Tests:** see "Before a PR".
 
+## Where a player is worked out
+
+A game whose players **do not affect each other** (they share a course but never collide or compete for the same thing) can run each player on their own device, so ping does not matter to their own play. In the rules class:
+
+- `get clientSim()` returns true.
+- `readReport(p, fields)` copies a player's reported fields into the player (use `RoundGame.num` on every field: a client is trusted to be honest, not well-formed), and `writeReport(p)` makes that report, a few small numbers, from the player.
+- In `advance`, skip players the server does not work out: `if (!p.alive || !this.simulated(p)) continue;`. A player is not `simulated` once they report, so the server stops moving them; one who never reports (an older client, a bot) is still worked out here.
+
+The web side needs no change: `ClientSim` (`web/src/lobbyGames/clientSim.ts`) runs a one-person copy of the same game from the server's seed and start time and lays this player and its course over the server's snapshot, so the view draws it as usual. Everything about the run's lifecycle (countdown, who is in, the winner, results) stays on the server. See `docs/minigames.md` ("Ping and who works out what").
+
+A game where players compete for the same thing (a coin, a mole, a finish line) stays on the server for now; leave `clientSim` false.
+
 ## Controls
 
 Phone-sized: **at most one movement axis (left/right, or up/down) plus one action button**, or one button alone. Declare them in the view: `pad` (`full`, `leftRight`, `none`), `holds` (buttons held down, one may be `primary`), `actions` (tap buttons), and `tapAction` / `tapHold` if tapping the arena should work too. Every control needs a keyboard key (arrows or A/D plus Space).

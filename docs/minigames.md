@@ -26,6 +26,16 @@ Mini games are **cosmetic**: nothing in them changes which game a spin picks.
 - **Bots.** Some games need more than one player (Red light, green light needs 2). If fewer people are in the lobby, **bots** ("Bot 1", in a muted colour with a **B**) join to make up the numbers. They are not members: they never vote, never count as being in the mini game and never show up in the room. They are only added or removed between runs, never during one, and they leave once enough real people have joined. When the last person leaves, the bots go too. Practice mode on the Personal Shelf uses the same bots.
 - **Playing together.** Any number of members can join. You can have the mini game open on up to 5 devices or tabs at once; you still count as one player.
 
+## Ping and who works out what
+
+In **Runner, Flappy, Dodge and Jump rope**, your own player is worked out **on your own device**, so a slow connection does not make you jump late or get hit by something you cleared:
+
+- **Your device** runs your player against the course the moment you press: your jump, your duck, your slide. Your hits are decided there too, and it tells the server where you are about 20 times a second, and straight away when you are out.
+- **The server** decides the shared things: the course's seed and exactly when a run starts (everyone's device lines its clock up with the server's, so everyone starts the same course at the same moment), who is still in, who won, the wins and the history. It shows everyone else's player from what their devices report.
+- **What you still see late:** other players. They are drawn where their device last said they were, so on a slow connection you see them a moment behind. It does not change what happens to you.
+- **If your device goes quiet** (a closed or frozen tab) for 3 seconds in a run, the server counts you out.
+- Players in these games never affect each other, which is why this is safe. Games where players race for the same thing (**Catch the coins**, **Red light, green light**) are still worked out by the server, so there ping matters; they will move over as their rules allow.
+
 ## Voting to spin
 
 While a spin is waiting for members, the mini game has a **Vote to spin** bar.

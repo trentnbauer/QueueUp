@@ -42,6 +42,21 @@ export class RopeGame extends RoundGame<Jumper> {
     return this.swings;
   }
 
+  /** Each player's own device works out their jumps (see RoundGame.clientSim). */
+  get clientSim(): boolean {
+    return true;
+  }
+
+  protected readReport(p: Jumper, f: Record<string, number>): void {
+    p.y = Math.max(0, RoundGame.num(f.y, p.y));
+    p.vy = RoundGame.num(f.vy, p.vy);
+  }
+
+  protected writeReport(p: Jumper): Record<string, number> {
+    const r3 = (n: number) => Math.round(n * 1000) / 1000;
+    return { y: r3(p.y), vy: r3(p.vy) };
+  }
+
   protected createPlayer(id: string, alive: boolean): Jumper {
     return { id, x: 0.5, y: 0, vy: 0, jumps: 0, alive, wins: 0, outAtMeters: 0 };
   }
@@ -118,7 +133,7 @@ export class RopeGame extends RoundGame<Jumper> {
     const underFeet = Math.min(this.angle, 1 - this.angle) * this.period < CONTACT_S;
 
     for (const p of this.players.values()) {
-      if (!p.alive) continue;
+      if (!p.alive || !this.simulated(p)) continue;
       if (p.y > 0 || p.vy > 0) {
         p.vy -= GRAVITY * dt;
         p.y = Math.max(0, p.y + p.vy * dt);

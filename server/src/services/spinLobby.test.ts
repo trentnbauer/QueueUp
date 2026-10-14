@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from 'vitest';
-import { createLobbyGame } from '@queueup/shared';
+import { RedLightGame, RunnerGame, createLobbyGame } from '@queueup/shared';
 import { SpinLobby } from './spinLobby.js';
 
 const snapshot = () => ({ id: 'runner' as const, phase: 'lobby' as const, run: 1, history: [], best: null, meters: 0, speed: 0.5, obstacles: [], players: [], timerMs: 0, winnerId: null });
@@ -206,5 +206,69 @@ describe('SpinLobby rotating games', () => {
     for (let t = 0; t < 10_000; t += 66) lobby.tick(66);
     expect(lobby.snapshot(false).game.id).toBe('runner');
     expect((game as { onRunOver?: unknown }).onRunOver).toBeUndefined();
+  });
+});
+
+describe('SpinLobby with a game that runs each player on their own device', () => {
+  const started = () => {
+    const lobby = new SpinLobby(new RunnerGame(() => 0.3));
+    lobby.join('a');
+    lobby.join('b');
+    for (let t = 0; t < 3200; t += 66) lobby.tick(66);
+    return lobby;
+  };
+
+  it('sends the run, its seed and when it starts, with the server clock', () => {
+    const lobby = new SpinLobby(new RunnerGame(() => 0.3));
+    lobby.join('a');
+    const counting = lobby.snapshot(false, 5000);
+    expect(counting.sim).toMatchObject({ run: 1, startInMs: 3000 });
+    expect(typeof counting.sim?.seed).toBe('number');
+    expect(counting.clock).toBe(5000);
+    for (let t = 0; t < 3200; t += 66) lobby.tick(66);
+    const running = lobby.snapshot(false, 9000);
+    expect(running.sim?.seed).toBe(counting.sim?.seed);
+    expect(running.sim?.startInMs).toBeLessThan(0);
+  });
+
+  it('sends nothing extra without a clock, or for a game that does not run on the client', () => {
+    const lobby = new SpinLobby(new RunnerGame(() => 0.3));
+    lobby.join('a');
+    expect(lobby.snapshot(false).sim).toBeUndefined();
+    const other = new SpinLobby(new RedLightGame(() => 0.3));
+    other.join('a');
+    expect(other.snapshot(false, 1000).sim).toBeUndefined();
+    expect(other.snapshot(false, 1000).clock).toBeUndefined();
+  });
+
+  it('takes a report from someone in the lobby', () => {
+    const lobby = started();
+    lobby.report('a', 1, false, { h: 0, vy: 0, duck: 0 });
+    const players = lobby.snapshot(false, 1).game.players as { id: string; alive: boolean }[];
+    expect(players.find((p) => p.id === 'a')?.alive).toBe(false);
+    expect(players.find((p) => p.id === 'b')?.alive).toBe(true);
+  });
+
+  it('drops a report that is malformed, from a stranger, or has odd fields', () => {
+    const lobby = started();
+    const alive = () => (lobby.snapshot(false, 1).game.players as { id: string; alive: boolean }[]).every((p) => p.alive);
+    lobby.report('stranger', 1, false, {});
+    lobby.report('a', 'one', false, {});
+    lobby.report('a', 1.5, false, {});
+    lobby.report('a', 1, 'no', {});
+    lobby.report('a', 1, false, null);
+    lobby.report('a', 1, false, [1, 2]);
+    lobby.report('a', 1, false, { h: 'high' });
+    lobby.report('a', 1, false, { h: Number.NaN });
+    lobby.report('a', 1, false, { ['x'.repeat(40)]: 1 });
+    expect(alive()).toBe(true);
+    lobby.report('a', 1, false, { h: 0 });
+    expect(alive()).toBe(false);
+  });
+
+  it('ignores a report when the game has no client sim', () => {
+    const lobby = new SpinLobby(fakeGame());
+    lobby.join('a');
+    expect(() => lobby.report('a', 1, true, { h: 0 })).not.toThrow();
   });
 });

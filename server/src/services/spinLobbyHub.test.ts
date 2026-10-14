@@ -115,4 +115,35 @@ describe('SpinLobbyHub', () => {
     hub.disconnect('r1', a.socket);
     expect(hub.hasMembers('r1')).toBe(false);
   });
+
+  it('answers a ping with its own clock, to that socket only', () => {
+    const hub = makeHub();
+    const a = fakeSocket();
+    const b = fakeSocket();
+    hub.connect('r1', 'a', a.socket);
+    hub.connect('r1', 'b', b.socket);
+    const before = b.sent.length;
+    hub.message('r1', a.socket, JSON.stringify({ t: 'ping', c: 1234.5 }));
+    const pong = a.last();
+    expect(pong).toMatchObject({ t: 'pong', c: 1234.5 });
+    expect(typeof pong.s).toBe('number');
+    expect(b.sent.length).toBe(before);
+    // A ping that is not a number gets no answer.
+    const count = a.sent.length;
+    hub.message('r1', a.socket, JSON.stringify({ t: 'ping', c: 'x' }));
+    hub.message('r1', a.socket, JSON.stringify({ t: 'ping' }));
+    expect(a.sent.length).toBe(count);
+  });
+
+  it('takes reports and sends the clock with snapshots, and does not fall over on bad ones', async () => {
+    const hub = makeHub();
+    const a = fakeSocket();
+    hub.connect('r1', 'a', a.socket);
+    for (const bad of [{ t: 'report' }, { t: 'report', run: 1, alive: 'x', f: 5 }, { t: 'report', run: 1, alive: true, f: { h: 1 } }]) {
+      hub.message('r1', a.socket, JSON.stringify(bad));
+    }
+    await hub.tickRoom('r1');
+    expect(a.last().t).toBe('state');
+    expect(hub.isPresent('r1', 'a')).toBe(true);
+  });
 });
