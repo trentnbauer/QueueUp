@@ -25,18 +25,11 @@ function drawWorld(sc: Scene<RopeSnapshot>): void {
   const left = HANDLE_X * S;
   const right = S - HANDLE_X * S;
 
-  ctx.save();
-  ctx.lineCap = 'round';
-  ctx.lineWidth = Math.max(2, S * 0.012);
-  ctx.strokeStyle = sc.theme.acc;
-  ctx.shadowColor = sc.theme.accGlow;
-  ctx.shadowBlur = S * 0.02;
-  ctx.beginPath();
-  ctx.moveTo(left, handleY);
-  // A quadratic curve passes half way to its control point, so aim past the middle to land on it.
-  ctx.quadraticCurveTo(S / 2, 2 * midY - handleY, right, handleY);
-  ctx.stroke();
-  ctx.restore();
+  // The rope turns over the jumpers' heads: it comes up on the far side of them (angle 0 to 0.5) and down
+  // on the near side (0.5 to 1), where it meets their feet. On the far side it is behind them, so it is
+  // drawn first and darker, which is what makes it look as if it is going round.
+  const behind = angle < 0.5;
+  const drawRope = () => strokeRope(sc, { handleY, midY, left, right }, behind);
 
   // The two handles.
   ctx.fillStyle = STAGE.hudStroke;
@@ -45,6 +38,9 @@ function drawWorld(sc: Scene<RopeSnapshot>): void {
     ctx.arc(x, handleY, S * 0.018, 0, Math.PI * 2);
     ctx.fill();
   }
+
+  // Behind the jumpers: before them, so they stand in front of it.
+  if (behind) drawRope();
 
   const radius = ROPE_PLAYER_RADIUS * S;
   for (const i of sc.order()) {
@@ -55,6 +51,39 @@ function drawWorld(sc: Scene<RopeSnapshot>): void {
     groundShadow(ctx, cx, floor, radius, 1 - Math.min(1, cy * 3) * 0.6);
     sc.drawPlayer(p.id, cx, floor - cy * S - radius, radius, radius);
   }
+
+  // In front of the jumpers: after them, so it passes over them.
+  if (!behind) drawRope();
+}
+
+/** The rope between its handles, bowed to `midY`. Behind the jumpers it is darker and has no glow, so the
+ * far side of its swing reads as further away. */
+function strokeRope(sc: Scene<RopeSnapshot>, box: { handleY: number; midY: number; left: number; right: number }, behind: boolean): void {
+  const { ctx, S } = sc;
+  const { handleY, midY, left, right } = box;
+  const trace = () => {
+    ctx.beginPath();
+    ctx.moveTo(left, handleY);
+    // A quadratic curve passes half way to its control point, so aim past the middle to land on it.
+    ctx.quadraticCurveTo(S / 2, 2 * midY - handleY, right, handleY);
+  };
+  ctx.save();
+  ctx.lineCap = 'round';
+  ctx.lineWidth = Math.max(2, S * 0.012);
+  ctx.strokeStyle = sc.theme.acc;
+  if (!behind) {
+    ctx.shadowColor = sc.theme.accGlow;
+    ctx.shadowBlur = S * 0.02;
+  }
+  trace();
+  ctx.stroke();
+  if (behind) {
+    // The same rope with a flat dark layer over it.
+    ctx.strokeStyle = 'oklch(0.12 0.03 280 / 0.55)';
+    trace();
+    ctx.stroke();
+  }
+  ctx.restore();
 }
 
 const scene: SceneGame<RopeSnapshot> = {

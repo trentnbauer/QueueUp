@@ -105,6 +105,7 @@ A rope swings round and everyone jumps it together.
 - **Score:** the number of swings you jumped (shown as SWINGS in the top-left counter, where the other games show metres).
 - **Speed:** a swing starts at 1.8 seconds and shortens by 0.03 seconds for every second of the run, down to 0.75 seconds after about 35 seconds. Now and then a swing is slower (a pause, 1.5 times as long) or quicker (0.85 times as long, never under 0.65 seconds), so don't jump on rhythm alone.
 - Every swing is long enough to land and jump again.
+- **Depth:** the rope comes up on the far side of the jumpers and down on the near side. While it is behind them it is drawn darker, with no glow, and behind the jumpers; once it is over their heads it is bright, with a glow, and passes in front of them.
 
 ## Red light, green light
 
