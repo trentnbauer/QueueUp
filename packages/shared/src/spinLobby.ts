@@ -3,16 +3,16 @@
 // a snapshot every tick, the client only sends what the person is pressing. Results are cosmetic -
 // nothing here touches a spin's outcome.
 //
-// A game is a module on the server (services/lobbyGames/) plus a drawing function in the browser
-// (web/src/lobbyGames/). To add one: give it an id here, a snapshot type, a server module and a
+// A game is a rules class (packages/shared/src/lobbyGames/) plus a drawing function in the browser
+// (web/src/lobbyGames/). To add one: give it an id here, a snapshot type, a rules class and a
 // renderer.
 
 /** Server ticks per second (and snapshots per second). */
 export const LOBBY_TICK_HZ = 15;
 
 /** The games the lobby can run. */
-export type LobbyGameId = 'runner' | 'flappy' | 'dodge' | 'rope' | 'redlight' | 'coins' | 'battleships';
-export const LOBBY_GAME_IDS: readonly LobbyGameId[] = ['runner', 'flappy', 'dodge', 'rope', 'redlight', 'coins', 'battleships'];
+export type LobbyGameId = 'runner' | 'flappy' | 'dodge' | 'rope' | 'redlight' | 'coins' | 'battleships' | 'race';
+export const LOBBY_GAME_IDS: readonly LobbyGameId[] = ['runner', 'flappy', 'dodge', 'rope', 'redlight', 'coins', 'battleships', 'race'];
 
 /** What a client sends. Anything else is ignored. */
 export type LobbyClientMessage =
@@ -213,7 +213,6 @@ export interface DodgeSnapshot extends RoundSummary {
   winnerId: string | null;
 }
 
-/** The snapshot of whichever game is running. */
 // ---- Jump rope (a rope swings round, everyone jumps it together) -----------------------------------
 
 /** How high a jumper has to be, as a fraction of the screen height, for the rope to pass under them. */
@@ -397,8 +396,65 @@ export interface BattleshipsSnapshot extends RoundSummary {
   winnerId: string | null;
 }
 
+// ---- Obstacle race (steer clear; a hit slows you and you slide down the screen) --------------------
+
+/** The line a driver at full speed sits on, as a fraction of the height from the top. Nobody gets ahead of it. */
+export const RACE_FRONT_Y = 0.5;
+/** A driver whose middle passes this (the bottom of the screen) has fallen off and is out. */
+export const RACE_OUT_Y = 1;
+export const RACE_CAR_WIDTH = 0.055;
+export const RACE_CAR_HEIGHT = 0.09;
+/** The kerb along each side of the track; drivers stay inside it. */
+export const RACE_KERB = 0.035;
+
+/** What is on the track. A cone is small, an oil slick wide and flat, a rock big; a bigger one slows you more. */
+export type RaceObstacleKind = 'cone' | 'oil' | 'rock';
+
+/** An obstacle: `x` is its middle across the width (0..1), `y` its middle down from the top. */
+export interface RaceObstacle {
+  x: number;
+  y: number;
+  w: number;
+  h: number;
+  kind: RaceObstacleKind;
+  /** Which obstacle this is (counts up from 1 each run); stays the same as it scrolls. */
+  n: number;
+}
+
+export interface RacePlayer {
+  id: string;
+  /** Where they are across the track (0..1). */
+  x: number;
+  /** How far down the screen they are: `RACE_FRONT_Y` at full speed, further down while slowed. */
+  y: number;
+  /** The direction they are steering: -1, 0 or 1. */
+  dir: number;
+  /** True for a moment after a hit (for a spin-out wobble). */
+  hit: boolean;
+  /** Still on the screen. False once they slide off the bottom, or if they arrived mid-run. */
+  alive: boolean;
+  /** Runs won since this person joined the lobby. */
+  wins: number;
+  /** How far they have driven, in metres: live while racing, final once out. */
+  meters: number;
+}
+
+export interface RaceSnapshot extends RoundSummary {
+  id: 'race';
+  phase: LobbyRoundPhase;
+  meters: number;
+  /** How fast the track scrolls, in screens per second. */
+  speed: number;
+  obstacles: RaceObstacle[];
+  players: RacePlayer[];
+  /** Milliseconds left in `countdown` or `over`; 0 otherwise. */
+  timerMs: number;
+  /** Who won the run that just ended (`over` only); null when nobody did (a solo run, or a draw). */
+  winnerId: string | null;
+}
+
 /** The snapshot of whichever game is running. */
-export type LobbyGameSnapshot = RunnerSnapshot | FlappySnapshot | DodgeSnapshot | RopeSnapshot | RedLightSnapshot | CoinsSnapshot | BattleshipsSnapshot;
+export type LobbyGameSnapshot = RunnerSnapshot | FlappySnapshot | DodgeSnapshot | RopeSnapshot | RedLightSnapshot | CoinsSnapshot | BattleshipsSnapshot | RaceSnapshot;
 
 /** What a client needs to run its own player on a course the server decided: which run, the seed that
  * makes the course, and how long until the run starts (negative once it has, by how far in). */

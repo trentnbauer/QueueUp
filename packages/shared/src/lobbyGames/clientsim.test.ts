@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { CoinsGame } from './coins.js';
 import { DodgeGame } from './dodge.js';
 import { FlappyGame } from './flappy.js';
+import { RaceGame } from './race.js';
 import { RedLightGame } from './redlight.js';
 import { RopeGame } from './rope.js';
 import { RunnerGame } from './runner.js';
@@ -22,8 +23,8 @@ function serverRunner(seed = 0.3) {
 }
 
 describe('which games run each player on their own device', () => {
-  it('is Runner, Flappy, Dodge and Jump rope, whose players do not affect each other', () => {
-    for (const g of [new RunnerGame(), new FlappyGame(), new DodgeGame(), new RopeGame()]) expect(g.clientSim).toBe(true);
+  it('is Runner, Flappy, Dodge, Jump rope and Obstacle race, whose players do not affect each other', () => {
+    for (const g of [new RunnerGame(), new FlappyGame(), new DodgeGame(), new RopeGame(), new RaceGame()]) expect(g.clientSim).toBe(true);
   });
 
   it('is not Red light, green light or Catch the coins, where players race for the same thing', () => {
@@ -263,7 +264,7 @@ describe('a one-person copy of a run on a client', () => {
   });
 
   it('works for every game that runs on the client', () => {
-    for (const make of [() => new RunnerGame(), () => new FlappyGame(), () => new DodgeGame(), () => new RopeGame()]) {
+    for (const make of [() => new RunnerGame(), () => new FlappyGame(), () => new DodgeGame(), () => new RopeGame(), () => new RaceGame()]) {
       const g = make();
       g.join('me');
       g.startRunAt(99);
