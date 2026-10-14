@@ -1,6 +1,6 @@
 import { RUNNER_X, type RunnerSnapshot } from '@queueup/shared';
 import type { LobbyGameView } from './index';
-import { FONT, STAGE, coverTile, drawFloor, groundShadow, hueOf, renderScene, roundRect, type Scene, type SceneGame } from './kit';
+import { FONT, STAGE, courseOffset, coverTile, drawFloor, groundShadow, hueOf, renderScene, roundRect, type Scene, type SceneGame } from './kit';
 
 // Mirrors the server's sizes (server/src/services/lobbyGames/runner.ts), so what is drawn is what is hit.
 const STAND_HEIGHT = 0.45;
@@ -27,15 +27,13 @@ function drawWorld(sc: Scene<RunnerSnapshot>): void {
   drawFloor(sc, ground);
   // Ground texture that moves with the course: pale ticks and a row of accent dashes.
   const tick = S * 0.08;
-  // Both rows move left at exactly the course's speed, the same as the obstacles (they repeat every
-  // `tick` and every `2 * tick`, so each wraps its own scroll distance).
-  const scrolled = (sc.fx.scroll + drift) * S;
+  // Both rows move left at exactly the course's speed, the same as the obstacles, whatever their spacing.
   ctx.fillStyle = STAGE.groundTick;
-  for (let x = -(scrolled % tick); x < S; x += tick) ctx.fillRect(x, ground + S * 0.04, tick * 0.4, 2);
+  for (let x = -courseOffset(sc, tick); x < S; x += tick) ctx.fillRect(x, ground + S * 0.04, tick * 0.4, 2);
   ctx.save();
   ctx.globalAlpha = 0.5;
   ctx.fillStyle = theme.acc;
-  for (let x = -(scrolled % (tick * 2)); x < S; x += tick * 2) ctx.fillRect(x, ground + S * 0.09, tick * 0.15, 2);
+  for (let x = -courseOffset(sc, tick * 2); x < S; x += tick * 2) ctx.fillRect(x, ground + S * 0.09, tick * 0.15, 2);
   ctx.restore();
 
   for (const o of snapshot.obstacles) {

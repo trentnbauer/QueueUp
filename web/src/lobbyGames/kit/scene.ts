@@ -148,3 +148,13 @@ export function drawFloor(sc: Scene, top: number): void {
   ctx.fillStyle = STAGE.groundLine;
   ctx.fillRect(0, top, S, 1);
 }
+
+/** Where a repeating pattern that is part of the course (ground marks, fence posts) sits: how many pixels
+ * to slide it back (left on a sideways course, down on a falling one) from its starting spot. `period` is
+ * how far apart the pattern repeats, in pixels. The pattern moves at exactly the course's speed, the same
+ * as the obstacles and pickups, whatever its period. Use this for anything on the course instead of
+ * working the offset out by hand: scaling an offset (`offset * 2`) makes the pattern move faster or slower
+ * than the course. */
+export function courseOffset(sc: Pick<Scene, 'S' | 'drift'> & { fx: Pick<Scene['fx'], 'scroll'> }, period: number): number {
+  return ((sc.fx.scroll + sc.drift) * sc.S) % period;
+}
