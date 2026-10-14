@@ -40,6 +40,7 @@ import { st } from '../ui/st';
 import { celebratePick } from '../ui/PickCelebration';
 import { MODE_EXPLAINER, ModeStage } from './spinModes';
 import { LobbyPanel } from './LobbyPanel';
+import { showMiniGameFirst } from './lobby/spinStage';
 import { nameOf } from './spinModes/shared';
 import { t, useT, type MessageKey } from '../i18n';
 import { spinThemeLabel } from '../i18n/labels';
@@ -241,6 +242,8 @@ export function SpinDialog({ onClose }: { onClose: () => void }) {
   const { isShelf, games, room, members, ops } = scope;
   const roomId = isShelf ? undefined : scope.scopeId;
   const shared = useRoomSpin(roomId);
+  // In a room the Spin button opens the mini game first; the button there goes on to the spin menu.
+  const [stage, setStage] = useState<'game' | 'menu'>('game');
 
   const [maxPrice, setMaxPrice] = useState(0);
   // A room's Spin defaults (#801) pick where the filters start.
@@ -521,6 +524,30 @@ export function SpinDialog({ onClose }: { onClose: () => void }) {
 
   const resPrice = winner ? priceLabel(winner).label : '';
 
+  // A room with no spin yet: the mini game comes first. Once anyone starts a spin (including this person,
+  // from the menu) the waiting room takes over, with the same mini game and the vote.
+  if (roomId && showMiniGameFirst({ inRoom: true, hasSpin: !!session, spinLoaded: shared.loaded, stage })) {
+    return (
+      <Dialog onClose={onClose} bare padded={false} width={720} ariaLabel={t('spin.lobby.title')}>
+        <div style={st('padding:18px;display:flex;flex-direction:column;gap:14px;overflow-y:auto')}>
+          <div style={st('display:flex;align-items:center;justify-content:space-between')}>
+            <span style={st('font:700 22px var(--font-display);letter-spacing:-0.02em')}>{t('spin.dialog.title')}</span>
+            <CloseButton onClick={onClose} />
+          </div>
+          <LobbyPanel roomId={roomId} members={members} me={me} />
+          <button
+            type="button"
+            onClick={() => setStage('menu')}
+            style={st(`height:50px;border-radius:999px;border:none;background:${ACC};color:var(--ink);font:800 16px var(--font-display);box-shadow:0 8px 24px var(--accA35)`)}
+          >
+            {t('spin.lobby.goToSpin')}
+          </button>
+          <span style={st('font:500 12px var(--font-ui);color:var(--faint);text-align:center')}>{t('spin.lobby.goToSpinHint')}</span>
+        </div>
+      </Dialog>
+    );
+  }
+
   return (
     <>
       <Dialog onClose={onClose} bare padded={false} width={680} ariaLabel={t('spin.dialog.ariaLabel')}>
@@ -531,7 +558,14 @@ export function SpinDialog({ onClose }: { onClose: () => void }) {
         >
           <div style={st('display:flex;align-items:center;justify-content:space-between;margin-bottom:12px')}>
             <span style={st('font:700 22px var(--font-display);letter-spacing:-0.02em')}>{t('spin.dialog.title')}</span>
-            <CloseButton onClick={onClose} />
+            <div style={st('display:flex;align-items:center;gap:8px')}>
+              {roomId && !session && (
+                <button type="button" onClick={() => setStage('game')} style={st('height:36px;padding:0 14px;border-radius:999px;border:1px solid var(--line);background:transparent;color:var(--text);font:600 13px var(--font-ui)')}>
+                  {t('spin.lobby.backToGame')}
+                </button>
+              )}
+              <CloseButton onClick={onClose} />
+            </div>
           </div>
 
           {!session && (
