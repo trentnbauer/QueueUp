@@ -18,27 +18,31 @@ const SHOT_COOLDOWN_S = 0.8;
 /** The shot that sinks a ship scores this much more than an ordinary hit. */
 const SINK_BONUS = 1;
 /** The share of the board the fleet covers: this many players or fewer get the most, and it falls to
- * the least at MAX_PLAYERS. More ships and bigger ships when there are fewer players, so the board is
- * about as crowded for the people on it whatever the size of the room. */
+ * the least at MAX_PLAYERS. So a small room gets a fuller board and a big room more open water, and the
+ * board is about as crowded for the people on it whatever the size of the room. */
 const SHARE_MOST = 0.3;
 const SHARE_LEAST = 0.1;
 const MAX_PLAYERS = 12;
-/** The longest a ship can be: 5 for a few players, shorter as more join (see `fleetFor`). */
-const LONGEST_SHIP = 5;
-const SHORTEST_SHIP = 2;
+/** A ship is 1 to 4 squares long. */
+const SHORTEST_SHIP = 1;
+const LONGEST_SHIP = 4;
 const PLACEMENT_ATTEMPTS = 300;
 
-/** The ships to hide for this many players, longest first. Fewer players means a fuller board (about 30%
- * of squares are ship for one or two, about 10% for twelve) and bigger ships (up to 5 long, down to 2). */
-export function fleetFor(players: number): number[] {
+/** How many squares of the board are ship, for this many players: about 30% for one or two, down to about
+ * 10% for twelve. */
+export function fleetSquares(players: number): number {
   const n = Math.min(MAX_PLAYERS, Math.max(1, players));
-  const share = SHARE_MOST - ((n - 1) * (SHARE_MOST - SHARE_LEAST)) / (MAX_PLAYERS - 1);
-  const longest = Math.max(SHORTEST_SHIP, LONGEST_SHIP - Math.floor((n - 1) / 3));
-  let remaining = Math.round(CELLS * share);
+  return Math.round(CELLS * (SHARE_MOST - ((n - 1) * (SHARE_MOST - SHARE_LEAST)) / (MAX_PLAYERS - 1)));
+}
+
+/** The ships to hide for this many players, longest first: ships of a random length from 1 to 4, one after
+ * another, until the squares add up (the last one is cut short to fit exactly). So the same number of
+ * squares can be one 4 and a 1, or 2, 2 and 1: a different fleet every round, from the round's seed. */
+export function fleetFor(players: number, rng: () => number): number[] {
+  let remaining = fleetSquares(players);
   const fleet: number[] = [];
-  // A single square left over is dropped: a ship is at least two long.
-  while (remaining >= SHORTEST_SHIP) {
-    const len = Math.min(longest, remaining);
+  while (remaining > 0) {
+    const len = Math.min(remaining, SHORTEST_SHIP + Math.floor(rng() * (LONGEST_SHIP - SHORTEST_SHIP + 1)));
     fleet.push(len);
     remaining -= len;
   }
@@ -104,7 +108,7 @@ interface Ship {
 
 /** One board, shared by everyone: a hidden fleet, and everyone tapping squares to find it. A hit scores,
  * the shot that sinks a ship scores a bit more, and when the fleet is sunk (or the time is up) the most
- * points wins. The fleet is sized from how many are playing, so a small room gets bigger, busier water.
+ * points wins. The fleet is sized from how many are playing, so a small room gets busier water.
  * Nobody is knocked out. See RoundGame for how rounds start and end. */
 export class BattleshipsGame extends RoundGame<Gunner> {
   readonly id = 'battleships' as const;
@@ -145,7 +149,7 @@ export class BattleshipsGame extends RoundGame<Gunner> {
   /** The fleet is hidden when the round starts, sized for the people in it. */
   protected beginCourse(): void {
     this.resetCourse();
-    this.ships = placeFleet(this.rng, fleetFor(this.startedWith)).map((cells) => ({ cells, hits: 0 }));
+    this.ships = placeFleet(this.rng, fleetFor(this.startedWith, this.rng)).map((cells) => ({ cells, hits: 0 }));
     this.ships.forEach((ship, i) => ship.cells.forEach((c) => this.shipAt.set(c, i)));
   }
 

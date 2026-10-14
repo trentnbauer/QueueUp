@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { BATTLESHIPS_SIZE, SQUARE_HIT, SQUARE_MISS, SQUARE_SUNK, SQUARE_UNKNOWN } from '../spinLobby.js';
-import { BattleshipsGame, battleshipsBrain, fleetFor, placeFleet } from './battleships.js';
+import { BattleshipsGame, battleshipsBrain, fleetFor, fleetSquares, placeFleet } from './battleships.js';
 import { BotFiller, withBots } from './bots.js';
 import { mulberry32 } from './roundGame.js';
 
@@ -31,37 +31,56 @@ function fire(g: BattleshipsGame, id: string, square: number) {
   run(g, 900);
 }
 
+describe('fleetSquares', () => {
+  it('is about 30% of the board for one or two players, and about 10% for twelve, falling as players join', () => {
+    expect(fleetSquares(1) / CELLS).toBeGreaterThan(0.27);
+    expect(fleetSquares(1) / CELLS).toBeLessThan(0.32);
+    expect(fleetSquares(12) / CELLS).toBeGreaterThan(0.08);
+    expect(fleetSquares(12) / CELLS).toBeLessThan(0.12);
+    for (let n = 1; n < 12; n++) expect(fleetSquares(n + 1), `${n} to ${n + 1} players`).toBeLessThanOrEqual(fleetSquares(n));
+    expect(fleetSquares(1)).toBeGreaterThan(fleetSquares(12) * 2.5);
+  });
+
+  it('is the same for anything above twelve, and at least one player', () => {
+    expect(fleetSquares(40)).toBe(fleetSquares(12));
+    expect(fleetSquares(0)).toBe(fleetSquares(1));
+  });
+});
+
 describe('fleetFor', () => {
-  it('gives fewer players a fuller board of bigger ships, and more players a emptier board of smaller ones', () => {
-    const covered = (n: number) => fleetFor(n).reduce((a, b) => a + b, 0);
-    const longest = (n: number) => Math.max(...fleetFor(n));
-    for (let n = 1; n < 12; n++) {
-      expect(covered(n + 1), `${n} to ${n + 1} players`).toBeLessThanOrEqual(covered(n));
-      expect(longest(n + 1)).toBeLessThanOrEqual(longest(n));
-      expect(fleetFor(n + 1).length).toBeLessThanOrEqual(fleetFor(n).length + 1);
-    }
-    expect(covered(1)).toBeGreaterThan(covered(12) * 2.5);
-    expect(longest(1)).toBe(5);
-    expect(longest(12)).toBe(2);
-  });
-
-  it('is about 30% of the board for one or two, and about 10% for twelve', () => {
-    expect(fleetFor(1).reduce((a, b) => a + b, 0) / CELLS).toBeGreaterThan(0.27);
-    expect(fleetFor(1).reduce((a, b) => a + b, 0) / CELLS).toBeLessThan(0.32);
-    expect(fleetFor(12).reduce((a, b) => a + b, 0) / CELLS).toBeGreaterThan(0.08);
-    expect(fleetFor(12).reduce((a, b) => a + b, 0) / CELLS).toBeLessThan(0.12);
-  });
-
-  it('only has ships from 2 to 5 long, longest first, and at least one ship', () => {
-    for (let n = 0; n <= 20; n++) {
-      const fleet = fleetFor(n);
-      expect(fleet.length).toBeGreaterThan(0);
-      for (const len of fleet) {
-        expect(len).toBeGreaterThanOrEqual(2);
-        expect(len).toBeLessThanOrEqual(5);
+  it('only has ships 1 to 4 squares long, longest first, that add up to the squares for the players', () => {
+    for (let n = 0; n <= 14; n++) {
+      for (let seed = 1; seed <= 30; seed++) {
+        const fleet = fleetFor(n, mulberry32(seed));
+        expect(fleet.reduce((a, b) => a + b, 0), `${n} players, seed ${seed}`).toBe(fleetSquares(n));
+        for (const len of fleet) {
+          expect(len).toBeGreaterThanOrEqual(1);
+          expect(len).toBeLessThanOrEqual(4);
+          expect(Number.isInteger(len)).toBe(true);
+        }
+        expect([...fleet].sort((a, b) => b - a)).toEqual(fleet);
       }
-      expect([...fleet].sort((a, b) => b - a)).toEqual(fleet);
     }
+  });
+
+  it('picks different ships for the same number of squares: one 4 and a 1, or 2, 2 and 1', () => {
+    const shapes = new Set<string>();
+    for (let seed = 1; seed <= 200; seed++) shapes.add(fleetFor(2, mulberry32(seed)).join(','));
+    expect(shapes.size).toBeGreaterThan(20);
+    // Every length from 1 to 4 shows up somewhere.
+    const lengths = new Set([...shapes].flatMap((s) => s.split(',').map(Number)));
+    expect([...lengths].sort()).toEqual([1, 2, 3, 4]);
+  });
+
+  it('is the same from the same seed, and different from another', () => {
+    expect(fleetFor(3, mulberry32(11))).toEqual(fleetFor(3, mulberry32(11)));
+    const all = new Set(Array.from({ length: 30 }, (_, i) => fleetFor(3, mulberry32(i + 1)).join(',')));
+    expect(all.size).toBeGreaterThan(1);
+  });
+
+  it('is shorter on average, and fewer ships, as more players join', () => {
+    const ships = (n: number) => Array.from({ length: 100 }, (_, i) => fleetFor(n, mulberry32(i + 1)).length).reduce((a, b) => a + b, 0) / 100;
+    expect(ships(1)).toBeGreaterThan(ships(12));
   });
 });
 
@@ -69,7 +88,7 @@ describe('placeFleet', () => {
   it('puts every ship on the board in a straight line, with no two overlapping or touching', () => {
     for (let n = 1; n <= 12; n++) {
       for (let seed = 1; seed <= 40; seed++) {
-        const fleet = fleetFor(n);
+        const fleet = fleetFor(n, mulberry32(seed * 31 + n));
         const placed = placeFleet(mulberry32(seed * 7919 + n), fleet);
         expect(placed.map((s) => s.length), `${n} players, seed ${seed}`).toEqual(fleet);
         const all = placed.flat();
@@ -103,7 +122,7 @@ describe('placeFleet', () => {
   });
 
   it('is the same every time for the same seed, and different for another', () => {
-    const fleet = fleetFor(2);
+    const fleet = fleetFor(2, mulberry32(1));
     expect(placeFleet(mulberry32(5), fleet)).toEqual(placeFleet(mulberry32(5), fleet));
     expect(placeFleet(mulberry32(5), fleet)).not.toEqual(placeFleet(mulberry32(6), fleet));
   });
@@ -112,12 +131,22 @@ describe('placeFleet', () => {
 describe('BattleshipsGame rounds', () => {
   it('wants two players, and hides a fleet sized for the people who started', () => {
     expect(new BattleshipsGame().minPlayers).toBe(2);
+    const squares = (g: BattleshipsGame) => g.snapshot().fleet.reduce((a, s) => a + s.len, 0);
     const two = started(['a', 'b']);
-    expect(two.snapshot().fleet.map((s) => s.len)).toEqual(fleetFor(2));
+    expect(squares(two)).toBe(fleetSquares(2));
     const twelve = started(Array.from({ length: 12 }, (_, i) => `p${i}`));
-    expect(twelve.snapshot().fleet.map((s) => s.len)).toEqual(fleetFor(12));
-    expect(two.snapshot().fleet.length).toBeGreaterThan(0);
-    expect(twelve.snapshot().fleet.reduce((a, s) => a + s.len, 0)).toBeLessThan(two.snapshot().fleet.reduce((a, s) => a + s.len, 0));
+    expect(squares(twelve)).toBe(fleetSquares(12));
+    expect(squares(twelve)).toBeLessThan(squares(two));
+    for (const s of two.snapshot().fleet) {
+      expect(s.len).toBeGreaterThanOrEqual(1);
+      expect(s.len).toBeLessThanOrEqual(4);
+    }
+  });
+
+  it('hides a different fleet each round', () => {
+    const fleets = new Set<string>();
+    for (let seed = 0.05; seed < 1; seed += 0.1) fleets.add(started(['a', 'b'], seed).snapshot().fleet.map((s) => s.len).join(','));
+    expect(fleets.size).toBeGreaterThan(3);
   });
 
   it('scores a hit, shows who shot it, and shows a miss as a miss', () => {
@@ -229,11 +258,12 @@ describe('BattleshipsGame rounds', () => {
 
   it('has no winner when the best are tied', () => {
     const g = started(['a', 'b']);
-    // One hit each (not a whole ship), then the time runs out: 1 point each.
-    const [first, second] = ships(g)[0].cells;
-    fire(g, 'a', first);
-    fire(g, 'b', ships(g)[1].cells[0]);
-    expect(second).toBeDefined();
+    // One hit each on a ship that stays afloat (two or more long, so the hit does not sink it), then the
+    // time runs out: 1 point each.
+    const big = ships(g).filter((s) => s.cells.length >= 2);
+    expect(big.length).toBeGreaterThanOrEqual(2);
+    fire(g, 'a', big[0].cells[0]);
+    fire(g, 'b', big[1].cells[0]);
     for (let t = 0; t < 100_000 && g.snapshot().phase === 'playing'; t += STEP) g.tick(STEP);
     expect(g.snapshot().phase).toBe('over');
     expect(g.snapshot().winnerId).toBeNull();
@@ -346,6 +376,6 @@ describe('Battleships in a lobby with one person', () => {
     const g = withBots(new BattleshipsGame(seeded(0.3)), mulberry32(7));
     g.join('me');
     run(g, 3200);
-    expect((g.snapshot() as { fleet: { len: number }[] }).fleet.map((s) => s.len)).toEqual(fleetFor(2));
+    expect((g.snapshot() as { fleet: { len: number }[] }).fleet.reduce((a, s) => a + s.len, 0)).toBe(fleetSquares(2));
   });
 });
