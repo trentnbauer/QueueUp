@@ -4,6 +4,9 @@ import { st } from '../../ui/st';
 import { useT } from '../../i18n';
 import { keycapOf } from './keycaps';
 
+/** Holding a game control is not a text selection or a long press: the prefixed forms are what iOS Safari reads. */
+export const NO_SELECT: React.CSSProperties = { WebkitUserSelect: 'none', WebkitTouchCallout: 'none', WebkitTapHighlightColor: 'transparent' };
+
 interface ButtonSpec {
   key: string;
   label: ReactNode;
@@ -46,7 +49,9 @@ function ControlButton({ spec, phone }: { spec: ButtonSpec; phone: boolean }) {
         setPressed(false);
         onPointerCancel?.();
       }}
-      style={st(`${base};${look}`)}
+      // Holding a button must not start a text selection, the iOS callout or the long-press menu.
+      onContextMenu={(e) => e.preventDefault()}
+      style={st(`${base};${look}`, NO_SELECT)}
     >
       <span>{spec.label}</span>
       {spec.keycap && !phone && <span style={st(keycap)}>{spec.keycap}</span>}

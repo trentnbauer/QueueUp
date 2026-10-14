@@ -5,7 +5,7 @@ import { useSpinLobby } from '../hooks/useSpinLobby';
 import { viewFor, type LobbyGameView } from '../lobbyGames';
 import { LobbyFx } from '../lobbyGames/kit';
 import { tapTargetAt, tapTargetForKey } from '../lobbyGames/taps';
-import { Controls } from './lobby/Controls';
+import { Controls, NO_SELECT } from './lobby/Controls';
 import { LiveAnnouncer } from './lobby/LiveAnnouncer';
 import { LobbyHeader } from './lobby/LobbyHeader';
 import { RunHistory } from './lobby/RunHistory';
@@ -250,7 +250,8 @@ export function LobbyPanel({
       }}
       onPointerUp={view?.tapHold ? release : undefined}
       onPointerCancel={view?.tapHold ? release : undefined}
-      style={st(`display:block;width:100%;aspect-ratio:1;border-radius:${phone ? 18 : 16}px;box-shadow:inset 0 0 0 1px oklch(1 0 0 / 0.1);touch-action:none`)}
+      style={st(`display:block;width:100%;aspect-ratio:1;border-radius:${phone ? 18 : 16}px;box-shadow:inset 0 0 0 1px oklch(1 0 0 / 0.1);touch-action:none;user-select:none`, NO_SELECT)}
+      onContextMenu={(e) => e.preventDefault()}
     />
   );
   const controls = view ? <Controls view={view} phone={phone} holdProps={holdProps} onAction={sendAction} /> : null;
