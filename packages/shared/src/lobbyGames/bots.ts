@@ -49,6 +49,14 @@ export class BotFiller implements LobbyGame {
     this.id = inner.id;
   }
 
+  get onRunOver(): (() => boolean) | undefined {
+    return this.inner.onRunOver;
+  }
+
+  set onRunOver(fn: (() => boolean) | undefined) {
+    this.inner.onRunOver = fn;
+  }
+
   /** How many bots are in the game right now. */
   get botCount(): number {
     return this.bots.size;
