@@ -115,6 +115,17 @@ Coins fall; slide left and right to catch them before anyone else does.
 - The bar along the top is the time left, and each catcher's coin count is shown over their head.
 - You move at 0.6 of a screen per second and can't leave the screen.
 
+## Keeping the motion consistent
+
+Scrolling games (Runner, Flappy, Dodge, Catch the coins) all follow one rule so the world never slides at two speeds:
+
+- **Everything on the course moves at the course's speed.** Obstacles, pickups and the marks on the ground (the Runner's pale ticks and accent dashes, for example) all move by the same distance every second: the speed shown in the game's own description above, in screens per second. A ground mark must never look faster or slower than the obstacles it sits under.
+- **Only the faint dot grid in the background is slower**, at a quarter of the course speed, as distant parallax. It is drawn by the arena for every game; a game never adds its own.
+- **A game where nothing scrolls** (Jump rope, Red light, green light) reports a speed of 0, so the background stays still.
+- **How it is kept true in code:** repeating patterns on the course use the shared `courseOffset` helper, which wraps the distance the course has travelled by the pattern's own spacing. Never scale an offset that has already been worked out (`offset * 2`): that changes the pattern's speed. The helper has a test, and `web/src/lobbyGames/README.md` lists the check a new scrolling game needs before a pull request.
+
+(The Runner's accent dashes used to move at twice the course speed because of exactly that mistake.)
+
 ## Adding a game
 
 Mini games are small, self-contained modules, and new ones are welcome as pull requests. See [`web/src/lobbyGames/README.md`](../web/src/lobbyGames/README.md) for how a game is built, the controls rule and the graphics standard, and file ideas with the **Mini game idea** issue template.
