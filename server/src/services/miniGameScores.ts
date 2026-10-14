@@ -1,4 +1,4 @@
-import { LOBBY_GAME_IDS, MINIGAME_LAST_RUNS, MINIGAME_LEADERBOARD_SIZE, MINIGAME_SCORE_MAX, MINIGAME_WEEK_MS, type LobbyGameId, type LobbyRunScore, type MiniGameMeResponse, type MiniGameScorePeriod, type MiniGameScoreRow, type MiniGameScoreScope, type MiniGameScoreSource, type MiniGameScoresResponse } from '@queueup/shared';
+import { LOBBY_GAME_IDS, MINIGAME_LAST_RUNS, MINIGAME_LEADERBOARD_SIZE, MINIGAME_SCORE_MAX, MINIGAME_WEEK_MS, type LobbyGameId, type LobbyRunScore, type MiniGameBestsResponse, type MiniGameMeResponse, type MiniGameScorePeriod, type MiniGameScoreRow, type MiniGameScoreScope, type MiniGameScoreSource, type MiniGameScoresResponse } from '@queueup/shared';
 import { prisma } from '../db/client.js';
 import { blockedIdsOf } from './blocks.js';
 import { friendIdsOf } from './friendships.js';
@@ -101,4 +101,11 @@ export async function myScores(viewerId: string, game: LobbyGameId): Promise<Min
     nextFriend: ahead ? { displayName: ahead.display_name, gap: ahead.score - (mine?.score ?? 0) } : null,
     lastRuns: runs.map((r) => ({ score: r.score, at: r.createdAt.toISOString(), source: r.source as MiniGameScoreSource })),
   };
+}
+
+export async function myBests(viewerId: string): Promise<MiniGameBestsResponse> {
+  const rows = await prisma.miniGameScore.groupBy({ by: ['gameId'], where: { userId: viewerId }, _max: { score: true } });
+  const bests: MiniGameBestsResponse['bests'] = {};
+  for (const r of rows) if (isLobbyGameId(r.gameId) && r._max.score !== null) bests[r.gameId] = r._max.score;
+  return { bests };
 }

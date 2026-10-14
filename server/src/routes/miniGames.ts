@@ -1,7 +1,7 @@
 import type { FastifyInstance } from 'fastify';
 import type { MiniGameScorePeriod, MiniGameScoreScope, SubmitMiniGameScoreRequest } from '@queueup/shared';
 import { HttpError } from '../util/httpError.js';
-import { isLobbyGameId, isPlausibleScore, leaderboard, myScores, recordRunScores } from '../services/miniGameScores.js';
+import { isLobbyGameId, isPlausibleScore, leaderboard, myBests, myScores, recordRunScores } from '../services/miniGameScores.js';
 
 /** Mini game high scores (see services/miniGameScores.ts). Runs in a room's lobby or waiting room are saved
  * by the lobby itself; a solo run is sent here by the player's own device when it ends. */
@@ -24,6 +24,8 @@ export default async function miniGameRoutes(app: FastifyInstance) {
     if (!isLobbyGameId(request.query.game)) throw new HttpError(400, 'Unknown game');
     return myScores(userId, request.query.game);
   });
+
+  app.get('/api/minigames/bests', { config: { rateLimit: { max: 60, timeWindow: '1 minute' } } }, async (request) => myBests(await request.requireAuth()));
 
   app.post<{ Body: SubmitMiniGameScoreRequest }>(
     '/api/minigames/scores',

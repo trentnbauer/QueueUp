@@ -33,6 +33,7 @@ const TermsPage = lazy(() => import('./pages/TermsPage').then((m) => ({ default:
 const PrivacyPage = lazy(() => import('./pages/PrivacyPage').then((m) => ({ default: m.PrivacyPage })));
 const ConfirmEmailPage = lazy(() => import('./pages/ConfirmEmailPage').then((m) => ({ default: m.ConfirmEmailPage })));
 const FriendsPage = lazy(() => import('./pages/FriendPages').then((m) => ({ default: m.FriendsPage })));
+const GamesPage = lazy(() => import('./pages/GamesPage').then((m) => ({ default: m.GamesPage })));
 const StatsPage = lazy(() => import('./pages/InsightPages').then((m) => ({ default: m.StatsPage })));
 const SettingsPage = lazy(() => import('./pages/SettingsPage').then((m) => ({ default: m.SettingsPage })));
 
@@ -62,6 +63,7 @@ function RouteTitle() {
   else if (pathname.startsWith('/room/')) page = scope.room?.name ?? null;
   else if (pathname === '/friends') page = t('pages.friends.title');
   else if (pathname === '/stats') page = t('pages.stats.title');
+  else if (pathname === '/games') page = t('games.title');
   else if (pathname === '/settings' || pathname.startsWith('/settings/')) page = t('settings.page.title');
   else if (pathname === '/admin') page = t('pages.admin.title');
   else if (pathname.startsWith('/join/')) page = t('pages.join.title');
@@ -310,6 +312,7 @@ export default function App() {
               <Route path="/friends" element={<FriendsPage />} />
               <Route path="/friends/:userId" element={<FriendRedirect />} />
               <Route path="/stats" element={<StatsPage />} />
+              <Route path="/games" element={<GamesPage />} />
               <Route path="/settings" element={<SettingsPage />} />
               <Route path="/settings/:section" element={<SettingsPage />} />
               {/* Old addresses of pages that moved (bookmarks, links in old emails). */}

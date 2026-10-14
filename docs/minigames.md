@@ -10,7 +10,11 @@ Mini games are **cosmetic**: nothing in them changes which game a spin picks.
 | --- | --- |
 | **Spin** button in a room | Opens the mini game first. **Vote to spin** takes you on to the spin menu (there is a **← Mini game** button to come back). |
 | **Room settings → Mini games** | Play any time, with no spin. |
-| **Personal Shelf settings → Practice mini games** | Play alone, on your own device, and pick which game. Nothing is saved or sent. |
+| **Mini games** (sidebar on desktop, profile menu on phones) | Play alone and pick which game, and see the high scores. |
+
+## High scores
+
+The **Mini games** page keeps a high score list for every game: your best run, your friends' and everyone's, for all time or the last 7 days. Every run counts, wherever it is played: solo, a room's mini game, or a spin's waiting room. People tied on a score share the place, and people you have blocked (or who blocked you) never show. A solo run's score is reported by your own device and only checked against the most the game could give, so the lists are for fun, not for prizes.
 
 ## How a lobby works
 

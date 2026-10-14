@@ -11,6 +11,8 @@ import { LobbyHeader } from './lobby/LobbyHeader';
 import { RunHistory } from './lobby/RunHistory';
 import { VoteBar } from './lobby/VoteBar';
 import { WinChart } from './lobby/WinChart';
+import { HighScoresStrip } from './lobby/HighScoresStrip';
+import { useSubmitSoloScore } from '../hooks/useMiniGames';
 import { useIsMobile } from '../ui/useLayout';
 import { Dialog } from '../ui/Dialog';
 import { st } from '../ui/st';
@@ -50,14 +52,16 @@ export function LobbyPanel({
   offlineFallback?: ReactNode;
   /** Members who are ready for a waiting spin, or undefined when opened on its own (no spin). */
   readyUserIds?: string[];
-  /** Run this game here, just for you, instead of connecting to a room (practice on the Personal Shelf). */
+  /** Run this game here, just for you, instead of connecting to a room (solo play on the Mini games page). */
   practiceGame?: LobbyGameId;
 }) {
   const t = useT();
   const phone = useIsMobile();
   // Either the room's live lobby over a WebSocket, or the same game run locally for practice.
   const live = useSpinLobby(practiceGame ? undefined : roomId, !practiceGame, me, onStarted);
-  const local = useLocalLobby(practiceGame, me);
+  const submitScore = useSubmitSoloScore();
+  // A solo run's score goes on the high score list when the run ends.
+  const local = useLocalLobby(practiceGame, me, submitScore);
   const { snapshot, status, sendInput, sendAction, sendTap, vote } = practiceGame ? local : live;
   const canvasRef = useRef<HTMLCanvasElement>(null);
   // Effects (knock-out bursts, confetti, shake) and their memory between frames, for as long as the panel is open.
@@ -206,7 +210,7 @@ export function LobbyPanel({
   const playingIds = game ? game.players.map((p) => p.id) : [];
   const here = playingIds.length;
   const voted = !!snapshot?.voters.includes(me);
-  const statusText = practiceGame ? t('practice.status') : status === 'open' ? t(here === 1 ? 'spin.lobby.here.one' : 'spin.lobby.here.other', { n: here }) : status === 'connecting' ? t('spin.lobby.connecting') : t('spin.lobby.offline');
+  const statusText = practiceGame ? t('games.status.solo') : status === 'open' ? t(here === 1 ? 'spin.lobby.here.one' : 'spin.lobby.here.other', { n: here }) : status === 'connecting' ? t('spin.lobby.connecting') : t('spin.lobby.offline');
   const release = () => {
     pad.current = { dx: 0, dy: 0 };
     sendHeld();
@@ -253,7 +257,7 @@ export function LobbyPanel({
   ) : status === 'offline' && offlineFallback ? (
     offlineFallback
   ) : (
-    status === 'open' && <span style={st('font:500 12px var(--font-ui);color:var(--muted);text-align:center')}>{practiceGame ? t('practice.note') : t('spin.lobby.noSpin')}</span>
+    status === 'open' && <span style={st('font:500 12px var(--font-ui);color:var(--muted);text-align:center')}>{practiceGame ? t('games.note.solo') : t('spin.lobby.noSpin')}</span>
   );
 
   return (
@@ -266,7 +270,14 @@ export function LobbyPanel({
             {arena}
             {controls}
           </div>
-          {game && <WinChart game={game} members={members} me={me} phone aside={<RunHistory summary={game} members={members} compact />} />}
+          {game && practiceGame ? (
+            <>
+              <HighScoresStrip game={practiceGame} phone />
+              <RunHistory summary={game} members={members} compact />
+            </>
+          ) : (
+            game && <WinChart game={game} members={members} me={me} phone aside={<RunHistory summary={game} members={members} compact />} />
+          )}
           {view && <span style={st('font:500 12px var(--font-ui);color:var(--faint);text-align:center')}>{t(view.hintKey)}</span>}
         </>
       ) : (
@@ -283,7 +294,7 @@ export function LobbyPanel({
                 <span style={st('font:500 12.5px/1.4 var(--font-ui);color:var(--muted)')}>{t(view.hintKey)}</span>
               </div>
             )}
-            {game && <WinChart game={game} members={members} me={me} phone={false} />}
+            {game && (practiceGame ? <HighScoresStrip game={practiceGame} phone={false} /> : <WinChart game={game} members={members} me={me} phone={false} />)}
             {game && <RunHistory summary={game} members={members} />}
           </div>
         </div>

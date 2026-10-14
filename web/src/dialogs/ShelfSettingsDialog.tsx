@@ -14,7 +14,6 @@ import { usePlayNextTab } from '../home/playNextTab';
 import { useRoomsInPlaying } from '../home/roomsInPlaying';
 import { useShelfSpinTheme } from '../home/shelfSpinTheme';
 import { NavRow } from './SettingsParts';
-import { PracticeDialog } from './PracticeDialog';
 import { useT } from '../i18n';
 import { spinThemeHint, spinThemeLabel } from '../i18n/labels';
 
@@ -63,7 +62,6 @@ export function ShelfSettingsDialog() {
   };
   const [spinTheme] = useShelfSpinTheme();
   const [spinOpen, setSpinOpen] = useState(false);
-  const [practiceOpen, setPracticeOpen] = useState(false);
 
   return (
     <>
@@ -107,7 +105,6 @@ export function ShelfSettingsDialog() {
       </div>
       <Group>
         <NavRow label={t('settings.shelf.spinType')} sub={spinThemeLabel(spinTheme)} onClick={() => setSpinOpen(true)} />
-        <NavRow label={t('settings.shelf.practice')} sub={t('settings.shelf.practiceSub')} onClick={() => setPracticeOpen(true)} />
       </Group>
       <div style={st('display:flex;flex-direction:column;gap:10px')}>
         <Kicker>{t('settings.shelf.export', { n: games.length })}</Kicker>
@@ -118,7 +115,6 @@ export function ShelfSettingsDialog() {
       </div>
     </Dialog>
     {spinOpen && <ShelfSpinTypeDialog onClose={() => setSpinOpen(false)} />}
-    {practiceOpen && <PracticeDialog onClose={() => setPracticeOpen(false)} />}
     </>
   );
 }
