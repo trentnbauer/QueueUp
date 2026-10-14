@@ -77,6 +77,19 @@ export class SpinLobby {
     this.game.action(userId, name);
   }
 
+  /** A person's report of their own player, for a game that runs each player on their own device. The
+   * game takes only the current run's report from someone in the lobby; anything malformed is dropped. */
+  report(userId: string, run: unknown, alive: unknown, f: unknown): void {
+    if (!this.connections.has(userId) || typeof run !== 'number' || !Number.isInteger(run) || typeof alive !== 'boolean') return;
+    if (!f || typeof f !== 'object' || Array.isArray(f)) return;
+    const fields: Record<string, number> = {};
+    for (const [key, value] of Object.entries(f)) {
+      if (key.length > 16 || typeof value !== 'number' || !Number.isFinite(value)) return;
+      fields[key] = value;
+    }
+    this.game.report?.(userId, run, alive, fields);
+  }
+
   /** A tap on one of the game's arena targets. Anything but a whole number in range is dropped. */
   tap(userId: string, target: unknown): void {
     if (!this.connections.has(userId) || typeof target !== 'number' || !Number.isInteger(target) || target < 0 || target >= LOBBY_TAP_TARGETS_MAX) return;
@@ -103,7 +116,15 @@ export class SpinLobby {
     this.game.tick(dtMs);
   }
 
-  snapshot(spinWaiting: boolean): LobbySnapshot {
-    return { t: 'state', tick: this.tickCount, game: this.game.snapshot(), voters: [...this.votes], needed: this.needed, spinWaiting };
+  /** What everyone is sent. `now` is the server's clock, sent along with the run's start (for a game that
+   * runs each player on their own device) so clients can line their clocks up and start together. */
+  snapshot(spinWaiting: boolean, now?: number): LobbySnapshot {
+    const snapshot: LobbySnapshot = { t: 'state', tick: this.tickCount, game: this.game.snapshot(), voters: [...this.votes], needed: this.needed, spinWaiting };
+    const sim = this.game.simStart?.();
+    if (sim && now !== undefined) {
+      snapshot.sim = sim;
+      snapshot.clock = now;
+    }
+    return snapshot;
   }
 }

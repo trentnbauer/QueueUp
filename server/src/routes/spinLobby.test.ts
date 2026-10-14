@@ -59,7 +59,8 @@ describe('GET /api/rooms/:roomId/lobby', () => {
     await spinLobbyHub.tickRoom('room-1');
     const first = await next;
     expect(first.t).toBe('state');
-    expect(first.game.players.map((p) => p.id)).toEqual(['alice']);
+    // The lobby picks a game at random, and some games add a bot to make up their numbers: ignore those.
+    expect(first.game.players.map((p) => p.id).filter((id) => !id.startsWith('bot:'))).toEqual(['alice']);
     expect(spinLobbyHub.isPresent('room-1', 'alice')).toBe(true);
     ws.terminate();
     await vi.waitFor(() => expect(spinLobbyHub.hasMembers('room-1')).toBe(false));

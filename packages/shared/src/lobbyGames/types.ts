@@ -1,4 +1,4 @@
-import type { LobbyGameId, LobbyGameSnapshot } from '../spinLobby.js';
+import type { LobbyGameId, LobbyGameSnapshot, LobbySim } from '../spinLobby.js';
 
 /** A mini game the room lobby can run. Pure rules and state - no sockets, timers or database - so a
  * game is easy to test and to add: give it an id (packages/shared/src/spinLobby.ts), a snapshot type,
@@ -16,6 +16,23 @@ export interface LobbyGame {
   /** Set by the lobby that owns the game: called when a run's result has been shown and the next run is
    * about to start. Return true if the lobby has moved everyone to another game. */
   onRunOver?: () => boolean;
+  /** True for a game that runs each player on their own device: the player's own movement and hits are
+   * worked out by their client (so ping does not matter), which reports where they are, while the server
+   * keeps the shared parts (the seed, when the run starts, who is still in, the result). Only for games
+   * where players do not affect each other. */
+  readonly clientSim?: boolean;
+  /** For a client-sim game: the run that is about to start or is on (null otherwise). */
+  simStart?(): LobbySim | null;
+  /** For a client-sim game: a person's report of their own player (the server side). */
+  report?(userId: string, run: number, alive: boolean, f: Record<string, number>): void;
+  /** For a client-sim game, on the client: starts the run from the server's seed, with nobody else in it. */
+  startRunAt?(seed: number): void;
+  /** On the client: moves the run on one fixed step (does nothing unless a run is on). */
+  stepRun?(dt: number): void;
+  /** On the client: how far into the run it is, in milliseconds. */
+  readonly runMs?: number;
+  /** On the client: this person's own player, to report to the server. */
+  localReport?(userId: string): { alive: boolean; f: Record<string, number> } | null;
   /** The direction the person is holding, each -1, 0 or 1. */
   input(userId: string, dx: number, dy: number): void;
   /** A one-off move by name, such as `punch`. Unknown names are ignored. */

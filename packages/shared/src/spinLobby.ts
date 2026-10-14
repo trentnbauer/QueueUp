@@ -23,11 +23,20 @@ export type LobbyClientMessage =
   /** The person tapped one of the game's tap targets on the arena (see `LOBBY_TAP_TARGETS_MAX`). `target`
    * is the target's index, never a position, so a client cannot claim a tap no target would give. */
   | { t: 'tap'; target: number }
+  /** Where a person's own player is, for a game that runs each player on their own device (see
+   * `LobbyGame.clientSim`): `run` is the run it belongs to, `alive` is false once they are out, and `f`
+   * is the game's own fields (a height, a speed). Sent about 20 times a second while a run is on. */
+  | { t: 'report'; run: number; alive: boolean; f: Record<string, number> }
+  /** Asks the server for its clock (answered with `pong`), so a client can line its own clock up. */
+  | { t: 'ping'; c: number }
   /** Vote (or take the vote back) to leave the lobby and go to the spin. */
   | { t: 'vote'; on: boolean };
 
 /** Longest action name the server accepts. */
 export const LOBBY_ACTION_NAME_MAX = 16;
+
+/** The most fields one `report` may carry; the server drops a report with more. */
+export const LOBBY_REPORT_FIELDS_MAX = 8;
 
 /** The most tap targets a game can have on the arena; the server drops a tap with a higher index. A game
  * checks the index against its own count too. */
@@ -332,10 +341,22 @@ export interface CoinsSnapshot extends RoundSummary {
 /** The snapshot of whichever game is running. */
 export type LobbyGameSnapshot = RunnerSnapshot | FlappySnapshot | DodgeSnapshot | RopeSnapshot | RedLightSnapshot | CoinsSnapshot;
 
+/** What a client needs to run its own player on a course the server decided: which run, the seed that
+ * makes the course, and how long until the run starts (negative once it has, by how far in). */
+export interface LobbySim {
+  run: number;
+  seed: number;
+  startInMs: number;
+}
+
 export interface LobbySnapshot {
   t: 'state';
   tick: number;
   game: LobbyGameSnapshot;
+  /** Present when the game runs each player on their own device: see `LobbySim`. */
+  sim?: LobbySim;
+  /** The server's clock (ms since 1970) when this was sent, to turn `sim.startInMs` into a time. */
+  clock?: number;
   /** Members in the lobby who have voted to spin. */
   voters: string[];
   /** Votes it takes: more than half of the members currently in the lobby. */
@@ -345,7 +366,7 @@ export interface LobbySnapshot {
 }
 
 /** What the server sends. `started` means the spin has begun: leave the lobby and show it. */
-export type LobbyServerMessage = LobbySnapshot | { t: 'started' };
+export type LobbyServerMessage = LobbySnapshot | { t: 'started' } | { t: 'pong'; c: number; s: number };
 
 /** Votes needed to start the spin: more than half of the members in the lobby (not the whole room -
  * people who are not on QueueUp, or cannot join the session, do not count). */

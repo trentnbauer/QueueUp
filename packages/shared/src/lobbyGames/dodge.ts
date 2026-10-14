@@ -37,6 +37,20 @@ export class DodgeGame extends RoundGame<Dodger> {
   private spawnIn = 0;
   private safe = 0.5;
 
+  /** Each player's own device works out where they stand (see RoundGame.clientSim). */
+  get clientSim(): boolean {
+    return true;
+  }
+
+  protected readReport(p: Dodger, f: Record<string, number>): void {
+    p.x = Math.min(1, Math.max(0, RoundGame.num(f.x, p.x)));
+    p.dir = clampDirection(f.dir);
+  }
+
+  protected writeReport(p: Dodger): Record<string, number> {
+    return { x: Math.round(p.x * 1000) / 1000, dir: p.dir };
+  }
+
   protected createPlayer(id: string, alive: boolean): Dodger {
     return { id, x: 0.5, dir: 0, alive, wins: 0, outAtMeters: 0 };
   }
@@ -109,7 +123,7 @@ export class DodgeGame extends RoundGame<Dodger> {
 
     const half = DODGE_PLAYER_WIDTH / 2;
     for (const p of this.players.values()) {
-      if (!p.alive) continue;
+      if (!p.alive || !this.simulated(p)) continue;
       p.x = Math.min(1 - half, Math.max(half, p.x + p.dir * PLAYER_SPEED * dt));
       if (this.hit(p)) this.knockOut(p);
     }
