@@ -45,7 +45,7 @@ function Row({ tile, active, onClick, lift, children }: { tile: TileModel; activ
 }
 
 /** A sidebar row for a page of its own (Friends, Your stats): an outline icon tile instead of a colour. */
-function PageRow({ icon, title, sub, active, badge, onClick }: { icon: ReactNode; title: string; sub: string; active: boolean; badge?: number; onClick: () => void }) {
+function PageRow({ icon, title, sub, active, badge, live, onClick }: { icon: ReactNode; title: string; sub: string; active: boolean; badge?: number; live?: string | null; onClick: () => void }) {
   return (
     <button
       type="button"
@@ -59,8 +59,9 @@ function PageRow({ icon, title, sub, active, badge, onClick }: { icon: ReactNode
       <span style={st('width:36px;height:36px;flex-shrink:0;border-radius:11px;border:1px solid var(--line);display:flex;align-items:center;justify-content:center')}>{icon}</span>
       <span style={st('flex:1;min-width:0;display:flex;flex-direction:column;gap:1px')}>
         <span style={st(`font:${active ? 700 : 600} 14.5px var(--font-ui);white-space:nowrap;overflow:hidden;text-overflow:ellipsis`)}>{title}</span>
-        <span style={st('font:400 12px var(--font-ui);color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis')}>{sub}</span>
+        <span style={st(`font:400 12px var(--font-ui);color:${live ? 'var(--mint)' : 'var(--muted)'};white-space:nowrap;overflow:hidden;text-overflow:ellipsis`)}>{live ?? sub}</span>
       </span>
+      {live && <span aria-hidden style={st('width:9px;height:9px;flex-shrink:0;border-radius:50%;background:var(--mint);box-shadow:0 0 0 3px var(--mintSoft)')} />}
       {!!badge && (
         <span style={st('min-width:22px;height:22px;padding:0 7px;flex-shrink:0;border-radius:999px;background:var(--acc);color:var(--ink);font:700 11.5px var(--font-ui);display:flex;align-items:center;justify-content:center')}>{badge}</span>
       )}
@@ -108,7 +109,7 @@ export function Sidebar({ onCollapse }: { onCollapse: () => void }) {
           onClick={shell.goFriends}
         />
         <PageRow icon={<StatsIcon />} title={t('shell.sidebar.stats')} sub={t('shell.sidebar.statsSub')} active={shell.onStats} onClick={shell.goStats} />
-        <PageRow icon={<GamepadIcon />} title={t('shell.sidebar.games')} sub={t('shell.sidebar.gamesSub')} active={shell.onGames} onClick={shell.goGames} />
+        <PageRow icon={<GamepadIcon />} title={t('shell.sidebar.games')} sub={t('shell.sidebar.gamesSub')} live={shell.gamesLive} active={shell.onGames} onClick={shell.goGames} />
 
         <div style={st('display:flex;align-items:center;justify-content:space-between;padding:18px 10px 6px')}>
           <span style={st('font:600 11.5px var(--font-mono);letter-spacing:0.08em;color:var(--muted)')}>{t('shell.sidebar.rooms', { n: shell.roomCount })}</span>
@@ -182,7 +183,7 @@ function BellButton({ size, ring }: { size: number; ring: string }) {
 }
 
 /** A round outline button on the rail for a page of its own, filled while on it. */
-function RailButton({ label, active, dot, onClick, children }: { label: string; active: boolean; dot?: boolean; onClick: () => void; children: ReactNode }) {
+function RailButton({ label, active, dot, dotColor = 'var(--dot)', onClick, children }: { label: string; active: boolean; dot?: boolean; dotColor?: string; onClick: () => void; children: ReactNode }) {
   return (
     <button
       type="button"
@@ -195,7 +196,7 @@ function RailButton({ label, active, dot, onClick, children }: { label: string; 
       )}
     >
       {children}
-      {dot && <span style={st(`position:absolute;right:1px;top:1px;width:10px;height:10px;border-radius:50%;${DOT};border:2px solid var(--bg2)`)} />}
+      {dot && <span style={st(`position:absolute;right:1px;top:1px;width:10px;height:10px;border-radius:50%;background:${dotColor};border:2px solid var(--bg2)`)} />}
     </button>
   );
 }
@@ -266,7 +267,7 @@ export function Rail({ onExpand }: { onExpand: () => void }) {
       <RailButton label={t('shell.sidebar.stats')} active={shell.onStats} onClick={shell.goStats}>
         <StatsIcon />
       </RailButton>
-      <RailButton label={t('shell.sidebar.games')} active={shell.onGames} onClick={shell.goGames}>
+      <RailButton label={shell.gamesLive ? `${t('shell.sidebar.games')}: ${shell.gamesLive}` : t('shell.sidebar.games')} active={shell.onGames} dot={!!shell.gamesLive} dotColor="var(--mint)" onClick={shell.goGames}>
         <GamepadIcon />
       </RailButton>
       <BellButton size={42} ring="var(--bg2)" />

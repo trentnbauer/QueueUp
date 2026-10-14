@@ -22,6 +22,17 @@ export function useMiniGameBests() {
   return useQuery({ queryKey: [...MINIGAMES_QUERY_KEY, 'bests'], queryFn: miniGamesApi.bests, enabled: !!user });
 }
 
+/** Lobbies open to you (public ones, your friends', your own). Polled, since they come and go. */
+export function useOpenLobbies(everySeconds = 15) {
+  const { user } = useAuth();
+  return useQuery({ queryKey: [...MINIGAMES_QUERY_KEY, 'lobbies'], queryFn: miniGamesApi.lobbies, enabled: !!user, refetchInterval: everySeconds * 1000 });
+}
+
+/** One open lobby and who is in it, refreshed while its dialog is open. An error means it has closed. */
+export function useLobbyInfo(id: string) {
+  return useQuery({ queryKey: [...MINIGAMES_QUERY_KEY, 'lobby', id], queryFn: () => miniGamesApi.lobby(id), refetchInterval: 2000, retry: 2 });
+}
+
 /** Saves a finished solo run and refreshes everything that shows scores. A failure is ignored: a score
  * that did not save must never get in the way of the next run. */
 export function useSubmitSoloScore() {

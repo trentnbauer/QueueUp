@@ -1,5 +1,6 @@
-import { LOBBY_TICK_HZ, type LobbyGameId, type LobbyRunScore, type LobbyServerMessage, type MiniGameScoreSource } from '@queueup/shared';
+import { LOBBY_TICK_HZ, createLobbyGame, type LobbyGameId, type LobbyRunScore, type LobbyServerMessage, type MiniGameScoreSource } from '@queueup/shared';
 import { SpinLobby } from './spinLobby.js';
+import { OPEN_LOBBY_PREFIX } from './openLobbies.js';
 
 /** The part of a WebSocket the hub needs. */
 export interface LobbySocket {
@@ -15,6 +16,8 @@ export interface SpinLobbyDeps {
   /** End the waiting room now. */
   startSpinNow(roomId: string): Promise<void>;
   /** Save a finished run's scores (high scores). `source` is the waiting room while a spin waits, else the room's lobby. */
+  /** A lobby's last person left, so it is gone. `key` is a room id, or `lobby:<id>` for an open lobby. */
+  onEmpty?(key: string): void;
   recordScores?(roomId: string, game: LobbyGameId, source: MiniGameScoreSource, scores: LobbyRunScore[]): void;
 }
 
@@ -61,7 +64,13 @@ export class SpinLobbyHub {
     return this.rooms.get(roomId)?.lobby.present.includes(userId) ?? false;
   }
 
-  connect(roomId: string, userId: string, socket: LobbySocket): void {
+  /** Who is in a lobby right now. */
+  presentIds(roomId: string): string[] {
+    return this.rooms.get(roomId)?.lobby.present ?? [];
+  }
+
+  /** `options.game` fixes the game when this opens the lobby (an open lobby that plays just one). */
+  connect(roomId: string, userId: string, socket: LobbySocket, options: { game?: LobbyGameId | null } = {}): void {
     let room = this.rooms.get(roomId);
     // A few tabs is normal; more is a runaway client or abuse.
     if (room && [...room.sockets.values()].filter((id) => id === userId).length >= MAX_CONNECTIONS_PER_USER) {
@@ -70,7 +79,7 @@ export class SpinLobbyHub {
     }
     if (!room) {
       const created: RoomState = {
-        lobby: new SpinLobby(undefined, (game, scores) => this.deps.recordScores?.(roomId, game, this.rooms.get(roomId)?.spinWaiting ? 'waiting_room' : 'lobby', scores)),
+        lobby: new SpinLobby(options.game ? createLobbyGame(options.game) : undefined, (game, scores) => this.deps.recordScores?.(roomId, game, this.rooms.get(roomId)?.spinWaiting ? 'waiting_room' : 'lobby', scores)),
         sockets: new Map(),
         timer: null,
         lastTickAt: this.now(),
@@ -101,6 +110,7 @@ export class SpinLobbyHub {
     if (room.sockets.size === 0) {
       if (room.timer) clearInterval(room.timer);
       this.rooms.delete(roomId);
+      this.deps.onEmpty?.(roomId);
     }
   }
 
@@ -206,7 +216,8 @@ export class SpinLobbyHub {
    * has started (someone went to it by another route, or everyone was ready). */
   private async refreshSpin(roomId: string): Promise<void> {
     const room = this.rooms.get(roomId);
-    if (!room || room.checking) return;
+    // An open lobby has no room, so no spin to wait for.
+    if (!room || room.checking || roomId.startsWith(OPEN_LOBBY_PREFIX)) return;
     room.checking = true;
     try {
       const was = room.spinWaiting;

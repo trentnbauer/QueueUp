@@ -16,6 +16,16 @@ Mini games are **cosmetic**: nothing in them changes which game a spin picks.
 
 The **Mini games** page keeps a high score list for every game: your best run, your friends' and everyone's, for all time or the last 7 days. Every run counts, wherever it is played: solo, a room's mini game, or a spin's waiting room. People tied on a score share the place, and people you have blocked (or who blocked you) never show. A solo run's score is reported by your own device and only checked against the most the game could give, so the lists are for fun, not for prizes.
 
+## Open lobbies
+
+From the **Mini games** page anyone can **Open a lobby** without a room, and play it with whoever joins. Choose who can join:
+
+- **Public**: anyone on the server sees it on the Mini games page (and a live dot in the sidebar) and can join.
+- **Friends**: only your friends see and can join it.
+- **Invite code**: hidden. People join with **Join with code** using the `XXX-XXX` code, or the link (`/games?code=...`). Codes are random and last only as long as the lobby.
+
+It plays a random game after every run (like the waiting room), or one game you pick. It stays open until the last person has left, then it is gone, and the host can **Close my lobby** for everyone. Someone hosts one lobby at a time, a lobby holds up to 16 people, and anyone who has blocked or been blocked by the host cannot join. Every run in a lobby counts toward high scores.
+
 ## How a lobby works
 
 - **A random game, and a new one after every run.** When the lobby opens (the first person to join), it picks a game at random. Each time a run ends and its result has been shown, the lobby moves everyone to a **different** random game, so the waiting room keeps changing while a spin waits. Closing the dialog leaves it; when the last person leaves, the lobby resets and its wins and history are gone.

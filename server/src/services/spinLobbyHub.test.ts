@@ -201,4 +201,43 @@ describe('SpinLobbyHub', () => {
     expect(a.last().t).toBe('state');
     expect(hub.isPresent('r1', 'a')).toBe(true);
   });
+
+  describe('open lobbies', () => {
+    it('stays open until everyone has left, then says so', async () => {
+      const onEmpty = vi.fn();
+      const hub = new SpinLobbyHub({ ...deps, onEmpty }, { autoTick: false });
+      const [a, b] = [fakeSocket(), fakeSocket()];
+      hub.connect('lobby:x', 'a', a.socket);
+      hub.connect('lobby:x', 'b', b.socket);
+      hub.disconnect('lobby:x', a.socket);
+      expect(onEmpty).not.toHaveBeenCalled();
+      expect(hub.presentIds('lobby:x')).toEqual(['b']);
+      hub.disconnect('lobby:x', b.socket);
+      expect(onEmpty).toHaveBeenCalledWith('lobby:x');
+      expect(hub.hasMembers('lobby:x')).toBe(false);
+    });
+
+    it('plays the one game it was opened with, and never looks for a spin', async () => {
+      const hub = makeHub();
+      const a = fakeSocket();
+      hub.connect('lobby:x', 'a', a.socket, { game: 'dodge' });
+      await flush();
+      await hub.tickRoom('lobby:x');
+      expect(a.last()).toMatchObject({ t: 'state', spinWaiting: false, game: { id: 'dodge' } });
+      expect(deps.isSpinWaiting).not.toHaveBeenCalled();
+    });
+
+    it('records each real player\'s score as a lobby run', async () => {
+      const recordScores = vi.fn();
+      let t = 1000;
+      const hub = new SpinLobbyHub({ ...deps, recordScores }, { autoTick: false, now: () => (t += 250) });
+      const a = fakeSocket();
+      hub.connect('lobby:x', 'a', a.socket, { game: 'dodge' });
+      for (let i = 0; i < 1000 && recordScores.mock.calls.length === 0; i++) await hub.tickRoom('lobby:x');
+      expect(recordScores).toHaveBeenCalled();
+      const [key, game, source, scores] = recordScores.mock.calls[0];
+      expect([key, game, source]).toEqual(['lobby:x', 'dodge', 'lobby']);
+      expect(scores[0].userId).toBe('a');
+    });
+  });
 });

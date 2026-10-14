@@ -1,5 +1,5 @@
-import { apiGet, apiPost } from './client';
-import type { LobbyGameId, MiniGameBestsResponse, MiniGameMeResponse, MiniGameScorePeriod, MiniGameScoreScope, MiniGameScoresResponse } from '@queueup/shared';
+import { apiDelete, apiGet, apiPost } from './client';
+import type { CreateMiniGameLobbyRequest, LobbyGameId, MiniGameBestsResponse, MiniGameLobbiesResponse, MiniGameLobbyDto, MiniGameMeResponse, MiniGameScorePeriod, MiniGameScoreScope, MiniGameScoresResponse } from '@queueup/shared';
 
 export const miniGamesApi = {
   scores: (game: LobbyGameId, scope: MiniGameScoreScope, period: MiniGameScorePeriod) =>
@@ -8,4 +8,9 @@ export const miniGamesApi = {
   me: (game: LobbyGameId) => apiGet<MiniGameMeResponse>(`/api/minigames/me?game=${game}`),
   /** A finished solo run. The server answers 204. */
   submit: (game: LobbyGameId, score: number) => apiPost<void>('/api/minigames/scores', { game, score }),
+  lobbies: () => apiGet<MiniGameLobbiesResponse>('/api/minigames/lobbies'),
+  lobby: (id: string) => apiGet<MiniGameLobbyDto>(`/api/minigames/lobbies/${encodeURIComponent(id)}`),
+  openLobby: (body: CreateMiniGameLobbyRequest) => apiPost<MiniGameLobbyDto>('/api/minigames/lobbies', body),
+  joinLobby: (code: string) => apiPost<MiniGameLobbyDto>('/api/minigames/lobbies/join', { code }),
+  closeLobby: (id: string) => apiDelete(`/api/minigames/lobbies/${encodeURIComponent(id)}`),
 };
