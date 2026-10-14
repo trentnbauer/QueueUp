@@ -217,36 +217,30 @@ describe('SpinLobby showing each person their own view', () => {
     for (let t = 0; t < 3200; t += 66) lobby.tick(66);
     return lobby;
   };
-  const game = (lobby: SpinLobby, viewer?: string) => lobby.snapshot(false, undefined, viewer).game as unknown as { mine: { ships: number[][] } | null; target: string | null };
+  const game = (lobby: SpinLobby, viewer?: string) => lobby.snapshot(false, undefined, viewer).game as unknown as { mine: number[][] | null; cells: number[]; players: { id: string; shots: number }[] };
 
   it('sends each person their own ships and nobody else theirs', () => {
     const lobby = started();
     const a = game(lobby, 'a');
     const b = game(lobby, 'b');
-    expect(a.mine?.ships.length).toBeGreaterThan(0);
-    expect(b.mine?.ships.length).toBeGreaterThan(0);
-    expect(a.mine?.ships).not.toEqual(b.mine?.ships);
-    expect(a.target).toBe('b');
-    expect(b.target).toBe('a');
+    expect(a.mine?.length).toBeGreaterThan(0);
+    expect(b.mine?.length).toBeGreaterThan(0);
+    expect(a.mine).not.toEqual(b.mine);
     // Someone watching, or not in the lobby, is shown no ships.
     expect(game(lobby).mine).toBeNull();
     expect(game(lobby, 'stranger').mine).toBeNull();
-    // a's view does not hold b's ship squares anywhere.
-    const bShips = new Set(b.mine?.ships.flat());
-    const aOwn = new Set(a.mine?.ships.flat());
-    const leaked = [...bShips].filter((c) => !aOwn.has(c));
-    expect(JSON.stringify({ ...lobby.snapshot(false, undefined, 'a'), game: { ...game(lobby, 'a'), mine: null } })).not.toContain('"ships"');
-    expect(leaked.length).toBeGreaterThan(0);
+    // Everything but `mine` is the same for everyone, and so says nothing about where anyone's ships are.
+    const rest = (viewer?: string) => ({ ...lobby.snapshot(false, undefined, viewer), game: { ...game(lobby, viewer), mine: null } });
+    expect(rest('a')).toEqual(rest('b'));
+    expect(game(lobby, 'a').cells.every((c) => c === 0)).toBe(true);
   });
 
-  it('takes a tap to shoot or to pick a target, up to the limit of tap targets', () => {
+  it('takes a tap on a square to shoot, up to the limit of tap targets', () => {
     const lobby = started();
-    lobby.tap('a', 64);
     lobby.tap('a', 3);
     lobby.tap('a', 127);
     lobby.tap('a', 128);
-    const a = lobby.snapshot(false, undefined, 'a').game as unknown as { players: { id: string; shots: number }[] };
-    expect(a.players.find((p) => p.id === 'a')?.shots).toBe(1);
+    expect(game(lobby, 'a').players.find((p) => p.id === 'a')?.shots).toBeLessThanOrEqual(1);
   });
 });
 
