@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useRef, type ReactNode } from 'react';
-import type { RoomMember } from '@queueup/shared';
+import type { LobbyGameId, RoomMember } from '@queueup/shared';
+import { useLocalLobby } from '../hooks/useLocalLobby';
 import { useSpinLobby } from '../hooks/useSpinLobby';
 import { viewFor, type LobbyGameView } from '../lobbyGames';
 import { LobbyFx } from '../lobbyGames/kit';
@@ -38,18 +39,25 @@ export function LobbyPanel({
   onStarted,
   offlineFallback,
   readyUserIds,
+  practiceGame,
 }: {
-  roomId: string;
+  /** The room to connect to. Not needed when `practiceGame` is set. */
+  roomId?: string;
   members: RoomMember[];
   me: string;
   onStarted?: () => void;
   offlineFallback?: ReactNode;
   /** Members who are ready for a waiting spin, or undefined when opened on its own (no spin). */
   readyUserIds?: string[];
+  /** Run this game here, just for you, instead of connecting to a room (practice on the Personal Shelf). */
+  practiceGame?: LobbyGameId;
 }) {
   const t = useT();
   const phone = useIsMobile();
-  const { snapshot, status, sendInput, sendAction, vote } = useSpinLobby(roomId, true, onStarted);
+  // Either the room's live lobby over a WebSocket, or the same game run locally for practice.
+  const live = useSpinLobby(practiceGame ? undefined : roomId, !practiceGame, onStarted);
+  const local = useLocalLobby(practiceGame, me);
+  const { snapshot, status, sendInput, sendAction, vote } = practiceGame ? local : live;
   const canvasRef = useRef<HTMLCanvasElement>(null);
   // Effects (knock-out bursts, confetti, shake) and their memory between frames, for as long as the panel is open.
   const fxRef = useRef<LobbyFx | null>(null);
@@ -178,7 +186,7 @@ export function LobbyPanel({
   const playingIds = game ? game.players.map((p) => p.id) : [];
   const here = playingIds.length;
   const voted = !!snapshot?.voters.includes(me);
-  const statusText = status === 'open' ? t(here === 1 ? 'spin.lobby.here.one' : 'spin.lobby.here.other', { n: here }) : status === 'connecting' ? t('spin.lobby.connecting') : t('spin.lobby.offline');
+  const statusText = practiceGame ? t('practice.status') : status === 'open' ? t(here === 1 ? 'spin.lobby.here.one' : 'spin.lobby.here.other', { n: here }) : status === 'connecting' ? t('spin.lobby.connecting') : t('spin.lobby.offline');
   const release = () => {
     pad.current = { dx: 0, dy: 0 };
     sendHeld();
@@ -220,7 +228,7 @@ export function LobbyPanel({
   ) : status === 'offline' && offlineFallback ? (
     offlineFallback
   ) : (
-    status === 'open' && <span style={st('font:500 12px var(--font-ui);color:var(--muted);text-align:center')}>{t('spin.lobby.noSpin')}</span>
+    status === 'open' && <span style={st('font:500 12px var(--font-ui);color:var(--muted);text-align:center')}>{practiceGame ? t('practice.note') : t('spin.lobby.noSpin')}</span>
   );
 
   return (
