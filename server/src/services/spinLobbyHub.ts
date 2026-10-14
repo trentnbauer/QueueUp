@@ -176,7 +176,13 @@ export class SpinLobbyHub {
 
     if (room.spinWaiting && room.lobby.votePassed) {
       room.spinWaiting = false;
-      await this.deps.startSpinNow(roomId);
+      try {
+        await this.deps.startSpinNow(roomId);
+      } catch {
+        // A database hiccup must not escape the timer as an unhandled rejection (which ends the process).
+        // The votes stay, and the next spin check finds the spin still waiting and tries again.
+        return;
+      }
       this.broadcast(room, { t: 'started' });
       for (const userId of room.lobby.present) room.lobby.vote(userId, false);
       return;
