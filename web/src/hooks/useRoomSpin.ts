@@ -109,6 +109,8 @@ export function useRoomSpin(roomId: string | undefined) {
 
   return {
     spin: query.data?.spin ?? null,
+    /** The room's current spin (or the lack of one) has been fetched at least once. */
+    loaded: query.isFetched,
     startSpin: (filters?: SpinFilters) => start.mutateAsync(filters),
     voteRespin: () => respinVote.mutateAsync(),
     act: (action: SpinPlayAction) => act.mutateAsync(action),
