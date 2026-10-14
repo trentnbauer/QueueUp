@@ -64,6 +64,7 @@ export const dodgeView: LobbyGameView<DodgeSnapshot> = {
   pad: 'leftRight',
   actions: [],
   nameKey: 'spin.lobby.dodge.name',
+  taglineKey: 'spin.lobby.dodge.tagline',
   hintKey: 'spin.lobby.dodge.hint',
   draw: (args) => renderScene(args, scene),
   standings: (snapshot) => snapshot.players.map((p) => ({ id: p.id, score: p.wins, active: p.alive })).sort((a, b) => b.score - a.score),

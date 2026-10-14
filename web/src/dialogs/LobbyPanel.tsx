@@ -3,6 +3,13 @@ import type { RoomMember } from '@queueup/shared';
 import { useSpinLobby } from '../hooks/useSpinLobby';
 import { viewFor, type LobbyGameView } from '../lobbyGames';
 import { LobbyFx } from '../lobbyGames/kit';
+import { Controls } from './lobby/Controls';
+import { LiveAnnouncer } from './lobby/LiveAnnouncer';
+import { LobbyHeader } from './lobby/LobbyHeader';
+import { RunHistory } from './lobby/RunHistory';
+import { VoteBar } from './lobby/VoteBar';
+import { WinChart } from './lobby/WinChart';
+import { useIsMobile } from '../ui/useLayout';
 import { Dialog } from '../ui/Dialog';
 import { st } from '../ui/st';
 import { t as tNow, useT } from '../i18n';
@@ -22,23 +29,26 @@ function movementKeys(view: LobbyGameView | null): Record<string, Vec> {
 
 const clampAxis = (n: number): number => Math.max(-1, Math.min(1, n));
 
-const PAD: { label: string; dx: number; dy: number; area: string }[] = [
-  { label: '▲', dx: 0, dy: -1, area: '1 / 2' },
-  { label: '◀', dx: -1, dy: 0, area: '2 / 1' },
-  { label: '▶', dx: 1, dy: 0, area: '2 / 3' },
-  { label: '▼', dx: 0, dy: 1, area: '3 / 2' },
-];
-const LEFT_RIGHT_PAD = [
-  { label: '◀', dx: -1, dy: 0 },
-  { label: '▶', dx: 1, dy: 0 },
-];
-
-const BIG_BUTTON = 'border:none;border-radius:18px;background:var(--surf2);color:var(--text);font:700 15px var(--font-ui);touch-action:none;user-select:none';
-
 /** The room's live mini game: the server-run game everyone in the lobby plays, plus the vote to leave
  * for the spin when one is waiting. The game itself is drawn by the matching view in `lobbyGames/`. */
-export function LobbyPanel({ roomId, members, me, onStarted, offlineFallback }: { roomId: string; members: RoomMember[]; me: string; onStarted?: () => void; offlineFallback?: ReactNode }) {
+export function LobbyPanel({
+  roomId,
+  members,
+  me,
+  onStarted,
+  offlineFallback,
+  readyUserIds,
+}: {
+  roomId: string;
+  members: RoomMember[];
+  me: string;
+  onStarted?: () => void;
+  offlineFallback?: ReactNode;
+  /** Members who are ready for a waiting spin, or undefined when opened on its own (no spin). */
+  readyUserIds?: string[];
+}) {
   const t = useT();
+  const phone = useIsMobile();
   const { snapshot, status, sendInput, sendAction, vote } = useSpinLobby(roomId, true, onStarted);
   const canvasRef = useRef<HTMLCanvasElement>(null);
   // Effects (knock-out bursts, confetti, shake) and their memory between frames, for as long as the panel is open.
@@ -164,10 +174,11 @@ export function LobbyPanel({ roomId, members, me, onStarted, offlineFallback }: 
     return () => cancelAnimationFrame(frame);
   }, [me]);
 
-  const here = snapshot?.game.players.length ?? 0;
+  const game = snapshot?.game ?? null;
+  const playingIds = game ? game.players.map((p) => p.id) : [];
+  const here = playingIds.length;
   const voted = !!snapshot?.voters.includes(me);
   const statusText = status === 'open' ? t(here === 1 ? 'spin.lobby.here.one' : 'spin.lobby.here.other', { n: here }) : status === 'connecting' ? t('spin.lobby.connecting') : t('spin.lobby.offline');
-  const standings = snapshot && view ? view.standings(snapshot.game) : [];
   const release = () => {
     pad.current = { dx: 0, dy: 0 };
     sendHeld();
@@ -183,96 +194,70 @@ export function LobbyPanel({ roomId, members, me, onStarted, offlineFallback }: 
     onPointerCancel: release,
   });
 
+  const arena = (
+    <canvas
+      ref={canvasRef}
+      role="img"
+      aria-label={view ? t(view.nameKey) : t('spin.lobby.title')}
+      onPointerDown={(e) => {
+        if (view?.tapAction) sendAction(view.tapAction);
+        else if (view?.tapHold) {
+          e.currentTarget.setPointerCapture(e.pointerId);
+          pad.current = { dx: view.tapHold[0], dy: view.tapHold[1] };
+          sendHeld();
+        }
+      }}
+      onPointerUp={view?.tapHold ? release : undefined}
+      onPointerCancel={view?.tapHold ? release : undefined}
+      style={st(`display:block;width:100%;aspect-ratio:1;border-radius:${phone ? 18 : 16}px;box-shadow:inset 0 0 0 1px oklch(1 0 0 / 0.1);touch-action:none`)}
+    />
+  );
+  const controls = view ? <Controls view={view} phone={phone} holdProps={holdProps} onAction={sendAction} /> : null;
+  const gameName = view ? t(view.nameKey) : '';
+
+  const bottom = snapshot?.spinWaiting ? (
+    <VoteBar votes={snapshot.voters.length} needed={snapshot.needed} voted={voted} onVote={vote} phone={phone} />
+  ) : status === 'offline' && offlineFallback ? (
+    offlineFallback
+  ) : (
+    status === 'open' && <span style={st('font:500 12px var(--font-ui);color:var(--muted);text-align:center')}>{t('spin.lobby.noSpin')}</span>
+  );
+
   return (
-    <div style={st('display:flex;flex-direction:column;gap:10px')}>
-      <div style={st('display:flex;justify-content:space-between;align-items:center;font:600 13px var(--font-ui)')}>
-        <span>{t('spin.lobby.title')}</span>
-        <span style={st('font:500 12px var(--font-ui);color:var(--muted)')}>{statusText}</span>
-      </div>
-      <canvas ref={canvasRef} role="img" aria-label={t('spin.lobby.title')} onPointerDown={(e) => {
-          if (view?.tapAction) sendAction(view.tapAction);
-          else if (view?.tapHold) {
-            e.currentTarget.setPointerCapture(e.pointerId);
-            pad.current = { dx: view.tapHold[0], dy: view.tapHold[1] };
-            sendHeld();
-          }
-        }}
-        onPointerUp={view?.tapHold ? release : undefined}
-        onPointerCancel={view?.tapHold ? release : undefined}
-        style={st('width:100%;max-width:340px;aspect-ratio:1;align-self:center;border-radius:16px;touch-action:none;display:block')} />
-      {standings.length > 0 && (
-        <div style={st('display:flex;flex-wrap:wrap;gap:6px;justify-content:center')}>
-          {standings.map((s) => (
-            <span key={s.id} style={st(`display:flex;align-items:center;gap:5px;height:24px;padding:0 9px;border-radius:999px;background:var(--surf2);font:600 11.5px var(--font-ui);opacity:${s.active ? 1 : 0.5}`)}>
-              <span style={st(`width:9px;height:9px;border-radius:50%;background:${byId.get(s.id)?.avatarColor ?? '#8b5cf6'}`)} />
-              {byId.get(s.id)?.displayName ?? '?'} · {s.score}
-            </span>
-          ))}
-        </div>
-      )}
-      <div style={st('display:flex;align-items:center;justify-content:space-between;gap:12px;padding:0 6px')}>
-        <div style={st('display:flex;align-items:center;gap:8px;min-height:92px')}>
-          {view?.pad === 'full' && (
-            <div style={st('display:grid;grid-template-columns:repeat(3,52px);grid-template-rows:repeat(3,44px);gap:4px')}>
-              {PAD.map((b) => (
-                <button key={b.label} type="button" aria-label={b.label} {...holdProps(b.dx, b.dy)} style={st(`grid-area:${b.area};${BIG_BUTTON};border-radius:12px;font-size:16px`)}>
-                  {b.label}
-                </button>
-              ))}
-            </div>
-          )}
-          {view?.pad === 'leftRight' &&
-            LEFT_RIGHT_PAD.map((b) => (
-              <button key={b.label} type="button" aria-label={b.label} {...holdProps(b.dx, b.dy)} style={st(`width:76px;height:76px;${BIG_BUTTON};font-size:24px`)}>
-                {b.label}
-              </button>
-            ))}
-          {view?.holds?.filter((h) => !h.primary).map((h) => (
-            <button key={h.labelKey} type="button" {...holdProps(h.dx, h.dy)} style={st(`width:92px;height:76px;${BIG_BUTTON}`)}>
-              {t(h.labelKey)}
-            </button>
-          ))}
-        </div>
-        <div style={st('display:flex;align-items:center;gap:10px')}>
-          {view?.holds?.filter((h) => h.primary).map((h) => (
-            <button
-              key={h.labelKey}
-              type="button"
-              {...holdProps(h.dx, h.dy)}
-              style={st('width:92px;height:92px;border:none;border-radius:50%;background:var(--acc);color:var(--onAcc, #fff);font:800 15px var(--font-ui);touch-action:none;user-select:none')}
-            >
-              {t(h.labelKey)}
-            </button>
-          ))}
-          {view?.actions.map((a) => (
-            <button
-              key={a.name}
-              type="button"
-              onPointerDown={() => sendAction(a.name)}
-              style={st('width:92px;height:92px;border:none;border-radius:50%;background:var(--acc);color:var(--onAcc, #fff);font:800 15px var(--font-ui);touch-action:none;user-select:none')}
-            >
-              {t(a.labelKey)}
-            </button>
-          ))}
-        </div>
-      </div>
-      {view && <span style={st('font:500 12px var(--font-ui);color:var(--faint);text-align:center')}>{t(view.hintKey)}</span>}
-      {snapshot?.spinWaiting ? (
+    <div style={st(`display:flex;flex-direction:column;gap:${phone ? 12 : 14}px;${phone ? '' : 'padding:16px;border-radius:20px;background:var(--bg)'}`)}>
+      <LobbyHeader members={members} readyIds={readyUserIds ?? null} playingIds={playingIds} gameName={gameName} run={game?.run ?? 0} statusText={statusText} phone={phone} />
+
+      {phone ? (
         <>
-          <button
-            type="button"
-            onClick={() => vote(!voted)}
-            style={st(`height:42px;border-radius:999px;border:none;background:${voted ? 'var(--surf2)' : 'var(--text)'};color:${voted ? 'var(--text)' : 'var(--onText)'};font:700 13.5px var(--font-ui)`)}
-          >
-            {voted ? t('spin.lobby.voted') : t('spin.lobby.vote')}
-          </button>
-          <span style={st('font:500 12px var(--font-ui);color:var(--muted);text-align:center')}>{t('spin.lobby.votes', { n: snapshot.voters.length, needed: snapshot.needed })}</span>
+          <div style={st('display:flex;flex-direction:column;gap:10px')}>
+            {arena}
+            {controls}
+          </div>
+          {game && <WinChart game={game} members={members} me={me} phone aside={<RunHistory summary={game} members={members} compact />} />}
+          {view && <span style={st('font:500 12px var(--font-ui);color:var(--faint);text-align:center')}>{t(view.hintKey)}</span>}
         </>
-      ) : status === 'offline' && offlineFallback ? (
-        offlineFallback
       ) : (
-        status === 'open' && <span style={st('font:500 12px var(--font-ui);color:var(--muted);text-align:center')}>{t('spin.lobby.noSpin')}</span>
+        <div style={st('display:grid;grid-template-columns:minmax(0,1.15fr) minmax(0,1fr);gap:16px;align-items:start')}>
+          <div style={st('display:flex;flex-direction:column;gap:12px')}>
+            {arena}
+            {controls}
+          </div>
+          <div style={st('display:flex;flex-direction:column;gap:14px;min-width:0')}>
+            {view && game && (
+              <div style={st('display:flex;flex-direction:column;gap:6px;padding:14px;border-radius:16px;background:linear-gradient(135deg,var(--hero1),var(--hero2))')}>
+                <span style={st('font:500 11px var(--font-mono);letter-spacing:.08em;text-transform:uppercase;color:var(--accText)')}>{t('spin.lobby.gameKicker', { run: game.run, game: gameName })}</span>
+                <span style={st('font:700 19px var(--font-display);letter-spacing:-.02em')}>{t(view.taglineKey)}</span>
+                <span style={st('font:500 12.5px/1.4 var(--font-ui);color:var(--muted)')}>{t(view.hintKey)}</span>
+              </div>
+            )}
+            {game && <WinChart game={game} members={members} me={me} phone={false} />}
+            {game && <RunHistory summary={game} members={members} />}
+          </div>
+        </div>
       )}
+
+      {bottom}
+      <LiveAnnouncer game={game} me={me} members={members} />
     </div>
   );
 }
@@ -282,7 +267,7 @@ export function LobbyPanel({ roomId, members, me, onStarted, offlineFallback }: 
 export function RoomLobbyDialog({ roomId, members, me, onClose }: { roomId: string; members: RoomMember[]; me: string; onClose: () => void }) {
   const t = useT();
   return (
-    <Dialog onClose={onClose} title={t('spin.lobby.title')} width={420}>
+    <Dialog onClose={onClose} title={t('spin.lobby.title')} width={720}>
       <LobbyPanel roomId={roomId} members={members} me={me} onStarted={onClose} />
     </Dialog>
   );

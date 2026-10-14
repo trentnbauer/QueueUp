@@ -48,6 +48,8 @@ export interface LobbyGameView<S extends LobbyGameSnapshot = LobbyGameSnapshot> 
   tapHold?: [number, number];
   /** The game's name, shown in the lobby panel. */
   nameKey: MessageKey;
+  /** A short tagline for the game card. */
+  taglineKey: MessageKey;
   /** One line telling people what to do. */
   hintKey: MessageKey;
   draw(args: LobbyDrawArgs<S>): void;
