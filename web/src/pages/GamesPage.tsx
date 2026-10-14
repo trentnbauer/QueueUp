@@ -119,7 +119,7 @@ export function GamesPage() {
           </div>
           <Leaderboard game={selected} scope={scope} period={period} />
         </div>
-        <YouPanel game={selected} gameName={gameName} onPlay={() => setPlaying(selected)} />
+        <YouPanel game={selected} gameName={gameName} onPlay={mobile ? undefined : () => setPlaying(selected)} />
       </div>
 
       {mobile && (
@@ -247,7 +247,8 @@ function ScoreRow({ row }: { row: MiniGameScoreRow }) {
   );
 }
 
-function YouPanel({ game, gameName, onPlay }: { game: LobbyGameId; gameName: string; onPlay: () => void }) {
+/** `onPlay` is left out on a phone, where the pinned Play button already does it. */
+function YouPanel({ game, gameName, onPlay }: { game: LobbyGameId; gameName: string; onPlay?: () => void }) {
   const t = useT();
   const { data } = useMiniGameMe(game);
   const bestRun = data?.lastRuns.length ? Math.max(...data.lastRuns.map((r) => r.score)) : null;
@@ -290,9 +291,11 @@ function YouPanel({ game, gameName, onPlay }: { game: LobbyGameId; gameName: str
           })}
         </ul>
       )}
-      <Btn kind="accent" height={46} fontSize={14} weight={800} onClick={onPlay}>
-        {t('games.playGame', { game: gameName })}
-      </Btn>
+      {onPlay && (
+        <Btn kind="accent" height={46} fontSize={14} weight={800} onClick={onPlay}>
+          {t('games.playGame', { game: gameName })}
+        </Btn>
+      )}
     </div>
   );
 }
