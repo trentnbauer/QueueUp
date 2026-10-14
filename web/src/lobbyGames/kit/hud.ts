@@ -1,3 +1,4 @@
+import type { MessageKey } from '../../i18n';
 import { FONT, STAGE } from './theme';
 import { roundRect } from './draw';
 import type { Scene } from './scene';
@@ -5,6 +6,19 @@ import type { Scene } from './scene';
 /** How long the server shows a run's result (server/src/services/lobbyGames/roundGame.ts), so the
  * result card can animate in from its start. */
 const RESULT_MS = 4000;
+
+/** How a game's score reads. Most count metres; a few count something else. */
+interface ScoreWords {
+  pill: MessageKey;
+  winnerOne: MessageKey;
+  winnerOther: MessageKey;
+  over: MessageKey;
+}
+const METRES: ScoreWords = { pill: 'spin.lobby.hud.metres', winnerOne: 'spin.lobby.hud.winnerKicker.one', winnerOther: 'spin.lobby.hud.winnerKicker.other', over: 'spin.lobby.hud.runOver' };
+const SCORE_WORDS: Partial<Record<string, ScoreWords>> = {
+  coins: { pill: 'spin.lobby.hud.coins.pill', winnerOne: 'spin.lobby.hud.coins.winnerOne', winnerOther: 'spin.lobby.hud.coins.winnerOther', over: 'spin.lobby.hud.coins.over' },
+  rope: { pill: 'spin.lobby.hud.swings.pill', winnerOne: 'spin.lobby.hud.swings.winnerOne', winnerOther: 'spin.lobby.hud.swings.winnerOther', over: 'spin.lobby.hud.swings.over' },
+};
 
 function pill(sc: Scene, x: number, y: number, w: number, h: number): void {
   roundRect(sc.ctx, x, y, w, h, h / 2);
@@ -29,7 +43,7 @@ export function drawHud(sc: Scene): void {
     ctx.font = `600 ${size}px ${FONT.mono}`;
     ctx.textBaseline = 'middle';
     ctx.textAlign = 'left';
-    const label = t('spin.lobby.hud.metres', { n: snapshot.meters });
+    const label = t((SCORE_WORDS[snapshot.id] ?? METRES).pill, { n: snapshot.meters });
     pill(sc, pad, pad, ctx.measureText(label).width + h * 0.8, h);
     ctx.fillStyle = theme.text;
     ctx.fillText(label, pad + h * 0.4, pad + h / 2 + 1);
@@ -118,14 +132,14 @@ function drawResult(sc: Scene): void {
     ctx.fillText(info.initial, 0, -h * 0.18 + 1);
     ctx.font = `600 ${Math.round(S * 0.03)}px ${FONT.mono}`;
     ctx.fillStyle = theme.accText;
-    ctx.fillText(t(winner.wins === 1 ? 'spin.lobby.hud.winnerKicker.one' : 'spin.lobby.hud.winnerKicker.other', { m: winner.meters, w: winner.wins }), 0, h * 0.08);
+    ctx.fillText(t(winner.wins === 1 ? (SCORE_WORDS[snapshot.id] ?? METRES).winnerOne : (SCORE_WORDS[snapshot.id] ?? METRES).winnerOther, { m: winner.meters, w: winner.wins }), 0, h * 0.08);
     ctx.font = `800 ${Math.round(S * 0.068)}px ${FONT.display}`;
     ctx.fillStyle = theme.text;
     ctx.fillText(winner.id === sc.me ? t('spin.lobby.hud.youWin') : t('spin.lobby.hud.nameWins', { name: info.name }), 0, h * 0.26, w * 0.9);
   } else {
     ctx.font = `600 ${Math.round(S * 0.03)}px ${FONT.mono}`;
     ctx.fillStyle = theme.accText;
-    ctx.fillText(t('spin.lobby.hud.runOver', { m: snapshot.history[snapshot.history.length - 1]?.meters ?? snapshot.meters }), 0, -h * 0.08);
+    ctx.fillText(t((SCORE_WORDS[snapshot.id] ?? METRES).over, { m: snapshot.history[snapshot.history.length - 1]?.meters ?? snapshot.meters }), 0, -h * 0.08);
     ctx.font = `800 ${Math.round(S * 0.068)}px ${FONT.display}`;
     ctx.fillStyle = theme.text;
     ctx.fillText(t('spin.lobby.hud.nobody'), 0, h * 0.12, w * 0.9);

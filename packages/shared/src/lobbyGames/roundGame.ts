@@ -48,7 +48,8 @@ export abstract class RoundGame<P extends RoundPlayer> implements LobbyGame {
   protected distance = 0;
   protected winnerId: string | null = null;
   protected rng: () => number;
-  private startedWith = 0;
+  /** How many players started the current run (a solo run has no winner). */
+  protected startedWith = 0;
   /** Which run this is, the last few results and the best so far (see RoundSummary). */
   private run = 0;
   private history: RunResult[] = [];
@@ -141,9 +142,16 @@ export abstract class RoundGame<P extends RoundPlayer> implements LobbyGame {
     if (this.phase !== 'playing') return;
     const alive = [...this.players.values()].filter((p) => p.alive);
     if (alive.length > (this.startedWith > 1 ? 1 : 0)) return;
+    this.endRun(this.startedWith > 1 && alive.length === 1 ? alive[0] : null);
+  }
+
+  /** Ends the run now, with `winner` (or nobody) winning. For games that end on something other than
+   * running out of players, such as a timer: set each player's `outAtMeters` first if the result should
+   * show their own score. */
+  protected endRun(winner: P | null): void {
+    if (this.phase !== 'playing') return;
     this.phase = 'over';
     this.timerMs = OVER_MS;
-    const winner = this.startedWith > 1 && alive.length === 1 ? alive[0] : null;
     this.winnerId = winner?.id ?? null;
     if (winner) {
       winner.wins++;
