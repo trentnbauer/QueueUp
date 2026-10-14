@@ -1,4 +1,5 @@
 import type { LobbyGameId, LobbyGameSnapshot } from '../spinLobby.js';
+import { battleshipsBrain } from './battleships.js';
 import { redLightBrain } from './redlight.js';
 import type { BotBrain, LobbyGame } from './types.js';
 
@@ -23,6 +24,7 @@ export function botColor(id: string): string {
 /** The games that have a bot brain. A game that sets `minPlayers` above 1 must have one here. */
 const BRAINS: Partial<Record<LobbyGameId, (botId: string, rng: () => number) => BotBrain>> = {
   redlight: redLightBrain,
+  battleships: battleshipsBrain,
 };
 
 /** Wraps a game that needs more players than the lobby has, and adds bots until there are enough.
@@ -120,6 +122,7 @@ export class BotFiller implements LobbyGame {
       this.inner.input(id, dx, dy);
     }
     for (const name of cmd.actions ?? []) this.inner.action(id, name);
+    for (const target of cmd.taps ?? []) this.inner.tap?.(id, target);
   }
 
   /** Brings the number of bots to what the game needs, whenever a run is not on. */

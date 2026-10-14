@@ -11,8 +11,8 @@
 export const LOBBY_TICK_HZ = 15;
 
 /** The games the lobby can run. */
-export type LobbyGameId = 'runner' | 'flappy' | 'dodge' | 'rope' | 'redlight' | 'coins';
-export const LOBBY_GAME_IDS: readonly LobbyGameId[] = ['runner', 'flappy', 'dodge', 'rope', 'redlight', 'coins'];
+export type LobbyGameId = 'runner' | 'flappy' | 'dodge' | 'rope' | 'redlight' | 'coins' | 'battleships';
+export const LOBBY_GAME_IDS: readonly LobbyGameId[] = ['runner', 'flappy', 'dodge', 'rope', 'redlight', 'coins', 'battleships'];
 
 /** What a client sends. Anything else is ignored. */
 export type LobbyClientMessage =
@@ -338,8 +338,57 @@ export interface CoinsSnapshot extends RoundSummary {
   winnerId: string | null;
 }
 
+// ---- Battleships (one shared board; everyone fires at the same hidden fleet) -----------------------
+
+/** The board is this many squares each way (8 x 8 = 64, the most tap targets a game can have). */
+export const BATTLESHIPS_SIZE = 8;
+
+/** What a square on the board shows. A square nobody has shot shows nothing: no ship is given away. */
+export const SQUARE_UNKNOWN = 0;
+export const SQUARE_MISS = 1;
+export const SQUARE_HIT = 2;
+/** Part of a ship that has been sunk. */
+export const SQUARE_SUNK = 3;
+
+export interface BattleshipsPlayer {
+  id: string;
+  /** In this round. False if they arrived part way through (they watch and play from the next one). */
+  alive: boolean;
+  /** Rounds won since this person joined the lobby. */
+  wins: number;
+  /** Points this round: a hit is 1, and the shot that sinks a ship is 1 more. */
+  meters: number;
+  /** Shots taken, and how many of them hit. */
+  shots: number;
+  hits: number;
+  /** Milliseconds until they can shoot again (0 when they can). */
+  cooldownMs: number;
+}
+
+export interface BattleshipsSnapshot extends RoundSummary {
+  id: 'battleships';
+  phase: LobbyRoundPhase;
+  /** The most points anyone has so far. */
+  meters: number;
+  /** Always 0: nothing scrolls past in this game (every snapshot carries a course speed). */
+  speed: number;
+  /** Milliseconds left in the round while `playing`. */
+  roundLeftMs: number;
+  /** Each square, row by row: SQUARE_UNKNOWN, SQUARE_MISS, SQUARE_HIT or SQUARE_SUNK. */
+  cells: number[];
+  /** Who shot each square: the index into `players`, or -1 for a square nobody has shot. */
+  by: number[];
+  /** The fleet's ships, by length, and whether each is sunk. Where they are is never sent. */
+  fleet: { len: number; sunk: boolean }[];
+  players: BattleshipsPlayer[];
+  /** Milliseconds left in `countdown` or `over`; 0 otherwise. */
+  timerMs: number;
+  /** Who won the round that just ended (`over` only); null when nobody did (a tie, or nobody scored). */
+  winnerId: string | null;
+}
+
 /** The snapshot of whichever game is running. */
-export type LobbyGameSnapshot = RunnerSnapshot | FlappySnapshot | DodgeSnapshot | RopeSnapshot | RedLightSnapshot | CoinsSnapshot;
+export type LobbyGameSnapshot = RunnerSnapshot | FlappySnapshot | DodgeSnapshot | RopeSnapshot | RedLightSnapshot | CoinsSnapshot | BattleshipsSnapshot;
 
 /** What a client needs to run its own player on a course the server decided: which run, the seed that
  * makes the course, and how long until the run starts (negative once it has, by how far in). */
