@@ -43,6 +43,7 @@ Every game uses at most **one direction axis plus one button**, so it works on a
 | Runner | **Space**, **↑** or **W** to jump (hold for a longer jump). Hold **↓** or **S** to duck. | Hold **Jump** (or press and hold the arena). Hold **Duck**. |
 | Flappy | **Space**, **↑** or **W** to flap. | **Flap**, or tap anywhere on the arena. |
 | Dodge | **←** / **→** or **A** / **D**. | The **◀** and **▶** buttons. |
+| Jump rope | **Space**, **↑** or **W** to jump. | **Jump**, or tap anywhere on the arena. |
 
 ## Runner
 
@@ -76,6 +77,17 @@ Blocks fall; slide left and right to stay clear.
 - **Blocks** (game covers of different widths) fall faster and faster: from 0.35 of a screen per second up to 0.9 after about 46 seconds. A new block appears every 0.75 seconds at the start, speeding up to every 0.28 seconds after about 47 seconds.
 - A **safe lane** drifts slowly from side to side, and no block is ever made over it, so there is always a way through for someone who keeps up with it.
 - A block that hits you knocks you out.
+
+## Jump rope
+
+A rope swings round and everyone jumps it together.
+
+- **Goal:** jump each time the rope comes down to the floor. Everyone stands in a row on the same floor.
+- **Mistime it** (be on the floor as the rope passes under you) and you are out. Last one jumping wins.
+- **Jumping** only works from the floor, and a jump is the same height every time, so it is all about timing. Pressing again while you are still in the air does nothing.
+- **Score:** the number of swings you jumped (the counter shows it where the other games show metres).
+- **Speed:** a swing starts at 1.8 seconds and shortens by 0.03 seconds for every second of the run, down to 0.75 seconds after about 35 seconds. Now and then a swing is slower (a pause, 1.5 times as long) or quicker (0.85 times as long, never under 0.65 seconds), so don't jump on rhythm alone.
+- Every swing is long enough to land and jump again.
 
 ## Adding a game
 
