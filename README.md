@@ -18,6 +18,8 @@ The app also features an interactive "What are we playing?" pick-a-game reel. Th
 
 <img width="700" alt="The pick-a-game reel (light theme)" src="docs/screenshots/desktop-spin-light.png" />
 
+While a spin waits for everyone, the room can play live **mini games** together (and you can practise them alone from your Personal Shelf settings). See [docs/minigames.md](docs/minigames.md) for the rules.
+
 Some other things to note:
 - Rooms are set per console
 - Marking a game as owned syncs between rooms
