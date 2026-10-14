@@ -83,6 +83,24 @@ describe('SpinLobbyHub', () => {
     expect(hub.hasMembers('r1')).toBe(false);
   });
 
+  it('survives the spin failing to start, and tries again on the next check', async () => {
+    const hub = makeHub();
+    waiting = true;
+    const a = fakeSocket();
+    hub.connect('r1', 'a', a.socket);
+    await flush();
+    deps.startSpinNow.mockRejectedValueOnce(new Error('db down'));
+    hub.message('r1', a.socket, JSON.stringify({ t: 'vote', on: true }));
+    await expect(hub.tickRoom('r1')).resolves.toBeUndefined();
+    expect(a.sent.some((m) => m.t === 'started')).toBe(false);
+    // The next spin check sees it still waiting; the vote is still there, so the next tick starts it.
+    for (let i = 0; i < 40 && !a.sent.some((m) => m.t === 'started'); i++) {
+      await hub.tickRoom('r1');
+      await flush();
+    }
+    expect(a.sent.some((m) => m.t === 'started')).toBe(true);
+  });
+
   it('does not count members who are not in the lobby', async () => {
     const hub = makeHub();
     waiting = true;
