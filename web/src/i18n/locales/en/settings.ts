@@ -356,6 +356,12 @@ export const settings = {
 
   // Shelf settings
   "settings.shelf.title": "Shelf settings",
+  "settings.shelf.practice": "Practice mini games",
+  "settings.shelf.practiceSub": "Play the room mini games on your own",
+  "practice.title": "Practice mini games",
+  "practice.pick": "Choose a game",
+  "practice.status": "Practice · just you",
+  "practice.note": "Practice: just you, and nothing is saved.",
   "settings.shelf.spinType": "Spin type",
   "settings.shelf.spinType.toast": "Spin type: {theme}",
   "settings.shelf.spinType.random": "🎲 Random",
