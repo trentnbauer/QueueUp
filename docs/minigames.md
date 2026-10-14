@@ -45,6 +45,7 @@ Every game uses at most **one direction axis plus one button**, so it works on a
 | Flappy | **Space**, **↑** or **W** to flap. | **Flap**, or tap anywhere on the arena. |
 | Dodge | **←** / **→** or **A** / **D**. | The **◀** and **▶** buttons. |
 | Red light, green light | Hold **Space**, **→** or **D** to run. | Hold **Run** (or press and hold the arena). |
+| Catch the coins | **←** / **→** or **A** / **D**. | The **◀** and **▶** buttons. |
 | Jump rope | **Space**, **↑** or **W** to jump. | **Jump**, or tap anywhere on the arena. |
 
 ## Runner
@@ -87,7 +88,7 @@ A rope swings round and everyone jumps it together.
 - **Goal:** jump each time the rope comes down to the floor. Everyone stands in a row on the same floor.
 - **Mistime it** (be on the floor as the rope passes under you) and you are out. Last one jumping wins.
 - **Jumping** only works from the floor, and a jump is the same height every time, so it is all about timing. Pressing again while you are still in the air does nothing.
-- **Score:** the number of swings you jumped (the counter shows it where the other games show metres).
+- **Score:** the number of swings you jumped (shown as SWINGS in the top-left counter, where the other games show metres).
 - **Speed:** a swing starts at 1.8 seconds and shortens by 0.03 seconds for every second of the run, down to 0.75 seconds after about 35 seconds. Now and then a swing is slower (a pause, 1.5 times as long) or quicker (0.85 times as long, never under 0.65 seconds), so don't jump on rhythm alone.
 - Every swing is long enough to land and jump again.
 
@@ -101,6 +102,18 @@ A race to the finish line, with a traffic light in charge. Needs at least 2 play
 - **Winning:** the first runner to cross the line wins. This game ends the moment someone finishes, so unlike the others it is not only last one in. If nobody has finished after 45 seconds, whoever is furthest along wins; a tie for the lead is a draw.
 - **Distance** shown is how far the leader has run, out of 20 m.
 - It takes about 10 seconds of holding the button to cross the track, so a run is roughly 20 seconds.
+
+## Catch the coins
+
+Coins fall; slide left and right to catch them before anyone else does.
+
+- **Goal:** catch the most coins in 30 seconds. Everyone is on the same floor and goes for the same coins.
+- **Nobody is knocked out.** When the time is up, the most coins wins; a tie for the most, or catching nothing, is a draw. Alone, it is a high-score round: no winner, just your coins.
+- **Coins** (gold) are worth one each. If two catchers reach the same coin, the nearer one gets it.
+- **Bombs** (dark, with a fuse) fall now and then, never two in a row. Catching one costs you a coin (never below zero) and **stuns** you for one second, so you cannot move. A stunned catcher cannot be hit by another bomb.
+- **Speed:** things start at 0.4 of a screen per second and climb to 0.7 after 30 seconds. A new item appears every 0.55 seconds at the start, down to every 0.3 seconds.
+- The bar along the top is the time left, and each catcher's coin count is shown over their head.
+- You move at 0.6 of a screen per second and can't leave the screen.
 
 ## Adding a game
 

@@ -11,8 +11,8 @@
 export const LOBBY_TICK_HZ = 15;
 
 /** The games the lobby can run. */
-export type LobbyGameId = 'runner' | 'flappy' | 'dodge' | 'rope' | 'redlight';
-export const LOBBY_GAME_IDS: readonly LobbyGameId[] = ['runner', 'flappy', 'dodge', 'rope', 'redlight'];
+export type LobbyGameId = 'runner' | 'flappy' | 'dodge' | 'rope' | 'redlight' | 'coins';
+export const LOBBY_GAME_IDS: readonly LobbyGameId[] = ['runner', 'flappy', 'dodge', 'rope', 'redlight', 'coins'];
 
 /** What a client sends. Anything else is ignored. */
 export type LobbyClientMessage =
@@ -268,8 +268,60 @@ export interface RedLightSnapshot extends RoundSummary {
   winnerId: string | null;
 }
 
+// ---- Catch the coins (coins and bombs fall; slide left and right to catch the coins) ----------------
+
+/** Where the catchers stand, as a fraction of the height from the top. */
+export const COINS_PLAYER_Y = 0.92;
+export const COINS_PLAYER_WIDTH = 0.1;
+/** Coins and bombs are drawn (and caught) as squares this big, as a fraction of the width. */
+export const COINS_ITEM_SIZE = 0.05;
+
+export type CoinKind = 'coin' | 'bomb';
+
+/** A falling coin or bomb: `x` is its middle across the width (0..1), `y` its middle down from the top. */
+export interface CoinItem {
+  x: number;
+  y: number;
+  kind: CoinKind;
+  /** Which item this is (counts up from 1 each run); stays the same as it falls. */
+  n: number;
+}
+
+export interface CoinsPlayer {
+  id: string;
+  /** Where they stand across the width (0..1). */
+  x: number;
+  /** The direction they are moving: -1, 0 or 1 (for a motion trail). */
+  dir: number;
+  /** Stunned by a bomb, so they cannot move for a moment. */
+  stunned: boolean;
+  /** Playing this round. False if they arrived mid-round (they watch and play from the next one). */
+  alive: boolean;
+  /** Rounds won since this person joined the lobby. */
+  wins: number;
+  /** Coins caught this round. */
+  meters: number;
+}
+
+export interface CoinsSnapshot extends RoundSummary {
+  id: 'coins';
+  phase: LobbyRoundPhase;
+  /** The most coins anyone has caught so far. */
+  meters: number;
+  /** How fast things fall, in screens per second. */
+  speed: number;
+  /** Milliseconds left in the round while `playing`. */
+  roundLeftMs: number;
+  items: CoinItem[];
+  players: CoinsPlayer[];
+  /** Milliseconds left in `countdown` or `over`; 0 otherwise. */
+  timerMs: number;
+  /** Who won the round that just ended (`over` only); null when nobody did (a solo round, or a tie). */
+  winnerId: string | null;
+}
+
 /** The snapshot of whichever game is running. */
-export type LobbyGameSnapshot = RunnerSnapshot | FlappySnapshot | DodgeSnapshot | RopeSnapshot | RedLightSnapshot;
+export type LobbyGameSnapshot = RunnerSnapshot | FlappySnapshot | DodgeSnapshot | RopeSnapshot | RedLightSnapshot | CoinsSnapshot;
 
 export interface LobbySnapshot {
   t: 'state';

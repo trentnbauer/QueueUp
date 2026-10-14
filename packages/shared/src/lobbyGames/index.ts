@@ -1,5 +1,6 @@
 import { LOBBY_GAME_IDS, type LobbyGameId } from '../spinLobby.js';
 import { withBots } from './bots.js';
+import { CoinsGame } from './coins.js';
 import { DodgeGame } from './dodge.js';
 import { FlappyGame } from './flappy.js';
 import { RedLightGame } from './redlight.js';
@@ -28,6 +29,8 @@ function build(id: LobbyGameId): LobbyGame {
       return new RopeGame();
     case 'redlight':
       return new RedLightGame();
+    case 'coins':
+      return new CoinsGame();
   }
 }
 

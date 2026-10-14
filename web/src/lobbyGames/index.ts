@@ -1,6 +1,7 @@
 import type { LobbyGameId, LobbyGameSnapshot, User } from '@queueup/shared';
 import type { MessageKey } from '../i18n';
 import type { LobbyFx } from './kit/fx';
+import { coinsView } from './coins';
 import { dodgeView } from './dodge';
 import { flappyView } from './flappy';
 import { redLightView } from './redlight';
@@ -64,6 +65,7 @@ export const LOBBY_GAME_VIEWS: { [K in LobbyGameId]: LobbyGameView<Extract<Lobby
   dodge: dodgeView,
   rope: ropeView,
   redlight: redLightView,
+  coins: coinsView,
 };
 
 /** The view for whichever game a snapshot belongs to. */
