@@ -7,7 +7,15 @@ on:
   # builds at four per day, and an idle or docs-only stretch builds nothing.
   schedule:
     - cron: '0 */6 * * *'
-  workflow_dispatch: {}
+  # A manual run follows the same rule as the scheduled one: it builds only if something in the image
+  # changed since the last build. Tick "force" to publish a new image anyway (to test the pipeline, or
+  # to pick up a fresh base image with no code change).
+  workflow_dispatch:
+    inputs:
+      force:
+        description: 'Build and publish even if nothing in the image changed since the last build'
+        type: boolean
+        default: false
 
 concurrency:
   # A manual dispatch and a scheduled run racing each other would both try
@@ -56,8 +64,10 @@ jobs:
         # actually runs (see build-and-push), so this always covers exactly
         # what's new since the image now on ghcr.io was built. No marker yet
         # (first-ever run) always counts as "has changes", to establish one.
-        # A manual run always counts as "has changes" too, so workflow_dispatch
-        # can force a rebuild for testing regardless of whether anything changed.
+        # A manual run is held to the same rule as the scheduled one, unless it was started with
+        # "force" ticked (the force input; empty on a scheduled run), which always builds.
+        env:
+          FORCE: ${{ inputs.force }}
         run: |
           if git rev-parse -q --verify refs/tags/docker-build-marker >/dev/null; then
             RANGE="docker-build-marker..HEAD"
@@ -81,7 +91,7 @@ jobs:
 
           COUNT=$(git rev-list --count "$RANGE" -- "${IMAGE_PATHS[@]}" 2>/dev/null || echo 0)
 
-          if [ "$HAS_MARKER" = true ] && [ "$COUNT" -eq 0 ] && [ "${{ github.event_name }}" != "workflow_dispatch" ]; then
+          if [ "$HAS_MARKER" = true ] && [ "$COUNT" -eq 0 ] && [ "$FORCE" != "true" ]; then
             HAS_CHANGES=false
           else
             HAS_CHANGES=true
