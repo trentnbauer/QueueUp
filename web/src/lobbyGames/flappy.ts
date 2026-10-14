@@ -98,6 +98,7 @@ export const flappyView: LobbyGameView<FlappySnapshot> = {
   actions: [{ name: 'flap', labelKey: 'spin.lobby.flappy.flap', keys: [' ', 'ArrowUp', 'w'] }],
   tapAction: 'flap',
   nameKey: 'spin.lobby.flappy.name',
+  taglineKey: 'spin.lobby.flappy.tagline',
   hintKey: 'spin.lobby.flappy.hint',
   draw: (args) => renderScene(args, scene),
   standings: (snapshot) => snapshot.players.map((p) => ({ id: p.id, score: p.wins, active: p.alive })).sort((a, b) => b.score - a.score),

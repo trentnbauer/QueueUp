@@ -587,17 +587,14 @@ export function SpinDialog({ onClose }: { onClose: () => void }) {
           </div>
 
           {waiting && session ? (
-            <div style={st('display:flex;flex-direction:column;align-items:center;gap:10px;padding:26px 12px;border-radius:20px;background:var(--bg);text-align:center')}>
-              <span style={st('font:600 15px var(--font-ui)')}>{t('spin.waiting.title')}</span>
-              <span style={st('font:500 13px var(--font-ui);color:var(--muted)')}>
-                {t(members.length === 1 ? 'spin.waiting.ready.one' : 'spin.waiting.ready.other', { ready: session.readyCount, total: members.length })}
-              </span>
+            <div>
               {/* The room's live mini game holds the waiting room open while members are in it; the spin starts when more than half of them vote, or everyone is ready. */}
               {roomId && (
               <LobbyPanel
                 roomId={roomId}
                 members={members}
                 me={me}
+                readyUserIds={session.readyUserIds}
                 offlineFallback={
                   <button type="button" onClick={() => void shared.skipWaitSpin().catch(() => {})} style={st('height:40px;padding:0 20px;border-radius:999px;border:none;background:var(--text);color:var(--onText);font:700 13.5px var(--font-ui)')}>
                     {t('spin.waiting.startNow')}
