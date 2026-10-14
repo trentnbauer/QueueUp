@@ -2,6 +2,7 @@ import { useEffect, useMemo, useRef, type ReactNode } from 'react';
 import type { RoomMember } from '@queueup/shared';
 import { useSpinLobby } from '../hooks/useSpinLobby';
 import { viewFor, type LobbyGameView } from '../lobbyGames';
+import { LobbyFx } from '../lobbyGames/kit';
 import { Dialog } from '../ui/Dialog';
 import { st } from '../ui/st';
 import { t as tNow, useT } from '../i18n';
@@ -40,6 +41,9 @@ export function LobbyPanel({ roomId, members, me, onStarted, offlineFallback }: 
   const t = useT();
   const { snapshot, status, sendInput, sendAction, vote } = useSpinLobby(roomId, true, onStarted);
   const canvasRef = useRef<HTMLCanvasElement>(null);
+  // Effects (knock-out bursts, confetti, shake) and their memory between frames, for as long as the panel is open.
+  const fxRef = useRef<LobbyFx | null>(null);
+  if (!fxRef.current) fxRef.current = new LobbyFx();
   const latest = useRef(snapshot);
   latest.current = snapshot;
   const byId = useMemo(() => new Map(members.map((m) => [m.user.id, m.user])), [members]);
@@ -152,6 +156,7 @@ export function LobbyPanel({ roomId, members, me, onStarted, offlineFallback }: 
         },
         color: (name, fallback) => style.getPropertyValue(name).trim() || fallback,
         t: tNow,
+        fx: fxRef.current!,
       });
       for (const key of [...shown.keys()]) if (!seen.has(key)) shown.delete(key);
     };

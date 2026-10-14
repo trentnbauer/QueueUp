@@ -1,99 +1,104 @@
 import { FLAPPY_BIRD_RADIUS, FLAPPY_GAP, FLAPPY_PIPE_WIDTH, FLAPPY_X, type FlappySnapshot } from '@queueup/shared';
-import type { LobbyDrawArgs, LobbyGameView } from './index';
+import type { LobbyGameView } from './index';
+import { STAGE, coverTile, drawFloor, hueOf, renderScene, roundRect, type Scene, type SceneGame } from './kit';
 
-/** When this browser first saw each snapshot, so the pipes keep scrolling smoothly between the
- * server's snapshots instead of moving in 15-a-second steps. */
-const seenAt = new WeakMap<object, number>();
+/** Birds share one spot on the screen, so they are fanned out a little (drawing only). */
+const FAN = 0.007;
+const FLOOR = 0.03;
+const TRAIL = 10;
 
-function drawText(ctx: CanvasRenderingContext2D, text: string, x: number, y: number, size: number, fill: string, align: CanvasTextAlign = 'center') {
-  ctx.font = `800 ${Math.round(size)}px system-ui, sans-serif`;
-  ctx.textAlign = align;
-  ctx.textBaseline = 'middle';
-  ctx.lineWidth = Math.max(3, size / 6);
-  ctx.strokeStyle = 'rgba(0,0,0,0.6)';
-  ctx.lineJoin = 'round';
-  ctx.strokeText(text, x, y);
-  ctx.fillStyle = fill;
-  ctx.fillText(text, x, y);
-}
+/** Each bird's last few positions, kept between frames for its trail. */
+const trails = new WeakMap<object, Map<string, number[]>>();
 
-function draw({ ctx, size, snapshot, me, users, ease, color, t }: LobbyDrawArgs<FlappySnapshot>) {
-  const now = performance.now();
-  if (!seenAt.has(snapshot)) seenAt.set(snapshot, now);
-  const running = snapshot.phase === 'playing';
-  const scroll = running ? snapshot.speed * Math.min(0.12, (now - (seenAt.get(snapshot) ?? now)) / 1000) : 0;
-  const gold = 'oklch(0.9 0.14 90)';
+function drawWorld(sc: Scene<FlappySnapshot>): void {
+  const { ctx, S, snapshot, drift, now } = sc;
   // Heights are 0 (floor) to 1 (ceiling); the canvas counts down from the top.
-  const py = (y: number) => size * (1 - y);
+  const py = (y: number) => S * (1 - y);
+  drawFloor(sc, py(FLOOR));
 
-  // Sky and a strip of ground.
-  ctx.fillStyle = color('--bg', '#161210');
-  ctx.fillRect(0, 0, size, size);
-  ctx.fillStyle = 'rgba(255,255,255,0.05)';
-  ctx.fillRect(0, py(0.03), size, size * 0.03);
-
-  // Pipes: a top and a bottom block either side of the opening.
-  const pipeW = FLAPPY_PIPE_WIDTH * size;
+  // Pipes: a column either side of the opening, each capped with a game cover.
+  const pipeW = FLAPPY_PIPE_WIDTH * S;
+  const capH = S * 0.051;
   for (const p of snapshot.pipes) {
-    const x = (p.x - scroll) * size - pipeW / 2;
+    const x = (p.x - drift) * S - pipeW / 2;
     const top = py(p.gap + FLAPPY_GAP / 2);
     const bottom = py(p.gap - FLAPPY_GAP / 2);
-    ctx.fillStyle = 'oklch(0.7 0.15 150)';
-    ctx.fillRect(x, 0, pipeW, top);
-    ctx.fillRect(x, bottom, pipeW, size - bottom);
-    ctx.fillStyle = 'oklch(0.58 0.14 150)';
-    ctx.fillRect(x - pipeW * 0.12, top - size * 0.025, pipeW * 1.24, size * 0.025);
-    ctx.fillRect(x - pipeW * 0.12, bottom, pipeW * 1.24, size * 0.025);
-  }
-
-  // The birds all fly the same course, so they are drawn at the same spot, fanned a few pixels
-  // apart; the viewer is drawn last, on top.
-  const spread = size * 0.006;
-  const radius = FLAPPY_BIRD_RADIUS * size;
-  const order = [...snapshot.players.keys()].sort((a, b) => Number(snapshot.players[a].id === me) - Number(snapshot.players[b].id === me) || Number(snapshot.players[a].alive) - Number(snapshot.players[b].alive));
-  for (const i of order) {
-    const b = snapshot.players[i];
-    const user = users.get(b.id);
-    const cx = FLAPPY_X * size + (i - (snapshot.players.length - 1) / 2) * spread;
-    const cy = py(ease(b.id, 0, b.y).y);
-    ctx.globalAlpha = b.alive ? 0.92 : 0.3;
-    ctx.beginPath();
-    ctx.arc(cx, cy, radius, 0, Math.PI * 2);
-    ctx.fillStyle = user?.avatarColor ?? '#8b5cf6';
-    ctx.fill();
-    if (b.id === me) {
-      ctx.lineWidth = 2;
-      ctx.strokeStyle = color('--text', '#fff');
+    const column = (y0: number, y1: number) => {
+      const g = ctx.createLinearGradient(x, 0, x + pipeW, 0);
+      g.addColorStop(0, 'oklch(0.27 0.012 55)');
+      g.addColorStop(1, 'oklch(0.21 0.009 55)');
+      roundRect(ctx, x, y0, pipeW, y1 - y0, S * 0.02);
+      ctx.fillStyle = g;
+      ctx.fill();
+      ctx.strokeStyle = STAGE.hudStroke;
+      ctx.lineWidth = 1;
       ctx.stroke();
-    }
-    ctx.fillStyle = '#fff';
-    ctx.font = `700 ${Math.round(radius)}px system-ui, sans-serif`;
-    ctx.textAlign = 'center';
-    ctx.textBaseline = 'middle';
-    ctx.fillText((user?.displayName ?? '?').slice(0, 1).toUpperCase(), cx, cy + 1);
-    ctx.globalAlpha = 1;
+    };
+    column(-20, top);
+    column(bottom, S + 20);
+    const capW = pipeW * 1.25;
+    const hue = hueOf(p.n);
+    coverTile(ctx, x - (capW - pipeW) / 2, top - capH, capW, capH, hue, S * 0.016);
+    coverTile(ctx, x - (capW - pipeW) / 2, bottom, capW, capH, (hue + 120) % 360, S * 0.016);
   }
 
-  // Banner and distance.
-  const mine = snapshot.players.find((p) => p.id === me);
-  if (snapshot.phase !== 'lobby') drawText(ctx, t('spin.lobby.flappy.meters', { n: snapshot.meters }), size - size * 0.03, size * 0.05, size * 0.045, color('--text', '#fff'), 'right');
-  if (snapshot.phase === 'countdown') {
-    drawText(ctx, t('spin.lobby.flappy.countdown', { n: Math.max(1, Math.ceil(snapshot.timerMs / 1000)) }), size * 0.4, size * 0.05, size * 0.055, gold);
-  } else if (snapshot.phase === 'over') {
-    const winner = snapshot.winnerId ? users.get(snapshot.winnerId)?.displayName ?? '?' : null;
-    const text = winner ? t('spin.lobby.flappy.winner', { name: winner }) : snapshot.players.length > 1 ? t('spin.lobby.flappy.draw') : t('spin.lobby.flappy.soloOver', { n: snapshot.players[0]?.meters ?? 0 });
-    drawText(ctx, text, size * 0.4, size * 0.05, size * 0.05, gold);
-  } else if (snapshot.phase === 'playing' && mine && !mine.alive) {
-    drawText(ctx, t('spin.lobby.flappy.out'), size * 0.4, size * 0.05, size * 0.045, color('--text', '#fff'));
+  let memory = trails.get(sc.fx);
+  if (!memory) trails.set(sc.fx, (memory = new Map()));
+  const radius = FLAPPY_BIRD_RADIUS * S;
+  const n = snapshot.players.length;
+  for (const i of sc.order()) {
+    const b = snapshot.players[i];
+    if (!b.alive) {
+      memory!.delete(b.id);
+      continue; // knocked out: the burst has taken them
+    }
+    const cx = (FLAPPY_X + (i - (n - 1) / 2) * FAN) * S;
+    const cy = py(sc.ease(b.id, 0, b.y).y);
+    const trail = memory!.get(b.id) ?? [];
+    memory!.set(b.id, trail);
+    trail.push(cy);
+    while (trail.length > TRAIL) trail.shift();
+
+    // A trail of fading dots in the bird's colour.
+    const color = sc.info(b.id).color;
+    ctx.fillStyle = color;
+    trail.forEach((y, k) => {
+      ctx.globalAlpha = (k / trail.length) * 0.25;
+      ctx.beginPath();
+      ctx.arc(cx - (trail.length - k) * S * 0.012, y, radius * (0.3 + (0.5 * k) / trail.length), 0, Math.PI * 2);
+      ctx.fill();
+    });
+    ctx.globalAlpha = 1;
+
+    // A wing that tilts with the climb, or beats gently while waiting.
+    const wing = snapshot.phase === 'playing' ? Math.max(-1, Math.min(1, b.vy * 1.5)) : Math.sin(now / 120);
+    ctx.fillStyle = 'oklch(1 0 0 / 0.85)';
+    ctx.beginPath();
+    ctx.moveTo(cx - radius * 0.6, cy);
+    ctx.lineTo(cx - radius * 1.5, cy - wing * radius * 0.9);
+    ctx.lineTo(cx - radius * 0.2, cy + radius * 0.2);
+    ctx.closePath();
+    ctx.fill();
+    sc.drawPlayer(b.id, cx, cy, radius, radius);
   }
 }
+
+const scene: SceneGame<FlappySnapshot> = {
+  scroll: 'x',
+  drawWorld,
+  anchor: (snapshot, index) => {
+    const n = snapshot.players.length;
+    return { x: FLAPPY_X + (index - (n - 1) / 2) * FAN, y: 1 - snapshot.players[index].y };
+  },
+};
 
 export const flappyView: LobbyGameView<FlappySnapshot> = {
   // One button: Flap (Space or Up), or tap anywhere on the arena.
   pad: 'none',
   actions: [{ name: 'flap', labelKey: 'spin.lobby.flappy.flap', keys: [' ', 'ArrowUp', 'w'] }],
   tapAction: 'flap',
+  nameKey: 'spin.lobby.flappy.name',
   hintKey: 'spin.lobby.flappy.hint',
-  draw,
+  draw: (args) => renderScene(args, scene),
   standings: (snapshot) => snapshot.players.map((p) => ({ id: p.id, score: p.wins, active: p.alive })).sort((a, b) => b.score - a.score),
 };

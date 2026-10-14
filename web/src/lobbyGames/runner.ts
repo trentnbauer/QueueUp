@@ -1,151 +1,124 @@
 import { RUNNER_X, type RunnerSnapshot } from '@queueup/shared';
-import type { LobbyDrawArgs, LobbyGameView } from './index';
+import type { LobbyGameView } from './index';
+import { FONT, STAGE, coverTile, drawFloor, groundShadow, hueOf, renderScene, roundRect, type Scene, type SceneGame } from './kit';
 
-// Mirrors the server's sizes (server/src/services/lobbyGames/runner.ts) so what is drawn is what is hit.
+// Mirrors the server's sizes (server/src/services/lobbyGames/runner.ts), so what is drawn is what is hit.
 const STAND_HEIGHT = 0.45;
 const DUCK_HEIGHT = 0.25;
 const CACTUS = { width: 0.1, height: 0.35 };
 const LOG = { width: 0.3, height: 0.35 };
-const BIRD = { width: 0.06, from: 0.3, to: 0.7 };
-const RUNNER_WIDTH = 0.04;
+const BIRD = { from: 0.3, to: 0.7 };
 
-/** When this browser first saw each snapshot, so the course can keep scrolling smoothly between the
- * server's snapshots instead of moving in 15-a-second steps. */
-const seenAt = new WeakMap<object, number>();
+/** Where the ground is, as a fraction of the arena, and how tall a jump "lane height" is. */
+const GROUND = 0.82;
+const UNIT = 0.5;
+/** Runners share one spot on the track, so they are fanned out a little (drawing only). */
+const FAN = 0.022;
 
-function drawText(ctx: CanvasRenderingContext2D, text: string, x: number, y: number, size: number, fill: string, align: CanvasTextAlign = 'center') {
-  ctx.font = `800 ${Math.round(size)}px system-ui, sans-serif`;
-  ctx.textAlign = align;
-  ctx.textBaseline = 'middle';
-  ctx.lineWidth = Math.max(3, size / 6);
-  ctx.strokeStyle = 'rgba(0,0,0,0.6)';
-  ctx.lineJoin = 'round';
-  ctx.strokeText(text, x, y);
-  ctx.fillStyle = fill;
-  ctx.fillText(text, x, y);
+function bodyHeight(ducking: boolean): number {
+  return (ducking ? DUCK_HEIGHT : STAND_HEIGHT) * UNIT;
 }
 
-function draw({ ctx, size, snapshot, me, users, ease, color, t }: LobbyDrawArgs<RunnerSnapshot>) {
-  const now = performance.now();
-  if (!seenAt.has(snapshot)) seenAt.set(snapshot, now);
-  const running = snapshot.phase === 'playing';
-  const sinceSnapshot = running ? Math.min(0.12, (now - (seenAt.get(snapshot) ?? now)) / 1000) : 0;
-  const scroll = snapshot.speed * sinceSnapshot;
+function drawWorld(sc: Scene<RunnerSnapshot>): void {
+  const { ctx, S, snapshot, theme, now, drift } = sc;
+  const unit = S * UNIT;
+  const ground = S * GROUND;
 
-  ctx.fillStyle = color('--bg', '#161210');
-  ctx.fillRect(0, 0, size, size);
-
-  // One shared track: every runner is on it together, over the same obstacles.
-  const unit = size * 0.5; // one "lane height" of jump
-  const ground = size * 0.82;
-  const dashOffset = running ? ((now / 1000) * snapshot.speed * size) % 28 : 0;
-  const gold = 'oklch(0.9 0.14 90)';
-
-  // Ground line with moving dashes.
-  ctx.fillStyle = 'rgba(255,255,255,0.04)';
-  ctx.fillRect(0, ground, size, size - ground);
-  ctx.strokeStyle = color('--chip', '#444');
-  ctx.lineWidth = 2;
-  ctx.beginPath();
-  ctx.moveTo(0, ground);
-  ctx.lineTo(size, ground);
-  ctx.stroke();
-  ctx.setLineDash([10, 18]);
-  ctx.lineDashOffset = dashOffset;
-  ctx.beginPath();
-  ctx.moveTo(0, ground + size * 0.04);
-  ctx.lineTo(size, ground + size * 0.04);
-  ctx.stroke();
-  ctx.setLineDash([]);
+  drawFloor(sc, ground);
+  // Ground texture that moves with the course: pale ticks and a row of accent dashes.
+  const tick = S * 0.08;
+  const offset = ((sc.fx.scroll + drift) * S) % tick;
+  ctx.fillStyle = STAGE.groundTick;
+  for (let x = -offset; x < S; x += tick) ctx.fillRect(x, ground + S * 0.04, tick * 0.4, 2);
+  ctx.save();
+  ctx.globalAlpha = 0.5;
+  ctx.fillStyle = theme.acc;
+  for (let x = (-offset * 2) % (tick * 2); x < S; x += tick * 2) ctx.fillRect(x, ground + S * 0.09, tick * 0.15, 2);
+  ctx.restore();
 
   for (const o of snapshot.obstacles) {
-    const cx = (o.x - scroll) * size;
+    const cx = (o.x - drift) * S;
+    const hue = hueOf(o.n);
     if (o.kind === 'cactus') {
-      const w = CACTUS.width * size;
+      // A game cover standing on the ground, with two lines of "title" at the bottom.
+      const w = CACTUS.width * S;
       const h = CACTUS.height * unit;
-      ctx.fillStyle = 'oklch(0.7 0.15 150)';
-      ctx.fillRect(cx - w / 2, ground - h, w, h);
-      ctx.fillRect(cx - w * 0.9, ground - h * 0.7, w * 0.35, h * 0.28);
-      ctx.fillRect(cx + w * 0.55, ground - h * 0.8, w * 0.35, h * 0.28);
+      groundShadow(ctx, cx, ground, w * 0.6);
+      coverTile(ctx, cx - w / 2, ground - h, w, h, hue, S * 0.022, true);
+      ctx.fillStyle = 'oklch(1 0 0 / 0.7)';
+      roundRect(ctx, cx - w * 0.32, ground - h * 0.16, w * 0.5, Math.max(2, S * 0.007), 2);
+      ctx.fill();
+      ctx.fillStyle = 'oklch(1 0 0 / 0.35)';
+      roundRect(ctx, cx - w * 0.32, ground - h * 0.09, w * 0.3, Math.max(2, S * 0.006), 2);
+      ctx.fill();
     } else if (o.kind === 'log') {
-      // A wide, low log: a held jump to clear it.
-      const w = LOG.width * size;
+      // A wide, low stack of covers: a held jump to clear it.
+      const w = LOG.width * S;
       const h = LOG.height * unit;
-      ctx.fillStyle = 'oklch(0.5 0.08 55)';
-      ctx.fillRect(cx - w / 2, ground - h, w, h);
-      ctx.fillStyle = 'oklch(0.62 0.09 60)';
-      ctx.fillRect(cx - w / 2, ground - h, w, h * 0.22);
-      ctx.strokeStyle = 'oklch(0.38 0.06 55)';
-      ctx.lineWidth = 2;
-      for (let k = 1; k < 4; k++) {
+      groundShadow(ctx, cx, ground, w * 0.55);
+      coverTile(ctx, cx - w / 2, ground - h, w, h, hue, S * 0.022, true);
+      ctx.strokeStyle = 'oklch(1 0 0 / 0.12)';
+      ctx.lineWidth = 1;
+      for (let k = 1; k < 3; k++) {
         ctx.beginPath();
-        ctx.moveTo(cx - w / 2 + (w * k) / 4, ground - h);
-        ctx.lineTo(cx - w / 2 + (w * k) / 4, ground);
+        ctx.moveTo(cx - w / 2 + (w * k) / 3, ground - h + 3);
+        ctx.lineTo(cx - w / 2 + (w * k) / 3, ground - 3);
         ctx.stroke();
       }
+      ctx.fillStyle = 'oklch(1 0 0 / 0.55)';
+      roundRect(ctx, cx - w * 0.4, ground - h * 0.14, w * 0.36, Math.max(2, S * 0.007), 2);
+      ctx.fill();
     } else {
-      const w = BIRD.width * size;
-      const y0 = ground - BIRD.to * unit;
-      const h = (BIRD.to - BIRD.from) * unit;
-      const flap = Math.sin(now / 90) > 0 ? 1 : -1;
-      const cy = y0 + h / 2;
-      ctx.fillStyle = 'oklch(0.78 0.14 55)';
-      // Body, then a wing that flaps up and down.
+      // A 😴 vote flying in (the bottom of the app's five-emoji vote scale): duck under it.
+      const d = 0.18 * S;
+      const bob = Math.sin(now / 180 + o.n) * S * 0.006;
+      const cy = ground - ((BIRD.from + BIRD.to) / 2) * unit + bob;
+      ctx.fillStyle = 'oklch(1 0 0 / 0.08)';
+      for (let k = 0; k < 3; k++) {
+        roundRect(ctx, cx + d * 0.55 + k * S * 0.012, cy - d * 0.25 + k * d * 0.25, S * (0.05 - k * 0.012), 2, 1);
+        ctx.fill();
+      }
+      ctx.save();
+      ctx.shadowColor = 'oklch(0 0 0 / 0.4)';
+      ctx.shadowBlur = S * 0.03;
+      ctx.shadowOffsetY = S * 0.01;
       ctx.beginPath();
-      ctx.ellipse(cx, cy, w / 2, h * 0.22, 0, 0, Math.PI * 2);
+      ctx.arc(cx, cy, d / 2, 0, Math.PI * 2);
+      ctx.fillStyle = sc.color('--surf2', 'oklch(0.25 0.01 55)');
       ctx.fill();
-      ctx.beginPath();
-      ctx.moveTo(cx - w * 0.2, cy);
-      ctx.lineTo(cx + w * 0.2, cy);
-      ctx.lineTo(cx, cy - flap * h * 0.5);
-      ctx.closePath();
-      ctx.fill();
-    }
-  }
-
-  // The runners. They all stand at the same spot on the track, so they are fanned out a few pixels
-  // (drawing only - everyone is hit at the same place) and the viewer is drawn last, on top.
-  const spread = size * 0.006;
-  const order = [...snapshot.players.keys()].sort((a, b) => Number(snapshot.players[a].id === me) - Number(snapshot.players[b].id === me) || Number(snapshot.players[a].alive) - Number(snapshot.players[b].alive));
-  for (const i of order) {
-    const p = snapshot.players[i];
-    const user = users.get(p.id);
-    const lift = ease(p.id, 0, p.h).y;
-    const bodyH = (p.ducking ? DUCK_HEIGHT : STAND_HEIGHT) * unit;
-    const rx = (RUNNER_WIDTH * size) / 2 + 1;
-    const cx = RUNNER_X * size + (i - (snapshot.players.length - 1) / 2) * spread;
-    const cy = ground - lift * unit - bodyH / 2;
-    ctx.globalAlpha = p.alive ? 0.92 : 0.3;
-    ctx.beginPath();
-    ctx.ellipse(cx, cy, rx, bodyH / 2, 0, 0, Math.PI * 2);
-    ctx.fillStyle = user?.avatarColor ?? '#8b5cf6';
-    ctx.fill();
-    if (p.id === me) {
-      ctx.lineWidth = 2;
-      ctx.strokeStyle = color('--text', '#fff');
+      ctx.restore();
+      ctx.strokeStyle = theme.line;
+      ctx.lineWidth = 1;
       ctx.stroke();
+      ctx.font = `${Math.round(d * 0.55)}px "Apple Color Emoji","Segoe UI Emoji","Noto Color Emoji",${FONT.ui}`;
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      ctx.fillText('😴', cx, cy + d * 0.04);
     }
-    ctx.fillStyle = '#fff';
-    ctx.font = `700 ${Math.round(Math.min(rx * 1.3, bodyH * 0.6))}px system-ui, sans-serif`;
-    ctx.textAlign = 'center';
-    ctx.textBaseline = 'middle';
-    ctx.fillText((user?.displayName ?? '?').slice(0, 1).toUpperCase(), cx, cy + 1);
-    ctx.globalAlpha = 1;
   }
 
-  // Banner and distance.
-  const mine = snapshot.players.find((p) => p.id === me);
-  if (snapshot.phase !== 'lobby') drawText(ctx, t('spin.lobby.runner.meters', { n: snapshot.meters }), size - size * 0.03, size * 0.05, size * 0.045, color('--text', '#fff'), 'right');
-  if (snapshot.phase === 'countdown') {
-    drawText(ctx, t('spin.lobby.runner.countdown', { n: Math.max(1, Math.ceil(snapshot.timerMs / 1000)) }), size * 0.4, size * 0.05, size * 0.055, gold);
-  } else if (snapshot.phase === 'over') {
-    const winner = snapshot.winnerId ? users.get(snapshot.winnerId)?.displayName ?? '?' : null;
-    const text = winner ? t('spin.lobby.runner.winner', { name: winner }) : snapshot.players.length > 1 ? t('spin.lobby.runner.draw') : t('spin.lobby.runner.soloOver', { n: snapshot.players[0]?.meters ?? 0 });
-    drawText(ctx, text, size * 0.4, size * 0.05, size * 0.05, gold);
-  } else if (snapshot.phase === 'playing' && mine && !mine.alive) {
-    drawText(ctx, t('spin.lobby.runner.out'), size * 0.4, size * 0.05, size * 0.045, color('--text', '#fff'));
+  const n = snapshot.players.length;
+  for (const i of sc.order()) {
+    const p = snapshot.players[i];
+    if (!p.alive) continue; // knocked out: the burst has taken them
+    const lift = sc.ease(p.id, 0, p.h).y;
+    const ry = (bodyHeight(p.ducking) * S) / 2;
+    const rx = (p.ducking ? 0.05 : 0.04) * S;
+    const cx = (RUNNER_X + (i - (n - 1) / 2) * FAN) * S;
+    groundShadow(ctx, cx, ground, rx, Math.max(0.2, 1 - lift));
+    sc.drawPlayer(p.id, cx, ground - lift * unit - ry, rx, ry);
   }
 }
+
+const scene: SceneGame<RunnerSnapshot> = {
+  scroll: 'x',
+  drawWorld,
+  anchor: (snapshot, index) => {
+    const p = snapshot.players[index];
+    const n = snapshot.players.length;
+    return { x: RUNNER_X + (index - (n - 1) / 2) * FAN, y: GROUND - p.h * UNIT - bodyHeight(p.ducking) / 2 };
+  },
+};
 
 export const runnerView: LobbyGameView<RunnerSnapshot> = {
   // Two held buttons: Jump (Space or Up; hold it to jump higher and further) and Duck (Down). Tapping
@@ -157,7 +130,8 @@ export const runnerView: LobbyGameView<RunnerSnapshot> = {
   ],
   actions: [],
   tapHold: [0, -1],
+  nameKey: 'spin.lobby.runner.name',
   hintKey: 'spin.lobby.runner.hint',
-  draw,
+  draw: (args) => renderScene(args, scene),
   standings: (snapshot) => snapshot.players.map((p) => ({ id: p.id, score: p.wins, active: p.alive })).sort((a, b) => b.score - a.score),
 };

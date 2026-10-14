@@ -1,89 +1,70 @@
 import { DODGE_BLOCK_HEIGHT, DODGE_PLAYER_WIDTH, DODGE_PLAYER_Y, type DodgeSnapshot } from '@queueup/shared';
-import type { LobbyDrawArgs, LobbyGameView } from './index';
+import type { LobbyGameView } from './index';
+import { coverTile, drawFloor, groundShadow, hueOf, renderScene, type Scene, type SceneGame } from './kit';
 
-/** When this browser first saw each snapshot, so blocks keep falling smoothly between the server's
- * snapshots instead of moving in 15-a-second steps. */
-const seenAt = new WeakMap<object, number>();
+/** Where the floor is, just under the players. */
+const FLOOR = 0.95;
 
-function drawText(ctx: CanvasRenderingContext2D, text: string, x: number, y: number, size: number, fill: string, align: CanvasTextAlign = 'center') {
-  ctx.font = `800 ${Math.round(size)}px system-ui, sans-serif`;
-  ctx.textAlign = align;
-  ctx.textBaseline = 'middle';
-  ctx.lineWidth = Math.max(3, size / 6);
-  ctx.strokeStyle = 'rgba(0,0,0,0.6)';
-  ctx.lineJoin = 'round';
-  ctx.strokeText(text, x, y);
-  ctx.fillStyle = fill;
-  ctx.fillText(text, x, y);
-}
+function drawWorld(sc: Scene<DodgeSnapshot>): void {
+  const { ctx, S, snapshot, drift } = sc;
+  const floor = S * FLOOR;
+  drawFloor(sc, floor);
 
-function draw({ ctx, size, snapshot, me, users, ease, color, t }: LobbyDrawArgs<DodgeSnapshot>) {
-  const now = performance.now();
-  if (!seenAt.has(snapshot)) seenAt.set(snapshot, now);
-  const running = snapshot.phase === 'playing';
-  const fall = running ? snapshot.speed * Math.min(0.12, (now - (seenAt.get(snapshot) ?? now)) / 1000) : 0;
-  const gold = 'oklch(0.9 0.14 90)';
-
-  ctx.fillStyle = color('--bg', '#161210');
-  ctx.fillRect(0, 0, size, size);
-  // The floor the players stand on.
-  const floor = (DODGE_PLAYER_Y + DODGE_BLOCK_HEIGHT / 2) * size;
-  ctx.fillStyle = 'rgba(255,255,255,0.05)';
-  ctx.fillRect(0, floor, size, size - floor);
-
-  // Falling blocks.
-  const blockH = DODGE_BLOCK_HEIGHT * size;
-  ctx.fillStyle = 'oklch(0.72 0.14 40)';
+  // Falling blocks: game covers, each with a motion streak above it and a shadow that grows on the floor.
+  const blockH = DODGE_BLOCK_HEIGHT * S;
   for (const b of snapshot.blocks) {
-    const w = b.w * size;
-    ctx.fillRect(b.x * size - w / 2, (b.y + fall) * size - blockH / 2, w, blockH);
-  }
-
-  // Players: everyone shares the floor, drawn translucent so overlaps show; the viewer is last, on top.
-  const radius = (DODGE_PLAYER_WIDTH * size) / 2;
-  const order = [...snapshot.players.keys()].sort((a, b) => Number(snapshot.players[a].id === me) - Number(snapshot.players[b].id === me) || Number(snapshot.players[a].alive) - Number(snapshot.players[b].alive));
-  for (const i of order) {
-    const p = snapshot.players[i];
-    const user = users.get(p.id);
-    const cx = ease(p.id, p.x, 0).x * size;
-    const cy = DODGE_PLAYER_Y * size;
-    ctx.globalAlpha = p.alive ? 0.92 : 0.3;
-    ctx.beginPath();
-    ctx.arc(cx, cy, radius, 0, Math.PI * 2);
-    ctx.fillStyle = user?.avatarColor ?? '#8b5cf6';
-    ctx.fill();
-    if (p.id === me) {
-      ctx.lineWidth = 2;
-      ctx.strokeStyle = color('--text', '#fff');
-      ctx.stroke();
+    const w = b.w * S;
+    const x = b.x * S - w / 2;
+    const y = (b.y + drift) * S - blockH / 2;
+    const hue = hueOf(b.n);
+    const streak = ctx.createLinearGradient(0, y - blockH * 2, 0, y);
+    streak.addColorStop(0, `oklch(0.66 0.12 ${hue} / 0)`);
+    streak.addColorStop(1, `oklch(0.66 0.12 ${hue} / 0.28)`);
+    ctx.fillStyle = streak;
+    ctx.fillRect(x + w * 0.15, y - blockH * 2, w * 0.7, blockH * 2);
+    coverTile(ctx, x, y, w, blockH, hue, S * 0.016);
+    if (b.y > 0.6) {
+      const k = Math.min(1, (b.y - 0.6) / 0.32);
+      ctx.fillStyle = `oklch(0 0 0 / ${0.3 * k})`;
+      ctx.beginPath();
+      ctx.ellipse(b.x * S, floor, w * 0.5 * k, 3, 0, 0, Math.PI * 2);
+      ctx.fill();
     }
-    ctx.fillStyle = '#fff';
-    ctx.font = `700 ${Math.round(radius)}px system-ui, sans-serif`;
-    ctx.textAlign = 'center';
-    ctx.textBaseline = 'middle';
-    ctx.fillText((user?.displayName ?? '?').slice(0, 1).toUpperCase(), cx, cy + 1);
-    ctx.globalAlpha = 1;
   }
 
-  // Banner and distance.
-  const mine = snapshot.players.find((p) => p.id === me);
-  if (snapshot.phase !== 'lobby') drawText(ctx, t('spin.lobby.dodge.meters', { n: snapshot.meters }), size - size * 0.03, size * 0.05, size * 0.045, color('--text', '#fff'), 'right');
-  if (snapshot.phase === 'countdown') {
-    drawText(ctx, t('spin.lobby.dodge.countdown', { n: Math.max(1, Math.ceil(snapshot.timerMs / 1000)) }), size * 0.4, size * 0.05, size * 0.055, gold);
-  } else if (snapshot.phase === 'over') {
-    const winner = snapshot.winnerId ? users.get(snapshot.winnerId)?.displayName ?? '?' : null;
-    const text = winner ? t('spin.lobby.dodge.winner', { name: winner }) : snapshot.players.length > 1 ? t('spin.lobby.dodge.draw') : t('spin.lobby.dodge.soloOver', { n: snapshot.players[0]?.meters ?? 0 });
-    drawText(ctx, text, size * 0.4, size * 0.05, size * 0.05, gold);
-  } else if (snapshot.phase === 'playing' && mine && !mine.alive) {
-    drawText(ctx, t('spin.lobby.dodge.out'), size * 0.4, size * 0.05, size * 0.045, color('--text', '#fff'));
+  const radius = (DODGE_PLAYER_WIDTH * S) / 2;
+  for (const i of sc.order()) {
+    const p = snapshot.players[i];
+    if (!p.alive) continue; // knocked out: the burst has taken them
+    const cx = sc.ease(p.id, p.x, 0).x * S;
+    const cy = DODGE_PLAYER_Y * S;
+    groundShadow(ctx, cx, floor, radius);
+    if (p.dir) {
+      // A faint after-image on the side they are moving away from.
+      ctx.save();
+      ctx.globalAlpha = 0.25;
+      ctx.fillStyle = sc.info(p.id).color;
+      ctx.beginPath();
+      ctx.ellipse(cx - p.dir * radius * 1.1, cy, radius * 0.8, radius * 0.6, 0, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.restore();
+    }
+    sc.drawPlayer(p.id, cx, cy, radius, radius);
   }
 }
+
+const scene: SceneGame<DodgeSnapshot> = {
+  scroll: 'y',
+  drawWorld,
+  anchor: (snapshot, index) => ({ x: snapshot.players[index].x, y: DODGE_PLAYER_Y }),
+};
 
 export const dodgeView: LobbyGameView<DodgeSnapshot> = {
   // Just left and right.
   pad: 'leftRight',
   actions: [],
+  nameKey: 'spin.lobby.dodge.name',
   hintKey: 'spin.lobby.dodge.hint',
-  draw,
+  draw: (args) => renderScene(args, scene),
   standings: (snapshot) => snapshot.players.map((p) => ({ id: p.id, score: p.wins, active: p.alive })).sort((a, b) => b.score - a.score),
 };
