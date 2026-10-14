@@ -40,7 +40,7 @@ export const LOBBY_REPORT_FIELDS_MAX = 8;
 
 /** The most tap targets a game can have on the arena; the server drops a tap with a higher index. A game
  * checks the index against its own count too. */
-export const LOBBY_TAP_TARGETS_MAX = 64;
+export const LOBBY_TAP_TARGETS_MAX = 128;
 
 // ---- Rounds --------------------------------------------------------------------------------------
 
@@ -338,12 +338,17 @@ export interface CoinsSnapshot extends RoundSummary {
   winnerId: string | null;
 }
 
-// ---- Battleships (one shared board; everyone fires at the same hidden fleet) -----------------------
+// ---- Battleships (everyone has their own hidden fleet, and fires at one another's boards) -----------
 
-/** The board is this many squares each way (8 x 8 = 64, the most tap targets a game can have). */
+/** Each board is this many squares each way (8 x 8 = 64). */
 export const BATTLESHIPS_SIZE = 8;
 
-/** What a square on the board shows. A square nobody has shot shows nothing: no ship is given away. */
+/** The tap targets: 0 to 63 are the squares of the board you are shooting at; from this up, target number
+ * BATTLESHIPS_TARGET_BASE + k picks who you shoot at, the k-th of the other players in the round (in the
+ * order they appear in `players`). */
+export const BATTLESHIPS_TARGET_BASE = 64;
+
+/** What a square on a board shows. A square nobody has shot shows nothing: no ship is given away. */
 export const SQUARE_UNKNOWN = 0;
 export const SQUARE_MISS = 1;
 export const SQUARE_HIT = 2;
@@ -352,8 +357,10 @@ export const SQUARE_SUNK = 3;
 
 export interface BattleshipsPlayer {
   id: string;
-  /** In this round. False if they arrived part way through (they watch and play from the next one). */
+  /** Still in: in the round, and with a ship afloat. False once their fleet is sunk. */
   alive: boolean;
+  /** Was in the round when it started (someone who arrived part way through only watches). */
+  inRound: boolean;
   /** Rounds won since this person joined the lobby. */
   wins: number;
   /** Points this round: a hit is 1, and the shot that sinks a ship is 1 more. */
@@ -363,8 +370,22 @@ export interface BattleshipsPlayer {
   hits: number;
   /** Milliseconds until they can shoot again (0 when they can). */
   cooldownMs: number;
+  /** How many squares of their ships are still afloat (everyone can see this). */
+  afloat: number;
 }
 
+/** What is known about one player's board: the squares that have been shot at, and their ships by length. */
+export interface BattleshipsBoard {
+  /** Each square, row by row: SQUARE_UNKNOWN, SQUARE_MISS, SQUARE_HIT or SQUARE_SUNK. */
+  cells: number[];
+  /** Who shot each square: the index into `players`, or -1 for a square nobody has shot. */
+  by: number[];
+  /** The fleet's ships, by length, and whether each is sunk. Where they are is never sent (except to their owner). */
+  fleet: { len: number; sunk: boolean }[];
+}
+
+/** Sent to one person (see `LobbyGame.snapshot(viewer)`): the same for everyone except for `mine`, which is
+ * only ever sent to the person it belongs to. */
 export interface BattleshipsSnapshot extends RoundSummary {
   id: 'battleships';
   phase: LobbyRoundPhase;
@@ -374,16 +395,17 @@ export interface BattleshipsSnapshot extends RoundSummary {
   speed: number;
   /** Milliseconds left in the round while `playing`. */
   roundLeftMs: number;
-  /** Each square, row by row: SQUARE_UNKNOWN, SQUARE_MISS, SQUARE_HIT or SQUARE_SUNK. */
-  cells: number[];
-  /** Who shot each square: the index into `players`, or -1 for a square nobody has shot. */
-  by: number[];
-  /** The fleet's ships, by length, and whether each is sunk. Where they are is never sent. */
-  fleet: { len: number; sunk: boolean }[];
   players: BattleshipsPlayer[];
+  /** Who this person is shooting at (a player id), or null if there is nobody to shoot at. */
+  target: string | null;
+  /** The target's board as shot so far, or null with no target. */
+  targetBoard: BattleshipsBoard | null;
+  /** This person's own board: the squares shot at, and where their own ships are (`ships`, the squares of
+   * each). Null for someone who is not in the round. */
+  mine: (BattleshipsBoard & { ships: number[][] }) | null;
   /** Milliseconds left in `countdown` or `over`; 0 otherwise. */
   timerMs: number;
-  /** Who won the round that just ended (`over` only); null when nobody did (a tie, or nobody scored). */
+  /** Who won the round that just ended (`over` only); null when nobody did. */
   winnerId: string | null;
 }
 

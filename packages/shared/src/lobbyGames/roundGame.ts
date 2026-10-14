@@ -116,7 +116,7 @@ export abstract class RoundGame<P extends RoundPlayer> implements LobbyGame {
   abstract action(userId: string, name: string): void;
   /** Tap targets are optional: a game that has them overrides this. */
   tap(_userId: string, _target: number): void {}
-  abstract snapshot(): LobbyGameSnapshot;
+  abstract snapshot(viewer?: string): LobbyGameSnapshot;
 
   // ---- Client-sim games: each player's own movement is worked out on their own device ---------------
 

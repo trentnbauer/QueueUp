@@ -79,7 +79,7 @@ export class SpinLobbyHub {
     room.sockets.set(socket, userId);
     // Look straight away rather than waiting for the next check, so a vote button shows at once.
     void this.refreshSpin(roomId);
-    this.send(socket, room.lobby.snapshot(room.spinWaiting, this.now()));
+    this.send(socket, room.lobby.snapshot(room.spinWaiting, this.now(), userId));
   }
 
   disconnect(roomId: string, socket: LobbySocket): void {
@@ -153,7 +153,7 @@ export class SpinLobbyHub {
     }
 
     if (room.ticks % SPIN_CHECK_EVERY_TICKS === 0) void this.refreshSpin(roomId);
-    this.broadcast(room, room.lobby.snapshot(room.spinWaiting, this.now()));
+    this.broadcastState(room, room.spinWaiting);
   }
 
   /** Asks whether a spin is waiting, holds its waiting room open if so, and tells the lobby when it
@@ -168,12 +168,18 @@ export class SpinLobbyHub {
       if (this.rooms.get(roomId) !== room) return;
       room.spinWaiting = waiting;
       if (was && !waiting) this.broadcast(room, { t: 'started' });
-      else if (!was && waiting) this.broadcast(room, room.lobby.snapshot(true, this.now()));
+      else if (!was && waiting) this.broadcastState(room, true);
     } catch {
       // A hiccup reading the spin should not take the lobby down; the next check tries again.
     } finally {
       room.checking = false;
     }
+  }
+
+  /** The game's state to everyone in the room, each person's own view of it (for games with hidden things). */
+  private broadcastState(room: RoomState, spinWaiting: boolean): void {
+    const now = this.now();
+    for (const [socket, userId] of room.sockets) this.send(socket, room.lobby.snapshot(spinWaiting, now, userId));
   }
 
   private broadcast(room: RoomState, message: LobbyServerMessage): void {

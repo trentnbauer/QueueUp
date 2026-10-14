@@ -18,6 +18,10 @@ A game has two halves that never share code, only the snapshot type in `packages
 4. **Strings:** the game's name, hint and button labels in `web/src/i18n/locales/{en,pirate}/spin.ts` as `spin.lobby.<game>.*`. The countdown, result and "you're out" text are shared (`spin.lobby.hud.*`); do not add per-game copies.
 5. **Tests:** see "Before a PR".
 
+## Things only one person may see
+
+Most games look the same to everyone. A game with something that belongs to one person (Battleships: where *your* ships are) uses the `viewer` the rules class is given: `snapshot(viewer)` returns that person's view, and the server sends every connection its own (`SpinLobbyHub.broadcastState`). Put the hidden thing in the snapshot only when `viewer` is its owner, and never in the part everyone gets. A bot is given its own view too (`BotFiller` calls `snapshot(botId)`), and a spectator or `snapshot()` with no viewer gets none of it. Test it: what one person's snapshot says must not contain what another's does.
+
 ## Where a player is worked out
 
 A game whose players **do not affect each other** (they share a course but never collide or compete for the same thing) can run each player on their own device, so ping does not matter to their own play. In the rules class:
