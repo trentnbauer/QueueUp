@@ -22,6 +22,7 @@ Mini games are **cosmetic**: nothing in them changes which game a spin picks.
 - **Everyone sees the same course.** The obstacles are the same for every player in a run, and every course can be cleared.
 - **Distance** is shown in metres (one screen is 20 m).
 - **Scoreboard.** The panel shows **wins this lobby** for everyone, the **last 10 runs** (the winner's colour and initial; a dash for a run nobody won), and the **best run** so far.
+- **Bots.** Some games need more than one player (Red light, green light needs 2). If fewer people are in the lobby, **bots** ("Bot 1", in a muted colour with a **B**) join to make up the numbers. They are not members: they never vote, never count as being in the mini game and never show up in the room. They are only added or removed between runs, never during one, and they leave once enough real people have joined. When the last person leaves, the bots go too. Practice mode on the Personal Shelf uses the same bots.
 - **Playing together.** Any number of members can join. You can have the mini game open on up to 5 devices or tabs at once; you still count as one player.
 
 ## Voting to spin
@@ -43,6 +44,7 @@ Every game uses at most **one direction axis plus one button**, so it works on a
 | Runner | **Space**, **↑** or **W** to jump (hold for a longer jump). Hold **↓** or **S** to duck. | Hold **Jump** (or press and hold the arena). Hold **Duck**. |
 | Flappy | **Space**, **↑** or **W** to flap. | **Flap**, or tap anywhere on the arena. |
 | Dodge | **←** / **→** or **A** / **D**. | The **◀** and **▶** buttons. |
+| Red light, green light | Hold **Space**, **→** or **D** to run. | Hold **Run** (or press and hold the arena). |
 | Jump rope | **Space**, **↑** or **W** to jump. | **Jump**, or tap anywhere on the arena. |
 
 ## Runner
@@ -88,6 +90,17 @@ A rope swings round and everyone jumps it together.
 - **Score:** the number of swings you jumped (the counter shows it where the other games show metres).
 - **Speed:** a swing starts at 1.8 seconds and shortens by 0.03 seconds for every second of the run, down to 0.75 seconds after about 35 seconds. Now and then a swing is slower (a pause, 1.5 times as long) or quicker (0.85 times as long, never under 0.65 seconds), so don't jump on rhythm alone.
 - Every swing is long enough to land and jump again.
+
+## Red light, green light
+
+A race to the finish line, with a traffic light in charge. Needs at least 2 players, so on your own you race a bot.
+
+- **Goal:** be the first across the line. Everyone has their own lane on the same track.
+- **Hold the run button** to run while the light is green. Let go to stand still.
+- **The light** turns amber and flashes for about half a second before it goes red. Moving once it is red (after a quarter of a second to let a slow connection catch up) knocks you out. Green and red spells are random but the same for everyone.
+- **Winning:** the first runner to cross the line wins. This game ends the moment someone finishes, so unlike the others it is not only last one in. If nobody has finished after 45 seconds, whoever is furthest along wins; a tie for the lead is a draw.
+- **Distance** shown is how far the leader has run, out of 20 m.
+- It takes about 10 seconds of holding the button to cross the track, so a run is roughly 20 seconds.
 
 ## Adding a game
 

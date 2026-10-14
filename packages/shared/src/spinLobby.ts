@@ -11,8 +11,8 @@
 export const LOBBY_TICK_HZ = 15;
 
 /** The games the lobby can run. */
-export type LobbyGameId = 'runner' | 'flappy' | 'dodge' | 'rope';
-export const LOBBY_GAME_IDS: readonly LobbyGameId[] = ['runner', 'flappy', 'dodge', 'rope'];
+export type LobbyGameId = 'runner' | 'flappy' | 'dodge' | 'rope' | 'redlight';
+export const LOBBY_GAME_IDS: readonly LobbyGameId[] = ['runner', 'flappy', 'dodge', 'rope', 'redlight'];
 
 /** What a client sends. Anything else is ignored. */
 export type LobbyClientMessage =
@@ -234,8 +234,42 @@ export interface RopeSnapshot extends RoundSummary {
   winnerId: string | null;
 }
 
+// ---- Red light, green light (run while it is green, freeze when it is red) -------------------------
+
+/** What the light is doing. `warn` is green with a short flash: it is about to turn red. */
+export type RedLightState = 'green' | 'warn' | 'red';
+
+export interface RedLightPlayer {
+  id: string;
+  /** How far along the track they are, 0 (start) to 1 (the finish line). */
+  x: number;
+  /** Holding the run button right now (for the running animation). */
+  running: boolean;
+  /** Still in. False once caught moving on red, or if they arrived mid-run. */
+  alive: boolean;
+  /** Runs won since this person joined the lobby. */
+  wins: number;
+  /** How far they got, in metres (one screen is 20 m): live while in, final once out. */
+  meters: number;
+}
+
+export interface RedLightSnapshot extends RoundSummary {
+  id: 'redlight';
+  phase: LobbyRoundPhase;
+  /** How far the leader has got, in metres. */
+  meters: number;
+  /** Always 0: nothing scrolls past in this game (every snapshot carries a course speed). */
+  speed: number;
+  light: RedLightState;
+  players: RedLightPlayer[];
+  /** Milliseconds left in `countdown` or `over`; 0 otherwise. */
+  timerMs: number;
+  /** Who won the run that just ended (`over` only); null when nobody did (a solo run, or a draw). */
+  winnerId: string | null;
+}
+
 /** The snapshot of whichever game is running. */
-export type LobbyGameSnapshot = RunnerSnapshot | FlappySnapshot | DodgeSnapshot | RopeSnapshot;
+export type LobbyGameSnapshot = RunnerSnapshot | FlappySnapshot | DodgeSnapshot | RopeSnapshot | RedLightSnapshot;
 
 export interface LobbySnapshot {
   t: 'state';

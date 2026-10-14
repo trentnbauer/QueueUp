@@ -3,6 +3,7 @@ import type { MessageKey } from '../i18n';
 import type { LobbyFx } from './kit/fx';
 import { dodgeView } from './dodge';
 import { flappyView } from './flappy';
+import { redLightView } from './redlight';
 import { ropeView } from './rope';
 import { runnerView } from './runner';
 
@@ -62,6 +63,7 @@ export const LOBBY_GAME_VIEWS: { [K in LobbyGameId]: LobbyGameView<Extract<Lobby
   flappy: flappyView,
   dodge: dodgeView,
   rope: ropeView,
+  redlight: redLightView,
 };
 
 /** The view for whichever game a snapshot belongs to. */

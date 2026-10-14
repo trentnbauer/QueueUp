@@ -7,6 +7,9 @@ import type { LobbyGameId, LobbyGameSnapshot } from '../spinLobby.js';
  * Games are cosmetic: nothing here may touch a spin. */
 export interface LobbyGame {
   readonly id: LobbyGameId;
+  /** The fewest players the game needs to be worth playing (default 1). With fewer people in the lobby,
+   * the lobby adds bots until there are this many (see bots.ts). */
+  readonly minPlayers?: number;
   /** A member arrived (the lobby calls this once per person, not once per tab). */
   join(userId: string): void;
   leave(userId: string): void;
@@ -18,3 +21,15 @@ export interface LobbyGame {
   tick(dtMs: number): void;
   snapshot(): LobbyGameSnapshot;
 }
+
+/** What a bot wants to do this tick: the direction it holds (kept until it says otherwise) and any
+ * one-off moves. The same things a person sends. */
+export interface BotCommand {
+  dx?: number;
+  dy?: number;
+  actions?: string[];
+}
+
+/** One bot's brain: looks at the game as a player would (the snapshot) and decides what to press. Made
+ * per bot, so it can remember things between ticks. Bots are meant to be beatable, not perfect. */
+export type BotBrain = (snapshot: LobbyGameSnapshot, dtMs: number) => BotCommand;
