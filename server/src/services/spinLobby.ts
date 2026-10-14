@@ -116,10 +116,11 @@ export class SpinLobby {
     this.game.tick(dtMs);
   }
 
-  /** What everyone is sent. `now` is the server's clock, sent along with the run's start (for a game that
+  /** What `viewer` is sent (a game with hidden things shows each person their own; most are the same for
+   * everyone). `now` is the server's clock, sent along with the run's start (for a game that
    * runs each player on their own device) so clients can line their clocks up and start together. */
-  snapshot(spinWaiting: boolean, now?: number): LobbySnapshot {
-    const snapshot: LobbySnapshot = { t: 'state', tick: this.tickCount, game: this.game.snapshot(), voters: [...this.votes], needed: this.needed, spinWaiting };
+  snapshot(spinWaiting: boolean, now?: number, viewer?: string): LobbySnapshot {
+    const snapshot: LobbySnapshot = { t: 'state', tick: this.tickCount, game: this.game.snapshot(viewer), voters: [...this.votes], needed: this.needed, spinWaiting };
     const sim = this.game.simStart?.();
     if (sim && now !== undefined) {
       snapshot.sim = sim;

@@ -59,7 +59,7 @@ A game can instead make **the play space the controller**: there are no buttons 
 | Dodge | **←** / **→** or **A** / **D**. | The **◀** and **▶** buttons. |
 | Red light, green light | Hold **Space**, **→** or **D** to run. | Hold **Run** (or press and hold the arena). |
 | Catch the coins | **←** / **→** or **A** / **D**. | The **◀** and **▶** buttons. |
-| Battleships | Click a square on the board (no keyboard control yet). | Tap a square on the board. |
+| Battleships | Click a square or a player (no keyboard control yet). | Tap a square on the big board, or a player to change whose board it is. |
 | Jump rope | **Space**, **↑** or **W** to jump. | **Jump**, or tap anywhere on the arena. |
 
 ## Runner
@@ -131,15 +131,17 @@ Coins fall; slide left and right to catch them before anyone else does.
 
 ## Battleships
 
-One board for everyone: a hidden fleet, and everyone shooting at the same squares.
+Everyone has their own hidden fleet, and everyone fires at everyone else's. Last fleet afloat wins.
 
-- **Goal:** find and sink the fleet. A **hit** scores 1, the shot that **sinks** a ship scores 1 more. When the whole fleet is sunk, or after 90 seconds, **most points wins**; a tie for the most, or nobody scoring, is a draw.
-- **The board is the controller:** it is an 8 by 8 grid, and you tap or click a square to fire. There are no buttons under it. (There is no keyboard control for this game yet.)
-- **A fleet to fit the room:** it is made when the round starts, from how many are playing. **Fewer players get a fuller board** (about 30% of the squares are ship for one or two players) and **more players get more open water** (about 10% for twelve). The ships are **1, 2, 3 or 4 squares long, picked at random** until the squares add up, so the same amount of ship can be one 4 and a 1, or 2, 2 and 1, and every round has a different fleet. Ships are straight, never overlap and never touch.
-- **Everyone sees every shot** as it lands: a miss is a dot, a hit is a cross, in the colour of whoever fired it, and a sunk ship is shown dark. Squares nobody has shot never show what is under them. The row along the top is the fleet by ship length, with sunk ships dimmed. A 1-square ship is sunk by a single hit, which scores the hit and the sinking bonus together.
-- **A short wait after each shot** (under a second, shown as a bar under the board) so quick tapping does not decide it. If two people shoot the same square, the first shot to reach the server counts; a tap at a square already shot does nothing and costs nothing.
-- **It needs two players:** on your own, a bot joins (see Bots above) and plays with you.
-- Everyone's points are along the bottom, and the **POINTS** counter at the top left is the highest.
+- **Your fleet:** it is hidden on your own 8 by 8 board, the small one at the top right. **Only you can see where your ships are**; the server sends each player their own view, so nobody is sent where anyone else's ships are. Shots against you show on it: a red cross on a ship, a dot on water.
+- **Firing:** the big board on the left is **someone else's**, with their name above it. **Tap a square to fire.** Under your own board are the other players as **chips**: tap one to switch whose board you shoot at (the ring marks who it is now, the number is how many squares of their ships are still afloat). You start by shooting at the next player along, and you can never shoot at yourself. If your target is knocked out, you move on to the next player still in.
+- **Scoring:** a **hit** scores 1, and the shot that **sinks** a ship scores 1 more. Points are for the scoreboard; what wins is surviving.
+- **Out:** when every ship of yours is sunk you are out for the round, and you keep watching. The **last fleet afloat wins**. If more than one is still afloat after 2 minutes, the one with the **most squares afloat** wins; a tie is a draw.
+- **A fleet to fit the room:** every board has ships made at the start of the round, from how many are playing. **Fewer players get a fuller board** (about 30% of the squares are ship for one or two players) and **more players get more open water** (about 10% for twelve). The ships are **1, 2, 3 or 4 squares long, picked at random** until the squares add up, so the same amount of ship can be one 4 and a 1, or 2, 2 and 1, and everyone's fleet is different, every round. Ships are straight, never overlap and never touch. A 1-square ship is sunk by a single hit, which scores the hit and the sinking bonus together.
+- **Everyone sees every shot:** a miss is a dot, a hit is a cross, in the colour of whoever fired it, and a sunk ship is shown dark. Squares nobody has shot never show what is under them. The row of squares under each board is that fleet by ship length, with sunk ships dimmed.
+- **A short wait after each shot** (under a second, shown as a bar under the board) so quick tapping does not decide it. A tap at a square already shot does nothing and costs nothing, and if two people shoot the same square the first shot to reach the server counts.
+- **It needs two players:** on your own, a bot joins (see Bots above) and plays against you: it shoots at your board, going after the squares beside its hits, and you shoot at its.
+- **Controls:** the boards are the controller, so tap or click. There is no keyboard control for this game yet.
 
 ## Keeping the motion consistent
 

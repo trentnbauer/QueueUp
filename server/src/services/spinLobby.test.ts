@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from 'vitest';
-import { RedLightGame, RunnerGame, createLobbyGame } from '@queueup/shared';
+import { BattleshipsGame, RedLightGame, RunnerGame, createLobbyGame } from '@queueup/shared';
 import { SpinLobby } from './spinLobby.js';
 
 const snapshot = () => ({ id: 'runner' as const, phase: 'lobby' as const, run: 1, history: [], best: null, meters: 0, speed: 0.5, obstacles: [], players: [], timerMs: 0, winnerId: null });
@@ -110,7 +110,7 @@ describe('SpinLobby and its game', () => {
     expect(game.tap).toHaveBeenCalledTimes(3);
     expect(game.tap).toHaveBeenCalledWith('a', 8);
     // Not a target index: dropped.
-    for (const bad of [-1, 64, 1.5, Number.NaN, Infinity, '3', null, undefined, {}, [1]]) lobby.tap('a', bad);
+    for (const bad of [-1, 128, 1.5, Number.NaN, Infinity, '3', null, undefined, {}, [1]]) lobby.tap('a', bad);
     lobby.tap('stranger', 1);
     expect(game.tap).toHaveBeenCalledTimes(3);
   });
@@ -206,6 +206,47 @@ describe('SpinLobby rotating games', () => {
     for (let t = 0; t < 10_000; t += 66) lobby.tick(66);
     expect(lobby.snapshot(false).game.id).toBe('runner');
     expect((game as { onRunOver?: unknown }).onRunOver).toBeUndefined();
+  });
+});
+
+describe('SpinLobby showing each person their own view', () => {
+  const started = () => {
+    const lobby = new SpinLobby(new BattleshipsGame(() => 0.3));
+    lobby.join('a');
+    lobby.join('b');
+    for (let t = 0; t < 3200; t += 66) lobby.tick(66);
+    return lobby;
+  };
+  const game = (lobby: SpinLobby, viewer?: string) => lobby.snapshot(false, undefined, viewer).game as unknown as { mine: { ships: number[][] } | null; target: string | null };
+
+  it('sends each person their own ships and nobody else theirs', () => {
+    const lobby = started();
+    const a = game(lobby, 'a');
+    const b = game(lobby, 'b');
+    expect(a.mine?.ships.length).toBeGreaterThan(0);
+    expect(b.mine?.ships.length).toBeGreaterThan(0);
+    expect(a.mine?.ships).not.toEqual(b.mine?.ships);
+    expect(a.target).toBe('b');
+    expect(b.target).toBe('a');
+    // Someone watching, or not in the lobby, is shown no ships.
+    expect(game(lobby).mine).toBeNull();
+    expect(game(lobby, 'stranger').mine).toBeNull();
+    // a's view does not hold b's ship squares anywhere.
+    const bShips = new Set(b.mine?.ships.flat());
+    const aOwn = new Set(a.mine?.ships.flat());
+    const leaked = [...bShips].filter((c) => !aOwn.has(c));
+    expect(JSON.stringify({ ...lobby.snapshot(false, undefined, 'a'), game: { ...game(lobby, 'a'), mine: null } })).not.toContain('"ships"');
+    expect(leaked.length).toBeGreaterThan(0);
+  });
+
+  it('takes a tap to shoot or to pick a target, up to the limit of tap targets', () => {
+    const lobby = started();
+    lobby.tap('a', 64);
+    lobby.tap('a', 3);
+    lobby.tap('a', 127);
+    lobby.tap('a', 128);
+    const a = lobby.snapshot(false, undefined, 'a').game as unknown as { players: { id: string; shots: number }[] };
+    expect(a.players.find((p) => p.id === 'a')?.shots).toBe(1);
   });
 });
 

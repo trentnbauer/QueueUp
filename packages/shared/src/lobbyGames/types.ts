@@ -43,7 +43,10 @@ export interface LobbyGame {
   tap?(userId: string, target: number): void;
   /** Moves the game forward by `dtMs` milliseconds. */
   tick(dtMs: number): void;
-  snapshot(): LobbyGameSnapshot;
+  /** The game as `viewer` should see it. Most games are the same for everyone and ignore `viewer`; a game
+   * with something only one person may see (their own hidden ships) shows each person their own. With no
+   * viewer, what a spectator sees. */
+  snapshot(viewer?: string): LobbyGameSnapshot;
 }
 
 /** What a bot wants to do this tick: the direction it holds (kept until it says otherwise) and any

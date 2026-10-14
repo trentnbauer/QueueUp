@@ -1,5 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { SpinLobbyHub, type LobbySocket } from './spinLobbyHub.js';
+import { SpinLobby } from './spinLobby.js';
 
 function fakeSocket() {
   const sent: Record<string, unknown>[] = [];
@@ -114,6 +115,22 @@ describe('SpinLobbyHub', () => {
     for (let i = 0; i < 200; i++) hub.message('r1', a.socket, JSON.stringify({ t: 'input', dx: 1, dy: 0 }));
     hub.disconnect('r1', a.socket);
     expect(hub.hasMembers('r1')).toBe(false);
+  });
+
+  it('sends each connection the game as that person should see it', async () => {
+    const hub = makeHub();
+    const a = fakeSocket();
+    const b = fakeSocket();
+    hub.connect('r1', 'a', a.socket);
+    hub.connect('r1', 'b', b.socket);
+    const snapshot = vi.spyOn(SpinLobby.prototype, 'snapshot');
+    await hub.tickRoom('r1');
+    const viewers = snapshot.mock.calls.map((call) => call[2]).filter((v) => v !== undefined);
+    expect(viewers.sort()).toEqual(['a', 'b']);
+    // Each socket got one state, and they were made one per person (not one shared message).
+    expect(a.last().t).toBe('state');
+    expect(b.last().t).toBe('state');
+    snapshot.mockRestore();
   });
 
   it('answers a ping with its own clock, to that socket only', () => {

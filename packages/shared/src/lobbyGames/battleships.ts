@@ -1,9 +1,11 @@
 import {
   BATTLESHIPS_SIZE,
+  BATTLESHIPS_TARGET_BASE,
   SQUARE_HIT,
   SQUARE_MISS,
   SQUARE_SUNK,
   SQUARE_UNKNOWN,
+  type BattleshipsBoard,
   type BattleshipsSnapshot,
 } from '../spinLobby.js';
 import { RoundGame, type RoundPlayer } from './roundGame.js';
@@ -11,15 +13,15 @@ import type { BotBrain } from './types.js';
 
 const SIZE = BATTLESHIPS_SIZE;
 const CELLS = SIZE * SIZE;
-/** A round ends when the fleet is sunk, or at this time if it is not. */
-const ROUND_LIMIT_S = 90;
+/** A round ends when one fleet is left afloat, or at this time if more are. */
+const ROUND_LIMIT_S = 120;
 /** After a shot, a person must wait this long before the next, so quick tappers do not take over. */
 const SHOT_COOLDOWN_S = 0.8;
 /** The shot that sinks a ship scores this much more than an ordinary hit. */
 const SINK_BONUS = 1;
-/** The share of the board the fleet covers: this many players or fewer get the most, and it falls to
- * the least at MAX_PLAYERS. So a small room gets a fuller board and a big room more open water, and the
- * board is about as crowded for the people on it whatever the size of the room. */
+/** The share of each board that is ship: this many players or fewer get the most, and it falls to the
+ * least at MAX_PLAYERS. Each board is shot at by every other player, so with more players a smaller fleet
+ * keeps the rounds about as long. */
 const SHARE_MOST = 0.3;
 const SHARE_LEAST = 0.1;
 const MAX_PLAYERS = 12;
@@ -28,7 +30,7 @@ const SHORTEST_SHIP = 1;
 const LONGEST_SHIP = 4;
 const PLACEMENT_ATTEMPTS = 300;
 
-/** How many squares of the board are ship, for this many players: about 30% for one or two, down to about
+/** How many squares of a board are ship, for this many players: about 30% for one or two, down to about
  * 10% for twelve. */
 export function fleetSquares(players: number): number {
   const n = Math.min(MAX_PLAYERS, Math.max(1, players));
@@ -49,7 +51,7 @@ export function fleetFor(players: number, rng: () => number): number[] {
   return fleet.sort((a, b) => b - a);
 }
 
-/** Hides the ships on the board, a list of squares for each. Ships never overlap, and (if it can) never
+/** Hides the ships on a board, a list of squares for each. Ships never overlap, and (if it can) never
  * touch, not even at the corners. Straight lines only. From the seed's generator, so it is repeatable. */
 export function placeFleet(rng: () => number, lengths: number[]): number[][] {
   for (const apart of [true, false]) {
@@ -99,6 +101,10 @@ interface Gunner extends RoundPlayer {
   hits: number;
   /** Seconds until they can shoot again. */
   cooldown: number;
+  /** Was in the round when it started, so has a fleet and may shoot. */
+  inRound: boolean;
+  /** Who they are shooting at (a player id). */
+  target: string | null;
 }
 
 interface Ship {
@@ -106,30 +112,38 @@ interface Ship {
   hits: number;
 }
 
-/** One board, shared by everyone: a hidden fleet, and everyone tapping squares to find it. A hit scores,
- * the shot that sinks a ship scores a bit more, and when the fleet is sunk (or the time is up) the most
- * points wins. The fleet is sized from how many are playing, so a small room gets busier water.
- * Nobody is knocked out. See RoundGame for how rounds start and end. */
+/** One player's board: their hidden ships, and what has been shot at. */
+interface Board {
+  ships: Ship[];
+  /** Which ship each ship square belongs to. */
+  shipAt: Map<number, number>;
+  cells: number[];
+  /** Who shot each square (a player id), or null. */
+  shooter: (string | null)[];
+}
+
+const afloat = (b: Board) => b.ships.reduce((n, s) => n + s.cells.length - s.hits, 0);
+
+/** Everyone has their own fleet, hidden from the others, on their own board, and everyone fires at the
+ * others' boards (one at a time: you pick whose). A hit scores, the shot that sinks a ship scores a bit
+ * more, and a player whose whole fleet is sunk is out. Last fleet afloat wins; if more than one is still
+ * afloat when the time is up, the one with the most afloat wins. Fleets are sized from how many are
+ * playing. See RoundGame for how rounds start and end. */
 export class BattleshipsGame extends RoundGame<Gunner> {
   readonly id = 'battleships' as const;
   /** The fewest people it makes sense for: with fewer, the lobby adds bots (see bots.ts). */
   readonly minPlayers = 2;
-  private ships: Ship[] = [];
-  /** Which ship each ship square belongs to. */
-  private shipAt = new Map<number, number>();
-  private cells: number[] = new Array(CELLS).fill(SQUARE_UNKNOWN);
-  /** Who shot each square (a player id), or null. */
-  private shooter: (string | null)[] = new Array(CELLS).fill(null);
+  private readonly boards = new Map<string, Board>();
 
-  /** The score shown for the round: the most points anyone has. */
+  /** The most points anyone has had this round. */
   protected get meters(): number {
     let best = 0;
-    for (const p of this.players.values()) if (p.alive && p.points > best) best = p.points;
+    for (const p of this.players.values()) if (p.inRound && p.points > best) best = p.points;
     return best;
   }
 
   protected createPlayer(id: string, alive: boolean): Gunner {
-    return { id, points: 0, shots: 0, hits: 0, cooldown: 0, alive, wins: 0, outAtMeters: 0 };
+    return { id, points: 0, shots: 0, hits: 0, cooldown: 0, inRound: false, target: null, alive, wins: 0, outAtMeters: 0 };
   }
 
   protected resetPlayer(p: Gunner): void {
@@ -137,59 +151,119 @@ export class BattleshipsGame extends RoundGame<Gunner> {
     p.shots = 0;
     p.hits = 0;
     p.cooldown = 0;
+    p.inRound = false;
+    p.target = null;
   }
 
   protected resetCourse(): void {
-    this.ships = [];
-    this.shipAt = new Map();
-    this.cells = new Array(CELLS).fill(SQUARE_UNKNOWN);
-    this.shooter = new Array(CELLS).fill(null);
+    this.boards.clear();
   }
 
-  /** The fleet is hidden when the round starts, sized for the people in it. */
+  /** Each person who is in the round gets their own fleet, hidden on their own board, sized for how many
+   * are playing, and starts by shooting at the next person along. */
   protected beginCourse(): void {
-    this.resetCourse();
-    this.ships = placeFleet(this.rng, fleetFor(this.startedWith, this.rng)).map((cells) => ({ cells, hits: 0 }));
-    this.ships.forEach((ship, i) => ship.cells.forEach((c) => this.shipAt.set(c, i)));
+    this.boards.clear();
+    const playing = [...this.players.values()].filter((p) => p.alive);
+    for (const p of playing) {
+      p.inRound = true;
+      const ships = placeFleet(this.rng, fleetFor(playing.length, this.rng)).map((cells): Ship => ({ cells, hits: 0 }));
+      const shipAt = new Map<number, number>();
+      ships.forEach((ship, i) => ship.cells.forEach((c) => shipAt.set(c, i)));
+      this.boards.set(p.id, { ships, shipAt, cells: new Array(CELLS).fill(SQUARE_UNKNOWN), shooter: new Array(CELLS).fill(null) });
+    }
+    for (const p of playing) p.target = this.pickTarget(p);
   }
 
   input(): void {
-    // Tapping squares is all there is to do.
+    // Tapping is all there is to do.
   }
 
   action(): void {
-    // Tapping squares is all there is to do.
+    // Tapping is all there is to do.
   }
 
-  /** A tap on square `target`: a shot, if the round is on, they are in it, they are ready, and nobody has
+  /** The other people in the round, in the order they join (the same order the players are listed in). */
+  private opponents(id: string): Gunner[] {
+    return [...this.players.values()].filter((p) => p.inRound && p.id !== id);
+  }
+
+  /** Who `p` shoots at: who they picked if that player is still in, otherwise the next player still in. */
+  private pickTarget(p: Gunner): string | null {
+    const chosen = p.target ? this.players.get(p.target) : undefined;
+    if (chosen?.alive && chosen.inRound && chosen.id !== p.id) return chosen.id;
+    const order = [...this.players.values()].filter((q) => q.inRound);
+    const from = order.findIndex((q) => q.id === p.id);
+    for (let k = 1; k <= order.length; k++) {
+      const q = order[(Math.max(0, from) + k) % order.length];
+      if (q.alive && q.id !== p.id) return q.id;
+    }
+    return null;
+  }
+
+  /** A tap. A number from BATTLESHIPS_TARGET_BASE picks whose board to shoot at; a lower one is a shot at that
+   * square of the board they are shooting at, if the round is on, they are in it and ready, and nobody has
    * shot that square. A tap that is not a shot does nothing and costs nothing. */
   tap(userId: string, target: number): void {
-    if (this.phase !== 'playing' || !Number.isInteger(target) || target < 0 || target >= CELLS) return;
+    if (this.phase !== 'playing' || !Number.isInteger(target) || target < 0) return;
     const p = this.players.get(userId);
-    if (!p?.alive || p.cooldown > 0 || this.cells[target] !== SQUARE_UNKNOWN) return;
-    p.cooldown = SHOT_COOLDOWN_S;
-    p.shots++;
-    this.shooter[target] = userId;
-    const index = this.shipAt.get(target);
-    if (index === undefined) {
-      this.cells[target] = SQUARE_MISS;
+    if (!p?.alive || !p.inRound) return;
+    if (target >= BATTLESHIPS_TARGET_BASE) {
+      const chosen = this.opponents(userId)[target - BATTLESHIPS_TARGET_BASE];
+      if (chosen?.alive) p.target = chosen.id;
       return;
     }
-    const ship = this.ships[index];
+    if (target >= CELLS || p.cooldown > 0) return;
+    const targetId = this.pickTarget(p);
+    p.target = targetId;
+    const board = targetId ? this.boards.get(targetId) : undefined;
+    const owner = targetId ? this.players.get(targetId) : undefined;
+    if (!board || !owner || board.cells[target] !== SQUARE_UNKNOWN) return;
+    p.cooldown = SHOT_COOLDOWN_S;
+    p.shots++;
+    board.shooter[target] = userId;
+    const index = board.shipAt.get(target);
+    if (index === undefined) {
+      board.cells[target] = SQUARE_MISS;
+      return;
+    }
+    const ship = board.ships[index];
     ship.hits++;
     p.hits++;
     p.points++;
-    this.cells[target] = SQUARE_HIT;
+    board.cells[target] = SQUARE_HIT;
     if (ship.hits === ship.cells.length) {
       p.points += SINK_BONUS;
-      for (const c of ship.cells) this.cells[c] = SQUARE_SUNK;
-      if (this.ships.every((s) => s.hits === s.cells.length)) this.finishRound();
+      for (const c of ship.cells) board.cells[c] = SQUARE_SUNK;
+      if (afloat(board) === 0) this.out(owner);
     }
   }
 
-  snapshot(): BattleshipsSnapshot {
+  /** Knocks a player out for a sunk fleet, keeping their own points as how far they got. */
+  private out(p: Gunner): void {
+    this.knockOut(p);
+    p.outAtMeters = p.points;
+  }
+
+  /** What `board` shows to anyone: what has been shot at, and the fleet by length. */
+  private view(board: Board, ids: string[]): BattleshipsBoard {
+    return {
+      cells: [...board.cells],
+      by: board.shooter.map((id) => (id === null ? -1 : ids.indexOf(id))),
+      fleet: board.ships.map((s) => ({ len: s.cells.length, sunk: s.hits === s.cells.length })),
+    };
+  }
+
+  /** The game as `viewer` sees it: everyone's points and how many of their ships are afloat, the board they
+   * are shooting at, and (only for themselves) their own board with their ships on it. */
+  snapshot(viewer?: string): BattleshipsSnapshot {
     const list = [...this.players.values()];
+    const ids = list.map((p) => p.id);
+    const me = viewer ? this.players.get(viewer) : undefined;
     const playing = this.phase === 'playing';
+    // Who is shown: who they are shooting at, or for someone watching, the first player still in.
+    const targetId = me?.inRound ? this.pickTarget(me) : (list.find((p) => p.inRound && p.alive)?.id ?? null);
+    const targetBoard = targetId ? this.boards.get(targetId) : undefined;
+    const mine = me?.inRound ? this.boards.get(me.id) : undefined;
     return {
       id: 'battleships',
       phase: this.phase,
@@ -199,51 +273,64 @@ export class BattleshipsGame extends RoundGame<Gunner> {
       timerMs: Math.max(0, Math.round(this.timerMs)),
       winnerId: this.winnerId,
       ...this.summary(),
-      // Only what has been shot: a square that has not is always UNKNOWN, ship or water.
-      cells: [...this.cells],
-      by: this.shooter.map((id) => (id === null ? -1 : list.findIndex((p) => p.id === id))),
-      fleet: this.ships.map((s) => ({ len: s.cells.length, sunk: s.hits === s.cells.length })),
       players: list.map((p) => ({
         id: p.id,
-        alive: p.alive,
+        alive: p.alive && p.inRound,
+        inRound: p.inRound,
         wins: p.wins,
-        meters: p.alive ? p.points : 0,
+        meters: p.points,
         shots: p.shots,
         hits: p.hits,
         cooldownMs: Math.max(0, Math.round(p.cooldown * 1000)),
+        afloat: this.boards.has(p.id) ? afloat(this.boards.get(p.id) as Board) : 0,
       })),
+      target: targetBoard ? targetId : null,
+      targetBoard: targetBoard ? this.view(targetBoard, ids) : null,
+      mine: mine ? { ...this.view(mine, ids), ships: mine.ships.map((s) => [...s.cells]) } : null,
     };
   }
 
   protected advance(dt: number): void {
     for (const p of this.players.values()) if (p.cooldown > 0) p.cooldown = Math.max(0, p.cooldown - dt);
-    if (this.roundMs / 1000 >= ROUND_LIMIT_S) this.finishRound();
+    if (this.roundMs / 1000 >= ROUND_LIMIT_S) this.timeUp();
   }
 
-  /** The fleet is sunk or the time is up: the most points wins. A tie for the most, or nobody scoring, has
-   * no winner. */
-  private finishRound(): void {
-    const playing = [...this.players.values()].filter((p) => p.alive);
-    for (const p of playing) p.outAtMeters = p.points;
-    const best = Math.max(0, ...playing.map((p) => p.points));
-    const leaders = playing.filter((p) => p.points === best);
-    this.endRun(this.startedWith > 1 && best > 0 && leaders.length === 1 ? leaders[0] : null);
+  /** The time is up with more than one fleet afloat: the one with the most afloat wins. A tie has no winner. */
+  private timeUp(): void {
+    const left = [...this.players.values()].filter((p) => p.alive && p.inRound);
+    const most = Math.max(0, ...left.map((p) => afloat(this.boards.get(p.id) as Board)));
+    const leaders = left.filter((p) => afloat(this.boards.get(p.id) as Board) === most);
+    this.endRun(this.startedWith > 1 && leaders.length === 1 ? leaders[0] : null);
+  }
+
+  /** However the round ends, each person's points are how far they got (the most points is "furthest"). */
+  protected endRun(winner: Gunner | null): void {
+    if (this.phase !== 'playing') return;
+    for (const p of this.players.values()) if (p.inRound) p.outAtMeters = p.points;
+    super.endRun(winner);
+    if (winner) winner.outAtMeters = winner.points;
   }
 }
 
 /** How a bot plays: it waits a moment between shots, goes after the squares beside a hit that has not
  * sunk its ship, and otherwise picks a square at random (leaning towards every other square, as a good
- * player does). Now and then it ignores a lead and shoots at random, so it can be out-played. */
+ * player does). Now and then it ignores a lead and shoots at random, or turns on someone else, so it can
+ * be out-played. */
 export function battleshipsBrain(id: string, rng: () => number): BotBrain {
   let wait = 1 + rng() * 1.5;
   return (snap, dtMs) => {
-    if (snap.id !== 'battleships' || snap.phase !== 'playing') return {};
+    if (snap.id !== 'battleships' || snap.phase !== 'playing' || !snap.targetBoard) return {};
     if (!snap.players.find((p) => p.id === id)?.alive) return {};
     wait -= dtMs / 1000;
     if (wait > 0) return {};
     wait = 1.1 + rng() * 1.2;
 
-    const cells = snap.cells;
+    // Sometimes change who it is shooting at (to another player still in): this shot goes to them.
+    const others = snap.players.filter((p) => p.inRound && p.id !== id);
+    const live = others.map((p, k) => ({ p, k })).filter(({ p }) => p.alive && p.id !== snap.target);
+    if (live.length > 0 && rng() < 0.12) return { taps: [BATTLESHIPS_TARGET_BASE + live[Math.floor(rng() * live.length)].k] };
+
+    const cells = snap.targetBoard.cells;
     const neighbours = (i: number) => {
       const x = i % SIZE;
       const y = Math.floor(i / SIZE);

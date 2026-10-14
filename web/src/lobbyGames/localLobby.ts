@@ -33,6 +33,6 @@ export class LocalLobby {
 
   /** The same snapshot a room's lobby sends, with no votes and no spin to vote on. */
   snapshot(): LobbySnapshot {
-    return { t: 'state', tick: this.ticks, game: this.game.snapshot(), voters: [], needed: 1, spinWaiting: false };
+    return { t: 'state', tick: this.ticks, game: this.game.snapshot(this.me), voters: [], needed: 1, spinWaiting: false };
   }
 }

@@ -103,14 +103,14 @@ export class BotFiller implements LobbyGame {
   tick(dtMs: number): void {
     this.balance();
     if (this.bots.size > 0) {
-      const snapshot = this.inner.snapshot();
-      for (const [id, brain] of this.bots) this.drive(id, brain(snapshot, dtMs));
+      // Each bot looks at the game as that bot would see it (its own ships, not the others').
+      for (const [id, brain] of this.bots) this.drive(id, brain(this.inner.snapshot(id), dtMs));
     }
     this.inner.tick(dtMs);
   }
 
-  snapshot(): LobbyGameSnapshot {
-    return this.inner.snapshot();
+  snapshot(viewer?: string): LobbyGameSnapshot {
+    return this.inner.snapshot(viewer);
   }
 
   private drive(id: string, cmd: ReturnType<BotBrain>): void {
