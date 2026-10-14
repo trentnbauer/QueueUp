@@ -11,8 +11,8 @@
 export const LOBBY_TICK_HZ = 15;
 
 /** The games the lobby can run. */
-export type LobbyGameId = 'runner' | 'flappy' | 'dodge' | 'redlight';
-export const LOBBY_GAME_IDS: readonly LobbyGameId[] = ['runner', 'flappy', 'dodge', 'redlight'];
+export type LobbyGameId = 'runner' | 'flappy' | 'dodge' | 'rope' | 'redlight';
+export const LOBBY_GAME_IDS: readonly LobbyGameId[] = ['runner', 'flappy', 'dodge', 'rope', 'redlight'];
 
 /** What a client sends. Anything else is ignored. */
 export type LobbyClientMessage =
@@ -196,6 +196,44 @@ export interface DodgeSnapshot extends RoundSummary {
 }
 
 /** The snapshot of whichever game is running. */
+// ---- Jump rope (a rope swings round, everyone jumps it together) -----------------------------------
+
+/** How high a jumper has to be, as a fraction of the screen height, for the rope to pass under them. */
+export const ROPE_CLEAR_HEIGHT = 0.05;
+export const ROPE_PLAYER_RADIUS = 0.03;
+
+export interface RopePlayer {
+  id: string;
+  /** Where they stand across the width (0..1); fixed for the run. */
+  x: number;
+  /** How high off the floor they are, as a fraction of the screen height (0 = standing). */
+  y: number;
+  /** Still jumping. False once the rope catches them, or if they arrived mid-run. */
+  alive: boolean;
+  /** Runs won since this person joined the lobby. */
+  wins: number;
+  /** Swings of the rope they have jumped: live while jumping, final once out. */
+  meters: number;
+}
+
+export interface RopeSnapshot extends RoundSummary {
+  id: 'rope';
+  phase: LobbyRoundPhase;
+  /** Swings the rope has completed this run (shown as the score). */
+  meters: number;
+  /** Where the rope is in its swing, 0..1: 0 is brushing the floor, 0.5 is overhead. */
+  angle: number;
+  /** Seconds the current swing takes. */
+  period: number;
+  /** Always 0: nothing scrolls past in this game (every snapshot carries a course speed). */
+  speed: number;
+  players: RopePlayer[];
+  /** Milliseconds left in `countdown` or `over`; 0 otherwise. */
+  timerMs: number;
+  /** Who won the run that just ended (`over` only); null when nobody did (a solo run, or a draw). */
+  winnerId: string | null;
+}
+
 // ---- Red light, green light (run while it is green, freeze when it is red) -------------------------
 
 /** What the light is doing. `warn` is green with a short flash: it is about to turn red. */
@@ -231,7 +269,7 @@ export interface RedLightSnapshot extends RoundSummary {
 }
 
 /** The snapshot of whichever game is running. */
-export type LobbyGameSnapshot = RunnerSnapshot | FlappySnapshot | DodgeSnapshot | RedLightSnapshot;
+export type LobbyGameSnapshot = RunnerSnapshot | FlappySnapshot | DodgeSnapshot | RopeSnapshot | RedLightSnapshot;
 
 export interface LobbySnapshot {
   t: 'state';
