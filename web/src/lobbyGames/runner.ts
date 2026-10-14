@@ -27,13 +27,15 @@ function drawWorld(sc: Scene<RunnerSnapshot>): void {
   drawFloor(sc, ground);
   // Ground texture that moves with the course: pale ticks and a row of accent dashes.
   const tick = S * 0.08;
-  const offset = ((sc.fx.scroll + drift) * S) % tick;
+  // Both rows move left at exactly the course's speed, the same as the obstacles (they repeat every
+  // `tick` and every `2 * tick`, so each wraps its own scroll distance).
+  const scrolled = (sc.fx.scroll + drift) * S;
   ctx.fillStyle = STAGE.groundTick;
-  for (let x = -offset; x < S; x += tick) ctx.fillRect(x, ground + S * 0.04, tick * 0.4, 2);
+  for (let x = -(scrolled % tick); x < S; x += tick) ctx.fillRect(x, ground + S * 0.04, tick * 0.4, 2);
   ctx.save();
   ctx.globalAlpha = 0.5;
   ctx.fillStyle = theme.acc;
-  for (let x = (-offset * 2) % (tick * 2); x < S; x += tick * 2) ctx.fillRect(x, ground + S * 0.09, tick * 0.15, 2);
+  for (let x = -(scrolled % (tick * 2)); x < S; x += tick * 2) ctx.fillRect(x, ground + S * 0.09, tick * 0.15, 2);
   ctx.restore();
 
   for (const o of snapshot.obstacles) {
