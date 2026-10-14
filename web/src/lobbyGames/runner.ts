@@ -8,6 +8,7 @@ const DUCK_HEIGHT = 0.25;
 const CACTUS = { width: 0.1, height: 0.35 };
 const LOG = { width: 0.3, height: 0.35 };
 const BIRD = { from: 0.3, to: 0.7 };
+const BIRD_SIZE = { width: 0.06 };
 
 /** Where the ground is, as a fraction of the arena, and how tall a jump "lane height" is. */
 const GROUND = 0.82;
@@ -69,31 +70,22 @@ function drawWorld(sc: Scene<RunnerSnapshot>): void {
       roundRect(ctx, cx - w * 0.4, ground - h * 0.14, w * 0.36, Math.max(2, S * 0.007), 2);
       ctx.fill();
     } else {
-      // A 😴 vote flying in (the bottom of the app's five-emoji vote scale): duck under it.
-      const d = 0.18 * S;
+      // A game cover floating at head height, the same size as its hitbox: duck under it. It bobs a little,
+      // and the 😴 on it says "this one is not for jumping".
+      const w = BIRD_SIZE.width * S;
+      const h = (BIRD.to - BIRD.from) * unit;
       const bob = Math.sin(now / 180 + o.n) * S * 0.006;
-      const cy = ground - ((BIRD.from + BIRD.to) / 2) * unit + bob;
-      ctx.fillStyle = 'oklch(1 0 0 / 0.08)';
-      for (let k = 0; k < 3; k++) {
-        roundRect(ctx, cx + d * 0.55 + k * S * 0.012, cy - d * 0.25 + k * d * 0.25, S * (0.05 - k * 0.012), 2, 1);
-        ctx.fill();
-      }
+      const top = ground - BIRD.to * unit + bob;
       ctx.save();
       ctx.shadowColor = 'oklch(0 0 0 / 0.4)';
       ctx.shadowBlur = S * 0.03;
       ctx.shadowOffsetY = S * 0.01;
-      ctx.beginPath();
-      ctx.arc(cx, cy, d / 2, 0, Math.PI * 2);
-      ctx.fillStyle = sc.color('--surf2', 'oklch(0.25 0.01 55)');
-      ctx.fill();
+      coverTile(ctx, cx - w / 2, top, w, h, hue, S * 0.022, true);
       ctx.restore();
-      ctx.strokeStyle = theme.line;
-      ctx.lineWidth = 1;
-      ctx.stroke();
-      ctx.font = `${Math.round(d * 0.55)}px "Apple Color Emoji","Segoe UI Emoji","Noto Color Emoji",${FONT.ui}`;
+      ctx.font = `${Math.round(w * 0.6)}px "Apple Color Emoji","Segoe UI Emoji","Noto Color Emoji",${FONT.ui}`;
       ctx.textAlign = 'center';
       ctx.textBaseline = 'middle';
-      ctx.fillText('😴', cx, cy + d * 0.04);
+      ctx.fillText('😴', cx, top + h / 2);
     }
   }
 
