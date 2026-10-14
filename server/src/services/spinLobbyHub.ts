@@ -94,6 +94,36 @@ export class SpinLobbyHub {
     }
   }
 
+  /** Closes every connection a person has to a room's lobby (they were removed from the room). Membership is
+   * only checked when a connection opens, so without this a removed member keeps seeing and voting in it. */
+  kick(roomId: string, userId: string): void {
+    const room = this.rooms.get(roomId);
+    if (!room) return;
+    for (const [socket, id] of [...room.sockets]) {
+      if (id !== userId) continue;
+      this.disconnect(roomId, socket);
+      this.closeSocket(socket, 'Removed from the room');
+    }
+  }
+
+  /** Closes every connection to a room's lobby (the room was deleted). */
+  closeRoom(roomId: string): void {
+    const room = this.rooms.get(roomId);
+    if (!room) return;
+    for (const socket of [...room.sockets.keys()]) {
+      this.disconnect(roomId, socket);
+      this.closeSocket(socket, 'Room closed');
+    }
+  }
+
+  private closeSocket(socket: LobbySocket, reason: string): void {
+    try {
+      socket.close(1008, reason);
+    } catch {
+      // Already closing.
+    }
+  }
+
   /** A raw message from a socket. Malformed or unknown messages are ignored. */
   message(roomId: string, socket: LobbySocket, raw: string): void {
     const room = this.rooms.get(roomId);

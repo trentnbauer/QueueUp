@@ -2,6 +2,7 @@ import { Prisma, type Room, type RoomRole } from '@prisma/client';
 import type { DeletedRoomSummary } from '@queueup/shared';
 import { prisma } from '../db/client.js';
 import { HttpError } from '../util/httpError.js';
+import { spinLobbyHub } from './spinLobbyInstance.js';
 
 /** How long a deleted room can be restored before the daily purge removes it for good (#1103). */
 export const ROOM_RETENTION_DAYS = 30;
@@ -48,7 +49,7 @@ export function membersToRestore(snapshot: DeletedMember[], existingUserIds: Set
  * members onto the room, which hides it from everyone. Returns what the caller needs to tell
  * people and log it, or null when there is no such (undeleted) room. */
 export async function softDeleteRoom(roomId: string, actorId: string) {
-  return prisma.$transaction(async (tx) => {
+  const deleted = await prisma.$transaction(async (tx) => {
     const room = await tx.room.findFirst({
       where: { id: roomId, deletedAt: null },
       include: { members: true, _count: { select: { games: true } } },
@@ -65,6 +66,9 @@ export async function softDeleteRoom(roomId: string, actorId: string) {
     await tx.roomMember.deleteMany({ where: { roomId } });
     return { name: room.name, memberIds: snapshot.map((m) => m.userId), memberCount: snapshot.length, gameCount: room._count.games, deletedAt };
   });
+  // Nobody is a member of a deleted room any more: end its mini game connections too.
+  if (deleted) spinLobbyHub.closeRoom(roomId);
+  return deleted;
 }
 
 /** Brings a deleted room back with its members, roles, games and history. */

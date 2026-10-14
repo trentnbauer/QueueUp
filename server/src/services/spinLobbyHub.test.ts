@@ -63,6 +63,26 @@ describe('SpinLobbyHub', () => {
     expect(c.last()).toEqual({ t: 'started' });
   });
 
+  it('closes a removed member\'s connections, and their vote goes with them', async () => {
+    const hub = makeHub();
+    waiting = true;
+    const [a, b] = [fakeSocket(), fakeSocket()];
+    hub.connect('r1', 'a', a.socket);
+    hub.connect('r1', 'b', b.socket);
+    await flush();
+    hub.message('r1', a.socket, JSON.stringify({ t: 'vote', on: true }));
+    hub.kick('r1', 'a');
+    expect(a.socket.close).toHaveBeenCalled();
+    expect(b.socket.close).not.toHaveBeenCalled();
+    expect(hub.isPresent('r1', 'a')).toBe(false);
+    hub.message('r1', a.socket, JSON.stringify({ t: 'vote', on: true }));
+    await hub.tickRoom('r1');
+    expect(deps.startSpinNow).not.toHaveBeenCalled();
+    hub.closeRoom('r1');
+    expect(b.socket.close).toHaveBeenCalled();
+    expect(hub.hasMembers('r1')).toBe(false);
+  });
+
   it('does not count members who are not in the lobby', async () => {
     const hub = makeHub();
     waiting = true;
