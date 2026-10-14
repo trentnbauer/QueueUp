@@ -70,4 +70,5 @@ Every game uses the kit in `kit/` so the lobby looks like one product. The point
 - `docker build -f docker/Dockerfile.server .` must succeed: it type-checks the games' tests as well as the code (the shared package's build does it).
 - A **speed check** if anything scrolls: take two frames a known time apart and confirm an obstacle and a ground mark moved the same number of pixels (the Runner's accent dashes once moved at twice the course speed). `courseOffset` has a test (`kit/courseOffset.test.ts`); a new scrolling layer should use it.
 - A screenshot of the game's states (playing, knock-out, countdown, winner) rendered through the real `draw`. The headless harness used for the first three games is: bundle a small script that imports your view and draws sample snapshots into canvases, then screenshot it with headless Chrome.
+- **Randomness:** the game's seed and anything hidden come from the cryptographic source, never `Math.random` (see "Randomness and secrets" in `docs/minigames.md`). Say what in your game is hidden and show it is not in any snapshot it should not be in.
 - Not tried with real players yet? Say so in the PR.
