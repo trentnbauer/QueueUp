@@ -1,8 +1,16 @@
-import { useState } from 'react';
-import { LOBBY_GAME_IDS, type LobbyGameId, type MiniGameScorePeriod, type MiniGameScoreRow, type MiniGameScoreScope } from '@queueup/shared';
+import { useEffect, useState } from 'react';
+import { useSearchParams } from 'react-router';
+import { useQueryClient } from '@tanstack/react-query';
+import { LOBBY_GAME_IDS, type LobbyGameId, type MiniGameLobbyDto, type MiniGameScorePeriod, type MiniGameScoreRow, type MiniGameScoreScope } from '@queueup/shared';
+import { miniGamesApi } from '../api/miniGames';
+import { useAuth } from '../context/AuthContext';
+import { JoinCodeDialog } from '../dialogs/JoinCodeDialog';
+import { LobbyPlayDialog } from '../dialogs/LobbyPlayDialog';
+import { OpenLobbyDialog } from '../dialogs/OpenLobbyDialog';
 import { PlaySoloDialog } from '../dialogs/PlaySoloDialog';
-import { useMiniGameBests, useMiniGameMe, useMiniGameScores } from '../hooks/useMiniGames';
+import { MINIGAMES_QUERY_KEY, useMiniGameBests, useMiniGameMe, useMiniGameScores, useOpenLobbies } from '../hooks/useMiniGames';
 import { LOBBY_GAME_VIEWS } from '../lobbyGames';
+import { lobbyHeadline } from '../lobbyGames/lobbyText';
 import { SOURCE_KEYS, whenKey } from '../lobbyGames/scoreText';
 import { Avatar, Btn, Segmented } from '../ui/primitives';
 import { useIsMobile } from '../ui/useLayout';
@@ -23,8 +31,44 @@ export function GamesPage() {
   const { data: bests } = useMiniGameBests();
   const gameName = t(LOBBY_GAME_VIEWS[selected].nameKey);
 
+  const queryClient = useQueryClient();
+  const [params, setParams] = useSearchParams();
+  const { data: lobbyList } = useOpenLobbies(5);
+  const myLobby = lobbyList?.lobbies.find((l) => l.mine);
+  // The card offers someone else's lobby first; with none, it is your own.
+  const liveLobby = lobbyList?.lobbies.find((l) => !l.mine) ?? myLobby;
+  const [dialog, setDialog] = useState<{ kind: 'open' } | { kind: 'join'; code?: string } | { kind: 'lobby'; id: string } | null>(null);
+  // A shared invite link (`/games?code=7KX-4QP`) opens Join with code with the code filled in.
+  const linkCode = params.get('code');
+  useEffect(() => {
+    if (!linkCode) return;
+    setDialog({ kind: 'join', code: linkCode });
+    setParams({}, { replace: true });
+  }, [linkCode, setParams]);
+  const closeMine = async () => {
+    if (!myLobby) return;
+    try {
+      await miniGamesApi.closeLobby(myLobby.id);
+    } catch {
+      // Already closed.
+    }
+    void queryClient.invalidateQueries({ queryKey: MINIGAMES_QUERY_KEY });
+  };
+  const lobbyButtons = (
+    <>
+      <Btn height={mobile ? 44 : 42} fontSize={14} onClick={() => setDialog({ kind: 'join' })}>
+        {t('games.joinCode')}
+      </Btn>
+      <Btn height={mobile ? 44 : 42} fontSize={14} onClick={() => (myLobby ? void closeMine() : setDialog({ kind: 'open' }))}>
+        {myLobby ? t('games.closeLobby') : t('games.openLobby')}
+      </Btn>
+    </>
+  );
+
   return (
-    <PageShell title={t('games.title')} hint={t('games.hint')} back={false}>
+    <PageShell title={t('games.title')} hint={t('games.hint')} back={false} action={mobile ? undefined : <div style={st('display:flex;gap:8px')}>{lobbyButtons}</div>}>
+      {mobile && <div style={st('display:grid;grid-template-columns:1fr 1fr;gap:8px')}>{lobbyButtons}</div>}
+      {liveLobby && <LiveLobbyCard lobby={liveLobby} compact={mobile} onJoin={() => setDialog({ kind: 'lobby', id: liveLobby.id })} />}
       <div style={st('display:flex;flex-direction:column;gap:10px')}>
         <SectionTitle>{t('games.section.games')}</SectionTitle>
         <div
@@ -87,6 +131,9 @@ export function GamesPage() {
       )}
 
       {playing && <PlaySoloDialog initialGame={playing} onClose={() => setPlaying(null)} />}
+      {dialog?.kind === 'open' && <OpenLobbyDialog onClose={() => setDialog(null)} onOpened={(lobby) => { void queryClient.invalidateQueries({ queryKey: MINIGAMES_QUERY_KEY }); setDialog({ kind: 'lobby', id: lobby.id }); }} />}
+      {dialog?.kind === 'join' && <JoinCodeDialog initialCode={dialog.code} onClose={() => setDialog(null)} onJoined={(lobby) => setDialog({ kind: 'lobby', id: lobby.id })} />}
+      {dialog?.kind === 'lobby' && <LobbyPlayDialog lobbyId={dialog.id} onClose={() => { setDialog(null); void queryClient.invalidateQueries({ queryKey: MINIGAMES_QUERY_KEY }); }} />}
     </PageShell>
   );
 }
@@ -245,6 +292,42 @@ function YouPanel({ game, gameName, onPlay }: { game: LobbyGameId; gameName: str
       )}
       <Btn kind="accent" height={46} fontSize={14} weight={800} onClick={onPlay}>
         {t('games.playGame', { game: gameName })}
+      </Btn>
+    </div>
+  );
+}
+
+/** A lobby you can drop into (or your own): who is playing, and Join. */
+function LiveLobbyCard({ lobby, compact, onJoin }: { lobby: MiniGameLobbyDto; compact: boolean; onJoin: () => void }) {
+  const t = useT();
+  const { user } = useAuth();
+  const kicker = lobby.mine
+    ? t('games.live.kickerMine', { who: t(`games.live.who.${lobby.visibility}`) })
+    : lobby.visibility === 'friends'
+      ? t('games.live.kickerFriends')
+      : t('games.live.kickerPublic');
+  const title = lobbyHeadline(lobby, user?.id ?? '', t, (id) => t(LOBBY_GAME_VIEWS[id].nameKey));
+  return (
+    <div
+      style={st(
+        `display:flex;${compact ? 'flex-direction:column;align-items:stretch;padding:14px;border-radius:18px;gap:12px' : 'align-items:center;padding:16px 16px 16px 18px;border-radius:20px;gap:16px'};background:linear-gradient(135deg,var(--hero1),var(--hero2))`,
+      )}
+    >
+      <div style={st('flex:1;min-width:0;display:flex;flex-direction:column;gap:6px')}>
+        <span style={st('display:flex;align-items:center;gap:8px;font:500 11px var(--font-mono);letter-spacing:.08em;text-transform:uppercase;color:var(--accText)')}>
+          <span style={st('width:8px;height:8px;border-radius:50%;background:var(--mint)')} />
+          {kicker}
+        </span>
+        <span style={st(`font:700 ${compact ? 17 : 19}px var(--font-display);letter-spacing:-.02em`)}>{title}</span>
+        <span style={st('font:500 12.5px/1.4 var(--font-ui);color:var(--muted)')}>{t('games.live.sub')}</span>
+      </div>
+      <div style={st('display:flex;align-items:center;gap:8px;margin-left:8px')}>
+        {lobby.players.slice(0, 5).map((p) => (
+          <Avatar key={p.id} name={p.displayName} color={p.avatarColor} avatarUrl={p.avatarUrl} size={32} style={{ margin: '0 0 0 -16px', boxShadow: '0 0 0 2.5px var(--hero2)' }} />
+        ))}
+      </div>
+      <Btn kind="accent" height={compact ? 44 : 46} fontSize={14} weight={800} style={{ boxShadow: '0 6px 20px var(--accA30)', ...(compact ? { width: '100%' } : {}) }} onClick={onJoin}>
+        {t('games.live.join')}
       </Btn>
     </div>
   );

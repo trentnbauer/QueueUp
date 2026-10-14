@@ -37,6 +37,7 @@ const clampAxis = (n: number): number => Math.max(-1, Math.min(1, n));
  * for the spin when one is waiting. The game itself is drawn by the matching view in `lobbyGames/`. */
 export function LobbyPanel({
   roomId,
+  lobbyId,
   members,
   me,
   onStarted,
@@ -44,8 +45,10 @@ export function LobbyPanel({
   readyUserIds,
   practiceGame,
 }: {
-  /** The room to connect to. Not needed when `practiceGame` is set. */
+  /** The room to connect to. Not needed when `practiceGame` or `lobbyId` is set. */
   roomId?: string;
+  /** An open lobby from the Mini games page, instead of a room's. */
+  lobbyId?: string;
   members: RoomMember[];
   me: string;
   onStarted?: () => void;
@@ -58,7 +61,8 @@ export function LobbyPanel({
   const t = useT();
   const phone = useIsMobile();
   // Either the room's live lobby over a WebSocket, or the same game run locally for practice.
-  const live = useSpinLobby(practiceGame ? undefined : roomId, !practiceGame, me, onStarted);
+  const livePath = roomId ? `/api/rooms/${encodeURIComponent(roomId)}/lobby` : lobbyId ? `/api/minigames/lobbies/${encodeURIComponent(lobbyId)}/lobby` : undefined;
+  const live = useSpinLobby(practiceGame ? undefined : livePath, !practiceGame, me, onStarted);
   const submitScore = useSubmitSoloScore();
   // A solo run's score goes on the high score list when the run ends.
   const local = useLocalLobby(practiceGame, me, submitScore);
@@ -210,7 +214,7 @@ export function LobbyPanel({
   const playingIds = game ? game.players.map((p) => p.id) : [];
   const here = playingIds.length;
   const voted = !!snapshot?.voters.includes(me);
-  const statusText = practiceGame ? t('games.status.solo') : status === 'open' ? t(here === 1 ? 'spin.lobby.here.one' : 'spin.lobby.here.other', { n: here }) : status === 'connecting' ? t('spin.lobby.connecting') : t('spin.lobby.offline');
+  const statusText = practiceGame ? t('games.status.solo') : lobbyId && status === 'open' ? t(here === 1 ? 'games.status.lobby.one' : 'games.status.lobby.other', { n: here }) : status === 'open' ? t(here === 1 ? 'spin.lobby.here.one' : 'spin.lobby.here.other', { n: here }) : status === 'connecting' ? t('spin.lobby.connecting') : t('spin.lobby.offline');
   const release = () => {
     pad.current = { dx: 0, dy: 0 };
     sendHeld();
@@ -257,7 +261,7 @@ export function LobbyPanel({
   ) : status === 'offline' && offlineFallback ? (
     offlineFallback
   ) : (
-    status === 'open' && <span style={st('font:500 12px var(--font-ui);color:var(--muted);text-align:center')}>{practiceGame ? t('games.note.solo') : t('spin.lobby.noSpin')}</span>
+    status === 'open' && <span style={st('font:500 12px var(--font-ui);color:var(--muted);text-align:center')}>{practiceGame || lobbyId ? t('games.note.solo') : t('spin.lobby.noSpin')}</span>
   );
 
   return (

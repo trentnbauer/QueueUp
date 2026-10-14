@@ -80,8 +80,9 @@ export function MobileTopBar() {
           style={st(`position:relative;width:40px;height:40px;border-radius:50%;border:2px solid ${menuOpen || shell.onPage ? 'var(--text)' : 'var(--line)'};padding:0;background:transparent`)}
         >
           <Avatar name={user?.displayName ?? '?'} color={user?.avatarColor ?? '#E8734A'} avatarUrl={user?.avatarUrl} size={36} fontSize={14} />
-          {shell.hasUnread && (
-            <span style={st('position:absolute;right:-2px;top:-2px;width:11px;height:11px;border-radius:50%;background:var(--dot);border:2px solid var(--bg)')} />
+          {(shell.hasUnread || shell.gamesLive) && (
+            // Mint when a lobby is the only thing going on.
+            <span style={st(`position:absolute;right:-2px;top:-2px;width:11px;height:11px;border-radius:50%;background:${shell.hasUnread ? 'var(--dot)' : 'var(--mint)'};border:2px solid var(--bg)`)} />
           )}
         </button>
         {menuOpen && (
@@ -113,7 +114,7 @@ export function MobileTopBar() {
               <MenuItem label={t('shell.sidebar.stats')} active={shell.onStats} onClick={pick(shell.goStats)}>
                 <StatsIcon />
               </MenuItem>
-              <MenuItem label={t('shell.sidebar.games')} active={shell.onGames} onClick={pick(shell.goGames)}>
+              <MenuItem label={t('shell.sidebar.games')} active={shell.onGames} dot={!!shell.gamesLive} dotColor="var(--mint)" sub={shell.gamesLive ?? undefined} onClick={pick(shell.goGames)}>
                 <GamepadIcon />
               </MenuItem>
               <MenuItem label={t('shell.nav.notifications')} dot={shell.hasUnread} onClick={pick(() => ui.openDialog('notifications'))}>
@@ -130,19 +131,22 @@ export function MobileTopBar() {
   );
 }
 
-function MenuItem({ label, onClick, children, dot, active }: { label: string; onClick: () => void; children: ReactNode; dot?: boolean; active?: boolean }) {
+function MenuItem({ label, onClick, children, dot, dotColor = 'var(--dot)', sub, active }: { label: string; onClick: () => void; children: ReactNode; dot?: boolean; dotColor?: string; sub?: string; active?: boolean }) {
   return (
     <button
       type="button"
       role="menuitem"
       onClick={onClick}
-      style={st(`display:flex;align-items:center;gap:12px;height:48px;padding:0 12px;border:none;border-radius:12px;background:${active ? 'var(--chip)' : 'transparent'};color:var(--text);font:600 14.5px var(--font-ui);text-align:left`)}
+      style={st(`display:flex;align-items:center;gap:12px;min-height:48px;padding:0 12px;border:none;border-radius:12px;background:${active ? 'var(--chip)' : 'transparent'};color:var(--text);font:600 14.5px var(--font-ui);text-align:left`)}
     >
       <span style={st('position:relative;width:24px;display:flex;align-items:center;justify-content:center')}>
         {children}
-        {dot && <span style={st('position:absolute;right:-3px;top:-3px;width:9px;height:9px;border-radius:50%;background:var(--dot);border:2px solid var(--surf)')} />}
+        {dot && <span style={st(`position:absolute;right:-3px;top:-3px;width:9px;height:9px;border-radius:50%;background:${dotColor};border:2px solid var(--surf)`)} />}
       </span>
-      {label}
+      <span style={st('display:flex;flex-direction:column;gap:1px;min-width:0;padding:6px 0')}>
+        {label}
+        {sub && <span style={st('font:500 11.5px var(--font-ui);color:var(--mint);white-space:nowrap;overflow:hidden;text-overflow:ellipsis')}>{sub}</span>}
+      </span>
     </button>
   );
 }

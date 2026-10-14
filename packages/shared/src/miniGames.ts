@@ -69,6 +69,66 @@ export interface MiniGameBestsResponse {
   bests: Partial<Record<LobbyGameId, number>>;
 }
 
+// ---- Open lobbies (outside a room) -----------------------------------------------------------------
+
+/** Who may join an open lobby: anyone on the server, the host's friends, or people with its invite code. */
+export type MiniGameLobbyVisibility = 'public' | 'friends' | 'code';
+export const MINIGAME_LOBBY_VISIBILITIES: readonly MiniGameLobbyVisibility[] = ['public', 'friends', 'code'];
+
+/** The most people in one open lobby. */
+export const MINIGAME_LOBBY_MAX_PLAYERS = 16;
+
+/** Invite codes are 6 characters shown as XXX-XXX, without look-alike letters and digits. */
+export const MINIGAME_CODE_ALPHABET = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
+
+/** The 6 code characters in whatever someone pasted: a bare code, `7KX-4QP`, or a link ending in
+ * `?code=7KX-4QP`. Null when there are not exactly 6 valid characters. */
+export function parseLobbyCode(raw: string): string | null {
+  const fromLink = /[?&]code=([^&#\s]+)/i.exec(raw);
+  const chars = (fromLink ? fromLink[1] : raw).toUpperCase().replace(/[^A-Z0-9]/g, '');
+  if (chars.length !== 6) return null;
+  for (const c of chars) if (!MINIGAME_CODE_ALPHABET.includes(c)) return null;
+  return chars;
+}
+
+export function formatLobbyCode(chars: string): string {
+  return `${chars.slice(0, 3)}-${chars.slice(3)}`;
+}
+
+export interface MiniGameLobbyPlayer {
+  id: string;
+  displayName: string;
+  avatarColor: string;
+  avatarUrl: string | null;
+}
+
+export interface MiniGameLobbyDto {
+  id: string;
+  visibility: MiniGameLobbyVisibility;
+  /** The one game it plays, or null when it picks a random game after every run. */
+  game: LobbyGameId | null;
+  hostId: string;
+  /** You host it. */
+  mine: boolean;
+  /** Only for the host of an invite-code lobby. */
+  code: string | null;
+  /** Who is in it right now. */
+  players: MiniGameLobbyPlayer[];
+}
+
+export interface MiniGameLobbiesResponse {
+  lobbies: MiniGameLobbyDto[];
+}
+
+export interface CreateMiniGameLobbyRequest {
+  visibility: MiniGameLobbyVisibility;
+  game: LobbyGameId | null;
+}
+
+export interface JoinMiniGameLobbyRequest {
+  code: string;
+}
+
 export interface SubmitMiniGameScoreRequest {
   game: LobbyGameId;
   score: number;

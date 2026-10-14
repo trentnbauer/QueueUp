@@ -4,6 +4,9 @@ import { useScope, SHELF_ID } from '../context/ScopeContext';
 import { useUi } from '../context/UiContext';
 import { useAttention } from '../hooks/useAttention';
 import { useIncomingFriendRequestCount } from '../hooks/useFriends';
+import { useOpenLobbies } from '../hooks/useMiniGames';
+import { LOBBY_GAME_VIEWS } from '../lobbyGames';
+import { lobbyHeadline } from '../lobbyGames/lobbyText';
 import { useNotificationSummary } from '../hooks/useNotifications';
 import { usePendingImportsCount } from '../hooks/usePendingImports';
 import { initialsOf, roomInitials } from '../ui/primitives';
@@ -35,6 +38,10 @@ export function useShell() {
   const pendingImports = usePendingImportsCount();
   const { totalUnread } = useNotificationSummary();
   const incomingFriendRequests = useIncomingFriendRequestCount();
+  // A lobby open to you (or yours) lights up Mini games in the sidebar and menu.
+  const { data: lobbyList } = useOpenLobbies();
+  const liveLobby = lobbyList?.lobbies.find((l) => !l.mine) ?? lobbyList?.lobbies[0];
+  const gamesLive = liveLobby ? lobbyHeadline(liveLobby, user?.id ?? '', t, (id) => t(LOBBY_GAME_VIEWS[id].nameKey)) : null;
 
   const go = (path: string) => () => {
     ui.selectGame(null);
@@ -69,6 +76,8 @@ export function useShell() {
     shelfTile,
     roomTiles,
     hasUnread: totalUnread > 0 || incomingFriendRequests > 0,
+    /** Text for a lobby that is open right now ("Sam and Jess are playing"), or null. */
+    gamesLive,
     pendingImports,
     roomCount: scope.rooms.length,
     incomingFriendRequests,

@@ -12,7 +12,8 @@ const RECONNECT_MAX_MS = 8000;
 const PING_AT_MS = [0, 250, 600, 1200, 2500];
 const PING_EVERY_MS = 10_000;
 
-/** The live connection to a room's lobby (see services/spinLobbyHub.ts on the server). Opens while
+/** The live connection to a lobby (see services/spinLobbyHub.ts on the server): a room's, at
+ * `/api/rooms/:id/lobby`, or an open lobby's, at `/api/minigames/lobbies/:id/lobby`. Opens while
  * `enabled`, closes when it is not or the component goes away, and reconnects on its own if the
  * connection drops. `onStarted` fires when the room's spin has begun.
  *
@@ -20,7 +21,7 @@ const PING_EVERY_MS = 10_000;
  * (`ClientSim`): `frame` gives the snapshot to draw, with this player worked out here instead of waiting
  * for the server, and the input and action calls go to that copy instead of the server. For any other
  * game, `frame` is the server's latest snapshot and input goes to the server as before. */
-export function useSpinLobby(roomId: string | undefined, enabled: boolean, me: string, onStarted?: () => void) {
+export function useSpinLobby(path: string | undefined, enabled: boolean, me: string, onStarted?: () => void) {
   const [snapshot, setSnapshot] = useState<LobbySnapshot | null>(null);
   const [status, setStatus] = useState<LobbyStatus>('connecting');
   const socketRef = useRef<WebSocket | null>(null);
@@ -29,7 +30,7 @@ export function useSpinLobby(roomId: string | undefined, enabled: boolean, me: s
   startedRef.current = onStarted;
 
   useEffect(() => {
-    if (!roomId || !enabled) return;
+    if (!path || !enabled) return;
     let stopped = false;
     let retry = RECONNECT_MIN_MS;
     let timer: ReturnType<typeof setTimeout> | undefined;
@@ -39,7 +40,7 @@ export function useSpinLobby(roomId: string | undefined, enabled: boolean, me: s
     const connect = () => {
       setStatus('connecting');
       const scheme = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
-      const ws = new WebSocket(`${scheme}//${window.location.host}${getBasePath()}/api/rooms/${encodeURIComponent(roomId)}/lobby`);
+      const ws = new WebSocket(`${scheme}//${window.location.host}${getBasePath()}${path}`);
       socketRef.current = ws;
       // A new connection starts its own clock reading and local copy of the run.
       const clock = new ClockSync();
@@ -93,7 +94,7 @@ export function useSpinLobby(roomId: string | undefined, enabled: boolean, me: s
       simRef.current = null;
       setSnapshot(null);
     };
-  }, [roomId, enabled, me]);
+  }, [path, enabled, me]);
 
   const send = useCallback((msg: LobbyClientMessage) => {
     const ws = socketRef.current;

@@ -1,5 +1,6 @@
 import { SpinLobbyHub } from './spinLobbyHub.js';
 import { recordRunScores } from './miniGameScores.js';
+import { OPEN_LOBBY_PREFIX, openLobbies } from './openLobbies.js';
 
 // The one hub for this process (production runs a single non-replicated server container). Its
 // spin helpers are loaded on first use rather than imported, because routes/roomSpin.ts needs this
@@ -11,5 +12,10 @@ export const spinLobbyHub = new SpinLobbyHub({
   isSpinWaiting: async (roomId) => (await spin()).isSpinWaiting(roomId),
   extendWaitingRoom: async (roomId) => (await spin()).extendWaitingRoom(roomId),
   startSpinNow: async (roomId) => (await spin()).startSpinNow(roomId),
-  recordScores: (roomId, game, source, scores) => void recordRunScores(game, source, scores, roomId),
+  // An open lobby's runs are not a room's, so they carry no room id.
+  recordScores: (key, game, source, scores) => void recordRunScores(game, source, scores, key.startsWith(OPEN_LOBBY_PREFIX) ? undefined : key),
+  // The lobby stays open until everyone has left, then it is gone.
+  onEmpty: (key) => {
+    if (key.startsWith(OPEN_LOBBY_PREFIX)) openLobbies.close(key.slice(OPEN_LOBBY_PREFIX.length));
+  },
 });
