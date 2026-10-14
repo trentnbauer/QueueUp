@@ -64,6 +64,12 @@ export interface RunResult {
   game: LobbyGameId;
 }
 
+/** One person's score from a finished run: metres, coins, swings or points, whatever the game counts. */
+export interface LobbyRunScore {
+  userId: string;
+  score: number;
+}
+
 /** What every round-based game adds to its snapshot, so the lobby can show the run number, the last
  * few results and the best run since people started playing. */
 export interface RoundSummary {
