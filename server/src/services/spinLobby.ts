@@ -1,4 +1,4 @@
-import { LOBBY_ACTION_NAME_MAX, LOBBY_TAP_TARGETS_MAX, LobbyRecord, createLobbyGame, lobbyVotesNeeded, pickLobbyGame, type LobbyGame, type LobbyGameId, type LobbySnapshot } from '@queueup/shared';
+import { LOBBY_ACTION_NAME_MAX, LOBBY_TAP_TARGETS_MAX, LobbyRecord, createLobbyGame, lobbyVotesNeeded, pickLobbyGame, type LobbyGame, type LobbyGameId, type LobbyRunScore, type LobbySnapshot } from '@queueup/shared';
 
 /** One room's live lobby: who is in it, who has voted to spin, and the mini game they are playing.
  * Pure state and rules - no sockets or timers (see spinLobbyHub.ts), so it is easy to test. A member
@@ -17,15 +17,22 @@ export class SpinLobby {
   private game: LobbyGame;
   private readonly rotates: boolean;
 
-  constructor(game?: LobbyGame) {
+  /** `onScores` hears each finished run's scores, whichever game it was (for high scores). */
+  constructor(game?: LobbyGame, private readonly onScores?: (game: LobbyGameId, scores: LobbyRunScore[]) => void) {
     this.rotates = game === undefined;
+    if (game) this.hear(game);
     this.game = game ?? this.start(pickLobbyGame());
+  }
+
+  private hear(game: LobbyGame): void {
+    if (this.onScores) game.onRunScores = (scores) => this.onScores?.(game.id, scores);
   }
 
   /** A new game of this kind, which hands over to the next one when its run is over. */
   private start(id: LobbyGameId): LobbyGame {
     const game = createLobbyGame(id, this.record);
     if (this.rotates) game.onRunOver = () => this.rotate(game);
+    this.hear(game);
     return game;
   }
 

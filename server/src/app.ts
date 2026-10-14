@@ -36,6 +36,7 @@ import playniteCompletionSuggestionRoutes from './routes/playniteCompletionSugge
 import badgeRoutes from './routes/badges.js';
 import publicProfileRoutes from './routes/publicProfile.js';
 import friendRoutes from './routes/friends.js';
+import miniGameRoutes from './routes/miniGames.js';
 import moderationRoutes from './routes/moderation.js';
 import legalRoutes from './routes/legal.js';
 import avatarRoutes from './routes/avatar.js';
@@ -208,6 +209,7 @@ export async function buildApp() {
       await instance.register(badgeRoutes);
       await instance.register(publicProfileRoutes);
       await instance.register(friendRoutes);
+      await instance.register(miniGameRoutes);
       await instance.register(moderationRoutes);
       await instance.register(legalRoutes);
       await instance.register(avatarRoutes);

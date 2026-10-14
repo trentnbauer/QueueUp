@@ -1,0 +1,104 @@
+import { LOBBY_GAME_IDS, MINIGAME_LAST_RUNS, MINIGAME_LEADERBOARD_SIZE, MINIGAME_SCORE_MAX, MINIGAME_WEEK_MS, type LobbyGameId, type LobbyRunScore, type MiniGameMeResponse, type MiniGameScorePeriod, type MiniGameScoreRow, type MiniGameScoreScope, type MiniGameScoreSource, type MiniGameScoresResponse } from '@queueup/shared';
+import { prisma } from '../db/client.js';
+import { blockedIdsOf } from './blocks.js';
+import { friendIdsOf } from './friendships.js';
+
+export function isLobbyGameId(v: unknown): v is LobbyGameId {
+  return typeof v === 'string' && (LOBBY_GAME_IDS as readonly string[]).includes(v);
+}
+
+/** Whether `score` could be a real result for the game (a whole number from 1 up to the game's limit). */
+export function isPlausibleScore(game: LobbyGameId, score: unknown): score is number {
+  return typeof score === 'number' && Number.isInteger(score) && score >= 1 && score <= MINIGAME_SCORE_MAX[game];
+}
+
+/** Saves a finished run for each real player. Scores that cannot be real are dropped, and a failure to
+ * save never reaches the game (high scores are a bonus, never a reason for a lobby to break). */
+export async function recordRunScores(game: LobbyGameId, source: MiniGameScoreSource, scores: LobbyRunScore[], roomId?: string): Promise<void> {
+  const data = scores.filter((s) => isPlausibleScore(game, s.score)).map((s) => ({ userId: s.userId, gameId: game, score: s.score, source, roomId: roomId ?? null }));
+  if (data.length === 0) return;
+  try {
+    await prisma.miniGameScore.createMany({ data });
+  } catch (err) {
+    console.error('Could not save mini game scores', err);
+  }
+}
+
+interface BestRow {
+  user_id: string;
+  display_name: string;
+  avatar_color: string;
+  avatar_url: string | null;
+  score: number;
+  source: string;
+  created_at: Date;
+  rank: bigint;
+  position: bigint;
+}
+
+/** Each person's best run for a game, best first, with ranks (equal scores share one). Banned people, and
+ * anyone the viewer has blocked or been blocked by, are left out. Returns the top `limit` rows plus the
+ * viewer's own row if they are further down. */
+async function bestPerPerson(viewerId: string, game: LobbyGameId, scope: MiniGameScoreScope, period: MiniGameScorePeriod, limit: number): Promise<BestRow[]> {
+  const since = period === 'week' ? new Date(Date.now() - MINIGAME_WEEK_MS) : null;
+  const friends = scope === 'friends';
+  const ids = friends ? [...(await friendIdsOf(viewerId)), viewerId] : [];
+  const blocked = await blockedIdsOf(viewerId);
+  return prisma.$queryRaw<BestRow[]>`
+    WITH best AS (
+      SELECT DISTINCT ON (s.user_id) s.user_id, u.display_name, u.avatar_color, u.avatar_url, s.score, s.source, s.created_at
+      FROM mini_game_scores s
+      JOIN users u ON u.id = s.user_id
+      WHERE s.game_id = ${game}
+        AND (${since}::timestamptz IS NULL OR s.created_at >= ${since}::timestamptz)
+        AND (NOT ${friends}::boolean OR s.user_id = ANY(${ids}::text[]))
+        AND u.banned_at IS NULL
+        AND NOT (s.user_id = ANY(${blocked}::text[]))
+      ORDER BY s.user_id, s.score DESC, s.created_at ASC
+    ),
+    ranked AS (
+      SELECT *, RANK() OVER (ORDER BY score DESC) AS rank, ROW_NUMBER() OVER (ORDER BY score DESC, created_at ASC) AS position
+      FROM best
+    )
+    SELECT * FROM ranked WHERE position <= ${limit} OR user_id = ${viewerId} ORDER BY position`;
+}
+
+function toRow(r: BestRow, viewerId: string): MiniGameScoreRow {
+  return {
+    rank: Number(r.rank),
+    userId: r.user_id,
+    displayName: r.display_name,
+    avatarColor: r.avatar_color,
+    avatarUrl: r.avatar_url,
+    score: r.score,
+    at: r.created_at.toISOString(),
+    source: r.source as MiniGameScoreSource,
+    isMe: r.user_id === viewerId,
+  };
+}
+
+export async function leaderboard(viewerId: string, game: LobbyGameId, scope: MiniGameScoreScope, period: MiniGameScorePeriod): Promise<MiniGameScoresResponse> {
+  const rows = (await bestPerPerson(viewerId, game, scope, period, MINIGAME_LEADERBOARD_SIZE)).map((r) => toRow(r, viewerId));
+  return { game, scope, period, rows, myRank: rows.find((r) => r.isMe)?.rank ?? null };
+}
+
+export async function myScores(viewerId: string, game: LobbyGameId): Promise<MiniGameMeResponse> {
+  const [runs, best, friendRows, friendIds] = await Promise.all([
+    prisma.miniGameScore.findMany({ where: { userId: viewerId, gameId: game }, orderBy: { createdAt: 'desc' }, take: MINIGAME_LAST_RUNS, select: { score: true, createdAt: true, source: true } }),
+    prisma.miniGameScore.aggregate({ where: { userId: viewerId, gameId: game }, _max: { score: true }, _count: { _all: true } }),
+    bestPerPerson(viewerId, game, 'friends', 'all', 500),
+    friendIdsOf(viewerId),
+  ]);
+  const mine = friendRows.find((r) => r.user_id === viewerId);
+  // The nearest friend above me: the lowest score that beats mine (or, with no score yet, the lowest of all).
+  const ahead = friendRows.filter((r) => r.user_id !== viewerId && (!mine || r.score > mine.score)).sort((a, b) => a.score - b.score)[0];
+  return {
+    game,
+    best: best._max.score,
+    friendRank: mine ? Number(mine.rank) : null,
+    friendCount: friendIds.length,
+    runsPlayed: best._count._all,
+    nextFriend: ahead ? { displayName: ahead.display_name, gap: ahead.score - (mine?.score ?? 0) } : null,
+    lastRuns: runs.map((r) => ({ score: r.score, at: r.createdAt.toISOString(), source: r.source as MiniGameScoreSource })),
+  };
+}

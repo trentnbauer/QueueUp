@@ -1,4 +1,4 @@
-import type { LobbyGameId, LobbyGameSnapshot } from '../spinLobby.js';
+import type { LobbyGameId, LobbyGameSnapshot, LobbyRunScore } from '../spinLobby.js';
 import { battleshipsBrain } from './battleships.js';
 import { redLightBrain } from './redlight.js';
 import type { BotBrain, LobbyGame } from './types.js';
@@ -57,6 +57,14 @@ export class BotFiller implements LobbyGame {
 
   set onRunOver(fn: (() => boolean) | undefined) {
     this.inner.onRunOver = fn;
+  }
+
+  get onRunScores(): ((scores: LobbyRunScore[]) => void) | undefined {
+    return this.inner.onRunScores;
+  }
+
+  set onRunScores(fn: ((scores: LobbyRunScore[]) => void) | undefined) {
+    this.inner.onRunScores = fn;
   }
 
   /** How many bots are in the game right now. */

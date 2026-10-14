@@ -1,4 +1,4 @@
-import { LOBBY_HISTORY_LENGTH, LOBBY_REPORT_FIELDS_MAX, type LobbyGameId, type LobbyGameSnapshot, type LobbyRoundPhase, type LobbySim, type RoundSummary, type RunResult } from '../spinLobby.js';
+import { LOBBY_HISTORY_LENGTH, LOBBY_REPORT_FIELDS_MAX, type LobbyGameId, type LobbyGameSnapshot, type LobbyRoundPhase, type LobbySim, type LobbyRunScore, type RoundSummary, type RunResult } from '../spinLobby.js';
 import type { LobbyGame } from './types.js';
 
 const COUNTDOWN_MS = 3000;
@@ -92,6 +92,8 @@ export abstract class RoundGame<P extends RoundPlayer> implements LobbyGame {
    * start. Return true if the lobby has moved everyone to another game (this one is then finished),
    * false to carry on with another run of this game. */
   onRunOver: (() => boolean) | undefined;
+  /** Set by whatever records high scores: called when a run ends, with every real player's score. */
+  onRunScores: ((scores: LobbyRunScore[]) => void) | undefined;
 
   constructor(
     protected readonly seedSource: () => number = Math.random,
@@ -295,6 +297,19 @@ export abstract class RoundGame<P extends RoundPlayer> implements LobbyGame {
     const result: RunResult = { id: furthest?.id ?? '', winnerId: this.winnerId, meters: furthest?.outAtMeters ?? 0, game: this.id };
     if (!furthest) return;
     this.record.add(result);
+    this.reportScores();
+  }
+
+  /** Hands each real player's score (bot ids start `bot:`, see bots.ts, which this file cannot import) to whatever records high scores. Bots, and people who only watched
+   * the run (they arrived mid-run, so they have nothing), are left out. */
+  private reportScores(): void {
+    if (!this.onRunScores) return;
+    const scores: LobbyRunScore[] = [];
+    for (const p of this.players.values()) {
+      if (p.id.startsWith('bot:') || !Number.isFinite(p.outAtMeters) || p.outAtMeters <= 0) continue;
+      scores.push({ userId: p.id, score: Math.floor(p.outAtMeters) });
+    }
+    if (scores.length > 0) this.onRunScores(scores);
   }
 
   private startCountdown(): void {

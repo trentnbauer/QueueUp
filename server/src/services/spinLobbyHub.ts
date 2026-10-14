@@ -1,4 +1,4 @@
-import { LOBBY_TICK_HZ, type LobbyServerMessage } from '@queueup/shared';
+import { LOBBY_TICK_HZ, type LobbyGameId, type LobbyRunScore, type LobbyServerMessage, type MiniGameScoreSource } from '@queueup/shared';
 import { SpinLobby } from './spinLobby.js';
 
 /** The part of a WebSocket the hub needs. */
@@ -14,6 +14,8 @@ export interface SpinLobbyDeps {
   extendWaitingRoom(roomId: string): Promise<boolean>;
   /** End the waiting room now. */
   startSpinNow(roomId: string): Promise<void>;
+  /** Save a finished run's scores (high scores). `source` is the waiting room while a spin waits, else the room's lobby. */
+  recordScores?(roomId: string, game: LobbyGameId, source: MiniGameScoreSource, scores: LobbyRunScore[]): void;
 }
 
 interface RoomState {
@@ -67,12 +69,20 @@ export class SpinLobbyHub {
       return;
     }
     if (!room) {
-      room = { lobby: new SpinLobby(), sockets: new Map(), timer: null, lastTickAt: this.now(), ticks: 0, spinWaiting: false, checking: false };
-      this.rooms.set(roomId, room);
+      const created: RoomState = {
+        lobby: new SpinLobby(undefined, (game, scores) => this.deps.recordScores?.(roomId, game, this.rooms.get(roomId)?.spinWaiting ? 'waiting_room' : 'lobby', scores)),
+        sockets: new Map(),
+        timer: null,
+        lastTickAt: this.now(),
+        ticks: 0,
+        spinWaiting: false,
+        checking: false,
+      };
+      room = created;
+      this.rooms.set(roomId, created);
       if (this.options.autoTick !== false) {
-        const state = room;
-        state.timer = setInterval(() => void this.tickRoom(roomId), Math.round(1000 / LOBBY_TICK_HZ));
-        state.timer.unref();
+        created.timer = setInterval(() => void this.tickRoom(roomId), Math.round(1000 / LOBBY_TICK_HZ));
+        created.timer.unref();
       }
     }
     room.lobby.join(userId);

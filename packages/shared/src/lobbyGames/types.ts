@@ -1,4 +1,4 @@
-import type { LobbyGameId, LobbyGameSnapshot, LobbySim } from '../spinLobby.js';
+import type { LobbyGameId, LobbyGameSnapshot, LobbyRunScore, LobbySim } from '../spinLobby.js';
 
 /** A mini game the room lobby can run. Pure rules and state - no sockets, timers or database - so a
  * game is easy to test and to add: give it an id (packages/shared/src/spinLobby.ts), a snapshot type,
@@ -33,6 +33,9 @@ export interface LobbyGame {
   readonly runMs?: number;
   /** On the client: this person's own player, to report to the server. */
   localReport?(userId: string): { alive: boolean; f: Record<string, number> } | null;
+  /** Set by whatever records high scores: called once when a run ends, with each real player's score
+   * (bots and people who only watched are left out). */
+  onRunScores?: (scores: LobbyRunScore[]) => void;
   /** The direction the person is holding, each -1, 0 or 1. */
   input(userId: string, dx: number, dy: number): void;
   /** A one-off move by name, such as `punch`. Unknown names are ignored. */

@@ -346,6 +346,7 @@ model User {
   unbanRequests                 UnbanRequest[]
   blocksMade                    UserBlock[]                    @relation("BlockBlocker")
   blocksReceived                UserBlock[]                    @relation("BlockBlocked")
+  miniGameScores                MiniGameScore[]
   reportsMade                   UserReport[]                   @relation("ReportReporter")
   reportsAbout                  UserReport[]                   @relation("ReportReported")
   notificationsReceived         Notification[]                 @relation("NotificationRecipient")
@@ -1750,6 +1751,26 @@ model UserBlock {
   @@id([blockerId, blockedId])
   @@index([blockedId])
   @@map("user_blocks")
+}
+
+/// One finished mini game run by a real player (never a bot): metres, coins, swings or points, per the
+/// game (see MINIGAME_SCORE_MAX in packages/shared). High scores read each person's best per game.
+/// roomId is a plain id with no relation, so a deleted room keeps its scores.
+model MiniGameScore {
+  id        String   @id @default(uuid())
+  userId    String   @map("user_id")
+  gameId    String   @map("game_id")
+  score     Int
+  /// 'solo', 'lobby' or 'waiting_room'.
+  source    String
+  roomId    String?  @map("room_id")
+  createdAt DateTime @default(now()) @map("created_at")
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([gameId, score])
+  @@index([userId, gameId, createdAt])
+  @@map("mini_game_scores")
 }
 
 /// A report about a person, with the reporter's own words on why. Administrators read these and

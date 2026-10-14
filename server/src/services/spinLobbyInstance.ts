@@ -1,4 +1,5 @@
 import { SpinLobbyHub } from './spinLobbyHub.js';
+import { recordRunScores } from './miniGameScores.js';
 
 // The one hub for this process (production runs a single non-replicated server container). Its
 // spin helpers are loaded on first use rather than imported, because routes/roomSpin.ts needs this
@@ -10,4 +11,5 @@ export const spinLobbyHub = new SpinLobbyHub({
   isSpinWaiting: async (roomId) => (await spin()).isSpinWaiting(roomId),
   extendWaitingRoom: async (roomId) => (await spin()).extendWaitingRoom(roomId),
   startSpinNow: async (roomId) => (await spin()).startSpinNow(roomId),
+  recordScores: (roomId, game, source, scores) => void recordRunScores(game, source, scores, roomId),
 });
