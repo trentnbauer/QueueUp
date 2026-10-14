@@ -1,0 +1,12 @@
+{
+  // Type-checks the lobby games' tests as well as their code, without writing anything: `npm run build`
+  // runs this after the real build, so a test with a type error fails the Docker build (the server's
+  // tests are checked the same way, because its build compiles them). Scoped to the lobby games because
+  // the shared package's older test fixtures predate this check.
+  "extends": "./tsconfig.json",
+  "compilerOptions": {
+    "noEmit": true
+  },
+  "include": ["src/lobbyGames"],
+  "exclude": []
+}

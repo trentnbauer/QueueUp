@@ -62,7 +62,7 @@ body:
     id: state
     attributes:
       label: What the server tracks
-      description: The state that must live on the server (positions, timers, scores) and the inputs players send. Games run on the server (an init / input / action / tick / snapshot module) and the browser only draws what it is sent.
+      description: The state that must live on the server (positions, timers, scores) and the inputs players send. A game is a plain module (join / leave / input / action / tick / snapshot) that the server runs in a room and the browser runs for solo practice; the browser only draws what it is sent.
     validations:
       required: false
 

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { DODGE_BLOCK_HEIGHT, DODGE_PLAYER_WIDTH, DODGE_PLAYER_Y } from '@queueup/shared';
+import { DODGE_BLOCK_HEIGHT, DODGE_PLAYER_WIDTH, DODGE_PLAYER_Y } from '../spinLobby.js';
 import { DodgeGame } from './dodge.js';
 
 const STEP = 66;

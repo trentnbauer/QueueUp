@@ -1,4 +1,4 @@
-import { DODGE_BLOCK_HEIGHT, DODGE_PLAYER_WIDTH, DODGE_PLAYER_Y, clampDirection, type DodgeBlock, type DodgeSnapshot } from '@queueup/shared';
+import { DODGE_BLOCK_HEIGHT, DODGE_PLAYER_WIDTH, DODGE_PLAYER_Y, clampDirection, type DodgeBlock, type DodgeSnapshot } from '../spinLobby.js';
 import { RoundGame, type RoundPlayer } from './roundGame.js';
 
 // Everything is in screens: x runs 0..1 across, y 0..1 down from the top.

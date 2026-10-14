@@ -1,4 +1,4 @@
-import { RUNNER_X, clampDirection, type RunnerObstacle, type RunnerObstacleKind, type RunnerSnapshot } from '@queueup/shared';
+import { RUNNER_X, clampDirection, type RunnerObstacle, type RunnerObstacleKind, type RunnerSnapshot } from '../spinLobby.js';
 import { RoundGame, type RoundPlayer } from './roundGame.js';
 
 // Distances are in screens (the track is 1.0 wide), heights in lane heights (a lane is 1.0 tall),

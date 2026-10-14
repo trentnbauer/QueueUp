@@ -7,13 +7,13 @@ A game has two halves that never share code, only the snapshot type in `packages
 
 | Half | Where | Job |
 | --- | --- | --- |
-| Rules | `server/src/services/lobbyGames/<game>.ts` | Owns the simulation. Players send inputs; the server decides everything and sends a snapshot ~15 times a second. |
+| Rules | `packages/shared/src/lobbyGames/<game>.ts` | The simulation. In a room the server runs it (players send inputs, it sends a snapshot ~15 times a second); the same code runs in the browser for solo practice. Plain code: no server, database or browser APIs. |
 | Look | `web/src/lobbyGames/<game>.ts` | Draws a snapshot on a canvas and names the game's buttons. Never decides anything. |
 
 ## Adding a game
 
 1. **Shared:** add the id to `LobbyGameId` / `LOBBY_GAME_IDS` and a `<Game>Snapshot` type (extend `RoundSummary`) in `packages/shared/src/spinLobby.ts`, and add it to `LobbyGameSnapshot`.
-2. **Server:** a class extending `RoundGame` (`roundGame.ts`). It only supplies players, a seeded course and its physics; waiting, the countdown, runs, results, wins and the run history come from the base. Register it in `server/src/services/lobbyGames/index.ts`.
+2. **Rules:** a class extending `RoundGame` (`roundGame.ts`) in `packages/shared/src/lobbyGames/`. It only supplies players, a seeded course and its physics; waiting, the countdown, runs, results, wins and the run history come from the base. Register it in `packages/shared/src/lobbyGames/index.ts`.
 3. **Web:** a `LobbyGameView` in `web/src/lobbyGames/<game>.ts` whose `draw` is one call to `renderScene(args, scene)`, and a line in `LOBBY_GAME_VIEWS` (`index.ts`).
 4. **Strings:** the game's name, hint and button labels in `web/src/i18n/locales/{en,pirate}/spin.ts` as `spin.lobby.<game>.*`. The countdown, result and "you're out" text are shared (`spin.lobby.hud.*`); do not add per-game copies.
 5. **Tests:** see "Before a PR".
@@ -46,8 +46,8 @@ Every game uses the kit in `kit/` so the lobby looks like one product. The point
 
 ## Before a PR
 
-- A server test with a **bot that plays the game** and clears several seeded courses for a minute, so the course can always be cleared. Add a bot that does the wrong thing and show it loses.
-- Server tests for the lifecycle your base class does not cover (anything the game adds).
-- `docker build -f docker/Dockerfile.server .` must succeed: it type-checks the tests as well as the code.
+- A test (next to the game, in `packages/shared/src/lobbyGames/`) with a **bot that plays the game** and clears several seeded courses for a minute, so the course can always be cleared. Add a bot that does the wrong thing and show it loses.
+- Tests for the lifecycle your base class does not cover (anything the game adds).
+- `docker build -f docker/Dockerfile.server .` must succeed: it type-checks the games' tests as well as the code (the shared package's build does it).
 - A screenshot of the game's states (playing, knock-out, countdown, winner) rendered through the real `draw`. The headless harness used for the first three games is: bundle a small script that imports your view and draws sample snapshots into canvases, then screenshot it with headless Chrome.
 - Not tried with real players yet? Say so in the PR.

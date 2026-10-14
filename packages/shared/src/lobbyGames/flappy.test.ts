@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { FLAPPY_X, FLAPPY_PIPE_WIDTH } from '@queueup/shared';
+import { FLAPPY_X, FLAPPY_PIPE_WIDTH } from '../spinLobby.js';
 import { FlappyGame } from './flappy.js';
 
 const STEP = 66;

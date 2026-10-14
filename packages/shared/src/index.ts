@@ -7,3 +7,4 @@ export * from './playtimeSignals.js';
 export * from './spinModes.js';
 export * from './aiBenchmark.js';
 export * from './spinLobby.js';
+export * from './lobbyGames/index.js';
