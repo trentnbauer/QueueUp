@@ -72,6 +72,17 @@ export function StatsIcon({ size = 18 }: { size?: number }) {
   );
 }
 
+/** A game controller: Mini games. */
+export function GamepadIcon({ size = 18 }: { size?: number }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeLinecap="round" style={{ strokeWidth: 1.8 }} aria-hidden="true">
+      <rect x="2.5" y="7" width="19" height="11" rx="5.5" />
+      <path d="M7.5 11v3M6 12.5h3" />
+      <path d="M15.5 11.5h.01M17.5 13.5h.01" />
+    </svg>
+  );
+}
+
 /** A cog: Settings. */
 export function GearIcon({ size = 18 }: { size?: number }) {
   return (

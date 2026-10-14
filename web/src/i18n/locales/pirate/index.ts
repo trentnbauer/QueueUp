@@ -12,6 +12,7 @@ import { social } from './social';
 import { shell } from './shell';
 import { pages } from './pages';
 import { card } from './card';
+import { games } from './games';
 
 /** Pirate 🏴‍☠️: every English string, hand-translated. */
-export const pirate: Record<MessageKey, string> = { ...common, ...core, ...labels, ...home, ...game, ...spin, ...add, ...settings, ...room, ...social, ...shell, ...pages, ...card };
+export const pirate: Record<MessageKey, string> = { ...common, ...core, ...labels, ...home, ...game, ...spin, ...add, ...settings, ...room, ...social, ...shell, ...pages, ...card, ...games };

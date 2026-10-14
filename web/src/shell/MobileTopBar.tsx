@@ -2,13 +2,13 @@ import { useEffect, useState, type ReactNode } from 'react';
 import { useLocation, useNavigate } from 'react-router';
 import { useAuth } from '../context/AuthContext';
 import { useUi } from '../context/UiContext';
-import { Avatar, BellIcon, GearIcon, PulseIcon, StatsIcon } from '../ui/primitives';
+import { Avatar, BellIcon, GamepadIcon, GearIcon, PulseIcon, StatsIcon } from '../ui/primitives';
 import { st } from '../ui/st';
 import { useLiftReorder } from './useLiftReorder';
 import { useShell } from './useShell';
 import { useT } from '../i18n';
 
-/** Phone top bar: a scrolling row of shelf/room tiles, then one button that opens My profile, Friends, Your stats, Notifications and Settings. */
+/** Phone top bar: a scrolling row of shelf/room tiles, then one button that opens My profile, Friends, Your stats, Mini games, Notifications and Settings. */
 export function MobileTopBar() {
   const shell = useShell();
   const ui = useUi();
@@ -112,6 +112,9 @@ export function MobileTopBar() {
               </MenuItem>
               <MenuItem label={t('shell.sidebar.stats')} active={shell.onStats} onClick={pick(shell.goStats)}>
                 <StatsIcon />
+              </MenuItem>
+              <MenuItem label={t('shell.sidebar.games')} active={shell.onGames} onClick={pick(shell.goGames)}>
+                <GamepadIcon />
               </MenuItem>
               <MenuItem label={t('shell.nav.notifications')} dot={shell.hasUnread} onClick={pick(() => ui.openDialog('notifications'))}>
                 <BellIcon />

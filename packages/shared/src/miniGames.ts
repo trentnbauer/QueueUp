@@ -64,6 +64,11 @@ export interface MiniGameMeResponse {
   lastRuns: MiniGameRun[];
 }
 
+/** The viewer's best score in each game they have played (a game with no run is missing). */
+export interface MiniGameBestsResponse {
+  bests: Partial<Record<LobbyGameId, number>>;
+}
+
 export interface SubmitMiniGameScoreRequest {
   game: LobbyGameId;
   score: number;

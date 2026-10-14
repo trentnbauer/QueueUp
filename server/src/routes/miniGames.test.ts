@@ -2,7 +2,7 @@ import { describe, expect, it, vi } from 'vitest';
 import Fastify from 'fastify';
 import { HttpError } from '../util/httpError.js';
 
-const h = vi.hoisted(() => ({ record: vi.fn(async () => {}), board: vi.fn(async () => ({ rows: [] })), me: vi.fn(async () => ({})) }));
+const h = vi.hoisted(() => ({ record: vi.fn(async () => {}), board: vi.fn(async () => ({ rows: [] })), me: vi.fn(async () => ({})), bests: vi.fn(async () => ({ bests: { runner: 5 } })) }));
 
 vi.mock('../services/miniGameScores.js', () => ({
   isLobbyGameId: (v: unknown) => typeof v === 'string' && ['runner', 'coins'].includes(v),
@@ -10,6 +10,7 @@ vi.mock('../services/miniGameScores.js', () => ({
   recordRunScores: h.record,
   leaderboard: h.board,
   myScores: h.me,
+  myBests: h.bests,
 }));
 
 import miniGameRoutes from './miniGames.js';
@@ -45,6 +46,15 @@ describe('mini game score routes', () => {
     expect((await app.inject({ method: 'POST', url: '/api/minigames/scores', headers, payload: { game: 'runner', score: 1e9 } })).statusCode).toBe(400);
     expect((await app.inject({ method: 'POST', url: '/api/minigames/scores', headers, payload: { game: 'nope', score: 5 } })).statusCode).toBe(400);
     expect((await app.inject({ method: 'POST', url: '/api/minigames/scores', payload: { game: 'runner', score: 5 } })).statusCode).toBe(401);
+    await app.close();
+  });
+
+  it('returns the signed-in person\'s best in each game', async () => {
+    const app = await build();
+    const res = await app.inject({ method: 'GET', url: '/api/minigames/bests', headers: { 'x-test-user': 'u1' } });
+    expect(res.json()).toEqual({ bests: { runner: 5 } });
+    expect(h.bests).toHaveBeenCalledWith('u1');
+    expect((await app.inject({ method: 'GET', url: '/api/minigames/bests' })).statusCode).toBe(401);
     await app.close();
   });
 

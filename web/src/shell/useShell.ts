@@ -74,11 +74,13 @@ export function useShell() {
     incomingFriendRequests,
     onFriends: location.pathname === '/friends',
     onStats: location.pathname === '/stats',
+    onGames: location.pathname === '/games',
     onSettings: location.pathname === '/settings' || location.pathname.startsWith('/settings/'),
-    /** On a page of its own (Friends, Your stats, Settings) rather than the shelf or a room, so no tile is lit. */
-    onPage: ['/friends', '/stats', '/settings'].some((p) => location.pathname === p || location.pathname.startsWith(`${p}/`)),
+    /** On a page of its own (Friends, Your stats, Mini games, Settings) rather than the shelf or a room, so no tile is lit. */
+    onPage: ['/friends', '/stats', '/games', '/settings'].some((p) => location.pathname === p || location.pathname.startsWith(`${p}/`)),
     goFriends: go('/friends'),
     goStats: go('/stats'),
+    goGames: go('/games'),
     goSettings: go('/settings'),
   };
 }

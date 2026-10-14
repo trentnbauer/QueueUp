@@ -8,8 +8,21 @@ export class LocalLobby {
 
   /** `record` is the run number, results and wins, which the caller keeps from one game to the next, so
    * changing game while practising does not wipe the scoreboard. */
-  constructor(gameId: LobbyGameId, private readonly me: string, record: LobbyRecord = new LobbyRecord(), game: LobbyGame = createLobbyGame(gameId, record)) {
+  constructor(
+    gameId: LobbyGameId,
+    private readonly me: string,
+    record: LobbyRecord = new LobbyRecord(),
+    game: LobbyGame = createLobbyGame(gameId, record),
+    /** Hears this player's score each time a run ends (for high scores). */
+    onScore?: (game: LobbyGameId, score: number) => void,
+  ) {
     this.game = game;
+    if (onScore) {
+      this.game.onRunScores = (scores) => {
+        const mine = scores.find((s) => s.userId === me);
+        if (mine) onScore(gameId, mine.score);
+      };
+    }
     this.game.join(me);
   }
 

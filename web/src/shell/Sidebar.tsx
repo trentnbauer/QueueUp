@@ -1,6 +1,6 @@
 import type { ReactNode } from 'react';
 import { useUi } from '../context/UiContext';
-import { Avatar, BellIcon, CollapseIcon, PulseIcon, StatsIcon, Wordmark } from '../ui/primitives';
+import { Avatar, BellIcon, CollapseIcon, GamepadIcon, PulseIcon, StatsIcon, Wordmark } from '../ui/primitives';
 import { st } from '../ui/st';
 import { useShell, type TileModel } from './useShell';
 import { useT } from '../i18n';
@@ -108,6 +108,7 @@ export function Sidebar({ onCollapse }: { onCollapse: () => void }) {
           onClick={shell.goFriends}
         />
         <PageRow icon={<StatsIcon />} title={t('shell.sidebar.stats')} sub={t('shell.sidebar.statsSub')} active={shell.onStats} onClick={shell.goStats} />
+        <PageRow icon={<GamepadIcon />} title={t('shell.sidebar.games')} sub={t('shell.sidebar.gamesSub')} active={shell.onGames} onClick={shell.goGames} />
 
         <div style={st('display:flex;align-items:center;justify-content:space-between;padding:18px 10px 6px')}>
           <span style={st('font:600 11.5px var(--font-mono);letter-spacing:0.08em;color:var(--muted)')}>{t('shell.sidebar.rooms', { n: shell.roomCount })}</span>
@@ -264,6 +265,9 @@ export function Rail({ onExpand }: { onExpand: () => void }) {
       </RailButton>
       <RailButton label={t('shell.sidebar.stats')} active={shell.onStats} onClick={shell.goStats}>
         <StatsIcon />
+      </RailButton>
+      <RailButton label={t('shell.sidebar.games')} active={shell.onGames} onClick={shell.goGames}>
+        <GamepadIcon />
       </RailButton>
       <BellButton size={42} ring="var(--bg2)" />
       <button

@@ -358,12 +358,7 @@ export const settings: Record<keyof typeof en, string> = {
 
   // Shelf settings
   "settings.shelf.title": "Treasure chest riggin’",
-  "settings.shelf.practice": "Practice deck games",
-  "settings.shelf.practiceSub": "Play the crew’s deck games on yer own",
-  "practice.title": "Practice deck games",
   "practice.pick": "Choose a game",
-  "practice.status": "Practice · just ye",
-  "practice.note": "Practice: just ye, and nothin’ is saved.",
   "settings.shelf.spinType": "Spin type",
   "settings.shelf.spinType.toast": "Spin type: {theme}",
   "settings.shelf.spinType.random": "🎲 Davy Jones’ choice",

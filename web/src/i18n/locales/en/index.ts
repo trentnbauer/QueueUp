@@ -11,9 +11,10 @@ import { social } from './social';
 import { shell } from './shell';
 import { pages } from './pages';
 import { card } from './card';
+import { games } from './games';
 
 /** English, the source catalog: every other language translates these keys, and anything a
  * language hasn't translated falls back to this. One file per area of the app. */
-export const en = { ...common, ...core, ...labels, ...home, ...game, ...spin, ...add, ...settings, ...room, ...social, ...shell, ...pages, ...card };
+export const en = { ...common, ...core, ...labels, ...home, ...game, ...spin, ...add, ...settings, ...room, ...social, ...shell, ...pages, ...card, ...games };
 
 export type MessageKey = keyof typeof en;
