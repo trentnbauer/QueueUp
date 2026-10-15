@@ -10,6 +10,7 @@ import { raceView } from './race';
 import { redLightView } from './redlight';
 import { ropeView } from './rope';
 import { runnerView } from './runner';
+import { whackView } from './whack';
 
 /** What a renderer is given each frame. */
 export interface LobbyDrawArgs<S extends LobbyGameSnapshot = LobbyGameSnapshot> {
@@ -76,6 +77,7 @@ export const LOBBY_GAME_VIEWS: { [K in LobbyGameId]: LobbyGameView<Extract<Lobby
   coins: coinsView,
   battleships: battleshipsView,
   race: raceView,
+  whack: whackView,
 };
 
 /** The view for whichever game a snapshot belongs to. */
