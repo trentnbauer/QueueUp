@@ -78,6 +78,7 @@ export const card: Record<keyof typeof en, string> = {
   "card.votes.title": "How keen be ye?",
   "card.votes.none": "No votes yet",
 
+  "card.status.advance": "Move to {status}",
   "card.status.change": "Change",
   "card.status.setTitle": "Set course",
   "card.status.achievements": "Yer trophies · {unlocked} / {total}",

@@ -85,6 +85,7 @@ export const card = {
   "card.votes.none": "No votes yet",
 
   // Status block and picker
+  "card.status.advance": "Move to {status}",
   "card.status.change": "Change",
   "card.status.setTitle": "Set status",
   "card.status.achievements": "Your achievements · {unlocked} / {total}",

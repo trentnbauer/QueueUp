@@ -12,6 +12,7 @@ import {
   progressSegments,
   sessionsToFinish,
   starScore,
+  nextStatus,
   statusBadge,
   verdictParts,
 } from './cardLogic';
@@ -135,5 +136,27 @@ describe('dlcPillTone', () => {
     expect(dlcPillTone('playing')).toBe('accent');
     expect(dlcPillTone('backlog')).toBe('neutral');
     expect(dlcPillTone(null)).toBe('none');
+  });
+});
+
+describe('nextStatus', () => {
+  it('moves along the path, with the Wishlist only on the shelf', () => {
+    expect(nextStatus('wishlist', true)).toBe('backlog');
+    expect(nextStatus('backlog', true)).toBe('play_next');
+    expect(nextStatus('backlog', false)).toBe('play_next');
+    expect(nextStatus('play_next', false)).toBe('playing');
+    expect(nextStatus('playing', false)).toBe('done');
+  });
+
+  it('has nothing after Beaten', () => {
+    expect(nextStatus('done', true)).toBeNull();
+  });
+
+  it('brings a game off the path back on', () => {
+    expect(nextStatus('preordered', true)).toBe('backlog');
+    expect(nextStatus('paused', false)).toBe('playing');
+    expect(nextStatus('replay', false)).toBe('done');
+    expect(nextStatus('dropped', false)).toBe('playing');
+    expect(nextStatus('wont_play', false)).toBe('backlog');
   });
 });
