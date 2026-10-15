@@ -78,6 +78,7 @@ A game can instead make **the play space the controller**: there are no buttons 
 | Quick draw | Press **Space**, or click the big light. | Tap the big light. |
 | Tilt | Hold **←** / **→** or **A** / **D**. | Hold the **◀** and **▶** buttons. |
 | Stacker | **Space**, **↑** or **W** to stop the light. | **Stop**, or tap anywhere on the arena. |
+| Words | Type the letters, **Enter** to send, **Backspace** to take one back. | Tap the on-screen keys. |
 | Memory pattern | Click a panel, or press **1-4** (top left, top right, bottom left, bottom right). | Tap a panel. |
 | Asteroid defence | **←** / **→** or **A** / **D** to swing the gun (it fires by itself). | The **◀** and **▶** buttons. |
 | Sumo ledge | **←** / **→** or **A** / **D** to walk, **Space**, **↑** or **W** to shove. | The **◀** and **▶** buttons, and **Shove**. |
@@ -200,6 +201,18 @@ One tower and one light for the whole room. Stop the light on the target to clim
 - **Ending:** the run ends when everyone is out, the tower is cleared, or after **2 minutes**. **Most rows locked wins**; a tie is a draw. Alone it is a high score (how many rows you climbed) and ends when you miss.
 - Everyone's rows are listed on the right, and the bar along the top is the time left.
 - **Controls:** one button: **Space**, **↑** or **W**, or tap anywhere on the arena.
+
+## Words
+
+Everyone guesses the same four-letter word, as in Wordle.
+
+- **One secret word for everyone,** picked at random from a list of about 490 everyday four-letter words. It stays on the server until the run is over, when it is shown.
+- **Five guesses.** Type a word (on a keyboard, or by tapping the on-screen keys) and press **Enter**. **Backspace** takes a letter back. Any four letters are accepted as a guess (there is no dictionary check). Each letter of a guess is scored: **green** in the right place, **yellow** in the word but somewhere else, **grey** not in it (a letter the word has once is only marked once). The keys on the keyboard take the colour of the best each has scored for you.
+- **Your own board is shown to you.** In the arena you see your guesses, letters and all. For everyone else you see only a small grid in their colour, scored the same way (green, yellow, grey) but **with no letters**, so you can see how close they are without being given anything.
+- **Winning:** everyone who finds the word wins (it counts as a win on the scoreboard). The **best** is the one who found it in the fewest guesses, then the soonest: they are the run's winner. A dead heat for that has no single winner, and alone it is a high score with no winner.
+- **Time:** the run ends after 90 seconds, or as soon as everyone has found the word or used their five guesses. Someone who has not found it by then does not win.
+- **Score** (the high score list): 10 points for each guess you did not need to use (so a first-guess solve is 50) plus up to 9 more for solving early in the 90 seconds. Not finding the word scores nothing.
+- **Controls:** the keyboard is the controller (letters, **Enter**, **Backspace**), or tap the keys on screen. Someone who joins part way through watches and plays from the next run.
 
 ## Memory pattern
 

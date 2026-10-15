@@ -11,8 +11,8 @@
 export const LOBBY_TICK_HZ = 15;
 
 /** The games the lobby can run. */
-export type LobbyGameId = 'runner' | 'flappy' | 'dodge' | 'rope' | 'redlight' | 'coins' | 'battleships' | 'race' | 'whack' | 'draw' | 'tilt' | 'stacker' | 'sumo' | 'asteroids' | 'memory';
-export const LOBBY_GAME_IDS: readonly LobbyGameId[] = ['runner', 'flappy', 'dodge', 'rope', 'redlight', 'coins', 'battleships', 'race', 'whack', 'draw', 'tilt', 'stacker', 'sumo', 'asteroids', 'memory'];
+export type LobbyGameId = 'runner' | 'flappy' | 'dodge' | 'rope' | 'redlight' | 'coins' | 'battleships' | 'race' | 'whack' | 'draw' | 'tilt' | 'stacker' | 'sumo' | 'asteroids' | 'memory' | 'words';
+export const LOBBY_GAME_IDS: readonly LobbyGameId[] = ['runner', 'flappy', 'dodge', 'rope', 'redlight', 'coins', 'battleships', 'race', 'whack', 'draw', 'tilt', 'stacker', 'sumo', 'asteroids', 'memory', 'words'];
 
 /** What a client sends. Anything else is ignored. */
 export type LobbyClientMessage =
@@ -797,8 +797,71 @@ export interface MemorySnapshot extends RoundSummary {
   winnerId: string | null;
 }
 
+// ---- Words (everyone guesses the same four-letter word; each person sees their own board) ------------
+
+export const WORDS_LENGTH = 4;
+export const WORDS_GUESSES = 5;
+/** Tap targets 0 to 25 are the letters a to z; these two follow. */
+export const WORDS_ENTER = 26;
+export const WORDS_BACKSPACE = 27;
+export const WORDS_TARGETS = 28;
+
+/** How a guessed letter scored: not in the word, in it but elsewhere, or in the right place. */
+export const WORD_ABSENT = 0;
+export const WORD_PRESENT = 1;
+export const WORD_CORRECT = 2;
+
+export interface WordsPlayer {
+  id: string;
+  /** In the run: false only if they arrived part way through (they watch and play from the next one). */
+  alive: boolean;
+  /** Runs won since this person joined the lobby (everyone who guessed the word counts as a winner). */
+  wins: number;
+  /** Points this run: more for fewer guesses and a faster solve; 0 until the word is solved. */
+  meters: number;
+  /** How many guesses they have made. */
+  guesses: number;
+  /** They found the word. */
+  solved: boolean;
+  /** Finished: found the word, or used every guess. */
+  done: boolean;
+  /** How each guess scored, a row per guess: WORD_ABSENT, WORD_PRESENT or WORD_CORRECT for each letter. Never the letters. */
+  rows: number[][];
+}
+
+/** This person's own board, sent only to them (see `LobbyGame.snapshot(viewer)`). */
+export interface WordsMine {
+  /** The words they have guessed, in order (the rows of `rows` score them). */
+  guesses: string[];
+  /** The letters typed for the next guess so far. */
+  draft: string;
+  /** For each letter a to z, the best it has scored so far: -1 untried, else WORD_ABSENT, WORD_PRESENT or WORD_CORRECT. */
+  keys: number[];
+}
+
+export interface WordsSnapshot extends RoundSummary {
+  id: 'words';
+  phase: LobbyRoundPhase;
+  /** The most points anyone has so far. */
+  meters: number;
+  /** Always 0: nothing scrolls past in this game (every snapshot carries a course speed). */
+  speed: number;
+  /** Milliseconds left in the run while `playing`. */
+  roundLeftMs: number;
+  players: WordsPlayer[];
+  /** This person's own guesses, or null for someone who is not in the run. Only they are sent it. */
+  mine: WordsMine | null;
+  /** The word, once the run is over (never before: it is the secret). */
+  answer: string | null;
+  /** Milliseconds left in `countdown` or `over`; 0 otherwise. */
+  timerMs: number;
+  /** Who won the run that just ended (`over` only): the person who found the word in the fewest guesses, then the
+   * soonest. Null when nobody did, or nobody was first (a solo run, or a dead heat). */
+  winnerId: string | null;
+}
+
 /** The snapshot of whichever game is running. */
-export type LobbyGameSnapshot = RunnerSnapshot | FlappySnapshot | DodgeSnapshot | RopeSnapshot | RedLightSnapshot | CoinsSnapshot | BattleshipsSnapshot | RaceSnapshot | WhackSnapshot | DrawSnapshot | TiltSnapshot | StackerSnapshot | SumoSnapshot | AsteroidsSnapshot | MemorySnapshot;
+export type LobbyGameSnapshot = RunnerSnapshot | FlappySnapshot | DodgeSnapshot | RopeSnapshot | RedLightSnapshot | CoinsSnapshot | BattleshipsSnapshot | RaceSnapshot | WhackSnapshot | DrawSnapshot | TiltSnapshot | StackerSnapshot | SumoSnapshot | AsteroidsSnapshot | MemorySnapshot | WordsSnapshot;
 
 /** What a client needs to run its own player on a course the server decided: which run, the seed that
  * makes the course, and how long until the run starts (negative once it has, by how far in). */
