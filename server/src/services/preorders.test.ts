@@ -13,7 +13,8 @@ describe('promoteOwnedWishlistGames', () => {
     h.updateMany.mockResolvedValueOnce({ count: 2 }).mockResolvedValueOnce({ count: 1 });
     expect(await promoteOwnedWishlistGames('u1', [7, 7, 8])).toBe(3);
     const [released, upcoming] = h.updateMany.mock.calls.map((c) => c[0]);
-    expect(released.data).toEqual({ status: 'backlog' });
+    // Bought: it is stamped so the Backlog can pin it as recently bought.
+    expect(released.data).toEqual({ status: 'backlog', purchasedAt: expect.any(Date) });
     expect(released.where.OR).toBeDefined();
     expect(released.where.igdbId).toEqual({ in: [7, 8] });
     expect(upcoming.data).toEqual({ status: 'preordered' });
@@ -34,7 +35,7 @@ describe('promoteReleasedPreorders', () => {
     expect(await promoteReleasedPreorders(now)).toBe(4);
     expect(h.updateMany.mock.calls[0][0]).toEqual({
       where: { roomId: null, status: 'preordered', releaseDate: { lte: now } },
-      data: { status: 'backlog' },
+      data: { status: 'backlog', purchasedAt: now },
     });
   });
 });
