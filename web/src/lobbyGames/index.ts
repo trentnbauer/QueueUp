@@ -5,6 +5,7 @@ import type { TapTargets } from './taps';
 import { battleshipsView } from './battleships';
 import { coinsView } from './coins';
 import { dodgeView } from './dodge';
+import { drawView } from './draw';
 import { flappyView } from './flappy';
 import { raceView } from './race';
 import { redLightView } from './redlight';
@@ -78,6 +79,7 @@ export const LOBBY_GAME_VIEWS: { [K in LobbyGameId]: LobbyGameView<Extract<Lobby
   battleships: battleshipsView,
   race: raceView,
   whack: whackView,
+  draw: drawView,
 };
 
 /** The view for whichever game a snapshot belongs to. */

@@ -11,8 +11,8 @@
 export const LOBBY_TICK_HZ = 15;
 
 /** The games the lobby can run. */
-export type LobbyGameId = 'runner' | 'flappy' | 'dodge' | 'rope' | 'redlight' | 'coins' | 'battleships' | 'race' | 'whack';
-export const LOBBY_GAME_IDS: readonly LobbyGameId[] = ['runner', 'flappy', 'dodge', 'rope', 'redlight', 'coins', 'battleships', 'race', 'whack'];
+export type LobbyGameId = 'runner' | 'flappy' | 'dodge' | 'rope' | 'redlight' | 'coins' | 'battleships' | 'race' | 'whack' | 'draw';
+export const LOBBY_GAME_IDS: readonly LobbyGameId[] = ['runner', 'flappy', 'dodge', 'rope', 'redlight', 'coins', 'battleships', 'race', 'whack', 'draw'];
 
 /** What a client sends. Anything else is ignored. */
 export type LobbyClientMessage =
@@ -508,8 +508,55 @@ export interface WhackSnapshot extends RoundSummary {
   winnerId: string | null;
 }
 
+// ---- Quick draw (one shared screen; wait for GO, then tap first) -----------------------------------
+
+/** Points a player needs to win a run. */
+export const DRAW_POINTS_TO_WIN = 3;
+
+/** Where a duel round is: waiting for GO (tapping now is a false start), GO has flashed, or the result is showing. */
+export type DrawStage = 'wait' | 'go' | 'result';
+
+/** How a player stands in the current duel round. */
+export type DrawPlayerState = 'ready' | 'false' | 'late' | 'won';
+
+export interface DrawPlayer {
+  id: string;
+  /** Playing this run. False if they arrived mid-run (they watch and play from the next one). */
+  alive: boolean;
+  /** Runs won since this person joined the lobby. */
+  wins: number;
+  /** Points this run (first to `DRAW_POINTS_TO_WIN`). */
+  meters: number;
+  /** `false`: tapped before GO and is out of this round. `late`: someone else was first. */
+  state: DrawPlayerState;
+}
+
+export interface DrawSnapshot extends RoundSummary {
+  id: 'draw';
+  phase: LobbyRoundPhase;
+  /** The most points anyone has so far. */
+  meters: number;
+  /** Always 0: nothing scrolls past in this game (every snapshot carries a course speed). */
+  speed: number;
+  /** Milliseconds left in the run (a time limit) while `playing`. */
+  roundLeftMs: number;
+  /** Which duel round of the run this is (from 1). */
+  duel: number;
+  stage: DrawStage;
+  /** Milliseconds since GO flashed (`go` and `result`); 0 while waiting. The wait before GO is never sent. */
+  sinceGoMs: number;
+  /** Who won the duel round (`result` only), and how many milliseconds after GO their tap came in; null when nobody did. */
+  duelWinnerId: string | null;
+  reactMs: number;
+  players: DrawPlayer[];
+  /** Milliseconds left in `countdown` or `over`; 0 otherwise. */
+  timerMs: number;
+  /** Who won the run that just ended (`over` only); null when nobody did (a draw). */
+  winnerId: string | null;
+}
+
 /** The snapshot of whichever game is running. */
-export type LobbyGameSnapshot = RunnerSnapshot | FlappySnapshot | DodgeSnapshot | RopeSnapshot | RedLightSnapshot | CoinsSnapshot | BattleshipsSnapshot | RaceSnapshot | WhackSnapshot;
+export type LobbyGameSnapshot = RunnerSnapshot | FlappySnapshot | DodgeSnapshot | RopeSnapshot | RedLightSnapshot | CoinsSnapshot | BattleshipsSnapshot | RaceSnapshot | WhackSnapshot | DrawSnapshot;
 
 /** What a client needs to run its own player on a course the server decided: which run, the seed that
  * makes the course, and how long until the run starts (negative once it has, by how far in). */

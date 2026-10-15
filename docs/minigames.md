@@ -75,6 +75,7 @@ A game can instead make **the play space the controller**: there are no buttons 
 | Red light, green light | Hold **Space**, **→** or **D** to run. | Hold **Run** (or press and hold the arena). |
 | Catch the coins | **←** / **→** or **A** / **D**. | The **◀** and **▶** buttons. |
 | Battleships | Click a square (no keyboard control yet). | Tap a square on the board. |
+| Quick draw | Press **Space**, or click the big light. | Tap the big light. |
 | Whack-a-mole | Click a hole, or press **1-9** (laid out like a numpad: **7 8 9** on the top row, **1 2 3** on the bottom). | Tap a hole on the grid. |
 | Jump rope | **Space**, **↑** or **W** to jump. | **Jump**, or tap anywhere on the arena. |
 | Obstacle race | **←** / **→** or **A** / **D** to steer. | The **◀** and **▶** buttons. |
@@ -159,6 +160,18 @@ Coins fall; slide left and right to catch them before anyone else does.
 - **Speed:** things start at 0.4 of a screen per second and climb to 0.7 after 30 seconds. A new item appears every 0.55 seconds at the start, down to every 0.3 seconds.
 - The bar along the top is the time left, and each catcher's coin count is shown over their head.
 - You move at 0.6 of a screen per second and can't leave the screen.
+
+## Quick draw
+
+A reaction duel on one shared screen. Needs at least 2 players, so on your own a bot duels you.
+
+- **How a round goes:** everyone waits with a finger ready. After a **random pause** (1.5 to 4 seconds, never shown to anyone) the big light flashes **GO!**. The **first tap after GO** wins the point.
+- **False start:** tapping **before** GO puts you out of that round (you are dimmed, and can tap again in the next round).
+- **If everyone jumps the gun**, the round is shown and run again.
+- **Winning:** first to **3 points** wins the run. If nobody gets there, the run ends after **60 seconds** and the most points wins; a tie is a draw.
+- **Fairness:** the order is decided by when taps reach the server, so a slow connection loses out. It is for fun, not a reaction-time test. The winning tap's time after GO is shown.
+- **Bots** tap about a third to three quarters of a second after GO and never false-start, so a quick person beats them.
+- **Controls:** the big light is the controller. Tap it, or press **Space**.
 
 ## Whack-a-mole
 
