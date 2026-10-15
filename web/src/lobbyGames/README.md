@@ -56,6 +56,7 @@ Every game uses the kit in `kit/` so the lobby looks like one product. The point
 **Rules**
 
 - **Never draw the HUD yourself.** The metres pill, the players-left dots, the "RUN n STARTS IN" countdown, the winner card and the "you're out" note are the kit's. Games must not add their own banners or counters.
+- **One play space.** Everyone plays on the same arena, in the same world. Do not give each player their own window, strip, lane or mini-board, whether stacked or side by side. Players differ by where they are in the one shared space (a runner a little ahead, a car in another column). Panels that only show information about the players (a list of names and scores) are fine; the playing field itself is never split.
 - **Obstacles are game covers.** Draw them with `coverTile(...)` and `hueOf(o.n)` (the server numbers every obstacle, so a colour never changes as it scrolls). They stand on `drawFloor(...)` with `groundShadow(...)`. Anything that is not a cover (a vote bubble, a pipe column) still takes its colours from the kit's `STAGE` and the app's CSS variables.
 - **Players are drawn with `sc.drawPlayer(id, cx, cy, rx, ry)`.** Circle (`rx === ry`) or capsule (`ry` taller). Always iterate `sc.order()` so the viewer is drawn last and carries the "YOU" tag. **Do not draw players who are out**: the knock-out burst replaces them.
 - **Everything is a fraction of `S`** (the arena's side in pixels) so it scales with the canvas. Mirror the server's hitbox sizes as named constants and comment where they come from, so what is drawn is what is hit.

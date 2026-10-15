@@ -29,6 +29,11 @@ interface RoomState {
   ticks: number;
   spinWaiting: boolean;
   checking: boolean;
+  /** When each person last did something real (see `touch`). */
+  lastActive: Map<string, number>;
+  /** Each person's last direction and last report, to tell a change from a repeat. */
+  lastInput: Map<string, string>;
+  lastReport: Map<string, string>;
 }
 
 // A client sends a message when the direction they hold changes or they vote, and (in a game that runs
@@ -39,6 +44,9 @@ const MAX_MESSAGES_PER_SECOND = 80;
 const MAX_CONNECTIONS_PER_USER = 5;
 // How often the lobby asks whether a spin is waiting (and keeps its waiting room open).
 const SPIN_CHECK_EVERY_TICKS = LOBBY_TICK_HZ * 2;
+// While a spin waits, someone who has done nothing for this long is dropped from the lobby, so they
+// stop holding the waiting room open and counting toward the votes needed.
+export const SPIN_IDLE_KICK_MS = 60_000;
 
 /** All the rooms' live lobbies: one `SpinLobby` per room that has someone in it, driven by a timer
  * that exists only while someone is connected. While a spin is waiting for members, the lobby holds
@@ -86,6 +94,9 @@ export class SpinLobbyHub {
         ticks: 0,
         spinWaiting: false,
         checking: false,
+        lastActive: new Map(),
+        lastInput: new Map(),
+        lastReport: new Map(),
       };
       room = created;
       this.rooms.set(roomId, created);
@@ -96,6 +107,7 @@ export class SpinLobbyHub {
     }
     room.lobby.join(userId);
     room.sockets.set(socket, userId);
+    room.lastActive.set(userId, this.now());
     // Look straight away rather than waiting for the next check, so a vote button shows at once.
     void this.refreshSpin(roomId);
     this.send(socket, room.lobby.snapshot(room.spinWaiting, this.now(), userId));
@@ -107,6 +119,11 @@ export class SpinLobbyHub {
     if (!room || userId === undefined) return;
     room.sockets.delete(socket);
     room.lobby.leave(userId);
+    if (!room.lobby.present.includes(userId)) {
+      room.lastActive.delete(userId);
+      room.lastInput.delete(userId);
+      room.lastReport.delete(userId);
+    }
     if (room.sockets.size === 0) {
       if (room.timer) clearInterval(room.timer);
       this.rooms.delete(roomId);
@@ -117,12 +134,16 @@ export class SpinLobbyHub {
   /** Closes every connection a person has to a room's lobby (they were removed from the room). Membership is
    * only checked when a connection opens, so without this a removed member keeps seeing and voting in it. */
   kick(roomId: string, userId: string): void {
+    this.kickWith(roomId, userId, 'Removed from the room');
+  }
+
+  private kickWith(roomId: string, userId: string, reason: string): void {
     const room = this.rooms.get(roomId);
     if (!room) return;
     for (const [socket, id] of [...room.sockets]) {
       if (id !== userId) continue;
       this.disconnect(roomId, socket);
-      this.closeSocket(socket, 'Removed from the room');
+      this.closeSocket(socket, reason);
     }
   }
 
@@ -167,12 +188,49 @@ export class SpinLobbyHub {
     }
     if (!msg || typeof msg !== 'object') return;
     const m = msg as Record<string, unknown>;
-    if (m.t === 'input') room.lobby.setInput(userId, m.dx, m.dy);
-    else if (m.t === 'action') room.lobby.action(userId, m.name);
-    else if (m.t === 'tap') room.lobby.tap(userId, m.target);
-    else if (m.t === 'report') room.lobby.report(userId, m.run, m.alive, m.f);
+    if (m.t === 'input') {
+      room.lobby.setInput(userId, m.dx, m.dy);
+      // A changed direction is activity; a repeat of the same one is not. Holding a direction sends
+      // nothing more, so a held one keeps counting (see `dropIdle`).
+      const dir = `${m.dx === 1 || m.dx === -1 ? m.dx : 0},${m.dy === 1 || m.dy === -1 ? m.dy : 0}`;
+      if (room.lastInput.get(userId) !== dir) this.touch(room, userId, now);
+      room.lastInput.set(userId, dir);
+    } else if (m.t === 'action') {
+      room.lobby.action(userId, m.name);
+      this.touch(room, userId, now);
+    } else if (m.t === 'tap') {
+      room.lobby.tap(userId, m.target);
+      this.touch(room, userId, now);
+    } else if (m.t === 'report') {
+      room.lobby.report(userId, m.run, m.alive, m.f);
+      // Only a report that differs from the last one shows movement.
+      const sig = JSON.stringify([m.run, m.alive, m.f]);
+      if (room.lastReport.get(userId) !== sig) this.touch(room, userId, now);
+      room.lastReport.set(userId, sig);
+    }
     else if (m.t === 'ping' && typeof m.c === 'number' && Number.isFinite(m.c)) this.send(socket, { t: 'pong', c: m.c, s: now });
-    else if (m.t === 'vote' && typeof m.on === 'boolean') room.lobby.vote(userId, m.on);
+    else if (m.t === 'vote' && typeof m.on === 'boolean') {
+      room.lobby.vote(userId, m.on);
+      this.touch(room, userId, now);
+    }
+  }
+
+  private touch(room: RoomState, userId: string, now: number): void {
+    room.lastActive.set(userId, now);
+  }
+
+  /** Drops members who have done nothing for `SPIN_IDLE_KICK_MS` while a spin waits, like `kick`. Outside a
+   * waiting spin nothing is held hostage, so the idle clock just stays reset. Someone holding a
+   * direction is active, since the client sends nothing more while it is held. */
+  private dropIdle(roomId: string, room: RoomState, now: number): void {
+    for (const userId of room.lobby.present) {
+      const dir = room.lastInput.get(userId);
+      if (!room.spinWaiting || (dir !== undefined && dir !== '0,0')) room.lastActive.set(userId, now);
+    }
+    if (!room.spinWaiting) return;
+    for (const userId of room.lobby.present) {
+      if (now - (room.lastActive.get(userId) ?? now) >= SPIN_IDLE_KICK_MS) this.kickWith(roomId, userId, 'Idle');
+    }
   }
 
   /** A vote from outside the socket (the "start now" button's HTTP call). False when the person is
@@ -181,6 +239,7 @@ export class SpinLobbyHub {
     const room = this.rooms.get(roomId);
     if (!room || !room.lobby.present.includes(userId)) return false;
     room.lobby.vote(userId, on);
+    this.touch(room, userId, this.now());
     return true;
   }
 
@@ -193,6 +252,8 @@ export class SpinLobbyHub {
     room.lobby.tick(now - room.lastTickAt);
     room.lastTickAt = now;
     room.ticks++;
+    this.dropIdle(roomId, room, now);
+    if (!this.rooms.has(roomId)) return;
 
     if (room.spinWaiting && room.lobby.votePassed) {
       room.spinWaiting = false;

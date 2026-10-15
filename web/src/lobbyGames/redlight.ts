@@ -5,23 +5,24 @@ import { STAGE, groundShadow, renderScene, type Scene, type SceneGame } from './
 /** Where the track starts and finishes across the arena, as fractions of its width. */
 const START = 0.08;
 const FINISH = 0.9;
-/** The lanes fill this band of the arena's height. */
-const LANES_TOP = 0.3;
-const LANES_BOTTOM = 0.92;
-const MAX_RADIUS = 0.05;
+/** Everyone runs on the one field, which fills this band of the arena's height. There are no lanes: runners
+ * share the same open space and are only spread out a little up and down so they do not hide each other. */
+const FIELD_TOP = 0.3;
+const FIELD_BOTTOM = 0.92;
+const RADIUS = 0.04;
+/** Fraction of a turn between neighbouring runners' heights (the golden ratio), so any number spread evenly. */
+const SPREAD = 0.618;
 
-/** The lane's middle, as a fraction of the height, for runner number `i` of `n`. */
-function laneY(i: number, n: number): number {
-  return LANES_TOP + ((i + 0.5) / n) * (LANES_BOTTOM - LANES_TOP);
-}
-
-function radiusFor(n: number): number {
-  return Math.min(MAX_RADIUS, ((LANES_BOTTOM - LANES_TOP) / n) * 0.42);
+/** The runner's height on the field, as a fraction of the arena's height, for runner number `i`. */
+function fieldY(i: number): number {
+  const margin = RADIUS * 1.4;
+  const top = FIELD_TOP + margin;
+  const bottom = FIELD_BOTTOM - margin;
+  return top + ((i * SPREAD) % 1) * (bottom - top);
 }
 
 function drawWorld(sc: Scene<RedLightSnapshot>): void {
   const { ctx, S, snapshot, theme, now } = sc;
-  const n = snapshot.players.length;
 
   // The light: a big lamp at the top that is green, flashes amber as a warning, then red.
   const lamp = snapshot.light === 'red' ? theme.danger : snapshot.light === 'warn' ? theme.star : theme.mint;
@@ -44,34 +45,31 @@ function drawWorld(sc: Scene<RedLightSnapshot>): void {
   ctx.arc(lx, ly, lr * 1.15, 0, Math.PI * 2);
   ctx.stroke();
 
-  // Lane lines, the start and a chequered finish line.
+  // The start line and a chequered finish line across the one field.
+  const top = FIELD_TOP * S;
+  const height = (FIELD_BOTTOM - FIELD_TOP) * S;
   ctx.strokeStyle = STAGE.edge;
   ctx.lineWidth = 1;
-  for (let i = 0; i <= n; i++) {
-    const y = (LANES_TOP + (i / n) * (LANES_BOTTOM - LANES_TOP)) * S;
-    ctx.beginPath();
-    ctx.moveTo(START * S, y);
-    ctx.lineTo(FINISH * S, y);
-    ctx.stroke();
-  }
+  ctx.beginPath();
+  ctx.moveTo(START * S, top);
+  ctx.lineTo(START * S, top + height);
+  ctx.stroke();
   const fx = FINISH * S;
-  const top = LANES_TOP * S;
-  const height = (LANES_BOTTOM - LANES_TOP) * S;
   const cell = S * 0.02;
   for (let y = 0; y < height; y += cell) {
     ctx.fillStyle = Math.floor(y / cell) % 2 ? 'oklch(1 0 0 / 0.85)' : 'oklch(0.2 0 0 / 0.85)';
     ctx.fillRect(fx, top + y, cell, Math.min(cell, height - y));
   }
 
-  const radius = radiusFor(n) * S;
+  const radius = RADIUS * S;
   for (const i of sc.order()) {
     const p = snapshot.players[i];
     if (!p.alive) continue; // caught: the burst has taken them
     const cx = (START + sc.ease(p.id, p.x, 0).x * (FINISH - START)) * S;
     // A little bounce while running.
     const bounce = p.running ? Math.abs(Math.sin(now / 90)) * radius * 0.25 : 0;
-    const cy = laneY(i, n) * S - bounce;
-    groundShadow(ctx, cx, laneY(i, n) * S + radius, radius, 0.8);
+    const cy = fieldY(i) * S - bounce;
+    groundShadow(ctx, cx, fieldY(i) * S + radius, radius, 0.8);
     sc.drawPlayer(p.id, cx, cy, radius, radius);
   }
 }
@@ -79,7 +77,7 @@ function drawWorld(sc: Scene<RedLightSnapshot>): void {
 const scene: SceneGame<RedLightSnapshot> = {
   scroll: 'x',
   drawWorld,
-  anchor: (snapshot, index) => ({ x: START + snapshot.players[index].x * (FINISH - START), y: laneY(index, snapshot.players.length) }),
+  anchor: (snapshot, index) => ({ x: START + snapshot.players[index].x * (FINISH - START), y: fieldY(index) }),
 };
 
 export const redLightView: LobbyGameView<RedLightSnapshot> = {
