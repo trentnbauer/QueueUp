@@ -78,6 +78,7 @@ A game can instead make **the play space the controller**: there are no buttons 
 | Quick draw | Press **Space**, or click the big light. | Tap the big light. |
 | Tilt | Hold **←** / **→** or **A** / **D**. | Hold the **◀** and **▶** buttons. |
 | Stacker | **Space**, **↑** or **W** to stop the light. | **Stop**, or tap anywhere on the arena. |
+| Memory pattern | Click a panel, or press **1-4** (top left, top right, bottom left, bottom right). | Tap a panel. |
 | Asteroid defence | **←** / **→** or **A** / **D** to swing the gun (it fires by itself). | The **◀** and **▶** buttons. |
 | Sumo ledge | **←** / **→** or **A** / **D** to walk, **Space**, **↑** or **W** to shove. | The **◀** and **▶** buttons, and **Shove**. |
 | Whack-a-mole | Click a hole, or press **1-9** (laid out like a numpad: **7 8 9** on the top row, **1 2 3** on the bottom). | Tap a hole on the grid. |
@@ -199,6 +200,18 @@ One tower and one light for the whole room. Stop the light on the target to clim
 - **Ending:** the run ends when everyone is out, the tower is cleared, or after **2 minutes**. **Most rows locked wins**; a tie is a draw. Alone it is a high score (how many rows you climbed) and ends when you miss.
 - Everyone's rows are listed on the right, and the bar along the top is the time left.
 - **Controls:** one button: **Space**, **↑** or **W**, or tap anywhere on the arena.
+
+## Memory pattern
+
+Watch the panels light up, then tap them back in the same order.
+
+- **One shared board:** four coloured panels in a 2 by 2 grid, the same for everyone. The pattern is lit **one panel at a time** (about half a second each), the same for everyone.
+- **Then everyone taps it back.** Tap a panel, or press **1** to **4** (top left, top right, bottom left, bottom right). A panel the pattern did not have next, **knocks you out**. Tapping before the pattern has finished being shown does nothing.
+- **Time:** you get 3 seconds plus 1.2 seconds for each panel in the pattern. Anyone who has not tapped the whole pattern when it runs out is out.
+- **Each round the pattern is one panel longer** and starts with the same panels as the last. Everyone who got it right goes on after a short pause.
+- **Last one in wins.** If everyone left is out in the same round, nobody wins. Alone it is a high score: the number of rounds you got through. If a run reaches 40 rounds it ends with no winner.
+- **What others see of you:** only how many panels of the pattern you have got right so far (a tick when you have the lot), never which panels, and nothing lights up when someone else taps. The pattern lives on the server and only the panel being shown right now is ever sent, so nobody can read ahead.
+- **Controls:** the panels are the controller, so tap or click them, or press **1-4**.
 
 ## Asteroid defence
 
