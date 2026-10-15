@@ -14,11 +14,23 @@ const STAND_HEIGHT = 0.45;
 const DUCK_HEIGHT = 0.25;
 // Cactus: low, must be jumped. Bird: flies mid-height, must be ducked under (a tap jump runs into it).
 // Log: low but wide, so only a held jump stays in the air long enough.
+// A bird can also be wide (a long overhead span to stay ducked under), and cacti sometimes come as a pair of
+// skinny ones side by side. The width listed here is the usual one; each obstacle carries its own.
 const OBSTACLES: Record<RunnerObstacleKind, { width: number; from: number; to: number }> = {
   cactus: { width: 0.1, from: 0, to: 0.35 },
   bird: { width: 0.06, from: 0.3, to: 0.7 },
   log: { width: 0.3, from: 0, to: 0.35 },
 };
+/** A bird is wide this often (and then between WIDE_BIRD_MIN and WIDE_BIRD_MIN + WIDE_BIRD_EXTRA screens). */
+const WIDE_BIRD_CHANCE = 0.4;
+const WIDE_BIRD_MIN = 0.18;
+const WIDE_BIRD_EXTRA = 0.14;
+/** Two skinny cacti side by side, with this much space between them: one jump clears both (even a tap, at
+ * full speed, spans well past 0.16 screens). */
+const PAIR_CHANCE = 0.3;
+const SKINNY_WIDTH = 0.05;
+const PAIR_GAP = 0.015;
+const PAIRS_AFTER_MS = 3000;
 const SPEED_START = 0.5;
 const SPEED_GAIN = 0.015; // per second of the run
 const SPEED_MAX = 1.0;
@@ -50,7 +62,7 @@ interface Runner extends RoundPlayer {
 export class RunnerGame extends RoundGame<Runner> {
   readonly id = 'runner' as const;
   private speed = SPEED_START;
-  private obstacles: { x: number; kind: RunnerObstacleKind; n: number }[] = [];
+  private obstacles: { x: number; kind: RunnerObstacleKind; n: number; w: number }[] = [];
   private spawned = 0;
   /** Where the next obstacle's near edge may be: the far edge of the last one plus a gap. */
   private nextEdgeX = 0;
@@ -134,7 +146,7 @@ export class RunnerGame extends RoundGame<Runner> {
       winnerId: this.winnerId,
       ...this.summary(),
       obstacles: this.obstacles
-        .map((o): RunnerObstacle => ({ x: r3(o.x - this.distance), kind: o.kind, n: o.n }))
+        .map((o): RunnerObstacle => ({ x: r3(o.x - this.distance), kind: o.kind, n: o.n, w: o.w }))
         .filter((o) => o.x > -VISIBLE_BEHIND && o.x < SPAWN_AHEAD),
       players: [...this.players.values()].map((r) => ({
         id: r.id,
@@ -188,7 +200,7 @@ export class RunnerGame extends RoundGame<Runner> {
     for (const o of this.obstacles) {
       const spec = OBSTACLES[o.kind];
       const rel = o.x - this.distance;
-      if (Math.abs(rel - RUNNER_X) >= (spec.width + RUNNER_WIDTH) / 2) continue;
+      if (Math.abs(rel - RUNNER_X) >= (o.w + RUNNER_WIDTH) / 2) continue;
       if (r.h < spec.to && top > spec.from) return true;
     }
     return false;
@@ -196,12 +208,29 @@ export class RunnerGame extends RoundGame<Runner> {
 
   private spawnObstacles(): void {
     while (this.nextEdgeX < this.distance + SPAWN_AHEAD) {
-      const kind = this.nextKind();
-      const half = OBSTACLES[kind].width / 2;
-      this.obstacles.push({ x: this.nextEdgeX + half, kind, n: ++this.spawned });
+      // One obstacle, or (for cacti) a pair of skinny ones touching distance apart: they are drawn and hit
+      // as two, and the gap after is measured from the far edge of the last.
+      for (const [i, piece] of this.nextPieces().entries()) {
+        if (i > 0) this.nextEdgeX += PAIR_GAP;
+        this.obstacles.push({ x: this.nextEdgeX + piece.w / 2, kind: piece.kind, n: ++this.spawned, w: piece.w });
+        this.nextEdgeX += piece.w;
+      }
       // The next one starts a gap after this one's far edge.
-      this.nextEdgeX += OBSTACLES[kind].width + this.speed * (GAP_MIN_S + this.rng() * GAP_EXTRA_S);
+      this.nextEdgeX += this.speed * (GAP_MIN_S + this.rng() * GAP_EXTRA_S);
     }
+  }
+
+  /** What the next thing on the track is: one obstacle, or a pair of skinny cacti. */
+  private nextPieces(): { kind: RunnerObstacleKind; w: number }[] {
+    const kind = this.nextKind();
+    if (kind === 'bird') return [{ kind, w: this.rng() < WIDE_BIRD_CHANCE ? WIDE_BIRD_MIN + this.rng() * WIDE_BIRD_EXTRA : OBSTACLES.bird.width }];
+    if (kind === 'cactus' && this.roundMs >= PAIRS_AFTER_MS && this.rng() < PAIR_CHANCE) {
+      return [
+        { kind, w: SKINNY_WIDTH },
+        { kind, w: SKINNY_WIDTH },
+      ];
+    }
+    return [{ kind, w: OBSTACLES[kind].width }];
   }
 
   /** Cacti to begin with; logs and then birds join in as the run goes on. */

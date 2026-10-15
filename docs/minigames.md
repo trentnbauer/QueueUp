@@ -86,8 +86,9 @@ The offline-dinosaur game, with everyone running the same track.
 
 - **Goal:** survive. Obstacles scroll in from the right, faster and faster. Hit one and you are out.
 - **Cactus** (a game cover standing on the ground): jump it. A **tap** is a short hop.
+- **Two skinny cacti** (from about 3 seconds in, roughly one cactus in three): a pair of narrow covers standing right next to each other, with only a sliver of space between. Treat them as one obstacle: one jump clears both, so you do not need to land between them.
 - **Log** (a wide, low stack of covers, which start to appear about 5 seconds into a run): too wide for a hop, so **hold** the jump button to go higher and stay in the air longer.
-- **Bird** (a coloured game cover with a 😴 on it, floating at head height, which starts to appear about 8 seconds in): **duck** under it. Jumping into it knocks you out.
+- **Bird** (a coloured game cover with a 😴 on it, floating at head height, which starts to appear about 8 seconds in): **duck** under it. Jumping into it knocks you out. About two birds in five are **wide** (a long run of covers, up to about a third of the screen), so keep **holding** duck until you are all the way past, not just until it reaches you.
 - **Jumping:** hold the button on the way up to jump higher and further; letting go early cuts the jump short. You can only jump from the ground, and holding the button after you land does not jump again: let go and press again. Pressing part-way up a hop does not make it higher.
 - **Ducking** only works on the ground, and only while you hold it.
 - **Speed** starts at half a screen per second and climbs to a screen per second after about 33 seconds, then stays there.
