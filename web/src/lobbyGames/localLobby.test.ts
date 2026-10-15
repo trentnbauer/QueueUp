@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from 'vitest';
-import { LOBBY_GAME_IDS, LobbyRecord, createLobbyGame } from '@queueup/shared';
+import { DodgeGame, LOBBY_GAME_IDS, LobbyRecord, createLobbyGame } from '@queueup/shared';
 import { LocalLobby } from './localLobby';
 
 describe('LocalLobby', () => {
@@ -20,7 +20,10 @@ describe('LocalLobby', () => {
   });
 
   it('plays a solo run to the end and starts the next one by itself', () => {
-    const lobby = new LocalLobby('dodge', 'me');
+    // A course from a fixed seed: with a random one, standing still can stay in the safe lane for longer than
+    // this waits, and the test fails now and then.
+    const record = new LobbyRecord();
+    const lobby = new LocalLobby('dodge', 'me', record, new DodgeGame(() => 0.3, record));
     for (let t = 0; t < 3200; t += 66) lobby.tick(66);
     // Standing still, a block eventually lands on you.
     for (let t = 0; t < 30_000 && lobby.snapshot().game.phase === 'playing'; t += 66) lobby.tick(66);
