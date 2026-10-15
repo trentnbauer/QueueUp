@@ -12,6 +12,7 @@ import { redLightView } from './redlight';
 import { ropeView } from './rope';
 import { runnerView } from './runner';
 import { tiltView } from './tilt';
+import { stackerView } from './stacker';
 import { whackView } from './whack';
 
 /** What a renderer is given each frame. */
@@ -82,6 +83,7 @@ export const LOBBY_GAME_VIEWS: { [K in LobbyGameId]: LobbyGameView<Extract<Lobby
   whack: whackView,
   draw: drawView,
   tilt: tiltView,
+  stacker: stackerView,
 };
 
 /** The view for whichever game a snapshot belongs to. */

@@ -1,0 +1,157 @@
+import { STACKER_COLS, STACKER_ROWS, type StackerLocked, type StackerSnapshot } from '../spinLobby.js';
+import { RoundGame, type RoundPlayer } from './roundGame.js';
+
+/** A run ends at this time if the tower is not cleared and someone is still in. */
+const RUN_LIMIT_S = 120;
+/** How wide the target is on the lowest rows, in squares, and how the rows narrow going up: one square
+ * narrower every `ROWS_PER_NARROWING` rows, down to `MIN_WIDTH`. */
+const START_WIDTH = 5;
+const ROWS_PER_NARROWING = 2;
+const MIN_WIDTH = 2;
+/** The light's speed in squares a second on the first row, how much faster it is each row up, and its top speed. */
+const SPEED_START = 5;
+const SPEED_GAIN = 0.9;
+const SPEED_MAX = 12;
+/** A press counts if the light is within this many squares of the target's edges: a tick or two of slack
+ * for a slow connection. */
+const TOLERANCE = 0.3;
+/** After a row is locked, presses are ignored for this long. Two people who press together both meant the
+ * row that was just won; the second must not be judged against the new, narrower one and knocked out. */
+const GRACE_S = 0.35;
+
+interface Stacker extends RoundPlayer {
+  /** Rows locked in this run. */
+  score: number;
+  /** Was in the run when it started (someone who arrived part way through only watches). */
+  inRun: boolean;
+}
+
+/** The target's width on row `row` (0 is the bottom). */
+export function targetWidth(row: number): number {
+  return Math.max(MIN_WIDTH, START_WIDTH - Math.floor(row / ROWS_PER_NARROWING));
+}
+
+/** The light's speed on row `row`, in squares a second. */
+export function lightSpeed(row: number): number {
+  return Math.min(SPEED_MAX, SPEED_START + SPEED_GAIN * row);
+}
+
+/** One tower and one light for everyone. A light bounces along the current row; press as it passes over the
+ * target squares. The first press that lands locks the row for the whole room: that player scores it and
+ * everyone moves up to a narrower row with a faster light. A press that misses knocks that player out.
+ * The run ends when everyone is out, the tower is cleared or time is up; most rows locked wins. See
+ * RoundGame for how runs start and end. */
+export class StackerGame extends RoundGame<Stacker> {
+  readonly id = 'stacker' as const;
+  private locked: StackerLocked[] = [];
+  private target: { start: number; w: number } | null = null;
+  /** How far the light has travelled in all; its place along the row bounces between 0 and the width. */
+  private travelled = 0;
+  private grace = 0;
+
+  /** The score shown for the run: the most rows anyone has locked. */
+  protected get meters(): number {
+    let best = 0;
+    for (const p of this.players.values()) if (p.inRun && p.score > best) best = p.score;
+    return best;
+  }
+
+  protected createPlayer(id: string, alive: boolean): Stacker {
+    return { id, score: 0, inRun: false, alive, wins: 0, outAtMeters: 0 };
+  }
+
+  protected resetPlayer(p: Stacker): void {
+    p.score = 0;
+    p.inRun = false;
+  }
+
+  protected resetCourse(): void {
+    this.locked = [];
+    this.target = null;
+    this.travelled = 0;
+    this.grace = 0;
+  }
+
+  protected beginCourse(): void {
+    this.resetCourse();
+    for (const p of this.players.values()) p.inRun = p.alive;
+    this.target = this.makeTarget(0);
+  }
+
+  private makeTarget(row: number): { start: number; w: number } {
+    const w = targetWidth(row);
+    return { start: Math.floor(this.rng() * (STACKER_COLS - w + 1)), w };
+  }
+
+  /** Where the light is along the row, 0 to STACKER_COLS. */
+  private get light(): number {
+    const period = STACKER_COLS * 2;
+    const t = this.travelled % period;
+    return t <= STACKER_COLS ? t : period - t;
+  }
+
+  input(): void {
+    // One button: there is no direction to hold.
+  }
+
+  action(userId: string, name: string): void {
+    if (name !== 'stop') return;
+    const p = this.players.get(userId);
+    if (this.phase !== 'playing' || !p || !p.alive || !p.inRun || !this.target || this.grace > 0) return;
+    const light = this.light;
+    const { start, w } = this.target;
+    if (light >= start - TOLERANCE && light <= start + w + TOLERANCE) {
+      p.score++;
+      this.locked.push({ start, w, by: [...this.players.keys()].indexOf(userId) });
+      this.grace = GRACE_S;
+      if (this.locked.length >= STACKER_ROWS) {
+        this.target = null;
+        this.finishRun();
+      } else this.target = this.makeTarget(this.locked.length);
+      return;
+    }
+    p.outAtMeters = p.score;
+    this.knockOut(p);
+    p.outAtMeters = p.score;
+    this.checkRunEnd();
+  }
+
+  snapshot(): StackerSnapshot {
+    return {
+      id: 'stacker',
+      phase: this.phase,
+      meters: this.meters,
+      speed: 0,
+      roundLeftMs: this.phase === 'playing' ? Math.max(0, Math.round(RUN_LIMIT_S * 1000 - this.roundMs)) : 0,
+      timerMs: Math.max(0, Math.round(this.timerMs)),
+      winnerId: this.winnerId,
+      ...this.summary(),
+      locked: this.locked.map((l) => ({ ...l })),
+      target: this.target && this.phase === 'playing' ? { ...this.target } : null,
+      light: Math.round(this.light * 100) / 100,
+      players: [...this.players.values()].map((p) => ({ id: p.id, alive: p.alive, wins: p.wins, meters: p.inRun ? p.score : 0 })),
+    };
+  }
+
+  protected advance(dt: number): void {
+    this.grace = Math.max(0, this.grace - dt);
+    this.travelled += lightSpeed(this.locked.length) * dt;
+    if (this.roundMs / 1000 >= RUN_LIMIT_S) this.finishRun();
+  }
+
+  /** Ends the run when nobody who started it is still in. */
+  protected override checkRunEnd(): void {
+    if (this.phase !== 'playing') return;
+    if (![...this.players.values()].some((p) => p.inRun && p.alive)) this.finishRun();
+  }
+
+  /** The run is over (everyone out, the tower cleared or time up): most rows locked wins; a tie, a run with
+   * no rows and a solo run have no winner. */
+  private finishRun(): void {
+    const racers = [...this.players.values()].filter((p) => p.inRun);
+    for (const p of racers) p.outAtMeters = p.score;
+    const best = Math.max(0, ...racers.map((p) => p.score));
+    const leaders = racers.filter((p) => p.score === best);
+    this.endRun(this.startedWith > 1 && best > 0 && leaders.length === 1 ? leaders[0] : null);
+  }
+}

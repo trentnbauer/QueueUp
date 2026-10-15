@@ -11,8 +11,8 @@
 export const LOBBY_TICK_HZ = 15;
 
 /** The games the lobby can run. */
-export type LobbyGameId = 'runner' | 'flappy' | 'dodge' | 'rope' | 'redlight' | 'coins' | 'battleships' | 'race' | 'whack' | 'draw' | 'tilt';
-export const LOBBY_GAME_IDS: readonly LobbyGameId[] = ['runner', 'flappy', 'dodge', 'rope', 'redlight', 'coins', 'battleships', 'race', 'whack', 'draw', 'tilt'];
+export type LobbyGameId = 'runner' | 'flappy' | 'dodge' | 'rope' | 'redlight' | 'coins' | 'battleships' | 'race' | 'whack' | 'draw' | 'tilt' | 'stacker';
+export const LOBBY_GAME_IDS: readonly LobbyGameId[] = ['runner', 'flappy', 'dodge', 'rope', 'redlight', 'coins', 'battleships', 'race', 'whack', 'draw', 'tilt', 'stacker'];
 
 /** What a client sends. Anything else is ignored. */
 export type LobbyClientMessage =
@@ -606,8 +606,54 @@ export interface TiltSnapshot extends RoundSummary {
   winnerId: string | null;
 }
 
+// ---- Stacker (one shared tower and one light; players race to lock rows in) -------------------------
+
+/** The tower is this many squares wide and this many rows tall. */
+export const STACKER_COLS = 9;
+export const STACKER_ROWS = 12;
+
+/** A row someone has locked in: the squares that were the target (`start` to `start + w - 1`) and who locked it. */
+export interface StackerLocked {
+  start: number;
+  w: number;
+  /** Index into `players`. */
+  by: number;
+}
+
+export interface StackerPlayer {
+  id: string;
+  /** Still in the run: false once they pressed and missed, or if they arrived mid-run. */
+  alive: boolean;
+  /** Runs won since this person joined the lobby. */
+  wins: number;
+  /** Rows this person has locked in. */
+  meters: number;
+}
+
+export interface StackerSnapshot extends RoundSummary {
+  id: 'stacker';
+  phase: LobbyRoundPhase;
+  /** The most rows anyone has locked so far. */
+  meters: number;
+  /** Always 0: nothing scrolls past in this game (every snapshot carries a course speed). */
+  speed: number;
+  /** Milliseconds left in the run (a time limit) while `playing`. */
+  roundLeftMs: number;
+  /** The rows locked in so far, bottom first. The current row is the next one up. */
+  locked: StackerLocked[];
+  /** The target squares of the current row (no row left to lock once the tower is cleared). */
+  target: { start: number; w: number } | null;
+  /** The light's place along the row, 0 to `STACKER_COLS` (the square it is over is the whole part). */
+  light: number;
+  players: StackerPlayer[];
+  /** Milliseconds left in `countdown` or `over`; 0 otherwise. */
+  timerMs: number;
+  /** Who won the run that just ended (`over` only); null when nobody did (a solo run, or a tie). */
+  winnerId: string | null;
+}
+
 /** The snapshot of whichever game is running. */
-export type LobbyGameSnapshot = RunnerSnapshot | FlappySnapshot | DodgeSnapshot | RopeSnapshot | RedLightSnapshot | CoinsSnapshot | BattleshipsSnapshot | RaceSnapshot | WhackSnapshot | DrawSnapshot | TiltSnapshot;
+export type LobbyGameSnapshot = RunnerSnapshot | FlappySnapshot | DodgeSnapshot | RopeSnapshot | RedLightSnapshot | CoinsSnapshot | BattleshipsSnapshot | RaceSnapshot | WhackSnapshot | DrawSnapshot | TiltSnapshot | StackerSnapshot;
 
 /** What a client needs to run its own player on a course the server decided: which run, the seed that
  * makes the course, and how long until the run starts (negative once it has, by how far in). */
