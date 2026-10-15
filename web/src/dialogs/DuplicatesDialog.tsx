@@ -10,6 +10,7 @@ import { RemasterStage } from '../ui/RemasterStage';
 import { BundleSheet } from '../game/BundleSheet';
 import { RemasterDialog } from '../game/RemasterDialog';
 import { suggestionToMergeGame } from '../game/mergeGame';
+import { DUPLICATE_SCAN_QUERY_KEY, cacheAiResult, readAiResult } from '../ai/backgroundAi';
 import { trackAiActivity } from '../hooks/useAiActivity';
 import { useUndoChange } from '../hooks/useUndoChange';
 import { AiPickedBadge, Banner, Btn, Kicker, Spinner } from '../ui/primitives';
@@ -34,7 +35,8 @@ export function DuplicatesDialog() {
   const queryClient = useQueryClient();
   const ai = useQuery({ queryKey: AI_SETTINGS_QUERY_KEY, queryFn: aiApi.mine });
   const aiReady = !!ai.data && ai.data.effectiveSource !== 'none';
-  const [scan, setScan] = useState<AiDuplicateScanResponse | null>(null);
+  // A scan started from the AI menu has already finished (or finishes while this is open): start from what it found.
+  const [scan, setScan] = useState<AiDuplicateScanResponse | null>(() => readAiResult<AiDuplicateScanResponse>(queryClient, DUPLICATE_SCAN_QUERY_KEY));
   const [gone, setGone] = useState<string[]>([]);
   const [skipped, setSkipped] = useState<string[]>([]);
   const [flipped, setFlipped] = useState<string[]>([]);
@@ -61,6 +63,7 @@ export function DuplicatesDialog() {
       setHistory([]);
       setFront(null);
       setScan(res);
+      cacheAiResult(queryClient, DUPLICATE_SCAN_QUERY_KEY, res);
       // The server also notified (so it works if this dialog was closed meanwhile); pick that up now.
       void queryClient.invalidateQueries({ queryKey: ['notifications'] });
       void queryClient.invalidateQueries({ queryKey: AI_SETTINGS_QUERY_KEY });

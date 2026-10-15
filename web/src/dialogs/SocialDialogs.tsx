@@ -142,6 +142,15 @@ export function NotificationsDialog() {
       ui.openDialog('duplicates');
       return;
     }
+    // An AI request failed: the message says why; the AI settings are where it gets fixed.
+    if (n.type === 'ai_error') {
+      if (notifications.length > 0) markAllRead();
+      ui.closeDialog('notifications');
+      navigate('/settings/ai');
+      return;
+    }
+    // A background AI job finished with nothing to review: nothing to open.
+    if (n.type === 'ai_update') return;
     // A sync found games that look adult: straight to the "hide from your public library?" prompt.
     if (n.type === 'sensitive_games') {
       if (notifications.length > 0) markAllRead();

@@ -2,7 +2,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 const { aiCompleteEntry } = vi.hoisted(() => ({ aiCompleteEntry: vi.fn() }));
 vi.mock('../../db/client.js', () => ({ prisma: {} }));
-vi.mock('../notifications.js', () => ({ notifyMergeSuggestions: vi.fn() }));
+vi.mock('../notifications.js', () => ({ notifyMergeSuggestions: vi.fn(), notifyAiUpdate: vi.fn() }));
 vi.mock('./aiConfig.js', () => ({ aiCompleteEntry, aiComplete: vi.fn() }));
 
 import { HttpError } from '../../util/httpError.js';

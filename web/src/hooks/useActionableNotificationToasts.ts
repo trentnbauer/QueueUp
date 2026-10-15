@@ -7,6 +7,7 @@ import { useToast } from '../context/ToastContext';
 import { notificationsApi } from '../api/notifications';
 import { gamesApi } from '../api/games';
 import { apiPost } from '../api/client';
+import { recentlyReportedAiResult, wasShownAsAiError } from '../ai/backgroundAi';
 import { t } from '../i18n';
 
 const POLL_INTERVAL_MS = 30_000;
@@ -83,7 +84,8 @@ export function useActionableNotificationToasts() {
       // open the person is already looking at the result, so just clear it; otherwise a toast with a
       // Review button (also reachable from the bell).
       if (notification.type === 'merge_suggestions' && !notification.read) {
-        if (ui.isOpen('duplicates')) {
+        // (Or this browser has just announced the same scan itself.)
+        if (ui.isOpen('duplicates') || recentlyReportedAiResult()) {
           markRead.mutate(notification.id);
           continue;
         }
@@ -94,6 +96,31 @@ export function useActionableNotificationToasts() {
           actions: [{ label: t('shell.toasts.reviewMerges'), onClick: () => ui.openDialog('duplicates') }],
           onDismiss: () => markRead.mutate(notification.id),
         });
+        continue;
+      }
+      // An AI request failed (out of tokens, a provider error, the daily limit): say why, with a way to the AI settings. A
+      // failure the screen that asked already showed is only marked read, so it is not announced twice.
+      if (notification.type === 'ai_error' && !notification.read) {
+        if (wasShownAsAiError(notification.message)) {
+          markRead.mutate(notification.id);
+          continue;
+        }
+        showToast({
+          id: `notification-${notification.id}`,
+          message: notification.message,
+          onOpen: () => navigate('/settings/ai'),
+          actions: [{ label: t('shell.toasts.aiSettings'), onClick: () => navigate('/settings/ai') }],
+          onDismiss: () => markRead.mutate(notification.id),
+        });
+        continue;
+      }
+      // A background AI job finished with nothing to review.
+      if (notification.type === 'ai_update' && !notification.read) {
+        if (recentlyReportedAiResult()) {
+          markRead.mutate(notification.id);
+          continue;
+        }
+        showToast({ id: `notification-${notification.id}`, message: notification.message, actions: [], onDismiss: () => markRead.mutate(notification.id) });
         continue;
       }
       // A sync found games that look adult: one toast that opens the "hide from your public library?" prompt.

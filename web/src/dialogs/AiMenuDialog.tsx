@@ -1,4 +1,7 @@
 import { useNavigate } from 'react-router';
+import { useQuery } from '@tanstack/react-query';
+import { AI_SETTINGS_QUERY_KEY, aiApi } from '../api/ai';
+import { useBackgroundAi } from '../ai/backgroundAi';
 import { useScope } from '../context/ScopeContext';
 import { useUi, type DialogKey } from '../context/UiContext';
 import { Kicker, Row, RowGroup } from '../game/card/ui';
@@ -17,6 +20,10 @@ export function AiMenuDialog() {
   const { isShelf } = useScope();
   const cleanup = useLibraryCleanupCount();
   const scanningDuplicates = useAiActivity('duplicates');
+  const matching = useAiActivity('match');
+  const background = useBackgroundAi();
+  const ai = useQuery({ queryKey: AI_SETTINGS_QUERY_KEY, queryFn: aiApi.mine });
+  const aiReady = !!ai.data && ai.data.effectiveSource !== 'none';
 
   /** Close the menu, then open what was picked. */
   const open = (key: DialogKey, payload?: { query?: string }) => () => {
@@ -25,6 +32,13 @@ export function AiMenuDialog() {
     else ui.openDialog(key);
   };
   const count = (n: number) => (n > 0 ? String(n) : undefined);
+  /** With AI set up, the entry starts the job itself and the menu closes: the person is told when it is done. Without
+   * AI there is nothing to run, so it opens the tool (which still lists what can be found without it). */
+  const run = (key: DialogKey, start: () => void) => () => {
+    if (!aiReady) return open(key)();
+    ui.closeDialog('aiMenu');
+    start();
+  };
 
   return (
     <Dialog onClose={() => ui.closeDialog('aiMenu')} title={t('ai.menu.title')} gap={14}>
@@ -48,9 +62,16 @@ export function AiMenuDialog() {
               sub={scanningDuplicates ? t('settings.me.duplicates.scanning') : t('ai.menu.duplicatesSub')}
               value={count(cleanup.duplicates)}
               valueColor="var(--accText)"
-              onClick={open('duplicates')}
+              onClick={run('duplicates', () => background.scanDuplicates())}
             />
-            <Row icon="🔗" label={t('ai.menu.match')} sub={t('ai.menu.matchSub')} value={count(cleanup.pending)} valueColor="var(--accText)" onClick={open('needsReview')} />
+            <Row
+              icon="🔗"
+              label={t('ai.menu.match')}
+              sub={matching ? t('ai.background.match.working') : t('ai.menu.matchSub')}
+              value={count(cleanup.pending)}
+              valueColor="var(--accText)"
+              onClick={cleanup.pending > 0 ? run('needsReview', () => background.matchImports()) : open('needsReview')}
+            />
             <Row icon="🙈" label={t('ai.menu.adult')} sub={t('ai.menu.adultSub')} onClick={open('sensitiveGames')} />
           </RowGroup>
         </div>

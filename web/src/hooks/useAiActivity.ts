@@ -22,6 +22,9 @@ export async function trackAiActivity<T>(key: string, work: () => Promise<T>): P
   }
 }
 
+/** Whether this browser is waiting on an AI job of this kind right now. */
+export const isAiActivityRunning = (key: string): boolean => active.has(key);
+
 export function useAiActivity(key: string): boolean {
   return useSyncExternalStore(
     (cb) => {

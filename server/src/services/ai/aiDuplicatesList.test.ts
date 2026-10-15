@@ -5,7 +5,7 @@ vi.mock('../../db/client.js', () => ({ prisma: { game: { findMany: gameFindMany,
 // IGDB's DLC list for a game, by igdbId (see dropDlcPairs).
 vi.mock('../igdbClient.js', () => ({ getGameAddonIgdbIds, getGameCompanies }));
 vi.mock('./aiConfig.js', () => ({ aiComplete: vi.fn() }));
-vi.mock('../notifications.js', () => ({ notifyMergeSuggestions: vi.fn() }));
+vi.mock('../notifications.js', () => ({ notifyMergeSuggestions: vi.fn(), notifyAiUpdate: vi.fn() }));
 const { loadDuplicateKnowledge } = vi.hoisted(() => ({ loadDuplicateKnowledge: vi.fn() }));
 vi.mock('../duplicateKnowledge.js', () => ({ loadDuplicateKnowledge, saveVerdicts: vi.fn() }));
 

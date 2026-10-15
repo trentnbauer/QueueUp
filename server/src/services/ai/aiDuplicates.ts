@@ -8,7 +8,7 @@ import { chunk, stopReason } from './aiImportBatch.js';
 import { findCandidatePairs, igdbPairKey, titleCore } from '../duplicateCandidates.js';
 import { loadDuplicateKnowledge, saveVerdicts } from '../duplicateKnowledge.js';
 import { dropDlcPairs } from '../dlcLinks.js';
-import { notifyMergeSuggestions } from '../notifications.js';
+import { notifyAiUpdate, notifyMergeSuggestions } from '../notifications.js';
 import { getGameCompanies } from '../igdbClient.js';
 import { SPECIAL_BATCH, SPECIAL_MAX, SPECIAL_SYSTEM, buildSpecialPrompt, isSpecialTitle, parseSpecialReply, relatedCards, type SpecialBatchItem } from './specialTitles.js';
 import type { AiDuplicateScanResponse, DuplicateCandidatesResponse, DuplicateSuggestion, DuplicateSuggestionGame } from '@queueup/shared';
@@ -361,6 +361,8 @@ export async function aiScanDuplicates(userId: string, opts: { fresh?: boolean }
   await saveVerdicts(verdictsToSave.filter((v) => foundKeys.has(igdbPairKey(v.igdbIdA, v.igdbIdB))));
   // Tell the person even if they closed the dialog while it ran (best effort; never fails the scan).
   await notifyMergeSuggestions(userId, pairsOut.length);
+  // A scan that cut short already told them why (the AI failure notice); one that finished clean with nothing to review says so.
+  if (pairsOut.length === 0 && !stopped) await notifyAiUpdate(userId, 'The AI scan finished: no duplicate games found.');
   return { pairs: await withCompanies(pairsOut), candidates: candidates.length, checked, reused, alreadyChecked, remaining, fallback, stopped };
 }
 
