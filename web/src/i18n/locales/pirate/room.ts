@@ -238,4 +238,6 @@ export const room: Record<keyof typeof en, string> = {
   // Room settings pointing at the People tab
   "room.settings.peopleMoved": "Crew, invites and games to approve be on the room’s {tab} tab.",
   "room.settings.open": "Open ›",
+  "room.settings.unreleasedLastTitle": "Unreleased games",
+  "room.settings.unreleasedLastHint": "Just fer ye, in this crew. Stow games that ain’t out yet at the bottom of the Queue. Ones comin’ within a month, and ones out these last couple o’ months, stay on top.",
 };

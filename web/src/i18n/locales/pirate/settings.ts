@@ -595,4 +595,7 @@ export const settings: Record<keyof typeof en, string> = {
   "settings.page.data.clearCache.confirm": "Clear and reload",
   "settings.page.data.history.sub": "Changes to yer account and riggin’",
   "settings.page.help.terms": "Ship’s articles",
+  "settings.shelf.unreleasedLast": "UNRELEASED GAMES",
+  "settings.shelf.unreleasedLastHint": "Stow games that ain’t out yet at the bottom of yer Cargo hold. Ones comin’ within a month, and ones out these last couple o’ months, stay on top.",
+  "settings.shelf.unreleasedLastChip": "Unreleased games last",
 };

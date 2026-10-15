@@ -7,6 +7,7 @@ import {
   gameScore,
   isNewRelease,
   recentlyBoughtFirst,
+  byReleaseTier,
   isComingSoon,
   metaLine,
   ownLabel,
@@ -88,7 +89,7 @@ export interface HomeLists {
  *   instead of the main list. */
 export function buildHomeLists(
   allGames: Game[],
-  opts: { isShelf: boolean; tabs: TabDef[]; tab: string; query: string; platform?: RoomPlatform | null; includeOlder?: boolean; backlogSort?: BacklogSortKey[]; maxInstallGb?: number; playNextIn?: 'playing' | 'backlog' },
+  opts: { isShelf: boolean; tabs: TabDef[]; tab: string; query: string; platform?: RoomPlatform | null; includeOlder?: boolean; backlogSort?: BacklogSortKey[]; maxInstallGb?: number; playNextIn?: 'playing' | 'backlog'; unreleasedLast?: boolean },
 ): HomeLists {
   const { isShelf, tabs, tab, platform } = opts;
   const onPlatform = platform ? allGames.filter((g) => playsOn(g, platform, opts.includeOlder ?? true)) : allGames;
@@ -129,15 +130,19 @@ export function buildHomeLists(
     if (na && nb) return (b.releaseDate ?? '').localeCompare(a.releaseDate ?? '');
     return byScore(a, b);
   };
+  // With "unreleased games last" on, the Backlog / Queue keeps soon and recent releases up top and sends far-off ones to the bottom.
+  const tier = (a: Game, b: Game) => (tab === 'queue' && opts.unreleasedLast ? byReleaseTier(a, b, now) : 0);
   if (!q && isShelf && tab === 'queue') {
     // The shelf's Backlog follows the sort picked in Shelf settings (issue #798; default "Want to play").
     const bySort = backlogComparator(opts.backlogSort ?? [], now);
-    list = [...list].sort((a, b) => pin(a) - pin(b) || recentlyBoughtFirst(a, b, now) || bySort(a, b));
+    list = [...list].sort((a, b) => pin(a) - pin(b) || recentlyBoughtFirst(a, b, now) || tier(a, b) || bySort(a, b));
   } else if (!q && (tab === 'queue' || tab === 'playing')) {
     list = [...list].sort((a, b) => {
       if (pin(a) !== pin(b)) return pin(a) - pin(b);
       const bought = recentlyBoughtFirst(a, b, now);
       if (bought) return bought;
+      const byTier = tier(a, b);
+      if (byTier) return byTier;
       const na = isNewRelease(a, now);
       const nb = isNewRelease(b, now);
       if (na !== nb) return na ? -1 : 1;

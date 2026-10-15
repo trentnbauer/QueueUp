@@ -10,6 +10,7 @@ import { Btn, ChipToggle, Group, Kicker } from '../ui/primitives';
 import { st } from '../ui/st';
 import { exportGames } from '../utils/exportGames';
 import { BACKLOG_SORT_OPTIONS, toggleBacklogSort, useBacklogSort } from '../home/backlogSort';
+import { useUnreleasedLast } from '../home/unreleasedLast';
 import { usePlayNextTab } from '../home/playNextTab';
 import { useRoomsInPlaying } from '../home/roomsInPlaying';
 import { useShelfSpinTheme } from '../home/shelfSpinTheme';
@@ -49,6 +50,7 @@ export function ShelfSettingsDialog() {
   const { games } = useScope();
   const [backlogSort, setBacklogSort] = useBacklogSort();
   const [playNextIn, setPlayNextIn] = usePlayNextTab();
+  const [unreleasedLast, setUnreleasedLast] = useUnreleasedLast();
   const [roomsInPlaying, setRoomsInPlaying] = useRoomsInPlaying();
   const { shelfColor, refetch } = useAuth();
   const saveColour = async (colour: string | null) => {
@@ -94,6 +96,13 @@ export function ShelfSettingsDialog() {
         <div style={st('display:flex;flex-wrap:wrap;gap:6px')}>
           <ChipToggle on={playNextIn === 'playing'} height={36} onClick={() => setPlayNextIn('playing')}>{t('home.tab.playing')}</ChipToggle>
           <ChipToggle on={playNextIn === 'backlog'} height={36} onClick={() => setPlayNextIn('backlog')}>{t('home.tab.backlog')}</ChipToggle>
+        </div>
+      </div>
+      <div style={st('display:flex;flex-direction:column;gap:10px')}>
+        <Kicker>{t('settings.shelf.unreleasedLast')}</Kicker>
+        <span style={st('font:400 13px/1.45 var(--font-ui);color:var(--muted)')}>{t('settings.shelf.unreleasedLastHint')}</span>
+        <div style={st('display:flex;flex-wrap:wrap;gap:6px')}>
+          <ChipToggle on={unreleasedLast} height={36} onClick={() => setUnreleasedLast(!unreleasedLast)}>{t('settings.shelf.unreleasedLastChip')}</ChipToggle>
         </div>
       </div>
       <div style={st('display:flex;flex-direction:column;gap:10px')}>

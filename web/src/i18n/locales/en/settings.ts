@@ -593,4 +593,7 @@ export const settings = {
   "settings.page.data.clearCache.confirm": "Clear and reload",
   "settings.page.data.history.sub": "Changes to your account and settings",
   "settings.page.help.terms": "Terms of use",
+  "settings.shelf.unreleasedLast": "UNRELEASED GAMES",
+  "settings.shelf.unreleasedLastHint": "Put games that are not out yet at the bottom of your Backlog. Ones coming out within a month, and ones out in the last couple of months, stay at the top.",
+  "settings.shelf.unreleasedLastChip": "Unreleased games last",
 } as const;

@@ -29,6 +29,7 @@ import { useAiActivity } from '../hooks/useAiActivity';
 import { st } from '../ui/st';
 import { buildHomeLists, toRowItem } from './derive';
 import { useBacklogSort } from './backlogSort';
+import { useUnreleasedLast } from './unreleasedLast';
 import { usePlayNextTab } from './playNextTab';
 import { useMaxInstallGb } from './installSize';
 import { PlatformMenu, useIncludeOlder, usePlatformFilter, usePlatformOptions } from './PlatformMenu';
@@ -96,6 +97,7 @@ export function HomeView() {
 
   // The shelf's primary tabs, plus the filters tucked behind the "More" button.
   const [playNextIn] = usePlayNextTab(isShelf ? null : (room?.id ?? null));
+  const [unreleasedLast] = useUnreleasedLast(isShelf ? null : (room?.id ?? null));
   const primaryTabs = useMemo(() => (isShelf ? shelfTabs(playNextIn) : roomTabs(playNextIn)), [isShelf, playNextIn]);
   const tabs = useMemo(() => (isShelf ? [...primaryTabs, ...SHELF_MORE_TABS] : primaryTabs), [isShelf, primaryTabs]);
   const [tab, setTab] = useState('queue');
@@ -133,8 +135,8 @@ export function HomeView() {
   const [backlogSort] = useBacklogSort();
   const [maxInstallGb, setMaxInstallGb] = useMaxInstallGb();
   const lists = useMemo(
-    () => buildHomeLists(games, { isShelf, tabs, tab, query, platform, includeOlder, backlogSort, maxInstallGb, playNextIn }),
-    [games, isShelf, tabs, tab, query, platform, includeOlder, backlogSort, maxInstallGb, playNextIn],
+    () => buildHomeLists(games, { isShelf, tabs, tab, query, platform, includeOlder, backlogSort, maxInstallGb, playNextIn, unreleasedLast }),
+    [games, isShelf, tabs, tab, query, platform, includeOlder, backlogSort, maxInstallGb, playNextIn, unreleasedLast],
   );
   // The Merged tab lists merges, not games.
   const mergedTab = isShelf && tab === 'merged' && !searching;
@@ -146,7 +148,7 @@ export function HomeView() {
   const showRank = tab === 'queue' && !searching;
   const ctx = { isShelf, tab, searching, all: games };
   // Voting changes scores, which would re-sort the list under you - keep the order until the view changes.
-  const orderKey = `${scope.scopeId}|${tab}|${query}|${platform ?? ''}|${includeOlder}|${backlogSort.join(',')}|${maxInstallGb}|${playNextIn}`;
+  const orderKey = `${scope.scopeId}|${tab}|${query}|${platform ?? ''}|${includeOlder}|${backlogSort.join(',')}|${maxInstallGb}|${playNextIn}|${unreleasedLast}`;
   const orderedList = useStableOrder(lists.list, orderKey);
   const orderedPlayNext = useStableOrder(lists.playNext, `${orderKey}|next`);
   const items = hideGames ? [] : orderedList.map((g, i) => toRowItem(g, i + 1, ctx));
