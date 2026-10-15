@@ -18,6 +18,7 @@ export const MINIGAME_SCORE_MAX: Record<LobbyGameId, number> = {
   race: 20000,
   whack: 200,
   draw: 3,
+  tilt: 100,
 };
 
 /** How many rows a leaderboard returns. */

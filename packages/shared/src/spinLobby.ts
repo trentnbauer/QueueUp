@@ -11,8 +11,8 @@
 export const LOBBY_TICK_HZ = 15;
 
 /** The games the lobby can run. */
-export type LobbyGameId = 'runner' | 'flappy' | 'dodge' | 'rope' | 'redlight' | 'coins' | 'battleships' | 'race' | 'whack' | 'draw';
-export const LOBBY_GAME_IDS: readonly LobbyGameId[] = ['runner', 'flappy', 'dodge', 'rope', 'redlight', 'coins', 'battleships', 'race', 'whack', 'draw'];
+export type LobbyGameId = 'runner' | 'flappy' | 'dodge' | 'rope' | 'redlight' | 'coins' | 'battleships' | 'race' | 'whack' | 'draw' | 'tilt';
+export const LOBBY_GAME_IDS: readonly LobbyGameId[] = ['runner', 'flappy', 'dodge', 'rope', 'redlight', 'coins', 'battleships', 'race', 'whack', 'draw', 'tilt'];
 
 /** What a client sends. Anything else is ignored. */
 export type LobbyClientMessage =
@@ -555,8 +555,56 @@ export interface DrawSnapshot extends RoundSummary {
   winnerId: string | null;
 }
 
+// ---- Tilt (everyone pushes one ball along one beam; score the targets, keep it on) -----------------
+
+/** A target on the beam: `x` is its middle along the beam (0..1). Tipping the ball into it scores. */
+export interface TiltTarget {
+  x: number;
+  /** Which target this is (counts up from 1 each run); stays the same while it lasts. */
+  n: number;
+  /** Milliseconds it has left before it goes away. */
+  leftMs: number;
+}
+
+export interface TiltPlayer {
+  id: string;
+  /** Still in the run: false only if they arrived mid-run (the ball ends the run for everyone). */
+  alive: boolean;
+  /** Runs won since this person joined the lobby. */
+  wins: number;
+  /** Targets this person scored this run (they pushed last when the ball reached it). */
+  meters: number;
+  /** The direction they are pushing: -1, 0 or 1. */
+  dir: number;
+}
+
+export interface TiltSnapshot extends RoundSummary {
+  id: 'tilt';
+  phase: LobbyRoundPhase;
+  /** The most targets anyone has scored so far. */
+  meters: number;
+  /** Always 0: nothing scrolls past in this game (every snapshot carries a course speed). */
+  speed: number;
+  /** Milliseconds left in the run (a time limit) while `playing`. */
+  roundLeftMs: number;
+  /** Where the ball is along the beam (0..1; off either end and the run is over) and how fast it is going. */
+  ball: { x: number; v: number };
+  /** The beam's lean, -1 to 1 (left to right): everyone's push plus the wobble, which is what moves the ball. */
+  tilt: number;
+  targets: TiltTarget[];
+  /** Who pushed last (an index into `players`), so who a target would score for; -1 for nobody yet. */
+  last: number;
+  /** Targets scored by everyone together this run. */
+  team: number;
+  players: TiltPlayer[];
+  /** Milliseconds left in `countdown` or `over`; 0 otherwise. */
+  timerMs: number;
+  /** Who won the run that just ended (`over` only); null when nobody did (a solo run, or a tie). */
+  winnerId: string | null;
+}
+
 /** The snapshot of whichever game is running. */
-export type LobbyGameSnapshot = RunnerSnapshot | FlappySnapshot | DodgeSnapshot | RopeSnapshot | RedLightSnapshot | CoinsSnapshot | BattleshipsSnapshot | RaceSnapshot | WhackSnapshot | DrawSnapshot;
+export type LobbyGameSnapshot = RunnerSnapshot | FlappySnapshot | DodgeSnapshot | RopeSnapshot | RedLightSnapshot | CoinsSnapshot | BattleshipsSnapshot | RaceSnapshot | WhackSnapshot | DrawSnapshot | TiltSnapshot;
 
 /** What a client needs to run its own player on a course the server decided: which run, the seed that
  * makes the course, and how long until the run starts (negative once it has, by how far in). */
