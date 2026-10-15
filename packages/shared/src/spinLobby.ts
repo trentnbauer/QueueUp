@@ -11,8 +11,8 @@
 export const LOBBY_TICK_HZ = 15;
 
 /** The games the lobby can run. */
-export type LobbyGameId = 'runner' | 'flappy' | 'dodge' | 'rope' | 'redlight' | 'coins' | 'battleships' | 'race' | 'whack' | 'draw' | 'tilt' | 'stacker' | 'sumo';
-export const LOBBY_GAME_IDS: readonly LobbyGameId[] = ['runner', 'flappy', 'dodge', 'rope', 'redlight', 'coins', 'battleships', 'race', 'whack', 'draw', 'tilt', 'stacker', 'sumo'];
+export type LobbyGameId = 'runner' | 'flappy' | 'dodge' | 'rope' | 'redlight' | 'coins' | 'battleships' | 'race' | 'whack' | 'draw' | 'tilt' | 'stacker' | 'sumo' | 'asteroids';
+export const LOBBY_GAME_IDS: readonly LobbyGameId[] = ['runner', 'flappy', 'dodge', 'rope', 'redlight', 'coins', 'battleships', 'race', 'whack', 'draw', 'tilt', 'stacker', 'sumo', 'asteroids'];
 
 /** What a client sends. Anything else is ignored. */
 export type LobbyClientMessage =
@@ -688,8 +688,71 @@ export interface SumoSnapshot extends RoundSummary {
   winnerId: string | null;
 }
 
+// ---- Asteroid defence (one sky; every player has a turret along the bottom and shoots what falls) ---
+
+/** How high up the screen the turrets sit (their middle, as a fraction of the height from the top). */
+export const ASTEROIDS_TURRET_Y = 0.93;
+export const ASTEROIDS_TURRET_R = 0.03;
+/** The furthest a gun swings from straight up, in radians. */
+export const ASTEROIDS_MAX_ANGLE = 1.2;
+
+export interface Asteroid {
+  x: number;
+  y: number;
+  /** Speed across and down, in screens a second. */
+  vx: number;
+  vy: number;
+  /** Its size (radius, in screens). */
+  r: number;
+  /** Hits left before it breaks. */
+  hp: number;
+  /** Which asteroid this is (counts up from 1 each run); stays the same as it falls. */
+  n: number;
+}
+
+export interface AsteroidShot {
+  x: number;
+  y: number;
+  vx: number;
+  vy: number;
+  /** Who fired it: an index into `players`. */
+  by: number;
+}
+
+export interface AsteroidsPlayer {
+  id: string;
+  /** Where their turret is along the bottom (0..1): the same for everyone for the whole run. */
+  x: number;
+  /** Which way the gun points, in radians from straight up (negative is left). */
+  angle: number;
+  /** Still in: false once an asteroid hits their turret, or if they arrived mid-run. */
+  alive: boolean;
+  /** Was in the run when it started: has a turret (a wreck once hit). Someone who arrived part way through only watches. */
+  inRun: boolean;
+  /** Runs won since this person joined the lobby. */
+  wins: number;
+  /** Asteroids they have destroyed this run. */
+  meters: number;
+}
+
+export interface AsteroidsSnapshot extends RoundSummary {
+  id: 'asteroids';
+  phase: LobbyRoundPhase;
+  /** The most asteroids anyone has destroyed so far. */
+  meters: number;
+  /** Always 0: the sky does not scroll (every snapshot carries a course speed). */
+  speed: number;
+  asteroids: Asteroid[];
+  shots: AsteroidShot[];
+  players: AsteroidsPlayer[];
+  /** Milliseconds left in `countdown` or `over`; 0 otherwise. */
+  timerMs: number;
+  /** Who won the run that just ended (`over` only); null when nobody did (a solo run, or everyone hit together). */
+  winnerId: string | null;
+}
+
 /** The snapshot of whichever game is running. */
-export type LobbyGameSnapshot = RunnerSnapshot | FlappySnapshot | DodgeSnapshot | RopeSnapshot | RedLightSnapshot | CoinsSnapshot | BattleshipsSnapshot | RaceSnapshot | WhackSnapshot | DrawSnapshot | TiltSnapshot | StackerSnapshot | SumoSnapshot;
+export type LobbyGameSnapshot = RunnerSnapshot | FlappySnapshot | DodgeSnapshot | RopeSnapshot | RedLightSnapshot | CoinsSnapshot | BattleshipsSnapshot | RaceSnapshot | WhackSnapshot | DrawSnapshot | TiltSnapshot | StackerSnapshot | SumoSnapshot | AsteroidsSnapshot;
 
 /** What a client needs to run its own player on a course the server decided: which run, the seed that
  * makes the course, and how long until the run starts (negative once it has, by how far in). */

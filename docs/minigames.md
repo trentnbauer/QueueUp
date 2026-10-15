@@ -78,6 +78,7 @@ A game can instead make **the play space the controller**: there are no buttons 
 | Quick draw | Press **Space**, or click the big light. | Tap the big light. |
 | Tilt | Hold **←** / **→** or **A** / **D**. | Hold the **◀** and **▶** buttons. |
 | Stacker | **Space**, **↑** or **W** to stop the light. | **Stop**, or tap anywhere on the arena. |
+| Asteroid defence | **←** / **→** or **A** / **D** to swing the gun (it fires by itself). | The **◀** and **▶** buttons. |
 | Sumo ledge | **←** / **→** or **A** / **D** to walk, **Space**, **↑** or **W** to shove. | The **◀** and **▶** buttons, and **Shove**. |
 | Whack-a-mole | Click a hole, or press **1-9** (laid out like a numpad: **7 8 9** on the top row, **1 2 3** on the bottom). | Tap a hole on the grid. |
 | Jump rope | **Space**, **↑** or **W** to jump. | **Jump**, or tap anywhere on the arena. |
@@ -198,6 +199,18 @@ One tower and one light for the whole room. Stop the light on the target to clim
 - **Ending:** the run ends when everyone is out, the tower is cleared, or after **2 minutes**. **Most rows locked wins**; a tie is a draw. Alone it is a high score (how many rows you climbed) and ends when you miss.
 - Everyone's rows are listed on the right, and the bar along the top is the time left.
 - **Controls:** one button: **Space**, **↑** or **W**, or tap anywhere on the arena.
+
+## Asteroid defence
+
+A shooting gallery under a sky of falling asteroids, with everyone's turret in the same sky.
+
+- **One shared sky.** Every player has a **turret at a random spot along the bottom**. The spots come from the round's seed and stay put for the whole run, so everyone sees the same layout, and nobody's turret is on top of another's.
+- **Swing your gun** left and right (it can swing up to about 70 degrees either way from straight up). **It fires by itself,** twice a second, along wherever it points. Shots pass through turrets, so nobody can shoot each other.
+- **Asteroids** (game covers) fall from the top and drift sideways, bouncing off the sides. **Small** ones break in 1 hit; **big** ones (with a ring round them) take 2. The shot that **breaks** one scores 1 for whoever fired it.
+- **Harder as it goes:** they fall faster (from 0.1 to 0.45 of a screen a second), appear more often (every 1.3 seconds down to every 0.35) and are big more often (1 in 20 at first, up to 1 in 2).
+- **Out:** an asteroid that touches your turret breaks on it and knocks you out; your turret stays as a dim wreck, and asteroids that reach it break on it too. **Last turret standing wins.** If everyone is hit at the same moment, nobody wins. Alone it is a high score: your count when you are hit. After 3 minutes a run still going ends, and the most asteroids broken wins.
+- Each turret has its **points** under it, and the scoreboard shows who has the most.
+- **Controls:** left and right only (**←** / **→** or **A** / **D**, or the **◀** and **▶** buttons).
 
 ## Sumo ledge
 
