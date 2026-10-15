@@ -72,6 +72,17 @@ export const OFF_PATH_EMOJI: Partial<Record<GameStatus, string>> = { preordered:
 /** Which statuses end a playthrough and open the review sheet. */
 export const FINISHED_STATUSES: GameStatus[] = ['done', 'dropped', 'replay'];
 
+/** Where a game goes when the status circle is pressed: the next step on the path (Backlog to Play next to Playing
+ * to Beaten), or from off the path back onto it (Paused resumes, Preordered goes to the Backlog, Replay is beaten
+ * again). Null at the end of the path, where there is nothing further to advance to. */
+export function nextStatus(status: GameStatus, isShelf: boolean): GameStatus | null {
+  const off: Partial<Record<GameStatus, GameStatus>> = { preordered: 'backlog', paused: 'playing', replay: 'done', dropped: 'playing', wont_play: 'backlog' };
+  if (off[status]) return off[status]!;
+  const path = mainPath(isShelf);
+  const i = path.indexOf(status);
+  return i >= 0 && i < path.length - 1 ? path[i + 1] : null;
+}
+
 /** The circle on the status block: the step number on the path, the emoji off it. */
 export function statusBadge(status: GameStatus, isShelf: boolean): string {
   const off = OFF_PATH_EMOJI[status];

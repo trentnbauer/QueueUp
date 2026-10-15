@@ -4,7 +4,7 @@ import { useScope } from '../../context/ScopeContext';
 import { REVIEW_EMOJI, STATUS_DESC, reviewAverage } from '../../lib/gameView';
 import { st } from '../../ui/st';
 import { useT } from '../../i18n';
-import { FINISHED_STATUSES, dismissNudge, nudgeDismissed, progressSegments, statusBadge } from './cardLogic';
+import { FINISHED_STATUSES, dismissNudge, nextStatus, nudgeDismissed, progressSegments, statusBadge } from './cardLogic';
 import { cardStatusLabel } from './statusLabel';
 
 type NudgeKind = 'beaten' | 'playing';
@@ -48,17 +48,29 @@ export function StatusBlock({
   const [, bump] = useState(0);
   const segs = progressSegments(game.status, isShelf);
   const finished = FINISHED_STATUSES.includes(game.status);
+  const next = nextStatus(game.status, isShelf);
+  const circle = 'width:40px;height:40px;flex-shrink:0;border-radius:50%;background:var(--acc);color:var(--ink);display:flex;align-items:center;justify-content:center;font:700 15px var(--font-ui);box-shadow:0 0 0 4px var(--accA20)';
 
   return (
     <div style={st('display:flex;flex-direction:column;border-radius:18px;overflow:hidden;background:var(--surf);flex-shrink:0')}>
-      <button type="button" onClick={onOpenPicker} className="hv-surf2" style={st('display:flex;align-items:center;gap:14px;padding:14px 16px;border:none;background:transparent;text-align:left;color:var(--text)')}>
-        <span
-          style={st(
-            'width:40px;height:40px;flex-shrink:0;border-radius:50%;background:var(--acc);color:var(--ink);display:flex;align-items:center;justify-content:center;font:700 15px var(--font-ui);box-shadow:0 0 0 4px var(--accA20)',
-          )}
-        >
-          {statusBadge(game.status, isShelf)}
-        </span>
+      <div style={st('display:flex;align-items:center;gap:14px;padding:14px 16px')}>
+        {next ? (
+          // The circle is a Play button: it moves the game on to the next step (the rest of the row opens the picker).
+          <button
+            type="button"
+            onClick={() => changeStatus(game, next)}
+            aria-label={t('card.status.advance', { status: cardStatusLabel(next) })}
+            title={t('card.status.advance', { status: cardStatusLabel(next) })}
+            style={st(`${circle};border:none;padding:0`)}
+          >
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true" style={{ marginLeft: 2 }}>
+              <path d="M7 4.5v15a1 1 0 0 0 1.5.86l12.5-7.5a1 1 0 0 0 0-1.72L8.5 3.64A1 1 0 0 0 7 4.5z" />
+            </svg>
+          </button>
+        ) : (
+          <span style={st(circle)}>{statusBadge(game.status, isShelf)}</span>
+        )}
+        <button type="button" onClick={onOpenPicker} className="hv-surf2" style={st('flex:1;min-width:0;display:flex;align-items:center;gap:14px;padding:0;border:none;background:transparent;text-align:left;color:var(--text)')}>
         <span style={st('flex:1;min-width:0;display:flex;flex-direction:column;gap:5px')}>
           <span style={st('display:flex;align-items:baseline;gap:8px;min-width:0')}>
             <span style={st('font:700 16px var(--font-ui);flex-shrink:0')}>{cardStatusLabel(game.status)}</span>
@@ -72,6 +84,7 @@ export function StatusBlock({
         </span>
         <span style={st('height:30px;padding:0 12px;border-radius:999px;background:var(--chip);font:600 12px var(--font-ui);color:var(--text2);display:flex;align-items:center;flex-shrink:0')}>{t('card.status.change')}</span>
       </button>
+      </div>
 
       {nudge && (
         <div style={st('display:flex;flex-direction:column;gap:10px;padding:12px 16px 14px;background:var(--accA10);border-top:1px solid var(--accA25)')}>
