@@ -93,7 +93,7 @@ describe('BotFiller', () => {
     const g = filler();
     g.join('a');
     run(g, 3200);
-    const bot = () => g.snapshot().players.find((p) => p.id === 'bot:1') as { x: number; alive: boolean };
+    const bot = () => g.snapshot().players.find((p) => p.id === 'bot:1') as unknown as { x: number; alive: boolean };
     run(g, 1500);
     expect((bot() as { x: number }).x).toBeGreaterThan(0.02);
     for (let t = 0; t < 60_000 && g.snapshot().phase === 'playing'; t += STEP) g.tick(STEP);

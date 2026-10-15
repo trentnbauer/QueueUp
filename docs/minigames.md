@@ -75,6 +75,7 @@ A game can instead make **the play space the controller**: there are no buttons 
 | Red light, green light | Hold **Space**, **→** or **D** to run. | Hold **Run** (or press and hold the arena). |
 | Catch the coins | **←** / **→** or **A** / **D**. | The **◀** and **▶** buttons. |
 | Battleships | Click a square (no keyboard control yet). | Tap a square on the board. |
+| Whack-a-mole | Click a hole, or press **1-9** (laid out like a numpad: **7 8 9** on the top row, **1 2 3** on the bottom). | Tap a hole on the grid. |
 | Jump rope | **Space**, **↑** or **W** to jump. | **Jump**, or tap anywhere on the arena. |
 | Obstacle race | **←** / **→** or **A** / **D** to steer. | The **◀** and **▶** buttons. |
 
@@ -158,6 +159,19 @@ Coins fall; slide left and right to catch them before anyone else does.
 - **Speed:** things start at 0.4 of a screen per second and climb to 0.7 after 30 seconds. A new item appears every 0.55 seconds at the start, down to every 0.3 seconds.
 - The bar along the top is the time left, and each catcher's coin count is shown over their head.
 - You move at 0.6 of a screen per second and can't leave the screen.
+
+## Whack-a-mole
+
+Moles pop up out of a grid of holes; tap them before anyone else does.
+
+- **Goal:** the most points in 30 seconds. Everyone plays on **the same 3 by 3 grid** and goes for the same moles.
+- **Nobody is knocked out.** When the time is up, the most points wins; a tie for the most, or scoring nothing, is a draw. Alone, it is a high-score round: no winner, just your points.
+- **Moles** are worth 1 point. The **first tap to reach the server** gets the point and the mole drops (a ring in your colour shows who got it); a later tap on a mole that is already whacked is ignored and costs nothing.
+- **Bombs** (dark, with a fuse) pop up now and then, never two in a row (about one in six). Whacking one costs **2 points** (never below zero).
+- **Missing:** tapping an empty hole costs **1 point** (never below zero), so mashing every hole does not win.
+- **Speed:** a new mole appears every 0.8 seconds at the start, down to every 0.28 seconds, and each stays up for 1.4 seconds at the start, down to 0.6 seconds. Which hole, and which are bombs, is decided on the server and comes from the round's seed, so it is the same sequence for everyone.
+- The bar along the top is the time left, and everyone's points are in the row above the grid.
+- **Controls:** the grid is the controller, so tap or click a hole. On a keyboard, the number keys **1-9** match the holes like a numpad.
 
 ## Battleships
 

@@ -11,8 +11,8 @@
 export const LOBBY_TICK_HZ = 15;
 
 /** The games the lobby can run. */
-export type LobbyGameId = 'runner' | 'flappy' | 'dodge' | 'rope' | 'redlight' | 'coins' | 'battleships' | 'race';
-export const LOBBY_GAME_IDS: readonly LobbyGameId[] = ['runner', 'flappy', 'dodge', 'rope', 'redlight', 'coins', 'battleships', 'race'];
+export type LobbyGameId = 'runner' | 'flappy' | 'dodge' | 'rope' | 'redlight' | 'coins' | 'battleships' | 'race' | 'whack';
+export const LOBBY_GAME_IDS: readonly LobbyGameId[] = ['runner', 'flappy', 'dodge', 'rope', 'redlight', 'coins', 'battleships', 'race', 'whack'];
 
 /** What a client sends. Anything else is ignored. */
 export type LobbyClientMessage =
@@ -459,8 +459,57 @@ export interface RaceSnapshot extends RoundSummary {
   winnerId: string | null;
 }
 
+// ---- Whack-a-mole (one shared 3 x 3 grid of holes; tap a hole while a mole is up) ---------------------
+
+/** The grid is this many holes each way (3 x 3 = 9, so holes are tap targets 0 to 8, row by row). */
+export const WHACK_COLS = 3;
+export const WHACK_HOLES = WHACK_COLS * WHACK_COLS;
+
+/** What a hole shows: nothing, a mole (tap it), a bomb (do not), or a mole or bomb that was just whacked. */
+export type WhackHoleKind = 'empty' | 'mole' | 'bomb' | 'whacked';
+
+export interface WhackHole {
+  kind: WhackHoleKind;
+  /** Which mole or bomb this is (counts up from 1 each round); stays the same while it is up. 0 when empty. */
+  n: number;
+  /** Milliseconds it stays up for in all (`mole` or `bomb`), to work out how far it has risen; 0 otherwise. */
+  upMs: number;
+  /** Who whacked it, as an index into `players` (`whacked` only); -1 otherwise. */
+  by: number;
+  /** For `whacked`: whether it was a bomb. */
+  bomb: boolean;
+}
+
+export interface WhackPlayer {
+  id: string;
+  /** Playing this round. False if they arrived mid-round (they watch and play from the next one). */
+  alive: boolean;
+  /** Rounds won since this person joined the lobby. */
+  wins: number;
+  /** Points this round. */
+  meters: number;
+}
+
+export interface WhackSnapshot extends RoundSummary {
+  id: 'whack';
+  phase: LobbyRoundPhase;
+  /** The most points anyone has so far. */
+  meters: number;
+  /** Always 0: nothing scrolls past in this game (every snapshot carries a course speed). */
+  speed: number;
+  /** Milliseconds left in the round while `playing`. */
+  roundLeftMs: number;
+  /** The nine holes of the one shared grid, row by row. */
+  holes: WhackHole[];
+  players: WhackPlayer[];
+  /** Milliseconds left in `countdown` or `over`; 0 otherwise. */
+  timerMs: number;
+  /** Who won the round that just ended (`over` only); null when nobody did (a solo round, or a tie). */
+  winnerId: string | null;
+}
+
 /** The snapshot of whichever game is running. */
-export type LobbyGameSnapshot = RunnerSnapshot | FlappySnapshot | DodgeSnapshot | RopeSnapshot | RedLightSnapshot | CoinsSnapshot | BattleshipsSnapshot | RaceSnapshot;
+export type LobbyGameSnapshot = RunnerSnapshot | FlappySnapshot | DodgeSnapshot | RopeSnapshot | RedLightSnapshot | CoinsSnapshot | BattleshipsSnapshot | RaceSnapshot | WhackSnapshot;
 
 /** What a client needs to run its own player on a course the server decided: which run, the seed that
  * makes the course, and how long until the run starts (negative once it has, by how far in). */
