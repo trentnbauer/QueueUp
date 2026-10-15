@@ -153,7 +153,8 @@ function drawBackdrop(sc: Scene, scroll: 'x' | 'y'): void {
   ctx.restore();
 
   const step = S / 14;
-  const offset = (((sc.fx.scroll + sc.drift) * S * 0.25) % step + step) % step;
+  // `fx.scroll` moves every frame already; adding `drift` too would make the dots judder (see courseOffset).
+  const offset = ((sc.fx.scroll * S * 0.25) % step + step) % step;
   ctx.fillStyle = STAGE.dot;
   for (let i = -1; i < 16; i++) {
     for (let j = -1; j < 16; j++) {
@@ -177,6 +178,9 @@ export function drawFloor(sc: Scene, top: number): void {
  * as the obstacles and pickups, whatever its period. Use this for anything on the course instead of
  * working the offset out by hand: scaling an offset (`offset * 2`) makes the pattern move faster or slower
  * than the course. */
-export function courseOffset(sc: Pick<Scene, 'S' | 'drift'> & { fx: Pick<Scene['fx'], 'scroll'> }, period: number): number {
-  return ((sc.fx.scroll + sc.drift) * sc.S) % period;
+export function courseOffset(sc: Pick<Scene, 'S'> & { fx: Pick<Scene['fx'], 'scroll'> }, period: number): number {
+  // `fx.scroll` already advances every frame at the course's speed, so `drift` (which is for things placed
+  // by a snapshot) must not be added: it grows until the next snapshot and then drops back to zero, which
+  // would make the pattern run at double speed between snapshots and snap back, so it looks like it vibrates.
+  return (sc.fx.scroll * sc.S) % period;
 }
