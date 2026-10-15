@@ -21,6 +21,7 @@ export const MINIGAME_SCORE_MAX: Record<LobbyGameId, number> = {
   tilt: 100,
   stacker: 12,
   sumo: 200,
+  asteroids: 500,
 };
 
 /** How many rows a leaderboard returns. */

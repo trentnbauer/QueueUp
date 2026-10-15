@@ -4,6 +4,7 @@ import type { LobbyFx } from './kit/fx';
 import type { TapTargets } from './taps';
 import { battleshipsView } from './battleships';
 import { coinsView } from './coins';
+import { asteroidsView } from './asteroids';
 import { dodgeView } from './dodge';
 import { drawView } from './draw';
 import { flappyView } from './flappy';
@@ -86,6 +87,7 @@ export const LOBBY_GAME_VIEWS: { [K in LobbyGameId]: LobbyGameView<Extract<Lobby
   tilt: tiltView,
   stacker: stackerView,
   sumo: sumoView,
+  asteroids: asteroidsView,
 };
 
 /** The view for whichever game a snapshot belongs to. */
