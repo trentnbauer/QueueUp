@@ -8,6 +8,7 @@ import { asteroidsView } from './asteroids';
 import { dodgeView } from './dodge';
 import { drawView } from './draw';
 import { flappyView } from './flappy';
+import { memoryView } from './memory';
 import { raceView } from './race';
 import { redLightView } from './redlight';
 import { ropeView } from './rope';
@@ -88,6 +89,7 @@ export const LOBBY_GAME_VIEWS: { [K in LobbyGameId]: LobbyGameView<Extract<Lobby
   stacker: stackerView,
   sumo: sumoView,
   asteroids: asteroidsView,
+  memory: memoryView,
 };
 
 /** The view for whichever game a snapshot belongs to. */

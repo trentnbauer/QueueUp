@@ -24,6 +24,7 @@ const SCORE_WORDS: Partial<Record<string, ScoreWords>> = {
   stacker: { pill: 'spin.lobby.hud.points.pill', winnerOne: 'spin.lobby.hud.points.winnerOne', winnerOther: 'spin.lobby.hud.points.winnerOther', over: 'spin.lobby.hud.points.over' },
   sumo: { pill: 'spin.lobby.hud.seconds.pill', winnerOne: 'spin.lobby.hud.seconds.winnerOne', winnerOther: 'spin.lobby.hud.seconds.winnerOther', over: 'spin.lobby.hud.seconds.over' },
   asteroids: { pill: 'spin.lobby.hud.points.pill', winnerOne: 'spin.lobby.hud.points.winnerOne', winnerOther: 'spin.lobby.hud.points.winnerOther', over: 'spin.lobby.hud.points.over' },
+  memory: { pill: 'spin.lobby.hud.rounds.pill', winnerOne: 'spin.lobby.hud.rounds.winnerOne', winnerOther: 'spin.lobby.hud.rounds.winnerOther', over: 'spin.lobby.hud.rounds.over' },
   rope: { pill: 'spin.lobby.hud.swings.pill', winnerOne: 'spin.lobby.hud.swings.winnerOne', winnerOther: 'spin.lobby.hud.swings.winnerOther', over: 'spin.lobby.hud.swings.over' },
 };
 

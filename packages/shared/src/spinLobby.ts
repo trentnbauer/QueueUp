@@ -11,8 +11,8 @@
 export const LOBBY_TICK_HZ = 15;
 
 /** The games the lobby can run. */
-export type LobbyGameId = 'runner' | 'flappy' | 'dodge' | 'rope' | 'redlight' | 'coins' | 'battleships' | 'race' | 'whack' | 'draw' | 'tilt' | 'stacker' | 'sumo' | 'asteroids';
-export const LOBBY_GAME_IDS: readonly LobbyGameId[] = ['runner', 'flappy', 'dodge', 'rope', 'redlight', 'coins', 'battleships', 'race', 'whack', 'draw', 'tilt', 'stacker', 'sumo', 'asteroids'];
+export type LobbyGameId = 'runner' | 'flappy' | 'dodge' | 'rope' | 'redlight' | 'coins' | 'battleships' | 'race' | 'whack' | 'draw' | 'tilt' | 'stacker' | 'sumo' | 'asteroids' | 'memory';
+export const LOBBY_GAME_IDS: readonly LobbyGameId[] = ['runner', 'flappy', 'dodge', 'rope', 'redlight', 'coins', 'battleships', 'race', 'whack', 'draw', 'tilt', 'stacker', 'sumo', 'asteroids', 'memory'];
 
 /** What a client sends. Anything else is ignored. */
 export type LobbyClientMessage =
@@ -751,8 +751,54 @@ export interface AsteroidsSnapshot extends RoundSummary {
   winnerId: string | null;
 }
 
+// ---- Memory pattern (one board of four panels; watch the pattern, then tap it back) -----------------
+
+/** The board has this many coloured panels (2 x 2, so panels are tap targets 0 to 3: top left, top right,
+ * bottom left, bottom right). */
+export const MEMORY_PANELS = 4;
+
+/** Where a round is: the pattern is being shown, players are tapping it back, or a short pause before the next. */
+export type MemoryStage = 'show' | 'input' | 'between';
+
+export interface MemoryPlayer {
+  id: string;
+  /** Still in: false once they tap a wrong panel or run out of time, or if they arrived mid-run. */
+  alive: boolean;
+  /** Runs won since this person joined the lobby. */
+  wins: number;
+  /** Rounds they got through: live while in, final once out. */
+  meters: number;
+  /** How many panels of this round's pattern they have tapped correctly so far (how many, never which). */
+  progress: number;
+  /** They have tapped this round's whole pattern. */
+  done: boolean;
+}
+
+export interface MemorySnapshot extends RoundSummary {
+  id: 'memory';
+  phase: LobbyRoundPhase;
+  /** Rounds fully played so far (the longest pattern everyone left in got right). */
+  meters: number;
+  /** Always 0: nothing scrolls past in this game (every snapshot carries a course speed). */
+  speed: number;
+  stage: MemoryStage;
+  /** How long this round's pattern is (it is one longer every round). Only the length is ever sent while it is
+   * being tapped back, never the pattern itself. */
+  length: number;
+  /** The panel lit right now while the pattern is being shown, or -1 for none. */
+  lit: number;
+  /** Milliseconds left to tap the pattern back (`input` only), and how long that round allows in all. */
+  inputLeftMs: number;
+  inputTotalMs: number;
+  players: MemoryPlayer[];
+  /** Milliseconds left in `countdown` or `over`; 0 otherwise. */
+  timerMs: number;
+  /** Who won the run that just ended (`over` only); null when nobody did (a solo run, or everyone out together). */
+  winnerId: string | null;
+}
+
 /** The snapshot of whichever game is running. */
-export type LobbyGameSnapshot = RunnerSnapshot | FlappySnapshot | DodgeSnapshot | RopeSnapshot | RedLightSnapshot | CoinsSnapshot | BattleshipsSnapshot | RaceSnapshot | WhackSnapshot | DrawSnapshot | TiltSnapshot | StackerSnapshot | SumoSnapshot | AsteroidsSnapshot;
+export type LobbyGameSnapshot = RunnerSnapshot | FlappySnapshot | DodgeSnapshot | RopeSnapshot | RedLightSnapshot | CoinsSnapshot | BattleshipsSnapshot | RaceSnapshot | WhackSnapshot | DrawSnapshot | TiltSnapshot | StackerSnapshot | SumoSnapshot | AsteroidsSnapshot | MemorySnapshot;
 
 /** What a client needs to run its own player on a course the server decided: which run, the seed that
  * makes the course, and how long until the run starts (negative once it has, by how far in). */
