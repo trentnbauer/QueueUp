@@ -76,6 +76,7 @@ A game can instead make **the play space the controller**: there are no buttons 
 | Catch the coins | **←** / **→** or **A** / **D**. | The **◀** and **▶** buttons. |
 | Battleships | Click a square (no keyboard control yet). | Tap a square on the board. |
 | Quick draw | Press **Space**, or click the big light. | Tap the big light. |
+| Tilt | Hold **←** / **→** or **A** / **D**. | Hold the **◀** and **▶** buttons. |
 | Whack-a-mole | Click a hole, or press **1-9** (laid out like a numpad: **7 8 9** on the top row, **1 2 3** on the bottom). | Tap a hole on the grid. |
 | Jump rope | **Space**, **↑** or **W** to jump. | **Jump**, or tap anywhere on the arena. |
 | Obstacle race | **←** / **→** or **A** / **D** to steer. | The **◀** and **▶** buttons. |
@@ -172,6 +173,17 @@ A reaction duel on one shared screen. Needs at least 2 players, so on your own a
 - **Fairness:** the order is decided by when taps reach the server, so a slow connection loses out. It is for fun, not a reaction-time test. The winning tap's time after GO is shown.
 - **Bots** tap about a third to three quarters of a second after GO and never false-start, so a quick person beats them.
 - **Controls:** the big light is the controller. Tap it, or press **Space**.
+
+## Tilt
+
+One ball on one beam, and everyone pushes it.
+
+- **One shared beam and ball.** Hold left or right to push. The ball goes where the group pushes: the pushes are added up (a push to the right cancels one to the left) and softened by the number of players, so more people push harder, but never in proportion.
+- **The beam wobbles by itself**, slowly at first and more and more as the run goes on, so keep correcting. The beam leans the way the ball is being pushed. The wobble comes from the round's seed, so it is the same for every run of that seed, and it always gets strong enough to end a run (at about a minute alone).
+- **Targets** (green) appear on the beam, up to two at a time, and last 7 seconds. Tip the ball into one and **whoever pushed last** scores 1. The ball is drawn in their colour, so you can see who it would score for.
+- **The run ends when the ball falls off either end** (or after 2 minutes). **Most targets scored wins**; a tie, or scoring nothing, is a draw. Alone it is a high score. Nobody is knocked out.
+- Everyone's points are in the row under the beam, with an arrow for the way each is pushing.
+- **Controls:** left and right only.
 
 ## Whack-a-mole
 
