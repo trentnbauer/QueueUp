@@ -13,6 +13,7 @@ import { ropeView } from './rope';
 import { runnerView } from './runner';
 import { tiltView } from './tilt';
 import { stackerView } from './stacker';
+import { sumoView } from './sumo';
 import { whackView } from './whack';
 
 /** What a renderer is given each frame. */
@@ -84,6 +85,7 @@ export const LOBBY_GAME_VIEWS: { [K in LobbyGameId]: LobbyGameView<Extract<Lobby
   draw: drawView,
   tilt: tiltView,
   stacker: stackerView,
+  sumo: sumoView,
 };
 
 /** The view for whichever game a snapshot belongs to. */

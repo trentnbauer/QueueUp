@@ -78,6 +78,7 @@ A game can instead make **the play space the controller**: there are no buttons 
 | Quick draw | Press **Space**, or click the big light. | Tap the big light. |
 | Tilt | Hold **←** / **→** or **A** / **D**. | Hold the **◀** and **▶** buttons. |
 | Stacker | **Space**, **↑** or **W** to stop the light. | **Stop**, or tap anywhere on the arena. |
+| Sumo ledge | **←** / **→** or **A** / **D** to walk, **Space**, **↑** or **W** to shove. | The **◀** and **▶** buttons, and **Shove**. |
 | Whack-a-mole | Click a hole, or press **1-9** (laid out like a numpad: **7 8 9** on the top row, **1 2 3** on the bottom). | Tap a hole on the grid. |
 | Jump rope | **Space**, **↑** or **W** to jump. | **Jump**, or tap anywhere on the arena. |
 | Obstacle race | **←** / **→** or **A** / **D** to steer. | The **◀** and **▶** buttons. |
@@ -197,6 +198,19 @@ One tower and one light for the whole room. Stop the light on the target to clim
 - **Ending:** the run ends when everyone is out, the tower is cleared, or after **2 minutes**. **Most rows locked wins**; a tie is a draw. Alone it is a high score (how many rows you climbed) and ends when you miss.
 - Everyone's rows are listed on the right, and the bar along the top is the time left.
 - **Controls:** one button: **Space**, **↑** or **W**, or tap anywhere on the arena.
+
+## Sumo ledge
+
+Everyone on one short platform over a drop. Shove the others off. Needs at least 2 players, so on your own a bot joins and plays against you.
+
+- **One shared platform,** drawn side-on, with everyone standing on it. It starts about 0.8 of the screen wide and **shrinks from both ends**, about 0.012 of the screen a second from each end, down to a quarter of the screen, so a run always ends. A faint outline shows where it started.
+- **Walk** left and right. You face the way you last walked.
+- **Shove** (Space, ↑, **W**, or the Shove button): anyone **just in front of you** (up to about a tenth of the screen, and not behind you) is knocked away from you and slides a good way; you also lunge a little. After a shove you wait **0.7 seconds**, shown as a bar under your feet. A shove that hits nobody still costs the wait.
+- **Out:** if your middle goes past either end of the platform you fall and are out. **Last one on wins.** If everyone falls together it is a draw, and a run still going after 2 minutes ends with no winner.
+- Nobody pushes anyone except by shoving: you walk through each other.
+- **Score** is the seconds you stayed on, which is also what the high score list records. Alone against the bot that is how long you last.
+- **The bot** walks toward the nearest player, backs away from the edge, and shoves late (a quarter to half a second after it is in range). It is beatable.
+- **Controls:** **←** / **→** or **A** / **D** to walk, **Space**, **↑** or **W** to shove. On a phone, the **◀** and **▶** buttons and a **Shove** button.
 
 ## Whack-a-mole
 

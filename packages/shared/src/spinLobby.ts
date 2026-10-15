@@ -11,8 +11,8 @@
 export const LOBBY_TICK_HZ = 15;
 
 /** The games the lobby can run. */
-export type LobbyGameId = 'runner' | 'flappy' | 'dodge' | 'rope' | 'redlight' | 'coins' | 'battleships' | 'race' | 'whack' | 'draw' | 'tilt' | 'stacker';
-export const LOBBY_GAME_IDS: readonly LobbyGameId[] = ['runner', 'flappy', 'dodge', 'rope', 'redlight', 'coins', 'battleships', 'race', 'whack', 'draw', 'tilt', 'stacker'];
+export type LobbyGameId = 'runner' | 'flappy' | 'dodge' | 'rope' | 'redlight' | 'coins' | 'battleships' | 'race' | 'whack' | 'draw' | 'tilt' | 'stacker' | 'sumo';
+export const LOBBY_GAME_IDS: readonly LobbyGameId[] = ['runner', 'flappy', 'dodge', 'rope', 'redlight', 'coins', 'battleships', 'race', 'whack', 'draw', 'tilt', 'stacker', 'sumo'];
 
 /** What a client sends. Anything else is ignored. */
 export type LobbyClientMessage =
@@ -652,8 +652,44 @@ export interface StackerSnapshot extends RoundSummary {
   winnerId: string | null;
 }
 
+// ---- Sumo ledge (everyone on one platform that shrinks; shove the others off) ---------------------
+
+export interface SumoPlayer {
+  id: string;
+  /** Where they stand along the platform's line (0..1; off the platform and they are out). */
+  x: number;
+  /** The way they face, -1 (left) or 1 (right): the way a shove goes. */
+  face: number;
+  /** Still on the platform. False once they fall off, or if they arrived mid-run. */
+  alive: boolean;
+  /** Runs won since this person joined the lobby. */
+  wins: number;
+  /** Seconds they stayed on: live while on, final once they fall. */
+  meters: number;
+  /** Milliseconds until they can shove again (0 when they can). */
+  cooldownMs: number;
+  /** Milliseconds left of their shove showing (for the drawing). */
+  shoveMs: number;
+}
+
+export interface SumoSnapshot extends RoundSummary {
+  id: 'sumo';
+  phase: LobbyRoundPhase;
+  /** Seconds the run has lasted. */
+  meters: number;
+  /** Always 0: nothing scrolls past in this game (every snapshot carries a course speed). */
+  speed: number;
+  /** The platform's two ends along the line (0..1); they close in as the run goes on. */
+  platform: { l: number; r: number };
+  players: SumoPlayer[];
+  /** Milliseconds left in `countdown` or `over`; 0 otherwise. */
+  timerMs: number;
+  /** Who won the run that just ended (`over` only); null when nobody did (a solo run, a draw, or time up). */
+  winnerId: string | null;
+}
+
 /** The snapshot of whichever game is running. */
-export type LobbyGameSnapshot = RunnerSnapshot | FlappySnapshot | DodgeSnapshot | RopeSnapshot | RedLightSnapshot | CoinsSnapshot | BattleshipsSnapshot | RaceSnapshot | WhackSnapshot | DrawSnapshot | TiltSnapshot | StackerSnapshot;
+export type LobbyGameSnapshot = RunnerSnapshot | FlappySnapshot | DodgeSnapshot | RopeSnapshot | RedLightSnapshot | CoinsSnapshot | BattleshipsSnapshot | RaceSnapshot | WhackSnapshot | DrawSnapshot | TiltSnapshot | StackerSnapshot | SumoSnapshot;
 
 /** What a client needs to run its own player on a course the server decided: which run, the seed that
  * makes the course, and how long until the run starts (negative once it has, by how far in). */
