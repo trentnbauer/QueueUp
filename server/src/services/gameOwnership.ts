@@ -95,7 +95,7 @@ export async function promoteOwnedWishlistGames(userId: string, igdbIds: number[
   const where = { roomId: null, addedBy: userId, igdbId: { in: [...new Set(igdbIds)] }, status: 'wishlist' as const };
   const released = await prisma.game.updateMany({
     where: { ...where, OR: [{ releaseDate: null }, { releaseDate: { lte: new Date() } }] },
-    data: { status: 'backlog' },
+    data: { status: 'backlog', purchasedAt: new Date() },
   });
   // Whatever is still on the wishlist at this point has a future release date.
   const upcoming = await prisma.game.updateMany({ where, data: { status: 'preordered' } });
@@ -107,7 +107,7 @@ export async function promoteOwnedWishlistGames(userId: string, igdbIds: number[
 export async function promoteReleasedPreorders(now: Date = new Date()): Promise<number> {
   const { count } = await prisma.game.updateMany({
     where: { roomId: null, status: 'preordered', releaseDate: { lte: now } },
-    data: { status: 'backlog' },
+    data: { status: 'backlog', purchasedAt: now },
   });
   return count;
 }

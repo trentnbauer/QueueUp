@@ -45,6 +45,7 @@ export const home = {
   "home.chip.atTarget": "At target {price}",
   "home.chip.target": "Target {price}",
   "home.chip.new": "New · out {date}",
+  "home.chip.recentlyBought": "Recently bought",
   "home.chip.replaySince": "Replay since {date}",
 
   // Row votes (home/derive)

@@ -745,6 +745,8 @@ export interface Game {
   currentPlaytimeMinutes: number | null;
   /** When this game entered Replay (null unless its status is currently Replay). */
   replayedAt: string | null;
+  /** When this game moved from the Wishlist (or Preordered) to the Backlog, if it did (see Game.purchasedAt on the server). */
+  purchasedAt: string | null;
   /** Personal Shelf only: hidden from the public profile and friends' activity. */
   hiddenFromOthers: boolean;
   /** Room games: members who have voted to remove it (current members only). Always 0 on the shelf. */
