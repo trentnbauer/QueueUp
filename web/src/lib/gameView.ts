@@ -126,6 +126,24 @@ export const byScore = (a: Game, b: Game) => gameScore(b) - gameScore(a) || a.ti
 const DAY = 864e5;
 const NEW_WINDOW_DAYS = 60;
 
+const BOUGHT_WINDOW_DAYS = 14;
+
+/** Moved from the Wishlist (or Preordered) to the Backlog within the last 14 days: bought, by a sync or by hand. */
+export function isRecentlyBought(g: Game, now: number = Date.now()): boolean {
+  if (g.status !== 'backlog' || !g.purchasedAt) return false;
+  const t = new Date(g.purchasedAt).getTime();
+  return t <= now + 5 * 60_000 && (now - t) / DAY <= BOUGHT_WINDOW_DAYS;
+}
+
+/** Orders recently bought games first, the latest purchase at the very top (0 when neither is one). */
+export function recentlyBoughtFirst(a: Game, b: Game, now: number = Date.now()): number {
+  const ra = isRecentlyBought(a, now);
+  const rb = isRecentlyBought(b, now);
+  if (ra !== rb) return ra ? -1 : 1;
+  if (ra && rb) return (b.purchasedAt ?? '').localeCompare(a.purchasedAt ?? '');
+  return 0;
+}
+
 /** Released within the last 60 days. */
 export function isNewRelease(g: Game, now: number = Date.now()): boolean {
   if (!g.releaseDate) return false;
@@ -242,7 +260,10 @@ export function showsNewChip(
   ctx: { tab: string; searching: boolean; prereqTitle: string | null; now?: number },
 ): boolean {
   if (ctx.prereqTitle || (g.targetPrice && g.status === 'wishlist')) return false;
-  return !ctx.searching && (ctx.tab === 'queue' || ctx.tab === 'playing') && isNewRelease(g, ctx.now ?? Date.now()) && !!g.releaseDate;
+  const now = ctx.now ?? Date.now();
+  if (ctx.searching) return false;
+  if (ctx.tab === 'queue' && isRecentlyBought(g, now)) return true;
+  return (ctx.tab === 'queue' || ctx.tab === 'playing') && isNewRelease(g, now) && !!g.releaseDate;
 }
 
 /** The chip shown beside a row's title (New / Replay since / After / Target...). */
@@ -255,6 +276,7 @@ export function rowChip(
     const atTarget = g.price.amount && Number(g.price.amount) <= Number(g.targetPrice);
     return t(atTarget ? 'home.chip.atTarget' : 'home.chip.target', { price: fmtMoney(g.targetPrice, g.price.currency) });
   }
+  if (showsNewChip(g, ctx) && isRecentlyBought(g, ctx.now ?? Date.now())) return t('home.chip.recentlyBought');
   if (showsNewChip(g, ctx) && g.releaseDate) {
     return t('home.chip.new', { date: releaseShortDate(g.releaseDate) });
   }

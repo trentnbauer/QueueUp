@@ -1065,6 +1065,8 @@ export default async function gameRoutes(app: FastifyInstance) {
         // Stamped on the transition into Replay and cleared on the way out - see Game.replayedAt.
         ...(status === 'replay' && game.status !== 'replay' && { replayedAt: new Date() }),
         ...(status !== 'replay' && { replayedAt: null }),
+        // Bought: off the Wishlist (or Preordered) and into the Backlog.
+        ...(status === 'backlog' && (game.status === 'wishlist' || game.status === 'preordered') && { purchasedAt: new Date() }),
       },
     });
     const closedEntries = await recordStatusTransition(game.id, game.status, status);
@@ -1465,6 +1467,7 @@ export default async function gameRoutes(app: FastifyInstance) {
               status,
               ...(status === 'replay' && g.status !== 'replay' && { replayedAt: new Date() }),
               ...(status !== 'replay' && { replayedAt: null }),
+              ...(status === 'backlog' && (g.status === 'wishlist' || g.status === 'preordered') && { purchasedAt: new Date() }),
             },
           });
           if (result.count > 0) {

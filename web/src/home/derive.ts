@@ -6,6 +6,7 @@ import {
   inTab,
   gameScore,
   isNewRelease,
+  recentlyBoughtFirst,
   isComingSoon,
   metaLine,
   ownLabel,
@@ -131,10 +132,12 @@ export function buildHomeLists(
   if (!q && isShelf && tab === 'queue') {
     // The shelf's Backlog follows the sort picked in Shelf settings (issue #798; default "Want to play").
     const bySort = backlogComparator(opts.backlogSort ?? [], now);
-    list = [...list].sort((a, b) => pin(a) - pin(b) || bySort(a, b));
+    list = [...list].sort((a, b) => pin(a) - pin(b) || recentlyBoughtFirst(a, b, now) || bySort(a, b));
   } else if (!q && (tab === 'queue' || tab === 'playing')) {
     list = [...list].sort((a, b) => {
       if (pin(a) !== pin(b)) return pin(a) - pin(b);
+      const bought = recentlyBoughtFirst(a, b, now);
+      if (bought) return bought;
       const na = isNewRelease(a, now);
       const nb = isNewRelease(b, now);
       if (na !== nb) return na ? -1 : 1;

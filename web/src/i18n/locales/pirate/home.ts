@@ -47,6 +47,7 @@ export const home: Record<keyof typeof en, string> = {
   "home.chip.atTarget": "Bounty hit {price}",
   "home.chip.target": "Bounty {price}",
   "home.chip.new": "Fresh · ashore {date}",
+  "home.chip.recentlyBought": "Newly plundered",
   "home.chip.replaySince": "Sailin’ again since {date}",
 
   // Row votes (home/derive)

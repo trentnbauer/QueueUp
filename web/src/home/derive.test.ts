@@ -1,13 +1,13 @@
 import { describe, expect, it } from 'vitest';
 import type { Game } from '@queueup/shared';
-import { ROOM_TABS, roomTabs, SHELF_MORE_TABS, SHELF_TABS, shelfTabs } from '../lib/gameView';
+import { isRecentlyBought, ROOM_TABS, roomTabs, rowChip, SHELF_MORE_TABS, SHELF_TABS, shelfTabs, showsNewChip } from '../lib/gameView';
 import { buildHomeLists, playsOn } from './derive';
 
 const DAY = 864e5;
 let n = 0;
 function game(over: Partial<Game>): Game {
   n += 1;
-  return { id: `g${n}`, title: `Game ${n}`, status: 'backlog', votes: [], releaseDate: null, replayedAt: null, ...over } as Game;
+  return { id: `g${n}`, title: `Game ${n}`, status: 'backlog', votes: [], releaseDate: null, replayedAt: null, purchasedAt: null, ...over } as Game;
 }
 const vote = (value: number) => ({ value }) as Game['votes'][number];
 const ago = (days: number) => new Date(Date.now() - days * DAY).toISOString();
@@ -178,5 +178,35 @@ describe('platform filter and shelf backlog sort', () => {
     const opts = { isShelf: true, tabs: SHELF_TABS, tab: 'queue', query: '' };
     expect(ids(buildHomeLists([a, b], opts).list)).toEqual(['Liked', 'Acclaimed']);
     expect(ids(buildHomeLists([a, b], { ...opts, backlogSort: ['review'] }).list)).toEqual(['Acclaimed', 'Liked']);
+  });
+});
+
+describe('Recently bought games', () => {
+  const shelf = { isShelf: true, tabs: shelfTabs(), tab: 'queue', query: '' };
+
+  it('go to the top of the Backlog, the latest purchase first, ahead of new releases', () => {
+    const plain = game({ title: 'Plain' });
+    const fresh = game({ title: 'Fresh release', releaseDate: ago(5).slice(0, 10) });
+    const boughtEarlier = game({ title: 'Bought earlier', purchasedAt: ago(6) });
+    const boughtLatest = game({ title: 'Bought latest', purchasedAt: ago(1) });
+    for (const opts of [shelf, { isShelf: false, tabs: ROOM_TABS, tab: 'queue', query: '' }]) {
+      expect(ids(buildHomeLists([plain, fresh, boughtEarlier, boughtLatest], opts).list).slice(0, 3)).toEqual(['Bought latest', 'Bought earlier', 'Fresh release']);
+    }
+  });
+
+  it('stop being pinned after two weeks, or once the game is no longer in the Backlog', () => {
+    const old = game({ title: 'Old purchase', purchasedAt: ago(20) });
+    const normal = game({ title: 'A normal one', votes: [vote(5)] });
+    expect(ids(buildHomeLists([old, normal], shelf).list)[0]).toBe('A normal one');
+    expect(isRecentlyBought(game({ status: 'playing', purchasedAt: ago(1) }))).toBe(false);
+    expect(isRecentlyBought(game({ purchasedAt: ago(1) }))).toBe(true);
+  });
+
+  it('show the Recently bought chip with the gold New treatment', () => {
+    const g = game({ purchasedAt: ago(1) });
+    const ctx = { tab: 'queue', searching: false, prereqTitle: null };
+    expect(showsNewChip(g, ctx)).toBe(true);
+    expect(rowChip(g, ctx)).toBe('Recently bought');
+    expect(showsNewChip(g, { ...ctx, searching: true })).toBe(false);
   });
 });

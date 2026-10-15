@@ -48,6 +48,7 @@ function makeGame(overrides: Partial<Game> = {}): Game {
     playtimeSinceCheckpointMinutes: null,
     currentPlaytimeMinutes: null,
     replayedAt: null,
+    purchasedAt: null,
     hiddenFromOthers: false,
     removeVotes: 0,
     removeVotesNeeded: 0,

@@ -37,6 +37,7 @@ function makeGame(overrides: Partial<Game> = {}): Game {
     ownerIds: [],
     wishlisterIds: [],
     replayedAt: null,
+    purchasedAt: null,
     hiddenFromOthers: false,
     removeVotes: 0,
     removeVotesNeeded: 0,

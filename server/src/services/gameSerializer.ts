@@ -144,6 +144,7 @@ function buildGameDto(
     playtimeSinceCheckpointMinutes: playtime?.sinceCheckpointMinutes ?? null,
     currentPlaytimeMinutes: playtime?.currentMinutes ?? null,
     replayedAt: game.replayedAt ? game.replayedAt.toISOString() : null,
+    purchasedAt: game.purchasedAt ? game.purchasedAt.toISOString() : null,
     hiddenFromOthers: game.hiddenFromOthers,
     removeVotes: removal?.votes ?? 0,
     removeVotesNeeded: removal?.needed ?? 0,

@@ -1362,6 +1362,9 @@ model Game {
   /// chip and the Replay tab's oldest-first ordering. Set on the transition into Replay, cleared on
   /// the transition out; null for a game that isn't currently a Replay (or pre-dates this field).
   replayedAt                   DateTime?  @map("replayed_at")
+  /// When a Personal Shelf game moved from the Wishlist (or Preordered) to the Backlog: bought, by a library sync, its
+  /// release, or by hand. Drives the "Recently bought" chip and pins the game to the top of the Backlog for a while.
+  purchasedAt                  DateTime?  @map("purchased_at")
   /// Personal Shelf only: keeps this game off the public profile and out of friends' activity
   /// feeds and room Discord "member activity" posts. Its owner still sees it everywhere.
   hiddenFromOthers             Boolean    @default(false) @map("hidden_from_others")
