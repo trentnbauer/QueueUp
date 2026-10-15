@@ -32,8 +32,20 @@ describe('courseOffset', () => {
     }
   });
 
-  it('counts the drift since the last snapshot, so motion is smooth between snapshots', () => {
-    expect(courseOffset(at(2, 0.01), 40)).toBeCloseTo(courseOffset(at(2.01, 0), 40), 9);
+  it('ignores the drift since the last snapshot: the scroll already moves every frame, so counting it too would run patterns at double speed and snap them back', () => {
+    expect(courseOffset(at(2, 0.01), 40)).toBeCloseTo(courseOffset(at(2, 0), 40), 9);
+    // Over a run of snapshots the pattern moves smoothly: each frame advances by exactly the speed.
+    const speed = 0.8;
+    const dt = 1 / 60;
+    let scroll = 0;
+    let last = markX(scroll, 40);
+    for (let frame = 0; frame < 30; frame++) {
+      scroll += speed * dt;
+      const x = markX(scroll, 40);
+      const moved = (((last - x) % 40) + 40) % 40;
+      expect(moved).toBeCloseTo(speed * dt * S, 6);
+      last = x;
+    }
   });
 
   it('never exceeds the spacing', () => {
