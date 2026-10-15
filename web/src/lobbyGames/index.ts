@@ -17,6 +17,7 @@ import { tiltView } from './tilt';
 import { stackerView } from './stacker';
 import { sumoView } from './sumo';
 import { whackView } from './whack';
+import { wordsView } from './words';
 
 /** What a renderer is given each frame. */
 export interface LobbyDrawArgs<S extends LobbyGameSnapshot = LobbyGameSnapshot> {
@@ -90,6 +91,7 @@ export const LOBBY_GAME_VIEWS: { [K in LobbyGameId]: LobbyGameView<Extract<Lobby
   sumo: sumoView,
   asteroids: asteroidsView,
   memory: memoryView,
+  words: wordsView,
 };
 
 /** The view for whichever game a snapshot belongs to. */
