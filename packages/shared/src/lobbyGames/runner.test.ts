@@ -24,7 +24,7 @@ const RUNNER_HALF = 0.02;
 function nextObstacle(g: RunnerGame) {
   return g
     .snapshot()
-    .obstacles.filter((o) => o.x + HALF[o.kind] + RUNNER_HALF > RUNNER_X)
+    .obstacles.filter((o) => o.x + o.w / 2 + RUNNER_HALF > RUNNER_X)
     .sort((x, y) => x.x - y.x)[0];
 }
 
@@ -41,7 +41,7 @@ function botStep(g: RunnerGame, id: string, logMode: 'hold' | 'tap' = 'hold') {
   const logSoon = next?.kind === 'log' && ahead - HALF.log - RUNNER_HALF < speed * 0.22;
   if (logSoon && logMode === 'hold') hold = true;
   if (logSoon && logMode === 'tap') g.action(id, 'jump');
-  if (next?.kind === 'bird' && ahead < speed * 0.5 && ahead > -0.05) duck = true;
+  if (next?.kind === 'bird' && ahead < speed * 0.5 && ahead > -next.w / 2 - 0.01) duck = true;
   g.input(id, 0, duck ? 1 : hold ? -1 : 0);
   g.tick(STEP);
   return { next, ahead, hold, duck };
@@ -333,20 +333,82 @@ describe('RunnerGame logs', () => {
       const play = (logMode: 'hold' | 'tap') => {
         const g = started(['a'], seed);
         let sawLog = false;
+        let logSpeed = 0;
         for (let t = 0; t < 60_000 && me(g, 'a').alive && g.snapshot().phase === 'playing'; t += STEP) {
           const { next } = botStep(g, 'a', logMode);
+          if (next?.kind === 'log' && !sawLog) logSpeed = g.snapshot().speed;
           if (next?.kind === 'log') sawLog = true;
           if (sawLog && next?.kind !== 'log') break; // the first log has been dealt with
         }
-        return { sawLog, alive: me(g, 'a').alive };
+        return { sawLog, logSpeed, alive: me(g, 'a').alive };
       };
       const held = play('hold');
       const tapped = play('tap');
-      if (!held.sawLog || !tapped.sawLog) continue;
+      // At full speed a tap's short hop does carry over a log, so only a log met before that counts.
+      if (!held.sawLog || !tapped.sawLog || tapped.logSpeed > 0.9) continue;
       tested++;
       expect(held.alive, `seed ${seed}: held`).toBe(true);
       expect(tapped.alive, `seed ${seed}: tapped`).toBe(false);
     }
     expect(tested).toBeGreaterThan(2);
+  });
+});
+
+describe('RunnerGame wide birds and paired cacti', () => {
+  /** Every distinct obstacle seen over a bot's run on these seeds, with the width it came with. */
+  function seen(seeds: number[]) {
+    const all: { kind: string; w: number; n: number; seed: number }[] = [];
+    for (const seed of seeds) {
+      const g = started(['a'], seed);
+      const known = new Set<number>();
+      for (let t = 0; t < 60_000 && me(g, 'a').alive && g.snapshot().phase === 'playing'; t += STEP) {
+        botStep(g, 'a');
+        for (const o of g.snapshot().obstacles) {
+          if (o.x > 1.1 && !known.has(o.n)) {
+            known.add(o.n);
+            all.push({ kind: o.kind, w: o.w, n: o.n, seed });
+          }
+        }
+      }
+    }
+    return all;
+  }
+  const SEEDS = [0.1, 0.2, 0.3, 0.45, 0.55, 0.7, 0.8, 0.95];
+
+  it('sends birds that are wide as well as narrow ones, and gives every obstacle its width', () => {
+    const birds = seen(SEEDS).filter((o) => o.kind === 'bird');
+    expect(birds.some((b) => b.w === 0.06)).toBe(true);
+    expect(birds.some((b) => b.w >= 0.18 && b.w <= 0.32)).toBe(true);
+    expect(birds.every((b) => b.w === 0.06 || (b.w >= 0.18 && b.w <= 0.32))).toBe(true);
+  });
+
+  it('puts two skinny cacti side by side, always in twos', () => {
+    const all = seen(SEEDS);
+    const skinny = all.filter((o) => o.kind === 'cactus' && o.w === 0.05);
+    expect(skinny.length).toBeGreaterThan(1);
+    expect(skinny.length % 2).toBe(0);
+    // Each skinny cactus has a partner in the next or previous slot.
+    for (const o of skinny) {
+      const partner = all.find((p) => p.seed === o.seed && p.kind === 'cactus' && p.w === 0.05 && Math.abs(p.n - o.n) === 1);
+      expect(partner, `seed ${o.seed} obstacle ${o.n}`).toBeDefined();
+    }
+    // A normal cactus is still 0.1 wide.
+    expect(all.some((o) => o.kind === 'cactus' && o.w === 0.1)).toBe(true);
+  });
+
+  it('places a pair close together, so one hop clears both', () => {
+    // The pair's two cacti are 0.05 wide with 0.015 between them: 0.115 in all.
+    const g = started(['a'], 0.3);
+    for (let t = 0; t < 40_000 && me(g, 'a').alive; t += STEP) {
+      botStep(g, 'a');
+      const obs = g.snapshot().obstacles;
+      const first = obs.find((o) => o.kind === 'cactus' && o.w === 0.05);
+      const second = first && obs.find((o) => o.n === first.n + 1 && o.w === 0.05);
+      if (first && second) {
+        expect(second.x - first.x).toBeCloseTo(0.065, 2);
+        return;
+      }
+    }
+    throw new Error('no pair came up');
   });
 });

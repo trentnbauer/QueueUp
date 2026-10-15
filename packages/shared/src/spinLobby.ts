@@ -96,6 +96,9 @@ export type RunnerObstacleKind = 'cactus' | 'bird' | 'log';
 export interface RunnerObstacle {
   x: number;
   kind: RunnerObstacleKind;
+  /** How wide it is, in screens: a cactus is usually 0.1 (or 0.05 when two skinny ones stand together), a log
+   * 0.3, a bird 0.06 or, when it is a long one, 0.18 to 0.32. */
+  w: number;
   /** Which obstacle this is (counts up from 1 each run): stays the same as it scrolls, so it can be
    * drawn the same way every frame. */
   n: number;
