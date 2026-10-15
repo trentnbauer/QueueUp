@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import type { Game } from '@queueup/shared';
-import { isRecentlyBought, ROOM_TABS, roomTabs, rowChip, SHELF_MORE_TABS, SHELF_TABS, shelfTabs, showsNewChip } from '../lib/gameView';
+import { isRecentlyBought, releaseTier, ROOM_TABS, roomTabs, rowChip, SHELF_MORE_TABS, SHELF_TABS, shelfTabs, showsNewChip } from '../lib/gameView';
 import { buildHomeLists, playsOn } from './derive';
 
 const DAY = 864e5;
@@ -210,3 +210,36 @@ describe('Recently bought games', () => {
     expect(showsNewChip(g, { ...ctx, searching: true })).toBe(false);
   });
 });
+
+describe('Unreleased games last', () => {
+  const day = (n: number) => new Date(Date.now() + n * DAY).toISOString().slice(0, 10);
+  const lib = () => [
+    game({ title: 'Far off', releaseDate: day(120), votes: [vote(5)] }),
+    game({ title: 'Plain' }),
+    game({ title: 'Out last week', releaseDate: day(-7) }),
+    game({ title: 'Out soon', releaseDate: day(10) }),
+  ];
+
+  for (const [name, opts] of [
+    ['on the shelf', { isShelf: true, tabs: shelfTabs(), tab: 'queue', query: '' }],
+    ['in a room', { isShelf: false, tabs: ROOM_TABS, tab: 'queue', query: '' }],
+  ] as const) {
+    it(`sends far-off releases to the bottom of the Backlog ${name} and keeps soon and recent ones up top`, () => {
+      const on = ids(buildHomeLists(lib(), { ...opts, unreleasedLast: true }).list);
+      expect(on[on.length - 1]).toBe('Far off');
+      expect(on.indexOf('Out last week')).toBeLessThan(on.indexOf('Plain'));
+      expect(on.indexOf('Out soon')).toBeLessThan(on.indexOf('Plain'));
+    });
+  }
+
+  it('leaves the order alone when it is off, and on every other tab', () => {
+    const base = { isShelf: true, tabs: shelfTabs(), tab: 'queue', query: '' };
+    expect(ids(buildHomeLists(lib(), base).list)).not.toEqual(ids(buildHomeLists(lib(), { ...base, unreleasedLast: true }).list));
+    expect(releaseTier(game({ releaseDate: day(120) }))).toBe(2);
+    expect(releaseTier(game({ releaseDate: day(10) }))).toBe(0);
+    expect(releaseTier(game({ releaseDate: day(-7) }))).toBe(0);
+    expect(releaseTier(game({ releaseDate: day(-400) }))).toBe(1);
+    expect(releaseTier(game({ releaseDate: null }))).toBe(1);
+  });
+});
+

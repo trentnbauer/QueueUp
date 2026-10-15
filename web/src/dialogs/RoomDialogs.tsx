@@ -24,6 +24,7 @@ import { useRooms } from '../hooks/useRooms';
 import { Dialog } from '../ui/Dialog';
 import { NavRow } from './SettingsParts';
 import { usePlayNextTab } from '../home/playNextTab';
+import { useUnreleasedLast } from '../home/unreleasedLast';
 import { RoomAiSection } from './RoomAiSection';
 import { DeletedRoomsList } from './DeletedRooms';
 import { Avatar, Banner, Btn, ChipToggle, Group, ROOM_SHORT_NAME_MAX, Segmented, Toggle, inputField, roomInitials } from '../ui/primitives';
@@ -481,6 +482,7 @@ export function RoomSettingsDialog() {
 
   const roomId = room?.id ?? '';
   const [playNextIn, setPlayNextIn] = usePlayNextTab(roomId || null);
+  const [unreleasedLast, setUnreleasedLast] = useUnreleasedLast(roomId || null);
   const isMaster = room?.myRole === 'room_master';
   const [reportingRoom, setReportingRoom] = useState(false);
 
@@ -740,6 +742,11 @@ export function RoomSettingsDialog() {
         <div style={st('display:flex;flex-wrap:wrap;gap:6px')}>
           <ChipToggle on={playNextIn === 'playing'} height={36} onClick={() => setPlayNextIn('playing')}>{t('home.tab.playing')}</ChipToggle>
           <ChipToggle on={playNextIn === 'backlog'} height={36} onClick={() => setPlayNextIn('backlog')}>{t('home.tab.queue')}</ChipToggle>
+        </div>
+        <span style={st('font:500 14.5px var(--font-ui);padding-top:4px')}>{t('room.settings.unreleasedLastTitle')}</span>
+        <span style={st('font:400 13px/1.45 var(--font-ui);color:var(--muted)')}>{t('room.settings.unreleasedLastHint')}</span>
+        <div style={st('display:flex;flex-wrap:wrap;gap:6px')}>
+          <ChipToggle on={unreleasedLast} height={36} onClick={() => setUnreleasedLast(!unreleasedLast)}>{t('settings.shelf.unreleasedLastChip')}</ChipToggle>
         </div>
       </Field>
 

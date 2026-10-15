@@ -236,4 +236,6 @@ export const room = {
   // Room settings pointing at the People tab
   "room.settings.peopleMoved": "Members, invites and games to approve are on the room's {tab} tab.",
   "room.settings.open": "Open ›",
+  "room.settings.unreleasedLastTitle": "Unreleased games",
+  "room.settings.unreleasedLastHint": "Just for you, in this room. Put games that are not out yet at the bottom of the Queue. Ones coming out within a month, and ones out in the last couple of months, stay at the top.",
 } as const;

@@ -164,6 +164,17 @@ export function isComingSoon(g: Game, now: number = Date.now()): boolean {
   return t > now && (t - now) / DAY <= COMING_SOON_DAYS;
 }
 
+/** Where a game sits when unreleased games go last: 0 for one that is out in the last 60 days or comes out within 30 days
+ * (kept at the top), 2 for one that comes out later than that, 1 for everything else. */
+export function releaseTier(g: Game, now: number = Date.now()): 0 | 1 | 2 {
+  if (isNewRelease(g, now) || isComingSoon(g, now)) return 0;
+  if (g.releaseDate && new Date(g.releaseDate).getTime() > now) return 2;
+  return 1;
+}
+
+/** Sort step for "unreleased games last": soon and recent releases first, far-off ones after everything else. */
+export const byReleaseTier = (a: Game, b: Game, now: number = Date.now()): number => releaseTier(a, now) - releaseTier(b, now);
+
 const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
 
 export function shortDate(d: string | Date): string {
