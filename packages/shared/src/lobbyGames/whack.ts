@@ -37,6 +37,17 @@ interface Whacker extends RoundPlayer {
 
 const emptyHole = (): Hole => ({ kind: 'empty', n: 0, left: 0, upS: 0, by: null, bomb: false });
 
+/** Sets a hole's fields one by one. (Not `Object.assign`: a hole is picked by an index from a tap, and copying
+ * properties onto something chosen that way is what code scanning flags as prototype pollution.) */
+function setHole(h: Hole, kind: Hole['kind'], n: number, left: number, upS: number, by: string | null, bomb: boolean): void {
+  h.kind = kind;
+  h.n = n;
+  h.left = left;
+  h.upS = upS;
+  h.by = by;
+  h.bomb = bomb;
+}
+
 /** Moles (and the odd bomb) pop up out of a 3 x 3 grid of holes; tap a hole while a mole is up. Everyone is
  * on the same grid and goes for the same moles: the first tap to reach the server gets the point and the
  * mole drops. When the 30 seconds are up, most points wins. Nobody is knocked out. See RoundGame for how
@@ -96,7 +107,7 @@ export class WhackGame extends RoundGame<Whacker> {
     const bomb = hole.kind === 'bomb';
     if (bomb) p.score = Math.max(0, p.score - BOMB_COST);
     else p.score++;
-    Object.assign(hole, { kind: 'whacked', left: WHACKED_S, upS: 0, by: p.id, bomb });
+    setHole(hole, 'whacked', hole.n, WHACKED_S, 0, p.id, bomb);
   }
 
   snapshot(): WhackSnapshot {
@@ -126,7 +137,7 @@ export class WhackGame extends RoundGame<Whacker> {
     for (const h of this.holes) {
       if (h.kind === 'empty') continue;
       h.left -= dt;
-      if (h.left <= 0) Object.assign(h, emptyHole());
+      if (h.left <= 0) setHole(h, 'empty', 0, 0, 0, null, false);
     }
 
     this.spawnIn -= dt;
@@ -156,6 +167,6 @@ export class WhackGame extends RoundGame<Whacker> {
     if (free.length === 0) return;
     this.lastWasBomb = bomb;
     const upS = Math.max(UP_MIN_S, UP_START_S - UP_GAIN_S * seconds);
-    Object.assign(this.holes[free[Math.floor(pick * free.length)]], { kind: bomb ? 'bomb' : 'mole', n: ++this.spawned, left: upS, upS, by: null, bomb: false });
+    setHole(this.holes[free[Math.floor(pick * free.length)]], bomb ? 'bomb' : 'mole', ++this.spawned, upS, upS, null, false);
   }
 }
