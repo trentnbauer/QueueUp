@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { useSearchParams } from 'react-router';
+import { useNavigate, useSearchParams } from 'react-router';
 import { useQueryClient } from '@tanstack/react-query';
 import { LOBBY_GAME_IDS, type LobbyGameId, type MiniGameLobbyDto, type MiniGameScorePeriod, type MiniGameScoreRow, type MiniGameScoreScope } from '@queueup/shared';
 import { miniGamesApi } from '../api/miniGames';
@@ -217,6 +217,7 @@ function Leaderboard({ game, scope, period }: { game: LobbyGameId; scope: MiniGa
 
 function ScoreRow({ row }: { row: MiniGameScoreRow }) {
   const t = useT();
+  const navigate = useNavigate();
   const top = row.rank === 1;
   const when = whenKey(row.at);
   const background = top ? GOLD : row.isMe ? 'var(--accSoft)' : 'transparent';
@@ -233,13 +234,25 @@ function ScoreRow({ row }: { row: MiniGameScoreRow }) {
         color={row.avatarColor}
         avatarUrl={row.avatarUrl}
         size={30}
+        profileUserId={row.isMe ? undefined : row.userId}
         style={top ? { boxShadow: '0 0 0 2px var(--sheet), 0 0 0 3.5px var(--star)' } : undefined}
       />
       <span style={st('display:flex;flex-direction:column;gap:1px;min-width:0')}>
-        <span style={st('font:600 14px var(--font-ui);white-space:nowrap;overflow:hidden;text-overflow:ellipsis')}>
-          {row.displayName}
-          {row.isMe && ` ${t('games.scores.you')}`}
-        </span>
+        {row.isMe ? (
+          <span style={st('font:600 14px var(--font-ui);white-space:nowrap;overflow:hidden;text-overflow:ellipsis')}>
+            {row.displayName} {t('games.scores.you')}
+          </span>
+        ) : (
+          // Another person's name opens their profile, like their avatar does.
+          <button
+            type="button"
+            onClick={() => navigate(`/u/${row.userId}`)}
+            aria-label={t('shell.avatar.viewProfile', { name: row.displayName })}
+            style={st('align-self:flex-start;max-width:100%;padding:0;border:none;background:none;color:var(--text);text-align:left;cursor:pointer;font:600 14px var(--font-ui);white-space:nowrap;overflow:hidden;text-overflow:ellipsis')}
+          >
+            {row.displayName}
+          </button>
+        )}
         <span style={st('font:400 12px var(--font-ui);color:var(--muted)')}>{t('games.scores.meta', { when: t(when.key, when.values), source: t(SOURCE_KEYS[row.source]) })}</span>
       </span>
       <span style={st(`text-align:right;font:600 15px var(--font-mono);color:${top ? 'var(--star)' : row.isMe ? 'var(--accText)' : 'var(--text)'}`)}>{row.score}</span>
