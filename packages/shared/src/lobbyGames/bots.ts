@@ -1,5 +1,6 @@
 import type { LobbyGameId, LobbyGameSnapshot, LobbyRunScore } from '../spinLobby.js';
 import { battleshipsBrain } from './battleships.js';
+import { drawBrain } from './draw.js';
 import { redLightBrain } from './redlight.js';
 import type { BotBrain, LobbyGame } from './types.js';
 
@@ -25,6 +26,7 @@ export function botColor(id: string): string {
 const BRAINS: Partial<Record<LobbyGameId, (botId: string, rng: () => number) => BotBrain>> = {
   redlight: redLightBrain,
   battleships: battleshipsBrain,
+  draw: drawBrain,
 };
 
 /** Wraps a game that needs more players than the lobby has, and adds bots until there are enough.
