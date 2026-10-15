@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { encodeConnectionCode, PLAYNITE_API_KEY_LABEL, ROOM_PLATFORM_LABELS, type AiImportClassification, type AiMatchSuggestion, type GameSearchResult, type PendingLibraryImportDto, type SteamCompletionCandidate } from '@queueup/shared';
 import { AI_SETTINGS_QUERY_KEY, aiApi } from '../api/ai';
+import { AI_MATCH_RESULT_QUERY_KEY, cacheAiResult, readAiResult, runAiMatchPass } from '../ai/backgroundAi';
 import { apiKeysApi, API_KEYS_QUERY_KEY } from '../api/apiKeys';
 import { gamesApi } from '../api/games';
 import { pendingImportsApi, DISMISSED_IMPORTS_QUERY_KEY, PENDING_IMPORTS_QUERY_KEY } from '../api/pendingImports';
@@ -436,7 +437,8 @@ export function NeedsReviewDialog() {
   // search. Null when the title is being matched to a single game as usual.
   const [bundle, setBundle] = useState<Map<number, GameSearchResult> | null>(null);
   // What the AI picked for each waiting title (issue #819), keyed by pending id.
-  const [aiPicks, setAiPicks] = useState<Map<string, AiMatchSuggestion>>(new Map());
+  // (Seeded from a background run started in the AI menu, if one finished.)
+  const [aiPicks, setAiPicks] = useState<Map<string, AiMatchSuggestion>>(() => new Map((readAiResult<AiMatchSuggestion[]>(queryClient, AI_MATCH_RESULT_QUERY_KEY) ?? []).map((s) => [s.id, s])));
   // What the AI thinks each non-game title is (issue #828), keyed by pending id.
   const [aiKinds, setAiKinds] = useState<Map<string, AiImportClassification>>(new Map());
   const ai = useQuery({ queryKey: AI_SETTINGS_QUERY_KEY, queryFn: aiApi.mine });
@@ -497,36 +499,15 @@ export function NeedsReviewDialog() {
   // done so far is kept). `progress` is "checked so far" out of "checked + still to do".
   const [aiProgress, setAiProgress] = useState<{ done: number; total: number } | null>(null);
   const aiMatch = useMutation({
-    mutationFn: async () => {
-      const picks = new Map<string, AiMatchSuggestion>();
-      let autoMatched = 0;
-      let checked = 0;
-      let after: string | null = null;
-      let stopped: string | null = null;
-      for (;;) {
-        let res;
-        try {
-          res = await pendingImportsApi.aiMatch(after);
-        } catch (err) {
-          // Nothing done yet: surface the error. Part way: keep what the earlier chunks found.
-          if (checked === 0 && picks.size === 0 && autoMatched === 0) throw err;
-          stopped = err instanceof Error ? err.message : t('add.review.ai.failed');
-          break;
-        }
-        for (const s of res.suggestions) picks.set(s.id, s);
-        autoMatched += res.autoMatched;
-        checked += res.checked;
+    mutationFn: () =>
+      runAiMatchPass((done, total, picks) => {
         setAiPicks(new Map(picks));
-        setAiProgress({ done: checked, total: checked + res.remaining });
-        if (res.stopped) stopped = res.stopped;
-        if (!res.next) break;
-        after = res.next;
-      }
-      return { picks, autoMatched, stopped };
-    },
+        setAiProgress({ done, total });
+      }),
     onSuccess: ({ picks, autoMatched, stopped }) => {
       setError(null);
       setAiPicks(picks);
+      cacheAiResult(queryClient, AI_MATCH_RESULT_QUERY_KEY, [...picks.values()]);
       refresh();
       void queryClient.invalidateQueries({ queryKey: AI_SETTINGS_QUERY_KEY });
       ui.notify(t('add.review.ai.done', { auto: autoMatched, suggested: picks.size }));

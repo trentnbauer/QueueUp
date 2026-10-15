@@ -23,6 +23,7 @@ import { assertPublicTarget } from './aiNetworkGuard.js';
 import { runAiJob } from './aiJobs.js';
 import { coolDownSeconds, coolingReason, cooldownKey, endCooldown, startCooldown } from './aiCooldown.js';
 import { unlockBadgeQuietly } from '../badges.js';
+import { notifyAiFailure } from '../notifications.js';
 
 /** Works out which AI settings a call uses and makes the call. A person's own settings win, when the
  * server allows them; otherwise the server-wide ones (env, or Administrator settings as the
@@ -332,6 +333,8 @@ export async function aiComplete(
     return { ...res, source: chain.source };
   } catch (err) {
     void logAiCall({ ...log, ai: whoseAi(resolved?.source ?? null, false), ok: false, ms: Date.now() - started, error: err instanceof Error ? err.message : String(err) });
+    // Tell the person why, even if they have left the screen that asked.
+    if (opts.userId) void notifyAiFailure(opts.userId, opts.label, err instanceof Error && err.message ? err.message : 'The AI request failed');
     throw err;
   }
 }

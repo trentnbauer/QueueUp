@@ -207,6 +207,11 @@ enum NotificationType {
   admin_unban_request
   /// Administrator-only: the scheduled database backup failed.
   admin_backup_failed
+  /// An AI request for the person failed (out of tokens, a provider error, the daily limit on the shared AI): the message
+  /// says why. Direct and personal; opens the AI settings.
+  ai_error
+  /// A background AI job (such as the duplicate scan) finished with nothing to review. Direct; message only.
+  ai_update
 }
 
 /// See RoomActivity's doc comment. A superset of NotificationType's room-scoped values (everything

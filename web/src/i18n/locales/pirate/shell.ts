@@ -238,4 +238,13 @@ export const shell: Record<keyof typeof en, string> = {
   "shell.sidebar.accountSettings": "Account & riggin’",
   "shell.nav.myProfile": "Me own colours",
   "shell.nav.settings": "Ship’s riggin’",
+  "shell.toasts.aiSettings": "AI settings",
+  "ai.background.match.working": "The AI be matchin’ yer titles…",
+  "ai.background.review": "Review",
+  "ai.background.alreadyRunning": "That be runnin’ already. We’ll tell ye when it’s done.",
+  "ai.background.duplicates.started": "Scannin’ for duplicates. We’ll tell ye when it’s done.",
+  "ai.background.duplicates.none": "The AI scan finished: no duplicate games found.",
+  "ai.background.duplicates.found.one": "The AI found 1 game that can be merged.",
+  "ai.background.duplicates.found.other": "The AI found {n} games that can be merged.",
+  "ai.background.match.started": "Matchin’ yer imported games. We’ll tell ye when it’s done.",
 };

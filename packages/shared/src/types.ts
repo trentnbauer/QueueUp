@@ -1601,7 +1601,9 @@ export type NotificationType =
   | 'sensitive_games'
   | 'admin_report'
   | 'admin_unban_request'
-  | 'admin_backup_failed';
+  | 'admin_backup_failed'
+  | 'ai_error'
+  | 'ai_update';
 
 /** Notification types a person can choose to receive by email (direct ones, never room-scoped). */
 export const EMAIL_ALERT_TYPES = [

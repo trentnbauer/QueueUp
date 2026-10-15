@@ -25,7 +25,7 @@ interface NotifyRoomInput {
   // RoomActivityType, not just documented as one.
   type: Exclude<
     NotificationType,
-    'room_deleted' | 'room_restored' | 'price_drop' | 'release_watch' | 'playtime_mark_playing' | 'playnite_sync_reminder' | 'wishlist_bundle_deal' | 'play_together_request' | 'feed_reaction' | 'friend_recommendation' | 'good_time_to_buy' | 'account_change' | 'library_sync_error' | 'library_sync_available' | 'platform_unowned' | 'room_game_beaten' | 'merge_suggestions' | 'sensitive_games' | 'admin_report' | 'admin_unban_request' | 'admin_backup_failed'
+    'room_deleted' | 'room_restored' | 'price_drop' | 'release_watch' | 'playtime_mark_playing' | 'playnite_sync_reminder' | 'wishlist_bundle_deal' | 'play_together_request' | 'feed_reaction' | 'friend_recommendation' | 'good_time_to_buy' | 'account_change' | 'library_sync_error' | 'library_sync_available' | 'platform_unowned' | 'room_game_beaten' | 'merge_suggestions' | 'sensitive_games' | 'admin_report' | 'admin_unban_request' | 'admin_backup_failed' | 'ai_error' | 'ai_update'
   >;
   message: (actorName: string) => string;
   /** The game event's structured detail, for the room's play journal. */
@@ -377,6 +377,44 @@ export async function notifyMergeSuggestions(userId: string, count: number): Pro
     });
   } catch (err) {
     console.error('[notifications] failed to write merge-suggestions notification', err);
+  }
+}
+
+/** What an AI request was for, in words, for a failure message. */
+const AI_LABEL_WORDS: Record<string, string> = {
+  duplicates: 'the duplicate scan',
+  tonight: "tonight's pick",
+  picks: 'the game picks',
+  search: 'the AI search',
+  coach: 'the backlog coach',
+  recap: 'the room recap',
+  story: 'the year story',
+  match: 'matching your imported games',
+  classify: 'checking your imported games',
+};
+
+/** An AI request failed for this person: tell them why (out of tokens, a provider error, the daily limit on the shared
+ * AI), even if they closed the screen that asked. One at a time: skipped while an earlier one is still unread, so a scan
+ * whose every chunk fails says it once. Best effort: never fails the request it reports on. */
+export async function notifyAiFailure(userId: string, label: string | undefined, reason: string): Promise<void> {
+  try {
+    const existing = await prisma.notification.findFirst({ where: { recipientId: userId, type: 'ai_error', readAt: null }, select: { id: true } });
+    if (existing) return;
+    const what = label ? AI_LABEL_WORDS[label] : undefined;
+    await prisma.notification.create({
+      data: { recipientId: userId, roomName: 'Personal Shelf', type: 'ai_error', message: `The AI could not finish${what ? ` ${what}` : ''}: ${reason}`.slice(0, 500) },
+    });
+  } catch (err) {
+    console.error('[notifications] failed to write AI failure notification', err);
+  }
+}
+
+/** A background AI job finished and there is nothing to act on ("No duplicates found"). Direct; message only. Best effort. */
+export async function notifyAiUpdate(userId: string, message: string): Promise<void> {
+  try {
+    await prisma.notification.create({ data: { recipientId: userId, roomName: 'Personal Shelf', type: 'ai_update', message: message.slice(0, 500) } });
+  } catch (err) {
+    console.error('[notifications] failed to write AI update notification', err);
   }
 }
 

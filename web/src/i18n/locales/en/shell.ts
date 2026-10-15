@@ -236,4 +236,13 @@ export const shell = {
   "shell.sidebar.accountSettings": "Account & settings",
   "shell.nav.myProfile": "My profile",
   "shell.nav.settings": "Settings",
+  "shell.toasts.aiSettings": "AI settings",
+  "ai.background.match.working": "AI is matching your titles…",
+  "ai.background.review": "Review",
+  "ai.background.alreadyRunning": "That is already running. We'll tell you when it's done.",
+  "ai.background.duplicates.started": "Scanning for duplicates. We'll tell you when it's done.",
+  "ai.background.duplicates.none": "The AI scan finished: no duplicate games found.",
+  "ai.background.duplicates.found.one": "The AI found 1 game that can be merged.",
+  "ai.background.duplicates.found.other": "The AI found {n} games that can be merged.",
+  "ai.background.match.started": "Matching your imported games. We'll tell you when it's done.",
 } as const;

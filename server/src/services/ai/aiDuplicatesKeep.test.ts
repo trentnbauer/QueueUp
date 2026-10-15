@@ -8,10 +8,11 @@ vi.mock('../../db/client.js', () => ({ prisma: { game: { findMany: gameFindMany,
 const aiComplete = vi.fn();
 vi.mock('./aiConfig.js', () => ({ aiComplete }));
 const notifyMergeSuggestions = vi.fn(async () => {});
+const notifyAiUpdate = vi.fn(async () => {});
 const loadDuplicateKnowledge = vi.fn(async (): Promise<any> => ({ merges: new Map(), notDuplicates: new Set(), verdicts: new Map() }));
 const saveVerdicts = vi.fn(async (_rows: unknown[]) => {});
 vi.mock('../duplicateKnowledge.js', () => ({ loadDuplicateKnowledge, saveVerdicts }));
-vi.mock('../notifications.js', () => ({ notifyMergeSuggestions }));
+vi.mock('../notifications.js', () => ({ notifyMergeSuggestions, notifyAiUpdate }));
 // IGDB's DLC list for a game, by igdbId (see dropDlcPairs): none, unless a test says otherwise.
 const getGameAddonIgdbIds = vi.fn(async (_igdbId: number): Promise<Set<number>> => new Set());
 vi.mock('../igdbClient.js', () => ({ getGameAddonIgdbIds }));
@@ -59,6 +60,7 @@ describe('aiScanDuplicates (whole shelf)', () => {
     gameUpdateMany.mockClear();
     aiComplete.mockReset();
     notifyMergeSuggestions.mockClear();
+    notifyAiUpdate.mockClear();
     saveVerdicts.mockClear();
     loadDuplicateKnowledge.mockReset();
     loadDuplicateKnowledge.mockResolvedValue({ merges: new Map(), notDuplicates: new Set(), verdicts: new Map() });
@@ -251,6 +253,8 @@ describe('aiScanDuplicates (whole shelf)', () => {
     expect(res.pairs).toEqual([]);
     expect(saveVerdicts.mock.calls[0][0]).toEqual([]);
     expect(notifyMergeSuggestions).toHaveBeenCalledWith('u1', 0);
+    // Finished clean with nothing to review: say so (a scan that was cut short has already said why).
+    expect(notifyAiUpdate).toHaveBeenCalledWith('u1', expect.stringContaining('no duplicate'));
   });
 
   it('counts the cheap no-AI candidates without calling the AI', async () => {
