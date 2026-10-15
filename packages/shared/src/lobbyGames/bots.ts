@@ -2,6 +2,7 @@ import type { LobbyGameId, LobbyGameSnapshot, LobbyRunScore } from '../spinLobby
 import { battleshipsBrain } from './battleships.js';
 import { drawBrain } from './draw.js';
 import { redLightBrain } from './redlight.js';
+import { sumoBrain } from './sumo.js';
 import type { BotBrain, LobbyGame } from './types.js';
 
 const BOT_PREFIX = 'bot:';
@@ -26,6 +27,7 @@ export function botColor(id: string): string {
 const BRAINS: Partial<Record<LobbyGameId, (botId: string, rng: () => number) => BotBrain>> = {
   redlight: redLightBrain,
   battleships: battleshipsBrain,
+  sumo: sumoBrain,
   draw: drawBrain,
 };
 
