@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { SpinLobbyHub, type LobbySocket } from './spinLobbyHub.js';
+import { SPIN_IDLE_KICK_MS, SpinLobbyHub, type LobbySocket } from './spinLobbyHub.js';
 import { SpinLobby } from './spinLobby.js';
 
 function fakeSocket() {
@@ -239,5 +239,98 @@ describe('SpinLobbyHub', () => {
       expect([key, game, source]).toEqual(['lobby:x', 'dodge', 'lobby']);
       expect(scores[0].userId).toBe('a');
     });
+  });
+});
+
+describe('SpinLobbyHub idle kick', () => {
+  function clockHub() {
+    const clock = { t: 1000 };
+    const hub = new SpinLobbyHub(deps, { autoTick: false, now: () => clock.t });
+    return { hub, clock };
+  }
+  const send = (hub: SpinLobbyHub, s: ReturnType<typeof fakeSocket>, m: object) => hub.message('r1', s.socket, JSON.stringify(m));
+
+  it('drops a member who does nothing while a spin waits, and the others can then pass the vote', async () => {
+    const { hub, clock } = clockHub();
+    waiting = true;
+    const [a, b, c] = [fakeSocket(), fakeSocket(), fakeSocket()];
+    hub.connect('r1', 'a', a.socket);
+    hub.connect('r1', 'b', b.socket);
+    hub.connect('r1', 'c', c.socket);
+    await flush();
+    clock.t += SPIN_IDLE_KICK_MS - 1000;
+    send(hub, a, { t: 'vote', on: true });
+    send(hub, b, { t: 'tap', target: 0 });
+    clock.t += 1000;
+    await hub.tickRoom('r1');
+    expect(c.socket.close).toHaveBeenCalledWith(1008, 'Idle');
+    expect(a.socket.close).not.toHaveBeenCalled();
+    expect(b.socket.close).not.toHaveBeenCalled();
+    expect(hub.presentIds('r1').sort()).toEqual(['a', 'b']);
+  });
+
+  it('ignores pings, repeated inputs and unchanged reports', async () => {
+    const { hub, clock } = clockHub();
+    waiting = true;
+    const a = fakeSocket();
+    hub.connect('r1', 'a', a.socket);
+    hub.connect('r1', 'b', fakeSocket().socket);
+    await flush();
+    send(hub, a, { t: 'input', dx: 0, dy: 0 });
+    send(hub, a, { t: 'report', run: 1, alive: true, f: { x: 1 } });
+    clock.t += SPIN_IDLE_KICK_MS - 1;
+    send(hub, a, { t: 'ping', c: 1 });
+    send(hub, a, { t: 'input', dx: 0, dy: 0 });
+    send(hub, a, { t: 'report', run: 1, alive: true, f: { x: 1 } });
+    clock.t += 1;
+    await hub.tickRoom('r1');
+    expect(a.socket.close).toHaveBeenCalledWith(1008, 'Idle');
+  });
+
+  it('counts a changed report as movement', async () => {
+    const { hub, clock } = clockHub();
+    waiting = true;
+    const a = fakeSocket();
+    hub.connect('r1', 'a', a.socket);
+    await flush();
+    send(hub, a, { t: 'report', run: 1, alive: true, f: { x: 1 } });
+    clock.t += SPIN_IDLE_KICK_MS - 1;
+    send(hub, a, { t: 'report', run: 1, alive: true, f: { x: 2 } });
+    clock.t += 1;
+    await hub.tickRoom('r1');
+    expect(a.socket.close).not.toHaveBeenCalled();
+  });
+
+  it('never drops someone holding a direction', async () => {
+    const { hub, clock } = clockHub();
+    waiting = true;
+    const a = fakeSocket();
+    hub.connect('r1', 'a', a.socket);
+    await flush();
+    send(hub, a, { t: 'input', dx: 1, dy: 0 });
+    for (let i = 0; i < 5; i++) {
+      clock.t += SPIN_IDLE_KICK_MS;
+      await hub.tickRoom('r1');
+    }
+    expect(a.socket.close).not.toHaveBeenCalled();
+  });
+
+  it('does not drop anyone when no spin is waiting, and starts the clock when one begins', async () => {
+    const { hub, clock } = clockHub();
+    const a = fakeSocket();
+    hub.connect('r1', 'a', a.socket);
+    await flush();
+    clock.t += SPIN_IDLE_KICK_MS * 3;
+    await hub.tickRoom('r1');
+    expect(a.socket.close).not.toHaveBeenCalled();
+    waiting = true;
+    await hub.tickRoom('r1');
+    // Spin discovered on the check; idle time counts from now, not from the long quiet before.
+    await (hub as unknown as { refreshSpin(id: string): Promise<void> }).refreshSpin('r1');
+    await hub.tickRoom('r1');
+    expect(a.socket.close).not.toHaveBeenCalled();
+    clock.t += SPIN_IDLE_KICK_MS;
+    await hub.tickRoom('r1');
+    expect(a.socket.close).toHaveBeenCalledWith(1008, 'Idle');
   });
 });

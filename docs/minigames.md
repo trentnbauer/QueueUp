@@ -37,6 +37,7 @@ It plays a random game after every run (like the waiting room), or one game you 
 - **Everyone sees the same course.** The obstacles are the same for every player in a run, and every course can be cleared.
 - **Distance** is shown in metres (one screen is 20 m).
 - **Scoreboard.** The panel shows **wins this lobby** for everyone, the **last 10 runs** (the winner's colour and initial; a dash for a run nobody won), and the **best run** so far in the game being played. The run number, the last 10 runs and the wins belong to the lobby, not to a game, so they **carry over when the game changes** (in a room after every run, and in practice when you pick another game). The best run is kept per game, because metres, coins and swings cannot be compared with each other.
+- **Idle players.** While a spin is waiting, anyone in the mini game who does nothing for 60 seconds (no input, tap, action or vote, and no change in their reports) is removed from the lobby, so they stop holding the waiting room open and counting toward the votes needed. Holding a direction counts as playing. They can rejoin by opening the mini game again. Bots are not connections, so this never affects them.
 - **Bots.** Some games need more than one player (Red light, green light needs 2). If fewer people are in the lobby, **bots** ("Bot 1", in a muted colour with a **B**) join to make up the numbers. They are not members: they never vote, never count as being in the mini game and never show up in the room. They are only added or removed between runs, never during one, and they leave once enough real people have joined. When the last person leaves, the bots go too. Practice mode on the Personal Shelf uses the same bots.
 - **Playing together.** Any number of members can join. You can have the mini game open on up to 5 devices or tabs at once; you still count as one player.
 
@@ -139,7 +140,7 @@ A top-down race on a scrolling track, everyone on the same course.
 
 A race to the finish line, with a traffic light in charge. Needs at least 2 players, so on your own you race a bot.
 
-- **Goal:** be the first across the line. Everyone has their own lane on the same track.
+- **Goal:** be the first across the line. Everyone runs on the same open field, with no lanes and no separate windows.
 - **Hold the run button** to run while the light is green. Let go to stand still.
 - **The light** turns amber and flashes for about half a second before it goes red. Moving once it is red (after a quarter of a second to let a slow connection catch up) knocks you out. Green and red spells are random but the same for everyone.
 - **Winning:** the first runner to cross the line wins. This game ends the moment someone finishes, so unlike the others it is not only last one in. If nobody has finished after 45 seconds, whoever is furthest along wins; a tie for the lead is a draw.
