@@ -5,10 +5,12 @@ import { FONT, STAGE, courseOffset, coverTile, drawFloor, groundShadow, hueOf, r
 // Mirrors the server's sizes (packages/shared/src/lobbyGames/runner.ts), so what is drawn is what is hit.
 const STAND_HEIGHT = 0.45;
 const DUCK_HEIGHT = 0.25;
-const CACTUS = { width: 0.1, height: 0.35 };
-const LOG = { width: 0.3, height: 0.35 };
+// Each obstacle's width comes in the snapshot (`o.w`): cacti are 0.1 or, in a pair, 0.05; a bird is 0.06 or a long one.
+const CACTUS = { height: 0.35 };
+const LOG = { height: 0.35 };
 const BIRD = { from: 0.3, to: 0.7 };
-const BIRD_SIZE = { width: 0.06 };
+/** A long bird gets one 😴 for about every this much width. */
+const BIRD_FACE_EVERY = 0.07;
 
 /** Where the ground is, as a fraction of the arena, and how tall a jump "lane height" is. */
 const GROUND = 0.82;
@@ -42,7 +44,7 @@ function drawWorld(sc: Scene<RunnerSnapshot>): void {
     const hue = hueOf(o.n);
     if (o.kind === 'cactus') {
       // A game cover standing on the ground, with two lines of "title" at the bottom.
-      const w = CACTUS.width * S;
+      const w = o.w * S;
       const h = CACTUS.height * unit;
       groundShadow(ctx, cx, ground, w * 0.6);
       coverTile(ctx, cx - w / 2, ground - h, w, h, hue, S * 0.022, true);
@@ -54,7 +56,7 @@ function drawWorld(sc: Scene<RunnerSnapshot>): void {
       ctx.fill();
     } else if (o.kind === 'log') {
       // A wide, low stack of covers: a held jump to clear it.
-      const w = LOG.width * S;
+      const w = o.w * S;
       const h = LOG.height * unit;
       groundShadow(ctx, cx, ground, w * 0.55);
       coverTile(ctx, cx - w / 2, ground - h, w, h, hue, S * 0.022, true);
@@ -72,7 +74,7 @@ function drawWorld(sc: Scene<RunnerSnapshot>): void {
     } else {
       // A game cover floating at head height, the same size as its hitbox: duck under it. It bobs a little,
       // and the 😴 on it says "this one is not for jumping".
-      const w = BIRD_SIZE.width * S;
+      const w = o.w * S;
       const h = (BIRD.to - BIRD.from) * unit;
       const bob = Math.sin(now / 180 + o.n) * S * 0.006;
       const top = ground - BIRD.to * unit + bob;
@@ -82,10 +84,12 @@ function drawWorld(sc: Scene<RunnerSnapshot>): void {
       ctx.shadowOffsetY = S * 0.01;
       coverTile(ctx, cx - w / 2, top, w, h, hue, S * 0.022, true);
       ctx.restore();
-      ctx.font = `${Math.round(w * 0.6)}px "Apple Color Emoji","Segoe UI Emoji","Noto Color Emoji",${FONT.ui}`;
+      const faces = Math.max(1, Math.round(o.w / BIRD_FACE_EVERY));
+      const face = Math.min(w / faces, h) * 0.6;
+      ctx.font = `${Math.round(face)}px "Apple Color Emoji","Segoe UI Emoji","Noto Color Emoji",${FONT.ui}`;
       ctx.textAlign = 'center';
       ctx.textBaseline = 'middle';
-      ctx.fillText('😴', cx, top + h / 2);
+      for (let k = 0; k < faces; k++) ctx.fillText('😴', cx - w / 2 + (w * (k + 0.5)) / faces, top + h / 2);
     }
   }
 

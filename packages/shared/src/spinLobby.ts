@@ -11,8 +11,8 @@
 export const LOBBY_TICK_HZ = 15;
 
 /** The games the lobby can run. */
-export type LobbyGameId = 'runner' | 'flappy' | 'dodge' | 'rope' | 'redlight' | 'coins' | 'battleships' | 'race' | 'whack' | 'stacker';
-export const LOBBY_GAME_IDS: readonly LobbyGameId[] = ['runner', 'flappy', 'dodge', 'rope', 'redlight', 'coins', 'battleships', 'race', 'whack', 'stacker'];
+export type LobbyGameId = 'runner' | 'flappy' | 'dodge' | 'rope' | 'redlight' | 'coins' | 'battleships' | 'race' | 'whack' | 'draw' | 'tilt' | 'stacker';
+export const LOBBY_GAME_IDS: readonly LobbyGameId[] = ['runner', 'flappy', 'dodge', 'rope', 'redlight', 'coins', 'battleships', 'race', 'whack', 'draw', 'tilt', 'stacker'];
 
 /** What a client sends. Anything else is ignored. */
 export type LobbyClientMessage =
@@ -96,6 +96,9 @@ export type RunnerObstacleKind = 'cactus' | 'bird' | 'log';
 export interface RunnerObstacle {
   x: number;
   kind: RunnerObstacleKind;
+  /** How wide it is, in screens: a cactus is usually 0.1 (or 0.05 when two skinny ones stand together), a log
+   * 0.3, a bird 0.06 or, when it is a long one, 0.18 to 0.32. */
+  w: number;
   /** Which obstacle this is (counts up from 1 each run): stays the same as it scrolls, so it can be
    * drawn the same way every frame. */
   n: number;
@@ -508,6 +511,101 @@ export interface WhackSnapshot extends RoundSummary {
   winnerId: string | null;
 }
 
+// ---- Quick draw (one shared screen; wait for GO, then tap first) -----------------------------------
+
+/** Points a player needs to win a run. */
+export const DRAW_POINTS_TO_WIN = 3;
+
+/** Where a duel round is: waiting for GO (tapping now is a false start), GO has flashed, or the result is showing. */
+export type DrawStage = 'wait' | 'go' | 'result';
+
+/** How a player stands in the current duel round. */
+export type DrawPlayerState = 'ready' | 'false' | 'late' | 'won';
+
+export interface DrawPlayer {
+  id: string;
+  /** Playing this run. False if they arrived mid-run (they watch and play from the next one). */
+  alive: boolean;
+  /** Runs won since this person joined the lobby. */
+  wins: number;
+  /** Points this run (first to `DRAW_POINTS_TO_WIN`). */
+  meters: number;
+  /** `false`: tapped before GO and is out of this round. `late`: someone else was first. */
+  state: DrawPlayerState;
+}
+
+export interface DrawSnapshot extends RoundSummary {
+  id: 'draw';
+  phase: LobbyRoundPhase;
+  /** The most points anyone has so far. */
+  meters: number;
+  /** Always 0: nothing scrolls past in this game (every snapshot carries a course speed). */
+  speed: number;
+  /** Milliseconds left in the run (a time limit) while `playing`. */
+  roundLeftMs: number;
+  /** Which duel round of the run this is (from 1). */
+  duel: number;
+  stage: DrawStage;
+  /** Milliseconds since GO flashed (`go` and `result`); 0 while waiting. The wait before GO is never sent. */
+  sinceGoMs: number;
+  /** Who won the duel round (`result` only), and how many milliseconds after GO their tap came in; null when nobody did. */
+  duelWinnerId: string | null;
+  reactMs: number;
+  players: DrawPlayer[];
+  /** Milliseconds left in `countdown` or `over`; 0 otherwise. */
+  timerMs: number;
+  /** Who won the run that just ended (`over` only); null when nobody did (a draw). */
+  winnerId: string | null;
+}
+
+// ---- Tilt (everyone pushes one ball along one beam; score the targets, keep it on) -----------------
+
+/** A target on the beam: `x` is its middle along the beam (0..1). Tipping the ball into it scores. */
+export interface TiltTarget {
+  x: number;
+  /** Which target this is (counts up from 1 each run); stays the same while it lasts. */
+  n: number;
+  /** Milliseconds it has left before it goes away. */
+  leftMs: number;
+}
+
+export interface TiltPlayer {
+  id: string;
+  /** Still in the run: false only if they arrived mid-run (the ball ends the run for everyone). */
+  alive: boolean;
+  /** Runs won since this person joined the lobby. */
+  wins: number;
+  /** Targets this person scored this run (they pushed last when the ball reached it). */
+  meters: number;
+  /** The direction they are pushing: -1, 0 or 1. */
+  dir: number;
+}
+
+export interface TiltSnapshot extends RoundSummary {
+  id: 'tilt';
+  phase: LobbyRoundPhase;
+  /** The most targets anyone has scored so far. */
+  meters: number;
+  /** Always 0: nothing scrolls past in this game (every snapshot carries a course speed). */
+  speed: number;
+  /** Milliseconds left in the run (a time limit) while `playing`. */
+  roundLeftMs: number;
+  /** Where the ball is along the beam (0..1; off either end and the run is over) and how fast it is going. */
+  ball: { x: number; v: number };
+  /** The beam's lean, -1 to 1 (left to right): everyone's push plus the wobble, which is what moves the ball. */
+  tilt: number;
+  targets: TiltTarget[];
+  /** Who pushed last (an index into `players`), so who a target would score for; -1 for nobody yet. */
+  last: number;
+  /** Targets scored by everyone together this run. */
+  team: number;
+  players: TiltPlayer[];
+  /** Milliseconds left in `countdown` or `over`; 0 otherwise. */
+  timerMs: number;
+  /** Who won the run that just ended (`over` only); null when nobody did (a solo run, or a tie). */
+  winnerId: string | null;
+}
+
 // ---- Stacker (one shared tower and one light; players race to lock rows in) -------------------------
 
 /** The tower is this many squares wide and this many rows tall. */
@@ -555,7 +653,7 @@ export interface StackerSnapshot extends RoundSummary {
 }
 
 /** The snapshot of whichever game is running. */
-export type LobbyGameSnapshot = RunnerSnapshot | FlappySnapshot | DodgeSnapshot | RopeSnapshot | RedLightSnapshot | CoinsSnapshot | BattleshipsSnapshot | RaceSnapshot | WhackSnapshot | StackerSnapshot;
+export type LobbyGameSnapshot = RunnerSnapshot | FlappySnapshot | DodgeSnapshot | RopeSnapshot | RedLightSnapshot | CoinsSnapshot | BattleshipsSnapshot | RaceSnapshot | WhackSnapshot | DrawSnapshot | TiltSnapshot | StackerSnapshot;
 
 /** What a client needs to run its own player on a course the server decided: which run, the seed that
  * makes the course, and how long until the run starts (negative once it has, by how far in). */

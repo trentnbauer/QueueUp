@@ -75,6 +75,8 @@ A game can instead make **the play space the controller**: there are no buttons 
 | Red light, green light | Hold **Space**, **→** or **D** to run. | Hold **Run** (or press and hold the arena). |
 | Catch the coins | **←** / **→** or **A** / **D**. | The **◀** and **▶** buttons. |
 | Battleships | Click a square (no keyboard control yet). | Tap a square on the board. |
+| Quick draw | Press **Space**, or click the big light. | Tap the big light. |
+| Tilt | Hold **←** / **→** or **A** / **D**. | Hold the **◀** and **▶** buttons. |
 | Stacker | **Space**, **↑** or **W** to stop the light. | **Stop**, or tap anywhere on the arena. |
 | Whack-a-mole | Click a hole, or press **1-9** (laid out like a numpad: **7 8 9** on the top row, **1 2 3** on the bottom). | Tap a hole on the grid. |
 | Jump rope | **Space**, **↑** or **W** to jump. | **Jump**, or tap anywhere on the arena. |
@@ -86,8 +88,9 @@ The offline-dinosaur game, with everyone running the same track.
 
 - **Goal:** survive. Obstacles scroll in from the right, faster and faster. Hit one and you are out.
 - **Cactus** (a game cover standing on the ground): jump it. A **tap** is a short hop.
+- **Two skinny cacti** (from about 3 seconds in, roughly one cactus in three): a pair of narrow covers standing right next to each other, with only a sliver of space between. Treat them as one obstacle: one jump clears both, so you do not need to land between them.
 - **Log** (a wide, low stack of covers, which start to appear about 5 seconds into a run): too wide for a hop, so **hold** the jump button to go higher and stay in the air longer.
-- **Bird** (a coloured game cover with a 😴 on it, floating at head height, which starts to appear about 8 seconds in): **duck** under it. Jumping into it knocks you out.
+- **Bird** (a coloured game cover with a 😴 on it, floating at head height, which starts to appear about 8 seconds in): **duck** under it. Jumping into it knocks you out. About two birds in five are **wide** (a long run of covers, up to about a third of the screen), so keep **holding** duck until you are all the way past, not just until it reaches you.
 - **Jumping:** hold the button on the way up to jump higher and further; letting go early cuts the jump short. You can only jump from the ground, and holding the button after you land does not jump again: let go and press again. Pressing part-way up a hop does not make it higher.
 - **Ducking** only works on the ground, and only while you hold it.
 - **Speed** starts at half a screen per second and climbs to a screen per second after about 33 seconds, then stays there.
@@ -161,6 +164,28 @@ Coins fall; slide left and right to catch them before anyone else does.
 - The bar along the top is the time left, and each catcher's coin count is shown over their head.
 - You move at 0.6 of a screen per second and can't leave the screen.
 
+## Quick draw
+
+A reaction duel on one shared screen. Needs at least 2 players, so on your own a bot duels you.
+
+- **How a round goes:** everyone waits with a finger ready. After a **random pause** (1.5 to 4 seconds, never shown to anyone) the big light flashes **GO!**. The **first tap after GO** wins the point.
+- **False start:** tapping **before** GO puts you out of that round (you are dimmed, and can tap again in the next round).
+- **If everyone jumps the gun**, the round is shown and run again.
+- **Winning:** first to **3 points** wins the run. If nobody gets there, the run ends after **60 seconds** and the most points wins; a tie is a draw.
+- **Fairness:** the order is decided by when taps reach the server, so a slow connection loses out. It is for fun, not a reaction-time test. The winning tap's time after GO is shown.
+- **Bots** tap about a third to three quarters of a second after GO and never false-start, so a quick person beats them.
+- **Controls:** the big light is the controller. Tap it, or press **Space**.
+
+## Tilt
+
+One ball on one beam, and everyone pushes it.
+
+- **One shared beam and ball.** Hold left or right to push. The ball goes where the group pushes: the pushes are added up (a push to the right cancels one to the left) and softened by the number of players, so more people push harder, but never in proportion.
+- **The beam wobbles by itself**, slowly at first and more and more as the run goes on, so keep correcting. The beam leans the way the ball is being pushed. The wobble comes from the round's seed, so it is the same for every run of that seed, and it always gets strong enough to end a run (at about a minute alone).
+- **Targets** (green) appear on the beam, up to two at a time, and last 7 seconds. Tip the ball into one and **whoever pushed last** scores 1. The ball is drawn in their colour, so you can see who it would score for.
+- **The run ends when the ball falls off either end** (or after 2 minutes). **Most targets scored wins**; a tie, or scoring nothing, is a draw. Alone it is a high score. Nobody is knocked out.
+- Everyone's points are in the row under the beam, with an arrow for the way each is pushing.
+- **Controls:** left and right only.
 ## Stacker
 
 One tower and one light for the whole room. Stop the light on the target to climb.

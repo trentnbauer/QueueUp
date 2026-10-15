@@ -17,6 +17,8 @@ export const MINIGAME_SCORE_MAX: Record<LobbyGameId, number> = {
   battleships: 100,
   race: 20000,
   whack: 200,
+  draw: 3,
+  tilt: 100,
   stacker: 12,
 };
 

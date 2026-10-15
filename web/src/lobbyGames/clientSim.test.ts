@@ -335,11 +335,11 @@ function simulate(opts: { latency: number; onClient: boolean; runMs: number }) {
     if (!shown || shown.game.phase !== 'playing') continue;
     const game = shown.game as unknown as RunnerSnapshot;
     // The bot: taps over cacti, holds across logs, ducks under birds, going by what it can see.
-    const next = game.obstacles.filter((o) => o.x + HALF[o.kind] + 0.02 > RUNNER_X).sort((a, b) => a.x - b.x)[0];
+    const next = game.obstacles.filter((o) => o.x + o.w / 2 + 0.02 > RUNNER_X).sort((a, b) => a.x - b.x)[0];
     const ahead = next ? next.x - RUNNER_X : Infinity;
     const jump = next?.kind === 'cactus' && ahead < game.speed * 0.37;
     const hold = next?.kind === 'log' && ahead - HALF.log - 0.02 < game.speed * 0.22;
-    const duck = next?.kind === 'bird' && ahead < game.speed * 0.5 && ahead > -0.05;
+    const duck = next?.kind === 'bird' && ahead < game.speed * 0.5 && ahead > -next.w / 2 - 0.01;
     const dy = duck ? 1 : hold ? -1 : 0;
     if (opts.onClient) {
       if (jump) sim.action('jump');
