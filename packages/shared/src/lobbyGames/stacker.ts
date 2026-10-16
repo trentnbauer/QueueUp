@@ -19,6 +19,8 @@ const TOLERANCE = 0.3;
 /** After a row is locked, presses are ignored for this long. Two people who press together both meant the
  * row that was just won; the second must not be judged against the new, narrower one and knocked out. */
 const GRACE_S = 0.35;
+/** A run ends if nobody presses the button for this long (everyone is away), so an idle lobby moves on. */
+const IDLE_LIMIT_S = 20;
 
 interface Stacker extends RoundPlayer {
   /** Rows locked in this run. */
@@ -51,6 +53,8 @@ export class StackerGame extends RoundGame<Stacker> {
   /** How far the light has travelled in all; its place along the row bounces between 0 and the width. */
   private travelled = 0;
   private grace = 0;
+  /** Seconds since anyone last pressed the button. */
+  private quiet = 0;
 
   /** The score shown for the run: the most rows anyone has locked. */
   protected get meters(): number {
@@ -73,6 +77,7 @@ export class StackerGame extends RoundGame<Stacker> {
     this.target = null;
     this.travelled = 0;
     this.grace = 0;
+    this.quiet = 0;
   }
 
   protected beginCourse(): void {
@@ -100,7 +105,9 @@ export class StackerGame extends RoundGame<Stacker> {
   action(userId: string, name: string): void {
     if (name !== 'stop') return;
     const p = this.players.get(userId);
-    if (this.phase !== 'playing' || !p || !p.alive || !p.inRun || !this.target || this.grace > 0) return;
+    if (this.phase !== 'playing' || !p || !p.alive || !p.inRun || !this.target) return;
+    this.quiet = 0;
+    if (this.grace > 0) return;
     const light = this.light;
     const { start, w } = this.target;
     if (light >= start - TOLERANCE && light <= start + w + TOLERANCE) {
@@ -137,6 +144,8 @@ export class StackerGame extends RoundGame<Stacker> {
   }
 
   protected advance(dt: number): void {
+    this.quiet += dt;
+    if (this.quiet >= IDLE_LIMIT_S) return this.finishRun();
     this.grace = Math.max(0, this.grace - dt);
     this.travelled += lightSpeed(this.locked.length) * dt;
     if (this.roundMs / 1000 >= RUN_LIMIT_S) this.finishRun();

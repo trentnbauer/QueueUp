@@ -198,7 +198,7 @@ One tower and one light for the whole room. Stop the light on the target to clim
 - **Locking a row:** press (Space, Up, or tap) as the light passes over the target. The **first press that lands** locks the row for that player, scoring 1, and **everyone moves up** to the next row, shown in the colour of whoever locked it.
 - **Missing:** a press that misses knocks that player out of the run (they keep watching). A press a moment after a row was just locked (about a third of a second) is ignored, so two people who press together are not penalised for being second. A press within a third of a square of the target's edge still counts, to forgive a slow connection.
 - **Harder going up:** the target is **5 squares wide** on the first two rows, then 1 narrower every 2 rows, down to **2** by row 7, and a **single square** from row 19 up. The light starts at 5 squares a second and is 0.9 faster each row, up to 12. Where the target is comes from the round's seed, and the next row's is not known until it is reached.
-- **Ending:** the run ends when everyone is out, or after **5 minutes**. **Most rows locked wins**; a tie is a draw. Alone it is a high score (how many rows you climbed) and ends when you miss.
+- **Ending:** the run ends when everyone is out, after **5 minutes**, or if nobody has pressed the button for **20 seconds** (everyone has wandered off). **Most rows locked wins**; a tie is a draw. Alone it is a high score (how many rows you climbed) and ends when you miss.
 - Everyone's rows are listed on the right, and the bar along the top is the time left.
 - **Controls:** one button: **Space**, **↑** or **W**, or tap anywhere on the arena.
 

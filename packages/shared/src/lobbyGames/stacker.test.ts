@@ -158,10 +158,30 @@ describe('StackerGame', () => {
     expect(g.snapshot().history.at(-1)?.meters).toBe(14);
   });
 
-  it('ends when time is up even if the light is never stopped', () => {
+  it('ends when nobody has pressed the button for 20 seconds, so an idle lobby moves on', () => {
     const g = started(['a', 'b']);
-    run(g, 301_000);
+    run(g, 19_000);
+    expect(g.snapshot().phase).toBe('playing');
+    run(g, 2000);
     expect(g.snapshot()).toMatchObject({ phase: 'over', winnerId: null });
+  });
+
+  it('keeps going while someone is pressing, and ends at 5 minutes even so', () => {
+    const g = started(['a', 'b']);
+    // A press on the target every 10 seconds keeps the run alive, for 250 seconds.
+    for (let t = 0; t < 250_000 && g.snapshot().phase === 'playing'; t += 10_000) {
+      expect(toTarget(g)).toBe(true);
+      g.action('a', 'stop');
+      run(g, 10_000);
+    }
+    expect(g.snapshot().phase).toBe('playing');
+    // Still pressing past that, it ends at 5 minutes whatever.
+    for (let t = 0; t < 60_000 && g.snapshot().phase === 'playing'; t += 10_000) {
+      expect(toTarget(g)).toBe(true);
+      g.action('a', 'stop');
+      run(g, 10_000);
+    }
+    expect(g.snapshot().phase).not.toBe('playing');
   });
 
   it('plays the same tower for the same seed', () => {
