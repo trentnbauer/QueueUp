@@ -7,11 +7,13 @@ import type { TapRect, TapTargets } from './taps';
 const RUN_MS = 90_000;
 // Where things are on the arena, as fractions of its side: your own board on the left, everyone else's progress
 // on the right (only how each guess scored, never letters), and the keyboard along the bottom.
-const BOARD_X = 0.05;
 const BOARD_Y = 0.13;
 const CELL = 0.1;
 const CELL_GAP = 0.01;
-const OTHERS_X = 0.56;
+/** Your board is this wide. It is centred on the arena on its own, or together with the others' panel when there are others. */
+const BOARD_W = WORDS_LENGTH * CELL + (WORDS_LENGTH - 1) * CELL_GAP;
+/** The space between your board and the others' panel, and the most room the panel can have. */
+const PANEL_GAP = 0.06;
 const OTHERS_Y = 0.13;
 const OTHERS_W = 0.4;
 const OTHERS_H = 0.5;
@@ -48,6 +50,14 @@ export const WORDS_TAPS: TapTargets = {
   keys: [...'abcdefghijklmnopqrstuvwxyz', 'Enter', 'Backspace'],
 };
 
+/** Where your board and the others' panel start across the arena (fractions of its width), so what is shown is centred:
+ * your board alone when `panelW` is 0, otherwise the board and the panel of that width beside it as one group. */
+export function wordsLayout(panelW: number): { boardX: number; othersX: number } {
+  const groupW = BOARD_W + (panelW > 0 ? PANEL_GAP + panelW : 0);
+  const boardX = (1 - groupW) / 2;
+  return { boardX, othersX: boardX + BOARD_W + PANEL_GAP };
+}
+
 function cellColour(sc: Scene<WordsSnapshot>, state: number): string {
   return state === WORD_CORRECT ? sc.theme.mint : state === WORD_PRESENT ? sc.theme.star : ABSENT;
 }
@@ -68,6 +78,18 @@ function drawWorld(sc: Scene<WordsSnapshot>): void {
   ctx.textAlign = 'center';
   ctx.textBaseline = 'middle';
   const cell = CELL * S;
+  // Everyone else's progress: a small grid for each, coloured the way each guess scored. No letters, so nothing
+  // is given away; a solved board is green all the way across its last row. (Worked out first, as how much room
+  // it takes decides where your own board goes.)
+  const others = snapshot.players.map((p, i) => ({ p, i })).filter(({ p }) => p.alive && p.id !== sc.me);
+  const mini = Math.min(0.016, (OTHERS_W / Math.max(1, others.length)) * 0.2);
+  const gw = (WORDS_LENGTH * (mini + 0.003) + 0.012) * S;
+  const gh = (WORDS_GUESSES * (mini + 0.003) + 0.024) * S;
+  const perRow = Math.max(1, Math.floor((OTHERS_W * S) / gw));
+  const scale = Math.min(1, (OTHERS_H * S) / (Math.ceil(others.length / perRow) * gh));
+  // Centre what is on screen: your board alone, or your board with the others' panel beside it.
+  const panelW = others.length > 0 ? Math.min(OTHERS_W, Math.min(perRow, others.length) * (gw / S) * scale) : 0;
+  const { boardX: BOARD_X, othersX: OTHERS_X } = wordsLayout(panelW);
   // The word being typed: letters already got in the right place are filled in for you (in green), and what you
   // type goes into the other squares, left to right.
   let typedSoFar = 0;
@@ -105,14 +127,6 @@ function drawWorld(sc: Scene<WordsSnapshot>): void {
     ctx.fillText(sc.t('spin.lobby.words.answer', { word: snapshot.answer.toUpperCase() }), (BOARD_X + (WORDS_LENGTH * (CELL + CELL_GAP)) / 2) * S, (BOARD_Y - 0.035) * S);
   }
 
-  // Everyone else's progress: a small grid for each, coloured the way each guess scored. No letters, so nothing
-  // is given away; a solved board is green all the way across its last row.
-  const others = snapshot.players.map((p, i) => ({ p, i })).filter(({ p }) => p.alive && p.id !== sc.me);
-  const mini = Math.min(0.016, (OTHERS_W / Math.max(1, others.length)) * 0.2);
-  const gw = (WORDS_LENGTH * (mini + 0.003) + 0.012) * S;
-  const gh = (WORDS_GUESSES * (mini + 0.003) + 0.024) * S;
-  const perRow = Math.max(1, Math.floor((OTHERS_W * S) / gw));
-  const scale = Math.min(1, (OTHERS_H * S) / (Math.ceil(others.length / perRow) * gh));
   others.forEach(({ p }, k) => {
     const gx = OTHERS_X * S + (k % perRow) * gw * scale;
     const gy = OTHERS_Y * S + Math.floor(k / perRow) * gh * scale;
