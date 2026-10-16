@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from 'vitest';
-import { BattleshipsGame, RedLightGame, RunnerGame, createLobbyGame } from '@queueup/shared';
+import { BattleshipsGame, LOBBY_GAME_IDS, RedLightGame, RunnerGame, createLobbyGame } from '@queueup/shared';
 import { SpinLobby } from './spinLobby.js';
 
 const snapshot = () => ({ id: 'runner' as const, phase: 'lobby' as const, run: 1, history: [], best: null, meters: 0, speed: 0.5, obstacles: [], players: [], timerMs: 0, winnerId: null });
@@ -171,6 +171,20 @@ describe('SpinLobby rotating games', () => {
     expect(next.history).toHaveLength(1);
     expect(next.history[0].game).toBe(firstGame.id);
     expect(next.run).toBe(2);
+  });
+
+  it('ends a run of every game, for someone who does nothing, soon enough for the lobby to move on', () => {
+    // A lobby of people who have wandered off must not be held by one game for ever.
+    for (const id of LOBBY_GAME_IDS) {
+      const lobby = new SpinLobby(createLobbyGame(id));
+      lobby.join('a');
+      let over = false;
+      for (let t = 0; t < 280_000 && !over; t += 66) {
+        lobby.tick(66);
+        over = lobby.snapshot(false).game.phase === 'over';
+      }
+      expect(over, id).toBe(true);
+    }
   });
 
   it('keeps going from game to game without losing anyone', () => {

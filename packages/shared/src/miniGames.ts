@@ -19,7 +19,7 @@ export const MINIGAME_SCORE_MAX: Record<LobbyGameId, number> = {
   whack: 200,
   draw: 3,
   tilt: 100,
-  stacker: 12,
+  stacker: 200,
   sumo: 200,
   asteroids: 500,
   memory: 60,

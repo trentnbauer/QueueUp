@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { STACKER_COLS, STACKER_ROWS } from '../spinLobby.js';
+import { STACKER_COLS, STACKER_KEEP_ROWS, STACKER_ROWS } from '../spinLobby.js';
 import { StackerGame, lightSpeed, targetWidth } from './stacker.js';
 
 const STEP = 33;
@@ -20,7 +20,8 @@ function started(ids: string[], seed = 0.3) {
 function toTarget(g: StackerGame): boolean {
   for (let i = 0; i < 600; i++) {
     const { target, light } = g.snapshot();
-    if (target && light >= target.start + 0.3 && light <= target.start + target.w - 0.3) return true;
+    // Anywhere the press counts, a little in from the edge of that (the light moves up to half a square a tick).
+    if (target && light >= target.start - 0.2 && light <= target.start + target.w + 0.2) return true;
     g.tick(STEP);
   }
   return false;
@@ -40,7 +41,7 @@ describe('StackerGame', () => {
   it('narrows the target and speeds the light going up, to a floor and a top speed', () => {
     expect(targetWidth(0)).toBe(5);
     expect(targetWidth(2)).toBe(4);
-    expect(targetWidth(40)).toBe(2);
+    expect(targetWidth(12)).toBe(2);
     expect(lightSpeed(1)).toBeGreaterThan(lightSpeed(0));
     expect(lightSpeed(100)).toBeLessThanOrEqual(12);
   });
@@ -121,21 +122,66 @@ describe('StackerGame', () => {
     expect(g.snapshot()).toMatchObject({ phase: 'over', winnerId: null });
   });
 
-  it('can be cleared: the run ends at the top of the tower', () => {
+  it('has no top: the tower goes on past the height of the view, and the view scrolls up with it', () => {
     const g = started(['a']);
-    for (let row = 0; row < STACKER_ROWS; row++) {
+    const climb = STACKER_ROWS + 6;
+    for (let row = 0; row < climb; row++) {
+      expect(toTarget(g), `row ${row}`).toBe(true);
+      g.action('a', 'stop');
+      run(g, 500);
+    }
+    const snap = g.snapshot();
+    expect(snap.phase).toBe('playing');
+    expect(me(g, 'a').meters).toBe(climb);
+    // Only the rows in view are sent, with how many are below them.
+    expect(snap.locked).toHaveLength(STACKER_KEEP_ROWS);
+    expect(snap.first).toBe(climb - STACKER_KEEP_ROWS);
+    expect(snap.target).not.toBeNull();
+  });
+
+  it('gets narrower still very high up, to a single square', () => {
+    expect(targetWidth(17)).toBe(2);
+    expect(targetWidth(18)).toBe(1);
+    expect(targetWidth(60)).toBe(1);
+  });
+
+  it('keeps every row until the end of the run for the score, however many are in view', () => {
+    const g = started(['a']);
+    for (let row = 0; row < 14; row++) {
       expect(toTarget(g)).toBe(true);
       g.action('a', 'stop');
       run(g, 500);
     }
+    expect(toMiss(g)).toBe(true);
+    g.action('a', 'stop');
     expect(g.snapshot().phase).toBe('over');
-    expect(g.snapshot().history.at(-1)?.meters).toBe(STACKER_ROWS);
+    expect(g.snapshot().history.at(-1)?.meters).toBe(14);
   });
 
-  it('ends when time is up even if the light is never stopped', () => {
+  it('ends when nobody has pressed the button for 20 seconds, so an idle lobby moves on', () => {
     const g = started(['a', 'b']);
-    run(g, 121_000);
+    run(g, 19_000);
+    expect(g.snapshot().phase).toBe('playing');
+    run(g, 2000);
     expect(g.snapshot()).toMatchObject({ phase: 'over', winnerId: null });
+  });
+
+  it('keeps going while someone is pressing, and ends at 5 minutes even so', () => {
+    const g = started(['a', 'b']);
+    // A press on the target every 10 seconds keeps the run alive, for 250 seconds.
+    for (let t = 0; t < 250_000 && g.snapshot().phase === 'playing'; t += 10_000) {
+      expect(toTarget(g)).toBe(true);
+      g.action('a', 'stop');
+      run(g, 10_000);
+    }
+    expect(g.snapshot().phase).toBe('playing');
+    // Still pressing past that, it ends at 5 minutes whatever.
+    for (let t = 0; t < 60_000 && g.snapshot().phase === 'playing'; t += 10_000) {
+      expect(toTarget(g)).toBe(true);
+      g.action('a', 'stop');
+      run(g, 10_000);
+    }
+    expect(g.snapshot().phase).not.toBe('playing');
   });
 
   it('plays the same tower for the same seed', () => {
