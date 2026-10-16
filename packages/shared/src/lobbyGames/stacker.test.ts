@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { STACKER_COLS, STACKER_KEEP_ROWS, STACKER_ROWS } from '../spinLobby.js';
-import { StackerGame, lightSpeed, targetWidth } from './stacker.js';
+import { StackerGame, lightSpeed, pressTolerance, targetWidth } from './stacker.js';
 
 const STEP = 33;
 const run = (g: StackerGame, ms: number) => {
@@ -43,7 +43,7 @@ describe('StackerGame', () => {
     expect(targetWidth(2)).toBe(4);
     expect(targetWidth(12)).toBe(2);
     expect(lightSpeed(1)).toBeGreaterThan(lightSpeed(0));
-    expect(lightSpeed(100)).toBeLessThanOrEqual(12);
+    expect(lightSpeed(100)).toBeLessThanOrEqual(22);
   });
 
   it('starts with one wide target on the bottom row, and the light moves', () => {
@@ -139,6 +139,56 @@ describe('StackerGame', () => {
     expect(snap.target).not.toBeNull();
   });
 
+  it('keeps getting faster all the way up, past the early climb, to a top speed', () => {
+    // Quick at first (5 to 12 squares a second by about row 8), then still faster every row, more slowly.
+    expect(lightSpeed(0)).toBe(5);
+    expect(lightSpeed(8)).toBeCloseTo(12, 0);
+    let last = lightSpeed(0);
+    for (let row = 1; row <= 32; row++) {
+      const speed = lightSpeed(row);
+      expect(speed, `row ${row}`).toBeGreaterThan(last);
+      last = speed;
+    }
+    expect(lightSpeed(20)).toBeGreaterThan(lightSpeed(10));
+    expect(lightSpeed(30)).toBeGreaterThan(lightSpeed(20));
+    expect(lightSpeed(34)).toBe(22);
+    expect(lightSpeed(60)).toBe(22);
+  });
+
+  it('moves the light further each second the higher the tower is', () => {
+    const lightAfter = (rows: number) => {
+      const g = started(['a'], 0.4);
+      for (let row = 0; row < rows; row++) {
+        expect(toTarget(g)).toBe(true);
+        g.action('a', 'stop');
+        run(g, 500);
+      }
+      const before = g.snapshot().light;
+      // The distance the light covers in one second, unwrapped (it bounces, so take small steps).
+      let travelled = 0;
+      let prev = before;
+      for (let t = 0; t < 1000; t += STEP) {
+        g.tick(STEP);
+        const now = g.snapshot().light;
+        travelled += Math.abs(now - prev);
+        prev = now;
+      }
+      return travelled;
+    };
+    const low = lightAfter(2);
+    const mid = lightAfter(12);
+    const high = lightAfter(24);
+    expect(mid).toBeGreaterThan(low);
+    expect(high).toBeGreaterThan(mid);
+  });
+
+  it('gives a fast light a wider margin, so it is not judged more harshly than a slow one', () => {
+    expect(pressTolerance(0)).toBeCloseTo(0.3, 9);
+    expect(pressTolerance(30)).toBeGreaterThan(pressTolerance(0));
+    // Always at least what the light covers in a little under half a 66 ms tick.
+    for (const row of [0, 8, 16, 24, 34]) expect(pressTolerance(row)).toBeGreaterThanOrEqual(lightSpeed(row) * 0.03 - 1e-9);
+  });
+
   it('stacks each row on the one below it: a narrower row sits within it, an equal one shifts by at most a square', () => {
     for (const seed of [0.05, 0.2, 0.33, 0.5, 0.62, 0.77, 0.9, 0.99]) {
       const g = started(['a'], seed);
@@ -198,11 +248,13 @@ describe('StackerGame', () => {
       run(g, 10_000);
     }
     expect(g.snapshot().phase).toBe('playing');
-    // Still pressing past that, it ends at 5 minutes whatever.
-    for (let t = 0; t < 60_000 && g.snapshot().phase === 'playing'; t += 10_000) {
-      expect(toTarget(g)).toBe(true);
-      g.action('a', 'stop');
-      run(g, 10_000);
+    // Still pressing past that, it ends at 5 minutes whatever (a second at a time, so as not to step over the result).
+    for (let t = 0; t < 80_000 && g.snapshot().phase === 'playing'; t += 1000) {
+      if (t % 10_000 === 0) {
+        expect(toTarget(g)).toBe(true);
+        g.action('a', 'stop');
+      }
+      run(g, 1000);
     }
     expect(g.snapshot().phase).not.toBe('playing');
   });

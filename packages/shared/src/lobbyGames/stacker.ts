@@ -9,13 +9,19 @@ const START_WIDTH = 5;
 const ROWS_PER_NARROWING = 2;
 const MIN_WIDTH = 2;
 const SINGLE_FROM_ROW = 18;
-/** The light's speed in squares a second on the first row, how much faster it is each row up, and its top speed. */
+/** The light's speed in squares a second on the first row, and how much faster it is each row up. It gains quickly
+ * to `SPEED_FAST` (about row 8), then keeps gaining, more slowly, up to its top speed far up the tower, so the
+ * tower never stops getting faster. */
 const SPEED_START = 5;
 const SPEED_GAIN = 0.9;
-const SPEED_MAX = 12;
-/** A press counts if the light is within this many squares of the target's edges: a tick or two of slack
- * for a slow connection. */
+const SPEED_FAST = 12;
+const SPEED_LATE_GAIN = 0.4;
+const SPEED_MAX = 22;
+/** A press counts if the light is within this many squares of the target's edges: a tick or two of slack for a slow
+ * connection, and never less than the light moves in a little under half a server tick (which is how often its place
+ * is worked out), so a fast light is not judged unfairly. */
 const TOLERANCE = 0.3;
+const TOLERANCE_PER_SPEED = 0.03;
 /** After a row is locked, presses are ignored for this long. Two people who press together both meant the
  * row that was just won; the second must not be judged against the new, narrower one and knocked out. */
 const GRACE_S = 0.35;
@@ -37,7 +43,15 @@ export function targetWidth(row: number): number {
 
 /** The light's speed on row `row`, in squares a second. */
 export function lightSpeed(row: number): number {
-  return Math.min(SPEED_MAX, SPEED_START + SPEED_GAIN * row);
+  const early = SPEED_START + SPEED_GAIN * row;
+  if (early <= SPEED_FAST) return early;
+  const rowsToFast = (SPEED_FAST - SPEED_START) / SPEED_GAIN;
+  return Math.min(SPEED_MAX, SPEED_FAST + SPEED_LATE_GAIN * (row - rowsToFast));
+}
+
+/** How far outside the target's edges a press still counts, in squares, on row `row`. */
+export function pressTolerance(row: number): number {
+  return Math.max(TOLERANCE, TOLERANCE_PER_SPEED * lightSpeed(row));
 }
 
 /** One tower and one light for everyone. A light bounces along the current row; press as it passes over the
@@ -121,7 +135,8 @@ export class StackerGame extends RoundGame<Stacker> {
     if (this.grace > 0) return;
     const light = this.light;
     const { start, w } = this.target;
-    if (light >= start - TOLERANCE && light <= start + w + TOLERANCE) {
+    const tolerance = pressTolerance(this.locked.length);
+    if (light >= start - tolerance && light <= start + w + tolerance) {
       p.score++;
       this.locked.push({ start, w, by: [...this.players.keys()].indexOf(userId) });
       this.grace = GRACE_S;
