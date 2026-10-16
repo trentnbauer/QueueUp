@@ -91,6 +91,54 @@ describe('WordsGame', () => {
     expect(g.snapshot('a').mine!.draft).toBe('');
   });
 
+  it('fills in letters already got in the right place, so only the other squares are typed', () => {
+    const g = started(['a', 'b']);
+    const word = answerOf(0.3);
+    // Right in the first three squares, wrong in the last.
+    const wrong = word.slice(0, 3) + (word[3] === 'q' ? 'x' : 'q');
+    guess(g, 'a', wrong);
+    const mine = g.snapshot('a').mine!;
+    expect(mine.guesses).toEqual([wrong]);
+    expect(mine.known).toEqual([word[0], word[1], word[2], '']);
+    // One letter is left to type: the draft takes just one, and Enter needs it.
+    g.tap('a', WORDS_ENTER);
+    expect(g.snapshot('a').mine!.guesses).toHaveLength(1);
+    g.tap('a', word.charCodeAt(3) - 97);
+    g.tap('a', 'q'.charCodeAt(0) - 97); // no second one: only one square is open
+    expect(g.snapshot('a').mine!.draft).toBe(word[3]);
+    g.tap('a', WORDS_ENTER);
+    expect(me(g, 'a')).toMatchObject({ solved: true, guesses: 2 });
+    expect(g.snapshot('a').mine!.guesses).toEqual([wrong, word]);
+  });
+
+  it('puts typed letters in the open squares in order, around the ones filled in', () => {
+    const g = started(['a', 'b']);
+    const word = answerOf(0.3);
+    // Right in squares 0 and 2 only.
+    const other = (ch: string) => (ch === 'q' ? 'x' : 'q');
+    const first = word[0] + other(word[1]) + word[2] + other(word[3]);
+    guess(g, 'a', first);
+    expect(g.snapshot('a').mine!.known).toEqual([word[0], '', word[2], '']);
+    // Two to type now: they go into squares 1 and 3.
+    g.tap('a', 'v'.charCodeAt(0) - 97);
+    g.tap('a', 'w'.charCodeAt(0) - 97);
+    g.tap('a', WORDS_ENTER);
+    expect(g.snapshot('a').mine!.guesses.at(-1)).toBe(word[0] + 'v' + word[2] + 'w');
+  });
+
+  it('does not fill in letters that were only in the word elsewhere, and starts again each run', () => {
+    const g = started(['a', 'b']);
+    guess(g, 'a', 'zzzz');
+    expect(g.snapshot('a').mine!.known.filter(Boolean).length).toBe(0);
+    // A run later, nothing carries over.
+    const word = answerOf(0.3);
+    guess(g, 'a', word);
+    guess(g, 'b', word);
+    run(g, 5000);
+    run(g, 4000);
+    expect(g.snapshot('a').mine?.known ?? []).toEqual(['', '', '', '']);
+  });
+
   it('scores a guess for everyone, but only shows the letters to their owner', () => {
     const g = started(['a', 'b']);
     guess(g, 'a', 'zzzz');
