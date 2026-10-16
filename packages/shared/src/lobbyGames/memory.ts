@@ -14,6 +14,8 @@ const INPUT_PER_PANEL_S = 1.2;
 const BETWEEN_S = 1;
 /** A run that is still going at this many rounds ends with no winner (nobody could be expected to get further). */
 const MAX_ROUNDS = 40;
+/** The first round's pattern is this many panels long (a one or two panel pattern is no test). */
+const START_LENGTH = 3;
 
 interface Memorizer extends RoundPlayer {
   /** How many panels of this round's pattern they have tapped, right so far. */
@@ -38,7 +40,7 @@ export class MemoryGame extends RoundGame<Memorizer> {
 
   /** Rounds fully played: the one that is on is not counted until everyone left in has got through it. */
   protected get meters(): number {
-    return Math.max(0, this.pattern.length - 1);
+    return Math.max(0, this.pattern.length - START_LENGTH);
   }
 
   protected createPlayer(id: string, alive: boolean): Memorizer {
@@ -61,6 +63,7 @@ export class MemoryGame extends RoundGame<Memorizer> {
   protected beginCourse(): void {
     this.resetCourse();
     for (const p of this.players.values()) p.inRun = p.alive;
+    for (let i = 1; i < START_LENGTH; i++) this.pattern.push(Math.floor(this.rng() * MEMORY_PANELS));
     this.nextRound();
   }
 
@@ -165,7 +168,7 @@ export class MemoryGame extends RoundGame<Memorizer> {
     } else {
       this.clock -= dt;
       if (this.clock <= 0) {
-        if (this.pattern.length >= MAX_ROUNDS) this.endRun(null);
+        if (this.pattern.length - START_LENGTH + 1 >= MAX_ROUNDS) this.endRun(null);
         else this.nextRound();
       }
     }
