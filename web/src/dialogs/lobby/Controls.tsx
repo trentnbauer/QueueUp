@@ -78,13 +78,9 @@ export function Controls({
   // A game whose play space is the controller has nothing underneath the arena.
   if (view.taps) return null;
   const buttons: ButtonSpec[] = [];
-
-  if (view.pad === 'leftRight') {
-    buttons.push(
-      { key: 'left', label: '◀', keycap: 'A', primary: false, glyph: true, props: holdProps(-1, 0) },
-      { key: 'right', label: '▶', keycap: 'D', primary: false, glyph: true, props: holdProps(1, 0) },
-    );
-  }
+  const left: ButtonSpec = { key: 'left', label: '◀', keycap: 'A', primary: false, glyph: true, props: holdProps(-1, 0) };
+  const right: ButtonSpec = { key: 'right', label: '▶', keycap: 'D', primary: false, glyph: true, props: holdProps(1, 0) };
+  const leftRight = view.pad === 'leftRight';
   for (const h of view.holds ?? []) {
     const cap = keycapOf(h.keys);
     buttons.push({ key: h.labelKey, label: !h.primary && phone ? t('spin.lobby.holdTo', { action: t(h.labelKey).toLowerCase() }) : t(h.labelKey), keycap: h.primary ? cap : t('spin.lobby.keycap.hold', { key: cap }), primary: !!h.primary, props: holdProps(h.dx, h.dy) });
@@ -98,6 +94,13 @@ export function Controls({
       primary: true,
       props: { onPointerDown: () => onAction(a.name) },
     });
+  }
+
+  // With a left/right pad the arrows go either side of the other buttons, so a game's main button (Shove) sits
+  // in the middle: < Shove >, with a thumb on each arrow and the button between.
+  if (leftRight) {
+    buttons.unshift(left);
+    buttons.push(right);
   }
 
   return <div style={st(`display:grid;grid-template-columns:${buttons.map((b) => (b.primary ? '1.35fr' : '1fr')).join(' ') || '1fr'};gap:${phone ? 10 : 8}px`)}>{buttons.map((b) => <ControlButton key={b.key} spec={b} phone={phone} />)}</div>;
