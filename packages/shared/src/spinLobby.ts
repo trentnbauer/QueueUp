@@ -608,9 +608,13 @@ export interface TiltSnapshot extends RoundSummary {
 
 // ---- Stacker (one shared tower and one light; players race to lock rows in) -------------------------
 
-/** The tower is this many squares wide and this many rows tall. */
+/** The tower is this many squares wide. It has no top: it goes on for as long as people keep locking rows in. */
 export const STACKER_COLS = 9;
+/** How many rows tall the view of it is. The view scrolls up as the tower grows. */
 export const STACKER_ROWS = 12;
+/** The view keeps the current row this many rows from the bottom once the tower is that high, so there is room
+ * above it for the rows still to come. */
+export const STACKER_KEEP_ROWS = 8;
 
 /** A row someone has locked in: the squares that were the target (`start` to `start + w - 1`) and who locked it. */
 export interface StackerLocked {
@@ -639,9 +643,12 @@ export interface StackerSnapshot extends RoundSummary {
   speed: number;
   /** Milliseconds left in the run (a time limit) while `playing`. */
   roundLeftMs: number;
-  /** The rows locked in so far, bottom first. The current row is the next one up. */
+  /** The rows locked in that are in view, bottom first: only the last `STACKER_KEEP_ROWS` once the tower is
+   * taller than that. The current row is the next one up. */
   locked: StackerLocked[];
-  /** The target squares of the current row (no row left to lock once the tower is cleared). */
+  /** How many rows are below the first of `locked`, so the row in view at the bottom is row number `first + 1`. */
+  first: number;
+  /** The target squares of the current row. */
   target: { start: number; w: number } | null;
   /** The light's place along the row, 0 to `STACKER_COLS` (the square it is over is the whole part). */
   light: number;

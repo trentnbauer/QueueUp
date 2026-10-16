@@ -3,7 +3,7 @@ import type { LobbyGameView } from './index';
 import { FONT, STAGE, renderScene, roundRect, type Scene, type SceneGame } from './kit';
 
 /** The run's time limit (RUN_LIMIT_S in the rules), for the bar along the top. */
-const RUN_MS = 120_000;
+const RUN_MS = 300_000;
 // Where things are on the arena, as fractions of its side: the one tower on the left, and everyone's rows
 // down the right.
 const TOWER_X = 0.05;
@@ -55,6 +55,17 @@ function drawWorld(sc: Scene<StackerSnapshot>): void {
       roundRect(ctx, x0 + c * cell + inset, rowTop(row) * S + inset, cell - inset * 2, cell - inset * 2, cell * 0.15);
       ctx.fill();
     }
+  }
+
+  // Row numbers beside every fifth row, so the height reads as the tower scrolls up (the view always shows the
+  // rows from `first + 1` upward).
+  ctx.font = `600 ${Math.round(S * 0.022)}px ${FONT.mono}`;
+  ctx.textAlign = 'left';
+  ctx.textBaseline = 'middle';
+  ctx.fillStyle = 'oklch(1 0 0 / 0.4)';
+  for (let slot = 0; slot < STACKER_ROWS; slot++) {
+    const n = snapshot.first + slot + 1;
+    if (n % 5 === 0) ctx.fillText(String(n), (TOWER_X + TOWER_W + 0.012) * S, (rowTop(slot) + CELL / 2) * S);
   }
 
   if (snapshot.target && snapshot.phase === 'playing') {

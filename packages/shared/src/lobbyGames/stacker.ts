@@ -1,13 +1,14 @@
-import { STACKER_COLS, STACKER_ROWS, type StackerLocked, type StackerSnapshot } from '../spinLobby.js';
+import { STACKER_COLS, STACKER_KEEP_ROWS, type StackerLocked, type StackerSnapshot } from '../spinLobby.js';
 import { RoundGame, type RoundPlayer } from './roundGame.js';
 
-/** A run ends at this time if the tower is not cleared and someone is still in. */
-const RUN_LIMIT_S = 120;
+/** A run ends at this time if someone is still in, so one that never ends cannot hold a lobby for ever. */
+const RUN_LIMIT_S = 300;
 /** How wide the target is on the lowest rows, in squares, and how the rows narrow going up: one square
- * narrower every `ROWS_PER_NARROWING` rows, down to `MIN_WIDTH`. */
+ * narrower every `ROWS_PER_NARROWING` rows, down to `MIN_WIDTH`, and then, far up, a single square. */
 const START_WIDTH = 5;
 const ROWS_PER_NARROWING = 2;
 const MIN_WIDTH = 2;
+const SINGLE_FROM_ROW = 18;
 /** The light's speed in squares a second on the first row, how much faster it is each row up, and its top speed. */
 const SPEED_START = 5;
 const SPEED_GAIN = 0.9;
@@ -28,6 +29,7 @@ interface Stacker extends RoundPlayer {
 
 /** The target's width on row `row` (0 is the bottom). */
 export function targetWidth(row: number): number {
+  if (row >= SINGLE_FROM_ROW) return 1;
   return Math.max(MIN_WIDTH, START_WIDTH - Math.floor(row / ROWS_PER_NARROWING));
 }
 
@@ -39,7 +41,8 @@ export function lightSpeed(row: number): number {
 /** One tower and one light for everyone. A light bounces along the current row; press as it passes over the
  * target squares. The first press that lands locks the row for the whole room: that player scores it and
  * everyone moves up to a narrower row with a faster light. A press that misses knocks that player out.
- * The run ends when everyone is out, the tower is cleared or time is up; most rows locked wins. See
+ * The tower has no top, so it goes on for as long as someone can keep climbing; the run ends when everyone is
+ * out or time is up, and most rows locked wins. See
  * RoundGame for how runs start and end. */
 export class StackerGame extends RoundGame<Stacker> {
   readonly id = 'stacker' as const;
@@ -104,10 +107,7 @@ export class StackerGame extends RoundGame<Stacker> {
       p.score++;
       this.locked.push({ start, w, by: [...this.players.keys()].indexOf(userId) });
       this.grace = GRACE_S;
-      if (this.locked.length >= STACKER_ROWS) {
-        this.target = null;
-        this.finishRun();
-      } else this.target = this.makeTarget(this.locked.length);
+      this.target = this.makeTarget(this.locked.length);
       return;
     }
     p.outAtMeters = p.score;
@@ -117,6 +117,8 @@ export class StackerGame extends RoundGame<Stacker> {
   }
 
   snapshot(): StackerSnapshot {
+    // Only the rows in view are sent: the tower can be as tall as people can climb.
+    const first = Math.max(0, this.locked.length - STACKER_KEEP_ROWS);
     return {
       id: 'stacker',
       phase: this.phase,
@@ -126,7 +128,8 @@ export class StackerGame extends RoundGame<Stacker> {
       timerMs: Math.max(0, Math.round(this.timerMs)),
       winnerId: this.winnerId,
       ...this.summary(),
-      locked: this.locked.map((l) => ({ ...l })),
+      locked: this.locked.slice(first).map((l) => ({ ...l })),
+      first,
       target: this.target && this.phase === 'playing' ? { ...this.target } : null,
       light: Math.round(this.light * 100) / 100,
       players: [...this.players.values()].map((p) => ({ id: p.id, alive: p.alive, wins: p.wins, meters: p.inRun ? p.score : 0 })),
@@ -145,7 +148,7 @@ export class StackerGame extends RoundGame<Stacker> {
     if (![...this.players.values()].some((p) => p.inRun && p.alive)) this.finishRun();
   }
 
-  /** The run is over (everyone out, the tower cleared or time up): most rows locked wins; a tie, a run with
+  /** The run is over (everyone out, or time up): most rows locked wins; a tie, a run with
    * no rows and a solo run have no winner. */
   private finishRun(): void {
     const racers = [...this.players.values()].filter((p) => p.inRun);
