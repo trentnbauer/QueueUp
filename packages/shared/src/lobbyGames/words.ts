@@ -12,7 +12,11 @@ const SPEED_BONUS = 9;
 interface Guesser extends RoundPlayer {
   guesses: string[];
   rows: number[][];
+  /** The letters typed for the next guess so far: only for the squares that are not already known (see `known`). */
   draft: string;
+  /** For each square, the letter once a guess has had it in the right place ('' until then). The next guess fills
+   * these in by itself, so only the other squares are typed. */
+  known: string[];
   solved: boolean;
   done: boolean;
   /** Milliseconds into the run when they solved it. */
@@ -58,13 +62,14 @@ export class WordsGame extends RoundGame<Guesser> {
   }
 
   protected createPlayer(id: string, alive: boolean): Guesser {
-    return { id, guesses: [], rows: [], draft: '', solved: false, done: false, solvedAt: 0, points: 0, inRun: false, alive, wins: 0, outAtMeters: 0 };
+    return { id, guesses: [], rows: [], draft: '', known: Array(WORDS_LENGTH).fill(''), solved: false, done: false, solvedAt: 0, points: 0, inRun: false, alive, wins: 0, outAtMeters: 0 };
   }
 
   protected resetPlayer(p: Guesser): void {
     p.guesses = [];
     p.rows = [];
     p.draft = '';
+    p.known = Array(WORDS_LENGTH).fill('');
     p.solved = false;
     p.done = false;
     p.solvedAt = 0;
@@ -96,15 +101,32 @@ export class WordsGame extends RoundGame<Guesser> {
     if (!Number.isInteger(target) || target < 0 || target >= WORDS_TARGETS) return;
     if (target === WORDS_BACKSPACE) p.draft = p.draft.slice(0, -1);
     else if (target === WORDS_ENTER) this.submit(p);
-    else if (p.draft.length < WORDS_LENGTH) p.draft += String.fromCharCode(97 + target);
+    else if (p.draft.length < this.openSquares(p)) p.draft += String.fromCharCode(97 + target);
+  }
+
+  /** How many squares of the next guess still have to be typed: the ones whose letter is not known yet. */
+  private openSquares(p: Guesser): number {
+    return p.known.filter((letter) => letter === '').length;
+  }
+
+  /** The whole word for the next guess: the known letters where they belong, and the typed ones in the other squares. */
+  private compose(p: Guesser): string {
+    let typed = 0;
+    return p.known.map((letter) => letter || p.draft[typed++]).join('');
   }
 
   private submit(p: Guesser): void {
-    if (p.draft.length !== WORDS_LENGTH) return;
-    const guess = p.draft;
+    // Only a guess with every open square typed is sent.
+    if (p.draft.length !== this.openSquares(p)) return;
+    const guess = this.compose(p);
     p.draft = '';
     p.guesses.push(guess);
-    p.rows.push(scoreGuess(guess, this.answer));
+    const row = scoreGuess(guess, this.answer);
+    p.rows.push(row);
+    // A letter in the right place is kept for the next guess, which fills it in so it need not be typed again.
+    row.forEach((state, i) => {
+      if (state === WORD_CORRECT) p.known[i] = guess[i];
+    });
     if (guess === this.answer) {
       p.solved = true;
       p.done = true;
@@ -126,7 +148,7 @@ export class WordsGame extends RoundGame<Guesser> {
           keys[letter] = Math.max(keys[letter], me.rows[i][k]);
         }
       });
-      mine = { guesses: [...me.guesses], draft: me.draft, keys };
+      mine = { guesses: [...me.guesses], draft: me.draft, known: [...me.known], keys };
     }
     return {
       id: 'words',

@@ -78,7 +78,7 @@ A game can instead make **the play space the controller**: there are no buttons 
 | Quick draw | Press **Space**, or click the big light. | Tap the big light. |
 | Tilt | Hold **←** / **→** or **A** / **D**. | Hold the **◀** and **▶** buttons. |
 | Stacker | **Space**, **↑** or **W** to stop the light. | **Stop**, or tap anywhere on the arena. |
-| Words | Type in the box under the board, **Enter** to send. | Type with your phone's keyboard in the box, **Send** to send. |
+| Words | Type the letters, **Enter** to send, **Backspace** to take one back. | Tap the on-screen keys. |
 | Memory pattern | Click a panel, or press **1-4** (top left, top right, bottom left, bottom right). | Tap a panel. |
 | Asteroid defence | **←** / **→** or **A** / **D** to swing the gun (it fires by itself). | The **◀** and **▶** buttons. |
 | Sumo ledge | **←** / **→** or **A** / **D** to walk, **Space**, **↑** or **W** to shove. | **◀ Shove ▶**: the arrows either side of the Shove button. |
@@ -207,12 +207,13 @@ One tower and one light for the whole room. Stop the light on the target to clim
 Everyone guesses the same four-letter word, as in Wordle.
 
 - **One secret word for everyone,** picked at random from a list of about 490 everyday four-letter words. It stays on the server until the run is over, when it is shown.
-- **Five guesses.** Type a word in the **text box under the board** (on a phone it opens your own keyboard; on a computer the cursor is already in it) and press **Enter** (or **Send** on a phone). **Backspace** takes a letter back; only letters a to z are taken, and at most four. Any four letters are accepted as a guess (there is no dictionary check). Each letter of a guess is scored: **green** in the right place, **yellow** in the word but somewhere else, **grey** not in it (a letter the word has once is only marked once). The letters a to z along the bottom of the arena take the colour of the best each has scored for you.
+- **Five guesses.** Type a word (on a keyboard, or by tapping the on-screen keys) and press **Enter**. **Backspace** takes a letter back. Any four letters are accepted as a guess (there is no dictionary check). Each letter of a guess is scored: **green** in the right place, **yellow** in the word but somewhere else, **grey** not in it (a letter the word has once is only marked once). The keys on the keyboard take the colour of the best each has scored for you.
+- **Letters you have right are filled in for you.** Once a guess has had a letter in the right place (green), the next guess puts it there by itself, shown in green, and **skips past it**: you only type the other squares, left to right, and **Enter** sends the guess once they are all filled. So after a guess with two greens, the next guess is two letters to type. (A letter that was only yellow still has to be placed by you.)
 - **Your own board is shown to you.** In the arena you see your guesses, letters and all. For everyone else you see only a small grid in their colour, scored the same way (green, yellow, grey) but **with no letters**, so you can see how close they are without being given anything.
 - **Winning:** everyone who finds the word wins (it counts as a win on the scoreboard). The **best** is the one who found it in the fewest guesses, then the soonest: they are the run's winner. A dead heat for that has no single winner, and alone it is a high score with no winner.
 - **Time:** the run ends after 90 seconds, or as soon as everyone has found the word or used their five guesses. Someone who has not found it by then does not win.
 - **Score** (the high score list): 10 points for each guess you did not need to use (so a first-guess solve is 50) plus up to 9 more for solving early in the 90 seconds. Not finding the word scores nothing.
-- **Controls:** typing. The text box sends the game one letter at a time (and Backspace, and Enter), so the server never sees anything but those. Touch the arena to bring the keyboard up on a phone. Someone who joins part way through watches and plays from the next run.
+- **Controls:** the keyboard is the controller (letters, **Enter**, **Backspace**), or tap the keys on screen. Someone who joins part way through watches and plays from the next run.
 
 ## Memory pattern
 

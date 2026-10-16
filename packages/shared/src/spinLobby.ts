@@ -840,8 +840,11 @@ export interface WordsPlayer {
 export interface WordsMine {
   /** The words they have guessed, in order (the rows of `rows` score them). */
   guesses: string[];
-  /** The letters typed for the next guess so far. */
+  /** The letters typed for the next guess so far: only for the squares that are not already in `known`. */
   draft: string;
+  /** For each of the word's squares, the letter once a guess has had it in the right place, else ''. The next guess
+   * fills these in by itself, so only the other squares are typed (and the draft is that long, not the whole word). */
+  known: string[];
   /** For each letter a to z, the best it has scored so far: -1 untried, else WORD_ABSENT, WORD_PRESENT or WORD_CORRECT. */
   keys: number[];
 }

@@ -45,22 +45,6 @@ export interface LobbyStanding {
   active: boolean;
 }
 
-/** A game played by typing (Words): a text field under the arena, which on a phone opens its own keyboard. What
- * is typed reaches the game as taps (a letter is target 0 to 25 for a to z, then `backspace` and `enter`), so the
- * server never receives text. */
-export interface LobbyTextInput<S extends LobbyGameSnapshot = LobbyGameSnapshot> {
-  /** The most letters in a word. */
-  length: number;
-  /** Tap targets for taking a letter back and for sending the word. */
-  backspace: number;
-  enter: number;
-  /** What the empty field says while typing counts, and while it does not. */
-  placeholderKey: MessageKey;
-  waitingKey: MessageKey;
-  /** The game's side of the field for this person: the letters it has, when to start the field over, and whether typing counts. */
-  state(snapshot: S, me: string): { draft: string; key: string; enabled: boolean };
-}
-
 /** How the browser plays one lobby game: the buttons it adds to the pad, how a frame is drawn and the
  * scoreboard. The rules class of the same id (packages/shared/src/lobbyGames/) holds the rules. */
 export interface LobbyGameView<S extends LobbyGameSnapshot = LobbyGameSnapshot> {
@@ -81,8 +65,6 @@ export interface LobbyGameView<S extends LobbyGameSnapshot = LobbyGameSnapshot> 
    * alongside them. The game draws its own targets where they are declared; the kit lights the one that
    * was just tapped. See taps.ts. */
   taps?: TapTargets;
-  /** For a game played by typing: a text field under the arena (instead of buttons or tap targets). */
-  textInput?: LobbyTextInput<S>;
   /** The game's name, shown in the lobby panel. */
   nameKey: MessageKey;
   /** A short tagline for the game card. */
