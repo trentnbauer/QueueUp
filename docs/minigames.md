@@ -221,7 +221,7 @@ Watch the panels light up, then tap them back in the same order.
 - **One shared board:** four coloured panels in a 2 by 2 grid, the same for everyone. The pattern is lit **one panel at a time** (about half a second each), the same for everyone.
 - **Then everyone taps it back.** Tap a panel, or press **1** to **4** (top left, top right, bottom left, bottom right). A panel the pattern did not have next, **knocks you out**. Tapping before the pattern has finished being shown does nothing.
 - **Time:** you get 3 seconds plus 1.2 seconds for each panel in the pattern. Anyone who has not tapped the whole pattern when it runs out is out.
-- **Each round the pattern is one panel longer** and starts with the same panels as the last. Everyone who got it right goes on after a short pause.
+- **The first pattern is 3 panels long.** Each round after it is one panel longer and starts with the same panels as the last. Everyone who got it right goes on after a short pause.
 - **Last one in wins.** If everyone left is out in the same round, nobody wins. Alone it is a high score: the number of rounds you got through. If a run reaches 40 rounds it ends with no winner.
 - **What others see of you:** only how many panels of the pattern you have got right so far (a tick when you have the lot), never which panels, and nothing lights up when someone else taps. The pattern lives on the server and only the panel being shown right now is ever sent, so nobody can read ahead.
 - **Controls:** the panels are the controller, so tap or click them, or press **1-4**.

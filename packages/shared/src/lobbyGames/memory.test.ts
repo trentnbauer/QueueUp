@@ -36,16 +36,23 @@ function playRound(g: MemoryGame, ids: string[]) {
   return pattern;
 }
 
+/** Taps the whole pattern back for these players. */
+function tapAll(g: MemoryGame, ids: string[], pattern: number[]) {
+  for (const panel of pattern) for (const id of ids) g.tap(id, panel);
+}
+
 describe('MemoryGame', () => {
-  it('shows a pattern one panel long first, one panel at a time, then waits for taps', () => {
+  it('shows a pattern three panels long first, one panel at a time, then waits for taps', () => {
     const g = started(['a']);
-    expect(g.snapshot()).toMatchObject({ phase: 'playing', stage: 'show', length: 1, meters: 0 });
+    expect(g.snapshot()).toMatchObject({ phase: 'playing', stage: 'show', length: 3, meters: 0 });
     const pattern = watch(g);
-    expect(pattern).toHaveLength(1);
+    expect(pattern).toHaveLength(3);
     expect(g.snapshot().stage).toBe('input');
     expect(g.snapshot().inputTotalMs).toBeGreaterThan(0);
-    expect(pattern[0]).toBeGreaterThanOrEqual(0);
-    expect(pattern[0]).toBeLessThan(MEMORY_PANELS);
+    for (const panel of pattern) {
+      expect(panel).toBeGreaterThanOrEqual(0);
+      expect(panel).toBeLessThan(MEMORY_PANELS);
+    }
   });
 
   it('makes the pattern one longer each round, starting with the same panels', () => {
@@ -53,8 +60,9 @@ describe('MemoryGame', () => {
     const first = playRound(g, ['a']);
     run(g, 1200); // the pause between rounds
     const second = playRound(g, ['a']);
-    expect(second).toHaveLength(2);
-    expect(second[0]).toBe(first[0]);
+    expect(first).toHaveLength(3);
+    expect(second).toHaveLength(4);
+    expect(second.slice(0, 3)).toEqual(first);
     expect(g.snapshot().meters).toBe(1);
   });
 
@@ -62,8 +70,9 @@ describe('MemoryGame', () => {
     const g = started(['a', 'b']);
     const pattern = watch(g);
     g.tap('a', pattern[0]);
+    g.tap('a', pattern[1]);
     const snap = g.snapshot();
-    expect(me(g, 'a')).toMatchObject({ progress: 1, done: true });
+    expect(me(g, 'a')).toMatchObject({ progress: 2, done: false });
     expect(me(g, 'b')).toMatchObject({ progress: 0, done: false });
     expect(Object.keys(snap)).not.toContain('pattern');
     // While tapping, no panel is lit: the pattern is not given away again.
@@ -84,8 +93,9 @@ describe('MemoryGame', () => {
   it('knocks out whoever has not tapped the whole pattern when time runs out', () => {
     const g = started(['a', 'b']);
     const pattern = watch(g);
-    g.tap('a', pattern[0]); // a is done (a one-panel pattern); b does nothing
-    run(g, 6000);
+    tapAll(g, ['a'], pattern); // a is done; b does nothing
+    expect(me(g, 'a').done).toBe(true);
+    for (let t = 0; t < 12_000 && g.snapshot().phase === 'playing'; t += STEP) g.tick(STEP);
     expect(me(g, 'b').alive).toBe(false);
     expect(g.snapshot().winnerId).toBe('a');
   });
@@ -105,7 +115,7 @@ describe('MemoryGame', () => {
   it('is a draw when everyone left is out in the same round', () => {
     const g = started(['a', 'b']);
     watch(g);
-    run(g, 8000); // neither taps
+    for (let t = 0; t < 12_000 && g.snapshot().phase === 'playing'; t += STEP) g.tick(STEP); // neither taps
     expect(g.snapshot()).toMatchObject({ phase: 'over', winnerId: null });
   });
 
