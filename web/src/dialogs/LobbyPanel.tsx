@@ -7,6 +7,7 @@ import { LobbyFx } from '../lobbyGames/kit';
 import { tapTargetAt, tapTargetForKey } from '../lobbyGames/taps';
 import { Controls, NO_SELECT } from './lobby/Controls';
 import { LiveAnnouncer } from './lobby/LiveAnnouncer';
+import { TextField } from './lobby/TextField';
 import { LobbyHeader } from './lobby/LobbyHeader';
 import { RunHistory } from './lobby/RunHistory';
 import { VoteBar } from './lobby/VoteBar';
@@ -68,6 +69,7 @@ export function LobbyPanel({
   const local = useLocalLobby(practiceGame, me, submitScore);
   const { snapshot, status, sendInput, sendAction, sendTap, vote } = practiceGame ? local : live;
   const canvasRef = useRef<HTMLCanvasElement>(null);
+  const textRef = useRef<HTMLInputElement>(null);
   // Effects (knock-out bursts, confetti, shake) and their memory between frames, for as long as the panel is open.
   const fxRef = useRef<LobbyFx | null>(null);
   if (!fxRef.current) fxRef.current = new LobbyFx();
@@ -236,6 +238,8 @@ export function LobbyPanel({
       role="img"
       aria-label={view ? t(view.nameKey) : t('spin.lobby.title')}
       onPointerDown={(e) => {
+        // A typing game: touching the arena brings up the keyboard (a phone only opens it for a touch).
+        if (view?.textInput) textRef.current?.focus();
         if (view?.taps) {
           // Where on the arena, as fractions of its size, so it works at any width.
           const box = e.currentTarget.getBoundingClientRect();
@@ -254,7 +258,11 @@ export function LobbyPanel({
       onContextMenu={(e) => e.preventDefault()}
     />
   );
-  const controls = view ? <Controls view={view} phone={phone} holdProps={holdProps} onAction={sendAction} /> : null;
+  const controls = view?.textInput && snapshot ? (
+    <TextField ref={textRef} spec={view.textInput} state={view.textInput.state(snapshot.game, me)} phone={phone} onTarget={sendTap} />
+  ) : view ? (
+    <Controls view={view} phone={phone} holdProps={holdProps} onAction={sendAction} />
+  ) : null;
   const gameName = view ? t(view.nameKey) : '';
 
   const bottom = snapshot?.spinWaiting ? (
