@@ -86,9 +86,20 @@ export class StackerGame extends RoundGame<Stacker> {
     this.target = this.makeTarget(0);
   }
 
+  /** The target for row `row`. The first row can be anywhere; every row after it stands on the one below, as in
+   * Stacker: a narrower row sits somewhere within the squares of the row under it, and a row as wide as the one
+   * below can shift by a single square (still resting on it). So the tower grows straight up from where it
+   * began, not to wherever the field has room. */
   private makeTarget(row: number): { start: number; w: number } {
     const w = targetWidth(row);
-    return { start: Math.floor(this.rng() * (STACKER_COLS - w + 1)), w };
+    const below = this.locked[row - 1];
+    if (!below) return { start: Math.floor(this.rng() * (STACKER_COLS - w + 1)), w };
+    // How far the new row may stick out past either end of the one below: none if it is narrower, else one
+    // square (and never so far that it would not touch the row below at all).
+    const slack = w < below.w ? 0 : w >= 2 ? 1 : 0;
+    const lo = Math.max(0, below.start - slack);
+    const hi = Math.min(STACKER_COLS - w, below.start + below.w - w + slack);
+    return { start: lo + Math.floor(this.rng() * (hi - lo + 1)), w };
   }
 
   /** Where the light is along the row, 0 to STACKER_COLS. */

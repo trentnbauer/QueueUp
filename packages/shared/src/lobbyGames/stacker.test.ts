@@ -139,6 +139,29 @@ describe('StackerGame', () => {
     expect(snap.target).not.toBeNull();
   });
 
+  it('stacks each row on the one below it: a narrower row sits within it, an equal one shifts by at most a square', () => {
+    for (const seed of [0.05, 0.2, 0.33, 0.5, 0.62, 0.77, 0.9, 0.99]) {
+      const g = started(['a'], seed);
+      const rows: { start: number; w: number }[] = [];
+      for (let row = 0; row < 24; row++) {
+        expect(toTarget(g), `seed ${seed} row ${row}`).toBe(true);
+        rows.push({ ...g.snapshot().target! });
+        g.action('a', 'stop');
+        run(g, 500);
+      }
+      rows.forEach((r, i) => {
+        expect(r.start, `seed ${seed} row ${i}`).toBeGreaterThanOrEqual(0);
+        expect(r.start + r.w, `seed ${seed} row ${i}`).toBeLessThanOrEqual(STACKER_COLS);
+        if (i === 0) return;
+        const below = rows[i - 1];
+        const overlap = Math.min(r.start + r.w, below.start + below.w) - Math.max(r.start, below.start);
+        if (r.w < below.w) expect(overlap, `seed ${seed} row ${i} inside`).toBe(r.w);
+        else expect(Math.abs(r.start - below.start), `seed ${seed} row ${i} shift`).toBeLessThanOrEqual(r.w >= 2 ? 1 : 0);
+        expect(overlap, `seed ${seed} row ${i} touches`).toBeGreaterThanOrEqual(1);
+      });
+    }
+  });
+
   it('gets narrower still very high up, to a single square', () => {
     expect(targetWidth(17)).toBe(2);
     expect(targetWidth(18)).toBe(1);
