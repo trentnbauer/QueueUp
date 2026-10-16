@@ -81,7 +81,7 @@ A game can instead make **the play space the controller**: there are no buttons 
 | Words | Type the letters, **Enter** to send, **Backspace** to take one back. | Tap the on-screen keys. |
 | Memory pattern | Click a panel, or press **1-4** (top left, top right, bottom left, bottom right). | Tap a panel. |
 | Asteroid defence | **←** / **→** or **A** / **D** to swing the gun (it fires by itself). | The **◀** and **▶** buttons. |
-| Sumo ledge | **←** / **→** or **A** / **D** to walk, **Space**, **↑** or **W** to shove. | The **◀** and **▶** buttons, and **Shove**. |
+| Sumo ledge | **←** / **→** or **A** / **D** to walk, **Space**, **↑** or **W** to shove. | **◀ Shove ▶**: the arrows either side of the Shove button. |
 | Whack-a-mole | Click a hole, or press **1-9** (laid out like a numpad: **7 8 9** on the top row, **1 2 3** on the bottom). | Tap a hole on the grid. |
 | Jump rope | **Space**, **↑** or **W** to jump. | **Jump**, or tap anywhere on the arena. |
 | Obstacle race | **←** / **→** or **A** / **D** to steer. | The **◀** and **▶** buttons. |
@@ -249,7 +249,7 @@ Everyone on one short platform over a drop. Shove the others off. Needs at least
 - Nobody pushes anyone except by shoving: you walk through each other.
 - **Score** is the seconds you stayed on, which is also what the high score list records. Alone against the bot that is how long you last.
 - **The bot** walks toward the nearest player, backs away from the edge, and shoves late (a quarter to half a second after it is in range). It is beatable.
-- **Controls:** **←** / **→** or **A** / **D** to walk, **Space**, **↑** or **W** to shove. On a phone, the **◀** and **▶** buttons and a **Shove** button.
+- **Controls:** **←** / **→** or **A** / **D** to walk, **Space**, **↑** or **W** to shove. On a phone, the buttons are laid out **◀ Shove ▶**, with the Shove button in the middle.
 
 ## Whack-a-mole
 
