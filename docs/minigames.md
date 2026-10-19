@@ -145,6 +145,17 @@ One shared minefield, and everyone opens squares on it.
 - There is no time limit of its own: it goes on until it is beaten.
 - **Controls:** the field is the controller, so tap or click a square. There is no keyboard control yet.
 
+## Perfect stop
+
+A marker sweeps back and forth along a bar with a target zone. Stop it inside the zone, round after round.
+
+- **Goal:** stop your marker inside the green zone. Everyone sees the same marker and the same zone, and presses to stop **their own** marker where it is right then. Inside the zone and you go on to the next round; **outside it, or too slow, and you are out.** **Last one in wins**; alone it is a high score (rounds cleared).
+- **Each round is harder:** the marker crosses the bar 0.8 times a second in the first round and 0.12 more every round, up to 2.6; the zone is 0.30 of the bar wide in the first round and 0.022 narrower every round, down to 0.06. The zone's middle moves each round (from the round's seed).
+- **Too slow:** a sweep lasts 5 seconds; anyone who has not stopped by then is out. A round ends as soon as everyone left has stopped. Everyone's stops are shown as ticks in their colour.
+- **Timing:** the stop is decided by when your press reaches the server, so a slow connection loses out.
+- There is no time limit of its own: it goes on until it is beaten.
+- **Controls:** one button: **Space**, **↑** or **W**, or tap anywhere on the arena.
+
 ## Rating a game
 
 When a run ends and its result card is showing, a **thumbs up / thumbs down** appears under the arena (in a room's lobby, a spin's waiting room, an open lobby and solo practice alike).
@@ -200,6 +211,7 @@ A game can instead make **the play space the controller**: there are no buttons 
 | Hot potato | **Space**, **↑** or **W** to pass. | **Pass**, or tap anywhere on the arena. |
 | Anagram | Click a tile, or press **1-6** to pick one and **Backspace** to take it back. | Tap a tile (⌫ takes one back). |
 | Minesweeper race | Click a square (no keyboard control yet). | Tap a square on the field. |
+| Perfect stop | **Space**, **↑** or **W** to stop. | **Stop**, or tap anywhere on the arena. |
 
 ## Runner
 

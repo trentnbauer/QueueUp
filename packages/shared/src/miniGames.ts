@@ -31,6 +31,7 @@ export const MINIGAME_SCORE_MAX: Record<LobbyGameId, number> = {
   potato: 100,
   anagram: 500,
   mines: 71,
+  stop: 200,
 };
 
 /** The lowest score a game can really produce, where that is more than 1. Quick draw's score was points (1 to 3)
