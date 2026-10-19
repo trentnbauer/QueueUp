@@ -18,7 +18,7 @@ export interface SpinLobbyDeps {
   /** Save a finished run's scores (high scores). `source` is the waiting room while a spin waits, else the room's lobby. */
   /** A lobby's last person left, so it is gone. `key` is a room id, or `lobby:<id>` for an open lobby. */
   onEmpty?(key: string): void;
-  recordScores?(roomId: string, game: LobbyGameId, source: MiniGameScoreSource, scores: LobbyRunScore[]): void;
+  recordScores?(roomId: string, game: LobbyGameId, source: MiniGameScoreSource, scores: LobbyRunScore[], verified: boolean): void;
   /** How likely each game is to come up in a lobby that picks its own (see SpinLobby). */
   pickWeights?(): Partial<Record<LobbyGameId, number>>;
 }
@@ -81,7 +81,7 @@ export class SpinLobbyHub {
 
   /** `options.game` fixes the game when this opens the lobby (an open lobby that plays just one); `options.timeLimit` caps
    * every run the way a spin's waiting room does (an open lobby's own setting). */
-  connect(roomId: string, userId: string, socket: LobbySocket, options: { game?: LobbyGameId | null; timeLimit?: boolean } = {}): void {
+  connect(roomId: string, userId: string, socket: LobbySocket, options: { game?: LobbyGameId | null; timeLimit?: boolean; solo?: boolean } = {}): void {
     let room = this.rooms.get(roomId);
     // A few tabs is normal; more is a runaway client or abuse.
     if (room && [...room.sockets.values()].filter((id) => id === userId).length >= MAX_CONNECTIONS_PER_USER) {
@@ -90,7 +90,7 @@ export class SpinLobbyHub {
     }
     if (!room) {
       const created: RoomState = {
-        lobby: new SpinLobby(options.game ? createLobbyGame(options.game) : undefined, (game, scores) => this.deps.recordScores?.(roomId, game, this.rooms.get(roomId)?.spinWaiting ? 'waiting_room' : 'lobby', scores), () => this.deps.pickWeights?.() ?? {}),
+        lobby: new SpinLobby(options.game ? createLobbyGame(options.game) : undefined, (game, scores, verified) => this.deps.recordScores?.(roomId, game, this.rooms.get(roomId)?.spinWaiting ? 'waiting_room' : 'lobby', scores, verified), () => this.deps.pickWeights?.() ?? {}, options.solo === true),
         sockets: new Map(),
         timer: null,
         lastTickAt: this.now(),

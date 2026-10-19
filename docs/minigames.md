@@ -14,7 +14,7 @@ Mini games are **cosmetic**: nothing in them changes which game a spin picks.
 
 ## High scores
 
-The **Mini games** page keeps a high score list for every game: your best run, your friends' and everyone's, for all time or the last 7 days. Every run counts, wherever it is played: solo, a room's mini game, or a spin's waiting room. People tied on a score share the place, and people you have blocked (or who blocked you) never show. **Solo practice runs on the server too**, in a private lobby of one that nobody else can see or join, so every score on the lists is one the server saw happen: there is no way to post a score from a browser. (A few games work out your own movement on your device, to cut the effect of ping; see "Ping and who works out what" for how the server limits that.)
+The **Mini games** page keeps a high score list for every game: your best run, your friends' and everyone's, for all time or the last 7 days. Every run counts, wherever it is played: solo, a room's mini game, or a spin's waiting room. People tied on a score share the place, and people you have blocked (or who blocked you) never show. **Solo practice runs on the server too**, in a private lobby of one that nobody else can see or join, so every score on the lists is one the server saw happen: there is no way to post a score from a browser. (The games that work out your own movement on your device are worked out by the server in practice, and their lobby scores stay off the lists; see "Ping and who works out what".)
 
 ## Open lobbies
 
@@ -52,6 +52,7 @@ In **Runner, Flappy, Dodge, Jump rope, Obstacle race, Lava rise, Gravity flip an
 - **The server** decides the shared things: the course's seed and exactly when a run starts (everyone's device lines its clock up with the server's, so everyone starts the same course at the same moment), who is still in, who won, the wins and the history. It shows everyone else's player from what their devices report.
 - **What you still see late:** other players. They are drawn where their device last said they were, so on a slow connection you see them a moment behind. It does not change what happens to you.
 - **If your device goes quiet** (a closed or frozen tab) for 3 seconds in a run, the server counts you out.
+- **High scores only come from runs the server saw.** Because your device decides your hits in these games, a modified client could say it never got hit. So a score from one of these games played **in a lobby or a spin's waiting room is kept but not put on the high score lists** (it is saved as unverified, `verified = false`); it still counts for the wins and run history in that lobby. **Solo practice** is different: there the server works out your player itself from your presses, as for any other game (your device is not told to run its own copy, and any report it sends is ignored), so a practice score is the server's own and does go on the lists. The price is that your ping affects your own play in practice, which is the trade for a score nobody can forge. Every other game is worked out by the server everywhere, so its lobby scores are listed as usual.
 - Players in these games never affect each other, which is why this is safe. **Catch the coins**, where players race for the same thing, is still worked out by the server, so there ping matters.
 
 ## Lava rise

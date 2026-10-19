@@ -19,13 +19,17 @@ export class SpinLobby {
   /** The cap on a run in seconds (a spin's waiting room sets one), or null. Every game the lobby plays gets it. */
   private timeLimitS: number | null = null;
 
-  /** `onScores` hears each finished run's scores, whichever game it was (for high scores). */
+  /** `onScores` hears each finished run's scores, whichever game it was (for high scores), and whether the
+   * server can vouch for them: false when the game worked out each player on their own device (see `trusts`). */
   constructor(
     game?: LobbyGame,
-    private readonly onScores?: (game: LobbyGameId, scores: LobbyRunScore[]) => void,
+    private readonly onScores?: (game: LobbyGameId, scores: LobbyRunScore[], verified: boolean) => void,
     /** How likely each game is to come up, from how much each has been played across the server (see
      * playWeights.ts); read at each pick. Without it every game is equally likely. */
     private readonly weights?: () => Partial<Record<LobbyGameId, number>>,
+    /** A practice lobby (one person): the server works out their play from their inputs, whatever the game, never from
+     * what their device says, so nothing in it can be forged. */
+    private readonly solo = false,
   ) {
     this.rotates = game === undefined;
     if (game) this.hear(game);
@@ -41,7 +45,15 @@ export class SpinLobby {
   }
 
   private hear(game: LobbyGame): void {
-    if (this.onScores) game.onRunScores = (scores) => this.onScores?.(game.id, scores);
+    if (this.onScores) game.onRunScores = (scores) => this.onScores?.(game.id, scores, this.trusts(game));
+  }
+
+  /** Whether the server saw these players' runs happen. A game that runs each player on their own device (see
+   * `RoundGame.clientSim`) takes the device's word for where they are, so a modified client could report that it never
+   * got hit: its scores are kept, but marked, and left off the high score lists. A practice lobby has the server do the
+   * work instead, so its scores are the server's own. */
+  private trusts(game: LobbyGame): boolean {
+    return this.solo || !game.clientSim;
   }
 
   /** A new game of this kind, which hands over to the next one when its run is over. */
@@ -110,6 +122,7 @@ export class SpinLobby {
   /** A person's report of their own player, for a game that runs each player on their own device. The
    * game takes only the current run's report from someone in the lobby; anything malformed is dropped. */
   report(userId: string, run: unknown, alive: unknown, f: unknown): void {
+    if (this.solo) return; // the server works out a practice run itself
     if (!this.connections.has(userId) || typeof run !== 'number' || !Number.isInteger(run) || typeof alive !== 'boolean') return;
     if (!f || typeof f !== 'object' || Array.isArray(f)) return;
     const fields: Record<string, number> = {};
@@ -151,7 +164,7 @@ export class SpinLobby {
    * runs each player on their own device) so clients can line their clocks up and start together. */
   snapshot(spinWaiting: boolean, now?: number, viewer?: string): LobbySnapshot {
     const snapshot: LobbySnapshot = { t: 'state', tick: this.tickCount, game: this.game.snapshot(viewer), voters: [...this.votes], needed: this.needed, spinWaiting };
-    const sim = this.game.simStart?.();
+    const sim = this.solo ? null : this.game.simStart?.();
     if (sim && now !== undefined) {
       snapshot.sim = sim;
       snapshot.clock = now;
