@@ -1,4 +1,4 @@
-import { GRAVITY_PLAYER_R, GRAVITY_SPIKE_H, GRAVITY_X, type GravityObstacle, type GravitySnapshot } from '../spinLobby.js';
+import { GRAVITY_MID_H, GRAVITY_PLAYER_R, GRAVITY_SPIKE_H, GRAVITY_X, type GravityObstacle, type GravitySnapshot } from '../spinLobby.js';
 import { RoundGame, type RoundPlayer } from './roundGame.js';
 
 // Everything is in screens: x runs 0..1 across, y 0 (floor) to 1 (ceiling). The course scrolls from the right.
@@ -14,12 +14,20 @@ const GAP_EXTRA_S = 0.7;
 const SPIKE_MIN_W = 0.06;
 const SPIKE_EXTRA_W = 0.08;
 const VISIBLE_BEHIND = 0.2;
+/** A flip can be turned round part way across, but not again for this long, so mashing the button cannot hold a player still in
+ * the middle of the corridor, out of reach of the spikes. */
+const FLIP_COOLDOWN_S = 0.18;
+/** The share of obstacles that are spikes on the floor, spikes on the ceiling, and the rest floating blocks in the middle. */
+const FLOOR_SHARE = 0.4;
+const CEILING_SHARE = 0.8;
 
 interface Flipper extends RoundPlayer {
   /** Height of their middle, 0 (floor) to 1 (ceiling), between GRAVITY_PLAYER_R and 1 - GRAVITY_PLAYER_R. */
   y: number;
   /** The side they are on or heading for: 0 floor, 1 ceiling. */
   side: number;
+  /** Seconds before they can flip again. */
+  cool: number;
 }
 
 const FLOOR_Y = GRAVITY_PLAYER_R;
@@ -49,12 +57,13 @@ export class GravityGame extends RoundGame<Flipper> {
   }
 
   protected createPlayer(id: string, alive: boolean): Flipper {
-    return { id, y: FLOOR_Y, side: 0, alive, wins: 0, outAtMeters: 0 };
+    return { id, y: FLOOR_Y, side: 0, cool: 0, alive, wins: 0, outAtMeters: 0 };
   }
 
   protected resetPlayer(f: Flipper): void {
     f.y = FLOOR_Y;
     f.side = 0;
+    f.cool = 0;
   }
 
   protected resetCourse(): void {
@@ -74,11 +83,14 @@ export class GravityGame extends RoundGame<Flipper> {
     // Flipping is an action; there is nothing to hold.
   }
 
-  /** Flips to the other side. Only possible from a side (not part way across), so it cannot be spammed. */
+  /** Flips to the other side, from wherever the player is: part way across, it turns them round. A short wait between flips
+   * keeps it from being used to hover in the middle. */
   action(userId: string, name: string): void {
     if (name !== 'flip' || this.phase !== 'playing') return;
     const f = this.players.get(userId);
-    if (f?.alive && (f.y === FLOOR_Y || f.y === CEILING_Y)) f.side = 1 - f.side;
+    if (!f?.alive || f.cool > 0) return;
+    f.side = 1 - f.side;
+    f.cool = FLIP_COOLDOWN_S;
   }
 
   snapshot(): GravitySnapshot {
@@ -111,6 +123,7 @@ export class GravityGame extends RoundGame<Flipper> {
     const cross = ((CEILING_Y - FLOOR_Y) / FLIP_S) * dt;
     for (const f of this.players.values()) {
       if (!f.alive || !this.simulated(f)) continue;
+      f.cool = Math.max(0, f.cool - dt);
       const target = f.side === 1 ? CEILING_Y : FLOOR_Y;
       f.y = f.y < target ? Math.min(target, f.y + cross) : Math.max(target, f.y - cross);
       if (this.hits(f)) this.knockOut(f);
@@ -122,7 +135,10 @@ export class GravityGame extends RoundGame<Flipper> {
     for (const s of this.spikes) {
       const rel = s.x - this.distance;
       if (Math.abs(rel - GRAVITY_X) >= (s.w + GRAVITY_PLAYER_R * 2) / 2) continue;
-      if (s.side === 0 ? f.y - GRAVITY_PLAYER_R < GRAVITY_SPIKE_H : f.y + GRAVITY_PLAYER_R > 1 - GRAVITY_SPIKE_H) return true;
+      if (s.side === 2) {
+        // The block in the middle: anyone whose body is level with it, which is whoever is flying across.
+        if (Math.abs(f.y - 0.5) < GRAVITY_MID_H / 2 + GRAVITY_PLAYER_R) return true;
+      } else if (s.side === 0 ? f.y - GRAVITY_PLAYER_R < GRAVITY_SPIKE_H : f.y + GRAVITY_PLAYER_R > 1 - GRAVITY_SPIKE_H) return true;
     }
     return false;
   }
@@ -130,7 +146,8 @@ export class GravityGame extends RoundGame<Flipper> {
   private spawnSpikes(): void {
     while (this.nextEdgeX < this.distance + SPAWN_AHEAD) {
       const w = SPIKE_MIN_W + this.rng() * SPIKE_EXTRA_W;
-      const side = this.rng() < 0.5 ? 0 : 1;
+      const roll = this.rng();
+      const side = roll < FLOOR_SHARE ? 0 : roll < CEILING_SHARE ? 1 : 2;
       this.spikes.push({ x: this.nextEdgeX + w / 2, w, side, n: ++this.spawned });
       this.nextEdgeX += w + this.speed * (GAP_MIN_S + this.rng() * GAP_EXTRA_S);
     }
