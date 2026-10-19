@@ -236,7 +236,10 @@ export function LobbyPanel({
     onPointerCancel: release,
   });
 
+  // The canvas, with the end-of-run thumbs laid over the bottom of its result card (HTML, so they can be tapped).
   const arena = (
+    <div style={st("position:relative")}>
+    {game?.phase === 'over' && <RatingBar game={game.id} />}
     <canvas
       ref={canvasRef}
       role="img"
@@ -259,13 +262,9 @@ export function LobbyPanel({
       style={st(`display:block;width:100%;aspect-ratio:1;border-radius:${phone ? 18 : 16}px;box-shadow:inset 0 0 0 1px oklch(1 0 0 / 0.1);touch-action:none;user-select:none`, NO_SELECT)}
       onContextMenu={(e) => e.preventDefault()}
     />
+    </div>
   );
-  const controls = view ? (
-    <>
-      <Controls view={view} phone={phone} holdProps={holdProps} onAction={sendAction} />
-      {game && <RatingBar game={game.id} show={game.phase === 'over'} />}
-    </>
-  ) : null;
+  const controls = view ? <Controls view={view} phone={phone} holdProps={holdProps} onAction={sendAction} /> : null;
   const gameName = view ? t(view.nameKey) : '';
 
   const bottom = snapshot?.spinWaiting ? (

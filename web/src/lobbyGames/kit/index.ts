@@ -4,4 +4,5 @@
 export { renderScene, drawFloor, courseOffset, type Scene, type SceneGame } from './scene';
 export { avatar, coverTile, groundShadow, hueOf, outlinedText, roundRect, type AvatarSpec } from './draw';
 export { LobbyFx } from './fx';
+export { RESULT_RATING_STRIP } from './hud';
 export { FONT, STAGE, stageTheme, type StageTheme } from './theme';
