@@ -200,7 +200,7 @@ Everyone guesses the same four-letter word, as in Wordle.
 - **Winning:** everyone who finds the word wins (it counts as a win on the scoreboard). The **best** is the one who found it in the fewest guesses, then the soonest: they are the run's winner. A dead heat for that has no single winner, and alone it is a high score with no winner.
 - **Time:** the run ends after 90 seconds, or as soon as everyone has found the word or used their five guesses. Someone who has not found it by then does not win.
 - **Score** (the high score list): 10 points for each guess you did not need to use (so a first-guess solve is 50) plus up to 9 more for solving early in the 90 seconds. Not finding the word scores nothing.
-- **Controls:** the keyboard is the controller (letters, **Enter**, **Backspace**), or tap the keys on screen. Someone who joins part way through watches and plays from the next run.
+- **Controls:** the keyboard is the controller (letters, **Enter**, **Backspace**), or tap the keys on screen. Someone who joins part way through watches and plays from the next run. When the run ends, the result card shows the word under it; alone, finding it reads "You got the word!" instead of "Nobody made it".
 
 ## Memory pattern
 
