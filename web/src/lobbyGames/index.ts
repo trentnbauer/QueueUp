@@ -10,7 +10,6 @@ import { drawView } from './draw';
 import { flappyView } from './flappy';
 import { memoryView } from './memory';
 import { raceView } from './race';
-import { redLightView } from './redlight';
 import { ropeView } from './rope';
 import { runnerView } from './runner';
 import { tiltView } from './tilt';
@@ -80,7 +79,6 @@ export const LOBBY_GAME_VIEWS: { [K in LobbyGameId]: LobbyGameView<Extract<Lobby
   flappy: flappyView,
   dodge: dodgeView,
   rope: ropeView,
-  redlight: redLightView,
   coins: coinsView,
   battleships: battleshipsView,
   race: raceView,

@@ -38,7 +38,7 @@ It plays a random game after every run (like the waiting room), or one game you 
 - **Distance** is shown in metres (one screen is 20 m).
 - **Scoreboard.** The panel shows **wins this lobby** for everyone, the **last 10 runs** (the winner's colour and initial; a dash for a run nobody won), and the **best run** so far in the game being played. The run number, the last 10 runs and the wins belong to the lobby, not to a game, so they **carry over when the game changes** (in a room after every run, and in practice when you pick another game). The best run is kept per game, because metres, coins and swings cannot be compared with each other.
 - **Idle players.** While a spin is waiting, anyone in the mini game who does nothing for 60 seconds (no input, tap, action or vote, and no change in their reports) is removed from the lobby, so they stop holding the waiting room open and counting toward the votes needed. Holding a direction counts as playing. They can rejoin by opening the mini game again. Bots are not connections, so this never affects them.
-- **Bots.** Some games need more than one player (Red light, green light needs 2). If fewer people are in the lobby, **bots** ("Bot 1", in a muted colour with a **B**) join to make up the numbers. They are not members: they never vote, never count as being in the mini game and never show up in the room. They are only added or removed between runs, never during one, and they leave once enough real people have joined. When the last person leaves, the bots go too. Practice mode on the Personal Shelf uses the same bots.
+- **Bots.** Some games need more than one player (Sumo ledge and Quick draw need 2). If fewer people are in the lobby, **bots** ("Bot 1", in a muted colour with a **B**) join to make up the numbers. They are not members: they never vote, never count as being in the mini game and never show up in the room. They are only added or removed between runs, never during one, and they leave once enough real people have joined. When the last person leaves, the bots go too. Practice mode on the Personal Shelf uses the same bots.
 - **Playing together.** Any number of members can join. You can have the mini game open on up to 5 devices or tabs at once; you still count as one player.
 
 ## Ping and who works out what
@@ -49,7 +49,7 @@ In **Runner, Flappy, Dodge, Jump rope and Obstacle race**, your own player is wo
 - **The server** decides the shared things: the course's seed and exactly when a run starts (everyone's device lines its clock up with the server's, so everyone starts the same course at the same moment), who is still in, who won, the wins and the history. It shows everyone else's player from what their devices report.
 - **What you still see late:** other players. They are drawn where their device last said they were, so on a slow connection you see them a moment behind. It does not change what happens to you.
 - **If your device goes quiet** (a closed or frozen tab) for 3 seconds in a run, the server counts you out.
-- Players in these games never affect each other, which is why this is safe. Games where players race for the same thing (**Catch the coins**, **Red light, green light**) are still worked out by the server, so there ping matters; they will move over as their rules allow.
+- Players in these games never affect each other, which is why this is safe. **Catch the coins**, where players race for the same thing, is still worked out by the server, so there ping matters.
 
 ## Voting to spin
 
@@ -72,7 +72,6 @@ A game can instead make **the play space the controller**: there are no buttons 
 | Runner | **Space**, **↑** or **W** to jump (hold for a longer jump). Hold **↓** or **S** to duck. | Hold **Jump** (or press and hold the arena). Hold **Duck**. |
 | Flappy | **Space**, **↑** or **W** to flap. | **Flap**, or tap anywhere on the arena. |
 | Dodge | **←** / **→** or **A** / **D**. | The **◀** and **▶** buttons. |
-| Red light, green light | Hold **Space**, **→** or **D** to run. | Hold **Run** (or press and hold the arena). |
 | Catch the coins | **←** / **→** or **A** / **D**. | The **◀** and **▶** buttons. |
 | Battleships | Click a square (no keyboard control yet). | Tap a square on the board. |
 | Quick draw | Press **Space**, or click the big light. | Tap the big light. |
@@ -145,18 +144,6 @@ A top-down race on a scrolling track, everyone on the same course.
 - A **safe lane** drifts slowly from side to side, and no obstacle is ever made over it, so there is always a way through for someone who keeps up with it.
 - You steer at 0.6 of a screen per second and can't leave the track (the striped kerbs).
 
-## Red light, green light
-
-A race to the finish line, with a traffic light in charge. Needs at least 2 players, so on your own you race a bot.
-
-- **Goal:** be the first across the line. Everyone runs on the same open field, with no lanes and no separate windows.
-- **Hold the run button** to run while the light is green. Let go to stand still.
-- **The light** turns amber and flashes for about half a second before it goes red. Moving once it is red (after a quarter of a second to let a slow connection catch up) knocks you out. Green and red spells are random but the same for everyone.
-- **Winning:** the first runner to cross the line wins. This game ends the moment someone finishes, so unlike the others it is not only last one in. If nobody has finished after 45 seconds, whoever is furthest along wins; a tie for the lead is a draw.
-- **Distance** shown is how far the leader has run, out of 20 m.
-- It takes about 10 seconds of holding the button to cross the track, so a run is roughly 20 seconds.
-
-## Catch the coins
 
 Coins fall; slide left and right to catch them before anyone else does.
 
@@ -283,7 +270,7 @@ One board for everyone, with everyone's ships hidden on it. Last fleet afloat wi
 
 Anything a game decides at random and players are not meant to know is a secret, and a secret must not be guessable.
 
-- **Seeds come from a cryptographic source, never `Math.random`.** Every game builds its course from a seed. `Math.random` in Node can be worked out from a few of its outputs, and the seeds of the client-run games (Runner, Flappy, Dodge, Jump rope) are sent to every player. Someone collecting those could predict a later round: where Battleships ships are, when Red light, green light turns red, which coins fall next. The same goes for the pick of the next game and the bots' choices.
+- **Seeds come from a cryptographic source, never `Math.random`.** Every game builds its course from a seed. `Math.random` in Node can be worked out from a few of its outputs, and the seeds of the client-run games (Runner, Flappy, Dodge, Jump rope) are sent to every player. Someone collecting those could predict a later round: where Battleships ships are, which coins fall next. The same goes for the pick of the next game and the bots' choices.
 - **A seed that is sent to players is public.** Never use it, or anything worked out from it, for something hidden. A game with hidden state keeps its own seed on the server and never puts it in a snapshot.
 - **Hidden things stay on the server.** Ship positions, light timings and upcoming items are never in a snapshot (except to their owner, for ships), and must not be derivable from one.
 - **Tests inject the random source** (`seedSource`), so they stay repeatable. Do not make the default `Math.random` to save a line.
@@ -296,7 +283,7 @@ Scrolling games (Runner, Flappy, Dodge, Catch the coins, Obstacle race) all foll
 
 - **Everything on the course moves at the course's speed.** Obstacles, pickups and the marks on the ground (the Runner's pale ticks and accent dashes, for example) all move by the same distance every second: the speed shown in the game's own description above, in screens per second. A ground mark must never look faster or slower than the obstacles it sits under.
 - **Only the faint dot grid in the background is slower**, at a quarter of the course speed, as distant parallax. It is drawn by the arena for every game; a game never adds its own.
-- **A game where nothing scrolls** (Jump rope, Red light, green light) reports a speed of 0, so the background stays still.
+- **A game where nothing scrolls** (Jump rope) reports a speed of 0, so the background stays still.
 - **How it is kept true in code:** repeating patterns on the course use the shared `courseOffset` helper, which wraps the distance the course has travelled by the pattern's own spacing. Never scale an offset that has already been worked out (`offset * 2`): that changes the pattern's speed. The helper has a test, and `web/src/lobbyGames/README.md` lists the check a new scrolling game needs before a pull request.
 
 (The Runner's accent dashes used to move at twice the course speed because of exactly that mistake.)

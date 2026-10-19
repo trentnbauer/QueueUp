@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from 'vitest';
-import { BattleshipsGame, LOBBY_GAME_IDS, RedLightGame, RunnerGame, createLobbyGame } from '@queueup/shared';
+import { BattleshipsGame, CoinsGame, LOBBY_GAME_IDS, RunnerGame, createLobbyGame } from '@queueup/shared';
 import { SpinLobby } from './spinLobby.js';
 
 const snapshot = () => ({ id: 'runner' as const, phase: 'lobby' as const, run: 1, history: [], best: null, meters: 0, speed: 0.5, obstacles: [], players: [], timerMs: 0, winnerId: null });
@@ -133,7 +133,7 @@ describe('SpinLobby and its game', () => {
 
 describe('SpinLobby with bots', () => {
   it('fills a game that needs two players with a bot that is not a member and cannot vote', () => {
-    const lobby = new SpinLobby(createLobbyGame('redlight'));
+    const lobby = new SpinLobby(createLobbyGame('sumo'));
     lobby.join('a');
     const game = lobby.snapshot(true).game;
     expect(game.players.map((p) => p.id)).toEqual(['a', 'bot:1']);
@@ -284,7 +284,7 @@ describe('SpinLobby with a game that runs each player on their own device', () =
     const lobby = new SpinLobby(new RunnerGame(() => 0.3));
     lobby.join('a');
     expect(lobby.snapshot(false).sim).toBeUndefined();
-    const other = new SpinLobby(new RedLightGame(() => 0.3));
+    const other = new SpinLobby(new CoinsGame(() => 0.3));
     other.join('a');
     expect(other.snapshot(false, 1000).sim).toBeUndefined();
     expect(other.snapshot(false, 1000).clock).toBeUndefined();
