@@ -36,6 +36,7 @@ export const MINIGAME_SCORE_MAX: Record<LobbyGameId, number> = {
   wall: 100000,
   frogger: 20000,
   fishing: 200,
+  orbit: 3600, // seconds lasted
 };
 
 /** Each game's rules version. A score is saved with the version it was played under, and the high score lists show only the
@@ -71,6 +72,7 @@ export const MINIGAME_VERSIONS: Record<LobbyGameId, number> = {
   wall: 1,
   frogger: 1,
   fishing: 1,
+  orbit: 1,
 };
 export const miniGameVersion = (game: LobbyGameId): number => MINIGAME_VERSIONS[game];
 
@@ -275,6 +277,7 @@ export const MINIGAME_NAMES: Record<LobbyGameId, string> = {
   wall: 'Wall ball',
   frogger: 'Road hop',
   fishing: 'Fishing',
+  orbit: 'Orbit',
 };
 
 /** Whether score `a` is better than score `b` in the game (a smaller time is better; otherwise bigger is). Equal is not better. */
