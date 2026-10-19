@@ -108,7 +108,7 @@ describe('SpinLobby and its game', () => {
     lobby.tap('a', 8);
     lobby.tap('a', 63);
     expect(game.tap).toHaveBeenCalledTimes(3);
-    expect(game.tap).toHaveBeenCalledWith('a', 8);
+    expect(game.tap).toHaveBeenCalledWith('a', 8, undefined);
     // Not a target index: dropped.
     for (const bad of [-1, 128, 1.5, Number.NaN, Infinity, '3', null, undefined, {}, [1]]) lobby.tap('a', bad);
     lobby.tap('stranger', 1);
