@@ -6,7 +6,7 @@ const FRAME = 1000 / 60;
 
 /** A practice lobby and a device's own copy of the run, the way ClientSim plays one: the device starts the run from the seed and start
  * time the server sends, steps in fixed steps, and sends each press with when in its run it was made, `latency` ms before it arrives. */
-function play(game: LobbyGameId, seed: number, latency: number, press: (copy: LobbyGame, me: string) => { input?: [number, number]; action?: string } | null, seconds: number) {
+function play(game: LobbyGameId, seed: number, latency: number, press: (copy: LobbyGame, me: string) => { input?: [number, number]; action?: string; tap?: number } | null, seconds: number) {
   let s = seed;
   const rng = () => (s = (s * 16807) % 2147483647) / 2147483647;
   const lobby = new SpinLobby(createLobbyGame(game), undefined, undefined, true);
@@ -37,6 +37,12 @@ function play(game: LobbyGameId, seed: number, latency: number, press: (copy: Lo
         copy.input('me', dx, dy);
         const msg = { run: seen.run, at: copy.runMs ?? 0 };
         inbox.push({ at: t + latency, send: () => lobby.setInput('me', dx, dy, msg.run, msg.at) });
+      }
+      if (want?.tap !== undefined) {
+        const target = want.tap;
+        copy.tap?.('me', target);
+        const msg = { run: seen.run, at: copy.runMs ?? 0 };
+        inbox.push({ at: t + latency, send: () => lobby.tap('me', target, undefined, msg.run, msg.at) });
       }
       if (want?.action) {
         const name = want.action;
@@ -101,6 +107,33 @@ describe('a practice lobby runs behind the device and applies each press when th
   it('applies a press that arrives later than the delay straight away rather than losing it', () => {
     const { copy } = play('fishing', 3, SOLO_DELAY_MS + 400, () => ({ input: [0, -1] }), 5);
     expect(copy.snapshot()).toMatchObject({ id: 'fishing' });
+  });
+});
+
+describe('taps in a practice run of a game the device also works out', () => {
+  it('are applied when the device made them, so the server never ends a run the screen did not (Rhythm lanes)', () => {
+    for (const latency of [0, 80, 200]) {
+      const tapped = new Set<number>();
+      const { log } = play(
+        'rhythm',
+        3,
+        latency,
+        (c) => {
+          const s = c.snapshot() as { notes: { n: number; lane: number; inMs: number }[]; players: { done: number[] }[] };
+          // Taps each note as it reaches the line.
+          for (const note of s.notes) {
+            if (tapped.has(note.n) || note.inMs > 20) continue;
+            tapped.add(note.n);
+            return { tap: note.lane };
+          }
+          return null;
+        },
+        25,
+      );
+      const firstLocalOut = log.findIndex((l) => !l.local);
+      const earlyServerOut = log.findIndex((l, i) => !l.server && (firstLocalOut === -1 || i < firstLocalOut - 3) && l.t > 3500);
+      expect(earlyServerOut, `latency ${latency}: the server knocked the player out before the device did`).toBe(-1);
+    }
   });
 });
 

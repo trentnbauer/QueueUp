@@ -146,6 +146,10 @@ export abstract class RoundGame<P extends RoundPlayer> implements LobbyGame {
     this.dueAt(run, at, () => this.action(userId, name));
   }
 
+  tapAt(userId: string, run: number, at: number, target: number): void {
+    this.dueAt(run, at, () => this.tap(userId, target));
+  }
+
   /** Applies a press now if its moment has come (or it makes no sense to wait), otherwise when the run reaches it. */
   private dueAt(run: number, at: number, apply: () => void): void {
     if (run !== this.record.run) return;

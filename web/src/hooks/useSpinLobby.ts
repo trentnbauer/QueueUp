@@ -114,7 +114,8 @@ export function useSpinLobby(path: string | undefined, enabled: boolean, me: str
     // The local copy takes the input when the game runs here; otherwise the server does.
     sendInput: useCallback((dx: number, dy: number) => (simRef.current?.input(dx, dy) ? undefined : send({ t: 'input', dx, dy, ...simRef.current?.stamp() })), [send]),
     sendAction: useCallback((name: string) => (simRef.current?.action(name) ? undefined : send({ t: 'action', name, ...simRef.current?.stamp() })), [send]),
-    sendTap: useCallback((target: number, ms?: number) => send({ t: 'tap', target, ms }), [send]),
+    // A game the device works out takes the tap on its own copy; otherwise the server does (with the moment of the run, in a practice run).
+    sendTap: useCallback((target: number, ms?: number) => (simRef.current?.tap(target) ? undefined : send({ t: 'tap', target, ms, ...simRef.current?.stamp() })), [send]),
     vote: useCallback((on: boolean) => send({ t: 'vote', on }), [send]),
     setTimeLimit: useCallback((on: boolean) => send({ t: 'timeLimit', on }), [send]),
   };

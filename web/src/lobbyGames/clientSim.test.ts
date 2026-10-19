@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { RUNNER_X, CoinsGame, RunnerGame, type LobbyClientMessage, type LobbyGame, type LobbySnapshot, type RunnerSnapshot } from '@queueup/shared';
+import { RUNNER_X, CoinsGame, DrawGame, RhythmGame, RunnerGame, type LobbyClientMessage, type LobbyGame, type LobbySnapshot, type RunnerSnapshot } from '@queueup/shared';
 import { ClientSim, ClockSync } from './clientSim';
 
 const SERVER_EPOCH = 1_700_000_000_000;
@@ -84,6 +84,42 @@ describe('ClientSim when the server runs the player (a practice lobby)', () => {
     expect(snap.game.phase).toBe('playing');
     expect(snap.game.speed).toBeGreaterThan(0.45);
     expect(sent.filter((m) => m.t === 'report')).toEqual([]);
+  });
+});
+
+describe('ClientSim taps', () => {
+  it('takes a tap on its own copy of a game the device works out, in a room, and sends nothing to the server for it', () => {
+    const server = serverSide(new RhythmGame(() => 0.3));
+    const { sim, sent } = client();
+    sim.onState(server.snapshot(0));
+    sim.frame(3600); // the run has started here
+    expect(sim.tap(2)).toBe(true);
+    // The tap was judged on the copy: with no note near, it cost a life there.
+    const mine = (sim.frame(3600)?.game as unknown as { players: { id: string; lives: number }[] }).players.find((p) => p.id === 'me');
+    expect(mine?.lives).toBe(2);
+    expect(sent.filter((m) => m.t === 'tap')).toEqual([]);
+    expect(sim.stamp()).toBeUndefined();
+  });
+
+  it('is left for the server in a practice run, with the moment of the run to send along with it', () => {
+    const clock = new ClockSync();
+    clock.sample(0, 20, SERVER_EPOCH + 10);
+    const sim = new ClientSim('me', clock, () => {}, true);
+    const server = serverSide(new RhythmGame(() => 0.3));
+    sim.onState(server.snapshot(0));
+    sim.frame(3600);
+    expect(sim.tap(1)).toBe(false);
+    const stamp = sim.stamp();
+    expect(stamp).toMatchObject({ run: 1 });
+    expect(stamp!.at).toBeGreaterThan(0);
+  });
+
+  it('is left for the server for a game the device does not work out (Quick draw)', () => {
+    const server = serverSide(new DrawGame(() => 0.3), ['me', 'other']);
+    const { sim } = client();
+    sim.onState(server.snapshot(0));
+    expect(sim.tap(0)).toBe(false);
+    expect(sim.stamp()).toBeUndefined();
   });
 });
 
