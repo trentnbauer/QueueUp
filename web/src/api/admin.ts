@@ -1,6 +1,6 @@
 import { apiGet, apiPost, apiPatch, apiDelete } from './client';
 import { getBasePath } from '../utils/basePath';
-import type { AdminBackupInfo, AdminBackupsResponse, AdminBackupSettings, RestoreBackupResponse, RestoreSessionKeyCode, UpdateBackupSettingsRequest, AdminIntegrationStatus, AdminRoomDetail, AdminRoomSummary, AdminUserSummary, AdminEmailLogEntry, DeletedRoomSummary, IntegrationConfigKey, TunnelStatus } from '@queueup/shared';
+import type { AdminMiniGameRatingsResponse, AdminBackupInfo, AdminBackupsResponse, AdminBackupSettings, RestoreBackupResponse, RestoreSessionKeyCode, UpdateBackupSettingsRequest, AdminIntegrationStatus, AdminRoomDetail, AdminRoomSummary, AdminUserSummary, AdminEmailLogEntry, DeletedRoomSummary, IntegrationConfigKey, TunnelStatus } from '@queueup/shared';
 
 /** Options for a restore or import whose backup holds encrypted keys made with another session key. */
 export interface RestoreOptions {
@@ -43,6 +43,7 @@ export const adminApi = {
   restoreBackup: (name: string, opts: RestoreOptions = {}) => sendRestore(`/api/admin/backups/${encodeURIComponent(name)}/restore`, opts),
   importBackup: (file: File, opts: RestoreOptions = {}) => sendRestore('/api/admin/backups/import', opts, file),
   overview: () => apiGet<{ status: AdminIntegrationStatus; tunnel: TunnelStatus }>('/api/admin/overview'),
+  miniGameRatings: () => apiGet<AdminMiniGameRatingsResponse>('/api/admin/minigame-ratings'),
   emailLog: () => apiGet<{ entries: AdminEmailLogEntry[] }>('/api/admin/email-log'),
   users: () => apiGet<{ users: AdminUserSummary[] }>('/api/admin/users'),
   setUserRole: (id: string, role: 'user' | 'admin' | 'super_admin') =>

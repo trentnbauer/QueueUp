@@ -2,7 +2,7 @@ import { describe, expect, it, vi } from 'vitest';
 import Fastify from 'fastify';
 import { HttpError } from '../util/httpError.js';
 
-const h = vi.hoisted(() => ({ record: vi.fn(async () => {}), board: vi.fn(async () => ({ rows: [] })), me: vi.fn(async () => ({})), bests: vi.fn(async () => ({ bests: { runner: 5 } })) }));
+const h = vi.hoisted(() => ({ rate: vi.fn(async () => {}), mine: vi.fn(async () => ({ ratings: { runner: 1 } })), record: vi.fn(async () => {}), board: vi.fn(async () => ({ rows: [] })), me: vi.fn(async () => ({})), bests: vi.fn(async () => ({ bests: { runner: 5 } })) }));
 
 vi.mock('../services/miniGameScores.js', () => ({
   isLobbyGameId: (v: unknown) => typeof v === 'string' && ['runner', 'coins'].includes(v),
@@ -11,6 +11,12 @@ vi.mock('../services/miniGameScores.js', () => ({
   leaderboard: h.board,
   myScores: h.me,
   myBests: h.bests,
+}));
+
+vi.mock('../services/miniGameRatings.js', () => ({
+  isRatingValue: (v: unknown) => v === 1 || v === -1,
+  setRating: h.rate,
+  myRatings: h.mine,
 }));
 
 import miniGameRoutes from './miniGames.js';
@@ -65,6 +71,27 @@ describe('mini game score routes', () => {
     expect((await app.inject({ method: 'GET', url: '/api/minigames/scores?game=runner&period=year', headers })).statusCode).toBe(400);
     expect((await app.inject({ method: 'GET', url: '/api/minigames/scores?game=runner&scope=server&period=week', headers })).statusCode).toBe(200);
     expect(h.board).toHaveBeenCalledWith('u1', 'runner', 'server', 'week');
+    await app.close();
+  });
+});
+
+describe('mini game rating routes', () => {
+  it('saves a thumbs up or down for the signed-in person and reads their ratings back', async () => {
+    const app = await build();
+    const headers = { 'x-test-user': 'u1' };
+    expect((await app.inject({ method: 'PUT', url: '/api/minigames/rating', headers, payload: { game: 'runner', rating: -1 } })).statusCode).toBe(204);
+    expect(h.rate).toHaveBeenCalledWith('u1', 'runner', -1);
+    const res = await app.inject({ method: 'GET', url: '/api/minigames/ratings', headers });
+    expect(res.json()).toEqual({ ratings: { runner: 1 } });
+    await app.close();
+  });
+
+  it('refuses an unknown game, a rating that is not 1 or -1, and a signed-out request', async () => {
+    const app = await build();
+    const headers = { 'x-test-user': 'u1' };
+    expect((await app.inject({ method: 'PUT', url: '/api/minigames/rating', headers, payload: { game: 'nope', rating: 1 } })).statusCode).toBe(400);
+    expect((await app.inject({ method: 'PUT', url: '/api/minigames/rating', headers, payload: { game: 'runner', rating: 5 } })).statusCode).toBe(400);
+    expect((await app.inject({ method: 'PUT', url: '/api/minigames/rating', payload: { game: 'runner', rating: 1 } })).statusCode).toBe(401);
     await app.close();
   });
 });

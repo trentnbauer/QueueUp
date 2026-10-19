@@ -150,3 +150,33 @@ export function rankScores(scores: number[]): number[] {
   scores.forEach((s, i) => ranks.push(i > 0 && s === scores[i - 1] ? ranks[i - 1] : i + 1));
   return ranks;
 }
+
+/** A thumbs up (1) or thumbs down (-1) for a mini game. */
+export type MiniGameRatingValue = 1 | -1;
+
+export interface SetMiniGameRatingRequest {
+  game: LobbyGameId;
+  rating: MiniGameRatingValue;
+}
+
+/** The viewer's own rating for each game they have rated. */
+export interface MiniGameRatingsResponse {
+  ratings: Partial<Record<LobbyGameId, MiniGameRatingValue>>;
+}
+
+/** One game's ratings, as counts (never who voted), for the administrator page. */
+export interface AdminMiniGameRating {
+  game: LobbyGameId;
+  up: number;
+  down: number;
+  total: number;
+  /** Thumbs up as a share of all ratings, 0 to 1; null when nobody has rated it. */
+  upShare: number | null;
+  /** The same counts for ratings given or changed in the last 7 days, so a new game is not drowned by an old one's history. */
+  upWeek: number;
+  downWeek: number;
+}
+
+export interface AdminMiniGameRatingsResponse {
+  games: AdminMiniGameRating[];
+}
