@@ -107,6 +107,8 @@ function drawCountdown(sc: Scene): void {
   ctx.restore();
 }
 
+/** How much taller the result card is than its text, as a fraction of the arena: room for the rating thumbs the lobby panel lays over it. */
+export const RESULT_RATING_STRIP = 0.12;
 function drawResult(sc: Scene): void {
   const { ctx, S, theme, snapshot, t } = sc;
   const progress = Math.min(1, (RESULT_MS - snapshot.timerMs) / 350);
@@ -121,7 +123,8 @@ function drawResult(sc: Scene): void {
   ctx.globalAlpha = ease;
   const w = S * 0.66;
   const h = S * 0.4;
-  roundRect(ctx, -w / 2, -h / 2, w, h, S * 0.05);
+  // The card is taller than its text by a strip along the bottom, where the panel puts the thumbs (see RatingBar).
+  roundRect(ctx, -w / 2, -h / 2, w, h + S * RESULT_RATING_STRIP, S * 0.05);
   ctx.fillStyle = 'oklch(0.21 0.009 55 / 0.94)';
   ctx.fill();
   ctx.strokeStyle = STAGE.hudStroke;
