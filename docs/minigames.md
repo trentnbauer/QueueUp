@@ -122,6 +122,17 @@ A bomb with a lit fuse goes round the ring. Needs at least 2 players, so on your
 - **Bots** hold the bomb for between half a second and two seconds and then throw it, so they are beatable.
 - **Controls:** one button: **Space**, **↑** or **W**, or tap anywhere on the arena.
 
+## Anagram
+
+One scrambled word, the same for everyone. Tap the tiles to spell it; the first to spell it scores.
+
+- **Goal:** the most points in 60 seconds. A word of 5 or 6 letters is shown scrambled. Tap the tiles in the order that spells it; a tile you have used is dimmed, and **⌫** takes your last pick back. When you have used every tile the word is checked: right, and you score; wrong, and your picks are cleared so you can try again.
+- **Any word made of the same letters counts** if it is in the game's word list (HEART or EARTH), not only the one the game had in mind.
+- **Only the first to solve a word scores** (5 points, plus up to 5 more for how much of the 14 seconds was left). Then the answer is shown for a moment, with who got it, and a new word starts. A word nobody solves in 14 seconds is shown and the next begins.
+- **What others see of you:** only your points and how many tiles you have picked, never which. The answer stays on the server until the word is over.
+- **Nobody is knocked out.** When the time is up, the most points wins; a tie for the most, or scoring nothing, is a draw. Alone, it is a high-score round: no winner, just your points.
+- **Controls:** the tiles are the controller, so tap or click them, or press **1-6** (left to right) to pick a tile and **Backspace** to take one back.
+
 ## Rating a game
 
 When a run ends and its result card is showing, a **thumbs up / thumbs down** appears under the arena (in a room's lobby, a spin's waiting room, an open lobby and solo practice alike).
@@ -175,6 +186,7 @@ A game can instead make **the play space the controller**: there are no buttons 
 | Laser gaps | **←** / **→** or **A** / **D**. | The **◀** and **▶** buttons. |
 | Color match | Click a panel, or press **1-4** (top left, top right, bottom left, bottom right). | Tap a panel. |
 | Hot potato | **Space**, **↑** or **W** to pass. | **Pass**, or tap anywhere on the arena. |
+| Anagram | Click a tile, or press **1-6** to pick one and **Backspace** to take it back. | Tap a tile (⌫ takes one back). |
 
 ## Runner
 

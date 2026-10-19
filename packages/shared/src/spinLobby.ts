@@ -11,8 +11,8 @@
 export const LOBBY_TICK_HZ = 15;
 
 /** The games the lobby can run. */
-export type LobbyGameId = 'runner' | 'flappy' | 'dodge' | 'rope' | 'coins' | 'battleships' | 'race' | 'whack' | 'draw' | 'tilt' | 'stacker' | 'sumo' | 'asteroids' | 'memory' | 'words' | 'lava' | 'snake' | 'gravity' | 'laser' | 'colormatch' | 'potato';
-export const LOBBY_GAME_IDS: readonly LobbyGameId[] = ['runner', 'flappy', 'dodge', 'rope', 'coins', 'battleships', 'race', 'whack', 'draw', 'tilt', 'stacker', 'sumo', 'asteroids', 'memory', 'words', 'lava', 'snake', 'gravity', 'laser', 'colormatch', 'potato'];
+export type LobbyGameId = 'runner' | 'flappy' | 'dodge' | 'rope' | 'coins' | 'battleships' | 'race' | 'whack' | 'draw' | 'tilt' | 'stacker' | 'sumo' | 'asteroids' | 'memory' | 'words' | 'lava' | 'snake' | 'gravity' | 'laser' | 'colormatch' | 'potato' | 'anagram';
+export const LOBBY_GAME_IDS: readonly LobbyGameId[] = ['runner', 'flappy', 'dodge', 'rope', 'coins', 'battleships', 'race', 'whack', 'draw', 'tilt', 'stacker', 'sumo', 'asteroids', 'memory', 'words', 'lava', 'snake', 'gravity', 'laser', 'colormatch', 'potato', 'anagram'];
 
 /** What a client sends. Anything else is ignored. */
 export type LobbyClientMessage =
@@ -1129,8 +1129,65 @@ export interface PotatoSnapshot extends RoundSummary {
   winnerId: string | null;
 }
 
+// ---- Anagram (one scrambled word; tap the tiles to spell it; first to spell it scores) ------------
+
+/** The longest word is this many letters, so tiles are tap targets 0 to 5 and the take-back key is the next one. */
+export const ANAGRAM_MAX_LETTERS = 6;
+export const ANAGRAM_BACKSPACE = ANAGRAM_MAX_LETTERS;
+export const ANAGRAM_TARGETS = ANAGRAM_MAX_LETTERS + 1;
+
+/** Where a word is: being solved, or the pause that shows the answer before the next one. */
+export type AnagramStage = 'play' | 'between';
+
+/** What only the viewer sees: which tiles they have picked, in order. */
+export interface AnagramMine {
+  picked: number[];
+}
+
+export interface AnagramPlayer {
+  id: string;
+  /** Playing this round. False if they arrived mid-round (they watch and play from the next one). */
+  alive: boolean;
+  /** Rounds won since this person joined the lobby. */
+  wins: number;
+  /** Points this round. */
+  meters: number;
+  /** How many tiles they have picked (never which). */
+  filled: number;
+}
+
+export interface AnagramSnapshot extends RoundSummary {
+  id: 'anagram';
+  phase: LobbyRoundPhase;
+  /** The most points anyone has so far. */
+  meters: number;
+  /** Always 0: nothing scrolls past in this game (every snapshot carries a course speed). */
+  speed: number;
+  /** Milliseconds left in the round while `playing`. */
+  roundLeftMs: number;
+  stage: AnagramStage;
+  /** Which word this is (counts up from 1 each round); 0 before the first. */
+  wordNo: number;
+  /** The scrambled letters, the same for everyone. */
+  letters: string;
+  /** Milliseconds this word has left (`play` only), and how long it gets in all. */
+  wordLeftMs: number;
+  wordTotalMs: number;
+  /** The answer, once the word is over (`between` only); null while it can still be solved. */
+  answer: string | null;
+  /** Who solved the word that just ended (`between` only); null if nobody did. */
+  solvedBy: string | null;
+  /** The viewer's own picks; null for a spectator or someone who is only watching. */
+  mine: AnagramMine | null;
+  players: AnagramPlayer[];
+  /** Milliseconds left in `countdown` or `over`; 0 otherwise. */
+  timerMs: number;
+  /** Who won the round that just ended (`over` only); null when nobody did (a solo round, or a tie). */
+  winnerId: string | null;
+}
+
 /** The snapshot of whichever game is running. */
-export type LobbyGameSnapshot = RunnerSnapshot | FlappySnapshot | DodgeSnapshot | RopeSnapshot | CoinsSnapshot | BattleshipsSnapshot | RaceSnapshot | WhackSnapshot | DrawSnapshot | TiltSnapshot | StackerSnapshot | SumoSnapshot | AsteroidsSnapshot | MemorySnapshot | WordsSnapshot | LavaSnapshot | SnakeSnapshot | GravitySnapshot | LaserSnapshot | ColorMatchSnapshot | PotatoSnapshot;
+export type LobbyGameSnapshot = RunnerSnapshot | FlappySnapshot | DodgeSnapshot | RopeSnapshot | CoinsSnapshot | BattleshipsSnapshot | RaceSnapshot | WhackSnapshot | DrawSnapshot | TiltSnapshot | StackerSnapshot | SumoSnapshot | AsteroidsSnapshot | MemorySnapshot | WordsSnapshot | LavaSnapshot | SnakeSnapshot | GravitySnapshot | LaserSnapshot | ColorMatchSnapshot | PotatoSnapshot | AnagramSnapshot;
 
 /** What a client needs to run its own player on a course the server decided: which run, the seed that
  * makes the course, and how long until the run starts (negative once it has, by how far in). */
