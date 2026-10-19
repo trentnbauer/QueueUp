@@ -1,5 +1,14 @@
 import { LOBBY_ACTION_NAME_MAX, LOBBY_TAP_TARGETS_MAX, LOBBY_GAME_IDS, LobbyRecord, createLobbyGame, lobbyVotesNeeded, pickLobbyGame, type LobbyGame, type LobbyGameId, type LobbyRunScore, type LobbySnapshot } from '@queueup/shared';
 
+/** How far behind its player's device a practice lobby runs a game that the device also works out. The device sends each press with the
+ * moment of the run it happened at; the server runs this much later than the device, so the press has arrived before the server needs it
+ * and applies it at exactly that moment. Both then play the same run, so what the player saw is what is scored (a press that took
+ * 100 ms to arrive used to land the server's player somewhere else and knock them out for something the screen never showed). A
+ * press that takes longer than this to arrive is applied late. */
+export const SOLO_DELAY_MS = 300;
+/** The server's steps in a delayed practice run are these, the same as the device's, so the two work out the same run. */
+const STEP_MS = 1000 / 60;
+
 /** One room's live lobby: who is in it, who has voted to spin, and the mini game they are playing.
  * Pure state and rules - no sockets or timers (see spinLobbyHub.ts), so it is easy to test. A member
  * with several tabs open counts once: `join`/`leave` are reference-counted per person, and the game
@@ -18,6 +27,8 @@ export class SpinLobby {
   private readonly rotates: boolean;
   /** The cap on a run in seconds (a spin's waiting room sets one), or null. Every game the lobby plays gets it. */
   private timeLimitS: number | null = null;
+  /** Time that has gone by that a delayed practice game has not been given yet (see SOLO_DELAY_MS). */
+  private owed = 0;
 
   /** `onScores` hears each finished run's scores, whichever game it was (for high scores), and whether the
    * server can vouch for them: false when the game worked out each player on their own device (see `trusts`). */
@@ -110,14 +121,24 @@ export class SpinLobby {
     this.record.forget(userId);
   }
 
-  setInput(userId: string, dx: unknown, dy: unknown): void {
-    if (!this.connections.has(userId)) return;
-    this.game.input(userId, dx === 1 || dx === -1 ? dx : 0, dy === 1 || dy === -1 ? dy : 0);
+  /** Whether this lobby runs its game a little behind the person's device (a practice run of a game the device also works out). */
+  private get delayed(): boolean {
+    return this.solo && !!this.game.clientSim;
   }
 
-  action(userId: string, name: unknown): void {
+  /** `run` and `at` say when on the device's copy of the run the press was made (see SOLO_DELAY_MS); without them it is applied at once. */
+  setInput(userId: string, dx: unknown, dy: unknown, run?: unknown, at?: unknown): void {
+    if (!this.connections.has(userId)) return;
+    const x = dx === 1 || dx === -1 ? dx : 0;
+    const y = dy === 1 || dy === -1 ? dy : 0;
+    if (this.delayed && this.game.inputAt && typeof run === 'number' && Number.isInteger(run) && typeof at === 'number' && Number.isFinite(at)) this.game.inputAt(userId, run, at, x, y);
+    else this.game.input(userId, x, y);
+  }
+
+  action(userId: string, name: unknown, run?: unknown, at?: unknown): void {
     if (!this.connections.has(userId) || typeof name !== 'string' || name.length > LOBBY_ACTION_NAME_MAX) return;
-    this.game.action(userId, name);
+    if (this.delayed && this.game.actionAt && typeof run === 'number' && Number.isInteger(run) && typeof at === 'number' && Number.isFinite(at)) this.game.actionAt(userId, run, at, name);
+    else this.game.action(userId, name);
   }
 
   /** A person's report of their own player, for a game that runs each player on their own device. The
@@ -157,7 +178,17 @@ export class SpinLobby {
 
   tick(dtMs: number): void {
     this.tickCount++;
-    this.game.tick(dtMs);
+    if (!this.delayed) {
+      this.owed = 0;
+      this.game.tick(dtMs);
+      return;
+    }
+    // Keep SOLO_DELAY_MS of time back, and hand the rest over in the device's own steps.
+    this.owed += Math.min(dtMs, 250);
+    while (this.owed >= SOLO_DELAY_MS + STEP_MS) {
+      this.game.tick(STEP_MS);
+      this.owed -= STEP_MS;
+    }
   }
 
   /** What `viewer` is sent (a game with hidden things shows each person their own; most are the same for
@@ -167,7 +198,8 @@ export class SpinLobby {
     const snapshot: LobbySnapshot = { t: 'state', tick: this.tickCount, game: this.game.snapshot(viewer), voters: [...this.votes], needed: this.needed, spinWaiting };
     const sim = this.game.simStart?.();
     if (sim && now !== undefined) {
-      snapshot.sim = sim;
+      // The game here is SOLO_DELAY_MS behind, so the device starts that much before it does.
+      snapshot.sim = this.delayed ? { ...sim, startInMs: sim.startInMs - SOLO_DELAY_MS } : sim;
       snapshot.clock = now;
     }
     return snapshot;

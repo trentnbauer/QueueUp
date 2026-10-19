@@ -16,10 +16,12 @@ export const LOBBY_GAME_IDS: readonly LobbyGameId[] = ['runner', 'flappy', 'dodg
 
 /** What a client sends. Anything else is ignored. */
 export type LobbyClientMessage =
-  /** The direction the person is holding, each -1, 0 or 1. Sent only when it changes. */
-  | { t: 'input'; dx: number; dy: number }
-  /** A one-off move the current game understands, such as `punch`. */
-  | { t: 'action'; name: string }
+  /** The direction the person is holding, each -1, 0 or 1. Sent only when it changes. In a practice run of a game their own device
+   * also works out, `run` and `at` say which run and how far into it (ms, on the device's copy) the press happened, so the server can
+   * apply it at that same moment instead of whenever it arrives (see `SpinLobby`'s practice delay). */
+  | { t: 'input'; dx: number; dy: number; run?: number; at?: number }
+  /** A one-off move the current game understands, such as `punch`. `run` and `at` as for `input`. */
+  | { t: 'action'; name: string; run?: number; at?: number }
   /** The person tapped one of the game's tap targets on the arena (see `LOBBY_TAP_TARGETS_MAX`). `target`
    * is the target's index, never a position, so a client cannot claim a tap no target would give. */
   | { t: 'tap'; target: number; /** The person's own reaction time in ms, measured on their device (Quick draw only). */ ms?: number }

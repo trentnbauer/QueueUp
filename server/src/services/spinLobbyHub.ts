@@ -207,14 +207,14 @@ export class SpinLobbyHub {
     if (!msg || typeof msg !== 'object') return;
     const m = msg as Record<string, unknown>;
     if (m.t === 'input') {
-      room.lobby.setInput(userId, m.dx, m.dy);
+      room.lobby.setInput(userId, m.dx, m.dy, m.run, m.at);
       // A changed direction is activity; a repeat of the same one is not. Holding a direction sends
       // nothing more, so a held one keeps counting (see `dropIdle`).
       const dir = `${m.dx === 1 || m.dx === -1 ? m.dx : 0},${m.dy === 1 || m.dy === -1 ? m.dy : 0}`;
       if (room.lastInput.get(userId) !== dir) this.touch(room, userId, now);
       room.lastInput.set(userId, dir);
     } else if (m.t === 'action') {
-      room.lobby.action(userId, m.name);
+      room.lobby.action(userId, m.name, m.run, m.at);
       this.touch(room, userId, now);
     } else if (m.t === 'tap') {
       room.lobby.tap(userId, m.target, m.ms);

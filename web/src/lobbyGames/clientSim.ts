@@ -122,6 +122,14 @@ export class ClientSim {
     return !this.serverRuns;
   }
 
+  /** For a practice run (the server also works the player out): where in the run this device's copy is, and which run, to send with a press
+   * so the server applies it at that same moment. Read right after `input` or `action`, before the copy moves on. Undefined when the
+   * copy is not running. */
+  stamp(): { run: number; at: number } | undefined {
+    if (!this.serverRuns || !this.running || !this.pending || this.local?.runMs === undefined) return undefined;
+    return { run: this.pending.run, at: this.local.runMs };
+  }
+
   /** A one-off move such as a jump. True if the copy here took it, false if the server should be told. */
   action(name: string): boolean {
     if (!this.local || !this.pending) return false;

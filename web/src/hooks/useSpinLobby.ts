@@ -112,8 +112,8 @@ export function useSpinLobby(path: string | undefined, enabled: boolean, me: str
     /** The snapshot to draw at `now` (`performance.now()`): fresher than `snapshot` for a game that runs on the client. */
     frame: useCallback((now: number): LobbySnapshot | null => simRef.current?.frame(now) ?? null, []),
     // The local copy takes the input when the game runs here; otherwise the server does.
-    sendInput: useCallback((dx: number, dy: number) => (simRef.current?.input(dx, dy) ? undefined : send({ t: 'input', dx, dy })), [send]),
-    sendAction: useCallback((name: string) => (simRef.current?.action(name) ? undefined : send({ t: 'action', name })), [send]),
+    sendInput: useCallback((dx: number, dy: number) => (simRef.current?.input(dx, dy) ? undefined : send({ t: 'input', dx, dy, ...simRef.current?.stamp() })), [send]),
+    sendAction: useCallback((name: string) => (simRef.current?.action(name) ? undefined : send({ t: 'action', name, ...simRef.current?.stamp() })), [send]),
     sendTap: useCallback((target: number, ms?: number) => send({ t: 'tap', target, ms }), [send]),
     vote: useCallback((on: boolean) => send({ t: 'vote', on }), [send]),
   };
