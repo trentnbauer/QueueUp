@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { SNAKE_GRID } from '../spinLobby.js';
+import { SNAKE_GRID, type SnakeSnapshot } from '../spinLobby.js';
 import { BotFiller } from './bots.js';
 import { SnakeGame, snakeBrain } from './snake.js';
 
@@ -95,7 +95,7 @@ describe('SnakeGame', () => {
     expect(g.snapshot().players.map((p) => p.id)).toEqual(['me', 'bot:1']);
     run(g, 3200);
     run(g, 5000);
-    const bot = g.snapshot().players.find((p) => p.id === 'bot:1')!;
+    const bot = (g.snapshot() as SnakeSnapshot).players.find((p) => p.id === 'bot:1')!;
     expect(bot.cells.length === 0 ? !bot.alive : bot.alive).toBe(true);
   });
 
