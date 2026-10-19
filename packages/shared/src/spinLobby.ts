@@ -388,12 +388,11 @@ export const RACE_CAR_HEIGHT = 0.09;
 /** The kerb along each side of the track; drivers stay inside it. */
 export const RACE_KERB = 0.035;
 
-/** How wide a pit lane is: a strip along the inside of the kerb that slows any driver whose middle is in it. */
-export const RACE_PIT_WIDTH = 0.1;
-
-/** A stretch of pit lane: `side` is -1 (left) or 1 (right), `y` its top edge down from the top and `h` its length. */
+/** A stretch of pit lane: a strip of the track, from `x0` to `x1` across (fractions of the width, at the kerb, against it or
+ * anywhere between), that slows any driver whose middle is in it. `y` is its top edge down from the top and `h` its length. */
 export interface RacePit {
-  side: number;
+  x0: number;
+  x1: number;
   y: number;
   h: number;
   /** Which stretch this is (counts up from 1 each run); stays the same as it scrolls. */
