@@ -56,7 +56,7 @@ It plays a random game after every run (like the waiting room), or one game you 
 
 ## Ping and who works out what
 
-In **Runner, Flappy, Dodge, Jump rope, Obstacle race, Lava rise, Gravity flip, Laser gaps, Road hop, Fishing, Orbit, Rhythm lanes and Sort it**, your own player is worked out **on your own device**, so a slow connection does not make you jump late or get hit by something you cleared:
+In **Runner, Flappy, Dodge, Jump rope, Obstacle race, Lava rise, Gravity flip, Laser gaps, Road hop, Fishing, Orbit, Rhythm lanes, Sort it and Steady tempo**, your own player is worked out **on your own device**, so a slow connection does not make you jump late or get hit by something you cleared:
 
 - **Your device** runs your player against the course the moment you press: your jump, your duck, your slide, your steering. Your hits are decided there too, and it tells the server where you are about 20 times a second, and straight away when you are out.
 - **The server** decides the shared things: the course's seed and exactly when a run starts (everyone's device lines its clock up with the server's, so everyone starts the same course at the same moment), who is still in, who won, the wins and the history. It shows everyone else's player from what their devices report.
@@ -280,6 +280,18 @@ Sort what rides the belt into two bins by a rule that keeps changing. Everyone s
 - **Ping:** your own sorting is judged on your own device (see "Ping and who works out what"). Everyone's belt is the same, from the round's seed.
 - **Controls:** the two bins are the controller, so tap or click one, or press **←** / **→**.
 
+## Steady tempo
+
+Keep the beat going when it falls silent. Everyone has the same rounds, and never touches.
+
+- **A round:** four guide ticks play at the round's tempo (a ring flashes on each), then they **stop** and you keep tapping at the same tempo, anywhere on the arena or with **Space**, for a number of beats that **grows every round** (4 in the first, one more each round, up to 14). The tempo is different every round (about 80 to 150 beats a minute, going up).
+- **Scoring:** the beats you should be tapping are never shown. A tap within the round's margin of a beat is **1 point**, and **2** if it is within half of the margin. A tap further out than the margin (early or late), or **a beat that goes by with no tap near it, costs a life**; you have three, shown as hearts. Taps during the guide ticks, or between rounds, do nothing. Out of lives and your run is over. **Last one in wins**; alone it is a high score (points).
+- **The margin** is 0.15 seconds either side in the first round and narrows over six rounds to 0.05 seconds.
+- **Feedback:** a dot for each beat of the round, lit by how it went (green right on, yellow on it, red out or missed), and a gauge that shows how far from the beat your last tap was (left is early, right is late, the green part is the margin).
+- **Hard to pass 30 seconds:** a test player whose taps are about 0.04 seconds out lasts around 45 seconds, and one 0.06 seconds out about 30; at 0.09 it is about 20.
+- **Ping:** your own taps are judged on your own device against the beats (see "Ping and who works out what"), so your connection does not matter. Everyone's tempos are the same, from the round's seed, and only the guide ticks are ever sent, never the silent beats.
+- **Controls:** one target, the arena: tap or click anywhere, or press **Space**.
+
 ## Rating a game
 
 When a run ends and its result card is showing, a **thumbs up / thumbs down** appears in the result card (in a room's lobby, a spin's waiting room, an open lobby and solo practice alike).
@@ -343,6 +355,7 @@ A game can instead make **the play space the controller**: there are no buttons 
 | Rock paper scissors | Click a choice, or press **1-3** (rock, paper, scissors). | Tap a choice. |
 | Rhythm lanes | Press **D**, **F**, **J**, **K** (or click a lane). | Tap a lane. |
 | Sort it | Press **←** / **→** (or click a bin). | Tap a bin. |
+| Steady tempo | **Space** (or click anywhere). | Tap anywhere on the arena. |
 | Orbit | **Space**, **↑**, **←** / **→** or **W** / **A** / **D** to flip direction. | **Flip**, or tap anywhere on the arena. |
 
 ## Runner

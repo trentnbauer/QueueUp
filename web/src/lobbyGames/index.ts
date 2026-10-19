@@ -34,6 +34,7 @@ import { orbitView } from './orbit';
 import { rpsView } from './rps';
 import { rhythmView } from './rhythm';
 import { sortitView } from './sortit';
+import { tempoView } from './tempo';
 
 /** What a renderer is given each frame. */
 export interface LobbyDrawArgs<S extends LobbyGameSnapshot = LobbyGameSnapshot> {
@@ -126,6 +127,7 @@ export const LOBBY_GAME_VIEWS: { [K in LobbyGameId]: LobbyGameView<Extract<Lobby
   rps: rpsView,
   rhythm: rhythmView,
   sortit: sortitView,
+  tempo: tempoView,
 };
 
 /** The view for whichever game a snapshot belongs to. */
