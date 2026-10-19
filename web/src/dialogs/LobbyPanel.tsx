@@ -1,6 +1,5 @@
 import { useEffect, useMemo, useRef, type ReactNode } from 'react';
 import type { LobbyGameId, RoomMember } from '@queueup/shared';
-import { useLocalLobby } from '../hooks/useLocalLobby';
 import { useSpinLobby } from '../hooks/useSpinLobby';
 import { viewFor, type LobbyGameView } from '../lobbyGames';
 import { LobbyFx } from '../lobbyGames/kit';
@@ -13,7 +12,6 @@ import { VoteBar } from './lobby/VoteBar';
 import { WinChart } from './lobby/WinChart';
 import { HighScoresStrip } from './lobby/HighScoresStrip';
 import { RatingBar } from './lobby/RatingBar';
-import { useSubmitSoloScore } from '../hooks/useMiniGames';
 import { useIsMobile } from '../ui/useLayout';
 import { Dialog } from '../ui/Dialog';
 import { st } from '../ui/st';
@@ -44,9 +42,9 @@ export function LobbyPanel({
   onStarted,
   offlineFallback,
   readyUserIds,
-  practiceGame,
+  soloGame,
 }: {
-  /** The room to connect to. Not needed when `practiceGame` or `lobbyId` is set. */
+  /** The room to connect to. Not needed when `lobbyId` is set. */
   roomId?: string;
   /** An open lobby from the Mini games page, instead of a room's. */
   lobbyId?: string;
@@ -56,18 +54,16 @@ export function LobbyPanel({
   offlineFallback?: ReactNode;
   /** Members who are ready for a waiting spin, or undefined when opened on its own (no spin). */
   readyUserIds?: string[];
-  /** Run this game here, just for you, instead of connecting to a room (solo play on the Mini games page). */
-  practiceGame?: LobbyGameId;
+  /** This is a practice lobby for one person (`lobbyId` is their solo lobby): the high scores for this game take the place of the win chart. */
+  soloGame?: LobbyGameId;
 }) {
   const t = useT();
   const phone = useIsMobile();
-  // Either the room's live lobby over a WebSocket, or the same game run locally for practice.
+  // The live lobby over a WebSocket: a room's, or an open (or practice) lobby's. The server runs every game, including a
+  // practice one, so the scores it saves are the server's own and can be trusted.
   const livePath = roomId ? `/api/rooms/${encodeURIComponent(roomId)}/lobby` : lobbyId ? `/api/minigames/lobbies/${encodeURIComponent(lobbyId)}/lobby` : undefined;
-  const live = useSpinLobby(practiceGame ? undefined : livePath, !practiceGame, me, onStarted);
-  const submitScore = useSubmitSoloScore();
-  // A solo run's score goes on the high score list when the run ends.
-  const local = useLocalLobby(practiceGame, me, submitScore);
-  const { snapshot, status, sendInput, sendAction, sendTap, vote } = practiceGame ? local : live;
+  const live = useSpinLobby(livePath, true, me, onStarted);
+  const { snapshot, status, sendInput, sendAction, sendTap, vote } = live;
   const canvasRef = useRef<HTMLCanvasElement>(null);
   // Effects (knock-out bursts, confetti, shake) and their memory between frames, for as long as the panel is open.
   const fxRef = useRef<LobbyFx | null>(null);
@@ -75,8 +71,8 @@ export function LobbyPanel({
   const latest = useRef(snapshot);
   latest.current = snapshot;
   // In a room, a game that runs on the client has a fresher picture than the last server snapshot.
-  const frameRef = useRef(practiceGame ? undefined : live.frame);
-  frameRef.current = practiceGame ? undefined : live.frame;
+  const frameRef = useRef(live.frame);
+  frameRef.current = live.frame;
   const byId = useMemo(() => new Map(members.map((m) => [m.user.id, m.user])), [members]);
   const byIdRef = useRef(byId);
   byIdRef.current = byId;
@@ -224,7 +220,7 @@ export function LobbyPanel({
   const playingIds = game ? game.players.map((p) => p.id) : [];
   const here = playingIds.length;
   const voted = !!snapshot?.voters.includes(me);
-  const statusText = practiceGame ? t('games.status.solo') : lobbyId && status === 'open' ? t(here === 1 ? 'games.status.lobby.one' : 'games.status.lobby.other', { n: here }) : status === 'open' ? t(here === 1 ? 'spin.lobby.here.one' : 'spin.lobby.here.other', { n: here }) : status === 'connecting' ? t('spin.lobby.connecting') : t('spin.lobby.offline');
+  const statusText = soloGame ? t('games.status.solo') : lobbyId && status === 'open' ? t(here === 1 ? 'games.status.lobby.one' : 'games.status.lobby.other', { n: here }) : status === 'open' ? t(here === 1 ? 'spin.lobby.here.one' : 'spin.lobby.here.other', { n: here }) : status === 'connecting' ? t('spin.lobby.connecting') : t('spin.lobby.offline');
   const release = () => {
     pad.current = { dx: 0, dy: 0 };
     sendHeld();
@@ -277,7 +273,7 @@ export function LobbyPanel({
   ) : status === 'offline' && offlineFallback ? (
     offlineFallback
   ) : (
-    status === 'open' && <span style={st('font:500 12px var(--font-ui);color:var(--muted);text-align:center')}>{practiceGame || lobbyId ? t('games.note.solo') : t('spin.lobby.noSpin')}</span>
+    status === 'open' && <span style={st('font:500 12px var(--font-ui);color:var(--muted);text-align:center')}>{soloGame || lobbyId ? t('games.note.solo') : t('spin.lobby.noSpin')}</span>
   );
 
   return (
@@ -290,9 +286,9 @@ export function LobbyPanel({
             {arena}
             {controls}
           </div>
-          {game && practiceGame ? (
+          {game && soloGame ? (
             <>
-              <HighScoresStrip game={practiceGame} phone />
+              <HighScoresStrip game={soloGame} phone />
               <RunHistory summary={game} members={members} compact />
             </>
           ) : (
@@ -314,7 +310,7 @@ export function LobbyPanel({
                 <span style={st('font:500 12.5px/1.4 var(--font-ui);color:var(--muted)')}>{t(view.hintKey)}</span>
               </div>
             )}
-            {game && (practiceGame ? <HighScoresStrip game={practiceGame} phone={false} /> : <WinChart game={game} members={members} me={me} phone={false} />)}
+            {game && (soloGame ? <HighScoresStrip game={soloGame} phone={false} /> : <WinChart game={game} members={members} me={me} phone={false} />)}
             {game && <RunHistory summary={game} members={members} />}
           </div>
         </div>

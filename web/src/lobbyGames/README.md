@@ -7,7 +7,7 @@ A game has two halves that never share code, only the snapshot type in `packages
 
 | Half | Where | Job |
 | --- | --- | --- |
-| Rules | `packages/shared/src/lobbyGames/<game>.ts` | The simulation. In a room the server runs it (players send inputs, it sends a snapshot ~15 times a second); the same code runs in the browser for solo practice. Plain code: no server, database or browser APIs. |
+| Rules | `packages/shared/src/lobbyGames/<game>.ts` | The simulation. In a room the server runs it (players send inputs, it sends a snapshot ~15 times a second); solo practice is a private lobby of one on the server too, so every saved score is one the server saw. Plain code: no server, database or browser APIs. |
 | Look | `web/src/lobbyGames/<game>.ts` | Draws a snapshot on a canvas and names the game's buttons. Never decides anything. |
 
 ## Adding a game

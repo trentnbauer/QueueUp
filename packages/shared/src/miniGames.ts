@@ -169,6 +169,8 @@ export interface MiniGameLobbyDto {
   game: LobbyGameId | null;
   /** Every run is capped at `LOBBY_WAITING_ROOM_LIMIT_S` seconds, as in a spin's waiting room. */
   timeLimit: boolean;
+  /** A lobby for one person to practise a game, run by the server so its scores can be trusted. Never listed, never joinable. */
+  solo: boolean;
   hostId: string;
   /** You host it. */
   mine: boolean;
@@ -187,18 +189,12 @@ export interface CreateMiniGameLobbyRequest {
   game: LobbyGameId | null;
   /** Cap every run at 30 seconds, the way a spin's waiting room does. Off when left out. */
   timeLimit?: boolean;
+  /** A private lobby just for you to practise `game` (which must be one game), on the server; its runs go on the high score list as solo. */
+  solo?: boolean;
 }
 
 export interface JoinMiniGameLobbyRequest {
   code: string;
-}
-
-export interface SubmitMiniGameScoreRequest {
-  game: LobbyGameId;
-  score: number;
-  /** The rules version the player's device ran the game under (`MINIGAME_VERSIONS`). A different one than the server's
-   * means the page is out of date, and the score is refused. */
-  version: number;
 }
 
 /** "This week" is the last 7 days, rolling, so the list never empties at a week boundary. */

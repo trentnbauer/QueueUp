@@ -33,21 +33,6 @@ export function useLobbyInfo(id: string) {
   return useQuery({ queryKey: [...MINIGAMES_QUERY_KEY, 'lobby', id], queryFn: () => miniGamesApi.lobby(id), refetchInterval: 2000, retry: 2 });
 }
 
-/** Saves a finished solo run and refreshes everything that shows scores. A failure is ignored: a score
- * that did not save must never get in the way of the next run. */
-export function useSubmitSoloScore() {
-  const queryClient = useQueryClient();
-  return useCallback(
-    (game: LobbyGameId, score: number) => {
-      void miniGamesApi
-        .submit(game, score)
-        .then(() => queryClient.invalidateQueries({ queryKey: MINIGAMES_QUERY_KEY }))
-        .catch(() => {});
-    },
-    [queryClient],
-  );
-}
-
 /** Your own thumbs up or down for each game, so the thumbs can show which one you picked. */
 export function useMiniGameRatings() {
   const { user } = useAuth();

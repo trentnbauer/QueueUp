@@ -5,7 +5,7 @@ import { lobbyHeadline } from './lobbyText';
 
 const t = (key: keyof typeof en, vars: Record<string, string | number> = {}) => en[key].replace(/\{(\w+)\}/g, (_, k) => String(vars[k]));
 const person = (id: string, displayName: string) => ({ id, displayName, avatarColor: '#fff', avatarUrl: null });
-const lobby = (over: Partial<MiniGameLobbyDto>): MiniGameLobbyDto => ({ id: 'l', visibility: 'public', game: null, timeLimit: false, hostId: 'sam', mine: false, code: null, players: [], ...over });
+const lobby = (over: Partial<MiniGameLobbyDto>): MiniGameLobbyDto => ({ id: 'l', visibility: 'public', game: null, timeLimit: false, solo: false, hostId: 'sam', mine: false, code: null, players: [], ...over });
 const name = () => 'Runner';
 
 describe('lobbyHeadline', () => {

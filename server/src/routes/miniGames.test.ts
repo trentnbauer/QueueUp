@@ -19,7 +19,6 @@ vi.mock('../services/miniGameRatings.js', () => ({
   myRatings: h.mine,
 }));
 
-import { miniGameVersion } from '@queueup/shared';
 import miniGameRoutes from './miniGames.js';
 
 async function build() {
@@ -39,20 +38,11 @@ async function build() {
 }
 
 describe('mini game score routes', () => {
-  it('saves a plausible solo score for the signed-in person', async () => {
+  it('has no way to post a score: the server only saves runs it saw', async () => {
     const app = await build();
-    const res = await app.inject({ method: 'POST', url: '/api/minigames/scores', headers: { 'x-test-user': 'u1' }, payload: { game: 'runner', score: 42, version: miniGameVersion('runner') } });
-    expect(res.statusCode).toBe(204);
-    expect(h.record).toHaveBeenCalledWith('runner', 'solo', [{ userId: 'u1', score: 42 }]);
-    await app.close();
-  });
-
-  it('refuses an impossible score, an unknown game and a signed-out request', async () => {
-    const app = await build();
-    const headers = { 'x-test-user': 'u1' };
-    expect((await app.inject({ method: 'POST', url: '/api/minigames/scores', headers, payload: { game: 'runner', score: 1e9, version: miniGameVersion('runner') } })).statusCode).toBe(400);
-    expect((await app.inject({ method: 'POST', url: '/api/minigames/scores', headers, payload: { game: 'nope', score: 5, version: 1 } })).statusCode).toBe(400);
-    expect((await app.inject({ method: 'POST', url: '/api/minigames/scores', payload: { game: 'runner', score: 5, version: miniGameVersion('runner') } })).statusCode).toBe(401);
+    const res = await app.inject({ method: 'POST', url: '/api/minigames/scores', headers: { 'x-test-user': 'u1' }, payload: { game: 'runner', score: 42, version: 2 } });
+    expect([404, 405]).toContain(res.statusCode);
+    expect(h.record).not.toHaveBeenCalled();
     await app.close();
   });
 
@@ -72,17 +62,6 @@ describe('mini game score routes', () => {
     expect((await app.inject({ method: 'GET', url: '/api/minigames/scores?game=runner&period=year', headers })).statusCode).toBe(400);
     expect((await app.inject({ method: 'GET', url: '/api/minigames/scores?game=runner&scope=server&period=week', headers })).statusCode).toBe(200);
     expect(h.board).toHaveBeenCalledWith('u1', 'runner', 'server', 'week');
-    await app.close();
-  });
-});
-
-describe('mini game versions', () => {
-  it('refuses a score from a page running another version of the game, and one with no version', async () => {
-    const app = await build();
-    const headers = { 'x-test-user': 'u1' };
-    const old = await app.inject({ method: 'POST', url: '/api/minigames/scores', headers, payload: { game: 'runner', score: 42, version: miniGameVersion('runner') - 1 } });
-    expect(old.statusCode).toBe(409);
-    expect((await app.inject({ method: 'POST', url: '/api/minigames/scores', headers, payload: { game: 'runner', score: 42 } })).statusCode).toBe(409);
     await app.close();
   });
 });

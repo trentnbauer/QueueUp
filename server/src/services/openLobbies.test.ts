@@ -43,6 +43,29 @@ describe('OpenLobbyRegistry', () => {
     expect(reg.hostedBy('host1')).toBeDefined();
   });
 
+  it('keeps a host\'s practice lobby apart from the lobby they host for others', () => {
+    const reg = new OpenLobbyRegistry();
+    const hosted = reg.create('host', 'public', null)!;
+    const practice = reg.create('host', 'code', 'runner', false, true)!;
+    // Neither replaced the other.
+    expect(practice.replaced).toBeUndefined();
+    expect(reg.hostedBy('host')).toBe(hosted.lobby);
+    expect(reg.soloOf('host')).toBe(practice.lobby);
+    expect(practice.lobby).toMatchObject({ solo: true, code: null, game: 'runner' });
+    // A new practice lobby replaces only the last practice one.
+    const again = reg.create('host', 'code', 'dodge', false, true)!;
+    expect(again.replaced).toBe(practice.lobby);
+    expect(reg.hostedBy('host')).toBe(hosted.lobby);
+  });
+
+  it('never lets anyone but the host into a practice lobby', () => {
+    const reg = new OpenLobbyRegistry();
+    const practice = reg.create('host', 'code', 'runner', false, true)!.lobby;
+    expect(mayOpenLobby(practice, 'host', { friend: true, blocked: false })).toBe(true);
+    expect(mayOpenLobby(practice, 'friend', { friend: true, blocked: false })).toBe(false);
+    expect(reg.byCode('')).toBeUndefined();
+  });
+
   it('drops a lobby nobody ever joined, but not one with people in it', () => {
     let now = 1_000_000;
     const reg = new OpenLobbyRegistry(() => now);

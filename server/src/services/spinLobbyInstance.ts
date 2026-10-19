@@ -14,7 +14,11 @@ export const spinLobbyHub = new SpinLobbyHub({
   extendWaitingRoom: async (roomId) => (await spin()).extendWaitingRoom(roomId),
   startSpinNow: async (roomId) => (await spin()).startSpinNow(roomId),
   // An open lobby's runs are not a room's, so they carry no room id.
-  recordScores: (key, game, source, scores) => void recordRunScores(game, source, scores, key.startsWith(OPEN_LOBBY_PREFIX) ? undefined : key),
+  recordScores: (key, game, source, scores) => {
+    const open = key.startsWith(OPEN_LOBBY_PREFIX) ? openLobbies.get(key.slice(OPEN_LOBBY_PREFIX.length)) : undefined;
+    // A practice lobby's runs are saved as solo ones, as they always were.
+    void recordRunScores(game, open?.solo ? 'solo' : source, scores, key.startsWith(OPEN_LOBBY_PREFIX) ? undefined : key);
+  },
   pickWeights: playWeights,
   // The lobby stays open until everyone has left, then it is gone.
   onEmpty: (key) => {
