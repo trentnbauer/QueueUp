@@ -840,6 +840,8 @@ export interface WordsMine {
   known: string[];
   /** For each letter a to z, the best it has scored so far: -1 untried, else WORD_ABSENT, WORD_PRESENT or WORD_CORRECT. */
   keys: number[];
+  /** The word they just sent is not in the dictionary, so it was not counted: the draft is still there to change. Clears on their next key. */
+  rejected: boolean;
 }
 
 export interface WordsSnapshot extends RoundSummary {

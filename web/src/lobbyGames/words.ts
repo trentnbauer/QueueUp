@@ -118,6 +118,13 @@ function drawWorld(sc: Scene<WordsSnapshot>): void {
     }
   }
 
+  // A guess that is not a word is turned back, and says so where the answer shows once the run is over.
+  if (mine?.rejected && snapshot.phase === 'playing') {
+    ctx.font = `800 ${Math.round(S * 0.034)}px ${FONT.display}`;
+    ctx.fillStyle = theme.danger;
+    ctx.fillText(sc.t('spin.lobby.words.notWord'), (BOARD_X + (WORDS_LENGTH * (CELL + CELL_GAP)) / 2) * S, (BOARD_Y - 0.035) * S);
+  }
+
   // Once the run is over the secret word is shown.
   if (snapshot.answer) {
     ctx.font = `800 ${Math.round(S * 0.034)}px ${FONT.display}`;
