@@ -1,3 +1,4 @@
+import { lowerIsBetter } from '@queueup/shared';
 import type { MessageKey } from '../../i18n';
 import { FONT, STAGE } from './theme';
 import { roundRect } from './draw';
@@ -174,12 +175,32 @@ function drawResult(sc: Scene): void {
     ctx.fillText(t((SCORE_WORDS[snapshot.id] ?? METRES).over, { m: snapshot.history[snapshot.history.length - 1]?.meters ?? snapshot.meters }), 0, word ? -h * 0.2 : -h * 0.08);
     ctx.font = `800 ${Math.round(S * 0.068)}px ${FONT.display}`;
     ctx.fillStyle = theme.text;
-    // Alone in Words (no winner is ever named), finding the word is still a win.
-    const solved = snapshot.id === 'words' && snapshot.players.some((p) => p.id === sc.me && p.solved);
-    ctx.fillText(t(solved ? 'spin.lobby.words.solved' : 'spin.lobby.hud.nobody'), 0, word ? -h * 0.0 : h * 0.12, w * 0.9);
+    ctx.fillText(t(noWinnerHeadline(sc)), 0, word ? -h * 0.0 : h * 0.12, w * 0.9);
     drawWord(h * 0.3);
   }
   ctx.restore();
+}
+
+/** What the card says when nobody won, by what actually happened: finding the word alone is a win, a best score alone is a best, time running
+ * out with people still in is time up (a tie, in a game that counts points), and everyone going out together is nobody making it.
+ * "Nobody made it" is only for that last one: alone, a run that simply ended is not a failure of anyone else. */
+export function noWinnerHeadline(sc: Pick<Scene, "snapshot" | "me">): MessageKey {
+  const { snapshot, me } = sc;
+  if (snapshot.id === 'words') {
+    if (snapshot.players.some((p) => p.id === me && p.solved)) return 'spin.lobby.words.solved';
+    return snapshot.players.some((p) => p.solved) ? 'spin.lobby.hud.draw' : 'spin.lobby.words.nobody';
+  }
+  const stillIn = snapshot.players.some((p) => p.alive);
+  const counts = SCORE_WORDS[snapshot.id] !== undefined;
+  if (snapshot.players.length <= 1) {
+    const last = snapshot.history[snapshot.history.length - 1];
+    // A smaller number is the better one in a game scored by a time.
+    const best = snapshot.best;
+    if (last && best && best.game === last.game && last.meters > 0 && last.meters >= best.meters && !lowerIsBetter(snapshot.id)) return 'spin.lobby.hud.newBest';
+    return stillIn && !counts ? 'spin.lobby.hud.timeUp' : 'spin.lobby.hud.soloOver';
+  }
+  if (stillIn) return counts ? 'spin.lobby.hud.draw' : 'spin.lobby.hud.timeUp';
+  return 'spin.lobby.hud.nobody';
 }
 
 /** "You're out - next run soon", while the run carries on without you. */
