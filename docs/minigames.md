@@ -56,7 +56,7 @@ It plays a random game after every run (like the waiting room), or one game you 
 
 ## Ping and who works out what
 
-In **Runner, Flappy, Dodge, Jump rope, Obstacle race, Lava rise, Gravity flip, Laser gaps, Road hop and Fishing**, your own player is worked out **on your own device**, so a slow connection does not make you jump late or get hit by something you cleared:
+In **Runner, Flappy, Dodge, Jump rope, Obstacle race, Lava rise, Gravity flip, Laser gaps, Road hop, Fishing and Orbit**, your own player is worked out **on your own device**, so a slow connection does not make you jump late or get hit by something you cleared:
 
 - **Your device** runs your player against the course the moment you press: your jump, your duck, your slide, your steering. Your hits are decided there too, and it tells the server where you are about 20 times a second, and straight away when you are out.
 - **The server** decides the shared things: the course's seed and exactly when a run starts (everyone's device lines its clock up with the server's, so everyone starts the same course at the same moment), who is still in, who won, the wins and the history. It shows everyone else's player from what their devices report.
@@ -232,6 +232,18 @@ One fish thrashes up and down the pond; keep it in your net. Everyone fishes the
 - **Ping:** your own net is worked out on your own device (see "Ping and who works out what"), so it reels the moment you press. The fish comes from the same seed and the server's clock, so it is where it is for the others.
 - **Controls:** one button: hold **Space**, **↑** or **W**, or press and hold anywhere on the arena. On a phone, hold **Reel**.
 
+## Orbit
+
+Circle the ring and flip direction to dodge what flies at it. Everyone is on the same ring, and never touches.
+
+- **Goal:** last as long as you can. You go round a ring at a steady speed, **one button flips which way you go**. Things fly in from the edge and out of the middle toward spots on the ring (a faint red mark on the ring shows where each will land, brighter as it gets near), and one that lands where you are ends your run. **Last one going wins**; alone it is a high score (**seconds lasted**).
+- **Always possible:** everything comes from the round's seed, and each thing is put somewhere that a hidden way round (which flips every half to one and a half seconds) is never touching, so there is always a way through. It is a way for you to find, not one you are shown.
+- **Harder as it goes (38 seconds, then no harder):** you go round quicker (1.7 radians a second up to 3.2), things come more often (one every second down to every third of a second), each is in the air for less (1.5 seconds down to 0.85, so less warning) and each covers more of the ring.
+- **Deadly** from 0.07 seconds before a thing lands to 0.07 after.
+- **Hard to pass 30 seconds:** a test player who sees everything coming and plays perfectly can go on for ever, but one who reacts 0.3 seconds late lasts about 15 to 25 seconds.
+- **Ping:** your own marker is worked out on your own device (see "Ping and who works out what"), so a flip happens the moment you press.
+- **Controls:** one button: **Space**, **↑**, **←** / **→** or **W** / **A** / **D**, or tap anywhere on the arena. On a phone, **Flip**.
+
 ## Rating a game
 
 When a run ends and its result card is showing, a **thumbs up / thumbs down** appears in the result card (in a room's lobby, a spin's waiting room, an open lobby and solo practice alike).
@@ -292,6 +304,7 @@ A game can instead make **the play space the controller**: there are no buttons 
 | Wall ball | **←** / **→** or **A** / **D** to slide (the hit is automatic). | The **◀** and **▶** buttons. |
 | Road hop | **←** / **→** or **A** / **D** to slide, **Space**, **↑** or **W** to hop. | The **◀** and **▶** buttons, and **Hop** (or tap anywhere on the arena). |
 | Fishing | Hold **Space**, **↑** or **W** to pull your net up. | Hold **Reel** (or press and hold the arena). |
+| Orbit | **Space**, **↑**, **←** / **→** or **W** / **A** / **D** to flip direction. | **Flip**, or tap anywhere on the arena. |
 
 ## Runner
 
