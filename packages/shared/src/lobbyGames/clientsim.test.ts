@@ -3,7 +3,6 @@ import { CoinsGame } from './coins.js';
 import { DodgeGame } from './dodge.js';
 import { FlappyGame } from './flappy.js';
 import { RaceGame } from './race.js';
-import { RedLightGame } from './redlight.js';
 import { RopeGame } from './rope.js';
 import { RunnerGame } from './runner.js';
 
@@ -27,10 +26,9 @@ describe('which games run each player on their own device', () => {
     for (const g of [new RunnerGame(), new FlappyGame(), new DodgeGame(), new RopeGame(), new RaceGame()]) expect(g.clientSim).toBe(true);
   });
 
-  it('is not Red light, green light or Catch the coins, where players race for the same thing', () => {
-    expect(new RedLightGame().clientSim).toBe(false);
+  it('is not Catch the coins, where players race for the same thing', () => {
     expect(new CoinsGame().clientSim).toBe(false);
-    expect(new RedLightGame().simStart()).toBeNull();
+    expect(new CoinsGame().simStart()).toBeNull();
   });
 });
 
@@ -144,7 +142,7 @@ describe('the server taking a report', () => {
   });
 
   it('accepts reports for a games with no client sim by ignoring them', () => {
-    const g = new RedLightGame(seeded(0.3));
+    const g = new CoinsGame(seeded(0.3));
     g.join('a');
     g.join('b');
     run(g, 3200);

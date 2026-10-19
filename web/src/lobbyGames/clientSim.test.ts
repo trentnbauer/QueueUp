@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { RUNNER_X, RedLightGame, RunnerGame, type LobbyClientMessage, type LobbyGame, type LobbySnapshot, type RunnerSnapshot } from '@queueup/shared';
+import { RUNNER_X, CoinsGame, RunnerGame, type LobbyClientMessage, type LobbyGame, type LobbySnapshot, type RunnerSnapshot } from '@queueup/shared';
 import { ClientSim, ClockSync } from './clientSim';
 
 const SERVER_EPOCH = 1_700_000_000_000;
@@ -124,7 +124,7 @@ describe('ClientSim before a run', () => {
   });
 
   it('does nothing different for a game the server runs itself', () => {
-    const server = serverSide(new RedLightGame(() => 0.3), ['me', 'other']);
+    const server = serverSide(new CoinsGame(() => 0.3), ['me', 'other']);
     const { sim, sent } = client();
     const snap = server.snapshot(0);
     sim.onState(snap);

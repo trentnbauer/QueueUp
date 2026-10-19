@@ -12,7 +12,6 @@ export const MINIGAME_SCORE_MAX: Record<LobbyGameId, number> = {
   flappy: 20000,
   dodge: 20000,
   rope: 2000,
-  redlight: 20,
   coins: 500,
   battleships: 100,
   race: 20000,

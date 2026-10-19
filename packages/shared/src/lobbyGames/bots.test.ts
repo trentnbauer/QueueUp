@@ -1,7 +1,7 @@
 import { describe, expect, it, vi } from 'vitest';
 import { BotFiller, botColor, botNumber, isBotId, withBots } from './bots.js';
 import { createLobbyGame } from './index.js';
-import { RedLightGame, redLightBrain } from './redlight.js';
+import { SumoGame, sumoBrain } from './sumo.js';
 import { DodgeGame } from './dodge.js';
 
 const STEP = 33;
@@ -12,7 +12,7 @@ const ids = (g: { snapshot(): { players: { id: string }[] } }) => g.snapshot().p
 const seeded = (seed: number) => () => seed;
 
 function filler(seed = 0.3) {
-  return new BotFiller(new RedLightGame(seeded(seed)), 2, (id) => redLightBrain(id, seeded(0.5)));
+  return new BotFiller(new SumoGame(seeded(seed)), 2, (id) => sumoBrain(id, seeded(0.5)));
 }
 
 describe('bot ids', () => {
@@ -32,7 +32,7 @@ describe('withBots', () => {
   });
 
   it('wraps games that need more, and createLobbyGame does it for you', () => {
-    const g = createLobbyGame('redlight');
+    const g = createLobbyGame('sumo');
     g.join('me');
     expect(ids(g)).toEqual(['me', 'bot:1']);
     expect(createLobbyGame('dodge')).toBeInstanceOf(DodgeGame);
@@ -101,9 +101,9 @@ describe('BotFiller', () => {
   });
 
   it('passes taps from people through to the game', () => {
-    const inner = new RedLightGame(seeded(0.3));
+    const inner = new SumoGame(seeded(0.3));
     const tap = vi.spyOn(inner, 'tap');
-    const g = new BotFiller(inner, 2, (id) => redLightBrain(id, seeded(0.5)));
+    const g = new BotFiller(inner, 2, (id) => sumoBrain(id, seeded(0.5)));
     g.join('a');
     g.tap('a', 3);
     expect(tap).toHaveBeenCalledWith('a', 3);

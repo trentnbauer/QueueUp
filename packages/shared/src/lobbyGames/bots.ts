@@ -1,7 +1,6 @@
 import type { LobbyGameId, LobbyGameSnapshot, LobbyRunScore } from '../spinLobby.js';
 import { battleshipsBrain } from './battleships.js';
 import { drawBrain } from './draw.js';
-import { redLightBrain } from './redlight.js';
 import { secureRandom } from './roundGame.js';
 import { sumoBrain } from './sumo.js';
 import type { BotBrain, LobbyGame } from './types.js';
@@ -26,7 +25,6 @@ export function botColor(id: string): string {
 
 /** The games that have a bot brain. A game that sets `minPlayers` above 1 must have one here. */
 const BRAINS: Partial<Record<LobbyGameId, (botId: string, rng: () => number) => BotBrain>> = {
-  redlight: redLightBrain,
   battleships: battleshipsBrain,
   sumo: sumoBrain,
   draw: drawBrain,
