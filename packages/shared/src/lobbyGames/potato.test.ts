@@ -111,4 +111,25 @@ describe('PotatoGame', () => {
     }
     expect(passedOn).toBe(true);
   });
+
+  it('scores the time you held a bomb and then passed on, and nothing for a hold that ended in an explosion', () => {
+    const g = started(['a', 'b']);
+    const scores: { userId: string; score: number }[][] = [];
+    g.onRunScores = (s) => scores.push(s);
+    toBomb(g);
+    const first = snap(g).holderId!;
+    const other = first === 'a' ? 'b' : 'a';
+    run(g, 2000); // held for two seconds (the fuse is longer than that on round 1)
+    g.action(first, 'pass');
+    expect(snap(g).holderId).toBe(other);
+    // Nobody passes again: the bomb goes off in the other player's hands, and the run ends.
+    for (let i = 0; i < 4000 && snap(g).phase === 'playing'; i++) g.tick(STEP);
+    expect(snap(g).phase).toBe('over');
+    const byUser = Object.fromEntries(scores[0].map((s) => [s.userId, s.score]));
+    // The first holder held it for about two seconds: about 20 tenths of a second.
+    expect(byUser[first]).toBeGreaterThanOrEqual(18);
+    expect(byUser[first]).toBeLessThanOrEqual(30);
+    // The other held it until it blew up on them, which counts for nothing (so they have no score at all).
+    expect(byUser[other]).toBeUndefined();
+  });
 });

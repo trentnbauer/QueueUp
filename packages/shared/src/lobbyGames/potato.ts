@@ -16,6 +16,8 @@ const BETWEEN_S = 1.3;
 interface Holder extends RoundPlayer {
   /** Rounds they survived, counting the one in progress once it is over for them. */
   survived: number;
+  /** Seconds they have held a bomb for and then passed on (a hold that ended in the bomb going off in their hands does not count). */
+  heldS: number;
 }
 
 /** A bomb with a lit fuse is passed round the ring of players. The one holding it when it goes off is out; the
@@ -27,6 +29,8 @@ export class PotatoGame extends RoundGame<Holder> {
   private holderId: string | null = null;
   /** Seconds the fuse has burned, and how long it is in all (never sent). */
   private burned = 0;
+  /** How far the fuse had burned when the current holder got it, so what they held it for is the difference. */
+  private heldFrom = 0;
   private fuse = 0;
   private cooldown = 0;
   private between = 0;
@@ -41,16 +45,18 @@ export class PotatoGame extends RoundGame<Holder> {
   }
 
   protected createPlayer(id: string, alive: boolean): Holder {
-    return { id, survived: 0, alive, wins: 0, outAtMeters: 0 };
+    return { id, survived: 0, heldS: 0, alive, wins: 0, outAtMeters: 0 };
   }
 
   protected resetPlayer(p: Holder): void {
     p.survived = 0;
+    p.heldS = 0;
   }
 
   protected resetCourse(): void {
     this.holderId = null;
     this.burned = 0;
+    this.heldFrom = 0;
     this.fuse = 0;
     this.cooldown = 0;
     this.between = 0;
@@ -74,6 +80,10 @@ export class PotatoGame extends RoundGame<Holder> {
     const ring = [...this.players.values()].filter((p) => p.alive);
     if (ring.length < 2) return;
     const at = ring.findIndex((p) => p.id === userId);
+    // Passing it on means they held it safely: that time is theirs.
+    const holder = this.players.get(userId);
+    if (holder) holder.heldS += this.burned - this.heldFrom;
+    this.heldFrom = this.burned;
     this.from = userId;
     this.holderId = ring[(at + 1) % ring.length].id;
     this.cooldown = PASS_COOLDOWN_S;
@@ -119,6 +129,7 @@ export class PotatoGame extends RoundGame<Holder> {
     const longest = Math.max(FUSE_MIN_MAX_S, FUSE_START_S - FUSE_SHRINK_S * (this.round - 1));
     this.fuse = longest * (FUSE_SHORTEST + this.rng() * (1 - FUSE_SHORTEST));
     this.burned = 0;
+    this.heldFrom = 0;
     this.cooldown = PASS_COOLDOWN_S;
     this.from = null;
     this.holderId = ring[Math.floor(this.rng() * ring.length)].id;
@@ -135,8 +146,9 @@ export class PotatoGame extends RoundGame<Holder> {
     holder.outAtMeters = holder.survived;
   }
 
+  /** The high score is how long they held a bomb without it going off on them, in tenths of a second. */
   protected override runScore(p: Holder): number {
-    return p.alive ? Math.max(p.survived, this.round) : p.outAtMeters;
+    return Math.round(p.heldS * 10);
   }
 }
 
