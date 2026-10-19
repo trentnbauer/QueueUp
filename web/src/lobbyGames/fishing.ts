@@ -121,21 +121,25 @@ function drawWorld(sc: Scene<FishingSnapshot>): void {
     ctx.stroke();
     ctx.globalAlpha = 1;
     sc.drawPlayer(c.id, x, cy, r, r);
-    // How near they are to landing the fish: a small bar under the avatar (red when the line is close to snapping), and their count.
+    // Under the avatar: the line's health (red when it is close to snapping), a thin bar for how near the fish is to landing, and their count.
     const bw = S * 0.1;
     const bx = x - bw / 2;
     const by = cy + r + S * 0.012;
-    ctx.fillStyle = STAGE.hudFill;
-    roundRect(ctx, bx, by, bw, S * 0.012, S * 0.006);
-    ctx.fill();
-    ctx.fillStyle = c.progress < 0.25 ? theme.danger : theme.mint;
-    roundRect(ctx, bx, by, Math.max(S * 0.012, bw * c.progress), S * 0.012, S * 0.006);
-    ctx.fill();
+    const bar = (top: number, height: number, fraction: number, fill: string) => {
+      ctx.fillStyle = STAGE.hudFill;
+      roundRect(ctx, bx, top, bw, height, height / 2);
+      ctx.fill();
+      ctx.fillStyle = fill;
+      roundRect(ctx, bx, top, Math.max(height, bw * fraction), height, height / 2);
+      ctx.fill();
+    };
+    bar(by, S * 0.012, c.health, c.health < 0.25 ? theme.danger : theme.mint);
+    bar(by + S * 0.016, S * 0.007, c.catch, theme.acc);
     ctx.font = `700 ${Math.round(S * 0.024)}px ${FONT.mono}`;
     ctx.textAlign = 'center';
     ctx.textBaseline = 'alphabetic';
     ctx.fillStyle = theme.text;
-    ctx.fillText(String(c.landed), x, by + S * 0.04);
+    ctx.fillText(String(c.landed), x, by + S * 0.05);
   }
 }
 

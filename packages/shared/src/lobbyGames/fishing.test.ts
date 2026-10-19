@@ -45,7 +45,7 @@ function makeAngler(g: FishingGame, id: string, delay = 0.1) {
 }
 
 describe('FishingGame pond', () => {
-  it('starts with the fish and every net in the middle, and the line a little way up', () => {
+  it('starts with the fish and every net in the middle, the line at full health and nothing caught', () => {
     const g = new FishingGame(lcg(7));
     g.join('a');
     g.join('b');
@@ -54,7 +54,8 @@ describe('FishingGame pond', () => {
     expect(s.phase).toBe('countdown');
     expect(s.fish.y).toBeCloseTo(0.5, 1);
     expect(s.players.map((p) => p.y)).toEqual([0.5, 0.5]);
-    expect(s.players.map((p) => p.progress)).toEqual([0.35, 0.35]);
+    expect(s.players.map((p) => p.health)).toEqual([1, 1]);
+    expect(s.players.map((p) => p.catch)).toEqual([0, 0]);
     expect(s.speed).toBe(0);
   });
 
@@ -76,7 +77,7 @@ describe('FishingGame pond', () => {
     const fastest = (from: number, to: number) => {
       const g = started(['a'], 11);
       // A device that reports keeps the line from snapping, so the run lasts.
-      const keep = () => g.report('a', 1, true, { y: 0.5, vy: 0, p: 0.5, n: 0, r: 0 });
+      const keep = () => g.report('a', 1, true, { y: 0.5, vy: 0, h: 0.5, c: 0.5, n: 0, r: 0 });
       for (let t = 0; t < from; t += STEP) {
         keep();
         g.tick(STEP);
@@ -100,7 +101,7 @@ describe('FishingGame pond', () => {
     const start = snap(g).half;
     expect(start).toBeCloseTo(0.13, 2);
     // Keep the angler alive by reporting from a device, so the run lasts.
-    const keep = () => g.report('a', 1, true, { y: 0.5, vy: 0, p: 0.5, n: 0, r: 0 });
+    const keep = () => g.report('a', 1, true, { y: 0.5, vy: 0, h: 0.5, c: 0.5, n: 0, r: 0 });
     untilOver(g, 15_000, keep);
     const mid = snap(g).half;
     expect(mid).toBeLessThan(start);
@@ -145,18 +146,19 @@ describe('FishingGame the net', () => {
 });
 
 describe('FishingGame the line', () => {
-  it('gains while the fish is in the net and loses while it is not', () => {
+  it('fills the catch while the fish is in the net, and wears the line down while it is not', () => {
     const g = started(['a']);
-    const before = me(g, 'a').progress;
     run(g, 330); // the fish has not moved yet, and the net has only just left the middle
-    expect(me(g, 'a').progress).toBeGreaterThan(before);
+    expect(me(g, 'a').catch).toBeGreaterThan(0);
+    expect(me(g, 'a').health).toBeGreaterThan(0.85);
     // Let the net sink to the bottom, away from a fish that is not there.
     const sunk = started(['a'], 5);
-    run(sunk, 1500);
+    run(sunk, 2200);
     expect(me(sunk, 'a').y).toBeGreaterThan(0.9);
+    expect(me(sunk, 'a').health).toBeLessThan(1);
   });
 
-  it('lands a fish when the line is full, counts it, and eases the line back', () => {
+  it('lands a fish when the catch is full, counts it, empties the catch and mends the line a little', () => {
     const g = started(['a']);
     const angler = makeAngler(g, 'a', 0);
     let landed = 0;
@@ -166,8 +168,23 @@ describe('FishingGame the line', () => {
       landed = me(g, 'a').landed;
     }
     expect(landed).toBe(1);
-    expect(me(g, 'a').progress).toBeCloseTo(0.4, 1);
+    expect(me(g, 'a').catch).toBeLessThan(0.05);
+    expect(me(g, 'a').alive).toBe(true);
     expect(snap(g).meters).toBe(1);
+  });
+
+  it('does not put someone out for landing a fish with the line full (health never goes above full)', () => {
+    const g = started(['a']);
+    const angler = makeAngler(g, 'a', 0);
+    for (let t = 0; t < 12_000 && snap(g).phase === 'playing'; t += STEP) {
+      angler();
+      g.tick(STEP);
+      expect(me(g, 'a').health).toBeLessThanOrEqual(1);
+      if (me(g, 'a').landed > 0) break;
+    }
+    expect(me(g, 'a').landed).toBeGreaterThan(0);
+    expect(me(g, 'a').alive).toBe(true);
+    expect(snap(g).phase).toBe('playing');
   });
 
   it('snaps the line of someone who lets the net sink, and ends a solo run with no winner', () => {
@@ -176,7 +193,7 @@ describe('FishingGame the line', () => {
     expect(seconds).toBeLessThan(15);
     expect(snap(g)).toMatchObject({ phase: 'over', winnerId: null });
     expect(me(g, 'a').alive).toBe(false);
-    expect(me(g, 'a').progress).toBe(0);
+    expect(me(g, 'a').health).toBe(0);
   });
 
   it('snaps the line of someone who holds the button down for ever', () => {
@@ -233,7 +250,7 @@ describe('FishingGame running a run', () => {
     run(g, 4200 + 1500);
     const s = snap(g);
     expect(s.phase).toBe('countdown');
-    expect(s.players.map((p) => p.progress)).toEqual([0.35, 0.35]);
+    expect(s.players.map((p) => p.health)).toEqual([1, 1]);
     expect(s.players.map((p) => p.landed)).toEqual([0, 0]);
     expect(s.half).toBeCloseTo(0.13, 2);
   });
@@ -243,21 +260,21 @@ describe('FishingGame on each player’s own device', () => {
   it('works out its own net there, and reports it', () => {
     const g = started(['a']);
     expect(g.clientSim).toBe(true);
-    g.report('a', 1, true, { y: 0.3, vy: -0.4, p: 0.6, n: 0, r: 1 });
-    expect(me(g, 'a')).toMatchObject({ y: 0.3, vy: -0.4, progress: 0.6, landed: 0, reeling: true, alive: true });
+    g.report('a', 1, true, { y: 0.3, vy: -0.4, h: 0.6, c: 0.2, n: 0, r: 1 });
+    expect(me(g, 'a')).toMatchObject({ y: 0.3, vy: -0.4, health: 0.6, catch: 0.2, landed: 0, reeling: true, alive: true });
     // A net that reports is not moved by the server.
     g.input('a', 0, 0);
     run(g, 500);
-    expect(me(g, 'a')).toMatchObject({ y: 0.3, progress: 0.6 });
+    expect(me(g, 'a')).toMatchObject({ y: 0.3, health: 0.6 });
   });
 
   it('takes a report of being out, and never fewer fish than before or more than one more at a time', () => {
     const g = started(['a']);
-    g.report('a', 1, true, { y: 0.5, vy: 0, p: 0.5, n: 1, r: 0 });
+    g.report('a', 1, true, { y: 0.5, vy: 0, h: 0.5, c: 0.5, n: 1, r: 0 });
     expect(me(g, 'a').landed).toBe(1);
-    g.report('a', 1, true, { y: 0.5, vy: 0, p: 0.5, n: 0, r: 0 });
+    g.report('a', 1, true, { y: 0.5, vy: 0, h: 0.5, c: 0.5, n: 0, r: 0 });
     expect(me(g, 'a').landed).toBe(1);
-    g.report('a', 1, true, { y: 0.5, vy: 0, p: 0.5, n: 99, r: 0 });
+    g.report('a', 1, true, { y: 0.5, vy: 0, h: 0.5, c: 0.5, n: 99, r: 0 });
     expect(me(g, 'a').landed).toBe(2);
     g.report('a', 1, false, {});
     expect(me(g, 'a').alive).toBe(false);
@@ -266,11 +283,12 @@ describe('FishingGame on each player’s own device', () => {
 
   it('keeps a malformed report in range', () => {
     const g = started(['a']);
-    g.report('a', 1, true, { y: 99, vy: -99, p: 5, n: Number.NaN, r: 0 });
+    g.report('a', 1, true, { y: 99, vy: -99, h: 5, c: -5, n: Number.NaN, r: 0 });
     const p = me(g, 'a');
     expect(p.y).toBeLessThanOrEqual(0.96);
     expect(Math.abs(p.vy)).toBeLessThanOrEqual(1.4);
-    expect(p.progress).toBeLessThanOrEqual(1);
+    expect(p.health).toBeLessThanOrEqual(1);
+    expect(p.catch).toBeGreaterThanOrEqual(0);
     expect(Number.isFinite(p.landed)).toBe(true);
   });
 });

@@ -1431,8 +1431,10 @@ export interface FishingPlayer {
   y: number;
   vy: number;
   reeling: boolean;
-  /** How close they are to landing the fish (0 to 1): up while the fish is in their net, down while it is not; 0 snaps the line. */
-  progress: number;
+  /** The line's strength (0 to 1, full at the start): it wears down while the fish is outside their net and mends while it is inside; 0 snaps it. */
+  health: number;
+  /** How close they are to landing the fish (0 to 1): up while the fish is in their net, down (slowly) while it is not; 1 lands it. */
+  catch: number;
   /** Fish they have landed this run. */
   landed: number;
   /** Still fishing. False once their line snaps, or if they arrived mid-run. */

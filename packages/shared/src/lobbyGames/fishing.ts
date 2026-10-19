@@ -17,11 +17,14 @@ const NET_HALF = [0.13, 0.065] as const;
 const FISH_SPEED = [0.35, 0.95] as const;
 const DWELL_S = [1.2, 0.45] as const;
 const FISH_JUMP = [0.35, 0.8] as const;
-const GAIN = [0.3, 0.2] as const;
-const LOSS = [0.3, 0.45] as const;
-/** The line starts a little way up, and after landing a fish it is put back this far, so there is a moment to breathe. */
-const START_PROGRESS = 0.35;
-const LANDED_PROGRESS = 0.4;
+/** Catching: the catch fills this fast (a second) while the fish is in the net and drains this fast while it is not. */
+const CATCH_GAIN = [0.3, 0.2] as const;
+const CATCH_DRAIN = 0.15;
+/** The line's health starts full, wears down this fast while the fish is outside the net, and mends this fast while it is inside. */
+const HEALTH_LOSS = [0.4, 0.75] as const;
+const HEALTH_MEND = 0.2;
+/** Landing a fish mends the line this much, so there is a moment to breathe. */
+const LANDED_MEND = 0.35;
 const FISH_MIN = 0.08;
 const FISH_MAX = 0.92;
 
@@ -31,13 +34,14 @@ interface Angler extends RoundPlayer {
   y: number;
   vy: number;
   reeling: boolean;
-  progress: number;
+  health: number;
+  catch: number;
   landed: number;
 }
 
 /** One fish thrashes up and down the pond for everyone. Hold the button to pull your net up and let go to let it sink, and keep the
- * fish inside your net: your line gains while it is, and loses while it is not. Fill it and you land the fish (a point), and the line is
- * eased back for the next; empty it and your line snaps and you are out. Last one fishing wins. Players never touch each other, so each
+ * fish inside your net: while it is, your catch fills and your line mends; while it is not, the line wears down. Fill the catch and you
+ * land the fish (a point) and the line is mended a little; wear the line out and it snaps and you are out. Last one fishing wins. Players never touch each other, so each
  * device works out its own net against the same fish (see RoundGame.clientSim). See RoundGame for how runs start and end. */
 export class FishingGame extends RoundGame<Angler> {
   readonly id = 'fishing' as const;
@@ -63,7 +67,8 @@ export class FishingGame extends RoundGame<Angler> {
   protected readReport(p: Angler, f: Record<string, number>): void {
     p.y = Math.min(NET_MAX, Math.max(NET_MIN, RoundGame.num(f.y, p.y)));
     p.vy = Math.min(MAX_SPEED, Math.max(-MAX_SPEED, RoundGame.num(f.vy, p.vy)));
-    p.progress = Math.min(1, Math.max(0, RoundGame.num(f.p, p.progress)));
+    p.health = Math.min(1, Math.max(0, RoundGame.num(f.h, p.health)));
+    p.catch = Math.min(1, Math.max(0, RoundGame.num(f.c, p.catch)));
     p.reeling = f.r === 1;
     // Never fewer, and no more than one more than the server has heard of: a device cannot land a pile of fish in one report.
     p.landed = Math.max(p.landed, Math.min(Math.floor(RoundGame.num(f.n, p.landed)), p.landed + 1));
@@ -71,18 +76,19 @@ export class FishingGame extends RoundGame<Angler> {
 
   protected writeReport(p: Angler): Record<string, number> {
     const r3 = (n: number) => Math.round(n * 1000) / 1000;
-    return { y: r3(p.y), vy: r3(p.vy), p: r3(p.progress), n: p.landed, r: p.reeling ? 1 : 0 };
+    return { y: r3(p.y), vy: r3(p.vy), h: r3(p.health), c: r3(p.catch), n: p.landed, r: p.reeling ? 1 : 0 };
   }
 
   protected createPlayer(id: string, alive: boolean): Angler {
-    return { id, y: 0.5, vy: 0, reeling: false, progress: START_PROGRESS, landed: 0, alive, wins: 0, outAtMeters: 0 };
+    return { id, y: 0.5, vy: 0, reeling: false, health: 1, catch: 0, landed: 0, alive, wins: 0, outAtMeters: 0 };
   }
 
   protected resetPlayer(p: Angler): void {
     p.y = 0.5;
     p.vy = 0;
     p.reeling = false;
-    p.progress = START_PROGRESS;
+    p.health = 1;
+    p.catch = 0;
     p.landed = 0;
   }
 
@@ -145,7 +151,8 @@ export class FishingGame extends RoundGame<Angler> {
         y: r3(p.y),
         vy: r3(p.vy),
         reeling: p.alive && p.reeling,
-        progress: r3(p.progress),
+        health: r3(p.health),
+        catch: r3(p.catch),
         landed: p.landed,
         alive: p.alive,
         wins: p.wins,
@@ -166,12 +173,20 @@ export class FishingGame extends RoundGame<Angler> {
         p.y = Math.min(NET_MAX, Math.max(NET_MIN, p.y));
         p.vy = -p.vy * BOUNCE;
       }
-      p.progress += (Math.abs(this.fishY - p.y) <= half ? lerp(GAIN, d) : -lerp(LOSS, d)) * dt;
-      if (p.progress >= 1) {
+      if (Math.abs(this.fishY - p.y) <= half) {
+        p.catch += lerp(CATCH_GAIN, d) * dt;
+        p.health = Math.min(1, p.health + HEALTH_MEND * dt);
+      } else {
+        p.catch = Math.max(0, p.catch - CATCH_DRAIN * dt);
+        p.health -= lerp(HEALTH_LOSS, d) * dt;
+      }
+      if (p.catch >= 1) {
         p.landed++;
-        p.progress = LANDED_PROGRESS;
-      } else if (p.progress <= 0) {
-        p.progress = 0;
+        p.catch = 0;
+        p.health = Math.min(1, p.health + LANDED_MEND);
+      }
+      if (p.health <= 0) {
+        p.health = 0;
         this.knockOut(p);
       }
     }
