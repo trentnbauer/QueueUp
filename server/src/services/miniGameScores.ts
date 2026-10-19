@@ -119,3 +119,10 @@ export async function myBests(viewerId: string): Promise<MiniGameBestsResponse> 
   }
   return { bests };
 }
+
+/** Deletes high scores: one game's, or (with no game) every game's. Returns how many runs were removed. Ratings and everything
+ * else stay. */
+export async function resetScores(game?: LobbyGameId): Promise<number> {
+  const { count } = await prisma.miniGameScore.deleteMany({ where: game ? { gameId: game } : {} });
+  return count;
+}

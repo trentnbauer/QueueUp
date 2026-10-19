@@ -108,6 +108,10 @@ When a run ends and its result card is showing, a **thumbs up / thumbs down** ap
 - **Administrators** see the results on the Administrator page under **Mini game ratings**: for each game the thumbs up, thumbs down, total, the share that are up, and thumbs up / down for the last 7 days (so a new game is not drowned by an old one's history). Lowest rated first. It shows **counts only, never who voted**. Not shown on the player-facing Mini games page.
 - Ratings are kept in the `mini_game_ratings` table (one row per person per game).
 
+## Resetting high scores
+
+Super administrators can wipe the saved high scores from the Administrator page, under **Mini game high scores**: one game's with its **Reset** button, or every game's with **Reset all high scores**. It asks first and cannot be undone. Only the saved runs (`mini_game_scores`) go: ratings, wins in a lobby and everything else stay. Each reset is written to the admin audit log (`minigames.resetScores`).
+
 ## Voting to spin
 
 While a spin is waiting for members, the mini game has a **Vote to spin** bar.

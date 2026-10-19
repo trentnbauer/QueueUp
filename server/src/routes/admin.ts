@@ -27,6 +27,7 @@ import { serverAiUsageFor, summarizeServerAiUsage } from '../services/ai/aiServe
 import { purgeDeletedRoomsCreatedBy, recentlyDeletedRooms, restoreRoom, ROOM_RETENTION_DAYS, softDeleteRoom, toDeletedRoomSummary } from '../services/roomDeletion.js';
 import { notifyRoomMembersDirect } from '../services/notifications.js';
 import { ratingTotals } from '../services/miniGameRatings.js';
+import { isLobbyGameId, resetScores } from '../services/miniGameScores.js';
 
 /** When the administrator's "Manage as Room Master" for the room runs out, or null if it's off. */
 async function managingUntil(userId: string, roomId: string): Promise<string | null> {
@@ -592,6 +593,19 @@ export default async function adminRoutes(app: FastifyInstance) {
     const userId = await request.requireAuth();
     await requireAdmin(userId);
     return { games: await ratingTotals() };
+  });
+
+  // Reset the mini game high scores: one game's (`?game=`), or every game's with no game given.
+  app.delete<{ Querystring: { game?: string } }>('/api/admin/minigame-scores', async (request) => {
+    const actorId = await request.requireAuth();
+    // Deleting everyone's scores cannot be undone, so it is for Super administrators (#1102).
+    const actor = await requireSuperAdmin(actorId);
+    const { game } = request.query;
+    if (game !== undefined && !isLobbyGameId(game)) throw new HttpError(400, 'Unknown game');
+    const removed = await resetScores(game);
+    app.log.warn({ adminAction: 'minigames.resetScores', actorId, game: game ?? 'all', removed }, `Admin ${actorId} reset mini game high scores (${game ?? 'all games'})`);
+    await logAdminAction({ actorId, actorLabel: actor.email, action: 'minigames.resetScores', targetLabel: game ?? 'all games', metadata: { removed } });
+    return { removed };
   });
 
   app.get<{ Querystring: { limit?: string } }>('/api/admin/email-log', async (request) => {
