@@ -2,9 +2,6 @@ import { LAVA_PLAYER_R, LAVA_PLANK_H, LAVA_SURFACE, type LavaSnapshot } from '@q
 import type { LobbyGameView } from './index';
 import { coverTile, hueOf, renderScene, type Scene, type SceneGame } from './kit';
 
-/** Players share one column of planks, so they are fanned out a little across it (drawing only). */
-const FAN = 0.05;
-
 /** Where a height up from the start of the run is on the arena (0 at the top, 1 at the bottom), given where the lava
  * surface is: the lava sits at `LAVA_SURFACE` from the bottom, and everything else is measured up from it. */
 const screenY = (z: number, lava: number) => 1 - LAVA_SURFACE - (z - lava);
@@ -32,37 +29,40 @@ function drawWorld(sc: Scene<LavaSnapshot>): void {
   ctx.fillStyle = glow;
   ctx.fillRect(0, top - S * 0.16, S, S * 0.16);
 
-  // Planks: full-width game covers, which stay put while the lava climbs toward them.
+  // Planks: game covers that stay put while the lava climbs toward them. Their top edge is bright: that is where you stand.
   for (const p of snapshot.planks) {
     const y = screenY(p.z, lava) * S;
     if (y < -S * 0.1 || y > S) continue;
-    coverTile(ctx, S * 0.04, y, S * 0.92, LAVA_PLANK_H * S, hueOf(p.n), S * 0.012);
+    const x = (p.x - p.w / 2) * S;
+    coverTile(ctx, x, y, p.w * S, LAVA_PLANK_H * S, hueOf(p.n), S * 0.012);
+    ctx.fillStyle = 'oklch(1 0 0 / 0.55)';
+    ctx.fillRect(x + S * 0.008, y, p.w * S - S * 0.016, 2);
   }
 
-  const n = snapshot.players.length;
+  // The ceiling: a faint line at the top of the screen, where nobody can climb past.
+  ctx.fillStyle = 'oklch(1 0 0 / 0.12)';
+  ctx.fillRect(0, 0, S, 2);
+
   const r = LAVA_PLAYER_R * S;
   for (const i of sc.order()) {
     const c = snapshot.players[i];
     if (!c.alive) continue; // fallen in: the burst has taken them
-    const cx = (0.5 + (i - (n - 1) / 2) * FAN) * S;
     // Eased in the world's own heights, so a player standing on a plank stays on it as the lava rises.
-    const z = sc.ease(c.id, 0, c.z).y;
-    sc.drawPlayer(c.id, cx, screenY(z, lava) * S - r, r, r);
+    const z = sc.ease(`${c.id}:z`, 0, c.z).y;
+    const x = sc.ease(`${c.id}:x`, c.x, 0).x;
+    sc.drawPlayer(c.id, x * S, screenY(z, lava) * S - r, r, r);
   }
 }
 
 const scene: SceneGame<LavaSnapshot> = {
   scroll: 'y',
   drawWorld,
-  anchor: (snapshot, index) => {
-    const n = snapshot.players.length;
-    return { x: 0.5 + (index - (n - 1) / 2) * FAN, y: screenY(snapshot.players[index].z, snapshot.lava) };
-  },
+  anchor: (snapshot, index) => ({ x: snapshot.players[index].x, y: screenY(snapshot.players[index].z, snapshot.lava) }),
 };
 
 export const lavaView: LobbyGameView<LavaSnapshot> = {
-  // One button: Jump (Space or Up), or tap anywhere on the arena.
-  pad: 'none',
+  // Left and right to slide, and one Jump button (Space or Up), or tap anywhere on the arena.
+  pad: 'leftRight',
   actions: [{ name: 'jump', labelKey: 'spin.lobby.lava.jump', keys: [' ', 'ArrowUp', 'w'] }],
   tapAction: 'jump',
   nameKey: 'spin.lobby.lava.name',

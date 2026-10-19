@@ -860,16 +860,24 @@ export const LAVA_SURFACE = 0.08;
 /** A player's radius and a plank's thickness, as fractions of the arena (drawing and landing). */
 export const LAVA_PLAYER_R = 0.03;
 export const LAVA_PLANK_H = 0.035;
+/** The top of the screen is a ceiling this far above the lava's surface: nobody can climb higher than that, so nobody climbs out of sight. */
+export const LAVA_CEILING = 0.88;
 
-/** A plank: `z` is the height of its top up from the start of the run. Planks never move; the lava rises past them. */
+/** A plank: `z` is the height of its top up from the start of the run, `x` the middle of it across the screen (0..1) and `w` how wide it is.
+ * Planks never move; the lava rises past them. */
 export interface LavaPlank {
   z: number;
+  x: number;
+  w: number;
   /** Which plank this is (counts up from 1 each run); stays the same while it lasts. */
   n: number;
 }
 
 export interface LavaPlayer {
   id: string;
+  /** Where they are across the screen (0..1) and the direction they are holding (-1, 0 or 1). */
+  x: number;
+  dir: number;
   /** Height of their feet, up from the start of the run (on a plank, the plank's `z`). */
   z: number;
   vy: number;
