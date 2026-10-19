@@ -110,6 +110,18 @@ A colour name is written in a different colour. Tap the panel that matches the *
 - The bar along the top is the time left, and everyone's points are in the row above the prompt, with a tick or cross for how they answered it.
 - **Controls:** the panels are the controller, so tap or click one, or press **1-4** (top left, top right, bottom left, bottom right).
 
+## Hot potato
+
+A bomb with a lit fuse goes round the ring. Needs at least 2 players, so on your own a bot plays you.
+
+- **Goal:** don't be holding it when it goes off. Players stand on a ring. One of them is handed the bomb; the holder presses **Pass** to throw it to the **next player along the ring** (so there is nobody to pick). **Whoever is holding it when it explodes is out.** Then a new bomb goes to a random player still in. **Last one in wins.**
+- **The fuse is hidden.** You can see the bomb glow redder and shake as it burns, but not how long is left. Each bomb's fuse is a random length between 55% and 100% of the longest allowed that round.
+- **Fuses get shorter:** the longest is 11 seconds in the first round, 0.7 seconds less every round, down to 4.5 seconds.
+- **Passing:** after you receive the bomb you must hold it for 0.4 seconds before you can pass it on, so it cannot be flicked straight back.
+- **Score** (the high score list): how many rounds you got through. There is no time limit of its own: it goes on until someone is the last one in.
+- **Bots** hold the bomb for between half a second and two seconds and then throw it, so they are beatable.
+- **Controls:** one button: **Space**, **↑** or **W**, or tap anywhere on the arena.
+
 ## Rating a game
 
 When a run ends and its result card is showing, a **thumbs up / thumbs down** appears under the arena (in a room's lobby, a spin's waiting room, an open lobby and solo practice alike).
@@ -162,6 +174,7 @@ A game can instead make **the play space the controller**: there are no buttons 
 | Gravity flip | **Space**, **↑**/**↓** or **W**/**S** to flip. | **Flip**, or tap anywhere on the arena. |
 | Laser gaps | **←** / **→** or **A** / **D**. | The **◀** and **▶** buttons. |
 | Color match | Click a panel, or press **1-4** (top left, top right, bottom left, bottom right). | Tap a panel. |
+| Hot potato | **Space**, **↑** or **W** to pass. | **Pass**, or tap anywhere on the arena. |
 
 ## Runner
 
