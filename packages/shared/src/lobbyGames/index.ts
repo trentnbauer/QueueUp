@@ -10,6 +10,7 @@ import { MemoryGame } from './memory.js';
 import { RaceGame } from './race.js';
 import { RopeGame } from './rope.js';
 import { RunnerGame } from './runner.js';
+import { LavaGame } from './lava.js';
 import { TiltGame } from './tilt.js';
 import { StackerGame } from './stacker.js';
 import { SumoGame } from './sumo.js';
@@ -20,7 +21,7 @@ import type { LobbyGame } from './types.js';
 
 export type { BotBrain, BotCommand, LobbyGame } from './types.js';
 export { LobbyRecord, secureRandom } from './roundGame.js';
-export { BattleshipsGame, CoinsGame, DodgeGame, FlappyGame, RaceGame, RopeGame, RunnerGame, WhackGame, DrawGame, TiltGame, StackerGame, SumoGame, AsteroidsGame, MemoryGame, WordsGame };
+export { BattleshipsGame, CoinsGame, DodgeGame, FlappyGame, RaceGame, RopeGame, RunnerGame, WhackGame, DrawGame, TiltGame, StackerGame, SumoGame, AsteroidsGame, MemoryGame, WordsGame, LavaGame };
 export { BotFiller, botColor, botNumber, isBotId, withBots } from './bots.js';
 
 /** Starts a fresh game of the given kind, with bots added by the lobby when it needs more players than
@@ -61,6 +62,8 @@ function build(id: LobbyGameId, record?: LobbyRecord): LobbyGame {
       return new MemoryGame(undefined, record);
     case 'words':
       return new WordsGame(undefined, record);
+    case 'lava':
+      return new LavaGame(undefined, record);
   }
 }
 
