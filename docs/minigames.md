@@ -82,9 +82,9 @@ One shared grid and a snake for each player. Needs at least 2 players, so on you
 
 Run along the floor or the ceiling and flip between them. Everyone runs the same course, side by side, and never touches.
 
-- **Goal:** don't hit a spike. Spike blocks scroll in from the right, standing on the floor or hanging from the ceiling. Be on the other side as one arrives. **Last one running wins**; alone it is a high score (metres).
-- **Flipping:** one button. It takes 0.3 seconds to cross, and you can only start a flip from the floor or the ceiling (pressing part way across does nothing), so it cannot be spammed. A spike is only dangerous near the side it is on, so you are safe in the middle of a flip.
-- **Spikes** are 0.06 to 0.14 wide and 0.14 tall, on a random side. They are at least 0.85 seconds of running apart, edge to edge (and up to 0.7 seconds more), which is always long enough to flip in. They come from the round's seed, so they are the same for everyone.
+- **Goal:** don't hit anything. Obstacles scroll in from the right: spikes standing on the floor, spikes hanging from the ceiling, and **blocks floating in the middle**. Be on the other side from a spike as it arrives, and **stay on a side (do not be flying across) as a middle block passes**: it kills anyone in the middle of the corridor. **Last one running wins**; alone it is a high score (metres).
+- **Flipping:** one button. A flip takes 0.3 seconds to cross, and you can press again **part way across to turn round** and go back. There is a short wait (0.18 seconds) before the next flip, so mashing the button cannot hold you in the middle, out of reach of the spikes. A spike is only dangerous near the side it is on, so you are safe from spikes while flying, but a middle block is exactly where you fly.
+- **Obstacles** are 0.06 to 0.14 wide: spikes 0.14 tall, middle blocks 0.26 tall. 40% are floor spikes, 40% ceiling spikes and 20% middle blocks, at random. They are at least 0.85 seconds of running apart, edge to edge (and up to 0.7 seconds more), which is always long enough to flip in and settle. They come from the round's seed, so they are the same for everyone.
 - **Speed:** the course starts at 0.45 of a screen per second and climbs to 0.95 after about 50 seconds.
 - There is no time limit of its own: it goes on until it is beaten.
 - **Controls:** one button: **Space**, **↑**/**↓** or **W**/**S**, or tap anywhere on the arena.

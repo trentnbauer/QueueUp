@@ -57,7 +57,7 @@ export const MINIGAME_VERSIONS: Record<LobbyGameId, number> = {
   words: 1,
   lava: 1,
   snake: 1,
-  gravity: 1,
+  gravity: 2, // floating blocks in the middle, and a flip can be turned round part way across
   laser: 1,
   colormatch: 1,
   potato: 1,
