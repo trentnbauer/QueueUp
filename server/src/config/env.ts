@@ -18,7 +18,11 @@ export const envSchema = z.object({
   REDIS_URL: z.string().min(1),
   // @fastify/session refuses a secret shorter than 32 characters - checked here so a short one is
   // reported as a config error at startup instead of crashing the session plugin.
-  SESSION_SECRET: z.string().min(32, 'SESSION_SECRET must be at least 32 characters'),
+  SESSION_SECRET: z
+    .string()
+    .min(32, 'SESSION_SECRET must be at least 32 characters')
+    // The placeholder in .env.example is public, so a copy that was never edited would sign sessions (and key the stored credentials) with a known value.
+    .refine((v) => !/change[-_ ]?(this|me)|replace[-_ ]?me|example|placeholder/i.test(v), 'SESSION_SECRET is still a placeholder - set it to a long random string (openssl rand -hex 32)'),
 
   // Serves the entire app under this path prefix instead of domain root (issue #438) - e.g.
   // mydomain.com/queueup, for a self-hoster running several apps behind one domain. Optional,

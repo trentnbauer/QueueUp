@@ -10,7 +10,7 @@ import { notifyAccountChange } from '../services/notifications.js';
 import { warnPreviousAddresses } from '../services/addressChangeNotice.js';
 import { mailRecipient } from '../services/emailRecipient.js';
 
-const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+const EMAIL_RE = /^[^\s@,;<>"]+@[^\s@,;<>"]+\.[^\s@,;<>"]+$/;
 const CONFIRM_TTL_MS = 24 * 60 * 60 * 1000;
 
 const hashToken = (token: string) => createHash('sha256').update(token).digest('hex');
