@@ -14,6 +14,10 @@ const lcg = (seed: number) => {
 const me = (g: ColorMatchGame, id: string) => g.snapshot().players.find((p) => p.id === id)!;
 const score = (g: ColorMatchGame, id: string) => me(g, id).meters;
 
+/** The panel a prompt asks for, and one it does not. */
+const answer = (p: { ink: number; word: number; shape: number; mode: 'ink' | 'word' | 'shape' }) => p[p.mode];
+const wrongOf = (p: Parameters<typeof answer>[0]) => (answer(p) + 1) % COLOR_MATCH_PANELS;
+
 function started(ids: string[], rng: () => number = lcg(7)) {
   const g = new ColorMatchGame(rng);
   ids.forEach((id) => g.join(id));
@@ -42,35 +46,75 @@ describe('ColorMatchGame', () => {
     expect(g.snapshot().limitMs).toBe(30_000);
   });
 
-  it('always writes a colour in the ink of a different one', () => {
+  it('always writes a colour in the ink of a different one, in front of the shape of a third panel', () => {
     const g = started(['a']);
     let after = 0;
     for (let i = 0; i < 12; i++) {
       const prompt = waitForPrompt(g, after);
       expect(prompt.word).not.toBe(prompt.ink);
-      expect(prompt.ink).toBeGreaterThanOrEqual(0);
-      expect(prompt.ink).toBeLessThan(COLOR_MATCH_PANELS);
+      expect(prompt.shape).not.toBe(prompt.ink);
+      expect(prompt.shape).not.toBe(prompt.word);
+      for (const k of [prompt.ink, prompt.word, prompt.shape]) {
+        expect(k).toBeGreaterThanOrEqual(0);
+        expect(k).toBeLessThan(COLOR_MATCH_PANELS);
+      }
       after = prompt.n;
-      g.tap('a', prompt.ink);
+      g.tap('a', prompt[prompt.mode]);
+    }
+  });
+
+  it('asks for the ink, the word or the shape, and a different one each time', () => {
+    const g = started(['a']);
+    const seen = new Set<string>();
+    let last: string | null = null;
+    let after = 0;
+    for (let i = 0; i < 40; i++) {
+      const prompt = waitForPrompt(g, after);
+      expect(prompt.mode).not.toBe(last);
+      last = prompt.mode;
+      seen.add(prompt.mode);
+      after = prompt.n;
+      g.tap('a', prompt[prompt.mode]);
+    }
+    expect([...seen].sort()).toEqual(['ink', 'shape', 'word']);
+  });
+
+  it('counts the panel the prompt asks for as right, and the other two as wrong', () => {
+    for (const mode of ['ink', 'word', 'shape'] as const) {
+      let found = false;
+      for (let seed = 1; seed < 60 && !found; seed++) {
+        const g = started(['a'], lcg(seed));
+        const prompt = waitForPrompt(g);
+        if (prompt.mode !== mode) continue;
+        found = true;
+        const wrong = [prompt.ink, prompt.word, prompt.shape].filter((k) => k !== prompt[mode]);
+        g.tap('a', wrong[0]);
+        expect(me(g, 'a').right).toBe(false);
+        const h = started(['a'], lcg(seed));
+        waitForPrompt(h);
+        h.tap('a', prompt[mode]);
+        expect(me(h, 'a').right).toBe(true);
+      }
+      expect(found, mode).toBe(true);
     }
   });
 
   it('scores a right answer 2 if quick and 1 if slow, and a wrong one costs a point, once per prompt', () => {
     const g = started(['a', 'b']);
     const first = waitForPrompt(g);
-    g.tap('a', first.ink); // quick
-    g.tap('a', (first.ink + 1) % COLOR_MATCH_PANELS); // second tap on the prompt: ignored
+    g.tap('a', answer(first)); // quick
+    g.tap('a', wrongOf(first)); // second tap on the prompt: ignored
     expect(score(g, 'a')).toBe(2);
     expect(me(g, 'a')).toMatchObject({ answered: true, right: true });
     run(g, 2000); // b is slow, then the prompt times out
     const second = waitForPrompt(g, first.n);
     run(g, 1500); // past the quick window
-    g.tap('b', second.ink);
+    g.tap('b', answer(second));
     expect(score(g, 'b')).toBe(1);
     const third = waitForPrompt(g, second.n);
-    g.tap('b', (third.ink + 1) % COLOR_MATCH_PANELS);
+    g.tap('b', wrongOf(third));
     expect(score(g, 'b')).toBe(0); // 1 - 1
-    g.tap('b', third.ink); // already answered
+    g.tap('b', answer(third)); // already answered
     expect(score(g, 'b')).toBe(0);
   });
 
@@ -85,7 +129,7 @@ describe('ColorMatchGame', () => {
     g.tap('a', COLOR_MATCH_PANELS);
     g.tap('a', 1.5);
     expect(me(g, 'a').answered).toBe(false);
-    g.tap('a', (prompt.ink + 1) % COLOR_MATCH_PANELS);
+    g.tap('a', wrongOf(prompt));
     expect(score(g, 'a')).toBe(0);
   });
 
@@ -93,8 +137,8 @@ describe('ColorMatchGame', () => {
     const g = started(['a', 'b']);
     const first = waitForPrompt(g);
     const total = g.snapshot().promptTotalMs;
-    g.tap('a', first.ink);
-    g.tap('b', first.ink);
+    g.tap('a', answer(first));
+    g.tap('b', answer(first));
     run(g, 800);
     expect(g.snapshot().prompt.n).toBeGreaterThan(first.n);
     run(g, 20_000);
@@ -108,7 +152,7 @@ describe('ColorMatchGame', () => {
       const snap = g.snapshot();
       if (snap.stage === 'prompt' && snap.prompt.n > after) {
         after = snap.prompt.n;
-        g.tap('a', snap.prompt.ink);
+        g.tap('a', answer(snap.prompt));
       }
       g.tick(STEP);
     }
@@ -132,7 +176,7 @@ describe('ColorMatchGame', () => {
         const p = waitForPrompt(g, after);
         after = p.n;
         out.push(p.word * 4 + p.ink);
-        g.tap('a', p.ink);
+        g.tap('a', answer(p));
       }
       return out;
     };

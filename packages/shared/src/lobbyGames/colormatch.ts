@@ -1,4 +1,4 @@
-import { COLOR_MATCH_PANELS, type ColorMatchPrompt, type ColorMatchSnapshot, type ColorMatchStage } from '../spinLobby.js';
+import { COLOR_MATCH_MODES, COLOR_MATCH_PANELS, type ColorMatchPrompt, type ColorMatchSnapshot, type ColorMatchStage } from '../spinLobby.js';
 import { RoundGame, type RoundPlayer } from './roundGame.js';
 
 const ROUND_S = 30;
@@ -23,14 +23,15 @@ interface Matcher extends RoundPlayer {
   right: boolean | null;
 }
 
-/** A colour name is shown in a different ink colour; tap the panel that matches the ink, not the word. Everyone is
+/** A colour name is written in the ink of another colour, in front of the shape of a third panel, and the prompt says which to match: the
+ * ink, the word or the shape (it changes from one prompt to the next). Tap that panel. Everyone is
  * shown the same prompts at the same time. A right answer scores a point (two if it is quick), a wrong one costs a point, and
  * only your first tap on a prompt counts. When the 30 seconds are up, most points wins. See RoundGame for how rounds
  * start and end. */
 export class ColorMatchGame extends RoundGame<Matcher> {
   readonly id = 'colormatch' as const;
   private stage: ColorMatchStage = 'prompt';
-  private prompt: ColorMatchPrompt = { word: 0, ink: 1, n: 0 };
+  private prompt: ColorMatchPrompt = { word: 0, ink: 1, shape: 2, mode: 'ink', n: 0 };
   /** Seconds the current prompt has been up, and how long it waits in all. */
   private elapsed = 0;
   private allowed = PROMPT_START_S;
@@ -61,7 +62,7 @@ export class ColorMatchGame extends RoundGame<Matcher> {
 
   protected resetCourse(): void {
     this.stage = 'between';
-    this.prompt = { word: 0, ink: 1, n: 0 };
+    this.prompt = { word: 0, ink: 1, shape: 2, mode: 'ink', n: 0 };
     this.elapsed = 0;
     this.allowed = PROMPT_START_S;
     this.wait = 0;
@@ -86,7 +87,7 @@ export class ColorMatchGame extends RoundGame<Matcher> {
     if (this.phase !== 'playing' || this.stage !== 'prompt' || !p || !p.alive || p.answered) return;
     if (!Number.isInteger(target) || target < 0 || target >= COLOR_MATCH_PANELS) return;
     p.answered = true;
-    p.right = target === this.prompt.ink;
+    p.right = target === this.prompt[this.prompt.mode];
     if (p.right) p.score += this.elapsed <= this.allowed * QUICK_SHARE ? 2 : 1;
     else p.score = Math.max(0, p.score - WRONG_COST);
   }
@@ -130,10 +131,17 @@ export class ColorMatchGame extends RoundGame<Matcher> {
   }
 
   private nextPrompt(seconds: number): void {
-    const ink = Math.floor(this.rng() * COLOR_MATCH_PANELS);
-    // The word names a different colour, so reading it is a trap.
-    const word = (ink + 1 + Math.floor(this.rng() * (COLOR_MATCH_PANELS - 1))) % COLOR_MATCH_PANELS;
-    this.prompt = { word, ink, n: ++this.asked };
+    // Always the same four random numbers, so one prompt does not change the ones after it.
+    const [inkAt, wordAt, shapeAt, modeAt] = [this.rng(), this.rng(), this.rng(), this.rng()];
+    const ink = Math.floor(inkAt * COLOR_MATCH_PANELS);
+    // The word names a different colour, so reading it is a trap, and the shape is a third panel's, so it is another.
+    const word = (ink + 1 + Math.floor(wordAt * (COLOR_MATCH_PANELS - 1))) % COLOR_MATCH_PANELS;
+    const others = Array.from({ length: COLOR_MATCH_PANELS }, (_, i) => i).filter((i) => i !== ink && i !== word);
+    const shape = others[Math.floor(shapeAt * others.length)];
+    // What to match changes every prompt: never the same twice running (the first can be any).
+    const modes = this.asked === 0 ? COLOR_MATCH_MODES : COLOR_MATCH_MODES.filter((m) => m !== this.prompt.mode);
+    const mode = modes[Math.floor(modeAt * modes.length)];
+    this.prompt = { word, ink, shape, mode, n: ++this.asked };
     this.allowed = Math.max(PROMPT_MIN_S, PROMPT_START_S - PROMPT_GAIN_S * seconds);
     this.elapsed = 0;
     this.stage = 'prompt';
