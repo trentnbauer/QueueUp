@@ -11,8 +11,8 @@
 export const LOBBY_TICK_HZ = 15;
 
 /** The games the lobby can run. */
-export type LobbyGameId = 'runner' | 'flappy' | 'dodge' | 'rope' | 'coins' | 'battleships' | 'race' | 'whack' | 'draw' | 'tilt' | 'stacker' | 'sumo' | 'asteroids' | 'memory' | 'words' | 'lava';
-export const LOBBY_GAME_IDS: readonly LobbyGameId[] = ['runner', 'flappy', 'dodge', 'rope', 'coins', 'battleships', 'race', 'whack', 'draw', 'tilt', 'stacker', 'sumo', 'asteroids', 'memory', 'words', 'lava'];
+export type LobbyGameId = 'runner' | 'flappy' | 'dodge' | 'rope' | 'coins' | 'battleships' | 'race' | 'whack' | 'draw' | 'tilt' | 'stacker' | 'sumo' | 'asteroids' | 'memory' | 'words' | 'lava' | 'snake';
+export const LOBBY_GAME_IDS: readonly LobbyGameId[] = ['runner', 'flappy', 'dodge', 'rope', 'coins', 'battleships', 'race', 'whack', 'draw', 'tilt', 'stacker', 'sumo', 'asteroids', 'memory', 'words', 'lava', 'snake'];
 
 /** What a client sends. Anything else is ignored. */
 export type LobbyClientMessage =
@@ -901,8 +901,54 @@ export interface LavaSnapshot extends RoundSummary {
   winnerId: string | null;
 }
 
+// ---- Snake arena (one grid, a snake each; last snake alive wins) ---------------------------------
+
+/** The board is this many cells each way. */
+export const SNAKE_GRID = 24;
+
+/** A pickup on a cell (`x` across, `y` down, from the top left). */
+export interface SnakePickup {
+  x: number;
+  y: number;
+  /** Which pickup this is (counts up from 1 each run); stays the same while it lasts. */
+  n: number;
+}
+
+export interface SnakePlayer {
+  id: string;
+  /** Still going. False once they hit something, or if they arrived mid-run. */
+  alive: boolean;
+  /** Runs won since this person joined the lobby. */
+  wins: number;
+  /** How long their snake is: live while going, final once out. */
+  meters: number;
+  /** The way the head faces: 0 up, 1 right, 2 down, 3 left. */
+  heading: number;
+  /** The snake's cells, head first, each as `y * grid + x`. Empty once out. */
+  cells: number[];
+}
+
+export interface SnakeSnapshot extends RoundSummary {
+  id: 'snake';
+  phase: LobbyRoundPhase;
+  /** The longest snake still going. */
+  meters: number;
+  /** Always 0: nothing scrolls past in this game (every snapshot carries a course speed). */
+  speed: number;
+  /** Cells each way. */
+  grid: number;
+  /** How many steps this run has taken, so a bot can decide once a step. */
+  step: number;
+  pickups: SnakePickup[];
+  players: SnakePlayer[];
+  /** Milliseconds left in `countdown` or `over`; 0 otherwise. */
+  timerMs: number;
+  /** Who won the run that just ended (`over` only); null when nobody did (everyone out together). */
+  winnerId: string | null;
+}
+
 /** The snapshot of whichever game is running. */
-export type LobbyGameSnapshot = RunnerSnapshot | FlappySnapshot | DodgeSnapshot | RopeSnapshot | CoinsSnapshot | BattleshipsSnapshot | RaceSnapshot | WhackSnapshot | DrawSnapshot | TiltSnapshot | StackerSnapshot | SumoSnapshot | AsteroidsSnapshot | MemorySnapshot | WordsSnapshot | LavaSnapshot;
+export type LobbyGameSnapshot = RunnerSnapshot | FlappySnapshot | DodgeSnapshot | RopeSnapshot | CoinsSnapshot | BattleshipsSnapshot | RaceSnapshot | WhackSnapshot | DrawSnapshot | TiltSnapshot | StackerSnapshot | SumoSnapshot | AsteroidsSnapshot | MemorySnapshot | WordsSnapshot | LavaSnapshot | SnakeSnapshot;
 
 /** What a client needs to run its own player on a course the server decided: which run, the seed that
  * makes the course, and how long until the run starts (negative once it has, by how far in). */

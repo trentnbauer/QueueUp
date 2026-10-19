@@ -64,6 +64,18 @@ Jump up the planks before the lava reaches you. Everyone climbs the same planks,
 - There is no time limit of its own: it goes on until it is beaten.
 - **Controls:** one button: **Space**, **↑** or **W**, or tap anywhere on the arena.
 
+## Snake arena
+
+One shared grid and a snake for each player. Needs at least 2 players, so on your own a bot plays you.
+
+- **Goal:** be the last snake alive. Your snake always moves on, one cell at a time, and leaves its body behind it. **Hit a wall, any snake (yours included), or run head-on into another head, and you are out.** Last one going wins; if the last ones go out in the same step, it is a draw.
+- **Pickups** (one for each snake going) appear on empty cells. Eating one makes your snake one cell longer.
+- **Speed:** a step takes 0.17 seconds at the start and gets shorter as the longest snake grows (0.004 less for each cell beyond the start), down to 0.075 seconds.
+- **Starting spots:** snakes start 3 cells long, spread round a ring and facing the middle, in the order players joined.
+- **Score** (the high score list): how long your snake got. There is no time limit of its own: it goes on until it is beaten.
+- **Bots** steer away from walls and bodies and toward the nearest pickup. They only look one cell ahead and now and then turn the wrong way, so they can be beaten.
+- **Controls:** turn left or right (each press is one turn at the next step).
+
 ## Rating a game
 
 When a run ends and its result card is showing, a **thumbs up / thumbs down** appears under the arena (in a room's lobby, a spin's waiting room, an open lobby and solo practice alike).
@@ -108,6 +120,7 @@ A game can instead make **the play space the controller**: there are no buttons 
 | Jump rope | **Space**, **↑** or **W** to jump. | **Jump**, or tap anywhere on the arena. |
 | Obstacle race | **←** / **→** or **A** / **D** to steer. | The **◀** and **▶** buttons. |
 | Lava rise | **Space**, **↑** or **W** to jump. | **Jump**, or tap anywhere on the arena. |
+| Snake arena | **←** / **→** or **A** / **D** to turn. | The **◀** and **▶** buttons. |
 
 ## Runner
 
