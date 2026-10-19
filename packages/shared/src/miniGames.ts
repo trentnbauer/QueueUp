@@ -35,6 +35,39 @@ export const MINIGAME_SCORE_MAX: Record<LobbyGameId, number> = {
   pong: 100000,
 };
 
+/** Each game's rules version. A score is saved with the version it was played under, and the high score lists show only the
+ * current version, so a game whose rules change enough that old scores no longer compare (a different course, a different
+ * meaning for the score) starts a fresh list; the old scores stay in the database. **Raise a game's number whenever you change
+ * how it plays or scores in a way that makes an old score unfair against a new one.** A new game starts at 1. */
+export const MINIGAME_VERSIONS: Record<LobbyGameId, number> = {
+  runner: 2, // the pair of skinny cacti got a gap between them
+  flappy: 1,
+  dodge: 2, // bigger blocks, a wider safe lane, a slower spawn rate
+  rope: 1,
+  coins: 1,
+  battleships: 2, // a player's own ships may touch
+  race: 2, // pit lanes along the sides
+  whack: 2, // shared moles, shorter up time, pauses
+  draw: 2, // the score became a reaction time in milliseconds
+  tilt: 2, // a ball each, tipped by where the balls are
+  stacker: 1,
+  sumo: 1,
+  asteroids: 1,
+  memory: 2, // no cap on the rounds
+  words: 1,
+  lava: 1,
+  snake: 1,
+  gravity: 1,
+  laser: 1,
+  colormatch: 1,
+  potato: 1,
+  anagram: 1,
+  mines: 1,
+  stop: 1,
+  pong: 1,
+};
+export const miniGameVersion = (game: LobbyGameId): number => MINIGAME_VERSIONS[game];
+
 /** The lowest score a game can really produce, where that is more than 1. Quick draw's score was points (1 to 3)
  * before it became a reaction time in ms (never under 100), so older rows below this are ignored when read. */
 export const minScoreOf = (game: LobbyGameId): number => (game === 'draw' ? 100 : 1);
@@ -63,6 +96,8 @@ export interface MiniGameScoreRow {
 
 export interface MiniGameScoresResponse {
   game: LobbyGameId;
+  /** The rules version these scores were played under (the current one). */
+  version: number;
   scope: MiniGameScoreScope;
   period: MiniGameScorePeriod;
   /** The top rows, one per person (their best in the period). Equal scores share a rank. */
@@ -161,6 +196,9 @@ export interface JoinMiniGameLobbyRequest {
 export interface SubmitMiniGameScoreRequest {
   game: LobbyGameId;
   score: number;
+  /** The rules version the player's device ran the game under (`MINIGAME_VERSIONS`). A different one than the server's
+   * means the page is out of date, and the score is refused. */
+  version: number;
 }
 
 /** "This week" is the last 7 days, rolling, so the list never empties at a week boundary. */

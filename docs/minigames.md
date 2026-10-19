@@ -167,6 +167,14 @@ One ball on one shared court, and a paddle for each player on their own side. Ne
 - **Bots** follow the ball with a lag and a small error, so they can be beaten.
 - **Controls:** left and right only. On the side paddles, left is up and right is down.
 
+## Game versions
+
+Every game has a **version** (`MINIGAME_VERSIONS` in `packages/shared/src/miniGames.ts`, starting at 1). Each saved score records the version it was played under, and the high score lists, "your best" and the ranks show **only the current version**. When a game's rules change enough that an old score is no longer fair against a new one (a different course, a different meaning for the score), raise its number and the game starts a fresh list; the old scores stay in the database (and an administrator reset still removes them).
+
+- A solo score is sent with the version the player's page ran. If the server's version is different (the page is out of date) the score is refused with a note to reload, so a stale page cannot post onto the new list.
+- Scores from lobby and waiting room runs take the server's current version, since the server runs the game.
+- The leaderboard shows which version it is.
+
 ## Rating a game
 
 When a run ends and its result card is showing, a **thumbs up / thumbs down** appears under the arena (in a room's lobby, a spin's waiting room, an open lobby and solo practice alike).

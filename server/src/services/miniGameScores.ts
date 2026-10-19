@@ -1,5 +1,5 @@
 import { Prisma } from '@prisma/client';
-import { LOBBY_GAME_IDS, MINIGAME_LAST_RUNS, MINIGAME_LEADERBOARD_SIZE, MINIGAME_SCORE_MAX, MINIGAME_WEEK_MS, lowerIsBetter, minScoreOf, type LobbyGameId, type LobbyRunScore, type MiniGameBestsResponse, type MiniGameMeResponse, type MiniGameScorePeriod, type MiniGameScoreRow, type MiniGameScoreScope, type MiniGameScoreSource, type MiniGameScoresResponse } from '@queueup/shared';
+import { LOBBY_GAME_IDS, MINIGAME_LAST_RUNS, MINIGAME_LEADERBOARD_SIZE, MINIGAME_SCORE_MAX, MINIGAME_WEEK_MS, lowerIsBetter, miniGameVersion, minScoreOf, type LobbyGameId, type LobbyRunScore, type MiniGameBestsResponse, type MiniGameMeResponse, type MiniGameScorePeriod, type MiniGameScoreRow, type MiniGameScoreScope, type MiniGameScoreSource, type MiniGameScoresResponse } from '@queueup/shared';
 import { prisma } from '../db/client.js';
 import { blockedIdsOf } from './blocks.js';
 import { friendIdsOf } from './friendships.js';
@@ -16,7 +16,7 @@ export function isPlausibleScore(game: LobbyGameId, score: unknown): score is nu
 /** Saves a finished run for each real player. Scores that cannot be real are dropped, and a failure to
  * save never reaches the game (high scores are a bonus, never a reason for a lobby to break). */
 export async function recordRunScores(game: LobbyGameId, source: MiniGameScoreSource, scores: LobbyRunScore[], roomId?: string): Promise<void> {
-  const data = scores.filter((s) => isPlausibleScore(game, s.score)).map((s) => ({ userId: s.userId, gameId: game, score: s.score, source, roomId: roomId ?? null }));
+  const data = scores.filter((s) => isPlausibleScore(game, s.score)).map((s) => ({ userId: s.userId, gameId: game, score: s.score, version: miniGameVersion(game), source, roomId: roomId ?? null }));
   if (data.length === 0) return;
   try {
     await prisma.miniGameScore.createMany({ data });
@@ -56,6 +56,7 @@ async function bestPerPerson(viewerId: string, game: LobbyGameId, scope: MiniGam
         AND (${since}::timestamptz IS NULL OR s.created_at >= ${since}::timestamptz)
         AND (NOT ${friends}::boolean OR s.user_id = ANY(${ids}::text[]))
         AND s.score >= ${minScoreOf(game)}
+        AND s.version = ${miniGameVersion(game)}
         AND u.banned_at IS NULL
         AND NOT (s.user_id = ANY(${blocked}::text[]))
       ORDER BY s.user_id, s.score ${dir}, s.created_at ASC
@@ -83,13 +84,13 @@ function toRow(r: BestRow, viewerId: string): MiniGameScoreRow {
 
 export async function leaderboard(viewerId: string, game: LobbyGameId, scope: MiniGameScoreScope, period: MiniGameScorePeriod): Promise<MiniGameScoresResponse> {
   const rows = (await bestPerPerson(viewerId, game, scope, period, MINIGAME_LEADERBOARD_SIZE)).map((r) => toRow(r, viewerId));
-  return { game, scope, period, rows, myRank: rows.find((r) => r.isMe)?.rank ?? null };
+  return { game, version: miniGameVersion(game), scope, period, rows, myRank: rows.find((r) => r.isMe)?.rank ?? null };
 }
 
 export async function myScores(viewerId: string, game: LobbyGameId): Promise<MiniGameMeResponse> {
   const [runs, best, friendRows, friendIds] = await Promise.all([
-    prisma.miniGameScore.findMany({ where: { userId: viewerId, gameId: game, score: { gte: minScoreOf(game) } }, orderBy: { createdAt: 'desc' }, take: MINIGAME_LAST_RUNS, select: { score: true, createdAt: true, source: true } }),
-    prisma.miniGameScore.aggregate({ where: { userId: viewerId, gameId: game, score: { gte: minScoreOf(game) } }, _max: { score: true }, _min: { score: true }, _count: { _all: true } }),
+    prisma.miniGameScore.findMany({ where: { userId: viewerId, gameId: game, version: miniGameVersion(game), score: { gte: minScoreOf(game) } }, orderBy: { createdAt: 'desc' }, take: MINIGAME_LAST_RUNS, select: { score: true, createdAt: true, source: true } }),
+    prisma.miniGameScore.aggregate({ where: { userId: viewerId, gameId: game, version: miniGameVersion(game), score: { gte: minScoreOf(game) } }, _max: { score: true }, _min: { score: true }, _count: { _all: true } }),
     bestPerPerson(viewerId, game, 'friends', 'all', 500),
     friendIdsOf(viewerId),
   ]);
@@ -110,7 +111,7 @@ export async function myScores(viewerId: string, game: LobbyGameId): Promise<Min
 }
 
 export async function myBests(viewerId: string): Promise<MiniGameBestsResponse> {
-  const rows = await prisma.miniGameScore.groupBy({ by: ['gameId'], where: { userId: viewerId, OR: [{ gameId: { not: 'draw' } }, { score: { gte: minScoreOf('draw') } }] }, _max: { score: true }, _min: { score: true } });
+  const rows = await prisma.miniGameScore.groupBy({ by: ['gameId'], where: { userId: viewerId, OR: LOBBY_GAME_IDS.map((id) => ({ gameId: id, version: miniGameVersion(id), score: { gte: minScoreOf(id) } })) }, _max: { score: true }, _min: { score: true } });
   const bests: MiniGameBestsResponse['bests'] = {};
   for (const r of rows) {
     if (!isLobbyGameId(r.gameId)) continue;

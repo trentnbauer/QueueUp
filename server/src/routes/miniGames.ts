@@ -2,6 +2,7 @@ import type { FastifyInstance } from 'fastify';
 import type { MiniGameScorePeriod, MiniGameScoreScope, SetMiniGameRatingRequest, SubmitMiniGameScoreRequest } from '@queueup/shared';
 import { HttpError } from '../util/httpError.js';
 import { isRatingValue, myRatings, setRating } from '../services/miniGameRatings.js';
+import { miniGameVersion } from '@queueup/shared';
 import { isLobbyGameId, isPlausibleScore, leaderboard, myBests, myScores, recordRunScores } from '../services/miniGameScores.js';
 
 /** Mini game high scores (see services/miniGameScores.ts). Runs in a room's lobby or waiting room are saved
@@ -46,8 +47,10 @@ export default async function miniGameRoutes(app: FastifyInstance) {
     { config: { rateLimit: { max: 30, timeWindow: '1 minute' } } },
     async (request, reply) => {
       const userId = await request.requireAuth();
-      const { game, score } = request.body ?? ({} as Partial<SubmitMiniGameScoreRequest>);
+      const { game, score, version } = request.body ?? ({} as Partial<SubmitMiniGameScoreRequest>);
       if (!isLobbyGameId(game)) throw new HttpError(400, 'Unknown game');
+      // A page that is out of date ran an older version of the game; its score does not belong on this version's list.
+      if (version !== miniGameVersion(game)) throw new HttpError(409, 'This game has been updated: reload the page to play the new version');
       if (!isPlausibleScore(game, score)) throw new HttpError(400, 'Not a possible score');
       await recordRunScores(game, 'solo', [{ userId, score }]);
       return reply.code(204).send();
