@@ -79,7 +79,13 @@ export interface RoundSummary {
   history: RunResult[];
   /** The furthest run so far in this game, or null before one has finished. */
   best: RunResult | null;
+  /** How long a run can last in all, in milliseconds, or 0 when it goes on until it is beaten (a time bar
+   * has nothing to show then). A spin's waiting room caps every run at `LOBBY_WAITING_ROOM_LIMIT_S`. */
+  limitMs: number;
 }
+
+/** A run in a spin's waiting room ends after this many seconds, whatever the game, so the waiting room keeps moving. */
+export const LOBBY_WAITING_ROOM_LIMIT_S = 30;
 
 /** How many finished runs the snapshot keeps. */
 export const LOBBY_HISTORY_LENGTH = 10;

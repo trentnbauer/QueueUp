@@ -133,7 +133,7 @@ describe('TiltGame', () => {
 
   it('gives a solo run no winner and keeps the score in the history', () => {
     const solo = started(['a']);
-    play(solo, ['a'], 130_000);
+    play(solo, ['a'], 1_200_000); // no time limit: the wobble ends it
     expect(solo.snapshot()).toMatchObject({ phase: 'over', winnerId: null });
     expect(solo.snapshot().history.at(-1)?.meters).toBeGreaterThanOrEqual(0);
   });

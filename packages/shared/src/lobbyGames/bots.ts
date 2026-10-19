@@ -62,6 +62,14 @@ export class BotFiller implements LobbyGame {
     this.inner.onRunOver = fn;
   }
 
+  get timeLimitS(): number | null | undefined {
+    return this.inner.timeLimitS;
+  }
+
+  set timeLimitS(s: number | null | undefined) {
+    this.inner.timeLimitS = s;
+  }
+
   get onRunScores(): ((scores: LobbyRunScore[]) => void) | undefined {
     return this.inner.onRunScores;
   }
