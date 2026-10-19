@@ -53,6 +53,18 @@ describe('LobbyFx knock-outs', () => {
     expect(theirs.flash).toBe(0);
   });
 
+  it('holds the burst back when the anchor asks for a delay, e.g. while a player falls', () => {
+    reducedMotion(false);
+    const fx = new LobbyFx();
+    const slow: FxFrame = { ...frame, anchor: () => ({ x: 0.2, y: 0.9, delayS: 0.1 }) };
+    fx.update(snap(), 1000, slow);
+    fx.update(snap({ players: [{ id: 'me', alive: false }, { id: 'b', alive: true }] }), 1016, slow);
+    expect(fx.shake).toBe(0);
+    fx.update(snap({ players: [{ id: 'me', alive: false }, { id: 'b', alive: true }] }), 1066, slow);
+    fx.update(snap({ players: [{ id: 'me', alive: false }, { id: 'b', alive: true }] }), 1116, slow);
+    expect(fx.shake).toBeGreaterThan(0.8);
+  });
+
   it('does nothing for someone who was never in the run, or when nobody is knocked out', () => {
     reducedMotion(false);
     const fx = new LobbyFx();

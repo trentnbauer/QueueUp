@@ -31,7 +31,7 @@ export interface FxFrame {
   /** A player's colour. */
   colorOf: (id: string) => string;
   /** Where a player was on the arena (fractions of its size) in `snapshot` - for the knock-out burst. */
-  anchor: (snapshot: LobbyGameSnapshot, index: number) => { x: number; y: number };
+  anchor: (snapshot: LobbyGameSnapshot, index: number) => { x: number; y: number; /** Seconds to wait before the burst, for a player who falls first. */ delayS?: number };
   /** The words floated up from a knock-out. */
   outText: string;
   youOutText: string;
@@ -57,6 +57,7 @@ export class LobbyFx {
   }
   private particles: Particle[] = [];
   private prev: LobbyGameSnapshot | null = null;
+  private pending: { at: { x: number; y: number }; color: string; mine: boolean; wait: number; frame: FxFrame }[] = [];
   private lastNow = 0;
   private confettiRun = -1;
   private readonly firstSeen = new WeakMap<object, number>();
@@ -78,7 +79,7 @@ export class LobbyFx {
       if (prev.phase === 'playing') {
         snapshot.players.forEach((p) => {
           const before = prev.players.findIndex((q) => q.id === p.id);
-          if (before >= 0 && prev.players[before].alive && !p.alive) this.explode(frame.anchor(prev, before), frame.colorOf(p.id), p.id === frame.me, frame);
+          if (before >= 0 && prev.players[before].alive && !p.alive) this.knockedOut(frame.anchor(prev, before), frame.colorOf(p.id), p.id === frame.me, frame);
         });
       }
       if (snapshot.phase === 'over' && prev.phase !== 'over' && snapshot.winnerId && snapshot.run !== this.confettiRun) {
@@ -86,7 +87,13 @@ export class LobbyFx {
         if (!this.reduced) this.confetti(frame.colorOf(snapshot.winnerId));
       }
     }
-    if (!prev) this.particles = [];
+    if (!prev) {
+      this.particles = [];
+      this.pending = [];
+    }
+    for (const w of this.pending) w.wait -= dt;
+    for (const w of this.pending.filter((x) => x.wait <= 0)) this.explode(w.at, w.color, w.mine, w.frame);
+    this.pending = this.pending.filter((x) => x.wait > 0);
     this.prev = snapshot;
 
     if (snapshot.phase === 'playing') this.scroll += snapshot.speed * dt;
@@ -109,6 +116,11 @@ export class LobbyFx {
   private add(p: Partial<Particle> & { k: Kind; x: number; y: number; c: string; max: number }): void {
     if (this.particles.length >= MAX_PARTICLES) return;
     this.particles.push({ vx: 0, vy: 0, life: 0, sz: 0.01, r: 0, vr: 0, g: 0, sway: 0, text: '', ...p });
+  }
+
+  private knockedOut(at: { x: number; y: number; delayS?: number }, color: string, mine: boolean, frame: FxFrame): void {
+    if (at.delayS) this.pending.push({ at, color, mine, wait: at.delayS, frame });
+    else this.explode(at, color, mine, frame);
   }
 
   private explode(at: { x: number; y: number }, color: string, mine: boolean, frame: FxFrame): void {

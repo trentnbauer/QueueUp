@@ -233,7 +233,7 @@ Everyone on one short platform over a drop. Shove the others off. Needs at least
 - **One shared platform,** drawn side-on, with everyone standing on it. It starts about 0.8 of the screen wide and **shrinks from both ends**, about 0.012 of the screen a second from each end, down to a quarter of the screen, so a run always ends. A faint outline shows where it started.
 - **Walk** left and right. You face the way you last walked.
 - **Shove** (Space, ↑, **W**, or the Shove button): anyone **just in front of you** (up to about a tenth of the screen, and not behind you) is knocked away from you and slides a good way; you also lunge a little. After a shove you wait **0.7 seconds**, shown as a bar under your feet. A shove that hits nobody still costs the wait.
-- **Out:** if your middle goes past either end of the platform you fall and are out. **Last one on wins.** If everyone falls together it is a draw, and a run still going after 2 minutes ends with no winner.
+- **Out:** if your middle goes past either end of the platform you fall and are out: you drop off the platform and burst when you reach the bottom of the arena. **Last one on wins.** If everyone falls together it is a draw, and a run still going after 2 minutes ends with no winner.
 - Nobody pushes anyone except by shoving: you walk through each other.
 - **Score** is the seconds you stayed on, which is also what the high score list records. Alone against the bot that is how long you last.
 - **The bot** walks toward the nearest player, backs away from the edge, and shoves late (a quarter to half a second after it is in range). It is beatable.
