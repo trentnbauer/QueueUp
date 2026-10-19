@@ -56,7 +56,7 @@ It plays a random game after every run (like the waiting room), or one game you 
 
 ## Ping and who works out what
 
-In **Runner, Flappy, Dodge, Jump rope, Obstacle race, Lava rise, Gravity flip, Laser gaps, Road hop, Fishing, Orbit and Rhythm lanes**, your own player is worked out **on your own device**, so a slow connection does not make you jump late or get hit by something you cleared:
+In **Runner, Flappy, Dodge, Jump rope, Obstacle race, Lava rise, Gravity flip, Laser gaps, Road hop, Fishing, Orbit, Rhythm lanes and Sort it**, your own player is worked out **on your own device**, so a slow connection does not make you jump late or get hit by something you cleared:
 
 - **Your device** runs your player against the course the moment you press: your jump, your duck, your slide, your steering. Your hits are decided there too, and it tells the server where you are about 20 times a second, and straight away when you are out.
 - **The server** decides the shared things: the course's seed and exactly when a run starts (everyone's device lines its clock up with the server's, so everyone starts the same course at the same moment), who is still in, who won, the wins and the history. It shows everyone else's player from what their devices report.
@@ -268,6 +268,18 @@ Notes fall down four lanes to a line; tap the lane as each one reaches it. Every
 - **Ping:** your own taps are judged on your own device against the notes (see "Ping and who works out what"), so how well you did does not depend on your connection. Everyone's notes are the same, from the round's seed.
 - **Controls:** the four lanes are the controller, so tap or click one, or press **D F J K**.
 
+## Sort it
+
+Sort what rides the belt into two bins by a rule that keeps changing. Everyone sorts the same belt, each at their own pace, and never touches.
+
+- **Goal:** sort items into the left or right bin by the rule on screen: **by colour** (red left, blue right), **by shape** (circle left, square right) or **by size** (small left, big right). Items come down the belt one after another; tap the **bin** (or press **←** / **→**) to sort the **oldest** item you have not dealt with, from when it comes on the belt until just after it reaches the line. Right is a point.
+- **Lives:** you have three, shown as hearts. **A wrong sort, or an item that gets past the line unsorted, costs a life.** Out of lives and your run is over. **Last one in wins**; alone it is a high score (items sorted). A tap when nothing is on the belt does nothing.
+- **The rule changes every few items** (every 8 at first), never to the same one, with a short pause before the next item so you can read it; the bins always show what goes where, and a small *NEXT: ...* warns when the oldest item after the one you are on has a different rule.
+- **Harder as it goes (40 seconds, then no harder):** an item every 1.3 seconds down to every 0.38, each on the belt for less time (2.6 seconds down to 1.3, so less warning), and the rule changing every 5 items.
+- **Hard to pass 30 seconds:** a test player who reads and answers in half a second lasts at least 15 seconds, and one who is a second slow lasts under two minutes (nobody goes on for ever).
+- **Ping:** your own sorting is judged on your own device (see "Ping and who works out what"). Everyone's belt is the same, from the round's seed.
+- **Controls:** the two bins are the controller, so tap or click one, or press **←** / **→**.
+
 ## Rating a game
 
 When a run ends and its result card is showing, a **thumbs up / thumbs down** appears in the result card (in a room's lobby, a spin's waiting room, an open lobby and solo practice alike).
@@ -330,6 +342,7 @@ A game can instead make **the play space the controller**: there are no buttons 
 | Fishing | Hold **Space**, **↑** or **W** to pull your net up. | Hold **Reel** (or press and hold the arena). |
 | Rock paper scissors | Click a choice, or press **1-3** (rock, paper, scissors). | Tap a choice. |
 | Rhythm lanes | Press **D**, **F**, **J**, **K** (or click a lane). | Tap a lane. |
+| Sort it | Press **←** / **→** (or click a bin). | Tap a bin. |
 | Orbit | **Space**, **↑**, **←** / **→** or **W** / **A** / **D** to flip direction. | **Flip**, or tap anywhere on the arena. |
 
 ## Runner

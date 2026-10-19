@@ -39,6 +39,7 @@ export const MINIGAME_SCORE_MAX: Record<LobbyGameId, number> = {
   orbit: 3600, // seconds lasted
   rps: 100, // rounds won
   rhythm: 5000, // points
+  sortit: 2000, // items sorted
 };
 
 /** Each game's rules version. A score is saved with the version it was played under, and the high score lists show only the
@@ -77,6 +78,7 @@ export const MINIGAME_VERSIONS: Record<LobbyGameId, number> = {
   orbit: 1,
   rps: 1,
   rhythm: 1,
+  sortit: 1,
 };
 export const miniGameVersion = (game: LobbyGameId): number => MINIGAME_VERSIONS[game];
 
@@ -284,6 +286,7 @@ export const MINIGAME_NAMES: Record<LobbyGameId, string> = {
   orbit: 'Orbit',
   rps: 'Rock paper scissors',
   rhythm: 'Rhythm lanes',
+  sortit: 'Sort it',
 };
 
 /** Whether score `a` is better than score `b` in the game (a smaller time is better; otherwise bigger is). Equal is not better. */

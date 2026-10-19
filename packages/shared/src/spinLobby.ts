@@ -11,8 +11,8 @@
 export const LOBBY_TICK_HZ = 15;
 
 /** The games the lobby can run. */
-export type LobbyGameId = 'runner' | 'flappy' | 'dodge' | 'rope' | 'coins' | 'battleships' | 'race' | 'whack' | 'draw' | 'tilt' | 'stacker' | 'sumo' | 'asteroids' | 'memory' | 'words' | 'lava' | 'snake' | 'gravity' | 'laser' | 'colormatch' | 'potato' | 'anagram' | 'mines' | 'stop' | 'pong' | 'wall' | 'frogger' | 'fishing' | 'orbit' | 'rps' | 'rhythm';
-export const LOBBY_GAME_IDS: readonly LobbyGameId[] = ['runner', 'flappy', 'dodge', 'rope', 'coins', 'battleships', 'race', 'whack', 'draw', 'tilt', 'stacker', 'sumo', 'asteroids', 'memory', 'words', 'lava', 'snake', 'gravity', 'laser', 'colormatch', 'potato', 'anagram', 'mines', 'stop', 'pong', 'wall', 'frogger', 'fishing', 'orbit', 'rps', 'rhythm'];
+export type LobbyGameId = 'runner' | 'flappy' | 'dodge' | 'rope' | 'coins' | 'battleships' | 'race' | 'whack' | 'draw' | 'tilt' | 'stacker' | 'sumo' | 'asteroids' | 'memory' | 'words' | 'lava' | 'snake' | 'gravity' | 'laser' | 'colormatch' | 'potato' | 'anagram' | 'mines' | 'stop' | 'pong' | 'wall' | 'frogger' | 'fishing' | 'orbit' | 'rps' | 'rhythm' | 'sortit';
+export const LOBBY_GAME_IDS: readonly LobbyGameId[] = ['runner', 'flappy', 'dodge', 'rope', 'coins', 'battleships', 'race', 'whack', 'draw', 'tilt', 'stacker', 'sumo', 'asteroids', 'memory', 'words', 'lava', 'snake', 'gravity', 'laser', 'colormatch', 'potato', 'anagram', 'mines', 'stop', 'pong', 'wall', 'frogger', 'fishing', 'orbit', 'rps', 'rhythm', 'sortit'];
 
 /** What a client sends. Anything else is ignored. */
 export type LobbyClientMessage =
@@ -1627,8 +1627,59 @@ export interface RhythmSnapshot extends RoundSummary {
   winnerId: string | null;
 }
 
+// ---- Sort it (sort what rides the belt into two bins by a rule that keeps changing) ---------------------
+
+/** What the rule can be about: colour (0), shape (1) or size (2). Each item has a value of 0 or 1 for each, and goes in the left bin for 0 and the right for 1 of the rule's. */
+export const SORTIT_RULES = 3;
+
+/** What a tap or an item came to: sorted right, sorted wrong, or got past the line unsorted (miss). */
+export type SortitJudge = 'right' | 'wrong' | 'miss';
+
+/** An item on the belt: `colour`, `shape` and `size` are each 0 or 1 (red or blue, circle or square, small or big), `rule` is which of the three the rule is for
+ * this item, `inMs` how long until it reaches the line (negative just after) and `travelMs` how long it is on the belt in all. */
+export interface SortitItem {
+  n: number;
+  colour: number;
+  shape: number;
+  size: number;
+  rule: number;
+  inMs: number;
+  travelMs: number;
+}
+
+export interface SortitPlayer {
+  id: string;
+  /** Still in. False once the lives are gone, or if they arrived mid-run. */
+  alive: boolean;
+  /** Runs won since this person joined the lobby. */
+  wins: number;
+  /** Items sorted right: live while in, final once out. */
+  meters: number;
+  /** Lives left. */
+  lives: number;
+  /** The items in view that they have already sorted or let go by. */
+  done: number[];
+  /** What their last tap or miss was, for a moment (`agoMs` is how long ago); null after that. */
+  last: { kind: SortitJudge; agoMs: number } | null;
+}
+
+export interface SortitSnapshot extends RoundSummary {
+  id: 'sortit';
+  phase: LobbyRoundPhase;
+  /** The most items anyone has sorted so far. */
+  meters: number;
+  /** Always 0: nothing scrolls past in this game (every snapshot carries a course speed). */
+  speed: number;
+  items: SortitItem[];
+  players: SortitPlayer[];
+  /** Milliseconds left in `countdown` or `over`; 0 otherwise. */
+  timerMs: number;
+  /** Who won the run that just ended (`over` only); null when nobody did (a solo run, or a draw). */
+  winnerId: string | null;
+}
+
 /** The snapshot of whichever game is running. */
-export type LobbyGameSnapshot = RunnerSnapshot | FlappySnapshot | DodgeSnapshot | RopeSnapshot | CoinsSnapshot | BattleshipsSnapshot | RaceSnapshot | WhackSnapshot | DrawSnapshot | TiltSnapshot | StackerSnapshot | SumoSnapshot | AsteroidsSnapshot | MemorySnapshot | WordsSnapshot | LavaSnapshot | SnakeSnapshot | GravitySnapshot | LaserSnapshot | ColorMatchSnapshot | PotatoSnapshot | AnagramSnapshot | MinesSnapshot | StopSnapshot | PongSnapshot | WallSnapshot | FroggerSnapshot | FishingSnapshot | OrbitSnapshot | RpsSnapshot | RhythmSnapshot;
+export type LobbyGameSnapshot = RunnerSnapshot | FlappySnapshot | DodgeSnapshot | RopeSnapshot | CoinsSnapshot | BattleshipsSnapshot | RaceSnapshot | WhackSnapshot | DrawSnapshot | TiltSnapshot | StackerSnapshot | SumoSnapshot | AsteroidsSnapshot | MemorySnapshot | WordsSnapshot | LavaSnapshot | SnakeSnapshot | GravitySnapshot | LaserSnapshot | ColorMatchSnapshot | PotatoSnapshot | AnagramSnapshot | MinesSnapshot | StopSnapshot | PongSnapshot | WallSnapshot | FroggerSnapshot | FishingSnapshot | OrbitSnapshot | RpsSnapshot | RhythmSnapshot | SortitSnapshot;
 
 /** What a client needs to run its own player on a course the server decided: which run, the seed that
  * makes the course, and how long until the run starts (negative once it has, by how far in). */
