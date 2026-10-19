@@ -1,4 +1,4 @@
-import { RACE_CAR_HEIGHT, RACE_CAR_WIDTH, RACE_FRONT_Y, RACE_KERB, RACE_PIT_WIDTH, type RaceSnapshot } from '@queueup/shared';
+import { RACE_CAR_HEIGHT, RACE_CAR_WIDTH, RACE_FRONT_Y, RACE_KERB, type RaceSnapshot } from '@queueup/shared';
 import type { LobbyGameView } from './index';
 import { STAGE, courseOffset, coverTile, groundShadow, hueOf, renderScene, roundRect, type Scene, type SceneGame } from './kit';
 
@@ -19,14 +19,14 @@ function drawTrack(sc: Scene<RaceSnapshot>): void {
   ctx.fillRect(kerb, -S * 0.1, S - kerb * 2, S * 1.2);
   ctx.restore();
 
-  // Pit lanes: amber hatched strips along the inside of a kerb, in stretches that scroll with the course. Driving
+  // Pit lanes: amber hatched strips of the track (against a kerb or in the middle), in stretches that scroll with the course. Driving
   // into one drags you down the screen, so they are loud: a different surface, a bright edge, diagonal hatching.
-  const pitW = RACE_PIT_WIDTH * S;
   for (const pit of sc.snapshot.pits) {
     const top = (pit.y + sc.drift) * S;
     const h = pit.h * S;
     if (top > S || top + h < 0) continue;
-    const x = pit.side < 0 ? kerb : S - kerb - pitW;
+    const x = pit.x0 * S;
+    const pitW = (pit.x1 - pit.x0) * S;
     ctx.save();
     ctx.beginPath();
     ctx.rect(x, top, pitW, h);
@@ -43,8 +43,10 @@ function drawTrack(sc: Scene<RaceSnapshot>): void {
       ctx.stroke();
     }
     ctx.restore();
+    // A bright edge down both sides, so it reads as a zone however wide it is and wherever it sits.
     ctx.fillStyle = 'oklch(0.82 0.15 85)';
-    ctx.fillRect(pit.side < 0 ? x + pitW - 2 : x, top, 2, h);
+    ctx.fillRect(x, top, 2, h);
+    ctx.fillRect(x + pitW - 2, top, 2, h);
   }
 
   // Kerbs: alternating stripes down each side.

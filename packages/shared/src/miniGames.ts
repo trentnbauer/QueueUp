@@ -46,7 +46,7 @@ export const MINIGAME_VERSIONS: Record<LobbyGameId, number> = {
   rope: 1,
   coins: 1,
   battleships: 2, // a player's own ships may touch
-  race: 2, // pit lanes along the sides
+  race: 3, // pit lanes (first along the sides, then anywhere on the track and wider)
   whack: 2, // shared moles, shorter up time, pauses
   draw: 2, // the score became a reaction time in milliseconds
   tilt: 2, // a ball each, tipped by where the balls are
