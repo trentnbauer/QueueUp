@@ -45,7 +45,7 @@ It plays a random game after every run (like the waiting room), or one game you 
 
 ## Ping and who works out what
 
-In **Runner, Flappy, Dodge, Jump rope, Obstacle race, Lava rise and Gravity flip**, your own player is worked out **on your own device**, so a slow connection does not make you jump late or get hit by something you cleared:
+In **Runner, Flappy, Dodge, Jump rope, Obstacle race, Lava rise, Gravity flip and Laser gaps**, your own player is worked out **on your own device**, so a slow connection does not make you jump late or get hit by something you cleared:
 
 - **Your device** runs your player against the course the moment you press: your jump, your duck, your slide, your steering. Your hits are decided there too, and it tells the server where you are about 20 times a second, and straight away when you are out.
 - **The server** decides the shared things: the course's seed and exactly when a run starts (everyone's device lines its clock up with the server's, so everyone starts the same course at the same moment), who is still in, who won, the wins and the history. It shows everyone else's player from what their devices report.
@@ -86,6 +86,17 @@ Run along the floor or the ceiling and flip between them. Everyone runs the same
 - **Speed:** the course starts at 0.45 of a screen per second and climbs to 0.95 after about 50 seconds.
 - There is no time limit of its own: it goes on until it is beaten.
 - **Controls:** one button: **Space**, **↑**/**↓** or **W**/**S**, or tap anywhere on the arena.
+
+## Laser gaps
+
+Rows of lasers fall; slide into the gap. Everyone is on the same floor and never touches.
+
+- **Goal:** don't touch a beam. A row of lasers spans the whole screen except for a gap. Be entirely inside the gap as the row reaches you. **Last one standing wins**; alone it is a high score (metres).
+- You move at half a screen per second and can't leave the screen.
+- **Rows** fall faster and faster: from 0.35 of a screen per second up to 0.8 after about 45 seconds. A new row appears every 1.1 seconds at the start, down to every 0.65 seconds after about 41 seconds.
+- **The gap** starts 0.3 wide and narrows to 0.17 (after about 65 seconds). Each row's gap is never further from the last one's than 0.7 of what you can slide in the time between them, so there is always a way through for someone who keeps up. Rows come from the round's seed, so they are the same for everyone.
+- There is no time limit of its own: it goes on until it is beaten.
+- **Controls:** left and right only.
 
 ## Rating a game
 
@@ -133,6 +144,7 @@ A game can instead make **the play space the controller**: there are no buttons 
 | Lava rise | **Space**, **↑** or **W** to jump. | **Jump**, or tap anywhere on the arena. |
 | Snake arena | **←** / **→** or **A** / **D** to turn. | The **◀** and **▶** buttons. |
 | Gravity flip | **Space**, **↑**/**↓** or **W**/**S** to flip. | **Flip**, or tap anywhere on the arena. |
+| Laser gaps | **←** / **→** or **A** / **D**. | The **◀** and **▶** buttons. |
 
 ## Runner
 
@@ -335,7 +347,7 @@ The source is `secureRandom` (`packages/shared/src/lobbyGames/roundGame.ts`).
 
 ## Keeping the motion consistent
 
-Scrolling games (Runner, Flappy, Dodge, Catch the coins, Obstacle race, Lava rise, Gravity flip) all follow one rule so the world never slides at two speeds:
+Scrolling games (Runner, Flappy, Dodge, Catch the coins, Obstacle race, Lava rise, Gravity flip, Laser gaps) all follow one rule so the world never slides at two speeds:
 
 - **Everything on the course moves at the course's speed.** Obstacles, pickups and the marks on the ground (the Runner's pale ticks and accent dashes, for example) all move by the same distance every second: the speed shown in the game's own description above, in screens per second. A ground mark must never look faster or slower than the obstacles it sits under.
 - **Only the faint dot grid in the background is slower**, at a quarter of the course speed, as distant parallax. It is drawn by the arena for every game; a game never adds its own.
