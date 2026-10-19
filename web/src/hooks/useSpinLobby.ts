@@ -116,5 +116,6 @@ export function useSpinLobby(path: string | undefined, enabled: boolean, me: str
     sendAction: useCallback((name: string) => (simRef.current?.action(name) ? undefined : send({ t: 'action', name, ...simRef.current?.stamp() })), [send]),
     sendTap: useCallback((target: number, ms?: number) => send({ t: 'tap', target, ms }), [send]),
     vote: useCallback((on: boolean) => send({ t: 'vote', on }), [send]),
+    setTimeLimit: useCallback((on: boolean) => send({ t: 'timeLimit', on }), [send]),
   };
 }

@@ -11,21 +11,28 @@ const seeded = (seed: number) => () => seed;
 
 function started(ids: string[], seed = 0.3) {
   const g = new CoinsGame(seeded(seed));
+  g.timeLimitS = 30; // a timed round (with none the game is endless)
   ids.forEach((id) => g.join(id));
   run(g, 3200); // past the countdown
   return g;
 }
 
-/** Slides under the coin that is closest to reaching the catchers, steering clear of bombs. */
+/** Slides under the coin that is closest to reaching the catchers, keeping out from under any bomb that is on its way down (a bomb is instant death). */
 function steer(g: CoinsGame, id: string) {
   const snap = g.snapshot();
   const self = me(g, id);
   const below = snap.items.filter((i) => i.y < COINS_PLAYER_Y + 0.02);
   const coin = below.filter((i) => i.kind === 'coin').sort((a, b) => b.y - a.y)[0];
-  const bomb = below.filter((i) => i.kind === 'bomb' && i.y > 0.5).sort((a, b) => b.y - a.y)[0];
-  let target = coin ? coin.x : 0.5;
-  if (bomb && Math.abs(bomb.x - target) < 0.1) target = bomb.x + (target >= bomb.x ? 0.1 : -0.1);
-  g.input(id, Math.abs(target - self.x) < 0.015 ? 0 : target > self.x ? 1 : -1, 0);
+  const bombs = below.filter((i) => i.kind === 'bomb' && i.y > 0.25);
+  const clear = (x: number) => bombs.every((b) => Math.abs(b.x - x) > 0.12);
+  let target = coin ? coin.x : self.x;
+  if (!clear(target)) target = [0.12, -0.12, 0.24, -0.24, 0.36, -0.36].map((d) => Math.min(0.95, Math.max(0.05, target + d))).find(clear) ?? self.x;
+  // Never walk through a bomb that is about to land on the way.
+  const blocking = bombs.some((b) => b.y > 0.6 && Math.abs(b.x - self.x) > 0.1 && (b.x - self.x) * (b.x - target) < 0 && Math.abs(b.x - target) < 0.12 + Math.abs(self.x - target));
+  if (!clear(self.x)) {
+    const nearest = bombs.sort((a, b) => Math.abs(a.x - self.x) - Math.abs(b.x - self.x))[0];
+    g.input(id, nearest.x > self.x ? -1 : 1, 0);
+  } else g.input(id, blocking || Math.abs(target - self.x) < 0.015 ? 0 : target > self.x ? 1 : -1, 0);
 }
 
 function play(g: CoinsGame, ids: string[], ms: number) {
@@ -68,29 +75,21 @@ describe('CoinsGame rounds', () => {
 
   it('gives the win to whoever caught the most', () => {
     const g = started(['a', 'b']);
-    g.input('b', 0, 0); // stands still in the middle
+    g.input('b', 0, 0); // stands still in the middle, until a bomb gets them
     play(g, ['a'], 40_000);
     const snap = g.snapshot();
     expect(snap.phase).toBe('over');
     expect(snap.winnerId).toBe('a');
     expect(me(g, 'a').wins).toBe(1);
-    expect(me(g, 'a').meters).toBeGreaterThan(me(g, 'b').meters);
   });
 
-  it('has no winner when the best scores are tied, or when nobody caught anything', () => {
-    for (const seed of [0.1, 0.3, 0.5, 0.7, 0.9]) {
-      const g = started(['a', 'b'], seed);
-      // Both stand at opposite walls and never move again.
-      g.input('a', -1, 0);
-      g.input('b', 1, 0);
-      run(g, 1500);
-      g.input('a', 0, 0);
-      g.input('b', 0, 0);
-      while (g.snapshot().phase === 'playing') g.tick(STEP);
-      const [a, b] = [me(g, 'a'), me(g, 'b')];
-      const expected = a.meters === b.meters ? null : a.meters > b.meters ? 'a' : 'b';
-      expect(g.snapshot().winnerId, `seed ${seed}`).toBe(a.meters === 0 && b.meters === 0 ? null : expected);
-    }
+  it('has no winner when the time is up with nothing caught, or with the best scores tied', () => {
+    const g = started(['a', 'b']);
+    // Nothing falls, so nobody catches or is hit: 0 each when the 30 seconds are up.
+    (g as unknown as { spawnItem: () => void }).spawnItem = () => {};
+    while (g.snapshot().phase === 'playing') g.tick(STEP);
+    expect(g.snapshot().winnerId).toBeNull();
+    expect(me(g, 'a').meters).toBe(me(g, 'b').meters);
   });
 
   it('lets someone who arrives mid-round watch, with no score, then play from the next one', () => {
@@ -109,6 +108,7 @@ describe('CoinsGame rounds', () => {
 describe('CoinsGame items', () => {
   it('drops coins and the odd bomb, never two bombs in a row', () => {
     const g = started(['a']);
+    (g as unknown as { knockOut: () => void }).knockOut = () => {}; // so a bomb does not end the run being watched
     const kinds = new Map<number, string>();
     for (let t = 0; t < 29_000; t += STEP) {
       g.tick(STEP);
@@ -120,31 +120,31 @@ describe('CoinsGame items', () => {
     for (let i = 1; i < list.length; i++) expect(list[i] === 'bomb' && list[i - 1] === 'bomb').toBe(false);
   });
 
-  it('a bomb stuns the catcher, who cannot move for a moment, and costs a coin', () => {
+  it('a bomb is instant death: out for the run, keeping the coins they had, and a solo run ends', () => {
     const g = started(['a']);
-    let stunnedAt: number | null = null;
-    let before = 0;
-    let tracked = false;
-    for (let t = 0; t < 29_000 && !tracked; t += STEP) {
+    let coins = 0;
+    for (let t = 0; t < 29_000 && g.snapshot().phase === 'playing'; t += STEP) {
       const snap = g.snapshot();
       const self = me(g, 'a');
+      coins = self.meters;
       const bomb = snap.items.filter((i) => i.kind === 'bomb').sort((x, y) => y.y - x.y)[0];
       // Head for a bomb on purpose.
       g.input('a', bomb ? (Math.abs(bomb.x - self.x) < 0.01 ? 0 : bomb.x > self.x ? 1 : -1) : 0, 0);
       g.tick(STEP);
-      if (me(g, 'a').stunned && stunnedAt === null) {
-        stunnedAt = me(g, 'a').x;
-        before = self.meters;
-        g.input('a', 1, 0);
-        run(g, 300);
-        expect(me(g, 'a').x).toBe(stunnedAt);
-        expect(me(g, 'a').meters).toBeLessThanOrEqual(before);
-        tracked = true;
-      }
     }
-    expect(tracked).toBe(true);
-    run(g, 1500);
-    expect(me(g, 'a').stunned).toBe(false);
+    expect(me(g, 'a').alive).toBe(false);
+    expect(g.snapshot().phase).toBe('over');
+    expect(me(g, 'a').meters).toBeGreaterThanOrEqual(coins);
+    expect(g.snapshot().history[0].meters).toBe(me(g, 'a').meters);
+  });
+
+  it('puts the one who is hit out and lets the other carry on, and the last one standing wins', () => {
+    const g = started(['a', 'b']);
+    g.input('b', 0, 0);
+    // a stays out of the way of everything; b stands in the middle until a bomb lands on them.
+    play(g, ['a'], 40_000);
+    expect(me(g, 'b').alive).toBe(false);
+    expect(g.snapshot().winnerId).toBe('a');
   });
 
   it('never goes below zero coins', () => {
@@ -192,10 +192,80 @@ describe('CoinsGame items', () => {
 
   it('falls faster over a round, to a limit', () => {
     const g = started(['a']);
+    (g as unknown as { knockOut: () => void }).knockOut = () => {}; // so a bomb does not end the run being watched
     const first = g.snapshot().speed;
     run(g, 20_000);
     const later = g.snapshot().speed;
     expect(later).toBeGreaterThan(first);
     expect(later).toBeLessThanOrEqual(0.7);
+  });
+});
+
+describe('CoinsGame endless (no time limit)', () => {
+  function endless(ids: string[], seed = 0.3) {
+    const g = new CoinsGame(seeded(seed));
+    ids.forEach((id) => g.join(id));
+    run(g, 3200);
+    return g;
+  }
+
+  it('has no clock, and gives everyone three lives', () => {
+    const g = endless(['a']);
+    expect(g.snapshot().limitMs).toBe(0);
+    expect(g.snapshot().roundLeftMs).toBe(0);
+    expect(me(g, 'a').lives).toBe(3);
+    // A timed round has none.
+    expect(started(['a']).snapshot().players[0].lives).toBeNull();
+  });
+
+  it('goes on past 30 seconds for someone who keeps catching, and costs a life for each coin that gets away', () => {
+    const g = endless(['a']);
+    let lastLives = 3;
+    let survived = 0;
+    for (let t = 0; t < 45_000 && g.snapshot().phase === 'playing'; t += STEP) {
+      steer(g, 'a');
+      g.tick(STEP);
+      expect(me(g, 'a').lives).toBeLessThanOrEqual(lastLives);
+      lastLives = me(g, 'a').lives ?? 0;
+      survived = t;
+    }
+    // Past the old 30 second end of a timed round, still going (or out by lives, never by the clock).
+    expect(survived).toBeGreaterThan(20_000);
+    expect(g.snapshot().run).toBe(1);
+  });
+
+  it('ends a solo run when the lives are gone (coins let go), keeping the score, with nobody winning', () => {
+    const g = endless(['a']);
+    // Stand in a corner and catch nothing: three coins get away.
+    g.input('a', -1, 0);
+    run(g, 1500);
+    g.input('a', 0, 0);
+    (g as unknown as { knockOut: (p: unknown) => void }).knockOut = (p) => Object.getPrototypeOf(CoinsGame.prototype).knockOut.call(g, p);
+    for (let t = 0; t < 60_000 && g.snapshot().phase === 'playing'; t += STEP) g.tick(STEP);
+    expect(g.snapshot().phase).toBe('over');
+    expect(me(g, 'a').alive).toBe(false);
+    expect(g.snapshot().winnerId).toBeNull();
+  });
+
+  it('gets quicker and busier without a stop, and more of what falls is bombs', () => {
+    const speedAt = (seconds: number) => {
+      const g = endless(['a']);
+      (g as unknown as { knockOut: () => void }).knockOut = () => {};
+      run(g, seconds * 1000);
+      return g.snapshot().speed;
+    };
+    expect(speedAt(35)).toBeGreaterThan(speedAt(5) + 0.4);
+    const bombShare = (from: number, to: number) => {
+      const g = endless(['a']);
+      (g as unknown as { knockOut: () => void }).knockOut = () => {};
+      const kinds = new Map<number, string>();
+      for (let t = 0; t < to * 1000; t += STEP) {
+        g.tick(STEP);
+        if (t >= from * 1000) for (const i of g.snapshot().items) kinds.set(i.n, i.kind);
+      }
+      const all = [...kinds.values()];
+      return all.filter((k) => k === 'bomb').length / all.length;
+    };
+    expect(bombShare(30, 50)).toBeGreaterThan(bombShare(0, 12) + 0.1);
   });
 });

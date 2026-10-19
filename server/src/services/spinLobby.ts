@@ -41,7 +41,7 @@ export class SpinLobby {
     /** A practice lobby (one person): the server works out their play from their inputs, whatever the game, never from
      * what their device says, so nothing in it can be forged. The device still runs its own copy to draw (see ClientSim), so
      * the game feels instant, but its reports are ignored. */
-    private readonly solo = false,
+    readonly solo = false,
   ) {
     this.rotates = game === undefined;
     if (game) this.hear(game);
@@ -90,6 +90,11 @@ export class SpinLobby {
   setTimeLimit(seconds: number | null): void {
     this.timeLimitS = seconds;
     this.game.timeLimitS = seconds;
+  }
+
+  /** The cap on a run right now, in seconds, or null for none. */
+  get timeLimit(): number | null {
+    return this.timeLimitS;
   }
 
   /** Members currently in the lobby. */
@@ -195,7 +200,7 @@ export class SpinLobby {
    * everyone). `now` is the server's clock, sent along with the run's start (for a game that
    * runs each player on their own device) so clients can line their clocks up and start together. */
   snapshot(spinWaiting: boolean, now?: number, viewer?: string): LobbySnapshot {
-    const snapshot: LobbySnapshot = { t: 'state', tick: this.tickCount, game: this.game.snapshot(viewer), voters: [...this.votes], needed: this.needed, spinWaiting };
+    const snapshot: LobbySnapshot = { t: 'state', tick: this.tickCount, game: this.game.snapshot(viewer), voters: [...this.votes], needed: this.needed, spinWaiting, capSeconds: this.timeLimitS ?? 0 };
     const sim = this.game.simStart?.();
     if (sim && now !== undefined) {
       // The game here is SOLO_DELAY_MS behind, so the device starts that much before it does.

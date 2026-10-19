@@ -1,6 +1,6 @@
-import { COINS_ITEM_SIZE, COINS_PLAYER_WIDTH, COINS_PLAYER_Y, type CoinsSnapshot } from '@queueup/shared';
+import { COINS_ITEM_SIZE, COINS_PLAYER_WIDTH, COINS_PLAYER_Y, ENDLESS_LIVES, type CoinsSnapshot } from '@queueup/shared';
 import type { LobbyGameView } from './index';
-import { FONT, drawFloor, groundShadow, renderScene, type Scene, type SceneGame } from './kit';
+import { FONT, drawFloor, drawLives, groundShadow, renderScene, type Scene, type SceneGame } from './kit';
 
 /** Where the floor is, just under the catchers. */
 const FLOOR = 0.95;
@@ -73,20 +73,14 @@ function drawWorld(sc: Scene<CoinsSnapshot>): void {
     if (!p.alive) continue; // watching until the next round
     const cx = sc.ease(p.id, p.x, 0).x * S;
     groundShadow(ctx, cx, floor, radius * 0.7);
-    // A stunned catcher sways and is dimmed.
-    ctx.save();
-    if (p.stunned) {
-      ctx.globalAlpha = 0.55;
-      ctx.translate(Math.sin(now / 40) * radius * 0.12, 0);
-    }
     sc.drawPlayer(p.id, cx, cy, radius * 0.6, radius * 0.6);
-    ctx.restore();
     // Their coin count over their head: it is a race, so everyone's score is on screen.
     ctx.font = `700 ${Math.round(S * 0.028)}px ${FONT.mono}`;
     ctx.textAlign = 'center';
     ctx.textBaseline = 'alphabetic';
     ctx.fillStyle = sc.theme.text;
     ctx.fillText(String(p.meters), cx, cy - radius * 0.75);
+    drawLives(ctx, cx, cy + radius * 0.82, p.lives, ENDLESS_LIVES, S * 0.013, sc.theme.danger);
   }
 }
 

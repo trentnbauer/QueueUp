@@ -11,6 +11,7 @@ const score = (g: WhackGame, id: string) => g.snapshot().players.find((p) => p.i
 
 function started(ids: string[], seed = 0.3) {
   const g = new WhackGame(seeded(seed));
+  g.timeLimitS = 30; // a timed round (with none the game is endless)
   ids.forEach((id) => g.join(id));
   run(g, 3200); // past the countdown
   return g;
@@ -29,6 +30,7 @@ function waitFor(g: WhackGame, kind: 'mole' | 'bomb'): number {
 describe('WhackGame', () => {
   it('counts down, then runs a 30 second round', () => {
     const g = new WhackGame(seeded(0.3));
+    g.timeLimitS = 30;
     g.join('a');
     expect(g.snapshot().phase).toBe('countdown');
     run(g, 3200);
@@ -162,5 +164,77 @@ describe('WhackGame', () => {
       return holes;
     };
     expect(seen(0.4)).toEqual(seen(0.4));
+  });
+});
+
+describe('WhackGame endless (no time limit)', () => {
+  function endless(ids: string[], seed = 0.3) {
+    const g = new WhackGame(seeded(seed));
+    ids.forEach((id) => g.join(id));
+    run(g, 3200);
+    return g;
+  }
+  const lives = (g: WhackGame, id = 'a') => g.snapshot().players.find((p) => p.id === id)!.lives;
+
+  it('has no clock, and gives everyone three lives (a timed round has none)', () => {
+    const g = endless(['a']);
+    expect(g.snapshot().limitMs).toBe(0);
+    expect(lives(g)).toBe(3);
+    expect(started(['a']).snapshot().players[0].lives).toBeNull();
+  });
+
+  it('costs a life when a mole goes down untapped, and ends a solo run when they are gone', () => {
+    const g = endless(['a']);
+    for (let t = 0; t < 60_000 && g.snapshot().phase === 'playing'; t += STEP) g.tick(STEP);
+    expect(g.snapshot().phase).toBe('over');
+    expect(lives(g)).toBe(0);
+    expect(g.snapshot().winnerId).toBeNull();
+  });
+
+  it('costs a life to whack a bomb or to tap an empty hole', () => {
+    const g = endless(['a']);
+    const empty = g.snapshot().holes.findIndex((h) => h.kind === 'empty');
+    g.tap('a', empty);
+    expect(lives(g)).toBe(2);
+    // Whack every mole until a bomb comes up, then whack that.
+    let bomb = -1;
+    for (let t = 0; t < 40_000 && bomb < 0; t += STEP) {
+      g.snapshot().holes.forEach((h, i) => {
+        if (h.kind === 'mole' && !h.by.includes(0)) g.tap('a', i);
+      });
+      bomb = g.snapshot().holes.findIndex((h) => h.kind === 'bomb');
+      if (bomb < 0) g.tick(STEP);
+    }
+    expect(bomb).toBeGreaterThanOrEqual(0);
+    g.tap('a', bomb);
+    expect(lives(g)).toBe(1);
+  });
+
+  it('lets someone who whacks every mole carry on well past 30 seconds', () => {
+    const g = endless(['a']);
+    for (let t = 0; t < 45_000 && g.snapshot().phase === 'playing'; t += STEP) {
+      g.snapshot().holes.forEach((h, i) => {
+        if (h.kind === 'mole' && !h.by.includes(0)) g.tap('a', i);
+      });
+      g.tick(STEP);
+    }
+    expect(g.snapshot().phase).toBe('playing');
+    expect(lives(g)).toBe(3);
+    expect(score(g, 'a')).toBeGreaterThan(30);
+  });
+
+  it('keeps moles up for less and less as it goes, to well under a timed round\u2019s shortest', () => {
+    const upAt = (seconds: number) => {
+      const g = endless(['a']);
+      for (let t = 0; t < seconds * 1000 && g.snapshot().phase === 'playing'; t += STEP) {
+        g.snapshot().holes.forEach((h, i) => {
+          if (h.kind === 'mole' && !h.by.includes(0)) g.tap('a', i);
+        });
+        g.tick(STEP);
+      }
+      return Math.max(0, ...g.snapshot().holes.map((h) => h.upMs));
+    };
+    expect(upAt(42)).toBeLessThan(upAt(6) - 800);
+    expect(upAt(42)).toBeLessThan(450);
   });
 });

@@ -357,3 +357,49 @@ describe('SpinLobbyHub idle kick', () => {
     error.mockRestore();
   });
 });
+
+describe('the lobby time limit message', () => {
+  it('turns the 30 second cap on and off for everyone in the lobby', async () => {
+    const hub = makeHub();
+    const [a, b] = [fakeSocket(), fakeSocket()];
+    hub.connect('r1', 'a', a.socket);
+    hub.connect('r1', 'b', b.socket);
+    await flush();
+    expect(a.last()).toMatchObject({ capSeconds: 0 });
+    hub.message('r1', a.socket, JSON.stringify({ t: 'timeLimit', on: true }));
+    expect(a.last()).toMatchObject({ capSeconds: 30 });
+    expect(b.last()).toMatchObject({ capSeconds: 30 });
+    hub.message('r1', b.socket, JSON.stringify({ t: 'timeLimit', on: false }));
+    expect(a.last()).toMatchObject({ capSeconds: 0 });
+  });
+
+  it('ignores junk, a practice lobby, and a waiting spin (which is always capped, and gives the choice back when it ends)', async () => {
+    const hub = makeHub();
+    const a = fakeSocket();
+    hub.connect('r1', 'a', a.socket);
+    await flush();
+    hub.message('r1', a.socket, JSON.stringify({ t: 'timeLimit', on: 'yes' }));
+    await hub.tickRoom('r1');
+    expect(a.last()).toMatchObject({ capSeconds: 0 });
+
+    const solo = fakeSocket();
+    hub.connect('s1', 'a', solo.socket, { solo: true });
+    await flush();
+    hub.message('s1', solo.socket, JSON.stringify({ t: 'timeLimit', on: true }));
+    await hub.tickRoom('s1');
+    expect(solo.last()).toMatchObject({ capSeconds: 0 });
+
+    waiting = true;
+    const w = fakeSocket();
+    hub.connect('w1', 'a', w.socket);
+    await flush();
+    expect(w.last()).toMatchObject({ spinWaiting: true, capSeconds: 30 });
+    hub.message('w1', w.socket, JSON.stringify({ t: 'timeLimit', on: false }));
+    expect(w.last()).toMatchObject({ capSeconds: 30 });
+    // The spin ends: back to what the members chose (infinite).
+    waiting = false;
+    for (let i = 0; i < 40; i++) await hub.tickRoom('w1');
+    await flush();
+    expect(w.last()).toMatchObject({ capSeconds: 0 });
+  });
+});

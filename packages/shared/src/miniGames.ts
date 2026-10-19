@@ -12,10 +12,10 @@ export const MINIGAME_SCORE_MAX: Record<LobbyGameId, number> = {
   flappy: 20000,
   dodge: 20000,
   rope: 2000,
-  coins: 500,
+  coins: 2000,
   battleships: 100,
   race: 20000,
-  whack: 200,
+  whack: 1000,
   draw: 10000, // a reaction time in milliseconds
   tilt: 100,
   stacker: 200,
@@ -27,7 +27,7 @@ export const MINIGAME_SCORE_MAX: Record<LobbyGameId, number> = {
   snake: 576,
   gravity: 20000,
   laser: 20000,
-  colormatch: 200,
+  colormatch: 1000,
   potato: 20000, // tenths of a second held
   anagram: 500,
   mines: 71,
@@ -47,10 +47,10 @@ export const MINIGAME_VERSIONS: Record<LobbyGameId, number> = {
   flappy: 1,
   dodge: 2, // bigger blocks, a wider safe lane, a slower spawn rate
   rope: 1,
-  coins: 1,
+  coins: 2, // a bomb is instant death, and with no time limit it is endless (three lives)
   battleships: 2, // a player's own ships may touch
   race: 3, // pit lanes (first along the sides, then anywhere on the track and wider)
-  whack: 2, // shared moles, shorter up time, pauses
+  whack: 3, // with no time limit it is endless (three lives); before: shared moles, shorter up time, pauses
   draw: 2, // the score became a reaction time in milliseconds
   tilt: 2, // a ball each, tipped by where the balls are
   stacker: 1,
@@ -62,7 +62,7 @@ export const MINIGAME_VERSIONS: Record<LobbyGameId, number> = {
   snake: 1,
   gravity: 2, // floating blocks in the middle, and a flip can be turned round part way across
   laser: 1,
-  colormatch: 2, // the prompt asks for the ink, the word or the shape, changing each time
+  colormatch: 3, // endless with three lives when there is no time limit; before: the prompt asks for the ink, the word or the shape, changing each time
   potato: 2, // the score became the time held, not the rounds survived
   anagram: 1,
   mines: 1,
