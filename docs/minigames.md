@@ -45,7 +45,7 @@ It plays a random game after every run (like the waiting room), or one game you 
 
 ## Ping and who works out what
 
-In **Runner, Flappy, Dodge, Jump rope, Obstacle race and Lava rise**, your own player is worked out **on your own device**, so a slow connection does not make you jump late or get hit by something you cleared:
+In **Runner, Flappy, Dodge, Jump rope, Obstacle race, Lava rise and Gravity flip**, your own player is worked out **on your own device**, so a slow connection does not make you jump late or get hit by something you cleared:
 
 - **Your device** runs your player against the course the moment you press: your jump, your duck, your slide, your steering. Your hits are decided there too, and it tells the server where you are about 20 times a second, and straight away when you are out.
 - **The server** decides the shared things: the course's seed and exactly when a run starts (everyone's device lines its clock up with the server's, so everyone starts the same course at the same moment), who is still in, who won, the wins and the history. It shows everyone else's player from what their devices report.
@@ -75,6 +75,17 @@ One shared grid and a snake for each player. Needs at least 2 players, so on you
 - **Score** (the high score list): how long your snake got. There is no time limit of its own: it goes on until it is beaten.
 - **Bots** steer away from walls and bodies and toward the nearest pickup. They only look one cell ahead and now and then turn the wrong way, so they can be beaten.
 - **Controls:** turn left or right (each press is one turn at the next step).
+
+## Gravity flip
+
+Run along the floor or the ceiling and flip between them. Everyone runs the same course, side by side, and never touches.
+
+- **Goal:** don't hit a spike. Spike blocks scroll in from the right, standing on the floor or hanging from the ceiling. Be on the other side as one arrives. **Last one running wins**; alone it is a high score (metres).
+- **Flipping:** one button. It takes 0.3 seconds to cross, and you can only start a flip from the floor or the ceiling (pressing part way across does nothing), so it cannot be spammed. A spike is only dangerous near the side it is on, so you are safe in the middle of a flip.
+- **Spikes** are 0.06 to 0.14 wide and 0.14 tall, on a random side. They are at least 0.85 seconds of running apart, edge to edge (and up to 0.7 seconds more), which is always long enough to flip in. They come from the round's seed, so they are the same for everyone.
+- **Speed:** the course starts at 0.45 of a screen per second and climbs to 0.95 after about 50 seconds.
+- There is no time limit of its own: it goes on until it is beaten.
+- **Controls:** one button: **Space**, **↑**/**↓** or **W**/**S**, or tap anywhere on the arena.
 
 ## Rating a game
 
@@ -121,6 +132,7 @@ A game can instead make **the play space the controller**: there are no buttons 
 | Obstacle race | **←** / **→** or **A** / **D** to steer. | The **◀** and **▶** buttons. |
 | Lava rise | **Space**, **↑** or **W** to jump. | **Jump**, or tap anywhere on the arena. |
 | Snake arena | **←** / **→** or **A** / **D** to turn. | The **◀** and **▶** buttons. |
+| Gravity flip | **Space**, **↑**/**↓** or **W**/**S** to flip. | **Flip**, or tap anywhere on the arena. |
 
 ## Runner
 
@@ -323,7 +335,7 @@ The source is `secureRandom` (`packages/shared/src/lobbyGames/roundGame.ts`).
 
 ## Keeping the motion consistent
 
-Scrolling games (Runner, Flappy, Dodge, Catch the coins, Obstacle race, Lava rise) all follow one rule so the world never slides at two speeds:
+Scrolling games (Runner, Flappy, Dodge, Catch the coins, Obstacle race, Lava rise, Gravity flip) all follow one rule so the world never slides at two speeds:
 
 - **Everything on the course moves at the course's speed.** Obstacles, pickups and the marks on the ground (the Runner's pale ticks and accent dashes, for example) all move by the same distance every second: the speed shown in the game's own description above, in screens per second. A ground mark must never look faster or slower than the obstacles it sits under.
 - **Only the faint dot grid in the background is slower**, at a quarter of the course speed, as distant parallax. It is drawn by the arena for every game; a game never adds its own.

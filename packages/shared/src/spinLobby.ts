@@ -11,8 +11,8 @@
 export const LOBBY_TICK_HZ = 15;
 
 /** The games the lobby can run. */
-export type LobbyGameId = 'runner' | 'flappy' | 'dodge' | 'rope' | 'coins' | 'battleships' | 'race' | 'whack' | 'draw' | 'tilt' | 'stacker' | 'sumo' | 'asteroids' | 'memory' | 'words' | 'lava' | 'snake';
-export const LOBBY_GAME_IDS: readonly LobbyGameId[] = ['runner', 'flappy', 'dodge', 'rope', 'coins', 'battleships', 'race', 'whack', 'draw', 'tilt', 'stacker', 'sumo', 'asteroids', 'memory', 'words', 'lava', 'snake'];
+export type LobbyGameId = 'runner' | 'flappy' | 'dodge' | 'rope' | 'coins' | 'battleships' | 'race' | 'whack' | 'draw' | 'tilt' | 'stacker' | 'sumo' | 'asteroids' | 'memory' | 'words' | 'lava' | 'snake' | 'gravity';
+export const LOBBY_GAME_IDS: readonly LobbyGameId[] = ['runner', 'flappy', 'dodge', 'rope', 'coins', 'battleships', 'race', 'whack', 'draw', 'tilt', 'stacker', 'sumo', 'asteroids', 'memory', 'words', 'lava', 'snake', 'gravity'];
 
 /** What a client sends. Anything else is ignored. */
 export type LobbyClientMessage =
@@ -947,8 +947,55 @@ export interface SnakeSnapshot extends RoundSummary {
   winnerId: string | null;
 }
 
+// ---- Gravity flip (run along the floor or ceiling; flip between them to dodge spikes) ------------
+
+/** Where a runner is across the screen. */
+export const GRAVITY_X = 0.18;
+/** A runner's radius, and how tall a spike is, as fractions of the arena's height (drawing and hits). */
+export const GRAVITY_PLAYER_R = 0.035;
+export const GRAVITY_SPIKE_H = 0.14;
+
+/** A spike block: `x` is how far ahead of the screen's left edge its middle is, `side` where it stands (0 the
+ * floor, 1 the ceiling). */
+export interface GravityObstacle {
+  x: number;
+  w: number;
+  side: number;
+  /** Which spike this is (counts up from 1 each run); stays the same as it scrolls. */
+  n: number;
+}
+
+export interface GravityPlayer {
+  id: string;
+  /** Height of their middle, 0 (floor) to 1 (ceiling). */
+  y: number;
+  /** The side they are on or heading for: 0 floor, 1 ceiling. */
+  side: number;
+  /** Still running. False once they hit a spike, or if they arrived mid-run. */
+  alive: boolean;
+  /** Runs won since this person joined the lobby. */
+  wins: number;
+  /** How far they have run, in metres: live while running, final once out. */
+  meters: number;
+}
+
+export interface GravitySnapshot extends RoundSummary {
+  id: 'gravity';
+  phase: LobbyRoundPhase;
+  /** Metres run so far by the course. */
+  meters: number;
+  /** Course speed in screens per second. */
+  speed: number;
+  spikes: GravityObstacle[];
+  players: GravityPlayer[];
+  /** Milliseconds left in `countdown` or `over`; 0 otherwise. */
+  timerMs: number;
+  /** Who won the run that just ended (`over` only); null when nobody did (a solo run, or a draw). */
+  winnerId: string | null;
+}
+
 /** The snapshot of whichever game is running. */
-export type LobbyGameSnapshot = RunnerSnapshot | FlappySnapshot | DodgeSnapshot | RopeSnapshot | CoinsSnapshot | BattleshipsSnapshot | RaceSnapshot | WhackSnapshot | DrawSnapshot | TiltSnapshot | StackerSnapshot | SumoSnapshot | AsteroidsSnapshot | MemorySnapshot | WordsSnapshot | LavaSnapshot | SnakeSnapshot;
+export type LobbyGameSnapshot = RunnerSnapshot | FlappySnapshot | DodgeSnapshot | RopeSnapshot | CoinsSnapshot | BattleshipsSnapshot | RaceSnapshot | WhackSnapshot | DrawSnapshot | TiltSnapshot | StackerSnapshot | SumoSnapshot | AsteroidsSnapshot | MemorySnapshot | WordsSnapshot | LavaSnapshot | SnakeSnapshot | GravitySnapshot;
 
 /** What a client needs to run its own player on a course the server decided: which run, the seed that
  * makes the course, and how long until the run starts (negative once it has, by how far in). */

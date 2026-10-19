@@ -25,6 +25,7 @@ export const MINIGAME_SCORE_MAX: Record<LobbyGameId, number> = {
   words: 60,
   lava: 20000,
   snake: 576,
+  gravity: 20000,
 };
 
 /** The lowest score a game can really produce, where that is more than 1. Quick draw's score was points (1 to 3)
