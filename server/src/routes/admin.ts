@@ -26,6 +26,7 @@ import { logRoomActivity } from '../services/roomActivity.js';
 import { serverAiUsageFor, summarizeServerAiUsage } from '../services/ai/aiServerUsage.js';
 import { purgeDeletedRoomsCreatedBy, recentlyDeletedRooms, restoreRoom, ROOM_RETENTION_DAYS, softDeleteRoom, toDeletedRoomSummary } from '../services/roomDeletion.js';
 import { notifyRoomMembersDirect } from '../services/notifications.js';
+import { ratingTotals } from '../services/miniGameRatings.js';
 
 /** When the administrator's "Manage as Room Master" for the room runs out, or null if it's off. */
 async function managingUntil(userId: string, roomId: string): Promise<string | null> {
@@ -584,6 +585,13 @@ export default async function adminRoutes(app: FastifyInstance) {
     }
     reply.status(204);
     return null;
+  });
+
+  // How people rated each mini game (counts only, never who voted).
+  app.get('/api/admin/minigame-ratings', async (request) => {
+    const userId = await request.requireAuth();
+    await requireAdmin(userId);
+    return { games: await ratingTotals() };
   });
 
   app.get<{ Querystring: { limit?: string } }>('/api/admin/email-log', async (request) => {

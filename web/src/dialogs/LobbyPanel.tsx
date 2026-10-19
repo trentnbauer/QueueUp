@@ -12,6 +12,7 @@ import { RunHistory } from './lobby/RunHistory';
 import { VoteBar } from './lobby/VoteBar';
 import { WinChart } from './lobby/WinChart';
 import { HighScoresStrip } from './lobby/HighScoresStrip';
+import { RatingBar } from './lobby/RatingBar';
 import { useSubmitSoloScore } from '../hooks/useMiniGames';
 import { useIsMobile } from '../ui/useLayout';
 import { Dialog } from '../ui/Dialog';
@@ -254,7 +255,12 @@ export function LobbyPanel({
       onContextMenu={(e) => e.preventDefault()}
     />
   );
-  const controls = view ? <Controls view={view} phone={phone} holdProps={holdProps} onAction={sendAction} /> : null;
+  const controls = view ? (
+    <>
+      <Controls view={view} phone={phone} holdProps={holdProps} onAction={sendAction} />
+      {game && <RatingBar game={game.id} show={game.phase === 'over'} />}
+    </>
+  ) : null;
   const gameName = view ? t(view.nameKey) : '';
 
   const bottom = snapshot?.spinWaiting ? (

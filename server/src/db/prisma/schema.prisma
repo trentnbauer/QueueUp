@@ -352,6 +352,7 @@ model User {
   blocksMade                    UserBlock[]                    @relation("BlockBlocker")
   blocksReceived                UserBlock[]                    @relation("BlockBlocked")
   miniGameScores                MiniGameScore[]
+  miniGameRatings               MiniGameRating[]
   reportsMade                   UserReport[]                   @relation("ReportReporter")
   reportsAbout                  UserReport[]                   @relation("ReportReported")
   notificationsReceived         Notification[]                 @relation("NotificationRecipient")
@@ -1779,6 +1780,23 @@ model MiniGameScore {
   @@index([gameId, score])
   @@index([userId, gameId, createdAt])
   @@map("mini_game_scores")
+}
+
+/// One person's thumbs up (1) or thumbs down (-1) for a mini game, shown to administrators as counts. One row
+/// per person per game: rating again replaces it, so playing a game twice never counts twice.
+model MiniGameRating {
+  id        String   @id @default(uuid())
+  userId    String   @map("user_id")
+  gameId    String   @map("game_id")
+  rating    Int
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, gameId])
+  @@index([gameId])
+  @@map("mini_game_ratings")
 }
 
 /// A report about a person, with the reporter's own words on why. Administrators read these and

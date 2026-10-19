@@ -51,6 +51,16 @@ In **Runner, Flappy, Dodge, Jump rope and Obstacle race**, your own player is wo
 - **If your device goes quiet** (a closed or frozen tab) for 3 seconds in a run, the server counts you out.
 - Players in these games never affect each other, which is why this is safe. **Catch the coins**, where players race for the same thing, is still worked out by the server, so there ping matters.
 
+## Rating a game
+
+When a run ends and its result card is showing, a **thumbs up / thumbs down** appears under the arena (in a room's lobby, a spin's waiting room, an open lobby and solo practice alike).
+
+- **What is rated is the game**, not the run. You have **one rating per game**: tapping the other thumb changes it, and playing a game twice never counts twice. The thumb you picked stays lit.
+- The bar keeps its place under the arena, so it does not move the game when a run ends, and the next run still starts by itself.
+- **Only signed-in members** can rate, and a rating for a game that does not exist is refused.
+- **Administrators** see the results on the Administrator page under **Mini game ratings**: for each game the thumbs up, thumbs down, total, the share that are up, and thumbs up / down for the last 7 days (so a new game is not drowned by an old one's history). Lowest rated first. It shows **counts only, never who voted**. Not shown on the player-facing Mini games page.
+- Ratings are kept in the `mini_game_ratings` table (one row per person per game).
+
 ## Voting to spin
 
 While a spin is waiting for members, the mini game has a **Vote to spin** bar.
