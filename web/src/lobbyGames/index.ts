@@ -28,6 +28,7 @@ import { laserView } from './laser';
 import { gravityView } from './gravity';
 import { snakeView } from './snake';
 import { lavaView } from './lava';
+import { froggerView } from './frogger';
 
 /** What a renderer is given each frame. */
 export interface LobbyDrawArgs<S extends LobbyGameSnapshot = LobbyGameSnapshot> {
@@ -114,6 +115,7 @@ export const LOBBY_GAME_VIEWS: { [K in LobbyGameId]: LobbyGameView<Extract<Lobby
   stop: stopView,
   pong: pongView,
   wall: wallView,
+  frogger: froggerView,
 };
 
 /** The view for whichever game a snapshot belongs to. */
