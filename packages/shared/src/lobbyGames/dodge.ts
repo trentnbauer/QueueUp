@@ -7,14 +7,14 @@ const FALL_START = 0.35;
 const FALL_GAIN = 0.012; // per second of the run
 const FALL_MAX = 0.9;
 /** Seconds between new blocks: starts slow and gets busier, down to a floor. */
-const SPAWN_START_S = 0.75;
+const SPAWN_START_S = 0.9;
 const SPAWN_GAIN_S = 0.01;
-const SPAWN_MIN_S = 0.28;
-const BLOCK_MIN_W = 0.06;
-const BLOCK_EXTRA_W = 0.1;
+const SPAWN_MIN_S = 0.34;
+const BLOCK_MIN_W = 0.09;
+const BLOCK_EXTRA_W = 0.15;
 /** Blocks are never made over the "safe lane", a strip that wanders slowly from side to side, so a way
  * through always exists for someone who keeps up with it. */
-const SAFE_HALF_WIDTH = 0.11;
+const SAFE_HALF_WIDTH = 0.14;
 const SAFE_DRIFT = 0.08;
 const SAFE_MIN = 0.12;
 const SAFE_MAX = 0.88;

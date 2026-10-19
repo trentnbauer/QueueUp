@@ -116,7 +116,7 @@ Blocks fall; slide left and right to stay clear.
 
 - **Goal:** don't get hit. Everyone stands on the same floor.
 - You move at half a screen per second and can't leave the screen.
-- **Blocks** (game covers of different widths) fall faster and faster: from 0.35 of a screen per second up to 0.9 after about 46 seconds. A new block appears every 0.75 seconds at the start, speeding up to every 0.28 seconds after about 47 seconds.
+- **Blocks** (game covers of different widths) fall faster and faster: from 0.35 of a screen per second up to 0.9 after about 46 seconds. Blocks are 0.09 to 0.24 of a screen wide and 0.09 tall. A new block appears every 0.9 seconds at the start, speeding up to every 0.34 seconds after about 56 seconds.
 - A **safe lane** drifts slowly from side to side, and no block is ever made over it, so there is always a way through for someone who keeps up with it.
 - A block that hits you knocks you out.
 

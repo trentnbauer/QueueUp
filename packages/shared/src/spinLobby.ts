@@ -183,7 +183,7 @@ export interface FlappySnapshot extends RoundSummary {
 /** Where the players stand, as a fraction of the height from the top. */
 export const DODGE_PLAYER_Y = 0.92;
 export const DODGE_PLAYER_WIDTH = 0.06;
-export const DODGE_BLOCK_HEIGHT = 0.06;
+export const DODGE_BLOCK_HEIGHT = 0.09;
 
 /** A falling block: `x` is its middle across the width (0..1), `y` its middle down from the top. */
 export interface DodgeBlock {
