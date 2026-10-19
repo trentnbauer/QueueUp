@@ -524,9 +524,9 @@ export interface DrawSnapshot extends RoundSummary {
   winnerId: string | null;
 }
 
-// ---- Tilt (everyone pushes one ball along one beam; score the targets, keep it on) -----------------
+// ---- Tilt (everyone has a ball on one beam, and the balls tip it; score the targets, keep yours on) -----------------
 
-/** A target on the beam: `x` is its middle along the beam (0..1). Tipping the ball into it scores. */
+/** A target on the beam: `x` is its middle along the beam (0..1). The first ball to reach it scores. */
 export interface TiltTarget {
   x: number;
   /** Which target this is (counts up from 1 each run); stays the same while it lasts. */
@@ -537,7 +537,7 @@ export interface TiltTarget {
 
 export interface TiltPlayer {
   id: string;
-  /** Still in the run: false only if they arrived mid-run (the ball ends the run for everyone). */
+  /** Their ball is still on the beam. False once it has rolled off, or if they arrived mid-run. */
   alive: boolean;
   /** Runs won since this person joined the lobby. */
   wins: number;
@@ -545,6 +545,11 @@ export interface TiltPlayer {
   meters: number;
   /** The direction they are pushing: -1, 0 or 1. */
   dir: number;
+  /** Where their own ball is along the beam (0..1; below 0 or above 1 it has rolled off) and how fast it is going. */
+  x: number;
+  v: number;
+  /** Their ball rolled off this run (so they are out), as opposed to never having been in it. */
+  fell: boolean;
 }
 
 export interface TiltSnapshot extends RoundSummary {
@@ -556,15 +561,9 @@ export interface TiltSnapshot extends RoundSummary {
   speed: number;
   /** Milliseconds left in the run (a time limit) while `playing`. */
   roundLeftMs: number;
-  /** Where the ball is along the beam (0..1; off either end and the run is over) and how fast it is going. */
-  ball: { x: number; v: number };
-  /** The beam's lean, -1 to 1 (left to right): everyone's push plus the wobble, which is what moves the ball. */
+  /** The beam's lean, -1 to 1 (left to right): toward where the balls are on average, plus the wobble. It pulls every ball downhill. */
   tilt: number;
   targets: TiltTarget[];
-  /** Who pushed last (an index into `players`), so who a target would score for; -1 for nobody yet. */
-  last: number;
-  /** Targets scored by everyone together this run. */
-  team: number;
   players: TiltPlayer[];
   /** Milliseconds left in `countdown` or `over`; 0 otherwise. */
   timerMs: number;
