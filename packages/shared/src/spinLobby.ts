@@ -11,8 +11,8 @@
 export const LOBBY_TICK_HZ = 15;
 
 /** The games the lobby can run. */
-export type LobbyGameId = 'runner' | 'flappy' | 'dodge' | 'rope' | 'coins' | 'battleships' | 'race' | 'whack' | 'draw' | 'tilt' | 'stacker' | 'sumo' | 'asteroids' | 'memory' | 'words' | 'lava' | 'snake' | 'gravity' | 'laser' | 'colormatch' | 'potato' | 'anagram' | 'mines' | 'stop' | 'pong' | 'wall' | 'frogger' | 'fishing' | 'orbit';
-export const LOBBY_GAME_IDS: readonly LobbyGameId[] = ['runner', 'flappy', 'dodge', 'rope', 'coins', 'battleships', 'race', 'whack', 'draw', 'tilt', 'stacker', 'sumo', 'asteroids', 'memory', 'words', 'lava', 'snake', 'gravity', 'laser', 'colormatch', 'potato', 'anagram', 'mines', 'stop', 'pong', 'wall', 'frogger', 'fishing', 'orbit'];
+export type LobbyGameId = 'runner' | 'flappy' | 'dodge' | 'rope' | 'coins' | 'battleships' | 'race' | 'whack' | 'draw' | 'tilt' | 'stacker' | 'sumo' | 'asteroids' | 'memory' | 'words' | 'lava' | 'snake' | 'gravity' | 'laser' | 'colormatch' | 'potato' | 'anagram' | 'mines' | 'stop' | 'pong' | 'wall' | 'frogger' | 'fishing' | 'orbit' | 'rps';
+export const LOBBY_GAME_IDS: readonly LobbyGameId[] = ['runner', 'flappy', 'dodge', 'rope', 'coins', 'battleships', 'race', 'whack', 'draw', 'tilt', 'stacker', 'sumo', 'asteroids', 'memory', 'words', 'lava', 'snake', 'gravity', 'laser', 'colormatch', 'potato', 'anagram', 'mines', 'stop', 'pong', 'wall', 'frogger', 'fishing', 'orbit', 'rps'];
 
 /** What a client sends. Anything else is ignored. */
 export type LobbyClientMessage =
@@ -1529,8 +1529,57 @@ export interface OrbitSnapshot extends RoundSummary {
   winnerId: string | null;
 }
 
+// ---- Rock paper scissors (everyone picks at once; the beaten choice is out) ----------------------
+
+/** Rock, paper, scissors: tap targets 0, 1 and 2. */
+export const RPS_CHOICES = 3;
+
+/** Where a round is: people are choosing, or the result is showing before the next round. */
+export type RpsStage = 'pick' | 'reveal';
+
+/** How a round went for a player: they beat the other choice, were beaten (out), it was a draw (nothing happens, round again), or they did not pick in time (out). */
+export type RpsOutcome = 'win' | 'lose' | 'draw' | 'late';
+
+export interface RpsPlayer {
+  id: string;
+  /** Still in. False once they lost a round or ran out of time, or if they arrived mid-run. */
+  alive: boolean;
+  /** Runs won since this person joined the lobby. */
+  wins: number;
+  /** Rounds they have won this run: live while in, final once out. */
+  meters: number;
+  /** They have picked this round (so a screen can show who is still choosing). */
+  picked: boolean;
+  /** What they picked (0 rock, 1 paper, 2 scissors): only your own while people are choosing, everyone's once the round is decided. -1 when hidden or not picked. */
+  pick: number;
+  /** How the round went for them once it is decided; null while people are choosing. */
+  outcome: RpsOutcome | null;
+}
+
+export interface RpsSnapshot extends RoundSummary {
+  id: 'rps';
+  phase: LobbyRoundPhase;
+  /** The most rounds anyone has won so far. */
+  meters: number;
+  /** Always 0: nothing scrolls past in this game (every snapshot carries a course speed). */
+  speed: number;
+  stage: RpsStage;
+  /** Which round this is (counts up from 1 each run; draws are rounds too). */
+  round: number;
+  /** The round on show was a draw. */
+  draw: boolean;
+  /** Milliseconds left to pick (`pick` only), and how long the pick was given in all. */
+  pickLeftMs: number;
+  pickTotalMs: number;
+  players: RpsPlayer[];
+  /** Milliseconds left in `countdown` or `over`; 0 otherwise. */
+  timerMs: number;
+  /** Who won the run that just ended (`over` only); null when nobody did (all out together). */
+  winnerId: string | null;
+}
+
 /** The snapshot of whichever game is running. */
-export type LobbyGameSnapshot = RunnerSnapshot | FlappySnapshot | DodgeSnapshot | RopeSnapshot | CoinsSnapshot | BattleshipsSnapshot | RaceSnapshot | WhackSnapshot | DrawSnapshot | TiltSnapshot | StackerSnapshot | SumoSnapshot | AsteroidsSnapshot | MemorySnapshot | WordsSnapshot | LavaSnapshot | SnakeSnapshot | GravitySnapshot | LaserSnapshot | ColorMatchSnapshot | PotatoSnapshot | AnagramSnapshot | MinesSnapshot | StopSnapshot | PongSnapshot | WallSnapshot | FroggerSnapshot | FishingSnapshot | OrbitSnapshot;
+export type LobbyGameSnapshot = RunnerSnapshot | FlappySnapshot | DodgeSnapshot | RopeSnapshot | CoinsSnapshot | BattleshipsSnapshot | RaceSnapshot | WhackSnapshot | DrawSnapshot | TiltSnapshot | StackerSnapshot | SumoSnapshot | AsteroidsSnapshot | MemorySnapshot | WordsSnapshot | LavaSnapshot | SnakeSnapshot | GravitySnapshot | LaserSnapshot | ColorMatchSnapshot | PotatoSnapshot | AnagramSnapshot | MinesSnapshot | StopSnapshot | PongSnapshot | WallSnapshot | FroggerSnapshot | FishingSnapshot | OrbitSnapshot | RpsSnapshot;
 
 /** What a client needs to run its own player on a course the server decided: which run, the seed that
  * makes the course, and how long until the run starts (negative once it has, by how far in). */

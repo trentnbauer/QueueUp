@@ -24,6 +24,7 @@ const SCORE_WORDS: Partial<Record<string, ScoreWords>> = {
   tilt: { pill: 'spin.lobby.hud.points.pill', winnerOne: 'spin.lobby.hud.points.winnerOne', winnerOther: 'spin.lobby.hud.points.winnerOther', over: 'spin.lobby.hud.points.over' },
   stacker: { pill: 'spin.lobby.hud.points.pill', winnerOne: 'spin.lobby.hud.points.winnerOne', winnerOther: 'spin.lobby.hud.points.winnerOther', over: 'spin.lobby.hud.points.over' },
   orbit: { pill: 'spin.lobby.hud.seconds.pill', winnerOne: 'spin.lobby.hud.seconds.winnerOne', winnerOther: 'spin.lobby.hud.seconds.winnerOther', over: 'spin.lobby.hud.seconds.over' },
+  rps: { pill: 'spin.lobby.hud.rounds.pill', winnerOne: 'spin.lobby.hud.rounds.winnerOne', winnerOther: 'spin.lobby.hud.rounds.winnerOther', over: 'spin.lobby.hud.rounds.over' },
   sumo: { pill: 'spin.lobby.hud.seconds.pill', winnerOne: 'spin.lobby.hud.seconds.winnerOne', winnerOther: 'spin.lobby.hud.seconds.winnerOther', over: 'spin.lobby.hud.seconds.over' },
   asteroids: { pill: 'spin.lobby.hud.points.pill', winnerOne: 'spin.lobby.hud.points.winnerOne', winnerOther: 'spin.lobby.hud.points.winnerOther', over: 'spin.lobby.hud.points.over' },
   memory: { pill: 'spin.lobby.hud.rounds.pill', winnerOne: 'spin.lobby.hud.rounds.winnerOne', winnerOther: 'spin.lobby.hud.rounds.winnerOther', over: 'spin.lobby.hud.rounds.over' },
