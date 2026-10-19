@@ -330,8 +330,9 @@ export abstract class RoundGame<P extends RoundPlayer> implements LobbyGame {
 
   /** Adds the run that just ended to the history: who got furthest, and how far. */
   private recordResult(): void {
-    let furthest: P | null = null;
-    for (const p of this.players.values()) if (!furthest || p.outAtMeters > furthest.outAtMeters) furthest = p;
+    // A winner's own score is the run's, even if someone who was knocked out earlier had counted more.
+    let furthest: P | null = (this.winnerId && this.players.get(this.winnerId)) || null;
+    if (!furthest) for (const p of this.players.values()) if (!furthest || p.outAtMeters > furthest.outAtMeters) furthest = p;
     const result: RunResult = { id: furthest?.id ?? '', winnerId: this.winnerId, meters: furthest?.outAtMeters ?? 0, game: this.id };
     if (!furthest) return;
     this.record.add(result);

@@ -2,8 +2,8 @@ import type { StopSnapshot, StopStage } from '../spinLobby.js';
 import { RoundGame, type RoundPlayer } from './roundGame.js';
 
 /** The marker crosses the bar this many times a second in the first round, a bit faster every round, up to a limit. */
-const RATE_START = 0.8;
-const RATE_GAIN = 0.12;
+const RATE_START = 1.1;
+const RATE_GAIN = 0.18;
 const RATE_MAX = 2.6;
 /** The target zone is this wide (half-width, as a share of the bar) in the first round, narrower every round, down to a floor. */
 const HALF_START = 0.15;

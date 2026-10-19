@@ -45,7 +45,7 @@ describe('RopeGame rounds', () => {
 
   it('catches someone who never jumps, and ends a solo run with no winner', () => {
     const g = started(['a']);
-    run(g, 5000);
+    for (let t = 0; t < 8000 && g.snapshot().phase === 'playing'; t += STEP) g.tick(STEP);
     const snap = g.snapshot();
     expect(snap.phase).toBe('over');
     expect(snap.winnerId).toBeNull();

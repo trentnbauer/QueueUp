@@ -178,7 +178,7 @@ describe('the server taking a report', () => {
     for (let t = 0; t < 60_000 && g.snapshot().phase !== 'countdown'; t += STEP) g.tick(STEP);
     run(g, 3300);
     // Run 2, and this player has not reported yet, so the server works them out again.
-    run(g, 5000);
+    run(g, 3000);
     expect(g.snapshot().players[0].alive).toBe(false);
   });
 });

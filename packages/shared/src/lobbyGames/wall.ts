@@ -3,16 +3,16 @@ import { RoundGame, type RoundPlayer } from './roundGame.js';
 import type { BotBrain } from './types.js';
 
 /** How long the ball takes to come down from the wall to the row of players: roomy at first, quicker with every hit, down to a floor. */
-const DOWN_START_S = 1.6;
-const DOWN_SHRINK_S = 0.05; // per hit
-const DOWN_MIN_S = 0.8;
+const DOWN_START_S = 1.2;
+const DOWN_SHRINK_S = 0.07; // per hit
+const DOWN_MIN_S = 0.65;
 /** How long the ball takes to go from a hit up to the wall (it then turns round and comes down for the next player). */
 const UP_S = 0.35;
 /** A hit counts if it comes within this long of the moment the ball lands (before or after). */
 const HIT_WINDOW_S = 0.22;
 /** Where the ball lands is the next player's own spot, moved by up to this much: it starts small and grows, so they have to move. */
-const OFFSET_START = 0.05;
-const OFFSET_GAIN = 0.01; // per hit
+const OFFSET_START = 0.12;
+const OFFSET_GAIN = 0.02; // per hit
 const OFFSET_MAX = 0.28;
 const WALL_MARGIN = 0.15;
 

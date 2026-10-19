@@ -5,8 +5,8 @@ import type { BotBrain } from './types.js';
 /** How many cells a snake starts with. */
 const START_LENGTH = 3;
 /** Seconds between steps: starts leisurely and speeds up as the snakes grow, down to a floor. */
-const STEP_START_S = 0.17;
-const STEP_GAIN_S = 0.004; // per cell of the longest snake beyond its start
+const STEP_START_S = 0.13;
+const STEP_GAIN_S = 0.006; // per cell of the longest snake beyond its start
 const STEP_MIN_S = 0.075;
 /** Where snakes start: a ring this far (in cells) from the middle, so they are spread out and face inward. */
 const SPAWN_RING = 8;

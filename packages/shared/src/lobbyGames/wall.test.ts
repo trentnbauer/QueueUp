@@ -112,14 +112,14 @@ describe('WallGame', () => {
   it('makes the ball quicker as the hits mount', () => {
     const g = started(['a', 'b']);
     const first = snap(g).landInMs;
-    expect(first).toBeGreaterThan(1300);
+    expect(first).toBeGreaterThan(1000);
     // Play on until it has been hit twenty times, then read how long the next trip down takes.
     for (let t = 0; t < 90_000 && snap(g).meters < 20 && snap(g).phase === 'playing'; t += STEP) playTurns(g, ['a', 'b'], STEP);
     expect(snap(g).meters).toBeGreaterThanOrEqual(20);
     for (let t = 0; t < 3000 && snap(g).leg !== 'up'; t += STEP) playTurns(g, ['a', 'b'], STEP);
     for (let t = 0; t < 3000 && snap(g).leg !== 'down'; t += STEP) playTurns(g, ['a', 'b'], STEP);
     expect(snap(g).landInMs).toBeLessThan(first - 300);
-    expect(snap(g).landInMs).toBeGreaterThanOrEqual(700);
+    expect(snap(g).landInMs).toBeGreaterThanOrEqual(650);
   });
 
   it('plays against a bot when alone', () => {

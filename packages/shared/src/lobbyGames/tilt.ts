@@ -13,8 +13,8 @@ const DRAG = 1.2;
 const MAX_SPEED = 1.2;
 /** The beam also wobbles by itself (two slow waves from the run's seed), more and more as the run goes on,
  * so a run always ends. In beams a second squared. */
-const WOBBLE_START = 0.12;
-const WOBBLE_GAIN = 0.008;
+const WOBBLE_START = 0.2;
+const WOBBLE_GAIN = 0.014;
 const WOBBLE_MAX = 0.9;
 /** A target scores when a ball is this close to its middle (in beams). */
 const HIT = 0.05;

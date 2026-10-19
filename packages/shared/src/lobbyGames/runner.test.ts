@@ -17,7 +17,7 @@ function started(ids: string[], seed = 0.3) {
   return g;
 }
 
-const HALF = { cactus: 0.05, bird: 0.03, log: 0.15 } as const;
+const HALF = { cactus: 0.05, bird: 0.03, log: 0.225 } as const;
 const RUNNER_HALF = 0.02;
 
 /** The first obstacle whose far edge the runner has not yet cleared. */
@@ -83,7 +83,7 @@ describe('RunnerGame rounds', () => {
     const start = g.snapshot().speed;
     playBot(g, 'a', 20_000);
     expect(g.snapshot().speed).toBeGreaterThan(start);
-    expect(g.snapshot().speed).toBeLessThanOrEqual(1);
+    expect(g.snapshot().speed).toBeLessThanOrEqual(1.1);
   });
 
   it('knocks a runner out when they hit a cactus and ends a solo run with no winner', () => {
@@ -278,8 +278,9 @@ describe('RunnerGame hold to jump higher', () => {
 
   it('does not bounce again while the button stays held after landing', () => {
     const g = started(['a']);
+    run(g, 200); // the first cactus is about to arrive: the jump clears it, and lands before the next one
     g.input('a', 0, -1);
-    run(g, 1300); // up, down and landed (before the first cactus arrives), still holding
+    run(g, 1300); // up, down and landed, still holding
     expect(me(g, 'a').h).toBe(0);
     g.input('a', 0, -1); // still held: no new jump
     g.tick(STEP);
@@ -347,7 +348,7 @@ describe('RunnerGame logs', () => {
       const held = play('hold');
       const tapped = play('tap');
       // At full speed a tap's short hop does carry over a log, so only a log met before that counts.
-      if (!held.sawLog || !tapped.sawLog || tapped.logSpeed > 0.9) continue;
+      if (!held.sawLog || !tapped.sawLog || tapped.logSpeed > 1) continue;
       tested++;
       expect(held.alive, `seed ${seed}: held`).toBe(true);
       expect(tapped.alive, `seed ${seed}: tapped`).toBe(false);

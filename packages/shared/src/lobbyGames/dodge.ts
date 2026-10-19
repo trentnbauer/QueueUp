@@ -3,13 +3,13 @@ import { RoundGame, type RoundPlayer } from './roundGame.js';
 
 // Everything is in screens: x runs 0..1 across, y 0..1 down from the top.
 const PLAYER_SPEED = 0.5;
-const FALL_START = 0.35;
-const FALL_GAIN = 0.012; // per second of the run
-const FALL_MAX = 0.9;
+const FALL_START = 0.4;
+const FALL_GAIN = 0.02; // per second of the run
+const FALL_MAX = 1;
 /** Seconds between new blocks: starts slow and gets busier, down to a floor. */
-const SPAWN_START_S = 0.9;
-const SPAWN_GAIN_S = 0.01;
-const SPAWN_MIN_S = 0.34;
+const SPAWN_START_S = 0.8;
+const SPAWN_GAIN_S = 0.015;
+const SPAWN_MIN_S = 0.3;
 const BLOCK_MIN_W = 0.09;
 const BLOCK_EXTRA_W = 0.15;
 /** Blocks are never made over the "safe lane", a strip that wanders slowly from side to side, so a way

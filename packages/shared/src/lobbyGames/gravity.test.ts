@@ -134,7 +134,7 @@ describe('GravityGame', () => {
 
   it('knocks out a player who stays put when a spike arrives on their side', () => {
     const g = started(['a']);
-    run(g, 30_000);
+    for (let t = 0; t < 30_000 && g.snapshot().phase === 'playing'; t += STEP) g.tick(STEP);
     expect(g.snapshot().phase).not.toBe('playing');
     expect(g.snapshot().history.at(-1)?.meters).toBeGreaterThanOrEqual(0);
   });

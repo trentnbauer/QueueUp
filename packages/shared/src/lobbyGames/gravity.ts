@@ -2,9 +2,9 @@ import { GRAVITY_MID_H, GRAVITY_PLAYER_R, GRAVITY_SPIKE_H, GRAVITY_X, type Gravi
 import { RoundGame, type RoundPlayer } from './roundGame.js';
 
 // Everything is in screens: x runs 0..1 across, y 0 (floor) to 1 (ceiling). The course scrolls from the right.
-const SPEED_START = 0.45;
-const SPEED_GAIN = 0.01; // per second of the run
-const SPEED_MAX = 0.95;
+const SPEED_START = 0.6;
+const SPEED_GAIN = 0.015; // per second of the run
+const SPEED_MAX = 1;
 const SPAWN_AHEAD = 1.3;
 /** A flip crosses the corridor in this long. */
 const FLIP_S = 0.3;

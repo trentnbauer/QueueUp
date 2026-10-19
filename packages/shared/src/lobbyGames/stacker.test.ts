@@ -140,8 +140,8 @@ describe('StackerGame', () => {
   });
 
   it('keeps getting faster all the way up, past the early climb, to a top speed', () => {
-    // Quick at first (5 to 12 squares a second by about row 8), then still faster every row, more slowly.
-    expect(lightSpeed(0)).toBe(5);
+    // Quick at first (6.5 to 12 squares a second by about row 8), then still faster every row, more slowly.
+    expect(lightSpeed(0)).toBe(6.5);
     expect(lightSpeed(8)).toBeCloseTo(12, 0);
     let last = lightSpeed(0);
     for (let row = 1; row <= 32; row++) {

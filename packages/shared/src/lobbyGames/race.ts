@@ -14,12 +14,12 @@ import { RoundGame, type RoundPlayer } from './roundGame.js';
 
 // Everything is in screens: x runs 0..1 across, y 0..1 down from the top. The track scrolls down.
 const STEER_SPEED = 0.6;
-const SPEED_START = 0.45;
-const SPEED_GAIN = 0.012; // per second of the run
-const SPEED_MAX = 0.95;
+const SPEED_START = 0.6;
+const SPEED_GAIN = 0.016; // per second of the run
+const SPEED_MAX = 1;
 /** Seconds between new obstacles: starts roomy and gets busier, down to a floor. */
-const SPAWN_START_S = 0.9;
-const SPAWN_GAIN_S = 0.015;
+const SPAWN_START_S = 0.65;
+const SPAWN_GAIN_S = 0.02;
 const SPAWN_MIN_S = 0.22;
 /** How hard each kind knocks a driver back: the speed (screens per second) they start sliding down the
  * screen at. A cone is a nudge, a rock a real drop; one hit is never enough to go off the bottom. */

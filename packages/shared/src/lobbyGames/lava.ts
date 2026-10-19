@@ -7,8 +7,8 @@ const GRAVITY = 6;
 const JUMP_SPEED = 1.9;
 /** How fast a player slides left and right, on a plank or in the air. */
 const MOVE_SPEED = 0.5;
-const LAVA_START_SPEED = 0.05;
-const LAVA_GAIN = 0.005; // per second of the run
+const LAVA_START_SPEED = 0.1;
+const LAVA_GAIN = 0.01; // per second of the run
 const LAVA_MAX_SPEED = 0.8;
 /** Planks are this far apart in height to start with; the gap grows with the height climbed, up to the most a jump can
  * clear with room to spare. */
