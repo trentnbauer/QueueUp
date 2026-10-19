@@ -12,6 +12,9 @@ const REDO_S = 1.2;
 
 /** The quickest a person can really react; a faster claimed time is raised to this. */
 const MIN_REACT_MS = 100;
+/** A device's own timing starts when GO reached it, so it can beat the server's by about the time GO took to arrive; a claim
+ * faster than the server's time by more than this is raised to it, so a client cannot post a time it did not take. */
+const MAX_TRIP_MS = 400;
 
 interface Duelist extends RoundPlayer {
   score: number;
@@ -99,7 +102,7 @@ export class DrawGame extends RoundGame<Duelist> {
     p.score++;
     this.duelWinner = p.id;
     this.reactMs = Math.round(this.sinceGo * 1000);
-    const own = typeof ms === 'number' && Number.isFinite(ms) ? Math.max(MIN_REACT_MS, Math.min(this.reactMs, Math.round(ms))) : Math.max(MIN_REACT_MS, this.reactMs);
+    const own = typeof ms === 'number' && Number.isFinite(ms) ? Math.max(MIN_REACT_MS, this.reactMs - MAX_TRIP_MS, Math.min(this.reactMs, Math.round(ms))) : Math.max(MIN_REACT_MS, this.reactMs);
     if (p.bestMs === 0 || own < p.bestMs) p.bestMs = own;
     this.reactMs = own;
     for (const q of this.players.values()) if (q.alive && q.state === 'ready') q.state = 'late';

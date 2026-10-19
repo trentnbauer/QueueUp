@@ -140,4 +140,14 @@ describe('DrawGame', () => {
     expect(g.snapshot().phase).toBe('over');
     expect(scores[0]).toEqual([{ userId: 'a', score: 100 }]);
   });
+
+  it('does not let a device claim a reaction much faster than the server saw', () => {
+    const g = started(['a', 'b']);
+    const scores: { userId: string; score: number }[][] = [];
+    g.onRunScores = (s) => scores.push(s);
+    toGo(g);
+    run(g, 1500); // the server saw GO 1.5 seconds ago
+    g.tap('a', 0, 120); // claims 120 ms
+    expect(g.snapshot().reactMs).toBeGreaterThanOrEqual(1000);
+  });
 });

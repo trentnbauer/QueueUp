@@ -333,4 +333,27 @@ describe('SpinLobbyHub idle kick', () => {
     await hub.tickRoom('r1');
     expect(a.socket.close).toHaveBeenCalledWith(1008, 'Idle');
   });
+
+  it('closes just the lobby whose game throws, on a tick or on a message, instead of letting the error out', async () => {
+    const hub = makeHub();
+    const a = fakeSocket();
+    const b = fakeSocket();
+    hub.connect('r1', 'a', a.socket);
+    hub.connect('r2', 'b', b.socket);
+    await flush();
+    const error = vi.spyOn(console, 'error').mockImplementation(() => {});
+    vi.spyOn(SpinLobby.prototype, 'tick').mockImplementationOnce(() => {
+      throw new Error('boom');
+    });
+    await expect(hub.tickRoom('r1')).resolves.toBeUndefined();
+    expect(a.socket.close).toHaveBeenCalled();
+    expect(b.socket.close).not.toHaveBeenCalled();
+
+    vi.spyOn(SpinLobby.prototype, 'action').mockImplementationOnce(() => {
+      throw new Error('boom');
+    });
+    expect(() => hub.message('r2', b.socket, JSON.stringify({ t: 'action', name: 'jump' }))).not.toThrow();
+    expect(b.socket.close).toHaveBeenCalled();
+    error.mockRestore();
+  });
 });

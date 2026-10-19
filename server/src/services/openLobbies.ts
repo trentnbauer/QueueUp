@@ -57,8 +57,10 @@ export class OpenLobbyRegistry {
    * returned, for the caller to close). Null when the server already has the most it allows. */
   create(hostId: string, visibility: MiniGameLobbyVisibility, game: LobbyGameId | null, timeLimit = false): { lobby: OpenLobby; replaced?: OpenLobby } | null {
     const replaced = this.hostedBy(hostId);
+    // Checked before the old lobby goes: if there is no room for the new one, the host keeps the one they have
+    // (a refusal after deleting it would leave it running with nobody able to reach or close it).
+    if (this.lobbies.size - (replaced ? 1 : 0) >= MAX_OPEN_LOBBIES) return null;
     if (replaced) this.lobbies.delete(replaced.id);
-    if (this.lobbies.size >= MAX_OPEN_LOBBIES) return null;
     let code: string | null = null;
     if (visibility === 'code') {
       do code = newCode();
