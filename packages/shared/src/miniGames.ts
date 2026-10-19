@@ -62,7 +62,7 @@ export const MINIGAME_VERSIONS: Record<LobbyGameId, number> = {
   snake: 1,
   gravity: 2, // floating blocks in the middle, and a flip can be turned round part way across
   laser: 1,
-  colormatch: 1,
+  colormatch: 2, // the prompt asks for the ink, the word or the shape, changing each time
   potato: 2, // the score became the time held, not the rounds survived
   anagram: 1,
   mines: 1,
@@ -266,7 +266,7 @@ export const MINIGAME_NAMES: Record<LobbyGameId, string> = {
   snake: 'Snake arena',
   gravity: 'Gravity flip',
   laser: 'Laser gaps',
-  colormatch: 'Color match',
+  colormatch: 'Match',
   potato: 'Hot potato',
   anagram: 'Anagram',
   mines: 'Minesweeper race',

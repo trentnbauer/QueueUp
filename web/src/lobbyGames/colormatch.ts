@@ -8,6 +8,7 @@ import type { TapRect, TapTargets } from './taps';
 // panels (2 x 2).
 const CHIPS_Y = 0.11;
 const CHIP_R = 0.022;
+const MODE_Y = 0.2;
 const PROMPT_Y = 0.3;
 const BOARD_X = 0.1;
 const BOARD_Y = 0.42;
@@ -16,6 +17,7 @@ const PANEL_H = 0.24;
 const GAP = 0.04;
 /** One hue for each panel (red, blue, green, yellow) and a shape on it, so colour is never the only clue. */
 const HUES = [25, 250, 145, 85];
+const MODE_KEYS = { ink: 'spin.lobby.colormatch.mode.ink', word: 'spin.lobby.colormatch.mode.word', shape: 'spin.lobby.colormatch.mode.shape' } as const satisfies Record<string, MessageKey>;
 const NAME_KEYS: MessageKey[] = ['spin.lobby.colormatch.color.0', 'spin.lobby.colormatch.color.1', 'spin.lobby.colormatch.color.2', 'spin.lobby.colormatch.color.3'];
 
 const panelRect = (i: number): TapRect => ({ x: BOARD_X + (i % 2) * (PANEL_W + GAP), y: BOARD_Y + Math.floor(i / 2) * (PANEL_H + GAP), w: PANEL_W, h: PANEL_H });
@@ -68,23 +70,30 @@ function drawWorld(sc: Scene<ColorMatchSnapshot>): void {
     ctx.fillText(`${p.meters}${p.right === true ? ' ✓' : p.right === false ? ' ✗' : ''}`, cx, (CHIPS_Y + CHIP_R + 0.03) * S);
   }
 
-  // The prompt: the name of one colour, written in the ink of another. Tap the ink.
+  // The prompt: what to match, then the name of one colour written in the ink of another, in front of a shape (a third panel's).
   if (snapshot.stage === 'prompt' && snapshot.prompt.n > 0) {
-    ctx.font = `800 ${Math.round(S * 0.11)}px ${FONT.display}`;
+    const { prompt } = snapshot;
+    ctx.font = `700 ${Math.round(S * 0.03)}px ${FONT.mono}`;
     ctx.textBaseline = 'middle';
-    ctx.fillStyle = `oklch(0.8 0.18 ${HUES[snapshot.prompt.ink]})`;
-    ctx.fillText(sc.t(NAME_KEYS[snapshot.prompt.word]), S / 2, PROMPT_Y * S);
+    ctx.fillStyle = theme.accText;
+    ctx.fillText(sc.t(MODE_KEYS[prompt.mode]), S / 2, MODE_Y * S);
+    // The shape sits behind the word in a plain colour, so it never says anything about the ink.
+    ctx.fillStyle = 'oklch(1 0 0 / 0.3)';
+    drawShape(ctx, prompt.shape, S / 2, PROMPT_Y * S, S * 0.075);
+    ctx.font = `800 ${Math.round(S * 0.11)}px ${FONT.display}`;
+    ctx.fillStyle = `oklch(0.8 0.18 ${HUES[prompt.ink]})`;
+    ctx.fillText(sc.t(NAME_KEYS[prompt.word]), S / 2, PROMPT_Y * S);
     // How long this prompt has left.
     const left = snapshot.promptTotalMs > 0 ? Math.max(0, snapshot.promptLeftMs / snapshot.promptTotalMs) : 0;
     ctx.fillStyle = 'oklch(1 0 0 / 0.12)';
-    ctx.fillRect(BOARD_X * S, (PROMPT_Y + 0.08) * S, (PANEL_W * 2 + GAP) * S, S * 0.008);
+    ctx.fillRect(BOARD_X * S, (PROMPT_Y + 0.09) * S, (PANEL_W * 2 + GAP) * S, S * 0.008);
     ctx.fillStyle = theme.acc;
-    ctx.fillRect(BOARD_X * S, (PROMPT_Y + 0.08) * S, (PANEL_W * 2 + GAP) * S * left, S * 0.008);
+    ctx.fillRect(BOARD_X * S, (PROMPT_Y + 0.09) * S, (PANEL_W * 2 + GAP) * S * left, S * 0.008);
   } else {
     ctx.font = `800 ${Math.round(S * 0.04)}px ${FONT.display}`;
     ctx.textBaseline = 'middle';
     ctx.fillStyle = theme.text;
-    ctx.fillText(sc.t('spin.lobby.colormatch.tapInk'), S / 2, PROMPT_Y * S);
+    ctx.fillText(sc.t('spin.lobby.colormatch.ready'), S / 2, PROMPT_Y * S);
   }
 
   for (let i = 0; i < COLOR_MATCH_PANELS; i++) {

@@ -1052,7 +1052,7 @@ export interface LaserSnapshot extends RoundSummary {
   winnerId: string | null;
 }
 
-// ---- Color match (the ink of a colour name is a different colour; tap the panel that matches the ink) ---
+// ---- Match (a colour name in another ink in front of a shape; tap the panel that matches the ink, the word or the shape, as asked) ---
 
 /** The board has this many coloured panels (2 x 2, so panels are tap targets 0 to 3: red, blue, green, yellow; row by row). */
 export const COLOR_MATCH_PANELS = 4;
@@ -1060,10 +1060,17 @@ export const COLOR_MATCH_PANELS = 4;
 /** Where a prompt is: waiting for answers, or the pause before the next one. */
 export type ColorMatchStage = 'prompt' | 'between';
 
-/** A prompt: `word` is the colour whose name is written, `ink` the colour it is written in (the right answer). */
+/** What a prompt asks for: the panel with the colour the word is written in, the colour the word names, or the shape shown. */
+export type ColorMatchMode = 'ink' | 'word' | 'shape';
+export const COLOR_MATCH_MODES: readonly ColorMatchMode[] = ['ink', 'word', 'shape'];
+
+/** A prompt: `word` is the colour whose name is written, `ink` the colour it is written in and `shape` the panel whose shape is
+ * drawn behind it, all three different panels; `mode` says which of them to tap (the right answer is that panel). */
 export interface ColorMatchPrompt {
   word: number;
   ink: number;
+  shape: number;
+  mode: ColorMatchMode;
   /** Which prompt this is (counts up from 1 each round); 0 before the first. */
   n: number;
 }
