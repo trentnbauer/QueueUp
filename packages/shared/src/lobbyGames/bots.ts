@@ -2,6 +2,7 @@ import type { LobbyGameId, LobbyGameSnapshot, LobbyRunScore } from '../spinLobby
 import { battleshipsBrain } from './battleships.js';
 import { drawBrain } from './draw.js';
 import { secureRandom } from './roundGame.js';
+import { pongBrain } from './pong.js';
 import { potatoBrain } from './potato.js';
 import { snakeBrain } from './snake.js';
 import { sumoBrain } from './sumo.js';
@@ -31,6 +32,7 @@ const BRAINS: Partial<Record<LobbyGameId, (botId: string, rng: () => number) => 
   sumo: sumoBrain,
   snake: snakeBrain,
   potato: potatoBrain,
+  pong: pongBrain,
   draw: drawBrain,
 };
 
