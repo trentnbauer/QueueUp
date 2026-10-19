@@ -1,5 +1,6 @@
 import { WORDS_BACKSPACE, WORDS_ENTER, WORDS_GUESSES, WORDS_LENGTH, WORDS_TARGETS, WORD_ABSENT, WORD_CORRECT, WORD_PRESENT, type WordsMine, type WordsSnapshot } from '../spinLobby.js';
 import { RoundGame, type RoundPlayer } from './roundGame.js';
+import { WORD_DICTIONARY } from './wordDictionary.js';
 import { WORD_ANSWERS } from './wordList.js';
 
 /** The run ends at this time for anyone still guessing. */
@@ -17,6 +18,8 @@ interface Guesser extends RoundPlayer {
   /** For each square, the letter once a guess has had it in the right place ('' until then). The next guess fills
    * these in by itself, so only the other squares are typed. */
   known: string[];
+  /** The last guess they sent was not a word, so it was turned back (the draft is kept): cleared by their next key. */
+  rejected: boolean;
   solved: boolean;
   done: boolean;
   /** Milliseconds into the run when they solved it. */
@@ -62,7 +65,7 @@ export class WordsGame extends RoundGame<Guesser> {
   }
 
   protected createPlayer(id: string, alive: boolean): Guesser {
-    return { id, guesses: [], rows: [], draft: '', known: Array(WORDS_LENGTH).fill(''), solved: false, done: false, solvedAt: 0, points: 0, inRun: false, alive, wins: 0, outAtMeters: 0 };
+    return { id, guesses: [], rows: [], draft: '', known: Array(WORDS_LENGTH).fill(''), rejected: false, solved: false, done: false, solvedAt: 0, points: 0, inRun: false, alive, wins: 0, outAtMeters: 0 };
   }
 
   protected resetPlayer(p: Guesser): void {
@@ -70,6 +73,7 @@ export class WordsGame extends RoundGame<Guesser> {
     p.rows = [];
     p.draft = '';
     p.known = Array(WORDS_LENGTH).fill('');
+    p.rejected = false;
     p.solved = false;
     p.done = false;
     p.solvedAt = 0;
@@ -99,6 +103,7 @@ export class WordsGame extends RoundGame<Guesser> {
     const p = this.players.get(userId);
     if (this.phase !== 'playing' || !p || !p.alive || !p.inRun || p.done) return;
     if (!Number.isInteger(target) || target < 0 || target >= WORDS_TARGETS) return;
+    p.rejected = false;
     if (target === WORDS_BACKSPACE) p.draft = p.draft.slice(0, -1);
     else if (target === WORDS_ENTER) this.submit(p);
     else if (p.draft.length < this.openSquares(p)) p.draft += String.fromCharCode(97 + target);
@@ -119,6 +124,11 @@ export class WordsGame extends RoundGame<Guesser> {
     // Only a guess with every open square typed is sent.
     if (p.draft.length !== this.openSquares(p)) return;
     const guess = this.compose(p);
+    // A guess has to be a word: a run of letters like AEIO is turned back, and costs nothing (the draft stays, to change).
+    if (!WORD_DICTIONARY.has(guess)) {
+      p.rejected = true;
+      return;
+    }
     p.draft = '';
     p.guesses.push(guess);
     const row = scoreGuess(guess, this.answer);
@@ -148,7 +158,7 @@ export class WordsGame extends RoundGame<Guesser> {
           keys[letter] = Math.max(keys[letter], me.rows[i][k]);
         }
       });
-      mine = { guesses: [...me.guesses], draft: me.draft, known: [...me.known], keys };
+      mine = { guesses: [...me.guesses], draft: me.draft, known: [...me.known], keys, rejected: me.rejected };
     }
     return {
       id: 'words',

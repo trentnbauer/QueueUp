@@ -95,6 +95,7 @@ export const spin = {
   "spin.lobby.words.tagline": "Everyone guesses the same four-letter word",
   "spin.lobby.words.answer": "THE WORD WAS {word}",
   "spin.lobby.words.solved": "You got the word!",
+  "spin.lobby.words.notWord": "NOT IN THE WORD LIST",
   "spin.lobby.words.nobody": "Nobody found the word",
   "spin.lobby.words.hint": "Everyone is guessing the same four-letter word, in five guesses. Type it on the keyboard (or tap the keys) and press Enter. Green is the right letter in the right place, yellow is in the word somewhere else, grey is not in it. Everyone who finds the word wins, and the best is whoever needed the fewest guesses and was quickest; you only ever see how the others' guesses scored, never the letters. Letters you have already got in the right place fill themselves in on the next guess, so you only type the rest. Nothing here changes the spin.",
   "spin.lobby.hud.rounds.pill": "ROUNDS {n}",
