@@ -47,7 +47,7 @@ It plays a random game after every run (like the waiting room), or one game you 
 
 ## Ping and who works out what
 
-In **Runner, Flappy, Dodge, Jump rope, Obstacle race, Lava rise, Gravity flip and Laser gaps**, your own player is worked out **on your own device**, so a slow connection does not make you jump late or get hit by something you cleared:
+In **Runner, Flappy, Dodge, Jump rope, Obstacle race, Lava rise, Gravity flip, Laser gaps and Road hop**, your own player is worked out **on your own device**, so a slow connection does not make you jump late or get hit by something you cleared:
 
 - **Your device** runs your player against the course the moment you press: your jump, your duck, your slide, your steering. Your hits are decided there too, and it tells the server where you are about 20 times a second, and straight away when you are out.
 - **The server** decides the shared things: the course's seed and exactly when a run starts (everyone's device lines its clock up with the server's, so everyone starts the same course at the same moment), who is still in, who won, the wins and the history. It shows everyone else's player from what their devices report.
@@ -192,6 +192,21 @@ Like the playground game "down ball": one wall across the top of the court, ever
 - **Smoothness:** the server runs the ball, but your screen carries it on between updates and draws your own player moving the moment you press; the server still decides every hit.
 - **Controls:** left and right to slide, and one button to hit: **←** / **→** or **A** / **D**, and **Space**, **↑** or **W** to hit.
 
+## Road hop
+
+Cross lane after lane of traffic, and keep ahead of the bottom of the screen. Everyone crosses the same road, side by side, and never touches.
+
+- **Goal:** get up the road. The road is rows: **grass** is safe, a **road** row has cars driving across it, all the same speed and spacing for everyone. Slide **left and right** to line up and press **Hop** to go up one row. **A car that touches you knocks you out.** **Last one hopping wins**; alone it is a high score (rows crossed, two metres a row).
+- **The bottom edge:** the screen keeps rising. The red hazard band along the bottom is where it is, and anyone it passes (a whole row under it) is out, however safe their row. It starts at 0.08 of a screen a second, gains 0.009 a second and tops out at 0.26 after about 20 seconds. From the start you have about 3 seconds before it takes the grass you begin on, so you must keep going up. There is no hopping back down.
+- **The top of the screen** is as far as you can hop: you cannot hop to a row you can't see, so when you have caught up with the top you wait for the screen to rise.
+- **Hopping:** one row a press, then a wait of 0.12 seconds, so mashing the button cannot cross the road before a car arrives. You slide at half a screen a second and can't leave the screen. You start on the first grass row, in a spot across the road that is the same for you every run (the middle first, then out to each side).
+- **Traffic** is made of cars 0.08 to 0.18 of a screen wide, driving left or right at a speed that stays the same for a row, and loops round off screen. Early rows are 0.16 to 0.3 of a screen a second with at least half a screen between cars; by about row 40 they are 0.34 to 0.68 with 0.2 to 0.36 between, so the gaps get tighter and the cars quicker. A hopper fits in every gap (never under 0.2 between two cars), and the cars come from the round's seed.
+- **Bands:** roads come in bands of 2 to 4 rows (up to 5 higher up) with a grass row between to catch your breath. Higher up the grass is more and more often left out (by row 40, six times in ten), so the bands run together.
+- **Score:** the rows you crossed, two metres each (the same as the high score list). With two or more players the last one still hopping wins; with a time cap (a waiting room), whoever is still in keeps their rows and nobody wins. There is no time limit of its own.
+- **Hard to pass 30 seconds:** a test bot that sees every car a second ahead, and moves perfectly, lasts between 20 and 60 seconds, so a person getting to 30 seconds is doing very well.
+- **Ping:** your own hopper is worked out on your own device (see "Ping and who works out what"), so hops and hits are decided the moment you press. The server counts you out if you fall under the bottom edge, whatever your device says.
+- **Controls:** **←** / **→** or **A** / **D** to slide, **Space**, **↑** or **W** to hop, or tap anywhere on the arena. On a phone, the **◀** and **▶** buttons and **Hop**.
+
 ## Rating a game
 
 When a run ends and its result card is showing, a **thumbs up / thumbs down** appears in the result card (in a room's lobby, a spin's waiting room, an open lobby and solo practice alike).
@@ -250,6 +265,7 @@ A game can instead make **the play space the controller**: there are no buttons 
 | Perfect stop | **Space**, **↑** or **W** to stop. | **Stop**, or tap anywhere on the arena. |
 | Pong rally | **←** / **→** or **A** / **D** to slide your paddle. | The **◀** and **▶** buttons. |
 | Wall ball | **←** / **→** or **A** / **D** to slide, **Space**, **↑** or **W** to hit. | The **◀** and **▶** buttons, and **Hit**. |
+| Road hop | **←** / **→** or **A** / **D** to slide, **Space**, **↑** or **W** to hop. | The **◀** and **▶** buttons, and **Hop** (or tap anywhere on the arena). |
 
 ## Runner
 

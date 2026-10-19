@@ -34,6 +34,7 @@ export const MINIGAME_SCORE_MAX: Record<LobbyGameId, number> = {
   stop: 200,
   pong: 100000,
   wall: 100000,
+  frogger: 20000,
 };
 
 /** Each game's rules version. A score is saved with the version it was played under, and the high score lists show only the
@@ -67,6 +68,7 @@ export const MINIGAME_VERSIONS: Record<LobbyGameId, number> = {
   stop: 1,
   pong: 1,
   wall: 1,
+  frogger: 1,
 };
 export const miniGameVersion = (game: LobbyGameId): number => MINIGAME_VERSIONS[game];
 

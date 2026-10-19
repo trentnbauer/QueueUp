@@ -11,8 +11,8 @@
 export const LOBBY_TICK_HZ = 15;
 
 /** The games the lobby can run. */
-export type LobbyGameId = 'runner' | 'flappy' | 'dodge' | 'rope' | 'coins' | 'battleships' | 'race' | 'whack' | 'draw' | 'tilt' | 'stacker' | 'sumo' | 'asteroids' | 'memory' | 'words' | 'lava' | 'snake' | 'gravity' | 'laser' | 'colormatch' | 'potato' | 'anagram' | 'mines' | 'stop' | 'pong' | 'wall';
-export const LOBBY_GAME_IDS: readonly LobbyGameId[] = ['runner', 'flappy', 'dodge', 'rope', 'coins', 'battleships', 'race', 'whack', 'draw', 'tilt', 'stacker', 'sumo', 'asteroids', 'memory', 'words', 'lava', 'snake', 'gravity', 'laser', 'colormatch', 'potato', 'anagram', 'mines', 'stop', 'pong', 'wall'];
+export type LobbyGameId = 'runner' | 'flappy' | 'dodge' | 'rope' | 'coins' | 'battleships' | 'race' | 'whack' | 'draw' | 'tilt' | 'stacker' | 'sumo' | 'asteroids' | 'memory' | 'words' | 'lava' | 'snake' | 'gravity' | 'laser' | 'colormatch' | 'potato' | 'anagram' | 'mines' | 'stop' | 'pong' | 'wall' | 'frogger';
+export const LOBBY_GAME_IDS: readonly LobbyGameId[] = ['runner', 'flappy', 'dodge', 'rope', 'coins', 'battleships', 'race', 'whack', 'draw', 'tilt', 'stacker', 'sumo', 'asteroids', 'memory', 'words', 'lava', 'snake', 'gravity', 'laser', 'colormatch', 'potato', 'anagram', 'mines', 'stop', 'pong', 'wall', 'frogger'];
 
 /** What a client sends. Anything else is ignored. */
 export type LobbyClientMessage =
@@ -1369,8 +1369,59 @@ export interface WallSnapshot extends RoundSummary {
   winnerId: string | null;
 }
 
+// ---- Road hop (cross lane after lane of traffic before the screen sweeps you off the bottom) ----------
+
+/** One row is this tall (a fraction of the arena), and the arena shows this many. */
+export const FROGGER_ROW_H = 0.1;
+export const FROGGER_ROWS_VISIBLE = 10;
+/** A hopper's width, a fraction of the arena (drawing and being hit). */
+export const FROGGER_FROG_W = 0.05;
+/** Cars drive on a loop this far wider than the arena on each side, so they enter and leave off screen. */
+export const FROGGER_CAR_MARGIN = 0.2;
+
+/** One row of the road: grass is safe; on a road, `cars` are the middle of each car across the arena (-margin..1+margin) as of this snapshot,
+ * all `w` wide, driving at `v` arena widths a second (negative is leftward). */
+export interface FroggerRow {
+  r: number;
+  kind: 'grass' | 'road';
+  v: number;
+  w: number;
+  cars: number[];
+}
+
+export interface FroggerPlayer {
+  id: string;
+  /** Where they are across the arena (0..1), the direction they are holding (-1, 0 or 1) and which row they stand on (0 is the first). */
+  x: number;
+  dir: number;
+  row: number;
+  /** Still hopping. False once hit by a car or swept off the bottom, or if they arrived mid-run. */
+  alive: boolean;
+  /** Runs won since this person joined the lobby. */
+  wins: number;
+  /** How far they got, in metres (two a row): live while in, final once out. */
+  meters: number;
+}
+
+export interface FroggerSnapshot extends RoundSummary {
+  id: 'frogger';
+  phase: LobbyRoundPhase;
+  /** The furthest anyone has got, in metres. */
+  meters: number;
+  /** How fast the bottom edge of the screen is rising, in arenas a second. */
+  speed: number;
+  /** Where the bottom edge is, in arenas up from the start of the run. */
+  edge: number;
+  rows: FroggerRow[];
+  players: FroggerPlayer[];
+  /** Milliseconds left in `countdown` or `over`; 0 otherwise. */
+  timerMs: number;
+  /** Who won the run that just ended (`over` only); null when nobody did (a solo run, or a draw). */
+  winnerId: string | null;
+}
+
 /** The snapshot of whichever game is running. */
-export type LobbyGameSnapshot = RunnerSnapshot | FlappySnapshot | DodgeSnapshot | RopeSnapshot | CoinsSnapshot | BattleshipsSnapshot | RaceSnapshot | WhackSnapshot | DrawSnapshot | TiltSnapshot | StackerSnapshot | SumoSnapshot | AsteroidsSnapshot | MemorySnapshot | WordsSnapshot | LavaSnapshot | SnakeSnapshot | GravitySnapshot | LaserSnapshot | ColorMatchSnapshot | PotatoSnapshot | AnagramSnapshot | MinesSnapshot | StopSnapshot | PongSnapshot | WallSnapshot;
+export type LobbyGameSnapshot = RunnerSnapshot | FlappySnapshot | DodgeSnapshot | RopeSnapshot | CoinsSnapshot | BattleshipsSnapshot | RaceSnapshot | WhackSnapshot | DrawSnapshot | TiltSnapshot | StackerSnapshot | SumoSnapshot | AsteroidsSnapshot | MemorySnapshot | WordsSnapshot | LavaSnapshot | SnakeSnapshot | GravitySnapshot | LaserSnapshot | ColorMatchSnapshot | PotatoSnapshot | AnagramSnapshot | MinesSnapshot | StopSnapshot | PongSnapshot | WallSnapshot | FroggerSnapshot;
 
 /** What a client needs to run its own player on a course the server decided: which run, the seed that
  * makes the course, and how long until the run starts (negative once it has, by how far in). */
