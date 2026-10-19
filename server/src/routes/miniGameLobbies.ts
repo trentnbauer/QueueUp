@@ -137,7 +137,7 @@ export default async function miniGameLobbyRoutes(app: FastifyInstance) {
         return;
       }
       const key = lobbyKey(lobby.id);
-      spinLobbyHub.connect(key, userId, socket, { game: lobby.game, timeLimit: lobby.timeLimit });
+      spinLobbyHub.connect(key, userId, socket, { game: lobby.game, timeLimit: lobby.timeLimit, solo: lobby.solo });
       socket.on('message', (data: Buffer | string) => spinLobbyHub.message(key, socket, data.toString()));
       socket.on('close', () => spinLobbyHub.disconnect(key, socket));
       socket.on('error', () => spinLobbyHub.disconnect(key, socket));

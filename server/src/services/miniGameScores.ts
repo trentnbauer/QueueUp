@@ -13,10 +13,11 @@ export function isPlausibleScore(game: LobbyGameId, score: unknown): score is nu
   return typeof score === 'number' && Number.isInteger(score) && score >= minScoreOf(game) && score <= MINIGAME_SCORE_MAX[game];
 }
 
-/** Saves a finished run for each real player. Scores that cannot be real are dropped, and a failure to
+/** Saves a finished run for each real player. `verified` is whether the server saw the play happen (false for a lobby run of a game
+ * that works each player out on their own device); only verified scores reach the high score lists. Scores that cannot be real are dropped, and a failure to
  * save never reaches the game (high scores are a bonus, never a reason for a lobby to break). */
-export async function recordRunScores(game: LobbyGameId, source: MiniGameScoreSource, scores: LobbyRunScore[], roomId?: string): Promise<void> {
-  const data = scores.filter((s) => isPlausibleScore(game, s.score)).map((s) => ({ userId: s.userId, gameId: game, score: s.score, version: miniGameVersion(game), source, roomId: roomId ?? null }));
+export async function recordRunScores(game: LobbyGameId, source: MiniGameScoreSource, scores: LobbyRunScore[], roomId?: string, verified = true): Promise<void> {
+  const data = scores.filter((s) => isPlausibleScore(game, s.score)).map((s) => ({ userId: s.userId, gameId: game, score: s.score, version: miniGameVersion(game), verified, source, roomId: roomId ?? null }));
   if (data.length === 0) return;
   try {
     await prisma.miniGameScore.createMany({ data });
@@ -57,6 +58,7 @@ async function bestPerPerson(viewerId: string, game: LobbyGameId, scope: MiniGam
         AND (NOT ${friends}::boolean OR s.user_id = ANY(${ids}::text[]))
         AND s.score >= ${minScoreOf(game)}
         AND s.version = ${miniGameVersion(game)}
+        AND s.verified
         AND u.banned_at IS NULL
         AND NOT (s.user_id = ANY(${blocked}::text[]))
       ORDER BY s.user_id, s.score ${dir}, s.created_at ASC
@@ -89,8 +91,8 @@ export async function leaderboard(viewerId: string, game: LobbyGameId, scope: Mi
 
 export async function myScores(viewerId: string, game: LobbyGameId): Promise<MiniGameMeResponse> {
   const [runs, best, friendRows, friendIds] = await Promise.all([
-    prisma.miniGameScore.findMany({ where: { userId: viewerId, gameId: game, version: miniGameVersion(game), score: { gte: minScoreOf(game) } }, orderBy: { createdAt: 'desc' }, take: MINIGAME_LAST_RUNS, select: { score: true, createdAt: true, source: true } }),
-    prisma.miniGameScore.aggregate({ where: { userId: viewerId, gameId: game, version: miniGameVersion(game), score: { gte: minScoreOf(game) } }, _max: { score: true }, _min: { score: true }, _count: { _all: true } }),
+    prisma.miniGameScore.findMany({ where: { userId: viewerId, gameId: game, version: miniGameVersion(game), verified: true, score: { gte: minScoreOf(game) } }, orderBy: { createdAt: 'desc' }, take: MINIGAME_LAST_RUNS, select: { score: true, createdAt: true, source: true } }),
+    prisma.miniGameScore.aggregate({ where: { userId: viewerId, gameId: game, version: miniGameVersion(game), verified: true, score: { gte: minScoreOf(game) } }, _max: { score: true }, _min: { score: true }, _count: { _all: true } }),
     bestPerPerson(viewerId, game, 'friends', 'all', 500),
     friendIdsOf(viewerId),
   ]);
@@ -111,7 +113,7 @@ export async function myScores(viewerId: string, game: LobbyGameId): Promise<Min
 }
 
 export async function myBests(viewerId: string): Promise<MiniGameBestsResponse> {
-  const rows = await prisma.miniGameScore.groupBy({ by: ['gameId'], where: { userId: viewerId, OR: LOBBY_GAME_IDS.map((id) => ({ gameId: id, version: miniGameVersion(id), score: { gte: minScoreOf(id) } })) }, _max: { score: true }, _min: { score: true } });
+  const rows = await prisma.miniGameScore.groupBy({ by: ['gameId'], where: { userId: viewerId, OR: LOBBY_GAME_IDS.map((id) => ({ gameId: id, version: miniGameVersion(id), verified: true, score: { gte: minScoreOf(id) } })) }, _max: { score: true }, _min: { score: true } });
   const bests: MiniGameBestsResponse['bests'] = {};
   for (const r of rows) {
     if (!isLobbyGameId(r.gameId)) continue;

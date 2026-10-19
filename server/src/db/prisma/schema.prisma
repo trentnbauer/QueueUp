@@ -1772,6 +1772,8 @@ model MiniGameScore {
   score     Int
   /// The game's rules version (MINIGAME_VERSIONS) when it was played; the high score lists show the current one only.
   version   Int      @default(1)
+  /// False for a lobby run of a game that works each player out on their own device: the server took the device's word, so it is kept but never listed.
+  verified  Boolean  @default(true)
   /// 'solo', 'lobby' or 'waiting_room'.
   source    String
   roomId    String?  @map("room_id")
