@@ -28,7 +28,8 @@ export class SpinLobby {
      * playWeights.ts); read at each pick. Without it every game is equally likely. */
     private readonly weights?: () => Partial<Record<LobbyGameId, number>>,
     /** A practice lobby (one person): the server works out their play from their inputs, whatever the game, never from
-     * what their device says, so nothing in it can be forged. */
+     * what their device says, so nothing in it can be forged. The device still runs its own copy to draw (see ClientSim), so
+     * the game feels instant, but its reports are ignored. */
     private readonly solo = false,
   ) {
     this.rotates = game === undefined;
@@ -122,7 +123,7 @@ export class SpinLobby {
   /** A person's report of their own player, for a game that runs each player on their own device. The
    * game takes only the current run's report from someone in the lobby; anything malformed is dropped. */
   report(userId: string, run: unknown, alive: unknown, f: unknown): void {
-    if (this.solo) return; // the server works out a practice run itself
+    if (this.solo) return; // the server works out a practice run itself; the device's copy is only for showing it
     if (!this.connections.has(userId) || typeof run !== 'number' || !Number.isInteger(run) || typeof alive !== 'boolean') return;
     if (!f || typeof f !== 'object' || Array.isArray(f)) return;
     const fields: Record<string, number> = {};
@@ -164,7 +165,7 @@ export class SpinLobby {
    * runs each player on their own device) so clients can line their clocks up and start together. */
   snapshot(spinWaiting: boolean, now?: number, viewer?: string): LobbySnapshot {
     const snapshot: LobbySnapshot = { t: 'state', tick: this.tickCount, game: this.game.snapshot(viewer), voters: [...this.votes], needed: this.needed, spinWaiting };
-    const sim = this.solo ? null : this.game.simStart?.();
+    const sim = this.game.simStart?.();
     if (sim && now !== undefined) {
       snapshot.sim = sim;
       snapshot.clock = now;

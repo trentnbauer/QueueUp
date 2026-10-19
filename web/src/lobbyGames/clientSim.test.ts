@@ -68,6 +68,25 @@ function client(sent: LobbyClientMessage[] = []) {
 
 const players = (snap: LobbySnapshot | null) => (snap?.game.players ?? []) as unknown as { id: string; alive: boolean; h: number; wins: number }[];
 
+describe('ClientSim when the server runs the player (a practice lobby)', () => {
+  it('draws its own copy of the run, but still gets the presses sent to the server, and reports nothing', () => {
+    const sent: LobbyClientMessage[] = [];
+    const clock = new ClockSync();
+    clock.sample(0, 20, SERVER_EPOCH + 10);
+    const sim = new ClientSim('me', clock, (m) => void sent.push(m), true);
+    const server = serverSide(new RunnerGame(() => 0.3));
+    sim.onState(server.snapshot(0));
+    // The copy is ready, yet input and action are left for the caller to send to the server as well.
+    expect(sim.input(1, 0)).toBe(false);
+    expect(sim.action('jump')).toBe(false);
+    // Well into the run it has played the run locally (so it can draw it) but sent no report.
+    const snap = sim.frame(6000) as unknown as { game: RunnerSnapshot };
+    expect(snap.game.phase).toBe('playing');
+    expect(snap.game.speed).toBeGreaterThan(0.45);
+    expect(sent.filter((m) => m.t === 'report')).toEqual([]);
+  });
+});
+
 describe('ClientSim before a run', () => {
   it('shows the server snapshot until the run starts, and tells the caller to send input to the server', () => {
     const server = serverSide(new RunnerGame(() => 0.3));

@@ -21,7 +21,7 @@ const PING_EVERY_MS = 10_000;
  * (`ClientSim`): `frame` gives the snapshot to draw, with this player worked out here instead of waiting
  * for the server, and the input and action calls go to that copy instead of the server. For any other
  * game, `frame` is the server's latest snapshot and input goes to the server as before. */
-export function useSpinLobby(path: string | undefined, enabled: boolean, me: string, onStarted?: () => void) {
+export function useSpinLobby(path: string | undefined, enabled: boolean, me: string, onStarted?: () => void, serverRuns = false) {
   const [snapshot, setSnapshot] = useState<LobbySnapshot | null>(null);
   const [status, setStatus] = useState<LobbyStatus>('connecting');
   const socketRef = useRef<WebSocket | null>(null);
@@ -44,9 +44,14 @@ export function useSpinLobby(path: string | undefined, enabled: boolean, me: str
       socketRef.current = ws;
       // A new connection starts its own clock reading and local copy of the run.
       const clock = new ClockSync();
-      const sim = new ClientSim(me, clock, (message) => {
-        if (ws.readyState === WebSocket.OPEN) ws.send(JSON.stringify(message));
-      });
+      const sim = new ClientSim(
+        me,
+        clock,
+        (message) => {
+          if (ws.readyState === WebSocket.OPEN) ws.send(JSON.stringify(message));
+        },
+        serverRuns,
+      );
       simRef.current = sim;
       const ping = () => {
         if (ws.readyState === WebSocket.OPEN) ws.send(JSON.stringify({ t: 'ping', c: performance.now() } satisfies LobbyClientMessage));
@@ -94,7 +99,7 @@ export function useSpinLobby(path: string | undefined, enabled: boolean, me: str
       simRef.current = null;
       setSnapshot(null);
     };
-  }, [path, enabled, me]);
+  }, [path, enabled, me, serverRuns]);
 
   const send = useCallback((msg: LobbyClientMessage) => {
     const ws = socketRef.current;

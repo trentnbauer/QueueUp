@@ -62,7 +62,7 @@ export function LobbyPanel({
   // The live lobby over a WebSocket: a room's, or an open (or practice) lobby's. The server runs every game, including a
   // practice one, so the scores it saves are the server's own and can be trusted.
   const livePath = roomId ? `/api/rooms/${encodeURIComponent(roomId)}/lobby` : lobbyId ? `/api/minigames/lobbies/${encodeURIComponent(lobbyId)}/lobby` : undefined;
-  const live = useSpinLobby(livePath, true, me, onStarted);
+  const live = useSpinLobby(livePath, true, me, onStarted, !!soloGame);
   const { snapshot, status, sendInput, sendAction, sendTap, vote } = live;
   const canvasRef = useRef<HTMLCanvasElement>(null);
   // Effects (knock-out bursts, confetti, shake) and their memory between frames, for as long as the panel is open.

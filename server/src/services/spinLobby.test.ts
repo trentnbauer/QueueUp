@@ -368,15 +368,15 @@ describe('SpinLobby and who the server believes', () => {
     expect(heard).toHaveBeenLastCalledWith('words', [{ userId: 'a', score: 5 }], true);
   });
 
-  it('has the server work out a practice run itself: no sim for the device, no reports taken, scores verified', () => {
+  it('has the server work out a practice run itself: reports from the device are ignored and its scores are verified', () => {
     const heard = vi.fn();
     const game = createLobbyGame('dodge');
     const report = vi.spyOn(game, 'report');
     const lobby = new SpinLobby(game, heard, undefined, true);
     lobby.join('a');
-    // The device is not told to run a copy of the run...
-    expect(lobby.snapshot(false, 1000, 'a').sim).toBeUndefined();
-    // ...a report from it is ignored, so the server keeps simulating the player...
+    // The device may still run a copy of the run to draw (so it feels instant)...
+    expect(lobby.snapshot(false, 1000, 'a').sim).toBeDefined();
+    // ...but a report from it is ignored, so the server keeps simulating the player from their presses...
     lobby.report('a', 1, true, { x: 0.5, dir: 0 });
     expect(report).not.toHaveBeenCalled();
     // ...and what it scores is the server's own.
