@@ -12,7 +12,6 @@ const me = (g: WordsGame, id: string) => g.snapshot(id).players.find((p) => p.id
 
 function started(ids: string[], seed = 0.3) {
   const g = new WordsGame(seeded(seed));
-  g.timeLimitS = 90; // a timed round (with none the game has no clock)
   ids.forEach((id) => g.join(id));
   run(g, 3200); // past the countdown
   return g;
@@ -220,21 +219,13 @@ describe('WordsGame', () => {
   });
 });
 
-describe('WordsGame with no time limit', () => {
-  it('has no clock and does not end at 90 seconds while someone is still guessing', () => {
+describe('WordsGame with no lobby time limit', () => {
+  it('still has its 90 seconds: the time is part of the game', () => {
     const g = new WordsGame(seeded(0.3));
     g.join('a');
     run(g, 3200);
-    expect(g.snapshot('a').limitMs).toBe(0);
-    run(g, 120_000);
-    expect(g.snapshot('a').phase).toBe('playing');
-  });
-
-  it('still ends when everyone has found the word or used their guesses', () => {
-    const g = new WordsGame(seeded(0.3));
-    g.join('a');
-    run(g, 3200);
-    for (let i = 0; i < WORDS_GUESSES; i++) guess(g, 'a', 'zzzzz'.slice(0, g.snapshot('a').mine ? 5 : 5));
-    expect(g.snapshot('a').phase).toBe('over');
+    expect(g.snapshot('a').limitMs).toBe(90_000);
+    run(g, 91_000);
+    expect(g.snapshot('a').phase).not.toBe('playing');
   });
 });
