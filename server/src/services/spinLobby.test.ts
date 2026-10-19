@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from 'vitest';
-import { BattleshipsGame, CoinsGame, LOBBY_GAME_IDS, RunnerGame, createLobbyGame } from '@queueup/shared';
+import { BattleshipsGame, CoinsGame, LOBBY_GAME_IDS, LOBBY_WAITING_ROOM_LIMIT_S, RunnerGame, createLobbyGame } from '@queueup/shared';
 import { SpinLobby } from './spinLobby.js';
 
 const snapshot = () => ({ id: 'runner' as const, phase: 'lobby' as const, run: 1, history: [], best: null, meters: 0, speed: 0.5, obstacles: [], players: [], timerMs: 0, winnerId: null });
@@ -161,6 +161,7 @@ describe('SpinLobby rotating games', () => {
 
   it('moves everyone to a different game after a run, keeping the run number and the results', () => {
     const lobby = new SpinLobby();
+    lobby.setTimeLimit(LOBBY_WAITING_ROOM_LIMIT_S);
     lobby.join('a');
     const firstGame = lobby.snapshot(false).game;
     expect(untilGameChanges(lobby, firstGame.id)).toBe(true);
@@ -173,13 +174,14 @@ describe('SpinLobby rotating games', () => {
     expect(next.run).toBe(2);
   });
 
-  it('ends a run of every game, for someone who does nothing, soon enough for the lobby to move on', () => {
-    // A lobby of people who have wandered off must not be held by one game for ever.
+  it('ends a run of every game, for someone who does nothing, soon enough for a waiting room to move on', () => {
+    // A spin's waiting room caps every run, so people who have wandered off do not hold it on one game.
     for (const id of LOBBY_GAME_IDS) {
       const lobby = new SpinLobby(createLobbyGame(id));
+      lobby.setTimeLimit(LOBBY_WAITING_ROOM_LIMIT_S);
       lobby.join('a');
       let over = false;
-      for (let t = 0; t < 280_000 && !over; t += 66) {
+      for (let t = 0; t < 40_000 && !over; t += 66) {
         lobby.tick(66);
         over = lobby.snapshot(false).game.phase === 'over';
       }
@@ -189,6 +191,7 @@ describe('SpinLobby rotating games', () => {
 
   it('keeps going from game to game without losing anyone', () => {
     const lobby = new SpinLobby();
+    lobby.setTimeLimit(LOBBY_WAITING_ROOM_LIMIT_S);
     lobby.join('a');
     lobby.join('b');
     const seen = new Set<string>();
@@ -206,6 +209,7 @@ describe('SpinLobby rotating games', () => {
 
   it('puts someone who joins between games into the current one', () => {
     const lobby = new SpinLobby();
+    lobby.setTimeLimit(LOBBY_WAITING_ROOM_LIMIT_S);
     lobby.join('a');
     const first = lobby.snapshot(false).game.id;
     untilGameChanges(lobby, first);

@@ -2,7 +2,6 @@ import { STACKER_COLS, STACKER_KEEP_ROWS, type StackerLocked, type StackerSnapsh
 import { RoundGame, type RoundPlayer } from './roundGame.js';
 
 /** A run ends at this time if someone is still in, so one that never ends cannot hold a lobby for ever. */
-const RUN_LIMIT_S = 300;
 /** How wide the target is on the lowest rows, in squares, and how the rows narrow going up: one square
  * narrower every `ROWS_PER_NARROWING` rows, down to `MIN_WIDTH`, and then, far up, a single square. */
 const START_WIDTH = 5;
@@ -157,7 +156,7 @@ export class StackerGame extends RoundGame<Stacker> {
       phase: this.phase,
       meters: this.meters,
       speed: 0,
-      roundLeftMs: this.phase === 'playing' ? Math.max(0, Math.round(RUN_LIMIT_S * 1000 - this.roundMs)) : 0,
+      roundLeftMs: this.leftMs,
       timerMs: Math.max(0, Math.round(this.timerMs)),
       winnerId: this.winnerId,
       ...this.summary(),
@@ -174,7 +173,10 @@ export class StackerGame extends RoundGame<Stacker> {
     if (this.quiet >= IDLE_LIMIT_S) return this.finishRun();
     this.grace = Math.max(0, this.grace - dt);
     this.travelled += lightSpeed(this.locked.length) * dt;
-    if (this.roundMs / 1000 >= RUN_LIMIT_S) this.finishRun();
+  }
+
+  protected override limitReached(): void {
+    this.finishRun();
   }
 
   /** Ends the run when nobody who started it is still in. */

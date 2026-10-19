@@ -205,6 +205,33 @@ describe('pickLobbyGame', () => {
   });
 });
 
+describe('a lobby\'s time limit', () => {
+  it('ends a run of a game that would otherwise go on, keeps what the survivors got, and shows the limit', () => {
+    const g = createLobbyGame('dodge');
+    const scores: { userId: string; score: number }[][] = [];
+    g.onRunScores = (s) => scores.push(s);
+    g.join('a');
+    g.join('b');
+    run(g, 3200);
+    expect(g.snapshot().limitMs).toBe(0);
+    g.timeLimitS = 10;
+    expect(g.snapshot().limitMs).toBe(10_000);
+    for (let t = 0; t < 12_000 && g.snapshot().phase === 'playing'; t += 33) g.tick(33);
+    expect(g.snapshot().phase).toBe('over');
+    expect(g.snapshot().history.at(-1)?.game).toBe('dodge');
+  });
+
+  it('can be set on a game with bots, and lifted again', () => {
+    const g = createLobbyGame('draw');
+    g.timeLimitS = 30;
+    expect(g.timeLimitS).toBe(30);
+    g.join('a');
+    expect(g.snapshot().limitMs).toBe(30_000);
+    g.timeLimitS = null;
+    expect(g.snapshot().limitMs).toBe(0);
+  });
+});
+
 describe('randomness', () => {
   it('draws secure numbers spread evenly over [0, 1)', () => {
     const draws = Array.from({ length: 20_000 }, secureRandom);

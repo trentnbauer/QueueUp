@@ -155,7 +155,7 @@ export class WordsGame extends RoundGame<Guesser> {
       phase: this.phase,
       meters: this.meters,
       speed: 0,
-      roundLeftMs: this.phase === 'playing' ? Math.max(0, Math.round(ROUND_S * 1000 - this.roundMs)) : 0,
+      roundLeftMs: this.leftMs,
       timerMs: Math.max(0, Math.round(this.timerMs)),
       winnerId: this.winnerId,
       ...this.summary(),
@@ -172,6 +172,14 @@ export class WordsGame extends RoundGame<Guesser> {
       mine,
       answer: this.phase === 'over' ? this.answer : null,
     };
+  }
+
+  protected override get ownLimitS(): number {
+    return ROUND_S;
+  }
+
+  protected override limitReached(): void {
+    this.finishRun();
   }
 
   protected advance(): void {

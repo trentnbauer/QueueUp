@@ -5,7 +5,6 @@ import type { BotBrain } from './types.js';
 const SIZE = BATTLESHIPS_SIZE;
 const CELLS = SIZE * SIZE;
 /** A round ends when one fleet is left afloat, or at this time if more are. */
-const ROUND_LIMIT_S = 120;
 /** After a shot, a person must wait this long before the next, so quick tappers do not take over. */
 const SHOT_COOLDOWN_S = 0.8;
 /** The shot that sinks a ship scores this much more than an ordinary hit. */
@@ -252,7 +251,7 @@ export class BattleshipsGame extends RoundGame<Gunner> {
       phase: this.phase,
       meters: this.meters,
       speed: 0,
-      roundLeftMs: playing ? Math.max(0, Math.round(ROUND_LIMIT_S * 1000 - this.roundMs)) : 0,
+      roundLeftMs: this.leftMs,
       timerMs: Math.max(0, Math.round(this.timerMs)),
       winnerId: this.winnerId,
       ...this.summary(),
@@ -278,7 +277,10 @@ export class BattleshipsGame extends RoundGame<Gunner> {
 
   protected advance(dt: number): void {
     for (const p of this.players.values()) if (p.cooldown > 0) p.cooldown = Math.max(0, p.cooldown - dt);
-    if (this.roundMs / 1000 >= ROUND_LIMIT_S) this.timeUp();
+  }
+
+  protected override limitReached(): void {
+    this.timeUp();
   }
 
   /** The time is up with more than one fleet afloat: the one with the most afloat wins. A tie has no winner. */

@@ -321,16 +321,21 @@ describe('BattleshipsGame rounds', () => {
     expect(snap.players.find((p) => p.id === 'b')?.fleet.every((s) => s.sunk)).toBe(true);
   });
 
-  it('ends at the time limit with the most squares afloat winning', () => {
+  it('ends at a lobby\'s time limit with the most squares afloat winning', () => {
     const g = started(['a', 'b']);
+    g.timeLimitS = 120;
     fire(g, 'a', shipSquares(g, 'b')[0]); // b has one square fewer afloat than a
     for (let t = 0; t < 130_000 && g.snapshot('a').phase === 'playing'; t += STEP) g.tick(STEP);
     expect(g.snapshot('a').phase).toBe('over');
     expect(g.snapshot('a').winnerId).toBe('a');
   });
 
-  it('has no winner when the time runs out with the same afloat', () => {
+  it('goes on until a fleet is sunk when nothing caps it, and has no winner when a cap runs out with the same afloat', () => {
+    const open = started(['a', 'b']);
+    run(open, 130_000);
+    expect(open.snapshot('a').phase).toBe('playing');
     const g = started(['a', 'b']);
+    g.timeLimitS = 120;
     for (let t = 0; t < 130_000 && g.snapshot('a').phase === 'playing'; t += STEP) g.tick(STEP);
     expect(g.snapshot('a').phase).toBe('over');
     expect(g.snapshot('a').winnerId).toBeNull();

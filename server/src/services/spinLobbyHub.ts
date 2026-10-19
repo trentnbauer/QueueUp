@@ -1,4 +1,4 @@
-import { LOBBY_TICK_HZ, createLobbyGame, type LobbyGameId, type LobbyRunScore, type LobbyServerMessage, type MiniGameScoreSource } from '@queueup/shared';
+import { LOBBY_TICK_HZ, LOBBY_WAITING_ROOM_LIMIT_S, createLobbyGame, type LobbyGameId, type LobbyRunScore, type LobbyServerMessage, type MiniGameScoreSource } from '@queueup/shared';
 import { SpinLobby } from './spinLobby.js';
 import { OPEN_LOBBY_PREFIX } from './openLobbies.js';
 
@@ -259,6 +259,7 @@ export class SpinLobbyHub {
 
     if (room.spinWaiting && room.lobby.votePassed) {
       room.spinWaiting = false;
+      room.lobby.setTimeLimit(null);
       try {
         await this.deps.startSpinNow(roomId);
       } catch {
@@ -287,6 +288,8 @@ export class SpinLobbyHub {
       const waiting = was ? await this.deps.extendWaitingRoom(roomId) : await this.deps.isSpinWaiting(roomId);
       if (this.rooms.get(roomId) !== room) return;
       room.spinWaiting = waiting;
+      // In a spin's waiting room every run is capped, so the waiting room keeps moving.
+      room.lobby.setTimeLimit(waiting ? LOBBY_WAITING_ROOM_LIMIT_S : null);
       if (was && !waiting) this.broadcast(room, { t: 'started' });
       else if (!was && waiting) this.broadcastState(room, true);
     } catch {

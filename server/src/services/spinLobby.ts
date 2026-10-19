@@ -16,6 +16,8 @@ export class SpinLobby {
   private readonly record = new LobbyRecord();
   private game: LobbyGame;
   private readonly rotates: boolean;
+  /** The cap on a run in seconds (a spin's waiting room sets one), or null. Every game the lobby plays gets it. */
+  private timeLimitS: number | null = null;
 
   /** `onScores` hears each finished run's scores, whichever game it was (for high scores). */
   constructor(
@@ -45,6 +47,7 @@ export class SpinLobby {
   /** A new game of this kind, which hands over to the next one when its run is over. */
   private start(id: LobbyGameId): LobbyGame {
     const game = createLobbyGame(id, this.record);
+    game.timeLimitS = this.timeLimitS;
     if (this.rotates) game.onRunOver = () => this.rotate(game);
     this.hear(game);
     return game;
@@ -57,6 +60,12 @@ export class SpinLobby {
     this.game = next;
     for (const userId of this.connections.keys()) next.join(userId);
     return true;
+  }
+
+  /** Caps every run at this many seconds from now on (null lifts the cap), including the one under way. */
+  setTimeLimit(seconds: number | null): void {
+    this.timeLimitS = seconds;
+    this.game.timeLimitS = seconds;
   }
 
   /** Members currently in the lobby. */

@@ -3,8 +3,6 @@ import type { LobbyGameView } from './index';
 import { FONT, renderScene, type Scene, type SceneGame } from './kit';
 import type { TapTargets } from './taps';
 
-/** The run's time limit (RUN_LIMIT_S in the rules), for the bar along the top. */
-const RUN_MS = 60_000;
 /** The one big button is the whole play space below the points row, and the controller. */
 const AREA = { x: 0.05, y: 0.24, w: 0.9, h: 0.7 };
 const CHIPS_Y = 0.15;
@@ -17,9 +15,9 @@ function drawWorld(sc: Scene<DrawSnapshot>): void {
   const { ctx, S, snapshot, theme, now } = sc;
 
   // Time left in the run, as a bar draining along the top edge.
-  if (snapshot.phase === 'playing') {
+  if (snapshot.phase === 'playing' && snapshot.limitMs > 0) {
     ctx.fillStyle = theme.acc;
-    ctx.fillRect(0, 0, S * Math.max(0, snapshot.roundLeftMs / RUN_MS), S * 0.008);
+    ctx.fillRect(0, 0, S * Math.max(0, snapshot.roundLeftMs / snapshot.limitMs), S * 0.008);
   }
 
   // Everyone's points (out of DRAW_POINTS_TO_WIN) in one row; who false-started or was late is dimmed.

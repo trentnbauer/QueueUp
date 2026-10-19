@@ -3,7 +3,6 @@ import { RoundGame, type RoundPlayer } from './roundGame.js';
 
 // Positions are fractions of the screen (x across, y down from the top); speeds are screens a second.
 /** A run that is still going at this time ends: most asteroids destroyed wins. */
-const RUN_LIMIT_S = 180;
 const TURN_SPEED = 1.6; // radians a second
 const FIRE_EVERY_S = 0.5;
 const SHOT_SPEED = 1.2;
@@ -182,13 +181,16 @@ export class AsteroidsGame extends RoundGame<Gunner> {
       return a.y < 1.1;
     });
 
-    if (seconds >= RUN_LIMIT_S) this.finishRun();
   }
 
   /** A turret was hit: its owner is out, with the asteroids they destroyed as their score. */
   private knockGunner(p: Gunner): void {
     this.knockOut(p);
     p.outAtMeters = p.score;
+  }
+
+  protected override limitReached(): void {
+    this.finishRun();
   }
 
   /** Time is up with turrets still standing: most asteroids destroyed wins; a tie, or a solo run, has no winner. */

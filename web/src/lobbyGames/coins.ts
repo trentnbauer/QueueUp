@@ -52,8 +52,8 @@ function drawWorld(sc: Scene<CoinsSnapshot>): void {
   drawFloor(sc, floor);
 
   // Time left in the round, as a bar draining along the top edge.
-  if (snapshot.phase === 'playing') {
-    const left = Math.max(0, snapshot.roundLeftMs / 30_000);
+  if (snapshot.phase === 'playing' && snapshot.limitMs > 0) {
+    const left = Math.max(0, snapshot.roundLeftMs / snapshot.limitMs);
     ctx.fillStyle = sc.theme.acc;
     ctx.fillRect(0, 0, S * left, S * BAR_H);
   }

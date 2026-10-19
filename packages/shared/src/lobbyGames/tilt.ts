@@ -1,8 +1,6 @@
 import { clampDirection, type TiltSnapshot, type TiltTarget } from '../spinLobby.js';
 import { RoundGame, type RoundPlayer } from './roundGame.js';
 
-/** A run ends at this time if a ball is still on the beam. */
-const RUN_LIMIT_S = 120;
 /** How hard a player's own push moves their own ball, in beams a second squared. */
 const PUSH = 0.55;
 /** How hard a fully tilted beam pulls every ball downhill, in beams a second squared. */
@@ -109,7 +107,7 @@ export class TiltGame extends RoundGame<Ball> {
       phase: this.phase,
       meters: this.meters,
       speed: 0,
-      roundLeftMs: this.phase === 'playing' ? Math.max(0, Math.round(RUN_LIMIT_S * 1000 - this.roundMs)) : 0,
+      roundLeftMs: this.leftMs,
       timerMs: Math.max(0, Math.round(this.timerMs)),
       winnerId: this.winnerId,
       ...this.summary(),
@@ -125,12 +123,14 @@ export class TiltGame extends RoundGame<Ball> {
     const amp = Math.min(WOBBLE_MAX, WOBBLE_START + WOBBLE_GAIN * seconds);
     const [a, b] = this.waves;
     const wobble = a && b ? amp * (0.6 * Math.sin(a.w * seconds + a.p) + 0.4 * Math.sin(b.w * seconds + b.p)) : 0;
-    // The beam leans toward the balls' average, plus the wobble.
+    // The beam leans toward the balls' average, plus the wobble. The pull on every ball is the whole of that (the
+    // wobble can grow past what one player's push can answer, which is what ends a run); the lean drawn is capped.
     const mean = balls.length > 0 ? balls.reduce((s, p) => s + p.x, 0) / balls.length : 0.5;
-    this.tilt = Math.max(-1, Math.min(1, (mean - 0.5) * LEAN_GAIN + wobble / SLOPE));
+    const pull = Math.max(-1, Math.min(1, (mean - 0.5) * LEAN_GAIN)) * SLOPE + wobble;
+    this.tilt = Math.max(-1, Math.min(1, pull / SLOPE));
 
     for (const p of balls) {
-      p.v = Math.max(-MAX_SPEED, Math.min(MAX_SPEED, (p.v + (p.dir * PUSH + this.tilt * SLOPE) * dt) * Math.exp(-DRAG * dt)));
+      p.v = Math.max(-MAX_SPEED, Math.min(MAX_SPEED, (p.v + (p.dir * PUSH + pull) * dt) * Math.exp(-DRAG * dt)));
       p.x += p.v * dt;
     }
 
@@ -158,7 +158,10 @@ export class TiltGame extends RoundGame<Ball> {
       p.outAtMeters = p.score;
     }
 
-    if (seconds >= RUN_LIMIT_S) this.finishRun();
+  }
+
+  protected override limitReached(): void {
+    this.finishRun();
   }
 
   /** The run ends when the last ball is off (or, with others, when one is left), never because a player leaves
