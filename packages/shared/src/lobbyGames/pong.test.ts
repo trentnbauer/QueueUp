@@ -73,7 +73,7 @@ describe('PongGame', () => {
   it('serves from the middle after a pause, and speeds up with each return', () => {
     const g = started(['a', 'b']);
     expect(snap(g).serving).toBe(true);
-    expect(snap(g).ball).toEqual({ x: 0.5, y: 0.5 });
+    expect(snap(g).ball).toMatchObject({ x: 0.5, y: 0.5, vx: 0, vy: 0 });
     follow(g, ['a', 'b'], 20_000);
     expect(snap(g).meters).toBeGreaterThan(3);
   });
@@ -112,5 +112,17 @@ describe('PongGame', () => {
       expect(y).toBeGreaterThan(-0.2);
       expect(y).toBeLessThan(1.2);
     }
+  });
+
+  it('sends the ball\'s velocity, so a screen can keep it moving between snapshots', () => {
+    const g = started(['a', 'b']);
+    run(g, 1300); // past the serve
+    const before = snap(g).ball;
+    expect(Math.hypot(before.vx, before.vy)).toBeGreaterThan(0.4);
+    run(g, 100);
+    const after = snap(g).ball;
+    // A tenth of a second on, it is about where its velocity said (unless it bounced).
+    expect(Math.abs(after.x - (before.x + before.vx * 0.1))).toBeLessThan(0.08);
+    expect(Math.abs(after.y - (before.y + before.vy * 0.1))).toBeLessThan(0.08);
   });
 });

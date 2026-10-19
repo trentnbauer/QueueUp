@@ -209,6 +209,7 @@ export function LobbyPanel({
         color: (name, fallback) => style.getPropertyValue(name).trim() || fallback,
         t: tNow,
         fx: fxRef.current!,
+        held: { dx: sent.current.dx, dy: sent.current.dy },
       });
       for (const key of [...shown.keys()]) if (!seen.has(key)) shown.delete(key);
     };

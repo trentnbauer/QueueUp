@@ -1,4 +1,4 @@
-import { PONG_BALL_R, PONG_PADDLE_LENGTH, PONG_PADDLE_THICKNESS, type PongSnapshot } from '@queueup/shared';
+import { PONG_BALL_R, PONG_PADDLE_LENGTH, PONG_PADDLE_SPEED, PONG_PADDLE_THICKNESS, type PongSnapshot } from '@queueup/shared';
 import type { LobbyGameView } from './index';
 import { STAGE, renderScene, roundRect, type Scene, type SceneGame } from './kit';
 
@@ -13,8 +13,16 @@ function paddleBox(seat: number, pos: number): { x: number; y: number; w: number
   return { x: 1 - T, y: pos - L / 2, w: T, h: L };
 }
 
+/** Where your own paddle is drawn, kept between frames: it moves the moment you press (the server only hears about it a moment later) and is
+ * pulled back toward where the server says it is, so the two never drift far apart. */
+const predicted = new WeakMap<object, { pos: number; at: number }>();
+
 function drawWorld(sc: Scene<PongSnapshot>): void {
   const { ctx, S, snapshot, theme } = sc;
+  // The server sends about 15 snapshots a second, so between them everything carries on at the speed it was going: the ball
+  // along its line, and each paddle at the way its player is holding. Drawing only what the last snapshot said looks jerky.
+  const age = sc.fx.age(snapshot, sc.now);
+  const half = PONG_PADDLE_LENGTH / 2;
 
   // Sides nobody defends are walls: a faint line along the edge.
   const defended = new Set(snapshot.players.filter((p) => p.alive && p.seat >= 0).map((p) => p.seat));
@@ -30,7 +38,16 @@ function drawWorld(sc: Scene<PongSnapshot>): void {
   for (const i of sc.order()) {
     const p = snapshot.players[i];
     if (!p.alive || p.seat < 0) continue; // out: the burst has taken them
-    const along = sc.ease(`paddle:${p.id}`, p.pos, 0).x;
+    const toward = Math.min(1 - half, Math.max(half, p.pos + p.dir * PONG_PADDLE_SPEED * age));
+    let along = toward;
+    if (p.id === sc.me && snapshot.phase === 'playing') {
+      const last = predicted.get(sc.fx) ?? { pos: toward, at: sc.now };
+      const dt = Math.min(0.1, (sc.now - last.at) / 1000);
+      let pos = Math.min(1 - half, Math.max(half, last.pos + sc.held.dx * PONG_PADDLE_SPEED * dt));
+      pos += (toward - pos) * Math.min(1, dt * 6);
+      predicted.set(sc.fx, { pos, at: sc.now });
+      along = pos;
+    }
     const box = paddleBox(p.seat, along);
     roundRect(ctx, box.x * S, box.y * S, box.w * S, box.h * S, Math.min(box.w, box.h) * S * 0.45);
     ctx.fillStyle = sc.info(p.id).color;
@@ -43,7 +60,7 @@ function drawWorld(sc: Scene<PongSnapshot>): void {
   }
 
   // The ball.
-  const ball = sc.ease('ball', snapshot.ball.x, snapshot.ball.y);
+  const ball = { x: snapshot.ball.x + snapshot.ball.vx * age, y: snapshot.ball.y + snapshot.ball.vy * age };
   ctx.save();
   ctx.shadowColor = theme.acc;
   ctx.shadowBlur = S * 0.03;

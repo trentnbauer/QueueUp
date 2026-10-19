@@ -1278,6 +1278,8 @@ export const PONG_SEATS = 4;
 export const PONG_PADDLE_LENGTH = 0.2;
 export const PONG_PADDLE_THICKNESS = 0.035;
 export const PONG_BALL_R = 0.022;
+/** How fast a paddle slides, in court fractions a second. */
+export const PONG_PADDLE_SPEED = 0.75;
 
 export interface PongPlayer {
   id: string;
@@ -1302,7 +1304,8 @@ export interface PongSnapshot extends RoundSummary {
   meters: number;
   /** Always 0: nothing scrolls past in this game (every snapshot carries a course speed). */
   speed: number;
-  ball: { x: number; y: number };
+  /** Where the ball is and how fast it is going (court fractions a second), so a screen can carry on drawing it between snapshots. */
+  ball: { x: number; y: number; vx: number; vy: number };
   /** The ball is waiting in the middle for a serve. */
   serving: boolean;
   players: PongPlayer[];

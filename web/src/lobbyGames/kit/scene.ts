@@ -22,6 +22,8 @@ export interface Scene<S extends LobbyGameSnapshot = LobbyGameSnapshot> {
   color: LobbyDrawArgs['color'];
   t: LobbyDrawArgs['t'];
   fx: LobbyFx;
+  /** The direction the viewer is holding right now (see LobbyDrawArgs). */
+  held: { dx: number; dy: number };
   /** How far a scrolling course has moved, in screens, since this snapshot arrived: subtract it from
    * where the snapshot says an obstacle is (or add it to where something falls) so motion stays smooth. */
   drift: number;
@@ -51,7 +53,7 @@ export interface SceneGame<S extends LobbyGameSnapshot> {
  * world, effects, heads-up display, then the red flash and vignette. Every game's `draw` is one call
  * to this. */
 export function renderScene<S extends LobbyGameSnapshot>(args: LobbyDrawArgs<S>, game: SceneGame<S>): void {
-  const { ctx, size: S, snapshot, me, users, ease, color, t, fx } = args;
+  const { ctx, size: S, snapshot, me, users, ease, color, t, fx, held = { dx: 0, dy: 0 } } = args;
   const now = performance.now();
   const theme = stageTheme(color);
   const info = (id: string) => {
@@ -82,6 +84,7 @@ export function renderScene<S extends LobbyGameSnapshot>(args: LobbyDrawArgs<S>,
     color,
     t,
     fx,
+    held,
     drift: snapshot.phase === 'playing' ? snapshot.speed * fx.age(snapshot, now) : 0,
     info,
     order: () => snapshot.players.map((_, i) => i).sort((a, b) => Number(snapshot.players[a].id === me) - Number(snapshot.players[b].id === me)),

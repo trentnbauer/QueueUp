@@ -45,6 +45,8 @@ export interface LobbyDrawArgs<S extends LobbyGameSnapshot = LobbyGameSnapshot> 
   t: (key: MessageKey, params?: Record<string, string | number>) => string;
   /** Effects and the memory between frames; one lives as long as the lobby panel does. */
   fx: LobbyFx;
+  /** The direction this person is holding right now, so a game the server runs can draw their own player moving the moment they press. */
+  held?: { dx: number; dy: number };
 }
 
 export interface LobbyStanding {

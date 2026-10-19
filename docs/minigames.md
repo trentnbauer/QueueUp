@@ -166,6 +166,7 @@ One ball on one shared court, and a paddle for each player on their own side. Ne
 - **More than four players:** four play at once. Who sits out changes every run, so everyone gets a turn.
 - **Score** (the high score list): your returns. There is no time limit of its own: it goes on until someone is the last one in.
 - **Bots** follow the ball with a lag and a small error, so they can be beaten.
+- **Smoothness:** the server runs the ball, but your screen carries on moving it (and the other paddles) between updates, and draws your own paddle moving the moment you press, pulled back toward the server's position so they never drift apart. The server still decides every hit.
 - **Controls:** left and right only. On the side paddles, left is up and right is down.
 
 ## Game versions
