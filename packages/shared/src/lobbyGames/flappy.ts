@@ -5,9 +5,9 @@ import { RoundGame, type RoundPlayer } from './roundGame.js';
 const GRAVITY = 2.8;
 /** Each flap sets the bird's upward speed to this (so it rises about 0.14 before it starts to fall). */
 const FLAP_SPEED = 0.9;
-const SPEED_START = 0.4;
-const SPEED_GAIN = 0.008; // per second of the run
-const SPEED_MAX = 0.7;
+const SPEED_START = 0.5;
+const SPEED_GAIN = 0.012; // per second of the run
+const SPEED_MAX = 0.8;
 const SPAWN_AHEAD = 1.3;
 /** Pipes are this many seconds of flying apart (plus up to GAP_EXTRA_S more). */
 const GAP_MIN_S = 1.5;

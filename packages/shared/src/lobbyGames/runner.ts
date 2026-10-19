@@ -19,7 +19,7 @@ const DUCK_HEIGHT = 0.25;
 const OBSTACLES: Record<RunnerObstacleKind, { width: number; from: number; to: number }> = {
   cactus: { width: 0.1, from: 0, to: 0.35 },
   bird: { width: 0.06, from: 0.3, to: 0.7 },
-  log: { width: 0.3, from: 0, to: 0.35 },
+  log: { width: 0.45, from: 0, to: 0.35 },
 };
 /** A bird is wide this often (and then between WIDE_BIRD_MIN and WIDE_BIRD_MIN + WIDE_BIRD_EXTRA screens). */
 const WIDE_BIRD_CHANCE = 0.4;
@@ -30,10 +30,10 @@ const WIDE_BIRD_EXTRA = 0.14;
 const PAIR_CHANCE = 0.3;
 const SKINNY_WIDTH = 0.05;
 const PAIR_GAP = 0.06;
-const PAIRS_AFTER_MS = 3000;
-const SPEED_START = 0.5;
-const SPEED_GAIN = 0.015; // per second of the run
-const SPEED_MAX = 1.0;
+const PAIRS_AFTER_MS = 2000;
+const SPEED_START = 0.65;
+const SPEED_GAIN = 0.02; // per second of the run
+const SPEED_MAX = 1.1;
 /** Obstacles are made this far ahead of the screen's left edge, i.e. just off the right edge. */
 const SPAWN_AHEAD = 1.3;
 /** There is this many seconds of running between the edges of two obstacles (plus up to GAP_EXTRA

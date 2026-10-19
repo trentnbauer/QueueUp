@@ -72,7 +72,7 @@ describe('LaserGame', () => {
   it('knocks out a player who stays out of the gap', () => {
     const g = started(['a'], lcg(5));
     g.input('a', 1, 0);
-    run(g, 30_000);
+    for (let t = 0; t < 30_000 && g.snapshot().phase === 'playing'; t += STEP) g.tick(STEP);
     expect(g.snapshot().phase).not.toBe('playing');
   });
 

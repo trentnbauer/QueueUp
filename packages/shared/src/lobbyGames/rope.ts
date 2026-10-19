@@ -8,9 +8,9 @@ const JUMP_SPEED = 2.2;
 /** The rope is under the jumpers' feet for this many seconds either side of the bottom of its swing. */
 const CONTACT_S = 0.04;
 /** Seconds one swing takes: slow at first, then quicker, but never too quick to land and jump again. */
-const PERIOD_START = 1.8;
+const PERIOD_START = 1.4;
 const PERIOD_MIN = 0.75;
-const PERIOD_GAIN = 0.03; // per second of the run
+const PERIOD_GAIN = 0.04; // per second of the run
 /** Now and then a swing is slower (a pause) or quicker, to keep people honest. */
 const SLOW_CHANCE = 0.12;
 const SLOW_FACTOR = 1.5;

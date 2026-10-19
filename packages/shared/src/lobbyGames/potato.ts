@@ -3,8 +3,8 @@ import { RoundGame, type RoundPlayer } from './roundGame.js';
 import type { BotBrain } from './types.js';
 
 /** A bomb's fuse is a random length of up to this long in the first round, and the longest allowed gets shorter each round. */
-const FUSE_START_S = 11;
-const FUSE_SHRINK_S = 0.7; // per round
+const FUSE_START_S = 8;
+const FUSE_SHRINK_S = 0.9; // per round
 const FUSE_MIN_MAX_S = 4.5;
 /** The shortest a fuse can be, as a share of the longest allowed that round. */
 const FUSE_SHORTEST = 0.55;

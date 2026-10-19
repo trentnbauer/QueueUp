@@ -3,13 +3,13 @@ import { RoundGame, type RoundPlayer } from './roundGame.js';
 
 // Everything is in screens: x runs 0..1 across, y 0..1 down from the top.
 const PLAYER_SPEED = 0.5;
-const FALL_START = 0.35;
-const FALL_GAIN = 0.01; // per second of the run
-const FALL_MAX = 0.8;
+const FALL_START = 0.5;
+const FALL_GAIN = 0.016; // per second of the run
+const FALL_MAX = 0.9;
 /** Seconds between rows: starts roomy and gets busier, down to a floor. */
-const SPAWN_START_S = 1.1;
-const SPAWN_GAIN_S = 0.011;
-const SPAWN_MIN_S = 0.65;
+const SPAWN_START_S = 0.9;
+const SPAWN_GAIN_S = 0.015;
+const SPAWN_MIN_S = 0.55;
 /** How wide the gap in a row is: starts roomy and narrows, down to a floor. */
 const GAP_START = 0.3;
 const GAP_SHRINK = 0.002; // per second of the run

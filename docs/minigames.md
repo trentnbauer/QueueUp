@@ -40,6 +40,7 @@ It plays a random game after every run (like the waiting room), or one game you 
 - **Scoreboard.** The panel shows **wins this lobby** for everyone, the **last 10 runs** (the winner's colour and initial; a dash for a run nobody won), and the **best run** so far in the game being played. The run number, the last 10 runs and the wins belong to the lobby, not to a game, so they **carry over when the game changes** (in a room after every run, and in practice when you pick another game). The best run is kept per game, because metres, coins and swings cannot be compared with each other.
 - **Time limit option.** When you open a lobby from the Mini games page you can turn the **time limit** on or off (off to start with). On, it works exactly like a spin's waiting room: every run, in whatever game comes up, is capped at **30 seconds**, and the time bar shows how long is left. It is a setting of the lobby, so it holds for everyone in it, game after game.
 - **Time limits.** Games go on until they are beaten, apart from the ones that are a set length by design (Catch the coins and Whack-a-mole are 30 seconds, Words 90). In a **spin's waiting room every run is capped at 30 seconds**, whatever the game, so the waiting room keeps moving: when the cap is reached the run ends, anyone still in keeps the score they have got (a game that scores points, such as Tilt or Words, ends by its own count: most points wins), and nobody wins a game that is only survival. The time bar along the top of a game only appears when it has a limit.
+- **Built so 30 seconds is hard.** Solo practice and open lobbies without the time limit go on until you are out, but every survival game starts briskly (no slow warm-up) and reaches its top difficulty within about 15 to 30 seconds, so getting to the 30 second cap of a waiting room is an achievement, not a stroll.
 - **Idle players.** While a spin is waiting, anyone in the mini game who does nothing for 60 seconds (no input, tap, action or vote, and no change in their reports) is removed from the lobby, so they stop holding the waiting room open and counting toward the votes needed. Holding a direction counts as playing. They can rejoin by opening the mini game again. Bots are not connections, so this never affects them.
 - **Bots.** Some games need more than one player (Sumo ledge and Quick draw need 2). If fewer people are in the lobby, **bots** ("Bot 1", in a muted colour with a **B**) join to make up the numbers. They are not members: they never vote, never count as being in the mini game and never show up in the room. They are only added or removed between runs, never during one, and they leave once enough real people have joined. When the last person leaves, the bots go too. Practice mode on the Personal Shelf uses the same bots.
 - **Playing together.** Any number of members can join. You can have the mini game open on up to 5 devices or tabs at once; you still count as one player.
@@ -63,7 +64,7 @@ Climb the planks before the lava reaches you. Everyone climbs the same planks, s
 - **The ceiling:** the top of the screen is a ceiling (0.88 of a screen above the lava), so nobody can climb out of sight: jumping at the top just bumps your head. A way up only lasts as long as the planks you can reach, and you have to line up sideways to land, so pressing jump over and over in one place does not get you anywhere.
 - **Moving and jumping:** you slide at half a screen a second, on a plank or in the air. One jump rises about 0.3 of a screen and lasts about 0.6 seconds, and only starts from a plank (pressing in the air does nothing). Walk off the end of a plank and you fall, landing on a lower plank if one is under you. You land on a plank when you come down onto it from above; you pass up through one from below.
 - **Planks** start 0.4 wide and get narrower as you climb (down to 0.2, the very first one is wide), and each is within 0.28 sideways of the one below, so the next is always within reach. They start 0.11 to 0.16 of a screen apart in height and get further apart as you climb, up to 0.23 (a jump clears them with room to spare, but only just at the top). They come from the round's seed, so they are the same for everyone.
-- **The lava** starts at 0.05 of a screen a second and speeds up by 0.005 every second, to 0.8, so every run ends.
+- **The lava** starts at 0.1 of a screen a second and speeds up by 0.01 every second, to 0.8, so every run ends.
 - There is no time limit of its own: it goes on until it is beaten.
 - **Controls:** **←** / **→** or **A** / **D** to slide, **Space**, **↑** or **W** to jump, or tap anywhere on the arena. On a phone, the **◀** and **▶** buttons slide.
 
@@ -73,7 +74,7 @@ One shared grid and a snake for each player. Needs at least 2 players, so on you
 
 - **Goal:** be the last snake alive. Your snake always moves on, one cell at a time, and leaves its body behind it. **Hit a wall, any snake (yours included), or run head-on into another head, and you are out.** Last one going wins; if the last ones go out in the same step, it is a draw.
 - **Pickups** (one for each snake going) appear on empty cells. Eating one makes your snake one cell longer.
-- **Speed:** a step takes 0.17 seconds at the start and gets shorter as the longest snake grows (0.004 less for each cell beyond the start), down to 0.075 seconds.
+- **Speed:** a step takes 0.13 seconds at the start and gets shorter as the longest snake grows (0.006 less for each cell beyond the start), down to 0.075 seconds.
 - **Starting spots:** snakes start 3 cells long, spread round a ring and facing the middle, in the order players joined.
 - **Score** (the high score list): how long your snake got. There is no time limit of its own: it goes on until it is beaten.
 - **Bots** steer away from walls and bodies and toward the nearest pickup. They only look one cell ahead and now and then turn the wrong way, so they can be beaten.
@@ -86,7 +87,7 @@ Run along the floor or the ceiling and flip between them. Everyone runs the same
 - **Goal:** don't hit anything. Obstacles scroll in from the right: spikes standing on the floor, spikes hanging from the ceiling, and **blocks floating in the middle**. Be on the other side from a spike as it arrives, and **stay on a side (do not be flying across) as a middle block passes**: it kills anyone in the middle of the corridor. **Last one running wins**; alone it is a high score (metres).
 - **Flipping:** one button. A flip takes 0.3 seconds to cross, and you can press again **part way across to turn round** and go back. There is a short wait (0.18 seconds) before the next flip, so mashing the button cannot hold you in the middle, out of reach of the spikes. A spike is only dangerous near the side it is on, so you are safe from spikes while flying, but a middle block is exactly where you fly.
 - **Obstacles** are 0.06 to 0.14 wide: spikes 0.14 tall, middle blocks 0.26 tall. 40% are floor spikes, 40% ceiling spikes and 20% middle blocks, at random. They are at least 0.85 seconds of running apart, edge to edge (and up to 0.7 seconds more), which is always long enough to flip in and settle. They come from the round's seed, so they are the same for everyone.
-- **Speed:** the course starts at 0.45 of a screen per second and climbs to 0.95 after about 50 seconds.
+- **Speed:** the course starts at 0.6 of a screen per second and climbs to 1.0 after about 27 seconds.
 - There is no time limit of its own: it goes on until it is beaten.
 - **Controls:** one button: **Space**, **↑**/**↓** or **W**/**S**, or tap anywhere on the arena.
 
@@ -96,7 +97,7 @@ Rows of lasers fall; slide into the gap. Everyone is on the same floor and never
 
 - **Goal:** don't touch a beam. A row of lasers spans the whole screen except for a gap. Be entirely inside the gap as the row reaches you. **Last one standing wins**; alone it is a high score (metres).
 - You move at half a screen per second and can't leave the screen.
-- **Rows** fall faster and faster: from 0.35 of a screen per second up to 0.8 after about 45 seconds. A new row appears every 1.1 seconds at the start, down to every 0.65 seconds after about 41 seconds.
+- **Rows** fall faster and faster: from 0.5 of a screen per second up to 0.9 after about 25 seconds. A new row appears every 0.9 seconds at the start, down to every 0.55 seconds after about 23 seconds.
 - **The gap** starts 0.3 wide and narrows to 0.17 (after about 65 seconds). Each row's gap is never further from the last one's than 0.7 of what you can slide in the time between them, so there is always a way through for someone who keeps up. Rows come from the round's seed, so they are the same for everyone.
 - There is no time limit of its own: it goes on until it is beaten.
 - **Controls:** left and right only.
@@ -107,7 +108,7 @@ A colour name is written in a different colour. Tap the panel that matches the *
 
 - **Goal:** the most points in 30 seconds. Everyone sees the same prompts at the same time and answers on the same four panels (red, blue, green, yellow). Each panel also has a shape (circle, square, triangle, diamond), so colour is never the only clue.
 - **Scoring:** a right answer is **1 point**, or **2 if it comes quickly** (in the first 40% of the time the prompt allows). A wrong answer costs **1 point** (never below zero). **Only your first tap on a prompt counts**: you cannot mash all four.
-- **Prompts** wait 3 seconds for answers at the start, down to 1.4 seconds by the end, and move on as soon as everyone has answered. The word always names a different colour from its ink. They come from the round's seed.
+- **Prompts** wait 2.2 seconds for answers at the start, down to 1.4 seconds after about 16 seconds, and move on as soon as everyone has answered. The word always names a different colour from its ink. They come from the round's seed.
 - **Nobody is knocked out.** When the time is up, the most points wins; a tie for the most, or scoring nothing, is a draw. Alone, it is a high-score round: no winner, just your points.
 - The bar along the top is the time left, and everyone's points are in the row above the prompt, with a tick or cross for how they answered it.
 - **Controls:** the panels are the controller, so tap or click one, or press **1-4** (top left, top right, bottom left, bottom right).
@@ -118,7 +119,7 @@ A bomb with a lit fuse goes round the ring. Needs at least 2 players, so on your
 
 - **Goal:** don't be holding it when it goes off. Players stand on a ring. One of them is handed the bomb; the holder presses **Pass** to throw it to the **next player along the ring** (so there is nobody to pick). **Whoever is holding it when it explodes is out.** Then a new bomb goes to a random player still in. **Last one in wins.**
 - **The fuse is hidden.** You can see the bomb glow redder and shake as it burns, but not how long is left. Each bomb's fuse is a random length between 55% and 100% of the longest allowed that round.
-- **Fuses get shorter:** the longest is 11 seconds in the first round, 0.7 seconds less every round, down to 4.5 seconds.
+- **Fuses get shorter:** the longest is 8 seconds in the first round, 0.9 seconds less every round, down to 4.5 seconds.
 - **Passing:** after you receive the bomb you must hold it for 0.4 seconds before you can pass it on, so it cannot be flicked straight back.
 - **Score** (the high score list): **how long you held a bomb without it going off on you**, in seconds (to a tenth). Every time you pass the bomb on, the time you held it counts; a hold that ends with the bomb exploding in your hands does not, so holding on longer is worth more but risks everything you have not yet passed on. Rounds survived is still what the scoreboard and the run history show. There is no time limit of its own: it goes on until someone is the last one in.
 - **Bots** hold the bomb for between half a second and two seconds and then throw it, so they are beatable.
@@ -152,7 +153,7 @@ One shared minefield, and everyone opens squares on it.
 A marker sweeps back and forth along a bar with a target zone. Stop it inside the zone, round after round.
 
 - **Goal:** stop your marker inside the green zone. Everyone sees the same marker and the same zone, and presses to stop **their own** marker where it is right then. Inside the zone and you go on to the next round; **outside it, or too slow, and you are out.** **Last one in wins**; alone it is a high score (rounds cleared).
-- **Each round is harder:** the marker crosses the bar 0.8 times a second in the first round and 0.12 more every round, up to 2.6; the zone is 0.30 of the bar wide in the first round and 0.022 narrower every round, down to 0.06. The zone's middle moves each round (from the round's seed).
+- **Each round is harder:** the marker crosses the bar 1.1 times a second in the first round and 0.18 more every round, up to 2.6; the zone is 0.30 of the bar wide in the first round and 0.022 narrower every round, down to 0.06. The zone's middle moves each round (from the round's seed).
 - **Too slow:** a sweep lasts 5 seconds; anyone who has not stopped by then is out. A round ends as soon as everyone left has stopped. Everyone's stops are shown as ticks in their colour.
 - **Timing:** the stop is decided by when your press reaches the server, so a slow connection loses out.
 - There is no time limit of its own: it goes on until it is beaten.
@@ -163,7 +164,7 @@ A marker sweeps back and forth along a bar with a target zone. Stop it inside th
 One ball on one shared court, and a paddle for each player on their own side. Needs at least 2 players, so on your own a bot plays you.
 
 - **Goal:** don't miss the ball. Players take the sides of the court in turn: bottom, top, left, right (so two players face each other). Slide your paddle to send the ball back. **Miss it and you are out**, and your side becomes a wall. **Last one in wins.**
-- **The ball** starts at 0.5 of the court a second and speeds up a little with every return, to 1.3. Where it lands on your paddle slants the way it goes back: the ends send it off sideways. After a miss, it is served again from the middle after a short pause.
+- **The ball** starts at 0.65 of the court a second and speeds up with every return (0.05 each), to 1.3. Where it lands on your paddle slants the way it goes back: the ends send it off sideways. After a miss, it is served again from the middle after a short pause.
 - **More than four players:** four play at once. Who sits out changes every run, so everyone gets a turn.
 - **Score** (the high score list): your returns. There is no time limit of its own: it goes on until someone is the last one in.
 - **Bots** follow the ball with a lag and a small error, so they can be beaten.
@@ -185,7 +186,7 @@ Like the playground game "down ball": one wall across the top of the court, ever
 - **Goal:** don't miss your turn. A ball is hit up at the wall and comes back down; **each time it comes back it is one player's turn, going round the players still in** (the one it is coming for is ringed, the others are dimmed). Slide along the bottom to where it will land (a ring on the floor shows the spot) and press **Hit** as it arrives. It goes back up at the wall and then comes down for the next player. **Miss your turn and you are out.** **Last one in wins.**
 - **Hitting:** the press has to come within about a fifth of a second of the ball landing (before or after), and you have to be within 0.1 of the court of where it lands. A press too early or too far away does nothing and costs nothing.
 - **Everyone has to keep moving:** the ball lands near the **next** player's spot, moved by up to 0.05 at first and up to 0.28 later, so the player whose turn is coming has to be ready and the others cannot stand still.
-- **Speed:** the ball takes 1.6 seconds to come down at first and 0.05 seconds less after every hit, down to 0.8 seconds.
+- **Speed:** the ball takes 1.2 seconds to come down at first and 0.07 seconds less after every hit, down to 0.65 seconds.
 - **Score** (the high score list): your own hits. There is no time limit of its own: it goes on until someone is the last one in.
 - **Bots** slide to where the ball will land and hit it a little early or late, so they can miss.
 - **Smoothness:** the server runs the ball, but your screen carries it on between updates and draws your own player moving the moment you press; the server still decides every hit.
@@ -256,12 +257,12 @@ The offline-dinosaur game, with everyone running the same track.
 
 - **Goal:** survive. Obstacles scroll in from the right, faster and faster. Hit one and you are out.
 - **Cactus** (a game cover standing on the ground): jump it. A **tap** is a short hop.
-- **Two skinny cacti** (from about 3 seconds in, roughly one cactus in three): a pair of narrow covers with a gap between them, about 0.16 of a screen wide in all, so it reads as a double block. It is wider than a normal cactus, so a quick tap hop only just clears it early on: jump a touch early, or hold the jump for a longer hop.
+- **Two skinny cacti** (from about 2 seconds in, roughly one cactus in three): a pair of narrow covers with a gap between them, about 0.16 of a screen wide in all, so it reads as a double block. It is wider than a normal cactus, so a quick tap hop only just clears it early on: jump a touch early, or hold the jump for a longer hop.
 - **Log** (a wide, low stack of covers, which start to appear about 5 seconds into a run): too wide for a hop, so **hold** the jump button to go higher and stay in the air longer.
 - **Bird** (a coloured game cover with a 😴 on it, floating at head height, which starts to appear about 8 seconds in): **duck** under it. Jumping into it knocks you out. About two birds in five are **wide** (a long run of covers, up to about a third of the screen), so keep **holding** duck until you are all the way past, not just until it reaches you.
 - **Jumping:** hold the button on the way up to jump higher and further; letting go early cuts the jump short. You can only jump from the ground, and holding the button after you land does not jump again: let go and press again. Pressing part-way up a hop does not make it higher.
 - **Ducking** only works on the ground, and only while you hold it.
-- **Speed** starts at half a screen per second and climbs to a screen per second after about 33 seconds, then stays there.
+- **Speed** starts at 0.65 of a screen per second and climbs to 1.1 after about 22 seconds, then stays there.
 - Obstacles are always spaced so there is time to land and react.
 
 ## Flappy
@@ -272,7 +273,7 @@ Flap through the gaps, everyone on the same course.
 - **Flap** gives a short upward kick; gravity pulls you down between flaps. Tapping steadily keeps you level.
 - Touching a **pipe, the floor or the ceiling** knocks you out.
 - **Gaps** move up and down from pipe to pipe, but never by more than a bird can climb in the time between pipes.
-- **Speed** starts at 0.4 of a screen per second and climbs to 0.7 after about 37 seconds.
+- **Speed** starts at 0.5 of a screen per second and climbs to 0.8 after about 25 seconds.
 
 ## Dodge
 
@@ -280,7 +281,7 @@ Blocks fall; slide left and right to stay clear.
 
 - **Goal:** don't get hit. Everyone stands on the same floor.
 - You move at half a screen per second and can't leave the screen.
-- **Blocks** (game covers of different widths) fall faster and faster: from 0.35 of a screen per second up to 0.9 after about 46 seconds. Blocks are 0.09 to 0.24 of a screen wide and 0.09 tall. A new block appears every 0.9 seconds at the start, speeding up to every 0.34 seconds after about 56 seconds.
+- **Blocks** (game covers of different widths) fall faster and faster: from 0.4 of a screen per second up to 1.0 after about 30 seconds. Blocks are 0.09 to 0.24 of a screen wide and 0.09 tall. A new block appears every 0.8 seconds at the start, speeding up to every 0.3 seconds after about 33 seconds.
 - A **safe lane** drifts slowly from side to side, and no block is ever made over it, so there is always a way through for someone who keeps up with it.
 - A block that hits you knocks you out.
 
@@ -292,7 +293,7 @@ A rope swings round and everyone jumps it together.
 - **Mistime it** (be on the floor as the rope passes under you) and you are out. Last one jumping wins.
 - **Jumping** only works from the floor, and a jump is the same height every time, so it is all about timing. Pressing again while you are still in the air does nothing.
 - **Score:** the number of swings you jumped (shown as SWINGS in the top-left counter, where the other games show metres).
-- **Speed:** a swing starts at 1.8 seconds and shortens by 0.03 seconds for every second of the run, down to 0.75 seconds after about 35 seconds. Now and then a swing is slower (a pause, 1.5 times as long) or quicker (0.85 times as long, never under 0.65 seconds), so don't jump on rhythm alone.
+- **Speed:** a swing starts at 1.4 seconds and shortens by 0.04 seconds for every second of the run, down to 0.75 seconds after about 16 seconds. Now and then a swing is slower (a pause, 1.5 times as long) or quicker (0.85 times as long, never under 0.65 seconds), so don't jump on rhythm alone.
 - Every swing is long enough to land and jump again.
 - **Depth:** the rope comes up on the far side of the jumpers and down on the near side. While it is behind them it is drawn darker, with no glow, and behind the jumpers; once it is over their heads it is bright, with a glow, and passes in front of them.
 
@@ -305,7 +306,7 @@ A top-down race on a scrolling track, everyone on the same course.
 - **A hit slows you down**, and you slide back down the screen. You recover by yourself and climb back to the middle line (slowly: about a sixteenth of a screen a second). From the middle line one hit is never enough to put you off the bottom, but hits close together add up: a **cone** is a nudge, an **oil slick** (the dark puddle) is more, and a **rock** (a big cover) is the worst, about a quarter of a screen. Straight after a hit you cannot be hit again for half a second.
 - **Slide off the bottom** (the red glow) and you are out. Last driver on the screen wins; alone, your distance is your score.
 - **Starting spots** are spread across the middle of the track, the same spot for you every run.
-- **Speed:** the track starts at 0.45 of a screen per second and climbs to 0.95 after about 42 seconds. A new obstacle appears every 0.9 seconds at the start, down to every 0.22 seconds after about 45 seconds, so hits come thicker and faster and every run ends.
+- **Speed:** the track starts at 0.6 of a screen per second and climbs to 1.0 after about 25 seconds. A new obstacle appears every 0.65 seconds at the start, down to every 0.22 seconds after about 21 seconds, so hits come thicker and faster and every run ends.
 - A **safe lane** drifts slowly from side to side, and no obstacle is ever made over it, so there is always a way through for someone who keeps up with it. It stays clear of the pit lanes too, so a clear path is always on the road.
 - **Pit lanes** (amber hatched strips with a bright edge each side) appear in stretches about 0.8 of a screen long from a few seconds in, scrolling at the course speed. Up to two at a time, **against either kerb or anywhere in the middle of the track**, each between **a tenth and a third of the track wide**. A driver whose middle is **in** one is dragged down the screen the whole time (0.14 of a screen a second, more than the slow climb back), so the way out is to steer out of it; staying in one long enough slides you off the bottom. Which of the left, the right and the middle is likelier swings slowly over the run, and everything comes from the round's seed, so it is the same for everyone. They give a driver who hugs an edge, or cuts through the middle, a price to pay.
 - A pit lane is never made over the safe lane (nor within 0.1 of it), and the safe lane stays out of any pit lane on the track, so there is always a clear way through however many there are.
@@ -342,7 +343,7 @@ One beam, and everyone has their own ball on it.
 
 - **Your own ball.** Hold left or right to push **your** ball (yours has a ring round it). Everyone's balls are on the same beam, each in its owner's colour.
 - **The beam tips toward where the balls are.** It leans toward the balls' average position, so balls bunched on the right tip it right, and a tipped beam pulls **every** ball downhill. The group tips it around together while each person fights to stay on.
-- **The beam also wobbles by itself**, slowly at first and more and more as the run goes on, so keep correcting. The wobble comes from the round's seed, and it always gets strong enough to end a run (at about a minute alone).
+- **The beam also wobbles by itself**, from the start and more and more as the run goes on, so keep correcting. The wobble comes from the round's seed, and it always gets strong enough to end a run.
 - **Rolling off is out.** A ball that goes past either end drops away and bursts below the arena, and its owner is out (they keep their score and keep watching). The run ends when the last ball is off, or when one ball is left in a run with others.
 - **Targets** (green) appear on the beam, up to two at a time, and last 7 seconds. The **first ball to reach one** scores 1 (the nearest, if two arrive together).
 - **Winning:** most targets scored wins. On a tie, the ball still on the beam wins; otherwise it is a draw, and so is scoring nothing. Alone it is a high score.
@@ -356,7 +357,7 @@ One tower and one light for the whole room. Stop the light on the target to clim
 - **One shared tower:** a grid 9 squares wide. It has **no top**: the view is 12 rows tall and scrolls up as the tower grows, with every fifth row numbered, so you can climb as high as you can keep locking rows in. A light bounces from one side of the current row to the other, the same for everyone. The target squares of the row are outlined in green.
 - **Locking a row:** press (Space, Up, or tap) as the light passes over the target. The **first press that lands** locks the row for that player, scoring 1, and **everyone moves up** to the next row, shown in the colour of whoever locked it.
 - **Missing:** a press that misses knocks that player out of the run (they keep watching). A press a moment after a row was just locked (about a third of a second) is ignored, so two people who press together are not penalised for being second. A press within a third of a square of the target's edge still counts, to forgive a slow connection.
-- **Harder going up:** the target is **5 squares wide** on the first two rows, then 1 narrower every 2 rows, down to **2** by row 7, and a **single square** from row 19 up. The light starts at 5 squares a second and is 0.9 faster each row, up to 12 at about row 8, and **keeps getting faster** after that (0.4 a row) up to 22 squares a second far up the tower. A press counts a little outside the target, and a bit more the faster the light goes, so a fast light is not judged unfairly on a slow connection. The first row's target can be anywhere; **every row after it stands on the one below**, as in the arcade game. A narrower row's target sits somewhere **within the squares of the row under it**, and a target as wide as the one under it can shift by **one square** to either side (a single-square target stays in the same column). So the tower climbs from where it began and cannot jump across the field. Where the target is comes from the round's seed, and the next row's is not known until it is reached.
+- **Harder going up:** the target is **5 squares wide** on the first two rows, then 1 narrower every 2 rows, down to **2** by row 7, and a **single square** from row 19 up. The light starts at 6.5 squares a second and is 0.7 faster each row, up to 12 at about row 8, and **keeps getting faster** after that (0.4 a row) up to 22 squares a second far up the tower. A press counts a little outside the target, and a bit more the faster the light goes, so a fast light is not judged unfairly on a slow connection. The first row's target can be anywhere; **every row after it stands on the one below**, as in the arcade game. A narrower row's target sits somewhere **within the squares of the row under it**, and a target as wide as the one under it can shift by **one square** to either side (a single-square target stays in the same column). So the tower climbs from where it began and cannot jump across the field. Where the target is comes from the round's seed, and the next row's is not known until it is reached.
 - **Ending:** the run ends when everyone is out (the tower has no top, so there is no time limit of its own), or if nobody has pressed the button for **20 seconds** (everyone has wandered off). **Most rows locked wins**; a tie is a draw. Alone it is a high score (how many rows you climbed) and ends when you miss.
 - Everyone's rows are listed on the right, and the bar along the top is the time left.
 - **Controls:** one button: **Space**, **↑** or **W**, or tap anywhere on the arena.
@@ -393,7 +394,7 @@ A shooting gallery under a sky of falling asteroids, with everyone's turret in t
 - **One shared sky.** Every player has a **turret at a random spot along the bottom**. The spots come from the round's seed and stay put for the whole run, so everyone sees the same layout, and nobody's turret is on top of another's.
 - **Swing your gun** left and right (it can swing up to about 70 degrees either way from straight up). **It fires by itself,** twice a second, along wherever it points. Shots pass through turrets, so nobody can shoot each other.
 - **Asteroids** (game covers) fall from the top and drift sideways, bouncing off the sides. **Small** ones break in 1 hit; **big** ones (with a ring round them) take 2. The shot that **breaks** one scores 1 for whoever fired it.
-- **Harder as it goes:** they fall faster (from 0.1 to 0.45 of a screen a second), appear more often (every 1.3 seconds down to every 0.35) and are big more often (1 in 20 at first, up to 1 in 2).
+- **Harder as it goes:** they fall faster (from 0.2 to 0.45 of a screen a second), appear more often (every 0.9 seconds down to every 0.35) and are big more often (3 in 20 at first, up to 1 in 2).
 - **Out:** an asteroid that touches your turret breaks on it and knocks you out; your turret stays as a dim wreck, and asteroids that reach it break on it too. **Last turret standing wins.** If everyone is hit at the same moment, nobody wins. Alone it is a high score: your count when you are hit. There is no time limit of its own: it goes on until it is beaten (in a spin's waiting room the 30 second cap ends it, and the most asteroids broken wins).
 - Each turret has its **points** under it, and the scoreboard shows who has the most.
 - **Controls:** left and right only (**←** / **→** or **A** / **D**, or the **◀** and **▶** buttons).
@@ -402,7 +403,7 @@ A shooting gallery under a sky of falling asteroids, with everyone's turret in t
 
 Everyone on one short platform over a drop. Shove the others off. Needs at least 2 players, so on your own a bot joins and plays against you.
 
-- **One shared platform,** drawn side-on, with everyone standing on it. It starts about 0.8 of the screen wide and **shrinks from both ends**, about 0.012 of the screen a second from each end, down to a quarter of the screen, so a run always ends. A faint outline shows where it started.
+- **One shared platform,** drawn side-on, with everyone standing on it. It starts about 0.8 of the screen wide and **shrinks from both ends**, about 0.02 of the screen a second from each end, down to a quarter of the screen, so a run always ends. A faint outline shows where it started.
 - **Walk** left and right. You face the way you last walked.
 - **Shove** (Space, ↑, **W**, or the Shove button): anyone **just in front of you** (up to about a tenth of the screen, and not behind you) is knocked away from you and slides a good way; you also lunge a little. After a shove you wait **0.7 seconds**, shown as a bar under your feet. A shove that hits nobody still costs the wait.
 - **Out:** if your middle goes past either end of the platform you fall and are out: you drop off the platform and burst when you reach the bottom of the arena. **Last one on wins.** If everyone falls together it is a draw, and there is no time limit of its own: the platform keeps shrinking until someone is out.

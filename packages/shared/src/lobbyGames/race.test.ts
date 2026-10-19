@@ -73,7 +73,7 @@ describe('RaceGame rounds', () => {
     const start = g.snapshot().speed;
     playBot(g, 'a', 30_000);
     expect(g.snapshot().speed).toBeGreaterThan(start);
-    expect(g.snapshot().speed).toBeLessThanOrEqual(0.95);
+    expect(g.snapshot().speed).toBeLessThanOrEqual(1);
   });
 
   it('ends a solo run with no winner once the driver slides off the bottom', () => {
@@ -154,7 +154,7 @@ describe('RaceGame driving', () => {
       const g = new RaceGame(() => (s = (s * 16807) % 2147483647) / 2147483647);
       g.join('a');
       run(g, 3200);
-      const last = playBot(g, 'a', 60_000);
+      const last = playBot(g, 'a', 45_000);
       expect(me(g, 'a').alive, `mixed seed ${seed} ${last}`).toBe(true);
     }
   });

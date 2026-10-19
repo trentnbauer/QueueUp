@@ -61,7 +61,7 @@ describe('FlappyGame rounds', () => {
     const start = g.snapshot().speed;
     playBot(g, 'a', 30_000);
     expect(g.snapshot().speed).toBeGreaterThan(start);
-    expect(g.snapshot().speed).toBeLessThanOrEqual(0.7);
+    expect(g.snapshot().speed).toBeLessThanOrEqual(0.8);
   });
 });
 

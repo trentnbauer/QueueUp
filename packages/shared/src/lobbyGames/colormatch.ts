@@ -5,8 +5,8 @@ const ROUND_S = 30;
 /** A moment before the first prompt, so there is time to get ready. */
 const FIRST_PROMPT_S = 0.8;
 /** How long each prompt waits for answers: starts roomy and gets shorter, down to a floor. */
-const PROMPT_START_S = 3;
-const PROMPT_GAIN_S = 0.055; // per second of the round
+const PROMPT_START_S = 2.2;
+const PROMPT_GAIN_S = 0.05; // per second of the round
 const PROMPT_MIN_S = 1.4;
 /** After a prompt is done, the result shows for this long before the next one. */
 const BETWEEN_S = 0.45;

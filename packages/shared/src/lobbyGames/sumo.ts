@@ -6,7 +6,7 @@ import type { BotBrain } from './types.js';
 /** The platform starts this wide (centred) and shrinks from both ends, to a minimum, so a run always ends. */
 const START_L = 0.1;
 const START_R = 0.9;
-const SHRINK_PER_END = 0.012; // each end moves in this far every second
+const SHRINK_PER_END = 0.02; // each end moves in this far every second
 const MIN_WIDTH = 0.24;
 /** A run that is still going at this time ends with no winner. */
 const WALK_ACCEL = 1.6;

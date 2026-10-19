@@ -9,10 +9,10 @@ const ROWS_PER_NARROWING = 2;
 const MIN_WIDTH = 2;
 const SINGLE_FROM_ROW = 18;
 /** The light's speed in squares a second on the first row, and how much faster it is each row up. It gains quickly
- * to `SPEED_FAST` (about row 8), then keeps gaining, more slowly, up to its top speed far up the tower, so the
+ * to `SPEED_FAST` (about row 8: 6.5 + 0.7 a row), then keeps gaining, more slowly, up to its top speed far up the tower, so the
  * tower never stops getting faster. */
-const SPEED_START = 5;
-const SPEED_GAIN = 0.9;
+const SPEED_START = 6.5;
+const SPEED_GAIN = 0.7;
 const SPEED_FAST = 12;
 const SPEED_LATE_GAIN = 0.4;
 const SPEED_MAX = 22;

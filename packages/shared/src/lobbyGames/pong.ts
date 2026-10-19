@@ -2,8 +2,8 @@ import { PONG_BALL_R, PONG_PADDLE_LENGTH, PONG_PADDLE_SPEED, PONG_PADDLE_THICKNE
 import { RoundGame, type RoundPlayer } from './roundGame.js';
 import type { BotBrain } from './types.js';
 
-const BALL_START = 0.5;
-const BALL_GAIN = 0.035; // per return
+const BALL_START = 0.65;
+const BALL_GAIN = 0.05; // per return
 const BALL_MAX = 1.3;
 /** How much of a hit's speed goes sideways when it lands at the very end of a paddle (0 is straight back). */
 const ENGLISH = 0.7;

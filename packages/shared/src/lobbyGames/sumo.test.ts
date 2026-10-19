@@ -110,7 +110,7 @@ describe('SumoGame', () => {
 
   it('knocks someone off with no shove once the platform has shrunk past them', () => {
     const g = started(['a', 'b']);
-    run(g, 90_000);
+    for (let t = 0; t < 90_000 && g.snapshot().phase === 'playing'; t += STEP) g.tick(STEP);
     // Both stood still near the edges of the start, so the shrinking ends have taken them.
     expect(g.snapshot().phase).not.toBe('playing');
   });
