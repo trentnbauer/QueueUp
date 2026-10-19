@@ -31,6 +31,7 @@ import { lavaView } from './lava';
 import { froggerView } from './frogger';
 import { fishingView } from './fishing';
 import { orbitView } from './orbit';
+import { rpsView } from './rps';
 
 /** What a renderer is given each frame. */
 export interface LobbyDrawArgs<S extends LobbyGameSnapshot = LobbyGameSnapshot> {
@@ -120,6 +121,7 @@ export const LOBBY_GAME_VIEWS: { [K in LobbyGameId]: LobbyGameView<Extract<Lobby
   frogger: froggerView,
   fishing: fishingView,
   orbit: orbitView,
+  rps: rpsView,
 };
 
 /** The view for whichever game a snapshot belongs to. */

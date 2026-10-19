@@ -6,6 +6,7 @@ import { pongBrain } from './pong.js';
 import { potatoBrain } from './potato.js';
 import { snakeBrain } from './snake.js';
 import { wallBrain } from './wall.js';
+import { rpsBrain } from './rps.js';
 import { sumoBrain } from './sumo.js';
 import type { BotBrain, LobbyGame } from './types.js';
 
@@ -36,6 +37,7 @@ const BRAINS: Partial<Record<LobbyGameId, (botId: string, rng: () => number) => 
   pong: pongBrain,
   wall: wallBrain,
   draw: drawBrain,
+  rps: rpsBrain,
 };
 
 /** Wraps a game that needs more players than the lobby has, and adds bots until there are enough.

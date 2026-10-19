@@ -24,6 +24,7 @@ import { WallGame } from './wall.js';
 import { FroggerGame } from './frogger.js';
 import { FishingGame } from './fishing.js';
 import { OrbitGame } from './orbit.js';
+import { RpsGame } from './rps.js';
 import { TiltGame } from './tilt.js';
 import { StackerGame } from './stacker.js';
 import { SumoGame } from './sumo.js';
@@ -34,7 +35,7 @@ import type { LobbyGame } from './types.js';
 
 export type { BotBrain, BotCommand, LobbyGame } from './types.js';
 export { LobbyRecord, secureRandom } from './roundGame.js';
-export { BattleshipsGame, CoinsGame, DodgeGame, FlappyGame, RaceGame, RopeGame, RunnerGame, WhackGame, DrawGame, TiltGame, StackerGame, SumoGame, AsteroidsGame, MemoryGame, WordsGame, LavaGame, SnakeGame, GravityGame, LaserGame, ColorMatchGame, PotatoGame, AnagramGame, MinesGame, StopGame, PongGame, WallGame, FroggerGame, FishingGame, OrbitGame };
+export { BattleshipsGame, CoinsGame, DodgeGame, FlappyGame, RaceGame, RopeGame, RunnerGame, WhackGame, DrawGame, TiltGame, StackerGame, SumoGame, AsteroidsGame, MemoryGame, WordsGame, LavaGame, SnakeGame, GravityGame, LaserGame, ColorMatchGame, PotatoGame, AnagramGame, MinesGame, StopGame, PongGame, WallGame, FroggerGame, FishingGame, OrbitGame, RpsGame };
 export { BotFiller, botColor, botNumber, isBotId, withBots } from './bots.js';
 
 /** Starts a fresh game of the given kind, with bots added by the lobby when it needs more players than
@@ -103,6 +104,8 @@ function build(id: LobbyGameId, record?: LobbyRecord): LobbyGame {
       return new FishingGame(undefined, record);
     case 'orbit':
       return new OrbitGame(undefined, record);
+    case 'rps':
+      return new RpsGame(undefined, record);
   }
 }
 

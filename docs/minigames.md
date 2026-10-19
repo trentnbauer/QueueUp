@@ -244,6 +244,18 @@ Circle the ring and flip direction to dodge what flies at it. Everyone is on the
 - **Ping:** your own marker is worked out on your own device (see "Ping and who works out what"), so a flip happens the moment you press.
 - **Controls:** one button: **Space**, **↑**, **←** / **→** or **W** / **A** / **D**, or tap anywhere on the arena. On a phone, **Flip**.
 
+## Rock paper scissors
+
+Everyone picks at once. Needs at least 2 players, so on your own a bot plays you.
+
+- **A round:** everyone picks rock, paper or scissors within the time given, and **nobody sees what the others picked until the round is decided**. Paper beats rock, scissors beat paper, rock beats scissors.
+- **Who is out:** if **two different choices** were made, the one that beats the other wins: **everyone who made the losing choice is out**, and everyone who made the winning one scores a round. If **everyone made the same choice, or all three were made**, it is a **draw** and the round is played again, with nobody out. **Someone who has not picked when the time is up is out.** Only your first tap counts.
+- **Last one in wins.** Alone against the bot, you are out when you lose a round (or run out of time), and your score is the rounds you won. If everyone is out together, nobody wins.
+- **Time to pick** starts at 3.5 seconds and is 0.15 seconds shorter every round, down to 1.2 seconds, so a run is short.
+- **Hidden:** your pick is only sent to you until the round is decided (to everyone else it shows as a ? once you have picked); a spectator sees no picks at all.
+- **Bots** pick a moment into the round, at random, but a third of the time they play what beats whatever a rival showed last round, which is what people tend to repeat. It is a game of chance, and a bot reading a person who only ever plays rock wins clearly more than a coin would.
+- **Controls:** the three choices are the controller, so tap or click one, or press **1-3** (rock, paper, scissors).
+
 ## Rating a game
 
 When a run ends and its result card is showing, a **thumbs up / thumbs down** appears in the result card (in a room's lobby, a spin's waiting room, an open lobby and solo practice alike).
@@ -304,6 +316,7 @@ A game can instead make **the play space the controller**: there are no buttons 
 | Wall ball | **←** / **→** or **A** / **D** to slide (the hit is automatic). | The **◀** and **▶** buttons. |
 | Road hop | **←** / **→** or **A** / **D** to slide, **Space**, **↑** or **W** to hop. | The **◀** and **▶** buttons, and **Hop** (or tap anywhere on the arena). |
 | Fishing | Hold **Space**, **↑** or **W** to pull your net up. | Hold **Reel** (or press and hold the arena). |
+| Rock paper scissors | Click a choice, or press **1-3** (rock, paper, scissors). | Tap a choice. |
 | Orbit | **Space**, **↑**, **←** / **→** or **W** / **A** / **D** to flip direction. | **Flip**, or tap anywhere on the arena. |
 
 ## Runner
