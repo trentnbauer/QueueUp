@@ -73,6 +73,7 @@ export const labels: Record<keyof typeof en, string> = {
   "labels.emailAlert.good_time_to_buy": "Good time to plunder",
   "labels.emailAlert.account_change": "Changes to yer account",
   "labels.emailAlert.room_game_beaten": "Ship games to review after a crewmate conquers them",
+  "labels.emailAlert.minigame_beaten": "A crewmate tops yer deck game high score",
   "labels.region.us": "US ($)",
   "labels.region.gb": "UK (£)",
   "labels.region.eu": "EU (€)",

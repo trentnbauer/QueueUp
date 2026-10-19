@@ -45,6 +45,18 @@ export function GamesPage() {
     setDialog({ kind: 'join', code: linkCode });
     setParams({}, { replace: true });
   }, [linkCode, setParams]);
+  // A link to one game (`/games?game=runner`, from a "your high score was beaten" alert) opens with that game picked.
+  const linkGame = params.get('game');
+  useEffect(() => {
+    if (!linkGame) return;
+    const id = LOBBY_GAME_IDS.find((g) => g === linkGame);
+    if (id) setSelected(id);
+    const rest = new URLSearchParams(params);
+    rest.delete('game');
+    setParams(rest, { replace: true });
+    // `params` changes with the URL, so it is left out: this runs once for each link followed.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [linkGame, setParams]);
   const closeMine = async () => {
     if (!myLobby) return;
     try {

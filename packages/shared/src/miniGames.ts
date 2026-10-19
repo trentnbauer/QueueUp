@@ -242,3 +242,45 @@ export interface AdminMiniGameRating {
 export interface AdminMiniGameRatingsResponse {
   games: AdminMiniGameRating[];
 }
+
+/** Each game's name in English, for text the server writes (a notification), where the app's own translated names are not to hand. */
+export const MINIGAME_NAMES: Record<LobbyGameId, string> = {
+  runner: 'Runner',
+  flappy: 'Flappy',
+  dodge: 'Dodge',
+  rope: 'Jump rope',
+  coins: 'Catch the coins',
+  battleships: 'Battleships',
+  race: 'Obstacle race',
+  whack: 'Whack-a-mole',
+  draw: 'Quick draw',
+  tilt: 'Tilt',
+  stacker: 'Stacker',
+  sumo: 'Sumo ledge',
+  asteroids: 'Asteroid defence',
+  memory: 'Memory pattern',
+  words: 'Words',
+  lava: 'Lava rise',
+  snake: 'Snake arena',
+  gravity: 'Gravity flip',
+  laser: 'Laser gaps',
+  colormatch: 'Color match',
+  potato: 'Hot potato',
+  anagram: 'Anagram',
+  mines: 'Minesweeper race',
+  stop: 'Perfect stop',
+  pong: 'Pong rally',
+  wall: 'Wall ball',
+  frogger: 'Road hop',
+  fishing: 'Fishing',
+};
+
+/** Whether score `a` is better than score `b` in the game (a smaller time is better; otherwise bigger is). Equal is not better. */
+export const scoreBeats = (game: LobbyGameId, a: number, b: number): boolean => (lowerIsBetter(game) ? a < b : a > b);
+
+/** A score as people read it: a reaction time in ms, the time held in seconds, or the plain number. */
+export function formatMiniGameScore(game: LobbyGameId, score: number): string {
+  if (game === 'draw') return `${score} ms`;
+  if (game === 'potato') return `${(score / 10).toFixed(1)} s`;
+  return String(score);
+}

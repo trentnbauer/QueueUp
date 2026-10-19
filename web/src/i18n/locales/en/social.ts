@@ -30,6 +30,7 @@ export const social = {
   "social.notifications.personalShelf": "Personal Shelf",
   "social.notifications.administration": "Administration",
   "social.notifications.libraries": "Library sync",
+  "social.notifications.miniGames": "Mini games",
   "social.notifications.announcement": "Announcement",
   "social.notifications.empty": "You're all caught up. Game adds, member changes and room updates will show up here.",
 

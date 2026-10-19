@@ -1597,6 +1597,7 @@ export type NotificationType =
   | 'library_sync_available'
   | 'platform_unowned'
   | 'room_game_beaten'
+  | 'minigame_beaten'
   | 'merge_suggestions'
   | 'sensitive_games'
   | 'admin_report'
@@ -1618,6 +1619,7 @@ export const EMAIL_ALERT_TYPES = [
   'good_time_to_buy',
   'account_change',
   'room_game_beaten',
+  'minigame_beaten',
 ] as const;
 export type EmailAlertType = (typeof EMAIL_ALERT_TYPES)[number];
 
@@ -1633,6 +1635,7 @@ export const EMAIL_ALERT_LABELS: Record<EmailAlertType, string> = {
   good_time_to_buy: 'Good time to buy',
   account_change: 'Changes to your account',
   room_game_beaten: 'Room games to review after someone beats them',
+  minigame_beaten: 'A friend beats your mini game high score',
 };
 
 /** One alert type's settings for the signed-in person. `email` sends it by email (needs SMTP set
@@ -1713,6 +1716,8 @@ export interface Notification {
   gameId: string | null;
   /** The console a platform_unowned notification asks about adding to Systems owned. */
   platform: RoomPlatform | null;
+  /** The mini game a minigame_beaten notification is about, so it can open that game on the Mini games page. */
+  miniGame: string | null;
 }
 
 /** Issue #509 - a room's full, paginated activity history, distinct from NotificationType above:
