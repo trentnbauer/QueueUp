@@ -3,8 +3,6 @@ import type { LobbyGameView } from './index';
 import { FONT, STAGE, renderScene, roundRect, type Scene, type SceneGame } from './kit';
 import type { TapRect, TapTargets } from './taps';
 
-/** The run's length (ROUND_S in the rules), for the bar along the top. */
-const RUN_MS = 90_000;
 // Where things are on the arena, as fractions of its side: your own board on the left, everyone else's progress
 // on the right (only how each guess scored, never letters), and the keyboard along the bottom.
 const BOARD_Y = 0.13;
@@ -66,9 +64,9 @@ function drawWorld(sc: Scene<WordsSnapshot>): void {
   const { ctx, S, snapshot, theme } = sc;
 
   // Time left in the run, as a bar draining along the top edge.
-  if (snapshot.phase === 'playing') {
+  if (snapshot.phase === 'playing' && snapshot.limitMs > 0) {
     ctx.fillStyle = theme.acc;
-    ctx.fillRect(0, 0, S * Math.max(0, snapshot.roundLeftMs / RUN_MS), S * 0.008);
+    ctx.fillRect(0, 0, S * Math.max(0, snapshot.roundLeftMs / snapshot.limitMs), S * 0.008);
   }
 
   // Your own board: a row for each guess, scored letter by letter; the word being typed; empty rows to come.

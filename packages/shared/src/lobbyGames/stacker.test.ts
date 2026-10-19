@@ -239,8 +239,9 @@ describe('StackerGame', () => {
     expect(g.snapshot()).toMatchObject({ phase: 'over', winnerId: null });
   });
 
-  it('keeps going while someone is pressing, and ends at 5 minutes even so', () => {
+  it('keeps going while someone is pressing, and ends at a lobby\'s time limit even so', () => {
     const g = started(['a', 'b']);
+    g.timeLimitS = 300;
     // A press on the target every 10 seconds keeps the run alive, for 250 seconds.
     for (let t = 0; t < 250_000 && g.snapshot().phase === 'playing'; t += 10_000) {
       expect(toTarget(g)).toBe(true);

@@ -17,8 +17,6 @@ const LIST_Y = 0.14;
 const LIST_W = 0.16;
 const ROW_H = 0.058;
 const ROW_GAP = 0.008;
-/** The round's time limit (ROUND_LIMIT_S in the rules), for the bar along the top. */
-const ROUND_MS = 120_000;
 /** After a shot you wait this long (SHOT_COOLDOWN_S in the rules), for the bar under the board. */
 const COOLDOWN_MS = 800;
 /** Your own ships. */
@@ -34,9 +32,9 @@ function drawWorld(sc: Scene<BattleshipsSnapshot>): void {
   const { ctx, S, snapshot, theme } = sc;
 
   // Time left in the round, as a bar draining along the top edge.
-  if (snapshot.phase === 'playing') {
+  if (snapshot.phase === 'playing' && snapshot.limitMs > 0) {
     ctx.fillStyle = theme.acc;
-    ctx.fillRect(0, 0, S * Math.max(0, snapshot.roundLeftMs / ROUND_MS), S * 0.008);
+    ctx.fillRect(0, 0, S * Math.max(0, snapshot.roundLeftMs / snapshot.limitMs), S * 0.008);
   }
 
   // The one board: the water, then each square. Your own ships show (nobody else's), every shot is on it, and

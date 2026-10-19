@@ -3,8 +3,6 @@ import type { LobbyGameView } from './index';
 import { FONT, renderScene, type Scene, type SceneGame } from './kit';
 import type { TapRect, TapTargets } from './taps';
 
-/** The round's length (ROUND_S in the rules), for the bar along the top. */
-const ROUND_MS = 30_000;
 /** Where the grid is on the arena, as fractions of its side: one shared 3 x 3 grid. */
 const GRID_X = 0.125;
 const GRID_Y = 0.2;
@@ -70,9 +68,9 @@ function drawWorld(sc: Scene<WhackSnapshot>): void {
   const { ctx, S, snapshot, theme } = sc;
 
   // Time left in the round, as a bar draining along the top edge.
-  if (snapshot.phase === 'playing') {
+  if (snapshot.phase === 'playing' && snapshot.limitMs > 0) {
     ctx.fillStyle = theme.acc;
-    ctx.fillRect(0, 0, S * Math.max(0, snapshot.roundLeftMs / ROUND_MS), S * 0.008);
+    ctx.fillRect(0, 0, S * Math.max(0, snapshot.roundLeftMs / snapshot.limitMs), S * 0.008);
   }
 
   // Everyone's points, in one row: it is a race, so every score is on screen.

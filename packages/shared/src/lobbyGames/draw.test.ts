@@ -103,14 +103,20 @@ describe('DrawGame', () => {
     expect(g.snapshot().history.at(-1)?.meters).toBe(DRAW_POINTS_TO_WIN);
   });
 
-  it('ends at 60 seconds with most points winning, or nobody on a tie', () => {
+  it('goes on until someone has the points, but at a lobby\'s time limit most points wins, or nobody on a tie', () => {
+    const open = started(['a', 'b']);
+    run(open, 62_000);
+    expect(open.snapshot().phase).toBe('playing');
+
     const g = started(['a', 'b']);
+    g.timeLimitS = 60;
     toGo(g);
     g.tap('a', 0);
     run(g, 62_000);
     expect(g.snapshot()).toMatchObject({ phase: 'over', winnerId: 'a' });
 
     const tie = started(['a', 'b']);
+    tie.timeLimitS = 60;
     run(tie, 62_000);
     expect(tie.snapshot()).toMatchObject({ phase: 'over', winnerId: null });
   });

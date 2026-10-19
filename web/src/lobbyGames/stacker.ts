@@ -2,8 +2,6 @@ import { STACKER_COLS, STACKER_ROWS, type StackerSnapshot } from '@queueup/share
 import type { LobbyGameView } from './index';
 import { FONT, STAGE, renderScene, roundRect, type Scene, type SceneGame } from './kit';
 
-/** The run's time limit (RUN_LIMIT_S in the rules), for the bar along the top. */
-const RUN_MS = 300_000;
 // Where things are on the arena, as fractions of its side: the one tower on the left, and everyone's rows
 // down the right.
 const TOWER_X = 0.05;
@@ -23,9 +21,9 @@ function drawWorld(sc: Scene<StackerSnapshot>): void {
   const { ctx, S, snapshot, theme, now } = sc;
 
   // Time left in the run, as a bar draining along the top edge.
-  if (snapshot.phase === 'playing') {
+  if (snapshot.phase === 'playing' && snapshot.limitMs > 0) {
     ctx.fillStyle = theme.acc;
-    ctx.fillRect(0, 0, S * Math.max(0, snapshot.roundLeftMs / RUN_MS), S * 0.008);
+    ctx.fillRect(0, 0, S * Math.max(0, snapshot.roundLeftMs / snapshot.limitMs), S * 0.008);
   }
 
   // The one tower: an empty grid, the rows already locked in, then the current row.

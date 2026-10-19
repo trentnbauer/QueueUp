@@ -16,6 +16,9 @@ export interface LobbyGame {
   /** Set by the lobby that owns the game: called when a run's result has been shown and the next run is
    * about to start. Return true if the lobby has moved everyone to another game. */
   onRunOver?: () => boolean;
+  /** A cap on how long each run can last, in seconds, set by the lobby (a spin's waiting room sets one); null for
+   * none beyond the game's own. A game with no limit of its own goes on until it is beaten. */
+  timeLimitS?: number | null;
   /** True for a game that runs each player on their own device: the player's own movement and hits are
    * worked out by their client (so ping does not matter), which reports where they are, while the server
    * keeps the shared parts (the seed, when the run starts, who is still in, the result). Only for games

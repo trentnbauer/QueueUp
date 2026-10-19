@@ -13,7 +13,6 @@ const INPUT_PER_PANEL_S = 1.2;
 /** A short pause between a round everyone finished and the next pattern. */
 const BETWEEN_S = 1;
 /** A run that is still going at this many rounds ends with no winner (nobody could be expected to get further). */
-const MAX_ROUNDS = 40;
 /** The first round's pattern is this many panels long (a one or two panel pattern is no test). */
 const START_LENGTH = 3;
 
@@ -168,8 +167,7 @@ export class MemoryGame extends RoundGame<Memorizer> {
     } else {
       this.clock -= dt;
       if (this.clock <= 0) {
-        if (this.pattern.length - START_LENGTH + 1 >= MAX_ROUNDS) this.endRun(null);
-        else this.nextRound();
+        this.nextRound();
       }
     }
   }

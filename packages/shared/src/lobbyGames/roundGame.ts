@@ -102,6 +102,8 @@ export abstract class RoundGame<P extends RoundPlayer> implements LobbyGame {
    * start. Return true if the lobby has moved everyone to another game (this one is then finished),
    * false to carry on with another run of this game. */
   onRunOver: (() => boolean) | undefined;
+  /** A cap on how long a run can last, in seconds, set by the lobby (null for none beyond the game's own). */
+  timeLimitS: number | null = null;
   /** Set by whatever records high scores: called when a run ends, with every real player's score. */
   onRunScores: ((scores: LobbyRunScore[]) => void) | undefined;
 
@@ -201,10 +203,35 @@ export abstract class RoundGame<P extends RoundPlayer> implements LobbyGame {
     return p ? { alive: p.alive, f: this.writeReport(p) } : null;
   }
 
+  /** How long a run lasts at most by the game's own rules, in seconds, or null if it goes on until it is beaten. */
+  protected get ownLimitS(): number | null {
+    return null;
+  }
+
+  /** The cap on a run right now, in seconds: the game's own or the lobby's, whichever is shorter; null for none. */
+  protected get limitS(): number | null {
+    const caps = [this.ownLimitS, this.timeLimitS].filter((s): s is number => typeof s === 'number');
+    return caps.length > 0 ? Math.min(...caps) : null;
+  }
+
+  /** Milliseconds left of the cap while playing; 0 when there is none (or not playing). */
+  protected get leftMs(): number {
+    const limit = this.limitS;
+    return limit === null || this.phase !== 'playing' ? 0 : Math.max(0, Math.round(limit * 1000 - this.roundMs));
+  }
+
   /** The run number, recent results and best run, for the game's snapshot. */
   protected summary(): RoundSummary {
     const best = this.record.best.get(this.id);
-    return { run: this.record.run, history: this.record.history.map((r) => ({ ...r })), best: best ? { ...best } : null };
+    const limit = this.limitS;
+    return { run: this.record.run, history: this.record.history.map((r) => ({ ...r })), best: best ? { ...best } : null, limitMs: limit === null ? 0 : Math.round(limit * 1000) };
+  }
+
+  /** The run has reached the cap (see `limitS`). A game that scores points ends it by its own count; by
+   * default whoever is still in keeps what they have got so far, and nobody wins. */
+  protected limitReached(): void {
+    for (const p of this.players.values()) if (p.alive) p.outAtMeters = this.meters;
+    this.endRun(null);
   }
 
   /** Metres run so far. */
@@ -256,6 +283,7 @@ export abstract class RoundGame<P extends RoundPlayer> implements LobbyGame {
       case 'playing':
         this.roundMs += dt * 1000;
         this.advance(dt);
+        if (this.phase === 'playing' && this.timeLimitS !== null && this.roundMs >= this.timeLimitS * 1000) this.limitReached();
         for (const [id, last] of this.reported) {
           const p = this.players.get(id);
           if (p?.alive && this.roundMs - last > REPORT_TIMEOUT_MS) this.knockOut(p);

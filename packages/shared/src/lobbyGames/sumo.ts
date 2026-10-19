@@ -9,7 +9,6 @@ const START_R = 0.9;
 const SHRINK_PER_END = 0.012; // each end moves in this far every second
 const MIN_WIDTH = 0.24;
 /** A run that is still going at this time ends with no winner. */
-const RUN_LIMIT_S = 120;
 const WALK_ACCEL = 1.6;
 const WALK_MAX = 0.28;
 /** Friction on speed along the platform, per second. Walking stops quickly; a shove's knock-back slides. */
@@ -133,7 +132,6 @@ export class SumoGame extends RoundGame<Wrestler> {
     }
     const { l, r } = this.platform;
     for (const p of this.players.values()) if (p.alive && (p.x < l || p.x > r)) this.knockOut(p);
-    if (this.roundMs / 1000 >= RUN_LIMIT_S) this.endRun(null);
   }
 }
 

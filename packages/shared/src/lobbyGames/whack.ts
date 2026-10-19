@@ -124,7 +124,7 @@ export class WhackGame extends RoundGame<Whacker> {
       phase: this.phase,
       meters: this.meters,
       speed: 0,
-      roundLeftMs: this.phase === 'playing' ? Math.max(0, Math.round(ROUND_S * 1000 - this.roundMs)) : 0,
+      roundLeftMs: this.leftMs,
       timerMs: Math.max(0, Math.round(this.timerMs)),
       winnerId: this.winnerId,
       ...this.summary(),
@@ -136,6 +136,10 @@ export class WhackGame extends RoundGame<Whacker> {
       })),
       players: [...this.players.values()].map((p) => ({ id: p.id, alive: p.alive, wins: p.wins, meters: p.alive ? p.score : 0 })),
     };
+  }
+
+  protected override get ownLimitS(): number {
+    return ROUND_S;
   }
 
   protected advance(dt: number): void {

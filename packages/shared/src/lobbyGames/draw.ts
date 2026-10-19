@@ -2,8 +2,6 @@ import { DRAW_POINTS_TO_WIN, type DrawPlayerState, type DrawSnapshot, type DrawS
 import { RoundGame, type RoundPlayer } from './roundGame.js';
 import type { BotBrain } from './types.js';
 
-/** A run ends at this time if nobody has reached the points to win: most points wins. */
-const RUN_LIMIT_S = 60;
 /** The wait before GO is random between these. It is never sent to players, so it cannot be learned early. */
 const WAIT_MIN_S = 1.5;
 const WAIT_MAX_S = 4;
@@ -104,7 +102,7 @@ export class DrawGame extends RoundGame<Duelist> {
       phase: this.phase,
       meters: this.meters,
       speed: 0,
-      roundLeftMs: this.phase === 'playing' ? Math.max(0, Math.round(RUN_LIMIT_S * 1000 - this.roundMs)) : 0,
+      roundLeftMs: this.leftMs,
       timerMs: Math.max(0, Math.round(this.timerMs)),
       winnerId: this.winnerId,
       ...this.summary(),
@@ -146,7 +144,11 @@ export class DrawGame extends RoundGame<Duelist> {
         this.startWait();
       }
     }
-    if (this.roundMs / 1000 >= RUN_LIMIT_S && this.phase === 'playing') this.finishRun(null);
+  }
+
+  /** Only a lobby's cap ends a run early: otherwise it goes on until someone has the points. */
+  protected override limitReached(): void {
+    this.finishRun(null);
   }
 
   /** Ends the run: `winner` reached the points, or (null) time is up and most points wins; a tie has no winner. */
