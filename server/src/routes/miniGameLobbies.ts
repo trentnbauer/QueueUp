@@ -38,6 +38,7 @@ async function toDto(lobby: OpenLobby, viewerId: string): Promise<MiniGameLobbyD
     id: lobby.id,
     visibility: lobby.visibility,
     game: lobby.game,
+    timeLimit: lobby.timeLimit,
     hostId: lobby.hostId,
     mine,
     code: mine && lobby.code ? formatLobbyCode(lobby.code) : null,
@@ -75,11 +76,11 @@ export default async function miniGameLobbyRoutes(app: FastifyInstance) {
 
   app.post<{ Body: CreateMiniGameLobbyRequest }>('/api/minigames/lobbies', { config: { rateLimit: { max: 10, timeWindow: '1 minute' } } }, async (request) => {
     const userId = await request.requireAuth();
-    const { visibility, game } = request.body ?? ({} as Partial<CreateMiniGameLobbyRequest>);
+    const { visibility, game, timeLimit } = request.body ?? ({} as Partial<CreateMiniGameLobbyRequest>);
     if (!MINIGAME_LOBBY_VISIBILITIES.includes(visibility as never)) throw new HttpError(400, 'Unknown visibility');
     if (game !== null && !isLobbyGameId(game)) throw new HttpError(400, 'Unknown game');
     openLobbies.purge((id) => spinLobbyHub.hasMembers(lobbyKey(id)));
-    const made = openLobbies.create(userId, visibility, game ?? null);
+    const made = openLobbies.create(userId, visibility, game ?? null, timeLimit === true);
     if (!made) throw new HttpError(503, 'Too many lobbies are open. Try again in a moment.');
     // Starting a new lobby closes the one they were hosting.
     if (made.replaced) spinLobbyHub.closeRoom(lobbyKey(made.replaced.id));
@@ -133,7 +134,7 @@ export default async function miniGameLobbyRoutes(app: FastifyInstance) {
         return;
       }
       const key = lobbyKey(lobby.id);
-      spinLobbyHub.connect(key, userId, socket, { game: lobby.game });
+      spinLobbyHub.connect(key, userId, socket, { game: lobby.game, timeLimit: lobby.timeLimit });
       socket.on('message', (data: Buffer | string) => spinLobbyHub.message(key, socket, data.toString()));
       socket.on('close', () => spinLobbyHub.disconnect(key, socket));
       socket.on('error', () => spinLobbyHub.disconnect(key, socket));
