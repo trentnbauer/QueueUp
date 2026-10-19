@@ -2,7 +2,7 @@ import { describe, expect, it, vi } from 'vitest';
 import Fastify from 'fastify';
 import { HttpError } from '../util/httpError.js';
 
-const h = vi.hoisted(() => ({ rate: vi.fn(async () => {}), mine: vi.fn(async () => ({ ratings: { runner: 1 } })), record: vi.fn(async () => {}), board: vi.fn(async () => ({ rows: [] })), me: vi.fn(async () => ({})), bests: vi.fn(async () => ({ bests: { runner: 5 } })) }));
+const h = vi.hoisted(() => ({ rate: vi.fn(async () => {}), mine: vi.fn(async () => ({ ratings: { runner: 1 } })), record: vi.fn(async () => {}), board: vi.fn(async () => ({ rows: [] })), me: vi.fn(async () => ({})), bests: vi.fn(async () => ({ bests: { runner: 5 }, friendRanks: { runner: 1 } })) }));
 
 vi.mock('../services/miniGameScores.js', () => ({
   isLobbyGameId: (v: unknown) => typeof v === 'string' && ['runner', 'coins'].includes(v),
@@ -49,7 +49,7 @@ describe('mini game score routes', () => {
   it('returns the signed-in person\'s best in each game', async () => {
     const app = await build();
     const res = await app.inject({ method: 'GET', url: '/api/minigames/bests', headers: { 'x-test-user': 'u1' } });
-    expect(res.json()).toEqual({ bests: { runner: 5 } });
+    expect(res.json()).toEqual({ bests: { runner: 5 }, friendRanks: { runner: 1 } });
     expect(h.bests).toHaveBeenCalledWith('u1');
     expect((await app.inject({ method: 'GET', url: '/api/minigames/bests' })).statusCode).toBe(401);
     await app.close();
