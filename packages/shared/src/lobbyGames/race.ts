@@ -4,9 +4,11 @@ import {
   RACE_FRONT_Y,
   RACE_KERB,
   RACE_OUT_Y,
+  RACE_PIT_WIDTH,
   clampDirection,
   type RaceObstacle,
   type RaceObstacleKind,
+  type RacePit,
   type RaceSnapshot,
 } from '../spinLobby.js';
 import { RoundGame, type RoundPlayer } from './roundGame.js';
@@ -34,12 +36,21 @@ const GRACE_S = 0.5;
  * through always exists for someone who keeps up with it. */
 const SAFE_HALF_WIDTH = 0.1;
 const SAFE_DRIFT = 0.08;
-const SAFE_MIN = RACE_KERB + 0.1;
-const SAFE_MAX = 1 - RACE_KERB - 0.1;
+// The safe lane stays clear of the pit lanes too, so wherever they are a clear way through is on the road.
+const SAFE_MIN = RACE_KERB + RACE_PIT_WIDTH + SAFE_HALF_WIDTH;
+const SAFE_MAX = 1 - RACE_KERB - RACE_PIT_WIDTH - SAFE_HALF_WIDTH;
 const OBSTACLE_TRIES = 10;
 const GONE_BELOW = 1.2;
 /** Drivers start spread across this part of the track, each at a spot that comes from their own id, so
  * the server and a player's own device agree on it without knowing who else is racing. */
+/** Pit lanes come in stretches this long (in screens of track), and a driver in one is dragged back down the
+ * screen at this speed (screens a second): a hit knocks harder, but this never lets up while they stay in. */
+const PIT_LENGTH = 0.8;
+const PIT_SLIDE = 0.14;
+/** The first stretches are clear, so a run starts on a plain road. */
+const PIT_CLEAR_STRETCHES = 3;
+/** The most likely a side is to have a stretch, at its busiest. Which side is busier changes slowly over the run. */
+const PIT_MAX_CHANCE = 0.8;
 const START_MIN = 0.3;
 const START_SPAN = 0.4;
 
@@ -73,6 +84,12 @@ export class RaceGame extends RoundGame<Driver> {
   private spawned = 0;
   private spawnIn = 0;
   private safe = 0.5;
+  private pits: RacePit[] = [];
+  private pitStretches = 0;
+  /** Track still to scroll before the next stretch of pit lane is made. */
+  private pitFeed = 0;
+  /** Where in its slow swing the pit lanes' busier side is when the run starts, from the seed. */
+  private pitPhase = 0;
 
   /** Each player's own device works out where they drive (see RoundGame.clientSim). */
   get clientSim(): boolean {
@@ -112,10 +129,14 @@ export class RaceGame extends RoundGame<Driver> {
     this.obstacles = [];
     this.safe = 0.5;
     this.spawned = 0;
+    this.pits = [];
+    this.pitStretches = 0;
+    this.pitFeed = 0;
   }
 
   protected beginCourse(): void {
     this.resetCourse();
+    this.pitPhase = this.rng() * Math.PI * 2;
     // A moment before the first obstacle, so there is time to get ready.
     this.spawnIn = 1;
   }
@@ -140,6 +161,7 @@ export class RaceGame extends RoundGame<Driver> {
       winnerId: this.winnerId,
       ...this.summary(),
       obstacles: this.obstacles.map((o) => ({ x: r3(o.x), y: r3(o.y), w: r3(o.w), h: r3(o.h), kind: o.kind, n: o.n })),
+      pits: this.pits.map((s) => ({ side: s.side, y: r3(s.y), h: s.h, n: s.n })),
       players: [...this.players.values()].map((p) => ({
         id: p.id,
         x: r3(p.x),
@@ -167,12 +189,22 @@ export class RaceGame extends RoundGame<Driver> {
     for (const o of this.obstacles) o.y += this.speed * dt;
     this.obstacles = this.obstacles.filter((o) => o.y < GONE_BELOW);
 
+    this.pitFeed -= this.speed * dt;
+    while (this.pitFeed <= 0) {
+      this.spawnPits(-this.pitFeed);
+      this.pitFeed += PIT_LENGTH;
+    }
+    for (const s of this.pits) s.y += this.speed * dt;
+    this.pits = this.pits.filter((s) => s.y < GONE_BELOW);
+
     const half = RACE_CAR_WIDTH / 2;
     for (const p of this.players.values()) {
       if (!p.alive || !this.simulated(p)) continue;
       p.x = Math.min(1 - RACE_KERB - half, Math.max(RACE_KERB + half, p.x + p.dir * STEER_SPEED * dt));
       // Sliding back slows down and turns into a climb back to the front, which is as far as anyone gets.
       p.vy = Math.max(-RECOVER_MAX, p.vy - RECOVER_ACCEL * dt);
+      // In a pit lane the drag never lets up, so the way out is to steer back onto the road.
+      if (this.inPit(p)) p.vy = Math.max(p.vy, PIT_SLIDE);
       p.y += p.vy * dt;
       if (p.y <= RACE_FRONT_Y) {
         p.y = RACE_FRONT_Y;
@@ -187,6 +219,26 @@ export class RaceGame extends RoundGame<Driver> {
       }
       if (p.y > RACE_OUT_Y) this.knockOut(p);
     }
+  }
+
+  /** Whether the driver's middle is over a pit lane right now. */
+  private inPit(p: Driver): boolean {
+    const side = p.x < RACE_KERB + RACE_PIT_WIDTH ? -1 : p.x > 1 - RACE_KERB - RACE_PIT_WIDTH ? 1 : 0;
+    return side !== 0 && this.pits.some((s) => s.side === side && p.y >= s.y && p.y <= s.y + s.h);
+  }
+
+  /** Makes the next stretch of pit lane at the top of the screen, `over` screens further down than its start. Each
+   * side may have one; which side is likelier swings slowly from one to the other over the run, so for a while
+   * the left has more and then the right. */
+  private spawnPits(over: number): void {
+    const k = this.pitStretches++;
+    const lean = Math.sin(this.pitPhase + k * 0.3);
+    const left = this.rng();
+    const right = this.rng();
+    if (k < PIT_CLEAR_STRETCHES) return;
+    const y = over - PIT_LENGTH;
+    if (left < PIT_MAX_CHANCE * (0.5 + 0.5 * -lean)) this.pits.push({ side: -1, y, h: PIT_LENGTH, n: k * 2 + 1 });
+    if (right < PIT_MAX_CHANCE * (0.5 + 0.5 * lean)) this.pits.push({ side: 1, y, h: PIT_LENGTH, n: k * 2 + 2 });
   }
 
   private hit(p: Driver): RaceObstacle | null {

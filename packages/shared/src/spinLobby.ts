@@ -382,6 +382,18 @@ export const RACE_CAR_HEIGHT = 0.09;
 /** The kerb along each side of the track; drivers stay inside it. */
 export const RACE_KERB = 0.035;
 
+/** How wide a pit lane is: a strip along the inside of the kerb that slows any driver whose middle is in it. */
+export const RACE_PIT_WIDTH = 0.1;
+
+/** A stretch of pit lane: `side` is -1 (left) or 1 (right), `y` its top edge down from the top and `h` its length. */
+export interface RacePit {
+  side: number;
+  y: number;
+  h: number;
+  /** Which stretch this is (counts up from 1 each run); stays the same as it scrolls. */
+  n: number;
+}
+
 /** What is on the track. A cone is small, an oil slick wide and flat, a rock big; a bigger one slows you more. */
 export type RaceObstacleKind = 'cone' | 'oil' | 'rock';
 
@@ -421,6 +433,8 @@ export interface RaceSnapshot extends RoundSummary {
   /** How fast the track scrolls, in screens per second. */
   speed: number;
   obstacles: RaceObstacle[];
+  /** Pit lanes along the sides, which slow a driver down while they are in one. */
+  pits: RacePit[];
   players: RacePlayer[];
   /** Milliseconds left in `countdown` or `over`; 0 otherwise. */
   timerMs: number;
