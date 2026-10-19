@@ -134,14 +134,24 @@ function drawResult(sc: Scene): void {
   ctx.textAlign = 'center';
   ctx.textBaseline = 'middle';
 
+  // A game with a secret (Words) shows it in the card, as its last line, whoever won: the other lines make room.
+  const word = snapshot.id === 'words' && snapshot.answer ? t('spin.lobby.words.answer', { word: snapshot.answer.toUpperCase() }) : null;
+  const drawWord = (y: number) => {
+    if (!word) return;
+    ctx.font = `800 ${Math.round(S * 0.042)}px ${FONT.display}`;
+    ctx.fillStyle = theme.text;
+    ctx.fillText(word, 0, y, w * 0.9);
+  };
+
   if (winner) {
     const info = sc.info(winner.id);
-    const r = S * 0.065;
+    const r = S * (word ? 0.05 : 0.065);
+    const lift = word ? -h * 0.14 : 0;
     ctx.save();
     ctx.shadowColor = info.color;
     ctx.shadowBlur = S * 0.06;
     ctx.beginPath();
-    ctx.arc(0, -h * 0.18, r, 0, Math.PI * 2);
+    ctx.arc(0, -h * 0.18 + lift, r, 0, Math.PI * 2);
     ctx.fillStyle = info.color;
     ctx.fill();
     ctx.restore();
@@ -150,28 +160,24 @@ function drawResult(sc: Scene): void {
     ctx.stroke();
     ctx.fillStyle = '#fff';
     ctx.font = `700 ${Math.round(r)}px ${FONT.ui}`;
-    ctx.fillText(info.initial, 0, -h * 0.18 + 1);
+    ctx.fillText(info.initial, 0, -h * 0.18 + lift + 1);
     ctx.font = `600 ${Math.round(S * 0.03)}px ${FONT.mono}`;
     ctx.fillStyle = theme.accText;
-    ctx.fillText(t(winner.wins === 1 ? (SCORE_WORDS[snapshot.id] ?? METRES).winnerOne : (SCORE_WORDS[snapshot.id] ?? METRES).winnerOther, { m: winner.meters, w: winner.wins }), 0, h * 0.08);
+    ctx.fillText(t(winner.wins === 1 ? (SCORE_WORDS[snapshot.id] ?? METRES).winnerOne : (SCORE_WORDS[snapshot.id] ?? METRES).winnerOther, { m: winner.meters, w: winner.wins }), 0, h * 0.08 + lift);
     ctx.font = `800 ${Math.round(S * 0.068)}px ${FONT.display}`;
     ctx.fillStyle = theme.text;
-    ctx.fillText(winner.id === sc.me ? t('spin.lobby.hud.youWin') : t('spin.lobby.hud.nameWins', { name: info.name }), 0, h * 0.26, w * 0.9);
+    ctx.fillText(winner.id === sc.me ? t('spin.lobby.hud.youWin') : t('spin.lobby.hud.nameWins', { name: info.name }), 0, h * 0.26 + lift, w * 0.9);
+    drawWord(h * 0.43);
   } else {
     ctx.font = `600 ${Math.round(S * 0.03)}px ${FONT.mono}`;
     ctx.fillStyle = theme.accText;
-    ctx.fillText(t((SCORE_WORDS[snapshot.id] ?? METRES).over, { m: snapshot.history[snapshot.history.length - 1]?.meters ?? snapshot.meters }), 0, -h * 0.08);
+    ctx.fillText(t((SCORE_WORDS[snapshot.id] ?? METRES).over, { m: snapshot.history[snapshot.history.length - 1]?.meters ?? snapshot.meters }), 0, word ? -h * 0.2 : -h * 0.08);
     ctx.font = `800 ${Math.round(S * 0.068)}px ${FONT.display}`;
     ctx.fillStyle = theme.text;
     // Alone in Words (no winner is ever named), finding the word is still a win.
     const solved = snapshot.id === 'words' && snapshot.players.some((p) => p.id === sc.me && p.solved);
-    ctx.fillText(t(solved ? 'spin.lobby.words.solved' : 'spin.lobby.hud.nobody'), 0, h * 0.12, w * 0.9);
-  }
-  // Games with a secret (Words) show it under the card once the run is over, whoever won.
-  if (snapshot.id === 'words' && snapshot.answer) {
-    ctx.font = `800 ${Math.round(S * 0.05)}px ${FONT.display}`;
-    ctx.fillStyle = theme.text;
-    ctx.fillText(t('spin.lobby.words.answer', { word: snapshot.answer.toUpperCase() }), 0, h / 2 + S * 0.06, w);
+    ctx.fillText(t(solved ? 'spin.lobby.words.solved' : 'spin.lobby.hud.nobody'), 0, word ? -h * 0.0 : h * 0.12, w * 0.9);
+    drawWord(h * 0.3);
   }
   ctx.restore();
 }
