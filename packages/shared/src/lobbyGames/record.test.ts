@@ -1,8 +1,8 @@
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import { LOBBY_GAME_IDS, LOBBY_HISTORY_LENGTH, type LobbyGameId } from '../spinLobby.js';
 import { DodgeGame } from './dodge.js';
 import { createLobbyGame, pickLobbyGame } from './index.js';
-import { LobbyRecord } from './roundGame.js';
+import { LobbyRecord, secureRandom } from './roundGame.js';
 import { RunnerGame } from './runner.js';
 
 const STEP = 33;
@@ -169,5 +169,28 @@ describe('pickLobbyGame', () => {
     const b = createLobbyGame('dodge', record);
     b.join('me');
     expect(b.snapshot().run).toBe(2);
+  });
+});
+
+describe('randomness', () => {
+  it('draws secure numbers spread evenly over [0, 1)', () => {
+    const draws = Array.from({ length: 20_000 }, secureRandom);
+    expect(draws.every((r) => r >= 0 && r < 1)).toBe(true);
+    for (let q = 0; q < 4; q++) expect(draws.filter((r) => Math.floor(r * 4) === q).length).toBeGreaterThan(4500);
+  });
+
+  it('never seeds a run, picks the next game or fills bots from Math.random', () => {
+    const spy = vi.spyOn(Math, 'random');
+    try {
+      for (const id of LOBBY_GAME_IDS) {
+        const g = createLobbyGame(id);
+        g.join('a');
+        run(g, 3200);
+        pickLobbyGame(undefined, id);
+      }
+      expect(spy).not.toHaveBeenCalled();
+    } finally {
+      spy.mockRestore();
+    }
   });
 });

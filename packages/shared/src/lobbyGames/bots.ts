@@ -2,6 +2,7 @@ import type { LobbyGameId, LobbyGameSnapshot, LobbyRunScore } from '../spinLobby
 import { battleshipsBrain } from './battleships.js';
 import { drawBrain } from './draw.js';
 import { redLightBrain } from './redlight.js';
+import { secureRandom } from './roundGame.js';
 import { sumoBrain } from './sumo.js';
 import type { BotBrain, LobbyGame } from './types.js';
 
@@ -162,7 +163,7 @@ export class BotFiller implements LobbyGame {
 }
 
 /** Gives a game its bots if it needs more than one player, and returns it unchanged if not. */
-export function withBots(game: LobbyGame, rng: () => number = Math.random): LobbyGame {
+export function withBots(game: LobbyGame, rng: () => number = secureRandom): LobbyGame {
   const min = game.minPlayers ?? 1;
   const brain = BRAINS[game.id];
   if (game instanceof BotFiller || min <= 1 || !brain) return game;

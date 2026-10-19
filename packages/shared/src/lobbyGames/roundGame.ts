@@ -48,6 +48,16 @@ export interface RoundPlayer {
   outAtMeters: number;
 }
 
+/** A number in [0, 1) from the cryptographic source. Seeds and anything hidden come from here, never
+ * Math.random, whose state can be worked out from a few outputs (see "Randomness and secrets" in docs/minigames.md). */
+export function secureRandom(): number {
+  // 52 random mantissa bits under a fixed exponent make a double in [1, 2), so every value is equally likely
+  // (no division or rounding of the random bits). Little-endian: word 1 is the high half.
+  const words = globalThis.crypto.getRandomValues(new Uint32Array(2));
+  words[1] = (words[1] >>> 12) | 0x3ff00000;
+  return new Float64Array(words.buffer)[0] - 1;
+}
+
 /** A small seeded generator, so a course is the same for everyone and tests can replay one. */
 export function mulberry32(seed: number): () => number {
   let a = seed >>> 0;
@@ -96,7 +106,7 @@ export abstract class RoundGame<P extends RoundPlayer> implements LobbyGame {
   onRunScores: ((scores: LobbyRunScore[]) => void) | undefined;
 
   constructor(
-    protected readonly seedSource: () => number = Math.random,
+    protected readonly seedSource: () => number = secureRandom,
     /** The run number, results and wins, shared with whichever games the lobby plays. */
     protected readonly record: LobbyRecord = new LobbyRecord(),
   ) {
