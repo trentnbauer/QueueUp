@@ -25,7 +25,7 @@ interface NotifyRoomInput {
   // RoomActivityType, not just documented as one.
   type: Exclude<
     NotificationType,
-    'room_deleted' | 'room_restored' | 'price_drop' | 'release_watch' | 'playtime_mark_playing' | 'playnite_sync_reminder' | 'wishlist_bundle_deal' | 'play_together_request' | 'feed_reaction' | 'friend_recommendation' | 'good_time_to_buy' | 'account_change' | 'library_sync_error' | 'library_sync_available' | 'platform_unowned' | 'room_game_beaten' | 'merge_suggestions' | 'sensitive_games' | 'admin_report' | 'admin_unban_request' | 'admin_backup_failed' | 'ai_error' | 'ai_update'
+    'room_deleted' | 'room_restored' | 'price_drop' | 'release_watch' | 'playtime_mark_playing' | 'playnite_sync_reminder' | 'wishlist_bundle_deal' | 'play_together_request' | 'feed_reaction' | 'friend_recommendation' | 'good_time_to_buy' | 'account_change' | 'library_sync_error' | 'library_sync_available' | 'platform_unowned' | 'room_game_beaten' | 'minigame_beaten' | 'merge_suggestions' | 'sensitive_games' | 'admin_report' | 'admin_unban_request' | 'admin_backup_failed' | 'ai_error' | 'ai_update'
   >;
   message: (actorName: string) => string;
   /** The game event's structured detail, for the room's play journal. */
@@ -276,6 +276,22 @@ export async function notifyLibrarySyncError(userId: string, source: string, rea
   }
 }
 
+/** Tells a person a friend's new run beat their high score in a mini game. Direct, from the friend, and carries the game's id so the bell
+ * can open it on the Mini games page. If an earlier one for the same game is still unread it is refreshed with the latest friend and scores
+ * instead of a second piling up beside it. Failures are logged and swallowed (high scores never get in the way of a lobby). */
+export async function notifyMiniGameBeaten(userId: string, actorId: string, game: string, message: string): Promise<void> {
+  try {
+    const existing = await prisma.notification.findFirst({ where: { recipientId: userId, type: 'minigame_beaten', miniGameId: game, readAt: null }, select: { id: true } });
+    if (existing) {
+      await prisma.notification.update({ where: { id: existing.id }, data: { actorId, message, createdAt: new Date() } });
+      return;
+    }
+    await prisma.notification.create({ data: { recipientId: userId, actorId, roomName: 'Mini games', type: 'minigame_beaten', miniGameId: game, message } });
+  } catch (err) {
+    console.error('[notifications] failed to write mini-game-beaten notification', err);
+  }
+}
+
 /** Tells a person a wishlist game is at a good price (near its lowest, or well under its usual
  * price). Direct and tied to their copy of the game so the bell can open it. If an earlier alert for
  * the same game is still unread, that row is refreshed with the new price instead of a second one
@@ -473,6 +489,7 @@ export function serializeNotification(row: NotificationWithActor, currentUserId:
     read,
     gameId: row.gameId,
     platform: row.platform,
+    miniGame: row.miniGameId,
   };
 }
 

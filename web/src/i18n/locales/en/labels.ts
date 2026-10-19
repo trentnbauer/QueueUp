@@ -71,6 +71,7 @@ export const labels = {
   "labels.emailAlert.good_time_to_buy": "Good time to buy",
   "labels.emailAlert.account_change": "Changes to your account",
   "labels.emailAlert.room_game_beaten": "Room games to review after someone beats them",
+  "labels.emailAlert.minigame_beaten": "A friend beats your mini game high score",
   "labels.region.us": "US ($)",
   "labels.region.gb": "UK (£)",
   "labels.region.eu": "EU (€)",

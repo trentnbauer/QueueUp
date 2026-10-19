@@ -32,6 +32,7 @@ export const social: Record<keyof typeof en, string> = {
   "social.notifications.personalShelf": "Yer Treasure Chest",
   "social.notifications.administration": "Captain's quarters",
   "social.notifications.libraries": "Library sync",
+  "social.notifications.miniGames": "Deck games",
   "social.notifications.announcement": "Hear ye",
   "social.notifications.empty": "Calm seas, ye’re all caught up. Games stowed, crew changes an’ ship news will wash up here.",
 

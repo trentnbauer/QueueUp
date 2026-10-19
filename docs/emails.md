@@ -68,6 +68,7 @@ sees in Settings > Notifications. Example lines are the real wording.
 | `friend_recommendation` | Games your friends rate highly | `{name} rated "{game}" 4.5/5 - it's on your list` |
 | `account_change` | Changes to your account | `Your email address for alerts was changed to {email}.` / `{provider} was linked as a sign-in method for your account.` |
 | `room_game_beaten` | Room games to review after someone beats them | `{name} marked "{game}" as Beaten in {room}. Review it and mark it Beaten on your shelf?` |
+| `minigame_beaten` | A friend beats your mini game high score | `{name} beat your {game} high score: {their score} to your {your score}` |
 
 Not emailed, ever: room-scoped notifications and other direct alerts without a toggle (for example
 library sync errors).

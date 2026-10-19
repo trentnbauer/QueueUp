@@ -165,6 +165,13 @@ export function NotificationsDialog() {
       navigate('/admin');
       return;
     }
+    // A friend beat your mini game high score: the Mini games page, with that game picked, ready to take it back.
+    if (n.type === 'minigame_beaten') {
+      if (notifications.length > 0) markAllRead();
+      ui.closeDialog('notifications');
+      navigate(n.miniGame ? `/games?game=${encodeURIComponent(n.miniGame)}` : '/games');
+      return;
+    }
     // A failed library sync: straight to Settings › Libraries, where it can be fixed or tried again.
     if (n.type === 'library_sync_error' || n.type === 'library_sync_available') {
       if (notifications.length > 0) markAllRead();
@@ -302,10 +309,12 @@ export function NotificationsDialog() {
             ? t('social.notifications.administration')
             : n.type === 'library_sync_error' || n.type === 'library_sync_available'
               ? t('social.notifications.libraries')
-              : SHELF_TYPES.includes(n.type)
+              : n.type === 'minigame_beaten'
+                ? t('social.notifications.miniGames')
+                : SHELF_TYPES.includes(n.type)
                 ? t('social.notifications.personalShelf')
                 : t('social.notifications.announcement');
-        const clickable = !!n.roomId || ADMIN_TYPES.includes(n.type) || n.type === 'library_sync_error' || n.type === 'library_sync_available' || SHELF_TYPES.includes(n.type);
+        const clickable = !!n.roomId || ADMIN_TYPES.includes(n.type) || n.type === 'library_sync_error' || n.type === 'library_sync_available' || n.type === 'minigame_beaten' || SHELF_TYPES.includes(n.type);
         return (
           <Fragment key={n.id}>
           <button

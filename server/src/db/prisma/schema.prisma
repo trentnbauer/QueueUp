@@ -193,6 +193,10 @@ enum NotificationType {
   /// their own shelf too. Direct (recipientId), but also carries roomId and gameId so the toast can
   /// open the game in its room - room-scoped unread queries skip rows with a recipientId.
   room_game_beaten
+  /// A friend's new mini game run beat this person's high score in that game (see recordRunScores in
+  /// services/miniGameScores.ts). Direct (recipientId), actorId is the friend, miniGameId says which
+  /// game so the bell can open it on the Mini games page.
+  minigame_beaten
   /// The AI duplicate finder finished and found games on the shelf that can be merged into their
   /// originals. Direct (recipientId), no actor; the toast and bell entry open the Find duplicates
   /// dialog. See notifyMergeSuggestions in services/notifications.ts.
@@ -1623,6 +1627,8 @@ model Notification {
   gameId      String?          @map("game_id")
   /// The console a platform_unowned notification is about.
   platform    RoomPlatform?    @map("platform")
+  /// The mini game a minigame_beaten notification is about (a LobbyGameId).
+  miniGameId  String?          @map("mini_game_id")
 
   room      Room? @relation(fields: [roomId], references: [id], onDelete: Cascade)
   recipient User? @relation("NotificationRecipient", fields: [recipientId], references: [id], onDelete: Cascade)

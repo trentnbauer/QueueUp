@@ -16,6 +16,8 @@ Mini games are **cosmetic**: nothing in them changes which game a spin picks.
 
 The **Mini games** page keeps a high score list for every game: your best run, your friends' and everyone's, for all time or the last 7 days. Every run counts, wherever it is played: solo, a room's mini game, or a spin's waiting room. People tied on a score share the place, and people you have blocked (or who blocked you) never show. **Solo practice runs on the server too**, in a private lobby of one that nobody else can see or join, so every score on the lists is one the server saw happen: there is no way to post a score from a browser. (The games that work out your own movement on your device are worked out by the server in practice, and their lobby scores stay off the lists; see "Ping and who works out what".)
 
+**Beaten alerts.** When a friend's new run beats **your** best in a game, you get a notification: *"{friend} beat your {game} high score: 80 to your 50"*. Opening it takes you to the Mini games page with that game picked, ready to take your score back. Only runs that reach the high score lists count (so only verified ones), only friends are told, and never someone who has blocked or been blocked by the player. The run that first gets past your best is the one you are told about (a friend who is already ahead and keeps improving does not tell you again), people who played the same run are not told, and an unread alert for the same game is refreshed rather than stacked. It is on by default; **Settings › Notifications** can turn it off in the app or send it by email ("A friend beats your mini game high score").
+
 ## Open lobbies
 
 From the **Mini games** page anyone can **Open a lobby** without a room, and play it with whoever joins. Choose who can join:

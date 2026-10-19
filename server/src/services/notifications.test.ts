@@ -12,10 +12,16 @@ const BASE = {
   actor: null,
   gameId: null,
   platform: null,
+  miniGameId: null,
   emailedAt: null,
 };
 
 describe('serializeNotification', () => {
+  it('carries the mini game a high score alert is about, so it can open that game', () => {
+    const row = { ...BASE, type: 'minigame_beaten' as const, miniGameId: 'runner', roomId: null, recipientId: VIEWER, readAt: null, createdAt: new Date('2026-01-01T10:00:00Z') };
+    expect(serializeNotification(row, VIEWER, new Map())).toMatchObject({ type: 'minigame_beaten', miniGame: 'runner' });
+  });
+
   it('is read once the room member has read past its createdAt', () => {
     const row = { ...BASE, roomId: 'room-1', recipientId: null, readAt: null, createdAt: new Date('2026-01-01T10:00:00Z') };
     const cutoffs = new Map([['room-1', { notificationsReadAt: new Date('2026-01-01T11:00:00Z'), joinedAt: new Date('2026-01-01T00:00:00Z') }]]);

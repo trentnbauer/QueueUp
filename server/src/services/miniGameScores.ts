@@ -1,8 +1,10 @@
 import { Prisma } from '@prisma/client';
-import { LOBBY_GAME_IDS, MINIGAME_LAST_RUNS, MINIGAME_LEADERBOARD_SIZE, MINIGAME_SCORE_MAX, MINIGAME_WEEK_MS, lowerIsBetter, miniGameVersion, minScoreOf, type LobbyGameId, type LobbyRunScore, type MiniGameBestsResponse, type MiniGameMeResponse, type MiniGameScorePeriod, type MiniGameScoreRow, type MiniGameScoreScope, type MiniGameScoreSource, type MiniGameScoresResponse } from '@queueup/shared';
+import { LOBBY_GAME_IDS, MINIGAME_LAST_RUNS, MINIGAME_LEADERBOARD_SIZE, MINIGAME_NAMES, MINIGAME_SCORE_MAX, MINIGAME_WEEK_MS, formatMiniGameScore, lowerIsBetter, miniGameVersion, minScoreOf, scoreBeats, type LobbyGameId, type LobbyRunScore, type MiniGameBestsResponse, type MiniGameMeResponse, type MiniGameScorePeriod, type MiniGameScoreRow, type MiniGameScoreScope, type MiniGameScoreSource, type MiniGameScoresResponse } from '@queueup/shared';
 import { prisma } from '../db/client.js';
 import { blockedIdsOf } from './blocks.js';
 import { friendIdsOf } from './friendships.js';
+import { notifyMiniGameBeaten } from './notifications.js';
+import { wantsAlert } from './notificationPreferences.js';
 
 export function isLobbyGameId(v: unknown): v is LobbyGameId {
   return typeof v === 'string' && (LOBBY_GAME_IDS as readonly string[]).includes(v);
@@ -19,10 +21,56 @@ export function isPlausibleScore(game: LobbyGameId, score: unknown): score is nu
 export async function recordRunScores(game: LobbyGameId, source: MiniGameScoreSource, scores: LobbyRunScore[], roomId?: string, verified = true): Promise<void> {
   const data = scores.filter((s) => isPlausibleScore(game, s.score)).map((s) => ({ userId: s.userId, gameId: game, score: s.score, version: miniGameVersion(game), verified, source, roomId: roomId ?? null }));
   if (data.length === 0) return;
+  // Each person's best before these runs, to tell which of their friends the new ones beat (only runs that reach the lists can).
+  const before = verified ? await bestsOf(data.map((d) => d.userId), game).catch(() => null) : null;
   try {
     await prisma.miniGameScore.createMany({ data });
   } catch (err) {
     console.error('Could not save mini game scores', err);
+    return;
+  }
+  if (before) void notifyBeatenFriends(game, data.map((d) => ({ userId: d.userId, score: d.score })), before);
+}
+
+/** The best score each of these people has for the game (this version, verified), by person; nobody with none. */
+async function bestsOf(userIds: string[], game: LobbyGameId): Promise<Map<string, number>> {
+  const lower = lowerIsBetter(game);
+  const rows = await prisma.miniGameScore.groupBy({
+    by: ['userId'],
+    where: { userId: { in: userIds }, gameId: game, version: miniGameVersion(game), verified: true, score: { gte: minScoreOf(game) } },
+    _max: { score: true },
+    _min: { score: true },
+  });
+  const bests = new Map<string, number>();
+  for (const r of rows) {
+    const v = lower ? r._min.score : r._max.score;
+    if (v !== null) bests.set(r.userId, v);
+  }
+  return bests;
+}
+
+/** Tells each friend whose high score a new run beat. Only the run that first gets past a friend's best counts (if the person already
+ * beat it with an earlier run, the friend has been told), and only friends who have a score, who have not blocked them, who were not in
+ * the same run and who want the alert. Never throws. */
+async function notifyBeatenFriends(game: LobbyGameId, runs: { userId: string; score: number }[], before: Map<string, number>): Promise<void> {
+  try {
+    for (const run of runs) {
+      const previous = before.get(run.userId);
+      const [friends, blocked] = await Promise.all([friendIdsOf(run.userId), blockedIdsOf(run.userId)]);
+      // People who played this run with them have just seen the result, so they are not told.
+      const candidates = friends.filter((id) => !blocked.includes(id) && !runs.some((r) => r.userId === id));
+      if (candidates.length === 0) continue;
+      const theirs = await bestsOf(candidates, game);
+      const beaten = [...theirs].filter(([, best]) => scoreBeats(game, run.score, best) && !(previous !== undefined && scoreBeats(game, previous, best)));
+      if (beaten.length === 0) continue;
+      const me = await prisma.user.findUnique({ where: { id: run.userId }, select: { displayName: true } });
+      for (const [friendId, best] of beaten) {
+        if (!(await wantsAlert(friendId, 'minigame_beaten'))) continue;
+        await notifyMiniGameBeaten(friendId, run.userId, game, `${me?.displayName ?? 'A friend'} beat your ${MINIGAME_NAMES[game]} high score: ${formatMiniGameScore(game, run.score)} to your ${formatMiniGameScore(game, best)}`);
+      }
+    }
+  } catch (err) {
+    console.error('Could not tell friends their mini game high score was beaten', err);
   }
 }
 
