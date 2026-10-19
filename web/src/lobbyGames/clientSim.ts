@@ -76,6 +76,9 @@ export class ClientSim {
     private readonly me: string,
     private readonly clock: ClockSync,
     private readonly send: (message: LobbyClientMessage) => void,
+    /** The server works this player out itself (a practice lobby): the copy here is only for drawing, so presses are
+     * still sent to the server and nothing is reported. */
+    private readonly serverRuns = false,
   ) {}
 
   /** A snapshot arrived from the server. */
@@ -116,14 +119,14 @@ export class ClientSim {
     this.held = { dx, dy };
     if (!this.local || !this.pending) return false;
     if (this.running) this.local.input(this.me, dx, dy);
-    return true;
+    return !this.serverRuns;
   }
 
   /** A one-off move such as a jump. True if the copy here took it, false if the server should be told. */
   action(name: string): boolean {
     if (!this.local || !this.pending) return false;
     if (this.running) this.local.action(this.me, name);
-    return true;
+    return !this.serverRuns;
   }
 
   /** The snapshot to draw at `perfNow` (this device's `performance.now()`): the server's, with this
@@ -151,7 +154,7 @@ export class ClientSim {
       const target = now - pending.startAt;
       for (let i = 0; i < MAX_CATCH_UP_STEPS && (local.runMs ?? 0) + FIXED_DT * 1000 <= target; i++) local.stepRun?.(FIXED_DT);
     }
-    if (this.participating) this.report(perfNow, game);
+    if (this.participating && !this.serverRuns) this.report(perfNow, game);
     return this.compose(server, game);
   }
 
