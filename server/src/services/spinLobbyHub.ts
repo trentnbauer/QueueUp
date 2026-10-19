@@ -79,8 +79,9 @@ export class SpinLobbyHub {
     return this.rooms.get(roomId)?.lobby.present ?? [];
   }
 
-  /** `options.game` fixes the game when this opens the lobby (an open lobby that plays just one). */
-  connect(roomId: string, userId: string, socket: LobbySocket, options: { game?: LobbyGameId | null } = {}): void {
+  /** `options.game` fixes the game when this opens the lobby (an open lobby that plays just one); `options.timeLimit` caps
+   * every run the way a spin's waiting room does (an open lobby's own setting). */
+  connect(roomId: string, userId: string, socket: LobbySocket, options: { game?: LobbyGameId | null; timeLimit?: boolean } = {}): void {
     let room = this.rooms.get(roomId);
     // A few tabs is normal; more is a runaway client or abuse.
     if (room && [...room.sockets.values()].filter((id) => id === userId).length >= MAX_CONNECTIONS_PER_USER) {
@@ -101,6 +102,7 @@ export class SpinLobbyHub {
         lastReport: new Map(),
       };
       room = created;
+      if (options.timeLimit) created.lobby.setTimeLimit(LOBBY_WAITING_ROOM_LIMIT_S);
       this.rooms.set(roomId, created);
       if (this.options.autoTick !== false) {
         created.timer = setInterval(() => void this.tickRoom(roomId), Math.round(1000 / LOBBY_TICK_HZ));

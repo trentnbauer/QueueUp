@@ -63,7 +63,7 @@ describe('open lobby routes', () => {
   it('opens a lobby; only an invite-code one has a code, and only its host sees it', async () => {
     const app = await build();
     const pub = await app.inject({ method: 'POST', url: '/api/minigames/lobbies', headers: as('host'), payload: { visibility: 'public', game: null } });
-    expect(pub.json()).toMatchObject({ visibility: 'public', mine: true, code: null, game: null });
+    expect(pub.json()).toMatchObject({ visibility: 'public', mine: true, code: null, game: null, timeLimit: false });
     const priv = (await app.inject({ method: 'POST', url: '/api/minigames/lobbies', headers: as('other'), payload: { visibility: 'code', game: 'runner' } })).json();
     expect(priv.code).toMatch(/^[A-Z0-9]{3}-[A-Z0-9]{3}$/);
     expect(priv.game).toBe('runner');
@@ -124,6 +124,15 @@ describe('open lobby routes', () => {
     expect(joined.json().code).toBeNull();
     expect((await app.inject({ method: 'GET', url, headers: as('guest') })).statusCode).toBe(200);
     await app.close();
+  });
+
+  it('opens a lobby with the 30 second time limit on or off, off unless asked', async () => {
+    const app = await build();
+    const on = await app.inject({ method: 'POST', url: '/api/minigames/lobbies', headers: as('host'), payload: { visibility: 'public', game: null, timeLimit: true } });
+    expect(on.json().timeLimit).toBe(true);
+    expect(openLobbies.get(on.json().id)?.timeLimit).toBe(true);
+    const off = await app.inject({ method: 'POST', url: '/api/minigames/lobbies', headers: as('other'), payload: { visibility: 'public', game: null, timeLimit: 'yes' } });
+    expect(off.json().timeLimit).toBe(false);
   });
 
   it('lets only the host close a lobby, and closing it ends its connections', async () => {

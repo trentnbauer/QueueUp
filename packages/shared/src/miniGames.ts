@@ -128,6 +128,8 @@ export interface MiniGameLobbyDto {
   visibility: MiniGameLobbyVisibility;
   /** The one game it plays, or null when it picks a random game after every run. */
   game: LobbyGameId | null;
+  /** Every run is capped at `LOBBY_WAITING_ROOM_LIMIT_S` seconds, as in a spin's waiting room. */
+  timeLimit: boolean;
   hostId: string;
   /** You host it. */
   mine: boolean;
@@ -144,6 +146,8 @@ export interface MiniGameLobbiesResponse {
 export interface CreateMiniGameLobbyRequest {
   visibility: MiniGameLobbyVisibility;
   game: LobbyGameId | null;
+  /** Cap every run at 30 seconds, the way a spin's waiting room does. Off when left out. */
+  timeLimit?: boolean;
 }
 
 export interface JoinMiniGameLobbyRequest {
