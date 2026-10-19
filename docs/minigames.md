@@ -169,14 +169,17 @@ A reaction duel on one shared screen. Needs at least 2 players, so on your own a
 
 ## Tilt
 
-One ball on one beam, and everyone pushes it.
+One beam, and everyone has their own ball on it.
 
-- **One shared beam and ball.** Hold left or right to push. The ball goes where the group pushes: the pushes are added up (a push to the right cancels one to the left) and softened by the number of players, so more people push harder, but never in proportion.
-- **The beam wobbles by itself**, slowly at first and more and more as the run goes on, so keep correcting. The beam leans the way the ball is being pushed. The wobble comes from the round's seed, so it is the same for every run of that seed, and it always gets strong enough to end a run (at about a minute alone).
-- **Targets** (green) appear on the beam, up to two at a time, and last 7 seconds. Tip the ball into one and **whoever pushed last** scores 1. The ball is drawn in their colour, so you can see who it would score for.
-- **The run ends when the ball falls off either end** (or after 2 minutes). **Most targets scored wins**; a tie, or scoring nothing, is a draw. Alone it is a high score. Nobody is knocked out.
-- Everyone's points are in the row under the beam, with an arrow for the way each is pushing.
+- **Your own ball.** Hold left or right to push **your** ball (yours has a ring round it). Everyone's balls are on the same beam, each in its owner's colour.
+- **The beam tips toward where the balls are.** It leans toward the balls' average position, so balls bunched on the right tip it right, and a tipped beam pulls **every** ball downhill. The group tips it around together while each person fights to stay on.
+- **The beam also wobbles by itself**, slowly at first and more and more as the run goes on, so keep correcting. The wobble comes from the round's seed, and it always gets strong enough to end a run (at about a minute alone).
+- **Rolling off is out.** A ball that goes past either end drops away and bursts below the arena, and its owner is out (they keep their score and keep watching). The run ends when the last ball is off, or when one ball is left in a run with others.
+- **Targets** (green) appear on the beam, up to two at a time, and last 7 seconds. The **first ball to reach one** scores 1 (the nearest, if two arrive together).
+- **Winning:** most targets scored wins. On a tie, the ball still on the beam wins; otherwise it is a draw, and so is scoring nothing. Alone it is a high score.
+- Everyone's points are in the row under the beam, with an arrow for the way each is pushing; fallen players are dimmed.
 - **Controls:** left and right only.
+
 ## Stacker
 
 One tower and one light for the whole room. Stop the light on the target to climb.
