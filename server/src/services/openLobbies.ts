@@ -17,6 +17,8 @@ export interface OpenLobby {
   game: LobbyGameId | null;
   /** Every run is capped at 30 seconds, as in a spin's waiting room. */
   timeLimit: boolean;
+  /** One person's practice lobby: run by the server (so the scores it saves can be trusted), never listed, and nobody else may join. */
+  solo: boolean;
   /** The 6 code characters (invite-code lobbies only). */
   code: string | null;
   createdAt: number;
@@ -45,8 +47,13 @@ export class OpenLobbyRegistry {
     return [...this.lobbies.values()];
   }
 
+  /** The lobby this person hosts for others to join (their practice lobby is separate, see `soloOf`). */
   hostedBy(userId: string): OpenLobby | undefined {
-    return this.all().find((l) => l.hostId === userId);
+    return this.all().find((l) => l.hostId === userId && !l.solo);
+  }
+
+  soloOf(userId: string): OpenLobby | undefined {
+    return this.all().find((l) => l.hostId === userId && l.solo);
   }
 
   byCode(code: string): OpenLobby | undefined {
@@ -55,18 +62,18 @@ export class OpenLobbyRegistry {
 
   /** Opens a lobby for `hostId`. Someone hosts one at a time, so an earlier one of theirs is replaced (and
    * returned, for the caller to close). Null when the server already has the most it allows. */
-  create(hostId: string, visibility: MiniGameLobbyVisibility, game: LobbyGameId | null, timeLimit = false): { lobby: OpenLobby; replaced?: OpenLobby } | null {
-    const replaced = this.hostedBy(hostId);
+  create(hostId: string, visibility: MiniGameLobbyVisibility, game: LobbyGameId | null, timeLimit = false, solo = false): { lobby: OpenLobby; replaced?: OpenLobby } | null {
+    const replaced = solo ? this.soloOf(hostId) : this.hostedBy(hostId);
     // Checked before the old lobby goes: if there is no room for the new one, the host keeps the one they have
     // (a refusal after deleting it would leave it running with nobody able to reach or close it).
     if (this.lobbies.size - (replaced ? 1 : 0) >= MAX_OPEN_LOBBIES) return null;
     if (replaced) this.lobbies.delete(replaced.id);
     let code: string | null = null;
-    if (visibility === 'code') {
+    if (visibility === 'code' && !solo) {
       do code = newCode();
       while (this.byCode(code));
     }
-    const lobby: OpenLobby = { id: randomUUID(), hostId, visibility, game, timeLimit, code, createdAt: this.now(), allowed: new Set([hostId]) };
+    const lobby: OpenLobby = { id: randomUUID(), hostId, visibility, game, timeLimit, solo, code, createdAt: this.now(), allowed: new Set([hostId]) };
     this.lobbies.set(lobby.id, lobby);
     return { lobby, replaced };
   }

@@ -39,6 +39,7 @@ async function toDto(lobby: OpenLobby, viewerId: string): Promise<MiniGameLobbyD
     visibility: lobby.visibility,
     game: lobby.game,
     timeLimit: lobby.timeLimit,
+    solo: lobby.solo,
     hostId: lobby.hostId,
     mine,
     code: mine && lobby.code ? formatLobbyCode(lobby.code) : null,
@@ -60,6 +61,7 @@ export default async function miniGameLobbyRoutes(app: FastifyInstance) {
     openLobbies.purge((id) => spinLobbyHub.hasMembers(lobbyKey(id)));
     const lobbies: MiniGameLobbyDto[] = [];
     for (const lobby of openLobbies.all()) {
+      if (lobby.solo) continue; // a practice lobby is nobody's business but its player's
       const mine = lobby.hostId === userId;
       // A lobby with nobody in it yet is not worth showing others, and an invite-code one is only shown to its host.
       if (!mine && (lobby.visibility === 'code' || !spinLobbyHub.hasMembers(lobbyKey(lobby.id)))) continue;
@@ -76,13 +78,14 @@ export default async function miniGameLobbyRoutes(app: FastifyInstance) {
 
   app.post<{ Body: CreateMiniGameLobbyRequest }>('/api/minigames/lobbies', { config: { rateLimit: { max: 10, timeWindow: '1 minute' } } }, async (request) => {
     const userId = await request.requireAuth();
-    const { visibility, game, timeLimit } = request.body ?? ({} as Partial<CreateMiniGameLobbyRequest>);
+    const { visibility, game, timeLimit, solo } = request.body ?? ({} as Partial<CreateMiniGameLobbyRequest>);
     if (!MINIGAME_LOBBY_VISIBILITIES.includes(visibility as never)) throw new HttpError(400, 'Unknown visibility');
     if (game !== null && !isLobbyGameId(game)) throw new HttpError(400, 'Unknown game');
+    if (solo === true && !game) throw new HttpError(400, 'A practice lobby needs a game');
     openLobbies.purge((id) => spinLobbyHub.hasMembers(lobbyKey(id)));
-    const made = openLobbies.create(userId, visibility, game ?? null, timeLimit === true);
+    const made = openLobbies.create(userId, visibility, game ?? null, timeLimit === true, solo === true);
     if (!made) throw new HttpError(503, 'Too many lobbies are open. Try again in a moment.');
-    // Starting a new lobby closes the one they were hosting.
+    // Starting a new lobby closes the one they were hosting (a practice lobby replaces only their last practice lobby).
     if (made.replaced) spinLobbyHub.closeRoom(lobbyKey(made.replaced.id));
     return toDto(made.lobby, userId);
   });

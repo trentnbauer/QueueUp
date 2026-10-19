@@ -1,12 +1,12 @@
 import type { FastifyInstance } from 'fastify';
-import type { MiniGameScorePeriod, MiniGameScoreScope, SetMiniGameRatingRequest, SubmitMiniGameScoreRequest } from '@queueup/shared';
+import type { MiniGameScorePeriod, MiniGameScoreScope, SetMiniGameRatingRequest } from '@queueup/shared';
 import { HttpError } from '../util/httpError.js';
 import { isRatingValue, myRatings, setRating } from '../services/miniGameRatings.js';
-import { miniGameVersion } from '@queueup/shared';
-import { isLobbyGameId, isPlausibleScore, leaderboard, myBests, myScores, recordRunScores } from '../services/miniGameScores.js';
+import { isLobbyGameId, leaderboard, myBests, myScores } from '../services/miniGameScores.js';
 
 /** Mini game high scores (see services/miniGameScores.ts). Runs in a room's lobby or waiting room are saved
- * by the lobby itself; a solo run is sent here by the player's own device when it ends. */
+ * by the lobby itself, and so are practice runs (a private lobby of one): the server runs every game, so the only scores it
+ * saves are ones it saw happen. There is no way to post a score. */
 export default async function miniGameRoutes(app: FastifyInstance) {
   app.get<{ Querystring: { game?: string; scope?: string; period?: string } }>(
     '/api/minigames/scores',
@@ -40,20 +40,4 @@ export default async function miniGameRoutes(app: FastifyInstance) {
   });
 
   app.get('/api/minigames/bests', { config: { rateLimit: { max: 60, timeWindow: '1 minute' } } }, async (request) => myBests(await request.requireAuth()));
-
-  app.post<{ Body: SubmitMiniGameScoreRequest }>(
-    '/api/minigames/scores',
-    // A solo run lasts at least a few seconds, so this is generous.
-    { config: { rateLimit: { max: 30, timeWindow: '1 minute' } } },
-    async (request, reply) => {
-      const userId = await request.requireAuth();
-      const { game, score, version } = request.body ?? ({} as Partial<SubmitMiniGameScoreRequest>);
-      if (!isLobbyGameId(game)) throw new HttpError(400, 'Unknown game');
-      // A page that is out of date ran an older version of the game; its score does not belong on this version's list.
-      if (version !== miniGameVersion(game)) throw new HttpError(409, 'This game has been updated: reload the page to play the new version');
-      if (!isPlausibleScore(game, score)) throw new HttpError(400, 'Not a possible score');
-      await recordRunScores(game, 'solo', [{ userId, score }]);
-      return reply.code(204).send();
-    },
-  );
 }

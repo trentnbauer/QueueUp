@@ -135,6 +135,18 @@ describe('open lobby routes', () => {
     expect(off.json().timeLimit).toBe(false);
   });
 
+  it('opens a private practice lobby for one game: not listed, no code, and it needs a game', async () => {
+    const app = await build();
+    const made = await app.inject({ method: 'POST', url: '/api/minigames/lobbies', headers: as('host'), payload: { visibility: 'code', game: 'runner', solo: true } });
+    expect(made.json()).toMatchObject({ solo: true, code: null, game: 'runner', mine: true });
+    // Not in anyone's list, the host's included, and a stranger cannot open it.
+    expect((await app.inject({ method: 'GET', url: '/api/minigames/lobbies', headers: as('host') })).json().lobbies).toEqual([]);
+    expect((await app.inject({ method: 'GET', url: `/api/minigames/lobbies/${made.json().id}`, headers: as('stranger') })).statusCode).toBe(404);
+    // A practice lobby has to name its game.
+    expect((await app.inject({ method: 'POST', url: '/api/minigames/lobbies', headers: as('host'), payload: { visibility: 'code', game: null, solo: true } })).statusCode).toBe(400);
+    await app.close();
+  });
+
   it('lets only the host close a lobby, and closing it ends its connections', async () => {
     const app = await build();
     const made = (await app.inject({ method: 'POST', url: '/api/minigames/lobbies', headers: as('host'), payload: { visibility: 'public', game: null } })).json();

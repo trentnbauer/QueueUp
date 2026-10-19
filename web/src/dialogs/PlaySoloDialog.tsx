@@ -1,5 +1,6 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { LOBBY_GAME_IDS, type LobbyGameId, type RoomMember } from '@queueup/shared';
+import { miniGamesApi } from '../api/miniGames';
 import { useAuth } from '../context/AuthContext';
 import { LOBBY_GAME_VIEWS } from '../lobbyGames';
 import { Dialog } from '../ui/Dialog';
@@ -16,6 +17,29 @@ export function PlaySoloDialog({ initialGame, onClose }: { initialGame: LobbyGam
   const { user } = useAuth();
   const phone = useIsMobile();
   const [game, setGame] = useState<LobbyGameId>(initialGame);
+  // Practice runs on the server, in a private lobby of one, so the scores it saves are the server's own. Picking
+  // another game opens a fresh one (which replaces the last).
+  const [lobby, setLobby] = useState<{ id: string; game: LobbyGameId } | null>(null);
+  const [failed, setFailed] = useState(false);
+  useEffect(() => {
+    let cancelled = false;
+    let opened: string | null = null;
+    setFailed(false);
+    miniGamesApi
+      .openLobby({ visibility: 'code', game, solo: true })
+      .then((l) => {
+        opened = l.id;
+        if (cancelled) void miniGamesApi.closeLobby(l.id).catch(() => {});
+        else setLobby({ id: l.id, game });
+      })
+      .catch(() => {
+        if (!cancelled) setFailed(true);
+      });
+    return () => {
+      cancelled = true;
+      if (opened) void miniGamesApi.closeLobby(opened).catch(() => {});
+    };
+  }, [game]);
   // The panel wants a list of room members: just you.
   const members = useMemo<RoomMember[]>(() => (user ? [{ roomId: '', user, role: 'room_master', joinedAt: '' }] : []), [user]);
   if (!user) return null;
@@ -29,8 +53,12 @@ export function PlaySoloDialog({ initialGame, onClose }: { initialGame: LobbyGam
           </ChipToggle>
         ))}
       </div>
-      {/* Keyed by game, so switching starts a fresh game with fresh effects. */}
-      <LobbyPanel key={game} practiceGame={game} members={members} me={user.id} />
+      {/* Keyed by lobby, so switching starts a fresh game with fresh effects. */}
+      {lobby && lobby.game === game ? (
+        <LobbyPanel key={lobby.id} lobbyId={lobby.id} soloGame={game} members={members} me={user.id} />
+      ) : (
+        <span style={st('padding:24px;text-align:center;color:var(--muted)')}>{failed ? t('games.open.failed') : t('spin.lobby.connecting')}</span>
+      )}
     </Dialog>
   );
 }
