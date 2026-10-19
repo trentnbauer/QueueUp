@@ -14,6 +14,11 @@ const SHOVE_SHOW_MS = 250;
 /** The platform's starting ends (START_L and START_R in the rules), shown faintly so you can see it close in. */
 const START_L = 0.1;
 const START_R = 0.9;
+/** A fallen wrestler drops off the platform for this long, then bursts at the bottom of the arena. */
+const FALL_S = 0.7;
+const FALL_BOTTOM = 0.97;
+/** Where each wrestler who has fallen was when they went, and when (`performance.now()`), by run and id. */
+const falls = new Map<string, { x: number; at: number }>();
 
 function drawWorld(sc: Scene<SumoSnapshot>): void {
   const { ctx, S, snapshot, theme } = sc;
@@ -48,7 +53,20 @@ function drawWorld(sc: Scene<SumoSnapshot>): void {
 
   for (const i of sc.order()) {
     const p = snapshot.players[i];
-    if (!p.alive) continue; // fallen: the burst has taken them
+    if (!p.alive) {
+      // Fallen: they drop away, then the burst at the bottom takes them.
+      if (snapshot.phase === 'playing') {
+        const key = `${snapshot.run}:${p.id}`;
+        if (!falls.has(key)) falls.set(key, { x: p.x, at: sc.now });
+        const f = falls.get(key)!;
+        const t = (sc.now - f.at) / 1000;
+        if (t < FALL_S) {
+          const y = (PLATFORM_Y - RY) + (FALL_BOTTOM - PLATFORM_Y + RY) * (t / FALL_S) ** 2;
+          sc.drawPlayer(p.id, f.x * S, y * S, RX * S, RY * S);
+        }
+      }
+      continue;
+    }
     const cx = sc.ease(p.id, p.x, 0).x * S;
     const ry = RY * S;
     const cy = top - ry;
@@ -90,7 +108,7 @@ function drawWorld(sc: Scene<SumoSnapshot>): void {
 const scene: SceneGame<SumoSnapshot> = {
   scroll: 'x',
   drawWorld,
-  anchor: (snapshot, index) => ({ x: snapshot.players[index].x, y: PLATFORM_Y - RY }),
+  anchor: (snapshot, index) => ({ x: snapshot.players[index].x, y: FALL_BOTTOM, delayS: FALL_S }),
 };
 
 export const sumoView: LobbyGameView<SumoSnapshot> = {
