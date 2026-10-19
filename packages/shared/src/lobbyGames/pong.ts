@@ -1,8 +1,7 @@
-import { PONG_BALL_R, PONG_PADDLE_LENGTH, PONG_PADDLE_THICKNESS, PONG_SEATS, clampDirection, type PongSnapshot } from '../spinLobby.js';
+import { PONG_BALL_R, PONG_PADDLE_LENGTH, PONG_PADDLE_SPEED, PONG_PADDLE_THICKNESS, PONG_SEATS, clampDirection, type PongSnapshot } from '../spinLobby.js';
 import { RoundGame, type RoundPlayer } from './roundGame.js';
 import type { BotBrain } from './types.js';
 
-const PADDLE_SPEED = 0.75;
 const BALL_START = 0.5;
 const BALL_GAIN = 0.035; // per return
 const BALL_MAX = 1.3;
@@ -96,7 +95,7 @@ export class PongGame extends RoundGame<Paddler> {
       timerMs: Math.max(0, Math.round(this.timerMs)),
       winnerId: this.winnerId,
       ...this.summary(),
-      ball: { x: r3(this.bx), y: r3(this.by) },
+      ball: { x: r3(this.bx), y: r3(this.by), vx: this.serveIn > 0 ? 0 : r3(this.vx), vy: this.serveIn > 0 ? 0 : r3(this.vy) },
       serving: this.serveIn > 0,
       players: [...this.players.values()].map((p) => ({ id: p.id, alive: p.alive, wins: p.wins, meters: p.alive ? p.hits : p.outAtMeters, seat: p.seat, pos: r3(p.pos), dir: p.dir })),
     };
@@ -117,7 +116,7 @@ export class PongGame extends RoundGame<Paddler> {
     const half = PONG_PADDLE_LENGTH / 2;
     for (const p of this.players.values()) {
       if (!p.alive || p.seat < 0) continue;
-      p.pos = Math.min(1 - half, Math.max(half, p.pos + p.dir * PADDLE_SPEED * dt));
+      p.pos = Math.min(1 - half, Math.max(half, p.pos + p.dir * PONG_PADDLE_SPEED * dt));
     }
     if (this.serveIn > 0) {
       this.serveIn -= dt;
