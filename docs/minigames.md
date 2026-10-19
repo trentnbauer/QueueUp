@@ -156,6 +156,17 @@ A marker sweeps back and forth along a bar with a target zone. Stop it inside th
 - There is no time limit of its own: it goes on until it is beaten.
 - **Controls:** one button: **Space**, **↑** or **W**, or tap anywhere on the arena.
 
+## Pong rally
+
+One ball on one shared court, and a paddle for each player on their own side. Needs at least 2 players, so on your own a bot plays you.
+
+- **Goal:** don't miss the ball. Players take the sides of the court in turn: bottom, top, left, right (so two players face each other). Slide your paddle to send the ball back. **Miss it and you are out**, and your side becomes a wall. **Last one in wins.**
+- **The ball** starts at 0.5 of the court a second and speeds up a little with every return, to 1.3. Where it lands on your paddle slants the way it goes back: the ends send it off sideways. After a miss, it is served again from the middle after a short pause.
+- **More than four players:** four play at once. Who sits out changes every run, so everyone gets a turn.
+- **Score** (the high score list): your returns. There is no time limit of its own: it goes on until someone is the last one in.
+- **Bots** follow the ball with a lag and a small error, so they can be beaten.
+- **Controls:** left and right only. On the side paddles, left is up and right is down.
+
 ## Rating a game
 
 When a run ends and its result card is showing, a **thumbs up / thumbs down** appears under the arena (in a room's lobby, a spin's waiting room, an open lobby and solo practice alike).
@@ -212,6 +223,7 @@ A game can instead make **the play space the controller**: there are no buttons 
 | Anagram | Click a tile, or press **1-6** to pick one and **Backspace** to take it back. | Tap a tile (⌫ takes one back). |
 | Minesweeper race | Click a square (no keyboard control yet). | Tap a square on the field. |
 | Perfect stop | **Space**, **↑** or **W** to stop. | **Stop**, or tap anywhere on the arena. |
+| Pong rally | **←** / **→** or **A** / **D** to slide your paddle. | The **◀** and **▶** buttons. |
 
 ## Runner
 

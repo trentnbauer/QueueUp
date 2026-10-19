@@ -11,8 +11,8 @@
 export const LOBBY_TICK_HZ = 15;
 
 /** The games the lobby can run. */
-export type LobbyGameId = 'runner' | 'flappy' | 'dodge' | 'rope' | 'coins' | 'battleships' | 'race' | 'whack' | 'draw' | 'tilt' | 'stacker' | 'sumo' | 'asteroids' | 'memory' | 'words' | 'lava' | 'snake' | 'gravity' | 'laser' | 'colormatch' | 'potato' | 'anagram' | 'mines' | 'stop';
-export const LOBBY_GAME_IDS: readonly LobbyGameId[] = ['runner', 'flappy', 'dodge', 'rope', 'coins', 'battleships', 'race', 'whack', 'draw', 'tilt', 'stacker', 'sumo', 'asteroids', 'memory', 'words', 'lava', 'snake', 'gravity', 'laser', 'colormatch', 'potato', 'anagram', 'mines', 'stop'];
+export type LobbyGameId = 'runner' | 'flappy' | 'dodge' | 'rope' | 'coins' | 'battleships' | 'race' | 'whack' | 'draw' | 'tilt' | 'stacker' | 'sumo' | 'asteroids' | 'memory' | 'words' | 'lava' | 'snake' | 'gravity' | 'laser' | 'colormatch' | 'potato' | 'anagram' | 'mines' | 'stop' | 'pong';
+export const LOBBY_GAME_IDS: readonly LobbyGameId[] = ['runner', 'flappy', 'dodge', 'rope', 'coins', 'battleships', 'race', 'whack', 'draw', 'tilt', 'stacker', 'sumo', 'asteroids', 'memory', 'words', 'lava', 'snake', 'gravity', 'laser', 'colormatch', 'potato', 'anagram', 'mines', 'stop', 'pong'];
 
 /** What a client sends. Anything else is ignored. */
 export type LobbyClientMessage =
@@ -1269,8 +1269,49 @@ export interface StopSnapshot extends RoundSummary {
   winnerId: string | null;
 }
 
+// ---- Pong rally (one ball on a shared court; a paddle on each side; miss it and you are out) --------
+
+/** A paddle on each of up to four sides (0 bottom, 1 top, 2 left, 3 right), and their size as fractions of the court. */
+export const PONG_SEATS = 4;
+export const PONG_PADDLE_LENGTH = 0.2;
+export const PONG_PADDLE_THICKNESS = 0.035;
+export const PONG_BALL_R = 0.022;
+
+export interface PongPlayer {
+  id: string;
+  /** Still in. False once they missed the ball, or if they arrived mid-run or are sitting this run out. */
+  alive: boolean;
+  /** Runs won since this person joined the lobby. */
+  wins: number;
+  /** Returns they made this run: live while in, final once out. */
+  meters: number;
+  /** Which side is theirs this run (0 bottom, 1 top, 2 left, 3 right), or -1 if they are not playing. */
+  seat: number;
+  /** Where the middle of their paddle is along their side (0..1). */
+  pos: number;
+  /** The direction they are holding: -1, 0 or 1 (on the left and right sides, -1 is up). */
+  dir: number;
+}
+
+export interface PongSnapshot extends RoundSummary {
+  id: 'pong';
+  phase: LobbyRoundPhase;
+  /** Returns so far this run, by everyone. */
+  meters: number;
+  /** Always 0: nothing scrolls past in this game (every snapshot carries a course speed). */
+  speed: number;
+  ball: { x: number; y: number };
+  /** The ball is waiting in the middle for a serve. */
+  serving: boolean;
+  players: PongPlayer[];
+  /** Milliseconds left in `countdown` or `over`; 0 otherwise. */
+  timerMs: number;
+  /** Who won the run that just ended (`over` only); null when nobody did (everyone out together). */
+  winnerId: string | null;
+}
+
 /** The snapshot of whichever game is running. */
-export type LobbyGameSnapshot = RunnerSnapshot | FlappySnapshot | DodgeSnapshot | RopeSnapshot | CoinsSnapshot | BattleshipsSnapshot | RaceSnapshot | WhackSnapshot | DrawSnapshot | TiltSnapshot | StackerSnapshot | SumoSnapshot | AsteroidsSnapshot | MemorySnapshot | WordsSnapshot | LavaSnapshot | SnakeSnapshot | GravitySnapshot | LaserSnapshot | ColorMatchSnapshot | PotatoSnapshot | AnagramSnapshot | MinesSnapshot | StopSnapshot;
+export type LobbyGameSnapshot = RunnerSnapshot | FlappySnapshot | DodgeSnapshot | RopeSnapshot | CoinsSnapshot | BattleshipsSnapshot | RaceSnapshot | WhackSnapshot | DrawSnapshot | TiltSnapshot | StackerSnapshot | SumoSnapshot | AsteroidsSnapshot | MemorySnapshot | WordsSnapshot | LavaSnapshot | SnakeSnapshot | GravitySnapshot | LaserSnapshot | ColorMatchSnapshot | PotatoSnapshot | AnagramSnapshot | MinesSnapshot | StopSnapshot | PongSnapshot;
 
 /** What a client needs to run its own player on a course the server decided: which run, the seed that
  * makes the course, and how long until the run starts (negative once it has, by how far in). */
