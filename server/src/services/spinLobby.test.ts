@@ -338,3 +338,14 @@ describe('SpinLobby picking games by how much each has been played', () => {
     expect(moving.snapshot(false).game.id).toBe('sumo');
   });
 });
+
+describe('SpinLobby time limit', () => {
+  it('caps a run when asked, and lifts the cap again', () => {
+    const lobby = new SpinLobby(createLobbyGame('sumo'));
+    lobby.join('a');
+    lobby.setTimeLimit(LOBBY_WAITING_ROOM_LIMIT_S);
+    expect(lobby.snapshot(false).game.limitMs).toBe(LOBBY_WAITING_ROOM_LIMIT_S * 1000);
+    lobby.setTimeLimit(null);
+    expect(lobby.snapshot(false).game.limitMs).toBe(0);
+  });
+});

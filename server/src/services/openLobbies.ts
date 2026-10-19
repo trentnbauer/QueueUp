@@ -15,6 +15,8 @@ export interface OpenLobby {
   visibility: MiniGameLobbyVisibility;
   /** One fixed game, or null for a random one after every run. */
   game: LobbyGameId | null;
+  /** Every run is capped at 30 seconds, as in a spin's waiting room. */
+  timeLimit: boolean;
   /** The 6 code characters (invite-code lobbies only). */
   code: string | null;
   createdAt: number;
@@ -53,7 +55,7 @@ export class OpenLobbyRegistry {
 
   /** Opens a lobby for `hostId`. Someone hosts one at a time, so an earlier one of theirs is replaced (and
    * returned, for the caller to close). Null when the server already has the most it allows. */
-  create(hostId: string, visibility: MiniGameLobbyVisibility, game: LobbyGameId | null): { lobby: OpenLobby; replaced?: OpenLobby } | null {
+  create(hostId: string, visibility: MiniGameLobbyVisibility, game: LobbyGameId | null, timeLimit = false): { lobby: OpenLobby; replaced?: OpenLobby } | null {
     const replaced = this.hostedBy(hostId);
     if (replaced) this.lobbies.delete(replaced.id);
     if (this.lobbies.size >= MAX_OPEN_LOBBIES) return null;
@@ -62,7 +64,7 @@ export class OpenLobbyRegistry {
       do code = newCode();
       while (this.byCode(code));
     }
-    const lobby: OpenLobby = { id: randomUUID(), hostId, visibility, game, code, createdAt: this.now(), allowed: new Set([hostId]) };
+    const lobby: OpenLobby = { id: randomUUID(), hostId, visibility, game, timeLimit, code, createdAt: this.now(), allowed: new Set([hostId]) };
     this.lobbies.set(lobby.id, lobby);
     return { lobby, replaced };
   }

@@ -23,6 +23,7 @@ export function OpenLobbyDialog({ onClose, onOpened }: { onClose: () => void; on
   const { privateInstance } = useFriends();
   const [visibility, setVisibility] = useState<MiniGameLobbyVisibility>('public');
   const [game, setGame] = useState<LobbyGameId | null>(null);
+  const [timeLimit, setTimeLimit] = useState(false);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const options = WHO.filter((o) => !(privateInstance && o.value === 'friends'));
@@ -31,7 +32,7 @@ export function OpenLobbyDialog({ onClose, onOpened }: { onClose: () => void; on
     setBusy(true);
     setError(null);
     try {
-      onOpened(await miniGamesApi.openLobby({ visibility, game }));
+      onOpened(await miniGamesApi.openLobby({ visibility, game, timeLimit }));
     } catch (e) {
       setError(e instanceof Error && e.message ? e.message : t('games.open.failed'));
       setBusy(false);
@@ -104,6 +105,16 @@ export function OpenLobbyDialog({ onClose, onOpened }: { onClose: () => void; on
             {t(LOBBY_GAME_VIEWS[id].nameKey)}
           </ChipToggle>
         ))}
+      </div>
+      <Kicker>{t('games.open.timeLimit')}</Kicker>
+      <span style={st('font:400 12.5px/1.4 var(--font-ui);color:var(--muted)')}>{t(timeLimit ? 'games.open.timeLimitOnSub' : 'games.open.timeLimitOffSub')}</span>
+      <div style={st('display:flex;gap:6px')} role="group" aria-label={t('games.open.timeLimit')}>
+        <ChipToggle on={!timeLimit} height={36} onClick={() => setTimeLimit(false)}>
+          {t('games.open.timeLimitOff')}
+        </ChipToggle>
+        <ChipToggle on={timeLimit} height={36} onClick={() => setTimeLimit(true)}>
+          {t('games.open.timeLimitOn')}
+        </ChipToggle>
       </div>
     </Dialog>
   );
