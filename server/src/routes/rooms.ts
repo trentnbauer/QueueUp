@@ -13,7 +13,7 @@ import { logAdminAction } from '../services/adminAuditLog.js';
 import { requireSuperAdmin } from '../services/adminAccess.js';
 import { notifyRoom, notifyRoomMembersDirect } from '../services/notifications.js';
 import { unlockBadges, unlockFeatureBadges } from '../services/badges.js';
-import { logRoomActivity, getRoomActivityPage, encodeActivityCursor, decodeActivityCursor } from '../services/roomActivity.js';
+import { DISCORD_WEBHOOK_URL, logRoomActivity, getRoomActivityPage, encodeActivityCursor, decodeActivityCursor } from '../services/roomActivity.js';
 import type {
   CreateRoomRequest,
   DeletedRoomSummary,
@@ -419,7 +419,7 @@ export default async function roomRoutes(app: FastifyInstance) {
     if (
       discordWebhookUrl !== undefined &&
       discordWebhookUrl !== null &&
-      (typeof discordWebhookUrl !== 'string' || !/^https:\/\/discord(app)?\.com\/api\/webhooks\/\d+\/[\w-]+$/.test(discordWebhookUrl))
+      (typeof discordWebhookUrl !== 'string' || !DISCORD_WEBHOOK_URL.test(discordWebhookUrl))
     ) {
       throw new HttpError(400, 'That doesn\'t look like a Discord webhook URL');
     }
