@@ -11,8 +11,8 @@
 export const LOBBY_TICK_HZ = 15;
 
 /** The games the lobby can run. */
-export type LobbyGameId = 'runner' | 'flappy' | 'dodge' | 'rope' | 'coins' | 'battleships' | 'race' | 'whack' | 'draw' | 'tilt' | 'stacker' | 'sumo' | 'asteroids' | 'memory' | 'words' | 'lava' | 'snake' | 'gravity' | 'laser' | 'colormatch' | 'potato' | 'anagram' | 'mines' | 'stop' | 'pong';
-export const LOBBY_GAME_IDS: readonly LobbyGameId[] = ['runner', 'flappy', 'dodge', 'rope', 'coins', 'battleships', 'race', 'whack', 'draw', 'tilt', 'stacker', 'sumo', 'asteroids', 'memory', 'words', 'lava', 'snake', 'gravity', 'laser', 'colormatch', 'potato', 'anagram', 'mines', 'stop', 'pong'];
+export type LobbyGameId = 'runner' | 'flappy' | 'dodge' | 'rope' | 'coins' | 'battleships' | 'race' | 'whack' | 'draw' | 'tilt' | 'stacker' | 'sumo' | 'asteroids' | 'memory' | 'words' | 'lava' | 'snake' | 'gravity' | 'laser' | 'colormatch' | 'potato' | 'anagram' | 'mines' | 'stop' | 'pong' | 'wall';
+export const LOBBY_GAME_IDS: readonly LobbyGameId[] = ['runner', 'flappy', 'dodge', 'rope', 'coins', 'battleships', 'race', 'whack', 'draw', 'tilt', 'stacker', 'sumo', 'asteroids', 'memory', 'words', 'lava', 'snake', 'gravity', 'laser', 'colormatch', 'potato', 'anagram', 'mines', 'stop', 'pong', 'wall'];
 
 /** What a client sends. Anything else is ignored. */
 export type LobbyClientMessage =
@@ -1314,8 +1314,55 @@ export interface PongSnapshot extends RoundSummary {
   winnerId: string | null;
 }
 
+// ---- Wall ball (a ball is hit against a wall and comes back for each player in turn) ------------------
+
+/** The wall across the top, the row the players stand on, and the sizes (fractions of the court, down from the top) the screen draws and the rules hit with. */
+export const WALL_Y = 0.1;
+export const WALL_ROW_Y = 0.86;
+export const WALL_BALL_R = 0.025;
+export const WALL_PLAYER_R = 0.035;
+/** How far from where the ball lands a player can still hit it (either side), and how fast they slide, in court fractions (a second). */
+export const WALL_REACH = 0.1;
+export const WALL_PLAYER_SPEED = 0.7;
+
+export interface WallPlayer {
+  id: string;
+  /** Still in. False once they missed their turn, or if they arrived mid-run. */
+  alive: boolean;
+  /** Runs won since this person joined the lobby. */
+  wins: number;
+  /** Their own hits this run: live while in, final once out. */
+  meters: number;
+  /** Where they stand along the bottom (0..1) and the direction they are holding (-1, 0 or 1). */
+  x: number;
+  dir: number;
+}
+
+export interface WallSnapshot extends RoundSummary {
+  id: 'wall';
+  phase: LobbyRoundPhase;
+  /** Hits so far this run, by everyone. */
+  meters: number;
+  /** Always 0: nothing scrolls past in this game (every snapshot carries a course speed). */
+  speed: number;
+  /** Where the ball is and how fast it is going (court fractions a second), so a screen can carry it on between snapshots. */
+  ball: { x: number; y: number; vx: number; vy: number };
+  /** Going up to the wall after a hit, or coming down for the next player. */
+  leg: 'up' | 'down';
+  /** Whose turn it is: the one the ball is coming down for, or will come down for next. */
+  targetId: string | null;
+  /** Where it will land across the court (coming down only; -1 otherwise) and how long until it does. */
+  landX: number;
+  landInMs: number;
+  players: WallPlayer[];
+  /** Milliseconds left in `countdown` or `over`; 0 otherwise. */
+  timerMs: number;
+  /** Who won the run that just ended (`over` only); null when nobody did (everyone out together). */
+  winnerId: string | null;
+}
+
 /** The snapshot of whichever game is running. */
-export type LobbyGameSnapshot = RunnerSnapshot | FlappySnapshot | DodgeSnapshot | RopeSnapshot | CoinsSnapshot | BattleshipsSnapshot | RaceSnapshot | WhackSnapshot | DrawSnapshot | TiltSnapshot | StackerSnapshot | SumoSnapshot | AsteroidsSnapshot | MemorySnapshot | WordsSnapshot | LavaSnapshot | SnakeSnapshot | GravitySnapshot | LaserSnapshot | ColorMatchSnapshot | PotatoSnapshot | AnagramSnapshot | MinesSnapshot | StopSnapshot | PongSnapshot;
+export type LobbyGameSnapshot = RunnerSnapshot | FlappySnapshot | DodgeSnapshot | RopeSnapshot | CoinsSnapshot | BattleshipsSnapshot | RaceSnapshot | WhackSnapshot | DrawSnapshot | TiltSnapshot | StackerSnapshot | SumoSnapshot | AsteroidsSnapshot | MemorySnapshot | WordsSnapshot | LavaSnapshot | SnakeSnapshot | GravitySnapshot | LaserSnapshot | ColorMatchSnapshot | PotatoSnapshot | AnagramSnapshot | MinesSnapshot | StopSnapshot | PongSnapshot | WallSnapshot;
 
 /** What a client needs to run its own player on a course the server decided: which run, the seed that
  * makes the course, and how long until the run starts (negative once it has, by how far in). */
