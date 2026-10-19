@@ -19,6 +19,8 @@ export interface SpinLobbyDeps {
   /** A lobby's last person left, so it is gone. `key` is a room id, or `lobby:<id>` for an open lobby. */
   onEmpty?(key: string): void;
   recordScores?(roomId: string, game: LobbyGameId, source: MiniGameScoreSource, scores: LobbyRunScore[]): void;
+  /** How likely each game is to come up in a lobby that picks its own (see SpinLobby). */
+  pickWeights?(): Partial<Record<LobbyGameId, number>>;
 }
 
 interface RoomState {
@@ -87,7 +89,7 @@ export class SpinLobbyHub {
     }
     if (!room) {
       const created: RoomState = {
-        lobby: new SpinLobby(options.game ? createLobbyGame(options.game) : undefined, (game, scores) => this.deps.recordScores?.(roomId, game, this.rooms.get(roomId)?.spinWaiting ? 'waiting_room' : 'lobby', scores)),
+        lobby: new SpinLobby(options.game ? createLobbyGame(options.game) : undefined, (game, scores) => this.deps.recordScores?.(roomId, game, this.rooms.get(roomId)?.spinWaiting ? 'waiting_room' : 'lobby', scores), () => this.deps.pickWeights?.() ?? {}),
         sockets: new Map(),
         timer: null,
         lastTickAt: this.now(),

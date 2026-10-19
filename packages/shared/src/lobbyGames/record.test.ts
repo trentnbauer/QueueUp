@@ -1,7 +1,7 @@
 import { describe, expect, it, vi } from 'vitest';
 import { LOBBY_GAME_IDS, LOBBY_HISTORY_LENGTH, type LobbyGameId } from '../spinLobby.js';
 import { DodgeGame } from './dodge.js';
-import { createLobbyGame, pickLobbyGame } from './index.js';
+import { createLobbyGame, lobbyPickWeights, pickLobbyGame } from './index.js';
 import { LobbyRecord, secureRandom } from './roundGame.js';
 import { RunnerGame } from './runner.js';
 
@@ -160,6 +160,39 @@ describe('pickLobbyGame', () => {
   it('picks from all of them when nothing is excluded', () => {
     expect(pickLobbyGame(() => 0)).toBe(LOBBY_GAME_IDS[0]);
     expect(pickLobbyGame(() => 0.999)).toBe(LOBBY_GAME_IDS[LOBBY_GAME_IDS.length - 1]);
+  });
+
+  it('leans toward the games that have been played least, but every game still comes up', () => {
+    // A small seeded source, so the counts below are the same every run.
+    let s = 12345;
+    const random = () => (s = (s * 1103515245 + 12345) % 2147483648) / 2147483648;
+    const plays = Object.fromEntries(LOBBY_GAME_IDS.map((id) => [id, 500])) as Record<LobbyGameId, number>;
+    plays.words = 0;
+    plays.runner = 5000;
+    const weights = lobbyPickWeights(plays);
+    const seen = new Map<LobbyGameId, number>();
+    for (let i = 0; i < 20_000; i++) {
+      const id = pickLobbyGame(random, undefined, weights);
+      seen.set(id, (seen.get(id) ?? 0) + 1);
+    }
+    const most = Math.max(...seen.values());
+    expect(seen.get('words')).toBe(most);
+    expect(seen.get('words')!).toBeGreaterThan(seen.get('dodge')!);
+    expect(seen.get('dodge')!).toBeGreaterThan(seen.get('runner')!);
+    for (const id of LOBBY_GAME_IDS) expect(seen.get(id) ?? 0).toBeGreaterThan(0);
+  });
+
+  it('never repeats the previous game even when it is the least played', () => {
+    const weights = lobbyPickWeights({ words: 0, runner: 100 });
+    for (let i = 0; i < 500; i++) expect(pickLobbyGame(Math.random, 'words', weights)).not.toBe('words');
+  });
+
+  it('is even with no counts yet, and with weights left out', () => {
+    const weights = lobbyPickWeights({});
+    expect(new Set(Object.values(weights)).size).toBe(1);
+    expect(Object.values(weights).every((w) => w > 0)).toBe(true);
+    expect(pickLobbyGame(() => 0, undefined, weights)).toBe(LOBBY_GAME_IDS[0]);
+    expect(pickLobbyGame(() => 0.999, undefined, weights)).toBe(LOBBY_GAME_IDS[LOBBY_GAME_IDS.length - 1]);
   });
 
   it('hands out games that share a record through createLobbyGame', () => {
