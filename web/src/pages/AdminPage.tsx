@@ -12,6 +12,7 @@ import { getBasePath } from '../utils/basePath';
 import { AdminAiSection } from './AdminAiSection';
 import { AdminBackups } from './AdminBackups';
 import { AdminEmailLog } from './AdminEmailLog';
+import { AdminMiniGameRatings } from './AdminMiniGameRatings';
 import { AdminReports } from './AdminReports';
 import { AdminSiteInvites } from './AdminSiteInvites';
 import { AdminRoomView } from './AdminRoomView';
@@ -347,6 +348,7 @@ export function AdminPage() {
       <AdminReports />
       <AdminSiteInvites />
       <AdminEmailLog />
+      <AdminMiniGameRatings />
 
       {tunnel && (
         <Collapsible title={t('pages.admin.tunnelKicker')}>

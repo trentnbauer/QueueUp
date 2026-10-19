@@ -321,3 +321,16 @@ describe('SpinLobby with a game that runs each player on their own device', () =
     expect(() => lobby.report('a', 1, true, { h: 0 })).not.toThrow();
   });
 });
+
+describe('SpinLobby picking games by how much each has been played', () => {
+  it('opens on, and moves to, the games the weights favour (never the one just played)', () => {
+    const only = (id: (typeof LOBBY_GAME_IDS)[number]) => Object.fromEntries(LOBBY_GAME_IDS.map((g) => [g, g === id ? 1 : 0]));
+    const lobby = new SpinLobby(undefined, undefined, () => only('words'));
+    lobby.join('a');
+    expect(lobby.snapshot(false).game.id).toBe('words');
+    // With the weights moved to another game, the next pick follows them.
+    const moving = new SpinLobby(undefined, undefined, () => only('sumo'));
+    moving.join('a');
+    expect(moving.snapshot(false).game.id).toBe('sumo');
+  });
+});

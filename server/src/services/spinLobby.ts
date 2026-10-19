@@ -1,4 +1,4 @@
-import { LOBBY_ACTION_NAME_MAX, LOBBY_TAP_TARGETS_MAX, LobbyRecord, createLobbyGame, lobbyVotesNeeded, pickLobbyGame, type LobbyGame, type LobbyGameId, type LobbyRunScore, type LobbySnapshot } from '@queueup/shared';
+import { LOBBY_ACTION_NAME_MAX, LOBBY_TAP_TARGETS_MAX, LOBBY_GAME_IDS, LobbyRecord, createLobbyGame, lobbyVotesNeeded, pickLobbyGame, type LobbyGame, type LobbyGameId, type LobbyRunScore, type LobbySnapshot } from '@queueup/shared';
 
 /** One room's live lobby: who is in it, who has voted to spin, and the mini game they are playing.
  * Pure state and rules - no sockets or timers (see spinLobbyHub.ts), so it is easy to test. A member
@@ -18,10 +18,24 @@ export class SpinLobby {
   private readonly rotates: boolean;
 
   /** `onScores` hears each finished run's scores, whichever game it was (for high scores). */
-  constructor(game?: LobbyGame, private readonly onScores?: (game: LobbyGameId, scores: LobbyRunScore[]) => void) {
+  constructor(
+    game?: LobbyGame,
+    private readonly onScores?: (game: LobbyGameId, scores: LobbyRunScore[]) => void,
+    /** How likely each game is to come up, from how much each has been played across the server (see
+     * playWeights.ts); read at each pick. Without it every game is equally likely. */
+    private readonly weights?: () => Partial<Record<LobbyGameId, number>>,
+  ) {
     this.rotates = game === undefined;
     if (game) this.hear(game);
-    this.game = game ?? this.start(pickLobbyGame());
+    this.game = game ?? this.start(this.pick());
+  }
+
+  /** The next game: leaning to the ones played less across the server, and less in this lobby so far, and never
+   * the one just played. */
+  private pick(not?: LobbyGameId): LobbyGameId {
+    const server = this.weights?.() ?? {};
+    const weights = Object.fromEntries(LOBBY_GAME_IDS.map((id) => [id, (server[id] ?? 1) / (1 + this.record.history.filter((r) => r.game === id).length)]));
+    return pickLobbyGame(undefined, not, weights);
   }
 
   private hear(game: LobbyGame): void {
@@ -39,7 +53,7 @@ export class SpinLobby {
   /** Moves everyone from `from` to a different random game. False if `from` is not the current game. */
   private rotate(from: LobbyGame): boolean {
     if (from !== this.game || !this.rotates) return false;
-    const next = this.start(pickLobbyGame(undefined, from.id));
+    const next = this.start(this.pick(from.id));
     this.game = next;
     for (const userId of this.connections.keys()) next.join(userId);
     return true;

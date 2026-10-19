@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { RACE_CAR_HEIGHT, RACE_CAR_WIDTH, RACE_FRONT_Y, RACE_KERB } from '../spinLobby.js';
+import { RACE_CAR_HEIGHT, RACE_CAR_WIDTH, RACE_FRONT_Y, RACE_KERB, RACE_PIT_WIDTH } from '../spinLobby.js';
 import { RaceGame, raceStartX } from './race.js';
 
 const STEP = 66;
@@ -210,5 +210,57 @@ describe('RaceGame reports from a driver’s own device', () => {
     g.tick(STEP);
     expect(me(g, 'a').alive).toBe(false);
     expect(g.snapshot().winnerId).toBe('b');
+  });
+});
+
+describe('RaceGame pit lanes', () => {
+  /** A varying random source, so the pit lanes are not all the same stretch. */
+  const lcg = (seed: number) => {
+    let s = seed;
+    return () => (s = (s * 16807) % 2147483647) / 2147483647;
+  };
+
+  it('keeps the first stretch of road clear, then puts pit lanes at both sides over a run', () => {
+    const g = new RaceGame(lcg(11));
+    g.join('a');
+    run(g, 3200);
+    run(g, 1500);
+    expect(g.snapshot().pits).toHaveLength(0);
+    const sides = new Set<number>();
+    for (let t = 0; t < 60_000 && me(g, 'a').alive && g.snapshot().phase === 'playing'; t += STEP) {
+      playBot(g, 'a', STEP);
+      for (const s of g.snapshot().pits) sides.add(s.side);
+    }
+    expect([...sides].sort()).toEqual([-1, 1]);
+  });
+
+  it('shows the same pit lanes for the same seed', () => {
+    const lanes = (seed: number) => {
+      const g = new RaceGame(lcg(seed));
+      g.join('a');
+      run(g, 12_000);
+      return JSON.stringify(g.snapshot().pits);
+    };
+    expect(lanes(5)).toBe(lanes(5));
+  });
+
+  it('drags a driver down the screen while they are in a pit lane, and not on the road', () => {
+    const g = new RaceGame(lcg(11));
+    g.join('a');
+    run(g, 3200);
+    // Wait for a left pit lane to reach the driver's row, then drive into it.
+    let dragged = false;
+    for (let t = 0; t < 40_000 && me(g, 'a').alive && g.snapshot().phase === 'playing'; t += STEP) {
+      const { pits } = g.snapshot();
+      const row = me(g, 'a').y;
+      const onRow = pits.find((s) => s.side === -1 && row >= s.y && row <= s.y + s.h);
+      g.input('a', onRow ? -1 : 0, 0);
+      g.tick(STEP);
+      if (onRow && me(g, 'a').x < RACE_KERB + RACE_PIT_WIDTH && me(g, 'a').y > RACE_FRONT_Y + 0.05) {
+        dragged = true;
+        break;
+      }
+    }
+    expect(dragged).toBe(true);
   });
 });

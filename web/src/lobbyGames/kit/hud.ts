@@ -151,7 +151,15 @@ function drawResult(sc: Scene): void {
     ctx.fillText(t((SCORE_WORDS[snapshot.id] ?? METRES).over, { m: snapshot.history[snapshot.history.length - 1]?.meters ?? snapshot.meters }), 0, -h * 0.08);
     ctx.font = `800 ${Math.round(S * 0.068)}px ${FONT.display}`;
     ctx.fillStyle = theme.text;
-    ctx.fillText(t('spin.lobby.hud.nobody'), 0, h * 0.12, w * 0.9);
+    // Alone in Words (no winner is ever named), finding the word is still a win.
+    const solved = snapshot.id === 'words' && snapshot.players.some((p) => p.id === sc.me && p.solved);
+    ctx.fillText(t(solved ? 'spin.lobby.words.solved' : 'spin.lobby.hud.nobody'), 0, h * 0.12, w * 0.9);
+  }
+  // Games with a secret (Words) show it under the card once the run is over, whoever won.
+  if (snapshot.id === 'words' && snapshot.answer) {
+    ctx.font = `800 ${Math.round(S * 0.05)}px ${FONT.display}`;
+    ctx.fillStyle = theme.text;
+    ctx.fillText(t('spin.lobby.words.answer', { word: snapshot.answer.toUpperCase() }), 0, h / 2 + S * 0.06, w);
   }
   ctx.restore();
 }

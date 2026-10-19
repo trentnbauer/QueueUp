@@ -1,6 +1,6 @@
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useCallback } from 'react';
-import type { LobbyGameId, MiniGameScorePeriod, MiniGameScoreScope } from '@queueup/shared';
+import type { LobbyGameId, MiniGameRatingValue, MiniGameRatingsResponse, MiniGameScorePeriod, MiniGameScoreScope } from '@queueup/shared';
 import { miniGamesApi } from '../api/miniGames';
 import { useAuth } from '../context/AuthContext';
 
@@ -43,6 +43,26 @@ export function useSubmitSoloScore() {
         .submit(game, score)
         .then(() => queryClient.invalidateQueries({ queryKey: MINIGAMES_QUERY_KEY }))
         .catch(() => {});
+    },
+    [queryClient],
+  );
+}
+
+/** Your own thumbs up or down for each game, so the thumbs can show which one you picked. */
+export function useMiniGameRatings() {
+  const { user } = useAuth();
+  return useQuery({ queryKey: [...MINIGAMES_QUERY_KEY, 'ratings'], queryFn: miniGamesApi.ratings, enabled: !!user });
+}
+
+/** Rates a game right away (the thumb lights up before the server answers) and puts it back if the save fails. */
+export function useRateMiniGame() {
+  const queryClient = useQueryClient();
+  return useCallback(
+    (game: LobbyGameId, rating: MiniGameRatingValue) => {
+      const key = [...MINIGAMES_QUERY_KEY, 'ratings'];
+      const before = queryClient.getQueryData<MiniGameRatingsResponse>(key);
+      queryClient.setQueryData<MiniGameRatingsResponse>(key, { ratings: { ...before?.ratings, [game]: rating } });
+      void miniGamesApi.rate(game, rating).catch(() => queryClient.setQueryData(key, before));
     },
     [queryClient],
   );

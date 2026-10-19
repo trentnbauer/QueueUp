@@ -64,10 +64,29 @@ function build(id: LobbyGameId, record?: LobbyRecord): LobbyGame {
   }
 }
 
-/** Which game a new lobby opens with, picked at random. */
-export function pickLobbyGame(random: () => number = secureRandom, not?: LobbyGameId): LobbyGameId {
+/** How likely each game is to come up, from how many times each has been played (missing means none): a game
+ * played less is likelier. A game's weight is 1 / (1 + plays / (the average plays + 1)), which is 1 for a game
+ * nobody has played and falls toward (but never reaches) 0 as it is played far more than the others, and does not
+ * depend on how big the counts are. With no counts at all every game weighs the same. */
+export function lobbyPickWeights(plays: Partial<Record<LobbyGameId, number>>): Record<LobbyGameId, number> {
+  const count = (id: LobbyGameId) => Math.max(0, plays[id] ?? 0);
+  const mean = LOBBY_GAME_IDS.reduce((sum, id) => sum + count(id), 0) / LOBBY_GAME_IDS.length;
+  return Object.fromEntries(LOBBY_GAME_IDS.map((id) => [id, 1 / (1 + count(id) / (mean + 1))])) as Record<LobbyGameId, number>;
+}
+
+/** Which game a new lobby opens with, picked at random: evenly, or (with `weights`) leaning toward the games with a
+ * bigger weight. A game with no weight given weighs 1. Never `not` (the game just played), whenever there is another. */
+export function pickLobbyGame(random: () => number = secureRandom, not?: LobbyGameId, weights?: Partial<Record<LobbyGameId, number>>): LobbyGameId {
   // After a run the lobby moves on to a different game, whenever there is one to move to.
   const choices = LOBBY_GAME_IDS.filter((id) => id !== not);
   const from = choices.length > 0 ? choices : LOBBY_GAME_IDS;
-  return from[Math.floor(random() * from.length)];
+  const weight = (id: LobbyGameId) => Math.max(0, weights?.[id] ?? 1) || 0;
+  const total = from.reduce((sum, id) => sum + weight(id), 0);
+  if (!(total > 0)) return from[Math.floor(random() * from.length)];
+  let at = random() * total;
+  for (const id of from) {
+    at -= weight(id);
+    if (at < 0) return id;
+  }
+  return from[from.length - 1];
 }

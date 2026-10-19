@@ -29,6 +29,7 @@ It plays a random game after every run (like the waiting room), or one game you 
 ## How a lobby works
 
 - **A random game, and a new one after every run.** When the lobby opens (the first person to join), it picks a game at random. Each time a run ends and its result has been shown, the lobby moves everyone to a **different** random game, so the waiting room keeps changing while a spin waits. Closing the dialog leaves it; when the last person leaves, the lobby resets and its wins and history are gone.
+- **Games played less come up more.** The pick is not an even coin toss: each game is weighted by how little it has been played, so a new or rarely seen game comes up more often, but every game still has a chance and the most played is never shut out. A game's weight is `1 / (1 + plays / (average plays + 1))`. Plays are counted across the whole server over the last 30 days, as distinct runs saved to the high score table (so a run with many people counts once, and waiting room runs count), read again every 5 minutes. Within one lobby a game it has already played is also less likely again. The game just played never comes straight back, and **solo practice** on the Mini games page, which is your own choice of game, does not use the weighted pick. A game with a minimum player count (Quick draw, Sumo ledge) is picked the same way and a lone player gets a bot.
 - **Practice keeps the game you pick.** In practice mode you choose the game, and it stays that game, with a new run each time one ends. Changing the game does not reset the scoreboard.
 - **Runs.** A run starts with a 3 second countdown. When it ends, the result shows for 4 seconds and the next run starts by itself (in a room, in a new random game).
 - **Winning a run.** With two or more players, the **last one still in wins**. If everyone is out at the same moment, **nobody wins** ("Nobody made it"). Alone, a run is a **high-score run** with no winner: it ends when you are out, and your distance is your score.
@@ -50,6 +51,16 @@ In **Runner, Flappy, Dodge, Jump rope and Obstacle race**, your own player is wo
 - **What you still see late:** other players. They are drawn where their device last said they were, so on a slow connection you see them a moment behind. It does not change what happens to you.
 - **If your device goes quiet** (a closed or frozen tab) for 3 seconds in a run, the server counts you out.
 - Players in these games never affect each other, which is why this is safe. **Catch the coins**, where players race for the same thing, is still worked out by the server, so there ping matters.
+
+## Rating a game
+
+When a run ends and its result card is showing, a **thumbs up / thumbs down** appears under the arena (in a room's lobby, a spin's waiting room, an open lobby and solo practice alike).
+
+- **What is rated is the game**, not the run. You have **one rating per game**: tapping the other thumb changes it, and playing a game twice never counts twice. The thumb you picked stays lit.
+- The bar keeps its place under the arena, so it does not move the game when a run ends, and the next run still starts by itself.
+- **Only signed-in members** can rate, and a rating for a game that does not exist is refused.
+- **Administrators** see the results on the Administrator page under **Mini game ratings**: for each game the thumbs up, thumbs down, total, the share that are up, and thumbs up / down for the last 7 days (so a new game is not drowned by an old one's history). Lowest rated first. It shows **counts only, never who voted**. Not shown on the player-facing Mini games page.
+- Ratings are kept in the `mini_game_ratings` table (one row per person per game).
 
 ## Voting to spin
 
@@ -141,9 +152,11 @@ A top-down race on a scrolling track, everyone on the same course.
 - **Slide off the bottom** (the red glow) and you are out. Last driver on the screen wins; alone, your distance is your score.
 - **Starting spots** are spread across the middle of the track, the same spot for you every run.
 - **Speed:** the track starts at 0.45 of a screen per second and climbs to 0.95 after about 42 seconds. A new obstacle appears every 0.9 seconds at the start, down to every 0.22 seconds after about 45 seconds, so hits come thicker and faster and every run ends.
-- A **safe lane** drifts slowly from side to side, and no obstacle is ever made over it, so there is always a way through for someone who keeps up with it.
+- A **safe lane** drifts slowly from side to side, and no obstacle is ever made over it, so there is always a way through for someone who keeps up with it. It stays clear of the pit lanes too, so a clear path is always on the road.
+- **Pit lanes** (amber hatched strips along the inside of each kerb, a tenth of the track wide) appear in stretches about 0.8 of a screen long from a few seconds in, scrolling at the course speed. A driver whose middle is **in** one is dragged down the screen the whole time (0.14 of a screen a second, more than the slow climb back), so the way out is to steer back onto the road; staying in one long enough slides you off the bottom. Which side has more of them swings slowly over the run (for a while the left, then the right, now and then both), and comes from the round's seed, so it is the same for everyone. They give a driver who hugs the edge to dodge obstacles a price to pay.
 - You steer at 0.6 of a screen per second and can't leave the track (the striped kerbs).
 
+## Catch the coins
 
 Coins fall; slide left and right to catch them before anyone else does.
 
@@ -170,14 +183,17 @@ A reaction duel on one shared screen. Needs at least 2 players, so on your own a
 
 ## Tilt
 
-One ball on one beam, and everyone pushes it.
+One beam, and everyone has their own ball on it.
 
-- **One shared beam and ball.** Hold left or right to push. The ball goes where the group pushes: the pushes are added up (a push to the right cancels one to the left) and softened by the number of players, so more people push harder, but never in proportion.
-- **The beam wobbles by itself**, slowly at first and more and more as the run goes on, so keep correcting. The beam leans the way the ball is being pushed. The wobble comes from the round's seed, so it is the same for every run of that seed, and it always gets strong enough to end a run (at about a minute alone).
-- **Targets** (green) appear on the beam, up to two at a time, and last 7 seconds. Tip the ball into one and **whoever pushed last** scores 1. The ball is drawn in their colour, so you can see who it would score for.
-- **The run ends when the ball falls off either end** (or after 2 minutes). **Most targets scored wins**; a tie, or scoring nothing, is a draw. Alone it is a high score. Nobody is knocked out.
-- Everyone's points are in the row under the beam, with an arrow for the way each is pushing.
+- **Your own ball.** Hold left or right to push **your** ball (yours has a ring round it). Everyone's balls are on the same beam, each in its owner's colour.
+- **The beam tips toward where the balls are.** It leans toward the balls' average position, so balls bunched on the right tip it right, and a tipped beam pulls **every** ball downhill. The group tips it around together while each person fights to stay on.
+- **The beam also wobbles by itself**, slowly at first and more and more as the run goes on, so keep correcting. The wobble comes from the round's seed, and it always gets strong enough to end a run (at about a minute alone).
+- **Rolling off is out.** A ball that goes past either end drops away and bursts below the arena, and its owner is out (they keep their score and keep watching). The run ends when the last ball is off, or when one ball is left in a run with others.
+- **Targets** (green) appear on the beam, up to two at a time, and last 7 seconds. The **first ball to reach one** scores 1 (the nearest, if two arrive together).
+- **Winning:** most targets scored wins. On a tie, the ball still on the beam wins; otherwise it is a draw, and so is scoring nothing. Alone it is a high score.
+- Everyone's points are in the row under the beam, with an arrow for the way each is pushing; fallen players are dimmed.
 - **Controls:** left and right only.
+
 ## Stacker
 
 One tower and one light for the whole room. Stop the light on the target to climb.
@@ -201,7 +217,7 @@ Everyone guesses the same four-letter word, as in Wordle.
 - **Winning:** everyone who finds the word wins (it counts as a win on the scoreboard). The **best** is the one who found it in the fewest guesses, then the soonest: they are the run's winner. A dead heat for that has no single winner, and alone it is a high score with no winner.
 - **Time:** the run ends after 90 seconds, or as soon as everyone has found the word or used their five guesses. Someone who has not found it by then does not win.
 - **Score** (the high score list): 10 points for each guess you did not need to use (so a first-guess solve is 50) plus up to 9 more for solving early in the 90 seconds. Not finding the word scores nothing.
-- **Controls:** the keyboard is the controller (letters, **Enter**, **Backspace**), or tap the keys on screen. Someone who joins part way through watches and plays from the next run.
+- **Controls:** the keyboard is the controller (letters, **Enter**, **Backspace**), or tap the keys on screen. Someone who joins part way through watches and plays from the next run. When the run ends, the result card shows the word under it; alone, finding it reads "You got the word!" instead of "Nobody made it".
 
 ## Memory pattern
 
@@ -242,14 +258,15 @@ Everyone on one short platform over a drop. Shove the others off. Needs at least
 
 ## Whack-a-mole
 
-Moles pop up out of a grid of holes; tap them before anyone else does.
+Moles pop up out of a grid of holes; tap them before they drop back down.
 
 - **Goal:** the most points in 30 seconds. Everyone plays on **the same 3 by 3 grid** and goes for the same moles.
 - **Nobody is knocked out.** When the time is up, the most points wins; a tie for the most, or scoring nothing, is a draw. Alone, it is a high-score round: no winner, just your points.
-- **Moles** are worth 1 point. The **first tap to reach the server** gets the point and the mole drops (a ring in your colour shows who got it); a later tap on a mole that is already whacked is ignored and costs nothing.
-- **Bombs** (dark, with a fuse) pop up now and then, never two in a row (about one in six). Whacking one costs **2 points** (never below zero).
+- **Moles** are worth 1 point, and **everyone who taps a mole while it is up scores for it**: being first does not matter. A mole stays up for its full time, so late tappers still get it, and a ring in each person's colour shows who has. A second tap on a mole you already have does nothing and costs nothing.
+- **Bombs** (dark, with a fuse) pop up now and then, never two in a row (about one in six). **Each person** who taps one loses **2 points** (never below zero).
 - **Missing:** tapping an empty hole costs **1 point** (never below zero), so mashing every hole does not win.
-- **Speed:** a new mole appears every 0.8 seconds at the start, down to every 0.28 seconds, and each stays up for 1.4 seconds at the start, down to 0.6 seconds. Which hole, and which are bombs, is decided on the server and comes from the round's seed, so it is the same sequence for everyone.
+- **Pressure comes from time:** each mole stays up for less as the round goes on, from 1.8 seconds at the start to 0.45 seconds by the end, so you have to be quicker to catch it at all. A new mole appears every 0.8 seconds at the start, down to every 0.28 seconds.
+- **Pauses:** every 4 to 8 moles the grid is left to empty and nothing comes up for a further 0.5 to 1.2 seconds. Which hole, which are bombs and when the pauses are comes from the round's seed, so it is the same for everyone.
 - The bar along the top is the time left, and everyone's points are in the row above the grid.
 - **Controls:** the grid is the controller, so tap or click a hole. On a keyboard, the number keys **1-9** match the holes like a numpad.
 
