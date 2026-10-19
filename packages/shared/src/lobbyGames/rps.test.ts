@@ -138,8 +138,8 @@ describe('RpsGame rounds', () => {
     g.tap('a', -1);
     g.tap('a', 1.5);
     expect(me(g, 'a').picked).toBe(false);
-    g.input('a', 1, 0);
-    g.action('a', 'whatever');
+    (g as unknown as { input: (u: string, x: number, y: number) => void }).input('a', 1, 0);
+    (g as unknown as { action: (u: string, n: string) => void }).action('a', 'whatever');
     expect(me(g, 'a').picked).toBe(false);
   });
 
