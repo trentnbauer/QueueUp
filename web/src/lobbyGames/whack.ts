@@ -117,14 +117,15 @@ function drawWorld(sc: Scene<WhackSnapshot>): void {
       if (hole.kind === 'mole') drawMole(sc, cx, y, r);
       else drawBomb(sc, cx, y, r);
       ctx.restore();
-    } else if (hole.kind === 'whacked') {
-      // A ring in the colour of whoever got it (a dark one for a bomb).
-      const by = snapshot.players[hole.by];
-      ctx.strokeStyle = hole.bomb ? theme.danger : by ? sc.info(by.id).color : theme.acc;
+      // A ring in the colour of each person who has tapped it (red for a bomb), one inside the next.
       ctx.lineWidth = Math.max(2, S * 0.008);
-      ctx.beginPath();
-      ctx.arc(cx, cy - r * 0.5, r * 1.1, 0, Math.PI * 2);
-      ctx.stroke();
+      hole.by.forEach((who, k) => {
+        const p = snapshot.players[who];
+        ctx.strokeStyle = hole.kind === 'bomb' ? theme.danger : p ? sc.info(p.id).color : theme.acc;
+        ctx.beginPath();
+        ctx.arc(cx, cy - r * 0.5, r * (1.1 + 0.18 * k), 0, Math.PI * 2);
+        ctx.stroke();
+      });
     }
   }
 }

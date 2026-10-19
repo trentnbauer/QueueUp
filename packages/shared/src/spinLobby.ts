@@ -434,8 +434,8 @@ export interface RaceSnapshot extends RoundSummary {
 export const WHACK_COLS = 3;
 export const WHACK_HOLES = WHACK_COLS * WHACK_COLS;
 
-/** What a hole shows: nothing, a mole (tap it), a bomb (do not), or a mole or bomb that was just whacked. */
-export type WhackHoleKind = 'empty' | 'mole' | 'bomb' | 'whacked';
+/** What a hole shows: nothing, a mole (tap it) or a bomb (do not). */
+export type WhackHoleKind = 'empty' | 'mole' | 'bomb';
 
 export interface WhackHole {
   kind: WhackHoleKind;
@@ -443,10 +443,9 @@ export interface WhackHole {
   n: number;
   /** Milliseconds it stays up for in all (`mole` or `bomb`), to work out how far it has risen; 0 otherwise. */
   upMs: number;
-  /** Who whacked it, as an index into `players` (`whacked` only); -1 otherwise. */
-  by: number;
-  /** For `whacked`: whether it was a bomb. */
-  bomb: boolean;
+  /** Everyone who has tapped it while it has been up, as indexes into `players`, in the order they got it. It stays up
+   * for its full time, so more can follow. */
+  by: number[];
 }
 
 export interface WhackPlayer {

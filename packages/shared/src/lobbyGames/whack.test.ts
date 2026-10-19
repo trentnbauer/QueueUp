@@ -37,14 +37,15 @@ describe('WhackGame', () => {
     expect(g.snapshot().holes).toHaveLength(WHACK_HOLES);
   });
 
-  it('scores a point for a mole, and the first tap takes it', () => {
+  it('scores a point for everyone who taps a mole while it is up, not just the first', () => {
     const g = started(['a', 'b']);
     const hole = waitFor(g, 'mole');
     g.tap('a', hole);
     g.tap('b', hole);
     expect(score(g, 'a')).toBe(1);
-    expect(score(g, 'b')).toBe(0);
-    expect(g.snapshot().holes[hole]).toMatchObject({ kind: 'whacked', by: 0 });
+    expect(score(g, 'b')).toBe(1);
+    // It stays up, with both of them on it, in the order they got it.
+    expect(g.snapshot().holes[hole]).toMatchObject({ kind: 'mole', by: [0, 1] });
   });
 
   it('costs one point to tap an empty hole, never below zero', () => {
@@ -72,19 +73,37 @@ describe('WhackGame', () => {
     const bomb = waitFor(g, 'bomb');
     g.tap('a', bomb);
     expect(score(g, 'a')).toBe(Math.max(0, before - 2));
-    expect(g.snapshot().holes[bomb]).toMatchObject({ kind: 'whacked', bomb: true });
+    expect(g.snapshot().holes[bomb]).toMatchObject({ kind: 'bomb', by: [0] });
   });
 
-  it('ignores a late tap on a mole that is already whacked, and bad targets', () => {
+  it('scores a mole once per person, and ignores bad targets', () => {
     const g = started(['a', 'b']);
     const hole = waitFor(g, 'mole');
     g.tap('a', hole);
-    g.tap('b', hole);
+    g.tap('a', hole);
     g.tap('a', -1);
     g.tap('a', WHACK_HOLES);
     g.tap('a', 1.5);
-    expect(score(g, 'b')).toBe(0);
     expect(score(g, 'a')).toBe(1);
+    expect(score(g, 'b')).toBe(0);
+  });
+
+  it('keeps moles up for less and less time, and leaves gaps with nothing up', () => {
+    const g = started(['a']);
+    const ups: number[] = [];
+    let emptyGaps = 0;
+    let wasEmpty = false;
+    for (let t = 0; t < 29_000; t += STEP) {
+      g.tick(STEP);
+      const holes = g.snapshot().holes;
+      for (const h of holes) if (h.upMs > 0) ups.push(h.upMs);
+      const empty = holes.every((h) => h.kind === 'empty');
+      if (empty && !wasEmpty && t > 2000) emptyGaps++;
+      wasEmpty = empty;
+    }
+    expect(ups[0]).toBeGreaterThan(1500);
+    expect(ups.at(-1)!).toBeLessThan(700);
+    expect(emptyGaps).toBeGreaterThan(1);
   });
 
   it('drops a mole that is not whacked', () => {

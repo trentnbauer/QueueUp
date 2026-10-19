@@ -110,7 +110,7 @@ export const spin = {
   "spin.lobby.hud.seconds.over": "ROUND OVER · {m} s",
   "spin.lobby.whack.name": "Whack-a-mole",
   "spin.lobby.whack.tagline": "Whack the moles, spare the bombs",
-  "spin.lobby.whack.hint": "Tap a hole while a mole is up to whack it for a point. A bomb costs you 2 points, and tapping an empty hole costs 1. Everyone is on the same grid and the first tap gets the mole. On a keyboard, the number keys 1-9 match the holes like a numpad. Most points when the time is up wins. Nothing here changes the spin.",
+  "spin.lobby.whack.hint": "Tap a hole while a mole is up to whack it for a point. A bomb costs you 2 points, and tapping an empty hole costs 1. Everyone is on the same grid and everyone who taps a mole scores for it, but moles stay up for less and less time. On a keyboard, the number keys 1-9 match the holes like a numpad. Most points when the time is up wins. Nothing here changes the spin.",
   "spin.lobby.battleships.name": "Battleships",
   "spin.lobby.dodge.name": "Dodge",
   "spin.lobby.race.name": "Obstacle race",
