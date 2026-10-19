@@ -191,14 +191,14 @@ Every game has a **version** (`MINIGAME_VERSIONS` in `packages/shared/src/miniGa
 
 Like the playground game "down ball": one wall across the top of the court, everyone standing in a row along the bottom. Needs at least 2 players, so on your own a bot plays you.
 
-- **Goal:** don't miss your turn. A ball is hit up at the wall and comes back down; **each time it comes back it is one player's turn, going round the players still in** (the one it is coming for is ringed, the others are dimmed). Slide along the bottom to where it will land (a ring on the floor shows the spot) and press **Hit** as it arrives. It goes back up at the wall and then comes down for the next player. **Miss your turn and you are out.** **Last one in wins.**
-- **Hitting:** the press has to come within about a fifth of a second of the ball landing (before or after), and you have to be within 0.1 of the court of where it lands. A press too early or too far away does nothing and costs nothing.
+- **Goal:** don't miss your turn. A ball is hit up at the wall and comes back down; **each time it comes back it is one player's turn, going round the players still in** (the one it is coming for is ringed, the others are dimmed). Slide along the bottom to where it will land (a ring on the floor shows the spot) and be there as it lands. It goes back up at the wall and then comes down for the next player. **Miss your turn and you are out.** **Last one in wins.**
+- **Hitting is automatic:** there is no button. As the ball lands, if you are within 0.1 of the court of where it lands, it is hit back for you; if you are further away, you are out.
 - **Everyone has to keep moving:** the ball lands near the **next** player's spot, moved by up to 0.05 at first and up to 0.28 later, so the player whose turn is coming has to be ready and the others cannot stand still.
 - **Speed:** the ball takes 1.2 seconds to come down at first and 0.07 seconds less after every hit, down to 0.65 seconds.
 - **Score** (the high score list): your own hits. There is no time limit of its own: it goes on until someone is the last one in.
-- **Bots** slide to where the ball will land and hit it a little early or late, so they can miss.
+- **Bots** slide to where the ball will land, setting off a little early or late, so on a quick ball they can be too slow and miss.
 - **Smoothness:** the server runs the ball, but your screen carries it on between updates and draws your own player moving the moment you press; the server still decides every hit.
-- **Controls:** left and right to slide, and one button to hit: **←** / **→** or **A** / **D**, and **Space**, **↑** or **W** to hit.
+- **Controls:** left and right to slide: **←** / **→** or **A** / **D**.
 
 ## Road hop
 
@@ -284,7 +284,7 @@ A game can instead make **the play space the controller**: there are no buttons 
 | Minesweeper race | Click a square (no keyboard control yet). | Tap a square on the field. |
 | Perfect stop | **Space**, **↑** or **W** to stop. | **Stop**, or tap anywhere on the arena. |
 | Pong rally | **←** / **→** or **A** / **D** to slide your paddle. | The **◀** and **▶** buttons. |
-| Wall ball | **←** / **→** or **A** / **D** to slide, **Space**, **↑** or **W** to hit. | The **◀** and **▶** buttons, and **Hit**. |
+| Wall ball | **←** / **→** or **A** / **D** to slide (the hit is automatic). | The **◀** and **▶** buttons. |
 | Road hop | **←** / **→** or **A** / **D** to slide, **Space**, **↑** or **W** to hop. | The **◀** and **▶** buttons, and **Hop** (or tap anywhere on the arena). |
 | Fishing | Hold **Space**, **↑** or **W** to pull your net up. | Hold **Reel** (or press and hold the arena). |
 
