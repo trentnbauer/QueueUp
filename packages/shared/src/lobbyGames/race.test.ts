@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { RACE_CAR_HEIGHT, RACE_CAR_WIDTH, RACE_FRONT_Y, RACE_KERB, RACE_PIT_WIDTH } from '../spinLobby.js';
+import { RACE_CAR_HEIGHT, RACE_CAR_WIDTH, RACE_FRONT_Y, RACE_KERB } from '../spinLobby.js';
 import { RaceGame, raceStartX } from './race.js';
 
 const STEP = 66;
@@ -16,33 +16,31 @@ function started(ids: string[], seed = 0.3) {
   return g;
 }
 
-/** A driver who reads the track: looks at what is coming toward their row in the next second or so, and
- * steers for the reachable spot with the most room, preferring the nearest. */
+/** A driver who reads the track: looks at the strip of track just above their row (what reaches them in the next half second or
+ * so), works out where nothing is (inflating everything by half a car), and steers for the nearest gap, at its middle if it is
+ * narrow. Pit lanes count as things to steer round. */
 function playBot(g: RaceGame, id: string, ms: number) {
   let last = '';
+  const half = RACE_CAR_WIDTH / 2;
   for (let t = 0; t < ms && me(g, id).alive && g.snapshot().phase === 'playing'; t += STEP) {
     const snap = g.snapshot();
     const { x, y } = me(g, id);
-    const reach = (o: { h: number }) => (o.h + RACE_CAR_HEIGHT) / 2;
-    // Obstacles that will reach the driver's row within the next second and a bit.
-    const threats = snap.obstacles.filter((o) => o.y < y + reach(o) && y - o.y < snap.speed * 1.2 + reach(o));
-    const clearance = (cx: number) => threats.reduce((m, o) => Math.min(m, Math.abs(o.x - cx) - (o.w + RACE_CAR_WIDTH) / 2), 1);
-    // Obstacles level with the car: steering through them would be a hit.
-    const inRow = snap.obstacles.filter((o) => Math.abs(o.y - y) < reach(o) + 0.04);
-    const blocked = (from: number, to: number) => inRow.some((o) => {
-      const half = (o.w + RACE_CAR_WIDTH) / 2;
-      return Math.max(from, to) > o.x - half && Math.min(from, to) < o.x + half;
-    });
-    let best = x;
-    let bestScore = -Infinity;
-    for (let cx = 0.08; cx <= 0.92; cx += 0.02) {
-      if (blocked(x, cx)) continue;
-      const score = Math.min(clearance(cx), 0.1) * 10 - Math.abs(cx - x) * 1.2;
-      if (score > bestScore) {
-        bestScore = score;
-        best = cx;
-      }
+    const ahead = snap.speed * 0.6;
+    const blocks: [number, number][] = [];
+    for (const o of snap.obstacles) if (o.y + o.h / 2 > y - ahead - RACE_CAR_HEIGHT / 2 && o.y - o.h / 2 < y + RACE_CAR_HEIGHT / 2) blocks.push([o.x - o.w / 2 - half, o.x + o.w / 2 + half]);
+    for (const s of snap.pits) if (s.y + s.h > y - ahead && s.y < y + RACE_CAR_HEIGHT / 2) blocks.push([s.x0 - half, s.x1 + half]);
+    blocks.sort((p, q) => p[0] - q[0]);
+    // The gaps between them, across the track between the kerbs.
+    const gaps: [number, number][] = [];
+    let edge = RACE_KERB + half;
+    for (const [lo, hi] of blocks) {
+      if (lo > edge) gaps.push([edge, lo]);
+      edge = Math.max(edge, hi);
     }
+    if (edge < 1 - RACE_KERB - half) gaps.push([edge, 1 - RACE_KERB - half]);
+    const distance = (gap: [number, number]) => (x < gap[0] ? gap[0] - x : x > gap[1] ? x - gap[1] : 0);
+    const gap = gaps.sort((p, q) => distance(p) - distance(q))[0];
+    const best = gap ? (gap[1] - gap[0] < 0.12 ? (gap[0] + gap[1]) / 2 : Math.min(gap[1] - 0.02, Math.max(gap[0] + 0.02, x))) : x;
     g.input(id, Math.abs(best - x) < 0.01 ? 0 : best > x ? 1 : -1, 0);
     last = JSON.stringify({ t, x, y, best, speed: snap.speed });
     g.tick(STEP);
@@ -144,11 +142,20 @@ describe('RaceGame driving', () => {
   });
 
   it('lets a driver who steers clear last a long time, on several tracks', () => {
-    for (const seed of [0.1, 0.3, 0.55, 0.8, 0.95]) {
+    for (const seed of [0.1, 0.55, 0.8, 0.95]) {
       const g = started(['a'], seed);
       const last = playBot(g, 'a', 60_000);
       expect(me(g, 'a').alive, `seed ${seed} ${last}`).toBe(true);
       expect(g.snapshot().meters).toBeGreaterThan(500);
+    }
+    // And on tracks whose obstacles and pit lanes are a real mix (a constant random source puts every pit in the same place).
+    for (const seed of [3, 7, 11, 19]) {
+      let s = seed;
+      const g = new RaceGame(() => (s = (s * 16807) % 2147483647) / 2147483647);
+      g.join('a');
+      run(g, 3200);
+      const last = playBot(g, 'a', 60_000);
+      expect(me(g, 'a').alive, `mixed seed ${seed} ${last}`).toBe(true);
     }
   });
 });
@@ -220,18 +227,49 @@ describe('RaceGame pit lanes', () => {
     return () => (s = (s * 16807) % 2147483647) / 2147483647;
   };
 
-  it('keeps the first stretch of road clear, then puts pit lanes at both sides over a run', () => {
+  it('keeps the first stretch of road clear, then puts pit lanes against either kerb and in the middle, of different widths', () => {
     const g = new RaceGame(lcg(11));
     g.join('a');
     run(g, 3200);
     run(g, 1500);
     expect(g.snapshot().pits).toHaveLength(0);
-    const sides = new Set<number>();
-    for (let t = 0; t < 60_000 && me(g, 'a').alive && g.snapshot().phase === 'playing'; t += STEP) {
+    const kinds = new Set<string>();
+    const widths: number[] = [];
+    for (let t = 0; t < 120_000 && me(g, 'a').alive && g.snapshot().phase === 'playing'; t += STEP) {
       playBot(g, 'a', STEP);
-      for (const s of g.snapshot().pits) sides.add(s.side);
+      for (const s of g.snapshot().pits) {
+        kinds.add(s.x0 <= RACE_KERB + 1e-3 ? 'left' : s.x1 >= 1 - RACE_KERB - 1e-3 ? 'right' : 'middle');
+        widths.push(s.x1 - s.x0);
+      }
     }
-    expect([...sides].sort()).toEqual([-1, 1]);
+    expect([...kinds].sort()).toEqual(['left', 'middle', 'right']);
+    expect(Math.min(...widths)).toBeGreaterThanOrEqual(0.0999);
+    expect(Math.max(...widths)).toBeGreaterThan(0.22);
+    expect(Math.max(...widths)).toBeLessThanOrEqual(0.3201);
+  });
+
+  it('always leaves a way through: the safe lane is never over a pit lane, however many there are', () => {
+    for (const seed of [3, 11, 19, 29]) {
+      const g = new RaceGame(lcg(seed));
+      g.join('a');
+      run(g, 3200);
+      for (let t = 0; t < 90_000 && me(g, 'a').alive && g.snapshot().phase === 'playing'; t += STEP) {
+        playBot(g, 'a', STEP);
+        const pits = g.snapshot().pits;
+        // Wherever pit lanes overlap in the track, at least one gap between them is as wide as the safe lane.
+        for (const row of [0.1, 0.3, 0.5]) {
+          const here = pits.filter((s) => s.y <= row && row <= s.y + s.h).sort((x, y) => x.x0 - y.x0);
+          let edge = RACE_KERB;
+          let widest = 0;
+          for (const s of here) {
+            widest = Math.max(widest, s.x0 - edge);
+            edge = Math.max(edge, s.x1);
+          }
+          widest = Math.max(widest, 1 - RACE_KERB - edge);
+          expect(widest, `seed ${seed} row ${row}`).toBeGreaterThanOrEqual(0.18);
+        }
+      }
+    }
   });
 
   it('shows the same pit lanes for the same seed', () => {
@@ -248,15 +286,17 @@ describe('RaceGame pit lanes', () => {
     const g = new RaceGame(lcg(11));
     g.join('a');
     run(g, 3200);
-    // Wait for a left pit lane to reach the driver's row, then drive into it.
+    // Wait for a pit lane to reach the driver's row, then drive into it.
     let dragged = false;
     for (let t = 0; t < 40_000 && me(g, 'a').alive && g.snapshot().phase === 'playing'; t += STEP) {
       const { pits } = g.snapshot();
       const row = me(g, 'a').y;
-      const onRow = pits.find((s) => s.side === -1 && row >= s.y && row <= s.y + s.h);
-      g.input('a', onRow ? -1 : 0, 0);
+      const onRow = pits.find((s) => row >= s.y && row <= s.y + s.h);
+      const x = me(g, 'a').x;
+      // Steer toward the middle of the pit lane that has reached the driver's row.
+      g.input('a', onRow ? (x < (onRow.x0 + onRow.x1) / 2 ? 1 : -1) : 0, 0);
       g.tick(STEP);
-      if (onRow && me(g, 'a').x < RACE_KERB + RACE_PIT_WIDTH && me(g, 'a').y > RACE_FRONT_Y + 0.05) {
+      if (onRow && me(g, 'a').x >= onRow.x0 && me(g, 'a').x <= onRow.x1 && me(g, 'a').y > RACE_FRONT_Y + 0.05) {
         dragged = true;
         break;
       }

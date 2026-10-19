@@ -4,7 +4,6 @@ import {
   RACE_FRONT_Y,
   RACE_KERB,
   RACE_OUT_Y,
-  RACE_PIT_WIDTH,
   clampDirection,
   type RaceObstacle,
   type RaceObstacleKind,
@@ -36,9 +35,8 @@ const GRACE_S = 0.5;
  * through always exists for someone who keeps up with it. */
 const SAFE_HALF_WIDTH = 0.1;
 const SAFE_DRIFT = 0.08;
-// The safe lane stays clear of the pit lanes too, so wherever they are a clear way through is on the road.
-const SAFE_MIN = RACE_KERB + RACE_PIT_WIDTH + SAFE_HALF_WIDTH;
-const SAFE_MAX = 1 - RACE_KERB - RACE_PIT_WIDTH - SAFE_HALF_WIDTH;
+const SAFE_MIN = RACE_KERB + SAFE_HALF_WIDTH;
+const SAFE_MAX = 1 - RACE_KERB - SAFE_HALF_WIDTH;
 const OBSTACLE_TRIES = 10;
 const GONE_BELOW = 1.2;
 /** Drivers start spread across this part of the track, each at a spot that comes from their own id, so
@@ -49,8 +47,15 @@ const PIT_LENGTH = 0.8;
 const PIT_SLIDE = 0.14;
 /** The first stretches are clear, so a run starts on a plain road. */
 const PIT_CLEAR_STRETCHES = 3;
-/** The most likely a side is to have a stretch, at its busiest. Which side is busier changes slowly over the run. */
-const PIT_MAX_CHANCE = 0.8;
+/** A stretch has a first pit lane this often, and a second this often. A pit is between these widths (a tenth of the track to a third),
+ * and sits against the left kerb, the right one or anywhere in the middle; which of the sides is likelier swings slowly over the run. */
+const PIT_FIRST_CHANCE = 0.75;
+const PIT_SECOND_CHANCE = 0.35;
+const PIT_MIN_W = 0.1;
+const PIT_MAX_W = 0.32;
+/** A pit never comes closer than this to the safe lane (beyond its half width), so there is always a clear way through, and the
+ * safe lane has room to drift without running into one. */
+const PIT_SAFE_MARGIN = 0.1;
 const START_MIN = 0.3;
 const START_SPAN = 0.4;
 
@@ -161,7 +166,7 @@ export class RaceGame extends RoundGame<Driver> {
       winnerId: this.winnerId,
       ...this.summary(),
       obstacles: this.obstacles.map((o) => ({ x: r3(o.x), y: r3(o.y), w: r3(o.w), h: r3(o.h), kind: o.kind, n: o.n })),
-      pits: this.pits.map((s) => ({ side: s.side, y: r3(s.y), h: s.h, n: s.n })),
+      pits: this.pits.map((s) => ({ x0: r3(s.x0), x1: r3(s.x1), y: r3(s.y), h: s.h, n: s.n })),
       players: [...this.players.values()].map((p) => ({
         id: p.id,
         x: r3(p.x),
@@ -223,22 +228,38 @@ export class RaceGame extends RoundGame<Driver> {
 
   /** Whether the driver's middle is over a pit lane right now. */
   private inPit(p: Driver): boolean {
-    const side = p.x < RACE_KERB + RACE_PIT_WIDTH ? -1 : p.x > 1 - RACE_KERB - RACE_PIT_WIDTH ? 1 : 0;
-    return side !== 0 && this.pits.some((s) => s.side === side && p.y >= s.y && p.y <= s.y + s.h);
+    return this.pits.some((s) => p.x >= s.x0 && p.x <= s.x1 && p.y >= s.y && p.y <= s.y + s.h);
   }
 
-  /** Makes the next stretch of pit lane at the top of the screen, `over` screens further down than its start. Each
-   * side may have one; which side is likelier swings slowly from one to the other over the run, so for a while
-   * the left has more and then the right. */
+  /** Makes the next stretch of pit lanes at the top of the screen, `over` screens further down than its start: up to two,
+   * against either kerb or anywhere in the middle, each from a tenth to a third of the track wide, never over the safe lane
+   * and the room it needs. Which of the left, right and middle is likelier swings slowly over the run. The same random
+   * numbers are always taken, so the course does not depend on what was refused. */
   private spawnPits(over: number): void {
     const k = this.pitStretches++;
     const lean = Math.sin(this.pitPhase + k * 0.3);
-    const left = this.rng();
-    const right = this.rng();
+    const draws = [0, 1].map(() => ({ here: this.rng(), where: this.rng(), width: this.rng(), at: this.rng() }));
     if (k < PIT_CLEAR_STRETCHES) return;
     const y = over - PIT_LENGTH;
-    if (left < PIT_MAX_CHANCE * (0.5 + 0.5 * -lean)) this.pits.push({ side: -1, y, h: PIT_LENGTH, n: k * 2 + 1 });
-    if (right < PIT_MAX_CHANCE * (0.5 + 0.5 * lean)) this.pits.push({ side: 1, y, h: PIT_LENGTH, n: k * 2 + 2 });
+    const left = 0.3 - 0.2 * lean;
+    const right = 0.3 + 0.2 * lean;
+    const keepClear = SAFE_HALF_WIDTH + PIT_SAFE_MARGIN;
+    const placed: { x0: number; x1: number }[] = [];
+    draws.forEach((d, slot) => {
+      if (d.here >= (slot === 0 ? PIT_FIRST_CHANCE : PIT_SECOND_CHANCE)) return;
+      const w = PIT_MIN_W + d.width * (PIT_MAX_W - PIT_MIN_W);
+      const total = left + right + 0.4;
+      const pick = d.where * total;
+      let x0: number;
+      if (pick < left) x0 = RACE_KERB;
+      else if (pick < left + right) x0 = 1 - RACE_KERB - w;
+      else x0 = RACE_KERB + d.at * (1 - 2 * RACE_KERB - w);
+      const x1 = x0 + w;
+      if (x1 > this.safe - keepClear && x0 < this.safe + keepClear) return;
+      if (placed.some((o) => x1 > o.x0 - 0.04 && x0 < o.x1 + 0.04)) return;
+      placed.push({ x0, x1 });
+      this.pits.push({ x0, x1, y, h: PIT_LENGTH, n: k * 2 + slot + 1 });
+    });
   }
 
   private hit(p: Driver): RaceObstacle | null {
@@ -250,7 +271,16 @@ export class RaceGame extends RoundGame<Driver> {
   }
 
   private spawnObstacle(): void {
-    this.safe = Math.min(SAFE_MAX, Math.max(SAFE_MIN, this.safe + (this.rng() - 0.5) * 2 * SAFE_DRIFT));
+    // The safe lane drifts, but never into a pit lane that is on the track where this obstacle starts: it stays in the gap its
+    // last position was in (pits are never made over it, see spawnPits).
+    let lo = SAFE_MIN;
+    let hi = SAFE_MAX;
+    for (const s of this.pits) {
+      if (s.y > 0 || s.y + s.h < 0) continue;
+      if (s.x1 <= this.safe) lo = Math.max(lo, s.x1 + SAFE_HALF_WIDTH);
+      else if (s.x0 >= this.safe) hi = Math.min(hi, s.x0 - SAFE_HALF_WIDTH);
+    }
+    this.safe = Math.min(hi, Math.max(lo, this.safe + (this.rng() - 0.5) * 2 * SAFE_DRIFT));
     for (let i = 0; i < OBSTACLE_TRIES; i++) {
       const roll = this.rng();
       const kind: RaceObstacleKind = roll < 0.45 ? 'cone' : roll < 0.75 ? 'oil' : 'rock';
