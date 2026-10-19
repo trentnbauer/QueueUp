@@ -8,8 +8,6 @@ const DOWN_SHRINK_S = 0.07; // per hit
 const DOWN_MIN_S = 0.65;
 /** How long the ball takes to go from a hit up to the wall (it then turns round and comes down for the next player). */
 const UP_S = 0.35;
-/** A hit counts if it comes within this long of the moment the ball lands (before or after). */
-const HIT_WINDOW_S = 0.22;
 /** Where the ball lands is the next player's own spot, moved by up to this much: it starts small and grows, so they have to move. */
 const OFFSET_START = 0.12;
 const OFFSET_GAIN = 0.02; // per hit
@@ -35,7 +33,7 @@ interface Hitter extends RoundPlayer {
 }
 
 /** A ball is hit against a wall across the top of the court and comes back down, and each time it comes back it is one player's
- * turn, round the players still in. Be where it lands and press Hit as it does; miss your turn and you are out. The ball lands
+ * turn, round the players still in. Be where it lands as it does (the hit is automatic); miss your turn and you are out. The ball lands
  * near the next player's spot, so everyone has to keep moving. Last player in wins. Needs 2 players, so on your own a bot plays
  * you. See RoundGame for how runs start and end. */
 export class WallGame extends RoundGame<Hitter> {
@@ -87,19 +85,19 @@ export class WallGame extends RoundGame<Hitter> {
     if (p) p.dir = clampDirection(dx);
   }
 
-  /** Hits the ball back at the wall, if it is this player's turn and it is landing now and within reach. */
-  action(userId: string, name: string): void {
-    const p = this.players.get(userId);
-    if (name !== 'hit' || this.phase !== 'playing' || !p?.alive || this.targetId !== userId || this.leg?.kind !== 'down') return;
-    const lands = this.leg.t0 + this.leg.durMs;
-    if (Math.abs(this.roundMs - lands) > HIT_WINDOW_S * 1000 || Math.abs(p.x - this.leg.x1) > WALL_REACH) return;
+  action(): void {
+    // Sliding to where the ball lands is all there is to do: it is hit back for you.
+  }
+
+  /** The ball has landed within reach of `p`, whose turn it was: it goes straight back up at the wall, and the next player's turn is set up. */
+  private hit(p: Hitter, leg: Leg): void {
     p.hits++;
     this.hits++;
-    // Straight back up at the wall, from where it was hit; the next player's turn is set up as it comes back.
+    // Straight back up at the wall, from where it landed; the next player's turn is set up as it comes back.
     const wallX = WALL_MARGIN + this.rng() * (1 - 2 * WALL_MARGIN);
-    this.leg = { kind: 'up', x0: this.leg.x1, y0: WALL_ROW_Y, x1: wallX, y1: WALL_Y, t0: this.roundMs, durMs: UP_S * 1000 };
+    this.leg = { kind: 'up', x0: leg.x1, y0: WALL_ROW_Y, x1: wallX, y1: WALL_Y, t0: leg.t0 + leg.durMs, durMs: UP_S * 1000 };
     const ring = this.ring();
-    const at = ring.findIndex((q) => q.id === userId);
+    const at = ring.findIndex((q) => q.id === p.id);
     this.targetId = ring[(at + 1) % ring.length].id;
   }
 
@@ -149,13 +147,17 @@ export class WallGame extends RoundGame<Hitter> {
       }
       return;
     }
-    // On its way down: whoever's turn it is has until the end of the window to hit it, or they are out.
+    // On its way down: when it lands, whoever's turn it is is either within reach (it is hit back) or out.
     if (!target?.alive) {
       const next = this.ring()[0];
       if (next) this.serve(next, leg.x0);
       return;
     }
-    if (this.roundMs > leg.t0 + leg.durMs + HIT_WINDOW_S * 1000) {
+    if (this.roundMs >= leg.t0 + leg.durMs) {
+      if (Math.abs(target.x - leg.x1) <= WALL_REACH) {
+        this.hit(target, leg);
+        return;
+      }
       this.knockOut(target);
       target.outAtMeters = target.hits;
       const next = this.ring().find((p) => p.id !== target.id) ?? this.ring()[0];
@@ -168,7 +170,7 @@ export class WallGame extends RoundGame<Hitter> {
   }
 }
 
-/** A bot that moves to where the ball will land when it is its turn and hits it as it arrives, a little early or late. */
+/** A bot that moves to where the ball will land when it is its turn, setting off a little early or late (so on a quick enough ball it can be too slow and miss). */
 export function wallBrain(id: string, rng: () => number): BotBrain {
   let jitter = (rng() - 0.5) * 0.3;
   let lastHits = -1;
@@ -183,8 +185,8 @@ export function wallBrain(id: string, rng: () => number): BotBrain {
     if (snap.targetId !== id || snap.leg !== 'down') return { dx: 0 };
     const gap = snap.landX - me.x;
     const move = Math.abs(gap) < 0.02 ? 0 : gap > 0 ? 1 : -1;
-    // Hit when it is about to land (inside the window, a little early or late, so it can miss on a hard enough ball).
-    const ready = Math.abs(gap) <= WALL_REACH * 0.8 && snap.landInMs <= 120 + jitter * 1000;
-    return ready ? { dx: move, actions: ['hit'] } : { dx: move };
+    // Sets off when the time left is about what the slide needs, plus a margin that is sometimes too small.
+    const needMs = (Math.max(0, Math.abs(gap) - WALL_REACH * 0.5) / WALL_PLAYER_SPEED) * 1000;
+    return snap.landInMs <= needMs + 120 + jitter * 1000 ? { dx: move } : { dx: 0 };
   };
 }

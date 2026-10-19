@@ -90,9 +90,9 @@ const scene: SceneGame<WallSnapshot> = {
 };
 
 export const wallView: LobbyGameView<WallSnapshot> = {
-  // Left and right to slide along the bottom, and one Hit button (Space or Up).
+  // Left and right to slide along the bottom: the ball is hit back for you if you are in the ring as it lands.
   pad: 'leftRight',
-  actions: [{ name: 'hit', labelKey: 'spin.lobby.wall.hit', keys: [' ', 'ArrowUp', 'w'] }],
+  actions: [],
   nameKey: 'spin.lobby.wall.name',
   taglineKey: 'spin.lobby.wall.tagline',
   hintKey: 'spin.lobby.wall.hint',
