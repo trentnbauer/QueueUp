@@ -954,9 +954,11 @@ export const GRAVITY_X = 0.18;
 /** A runner's radius, and how tall a spike is, as fractions of the arena's height (drawing and hits). */
 export const GRAVITY_PLAYER_R = 0.035;
 export const GRAVITY_SPIKE_H = 0.14;
+/** A block floating in the middle of the corridor is this tall (centred on the middle): flying through it is fatal. */
+export const GRAVITY_MID_H = 0.26;
 
-/** A spike block: `x` is how far ahead of the screen's left edge its middle is, `side` where it stands (0 the
- * floor, 1 the ceiling). */
+/** An obstacle: `x` is how far ahead of the screen's left edge its middle is, `side` where it is (0 spikes on the
+ * floor, 1 spikes on the ceiling, 2 a block floating in the middle, which kills anyone flying across). */
 export interface GravityObstacle {
   x: number;
   w: number;
