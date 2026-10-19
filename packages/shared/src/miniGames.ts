@@ -28,7 +28,7 @@ export const MINIGAME_SCORE_MAX: Record<LobbyGameId, number> = {
   gravity: 20000,
   laser: 20000,
   colormatch: 200,
-  potato: 100,
+  potato: 20000, // tenths of a second held
   anagram: 500,
   mines: 71,
   stop: 200,
@@ -60,7 +60,7 @@ export const MINIGAME_VERSIONS: Record<LobbyGameId, number> = {
   gravity: 2, // floating blocks in the middle, and a flip can be turned round part way across
   laser: 1,
   colormatch: 1,
-  potato: 1,
+  potato: 2, // the score became the time held, not the rounds survived
   anagram: 1,
   mines: 1,
   stop: 1,

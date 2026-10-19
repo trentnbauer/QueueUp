@@ -23,5 +23,6 @@ export const SOURCE_KEYS: Record<MiniGameScoreSource, MessageKey> = {
 
 /** A high score as shown: a time in milliseconds for the games where smaller is better, else the plain number. */
 export function formatScore(game: LobbyGameId, score: number): string {
+  if (game === 'potato') return `${(score / 10).toFixed(1)} s`; // tenths of a second held
   return lowerIsBetter(game) ? `${score} ms` : String(score);
 }
