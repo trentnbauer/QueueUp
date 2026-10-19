@@ -141,9 +141,11 @@ A top-down race on a scrolling track, everyone on the same course.
 - **Slide off the bottom** (the red glow) and you are out. Last driver on the screen wins; alone, your distance is your score.
 - **Starting spots** are spread across the middle of the track, the same spot for you every run.
 - **Speed:** the track starts at 0.45 of a screen per second and climbs to 0.95 after about 42 seconds. A new obstacle appears every 0.9 seconds at the start, down to every 0.22 seconds after about 45 seconds, so hits come thicker and faster and every run ends.
-- A **safe lane** drifts slowly from side to side, and no obstacle is ever made over it, so there is always a way through for someone who keeps up with it.
+- A **safe lane** drifts slowly from side to side, and no obstacle is ever made over it, so there is always a way through for someone who keeps up with it. It stays clear of the pit lanes too, so a clear path is always on the road.
+- **Pit lanes** (amber hatched strips along the inside of each kerb, a tenth of the track wide) appear in stretches about 0.8 of a screen long from a few seconds in, scrolling at the course speed. A driver whose middle is **in** one is dragged down the screen the whole time (0.14 of a screen a second, more than the slow climb back), so the way out is to steer back onto the road; staying in one long enough slides you off the bottom. Which side has more of them swings slowly over the run (for a while the left, then the right, now and then both), and comes from the round's seed, so it is the same for everyone. They give a driver who hugs the edge to dodge obstacles a price to pay.
 - You steer at 0.6 of a screen per second and can't leave the track (the striped kerbs).
 
+## Catch the coins
 
 Coins fall; slide left and right to catch them before anyone else does.
 
