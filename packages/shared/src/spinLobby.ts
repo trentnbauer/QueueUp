@@ -11,8 +11,8 @@
 export const LOBBY_TICK_HZ = 15;
 
 /** The games the lobby can run. */
-export type LobbyGameId = 'runner' | 'flappy' | 'dodge' | 'rope' | 'coins' | 'battleships' | 'race' | 'whack' | 'draw' | 'tilt' | 'stacker' | 'sumo' | 'asteroids' | 'memory' | 'words' | 'lava' | 'snake' | 'gravity' | 'laser' | 'colormatch' | 'potato' | 'anagram' | 'mines' | 'stop' | 'pong' | 'wall' | 'frogger' | 'fishing' | 'orbit' | 'rps';
-export const LOBBY_GAME_IDS: readonly LobbyGameId[] = ['runner', 'flappy', 'dodge', 'rope', 'coins', 'battleships', 'race', 'whack', 'draw', 'tilt', 'stacker', 'sumo', 'asteroids', 'memory', 'words', 'lava', 'snake', 'gravity', 'laser', 'colormatch', 'potato', 'anagram', 'mines', 'stop', 'pong', 'wall', 'frogger', 'fishing', 'orbit', 'rps'];
+export type LobbyGameId = 'runner' | 'flappy' | 'dodge' | 'rope' | 'coins' | 'battleships' | 'race' | 'whack' | 'draw' | 'tilt' | 'stacker' | 'sumo' | 'asteroids' | 'memory' | 'words' | 'lava' | 'snake' | 'gravity' | 'laser' | 'colormatch' | 'potato' | 'anagram' | 'mines' | 'stop' | 'pong' | 'wall' | 'frogger' | 'fishing' | 'orbit' | 'rps' | 'rhythm';
+export const LOBBY_GAME_IDS: readonly LobbyGameId[] = ['runner', 'flappy', 'dodge', 'rope', 'coins', 'battleships', 'race', 'whack', 'draw', 'tilt', 'stacker', 'sumo', 'asteroids', 'memory', 'words', 'lava', 'snake', 'gravity', 'laser', 'colormatch', 'potato', 'anagram', 'mines', 'stop', 'pong', 'wall', 'frogger', 'fishing', 'orbit', 'rps', 'rhythm'];
 
 /** What a client sends. Anything else is ignored. */
 export type LobbyClientMessage =
@@ -24,7 +24,7 @@ export type LobbyClientMessage =
   | { t: 'action'; name: string; run?: number; at?: number }
   /** The person tapped one of the game's tap targets on the arena (see `LOBBY_TAP_TARGETS_MAX`). `target`
    * is the target's index, never a position, so a client cannot claim a tap no target would give. */
-  | { t: 'tap'; target: number; /** The person's own reaction time in ms, measured on their device (Quick draw only). */ ms?: number }
+  | { t: 'tap'; target: number; /** The person's own reaction time in ms, measured on their device (Quick draw only). */ ms?: number; /** In a practice run of a game their device also works out, which run and when in it (ms, on the device's copy) the tap was made, as for `input`. */ run?: number; at?: number }
   /** Where a person's own player is, for a game that runs each player on their own device (see
    * `LobbyGame.clientSim`): `run` is the run it belongs to, `alive` is false once they are out, and `f`
    * is the game's own fields (a height, a speed). Sent about 20 times a second while a run is on. */
@@ -1578,8 +1578,57 @@ export interface RpsSnapshot extends RoundSummary {
   winnerId: string | null;
 }
 
+// ---- Rhythm lanes (tap the lane as each note reaches the line) --------------------------------------
+
+/** Four lanes: tap targets 0 to 3, left to right. */
+export const RHYTHM_LANES = 4;
+
+/** What a tap or a note came to: a hit close to the beat (great) or near it (good), a note that got by (miss), or a tap with no note to hit (wrong). */
+export type RhythmJudge = 'great' | 'good' | 'miss' | 'wrong';
+
+/** A note on its way down a lane: `inMs` is how long until it reaches the line (negative just after), `fallMs` how long it takes to fall in all. */
+export interface RhythmNote {
+  n: number;
+  lane: number;
+  inMs: number;
+  fallMs: number;
+}
+
+export interface RhythmPlayer {
+  id: string;
+  /** Still in. False once the lives are gone, or if they arrived mid-run. */
+  alive: boolean;
+  /** Runs won since this person joined the lobby. */
+  wins: number;
+  /** Points: a great hit is two, a good one is one. Live while in, final once out. */
+  meters: number;
+  /** Lives left. */
+  lives: number;
+  /** The notes in view that they have already hit or let go by. */
+  done: number[];
+  /** What their last tap or miss was, for a moment (`agoMs` is how long ago); null after that. */
+  last: { kind: RhythmJudge; lane: number; agoMs: number } | null;
+}
+
+export interface RhythmSnapshot extends RoundSummary {
+  id: 'rhythm';
+  phase: LobbyRoundPhase;
+  /** The most points anyone has so far. */
+  meters: number;
+  /** Always 0: nothing scrolls past in this game (every snapshot carries a course speed). */
+  speed: number;
+  /** The beat, in beats a minute (it picks up as the run goes on). */
+  bpm: number;
+  notes: RhythmNote[];
+  players: RhythmPlayer[];
+  /** Milliseconds left in `countdown` or `over`; 0 otherwise. */
+  timerMs: number;
+  /** Who won the run that just ended (`over` only); null when nobody did (a solo run, or a draw). */
+  winnerId: string | null;
+}
+
 /** The snapshot of whichever game is running. */
-export type LobbyGameSnapshot = RunnerSnapshot | FlappySnapshot | DodgeSnapshot | RopeSnapshot | CoinsSnapshot | BattleshipsSnapshot | RaceSnapshot | WhackSnapshot | DrawSnapshot | TiltSnapshot | StackerSnapshot | SumoSnapshot | AsteroidsSnapshot | MemorySnapshot | WordsSnapshot | LavaSnapshot | SnakeSnapshot | GravitySnapshot | LaserSnapshot | ColorMatchSnapshot | PotatoSnapshot | AnagramSnapshot | MinesSnapshot | StopSnapshot | PongSnapshot | WallSnapshot | FroggerSnapshot | FishingSnapshot | OrbitSnapshot | RpsSnapshot;
+export type LobbyGameSnapshot = RunnerSnapshot | FlappySnapshot | DodgeSnapshot | RopeSnapshot | CoinsSnapshot | BattleshipsSnapshot | RaceSnapshot | WhackSnapshot | DrawSnapshot | TiltSnapshot | StackerSnapshot | SumoSnapshot | AsteroidsSnapshot | MemorySnapshot | WordsSnapshot | LavaSnapshot | SnakeSnapshot | GravitySnapshot | LaserSnapshot | ColorMatchSnapshot | PotatoSnapshot | AnagramSnapshot | MinesSnapshot | StopSnapshot | PongSnapshot | WallSnapshot | FroggerSnapshot | FishingSnapshot | OrbitSnapshot | RpsSnapshot | RhythmSnapshot;
 
 /** What a client needs to run its own player on a course the server decided: which run, the seed that
  * makes the course, and how long until the run starts (negative once it has, by how far in). */

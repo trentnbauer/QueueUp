@@ -130,6 +130,14 @@ export class ClientSim {
     return { run: this.pending.run, at: this.local.runMs };
   }
 
+  /** A tap on one of the game's arena targets. True if the copy here took it (a game the device works out, in a room), false if the server should
+   * be told (any other game, or a practice run, where the server also works it out: send `stamp()` with it). */
+  tap(target: number): boolean {
+    if (!this.local || !this.pending) return false;
+    if (this.running) this.local.tap?.(this.me, target);
+    return !this.serverRuns;
+  }
+
   /** A one-off move such as a jump. True if the copy here took it, false if the server should be told. */
   action(name: string): boolean {
     if (!this.local || !this.pending) return false;

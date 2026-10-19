@@ -48,6 +48,7 @@ export interface LobbyGame {
    * the device so every press has arrived by the time it is due (see SpinLobby). A press for another run is dropped. */
   inputAt?(userId: string, run: number, at: number, dx: number, dy: number): void;
   actionAt?(userId: string, run: number, at: number, name: string): void;
+  tapAt?(userId: string, run: number, at: number, target: number): void;
   /** The person tapped target number `target` on the arena, for games whose play space is the controller
    * (see `taps` in the web view). The lobby only passes a whole number from 0 to LOBBY_TAP_TARGETS_MAX;
    * the game ignores an index it has no target for. Games without tap targets leave this out. */
