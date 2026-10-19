@@ -1,8 +1,11 @@
 import { describe, expect, it } from 'vitest';
 import { WORDS_BACKSPACE, WORDS_ENTER, WORDS_GUESSES, WORD_ABSENT, WORD_CORRECT, WORD_PRESENT } from '../spinLobby.js';
 import { WordsGame, scoreGuess } from './words.js';
+import { WORD_DICTIONARY } from './wordDictionary.js';
 import { WORD_ANSWERS } from './wordList.js';
 
+/** A real word that is not the secret one (the secret ones are everyday words; this is not on the list of them). */
+const WRONG = 'quiz';
 const STEP = 33;
 const run = (g: WordsGame, ms: number) => {
   for (let t = 0; t < ms; t += STEP) g.tick(STEP);
@@ -84,51 +87,49 @@ describe('WordsGame', () => {
     expect(g.snapshot('a').mine!.draft).toBe('c');
     g.tap('a', WORDS_ENTER); // not four letters yet
     expect(g.snapshot('a').mine!.guesses).toEqual([]);
-    for (const ch of 'xyzw') g.tap('a', ch.charCodeAt(0) - 97);
-    expect(g.snapshot('a').mine!.draft).toBe('cxyz'); // a fifth letter is not accepted
+    for (const ch of 'oldw') g.tap('a', ch.charCodeAt(0) - 97);
+    expect(g.snapshot('a').mine!.draft).toBe('cold'); // a fifth letter is not accepted
     g.tap('a', WORDS_ENTER);
-    expect(g.snapshot('a').mine!.guesses).toEqual(['cxyz']);
+    expect(g.snapshot('a').mine!.guesses).toEqual(['cold']);
     expect(g.snapshot('a').mine!.draft).toBe('');
   });
 
   it('fills in letters already got in the right place, so only the other squares are typed', () => {
     const g = started(['a', 'b']);
     const word = answerOf(0.3);
-    // Right in the first three squares, wrong in the last.
-    const wrong = word.slice(0, 3) + (word[3] === 'q' ? 'x' : 'q');
-    guess(g, 'a', wrong);
+    expect(word).toBe('base');
+    // Right in squares 1, 2 and 3 (a, s, e), wrong in the first.
+    guess(g, 'a', 'case');
     const mine = g.snapshot('a').mine!;
-    expect(mine.guesses).toEqual([wrong]);
-    expect(mine.known).toEqual([word[0], word[1], word[2], '']);
-    // One letter is left to type: the draft takes just one, and Enter needs it.
+    expect(mine.guesses).toEqual(['case']);
+    expect(mine.known).toEqual(['', 'a', 's', 'e']);
+    // One letter is left to type: Enter needs it, and the draft takes just one.
     g.tap('a', WORDS_ENTER);
     expect(g.snapshot('a').mine!.guesses).toHaveLength(1);
-    g.tap('a', word.charCodeAt(3) - 97);
+    g.tap('a', 'b'.charCodeAt(0) - 97);
     g.tap('a', 'q'.charCodeAt(0) - 97); // no second one: only one square is open
-    expect(g.snapshot('a').mine!.draft).toBe(word[3]);
+    expect(g.snapshot('a').mine!.draft).toBe('b');
     g.tap('a', WORDS_ENTER);
     expect(me(g, 'a')).toMatchObject({ solved: true, guesses: 2 });
-    expect(g.snapshot('a').mine!.guesses).toEqual([wrong, word]);
+    expect(g.snapshot('a').mine!.guesses).toEqual(['case', word]);
   });
 
   it('puts typed letters in the open squares in order, around the ones filled in', () => {
     const g = started(['a', 'b']);
-    const word = answerOf(0.3);
-    // Right in squares 0 and 2 only.
-    const other = (ch: string) => (ch === 'q' ? 'x' : 'q');
-    const first = word[0] + other(word[1]) + word[2] + other(word[3]);
-    guess(g, 'a', first);
-    expect(g.snapshot('a').mine!.known).toEqual([word[0], '', word[2], '']);
+    expect(answerOf(0.3)).toBe('base');
+    // Right in squares 0 and 2 only (b and s).
+    guess(g, 'a', 'best');
+    expect(g.snapshot('a').mine!.known).toEqual(['b', '', 's', '']);
     // Two to type now: they go into squares 1 and 3.
-    g.tap('a', 'v'.charCodeAt(0) - 97);
-    g.tap('a', 'w'.charCodeAt(0) - 97);
+    g.tap('a', 'u'.charCodeAt(0) - 97);
+    g.tap('a', 't'.charCodeAt(0) - 97);
     g.tap('a', WORDS_ENTER);
-    expect(g.snapshot('a').mine!.guesses.at(-1)).toBe(word[0] + 'v' + word[2] + 'w');
+    expect(g.snapshot('a').mine!.guesses.at(-1)).toBe('bust');
   });
 
   it('does not fill in letters that were only in the word elsewhere, and starts again each run', () => {
     const g = started(['a', 'b']);
-    guess(g, 'a', 'zzzz');
+    guess(g, 'a', WRONG);
     expect(g.snapshot('a').mine!.known.filter(Boolean).length).toBe(0);
     // A run later, nothing carries over.
     const word = answerOf(0.3);
@@ -141,14 +142,14 @@ describe('WordsGame', () => {
 
   it('scores a guess for everyone, but only shows the letters to their owner', () => {
     const g = started(['a', 'b']);
-    guess(g, 'a', 'zzzz');
+    guess(g, 'a', WRONG);
     const forB = g.snapshot('b');
     const a = forB.players.find((p) => p.id === 'a')!;
     expect(a.rows).toHaveLength(1);
     expect(a.guesses).toBe(1);
-    expect(JSON.stringify(forB)).not.toContain('zzzz');
+    expect(JSON.stringify(forB)).not.toContain(WRONG);
     expect(forB.mine!.guesses).toEqual([]);
-    expect(g.snapshot('a').mine!.guesses).toEqual(['zzzz']);
+    expect(g.snapshot('a').mine!.guesses).toEqual([WRONG]);
   });
 
   it('gives a person who joined part way through no board', () => {
@@ -162,14 +163,14 @@ describe('WordsGame', () => {
   it('is won by whoever finds the word, with points for fewer guesses and an early solve', () => {
     const g = started(['a', 'b']);
     const word = answerOf(0.3);
-    guess(g, 'a', 'zzzz');
+    guess(g, 'a', WRONG);
     guess(g, 'a', word);
     expect(me(g, 'a')).toMatchObject({ solved: true, done: true, guesses: 2 });
     const points = me(g, 'a').meters;
     expect(points).toBeGreaterThanOrEqual((WORDS_GUESSES - 2 + 1) * 10);
     expect(points).toBeLessThan((WORDS_GUESSES - 2 + 1) * 10 + 10);
     // Done people cannot type any more.
-    guess(g, 'a', 'zzzz');
+    guess(g, 'a', WRONG);
     expect(me(g, 'a').guesses).toBe(2);
     // b is still guessing, so the run goes on.
     expect(g.snapshot('a').phase).toBe('playing');
@@ -179,9 +180,9 @@ describe('WordsGame', () => {
     const g = started(['a', 'b', 'c']);
     const word = answerOf(0.3);
     guess(g, 'a', word); // one guess
-    guess(g, 'b', 'zzzz');
+    guess(g, 'b', WRONG);
     guess(g, 'b', word); // two guesses
-    for (let i = 0; i < WORDS_GUESSES; i++) guess(g, 'c', 'zzzz'); // never finds it
+    for (let i = 0; i < WORDS_GUESSES; i++) guess(g, 'c', WRONG); // never finds it
     const snap = g.snapshot('a');
     expect(snap).toMatchObject({ phase: 'over', winnerId: 'a', answer: word });
     expect(me(g, 'a').wins).toBe(1);
@@ -208,7 +209,7 @@ describe('WordsGame', () => {
 
   it('ends at 90 seconds, with nobody who has not found the word winning', () => {
     const g = started(['a', 'b']);
-    guess(g, 'a', 'zzzz');
+    guess(g, 'a', WRONG);
     run(g, 91_000);
     expect(g.snapshot('a')).toMatchObject({ phase: 'over', winnerId: null });
     expect(g.snapshot('a').players.every((p) => p.wins === 0)).toBe(true);
@@ -227,5 +228,55 @@ describe('WordsGame with no lobby time limit', () => {
     expect(g.snapshot('a').limitMs).toBe(90_000);
     run(g, 91_000);
     expect(g.snapshot('a').phase).not.toBe('playing');
+  });
+});
+
+describe('WordsGame guesses have to be words', () => {
+  const type = (g: WordsGame, word: string) => {
+    for (const ch of word) g.tap('a', ch.charCodeAt(0) - 97);
+    g.tap('a', WORDS_ENTER);
+  };
+
+  it('turns back a run of letters that is not a word, keeping the draft and not using a guess', () => {
+    const g = started(['a']);
+    type(g, 'aeio');
+    const mine = g.snapshot('a').mine!;
+    expect(mine).toMatchObject({ guesses: [], draft: 'aeio', rejected: true });
+    expect(g.snapshot('a').players[0].guesses).toBe(0);
+    // Any key clears the message, and the draft can be changed and sent.
+    g.tap('a', WORDS_BACKSPACE);
+    expect(g.snapshot('a').mine).toMatchObject({ draft: 'aei', rejected: false });
+    g.tap('a', 'd'.charCodeAt(0) - 97);
+    g.tap('a', WORDS_ENTER);
+    expect(g.snapshot('a').mine).toMatchObject({ guesses: [], rejected: true });
+    for (let i = 0; i < 4; i++) g.tap('a', WORDS_BACKSPACE);
+    type(g, 'cold');
+    expect(g.snapshot('a').mine).toMatchObject({ guesses: ['cold'], draft: '', rejected: false });
+  });
+
+  it('never runs a player out of guesses by rejected words', () => {
+    const g = started(['a']);
+    for (let i = 0; i < 12; i++) {
+      type(g, 'zzzz');
+      for (let k = 0; k < 4; k++) g.tap('a', WORDS_BACKSPACE);
+    }
+    expect(g.snapshot('a').mine!.guesses).toEqual([]);
+    expect(g.snapshot('a').phase).toBe('playing');
+  });
+
+  it('checks the word with the filled-in letters in it, not just what was typed', () => {
+    const g = started(['a']);
+    type(g, 'case');
+    // a, s and e are known now: typing a letter that makes a non-word (xase) is turned back.
+    g.tap('a', 'x'.charCodeAt(0) - 97);
+    g.tap('a', WORDS_ENTER);
+    expect(g.snapshot('a').mine).toMatchObject({ guesses: ['case'], draft: 'x', rejected: true });
+  });
+
+  it('accepts every word on the list of secret words, and the dictionary has no words of the wrong length or case', () => {
+    for (const w of WORD_ANSWERS) expect(WORD_DICTIONARY.has(w), w).toBe(true);
+    for (const w of WORD_DICTIONARY) expect(/^[a-z]{4}$/.test(w), w).toBe(true);
+    expect(WORD_DICTIONARY.size).toBeGreaterThan(3000);
+    for (const w of ['aeio', 'zzzz', 'abcd', 'qqqq']) expect(WORD_DICTIONARY.has(w), w).toBe(false);
   });
 });
