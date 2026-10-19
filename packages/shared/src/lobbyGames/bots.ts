@@ -5,6 +5,7 @@ import { secureRandom } from './roundGame.js';
 import { pongBrain } from './pong.js';
 import { potatoBrain } from './potato.js';
 import { snakeBrain } from './snake.js';
+import { wallBrain } from './wall.js';
 import { sumoBrain } from './sumo.js';
 import type { BotBrain, LobbyGame } from './types.js';
 
@@ -33,6 +34,7 @@ const BRAINS: Partial<Record<LobbyGameId, (botId: string, rng: () => number) => 
   snake: snakeBrain,
   potato: potatoBrain,
   pong: pongBrain,
+  wall: wallBrain,
   draw: drawBrain,
 };
 

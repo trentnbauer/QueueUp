@@ -17,6 +17,7 @@ import { stackerView } from './stacker';
 import { sumoView } from './sumo';
 import { whackView } from './whack';
 import { wordsView } from './words';
+import { wallView } from './wall';
 import { pongView } from './pong';
 import { stopView } from './stop';
 import { minesView } from './mines';
@@ -112,6 +113,7 @@ export const LOBBY_GAME_VIEWS: { [K in LobbyGameId]: LobbyGameView<Extract<Lobby
   mines: minesView,
   stop: stopView,
   pong: pongView,
+  wall: wallView,
 };
 
 /** The view for whichever game a snapshot belongs to. */
