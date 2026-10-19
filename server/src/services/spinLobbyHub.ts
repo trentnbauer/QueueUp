@@ -169,8 +169,22 @@ export class SpinLobbyHub {
     }
   }
 
-  /** A raw message from a socket. Malformed or unknown messages are ignored. */
+  /** A raw message from a socket. Malformed or unknown messages are ignored. A game that throws on one closes just
+   * that room: an uncaught error from a socket listener would end the whole process, and with it every room. */
   message(roomId: string, socket: LobbySocket, raw: string): void {
+    try {
+      this.handleMessage(roomId, socket, raw);
+    } catch (err) {
+      this.crashed(roomId, err);
+    }
+  }
+
+  private crashed(roomId: string, err: unknown): void {
+    console.error(`[spinLobbyHub] a game threw in ${roomId}; closing that lobby`, err);
+    this.closeRoom(roomId);
+  }
+
+  private handleMessage(roomId: string, socket: LobbySocket, raw: string): void {
     const room = this.rooms.get(roomId);
     const userId = room?.sockets.get(socket);
     if (!room || userId === undefined) return;
@@ -250,6 +264,15 @@ export class SpinLobbyHub {
   /** One step of a room's lobby: move everyone, send the snapshot, and (every couple of seconds)
    * check on the spin. Exposed so tests can drive it. */
   async tickRoom(roomId: string): Promise<void> {
+    try {
+      await this.runTick(roomId);
+    } catch (err) {
+      // Same as in `message`: one broken game closes its own lobby, not the process.
+      this.crashed(roomId, err);
+    }
+  }
+
+  private async runTick(roomId: string): Promise<void> {
     const room = this.rooms.get(roomId);
     if (!room) return;
     const now = this.now();

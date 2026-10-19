@@ -29,6 +29,20 @@ describe('OpenLobbyRegistry', () => {
     expect(reg.create('late', 'public', null)).toBeNull();
   });
 
+  it('keeps a host their lobby when a replacement is refused, and lets a host replace theirs when the server is full', () => {
+    const reg = new OpenLobbyRegistry();
+    for (let i = 0; i < MAX_OPEN_LOBBIES; i++) reg.create(`host${i}`, 'public', null);
+    const mine = reg.hostedBy('host0')!;
+    // A full server still lets a host swap their own lobby for a new one.
+    const swapped = reg.create('host0', 'friends', null);
+    expect(swapped?.replaced).toBe(mine);
+    expect(reg.all()).toHaveLength(MAX_OPEN_LOBBIES);
+    // A refusal for someone else leaves everyone's lobbies where they were.
+    expect(reg.create('late', 'public', null)).toBeNull();
+    expect(reg.all()).toHaveLength(MAX_OPEN_LOBBIES);
+    expect(reg.hostedBy('host1')).toBeDefined();
+  });
+
   it('drops a lobby nobody ever joined, but not one with people in it', () => {
     let now = 1_000_000;
     const reg = new OpenLobbyRegistry(() => now);
