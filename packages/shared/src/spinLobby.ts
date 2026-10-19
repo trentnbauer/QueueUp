@@ -11,8 +11,8 @@
 export const LOBBY_TICK_HZ = 15;
 
 /** The games the lobby can run. */
-export type LobbyGameId = 'runner' | 'flappy' | 'dodge' | 'rope' | 'coins' | 'battleships' | 'race' | 'whack' | 'draw' | 'tilt' | 'stacker' | 'sumo' | 'asteroids' | 'memory' | 'words' | 'lava' | 'snake' | 'gravity';
-export const LOBBY_GAME_IDS: readonly LobbyGameId[] = ['runner', 'flappy', 'dodge', 'rope', 'coins', 'battleships', 'race', 'whack', 'draw', 'tilt', 'stacker', 'sumo', 'asteroids', 'memory', 'words', 'lava', 'snake', 'gravity'];
+export type LobbyGameId = 'runner' | 'flappy' | 'dodge' | 'rope' | 'coins' | 'battleships' | 'race' | 'whack' | 'draw' | 'tilt' | 'stacker' | 'sumo' | 'asteroids' | 'memory' | 'words' | 'lava' | 'snake' | 'gravity' | 'laser';
+export const LOBBY_GAME_IDS: readonly LobbyGameId[] = ['runner', 'flappy', 'dodge', 'rope', 'coins', 'battleships', 'race', 'whack', 'draw', 'tilt', 'stacker', 'sumo', 'asteroids', 'memory', 'words', 'lava', 'snake', 'gravity', 'laser'];
 
 /** What a client sends. Anything else is ignored. */
 export type LobbyClientMessage =
@@ -994,8 +994,55 @@ export interface GravitySnapshot extends RoundSummary {
   winnerId: string | null;
 }
 
+// ---- Laser gaps (rows of lasers fall; slide into the gap) ----------------------------------------
+
+/** Where the players stand (down from the top), how wide and tall they are, and how thick a laser row is (all
+ * fractions of the arena; what is drawn is what is hit). */
+export const LASER_PLAYER_Y = 0.9;
+export const LASER_PLAYER_WIDTH = 0.06;
+export const LASER_PLAYER_HEIGHT = 0.05;
+export const LASER_HEIGHT = 0.03;
+
+/** A row of lasers across the whole width, except for a gap: `y` is its middle down from the top, `gap` the middle of
+ * the gap across and `width` how wide it is. */
+export interface LaserRow {
+  y: number;
+  gap: number;
+  width: number;
+  /** Which row this is (counts up from 1 each run); stays the same as it falls. */
+  n: number;
+}
+
+export interface LaserPlayer {
+  id: string;
+  /** Where they stand across the screen (0..1). */
+  x: number;
+  /** The direction they are holding: -1, 0 or 1. */
+  dir: number;
+  /** Still going. False once they touch a beam, or if they arrived mid-run. */
+  alive: boolean;
+  /** Runs won since this person joined the lobby. */
+  wins: number;
+  /** How far the rows have fallen, in metres: live while going, final once out. */
+  meters: number;
+}
+
+export interface LaserSnapshot extends RoundSummary {
+  id: 'laser';
+  phase: LobbyRoundPhase;
+  meters: number;
+  /** How fast the rows fall, in screens per second. */
+  speed: number;
+  rows: LaserRow[];
+  players: LaserPlayer[];
+  /** Milliseconds left in `countdown` or `over`; 0 otherwise. */
+  timerMs: number;
+  /** Who won the run that just ended (`over` only); null when nobody did (a solo run, or a draw). */
+  winnerId: string | null;
+}
+
 /** The snapshot of whichever game is running. */
-export type LobbyGameSnapshot = RunnerSnapshot | FlappySnapshot | DodgeSnapshot | RopeSnapshot | CoinsSnapshot | BattleshipsSnapshot | RaceSnapshot | WhackSnapshot | DrawSnapshot | TiltSnapshot | StackerSnapshot | SumoSnapshot | AsteroidsSnapshot | MemorySnapshot | WordsSnapshot | LavaSnapshot | SnakeSnapshot | GravitySnapshot;
+export type LobbyGameSnapshot = RunnerSnapshot | FlappySnapshot | DodgeSnapshot | RopeSnapshot | CoinsSnapshot | BattleshipsSnapshot | RaceSnapshot | WhackSnapshot | DrawSnapshot | TiltSnapshot | StackerSnapshot | SumoSnapshot | AsteroidsSnapshot | MemorySnapshot | WordsSnapshot | LavaSnapshot | SnakeSnapshot | GravitySnapshot | LaserSnapshot;
 
 /** What a client needs to run its own player on a course the server decided: which run, the seed that
  * makes the course, and how long until the run starts (negative once it has, by how far in). */
