@@ -1,4 +1,4 @@
-import { useState, type CSSProperties, type ReactNode } from 'react';
+import { useState, type CSSProperties, type KeyboardEvent as ReactKeyboardEvent, type ReactNode } from 'react';
 import type { GameStatus } from '@queueup/shared';
 import { useNavigate } from 'react-router';
 import { st } from './st';
@@ -724,11 +724,14 @@ export function SearchField({
   wrapStyle,
   autoFocus,
   disabled,
+  onKeyDown,
 }: {
   value: string;
   onChange: (value: string) => void;
   placeholder: string;
   ariaLabel: string;
+  /** For a list that the field also steers (arrow keys). */
+  onKeyDown?: (e: ReactKeyboardEvent<HTMLInputElement>) => void;
   /** Declarations for the input itself (height, background, border...). */
   style: string;
   /** Declarations for the wrapper, which is what takes part in the surrounding flex/grid layout. */
@@ -741,6 +744,7 @@ export function SearchField({
       <input
         value={value}
         onChange={(e) => onChange(e.target.value)}
+        onKeyDown={onKeyDown}
         placeholder={placeholder}
         aria-label={ariaLabel}
         autoFocus={autoFocus}

@@ -133,6 +133,8 @@ export interface MiniGameMeResponse {
 /** The viewer's best score in each game they have played (a game with no run is missing). */
 export interface MiniGameBestsResponse {
   bests: Partial<Record<LobbyGameId, number>>;
+  /** Where that best ranks among the viewer's friends (and themselves) in each game they have a score in: 1 is top, and equal scores share a place. */
+  friendRanks: Partial<Record<LobbyGameId, number>>;
 }
 
 // ---- Open lobbies (outside a room) -----------------------------------------------------------------

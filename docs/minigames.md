@@ -12,6 +12,12 @@ Mini games are **cosmetic**: nothing in them changes which game a spin picks.
 | **Room settings → Mini games** | Play any time, with no spin. |
 | **Mini games** (sidebar on desktop, profile menu on phones) | Play alone and pick which game, and see the high scores. |
 
+## The Mini games page
+
+On a computer the page is a **list of every game on the left** (A to Z in your language, fixed height so it stays the same size however many games there are, with a search box that filters on name and tagline) and the **picked game on the right**: its name and tagline, **Play**, your four numbers (personal best, rank among your friends, runs played, the gap to your next friend) and its high scores. The list shows your best in each game, and a **🥇 🥈 🥉** before it for the games where you are top three among your friends (a plain number below that; nothing before your first run in a game). A game you lead has a gold wash. In the search box, **↑** and **↓** move the pick through what is shown, and **Enter** picks the first match when the picked game is not among them.
+
+On a phone it is a strip of game cards under a search box, also A to Z, with the medal before your best, then the scores and your numbers, and a Play button pinned to the bottom.
+
 ## High scores
 
 The **Mini games** page keeps a high score list for every game: your best run, your friends' and everyone's, for all time or the last 7 days. Every run counts, wherever it is played: solo, a room's mini game, or a spin's waiting room. People tied on a score share the place, and people you have blocked (or who blocked you) never show. **Solo practice runs on the server too**, in a private lobby of one that nobody else can see or join, so every score on the lists is one the server saw happen: there is no way to post a score from a browser. (The games that work out your own movement on your device are worked out by the server in practice, and their lobby scores stay off the lists; see "Ping and who works out what".)

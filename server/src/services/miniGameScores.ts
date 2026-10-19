@@ -168,7 +168,36 @@ export async function myBests(viewerId: string): Promise<MiniGameBestsResponse> 
     const v = lowerIsBetter(r.gameId) ? r._min.score : r._max.score;
     if (v !== null) bests[r.gameId] = v;
   }
-  return { bests };
+  return { bests, friendRanks: await friendRanksOf(viewerId, bests) };
+}
+
+/** Where each of the viewer's bests ranks among their friends' (one more than the friends with a better one, so ties share a place), for
+ * every game in `bests`, in one query. Banned people, and anyone blocked either way, are left out, as in the lists themselves. */
+async function friendRanksOf(viewerId: string, bests: MiniGameBestsResponse['bests']): Promise<MiniGameBestsResponse['friendRanks']> {
+  const games = Object.keys(bests).filter(isLobbyGameId);
+  const ranks: MiniGameBestsResponse['friendRanks'] = {};
+  if (games.length === 0) return ranks;
+  const [friends, blocked] = await Promise.all([friendIdsOf(viewerId), blockedIdsOf(viewerId)]);
+  const others = friends.filter((id) => id !== viewerId && !blocked.includes(id));
+  const rows =
+    others.length === 0
+      ? []
+      : await prisma.miniGameScore.groupBy({
+          by: ['gameId', 'userId'],
+          where: { userId: { in: others }, user: { bannedAt: null }, OR: games.map((id) => ({ gameId: id, version: miniGameVersion(id), verified: true, score: { gte: minScoreOf(id) } })) },
+          _max: { score: true },
+          _min: { score: true },
+        });
+  for (const game of games) {
+    const mine = bests[game];
+    if (mine === undefined) continue;
+    const ahead = rows.filter((r) => r.gameId === game).filter((r) => {
+      const theirs = lowerIsBetter(game) ? r._min.score : r._max.score;
+      return theirs !== null && scoreBeats(game, theirs, mine);
+    }).length;
+    ranks[game] = ahead + 1;
+  }
+  return ranks;
 }
 
 /** Deletes high scores: one game's, or (with no game) every game's. Returns how many runs were removed. Ratings and everything
