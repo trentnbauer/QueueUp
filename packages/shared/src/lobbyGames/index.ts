@@ -16,6 +16,7 @@ import { GravityGame } from './gravity.js';
 import { LaserGame } from './laser.js';
 import { ColorMatchGame } from './colormatch.js';
 import { PotatoGame } from './potato.js';
+import { AnagramGame } from './anagram.js';
 import { TiltGame } from './tilt.js';
 import { StackerGame } from './stacker.js';
 import { SumoGame } from './sumo.js';
@@ -26,7 +27,7 @@ import type { LobbyGame } from './types.js';
 
 export type { BotBrain, BotCommand, LobbyGame } from './types.js';
 export { LobbyRecord, secureRandom } from './roundGame.js';
-export { BattleshipsGame, CoinsGame, DodgeGame, FlappyGame, RaceGame, RopeGame, RunnerGame, WhackGame, DrawGame, TiltGame, StackerGame, SumoGame, AsteroidsGame, MemoryGame, WordsGame, LavaGame, SnakeGame, GravityGame, LaserGame, ColorMatchGame, PotatoGame };
+export { BattleshipsGame, CoinsGame, DodgeGame, FlappyGame, RaceGame, RopeGame, RunnerGame, WhackGame, DrawGame, TiltGame, StackerGame, SumoGame, AsteroidsGame, MemoryGame, WordsGame, LavaGame, SnakeGame, GravityGame, LaserGame, ColorMatchGame, PotatoGame, AnagramGame };
 export { BotFiller, botColor, botNumber, isBotId, withBots } from './bots.js';
 
 /** Starts a fresh game of the given kind, with bots added by the lobby when it needs more players than
@@ -79,6 +80,8 @@ function build(id: LobbyGameId, record?: LobbyRecord): LobbyGame {
       return new ColorMatchGame(undefined, record);
     case 'potato':
       return new PotatoGame(undefined, record);
+    case 'anagram':
+      return new AnagramGame(undefined, record);
   }
 }
 
