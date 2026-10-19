@@ -36,7 +36,9 @@ function botStep(g: RunnerGame, id: string, logMode: 'hold' | 'tap' = 'hold') {
   const ahead = next ? next.x - RUNNER_X : Infinity;
   let hold = false;
   let duck = false;
-  if (next?.kind === 'cactus' && ahead < speed * 0.37) g.action(id, 'jump');
+  // A skinny pair is one obstacle for the bot: it aims its hop at the middle of the pair.
+  const pairShift = next?.w === 0.05 ? 0.055 : 0;
+  if (next?.kind === 'cactus' && ahead + pairShift < speed * 0.37) g.action(id, 'jump');
   // A held jump needs about 0.12s to get above a log, so it starts a little before the log arrives.
   const logSoon = next?.kind === 'log' && ahead - HALF.log - RUNNER_HALF < speed * 0.22;
   if (logSoon && logMode === 'hold') hold = true;
@@ -396,8 +398,8 @@ describe('RunnerGame wide birds and paired cacti', () => {
     expect(all.some((o) => o.kind === 'cactus' && o.w === 0.1)).toBe(true);
   });
 
-  it('places a pair close together, so one hop clears both', () => {
-    // The pair's two cacti are 0.05 wide with 0.015 between them: 0.115 in all.
+  it('places a pair with a gap between them, so it reads as a double block', () => {
+    // The pair's two cacti are 0.05 wide with 0.06 between them: 0.16 in all.
     const g = started(['a'], 0.3);
     for (let t = 0; t < 40_000 && me(g, 'a').alive; t += STEP) {
       botStep(g, 'a');
@@ -405,7 +407,7 @@ describe('RunnerGame wide birds and paired cacti', () => {
       const first = obs.find((o) => o.kind === 'cactus' && o.w === 0.05);
       const second = first && obs.find((o) => o.n === first.n + 1 && o.w === 0.05);
       if (first && second) {
-        expect(second.x - first.x).toBeCloseTo(0.065, 2);
+        expect(second.x - first.x).toBeCloseTo(0.11, 2);
         return;
       }
     }

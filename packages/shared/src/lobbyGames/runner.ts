@@ -29,7 +29,7 @@ const WIDE_BIRD_EXTRA = 0.14;
  * full speed, spans well past 0.16 screens). */
 const PAIR_CHANCE = 0.3;
 const SKINNY_WIDTH = 0.05;
-const PAIR_GAP = 0.015;
+const PAIR_GAP = 0.06;
 const PAIRS_AFTER_MS = 3000;
 const SPEED_START = 0.5;
 const SPEED_GAIN = 0.015; // per second of the run
@@ -208,7 +208,7 @@ export class RunnerGame extends RoundGame<Runner> {
 
   private spawnObstacles(): void {
     while (this.nextEdgeX < this.distance + SPAWN_AHEAD) {
-      // One obstacle, or (for cacti) a pair of skinny ones touching distance apart: they are drawn and hit
+      // One obstacle, or (for cacti) a pair of skinny ones with a gap between them, so the pair reads as a double block: they are drawn and hit
       // as two, and the gap after is measured from the far edge of the last.
       for (const [i, piece] of this.nextPieces().entries()) {
         if (i > 0) this.nextEdgeX += PAIR_GAP;
