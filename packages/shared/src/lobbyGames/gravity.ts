@@ -1,0 +1,138 @@
+import { GRAVITY_PLAYER_R, GRAVITY_SPIKE_H, GRAVITY_X, type GravityObstacle, type GravitySnapshot } from '../spinLobby.js';
+import { RoundGame, type RoundPlayer } from './roundGame.js';
+
+// Everything is in screens: x runs 0..1 across, y 0 (floor) to 1 (ceiling). The course scrolls from the right.
+const SPEED_START = 0.45;
+const SPEED_GAIN = 0.01; // per second of the run
+const SPEED_MAX = 0.95;
+const SPAWN_AHEAD = 1.3;
+/** A flip crosses the corridor in this long. */
+const FLIP_S = 0.3;
+/** Spikes are this many seconds of travel apart (edge to edge), plus up to GAP_EXTRA_S more: always enough to flip in. */
+const GAP_MIN_S = 0.85;
+const GAP_EXTRA_S = 0.7;
+const SPIKE_MIN_W = 0.06;
+const SPIKE_EXTRA_W = 0.08;
+const VISIBLE_BEHIND = 0.2;
+
+interface Flipper extends RoundPlayer {
+  /** Height of their middle, 0 (floor) to 1 (ceiling), between GRAVITY_PLAYER_R and 1 - GRAVITY_PLAYER_R. */
+  y: number;
+  /** The side they are on or heading for: 0 floor, 1 ceiling. */
+  side: number;
+}
+
+const FLOOR_Y = GRAVITY_PLAYER_R;
+const CEILING_Y = 1 - GRAVITY_PLAYER_R;
+
+/** Run along the floor or the ceiling and flip between them to dodge the spikes that come at you from either
+ * side, everyone on the same course. Hit a spike and you are out. See RoundGame for how runs start and end. */
+export class GravityGame extends RoundGame<Flipper> {
+  readonly id = 'gravity' as const;
+  private speed = SPEED_START;
+  private spikes: GravityObstacle[] = [];
+  private spawned = 0;
+  private nextEdgeX = 0;
+
+  /** Each player's own device works out their flips (see RoundGame.clientSim). */
+  get clientSim(): boolean {
+    return true;
+  }
+
+  protected readReport(f: Flipper, r: Record<string, number>): void {
+    f.y = Math.min(CEILING_Y, Math.max(FLOOR_Y, RoundGame.num(r.y, f.y)));
+    f.side = r.s === 1 ? 1 : 0;
+  }
+
+  protected writeReport(f: Flipper): Record<string, number> {
+    return { y: Math.round(f.y * 1000) / 1000, s: f.side };
+  }
+
+  protected createPlayer(id: string, alive: boolean): Flipper {
+    return { id, y: FLOOR_Y, side: 0, alive, wins: 0, outAtMeters: 0 };
+  }
+
+  protected resetPlayer(f: Flipper): void {
+    f.y = FLOOR_Y;
+    f.side = 0;
+  }
+
+  protected resetCourse(): void {
+    this.speed = SPEED_START;
+    this.spikes = [];
+    this.spawned = 0;
+  }
+
+  protected beginCourse(): void {
+    this.resetCourse();
+    // The first spike is a little way in, so there is time to see it coming.
+    this.nextEdgeX = 1.1;
+    this.spawnSpikes();
+  }
+
+  input(): void {
+    // Flipping is an action; there is nothing to hold.
+  }
+
+  /** Flips to the other side. Only possible from a side (not part way across), so it cannot be spammed. */
+  action(userId: string, name: string): void {
+    if (name !== 'flip' || this.phase !== 'playing') return;
+    const f = this.players.get(userId);
+    if (f?.alive && (f.y === FLOOR_Y || f.y === CEILING_Y)) f.side = 1 - f.side;
+  }
+
+  snapshot(): GravitySnapshot {
+    const r3 = (n: number) => Math.round(n * 1000) / 1000;
+    return {
+      id: 'gravity',
+      phase: this.phase,
+      meters: this.meters,
+      speed: r3(this.speed),
+      timerMs: Math.max(0, Math.round(this.timerMs)),
+      winnerId: this.winnerId,
+      ...this.summary(),
+      spikes: this.spikes.map((s) => ({ x: r3(s.x - this.distance), w: r3(s.w), side: s.side, n: s.n })).filter((s) => s.x > -VISIBLE_BEHIND && s.x < SPAWN_AHEAD),
+      players: [...this.players.values()].map((f) => ({
+        id: f.id,
+        y: r3(f.y),
+        side: f.side,
+        alive: f.alive,
+        wins: f.wins,
+        meters: f.alive && this.phase === 'playing' ? this.meters : f.outAtMeters,
+      })),
+    };
+  }
+
+  protected advance(dt: number): void {
+    this.speed = Math.min(SPEED_MAX, SPEED_START + SPEED_GAIN * (this.roundMs / 1000));
+    this.distance += this.speed * dt;
+    this.spawnSpikes();
+
+    const cross = ((CEILING_Y - FLOOR_Y) / FLIP_S) * dt;
+    for (const f of this.players.values()) {
+      if (!f.alive || !this.simulated(f)) continue;
+      const target = f.side === 1 ? CEILING_Y : FLOOR_Y;
+      f.y = f.y < target ? Math.min(target, f.y + cross) : Math.max(target, f.y - cross);
+      if (this.hits(f)) this.knockOut(f);
+    }
+    this.spikes = this.spikes.filter((s) => s.x + s.w / 2 - this.distance > -VISIBLE_BEHIND);
+  }
+
+  private hits(f: Flipper): boolean {
+    for (const s of this.spikes) {
+      const rel = s.x - this.distance;
+      if (Math.abs(rel - GRAVITY_X) >= (s.w + GRAVITY_PLAYER_R * 2) / 2) continue;
+      if (s.side === 0 ? f.y - GRAVITY_PLAYER_R < GRAVITY_SPIKE_H : f.y + GRAVITY_PLAYER_R > 1 - GRAVITY_SPIKE_H) return true;
+    }
+    return false;
+  }
+
+  private spawnSpikes(): void {
+    while (this.nextEdgeX < this.distance + SPAWN_AHEAD) {
+      const w = SPIKE_MIN_W + this.rng() * SPIKE_EXTRA_W;
+      const side = this.rng() < 0.5 ? 0 : 1;
+      this.spikes.push({ x: this.nextEdgeX + w / 2, w, side, n: ++this.spawned });
+      this.nextEdgeX += w + this.speed * (GAP_MIN_S + this.rng() * GAP_EXTRA_S);
+    }
+  }
+}
