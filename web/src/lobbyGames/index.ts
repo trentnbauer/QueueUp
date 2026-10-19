@@ -17,6 +17,7 @@ import { stackerView } from './stacker';
 import { sumoView } from './sumo';
 import { whackView } from './whack';
 import { wordsView } from './words';
+import { minesView } from './mines';
 import { anagramView } from './anagram';
 import { potatoView } from './potato';
 import { colorMatchView } from './colormatch';
@@ -104,6 +105,7 @@ export const LOBBY_GAME_VIEWS: { [K in LobbyGameId]: LobbyGameView<Extract<Lobby
   colormatch: colorMatchView,
   potato: potatoView,
   anagram: anagramView,
+  mines: minesView,
 };
 
 /** The view for whichever game a snapshot belongs to. */

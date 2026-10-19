@@ -133,6 +133,18 @@ One scrambled word, the same for everyone. Tap the tiles to spell it; the first 
 - **Nobody is knocked out.** When the time is up, the most points wins; a tie for the most, or scoring nothing, is a draw. Alone, it is a high-score round: no winner, just your points.
 - **Controls:** the tiles are the controller, so tap or click them, or press **1-6** (left to right) to pick a tile and **Backspace** to take one back.
 
+## Minesweeper race
+
+One shared minefield, and everyone opens squares on it.
+
+- **Goal:** open the most safe squares. The field is 9 by 9 with 10 mines hidden in it. Tap a square: a safe one **scores a point** for you and shows how many mines are in the squares next to it; a square with **no** mines next to it opens its neighbours too, and everything it opens is yours. **A mine knocks you out** (it stays on the field, marked, for everyone to see).
+- **The first square opened is always safe**, and so are the squares round it, so the first tap opens up some space.
+- **Everyone is on the same field.** A square opened by one person is open for all; a thin outline in the opener's colour shows who opened it.
+- **Ending:** the run ends when every safe square is open, or when everyone is out. **Most squares opened wins**; on a tie the one still in wins, otherwise it is a draw. Alone it is a high score (squares opened).
+- **Hidden:** where the mines are stays on the server; a square's mine is only ever shown once someone hits it.
+- There is no time limit of its own: it goes on until it is beaten.
+- **Controls:** the field is the controller, so tap or click a square. There is no keyboard control yet.
+
 ## Rating a game
 
 When a run ends and its result card is showing, a **thumbs up / thumbs down** appears under the arena (in a room's lobby, a spin's waiting room, an open lobby and solo practice alike).
@@ -187,6 +199,7 @@ A game can instead make **the play space the controller**: there are no buttons 
 | Color match | Click a panel, or press **1-4** (top left, top right, bottom left, bottom right). | Tap a panel. |
 | Hot potato | **Space**, **↑** or **W** to pass. | **Pass**, or tap anywhere on the arena. |
 | Anagram | Click a tile, or press **1-6** to pick one and **Backspace** to take it back. | Tap a tile (⌫ takes one back). |
+| Minesweeper race | Click a square (no keyboard control yet). | Tap a square on the field. |
 
 ## Runner
 

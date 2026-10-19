@@ -1,0 +1,98 @@
+import { MINES_COLS, MINES_TARGETS, type MinesSnapshot } from '@queueup/shared';
+import type { LobbyGameView } from './index';
+import { FONT, renderScene, roundRect, type Scene, type SceneGame } from './kit';
+import type { TapRect, TapTargets } from './taps';
+
+// Where things are on the arena, as fractions of its side: everyone's points in a row, then the one shared board.
+const CHIPS_Y = 0.07;
+const CHIP_R = 0.02;
+const BOARD_X = 0.07;
+const BOARD_Y = 0.14;
+const BOARD_W = 0.86;
+const CELL = BOARD_W / MINES_COLS;
+const CELL_GAP = 0.004;
+/** Colours for the numbers 1 to 8, as a mine counter reads. */
+const NUMBER_HUES = [250, 145, 25, 290, 40, 190, 330, 60];
+
+const cellRect = (i: number): TapRect => ({ x: BOARD_X + (i % MINES_COLS) * CELL, y: BOARD_Y + Math.floor(i / MINES_COLS) * CELL, w: CELL, h: CELL });
+
+/** The board is the controller: each square is a tap target, drawn exactly where it is hit, numbered row by row. There is
+ * no keyboard control (there are too many squares). */
+export const MINES_TAPS: TapTargets = { rects: Array.from({ length: MINES_TARGETS }, (_, i) => cellRect(i)) };
+
+function drawWorld(sc: Scene<MinesSnapshot>): void {
+  const { ctx, S, snapshot, theme } = sc;
+
+  // Everyone's points in one row; someone who hit a mine is dimmed.
+  const n = snapshot.players.length;
+  const step = Math.min(0.09, 0.84 / Math.max(1, n));
+  ctx.font = `700 ${Math.round(S * 0.024)}px ${FONT.mono}`;
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'alphabetic';
+  for (const i of sc.order()) {
+    const p = snapshot.players[i];
+    if (!p.alive && !p.fell) continue; // watching until the next run
+    const cx = (0.5 + (i - (n - 1) / 2) * step) * S;
+    ctx.save();
+    if (p.fell) ctx.globalAlpha = 0.4;
+    sc.drawPlayer(p.id, cx, CHIPS_Y * S, CHIP_R * S, CHIP_R * S);
+    ctx.restore();
+    ctx.fillStyle = theme.text;
+    ctx.fillText(String(p.meters), cx, (CHIPS_Y + CHIP_R + 0.028) * S);
+  }
+
+  for (let i = 0; i < MINES_TARGETS; i++) {
+    const r = cellRect(i);
+    const x = (r.x + CELL_GAP) * S;
+    const y = (r.y + CELL_GAP) * S;
+    const w = (r.w - CELL_GAP * 2) * S;
+    const state = snapshot.cells[i];
+    const owner = snapshot.players[snapshot.by[i]];
+    roundRect(ctx, x, y, w, w, S * 0.012);
+    if (state === -1) {
+      // Not opened: a raised tile.
+      ctx.fillStyle = 'oklch(0.5 0.04 60)';
+      ctx.fill();
+      continue;
+    }
+    ctx.fillStyle = state === 9 ? 'oklch(0.36 0.12 25)' : 'oklch(0.24 0.01 60)';
+    ctx.fill();
+    // A thin outline in the colour of whoever opened it.
+    if (owner) {
+      ctx.strokeStyle = sc.info(owner.id).color;
+      ctx.lineWidth = Math.max(1.5, S * 0.004);
+      ctx.stroke();
+    }
+    if (state === 9) {
+      ctx.fillStyle = theme.danger;
+      ctx.beginPath();
+      ctx.arc(x + w / 2, y + w / 2, w * 0.26, 0, Math.PI * 2);
+      ctx.fill();
+    } else if (state > 0) {
+      ctx.font = `800 ${Math.round(w * 0.62)}px ${FONT.display}`;
+      ctx.textBaseline = 'middle';
+      ctx.fillStyle = `oklch(0.8 0.16 ${NUMBER_HUES[state - 1]})`;
+      ctx.fillText(String(state), x + w / 2, y + w / 2 + w * 0.04);
+    }
+  }
+}
+
+const scene: SceneGame<MinesSnapshot> = {
+  scroll: 'y',
+  taps: MINES_TAPS,
+  drawWorld,
+  // A burst starts over the row of points, where the person who hit a mine is shown.
+  anchor: (snapshot, index) => ({ x: 0.5 + (index - (snapshot.players.length - 1) / 2) * 0.09, y: CHIPS_Y }),
+};
+
+export const minesView: LobbyGameView<MinesSnapshot> = {
+  // The board is the controller: no pad and nothing under the arena.
+  pad: 'none',
+  actions: [],
+  taps: MINES_TAPS,
+  nameKey: 'spin.lobby.mines.name',
+  taglineKey: 'spin.lobby.mines.tagline',
+  hintKey: 'spin.lobby.mines.hint',
+  draw: (args) => renderScene(args, scene),
+  standings: (snapshot) => snapshot.players.map((p) => ({ id: p.id, score: p.wins, active: p.alive })).sort((a, b) => b.score - a.score),
+};
