@@ -13,6 +13,7 @@ import { AdminAiSection } from './AdminAiSection';
 import { AdminBackups } from './AdminBackups';
 import { AdminEmailLog } from './AdminEmailLog';
 import { AdminMiniGameRatings } from './AdminMiniGameRatings';
+import { AdminMiniGameScores } from './AdminMiniGameScores';
 import { AdminReports } from './AdminReports';
 import { AdminSiteInvites } from './AdminSiteInvites';
 import { AdminRoomView } from './AdminRoomView';
@@ -349,6 +350,7 @@ export function AdminPage() {
       <AdminSiteInvites />
       <AdminEmailLog />
       <AdminMiniGameRatings />
+      {isSuperAdmin && <AdminMiniGameScores />}
 
       {tunnel && (
         <Collapsible title={t('pages.admin.tunnelKicker')}>

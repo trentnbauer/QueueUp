@@ -43,6 +43,7 @@ export const adminApi = {
   restoreBackup: (name: string, opts: RestoreOptions = {}) => sendRestore(`/api/admin/backups/${encodeURIComponent(name)}/restore`, opts),
   importBackup: (file: File, opts: RestoreOptions = {}) => sendRestore('/api/admin/backups/import', opts, file),
   overview: () => apiGet<{ status: AdminIntegrationStatus; tunnel: TunnelStatus }>('/api/admin/overview'),
+  resetMiniGameScores: (game?: string) => apiDelete<{ removed: number }>(`/api/admin/minigame-scores${game ? `?game=${encodeURIComponent(game)}` : ''}`),
   miniGameRatings: () => apiGet<AdminMiniGameRatingsResponse>('/api/admin/minigame-ratings'),
   emailLog: () => apiGet<{ entries: AdminEmailLogEntry[] }>('/api/admin/email-log'),
   users: () => apiGet<{ users: AdminUserSummary[] }>('/api/admin/users'),
