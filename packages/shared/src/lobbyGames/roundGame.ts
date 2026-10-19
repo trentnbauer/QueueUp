@@ -128,6 +128,32 @@ export abstract class RoundGame<P extends RoundPlayer> implements LobbyGame {
   protected abstract advance(dt: number): void;
   abstract input(userId: string, dx: number, dy: number): void;
   abstract action(userId: string, name: string): void;
+
+  /** Presses that were made at a moment of the run that this game has not reached yet (see `inputAt`), in the order they are due. */
+  private due: { at: number; apply: () => void }[] = [];
+
+  inputAt(userId: string, run: number, at: number, dx: number, dy: number): void {
+    this.dueAt(run, at, () => this.input(userId, dx, dy));
+  }
+
+  actionAt(userId: string, run: number, at: number, name: string): void {
+    this.dueAt(run, at, () => this.action(userId, name));
+  }
+
+  /** Applies a press now if its moment has come (or it makes no sense to wait), otherwise when the run reaches it. */
+  private dueAt(run: number, at: number, apply: () => void): void {
+    if (run !== this.record.run) return;
+    const waiting = this.phase === 'countdown' || (this.phase === 'playing' && at > this.roundMs);
+    // A moment far ahead cannot be real, and a long queue is not worth keeping: treat them as due now.
+    if (!waiting || !Number.isFinite(at) || at > (this.phase === 'playing' ? this.roundMs : 0) + 5000 || this.due.length >= 256) {
+      apply();
+      return;
+    }
+    const entry = { at, apply };
+    const i = this.due.findIndex((d) => d.at > at);
+    if (i === -1) this.due.push(entry);
+    else this.due.splice(i, 0, entry);
+  }
   /** Tap targets are optional: a game that has them overrides this. */
   tap(_userId: string, _target: number): void {}
   abstract snapshot(viewer?: string): LobbyGameSnapshot;
@@ -281,6 +307,8 @@ export abstract class RoundGame<P extends RoundPlayer> implements LobbyGame {
         if (this.timerMs <= 0) this.beginRun();
         break;
       case 'playing':
+        // Presses made at (or before) this moment of the run happen just before it moves on.
+        while (this.due.length > 0 && this.due[0].at <= this.roundMs + 1e-6) this.due.shift()!.apply();
         this.roundMs += dt * 1000;
         this.advance(dt);
         if (this.phase === 'playing' && this.timeLimitS !== null && this.roundMs >= this.timeLimitS * 1000) this.limitReached();
@@ -370,6 +398,7 @@ export abstract class RoundGame<P extends RoundPlayer> implements LobbyGame {
     this.seed = seed;
     this.rng = mulberry32(seed);
     this.reported.clear();
+    this.due = [];
     this.resetCourse();
     for (const p of this.players.values()) {
       p.alive = true;
