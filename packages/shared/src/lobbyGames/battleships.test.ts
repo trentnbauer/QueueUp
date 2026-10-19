@@ -114,12 +114,13 @@ describe('placeFleets', () => {
     }
   });
 
-  it('keeps ships from touching, corners included, when there is room (up to six players)', () => {
+  it("keeps different players' ships from touching, corners included, when there is room (up to six players)", () => {
     for (let n = 1; n <= 6; n++) {
       for (let seed = 1; seed <= 30; seed++) {
-        const ships = placeFleets(mulberry32(seed * 31 + n), fleets(n, seed)).flat();
-        ships.forEach((a, i) =>
-          ships.slice(i + 1).forEach((b) => {
+        const ships = placeFleets(mulberry32(seed * 31 + n), fleets(n, seed)).flatMap((own, owner) => own.map((cells) => ({ owner, cells })));
+        ships.forEach(({ owner, cells: a }, i) =>
+          ships.slice(i + 1).forEach(({ owner: other, cells: b }) => {
+            if (owner === other) return;
             for (const c of a)
               for (const d of b) {
                 const near = Math.abs((c % SIZE) - (d % SIZE)) <= 1 && Math.abs(Math.floor(c / SIZE) - Math.floor(d / SIZE)) <= 1;

@@ -269,7 +269,7 @@ Moles pop up out of a grid of holes; tap them before anyone else does.
 
 One board for everyone, with everyone's ships hidden on it. Last fleet afloat wins.
 
-- **One shared board:** an 8 by 8 grid. At the start of a round every player's ships are hidden on it, **all on the same grid**, never overlapping (and, when there is room, never touching). **You can see your own ships** (the blue squares) **and nobody else's**: the server sends each player their own view, so nobody is sent where anyone else's ships are.
+- **One shared board:** an 8 by 8 grid. At the start of a round every player's ships are hidden on it, **all on the same grid**, never overlapping (and, when there is room, never touching another player's ships; your own ships may sit next to each other). **You can see your own ships** (the blue squares) **and nobody else's**: the server sends each player their own view, so nobody is sent where anyone else's ships are.
 - **Firing:** **tap a square** to fire at it. Anyone's ship on that square is hit; otherwise it is a miss. Everyone sees every shot as it lands: a miss is a dot, a hit is a cross, in the colour of whoever fired it. You cannot fire at your own ships. A hit on one of yours shows as a cross in the colour of who hit it.
 - **Whose ship?** A hit does not say whose ship it was. When a ship is **sunk**, its squares go dark with a ring in its owner's colour.
 - **Scoring:** a **hit** scores 1, and the shot that **sinks** a ship scores 1 more. Points are for the scoreboard; what wins is surviving.
@@ -288,7 +288,7 @@ Anything a game decides at random and players are not meant to know is a secret,
 - **Hidden things stay on the server.** Ship positions, light timings and upcoming items are never in a snapshot (except to their owner, for ships), and must not be derivable from one.
 - **Tests inject the random source** (`seedSource`), so they stay repeatable. Do not make the default `Math.random` to save a line.
 
-(Tracked in [#1278](https://github.com/trentnbauer/QueueUp/issues/1278): the games still use `Math.random` today.)
+The source is `secureRandom` (`packages/shared/src/lobbyGames/roundGame.ts`).
 
 ## Keeping the motion consistent
 

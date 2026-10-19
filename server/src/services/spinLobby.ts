@@ -39,7 +39,7 @@ export class SpinLobby {
   /** Moves everyone from `from` to a different random game. False if `from` is not the current game. */
   private rotate(from: LobbyGame): boolean {
     if (from !== this.game || !this.rotates) return false;
-    const next = this.start(pickLobbyGame(Math.random, from.id));
+    const next = this.start(pickLobbyGame(undefined, from.id));
     this.game = next;
     for (const userId of this.connections.keys()) next.join(userId);
     return true;

@@ -16,11 +16,11 @@ import { StackerGame } from './stacker.js';
 import { SumoGame } from './sumo.js';
 import { WhackGame } from './whack.js';
 import { WordsGame } from './words.js';
-import { LobbyRecord } from './roundGame.js';
+import { LobbyRecord, secureRandom } from './roundGame.js';
 import type { LobbyGame } from './types.js';
 
 export type { BotBrain, BotCommand, LobbyGame } from './types.js';
-export { LobbyRecord } from './roundGame.js';
+export { LobbyRecord, secureRandom } from './roundGame.js';
 export { BattleshipsGame, CoinsGame, DodgeGame, FlappyGame, RaceGame, RedLightGame, RopeGame, RunnerGame, WhackGame, DrawGame, TiltGame, StackerGame, SumoGame, AsteroidsGame, MemoryGame, WordsGame };
 export { BotFiller, botColor, botNumber, isBotId, withBots } from './bots.js';
 
@@ -68,7 +68,7 @@ function build(id: LobbyGameId, record?: LobbyRecord): LobbyGame {
 }
 
 /** Which game a new lobby opens with, picked at random. */
-export function pickLobbyGame(random: () => number = Math.random, not?: LobbyGameId): LobbyGameId {
+export function pickLobbyGame(random: () => number = secureRandom, not?: LobbyGameId): LobbyGameId {
   // After a run the lobby moves on to a different game, whenever there is one to move to.
   const choices = LOBBY_GAME_IDS.filter((id) => id !== not);
   const from = choices.length > 0 ? choices : LOBBY_GAME_IDS;

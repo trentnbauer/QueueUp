@@ -71,18 +71,20 @@ function firstFit(len: number, taken: Set<number>): number[] | null {
 }
 
 /** Hides everyone's ships on the one board: a list of ships (each a list of squares) for each player's list
- * of lengths. No two ships overlap, whoever's they are, and if it can none touch, not even at the corners.
+ * of lengths. No two ships overlap, whoever's they are, and if it can no two players' ships touch, not even at
+ * the corners (one player's own ships may sit side by side, which leaves more room on the board).
  * Straight lines only. From the seed's generator, so it is repeatable. */
 export function placeFleets(rng: () => number, fleets: number[][]): number[][][] {
   const order = fleets.flatMap((lengths, owner) => lengths.map((len) => ({ owner, len }))).sort((a, b) => b.len - a.len);
   for (const apart of [true, false]) {
     for (let attempt = 0; attempt < PLACEMENT_ATTEMPTS; attempt++) {
       const taken = new Set<number>();
-      const near = new Set<number>();
+      const near: Set<number>[] = fleets.map(() => new Set());
       const placed: number[][][] = fleets.map(() => []);
       let ok = true;
       for (const { owner, len } of order) {
-        const cells = placeOne(rng, len, apart ? near : taken);
+        const blocked = apart ? new Set([...taken, ...near.flatMap((n, o) => (o === owner ? [] : [...n]))]) : taken;
+        const cells = placeOne(rng, len, blocked);
         if (!cells) {
           ok = false;
           break;
@@ -92,7 +94,7 @@ export function placeFleets(rng: () => number, fleets: number[][]): number[][][]
           taken.add(c);
           const x = c % SIZE;
           const y = Math.floor(c / SIZE);
-          for (let dy = -1; dy <= 1; dy++) for (let dx = -1; dx <= 1; dx++) if (inside(x + dx, y + dy)) near.add((y + dy) * SIZE + x + dx);
+          for (let dy = -1; dy <= 1; dy++) for (let dx = -1; dx <= 1; dx++) if (inside(x + dx, y + dy)) near[owner].add((y + dy) * SIZE + x + dx);
         }
       }
       if (ok) return placed;

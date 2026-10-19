@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import { LOBBY_GAME_IDS, LOBBY_HISTORY_LENGTH, type LobbyGameId } from '../spinLobby.js';
 import { DodgeGame } from './dodge.js';
 import { createLobbyGame, pickLobbyGame } from './index.js';
@@ -169,5 +169,22 @@ describe('pickLobbyGame', () => {
     const b = createLobbyGame('dodge', record);
     b.join('me');
     expect(b.snapshot().run).toBe(2);
+  });
+});
+
+describe('randomness', () => {
+  it('never seeds a run, picks the next game or fills bots from Math.random', () => {
+    const spy = vi.spyOn(Math, 'random');
+    try {
+      for (const id of LOBBY_GAME_IDS) {
+        const g = createLobbyGame(id);
+        g.join('a');
+        run(g, 3200);
+        pickLobbyGame(undefined, id);
+      }
+      expect(spy).not.toHaveBeenCalled();
+    } finally {
+      spy.mockRestore();
+    }
   });
 });
