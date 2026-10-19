@@ -98,6 +98,17 @@ Rows of lasers fall; slide into the gap. Everyone is on the same floor and never
 - There is no time limit of its own: it goes on until it is beaten.
 - **Controls:** left and right only.
 
+## Color match
+
+A colour name is written in a different colour. Tap the panel that matches the **ink**, not the word.
+
+- **Goal:** the most points in 30 seconds. Everyone sees the same prompts at the same time and answers on the same four panels (red, blue, green, yellow). Each panel also has a shape (circle, square, triangle, diamond), so colour is never the only clue.
+- **Scoring:** a right answer is **1 point**, or **2 if it comes quickly** (in the first 40% of the time the prompt allows). A wrong answer costs **1 point** (never below zero). **Only your first tap on a prompt counts**: you cannot mash all four.
+- **Prompts** wait 3 seconds for answers at the start, down to 1.4 seconds by the end, and move on as soon as everyone has answered. The word always names a different colour from its ink. They come from the round's seed.
+- **Nobody is knocked out.** When the time is up, the most points wins; a tie for the most, or scoring nothing, is a draw. Alone, it is a high-score round: no winner, just your points.
+- The bar along the top is the time left, and everyone's points are in the row above the prompt, with a tick or cross for how they answered it.
+- **Controls:** the panels are the controller, so tap or click one, or press **1-4** (top left, top right, bottom left, bottom right).
+
 ## Rating a game
 
 When a run ends and its result card is showing, a **thumbs up / thumbs down** appears under the arena (in a room's lobby, a spin's waiting room, an open lobby and solo practice alike).
@@ -149,6 +160,7 @@ A game can instead make **the play space the controller**: there are no buttons 
 | Snake arena | **←** / **→** or **A** / **D** to turn. | The **◀** and **▶** buttons. |
 | Gravity flip | **Space**, **↑**/**↓** or **W**/**S** to flip. | **Flip**, or tap anywhere on the arena. |
 | Laser gaps | **←** / **→** or **A** / **D**. | The **◀** and **▶** buttons. |
+| Color match | Click a panel, or press **1-4** (top left, top right, bottom left, bottom right). | Tap a panel. |
 
 ## Runner
 

@@ -11,8 +11,8 @@
 export const LOBBY_TICK_HZ = 15;
 
 /** The games the lobby can run. */
-export type LobbyGameId = 'runner' | 'flappy' | 'dodge' | 'rope' | 'coins' | 'battleships' | 'race' | 'whack' | 'draw' | 'tilt' | 'stacker' | 'sumo' | 'asteroids' | 'memory' | 'words' | 'lava' | 'snake' | 'gravity' | 'laser';
-export const LOBBY_GAME_IDS: readonly LobbyGameId[] = ['runner', 'flappy', 'dodge', 'rope', 'coins', 'battleships', 'race', 'whack', 'draw', 'tilt', 'stacker', 'sumo', 'asteroids', 'memory', 'words', 'lava', 'snake', 'gravity', 'laser'];
+export type LobbyGameId = 'runner' | 'flappy' | 'dodge' | 'rope' | 'coins' | 'battleships' | 'race' | 'whack' | 'draw' | 'tilt' | 'stacker' | 'sumo' | 'asteroids' | 'memory' | 'words' | 'lava' | 'snake' | 'gravity' | 'laser' | 'colormatch';
+export const LOBBY_GAME_IDS: readonly LobbyGameId[] = ['runner', 'flappy', 'dodge', 'rope', 'coins', 'battleships', 'race', 'whack', 'draw', 'tilt', 'stacker', 'sumo', 'asteroids', 'memory', 'words', 'lava', 'snake', 'gravity', 'laser', 'colormatch'];
 
 /** What a client sends. Anything else is ignored. */
 export type LobbyClientMessage =
@@ -1041,8 +1041,59 @@ export interface LaserSnapshot extends RoundSummary {
   winnerId: string | null;
 }
 
+// ---- Color match (the ink of a colour name is a different colour; tap the panel that matches the ink) ---
+
+/** The board has this many coloured panels (2 x 2, so panels are tap targets 0 to 3: red, blue, green, yellow; row by row). */
+export const COLOR_MATCH_PANELS = 4;
+
+/** Where a prompt is: waiting for answers, or the pause before the next one. */
+export type ColorMatchStage = 'prompt' | 'between';
+
+/** A prompt: `word` is the colour whose name is written, `ink` the colour it is written in (the right answer). */
+export interface ColorMatchPrompt {
+  word: number;
+  ink: number;
+  /** Which prompt this is (counts up from 1 each round); 0 before the first. */
+  n: number;
+}
+
+export interface ColorMatchPlayer {
+  id: string;
+  /** Playing this round. False if they arrived mid-round (they watch and play from the next one). */
+  alive: boolean;
+  /** Rounds won since this person joined the lobby. */
+  wins: number;
+  /** Points this round. */
+  meters: number;
+  /** Answered the prompt on screen. */
+  answered: boolean;
+  /** Whether that answer was right (null before they answer). */
+  right: boolean | null;
+}
+
+export interface ColorMatchSnapshot extends RoundSummary {
+  id: 'colormatch';
+  phase: LobbyRoundPhase;
+  /** The most points anyone has so far. */
+  meters: number;
+  /** Always 0: nothing scrolls past in this game (every snapshot carries a course speed). */
+  speed: number;
+  /** Milliseconds left in the round while `playing`. */
+  roundLeftMs: number;
+  stage: ColorMatchStage;
+  prompt: ColorMatchPrompt;
+  /** Milliseconds the prompt has left to answer (`prompt` only), and how long it waits in all. */
+  promptLeftMs: number;
+  promptTotalMs: number;
+  players: ColorMatchPlayer[];
+  /** Milliseconds left in `countdown` or `over`; 0 otherwise. */
+  timerMs: number;
+  /** Who won the round that just ended (`over` only); null when nobody did (a solo round, or a tie). */
+  winnerId: string | null;
+}
+
 /** The snapshot of whichever game is running. */
-export type LobbyGameSnapshot = RunnerSnapshot | FlappySnapshot | DodgeSnapshot | RopeSnapshot | CoinsSnapshot | BattleshipsSnapshot | RaceSnapshot | WhackSnapshot | DrawSnapshot | TiltSnapshot | StackerSnapshot | SumoSnapshot | AsteroidsSnapshot | MemorySnapshot | WordsSnapshot | LavaSnapshot | SnakeSnapshot | GravitySnapshot | LaserSnapshot;
+export type LobbyGameSnapshot = RunnerSnapshot | FlappySnapshot | DodgeSnapshot | RopeSnapshot | CoinsSnapshot | BattleshipsSnapshot | RaceSnapshot | WhackSnapshot | DrawSnapshot | TiltSnapshot | StackerSnapshot | SumoSnapshot | AsteroidsSnapshot | MemorySnapshot | WordsSnapshot | LavaSnapshot | SnakeSnapshot | GravitySnapshot | LaserSnapshot | ColorMatchSnapshot;
 
 /** What a client needs to run its own player on a course the server decided: which run, the seed that
  * makes the course, and how long until the run starts (negative once it has, by how far in). */
