@@ -209,7 +209,7 @@ function Leaderboard({ game, scope, period }: { game: LobbyGameId; scope: MiniGa
       </ol>
       <span style={st('font:500 12px/1.4 var(--font-ui);color:var(--faint)')}>
         {youBelow && data.myRank !== null ? `${t('games.scores.youRank', { n: data.myRank })} ` : ''}
-        {t('games.scores.note')}
+        {t('games.scores.note')} {t('games.scores.version', { n: data.version })}
       </span>
     </>
   );

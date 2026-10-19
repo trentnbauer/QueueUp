@@ -1770,6 +1770,8 @@ model MiniGameScore {
   userId    String   @map("user_id")
   gameId    String   @map("game_id")
   score     Int
+  /// The game's rules version (MINIGAME_VERSIONS) when it was played; the high score lists show the current one only.
+  version   Int      @default(1)
   /// 'solo', 'lobby' or 'waiting_room'.
   source    String
   roomId    String?  @map("room_id")
@@ -1777,7 +1779,7 @@ model MiniGameScore {
 
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
-  @@index([gameId, score])
+  @@index([gameId, version, score])
   @@index([userId, gameId, createdAt])
   @@map("mini_game_scores")
 }
