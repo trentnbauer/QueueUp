@@ -29,6 +29,7 @@ import { gravityView } from './gravity';
 import { snakeView } from './snake';
 import { lavaView } from './lava';
 import { froggerView } from './frogger';
+import { fishingView } from './fishing';
 
 /** What a renderer is given each frame. */
 export interface LobbyDrawArgs<S extends LobbyGameSnapshot = LobbyGameSnapshot> {
@@ -116,6 +117,7 @@ export const LOBBY_GAME_VIEWS: { [K in LobbyGameId]: LobbyGameView<Extract<Lobby
   pong: pongView,
   wall: wallView,
   frogger: froggerView,
+  fishing: fishingView,
 };
 
 /** The view for whichever game a snapshot belongs to. */

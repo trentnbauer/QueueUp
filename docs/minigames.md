@@ -47,7 +47,7 @@ It plays a random game after every run (like the waiting room), or one game you 
 
 ## Ping and who works out what
 
-In **Runner, Flappy, Dodge, Jump rope, Obstacle race, Lava rise, Gravity flip, Laser gaps and Road hop**, your own player is worked out **on your own device**, so a slow connection does not make you jump late or get hit by something you cleared:
+In **Runner, Flappy, Dodge, Jump rope, Obstacle race, Lava rise, Gravity flip, Laser gaps, Road hop and Fishing**, your own player is worked out **on your own device**, so a slow connection does not make you jump late or get hit by something you cleared:
 
 - **Your device** runs your player against the course the moment you press: your jump, your duck, your slide, your steering. Your hits are decided there too, and it tells the server where you are about 20 times a second, and straight away when you are out.
 - **The server** decides the shared things: the course's seed and exactly when a run starts (everyone's device lines its clock up with the server's, so everyone starts the same course at the same moment), who is still in, who won, the wins and the history. It shows everyone else's player from what their devices report.
@@ -206,6 +206,18 @@ Cross lane after lane of traffic, and keep ahead of the bottom of the screen. Ev
 - **Hard to pass 30 seconds:** a test bot that sees every car a second ahead, and moves perfectly, lasts between 20 and 60 seconds, so a person getting to 30 seconds is doing very well.
 - **Ping:** your own hopper is worked out on your own device (see "Ping and who works out what"), so hops and hits are decided the moment you press. The server counts you out if you fall under the bottom edge, whatever your device says.
 - **Controls:** **←** / **→** or **A** / **D** to slide, **Space**, **↑** or **W** to hop, or tap anywhere on the arena. On a phone, the **◀** and **▶** buttons and **Hop**.
+## Fishing
+
+One fish thrashes up and down the pond; keep it in your net. Everyone fishes the same fish at once, and never touches.
+
+- **Goal:** land fish. Your **net** is a band across the pond. **Hold the button to pull it up and let go to let it sink.** While the fish is **inside** your net your **line fills**; while it is **outside** it **drains**. Fill it and you land the fish (one point) and the line is eased back to 0.4 for the next; **drain it to nothing and your line snaps and you are out.** **Last one fishing wins**; alone it is a high score (fish landed).
+- **One fish for everyone:** it swims to a spot, stays a moment, then swims to another, always from the round's seed, so it is the same fish for every angler. Everyone's net is on the same pond, each at its own height (drawn as a band in your colour, with your avatar and a line down from the surface), and nets never touch each other. The small bar under your avatar is your line (it goes red when it is nearly gone), and the number is your fish.
+- **The net:** holding pulls it up at 2.4 ponds a second each second, letting go sinks it at 1.6, up to 1.4 a second, and it bounces a little off the top and bottom of the pond. The line starts at 0.35.
+- **Harder as it goes (about 30 seconds from the start, then no harder):** the fish gets quicker (0.35 to 0.95 ponds a second), changes its mind sooner (every 1.2 seconds, down to every 0.45) and swims further (up to 0.35 of the pond at a time, up to 0.8); your net gets shorter (0.26 tall, down to 0.13); and the line gains less (0.3 a second inside, down to 0.2) and drains more (0.3 a second outside, up to 0.45). The fish stays within the middle 0.08 to 0.92 of the pond.
+- **Score** (the high score list): the fish you landed. There is no time limit of its own: it goes on until someone is the last one in. With a time cap (a waiting room), whoever is still in keeps their fish and nobody wins.
+- **Hard to pass 30 seconds:** a test angler who steers well but a tenth of a second behind the fish lasts roughly 15 to 30 seconds, so reaching 30 is a good run.
+- **Ping:** your own net is worked out on your own device (see "Ping and who works out what"), so it reels the moment you press. The fish comes from the same seed and the server's clock, so it is where it is for the others.
+- **Controls:** one button: hold **Space**, **↑** or **W**, or press and hold anywhere on the arena. On a phone, hold **Reel**.
 
 ## Rating a game
 
@@ -266,6 +278,7 @@ A game can instead make **the play space the controller**: there are no buttons 
 | Pong rally | **←** / **→** or **A** / **D** to slide your paddle. | The **◀** and **▶** buttons. |
 | Wall ball | **←** / **→** or **A** / **D** to slide, **Space**, **↑** or **W** to hit. | The **◀** and **▶** buttons, and **Hit**. |
 | Road hop | **←** / **→** or **A** / **D** to slide, **Space**, **↑** or **W** to hop. | The **◀** and **▶** buttons, and **Hop** (or tap anywhere on the arena). |
+| Fishing | Hold **Space**, **↑** or **W** to pull your net up. | Hold **Reel** (or press and hold the arena). |
 
 ## Runner
 
