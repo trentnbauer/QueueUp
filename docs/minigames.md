@@ -45,13 +45,24 @@ It plays a random game after every run (like the waiting room), or one game you 
 
 ## Ping and who works out what
 
-In **Runner, Flappy, Dodge, Jump rope and Obstacle race**, your own player is worked out **on your own device**, so a slow connection does not make you jump late or get hit by something you cleared:
+In **Runner, Flappy, Dodge, Jump rope, Obstacle race and Lava rise**, your own player is worked out **on your own device**, so a slow connection does not make you jump late or get hit by something you cleared:
 
 - **Your device** runs your player against the course the moment you press: your jump, your duck, your slide, your steering. Your hits are decided there too, and it tells the server where you are about 20 times a second, and straight away when you are out.
 - **The server** decides the shared things: the course's seed and exactly when a run starts (everyone's device lines its clock up with the server's, so everyone starts the same course at the same moment), who is still in, who won, the wins and the history. It shows everyone else's player from what their devices report.
 - **What you still see late:** other players. They are drawn where their device last said they were, so on a slow connection you see them a moment behind. It does not change what happens to you.
 - **If your device goes quiet** (a closed or frozen tab) for 3 seconds in a run, the server counts you out.
 - Players in these games never affect each other, which is why this is safe. **Catch the coins**, where players race for the same thing, is still worked out by the server, so there ping matters.
+
+## Lava rise
+
+Jump up the planks before the lava reaches you. Everyone climbs the same planks, side by side, and never touches.
+
+- **Goal:** stay above the lava. Planks are full-width bars that stay where they are; the **lava rises** through them. Jump from plank to plank, up and up. Fall in, or be caught as the lava passes your plank, and you are out. **Last one climbing wins**; alone it is a high score (metres climbed).
+- **Jumping:** one button. A jump rises about 0.3 of a screen and lasts about 0.6 seconds; you can only start one from a plank (pressing in the air does nothing). Landing needs you to be coming down onto a plank.
+- **Planks** start 0.11 to 0.16 of a screen apart and get further apart as you climb, up to 0.23 (a jump clears them with room to spare, but only just at the top). They come from the round's seed, so they are the same for everyone.
+- **The lava** starts at 0.05 of a screen a second and speeds up by 0.005 every second, to 0.8, so every run ends.
+- There is no time limit of its own: it goes on until it is beaten.
+- **Controls:** one button: **Space**, **↑** or **W**, or tap anywhere on the arena.
 
 ## Rating a game
 
@@ -96,6 +107,7 @@ A game can instead make **the play space the controller**: there are no buttons 
 | Whack-a-mole | Click a hole, or press **1-9** (laid out like a numpad: **7 8 9** on the top row, **1 2 3** on the bottom). | Tap a hole on the grid. |
 | Jump rope | **Space**, **↑** or **W** to jump. | **Jump**, or tap anywhere on the arena. |
 | Obstacle race | **←** / **→** or **A** / **D** to steer. | The **◀** and **▶** buttons. |
+| Lava rise | **Space**, **↑** or **W** to jump. | **Jump**, or tap anywhere on the arena. |
 
 ## Runner
 
@@ -298,7 +310,7 @@ The source is `secureRandom` (`packages/shared/src/lobbyGames/roundGame.ts`).
 
 ## Keeping the motion consistent
 
-Scrolling games (Runner, Flappy, Dodge, Catch the coins, Obstacle race) all follow one rule so the world never slides at two speeds:
+Scrolling games (Runner, Flappy, Dodge, Catch the coins, Obstacle race, Lava rise) all follow one rule so the world never slides at two speeds:
 
 - **Everything on the course moves at the course's speed.** Obstacles, pickups and the marks on the ground (the Runner's pale ticks and accent dashes, for example) all move by the same distance every second: the speed shown in the game's own description above, in screens per second. A ground mark must never look faster or slower than the obstacles it sits under.
 - **Only the faint dot grid in the background is slower**, at a quarter of the course speed, as distant parallax. It is drawn by the arena for every game; a game never adds its own.
