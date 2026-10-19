@@ -201,7 +201,7 @@ export class SpinLobbyHub {
       room.lobby.action(userId, m.name);
       this.touch(room, userId, now);
     } else if (m.t === 'tap') {
-      room.lobby.tap(userId, m.target);
+      room.lobby.tap(userId, m.target, m.ms);
       this.touch(room, userId, now);
     } else if (m.t === 'report') {
       room.lobby.report(userId, m.run, m.alive, m.f);

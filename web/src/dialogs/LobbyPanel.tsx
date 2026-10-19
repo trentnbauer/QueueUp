@@ -109,10 +109,19 @@ export function LobbyPanel({
   sendActionRef.current = sendAction;
   const sendTapRef = useRef(sendTap);
   sendTapRef.current = sendTap;
+  // Quick draw is timed on this device: from the moment GO is first on screen to the tap, so a slow connection
+  // does not count against the person. (`duel` tells one GO from the next.)
+  const goSeen = useRef<{ duel: number; at: number } | null>(null);
+  const shown = snapshot?.game;
+  if (shown?.id === 'draw' && shown.stage === 'go' && goSeen.current?.duel !== shown.duel) goSeen.current = { duel: shown.duel, at: performance.now() };
   /** Taps target number `target`: lights it for a moment and tells the game. */
   const tapTarget = (target: number) => {
-    fxRef.current?.press(target, performance.now());
-    sendTapRef.current(target);
+    const now = performance.now();
+    fxRef.current?.press(target, now);
+    const game = latest.current?.game;
+    const seen = goSeen.current;
+    const ms = game?.id === 'draw' && game.stage === 'go' && seen?.duel === game.duel ? Math.round(now - seen.at) : undefined;
+    sendTapRef.current(target, ms);
   };
   const tapTargetRef = useRef(tapTarget);
   tapTargetRef.current = tapTarget;

@@ -115,8 +115,8 @@ export class BotFiller implements LobbyGame {
     this.inner.report?.(userId, run, alive, f);
   }
 
-  tap(userId: string, target: number): void {
-    this.inner.tap?.(userId, target);
+  tap(userId: string, target: number, ms?: number): void {
+    this.inner.tap?.(userId, target, ms);
   }
 
   tick(dtMs: number): void {

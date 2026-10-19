@@ -177,7 +177,8 @@ A reaction duel on one shared screen. Needs at least 2 players, so on your own a
 - **False start:** tapping **before** GO puts you out of that round (you are dimmed, and can tap again in the next round).
 - **If everyone jumps the gun**, the round is shown and run again.
 - **Winning:** first to **3 points** wins the run. There is no time limit of its own: it goes on until someone has the points (in a spin's waiting room, the 30 second cap ends it and the most points wins; a tie is a draw).
-- **Fairness:** the order is decided by when taps reach the server, so a slow connection loses out. It is for fun, not a reaction-time test. The winning tap's time after GO is shown.
+- **Fairness:** who wins the point is decided by the order taps reach the server, so a slow connection loses out. It is for fun, not a reaction-time test. The winning tap's time after GO is shown.
+- **High score:** your **reaction time**, in milliseconds: your quickest winning tap in the run. **Smaller is better**, so the high score list runs from the fastest time up. The time is measured on your own device, from the moment GO is on your screen to your tap, so your connection does not count against it. The server keeps it within what it saw and never under 100 ms. A run where you did not win a point has no score. (Scores from before this change were points, and are no longer shown.)
 - **Bots** tap about a third to three quarters of a second after GO and never false-start, so a quick person beats them.
 - **Controls:** the big light is the controller. Tap it, or press **Space**.
 

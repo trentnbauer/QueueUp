@@ -1,4 +1,5 @@
-import { LOBBY_GAME_IDS, MINIGAME_LAST_RUNS, MINIGAME_LEADERBOARD_SIZE, MINIGAME_SCORE_MAX, MINIGAME_WEEK_MS, type LobbyGameId, type LobbyRunScore, type MiniGameBestsResponse, type MiniGameMeResponse, type MiniGameScorePeriod, type MiniGameScoreRow, type MiniGameScoreScope, type MiniGameScoreSource, type MiniGameScoresResponse } from '@queueup/shared';
+import { Prisma } from '@prisma/client';
+import { LOBBY_GAME_IDS, MINIGAME_LAST_RUNS, MINIGAME_LEADERBOARD_SIZE, MINIGAME_SCORE_MAX, MINIGAME_WEEK_MS, lowerIsBetter, minScoreOf, type LobbyGameId, type LobbyRunScore, type MiniGameBestsResponse, type MiniGameMeResponse, type MiniGameScorePeriod, type MiniGameScoreRow, type MiniGameScoreScope, type MiniGameScoreSource, type MiniGameScoresResponse } from '@queueup/shared';
 import { prisma } from '../db/client.js';
 import { blockedIdsOf } from './blocks.js';
 import { friendIdsOf } from './friendships.js';
@@ -9,7 +10,7 @@ export function isLobbyGameId(v: unknown): v is LobbyGameId {
 
 /** Whether `score` could be a real result for the game (a whole number from 1 up to the game's limit). */
 export function isPlausibleScore(game: LobbyGameId, score: unknown): score is number {
-  return typeof score === 'number' && Number.isInteger(score) && score >= 1 && score <= MINIGAME_SCORE_MAX[game];
+  return typeof score === 'number' && Number.isInteger(score) && score >= minScoreOf(game) && score <= MINIGAME_SCORE_MAX[game];
 }
 
 /** Saves a finished run for each real player. Scores that cannot be real are dropped, and a failure to
@@ -44,6 +45,8 @@ async function bestPerPerson(viewerId: string, game: LobbyGameId, scope: MiniGam
   const friends = scope === 'friends';
   const ids = friends ? [...(await friendIdsOf(viewerId)), viewerId] : [];
   const blocked = await blockedIdsOf(viewerId);
+  // A time is better the smaller it is.
+  const dir = lowerIsBetter(game) ? Prisma.sql`ASC` : Prisma.sql`DESC`;
   return prisma.$queryRaw<BestRow[]>`
     WITH best AS (
       SELECT DISTINCT ON (s.user_id) s.user_id, u.display_name, u.avatar_color, u.avatar_url, s.score, s.source, s.created_at
@@ -52,12 +55,13 @@ async function bestPerPerson(viewerId: string, game: LobbyGameId, scope: MiniGam
       WHERE s.game_id = ${game}
         AND (${since}::timestamptz IS NULL OR s.created_at >= ${since}::timestamptz)
         AND (NOT ${friends}::boolean OR s.user_id = ANY(${ids}::text[]))
+        AND s.score >= ${minScoreOf(game)}
         AND u.banned_at IS NULL
         AND NOT (s.user_id = ANY(${blocked}::text[]))
-      ORDER BY s.user_id, s.score DESC, s.created_at ASC
+      ORDER BY s.user_id, s.score ${dir}, s.created_at ASC
     ),
     ranked AS (
-      SELECT *, RANK() OVER (ORDER BY score DESC) AS rank, ROW_NUMBER() OVER (ORDER BY score DESC, created_at ASC) AS position
+      SELECT *, RANK() OVER (ORDER BY score ${dir}) AS rank, ROW_NUMBER() OVER (ORDER BY score ${dir}, created_at ASC) AS position
       FROM best
     )
     SELECT * FROM ranked WHERE position <= ${limit} OR user_id = ${viewerId} ORDER BY position`;
@@ -84,28 +88,34 @@ export async function leaderboard(viewerId: string, game: LobbyGameId, scope: Mi
 
 export async function myScores(viewerId: string, game: LobbyGameId): Promise<MiniGameMeResponse> {
   const [runs, best, friendRows, friendIds] = await Promise.all([
-    prisma.miniGameScore.findMany({ where: { userId: viewerId, gameId: game }, orderBy: { createdAt: 'desc' }, take: MINIGAME_LAST_RUNS, select: { score: true, createdAt: true, source: true } }),
-    prisma.miniGameScore.aggregate({ where: { userId: viewerId, gameId: game }, _max: { score: true }, _count: { _all: true } }),
+    prisma.miniGameScore.findMany({ where: { userId: viewerId, gameId: game, score: { gte: minScoreOf(game) } }, orderBy: { createdAt: 'desc' }, take: MINIGAME_LAST_RUNS, select: { score: true, createdAt: true, source: true } }),
+    prisma.miniGameScore.aggregate({ where: { userId: viewerId, gameId: game, score: { gte: minScoreOf(game) } }, _max: { score: true }, _min: { score: true }, _count: { _all: true } }),
     bestPerPerson(viewerId, game, 'friends', 'all', 500),
     friendIdsOf(viewerId),
   ]);
   const mine = friendRows.find((r) => r.user_id === viewerId);
-  // The nearest friend above me: the lowest score that beats mine (or, with no score yet, the lowest of all).
-  const ahead = friendRows.filter((r) => r.user_id !== viewerId && (!mine || r.score > mine.score)).sort((a, b) => a.score - b.score)[0];
+  // The nearest friend ahead of me: the closest score that beats mine (or, with no score yet, the closest to nothing).
+  const lower = lowerIsBetter(game);
+  const beats = (a: number, b: number) => (lower ? a < b : a > b);
+  const ahead = friendRows.filter((r) => r.user_id !== viewerId && (!mine || beats(r.score, mine.score))).sort((a, b) => (lower ? b.score - a.score : a.score - b.score))[0];
   return {
     game,
-    best: best._max.score,
+    best: lower ? best._min.score : best._max.score,
     friendRank: mine ? Number(mine.rank) : null,
     friendCount: friendIds.length,
     runsPlayed: best._count._all,
-    nextFriend: ahead ? { displayName: ahead.display_name, gap: ahead.score - (mine?.score ?? 0) } : null,
+    nextFriend: ahead ? { displayName: ahead.display_name, gap: Math.abs(ahead.score - (mine?.score ?? 0)) } : null,
     lastRuns: runs.map((r) => ({ score: r.score, at: r.createdAt.toISOString(), source: r.source as MiniGameScoreSource })),
   };
 }
 
 export async function myBests(viewerId: string): Promise<MiniGameBestsResponse> {
-  const rows = await prisma.miniGameScore.groupBy({ by: ['gameId'], where: { userId: viewerId }, _max: { score: true } });
+  const rows = await prisma.miniGameScore.groupBy({ by: ['gameId'], where: { userId: viewerId, OR: [{ gameId: { not: 'draw' } }, { score: { gte: minScoreOf('draw') } }] }, _max: { score: true }, _min: { score: true } });
   const bests: MiniGameBestsResponse['bests'] = {};
-  for (const r of rows) if (isLobbyGameId(r.gameId) && r._max.score !== null) bests[r.gameId] = r._max.score;
+  for (const r of rows) {
+    if (!isLobbyGameId(r.gameId)) continue;
+    const v = lowerIsBetter(r.gameId) ? r._min.score : r._max.score;
+    if (v !== null) bests[r.gameId] = v;
+  }
   return { bests };
 }

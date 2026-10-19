@@ -39,7 +39,7 @@ export function useLocalLobby(gameId: LobbyGameId | undefined, me: string, onSco
     status: 'open' as const,
     sendInput: useCallback((dx: number, dy: number) => lobbyRef.current?.input(dx, dy), []),
     sendAction: useCallback((name: string) => lobbyRef.current?.action(name), []),
-    sendTap: useCallback((target: number) => lobbyRef.current?.tap(target), []),
+    sendTap: useCallback((target: number, ms?: number) => lobbyRef.current?.tap(target, ms), []),
     vote: useCallback((_on: boolean) => {}, []),
   };
 }

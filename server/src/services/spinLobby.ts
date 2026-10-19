@@ -121,9 +121,9 @@ export class SpinLobby {
   }
 
   /** A tap on one of the game's arena targets. Anything but a whole number in range is dropped. */
-  tap(userId: string, target: unknown): void {
+  tap(userId: string, target: unknown, ms?: unknown): void {
     if (!this.connections.has(userId) || typeof target !== 'number' || !Number.isInteger(target) || target < 0 || target >= LOBBY_TAP_TARGETS_MAX) return;
-    this.game.tap?.(userId, target);
+    this.game.tap?.(userId, target, typeof ms === 'number' ? ms : undefined);
   }
 
   vote(userId: string, on: boolean): void {

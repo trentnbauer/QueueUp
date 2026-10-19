@@ -120,4 +120,24 @@ describe('DrawGame', () => {
     run(tie, 62_000);
     expect(tie.snapshot()).toMatchObject({ phase: 'over', winnerId: null });
   });
+
+  it('scores a run with the quickest reaction the player timed on their own device, kept within what the server saw', () => {
+    const g = started(['a', 'b']);
+    const scores: { userId: string; score: number }[][] = [];
+    g.onRunScores = (s) => scores.push(s);
+    toGo(g);
+    run(g, 500); // the server sees GO half a second ago
+    g.tap('a', 0, 320);
+    expect(g.snapshot().reactMs).toBe(320);
+    toNextWait(g);
+    toGo(g);
+    run(g, 300);
+    g.tap('a', 0, 5000); // slower than the server saw: capped
+    toNextWait(g);
+    toGo(g);
+    run(g, 400);
+    g.tap('a', 0, 10); // faster than a person can: raised to the floor
+    expect(g.snapshot().phase).toBe('over');
+    expect(scores[0]).toEqual([{ userId: 'a', score: 100 }]);
+  });
 });

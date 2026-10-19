@@ -106,7 +106,7 @@ describe('BotFiller', () => {
     const g = new BotFiller(inner, 2, (id) => sumoBrain(id, seeded(0.5)));
     g.join('a');
     g.tap('a', 3);
-    expect(tap).toHaveBeenCalledWith('a', 3);
+    expect(tap).toHaveBeenCalledWith('a', 3, undefined);
   });
 
   it('numbers new bots from where the last left off, so a colour is not reused at once', () => {
