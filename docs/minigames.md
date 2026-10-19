@@ -57,14 +57,15 @@ In **Runner, Flappy, Dodge, Jump rope, Obstacle race, Lava rise, Gravity flip an
 
 ## Lava rise
 
-Jump up the planks before the lava reaches you. Everyone climbs the same planks, side by side, and never touches.
+Climb the planks before the lava reaches you. Everyone climbs the same planks, side by side, and never touches.
 
-- **Goal:** stay above the lava. Planks are full-width bars that stay where they are; the **lava rises** through them. Jump from plank to plank, up and up. Fall in, or be caught as the lava passes your plank, and you are out. **Last one climbing wins**; alone it is a high score (metres climbed).
-- **Jumping:** one button. A jump rises about 0.3 of a screen and lasts about 0.6 seconds; you can only start one from a plank (pressing in the air does nothing). Landing needs you to be coming down onto a plank.
-- **Planks** start 0.11 to 0.16 of a screen apart and get further apart as you climb, up to 0.23 (a jump clears them with room to spare, but only just at the top). They come from the round's seed, so they are the same for everyone.
+- **Goal:** stay above the lava. Planks stay where they are; the **lava rises** through them. Slide **left and right** to get under the next plank up, then **jump** to land on top of it, and repeat. Fall in, or be caught on your plank as the lava passes it, and you are out. **Last one climbing wins**; alone it is a high score (metres climbed).
+- **The ceiling:** the top of the screen is a ceiling (0.88 of a screen above the lava), so nobody can climb out of sight: jumping at the top just bumps your head. A way up only lasts as long as the planks you can reach, and you have to line up sideways to land, so pressing jump over and over in one place does not get you anywhere.
+- **Moving and jumping:** you slide at half a screen a second, on a plank or in the air. One jump rises about 0.3 of a screen and lasts about 0.6 seconds, and only starts from a plank (pressing in the air does nothing). Walk off the end of a plank and you fall, landing on a lower plank if one is under you. You land on a plank when you come down onto it from above; you pass up through one from below.
+- **Planks** start 0.4 wide and get narrower as you climb (down to 0.2, the very first one is wide), and each is within 0.28 sideways of the one below, so the next is always within reach. They start 0.11 to 0.16 of a screen apart in height and get further apart as you climb, up to 0.23 (a jump clears them with room to spare, but only just at the top). They come from the round's seed, so they are the same for everyone.
 - **The lava** starts at 0.05 of a screen a second and speeds up by 0.005 every second, to 0.8, so every run ends.
 - There is no time limit of its own: it goes on until it is beaten.
-- **Controls:** one button: **Space**, **↑** or **W**, or tap anywhere on the arena.
+- **Controls:** **←** / **→** or **A** / **D** to slide, **Space**, **↑** or **W** to jump, or tap anywhere on the arena. On a phone, the **◀** and **▶** buttons slide.
 
 ## Snake arena
 
@@ -237,7 +238,7 @@ A game can instead make **the play space the controller**: there are no buttons 
 | Whack-a-mole | Click a hole, or press **1-9** (laid out like a numpad: **7 8 9** on the top row, **1 2 3** on the bottom). | Tap a hole on the grid. |
 | Jump rope | **Space**, **↑** or **W** to jump. | **Jump**, or tap anywhere on the arena. |
 | Obstacle race | **←** / **→** or **A** / **D** to steer. | The **◀** and **▶** buttons. |
-| Lava rise | **Space**, **↑** or **W** to jump. | **Jump**, or tap anywhere on the arena. |
+| Lava rise | **←** / **→** or **A** / **D** to slide, **Space**, **↑** or **W** to jump. | The **◀** and **▶** buttons, and **Jump** (or tap anywhere on the arena). |
 | Snake arena | **←** / **→** or **A** / **D** to turn. | The **◀** and **▶** buttons. |
 | Gravity flip | **Space**, **↑**/**↓** or **W**/**S** to flip. | **Flip**, or tap anywhere on the arena. |
 | Laser gaps | **←** / **→** or **A** / **D**. | The **◀** and **▶** buttons. |

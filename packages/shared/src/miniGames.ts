@@ -56,7 +56,7 @@ export const MINIGAME_VERSIONS: Record<LobbyGameId, number> = {
   asteroids: 1,
   memory: 2, // no cap on the rounds
   words: 1,
-  lava: 1,
+  lava: 2, // sideways movement, narrow planks and a ceiling at the top of the screen
   snake: 1,
   gravity: 2, // floating blocks in the middle, and a flip can be turned round part way across
   laser: 1,
