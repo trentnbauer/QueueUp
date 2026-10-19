@@ -244,14 +244,15 @@ Everyone on one short platform over a drop. Shove the others off. Needs at least
 
 ## Whack-a-mole
 
-Moles pop up out of a grid of holes; tap them before anyone else does.
+Moles pop up out of a grid of holes; tap them before they drop back down.
 
 - **Goal:** the most points in 30 seconds. Everyone plays on **the same 3 by 3 grid** and goes for the same moles.
 - **Nobody is knocked out.** When the time is up, the most points wins; a tie for the most, or scoring nothing, is a draw. Alone, it is a high-score round: no winner, just your points.
-- **Moles** are worth 1 point. The **first tap to reach the server** gets the point and the mole drops (a ring in your colour shows who got it); a later tap on a mole that is already whacked is ignored and costs nothing.
-- **Bombs** (dark, with a fuse) pop up now and then, never two in a row (about one in six). Whacking one costs **2 points** (never below zero).
+- **Moles** are worth 1 point, and **everyone who taps a mole while it is up scores for it**: being first does not matter. A mole stays up for its full time, so late tappers still get it, and a ring in each person's colour shows who has. A second tap on a mole you already have does nothing and costs nothing.
+- **Bombs** (dark, with a fuse) pop up now and then, never two in a row (about one in six). **Each person** who taps one loses **2 points** (never below zero).
 - **Missing:** tapping an empty hole costs **1 point** (never below zero), so mashing every hole does not win.
-- **Speed:** a new mole appears every 0.8 seconds at the start, down to every 0.28 seconds, and each stays up for 1.4 seconds at the start, down to 0.6 seconds. Which hole, and which are bombs, is decided on the server and comes from the round's seed, so it is the same sequence for everyone.
+- **Pressure comes from time:** each mole stays up for less as the round goes on, from 1.8 seconds at the start to 0.45 seconds by the end, so you have to be quicker to catch it at all. A new mole appears every 0.8 seconds at the start, down to every 0.28 seconds.
+- **Pauses:** every 4 to 8 moles the grid is left to empty and nothing comes up for a further 0.5 to 1.2 seconds. Which hole, which are bombs and when the pauses are comes from the round's seed, so it is the same for everyone.
 - The bar along the top is the time left, and everyone's points are in the row above the grid.
 - **Controls:** the grid is the controller, so tap or click a hole. On a keyboard, the number keys **1-9** match the holes like a numpad.
 
