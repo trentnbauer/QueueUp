@@ -119,7 +119,7 @@ A bomb with a lit fuse goes round the ring. Needs at least 2 players, so on your
 - **The fuse is hidden.** You can see the bomb glow redder and shake as it burns, but not how long is left. Each bomb's fuse is a random length between 55% and 100% of the longest allowed that round.
 - **Fuses get shorter:** the longest is 11 seconds in the first round, 0.7 seconds less every round, down to 4.5 seconds.
 - **Passing:** after you receive the bomb you must hold it for 0.4 seconds before you can pass it on, so it cannot be flicked straight back.
-- **Score** (the high score list): how many rounds you got through. There is no time limit of its own: it goes on until someone is the last one in.
+- **Score** (the high score list): **how long you held a bomb without it going off on you**, in seconds (to a tenth). Every time you pass the bomb on, the time you held it counts; a hold that ends with the bomb exploding in your hands does not, so holding on longer is worth more but risks everything you have not yet passed on. Rounds survived is still what the scoreboard and the run history show. There is no time limit of its own: it goes on until someone is the last one in.
 - **Bots** hold the bomb for between half a second and two seconds and then throw it, so they are beatable.
 - **Controls:** one button: **Space**, **↑** or **W**, or tap anywhere on the arena.
 
