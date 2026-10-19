@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router';
 import { useQueryClient } from '@tanstack/react-query';
-import { LOBBY_GAME_IDS, type LobbyGameId, type MiniGameLobbyDto, type MiniGameScorePeriod, type MiniGameScoreRow, type MiniGameScoreScope } from '@queueup/shared';
+import { LOBBY_GAME_IDS, lowerIsBetter, type LobbyGameId, type MiniGameLobbyDto, type MiniGameScorePeriod, type MiniGameScoreRow, type MiniGameScoreScope } from '@queueup/shared';
 import { miniGamesApi } from '../api/miniGames';
 import { useAuth } from '../context/AuthContext';
 import { JoinCodeDialog } from '../dialogs/JoinCodeDialog';
@@ -11,7 +11,7 @@ import { PlaySoloDialog } from '../dialogs/PlaySoloDialog';
 import { MINIGAMES_QUERY_KEY, useMiniGameBests, useMiniGameMe, useMiniGameScores, useOpenLobbies } from '../hooks/useMiniGames';
 import { LOBBY_GAME_VIEWS } from '../lobbyGames';
 import { lobbyHeadline } from '../lobbyGames/lobbyText';
-import { SOURCE_KEYS, whenKey } from '../lobbyGames/scoreText';
+import { SOURCE_KEYS, formatScore, whenKey } from '../lobbyGames/scoreText';
 import { Avatar, Btn, Segmented } from '../ui/primitives';
 import { useIsMobile } from '../ui/useLayout';
 import { st } from '../ui/st';
@@ -157,7 +157,7 @@ function GameCard({ id, selected, best, compact, onSelect, onPlay }: { id: Lobby
       <span style={st('display:flex;align-items:center;justify-content:space-between;gap:8px;padding-top:10px;border-top:1px solid var(--chip);pointer-events:none')}>
         <span style={st('display:flex;flex-direction:column;gap:2px')}>
           <span style={st('font:500 10.5px var(--font-mono);letter-spacing:.06em;color:var(--faint)')}>{t('games.yourBest')}</span>
-          <span style={st('font:600 13px var(--font-mono)')}>{best ?? '—'}</span>
+          <span style={st('font:600 13px var(--font-mono)')}>{best === null ? '—' : formatScore(id, best)}</span>
         </span>
         {!compact && (
           <span style={st('position:relative;pointer-events:auto')}>
@@ -204,7 +204,7 @@ function Leaderboard({ game, scope, period }: { game: LobbyGameId; scope: MiniGa
     <>
       <ol style={st('margin:0;padding:0;list-style:none;display:flex;flex-direction:column')}>
         {data.rows.map((r) => (
-          <ScoreRow key={r.userId} row={r} />
+          <ScoreRow key={r.userId} game={game} row={r} />
         ))}
       </ol>
       <span style={st('font:500 12px/1.4 var(--font-ui);color:var(--faint)')}>
@@ -215,7 +215,7 @@ function Leaderboard({ game, scope, period }: { game: LobbyGameId; scope: MiniGa
   );
 }
 
-function ScoreRow({ row }: { row: MiniGameScoreRow }) {
+function ScoreRow({ game, row }: { game: LobbyGameId; row: MiniGameScoreRow }) {
   const t = useT();
   const navigate = useNavigate();
   const top = row.rank === 1;
@@ -255,7 +255,7 @@ function ScoreRow({ row }: { row: MiniGameScoreRow }) {
         )}
         <span style={st('font:400 12px var(--font-ui);color:var(--muted)')}>{t('games.scores.meta', { when: t(when.key, when.values), source: t(SOURCE_KEYS[row.source]) })}</span>
       </span>
-      <span style={st(`text-align:right;font:600 15px var(--font-mono);color:${top ? 'var(--star)' : row.isMe ? 'var(--accText)' : 'var(--text)'}`)}>{row.score}</span>
+      <span style={st(`text-align:right;font:600 15px var(--font-mono);color:${top ? 'var(--star)' : row.isMe ? 'var(--accText)' : 'var(--text)'}`)}>{formatScore(game, row.score)}</span>
     </li>
   );
 }
@@ -264,7 +264,7 @@ function ScoreRow({ row }: { row: MiniGameScoreRow }) {
 function YouPanel({ game, gameName, onPlay }: { game: LobbyGameId; gameName: string; onPlay?: () => void }) {
   const t = useT();
   const { data } = useMiniGameMe(game);
-  const bestRun = data?.lastRuns.length ? Math.max(...data.lastRuns.map((r) => r.score)) : null;
+  const bestRun = data?.lastRuns.length ? (lowerIsBetter(game) ? Math.min : Math.max)(...data.lastRuns.map((r) => r.score)) : null;
   const bestMarked = data?.best != null && data.best === bestRun;
   let bestTagged = false;
 
@@ -274,10 +274,10 @@ function YouPanel({ game, gameName, onPlay }: { game: LobbyGameId; gameName: str
       <StatTiles
         columns={2}
         stats={[
-          { v: data?.best ?? '—', l: t('games.you.best') },
+          { v: data?.best != null ? formatScore(game, data.best) : '—', l: t('games.you.best') },
           { v: data?.friendRank ? t('games.you.rank', { n: data.friendRank }) : '—', l: t(data?.friendCount === 1 ? 'games.you.amongFriends.one' : 'games.you.amongFriends.other', { n: data?.friendCount ?? 0 }) },
           { v: data?.runsPlayed ?? 0, l: t('games.you.runs') },
-          { v: data?.nextFriend ? data.nextFriend.gap : '—', l: data?.nextFriend ? t('games.you.behind', { name: data.nextFriend.displayName }) : data?.best != null && data.friendCount > 0 ? t('games.you.leading') : t('games.you.noGap') },
+          { v: data?.nextFriend ? formatScore(game, data.nextFriend.gap) : '—', l: data?.nextFriend ? t('games.you.behind', { name: data.nextFriend.displayName }) : data?.best != null && data.friendCount > 0 ? t('games.you.leading') : t('games.you.noGap') },
         ]}
       />
       <div style={st('display:flex;align-items:baseline;justify-content:space-between')}>
@@ -298,7 +298,7 @@ function YouPanel({ game, gameName, onPlay }: { game: LobbyGameId; gameName: str
                   {t(when.key, when.values)} · {t(SOURCE_KEYS[r.source])}
                 </span>
                 {tag && <span style={st('font:600 10.5px var(--font-mono);letter-spacing:.06em;color:var(--star)')}>{t('games.you.bestTag')}</span>}
-                <span style={st('font:600 14px var(--font-mono)')}>{r.score}</span>
+                <span style={st('font:600 14px var(--font-mono)')}>{formatScore(game, r.score)}</span>
               </li>
             );
           })}

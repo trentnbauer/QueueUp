@@ -43,7 +43,7 @@ export interface LobbyGame {
   /** The person tapped target number `target` on the arena, for games whose play space is the controller
    * (see `taps` in the web view). The lobby only passes a whole number from 0 to LOBBY_TAP_TARGETS_MAX;
    * the game ignores an index it has no target for. Games without tap targets leave this out. */
-  tap?(userId: string, target: number): void;
+  tap?(userId: string, target: number, ms?: number): void;
   /** Moves the game forward by `dtMs` milliseconds. */
   tick(dtMs: number): void;
   /** The game as `viewer` should see it. Most games are the same for everyone and ignore `viewer`; a game

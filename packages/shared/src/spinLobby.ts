@@ -22,7 +22,7 @@ export type LobbyClientMessage =
   | { t: 'action'; name: string }
   /** The person tapped one of the game's tap targets on the arena (see `LOBBY_TAP_TARGETS_MAX`). `target`
    * is the target's index, never a position, so a client cannot claim a tap no target would give. */
-  | { t: 'tap'; target: number }
+  | { t: 'tap'; target: number; /** The person's own reaction time in ms, measured on their device (Quick draw only). */ ms?: number }
   /** Where a person's own player is, for a game that runs each player on their own device (see
    * `LobbyGame.clientSim`): `run` is the run it belongs to, `alive` is false once they are out, and `f`
    * is the game's own fields (a height, a speed). Sent about 20 times a second while a run is on. */

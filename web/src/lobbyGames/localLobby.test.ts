@@ -50,7 +50,7 @@ describe('LocalLobby', () => {
     const tap = vi.spyOn(game, 'tap');
     const lobby = new LocalLobby('runner', 'me', undefined, game);
     lobby.tap(4);
-    expect(tap).toHaveBeenCalledWith('me', 4);
+    expect(tap).toHaveBeenCalledWith('me', 4, undefined);
   });
 
   it('can run every game there is', () => {

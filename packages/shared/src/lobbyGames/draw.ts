@@ -12,8 +12,13 @@ const RESULT_S = 1.5;
 /** A round where everyone false-started is shown for this long, then run again. */
 const REDO_S = 1.2;
 
+/** The quickest a person can really react; a faster claimed time is raised to this. */
+const MIN_REACT_MS = 100;
+
 interface Duelist extends RoundPlayer {
   score: number;
+  /** Their quickest winning tap this run, in ms, as timed on their own device (0 until they win one). */
+  bestMs: number;
   state: DrawPlayerState;
 }
 
@@ -41,11 +46,12 @@ export class DrawGame extends RoundGame<Duelist> {
   }
 
   protected createPlayer(id: string, alive: boolean): Duelist {
-    return { id, score: 0, state: 'ready', alive, wins: 0, outAtMeters: 0 };
+    return { id, score: 0, bestMs: 0, state: 'ready', alive, wins: 0, outAtMeters: 0 };
   }
 
   protected resetPlayer(p: Duelist): void {
     p.score = 0;
+    p.bestMs = 0;
     p.state = 'ready';
   }
 
@@ -80,7 +86,10 @@ export class DrawGame extends RoundGame<Duelist> {
     // Tapping is all there is to do.
   }
 
-  tap(userId: string, target: number): void {
+  /** `ms` is the tapper's own timing from seeing GO to tapping, measured on their device so their connection
+   * does not count against them; it is kept within what the server saw (it cannot be slower than the real wait
+   * plus a connection, nor beat a human). The order of taps is still the order they arrive. */
+  tap(userId: string, target: number, ms?: number): void {
     const p = this.players.get(userId);
     if (this.phase !== 'playing' || !p || !p.alive || target !== 0 || p.state !== 'ready') return;
     if (this.stage === 'wait') {
@@ -92,6 +101,9 @@ export class DrawGame extends RoundGame<Duelist> {
     p.score++;
     this.duelWinner = p.id;
     this.reactMs = Math.round(this.sinceGo * 1000);
+    const own = typeof ms === 'number' && Number.isFinite(ms) ? Math.max(MIN_REACT_MS, Math.min(this.reactMs, Math.round(ms))) : Math.max(MIN_REACT_MS, this.reactMs);
+    if (p.bestMs === 0 || own < p.bestMs) p.bestMs = own;
+    this.reactMs = own;
     for (const q of this.players.values()) if (q.alive && q.state === 'ready') q.state = 'late';
     this.stage = 'result';
     this.left = RESULT_S;
@@ -147,6 +159,11 @@ export class DrawGame extends RoundGame<Duelist> {
       }
     }
     if (this.roundMs / 1000 >= RUN_LIMIT_S && this.phase === 'playing') this.finishRun(null);
+  }
+
+  /** The high score for a run is the person's quickest reaction (lower is better, see lowerIsBetter). */
+  protected override runScore(p: Duelist): number {
+    return p.bestMs;
   }
 
   /** Ends the run: `winner` reached the points, or (null) time is up and most points wins; a tie has no winner. */

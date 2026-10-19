@@ -1,4 +1,4 @@
-import type { MiniGameScoreSource } from '@queueup/shared';
+import { lowerIsBetter, type LobbyGameId, type MiniGameScoreSource } from '@queueup/shared';
 import type { MessageKey } from '../i18n';
 
 const MINUTE = 60_000;
@@ -20,3 +20,8 @@ export const SOURCE_KEYS: Record<MiniGameScoreSource, MessageKey> = {
   lobby: 'games.source.lobby',
   waiting_room: 'games.source.waitingRoom',
 };
+
+/** A high score as shown: a time in milliseconds for the games where smaller is better, else the plain number. */
+export function formatScore(game: LobbyGameId, score: number): string {
+  return lowerIsBetter(game) ? `${score} ms` : String(score);
+}

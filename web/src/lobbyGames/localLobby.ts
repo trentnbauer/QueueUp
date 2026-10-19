@@ -40,8 +40,8 @@ export class LocalLobby {
     this.game.action(this.me, name);
   }
 
-  tap(target: number): void {
-    this.game.tap?.(this.me, target);
+  tap(target: number, ms?: number): void {
+    this.game.tap?.(this.me, target, ms);
   }
 
   /** The same snapshot a room's lobby sends, with no votes and no spin to vote on. */

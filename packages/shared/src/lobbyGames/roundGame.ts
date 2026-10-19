@@ -312,12 +312,17 @@ export abstract class RoundGame<P extends RoundPlayer> implements LobbyGame {
 
   /** Hands each real player's score (bot ids start `bot:`, see bots.ts, which this file cannot import) to whatever records high scores. Bots, and people who only watched
    * the run (they arrived mid-run, so they have nothing), are left out. */
+  protected runScore(p: P): number {
+    return p.outAtMeters;
+  }
+
   private reportScores(): void {
     if (!this.onRunScores) return;
     const scores: LobbyRunScore[] = [];
     for (const p of this.players.values()) {
-      if (p.id.startsWith('bot:') || !Number.isFinite(p.outAtMeters) || p.outAtMeters <= 0) continue;
-      scores.push({ userId: p.id, score: Math.floor(p.outAtMeters) });
+      const score = this.runScore(p);
+      if (p.id.startsWith('bot:') || !Number.isFinite(score) || score <= 0) continue;
+      scores.push({ userId: p.id, score: Math.floor(score) });
     }
     if (scores.length > 0) this.onRunScores(scores);
   }

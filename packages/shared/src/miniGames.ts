@@ -16,7 +16,7 @@ export const MINIGAME_SCORE_MAX: Record<LobbyGameId, number> = {
   battleships: 100,
   race: 20000,
   whack: 200,
-  draw: 3,
+  draw: 10000, // a reaction time in milliseconds
   tilt: 100,
   stacker: 200,
   sumo: 200,
@@ -24,6 +24,14 @@ export const MINIGAME_SCORE_MAX: Record<LobbyGameId, number> = {
   memory: 60,
   words: 60,
 };
+
+/** The lowest score a game can really produce, where that is more than 1. Quick draw's score was points (1 to 3)
+ * before it became a reaction time in ms (never under 100), so older rows below this are ignored when read. */
+export const minScoreOf = (game: LobbyGameId): number => (game === 'draw' ? 100 : 1);
+
+/** Games whose score is a time, where a smaller number is better (the high score list runs low to high). */
+export const MINIGAME_LOWER_IS_BETTER: readonly LobbyGameId[] = ['draw'];
+export const lowerIsBetter = (game: LobbyGameId): boolean => MINIGAME_LOWER_IS_BETTER.includes(game);
 
 /** How many rows a leaderboard returns. */
 export const MINIGAME_LEADERBOARD_SIZE = 8;
