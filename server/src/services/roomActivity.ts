@@ -22,6 +22,9 @@ const ACTIVITY_DISCORD_EVENT: Partial<Record<RoomActivityType, DiscordEventKey>>
  * kind switched on (issue #181 + the v2 per-event toggles) - one-way egress only, nothing reads
  * anything back from Discord. Best-effort: a webhook failure (bad URL, Discord outage, channel
  * deleted) must never affect the in-app write it's mirroring, so this always swallows its errors. */
+/** The only kind of address a room's webhook may point at; checked when it is saved and again before every post. */
+export const DISCORD_WEBHOOK_URL = /^https:\/\/discord(app)?\.com\/api\/webhooks\/\d+\/[\w-]+$/;
+
 export async function postRoomDiscord(roomId: string, content: string, event: DiscordEventKey | undefined): Promise<void> {
   try {
     const room = await prisma.room.findUnique({
@@ -32,9 +35,10 @@ export async function postRoomDiscord(roomId: string, content: string, event: Di
     if (event && !resolveDiscordEvents(room.discordEvents)[event]) return;
     // Stored encrypted (see roomWebhook.ts); null when it was saved under another SESSION_SECRET.
     const webhookUrl = await loadWebhookUrl(room.discordWebhookUrl);
-    if (!webhookUrl) return;
+    if (!webhookUrl || !DISCORD_WEBHOOK_URL.test(webhookUrl)) return;
 
     await fetch(webhookUrl, {
+      signal: AbortSignal.timeout(10_000),
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       // Content carries text any member writes (display names, review notes, game titles), so

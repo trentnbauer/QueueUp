@@ -55,10 +55,12 @@ export async function requireGameSettingsAccess(game: GameWithRelations, userId:
  * is stricter than requireGameReadAccess/requireGameDeleteAccess (which any room member passes) -
  * being able to see or vote on a shared room game doesn't mean you get to organize it into somebody
  * else's tag scheme. */
-export function requireGameTagAccess(game: { addedBy: string }, userId: string) {
+export async function requireGameTagAccess(game: { addedBy: string; roomId?: string | null }, userId: string) {
   if (game.addedBy !== userId) {
     throw new HttpError(403, 'You can only tag games you added');
   }
+  // Someone who has left (or been removed from) the room no longer gets to touch, or read back, its games.
+  if (game.roomId) await requireMembership(game.roomId, userId);
 }
 
 /** A game's "audience" for duplicate purposes: everyone in the room, or just the shelf's own owner. */

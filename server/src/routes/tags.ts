@@ -77,7 +77,7 @@ export default async function tagRoutes(app: FastifyInstance) {
   app.post<{ Params: { id: string }; Body: ApplyTagRequest }>('/api/games/:id/tags', tagsRateLimit, async (request) => {
     const userId = await request.requireAuth();
     const game = await loadGameOr404(request.params.id);
-    requireGameTagAccess(game, userId);
+    await requireGameTagAccess(game, userId);
 
     const tag = await findOrCreateTag(userId, request.body?.name ?? '');
     await prisma.gameTag.upsert({
@@ -106,7 +106,7 @@ export default async function tagRoutes(app: FastifyInstance) {
     async (request) => {
       const userId = await request.requireAuth();
       const game = await loadGameOr404(request.params.id);
-      requireGameTagAccess(game, userId);
+      await requireGameTagAccess(game, userId);
 
       // Scoped by tag.userId too (not just tagId) so this can't be used to probe/detach a tag id
       // that happens to belong to someone else - in practice requireGameTagAccess already

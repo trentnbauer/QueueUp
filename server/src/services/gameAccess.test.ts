@@ -19,11 +19,11 @@ describe('duplicateScopeWhere', () => {
 });
 
 describe('requireGameTagAccess', () => {
-  it('allows the game\'s own adder, room game or not', () => {
-    expect(() => requireGameTagAccess({ addedBy: 'user-a' }, 'user-a')).not.toThrow();
+  it('allows the game\'s own adder on their shelf', async () => {
+    await expect(requireGameTagAccess({ addedBy: 'user-a', roomId: null }, 'user-a')).resolves.toBeUndefined();
   });
 
-  it('rejects anyone else, even a fellow room member who can otherwise read/vote on the game', () => {
-    expect(() => requireGameTagAccess({ addedBy: 'user-a' }, 'user-b')).toThrow(/added/i);
+  it('rejects anyone else, even a fellow room member who can otherwise read/vote on the game', async () => {
+    await expect(requireGameTagAccess({ addedBy: 'user-a' }, 'user-b')).rejects.toThrow(/added/i);
   });
 });

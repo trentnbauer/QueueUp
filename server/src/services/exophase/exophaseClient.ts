@@ -103,7 +103,12 @@ export async function resolvePlayerId(input: string, fetchImpl: Fetch = fetch): 
   if (/^\d{1,12}$/.test(text)) return text;
 
   const fromLink = text.match(/exophase\.com\/(?:[a-z]{2}\/)?(?:user|profile)\/([^/?#\s]+)/i);
-  const name = fromLink ? decodeURIComponent(fromLink[1]) : /^[\w.\-]{2,40}$/.test(text) ? text : null;
+  let name: string | null = null;
+  try {
+    name = fromLink ? decodeURIComponent(fromLink[1]) : /^[\w.\-]{2,40}$/.test(text) ? text : null;
+  } catch {
+    // A broken percent-escape (%E0%A4%A) is not a profile name.
+  }
   if (!name) {
     throw new ExophaseError('That does not look like an Exophase profile link, profile name or player id.');
   }
