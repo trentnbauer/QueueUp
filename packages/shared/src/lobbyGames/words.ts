@@ -4,6 +4,8 @@ import { WORD_ANSWERS } from './wordList.js';
 
 /** The run ends at this time for anyone still guessing. */
 const ROUND_S = 90;
+/** With no time limit a run still stops after this long, for the sake of someone who has walked away. */
+const ENDLESS_STOP_S = 600;
 /** Points for a solve: this much for each guess left unused (so a first-guess solve is the most)... */
 const POINTS_PER_SPARE_GUESS = 10;
 /** ...plus up to this much more for solving early (the share of the time left). */
@@ -174,8 +176,10 @@ export class WordsGame extends RoundGame<Guesser> {
     };
   }
 
-  protected override get ownLimitS(): number {
-    return ROUND_S;
+  /** 90 seconds with a time limit set; with none, no clock is shown and people take as long as they like, up to a safety stop so someone
+   * who walks away cannot hold the run open for ever. */
+  protected override get ownLimitS(): number | null {
+    return this.endless ? null : ROUND_S;
   }
 
   protected override limitReached(): void {
@@ -183,7 +187,7 @@ export class WordsGame extends RoundGame<Guesser> {
   }
 
   protected advance(): void {
-    if (this.roundMs >= ROUND_S * 1000) this.finishRun();
+    if (this.roundMs >= (this.endless ? ENDLESS_STOP_S : ROUND_S) * 1000) this.finishRun();
   }
 
   /** People leaving does not end a run while someone who started it is still guessing. */

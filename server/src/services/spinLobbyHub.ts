@@ -30,6 +30,8 @@ interface RoomState {
   lastTickAt: number;
   ticks: number;
   spinWaiting: boolean;
+  /** The members' choice of a time limit while no spin waits (a waiting room is always capped, and goes back to this when it ends). */
+  capped: boolean;
   checking: boolean;
   /** When each person last did something real (see `touch`). */
   lastActive: Map<string, number>;
@@ -96,6 +98,7 @@ export class SpinLobbyHub {
         lastTickAt: this.now(),
         ticks: 0,
         spinWaiting: false,
+        capped: options.timeLimit === true,
         checking: false,
         lastActive: new Map(),
         lastInput: new Map(),
@@ -219,6 +222,14 @@ export class SpinLobbyHub {
     } else if (m.t === 'tap') {
       room.lobby.tap(userId, m.target, m.ms);
       this.touch(room, userId, now);
+    } else if (m.t === 'timeLimit' && typeof m.on === 'boolean') {
+      // Everyone in the lobby shares one setting. A practice lobby has none, and a waiting spin always caps runs.
+      if (!room.spinWaiting && !room.lobby.solo) {
+        room.capped = m.on;
+        room.lobby.setTimeLimit(m.on ? LOBBY_WAITING_ROOM_LIMIT_S : null);
+        this.touch(room, userId, now);
+        this.broadcastState(room, room.spinWaiting);
+      }
     } else if (m.t === 'report') {
       room.lobby.report(userId, m.run, m.alive, m.f);
       // Only a report that differs from the last one shows movement.
@@ -284,7 +295,7 @@ export class SpinLobbyHub {
 
     if (room.spinWaiting && room.lobby.votePassed) {
       room.spinWaiting = false;
-      room.lobby.setTimeLimit(null);
+      room.lobby.setTimeLimit(room.capped ? LOBBY_WAITING_ROOM_LIMIT_S : null);
       try {
         await this.deps.startSpinNow(roomId);
       } catch {
@@ -314,7 +325,7 @@ export class SpinLobbyHub {
       if (this.rooms.get(roomId) !== room) return;
       room.spinWaiting = waiting;
       // In a spin's waiting room every run is capped, so the waiting room keeps moving.
-      room.lobby.setTimeLimit(waiting ? LOBBY_WAITING_ROOM_LIMIT_S : null);
+      room.lobby.setTimeLimit(waiting || room.capped ? LOBBY_WAITING_ROOM_LIMIT_S : null);
       if (was && !waiting) this.broadcast(room, { t: 'started' });
       else if (!was && waiting) this.broadcastState(room, true);
     } catch {

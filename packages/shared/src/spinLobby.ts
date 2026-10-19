@@ -32,7 +32,10 @@ export type LobbyClientMessage =
   /** Asks the server for its clock (answered with `pong`), so a client can line its own clock up. */
   | { t: 'ping'; c: number }
   /** Vote (or take the vote back) to leave the lobby and go to the spin. */
-  | { t: 'vote'; on: boolean };
+  | { t: 'vote'; on: boolean }
+  /** Turn the time limit (every run capped at `LOBBY_WAITING_ROOM_LIMIT_S` seconds) on, or off for runs that go on until they are beaten.
+   * For everyone in the lobby; ignored in a practice lobby (never capped) and while a spin waits (always capped). */
+  | { t: 'timeLimit'; on: boolean };
 
 /** Longest action name the server accepts. */
 export const LOBBY_ACTION_NAME_MAX = 16;
@@ -88,6 +91,9 @@ export interface RoundSummary {
 
 /** A run in a spin's waiting room ends after this many seconds, whatever the game, so the waiting room keeps moving. */
 export const LOBBY_WAITING_ROOM_LIMIT_S = 30;
+/** Lives each player has in a game that is a fixed-length round by design (Coins, Whack-a-mole, Match) when nothing caps the run: it then goes
+ * on, getting harder, until they have lost them all. */
+export const ENDLESS_LIVES = 3;
 
 /** How many finished runs the snapshot keeps. */
 export const LOBBY_HISTORY_LENGTH = 10;
@@ -289,12 +295,12 @@ export interface CoinItem {
 
 export interface CoinsPlayer {
   id: string;
+  /** Lives left in an endless run (no time limit), or null in a timed round, which has none. */
+  lives: number | null;
   /** Where they stand across the width (0..1). */
   x: number;
   /** The direction they are moving: -1, 0 or 1 (for a motion trail). */
   dir: number;
-  /** Stunned by a bomb, so they cannot move for a moment. */
-  stunned: boolean;
   /** Playing this round. False if they arrived mid-round (they watch and play from the next one). */
   alive: boolean;
   /** Rounds won since this person joined the lobby. */
@@ -471,6 +477,8 @@ export interface WhackHole {
 
 export interface WhackPlayer {
   id: string;
+  /** Lives left in an endless run (no time limit), or null in a timed round, which has none. */
+  lives: number | null;
   /** Playing this round. False if they arrived mid-round (they watch and play from the next one). */
   alive: boolean;
   /** Rounds won since this person joined the lobby. */
@@ -1077,6 +1085,8 @@ export interface ColorMatchPrompt {
 
 export interface ColorMatchPlayer {
   id: string;
+  /** Lives left in an endless run (no time limit), or null in a timed round, which has none. */
+  lives: number | null;
   /** Playing this round. False if they arrived mid-round (they watch and play from the next one). */
   alive: boolean;
   /** Rounds won since this person joined the lobby. */
@@ -1495,6 +1505,8 @@ export interface LobbySnapshot {
   needed: number;
   /** A spin is waiting for members, so the vote means something. Without one the lobby just runs. */
   spinWaiting: boolean;
+  /** How long a run can last in this lobby right now, in seconds, or 0 for none (runs go on until they are beaten). */
+  capSeconds: number;
 }
 
 /** What the server sends. `started` means the spin has begun: leave the lobby and show it. */

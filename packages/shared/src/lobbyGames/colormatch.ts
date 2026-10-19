@@ -1,4 +1,4 @@
-import { COLOR_MATCH_MODES, COLOR_MATCH_PANELS, type ColorMatchPrompt, type ColorMatchSnapshot, type ColorMatchStage } from '../spinLobby.js';
+import { COLOR_MATCH_MODES, COLOR_MATCH_PANELS, ENDLESS_LIVES, type ColorMatchPrompt, type ColorMatchSnapshot, type ColorMatchStage } from '../spinLobby.js';
 import { RoundGame, type RoundPlayer } from './roundGame.js';
 
 const ROUND_S = 30;
@@ -14,6 +14,9 @@ const BETWEEN_S = 0.45;
 const QUICK_SHARE = 0.4;
 /** A wrong tap costs this many points (never below zero). */
 const WRONG_COST = 1;
+/** Endless (no time limit): each prompt waits less and less, down past a classic round's floor, over `ENDLESS_RAMP_S`. */
+const ENDLESS_RAMP_S = 50;
+const ENDLESS_PROMPT_S: readonly [number, number] = [2.2, 0.7];
 
 interface Matcher extends RoundPlayer {
   score: number;
@@ -21,12 +24,15 @@ interface Matcher extends RoundPlayer {
   answered: boolean;
   /** Whether that answer was right (null before they answer). */
   right: boolean | null;
+  /** Lives left (endless runs only): a wrong answer, or none before the prompt runs out, costs one. */
+  lives: number;
 }
 
 /** A colour name is written in the ink of another colour, in front of the shape of a third panel, and the prompt says which to match: the
  * ink, the word or the shape (it changes from one prompt to the next). Tap that panel. Everyone is
- * shown the same prompts at the same time. A right answer scores a point (two if it is quick), a wrong one costs a point, and
- * only your first tap on a prompt counts. When the 30 seconds are up, most points wins. See RoundGame for how rounds
+ * shown the same prompts at the same time. A right answer scores a point (two if it is quick), and only your first tap on a prompt
+ * counts. With a time limit it is a 30 second round, a wrong answer costs a point and most points wins. With none it is endless: three
+ * lives each, a wrong answer or none in time costs one, the prompts keep getting quicker, and the last one standing wins. See RoundGame for how rounds
  * start and end. */
 export class ColorMatchGame extends RoundGame<Matcher> {
   readonly id = 'colormatch' as const;
@@ -39,25 +45,41 @@ export class ColorMatchGame extends RoundGame<Matcher> {
   private wait = 0;
   private asked = 0;
 
-  /** The score shown for the round: the most points anyone has. */
+  /** The score shown for the round: the most points anyone has, counting those who are out. */
   protected get meters(): number {
     let best = 0;
-    for (const p of this.players.values()) if (p.alive && p.score > best) best = p.score;
+    for (const p of this.players.values()) best = Math.max(best, p.alive ? p.score : p.outAtMeters);
     return best;
   }
 
-  protected override get ownLimitS(): number {
-    return ROUND_S;
+  protected override get ownLimitS(): number | null {
+    return this.endless ? null : ROUND_S;
   }
 
   protected createPlayer(id: string, alive: boolean): Matcher {
-    return { id, score: 0, answered: false, right: null, alive, wins: 0, outAtMeters: 0 };
+    return { id, score: 0, answered: false, right: null, lives: ENDLESS_LIVES, alive, wins: 0, outAtMeters: 0 };
   }
 
   protected resetPlayer(p: Matcher): void {
     p.score = 0;
     p.answered = false;
     p.right = null;
+    p.lives = ENDLESS_LIVES;
+  }
+
+  protected override knockOut(p: Matcher): void {
+    super.knockOut(p);
+    p.outAtMeters = p.score;
+  }
+
+  private loseLife(p: Matcher): void {
+    if (--p.lives <= 0) this.knockOut(p);
+  }
+
+  /** How long a prompt waits now. */
+  private allowedAt(seconds: number): number {
+    if (this.endless) return ENDLESS_PROMPT_S[0] + (ENDLESS_PROMPT_S[1] - ENDLESS_PROMPT_S[0]) * Math.min(1, seconds / ENDLESS_RAMP_S);
+    return Math.max(PROMPT_MIN_S, PROMPT_START_S - PROMPT_GAIN_S * seconds);
   }
 
   protected resetCourse(): void {
@@ -89,6 +111,7 @@ export class ColorMatchGame extends RoundGame<Matcher> {
     p.answered = true;
     p.right = target === this.prompt[this.prompt.mode];
     if (p.right) p.score += this.elapsed <= this.allowed * QUICK_SHARE ? 2 : 1;
+    else if (this.endless) this.loseLife(p);
     else p.score = Math.max(0, p.score - WRONG_COST);
   }
 
@@ -106,7 +129,7 @@ export class ColorMatchGame extends RoundGame<Matcher> {
       prompt: { ...this.prompt },
       promptLeftMs: this.stage === 'prompt' ? Math.max(0, Math.round((this.allowed - this.elapsed) * 1000)) : 0,
       promptTotalMs: Math.round(this.allowed * 1000),
-      players: [...this.players.values()].map((p) => ({ id: p.id, alive: p.alive, wins: p.wins, meters: p.alive ? p.score : 0, answered: p.answered, right: p.right })),
+      players: [...this.players.values()].map((p) => ({ id: p.id, alive: p.alive, wins: p.wins, meters: p.alive ? p.score : p.outAtMeters, answered: p.answered, right: p.right, lives: this.endless ? p.lives : null })),
     };
   }
 
@@ -119,11 +142,13 @@ export class ColorMatchGame extends RoundGame<Matcher> {
       this.elapsed += dt;
       const everyone = [...this.players.values()].filter((p) => p.alive);
       if (this.elapsed >= this.allowed || (everyone.length > 0 && everyone.every((p) => p.answered))) {
+        // No answer by the time the prompt ran out costs a life.
+        if (this.endless && this.elapsed >= this.allowed) for (const p of everyone) if (!p.answered) this.loseLife(p);
         this.stage = 'between';
         this.wait = BETWEEN_S;
       }
     }
-    if (seconds >= ROUND_S) this.finishRound();
+    if (!this.endless && seconds >= ROUND_S) this.finishRound();
   }
 
   protected override limitReached(): void {
@@ -142,7 +167,7 @@ export class ColorMatchGame extends RoundGame<Matcher> {
     const modes = this.asked === 0 ? COLOR_MATCH_MODES : COLOR_MATCH_MODES.filter((m) => m !== this.prompt.mode);
     const mode = modes[Math.floor(modeAt * modes.length)];
     this.prompt = { word, ink, shape, mode, n: ++this.asked };
-    this.allowed = Math.max(PROMPT_MIN_S, PROMPT_START_S - PROMPT_GAIN_S * seconds);
+    this.allowed = this.allowedAt(seconds);
     this.elapsed = 0;
     this.stage = 'prompt';
     for (const p of this.players.values()) {

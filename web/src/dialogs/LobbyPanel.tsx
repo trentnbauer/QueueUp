@@ -7,6 +7,7 @@ import { tapTargetAt, tapTargetForKey } from '../lobbyGames/taps';
 import { Controls, NO_SELECT } from './lobby/Controls';
 import { LiveAnnouncer } from './lobby/LiveAnnouncer';
 import { LobbyHeader } from './lobby/LobbyHeader';
+import { TimeLimitRow } from './lobby/TimeLimitRow';
 import { RunHistory } from './lobby/RunHistory';
 import { VoteBar } from './lobby/VoteBar';
 import { WinChart } from './lobby/WinChart';
@@ -63,7 +64,7 @@ export function LobbyPanel({
   // practice one, so the scores it saves are the server's own and can be trusted.
   const livePath = roomId ? `/api/rooms/${encodeURIComponent(roomId)}/lobby` : lobbyId ? `/api/minigames/lobbies/${encodeURIComponent(lobbyId)}/lobby` : undefined;
   const live = useSpinLobby(livePath, true, me, onStarted, !!soloGame);
-  const { snapshot, status, sendInput, sendAction, sendTap, vote } = live;
+  const { snapshot, status, sendInput, sendAction, sendTap, vote, setTimeLimit } = live;
   const canvasRef = useRef<HTMLCanvasElement>(null);
   // Effects (knock-out bursts, confetti, shake) and their memory between frames, for as long as the panel is open.
   const fxRef = useRef<LobbyFx | null>(null);
@@ -279,6 +280,8 @@ export function LobbyPanel({
   return (
     <div style={st(`display:flex;flex-direction:column;gap:${phone ? 12 : 14}px;${phone ? '' : 'padding:16px;border-radius:20px;background:var(--bg)'}`)}>
       <LobbyHeader members={members} readyIds={readyUserIds ?? null} playingIds={playingIds} gameName={gameName} run={game?.run ?? 0} statusText={statusText} phone={phone} />
+      {/* A practice run is never capped; any other lobby can choose, and a waiting spin always caps. */}
+      {snapshot && !soloGame && <TimeLimitRow capSeconds={snapshot.capSeconds} locked={snapshot.spinWaiting} onChange={setTimeLimit} />}
 
       {phone ? (
         <>

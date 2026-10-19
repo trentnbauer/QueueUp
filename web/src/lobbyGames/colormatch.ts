@@ -1,14 +1,14 @@
-import { COLOR_MATCH_PANELS, type ColorMatchSnapshot } from '@queueup/shared';
+import { COLOR_MATCH_PANELS, ENDLESS_LIVES, type ColorMatchSnapshot } from '@queueup/shared';
 import type { MessageKey } from '../i18n';
 import type { LobbyGameView } from './index';
-import { FONT, renderScene, roundRect, type Scene, type SceneGame } from './kit';
+import { FONT, drawLives, renderScene, roundRect, type Scene, type SceneGame } from './kit';
 import type { TapRect, TapTargets } from './taps';
 
 // Where things are on the arena, as fractions of its side: everyone's points in a row, the prompt, then the four
 // panels (2 x 2).
 const CHIPS_Y = 0.11;
 const CHIP_R = 0.022;
-const MODE_Y = 0.2;
+const MODE_Y = 0.222;
 const PROMPT_Y = 0.3;
 const BOARD_X = 0.1;
 const BOARD_Y = 0.42;
@@ -68,6 +68,7 @@ function drawWorld(sc: Scene<ColorMatchSnapshot>): void {
     sc.drawPlayer(p.id, cx, CHIPS_Y * S, CHIP_R * S, CHIP_R * S);
     ctx.fillStyle = p.right === true ? theme.mint : p.right === false ? theme.danger : theme.text;
     ctx.fillText(`${p.meters}${p.right === true ? ' ✓' : p.right === false ? ' ✗' : ''}`, cx, (CHIPS_Y + CHIP_R + 0.03) * S);
+    drawLives(ctx, cx, (CHIPS_Y + CHIP_R + 0.058) * S, p.lives, ENDLESS_LIVES, S * 0.011, theme.danger);
   }
 
   // The prompt: what to match, then the name of one colour written in the ink of another, in front of a shape (a third panel's).

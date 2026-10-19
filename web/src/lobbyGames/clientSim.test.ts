@@ -54,7 +54,7 @@ function serverSide(game: LobbyGame, ids = ['me']) {
     snapshot(now: number): LobbySnapshot {
       tick++;
       const sim = game.simStart?.();
-      return { t: 'state', tick, game: game.snapshot(), ...(sim ? { sim, clock: SERVER_EPOCH + now } : {}), voters: [], needed: 1, spinWaiting: false };
+      return { t: 'state', tick, game: game.snapshot(), ...(sim ? { sim, clock: SERVER_EPOCH + now } : {}), voters: [], needed: 1, spinWaiting: false, capSeconds: 0 };
     },
   };
 }
@@ -344,7 +344,7 @@ function simulate(opts: { latency: number; onClient: boolean; runMs: number }) {
       server.tick(now - lastServerTick);
       lastServerTick = now;
       const sims = server.simStart();
-      const snapshot: LobbySnapshot = { t: 'state', tick: ++tick, game: server.snapshot(), ...(sims ? { sim: sims, clock: SERVER_EPOCH + now } : {}), voters: [], needed: 1, spinWaiting: false };
+      const snapshot: LobbySnapshot = { t: 'state', tick: ++tick, game: server.snapshot(), ...(sims ? { sim: sims, clock: SERVER_EPOCH + now } : {}), voters: [], needed: 1, spinWaiting: false, capSeconds: 0 };
       later(now + L, () => {
         delivered = snapshot;
         if (opts.onClient) sim.onState(snapshot);

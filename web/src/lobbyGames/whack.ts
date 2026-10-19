@@ -1,6 +1,6 @@
-import { WHACK_COLS, WHACK_HOLES, type WhackSnapshot } from '@queueup/shared';
+import { ENDLESS_LIVES, WHACK_COLS, WHACK_HOLES, type WhackSnapshot } from '@queueup/shared';
 import type { LobbyGameView } from './index';
-import { FONT, renderScene, type Scene, type SceneGame } from './kit';
+import { FONT, drawLives, renderScene, type Scene, type SceneGame } from './kit';
 import type { TapRect, TapTargets } from './taps';
 
 /** Where the grid is on the arena, as fractions of its side: one shared 3 x 3 grid. */
@@ -86,6 +86,7 @@ function drawWorld(sc: Scene<WhackSnapshot>): void {
     sc.drawPlayer(p.id, cx, CHIPS_Y * S, CHIP_R * S, CHIP_R * S);
     ctx.fillStyle = theme.text;
     ctx.fillText(String(p.meters), cx, (CHIPS_Y + CHIP_R + 0.03) * S);
+    drawLives(ctx, cx, (CHIPS_Y + CHIP_R + 0.058) * S, p.lives, ENDLESS_LIVES, S * 0.011, theme.danger);
   }
 
   for (let i = 0; i < WHACK_HOLES; i++) {

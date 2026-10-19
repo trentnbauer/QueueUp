@@ -52,6 +52,26 @@ export function coverTile(ctx: CanvasRenderingContext2D, x: number, y: number, w
   ctx.stroke();
 }
 
+/** A row of lives (small hearts) centred on `cx`: the ones left are lit and the ones lost are dim. `lives` is null in a game with none (a timed round),
+ * which draws nothing. */
+export function drawLives(ctx: CanvasRenderingContext2D, cx: number, y: number, lives: number | null, total: number, size: number, color: string): void {
+  if (lives === null) return;
+  const gap = size * 1.5;
+  for (let i = 0; i < total; i++) {
+    const x = cx + (i - (total - 1) / 2) * gap;
+    ctx.save();
+    ctx.translate(x, y);
+    ctx.fillStyle = color;
+    ctx.globalAlpha = i < lives ? 1 : 0.22;
+    ctx.beginPath();
+    ctx.moveTo(0, size * 0.45);
+    ctx.bezierCurveTo(-size * 0.9, -size * 0.1, -size * 0.45, -size * 0.7, 0, -size * 0.25);
+    ctx.bezierCurveTo(size * 0.45, -size * 0.7, size * 0.9, -size * 0.1, 0, size * 0.45);
+    ctx.fill();
+    ctx.restore();
+  }
+}
+
 /** A soft shadow on the ground under something. `k` (0..1) shrinks and fades it as the thing rises. */
 export function groundShadow(ctx: CanvasRenderingContext2D, cx: number, groundY: number, rx: number, k = 1): void {
   ctx.fillStyle = `oklch(0 0 0 / ${0.35 * k})`;

@@ -104,6 +104,12 @@ export abstract class RoundGame<P extends RoundPlayer> implements LobbyGame {
   onRunOver: (() => boolean) | undefined;
   /** A cap on how long a run can last, in seconds, set by the lobby (null for none beyond the game's own). */
   timeLimitS: number | null = null;
+
+  /** Nothing caps the run (no time limit): a game that is a fixed-length round by design (Coins, Whack-a-mole, Match, Words) then has no length of
+   * its own, and goes on until players have run out of lives (or, in Words, of guesses), getting harder the longer it lasts. */
+  protected get endless(): boolean {
+    return this.timeLimitS === null;
+  }
   /** Set by whatever records high scores: called when a run ends, with every real player's score. */
   onRunScores: ((scores: LobbyRunScore[]) => void) | undefined;
 

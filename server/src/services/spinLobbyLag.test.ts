@@ -103,3 +103,22 @@ describe('a practice lobby runs behind the device and applies each press when th
     expect(copy.snapshot()).toMatchObject({ id: 'fishing' });
   });
 });
+
+describe('the lobby time limit', () => {
+  it('is infinite until someone turns it on, and the snapshot says which', () => {
+    const lobby = new SpinLobby(createLobbyGame('runner'));
+    lobby.join('a');
+    expect(lobby.snapshot(false).capSeconds).toBe(0);
+    lobby.setTimeLimit(30);
+    expect(lobby.snapshot(false).capSeconds).toBe(30);
+    lobby.setTimeLimit(null);
+    expect(lobby.snapshot(false).capSeconds).toBe(0);
+  });
+
+  it('is never applied to a practice lobby', () => {
+    const lobby = new SpinLobby(createLobbyGame('coins'), undefined, undefined, true);
+    lobby.join('a');
+    expect(lobby.solo).toBe(true);
+    expect(lobby.snapshot(false).capSeconds).toBe(0);
+  });
+});

@@ -20,6 +20,7 @@ const wrongOf = (p: Parameters<typeof answer>[0]) => (answer(p) + 1) % COLOR_MAT
 
 function started(ids: string[], rng: () => number = lcg(7)) {
   const g = new ColorMatchGame(rng);
+  g.timeLimitS = 30; // a timed round (with none the game is endless)
   ids.forEach((id) => g.join(id));
   run(g, 3200); // past the countdown
   return g;
@@ -38,6 +39,7 @@ function waitForPrompt(g: ColorMatchGame, after = 0) {
 describe('ColorMatchGame', () => {
   it('counts down, then runs a 30 second round', () => {
     const g = new ColorMatchGame(lcg(1));
+    g.timeLimitS = 30;
     g.join('a');
     expect(g.snapshot().phase).toBe('countdown');
     run(g, 3200);
@@ -181,5 +183,59 @@ describe('ColorMatchGame', () => {
       return out;
     };
     expect(prompts(0.42)).toEqual(prompts(0.42));
+  });
+});
+
+describe('ColorMatchGame endless (no time limit)', () => {
+  function endless(ids: string[], rng: () => number = lcg(7)) {
+    const g = new ColorMatchGame(rng);
+    ids.forEach((id) => g.join(id));
+    run(g, 3200);
+    return g;
+  }
+  const lives = (g: ColorMatchGame, id = 'a') => g.snapshot().players.find((p) => p.id === id)!.lives;
+
+  it('has no clock, and gives everyone three lives (a timed round has none)', () => {
+    const g = endless(['a']);
+    expect(g.snapshot().limitMs).toBe(0);
+    expect(lives(g)).toBe(3);
+    expect(started(['a']).snapshot().players[0].lives).toBeNull();
+  });
+
+  it('costs a life for a wrong answer, with no point taken off', () => {
+    const g = endless(['a']);
+    const prompt = waitForPrompt(g);
+    g.tap('a', wrongOf(prompt));
+    expect(lives(g)).toBe(2);
+    expect(score(g, 'a')).toBe(0);
+  });
+
+  it('costs a life for each prompt left unanswered, and ends a solo run after three', () => {
+    const g = endless(['a']);
+    for (let t = 0; t < 60_000 && g.snapshot().phase === 'playing'; t += STEP) g.tick(STEP);
+    expect(g.snapshot().phase).toBe('over');
+    expect(lives(g)).toBe(0);
+    expect(g.snapshot().winnerId).toBeNull();
+  });
+
+  it('lets someone who answers right carry on past 30 seconds, with the prompts waiting less and less', () => {
+    const g = endless(['a']);
+    let after = 0;
+    let firstAllowed = 0;
+    let lastAllowed = 0;
+    while (g.snapshot().roundLeftMs === 0 && g.snapshot().phase === 'playing' && after < 400) {
+      const prompt = waitForPrompt(g, after);
+      after = prompt.n;
+      if (!firstAllowed) firstAllowed = g.snapshot().promptTotalMs;
+      lastAllowed = g.snapshot().promptTotalMs;
+      g.tap('a', answer(prompt));
+      if (g.snapshot().run > 1) break;
+      // stop after 45 seconds of play
+      if (after > 60) break;
+    }
+    expect(g.snapshot().phase).toBe('playing');
+    expect(lives(g)).toBe(3);
+    expect(lastAllowed).toBeLessThan(firstAllowed - 600);
+    expect(lastAllowed).toBeLessThan(1400);
   });
 });
