@@ -2,7 +2,7 @@ import { describe, expect, it, vi } from 'vitest';
 import { BattleshipsGame, CoinsGame, LOBBY_GAME_IDS, LOBBY_WAITING_ROOM_LIMIT_S, RunnerGame, createLobbyGame } from '@queueup/shared';
 import { SpinLobby } from './spinLobby.js';
 
-const snapshot = () => ({ id: 'runner' as const, phase: 'lobby' as const, run: 1, history: [], best: null, meters: 0, speed: 0.5, obstacles: [], players: [], timerMs: 0, winnerId: null });
+const snapshot = () => ({ id: 'runner' as const, phase: 'lobby' as const, run: 1, history: [], best: null, limitMs: 0, meters: 0, speed: 0.5, obstacles: [], players: [], timerMs: 0, winnerId: null });
 const fakeGame = () => ({
   id: 'runner' as const,
   join: vi.fn(),
