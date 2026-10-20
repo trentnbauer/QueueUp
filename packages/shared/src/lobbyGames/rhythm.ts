@@ -1,4 +1,4 @@
-import { ENDLESS_LIVES, RHYTHM_LANES, type RhythmJudge, type RhythmNote, type RhythmSnapshot } from '../spinLobby.js';
+import { ENDLESS_LIVES, RHYTHM_GOOD_S, RHYTHM_GREAT_S, RHYTHM_LANES, type RhythmJudge, type RhythmNote, type RhythmSnapshot } from '../spinLobby.js';
 import { RoundGame, type RoundPlayer } from './roundGame.js';
 
 /** The beat: slow enough to find at the start and quicker over `RAMP_S`, then no quicker. Beats per minute; a note falls on each beat. */
@@ -11,8 +11,8 @@ const CHORDS_FROM_S = 10;
 const CHORDS_OVER_S = 20;
 const CHORD_SHARE = 0.4;
 /** A tap within this of a note's time hits it: closer than GREAT is great (two points), the rest is good (one). */
-const GREAT_S = 0.06;
-const GOOD_S = 0.12;
+const GREAT_S = RHYTHM_GREAT_S;
+const GOOD_S = RHYTHM_GOOD_S;
 /** The first note comes after this long, so there is a moment to get going. */
 const FIRST_S = 2;
 /** What a tap or a miss said, and for how long it stays on screen (the view reads `agoMs`). */
