@@ -124,15 +124,15 @@ Rows of lasers fall; slide into the gap. Everyone is on the same floor and never
 
 A colour name is written in the ink of another colour, in front of a shape, and the prompt says what to match: the **ink**, the **word** or the **shape**. It changes from one prompt to the next, so read what it asks before you tap.
 
-- **Goal:** points. With a time limit it is a 30 second round and the most points wins. With none it is **endless**: three lives each, shown as hearts; a wrong answer, or none before the prompt runs out, costs a life (and no points); the prompts wait 2.2 seconds at first and less and less, down to 0.7 seconds after 50 seconds; the last one standing wins, and alone it ends when you are out.
+- **Goal:** points. With a time limit it is a 30 second round and the most points wins. With none it is **endless**: three lives each, shown as hearts; a wrong answer, or none before the prompt runs out, costs a life (and no points); the prompts wait 3.2 seconds at first and less and less, down to 1.2 seconds after 45 seconds; the last one standing wins, and alone it ends when you are out.
 - **Timed round:** the most points in 30 seconds. Everyone sees the same prompts at the same time and answers on the same four panels (red, blue, green, yellow). Each panel also has a shape (circle, square, triangle, diamond), so colour is never the only clue.
-- **What it asks:** *Tap the ink colour* (the panel whose colour the word is written in), *Tap what the word says* (the panel whose colour the word names) or *Tap the shape* (the panel with the shape drawn behind the word). The ink, the word and the shape are always three different panels, so each is a trap for the other two. The thing to match is never the same twice running.
+- **What it asks:** one large white word above the prompt: *Color* (the panel whose colour the word is written in), *Word* (the panel whose colour the word names) or *Shape* (the panel with the shape drawn behind the word). The ink, the word and the shape are always three different panels, so each is a trap for the other two. The thing to match is never the same twice running.
 - **Scoring:** a right answer is **1 point**, or **2 if it comes quickly** (in the first 40% of the time the prompt allows). In a timed round a wrong answer costs **1 point** (never below zero). **Only your first tap on a prompt counts**: you cannot mash all four.
-- **Prompts** wait 2.2 seconds for answers at the start, down to 1.4 seconds after about 16 seconds, and move on as soon as everyone has answered. They come from the round's seed.
+- **Prompts** wait 3.2 seconds for answers at the start, down to 2.2 seconds after 20 seconds, and move on as soon as everyone has answered. The result of a prompt stays up for 0.8 seconds before the next one, and the first prompt comes 1.2 seconds in, so there is time to read what is asked. They come from the round's seed.
 - **Nobody is knocked out.** When the time is up, the most points wins; a tie for the most, or scoring nothing, is a draw. Alone, it is a high-score round: no winner, just your points.
 - The bar along the top is the time left, and everyone's points are in the row above the prompt, with a tick or cross for how they answered it.
 - **Controls:** the panels are the controller, so tap or click one, or press **1-4** (top left, top right, bottom left, bottom right).
-- The game used to be called Color match and only ever asked for the ink. Its version is now 2, so its high score list starts again.
+- The game used to be called Color match and only ever asked for the ink. Its version is now 4 (slower prompts), so its high score list starts again.
 
 ## Hot potato
 

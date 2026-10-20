@@ -3,20 +3,20 @@ import { RoundGame, type RoundPlayer } from './roundGame.js';
 
 const ROUND_S = 30;
 /** A moment before the first prompt, so there is time to get ready. */
-const FIRST_PROMPT_S = 0.8;
+const FIRST_PROMPT_S = 1.2;
 /** How long each prompt waits for answers: starts roomy and gets shorter, down to a floor. */
-const PROMPT_START_S = 2.2;
+const PROMPT_START_S = 3.2;
 const PROMPT_GAIN_S = 0.05; // per second of the round
-const PROMPT_MIN_S = 1.4;
+const PROMPT_MIN_S = 2.2;
 /** After a prompt is done, the result shows for this long before the next one. */
-const BETWEEN_S = 0.45;
+const BETWEEN_S = 0.8;
 /** Answering within this share of the time allowed scores a bonus point. */
 const QUICK_SHARE = 0.4;
 /** A wrong tap costs this many points (never below zero). */
 const WRONG_COST = 1;
 /** Endless (no time limit): each prompt waits less and less, down past a classic round's floor, over `ENDLESS_RAMP_S`. */
-const ENDLESS_RAMP_S = 50;
-const ENDLESS_PROMPT_S: readonly [number, number] = [2.2, 0.7];
+const ENDLESS_RAMP_S = 45;
+const ENDLESS_PROMPT_S: readonly [number, number] = [3.2, 1.2];
 
 interface Matcher extends RoundPlayer {
   score: number;

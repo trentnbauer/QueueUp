@@ -70,7 +70,7 @@ describe('ColorMatchGame', () => {
     const seen = new Set<string>();
     let last: string | null = null;
     let after = 0;
-    for (let i = 0; i < 40; i++) {
+    for (let i = 0; i < 20; i++) {
       const prompt = waitForPrompt(g, after);
       expect(prompt.mode).not.toBe(last);
       last = prompt.mode;
@@ -141,7 +141,7 @@ describe('ColorMatchGame', () => {
     const total = g.snapshot().promptTotalMs;
     g.tap('a', answer(first));
     g.tap('b', answer(first));
-    run(g, 800);
+    run(g, 1000);
     expect(g.snapshot().prompt.n).toBeGreaterThan(first.n);
     run(g, 20_000);
     expect(g.snapshot().promptTotalMs).toBeLessThan(total);

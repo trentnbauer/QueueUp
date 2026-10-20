@@ -8,12 +8,12 @@ import type { TapRect, TapTargets } from './taps';
 // panels (2 x 2).
 const CHIPS_Y = 0.11;
 const CHIP_R = 0.022;
-const MODE_Y = 0.222;
-const PROMPT_Y = 0.3;
+const MODE_Y = 0.225;
+const PROMPT_Y = 0.335;
 const BOARD_X = 0.1;
-const BOARD_Y = 0.42;
+const BOARD_Y = 0.45;
 const PANEL_W = 0.38;
-const PANEL_H = 0.24;
+const PANEL_H = 0.22;
 const GAP = 0.04;
 /** One hue for each panel (red, blue, green, yellow) and a shape on it, so colour is never the only clue. */
 const HUES = [25, 250, 145, 85];
@@ -74,9 +74,10 @@ function drawWorld(sc: Scene<ColorMatchSnapshot>): void {
   // The prompt: what to match, then the name of one colour written in the ink of another, in front of a shape (a third panel's).
   if (snapshot.stage === 'prompt' && snapshot.prompt.n > 0) {
     const { prompt } = snapshot;
-    ctx.font = `700 ${Math.round(S * 0.03)}px ${FONT.mono}`;
+    // What to match, in one large white word: Color, Word or Shape.
+    ctx.font = `800 ${Math.round(S * 0.07)}px ${FONT.display}`;
     ctx.textBaseline = 'middle';
-    ctx.fillStyle = theme.accText;
+    ctx.fillStyle = theme.text;
     ctx.fillText(sc.t(MODE_KEYS[prompt.mode]), S / 2, MODE_Y * S);
     // The shape sits behind the word in a plain colour, so it never says anything about the ink.
     ctx.fillStyle = 'oklch(1 0 0 / 0.3)';
@@ -87,9 +88,9 @@ function drawWorld(sc: Scene<ColorMatchSnapshot>): void {
     // How long this prompt has left.
     const left = snapshot.promptTotalMs > 0 ? Math.max(0, snapshot.promptLeftMs / snapshot.promptTotalMs) : 0;
     ctx.fillStyle = 'oklch(1 0 0 / 0.12)';
-    ctx.fillRect(BOARD_X * S, (PROMPT_Y + 0.09) * S, (PANEL_W * 2 + GAP) * S, S * 0.008);
+    ctx.fillRect(BOARD_X * S, (PROMPT_Y + 0.085) * S, (PANEL_W * 2 + GAP) * S, S * 0.008);
     ctx.fillStyle = theme.acc;
-    ctx.fillRect(BOARD_X * S, (PROMPT_Y + 0.09) * S, (PANEL_W * 2 + GAP) * S * left, S * 0.008);
+    ctx.fillRect(BOARD_X * S, (PROMPT_Y + 0.085) * S, (PANEL_W * 2 + GAP) * S * left, S * 0.008);
   } else {
     ctx.font = `800 ${Math.round(S * 0.04)}px ${FONT.display}`;
     ctx.textBaseline = 'middle';
