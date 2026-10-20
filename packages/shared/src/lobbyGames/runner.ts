@@ -20,7 +20,16 @@ const OBSTACLES: Record<RunnerObstacleKind, { width: number; from: number; to: n
   cactus: { width: 0.1, from: 0, to: 0.35 },
   bird: { width: 0.06, from: 0.3, to: 0.7 },
   log: { width: 0.45, from: 0, to: 0.35 },
+  // Stack: a tall cactus, which a tap hop only just clears at the top of it. Pit: a hole in the ground, so it has no height;
+  // what matters is being on the ground over it (see hitsObstacle).
+  stack: { width: 0.1, from: 0, to: 0.5 },
+  pit: { width: 0.25, from: 0, to: 0 },
 };
+/** A pit is between this wide and this plus PIT_EXTRA: a tap hop (about 0.73s in the air) always spans one, with a little to spare. */
+const PIT_MIN = 0.18;
+const PIT_EXTRA = 0.14;
+/** Standing this close to the ground over a pit is falling in. */
+const PIT_FALL_H = 0.04;
 /** A bird is wide this often (and then between WIDE_BIRD_MIN and WIDE_BIRD_MIN + WIDE_BIRD_EXTRA screens). */
 const WIDE_BIRD_CHANCE = 0.4;
 const WIDE_BIRD_MIN = 0.18;
@@ -45,6 +54,10 @@ const LOGS_AFTER_MS = 5000;
 const LOG_CHANCE = 0.2;
 const BIRDS_AFTER_MS = 8000;
 const BIRD_CHANCE = 0.3;
+const PITS_AFTER_MS = 10_000;
+const PIT_CHANCE = 0.2;
+const STACKS_AFTER_MS = 14_000;
+const STACK_CHANCE = 0.2;
 const VISIBLE_BEHIND = 0.2;
 
 interface Runner extends RoundPlayer {
@@ -200,6 +213,11 @@ export class RunnerGame extends RoundGame<Runner> {
     for (const o of this.obstacles) {
       const spec = OBSTACLES[o.kind];
       const rel = o.x - this.distance;
+      if (o.kind === 'pit') {
+        // Only the middle of the runner has to be over the hole, and only on the ground.
+        if (Math.abs(rel - RUNNER_X) < o.w / 2 && r.h < PIT_FALL_H) return true;
+        continue;
+      }
       if (Math.abs(rel - RUNNER_X) >= (o.w + RUNNER_WIDTH) / 2) continue;
       if (r.h < spec.to && top > spec.from) return true;
     }
@@ -230,13 +248,16 @@ export class RunnerGame extends RoundGame<Runner> {
         { kind, w: SKINNY_WIDTH },
       ];
     }
+    if (kind === 'pit') return [{ kind, w: PIT_MIN + this.rng() * PIT_EXTRA }];
     return [{ kind, w: OBSTACLES[kind].width }];
   }
 
-  /** Cacti to begin with; logs and then birds join in as the run goes on. */
+  /** Cacti to begin with; logs, birds, then pits and tall stacks join in as the run goes on. */
   private nextKind(): RunnerObstacleKind {
     if (this.roundMs >= BIRDS_AFTER_MS && this.rng() < BIRD_CHANCE) return 'bird';
     if (this.roundMs >= LOGS_AFTER_MS && this.rng() < LOG_CHANCE) return 'log';
+    if (this.roundMs >= PITS_AFTER_MS && this.rng() < PIT_CHANCE) return 'pit';
+    if (this.roundMs >= STACKS_AFTER_MS && this.rng() < STACK_CHANCE) return 'stack';
     return 'cactus';
   }
 }

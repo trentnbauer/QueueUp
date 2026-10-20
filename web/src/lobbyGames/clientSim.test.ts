@@ -371,7 +371,7 @@ function simulate(opts: { latency: number; onClient: boolean; runMs: number }) {
   let delivered: LobbySnapshot | null = null;
   let tick = 0;
   let lastServerTick = 0;
-  const HALF = { cactus: 0.05, bird: 0.03, log: 0.15 } as const;
+  const HALF = { cactus: 0.05, bird: 0.03, log: 0.15, stack: 0.05 } as const;
 
   for (; now < 3000 + opts.runMs; now += 16) {
     for (const q of queue.filter((x) => x.at <= now).sort((a, b) => a.at - b.at)) q.run();
@@ -392,8 +392,8 @@ function simulate(opts: { latency: number; onClient: boolean; runMs: number }) {
     // The bot: taps over cacti, holds across logs, ducks under birds, going by what it can see.
     const next = game.obstacles.filter((o) => o.x + o.w / 2 + 0.02 > RUNNER_X).sort((a, b) => a.x - b.x)[0];
     const ahead = next ? next.x - RUNNER_X : Infinity;
-    const jump = next?.kind === 'cactus' && ahead < game.speed * 0.37;
-    const hold = next?.kind === 'log' && ahead - HALF.log - 0.02 < game.speed * 0.22;
+    const jump = (next?.kind === 'cactus' || next?.kind === 'pit') && ahead < game.speed * 0.37;
+    const hold = (next?.kind === 'log' && ahead - HALF.log - 0.02 < game.speed * 0.22) || (next?.kind === 'stack' && ahead - HALF.stack - 0.02 < game.speed * 0.22);
     const duck = next?.kind === 'bird' && ahead < game.speed * 0.5 && ahead > -next.w / 2 - 0.01;
     const dy = duck ? 1 : hold ? -1 : 0;
     if (opts.onClient) {

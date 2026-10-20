@@ -17,7 +17,7 @@ function started(ids: string[], seed = 0.3) {
   return g;
 }
 
-const HALF = { cactus: 0.05, bird: 0.03, log: 0.225 } as const;
+const HALF = { cactus: 0.05, bird: 0.03, log: 0.225, stack: 0.05, pit: 0 } as const;
 const RUNNER_HALF = 0.02;
 
 /** The first obstacle whose far edge the runner has not yet cleared. */
@@ -38,7 +38,9 @@ function botStep(g: RunnerGame, id: string, logMode: 'hold' | 'tap' = 'hold') {
   let duck = false;
   // A skinny pair is one obstacle for the bot: it aims its hop at the middle of the pair.
   const pairShift = next?.w === 0.05 ? 0.055 : 0;
-  if (next?.kind === 'cactus' && ahead + pairShift < speed * 0.37) g.action(id, 'jump');
+  if ((next?.kind === 'cactus' || next?.kind === 'pit') && ahead + pairShift < speed * 0.37) g.action(id, 'jump');
+  // A tall stack takes a held jump, started a little before it arrives.
+  if (next?.kind === 'stack' && ahead - HALF.stack - RUNNER_HALF < speed * 0.22) hold = true;
   // A held jump needs about 0.12s to get above a log, so it starts a little before the log arrives.
   const logSoon = next?.kind === 'log' && ahead - HALF.log - RUNNER_HALF < speed * 0.22;
   if (logSoon && logMode === 'hold') hold = true;
@@ -323,7 +325,7 @@ describe('RunnerGame logs', () => {
       const g = started(['a'], seed);
       for (let t = 0; t < 4500 && me(g, 'a').alive; t += STEP) {
         botStep(g, 'a');
-        for (const o of g.snapshot().obstacles) if (o.kind !== 'cactus') seen[o.kind]++;
+        for (const o of g.snapshot().obstacles) if (o.kind === 'log' || o.kind === 'bird') seen[o.kind]++;
       }
     }
     expect(seen).toEqual({ log: 0, bird: 0 });
@@ -413,5 +415,68 @@ describe('RunnerGame wide birds and paired cacti', () => {
       }
     }
     throw new Error('no pair came up');
+  });
+});
+
+describe('RunnerGame pits and tall stacks', () => {
+  const SEEDS = [0.1, 0.2, 0.3, 0.45, 0.55, 0.7, 0.8, 0.95];
+
+  it('brings pits from about 10 seconds and stacks from about 14, and no sooner', () => {
+    const firstAt: Record<string, number> = {};
+    for (const seed of SEEDS) {
+      const g = started(['a'], seed);
+      for (let t = 0; t < 60_000 && me(g, 'a').alive && g.snapshot().phase === 'playing'; t += STEP) {
+        botStep(g, 'a');
+        for (const o of g.snapshot().obstacles) {
+          if ((o.kind === 'pit' || o.kind === 'stack') && o.x > 1.1) firstAt[o.kind] = Math.min(firstAt[o.kind] ?? Infinity, t);
+        }
+      }
+    }
+    expect(firstAt.pit).toBeGreaterThan(9000);
+    expect(firstAt.stack).toBeGreaterThan(13_000);
+    expect(Object.keys(firstAt).sort()).toEqual(['pit', 'stack']);
+  });
+
+  it('gives every pit a width a tap hop spans', () => {
+    for (const seed of SEEDS) {
+      const g = started(['a'], seed);
+      for (let t = 0; t < 40_000 && me(g, 'a').alive; t += STEP) {
+        botStep(g, 'a');
+        for (const o of g.snapshot().obstacles) {
+          if (o.kind === 'pit') {
+            expect(o.w).toBeGreaterThanOrEqual(0.18);
+            expect(o.w).toBeLessThanOrEqual(0.32);
+          }
+        }
+      }
+    }
+  });
+
+  it('drops a runner who stays on the ground into a pit, and a bot who reads the course gets past pits and stacks', () => {
+    let fell = 0;
+    let crossed = 0;
+    for (const seed of SEEDS) {
+      // Jumps only for cacti, ducks birds and holds for logs, so the first pit or stack takes it.
+      const g = started(['a'], seed);
+      for (let t = 0; t < 60_000 && me(g, 'a').alive && g.snapshot().phase === 'playing'; t += STEP) {
+        const next = nextObstacle(g);
+        const sp = g.snapshot().speed;
+        if (next?.kind === 'cactus' && next.x - RUNNER_X + (next.w === 0.05 ? 0.055 : 0) < sp * 0.37) g.action('a', 'jump');
+        if (next?.kind === 'log' && next.x - RUNNER_X - 0.245 < sp * 0.22) g.input('a', 0, -1);
+        else if (next?.kind === 'bird' && next.x - RUNNER_X < sp * 0.5) g.input('a', 0, 1);
+        else g.input('a', 0, 0);
+        g.tick(STEP);
+        if (!me(g, 'a').alive && next?.kind === 'pit') fell++;
+      }
+      const h = started(['a'], seed);
+      const known = new Set<number>();
+      for (let t = 0; t < 60_000 && me(h, 'a').alive && h.snapshot().phase === 'playing'; t += STEP) {
+        botStep(h, 'a');
+        for (const o of h.snapshot().obstacles) if ((o.kind === 'pit' || o.kind === 'stack') && o.x < RUNNER_X - o.w) known.add(o.n);
+      }
+      if (known.size > 0) crossed++;
+    }
+    expect(fell).toBeGreaterThan(0);
+    expect(crossed).toBeGreaterThan(2);
   });
 });
