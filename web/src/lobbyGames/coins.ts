@@ -1,6 +1,6 @@
-import { COINS_ITEM_SIZE, COINS_PLAYER_WIDTH, COINS_PLAYER_Y, ENDLESS_LIVES, type CoinsSnapshot } from '@queueup/shared';
+import { COINS_ITEM_SIZE, COINS_PLAYER_WIDTH, COINS_PLAYER_Y, type CoinsSnapshot } from '@queueup/shared';
 import type { LobbyGameView } from './index';
-import { FONT, drawFloor, drawLives, groundShadow, renderScene, type Scene, type SceneGame } from './kit';
+import { FONT, drawFloor, groundShadow, renderScene, type Scene, type SceneGame } from './kit';
 
 /** Where the floor is, just under the catchers. */
 const FLOOR = 0.95;
@@ -80,7 +80,6 @@ function drawWorld(sc: Scene<CoinsSnapshot>): void {
     ctx.textBaseline = 'alphabetic';
     ctx.fillStyle = sc.theme.text;
     ctx.fillText(String(p.meters), cx, cy - radius * 0.75);
-    drawLives(ctx, cx, cy + radius * 0.82, p.lives, ENDLESS_LIVES, S * 0.013, sc.theme.danger);
   }
 }
 

@@ -209,38 +209,46 @@ describe('CoinsGame endless (no time limit)', () => {
     return g;
   }
 
-  it('has no clock, and gives everyone three lives', () => {
+  it('has no clock and no lives', () => {
     const g = endless(['a']);
     expect(g.snapshot().limitMs).toBe(0);
     expect(g.snapshot().roundLeftMs).toBe(0);
-    expect(me(g, 'a').lives).toBe(3);
-    // A timed round has none.
-    expect(started(['a']).snapshot().players[0].lives).toBeNull();
+    expect('lives' in me(g, 'a')).toBe(false);
   });
 
-  it('goes on past 30 seconds for someone who keeps catching, and costs a life for each coin that gets away', () => {
+  it('goes on past 30 seconds for someone who keeps catching', () => {
     const g = endless(['a']);
-    let lastLives = 3;
     let survived = 0;
     for (let t = 0; t < 45_000 && g.snapshot().phase === 'playing'; t += STEP) {
       steer(g, 'a');
       g.tick(STEP);
-      expect(me(g, 'a').lives).toBeLessThanOrEqual(lastLives);
-      lastLives = me(g, 'a').lives ?? 0;
       survived = t;
     }
-    // Past the old 30 second end of a timed round, still going (or out by lives, never by the clock).
+    // Past the end of a timed round, still going (never ended by the clock).
     expect(survived).toBeGreaterThan(20_000);
     expect(g.snapshot().run).toBe(1);
   });
 
-  it('ends a solo run when the lives are gone (coins let go), keeping the score, with nobody winning', () => {
+  it('never puts anyone out for a coin that gets away: only a bomb does', () => {
     const g = endless(['a']);
-    // Stand in a corner and catch nothing: three coins get away.
+    // Nothing but coins fall (a draw this high is never under a bomb's chance), all of them away from a catcher in the left corner.
+    (g as unknown as { rng: () => number }).rng = () => 0.99;
     g.input('a', -1, 0);
     run(g, 1500);
     g.input('a', 0, 0);
-    (g as unknown as { knockOut: (p: unknown) => void }).knockOut = (p) => Object.getPrototypeOf(CoinsGame.prototype).knockOut.call(g, p);
+    run(g, 60_000);
+    expect(g.snapshot().phase).toBe('playing');
+    expect(me(g, 'a').alive).toBe(true);
+    expect(me(g, 'a').meters).toBe(0);
+  });
+
+  it('ends a solo run when a bomb is caught, keeping the score, with nobody winning', () => {
+    const g = endless(['a']);
+    // Bombs (and coins between them) fall at the left edge, onto a catcher standing in that corner.
+    (g as unknown as { rng: () => number }).rng = () => 0;
+    g.input('a', -1, 0);
+    run(g, 1500);
+    g.input('a', 0, 0);
     for (let t = 0; t < 60_000 && g.snapshot().phase === 'playing'; t += STEP) g.tick(STEP);
     expect(g.snapshot().phase).toBe('over');
     expect(me(g, 'a').alive).toBe(false);
