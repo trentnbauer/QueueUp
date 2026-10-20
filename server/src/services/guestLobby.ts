@@ -9,7 +9,7 @@ export const GUEST_PREFIX = 'guest:';
 export const isGuestId = (id: string): boolean => id.startsWith(GUEST_PREFIX);
 
 const TOKEN_TTL_MS = 6 * 60 * 60 * 1000;
-const key = createHmac('sha256', env.SESSION_SECRET).update('queueup-guest-lobby-token').digest();
+let key: Buffer | undefined;
 
 interface GuestClaims {
   gid: string;
@@ -18,7 +18,7 @@ interface GuestClaims {
   exp: number;
 }
 
-const sign = (body: string): string => createHmac('sha256', key).update(body).digest('base64url');
+const sign = (body: string): string => createHmac('sha256', (key ??= createHmac('sha256', env.SESSION_SECRET).update('queueup-guest-lobby-token').digest())).update(body).digest('base64url');
 
 export function newGuestToken(lobbyId: string, name: string, now = Date.now()): { token: string; guestId: string } {
   const guestId = `${GUEST_PREFIX}${randomBytes(9).toString('base64url')}`;
