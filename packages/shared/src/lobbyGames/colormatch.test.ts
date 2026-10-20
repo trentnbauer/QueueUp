@@ -15,7 +15,7 @@ const me = (g: ColorMatchGame, id: string) => g.snapshot().players.find((p) => p
 const score = (g: ColorMatchGame, id: string) => me(g, id).meters;
 
 /** The panel a prompt asks for, and one it does not. */
-const answer = (p: { ink: number; word: number; shape: number; mode: 'ink' | 'word' | 'shape' }) => p[p.mode];
+const answer = (p: { ink: number; word: number; mode: 'ink' | 'word' }) => p[p.mode];
 const wrongOf = (p: Parameters<typeof answer>[0]) => (answer(p) + 1) % COLOR_MATCH_PANELS;
 
 function started(ids: string[], rng: () => number = lcg(7)) {
@@ -48,15 +48,13 @@ describe('ColorMatchGame', () => {
     expect(g.snapshot().limitMs).toBe(30_000);
   });
 
-  it('always writes a colour in the ink of a different one, in front of the shape of a third panel', () => {
+  it('always writes a colour in the ink of a different one', () => {
     const g = started(['a']);
     let after = 0;
     for (let i = 0; i < 12; i++) {
       const prompt = waitForPrompt(g, after);
       expect(prompt.word).not.toBe(prompt.ink);
-      expect(prompt.shape).not.toBe(prompt.ink);
-      expect(prompt.shape).not.toBe(prompt.word);
-      for (const k of [prompt.ink, prompt.word, prompt.shape]) {
+      for (const k of [prompt.ink, prompt.word]) {
         expect(k).toBeGreaterThanOrEqual(0);
         expect(k).toBeLessThan(COLOR_MATCH_PANELS);
       }
@@ -65,31 +63,29 @@ describe('ColorMatchGame', () => {
     }
   });
 
-  it('asks for the ink, the word or the shape, and a different one each time', () => {
+  it('asks for the ink or the word, mixed up from one prompt to the next', () => {
     const g = started(['a']);
     const seen = new Set<string>();
-    let last: string | null = null;
     let after = 0;
     for (let i = 0; i < 20; i++) {
       const prompt = waitForPrompt(g, after);
-      expect(prompt.mode).not.toBe(last);
-      last = prompt.mode;
       seen.add(prompt.mode);
       after = prompt.n;
       g.tap('a', prompt[prompt.mode]);
     }
-    expect([...seen].sort()).toEqual(['ink', 'shape', 'word']);
+    expect([...seen].sort()).toEqual(['ink', 'word']);
+    expect('shape' in g.snapshot().prompt).toBe(false);
   });
 
-  it('counts the panel the prompt asks for as right, and the other two as wrong', () => {
-    for (const mode of ['ink', 'word', 'shape'] as const) {
+  it('counts the panel the prompt asks for as right, and the others as wrong', () => {
+    for (const mode of ['ink', 'word'] as const) {
       let found = false;
       for (let seed = 1; seed < 60 && !found; seed++) {
         const g = started(['a'], lcg(seed));
         const prompt = waitForPrompt(g);
         if (prompt.mode !== mode) continue;
         found = true;
-        const wrong = [prompt.ink, prompt.word, prompt.shape].filter((k) => k !== prompt[mode]);
+        const wrong = [0, 1, 2, 3].filter((k) => k !== prompt[mode]);
         g.tap('a', wrong[0]);
         expect(me(g, 'a').right).toBe(false);
         const h = started(['a'], lcg(seed));

@@ -15,9 +15,9 @@ const BOARD_Y = 0.45;
 const PANEL_W = 0.38;
 const PANEL_H = 0.22;
 const GAP = 0.04;
-/** One hue for each panel (red, blue, green, yellow) and a shape on it, so colour is never the only clue. */
+/** One hue for each panel (red, blue, green, yellow). */
 const HUES = [25, 250, 145, 85];
-const MODE_KEYS = { ink: 'spin.lobby.colormatch.mode.ink', word: 'spin.lobby.colormatch.mode.word', shape: 'spin.lobby.colormatch.mode.shape' } as const satisfies Record<string, MessageKey>;
+const MODE_KEYS = { ink: 'spin.lobby.colormatch.mode.ink', word: 'spin.lobby.colormatch.mode.word' } as const satisfies Record<string, MessageKey>;
 const NAME_KEYS: MessageKey[] = ['spin.lobby.colormatch.color.0', 'spin.lobby.colormatch.color.1', 'spin.lobby.colormatch.color.2', 'spin.lobby.colormatch.color.3'];
 
 const panelRect = (i: number): TapRect => ({ x: BOARD_X + (i % 2) * (PANEL_W + GAP), y: BOARD_Y + Math.floor(i / 2) * (PANEL_H + GAP), w: PANEL_W, h: PANEL_H });
@@ -25,26 +25,6 @@ const panelRect = (i: number): TapRect => ({ x: BOARD_X + (i % 2) * (PANEL_W + G
 /** The panels are the controller: each is a tap target, drawn exactly where it is hit. Numbered row by row (top left,
  * top right, bottom left, bottom right); on a keyboard the keys 1 to 4 do the same. */
 export const COLOR_MATCH_TAPS: TapTargets = { rects: Array.from({ length: COLOR_MATCH_PANELS }, (_, i) => panelRect(i)), keys: ['1', '2', '3', '4'] };
-
-/** A circle, a square, a triangle and a diamond, centred on (cx, cy) with this radius. */
-function drawShape(ctx: CanvasRenderingContext2D, shape: number, cx: number, cy: number, r: number): void {
-  ctx.beginPath();
-  if (shape === 0) ctx.arc(cx, cy, r, 0, Math.PI * 2);
-  else if (shape === 1) ctx.rect(cx - r * 0.85, cy - r * 0.85, r * 1.7, r * 1.7);
-  else if (shape === 2) {
-    ctx.moveTo(cx, cy - r);
-    ctx.lineTo(cx + r, cy + r * 0.8);
-    ctx.lineTo(cx - r, cy + r * 0.8);
-    ctx.closePath();
-  } else {
-    ctx.moveTo(cx, cy - r);
-    ctx.lineTo(cx + r, cy);
-    ctx.lineTo(cx, cy + r);
-    ctx.lineTo(cx - r, cy);
-    ctx.closePath();
-  }
-  ctx.fill();
-}
 
 function drawWorld(sc: Scene<ColorMatchSnapshot>): void {
   const { ctx, S, snapshot, theme } = sc;
@@ -71,7 +51,7 @@ function drawWorld(sc: Scene<ColorMatchSnapshot>): void {
     drawLives(ctx, cx, (CHIPS_Y + CHIP_R + 0.058) * S, p.lives, ENDLESS_LIVES, S * 0.011, theme.danger);
   }
 
-  // The prompt: what to match, then the name of one colour written in the ink of another, in front of a shape (a third panel's).
+  // The prompt: what to match, then the name of one colour written in the ink of another.
   if (snapshot.stage === 'prompt' && snapshot.prompt.n > 0) {
     const { prompt } = snapshot;
     // What to match, in one large white word: Color, Word or Shape.
@@ -79,9 +59,6 @@ function drawWorld(sc: Scene<ColorMatchSnapshot>): void {
     ctx.textBaseline = 'middle';
     ctx.fillStyle = theme.text;
     ctx.fillText(sc.t(MODE_KEYS[prompt.mode]), S / 2, MODE_Y * S);
-    // The shape sits behind the word in a plain colour, so it never says anything about the ink.
-    ctx.fillStyle = 'oklch(1 0 0 / 0.3)';
-    drawShape(ctx, prompt.shape, S / 2, PROMPT_Y * S, S * 0.075);
     ctx.font = `800 ${Math.round(S * 0.11)}px ${FONT.display}`;
     ctx.fillStyle = `oklch(0.8 0.18 ${HUES[prompt.ink]})`;
     ctx.fillText(sc.t(NAME_KEYS[prompt.word]), S / 2, PROMPT_Y * S);
@@ -103,8 +80,6 @@ function drawWorld(sc: Scene<ColorMatchSnapshot>): void {
     roundRect(ctx, r.x * S, r.y * S, r.w * S, r.h * S, S * 0.03);
     ctx.fillStyle = `oklch(0.62 0.16 ${HUES[i]})`;
     ctx.fill();
-    ctx.fillStyle = 'oklch(1 0 0 / 0.55)';
-    drawShape(ctx, i, (r.x + r.w / 2) * S, (r.y + r.h / 2) * S, Math.min(r.w, r.h) * S * 0.22);
   }
 }
 
