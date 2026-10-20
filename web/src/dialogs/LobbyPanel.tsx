@@ -278,7 +278,7 @@ export function LobbyPanel({
   // The canvas, with the end-of-run thumbs laid over the bottom of its result card (HTML, so they can be tapped).
   const arena = (
     <div style={st("position:relative")}>
-    {game?.phase === 'over' && !guestToken && <RatingBar game={game.id} card={resultCardRect(game, me)} />}
+    {game?.phase === 'over' && !guestToken && <RatingBar game={game.id} card={resultCardRect(game, me, canvasRef.current?.clientWidth ?? 440)} />}
     <canvas
       ref={canvasRef}
       role="img"
