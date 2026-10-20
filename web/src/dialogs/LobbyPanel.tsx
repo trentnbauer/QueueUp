@@ -1,5 +1,7 @@
 import { useEffect, useMemo, useRef, type ReactNode } from 'react';
 import type { LobbyGameId, RoomMember } from '@queueup/shared';
+import { useQueryClient } from '@tanstack/react-query';
+import { MINIGAMES_QUERY_KEY } from '../hooks/useMiniGames';
 import { useSpinLobby } from '../hooks/useSpinLobby';
 import { viewFor, type LobbyGameView } from '../lobbyGames';
 import { LobbyFx } from '../lobbyGames/kit';
@@ -63,6 +65,16 @@ export function LobbyPanel({
 }) {
   const t = useT();
   const phone = useIsMobile();
+  // Closing the game brings the Mini games page (the game list's bests, the leaderboard, your numbers) up to date: runs have just been saved.
+  // Scores are saved a moment after a run ends, so it asks again shortly after to catch the last one.
+  const queryClient = useQueryClient();
+  useEffect(() => {
+    return () => {
+      const refresh = () => void queryClient.invalidateQueries({ queryKey: MINIGAMES_QUERY_KEY });
+      refresh();
+      setTimeout(refresh, 1500);
+    };
+  }, [queryClient]);
   // The live lobby over a WebSocket: a room's, or an open (or practice) lobby's. The server runs every game, including a
   // practice one, so the scores it saves are the server's own and can be trusted.
   const livePath = roomId ? `/api/rooms/${encodeURIComponent(roomId)}/lobby` : lobbyId ? `/api/minigames/lobbies/${encodeURIComponent(lobbyId)}/lobby${guestToken ? `?guest=${encodeURIComponent(guestToken)}` : ''}` : undefined;
