@@ -11,8 +11,8 @@
 export const LOBBY_TICK_HZ = 15;
 
 /** The games the lobby can run. */
-export type LobbyGameId = 'runner' | 'flappy' | 'dodge' | 'rope' | 'coins' | 'battleships' | 'race' | 'whack' | 'draw' | 'tilt' | 'stacker' | 'sumo' | 'asteroids' | 'memory' | 'words' | 'lava' | 'snake' | 'gravity' | 'laser' | 'colormatch' | 'potato' | 'anagram' | 'mines' | 'stop' | 'pong' | 'wall' | 'frogger' | 'fishing' | 'orbit' | 'rps' | 'rhythm' | 'sortit' | 'tempo' | 'bounce' | 'tunnel';
-export const LOBBY_GAME_IDS: readonly LobbyGameId[] = ['runner', 'flappy', 'dodge', 'rope', 'coins', 'battleships', 'race', 'whack', 'draw', 'tilt', 'stacker', 'sumo', 'asteroids', 'memory', 'words', 'lava', 'snake', 'gravity', 'laser', 'colormatch', 'potato', 'anagram', 'mines', 'stop', 'pong', 'wall', 'frogger', 'fishing', 'orbit', 'rps', 'rhythm', 'sortit', 'tempo', 'bounce', 'tunnel'];
+export type LobbyGameId = 'runner' | 'flappy' | 'dodge' | 'rope' | 'coins' | 'battleships' | 'race' | 'whack' | 'draw' | 'tilt' | 'stacker' | 'sumo' | 'asteroids' | 'memory' | 'words' | 'lava' | 'snake' | 'gravity' | 'laser' | 'colormatch' | 'potato' | 'anagram' | 'mines' | 'stop' | 'pong' | 'wall' | 'frogger' | 'fishing' | 'orbit' | 'rps' | 'rhythm' | 'sortit' | 'tempo' | 'bounce' | 'tunnel' | 'parachute';
+export const LOBBY_GAME_IDS: readonly LobbyGameId[] = ['runner', 'flappy', 'dodge', 'rope', 'coins', 'battleships', 'race', 'whack', 'draw', 'tilt', 'stacker', 'sumo', 'asteroids', 'memory', 'words', 'lava', 'snake', 'gravity', 'laser', 'colormatch', 'potato', 'anagram', 'mines', 'stop', 'pong', 'wall', 'frogger', 'fishing', 'orbit', 'rps', 'rhythm', 'sortit', 'tempo', 'bounce', 'tunnel', 'parachute'];
 
 /** What a client sends. Anything else is ignored. */
 export type LobbyClientMessage =
@@ -1862,7 +1862,63 @@ export interface TunnelSnapshot extends RoundSummary {
   winnerId: string | null;
 }
 
-export type LobbyGameSnapshot = RunnerSnapshot | FlappySnapshot | DodgeSnapshot | RopeSnapshot | CoinsSnapshot | BattleshipsSnapshot | RaceSnapshot | WhackSnapshot | DrawSnapshot | TiltSnapshot | StackerSnapshot | SumoSnapshot | AsteroidsSnapshot | MemorySnapshot | WordsSnapshot | LavaSnapshot | SnakeSnapshot | GravitySnapshot | LaserSnapshot | ColorMatchSnapshot | PotatoSnapshot | AnagramSnapshot | MinesSnapshot | StopSnapshot | PongSnapshot | WallSnapshot | FroggerSnapshot | FishingSnapshot | OrbitSnapshot | RpsSnapshot | RhythmSnapshot | SortitSnapshot | TempoSnapshot | BounceSnapshot | TunnelSnapshot;
+// ---- Parachute (a skydiver falls through rows of clouds and gusts, with a chute to float on) ---------------------------
+
+/** The skydiver's size and a row of clouds' thickness (fractions of the screen). */
+export const PARACHUTE_PLAYER_W = 0.06;
+export const PARACHUTE_PLAYER_H = 0.07;
+export const PARACHUTE_ROW_H = 0.05;
+
+export interface ParachuteRow {
+  /** Where the row is down the screen (0 is the top); it comes up from below. */
+  y: number;
+  /** Where the middle of its gap is across the screen, and how wide the gap is. */
+  gap: number;
+  width: number;
+  /** Which row this is (counts up from 1 each run); stays the same as it comes up. */
+  n: number;
+}
+
+/** A band of wind between two rows that shoves the skydiver sideways (-1 left, 1 right). */
+export interface ParachuteGust {
+  y: number;
+  push: number;
+  n: number;
+}
+
+export interface ParachutePlayer {
+  id: string;
+  /** Where they are across the screen and down it: shut they sink, open they float up. */
+  x: number;
+  y: number;
+  /** The direction they are holding: -1, 0 or 1. */
+  dir: number;
+  /** Holding the chute open. */
+  open: boolean;
+  /** Still falling. False once they touch a cloud, or if they arrived mid-run. */
+  alive: boolean;
+  /** Runs won since this person joined the lobby. */
+  wins: number;
+  /** How far they have fallen, in metres: live while going, final once out. */
+  meters: number;
+}
+
+export interface ParachuteSnapshot extends RoundSummary {
+  id: 'parachute';
+  phase: LobbyRoundPhase;
+  meters: number;
+  /** How fast the course comes up the screen, in screens a second. */
+  speed: number;
+  rows: ParachuteRow[];
+  gusts: ParachuteGust[];
+  players: ParachutePlayer[];
+  /** Milliseconds left in `countdown` or `over`; 0 otherwise. */
+  timerMs: number;
+  /** Who won the run that just ended (`over` only); null when nobody did (a solo run, or a draw). */
+  winnerId: string | null;
+}
+
+export type LobbyGameSnapshot = RunnerSnapshot | FlappySnapshot | DodgeSnapshot | RopeSnapshot | CoinsSnapshot | BattleshipsSnapshot | RaceSnapshot | WhackSnapshot | DrawSnapshot | TiltSnapshot | StackerSnapshot | SumoSnapshot | AsteroidsSnapshot | MemorySnapshot | WordsSnapshot | LavaSnapshot | SnakeSnapshot | GravitySnapshot | LaserSnapshot | ColorMatchSnapshot | PotatoSnapshot | AnagramSnapshot | MinesSnapshot | StopSnapshot | PongSnapshot | WallSnapshot | FroggerSnapshot | FishingSnapshot | OrbitSnapshot | RpsSnapshot | RhythmSnapshot | SortitSnapshot | TempoSnapshot | BounceSnapshot | TunnelSnapshot | ParachuteSnapshot;
 
 /** What a client needs to run its own player on a course the server decided: which run, the seed that
  * makes the course, and how long until the run starts (negative once it has, by how far in). */
