@@ -11,8 +11,8 @@
 export const LOBBY_TICK_HZ = 15;
 
 /** The games the lobby can run. */
-export type LobbyGameId = 'runner' | 'flappy' | 'dodge' | 'rope' | 'coins' | 'battleships' | 'race' | 'whack' | 'draw' | 'tilt' | 'stacker' | 'sumo' | 'asteroids' | 'memory' | 'words' | 'lava' | 'snake' | 'gravity' | 'laser' | 'colormatch' | 'potato' | 'anagram' | 'mines' | 'stop' | 'pong' | 'wall' | 'frogger' | 'fishing' | 'orbit' | 'rps' | 'rhythm' | 'sortit' | 'tempo';
-export const LOBBY_GAME_IDS: readonly LobbyGameId[] = ['runner', 'flappy', 'dodge', 'rope', 'coins', 'battleships', 'race', 'whack', 'draw', 'tilt', 'stacker', 'sumo', 'asteroids', 'memory', 'words', 'lava', 'snake', 'gravity', 'laser', 'colormatch', 'potato', 'anagram', 'mines', 'stop', 'pong', 'wall', 'frogger', 'fishing', 'orbit', 'rps', 'rhythm', 'sortit', 'tempo'];
+export type LobbyGameId = 'runner' | 'flappy' | 'dodge' | 'rope' | 'coins' | 'battleships' | 'race' | 'whack' | 'draw' | 'tilt' | 'stacker' | 'sumo' | 'asteroids' | 'memory' | 'words' | 'lava' | 'snake' | 'gravity' | 'laser' | 'colormatch' | 'potato' | 'anagram' | 'mines' | 'stop' | 'pong' | 'wall' | 'frogger' | 'fishing' | 'orbit' | 'rps' | 'rhythm' | 'sortit' | 'tempo' | 'bounce';
+export const LOBBY_GAME_IDS: readonly LobbyGameId[] = ['runner', 'flappy', 'dodge', 'rope', 'coins', 'battleships', 'race', 'whack', 'draw', 'tilt', 'stacker', 'sumo', 'asteroids', 'memory', 'words', 'lava', 'snake', 'gravity', 'laser', 'colormatch', 'potato', 'anagram', 'mines', 'stop', 'pong', 'wall', 'frogger', 'fishing', 'orbit', 'rps', 'rhythm', 'sortit', 'tempo', 'bounce'];
 
 /** What a client sends. Anything else is ignored. */
 export type LobbyClientMessage =
@@ -1770,7 +1770,56 @@ export interface TempoSnapshot extends RoundSummary {
 }
 
 /** The snapshot of whichever game is running. */
-export type LobbyGameSnapshot = RunnerSnapshot | FlappySnapshot | DodgeSnapshot | RopeSnapshot | CoinsSnapshot | BattleshipsSnapshot | RaceSnapshot | WhackSnapshot | DrawSnapshot | TiltSnapshot | StackerSnapshot | SumoSnapshot | AsteroidsSnapshot | MemorySnapshot | WordsSnapshot | LavaSnapshot | SnakeSnapshot | GravitySnapshot | LaserSnapshot | ColorMatchSnapshot | PotatoSnapshot | AnagramSnapshot | MinesSnapshot | StopSnapshot | PongSnapshot | WallSnapshot | FroggerSnapshot | FishingSnapshot | OrbitSnapshot | RpsSnapshot | RhythmSnapshot | SortitSnapshot | TempoSnapshot;
+// ---- Bounce (a ball that bounces by itself up a tower of platforms the screen climbs faster and faster) ---------------
+
+/** The ball's width, and a platform's width and thickness (fractions of the screen). */
+export const BOUNCE_PLAYER_W = 0.06;
+export const BOUNCE_PLATFORM_W = 0.2;
+export const BOUNCE_PLATFORM_H = 0.022;
+
+export interface BouncePlatform {
+  /** Which platform this is (counts up from 1 each run, so 1 is the ground); stays the same as it moves. */
+  n: number;
+  /** Where its middle is across the screen (0..1), and where its top is down the screen (0 is the top). */
+  x: number;
+  y: number;
+  /** It slides from side to side. */
+  moving: boolean;
+  /** The ground everyone starts on, which spans the whole screen. */
+  wide: boolean;
+}
+
+export interface BouncePlayer {
+  id: string;
+  /** Where they are across the screen (0..1, wrapping), where their feet are down it, and how fast they are going up (screens a second). */
+  x: number;
+  y: number;
+  vy: number;
+  /** The direction they are holding: -1, 0 or 1. */
+  dir: number;
+  /** Still bouncing. False once they fall off the bottom, or if they arrived mid-run. */
+  alive: boolean;
+  /** Runs won since this person joined the lobby. */
+  wins: number;
+  /** How far the screen has climbed, in metres: live while going, final once out. */
+  meters: number;
+}
+
+export interface BounceSnapshot extends RoundSummary {
+  id: 'bounce';
+  phase: LobbyRoundPhase;
+  meters: number;
+  /** How fast the screen climbs, in screens a second (so things slide down it at this speed). */
+  speed: number;
+  platforms: BouncePlatform[];
+  players: BouncePlayer[];
+  /** Milliseconds left in `countdown` or `over`; 0 otherwise. */
+  timerMs: number;
+  /** Who won the run that just ended (`over` only); null when nobody did (a solo run, or a draw). */
+  winnerId: string | null;
+}
+
+export type LobbyGameSnapshot = RunnerSnapshot | FlappySnapshot | DodgeSnapshot | RopeSnapshot | CoinsSnapshot | BattleshipsSnapshot | RaceSnapshot | WhackSnapshot | DrawSnapshot | TiltSnapshot | StackerSnapshot | SumoSnapshot | AsteroidsSnapshot | MemorySnapshot | WordsSnapshot | LavaSnapshot | SnakeSnapshot | GravitySnapshot | LaserSnapshot | ColorMatchSnapshot | PotatoSnapshot | AnagramSnapshot | MinesSnapshot | StopSnapshot | PongSnapshot | WallSnapshot | FroggerSnapshot | FishingSnapshot | OrbitSnapshot | RpsSnapshot | RhythmSnapshot | SortitSnapshot | TempoSnapshot | BounceSnapshot;
 
 /** What a client needs to run its own player on a course the server decided: which run, the seed that
  * makes the course, and how long until the run starts (negative once it has, by how far in). */
