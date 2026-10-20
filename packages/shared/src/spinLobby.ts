@@ -295,8 +295,6 @@ export interface CoinItem {
 
 export interface CoinsPlayer {
   id: string;
-  /** Lives left in an endless run (no time limit), or null in a timed round, which has none. */
-  lives: number | null;
   /** Where they stand across the width (0..1). */
   x: number;
   /** The direction they are moving: -1, 0 or 1 (for a motion trail). */

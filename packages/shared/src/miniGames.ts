@@ -52,7 +52,7 @@ export const MINIGAME_VERSIONS: Record<LobbyGameId, number> = {
   flappy: 1,
   dodge: 2, // bigger blocks, a wider safe lane, a slower spawn rate
   rope: 1,
-  coins: 2, // a bomb is instant death, and with no time limit it is endless (three lives)
+  coins: 3, // only a bomb puts you out: a missed coin costs nothing (before: endless runs had three lives, one lost per missed coin)
   battleships: 2, // a player's own ships may touch
   race: 3, // pit lanes (first along the sides, then anywhere on the track and wider)
   whack: 3, // with no time limit it is endless (three lives); before: shared moles, shorter up time, pauses
