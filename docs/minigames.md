@@ -202,7 +202,7 @@ Every game has a **version** (`MINIGAME_VERSIONS` in `packages/shared/src/miniGa
 
 ## Wall ball
 
-Like the playground game "down ball": one wall across the top of the court, everyone standing in a row along the bottom. Needs at least 2 players, so on your own a bot plays you.
+Like the playground game "down ball": one wall across the top of the court, everyone standing in a row along the bottom, each as a paddle (as wide as the reach that hits the ball). Needs at least 2 players, so on your own a bot plays you.
 
 - **Goal:** don't miss your turn. A ball is hit up at the wall and comes back down; **each time it comes back it is one player's turn, going round the players still in** (the one it is coming for is ringed, the others are dimmed). Slide along the bottom to where it will land (a ring on the floor shows the spot) and be there as it lands. It goes back up at the wall and then comes down for the next player. **Miss your turn and you are out.** **Last one in wins.**
 - **Hitting is automatic:** there is no button. As the ball lands, if you are within 0.1 of the court of where it lands, it is hit back for you; if you are further away, you are out.
