@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, type ReactNode } from 'react';
-import type { LobbyGameId, RoomMember } from '@queueup/shared';
+import { scoreBeats, type LobbyGameId, type RoomMember } from '@queueup/shared';
 import { useQueryClient } from '@tanstack/react-query';
-import { MINIGAMES_QUERY_KEY } from '../hooks/useMiniGames';
+import { MINIGAMES_QUERY_KEY, useMiniGameMe } from '../hooks/useMiniGames';
 import { useSpinLobby } from '../hooks/useSpinLobby';
 import { viewFor, type LobbyGameView } from '../lobbyGames';
 import { LobbyFx, resultCardRect } from '../lobbyGames/kit';
@@ -239,9 +239,23 @@ export function LobbyPanel({
   useEffect(() => {
     if (!runOver) return;
     const refresh = () => void queryClient.invalidateQueries({ queryKey: MINIGAMES_QUERY_KEY });
-    const timer = setTimeout(refresh, 1200);
-    return () => clearTimeout(timer);
+    const timers = [setTimeout(refresh, 1200), setTimeout(refresh, 3000)];
+    return () => timers.forEach(clearTimeout);
   }, [runOver, game?.run, queryClient]);
+
+  // Confetti for a new personal best (which is also what passing the top score is). It is decided by the server's own numbers: your best as it
+  // stood while the run was on, against what it is once the run has been saved, so only a run that really reached the lists counts.
+  const gameId = game?.id;
+  const { data: mine } = useMiniGameMe(gameId);
+  const before = useRef<{ game: LobbyGameId; best: number | null } | null>(null);
+  useEffect(() => {
+    if (gameId && !runOver && mine) before.current = { game: gameId, best: mine.best };
+  }, [gameId, runOver, mine]);
+  useEffect(() => {
+    const was = before.current;
+    if (!runOver || !was || !gameId || was.game !== gameId || !mine || mine.best === null || guestToken) return;
+    if (was.best === null || scoreBeats(gameId, mine.best, was.best)) fxRef.current?.celebrate(game?.run ?? 0, 'oklch(0.83 0.15 85)');
+  }, [runOver, mine, gameId, game?.run, guestToken]);
   const playingIds = game ? game.players.map((p) => p.id) : [];
   const here = playingIds.length;
   const voted = !!snapshot?.voters.includes(me);

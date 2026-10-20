@@ -6,14 +6,14 @@ import { useAuth } from '../context/AuthContext';
 
 export const MINIGAMES_QUERY_KEY = ['minigames'] as const;
 
-export function useMiniGameScores(game: LobbyGameId, scope: MiniGameScoreScope, period: MiniGameScorePeriod) {
+export function useMiniGameScores(game: LobbyGameId | undefined, scope: MiniGameScoreScope, period: MiniGameScorePeriod) {
   const { user } = useAuth();
-  return useQuery({ queryKey: [...MINIGAMES_QUERY_KEY, 'scores', game, scope, period], queryFn: () => miniGamesApi.scores(game, scope, period), enabled: !!user });
+  return useQuery({ queryKey: [...MINIGAMES_QUERY_KEY, 'scores', game, scope, period], queryFn: () => miniGamesApi.scores(game!, scope, period), enabled: !!user && !!game });
 }
 
-export function useMiniGameMe(game: LobbyGameId) {
+export function useMiniGameMe(game: LobbyGameId | undefined) {
   const { user } = useAuth();
-  return useQuery({ queryKey: [...MINIGAMES_QUERY_KEY, 'me', game], queryFn: () => miniGamesApi.me(game), enabled: !!user });
+  return useQuery({ queryKey: [...MINIGAMES_QUERY_KEY, 'me', game], queryFn: () => miniGamesApi.me(game!), enabled: !!user && !!game });
 }
 
 /** Your best in every game, for the game cards. */

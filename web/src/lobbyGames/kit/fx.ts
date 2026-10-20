@@ -145,9 +145,17 @@ export class LobbyFx {
     }
   }
 
-  private confetti(winnerColor: string): void {
+  /** A celebration for something other than winning (a new personal best or a new high score), once for each run, and not on top of the winner's own
+   * confetti. Skipped for people who ask for reduced motion. */
+  celebrate(run: number, color: string): void {
+    if (this.reduced || this.confettiRun === run) return;
+    this.confettiRun = run;
+    this.confetti(color, 110);
+  }
+
+  private confetti(winnerColor: string, count = 70): void {
     const colors = [winnerColor, 'oklch(0.74 0.15 45)', 'oklch(0.83 0.15 85)', 'oklch(0.82 0.12 160)', '#fff'];
-    for (let i = 0; i < 70; i++) {
+    for (let i = 0; i < count; i++) {
       this.add({ k: 'conf', x: Math.random(), y: -0.05 - Math.random() * 0.3, vx: (Math.random() - 0.5) * 0.1, vy: 0.18 + Math.random() * 0.25, max: 3.6, c: colors[i % colors.length], sz: 0.01 + Math.random() * 0.01, r: Math.random() * 6, vr: (Math.random() - 0.5) * 10, g: 0.05, sway: Math.random() * 6 });
     }
   }
