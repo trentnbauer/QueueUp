@@ -7,11 +7,19 @@ import {
   type CreateMiniGameLobbyRequest,
   type JoinMiniGameLobbyRequest,
   type MiniGameLobbiesResponse,
+  GUEST_NAME_MAX,
+  GUEST_NAME_MIN,
+  type GuestJoinRequest,
+  type GuestJoinResponse,
   type MiniGameLobbyDto,
+  type PublicMiniGameLobbiesResponse,
 } from '@queueup/shared';
 import { env } from '../config/env.js';
 import { prisma } from '../db/client.js';
 import { HttpError } from '../util/httpError.js';
+import { assertTextAllowed } from '../services/displayNames.js';
+import { guestColor, guestNames, guestPlayAllowed, isGuestId, newGuestToken, verifyGuestToken } from '../services/guestLobby.js';
+import { getTurnstileConfig, verifyTurnstileToken } from '../services/turnstile.js';
 import { isBlockedEitherWay } from '../services/blocks.js';
 import { areFriends } from '../services/friendships.js';
 import { isLobbyGameId } from '../services/miniGameScores.js';
@@ -32,7 +40,8 @@ async function relation(lobby: OpenLobby, userId: string) {
 
 async function toDto(lobby: OpenLobby, viewerId: string): Promise<MiniGameLobbyDto> {
   const ids = spinLobbyHub.presentIds(lobbyKey(lobby.id));
-  const users = ids.length ? await prisma.user.findMany({ where: { id: { in: ids } }, select: { id: true, displayName: true, avatarColor: true, avatarUrl: true } }) : [];
+  const userIds = ids.filter((id) => !isGuestId(id));
+  const users = userIds.length ? await prisma.user.findMany({ where: { id: { in: userIds } }, select: { id: true, displayName: true, avatarColor: true, avatarUrl: true } }) : [];
   const mine = lobby.hostId === viewerId;
   return {
     id: lobby.id,
@@ -44,7 +53,11 @@ async function toDto(lobby: OpenLobby, viewerId: string): Promise<MiniGameLobbyD
     mine,
     code: mine && lobby.code ? formatLobbyCode(lobby.code) : null,
     // In the order they arrived.
-    players: ids.flatMap((id) => users.filter((u) => u.id === id)),
+    players: ids.flatMap((id) => {
+      if (!isGuestId(id)) return users.filter((u) => u.id === id);
+      const name = guestNames.get(id) ?? 'Guest';
+      return [{ id, displayName: name, avatarColor: guestColor(name), avatarUrl: null, guest: true }];
+    }),
   };
 }
 
@@ -113,8 +126,59 @@ export default async function miniGameLobbyRoutes(app: FastifyInstance) {
     return reply.code(204).send();
   });
 
+  // Guests: people without an account who join a public (or invite-code) lobby by name. Nothing about them is stored.
+  app.get('/api/minigames/public-lobbies', { config: { rateLimit: { max: 30, timeWindow: '1 minute' } } }, async (): Promise<PublicMiniGameLobbiesResponse> => {
+    if (!guestPlayAllowed()) throw new HttpError(403, 'Guest play is off on this server');
+    openLobbies.purge((id) => spinLobbyHub.hasMembers(lobbyKey(id)));
+    const lobbies: PublicMiniGameLobbiesResponse['lobbies'] = [];
+    for (const lobby of openLobbies.all()) {
+      const key = lobbyKey(lobby.id);
+      if (lobby.solo || lobby.visibility !== 'public' || !spinLobbyHub.hasMembers(key)) continue;
+      const dto = await toDto(lobby, '');
+      if (dto.players.length >= MINIGAME_LOBBY_MAX_PLAYERS) continue;
+      const first = (name: string) => name.trim().split(/\s+/)[0] ?? name;
+      const host = dto.players.find((p) => p.id === lobby.hostId);
+      lobbies.push({
+        id: lobby.id,
+        game: lobby.game,
+        hostName: first(host?.displayName ?? dto.players[0]?.displayName ?? ''),
+        players: dto.players.slice(0, 5).map((p) => ({ name: first(p.displayName), avatarColor: p.avatarColor })),
+        count: dto.players.length,
+      });
+    }
+    return { lobbies };
+  });
+
+  // `ref` is a public lobby's id or an invite code.
+  app.post<{ Params: { ref: string }; Body: GuestJoinRequest }>(
+    '/api/minigames/lobbies/:ref/guest-join',
+    { config: { rateLimit: { max: 10, timeWindow: '1 minute' } } },
+    async (request): Promise<GuestJoinResponse> => {
+      if (!guestPlayAllowed()) throw new HttpError(403, 'Guest play is off on this server');
+      const body = request.body ?? ({} as Partial<GuestJoinRequest>);
+      const displayName = typeof body.displayName === 'string' ? body.displayName.trim().replace(/\s+/g, ' ') : '';
+      if (displayName.length < GUEST_NAME_MIN || displayName.length > GUEST_NAME_MAX || /\p{C}/u.test(displayName)) throw new HttpError(400, `A name is ${GUEST_NAME_MIN} to ${GUEST_NAME_MAX} characters`);
+      await assertTextAllowed(displayName, 'That name');
+      const turnstile = await getTurnstileConfig();
+      if (turnstile && !(await verifyTurnstileToken(turnstile.secretKey, typeof body.captcha === 'string' ? body.captcha : undefined, request.ip))) throw new HttpError(403, 'Captcha failed');
+      const code = parseLobbyCode(request.params.ref);
+      const lobby = openLobbies.get(request.params.ref) ?? (code ? openLobbies.byCode(code) : undefined);
+      const open = !!lobby && !lobby.solo && (lobby.visibility === 'public' || lobby.code === code) && spinLobbyHub.hasMembers(lobbyKey(lobby.id));
+      if (!lobby || !open) throw new HttpError(404, 'That lobby is closed');
+      if (spinLobbyHub.presentIds(lobbyKey(lobby.id)).length >= MINIGAME_LOBBY_MAX_PLAYERS) throw new HttpError(409, 'That lobby is full');
+      return { ...newGuestToken(lobby.id, displayName), lobbyId: lobby.id, displayName };
+    },
+  );
+
+  // Who is in the lobby, for a guest (the token is the proof they are in it).
+  app.get<{ Params: { id: string }; Querystring: { guest?: string } }>('/api/minigames/lobbies/:id/guest-info', { config: { rateLimit: { max: 120, timeWindow: '1 minute' } } }, async (request) => {
+    const lobby = openLobbies.get(request.params.id);
+    if (!lobby || !guestPlayAllowed() || !verifyGuestToken(request.query.guest, lobby.id)) throw new HttpError(404, 'That lobby is closed');
+    return toDto(lobby, '');
+  });
+
   // The live connection: the same messages as a room's lobby (see routes/spinLobby.ts).
-  app.get<{ Params: { id: string } }>(
+  app.get<{ Params: { id: string }; Querystring: { guest?: string } }>(
     '/api/minigames/lobbies/:id/lobby',
     {
       websocket: true,
@@ -122,9 +186,12 @@ export default async function miniGameLobbyRoutes(app: FastifyInstance) {
       onRequest: async (request) => {
         // Browsers do not apply the same-origin policy to WebSockets: the page must be ours.
         if (request.headers.origin !== appOrigin) throw new HttpError(403, 'Cross-origin request refused');
-        const userId = await request.requireAuth();
-        await openableLobby(request.params.id, userId);
         const key = lobbyKey(request.params.id);
+        const guest = request.query.guest ? verifyGuestToken(request.query.guest, request.params.id) : null;
+        if (request.query.guest && (!guest || !guestPlayAllowed() || !openLobbies.get(request.params.id))) throw new HttpError(404, 'That lobby is closed');
+        const userId = guest?.guestId ?? (await request.requireAuth());
+        if (guest) guestNames.set(guest.guestId, guest.name);
+        else await openableLobby(request.params.id, userId);
         if (!spinLobbyHub.isPresent(key, userId) && spinLobbyHub.presentIds(key).length >= MINIGAME_LOBBY_MAX_PLAYERS) throw new HttpError(409, 'That lobby is full');
         userByRequest.set(request, userId);
       },
@@ -139,8 +206,12 @@ export default async function miniGameLobbyRoutes(app: FastifyInstance) {
       const key = lobbyKey(lobby.id);
       spinLobbyHub.connect(key, userId, socket, { game: lobby.game, timeLimit: lobby.timeLimit, solo: lobby.solo });
       socket.on('message', (data: Buffer | string) => spinLobbyHub.message(key, socket, data.toString()));
-      socket.on('close', () => spinLobbyHub.disconnect(key, socket));
-      socket.on('error', () => spinLobbyHub.disconnect(key, socket));
+      const left = () => {
+        spinLobbyHub.disconnect(key, socket);
+        if (isGuestId(userId) && !spinLobbyHub.isPresent(key, userId)) guestNames.delete(userId);
+      };
+      socket.on('close', left);
+      socket.on('error', left);
     },
   );
 }

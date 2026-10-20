@@ -15,6 +15,7 @@ import siteInviteRoutes from './siteInvites.js';
 import { joinRoomForInvite, resolveInvite, SignupInviteRequiredError } from '../services/signupInvites.js';
 import { toUserDto } from '../util/dto.js';
 import { HttpError } from '../util/httpError.js';
+import { guestPlayAllowed } from '../services/guestLobby.js';
 import { getTurnstileConfig, verifyTurnstileToken } from '../services/turnstile.js';
 import { extractSteamId64, resolveSteamId64 } from '../services/steamLibrary.js';
 import { answerUnownedPlatform, setOwnedPlatforms, setProfileSlug, setShelfColor, setProfileVisibility, setPublicProfileEnabled, VALID_PLATFORMS } from '../services/userSettings.js';
@@ -149,10 +150,10 @@ export default async function authRoutes(app: FastifyInstance) {
   await app.register(siteInviteRoutes);
 
   app.get('/api/auth/providers', async () => {
-    if (env.DEV_FAKE_AUTH) return { providers: [], turnstileSiteKey: null, signupMode: 'open' as const };
+    if (env.DEV_FAKE_AUTH) return { providers: [], turnstileSiteKey: null, signupMode: 'open' as const, guestPlay: false };
     // The sign-in page renders the Turnstile widget (issue #665) when this is set.
     const turnstile = await getTurnstileConfig();
-    return { providers: Array.from(app.authProviders.keys()), turnstileSiteKey: turnstile?.siteKey ?? null, signupMode: env.SIGNUP_MODE };
+    return { providers: Array.from(app.authProviders.keys()), turnstileSiteKey: turnstile?.siteKey ?? null, signupMode: env.SIGNUP_MODE, guestPlay: guestPlayAllowed() };
   });
 
   // Whether a pasted invite would let a new account be created, so the sign-in page can say so before

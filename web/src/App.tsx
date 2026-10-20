@@ -150,13 +150,15 @@ export default function App() {
   // rather than an unhandled rejection and a page with no buttons. Not an empty provider list: the
   // login page reads that as "dev sign-in".
   const [providersError, setProvidersError] = useState(false);
+  const [guestPlay, setGuestPlay] = useState(false);
   const [providersAttempt, setProvidersAttempt] = useState(0);
   useEffect(() => {
     if (user) return;
     setProvidersError(false);
     authApi
       .providers()
-      .then(({ providers, turnstileSiteKey, signupMode }) => {
+      .then(({ providers, turnstileSiteKey, signupMode, guestPlay }) => {
+        setGuestPlay(!!guestPlay);
         setProviders(providers);
         setInviteOnly(signupMode === 'invite');
         setTurnstileSiteKey(turnstileSiteKey);
@@ -288,7 +290,7 @@ export default function App() {
     return (
       <>
         <PageTitle page={t('core.login.title')} />
-        <LoginPage providers={providers} turnstileSiteKey={turnstileSiteKey} inviteOnly={inviteOnly} providersError={providersError && providers === null} onRetry={() => setProvidersAttempt((n) => n + 1)} />
+        <LoginPage providers={providers} turnstileSiteKey={turnstileSiteKey} inviteOnly={inviteOnly} guestPlay={guestPlay} providersError={providersError && providers === null} onRetry={() => setProvidersAttempt((n) => n + 1)} />
       </>
     );
   }

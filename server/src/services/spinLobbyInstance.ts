@@ -2,6 +2,7 @@ import { SpinLobbyHub } from './spinLobbyHub.js';
 import { recordRunScores } from './miniGameScores.js';
 import { playWeights } from './playWeights.js';
 import { OPEN_LOBBY_PREFIX, openLobbies } from './openLobbies.js';
+import { isGuestId } from './guestLobby.js';
 
 // The one hub for this process (production runs a single non-replicated server container). Its
 // spin helpers are loaded on first use rather than imported, because routes/roomSpin.ts needs this
@@ -17,7 +18,8 @@ export const spinLobbyHub = new SpinLobbyHub({
   recordScores: (key, game, source, scores, verified) => {
     const open = key.startsWith(OPEN_LOBBY_PREFIX) ? openLobbies.get(key.slice(OPEN_LOBBY_PREFIX.length)) : undefined;
     // A practice lobby's runs are saved as solo ones, as they always were.
-    void recordRunScores(game, open?.solo ? 'solo' : source, scores, key.startsWith(OPEN_LOBBY_PREFIX) ? undefined : key, verified);
+    // A guest's run is never saved: no scores, high scores or beaten alerts.
+    void recordRunScores(game, open?.solo ? 'solo' : source, scores.filter((s) => !isGuestId(s.userId)), key.startsWith(OPEN_LOBBY_PREFIX) ? undefined : key, verified);
   },
   pickWeights: playWeights,
   // The lobby stays open until everyone has left, then it is gone.
