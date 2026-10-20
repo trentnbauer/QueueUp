@@ -54,6 +54,7 @@ export const games: Record<keyof typeof en, string> = {
   "games.status.solo": "Just ye · runs count toward high scores",
   "games.scores.version": "Version {n}: scores from earlier versions of this game are kept but not shown.",
   "games.rate.prompt": "Rate this game",
+  "games.rate.review": "Review this mini-game",
   "games.rate.thanks": "Thanks! Tap the other to change it",
   "games.rate.up": "Thumbs up",
   "games.rate.down": "Thumbs down",

@@ -115,8 +115,80 @@ function drawCountdown(sc: Scene): void {
   ctx.restore();
 }
 
-/** How much taller the result card is than its text, as a fraction of the arena: room for the rating thumbs the lobby panel lays over it. */
-export const RESULT_RATING_STRIP = 0.12;
+// ---- The end-of-run card: the run's standings. The winner is the hero row, your row is always shown and highlighted, and a thumbs
+// prompt (HTML, laid over the strip along the bottom by RatingBar) sits with the review label. All sizes are fractions of the arena. ----
+
+const CARD_W = 0.74;
+const CARD_PAD = 0.04;
+const CARD_HEAD_H = 0.075;
+const CARD_HERO_H = 0.125;
+const CARD_ROW_H = 0.07;
+const CARD_GAP = 0.012;
+const CARD_WORD_H = 0.06;
+/** The strip along the bottom of the card, where the lobby panel lays the review label and thumbs (see RatingBar). */
+export const RESULT_RATING_STRIP = 0.11;
+/** Quiet text on the card: the run number, ranks and units. */
+const FAINT = 'oklch(1 0 0 / 0.5)';
+/** The most people the card lists (the top of the standings), before your own row when you are further down. */
+const TOP_ROWS = 3;
+
+interface StandingRow {
+  id: string;
+  rank: number;
+  score: number;
+  isMe: boolean;
+}
+
+/** What the card lists: a hero (the winner, or you alone) and the rows below it, in order. The winner's score is the run's, even when someone who
+ * was knocked out earlier counted more; ties share a rank. */
+function resultRows(snapshot: Scene['snapshot'], me: string): { hero: StandingRow | null; rows: StandingRow[] } {
+  const sorted = [...snapshot.players].sort((a, b) => b.meters - a.meters);
+  const ranked: StandingRow[] = [];
+  sorted.forEach((p, i) => ranked.push({ id: p.id, score: p.meters, isMe: p.id === me, rank: i > 0 && p.meters === sorted[i - 1].meters ? ranked[i - 1].rank : i + 1 }));
+  const winner = snapshot.winnerId ? ranked.find((r) => r.id === snapshot.winnerId) : undefined;
+  const solo = ranked.length <= 1;
+  const hero = winner ?? (solo ? ranked.find((r) => r.isMe) ?? ranked[0] ?? null : null);
+  const rest = ranked.filter((r) => r !== hero);
+  const top = rest.slice(0, hero ? TOP_ROWS - 1 : TOP_ROWS);
+  const mine = rest.find((r) => r.isMe);
+  return { hero, rows: mine && !top.includes(mine) ? [...top, mine] : top };
+}
+
+/** Where the card is in the arena, as fractions of its side, so the lobby panel can lay the thumbs exactly over its bottom strip. */
+export function resultCardRect(snapshot: Scene['snapshot'], me: string): { left: number; top: number; width: number; height: number; stripTop: number; stripHeight: number } {
+  const { hero, rows } = resultRows(snapshot, me);
+  const word = snapshot.id === 'words' && snapshot.answer;
+  const height = CARD_PAD + CARD_HEAD_H + (hero ? CARD_HERO_H + CARD_GAP : 0) + rows.length * (CARD_ROW_H + CARD_GAP) + (word ? CARD_WORD_H : 0) + RESULT_RATING_STRIP + CARD_PAD * 0.25;
+  const top = 0.5 - height / 2;
+  return { left: (1 - CARD_W) / 2, top, width: CARD_W, height, stripTop: top + height - RESULT_RATING_STRIP - CARD_PAD * 0.25, stripHeight: RESULT_RATING_STRIP };
+}
+
+/** The unit a game's score is counted in, short ("m", "pts"). */
+const UNIT_KEYS: Record<string, MessageKey> = {
+  'spin.lobby.hud.metres': 'spin.lobby.hud.metres.unit',
+  'spin.lobby.hud.coins.pill': 'spin.lobby.hud.coins.unit',
+  'spin.lobby.hud.points.pill': 'spin.lobby.hud.points.unit',
+  'spin.lobby.hud.seconds.pill': 'spin.lobby.hud.seconds.unit',
+  'spin.lobby.hud.rounds.pill': 'spin.lobby.hud.rounds.unit',
+  'spin.lobby.hud.swings.pill': 'spin.lobby.hud.swings.unit',
+};
+const unitKey = (game: string): MessageKey => UNIT_KEYS[(SCORE_WORDS[game] ?? METRES).pill] ?? 'spin.lobby.hud.metres.unit';
+
+/** A score with its unit after it, right-aligned to `right`: the number large and the unit small beside it. */
+function drawScoreText(sc: Scene, right: number, y: number, score: number, bigPx: number, smallPx: number, color: string, unitColor: string): void {
+  const { ctx } = sc;
+  const unit = sc.t(unitKey(sc.snapshot.id));
+  ctx.textAlign = 'right';
+  ctx.font = `600 ${smallPx}px ${FONT.mono}`;
+  ctx.fillStyle = unitColor;
+  ctx.fillText(unit, right, y);
+  const unitW = ctx.measureText(unit).width + smallPx * 0.35;
+  ctx.font = `800 ${bigPx}px ${FONT.display}`;
+  ctx.fillStyle = color;
+  ctx.fillText(score.toLocaleString('en-US'), right - unitW, y);
+  ctx.textAlign = 'center';
+}
+
 function drawResult(sc: Scene): void {
   const { ctx, S, theme, snapshot, t } = sc;
   const progress = Math.min(1, (RESULT_MS - snapshot.timerMs) / 350);
@@ -124,65 +196,119 @@ function drawResult(sc: Scene): void {
   ctx.fillStyle = `oklch(0.12 0.006 55 / ${0.5 * ease})`;
   ctx.fillRect(0, 0, S, S);
 
+  const { hero, rows } = resultRows(snapshot, sc.me);
+  const card = resultCardRect(snapshot, sc.me);
+  const w = card.width * S;
+  const h = card.height * S;
+  const word = snapshot.id === 'words' && snapshot.answer ? t('spin.lobby.words.answer', { word: snapshot.answer.toUpperCase() }) : null;
+  const pad = CARD_PAD * S;
   const winner = snapshot.winnerId ? snapshot.players.find((p) => p.id === snapshot.winnerId) : undefined;
+
   ctx.save();
-  ctx.translate(S / 2, S * 0.48);
+  ctx.translate(S / 2, (card.top + card.height / 2) * S);
   ctx.scale(0.85 + 0.15 * ease, 0.85 + 0.15 * ease);
   ctx.globalAlpha = ease;
-  const w = S * 0.66;
-  const h = S * 0.4;
-  // The card is taller than its text by a strip along the bottom, where the panel puts the thumbs (see RatingBar).
-  roundRect(ctx, -w / 2, -h / 2, w, h + S * RESULT_RATING_STRIP, S * 0.05);
+  roundRect(ctx, -w / 2, -h / 2, w, h, S * 0.05);
   ctx.fillStyle = 'oklch(0.21 0.009 55 / 0.94)';
   ctx.fill();
   ctx.strokeStyle = STAGE.hudStroke;
   ctx.stroke();
-  ctx.textAlign = 'center';
   ctx.textBaseline = 'middle';
 
-  // A game with a secret (Words) shows it in the card, as its last line, whoever won: the other lines make room.
-  const word = snapshot.id === 'words' && snapshot.answer ? t('spin.lobby.words.answer', { word: snapshot.answer.toUpperCase() }) : null;
-  const drawWord = (y: number) => {
-    if (!word) return;
-    ctx.font = `800 ${Math.round(S * 0.042)}px ${FONT.display}`;
-    ctx.fillStyle = theme.text;
-    ctx.fillText(word, 0, y, w * 0.9);
-  };
+  const left = -w / 2 + pad;
+  const right = w / 2 - pad;
+  let y = -h / 2 + pad;
 
-  if (winner) {
-    const info = sc.info(winner.id);
-    const r = S * (word ? 0.05 : 0.065);
-    const lift = word ? -h * 0.14 : 0;
-    ctx.save();
-    ctx.shadowColor = info.color;
-    ctx.shadowBlur = S * 0.06;
+  // The headline, and which run it was.
+  const headline = winner ? (winner.id === sc.me ? t('spin.lobby.hud.youWin') : t('spin.lobby.hud.nameWins', { name: sc.info(winner.id).name })) : t(noWinnerHeadline(sc));
+  ctx.textAlign = 'left';
+  ctx.font = `800 ${Math.round(S * 0.05)}px ${FONT.display}`;
+  ctx.fillStyle = theme.text;
+  ctx.fillText(headline, left, y + CARD_HEAD_H * S * 0.4, w - pad * 2 - S * 0.14);
+  ctx.textAlign = 'right';
+  ctx.font = `600 ${Math.round(S * 0.022)}px ${FONT.mono}`;
+  ctx.fillStyle = FAINT;
+  ctx.fillText(t(hero && !winner ? 'spin.lobby.hud.solo' : 'spin.lobby.hud.runNo', { n: snapshot.run }), right, y + CARD_HEAD_H * S * 0.4);
+  y += CARD_HEAD_H * S;
+
+  const person = (row: StandingRow) => ({ info: sc.info(row.id), name: row.isMe ? t('spin.lobby.hud.meRow') : sc.info(row.id).name });
+  const avatar = (cx: number, cy: number, r: number, row: StandingRow, ring: string | null) => {
+    const { info } = person(row);
     ctx.beginPath();
-    ctx.arc(0, -h * 0.18 + lift, r, 0, Math.PI * 2);
+    ctx.arc(cx, cy, r, 0, Math.PI * 2);
     ctx.fillStyle = info.color;
     ctx.fill();
-    ctx.restore();
-    ctx.lineWidth = 3;
-    ctx.strokeStyle = theme.star;
-    ctx.stroke();
+    if (ring) {
+      ctx.lineWidth = Math.max(2, r * 0.12);
+      ctx.strokeStyle = ring;
+      ctx.stroke();
+    }
+    ctx.textAlign = 'center';
     ctx.fillStyle = '#fff';
-    ctx.font = `700 ${Math.round(r)}px ${FONT.ui}`;
-    ctx.fillText(info.initial, 0, -h * 0.18 + lift + 1);
-    ctx.font = `600 ${Math.round(S * 0.03)}px ${FONT.mono}`;
-    ctx.fillStyle = theme.accText;
-    ctx.fillText(t(winner.wins === 1 ? (SCORE_WORDS[snapshot.id] ?? METRES).winnerOne : (SCORE_WORDS[snapshot.id] ?? METRES).winnerOther, { m: winner.meters, w: winner.wins }), 0, h * 0.08 + lift);
-    ctx.font = `800 ${Math.round(S * 0.068)}px ${FONT.display}`;
+    ctx.font = `700 ${Math.round(r * 0.9)}px ${FONT.ui}`;
+    ctx.fillText(info.initial, cx, cy + 1);
+  };
+
+  // The hero: the winner, or you on your own. A gold ring on the winner; the row is outlined in the accent when it is you.
+  if (hero) {
+    const hh = CARD_HERO_H * S;
+    roundRect(ctx, left, y, right - left, hh, S * 0.03);
+    ctx.fillStyle = hero.isMe ? 'oklch(0.74 0.15 45 / 0.14)' : 'oklch(1 0 0 / 0.05)';
+    ctx.fill();
+    ctx.lineWidth = 1.5;
+    ctx.strokeStyle = hero.isMe ? theme.acc : STAGE.hudStroke;
+    ctx.stroke();
+    const r = S * 0.04;
+    avatar(left + S * 0.015 + r, y + hh / 2, r, hero, winner ? theme.star : null);
+    const tx = left + S * 0.015 + r * 2 + S * 0.025;
+    ctx.textAlign = 'left';
+    ctx.font = `600 ${Math.round(S * 0.02)}px ${FONT.mono}`;
+    ctx.fillStyle = winner ? theme.star : theme.accText;
+    ctx.fillText(t(winner ? 'spin.lobby.hud.winnerTag' : 'spin.lobby.hud.thisRun'), tx, y + hh * 0.34);
+    ctx.font = `700 ${Math.round(S * 0.03)}px ${FONT.ui}`;
     ctx.fillStyle = theme.text;
-    ctx.fillText(winner.id === sc.me ? t('spin.lobby.hud.youWin') : t('spin.lobby.hud.nameWins', { name: info.name }), 0, h * 0.26 + lift, w * 0.9);
-    drawWord(h * 0.43);
-  } else {
-    ctx.font = `600 ${Math.round(S * 0.03)}px ${FONT.mono}`;
-    ctx.fillStyle = theme.accText;
-    ctx.fillText(t((SCORE_WORDS[snapshot.id] ?? METRES).over, { m: snapshot.history[snapshot.history.length - 1]?.meters ?? snapshot.meters }), 0, word ? -h * 0.2 : -h * 0.08);
-    ctx.font = `800 ${Math.round(S * 0.068)}px ${FONT.display}`;
-    ctx.fillStyle = theme.text;
-    ctx.fillText(t(noWinnerHeadline(sc)), 0, word ? -h * 0.0 : h * 0.12, w * 0.9);
-    drawWord(h * 0.3);
+    const best = !winner && snapshot.best && snapshot.best.game === snapshot.id ? snapshot.best.meters : null;
+    ctx.fillText(best !== null ? t('spin.lobby.hud.bestSoFar', { n: `${best.toLocaleString('en-US')} ${t(unitKey(snapshot.id))}` }) : person(hero).name, tx, y + hh * 0.68, right - tx - S * 0.25);
+    drawScoreText(sc, right - S * 0.02, y + hh / 2, hero.score, Math.round(S * 0.075), Math.round(S * 0.032), theme.text, theme.accText);
+    y += hh + CARD_GAP * S;
   }
+
+  // The rows below: rank, who, score. Yours is outlined in the accent whichever place you came.
+  for (const row of rows) {
+    const rh = CARD_ROW_H * S;
+    roundRect(ctx, left, y, right - left, rh, S * 0.022);
+    ctx.fillStyle = row.isMe ? 'oklch(0.74 0.15 45 / 0.14)' : 'oklch(1 0 0 / 0.04)';
+    ctx.fill();
+    if (row.isMe) {
+      ctx.lineWidth = 1.5;
+      ctx.strokeStyle = theme.acc;
+      ctx.stroke();
+    }
+    ctx.textAlign = 'center';
+    ctx.font = `600 ${Math.round(S * 0.022)}px ${FONT.mono}`;
+    ctx.fillStyle = FAINT;
+    ctx.fillText(String(row.rank), left + S * 0.03, y + rh / 2);
+    avatar(left + S * 0.08, y + rh / 2, S * 0.026, row, null);
+    ctx.textAlign = 'left';
+    ctx.font = `600 ${Math.round(S * 0.028)}px ${FONT.ui}`;
+    ctx.fillStyle = theme.text;
+    ctx.fillText(person(row).name, left + S * 0.125, y + rh / 2 + 1, right - left - S * 0.3);
+    drawScoreText(sc, right - S * 0.02, y + rh / 2 + 1, row.score, Math.round(S * 0.032), Math.round(S * 0.022), row.isMe ? theme.accText : theme.text, FAINT);
+    y += rh + CARD_GAP * S;
+  }
+
+  // A game with a secret (Words) shows it in the card, whoever won.
+  if (word) {
+    ctx.textAlign = 'center';
+    ctx.font = `800 ${Math.round(S * 0.038)}px ${FONT.display}`;
+    ctx.fillStyle = theme.text;
+    ctx.fillText(word, 0, y + CARD_WORD_H * S * 0.45, w * 0.9);
+    y += CARD_WORD_H * S;
+  }
+
+  // A line above the review strip.
+  ctx.fillStyle = STAGE.hudStroke;
+  ctx.fillRect(left, y + CARD_GAP * S * 0.3, right - left, 1);
   ctx.restore();
 }
 

@@ -4,7 +4,7 @@ import { useQueryClient } from '@tanstack/react-query';
 import { MINIGAMES_QUERY_KEY } from '../hooks/useMiniGames';
 import { useSpinLobby } from '../hooks/useSpinLobby';
 import { viewFor, type LobbyGameView } from '../lobbyGames';
-import { LobbyFx } from '../lobbyGames/kit';
+import { LobbyFx, resultCardRect } from '../lobbyGames/kit';
 import { tapTargetAt, tapTargetForKey } from '../lobbyGames/taps';
 import { Controls, NO_SELECT } from './lobby/Controls';
 import { LiveAnnouncer } from './lobby/LiveAnnouncer';
@@ -234,6 +234,14 @@ export function LobbyPanel({
   }, [me]);
 
   const game = snapshot?.game ?? null;
+  // A run has just ended and its score is being saved: bring the high scores beside the game up to date.
+  const runOver = game?.phase === 'over';
+  useEffect(() => {
+    if (!runOver) return;
+    const refresh = () => void queryClient.invalidateQueries({ queryKey: MINIGAMES_QUERY_KEY });
+    const timer = setTimeout(refresh, 1200);
+    return () => clearTimeout(timer);
+  }, [runOver, game?.run, queryClient]);
   const playingIds = game ? game.players.map((p) => p.id) : [];
   const here = playingIds.length;
   const voted = !!snapshot?.voters.includes(me);
@@ -256,7 +264,7 @@ export function LobbyPanel({
   // The canvas, with the end-of-run thumbs laid over the bottom of its result card (HTML, so they can be tapped).
   const arena = (
     <div style={st("position:relative")}>
-    {game?.phase === 'over' && !guestToken && <RatingBar game={game.id} />}
+    {game?.phase === 'over' && !guestToken && <RatingBar game={game.id} card={resultCardRect(game, me)} />}
     <canvas
       ref={canvasRef}
       role="img"
@@ -284,17 +292,20 @@ export function LobbyPanel({
   const controls = view ? <Controls view={view} phone={phone} holdProps={holdProps} onAction={sendAction} /> : null;
   const gameName = view ? t(view.nameKey) : '';
 
+  // Playing solo, the note about your best run sits with the high scores (see below) instead of under the arena.
+  const soloNote = <span style={st('font:500 12px/1.45 var(--font-ui);color:var(--faint)')}>{t('games.note.solo')}</span>;
   const bottom = snapshot?.spinWaiting ? (
     <VoteBar votes={snapshot.voters.length} needed={snapshot.needed} voted={voted} onVote={vote} phone={phone} />
   ) : status === 'offline' && offlineFallback ? (
     offlineFallback
-  ) : (
+  ) : soloGame && !phone ? null : (
     status === 'open' && <span style={st('font:500 12px var(--font-ui);color:var(--muted);text-align:center')}>{soloGame || lobbyId ? t('games.note.solo') : t('spin.lobby.noSpin')}</span>
   );
 
   return (
-    <div style={st(`display:flex;flex-direction:column;gap:${phone ? 12 : 14}px;${phone ? '' : 'padding:16px;border-radius:20px;background:var(--bg)'}`)}>
-      <LobbyHeader members={members} readyIds={readyUserIds ?? null} playingIds={playingIds} gameName={gameName} run={game?.run ?? 0} statusText={statusText} phone={phone} />
+    <div style={st(`display:flex;flex-direction:column;gap:${phone ? 12 : 14}px;${phone || soloGame ? '' : 'padding:16px;border-radius:20px;background:var(--bg)'}`)}>
+      {/* Playing solo is just the game: no "Mini games / Just you" header (the dialog's title says which game). */}
+      {!soloGame && <LobbyHeader members={members} readyIds={readyUserIds ?? null} playingIds={playingIds} gameName={gameName} run={game?.run ?? 0} statusText={statusText} phone={phone} />}
       {/* A practice run is never capped; any other lobby can choose, and a waiting spin always caps. */}
       {snapshot && !soloGame && <TimeLimitRow capSeconds={snapshot.capSeconds} locked={snapshot.spinWaiting} onChange={setTimeLimit} />}
 
@@ -305,10 +316,7 @@ export function LobbyPanel({
             {controls}
           </div>
           {game && soloGame ? (
-            <>
-              <HighScoresStrip game={soloGame} phone />
-              <RunHistory summary={game} members={members} compact />
-            </>
+            <HighScoresStrip game={soloGame} phone />
           ) : (
             game && <WinChart game={game} members={members} me={me} phone aside={<RunHistory summary={game} members={members} compact />} />
           )}
@@ -321,7 +329,13 @@ export function LobbyPanel({
             {controls}
           </div>
           <div style={st('display:flex;flex-direction:column;gap:14px;min-width:0')}>
-            {view && game && (
+            {view && game && soloGame && (
+              <div style={st('display:flex;flex-direction:column;gap:8px')}>
+                <span style={st('font:700 19px/1.2 var(--font-display);letter-spacing:-.02em')}>{t(view.taglineKey)}</span>
+                <span style={st('font:500 12.5px/1.45 var(--font-ui);color:var(--muted)')}>{t(view.hintKey)}</span>
+              </div>
+            )}
+            {view && game && !soloGame && (
               <div style={st('display:flex;flex-direction:column;gap:6px;padding:14px;border-radius:16px;background:linear-gradient(135deg,var(--hero1),var(--hero2))')}>
                 <span style={st('font:500 11px var(--font-mono);letter-spacing:.08em;text-transform:uppercase;color:var(--accText)')}>{t('spin.lobby.gameKicker', { run: game.run, game: gameName })}</span>
                 <span style={st('font:700 19px var(--font-display);letter-spacing:-.02em')}>{t(view.taglineKey)}</span>
@@ -329,7 +343,8 @@ export function LobbyPanel({
               </div>
             )}
             {game && (soloGame ? <HighScoresStrip game={soloGame} phone={false} /> : <WinChart game={game} members={members} me={me} phone={false} />)}
-            {game && <RunHistory summary={game} members={members} />}
+            {game && !soloGame && <RunHistory summary={game} members={members} />}
+            {soloGame && status === 'open' && soloNote}
           </div>
         </div>
       )}

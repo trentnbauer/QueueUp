@@ -358,7 +358,6 @@ export const settings: Record<keyof typeof en, string> = {
 
   // Shelf settings
   "settings.shelf.title": "Treasure chest riggin’",
-  "practice.pick": "Choose a game",
   "settings.shelf.spinType": "Spin type",
   "settings.shelf.spinType.toast": "Spin type: {theme}",
   "settings.shelf.spinType.random": "🎲 Davy Jones’ choice",
