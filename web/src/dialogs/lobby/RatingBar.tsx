@@ -1,18 +1,12 @@
 import type { LobbyGameId, MiniGameRatingValue } from '@queueup/shared';
 import { useMiniGameRatings, useRateMiniGame } from '../../hooks/useMiniGames';
-import { RESULT_RATING_STRIP } from '../../lobbyGames/kit';
+import type { resultCardRect } from '../../lobbyGames/kit';
 import { st } from '../../ui/st';
 import { useT } from '../../i18n';
 
-/** The result card's own geometry (kit/hud.ts drawResult), as fractions of the arena: it is centred at 0.48 and is 0.66 wide, its text
- * area is 0.4 tall, and below that is the strip these thumbs fill. */
-const CARD_LEFT = 0.17;
-const CARD_WIDTH = 0.66;
-const STRIP_TOP = 0.48 + 0.2;
-
 /** Thumbs up or down for the game just played, laid over the strip at the bottom of the end-of-run card in the arena (so it
  * reads as part of the pop-up). Once rated it shows the pick, and the other thumb swaps it. Rendered only while the card is up. */
-export function RatingBar({ game }: { game: LobbyGameId }) {
+export function RatingBar({ game, card }: { game: LobbyGameId; card: ReturnType<typeof resultCardRect> }) {
   const t = useT();
   const { data } = useMiniGameRatings();
   const rate = useRateMiniGame();
@@ -27,7 +21,7 @@ export function RatingBar({ game }: { game: LobbyGameId }) {
         title={label}
         onClick={() => rate(game, value)}
         style={st(
-          `min-width:52px;height:100%;max-height:44px;padding:0 14px;border-radius:14px;border:1.5px solid ${picked ? 'var(--acc)' : 'var(--chip)'};background:${picked ? 'var(--accSoft)' : 'var(--surf)'};color:var(--text);font:600 20px var(--font-ui);cursor:pointer`,
+          `min-width:48px;height:100%;max-height:40px;padding:0 12px;border-radius:14px;border:1.5px solid ${picked ? 'var(--acc)' : 'var(--chip)'};background:${picked ? 'var(--accSoft)' : 'var(--surf)'};color:var(--text);font:600 18px var(--font-ui);cursor:pointer`,
         )}
       >
         {glyph}
@@ -38,10 +32,13 @@ export function RatingBar({ game }: { game: LobbyGameId }) {
     <div
       role="group"
       aria-label={t(mine ? 'games.rate.thanks' : 'games.rate.prompt')}
-      style={st(`position:absolute;left:${CARD_LEFT * 100}%;width:${CARD_WIDTH * 100}%;top:${STRIP_TOP * 100}%;height:${RESULT_RATING_STRIP * 100 - 2}%;display:flex;align-items:center;justify-content:center;gap:12px`)}
+      style={st(`position:absolute;left:${(card.left + 0.04) * 100}%;width:${(card.width - 0.08) * 100}%;top:${card.stripTop * 100}%;height:${card.stripHeight * 100 - 2}%;display:flex;align-items:center;justify-content:space-between;gap:12px`)}
     >
-      {thumb(1, t('games.rate.up'), '👍')}
-      {thumb(-1, t('games.rate.down'), '👎')}
+      <span style={st('font:500 12px var(--font-ui);color:var(--muted);min-width:0')}>{t('games.rate.review')}</span>
+      <span style={st('display:flex;gap:8px;height:100%;align-items:center')}>
+        {thumb(1, t('games.rate.up'), '👍')}
+        {thumb(-1, t('games.rate.down'), '👎')}
+      </span>
     </div>
   );
 }

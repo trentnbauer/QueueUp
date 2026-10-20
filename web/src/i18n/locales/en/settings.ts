@@ -356,7 +356,6 @@ export const settings = {
 
   // Shelf settings
   "settings.shelf.title": "Shelf settings",
-  "practice.pick": "Choose a game",
   "settings.shelf.spinType": "Spin type",
   "settings.shelf.spinType.toast": "Spin type: {theme}",
   "settings.shelf.spinType.random": "🎲 Random",
