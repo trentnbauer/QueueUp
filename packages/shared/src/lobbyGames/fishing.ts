@@ -38,10 +38,10 @@ const HEALTH_MEND = 0.2;
  * swims, and how hard it fights: the green zone's half height, how fast the fish darts about the bar and how far, how long it rests, how fast the
  * catch fills in the green, and how fast the line wears outside it. Bigger fish are worth more, swim further up the pond and fight harder. */
 const KINDS = [
-  { weight: 50, y: [0.5, 0.74], speed: 0.15, zone: 0.17, dart: 0.45, jump: 0.3, rest: 1.1, gain: 0.4, wear: 0.3 },
-  { weight: 28, y: [0.36, 0.66], speed: 0.12, zone: 0.15, dart: 0.6, jump: 0.4, rest: 0.9, gain: 0.3, wear: 0.4 },
-  { weight: 16, y: [0.22, 0.52], speed: 0.1, zone: 0.13, dart: 0.75, jump: 0.55, rest: 0.7, gain: 0.22, wear: 0.5 },
-  { weight: 6, y: [0.12, 0.36], speed: 0.08, zone: 0.11, dart: 0.9, jump: 0.7, rest: 0.5, gain: 0.16, wear: 0.6 },
+  { weight: 50, y: [0.5, 0.74], speed: 0.15, zone: 0.28, dart: 0.22, jump: 0.2, rest: 1.6, gain: 0.8, wear: 0.12 },
+  { weight: 28, y: [0.36, 0.66], speed: 0.12, zone: 0.25, dart: 0.3, jump: 0.25, rest: 1.4, gain: 0.6, wear: 0.16 },
+  { weight: 16, y: [0.22, 0.52], speed: 0.1, zone: 0.22, dart: 0.38, jump: 0.35, rest: 1.1, gain: 0.45, wear: 0.2 },
+  { weight: 6, y: [0.12, 0.36], speed: 0.08, zone: 0.19, dart: 0.45, jump: 0.45, rest: 0.9, gain: 0.35, wear: 0.25 },
 ] as const;
 
 const lerp = (a: number, b: number, d: number) => a + (b - a) * d;
@@ -257,13 +257,14 @@ export class FishingGame extends RoundGame<Angler> {
     super.endRun(winner);
   }
 
-  /** 0 at the start of the run, 1 once it has got as hard as it gets. */
+  /** 0 at the start of the run, 1 once the pond has got as busy as it gets. */
   private diffAt(t: number): number {
     return Math.min(1, Math.max(0, t / RAMP_S));
   }
 
+  /** How hard the fights are: 0 at the start and 1 after RAMP_S, but unlike the pond it keeps on climbing (to 8), so a run always ends in the end. */
   private get difficulty(): number {
-    return this.phase === 'playing' ? this.diffAt(this.roundMs / 1000) : 0;
+    return this.phase === 'playing' ? Math.min(8, Math.max(0, this.roundMs / 1000 / RAMP_S)) : 0;
   }
 
   /** Seconds to the next fish after one that came at `at`: quicker as the run goes on. */
@@ -296,7 +297,7 @@ export class FishingGame extends RoundGame<Angler> {
 
   /** Half the height of the green zone against this kind of fish now. */
   private zoneHalf(tier: number, d: number): number {
-    return KINDS[tier].zone * lerp(1, 0.6, d);
+    return KINDS[tier].zone * Math.max(0.4, 1 - 0.2 * d);
   }
 
   snapshot(): FishingSnapshot {
@@ -449,7 +450,7 @@ export class FishingGame extends RoundGame<Angler> {
       p.markTo = Math.min(MARK_MAX, Math.max(MARK_MIN, p.mark + jump));
       p.rest = (k.rest * wait) / (1 + 0.5 * d);
     }
-    const speed = k.dart * lerp(1, 2, d);
+    const speed = k.dart * (1 + 0.5 * d);
     const to = p.markTo - p.mark;
     p.mark = Math.abs(to) <= speed * dt ? p.markTo : p.mark + Math.sign(to) * speed * dt;
 
@@ -458,7 +459,7 @@ export class FishingGame extends RoundGame<Angler> {
       p.health = Math.min(1, p.health + HEALTH_MEND * dt);
     } else {
       p.catch = Math.max(0, p.catch - CATCH_DRAIN * dt);
-      p.health -= k.wear * lerp(1, 2, d) * dt;
+      p.health -= k.wear * (1 + 0.5 * d) * dt;
     }
     if (p.catch >= 1) {
       p.points += FISHING_TIERS[p.tier].points;

@@ -414,9 +414,9 @@ describe('FishingGame running a run', () => {
     const lasted: number[] = [];
     for (const seed of [3, 5, 7, 11]) {
       const g = started(['a'], seed);
-      lasted.push(untilOver(g, 400_000, makeAngler(g, 'a', { power: 0.3, delay: 0.1 })));
+      lasted.push(untilOver(g, 900_000, makeAngler(g, 'a', { power: 0.3, delay: 0.1 })));
     }
-    for (const s of lasted) expect(s).toBeLessThan(400);
+    for (const s of lasted) expect(s).toBeLessThan(900);
     expect(Math.max(...lasted)).toBeGreaterThan(30);
   });
 });
