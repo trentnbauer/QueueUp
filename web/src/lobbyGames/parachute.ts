@@ -1,4 +1,4 @@
-import { PARACHUTE_PLAYER_H, PARACHUTE_PLAYER_W, PARACHUTE_ROW_H, type ParachuteSnapshot } from '@queueup/shared';
+import { PARACHUTE_GUST_FADE, PARACHUTE_GUST_H, PARACHUTE_PLAYER_H, PARACHUTE_PLAYER_W, PARACHUTE_ROW_H, parachuteGustStrength, type ParachuteSnapshot } from '@queueup/shared';
 import type { LobbyGameView } from './index';
 import { coverTile, hueOf, renderScene, roundRect, type Scene, type SceneGame } from './kit';
 
@@ -7,20 +7,29 @@ function drawWorld(sc: Scene<ParachuteSnapshot>): void {
   // Between snapshots the course carries on coming up the screen at the speed it was going.
   const up = drift;
 
-  // Gusts: soft bands with chevrons streaming the way they push.
+  // Gusts: soft bands with chevrons streaming the way they push. They fade in at the edge nearest and out the far one, over
+  // the same distance the push itself builds up and dies away in, so what you see is how hard it is blowing.
   for (const g of snapshot.gusts) {
     const y = (g.y - up) * S;
-    const h = S * 0.3;
+    const h = S * PARACHUTE_GUST_H;
     if (y < -h || y > S + h) continue;
-    ctx.fillStyle = 'oklch(0.82 0.12 220 / 0.14)';
+    const band = ctx.createLinearGradient(0, y - h / 2, 0, y + h / 2);
+    const edge = PARACHUTE_GUST_FADE / PARACHUTE_GUST_H;
+    band.addColorStop(0, 'oklch(0.82 0.12 220 / 0)');
+    band.addColorStop(edge, 'oklch(0.82 0.12 220 / 0.2)');
+    band.addColorStop(1 - edge, 'oklch(0.82 0.12 220 / 0.2)');
+    band.addColorStop(1, 'oklch(0.82 0.12 220 / 0)');
+    ctx.fillStyle = band;
     ctx.fillRect(0, y - h / 2, S, h);
-    ctx.strokeStyle = 'oklch(0.9 0.08 220 / 0.5)';
     ctx.lineWidth = 2;
     const slide = ((now / 700) * g.push) % 1;
     for (let row = 0; row < 3; row++) {
+      const cy = y + (row - 1) * h * 0.26;
+      // The chevrons are as strong as the wind is at their height.
+      const strength = parachuteGustStrength((cy - y) / S);
+      ctx.strokeStyle = `oklch(0.9 0.08 220 / ${(0.55 * strength).toFixed(3)})`;
       for (let i = -1; i < 7; i++) {
         const x = ((i + slide + row * 0.37) / 6) * S;
-        const cy = y + (row - 1) * h * 0.28;
         ctx.beginPath();
         ctx.moveTo(x - g.push * S * 0.012, cy - S * 0.012);
         ctx.lineTo(x + g.push * S * 0.012, cy);
@@ -78,40 +87,6 @@ function drawWorld(sc: Scene<ParachuteSnapshot>): void {
       ctx.stroke();
     }
     sc.drawPlayer(p.id, x, y, r, r);
-  }
-
-  drawWind(sc, up);
-}
-
-/** The wind on the viewer right now, always shown at the top of the screen: chevrons pointing the way it pushes, or a row of dots when it is calm. */
-function drawWind(sc: Scene<ParachuteSnapshot>, up: number): void {
-  const { ctx, S, snapshot, theme } = sc;
-  const mine = snapshot.players.find((p) => p.id === sc.me);
-  if (!mine) return;
-  let push = 0;
-  for (const g of snapshot.gusts) if (Math.abs(g.y - up - mine.y) <= 0.15) push += g.push;
-  const cx = S / 2;
-  const cy = S * 0.045;
-  ctx.fillStyle = 'oklch(0.12 0.006 55 / 0.55)';
-  roundRect(ctx, cx - S * 0.09, cy - S * 0.025, S * 0.18, S * 0.05, S * 0.025);
-  ctx.fill();
-  ctx.strokeStyle = push === 0 ? 'oklch(1 0 0 / 0.35)' : theme.text;
-  ctx.fillStyle = ctx.strokeStyle;
-  ctx.lineWidth = 2;
-  for (let i = -1; i <= 1; i++) {
-    const x = cx + i * S * 0.045;
-    if (push === 0) {
-      ctx.beginPath();
-      ctx.arc(x, cy, 2, 0, Math.PI * 2);
-      ctx.fill();
-    } else {
-      const d = Math.sign(push) * S * 0.01;
-      ctx.beginPath();
-      ctx.moveTo(x - d, cy - S * 0.012);
-      ctx.lineTo(x + d, cy);
-      ctx.lineTo(x - d, cy + S * 0.012);
-      ctx.stroke();
-    }
   }
 }
 
