@@ -82,15 +82,18 @@ describe('a practice lobby runs behind the device and applies each press when th
   it('keeps the server’s player in step with the device’s, so the server never ends a run the screen did not', () => {
     for (const latency of [0, 60, 150, 250]) {
       for (const seed of [3, 7]) {
-        // Reels the net toward the fish, as a person would.
+        // Casts, then reels the fish toward the green, as a person would.
+        let held = false;
         const { log, copy, lobby } = play(
           'fishing',
           seed,
           latency,
           (c, me) => {
-            const s = c.snapshot() as { fish: { y: number }; players: { id: string; y: number; vy: number }[] };
+            const s = c.snapshot() as { players: { id: string; mode: string; power: number; zone: number; zoneV: number; mark: number }[] };
             const p = s.players.find((q) => q.id === me)!;
-            return { input: [0, p.y + p.vy * 0.28 > s.fish.y ? -1 : 0] };
+            // A cast needs a fresh press, so let go first if still holding.
+            held = p.mode === 'idle' ? !held : p.mode === 'charging' ? p.power < 0.3 : p.mode === 'fight' ? p.zone + p.zoneV * 0.28 > p.mark : false;
+            return { input: [0, held ? -1 : 0] };
           },
           40,
         );

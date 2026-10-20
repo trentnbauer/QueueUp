@@ -1,159 +1,258 @@
-import type { FishingSnapshot } from '@queueup/shared';
+import { FISHING_TIERS, type FishingPlayer, type FishingSnapshot } from '@queueup/shared';
 import type { LobbyGameView } from './index';
-import { FONT, STAGE, renderScene, roundRect, type Scene, type SceneGame } from './kit';
+import { FONT, STAGE, drawLives, renderScene, roundRect, type Scene, type SceneGame } from './kit';
 
-/** The pond runs from the surface (just under the heads-up display) to the bottom of the arena; the rules' 0..1 depth maps onto it. */
-const POND_TOP = 0.13;
-const POND_BOTTOM = 0.96;
-const pondY = (y: number) => POND_TOP + y * (POND_BOTTOM - POND_TOP);
-/** The fish's own range, the same as the rules' (so the drawing never carries it out of the water while it is carried on between snapshots). */
-const FISH_MIN = 0.08;
-const FISH_MAX = 0.92;
+// Where things are, as fractions of the arena's side. These mirror the rules' (packages/shared/src/lobbyGames/fishing.ts): the pond fills the arena,
+// the anglers stand along the bottom at the rod, and a cast goes up the pond.
+const ROD_Y = 0.9;
+const WATER_TOP = 0.09;
+const SHORE_Y = 0.85;
+/** How far up the pond a cast reaches at the weakest and the strongest power (the rules' CAST_MIN and CAST_MAX). */
+const CAST_MIN = 0.1;
+const CAST_MAX = 0.74;
+/** The lure's size (the rules' LURE_R). */
+const LURE_R = 0.03;
+/** The reeling bar on the viewer's side of the arena, while they have a fish on. */
+const BAR = { x: 0.045, w: 0.04, top: 0.17, bottom: 0.76 };
+/** One colour for each kind of fish, smallest first: silver blue, green, orange, gold. */
+const TIER_COLOR = ['oklch(0.78 0.08 225)', 'oklch(0.76 0.15 150)', 'oklch(0.74 0.17 55)', 'oklch(0.84 0.16 90)'];
 
 function drawPond(sc: Scene<FishingSnapshot>): void {
-  const { ctx, S, now } = sc;
-  const top = POND_TOP * S;
+  const { ctx, S, now, fx } = sc;
+  const top = WATER_TOP * S;
   const water = ctx.createLinearGradient(0, top, 0, S);
-  water.addColorStop(0, 'oklch(0.36 0.07 215 / 0.8)');
-  water.addColorStop(1, 'oklch(0.2 0.05 240 / 0.9)');
+  water.addColorStop(0, 'oklch(0.3 0.06 225 / 0.85)');
+  water.addColorStop(1, 'oklch(0.2 0.05 245 / 0.92)');
   ctx.fillStyle = water;
-  ctx.beginPath();
-  ctx.moveTo(0, S);
-  for (let x = 0; x <= S; x += S / 24) ctx.lineTo(x, top + Math.sin((x / S) * 12 + now / 600) * S * 0.004);
-  ctx.lineTo(S, S);
-  ctx.closePath();
-  ctx.fill();
-  // A bright line along the surface.
-  ctx.strokeStyle = 'oklch(0.85 0.08 210 / 0.5)';
-  ctx.lineWidth = 2;
-  ctx.beginPath();
-  for (let x = 0; x <= S; x += S / 24) {
-    const y = top + Math.sin((x / S) * 12 + now / 600) * S * 0.004;
-    if (x === 0) ctx.moveTo(x, y);
-    else ctx.lineTo(x, y);
+  ctx.fillRect(0, top, S, S - top);
+  // A few slow ripples, still when the device asks for reduced motion.
+  ctx.strokeStyle = 'oklch(0.85 0.06 225 / 0.1)';
+  ctx.lineWidth = 1.5;
+  const drift = fx.reduced ? 0 : now / 4000;
+  for (let i = 0; i < 6; i++) {
+    const y = (WATER_TOP + 0.08 + i * 0.12 + Math.sin(drift + i) * 0.006) * S;
+    ctx.beginPath();
+    for (let x = 0; x <= S; x += S / 20) {
+      const yy = y + Math.sin((x / S) * 9 + drift * 2 + i * 1.7) * S * 0.004;
+      if (x === 0) ctx.moveTo(x, yy);
+      else ctx.lineTo(x, yy);
+    }
+    ctx.stroke();
   }
-  ctx.stroke();
+  // The bank the anglers stand on.
+  ctx.fillStyle = 'oklch(0.27 0.03 70 / 0.95)';
+  ctx.fillRect(0, SHORE_Y * S, S, S - SHORE_Y * S);
+  ctx.fillStyle = 'oklch(0.85 0.06 225 / 0.35)';
+  ctx.fillRect(0, SHORE_Y * S - 1, S, 2);
 }
 
-/** The fish: an orange body with a wagging tail and an eye, swimming a little from side to side as it thrashes. */
-function drawFish(sc: Scene<FishingSnapshot>, y: number): void {
-  const { ctx, S, now, theme } = sc;
-  const cx = (0.5 + Math.sin(now / 520) * 0.06) * S;
-  const cy = pondY(y) * S;
-  const rx = S * 0.065;
-  const ry = S * 0.032;
-  const wag = Math.sin(now / 90) * ry * 0.5;
+/** A fish: a body with a tail that wags, an eye at the front, in the colour of its kind. `dir` is which way it swims. */
+function drawFish(sc: Scene<FishingSnapshot>, cx: number, cy: number, tier: number, dir: number, seed: number): void {
+  const { ctx, S, now, fx } = sc;
+  const r = FISHING_TIERS[tier].r * S;
+  const rx = r * 1.6;
+  const ry = r * 0.9;
+  const wag = fx.reduced ? 0 : Math.sin(now / 110 + seed) * ry * 0.5;
   ctx.save();
-  ctx.shadowColor = 'oklch(0.75 0.17 60 / 0.6)';
-  ctx.shadowBlur = S * 0.03;
-  ctx.fillStyle = 'oklch(0.72 0.17 55)';
+  ctx.translate(cx, cy);
+  ctx.scale(dir, 1);
+  ctx.fillStyle = TIER_COLOR[tier];
   ctx.beginPath();
-  ctx.ellipse(cx, cy, rx, ry, 0, 0, Math.PI * 2);
+  ctx.ellipse(0, 0, rx, ry, 0, 0, Math.PI * 2);
   ctx.fill();
   ctx.beginPath();
-  ctx.moveTo(cx - rx * 0.85, cy);
-  ctx.lineTo(cx - rx * 1.6, cy - ry * 0.9 + wag);
-  ctx.lineTo(cx - rx * 1.6, cy + ry * 0.9 + wag);
+  ctx.moveTo(-rx * 0.8, 0);
+  ctx.lineTo(-rx * 1.5, -ry * 0.95 + wag);
+  ctx.lineTo(-rx * 1.5, ry * 0.95 + wag);
   ctx.closePath();
   ctx.fill();
-  ctx.restore();
-  ctx.fillStyle = 'oklch(0.85 0.12 70 / 0.7)';
+  ctx.fillStyle = 'oklch(1 0 0 / 0.28)';
   ctx.beginPath();
-  ctx.ellipse(cx + rx * 0.1, cy + ry * 0.35, rx * 0.6, ry * 0.4, 0, 0, Math.PI);
-  ctx.fill();
-  ctx.fillStyle = theme.text;
-  ctx.beginPath();
-  ctx.arc(cx + rx * 0.55, cy - ry * 0.2, ry * 0.22, 0, Math.PI * 2);
+  ctx.ellipse(rx * 0.05, ry * 0.35, rx * 0.6, ry * 0.4, 0, 0, Math.PI);
   ctx.fill();
   ctx.fillStyle = STAGE.ink;
   ctx.beginPath();
-  ctx.arc(cx + rx * 0.6, cy - ry * 0.2, ry * 0.1, 0, Math.PI * 2);
+  ctx.arc(rx * 0.55, -ry * 0.2, Math.max(1.5, ry * 0.18), 0, Math.PI * 2);
   ctx.fill();
+  ctx.restore();
 }
 
-function drawWorld(sc: Scene<FishingSnapshot>): void {
-  const { ctx, S, snapshot, theme, now } = sc;
-  const age = snapshot.phase === 'playing' ? sc.fx.age(snapshot, now) : 0;
-  const fishY = Math.min(FISH_MAX, Math.max(FISH_MIN, snapshot.fish.y + snapshot.fish.vy * age));
-  drawPond(sc);
+/** Where a fish is now: its place in the snapshot carried on by how long ago that was. */
+const place = (f: FishingSnapshot['fish'][number], age: number) => ({ x: f.x + f.vx * age, y: f.y + f.vy * age });
 
+function drawAnglers(sc: Scene<FishingSnapshot>): void {
+  const { ctx, S, snapshot, theme, now, fx } = sc;
   const n = Math.max(1, snapshot.players.length);
-  const netH = snapshot.half * 2 * (POND_BOTTOM - POND_TOP) * S;
-  // Nets first, so the fish swims in front of them; everyone's net crosses the whole pond, at their own height.
+  // Neighbours are never closer than this, whatever the crowd, so the little bars fit under each.
+  const room = Math.min(0.1, (0.84 / n) * 0.92);
   for (const i of sc.order()) {
     const c = snapshot.players[i];
-    if (!c.alive) continue; // line snapped: the burst has taken them
+    if (!c.alive) continue; // out of lines: the burst has taken them
     const mine = c.id === sc.me;
     const who = sc.info(c.id);
-    // Eased in the pond's own depth, plus how far it has moved since the snapshot.
-    const y = Math.min(0.96, Math.max(0.04, sc.ease(`${c.id}:y`, 0, c.y).y + c.vy * age));
-    const cy = pondY(y) * S;
-    const holding = Math.abs(fishY - y) <= snapshot.half;
+    const x = c.x * S;
+    const rodY = ROD_Y * S;
     ctx.save();
-    ctx.globalAlpha = (holding ? 0.34 : 0.16) * (mine ? 1.3 : 1);
-    ctx.fillStyle = who.color;
-    ctx.fillRect(0, cy - netH / 2, S, netH);
+    if (!mine) ctx.globalAlpha = 0.85;
+
+    if (c.mode === 'charging') {
+      // Where the lure would land if you let go now, with the power on a dashed line up the pond.
+      const reach = CAST_MIN + c.power * (CAST_MAX - CAST_MIN);
+      const aimY = (ROD_Y - reach) * S;
+      ctx.strokeStyle = who.color;
+      ctx.globalAlpha = mine ? 0.7 : 0.35;
+      ctx.lineWidth = mine ? 2 : 1;
+      ctx.setLineDash([S * 0.012, S * 0.012]);
+      ctx.beginPath();
+      ctx.moveTo(x, rodY);
+      ctx.lineTo(x, aimY);
+      ctx.stroke();
+      ctx.setLineDash([]);
+      ctx.beginPath();
+      ctx.arc(x, aimY, LURE_R * S, 0, Math.PI * 2);
+      ctx.stroke();
+      ctx.globalAlpha = mine ? 1 : 0.85;
+    } else if (c.mode === 'out' || c.mode === 'fight') {
+      const ly = c.ly * S;
+      ctx.strokeStyle = who.color;
+      ctx.globalAlpha = mine ? 0.8 : 0.5;
+      ctx.lineWidth = mine ? 2 : 1;
+      ctx.beginPath();
+      ctx.moveTo(x, rodY);
+      ctx.lineTo(x, ly);
+      ctx.stroke();
+      ctx.globalAlpha = mine ? 1 : 0.85;
+      // The lure: a bobbing bead, pulsing while it is being wound in.
+      const bob = fx.reduced ? 0 : Math.sin(now / 260 + i) * S * 0.003;
+      ctx.fillStyle = who.color;
+      ctx.beginPath();
+      ctx.arc(x, ly + bob, S * (c.winding ? 0.013 : 0.011), 0, Math.PI * 2);
+      ctx.fill();
+      ctx.strokeStyle = 'oklch(1 0 0 / 0.7)';
+      ctx.lineWidth = 1.5;
+      ctx.beginPath();
+      ctx.arc(x, ly + bob, S * 0.017, 0, Math.PI * 2);
+      ctx.stroke();
+      // The hooked fish struggling on the end of the line.
+      if (c.mode === 'fight' && c.tier >= 0) drawFish(sc, x, ly - S * 0.01, c.tier, 1, i * 2);
+    }
     ctx.restore();
-    ctx.fillStyle = who.color;
-    ctx.globalAlpha = mine ? 0.9 : 0.5;
-    ctx.fillRect(0, cy - netH / 2, S, mine ? 2 : 1);
-    ctx.fillRect(0, cy + netH / 2 - 1, S, mine ? 2 : 1);
-    ctx.globalAlpha = 1;
-  }
 
-  drawFish(sc, fishY);
-
-  const r = S * 0.034;
-  for (const i of sc.order()) {
-    const c = snapshot.players[i];
-    if (!c.alive) continue;
-    const who = sc.info(c.id);
-    const x = ((i + 0.5) / n) * 0.84 * S + S * 0.08;
-    const y = Math.min(0.96, Math.max(0.04, sc.ease(`${c.id}:y`, 0, c.y).y + c.vy * age));
-    const cy = pondY(y) * S;
-    // The line from the surface down to the angler's net.
-    ctx.strokeStyle = who.color;
-    ctx.globalAlpha = 0.55;
-    ctx.lineWidth = c.id === sc.me ? 2 : 1;
-    ctx.beginPath();
-    ctx.moveTo(x, POND_TOP * S);
-    ctx.lineTo(x, cy);
-    ctx.stroke();
-    ctx.globalAlpha = 1;
-    sc.drawPlayer(c.id, x, cy, r, r);
-    // Under the avatar: the line's health (red when it is close to snapping), a thin bar for how near the fish is to landing, and their count.
-    const bw = S * 0.1;
-    const bx = x - bw / 2;
-    const by = cy + r + S * 0.012;
-    const bar = (top: number, height: number, fraction: number, fill: string) => {
-      ctx.fillStyle = STAGE.hudFill;
-      roundRect(ctx, bx, top, bw, height, height / 2);
-      ctx.fill();
-      ctx.fillStyle = fill;
-      roundRect(ctx, bx, top, Math.max(height, bw * fraction), height, height / 2);
-      ctx.fill();
-    };
-    bar(by, S * 0.012, c.health, c.health < 0.25 ? theme.danger : theme.mint);
-    bar(by + S * 0.016, S * 0.007, c.catch, theme.acc);
+    sc.drawPlayer(c.id, x, rodY, S * 0.034, S * 0.034);
+    // Under the avatar: lines left, the wait for a bite, and the points.
+    const by = rodY + S * 0.034 + S * 0.012;
+    const bw = room * S;
+    drawLives(ctx, x, by + S * 0.006, c.lives, 3, S * 0.008, theme.danger);
+    ctx.fillStyle = STAGE.hudFill;
+    roundRect(ctx, x - bw / 2, by + S * 0.02, bw, S * 0.006, S * 0.003);
+    ctx.fill();
+    ctx.fillStyle = c.patience < 0.25 ? theme.danger : theme.mint;
+    roundRect(ctx, x - bw / 2, by + S * 0.02, Math.max(S * 0.006, bw * c.patience), S * 0.006, S * 0.003);
+    ctx.fill();
     ctx.font = `700 ${Math.round(S * 0.024)}px ${FONT.mono}`;
     ctx.textAlign = 'center';
     ctx.textBaseline = 'alphabetic';
     ctx.fillStyle = theme.text;
-    ctx.fillText(String(c.landed), x, by + S * 0.05);
+    ctx.fillText(String(c.points), x, by + S * 0.058);
+    // Someone else's reeling: a thin catch bar and a line bar beside their fish.
+    if (!mine && c.mode === 'fight') drawMiniFight(sc, c, x);
   }
+}
+
+/** How another angler's fight is going, small, above their lure. */
+function drawMiniFight(sc: Scene<FishingSnapshot>, c: FishingPlayer, x: number): void {
+  const { ctx, S, theme } = sc;
+  const bw = S * 0.07;
+  const top = c.ly * S - S * 0.05;
+  const bar = (y: number, h: number, fraction: number, fill: string) => {
+    ctx.fillStyle = STAGE.hudFill;
+    roundRect(ctx, x - bw / 2, y, bw, h, h / 2);
+    ctx.fill();
+    ctx.fillStyle = fill;
+    roundRect(ctx, x - bw / 2, y, Math.max(h, bw * fraction), h, h / 2);
+    ctx.fill();
+  };
+  bar(top, S * 0.01, c.health, c.health < 0.25 ? theme.danger : theme.mint);
+  bar(top + S * 0.014, S * 0.006, c.catch, theme.acc);
+}
+
+/** The viewer's own reeling bar: the track with the green zone you raise by holding, the fish on it, and how the catch and the line are going. */
+function drawReelBar(sc: Scene<FishingSnapshot>, c: FishingPlayer): void {
+  const { ctx, S, theme } = sc;
+  const x = BAR.x * S;
+  const w = BAR.w * S;
+  const top = BAR.top * S;
+  const h = (BAR.bottom - BAR.top) * S;
+  const at = (v: number) => top + v * h;
+  ctx.save();
+  ctx.fillStyle = STAGE.hudFill;
+  roundRect(ctx, x - S * 0.012, top - S * 0.03, w + S * 0.07, h + S * 0.06, S * 0.02);
+  ctx.fill();
+  ctx.fillStyle = 'oklch(0.18 0.02 240 / 0.9)';
+  roundRect(ctx, x, top, w, h, w / 2);
+  ctx.fill();
+  // The green zone: keep the fish inside it.
+  const inside = Math.abs(c.mark - c.zone) <= c.half;
+  const zoneTop = at(Math.max(0, c.zone - c.half));
+  const zoneBottom = at(Math.min(1, c.zone + c.half));
+  ctx.fillStyle = theme.mint;
+  ctx.globalAlpha = inside ? 0.75 : 0.45;
+  roundRect(ctx, x, zoneTop, w, zoneBottom - zoneTop, w / 2);
+  ctx.fill();
+  ctx.globalAlpha = 1;
+  // The fish, sized by its kind.
+  drawFish(sc, x + w / 2, at(c.mark), Math.max(0, c.tier), 1, 0);
+  // The catch (how close to landing) down the side, and under the bar the line's strength.
+  const cx = x + w + S * 0.012;
+  const cw = S * 0.01;
+  ctx.fillStyle = 'oklch(0.18 0.02 240 / 0.9)';
+  roundRect(ctx, cx, top, cw, h, cw / 2);
+  ctx.fill();
+  ctx.fillStyle = theme.acc;
+  const filled = h * c.catch;
+  roundRect(ctx, cx, top + h - filled, cw, Math.max(cw, filled), cw / 2);
+  ctx.fill();
+  const lw = w + S * 0.05;
+  ctx.fillStyle = 'oklch(0.18 0.02 240 / 0.9)';
+  roundRect(ctx, x, top + h + S * 0.008, lw, S * 0.01, S * 0.005);
+  ctx.fill();
+  ctx.fillStyle = c.health < 0.25 ? theme.danger : theme.mint;
+  roundRect(ctx, x, top + h + S * 0.008, Math.max(S * 0.01, lw * c.health), S * 0.01, S * 0.005);
+  ctx.fill();
+  ctx.font = `700 ${Math.round(S * 0.022)}px ${FONT.mono}`;
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'alphabetic';
+  ctx.fillStyle = theme.text;
+  ctx.fillText(`+${FISHING_TIERS[Math.max(0, c.tier)].points}`, x + (w + S * 0.05) / 2, top - S * 0.01);
+  ctx.restore();
+}
+
+function drawWorld(sc: Scene<FishingSnapshot>): void {
+  const { ctx, S, snapshot, now } = sc;
+  const age = snapshot.phase === 'playing' ? sc.fx.age(snapshot, now) : 0;
+  const mine = snapshot.players.find((p) => p.id === sc.me);
+  drawPond(sc);
+
+  // The fish. The one you have on the line is on your line, not out swimming as well.
+  for (const f of snapshot.fish) {
+    const here = place(f, age);
+    if (here.x < -0.2 || here.x > 1.2) continue;
+    if (mine && mine.alive && mine.hooked === f.n) continue;
+    drawFish(sc, here.x * S, here.y * S, f.tier, f.vx >= 0 ? 1 : -1, f.n);
+  }
+  drawAnglers(sc);
+  if (mine && mine.alive && mine.mode === 'fight') drawReelBar(sc, mine);
 }
 
 const scene: SceneGame<FishingSnapshot> = {
   scroll: 'y',
   drawWorld,
-  anchor: (snapshot, index) => {
-    const n = Math.max(1, snapshot.players.length);
-    return { x: ((index + 0.5) / n) * 0.84 + 0.08, y: pondY(snapshot.players[index].y) };
-  },
+  anchor: (snapshot, index) => ({ x: snapshot.players[index].x, y: ROD_Y }),
 };
 
 export const fishingView: LobbyGameView<FishingSnapshot> = {
-  // One held button: Reel (Space or Up) pulls your net up, and letting go lets it sink. Pressing and holding the arena works too.
+  // One held button does everything: hold to cast (let go to throw), hold to wind the lure in, hold to reel a fish in.
+  // Space or Up, or press and hold anywhere on the arena.
   pad: 'none',
   holds: [{ labelKey: 'spin.lobby.fishing.reel', dx: 0, dy: -1, keys: [' ', 'ArrowUp', 'w'], primary: true }],
   actions: [],
