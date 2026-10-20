@@ -1,4 +1,8 @@
-import { WALL_BALL_R, WALL_PLAYER_R, WALL_PLAYER_SPEED, WALL_REACH, WALL_ROW_Y, WALL_Y, type WallSnapshot } from '@queueup/shared';
+import { WALL_BALL_R, WALL_PLAYER_SPEED, WALL_REACH, WALL_ROW_Y, WALL_Y, type WallSnapshot } from '@queueup/shared';
+
+/** A paddle as wide as the reach that hits the ball (either side of where it lands), so what is drawn is what is hit, and a slim bar tall. */
+const PADDLE_W = WALL_REACH * 2;
+const PADDLE_H = 0.03;
 import type { LobbyGameView } from './index';
 import { FONT, STAGE, renderScene, roundRect, type Scene, type SceneGame } from './kit';
 
@@ -20,7 +24,7 @@ function drawWorld(sc: Scene<WallSnapshot>): void {
   ctx.stroke();
   // The floor line the players stand on.
   ctx.fillStyle = STAGE.groundLine;
-  ctx.fillRect(S * 0.04, S * (WALL_ROW_Y + WALL_PLAYER_R + 0.012), S * 0.92, 1);
+  ctx.fillRect(S * 0.04, S * (WALL_ROW_Y + PADDLE_H / 2 + 0.012), S * 0.92, 1);
 
   // Where the ball will land, for whoever's turn it is: a ring on the floor with the reach shown as a bar.
   const target = snapshot.players.find((p) => p.id === snapshot.targetId);
@@ -54,20 +58,29 @@ function drawWorld(sc: Scene<WallSnapshot>): void {
     ctx.save();
     // Everyone but the one whose turn it is is dimmed, so it is clear who the ball is coming for.
     if (!mine && snapshot.phase === 'playing') ctx.globalAlpha = 0.55;
-    sc.drawPlayer(p.id, x * S, WALL_ROW_Y * S, WALL_PLAYER_R * S, WALL_PLAYER_R * S);
+    // The player is a paddle in their colour (yours has a bright edge), like Pong's.
+    const box = { x: (x - PADDLE_W / 2) * S, y: (WALL_ROW_Y - PADDLE_H / 2) * S, w: PADDLE_W * S, h: PADDLE_H * S };
+    roundRect(ctx, box.x, box.y, box.w, box.h, box.h * 0.45);
+    ctx.fillStyle = sc.info(p.id).color;
+    ctx.fill();
+    if (p.id === sc.me) {
+      ctx.strokeStyle = theme.text;
+      ctx.lineWidth = 2;
+      ctx.stroke();
+    }
     ctx.restore();
+    // The one the ball is coming for is ringed.
     if (mine && snapshot.phase === 'playing') {
       ctx.strokeStyle = theme.mint;
       ctx.lineWidth = 2;
-      ctx.beginPath();
-      ctx.arc(x * S, WALL_ROW_Y * S, WALL_PLAYER_R * S * 1.45, 0, Math.PI * 2);
+      roundRect(ctx, box.x - S * 0.012, box.y - S * 0.012, box.w + S * 0.024, box.h + S * 0.024, (box.h + S * 0.024) * 0.5);
       ctx.stroke();
     }
     ctx.font = `700 ${Math.round(S * 0.024)}px ${FONT.mono}`;
     ctx.textAlign = 'center';
     ctx.textBaseline = 'alphabetic';
     ctx.fillStyle = theme.text;
-    ctx.fillText(String(p.meters), x * S, (WALL_ROW_Y + WALL_PLAYER_R + 0.045) * S);
+    ctx.fillText(String(p.meters), x * S, (WALL_ROW_Y + PADDLE_H / 2 + 0.045) * S);
   }
 
   // The ball.
