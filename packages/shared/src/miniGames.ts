@@ -44,6 +44,7 @@ export const MINIGAME_SCORE_MAX: Record<LobbyGameId, number> = {
   bounce: 3600, // metres the screen climbed
   tunnel: 3600, // metres the tunnel came
   parachute: 3600, // metres fallen
+  conveyor: 3600, // metres the belt ran
 };
 
 /** Each game's rules version. A score is saved with the version it was played under, and the high score lists show only the
@@ -87,6 +88,7 @@ export const MINIGAME_VERSIONS: Record<LobbyGameId, number> = {
   bounce: 1,
   tunnel: 1,
   parachute: 1,
+  conveyor: 1,
 };
 export const miniGameVersion = (game: LobbyGameId): number => MINIGAME_VERSIONS[game];
 
@@ -331,6 +333,7 @@ export const MINIGAME_NAMES: Record<LobbyGameId, string> = {
   bounce: 'Bounce',
   tunnel: 'Tunnel',
   parachute: 'Parachute',
+  conveyor: 'Conveyor',
 };
 
 /** Whether score `a` is better than score `b` in the game (a smaller time is better; otherwise bigger is). Equal is not better. */
