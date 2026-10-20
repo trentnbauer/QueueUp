@@ -157,10 +157,15 @@ function resultRows(snapshot: Scene['snapshot'], me: string): { hero: StandingRo
 /** Where the card is in the arena, as fractions of its side, so the lobby panel can lay the thumbs exactly over its bottom strip. */
 export function resultCardRect(snapshot: Scene['snapshot'], me: string): { left: number; top: number; width: number; height: number; stripTop: number; stripHeight: number } {
   const { hero, rows } = resultRows(snapshot, me);
-  const word = snapshot.id === 'words' && snapshot.answer;
+  const word = hasLastWord(snapshot);
   const height = CARD_PAD + CARD_HEAD_H + (hero ? CARD_HERO_H + CARD_GAP : 0) + rows.length * (CARD_ROW_H + CARD_GAP) + (word ? CARD_WORD_H : 0) + RESULT_RATING_STRIP + CARD_PAD * 0.25;
   const top = 0.5 - height / 2;
   return { left: (1 - CARD_W) / 2, top, width: CARD_W, height, stripTop: top + height - RESULT_RATING_STRIP - CARD_PAD * 0.25, stripHeight: RESULT_RATING_STRIP };
+}
+
+/** Whether the card has a word to show: Words and Anagram, once the word is over (until then the server keeps the answer back). */
+function hasLastWord(snapshot: Scene['snapshot']): boolean {
+  return (snapshot.id === 'words' || snapshot.id === 'anagram') && typeof snapshot.answer === 'string' && snapshot.answer.length > 0;
 }
 
 /** The unit a game's score is counted in, short ("m", "pts"). */
@@ -200,7 +205,7 @@ function drawResult(sc: Scene): void {
   const card = resultCardRect(snapshot, sc.me);
   const w = card.width * S;
   const h = card.height * S;
-  const word = snapshot.id === 'words' && snapshot.answer ? t('spin.lobby.words.answer', { word: snapshot.answer.toUpperCase() }) : null;
+  const word = hasLastWord(snapshot) ? t(snapshot.id === 'anagram' ? 'spin.lobby.anagram.answer' : 'spin.lobby.words.answer', { word: (snapshot as { answer: string }).answer.toUpperCase() }) : null;
   const pad = CARD_PAD * S;
   const winner = snapshot.winnerId ? snapshot.players.find((p) => p.id === snapshot.winnerId) : undefined;
 
@@ -230,6 +235,15 @@ function drawResult(sc: Scene): void {
   ctx.fillStyle = FAINT;
   ctx.fillText(t(hero && !winner ? 'spin.lobby.hud.solo' : 'spin.lobby.hud.runNo', { n: snapshot.run }), right, y + CARD_HEAD_H * S * 0.4);
   y += CARD_HEAD_H * S;
+
+  // The word games (Words, Anagram) show the word the run ended on, straight under the headline, whoever won.
+  if (word) {
+    ctx.textAlign = 'left';
+    ctx.font = `800 ${Math.round(S * 0.036)}px ${FONT.display}`;
+    ctx.fillStyle = theme.accText;
+    ctx.fillText(word, left, y + CARD_WORD_H * S * 0.2, right - left);
+    y += CARD_WORD_H * S;
+  }
 
   const person = (row: StandingRow) => ({ info: sc.info(row.id), name: row.isMe ? t('spin.lobby.hud.meRow') : sc.info(row.id).name });
   const avatar = (cx: number, cy: number, r: number, row: StandingRow, ring: string | null) => {
@@ -295,15 +309,6 @@ function drawResult(sc: Scene): void {
     ctx.fillText(person(row).name, left + S * 0.125, y + rh / 2 + 1, right - left - S * 0.3);
     drawScoreText(sc, right - S * 0.02, y + rh / 2 + 1, row.score, Math.round(S * 0.032), Math.round(S * 0.022), row.isMe ? theme.accText : theme.text, FAINT);
     y += rh + CARD_GAP * S;
-  }
-
-  // A game with a secret (Words) shows it in the card, whoever won.
-  if (word) {
-    ctx.textAlign = 'center';
-    ctx.font = `800 ${Math.round(S * 0.038)}px ${FONT.display}`;
-    ctx.fillStyle = theme.text;
-    ctx.fillText(word, 0, y + CARD_WORD_H * S * 0.45, w * 0.9);
-    y += CARD_WORD_H * S;
   }
 
   // A line above the review strip.

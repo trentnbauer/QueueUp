@@ -102,6 +102,7 @@ export const spin = {
   "spin.lobby.words.name": "Words",
   "spin.lobby.words.tagline": "Everyone guesses the same four-letter word",
   "spin.lobby.words.answer": "THE WORD WAS {word}",
+  "spin.lobby.anagram.answer": "THE WORD WAS {word}",
   "spin.lobby.words.solved": "You got the word!",
   "spin.lobby.words.notWord": "NOT IN THE WORD LIST",
   "spin.lobby.words.nobody": "Nobody found the word",
