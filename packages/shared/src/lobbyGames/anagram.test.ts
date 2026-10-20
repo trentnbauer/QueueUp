@@ -145,15 +145,32 @@ describe('AnagramGame', () => {
     }
   });
 
-  it('moves on when nobody solves a word in time, showing the answer', () => {
+  it('ends the run when nobody solves a word in time, showing the answer and keeping the score', () => {
     const g = started(['a']);
     const first = toWord(g);
+    for (const t of spell(first.letters)) g.tap('a', t);
+    const second = toWord(g, first.wordNo);
+    const before = score(g, 'a');
+    expect(before).toBeGreaterThan(0);
     run(g, 14_500);
     const s = g.snapshot();
-    expect(s.stage).toBe('between');
+    expect(s.phase).toBe('over');
     expect(s.answer).not.toBeNull();
     expect(s.solvedBy).toBeNull();
-    expect(toWord(g, first.wordNo).wordNo).toBeGreaterThan(first.wordNo);
+    expect(s.wordNo).toBe(second.wordNo);
+    expect(s.history[s.history.length - 1].meters).toBe(before);
+    expect(s.winnerId).toBeNull();
+  });
+
+  it('with two players, ends the run on an unsolved word and gives it to whoever has the most points', () => {
+    const g = started(['a', 'b']);
+    const first = toWord(g);
+    for (const t of spell(first.letters)) g.tap('b', t);
+    toWord(g, first.wordNo);
+    run(g, 14_500);
+    const s = g.snapshot();
+    expect(s.phase).toBe('over');
+    expect(s.winnerId).toBe('b');
   });
 
   it("never tells one player what another has picked", () => {

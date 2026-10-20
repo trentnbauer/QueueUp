@@ -24,7 +24,7 @@ interface Solver extends RoundPlayer {
 }
 
 /** Shows a scrambled word to everyone; tap the tiles to spell it. The first player to spell a word the scramble can
- * make scores for it, and then a new word comes, a letter longer every few words. When the 60 seconds are up, most points wins. See RoundGame for
+ * make scores for it, and then a new word comes, a letter longer every few words. A word that goes unsolved for 14 seconds ends the run, and so do the 60 seconds; most points wins. See RoundGame for
  * how rounds start and end. */
 export class AnagramGame extends RoundGame<Solver> {
   readonly id = 'anagram' as const;
@@ -143,9 +143,11 @@ export class AnagramGame extends RoundGame<Solver> {
     } else {
       this.elapsed += dt;
       if (this.elapsed >= WORD_S) {
+        // A word nobody got in time ends the run: the answer stays up, and the most points wins (alone, it is your score).
         this.solvedBy = null;
         this.stage = 'between';
         this.wait = BETWEEN_S;
+        this.finishRound();
       }
     }
     if (this.roundMs / 1000 >= ROUND_S) this.finishRound();
