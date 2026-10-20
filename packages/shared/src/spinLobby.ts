@@ -11,8 +11,8 @@
 export const LOBBY_TICK_HZ = 15;
 
 /** The games the lobby can run. */
-export type LobbyGameId = 'runner' | 'flappy' | 'dodge' | 'rope' | 'coins' | 'battleships' | 'race' | 'whack' | 'draw' | 'tilt' | 'stacker' | 'sumo' | 'asteroids' | 'memory' | 'words' | 'lava' | 'snake' | 'gravity' | 'laser' | 'colormatch' | 'potato' | 'anagram' | 'mines' | 'stop' | 'pong' | 'wall' | 'frogger' | 'fishing' | 'orbit' | 'rps' | 'rhythm' | 'sortit' | 'tempo' | 'bounce';
-export const LOBBY_GAME_IDS: readonly LobbyGameId[] = ['runner', 'flappy', 'dodge', 'rope', 'coins', 'battleships', 'race', 'whack', 'draw', 'tilt', 'stacker', 'sumo', 'asteroids', 'memory', 'words', 'lava', 'snake', 'gravity', 'laser', 'colormatch', 'potato', 'anagram', 'mines', 'stop', 'pong', 'wall', 'frogger', 'fishing', 'orbit', 'rps', 'rhythm', 'sortit', 'tempo', 'bounce'];
+export type LobbyGameId = 'runner' | 'flappy' | 'dodge' | 'rope' | 'coins' | 'battleships' | 'race' | 'whack' | 'draw' | 'tilt' | 'stacker' | 'sumo' | 'asteroids' | 'memory' | 'words' | 'lava' | 'snake' | 'gravity' | 'laser' | 'colormatch' | 'potato' | 'anagram' | 'mines' | 'stop' | 'pong' | 'wall' | 'frogger' | 'fishing' | 'orbit' | 'rps' | 'rhythm' | 'sortit' | 'tempo' | 'bounce' | 'tunnel';
+export const LOBBY_GAME_IDS: readonly LobbyGameId[] = ['runner', 'flappy', 'dodge', 'rope', 'coins', 'battleships', 'race', 'whack', 'draw', 'tilt', 'stacker', 'sumo', 'asteroids', 'memory', 'words', 'lava', 'snake', 'gravity', 'laser', 'colormatch', 'potato', 'anagram', 'mines', 'stop', 'pong', 'wall', 'frogger', 'fishing', 'orbit', 'rps', 'rhythm', 'sortit', 'tempo', 'bounce', 'tunnel'];
 
 /** What a client sends. Anything else is ignored. */
 export type LobbyClientMessage =
@@ -1819,7 +1819,50 @@ export interface BounceSnapshot extends RoundSummary {
   winnerId: string | null;
 }
 
-export type LobbyGameSnapshot = RunnerSnapshot | FlappySnapshot | DodgeSnapshot | RopeSnapshot | CoinsSnapshot | BattleshipsSnapshot | RaceSnapshot | WhackSnapshot | DrawSnapshot | TiltSnapshot | StackerSnapshot | SumoSnapshot | AsteroidsSnapshot | MemorySnapshot | WordsSnapshot | LavaSnapshot | SnakeSnapshot | GravitySnapshot | LaserSnapshot | ColorMatchSnapshot | PotatoSnapshot | AnagramSnapshot | MinesSnapshot | StopSnapshot | PongSnapshot | WallSnapshot | FroggerSnapshot | FishingSnapshot | OrbitSnapshot | RpsSnapshot | RhythmSnapshot | SortitSnapshot | TempoSnapshot | BounceSnapshot;
+// ---- Tunnel (a ship flies down a tunnel that twists and narrows) ----------------------------------------------------
+
+/** Where the ship is down the screen, and how wide it is (fractions of the screen). */
+export const TUNNEL_SHIP_Y = 0.85;
+export const TUNNEL_SHIP_W = 0.06;
+
+/** What makes this run's tunnel: how fast each of its two waves turns (radians a screen of tunnel) and where each starts. The rest is fixed, so the
+ * screen works out the walls itself (`tunnelAt`) from these and how far the tunnel has come. */
+export interface TunnelCourse {
+  f: [number, number];
+  p: [number, number];
+}
+
+export interface TunnelPlayer {
+  id: string;
+  /** Where they are across the screen (0..1). */
+  x: number;
+  /** The direction they are holding: -1, 0 or 1. */
+  dir: number;
+  /** Still flying. False once they touch a wall, or if they arrived mid-run. */
+  alive: boolean;
+  /** Runs won since this person joined the lobby. */
+  wins: number;
+  /** How far the tunnel has come, in metres: live while flying, final once out. */
+  meters: number;
+}
+
+export interface TunnelSnapshot extends RoundSummary {
+  id: 'tunnel';
+  phase: LobbyRoundPhase;
+  meters: number;
+  /** How fast the tunnel comes, in screens a second. */
+  speed: number;
+  course: TunnelCourse;
+  /** How far the tunnel has come, in screens. */
+  dist: number;
+  players: TunnelPlayer[];
+  /** Milliseconds left in `countdown` or `over`; 0 otherwise. */
+  timerMs: number;
+  /** Who won the run that just ended (`over` only); null when nobody did (a solo run, or a draw). */
+  winnerId: string | null;
+}
+
+export type LobbyGameSnapshot = RunnerSnapshot | FlappySnapshot | DodgeSnapshot | RopeSnapshot | CoinsSnapshot | BattleshipsSnapshot | RaceSnapshot | WhackSnapshot | DrawSnapshot | TiltSnapshot | StackerSnapshot | SumoSnapshot | AsteroidsSnapshot | MemorySnapshot | WordsSnapshot | LavaSnapshot | SnakeSnapshot | GravitySnapshot | LaserSnapshot | ColorMatchSnapshot | PotatoSnapshot | AnagramSnapshot | MinesSnapshot | StopSnapshot | PongSnapshot | WallSnapshot | FroggerSnapshot | FishingSnapshot | OrbitSnapshot | RpsSnapshot | RhythmSnapshot | SortitSnapshot | TempoSnapshot | BounceSnapshot | TunnelSnapshot;
 
 /** What a client needs to run its own player on a course the server decided: which run, the seed that
  * makes the course, and how long until the run starts (negative once it has, by how far in). */

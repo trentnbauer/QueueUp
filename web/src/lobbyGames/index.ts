@@ -36,6 +36,7 @@ import { rhythmView } from './rhythm';
 import { sortitView } from './sortit';
 import { tempoView } from './tempo';
 import { bounceView } from './bounce';
+import { tunnelView } from './tunnel';
 
 /** What a renderer is given each frame. */
 export interface LobbyDrawArgs<S extends LobbyGameSnapshot = LobbyGameSnapshot> {
@@ -130,6 +131,7 @@ export const LOBBY_GAME_VIEWS: { [K in LobbyGameId]: LobbyGameView<Extract<Lobby
   sortit: sortitView,
   tempo: tempoView,
   bounce: bounceView,
+  tunnel: tunnelView,
 };
 
 /** The view for whichever game a snapshot belongs to. */

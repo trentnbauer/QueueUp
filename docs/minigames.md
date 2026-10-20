@@ -64,7 +64,7 @@ Guest play is off when `SIGNUP_MODE=invite` or `PRIVATE_INSTANCE=true`. The two 
 
 ## Ping and who works out what
 
-In **Runner, Flappy, Dodge, Jump rope, Obstacle race, Lava rise, Gravity flip, Laser gaps, Road hop, Fishing, Orbit, Rhythm lanes, Sort it, Steady tempo and Bounce**, your own player is worked out **on your own device**, so a slow connection does not make you jump late or get hit by something you cleared:
+In **Runner, Flappy, Dodge, Jump rope, Obstacle race, Lava rise, Gravity flip, Laser gaps, Road hop, Fishing, Orbit, Rhythm lanes, Sort it, Steady tempo, Bounce and Tunnel**, your own player is worked out **on your own device**, so a slow connection does not make you jump late or get hit by something you cleared:
 
 - **Your device** runs your player against the course the moment you press: your jump, your duck, your slide, your steering. Your hits are decided there too, and it tells the server where you are about 20 times a second, and straight away when you are out.
 - **The server** decides the shared things: the course's seed and exactly when a run starts (everyone's device lines its clock up with the server's, so everyone starts the same course at the same moment), who is still in, who won, the wins and the history. It shows everyone else's player from what their devices report.
@@ -318,6 +318,18 @@ A ball that bounces by itself, up a tower of platforms. Everyone climbs the same
 - **Ping:** your own ball is worked out on your own device (see "Ping and who works out what"), so it answers the moment you press. The platforms come from the same seed and the server's clock.
 - **Controls:** left and right only.
 
+## Tunnel
+
+A ship flies down a tunnel that twists and narrows. Everyone is in the same tunnel, side by side, and never touches.
+
+- **Goal:** stay between the walls. The tunnel comes down the screen toward your ship; **steer left and right** to follow it. **Touch a wall and you are out.** **Last one flying wins**; alone it is a high score (metres flown).
+- **The tunnel** starts straight and 0.48 of the screen wide, and its curves grow over the first six screens. Its middle follows two waves that never turn sharper than the ship can slide, so there is always a line through. It **narrows** by 0.02 a screen of tunnel, down to 0.18 wide. The waves come from the round's seed, so it is the same tunnel for everyone.
+- **Speed:** the tunnel comes at 0.45 of a screen a second at first and 0.018 faster every second, with no top speed, so it always gets faster than anyone can follow in the end. The ship slides at 0.6 of a screen a second.
+- There is no time limit of its own: it goes on until it is beaten. With a time cap (a waiting room), whoever is still in keeps their metres and nobody wins.
+- **Hard to pass 30 seconds:** a test pilot who follows the middle perfectly lasts about two minutes, one who sees the tunnel a fifth of a second late lasts 27 to 39 seconds, and one a third of a second late about 20 to 25, so getting to 30 is a good run.
+- **Ping:** your own ship is worked out on your own device (see "Ping and who works out what"), so it answers the moment you press. The tunnel comes from the same seed and the server's clock.
+- **Controls:** left and right only.
+
 ## Rating a game
 
 When a run ends and its result card is showing, a **thumbs up / thumbs down** appears in the result card (in a room's lobby, a spin's waiting room, an open lobby and solo practice alike).
@@ -383,6 +395,7 @@ A game can instead make **the play space the controller**: there are no buttons 
 | Sort it | Press **←** / **→** (or click a bin). | Tap a bin. |
 | Steady tempo | **Space** (or click anywhere). | Tap anywhere on the arena. |
 | Bounce | **←** / **→** or **A** / **D**. | The **◀** and **▶** buttons. |
+| Tunnel | **←** / **→** or **A** / **D**. | The **◀** and **▶** buttons. |
 | Orbit | **Space**, **↑**, **←** / **→** or **W** / **A** / **D** to flip direction. | **Flip**, or tap anywhere on the arena. |
 
 ## Runner
