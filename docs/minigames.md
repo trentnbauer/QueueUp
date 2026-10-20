@@ -150,7 +150,7 @@ A bomb with a lit fuse goes round the ring. Needs at least 2 players, so on your
 
 One scrambled word, the same for everyone. Tap the tiles to spell it; the first to spell it scores.
 
-- **Goal:** the most points in 60 seconds. A word of 5 or 6 letters is shown scrambled. Tap the tiles in the order that spells it; a tile you have used is dimmed, and **⌫** takes your last pick back. When you have used every tile the word is checked: right, and you score; wrong, and your picks are cleared so you can try again.
+- **Goal:** the most points in 60 seconds. A scrambled word is shown: the first three words have 3 letters, the next three 4, the next three 5, and from the tenth on 6 (the most tiles there are). Tap the tiles in the order that spells it; a tile you have used is dimmed, and **⌫** takes your last pick back. When you have used every tile the word is checked: right, and you score; wrong, and your picks are cleared so you can try again.
 - **Any word made of the same letters counts** if it is in the game's word list (HEART or EARTH), not only the one the game had in mind.
 - **Only the first to solve a word scores** (5 points, plus up to 5 more for how much of the 14 seconds was left). Then the answer is shown for a moment, with who got it, and a new word starts. A word nobody solves in 14 seconds is shown and the next begins.
 - **What others see of you:** only your points and how many tiles you have picked, never which. The answer stays on the server until the word is over.

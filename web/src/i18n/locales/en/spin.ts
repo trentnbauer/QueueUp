@@ -186,7 +186,7 @@ export const spin = {
   "spin.lobby.potato.round": "Round {n}",
   "spin.lobby.anagram.name": "Anagram",
   "spin.lobby.anagram.tagline": "Unscramble the word first",
-  "spin.lobby.anagram.hint": "Tap the tiles in the order that spells the scrambled word. The first to spell it scores, then a new word comes; the back key takes your last pick back. Most points when the time is up wins. Nothing here changes the spin.",
+  "spin.lobby.anagram.hint": "Tap the tiles in the order that spells the scrambled word. The first to spell it scores, then a new word comes, a letter longer every few words (3, then 4, 5 and 6 letters); the back key takes your last pick back. Most points when the time is up wins. Nothing here changes the spin.",
   "spin.lobby.anagram.solvedBy": "{name} got it",
   "spin.lobby.anagram.nobody": "Nobody got it",
   "spin.lobby.mines.name": "Minesweeper race",

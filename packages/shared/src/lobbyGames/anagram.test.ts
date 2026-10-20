@@ -42,9 +42,15 @@ function spell(letters: string): number[] {
 }
 
 describe('AnagramList', () => {
-  it('holds only 5 and 6 letter lower case words, none twice', () => {
-    for (const w of ANAGRAM_WORDS) expect(w).toMatch(/^[a-z]{5,6}$/);
+  it('holds only 3 to 6 letter lower case words, none twice, and plenty of each length', () => {
+    for (const w of ANAGRAM_WORDS) expect(w).toMatch(/^[a-z]{3,6}$/);
     expect(new Set(ANAGRAM_WORDS).size).toBe(ANAGRAM_WORDS.length);
+    for (const n of [3, 4, 5, 6]) expect(ANAGRAM_WORDS.filter((w) => w.length === n).length).toBeGreaterThanOrEqual(20);
+  });
+
+  it('has no two short words made of the same letters, since either would count as the answer', () => {
+    const short = ANAGRAM_WORDS.filter((w) => w.length <= 4).map(sortedLetters);
+    expect(new Set(short).size).toBe(short.length);
   });
 });
 
@@ -69,6 +75,19 @@ describe('AnagramGame', () => {
       expect(ANAGRAM_WORDS.some((w) => sortedLetters(w) === sortedLetters(s.letters))).toBe(true);
       for (const t of spell(s.letters)) g.tap('a', t);
     }
+  });
+
+  it('starts with three words of 3 letters, then 4, then 5, and 6 from then on', () => {
+    const g = started(['a'], 11);
+    const lengths: number[] = [];
+    let after = 0;
+    for (let i = 0; i < 11; i++) {
+      const s = toWord(g, after);
+      after = s.wordNo;
+      lengths.push(s.letters.length);
+      for (const t of spell(s.letters)) g.tap('a', t);
+    }
+    expect(lengths).toEqual([3, 3, 3, 4, 4, 4, 5, 5, 5, 6, 6]);
   });
 
   it('scores the first to spell a word, and shows the answer and who got it', () => {

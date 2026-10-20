@@ -69,7 +69,7 @@ export const MINIGAME_VERSIONS: Record<LobbyGameId, number> = {
   laser: 1,
   colormatch: 4, // slower prompts (3.2 seconds to start) and a longer pause between them; before: endless with three lives when there is no time limit, the prompt asks for the ink, the word or the shape, changing each time
   potato: 2, // the score became the time held, not the rounds survived
-  anagram: 1,
+  anagram: 2, // words start at 3 letters and grow to 6 (before: 5 and 6 letters from the first word)
   mines: 1,
   stop: 1,
   pong: 1,
