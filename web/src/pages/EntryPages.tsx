@@ -294,7 +294,7 @@ export function LoginPage({
                 <span style={st('font:600 11px var(--font-mono);letter-spacing:.08em;color:var(--faint)')}>{t('core.login.orGuest')}</span>
                 <span style={st('flex:1;height:1px;background:var(--chip)')} />
               </div>
-              <Btn height={52} fontSize={15} weight={700} style={{ gap: 10 }} onClick={() => setGuestGames(true)}>
+              <Btn height={52} fontSize={15} weight={700} style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 10 }} onClick={() => setGuestGames(true)}>
                 <GamepadIcon size={20} />
                 {t('core.login.playGames')}
                 {live > 0 && (
