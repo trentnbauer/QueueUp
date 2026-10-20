@@ -12,6 +12,10 @@ const BETWEEN_S = 1.6;
 /** Points for being first to solve a word: this many, plus up to as many again for how much of the time was left. */
 const SOLVE_POINTS = 5;
 const SPEED_BONUS = 5;
+/** The words start short and grow: this many words of 3 letters, then this many of 4, then of 5, and from then on 6 (the most tiles there are). */
+const WORDS_PER_LENGTH = 3;
+const FIRST_LENGTH = 3;
+const LAST_LENGTH = 6;
 
 interface Solver extends RoundPlayer {
   score: number;
@@ -20,7 +24,7 @@ interface Solver extends RoundPlayer {
 }
 
 /** Shows a scrambled word to everyone; tap the tiles to spell it. The first player to spell a word the scramble can
- * make scores for it, and then a new word comes. When the 60 seconds are up, most points wins. See RoundGame for
+ * make scores for it, and then a new word comes, a letter longer every few words. When the 60 seconds are up, most points wins. See RoundGame for
  * how rounds start and end. */
 export class AnagramGame extends RoundGame<Solver> {
   readonly id = 'anagram' as const;
@@ -151,11 +155,17 @@ export class AnagramGame extends RoundGame<Solver> {
     this.finishRound();
   }
 
+  /** How many letters the next word has: 3 for the first few words, then 4, then 5, then 6. */
+  private get nextLength(): number {
+    return Math.min(LAST_LENGTH, FIRST_LENGTH + Math.floor(this.wordNo / WORDS_PER_LENGTH));
+  }
+
   private nextWord(): void {
-    if (this.used.size >= ANAGRAM_WORDS.length) this.used = new Set();
+    const pool = ANAGRAM_WORDS.filter((w) => w.length === this.nextLength);
+    if (pool.every((w) => this.used.has(w))) for (const w of pool) this.used.delete(w);
     let word = '';
     for (let tries = 0; tries < 50; tries++) {
-      word = ANAGRAM_WORDS[Math.floor(this.rng() * ANAGRAM_WORDS.length)];
+      word = pool[Math.floor(this.rng() * pool.length)];
       if (!this.used.has(word)) break;
     }
     this.used.add(word);
