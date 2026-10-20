@@ -28,6 +28,11 @@ export function useOpenLobbies(everySeconds = 15) {
   return useQuery({ queryKey: [...MINIGAMES_QUERY_KEY, 'lobbies'], queryFn: miniGamesApi.lobbies, enabled: !!user, refetchInterval: everySeconds * 1000 });
 }
 
+/** Public lobbies, for the sign-in page's Mini games button (no account). Polled while `enabled`. */
+export function usePublicLobbies(enabled: boolean, everySeconds = 5) {
+  return useQuery({ queryKey: [...MINIGAMES_QUERY_KEY, 'public-lobbies'], queryFn: miniGamesApi.publicLobbies, enabled, refetchInterval: everySeconds * 1000 });
+}
+
 /** One open lobby and who is in it, refreshed while its dialog is open. An error means it has closed. */
 export function useLobbyInfo(id: string) {
   return useQuery({ queryKey: [...MINIGAMES_QUERY_KEY, 'lobby', id], queryFn: () => miniGamesApi.lobby(id), refetchInterval: 2000, retry: 2 });

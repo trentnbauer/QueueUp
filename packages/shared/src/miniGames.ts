@@ -178,6 +178,8 @@ export interface MiniGameLobbyPlayer {
   displayName: string;
   avatarColor: string;
   avatarUrl: string | null;
+  /** A guest (no account): only in memory for as long as they are in the lobby. */
+  guest?: boolean;
 }
 
 export interface MiniGameLobbyDto {
@@ -213,6 +215,36 @@ export interface CreateMiniGameLobbyRequest {
 
 export interface JoinMiniGameLobbyRequest {
   code: string;
+}
+
+/** What someone without an account sees of a public lobby: first names and avatar colours only. */
+export interface PublicMiniGameLobbyDto {
+  id: string;
+  game: LobbyGameId | null;
+  hostName: string;
+  players: { name: string; avatarColor: string }[];
+  count: number;
+}
+
+export interface PublicMiniGameLobbiesResponse {
+  lobbies: PublicMiniGameLobbyDto[];
+}
+
+export const GUEST_NAME_MIN = 2;
+export const GUEST_NAME_MAX = 24;
+
+export interface GuestJoinRequest {
+  displayName: string;
+  /** The sign-in page's Turnstile token, when the captcha is on. */
+  captcha?: string;
+}
+
+/** A short-lived token for one lobby. Nothing about the guest is stored on the server. */
+export interface GuestJoinResponse {
+  token: string;
+  lobbyId: string;
+  guestId: string;
+  displayName: string;
 }
 
 /** "This week" is the last 7 days, rolling, so the list never empties at a week boundary. */

@@ -36,7 +36,7 @@ export const authApi = {
   acceptTerms: (version: string) => apiPost<{ ok: true }>('/api/me/accept-terms', { version }),
   completeOnboarding: () => apiPost<{ ok: true }>('/api/me/onboarding-complete'),
   /** Sign-in methods, plus the Turnstile site key when the sign-in captcha is on (issue #665). */
-  providers: () => apiGet<{ providers: string[]; turnstileSiteKey: string | null; signupMode?: 'open' | 'invite' }>('/api/auth/providers'),
+  providers: () => apiGet<{ providers: string[]; turnstileSiteKey: string | null; signupMode?: 'open' | 'invite'; guestPlay?: boolean }>('/api/auth/providers'),
   updateOwnedPlatforms: (platforms: RoomPlatform[]) =>
     apiPatch<{ ownedPlatforms: RoomPlatform[] }>('/api/me/owned-platforms', { platforms }),
   setProfileVisibility: (visibility: ProfileVisibility) =>

@@ -34,6 +34,14 @@ From the **Mini games** page anyone can **Open a lobby** without a room, and pla
 
 It plays a random game after every run (like the waiting room), or one game you pick. It stays open until the last person has left, then it is gone, and the host can **Close my lobby** for everyone. Someone hosts one lobby at a time, a lobby holds up to 16 people, and anyone who has blocked or been blocked by the host cannot join. Every run in a lobby counts toward high scores.
 
+## Playing as a guest
+
+The sign-in page has a **Play mini-games** button (under the sign-in buttons, with a live count of public lobbies). Without an account anyone can join a **public** lobby from the list, or an **invite-code** lobby with its code, after picking a display name (2 to 24 characters, checked against the banned words and blocked names). Friends-only lobbies are never listed or joinable.
+
+Nothing about a guest is stored on the server: no user row, session, score, high score, rating or notification. A guest is an in-memory id in the lobby's live state, joined with a short-lived signed token for that one lobby, and they disappear when they leave or the lobby closes. The display name is kept only in the browser (`localStorage['sq-guest-name']`). A guest's runs are never saved, so they cannot appear on the high score lists or trigger beaten alerts. Guests show in the lobby marked **GUEST**.
+
+Guest play is off when `SIGNUP_MODE=invite` or `PRIVATE_INSTANCE=true`. The two unauthenticated endpoints (`GET /api/minigames/public-lobbies`, `POST /api/minigames/lobbies/:ref/guest-join`) are rate limited, and the join needs the sign-in page's Turnstile token when the captcha is on.
+
 ## How a lobby works
 
 - **A random game, and a new one after every run.** When the lobby opens (the first person to join), it picks a game at random. Each time a run ends and its result has been shown, the lobby moves everyone to a **different** random game, so the waiting room keeps changing while a spin waits. Closing the dialog leaves it; when the last person leaves, the lobby resets and its wins and history are gone.

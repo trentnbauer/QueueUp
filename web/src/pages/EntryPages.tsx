@@ -16,12 +16,14 @@ import { FriendStatus } from '../dialogs/RoomDialogs';
 import { ProfileModeration } from '../components/ProfileModeration';
 import { ReportDialog } from '../components/ReportDialog';
 import { Dialog } from '../ui/Dialog';
+import { GuestGamesDialog } from '../dialogs/GuestGamesDialog';
+import { usePublicLobbies } from '../hooks/useMiniGames';
 import { UiToast } from '../ui/ToastView';
 import { applyFeedFilter, FeedGroups, FilterChips, type FeedFilter } from './feed';
 import { useRooms } from '../hooks/useRooms';
 import { useVersion } from '../hooks/useVersion';
 import { REVIEW_EMOJI, reviewAverage } from '../lib/gameView';
-import { AiBadge, Avatar, Btn, Cover, Wordmark, AppMark, inputPill } from '../ui/primitives';
+import { AiBadge, Avatar, Btn, Cover, GamepadIcon, Wordmark, AppMark, inputPill } from '../ui/primitives';
 import { useIsMobile } from '../ui/useLayout';
 import { rich, t as tr, translate, useCyclingLanguage, useI18n, useT } from '../i18n';
 import { reviewCategoryLabel } from '../i18n/labels';
@@ -150,6 +152,7 @@ export function LoginPage({
   providers,
   turnstileSiteKey = null,
   inviteOnly = false,
+  guestPlay = false,
   providersError = false,
   onRetry,
 }: {
@@ -157,6 +160,8 @@ export function LoginPage({
   turnstileSiteKey?: string | null;
   /** SIGNUP_MODE=invite: a new account needs an invite, so the page asks for one (#1096). */
   inviteOnly?: boolean;
+  /** Mini games without an account are on (the server allows guests). */
+  guestPlay?: boolean;
   /** The sign-in options couldn't be loaded; shows a message with a retry instead of no buttons. */
   providersError?: boolean;
   onRetry?: () => void;
@@ -169,6 +174,10 @@ export function LoginPage({
   // Issue #665: with the captcha on, the sign-in buttons wait for a solved Turnstile token, which
   // rides along on the login URL for the server to verify.
   const [captcha, setCaptcha] = useState<string | null>(null);
+  // A captcha token works once; after a guest join uses it the widget is rebuilt for a fresh one.
+  const [widgetKey, setWidgetKey] = useState(0);
+  const [guestGames, setGuestGames] = useState(false);
+  const live = usePublicLobbies(guestPlay, 15).data?.lobbies.length ?? 0;
   const needsCaptcha = !!turnstileSiteKey && list[0] !== 'dev';
   const ready = !needsCaptcha || !!captcha;
   // The server sends a failed captcha back here with ?signin=captcha.
@@ -261,7 +270,7 @@ export function LoginPage({
               )}
             </div>
           )}
-          {needsCaptcha && <TurnstileWidget siteKey={turnstileSiteKey!} onToken={setCaptcha} />}
+          {needsCaptcha && <TurnstileWidget key={widgetKey} siteKey={turnstileSiteKey!} onToken={setCaptcha} />}
           {list.map((p) => {
             const s = PROVIDER_STYLE[p] ?? { label: () => t('core.login.signInWith', { provider: p }), bg: 'transparent', fg: 'var(--text)', border: '1px solid var(--line)' };
             return (
@@ -278,8 +287,39 @@ export function LoginPage({
               </a>
             );
           })}
+          {guestPlay && (
+            <>
+              <div style={st('display:flex;align-items:center;gap:12px;padding:6px 0 2px')}>
+                <span style={st('flex:1;height:1px;background:var(--chip)')} />
+                <span style={st('font:600 11px var(--font-mono);letter-spacing:.08em;color:var(--faint)')}>{t('core.login.orGuest')}</span>
+                <span style={st('flex:1;height:1px;background:var(--chip)')} />
+              </div>
+              <Btn height={52} fontSize={15} weight={700} style={{ gap: 10 }} onClick={() => setGuestGames(true)}>
+                <GamepadIcon size={20} />
+                {t('core.login.playGames')}
+                {live > 0 && (
+                  <span style={st('display:flex;align-items:center;gap:6px;height:22px;padding:0 9px;border-radius:999px;background:var(--chip);font:600 11px var(--font-mono);letter-spacing:.04em;color:var(--text2)')}>
+                    <span style={st('width:7px;height:7px;border-radius:50%;background:var(--mint)')} />
+                    {t('core.login.liveCount', { n: live })}
+                  </span>
+                )}
+              </Btn>
+            </>
+          )}
         </div>
       </div>
+      {guestGames && (
+        <GuestGamesDialog
+          captcha={captcha}
+          needsCaptcha={needsCaptcha}
+          onCaptchaUsed={() => {
+            setCaptcha(null);
+            setWidgetKey((k) => k + 1);
+          }}
+          onSignUp={() => setGuestGames(false)}
+          onClose={() => setGuestGames(false)}
+        />
+      )}
       <div style={st('flex-shrink:0;padding:16px 24px 24px;text-align:center;font:400 12px var(--font-ui);color:var(--faint)')}>
         {t('core.login.selfHosted')}
         {version ? ` · ${version}` : ''} ·{' '}

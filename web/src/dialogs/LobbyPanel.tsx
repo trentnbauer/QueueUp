@@ -44,6 +44,7 @@ export function LobbyPanel({
   offlineFallback,
   readyUserIds,
   soloGame,
+  guestToken,
 }: {
   /** The room to connect to. Not needed when `lobbyId` is set. */
   roomId?: string;
@@ -57,12 +58,14 @@ export function LobbyPanel({
   readyUserIds?: string[];
   /** This is a practice lobby for one person (`lobbyId` is their solo lobby): the high scores for this game take the place of the win chart. */
   soloGame?: LobbyGameId;
+  /** Playing as a guest (no account): the token from the guest-join call. Guests cannot rate games. */
+  guestToken?: string;
 }) {
   const t = useT();
   const phone = useIsMobile();
   // The live lobby over a WebSocket: a room's, or an open (or practice) lobby's. The server runs every game, including a
   // practice one, so the scores it saves are the server's own and can be trusted.
-  const livePath = roomId ? `/api/rooms/${encodeURIComponent(roomId)}/lobby` : lobbyId ? `/api/minigames/lobbies/${encodeURIComponent(lobbyId)}/lobby` : undefined;
+  const livePath = roomId ? `/api/rooms/${encodeURIComponent(roomId)}/lobby` : lobbyId ? `/api/minigames/lobbies/${encodeURIComponent(lobbyId)}/lobby${guestToken ? `?guest=${encodeURIComponent(guestToken)}` : ''}` : undefined;
   const live = useSpinLobby(livePath, true, me, onStarted, !!soloGame);
   const { snapshot, status, sendInput, sendAction, sendTap, vote, setTimeLimit } = live;
   const canvasRef = useRef<HTMLCanvasElement>(null);
@@ -241,7 +244,7 @@ export function LobbyPanel({
   // The canvas, with the end-of-run thumbs laid over the bottom of its result card (HTML, so they can be tapped).
   const arena = (
     <div style={st("position:relative")}>
-    {game?.phase === 'over' && <RatingBar game={game.id} />}
+    {game?.phase === 'over' && !guestToken && <RatingBar game={game.id} />}
     <canvas
       ref={canvasRef}
       role="img"
