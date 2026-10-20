@@ -17,7 +17,7 @@ function play(game: LobbyGameId, seed: number, latency: number, press: (copy: Lo
   const inbox: { at: number; send: () => void }[] = [];
   let startAt: number | null = null;
   let started = -1;
-  let seen: { run: number; seed: number } | null = null;
+  let seen = null as { run: number; seed: number } | null;
   const log: { t: number; local: boolean; server: boolean }[] = [];
   for (let t = 0; t < seconds * 1000; t += FRAME) {
     const snap = lobby.snapshot(false, t);
