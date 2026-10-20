@@ -27,7 +27,6 @@ import { colorMatchView } from './colormatch';
 import { laserView } from './laser';
 import { gravityView } from './gravity';
 import { snakeView } from './snake';
-import { lavaView } from './lava';
 import { froggerView } from './frogger';
 import { fishingView } from './fishing';
 import { orbitView } from './orbit';
@@ -35,7 +34,7 @@ import { rpsView } from './rps';
 import { rhythmView } from './rhythm';
 import { sortitView } from './sortit';
 import { tempoView } from './tempo';
-import { bounceView } from './bounce';
+import { lavaView } from './lava';
 import { tunnelView } from './tunnel';
 import { parachuteView } from './parachute';
 import { conveyorView } from './conveyor';
@@ -114,7 +113,6 @@ export const LOBBY_GAME_VIEWS: { [K in LobbyGameId]: LobbyGameView<Extract<Lobby
   asteroids: asteroidsView,
   memory: memoryView,
   words: wordsView,
-  lava: lavaView,
   snake: snakeView,
   gravity: gravityView,
   laser: laserView,
@@ -132,7 +130,7 @@ export const LOBBY_GAME_VIEWS: { [K in LobbyGameId]: LobbyGameView<Extract<Lobby
   rhythm: rhythmView,
   sortit: sortitView,
   tempo: tempoView,
-  bounce: bounceView,
+  lava: lavaView,
   tunnel: tunnelView,
   parachute: parachuteView,
   conveyor: conveyorView,

@@ -11,8 +11,8 @@
 export const LOBBY_TICK_HZ = 15;
 
 /** The games the lobby can run. */
-export type LobbyGameId = 'runner' | 'flappy' | 'dodge' | 'rope' | 'coins' | 'battleships' | 'race' | 'whack' | 'draw' | 'tilt' | 'stacker' | 'sumo' | 'asteroids' | 'memory' | 'words' | 'lava' | 'snake' | 'gravity' | 'laser' | 'colormatch' | 'potato' | 'anagram' | 'mines' | 'stop' | 'pong' | 'wall' | 'frogger' | 'fishing' | 'orbit' | 'rps' | 'rhythm' | 'sortit' | 'tempo' | 'bounce' | 'tunnel' | 'parachute' | 'conveyor';
-export const LOBBY_GAME_IDS: readonly LobbyGameId[] = ['runner', 'flappy', 'dodge', 'rope', 'coins', 'battleships', 'race', 'whack', 'draw', 'tilt', 'stacker', 'sumo', 'asteroids', 'memory', 'words', 'lava', 'snake', 'gravity', 'laser', 'colormatch', 'potato', 'anagram', 'mines', 'stop', 'pong', 'wall', 'frogger', 'fishing', 'orbit', 'rps', 'rhythm', 'sortit', 'tempo', 'bounce', 'tunnel', 'parachute', 'conveyor'];
+export type LobbyGameId = 'runner' | 'flappy' | 'dodge' | 'rope' | 'coins' | 'battleships' | 'race' | 'whack' | 'draw' | 'tilt' | 'stacker' | 'sumo' | 'asteroids' | 'memory' | 'words' | 'snake' | 'gravity' | 'laser' | 'colormatch' | 'potato' | 'anagram' | 'mines' | 'stop' | 'pong' | 'wall' | 'frogger' | 'fishing' | 'orbit' | 'rps' | 'rhythm' | 'sortit' | 'tempo' | 'lava' | 'tunnel' | 'parachute' | 'conveyor';
+export const LOBBY_GAME_IDS: readonly LobbyGameId[] = ['runner', 'flappy', 'dodge', 'rope', 'coins', 'battleships', 'race', 'whack', 'draw', 'tilt', 'stacker', 'sumo', 'asteroids', 'memory', 'words', 'snake', 'gravity', 'laser', 'colormatch', 'potato', 'anagram', 'mines', 'stop', 'pong', 'wall', 'frogger', 'fishing', 'orbit', 'rps', 'rhythm', 'sortit', 'tempo', 'lava', 'tunnel', 'parachute', 'conveyor'];
 
 /** What a client sends. Anything else is ignored. */
 export type LobbyClientMessage =
@@ -860,61 +860,6 @@ export interface WordsSnapshot extends RoundSummary {
   timerMs: number;
   /** Who won the run that just ended (`over` only): the person who found the word in the fewest guesses, then the
    * soonest. Null when nobody did, or nobody was first (a solo run, or a dead heat). */
-  winnerId: string | null;
-}
-
-// ---- Lava rise (jump up the planks faster than the lava climbs) ------------------------------------
-
-/** The lava's surface is this far up from the bottom of the arena, as a fraction of its height. */
-export const LAVA_SURFACE = 0.08;
-/** A player's radius and a plank's thickness, as fractions of the arena (drawing and landing). */
-export const LAVA_PLAYER_R = 0.03;
-export const LAVA_PLANK_H = 0.035;
-/** The top of the screen is a ceiling this far above the lava's surface: nobody can climb higher than that, so nobody climbs out of sight. */
-export const LAVA_CEILING = 0.88;
-
-/** A plank: `z` is the height of its top up from the start of the run, `x` the middle of it across the screen (0..1) and `w` how wide it is.
- * Planks never move; the lava rises past them. */
-export interface LavaPlank {
-  z: number;
-  x: number;
-  w: number;
-  /** Which plank this is (counts up from 1 each run); stays the same while it lasts. */
-  n: number;
-}
-
-export interface LavaPlayer {
-  id: string;
-  /** Where they are across the screen (0..1) and the direction they are holding (-1, 0 or 1). */
-  x: number;
-  dir: number;
-  /** Height of their feet, up from the start of the run (on a plank, the plank's `z`). */
-  z: number;
-  vy: number;
-  /** Standing on a plank. */
-  grounded: boolean;
-  /** Still climbing. False once they fall in the lava, or if they arrived mid-run. */
-  alive: boolean;
-  /** Runs won since this person joined the lobby. */
-  wins: number;
-  /** How high they got, in metres: live while climbing, final once out. */
-  meters: number;
-}
-
-export interface LavaSnapshot extends RoundSummary {
-  id: 'lava';
-  phase: LobbyRoundPhase;
-  /** Metres climbed by the lava so far (the run's score while it lasts). */
-  meters: number;
-  /** How fast the lava is rising, in screens a second. */
-  speed: number;
-  /** The height of the lava's surface, up from the start of the run. */
-  lava: number;
-  planks: LavaPlank[];
-  players: LavaPlayer[];
-  /** Milliseconds left in `countdown` or `over`; 0 otherwise. */
-  timerMs: number;
-  /** Who won the run that just ended (`over` only); null when nobody did (a solo run, or a draw). */
   winnerId: string | null;
 }
 
@@ -1773,11 +1718,11 @@ export interface TempoSnapshot extends RoundSummary {
 // ---- Bounce (a ball that bounces by itself up a tower of platforms the screen climbs faster and faster) ---------------
 
 /** The ball's width, and a platform's width and thickness (fractions of the screen). */
-export const BOUNCE_PLAYER_W = 0.06;
-export const BOUNCE_PLATFORM_W = 0.2;
-export const BOUNCE_PLATFORM_H = 0.022;
+export const LAVA_PLAYER_W = 0.06;
+export const LAVA_PLATFORM_W = 0.2;
+export const LAVA_PLATFORM_H = 0.022;
 
-export interface BouncePlatform {
+export interface LavaPlatform {
   /** Which platform this is (counts up from 1 each run, so 1 is the ground); stays the same as it moves. */
   n: number;
   /** Where its middle is across the screen (0..1), and where its top is down the screen (0 is the top). */
@@ -1789,7 +1734,7 @@ export interface BouncePlatform {
   wide: boolean;
 }
 
-export interface BouncePlayer {
+export interface LavaPlayer {
   id: string;
   /** Where they are across the screen (0..1, wrapping), where their feet are down it, and how fast they are going up (screens a second). */
   x: number;
@@ -1805,14 +1750,14 @@ export interface BouncePlayer {
   meters: number;
 }
 
-export interface BounceSnapshot extends RoundSummary {
-  id: 'bounce';
+export interface LavaSnapshot extends RoundSummary {
+  id: 'lava';
   phase: LobbyRoundPhase;
   meters: number;
   /** How fast the screen climbs, in screens a second (so things slide down it at this speed). */
   speed: number;
-  platforms: BouncePlatform[];
-  players: BouncePlayer[];
+  platforms: LavaPlatform[];
+  players: LavaPlayer[];
   /** Milliseconds left in `countdown` or `over`; 0 otherwise. */
   timerMs: number;
   /** Who won the run that just ended (`over` only); null when nobody did (a solo run, or a draw). */
@@ -1970,7 +1915,7 @@ export interface ConveyorSnapshot extends RoundSummary {
   winnerId: string | null;
 }
 
-export type LobbyGameSnapshot = RunnerSnapshot | FlappySnapshot | DodgeSnapshot | RopeSnapshot | CoinsSnapshot | BattleshipsSnapshot | RaceSnapshot | WhackSnapshot | DrawSnapshot | TiltSnapshot | StackerSnapshot | SumoSnapshot | AsteroidsSnapshot | MemorySnapshot | WordsSnapshot | LavaSnapshot | SnakeSnapshot | GravitySnapshot | LaserSnapshot | ColorMatchSnapshot | PotatoSnapshot | AnagramSnapshot | MinesSnapshot | StopSnapshot | PongSnapshot | WallSnapshot | FroggerSnapshot | FishingSnapshot | OrbitSnapshot | RpsSnapshot | RhythmSnapshot | SortitSnapshot | TempoSnapshot | BounceSnapshot | TunnelSnapshot | ParachuteSnapshot | ConveyorSnapshot;
+export type LobbyGameSnapshot = RunnerSnapshot | FlappySnapshot | DodgeSnapshot | RopeSnapshot | CoinsSnapshot | BattleshipsSnapshot | RaceSnapshot | WhackSnapshot | DrawSnapshot | TiltSnapshot | StackerSnapshot | SumoSnapshot | AsteroidsSnapshot | MemorySnapshot | WordsSnapshot | SnakeSnapshot | GravitySnapshot | LaserSnapshot | ColorMatchSnapshot | PotatoSnapshot | AnagramSnapshot | MinesSnapshot | StopSnapshot | PongSnapshot | WallSnapshot | FroggerSnapshot | FishingSnapshot | OrbitSnapshot | RpsSnapshot | RhythmSnapshot | SortitSnapshot | TempoSnapshot | LavaSnapshot | TunnelSnapshot | ParachuteSnapshot | ConveyorSnapshot;
 
 /** What a client needs to run its own player on a course the server decided: which run, the seed that
  * makes the course, and how long until the run starts (negative once it has, by how far in). */

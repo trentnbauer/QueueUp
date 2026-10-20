@@ -10,7 +10,6 @@ import { MemoryGame } from './memory.js';
 import { RaceGame } from './race.js';
 import { RopeGame } from './rope.js';
 import { RunnerGame } from './runner.js';
-import { LavaGame } from './lava.js';
 import { SnakeGame } from './snake.js';
 import { GravityGame } from './gravity.js';
 import { LaserGame } from './laser.js';
@@ -28,7 +27,7 @@ import { RpsGame } from './rps.js';
 import { RhythmGame } from './rhythm.js';
 import { SortitGame } from './sortit.js';
 import { TempoGame } from './tempo.js';
-import { BounceGame } from './bounce.js';
+import { LavaGame } from './lava.js';
 import { TunnelGame } from './tunnel.js';
 import { ParachuteGame } from './parachute.js';
 import { ConveyorGame } from './conveyor.js';
@@ -42,7 +41,7 @@ import type { LobbyGame } from './types.js';
 
 export type { BotBrain, BotCommand, LobbyGame } from './types.js';
 export { LobbyRecord, secureRandom } from './roundGame.js';
-export { BattleshipsGame, CoinsGame, DodgeGame, FlappyGame, RaceGame, RopeGame, RunnerGame, WhackGame, DrawGame, TiltGame, StackerGame, SumoGame, AsteroidsGame, MemoryGame, WordsGame, LavaGame, SnakeGame, GravityGame, LaserGame, ColorMatchGame, PotatoGame, AnagramGame, MinesGame, StopGame, PongGame, WallGame, FroggerGame, FishingGame, OrbitGame, RpsGame, RhythmGame, SortitGame, TempoGame, BounceGame, TunnelGame, ParachuteGame, ConveyorGame };
+export { BattleshipsGame, CoinsGame, DodgeGame, FlappyGame, RaceGame, RopeGame, RunnerGame, WhackGame, DrawGame, TiltGame, StackerGame, SumoGame, AsteroidsGame, MemoryGame, WordsGame, SnakeGame, GravityGame, LaserGame, ColorMatchGame, PotatoGame, AnagramGame, MinesGame, StopGame, PongGame, WallGame, FroggerGame, FishingGame, OrbitGame, RpsGame, RhythmGame, SortitGame, TempoGame, LavaGame, TunnelGame, ParachuteGame, ConveyorGame };
 export { tunnelAt } from './tunnel.js';
 export { BotFiller, botColor, botNumber, isBotId, withBots } from './bots.js';
 
@@ -84,8 +83,6 @@ function build(id: LobbyGameId, record?: LobbyRecord): LobbyGame {
       return new MemoryGame(undefined, record);
     case 'words':
       return new WordsGame(undefined, record);
-    case 'lava':
-      return new LavaGame(undefined, record);
     case 'snake':
       return new SnakeGame(undefined, record);
     case 'gravity':
@@ -120,8 +117,8 @@ function build(id: LobbyGameId, record?: LobbyRecord): LobbyGame {
       return new SortitGame(undefined, record);
     case 'tempo':
       return new TempoGame(undefined, record);
-    case 'bounce':
-      return new BounceGame(undefined, record);
+    case 'lava':
+      return new LavaGame(undefined, record);
     case 'tunnel':
       return new TunnelGame(undefined, record);
     case 'parachute':

@@ -23,7 +23,6 @@ export const MINIGAME_SCORE_MAX: Record<LobbyGameId, number> = {
   asteroids: 500,
   memory: 60,
   words: 60,
-  lava: 20000,
   snake: 576,
   gravity: 20000,
   laser: 20000,
@@ -41,7 +40,7 @@ export const MINIGAME_SCORE_MAX: Record<LobbyGameId, number> = {
   rhythm: 5000, // points
   sortit: 2000, // items sorted
   tempo: 5000, // points
-  bounce: 3600, // metres the screen climbed
+  lava: 3600, // metres the screen climbed
   tunnel: 3600, // metres the tunnel came
   parachute: 3600, // metres fallen
   conveyor: 3600, // metres the belt ran
@@ -67,7 +66,6 @@ export const MINIGAME_VERSIONS: Record<LobbyGameId, number> = {
   asteroids: 1,
   memory: 2, // no cap on the rounds
   words: 1,
-  lava: 2, // sideways movement, narrow planks and a ceiling at the top of the screen
   snake: 1,
   gravity: 2, // floating blocks in the middle, and a flip can be turned round part way across
   laser: 1,
@@ -85,7 +83,7 @@ export const MINIGAME_VERSIONS: Record<LobbyGameId, number> = {
   rhythm: 1,
   sortit: 1,
   tempo: 1,
-  bounce: 1,
+  lava: 3, // was a platform climb and then Bounce; scores from either are not comparable
   tunnel: 1,
   parachute: 1,
   conveyor: 1,
@@ -312,7 +310,6 @@ export const MINIGAME_NAMES: Record<LobbyGameId, string> = {
   asteroids: 'Asteroid defence',
   memory: 'Memory pattern',
   words: 'Words',
-  lava: 'Lava rise',
   snake: 'Snake arena',
   gravity: 'Gravity flip',
   laser: 'Laser gaps',
@@ -330,7 +327,7 @@ export const MINIGAME_NAMES: Record<LobbyGameId, string> = {
   rhythm: 'Rhythm lanes',
   sortit: 'Sort it',
   tempo: 'Steady tempo',
-  bounce: 'Bounce',
+  lava: 'Lava',
   tunnel: 'Tunnel',
   parachute: 'Parachute',
   conveyor: 'Conveyor',
