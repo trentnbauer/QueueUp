@@ -399,7 +399,7 @@ export class FishingGame extends RoundGame<Angler> {
         p.mode = 'idle';
       }
     }
-    if (p.mode === 'casting' || p.mode === 'out') this.tryHook(p, t);
+    if (p.mode === 'out') this.tryHook(p, t);
 
     if (p.mode === 'fight') this.reel(p, dt, d);
     else {

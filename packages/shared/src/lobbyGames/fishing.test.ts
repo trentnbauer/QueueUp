@@ -238,6 +238,33 @@ describe('FishingGame casting', () => {
   });
 });
 
+describe('FishingGame the throw', () => {
+  it('does not take a fish on the way out: only once the lure has landed where it was thrown', () => {
+    const g = started(['a'], 5);
+    // A fish sitting in the lane in front of the rod, well short of where a full power cast lands.
+    const fish = { n: 999, tier: 0, at: 0, x0: me(g, 'a').x, dir: 1, speed: 0, base: 0.6, a1: 0, f1: 1, p1: 0, a2: 0, f2: 1, p2: 0, seed: 1 };
+    (g as unknown as { fish: unknown[] }).fish.push(fish);
+    g.input('a', 0, -1);
+    run(g, 1100); // full power
+    g.input('a', 0, 0);
+    let hookedInFlight = false;
+    let landed = false;
+    for (let t = 0; t < 1500; t += STEP) {
+      g.tick(STEP);
+      const s = me(g, 'a');
+      // The snapshot calls a flying lure 'out' too: it has landed once it is up at the far end of a near full power cast.
+      if (s.mode === 'out' && s.ly <= 0.2) landed = true;
+      if (s.mode === 'fight' && s.ly > 0.25) hookedInFlight = true;
+    }
+    expect(hookedInFlight).toBe(false);
+    expect(landed).toBe(true);
+    // Winding the lure back in over it does take it.
+    g.input('a', 0, -1);
+    for (let t = 0; t < 4000 && me(g, 'a').mode === 'out'; t += STEP) g.tick(STEP);
+    expect(me(g, 'a').mode).toBe('fight');
+  });
+});
+
 describe('FishingGame hooking and reeling', () => {
   /** Plays an angler until the first fish is hooked (or the time is up). */
   function untilHooked(seed: number, power = 0.35) {
