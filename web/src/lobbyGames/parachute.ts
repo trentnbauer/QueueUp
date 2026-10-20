@@ -12,9 +12,9 @@ function drawWorld(sc: Scene<ParachuteSnapshot>): void {
     const y = (g.y - up) * S;
     const h = S * 0.3;
     if (y < -h || y > S + h) continue;
-    ctx.fillStyle = 'oklch(0.82 0.12 220 / 0.1)';
+    ctx.fillStyle = 'oklch(0.82 0.12 220 / 0.14)';
     ctx.fillRect(0, y - h / 2, S, h);
-    ctx.strokeStyle = 'oklch(0.9 0.08 220 / 0.35)';
+    ctx.strokeStyle = 'oklch(0.9 0.08 220 / 0.5)';
     ctx.lineWidth = 2;
     const slide = ((now / 700) * g.push) % 1;
     for (let row = 0; row < 3; row++) {
@@ -79,6 +79,40 @@ function drawWorld(sc: Scene<ParachuteSnapshot>): void {
     }
     sc.drawPlayer(p.id, x, y, r, r);
   }
+
+  drawWind(sc, up);
+}
+
+/** The wind on the viewer right now, always shown at the top of the screen: chevrons pointing the way it pushes, or a row of dots when it is calm. */
+function drawWind(sc: Scene<ParachuteSnapshot>, up: number): void {
+  const { ctx, S, snapshot, theme } = sc;
+  const mine = snapshot.players.find((p) => p.id === sc.me);
+  if (!mine) return;
+  let push = 0;
+  for (const g of snapshot.gusts) if (Math.abs(g.y - up - mine.y) <= 0.15) push += g.push;
+  const cx = S / 2;
+  const cy = S * 0.045;
+  ctx.fillStyle = 'oklch(0.12 0.006 55 / 0.55)';
+  roundRect(ctx, cx - S * 0.09, cy - S * 0.025, S * 0.18, S * 0.05, S * 0.025);
+  ctx.fill();
+  ctx.strokeStyle = push === 0 ? 'oklch(1 0 0 / 0.35)' : theme.text;
+  ctx.fillStyle = ctx.strokeStyle;
+  ctx.lineWidth = 2;
+  for (let i = -1; i <= 1; i++) {
+    const x = cx + i * S * 0.045;
+    if (push === 0) {
+      ctx.beginPath();
+      ctx.arc(x, cy, 2, 0, Math.PI * 2);
+      ctx.fill();
+    } else {
+      const d = Math.sign(push) * S * 0.01;
+      ctx.beginPath();
+      ctx.moveTo(x - d, cy - S * 0.012);
+      ctx.lineTo(x + d, cy);
+      ctx.lineTo(x - d, cy + S * 0.012);
+      ctx.stroke();
+    }
+  }
 }
 
 const scene: SceneGame<ParachuteSnapshot> = {
@@ -89,11 +123,9 @@ const scene: SceneGame<ParachuteSnapshot> = {
 };
 
 export const parachuteView: LobbyGameView<ParachuteSnapshot> = {
-  // Left and right to slide, and hold the chute (Space or Up, or press and hold the arena) to float.
+  // Left and right slide, and holding either one is the chute open: let go and it is free fall.
   pad: 'leftRight',
-  holds: [{ labelKey: 'spin.lobby.parachute.chute', dx: 0, dy: -1, keys: [' ', 'ArrowUp', 'w'], primary: true }],
   actions: [],
-  tapHold: [0, -1],
   nameKey: 'spin.lobby.parachute.name',
   taglineKey: 'spin.lobby.parachute.tagline',
   hintKey: 'spin.lobby.parachute.hint',

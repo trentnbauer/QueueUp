@@ -30,8 +30,8 @@ function untilOver(g: ParachuteGame, ms: number, each: () => void = () => {}): n
   return t / 1000;
 }
 
-/** A skydiver who slides into the gap of the next row, seeing where they are `delay` seconds late, and opens the chute to buy time when the row is close and they are not lined up. */
-function makeDiver(g: ParachuteGame, id: string, { delay = 0, chute = true }: { delay?: number; chute?: boolean } = {}) {
+/** A skydiver who slides into the gap of the next row, seeing where they are `delay` seconds late, and lets go to fall once lined up. */
+function makeDiver(g: ParachuteGame, id: string, { delay = 0 }: { delay?: number } = {}) {
   const lag = Math.round((delay * 1000) / STEP);
   const hist: number[] = [];
   return () => {
@@ -44,8 +44,7 @@ function makeDiver(g: ParachuteGame, id: string, { delay = 0, chute = true }: { 
     const off = next.gap - seen;
     // Aim a little to the side of the middle that is toward the diver, and stop once safely inside.
     const dx = Math.abs(off) < 0.015 ? 0 : off > 0 ? 1 : -1;
-    const lined = Math.abs(off) < next.width / 2 - 0.05;
-    g.input(id, dx, chute && !lined && next.y - mine.y < 0.3 ? -1 : 0);
+    g.input(id, dx, 0);
   };
 }
 
@@ -58,17 +57,17 @@ describe('ParachuteGame', () => {
     expect(s.rows).toHaveLength(0);
   });
 
-  it('sinks with the chute shut, and floats up with it open, within the screen', () => {
+  it('sinks in free fall, and floats up while an arrow is held, within the screen', () => {
     const g = started(['a']);
     const start = me(g, 'a').y;
     run(g, 700);
     expect(me(g, 'a').y).toBeGreaterThan(start);
-    g.input('a', 0, -1);
+    g.input('a', 1, 0);
     expect(snap(g).phase).toBe('playing');
     run(g, 100);
     const open = me(g, 'a');
     expect(open.open).toBe(true);
-    run(g, 2500);
+    run(g, 1500);
     expect(me(g, 'a').y).toBeLessThan(open.y);
     expect(me(g, 'a').y).toBeGreaterThanOrEqual(0.14);
     g.input('a', 0, 0);
@@ -76,14 +75,16 @@ describe('ParachuteGame', () => {
     expect(me(g, 'a').y).toBeLessThanOrEqual(0.62);
   });
 
-  it('steers worse with the chute open', () => {
-    const slide = (open: boolean) => {
-      const g = started(['a']);
-      g.input('a', 1, open ? -1 : 0);
-      run(g, 300);
-      return me(g, 'a').x - 0.5;
-    };
-    expect(slide(false)).toBeGreaterThan(slide(true) * 1.4);
+  it('opens the chute on an arrow either way and shuts it on none, whatever up and down say', () => {
+    const g = started(['a']);
+    g.input('a', -1, 0);
+    expect(me(g, 'a').open).toBe(true);
+    g.input('a', 0, -1);
+    expect(me(g, 'a').open).toBe(false);
+    g.input('a', 1, 1);
+    expect(me(g, 'a').open).toBe(true);
+    g.input('a', 0, 0);
+    expect(me(g, 'a').open).toBe(false);
   });
 
   it('lays the same sky for the same seed, and another for another', () => {
@@ -180,7 +181,7 @@ describe('ParachuteGame on each player’s own device', () => {
     const copy = new ParachuteGame(lcg(7));
     copy.join('a');
     copy.startRunAt(123);
-    copy.input('a', 1, -1);
+    copy.input('a', 1, 0);
     for (let t = 0; t < 300; t += 16) copy.stepRun(0.016);
     const report = copy.localReport('a')!;
     expect(report.alive).toBe(true);
