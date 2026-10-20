@@ -154,13 +154,17 @@ function resultRows(snapshot: Scene['snapshot'], me: string): { hero: StandingRo
   return { hero, rows: mine && !top.includes(mine) ? [...top, mine] : top };
 }
 
-/** Where the card is in the arena, as fractions of its side, so the lobby panel can lay the thumbs exactly over its bottom strip. */
-export function resultCardRect(snapshot: Scene['snapshot'], me: string): { left: number; top: number; width: number; height: number; stripTop: number; stripHeight: number } {
+/** Where the card is in the arena, as fractions of its side, so the lobby panel can lay the thumbs exactly over its bottom strip. `S` is the arena's
+ * side in pixels: on a small arena (a phone) the whole card is drawn larger, by `u`, so its text stays readable (as much as fits the arena). */
+export function resultCardRect(snapshot: Scene['snapshot'], me: string, S: number): { left: number; top: number; width: number; height: number; stripTop: number; stripHeight: number; u: number } {
   const { hero, rows } = resultRows(snapshot, me);
   const word = hasLastWord(snapshot);
-  const height = CARD_PAD + CARD_HEAD_H + (hero ? CARD_HERO_H + CARD_GAP : 0) + rows.length * (CARD_ROW_H + CARD_GAP) + (word ? CARD_WORD_H : 0) + RESULT_RATING_STRIP + CARD_PAD * 0.25;
+  const design = CARD_PAD + CARD_HEAD_H + (hero ? CARD_HERO_H + CARD_GAP : 0) + rows.length * (CARD_ROW_H + CARD_GAP) + (word ? CARD_WORD_H : 0) + RESULT_RATING_STRIP + CARD_PAD * 0.25;
+  const u = Math.max(1, Math.min(1.6, 500 / Math.max(1, S), 0.92 / design));
+  const height = design * u;
+  const width = Math.min(0.94, CARD_W * u);
   const top = 0.5 - height / 2;
-  return { left: (1 - CARD_W) / 2, top, width: CARD_W, height, stripTop: top + height - RESULT_RATING_STRIP - CARD_PAD * 0.25, stripHeight: RESULT_RATING_STRIP };
+  return { left: (1 - width) / 2, top, width, height, stripTop: top + height - (RESULT_RATING_STRIP + CARD_PAD * 0.25) * u, stripHeight: RESULT_RATING_STRIP * u, u };
 }
 
 /** Whether the card has a word to show: Words and Anagram, once the word is over (until then the server keeps the answer back). */
@@ -202,19 +206,20 @@ function drawResult(sc: Scene): void {
   ctx.fillRect(0, 0, S, S);
 
   const { hero, rows } = resultRows(snapshot, sc.me);
-  const card = resultCardRect(snapshot, sc.me);
-  const w = card.width * S;
-  const h = card.height * S;
+  const card = resultCardRect(snapshot, sc.me, S);
+  // The card is laid out at its normal size and drawn `u` times larger (see resultCardRect).
+  const w = (card.width * S) / card.u;
+  const h = (card.height * S) / card.u;
   const word = hasLastWord(snapshot) ? t(snapshot.id === 'anagram' ? 'spin.lobby.anagram.answer' : 'spin.lobby.words.answer', { word: (snapshot as { answer: string }).answer.toUpperCase() }) : null;
   const pad = CARD_PAD * S;
   const winner = snapshot.winnerId ? snapshot.players.find((p) => p.id === snapshot.winnerId) : undefined;
 
   ctx.save();
   ctx.translate(S / 2, (card.top + card.height / 2) * S);
-  ctx.scale(0.85 + 0.15 * ease, 0.85 + 0.15 * ease);
+  ctx.scale((0.85 + 0.15 * ease) * card.u, (0.85 + 0.15 * ease) * card.u);
   ctx.globalAlpha = ease;
   roundRect(ctx, -w / 2, -h / 2, w, h, S * 0.05);
-  ctx.fillStyle = 'oklch(0.21 0.009 55 / 0.94)';
+  ctx.fillStyle = 'oklch(0.21 0.009 55 / 0.98)';
   ctx.fill();
   ctx.strokeStyle = STAGE.hudStroke;
   ctx.stroke();
