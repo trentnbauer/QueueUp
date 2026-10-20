@@ -1,4 +1,4 @@
-import { ENDLESS_LIVES, RHYTHM_LANES, type RhythmSnapshot } from '@queueup/shared';
+import { ENDLESS_LIVES, RHYTHM_GOOD_S, RHYTHM_GREAT_S, RHYTHM_LANES, type RhythmSnapshot } from '@queueup/shared';
 import type { MessageKey } from '../i18n';
 import type { LobbyGameView } from './index';
 import { FONT, STAGE, coverTile, drawLives, hueOf, renderScene, type Scene, type SceneGame } from './kit';
@@ -33,10 +33,33 @@ function drawWorld(sc: Scene<RhythmSnapshot>): void {
     ctx.fillStyle = i % 2 === 0 ? 'oklch(1 0 0 / 0.045)' : 'oklch(1 0 0 / 0.025)';
     ctx.fillRect(r.x * S, r.y * S, r.w * S, r.h * S);
   }
+  // The hit zone: where a note's middle must be when you tap. It is the real timing window turned into distance (how far a note falls in
+  // that time), so it stretches as the notes speed up. The outer band is a good hit, the inner one a great hit.
+  const nearest = snapshot.notes.reduce<(typeof snapshot.notes)[number] | null>((a, n) => (!a || Math.abs(n.inMs) < Math.abs(a.inMs) ? n : a), null);
+  const perSecond = (LINE - TOP) / ((nearest?.fallMs ?? 1400) / 1000);
+  const good = RHYTHM_GOOD_S * perSecond;
+  const great = RHYTHM_GREAT_S * perSecond;
+  const zoneX = LANES_X * S;
+  const zoneW = (1 - 2 * LANES_X) * S;
   ctx.fillStyle = theme.acc;
-  ctx.globalAlpha = 0.8;
-  ctx.fillRect(LANES_X * S, LINE * S - 1, (1 - 2 * LANES_X) * S, 3);
+  ctx.globalAlpha = 0.14;
+  ctx.fillRect(zoneX, (LINE - good) * S, zoneW, good * 2 * S);
+  ctx.fillStyle = theme.mint;
+  ctx.globalAlpha = 0.2;
+  ctx.fillRect(zoneX, (LINE - great) * S, zoneW, great * 2 * S);
+  ctx.globalAlpha = 0.55;
+  ctx.strokeStyle = theme.acc;
+  ctx.lineWidth = 1.5;
+  ctx.strokeRect(zoneX, (LINE - good) * S, zoneW, good * 2 * S);
+  ctx.globalAlpha = 0.9;
+  ctx.fillStyle = theme.acc;
+  ctx.fillRect(zoneX, LINE * S - 1, zoneW, 3);
   ctx.globalAlpha = 1;
+  ctx.font = `700 ${Math.round(S * 0.02)}px ${FONT.mono}`;
+  ctx.textAlign = 'left';
+  ctx.textBaseline = 'bottom';
+  ctx.fillStyle = theme.accText;
+  ctx.fillText(sc.t('spin.lobby.rhythm.zone'), zoneX + S * 0.008, (LINE - good) * S - S * 0.006);
   ctx.font = `700 ${Math.round(S * 0.026)}px ${FONT.mono}`;
   ctx.textAlign = 'center';
   ctx.textBaseline = 'middle';

@@ -1582,6 +1582,9 @@ export interface RpsSnapshot extends RoundSummary {
 
 /** Four lanes: tap targets 0 to 3, left to right. */
 export const RHYTHM_LANES = 4;
+/** A tap within this many seconds of a note's moment hits it: closer than GREAT is great (two points), the rest up to GOOD is good (one). */
+export const RHYTHM_GREAT_S = 0.06;
+export const RHYTHM_GOOD_S = 0.12;
 
 /** What a tap or a note came to: a hit close to the beat (great) or near it (good), a note that got by (miss), or a tap with no note to hit (wrong). */
 export type RhythmJudge = 'great' | 'good' | 'miss' | 'wrong';
