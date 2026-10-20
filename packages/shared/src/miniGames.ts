@@ -67,7 +67,7 @@ export const MINIGAME_VERSIONS: Record<LobbyGameId, number> = {
   snake: 1,
   gravity: 2, // floating blocks in the middle, and a flip can be turned round part way across
   laser: 1,
-  colormatch: 3, // endless with three lives when there is no time limit; before: the prompt asks for the ink, the word or the shape, changing each time
+  colormatch: 4, // slower prompts (3.2 seconds to start) and a longer pause between them; before: endless with three lives when there is no time limit, the prompt asks for the ink, the word or the shape, changing each time
   potato: 2, // the score became the time held, not the rounds survived
   anagram: 1,
   mines: 1,
