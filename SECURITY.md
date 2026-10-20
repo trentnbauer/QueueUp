@@ -43,6 +43,19 @@ there's no separate maintenance track for older ones. `main` (and the `latest` i
 built from it) is the only actively-patched line; deploying from it and pulling
 updates regularly is the best way to stay current on security fixes.
 
+## What the app already does
+
+So you know what is expected before reporting, this is what a default deployment relies on:
+
+- **Sign-in and sessions.** Sign-in is through Google, Discord, Steam, Xbox or an OIDC provider; QueueUp stores no passwords. Sessions are cookie based (`HttpOnly`, `SameSite=Lax`, `Secure` once TLS is confirmed), and every sign-in flow is tied to the browser session that started it. `ADMIN_EMAILS` only grants admin for an email the provider has verified, and `DEV_FAKE_AUTH` makes the production image refuse to start. An optional Cloudflare Turnstile captcha guards sign-in and fails closed. `SIGNUP_MODE=invite` limits who can create an account.
+- **Two separate auth paths.** The web app uses the cookie session; `/api/v1` uses bearer API keys only (stored as a hash, optionally read-only or expiring). A key cannot reach a cookie route and a session cannot reach `/api/v1`.
+- **Browser protections.** Content Security Policy and the other `helmet` headers, and rate limiting on the API (per client IP, so keep `TRUST_PROXY` right for your proxy).
+- **Secrets.** Integration keys, people's library logins and AI keys, and Discord webhook URLs are encrypted at rest (AES-256-GCM, key derived from `SESSION_SECRET`) and never sent back to the browser. A backup does not expose them. The container runs as an unprivileged user.
+- **AI and outbound requests.** A person's own AI address is off by default (`AI_ALLOW_USER_BASE_URL`), and when allowed it must resolve to a public address, checked before every request, unless an admin turns private addresses on.
+- **Mini games.** The lobby WebSocket refuses a page that is not at `APP_BASE_URL` and is rate limited per connection. High scores only come from runs the server saw: solo practice runs on the server itself, and in a lobby a game that works out each player on their own device keeps its scores off the lists. Seeds and anything hidden from other players come from the cryptographic random source and are never put in a snapshot that should not carry them. A game that throws closes only its own lobby.
+- **Guests.** Guest mini games (the sign-in page's **Play mini-games**) are unauthenticated by design, so they are narrow: two rate-limited endpoints, a captcha check when Turnstile is on, a name run through the banned-words and blocked-names lists, and a short-lived HMAC-signed token for one lobby. A guest exists only in the lobby's memory: there is no user row, session, score, rating or notification, and nothing about them is in a backup. Guest play is off on an invite-only or private instance.
+- **Moderation.** People can block and report each other, and administrators can ban, force a name change, and manage banned words and blocked names. Administrator actions are written to an audit log.
+
 ## Scope notes
 
 - Code scanning (CodeQL, via GitHub's default setup) runs on every push/PR.
