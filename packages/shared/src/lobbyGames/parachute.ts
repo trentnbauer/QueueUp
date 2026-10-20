@@ -19,9 +19,8 @@ const Y_MIN = 0.14;
 const Y_MAX = 0.62;
 const SINK = 0.3;
 const FLOAT = 0.2;
-/** How fast they slide with the chute shut or open (open, the canopy catches the air and steers worse). */
-const SLIDE_SHUT = 0.7;
-const SLIDE_OPEN = 0.4;
+/** How fast they slide while an arrow is held (that is what opens the chute; with none held they are in free fall and go nowhere sideways but with the wind). */
+const SLIDE = 0.7;
 /** Gusts between rows push sideways this fast, and the open chute catches them more. */
 const GUST_PUSH = 0.25;
 const GUST_OPEN_FACTOR = 1.4;
@@ -36,14 +35,14 @@ interface Skydiver extends RoundPlayer {
   vy: number;
   /** -1, 0 or 1: the direction they are holding. */
   dir: number;
-  /** Holding the chute open. */
+  /** The chute is open: an arrow is held. */
   open: boolean;
 }
 
 const r3 = (n: number) => Math.round(n * 1000) / 1000;
 
-/** A skydiver falls through rows of clouds, each with a gap, and gusts that shove them sideways. Slide left and right into the gap, and hold to open the chute: open, they
- * float up (so the next row takes longer to come) but steer worse and the gusts push harder; shut, they sink and slide fast. Touch a cloud and they are out. Everyone falls through the same sky,
+/** A skydiver falls through rows of clouds, each with a gap, and gusts that shove them sideways. Hold left or right to slide into the gap, which opens the chute: open, they
+ * float up (so the next row takes longer to come) and the gusts push harder; with no arrow held they are in free fall and sink. Touch a cloud and they are out. Everyone falls through the same sky,
  * and never touches (see RoundGame.clientSim). See RoundGame for how runs start and end. */
 export class ParachuteGame extends RoundGame<Skydiver> {
   readonly id = 'parachute' as const;
@@ -95,11 +94,12 @@ export class ParachuteGame extends RoundGame<Skydiver> {
     this.nextRowAt = 0.45;
   }
 
-  input(userId: string, dx: number, dy: number): void {
+  input(userId: string, dx: number, _dy: number): void {
     const p = this.players.get(userId);
     if (!p) return;
     p.dir = clampDirection(dx);
-    p.open = clampDirection(dy) === -1;
+    // An arrow held is the chute open (so you float and steer); none is free fall.
+    p.open = p.dir !== 0;
   }
 
   action(): void {
@@ -154,7 +154,7 @@ export class ParachuteGame extends RoundGame<Skydiver> {
       // The chute shut they sink; open they float up. It eases, so it is a glide rather than a jerk.
       p.vy += ((p.open ? -FLOAT : SINK) - p.vy) * Math.min(1, dt * 6);
       p.y = Math.min(Y_MAX, Math.max(Y_MIN, p.y + p.vy * dt));
-      let vx = p.dir * (p.open ? SLIDE_OPEN : SLIDE_SHUT);
+      let vx = p.dir * SLIDE;
       for (const g of this.gusts) if (Math.abs(g.y - p.y) <= GUST_H / 2) vx += g.push * GUST_PUSH * (p.open ? GUST_OPEN_FACTOR : 1);
       p.x = Math.min(1 - half, Math.max(half, p.x + vx * dt));
       if (this.hit(p)) this.knockOut(p);
@@ -178,7 +178,7 @@ export class ParachuteGame extends RoundGame<Skydiver> {
     const width = Math.max(GAP_MIN, GAP_START - GAP_SHRINK * seconds);
     // The least time to see a row coming is from when it appears at the bottom to when it reaches a skydiver as low and as fast as they can be.
     const leastWait = (1.05 - Y_MAX) / (this.rise + SINK);
-    const reach = REACH * (SLIDE_SHUT - GUST_PUSH) * leastWait;
+    const reach = REACH * (SLIDE - GUST_PUSH * GUST_OPEN_FACTOR) * leastWait;
     const lo = Math.max(width / 2 + GAP_EDGE, this.lastGap - reach);
     const hi = Math.min(1 - width / 2 - GAP_EDGE, this.lastGap + reach);
     const gap = lo + gapAt * Math.max(0, hi - lo);

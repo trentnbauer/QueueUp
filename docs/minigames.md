@@ -335,13 +335,13 @@ A ship flies down a tunnel that twists and narrows. Everyone is in the same tunn
 A skydiver falls through rows of clouds and gusts of wind, with a chute to float on. Everyone falls through the same sky, side by side, and never touches.
 
 - **Goal:** get through every gap. A row of clouds, with a gap, comes up the screen at you. **Slide left and right** into the gap; **touch a cloud and you are out**. **Last one falling wins**; alone it is a high score (metres fallen).
-- **The chute:** **hold to open it**. Open, you **float up** the screen (0.2 of a screen a second), so the next row takes longer to reach you, but you **steer worse** (0.4 of a screen a second instead of 0.7) and **gusts push you harder** (1.6 times). Shut, you sink (0.3 of a screen a second) and slide fast. It eases, so opening and closing is a glide, not a jerk. You can be anywhere between 0.14 and 0.62 down the screen.
-- **Gusts** are bands of wind between rows (more than one gap in two has one), with arrows showing which way they push (0.25 of a screen a second; 1.4 times that with the chute open). They push you only while you are in the band.
+- **The chute is the arrows:** **holding left or right opens it** (there is no chute button); let go and you are in **free fall**. With it open you slide (0.7 of a screen a second) and **float up** the screen (0.2 of a screen a second), so the next row takes longer to reach you, and **gusts push you harder** (1.4 times). In free fall you sink (0.3 of a screen a second) and only the wind moves you. It eases, so opening and closing is a glide, not a jerk. You can be anywhere between 0.14 and 0.62 down the screen.
+- **Gusts** are bands of wind between rows (more than one gap in two has one), with arrows showing which way they push (0.25 of a screen a second; 1.4 times that with the chute open). They push you only while you are in the band. The wind on you is **always shown**: a small panel at the top of the screen has chevrons pointing the way it pushes, or dots when it is calm.
 - **The rows** come every half a screen of fall, and the course comes up the screen at 0.4 of a screen a second at first and 0.03 quicker every second, with no top speed, so it always gets too fast in the end. The gap starts 0.34 wide and narrows to 0.17 (after about 115 seconds), and each gap is within reach of the last one, working from the time between a row coming into view at the bottom and reaching a skydiver as low and as fast as they can be, and against the wind. Everything comes from the round's seed, so it is the same for everyone.
 - There is no time limit of its own: it goes on until it is beaten. With a time cap (a waiting room), whoever is still in keeps their metres and nobody wins.
-- **Hard to pass 30 seconds:** a test skydiver who reacts instantly and never misjudges a gap lasts about two minutes, and one that steers on a delayed view of itself (like a late press) falls out within seconds, so getting to 30 seconds by eye is a good run.
+- **Hard to pass 30 seconds:** a test skydiver who reacts instantly and never misjudges a gap lasts three to seven minutes, and one that steers on a delayed view of itself (like a late press) falls out within seconds, so getting to 30 seconds by eye is a good run.
 - **Ping:** your own skydiver is worked out on your own device (see "Ping and who works out what"), so it answers the moment you press. The sky comes from the same seed and the server's clock.
-- **Controls:** **←** / **→** or **A** / **D** to slide, and hold **Space**, **↑** or **W** for the chute.
+- **Controls:** **←** / **→** or **A** / **D** to slide, which also opens the chute.
 
 ## Conveyor
 
@@ -423,7 +423,7 @@ A game can instead make **the play space the controller**: there are no buttons 
 | Steady tempo | **Space** (or click anywhere). | Tap anywhere on the arena. |
 | Bounce | **←** / **→** or **A** / **D**. | The **◀** and **▶** buttons. |
 | Tunnel | **←** / **→** or **A** / **D**. | The **◀** and **▶** buttons. |
-| Parachute | **←** / **→** or **A** / **D** to slide, hold **Space**, **↑** or **W** for the chute. | The **◀** and **▶** buttons, and hold **Chute** (or press and hold the arena). |
+| Parachute | **←** / **→** or **A** / **D** (holding one opens the chute; none is free fall). | The **◀** and **▶** buttons. |
 | Conveyor | **Space**, **↑** or **W** to jump. | **Jump** (or tap anywhere on the arena). |
 | Orbit | **Space**, **↑**, **←** / **→** or **W** / **A** / **D** to flip direction. | **Flip**, or tap anywhere on the arena. |
 

@@ -87,7 +87,7 @@ export const MINIGAME_VERSIONS: Record<LobbyGameId, number> = {
   tempo: 1,
   bounce: 1,
   tunnel: 1,
-  parachute: 1,
+  parachute: 2, // the chute opens on the arrows instead of its own button
   conveyor: 1,
 };
 export const miniGameVersion = (game: LobbyGameId): number => MINIGAME_VERSIONS[game];
