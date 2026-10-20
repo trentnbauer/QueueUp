@@ -30,7 +30,7 @@ function drawWorld(sc: Scene<TunnelSnapshot>): void {
     ctx.closePath();
     ctx.fill();
   };
-  ctx.fillStyle = 'oklch(0.2 0.02 40)';
+  ctx.fillStyle = 'oklch(0.28 0.03 40)';
   side(left, 0);
   side(right, S);
   // A glowing edge along each wall.
