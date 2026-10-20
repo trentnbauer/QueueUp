@@ -5,11 +5,15 @@ QueueUp is written by Claude.
 
 A self-hosted game backlog and voting system for a friend group — a private "Personal Shelf" plus shared "Communal Rooms," real pricing from gg.deals, and a 5-emoji voting scale.
 
-QueueUp has a phone layout and a three-column desktop layout. The sidebar lists your "Personal Shelf" first, then your rooms (public or shared), then the add-room button, with Friends, Your stats, Notifications and Settings below. The rooms are where you queue your games with your friends; each room has Games, Journal, People and Recap tabs, and the shelf has Games, Journal and History. Friends have their own activity feed, and a finished game can carry a short review that shows up there and on your public profile.
+QueueUp has a phone layout and a desktop layout. On desktop the sidebar lists your "Personal Shelf", Friends, Your stats and Mini games, then your rooms (public or shared) and the add-room button, with Account & settings and the notification bell at the bottom. On a phone, a row of tiles across the top switches between your shelf and your rooms. The rooms are where you queue your games with your friends: each room has Games, Journal, People and Recap tabs, and the shelf has Games, Journal and History. Friends have their own activity feed, and a finished game can carry a short review that shows up there and on your public profile.
 
-<img width="900" alt="A room on desktop: sidebar, queue and the at-a-glance panel" src="docs/screenshots/desktop-room.png" />
+<img width="900" alt="A room on desktop: the sidebar, the queue with votes, and the Spin button" src="docs/screenshots/desktop-room.png" />
 
-<img width="300" alt="A room on a phone" src="docs/screenshots/mobile-room.png" /> <img width="600" alt="Game detail panel" src="docs/screenshots/desktop-detail.png" />
+<img width="300" alt="A room on a phone" src="docs/screenshots/mobile-room.png" /> <img width="300" alt="The Personal Shelf on a phone" src="docs/screenshots/mobile-shelf.png" />
+
+Open a game to see the card: everyone's votes, who owns it, its status, price history, "play after", DLC and more.
+
+<img width="900" alt="A game card: the squad vote, status and details" src="docs/screenshots/desktop-detail.png" />
 
 The app also features an interactive "What are we playing?" pick-a-game reel. The pick-a-game system has some logic behind its recommendations:
 - Games of the same genre as last completed are ranked lower (to reduce the chance of playing shooter after shooter after shooter)
@@ -18,10 +22,33 @@ The app also features an interactive "What are we playing?" pick-a-game reel. Th
 
 <img width="700" alt="The pick-a-game reel (light theme)" src="docs/screenshots/desktop-spin-light.png" />
 
-While a spin waits for everyone, the room can play live **mini games** together (and you can practise them alone from your Personal Shelf settings). See [docs/minigames.md](docs/minigames.md) for the rules.
+## Mini games
+
+QueueUp also has a collection of small, live **mini games**. Everyone in a lobby plays the same game at the same time on one screen, and they are purely for fun: nothing in them changes which game a spin picks.
+
+- **While a spin waits.** When someone starts a spin, the room's waiting room is a mini game everyone can play until enough of you vote to spin. The **Spin** button opens the mini game first.
+- **On your own.** Practise any game solo from the **Mini games** page and chase a personal best.
+- **Open lobbies.** From the **Mini games** page anyone can open a lobby that is public, friends only or by invite code, and play it with whoever joins.
+- **High scores.** The Mini games page keeps a high score list for every game (you, your friends, everyone; all time or this week). Scores come from runs the server saw, so there is no way to post one from a browser.
+- **Guests.** The sign-in page has a **Play mini-games** button: someone without an account can join a public lobby (or one by invite code) with just a display name. Nothing about a guest is stored on the server and their scores are not kept. It is off when `SIGNUP_MODE=invite` or `PRIVATE_INSTANCE=true`.
+
+<img width="440" alt="The Mini games page: the game list, a game's high scores and your numbers" src="docs/screenshots/desktop-minigames.png" /> <img width="440" alt="A mini game being played" src="docs/screenshots/desktop-lobby.png" />
+
+<img width="440" alt="The sign-in page with the Play mini-games button" src="docs/screenshots/desktop-login.png" /> <img width="440" alt="The guest Mini games dialog: an invite code and the public lobbies" src="docs/screenshots/desktop-guest-minigames.png" />
+
+See [docs/minigames.md](docs/minigames.md) for how they work and the rules of each game.
+
+## More
+
+Your settings (accounts, libraries, preferences, notifications, AI and your data) live under **Account & settings**, and the **Libraries** page lists every way of bringing your games in.
+
+<img width="700" alt="Settings: the Libraries page" src="docs/screenshots/desktop-settings.png" />
 
 Some other things to note:
-- Rooms are set per console
+- Rooms are set per console (or left on any platform)
+- Games can be linked to each other: DLC to its base game, a bundle to the games inside it, a remaster or remake to its original, and "play after" to a game you want to finish first
+- Optional AI features (suggestions, search in plain words, finding duplicates, matching imported titles, recaps) work with Anthropic, OpenAI, Gemini, Ollama or any OpenAI-compatible server, and are hidden until a provider is set up
+- Notifications can be sent by email too (set `SMTP_*`); each person chooses which alerts they want
 - Marking a game as owned syncs between rooms
 - Discord webhooks for alerts, with a switch per kind of event (games added, suggestions, votes, spins, status changes, reviews, members, member activity)
 - Games can be hidden from friends and your public profile
@@ -61,6 +88,10 @@ Some other things to note:
 5. Run `docker-compose up` to start the stack
 
 Every setting is described in `.env.example`. The gg.deals, IGDB, ScanDex, Turnstile, Xbox, AI and Cloudflare Tunnel keys can also be entered later on the Administrator page (**Settings → Administrator**) instead of the env file (an env var always wins over a value saved there).
+
+### Behind a reverse proxy
+
+If you put a reverse proxy in front of QueueUp, make sure it passes **WebSocket** upgrades through: the mini games run over a WebSocket, and the server refuses a connection from a page that is not at `APP_BASE_URL`, so `APP_BASE_URL` must be the address people actually use. Cloudflare Tunnel, NGINX Proxy Manager and Traefik pass them by default; for plain nginx add `proxy_http_version 1.1;` and the `Upgrade` and `Connection` headers. Lobbies live in the server's memory, so run a single server container (the compose files do). See the [Deployment wiki page](https://github.com/trentnbauer/QueueUp/wiki/Deployment) for more.
 
 ### With a locally hosted AI
 
