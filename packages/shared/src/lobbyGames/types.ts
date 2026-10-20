@@ -34,6 +34,8 @@ export interface LobbyGame {
   stepRun?(dt: number): void;
   /** On the client: how far into the run it is, in milliseconds. */
   readonly runMs?: number;
+  /** On the client, for a game whose players have a place of their own: puts this person's player where the server has seated them (read from its snapshot), right after `startRunAt`. */
+  seat?(userId: string, x: number): void;
   /** On the client: this person's own player, to report to the server. */
   localReport?(userId: string): { alive: boolean; f: Record<string, number> } | null;
   /** Set by whatever records high scores: called once when a run ends, with each real player's score

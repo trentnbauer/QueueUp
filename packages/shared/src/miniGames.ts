@@ -35,7 +35,7 @@ export const MINIGAME_SCORE_MAX: Record<LobbyGameId, number> = {
   pong: 100000,
   wall: 100000,
   frogger: 20000,
-  fishing: 200,
+  fishing: 2000, // points
   orbit: 3600, // seconds lasted
   rps: 100, // rounds won
   rhythm: 5000, // points
@@ -75,7 +75,7 @@ export const MINIGAME_VERSIONS: Record<LobbyGameId, number> = {
   pong: 1,
   wall: 1,
   frogger: 1,
-  fishing: 1,
+  fishing: 2, // rebuilt: cast a lure, hook a fish, keep it in the green; the score became points by fish size
   orbit: 1,
   rps: 1,
   rhythm: 1,

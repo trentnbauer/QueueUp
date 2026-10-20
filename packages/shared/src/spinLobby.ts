@@ -41,7 +41,7 @@ export type LobbyClientMessage =
 export const LOBBY_ACTION_NAME_MAX = 16;
 
 /** The most fields one `report` may carry; the server drops a report with more. */
-export const LOBBY_REPORT_FIELDS_MAX = 8;
+export const LOBBY_REPORT_FIELDS_MAX = 12;
 
 /** The most tap targets a game can have on the arena; the server drops a tap with a higher index. A game
  * checks the index against its own count too. */
@@ -1439,40 +1439,79 @@ export interface FroggerSnapshot extends RoundSummary {
   winnerId: string | null;
 }
 
-// ---- Fishing (keep your net on the fish while it thrashes, and land it before the line snaps) ------
+// ---- Fishing (cast a lure, hook a fish, and keep it in the green while you reel it in) -------------
 
-/** The fish and the nets are on one line from the surface (0) down to the bottom of the pond (1). */
+/** The kinds of fish, smallest first: how big each is (a fraction of the pond's width, the radius the lure must touch) and its points. */
+export const FISHING_TIERS: readonly { r: number; points: number }[] = [
+  { r: 0.03, points: 1 },
+  { r: 0.042, points: 2 },
+  { r: 0.056, points: 4 },
+  { r: 0.075, points: 8 },
+];
+
+/** A fish in the pond (everything is 0 to 1 across the arena; y grows downward, the anglers are along the bottom). */
+export interface FishingFish {
+  /** Counts up through the run, so a screen can tell one fish from the next. */
+  n: number;
+  x: number;
+  y: number;
+  /** How fast it is going, in arenas a second, so a screen can carry it on between snapshots. */
+  vx: number;
+  vy: number;
+  /** Which kind (an index into `FISHING_TIERS`). */
+  tier: number;
+}
+
+export type FishingMode = 'idle' | 'charging' | 'out' | 'fight';
+
 export interface FishingPlayer {
   id: string;
-  /** Where the middle of their net is, how fast it is moving (ponds a second, down is positive) and whether they are reeling (holding the button, so it rises). */
-  y: number;
-  vy: number;
-  reeling: boolean;
-  /** The line's strength (0 to 1, full at the start): it wears down while the fish is outside their net and mends while it is inside; 0 snaps it. */
+  /** Where along the bottom they fish (fixed for the run). */
+  x: number;
+  /** idle: lure at the rod. charging: holding to cast, `power` rising. out: the lure is in the water. fight: a fish is hooked and being reeled in. */
+  mode: FishingMode;
+  /** Where the lure is (it sits at the rod, near the bottom, until cast). */
+  ly: number;
+  /** The cast power (0 to 1) while charging. */
+  power: number;
+  /** The lure is being wound back in (out, with the button held). */
+  winding: boolean;
+  /** The kind of fish on the line (an index into `FISHING_TIERS`), or -1. */
+  tier: number;
+  /** The number of the fish on the line (`FishingFish.n`), or -1. */
+  hooked: number;
+  /** The reeling bar while a fish is hooked, 0 (top) to 1 (bottom): the green zone's middle, how fast it is moving, and where the fish is on the bar. */
+  zone: number;
+  zoneV: number;
+  mark: number;
+  /** Half the height of the green zone right now. */
+  half: number;
+  /** The line's strength for this fish (0 to 1): it wears down while the fish is outside the green and mends while it is inside; 0 snaps it. */
   health: number;
-  /** How close they are to landing the fish (0 to 1): up while the fish is in their net, down (slowly) while it is not; 1 lands it. */
+  /** How close the fish is to landing (0 to 1): up while it is in the green, down (slowly) while it is not. */
   catch: number;
-  /** Fish they have landed this run. */
-  landed: number;
-  /** Still fishing. False once their line snaps, or if they arrived mid-run. */
+  /** Points from the fish landed this run. */
+  points: number;
+  /** Lines left: a snapped line, or a long time with nothing hooked, costs one. */
+  lives: number;
+  /** How much of the wait for a bite is left (1 to 0) before the line goes slack. */
+  patience: number;
+  /** Still fishing. False once out of lines, or if they arrived mid-run. */
   alive: boolean;
   /** Runs won since this person joined the lobby. */
   wins: number;
-  /** Fish landed: live while in, final once out. */
+  /** Points: live while in, final once out. */
   meters: number;
 }
 
 export interface FishingSnapshot extends RoundSummary {
   id: 'fishing';
   phase: LobbyRoundPhase;
-  /** The most fish anyone has landed. */
+  /** The most points anyone has. */
   meters: number;
   /** Always 0: nothing scrolls past in this game (every snapshot carries a course speed). */
   speed: number;
-  /** The fish: where it is and how fast it is going, so a screen can carry it on between snapshots. */
-  fish: { y: number; vy: number };
-  /** How tall (half of it, each way from the middle) a net is right now: it shrinks as the run goes on. */
-  half: number;
+  fish: FishingFish[];
   players: FishingPlayer[];
   /** Milliseconds left in `countdown` or `over`; 0 otherwise. */
   timerMs: number;

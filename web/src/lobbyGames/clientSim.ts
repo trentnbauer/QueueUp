@@ -45,7 +45,7 @@ interface GameView {
   winnerId: string | null;
   history: unknown[];
   best: unknown;
-  players: { id: string; alive: boolean; wins: number }[];
+  players: { id: string; alive: boolean; wins: number; x?: number }[];
 }
 
 /** For a game that runs each player on their own device (`LobbyGame.clientSim`): keeps a one-person copy
@@ -158,6 +158,9 @@ export class ClientSim {
 
     if (this.startedRun !== pending.run && now >= pending.startAt && (game.phase === 'countdown' || game.phase === 'playing') && game.run === pending.run) {
       local.startRunAt?.(pending.seed);
+      // A game that seats its players (Fishing) is told where the server put this one.
+      const seat = game.players.find((p) => p.id === this.me)?.x;
+      if (seat !== undefined) local.seat?.(this.me, seat);
       this.startedRun = pending.run;
       this.lastReportAt = -Infinity;
       this.lastReportedAlive = true;
