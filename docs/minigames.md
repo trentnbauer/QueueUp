@@ -64,7 +64,7 @@ Guest play is off when `SIGNUP_MODE=invite` or `PRIVATE_INSTANCE=true`. The two 
 
 ## Ping and who works out what
 
-In **Runner, Flappy, Dodge, Jump rope, Obstacle race, Lava rise, Gravity flip, Laser gaps, Road hop, Fishing, Orbit, Rhythm lanes, Sort it and Steady tempo**, your own player is worked out **on your own device**, so a slow connection does not make you jump late or get hit by something you cleared:
+In **Runner, Flappy, Dodge, Jump rope, Obstacle race, Lava rise, Gravity flip, Laser gaps, Road hop, Fishing, Orbit, Rhythm lanes, Sort it, Steady tempo, Bounce, Tunnel, Parachute and Conveyor**, your own player is worked out **on your own device**, so a slow connection does not make you jump late or get hit by something you cleared:
 
 - **Your device** runs your player against the course the moment you press: your jump, your duck, your slide, your steering. Your hits are decided there too, and it tells the server where you are about 20 times a second, and straight away when you are out.
 - **The server** decides the shared things: the course's seed and exactly when a run starts (everyone's device lines its clock up with the server's, so everyone starts the same course at the same moment), who is still in, who won, the wins and the history. It shows everyone else's player from what their devices report.
@@ -305,6 +305,58 @@ Keep the beat going when it falls silent. Everyone has the same rounds, and neve
 - **Ping:** your own taps are judged on your own device against the beats (see "Ping and who works out what"), so your connection does not matter. Everyone's tempos are the same, from the round's seed, and only the guide ticks are ever sent, never the silent beats.
 - **Controls:** one target, the arena: tap or click anywhere, or press **Space**.
 
+## Bounce
+
+A ball that bounces by itself, up a tower of platforms. Everyone climbs the same tower side by side, and never touches.
+
+- **Goal:** keep up with the screen. The ball bounces off every platform it comes down on, about a third of a screen high, and the screen climbs the tower faster and faster. **Slide left and right** to land on the next platform; **fall off the bottom and you are out**. The top of the screen is a ceiling. **Last one up wins**; alone it is a high score (metres the screen climbed).
+- **Wrapping round:** go off one side and you come back on the other, so the next platform is never far.
+- **The tower** is a platform every 0.13 to 0.26 of a screen up, never further sideways than 0.3 from the last, so a bounce can always reach the next. From about a screen up, **some platforms slide** from side to side (a bright edge), more and more of them, up to two in five. The platforms come from the round's seed, so they are the same for everyone; you start on a floor as wide as the screen.
+- **The climb** starts at 0.08 of a screen a second and reaches 0.36 after 50 seconds. A bounce gains about a quarter of a screen a second, so even a perfect player is caught up with in the end.
+- There is no time limit of its own: it goes on until it is beaten. With a time cap (a waiting room), whoever is still in keeps their metres and nobody wins.
+- **Hard to pass 30 seconds:** a test player who always steers to the highest platform the bounce can reach lasts about 40 seconds, and one who steers a fifth of a second late lasts 20 to 35, so getting to 30 is a good run.
+- **Ping:** your own ball is worked out on your own device (see "Ping and who works out what"), so it answers the moment you press. The platforms come from the same seed and the server's clock.
+- **Controls:** left and right only.
+
+## Tunnel
+
+A ship flies down a tunnel that twists and narrows. Everyone is in the same tunnel, side by side, and never touches.
+
+- **Goal:** stay between the walls. The tunnel comes down the screen toward your ship; **steer left and right** to follow it. **Touch a wall and you are out.** **Last one flying wins**; alone it is a high score (metres flown).
+- **The tunnel** starts straight and 0.48 of the screen wide, and its curves grow over the first six screens. Its middle follows two waves that never turn sharper than the ship can slide, so there is always a line through. It **narrows** by 0.02 a screen of tunnel, down to 0.18 wide. The waves come from the round's seed, so it is the same tunnel for everyone.
+- **Speed:** the tunnel comes at 0.45 of a screen a second at first and 0.018 faster every second, with no top speed, so it always gets faster than anyone can follow in the end. The ship slides at 0.6 of a screen a second.
+- There is no time limit of its own: it goes on until it is beaten. With a time cap (a waiting room), whoever is still in keeps their metres and nobody wins.
+- **Hard to pass 30 seconds:** a test pilot who follows the middle perfectly lasts about two minutes, one who sees the tunnel a fifth of a second late lasts 27 to 39 seconds, and one a third of a second late about 20 to 25, so getting to 30 is a good run.
+- **Ping:** your own ship is worked out on your own device (see "Ping and who works out what"), so it answers the moment you press. The tunnel comes from the same seed and the server's clock.
+- **Controls:** left and right only.
+
+## Parachute
+
+A skydiver falls through rows of clouds and gusts of wind, with a chute to float on. Everyone falls through the same sky, side by side, and never touches.
+
+- **Goal:** get through every gap. A row of clouds, with a gap, comes up the screen at you. **Slide left and right** into the gap; **touch a cloud and you are out**. **Last one falling wins**; alone it is a high score (metres fallen).
+- **The chute:** **hold to open it**. Open, you **float up** the screen (0.2 of a screen a second), so the next row takes longer to reach you, but you **steer worse** (0.4 of a screen a second instead of 0.7) and **gusts push you harder** (1.6 times). Shut, you sink (0.3 of a screen a second) and slide fast. It eases, so opening and closing is a glide, not a jerk. You can be anywhere between 0.14 and 0.62 down the screen.
+- **Gusts** are bands of wind between rows (more than one gap in two has one), with arrows showing which way they push (0.25 of a screen a second; 1.4 times that with the chute open). They push you only while you are in the band.
+- **The rows** come every half a screen of fall, and the course comes up the screen at 0.4 of a screen a second at first and 0.03 quicker every second, with no top speed, so it always gets too fast in the end. The gap starts 0.34 wide and narrows to 0.17 (after about 115 seconds), and each gap is within reach of the last one, working from the time between a row coming into view at the bottom and reaching a skydiver as low and as fast as they can be, and against the wind. Everything comes from the round's seed, so it is the same for everyone.
+- There is no time limit of its own: it goes on until it is beaten. With a time cap (a waiting room), whoever is still in keeps their metres and nobody wins.
+- **Hard to pass 30 seconds:** a test skydiver who reacts instantly and never misjudges a gap lasts about two minutes, and one that steers on a delayed view of itself (like a late press) falls out within seconds, so getting to 30 seconds by eye is a good run.
+- **Ping:** your own skydiver is worked out on your own device (see "Ping and who works out what"), so it answers the moment you press. The sky comes from the same seed and the server's clock.
+- **Controls:** **←** / **→** or **A** / **D** to slide, and hold **Space**, **↑** or **W** for the chute.
+
+## Conveyor
+
+Crates, tall stacks and pits ride a belt toward you; jump each one as it reaches you. Everyone is on the same belt, and never touches.
+
+- **Goal:** don't hit anything. **Tap to jump** (one button: a jump rises 0.25 of a screen and takes 0.6 of a second). A **crate** (0.09 tall) is cleared by being in the air as it reaches you, a **tall stack** (0.13) only near the top of the jump, and a **pit** by being off the belt while it is under you: land on one and you are out. **Last one on the belt wins**; alone it is a high score (metres the belt ran).
+- **A rhythm that tightens:** things reach you 1.5 seconds apart at first, 0.012 of a second sooner every second, until there is only about two thirds of a second (a jump and a little to land) between them, plus an extra beat of 0.15 seconds now and then (none, one or two) so it is not a metronome. A tap in the last tenth of a second of a jump is kept and starts the next one the moment you land.
+- **Pits and stacks:** about one thing in three is a pit, and **pits get longer** the later they come (0.12 of a screen to begin with, 0.006 more every second), until one is longer than a jump can clear. From 15 seconds in some things are tall stacks, up to two in five by 75 seconds.
+- **Speed:** the belt runs at 0.5 of a screen a second and 0.008 faster every second.
+- Everything comes from the round's seed, so it is the same for everyone. The players stand in a short line on the belt, a little apart so you can tell them apart; where a hit happens is the same for all of them.
+- There is no time limit of its own: it goes on until it is beaten. With a time cap (a waiting room), whoever is still in keeps their metres and nobody wins.
+- **Hard to pass 30 seconds:** a test runner who always jumps with the top of the jump where the thing reaches them lasts a minute and a half to a minute and three quarters, one who jumps 0.08 of a second late lasts 40 to 60 seconds, and one 0.12 late 21 to 34, so getting to 30 is a good run.
+- **Ping:** your own jump is worked out on your own device (see "Ping and who works out what"), so it answers the moment you press. The belt comes from the same seed and the server's clock.
+- **Controls:** one button: **Space**, **↑** or **W**, or tap anywhere on the arena.
+
 ## Rating a game
 
 When a run ends and its result card is showing, a **thumbs up / thumbs down** appears in the result card (in a room's lobby, a spin's waiting room, an open lobby and solo practice alike).
@@ -369,6 +421,10 @@ A game can instead make **the play space the controller**: there are no buttons 
 | Rhythm lanes | Press **D**, **F**, **J**, **K** (or click a lane). | Tap a lane. |
 | Sort it | Press **←** / **→** (or click a bin). | Tap a bin. |
 | Steady tempo | **Space** (or click anywhere). | Tap anywhere on the arena. |
+| Bounce | **←** / **→** or **A** / **D**. | The **◀** and **▶** buttons. |
+| Tunnel | **←** / **→** or **A** / **D**. | The **◀** and **▶** buttons. |
+| Parachute | **←** / **→** or **A** / **D** to slide, hold **Space**, **↑** or **W** for the chute. | The **◀** and **▶** buttons, and hold **Chute** (or press and hold the arena). |
+| Conveyor | **Space**, **↑** or **W** to jump. | **Jump** (or tap anywhere on the arena). |
 | Orbit | **Space**, **↑**, **←** / **→** or **W** / **A** / **D** to flip direction. | **Flip**, or tap anywhere on the arena. |
 
 ## Runner

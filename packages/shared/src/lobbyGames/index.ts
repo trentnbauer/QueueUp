@@ -28,6 +28,10 @@ import { RpsGame } from './rps.js';
 import { RhythmGame } from './rhythm.js';
 import { SortitGame } from './sortit.js';
 import { TempoGame } from './tempo.js';
+import { BounceGame } from './bounce.js';
+import { TunnelGame } from './tunnel.js';
+import { ParachuteGame } from './parachute.js';
+import { ConveyorGame } from './conveyor.js';
 import { TiltGame } from './tilt.js';
 import { StackerGame } from './stacker.js';
 import { SumoGame } from './sumo.js';
@@ -38,7 +42,8 @@ import type { LobbyGame } from './types.js';
 
 export type { BotBrain, BotCommand, LobbyGame } from './types.js';
 export { LobbyRecord, secureRandom } from './roundGame.js';
-export { BattleshipsGame, CoinsGame, DodgeGame, FlappyGame, RaceGame, RopeGame, RunnerGame, WhackGame, DrawGame, TiltGame, StackerGame, SumoGame, AsteroidsGame, MemoryGame, WordsGame, LavaGame, SnakeGame, GravityGame, LaserGame, ColorMatchGame, PotatoGame, AnagramGame, MinesGame, StopGame, PongGame, WallGame, FroggerGame, FishingGame, OrbitGame, RpsGame, RhythmGame, SortitGame, TempoGame };
+export { BattleshipsGame, CoinsGame, DodgeGame, FlappyGame, RaceGame, RopeGame, RunnerGame, WhackGame, DrawGame, TiltGame, StackerGame, SumoGame, AsteroidsGame, MemoryGame, WordsGame, LavaGame, SnakeGame, GravityGame, LaserGame, ColorMatchGame, PotatoGame, AnagramGame, MinesGame, StopGame, PongGame, WallGame, FroggerGame, FishingGame, OrbitGame, RpsGame, RhythmGame, SortitGame, TempoGame, BounceGame, TunnelGame, ParachuteGame, ConveyorGame };
+export { tunnelAt } from './tunnel.js';
 export { BotFiller, botColor, botNumber, isBotId, withBots } from './bots.js';
 
 /** Starts a fresh game of the given kind, with bots added by the lobby when it needs more players than
@@ -115,6 +120,14 @@ function build(id: LobbyGameId, record?: LobbyRecord): LobbyGame {
       return new SortitGame(undefined, record);
     case 'tempo':
       return new TempoGame(undefined, record);
+    case 'bounce':
+      return new BounceGame(undefined, record);
+    case 'tunnel':
+      return new TunnelGame(undefined, record);
+    case 'parachute':
+      return new ParachuteGame(undefined, record);
+    case 'conveyor':
+      return new ConveyorGame(undefined, record);
   }
 }
 
