@@ -144,6 +144,12 @@ export class SpinLobbyHub {
     this.kickWith(roomId, userId, 'Removed from the room');
   }
 
+  /** Closes every connection a person has to any lobby (a room's or an open one): an account that has just been banned must not stay in the lobbies it is
+   * already connected to (a ban is checked when a connection is made, not on every message). */
+  kickEverywhere(userId: string, reason: string): void {
+    for (const roomId of [...this.rooms.keys()]) this.kickWith(roomId, userId, reason);
+  }
+
   private kickWith(roomId: string, userId: string, reason: string): void {
     const room = this.rooms.get(roomId);
     if (!room) return;

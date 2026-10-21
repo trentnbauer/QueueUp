@@ -63,6 +63,24 @@ describe('SpinLobbyHub', () => {
     expect(c.last()).toEqual({ t: 'started' });
   });
 
+  it('closes every connection a person has, in every lobby, when asked to kick them everywhere (a ban)', async () => {
+    const hub = makeHub();
+    const [in1, in2, other, bystander] = [fakeSocket(), fakeSocket(), fakeSocket(), fakeSocket()];
+    hub.connect('r1', 'bad', in1.socket);
+    hub.connect('lobby:x', 'bad', in2.socket);
+    hub.connect('r1', 'good', bystander.socket);
+    hub.connect('r2', 'other', other.socket);
+    await flush();
+    hub.kickEverywhere('bad', 'Banned');
+    expect(in1.socket.close).toHaveBeenCalled();
+    expect(in2.socket.close).toHaveBeenCalled();
+    expect(hub.isPresent('r1', 'bad')).toBe(false);
+    expect(hub.isPresent('lobby:x', 'bad')).toBe(false);
+    expect(bystander.socket.close).not.toHaveBeenCalled();
+    expect(other.socket.close).not.toHaveBeenCalled();
+    expect(hub.isPresent('r1', 'good')).toBe(true);
+  });
+
   it('closes a removed member\'s connections, and their vote goes with them', async () => {
     const hub = makeHub();
     waiting = true;

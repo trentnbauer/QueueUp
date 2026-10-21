@@ -7,6 +7,7 @@ import { logAdminAction } from '../services/adminAuditLog.js';
 import { blockUser } from '../services/blocks.js';
 import { env } from '../config/env.js';
 import { forgetBan } from '../services/banCache.js';
+import { spinLobbyHub } from '../services/spinLobbyInstance.js';
 import { clearBannedIdentities, recordBannedIdentities } from '../services/banIdentities.js';
 import { notifyAdmins } from '../services/adminNotifications.js';
 import { addBannedWord, blockDisplayName, MIN_BANNED_WORD_LENGTH, normalizeDisplayName, placeholderDisplayName } from '../services/displayNames.js';
@@ -274,6 +275,7 @@ export default async function moderationRoutes(app: FastifyInstance) {
       await prisma.user.update({ where: { id: target.id }, data: { bannedAt: new Date(), banReason: reason || null, banReasonCode: code } });
       await recordBannedIdentities(target.id);
       forgetBan(target.id);
+      spinLobbyHub.kickEverywhere(target.id, 'Banned');
       await logAdminAction({ actorId, actorLabel: actor.email, action: 'user.ban', targetLabel: target.displayName, metadata: { userId: target.id, code, reason: reason || null } });
     }
     return { ok: true };
