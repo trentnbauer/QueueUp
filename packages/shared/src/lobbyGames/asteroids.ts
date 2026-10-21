@@ -10,7 +10,6 @@ const SHOT_RADIUS = 0.01;
 /** Asteroids fall faster, appear more often and are bigger more often as the run goes on, so it always ends. */
 const FALL_START = 0.2;
 const FALL_GAIN = 0.012;
-const FALL_MAX = 0.45;
 const SPAWN_START_S = 0.9;
 const SPAWN_GAIN_S = 0.025;
 const SPAWN_MIN_S = 0.35;
@@ -214,7 +213,7 @@ export class AsteroidsGame extends RoundGame<Gunner> {
   private spawn(seconds: number): void {
     const big = this.rng() < Math.min(BIG_MAX, BIG_START + BIG_GAIN * seconds);
     const kind = big ? BIG : SMALL;
-    const fall = Math.min(FALL_MAX, FALL_START + FALL_GAIN * seconds);
+    const fall = FALL_START + FALL_GAIN * seconds;
     this.asteroids.push({
       n: ++this.spawned,
       x: EDGE + this.rng() * (1 - 2 * EDGE),

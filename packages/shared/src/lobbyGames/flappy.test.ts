@@ -56,12 +56,12 @@ describe('FlappyGame rounds', () => {
     expect(course(0.4)).not.toBe(course(0.9));
   });
 
-  it('speeds up over a run, to a limit', () => {
+  it('keeps speeding up for as long as a run goes on, past where it used to stop', () => {
     const g = started(['a']);
     const start = g.snapshot().speed;
     playBot(g, 'a', 30_000);
     expect(g.snapshot().speed).toBeGreaterThan(start);
-    expect(g.snapshot().speed).toBeLessThanOrEqual(0.8);
+    expect(g.snapshot().speed).toBeGreaterThan(0.8);
   });
 });
 

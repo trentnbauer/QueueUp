@@ -68,12 +68,12 @@ describe('RaceGame rounds', () => {
     expect(track(0.4)).not.toBe(track(0.9));
   });
 
-  it('speeds the track up as the run goes on, to a limit', () => {
+  it('keeps speeding the track up for as long as the run goes on', () => {
     const g = started(['a']);
     const start = g.snapshot().speed;
     playBot(g, 'a', 30_000);
     expect(g.snapshot().speed).toBeGreaterThan(start);
-    expect(g.snapshot().speed).toBeLessThanOrEqual(1);
+    expect(g.snapshot().speed).toBeGreaterThan(1);
   });
 
   it('ends a solo run with no winner once the driver slides off the bottom', () => {

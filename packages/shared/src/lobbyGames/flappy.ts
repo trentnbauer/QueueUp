@@ -7,7 +7,6 @@ const GRAVITY = 2.8;
 const FLAP_SPEED = 0.9;
 const SPEED_START = 0.5;
 const SPEED_GAIN = 0.012; // per second of the run
-const SPEED_MAX = 0.8;
 const SPAWN_AHEAD = 1.3;
 /** Pipes are this many seconds of flying apart (plus up to GAP_EXTRA_S more). */
 const GAP_MIN_S = 1.5;
@@ -108,7 +107,7 @@ export class FlappyGame extends RoundGame<Bird> {
   }
 
   protected advance(dt: number): void {
-    this.speed = Math.min(SPEED_MAX, SPEED_START + SPEED_GAIN * (this.roundMs / 1000));
+    this.speed = SPEED_START + SPEED_GAIN * (this.roundMs / 1000);
     this.distance += this.speed * dt;
     this.spawnPipes();
 

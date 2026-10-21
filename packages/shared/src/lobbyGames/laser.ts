@@ -5,7 +5,6 @@ import { RoundGame, type RoundPlayer } from './roundGame.js';
 const PLAYER_SPEED = 0.5;
 const FALL_START = 0.5;
 const FALL_GAIN = 0.016; // per second of the run
-const FALL_MAX = 0.9;
 /** Seconds between rows: starts roomy and gets busier, down to a floor. */
 const SPAWN_START_S = 0.9;
 const SPAWN_GAIN_S = 0.015;
@@ -105,7 +104,7 @@ export class LaserGame extends RoundGame<Slider> {
 
   protected advance(dt: number): void {
     const seconds = this.roundMs / 1000;
-    this.speed = Math.min(FALL_MAX, FALL_START + FALL_GAIN * seconds);
+    this.speed = FALL_START + FALL_GAIN * seconds;
     this.distance += this.speed * dt;
 
     this.spawnIn -= dt;

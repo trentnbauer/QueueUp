@@ -50,24 +50,24 @@ export const MINIGAME_SCORE_MAX: Record<LobbyGameId, number> = {
  * meaning for the score) starts a fresh list; the old scores stay in the database. **Raise a game's number whenever you change
  * how it plays or scores in a way that makes an old score unfair against a new one.** A new game starts at 1. */
 export const MINIGAME_VERSIONS: Record<LobbyGameId, number> = {
-  runner: 3, // pits and tall stacks joined the course
-  flappy: 1,
-  dodge: 2, // bigger blocks, a wider safe lane, a slower spawn rate
+  runner: 4, // no top speed
+  flappy: 2, // no top speed
+  dodge: 3, // no top speed
   rope: 1,
   coins: 3, // only a bomb puts you out: a missed coin costs nothing (before: endless runs had three lives, one lost per missed coin)
   battleships: 2, // a player's own ships may touch
-  race: 3, // pit lanes (first along the sides, then anywhere on the track and wider)
+  race: 4, // no top speed
   whack: 3, // with no time limit it is endless (three lives); before: shared moles, shorter up time, pauses
   draw: 2, // the score became a reaction time in milliseconds
   tilt: 2, // a ball each, tipped by where the balls are
   stacker: 1,
   sumo: 1,
-  asteroids: 1,
+  asteroids: 2, // no top speed
   memory: 2, // no cap on the rounds
   words: 1,
   snake: 1,
-  gravity: 3, // slower flips, and a course that speeds up to 1.6 with obstacles that grow
-  laser: 1,
+  gravity: 4, // no top speed
+  laser: 2, // no top speed
   colormatch: 5, // the shape ask is gone (just the ink or the word); before: slower prompts (3.2 seconds to start) and a longer pause between them; before: endless with three lives when there is no time limit, the prompt asks for the ink, the word or the shape, changing each time
   potato: 2, // the score became the time held, not the rounds survived
   anagram: 3, // a word nobody solves in time ends the run; before: words start at 3 letters and grow to 6, and before that 5 and 6 letters from the first word
