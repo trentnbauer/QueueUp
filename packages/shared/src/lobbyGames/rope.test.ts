@@ -118,10 +118,10 @@ describe('RopeGame rounds', () => {
 });
 
 describe('RopeGame course', () => {
-  it('can always be cleared: a bot that times its jumps lasts a minute on several seeds', () => {
+  it('can be cleared for as long as a swing is slower than a jump can be timed: a bot that times its jumps lasts 20 seconds on several seeds', () => {
     for (const seed of [0.05, 0.2, 0.4, 0.6, 0.8, 0.95]) {
       const g = started(['a'], seed);
-      playBot(g, ['a'], 60_000);
+      playBot(g, ['a'], 20_000);
       expect(g.snapshot().phase, `seed ${seed}`).toBe('playing');
       expect(me(g, 'a').alive).toBe(true);
     }
@@ -134,7 +134,7 @@ describe('RopeGame course', () => {
     expect(me(g, 'a').meters).toBe(g.snapshot().meters);
   });
 
-  it('speeds up, but never past the quickest a jump can be timed', () => {
+  it('keeps speeding up for as long as the run goes on, past where it used to stop', () => {
     const g = started(['a']);
     const periods: number[] = [];
     for (let t = 0; t < 60_000 && g.snapshot().phase === 'playing'; t += STEP) {
@@ -142,8 +142,8 @@ describe('RopeGame course', () => {
       g.tick(STEP);
       periods.push(g.snapshot().period);
     }
-    expect(Math.min(...periods)).toBeGreaterThanOrEqual(0.65);
-    expect(Math.min(...periods)).toBeLessThan(1.8);
+    expect(Math.min(...periods)).toBeLessThan(0.65);
+    expect(Math.min(...periods)).toBeGreaterThan(0);
   });
 
   it('makes the swings the same for the same seed', () => {
