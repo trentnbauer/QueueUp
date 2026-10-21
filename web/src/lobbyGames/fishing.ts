@@ -139,7 +139,8 @@ function drawAnglers(sc: Scene<FishingSnapshot>): void {
     ctx.restore();
 
     sc.drawPlayer(c.id, x, rodY, S * 0.034, S * 0.034);
-    // Under the avatar: lines left, the wait for a bite, and the points.
+    // Under the avatar: lines left, the wait for a bite, and the health bar with its number. The bar is full at the best it has been,
+    // so it reads as how far you have fallen since your peak.
     const by = rodY + S * 0.034 + S * 0.012;
     const bw = room * S;
     drawLives(ctx, x, by + S * 0.006, c.lives, 3, S * 0.008, theme.danger);
@@ -149,11 +150,20 @@ function drawAnglers(sc: Scene<FishingSnapshot>): void {
     ctx.fillStyle = c.patience < 0.25 ? theme.danger : theme.mint;
     roundRect(ctx, x - bw / 2, by + S * 0.02, Math.max(S * 0.006, bw * c.patience), S * 0.006, S * 0.003);
     ctx.fill();
+    const hpTop = by + S * 0.032;
+    const hpH = S * 0.012;
+    const hpFrac = Math.min(1, Math.max(0, c.hp / Math.max(1, c.peak)));
+    ctx.fillStyle = STAGE.hudFill;
+    roundRect(ctx, x - bw / 2, hpTop, bw, hpH, hpH / 2);
+    ctx.fill();
+    ctx.fillStyle = hpFrac < 0.3 ? theme.danger : theme.acc;
+    roundRect(ctx, x - bw / 2, hpTop, Math.max(hpH, bw * hpFrac), hpH, hpH / 2);
+    ctx.fill();
     ctx.font = `700 ${Math.round(S * 0.024)}px ${FONT.mono}`;
     ctx.textAlign = 'center';
     ctx.textBaseline = 'alphabetic';
     ctx.fillStyle = theme.text;
-    ctx.fillText(String(c.points), x, by + S * 0.058);
+    ctx.fillText(String(Math.ceil(c.hp)), x, hpTop + hpH + S * 0.03);
     // Someone else's reeling: a thin catch bar and a line bar beside their fish.
     if (!mine && c.mode === 'fight') drawMiniFight(sc, c, x);
   }

@@ -68,7 +68,8 @@ describe('FishingGame pond', () => {
     expect(s.fish.length).toBeGreaterThanOrEqual(5);
     expect(s.players.map((p) => p.mode)).toEqual(['idle', 'idle']);
     expect(s.players.map((p) => p.lives)).toEqual([3, 3]);
-    expect(s.players.map((p) => p.points)).toEqual([0, 0]);
+    for (const p of s.players) expect(p.hp).toBeCloseTo(10, 0);
+    expect(s.players.map((p) => p.peak)).toEqual([10, 10]);
     expect(s.speed).toBe(0);
   });
 
@@ -294,7 +295,7 @@ describe('FishingGame hooking and reeling', () => {
     const g = untilHooked(5)!;
     const before = me(g, 'a');
     // Park the zone on the fish by reporting from a device, then let it sit there.
-    g.report('a', 1, true, { md: 3, ly: before.ly, pw: 0, z: before.mark, zv: 0, mk: before.mark, h: 1, c: 0, tr: before.tier, pts: 0, lv: 3, dr: 0 });
+    g.report('a', 1, true, { md: 3, ly: before.ly, pw: 0, z: before.mark, zv: 0, mk: before.mark, h: 1, c: 0, tr: before.tier, hp: 10, lv: 3, dr: 0 });
     expect(me(g, 'a').mode).toBe('fight');
     const idle = untilHooked(5)!;
     // Without reeling the zone sinks away from a fish that has darted off and the line wears.
@@ -304,7 +305,7 @@ describe('FishingGame hooking and reeling', () => {
     expect(s.health < 1 || s.mode !== 'fight').toBe(true);
   });
 
-  it('lands fish worth their size, and takes a line from someone who lets the fish go', () => {
+  it('refills the health bar by the size of the fish landed, and takes a line from someone who lets the fish go', () => {
     let landed = 0;
     let best = 0;
     for (const seed of [3, 5, 7, 11, 13, 17]) {
@@ -312,14 +313,14 @@ describe('FishingGame hooking and reeling', () => {
       const bot = makeAngler(g, 'a', { power: 0.3 });
       untilOver(g, 60_000, bot);
       const s = me(g, 'a');
-      landed += s.points > 0 ? 1 : 0;
-      best = Math.max(best, s.points);
-      expect(FISHING_TIERS.some((t) => t.points === 1 || s.points % t.points === 0) || s.points === 0).toBe(true);
+      landed += s.peak > 10 ? 1 : 0;
+      best = Math.max(best, s.peak);
     }
     expect(landed).toBeGreaterThan(2);
-    expect(best).toBeGreaterThan(0);
+    expect(best).toBeGreaterThan(10);
 
     const g = started(['a'], 5);
+    g.hpDrainScale = 0;
     const bot = makeAngler(g, 'a', { power: 0.3, reel: false });
     untilOver(g, 120_000, bot);
     expect(snap(g).phase).toBe('over');
@@ -350,6 +351,7 @@ describe('FishingGame hooking and reeling', () => {
 describe('FishingGame lines', () => {
   it('takes a line from someone who never gets a bite, and puts a solo run with none left to an end with no winner', () => {
     const g = started(['a']);
+    g.hpDrainScale = 0;
     const s = untilOver(g, 100_000);
     expect(snap(g).phase).toBe('over');
     expect(s).toBeGreaterThan(70);
@@ -360,6 +362,7 @@ describe('FishingGame lines', () => {
 
   it('counts the wait for a bite down on the patience gauge', () => {
     const g = started(['a']);
+    g.hpDrainScale = 0;
     expect(me(g, 'a').patience).toBeCloseTo(1, 1);
     run(g, 12_500);
     expect(me(g, 'a').patience).toBeCloseTo(0.5, 1);
@@ -370,7 +373,7 @@ describe('FishingGame lines', () => {
 });
 
 describe('FishingGame running a run', () => {
-  it('crowns the last one fishing, with their own points as the run', () => {
+  it('crowns the last one fishing, with their own peak health as the run', () => {
     const g = started(['a', 'b'], 5);
     const keen = makeAngler(g, 'a', { power: 0.3, delay: 0.05 });
     const hopeless = makeAngler(g, 'b', { power: 0.3, reel: false });
@@ -381,11 +384,11 @@ describe('FishingGame running a run', () => {
     const s = snap(g);
     expect(s.phase).toBe('over');
     expect(s.winnerId).toBe('a');
-    expect(s.history[s.history.length - 1]).toMatchObject({ winnerId: 'a', meters: me(g, 'a').points });
+    expect(s.history[s.history.length - 1]).toMatchObject({ winnerId: 'a', meters: me(g, 'a').peak });
     expect(me(g, 'a').wins).toBe(1);
   });
 
-  it('ends at the lobby time cap, with whoever is still in keeping their points and nobody winning', () => {
+  it('ends at the lobby time cap, with whoever is still in keeping their peak health and nobody winning', () => {
     const g = started(['a', 'b'], 5);
     g.timeLimitS = 30;
     const keen = makeAngler(g, 'a', { power: 0.3 });
@@ -406,18 +409,36 @@ describe('FishingGame running a run', () => {
     run(g, 4000 + 3200);
     const s = snap(g);
     expect(s.phase).toBe('playing');
-    expect(s.players[0]).toMatchObject({ mode: 'idle', lives: 3, points: 0, health: 1, catch: 0, alive: true });
+    expect(s.players[0]).toMatchObject({ mode: 'idle', lives: 3, peak: 10, health: 1, catch: 0, alive: true });
+    expect(s.players[0].hp).toBeCloseTo(10, 0);
     expect(s.run).toBe(2);
   });
 
-  it('scores the run by points, and a skilled angler lasts a good while but not for ever', () => {
+  it('scores the run by peak health, and a skilled angler lasts a good while but not for ever', () => {
     const lasted: number[] = [];
     for (const seed of [3, 5, 7, 11]) {
       const g = started(['a'], seed);
       lasted.push(untilOver(g, 900_000, makeAngler(g, 'a', { power: 0.3, delay: 0.1 })));
+      expect(snap(g).history[snap(g).history.length - 1].meters).toBe(me(g, 'a').peak);
     }
     for (const s of lasted) expect(s).toBeLessThan(900);
     expect(Math.max(...lasted)).toBeGreaterThan(30);
+  });
+
+  it('drains the health bar all the time, faster as the run goes on, and puts an angler who never catches anything out', () => {
+    const g = started(['a'], 5);
+    const start = me(g, 'a').hp;
+    run(g, 3000);
+    const early = start - me(g, 'a').hp;
+    expect(early).toBeGreaterThan(1);
+    expect(early).toBeLessThan(2.5);
+    expect(me(g, 'a').peak).toBe(10);
+    const t = untilOver(g, 120_000);
+    expect(snap(g).phase).toBe('over');
+    expect(me(g, 'a').alive).toBe(false);
+    expect(t).toBeLessThan(40);
+    // Never having been fuller than at the start, that is the score.
+    expect(snap(g).history[snap(g).history.length - 1].meters).toBe(10);
   });
 });
 
@@ -442,25 +463,26 @@ describe('FishingGame on each player’s own device', () => {
     expect(me(g, 'a').mode).toBe('charging');
   });
 
-  it('takes a report of being out, and never fewer points than before, nor more than the biggest fish at a time, nor more lines', () => {
+  it('takes a report of being out, and never more health than the biggest fish gives at a time, nor more lines, and keeps the peak', () => {
     const g = started(['a']);
     const base = { md: 2, ly: 0.5, pw: 0, z: 0.5, zv: 0, mk: 0.5, h: 1, c: 0, tr: 0, lv: 3, dr: 0 };
-    g.report('a', 1, true, { ...base, pts: 100 });
-    expect(me(g, 'a').points).toBe(8);
-    g.report('a', 1, true, { ...base, pts: 12 });
-    expect(me(g, 'a').points).toBe(12);
-    g.report('a', 1, true, { ...base, pts: 0 });
-    expect(me(g, 'a').points).toBe(12);
-    g.report('a', 1, true, { ...base, pts: 12, lv: 2 });
-    g.report('a', 1, true, { ...base, pts: 12, lv: 3 });
+    g.report('a', 1, true, { ...base, hp: 1000 });
+    expect(me(g, 'a').hp).toBeGreaterThan(45);
+    expect(me(g, 'a').hp).toBeLessThanOrEqual(50);
+    expect(me(g, 'a').peak).toBeGreaterThan(45);
+    g.report('a', 1, true, { ...base, hp: 20 });
+    expect(me(g, 'a').hp).toBe(20);
+    expect(me(g, 'a').peak).toBeGreaterThan(45);
+    g.report('a', 1, true, { ...base, hp: 20, lv: 2 });
+    g.report('a', 1, true, { ...base, hp: 20, lv: 3 });
     expect(me(g, 'a').lives).toBe(2);
-    g.report('a', 1, false, { ...base, pts: 12, lv: 0 });
+    g.report('a', 1, false, { ...base, hp: 0, lv: 0 });
     expect(me(g, 'a').alive).toBe(false);
   });
 
   it('keeps a malformed report in range', () => {
     const g = started(['a']);
-    g.report('a', 1, true, { md: 99, ly: -5, pw: 9, z: Number.NaN, zv: 1e9, mk: -1, h: 7, c: -3, tr: 50, pts: 1, lv: 1, dr: 1e6 });
+    g.report('a', 1, true, { md: 99, ly: -5, pw: 9, z: Number.NaN, zv: 1e9, mk: -1, h: 7, c: -3, tr: 50, hp: 1, lv: 1, dr: 1e6 });
     const s = me(g, 'a');
     expect(s.mode).toBe('idle');
     expect(s.ly).toBeGreaterThanOrEqual(0.16);

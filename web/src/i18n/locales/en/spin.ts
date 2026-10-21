@@ -219,7 +219,7 @@ export const spin = {
   "spin.lobby.frogger.hop": "Hop",
   "spin.lobby.fishing.name": "Fishing",
   "spin.lobby.fishing.tagline": "Cast, hook it, keep it in the green",
-  "spin.lobby.fishing.hint": "Hold to charge a cast and let go to throw the lure up the pond: the longer you hold, the further it goes. Hold again to wind it in, so you can set it where the fish swim past. When a fish touches the lure it is hooked: hold to raise the green zone and let go to let it sink, and keep the fish inside the green. The catch fills while it is, and the line wears while it is not. Bigger fish are worth more and fight harder. A snapped line, or a long wait with no bite, costs one of your three lines. Last one fishing wins. Nothing here changes the spin.",
+  "spin.lobby.fishing.hint": "Hold to charge a cast and let go to throw the lure up the pond: the longer you hold, the further it goes. Hold again to wind it in, so you can set it where the fish swim past. When a fish touches the lure it is hooked: hold to raise the green zone and let go to let it sink, and keep the fish inside the green. The catch fills while it is, and the line wears while it is not. Bigger fish fight harder and refill more of your health bar, which drains all the time: you're out when it hits zero, and your score is the most health you've had. A snapped line, or a long wait with no bite, costs one of your three lines. Last one fishing wins. Nothing here changes the spin.",
   "spin.lobby.fishing.reel": "Hold",
   "spin.lobby.orbit.name": "Orbit",
   "spin.lobby.orbit.tagline": "Flip direction to dodge",
