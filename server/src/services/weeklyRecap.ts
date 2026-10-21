@@ -15,12 +15,14 @@ const MAX_EVENTS = 500;
  * notes: only the activity feed, with hidden people and hidden games filtered out first. */
 export async function generateRoomRecap(roomId: string, now: Date = new Date()): Promise<{ id: string; text: string }> {
   const windowStart = new Date(now.getTime() - RECAP_WINDOW_DAYS * DAY_MS);
-  const rows = await prisma.roomActivity.findMany({
+  // The newest MAX_EVENTS (a busier week would otherwise lose its end), put back in order below.
+  const newestFirst = await prisma.roomActivity.findMany({
     where: { roomId, createdAt: { gte: windowStart, lte: now } },
-    orderBy: { createdAt: 'asc' },
+    orderBy: { createdAt: 'desc' },
     take: MAX_EVENTS,
     select: { type: true, actorId: true, message: true, payload: true, createdAt: true, actor: { select: { displayName: true, activityHidden: true } } },
   });
+  const rows = newestFirst.reverse();
   const hiddenActorIds = new Set(rows.filter((r) => r.actorId && r.actor?.activityHidden).map((r) => r.actorId!));
   const gameIds = [...new Set(rows.map((r) => (r.payload as { gameId?: unknown } | null)?.gameId).filter((g): g is string => typeof g === 'string'))];
   const hiddenGames = gameIds.length ? await prisma.game.findMany({ where: { id: { in: gameIds }, hiddenFromOthers: true }, select: { id: true } }) : [];

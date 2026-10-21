@@ -40,6 +40,14 @@ describe('runWeeklyRecaps', () => {
     expect(postRoomDiscord).not.toHaveBeenCalled();
   });
 
+  it('reads the newest events of a busy week, so the end of the week is not the part that gets dropped', async () => {
+    prisma.room.findMany.mockResolvedValue([{ id: 'room1' }]);
+    prisma.roomRecap.findFirst.mockResolvedValue(null);
+    generateRecapText.mockResolvedValue('Busy.');
+    await runWeeklyRecaps(now);
+    expect(prisma.roomActivity.findMany).toHaveBeenCalledWith(expect.objectContaining({ orderBy: { createdAt: 'desc' }, take: 500 }));
+  });
+
   it('leaves a room alone when its last recap is under a week old', async () => {
     prisma.room.findMany.mockResolvedValue([{ id: 'room1' }]);
     prisma.roomRecap.findFirst.mockResolvedValue({ createdAt: daysAgo(2) });
