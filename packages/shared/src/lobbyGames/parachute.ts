@@ -1,10 +1,10 @@
-import { PARACHUTE_PLAYER_H, PARACHUTE_PLAYER_W, PARACHUTE_ROW_H, clampDirection, type ParachuteGust, type ParachuteRow, type ParachuteSnapshot } from '../spinLobby.js';
+import { PARACHUTE_GUST_H, PARACHUTE_PLAYER_H, PARACHUTE_PLAYER_W, PARACHUTE_ROW_H, clampDirection, parachuteGustStrength, type ParachuteGust, type ParachuteRow, type ParachuteSnapshot } from '../spinLobby.js';
 import { RoundGame, type RoundPlayer } from './roundGame.js';
 
 // Everything is in screens: x runs 0..1 across, y 0..1 down from the top. The skydiver falls, so the course comes up the screen.
 /** How fast the course comes up: from this, and quicker by this every second of the run (no top speed, so it always ends). */
 const RISE_START = 0.4;
-const RISE_GAIN = 0.03;
+const RISE_GAIN = 0.12;
 /** A row of clouds comes every this much of course. */
 const ROW_EVERY = 0.5;
 /** The gap in a row: starts roomy and narrows to a floor. */
@@ -24,7 +24,7 @@ const SLIDE = 0.7;
 /** Gusts between rows push sideways this fast, and the open chute catches them more. */
 const GUST_PUSH = 0.25;
 const GUST_OPEN_FACTOR = 1.4;
-const GUST_H = 0.3;
+/** About this share of the gaps between rows has a gust; it fades in and out (see parachuteGustStrength), so it never arrives all at once. */
 const GUST_SHARE = 0.55;
 const GONE_ABOVE = -0.2;
 
@@ -146,7 +146,7 @@ export class ParachuteGame extends RoundGame<Skydiver> {
     for (const r of this.rows) r.y -= rise * dt;
     for (const g of this.gusts) g.y -= rise * dt;
     this.rows = this.rows.filter((r) => r.y > GONE_ABOVE);
-    this.gusts = this.gusts.filter((g) => g.y > GONE_ABOVE);
+    this.gusts = this.gusts.filter((g) => g.y + PARACHUTE_GUST_H / 2 > 0);
 
     const half = PARACHUTE_PLAYER_W / 2;
     for (const p of this.players.values()) {
@@ -155,7 +155,7 @@ export class ParachuteGame extends RoundGame<Skydiver> {
       p.vy += ((p.open ? -FLOAT : SINK) - p.vy) * Math.min(1, dt * 6);
       p.y = Math.min(Y_MAX, Math.max(Y_MIN, p.y + p.vy * dt));
       let vx = p.dir * SLIDE;
-      for (const g of this.gusts) if (Math.abs(g.y - p.y) <= GUST_H / 2) vx += g.push * GUST_PUSH * (p.open ? GUST_OPEN_FACTOR : 1);
+      for (const g of this.gusts) vx += g.push * GUST_PUSH * parachuteGustStrength(g.y - p.y) * (p.open ? GUST_OPEN_FACTOR : 1);
       p.x = Math.min(1 - half, Math.max(half, p.x + vx * dt));
       if (this.hit(p)) this.knockOut(p);
     }

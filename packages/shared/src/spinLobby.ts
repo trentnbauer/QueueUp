@@ -1813,6 +1813,11 @@ export interface TunnelSnapshot extends RoundSummary {
 export const PARACHUTE_PLAYER_W = 0.06;
 export const PARACHUTE_PLAYER_H = 0.07;
 export const PARACHUTE_ROW_H = 0.05;
+/** A gust is a band this tall (screens), and fades in and out over this much of it at each edge: the wind, and the band drawn for it, build up and die away instead of arriving all at once. */
+export const PARACHUTE_GUST_H = 0.4;
+export const PARACHUTE_GUST_FADE = 0.15;
+/** How much of a gust's push there is `away` screens from its middle: none outside it, full inside the fades, and rising linearly between. */
+export const parachuteGustStrength = (away: number): number => Math.min(1, Math.max(0, (PARACHUTE_GUST_H / 2 - Math.abs(away)) / PARACHUTE_GUST_FADE));
 
 export interface ParachuteRow {
   /** Where the row is down the screen (0 is the top); it comes up from below. */

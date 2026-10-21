@@ -90,7 +90,10 @@ describe('ParachuteGame', () => {
   it('lays the same sky for the same seed, and another for another', () => {
     const sky = (seed: number) => {
       const g = started(['a'], seed);
-      run(g, 6000);
+      for (let t = 0; t < 6000; t += STEP) {
+        g.report('a', 1, true, { x: 0.5, y: 0.3, dir: 0, o: 0 }); // keep the skydiver safe, to watch the sky
+        g.tick(STEP);
+      }
       return JSON.stringify([snap(g).rows.map((r) => r.gap), snap(g).gusts.map((x) => x.push)]);
     };
     expect(sky(5)).toBe(sky(5));
