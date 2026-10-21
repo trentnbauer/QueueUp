@@ -33,7 +33,7 @@ export const spin = {
   "spin.lobby.flappy.hint": "Tap anywhere, or press Space or Up, to flap through the gaps. Touch a pipe, the floor or the ceiling and you're out. Last bird flying wins. Nothing here changes the spin.",
   "spin.lobby.rope.jump": "Jump",
   "spin.lobby.rope.hint": "Tap anywhere, or press Space or Up, to jump the rope as it swings under you. Mistime it and you're out. Last one jumping wins. Nothing here changes the spin.",
-  "spin.lobby.coins.hint": "Slide left and right to catch the falling coins. A bomb costs you a coin and stuns you for a second. Most coins when the time is up wins. Nothing here changes the spin.",
+  "spin.lobby.coins.hint": "Slide left and right to catch the falling coins. A bomb puts you out. With no time limit you also have a health bar that drains all the time, and each coin you catch tops it up: let it run dry and you're out. Last one standing wins (with a time limit, most coins wins). Nothing here changes the spin.",
   "spin.lobby.battleships.hint": "Everyone hides their ships on the same board. You can see only your own (the blue squares). Tap a square to fire: a hit scores, and the shot that sinks a ship scores more. Sink a whole fleet and that player is out. Last fleet afloat wins. Nothing here changes the spin.",
   "spin.lobby.dodge.hint": "Slide left and right to stay clear of the falling blocks. Last one standing wins. Nothing here changes the spin.",
   "spin.lobby.race.hint": "Steer left and right to miss the cones, oil and rocks. A hit slows you and you slide down the screen; you recover, but never past the middle. Slide off the bottom and you are out. Last driver on screen wins. Nothing here changes the spin.",

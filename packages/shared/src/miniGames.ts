@@ -54,7 +54,7 @@ export const MINIGAME_VERSIONS: Record<LobbyGameId, number> = {
   flappy: 2, // no top speed
   dodge: 3, // no top speed
   rope: 1,
-  coins: 3, // only a bomb puts you out: a missed coin costs nothing (before: endless runs had three lives, one lost per missed coin)
+  coins: 4, // endless runs have a health bar that drains, and no top speed; (before: only a bomb put you out)
   battleships: 2, // a player's own ships may touch
   race: 4, // no top speed
   whack: 3, // with no time limit it is endless (three lives); before: shared moles, shorter up time, pauses

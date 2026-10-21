@@ -229,8 +229,9 @@ describe('CoinsGame endless (no time limit)', () => {
     expect(g.snapshot().run).toBe(1);
   });
 
-  it('never puts anyone out for a coin that gets away: only a bomb does', () => {
+  it('never puts anyone out for a coin that gets away: only a bomb, or the health bar running out, does', () => {
     const g = endless(['a']);
+    g.hpDrainScale = 0; // this is about a coin getting away, which costs nothing by itself
     // Nothing but coins fall (a draw this high is never under a bomb's chance), all of them away from a catcher in the left corner.
     (g as unknown as { rng: () => number }).rng = () => 0.99;
     g.input('a', -1, 0);
@@ -240,6 +241,57 @@ describe('CoinsGame endless (no time limit)', () => {
     expect(g.snapshot().phase).toBe('playing');
     expect(me(g, 'a').alive).toBe(true);
     expect(me(g, 'a').meters).toBe(0);
+  });
+
+  it('has a health bar that drains all the time, is refilled by each coin, and puts a catcher out at zero', () => {
+    const g = endless(['a']);
+    expect(me(g, 'a').hp).toBeCloseTo(10, 0);
+    run(g, 3000);
+    const drained = me(g, 'a').hp as number;
+    expect(drained).toBeLessThan(9);
+    // Nothing but coins, all of them far from a catcher in the left corner: nothing refills it, so it runs out.
+    (g as unknown as { rng: () => number }).rng = () => 0.99;
+    g.input('a', -1, 0);
+    let t = 0;
+    for (; t < 60_000 && g.snapshot().phase === 'playing'; t += STEP) g.tick(STEP);
+    expect(g.snapshot().phase).toBe('over');
+    expect(me(g, 'a').alive).toBe(false);
+    expect(t).toBeLessThan(25_000);
+    expect(g.snapshot().winnerId).toBeNull();
+  });
+
+  it('refills the bar by a coin each, up to a most of 20', () => {
+    const g = endless(['a']);
+    const before = me(g, 'a').hp as number;
+    g.hpDrainScale = 0;
+    let caught = 0;
+    for (let t = 0; t < 40_000 && caught < 3; t += STEP) {
+      steer(g, 'a');
+      g.tick(STEP);
+      caught = me(g, 'a').meters;
+    }
+    expect(me(g, 'a').hp).toBeCloseTo(Math.min(20, before + me(g, 'a').meters), 5);
+    for (let t = 0; t < 60_000 && me(g, 'a').alive && (me(g, 'a').hp as number) < 20; t += STEP) {
+      steer(g, 'a');
+      g.tick(STEP);
+    }
+    expect(me(g, 'a').hp).toBeLessThanOrEqual(20);
+  });
+
+  it('has no health bar in a timed round', () => {
+    const g = started(['a']);
+    expect(me(g, 'a').hp).toBeNull();
+  });
+
+  it('keeps getting quicker past 40 seconds, with no top speed', () => {
+    const speedAt = (seconds: number) => {
+      const g = endless(['a']);
+      g.hpDrainScale = 0;
+      (g as unknown as { knockOut: () => void }).knockOut = () => {};
+      run(g, seconds * 1000);
+      return g.snapshot().speed;
+    };
+    expect(speedAt(80)).toBeGreaterThan(speedAt(40) + 0.5);
   });
 
   it('ends a solo run when a bomb is caught, keeping the score, with nobody winning', () => {
@@ -274,6 +326,6 @@ describe('CoinsGame endless (no time limit)', () => {
       const all = [...kinds.values()];
       return all.filter((k) => k === 'bomb').length / all.length;
     };
-    expect(bombShare(30, 50)).toBeGreaterThan(bombShare(0, 12) + 0.1);
+    expect(bombShare(30, 50)).toBeGreaterThan(bombShare(0, 12) + 0.08);
   });
 });

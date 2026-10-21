@@ -1,6 +1,6 @@
-import { COINS_ITEM_SIZE, COINS_PLAYER_WIDTH, COINS_PLAYER_Y, type CoinsSnapshot } from '@queueup/shared';
+import { COINS_HP_MAX, COINS_ITEM_SIZE, COINS_PLAYER_WIDTH, COINS_PLAYER_Y, type CoinsSnapshot } from '@queueup/shared';
 import type { LobbyGameView } from './index';
-import { FONT, drawFloor, groundShadow, renderScene, type Scene, type SceneGame } from './kit';
+import { FONT, STAGE, drawFloor, groundShadow, renderScene, roundRect, type Scene, type SceneGame } from './kit';
 
 /** Where the floor is, just under the catchers. */
 const FLOOR = 0.95;
@@ -80,6 +80,19 @@ function drawWorld(sc: Scene<CoinsSnapshot>): void {
     ctx.textBaseline = 'alphabetic';
     ctx.fillStyle = sc.theme.text;
     ctx.fillText(String(p.meters), cx, cy - radius * 0.75);
+    // Endless runs: the health bar over the count (it drains, and each coin refills a little). Red when low.
+    if (p.hp !== null) {
+      const bw = radius * 2.2;
+      const bh = S * 0.01;
+      const by = cy - radius * 0.75 - S * 0.06;
+      const frac = Math.min(1, Math.max(0, p.hp / COINS_HP_MAX));
+      ctx.fillStyle = STAGE.hudFill;
+      roundRect(ctx, cx - bw / 2, by, bw, bh, bh / 2);
+      ctx.fill();
+      ctx.fillStyle = frac < 0.3 ? sc.theme.danger : sc.theme.acc;
+      roundRect(ctx, cx - bw / 2, by, Math.max(bh, bw * frac), bh, bh / 2);
+      ctx.fill();
+    }
   }
 }
 
