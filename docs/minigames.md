@@ -93,7 +93,7 @@ Run along the floor or the ceiling and flip between them. Everyone runs the same
 - **Goal:** don't hit anything. Obstacles scroll in from the right: spikes standing on the floor, spikes hanging from the ceiling, and **blocks floating in the middle**. Be on the other side from a spike as it arrives, and **stay on a side (do not be flying across) as a middle block passes**: it kills anyone in the middle of the corridor. **Last one running wins**; alone it is a high score (metres).
 - **Flipping:** one button. A flip takes 0.7 seconds to cross (slow enough that, once you are in the middle, tapping about every fifth of a second keeps you floating there), and you can press again **part way across to turn round** and go back. There is a short wait (0.18 seconds) before the next flip, so mashing the button cannot hold you in the middle, out of reach of the spikes. A spike is only dangerous near the side it is on, so you are safe from spikes while flying, but a middle block is exactly where you fly.
 - **Obstacles** start 0.06 to 0.14 wide: spikes 0.14 tall, middle blocks 0.26 tall, and they **get bigger the further a run has come**, up to 1.7 times as wide and as tall by 60 screens in (about 50 seconds), so the middle blocks end up 0.44 tall. 40% are floor spikes, 40% ceiling spikes and 20% middle blocks, at random. They are at least 0.85 seconds of running apart, edge to edge (and up to 0.7 seconds more), which is always long enough to flip in and settle. They come from the round's seed, so they are the same for everyone.
-- **Speed:** the course starts at 0.6 of a screen per second and climbs by 0.02 every second to 1.6, after 50 seconds.
+- **Speed:** the course starts at 0.6 of a screen per second and climbs by 0.02 every second, with no top speed.
 - There is no time limit of its own: it goes on until it is beaten.
 - **Controls:** one button: **Space**, **↑**/**↓** or **W**/**S**, or tap anywhere on the arena.
 
@@ -103,7 +103,7 @@ Rows of lasers fall; slide into the gap. Everyone is on the same floor and never
 
 - **Goal:** don't touch a beam. A row of lasers spans the whole screen except for a gap. Be entirely inside the gap as the row reaches you. **Last one standing wins**; alone it is a high score (metres).
 - You move at half a screen per second and can't leave the screen.
-- **Rows** fall faster and faster: from 0.5 of a screen per second up to 0.9 after about 25 seconds. A new row appears every 0.9 seconds at the start, down to every 0.55 seconds after about 23 seconds.
+- **Rows** fall faster and faster: from 0.5 of a screen per second, 0.016 more every second, with no top speed. A new row appears every 0.9 seconds at the start, down to every 0.55 seconds after about 23 seconds.
 - **The gap** starts 0.3 wide and narrows to 0.17 (after about 65 seconds). Each row's gap is never further from the last one's than 0.7 of what you can slide in the time between them, so there is always a way through for someone who keeps up. Rows come from the round's seed, so they are the same for everyone.
 - There is no time limit of its own: it goes on until it is beaten.
 - **Controls:** left and right only.
@@ -413,7 +413,7 @@ The offline-dinosaur game, with everyone running the same track.
 - **Tall stack** (a cactus about half again as tall, from about 14 seconds in): a tap hop only just reaches the top of it, so **hold** the jump to clear it with room to spare.
 - **Jumping:** hold the button on the way up to jump higher and further; letting go early cuts the jump short. You can only jump from the ground, and holding the button after you land does not jump again: let go and press again. Pressing part-way up a hop does not make it higher.
 - **Ducking** only works on the ground, and only while you hold it.
-- **Speed** starts at 0.65 of a screen per second and climbs to 1.1 after about 22 seconds, then stays there.
+- **Speed** starts at 0.65 of a screen per second and climbs by 0.02 every second, with no top speed (it is 1.1 after about 22 seconds, and goes on from there).
 - Obstacles are always spaced so there is time to land and react.
 
 ## Flappy
@@ -424,7 +424,7 @@ Flap through the gaps, everyone on the same course.
 - **Flap** gives a short upward kick; gravity pulls you down between flaps. Tapping steadily keeps you level.
 - Touching a **pipe, the floor or the ceiling** knocks you out.
 - **Gaps** move up and down from pipe to pipe, but never by more than a bird can climb in the time between pipes.
-- **Speed** starts at 0.5 of a screen per second and climbs to 0.8 after about 25 seconds.
+- **Speed** starts at 0.5 of a screen per second and climbs by 0.012 every second, with no top speed.
 
 ## Dodge
 
@@ -432,7 +432,7 @@ Blocks fall; slide left and right to stay clear.
 
 - **Goal:** don't get hit. Everyone stands on the same floor.
 - You move at half a screen per second and can't leave the screen.
-- **Blocks** (game covers of different widths) fall faster and faster: from 0.4 of a screen per second up to 1.0 after about 30 seconds. Blocks are 0.09 to 0.24 of a screen wide and 0.09 tall. A new block appears every 0.8 seconds at the start, speeding up to every 0.3 seconds after about 33 seconds.
+- **Blocks** (game covers of different widths) fall faster and faster: from 0.4 of a screen per second, 0.02 more every second, with no top speed. Blocks are 0.09 to 0.24 of a screen wide and 0.09 tall. A new block appears every 0.8 seconds at the start, speeding up to every 0.3 seconds after about 33 seconds.
 - A **safe lane** drifts slowly from side to side, and no block is ever made over it, so there is always a way through for someone who keeps up with it.
 - A block that hits you knocks you out.
 
@@ -457,7 +457,7 @@ A top-down race on a scrolling track, everyone on the same course.
 - **A hit slows you down**, and you slide back down the screen. You recover by yourself and climb back to the middle line (slowly: about a sixteenth of a screen a second). From the middle line one hit is never enough to put you off the bottom, but hits close together add up: a **cone** is a nudge, an **oil slick** (the dark puddle) is more, and a **rock** (a big cover) is the worst, about a quarter of a screen. Straight after a hit you cannot be hit again for half a second.
 - **Slide off the bottom** (the red glow) and you are out. Last driver on the screen wins; alone, your distance is your score.
 - **Starting spots** are spread across the middle of the track, the same spot for you every run.
-- **Speed:** the track starts at 0.6 of a screen per second and climbs to 1.0 after about 25 seconds. A new obstacle appears every 0.65 seconds at the start, down to every 0.22 seconds after about 21 seconds, so hits come thicker and faster and every run ends.
+- **Speed:** the track starts at 0.6 of a screen per second and climbs by 0.016 every second, with no top speed. A new obstacle appears every 0.65 seconds at the start, down to every 0.22 seconds after about 21 seconds, so hits come thicker and faster and every run ends.
 - A **safe lane** drifts slowly from side to side, and no obstacle is ever made over it, so there is always a way through for someone who keeps up with it. It stays clear of the pit lanes too, so a clear path is always on the road.
 - **Pit lanes** (amber hatched strips with a bright edge each side) appear in stretches about 0.8 of a screen long from a few seconds in, scrolling at the course speed. Up to two at a time, **against either kerb or anywhere in the middle of the track**, each between **a tenth and a third of the track wide**. A driver whose middle is **in** one is dragged down the screen the whole time (0.14 of a screen a second, more than the slow climb back), so the way out is to steer out of it; staying in one long enough slides you off the bottom. Which of the left, the right and the middle is likelier swings slowly over the run, and everything comes from the round's seed, so it is the same for everyone. They give a driver who hugs an edge, or cuts through the middle, a price to pay.
 - A pit lane is never made over the safe lane (nor within 0.1 of it), and the safe lane stays out of any pit lane on the track, so there is always a clear way through however many there are.
@@ -547,7 +547,7 @@ A shooting gallery under a sky of falling asteroids, with everyone's turret in t
 - **One shared sky.** Every player has a **turret at a random spot along the bottom**. The spots come from the round's seed and stay put for the whole run, so everyone sees the same layout, and nobody's turret is on top of another's.
 - **Swing your gun** left and right (it can swing up to about 70 degrees either way from straight up). **It fires by itself,** twice a second, along wherever it points. Shots pass through turrets, so nobody can shoot each other.
 - **Asteroids** (game covers) fall from the top and drift sideways, bouncing off the sides. **Small** ones break in 1 hit; **big** ones (with a ring round them) take 2. The shot that **breaks** one scores 1 for whoever fired it.
-- **Harder as it goes:** they fall faster (from 0.2 to 0.45 of a screen a second), appear more often (every 0.9 seconds down to every 0.35) and are big more often (3 in 20 at first, up to 1 in 2).
+- **Harder as it goes:** they fall faster (from 0.2 of a screen a second, 0.012 more every second, with no top speed), appear more often (every 0.9 seconds down to every 0.35) and are big more often (3 in 20 at first, up to 1 in 2).
 - **Out:** an asteroid that touches your turret breaks on it and knocks you out; your turret stays as a dim wreck, and asteroids that reach it break on it too. **Last turret standing wins.** If everyone is hit at the same moment, nobody wins. Alone it is a high score: your count when you are hit. There is no time limit of its own: it goes on until it is beaten (in a spin's waiting room the 30 second cap ends it, and the most asteroids broken wins).
 - Each turret has its **points** under it, and the scoreboard shows who has the most.
 - **Controls:** left and right only (**←** / **→** or **A** / **D**, or the **◀** and **▶** buttons).

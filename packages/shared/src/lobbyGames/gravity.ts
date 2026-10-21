@@ -4,7 +4,6 @@ import { RoundGame, type RoundPlayer } from './roundGame.js';
 // Everything is in screens: x runs 0..1 across, y 0 (floor) to 1 (ceiling). The course scrolls from the right.
 const SPEED_START = 0.6;
 const SPEED_GAIN = 0.02; // per second of the run
-const SPEED_MAX = 1.6;
 const SPAWN_AHEAD = 1.3;
 /** A flip crosses the corridor in this long: slow enough that tapping again every FLIP_COOLDOWN_S keeps a player floating near the middle. */
 const FLIP_S = 0.7;
@@ -119,7 +118,7 @@ export class GravityGame extends RoundGame<Flipper> {
   }
 
   protected advance(dt: number): void {
-    this.speed = Math.min(SPEED_MAX, SPEED_START + SPEED_GAIN * (this.roundMs / 1000));
+    this.speed = SPEED_START + SPEED_GAIN * (this.roundMs / 1000);
     this.distance += this.speed * dt;
     this.spawnSpikes();
 

@@ -41,8 +41,7 @@ const SKINNY_WIDTH = 0.05;
 const PAIR_GAP = 0.06;
 const PAIRS_AFTER_MS = 2000;
 const SPEED_START = 0.65;
-const SPEED_GAIN = 0.02; // per second of the run
-const SPEED_MAX = 1.1;
+const SPEED_GAIN = 0.02; // per second of the run, with no top speed: sooner or later nobody can react in time
 /** Obstacles are made this far ahead of the screen's left edge, i.e. just off the right edge. */
 const SPAWN_AHEAD = 1.3;
 /** There is this many seconds of running between the edges of two obstacles (plus up to GAP_EXTRA
@@ -188,7 +187,7 @@ export class RunnerGame extends RoundGame<Runner> {
   }
 
   protected advance(dt: number): void {
-    this.speed = Math.min(SPEED_MAX, SPEED_START + SPEED_GAIN * (this.roundMs / 1000));
+    this.speed = SPEED_START + SPEED_GAIN * (this.roundMs / 1000);
     this.distance += this.speed * dt;
     this.spawnObstacles();
 

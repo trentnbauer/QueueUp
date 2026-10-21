@@ -80,12 +80,12 @@ describe('RunnerGame rounds', () => {
     expect(course(0.3)).toBe(course(0.3));
   });
 
-  it('speeds up over a run, to a limit', () => {
+  it('keeps speeding up for as long as a run goes on, past where it used to stop', () => {
     const g = started(['a']);
     const start = g.snapshot().speed;
     playBot(g, 'a', 20_000);
     expect(g.snapshot().speed).toBeGreaterThan(start);
-    expect(g.snapshot().speed).toBeLessThanOrEqual(1.1);
+    expect(g.snapshot().speed).toBeGreaterThan(1.05);
   });
 
   it('knocks a runner out when they hit a cactus and ends a solo run with no winner', () => {
@@ -115,9 +115,9 @@ describe('RunnerGame obstacles', () => {
     // Several different courses: every one can be cleared.
     for (const seed of [0.1, 0.3, 0.55, 0.8, 0.95]) {
       const g = started(['a'], seed);
-      playBot(g, 'a', 60_000);
+      playBot(g, 'a', 30_000); // there is no top speed, so a bot that reads the course only so far ahead gets caught out in the end
       expect(me(g, 'a').alive, `seed ${seed}`).toBe(true);
-      expect(g.snapshot().meters).toBeGreaterThan(300);
+      expect(g.snapshot().meters).toBeGreaterThan(150);
     }
   });
 

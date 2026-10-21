@@ -16,7 +16,6 @@ import { RoundGame, type RoundPlayer } from './roundGame.js';
 const STEER_SPEED = 0.6;
 const SPEED_START = 0.6;
 const SPEED_GAIN = 0.016; // per second of the run
-const SPEED_MAX = 1;
 /** Seconds between new obstacles: starts roomy and gets busier, down to a floor. */
 const SPAWN_START_S = 0.65;
 const SPAWN_GAIN_S = 0.02;
@@ -182,7 +181,7 @@ export class RaceGame extends RoundGame<Driver> {
 
   protected advance(dt: number): void {
     const seconds = this.roundMs / 1000;
-    this.speed = Math.min(SPEED_MAX, SPEED_START + SPEED_GAIN * seconds);
+    this.speed = SPEED_START + SPEED_GAIN * seconds;
     this.distance += this.speed * dt;
 
     this.spawnIn -= dt;

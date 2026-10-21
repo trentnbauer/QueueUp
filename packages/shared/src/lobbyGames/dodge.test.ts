@@ -73,12 +73,12 @@ describe('DodgeGame rounds', () => {
     expect(blocks(0.4)).not.toBe(blocks(0.9));
   });
 
-  it('drops blocks faster as the run goes on, to a limit', () => {
+  it('drops blocks faster for as long as the run goes on, past where it used to stop', () => {
     const g = started(['a']);
     const start = g.snapshot().speed;
     playBot(g, 'a', 25_000);
     expect(g.snapshot().speed).toBeGreaterThan(start);
-    expect(g.snapshot().speed).toBeLessThanOrEqual(1);
+    expect(g.snapshot().speed).toBeGreaterThan(0.89);
   });
 
   it('ends a solo run with no winner when a block hits', () => {
