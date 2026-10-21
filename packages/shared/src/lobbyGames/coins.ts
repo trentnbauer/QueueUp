@@ -1,9 +1,8 @@
-import { COINS_HP_MAX, COINS_ITEM_SIZE, COINS_PLAYER_WIDTH, COINS_PLAYER_Y, clampDirection, type CoinItem, type CoinsSnapshot } from '../spinLobby.js';
+import { COINS_HP_MAX, COINS_ITEM_SIZE, COINS_PLAYER_SPEED, COINS_PLAYER_WIDTH, COINS_PLAYER_Y, clampDirection, type CoinItem, type CoinsSnapshot } from '../spinLobby.js';
 import { RoundGame, type RoundPlayer } from './roundGame.js';
 
 // Everything is in screens: x runs 0..1 across, y 0..1 down from the top.
 const ROUND_S = 30;
-const PLAYER_SPEED = 0.6;
 const FALL_START = 0.4;
 const FALL_GAIN = 0.01; // per second of the round
 const FALL_MAX = 0.7;
@@ -153,7 +152,7 @@ export class CoinsGame extends RoundGame<Catcher> {
     const half = COINS_PLAYER_WIDTH / 2;
     const catchers = [...this.players.values()].filter((p) => p.alive);
     for (const p of catchers) {
-      p.x = Math.min(1 - half, Math.max(half, p.x + p.dir * PLAYER_SPEED * dt));
+      p.x = Math.min(1 - half, Math.max(half, p.x + p.dir * COINS_PLAYER_SPEED * dt));
       if (endless) {
         p.hp -= (HP_DRAIN + HP_DRAIN_GAIN * seconds) * dt * this.hpDrainScale;
         if (p.hp <= 0) {

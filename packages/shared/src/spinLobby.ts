@@ -280,6 +280,8 @@ export interface RopeSnapshot extends RoundSummary {
 /** Where the catchers stand, as a fraction of the height from the top. */
 export const COINS_PLAYER_Y = 0.92;
 export const COINS_PLAYER_WIDTH = 0.1;
+/** How fast a catcher slides while a direction is held, in screens per second (the server's step, and the viewer's own catcher on screen). */
+export const COINS_PLAYER_SPEED = 0.6;
 /** Coins and bombs are drawn (and caught) as squares this big, as a fraction of the width. */
 export const COINS_ITEM_SIZE = 0.05;
 
