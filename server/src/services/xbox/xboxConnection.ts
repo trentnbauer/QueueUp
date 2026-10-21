@@ -5,7 +5,7 @@ import { HttpError } from '../../util/httpError.js';
 import { getConfigValue } from '../configResolver.js';
 import { redis } from '../redisClient.js';
 import { decryptSetting, encryptSetting } from '../settingsCrypto.js';
-import { startLibrarySync, type LibrarySyncSource } from '../librarySync.js';
+import { startLibrarySync, withTokenRefreshLock, type LibrarySyncSource } from '../librarySync.js';
 import { notifyLibrarySyncError } from '../notifications.js';
 import { getXboxSession, pollDeviceCode, sessionFromRefreshToken, startDeviceCode, XboxAuthError } from './xboxAuth.js';
 import { fetchXboxLibrary } from './xboxLibrary.js';
@@ -97,7 +97,11 @@ export async function disconnectXbox(userId: string): Promise<void> {
 }
 
 /** Reads the person's Xbox library and starts matching it onto their shelf in the background. */
-export async function syncXboxLibrary(userId: string, logger: FastifyBaseLogger): Promise<{ consideredCount: number }> {
+export function syncXboxLibrary(userId: string, logger: FastifyBaseLogger): Promise<{ consideredCount: number }> {
+  return withTokenRefreshLock(XBOX_SOURCE.source, userId, () => runXboxSync(userId, logger));
+}
+
+async function runXboxSync(userId: string, logger: FastifyBaseLogger): Promise<{ consideredCount: number }> {
   const id = await clientId();
   if (!id) throw new HttpError(400, 'Xbox sync is not set up on this server.');
   const row = await prisma.userXboxConnection.findUnique({ where: { userId } });

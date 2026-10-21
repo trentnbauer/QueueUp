@@ -41,6 +41,19 @@ const PROGRESS_TTL_SECONDS = 60 * 30;
 const lockKey = (source: string, userId: string) => `library-sync-lock:${source}:${userId}`;
 const progressKey = (source: string, userId: string) => `library-sync-progress:${source}:${userId}`;
 
+/** Runs `fn` only if no other sync of this source is at the token-refresh stage for this person. Xbox and PlayStation rotate the
+ * refresh token on every use, so two overlapping syncs (a double click, two tabs) would both spend the same one: the second is
+ * rejected and the account looks unlinked. The sync's own lock (below) is taken too late to stop that. */
+export async function withTokenRefreshLock<T>(source: string, userId: string, fn: () => Promise<T>): Promise<T> {
+  const key = `library-refresh-lock:${source}:${userId}`;
+  if ((await redis.set(key, '1', 'EX', 120, 'NX')) !== 'OK') throw new HttpError(409, 'A sync is already starting for your account.');
+  try {
+    return await fn();
+  } finally {
+    await redis.del(key).catch(() => undefined);
+  }
+}
+
 export async function setLibrarySyncProgress(source: string, userId: string, progress: LibrarySyncProgress): Promise<void> {
   await redis.set(progressKey(source, userId), JSON.stringify(progress), 'EX', PROGRESS_TTL_SECONDS);
   // A run still making progress keeps its lock alive, so a library big enough to outlast the TTL

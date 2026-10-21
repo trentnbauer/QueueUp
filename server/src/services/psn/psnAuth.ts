@@ -107,7 +107,7 @@ export async function refreshTokens(refreshToken: string, fetchImpl: Fetch = fet
   );
   const tokens = status === 200 ? tokensFrom(body, now) : null;
   if (tokens) return tokens;
-  // A 400-level answer means the login lapsed (about 60 days) or was signed out; a 5xx is Sony's problem.
-  if (status >= 400 && status < 500) throw new PsnAuthError('Your PlayStation link has expired. Link your PlayStation account again.', true);
+  // A refused token (400, 401, 403) means the login lapsed (about 60 days) or was signed out; a 429 (too many requests), a timeout or a 5xx is Sony's problem.
+  if (status === 400 || status === 401 || status === 403) throw new PsnAuthError('Your PlayStation link has expired. Link your PlayStation account again.', true);
   throw new PsnAuthError('PlayStation is having problems right now. Try again later.');
 }
