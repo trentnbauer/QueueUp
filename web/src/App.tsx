@@ -44,6 +44,7 @@ const SettingsPage = lazy(() => import('./pages/SettingsPage').then((m) => ({ de
 const PENDING_INVITE_KEY = 'sq-pending-invite';
 // Same idea for friend links (`/add/:friendCode`).
 const PENDING_FRIEND_KEY = 'sq-pending-friend';
+const PENDING_LOBBY_KEY = 'sq-pending-lobby';
 // The Unsubscribe link in every email opens `/?settings=notifications`. Same sign-in round trip
 // problem, same answer: stash it, then go to Settings › Notifications once signed in.
 const PENDING_SETTINGS_KEY = 'sq-pending-settings';
@@ -218,6 +219,22 @@ export default function App() {
     const match = location.pathname.match(/^\/add\/([^/]+)$/);
     if (match) sessionStorage.setItem(PENDING_FRIEND_KEY, decodeURIComponent(match[1]));
   }, [location.pathname, user]);
+
+  // A shared mini games lobby link (`/games?lobby=...`) followed while signed out: stash it, and open the lobby once they have signed in.
+  useEffect(() => {
+    if (user || location.pathname !== '/games') return;
+    const lobby = new URLSearchParams(location.search).get('lobby');
+    if (lobby) sessionStorage.setItem(PENDING_LOBBY_KEY, lobby);
+  }, [location.pathname, location.search, user]);
+
+  useEffect(() => {
+    if (!user) return;
+    const lobby = sessionStorage.getItem(PENDING_LOBBY_KEY);
+    if (!lobby) return;
+    sessionStorage.removeItem(PENDING_LOBBY_KEY);
+    navigate(`/games?lobby=${encodeURIComponent(lobby)}`, { replace: true });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [user]);
 
   // Once signed in, finish a friend link stashed above (right after the OAuth callback redirect).
   useEffect(() => {

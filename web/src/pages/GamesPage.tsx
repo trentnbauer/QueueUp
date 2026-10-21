@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState, type KeyboardEvent } from 'react';
 import { useNavigate, useSearchParams } from 'react-router';
 import { useQueryClient } from '@tanstack/react-query';
-import { LOBBY_GAME_IDS, lowerIsBetter, type LobbyGameId, type MiniGameLobbyDto, type MiniGameScorePeriod, type MiniGameScoreRow, type MiniGameScoreScope } from '@queueup/shared';
+import { LOBBY_GAME_IDS, lowerIsBetter, parseLobbyCode, type LobbyGameId, type MiniGameLobbyDto, type MiniGameScorePeriod, type MiniGameScoreRow, type MiniGameScoreScope } from '@queueup/shared';
 import { miniGamesApi } from '../api/miniGames';
 import { useAuth } from '../context/AuthContext';
 import { JoinCodeDialog } from '../dialogs/JoinCodeDialog';
@@ -56,6 +56,23 @@ export function GamesPage() {
     setDialog({ kind: 'join', code: linkCode });
     setParams({}, { replace: true });
   }, [linkCode, setParams]);
+  // A link to a lobby (`/games?lobby=<id or invite code>`, the address while one is open): an invite code goes to Join, an id straight in.
+  // The lobby dialog sets this same address while it is open, so each value is acted on once.
+  const linkLobby = params.get('lobby');
+  const followed = useRef<string | null>(null);
+  useEffect(() => {
+    if (!linkLobby) {
+      followed.current = null;
+      return;
+    }
+    if (followed.current === linkLobby) return;
+    followed.current = linkLobby;
+    if (dialog?.kind === 'lobby') return;
+    const code = parseLobbyCode(linkLobby);
+    setDialog(code ? { kind: 'join', code: linkLobby } : { kind: 'lobby', id: linkLobby });
+    // The lobby dialog puts the address back once it knows the lobby; the Join dialog does not stay on this address.
+    if (code) setParams({}, { replace: true });
+  }, [linkLobby, dialog, setParams]);
   // A link to one game (`/games?game=runner`, from a "your high score was beaten" alert) opens with that game picked.
   const linkGame = params.get('game');
   useEffect(() => {

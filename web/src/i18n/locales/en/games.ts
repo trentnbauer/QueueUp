@@ -124,6 +124,7 @@ export const games = {
   "games.guest.leave": "Leave",
   "games.guest.tag": "GUEST",
   "games.guest.signUp": "Sign up",
+  "games.guest.signInInstead": "Sign in instead",
   "games.guest.dismiss": "Dismiss",
   "games.guest.banner": "Guest scores aren't kept. Sign up for QueueUp to save high scores and open your own lobbies.",
   "games.lobby.codeKicker": "INVITE CODE",

@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef } from 'react';
+import { useSearchParams } from 'react-router';
 import type { MiniGameLobbyDto, RoomMember } from '@queueup/shared';
 import { useQueryClient } from '@tanstack/react-query';
 import { miniGamesApi } from '../api/miniGames';
@@ -12,9 +13,14 @@ import { getBasePath } from '../utils/basePath';
 import { useT } from '../i18n';
 import { LobbyPanel } from './LobbyPanel';
 
-/** The link that opens the Mini games page with this lobby's code filled in. */
-export function lobbyLink(code: string): string {
-  return `${window.location.origin}${getBasePath()}/games?code=${encodeURIComponent(code)}`;
+/** What a link to a lobby names: its invite code when it has one (the only way into a code lobby), otherwise its id. */
+export function lobbyRef(lobby: Pick<MiniGameLobbyDto, 'id' | 'code'>): string {
+  return lobby.code ?? lobby.id;
+}
+
+/** The link that opens the Mini games page in this lobby: signed in it joins, and signed out it offers to sign in or play as a guest. */
+export function lobbyLink(ref: string): string {
+  return `${window.location.origin}${getBasePath()}/games?lobby=${encodeURIComponent(ref)}`;
 }
 
 /** An open lobby: the live game with whoever else is in it. Closing the dialog leaves; the lobby closes when
@@ -25,6 +31,14 @@ export function LobbyPlayDialog({ lobbyId, onClose }: { lobbyId: string; onClose
   const { user } = useAuth();
   const queryClient = useQueryClient();
   const { data: lobby, isError } = useLobbyInfo(lobbyId);
+  // The page's address names the lobby while it is open, so the address bar is a link others can follow.
+  const [, setParams] = useSearchParams();
+  const ref = lobby ? lobbyRef(lobby) : null;
+  useEffect(() => {
+    if (!ref) return;
+    setParams((p) => new URLSearchParams([...p].filter(([k]) => k !== 'code' && k !== 'lobby').concat([['lobby', ref]])), { replace: true });
+    return () => setParams((p) => new URLSearchParams([...p].filter(([k]) => k !== 'lobby')), { replace: true });
+  }, [ref, setParams]);
   // The lobby closed on us (everyone left, or the host closed it): say so once and close the dialog.
   const told = useRef(false);
   useEffect(() => {
@@ -58,7 +72,7 @@ export function LobbyPlayDialog({ lobbyId, onClose }: { lobbyId: string; onClose
 
   return (
     <Dialog onClose={onClose} title={title} width={760} height="tall" gap={14}>
-      {lobby?.code && <InviteCode code={lobby.code} />}
+      {lobby?.code ? <InviteCode code={lobby.code} /> : lobby && !lobby.solo && lobby.visibility !== 'code' && <ShareLink link={lobbyLink(lobbyRef(lobby))} />}
       <LobbyPanel key={lobbyId} lobbyId={lobbyId} members={members} me={user.id} />
       {lobby?.mine && (
         <Btn kind="ghost" height={40} onClick={() => void close()}>
@@ -66,6 +80,29 @@ export function LobbyPlayDialog({ lobbyId, onClose }: { lobbyId: string; onClose
         </Btn>
       )}
     </Dialog>
+  );
+}
+
+/** A lobby without a code (public, or friends): just the link to it. */
+function ShareLink({ link }: { link: string }) {
+  const t = useT();
+  const ui = useUi();
+  const canShare = typeof navigator !== 'undefined' && typeof navigator.share === 'function' && window.matchMedia('(pointer: coarse)').matches;
+  const share = async () => {
+    if (canShare) return void navigator.share({ url: link }).catch(() => {});
+    try {
+      await navigator.clipboard.writeText(link);
+      ui.notify(t('games.lobby.copied'), undefined, 2000);
+    } catch {
+      // Clipboard blocked: nothing more to do here.
+    }
+  };
+  return (
+    <div>
+      <Btn kind="text" height={38} fontSize={13} onClick={() => void share()}>
+        {canShare ? t('games.lobby.shareLink') : t('games.lobby.copyLink')}
+      </Btn>
+    </div>
   );
 }
 

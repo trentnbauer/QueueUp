@@ -126,6 +126,7 @@ export const games: Record<keyof typeof en, string> = {
   "games.guest.leave": "Leave",
   "games.guest.tag": "GUEST",
   "games.guest.signUp": "Sign up",
+  "games.guest.signInInstead": "Come aboard instead",
   "games.guest.dismiss": "Dismiss",
   "games.guest.banner": "Guest scores ain’t kept. Sign up for QueueUp to save high scores and open yer own lobbies.",
   "games.lobby.codeKicker": "INVITE CODE",

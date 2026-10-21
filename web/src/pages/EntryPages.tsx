@@ -176,7 +176,12 @@ export function LoginPage({
   const [captcha, setCaptcha] = useState<string | null>(null);
   // A captcha token works once; after a guest join uses it the widget is rebuilt for a fresh one.
   const [widgetKey, setWidgetKey] = useState(0);
-  const [guestGames, setGuestGames] = useState(false);
+  // A shared lobby link (/games?lobby=...): with guest play on, it opens straight at "pick a name", with sign in as the other way in.
+  const [linkLobby] = useState(() => {
+    const params = new URLSearchParams(window.location.search);
+    return params.get('lobby') ?? params.get('code');
+  });
+  const [guestGames, setGuestGames] = useState(guestPlay && !!linkLobby);
   const live = usePublicLobbies(guestPlay, 15).data?.lobbies.length ?? 0;
   const needsCaptcha = !!turnstileSiteKey && list[0] !== 'dev';
   const ready = !needsCaptcha || !!captcha;
@@ -316,6 +321,7 @@ export function LoginPage({
             setCaptcha(null);
             setWidgetKey((k) => k + 1);
           }}
+          initialRef={linkLobby ?? undefined}
           onSignUp={() => setGuestGames(false)}
           onClose={() => setGuestGames(false)}
         />

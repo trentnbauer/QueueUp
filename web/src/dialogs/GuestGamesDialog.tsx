@@ -24,12 +24,17 @@ function savedName(): string {
   }
 }
 
-type Stage = { kind: 'list' } | { kind: 'name'; ref: string; title: string } | { kind: 'lobby'; joined: GuestJoinResponse };
+type Stage = { kind: 'list' } | { kind: 'name'; ref: string; title: string; fromLink?: boolean } | { kind: 'lobby'; joined: GuestJoinResponse };
 
 /** Mini games for someone without an account: pick a public lobby or paste an invite code, give a name, play.
  * Nothing about the guest is stored on the server; their scores are not kept. */
-export function GuestGamesDialog({ captcha, needsCaptcha, onCaptchaUsed, onSignUp, onClose }: { captcha: string | null; needsCaptcha: boolean; onCaptchaUsed: () => void; onSignUp: () => void; onClose: () => void }) {
-  const [stage, setStage] = useState<Stage>({ kind: 'list' });
+export function GuestGamesDialog({ captcha, needsCaptcha, onCaptchaUsed, initialRef, onSignUp, onClose }: { captcha: string | null; needsCaptcha: boolean; onCaptchaUsed: () => void; initialRef?: string; onSignUp: () => void; onClose: () => void }) {
+  const t = useT();
+  // Arriving by a lobby link starts at the name step, with signing in offered next to it.
+  const [stage, setStage] = useState<Stage>(() => {
+    const code = initialRef ? parseLobbyCode(initialRef) : null;
+    return initialRef ? { kind: 'name', ref: code ?? initialRef, title: code ? `${code.slice(0, 3)}-${code.slice(3)}` : t('games.guest.title'), fromLink: true } : { kind: 'list' };
+  });
   const [banner, setBanner] = useState(!bannerDismissed);
   const strip = banner ? (
     <SignUpStrip
@@ -42,7 +47,7 @@ export function GuestGamesDialog({ captcha, needsCaptcha, onCaptchaUsed, onSignU
   ) : undefined;
 
   if (stage.kind === 'name') {
-    return <NameDialog ref_={stage.ref} title={stage.title} captcha={captcha} needsCaptcha={needsCaptcha} onCaptchaUsed={onCaptchaUsed} onBack={() => setStage({ kind: 'list' })} onClose={onClose} onJoined={(joined) => setStage({ kind: 'lobby', joined })} />;
+    return <NameDialog ref_={stage.ref} title={stage.title} captcha={captcha} needsCaptcha={needsCaptcha} onCaptchaUsed={onCaptchaUsed} onBack={() => setStage({ kind: 'list' })} onSignIn={stage.fromLink ? onSignUp : undefined} onClose={onClose} onJoined={(joined) => setStage({ kind: 'lobby', joined })} />;
   }
   if (stage.kind === 'lobby') {
     return <GuestLobby joined={stage.joined} footer={strip} onLeave={() => setStage({ kind: 'list' })} />;
@@ -142,6 +147,7 @@ function NameDialog({
   needsCaptcha,
   onCaptchaUsed,
   onBack,
+  onSignIn,
   onClose,
   onJoined,
 }: {
@@ -151,6 +157,8 @@ function NameDialog({
   needsCaptcha: boolean;
   onCaptchaUsed: () => void;
   onBack: () => void;
+  /** Offered when they came by a lobby link: sign in rather than play as a guest. */
+  onSignIn?: () => void;
   onClose: () => void;
   onJoined: (joined: GuestJoinResponse) => void;
 }) {
@@ -210,6 +218,11 @@ function NameDialog({
       <Btn kind="accent" height={46} fontSize={15} weight={800} disabled={!ready} style={{ width: '100%' }} onClick={() => void submit()}>
         {t('games.guest.nameSubmit')}
       </Btn>
+      {onSignIn && (
+        <Btn kind="ghost" height={44} fontSize={14} style={{ width: '100%' }} onClick={onSignIn}>
+          {t('games.guest.signInInstead')}
+        </Btn>
+      )}
     </Dialog>
   );
 }
