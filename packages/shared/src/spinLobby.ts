@@ -1436,8 +1436,10 @@ export interface FishingPlayer {
   health: number;
   /** How close the fish is to landing (0 to 1): up while it is in the green, down (slowly) while it is not. */
   catch: number;
-  /** Points from the fish landed this run. */
-  points: number;
+  /** The health bar: it drains all the time and each fish landed refills it (the bigger the fish, the more). Out at 0. */
+  hp: number;
+  /** The most health they have had this run: their score. */
+  peak: number;
   /** Lines left: a snapped line, or a long time with nothing hooked, costs one. */
   lives: number;
   /** How much of the wait for a bite is left (1 to 0) before the line goes slack. */
@@ -1446,14 +1448,14 @@ export interface FishingPlayer {
   alive: boolean;
   /** Runs won since this person joined the lobby. */
   wins: number;
-  /** Points: live while in, final once out. */
+  /** Peak health: live while in, final once out. */
   meters: number;
 }
 
 export interface FishingSnapshot extends RoundSummary {
   id: 'fishing';
   phase: LobbyRoundPhase;
-  /** The most points anyone has. */
+  /** The most peak health anyone has. */
   meters: number;
   /** Always 0: nothing scrolls past in this game (every snapshot carries a course speed). */
   speed: number;

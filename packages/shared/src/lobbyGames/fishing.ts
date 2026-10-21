@@ -17,6 +17,12 @@ const LURE_R = 0.03;
 /** Nothing hooked for this long and the line goes slack, which costs a line. */
 const DRY_LIMIT_S = 25;
 const LIVES = 3;
+/** The health bar: this much to start, drained every second (more as the run goes on, so a run always ends) and refilled by each fish landed by
+ * its points times HP_PER_POINT. Out at 0. The score is the most it has ever been. */
+const HP_START = 10;
+const HP_DRAIN = 0.5;
+const HP_DRAIN_GAIN = 0.03;
+const HP_PER_POINT = 5;
 const FISH_Y_MAX = 0.8;
 const INITIAL_FISH = 9;
 /** Everything gets harder over this long, then stays as hard. */
@@ -100,7 +106,9 @@ interface Angler extends RoundPlayer {
   rest: number;
   health: number;
   catch: number;
-  points: number;
+  hp: number;
+  /** The most health they have had this run (their score). */
+  peak: number;
   lives: number;
   /** Seconds since a fish was hooked (or the run began). */
   dry: number;
@@ -109,7 +117,8 @@ interface Angler extends RoundPlayer {
 /** Cast a lure up the pond and a fish takes it: hold to cast (the longer you hold, the further it goes, up to full power) and let go,
  * then hold to wind the lure in, so you set it where the fish swim past. A fish that touches the lure is hooked, and then you hold to
  * reel it in: keep the fish inside the green zone, which you raise by holding and let sink by letting go. Fill the catch and you land it;
- * wear the line out and it snaps. Fish are worth more the bigger they are, and fight harder. Three lines (a snap, or a long wait for a
+ * wear the line out and it snaps. Fish are worth more the bigger they are, and fight harder: landing one refills the health bar that drains
+ * all the time, and a score is the most health it has had. Three lines (a snap, or a long wait for a
  * bite, costs one); last one fishing wins. Players never touch each other, so each device works out its own angler against the same
  * fish (see RoundGame.clientSim). See RoundGame for how runs start and end. */
 export class FishingGame extends RoundGame<Angler> {
@@ -117,14 +126,16 @@ export class FishingGame extends RoundGame<Angler> {
   private fish: Fish[] = [];
   private fishCount = 0;
   private nextSpawn = 0;
-  /** What the run reports as its score, set when it ends (the winner's own count rather than the best of anyone). */
+  /** Scales how fast the health bar drains (1 in play): a test about lines, not health, sets it to 0. */
+  hpDrainScale = 1;
+  /** What the run reports as its score, set when it ends (the winner's own peak health rather than the best of anyone). */
   private finalScore: number | null = null;
 
-  /** The score shown for the run: the most points anyone has. */
+  /** The score shown for the run: the highest peak health anyone has. */
   protected get meters(): number {
     if (this.finalScore !== null) return this.finalScore;
     let best = 0;
-    for (const p of this.players.values()) best = Math.max(best, p.points);
+    for (const p of this.players.values()) best = Math.max(best, Math.floor(p.peak));
     return best;
   }
 
@@ -146,9 +157,10 @@ export class FishingGame extends RoundGame<Angler> {
     p.health = clamp(RoundGame.num(f.h, p.health), 0, 1);
     p.catch = clamp(RoundGame.num(f.c, p.catch), 0, 1);
     p.tier = mode === 'fight' ? Math.min(FISHING_TIERS.length - 1, Math.max(0, Math.floor(RoundGame.num(f.tr, 0)))) : -1;
-    // Never fewer points, and no more than the biggest fish's worth more at a time: a device cannot land a pile of fish in one report.
-    const biggest = FISHING_TIERS[FISHING_TIERS.length - 1].points;
-    p.points = Math.max(p.points, Math.min(Math.floor(RoundGame.num(f.pts, p.points)), p.points + biggest));
+    // No more than the biggest fish's worth of health more than before at a time: a device cannot land a pile of fish in one report.
+    const biggest = FISHING_TIERS[FISHING_TIERS.length - 1].points * HP_PER_POINT;
+    p.hp = clamp(RoundGame.num(f.hp, p.hp), 0, p.hp + biggest);
+    p.peak = Math.max(p.peak, p.hp);
     // Never more lines than before.
     p.lives = Math.min(p.lives, Math.max(0, Math.floor(RoundGame.num(f.lv, p.lives))));
     p.dry = clamp(RoundGame.num(f.dr, p.dry), 0, DRY_LIMIT_S);
@@ -166,7 +178,7 @@ export class FishingGame extends RoundGame<Angler> {
       h: r3(p.health),
       c: r3(p.catch),
       tr: Math.max(0, p.tier),
-      pts: p.points,
+      hp: r3(p.hp),
       lv: p.lives,
       dr: r3(p.dry),
     };
@@ -197,7 +209,8 @@ export class FishingGame extends RoundGame<Angler> {
     p.rest = 0;
     p.health = 1;
     p.catch = 0;
-    p.points = 0;
+    p.hp = HP_START;
+    p.peak = HP_START;
     p.lives = LIVES;
     p.dry = 0;
   }
@@ -243,17 +256,17 @@ export class FishingGame extends RoundGame<Angler> {
 
   protected override knockOut(p: Angler): void {
     super.knockOut(p);
-    p.outAtMeters = p.points;
+    p.outAtMeters = Math.floor(p.peak);
   }
 
-  /** At the time cap whoever is still fishing keeps the points they have, and nobody wins. */
+  /** At the time cap whoever is still fishing keeps the peak health they have had, and nobody wins. */
   protected override limitReached(): void {
-    for (const p of this.players.values()) if (p.alive) p.outAtMeters = p.points;
+    for (const p of this.players.values()) if (p.alive) p.outAtMeters = Math.floor(p.peak);
     this.endRun(null);
   }
 
   protected override endRun(winner: Angler | null): void {
-    if (winner) this.finalScore = winner.points;
+    if (winner) this.finalScore = Math.floor(winner.peak);
     super.endRun(winner);
   }
 
@@ -333,12 +346,13 @@ export class FishingGame extends RoundGame<Angler> {
         half: r3(this.zoneHalf(Math.max(0, p.tier), d)),
         health: r3(p.health),
         catch: r3(p.catch),
-        points: p.points,
+        hp: r3(p.hp),
+        peak: Math.floor(p.peak),
         lives: p.lives,
         patience: r3(Math.max(0, 1 - p.dry / DRY_LIMIT_S)),
         alive: p.alive,
         wins: p.wins,
-        meters: p.alive && this.phase === 'playing' ? p.points : p.outAtMeters,
+        meters: p.alive && this.phase === 'playing' ? Math.floor(p.peak) : p.outAtMeters,
       })),
     };
   }
@@ -358,6 +372,12 @@ export class FishingGame extends RoundGame<Angler> {
     const d = this.difficulty;
     for (const p of this.players.values()) {
       if (!p.alive || !this.simulated(p)) continue;
+      p.hp -= (HP_DRAIN + HP_DRAIN_GAIN * t) * dt * this.hpDrainScale;
+      if (p.hp <= 0) {
+        p.hp = 0;
+        this.knockOut(p);
+        continue;
+      }
       this.stepAngler(p, dt, t, d);
     }
   }
@@ -462,7 +482,8 @@ export class FishingGame extends RoundGame<Angler> {
       p.health -= k.wear * (1 + 0.5 * d) * dt;
     }
     if (p.catch >= 1) {
-      p.points += FISHING_TIERS[p.tier].points;
+      p.hp += FISHING_TIERS[p.tier].points * HP_PER_POINT;
+      p.peak = Math.max(p.peak, p.hp);
       this.reset(p);
     } else if (p.health <= 0) this.loseLine(p);
   }
