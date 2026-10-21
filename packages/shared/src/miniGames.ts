@@ -43,7 +43,6 @@ export const MINIGAME_SCORE_MAX: Record<LobbyGameId, number> = {
   lava: 3600, // metres the screen climbed
   tunnel: 3600, // metres the tunnel came
   parachute: 3600, // metres fallen
-  conveyor: 3600, // metres the belt ran
 };
 
 /** Each game's rules version. A score is saved with the version it was played under, and the high score lists show only the
@@ -51,7 +50,7 @@ export const MINIGAME_SCORE_MAX: Record<LobbyGameId, number> = {
  * meaning for the score) starts a fresh list; the old scores stay in the database. **Raise a game's number whenever you change
  * how it plays or scores in a way that makes an old score unfair against a new one.** A new game starts at 1. */
 export const MINIGAME_VERSIONS: Record<LobbyGameId, number> = {
-  runner: 2, // the pair of skinny cacti got a gap between them
+  runner: 3, // pits and tall stacks joined the course
   flappy: 1,
   dodge: 2, // bigger blocks, a wider safe lane, a slower spawn rate
   rope: 1,
@@ -86,7 +85,6 @@ export const MINIGAME_VERSIONS: Record<LobbyGameId, number> = {
   lava: 3, // was a platform climb and then Bounce; scores from either are not comparable
   tunnel: 1,
   parachute: 3, // the sky speeds up four times as quickly, and gusts fade in and out
-  conveyor: 1,
 };
 export const miniGameVersion = (game: LobbyGameId): number => MINIGAME_VERSIONS[game];
 
@@ -330,7 +328,6 @@ export const MINIGAME_NAMES: Record<LobbyGameId, string> = {
   lava: 'Lava',
   tunnel: 'Tunnel',
   parachute: 'Parachute',
-  conveyor: 'Conveyor',
 };
 
 /** Whether score `a` is better than score `b` in the game (a smaller time is better; otherwise bigger is). Equal is not better. */

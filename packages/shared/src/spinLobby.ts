@@ -11,8 +11,8 @@
 export const LOBBY_TICK_HZ = 15;
 
 /** The games the lobby can run. */
-export type LobbyGameId = 'runner' | 'flappy' | 'dodge' | 'rope' | 'coins' | 'battleships' | 'race' | 'whack' | 'draw' | 'tilt' | 'stacker' | 'sumo' | 'asteroids' | 'memory' | 'words' | 'snake' | 'gravity' | 'laser' | 'colormatch' | 'potato' | 'anagram' | 'mines' | 'stop' | 'pong' | 'wall' | 'frogger' | 'fishing' | 'orbit' | 'rps' | 'rhythm' | 'sortit' | 'tempo' | 'lava' | 'tunnel' | 'parachute' | 'conveyor';
-export const LOBBY_GAME_IDS: readonly LobbyGameId[] = ['runner', 'flappy', 'dodge', 'rope', 'coins', 'battleships', 'race', 'whack', 'draw', 'tilt', 'stacker', 'sumo', 'asteroids', 'memory', 'words', 'snake', 'gravity', 'laser', 'colormatch', 'potato', 'anagram', 'mines', 'stop', 'pong', 'wall', 'frogger', 'fishing', 'orbit', 'rps', 'rhythm', 'sortit', 'tempo', 'lava', 'tunnel', 'parachute', 'conveyor'];
+export type LobbyGameId = 'runner' | 'flappy' | 'dodge' | 'rope' | 'coins' | 'battleships' | 'race' | 'whack' | 'draw' | 'tilt' | 'stacker' | 'sumo' | 'asteroids' | 'memory' | 'words' | 'snake' | 'gravity' | 'laser' | 'colormatch' | 'potato' | 'anagram' | 'mines' | 'stop' | 'pong' | 'wall' | 'frogger' | 'fishing' | 'orbit' | 'rps' | 'rhythm' | 'sortit' | 'tempo' | 'lava' | 'tunnel' | 'parachute';
+export const LOBBY_GAME_IDS: readonly LobbyGameId[] = ['runner', 'flappy', 'dodge', 'rope', 'coins', 'battleships', 'race', 'whack', 'draw', 'tilt', 'stacker', 'sumo', 'asteroids', 'memory', 'words', 'snake', 'gravity', 'laser', 'colormatch', 'potato', 'anagram', 'mines', 'stop', 'pong', 'wall', 'frogger', 'fishing', 'orbit', 'rps', 'rhythm', 'sortit', 'tempo', 'lava', 'tunnel', 'parachute'];
 
 /** What a client sends. Anything else is ignored. */
 export type LobbyClientMessage =
@@ -103,15 +103,16 @@ export const LOBBY_HISTORY_LENGTH = 10;
 /** The track is one screen wide (1.0); a runner stands at this fraction of it. */
 export const RUNNER_X = 0.18;
 
-/** A cactus is jumped, a bird is ducked, and a log is wide: it takes a held jump to clear. */
-export type RunnerObstacleKind = 'cactus' | 'bird' | 'log';
+/** A cactus is jumped, a bird is ducked, and a log is wide: it takes a held jump to clear. A stack is tall (a held jump
+ * clears it; a tap only just) and a pit is a hole in the ground: be in the air over it. */
+export type RunnerObstacleKind = 'cactus' | 'bird' | 'log' | 'stack' | 'pit';
 
 /** An obstacle on screen. `x` is how far ahead of the start of the screen it is (0..1 is visible). */
 export interface RunnerObstacle {
   x: number;
   kind: RunnerObstacleKind;
   /** How wide it is, in screens: a cactus is usually 0.1 (or 0.05 when two skinny ones stand together), a log
-   * 0.3, a bird 0.06 or, when it is a long one, 0.18 to 0.32. */
+   * 0.3, a bird 0.06 or, when it is a long one, 0.18 to 0.32, a stack 0.1, a pit 0.18 to 0.32. */
   w: number;
   /** Which obstacle this is (counts up from 1 each run): stays the same as it scrolls, so it can be
    * drawn the same way every frame. */
@@ -1872,59 +1873,7 @@ export interface ParachuteSnapshot extends RoundSummary {
   winnerId: string | null;
 }
 
-// ---- Conveyor (crates, stacks and pits ride a belt toward you, and you jump them in a rhythm that tightens) ---------------
-
-/** Where the player stands across the screen, and where the top of the belt is down it. */
-export const CONVEYOR_PLAYER_X = 0.78;
-export const CONVEYOR_GROUND_Y = 0.78;
-/** Sizes (fractions of the screen): the player, a crate (a stack is as wide and taller) and how long a pit is when the run starts (they get longer). */
-export const CONVEYOR_PLAYER_W = 0.05;
-export const CONVEYOR_PLAYER_H = 0.09;
-export const CONVEYOR_CRATE_W = 0.07;
-export const CONVEYOR_CRATE_H = 0.09;
-export const CONVEYOR_STACK_H = 0.13;
-export const CONVEYOR_PIT_W = 0.12;
-/** A jump rises this high (screens) and takes this long (seconds), up and down. */
-export const CONVEYOR_JUMP_H = 0.25;
-export const CONVEYOR_JUMP_S = 0.6;
-
-export interface ConveyorObstacle {
-  /** Which one this is (counts up from 1 each run); stays the same as it rides. */
-  n: number;
-  kind: 'crate' | 'stack' | 'pit';
-  /** Where its middle is across the screen (it comes from the left), and how wide it is. */
-  x: number;
-  w: number;
-}
-
-export interface ConveyorPlayer {
-  id: string;
-  /** How high they are above the belt (screens), and whether they are in a jump. */
-  h: number;
-  jumping: boolean;
-  /** Still going. False once they hit something or fall in a pit, or if they arrived mid-run. */
-  alive: boolean;
-  /** Runs won since this person joined the lobby. */
-  wins: number;
-  /** How far the belt has run, in metres: live while going, final once out. */
-  meters: number;
-}
-
-export interface ConveyorSnapshot extends RoundSummary {
-  id: 'conveyor';
-  phase: LobbyRoundPhase;
-  meters: number;
-  /** How fast the belt runs, in screens a second. */
-  speed: number;
-  obstacles: ConveyorObstacle[];
-  players: ConveyorPlayer[];
-  /** Milliseconds left in `countdown` or `over`; 0 otherwise. */
-  timerMs: number;
-  /** Who won the run that just ended (`over` only); null when nobody did (a solo run, or a draw). */
-  winnerId: string | null;
-}
-
-export type LobbyGameSnapshot = RunnerSnapshot | FlappySnapshot | DodgeSnapshot | RopeSnapshot | CoinsSnapshot | BattleshipsSnapshot | RaceSnapshot | WhackSnapshot | DrawSnapshot | TiltSnapshot | StackerSnapshot | SumoSnapshot | AsteroidsSnapshot | MemorySnapshot | WordsSnapshot | SnakeSnapshot | GravitySnapshot | LaserSnapshot | ColorMatchSnapshot | PotatoSnapshot | AnagramSnapshot | MinesSnapshot | StopSnapshot | PongSnapshot | WallSnapshot | FroggerSnapshot | FishingSnapshot | OrbitSnapshot | RpsSnapshot | RhythmSnapshot | SortitSnapshot | TempoSnapshot | LavaSnapshot | TunnelSnapshot | ParachuteSnapshot | ConveyorSnapshot;
+export type LobbyGameSnapshot = RunnerSnapshot | FlappySnapshot | DodgeSnapshot | RopeSnapshot | CoinsSnapshot | BattleshipsSnapshot | RaceSnapshot | WhackSnapshot | DrawSnapshot | TiltSnapshot | StackerSnapshot | SumoSnapshot | AsteroidsSnapshot | MemorySnapshot | WordsSnapshot | SnakeSnapshot | GravitySnapshot | LaserSnapshot | ColorMatchSnapshot | PotatoSnapshot | AnagramSnapshot | MinesSnapshot | StopSnapshot | PongSnapshot | WallSnapshot | FroggerSnapshot | FishingSnapshot | OrbitSnapshot | RpsSnapshot | RhythmSnapshot | SortitSnapshot | TempoSnapshot | LavaSnapshot | TunnelSnapshot | ParachuteSnapshot;
 
 /** What a client needs to run its own player on a course the server decided: which run, the seed that
  * makes the course, and how long until the run starts (negative once it has, by how far in). */

@@ -8,6 +8,7 @@ const DUCK_HEIGHT = 0.25;
 // Each obstacle's width comes in the snapshot (`o.w`): cacti are 0.1 or, in a pair, 0.05; a bird is 0.06 or a long one.
 const CACTUS = { height: 0.35 };
 const LOG = { height: 0.35 };
+const STACK = { height: 0.5 };
 const BIRD = { from: 0.3, to: 0.7 };
 /** A long bird gets one 😴 for about every this much width. */
 const BIRD_FACE_EVERY = 0.07;
@@ -42,10 +43,18 @@ function drawWorld(sc: Scene<RunnerSnapshot>): void {
   for (const o of snapshot.obstacles) {
     const cx = (o.x - drift) * S;
     const hue = hueOf(o.n);
-    if (o.kind === 'cactus') {
+    if (o.kind === 'pit') {
+      // A hole in the ground: dark, with a red lip each side. Be in the air over it.
+      const w = o.w * S;
+      ctx.fillStyle = 'oklch(0.05 0.004 55)';
+      ctx.fillRect(cx - w / 2, ground, w, S - ground);
+      ctx.fillStyle = theme.danger;
+      ctx.fillRect(cx - w / 2 - 1, ground, 2, S - ground);
+      ctx.fillRect(cx + w / 2 - 1, ground, 2, S - ground);
+    } else if (o.kind === 'cactus' || o.kind === 'stack') {
       // A game cover standing on the ground, with two lines of "title" at the bottom.
       const w = o.w * S;
-      const h = CACTUS.height * unit;
+      const h = (o.kind === 'stack' ? STACK.height : CACTUS.height) * unit;
       groundShadow(ctx, cx, ground, w * 0.6);
       coverTile(ctx, cx - w / 2, ground - h, w, h, hue, S * 0.022, true);
       ctx.fillStyle = 'oklch(1 0 0 / 0.7)';
