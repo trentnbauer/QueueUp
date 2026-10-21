@@ -2,9 +2,10 @@ import { ORBIT_MARKER_HALF, clampDirection, type OrbitHazard, type OrbitSnapshot
 import { RoundGame, type RoundPlayer } from './roundGame.js';
 
 const TAU = Math.PI * 2;
-/** How fast everyone circles the ring (radians a second): brisk from the start, and quicker over `RAMP_S`, then no quicker. */
+/** How fast everyone circles the ring (radians a second): brisk from the start, and quicker for as long as the run lasts (3.2 at `RAMP_S`, and on from there, with no top speed). */
 const OMEGA = [1.7, 3.2] as const;
-/** Things come in from the edge or out of the middle toward a spot on the ring. They are in the air this long (a warning), and arrive this often. */
+/** Things come in from the edge or out of the middle toward a spot on the ring. They are in the air this long (a warning), and arrive this often: each pair is the
+ * start and the value at `RAMP_S`, and they keep shrinking after that without reaching nothing (see `shrinking`). */
 const FLY_S = [1.5, 0.85] as const;
 const EVERY_S = [1.0, 0.32] as const;
 /** How much of the ring (half, in radians) one of them takes, not counting the marker's own size. */
@@ -21,12 +22,13 @@ const PATH_FLIP_EXTRA_S = 1.1;
 const CLEAR = 0.12;
 
 const lerp = (pair: readonly [number, number], d: number) => pair[0] + (pair[1] - pair[0]) * d;
-const along = (seconds: number) => Math.min(1, Math.max(0, seconds / RAMP_S));
+/** How far through the ramp it is: 0 at the start, 1 at `RAMP_S` seconds, and on past 1 for as long as the run lasts. */
+const along = (seconds: number) => Math.max(0, seconds / RAMP_S);
+/** `pair[0]` at the start, `pair[1]` at the end of the ramp (d = 1), and still shrinking after that: the start value over 1 + k * d. */
+const shrinking = (pair: readonly [number, number], d: number) => pair[0] / (1 + (pair[0] / pair[1] - 1) * d);
 /** How far round the ring someone going the whole time has got by `t` seconds: the integral of the speed. */
 function turned(t: number): number {
-  const ramp = Math.min(t, RAMP_S);
-  const early = OMEGA[0] * ramp + ((OMEGA[1] - OMEGA[0]) * ramp * ramp) / (2 * RAMP_S);
-  return early + (t > RAMP_S ? OMEGA[1] * (t - RAMP_S) : 0);
+  return OMEGA[0] * t + ((OMEGA[1] - OMEGA[0]) * t * t) / (2 * RAMP_S);
 }
 const wrap = (a: number) => ((a % TAU) + TAU) % TAU;
 /** The shortest way between two angles. */
@@ -50,7 +52,7 @@ interface Thing {
 
 /** Circle the ring and dodge what flies at it: one button flips which way you go. Things come in from the edge or out of the middle, each
  * with a warning as it flies, and one that reaches the ring where you are is the end of your run. They get quicker and thicker, and you go
- * quicker round the ring, for 38 seconds, and then it stays that hard. Everything comes from the round's seed, and is made so that there
+ * quicker round the ring, for as long as you last (a way round that touches nothing always exists, but the warnings get too short to follow it). Everything comes from the round's seed, and is made so that there
  * is always a way round that touches nothing, so it can always be done. Players never touch each other, so each device works out its own
  * marker (see RoundGame.clientSim). The score is how many seconds you lasted. See RoundGame for how runs start and end. */
 export class OrbitGame extends RoundGame<Orbiter> {
@@ -140,13 +142,13 @@ export class OrbitGame extends RoundGame<Orbiter> {
       const d = along(this.nextAt);
       // Always the same three random numbers, so one thing does not change the ones after it.
       const [where, origin, spread] = [this.rng(), this.rng(), this.rng()];
-      const half = lerp(HALF, d) * (0.8 + 0.4 * spread);
+      const half = lerp(HALF, Math.min(1, d)) * (0.8 + 0.4 * spread);
       const keep = half + ORBIT_MARKER_HALF + CLEAR;
       const clear = this.safeAt(this.nextAt);
       // Anywhere on the ring except round the clear way's spot at that moment.
       const angle = wrap(clear + keep + where * (TAU - 2 * keep));
-      this.things.push({ n: ++this.spawned, angle, hitAt: this.nextAt, flyS: lerp(FLY_S, d), half, from: origin < 0.5 ? 'out' : 'in' });
-      this.nextAt += lerp(EVERY_S, d);
+      this.things.push({ n: ++this.spawned, angle, hitAt: this.nextAt, flyS: shrinking(FLY_S, d), half, from: origin < 0.5 ? 'out' : 'in' });
+      this.nextAt += shrinking(EVERY_S, d);
     }
   }
 

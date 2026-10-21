@@ -98,7 +98,7 @@ describe('OrbitGame course', () => {
     expect(things(5)).not.toBe(things(9));
   });
 
-  it('goes quicker round the ring and brings things in quicker as the run goes on, then no quicker', () => {
+  it('goes quicker round the ring for as long as the run goes on, with no top speed', () => {
     const g = started(['a']);
     const keep = () => g.report('a', 1, true, { a: 0, d: 1 });
     const start = snap(g).omega;
@@ -112,7 +112,7 @@ describe('OrbitGame course', () => {
       keep();
       g.tick(STEP);
     }
-    expect(snap(g).omega).toBeCloseTo(late, 2);
+    expect(snap(g).omega).toBeGreaterThan(late + 0.3);
   });
 
   it('never puts anything on the hidden clear way round, so a way through always exists', () => {

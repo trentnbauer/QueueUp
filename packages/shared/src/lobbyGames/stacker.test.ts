@@ -38,12 +38,12 @@ function toMiss(g: StackerGame): boolean {
 }
 
 describe('StackerGame', () => {
-  it('narrows the target and speeds the light going up, to a floor and a top speed', () => {
+  it('narrows the target to a floor and speeds the light going up, with no top speed', () => {
     expect(targetWidth(0)).toBe(5);
     expect(targetWidth(2)).toBe(4);
     expect(targetWidth(12)).toBe(2);
     expect(lightSpeed(1)).toBeGreaterThan(lightSpeed(0));
-    expect(lightSpeed(100)).toBeLessThanOrEqual(22);
+    expect(lightSpeed(100)).toBeGreaterThan(22);
   });
 
   it('starts with one wide target on the bottom row, and the light moves', () => {
@@ -139,7 +139,7 @@ describe('StackerGame', () => {
     expect(snap.target).not.toBeNull();
   });
 
-  it('keeps getting faster all the way up, past the early climb, to a top speed', () => {
+  it('keeps getting faster all the way up, past the early climb, with no top speed', () => {
     // Quick at first (6.5 to 12 squares a second by about row 8), then still faster every row, more slowly.
     expect(lightSpeed(0)).toBe(6.5);
     expect(lightSpeed(8)).toBeCloseTo(12, 0);
@@ -151,8 +151,8 @@ describe('StackerGame', () => {
     }
     expect(lightSpeed(20)).toBeGreaterThan(lightSpeed(10));
     expect(lightSpeed(30)).toBeGreaterThan(lightSpeed(20));
-    expect(lightSpeed(34)).toBe(22);
-    expect(lightSpeed(60)).toBe(22);
+    expect(lightSpeed(34)).toBeGreaterThan(22);
+    expect(lightSpeed(60)).toBeGreaterThan(lightSpeed(34));
   });
 
   it('moves the light further each second the higher the tower is', () => {
@@ -185,8 +185,10 @@ describe('StackerGame', () => {
   it('gives a fast light a wider margin, so it is not judged more harshly than a slow one', () => {
     expect(pressTolerance(0)).toBeCloseTo(0.3, 9);
     expect(pressTolerance(30)).toBeGreaterThan(pressTolerance(0));
-    // Always at least what the light covers in a little under half a 66 ms tick.
-    for (const row of [0, 8, 16, 24, 34]) expect(pressTolerance(row)).toBeGreaterThanOrEqual(lightSpeed(row) * 0.03 - 1e-9);
+    // Always at least what the light covers in a little under half a 66 ms tick, until that would be looser than at the old top speed (0.66 squares): a light
+    // that keeps getting faster must not get easier to hit.
+    for (const row of [0, 8, 16, 24, 34]) expect(pressTolerance(row)).toBeGreaterThanOrEqual(Math.min(0.66, lightSpeed(row) * 0.03) - 1e-9);
+    expect(pressTolerance(200)).toBeCloseTo(0.66, 9);
   });
 
   it('stacks each row on the one below it: a narrower row sits within it, an equal one shifts by at most a square', () => {

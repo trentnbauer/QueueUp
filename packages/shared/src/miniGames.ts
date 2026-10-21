@@ -60,7 +60,7 @@ export const MINIGAME_VERSIONS: Record<LobbyGameId, number> = {
   whack: 4, // endless: moles keep getting quicker with no floor; before: three lives, shared moles, shorter up time, pauses
   draw: 2, // the score became a reaction time in milliseconds
   tilt: 2, // a ball each, tipped by where the balls are
-  stacker: 1,
+  stacker: 2, // the light has no top speed
   sumo: 1,
   asteroids: 2, // no top speed
   memory: 2, // no cap on the rounds
@@ -77,7 +77,7 @@ export const MINIGAME_VERSIONS: Record<LobbyGameId, number> = {
   wall: 1,
   frogger: 1,
   fishing: 4, // the score is the highest health reached (a health bar that drains and refills with fish), not points
-  orbit: 1,
+  orbit: 2, // it keeps getting harder for as long as the run lasts
   rps: 1,
   rhythm: 1,
   sortit: 1,
