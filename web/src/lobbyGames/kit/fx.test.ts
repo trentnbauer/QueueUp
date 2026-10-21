@@ -35,6 +35,30 @@ describe('LobbyFx tap highlight', () => {
   });
 });
 
+describe('LobbyFx confetti burst', () => {
+  const particles = (fx: LobbyFx) => (fx as unknown as { particles: unknown[] }).particles.length;
+
+  it('adds a burst of confetti where asked, and none for someone who asks for reduced motion', () => {
+    reducedMotion(false);
+    const fx = new LobbyFx();
+    fx.confettiAt(0.4, 0.3, 120, 20);
+    expect(particles(fx)).toBe(20);
+    reducedMotion(true);
+    const calm = new LobbyFx();
+    calm.confettiAt(0.4, 0.3, 120, 20);
+    expect(particles(calm)).toBe(0);
+  });
+
+  it('lets it fly out and fall away, so it is gone in a couple of seconds', () => {
+    reducedMotion(false);
+    const fx = new LobbyFx();
+    fx.update(snap(), 1000, frame);
+    fx.confettiAt(0.5, 0.5, 200);
+    for (let t = 1050; t < 3600; t += 50) fx.update(snap(), t, frame);
+    expect(particles(fx)).toBe(0);
+  });
+});
+
 describe('LobbyFx knock-outs', () => {
   it('bursts, shakes and flashes when you are knocked out, and only shakes (less) for others', () => {
     reducedMotion(false);
