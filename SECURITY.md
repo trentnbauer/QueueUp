@@ -66,6 +66,8 @@ So you know what is expected before reporting, this is what a default deployment
   logins and AI keys, and room Discord webhook URLs) are encrypted at rest with
   AES-256-GCM using a key derived from `SESSION_SECRET`; API keys are stored only as a
   hash. The in-app privacy page (`/privacy`) lists exactly what is and isn't encrypted.
+- The compose files fall back to the database password `changeme` when `POSTGRES_PASSWORD` is not set. That is safe as shipped, because the production database
+  port is not published and only the app container can reach it, but set your own before you ever publish the port or put other services on its network.
 - For anything that is a hardening idea rather than an exploitable issue, the
   **Security hardening** issue form is fine to use publicly.
 - Report issues in QueueUp's own code and configuration. Vulnerabilities in
