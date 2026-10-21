@@ -31,7 +31,7 @@ import {
 } from '../services/playniteImport.js';
 import { recordPlaynitePlaytime } from '../services/playtimeTracking.js';
 import { recordPlayniteCompletionSuggestion } from '../services/playniteCompletionSuggestions.js';
-import { notifyPlaytimeMarkPlaying } from '../services/notifications.js';
+import { notifyLibraryGamesAdded, notifyPlaytimeMarkPlaying } from '../services/notifications.js';
 import type {
   BadgeKey,
   CreateGameRequest,
@@ -268,7 +268,10 @@ async function runPlayniteImportLoop(
     // Steam's adult-content descriptor, and one notification if games are waiting to be hidden.
     void flagAdultGamesAfterSync(userId, matchedIgdbIds);
     // "Play after" from the series, only for games this sync added (not ones already on the shelf).
-    void fillPlayAfterForNewIgdbIds(userId, matchedIgdbIds.filter((id) => !onShelfBefore.has(id)));
+    const addedIgdbIds = [...new Set(matchedIgdbIds.filter((id) => !onShelfBefore.has(id)))];
+    void fillPlayAfterForNewIgdbIds(userId, addedIgdbIds);
+    // Tell them what this import added, except on their first Playnite import (their whole library at once).
+    if (stampNew) void notifyLibraryGamesAdded(userId, addedIgdbIds.flatMap((id) => existingByIgdbId.get(id)?.id ?? []), 'Your Playnite sync');
     if (seenPlatforms.size > 0) await unionOwnedPlatforms(userId, [...seenPlatforms], 'Your Playnite sync');
   } finally {
     // Issue #583: routes/pendingLibraryImports.ts now exposes this same progress row to a

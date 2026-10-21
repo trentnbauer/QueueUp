@@ -180,6 +180,9 @@ enum NotificationType {
   /// unreachable, or the sync broke part-way. Direct (recipientId), never room-scoped, same shape as
   /// release_watch. See notifyLibrarySyncError in services/notifications.ts.
   library_sync_error
+  /// A sync (not a person's first from that source) added a game to their Personal Shelf. Direct
+  /// (recipientId), gameId is the new game so the bell opens its card. See notifyLibraryGamesAdded.
+  library_game_added
   /// A new way to sync a library has arrived (Xbox, PlayStation, Exophase, RetroAchievements...), sent
   /// once to everyone who already had an account when it did (see services/libraryAnnouncements.ts).
   /// Direct (recipientId), never room-scoped, same shape as release_watch.

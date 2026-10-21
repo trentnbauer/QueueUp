@@ -25,7 +25,7 @@ interface NotifyRoomInput {
   // RoomActivityType, not just documented as one.
   type: Exclude<
     NotificationType,
-    'room_deleted' | 'room_restored' | 'price_drop' | 'release_watch' | 'playtime_mark_playing' | 'playnite_sync_reminder' | 'wishlist_bundle_deal' | 'play_together_request' | 'feed_reaction' | 'friend_recommendation' | 'good_time_to_buy' | 'account_change' | 'library_sync_error' | 'library_sync_available' | 'platform_unowned' | 'room_game_beaten' | 'minigame_beaten' | 'merge_suggestions' | 'sensitive_games' | 'admin_report' | 'admin_unban_request' | 'admin_backup_failed' | 'ai_error' | 'ai_update'
+    'room_deleted' | 'room_restored' | 'price_drop' | 'release_watch' | 'playtime_mark_playing' | 'playnite_sync_reminder' | 'wishlist_bundle_deal' | 'play_together_request' | 'feed_reaction' | 'friend_recommendation' | 'good_time_to_buy' | 'account_change' | 'library_sync_error' | 'library_game_added' | 'library_sync_available' | 'platform_unowned' | 'room_game_beaten' | 'minigame_beaten' | 'merge_suggestions' | 'sensitive_games' | 'admin_report' | 'admin_unban_request' | 'admin_backup_failed' | 'ai_error' | 'ai_update'
   >;
   message: (actorName: string) => string;
   /** The game event's structured detail, for the room's play journal. */
@@ -313,6 +313,25 @@ export async function notifyGoodTimeToBuy(userId: string, gameId: string, messag
     });
   } catch (err) {
     console.error('[notifications] failed to write good-time-to-buy notification', err);
+  }
+}
+
+/** The most games one sync gets its own notification for; the rest share a single one, so a big later sync can't flood the bell. */
+const MAX_SYNC_GAME_NOTIFICATIONS = 10;
+
+/** Tells a person which games a sync just added to their Personal Shelf, one notification per game (each opens that game's card). Only
+ * call it for a sync that is not their first from that source: the first brings the whole library in at once. Failures are logged and swallowed. */
+export async function notifyLibraryGamesAdded(userId: string, gameIds: string[], sourceLabel: string): Promise<void> {
+  if (gameIds.length === 0) return;
+  try {
+    const shown = gameIds.slice(0, MAX_SYNC_GAME_NOTIFICATIONS);
+    const games = await prisma.game.findMany({ where: { id: { in: shown }, addedBy: userId, roomId: null }, select: { id: true, title: true } });
+    const rows: { recipientId: string; roomName: string; gameId?: string; type: 'library_game_added'; message: string }[] = games.map((g) => ({ recipientId: userId, roomName: 'Personal Shelf', gameId: g.id, type: 'library_game_added' as const, message: `${sourceLabel} added ${g.title} to your shelf.` }));
+    const more = gameIds.length - shown.length;
+    if (more > 0) rows.push({ recipientId: userId, roomName: 'Personal Shelf', type: 'library_game_added', message: `${sourceLabel} added ${more} more ${more === 1 ? 'game' : 'games'} to your shelf.` });
+    if (rows.length > 0) await prisma.notification.createMany({ data: rows });
+  } catch (err) {
+    console.error('[notifications] failed to write library-game-added notifications', err);
   }
 }
 
