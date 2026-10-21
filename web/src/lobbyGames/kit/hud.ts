@@ -153,6 +153,8 @@ const CARD_HERO_H = 0.125;
 const CARD_ROW_H = 0.07;
 const CARD_GAP = 0.012;
 const CARD_WORD_H = 0.06;
+/** Space between the last row (and the line under it) and the review strip, so the thumbs do not crowd the rows: half a row. */
+const CARD_STRIP_GAP = CARD_ROW_H / 2;
 /** The strip along the bottom of the card, where the lobby panel lays the review label and thumbs (see RatingBar). */
 export const RESULT_RATING_STRIP = 0.11;
 /** Quiet text on the card: the run number, ranks and units. */
@@ -187,7 +189,7 @@ function resultRows(snapshot: Scene['snapshot'], me: string): { hero: StandingRo
 export function resultCardRect(snapshot: Scene['snapshot'], me: string, S: number): { left: number; top: number; width: number; height: number; stripTop: number; stripHeight: number; u: number } {
   const { hero, rows } = resultRows(snapshot, me);
   const word = hasLastWord(snapshot);
-  const design = CARD_PAD + CARD_HEAD_H + (hero ? CARD_HERO_H + CARD_GAP : 0) + rows.length * (CARD_ROW_H + CARD_GAP) + (word ? CARD_WORD_H : 0) + RESULT_RATING_STRIP + CARD_PAD * 0.25;
+  const design = CARD_PAD + CARD_HEAD_H + (hero ? CARD_HERO_H + CARD_GAP : 0) + rows.length * (CARD_ROW_H + CARD_GAP) + (word ? CARD_WORD_H : 0) + CARD_STRIP_GAP + RESULT_RATING_STRIP + CARD_PAD * 0.25;
   const u = Math.max(1, Math.min(1.6, 500 / Math.max(1, S), 0.92 / design));
   const height = design * u;
   const width = Math.min(0.94, CARD_W * u);
