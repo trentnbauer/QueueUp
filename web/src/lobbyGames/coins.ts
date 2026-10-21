@@ -1,4 +1,4 @@
-import { COINS_HP_MAX, COINS_ITEM_SIZE, COINS_PLAYER_WIDTH, COINS_PLAYER_Y, type CoinsSnapshot } from '@queueup/shared';
+import { COINS_HP_MAX, COINS_ITEM_SIZE, COINS_PLAYER_SPEED, COINS_PLAYER_WIDTH, COINS_PLAYER_Y, type CoinsSnapshot } from '@queueup/shared';
 import type { LobbyGameView } from './index';
 import { FONT, STAGE, drawFloor, groundShadow, renderScene, roundRect, rememberSnapshot, type Scene, type SceneGame } from './kit';
 
@@ -61,6 +61,10 @@ function celebrate(sc: Scene<CoinsSnapshot>): void {
   }
 }
 
+/** Where your own catcher is drawn, kept between frames: it slides the moment you press (the server only hears about it a moment later) and is
+ * pulled back toward where the server says it is, so the two never drift far apart. */
+const predicted = new WeakMap<object, { x: number; at: number }>();
+
 function drawWorld(sc: Scene<CoinsSnapshot>): void {
   const { ctx, S, snapshot, drift, now } = sc;
   celebrate(sc);
@@ -87,7 +91,19 @@ function drawWorld(sc: Scene<CoinsSnapshot>): void {
   for (const i of sc.order()) {
     const p = snapshot.players[i];
     if (!p.alive) continue; // watching until the next round
-    const cx = sc.ease(p.id, p.x, 0).x * S;
+    // Between snapshots (about 15 a second) everyone keeps sliding the way they are holding; the viewer's own catcher answers the
+    // press at once instead of a round trip later.
+    const half = COINS_PLAYER_WIDTH / 2;
+    const clampX = (x: number) => Math.min(1 - half, Math.max(half, x));
+    let x = sc.ease(p.id, clampX(p.x + p.dir * COINS_PLAYER_SPEED * sc.fx.age(snapshot, now)), 0).x;
+    if (p.id === sc.me && snapshot.phase === 'playing') {
+      const last = predicted.get(sc.fx) ?? { x, at: now };
+      const dt = Math.min(0.1, (now - last.at) / 1000);
+      x = clampX(last.x + sc.held.dx * COINS_PLAYER_SPEED * dt);
+      x += (clampX(p.x + p.dir * COINS_PLAYER_SPEED * sc.fx.age(snapshot, now)) - x) * Math.min(1, dt * 6);
+      predicted.set(sc.fx, { x, at: now });
+    }
+    const cx = x * S;
     groundShadow(ctx, cx, floor, radius * 0.7);
     sc.drawPlayer(p.id, cx, cy, radius * 0.6, radius * 0.6);
     // Their coin count over their head: it is a race, so everyone's score is on screen.
