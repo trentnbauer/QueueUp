@@ -189,7 +189,7 @@ function resultRows(snapshot: Scene['snapshot'], me: string): { hero: StandingRo
  * side in pixels: on a small arena (a phone) the whole card is drawn larger, by `u`, so its text stays readable (as much as fits the arena). */
 export function resultCardRect(snapshot: Scene['snapshot'], me: string, S: number): { left: number; top: number; width: number; height: number; stripTop: number; stripHeight: number; u: number } {
   const { hero, rows } = resultRows(snapshot, me);
-  const word = hasLastWord(snapshot);
+  const word = postGameMessage(snapshot) !== null;
   const design = CARD_PAD + CARD_HEAD_H + (hero ? CARD_HERO_H + CARD_GAP : 0) + rows.length * (CARD_ROW_H + CARD_GAP) + (word ? CARD_WORD_H : 0) + CARD_STRIP_GAP + RESULT_RATING_STRIP + CARD_PAD * 0.25;
   const u = Math.max(1, Math.min(1.6, 500 / Math.max(1, S), 0.92 / design));
   const height = design * u;
@@ -198,9 +198,15 @@ export function resultCardRect(snapshot: Scene['snapshot'], me: string, S: numbe
   return { left: (1 - width) / 2, top, width, height, stripTop: top + height - (RESULT_RATING_STRIP + CARD_PAD * 0.25) * u, stripHeight: RESULT_RATING_STRIP * u, u };
 }
 
-/** Whether the card has a word to show: Words and Anagram, once the word is over (until then the server keeps the answer back). */
-function hasLastWord(snapshot: Scene['snapshot']): boolean {
-  return (snapshot.id === 'words' || snapshot.id === 'anagram') && typeof snapshot.answer === 'string' && snapshot.answer.length > 0;
+/** The post-game message: a line under the card's headline that a game can use to say something about how its run ended (the word nobody
+ * guessed, in Words and Anagram, once the word is over: until then the server keeps the answer back). A new game adds its own case here
+ * and the card makes room for it, with no other change. */
+function postGameMessage(snapshot: Scene['snapshot']): { key: MessageKey; params: Record<string, string> } | null {
+  const answer = (snapshot as { answer?: unknown }).answer;
+  if ((snapshot.id === 'words' || snapshot.id === 'anagram') && typeof answer === 'string' && answer.length > 0) {
+    return { key: snapshot.id === 'anagram' ? 'spin.lobby.anagram.answer' : 'spin.lobby.words.answer', params: { word: answer.toUpperCase() } };
+  }
+  return null;
 }
 
 /** The unit a game's score is counted in, short ("m", "pts"). */
@@ -241,7 +247,7 @@ function drawResult(sc: Scene): void {
   // The card is laid out at its normal size and drawn `u` times larger (see resultCardRect).
   const w = (card.width * S) / card.u;
   const h = (card.height * S) / card.u;
-  const word = hasLastWord(snapshot) ? t(snapshot.id === 'anagram' ? 'spin.lobby.anagram.answer' : 'spin.lobby.words.answer', { word: (snapshot as { answer: string }).answer.toUpperCase() }) : null;
+  const message = postGameMessage(snapshot);
   const pad = CARD_PAD * S;
   const winner = snapshot.winnerId ? snapshot.players.find((p) => p.id === snapshot.winnerId) : undefined;
 
@@ -272,12 +278,12 @@ function drawResult(sc: Scene): void {
   ctx.fillText(t(hero && !winner ? 'spin.lobby.hud.solo' : 'spin.lobby.hud.runNo', { n: snapshot.run }), right, y + CARD_HEAD_H * S * 0.4);
   y += CARD_HEAD_H * S;
 
-  // The word games (Words, Anagram) show the word the run ended on, straight under the headline, whoever won.
-  if (word) {
+  // The post-game message (see postGameMessage), straight under the headline, whoever won.
+  if (message) {
     ctx.textAlign = 'left';
     ctx.font = `800 ${Math.round(S * 0.036)}px ${FONT.display}`;
     ctx.fillStyle = theme.accText;
-    ctx.fillText(word, left, y + CARD_WORD_H * S * 0.2, right - left);
+    ctx.fillText(t(message.key, message.params), left, y + CARD_WORD_H * S * 0.2, right - left);
     y += CARD_WORD_H * S;
   }
 
