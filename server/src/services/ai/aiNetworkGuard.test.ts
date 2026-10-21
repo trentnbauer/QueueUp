@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
-import { PRIVATE_ADDRESS_MESSAGE, assertPublicTarget, isBlockedAddress } from './aiNetworkGuard.js';
+import { createServer } from 'node:http';
+import { PRIVATE_ADDRESS_MESSAGE, assertPublicTarget, guardedFetch, isBlockedAddress, makeGuardedLookup } from './aiNetworkGuard.js';
 
 describe('isBlockedAddress', () => {
   it.each([
@@ -72,5 +73,51 @@ describe('assertPublicTarget', () => {
         throw new Error('ENOTFOUND');
       }),
     ).resolves.toBeUndefined();
+  });
+});
+
+describe('makeGuardedLookup', () => {
+  const lookupOf = (addresses: { address: string; family: number }[]) => makeGuardedLookup(async () => addresses);
+  const run = (lookup: ReturnType<typeof makeGuardedLookup>, all: boolean) =>
+    new Promise<{ err: Error | null; address?: unknown; family?: number }>((resolve) => lookup('example.test', { all }, (err, address, family) => resolve({ err, address, family })));
+
+  it('lets a connection go to the public address it resolved', async () => {
+    expect(await run(lookupOf([{ address: '93.184.216.34', family: 4 }]), false)).toMatchObject({ err: null, address: '93.184.216.34', family: 4 });
+    expect((await run(lookupOf([{ address: '93.184.216.34', family: 4 }]), true)).address).toEqual([{ address: '93.184.216.34', family: 4 }]);
+  });
+
+  it('refuses when any address the name resolves to is private, so a later private answer (a rebinding) never gets a connection', async () => {
+    for (const all of [false, true]) {
+      const { err } = await run(lookupOf([{ address: '93.184.216.34', family: 4 }, { address: '169.254.169.254', family: 4 }]), all);
+      expect(err?.message).toBe(PRIVATE_ADDRESS_MESSAGE);
+    }
+    expect((await run(lookupOf([]), false)).err?.message).toBe(PRIVATE_ADDRESS_MESSAGE);
+  });
+
+  it('passes a lookup failure on', async () => {
+    const failing = makeGuardedLookup(async () => {
+      throw new Error('ENOTFOUND');
+    });
+    expect((await run(failing, false)).err?.message).toBe('ENOTFOUND');
+  });
+});
+
+describe('guardedFetch', () => {
+  it('will not connect to this machine, by number or by name, even where something is listening', async () => {
+    let hits = 0;
+    const server = createServer((_req, res) => {
+      hits++;
+      res.end('secret');
+    });
+    await new Promise<void>((resolve) => server.listen(0, '127.0.0.1', resolve));
+    const { port } = server.address() as { port: number };
+    try {
+      await expect(guardedFetch(`http://127.0.0.1:${port}/`)).rejects.toThrow(PRIVATE_ADDRESS_MESSAGE);
+      await expect(guardedFetch(`http://localhost:${port}/`)).rejects.toThrow(PRIVATE_ADDRESS_MESSAGE);
+      await expect(guardedFetch(`http://[::1]:${port}/`)).rejects.toThrow(PRIVATE_ADDRESS_MESSAGE);
+      expect(hits).toBe(0);
+    } finally {
+      server.close();
+    }
   });
 });

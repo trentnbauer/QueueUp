@@ -1,14 +1,15 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
-const { listModels, getEntryParts, assertPublicTarget, envState } = vi.hoisted(() => ({
+const { listModels, getEntryParts, assertPublicTarget, guardedFetch, envState } = vi.hoisted(() => ({
   listModels: vi.fn(),
   getEntryParts: vi.fn(),
   assertPublicTarget: vi.fn(),
+  guardedFetch: vi.fn(),
   envState: { AI_ALLOW_USER_BASE_URL: true, AI_ALLOW_PRIVATE_BASE_URL: false } as Record<string, unknown>,
 }));
 vi.mock('../../config/env.js', () => ({ env: envState }));
 vi.mock('./aiConfig.js', () => ({ getEntryParts }));
-vi.mock('./aiNetworkGuard.js', () => ({ assertPublicTarget }));
+vi.mock('./aiNetworkGuard.js', () => ({ assertPublicTarget, guardedFetch }));
 vi.mock('./providers.js', async (orig) => ({ ...(await orig<typeof import('./providers.js')>()), listModels }));
 
 import { listModelsFor } from './aiModels.js';
@@ -44,6 +45,8 @@ describe('listModelsFor', () => {
     getEntryParts.mockResolvedValue(entry({ provider: 'ollama', apiKey: null, baseUrl: 'http://gpu.example.com:11434/v1', userSupplied: true }));
     await listModelsFor({ userId: 'u1' }, { index: 0 });
     expect(listModels).toHaveBeenCalledTimes(1);
+    // A person's own address is reached through the guarded fetch, which checks the address in the connection itself.
+    expect(listModels.mock.calls[0][1]).toBe(guardedFetch);
   });
 
   it('holds a person\'s own address to the same rules as a real request', async () => {
