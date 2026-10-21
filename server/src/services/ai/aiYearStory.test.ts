@@ -1,8 +1,11 @@
 import { describe, expect, it, vi } from 'vitest';
 
 vi.mock('./aiConfig.js', () => ({ aiComplete: vi.fn() }));
+vi.mock('../displayNames.js', () => ({ isDisplayNameBlocked: vi.fn() }));
 
-import { buildStoryPrompt, cleanStoryText, hasStoryMaterial, sanitizeFacts } from './aiYearStory.js';
+import { aiComplete } from './aiConfig.js';
+import { isDisplayNameBlocked } from '../displayNames.js';
+import { buildStoryPrompt, cleanStoryText, generateStoryText, hasStoryMaterial, sanitizeFacts } from './aiYearStory.js';
 
 describe('sanitizeFacts', () => {
   it('keeps plain numbers and titles', () => {
@@ -79,4 +82,20 @@ describe('cleanStoryText', () => {
   });
 
   it('is null for an empty reply', () => expect(cleanStoryText('  ``` ```  ')).toBeNull());
+});
+
+describe('generateStoryText', () => {
+  const facts = sanitizeFacts({ finishedCount: 3, finishedTitles: ['Hades'] });
+
+  it('returns what the AI wrote', async () => {
+    vi.mocked(aiComplete).mockResolvedValue({ text: 'A fine year.', fallback: null } as never);
+    vi.mocked(isDisplayNameBlocked).mockResolvedValue(false);
+    expect((await generateStoryText('u1', undefined, facts, 'personal')).text).toBe('A fine year.');
+  });
+
+  it('refuses a recap that has a banned word in it, since the titles it was written from come from the browser', async () => {
+    vi.mocked(aiComplete).mockResolvedValue({ text: 'Something rude.', fallback: null } as never);
+    vi.mocked(isDisplayNameBlocked).mockResolvedValue(true);
+    await expect(generateStoryText('u1', undefined, facts, 'personal')).rejects.toMatchObject({ statusCode: 422 });
+  });
 });
