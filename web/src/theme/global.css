@@ -248,6 +248,26 @@ textarea:focus-visible,
     opacity: 1;
   }
 }
+@keyframes qu-kick {
+  0% {
+    transform: translate(0, 0);
+  }
+  15% {
+    transform: translate(-7px, 4px) rotate(-0.4deg);
+  }
+  30% {
+    transform: translate(6px, -5px) rotate(0.35deg);
+  }
+  50% {
+    transform: translate(-4px, 3px);
+  }
+  70% {
+    transform: translate(3px, -2px);
+  }
+  100% {
+    transform: translate(0, 0);
+  }
+}
 @keyframes qu-fade {
   0% {
     opacity: 0;
