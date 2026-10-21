@@ -190,8 +190,7 @@ export default async function miniGameLobbyRoutes(app: FastifyInstance) {
         const guest = request.query.guest ? verifyGuestToken(request.query.guest, request.params.id) : null;
         if (request.query.guest && (!guest || !guestPlayAllowed() || !openLobbies.get(request.params.id))) throw new HttpError(404, 'That lobby is closed');
         const userId = guest?.guestId ?? (await request.requireAuth());
-        if (guest) guestNames.set(guest.guestId, guest.name);
-        else await openableLobby(request.params.id, userId);
+        if (!guest) await openableLobby(request.params.id, userId);
         if (!spinLobbyHub.isPresent(key, userId) && spinLobbyHub.presentIds(key).length >= MINIGAME_LOBBY_MAX_PLAYERS) throw new HttpError(409, 'That lobby is full');
         userByRequest.set(request, userId);
       },
@@ -204,6 +203,9 @@ export default async function miniGameLobbyRoutes(app: FastifyInstance) {
         return;
       }
       const key = lobbyKey(lobby.id);
+      // The guest's name is kept only once they are really connected (and dropped when they leave): saved earlier, a connection refused after it (a full lobby) would leave it behind.
+      const guest = isGuestId(userId) ? verifyGuestToken(request.query.guest, lobby.id) : null;
+      if (guest) guestNames.set(userId, guest.name);
       spinLobbyHub.connect(key, userId, socket, { game: lobby.game, timeLimit: lobby.timeLimit, solo: lobby.solo });
       socket.on('message', (data: Buffer | string) => spinLobbyHub.message(key, socket, data.toString()));
       const left = () => {
