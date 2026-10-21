@@ -16,7 +16,7 @@ export function TimeLimitRow({ capSeconds, locked, onChange }: { capSeconds: num
       <ChipToggle on={on} height={30} fontSize={12.5} padX={12} onClick={() => !locked && onChange(true)} style={locked ? { cursor: 'default' } : undefined}>
         {t('spin.lobby.limit.on', { n: capSeconds || 30 })}
       </ChipToggle>
-      <span style={st('font:400 12px var(--font-ui);color:var(--muted)')}>{t(locked ? 'spin.lobby.limit.locked' : on ? 'spin.lobby.limit.onSub' : 'spin.lobby.limit.offSub')}</span>
+      <span style={st('font:400 12px var(--font-ui);color:var(--muted)')}>{t(locked ? 'spin.lobby.limit.locked' : on ? 'spin.lobby.limit.onSub' : 'spin.lobby.limit.offSub', { n: capSeconds || 30 })}</span>
     </div>
   );
 }
