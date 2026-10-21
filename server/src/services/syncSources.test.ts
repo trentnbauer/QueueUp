@@ -1,9 +1,9 @@
 import { describe, expect, it, vi } from 'vitest';
 
-const { findMany, createMany } = vi.hoisted(() => ({ findMany: vi.fn(), createMany: vi.fn() }));
-vi.mock('../db/client.js', () => ({ prisma: { gameSyncSource: { findMany, createMany } } }));
+const { findMany, createMany, count } = vi.hoisted(() => ({ findMany: vi.fn(), createMany: vi.fn(), count: vi.fn() }));
+vi.mock('../db/client.js', () => ({ prisma: { gameSyncSource: { findMany, createMany, count } } }));
 
-import { getSyncSources, recordSyncSources } from './syncSources.js';
+import { getSyncSources, hasSyncedBefore, recordSyncSources } from './syncSources.js';
 
 describe('getSyncSources', () => {
   it('returns sources in a fixed order for the viewer\'s own shelf games only', async () => {
@@ -45,5 +45,20 @@ describe('recordSyncSources', () => {
       ],
       skipDuplicates: true,
     });
+  });
+});
+
+describe('hasSyncedBefore', () => {
+  it('is false for a first sync from a source, and true once there is any record of one', async () => {
+    count.mockResolvedValueOnce(0);
+    expect(await hasSyncedBefore('me', 'steam')).toBe(false);
+    expect(count).toHaveBeenCalledWith({ where: { userId: 'me', source: 'steam' } });
+    count.mockResolvedValueOnce(3);
+    expect(await hasSyncedBefore('me', 'steam')).toBe(true);
+  });
+
+  it('says true when it cannot tell, so a whole library is never pinned as new by mistake', async () => {
+    count.mockRejectedValueOnce(new Error('db down'));
+    expect(await hasSyncedBefore('me', 'steam')).toBe(true);
   });
 });

@@ -33,7 +33,7 @@ vi.mock('./gameAccess.js', () => ({ invalidateExistingIgdbIds: h.invalidate }));
 vi.mock('./notifications.js', () => ({ notifyLibrarySyncError: h.notifyError }));
 vi.mock('./playniteCompletionSuggestions.js', () => ({ recordPlayniteCompletionSuggestion: h.recordSuggestion }));
 vi.mock('./badges.js', () => ({ unlockBadges: h.unlockBadges }));
-vi.mock('./syncSources.js', () => ({ recordSyncSources: h.recordSyncSources }));
+vi.mock('./syncSources.js', () => ({ recordSyncSources: h.recordSyncSources, hasSyncedBefore: async () => true }));
 vi.mock('./userSettings.js', () => ({ unionOwnedPlatforms: h.unionOwnedPlatforms }));
 vi.mock('./libraryImportShelf.js', () => ({ applyResolvedIgdbEntry: h.applyResolved }));
 vi.mock('./matchRedirects.js', () => ({ applyMatchRedirect: h.applyRedirect }));
@@ -84,7 +84,7 @@ describe('startLibrarySync', () => {
     h.applyRedirect.mockResolvedValue(99);
     await startLibrarySync('u1', XBOX, [{ title: 'Halo', platforms: ['xbox_one'] }], logger);
     await finished('u1');
-    expect(h.applyResolved).toHaveBeenCalledWith('u1', 99, expect.anything(), expect.any(Map));
+    expect(h.applyResolved).toHaveBeenCalledWith('u1', 99, expect.anything(), expect.any(Map), true);
     expect(h.recordSyncSources).toHaveBeenCalledWith('u1', [99], 'xbox');
   });
 

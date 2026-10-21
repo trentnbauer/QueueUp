@@ -5,7 +5,7 @@ import { prisma } from '../db/client.js';
 import { resolveApiKey } from '../services/apiKeys.js';
 import { requireMembership } from '../services/roomAccess.js';
 import { gameInclude, serializeGames } from '../services/gameSerializer.js';
-import { recordSyncSources } from '../services/syncSources.js';
+import { hasSyncedBefore, recordSyncSources } from '../services/syncSources.js';
 import { applyMatchRedirect } from '../services/matchRedirects.js';
 import { applyResolvedIgdbEntry, type ResolvedShelfGame } from '../services/libraryImportShelf.js';
 import { createGameForUser, resolveGameForCreation, defaultStatusForRelease, linkDlcToBaseGame } from '../services/gameIntake.js';
@@ -203,6 +203,8 @@ async function runPlayniteImportLoop(
   const seenPlatforms = new Set<RoomPlatform>();
   const matchedIgdbIds: number[] = [];
   const onShelfBefore = new Set(existingByIgdbId.keys());
+  // Games this brings in are new in the Backlog, unless it is their first Playnite import (their whole library at once).
+  const stampNew = await hasSyncedBefore(userId, PLAYNITE_SOURCE);
   try {
     await runWithConcurrency(entries, PLAYNITE_IMPORT_CONCURRENCY, async (entry) => {
       try {
@@ -215,7 +217,7 @@ async function runPlayniteImportLoop(
           return;
         }
 
-        const resolvedGame = await applyResolvedIgdbEntry(userId, igdbId, entry, existingByIgdbId);
+        const resolvedGame = await applyResolvedIgdbEntry(userId, igdbId, entry, existingByIgdbId, stampNew);
         // issue #577 - own try/catch, deliberately separate from the outer one below: the shelf
         // resolution above already succeeded, so a failure here (e.g. a playtime write hiccup)
         // shouldn't demote an otherwise-successful entry from matched to errored - best-effort,

@@ -25,7 +25,7 @@ import {
 } from './gameAccess.js';
 import { getRoom, requireMembership } from './roomAccess.js';
 import { serializeGame } from './gameSerializer.js';
-import { setOwnershipPlatforms } from './gameOwnership.js';
+import { purchasedAtOnArrival, setOwnershipPlatforms } from './gameOwnership.js';
 import { recordMatchRedirect } from './matchRedirects.js';
 import { VALID_PLATFORMS } from './userSettings.js';
 import { notifyRoom } from './notifications.js';
@@ -386,6 +386,10 @@ export async function createGameForUser(
 
   const resolved = await resolveGameForCreation(igdbId, platforms);
 
+  const initialStatus =
+    status === 'backlog' && !roomId && ownedPlatforms && ownedPlatforms.length > 0
+      ? defaultOwnedStatusForRelease(resolved.releaseDate)
+      : (status ?? defaultStatusForRelease(resolved.releaseDate));
   let created;
   try {
     created = await prisma.game.create({
@@ -412,10 +416,9 @@ export async function createGameForUser(
         // Explicit status (Personal Shelf's Add Game modal, or an API push) wins outright;
         // otherwise issue #370's release-date guess (an unreleased game defaults into the wishlist).
         // The Add Game modal's "I own this" on a title that isn't out yet is a pre-order.
-        status:
-          status === 'backlog' && !roomId && ownedPlatforms && ownedPlatforms.length > 0
-            ? defaultOwnedStatusForRelease(resolved.releaseDate)
-            : (status ?? defaultStatusForRelease(resolved.releaseDate)),
+        status: initialStatus,
+        // Straight into the Personal Shelf's Backlog: new there, like a game bought off the Wishlist (see purchasedAtOnArrival).
+        purchasedAt: purchasedAtOnArrival(initialStatus, roomId ?? null),
       },
     });
   } catch (err) {
