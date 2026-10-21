@@ -8,6 +8,9 @@ import { LOBBY_ACTION_NAME_MAX, LOBBY_TAP_TARGETS_MAX, LOBBY_GAME_IDS, LobbyReco
 export const SOLO_DELAY_MS = 300;
 /** The server's steps in a delayed practice run are these, the same as the device's, so the two work out the same run. */
 const STEP_MS = 1000 / 60;
+/** A run is ended if nobody in the lobby has pressed anything for this long (everyone has wandered off), so a lobby set to Infinite, or a game with
+ * no clock of its own, cannot be held open by people who are not there. */
+export const LOBBY_IDLE_END_MS = 60_000;
 
 /** One room's live lobby: who is in it, who has voted to spin, and the mini game they are playing.
  * Pure state and rules - no sockets or timers (see spinLobbyHub.ts), so it is easy to test. A member
@@ -29,6 +32,8 @@ export class SpinLobby {
   private timeLimitS: number | null = null;
   /** Time that has gone by that a delayed practice game has not been given yet (see SOLO_DELAY_MS). */
   private owed = 0;
+  /** How long it is since anyone pressed anything (see LOBBY_IDLE_END_MS). */
+  private quietMs = 0;
 
   /** `onScores` hears each finished run's scores, whichever game it was (for high scores), and whether the
    * server can vouch for them: false when the game worked out each player on their own device (see `trusts`). */
@@ -109,7 +114,10 @@ export class SpinLobby {
   join(userId: string): void {
     const n = this.connections.get(userId) ?? 0;
     this.connections.set(userId, n + 1);
-    if (n === 0) this.game.join(userId);
+    if (n === 0) {
+      this.game.join(userId);
+      this.quietMs = 0;
+    }
   }
 
   /** One connection closed. The person leaves the lobby (and their vote goes) when their last one does. */
@@ -136,12 +144,14 @@ export class SpinLobby {
     if (!this.connections.has(userId)) return;
     const x = dx === 1 || dx === -1 ? dx : 0;
     const y = dy === 1 || dy === -1 ? dy : 0;
+    this.quietMs = 0;
     if (this.delayed && this.game.inputAt && typeof run === 'number' && Number.isInteger(run) && typeof at === 'number' && Number.isFinite(at)) this.game.inputAt(userId, run, at, x, y);
     else this.game.input(userId, x, y);
   }
 
   action(userId: string, name: unknown, run?: unknown, at?: unknown): void {
     if (!this.connections.has(userId) || typeof name !== 'string' || name.length > LOBBY_ACTION_NAME_MAX) return;
+    this.quietMs = 0;
     if (this.delayed && this.game.actionAt && typeof run === 'number' && Number.isInteger(run) && typeof at === 'number' && Number.isFinite(at)) this.game.actionAt(userId, run, at, name);
     else this.game.action(userId, name);
   }
@@ -163,6 +173,7 @@ export class SpinLobby {
   /** A tap on one of the game's arena targets. Anything but a whole number in range is dropped. */
   tap(userId: string, target: unknown, ms?: unknown, run?: unknown, at?: unknown): void {
     if (!this.connections.has(userId) || typeof target !== 'number' || !Number.isInteger(target) || target < 0 || target >= LOBBY_TAP_TARGETS_MAX) return;
+    this.quietMs = 0;
     if (this.delayed && this.game.tapAt && typeof run === 'number' && Number.isInteger(run) && typeof at === 'number' && Number.isFinite(at)) this.game.tapAt(userId, run, at, target);
     else this.game.tap?.(userId, target, typeof ms === 'number' ? ms : undefined);
   }
@@ -184,6 +195,8 @@ export class SpinLobby {
 
   tick(dtMs: number): void {
     this.tickCount++;
+    this.quietMs += Math.min(dtMs, 250);
+    if (this.quietMs >= LOBBY_IDLE_END_MS && this.game.endIdle?.()) this.quietMs = 0;
     if (!this.delayed) {
       this.owed = 0;
       this.game.tick(dtMs);

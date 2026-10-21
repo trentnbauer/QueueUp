@@ -270,6 +270,12 @@ export abstract class RoundGame<P extends RoundPlayer> implements LobbyGame {
     this.endRun(null);
   }
 
+  endIdle(): boolean {
+    if (this.phase !== 'playing' || this.localRun) return false;
+    this.limitReached();
+    return this.phase !== 'playing';
+  }
+
   /** Metres run so far. */
   protected get meters(): number {
     return Math.floor(this.distance * METERS_PER_SCREEN);

@@ -55,6 +55,9 @@ export interface LobbyGame {
    * (see `taps` in the web view). The lobby only passes a whole number from 0 to LOBBY_TAP_TARGETS_MAX;
    * the game ignores an index it has no target for. Games without tap targets leave this out. */
   tap?(userId: string, target: number, ms?: number): void;
+  /** The lobby's idle rule: nobody has pressed anything for a long time. Ends the run that is on, as a time cap would (whoever is still in keeps
+   * their score, nobody wins). True if it ended a run; false if no run was on (or the game does not have runs). */
+  endIdle?(): boolean;
   /** Moves the game forward by `dtMs` milliseconds. */
   tick(dtMs: number): void;
   /** The game as `viewer` should see it. Most games are the same for everyone and ignore `viewer`; a game
