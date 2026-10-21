@@ -38,6 +38,7 @@ import { coverBg } from '../ui/primitives';
 import { useIsMobile } from '../ui/useLayout';
 import { st } from '../ui/st';
 import { celebratePick } from '../ui/PickCelebration';
+import { ConfettiBurst, KICK_ANIMATION, setSpinEffects, spinEffectsOn, useSpinHype } from '../ui/spinHype';
 import { MODE_EXPLAINER, ModeStage } from './spinModes';
 import { LobbyPanel } from './LobbyPanel';
 import { showMiniGameFirst } from './lobby/spinStage';
@@ -305,6 +306,9 @@ export function SpinDialog({ onClose }: { onClose: () => void }) {
   const now = isMode ? modeNow : reelNow;
   const settled = isMode ? !!play && play.revealAt !== null && now >= play.revealAt : !!run && now >= run.settlesAtMs;
   const waiting = !!session && !!run && now < run.base.timestamp0;
+  // The extra effects when the result lands (a jolt and confetti); off for this person if they turned them off.
+  const [effects, setEffects] = useState(spinEffectsOn);
+  const hype = useSpinHype(settled, effects);
   const poolById = useMemo(() => new Map((session ? session.strip : games).map((g) => [g.id, g])), [session, games]);
   // A shelf round has just you in it.
   const modeMembers = useMemo<RoomMember[]>(
@@ -550,10 +554,12 @@ export function SpinDialog({ onClose }: { onClose: () => void }) {
 
   return (
     <>
+      {hype.burst && <ConfettiBurst key={hype.burst.key} repeat={hype.burst.repeat} />}
       <Dialog onClose={onClose} bare padded={false} width={680} ariaLabel={t('spin.dialog.ariaLabel')}>
         <div
+          key={hype.kick}
           style={st(
-            `padding:18px;display:flex;flex-direction:column;overflow-y:auto;${nudge ? `animation:qu-fade .3s ease both;` : ''}`,
+            `padding:18px;display:flex;flex-direction:column;overflow-y:auto;${hype.kick > 0 ? `animation:${KICK_ANIMATION};` : nudge ? `animation:qu-fade .3s ease both;` : ''}`,
           )}
         >
           <div style={st('display:flex;align-items:center;justify-content:space-between;margin-bottom:12px')}>
@@ -615,7 +621,19 @@ export function SpinDialog({ onClose }: { onClose: () => void }) {
           )}
           <div style={st('display:flex;justify-content:space-between;gap:10px;margin-bottom:14px;font:500 12px var(--font-ui);color:var(--faint)')}>
             <span style={{ textWrap: 'pretty' }}>{isMode && modeTheme && modeTheme !== 'reel' ? MODE_EXPLAINER[modeTheme] : t('spin.dialog.weightHint')}</span>
-            <span style={st('flex-shrink:0;font-family:var(--font-mono);text-transform:uppercase')}>
+            <span style={st('flex-shrink:0;display:flex;align-items:center;gap:10px;font-family:var(--font-mono);text-transform:uppercase')}>
+              <button
+                type="button"
+                aria-pressed={effects}
+                title={t('spin.effects.hint')}
+                onClick={() => {
+                  setEffects(!effects);
+                  setSpinEffects(!effects);
+                }}
+                style={st('border:none;background:transparent;padding:0;color:inherit;font:inherit;text-transform:inherit;text-decoration:underline;cursor:pointer')}
+              >
+                {t(effects ? 'spin.effects.on' : 'spin.effects.off')}
+              </button>
               {isMode && modeTheme ? spinThemeLabel(modeTheme) : session ? t('spin.dialog.slots', { n: session.strip.length }) : t('spin.dialog.inPool', { n: candidates.length })}
             </span>
           </div>
@@ -677,7 +695,7 @@ export function SpinDialog({ onClose }: { onClose: () => void }) {
             )}
             {reelSpinning && <span style={st('font:500 14px var(--font-ui);color:var(--muted)')}>{session ? t('spin.reel.rolling') : t('spin.reel.rollingNudge')}</span>}
             {settled && winner && (
-              <>
+              <div key={winner.id} style={st('display:flex;flex-direction:column;align-items:center;gap:4px;animation:qu-pop .5s cubic-bezier(.2,1.5,.4,1) both')}>
                 <span style={st('font:500 12px var(--font-mono);color:var(--accText)')}>{play ? modeKicker(play, modeMembers, me) : t('spin.kicker.tonightsPick')}</span>
                 <span style={st('font:700 28px/1.05 var(--font-display);letter-spacing:-0.02em')}>{winner.title}</span>
                 <span style={st('font:400 13.5px var(--font-ui);color:var(--muted)')}>
@@ -708,7 +726,7 @@ export function SpinDialog({ onClose }: { onClose: () => void }) {
                     {t('spin.result.letsPlay')}
                   </button>
                 </div>
-              </>
+              </div>
             )}
           </div>
           )}
