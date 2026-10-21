@@ -9,13 +9,14 @@ const ROWS_PER_NARROWING = 2;
 const MIN_WIDTH = 2;
 const SINGLE_FROM_ROW = 18;
 /** The light's speed in squares a second on the first row, and how much faster it is each row up. It gains quickly
- * to `SPEED_FAST` (about row 8: 6.5 + 0.7 a row), then keeps gaining, more slowly, up to its top speed far up the tower, so the
+ * to `SPEED_FAST` (about row 8: 6.5 + 0.7 a row), then keeps gaining, more slowly, with no top speed, so the
  * tower never stops getting faster. */
 const SPEED_START = 6.5;
 const SPEED_GAIN = 0.7;
 const SPEED_FAST = 12;
 const SPEED_LATE_GAIN = 0.4;
-const SPEED_MAX = 22;
+/** How loose a press may be is capped where it was when the light was at its old top speed (22 squares a second), so a light that keeps getting faster does not get easier to hit. */
+const TOLERANCE_MAX = 0.66;
 /** A press counts if the light is within this many squares of the target's edges: a tick or two of slack for a slow
  * connection, and never less than the light moves in a little under half a server tick (which is how often its place
  * is worked out), so a fast light is not judged unfairly. */
@@ -45,12 +46,12 @@ export function lightSpeed(row: number): number {
   const early = SPEED_START + SPEED_GAIN * row;
   if (early <= SPEED_FAST) return early;
   const rowsToFast = (SPEED_FAST - SPEED_START) / SPEED_GAIN;
-  return Math.min(SPEED_MAX, SPEED_FAST + SPEED_LATE_GAIN * (row - rowsToFast));
+  return SPEED_FAST + SPEED_LATE_GAIN * (row - rowsToFast);
 }
 
 /** How far outside the target's edges a press still counts, in squares, on row `row`. */
 export function pressTolerance(row: number): number {
-  return Math.max(TOLERANCE, TOLERANCE_PER_SPEED * lightSpeed(row));
+  return Math.min(TOLERANCE_MAX, Math.max(TOLERANCE, TOLERANCE_PER_SPEED * lightSpeed(row)));
 }
 
 /** One tower and one light for everyone. A light bounces along the current row; press as it passes over the
