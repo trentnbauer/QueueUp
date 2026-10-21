@@ -175,7 +175,15 @@ export function errorMessageFrom(body: string): string {
 /** Models that have told us they don't accept a `temperature` (newer Claude and OpenAI reasoning
  * models reject it with a 400), so later calls skip it instead of failing once first. */
 const noTemperature = new Set<string>();
+/** The most models remembered, the oldest forgotten first. The key holds a person-supplied address and model name, so without a limit a stream of different ones
+ * (each answering 400 to a temperature) would grow the set for as long as the server runs; a model forgotten here only costs one retry the next time. */
+export const NO_TEMPERATURE_MAX = 500;
 const modelKey = (config: AiConfig) => `${config.provider}|${config.baseUrl}|${config.model}`;
+function rememberNoTemperature(key: string): void {
+  noTemperature.delete(key);
+  noTemperature.add(key);
+  if (noTemperature.size > NO_TEMPERATURE_MAX) noTemperature.delete(noTemperature.values().next().value as string);
+}
 
 export async function callProvider(config: AiConfig, req: AiRequest, fetchImpl: typeof fetch = fetch): Promise<AiResponse> {
   if (req.temperature !== undefined && noTemperature.has(modelKey(config))) {
@@ -204,7 +212,7 @@ export async function callProvider(config: AiConfig, req: AiRequest, fetchImpl: 
     const rawBody = await res.text().catch(() => '');
     // The model refuses the sampling setting: remember that and run the request again without it.
     if (res.status === 400 && req.temperature !== undefined && /temperature/i.test(errorMessageFrom(rawBody))) {
-      noTemperature.add(modelKey(config));
+      rememberNoTemperature(modelKey(config));
       return callProvider(config, { ...req, temperature: undefined }, fetchImpl);
     }
     const detail = config.hideErrorBody ? '' : errorMessageFrom(rawBody);

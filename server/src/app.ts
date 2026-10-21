@@ -66,6 +66,7 @@ import { logCaptureStream } from './services/logBuffer.js';
 import { setAppLogger } from './services/appLogger.js';
 import { isCrossOriginWrite } from './util/crossOrigin.js';
 import { loggableUrl } from './util/loggableUrl.js';
+import { parseQueryString } from './util/queryString.js';
 
 /** Requests slower than this are logged even with per-request logging off (see LOG_REQUESTS). */
 const SLOW_REQUEST_MS = 2000;
@@ -90,6 +91,8 @@ export async function buildApp() {
     // A numeric TRUST_PROXY (hop count) is still valid at runtime, but newer Fastify typings
     // no longer list `number` in this overload, hence the cast.
     trustProxy: env.TRUST_PROXY as boolean | string | string[],
+    // Every query value is one string (a repeated key keeps its last value), so a route that reads one as a string cannot be sent an array.
+    querystringParser: parseQueryString,
   });
   setAppLogger(app.log);
 

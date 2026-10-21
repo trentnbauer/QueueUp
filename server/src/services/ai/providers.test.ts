@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from 'vitest';
-import { AiProviderError, buildRequest, callProvider, errorMessageFrom, listModels, parseResponse, type AiConfig } from './providers.js';
+import { AiProviderError, NO_TEMPERATURE_MAX, buildRequest, callProvider, errorMessageFrom, listModels, parseResponse, type AiConfig } from './providers.js';
 
 const req = { system: 'Be brief.', messages: [{ role: 'user' as const, content: 'Hi' }, { role: 'assistant' as const, content: 'Hello' }, { role: 'user' as const, content: 'Again' }], maxTokens: 50, temperature: 0.2 };
 
@@ -119,6 +119,28 @@ describe('callProvider', () => {
     // Second call goes straight out without it.
     await callProvider(strict, req, fetchImpl as unknown as typeof fetch);
     expect(fetchImpl).toHaveBeenCalledTimes(3);
+  });
+
+  it('forgets the oldest models that rejected temperature once there are too many, so the memory cannot grow for ever', async () => {
+    const ok = JSON.stringify({ content: [{ type: 'text', text: 'hi' }] });
+    const fetchImpl = vi.fn(async (_url: string, init?: RequestInit) =>
+      JSON.parse(String(init?.body)).temperature !== undefined
+        ? new Response(JSON.stringify({ error: { message: '`temperature` is deprecated for this model.' } }), { status: 400 })
+        : new Response(ok, { status: 200 }),
+    );
+    const f = fetchImpl as unknown as typeof fetch;
+    const first: AiConfig = { ...anthropic, model: 'oldest-temp-test' };
+    await callProvider(first, req, f);
+    await callProvider(first, req, f);
+    expect(fetchImpl).toHaveBeenCalledTimes(3); // learned, then straight out without it
+    for (let i = 0; i < NO_TEMPERATURE_MAX; i++) await callProvider({ ...anthropic, model: `bulk-temp-test-${i}` }, req, f);
+    fetchImpl.mockClear();
+    await callProvider(first, req, f);
+    expect(fetchImpl).toHaveBeenCalledTimes(2); // forgotten: it tries with temperature again, and is told again
+    // One that is used again is not the oldest any more.
+    fetchImpl.mockClear();
+    await callProvider({ ...anthropic, model: `bulk-temp-test-${NO_TEMPERATURE_MAX - 1}` }, req, f);
+    expect(fetchImpl).toHaveBeenCalledTimes(1);
   });
 
   it('does not retry other 400s', async () => {
