@@ -35,7 +35,7 @@ export const spin: Record<keyof typeof en, string> = {
   "spin.lobby.flappy.hint": "Tap anywhere, or press Space or Up, to flap through the gaps. Touch a pipe, the floor or the ceilin’ and ye be out. Last bird flyin’ wins. Nothin’ here changes the spin.",
   "spin.lobby.rope.jump": "Jump",
   "spin.lobby.rope.hint": "Tap anywhere, or press Space or Up, to jump the rope as it swings under ye. Mistime it and ye be out. Last one jumpin’ wins. Nothin’ here changes the spin.",
-  "spin.lobby.coins.hint": "Slide left and right to catch the fallin’ coins. A bomb costs ye a coin and stuns ye for a second. Most coins when the time be up wins. Nothin’ here changes the spin.",
+  "spin.lobby.coins.hint": "Slide left and right to catch the fallin’ coins. A bomb puts ye out. With no time limit ye also have a health bar that drains all the time, and each coin ye catch tops it up: let it run dry and ye be out. Last one standin’ wins (with a time limit, most coins wins). Nothin’ here changes the spin.",
   "spin.lobby.battleships.hint": "Everyone hides their ships on the same board. Ye can see only yer own (the blue squares). Tap a square to fire: a hit scores, and the shot that sinks a ship scores more. Sink a whole fleet and that player be out. Last fleet afloat wins. Nothin’ here changes the spin.",
   "spin.lobby.dodge.hint": "Slide left and right to stay clear o’ the fallin’ blocks. Last one standin’ wins. Nothin’ here changes the spin.",
   "spin.lobby.race.hint": "Steer left and right to miss the cones, oil and rocks. A hit slows ye and ye slide down the screen; ye recover, but never past the middle. Slide off the bottom and ye be overboard. Last driver on screen wins. Nothin’ here changes the spin.",

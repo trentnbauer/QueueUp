@@ -306,7 +306,12 @@ export interface CoinsPlayer {
   wins: number;
   /** Coins caught this round. */
   meters: number;
+  /** The health bar (0 to `COINS_HP_MAX`) in an endless run: it drains all the time and each coin caught refills a little. Null in a timed round, which has none. */
+  hp: number | null;
 }
+
+/** The most health a catcher can have in an endless run (they start on half of it). */
+export const COINS_HP_MAX = 20;
 
 export interface CoinsSnapshot extends RoundSummary {
   id: 'coins';

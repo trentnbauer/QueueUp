@@ -1,4 +1,4 @@
-import { COINS_ITEM_SIZE, COINS_PLAYER_WIDTH, COINS_PLAYER_Y, clampDirection, type CoinItem, type CoinsSnapshot } from '../spinLobby.js';
+import { COINS_HP_MAX, COINS_ITEM_SIZE, COINS_PLAYER_WIDTH, COINS_PLAYER_Y, clampDirection, type CoinItem, type CoinsSnapshot } from '../spinLobby.js';
 import { RoundGame, type RoundPlayer } from './roundGame.js';
 
 // Everything is in screens: x runs 0..1 across, y 0..1 down from the top.
@@ -20,6 +20,12 @@ const BOMB_END = 0.5;
 const ENDLESS_RAMP_S = 40;
 const ENDLESS_FALL: readonly [number, number] = [0.45, 1.2];
 const ENDLESS_SPAWN_S: readonly [number, number] = [0.8, 0.28];
+/** Endless only: a health bar that drains all the time (more as the run goes on, so a run always ends) and is refilled by each coin caught.
+ * Out at 0, as with a bomb. */
+const HP_START = 10;
+const HP_DRAIN = 0.4;
+const HP_DRAIN_GAIN = 0.04;
+const HP_PER_COIN = 1;
 /** How far above or below a catcher an item can be and still be caught. */
 const CATCH_DEPTH = 0.05;
 const GONE_BELOW = 1.1;
@@ -31,6 +37,8 @@ interface Catcher extends RoundPlayer {
   dir: number;
   /** Coins caught this round. */
   score: number;
+  /** The health bar (endless runs only; see HP_START). */
+  hp: number;
 }
 
 /** Coins and the odd bomb fall; slide left and right to catch the coins. Everyone catches on the same
@@ -44,6 +52,8 @@ export class CoinsGame extends RoundGame<Catcher> {
   private spawned = 0;
   private spawnIn = 0;
   private lastWasBomb = false;
+  /** Scales how fast the health bar drains (1 in play): a test about something else sets it to 0. */
+  hpDrainScale = 1;
 
   /** The score shown for the round: the most coins anyone has, counting those who are out. */
   protected get meters(): number {
@@ -58,13 +68,14 @@ export class CoinsGame extends RoundGame<Catcher> {
   }
 
   protected createPlayer(id: string, alive: boolean): Catcher {
-    return { id, x: 0.5, dir: 0, score: 0, alive, wins: 0, outAtMeters: 0 };
+    return { id, x: 0.5, dir: 0, score: 0, hp: HP_START, alive, wins: 0, outAtMeters: 0 };
   }
 
   protected resetPlayer(p: Catcher): void {
     p.x = 0.5;
     p.dir = 0;
     p.score = 0;
+    p.hp = HP_START;
   }
 
   protected resetCourse(): void {
@@ -108,6 +119,7 @@ export class CoinsGame extends RoundGame<Catcher> {
         alive: p.alive,
         wins: p.wins,
         meters: p.alive ? p.score : p.outAtMeters,
+        hp: this.endless ? Math.round(p.hp * 100) / 100 : null,
       })),
     };
   }
@@ -126,12 +138,14 @@ export class CoinsGame extends RoundGame<Catcher> {
     const endless = this.endless;
     const ramp = this.ramp;
     const along = (pair: readonly [number, number]) => pair[0] + (pair[1] - pair[0]) * ramp;
-    this.speed = endless ? along(ENDLESS_FALL) : Math.min(FALL_MAX, FALL_START + FALL_GAIN * seconds);
+    // Endless: the fall speed and the rate of items keep on past where the ramp reaches its end value (`ramp` stops at 1, this does not), so it always gets too much.
+    const onwards = seconds / ENDLESS_RAMP_S;
+    this.speed = endless ? ENDLESS_FALL[0] + (ENDLESS_FALL[1] - ENDLESS_FALL[0]) * onwards : Math.min(FALL_MAX, FALL_START + FALL_GAIN * seconds);
 
     this.spawnIn -= dt;
     while (this.spawnIn <= 0) {
       this.spawnItem(BOMB_START + (BOMB_END - BOMB_START) * (endless ? ramp : Math.min(1, seconds / ROUND_S)));
-      this.spawnIn += endless ? along(ENDLESS_SPAWN_S) : Math.max(SPAWN_MIN_S, SPAWN_START_S - SPAWN_GAIN_S * seconds);
+      this.spawnIn += endless ? ENDLESS_SPAWN_S[0] / (1 + (ENDLESS_SPAWN_S[0] / ENDLESS_SPAWN_S[1] - 1) * onwards) : Math.max(SPAWN_MIN_S, SPAWN_START_S - SPAWN_GAIN_S * seconds);
     }
 
     for (const i of this.items) i.y += this.speed * dt;
@@ -140,6 +154,13 @@ export class CoinsGame extends RoundGame<Catcher> {
     const catchers = [...this.players.values()].filter((p) => p.alive);
     for (const p of catchers) {
       p.x = Math.min(1 - half, Math.max(half, p.x + p.dir * PLAYER_SPEED * dt));
+      if (endless) {
+        p.hp -= (HP_DRAIN + HP_DRAIN_GAIN * seconds) * dt * this.hpDrainScale;
+        if (p.hp <= 0) {
+          p.hp = 0;
+          this.knockOut(p);
+        }
+      }
     }
     this.items = this.items.filter((item) => !this.caught(item, catchers) && item.y < GONE_BELOW);
     if (!endless && seconds >= ROUND_S) this.finishRound(catchers);
@@ -154,7 +175,10 @@ export class CoinsGame extends RoundGame<Catcher> {
       if (!taker || Math.abs(item.x - p.x) < Math.abs(item.x - taker.x)) taker = p;
     }
     if (!taker) return false;
-    if (item.kind === 'coin') taker.score++;
+    if (item.kind === 'coin') {
+      taker.score++;
+      taker.hp = Math.min(COINS_HP_MAX, taker.hp + HP_PER_COIN);
+    }
     // A bomb is instant death: out for the run, keeping the coins they had.
     else this.knockOut(taker);
     return true;

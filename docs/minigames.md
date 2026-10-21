@@ -469,11 +469,12 @@ Coins fall; slide left and right to catch them before anyone else does, and keep
 
 - **Goal:** catch coins. Everyone is on the same floor and goes for the same coins.
 - **A bomb is instant death, and the only thing that is.** Catch one and you are out for the run, keeping the coins you had. Keep clear of them. A coin that gets past you costs nothing.
-- **Endless (no time limit):** everything gets quicker and busier for 40 seconds, and then stays as hard as it gets, and more and more of what falls is bombs. The last one standing wins; alone, it ends when a bomb gets you, and your coins are the score.
+- **Endless (no time limit):** everything keeps getting quicker and busier for as long as you last, with no top speed, and more and more of what falls is bombs (up to one in two). The last one standing wins; alone, it ends when a bomb gets you or your health runs out, and your coins are the score.
+- **Health bar** (endless only): a small bar over each catcher's coin count. You start with **10** (of at most **20**) and it **drains all the time**: 0.4 a second at the start and 0.04 a second faster every second, so it always runs out in the end (a test catcher that goes for every coin and keeps clear of the bombs lasts about 38 seconds). **Each coin you catch refills 1.** At 0 you are out, like a bomb, keeping your coins. A coin that gets away still costs nothing; the drain is what you are racing. A timed round has no health bar.
 - **With a time limit (30 seconds):** the most coins wins, a tie for the most, or catching nothing, is a draw (a bomb still puts you out of it). Alone, it is a high-score round: no winner, just your coins.
 - **Coins** (gold) are worth one each. If two catchers reach the same coin, the nearer one gets it.
 - **Bombs** (dark, with a fuse) are about one item in seven at the start and **one in two** by the end of the ramp (40 seconds endless, 30 seconds timed): the longer you last the more of them there are. Never two in a row.
-- **Speed:** endless, things start at 0.45 of a screen per second and climb to 1.2, and a new item appears every 0.8 seconds at the start, down to every 0.28. A timed round starts at 0.4 and climbs to 0.7, one every 0.55 seconds down to every 0.3.
+- **Speed:** endless, things start at 0.45 of a screen per second and climb by about 0.019 every second (1.2 after 40 seconds, and on from there), and a new item appears every 0.8 seconds at the start, down to every 0.28 at 40 seconds and quicker still after that. A timed round starts at 0.4 and climbs to 0.7, one every 0.55 seconds down to every 0.3.
 - With a time limit the bar along the top is the time left. Each catcher's coin count is shown over their head.
 - You move at 0.6 of a screen per second and can't leave the screen.
 
