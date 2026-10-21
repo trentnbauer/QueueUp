@@ -19,7 +19,7 @@ import { AiProviderError, callProvider, PROVIDER_DEFAULTS, type AiConfig, type A
 import { chargeServerAiUse, type AiCharge } from './aiQuota.js';
 import { recordServerAiUsage } from './aiServerUsage.js';
 import { logAiCall, whoseAi } from './aiCallLog.js';
-import { assertPublicTarget } from './aiNetworkGuard.js';
+import { assertPublicTarget, guardedFetch } from './aiNetworkGuard.js';
 import { runAiJob } from './aiJobs.js';
 import { coolDownSeconds, coolingReason, cooldownKey, endCooldown, startCooldown } from './aiCooldown.js';
 import { unlockBadgeQuietly } from '../badges.js';
@@ -258,7 +258,8 @@ async function runChain(
       }
       let res: AiResponse;
       try {
-        res = await callProvider(config, req);
+        // A person-supplied address is connected to through the guarded fetch, which checks the address in the connection itself (see aiNetworkGuard.ts).
+        res = await callProvider(config, req, config.userSupplied && !allowPrivate ? guardedFetch : fetch);
       } catch (err) {
         await charge?.refund();
         throw err;

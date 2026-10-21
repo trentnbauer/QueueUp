@@ -1,4 +1,7 @@
+import { lookup as dnsLookup } from 'node:dns';
 import { lookup } from 'node:dns/promises';
+import http from 'node:http';
+import https from 'node:https';
 import { BlockList, isIP } from 'node:net';
 
 // Addresses a person-supplied AI address must not reach: this machine, the private network behind
@@ -64,3 +67,58 @@ export async function assertPublicTarget(
   }
   if (addresses.length === 0 || addresses.some((a) => isBlockedAddress(a.address))) throw new Error(PRIVATE_ADDRESS_MESSAGE);
 }
+
+type Resolved = { address: string; family: number }[];
+
+/** The `lookup` a connection to a person-supplied address uses. `assertPublicTarget` looks the name up on its own, and the request then looks it up again, so a
+ * DNS server could answer "public" to the check and "10.0.0.5" to the request (DNS rebinding). Doing the check inside the connection's own lookup closes that gap:
+ * the address that was checked is the one connected to. `resolve` is injectable for tests. */
+export function makeGuardedLookup(resolve: (host: string) => Promise<Resolved> = (host) => lookup(host, { all: true })) {
+  return (host: string, options: { all?: boolean }, callback: (err: Error | null, address?: string | Resolved, family?: number) => void): void => {
+    resolve(host).then(
+      (addresses) => {
+        if (addresses.length === 0 || addresses.some((a) => isBlockedAddress(a.address))) return callback(new Error(PRIVATE_ADDRESS_MESSAGE));
+        if (options.all) return callback(null, addresses);
+        callback(null, addresses[0].address, addresses[0].family);
+      },
+      (err: Error) => callback(err),
+    );
+  };
+}
+
+const guardedLookup = makeGuardedLookup();
+/** The most of a reply a guarded request reads. */
+const GUARDED_MAX_BYTES = 8 * 1024 * 1024;
+
+/** `fetch` for a person-supplied AI address: connects only to a public address (checked in the connection itself, see `makeGuardedLookup`), never follows a
+ * redirect (the reply is handed back as it is), and reads at most GUARDED_MAX_BYTES. Handles only what the AI calls use: a method, headers, a string body, a signal. */
+export const guardedFetch = ((input: string | URL | Request, init: RequestInit = {}): Promise<Response> =>
+  new Promise<Response>((resolve, reject) => {
+    const url = new URL(typeof input === 'string' ? input : input instanceof URL ? input.href : input.url);
+    const host = url.hostname.replace(/^\[|\]$/g, '');
+    // An address written out as numbers is not looked up, so it is checked here.
+    if (isIP(host) && isBlockedAddress(host)) return reject(new Error(PRIVATE_ADDRESS_MESSAGE));
+    const request = (url.protocol === 'https:' ? https : http).request(
+      url,
+      { method: init.method ?? 'GET', headers: Object.fromEntries(new Headers(init.headers).entries()), lookup: guardedLookup as never, signal: init.signal ?? undefined },
+      (res) => {
+        const chunks: Buffer[] = [];
+        let size = 0;
+        res.on('data', (chunk: Buffer) => {
+          size += chunk.length;
+          if (size > GUARDED_MAX_BYTES) request.destroy(new Error('The reply was too large'));
+          else chunks.push(chunk);
+        });
+        res.on('error', reject);
+        res.on('end', () => {
+          const headers = new Headers();
+          for (const [name, value] of Object.entries(res.headers)) for (const v of Array.isArray(value) ? value : value === undefined ? [] : [value]) headers.append(name, v);
+          const status = res.statusCode ?? 502;
+          resolve(new Response(size === 0 || [204, 205, 304].includes(status) ? null : Buffer.concat(chunks), { status, headers }));
+        });
+      },
+    );
+    request.on('error', reject);
+    if (typeof init.body === 'string') request.write(init.body);
+    request.end();
+  })) as typeof fetch;

@@ -1,7 +1,7 @@
 import { type AiModelsRequest, type AiModelsResponse } from '@queueup/shared';
 import { HttpError } from '../../util/httpError.js';
 import { getEntryParts } from './aiConfig.js';
-import { assertPublicTarget } from './aiNetworkGuard.js';
+import { assertPublicTarget, guardedFetch } from './aiNetworkGuard.js';
 import { AiProviderError, PROVIDER_DEFAULTS, listModels, type AiConfig } from './providers.js';
 
 /** Asks the provider a saved entry points at which models it has, for the dropdown in AI settings.
@@ -33,7 +33,7 @@ export async function listModelsFor(scope: { userId: string } | 'server', input:
   }
   const config: AiConfig = { provider: parts.provider, model: '', baseUrl: baseUrl.replace(/\/+$/, ''), apiKey: parts.apiKey, userSupplied, hideErrorBody: userSupplied && !!env.AI_ALLOW_PRIVATE_BASE_URL };
   try {
-    return { models: await listModels(config) };
+    return { models: await listModels(config, userSupplied && !env.AI_ALLOW_PRIVATE_BASE_URL ? guardedFetch : fetch) };
   } catch (err) {
     if (err instanceof AiProviderError) throw new HttpError(424, err.message);
     throw err;
