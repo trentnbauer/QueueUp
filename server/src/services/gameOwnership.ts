@@ -86,6 +86,13 @@ export async function markOwned(userId: string, igdbIds: number[]): Promise<Badg
   return (await unlockBadges(userId, ['first_ownership_marked']))[0] ?? null;
 }
 
+/** When a game that has just been created arrived in the Backlog, or null if it did not: a Personal Shelf game created straight into the Backlog (added by hand, or found
+ * by a sync) is new there exactly as one that moved up from the Wishlist is (see `purchasedAt`), so the Backlog shows it at the top as recently bought. A room's game is not
+ * "bought", so it gets none. */
+export function purchasedAtOnArrival(status: string, roomId: string | null, now: Date = new Date()): Date | null {
+  return status === 'backlog' && roomId === null ? now : null;
+}
+
 /** A library sync (Steam, Playnite) found these titles in the user's own library, so any of them
  * still sitting on their Personal Shelf Wishlist has been bought since: move those to Backlog.
  * A wishlist game that isn't out yet becomes Preordered instead (a pre-purchase - see

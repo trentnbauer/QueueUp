@@ -3,7 +3,7 @@ import type { GameStatus, LibraryImportEntry } from '@queueup/shared';
 import { prisma } from '../db/client.js';
 import { resolveGameForCreation, defaultOwnedStatusForRelease, linkDlcToBaseGame } from './gameIntake.js';
 import { isAddonCategory } from './igdbClient.js';
-import { promoteOwnedWishlistGames, setOwnershipPlatforms, unionOwnershipPlatforms } from './gameOwnership.js';
+import { promoteOwnedWishlistGames, purchasedAtOnArrival, setOwnershipPlatforms, unionOwnershipPlatforms } from './gameOwnership.js';
 
 /** Shared by every library import that lands titles on the Personal Shelf (the Playnite push, and
  * the native Xbox/PlayStation syncs): once a title has an igdbId, this puts it on the shelf. */
@@ -32,6 +32,8 @@ export async function applyResolvedIgdbEntry(
   igdbId: number,
   entry: LibraryImportEntry,
   existingByIgdbId: Map<number, ResolvedShelfGame>,
+  /** Whether a game this creates in the Backlog counts as new there (shown at the top). False for a person's first sync from a source: it brings their whole library in at once, which would bury the queue. */
+  stampNew = true,
 ): Promise<ResolvedShelfGame> {
   const existing = existingByIgdbId.get(igdbId);
   if (existing) {
@@ -43,6 +45,7 @@ export async function applyResolvedIgdbEntry(
   }
 
   const resolved = await resolveGameForCreation(igdbId);
+  const status = defaultOwnedStatusForRelease(resolved.releaseDate);
   let created;
   try {
     created = await prisma.game.create({
@@ -66,7 +69,8 @@ export async function applyResolvedIgdbEntry(
         igdbCollectionId: resolved.igdbCollectionId,
         reviewScore: resolved.reviewScore,
         sensitiveContent: resolved.sensitiveContent,
-        status: defaultOwnedStatusForRelease(resolved.releaseDate),
+        status,
+        purchasedAt: stampNew ? purchasedAtOnArrival(status, null) : null,
       },
     });
   } catch (err) {

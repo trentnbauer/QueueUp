@@ -14,6 +14,16 @@ export async function recordSyncSources(userId: string, igdbIds: number[], sourc
   }
 }
 
+/** Whether this person has had a sync from this source before. The first one brings in their whole library at once, so the games it adds are not "new" arrivals (see libraryImportShelf). A failed
+ * lookup counts as "yes": better to show nothing new than to pin a whole library. */
+export async function hasSyncedBefore(userId: string, source: SyncSource): Promise<boolean> {
+  try {
+    return (await prisma.gameSyncSource.count({ where: { userId, source } })) > 0;
+  } catch {
+    return true;
+  }
+}
+
 const ORDER: SyncSource[] = ['steam', 'steam_wishlist', 'playnite', 'xbox', 'exophase', 'psn', 'retroachievements', 'file', 'itch', 'manual'];
 
 /** The syncs that have seen each of the viewer's own Personal Shelf games. Other games get []. */

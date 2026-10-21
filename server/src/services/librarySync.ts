@@ -7,7 +7,7 @@ import { invalidateExistingIgdbIds } from './gameAccess.js';
 import { unlockBadges } from './badges.js';
 import { redis } from './redisClient.js';
 import { notifyLibrarySyncError } from './notifications.js';
-import { recordSyncSources } from './syncSources.js';
+import { hasSyncedBefore, recordSyncSources } from './syncSources.js';
 import { unionOwnedPlatforms } from './userSettings.js';
 import { applyResolvedIgdbEntry, type ResolvedShelfGame } from './libraryImportShelf.js';
 import { applyMatchRedirect } from './matchRedirects.js';
@@ -100,6 +100,8 @@ async function runLibrarySync(
   const seenPlatforms = new Set<RoomPlatform>();
   const matchedIgdbIds: number[] = [];
   const onShelfBefore = new Set(existingByIgdbId.keys());
+  // Games this brings in are new in the Backlog, unless it is their first sync from this source (their whole library at once).
+  const stampNew = await hasSyncedBefore(userId, src.syncSource);
   try {
     await runWithConcurrency(entries, SYNC_CONCURRENCY, async (entry) => {
       try {
@@ -111,7 +113,7 @@ async function runLibrarySync(
           unmatched++;
           return;
         }
-        const shelfGame = await applyResolvedIgdbEntry(userId, igdbId, entry, existingByIgdbId);
+        const shelfGame = await applyResolvedIgdbEntry(userId, igdbId, entry, existingByIgdbId, stampNew);
         // A store that says the game is finished (RetroAchievements beaten/mastered) becomes a
         // suggestion to mark it Beaten, never an automatic change. Best effort: it must not turn a
         // matched game into an errored one.

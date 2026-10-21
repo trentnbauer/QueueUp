@@ -11,7 +11,7 @@ vi.mock('../db/client.js', () => ({
 }));
 vi.mock('./badges.js', () => ({ unlockBadges: vi.fn() }));
 
-import { getOwnershipInfo } from './gameOwnership.js';
+import { getOwnershipInfo, purchasedAtOnArrival } from './gameOwnership.js';
 import type { GameWithRelations } from './gameSerializer.js';
 
 const roomGame = { id: 'g1', igdbId: 7, roomId: 'r1', status: 'backlog' } as unknown as GameWithRelations;
@@ -43,5 +43,18 @@ describe('getOwnershipInfo for a room game', () => {
     expect(info.youOwn).toBe(false);
     expect(info.ownerIds).toEqual(['friend']);
     expect(info.ownership).toEqual({ owned: 1, total: 2 });
+  });
+});
+
+describe('purchasedAtOnArrival', () => {
+  const now = new Date('2026-01-02T03:04:05Z');
+
+  it('stamps a Personal Shelf game that arrives in the Backlog, so it shows at the top as new', () => {
+    expect(purchasedAtOnArrival('backlog', null, now)).toEqual(now);
+  });
+
+  it('stamps nothing for any other status, or for a room game, which is not "bought"', () => {
+    for (const status of ['wishlist', 'preordered', 'playing', 'play_next', 'done']) expect(purchasedAtOnArrival(status, null, now)).toBeNull();
+    expect(purchasedAtOnArrival('backlog', 'room-1', now)).toBeNull();
   });
 });
