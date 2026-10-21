@@ -1,4 +1,4 @@
-import { GRAVITY_MID_H, GRAVITY_PLAYER_R, GRAVITY_SPIKE_H, GRAVITY_X, type GravitySnapshot } from '@queueup/shared';
+import { GRAVITY_PLAYER_R, GRAVITY_X, type GravitySnapshot } from '@queueup/shared';
 import type { LobbyGameView } from './index';
 import { STAGE, courseOffset, coverTile, hueOf, renderScene, type Scene, type SceneGame } from './kit';
 
@@ -29,13 +29,13 @@ function drawWorld(sc: Scene<GravitySnapshot>): void {
   }
 
   // Spikes: game covers standing on the floor or hanging from the ceiling, with a red tip on the dangerous edge.
-  const h = GRAVITY_SPIKE_H * S;
   for (const s of snapshot.spikes) {
     const w = s.w * S;
+    const h = s.h * S;
     const x = (s.x - drift) * S - w / 2;
     if (s.side === 2) {
       // A block floating in the middle, edged in red all round: it is deadly to fly into.
-      const mh = GRAVITY_MID_H * S;
+      const mh = h;
       const my = S / 2 - mh / 2;
       coverTile(ctx, x, my, w, mh, hueOf(s.n), S * 0.012);
       ctx.strokeStyle = theme.danger;

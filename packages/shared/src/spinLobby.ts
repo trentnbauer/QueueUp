@@ -913,10 +913,10 @@ export interface SnakeSnapshot extends RoundSummary {
 
 /** Where a runner is across the screen. */
 export const GRAVITY_X = 0.18;
-/** A runner's radius, and how tall a spike is, as fractions of the arena's height (drawing and hits). */
+/** A runner's radius, and how tall a spike is at the start of a run, as fractions of the arena's height (drawing and hits). */
 export const GRAVITY_PLAYER_R = 0.035;
 export const GRAVITY_SPIKE_H = 0.14;
-/** A block floating in the middle of the corridor is this tall (centred on the middle): flying through it is fatal. */
+/** A block floating in the middle of the corridor is this tall at the start of a run (centred on the middle): flying through it is fatal. */
 export const GRAVITY_MID_H = 0.26;
 
 /** An obstacle: `x` is how far ahead of the screen's left edge its middle is, `side` where it is (0 spikes on the
@@ -924,6 +924,8 @@ export const GRAVITY_MID_H = 0.26;
 export interface GravityObstacle {
   x: number;
   w: number;
+  /** How tall it is (a spike up from the floor or down from the ceiling, or the block in the middle, centred): they get bigger the further a run has come. */
+  h: number;
   side: number;
   /** Which spike this is (counts up from 1 each run); stays the same as it scrolls. */
   n: number;
