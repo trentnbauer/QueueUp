@@ -5,6 +5,8 @@ import { runPriceAlertChecks } from '../services/priceAlerts.js';
 import { prunePriceHistory, recordPricePoints } from '../services/priceHistory.js';
 import { getRoomPlatforms } from '../services/roomAccess.js';
 import { notifyWishlistBundle } from '../services/notifications.js';
+import { env } from '../config/env.js';
+import type { GamePrice, PriceRegion } from '@queueup/shared';
 import { scheduleJob, type JobHandle } from './scheduler.js';
 
 // Matches priceService.ts's own PRICE_CACHE_TTL_SECONDS (6h) - checking more often than the price
@@ -48,6 +50,15 @@ export async function checkAllActivePriceWatches(): Promise<void> {
 
   const pcSteamAppIds = games.filter(isPcGame).map((g) => g.steamAppid).filter((id): id is number => id != null);
   const prices = await getSteamPrices(pcSteamAppIds);
+  // A target price is typed in the currency of the region the person's browser shows, and is saved with that region (Game.targetPriceRegion): it is checked against the
+  // price in that region, not the server's default one (a target of 100 in Brazilian reais would otherwise fire at once against a 15 dollar price). Only for the
+  // games whose target is in another region; nothing extra is fetched for everyone else.
+  const regionPrices = new Map<PriceRegion, Map<number, GamePrice>>();
+  const regionOf = (game: GameWithRelations): PriceRegion | null => (game.targetPrice && game.targetPriceRegion && game.targetPriceRegion !== env.GGDEALS_DEFAULT_REGION ? (game.targetPriceRegion as PriceRegion) : null);
+  for (const region of new Set(games.filter(isPcGame).map(regionOf).filter((r): r is PriceRegion => r !== null))) {
+    const ids = games.filter((g) => isPcGame(g) && regionOf(g as GameWithRelations) === region).map((g) => g.steamAppid).filter((id): id is number => id != null);
+    regionPrices.set(region, await getSteamPrices(ids, { region }));
+  }
   // Keep a history of what these cost, so the game card can chart it and "good time to buy" has
   // something to compare against. Written before the alert checks so they see the latest point.
   try {
@@ -78,7 +89,11 @@ export async function checkAllActivePriceWatches(): Promise<void> {
     if (!isPcGame(game) || game.steamAppid == null) return;
     const price = prices.get(game.steamAppid);
     if (!price) return;
-    await runPriceAlertChecks(game as GameWithRelations, price, onFired);
+    const region = regionOf(game as GameWithRelations);
+    const dropPrice = region ? regionPrices.get(region)?.get(game.steamAppid) : undefined;
+    // Its own region's price is not there (the lookup failed): leave this game's target for the next run, rather than comparing it in the wrong currency.
+    if (region && !dropPrice) return;
+    await runPriceAlertChecks(game as GameWithRelations, price, onFired, dropPrice ?? price);
   });
 
   await Promise.all(

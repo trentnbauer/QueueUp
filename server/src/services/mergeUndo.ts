@@ -313,6 +313,7 @@ export async function applyUndo(undo: GameChangeUndo): Promise<string> {
         status: before.status as never,
         replayedAt: before.replayedAt as never,
         targetPrice: before.targetPrice as never,
+        targetPriceRegion: before.targetPriceRegion as never,
         manualPrice: before.manualPrice as never,
         steamFullyCompleted: before.steamFullyCompleted as never,
         prerequisiteGameId: before.prerequisiteGameId as never,

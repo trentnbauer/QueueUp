@@ -37,7 +37,7 @@ export async function checkPriceDropAlert(game: GameWithRelations, price: GamePr
   try {
     const cleared = await prisma.game.updateMany({
       where: { id: game.id, targetPrice },
-      data: { targetPrice: null },
+      data: { targetPrice: null, targetPriceRegion: null },
     });
     if (cleared.count === 0) return;
 
@@ -147,17 +147,18 @@ export async function checkGoodTimeToBuy(game: GameWithRelations, price: GamePri
 
 /** Runs the alert checks for a game against a freshly-resolved price, applying the same
  * "only a drop alert needs a target price set" gating every call site otherwise has to duplicate
- * (the all-time-low check has no such gate - see checkAllTimeLowAlert above). Called by the
+ * (the all-time-low check has no such gate - see checkAllTimeLowAlert above). `dropPrice` is the price the target-price alert uses, when the target was set in another region than `price` is for. Called by the
  * scheduled job (jobs/priceAlertJob.ts, #255); page views no longer trigger it, so a list load
  * never pays for alert queries. */
-export async function runPriceAlertChecks(game: GameWithRelations, price: GamePrice, onFired?: OnAlertFired): Promise<void> {
+export async function runPriceAlertChecks(game: GameWithRelations, price: GamePrice, onFired?: OnAlertFired, dropPrice: GamePrice = price): Promise<void> {
   let fired = false;
   const trackFired: OnAlertFired = (g) => {
     fired = true;
     onFired?.(g);
   };
   await Promise.all([
-    game.targetPrice ? checkPriceDropAlert(game, price, trackFired) : Promise.resolve(),
+    // The target is compared with the price in the region it was set in (`dropPrice`), which is not always the one the other two alerts use.
+    game.targetPrice ? checkPriceDropAlert(game, dropPrice, trackFired) : Promise.resolve(),
     checkAllTimeLowAlert(game, price, trackFired),
   ]);
   // After the others, so a price that just hit a new low (or a target) doesn't also send a

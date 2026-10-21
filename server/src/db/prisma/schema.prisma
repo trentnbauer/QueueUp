@@ -1333,6 +1333,9 @@ model Game {
   /// Cleared automatically once the alert fires (see priceAlerts.ts) so a price that stays low
   /// doesn't re-notify on every subsequent page load.
   targetPrice                  String?    @map("target_price")
+  /// The price region (PriceRegion, so the currency) the targetPrice was set in: it is typed in the currency the person's browser shows, so the alert has to compare it with
+  /// the price in that same region, not the server's default one. Null (every target set before this existed) means the server's default region. Cleared with the target.
+  targetPriceRegion            String?    @map("target_price_region")
   /// A user-set fallback dollar amount (issue #385), shown in place of "-" wherever the price
   /// couldn't be looked up (no gg.deals/Steam match at all - see GamePrice.amount/source) - some
   /// games just aren't findable there. Same string-decimal convention as targetPrice. Ignored once

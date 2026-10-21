@@ -1917,7 +1917,9 @@ export default async function gameRoutes(app: FastifyInstance) {
       const game = await loadGameOr404(request.params.id);
       await requireGameSettingsAccess(game, userId);
 
-      const { targetPrice } = request.body;
+      const { targetPrice, region } = request.body;
+      // The number is in the currency of the region the person's browser shows, so the alert job has to look the price up in that region (see Game.targetPriceRegion).
+      if (region !== undefined && !PRICE_REGIONS.includes(region)) throw new HttpError(400, 'Unknown price region');
       let normalized: string | null = null;
       if (targetPrice != null) {
         const parsed = Number(targetPrice);
@@ -1927,7 +1929,7 @@ export default async function gameRoutes(app: FastifyInstance) {
         normalized = parsed.toFixed(2);
       }
 
-      await prisma.game.update({ where: { id: game.id }, data: { targetPrice: normalized } });
+      await prisma.game.update({ where: { id: game.id }, data: { targetPrice: normalized, targetPriceRegion: normalized !== null ? (region ?? null) : null } });
       if (normalized !== null) void unlockFeatureBadges(userId);
       const updated = await loadGameOr404(game.id);
       return { game: await serializeGame(updated, userId) };

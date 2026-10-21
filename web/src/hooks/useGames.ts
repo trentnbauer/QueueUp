@@ -252,7 +252,7 @@ export function useGames(roomId: string | null) {
 
   const setTargetPrice = useMutation({
     mutationFn: ({ gameId, targetPrice }: { gameId: string; targetPrice: string | null }) =>
-      gamesApi.setTargetPrice(gameId, { targetPrice }),
+      gamesApi.setTargetPrice(gameId, { targetPrice, region }),
     onSuccess: ({ game }) => patchGame(game),
     onError: (err) => setActionError(errorMessage(err, t('shell.games.error.priceAlert'))),
   });
