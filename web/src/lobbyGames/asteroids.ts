@@ -2,6 +2,9 @@ import { ASTEROIDS_TURRET_R, ASTEROIDS_TURRET_Y, type AsteroidsSnapshot } from '
 import type { LobbyGameView } from './index';
 import { FONT, coverTile, hueOf, renderScene, type Scene, type SceneGame } from './kit';
 
+/** The asteroids in the last snapshot drawn (where each was, and which kind), so one that is gone from the next has been broken and can burst into confetti. */
+let seen: { snapshot: object; asteroids: Map<number, { x: number; y: number; big: boolean }> } | null = null;
+
 /** How long the barrel is, as a multiple of the turret's radius. */
 const BARREL = 2.1;
 
@@ -10,6 +13,16 @@ function drawWorld(sc: Scene<AsteroidsSnapshot>): void {
   // Everything here moves in its own direction, so it is drawn a little way along its path from where the
   // snapshot put it, by how long ago that was, which keeps it smooth between snapshots.
   const age = snapshot.phase === 'playing' ? Math.min(0.12, sc.fx.age(snapshot, now)) : 0;
+
+  // An asteroid that was in the last snapshot and is gone from this one has been broken: it bursts into confetti where it was (a big one, more).
+  if (seen && seen.snapshot !== snapshot) {
+    if (snapshot.phase === 'playing') {
+      const now = new Set(snapshot.asteroids.map((a) => a.n));
+      for (const [n, a] of seen.asteroids) if (!now.has(n)) sc.fx.confettiAt(a.x, a.y, hueOf(n), a.big ? 40 : 26);
+    }
+    seen = null;
+  }
+  if (!seen) seen = { snapshot, asteroids: new Map(snapshot.asteroids.map((a) => [a.n, { x: a.x + a.vx * age, y: a.y + a.vy * age, big: a.hp > 1 }])) };
 
   // The ground the turrets sit on.
   ctx.fillStyle = 'oklch(0.2 0.01 55 / 0.7)';

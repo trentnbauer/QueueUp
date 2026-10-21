@@ -153,6 +153,18 @@ export class LobbyFx {
     this.confetti(color, 110);
   }
 
+  /** A small burst of confetti at a spot on the arena (fractions of its size), in colours near `hue`: for a game cover that has just been broken. Skipped
+   * for people who ask for reduced motion. */
+  confettiAt(x: number, y: number, hue: number, count = 26): void {
+    if (this.reduced) return;
+    const colors = [`oklch(0.78 0.15 ${hue})`, `oklch(0.7 0.18 ${(hue + 40) % 360})`, `oklch(0.85 0.12 ${(hue + 200) % 360})`, 'oklch(0.83 0.15 85)', '#fff'];
+    for (let i = 0; i < count; i++) {
+      const a = Math.random() * Math.PI * 2;
+      const v = 0.12 + Math.random() * 0.4;
+      this.add({ k: 'conf', x, y, vx: Math.cos(a) * v, vy: Math.sin(a) * v - 0.2, max: 0.9 + Math.random() * 0.8, c: colors[i % colors.length], sz: 0.01 + Math.random() * 0.01, r: Math.random() * 6, vr: (Math.random() - 0.5) * 14, g: 0.9, sway: Math.random() * 6 });
+    }
+  }
+
   private confetti(winnerColor: string, count = 70): void {
     const colors = [winnerColor, 'oklch(0.74 0.15 45)', 'oklch(0.83 0.15 85)', 'oklch(0.82 0.12 160)', '#fff'];
     for (let i = 0; i < count; i++) {
