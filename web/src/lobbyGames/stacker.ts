@@ -1,6 +1,6 @@
 import { STACKER_COLS, STACKER_ROWS, type StackerSnapshot } from '@queueup/shared';
 import type { LobbyGameView } from './index';
-import { FONT, STAGE, renderScene, roundRect, type Scene, type SceneGame } from './kit';
+import { FONT, STAGE, renderScene, roundRect, rememberSnapshot, type Scene, type SceneGame } from './kit';
 
 // Where things are on the arena, as fractions of its side: the one tower on the left, and everyone's rows
 // down the right.
@@ -17,8 +17,24 @@ const ROW_GAP = 0.008;
 /** The top of row `row` (0 is the bottom), as a fraction of the arena's side. */
 const rowTop = (row: number) => TOWER_BOTTOM - (row + 1) * CELL;
 
+/** How many rows have been locked in as of the last snapshot drawn (counting those below the view). */
+const previousRows = rememberSnapshot<number>();
+
+/** A row that has just been locked in bursts along its squares, in the colour of whoever locked it: more of it for a narrower row. */
+function celebrate(sc: Scene<StackerSnapshot>): void {
+  const { snapshot } = sc;
+  const total = snapshot.first + snapshot.locked.length;
+  const before = previousRows(snapshot, () => total);
+  if (before === null || total <= before) return;
+  const row = snapshot.locked[snapshot.locked.length - 1];
+  const by = snapshot.players[row.by];
+  const y = rowTop(snapshot.locked.length - 1) + CELL / 2;
+  for (let c = row.start; c < row.start + row.w; c++) sc.fx.confettiAt(TOWER_X + (c + 0.5) * CELL, y, by ? sc.info(by.id).color : 85, 5 + 3 * (5 - row.w));
+}
+
 function drawWorld(sc: Scene<StackerSnapshot>): void {
   const { ctx, S, snapshot, theme, now } = sc;
+  celebrate(sc);
 
   // Time left in the run, as a bar draining along the top edge.
   if (snapshot.phase === 'playing' && snapshot.limitMs > 0) {

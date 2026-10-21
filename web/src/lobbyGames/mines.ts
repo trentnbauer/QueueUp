@@ -1,6 +1,6 @@
 import { MINES_COLS, MINES_TARGETS, type MinesSnapshot } from '@queueup/shared';
 import type { LobbyGameView } from './index';
-import { FONT, renderScene, roundRect, type Scene, type SceneGame } from './kit';
+import { FONT, renderScene, roundRect, rememberSnapshot, type Scene, type SceneGame } from './kit';
 import type { TapRect, TapTargets } from './taps';
 
 // Where things are on the arena, as fractions of its side: everyone's points in a row, then the one shared board.
@@ -20,8 +20,28 @@ const cellRect = (i: number): TapRect => ({ x: BOARD_X + (i % MINES_COLS) * CELL
  * no keyboard control (there are too many squares). */
 export const MINES_TAPS: TapTargets = { rects: Array.from({ length: MINES_TARGETS }, (_, i) => cellRect(i)) };
 
+/** The field as of the last snapshot drawn. */
+const previousField = rememberSnapshot<number[]>();
+
+/** Squares opened since the last snapshot give one small puff of confetti between them, in the colour of whoever opened them: a little bigger for an opening that
+ * cleared a patch, but never more than a handful, so a quick game stays calm. */
+function celebrate(sc: Scene<MinesSnapshot>): void {
+  const { snapshot } = sc;
+  const before = previousField(snapshot, () => [...snapshot.cells]);
+  if (!before) return;
+  const opened = snapshot.cells.flatMap((cell, i) => (before[i] === -1 && cell >= 0 && cell !== 9 ? [i] : []));
+  if (opened.length === 0) return;
+  const at = (i: number) => ({ x: BOARD_X + (i % MINES_COLS) * CELL + CELL / 2, y: BOARD_Y + Math.floor(i / MINES_COLS) * CELL + CELL / 2 });
+  const spots = opened.map(at);
+  const x = spots.reduce((sum, s) => sum + s.x, 0) / spots.length;
+  const y = spots.reduce((sum, s) => sum + s.y, 0) / spots.length;
+  const who = snapshot.players[snapshot.by[opened[0]]];
+  sc.fx.confettiAt(x, y, who ? sc.info(who.id).color : 145, Math.min(14, 6 + opened.length));
+}
+
 function drawWorld(sc: Scene<MinesSnapshot>): void {
   const { ctx, S, snapshot, theme } = sc;
+  celebrate(sc);
 
   // Everyone's points in one row; someone who hit a mine is dimmed.
   const n = snapshot.players.length;

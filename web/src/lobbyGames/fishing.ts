@@ -1,6 +1,6 @@
 import { FISHING_TIERS, type FishingPlayer, type FishingSnapshot } from '@queueup/shared';
 import type { LobbyGameView } from './index';
-import { FONT, STAGE, drawLives, renderScene, roundRect, type Scene, type SceneGame } from './kit';
+import { FONT, STAGE, drawLives, renderScene, roundRect, rememberSnapshot, type Scene, type SceneGame } from './kit';
 
 // Where things are, as fractions of the arena's side. These mirror the rules' (packages/shared/src/lobbyGames/fishing.ts): the pond fills the arena,
 // the anglers stand along the bottom at the rod, and a cast goes up the pond.
@@ -237,8 +237,23 @@ function drawReelBar(sc: Scene<FishingSnapshot>, c: FishingPlayer): void {
   ctx.restore();
 }
 
+/** Each angler as of the last snapshot drawn: a fish is landed when one that was being reeled in is gone and the health bar has gone up. */
+const previousAnglers = rememberSnapshot<Map<string, { fighting: boolean; hp: number; tier: number; ly: number }>>();
+
+/** A fish landed bursts into confetti where it was, in the angler's colour: more for a bigger fish. */
+function celebrate(sc: Scene<FishingSnapshot>): void {
+  const { snapshot } = sc;
+  const before = previousAnglers(snapshot, () => new Map(snapshot.players.map((p) => [p.id, { fighting: p.mode === 'fight', hp: p.hp, tier: p.tier, ly: p.ly }])));
+  if (!before) return;
+  for (const p of snapshot.players) {
+    const was = before.get(p.id);
+    if (was?.fighting && p.mode !== 'fight' && p.alive && p.hp > was.hp + 0.5) sc.fx.confettiAt(p.x, was.ly, sc.info(p.id).color, 16 + 10 * Math.max(0, was.tier));
+  }
+}
+
 function drawWorld(sc: Scene<FishingSnapshot>): void {
   const { ctx, S, snapshot, now } = sc;
+  celebrate(sc);
   const age = snapshot.phase === 'playing' ? sc.fx.age(snapshot, now) : 0;
   const mine = snapshot.players.find((p) => p.id === sc.me);
   drawPond(sc);

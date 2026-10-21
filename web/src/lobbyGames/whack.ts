@@ -1,6 +1,6 @@
 import { ENDLESS_LIVES, WHACK_COLS, WHACK_HOLES, type WhackSnapshot } from '@queueup/shared';
 import type { LobbyGameView } from './index';
-import { FONT, drawLives, renderScene, type Scene, type SceneGame } from './kit';
+import { FONT, drawLives, renderScene, rememberSnapshot, type Scene, type SceneGame } from './kit';
 import type { TapRect, TapTargets } from './taps';
 
 /** Where the grid is on the arena, as fractions of its side: one shared 3 x 3 grid. */
@@ -64,8 +64,27 @@ function drawMole(sc: Scene<WhackSnapshot>, cx: number, cy: number, r: number): 
   }
 }
 
+/** Each hole as of the last snapshot drawn: which mole or bomb is up and how many people have tapped it. */
+const previousHoles = rememberSnapshot<{ n: number; taps: number }[]>();
+
+/** A mole that has just been tapped bursts into confetti in the colour of whoever tapped it; a bomb into a red burst. */
+function celebrate(sc: Scene<WhackSnapshot>): void {
+  const { snapshot } = sc;
+  const before = previousHoles(snapshot, () => snapshot.holes.map((h) => ({ n: h.n, taps: h.by.length })));
+  if (!before) return;
+  snapshot.holes.forEach((h, i) => {
+    if (h.kind === 'empty' || h.n !== before[i].n || h.by.length <= before[i].taps) return;
+    const x = GRID_X + (i % WHACK_COLS) * CELL + CELL / 2;
+    const y = GRID_Y + Math.floor(i / WHACK_COLS) * CELL + CELL * 0.45;
+    const who = snapshot.players[h.by[h.by.length - 1]];
+    if (h.kind === 'bomb') sc.fx.confettiAt(x, y, 'oklch(0.7 0.2 25)', 16);
+    else sc.fx.confettiAt(x, y, who ? sc.info(who.id).color : 55, 20);
+  });
+}
+
 function drawWorld(sc: Scene<WhackSnapshot>): void {
   const { ctx, S, snapshot, theme } = sc;
+  celebrate(sc);
 
   // Time left in the round, as a bar draining along the top edge.
   if (snapshot.phase === 'playing' && snapshot.limitMs > 0) {

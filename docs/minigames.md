@@ -358,6 +358,23 @@ Swing from anchor to anchor, let go at the right moment, and keep ahead of the w
 - **Ping:** your own swinger is worked out on your own device (see "Ping and who works out what"), so it answers the moment you press. The anchors come from the same seed and the server's clock.
 - **Controls:** **←** / **→** or **A** / **D** to pump; **Space**, **↑** or **W** to let go and to grab.
 
+## Bursts of confetti
+
+Besides the burst when someone is knocked out and the confetti for a win or a new best, a few games burst into confetti when something is scored or destroyed. It is drawing only (no rules change), the screen works it out by comparing each snapshot with the one before, and it is skipped for people who ask their device for reduced motion.
+
+- **Asteroid defence:** a broken asteroid, in its own colours (more for a big one).
+- **Fishing:** a fish landed, in the angler's colour, more for a bigger fish.
+- **Whack-a-mole:** a mole whacked, in the colour of whoever got it; a bomb whacked is a red burst.
+- **Battleships:** a hit is a small burst in the shooter's colour, and each square of a ship that has just been sunk a bigger one.
+- **Odd one out:** the odd tile, in the colour of whoever found it.
+- **Minesweeper race:** kept gentle: one small puff for all the squares opened since the last update (a patch that opens at once is a little bigger, up to a handful), in the opener's colour.
+- **Catch the coins:** a tiny gold puff for a coin caught.
+- **Stacker:** a row locked in, along its squares in the locker's colour, more for a narrower row.
+- **Memory pattern:** a puff from the avatar of someone who has just got the whole pattern.
+- **Rhythm lanes:** a great hit of your own, on the line in the lane you hit (good hits and other people's are left alone).
+
+Sumo ledge and Hot potato already have their burst when someone goes off the edge or the bomb goes off, as a knock-out.
+
 ## Rating a game
 
 When a run ends and its result card is showing, a **thumbs up / thumbs down** appears in the result card (in a room's lobby, a spin's waiting room, an open lobby and solo practice alike).

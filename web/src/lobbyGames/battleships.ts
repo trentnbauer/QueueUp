@@ -1,6 +1,6 @@
 import { BATTLESHIPS_SIZE, SQUARE_HIT, SQUARE_MISS, SQUARE_SUNK, type BattleshipsSnapshot } from '@queueup/shared';
 import type { LobbyGameView } from './index';
-import { FONT, STAGE, renderScene, roundRect, type Scene, type SceneGame } from './kit';
+import { FONT, STAGE, renderScene, roundRect, rememberSnapshot, type Scene, type SceneGame } from './kit';
 import type { TapRect, TapTargets } from './taps';
 
 const SIZE = BATTLESHIPS_SIZE;
@@ -28,8 +28,26 @@ export const BATTLE_TAPS: TapTargets = {
   rects: Array.from({ length: CELLS }, (_, i): TapRect => ({ x: BOARD_X + (i % SIZE) * CELL, y: BOARD_Y + Math.floor(i / SIZE) * CELL, w: CELL, h: CELL })),
 };
 
+/** The board as of the last snapshot drawn. */
+const previousBoard = rememberSnapshot<number[]>();
+
+/** A shot that hits puts up a small burst in the shooter's colour, and each square of a ship that has just been sunk a bigger one. */
+function celebrate(sc: Scene<BattleshipsSnapshot>): void {
+  const { snapshot } = sc;
+  const before = previousBoard(snapshot, () => [...snapshot.cells]);
+  if (!before) return;
+  snapshot.cells.forEach((cell, i) => {
+    if (cell === before[i] || (cell !== SQUARE_HIT && cell !== SQUARE_SUNK)) return;
+    const x = BOARD_X + (i % SIZE) * CELL + CELL / 2;
+    const y = BOARD_Y + Math.floor(i / SIZE) * CELL + CELL / 2;
+    const who = snapshot.players[snapshot.by[i]];
+    sc.fx.confettiAt(x, y, who ? sc.info(who.id).color : 40, cell === SQUARE_SUNK ? 14 : 10);
+  });
+}
+
 function drawWorld(sc: Scene<BattleshipsSnapshot>): void {
   const { ctx, S, snapshot, theme } = sc;
+  celebrate(sc);
 
   // Time left in the round, as a bar draining along the top edge.
   if (snapshot.phase === 'playing' && snapshot.limitMs > 0) {

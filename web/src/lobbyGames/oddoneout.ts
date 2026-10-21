@@ -1,6 +1,6 @@
 import { ODDONEOUT_HIT, ODDONEOUT_TARGETS, type OddOneOutSnapshot } from '@queueup/shared';
 import type { LobbyGameView } from './index';
-import { FONT, STAGE, renderScene, roundRect, type Scene, type SceneGame } from './kit';
+import { FONT, STAGE, renderScene, roundRect, rememberSnapshot, type Scene, type SceneGame } from './kit';
 import type { TapRect, TapTargets } from './taps';
 
 // Where things are on the arena, as fractions of its side: everyone's avatar, points and health in a row, then the one shared board.
@@ -21,8 +21,24 @@ const hitRect = (i: number): TapRect => ({ x: BOARD_X + (i % ODDONEOUT_HIT) * hi
 /** The board is the controller: a 6 by 6 grid of targets laid over it, however many tiles it shows (2, 3 or 6 across: each divides 6, so a tap lands on the tile it was aimed at). */
 export const ODDONEOUT_TAPS: TapTargets = { rects: Array.from({ length: ODDONEOUT_TARGETS }, (_, i) => hitRect(i)) };
 
+/** The board and everyone's points as of the last snapshot drawn. */
+const previousBoard = rememberSnapshot<{ round: number; n: number; odd: number; points: Map<string, number> }>();
+
+/** The odd tile bursts into confetti, in the colour of whoever found it, when the board changes. */
+function celebrate(sc: Scene<OddOneOutSnapshot>): void {
+  const { snapshot } = sc;
+  const before = previousBoard(snapshot, () => ({ round: snapshot.round, n: snapshot.board.n, odd: snapshot.board.odd, points: new Map(snapshot.players.map((p) => [p.id, p.meters])) }));
+  if (!before || snapshot.round <= before.round) return;
+  const tile = BOARD_W / before.n;
+  const x = BOARD_X + ((before.odd % before.n) + 0.5) * tile;
+  const y = BOARD_Y + (Math.floor(before.odd / before.n) + 0.5) * tile;
+  const finder = snapshot.players.find((p) => p.meters > (before.points.get(p.id) ?? 0));
+  sc.fx.confettiAt(x, y, finder ? sc.info(finder.id).color : 90, 30);
+}
+
 function drawWorld(sc: Scene<OddOneOutSnapshot>): void {
   const { ctx, S, snapshot, theme } = sc;
+  celebrate(sc);
 
   // Everyone's points and health bar in one row; someone who is out is dimmed, and a wrong tap lights the avatar red until they can tap again.
   const n = snapshot.players.length;
