@@ -4,11 +4,11 @@ import { FONT, STAGE, renderScene, roundRect, type Scene, type SceneGame } from 
 import type { TapRect, TapTargets } from './taps';
 
 // Where things are on the arena, as fractions of its side: everyone's avatar, points and health in a row, then the one shared board.
-const CHIPS_Y = 0.07;
+const CHIPS_Y = 0.095;
 const CHIP_R = 0.02;
-const BOARD_X = 0.08;
-const BOARD_Y = 0.16;
-const BOARD_W = 0.84;
+const BOARD_X = 0.1;
+const BOARD_Y = 0.2;
+const BOARD_W = 0.78;
 const TILE_GAP = 0.012;
 /** A tile's colour: the shared one, and the lightness of the odd one is this plus the board's `delta`. */
 const TILE_L = 0.62;
