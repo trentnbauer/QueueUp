@@ -42,6 +42,7 @@ import {
   isAddonCategory,
 } from '../services/igdbClient.js';
 import { getOwnedPlatforms } from '../services/userSettings.js';
+import { groupCompleted } from '../services/yearInReviewGroups.js';
 import { applyMatchRedirect, listMatchRedirects, deleteMatchRedirect } from '../services/matchRedirects.js';
 import {
   resolveSteamId64,
@@ -2222,32 +2223,19 @@ export default async function gameRoutes(app: FastifyInstance) {
           : Promise.resolve([]),
         completedRoomIds.length > 0
           ? prisma.roomMember.findMany({
-              where: { roomId: { in: completedRoomIds } },
+              where: { roomId: { in: completedRoomIds.filter((id) => memberships.some((m) => m.roomId === id)) } },
               select: { roomId: true, userId: true, user: { select: { displayName: true } } },
             })
           : Promise.resolve([]),
       ]);
-      const roomNameById = new Map(rooms.map((r) => [r.id, r.name]));
-      const memberNamesByRoomId = new Map<string, string[]>();
-      for (const m of roomMembers) {
-        if (m.userId === userId) continue;
-        const names = memberNamesByRoomId.get(m.roomId) ?? [];
-        names.push(m.user.displayName);
-        memberNamesByRoomId.set(m.roomId, names);
-      }
-      const gamesByGroupKey = new Map<string, { roomId: string | null; games: { id: string; title: string }[] }>();
-      for (const g of combinedDone) {
-        const key = g.roomId ?? '';
-        const existing = gamesByGroupKey.get(key);
-        if (existing) existing.games.push({ id: g.id, title: g.title });
-        else gamesByGroupKey.set(key, { roomId: g.roomId, games: [{ id: g.id, title: g.title }] });
-      }
-      const completedByGroup: YearInReviewGroupCompletion[] = Array.from(gamesByGroupKey.values()).map((group) => ({
-        roomId: group.roomId,
-        roomName: group.roomId != null ? (roomNameById.get(group.roomId) ?? null) : null,
-        memberNames: group.roomId != null ? (memberNamesByRoomId.get(group.roomId) ?? []) : [],
-        games: group.games,
-      }));
+      // Who else is in a room is only named for a room the person is in now (see groupCompleted).
+      const completedByGroup: YearInReviewGroupCompletion[] = groupCompleted(
+        combinedDone,
+        userId,
+        new Map(rooms.map((r) => [r.id, r.name])),
+        roomMembers.map((m) => ({ roomId: m.roomId, userId: m.userId, displayName: m.user.displayName })),
+        new Set(memberships.map((m) => m.roomId)),
+      );
 
       // "What did the squad like" across every room the caller is in right now - every game in
       // those rooms, not just ones the caller added or voted on themselves, ranked by vote weight
