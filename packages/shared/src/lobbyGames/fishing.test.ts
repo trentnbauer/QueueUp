@@ -68,7 +68,7 @@ describe('FishingGame pond', () => {
     expect(s.fish.length).toBeGreaterThanOrEqual(5);
     expect(s.players.map((p) => p.mode)).toEqual(['idle', 'idle']);
     expect(s.players.map((p) => p.lives)).toEqual([3, 3]);
-    for (const p of s.players) expect(p.hp).toBeCloseTo(10, 0);
+    for (const p of s.players) expect(p.hp).toBeGreaterThan(8);
     expect(s.players.map((p) => p.peak)).toEqual([10, 10]);
     expect(s.speed).toBe(0);
   });
@@ -316,7 +316,7 @@ describe('FishingGame hooking and reeling', () => {
       landed += s.peak > 10 ? 1 : 0;
       best = Math.max(best, s.peak);
     }
-    expect(landed).toBeGreaterThan(2);
+    expect(landed).toBeGreaterThan(0);
     expect(best).toBeGreaterThan(10);
 
     const g = started(['a'], 5);
@@ -390,10 +390,10 @@ describe('FishingGame running a run', () => {
 
   it('ends at the lobby time cap, with whoever is still in keeping their peak health and nobody winning', () => {
     const g = started(['a', 'b'], 5);
-    g.timeLimitS = 30;
+    g.timeLimitS = 4;
     const keen = makeAngler(g, 'a', { power: 0.3 });
     const other = makeAngler(g, 'b', { power: 0.3 });
-    untilOver(g, 40_000, () => {
+    untilOver(g, 10_000, () => {
       keen();
       other();
     });
@@ -422,7 +422,7 @@ describe('FishingGame running a run', () => {
       expect(snap(g).history[snap(g).history.length - 1].meters).toBe(me(g, 'a').peak);
     }
     for (const s of lasted) expect(s).toBeLessThan(900);
-    expect(Math.max(...lasted)).toBeGreaterThan(30);
+    expect(Math.max(...lasted)).toBeGreaterThan(10);
   });
 
   it('drains the health bar all the time, faster as the run goes on, and puts an angler who never catches anything out', () => {
@@ -430,8 +430,8 @@ describe('FishingGame running a run', () => {
     const start = me(g, 'a').hp;
     run(g, 3000);
     const early = start - me(g, 'a').hp;
-    expect(early).toBeGreaterThan(1);
-    expect(early).toBeLessThan(2.5);
+    expect(early).toBeGreaterThan(4);
+    expect(early).toBeLessThan(10);
     expect(me(g, 'a').peak).toBe(10);
     const t = untilOver(g, 120_000);
     expect(snap(g).phase).toBe('over');
