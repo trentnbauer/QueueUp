@@ -691,6 +691,8 @@ async function mergeIntoExisting(sourceId: string, targetId: string): Promise<vo
       data: {
         ...(takeSourceStatus ? { status: source.status, replayedAt: source.replayedAt } : {}),
         targetPrice: target.targetPrice ?? source.targetPrice,
+        // The region goes with the target that is kept.
+        targetPriceRegion: target.targetPrice ? target.targetPriceRegion : source.targetPrice ? source.targetPriceRegion : null,
         manualPrice: target.manualPrice ?? source.manualPrice,
         steamFullyCompleted: target.steamFullyCompleted || source.steamFullyCompleted,
         // The survivor can't point at the duplicate, which is about to disappear.

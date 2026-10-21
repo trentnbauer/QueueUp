@@ -1006,6 +1006,8 @@ export interface BulkRemoveGamesRequest {
 /** Sets (or clears, with null) the price to alert at for a game - see Game.targetPrice. */
 export interface SetTargetPriceRequest {
   targetPrice: string | null;
+  /** The price region the number is in (the currency shown to the person); left out for the server's default region. */
+  region?: PriceRegion;
 }
 
 /** Sets (or clears, with null) the fallback price for a game - see Game.manualPrice. */
