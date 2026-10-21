@@ -3,11 +3,14 @@ import { RoundGame, type RoundPlayer } from './roundGame.js';
 
 // Everything is in screens: x runs 0..1 across, y 0 (floor) to 1 (ceiling). The course scrolls from the right.
 const SPEED_START = 0.6;
-const SPEED_GAIN = 0.015; // per second of the run
-const SPEED_MAX = 1;
+const SPEED_GAIN = 0.02; // per second of the run
+const SPEED_MAX = 1.6;
 const SPAWN_AHEAD = 1.3;
-/** A flip crosses the corridor in this long. */
-const FLIP_S = 0.3;
+/** A flip crosses the corridor in this long: slow enough that tapping again every FLIP_COOLDOWN_S keeps a player floating near the middle. */
+const FLIP_S = 0.7;
+/** Obstacles grow with how far a run has come: this much bigger (all round) by SIZE_FULL_AT screens, and no more after. */
+const SIZE_GAIN = 0.7;
+const SIZE_FULL_AT = 60;
 /** Spikes are this many seconds of travel apart (edge to edge), plus up to GAP_EXTRA_S more: always enough to flip in. */
 const GAP_MIN_S = 0.85;
 const GAP_EXTRA_S = 0.7;
@@ -103,7 +106,7 @@ export class GravityGame extends RoundGame<Flipper> {
       timerMs: Math.max(0, Math.round(this.timerMs)),
       winnerId: this.winnerId,
       ...this.summary(),
-      spikes: this.spikes.map((s) => ({ x: r3(s.x - this.distance), w: r3(s.w), side: s.side, n: s.n })).filter((s) => s.x > -VISIBLE_BEHIND && s.x < SPAWN_AHEAD),
+      spikes: this.spikes.map((s) => ({ x: r3(s.x - this.distance), w: r3(s.w), h: r3(s.h), side: s.side, n: s.n })).filter((s) => s.x > -VISIBLE_BEHIND && s.x < SPAWN_AHEAD),
       players: [...this.players.values()].map((f) => ({
         id: f.id,
         y: r3(f.y),
@@ -137,8 +140,8 @@ export class GravityGame extends RoundGame<Flipper> {
       if (Math.abs(rel - GRAVITY_X) >= (s.w + GRAVITY_PLAYER_R * 2) / 2) continue;
       if (s.side === 2) {
         // The block in the middle: anyone whose body is level with it, which is whoever is flying across.
-        if (Math.abs(f.y - 0.5) < GRAVITY_MID_H / 2 + GRAVITY_PLAYER_R) return true;
-      } else if (s.side === 0 ? f.y - GRAVITY_PLAYER_R < GRAVITY_SPIKE_H : f.y + GRAVITY_PLAYER_R > 1 - GRAVITY_SPIKE_H) return true;
+        if (Math.abs(f.y - 0.5) < s.h / 2 + GRAVITY_PLAYER_R) return true;
+      } else if (s.side === 0 ? f.y - GRAVITY_PLAYER_R < s.h : f.y + GRAVITY_PLAYER_R > 1 - s.h) return true;
     }
     return false;
   }
@@ -148,8 +151,11 @@ export class GravityGame extends RoundGame<Flipper> {
       const w = SPIKE_MIN_W + this.rng() * SPIKE_EXTRA_W;
       const roll = this.rng();
       const side = roll < FLOOR_SHARE ? 0 : roll < CEILING_SHARE ? 1 : 2;
-      this.spikes.push({ x: this.nextEdgeX + w / 2, w, side, n: ++this.spawned });
-      this.nextEdgeX += w + this.speed * (GAP_MIN_S + this.rng() * GAP_EXTRA_S);
+      // Sized by where on the course it is (not by the clock), so it is the same wherever the steps happen to fall.
+      const size = 1 + SIZE_GAIN * Math.min(1, this.nextEdgeX / SIZE_FULL_AT);
+      const wide = w * size;
+      this.spikes.push({ x: this.nextEdgeX + wide / 2, w: wide, h: (side === 2 ? GRAVITY_MID_H : GRAVITY_SPIKE_H) * size, side, n: ++this.spawned });
+      this.nextEdgeX += wide + this.speed * (GAP_MIN_S + this.rng() * GAP_EXTRA_S);
     }
   }
 }
