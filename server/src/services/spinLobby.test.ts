@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from 'vitest';
 import { BattleshipsGame, CoinsGame, LOBBY_GAME_IDS, LOBBY_WAITING_ROOM_LIMIT_S, RunnerGame, createLobbyGame } from '@queueup/shared';
-import { SpinLobby } from './spinLobby.js';
+import { LOBBY_IDLE_END_MS, SpinLobby } from './spinLobby.js';
 
 const snapshot = () => ({ id: 'runner' as const, phase: 'lobby' as const, run: 1, history: [], best: null, limitMs: 0, meters: 0, speed: 0.5, obstacles: [], players: [], timerMs: 0, winnerId: null });
 const fakeGame = () => ({
@@ -382,5 +382,43 @@ describe('SpinLobby and who the server believes', () => {
     // ...and what it scores is the server's own.
     finish(game);
     expect(heard).toHaveBeenLastCalledWith('dodge', [{ userId: 'a', score: 5 }], true);
+  });
+});
+
+describe('SpinLobby idle rule', () => {
+  const phaseOf = (lobby: SpinLobby) => (lobby.snapshot(false).game as unknown as { phase: string }).phase;
+  /** Ticks for `ms`, the way the server does. */
+  const run = (lobby: SpinLobby, ms: number) => {
+    for (let t = 0; t < ms; t += 100) lobby.tick(100);
+  };
+
+  it('ends a run in a game that waits on its players when nobody has pressed anything for a minute, and starts another', () => {
+    for (const id of ['mines', 'battleships', 'draw'] as const) {
+      const lobby = new SpinLobby(createLobbyGame(id));
+      lobby.join('a');
+      lobby.join('b');
+      run(lobby, 5000);
+      expect(phaseOf(lobby), id).toBe('playing');
+      // The run that was on ends (a result is recorded), and the next one begins.
+      run(lobby, LOBBY_IDLE_END_MS + 2000);
+      const game = lobby.snapshot(false).game as unknown as { history: unknown[]; run: number };
+      expect(game.history.length, id).toBeGreaterThan(0);
+      expect(game.run, id).toBeGreaterThan(1);
+    }
+  });
+
+  it('is held off by someone pressing, and by someone arriving', () => {
+    const lobby = new SpinLobby(createLobbyGame('mines'));
+    lobby.join('a');
+    run(lobby, 5000);
+    for (let i = 0; i < 4; i++) {
+      run(lobby, LOBBY_IDLE_END_MS - 5000);
+      lobby.action('a', 'noop');
+    }
+    expect(phaseOf(lobby)).toBe('playing');
+    run(lobby, LOBBY_IDLE_END_MS - 5000);
+    lobby.join('b');
+    run(lobby, 10_000);
+    expect(phaseOf(lobby)).toBe('playing');
   });
 });
