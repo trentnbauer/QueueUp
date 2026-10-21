@@ -38,6 +38,8 @@ declare module 'fastify' {
   interface FastifyContextConfig {
     /** Lets a write through while an administrator is viewing as someone (Exit, sign out). */
     allowWhileViewingAs?: boolean;
+    /** Refuses even a read while an administrator is viewing as someone: for a route that hands over a copy of the person's data (their data export). */
+    refuseWhileViewingAs?: boolean;
     /** Lets a banned account use this route (the unban request, sign out). */
     allowWhileBanned?: boolean;
   }
@@ -48,8 +50,9 @@ export const VIEW_AS_TTL_MS = 60 * 60 * 1000;
 const READ_METHODS = new Set(['GET', 'HEAD', 'OPTIONS']);
 
 /** Whether a request is refused while viewing as someone: everything but reads and the routes that
- * opt in (Exit, sign out). */
-export function blockedWhileViewingAs(method: string, allowWhileViewingAs: boolean | undefined): boolean {
+ * opt in (Exit, sign out), plus the reads that hand over a copy of the person's data (`refuseWhileViewingAs`), which are refused too. */
+export function blockedWhileViewingAs(method: string, allowWhileViewingAs: boolean | undefined, refuseWhileViewingAs?: boolean): boolean {
+  if (refuseWhileViewingAs) return true;
   return !READ_METHODS.has(method.toUpperCase()) && !allowWhileViewingAs;
 }
 
@@ -224,8 +227,14 @@ export default fp(async function authPlugin(app: FastifyInstance) {
   // "View as user" is read-only (#1102): nothing is changed in the viewed person's name. The few
   // routes that must still work (Exit, sign out) opt in with allowWhileViewingAs.
   app.addHook('preHandler', async (request) => {
-    if (!request.viewingAs() || !blockedWhileViewingAs(request.method, request.routeOptions.config?.allowWhileViewingAs)) return;
-    throw new HttpError(403, "You are viewing the app as someone else, so nothing can be changed. Exit to go back to your own account.");
+    const config = request.routeOptions.config;
+    if (!request.viewingAs() || !blockedWhileViewingAs(request.method, config?.allowWhileViewingAs, config?.refuseWhileViewingAs)) return;
+    throw new HttpError(
+      403,
+      config?.refuseWhileViewingAs
+        ? "You are viewing the app as someone else, so their data can't be downloaded. Exit to go back to your own account."
+        : "You are viewing the app as someone else, so nothing can be changed. Exit to go back to your own account.",
+    );
   });
 
   app.decorateRequest('requireAuth', async function (this: FastifyRequest) {

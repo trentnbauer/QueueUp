@@ -520,8 +520,9 @@ export default async function authRoutes(app: FastifyInstance) {
   app.get(
     '/api/me/export',
     // Same class of route as Year in Review - a direct, occasional Profile Settings action, not
-    // something a normal session comes close to hitting.
-    { config: { rateLimit: { max: 20, timeWindow: '1 minute' } } },
+    // something a normal session comes close to hitting. Refused while an administrator is viewing as the person: viewing is read-only, and
+    // a copy of their data (with the sign-in accounts linked to them) is not something to take away.
+    { config: { rateLimit: { max: 20, timeWindow: '1 minute' }, refuseWhileViewingAs: true } },
     async (request, reply) => {
       const userId = await request.requireAuth();
 

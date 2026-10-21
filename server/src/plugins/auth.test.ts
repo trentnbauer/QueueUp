@@ -52,6 +52,12 @@ describe('view as user (#1102)', () => {
     expect(blockedWhileViewingAs('POST', false)).toBe(true);
   });
 
+  it('refuses even a read on a route that hands over the person\'s data, and an opt-in write cannot undo that', () => {
+    expect(blockedWhileViewingAs('GET', undefined, true)).toBe(true);
+    expect(blockedWhileViewingAs('GET', undefined, false)).toBe(false);
+    expect(blockedWhileViewingAs('GET', true, true)).toBe(true);
+  });
+
   it('keeps Super administrators out of reach of plain Administrators', () => {
     const admin = { id: 'a', isSuperAdmin: false };
     const owner = { id: 'o', isSuperAdmin: true };
