@@ -65,6 +65,7 @@ import { redis } from './services/redisClient.js';
 import { logCaptureStream } from './services/logBuffer.js';
 import { setAppLogger } from './services/appLogger.js';
 import { isCrossOriginWrite } from './util/crossOrigin.js';
+import { loggableUrl } from './util/loggableUrl.js';
 
 /** Requests slower than this are logged even with per-request logging off (see LOG_REQUESTS). */
 const SLOW_REQUEST_MS = 2000;
@@ -75,7 +76,14 @@ export async function buildApp() {
   // memory so the admin log-export endpoint (issue #192, routes/admin.ts) works without needing
   // shell/Docker access to the running container.
   const app = Fastify({
-    logger: { stream: logCaptureStream, level: env.LOG_LEVEL },
+    logger: {
+      stream: logCaptureStream,
+      level: env.LOG_LEVEL,
+      // The request pino logs with an error (and with every request when LOG_REQUESTS is on) has its URL cleaned the same way as the slow-request line below.
+      serializers: {
+        req: (request) => ({ method: request.method, url: loggableUrl(request.url), host: request.host, remoteAddress: request.ip, remotePort: request.socket?.remotePort }),
+      },
+    },
     // Per-request "incoming request"/"request completed" lines are off unless LOG_REQUESTS=true;
     // the onResponse hook below logs only the requests worth seeing (see LOG_LEVEL in env.ts).
     logController: new LogController({ disableRequestLogging: !env.LOG_REQUESTS }),
@@ -137,9 +145,9 @@ export async function buildApp() {
       const ms = reply.elapsedTime;
       if (reply.statusCode === 429 || ms >= SLOW_REQUEST_MS) {
         request.log.warn(
-          // Sign-in callbacks carry OAuth/OpenID codes and state in the query string, and this log
-          // line ends up in the admin log export - keep only the path for /auth/*.
-          { method: request.method, url: request.url.startsWith('/auth/') ? request.url.split('?')[0] : request.url, statusCode: reply.statusCode, responseTime: Math.round(ms) },
+          // Sign-in callbacks carry OAuth/OpenID codes and state in the query string, and a guest's lobby token is in the query of its WebSocket URL; this log
+          // line ends up in the admin log export (see loggableUrl). Checking for '/auth/' at the start missed a sign-in under a BASE_PATH.
+          { method: request.method, url: loggableUrl(request.url), statusCode: reply.statusCode, responseTime: Math.round(ms) },
           reply.statusCode === 429 ? 'rate limited' : 'slow request',
         );
       }
