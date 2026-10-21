@@ -1596,6 +1596,7 @@ export type NotificationType =
   | 'good_time_to_buy'
   | 'account_change'
   | 'library_sync_error'
+  | 'library_game_added'
   | 'library_sync_available'
   | 'platform_unowned'
   | 'room_game_beaten'

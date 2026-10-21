@@ -6,7 +6,7 @@ import { runWithConcurrency } from '../util/concurrency.js';
 import { invalidateExistingIgdbIds } from './gameAccess.js';
 import { unlockBadges } from './badges.js';
 import { redis } from './redisClient.js';
-import { notifyLibrarySyncError } from './notifications.js';
+import { notifyLibraryGamesAdded, notifyLibrarySyncError } from './notifications.js';
 import { hasSyncedBefore, recordSyncSources } from './syncSources.js';
 import { unionOwnedPlatforms } from './userSettings.js';
 import { applyResolvedIgdbEntry, type ResolvedShelfGame } from './libraryImportShelf.js';
@@ -148,7 +148,10 @@ async function runLibrarySync(
     if (seenPlatforms.size > 0) await unionOwnedPlatforms(userId, [...seenPlatforms], src.label);
     // Adult games the sync brought in: one notification (or hidden automatically) - see adultSyncCheck.ts.
     void flagAdultGamesAfterSync(userId, matchedIgdbIds);
-    void fillPlayAfterForNewIgdbIds(userId, matchedIgdbIds.filter((id) => !onShelfBefore.has(id)));
+    const addedIgdbIds = [...new Set(matchedIgdbIds.filter((id) => !onShelfBefore.has(id)))];
+    void fillPlayAfterForNewIgdbIds(userId, addedIgdbIds);
+    // Tell them what this sync added, except on their first sync from this source (their whole library at once).
+    if (stampNew) void notifyLibraryGamesAdded(userId, addedIgdbIds.flatMap((id) => existingByIgdbId.get(id)?.id ?? []), src.label);
   } finally {
     const unlockedBadges = touchedPlatformFamilies.size > 0 ? await unlockBadges(userId, [...touchedPlatformFamilies]).catch(() => []) : [];
     await setLibrarySyncProgress(src.source, userId, { startedAt, consideredCount, matched, unmatched, errored, done: true, unlockedBadges });

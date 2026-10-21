@@ -13,6 +13,8 @@ const h = vi.hoisted(() => ({
   recordPending: vi.fn(),
   deletePending: vi.fn(),
   notifyError: vi.fn(),
+  notifyAdded: vi.fn(),
+  hasSynced: vi.fn(async () => true),
   recordSuggestion: vi.fn(),
 }));
 
@@ -30,10 +32,10 @@ vi.mock('./redisClient.js', () => ({
   },
 }));
 vi.mock('./gameAccess.js', () => ({ invalidateExistingIgdbIds: h.invalidate }));
-vi.mock('./notifications.js', () => ({ notifyLibrarySyncError: h.notifyError }));
+vi.mock('./notifications.js', () => ({ notifyLibrarySyncError: h.notifyError, notifyLibraryGamesAdded: h.notifyAdded }));
 vi.mock('./playniteCompletionSuggestions.js', () => ({ recordPlayniteCompletionSuggestion: h.recordSuggestion }));
 vi.mock('./badges.js', () => ({ unlockBadges: h.unlockBadges }));
-vi.mock('./syncSources.js', () => ({ recordSyncSources: h.recordSyncSources, hasSyncedBefore: async () => true }));
+vi.mock('./syncSources.js', () => ({ recordSyncSources: h.recordSyncSources, hasSyncedBefore: h.hasSynced }));
 vi.mock('./userSettings.js', () => ({ unionOwnedPlatforms: h.unionOwnedPlatforms }));
 vi.mock('./libraryImportShelf.js', () => ({ applyResolvedIgdbEntry: h.applyResolved }));
 vi.mock('./matchRedirects.js', () => ({ applyMatchRedirect: h.applyRedirect }));
@@ -55,6 +57,8 @@ beforeEach(() => {
   h.unlockBadges.mockResolvedValue([]);
   h.applyRedirect.mockImplementation(async (_u: string, id: number) => id);
   h.applyResolved.mockResolvedValue({ id: 'shelf-1', status: 'backlog' });
+  h.hasSynced.mockResolvedValue(true);
+  h.invalidate.mockResolvedValue(undefined);
 });
 
 const finished = (userId: string) => vi.waitFor(async () => expect((await getLibrarySyncProgress('xbox', userId))?.done).toBe(true));
@@ -143,5 +147,34 @@ describe('a store that says a game is finished', () => {
     await startLibrarySync('u1', XBOX, [{ title: 'Tetris', platforms: ['gb'], isCompleted: true }], logger);
     await finished('u1');
     expect(await getLibrarySyncProgress('xbox', 'u1')).toMatchObject({ matched: 1, errored: 0, done: true });
+  });
+});
+
+describe('telling the person what a sync added', () => {
+  // A new game lands in the map the sync passes to applyResolvedIgdbEntry; one already on the shelf is there from the start.
+  const addsToShelf = () =>
+    h.applyResolved.mockImplementation(async (_u: string, igdbId: number, _e: unknown, shelf: Map<number, { id: string; status: string }>) => {
+      const game = shelf.get(igdbId) ?? { id: `shelf-${igdbId}`, status: 'backlog' };
+      shelf.set(igdbId, game);
+      return game;
+    });
+  const sync = async () => {
+    h.resolveTitle.mockImplementation(async (_s: string, title: string) => ({ Halo: 10, Forza: 20 })[title] ?? null);
+    h.findMany.mockResolvedValue([{ id: 'old-20', igdbId: 20, status: 'backlog' }]);
+    await startLibrarySync('u1', XBOX, [{ title: 'Halo', platforms: ['xbox_one'] }, { title: 'Forza', platforms: ['xbox_one'] }], logger);
+    await finished('u1');
+  };
+
+  it('notifies for the games it created, not the ones already on the shelf', async () => {
+    addsToShelf();
+    await sync();
+    await vi.waitFor(() => expect(h.notifyAdded).toHaveBeenCalledWith('u1', ['shelf-10'], 'Your Xbox sync'));
+  });
+
+  it('says nothing on the first sync from a source', async () => {
+    addsToShelf();
+    h.hasSynced.mockResolvedValue(false);
+    await sync();
+    expect(h.notifyAdded).not.toHaveBeenCalled();
   });
 });

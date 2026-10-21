@@ -21,7 +21,7 @@ import { rich, useT, type MessageKey } from '../i18n';
 
 /** Notifications only administrators get; each opens the Administrator page. */
 const ADMIN_TYPES: Notification['type'][] = ['admin_report', 'admin_unban_request', 'admin_backup_failed'];
-const SHELF_TYPES: Notification['type'][] = ['merge_suggestions', 'friend_recommendation', 'price_drop', 'good_time_to_buy', 'release_watch', 'playnite_sync_reminder', 'wishlist_bundle_deal', 'playtime_mark_playing', 'sensitive_games'];
+const SHELF_TYPES: Notification['type'][] = ['merge_suggestions', 'friend_recommendation', 'price_drop', 'good_time_to_buy', 'release_watch', 'playnite_sync_reminder', 'wishlist_bundle_deal', 'playtime_mark_playing', 'sensitive_games', 'library_game_added'];
 
 /** A "wants to play this together" request: add the game to a room you're both in, or start a new
  * room with the two of you. Stays until answered (mark-all-read skips it). */
