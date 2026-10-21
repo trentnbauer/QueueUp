@@ -113,6 +113,34 @@ function drawCountdown(sc: Scene): void {
   ctx.fillStyle = theme.text;
   ctx.fillText(String(n), 0, 0);
   ctx.restore();
+  drawHint(sc);
+}
+
+/** What the game is and how it is played, under the count, so nobody starts blind. Every game has `spin.lobby.<id>.hint` (the same line as its info popup). */
+function drawHint(sc: Scene): void {
+  const { ctx, S, snapshot, t } = sc;
+  const text = t(`spin.lobby.${snapshot.id}.hint` as MessageKey);
+  const size = Math.max(11, Math.round(S * 0.03));
+  ctx.font = `400 ${size}px ${FONT.ui}`;
+  const maxW = S * 0.84;
+  const lines: string[] = [];
+  let line = '';
+  for (const word of text.split(' ')) {
+    const next = line ? `${line} ${word}` : word;
+    if (line && ctx.measureText(next).width > maxW) {
+      lines.push(line);
+      line = word;
+    } else line = next;
+  }
+  if (line) lines.push(line);
+  const lineH = size * 1.35;
+  const h = lines.length * lineH + size * 1.2;
+  const top = Math.min(S * 0.7, S - h - S * 0.03);
+  ctx.fillStyle = 'oklch(0.12 0.006 55 / 0.6)';
+  roundRect(ctx, (S - maxW) / 2 - size * 0.6, top, maxW + size * 1.2, h, size);
+  ctx.fill();
+  ctx.fillStyle = sc.theme.text;
+  lines.forEach((l, i) => ctx.fillText(l, S / 2, top + size * 0.6 + lineH * (i + 0.5)));
 }
 
 // ---- The end-of-run card: the run's standings. The winner is the hero row, your row is always shown and highlighted, and a thumbs

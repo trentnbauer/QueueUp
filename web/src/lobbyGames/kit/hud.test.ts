@@ -1,5 +1,6 @@
-import type { LobbyGameSnapshot } from '@queueup/shared';
+import { LOBBY_GAME_IDS, type LobbyGameSnapshot } from '@queueup/shared';
 import { describe, expect, it } from 'vitest';
+import { spin } from '../../i18n/locales/en/spin';
 import { noWinnerHeadline } from './hud';
 
 interface P {
@@ -41,5 +42,11 @@ describe('what the result card says when nobody won', () => {
     expect(noWinnerHeadline(over('words', [{ id: 'a', alive: true, solved: true }], 40, 40))).toBe('spin.lobby.words.solved');
     expect(noWinnerHeadline(over('words', [{ id: 'a', alive: true }], 0, 40))).toBe('spin.lobby.words.nobody');
     expect(noWinnerHeadline(over('words', [{ id: 'a', alive: true }, { id: 'b', alive: true, solved: true }], 40, 40))).toBe('spin.lobby.hud.draw');
+  });
+});
+
+describe('the description under the countdown', () => {
+  it('has a hint line for every game, under the key the countdown looks it up by', () => {
+    for (const id of LOBBY_GAME_IDS) expect(spin, id).toHaveProperty([`spin.lobby.${id}.hint`]);
   });
 });
