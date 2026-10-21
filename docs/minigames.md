@@ -333,6 +333,18 @@ A skydiver falls through rows of clouds and gusts of wind, with a chute to float
 - **Ping:** your own skydiver is worked out on your own device (see "Ping and who works out what"), so it answers the moment you press. The sky comes from the same seed and the server's clock.
 - **Controls:** **←** / **→** or **A** / **D** to slide, which also opens the chute.
 
+## Odd one out
+
+One board of near-identical tiles, one of them a little different. The first to tap it scores, and the board changes for everyone.
+
+- **Goal:** tap the odd tile before anyone else does. **Tap the tile** on the board (there is no keyboard control). The first right tap **scores a point** and gives everyone a new board.
+- **The board** is **2 by 2** for the first three boards, **3 by 3** for the next five, and **6 by 6** from then on. The tiles share a colour and the odd one is lighter or darker. It starts **0.22 lighter or darker** and gets harder on every board (0.22 over 1 + 0.09 times the boards played, so 0.12 after 10 and 0.06 after 30), without ever reaching nothing, so in the end nobody can see it. The colour, the place and whether it is lighter or darker come from the round's seed.
+- **Health bar:** everyone has one under their avatar. You start with **10** (of at most **20**) and it **drains all the time**: 0.5 a second at the start and 0.03 a second faster every second, so it always runs out in the end. A **right tap refills 3**. A **wrong tap costs 3** and **locks you out for 0.6 seconds** (until the next board). At 0 you are out. **Last one in wins**; alone it is a high score (right taps).
+- **Score** (the high score list): your right taps. There is no time limit of its own: it goes on until it is beaten. With a time cap (a waiting room), whoever is still in keeps their taps and nobody wins.
+- **How long a run lasts:** a test player who always finds the tile and taps one every 1.5 seconds lasts about 85 seconds and scores about 56; someone who never taps is out in about 15 seconds.
+- **Fair taps:** the server judges every tap, in the order it hears them, so the first to arrive wins a board. A game that works out each tap on the server cannot be sped up from a device, but the odd tile is in the data the screen draws, so a modified client could read it; scores are kept regardless.
+- **Controls:** tap the tile on the board.
+
 ## Rating a game
 
 When a run ends and its result card is showing, a **thumbs up / thumbs down** appears in the result card (in a room's lobby, a spin's waiting room, an open lobby and solo practice alike).
@@ -399,6 +411,7 @@ A game can instead make **the play space the controller**: there are no buttons 
 | Lava | **←** / **→** or **A** / **D**. | The **◀** and **▶** buttons. |
 | Tunnel | **←** / **→** or **A** / **D**. | The **◀** and **▶** buttons. |
 | Parachute | **←** / **→** or **A** / **D** (holding one opens the chute; none is free fall). | The **◀** and **▶** buttons. |
+| Odd one out | Tap the tile. | Tap the tile. |
 | Orbit | **Space**, **↑**, **←** / **→** or **W** / **A** / **D** to flip direction. | **Flip**, or tap anywhere on the arena. |
 
 ## Runner

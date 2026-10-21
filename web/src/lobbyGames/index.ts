@@ -37,6 +37,7 @@ import { tempoView } from './tempo';
 import { lavaView } from './lava';
 import { tunnelView } from './tunnel';
 import { parachuteView } from './parachute';
+import { oddOneOutView } from './oddoneout';
 
 /** What a renderer is given each frame. */
 export interface LobbyDrawArgs<S extends LobbyGameSnapshot = LobbyGameSnapshot> {
@@ -132,6 +133,7 @@ export const LOBBY_GAME_VIEWS: { [K in LobbyGameId]: LobbyGameView<Extract<Lobby
   lava: lavaView,
   tunnel: tunnelView,
   parachute: parachuteView,
+  oddoneout: oddOneOutView,
 };
 
 /** The view for whichever game a snapshot belongs to. */
