@@ -1,5 +1,6 @@
 import { aiComplete } from './aiConfig.js';
 import { HttpError } from '../../util/httpError.js';
+import { isDisplayNameBlocked } from '../displayNames.js';
 import type { AiFallbackNotice, YearStoryFacts } from '@queueup/shared';
 
 const MAX_TITLE = 100;
@@ -106,5 +107,8 @@ export async function generateStoryText(
   const res = await aiComplete({ system: SYSTEM(kind), messages: [{ role: 'user', content: buildStoryPrompt(facts, kind) }], maxTokens: 700, temperature: 0.8 }, { userId, roomId, label: 'story' });
   const text = cleanStoryText(res.text);
   if (!text) throw new HttpError(502, 'The AI did not write a recap. Try again.');
+  // The titles and names in the facts come from the browser, so a person can steer what the AI writes; the result is shown to a room or
+  // on a public profile, so it gets the same banned-words check a hand-edited recap does.
+  if (await isDisplayNameBlocked(text)) throw new HttpError(422, 'The AI wrote something that is not allowed here. Try again.');
   return { text, fallback: res.fallback };
 }
