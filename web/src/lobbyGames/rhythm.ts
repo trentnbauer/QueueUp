@@ -1,7 +1,7 @@
 import { ENDLESS_LIVES, RHYTHM_GOOD_S, RHYTHM_GREAT_S, RHYTHM_LANES, type RhythmSnapshot } from '@queueup/shared';
 import type { MessageKey } from '../i18n';
 import type { LobbyGameView } from './index';
-import { FONT, STAGE, coverTile, drawLives, hueOf, renderScene, type Scene, type SceneGame } from './kit';
+import { FONT, STAGE, coverTile, drawLives, hueOf, renderScene, rememberSnapshot, type Scene, type SceneGame } from './kit';
 import type { TapRect, TapTargets } from './taps';
 
 // Where things are on the arena, as fractions of its side: the players in a row, then four lanes down to the line the notes are tapped on.
@@ -22,9 +22,23 @@ const laneRect = (i: number): TapRect => ({ x: LANES_X + i * LANE_W, y: TOP, w: 
 /** The lanes are the controller: each is a tall tap target (anywhere in it counts), drawn exactly where it is hit. On a keyboard D, F, J and K do the same. */
 export const RHYTHM_TAPS: TapTargets = { rects: Array.from({ length: RHYTHM_LANES }, (_, i) => laneRect(i)), keys: ['d', 'f', 'j', 'k'] };
 
+/** How long ago your last tap or miss was, as of the last snapshot drawn (null for none). */
+const previousLast = rememberSnapshot<{ ago: number | null }>();
+
+/** A great hit of yours bursts into confetti on the line, in the lane you hit. Good hits and other people's are left alone, so it stays a treat. */
+function celebrate(sc: Scene<RhythmSnapshot>): void {
+  const { snapshot } = sc;
+  const mine = snapshot.players.find((p) => p.id === sc.me)?.last ?? null;
+  const before = previousLast(snapshot, () => ({ ago: mine ? mine.agoMs : null }));
+  if (!before || !mine || mine.kind !== 'great') return;
+  // A new hit has come since the last snapshot when there was none then, or it was longer ago than this one is.
+  if (before.ago === null || mine.agoMs < before.ago) sc.fx.confettiAt(LANES_X + (mine.lane + 0.5) * LANE_W, LINE, sc.info(sc.me).color, 12);
+}
+
 function drawWorld(sc: Scene<RhythmSnapshot>): void {
   const { ctx, S, snapshot, theme } = sc;
   const age = snapshot.phase === 'playing' ? sc.fx.age(snapshot, sc.now) : 0;
+  celebrate(sc);
   const mine = snapshot.players.find((p) => p.id === sc.me);
 
   // The lanes, with the line the notes are tapped on.

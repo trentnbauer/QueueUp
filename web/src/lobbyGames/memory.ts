@@ -1,6 +1,6 @@
 import { MEMORY_PANELS, type MemorySnapshot } from '@queueup/shared';
 import type { LobbyGameView } from './index';
-import { FONT, renderScene, roundRect, type Scene, type SceneGame } from './kit';
+import { FONT, renderScene, roundRect, rememberSnapshot, type Scene, type SceneGame } from './kit';
 import type { TapRect, TapTargets } from './taps';
 
 // Where things are on the arena, as fractions of its side: one board of four panels (2 x 2), everyone's
@@ -21,8 +21,24 @@ const panelRect = (i: number): TapRect => ({ x: BOARD_X + (i % 2) * (PANEL_W + G
  * (top left, top right, bottom left, bottom right); on a keyboard the keys 1 to 4 do the same. */
 export const MEMORY_TAPS: TapTargets = { rects: Array.from({ length: MEMORY_PANELS }, (_, i) => panelRect(i)), keys: ['1', '2', '3', '4'] };
 
+/** Who has the whole pattern as of the last snapshot drawn. */
+const previousDone = rememberSnapshot<Set<string>>();
+
+/** Someone who has just got the whole pattern puffs confetti from their avatar. */
+function celebrate(sc: Scene<MemorySnapshot>): void {
+  const { snapshot } = sc;
+  const before = previousDone(snapshot, () => new Set(snapshot.players.filter((p) => p.done).map((p) => p.id)));
+  if (!before) return;
+  const n = snapshot.players.length;
+  const step = Math.min(0.1, 0.88 / Math.max(1, n));
+  snapshot.players.forEach((p, i) => {
+    if (p.done && p.alive && !before.has(p.id)) sc.fx.confettiAt(0.5 + (i - (n - 1) / 2) * step, CHIPS_Y, sc.info(p.id).color, 14);
+  });
+}
+
 function drawWorld(sc: Scene<MemorySnapshot>): void {
   const { ctx, S, snapshot, theme } = sc;
+  celebrate(sc);
 
   // Time left to tap the pattern back, as a bar draining along the top edge.
   if (snapshot.stage === 'input' && snapshot.inputTotalMs > 0) {

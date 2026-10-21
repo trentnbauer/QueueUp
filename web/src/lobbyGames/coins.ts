@@ -1,6 +1,6 @@
 import { COINS_HP_MAX, COINS_ITEM_SIZE, COINS_PLAYER_WIDTH, COINS_PLAYER_Y, type CoinsSnapshot } from '@queueup/shared';
 import type { LobbyGameView } from './index';
-import { FONT, STAGE, drawFloor, groundShadow, renderScene, roundRect, type Scene, type SceneGame } from './kit';
+import { FONT, STAGE, drawFloor, groundShadow, renderScene, roundRect, rememberSnapshot, type Scene, type SceneGame } from './kit';
 
 /** Where the floor is, just under the catchers. */
 const FLOOR = 0.95;
@@ -46,8 +46,24 @@ function drawBomb(sc: Scene<CoinsSnapshot>, cx: number, cy: number, r: number): 
   ctx.fill();
 }
 
+/** The coins in the air as of the last snapshot drawn. */
+const previousCoins = rememberSnapshot<Map<number, { x: number; y: number; kind: string }>>();
+
+/** A coin that disappears while it is down at the catchers, next to one of them, was caught: a tiny gold puff. (One that falls past is not.) */
+function celebrate(sc: Scene<CoinsSnapshot>): void {
+  const { snapshot } = sc;
+  const before = previousCoins(snapshot, () => new Map(snapshot.items.map((i) => [i.n, { x: i.x, y: i.y, kind: i.kind }])));
+  if (!before) return;
+  const still = new Set(snapshot.items.map((i) => i.n));
+  for (const [n, c] of before) {
+    if (still.has(n) || c.kind !== 'coin' || Math.abs(c.y - COINS_PLAYER_Y) > 0.08) continue;
+    if (snapshot.players.some((p) => p.alive && Math.abs(p.x - c.x) < COINS_PLAYER_WIDTH)) sc.fx.confettiAt(c.x, c.y, 'oklch(0.83 0.15 85)', 6);
+  }
+}
+
 function drawWorld(sc: Scene<CoinsSnapshot>): void {
   const { ctx, S, snapshot, drift, now } = sc;
+  celebrate(sc);
   const floor = S * FLOOR;
   drawFloor(sc, floor);
 
