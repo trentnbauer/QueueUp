@@ -8,6 +8,7 @@ import { HttpError } from '../util/httpError.js';
 export const MAX_FILE_ENTRIES = 20_000;
 const MAX_COLUMNS = 200;
 const SAMPLE_ROWS = 5;
+const tooManyRows = `That file has more than ${MAX_FILE_ENTRIES} rows. Split it and import the parts.`;
 
 export interface ParsedTable {
   format: LibraryFileFormat;
@@ -16,8 +17,8 @@ export interface ParsedTable {
 }
 
 /** RFC 4180 style CSV with a guessed delimiter (comma, semicolon or tab). Quoted fields may hold
- * delimiters, doubled quotes and line breaks. */
-export function parseCsv(input: string): string[][] {
+ * delimiters, doubled quotes and line breaks. Stops as soon as there are more than `maxRows` rows, so a file of nothing but line breaks cannot make it build millions. */
+export function parseCsv(input: string, maxRows = Infinity): string[][] {
   const text = input.replace(/^﻿/, '');
   const firstLine = text.split(/\r?\n/, 1)[0] ?? '';
   const count = (ch: string) => firstLine.split(ch).length - 1;
@@ -31,6 +32,7 @@ export function parseCsv(input: string): string[][] {
     row.push(field);
     field = '';
     if (row.some((c) => c.trim() !== '')) out.push(row);
+    if (out.length > maxRows) throw new HttpError(400, tooManyRows);
     row = [];
   };
   while (i < text.length) {
@@ -67,7 +69,8 @@ function uniqueHeaders(raw: string[]): string[] {
 }
 
 function tableFromCsv(text: string): ParsedTable {
-  const grid = parseCsv(text);
+  // The header and then the rows: one more than the most, so a file over the limit is refused here, before a row object is built for every line.
+  const grid = parseCsv(text, MAX_FILE_ENTRIES + 1);
   if (grid.length < 2) throw new HttpError(400, 'That file has no rows to import.');
   const columns = uniqueHeaders(grid[0]!);
   if (columns.length > MAX_COLUMNS) throw new HttpError(400, 'That file has too many columns.');
@@ -122,6 +125,7 @@ function tableFromJson(text: string): ParsedTable {
     if (arrays.length > 0) list = arrays.sort((a, b) => b.length - a.length)[0]!;
   }
   if (!list || list.length === 0) throw new HttpError(400, 'Could not find a list of games in that JSON file.');
+  if (list.length > MAX_FILE_ENTRIES) throw new HttpError(400, tooManyRows);
 
   const docs = list.map(googlePlayDoc);
   if (docs.filter(Boolean).length > list.length / 2) {
@@ -140,10 +144,16 @@ function tableFromJson(text: string): ParsedTable {
   }
 
   const rows = list.filter(isObject).map((o) => flatten(o));
-  const columns: string[] = [];
-  for (const r of rows) for (const k of Object.keys(r)) if (!columns.includes(k)) columns.push(k);
+  // A set, and refused as soon as there are too many: looking each key up in a growing list took quadratic time, so a file of rows that each had a key of their own froze the server.
+  const seen = new Set<string>();
+  for (const r of rows) {
+    for (const k of Object.keys(r)) {
+      seen.add(k);
+      if (seen.size > MAX_COLUMNS) throw new HttpError(400, 'That file has too many columns.');
+    }
+  }
+  const columns = [...seen];
   if (columns.length === 0) throw new HttpError(400, 'Could not find a list of games in that JSON file.');
-  if (columns.length > MAX_COLUMNS) throw new HttpError(400, 'That file has too many columns.');
   return { format: 'json', columns, rows: rows.map((r) => Object.fromEntries(columns.map((c) => [c, r[c] ?? '']))) };
 }
 
@@ -151,7 +161,7 @@ export function parseLibraryFile(text: string): ParsedTable {
   const trimmed = text.replace(/^﻿/, '').trimStart();
   if (!trimmed) throw new HttpError(400, 'That file is empty.');
   const table = trimmed.startsWith('[') || trimmed.startsWith('{') ? tableFromJson(trimmed) : tableFromCsv(trimmed);
-  if (table.rows.length > MAX_FILE_ENTRIES) throw new HttpError(400, `That file has more than ${MAX_FILE_ENTRIES} rows. Split it and import the parts.`);
+  if (table.rows.length > MAX_FILE_ENTRIES) throw new HttpError(400, tooManyRows);
   return table;
 }
 
