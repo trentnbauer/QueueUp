@@ -20,8 +20,8 @@ const LIVES = 3;
 /** The health bar: this much to start, drained every second (more as the run goes on, so a run always ends) and refilled by each fish landed by
  * its points times HP_PER_POINT. Out at 0. The score is the most it has ever been. */
 const HP_START = 10;
-const HP_DRAIN = 0.5;
-const HP_DRAIN_GAIN = 0.03;
+const HP_DRAIN = 2;
+const HP_DRAIN_GAIN = 0.12;
 const HP_PER_POINT = 5;
 const FISH_Y_MAX = 0.8;
 const INITIAL_FISH = 9;
