@@ -24,10 +24,13 @@ const BOMB_CHANCE = 0.18;
 const BOMB_COST = 2;
 /** Tapping an empty hole costs this many points (never below zero), so mashing every hole does not win. */
 const MISS_COST = 1;
-/** Endless (no time limit): moles stay up for less and come quicker, down to floors well under a classic round's, over `ENDLESS_RAMP_S`. */
+/** Endless (no time limit): moles stay up for less and come quicker, to values well under a classic round's shortest over `ENDLESS_RAMP_S`, and then
+ * on and on (each is its start value over 1 + k * the time, with no floor), so in the end nobody can whack them in time. */
 const ENDLESS_RAMP_S = 40;
 const ENDLESS_UP_S: readonly [number, number] = [1.8, 0.35];
 const ENDLESS_SPAWN_S: readonly [number, number] = [0.8, 0.22];
+/** `pair[0]` shrinking to `pair[1]` at `ENDLESS_RAMP_S` seconds, and on from there without stopping. */
+const shrinking = (pair: readonly [number, number], seconds: number) => pair[0] / (1 + (pair[0] / pair[1] - 1) * (seconds / ENDLESS_RAMP_S));
 
 interface Hole {
   kind: 'empty' | 'mole' | 'bomb';
@@ -170,8 +173,7 @@ export class WhackGame extends RoundGame<Whacker> {
   /** How long a mole stays up and how long until the next one, now. */
   private pace(seconds: number): { upS: number; gapS: number } {
     if (this.endless) {
-      const along = (pair: readonly [number, number]) => pair[0] + (pair[1] - pair[0]) * this.ramp;
-      return { upS: along(ENDLESS_UP_S), gapS: along(ENDLESS_SPAWN_S) };
+      return { upS: shrinking(ENDLESS_UP_S, seconds), gapS: shrinking(ENDLESS_SPAWN_S, seconds) };
     }
     return { upS: Math.max(UP_MIN_S, UP_START_S - UP_GAIN_S * seconds), gapS: Math.max(SPAWN_MIN_S, SPAWN_START_S - SPAWN_GAIN_S * seconds) };
   }

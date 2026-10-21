@@ -53,11 +53,11 @@ export const MINIGAME_VERSIONS: Record<LobbyGameId, number> = {
   runner: 4, // no top speed
   flappy: 2, // no top speed
   dodge: 3, // no top speed
-  rope: 1,
+  rope: 2, // no floor on how quick a swing gets
   coins: 4, // endless runs have a health bar that drains, and no top speed; (before: only a bomb put you out)
   battleships: 2, // a player's own ships may touch
   race: 4, // no top speed
-  whack: 3, // with no time limit it is endless (three lives); before: shared moles, shorter up time, pauses
+  whack: 4, // endless: moles keep getting quicker with no floor; before: three lives, shared moles, shorter up time, pauses
   draw: 2, // the score became a reaction time in milliseconds
   tilt: 2, // a ball each, tipped by where the balls are
   stacker: 1,

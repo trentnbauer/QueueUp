@@ -7,17 +7,15 @@ const GRAVITY = 9;
 const JUMP_SPEED = 2.2;
 /** The rope is under the jumpers' feet for this many seconds either side of the bottom of its swing. */
 const CONTACT_S = 0.04;
-/** Seconds one swing takes: slow at first, then quicker, but never too quick to land and jump again. */
+/** Seconds one swing takes: it starts at PERIOD_START and gets quicker for as long as the run lasts (it is PERIOD_START / (1 + PERIOD_RATE * seconds), about 0.78 after
+ * 16 seconds), with no floor, so in the end a swing is quicker than a jump can be timed and nobody can go on for ever. */
 const PERIOD_START = 1.4;
-const PERIOD_MIN = 0.75;
-const PERIOD_GAIN = 0.04; // per second of the run
+const PERIOD_RATE = 0.0485;
 /** Now and then a swing is slower (a pause) or quicker, to keep people honest. */
 const SLOW_CHANCE = 0.12;
 const SLOW_FACTOR = 1.5;
 const FAST_CHANCE = 0.15;
 const FAST_FACTOR = 0.85;
-/** The shortest a swing is ever allowed to be, so a jump can always be timed. */
-const PERIOD_FLOOR = 0.65;
 /** The rope starts part way round, so there is time to get ready. */
 const START_ANGLE = 0.3;
 
@@ -145,10 +143,10 @@ export class RopeGame extends RoundGame<Jumper> {
 
   /** How long the next swing takes: it shortens over the run, with the odd slow or quick one. */
   private nextPeriod(): number {
-    const base = Math.max(PERIOD_MIN, PERIOD_START - PERIOD_GAIN * (this.roundMs / 1000));
+    const base = PERIOD_START / (1 + (PERIOD_RATE * this.roundMs) / 1000);
     const roll = this.rng();
     if (roll < SLOW_CHANCE) return base * SLOW_FACTOR;
-    if (roll < SLOW_CHANCE + FAST_CHANCE) return Math.max(PERIOD_FLOOR, base * FAST_FACTOR);
+    if (roll < SLOW_CHANCE + FAST_CHANCE) return base * FAST_FACTOR;
     return base;
   }
 

@@ -237,4 +237,25 @@ describe('WhackGame endless (no time limit)', () => {
     expect(upAt(42)).toBeLessThan(upAt(6) - 800);
     expect(upAt(42)).toBeLessThan(450);
   });
+
+  it('goes on keeping them up for less, with no floor', () => {
+    const g = endless(['a']);
+    // Moles come and go with nobody tapping, and no one is put out, so the clock can run.
+    (g as unknown as { loseLife: () => void }).loseLife = () => {};
+    /** The longest any mole is up for in the 3 seconds from `seconds` into the run. */
+    const upAt = (seconds: number) => {
+      let longest = 0;
+      for (let t = 0; t < 3000; t += STEP) {
+        g.tick(STEP);
+        longest = Math.max(longest, ...g.snapshot().holes.map((h) => h.upMs));
+      }
+      return longest;
+    };
+    run(g, 57_000);
+    const early = upAt(60);
+    run(g, 57_000);
+    const late = upAt(120);
+    expect(late).toBeLessThan(early);
+    expect(late).toBeLessThan(300);
+  });
 });

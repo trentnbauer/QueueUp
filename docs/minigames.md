@@ -444,7 +444,7 @@ A rope swings round and everyone jumps it together.
 - **Mistime it** (be on the floor as the rope passes under you) and you are out. Last one jumping wins.
 - **Jumping** only works from the floor, and a jump is the same height every time, so it is all about timing. Pressing again while you are still in the air does nothing.
 - **Score:** the number of swings you jumped (shown as SWINGS in the top-left counter, where the other games show metres).
-- **Speed:** a swing starts at 1.4 seconds and shortens by 0.04 seconds for every second of the run, down to 0.75 seconds after about 16 seconds. Now and then a swing is slower (a pause, 1.5 times as long) or quicker (0.85 times as long, never under 0.65 seconds), so don't jump on rhythm alone.
+- **Speed:** a swing starts at 1.4 seconds and gets shorter for as long as the run lasts, with no floor (it is 1.4 over 1 + 0.0485 times the seconds: 0.78 after 16 seconds, 0.4 after a minute), so in the end a swing is quicker than a jump can be timed. Now and then a swing is slower (a pause, 1.5 times as long) or quicker (0.85 times as long), so don't jump on rhythm alone.
 - Every swing is long enough to land and jump again.
 - **Depth:** the rope comes up on the far side of the jumpers and down on the near side. While it is behind them it is drawn darker, with no glow, and behind the jumpers; once it is over their heads it is bright, with a glow, and passes in front of them.
 
@@ -571,7 +571,7 @@ Everyone on one short platform over a drop. Shove the others off. Needs at least
 Moles pop up out of a grid of holes; tap them before they drop back down.
 
 - **Goal:** points. Everyone plays on **the same 3 by 3 grid** and goes for the same moles.
-- **Endless (no time limit):** each player has **three lives**, shown as hearts. A mole that goes down without you tapping it, a bomb you whack, and an empty hole you tap each cost a life. Moles stay up for less and come quicker for 40 seconds (1.8 seconds down to 0.35, one every 0.8 seconds down to 0.22), then it stays that hard. The last one standing wins; alone, it ends when you are out, and your points are the score. Bombs and empty holes cost a life, not points.
+- **Endless (no time limit):** each player has **three lives**, shown as hearts. A mole that goes down without you tapping it, a bomb you whack, and an empty hole you tap each cost a life. Moles stay up for less and come quicker for as long as you last (1.8 seconds down to 0.35 and one every 0.8 seconds down to 0.22 after 40 seconds, and on from there with no floor), so in the end nobody can whack them in time. The last one standing wins; alone, it ends when you are out, and your points are the score. Bombs and empty holes cost a life, not points.
 - **With a time limit (30 seconds):** the most points wins, a tie for the most, or scoring nothing, is a draw, and nobody is knocked out. Alone, it is a high-score round: no winner, just your points.
 - **Moles** are worth 1 point, and **everyone who taps a mole while it is up scores for it**: being first does not matter. A mole stays up for its full time, so late tappers still get it, and a ring in each person's colour shows who has. A second tap on a mole you already have does nothing and costs nothing.
 - **Bombs** (dark, with a fuse) pop up now and then, never two in a row (about one in six). **Each person** who taps one loses **2 points** (never below zero).
