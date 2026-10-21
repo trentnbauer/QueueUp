@@ -3,7 +3,7 @@ import Fastify from 'fastify';
 import websocket from '@fastify/websocket';
 import { HttpError } from '../util/httpError.js';
 
-vi.mock('../config/env.js', () => ({ env: { APP_BASE_URL: 'https://queueup.example' } }));
+vi.mock('../config/env.js', () => ({ env: { APP_BASE_URL: 'https://queueup.example', SESSION_SECRET: 'x'.repeat(40), SIGNUP_MODE: 'open', PRIVATE_INSTANCE: false } }));
 vi.mock('../db/client.js', () => ({ prisma: { user: { findMany: async () => [] } } }));
 vi.mock('../services/friendships.js', () => ({ areFriends: async () => false }));
 vi.mock('../services/blocks.js', () => ({ isBlockedEitherWay: async () => false }));
@@ -29,6 +29,8 @@ vi.mock('../services/spinLobbyInstance.js', async () => {
 import miniGameLobbyRoutes from './miniGameLobbies.js';
 import { spinLobbyHub } from '../services/spinLobbyInstance.js';
 import { openLobbies } from '../services/openLobbies.js';
+import { guestNames, newGuestToken } from '../services/guestLobby.js';
+import { MINIGAME_LOBBY_MAX_PLAYERS } from '@queueup/shared';
 
 async function build() {
   const app = Fastify();
@@ -88,6 +90,32 @@ describe('GET /api/minigames/lobbies/:id/lobby', () => {
     expect(openLobbies.get(lobby.id)).toBeDefined();
     guest.terminate();
     await vi.waitFor(() => expect(openLobbies.get(lobby.id)).toBeUndefined());
+  });
+
+  it('keeps a guest\'s name only while they are connected, and not at all when their connection is refused', async () => {
+    const app = await build();
+    apps.push(app);
+    const lobby = await open(app, 'alice', 'public');
+    const url = (token: string) => `/api/minigames/lobbies/${lobby.id}/lobby?guest=${encodeURIComponent(token)}`;
+    const host = await app.injectWS(`/api/minigames/lobbies/${lobby.id}/lobby`, { headers: { origin: ORIGIN, 'x-test-user': 'alice' } });
+
+    const joined = newGuestToken(lobby.id, 'Pete');
+    const ws = await app.injectWS(url(joined.token), { headers: { origin: ORIGIN } });
+    expect(guestNames.get(joined.guestId)).toBe('Pete');
+    ws.terminate();
+    await vi.waitFor(() => expect(guestNames.has(joined.guestId)).toBe(false));
+
+    // Fill the lobby: a guest with a good token is then refused, and no name is left behind.
+    const others = Array.from({ length: MINIGAME_LOBBY_MAX_PLAYERS - 1 }, (_, i) => `user${i}`);
+    const sockets = [];
+    for (const user of others) {
+      await app.inject({ method: 'POST', url: '/api/minigames/lobbies/join', headers: { 'x-test-user': user }, payload: { code: '' } }).catch(() => undefined);
+      sockets.push(await app.injectWS(`/api/minigames/lobbies/${lobby.id}/lobby`, { headers: { origin: ORIGIN, 'x-test-user': user } }));
+    }
+    const refused = newGuestToken(lobby.id, 'Eve');
+    await expect(app.injectWS(url(refused.token), { headers: { origin: ORIGIN } })).rejects.toThrow();
+    expect(guestNames.has(refused.guestId)).toBe(false);
+    for (const s of [host, ...sockets]) s.terminate();
   });
 
   it('refuses another origin, a signed-out request and a lobby that is not there', async () => {
