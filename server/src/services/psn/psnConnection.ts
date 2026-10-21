@@ -2,7 +2,7 @@ import type { FastifyBaseLogger } from 'fastify';
 import type { PsnStatusResponse } from '@queueup/shared';
 import { prisma } from '../../db/client.js';
 import { HttpError } from '../../util/httpError.js';
-import { startLibrarySync, type LibrarySyncSource } from '../librarySync.js';
+import { startLibrarySync, withTokenRefreshLock, type LibrarySyncSource } from '../librarySync.js';
 import { notifyLibrarySyncError } from '../notifications.js';
 import { decryptSetting, encryptSetting } from '../settingsCrypto.js';
 import { exchangeNpsso, isValidNpsso, PsnAuthError, refreshTokens } from './psnAuth.js';
@@ -62,7 +62,11 @@ export async function disconnectPsn(userId: string): Promise<void> {
 }
 
 /** Reads the person's purchased PlayStation games and starts matching them onto their shelf. */
-export async function syncPsnLibrary(userId: string, logger: FastifyBaseLogger): Promise<{ consideredCount: number }> {
+export function syncPsnLibrary(userId: string, logger: FastifyBaseLogger): Promise<{ consideredCount: number }> {
+  return withTokenRefreshLock(PSN_SOURCE.source, userId, () => runPsnSync(userId, logger));
+}
+
+async function runPsnSync(userId: string, logger: FastifyBaseLogger): Promise<{ consideredCount: number }> {
   const row = await prisma.userPsnConnection.findUnique({ where: { userId } });
   if (!row) throw new HttpError(400, 'Link your PlayStation account first.');
 

@@ -45,7 +45,7 @@ vi.mock('./playniteImport.js', () => ({
   deletePendingLibraryImportByTitle: h.deletePending,
 }));
 
-import { getLibrarySyncProgress, startLibrarySync } from './librarySync.js';
+import { getLibrarySyncProgress, startLibrarySync, withTokenRefreshLock } from './librarySync.js';
 
 const XBOX = { source: 'xbox', syncSource: 'xbox' as const, label: 'Your Xbox sync' };
 const logger = { warn: vi.fn(), error: vi.fn() } as never;
@@ -176,5 +176,22 @@ describe('telling the person what a sync added', () => {
     h.hasSynced.mockResolvedValue(false);
     await sync();
     expect(h.notifyAdded).not.toHaveBeenCalled();
+  });
+});
+
+describe('withTokenRefreshLock', () => {
+  it('refuses an overlapping call for the same person, and lets the next one in once it ends', async () => {
+    let release!: () => void;
+    const first = withTokenRefreshLock('xbox', 'u1', () => new Promise<string>((resolve) => (release = () => resolve('done'))));
+    await expect(withTokenRefreshLock('xbox', 'u1', async () => 'second')).rejects.toMatchObject({ statusCode: 409 });
+    await expect(withTokenRefreshLock('xbox', 'u2', async () => 'other person')).resolves.toBe('other person');
+    release();
+    await expect(first).resolves.toBe('done');
+    await expect(withTokenRefreshLock('xbox', 'u1', async () => 'after')).resolves.toBe('after');
+  });
+
+  it('frees the lock when the work throws', async () => {
+    await expect(withTokenRefreshLock('psn', 'u1', async () => Promise.reject(new Error('boom')))).rejects.toThrow('boom');
+    await expect(withTokenRefreshLock('psn', 'u1', async () => 'again')).resolves.toBe('again');
   });
 });

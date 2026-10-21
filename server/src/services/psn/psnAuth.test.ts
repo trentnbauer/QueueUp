@@ -88,6 +88,14 @@ describe('refreshTokens', () => {
     await expect(refreshTokens('rt', impl, NOW)).rejects.toMatchObject({ needsRelink: true, message: expect.stringContaining('expired') });
   });
 
+  it('treats being rate limited as retryable, not a reason to unlink the account', async () => {
+    for (const status of [429, 408]) {
+      const { impl } = sequence(json({ error: 'slow_down' }, status));
+      const err = await refreshTokens('rt', impl, NOW).catch((e) => e);
+      expect(err.needsRelink).toBe(false);
+    }
+  });
+
   it('treats a Sony outage as retryable, not a relink', async () => {
     const { impl } = sequence(json({}, 503));
     const err = await refreshTokens('rt', impl, NOW).catch((e) => e);

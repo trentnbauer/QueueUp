@@ -20,7 +20,7 @@ vi.mock('../../db/client.js', () => ({
   prisma: { userPsnConnection: { findUnique: h.findUnique, upsert: h.upsert, update: h.update, delete: h.del, deleteMany: h.deleteMany } },
 }));
 vi.mock('../../config/env.js', () => ({ env: { SESSION_SECRET: 's'.repeat(32) } }));
-vi.mock('../librarySync.js', () => ({ startLibrarySync: h.startLibrarySync }));
+vi.mock('../librarySync.js', () => ({ startLibrarySync: h.startLibrarySync, withTokenRefreshLock: (_s: string, _u: string, fn: () => unknown) => fn() }));
 vi.mock('../notifications.js', () => ({ notifyLibrarySyncError: h.notifyLibrarySyncError }));
 vi.mock('./psnLibrary.js', () => ({ fetchPurchasedLibrary: h.fetchPurchasedLibrary }));
 vi.mock('./psnAuth.js', async () => {

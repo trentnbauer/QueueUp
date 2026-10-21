@@ -27,7 +27,7 @@ vi.mock('../../db/client.js', () => ({
 vi.mock('../redisClient.js', () => ({ redis: { set: h.redisSet, get: h.redisGet, del: h.redisDel } }));
 vi.mock('../../config/env.js', () => ({ env: { SESSION_SECRET: 's'.repeat(32), XBOX_CLIENT_ID: undefined } }));
 vi.mock('../configResolver.js', () => ({ getConfigValue: h.getConfigValue }));
-vi.mock('../librarySync.js', () => ({ startLibrarySync: h.startLibrarySync }));
+vi.mock('../librarySync.js', () => ({ startLibrarySync: h.startLibrarySync, withTokenRefreshLock: (_s: string, _u: string, fn: () => unknown) => fn() }));
 vi.mock('../notifications.js', () => ({ notifyLibrarySyncError: h.notifyLibrarySyncError }));
 vi.mock('./xboxLibrary.js', () => ({ fetchXboxLibrary: h.fetchXboxLibrary }));
 vi.mock('./xboxAuth.js', async () => {
