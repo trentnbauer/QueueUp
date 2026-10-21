@@ -11,8 +11,8 @@
 export const LOBBY_TICK_HZ = 15;
 
 /** The games the lobby can run. */
-export type LobbyGameId = 'runner' | 'flappy' | 'dodge' | 'rope' | 'coins' | 'battleships' | 'race' | 'whack' | 'draw' | 'tilt' | 'stacker' | 'sumo' | 'asteroids' | 'memory' | 'words' | 'snake' | 'gravity' | 'laser' | 'colormatch' | 'potato' | 'anagram' | 'mines' | 'stop' | 'pong' | 'wall' | 'frogger' | 'fishing' | 'orbit' | 'rps' | 'rhythm' | 'sortit' | 'tempo' | 'lava' | 'tunnel' | 'parachute';
-export const LOBBY_GAME_IDS: readonly LobbyGameId[] = ['runner', 'flappy', 'dodge', 'rope', 'coins', 'battleships', 'race', 'whack', 'draw', 'tilt', 'stacker', 'sumo', 'asteroids', 'memory', 'words', 'snake', 'gravity', 'laser', 'colormatch', 'potato', 'anagram', 'mines', 'stop', 'pong', 'wall', 'frogger', 'fishing', 'orbit', 'rps', 'rhythm', 'sortit', 'tempo', 'lava', 'tunnel', 'parachute'];
+export type LobbyGameId = 'runner' | 'flappy' | 'dodge' | 'rope' | 'coins' | 'battleships' | 'race' | 'whack' | 'draw' | 'tilt' | 'stacker' | 'sumo' | 'asteroids' | 'memory' | 'words' | 'snake' | 'gravity' | 'laser' | 'colormatch' | 'potato' | 'anagram' | 'mines' | 'stop' | 'pong' | 'wall' | 'frogger' | 'fishing' | 'orbit' | 'rps' | 'rhythm' | 'sortit' | 'tempo' | 'lava' | 'tunnel' | 'parachute' | 'oddoneout' | 'swing';
+export const LOBBY_GAME_IDS: readonly LobbyGameId[] = ['runner', 'flappy', 'dodge', 'rope', 'coins', 'battleships', 'race', 'whack', 'draw', 'tilt', 'stacker', 'sumo', 'asteroids', 'memory', 'words', 'snake', 'gravity', 'laser', 'colormatch', 'potato', 'anagram', 'mines', 'stop', 'pong', 'wall', 'frogger', 'fishing', 'orbit', 'rps', 'rhythm', 'sortit', 'tempo', 'lava', 'tunnel', 'parachute', 'oddoneout', 'swing'];
 
 /** What a client sends. Anything else is ignored. */
 export type LobbyClientMessage =
@@ -1878,7 +1878,100 @@ export interface ParachuteSnapshot extends RoundSummary {
   winnerId: string | null;
 }
 
-export type LobbyGameSnapshot = RunnerSnapshot | FlappySnapshot | DodgeSnapshot | RopeSnapshot | CoinsSnapshot | BattleshipsSnapshot | RaceSnapshot | WhackSnapshot | DrawSnapshot | TiltSnapshot | StackerSnapshot | SumoSnapshot | AsteroidsSnapshot | MemorySnapshot | WordsSnapshot | SnakeSnapshot | GravitySnapshot | LaserSnapshot | ColorMatchSnapshot | PotatoSnapshot | AnagramSnapshot | MinesSnapshot | StopSnapshot | PongSnapshot | WallSnapshot | FroggerSnapshot | FishingSnapshot | OrbitSnapshot | RpsSnapshot | RhythmSnapshot | SortitSnapshot | TempoSnapshot | LavaSnapshot | TunnelSnapshot | ParachuteSnapshot;
+// ---- Odd one out (a board of near-identical tiles, one a little different: tap it first) ----------------------------
+
+/** The tap targets are a 6 by 6 grid over the board (row by row, 0 to 35). The board is 2 by 2, 3 by 3 or 6 by 6 tiles, each of which divides the grid exactly, so a tap on a
+ * target says which tile was meant. */
+export const ODDONEOUT_HIT = 6;
+export const ODDONEOUT_TARGETS = ODDONEOUT_HIT * ODDONEOUT_HIT;
+
+/** The board on now: how many tiles across it is (`n` by `n`, row by row), the colour they share (a hue, 0 to 359), how much lighter (or, below 0, darker) the odd one is, and which tile it is.
+ * The odd tile is in the snapshot because it is what the screen draws: a modified client could read it, which is why this game's scores are the server's own (it works out every tap). */
+export interface OddOneOutBoard {
+  n: number;
+  hue: number;
+  delta: number;
+  odd: number;
+}
+
+export interface OddOneOutPlayer {
+  id: string;
+  /** Still in. False once their health ran out, or if they arrived mid-run. */
+  alive: boolean;
+  /** Runs won since this person joined the lobby. */
+  wins: number;
+  /** Right taps this run: live while in, final once out. */
+  meters: number;
+  /** The health bar: drains all the time, refilled by a right tap, dented by a wrong one; out at 0. */
+  hp: number;
+  /** Milliseconds left of being locked out after a wrong tap. */
+  lockMs: number;
+}
+
+export interface OddOneOutSnapshot extends RoundSummary {
+  id: 'oddoneout';
+  phase: LobbyRoundPhase;
+  /** The most right taps anyone has had. */
+  meters: number;
+  /** Always 0: nothing scrolls past in this game (every snapshot carries a course speed). */
+  speed: number;
+  board: OddOneOutBoard;
+  /** How many boards have been got right this run (so which board this is). */
+  round: number;
+  players: OddOneOutPlayer[];
+  /** Milliseconds left in `countdown` or `over`; 0 otherwise. */
+  timerMs: number;
+  /** Who won the run that just ended (`over` only); null when nobody did (a solo run, or a draw). */
+  winnerId: string | null;
+}
+
+// ---- Swing (swing from anchor to anchor, let go at the right moment, and keep ahead of the wall that chases you) ------------------
+
+/** How big a swinger is (a fraction of the screen), how far a grab reaches, and where the first anchor is along the course (x runs along it, in screens). */
+export const SWING_PLAYER_R = 0.022;
+export const SWING_REACH = 0.42;
+export const SWING_START_X = 0.7;
+
+/** A point to swing from: its number (counts up from 0, the one a run starts on), how far along the course it is and how far down the screen (0 is the top). */
+export interface SwingAnchor {
+  n: number;
+  x: number;
+  y: number;
+}
+
+export interface SwingPlayer {
+  id: string;
+  /** Where they are along the course and down the screen. */
+  x: number;
+  y: number;
+  /** The anchor they hang from (`SwingAnchor.n`), or -1 when they are in the air. */
+  a: number;
+  /** Still going. False once they fall off the bottom or the wall catches them, or if they arrived mid-run. */
+  alive: boolean;
+  /** Runs won since this person joined the lobby. */
+  wins: number;
+  /** How far along the course they got, in metres: live while going, final once out. */
+  meters: number;
+}
+
+export interface SwingSnapshot extends RoundSummary {
+  id: 'swing';
+  phase: LobbyRoundPhase;
+  meters: number;
+  /** How fast the chase wall is coming, in screens a second. */
+  speed: number;
+  /** How far along the course the wall has come. */
+  wall: number;
+  /** The anchors from just behind the wall to some way ahead of everyone. */
+  anchors: SwingAnchor[];
+  players: SwingPlayer[];
+  /** Milliseconds left in `countdown` or `over`; 0 otherwise. */
+  timerMs: number;
+  /** Who won the run that just ended (`over` only); null when nobody did (a solo run, or a draw). */
+  winnerId: string | null;
+}
+
+export type LobbyGameSnapshot = RunnerSnapshot | FlappySnapshot | DodgeSnapshot | RopeSnapshot | CoinsSnapshot | BattleshipsSnapshot | RaceSnapshot | WhackSnapshot | DrawSnapshot | TiltSnapshot | StackerSnapshot | SumoSnapshot | AsteroidsSnapshot | MemorySnapshot | WordsSnapshot | SnakeSnapshot | GravitySnapshot | LaserSnapshot | ColorMatchSnapshot | PotatoSnapshot | AnagramSnapshot | MinesSnapshot | StopSnapshot | PongSnapshot | WallSnapshot | FroggerSnapshot | FishingSnapshot | OrbitSnapshot | RpsSnapshot | RhythmSnapshot | SortitSnapshot | TempoSnapshot | LavaSnapshot | TunnelSnapshot | ParachuteSnapshot | OddOneOutSnapshot | SwingSnapshot;
 
 /** What a client needs to run its own player on a course the server decided: which run, the seed that
  * makes the course, and how long until the run starts (negative once it has, by how far in). */

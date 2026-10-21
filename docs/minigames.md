@@ -65,7 +65,7 @@ Guest play is off when `SIGNUP_MODE=invite` or `PRIVATE_INSTANCE=true`. The two 
 
 ## Ping and who works out what
 
-In **Runner, Flappy, Dodge, Jump rope, Obstacle race, Gravity flip, Laser gaps, Road hop, Fishing, Orbit, Rhythm lanes, Sort it, Steady tempo, Lava, Tunnel and Parachute**, your own player is worked out **on your own device**, so a slow connection does not make you jump late or get hit by something you cleared:
+In **Runner, Flappy, Dodge, Jump rope, Obstacle race, Gravity flip, Laser gaps, Road hop, Fishing, Orbit, Rhythm lanes, Sort it, Steady tempo, Lava, Tunnel, Parachute and Swing**, your own player is worked out **on your own device**, so a slow connection does not make you jump late or get hit by something you cleared:
 
 - **Your device** runs your player against the course the moment you press: your jump, your duck, your slide, your steering. Your hits are decided there too, and it tells the server where you are about 20 times a second, and straight away when you are out.
 - **The server** decides the shared things: the course's seed and exactly when a run starts (everyone's device lines its clock up with the server's, so everyone starts the same course at the same moment), who is still in, who won, the wins and the history. It shows everyone else's player from what their devices report.
@@ -333,6 +333,31 @@ A skydiver falls through rows of clouds and gusts of wind, with a chute to float
 - **Ping:** your own skydiver is worked out on your own device (see "Ping and who works out what"), so it answers the moment you press. The sky comes from the same seed and the server's clock.
 - **Controls:** **←** / **→** or **A** / **D** to slide, which also opens the chute.
 
+## Odd one out
+
+One board of near-identical tiles, one of them a little different. The first to tap it scores, and the board changes for everyone.
+
+- **Goal:** tap the odd tile before anyone else does. **Tap the tile** on the board (there is no keyboard control). The first right tap **scores a point** and gives everyone a new board.
+- **The board** is **2 by 2** for the first three boards, **3 by 3** for the next five, and **6 by 6** from then on. The tiles share a colour and the odd one is lighter or darker. It starts **0.22 lighter or darker** and gets harder on every board (0.22 over 1 + 0.09 times the boards played, so 0.12 after 10 and 0.06 after 30), without ever reaching nothing, so in the end nobody can see it. The colour, the place and whether it is lighter or darker come from the round's seed.
+- **Health bar:** everyone has one under their avatar. You start with **10** (of at most **20**) and it **drains all the time**: 0.5 a second at the start and 0.03 a second faster every second, so it always runs out in the end. A **right tap refills 3**. A **wrong tap costs 3** and **locks you out for 0.6 seconds** (until the next board). At 0 you are out. **Last one in wins**; alone it is a high score (right taps).
+- **Score** (the high score list): your right taps. There is no time limit of its own: it goes on until it is beaten. With a time cap (a waiting room), whoever is still in keeps their taps and nobody wins.
+- **How long a run lasts:** a test player who always finds the tile and taps one every 1.5 seconds lasts about 85 seconds and scores about 56; someone who never taps is out in about 15 seconds.
+- **Fair taps:** the server judges every tap, in the order it hears them, so the first to arrive wins a board. A game that works out each tap on the server cannot be sped up from a device, but the odd tile is in the data the screen draws, so a modified client could read it; scores are kept regardless.
+- **Controls:** tap the tile on the board.
+
+## Swing
+
+Swing from anchor to anchor, let go at the right moment, and keep ahead of the wall that chases you. Everyone swings the same course, side by side, and never touches.
+
+- **Goal:** get as far along the course as you can. You start hanging from the first anchor. **Hold left or right to pump the swing** (the way you would on a swing), and **press the button to let go**. In the air, **press it again to grab**: the nearest anchor that is above you, within reach (0.42 of a screen) and further on than any you have held (you cannot go back to one you let go of). Only the speed along the swing is kept when you grab, and the rope is as long as the distance you grab from. A faint circle round you in the air shows your reach. **Fall off the bottom of the screen, or be caught by the wall, and you are out.** **Last one going wins**; alone it is a high score (metres: 20 to a screen of course).
+- **The anchors** come from the round's seed, so they are the same for everyone: each is 0.28 to 0.38 of a screen on from the last, **0.012 further for every one so far**, and between 0.06 and 0.18 down the screen. So they get further and further apart: at first you can hand over from one to the next, later you have to throw.
+- **The wall** comes from behind at 0.14 of a screen a second and gets 0.012 faster every second, with no top speed, so it always catches up in the end, even on someone who only swings in place (in under 15 seconds). It starts 1.1 behind the first anchor, which is 0.4 off the left edge of the course.
+- **Physics:** gravity is 2.2 screens a second squared; pumping turns the swing at 2.5 radians a second squared, up to 3 radians a second and 80 degrees either way. In the air you fly where the swing threw you.
+- **How long a run lasts:** a test swinger that hands over from anchor to anchor as soon as the next one is in reach (and throws when a throw would reach it) lasts about 80 seconds and gets about 1,000 metres, until the wall has caught up; one a third of a second slow to press lasts less.
+- There is no time limit of its own: it goes on until it is beaten. With a time cap (a waiting room), whoever is still in keeps their metres and nobody wins.
+- **Ping:** your own swinger is worked out on your own device (see "Ping and who works out what"), so it answers the moment you press. The anchors come from the same seed and the server's clock.
+- **Controls:** **←** / **→** or **A** / **D** to pump; **Space**, **↑** or **W** to let go and to grab.
+
 ## Rating a game
 
 When a run ends and its result card is showing, a **thumbs up / thumbs down** appears in the result card (in a room's lobby, a spin's waiting room, an open lobby and solo practice alike).
@@ -399,6 +424,8 @@ A game can instead make **the play space the controller**: there are no buttons 
 | Lava | **←** / **→** or **A** / **D**. | The **◀** and **▶** buttons. |
 | Tunnel | **←** / **→** or **A** / **D**. | The **◀** and **▶** buttons. |
 | Parachute | **←** / **→** or **A** / **D** (holding one opens the chute; none is free fall). | The **◀** and **▶** buttons. |
+| Odd one out | Tap the tile. | Tap the tile. |
+| Swing | **←** / **→** or **A** / **D** to pump the swing, **Space**, **↑** or **W** to let go and grab. | The **◀** and **▶** buttons, and **Grab** (or tap anywhere on the arena). |
 | Orbit | **Space**, **↑**, **←** / **→** or **W** / **A** / **D** to flip direction. | **Flip**, or tap anywhere on the arena. |
 
 ## Runner

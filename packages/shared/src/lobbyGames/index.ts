@@ -30,6 +30,8 @@ import { TempoGame } from './tempo.js';
 import { LavaGame } from './lava.js';
 import { TunnelGame } from './tunnel.js';
 import { ParachuteGame } from './parachute.js';
+import { OddOneOutGame } from './oddoneout.js';
+import { SwingGame } from './swing.js';
 import { TiltGame } from './tilt.js';
 import { StackerGame } from './stacker.js';
 import { SumoGame } from './sumo.js';
@@ -40,7 +42,7 @@ import type { LobbyGame } from './types.js';
 
 export type { BotBrain, BotCommand, LobbyGame } from './types.js';
 export { LobbyRecord, secureRandom } from './roundGame.js';
-export { BattleshipsGame, CoinsGame, DodgeGame, FlappyGame, RaceGame, RopeGame, RunnerGame, WhackGame, DrawGame, TiltGame, StackerGame, SumoGame, AsteroidsGame, MemoryGame, WordsGame, SnakeGame, GravityGame, LaserGame, ColorMatchGame, PotatoGame, AnagramGame, MinesGame, StopGame, PongGame, WallGame, FroggerGame, FishingGame, OrbitGame, RpsGame, RhythmGame, SortitGame, TempoGame, LavaGame, TunnelGame, ParachuteGame };
+export { BattleshipsGame, CoinsGame, DodgeGame, FlappyGame, RaceGame, RopeGame, RunnerGame, WhackGame, DrawGame, TiltGame, StackerGame, SumoGame, AsteroidsGame, MemoryGame, WordsGame, SnakeGame, GravityGame, LaserGame, ColorMatchGame, PotatoGame, AnagramGame, MinesGame, StopGame, PongGame, WallGame, FroggerGame, FishingGame, OrbitGame, RpsGame, RhythmGame, SortitGame, TempoGame, LavaGame, TunnelGame, ParachuteGame, OddOneOutGame, SwingGame };
 export { tunnelAt } from './tunnel.js';
 export { BotFiller, botColor, botNumber, isBotId, withBots } from './bots.js';
 
@@ -122,6 +124,10 @@ function build(id: LobbyGameId, record?: LobbyRecord): LobbyGame {
       return new TunnelGame(undefined, record);
     case 'parachute':
       return new ParachuteGame(undefined, record);
+    case 'oddoneout':
+      return new OddOneOutGame(undefined, record);
+    case 'swing':
+      return new SwingGame(undefined, record);
   }
 }
 

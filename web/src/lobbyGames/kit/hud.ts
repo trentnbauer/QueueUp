@@ -36,6 +36,7 @@ const SCORE_WORDS: Partial<Record<string, ScoreWords>> = {
   potato: { pill: 'spin.lobby.hud.rounds.pill', winnerOne: 'spin.lobby.hud.rounds.winnerOne', winnerOther: 'spin.lobby.hud.rounds.winnerOther', over: 'spin.lobby.hud.rounds.over' },
   anagram: { pill: 'spin.lobby.hud.points.pill', winnerOne: 'spin.lobby.hud.points.winnerOne', winnerOther: 'spin.lobby.hud.points.winnerOther', over: 'spin.lobby.hud.points.over' },
   mines: { pill: 'spin.lobby.hud.points.pill', winnerOne: 'spin.lobby.hud.points.winnerOne', winnerOther: 'spin.lobby.hud.points.winnerOther', over: 'spin.lobby.hud.points.over' },
+  oddoneout: { pill: 'spin.lobby.hud.points.pill', winnerOne: 'spin.lobby.hud.points.winnerOne', winnerOther: 'spin.lobby.hud.points.winnerOther', over: 'spin.lobby.hud.points.over' },
   stop: { pill: 'spin.lobby.hud.rounds.pill', winnerOne: 'spin.lobby.hud.rounds.winnerOne', winnerOther: 'spin.lobby.hud.rounds.winnerOther', over: 'spin.lobby.hud.rounds.over' },
   pong: { pill: 'spin.lobby.hud.points.pill', winnerOne: 'spin.lobby.hud.points.winnerOne', winnerOther: 'spin.lobby.hud.points.winnerOther', over: 'spin.lobby.hud.points.over' },
   fishing: { pill: 'spin.lobby.hud.points.pill', winnerOne: 'spin.lobby.hud.points.winnerOne', winnerOther: 'spin.lobby.hud.points.winnerOther', over: 'spin.lobby.hud.points.over' },
