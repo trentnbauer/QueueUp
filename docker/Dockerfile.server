@@ -16,7 +16,11 @@ COPY tsconfig.base.json ./
 COPY packages/shared packages/shared
 COPY server server
 COPY web web
-RUN cd server && npx prisma generate
+# The generated client lands next to wherever npm put @prisma/client (the root or server/node_modules,
+# depending on how a given lockfile hoists it), so stage it at a fixed path for prod-deps below.
+RUN cd server && npx prisma generate \
+  && mkdir -p /prisma-gen \
+  && cp -r "$(node -p "require('path').resolve(require.resolve('@prisma/client/package.json'), '../../../.prisma')")" /prisma-gen/.prisma
 RUN npm run build -w packages/shared \
   && npm run build -w server \
   && npm run build -w web
@@ -46,7 +50,9 @@ RUN npm ci --omit=dev --ignore-scripts --workspace=server --workspace=packages/s
 # runtime stage's COPY of them below always has a valid source regardless of whether npm actually
 # needed to nest anything this particular time.
 RUN mkdir -p server/node_modules packages/shared/node_modules
-COPY --from=build /repo/server/node_modules/.prisma /repo/server/node_modules/.prisma
+# Put the generated client next to the prod @prisma/client, wherever that landed.
+COPY --from=build /prisma-gen/.prisma /prisma-gen/.prisma
+RUN cd server && cp -r /prisma-gen/.prisma "$(node -p "require('path').resolve(require.resolve('@prisma/client/package.json'), '../../../.prisma')")"
 
 FROM base AS runtime
 ENV NODE_ENV=production
@@ -78,7 +84,9 @@ COPY docker/server-entrypoint.sh /usr/local/bin/server-entrypoint.sh
 # Only the Prisma CLI's own directories are writable by `node` (`prisma db push` at boot downloads/
 # checks engine files in there); the rest of the app and its dependencies stay root-owned.
 RUN chmod +x /usr/local/bin/server-entrypoint.sh \
-  && chown -R node:node /repo/node_modules/@prisma /repo/server/node_modules/@prisma /repo/server/node_modules/prisma /repo/server/node_modules/.prisma
+  && for d in /repo/node_modules/@prisma /repo/node_modules/.prisma /repo/node_modules/prisma /repo/server/node_modules/@prisma /repo/server/node_modules/prisma /repo/server/node_modules/.prisma; do \
+       if [ -e "$d" ]; then chown -R node:node "$d"; fi; \
+     done
 
 WORKDIR /repo/server
 EXPOSE 3000
