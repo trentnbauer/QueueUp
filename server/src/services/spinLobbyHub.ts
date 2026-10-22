@@ -223,10 +223,10 @@ export class SpinLobbyHub {
       if (room.lastInput.get(userId) !== dir) this.touch(room, userId, now);
       room.lastInput.set(userId, dir);
     } else if (m.t === 'action') {
-      room.lobby.action(userId, m.name, m.run, m.at);
+      room.lobby.action(userId, m.name, m.run, m.at, m.behind);
       this.touch(room, userId, now);
     } else if (m.t === 'tap') {
-      room.lobby.tap(userId, m.target, m.ms, m.run, m.at);
+      room.lobby.tap(userId, m.target, m.ms, m.run, m.at, m.behind);
       this.touch(room, userId, now);
     } else if (m.t === 'timeLimit' && typeof m.on === 'boolean') {
       // Everyone in the lobby shares one setting. A practice lobby has none, and a waiting spin always caps runs.

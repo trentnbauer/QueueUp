@@ -102,6 +102,8 @@ export abstract class RoundGame<P extends RoundPlayer> implements LobbyGame {
    * start. Return true if the lobby has moved everyone to another game (this one is then finished),
    * false to carry on with another run of this game. */
   onRunOver: (() => boolean) | undefined;
+  /** How far behind the server the picture was that the person acted on, in ms, during a call to `action` or `tap` (0 otherwise; see LobbyGame). */
+  pressBehindMs = 0;
   /** A cap on how long a run can last, in seconds, set by the lobby (null for none beyond the game's own). */
   timeLimitS: number | null = null;
 

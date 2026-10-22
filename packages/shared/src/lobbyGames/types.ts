@@ -41,6 +41,8 @@ export interface LobbyGame {
   /** Set by whatever records high scores: called once when a run ends, with each real player's score
    * (bots and people who only watched are left out). */
   onRunScores?: (scores: LobbyRunScore[]) => void;
+  /** Set by the lobby around a call to `action` or `tap`: how far behind the server the picture the person acted on was, in ms (see `LOBBY_BEHIND_MAX_MS`), 0 otherwise. */
+  pressBehindMs?: number;
   /** The direction the person is holding, each -1, 0 or 1. */
   input(userId: string, dx: number, dy: number): void;
   /** A one-off move by name, such as `punch`. Unknown names are ignored. */

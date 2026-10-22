@@ -139,4 +139,22 @@ describe('StopGame', () => {
     };
     expect(zones(5)).toEqual(zones(5));
   });
+
+  it('judges a stop on the marker the player saw, not where it had got to when the tap arrived', () => {
+    const at = (behind: number) => {
+      const g = started(['a', 'b'], 11);
+      toSweep(g);
+      run(g, 330);
+      const sweep = g.snapshot();
+      g.pressBehindMs = behind;
+      g.action('a', 'stop');
+      g.pressBehindMs = 0;
+      return { stopped: me(g, 'a').at, now: sweep.marker };
+    };
+    const fresh = at(0);
+    const late = at(300);
+    // With no lag the stop is where the marker is; told it was looking at the picture of 300 ms ago, it is where the marker was then.
+    expect(fresh.stopped).toBeCloseTo(fresh.now, 1);
+    expect(Math.abs(late.stopped - late.now)).toBeGreaterThan(0.05);
+  });
 });
