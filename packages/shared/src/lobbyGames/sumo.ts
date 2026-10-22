@@ -1,4 +1,4 @@
-import { clampDirection, type SumoSnapshot } from '../spinLobby.js';
+import { SUMO_DRAG as DRAG, SUMO_WALK_ACCEL as WALK_ACCEL, SUMO_WALK_MAX as WALK_MAX, clampDirection, type SumoSnapshot } from '../spinLobby.js';
 import { RoundGame, type RoundPlayer } from './roundGame.js';
 import type { BotBrain } from './types.js';
 
@@ -9,10 +9,6 @@ const START_R = 0.9;
 const SHRINK_PER_END = 0.02; // each end moves in this far every second
 const MIN_WIDTH = 0.24;
 /** A run that is still going at this time ends with no winner. */
-const WALK_ACCEL = 1.6;
-const WALK_MAX = 0.28;
-/** Friction on speed along the platform, per second. Walking stops quickly; a shove's knock-back slides. */
-const DRAG = 3.2;
 /** A shove hits anyone this close in front (and not behind), knocking them away, and lunges the shover. */
 const SHOVE_RANGE = 0.09;
 const KNOCK = 0.95;

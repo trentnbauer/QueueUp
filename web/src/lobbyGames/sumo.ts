@@ -1,4 +1,4 @@
-import type { SumoSnapshot } from '@queueup/shared';
+import { SUMO_DRAG, SUMO_WALK_ACCEL, SUMO_WALK_MAX, type SumoSnapshot } from '@queueup/shared';
 import type { LobbyGameView } from './index';
 import { STAGE, groundShadow, renderScene, roundRect, type Scene, type SceneGame } from './kit';
 
@@ -17,6 +17,10 @@ const START_R = 0.9;
 /** A fallen wrestler drops off the platform for this long, then bursts at the bottom of the arena. */
 const FALL_S = 0.7;
 const FALL_BOTTOM = 0.97;
+/** Where your own wrestler is drawn, kept between frames: it walks the moment you press (the server only hears about it a moment later), by the same rules
+ * as the server's, and is pulled back toward where the server says it is, so the two never drift far apart. */
+const walking = new WeakMap<object, { x: number; v: number; at: number }>();
+
 /** Where each wrestler who has fallen was when they went, and when (`performance.now()`), by run and id. */
 const falls = new Map<string, { x: number; at: number }>();
 
@@ -67,7 +71,19 @@ function drawWorld(sc: Scene<SumoSnapshot>): void {
       }
       continue;
     }
-    const cx = sc.ease(p.id, p.x, 0).x * S;
+    let x = sc.ease(p.id, p.x, 0).x;
+    if (p.id === sc.me && snapshot.phase === 'playing') {
+      const last = walking.get(sc.fx) ?? { x, v: 0, at: sc.now };
+      const dt = Math.min(0.1, Math.max(0, (sc.now - last.at) / 1000));
+      let v = last.v;
+      if (sc.held.dx !== 0 && Math.abs(v) < SUMO_WALK_MAX) v += sc.held.dx * SUMO_WALK_ACCEL * dt;
+      v *= Math.exp(-SUMO_DRAG * dt);
+      let mine = last.x + v * dt;
+      mine += (p.x - mine) * Math.min(1, dt * 6);
+      walking.set(sc.fx, { x: mine, v, at: sc.now });
+      x = mine;
+    }
+    const cx = x * S;
     const ry = RY * S;
     const cy = top - ry;
     groundShadow(ctx, cx, top, RX * S);

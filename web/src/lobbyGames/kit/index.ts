@@ -5,5 +5,6 @@ export { renderScene, drawFloor, courseOffset, type Scene, type SceneGame } from
 export { avatar, coverTile, drawLives, groundShadow, hueOf, outlinedText, roundRect, type AvatarSpec } from './draw';
 export { LobbyFx } from './fx';
 export { rememberSnapshot } from './events';
+export { predictOwn } from './predict';
 export { RESULT_RATING_STRIP, resultCardRect } from './hud';
 export { FONT, STAGE, stageTheme, type StageTheme } from './theme';

@@ -701,6 +701,14 @@ export const ASTEROIDS_TURRET_Y = 0.93;
 export const ASTEROIDS_TURRET_R = 0.03;
 /** The furthest a gun swings from straight up, in radians. */
 export const ASTEROIDS_MAX_ANGLE = 1.2;
+/** How fast a turret swings while a direction is held, in radians a second (the server's step, and the viewer's own barrel on screen). */
+export const ASTEROIDS_TURN_SPEED = 1.6;
+
+// ---- Sumo's walking, shared so the viewer's own wrestler can answer a press at once ----
+/** Walking pushes toward a top speed (screens a second, a second); friction slows anything faster, such as a knock-back. */
+export const SUMO_WALK_ACCEL = 1.6;
+export const SUMO_WALK_MAX = 0.28;
+export const SUMO_DRAG = 3.2;
 
 export interface Asteroid {
   x: number;
