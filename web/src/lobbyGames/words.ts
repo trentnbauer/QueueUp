@@ -60,6 +60,23 @@ function cellColour(sc: Scene<WordsSnapshot>, state: number): string {
   return state === WORD_CORRECT ? sc.theme.mint : state === WORD_PRESENT ? sc.theme.star : ABSENT;
 }
 
+/** Colour is not the only sign of how a letter scored: a right place has a filled dot in the corner of its cell, the wrong place a ring, and a letter not in the word
+ * nothing. (Small boards of other players are too small for it; they keep the colours.) */
+function drawMark(sc: Scene<WordsSnapshot>, state: number, x: number, y: number, size: number): void {
+  if (state !== WORD_CORRECT && state !== WORD_PRESENT) return;
+  const { ctx } = sc;
+  const r = size * 0.09;
+  ctx.save();
+  ctx.strokeStyle = 'oklch(0.16 0.01 60)';
+  ctx.fillStyle = 'oklch(0.16 0.01 60)';
+  ctx.lineWidth = Math.max(1.5, size * 0.04);
+  ctx.beginPath();
+  ctx.arc(x + size - r * 2, y + r * 2, r, 0, Math.PI * 2);
+  if (state === WORD_CORRECT) ctx.fill();
+  else ctx.stroke();
+  ctx.restore();
+}
+
 function drawWorld(sc: Scene<WordsSnapshot>): void {
   const { ctx, S, snapshot, theme } = sc;
 
@@ -103,6 +120,7 @@ function drawWorld(sc: Scene<WordsSnapshot>): void {
       if (guess) {
         ctx.fillStyle = cellColour(sc, rows[r]?.[c] ?? WORD_ABSENT);
         ctx.fill();
+        drawMark(sc, rows[r]?.[c] ?? WORD_ABSENT, x, y, cell);
       } else {
         ctx.fillStyle = 'oklch(1 0 0 / 0.05)';
         ctx.fill();
@@ -161,6 +179,7 @@ function drawWorld(sc: Scene<WordsSnapshot>): void {
     ctx.fillStyle = state === WORD_CORRECT || state === WORD_PRESENT ? 'oklch(0.16 0.01 60)' : theme.text;
     const label = i < 26 ? String.fromCharCode(65 + i) : i === WORDS_ENTER ? '↵' : '⌫';
     ctx.fillText(label, (r.x + r.w / 2) * S, (r.y + r.h / 2) * S);
+    if (state === WORD_CORRECT || state === WORD_PRESENT) drawMark(sc, state, r.x * S, r.y * S, Math.min(r.w, r.h) * S * 0.9);
   });
 }
 
