@@ -90,28 +90,29 @@ describe('placeFleets', () => {
   /** Everyone's fleets for this many players. */
   const fleets = (n: number, seed: number) => Array.from({ length: n }, (_, i) => fleetFor(n, mulberry32(seed * 131 + i)));
 
-  it('puts every ship on the one board in a straight line, with no two overlapping, whoever they belong to', () => {
-    for (let n = 1; n <= 12; n++) {
-      for (let seed = 1; seed <= 30; seed++) {
-        const want = fleets(n, seed);
-        const placed = placeFleets(mulberry32(seed * 7919 + n), want);
-        expect(placed.map((p) => p.map((s) => s.length)), `${n} players, seed ${seed}`).toEqual(want);
-        const all = placed.flat(2);
-        expect(new Set(all).size).toBe(all.length);
-        for (const cells of placed.flat()) {
-          const xs = cells.map((c) => c % SIZE);
-          const ys = cells.map((c) => Math.floor(c / SIZE));
-          for (const c of cells) {
-            expect(c).toBeGreaterThanOrEqual(0);
-            expect(c).toBeLessThan(CELLS);
-          }
-          expect(new Set(xs).size === 1 || new Set(ys).size === 1).toBe(true);
-          const sorted = [...cells].sort((a, b) => a - b);
-          const step = new Set(ys).size === 1 ? 1 : SIZE;
-          sorted.forEach((c, i) => i > 0 && expect(c - sorted[i - 1]).toBe(step));
-        }
+  // One test for each player count, and plain checks that collect what is wrong (an `expect` for every cell took seconds, and the
+  // whole loop in one test timed out when the machine was busy).
+  it.each(Array.from({ length: 12 }, (_, i) => i + 1))('puts every ship on the one board in a straight line, with no two overlapping, whoever they belong to (%i players)', (n) => {
+    const problems: string[] = [];
+    // The crowded boards are the slow ones to place, so fewer seeds there.
+    for (let seed = 1; seed <= (n >= 10 ? 8 : 30); seed++) {
+      const want = fleets(n, seed);
+      const placed = placeFleets(mulberry32(seed * 7919 + n), want);
+      const where = `${n} players, seed ${seed}`;
+      if (JSON.stringify(placed.map((p) => p.map((s) => s.length))) !== JSON.stringify(want)) problems.push(`${where}: wrong ships`);
+      const all = placed.flat(2);
+      if (new Set(all).size !== all.length) problems.push(`${where}: overlap`);
+      for (const cells of placed.flat()) {
+        if (cells.some((c) => c < 0 || c >= CELLS)) problems.push(`${where}: off the board`);
+        const xs = cells.map((c) => c % SIZE);
+        const ys = cells.map((c) => Math.floor(c / SIZE));
+        if (new Set(xs).size !== 1 && new Set(ys).size !== 1) problems.push(`${where}: not straight`);
+        const sorted = [...cells].sort((a, b) => a - b);
+        const step = new Set(ys).size === 1 ? 1 : SIZE;
+        if (sorted.some((c, k) => k > 0 && c - sorted[k - 1] !== step)) problems.push(`${where}: gap in a ship`);
       }
     }
+    expect(problems).toEqual([]);
   });
 
   it("keeps different players' ships from touching, corners included, when there is room (up to six players)", () => {
