@@ -37,7 +37,7 @@ import { Dialog, CloseButton } from '../ui/Dialog';
 import { coverBg } from '../ui/primitives';
 import { useIsMobile } from '../ui/useLayout';
 import { st } from '../ui/st';
-import { celebratePick } from '../ui/PickCelebration';
+import { celebratePick, prefersReducedMotion } from '../ui/PickCelebration';
 import { ConfettiBurst, KICK_ANIMATION, setSpinEffects, spinEffectsOn, useSpinHype } from '../ui/spinHype';
 import { MODE_EXPLAINER, ModeStage } from './spinModes';
 import { LobbyPanel } from './LobbyPanel';
@@ -69,6 +69,9 @@ function sessionRun(spin: RoomSpinSession): Run {
     settledPosition: spin.settledPosition,
   };
 }
+
+/** How long before a reel settles its marker starts to glow and the reel to nudge as each card ticks past. */
+const BUILD_UP_MS = 1500;
 
 function useLiveNow(settlesAtMs: number): number {
   const [now, setNow] = useState(() => Date.now());
@@ -148,7 +151,7 @@ const PILL = 'height:32px;padding:0 12px;border-radius:999px;border:none;font:60
 
 /** The horizontal reel: tiles laid out around the live `position` (strip slots), wrapping round the
  * circular strip, with the gold marker fixed in the middle. */
-function Reel({ strip, position, tw, th, settled, idle }: { strip: Game[]; position: number; tw: number; th: number; settled: boolean; idle: boolean }) {
+function Reel({ strip, position, tw, th, settled, idle, buildUp }: { strip: Game[]; position: number; tw: number; th: number; settled: boolean; idle: boolean; buildUp: number }) {
   const t = useT();
   const gap = 8;
   const n = strip.length;
@@ -164,7 +167,8 @@ function Reel({ strip, position, tw, th, settled, idle }: { strip: Game[]; posit
   }
   return (
     <div style={st(`position:relative;width:100%;height:${reelH}px;overflow:hidden;border-radius:20px;background:var(--bg)`)}>
-      <div style={{ position: 'absolute', top: 12, left: '50%', width: 0 }}>
+      {/* The last moments before it settles: each card that ticks past nudges the reel, harder as it slows, so the stop feels like it is coming. */}
+      <div style={{ position: 'absolute', top: 12, left: '50%', width: 0, transform: buildUp > 0 ? `translateX(${(center % 2 === 0 ? 1 : -1) * 2.5 * buildUp}px)` : undefined }}>
         {!idle &&
           tiles.map((t) => (
             <div
@@ -203,7 +207,8 @@ function Reel({ strip, position, tw, th, settled, idle }: { strip: Game[]; posit
           width: tw + 10,
           borderRadius: 16,
           border: `2.5px solid ${ACC}`,
-          boxShadow: `0 0 0 1000px oklch(0 0 0 / 0.35), 0 0 24px ${settled ? "var(--accA70)" : "var(--accA45)"}`,
+          // The marker glows brighter and wider as the reel comes to a stop, then holds bright once it has.
+          boxShadow: `0 0 0 1000px oklch(0 0 0 / 0.35), 0 0 ${24 + 36 * buildUp}px ${settled || buildUp > 0.5 ? "var(--accA70)" : "var(--accA45)"}`,
           pointerEvents: 'none',
           zIndex: 2,
         }}
@@ -309,6 +314,8 @@ export function SpinDialog({ onClose }: { onClose: () => void }) {
   // The extra effects when the result lands (a jolt and confetti); off for this person if they turned them off.
   const [effects, setEffects] = useState(spinEffectsOn);
   const hype = useSpinHype(settled, effects);
+  // How close the reel is to its stop, 0 to 1 over the last 1.5 seconds (0 with the effects off or reduced motion), for the build-up on the marker.
+  const buildUp = effects && !isMode && run && !settled && !prefersReducedMotion() ? Math.min(1, Math.max(0, 1 - (run.settlesAtMs - now) / BUILD_UP_MS)) : 0;
   const poolById = useMemo(() => new Map((session ? session.strip : games).map((g) => [g.id, g])), [session, games]);
   // A shelf round has just you in it.
   const modeMembers = useMemo<RoomMember[]>(
@@ -676,7 +683,7 @@ export function SpinDialog({ onClose }: { onClose: () => void }) {
               style={{ cursor: nudgeable ? 'pointer' : 'default' }}
               title={nudgeable ? t('spin.reel.title') : undefined}
             >
-              <Reel strip={run?.strip ?? []} position={position} tw={tw} th={th} settled={settled} idle={idle} />
+              <Reel strip={run?.strip ?? []} position={position} tw={tw} th={th} settled={settled} idle={idle} buildUp={buildUp} />
             </div>
           )}
 
@@ -696,6 +703,10 @@ export function SpinDialog({ onClose }: { onClose: () => void }) {
             {reelSpinning && <span style={st('font:500 14px var(--font-ui);color:var(--muted)')}>{session ? t('spin.reel.rolling') : t('spin.reel.rollingNudge')}</span>}
             {settled && winner && (
               <div key={winner.id} style={st('display:flex;flex-direction:column;align-items:center;gap:4px;animation:qu-pop .5s cubic-bezier(.2,1.5,.4,1) both')}>
+                {/* The winning cover drops out of the reel into the result. */}
+                {effects && !isMode && !prefersReducedMotion() && (
+                  <span style={st(`width:46px;height:61px;border-radius:8px;margin-bottom:4px;background:${coverBg(winner.title, winner.coverImageUrl)};box-shadow:0 6px 18px oklch(0 0 0 / 0.4);animation:qu-drop .7s cubic-bezier(.2,.9,.3,1.2) both`)} />
+                )}
                 <span style={st('font:500 12px var(--font-mono);color:var(--accText)')}>{play ? modeKicker(play, modeMembers, me) : t('spin.kicker.tonightsPick')}</span>
                 <span style={st('font:700 28px/1.05 var(--font-display);letter-spacing:-0.02em')}>{winner.title}</span>
                 <span style={st('font:400 13.5px var(--font-ui);color:var(--muted)')}>
