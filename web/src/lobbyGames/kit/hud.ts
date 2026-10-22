@@ -3,6 +3,7 @@ import type { MessageKey } from '../../i18n';
 import { FONT, STAGE } from './theme';
 import { roundRect } from './draw';
 import type { Scene } from './scene';
+import { drawControls } from './controls';
 
 /** How long the server shows a run's result (packages/shared/src/lobbyGames/roundGame.ts), so the
  * result card can animate in from its start. */
@@ -114,6 +115,8 @@ function drawCountdown(sc: Scene): void {
   ctx.fillStyle = theme.text;
   ctx.fillText(String(n), 0, 0);
   ctx.restore();
+  // How it is played, as a picture above the count, and the line of words under it.
+  drawControls(sc, S * 0.215, S * 0.085);
   drawHint(sc);
 }
 
