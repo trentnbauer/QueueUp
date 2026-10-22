@@ -110,7 +110,8 @@ export class ColorMatchGame extends RoundGame<Matcher> {
     if (!Number.isInteger(target) || target < 0 || target >= COLOR_MATCH_PANELS) return;
     p.answered = true;
     p.right = target === this.prompt[this.prompt.mode];
-    if (p.right) p.score += this.elapsed <= this.allowed * QUICK_SHARE ? 2 : 1;
+    // Quick is judged on how long they had the prompt in front of them: the time it took to reach them (see `pressBehindMs`) does not count against them.
+    if (p.right) p.score += Math.max(0, this.elapsed - this.pressBehindMs / 1000) <= this.allowed * QUICK_SHARE ? 2 : 1;
     else if (this.endless) this.loseLife(p);
     else p.score = Math.max(0, p.score - WRONG_COST);
   }

@@ -276,4 +276,23 @@ describe('StackerGame', () => {
     };
     expect(towerOf(0.4)).toEqual(towerOf(0.4));
   });
+
+  it('judges a press on the light the player saw, so a slow connection can still hit a target the light has since left', () => {
+    const attempt = (behind: number) => {
+      const g = started(['a', 'b']);
+      expect(toTarget(g)).toBe(true);
+      // Let the light run on past the target, to where a press would miss, then press as if it had been made 150 ms earlier.
+      for (let i = 0; i < 200; i++) {
+        const { target, light } = g.snapshot();
+        if (target && light > target.start + target.w + 0.5) break;
+        g.tick(STEP);
+      }
+      g.pressBehindMs = behind;
+      g.action('a', 'stop');
+      g.pressBehindMs = 0;
+      return me(g, 'a').alive;
+    };
+    expect(attempt(0)).toBe(false);
+    expect(attempt(400)).toBe(true);
+  });
 });

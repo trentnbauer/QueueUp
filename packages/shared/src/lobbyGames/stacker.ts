@@ -118,9 +118,18 @@ export class StackerGame extends RoundGame<Stacker> {
 
   /** Where the light is along the row, 0 to STACKER_COLS. */
   private get light(): number {
+    return this.lightAt(this.travelled);
+  }
+
+  private lightAt(travelled: number): number {
     const period = STACKER_COLS * 2;
-    const t = this.travelled % period;
+    const t = travelled % period;
     return t <= STACKER_COLS ? t : period - t;
+  }
+
+  /** Where the light was `ms` ago on this row: what a player with a slow connection was looking at when they pressed. */
+  private lightAgo(ms: number): number {
+    return this.lightAt(Math.max(0, this.travelled - lightSpeed(this.locked.length) * (ms / 1000)));
   }
 
   input(): void {
@@ -133,7 +142,7 @@ export class StackerGame extends RoundGame<Stacker> {
     if (this.phase !== 'playing' || !p || !p.alive || !p.inRun || !this.target) return;
     this.quiet = 0;
     if (this.grace > 0) return;
-    const light = this.light;
+    const light = this.lightAgo(this.pressBehindMs);
     const { start, w } = this.target;
     const tolerance = pressTolerance(this.locked.length);
     if (light >= start - tolerance && light <= start + w + tolerance) {

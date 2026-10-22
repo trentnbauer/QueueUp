@@ -30,6 +30,11 @@ export class ClockSync {
     this.offset = this.samples.reduce((best, s) => (s.rtt < best.rtt ? s : best)).offset;
   }
 
+  /** The round trip to the server, in ms, as of the quickest answer so far (0 until one has come back). */
+  get rtt(): number {
+    return this.samples.length > 0 ? this.samples.reduce((best, s) => (s.rtt < best.rtt ? s : best)).rtt : 0;
+  }
+
   /** The server's clock now, given this device's `performance.now()`. */
   serverNow(perfNow: number): number {
     return perfNow + this.offset;
