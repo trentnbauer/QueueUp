@@ -47,6 +47,17 @@ function drawWorld(sc: Scene<LavaSnapshot>): void {
     const feet = (p.y + (snapshot.speed - p.vy) * age) * S;
     // The screen wraps: near an edge the ball is drawn again on the other side.
     for (const x of [p.x * S, p.x * S - S, p.x * S + S]) if (x > -r && x < S + r) sc.drawPlayer(p.id, x, feet - r, r, r);
+    // Out of the top of the screen after a high bounce: a small marker shows where, until the ball comes back down.
+    if (feet - 2 * r < 0) {
+      const size = Math.max(S * 0.012, S * 0.03 - (2 * r - feet) * 0.05);
+      ctx.fillStyle = sc.info(p.id).color;
+      ctx.beginPath();
+      ctx.moveTo(p.x * S, S * 0.005);
+      ctx.lineTo(p.x * S - size, S * 0.005 + size * 1.5);
+      ctx.lineTo(p.x * S + size, S * 0.005 + size * 1.5);
+      ctx.closePath();
+      ctx.fill();
+    }
   }
 }
 

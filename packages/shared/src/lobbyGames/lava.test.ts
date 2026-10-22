@@ -77,6 +77,28 @@ describe('LavaGame', () => {
     expect(top).toBeLessThan(0.75);
   });
 
+  it('holds the screen still for the first second, so there is time to get under the next platform', () => {
+    const g = started(['a']);
+    expect(snap(g).speed).toBe(0);
+    const platformY = snap(g).platforms[1].y;
+    run(g, 600);
+    expect(snap(g).platforms[1].y).toBeCloseTo(platformY, 2);
+    expect(snap(g).speed).toBe(0);
+    run(g, 900);
+    expect(snap(g).speed).toBeGreaterThan(0.1);
+  });
+
+  it('has no ceiling: a ball carried above the top of the screen is not held back, and comes back down', () => {
+    const g = started(['a']);
+    g.report('a', 1, true, { x: 0.5, h: 1.2, vy: 1.1, dir: 0 });
+    expect(me(g, 'a').y).toBeLessThan(0);
+    g.tick(STEP);
+    const up = me(g, 'a');
+    expect(up.y).toBeLessThan(0);
+    expect(up.vy).toBeGreaterThan(0.9); // still rising: the roof did not stop it
+    expect(up.alive).toBe(true);
+  });
+
   it('wraps round the screen, never leaving it', () => {
     const g = started(['a']);
     g.input('a', 1, 0);
@@ -196,7 +218,8 @@ describe('LavaGame on each player’s own device', () => {
     g.report('a', 1, true, { x: 9, h: 1e9, vy: -1e9, dir: 7 });
     const s = me(g, 'a');
     expect(s.x).toBeLessThanOrEqual(1);
-    expect(s.y).toBeGreaterThanOrEqual(0);
+    // Up to two screens above the bottom edge, no further (there is no ceiling, but not unlimited height either).
+    expect(s.y).toBeGreaterThanOrEqual(-1);
     expect(s.vy).toBeGreaterThanOrEqual(-4);
     g.report('a', 1, false, { x: 0.5, h: 0, vy: 0, dir: 0 });
     expect(me(g, 'a').alive).toBe(false);
