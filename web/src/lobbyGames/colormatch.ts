@@ -20,6 +20,27 @@ const HUES = [25, 250, 145, 85];
 const MODE_KEYS = { ink: 'spin.lobby.colormatch.mode.ink', word: 'spin.lobby.colormatch.mode.word' } as const satisfies Record<string, MessageKey>;
 const NAME_KEYS: MessageKey[] = ['spin.lobby.colormatch.color.0', 'spin.lobby.colormatch.color.1', 'spin.lobby.colormatch.color.2', 'spin.lobby.colormatch.color.3'];
 
+/** A circle, square, triangle or diamond for panel `i`, `r` across. */
+function drawGlyph(ctx: CanvasRenderingContext2D, i: number, cx: number, cy: number, r: number): void {
+  ctx.fillStyle = 'oklch(0.14 0.01 60 / 0.85)';
+  ctx.beginPath();
+  if (i === 0) ctx.arc(cx, cy, r, 0, Math.PI * 2);
+  else if (i === 1) ctx.rect(cx - r, cy - r, r * 2, r * 2);
+  else if (i === 2) {
+    ctx.moveTo(cx, cy - r * 1.1);
+    ctx.lineTo(cx + r * 1.1, cy + r * 0.9);
+    ctx.lineTo(cx - r * 1.1, cy + r * 0.9);
+    ctx.closePath();
+  } else {
+    ctx.moveTo(cx, cy - r * 1.2);
+    ctx.lineTo(cx + r * 1.2, cy);
+    ctx.lineTo(cx, cy + r * 1.2);
+    ctx.lineTo(cx - r * 1.2, cy);
+    ctx.closePath();
+  }
+  ctx.fill();
+}
+
 const panelRect = (i: number): TapRect => ({ x: BOARD_X + (i % 2) * (PANEL_W + GAP), y: BOARD_Y + Math.floor(i / 2) * (PANEL_H + GAP), w: PANEL_W, h: PANEL_H });
 
 /** The panels are the controller: each is a tap target, drawn exactly where it is hit. Numbered row by row (top left,
@@ -80,6 +101,14 @@ function drawWorld(sc: Scene<ColorMatchSnapshot>): void {
     roundRect(ctx, r.x * S, r.y * S, r.w * S, r.h * S, S * 0.03);
     ctx.fillStyle = `oklch(0.62 0.16 ${HUES[i]})`;
     ctx.fill();
+    // Colour is not the only way to tell the panels apart: each has its own shape and says its colour.
+    const cx = (r.x + r.w / 2) * S;
+    const cy = (r.y + r.h / 2) * S;
+    drawGlyph(ctx, i, cx, cy - S * 0.03, S * 0.045);
+    ctx.font = `800 ${Math.round(S * 0.034)}px ${FONT.display}`;
+    ctx.textBaseline = 'middle';
+    ctx.fillStyle = 'oklch(0.14 0.01 60 / 0.85)';
+    ctx.fillText(sc.t(NAME_KEYS[i]).toUpperCase(), cx, cy + S * 0.05);
   }
 }
 
