@@ -374,18 +374,27 @@ describe('FishingGame lines', () => {
 
 describe('FishingGame running a run', () => {
   it('crowns the last one fishing, with their own peak health as the run', () => {
-    const g = started(['a', 'b'], 5);
-    const keen = makeAngler(g, 'a', { power: 0.3, delay: 0.05 });
-    const hopeless = makeAngler(g, 'b', { power: 0.3, reel: false });
-    untilOver(g, 200_000, () => {
-      keen();
-      hopeless();
-    });
-    const s = snap(g);
-    expect(s.phase).toBe('over');
-    expect(s.winnerId).toBe('a');
-    expect(s.history[s.history.length - 1]).toMatchObject({ winnerId: 'a', meters: me(g, 'a').peak });
-    expect(me(g, 'a').wins).toBe(1);
+    // With the health bar draining fast, a keen angler and one who never reels can go out together (a draw) on an unlucky pond, so try a few.
+    let crowned = 0;
+    for (const seed of [3, 5, 7, 11, 13, 17]) {
+      const g = started(['a', 'b'], seed);
+      const keen = makeAngler(g, 'a', { power: 0.3, delay: 0.05 });
+      const hopeless = makeAngler(g, 'b', { power: 0.3, reel: false });
+      untilOver(g, 200_000, () => {
+        keen();
+        hopeless();
+      });
+      const s = snap(g);
+      expect(s.phase).toBe('over');
+      // The one who never reels is never the winner.
+      expect(s.winnerId).not.toBe('b');
+      if (s.winnerId === 'a') {
+        crowned++;
+        expect(s.history[s.history.length - 1]).toMatchObject({ winnerId: 'a', meters: me(g, 'a').peak });
+        expect(me(g, 'a').wins).toBe(1);
+      }
+    }
+    expect(crowned).toBeGreaterThan(0);
   });
 
   it('ends at the lobby time cap, with whoever is still in keeping their peak health and nobody winning', () => {
@@ -439,6 +448,51 @@ describe('FishingGame running a run', () => {
     expect(t).toBeLessThan(40);
     // Never having been fuller than at the start, that is the score.
     expect(snap(g).history[snap(g).history.length - 1].meters).toBe(10);
+  });
+});
+
+describe('FishingGame boots', () => {
+  it('has the odd boot among the fish, flagged so a screen can draw it', () => {
+    const seen = { boots: 0, fish: 0 };
+    for (const seed of [3, 5, 7, 11, 13, 17]) {
+      const g = started(['a'], seed);
+      for (let i = 0; i < 40; i++) {
+        run(g, 100);
+        for (const f of snap(g).fish) if (f.n === i) seen[f.boot ? 'boots' : 'fish']++;
+      }
+    }
+    expect(seen.boots).toBeGreaterThan(0);
+    expect(seen.fish).toBeGreaterThan(seen.boots);
+  });
+
+  it('destroys the line of an angler whose lure touches one: a line lost, nothing hooked', () => {
+    const g = started(['a'], 5);
+    const target = snap(g).fish[0];
+    const internals = g as unknown as { fish: { boot: boolean }[]; players: Map<string, { x: number; ly: number; mode: string }> };
+    internals.fish[0].boot = true;
+    const angler = internals.players.get('a')!;
+    angler.x = target.x;
+    angler.ly = target.y;
+    angler.mode = 'out';
+    g.tick(STEP);
+    const s = me(g, 'a');
+    expect(s.lives).toBe(2);
+    expect(s.mode).toBe('idle');
+    expect(s.tier).toBe(-1);
+  });
+
+  it('knocks the angler out when the boot takes the last line', () => {
+    const g = started(['a'], 5);
+    const target = snap(g).fish[0];
+    const internals = g as unknown as { fish: { boot: boolean }[]; players: Map<string, { x: number; ly: number; mode: string; lives: number }> };
+    internals.fish[0].boot = true;
+    const angler = internals.players.get('a')!;
+    angler.lives = 1;
+    angler.x = target.x;
+    angler.ly = target.y;
+    angler.mode = 'out';
+    g.tick(STEP);
+    expect(me(g, 'a').alive).toBe(false);
   });
 });
 

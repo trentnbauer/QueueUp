@@ -77,6 +77,32 @@ function drawFish(sc: Scene<FishingSnapshot>, cx: number, cy: number, tier: numb
   ctx.restore();
 }
 
+/** An old boot drifting by: a shaft, a foot and a sole. It is the size of the fish kind it was drawn as. `dir` is which way it drifts (toes first). */
+function drawBoot(sc: Scene<FishingSnapshot>, cx: number, cy: number, tier: number, dir: number): void {
+  const { ctx, S, now, fx } = sc;
+  const r = FISHING_TIERS[tier].r * S;
+  const sway = fx.reduced ? 0 : Math.sin(now / 400 + cx) * 0.12;
+  ctx.save();
+  ctx.translate(cx, cy);
+  ctx.rotate(sway);
+  ctx.scale(dir, 1);
+  ctx.fillStyle = 'oklch(0.42 0.06 55)';
+  ctx.beginPath();
+  ctx.moveTo(-r * 0.9, -r * 1.5); // top of the shaft
+  ctx.lineTo(-r * 0.1, -r * 1.5);
+  ctx.lineTo(-r * 0.1, -r * 0.1);
+  ctx.lineTo(r * 1.3, r * 0.2); // toe
+  ctx.lineTo(r * 1.3, r * 0.9);
+  ctx.lineTo(-r * 0.9, r * 0.9);
+  ctx.closePath();
+  ctx.fill();
+  ctx.fillStyle = 'oklch(0.25 0.03 55)'; // sole
+  ctx.fillRect(-r * 0.9, r * 0.7, r * 2.2, r * 0.35);
+  ctx.fillStyle = 'oklch(0.7 0.05 60)'; // cuff
+  ctx.fillRect(-r * 0.9, -r * 1.5, r * 0.8, r * 0.3);
+  ctx.restore();
+}
+
 /** Where a fish is now: its place in the snapshot carried on by how long ago that was. */
 const place = (f: FishingSnapshot['fish'][number], age: number) => ({ x: f.x + f.vx * age, y: f.y + f.vy * age });
 
@@ -238,16 +264,18 @@ function drawReelBar(sc: Scene<FishingSnapshot>, c: FishingPlayer): void {
 }
 
 /** Each angler as of the last snapshot drawn: a fish is landed when one that was being reeled in is gone and the health bar has gone up. */
-const previousAnglers = rememberSnapshot<Map<string, { fighting: boolean; hp: number; tier: number; ly: number }>>();
+const previousAnglers = rememberSnapshot<Map<string, { fighting: boolean; hp: number; tier: number; ly: number; lives: number }>>();
 
 /** A fish landed bursts into confetti where it was, in the angler's colour: more for a bigger fish. */
 function celebrate(sc: Scene<FishingSnapshot>): void {
   const { snapshot } = sc;
-  const before = previousAnglers(snapshot, () => new Map(snapshot.players.map((p) => [p.id, { fighting: p.mode === 'fight', hp: p.hp, tier: p.tier, ly: p.ly }])));
+  const before = previousAnglers(snapshot, () => new Map(snapshot.players.map((p) => [p.id, { fighting: p.mode === 'fight', hp: p.hp, tier: p.tier, ly: p.ly, lives: p.lives }])));
   if (!before) return;
   for (const p of snapshot.players) {
     const was = before.get(p.id);
     if (was?.fighting && p.mode !== 'fight' && p.alive && p.hp > was.hp + 0.5) sc.fx.confettiAt(p.x, was.ly, sc.info(p.id).color, 16 + 10 * Math.max(0, was.tier));
+    // A line lost (a snap, a boot, a wait too long): a red puff where the lure was.
+    if (was && p.lives < was.lives) sc.fx.confettiAt(p.x, was.ly, sc.theme.danger, 10);
   }
 }
 
@@ -263,7 +291,8 @@ function drawWorld(sc: Scene<FishingSnapshot>): void {
     const here = place(f, age);
     if (here.x < -0.2 || here.x > 1.2) continue;
     if (mine && mine.alive && mine.hooked === f.n) continue;
-    drawFish(sc, here.x * S, here.y * S, f.tier, f.vx >= 0 ? 1 : -1, f.n);
+    if (f.boot) drawBoot(sc, here.x * S, here.y * S, f.tier, f.vx >= 0 ? 1 : -1);
+    else drawFish(sc, here.x * S, here.y * S, f.tier, f.vx >= 0 ? 1 : -1, f.n);
   }
   drawAnglers(sc);
   if (mine && mine.alive && mine.mode === 'fight') drawReelBar(sc, mine);

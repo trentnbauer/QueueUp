@@ -222,7 +222,7 @@ export const spin = {
   "spin.lobby.frogger.hop": "Hop",
   "spin.lobby.fishing.name": "Fishing",
   "spin.lobby.fishing.tagline": "Cast, hook it, keep it in the green",
-  "spin.lobby.fishing.hint": "Hold to cast and reel in. When a fish bites, hold and let go to keep it in the green. Catches refill your health, which keeps draining.",
+  "spin.lobby.fishing.hint": "Hold to cast and reel in. When a fish bites, hold and let go to keep it in the green. Catches refill your health, which keeps draining. Avoid boots: they destroy your line.",
   "spin.lobby.fishing.reel": "Hold",
   "spin.lobby.orbit.name": "Orbit",
   "spin.lobby.orbit.tagline": "Flip direction to dodge",

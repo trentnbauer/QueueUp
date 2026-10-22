@@ -224,7 +224,7 @@ export const spin: Record<keyof typeof en, string> = {
   "spin.lobby.frogger.hop": "Hop",
   "spin.lobby.fishing.name": "Fishing",
   "spin.lobby.fishing.tagline": "Cast, hook it, keep it in the green",
-  "spin.lobby.fishing.hint": "Hold to cast and reel in. When a fish bites, hold and let go to keep it in the green. Catches refill yer health, which keeps drainin’.",
+  "spin.lobby.fishing.hint": "Hold to cast and reel in. When a fish bites, hold and let go to keep it in the green. Catches refill yer health, which keeps drainin’. Avoid boots: they destroy yer line.",
   "spin.lobby.fishing.reel": "Hold",
   "spin.lobby.orbit.name": "Orbit",
   "spin.lobby.orbit.tagline": "Flip direction to dodge",
