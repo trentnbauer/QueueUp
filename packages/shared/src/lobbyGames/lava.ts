@@ -7,9 +7,11 @@ const GRAVITY = 2;
 const LAVA_V = 1.166;
 const MOVE_SPEED = 0.6;
 /** How fast the screen climbs: slowly at first and quicker over `RAMP_S`, to a speed nobody can keep up with for ever (a bounce gains about a quarter of a screen a second). */
-const CAM_START = 0.08;
+const CAM_START = 0.11;
 const CAM_END = 0.36;
 const RAMP_S = 50;
+/** The screen holds still for this long at the start of a run, so there is a second to get under the next platform before it begins to climb. */
+const START_DELAY_S = 1;
 /** Platform spacing: each is this far above the last (always within a bounce's reach), and no more than this far sideways from it. */
 const GAP_MIN = 0.13;
 const GAP_MAX = 0.26;
@@ -20,9 +22,10 @@ const MOVERS_FROM = 1.2;
 const MOVER_SHARE_MAX = 0.4;
 const MOVER_AMP = 0.12;
 const START_H = 0.1;
-/** Out: the feet are this far below the bottom of the screen. The top of the screen is a ceiling. */
+/** Out: the feet are this far below the bottom of the screen. There is no ceiling: a high bounce carries the ball out of the top of the screen and it comes back down. */
 const FALL_OUT = 0.03;
-const CEILING = 0.97;
+/** The highest a reported height may be above the screen's bottom edge (a bounce reaches about 0.34 above a platform, and platforms stay in view). */
+const HEIGHT_MAX = 2;
 
 interface Platform {
   n: number;
@@ -62,7 +65,7 @@ export class LavaGame extends RoundGame<Bouncer> {
 
   protected readReport(p: Bouncer, f: Record<string, number>): void {
     p.x = Math.min(1, Math.max(0, RoundGame.num(f.x, p.x)));
-    p.h = Math.min(this.cam + CEILING, Math.max(this.cam - 0.1, RoundGame.num(f.h, p.h)));
+    p.h = Math.min(this.cam + HEIGHT_MAX, Math.max(this.cam - 0.1, RoundGame.num(f.h, p.h)));
     p.vy = Math.min(2, Math.max(-4, RoundGame.num(f.vy, p.vy)));
     p.dir = clampDirection(f.dir);
   }
@@ -108,7 +111,9 @@ export class LavaGame extends RoundGame<Bouncer> {
 
   /** The screen's climb right now, in screens a second. */
   private get speed(): number {
-    return CAM_START + (CAM_END - CAM_START) * Math.min(1, this.roundMs / 1000 / RAMP_S);
+    const seconds = this.roundMs / 1000;
+    if (seconds < START_DELAY_S) return 0;
+    return CAM_START + (CAM_END - CAM_START) * Math.min(1, (seconds - START_DELAY_S) / RAMP_S);
   }
 
   /** Where a platform is across the screen at `seconds` into the run. */
@@ -178,10 +183,6 @@ export class LavaGame extends RoundGame<Bouncer> {
             break;
           }
         }
-      }
-      if (p.h > this.cam + CEILING) {
-        p.h = this.cam + CEILING;
-        p.vy = Math.min(p.vy, 0);
       }
       if (p.h < this.cam - FALL_OUT) this.knockOut(p);
     }
