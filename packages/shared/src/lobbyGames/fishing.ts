@@ -24,6 +24,8 @@ const HP_DRAIN = 0.5;
 const HP_DRAIN_GAIN = 0.03;
 const HP_PER_POINT = 5;
 const FISH_Y_MAX = 0.8;
+/** The share of what turns up that is a boot, not a fish. */
+const BOOT_SHARE = 0.12;
 const INITIAL_FISH = 9;
 /** Everything gets harder over this long, then stays as hard. */
 const RAMP_S = 60;
@@ -71,6 +73,8 @@ interface Fish {
   p2: number;
   /** Seeds how it fights once hooked. */
   seed: number;
+  /** A boot, not a fish: touching it destroys the line. */
+  boot: boolean;
 }
 
 function fishAt(f: Fish, t: number): { x: number; y: number } {
@@ -305,7 +309,8 @@ export class FishingGame extends RoundGame<Angler> {
     const p2 = this.rng() * Math.PI * 2;
     const seed = Math.floor(this.rng() * 4294967296);
     const anyX = 0.08 + 0.84 * this.rng();
-    this.fish.push({ n: this.fishCount++, tier, at, x0: anywhere ? anyX : dir === 1 ? -0.1 : 1.1, dir, speed, base, a1, f1, p1, a2, f2, p2, seed });
+    const boot = this.rng() < BOOT_SHARE;
+    this.fish.push({ n: this.fishCount++, tier, at, x0: anywhere ? anyX : dir === 1 ? -0.1 : 1.1, dir, speed, base, a1, f1, p1, a2, f2, p2, seed, boot });
   }
 
   /** Half the height of the green zone against this kind of fish now. */
@@ -328,7 +333,7 @@ export class FishingGame extends RoundGame<Angler> {
       fish: this.fish.map((f) => {
         const here = fishAt(f, t);
         const next = fishAt(f, t + 0.05);
-        return { n: f.n, x: r3(here.x), y: r3(here.y), vx: r3((next.x - here.x) / 0.05), vy: r3((next.y - here.y) / 0.05), tier: f.tier } satisfies FishingFish;
+        return { n: f.n, x: r3(here.x), y: r3(here.y), vx: r3((next.x - here.x) / 0.05), vy: r3((next.y - here.y) / 0.05), tier: f.tier, boot: f.boot } satisfies FishingFish;
       }),
       players: all.map((p, i) => ({
         id: p.id,
@@ -429,7 +434,7 @@ export class FishingGame extends RoundGame<Angler> {
     }
   }
 
-  /** The lure touches a fish it has not already had a go at: it is hooked. */
+  /** The lure touches a fish it has not already had a go at: it is hooked. (Or a boot: the line is destroyed.) */
   private tryHook(p: Angler, t: number): void {
     for (const f of this.fish) {
       if (p.taken.has(f.n)) continue;
@@ -437,6 +442,11 @@ export class FishingGame extends RoundGame<Angler> {
       const reach = LURE_R + FISHING_TIERS[f.tier].r;
       if ((at.x - p.x) ** 2 + (at.y - p.ly) ** 2 > reach * reach) continue;
       p.taken.add(f.n);
+      // A boot is no fish: it fouls the line at once, which costs a line like a snap does.
+      if (f.boot) {
+        this.loseLine(p);
+        return;
+      }
       p.mode = 'fight';
       p.hooked = f.n;
       p.tier = f.tier;

@@ -442,6 +442,51 @@ describe('FishingGame running a run', () => {
   });
 });
 
+describe('FishingGame boots', () => {
+  it('has the odd boot among the fish, flagged so a screen can draw it', () => {
+    const seen = { boots: 0, fish: 0 };
+    for (const seed of [3, 5, 7, 11, 13, 17]) {
+      const g = started(['a'], seed);
+      for (let i = 0; i < 40; i++) {
+        run(g, 100);
+        for (const f of snap(g).fish) if (f.n === i) seen[f.boot ? 'boots' : 'fish']++;
+      }
+    }
+    expect(seen.boots).toBeGreaterThan(0);
+    expect(seen.fish).toBeGreaterThan(seen.boots);
+  });
+
+  it('destroys the line of an angler whose lure touches one: a line lost, nothing hooked', () => {
+    const g = started(['a'], 5);
+    const target = snap(g).fish[0];
+    const internals = g as unknown as { fish: { boot: boolean }[]; players: Map<string, { x: number; ly: number; mode: string }> };
+    internals.fish[0].boot = true;
+    const angler = internals.players.get('a')!;
+    angler.x = target.x;
+    angler.ly = target.y;
+    angler.mode = 'out';
+    g.tick(STEP);
+    const s = me(g, 'a');
+    expect(s.lives).toBe(2);
+    expect(s.mode).toBe('idle');
+    expect(s.tier).toBe(-1);
+  });
+
+  it('knocks the angler out when the boot takes the last line', () => {
+    const g = started(['a'], 5);
+    const target = snap(g).fish[0];
+    const internals = g as unknown as { fish: { boot: boolean }[]; players: Map<string, { x: number; ly: number; mode: string; lives: number }> };
+    internals.fish[0].boot = true;
+    const angler = internals.players.get('a')!;
+    angler.lives = 1;
+    angler.x = target.x;
+    angler.ly = target.y;
+    angler.mode = 'out';
+    g.tick(STEP);
+    expect(me(g, 'a').alive).toBe(false);
+  });
+});
+
 describe('FishingGame on each player’s own device', () => {
   it('works out its own angler there, and reports it', () => {
     const g = started(['a']);

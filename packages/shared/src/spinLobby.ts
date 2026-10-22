@@ -1414,6 +1414,8 @@ export interface FishingFish {
   vy: number;
   /** Which kind (an index into `FISHING_TIERS`). */
   tier: number;
+  /** An old boot, not a fish: if the lure touches it the line is destroyed (a line lost) and nothing is caught. */
+  boot: boolean;
 }
 
 export type FishingMode = 'idle' | 'charging' | 'out' | 'fight';
