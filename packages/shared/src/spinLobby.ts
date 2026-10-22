@@ -21,10 +21,10 @@ export type LobbyClientMessage =
    * apply it at that same moment instead of whenever it arrives (see `SpinLobby`'s practice delay). */
   | { t: 'input'; dx: number; dy: number; run?: number; at?: number }
   /** A one-off move the current game understands, such as `punch`. `run` and `at` as for `input`. */
-  | { t: 'action'; name: string; run?: number; at?: number }
+  | { t: 'action'; name: string; run?: number; at?: number; /** See `LOBBY_BEHIND_MAX_MS`. */ behind?: number }
   /** The person tapped one of the game's tap targets on the arena (see `LOBBY_TAP_TARGETS_MAX`). `target`
    * is the target's index, never a position, so a client cannot claim a tap no target would give. */
-  | { t: 'tap'; target: number; /** The person's own reaction time in ms, measured on their device (Quick draw only). */ ms?: number; /** In a practice run of a game their device also works out, which run and when in it (ms, on the device's copy) the tap was made, as for `input`. */ run?: number; at?: number }
+  | { t: 'tap'; target: number; /** The person's own reaction time in ms, measured on their device (Quick draw only). */ ms?: number; /** In a practice run of a game their device also works out, which run and when in it (ms, on the device's copy) the tap was made, as for `input`. */ run?: number; at?: number; /** See `LOBBY_BEHIND_MAX_MS`. */ behind?: number }
   /** Where a person's own player is, for a game that runs each player on their own device (see
    * `LobbyGame.clientSim`): `run` is the run it belongs to, `alive` is false once they are out, and `f`
    * is the game's own fields (a height, a speed). Sent about 20 times a second while a run is on. */
@@ -36,6 +36,16 @@ export type LobbyClientMessage =
   /** Turn the time limit (every run capped at `LOBBY_WAITING_ROOM_LIMIT_S` seconds) on, or off for runs that go on until they are beaten.
    * For everyone in the lobby; ignored in a practice lobby (never capped) and while a spin waits (always capped). */
   | { t: 'timeLimit'; on: boolean };
+
+/** The most a press may say the picture it was made on was behind, in ms. A device says how old, by the server's clock, the picture was that the
+ * person acted on (the time since the snapshot it was looking at arrived, plus the round trip), so a game that judges the exact moment of a tap
+ * (Perfect stop, Stacker, Colour match) can judge it on what they saw rather than on when the tap arrived. Clamped, so a bad value cannot reach far. */
+export const LOBBY_BEHIND_MAX_MS = 400;
+
+/** A `behind` from a client, as a whole number of ms from 0 to `LOBBY_BEHIND_MAX_MS` (0 for anything else). */
+export function clampBehind(value: unknown): number {
+  return typeof value === 'number' && Number.isFinite(value) ? Math.round(Math.min(LOBBY_BEHIND_MAX_MS, Math.max(0, value))) : 0;
+}
 
 /** Longest action name the server accepts. */
 export const LOBBY_ACTION_NAME_MAX = 16;
@@ -701,6 +711,14 @@ export const ASTEROIDS_TURRET_Y = 0.93;
 export const ASTEROIDS_TURRET_R = 0.03;
 /** The furthest a gun swings from straight up, in radians. */
 export const ASTEROIDS_MAX_ANGLE = 1.2;
+/** How fast a turret swings while a direction is held, in radians a second (the server's step, and the viewer's own barrel on screen). */
+export const ASTEROIDS_TURN_SPEED = 1.6;
+
+// ---- Sumo's walking, shared so the viewer's own wrestler can answer a press at once ----
+/** Walking pushes toward a top speed (screens a second, a second); friction slows anything faster, such as a knock-back. */
+export const SUMO_WALK_ACCEL = 1.6;
+export const SUMO_WALK_MAX = 0.28;
+export const SUMO_DRAG = 3.2;
 
 export interface Asteroid {
   x: number;

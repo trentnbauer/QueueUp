@@ -82,14 +82,19 @@ export class StopGame extends RoundGame<Stopper> {
   }
 
   private get marker(): number {
-    return bounce(this.phase0 + this.rate * this.elapsed);
+    return this.markerAgo(0);
   }
 
-  /** Stops the marker where it is right now. */
+  /** Where the marker was `ms` ago (not before the sweep began): what a player with a slow connection was looking at when they pressed. */
+  private markerAgo(ms: number): number {
+    return bounce(this.phase0 + this.rate * Math.max(0, this.elapsed - ms / 1000));
+  }
+
+  /** Stops the marker where the player saw it (see `pressBehindMs`), so a slow connection does not count against them. */
   action(userId: string, name: string): void {
     const p = this.players.get(userId);
     if (name !== 'stop' || this.phase !== 'playing' || this.stage !== 'sweep' || !p || !p.alive || p.stopped) return;
-    p.at = this.marker;
+    p.at = this.markerAgo(this.pressBehindMs);
     if (Math.abs(p.at - this.centre) <= this.half) {
       p.stopped = true;
       return;

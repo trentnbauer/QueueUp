@@ -1,9 +1,8 @@
-import { ASTEROIDS_MAX_ANGLE, ASTEROIDS_TURRET_R, ASTEROIDS_TURRET_Y, clampDirection, type Asteroid, type AsteroidShot, type AsteroidsSnapshot } from '../spinLobby.js';
+import { ASTEROIDS_MAX_ANGLE, ASTEROIDS_TURN_SPEED, ASTEROIDS_TURRET_R, ASTEROIDS_TURRET_Y, clampDirection, type Asteroid, type AsteroidShot, type AsteroidsSnapshot } from '../spinLobby.js';
 import { RoundGame, type RoundPlayer } from './roundGame.js';
 
 // Positions are fractions of the screen (x across, y down from the top); speeds are screens a second.
 /** A run that is still going at this time ends: most asteroids destroyed wins. */
-const TURN_SPEED = 1.6; // radians a second
 const FIRE_EVERY_S = 0.5;
 const SHOT_SPEED = 1.2;
 const SHOT_RADIUS = 0.01;
@@ -129,7 +128,7 @@ export class AsteroidsGame extends RoundGame<Gunner> {
 
     for (const [index, p] of [...this.players.values()].entries()) {
       if (!p.alive) continue;
-      p.angle = Math.max(-ASTEROIDS_MAX_ANGLE, Math.min(ASTEROIDS_MAX_ANGLE, p.angle + p.dir * TURN_SPEED * dt));
+      p.angle = Math.max(-ASTEROIDS_MAX_ANGLE, Math.min(ASTEROIDS_MAX_ANGLE, p.angle + p.dir * ASTEROIDS_TURN_SPEED * dt));
       p.fireIn -= dt;
       while (p.fireIn <= 0) {
         p.fireIn += FIRE_EVERY_S;

@@ -1,6 +1,6 @@
-import { ASTEROIDS_TURRET_R, ASTEROIDS_TURRET_Y, type AsteroidsSnapshot } from '@queueup/shared';
+import { ASTEROIDS_MAX_ANGLE, ASTEROIDS_TURN_SPEED, ASTEROIDS_TURRET_R, ASTEROIDS_TURRET_Y, type AsteroidsSnapshot } from '@queueup/shared';
 import type { LobbyGameView } from './index';
-import { FONT, coverTile, hueOf, renderScene, type Scene, type SceneGame } from './kit';
+import { FONT, coverTile, hueOf, predictOwn, renderScene, type Scene, type SceneGame } from './kit';
 
 /** The asteroids in the last snapshot drawn (where each was, and which kind), so one that is gone from the next has been broken and can burst into confetti. */
 let seen: { snapshot: object; asteroids: Map<number, { x: number; y: number; big: boolean }> } | null = null;
@@ -72,7 +72,9 @@ function drawWorld(sc: Scene<AsteroidsSnapshot>): void {
     ctx.save();
     if (!p.alive) ctx.globalAlpha = 0.35;
     ctx.translate(cx, cy);
-    ctx.rotate(p.alive ? sc.ease(p.id, p.angle, 0).x : p.angle);
+    // Your own barrel swings the moment you press; everyone else's eases toward the last snapshot.
+    const swing = (a: number, dt: number) => Math.max(-ASTEROIDS_MAX_ANGLE, Math.min(ASTEROIDS_MAX_ANGLE, a + sc.held.dx * ASTEROIDS_TURN_SPEED * dt));
+    ctx.rotate(!p.alive ? p.angle : p.id === sc.me && snapshot.phase === 'playing' ? predictOwn(sc.fx, 'angle', sc.now, p.angle, swing) : sc.ease(p.id, p.angle, 0).x);
     ctx.fillStyle = 'oklch(0.4 0.02 60)';
     ctx.fillRect(-r * 0.22, -r * BARREL, r * 0.44, r * BARREL);
     ctx.restore();

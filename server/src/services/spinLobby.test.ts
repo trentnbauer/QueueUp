@@ -422,3 +422,19 @@ describe('SpinLobby idle rule', () => {
     expect(phaseOf(lobby)).toBe('playing');
   });
 });
+
+describe('SpinLobby: how far behind a press was', () => {
+  it('tells the game while it handles the press, clamped, and resets it after', () => {
+    const seen: number[] = [];
+    const game = { ...fakeGame(), pressBehindMs: 0, action: vi.fn(function (this: { pressBehindMs: number }) { seen.push(this.pressBehindMs); }) };
+    const lobby = new SpinLobby(game as never);
+    lobby.join('a');
+    lobby.action('a', 'stop', undefined, undefined, 120);
+    lobby.action('a', 'stop', undefined, undefined, 99999);
+    lobby.action('a', 'stop', undefined, undefined, -5);
+    lobby.action('a', 'stop', undefined, undefined, 'soon');
+    lobby.action('a', 'stop');
+    expect(seen).toEqual([120, 400, 0, 0, 0]);
+    expect(game.pressBehindMs).toBe(0);
+  });
+});

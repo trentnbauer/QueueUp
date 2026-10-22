@@ -11,6 +11,8 @@ const RECONNECT_MAX_MS = 8000;
  * answers give a good reading quickly; the quickest one is the one kept. */
 const PING_AT_MS = [0, 250, 600, 1200, 2500];
 const PING_EVERY_MS = 10_000;
+/** About how far behind the latest snapshot a game's drawing is, from easing things toward it. */
+const DRAW_EASE_MS = 30;
 
 /** The live connection to a lobby (see services/spinLobbyHub.ts on the server): a room's, at
  * `/api/rooms/:id/lobby`, or an open lobby's, at `/api/minigames/lobbies/:id/lobby`. Opens while
@@ -26,6 +28,9 @@ export function useSpinLobby(path: string | undefined, enabled: boolean, me: str
   const [status, setStatus] = useState<LobbyStatus>('connecting');
   const socketRef = useRef<WebSocket | null>(null);
   const simRef = useRef<ClientSim | null>(null);
+  // For `behind` (see LOBBY_BEHIND_MAX_MS): when the snapshot on screen arrived, and the connection's round trip.
+  const stateAtRef = useRef(0);
+  const clockRef = useRef<ClockSync | null>(null);
   const startedRef = useRef(onStarted);
   startedRef.current = onStarted;
 
@@ -53,6 +58,7 @@ export function useSpinLobby(path: string | undefined, enabled: boolean, me: str
         serverRuns,
       );
       simRef.current = sim;
+      clockRef.current = clock;
       const ping = () => {
         if (ws.readyState === WebSocket.OPEN) ws.send(JSON.stringify({ t: 'ping', c: performance.now() } satisfies LobbyClientMessage));
       };
@@ -71,6 +77,7 @@ export function useSpinLobby(path: string | undefined, enabled: boolean, me: str
         }
         if (msg.t === 'state') {
           sim.onState(msg);
+          stateAtRef.current = performance.now();
           setSnapshot(msg);
         } else if (msg.t === 'pong') clock.sample(msg.c, performance.now(), msg.s);
         else if (msg.t === 'started') startedRef.current?.();
@@ -101,6 +108,10 @@ export function useSpinLobby(path: string | undefined, enabled: boolean, me: str
     };
   }, [path, enabled, me, serverRuns]);
 
+  /** How old, by the server's clock, the picture the person is looking at is: the time since the last snapshot arrived plus the round trip (the
+   * snapshot took half of it to get here, and a press takes the other half to get back). A bit more for the easing that draws things toward it. */
+  const behind = useCallback(() => Math.round(performance.now() - stateAtRef.current + (clockRef.current?.rtt ?? 0) + DRAW_EASE_MS), []);
+
   const send = useCallback((msg: LobbyClientMessage) => {
     const ws = socketRef.current;
     if (ws && ws.readyState === WebSocket.OPEN) ws.send(JSON.stringify(msg));
@@ -113,9 +124,9 @@ export function useSpinLobby(path: string | undefined, enabled: boolean, me: str
     frame: useCallback((now: number): LobbySnapshot | null => simRef.current?.frame(now) ?? null, []),
     // The local copy takes the input when the game runs here; otherwise the server does.
     sendInput: useCallback((dx: number, dy: number) => (simRef.current?.input(dx, dy) ? undefined : send({ t: 'input', dx, dy, ...simRef.current?.stamp() })), [send]),
-    sendAction: useCallback((name: string) => (simRef.current?.action(name) ? undefined : send({ t: 'action', name, ...simRef.current?.stamp() })), [send]),
+    sendAction: useCallback((name: string) => (simRef.current?.action(name) ? undefined : send({ t: 'action', name, behind: behind(), ...simRef.current?.stamp() })), [send, behind]),
     // A game the device works out takes the tap on its own copy; otherwise the server does (with the moment of the run, in a practice run).
-    sendTap: useCallback((target: number, ms?: number) => (simRef.current?.tap(target) ? undefined : send({ t: 'tap', target, ms, ...simRef.current?.stamp() })), [send]),
+    sendTap: useCallback((target: number, ms?: number) => (simRef.current?.tap(target) ? undefined : send({ t: 'tap', target, ms, behind: behind(), ...simRef.current?.stamp() })), [send, behind]),
     vote: useCallback((on: boolean) => send({ t: 'vote', on }), [send]),
     setTimeLimit: useCallback((on: boolean) => send({ t: 'timeLimit', on }), [send]),
   };

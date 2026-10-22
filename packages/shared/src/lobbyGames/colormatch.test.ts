@@ -234,4 +234,19 @@ describe('ColorMatchGame endless (no time limit)', () => {
     expect(lastAllowed).toBeLessThan(firstAllowed - 600);
     expect(lastAllowed).toBeLessThan(1400);
   });
+
+  it('gives the quick bonus for how long the prompt was in front of them, not how long their answer took to arrive', () => {
+    const points = (behind: number) => {
+      const g = started(['a']);
+      const prompt = waitForPrompt(g);
+      // Go on until just past the quick part of the prompt.
+      for (let i = 0; i < 300 && g.snapshot().promptLeftMs > g.snapshot().promptTotalMs * 0.5; i++) g.tick(STEP);
+      g.pressBehindMs = behind;
+      g.tap('a', answer(prompt));
+      g.pressBehindMs = 0;
+      return score(g, 'a');
+    };
+    expect(points(0)).toBe(1);
+    expect(points(400)).toBe(2);
+  });
 });

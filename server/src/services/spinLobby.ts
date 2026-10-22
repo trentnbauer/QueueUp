@@ -1,4 +1,4 @@
-import { LOBBY_ACTION_NAME_MAX, LOBBY_TAP_TARGETS_MAX, LOBBY_GAME_IDS, LobbyRecord, createLobbyGame, lobbyVotesNeeded, pickLobbyGame, type LobbyGame, type LobbyGameId, type LobbyRunScore, type LobbySnapshot } from '@queueup/shared';
+import { LOBBY_ACTION_NAME_MAX, clampBehind, LOBBY_TAP_TARGETS_MAX, LOBBY_GAME_IDS, LobbyRecord, createLobbyGame, lobbyVotesNeeded, pickLobbyGame, type LobbyGame, type LobbyGameId, type LobbyRunScore, type LobbySnapshot } from '@queueup/shared';
 
 /** How far behind its player's device a practice lobby runs a game that the device also works out. The device sends each press with the
  * moment of the run it happened at; the server runs this much later than the device, so the press has arrived before the server needs it
@@ -149,11 +149,21 @@ export class SpinLobby {
     else this.game.input(userId, x, y);
   }
 
-  action(userId: string, name: unknown, run?: unknown, at?: unknown): void {
+  action(userId: string, name: unknown, run?: unknown, at?: unknown, behind?: unknown): void {
     if (!this.connections.has(userId) || typeof name !== 'string' || name.length > LOBBY_ACTION_NAME_MAX) return;
     this.quietMs = 0;
     if (this.delayed && this.game.actionAt && typeof run === 'number' && Number.isInteger(run) && typeof at === 'number' && Number.isFinite(at)) this.game.actionAt(userId, run, at, name);
-    else this.game.action(userId, name);
+    else this.withBehind(behind, () => this.game.action(userId, name));
+  }
+
+  /** Runs a press with the game told how old the picture it was made on was, so it can judge the exact moment of a tap on what the person saw. */
+  private withBehind(behind: unknown, run: () => void): void {
+    this.game.pressBehindMs = clampBehind(behind);
+    try {
+      run();
+    } finally {
+      this.game.pressBehindMs = 0;
+    }
   }
 
   /** A person's report of their own player, for a game that runs each player on their own device. The
@@ -171,11 +181,11 @@ export class SpinLobby {
   }
 
   /** A tap on one of the game's arena targets. Anything but a whole number in range is dropped. */
-  tap(userId: string, target: unknown, ms?: unknown, run?: unknown, at?: unknown): void {
+  tap(userId: string, target: unknown, ms?: unknown, run?: unknown, at?: unknown, behind?: unknown): void {
     if (!this.connections.has(userId) || typeof target !== 'number' || !Number.isInteger(target) || target < 0 || target >= LOBBY_TAP_TARGETS_MAX) return;
     this.quietMs = 0;
     if (this.delayed && this.game.tapAt && typeof run === 'number' && Number.isInteger(run) && typeof at === 'number' && Number.isFinite(at)) this.game.tapAt(userId, run, at, target);
-    else this.game.tap?.(userId, target, typeof ms === 'number' ? ms : undefined);
+    else this.withBehind(behind, () => this.game.tap?.(userId, target, typeof ms === 'number' ? ms : undefined));
   }
 
   vote(userId: string, on: boolean): void {
