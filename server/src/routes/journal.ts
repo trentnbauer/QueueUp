@@ -6,8 +6,8 @@ import { requireMembership } from '../services/roomAccess.js';
 import { toUserDto, userDtoSelect } from '../util/dto.js';
 
 const LIMIT = 300;
-/** The play journal is status changes only (adds, votes, spins and reviews stay in the activity log). */
-const JOURNAL_TYPES = ['status_changed'] as const;
+/** The play journal is status changes and adds (votes, spins and reviews stay in the activity log). */
+const JOURNAL_TYPES = ['status_changed', 'game_added'] as const;
 /** Finishing a game only counts as a playthrough when it was being played first - a game marked
  * Beaten straight from the Backlog was finished before it was ever tracked here. */
 const PLAYED = new Set<string>(['playing', 'paused', 'replay']);
@@ -69,8 +69,8 @@ export function kindOf(type: string, status: GameStatus | null): JournalEventKin
   return (status && KIND_BY_STATUS[status]) || 'moved';
 }
 
-/** Builds journal entries from the status changes on `where`, newest first: who started, beat,
- * dropped or moved which game. Beaten entries carry the playthrough's playtime, and
+/** Builds journal entries from the status changes and adds on `where`, newest first: who added,
+ * started, beat, dropped or moved which game. Beaten entries carry the playthrough's playtime, and
  * the viewer's all-time playtime from their Steam or Playnite snapshots where there is one. */
 async function journal(userId: string, where: Prisma.RoomActivityWhereInput): Promise<JournalEntry[]> {
   const rows = await prisma.roomActivity.findMany({
