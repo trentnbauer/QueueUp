@@ -110,6 +110,7 @@ import type {
   CrossRoomBeatenGroup,
   CrossRoomPlaying,
   CrossRoomPlayingGroup,
+  GameHistoryEntry,
   GameStatus,
   MoveGameRequest,
   NextPickGame,
@@ -117,6 +118,7 @@ import type {
   NextPickSuggestion,
   PlayerAchievements,
   PlayLogEntry,
+  SyncSource,
   PriceHistoryResponse,
   PriceRegion,
   SetGameOwnershipRequest,
@@ -1650,6 +1652,61 @@ export default async function gameRoutes(app: FastifyInstance) {
               : null,
         })),
       };
+      return response;
+    },
+  );
+
+  // The card's History sheet: every dated thing recorded about this game, newest first. Merged from what already
+  // exists (the card's own dates, the viewer's sync and ownership rows, the game's feed entries and its play log)
+  // rather than a dedicated change log, so a change nothing records (a tag, a price target) has no entry.
+  app.get<{ Params: { id: string } }>(
+    '/api/games/:id/history',
+    { config: { rateLimit: { max: 30, timeWindow: '1 minute' } } },
+    async (request) => {
+      const userId = await request.requireAuth();
+      const game = await loadGameOr404(request.params.id);
+      await requireGameReadAccess(game, userId);
+
+      const [syncs, ownership, activity, logs] = await Promise.all([
+        prisma.gameSyncSource.findMany({ where: { userId, igdbId: game.igdbId }, select: { source: true, createdAt: true } }),
+        prisma.gameOwnership.findUnique({ where: { userId_igdbId: { userId, igdbId: game.igdbId } }, select: { platforms: true, createdAt: true } }),
+        prisma.roomActivity.findMany({
+          where: {
+            type: 'status_changed',
+            payload: { path: ['gameId'], equals: game.id },
+            ...(game.roomId ? { roomId: game.roomId } : { recipientId: userId }),
+          },
+          orderBy: { createdAt: 'desc' },
+          take: 200,
+          select: { id: true, createdAt: true, payload: true },
+        }),
+        prisma.playLog.findMany({ where: { gameId: game.id }, select: { id: true, startedAt: true, finishedAt: true, startPlaytimeMinutes: true, finishPlaytimeMinutes: true } }),
+      ]);
+
+      const entries: GameHistoryEntry[] = [{ id: 'added', kind: 'added', at: game.createdAt.toISOString() }];
+      for (const s of syncs) entries.push({ id: `sync-${s.source}`, kind: 'synced', at: s.createdAt.toISOString(), source: s.source as SyncSource });
+      if (ownership) entries.push({ id: 'ownership', kind: 'ownership', at: ownership.createdAt.toISOString(), platforms: ownership.platforms });
+      for (const a of activity) {
+        const p = (a.payload ?? {}) as { status?: GameStatus; from?: GameStatus };
+        entries.push({ id: `status-${a.id}`, kind: 'status', at: a.createdAt.toISOString(), status: p.status ?? null, from: p.from ?? null });
+      }
+      for (const l of logs) {
+        entries.push({ id: `start-${l.id}`, kind: 'started', at: l.startedAt.toISOString() });
+        if (l.finishedAt) {
+          entries.push({
+            id: `finish-${l.id}`,
+            kind: 'finished',
+            at: l.finishedAt.toISOString(),
+            minutesPlayed: l.startPlaytimeMinutes != null && l.finishPlaytimeMinutes != null ? Math.max(0, l.finishPlaytimeMinutes - l.startPlaytimeMinutes) : null,
+          });
+        }
+      }
+      if (game.reviewedAt) entries.push({ id: 'reviewed', kind: 'reviewed', at: game.reviewedAt.toISOString() });
+      if (game.purchasedAt) entries.push({ id: 'purchased', kind: 'purchased', at: game.purchasedAt.toISOString() });
+      if (game.replayedAt) entries.push({ id: 'replayed', kind: 'replayed', at: game.replayedAt.toISOString() });
+
+      entries.sort((a, b) => b.at.localeCompare(a.at));
+      const response: { entries: GameHistoryEntry[] } = { entries };
       return response;
     },
   );

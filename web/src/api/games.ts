@@ -35,6 +35,7 @@ import type { BundleSuggestion, SplitBundleRequest, GameSeriesResponse, GameRequ
   CrossRoomBeaten,
   CrossRoomPlaying,
   Game,
+  GameHistoryEntry,
   GameSearchResult,
   MoveGameRequest,
   NextPickResponse,
@@ -183,6 +184,7 @@ export const gamesApi = {
   achievements: (id: string) =>
     apiGet<{ players: PlayerAchievements[]; unlockedBadges: BadgeDefinition[] }>(`/api/games/${id}/achievements`),
   playLog: (id: string) => apiGet<{ entries: PlayLogEntry[] }>(`/api/games/${id}/play-log`),
+  history: (id: string) => apiGet<{ entries: GameHistoryEntry[] }>(`/api/games/${id}/history`),
   yearInReview: () => apiGet<YearInReview>('/api/me/year-in-review'),
   currentlyPlaying: () => apiGet<CrossRoomPlaying>('/api/me/currently-playing'),
   beaten: () => apiGet<CrossRoomBeaten>('/api/me/beaten'),

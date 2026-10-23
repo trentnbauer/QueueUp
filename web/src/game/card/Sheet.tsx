@@ -44,4 +44,4 @@ export function Sheet({ title, desktop, side = 'right', onClose, children }: { t
 }
 
 /** Every sheet the card can open over itself. `status` is the Status picker; the rest are menus. */
-export type SheetKind = 'status' | 'price' | 'alert' | 'after' | 'dlc' | 'ttb' | 'specs' | 'more' | 'journal' | 'tags' | 'achievements' | 'series' | 'fix' | 'related';
+export type SheetKind = 'status' | 'price' | 'alert' | 'after' | 'dlc' | 'ttb' | 'specs' | 'more' | 'journal' | 'tags' | 'achievements' | 'series' | 'fix' | 'related' | 'history';

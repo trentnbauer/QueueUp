@@ -1,7 +1,7 @@
 import type { Game, GameStatus } from '@queueup/shared';
 import { useAuth } from '../../context/AuthContext';
 import { useT, type MessageKey } from '../../i18n';
-import { AchievementsSheet, JournalSheet, SeriesSheet, SpecsSheet, TagsSheet, TimeToBeatSheet } from './InfoSheets';
+import { AchievementsSheet, HistorySheet, JournalSheet, SeriesSheet, SpecsSheet, TagsSheet, TimeToBeatSheet } from './InfoSheets';
 import { DlcSheet, PlayAfterSheet, type DlcTarget } from './ListSheets';
 import { FixMatchSheet, MoreSheet, type MoreTarget } from './MoreSheet';
 import { PriceAlertSheet, PriceHistorySheet } from './PriceSheets';
@@ -25,6 +25,7 @@ const TITLE: Record<SheetKind, MessageKey> = {
   series: 'card.more.series',
   fix: 'card.more.fixMatch',
   related: 'card.related.row',
+  history: 'card.more.history',
 };
 
 export interface SheetHostProps {
@@ -92,6 +93,9 @@ export function SheetHost({ game, kind, desktop, setKind, onPickStatus, onOpenRe
       break;
     case 'related':
       body = <RelatedSheet game={game} />;
+      break;
+    case 'history':
+      body = <HistorySheet game={game} />;
       break;
     case 'more':
       body = (

@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
-import type { Game, SteamRequirementSet } from '@queueup/shared';
+import type { Game, GameHistoryEntry, SteamRequirementSet } from '@queueup/shared';
 import { authApi } from '../../api/auth';
 import { gamesApi } from '../../api/games';
 import { useScope } from '../../context/ScopeContext';
@@ -13,6 +13,8 @@ import { useT } from '../../i18n';
 import { SeriesSection } from '../SeriesSection';
 import { YourPc, memoryVerdict } from '../SystemRequirements';
 import { RowGroup } from './ui';
+import { cardStatusLabel } from './statusLabel';
+import { SYNC_SOURCE_KEY } from './syncSources';
 
 /** Time to beat: Rushed, Main and Completionist as bars scaled to the longest. Times from IGDB. */
 export function TimeToBeatSheet({ game }: { game: Game }) {
@@ -128,6 +130,53 @@ export function JournalSheet({ game }: { game: Game }) {
           </span>
         </div>
       ))}
+    </div>
+  );
+}
+
+/** History: every dated thing recorded about this card (added, synced, console ownership, status moves, play log), newest first. */
+export function HistorySheet({ game }: { game: Game }) {
+  const t = useT();
+  const { data, isLoading } = useQuery({ queryKey: ['games', game.id, 'history'], queryFn: () => gamesApi.history(game.id), staleTime: 0, retry: false });
+  const entries = data?.entries ?? [];
+  const when = (iso: string) => new Date(iso).toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' });
+  const describe = (e: GameHistoryEntry): string => {
+    switch (e.kind) {
+      case 'added':
+        return t('card.history.added');
+      case 'synced':
+        return t('card.history.synced', { source: e.source ? t(SYNC_SOURCE_KEY[e.source]) : '' });
+      case 'ownership':
+        return t('card.history.ownership', { platforms: e.platforms?.length ? e.platforms.join(', ') : t('card.history.ownershipNone') });
+      case 'status':
+        return e.status
+          ? e.from
+            ? t('card.history.statusFrom', { from: cardStatusLabel(e.from), status: cardStatusLabel(e.status) })
+            : t('card.history.status', { status: cardStatusLabel(e.status) })
+          : t('card.history.added');
+      case 'started':
+        return t('card.history.started');
+      case 'finished':
+        return e.minutesPlayed != null ? t('card.history.finishedPlayed', { hours: Math.round(e.minutesPlayed / 60) }) : t('card.history.finished');
+      case 'reviewed':
+        return t('card.history.reviewed');
+      case 'purchased':
+        return t('card.history.purchased');
+      case 'replayed':
+        return t('card.history.replayed');
+    }
+  };
+  if (isLoading) return null;
+  if (entries.length === 0) return <span style={st('padding:0 4px;font:400 14px var(--font-ui);color:var(--muted)')}>{t('card.history.none')}</span>;
+  return (
+    <div style={st('display:flex;flex-direction:column;gap:10px;padding:0 4px')}>
+      {entries.map((e) => (
+        <div key={e.id} style={st('display:flex;gap:12px;font:400 13.5px var(--font-ui)')}>
+          <span style={st('width:92px;flex-shrink:0;font:500 12px var(--font-mono);color:var(--muted);padding-top:1px')}>{when(e.at)}</span>
+          <span>{describe(e)}</span>
+        </div>
+      ))}
+      <span style={st('font:400 12px var(--font-ui);color:var(--muted)')}>{t('card.history.note')}</span>
     </div>
   );
 }
