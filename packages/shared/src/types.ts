@@ -1258,6 +1258,24 @@ export interface PlayLogEntry {
   roomName: string | null;
 }
 
+/** One dated thing that happened to a game card, from the card's History sheet. Built on the server from what
+ * is recorded today (the card's own dates, its sync/ownership rows, its feed entries and its play log), so
+ * a change that nothing records has no entry. The client words each `kind`; the other fields are its details. */
+export interface GameHistoryEntry {
+  id: string;
+  kind: 'added' | 'synced' | 'ownership' | 'status' | 'started' | 'finished' | 'reviewed' | 'purchased' | 'replayed';
+  at: string;
+  /** For `status`: the status it moved to (and from, when the feed entry recorded it). */
+  status?: GameStatus | null;
+  from?: GameStatus | null;
+  /** For `synced`: which sync saw the game. */
+  source?: SyncSource;
+  /** For `ownership`: the consoles you own it on when it was first recorded. */
+  platforms?: string[];
+  /** For `finished`: hours-worth of minutes actually played in that attempt, when tracked. */
+  minutesPlayed?: number | null;
+}
+
 /** The integration credentials that can be set via env var or, as a fallback, via the admin
  * Settings panel (see server/src/services/configResolver.ts). */
 export type IntegrationConfigKey =
