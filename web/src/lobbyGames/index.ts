@@ -39,6 +39,12 @@ import { tunnelView } from './tunnel';
 import { parachuteView } from './parachute';
 import { oddOneOutView } from './oddoneout';
 import { swingView } from './swing';
+import { simonView } from './simon';
+import { countingView } from './counting';
+import { pitView } from './pit';
+import { pendulumView } from './pendulum';
+import { chainView } from './chain';
+import { mathsView } from './maths';
 
 /** What a renderer is given each frame. */
 export interface LobbyDrawArgs<S extends LobbyGameSnapshot = LobbyGameSnapshot> {
@@ -136,6 +142,12 @@ export const LOBBY_GAME_VIEWS: { [K in LobbyGameId]: LobbyGameView<Extract<Lobby
   parachute: parachuteView,
   oddoneout: oddOneOutView,
   swing: swingView,
+  simon: simonView,
+  counting: countingView,
+  pit: pitView,
+  pendulum: pendulumView,
+  chain: chainView,
+  maths: mathsView,
 };
 
 /** The view for whichever game a snapshot belongs to. */
