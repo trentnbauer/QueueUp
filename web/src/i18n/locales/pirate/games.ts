@@ -48,7 +48,7 @@ export const games: Record<keyof typeof en, string> = {
   "games.you.bestTag": "BEST",
   "games.you.noRuns": "No runs yet. Play one!",
   "games.dialog.solo": "Play solo",
-  "games.strip.kicker": "HIGH SCORES · MATES / ALL TIME",
+  "games.strip.kicker": "High scores · mates / all time",
   "games.strip.gap": "{gap} to pass {name}",
   "games.strip.quiet": "It’s quiet here",
   "games.status.solo": "Just ye · runs count toward high scores",

@@ -25,13 +25,13 @@ describe('the Battleships board as tap targets', () => {
     for (let i = 0; i < SQUARES; i++) for (let j = i + 1; j < SQUARES; j++) expect(overlap(tapRect(BATTLE_TAPS, i)!, tapRect(BATTLE_TAPS, j)!), `${i} and ${j}`).toBe(false);
   });
 
-  it('keeps the board on the arena, clear of the counters at the top and the player list on the right', () => {
+  it('keeps the board on the arena, below the standings strip', () => {
     for (let i = 0; i < SQUARES; i++) {
       const r = tapRect(BATTLE_TAPS, i)!;
       expect(r.x).toBeGreaterThan(0.02);
-      expect(r.y).toBeGreaterThan(0.12);
-      expect(r.x + r.w).toBeLessThan(0.78);
-      expect(r.y + r.h).toBeLessThan(0.9);
+      expect(r.y).toBeGreaterThanOrEqual(0.28);
+      expect(r.x + r.w).toBeLessThan(0.98);
+      expect(r.y + r.h).toBeLessThan(0.94);
     }
   });
 

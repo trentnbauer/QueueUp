@@ -312,7 +312,7 @@ function drawResult(sc: Scene): void {
   if (hero) {
     const hh = CARD_HERO_H * S;
     roundRect(ctx, left, y, right - left, hh, S * 0.03);
-    ctx.fillStyle = hero.isMe ? 'oklch(0.74 0.15 45 / 0.14)' : 'oklch(1 0 0 / 0.05)';
+    ctx.fillStyle = hero.isMe ? theme.accSoft : 'oklch(1 0 0 / 0.05)';
     ctx.fill();
     ctx.lineWidth = 1.5;
     ctx.strokeStyle = hero.isMe ? theme.acc : STAGE.hudStroke;
@@ -336,7 +336,7 @@ function drawResult(sc: Scene): void {
   for (const row of rows) {
     const rh = CARD_ROW_H * S;
     roundRect(ctx, left, y, right - left, rh, S * 0.022);
-    ctx.fillStyle = row.isMe ? 'oklch(0.74 0.15 45 / 0.14)' : 'oklch(1 0 0 / 0.04)';
+    ctx.fillStyle = row.isMe ? theme.accSoft : 'oklch(1 0 0 / 0.04)';
     ctx.fill();
     if (row.isMe) {
       ctx.lineWidth = 1.5;
@@ -386,17 +386,17 @@ export function noWinnerHeadline(sc: Pick<Scene, "snapshot" | "me">): MessageKey
 
 /** "You're out - next run soon", while the run carries on without you. */
 function drawOutNote(sc: Scene): void {
-  const { ctx, S, t } = sc;
+  const { ctx, S, t, theme } = sc;
   const text = t('spin.lobby.hud.youreOut');
   const size = Math.round(S * 0.034);
   ctx.font = `600 ${size}px ${FONT.ui}`;
   const width = ctx.measureText(text).width + size * 2;
-  const y = S * 0.16;
+  const y = S * 0.5;
   roundRect(ctx, S / 2 - width / 2, y - size, width, size * 2, size);
-  ctx.fillStyle = 'oklch(0.62 0.19 25 / 0.22)';
+  ctx.fillStyle = theme.errBg;
   ctx.fill();
-  ctx.strokeStyle = 'oklch(0.62 0.19 25 / 0.45)';
+  ctx.strokeStyle = theme.errLine;
   ctx.stroke();
-  ctx.fillStyle = 'oklch(0.85 0.08 25)';
+  ctx.fillStyle = theme.errText;
   ctx.fillText(text, S / 2, y + 1);
 }

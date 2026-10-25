@@ -1,14 +1,12 @@
 import { MINES_COLS, MINES_TARGETS, type MinesSnapshot } from '@queueup/shared';
 import type { LobbyGameView } from './index';
-import { FONT, renderScene, roundRect, rememberSnapshot, type Scene, type SceneGame } from './kit';
+import { FONT, STRIP_Y, drawStandings, renderScene, roundRect, rememberSnapshot, stripX, type Scene, type SceneGame } from './kit';
 import type { TapRect, TapTargets } from './taps';
 
-// Where things are on the arena, as fractions of its side: everyone's points in a row, then the one shared board.
-const CHIPS_Y = 0.07;
-const CHIP_R = 0.02;
-const BOARD_X = 0.07;
-const BOARD_Y = 0.14;
-const BOARD_W = 0.86;
+// Where things are on the arena, as fractions of its side: the one shared board, under the standings strip.
+const BOARD_X = 0.15;
+const BOARD_Y = 0.29;
+const BOARD_W = 0.7;
 const CELL = BOARD_W / MINES_COLS;
 const CELL_GAP = 0.004;
 /** Colours for the numbers 1 to 8, as a mine counter reads. */
@@ -43,23 +41,8 @@ function drawWorld(sc: Scene<MinesSnapshot>): void {
   const { ctx, S, snapshot, theme } = sc;
   celebrate(sc);
 
-  // Everyone's points in one row; someone who hit a mine is dimmed.
-  const n = snapshot.players.length;
-  const step = Math.min(0.09, 0.84 / Math.max(1, n));
-  ctx.font = `700 ${Math.round(S * 0.024)}px ${FONT.mono}`;
-  ctx.textAlign = 'center';
-  ctx.textBaseline = 'alphabetic';
-  for (const i of sc.order()) {
-    const p = snapshot.players[i];
-    if (!p.alive && !p.fell) continue; // watching until the next run
-    const cx = (0.5 + (i - (n - 1) / 2) * step) * S;
-    ctx.save();
-    if (p.fell) ctx.globalAlpha = 0.4;
-    sc.drawPlayer(p.id, cx, CHIPS_Y * S, CHIP_R * S, CHIP_R * S);
-    ctx.restore();
-    ctx.fillStyle = theme.text;
-    ctx.fillText(String(p.meters), cx, (CHIPS_Y + CHIP_R + 0.028) * S);
-  }
+  // Everyone's points; someone who hit a mine is out (dimmed, with a mark).
+  drawStandings(sc, { badge: (p) => (p.fell ? 'no' : null) });
 
   for (let i = 0; i < MINES_TARGETS; i++) {
     const r = cellRect(i);
@@ -101,8 +84,8 @@ const scene: SceneGame<MinesSnapshot> = {
   scroll: 'y',
   taps: MINES_TAPS,
   drawWorld,
-  // A burst starts over the row of points, where the person who hit a mine is shown.
-  anchor: (snapshot, index) => ({ x: 0.5 + (index - (snapshot.players.length - 1) / 2) * 0.09, y: CHIPS_Y }),
+  // A burst starts over the standings strip, where the person who hit a mine is shown.
+  anchor: (snapshot, index) => ({ x: stripX(snapshot.players.length, index), y: STRIP_Y }),
 };
 
 export const minesView: LobbyGameView<MinesSnapshot> = {

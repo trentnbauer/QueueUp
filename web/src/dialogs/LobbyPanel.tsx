@@ -343,15 +343,11 @@ export function LobbyPanel({
             {controls}
           </div>
           <div style={st('display:flex;flex-direction:column;gap:14px;min-width:0')}>
-            {view && game && soloGame && (
-              <div style={st('display:flex;flex-direction:column;gap:8px')}>
-                <span style={st('font:700 19px/1.2 var(--font-display);letter-spacing:-.02em')}>{t(view.taglineKey)}</span>
-                <span style={st('font:500 12.5px/1.45 var(--font-ui);color:var(--muted)')}>{t(view.hintKey)}</span>
-              </div>
-            )}
-            {view && game && !soloGame && (
+            {view && game && (
               <div style={st('display:flex;flex-direction:column;gap:6px;padding:14px;border-radius:16px;background:linear-gradient(135deg,var(--hero1),var(--hero2))')}>
-                <span style={st('font:500 11px var(--font-mono);letter-spacing:.08em;text-transform:uppercase;color:var(--accText)')}>{t('spin.lobby.gameKicker', { run: game.run, game: gameName })}</span>
+                <span style={st('font:500 11px var(--font-mono);letter-spacing:.08em;text-transform:uppercase;color:var(--accText)')}>
+                  {soloGame ? t('spin.lobby.gameKicker.solo', { run: game.run }) : t('spin.lobby.gameKicker', { run: game.run, game: gameName })}
+                </span>
                 <span style={st('font:700 19px var(--font-display);letter-spacing:-.02em')}>{t(view.taglineKey)}</span>
                 <span style={st('font:500 12.5px/1.4 var(--font-ui);color:var(--muted)')}>{t(view.hintKey)}</span>
               </div>

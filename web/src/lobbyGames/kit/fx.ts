@@ -28,6 +28,8 @@ const MAX_PARTICLES = 500;
 /** What the effects need to know about the current frame, supplied by `renderScene`. */
 export interface FxFrame {
   me: string;
+  /** The room's accent, for confetti. */
+  accent: string;
   /** A player's colour. */
   colorOf: (id: string) => string;
   /** Where a player was on the arena (fractions of its size) in `snapshot` - for the knock-out burst. */
@@ -59,6 +61,8 @@ export class LobbyFx {
   private prev: LobbyGameSnapshot | null = null;
   private pending: { at: { x: number; y: number }; color: string; mine: boolean; wait: number; frame: FxFrame }[] = [];
   private lastNow = 0;
+  /** The room's accent as of the last frame, for confetti started outside `update`. */
+  private accent = '';
   private confettiRun = -1;
   private readonly firstSeen = new WeakMap<object, number>();
 
@@ -71,6 +75,7 @@ export class LobbyFx {
 
   /** Advances the effects to `now` and starts any the new snapshot calls for. */
   update(snapshot: LobbyGameSnapshot, now: number, frame: FxFrame): void {
+    this.accent = frame.accent;
     const dt = this.lastNow ? Math.min(0.05, (now - this.lastNow) / 1000) : 0;
     this.lastNow = now;
     const prev = this.prev && this.prev.id === snapshot.id ? this.prev : null;
@@ -84,7 +89,7 @@ export class LobbyFx {
       }
       if (snapshot.phase === 'over' && prev.phase !== 'over' && snapshot.winnerId && snapshot.run !== this.confettiRun) {
         this.confettiRun = snapshot.run;
-        if (!this.reduced) this.confetti(frame.colorOf(snapshot.winnerId));
+        if (!this.reduced) this.confetti(frame.colorOf(snapshot.winnerId), frame.accent);
       }
     }
     if (!prev) {
@@ -125,7 +130,7 @@ export class LobbyFx {
 
   private explode(at: { x: number; y: number }, color: string, mine: boolean, frame: FxFrame): void {
     const { x, y } = at;
-    const colors = [color, color, '#ffffff', 'oklch(0.83 0.15 85)', 'oklch(0.74 0.15 45)'];
+    const colors = [color, color, '#ffffff', 'oklch(0.83 0.15 85)', frame.accent];
     for (let i = 0; i < 34; i++) {
       const a = Math.random() * Math.PI * 2;
       const v = 0.15 + Math.random() * 0.55;
@@ -150,7 +155,7 @@ export class LobbyFx {
   celebrate(run: number, color: string): void {
     if (this.reduced || this.confettiRun === run) return;
     this.confettiRun = run;
-    this.confetti(color, 110);
+    this.confetti(color, this.accent, 110);
   }
 
   /** A small burst of confetti at a spot on the arena (fractions of its size), in colours near `hue` (a number, 0 to 359) or in a colour (a string, such
@@ -168,8 +173,8 @@ export class LobbyFx {
     }
   }
 
-  private confetti(winnerColor: string, count = 70): void {
-    const colors = [winnerColor, 'oklch(0.74 0.15 45)', 'oklch(0.83 0.15 85)', 'oklch(0.82 0.12 160)', '#fff'];
+  private confetti(winnerColor: string, accent: string, count = 70): void {
+    const colors = [winnerColor, accent, 'oklch(0.83 0.15 85)', 'oklch(0.82 0.12 160)', '#fff'];
     for (let i = 0; i < count; i++) {
       this.add({ k: 'conf', x: Math.random(), y: -0.05 - Math.random() * 0.3, vx: (Math.random() - 0.5) * 0.1, vy: 0.18 + Math.random() * 0.25, max: 3.6, c: colors[i % colors.length], sz: 0.01 + Math.random() * 0.01, r: Math.random() * 6, vr: (Math.random() - 0.5) * 10, g: 0.05, sway: Math.random() * 6 });
     }

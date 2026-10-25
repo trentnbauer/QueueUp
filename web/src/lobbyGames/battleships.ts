@@ -1,22 +1,17 @@
 import { BATTLESHIPS_SIZE, SQUARE_HIT, SQUARE_MISS, SQUARE_SUNK, type BattleshipsSnapshot } from '@queueup/shared';
 import type { LobbyGameView } from './index';
-import { FONT, STAGE, renderScene, roundRect, rememberSnapshot, type Scene, type SceneGame } from './kit';
+import { STAGE, STRIP_Y, drawStandings, drawTimer, renderScene, roundRect, rememberSnapshot, stripX, type Scene, type SceneGame } from './kit';
 import type { TapRect, TapTargets } from './taps';
 
 const SIZE = BATTLESHIPS_SIZE;
 const CELLS = SIZE * SIZE;
 
-// Where things are on the arena, as fractions of its side: one big board on the left, and the players down the
-// right with how many squares of their ships are afloat.
-const BOARD_X = 0.04;
-const BOARD_Y = 0.14;
-const CELL = 0.09;
-const SIDE = CELL * SIZE;
-const LIST_X = 0.8;
-const LIST_Y = 0.14;
-const LIST_W = 0.16;
-const ROW_H = 0.058;
-const ROW_GAP = 0.008;
+// Where things are on the arena, as fractions of its side: one big board, centred under the standings strip (which shows how many squares of
+// each player's ships are afloat).
+const SIDE = 0.64;
+const CELL = SIDE / SIZE;
+const BOARD_X = (1 - SIDE) / 2;
+const BOARD_Y = 0.285;
 /** After a shot you wait this long (SHOT_COOLDOWN_S in the rules), for the bar under the board. */
 const COOLDOWN_MS = 800;
 /** Your own ships. */
@@ -49,11 +44,11 @@ function drawWorld(sc: Scene<BattleshipsSnapshot>): void {
   const { ctx, S, snapshot, theme } = sc;
   celebrate(sc);
 
-  // Time left in the round, as a bar draining along the top edge.
-  if (snapshot.phase === 'playing' && snapshot.limitMs > 0) {
-    ctx.fillStyle = theme.acc;
-    ctx.fillRect(0, 0, S * Math.max(0, snapshot.roundLeftMs / snapshot.limitMs), S * 0.008);
-  }
+  // Time left in the round.
+  if (snapshot.phase === 'playing' && snapshot.limitMs > 0) drawTimer(sc, snapshot.roundLeftMs / snapshot.limitMs);
+
+  // The players with how many squares of their ships are afloat; anyone out or watching is dimmed.
+  drawStandings(sc, { text: (p) => (p.inRound ? String(p.afloat) : '') });
 
   // The one board: the water, then each square. Your own ships show (nobody else's), every shot is on it, and
   // a sunk ship shows whose it was.
@@ -142,50 +137,14 @@ function drawWorld(sc: Scene<BattleshipsSnapshot>): void {
     }
     ctx.globalAlpha = 1;
   }
-
-  // The players down the right: their colour, and how many squares of their ships are afloat. You are ringed.
-  const rw = LIST_W * S;
-  const rh = ROW_H * S;
-  snapshot.players
-    .filter((p) => p.inRound)
-    .forEach((p, k) => {
-      const x = LIST_X * S;
-      const y = (LIST_Y + k * (ROW_H + ROW_GAP)) * S;
-      ctx.globalAlpha = p.alive ? 1 : 0.35;
-      roundRect(ctx, x, y, rw, rh, rh * 0.35);
-      ctx.fillStyle = 'oklch(1 0 0 / 0.08)';
-      ctx.fill();
-      if (p.id === sc.me) {
-        ctx.lineWidth = 2;
-        ctx.strokeStyle = theme.text;
-        ctx.stroke();
-      }
-      const dot = rh * 0.34;
-      ctx.fillStyle = sc.info(p.id).color;
-      ctx.beginPath();
-      ctx.arc(x + dot * 1.3, y + rh / 2, dot, 0, Math.PI * 2);
-      ctx.fill();
-      ctx.fillStyle = '#fff';
-      ctx.font = `700 ${Math.round(dot * 1.2)}px ${FONT.ui}`;
-      ctx.textAlign = 'center';
-      ctx.textBaseline = 'middle';
-      ctx.fillText(sc.info(p.id).initial, x + dot * 1.3, y + rh / 2 + 1);
-      ctx.fillStyle = theme.text;
-      ctx.font = `700 ${Math.round(S * 0.028)}px ${FONT.mono}`;
-      ctx.textAlign = 'right';
-      ctx.fillText(String(p.afloat), x + rw - rh * 0.25, y + rh / 2 + 1);
-      ctx.globalAlpha = 1;
-    });
-  ctx.textAlign = 'left';
-  ctx.textBaseline = 'alphabetic';
 }
 
 const scene: SceneGame<BattleshipsSnapshot> = {
   scroll: 'x',
   taps: BATTLE_TAPS,
   drawWorld,
-  // Where a knock-out burst starts: over the list of players.
-  anchor: (_snapshot, index) => ({ x: LIST_X + LIST_W / 2, y: LIST_Y + ROW_H / 2 + index * (ROW_H + ROW_GAP) }),
+  // Where a knock-out burst starts: over the standings strip.
+  anchor: (snapshot, index) => ({ x: stripX(snapshot.players.length, index), y: STRIP_Y }),
 };
 
 export const battleshipsView: LobbyGameView<BattleshipsSnapshot> = {
