@@ -20,7 +20,7 @@ export function HighScoresStrip({ game, phone }: { game: LobbyGameId; phone: boo
   return (
     <div style={st(`display:flex;flex-direction:column;gap:8px;${phone ? 'padding:12px 14px;border-radius:16px;background:var(--bg)' : ''}`)} aria-live="polite">
       <div style={st('display:flex;align-items:baseline;justify-content:space-between;gap:8px')}>
-        <span style={st('font:500 11px var(--font-mono);letter-spacing:.08em;color:var(--faint)')}>{t('games.strip.kicker')}</span>
+        <span style={st('font:500 11px var(--font-mono);letter-spacing:.08em;text-transform:uppercase;color:var(--faint)')}>{t('games.strip.kicker')}</span>
         {phone && gap && <span style={st('font:400 12px var(--font-ui);color:var(--muted)')}>{gap}</span>}
       </div>
       {rows.length === 0 ? (

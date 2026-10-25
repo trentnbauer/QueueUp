@@ -1,18 +1,16 @@
 import { ENDLESS_LIVES, type SortitItem, type SortitSnapshot } from '@queueup/shared';
 import type { MessageKey } from '../i18n';
 import type { LobbyGameView } from './index';
-import { FONT, drawLives, renderScene, roundRect, type Scene, type SceneGame } from './kit';
+import { FONT, STRIP_Y, drawBadge, drawLives, drawPrompt, drawStandings, renderScene, roundRect, stripX, type Scene, type SceneGame } from './kit';
 import type { TapRect, TapTargets } from './taps';
 
-// Where things are on the arena, as fractions of its side: the players in a row, the rule, the belt (coming down the middle to a line), then two bins.
-const CHIPS_Y = 0.1;
-const CHIP_R = 0.022;
-const RULE_Y = 0.245;
-const TOP = 0.31;
-const LINE = 0.55;
-const BIN_Y = 0.62;
+// Where things are on the arena, as fractions of its side: the rule on the prompt line, a hint of the next one, the belt (coming down the middle to a line), then two bins.
+const NEXT_Y = 0.325;
+const TOP = 0.36;
+const LINE = 0.58;
+const BIN_Y = 0.65;
 const BIN_W = 0.44;
-const BIN_H = 0.32;
+const BIN_H = 0.3;
 const BIN_X = 0.04;
 /** How long a judgement shows. */
 const LASTING_MS = 600;
@@ -70,16 +68,14 @@ function drawWorld(sc: Scene<SortitSnapshot>): void {
   const waiting = snapshot.items.filter((i) => !done.has(i.n));
   const current = waiting[0] ?? snapshot.items[snapshot.items.length - 1];
   const rule = current?.rule ?? 0;
-  ctx.textAlign = 'center';
-  ctx.textBaseline = 'middle';
-  ctx.font = `800 ${Math.round(S * 0.042)}px ${FONT.display}`;
-  ctx.fillStyle = theme.text;
-  ctx.fillText(sc.t(RULE_KEYS[rule]), S / 2, RULE_Y * S);
+  drawPrompt(sc, sc.t(RULE_KEYS[rule]));
   const next = waiting.find((i) => i.rule !== rule);
   if (next && playing) {
     ctx.font = `600 ${Math.round(S * 0.024)}px ${FONT.mono}`;
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
     ctx.fillStyle = theme.accText;
-    ctx.fillText(sc.t('spin.lobby.sortit.next', { rule: sc.t(RULE_KEYS[next.rule]) }), S / 2, (RULE_Y + 0.04) * S);
+    ctx.fillText(sc.t('spin.lobby.sortit.next', { rule: sc.t(RULE_KEYS[next.rule]) }), S / 2, NEXT_Y * S);
   }
 
   // The items on the belt, oldest at the bottom (nearest the line). The ones you have sorted or let go by are gone.
@@ -110,21 +106,7 @@ function drawWorld(sc: Scene<SortitSnapshot>): void {
   }
 
   // Everyone in the run, with their items sorted and lives.
-  const n = snapshot.players.length;
-  const step = Math.min(0.14, 0.84 / Math.max(1, n));
-  ctx.font = `700 ${Math.round(S * 0.026)}px ${FONT.mono}`;
-  ctx.textBaseline = 'alphabetic';
-  for (const i of sc.order()) {
-    const p = snapshot.players[i];
-    const cx = (0.5 + (i - (n - 1) / 2) * step) * S;
-    ctx.save();
-    if (!p.alive) ctx.globalAlpha = 0.35;
-    sc.drawPlayer(p.id, cx, CHIPS_Y * S, CHIP_R * S, CHIP_R * S);
-    ctx.restore();
-    ctx.fillStyle = theme.text;
-    ctx.fillText(String(p.meters), cx, (CHIPS_Y + CHIP_R + 0.03) * S);
-    if (p.alive) drawLives(ctx, cx, (CHIPS_Y + CHIP_R + 0.058) * S, p.lives, ENDLESS_LIVES, S * 0.011, theme.danger);
-  }
+  drawStandings(sc, { under: (p, cx, y) => drawLives(ctx, cx, y, p.lives, ENDLESS_LIVES, S * 0.01, theme.danger) });
 
   // Your last sort, over the line, fading.
   const last = mine?.last;
@@ -132,10 +114,7 @@ function drawWorld(sc: Scene<SortitSnapshot>): void {
     const fade = 1 - last.agoMs / LASTING_MS;
     ctx.save();
     ctx.globalAlpha = fade;
-    ctx.font = `800 ${Math.round(S * 0.05)}px ${FONT.display}`;
-    ctx.textAlign = 'center';
-    ctx.fillStyle = last.kind === 'right' ? theme.mint : theme.danger;
-    ctx.fillText(last.kind === 'right' ? '✓' : last.kind === 'wrong' ? '✗' : sc.t('spin.lobby.sortit.late'), S * 0.74, (LINE - (1 - fade) * 0.04) * S);
+    drawBadge(ctx, S * 0.74, (LINE - (1 - fade) * 0.04) * S, S * 0.03, last.kind === 'right' ? 'ok' : last.kind === 'wrong' ? 'no' : 'late', theme);
     ctx.restore();
   }
 }
@@ -144,8 +123,8 @@ const scene: SceneGame<SortitSnapshot> = {
   scroll: 'y',
   taps: SORTIT_TAPS,
   drawWorld,
-  // Out, a player bursts where they stand in the row at the top.
-  anchor: (snapshot, index) => ({ x: 0.5 + (index - (snapshot.players.length - 1) / 2) * Math.min(0.14, 0.84 / Math.max(1, snapshot.players.length)), y: CHIPS_Y }),
+  // Out, a player bursts where they stand in the standings strip.
+  anchor: (snapshot, index) => ({ x: stripX(snapshot.players.length, index), y: STRIP_Y }),
 };
 
 export const sortitView: LobbyGameView<SortitSnapshot> = {

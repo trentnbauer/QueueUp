@@ -7,6 +7,7 @@ afterEach(() => vi.unstubAllGlobals());
 
 const frame: FxFrame = {
   me: 'me',
+  accent: 'oklch(0.74 0.15 45)',
   colorOf: () => '#4a8fe8',
   anchor: () => ({ x: 0.2, y: 0.5 }),
   outText: 'OUT',

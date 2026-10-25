@@ -1,44 +1,22 @@
 import type { StopSnapshot } from '@queueup/shared';
 import type { LobbyGameView } from './index';
-import { FONT, STAGE, renderScene, roundRect, type Scene, type SceneGame } from './kit';
+import { STAGE, STRIP_Y, drawPrompt, drawStandings, renderScene, roundRect, stripX, type Scene, type SceneGame } from './kit';
 
-// Where things are on the arena, as fractions of its side: everyone's rounds in a row, the round, the bar with its
-// target zone, and everyone's stops on it.
-const CHIPS_Y = 0.11;
-const CHIP_R = 0.022;
-const ROUND_Y = 0.3;
+// The standings strip, the round on the prompt line, the bar with its target zone, and the cue under it.
 const BAR_X = 0.08;
 const BAR_W = 0.84;
 const BAR_Y = 0.52;
 const BAR_H = 0.1;
 const MARKER_W = 0.012;
+const CUE_Y = BAR_Y + BAR_H + 0.13;
 
 function drawWorld(sc: Scene<StopSnapshot>): void {
   const { ctx, S, snapshot, theme } = sc;
 
-  // Everyone's cleared rounds in one row; someone who is out is dimmed.
-  const n = snapshot.players.length;
-  const step = Math.min(0.09, 0.84 / Math.max(1, n));
-  ctx.font = `700 ${Math.round(S * 0.026)}px ${FONT.mono}`;
-  ctx.textAlign = 'center';
-  ctx.textBaseline = 'alphabetic';
-  for (const i of sc.order()) {
-    const p = snapshot.players[i];
-    if (!p.alive) continue; // out, or watching until the next run
-    const cx = (0.5 + (i - (n - 1) / 2) * step) * S;
-    sc.drawPlayer(p.id, cx, CHIPS_Y * S, CHIP_R * S, CHIP_R * S);
-    ctx.fillStyle = p.stopped ? theme.mint : theme.text;
-    ctx.fillText(p.stopped ? '✓' : String(p.meters), cx, (CHIPS_Y + CHIP_R + 0.03) * S);
-  }
+  // Cleared rounds for everyone, an ok badge once they have stopped this round (the score stays visible).
+  drawStandings(sc, { badge: (p) => (p.stopped ? 'ok' : !p.alive ? 'no' : null) });
+  if (snapshot.round > 0) drawPrompt(sc, sc.t('spin.lobby.stop.round', { n: snapshot.round }));
 
-  if (snapshot.round > 0) {
-    ctx.font = `800 ${Math.round(S * 0.05)}px ${FONT.display}`;
-    ctx.textBaseline = 'middle';
-    ctx.fillStyle = theme.text;
-    ctx.fillText(sc.t('spin.lobby.stop.round', { n: snapshot.round }), S / 2, ROUND_Y * S);
-  }
-
-  // The bar, the target zone on it, and the marker sweeping back and forth.
   const x = BAR_X * S;
   const y = BAR_Y * S;
   const w = BAR_W * S;
@@ -50,21 +28,21 @@ function drawWorld(sc: Scene<StopSnapshot>): void {
   ctx.lineWidth = 1;
   ctx.stroke();
   if (snapshot.round > 0) {
-    const zx = x + (snapshot.centre - snapshot.half) * w;
-    const zw = snapshot.half * 2 * w;
     ctx.fillStyle = 'oklch(0.7 0.16 150 / 0.45)';
-    ctx.fillRect(zx, y, zw, h);
+    ctx.fillRect(x + (snapshot.centre - snapshot.half) * w, y, snapshot.half * 2 * w, h);
+    // The excellent middle (double points).
+    ctx.fillStyle = theme.star;
+    ctx.globalAlpha = 0.7;
+    ctx.fillRect(x + (snapshot.centre - snapshot.excellent) * w, y, snapshot.excellent * 2 * w, h);
+    ctx.globalAlpha = 1;
     ctx.fillStyle = theme.mint;
     ctx.fillRect(x + snapshot.centre * w - 1, y, 2, h);
   }
-
-  // Stops so far this round, a tick in each person's colour.
   for (const p of snapshot.players) {
     if (p.at < 0) continue;
     ctx.fillStyle = sc.info(p.id).color;
     ctx.fillRect(x + p.at * w - 1.5, y - h * 0.18, 3, h * 1.36);
   }
-
   if (snapshot.marker >= 0) {
     const m = sc.ease('marker', snapshot.marker, 0).x;
     ctx.save();
@@ -75,23 +53,18 @@ function drawWorld(sc: Scene<StopSnapshot>): void {
     ctx.restore();
   }
 
-  // What to do now.
-  ctx.font = `700 ${Math.round(S * 0.034)}px ${FONT.ui}`;
-  ctx.textBaseline = 'middle';
-  ctx.fillStyle = theme.accText;
+  // The cue is a second prompt by position only: same font and size, accent tone. Strings become "Stop it!" / "Waiting for the others".
   const mine = snapshot.players.find((p) => p.id === sc.me);
-  if (snapshot.stage === 'sweep' && mine?.alive) ctx.fillText(mine.stopped ? sc.t('spin.lobby.stop.waiting') : sc.t('spin.lobby.stop.press'), S / 2, (BAR_Y + BAR_H + 0.13) * S);
+  if (snapshot.stage === 'sweep' && mine?.alive) drawPrompt(sc, sc.t(mine.stopped ? 'spin.lobby.stop.waiting' : 'spin.lobby.stop.press'), 'accent', CUE_Y);
 }
 
 const scene: SceneGame<StopSnapshot> = {
   scroll: 'y',
   drawWorld,
-  // A burst starts over the row of players, where the person who missed is shown.
-  anchor: (snapshot, index) => ({ x: 0.5 + (index - (snapshot.players.length - 1) / 2) * 0.09, y: CHIPS_Y }),
+  anchor: (snapshot, index) => ({ x: stripX(snapshot.players.length, index), y: STRIP_Y }),
 };
 
 export const stopView: LobbyGameView<StopSnapshot> = {
-  // One button: Stop (Space or Up), or tap anywhere on the arena.
   pad: 'none',
   actions: [{ name: 'stop', labelKey: 'spin.lobby.stop.stop', keys: [' ', 'ArrowUp', 'w'] }],
   tapAction: 'stop',

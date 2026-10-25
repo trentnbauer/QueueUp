@@ -46,7 +46,7 @@ export const games = {
   "games.you.bestTag": "BEST",
   "games.you.noRuns": "No runs yet. Play one!",
   "games.dialog.solo": "Play solo",
-  "games.strip.kicker": "HIGH SCORES · FRIENDS / ALL TIME",
+  "games.strip.kicker": "High scores · friends / all time",
   "games.strip.gap": "{gap} to pass {name}",
   "games.strip.quiet": "It's quiet here",
   "games.status.solo": "Just you · runs count toward high scores",

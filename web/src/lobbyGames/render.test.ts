@@ -108,3 +108,30 @@ describe('every mini game draws a frame in every phase', () => {
     }
   });
 });
+
+describe('games with stages draw every stage', () => {
+  // Each is played for a while by two players who tap and press at random, and a frame is drawn every so often (the choices, the shapes on show, a turn, a result...).
+  for (const id of ['simon', 'counting', 'maths', 'chain', 'pendulum', 'pit'] as const) {
+    it(id, () => {
+      const game = createLobbyGame(id);
+      game.join('a');
+      game.join('b');
+      const stages = new Set<string>();
+      for (let i = 0; i < 1500; i++) {
+        game.tick(STEP);
+        if (i % 7 === 0) {
+          game.tap?.('a', i % 4);
+          game.action('a', id === 'pendulum' ? 'drop' : 'dash');
+          game.input('b', i % 3 === 0 ? 1 : -1, 0);
+        }
+        if (i % 9 !== 0) continue;
+        const snapshot = JSON.parse(JSON.stringify(game.snapshot('a'))) as LobbyGameSnapshot;
+        if ('stage' in snapshot) stages.add(snapshot.stage);
+        const rec = frame(id, snapshot);
+        expect(rec.bad, `${id} frame ${i}`).toEqual([]);
+        expect(rec.count('save'), `${id} frame ${i}: save and restore balance`).toBe(rec.count('restore'));
+      }
+      if (id !== 'pit') expect(stages.size, `${id} stages drawn`).toBeGreaterThanOrEqual(2);
+    });
+  }
+});

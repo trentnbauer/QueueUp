@@ -1,14 +1,12 @@
 import { ODDONEOUT_HIT, ODDONEOUT_TARGETS, type OddOneOutSnapshot } from '@queueup/shared';
 import type { LobbyGameView } from './index';
-import { FONT, STAGE, renderScene, roundRect, rememberSnapshot, type Scene, type SceneGame } from './kit';
+import { STAGE, STRIP_Y, drawStandings, renderScene, roundRect, rememberSnapshot, stripX, type Scene, type SceneGame } from './kit';
 import type { TapRect, TapTargets } from './taps';
 
-// Where things are on the arena, as fractions of its side: everyone's avatar, points and health in a row, then the one shared board.
-const CHIPS_Y = 0.095;
-const CHIP_R = 0.02;
-const BOARD_X = 0.1;
-const BOARD_Y = 0.2;
-const BOARD_W = 0.78;
+// Where things are on the arena, as fractions of its side: the one shared board, under the standings strip (with health under each score).
+const BOARD_X = 0.15;
+const BOARD_Y = 0.29;
+const BOARD_W = 0.7;
 const TILE_GAP = 0.012;
 /** A tile's colour: the shared one, and the lightness of the odd one is this plus the board's `delta`. */
 const TILE_L = 0.62;
@@ -40,42 +38,22 @@ function drawWorld(sc: Scene<OddOneOutSnapshot>): void {
   const { ctx, S, snapshot, theme } = sc;
   celebrate(sc);
 
-  // Everyone's points and health bar in one row; someone who is out is dimmed, and a wrong tap lights the avatar red until they can tap again.
-  const n = snapshot.players.length;
-  const step = Math.min(0.12, 0.84 / Math.max(1, n));
-  ctx.font = `700 ${Math.round(S * 0.024)}px ${FONT.mono}`;
-  ctx.textAlign = 'center';
-  ctx.textBaseline = 'alphabetic';
-  for (const i of sc.order()) {
-    const p = snapshot.players[i];
-    if (!p.alive && p.meters === 0) continue; // watching until the next run
-    const cx = (0.5 + (i - (n - 1) / 2) * step) * S;
-    ctx.save();
-    if (!p.alive) ctx.globalAlpha = 0.4;
-    sc.drawPlayer(p.id, cx, CHIPS_Y * S, CHIP_R * S, CHIP_R * S);
-    if (p.lockMs > 0) {
-      ctx.strokeStyle = theme.danger;
-      ctx.lineWidth = Math.max(2, S * 0.005);
-      ctx.beginPath();
-      ctx.arc(cx, CHIPS_Y * S, (CHIP_R + 0.006) * S, 0, Math.PI * 2);
-      ctx.stroke();
-    }
-    ctx.restore();
-    ctx.fillStyle = theme.text;
-    ctx.fillText(String(p.meters), cx, (CHIPS_Y + CHIP_R + 0.028) * S);
-    if (p.alive) {
-      const bw = Math.min(step * 0.8, 0.1) * S;
+  // Everyone's points, with a health bar under each; a wrong tap marks the avatar until they can tap again.
+  drawStandings(sc, {
+    badge: (p) => (p.lockMs > 0 ? 'no' : null),
+    under: (p, cx, y) => {
+      if (!p.alive) return;
+      const bw = S * 0.08;
       const bh = S * 0.008;
-      const by = (CHIPS_Y + CHIP_R + 0.04) * S;
       const frac = Math.min(1, Math.max(0, p.hp / HP_MAX));
       ctx.fillStyle = STAGE.hudFill;
-      roundRect(ctx, cx - bw / 2, by, bw, bh, bh / 2);
+      roundRect(ctx, cx - bw / 2, y, bw, bh, bh / 2);
       ctx.fill();
       ctx.fillStyle = frac < 0.3 ? theme.danger : theme.acc;
-      roundRect(ctx, cx - bw / 2, by, Math.max(bh, bw * frac), bh, bh / 2);
+      roundRect(ctx, cx - bw / 2, y, Math.max(bh, bw * frac), bh, bh / 2);
       ctx.fill();
-    }
-  }
+    },
+  });
 
   // The board: n by n tiles of one colour, one of them a little lighter or darker.
   const { n: size, hue, delta, odd } = snapshot.board;
@@ -94,7 +72,7 @@ const scene: SceneGame<OddOneOutSnapshot> = {
   scroll: 'y',
   taps: ODDONEOUT_TAPS,
   drawWorld,
-  anchor: (snapshot, index) => ({ x: 0.5 + (index - (snapshot.players.length - 1) / 2) * 0.12, y: CHIPS_Y }),
+  anchor: (snapshot, index) => ({ x: stripX(snapshot.players.length, index), y: STRIP_Y }),
 };
 
 export const oddOneOutView: LobbyGameView<OddOneOutSnapshot> = {

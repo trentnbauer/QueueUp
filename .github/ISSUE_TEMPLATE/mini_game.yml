@@ -54,7 +54,7 @@ body:
     attributes:
       label: Look
       description: |
-        What the obstacles and players look like. Games use the shared graphics kit (see web/src/lobbyGames/README.md), so the arena, heads-up display, countdown, result card and knock-out effects come for free. Describe just the world: the ground, the obstacles (they are drawn as game covers by default) and anything special.
+        What the obstacles and players look like. Games use the shared graphics kit (see web/src/lobbyGames/README.md), so the arena, heads-up display, countdown, result card and knock-out effects come for free. The standings strip, prompt line, timer and status badges also come from the kit (see its Graphics standard). Describe just the world: the ground, the obstacles (they are drawn as game covers by default) and anything special.
     validations:
       required: false
 

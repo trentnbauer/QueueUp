@@ -45,6 +45,12 @@ export const MINIGAME_SCORE_MAX: Record<LobbyGameId, number> = {
   parachute: 3600, // metres fallen
   oddoneout: 2000, // right taps
   swing: 3600, // metres along the course
+  simon: 60, // pads in the longest pattern
+  counting: 1000, // points
+  pit: 600, // seconds on the floor
+  pendulum: 400, // points
+  chain: 1000, // points
+  maths: 1000, // points
 };
 
 /** Each game's rules version. A score is saved with the version it was played under, and the high score lists show only the
@@ -74,7 +80,7 @@ export const MINIGAME_VERSIONS: Record<LobbyGameId, number> = {
   potato: 2, // the score became the time held, not the rounds survived
   anagram: 3, // a word nobody solves in time ends the run; before: words start at 3 letters and grow to 6, and before that 5 and 6 letters from the first word
   mines: 1,
-  stop: 1,
+  stop: 2, // a much bigger zone to start with that shrinks slowly, and a gold middle worth two points: the score is points, not rounds cleared
   pong: 1,
   wall: 1,
   frogger: 1,
@@ -89,6 +95,12 @@ export const MINIGAME_VERSIONS: Record<LobbyGameId, number> = {
   parachute: 3, // the sky speeds up four times as quickly, and gusts fade in and out
   oddoneout: 1,
   swing: 1,
+  simon: 1,
+  counting: 1,
+  pit: 1,
+  pendulum: 1,
+  chain: 1,
+  maths: 1,
 };
 export const miniGameVersion = (game: LobbyGameId): number => MINIGAME_VERSIONS[game];
 
@@ -334,6 +346,12 @@ export const MINIGAME_NAMES: Record<LobbyGameId, string> = {
   parachute: 'Parachute',
   oddoneout: 'Odd one out',
   swing: 'Swing',
+  simon: 'Simon says',
+  counting: 'Counting',
+  pit: 'Crumble pit',
+  pendulum: 'Pendulum drop',
+  chain: 'Word chain',
+  maths: 'Maths rush',
 };
 
 /** Whether score `a` is better than score `b` in the game (a smaller time is better; otherwise bigger is). Equal is not better. */

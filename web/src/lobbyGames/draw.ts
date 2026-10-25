@@ -1,12 +1,10 @@
 import { DRAW_POINTS_TO_WIN, type DrawSnapshot } from '@queueup/shared';
 import type { LobbyGameView } from './index';
-import { FONT, renderScene, type Scene, type SceneGame } from './kit';
+import { FONT, STRIP_Y, drawStandings, drawTimer, renderScene, stripX, type Scene, type SceneGame } from './kit';
 import type { TapTargets } from './taps';
 
-/** The one big button is the whole play space below the points row, and the controller. */
-const AREA = { x: 0.05, y: 0.24, w: 0.9, h: 0.7 };
-const CHIPS_Y = 0.15;
-const CHIP_R = 0.022;
+/** The one big button is the whole play space below the standings strip, and the controller. */
+const AREA = { x: 0.05, y: 0.3, w: 0.9, h: 0.64 };
 
 /** The arena is the controller: one target (Space on a keyboard). */
 export const DRAW_TAPS: TapTargets = { rects: [AREA], keys: [' '] };
@@ -14,29 +12,14 @@ export const DRAW_TAPS: TapTargets = { rects: [AREA], keys: [' '] };
 function drawWorld(sc: Scene<DrawSnapshot>): void {
   const { ctx, S, snapshot, theme, now } = sc;
 
-  // Time left in the run, as a bar draining along the top edge.
-  if (snapshot.phase === 'playing' && snapshot.limitMs > 0) {
-    ctx.fillStyle = theme.acc;
-    ctx.fillRect(0, 0, S * Math.max(0, snapshot.roundLeftMs / snapshot.limitMs), S * 0.008);
-  }
+  // Time left in the run.
+  if (snapshot.phase === 'playing' && snapshot.limitMs > 0) drawTimer(sc, snapshot.roundLeftMs / snapshot.limitMs);
 
-  // Everyone's points (out of DRAW_POINTS_TO_WIN) in one row; who false-started or was late is dimmed.
-  const n = snapshot.players.length;
-  const step = Math.min(0.09, 0.84 / Math.max(1, n));
-  ctx.font = `700 ${Math.round(S * 0.026)}px ${FONT.mono}`;
-  ctx.textAlign = 'center';
-  ctx.textBaseline = 'alphabetic';
-  for (const i of sc.order()) {
-    const p = snapshot.players[i];
-    if (!p.alive) continue; // watching until the next run
-    const cx = (0.5 + (i - (n - 1) / 2) * step) * S;
-    ctx.save();
-    if (snapshot.stage !== 'wait' && p.state === 'false') ctx.globalAlpha = 0.4;
-    sc.drawPlayer(p.id, cx, CHIPS_Y * S, CHIP_R * S, CHIP_R * S);
-    ctx.restore();
-    ctx.fillStyle = p.state === 'won' ? theme.mint : theme.text;
-    ctx.fillText(`${p.meters}/${DRAW_POINTS_TO_WIN}`, cx, (CHIPS_Y + CHIP_R + 0.03) * S);
-  }
+  // Everyone's points (out of DRAW_POINTS_TO_WIN); who false-started is marked, and who won the duel.
+  drawStandings(sc, {
+    text: (p) => `${p.meters}/${DRAW_POINTS_TO_WIN}`,
+    badge: (p) => (p.state === 'won' ? 'ok' : snapshot.stage !== 'wait' && p.state === 'false' ? 'no' : null),
+  });
 
   // The big light: dim while waiting, a flash of green at GO, then the result.
   const cx = (AREA.x + AREA.w / 2) * S;
@@ -72,8 +55,8 @@ const scene: SceneGame<DrawSnapshot> = {
   scroll: 'y',
   taps: DRAW_TAPS,
   drawWorld,
-  // Nobody is knocked out here, so a burst would only start on the row of points.
-  anchor: (snapshot, index) => ({ x: 0.5 + (index - (snapshot.players.length - 1) / 2) * 0.09, y: CHIPS_Y }),
+  // Nobody is knocked out here, so a burst would only start on the standings strip.
+  anchor: (snapshot, index) => ({ x: stripX(snapshot.players.length, index), y: STRIP_Y }),
 };
 
 export const drawView: LobbyGameView<DrawSnapshot> = {

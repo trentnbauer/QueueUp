@@ -1,11 +1,9 @@
 import { ENDLESS_LIVES, type TempoJudge, type TempoSnapshot } from '@queueup/shared';
 import type { LobbyGameView } from './index';
-import { FONT, drawLives, renderScene, type Scene, type SceneGame } from './kit';
+import { FONT, STRIP_Y, drawLives, drawPrompt, drawStandings, renderScene, stripX, type Scene, type SceneGame } from './kit';
 import type { TapTargets } from './taps';
 
-// Where things are on the arena, as fractions of its side: the players in a row, the beat in the middle, the silent beats as dots, and the gauge.
-const CHIPS_Y = 0.1;
-const CHIP_R = 0.022;
+// Where things are on the arena, as fractions of its side: the caption on the prompt line, the beat in the middle, the silent beats as dots, and the gauge.
 const CX = 0.5;
 const CY = 0.46;
 const RING = 0.15;
@@ -52,13 +50,11 @@ function drawWorld(sc: Scene<TempoSnapshot>): void {
     ctx.stroke();
     ctx.restore();
   }
-  ctx.font = `800 ${Math.round(S * 0.04)}px ${FONT.display}`;
-  ctx.fillStyle = theme.text;
   const caption = snapshot.stage === 'guide' ? 'spin.lobby.tempo.listen' : snapshot.stage === 'play' ? 'spin.lobby.tempo.keep' : 'spin.lobby.tempo.rest';
-  ctx.fillText(sc.t(caption), CX * S, CY * S);
+  drawPrompt(sc, sc.t(caption), snapshot.stage === 'play' ? 'go' : 'text');
   ctx.font = `600 ${Math.round(S * 0.024)}px ${FONT.mono}`;
   ctx.fillStyle = theme.accText;
-  ctx.fillText(sc.t('spin.lobby.tempo.round', { n: snapshot.round, bpm: snapshot.bpm }), CX * S, (CY + RING + 0.075) * S);
+  ctx.fillText(sc.t('spin.lobby.tempo.round', { n: snapshot.round, bpm: snapshot.bpm }), CX * S, CY * S);
 
   // The silent beats as dots: lit by how each of yours went.
   const n = snapshot.silent;
@@ -94,28 +90,14 @@ function drawWorld(sc: Scene<TempoSnapshot>): void {
   }
 
   // Everyone in the run, with their points and lives.
-  const count = snapshot.players.length;
-  const step = Math.min(0.14, 0.84 / Math.max(1, count));
-  ctx.font = `700 ${Math.round(S * 0.026)}px ${FONT.mono}`;
-  ctx.textBaseline = 'alphabetic';
-  for (const i of sc.order()) {
-    const p = snapshot.players[i];
-    const cx = (0.5 + (i - (count - 1) / 2) * step) * S;
-    ctx.save();
-    if (!p.alive) ctx.globalAlpha = 0.35;
-    sc.drawPlayer(p.id, cx, CHIPS_Y * S, CHIP_R * S, CHIP_R * S);
-    ctx.restore();
-    ctx.fillStyle = theme.text;
-    ctx.fillText(String(p.meters), cx, (CHIPS_Y + CHIP_R + 0.03) * S);
-    if (p.alive) drawLives(ctx, cx, (CHIPS_Y + CHIP_R + 0.058) * S, p.lives, ENDLESS_LIVES, S * 0.011, theme.danger);
-  }
+  drawStandings(sc, { under: (p, cx, y) => drawLives(ctx, cx, y, p.lives, ENDLESS_LIVES, S * 0.01, theme.danger) });
 }
 
 const scene: SceneGame<TempoSnapshot> = {
   scroll: 'y',
   taps: TEMPO_TAPS,
   drawWorld,
-  anchor: (snapshot, index) => ({ x: 0.5 + (index - (snapshot.players.length - 1) / 2) * Math.min(0.14, 0.84 / Math.max(1, snapshot.players.length)), y: CHIPS_Y }),
+  anchor: (snapshot, index) => ({ x: stripX(snapshot.players.length, index), y: STRIP_Y }),
 };
 
 export const tempoView: LobbyGameView<TempoSnapshot> = {

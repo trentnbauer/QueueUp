@@ -6,10 +6,13 @@ const RATE_START = 1.1;
 const RATE_GAIN = 0.18;
 const RATE_MAX = 2.6;
 /** The target zone is this wide (half-width, as a share of the bar) in the first round, narrower every round, down to a floor. */
-const HALF_START = 0.15;
-const HALF_SHRINK = 0.011;
+const HALF_START = 0.35;
+const HALF_SHRINK = 0.01;
 const HALF_MIN = 0.03;
-/** The zone's middle is kept this far from the ends of the bar. */
+/** The excellent zone in the middle of the target zone: a share of its half-width (not under a floor), worth double. */
+const EXCELLENT_SHARE = 0.25;
+const EXCELLENT_MIN = 0.015;
+/** The zone's middle is kept at least this far from the ends of the bar (and never so near that the zone spills off it). */
 const CENTRE_EDGE = 0.18;
 /** A sweep lasts this long; anyone who has not stopped by then is out. */
 const SWEEP_S = 5;
@@ -21,8 +24,10 @@ interface Stopper extends RoundPlayer {
   stopped: boolean;
   /** Where they stopped it (0..1), or -1. */
   at: number;
-  /** Rounds cleared. */
+  /** Points scored: 1 for a stop in the zone, 2 for one in the excellent middle. */
   cleared: number;
+  /** Points this round's stop is worth, added once the sweep ends. */
+  gain: number;
 }
 
 /** Where a marker is on the bar (0..1) after `u` crossings' worth of travel: it goes up, then back down, again and again. */
@@ -32,7 +37,7 @@ function bounce(u: number): number {
 }
 
 /** One marker sweeps back and forth along a bar with a target zone, the same for everyone. Press to stop your marker: inside
- * the zone and you go on to the next round; outside, or too late, and you are out. Each round it is faster and the zone is
+ * the zone and you go on to the next round; outside, or too late, and you are out. A stop in the small excellent middle of the zone scores double. Each round it is faster and the zone is
  * smaller. Last one in wins. See RoundGame for how runs start and end. */
 export class StopGame extends RoundGame<Stopper> {
   readonly id = 'stop' as const;
@@ -52,13 +57,14 @@ export class StopGame extends RoundGame<Stopper> {
   }
 
   protected createPlayer(id: string, alive: boolean): Stopper {
-    return { id, stopped: false, at: -1, cleared: 0, alive, wins: 0, outAtMeters: 0 };
+    return { id, stopped: false, at: -1, cleared: 0, gain: 0, alive, wins: 0, outAtMeters: 0 };
   }
 
   protected resetPlayer(p: Stopper): void {
     p.stopped = false;
     p.at = -1;
     p.cleared = 0;
+    p.gain = 0;
   }
 
   protected resetCourse(): void {
@@ -81,6 +87,11 @@ export class StopGame extends RoundGame<Stopper> {
     // Stopping is an action; there is nothing to hold.
   }
 
+  /** Half-width of the excellent zone. */
+  private get excellent(): number {
+    return Math.min(this.half, Math.max(EXCELLENT_MIN, this.half * EXCELLENT_SHARE));
+  }
+
   private get marker(): number {
     return this.markerAgo(0);
   }
@@ -97,6 +108,7 @@ export class StopGame extends RoundGame<Stopper> {
     p.at = this.markerAgo(this.pressBehindMs);
     if (Math.abs(p.at - this.centre) <= this.half) {
       p.stopped = true;
+      p.gain = Math.abs(p.at - this.centre) <= this.excellent ? 2 : 1;
       return;
     }
     this.fail(p);
@@ -122,6 +134,7 @@ export class StopGame extends RoundGame<Stopper> {
       round: this.round,
       centre: r3(this.centre),
       half: r3(this.half),
+      excellent: r3(this.excellent),
       marker: r3(this.stage === 'sweep' ? this.marker : -1),
       sweepLeftMs: this.stage === 'sweep' ? Math.max(0, Math.round((SWEEP_S - this.elapsed) * 1000)) : 0,
       players: [...this.players.values()].map((p) => ({ id: p.id, alive: p.alive, wins: p.wins, meters: p.alive ? p.cleared : p.outAtMeters, stopped: p.stopped, at: r3(p.at) })),
@@ -146,7 +159,7 @@ export class StopGame extends RoundGame<Stopper> {
   }
 
   private endSweep(): void {
-    for (const p of this.players.values()) if (p.alive && p.stopped) p.cleared++;
+    for (const p of this.players.values()) if (p.alive && p.stopped) p.cleared += p.gain;
     this.stage = 'result';
     this.wait = RESULT_S;
   }
@@ -155,13 +168,15 @@ export class StopGame extends RoundGame<Stopper> {
     this.round++;
     this.rate = Math.min(RATE_MAX, RATE_START + RATE_GAIN * (this.round - 1));
     this.half = Math.max(HALF_MIN, HALF_START - HALF_SHRINK * (this.round - 1));
-    this.centre = CENTRE_EDGE + this.rng() * (1 - 2 * CENTRE_EDGE);
+    const edge = Math.max(CENTRE_EDGE, this.half + 0.01);
+    this.centre = edge + this.rng() * (1 - 2 * edge);
     this.phase0 = this.rng() * 2;
     this.elapsed = 0;
     this.stage = 'sweep';
     for (const p of this.players.values()) {
       p.stopped = false;
       p.at = -1;
+      p.gain = 0;
     }
   }
 }

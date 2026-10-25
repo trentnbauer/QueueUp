@@ -1,15 +1,13 @@
 import { ENDLESS_LIVES, RHYTHM_GOOD_S, RHYTHM_GREAT_S, RHYTHM_LANES, type RhythmSnapshot } from '@queueup/shared';
 import type { MessageKey } from '../i18n';
 import type { LobbyGameView } from './index';
-import { FONT, STAGE, coverTile, drawLives, hueOf, renderScene, rememberSnapshot, type Scene, type SceneGame } from './kit';
+import { FONT, STAGE, STRIP_Y, coverTile, drawLives, drawStandings, hueOf, renderScene, rememberSnapshot, stripX, type Scene, type SceneGame } from './kit';
 import type { TapRect, TapTargets } from './taps';
 
-// Where things are on the arena, as fractions of its side: the players in a row, then four lanes down to the line the notes are tapped on.
-const CHIPS_Y = 0.1;
-const CHIP_R = 0.022;
+// Where things are on the arena, as fractions of its side: four lanes under the standings strip, down to the line the notes are tapped on.
 const LANES_X = 0.08;
 const LANE_W = (1 - 2 * LANES_X) / RHYTHM_LANES;
-const TOP = 0.2;
+const TOP = 0.3;
 const LINE = 0.84;
 const NOTE_H = 0.05;
 /** How long a judgement (GREAT, MISS...) shows. */
@@ -93,21 +91,7 @@ function drawWorld(sc: Scene<RhythmSnapshot>): void {
   }
 
   // Everyone in the run, with their points and lives.
-  const n = snapshot.players.length;
-  const step = Math.min(0.14, 0.84 / Math.max(1, n));
-  ctx.font = `700 ${Math.round(S * 0.026)}px ${FONT.mono}`;
-  ctx.textBaseline = 'alphabetic';
-  for (const i of sc.order()) {
-    const p = snapshot.players[i];
-    const cx = (0.5 + (i - (n - 1) / 2) * step) * S;
-    ctx.save();
-    if (!p.alive) ctx.globalAlpha = 0.35;
-    sc.drawPlayer(p.id, cx, CHIPS_Y * S, CHIP_R * S, CHIP_R * S);
-    ctx.restore();
-    ctx.fillStyle = theme.text;
-    ctx.fillText(String(p.meters), cx, (CHIPS_Y + CHIP_R + 0.03) * S);
-    if (p.alive) drawLives(ctx, cx, (CHIPS_Y + CHIP_R + 0.058) * S, p.lives, ENDLESS_LIVES, S * 0.011, theme.danger);
-  }
+  drawStandings(sc, { under: (p, cx, y) => drawLives(ctx, cx, y, p.lives, ENDLESS_LIVES, S * 0.01, theme.danger) });
 
   // What your last tap or miss was, over the line, fading.
   const last = mine?.last;
@@ -128,8 +112,8 @@ const scene: SceneGame<RhythmSnapshot> = {
   scroll: 'y',
   taps: RHYTHM_TAPS,
   drawWorld,
-  // Out, a player bursts where they stand in the row at the top.
-  anchor: (snapshot, index) => ({ x: 0.5 + (index - (snapshot.players.length - 1) / 2) * Math.min(0.14, 0.84 / Math.max(1, snapshot.players.length)), y: CHIPS_Y }),
+  // Out, a player bursts where they stand in the standings strip.
+  anchor: (snapshot, index) => ({ x: stripX(snapshot.players.length, index), y: STRIP_Y }),
 };
 
 export const rhythmView: LobbyGameView<RhythmSnapshot> = {

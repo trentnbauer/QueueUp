@@ -32,6 +32,12 @@ import { TunnelGame } from './tunnel.js';
 import { ParachuteGame } from './parachute.js';
 import { OddOneOutGame } from './oddoneout.js';
 import { SwingGame } from './swing.js';
+import { SimonGame } from './simon.js';
+import { CountingGame } from './counting.js';
+import { PitGame } from './pit.js';
+import { PendulumGame } from './pendulum.js';
+import { ChainGame } from './chain.js';
+import { MathsGame } from './maths.js';
 import { TiltGame } from './tilt.js';
 import { StackerGame } from './stacker.js';
 import { SumoGame } from './sumo.js';
@@ -42,8 +48,9 @@ import type { LobbyGame } from './types.js';
 
 export type { BotBrain, BotCommand, LobbyGame } from './types.js';
 export { LobbyRecord, secureRandom } from './roundGame.js';
-export { BattleshipsGame, CoinsGame, DodgeGame, FlappyGame, RaceGame, RopeGame, RunnerGame, WhackGame, DrawGame, TiltGame, StackerGame, SumoGame, AsteroidsGame, MemoryGame, WordsGame, SnakeGame, GravityGame, LaserGame, ColorMatchGame, PotatoGame, AnagramGame, MinesGame, StopGame, PongGame, WallGame, FroggerGame, FishingGame, OrbitGame, RpsGame, RhythmGame, SortitGame, TempoGame, LavaGame, TunnelGame, ParachuteGame, OddOneOutGame, SwingGame };
+export { BattleshipsGame, CoinsGame, DodgeGame, FlappyGame, RaceGame, RopeGame, RunnerGame, WhackGame, DrawGame, TiltGame, StackerGame, SumoGame, AsteroidsGame, MemoryGame, WordsGame, SnakeGame, GravityGame, LaserGame, ColorMatchGame, PotatoGame, AnagramGame, MinesGame, StopGame, PongGame, WallGame, FroggerGame, FishingGame, OrbitGame, RpsGame, RhythmGame, SortitGame, TempoGame, LavaGame, TunnelGame, ParachuteGame, OddOneOutGame, SwingGame, SimonGame, CountingGame, PitGame, PendulumGame, ChainGame, MathsGame };
 export { tunnelAt } from './tunnel.js';
+export { PENDULUM_ARM, PENDULUM_GROUND_Y, PENDULUM_PIVOT_X, PENDULUM_PIVOT_Y } from './pendulum.js';
 export { BotFiller, botColor, botNumber, isBotId, withBots } from './bots.js';
 
 /** Starts a fresh game of the given kind, with bots added by the lobby when it needs more players than
@@ -128,6 +135,18 @@ function build(id: LobbyGameId, record?: LobbyRecord): LobbyGame {
       return new OddOneOutGame(undefined, record);
     case 'swing':
       return new SwingGame(undefined, record);
+    case 'simon':
+      return new SimonGame(undefined, record);
+    case 'counting':
+      return new CountingGame(undefined, record);
+    case 'pit':
+      return new PitGame(undefined, record);
+    case 'pendulum':
+      return new PendulumGame(undefined, record);
+    case 'chain':
+      return new ChainGame(undefined, record);
+    case 'maths':
+      return new MathsGame(undefined, record);
   }
 }
 
