@@ -23,6 +23,8 @@ const HP_START = 10;
 const HP_DRAIN = 2;
 const HP_DRAIN_GAIN = 0.12;
 const HP_PER_POINT = 5;
+/** The bar does not drain for this long at the start of a run. */
+const HP_SAFE_S = 5;
 const FISH_Y_MAX = 0.8;
 /** The share of what turns up that is a boot, not a fish. */
 const BOOT_SHARE = 0.12;
@@ -377,7 +379,7 @@ export class FishingGame extends RoundGame<Angler> {
     const d = this.difficulty;
     for (const p of this.players.values()) {
       if (!p.alive || !this.simulated(p)) continue;
-      p.hp -= (HP_DRAIN + HP_DRAIN_GAIN * t) * dt * this.hpDrainScale;
+      if (t >= HP_SAFE_S) p.hp -= (HP_DRAIN + HP_DRAIN_GAIN * t) * dt * this.hpDrainScale;
       if (p.hp <= 0) {
         p.hp = 0;
         this.knockOut(p);

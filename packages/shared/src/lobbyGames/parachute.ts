@@ -3,7 +3,7 @@ import { RoundGame, type RoundPlayer } from './roundGame.js';
 
 // Everything is in screens: x runs 0..1 across, y 0..1 down from the top. The skydiver falls, so the course comes up the screen.
 /** How fast the course comes up: from this, and quicker by this every second of the run (no top speed, so it always ends). */
-const RISE_START = 0.4;
+const RISE_START = 0.2;
 const RISE_GAIN = 0.12;
 /** A row of clouds comes every this much of course. */
 const ROW_EVERY = 0.5;

@@ -437,6 +437,8 @@ describe('FishingGame running a run', () => {
   it('drains the health bar all the time, faster as the run goes on, and puts an angler who never catches anything out', () => {
     const g = started(['a'], 5);
     const start = me(g, 'a').hp;
+    run(g, 4000);
+    expect(me(g, 'a').hp).toBe(start); // the first 5 seconds are safe
     run(g, 3000);
     const early = start - me(g, 'a').hp;
     expect(early).toBeGreaterThan(4);
@@ -445,7 +447,7 @@ describe('FishingGame running a run', () => {
     const t = untilOver(g, 120_000);
     expect(snap(g).phase).toBe('over');
     expect(me(g, 'a').alive).toBe(false);
-    expect(t).toBeLessThan(40);
+    expect(t).toBeLessThan(45);
     // Never having been fuller than at the start, that is the score.
     expect(snap(g).history[snap(g).history.length - 1].meters).toBe(10);
   });
