@@ -207,7 +207,7 @@ export const spin: Record<keyof typeof en, string> = {
   "spin.lobby.mines.hint": "Tap a square on the shared field. Safe squares score, a mine knocks ye out. Most squares wins.",
   "spin.lobby.stop.name": "Perfect stop",
   "spin.lobby.stop.tagline": "Stop it in the zone",
-  "spin.lobby.stop.hint": "Tap to stop yer marker inside the green zone. Miss and ye be out. Last one in wins.",
+  "spin.lobby.stop.hint": "Tap to stop yer marker inside the green zone, or the small gold middle fer double points. Miss and ye be out. Last one in wins.",
   "spin.lobby.stop.stop": "Stop",
   "spin.lobby.stop.round": "Round {n}",
   "spin.lobby.stop.press": "STOP IT!",

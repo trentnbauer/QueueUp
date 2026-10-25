@@ -1258,6 +1258,8 @@ export interface StopSnapshot extends RoundSummary {
   /** The middle of the target zone on the bar (0..1) and how far it reaches either side. */
   centre: number;
   half: number;
+  /** How far the excellent middle of the zone (worth double) reaches either side of the centre. */
+  excellent: number;
   /** Where the marker is on the bar (0..1) while it sweeps; -1 otherwise. */
   marker: number;
   /** Milliseconds left before anyone who has not stopped is out (`sweep` only). */

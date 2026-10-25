@@ -54,6 +54,8 @@ function drawWorld(sc: Scene<StopSnapshot>): void {
     const zw = snapshot.half * 2 * w;
     ctx.fillStyle = 'oklch(0.7 0.16 150 / 0.45)';
     ctx.fillRect(zx, y, zw, h);
+    ctx.fillStyle = 'oklch(0.8 0.18 95 / 0.7)';
+    ctx.fillRect(x + (snapshot.centre - snapshot.excellent) * w, y, snapshot.excellent * 2 * w, h);
     ctx.fillStyle = theme.mint;
     ctx.fillRect(x + snapshot.centre * w - 1, y, 2, h);
   }
