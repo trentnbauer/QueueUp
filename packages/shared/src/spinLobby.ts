@@ -2119,10 +2119,12 @@ export interface SimonSnapshot extends RoundSummary {
   winnerId: string | null;
 }
 
-// ---- Crumble pit (a row of floor tiles that fall away; bump the others into the gaps) -------------------
+// ---- Crumble pit (three layers of floor tiles that fall away; jump between them and bump the others off) -------------------
 
-/** How many floor tiles the pit starts with, side by side across the arena, and the span they cover (fractions of the arena). */
+/** How many floor tiles each layer of the pit starts with, side by side across the arena, and the span they cover (fractions of the arena). */
 export const PIT_TILES = 12;
+/** Three layers of floor, top first, and how far down the arena each one sits (a fraction of its height). Falling past the last one is the end. */
+export const PIT_LAYER_Y = [0.4, 0.58, 0.76] as const;
 export const PIT_LEFT = 0.11;
 export const PIT_RIGHT = 0.89;
 /** A tile's state: solid, shaking and about to fall, or gone. */
@@ -2136,12 +2138,12 @@ export interface PitPlayer {
   wins: number;
   /** Seconds they lasted: live while in, final once out. */
   meters: number;
-  /** Where they stand along the pit (0..1), the way they face (-1 or 1), and the dash wait left (0..1, 0 when ready). */
+  /** Where they stand along the pit (0..1), how far down the arena their feet are (0..1), and the way they face (-1 or 1). */
   x: number;
+  y: number;
   face: number;
-  cooldown: number;
-  /** They are over a gap and about to fall (0..1). */
-  slipping: number;
+  /** They are in the air (jumping or falling), not standing on a tile. */
+  air: boolean;
 }
 
 export interface PitSnapshot extends RoundSummary {
@@ -2151,7 +2153,7 @@ export interface PitSnapshot extends RoundSummary {
   meters: number;
   /** Always 0: nothing scrolls past in this game (every snapshot carries a course speed). */
   speed: number;
-  /** Each tile, left to right: 0 solid, 1 shaking, 2 gone. */
+  /** Each tile, the top layer first and each layer left to right (`PIT_LAYER_Y.length * PIT_TILES` in all): 0 solid, 1 shaking, 2 gone. */
   tiles: PitTile[];
   players: PitPlayer[];
   /** Milliseconds left in `countdown` or `over`; 0 otherwise. */

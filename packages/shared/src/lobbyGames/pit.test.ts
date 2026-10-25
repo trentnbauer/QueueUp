@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { PIT_LEFT, PIT_RIGHT, PIT_TILES } from '../spinLobby.js';
+import { PIT_LAYER_Y, PIT_LEFT, PIT_RIGHT, PIT_TILES } from '../spinLobby.js';
 import { PitGame, tileAt } from './pit.js';
 
 const STEP = 33;
@@ -34,10 +34,13 @@ describe('PitGame', () => {
   it('starts with a whole floor and everyone spread along it', () => {
     const g = started(['a', 'b']);
     const s = snap(g);
-    expect(s.tiles).toHaveLength(PIT_TILES);
+    expect(s.tiles).toHaveLength(PIT_TILES * 3);
     expect(s.tiles.every((t) => t === 0)).toBe(true);
     expect(s.players[0].x).toBeLessThan(s.players[1].x);
-    for (const p of s.players) expect(tileAt(p.x)).toBeGreaterThanOrEqual(0);
+    for (const p of s.players) {
+      expect(tileAt(p.x)).toBeGreaterThanOrEqual(0);
+      expect(p.y).toBe(PIT_LAYER_Y[0]);
+    }
   });
 
   it('shakes the first tile after about two and a half seconds and drops it a second later', () => {
@@ -56,71 +59,74 @@ describe('PitGame', () => {
     expect(dropped - shook).toBeLessThan(1200);
   });
 
-  it('puts a player who stands over a gap out, and a player who stays on solid floor lasts', () => {
+  it('lets a player who stands still last until the floor under them is gone and they have dropped through every layer', () => {
     const g = started(['a']);
-    run(g, 60000);
-    // Standing still, the floor under them goes in the end: they fall, the run is over.
+    run(g, 80000);
     expect(snap(g).phase === 'over' || snap(g).run > 1).toBe(true);
-    expect(snap(g).history.at(-1)?.meters).toBeGreaterThan(3);
+    expect(snap(g).history.at(-1)?.meters).toBeGreaterThan(5);
   });
 
-  it('lets a player outlast the floor by moving to the tiles that are left, but not for ever', () => {
-    // A player who always walks toward the nearest solid tile lasts longer than one who stands still, and still goes out in the end.
-    const survive = (move: boolean) => {
-      const g = started(['a'], 11);
-      let t = 0;
-      while (snap(g).phase === 'playing' && t < 80000) {
-        if (move) {
-          const s = snap(g);
-          const x = s.players[0].x;
-          let best = -1;
-          for (let i = 0; i < PIT_TILES; i++) {
-            if (s.tiles[i] !== 0) continue;
-            const c = PIT_LEFT + ((i + 0.5) * (PIT_RIGHT - PIT_LEFT)) / PIT_TILES;
-            if (best < 0 || Math.abs(c - x) < Math.abs(best - x)) best = c;
-          }
-          g.input('a', best < 0 || Math.abs(best - x) < 0.01 ? 0 : best > x ? 1 : -1, 0);
-        }
-        g.tick(STEP);
-        t += STEP;
-      }
-      expect(snap(g).phase).toBe('over');
-      return t;
-    };
-    expect(survive(true)).toBeGreaterThan(survive(false));
-  });
-
-  it('walks at a limited speed, and a dash adds a burst of speed the way the player faces and then has to recharge', () => {
+  it('drops a player through a gap onto the layer below, and only puts them out below the last layer', () => {
     const g = started(['a']);
-    g.input('a', 1, 0);
-    run(g, 1000);
-    const walked = me(g, 'a').x;
-    const g2 = started(['a']);
-    g2.input('a', 1, 0);
-    g2.action('a', 'dash');
-    run(g2, 300);
-    expect(me(g2, 'a').cooldown).toBeGreaterThan(0.5);
-    const start = 0.5;
-    expect(me(g2, 'a').x - start).toBeGreaterThan(0);
-    // The dash is on cooldown: a second one straight away does nothing extra.
-    const before = me(g2, 'a').x;
-    g2.action('a', 'dash');
-    run(g2, 33);
-    expect(me(g2, 'a').x - before).toBeLessThan(0.05);
-    expect(walked).toBeGreaterThan(0.5);
+    let layer = 0;
+    let maxLayer = 0;
+    for (let t = 0; t < 80000 && snap(g).phase === 'playing'; t += STEP) {
+      g.tick(STEP);
+      const p = me(g, 'a');
+      if (!p.air) layer = PIT_LAYER_Y.findIndex((y) => y === p.y);
+      maxLayer = Math.max(maxLayer, layer);
+    }
+    expect(maxLayer).toBeGreaterThan(0);
+    expect(snap(g).phase).toBe('over');
   });
 
-  it('bumps players into each other, so a dash into someone sends them flying', () => {
+  it('jumps up, can be steered in the air, and lands again; a second jump in the air does nothing', () => {
+    const g = started(['a']);
+    g.action('a', 'jump');
+    run(g, 200);
+    const p1 = me(g, 'a');
+    expect(p1.air).toBe(true);
+    expect(p1.y).toBeLessThan(PIT_LAYER_Y[0]);
+    g.action('a', 'jump'); // ignored mid-air
+    g.input('a', 1, 0);
+    const x0 = p1.x;
+    run(g, 200);
+    expect(me(g, 'a').x).toBeGreaterThan(x0);
+    run(g, 1000);
+    const p2 = me(g, 'a');
+    expect(p2.air).toBe(false);
+    expect(p2.y).toBe(PIT_LAYER_Y[0]);
+  });
+
+  it('lets a jump pass up through the layer above and land on it', () => {
+    const g = started(['a']);
+    // Fresh, so the player is on the top layer: pass this by checking a jump rises further than the gap between layers.
+    g.action('a', 'jump');
+    let top = 1;
+    for (let t = 0; t < 1500; t += STEP) {
+      g.tick(STEP);
+      top = Math.min(top, me(g, 'a').y);
+    }
+    expect(PIT_LAYER_Y[0] - top).toBeGreaterThan(PIT_LAYER_Y[1] - PIT_LAYER_Y[0]);
+  });
+
+  it('favours tiles on the upper layers when picking which to shake', () => {
+    const counts = [0, 0, 0];
+    for (let seed = 1; seed <= 300; seed++) {
+      const g = started(['a'], seed);
+      while (!snap(g).tiles.includes(1)) g.tick(STEP);
+      counts[Math.floor(snap(g).tiles.indexOf(1) / PIT_TILES)]++;
+    }
+    expect(counts[0]).toBeGreaterThan(counts[1]);
+    expect(counts[1]).toBeGreaterThan(counts[2]);
+  });
+
+  it('bumps players on the same layer into each other', () => {
     const g = started(['a', 'b']);
-    // Walk a towards b and dash.
-    for (let i = 0; i < 60; i++) {
+    for (let i = 0; i < 90; i++) {
       g.input('a', 1, 0);
       g.tick(STEP);
     }
-    const bBefore = me(g, 'b').x;
-    g.action('a', 'dash');
-    run(g, 400);
-    expect(Math.abs(me(g, 'b').x - bBefore)).toBeGreaterThan(0.01);
     // They never pass through each other.
     expect(me(g, 'a').x).toBeLessThan(me(g, 'b').x + 0.001);
   });

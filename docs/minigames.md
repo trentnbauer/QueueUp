@@ -408,17 +408,17 @@ A word is shown, with four more. Tap the one that starts with the last letter of
 
 ## Crumble pit
 
-A row of floor tiles over a drop. They fall away one at a time, quicker and quicker, and the players bump each other into the gaps.
+Three layers of floor tiles over a drop. They fall away one at a time, quicker and quicker. Jump between the layers; the only way out is to fall past the bottom one.
 
-- **The floor** is 12 tiles side by side across the middle of the arena. The first starts to shake after **2.5 seconds** (a shaking tile is red and trembles), and falls a second later. After that, the next tile to shake is picked at random from the solid ones, each wait **7% shorter** than the one before, down to 0.7 seconds. So the floor always runs out.
-- **Walk** left and right (0.32 of the arena a second at most). You face the way you last walked.
-- **Dash** (Space, ↑, **W**, or the Dash button): a burst of speed the way you face, then **1.2 seconds** to recharge, shown as a bar under the floor for you.
-- **Bumps:** two players that touch swap speeds (minus a tenth), so a dash into someone sends them flying, perhaps into a gap, while you stop. Nobody can leave the arena sideways.
-- **Falling:** stand over a gap (or off either end of the floor) for **0.3 seconds** and you fall and are out. Crossing a gap one tile wide at a run, or on a dash, is safe; standing in one is not.
-- **Last one on the floor wins.** If everyone falls together it is a draw. Alone, it is a high score: the floor takes about 22 seconds to go.
-- **Score** is the seconds you stayed on, which is also what the high score list records.
+- **The floor** is three layers of 12 tiles side by side, one above the other, and everyone starts on the top layer. The first tile starts to shake after **2.5 seconds** (a shaking tile is red and trembles), and falls a second later. After that, the next tile to shake is picked at random from the solid ones, each wait **7% shorter** than the one before, down to 0.7 seconds. A tile on the **top layer is 3 times as likely** to be picked as one on the bottom, and one on the **middle layer 2 times**, so the floor you start on goes first. The floor always runs out.
+- **Walk** left and right (0.32 of the arena a second at most). You face the way you last walked. You can steer in the air just the same.
+- **Jump** (Space, ↑, **W**, or the Jump button), only while standing on a tile: high enough to reach the layer above. You land on any tile you come down onto, and pass up through the ones above you.
+- **Falling:** if the tile under you is gone you drop to the layer below, and land there if there is a tile. You are only **out when you fall past the bottom layer**.
+- **Bumps:** two players on the same layer that touch swap speeds (minus a tenth). Nobody can leave the arena sideways.
+- **Last one in wins.** If everyone falls together it is a draw. Alone, it is a high score.
+- **Score** is the seconds you stayed in, which is also what the high score list records.
 - There is no time limit of its own: the floor always runs out.
-- **Controls:** **←** / **→** or **A** / **D** to walk, **Space**, **↑** or **W** to dash. On a phone, the buttons are laid out **◀ Dash ▶**.
+- **Controls:** **←** / **→** or **A** / **D** to walk, **Space**, **↑** or **W** to jump. On a phone, the buttons are laid out **◀ Jump ▶**.
 
 ## Pendulum drop
 
@@ -520,7 +520,7 @@ A game can instead make **the play space the controller**: there are no buttons 
 | Swing | **←** / **→** or **A** / **D** to pump the swing, **Space**, **↑** or **W** to let go and grab. | The **◀** and **▶** buttons, and **Grab** (or tap anywhere on the arena). |
 | Simon says | Tap a pad, or press **1-4**. | Tap a pad. |
 | Maths rush, Counting, Word chain | Click a panel, or press **1-4**. | Tap a panel. |
-| Crumble pit | **←** / **→** or **A** / **D** to walk, **Space**, **↑** or **W** to dash. | The **◀** and **▶** buttons, and **Dash**. |
+| Crumble pit | **←** / **→** or **A** / **D** to walk, **Space**, **↑** or **W** to jump. | The **◀** and **▶** buttons, and **Jump**. |
 | Pendulum drop | **Space**, **↑** or **W**. | Tap anywhere on the arena. |
 | Orbit | **Space**, **↑**, **←** / **→** or **W** / **A** / **D** to flip direction. | **Flip**, or tap anywhere on the arena. |
 
