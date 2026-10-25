@@ -6,10 +6,10 @@ const RATE_START = 1.1;
 const RATE_GAIN = 0.18;
 const RATE_MAX = 2.6;
 /** The target zone is this wide (half-width, as a share of the bar) in the first round, narrower every round, down to a floor. */
-const HALF_START = 0.15;
-const HALF_SHRINK = 0.011;
+const HALF_START = 0.35;
+const HALF_SHRINK = 0.01;
 const HALF_MIN = 0.03;
-/** The zone's middle is kept this far from the ends of the bar. */
+/** The zone's middle is kept at least this far from the ends of the bar (and never so near that the zone spills off it). */
 const CENTRE_EDGE = 0.18;
 /** A sweep lasts this long; anyone who has not stopped by then is out. */
 const SWEEP_S = 5;
@@ -155,7 +155,8 @@ export class StopGame extends RoundGame<Stopper> {
     this.round++;
     this.rate = Math.min(RATE_MAX, RATE_START + RATE_GAIN * (this.round - 1));
     this.half = Math.max(HALF_MIN, HALF_START - HALF_SHRINK * (this.round - 1));
-    this.centre = CENTRE_EDGE + this.rng() * (1 - 2 * CENTRE_EDGE);
+    const edge = Math.max(CENTRE_EDGE, this.half + 0.01);
+    this.centre = edge + this.rng() * (1 - 2 * edge);
     this.phase0 = this.rng() * 2;
     this.elapsed = 0;
     this.stage = 'sweep';
