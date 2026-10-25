@@ -85,7 +85,7 @@ export class PitGame extends RoundGame<Bumper> {
     this.resetCourse();
   }
 
-  input(userId: string, dx: number): void {
+  input(userId: string, dx: number, _dy?: number): void {
     const p = this.players.get(userId);
     if (!p || !p.alive) return;
     p.dir = clampDirection(dx);
