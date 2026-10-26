@@ -11,8 +11,8 @@
 export const LOBBY_TICK_HZ = 15;
 
 /** The games the lobby can run. */
-export type LobbyGameId = 'runner' | 'flappy' | 'dodge' | 'rope' | 'coins' | 'battleships' | 'race' | 'whack' | 'draw' | 'tilt' | 'stacker' | 'sumo' | 'asteroids' | 'memory' | 'words' | 'snake' | 'gravity' | 'laser' | 'colormatch' | 'potato' | 'anagram' | 'mines' | 'stop' | 'pong' | 'wall' | 'frogger' | 'fishing' | 'orbit' | 'rps' | 'rhythm' | 'sortit' | 'tempo' | 'lava' | 'tunnel' | 'parachute' | 'oddoneout' | 'swing';
-export const LOBBY_GAME_IDS: readonly LobbyGameId[] = ['runner', 'flappy', 'dodge', 'rope', 'coins', 'battleships', 'race', 'whack', 'draw', 'tilt', 'stacker', 'sumo', 'asteroids', 'memory', 'words', 'snake', 'gravity', 'laser', 'colormatch', 'potato', 'anagram', 'mines', 'stop', 'pong', 'wall', 'frogger', 'fishing', 'orbit', 'rps', 'rhythm', 'sortit', 'tempo', 'lava', 'tunnel', 'parachute', 'oddoneout', 'swing'];
+export type LobbyGameId = 'runner' | 'flappy' | 'dodge' | 'rope' | 'coins' | 'battleships' | 'race' | 'whack' | 'draw' | 'tilt' | 'stacker' | 'sumo' | 'asteroids' | 'memory' | 'words' | 'snake' | 'gravity' | 'laser' | 'colormatch' | 'potato' | 'anagram' | 'mines' | 'stop' | 'pong' | 'wall' | 'frogger' | 'fishing' | 'orbit' | 'rps' | 'rhythm' | 'sortit' | 'tempo' | 'lava' | 'tunnel' | 'parachute' | 'oddoneout' | 'swing' | 'simon' | 'counting' | 'pit' | 'pendulum' | 'chain' | 'maths';
+export const LOBBY_GAME_IDS: readonly LobbyGameId[] = ['runner', 'flappy', 'dodge', 'rope', 'coins', 'battleships', 'race', 'whack', 'draw', 'tilt', 'stacker', 'sumo', 'asteroids', 'memory', 'words', 'snake', 'gravity', 'laser', 'colormatch', 'potato', 'anagram', 'mines', 'stop', 'pong', 'wall', 'frogger', 'fishing', 'orbit', 'rps', 'rhythm', 'sortit', 'tempo', 'lava', 'tunnel', 'parachute', 'oddoneout', 'swing', 'simon', 'counting', 'pit', 'pendulum', 'chain', 'maths'];
 
 /** What a client sends. Anything else is ignored. */
 export type LobbyClientMessage =
@@ -1258,6 +1258,8 @@ export interface StopSnapshot extends RoundSummary {
   /** The middle of the target zone on the bar (0..1) and how far it reaches either side. */
   centre: number;
   half: number;
+  /** How far the excellent middle of the zone (worth double) reaches either side of the centre. */
+  excellent: number;
   /** Where the marker is on the bar (0..1) while it sweeps; -1 otherwise. */
   marker: number;
   /** Milliseconds left before anyone who has not stopped is out (`sweep` only). */
@@ -1993,7 +1995,216 @@ export interface SwingSnapshot extends RoundSummary {
   winnerId: string | null;
 }
 
-export type LobbyGameSnapshot = RunnerSnapshot | FlappySnapshot | DodgeSnapshot | RopeSnapshot | CoinsSnapshot | BattleshipsSnapshot | RaceSnapshot | WhackSnapshot | DrawSnapshot | TiltSnapshot | StackerSnapshot | SumoSnapshot | AsteroidsSnapshot | MemorySnapshot | WordsSnapshot | SnakeSnapshot | GravitySnapshot | LaserSnapshot | ColorMatchSnapshot | PotatoSnapshot | AnagramSnapshot | MinesSnapshot | StopSnapshot | PongSnapshot | WallSnapshot | FroggerSnapshot | FishingSnapshot | OrbitSnapshot | RpsSnapshot | RhythmSnapshot | SortitSnapshot | TempoSnapshot | LavaSnapshot | TunnelSnapshot | ParachuteSnapshot | OddOneOutSnapshot | SwingSnapshot;
+// ---- Quiz games (Maths rush, Counting, Word chain): a question, four answers, tap the right one -------
+
+/** Every quiz game has this many answer panels (2 x 2: tap targets 0 to 3, top left, top right, bottom left, bottom right). */
+export const QUIZ_CHOICES = 4;
+
+/** Where a question is: something to look at before the choices come up (`show`, only in Counting), the choices are up and being answered, or the result before the next. */
+export type QuizStage = 'show' | 'ask' | 'between';
+
+export interface QuizPlayer {
+  id: string;
+  /** Lives left in an endless run (no time limit), or null in a timed round, which has none. */
+  lives: number | null;
+  /** Playing this round. False if they arrived mid-round (they watch and play from the next one). */
+  alive: boolean;
+  /** Rounds won since this person joined the lobby. */
+  wins: number;
+  /** Points this round. */
+  meters: number;
+  /** Answered the question on screen. */
+  answered: boolean;
+  /** Whether that answer was right (null before they answer). */
+  right: boolean | null;
+}
+
+/** What every quiz game's snapshot carries; each adds what it needs to draw its question. */
+export interface QuizSnapshotBase extends RoundSummary {
+  phase: LobbyRoundPhase;
+  /** The most points anyone has so far. */
+  meters: number;
+  /** Always 0: nothing scrolls past in these games (every snapshot carries a course speed). */
+  speed: number;
+  /** Milliseconds left in the round while `playing`. */
+  roundLeftMs: number;
+  stage: QuizStage;
+  /** Questions asked so far this run (the one on screen included); 0 before the first. */
+  asked: number;
+  /** The question as text where it is plain text (a sum, a word); empty otherwise. */
+  question: string;
+  /** The four answers as text, left to right and top to bottom; empty until they come up. */
+  choices: string[];
+  /** Which choice was right, shown once the question is over (`between`); -1 before that, so it cannot be read early. */
+  answer: number;
+  /** Milliseconds the current stage has left (`show` and `ask`), and how long it waits in all. */
+  stageLeftMs: number;
+  stageTotalMs: number;
+  players: QuizPlayer[];
+  /** Milliseconds left in `countdown` or `over`; 0 otherwise. */
+  timerMs: number;
+  /** Who won the round that just ended (`over` only); null when nobody did (a solo round, or a tie). */
+  winnerId: string | null;
+}
+
+export interface MathsSnapshot extends QuizSnapshotBase {
+  id: 'maths';
+}
+
+/** A shape on the Counting field: where (fractions of the field) and which of the two kinds. */
+export interface CountingItem {
+  x: number;
+  y: number;
+  kind: 0 | 1;
+}
+
+export interface CountingSnapshot extends QuizSnapshotBase {
+  id: 'counting';
+  /** The shapes to count while `show`; empty after. */
+  items: CountingItem[];
+  /** Which kind is being counted. */
+  kind: 0 | 1;
+}
+
+export interface ChainSnapshot extends QuizSnapshotBase {
+  id: 'chain';
+  /** The letter the next word has to start with (the last letter of `question`). */
+  letter: string;
+}
+
+/** The snapshot of any quiz game. */
+export type QuizSnapshot = MathsSnapshot | CountingSnapshot | ChainSnapshot;
+
+// ---- Simon (take turns: repeat the pattern so far, then add one more) ---------------------------------
+
+/** Four coloured pads (2 x 2): tap targets 0 to 3. */
+export const SIMON_PADS = 4;
+
+/** Where a turn is: the pattern is being shown, the player whose turn it is taps it back and adds a pad, or a pause before the next turn. */
+export type SimonStage = 'show' | 'input' | 'between';
+
+export interface SimonPlayer {
+  id: string;
+  /** Still in. False once they get the pattern wrong or run out of time, or if they arrived mid-run. */
+  alive: boolean;
+  /** Runs won since this person joined the lobby. */
+  wins: number;
+  /** The longest pattern they got through: live while in, final once out. */
+  meters: number;
+}
+
+export interface SimonSnapshot extends RoundSummary {
+  id: 'simon';
+  phase: LobbyRoundPhase;
+  /** The longest pattern got through so far. */
+  meters: number;
+  /** Always 0: nothing scrolls past in this game (every snapshot carries a course speed). */
+  speed: number;
+  stage: SimonStage;
+  /** How many pads the pattern has now. */
+  length: number;
+  /** The pad lit right now while showing, or -1. */
+  lit: number;
+  /** Whose turn it is, or null between runs. */
+  turnId: string | null;
+  /** How many pads of the pattern the player whose turn it is has tapped right so far (the new pad on the end included). */
+  progress: number;
+  /** Milliseconds the turn has left to finish tapping (`input` only), and how long it was given in all. */
+  inputLeftMs: number;
+  inputTotalMs: number;
+  players: SimonPlayer[];
+  /** Milliseconds left in `countdown` or `over`; 0 otherwise. */
+  timerMs: number;
+  /** Who won the run that just ended (`over` only); null when nobody did (a solo run, or a draw). */
+  winnerId: string | null;
+}
+
+// ---- Crumble pit (a row of floor tiles that fall away; bump the others into the gaps) -------------------
+
+/** How many floor tiles the pit starts with, side by side across the arena, and the span they cover (fractions of the arena). */
+export const PIT_TILES = 12;
+export const PIT_LEFT = 0.11;
+export const PIT_RIGHT = 0.89;
+/** A tile's state: solid, shaking and about to fall, or gone. */
+export type PitTile = 0 | 1 | 2;
+
+export interface PitPlayer {
+  id: string;
+  /** Still on the floor. False once they have fallen, or if they arrived mid-run. */
+  alive: boolean;
+  /** Runs won since this person joined the lobby. */
+  wins: number;
+  /** Seconds they lasted: live while in, final once out. */
+  meters: number;
+  /** Where they stand along the pit (0..1), the way they face (-1 or 1), and the dash wait left (0..1, 0 when ready). */
+  x: number;
+  face: number;
+  cooldown: number;
+  /** They are over a gap and about to fall (0..1). */
+  slipping: number;
+}
+
+export interface PitSnapshot extends RoundSummary {
+  id: 'pit';
+  phase: LobbyRoundPhase;
+  /** Seconds the run has lasted. */
+  meters: number;
+  /** Always 0: nothing scrolls past in this game (every snapshot carries a course speed). */
+  speed: number;
+  /** Each tile, left to right: 0 solid, 1 shaking, 2 gone. */
+  tiles: PitTile[];
+  players: PitPlayer[];
+  /** Milliseconds left in `countdown` or `over`; 0 otherwise. */
+  timerMs: number;
+  /** Who won the run that just ended (`over` only); null when nobody did (a solo run, or everyone fell together). */
+  winnerId: string | null;
+}
+
+// ---- Pendulum drop (let go of the swinging ball so it lands on the platform) ------------------------------
+
+/** Where a round is: the pendulum is swinging, or the pause that shows where the balls landed before the next round. */
+export type PendulumStage = 'sweep' | 'result';
+
+export interface PendulumPlayer {
+  id: string;
+  /** Still in. False once their ball missed the platform (or they were too late), or if they arrived mid-run. */
+  alive: boolean;
+  /** Runs won since this person joined the lobby. */
+  wins: number;
+  /** Points scored: 1 for a ball on the platform, 2 for one in its excellent middle. Live while in, final once out. */
+  meters: number;
+  /** They have let go of their ball this round. */
+  dropped: boolean;
+  /** Where on the ground their ball landed this round (0..1), or -1. */
+  at: number;
+}
+
+export interface PendulumSnapshot extends RoundSummary {
+  id: 'pendulum';
+  phase: LobbyRoundPhase;
+  /** The most points anyone has so far. */
+  meters: number;
+  /** Always 0: nothing scrolls past in this game (every snapshot carries a course speed). */
+  speed: number;
+  stage: PendulumStage;
+  /** The round under way (counts up from 1 each run); 0 before the first. */
+  round: number;
+  /** The swing angle in radians from straight down while it swings (right is positive); 0 otherwise. */
+  angle: number;
+  /** The middle of the platform on the ground (0..1), how far it reaches either side, and how far its excellent middle does. */
+  centre: number;
+  half: number;
+  excellent: number;
+  /** Milliseconds left before anyone who has not let go is out (`sweep` only). */
+  sweepLeftMs: number;
+  players: PendulumPlayer[];
+  /** Milliseconds left in `countdown` or `over`; 0 otherwise. */
+  timerMs: number;
+  /** Who won the run that just ended (`over` only); null when nobody did (a solo run, or everyone out together). */
+  winnerId: string | null;
+}
+
+export type LobbyGameSnapshot = RunnerSnapshot | FlappySnapshot | DodgeSnapshot | RopeSnapshot | CoinsSnapshot | BattleshipsSnapshot | RaceSnapshot | WhackSnapshot | DrawSnapshot | TiltSnapshot | StackerSnapshot | SumoSnapshot | AsteroidsSnapshot | MemorySnapshot | WordsSnapshot | SnakeSnapshot | GravitySnapshot | LaserSnapshot | ColorMatchSnapshot | PotatoSnapshot | AnagramSnapshot | MinesSnapshot | StopSnapshot | PongSnapshot | WallSnapshot | FroggerSnapshot | FishingSnapshot | OrbitSnapshot | RpsSnapshot | RhythmSnapshot | SortitSnapshot | TempoSnapshot | LavaSnapshot | TunnelSnapshot | ParachuteSnapshot | OddOneOutSnapshot | SwingSnapshot | SimonSnapshot | CountingSnapshot | PitSnapshot | PendulumSnapshot | ChainSnapshot | MathsSnapshot;
 
 /** What a client needs to run its own player on a course the server decided: which run, the seed that
  * makes the course, and how long until the run starts (negative once it has, by how far in). */

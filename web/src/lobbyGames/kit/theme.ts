@@ -32,11 +32,17 @@ export interface StageTheme {
   acc: string;
   /** The accent at about 80% opacity, for a glow. */
   accGlow: string;
+  /** The accent at 14%, for a highlighted row (yours on the result card). */
+  accSoft: string;
   accText: string;
   /** Dark text to put on the accent. */
   ink: string;
   star: string;
   danger: string;
+  /** Fill, outline and text of a danger note ("You're out"). */
+  errBg: string;
+  errLine: string;
+  errText: string;
   mint: string;
   text: string;
   surf: string;
@@ -47,10 +53,15 @@ export function stageTheme(color: (name: string, fallback: string) => string): S
   return {
     acc: color('--acc', 'oklch(0.74 0.15 45)'),
     accGlow: color('--accA80', 'oklch(0.74 0.15 45 / 0.8)'),
+    accSoft: color('--accSoft', 'oklch(0.74 0.15 45 / 0.14)'),
     accText: color('--accText', 'oklch(0.82 0.11 50)'),
     ink: color('--ink', 'oklch(0.2 0.03 45)'),
     star: color('--star', 'oklch(0.83 0.15 85)'),
     danger: color('--danger', 'oklch(0.76 0.14 25)'),
+    // The stage is always dark, so these are the dark-theme values on purpose (not --errBg, which is lighter in light mode).
+    errBg: 'oklch(0.62 0.19 25 / 0.22)',
+    errLine: 'oklch(0.62 0.19 25 / 0.45)',
+    errText: 'oklch(0.85 0.08 25)',
     mint: color('--mint', 'oklch(0.82 0.12 160)'),
     text: color('--text', 'oklch(0.95 0.006 70)'),
     surf: color('--surf', 'oklch(0.21 0.009 55)'),

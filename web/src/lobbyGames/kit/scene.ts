@@ -32,7 +32,8 @@ export interface Scene<S extends LobbyGameSnapshot = LobbyGameSnapshot> {
   /** The order to draw players in: everyone else first, the viewer last so you are never hidden in a crowd. */
   order: () => number[];
   /** Draws a player. `rx`/`ry` are half-width and half-height in pixels: equal for a circle, taller for a capsule. */
-  drawPlayer: (id: string, cx: number, cy: number, rx: number, ry: number) => void;
+  /** `tag: false` leaves off the YOU tag (the standings strip, a falling ball). */
+  drawPlayer: (id: string, cx: number, cy: number, rx: number, ry: number, opts?: { tag?: boolean }) => void;
 }
 
 /** What a round-based game supplies to get the standard look: where its dots drift, how to draw its
@@ -66,6 +67,7 @@ export function renderScene<S extends LobbyGameSnapshot>(args: LobbyDrawArgs<S>,
 
   fx.update(snapshot, now, {
     me,
+    accent: theme.acc,
     colorOf: (id) => info(id).color,
     anchor: (snap, i) => game.anchor(snap as S, i),
     outText: t('spin.lobby.hud.outTag'),
@@ -88,9 +90,9 @@ export function renderScene<S extends LobbyGameSnapshot>(args: LobbyDrawArgs<S>,
     drift: snapshot.phase === 'playing' ? snapshot.speed * fx.age(snapshot, now) : 0,
     info,
     order: () => snapshot.players.map((_, i) => i).sort((a, b) => Number(snapshot.players[a].id === me) - Number(snapshot.players[b].id === me)),
-    drawPlayer: (id, cx, cy, rx, ry) => {
+    drawPlayer: (id, cx, cy, rx, ry, opts) => {
       const who = info(id);
-      avatar(ctx, { cx, cy, rx, ry, color: who.color, initial: who.initial, isMe: id === me }, S, theme, t('spin.lobby.hud.you'));
+      avatar(ctx, { cx, cy, rx, ry, color: who.color, initial: who.initial, isMe: id === me }, S, theme, t('spin.lobby.hud.you'), opts?.tag ?? true);
     },
   };
 

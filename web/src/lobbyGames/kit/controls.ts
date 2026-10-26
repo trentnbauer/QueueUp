@@ -46,6 +46,12 @@ export const CONTROLS: Record<LobbyGameId, ControlKind> = {
   fishing: 'hold',
   runner: 'hold',
   words: 'words',
+  simon: 'target',
+  counting: 'target',
+  pit: 'slideButton',
+  pendulum: 'tap',
+  chain: 'target',
+  maths: 'target',
 };
 
 const INK = 'oklch(0.96 0.01 60)';

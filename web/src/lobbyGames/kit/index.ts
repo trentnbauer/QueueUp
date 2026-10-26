@@ -3,6 +3,8 @@
 // see ../README.md for the standard.
 export { renderScene, drawFloor, courseOffset, type Scene, type SceneGame } from './scene';
 export { avatar, coverTile, drawLives, groundShadow, hueOf, outlinedText, roundRect, type AvatarSpec } from './draw';
+export { OUT_ALPHA, STRIP_R, STRIP_Y, drawBadge, drawStandings, stripX, type BadgeKind, type StandingsOptions } from './standings';
+export { PROMPT_Y, drawPrompt, drawTimer, emojiFont, type PromptTone } from './prompt';
 export { LobbyFx } from './fx';
 export { rememberSnapshot } from './events';
 export { predictOwn } from './predict';

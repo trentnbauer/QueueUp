@@ -162,8 +162,8 @@ One shared minefield, and everyone opens squares on it.
 
 A marker sweeps back and forth along a bar with a target zone. Stop it inside the zone, round after round.
 
-- **Goal:** stop your marker inside the green zone. Everyone sees the same marker and the same zone, and presses to stop **their own** marker where it is right then. Inside the zone and you go on to the next round; **outside it, or too slow, and you are out.** **Last one in wins**; alone it is a high score (rounds cleared).
-- **Each round is harder:** the marker crosses the bar 1.1 times a second in the first round and 0.18 more every round, up to 2.6; the zone is 0.30 of the bar wide in the first round and 0.022 narrower every round, down to 0.06. The zone's middle moves each round (from the round's seed).
+- **Goal:** stop your marker inside the green zone. Everyone sees the same marker and the same zone, and presses to stop **their own** marker where it is right then. Inside the zone and you go on to the next round; **outside it, or too slow, and you are out.** **Last one in wins**; alone it is a high score (points). A stop in the zone scores 1 point; a stop in the **small gold middle** of it (a quarter of the zone's half-width, at least 0.015) scores **2**.
+- **Each round is harder:** the marker crosses the bar 1.1 times a second in the first round and 0.18 more every round, up to 2.6; the zone is 0.70 of the bar wide in the first round and 0.02 narrower every round, down to 0.06 (the zone's middle is kept far enough from the ends that the zone stays on the bar). The zone's middle moves each round (from the round's seed).
 - **Too slow:** a sweep lasts 5 seconds; anyone who has not stopped by then is out. A round ends as soon as everyone left has stopped. Everyone's stops are shown as ticks in their colour.
 - **Timing:** the stop is decided by when your press reaches the server, so a slow connection loses out.
 - There is no time limit of its own: it goes on until it is beaten.
@@ -358,6 +358,81 @@ Swing from anchor to anchor, let go at the right moment, and keep ahead of the w
 - **Ping:** your own swinger is worked out on your own device (see "Ping and who works out what"), so it answers the moment you press. The anchors come from the same seed and the server's clock.
 - **Controls:** **←** / **→** or **A** / **D** to pump; **Space**, **↑** or **W** to let go and to grab.
 
+## Simon says
+
+Four coloured pads and one pattern that everyone adds to. You take turns: on your turn, watch the pattern, tap it back, then add one more pad on the end.
+
+- **Goal:** get a pattern right when it is your turn, and make it one pad longer for the next player. Get it **wrong, or run out of time, and you are out**. The pattern stays as it was for the next player. **Last one in wins**; alone it is a high score (how long a pattern you got through).
+- **A turn:** the pattern is shown (a pause of 0.6 seconds, then each pad lit in order). The first pad is lit for 0.5 seconds, down to 0.28 as the pattern grows, with 0.2 seconds dark between pads. Then you tap the pattern back, in order, and finally tap **any** pad: that is the one you add. You have **3 seconds plus 0.9 for each pad** (the new one included). A pause of 0.8 seconds follows each turn.
+- **The first turn** has no pattern to show, so the first player simply taps a pad.
+- **Whose turn:** players take turns in the order they joined, skipping anyone who is out. A small arrow under a player's avatar shows whose it is, and the prompt says *Watch*, *Your turn* or *{name}'s turn*. If the player whose turn it is leaves, the turn passes on. Taps from anyone else are ignored.
+- **Nothing is hidden,** but nothing can be read ahead either: the pattern is made as it goes, one pad at a time, by the players.
+- **Score** (the high score list): the longest pattern you got through. A player's score on the result card is the same.
+- There is no time limit of its own: it goes on until it is beaten.
+- **Controls:** the pads are the controller, so tap or click one, or press **1-4** (top left, top right, bottom left, bottom right).
+
+## The quiz games
+
+**Maths rush, Counting and Word chain** share their rules and their screen: a question, four answer panels (red, blue, green, yellow), and a bar along the top for the time left. Everyone is asked the same question at the same time.
+
+- **Scoring:** a right answer is **1 point**, or **2 if it comes quickly** (in the first 40% of the time the question allows). **Only your first tap on a question counts.** A question moves on as soon as everyone still in has answered, and the answer is lit green for 0.8 seconds before the next. The first question comes 1.2 seconds in.
+- **Timed round** (a waiting room caps a run): 30 seconds, a wrong answer costs **1 point** (never below zero), the most points wins, and a tie or a solo round has no winner.
+- **Endless** (no time limit): three lives each, shown as hearts. A wrong answer, or none before the question runs out, costs a life. When you are out you are out; **last one standing wins**. Alone it is a high score.
+- The right answer is never in a snapshot until the question is over, so it cannot be read early. (Each game's question can still be worked out from what is on screen, as in Match.)
+- **Controls:** the panels are the controller, so tap or click one, or press **1-4** (top left, top right, bottom left, bottom right).
+
+### Maths rush
+
+A sum, and four answers near the right one. Work it out and tap it.
+
+- **The sums** start easy and get bigger every few questions: adding two numbers up to 12 for the first 4; then adding or taking away up to 50 for the next 6; then times tables (2 to 9) and adding or taking away up to 99; then times tables up to 12 by 15 and bigger sums. A take-away never goes below zero.
+- **Time:** 5 seconds for the first sum, 0.1 seconds less for each question, down to 2.8.
+- **Wrong answers** are near the right one (within about 15% of it, at least 3 either side), so working it out is the only way.
+
+### Counting
+
+Shapes flash up for a moment, in two kinds (circles and squares). Count one kind.
+
+- **A question:** the shapes are on show for a moment, the prompt says which kind to count (*How many circles?*), then the shapes go and the four numbers come up. The shapes are only sent while they are on show, and the numbers only after, so nobody can read the count from a later snapshot.
+- **How many:** 3 of the counted kind in the first two questions, one more every two questions, up to 14. The other kind: 2, one more every three questions, up to 8. They sit on a grid of 6 by 5 cells, one to a cell, so none overlap.
+- **Time:** the shapes are on show for 0.8 seconds plus 0.1 for each shape, between 1.2 and 2.8 seconds. Then 3.4 seconds to answer, 0.06 less for each question, down to 2.2.
+- **Wrong answers** are within 3 of the right count.
+
+### Word chain
+
+A word is shown, with four more. Tap the one that starts with the last letter of the word on show.
+
+- **A question:** the word's last letter is picked out in the accent colour, and the prompt says what to look for (*Starts with T*). Exactly one of the four words starts with that letter; the others start with other letters, as different from each other as there are letters to choose from.
+- **A chain:** the right answer becomes the word on show for the next question. If no unused word starts with the last letter (a dead end), a fresh word starts the chain again. Words come from the Anagram word list (189 everyday words of three to six letters) and are not repeated until it has run out; a word is preferred as an answer if something can follow it.
+- **Time:** 4.5 seconds for the first question, 0.08 less for each, down to 2.6.
+
+## Crumble pit
+
+A row of floor tiles over a drop. They fall away one at a time, quicker and quicker, and the players bump each other into the gaps.
+
+- **The floor** is 12 tiles side by side across the middle of the arena. The first starts to shake after **2.5 seconds** (a shaking tile is red and trembles), and falls a second later. After that, the next tile to shake is picked at random from the solid ones, each wait **7% shorter** than the one before, down to 0.7 seconds. So the floor always runs out.
+- **Walk** left and right (0.32 of the arena a second at most). You face the way you last walked.
+- **Dash** (Space, ↑, **W**, or the Dash button): a burst of speed the way you face, then **1.2 seconds** to recharge, shown as a bar under the floor for you.
+- **Bumps:** two players that touch swap speeds (minus a tenth), so a dash into someone sends them flying, perhaps into a gap, while you stop. Nobody can leave the arena sideways.
+- **Falling:** stand over a gap (or off either end of the floor) for **0.3 seconds** and you fall and are out. Crossing a gap one tile wide at a run, or on a dash, is safe; standing in one is not.
+- **Last one on the floor wins.** If everyone falls together it is a draw. Alone, it is a high score: the floor takes about 22 seconds to go.
+- **Score** is the seconds you stayed on, which is also what the high score list records.
+- There is no time limit of its own: the floor always runs out.
+- **Controls:** **←** / **→** or **A** / **D** to walk, **Space**, **↑** or **W** to dash. On a phone, the buttons are laid out **◀ Dash ▶**.
+
+## Pendulum drop
+
+A pendulum swings over a platform on the ground. Let go of your ball so it lands on the platform.
+
+- **Goal:** press to let go of your ball. It flies off the way the arm was moving at that moment (so the speed of the swing matters as well as where it is) and falls to the ground. If it lands on the platform you go on to the next round; **off it, or too late, and you are out.** A ball in the **small gold middle** of the platform scores **2 points**; anywhere else on the platform scores 1. Last one in wins.
+- **The swing:** the arm is 0.25 of the arena long and swings 60 degrees either way. It swings 2.4 radians a second in the first round and 0.12 faster every round, up to 4.2. A ball falls at 2 arena sides a second squared.
+- **The platform** is 0.16 either side of its middle in the first round and 0.008 narrower every round, down to 0.03. Its middle is somewhere new each round, between 0.22 and 0.78 of the way across, always where a ball can land. The gold middle is a quarter of that (at least 0.015).
+- **Too slow:** a swing lasts 6 seconds; anyone who has not let go by then is out. A round ends as soon as everyone left has let go. Where each ball landed is shown as a tick in the player's colour on the ground.
+- **Timing:** the ball is let go where the arm was when you pressed, allowing for how far behind the server your picture was (up to a limit), so a slow connection does not count against you.
+- **Score** (the high score list): your points.
+- There is no time limit of its own: it goes on until it is beaten.
+- **Controls:** one button: **Space**, **↑** or **W**, or tap anywhere on the arena.
+
 ## Bursts of confetti
 
 Besides the burst when someone is knocked out and the confetti for a win or a new best, a few games burst into confetti when something is scored or destroyed. It is drawing only (no rules change), the screen works it out by comparing each snapshot with the one before, and it is skipped for people who ask their device for reduced motion.
@@ -443,6 +518,10 @@ A game can instead make **the play space the controller**: there are no buttons 
 | Parachute | **←** / **→** or **A** / **D** (holding one opens the chute; none is free fall). | The **◀** and **▶** buttons. |
 | Odd one out | Tap the tile. | Tap the tile. |
 | Swing | **←** / **→** or **A** / **D** to pump the swing, **Space**, **↑** or **W** to let go and grab. | The **◀** and **▶** buttons, and **Grab** (or tap anywhere on the arena). |
+| Simon says | Tap a pad, or press **1-4**. | Tap a pad. |
+| Maths rush, Counting, Word chain | Click a panel, or press **1-4**. | Tap a panel. |
+| Crumble pit | **←** / **→** or **A** / **D** to walk, **Space**, **↑** or **W** to dash. | The **◀** and **▶** buttons, and **Dash**. |
+| Pendulum drop | **Space**, **↑** or **W**. | Tap anywhere on the arena. |
 | Orbit | **Space**, **↑**, **←** / **→** or **W** / **A** / **D** to flip direction. | **Flip**, or tap anywhere on the arena. |
 
 ## Runner

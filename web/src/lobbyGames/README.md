@@ -45,28 +45,82 @@ Phone-sized: **at most one movement axis (left/right, or up/down) plus one actio
 
 ## Graphics standard
 
-Every game uses the kit in `kit/` so the lobby looks like one product. The point is that a new game's art is just its *world*; everything around it is already done.
+### The arena's zones
 
-**`renderScene` draws, in this order:** the arena backdrop (warm dark gradient, accent glow, drifting dot grid), the game's world, effects, the heads-up display, then the red flash and vignette. A game supplies only:
+The arena is square, and every size is a fraction of `S`, its side in pixels. The vertical bands are fixed, so a player switching games always finds the same things in the same places:
 
-- `scroll`: which way the dots drift (`'x'` as a course passes, `'y'` as things fall);
-- `drawWorld(sc)`: the ground, obstacles and players;
-- `anchor(snapshot, i)`: where player `i` is, so a knock-out burst starts in the right place.
+| Band (y) | What | Drawn by |
+| --- | --- | --- |
+| 0 – 0.008 | **Timer**: time left in the round or pick | `drawTimer(sc, left)` |
+| 0.035 – 0.11 | **HUD**: score pill (left), players-left dots (right) | kit, automatically |
+| ~0.13 – 0.22 | **Standings strip**: everyone, their score, a badge, optional lives | `drawStandings(sc, o)` |
+| 0.275 | **Prompt**: the one line saying what to do now | `drawPrompt(sc, text, tone)` |
+| 0.3 – 1 | **World**: the board, course, beam, pond, etc. | the game |
+| centre | Countdown, result card, "You're out" | kit, automatically |
 
-**Rules**
+A scrolling game (Runner, Flappy, Dodge…) whose players are *in* the world does not need a standings strip. Its players are on the course, and the HUD dots say who is still in. Every game whose players are *not* in the world (boards, buttons, bars, tap targets) uses the strip.
 
-- **Never draw the HUD yourself.** The metres pill, the players-left dots, the "RUN n STARTS IN" countdown, the winner card and the "you're out" note are the kit's. Games must not add their own banners or counters.
-- **One play space.** Everyone plays on the same arena, in the same world. Do not give each player their own window, strip, lane or mini-board, whether stacked or side by side. Players differ by where they are in the one shared space (a runner a little ahead, a car in another column). Panels that only show information about the players (a list of names and scores) are fine; the playing field itself is never split.
-- **Obstacles are game covers.** Draw them with `coverTile(...)` and `hueOf(o.n)` (the server numbers every obstacle, so a colour never changes as it scrolls). They stand on `drawFloor(...)` with `groundShadow(...)`. Anything that is not a cover (a vote bubble, a pipe column) still takes its colours from the kit's `STAGE` and the app's CSS variables.
-- **Players are drawn with `sc.drawPlayer(id, cx, cy, rx, ry)`.** Circle (`rx === ry`) or capsule (`ry` taller). Always iterate `sc.order()` so the viewer is drawn last and carries the "YOU" tag. **Do not draw players who are out**: the knock-out burst replaces them.
-- **Everything is a fraction of `S`** (the arena's side in pixels) so it scales with the canvas. Mirror the server's hitbox sizes as named constants and comment where they come from, so what is drawn is what is hit.
-- **Smooth motion:** use `sc.ease(key, x, y)` for things that jump between snapshots (a bird's height) and `sc.drift` for scrolling things (obstacle x, falling block y).
-- **Everything on the course moves at the course's speed.** Obstacles, pickups, and any ground marks or other repeating pattern that is part of the course must move at exactly the snapshot's `speed`, so the world never looks like it is sliding past at two speeds. Obstacles use `o.x - sc.drift`; repeating patterns use `courseOffset(sc, period)` (never `offset * 2` or any other factor on an offset you already have: that changes the speed). Only the arena's dot grid, which the kit draws, is allowed to differ (a quarter of the course speed, as slow parallax); a game never draws its own. A game where nothing scrolls sends `speed: 0`.
-- **Sounds are the kit's too.** The countdown ticks, the go cue, knock-outs, the win jingle, button and tap presses and `fx.confettiAt` (a collect chime, or the `sound` you pass) all play by themselves, through `playSound` (`web/src/lib/sound.ts`; the player's Sound effects setting mutes them). Do not load audio in a game. A new sound is a CC0 `.ogg` in `web/public/sounds/` plus a name in `SOUNDS`, with its licence kept beside it.
-- **Effects are the kit's.** Do not write particles. A knock-out burst, shake, red flash and winner confetti happen by themselves from the snapshot (the kit compares each one with the last). Shake, flash and confetti are skipped when the device asks for reduced motion; anything else you animate (a bobbing bird, a flapping wing) must be gentle or stop for `prefersReducedMotion()`.
-- **Colours:** use `sc.theme` (accent, text, danger, ...), which reads the CSS variables, so a room's tint and the Monochrome theme apply. The arena itself is a fixed dark stage on purpose, so a game reads the same in light and dark mode. Do not hard-code hex colours except an avatar's own colour.
-- **Fonts:** `FONT.display` for big words, `FONT.ui` for labels, `FONT.mono` for numbers and kickers. Canvas text needs the real family names the kit exports.
-- **Performance:** no per-frame allocation in loops that run per pixel; at most a few dozen draw calls per player; the kit caps particles at 500.
+### Rules
+
+**Never draw the HUD yourself.** The score pill, the players-left dots, the countdown, the result card and the "you're out" note belong to the kit. Games must not add their own banners or counters.
+
+**Standings: one strip, never your own row.** If a game shows everyone's score, it calls `drawStandings`. Do not write a loop that places avatars and `fillText`s scores. The strip fixes:
+- its position (`STRIP_Y` 0.15), avatar radius (`STRIP_R` 0.022) and spacing (`stripX(n, i)`);
+- the score text: Geist Mono 600 at `S * 0.024`, in `accText` for the viewer and `text` for everyone else;
+- **out players stay in the row**, drawn at `OUT_ALPHA` (0.35), so the row never reshuffles mid-run. Never `continue` past an out player;
+- the viewer gets the accent ring but no YOU tag (the HUD pills sit right above).
+
+Use `text` to change what the line says (a `3/5` progress), `badge` for a status mark, and `under` for anything below it (lives, a push arrow). Use `stripX` in your `anchor()` too, so a knock-out burst starts on the avatar.
+
+**Status marks are badges, not characters.** Right, wrong, too late, a tie and finished are `drawBadge` kinds: `ok`, `no`, `late`, `tie` and `done`. Never type ✓ ✗ ⏱ = into canvas text. The UI fonts have no glyphs for them, so each OS swaps in its own, and a mark typed after a score pushes the score off-centre.
+
+**One prompt line.** The "what to do now" text (`Your turn`, `Round 3`, `Stop it!`) goes through `drawPrompt`: Bricolage 800 at `S * 0.044`, **sentence case**, centred, at `PROMPT_Y` (0.275). There are four tones:
+- `text`: neutral (a round number, "Decided");
+- `go`: mint, your move now;
+- `warn`: danger, hurry up or a mistake;
+- `accent`: an action cue.
+
+Only one prompt shows at a time. Pass a different `y` only when the world needs the line somewhere else (Stop's cue under its bar, RPS between the hands and the choices). In-arena prompts are never all caps. Caps are for mono kickers only (`RUN 3 STARTS IN`, `WINNER`).
+
+**One timer.** Time left goes through `drawTimer(sc, left)`: a thin bar along the very top edge over a faint track. It is accent, then danger below 30%. Pass `null` when there is no clock. Do not draw a second timer anywhere in the world.
+
+**One play space.** Everyone plays on the same arena, in the same world. Do not give each player their own window, strip, lane or mini-board, whether stacked or side by side. Players differ by where they are in the one shared space. The standings strip is information, not a playing field.
+
+**Players are drawn with `sc.drawPlayer(id, cx, cy, rx, ry, opts?)`.** It draws a circle (`rx === ry`) or a capsule (`ry` taller). This covers every player-owned object: a ball on a beam, a car, a fish-hook float. Do not draw a player's object in their colour by hand, because the viewer would lose the accent ring and the YOU tag. Always iterate `sc.order()` so the viewer is drawn last. **Do not draw players who are out in the world.** The knock-out burst replaces them, and the strip keeps them dimmed.
+
+**Objects are game covers.** Obstacles and any object you pick or hit (choice cards, targets, blocks) are drawn with `coverTile(...)` and `hueOf(o.n)`, so a colour never changes as it scrolls. They stand on `drawFloor(...)` with `groundShadow(...)`. Anything that is not a cover still takes its colours from the kit's `STAGE` and `sc.theme`.
+
+**Selection is the accent ring.** Your pick, your panel or your choice is outlined in `theme.acc` at `max(2, S * 0.007)` px. Never use white or `theme.text` for selection. Dim the choices you did not pick to 0.4.
+
+**Everything is a fraction of `S`.** Mirror the server's hitbox sizes as named constants, and comment where they come from, so what is drawn is what is hit.
+
+**Smooth motion.** Use `sc.ease(key, x, y)` for things that jump between snapshots and `sc.drift` for scrolling things.
+
+**Everything on the course moves at the course's speed.** Obstacles use `o.x - sc.drift`. Repeating patterns use `courseOffset(sc, period)`, and never scale an offset you already have. Only the kit's dot grid moves slower, for parallax. A game where nothing scrolls sends `speed: 0`.
+
+**Sounds are the kit's too.** The countdown ticks, the go cue, knock-outs, the win jingle, button and tap presses and `fx.confettiAt` (a collect chime, or the `sound` you pass) all play by themselves, through `playSound` (`web/src/lib/sound.ts`; the player's Sound effects setting mutes them). Do not load audio in a game. A new sound is a CC0 `.ogg` in `web/public/sounds/` plus a name in `SOUNDS`, with its licence kept beside it.
+
+**Effects are the kit's.** Do not write particles. The knock-out burst, shake, red flash and confetti come from the snapshot. Anything else you animate (a bobbing mole, a flicker) must be gentle, or stop under `prefersReducedMotion()`.
+
+**Colours come from `sc.theme`.** That means `acc`, `accSoft`, `accText`, `mint`, `star`, `danger`, `errBg`, `errLine`, `errText` and `text`, which follow the room's tint and Monochrome. **Never write the default accent (`oklch(0.74 0.15 45 …)`) as a literal.** It is the one colour that must change per room. World art (a mole, a pond, a beam) may use its own fixed `oklch()` colours. Avoid hex, except for an avatar's own colour.
+
+**Fonts.** Use `FONT.display` (Bricolage Grotesque) for big words and prompts, `FONT.ui` (Geist) for labels and names, and `FONT.mono` (Geist Mono) for numbers, scores and kickers. Canvas text needs the real family names the kit exports.
+
+**Emoji only through `emojiFont(px)`.** If a game draws an emoji (RPS hands, Runner's 😴), set its font with `emojiFont` so it renders in colour on Windows and Linux too. Use emoji only for content that *is* a picture. Never use them for status (that is `drawBadge`) or for UI chrome.
+
+**Performance.** No per-frame allocation in loops that run per pixel, at most a few dozen draw calls per player, and the kit caps particles at 500.
+
+### Checklist for a new game's PR
+
+- [ ] `draw` is one call to `renderScene`.
+- [ ] Scores use `drawStandings` (or the game is a scroller with players in the world).
+- [ ] No `fillText` of ✓ ✗ ⏱ = or other status characters; status uses `drawBadge`.
+- [ ] Any "what to do" text goes through `drawPrompt`, in sentence case.
+- [ ] Any clock goes through `drawTimer`.
+- [ ] Every player-owned object goes through `sc.drawPlayer`; out players are not drawn in the world.
+- [ ] Your selection uses the accent ring.
+- [ ] `grep "0.15 45"` finds nothing in the new file.
+- [ ] Screenshots of playing, knock-out, countdown and winner, with **two room tints** (the default and one other) and the Monochrome theme.
 
 ## Before a PR
 

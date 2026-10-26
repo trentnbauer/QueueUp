@@ -1,18 +1,13 @@
 import { STACKER_COLS, STACKER_ROWS, type StackerSnapshot } from '@queueup/shared';
 import type { LobbyGameView } from './index';
-import { FONT, STAGE, renderScene, roundRect, rememberSnapshot, type Scene, type SceneGame } from './kit';
+import { FONT, STAGE, STRIP_Y, drawStandings, drawTimer, renderScene, roundRect, rememberSnapshot, stripX, type Scene, type SceneGame } from './kit';
 
-// Where things are on the arena, as fractions of its side: the one tower on the left, and everyone's rows
-// down the right.
-const TOWER_X = 0.05;
-const CELL = 0.068;
-const TOWER_BOTTOM = 0.96;
+// Where things are on the arena, as fractions of its side: the one tower, centred under the standings strip.
+const CELL = 0.055;
 const TOWER_W = CELL * STACKER_COLS;
 const TOWER_H = CELL * STACKER_ROWS;
-const LIST_X = 0.75;
-const LIST_Y = 0.14;
-const ROW_H = 0.058;
-const ROW_GAP = 0.008;
+const TOWER_X = (1 - TOWER_W) / 2;
+const TOWER_BOTTOM = 0.97;
 
 /** The top of row `row` (0 is the bottom), as a fraction of the arena's side. */
 const rowTop = (row: number) => TOWER_BOTTOM - (row + 1) * CELL;
@@ -36,11 +31,11 @@ function drawWorld(sc: Scene<StackerSnapshot>): void {
   const { ctx, S, snapshot, theme, now } = sc;
   celebrate(sc);
 
-  // Time left in the run, as a bar draining along the top edge.
-  if (snapshot.phase === 'playing' && snapshot.limitMs > 0) {
-    ctx.fillStyle = theme.acc;
-    ctx.fillRect(0, 0, S * Math.max(0, snapshot.roundLeftMs / snapshot.limitMs), S * 0.008);
-  }
+  // Time left in the run.
+  if (snapshot.phase === 'playing' && snapshot.limitMs > 0) drawTimer(sc, snapshot.roundLeftMs / snapshot.limitMs);
+
+  // Everyone's rows; knocked-out players are dimmed.
+  drawStandings(sc);
 
   // The one tower: an empty grid, the rows already locked in, then the current row.
   const x0 = TOWER_X * S;
@@ -103,27 +98,13 @@ function drawWorld(sc: Scene<StackerSnapshot>): void {
     ctx.fill();
     ctx.restore();
   }
-
-  // Everyone's rows down the right, you ringed (the kit rings you); knocked-out players are dimmed.
-  ctx.textBaseline = 'middle';
-  snapshot.players.forEach((p, i) => {
-    const y = (LIST_Y + i * (ROW_H + ROW_GAP) + ROW_H / 2) * S;
-    ctx.save();
-    if (!p.alive) ctx.globalAlpha = 0.4;
-    sc.drawPlayer(p.id, (LIST_X + 0.025) * S, y, S * 0.022, S * 0.022);
-    ctx.restore();
-    ctx.font = `700 ${Math.round(S * 0.03)}px ${FONT.mono}`;
-    ctx.textAlign = 'left';
-    ctx.fillStyle = theme.text;
-    ctx.fillText(String(p.meters), (LIST_X + 0.062) * S, y);
-  });
 }
 
 const scene: SceneGame<StackerSnapshot> = {
   scroll: 'y',
   drawWorld,
-  // Where a knock-out burst starts: over the list of players.
-  anchor: (_snapshot, index) => ({ x: LIST_X + 0.025, y: LIST_Y + ROW_H / 2 + index * (ROW_H + ROW_GAP) }),
+  // Where a knock-out burst starts: over the standings strip.
+  anchor: (snapshot, index) => ({ x: stripX(snapshot.players.length, index), y: STRIP_Y }),
 };
 
 export const stackerView: LobbyGameView<StackerSnapshot> = {

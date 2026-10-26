@@ -94,7 +94,7 @@ export interface AvatarSpec {
 /** A player: their colour with a gloss and their initial. Everyone else gets a thin light outline; the
  * viewer gets the accent outline and glow and a small "YOU" tag above, so you can always find yourself
  * in a crowd. */
-export function avatar(ctx: CanvasRenderingContext2D, a: AvatarSpec, S: number, theme: StageTheme, youLabel: string): void {
+export function avatar(ctx: CanvasRenderingContext2D, a: AvatarSpec, S: number, theme: StageTheme, youLabel: string, tag = true): void {
   const { cx, cy, rx, ry, color, initial, isMe } = a;
   const capsule = ry > rx * 1.15;
   const shape = () => {
@@ -133,7 +133,7 @@ export function avatar(ctx: CanvasRenderingContext2D, a: AvatarSpec, S: number, 
   ctx.textBaseline = 'middle';
   ctx.fillText(initial, cx, glossY + 1);
 
-  if (isMe) {
+  if (isMe && tag) {
     const tagY = cy - ry - S * 0.04;
     const size = Math.round(S * 0.026);
     ctx.font = `600 ${size}px ${FONT.mono}`;

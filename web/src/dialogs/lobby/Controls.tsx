@@ -90,7 +90,7 @@ export function Controls({
     buttons.push({
       key: a.name,
       label: t(a.labelKey),
-      keycap: view.tapAction === a.name ? t('spin.lobby.keycap.orTap', { key: cap }) : cap,
+      keycap: cap,
       primary: true,
       props: { onPointerDown: () => onAction(a.name) },
     });

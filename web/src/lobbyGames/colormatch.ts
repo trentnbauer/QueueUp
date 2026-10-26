@@ -1,19 +1,16 @@
 import { COLOR_MATCH_PANELS, ENDLESS_LIVES, type ColorMatchSnapshot } from '@queueup/shared';
 import type { MessageKey } from '../i18n';
 import type { LobbyGameView } from './index';
-import { FONT, drawLives, renderScene, roundRect, type Scene, type SceneGame } from './kit';
+import { FONT, STRIP_Y, drawLives, drawPrompt, drawStandings, drawTimer, renderScene, roundRect, stripX, type Scene, type SceneGame } from './kit';
 import type { TapRect, TapTargets } from './taps';
 
-// Where things are on the arena, as fractions of its side: everyone's points in a row, the prompt, then the four
+// Where things are on the arena, as fractions of its side: what to match on the prompt line, the colour word, then the four
 // panels (2 x 2).
-const CHIPS_Y = 0.11;
-const CHIP_R = 0.022;
-const MODE_Y = 0.225;
-const PROMPT_Y = 0.335;
+const WORD_Y = 0.4;
 const BOARD_X = 0.1;
-const BOARD_Y = 0.45;
+const BOARD_Y = 0.5;
 const PANEL_W = 0.38;
-const PANEL_H = 0.22;
+const PANEL_H = 0.2;
 const GAP = 0.04;
 /** One hue for each panel (red, blue, green, yellow). */
 const HUES = [25, 250, 145, 85];
@@ -50,50 +47,27 @@ export const COLOR_MATCH_TAPS: TapTargets = { rects: Array.from({ length: COLOR_
 function drawWorld(sc: Scene<ColorMatchSnapshot>): void {
   const { ctx, S, snapshot, theme } = sc;
 
-  // Time left in the round, as a bar draining along the top edge.
-  if (snapshot.phase === 'playing' && snapshot.limitMs > 0) {
-    ctx.fillStyle = theme.acc;
-    ctx.fillRect(0, 0, S * Math.max(0, snapshot.roundLeftMs / snapshot.limitMs), S * 0.008);
-  }
+  // Time left: this prompt while one is up, otherwise the round.
+  const prompting = snapshot.stage === 'prompt' && snapshot.prompt.n > 0;
+  if (prompting) drawTimer(sc, snapshot.promptTotalMs > 0 ? snapshot.promptLeftMs / snapshot.promptTotalMs : 0);
+  else if (snapshot.phase === 'playing' && snapshot.limitMs > 0) drawTimer(sc, snapshot.roundLeftMs / snapshot.limitMs);
 
-  // Everyone's points in one row, with a mark for how they answered the prompt on screen.
-  const n = snapshot.players.length;
-  const step = Math.min(0.09, 0.84 / Math.max(1, n));
-  ctx.font = `700 ${Math.round(S * 0.026)}px ${FONT.mono}`;
-  ctx.textAlign = 'center';
-  ctx.textBaseline = 'alphabetic';
-  for (const i of sc.order()) {
-    const p = snapshot.players[i];
-    if (!p.alive) continue; // watching until the next round
-    const cx = (0.5 + (i - (n - 1) / 2) * step) * S;
-    sc.drawPlayer(p.id, cx, CHIPS_Y * S, CHIP_R * S, CHIP_R * S);
-    ctx.fillStyle = p.right === true ? theme.mint : p.right === false ? theme.danger : theme.text;
-    ctx.fillText(`${p.meters}${p.right === true ? ' ✓' : p.right === false ? ' ✗' : ''}`, cx, (CHIPS_Y + CHIP_R + 0.03) * S);
-    drawLives(ctx, cx, (CHIPS_Y + CHIP_R + 0.058) * S, p.lives, ENDLESS_LIVES, S * 0.011, theme.danger);
-  }
+  // Everyone's points, with a mark for how they answered the prompt on screen and their lives under.
+  drawStandings(sc, {
+    badge: (p) => (p.right === true ? 'ok' : p.right === false ? 'no' : null),
+    under: (p, cx, y) => drawLives(ctx, cx, y, p.lives, ENDLESS_LIVES, S * 0.01, theme.danger),
+  });
 
-  // The prompt: what to match, then the name of one colour written in the ink of another.
-  if (snapshot.stage === 'prompt' && snapshot.prompt.n > 0) {
+  // What to match (Color, Word or Shape), then the name of one colour written in the ink of another.
+  if (prompting) {
     const { prompt } = snapshot;
-    // What to match, in one large white word: Color, Word or Shape.
-    ctx.font = `800 ${Math.round(S * 0.07)}px ${FONT.display}`;
-    ctx.textBaseline = 'middle';
-    ctx.fillStyle = theme.text;
-    ctx.fillText(sc.t(MODE_KEYS[prompt.mode]), S / 2, MODE_Y * S);
+    drawPrompt(sc, sc.t(MODE_KEYS[prompt.mode]));
     ctx.font = `800 ${Math.round(S * 0.11)}px ${FONT.display}`;
-    ctx.fillStyle = `oklch(0.8 0.18 ${HUES[prompt.ink]})`;
-    ctx.fillText(sc.t(NAME_KEYS[prompt.word]), S / 2, PROMPT_Y * S);
-    // How long this prompt has left.
-    const left = snapshot.promptTotalMs > 0 ? Math.max(0, snapshot.promptLeftMs / snapshot.promptTotalMs) : 0;
-    ctx.fillStyle = 'oklch(1 0 0 / 0.12)';
-    ctx.fillRect(BOARD_X * S, (PROMPT_Y + 0.085) * S, (PANEL_W * 2 + GAP) * S, S * 0.008);
-    ctx.fillStyle = theme.acc;
-    ctx.fillRect(BOARD_X * S, (PROMPT_Y + 0.085) * S, (PANEL_W * 2 + GAP) * S * left, S * 0.008);
-  } else {
-    ctx.font = `800 ${Math.round(S * 0.04)}px ${FONT.display}`;
     ctx.textBaseline = 'middle';
-    ctx.fillStyle = theme.text;
-    ctx.fillText(sc.t('spin.lobby.colormatch.ready'), S / 2, PROMPT_Y * S);
+    ctx.fillStyle = `oklch(0.8 0.18 ${HUES[prompt.ink]})`;
+    ctx.fillText(sc.t(NAME_KEYS[prompt.word]), S / 2, WORD_Y * S);
+  } else {
+    drawPrompt(sc, sc.t('spin.lobby.colormatch.ready'));
   }
 
   for (let i = 0; i < COLOR_MATCH_PANELS; i++) {
@@ -116,8 +90,8 @@ const scene: SceneGame<ColorMatchSnapshot> = {
   scroll: 'y',
   taps: COLOR_MATCH_TAPS,
   drawWorld,
-  // Nobody is knocked out here, so a burst would only start on the row of points.
-  anchor: (snapshot, index) => ({ x: 0.5 + (index - (snapshot.players.length - 1) / 2) * 0.09, y: CHIPS_Y }),
+  // Nobody is knocked out here, so a burst would only start on the standings strip.
+  anchor: (snapshot, index) => ({ x: stripX(snapshot.players.length, index), y: STRIP_Y }),
 };
 
 export const colorMatchView: LobbyGameView<ColorMatchSnapshot> = {

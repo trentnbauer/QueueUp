@@ -1,12 +1,10 @@
 import { ANAGRAM_BACKSPACE, ANAGRAM_MAX_LETTERS, ANAGRAM_TARGETS, type AnagramSnapshot } from '@queueup/shared';
 import type { LobbyGameView } from './index';
-import { FONT, STAGE, renderScene, roundRect, type Scene, type SceneGame } from './kit';
+import { FONT, STAGE, STRIP_Y, drawStandings, drawTimer, renderScene, roundRect, stripX, type Scene, type SceneGame } from './kit';
 import type { TapRect, TapTargets } from './taps';
 
-// Where things are on the arena, as fractions of its side: everyone's points in a row, the answer you are spelling,
+// Where things are on the arena, as fractions of its side: the answer you are spelling,
 // and the scrambled tiles (with a take-back key) along the bottom.
-const CHIPS_Y = 0.11;
-const CHIP_R = 0.022;
 const SLOTS_Y = 0.36;
 const SLOT = 0.11;
 const SLOT_GAP = 0.014;
@@ -28,39 +26,17 @@ export const ANAGRAM_TAPS: TapTargets = {
 function drawWorld(sc: Scene<AnagramSnapshot>): void {
   const { ctx, S, snapshot, theme } = sc;
 
-  // Time left in the round, as a bar draining along the top edge.
-  if (snapshot.phase === 'playing' && snapshot.limitMs > 0) {
-    ctx.fillStyle = theme.acc;
-    ctx.fillRect(0, 0, S * Math.max(0, snapshot.roundLeftMs / snapshot.limitMs), S * 0.008);
-  }
+  // Time left: this word while one is up, otherwise the round.
+  if (snapshot.stage === 'play' && snapshot.wordTotalMs > 0) drawTimer(sc, snapshot.wordLeftMs / snapshot.wordTotalMs);
+  else if (snapshot.phase === 'playing' && snapshot.limitMs > 0) drawTimer(sc, snapshot.roundLeftMs / snapshot.limitMs);
 
-  // Everyone's points in one row, with how many letters they have picked right now (never which).
-  const n = snapshot.players.length;
-  const step = Math.min(0.09, 0.84 / Math.max(1, n));
-  ctx.font = `700 ${Math.round(S * 0.026)}px ${FONT.mono}`;
-  ctx.textAlign = 'center';
-  ctx.textBaseline = 'alphabetic';
-  for (const i of sc.order()) {
-    const p = snapshot.players[i];
-    if (!p.alive) continue; // watching until the next round
-    const cx = (0.5 + (i - (n - 1) / 2) * step) * S;
-    sc.drawPlayer(p.id, cx, CHIPS_Y * S, CHIP_R * S, CHIP_R * S);
-    ctx.fillStyle = theme.text;
-    ctx.fillText(String(p.meters), cx, (CHIPS_Y + CHIP_R + 0.03) * S);
-  }
+  // Everyone's points.
+  drawStandings(sc);
 
   const letters = snapshot.letters;
   const picked = snapshot.mine?.picked ?? [];
+  ctx.textAlign = 'center';
   ctx.textBaseline = 'middle';
-
-  // The time this word has left.
-  if (snapshot.stage === 'play' && snapshot.wordTotalMs > 0) {
-    const w = (ANAGRAM_TARGETS * TILE_W + (ANAGRAM_TARGETS - 1) * TILE_GAP) * S;
-    ctx.fillStyle = 'oklch(1 0 0 / 0.12)';
-    ctx.fillRect(TILES_X * S, (SLOTS_Y - 0.09) * S, w, S * 0.008);
-    ctx.fillStyle = theme.acc;
-    ctx.fillRect(TILES_X * S, (SLOTS_Y - 0.09) * S, w * Math.max(0, snapshot.wordLeftMs / snapshot.wordTotalMs), S * 0.008);
-  }
 
   // The answer so far: a slot for each letter, filled in the order you picked the tiles.
   const slotsW = letters.length * SLOT + (letters.length - 1) * SLOT_GAP;
@@ -118,8 +94,8 @@ const scene: SceneGame<AnagramSnapshot> = {
   scroll: 'y',
   taps: ANAGRAM_TAPS,
   drawWorld,
-  // Nobody is knocked out here, so a burst would only start on the row of points.
-  anchor: (snapshot, index) => ({ x: 0.5 + (index - (snapshot.players.length - 1) / 2) * 0.09, y: CHIPS_Y }),
+  // Nobody is knocked out here, so a burst would only start on the standings strip.
+  anchor: (snapshot, index) => ({ x: stripX(snapshot.players.length, index), y: STRIP_Y }),
 };
 
 export const anagramView: LobbyGameView<AnagramSnapshot> = {

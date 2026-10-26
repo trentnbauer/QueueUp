@@ -41,6 +41,26 @@ function stopInZone(g: StopGame, id: string) {
 }
 
 describe('StopGame', () => {
+  it('scores 2 for a stop in the excellent middle and 1 for the rest of the zone', () => {
+    const g = started(['a', 'b']);
+    toSweep(g);
+    const s0 = g.snapshot();
+    expect(s0.excellent).toBeLessThan(s0.half);
+    stopInZone(g, 'a');
+    for (let i = 0; i < 400 && g.snapshot().stage === 'sweep'; i++) {
+      const s = g.snapshot();
+      const d = Math.abs(s.marker - s.centre);
+      if (d > s.excellent + 0.01 && d < s.half - 0.01) {
+        g.action('b', 'stop');
+        break;
+      }
+      g.tick(STEP);
+    }
+    while (g.snapshot().stage === 'sweep') g.tick(STEP);
+    expect(me(g, 'a').meters).toBe(2);
+    expect(me(g, 'b').meters).toBe(1);
+  });
+
   it('starts a sweep after a moment, with a zone clear of the ends of the bar', () => {
     const g = started(['a']);
     const s = toSweep(g);
@@ -60,7 +80,7 @@ describe('StopGame', () => {
     stopInZone(g, 'b');
     run(g, 100);
     expect(g.snapshot().stage).toBe('result');
-    expect(me(g, 'a').meters).toBe(1);
+    expect(me(g, 'a').meters).toBe(2);
     expect(toSweep(g, 2).round).toBe(2);
   });
 
@@ -105,7 +125,7 @@ describe('StopGame', () => {
     toSweep(g, 2);
     run(g, 5500);
     expect(g.snapshot()).toMatchObject({ phase: 'over', winnerId: null });
-    expect(g.snapshot().history.at(-1)?.meters).toBe(1);
+    expect(g.snapshot().history.at(-1)?.meters).toBe(2);
   });
 
   it('ignores a press outside a sweep, twice, or from someone only watching', () => {
