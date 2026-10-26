@@ -275,7 +275,7 @@ function celebrate(sc: Scene<FishingSnapshot>): void {
     const was = before.get(p.id);
     if (was?.fighting && p.mode !== 'fight' && p.alive && p.hp > was.hp + 0.5) sc.fx.confettiAt(p.x, was.ly, sc.info(p.id).color, 16 + 10 * Math.max(0, was.tier));
     // A line lost (a snap, a boot, a wait too long): a red puff where the lure was.
-    if (was && p.lives < was.lives) sc.fx.confettiAt(p.x, was.ly, sc.theme.danger, 10);
+    if (was && p.lives < was.lives) sc.fx.confettiAt(p.x, was.ly, sc.theme.danger, 10, 'out');
   }
 }
 

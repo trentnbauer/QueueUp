@@ -330,6 +330,8 @@ export const settings = {
   "settings.me.layout.hintDesktop": "Saved for the desktop layout. The phone layout keeps its own choice.",
   "settings.me.layout.list": "List",
   "settings.me.layout.covers": "Covers",
+  "settings.me.sound": "Sound effects",
+  "settings.me.sound.hint": "Clicks, chimes and mini game sounds. Remembered on this device.",
   "settings.me.density": "Covers per row",
   "settings.me.density.two": "2 per row",
   "settings.me.density.three": "3 per row",

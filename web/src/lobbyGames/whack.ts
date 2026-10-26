@@ -70,7 +70,7 @@ function celebrate(sc: Scene<WhackSnapshot>): void {
     const x = GRID_X + (i % WHACK_COLS) * CELL + CELL / 2;
     const y = GRID_Y + Math.floor(i / WHACK_COLS) * CELL + CELL * 0.45;
     const who = snapshot.players[h.by[h.by.length - 1]];
-    if (h.kind === 'bomb') sc.fx.confettiAt(x, y, sc.theme.danger, 16);
+    if (h.kind === 'bomb') sc.fx.confettiAt(x, y, sc.theme.danger, 16, 'out');
     else sc.fx.confettiAt(x, y, who ? sc.info(who.id).color : 55, 20);
   });
 }

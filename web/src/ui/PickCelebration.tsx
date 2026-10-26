@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import type { Game } from '@queueup/shared';
+import { playSound } from '../lib/sound';
 import { coverBg } from './primitives';
 import { st } from './st';
 import { t, useT } from '../i18n';
@@ -18,6 +19,7 @@ interface Picked {
  * whoever pressed it and everyone else watching that room's spin. */
 export function celebratePick(game: Game): void {
   const meta = [game.genre?.split(',')[0], game.timeToBeatHours ? t('spin.result.hours', { n: game.timeToBeatHours }) : ''].filter(Boolean).join(' · ');
+  playSound('pick');
   window.dispatchEvent(new CustomEvent<Picked>(EVENT, { detail: { title: game.title, coverImageUrl: game.coverImageUrl, meta } }));
 }
 

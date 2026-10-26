@@ -1,4 +1,5 @@
 import { createContext, useCallback, useContext, useMemo, useRef, useState, type ReactNode } from 'react';
+import { playSound } from '../lib/sound';
 
 /** Every overlay the app can show, keyed so any component can open/close any of them without
  * prop-drilling - the design's sheets/dialogs all hang off one shared set of open flags. */
@@ -97,6 +98,7 @@ export function UiProvider({ children }: { children: ReactNode }) {
     clearTimeout(toastTimer.current);
     toastKey.current += 1;
     setToast({ message, action, key: toastKey.current, error: isError });
+    playSound(isError ? 'error' : 'success');
     toastTimer.current = setTimeout(() => setToast(null), durationMs ?? (action ? 5200 : 2400));
   }, []);
 

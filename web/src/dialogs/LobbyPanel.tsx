@@ -16,6 +16,7 @@ import { WinChart } from './lobby/WinChart';
 import { HighScoresStrip } from './lobby/HighScoresStrip';
 import { RatingBar } from './lobby/RatingBar';
 import { useIsMobile } from '../ui/useLayout';
+import { playSound } from '../lib/sound';
 import { Dialog } from '../ui/Dialog';
 import { st } from '../ui/st';
 import { t as tNow, useT } from '../i18n';
@@ -79,7 +80,16 @@ export function LobbyPanel({
   // practice one, so the scores it saves are the server's own and can be trusted.
   const livePath = roomId ? `/api/rooms/${encodeURIComponent(roomId)}/lobby` : lobbyId ? `/api/minigames/lobbies/${encodeURIComponent(lobbyId)}/lobby${guestToken ? `?guest=${encodeURIComponent(guestToken)}` : ''}` : undefined;
   const live = useSpinLobby(livePath, true, me, onStarted, !!soloGame);
-  const { snapshot, status, sendInput, sendAction, sendTap, vote, setTimeLimit } = live;
+  const { snapshot, status, sendInput, sendTap: sendTapRaw, vote, setTimeLimit } = live;
+  // Every button or tap target the player presses makes a small sound, in every game.
+  const sendAction = (name: string) => {
+    playSound('action');
+    live.sendAction(name);
+  };
+  const sendTap = (target: number, ms?: number) => {
+    playSound('action');
+    sendTapRaw(target, ms);
+  };
   const canvasRef = useRef<HTMLCanvasElement>(null);
   // Effects (knock-out bursts, confetti, shake) and their memory between frames, for as long as the panel is open.
   const fxRef = useRef<LobbyFx | null>(null);

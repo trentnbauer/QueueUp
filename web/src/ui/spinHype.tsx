@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
+import { playSound } from '../lib/sound';
 import { prefersReducedMotion } from './PickCelebration';
 import { st } from './st';
 
@@ -40,6 +41,7 @@ export function useSpinHype(settled: boolean, on: boolean): { kick: number; burs
   useEffect(() => {
     const justSettled = settled && !was.current;
     was.current = settled;
+    if (justSettled) playSound('spinResult');
     if (!justSettled || !on || prefersReducedMotion()) return;
     const now = Date.now();
     const repeat = now - lastBurstAt < REPEAT_WINDOW_MS;

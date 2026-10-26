@@ -37,6 +37,7 @@ import { Dialog, CloseButton } from '../ui/Dialog';
 import { coverBg } from '../ui/primitives';
 import { useIsMobile } from '../ui/useLayout';
 import { st } from '../ui/st';
+import { playSound } from '../lib/sound';
 import { celebratePick, prefersReducedMotion } from '../ui/PickCelebration';
 import { ConfettiBurst, KICK_ANIMATION, setSpinEffects, spinEffectsOn, useSpinHype } from '../ui/spinHype';
 import { MODE_EXPLAINER, ModeStage } from './spinModes';
@@ -314,6 +315,12 @@ export function SpinDialog({ onClose }: { onClose: () => void }) {
   // The extra effects when the result lands (a jolt and confetti); off for this person if they turned them off.
   const [effects, setEffects] = useState(spinEffectsOn);
   const hype = useSpinHype(settled, effects);
+  const stripOfRun = run?.strip;
+  useEffect(() => {
+    if (stripOfRun && !settled) playSound('spinStart');
+    // Once per spin (its strip), not when a nudge changes the reel's speed or when it settles.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [stripOfRun]);
   // How close the reel is to its stop, 0 to 1 over the last 1.5 seconds (0 with the effects off or reduced motion), for the build-up on the marker.
   const buildUp = effects && !isMode && run && !settled && !prefersReducedMotion() ? Math.min(1, Math.max(0, 1 - (run.settlesAtMs - now) / BUILD_UP_MS)) : 0;
   const poolById = useMemo(() => new Map((session ? session.strip : games).map((g) => [g.id, g])), [session, games]);

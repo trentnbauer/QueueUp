@@ -98,6 +98,8 @@ Only one prompt shows at a time. Pass a different `y` only when the world needs 
 
 **Everything on the course moves at the course's speed.** Obstacles use `o.x - sc.drift`. Repeating patterns use `courseOffset(sc, period)`, and never scale an offset you already have. Only the kit's dot grid moves slower, for parallax. A game where nothing scrolls sends `speed: 0`.
 
+**Sounds are the kit's too.** The countdown ticks, the go cue, knock-outs, the win jingle, button and tap presses and `fx.confettiAt` (a collect chime, or the `sound` you pass) all play by themselves, through `playSound` (`web/src/lib/sound.ts`; the player's Sound effects setting mutes them). Do not load audio in a game. A new sound is a CC0 `.ogg` in `web/public/sounds/` plus a name in `SOUNDS`, with its licence kept beside it.
+
 **Effects are the kit's.** Do not write particles. The knock-out burst, shake, red flash and confetti come from the snapshot. Anything else you animate (a bobbing mole, a flicker) must be gentle, or stop under `prefersReducedMotion()`.
 
 **Colours come from `sc.theme`.** That means `acc`, `accSoft`, `accText`, `mint`, `star`, `danger`, `errBg`, `errLine`, `errText` and `text`, which follow the room's tint and Monochrome. **Never write the default accent (`oklch(0.74 0.15 45 …)`) as a literal.** It is the one colour that must change per room. World art (a mole, a pond, a beam) may use its own fixed `oklch()` colours. Avoid hex, except for an avatar's own colour.
