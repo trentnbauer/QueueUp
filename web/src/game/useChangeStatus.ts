@@ -1,6 +1,7 @@
 import type { Game, GameStatus } from '@queueup/shared';
 import { useScope } from '../context/ScopeContext';
 import { useUi } from '../context/UiContext';
+import { playSound } from '../lib/sound';
 import { STATUS_LABEL } from '../lib/gameView';
 import { t } from '../i18n';
 
@@ -26,6 +27,7 @@ export function useChangeStatus() {
     if (status === 'playing') say(t('game.status.playing', { title: game.title }));
     else if (status === 'done') {
       say(t('game.status.beaten', { title: game.title }));
+      playSound('beaten');
       ui.openDialog('review', { gameId: game.id });
     } else if (status === 'paused') {
       say(t('game.status.paused', { title: game.title }));

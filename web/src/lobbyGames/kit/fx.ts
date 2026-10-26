@@ -1,4 +1,5 @@
 import type { LobbyGameSnapshot } from '@queueup/shared';
+import { playSound, type SoundName } from '../../lib/sound';
 import { prefersReducedMotion } from '../../ui/PickCelebration';
 import { FONT, STAGE, type StageTheme } from './theme';
 
@@ -60,6 +61,7 @@ export class LobbyFx {
   private pending: { at: { x: number; y: number }; color: string; mine: boolean; wait: number; frame: FxFrame }[] = [];
   private lastNow = 0;
   private confettiRun = -1;
+  private lastCount = 0;
   private readonly firstSeen = new WeakMap<object, number>();
 
   /** Seconds since this snapshot arrived (at most a snapshot interval's worth), so things can keep
@@ -82,11 +84,17 @@ export class LobbyFx {
           if (before >= 0 && prev.players[before].alive && !p.alive) this.knockedOut(frame.anchor(prev, before), frame.colorOf(p.id), p.id === frame.me, frame);
         });
       }
+      if (snapshot.phase === 'playing' && prev.phase === 'countdown') playSound('go');
       if (snapshot.phase === 'over' && prev.phase !== 'over' && snapshot.winnerId && snapshot.run !== this.confettiRun) {
         this.confettiRun = snapshot.run;
+        playSound('win');
         if (!this.reduced) this.confetti(frame.colorOf(snapshot.winnerId));
       }
     }
+    // One tick for each number the countdown shows.
+    const count = snapshot.phase === 'countdown' ? Math.ceil(snapshot.timerMs / 1000) : 0;
+    if (count && count !== this.lastCount) playSound('countdown');
+    this.lastCount = count;
     if (!prev) {
       this.particles = [];
       this.pending = [];
@@ -125,6 +133,7 @@ export class LobbyFx {
 
   private explode(at: { x: number; y: number }, color: string, mine: boolean, frame: FxFrame): void {
     const { x, y } = at;
+    playSound(mine ? 'outMe' : 'out');
     const colors = [color, color, '#ffffff', 'oklch(0.83 0.15 85)', 'oklch(0.74 0.15 45)'];
     for (let i = 0; i < 34; i++) {
       const a = Math.random() * Math.PI * 2;
@@ -150,12 +159,15 @@ export class LobbyFx {
   celebrate(run: number, color: string): void {
     if (this.reduced || this.confettiRun === run) return;
     this.confettiRun = run;
+    playSound('win');
     this.confetti(color, 110);
   }
 
   /** A small burst of confetti at a spot on the arena (fractions of its size), in colours near `hue` (a number, 0 to 359) or in a colour (a string, such
-   * as a player's): for a game cover that has just been broken, a fish landed, a square opened. Skipped for people who ask for reduced motion. */
-  confettiAt(x: number, y: number, color: number | string, count = 26): void {
+   * as a player's): for a game cover that has just been broken, a fish landed, a square opened. It also plays `sound` (the collect chime unless the game says
+   * otherwise, e.g. `'out'` for a bomb). The burst is skipped for people who ask for reduced motion. */
+  confettiAt(x: number, y: number, color: number | string, count = 26, sound: SoundName = 'collect'): void {
+    playSound(sound);
     if (this.reduced) return;
     const colors =
       typeof color === 'number'

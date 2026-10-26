@@ -1,4 +1,6 @@
+import { useEffect } from 'react';
 import type { BadgeDefinition } from '@queueup/shared';
+import { playSound } from '../lib/sound';
 import { Fireworks, prefersReducedMotion } from './PickCelebration';
 import { st } from './st';
 import { useT } from '../i18n';
@@ -9,6 +11,7 @@ export const CELEBRATION_MS = 4200;
  * achievement's emoji. Click to dismiss. */
 export function AchievementCelebration({ badge, onDismiss }: { badge: BadgeDefinition; onDismiss: () => void }) {
   const t = useT();
+  useEffect(() => playSound('achievement'), []);
   return (
     <div
       onClick={onDismiss}

@@ -14,6 +14,7 @@ import { useViewMode } from '../context/ViewModeContext';
 import { Dialog } from '../ui/Dialog';
 import { useIsMobile } from '../ui/useLayout';
 import { AutoHideAdultRow } from './AutoHideAdultRow';
+import { playSound, setSoundOn, soundOn } from '../lib/sound';
 import { Banner, Btn, Group, Kicker, Segmented, Toggle, inputField } from '../ui/primitives';
 import { SystemsPicker } from '../ui/SystemsPicker';
 import { useAnalyticsConsent } from '../hooks/useAnalyticsConsent';
@@ -534,6 +535,7 @@ export function AppearanceSettings() {
   const { viewMode, setViewMode } = useViewMode();
   const mobileLayout = useIsMobile();
   const { density, setDensity } = useCardDensity();
+  const [sound, setSound] = useState(soundOn);
   return (
       <Group>
             <div style={st('display:flex;align-items:center;gap:12px;min-height:58px;padding:0 14px 0 16px;background:var(--surf)')}>
@@ -583,6 +585,17 @@ export function AppearanceSettings() {
                   { value: 'list', label: t('settings.me.layout.list') },
                   { value: 'artwork', label: t('settings.me.layout.covers') },
                 ]}
+              />
+            </ControlRow>
+            <ControlRow label={t('settings.me.sound')} hint={t('settings.me.sound.hint')}>
+              <Toggle
+                on={sound}
+                onChange={(v) => {
+                  setSound(v);
+                  setSoundOn(v);
+                  if (v) playSound('toggle');
+                }}
+                label={t('settings.me.sound')}
               />
             </ControlRow>
             {viewMode === 'artwork' && (
