@@ -14,6 +14,7 @@ export const SOUNDS = {
   achievement: 'achievement',
   beaten: 'beaten',
   countdown: 'countdown',
+  metronome: 'metronome',
   go: 'go',
   out: 'out',
   outMe: 'out-me',

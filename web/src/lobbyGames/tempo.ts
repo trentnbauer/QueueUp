@@ -1,4 +1,5 @@
 import { ENDLESS_LIVES, type TempoJudge, type TempoSnapshot } from '@queueup/shared';
+import { playSound } from '../lib/sound';
 import type { LobbyGameView } from './index';
 import { FONT, STRIP_Y, drawLives, drawPrompt, drawStandings, renderScene, stripX, type Scene, type SceneGame } from './kit';
 import type { TapTargets } from './taps';
@@ -10,6 +11,11 @@ const RING = 0.15;
 const DOTS_Y = 0.72;
 const GAUGE_Y = 0.86;
 const GAUGE_W = 0.7;
+/** The last guide tick that was sounded (its number, and in which run: the numbers start again each run), so each is heard once however often it is drawn. */
+let sounded = { run: -1, n: 0 };
+/** A tick that fell longer ago than this is not sounded (joining mid-round, or a tab that was in the background). */
+const LATE_MS = 150;
+
 /** How long a judgement shows. */
 const LASTING_MS = 700;
 
@@ -37,8 +43,14 @@ function drawWorld(sc: Scene<TempoSnapshot>): void {
   ctx.beginPath();
   ctx.arc(CX * S, CY * S, RING * S, 0, Math.PI * 2);
   ctx.stroke();
+  if (sounded.run !== snapshot.run) sounded = { run: snapshot.run, n: 0 };
   for (const tick of snapshot.ticks) {
     const since = -(tick.inMs - age * 1000);
+    // The metronome: the guide ticks are heard as well as seen. The silent beats have none, which is the point of the game.
+    if (playing && snapshot.stage === 'guide' && since >= 0 && tick.n > sounded.n) {
+      sounded.n = tick.n;
+      if (since <= LATE_MS) playSound('metronome');
+    }
     if (since < 0 || since > 450) continue;
     const k = since / 450;
     ctx.save();
