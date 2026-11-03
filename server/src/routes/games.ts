@@ -64,14 +64,14 @@ import {
 } from '../services/steamLibrary.js';
 import { recordPendingLibraryImport, resolveTitleToIgdbId } from '../services/playniteImport.js';
 import type { OwnedSteamGame } from '../services/steamLibrary.js';
-import { toggleOwnershipForPlatform, setOwnershipPlatforms, markOwned, promoteOwnedWishlistGames } from '../services/gameOwnership.js';
+import { toggleOwnershipForPlatform, setOwnershipPlatforms, markOwned, promoteOwnedWishlistGames, purchasedAtOnArrival } from '../services/gameOwnership.js';
 import { recordStatusTransition } from '../services/playLog.js';
 import { recommendationsFor } from '../services/recommendations.js';
 import { hideRecommendation } from '../services/hiddenRecommendations.js';
 import { notifyFriendRecommendation } from '../services/friendRecommendations.js';
 import { getPriceHistory, usualPrice } from '../services/priceHistory.js';
 import { getRemovalInfo } from '../services/removalVote.js';
-import { recordSyncSources } from '../services/syncSources.js';
+import { hasSyncedBefore, recordSyncSources } from '../services/syncSources.js';
 import { getCurrentPlaytimeMinutesForGames } from '../services/playtimeTracking.js';
 import { summarizeTimeToBeat, summarizeActiveHoursToBeat, pickMostNeglectedGame, backlogAgeRanges } from '../services/backlogInsights.js';
 import { unlockActivityBadges, unlockBadges, unlockFeatureBadges } from '../services/badges.js';
@@ -310,6 +310,8 @@ async function runSteamLibraryImportLoop(
   let skipped = 0;
   let needsMatching = 0;
   const createdIgdbIds: number[] = [];
+  // New in the Backlog ("Recently bought") unless this is their first Steam import (their whole library at once), same as libraryImportShelf.
+  const stampNew = await hasSyncedBefore(userId, 'steam');
   try {
     for (const game of considered) {
       try {
@@ -335,6 +337,7 @@ async function runSteamLibraryImportLoop(
           continue;
         }
         const resolved = await resolveGameForCreation(igdbId, undefined, STEAM_IMPORT_PLATFORM_LABEL);
+        const status = defaultOwnedStatusForRelease(resolved.releaseDate);
         const created = await prisma.game.create({
           data: {
             roomId: null,
@@ -358,7 +361,8 @@ async function runSteamLibraryImportLoop(
             sensitiveContent: resolved.sensitiveContent,
             // Issue #370: a pre-purchased/pre-loaded but not-yet-released Steam game defaults into
             // the wishlist instead of the backlog, same as the manual add path.
-            status: defaultOwnedStatusForRelease(resolved.releaseDate),
+            status,
+            purchasedAt: stampNew ? purchasedAtOnArrival(status, null) : null,
           },
         });
         // Issue #338: a Steam library commonly includes DLC entries alongside their base game -
